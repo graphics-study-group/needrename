@@ -1,4 +1,4 @@
-#include "Framework/component/mesh/MeshComponent.h"
+#include "MeshComponent.h"
 
 namespace Engine
 {
@@ -10,4 +10,10 @@ namespace Engine
     void MeshComponent::tick(float dt)
     {
     }
+
+    void MeshComponent::draw()
+    {
+    }
 }
+
+

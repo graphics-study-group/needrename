@@ -1,10 +1,13 @@
 #ifndef RENDERSYSTEM_H
 #define RENDERSYSTEM_H
 
-#include "Framework/component/mesh/MeshComponent.h"
+#include <vector>
+#include <memory>
 
 namespace Engine
 {
+    class Material;
+
     class RenderSystem
     {
     public:
@@ -12,9 +15,12 @@ namespace Engine
         // ~RenderSystem();
 
         void render();
+        void RegisterMaterial(std::shared_ptr <Material>);
         
     private:
         // TODO: data: mesh, texture, light
+        std::vector <std::shared_ptr<Material>> m_materials;
     };
 }
+
 #endif // RENDERSYSTEM_H
