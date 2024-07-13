@@ -1,8 +1,5 @@
 message("COMPILE engine library")
-file(GLOB_RECURSE SRC 
-    "./*"
-    "${THIRD_PARTY_DIR}/glad/src/*.c*"
-)
+file(GLOB_RECURSE SRC "./*")
 foreach(SRC IN ITEMS ${SRC}) 
     get_filename_component(SRC_PATH "${SRC}" PATH)
     file(RELATIVE_PATH SRC_PATH_REL "${CMAKE_CURRENT_SOURCE_DIR}" "${SRC_PATH}")
@@ -14,7 +11,7 @@ add_library(engine STATIC ${SRC})
 target_include_directories(
     engine
     PUBLIC
-    ${THIRD_PARTY_DIR}/glad/include
+    ${GLAD_INCLUDE_DIRECTORY}
     ${ENGINE_DIR}
 )
-target_link_libraries(engine PUBLIC SDL3::SDL3)
+target_link_libraries(engine PUBLIC SDL3::SDL3 GLAD)
