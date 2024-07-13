@@ -2,21 +2,23 @@
 #define MESHCOMPONENT_H
 
 #include <memory>
-#include "Framework/component/Component.h"
+#include "Render/Material.h"
+#include "Framework/component/RenderComponent/RendererComponent.h"
 
 namespace Engine
 {
     class Component;
     class GameObject;
 
-    class MeshComponent : public Component
+    class MeshComponent : public RendererComponent
     {
     public:
-        MeshComponent(std::weak_ptr<GameObject> gameObject) : Component(gameObject) {}
+        MeshComponent(std::shared_ptr<Material> mat, std::weak_ptr<GameObject> gameObject) : RendererComponent(mat, gameObject) {}
         virtual ~MeshComponent();
 
         // TODO: tick for animation
         virtual void tick(float dt) override;
+        virtual void draw() override;
 
         // TODO: set resources: mesh model, texture, shader 
     };

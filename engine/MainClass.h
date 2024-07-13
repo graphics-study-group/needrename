@@ -20,7 +20,7 @@ namespace Engine
         void Initialize(const StartupOptions*);
         void MainLoop();
 
-    private:
+    // private:
         Uint32 sdl_flags;
         std::shared_ptr<SDLWindow> window;
         std::shared_ptr<RenderSystem> renderer;
