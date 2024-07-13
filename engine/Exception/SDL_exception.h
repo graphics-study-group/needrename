@@ -31,6 +31,10 @@ class cant_render_text : public SDLException
 {
 };
 
+class cant_load_glad : public SDLException
+{
+};
+
 }
 
 #endif // SDL_EXCEPTION_H_INCLUDED

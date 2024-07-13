@@ -44,6 +44,7 @@ class embeddedPythonException: public std::exception
 {
 
 public:
+	// TODO: python exception
 	// embeddedPythonException(bool showMessageBox = true)
 	// {
 
