@@ -46,8 +46,11 @@ int main(int argc, char * argv[])
     cmc->Initialize(opt);
 
     std::shared_ptr <GameObject> go = std::make_shared<GameObject>();
-    std::shared_ptr <Material> mat = std::make_shared<SinglePassMaterial>(cmc->renderer, vert, frag);
+    std::shared_ptr <ShaderPass> pass = std::make_shared <ShaderPass> ();
+    pass->Compile(vert, frag);
+    std::shared_ptr <Material> mat = std::make_shared<SinglePassMaterial>(cmc->renderer, pass);
     std::shared_ptr <TestTriangleRendererComponent> testTriangle = std::make_shared<TestTriangleRendererComponent>(mat, go);
+    
     cmc->renderer->RegisterComponent(testTriangle);
 
     cmc->MainLoop();
