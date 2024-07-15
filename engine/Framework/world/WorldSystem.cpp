@@ -12,8 +12,8 @@ namespace Engine
     {
     }
 
-    void WorldSystem::tick(float dt)
+    void WorldSystem::Tick(float dt)
     {
-        current_level->tick(dt);
+        current_level->Tick(dt);
     }
 }

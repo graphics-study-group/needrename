@@ -7,7 +7,7 @@ namespace Engine
         m_material = material;
         // material->RegisterComponent(this);
     }
-    void RendererComponent::tick(float dt)
+    void RendererComponent::Tick(float dt)
     {
     }
 } // namespace Engine

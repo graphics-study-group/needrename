@@ -14,11 +14,11 @@ namespace Engine
         //dtor
     }
 
-    void GameObject::tick(float dt)
+    void GameObject::Tick(float dt)
     {
         for (auto component : m_components)
         {
-            component->tick(dt);
+            component->Tick(dt);
         }
     }
 

@@ -14,7 +14,7 @@ namespace Engine
         // RenderSystem();
         // ~RenderSystem();
 
-        void render();
+        void Render();
         void RegisterComponent(std::shared_ptr <RendererComponent>);
         
     private:
