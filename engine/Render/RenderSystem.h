@@ -6,7 +6,7 @@
 
 namespace Engine
 {
-    class Material;
+    class RendererComponent;
 
     class RenderSystem
     {
@@ -15,11 +15,11 @@ namespace Engine
         // ~RenderSystem();
 
         void render();
-        void RegisterMaterial(std::shared_ptr <Material>);
+        void RegisterComponent(std::shared_ptr <RendererComponent>);
         
     private:
         // TODO: data: mesh, texture, light
-        std::vector <std::shared_ptr<Material>> m_materials;
+        std::vector <std::shared_ptr<RendererComponent>> m_components;
     };
 }
 

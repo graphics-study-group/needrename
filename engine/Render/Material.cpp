@@ -40,20 +40,9 @@ namespace Engine {
         if(m_shaderProgram)
             glDeleteProgram(m_shaderProgram);
     }
-
-    void Material::DrawAllComponents(/* RenderingContext */) {
-        if (!m_shaderProgram) {
-            throw std::runtime_error("Material was not created successfully.");
-        }
-
+    
+    void Material::PrepareDraw()
+    {
         glUseProgram(m_shaderProgram);
-        for (RendererComponent * comp : m_components) {
-            comp->draw(/* RenderingContext */);
-        }
-    }
-
-    void Material::RegisterComponent (std::shared_ptr <RendererComponent> component) {
-        // Quick and dirty
-        m_components.push_back(component.get());
     }
 };

@@ -14,10 +14,10 @@ namespace Engine
         virtual ~RendererComponent() = default;
 
         virtual void tick(float dt);
-        virtual void draw() = 0;
+        virtual void draw(/*Context*/) = 0;
 
     protected:
-        std::weak_ptr <Material> m_material;
+        std::shared_ptr <Material> m_material;
         std::weak_ptr <GameObject> m_parentGameObject;
     };
 }
