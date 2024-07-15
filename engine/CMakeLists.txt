@@ -14,4 +14,4 @@ target_include_directories(
     ${GLAD_INCLUDE_DIRECTORY}
     ${ENGINE_DIR}
 )
-target_link_libraries(engine PUBLIC SDL3::SDL3 GLAD)
+target_link_libraries(engine PUBLIC SDL3::SDL3 GLAD tinyobjloader)
