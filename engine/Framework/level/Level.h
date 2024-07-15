@@ -14,7 +14,7 @@ namespace Engine
         Level();
         ~Level();
 
-        void tick(float dt);
+        void Tick(float dt);
         // void RenderEditor();
         void AddGameObject(std::shared_ptr<GameObject> gameObject);
 

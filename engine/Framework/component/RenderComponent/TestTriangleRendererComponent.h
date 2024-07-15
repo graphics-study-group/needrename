@@ -43,8 +43,8 @@ namespace Engine
                 glDeleteBuffers(1, &m_VBO);
         };
 
-        virtual void tick(float dt) {};
-        virtual void draw(/*Context*/) override {
+        virtual void Tick(float dt) {};
+        virtual void Draw(/*Context*/) override {
 
             m_material->PrepareDraw(/*Context, Transform, etc.*/);
 

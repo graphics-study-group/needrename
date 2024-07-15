@@ -40,10 +40,10 @@ namespace Engine
             float current_time = SDL_GetTicks();
             float dt = (current_time - FPS_TIMER) / 1000.0f;
             
-            this->window->anteEventLoop(); // ???
-            this->world->tick(dt);
-            this->renderer->render();
-            this->window->postEventLoop();
+            this->window->BeforeEventLoop(); // ???
+            this->world->Tick(dt);
+            this->renderer->Render();
+            this->window->AfterEventLoop();
 
             // TODO: write a control system instead of using this window event
             try
@@ -66,7 +66,7 @@ namespace Engine
             {
                 fprintf(stderr, "%s", except.what());
                 // Do a forced redraw to print error messages
-                this->window->onDrawOverall(true);
+                this->window->OnDrawOverall(true);
                 throw;
             }
 

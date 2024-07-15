@@ -13,7 +13,7 @@ namespace Engine
         Component(std::weak_ptr<GameObject> gameObject) : m_parentGameObject(gameObject) {}
         virtual ~Component() = default;
 
-        virtual void tick(float dt) = 0;
+        virtual void Tick(float dt) = 0;
 
     protected:
         std::weak_ptr<GameObject> m_parentGameObject;

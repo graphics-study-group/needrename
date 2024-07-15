@@ -4,10 +4,10 @@
 
 namespace Engine
 {
-    void RenderSystem::render()
+    void RenderSystem::Render()
     {
         for (auto comp : m_components) {
-            comp->draw(/*Context*/);
+            comp->Draw(/*Context*/);
         }
     }
 
