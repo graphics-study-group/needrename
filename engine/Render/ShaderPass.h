@@ -32,11 +32,17 @@ namespace Engine {
         /// @return true if compilation is successful, false otherwise.
         bool Compile(const char * vertex, const char * fragment);
 
-        /// @brief Get layout location of a given uniform variable
+        /// @brief Get layout location of a given uniform variable. 
+        /// To modify its uniforms with glUniform, the program must be set active by glUseProgram.
         /// @param name Name of the uniform
         /// @return layout location of the uniform, -1 if not available.
-        /// @note To modify its uniforms, the program must be set active by glUseProgram.
         GLint GetUniform(const char * name) const noexcept;
+
+        /// @brief Get layout location of a give atttribute name
+        /// @param name Name of the attribute
+        /// @return layout location of the attribute, -1 if not available.
+        /// @note Consider using layout directive with index instead of this method.
+        GLint GetAttribute(const char * name) const noexcept;
     protected:
         GLuint m_shaderProgram;
     };

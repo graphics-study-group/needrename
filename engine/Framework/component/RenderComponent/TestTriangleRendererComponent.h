@@ -14,33 +14,50 @@ namespace Engine
     public:
         TestTriangleRendererComponent(std::shared_ptr<Material> material, std::weak_ptr<GameObject> gameObject) 
             : RendererComponent(material, gameObject) {
-            float v[] = {
+            float clip_space_coordinate[] = {
                 -0.5f, -0.5f, 0.0f, // 左下角
                 0.5f, -0.5f, 0.0f, // 右下角
                 0.0f,  0.5f, 0.0f  // 顶部
             };
 
+            float uv[] = {
+                0.0f, 0.0f,
+                1.0f, 0.0f,
+                0.0f, 1.0f
+            };
+
             GLenum glError;
 
             glGenVertexArrays(1, &m_VAO);
-            glGenBuffers(1, &m_VBO);
-
+            glGenBuffers(2, m_VBO);
             glBindVertexArray(m_VAO);
-            glBindBuffer(GL_ARRAY_BUFFER, m_VBO);
-            glBufferData(GL_ARRAY_BUFFER, sizeof(v), v, GL_STATIC_DRAW);
+            
+            // Assign clip space coordinate
+            glBindBuffer(GL_ARRAY_BUFFER, m_VBO[0]);
+            glBufferData(GL_ARRAY_BUFFER, sizeof(clip_space_coordinate), clip_space_coordinate, GL_STATIC_DRAW);
             glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+            //                    ^
+            //                    This index can be acquired by glGetAttribLocation
+            //                    or specified directly with layout directive in shader.
+
+            // Assign UV coordinate
+            glBindBuffer(GL_ARRAY_BUFFER, m_VBO[1]);
+            glBufferData(GL_ARRAY_BUFFER, sizeof(uv), uv, GL_STATIC_DRAW);
+            glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
+
             glEnableVertexAttribArray(0);
+            glEnableVertexAttribArray(1);
 
             glError = glGetError();
             if(glError != GL_NO_ERROR) {
-                throw std::runtime_error("Failed to allocated VAO and VBO");
+                throw std::runtime_error("Failed to allocate VAO and VBO");
             }
         }
         virtual ~TestTriangleRendererComponent() {
             if(m_VAO)
                 glDeleteVertexArrays(1, &m_VAO);
             if(m_VBO)
-                glDeleteBuffers(1, &m_VBO);
+                glDeleteBuffers(2, m_VBO);
         };
 
         virtual void Tick(float dt) {};
@@ -58,7 +75,7 @@ namespace Engine
         };
 
     protected:
-        GLuint m_VAO, m_VBO;
+        GLuint m_VAO, m_VBO[2];
         std::weak_ptr<GameObject> m_parentGameObject;
     };
 }

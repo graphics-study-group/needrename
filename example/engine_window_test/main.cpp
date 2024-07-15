@@ -17,19 +17,23 @@ Engine::MainClass * cmc;
 const char vert [] = R"(
 #version 330 core
 layout (location = 0) in vec3 aPos;
+layout (location = 1) in vec2 uv;
 out vec3 clip_space_coordinate;
+out vec2 vert_uv;
 void main() {
     gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);
     clip_space_coordinate = aPos;
+    vert_uv = uv;
 }
 )";
 
 const char frag [] = R"(
 #version 330 core
 in vec3 clip_space_coordinate;
+in vec2 vert_uv;
 out vec4 albedo;
 void main() {
-    albedo = vec4(clip_space_coordinate.x, 0.0, clip_space_coordinate.y, 1.0);
+    albedo = vec4(vert_uv.x, vert_uv.y, 0.0, 1.0);
 }
 )";
 
