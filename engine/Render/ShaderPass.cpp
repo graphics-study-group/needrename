@@ -132,5 +132,11 @@ namespace Engine
         return glGetUniformLocation(m_shaderProgram, name);
     }
 
+    GLint ShaderPass::GetAttribute(const char *name) const noexcept
+    {
+        assert(this->IsLinked() && "Trying to get attribute location from uncompiled program.");
+        return glGetAttribLocation(m_shaderProgram, name);
+    }
+
 } // namespace Engine
 
