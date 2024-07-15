@@ -8,7 +8,7 @@
 #include "Render/SinglePassMaterial.h"
 #include "Render/RenderSystem.h"
 #include "Framework/go/GameObject.h"
-#include "Framework/component/RenderComponent/TestTriangleRendererComponent.h"
+#include "Framework/component/RenderComponent/MeshComponent.h"
 
 using namespace Engine;
 
@@ -21,7 +21,7 @@ layout (location = 1) in vec2 uv;
 out vec3 clip_space_coordinate;
 out vec2 vert_uv;
 void main() {
-    gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);
+    gl_Position = vec4(aPos.x, aPos.y - 1.0, aPos.z, 1.0);
     clip_space_coordinate = aPos;
     vert_uv = uv;
 }
@@ -33,7 +33,7 @@ in vec3 clip_space_coordinate;
 in vec2 vert_uv;
 out vec4 albedo;
 void main() {
-    albedo = vec4(vert_uv.x, vert_uv.y, 0.0, 1.0);
+    albedo = vec4(1.0, 0.0, 0.0, 1.0);
 }
 )";
 
@@ -54,9 +54,11 @@ int main(int argc, char * argv[])
     std::shared_ptr <ShaderPass> pass = std::make_shared <ShaderPass> ();
     assert(pass->Compile(vert, frag));
     std::shared_ptr <Material> mat = std::make_shared<SinglePassMaterial>(cmc->renderer, pass);
-    std::shared_ptr <TestTriangleRendererComponent> testTriangle = std::make_shared<TestTriangleRendererComponent>(mat, go);
+    std::shared_ptr <MeshComponent> testMesh = 
+        std::make_shared<MeshComponent>(mat, go);
+    testMesh->ReadAndFlatten("D:/test.obj");
     
-    cmc->renderer->RegisterComponent(testTriangle);
+    cmc->renderer->RegisterComponent(testMesh);
 
     cmc->MainLoop();
 

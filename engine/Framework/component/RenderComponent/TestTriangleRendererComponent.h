@@ -76,7 +76,7 @@ namespace Engine
 
     protected:
         GLuint m_VAO, m_VBO[2];
-        std::weak_ptr<GameObject> m_parentGameObject;
+        // std::weak_ptr<GameObject> m_parentGameObject;
     };
 }
 #endif // TESTTRIANGLERENDERERCOMPONENT_H
