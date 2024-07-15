@@ -4,7 +4,7 @@
 #include "MainClass.h"
 #include "Functional/SDLWindow.h"
 
-#include "Render/Material.h"
+#include "Render/SinglePassMaterial.h"
 #include "Render/RenderSystem.h"
 #include "Framework/go/GameObject.h"
 #include "Framework/component/RenderComponent/TestTriangleRendererComponent.h"
@@ -46,7 +46,7 @@ int main(int argc, char * argv[])
     cmc->Initialize(opt);
 
     std::shared_ptr <GameObject> go = std::make_shared<GameObject>();
-    std::shared_ptr <Material> mat = std::make_shared<Material>(cmc->renderer, vert, frag);
+    std::shared_ptr <Material> mat = std::make_shared<SinglePassMaterial>(cmc->renderer, vert, frag);
     std::shared_ptr <TestTriangleRendererComponent> testTriangle = std::make_shared<TestTriangleRendererComponent>(mat, go);
     cmc->renderer->RegisterComponent(testTriangle);
 
