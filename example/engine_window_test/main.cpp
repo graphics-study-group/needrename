@@ -1,4 +1,5 @@
 #include <SDL3/SDL.h>
+#include <cassert>
 
 #include "consts.h"
 #include "MainClass.h"
@@ -47,7 +48,7 @@ int main(int argc, char * argv[])
 
     std::shared_ptr <GameObject> go = std::make_shared<GameObject>();
     std::shared_ptr <ShaderPass> pass = std::make_shared <ShaderPass> ();
-    pass->Compile(vert, frag);
+    assert(pass->Compile(vert, frag));
     std::shared_ptr <Material> mat = std::make_shared<SinglePassMaterial>(cmc->renderer, pass);
     std::shared_ptr <TestTriangleRendererComponent> testTriangle = std::make_shared<TestTriangleRendererComponent>(mat, go);
     
