@@ -45,13 +45,15 @@ namespace Engine
 
         virtual void Tick(float dt) {};
         virtual void Draw(/*Context*/) override {
-
+            GLenum glError;
             m_material->PrepareDraw(/*Context, Transform, etc.*/);
 
             glBindVertexArray(m_VAO);
             glDrawArrays(GL_TRIANGLES, 0, 3);
-            if(glGetError() != GL_NO_ERROR) {
-                throw std::runtime_error("Failed to allocated VAO and VBO");
+            
+            glError = glGetError();
+            if(glError != GL_NO_ERROR) {
+                throw std::runtime_error("Cannot draw VAO.");
             }
         };
 

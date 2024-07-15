@@ -2,17 +2,18 @@
 #define RENDER_SINGLEPASSMATERIAL_INCLUDED
 
 #include "Material.h"
+#include "ShaderPass.h"
 #include <glad/glad.h>
 
 namespace Engine
 {
     class SinglePassMaterial : public Material {
     public:
-        SinglePassMaterial (std::shared_ptr<RenderSystem> system, const char * vertex, const char * fragment);
+        SinglePassMaterial (std::shared_ptr<RenderSystem> system, std::shared_ptr<ShaderPass> pass);
         virtual ~SinglePassMaterial();
         void virtual PrepareDraw(/*...*/) override;
     protected:
-        GLuint m_shaderProgram;
+        std::shared_ptr <ShaderPass> m_pass;
     };
 } // namespace Engine
 
