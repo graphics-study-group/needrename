@@ -16,16 +16,19 @@ Engine::MainClass * cmc;
 const char vert [] = R"(
 #version 330 core
 layout (location = 0) in vec3 aPos;
+out vec3 clip_space_coordinate;
 void main() {
     gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);
+    clip_space_coordinate = aPos;
 }
 )";
 
 const char frag [] = R"(
 #version 330 core
+in vec3 clip_space_coordinate;
 out vec4 albedo;
 void main() {
-    albedo = vec4(1.0, 0.5, 0.2, 1.0);
+    albedo = vec4(clip_space_coordinate.x, 0.0, clip_space_coordinate.y, 1.0);
 }
 )";
 
@@ -44,9 +47,8 @@ int main(int argc, char * argv[])
 
     std::shared_ptr <GameObject> go = std::make_shared<GameObject>();
     std::shared_ptr <Material> mat = std::make_shared<Material>(cmc->renderer, vert, frag);
-    cmc->renderer->RegisterMaterial(mat);
     std::shared_ptr <TestTriangleRendererComponent> testTriangle = std::make_shared<TestTriangleRendererComponent>(mat, go);
-    mat->RegisterComponent(testTriangle);
+    cmc->renderer->RegisterComponent(testTriangle);
 
     cmc->MainLoop();
 
