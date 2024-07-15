@@ -36,7 +36,7 @@ int main(int argc, char * argv[])
 {
     SDL_Init(SDL_INIT_VIDEO);
 
-    StartupOptions * opt = phraseOptions(argc, argv);
+    StartupOptions * opt = ParseOptions(argc, argv);
     if (opt->instantQuit)
         return -1;
 

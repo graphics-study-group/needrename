@@ -25,7 +25,7 @@ namespace OptionDeclaration
             {"startup", required_argument, NULL, OPT_STARTUP}};
 }
 
-StartupOptions *phraseOptions(int argc, char **argv)
+StartupOptions *ParseOptions(int argc, char **argv)
 {
     StartupOptions *opts = new StartupOptions;
     int opt = 0;

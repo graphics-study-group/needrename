@@ -7,11 +7,11 @@ namespace Engine
         //dtor
     }
 
-    void MeshComponent::tick(float dt)
+    void MeshComponent::Tick(float dt)
     {
     }
 
-    void MeshComponent::draw()
+    void MeshComponent::Draw()
     {
     }
 }

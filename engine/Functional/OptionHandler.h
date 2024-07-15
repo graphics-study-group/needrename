@@ -49,6 +49,6 @@ namespace OptionDeclaration
 }
 
 /// @note atoi() is used
-StartupOptions *phraseOptions(int argc, char **argv);
+StartupOptions *ParseOptions(int argc, char **argv);
 
 #endif // OPTIONHANDLER_H_INCLUDED

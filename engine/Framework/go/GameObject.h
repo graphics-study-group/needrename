@@ -14,7 +14,7 @@ namespace Engine
         GameObject();
         virtual ~GameObject();
 
-        virtual void tick(float dt);
+        virtual void Tick(float dt);
 
         void AddComponent(std::shared_ptr<Component> component);
 

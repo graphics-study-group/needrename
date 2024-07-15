@@ -11,7 +11,7 @@ namespace Engine
         WorldSystem();
         ~WorldSystem();
 
-        void tick(float dt);
+        void Tick(float dt);
         
     private:
         std::shared_ptr<Level> current_level;

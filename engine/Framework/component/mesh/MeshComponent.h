@@ -17,8 +17,8 @@ namespace Engine
         virtual ~MeshComponent();
 
         // TODO: tick for animation
-        virtual void tick(float dt) override;
-        virtual void draw() override;
+        virtual void Tick(float dt) override;
+        virtual void Draw() override;
 
         // TODO: set resources: mesh model, texture, shader 
     };
