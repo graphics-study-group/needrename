@@ -44,7 +44,10 @@ namespace Engine
         };
 
         virtual void tick(float dt) {};
-        virtual void draw() override {
+        virtual void draw(/*Context*/) override {
+
+            m_material->PrepareDraw(/*Context, Transform, etc.*/);
+
             glBindVertexArray(m_VAO);
             glDrawArrays(GL_TRIANGLES, 0, 3);
             if(glGetError() != GL_NO_ERROR) {

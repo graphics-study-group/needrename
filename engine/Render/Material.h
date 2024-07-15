@@ -12,12 +12,10 @@ namespace Engine {
     public:
         Material (std::shared_ptr<RenderSystem> system, const char * vertex, const char * fragment);
         ~Material ();
-        void DrawAllComponents(/* RenderingContext */);
-        void RegisterComponent (std::shared_ptr <RendererComponent> component);
-    protected:
 
+        void PrepareDraw(/*Context, Transform, etc.*/);
+    protected:
         GLuint m_shaderProgram;
-        std::vector <RendererComponent *> m_components;
         std::weak_ptr <RenderSystem> m_renderSystem;
     };
 };

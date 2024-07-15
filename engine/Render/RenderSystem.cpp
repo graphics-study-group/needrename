@@ -1,18 +1,18 @@
-#include <glad/glad.h>
 #include "RenderSystem.h"
-#include "Material.h"
+#include <glad/glad.h>
+#include "Framework/component/RenderComponent/RendererComponent.h"
 
 namespace Engine
 {
     void RenderSystem::render()
     {
-        for (auto mat : m_materials) {
-            mat->DrawAllComponents(/*Context*/);
+        for (auto comp : m_components) {
+            comp->draw(/*Context*/);
         }
     }
 
-    void Engine::RenderSystem::RegisterMaterial(std::shared_ptr <Material> material)
+    void RenderSystem::RegisterComponent(std::shared_ptr<RendererComponent> comp)
     {
-        m_materials.push_back(material);
+        m_components.push_back(comp);
     }
 }
