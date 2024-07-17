@@ -6,36 +6,33 @@
 
 namespace Engine
 {
-    ShaderPass::ShaderPass() : m_shaderProgram(0) {}
+    void ShaderPass::Use() const noexcept
+    {
+        assert(this->IsValid() && "Trying to use unlinked program");
+        glUseProgram(m_handle);
+    }
 
     ShaderPass::~ShaderPass()
     {
-        if (m_shaderProgram)
-            glDeleteProgram(m_shaderProgram);
+        if (this->IsValid())
+            this->Release();
     }
 
-    GLuint ShaderPass::GetProgram() const noexcept
+    bool ShaderPass::IsValid() const noexcept
     {
-        return m_shaderProgram;
+        return glIsProgram(m_handle);
     }
 
-    void ShaderPass::Use() const noexcept
+    void ShaderPass::Release() noexcept
     {
-        assert(this->IsLinked() && "Trying to use unlinked program");
-        glUseProgram(m_shaderProgram);
-    }
-
-    bool ShaderPass::IsLinked() const noexcept
-    {
-        return m_shaderProgram;
+        if (this->IsValid()) {
+            glDeleteProgram(m_handle);
+        }
     }
 
     bool ShaderPass::Compile(const char *vertex, const char *fragment)
     {
-        if (m_shaderProgram) {
-            glDeleteProgram(m_shaderProgram);
-            m_shaderProgram = 0;
-        }
+        this->Release();
 
         GLenum glError = GL_NO_ERROR;
         GLint success = GL_TRUE;
@@ -92,33 +89,33 @@ namespace Engine
             return false;
         }
 
-        m_shaderProgram = glCreateProgram();
+        m_handle = glCreateProgram();
         glError = glGetError();
         if (glError != GL_NO_ERROR) {
             std::cerr 
                 << std::format("Failed to create program, OpenGL error {}", (int)glError) 
                 << std::endl ;
-            m_shaderProgram = 0;
+            m_handle = 0;
             return false;
         }
 
-        glAttachShader(m_shaderProgram, vertexShader);
-        glAttachShader(m_shaderProgram, fragmentShader);
-        glLinkProgram(m_shaderProgram);
-        glDetachShader(m_shaderProgram, vertexShader);
-        glDetachShader(m_shaderProgram, fragmentShader);
+        glAttachShader(m_handle, vertexShader);
+        glAttachShader(m_handle, fragmentShader);
+        glLinkProgram(m_handle);
+        glDetachShader(m_handle, vertexShader);
+        glDetachShader(m_handle, fragmentShader);
         glDeleteShader(vertexShader);
         glDeleteShader(fragmentShader);
 
-        glGetProgramiv(m_shaderProgram, GL_LINK_STATUS, &success);
+        glGetProgramiv(m_handle, GL_LINK_STATUS, &success);
         if (success != GL_TRUE) {
             GLchar log[128];
-            glGetProgramInfoLog(m_shaderProgram, sizeof log, nullptr, log);
+            glGetProgramInfoLog(m_handle, sizeof log, nullptr, log);
             std::cerr 
                 << std::format("Failed to link program, log: {}", log) 
                 << std::endl ;
 
-            m_shaderProgram = 0;
+            m_handle = 0;
             return false;
         }
         return true;
@@ -127,15 +124,15 @@ namespace Engine
     GLint ShaderPass::GetUniform(const char * name) const noexcept
     {
         static_assert(std::is_same_v<GLchar, char> == true, "GLchar and char should be the same type.");
-        assert(this->IsLinked() && "Trying to get uniform location from uncompiled program.");
+        assert(this->IsValid() && "Trying to get uniform location from uncompiled program.");
 
-        return glGetUniformLocation(m_shaderProgram, name);
+        return glGetUniformLocation(m_handle, name);
     }
 
     GLint ShaderPass::GetAttribute(const char *name) const noexcept
     {
-        assert(this->IsLinked() && "Trying to get attribute location from uncompiled program.");
-        return glGetAttribLocation(m_shaderProgram, name);
+        assert(this->IsValid() && "Trying to get attribute location from uncompiled program.");
+        return glGetAttribLocation(m_handle, name);
     }
 
 } // namespace Engine
