@@ -18,6 +18,7 @@ namespace Engine {
         void Use() const noexcept;
 
         /// @brief Compile and link the shader pass into a program usable by pipeline.
+        /// A single shader pass should not be compiled twice to avoid messing with uniform and attribute locations.
         /// @param vertex Vertex shader source code
         /// @param fragment Fragment shader source code
         /// @return true if compilation is successful, false otherwise.
