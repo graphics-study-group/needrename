@@ -9,7 +9,7 @@ namespace Engine {
     class ShaderPass : public NativeResource {
     public:
         ShaderPass() = default;
-        ~ShaderPass();
+        virtual ~ShaderPass();
 
         bool IsValid() const noexcept override;
         void Release() noexcept override;
