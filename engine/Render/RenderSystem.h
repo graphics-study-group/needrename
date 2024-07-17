@@ -1,5 +1,5 @@
-#ifndef RENDERSYSTEM_H
-#define RENDERSYSTEM_H
+#ifndef RENDER_RENDERSYSTEM_INCLUDED
+#define RENDER_RENDERSYSTEM_INCLUDED
 
 #include <vector>
 #include <memory>
@@ -23,4 +23,4 @@ namespace Engine
     };
 }
 
-#endif // RENDERSYSTEM_H
+#endif // RENDER_RENDERSYSTEM_INCLUDED
