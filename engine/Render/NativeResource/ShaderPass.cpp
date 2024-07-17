@@ -14,8 +14,7 @@ namespace Engine
 
     ShaderPass::~ShaderPass()
     {
-        if (this->IsValid())
-            this->Release();
+        this->Release();
     }
 
     bool ShaderPass::IsValid() const noexcept
@@ -28,6 +27,7 @@ namespace Engine
         if (this->IsValid()) {
             glDeleteProgram(m_handle);
         }
+        this->m_handle = 0;
     }
 
     bool ShaderPass::Compile(const char *vertex, const char *fragment)
