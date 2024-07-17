@@ -32,7 +32,7 @@ namespace Engine
 
     bool ShaderPass::Compile(const char *vertex, const char *fragment)
     {
-        this->Release();
+        assert((!this->IsValid()) && "Re-compiling a shader pass program.");
 
         GLenum glError = GL_NO_ERROR;
         GLint success = GL_TRUE;

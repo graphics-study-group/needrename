@@ -18,7 +18,7 @@ namespace Engine {
         NativeResource(NativeResource &&);
         NativeResource & operator= (NativeResource &&);
 
-        /// @brief Get the native handle (of type GLuint) of the object;
+        /// @brief Get the native handle (of type GLuint) of the object.
         /// @return the native handle
         GLuint GetHandle () const noexcept;
 
