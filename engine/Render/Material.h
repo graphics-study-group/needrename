@@ -1,5 +1,5 @@
-#ifndef RENDER_MATERIAL_H
-#define RENDER_MATERIAL_H
+#ifndef RENDER_MATERIAL_INCLUDED
+#define RENDER_MATERIAL_INCLUDED
 
 #include <memory>
 
@@ -16,4 +16,4 @@ namespace Engine {
     };
 };
 
-#endif // RENDER_MATERIAL_H
+#endif // RENDER_MATERIAL_INCLUDED
