@@ -1,30 +1,21 @@
 #ifndef RENDER_SHADERPASS_INCLUDED
 #define RENDER_SHADERPASS_INCLUDED
 
-#include <GLAD/glad.h>
+#include "NativeResource.h"
 
 namespace Engine {
     /// A single pass consists of vertex and fragment shaders.
     /// Represents an OpenGL program.
-    class ShaderPass {
+    class ShaderPass : public NativeResource {
     public:
-        ShaderPass();
+        ShaderPass() = default;
         ~ShaderPass();
-        
-        // Do not allow copy, since destruction of copied program causes unwanted release of GPU resource
-        ShaderPass (const ShaderPass &) = delete;
-        void operator = (const ShaderPass &) = delete;
 
-        /// @brief Get the unique identifier of the program.
-        /// @return identifier of the program
-        GLuint GetProgram() const noexcept;
+        bool IsValid() const noexcept override;
+        void Release() noexcept override;
 
         /// @brief Setup OpenGL pipeline to use the program
         void Use() const noexcept;
-
-        /// @brief Check whether the pass is already compiled and linked.
-        /// @return true if already linked, false otherwise.
-        bool IsLinked() const noexcept;
 
         /// @brief Compile and link the shader pass into a program usable by pipeline.
         /// @param vertex Vertex shader source code
@@ -43,8 +34,6 @@ namespace Engine {
         /// @return layout location of the attribute, -1 if not available.
         /// @note Consider using layout directive with index instead of this method.
         GLint GetAttribute(const char * name) const noexcept;
-    protected:
-        GLuint m_shaderProgram;
     };
 };
 

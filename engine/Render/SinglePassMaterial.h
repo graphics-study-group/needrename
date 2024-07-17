@@ -2,7 +2,7 @@
 #define RENDER_SINGLEPASSMATERIAL_INCLUDED
 
 #include "Material.h"
-#include "ShaderPass.h"
+#include "NativeResource/ShaderPass.h"
 #include <glad/glad.h>
 
 namespace Engine
