@@ -13,7 +13,6 @@ namespace Engine {
         // Disable copy constructor
         // https://www.khronos.org/opengl/wiki/Common_Mistakes#RAII_and_hidden_destructor_calls
         NativeResource(const NativeResource &) = delete;
-        // Disable copy operator
         const NativeResource & operator= (const NativeResource &) = delete;
         NativeResource(NativeResource &&);
         NativeResource & operator= (NativeResource &&);
