@@ -1,7 +1,9 @@
 #include "ImmutableTexture2D.h"
+
 #include <cassert>
 #include <iostream>
 #include <SDL3/SDL.h>
+#include <stb_image.h>
 
 namespace Engine
 {
@@ -53,6 +55,41 @@ namespace Engine
     {
         assert(this->IsValid());
         glBindTexture(GL_TEXTURE_2D, m_handle);
+    }
+
+    bool ImmutableTexture2D::LoadFromFile(const char * filename, GLenum textureFormat)
+    {
+        int width, height, channels;
+        int ok = stbi_info(filename, &width, &height, &channels);
+        if (!ok) {
+            SDL_LogError(0, "Cannot load image file %s information, format unsupported.", filename);
+            return false;
+        }
+        if (channels != 3 && channels != 4) {
+            SDL_LogError(0, "Image file %s contains unexpected color format.", filename);
+            return false;
+        }
+
+        if (!this->Create(width, height, 0, textureFormat, 0)) {
+            return false;
+        }
+
+        GLint alignment;
+        glGetIntegerv(GL_UNPACK_ALIGNMENT, &alignment);
+        if (alignment > 0) {
+            SDL_LogWarn(0, "Pixel alignment is not set to 0, setting it to 0.");
+            glPixelStorei(GL_UNPACK_ALIGNMENT, 0);
+        }
+
+        unsigned char * data = stbi_load(filename, &width, &height, &channels, 4);
+        if (data == nullptr) {
+            SDL_LogError(0, "Cannot load image file %s, STB reports %s.", filename, stbi_failure_reason());
+            return false;
+        }
+        auto result = this->FullUpload(GL_RGBA, GL_UNSIGNED_BYTE, (void *) data);
+        stbi_image_free(data);
+
+        return result;
     }
 
 } // namespace Engine
