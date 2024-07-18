@@ -14,7 +14,7 @@ namespace Engine
         void Download(GLvoid * data) const override;
         void Bind() const override;
 
-        bool LoadFromFile(const char * filename, GLenum textureFormat);
+        bool LoadFromFile(const char * filename, GLenum textureFormat, GLuint levels);
     };
 } // namespace Engine
 
