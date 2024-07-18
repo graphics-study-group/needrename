@@ -1,4 +1,6 @@
 #include "ShaderPass.h"
+#include "Shader.h"
+
 #include <format>
 #include <cassert>
 #include <stdexcept>
@@ -38,76 +40,28 @@ namespace Engine
         GLenum glError = GL_NO_ERROR;
         GLint success = GL_TRUE;
 
-        GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
-        glError = glGetError();
-        if (glError != GL_NO_ERROR) {
-            SDL_LogError(0, "Failed to create vertex shader, OpenGL error %d", glError);
+        Shader sv, sf;
+        success = sv.Compile(GL_VERTEX_SHADER, vertex);
+        if (!success)
             return false;
-        }
 
-        glShaderSource(vertexShader, 1, &vertex, nullptr);
-        glError = glGetError();
-        if (glError != GL_NO_ERROR) {
-            SDL_LogError(0, "Failed to set vertex shader source, OpenGL error %d", glError);
-            glDeleteShader(vertexShader);
+        success = sf.Compile(GL_FRAGMENT_SHADER, fragment);
+        if (!success)
             return false;
-        }
-
-        glCompileShader(vertexShader);
-        glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
-        if (success != GL_TRUE) {
-            GLchar log[128];
-            glGetShaderInfoLog(vertexShader, sizeof log, nullptr, log);
-            SDL_LogError(0, "Failed to compile vertex shader, log: %s", log);
-            glDeleteShader(vertexShader);
-            return false;
-        }
-
-        GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-        glError = glGetError();
-        if (glError != GL_NO_ERROR) {
-            SDL_LogError(0, "Failed to create fragment shader, OpenGL error %d", glError);
-            glDeleteShader(vertexShader);
-            return false;
-        }
-
-        glShaderSource(fragmentShader, 1, &fragment, nullptr);
-        glError = glGetError();
-        if (glError != GL_NO_ERROR) {
-            SDL_LogError(0, "Failed to set fragment shader source, OpenGL error %d", glError);
-            glDeleteShader(vertexShader);
-            glDeleteShader(fragmentShader);
-            return false;
-        }
-
-        glCompileShader(fragmentShader);
-        glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
-        if (success != GL_TRUE) {
-            GLchar log[128];
-            glGetShaderInfoLog(fragmentShader, sizeof log, nullptr, log);
-            SDL_LogError(0, "Failed to compile fragment shader, log: %s", log);
-            glDeleteShader(vertexShader);
-            glDeleteShader(fragmentShader);
-            return false;
-        }
 
         m_handle = glCreateProgram();
         glError = glGetError();
         if (glError != GL_NO_ERROR) {
             SDL_LogError(0, "Failed to create program, OpenGL error %d", glError);
-            glDeleteShader(vertexShader);
-            glDeleteShader(fragmentShader);
             this->Release();
             return false;
         }
 
-        glAttachShader(m_handle, vertexShader);
-        glAttachShader(m_handle, fragmentShader);
+        glAttachShader(m_handle, sv.GetHandle());
+        glAttachShader(m_handle, sf.GetHandle());
         glLinkProgram(m_handle);
-        glDetachShader(m_handle, vertexShader);
-        glDetachShader(m_handle, fragmentShader);
-        glDeleteShader(vertexShader);
-        glDeleteShader(fragmentShader);
+        glDetachShader(m_handle, sv.GetHandle());
+        glDetachShader(m_handle, sf.GetHandle());
 
         glGetProgramiv(m_handle, GL_LINK_STATUS, &success);
         if (success != GL_TRUE) {
