@@ -6,11 +6,12 @@
 #include "Exception/exception.h"
 #include "Functional/OptionHandler.h"
 #include "Functional/SDLWindow.h"
-#include "Render/RenderSystem.h"
-#include "Framework/world/WorldSystem.h"
 
 namespace Engine
 {
+    class RenderSystem;
+    class WorldSystem;
+
     class MainClass
     {
     public:

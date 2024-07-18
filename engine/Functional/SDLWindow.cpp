@@ -12,6 +12,11 @@ namespace Engine
         this->blockMouseEvent = false;
         this->blockKeyboardEvent = false;
 
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+        SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+        SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+
         this->window = SDL_CreateWindow(title, w, h, flags);
         if (this->window == nullptr)
             throw Exception::SDLExceptions::cant_create_window();
@@ -55,11 +60,12 @@ namespace Engine
         return this->renderer;
     }
 
-    void SDLWindow::CreateRenderer(const char *name)
+    void SDLWindow::CreateRenderer()
     {
         if (this->renderer != nullptr)
             SDL_DestroyRenderer(this->renderer);
-        this->renderer = SDL_CreateRenderer(this->window, name);
+
+        this->renderer = SDL_CreateRenderer(this->window, "opengl");
         if (this->renderer == nullptr)
             throw Exception::SDLExceptions::cant_create_renderer();
         this->glcontext = SDL_GL_CreateContext(this->window);
