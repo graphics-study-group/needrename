@@ -15,21 +15,17 @@ namespace Engine
         TestTriangleRendererComponent(std::shared_ptr<Material> material, std::weak_ptr<GameObject> gameObject) 
             : RendererComponent(material, gameObject) {
             float clip_space_coordinate[] = {
+                -0.5f,  0.5f, 0.0f,
+                 0.5f, -0.5f, 0.0f,
                 -0.5f, -0.5f, 0.0f,
+                 0.5f,  0.5f, 0.0f,
                  0.5f, -0.5f, 0.0f,
-                -0.5f,  0.5f, 0.0f,
-                -0.5f,  0.5f, 0.0f,
-                 0.5f, -0.5f, 0.0f,
-                 0.5f,  0.5f, 0.0f
+                -0.5f,  0.5f, 0.0f
             };
 
             float uv[] = {
-                0.0f, 0.0f,
-                1.0f, 0.0f,
-                0.0f, 1.0f,
-                0.0f, 1.0f,
-                1.0f, 0.0f,
-                1.0f, 1.0f
+                0.0f,1.0f,1.0f,0.0f,0.0f,0.0f,
+                1.0f,1.0f,1.0f,0.0f,0.0f,1.0f
             };
 
             GLenum glError;
@@ -60,10 +56,10 @@ namespace Engine
             }
         }
         virtual ~TestTriangleRendererComponent() {
-            if(m_VAO)
+            if(m_VAO) {
                 glDeleteVertexArrays(1, &m_VAO);
-            if(m_VBO)
                 glDeleteBuffers(2, m_VBO);
+            }
         };
 
         virtual void Tick(float dt) {};

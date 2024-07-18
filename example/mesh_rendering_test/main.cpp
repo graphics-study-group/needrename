@@ -40,7 +40,8 @@ uniform sampler2D sampler;
 
 out vec4 albedo;
 void main() {
-    albedo = texture2D(sampler, vert_uv);
+    albedo = texture(sampler, vert_uv);
+    // albedo = vec4(vert_uv.x, vert_uv.y, 0.0, 1.0);
 }
 )";
 
@@ -68,7 +69,10 @@ int main(int argc, char * argv[])
         std::make_shared<TestTriangleRendererComponent>(mat, go);
 
     std::shared_ptr <ImmutableTexture2D> texture = std::make_shared<ImmutableTexture2D>();
-    assert(texture->LoadFromFile("D:/checker.png", GL_RGBA8, 1));
+    assert(texture->LoadFromFile("D:/checker.png", GL_RGBA32F, 12));
+    texture->Bind();
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
     // Set up uniforms
     auto location = pass->GetUniform("sampler");
