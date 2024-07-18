@@ -48,6 +48,7 @@ namespace Engine
             SDL_LogError(0, "Failed to upload immutable texture, OpenGL error %d.", glError);
             return false;
         }
+        glGenerateMipmap(GL_TEXTURE_2D);
         return true;
     }
 
@@ -85,13 +86,17 @@ namespace Engine
             SDL_LogWarn(0, "Pixel alignment is not set to 1, setting it to 1.");
             glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
         }
-
-        unsigned char * data = stbi_load(filename, &width, &height, &channels, 4);
+        stbi_set_flip_vertically_on_load(true);
+        unsigned char * data = stbi_load(filename, &width, &height, &channels, 0);
         if (data == nullptr) {
             SDL_LogError(0, "Cannot load image file %s, STB reports %s.", filename, stbi_failure_reason());
             return false;
         }
-        auto result = this->FullUpload(GL_RGBA, GL_UNSIGNED_BYTE, (void *) data);
+        bool result;
+        if (channels == 4)
+            result = this->FullUpload(GL_RGBA, GL_UNSIGNED_BYTE, (void *) data);
+        else
+            result = this->FullUpload(GL_RGB, GL_UNSIGNED_BYTE, (void *) data);
         stbi_image_free(data);
 
         return result;
