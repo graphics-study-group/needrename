@@ -21,12 +21,17 @@ namespace Engine
         this->m_handle = 0;
     }
 
+    void ImmutableTexture::BindToLocation(GLuint location) const
+    {
+        assert(0 <= location && location <= GL_MAX_TEXTURE_IMAGE_UNITS);
+        this->Bind();
+        glActiveTexture(GL_TEXTURE0 + location);
+    }
+
     std::tuple<GLsizei, GLsizei, GLsizei> ImmutableTexture::GetDimension() const noexcept
     {
         assert(this->IsValid());
-        GLsizei w, h, d;
-        
-        return std::tuple<GLsizei, GLsizei, GLsizei>();
+        return this->dimensions;
     }
 
 } // namespace Engine

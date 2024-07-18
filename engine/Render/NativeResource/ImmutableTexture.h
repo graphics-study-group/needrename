@@ -31,10 +31,10 @@ namespace Engine
         /// @param type data type of the pixel data.
         /// @param data pointer to the data. Beware of memory access.
         /// @note You might want to adjust pixel storage parameters first with glPixelStore*().
-        virtual void FullUpload(GLenum format, GLenum type, GLvoid * data) const = 0;
+        virtual bool FullUpload(GLenum format, GLenum type, GLvoid * data) const = 0;
 
         /// @brief Download data from texture on GPU
-        /// @param data pointer to the data buffer.
+        /// @param data pointer to sufficiently large data buffer, allocated by the caller.
         virtual void Download(GLvoid * data) const = 0;
 
         /// @brief Bind this texture to location for shader.
@@ -44,7 +44,12 @@ namespace Engine
         /// @param location location to be bound. 
         void BindToLocation(GLuint location) const;
 
-        std::tuple<GLsizei, GLsizei, GLsizei> GetDimension() const noexcept;
+        /// @brief Bind this texture with glBindTexture.
+        virtual void Bind() const = 0;
+
+        std::tuple <GLsizei, GLsizei, GLsizei> GetDimension() const noexcept;
+    protected:
+        std::tuple <GLsizei, GLsizei, GLsizei> dimensions;
     };
 } // namespace Engine
 
