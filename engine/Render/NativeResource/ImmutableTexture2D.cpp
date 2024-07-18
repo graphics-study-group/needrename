@@ -11,6 +11,8 @@ namespace Engine
     {
         assert(depth == 0);
         assert((!this->IsValid()) && "Re-creating an immutable texture.");
+        assert(!glGetError());
+
         GLenum glError;
 
         glGenTextures(1, &m_handle);
@@ -25,6 +27,7 @@ namespace Engine
         glError = glGetError();
         if (glError) {
             SDL_LogError(0, "Failed to allocate immutable texture, OpenGL error %d.", glError);
+            this->Release();
             return false;
         }
 
@@ -35,6 +38,8 @@ namespace Engine
     bool ImmutableTexture2D::FullUpload(GLenum format, GLenum type, GLvoid *data) const
     {
         assert(this->IsValid());
+        assert(!glGetError());
+
         this->Bind();
 
         glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, std::get<0>(dimensions), std::get<1>(dimensions), format, type, data);
@@ -57,7 +62,7 @@ namespace Engine
         glBindTexture(GL_TEXTURE_2D, m_handle);
     }
 
-    bool ImmutableTexture2D::LoadFromFile(const char * filename, GLenum textureFormat)
+    bool ImmutableTexture2D::LoadFromFile(const char * filename, GLenum textureFormat, GLuint levels)
     {
         int width, height, channels;
         int ok = stbi_info(filename, &width, &height, &channels);
@@ -70,15 +75,15 @@ namespace Engine
             return false;
         }
 
-        if (!this->Create(width, height, 0, textureFormat, 0)) {
+        if (!this->Create(width, height, 0, textureFormat, levels)) {
             return false;
         }
 
         GLint alignment;
         glGetIntegerv(GL_UNPACK_ALIGNMENT, &alignment);
         if (alignment > 0) {
-            SDL_LogWarn(0, "Pixel alignment is not set to 0, setting it to 0.");
-            glPixelStorei(GL_UNPACK_ALIGNMENT, 0);
+            SDL_LogWarn(0, "Pixel alignment is not set to 1, setting it to 1.");
+            glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
         }
 
         unsigned char * data = stbi_load(filename, &width, &height, &channels, 4);
