@@ -15,15 +15,21 @@ namespace Engine
         TestTriangleRendererComponent(std::shared_ptr<Material> material, std::weak_ptr<GameObject> gameObject) 
             : RendererComponent(material, gameObject) {
             float clip_space_coordinate[] = {
-                -0.5f, -0.5f, 0.0f, // 左下角
-                0.5f, -0.5f, 0.0f, // 右下角
-                0.0f,  0.5f, 0.0f  // 顶部
+                -0.5f, -0.5f, 0.0f,
+                 0.5f, -0.5f, 0.0f,
+                -0.5f,  0.5f, 0.0f,
+                -0.5f,  0.5f, 0.0f,
+                 0.5f, -0.5f, 0.0f,
+                 0.5f,  0.5f, 0.0f
             };
 
             float uv[] = {
                 0.0f, 0.0f,
                 1.0f, 0.0f,
-                0.0f, 1.0f
+                0.0f, 1.0f,
+                0.0f, 1.0f,
+                1.0f, 0.0f,
+                1.0f, 1.0f
             };
 
             GLenum glError;
@@ -66,7 +72,7 @@ namespace Engine
             m_material->PrepareDraw(/*Context, Transform, etc.*/);
 
             glBindVertexArray(m_VAO);
-            glDrawArrays(GL_TRIANGLES, 0, 3);
+            glDrawArrays(GL_TRIANGLES, 0, 6);
             
             glError = glGetError();
             if(glError != GL_NO_ERROR) {
