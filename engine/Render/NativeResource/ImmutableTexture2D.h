@@ -10,8 +10,11 @@ namespace Engine
     public:
         bool Create(GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLsizei levels) override;
         bool FullUpload(GLenum format, GLenum type, GLvoid * data) const override;
+
         void Download(GLvoid * data) const override;
         void Bind() const override;
+
+        bool LoadFromFile(const char * filename, GLenum textureFormat);
     };
 } // namespace Engine
 

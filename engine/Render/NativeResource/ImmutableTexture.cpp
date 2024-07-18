@@ -23,7 +23,7 @@ namespace Engine
 
     void ImmutableTexture::BindToLocation(GLuint location) const
     {
-        assert(0 <= location && location <= GL_MAX_TEXTURE_IMAGE_UNITS);
+        assert(location <= GL_MAX_TEXTURE_IMAGE_UNITS && "Texture location limit exceeded.");
         this->Bind();
         glActiveTexture(GL_TEXTURE0 + location);
     }
