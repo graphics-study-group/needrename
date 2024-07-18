@@ -29,7 +29,7 @@ namespace Engine
         SDL_Renderer *GetRenderer();
 
         /// Create a new render of this window, replacing the old one
-        void CreateRenderer(const char *name = "opengl");
+        void CreateRenderer();
 
         /// Call this function in an event loop to process CLICK events
         /// @return TRUE if the event loop is to be continued

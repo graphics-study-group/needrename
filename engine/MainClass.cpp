@@ -1,5 +1,10 @@
 #include "MainClass.h"
+
+#include "Framework/world/WorldSystem.h"
+#include "Render/RenderSystem.h"
+
 #include <exception>
+#include <glad/glad.h>
 
 namespace Engine
 {
@@ -42,7 +47,16 @@ namespace Engine
             
             this->window->BeforeEventLoop(); // ???
             this->world->Tick(dt);
+
+            // FIXME: Viewport infomation should be pass to Render() by context and camera
+            // instead of being set here.
+            auto pWindow = this->window->GetWindow();
+            int w, h;
+            SDL_GetWindowSize(pWindow, &w, &h);
+            glViewport(0, 0, w, h);
+            
             this->renderer->Render();
+
             this->window->AfterEventLoop();
 
             // TODO: write a control system instead of using this window event
@@ -50,8 +64,7 @@ namespace Engine
             {
                 while (SDL_PollEvent(&event))
                 {
-                    if (event.type == SDL_EVENT_QUIT)
-                    {
+                    if (event.type == SDL_EVENT_QUIT) {
                         onQuit = true;
                         break;
                     }
