@@ -1,25 +1,27 @@
 #include "MeshComponent.h"
-#include "tiny_obj_loader.h"
+
+#include "Render/Material/SingleColor.h"
+
+#include <tiny_obj_loader.h>
+#include <SDL3/SDL.h>
+
 #include <iostream>
 #include <cassert>
+#include <random>
 
 namespace Engine
 {
     MeshComponent::MeshComponent(
-        std::shared_ptr<Material> mat, 
         std::weak_ptr<GameObject> gameObject
-    ) : RendererComponent(mat, gameObject)
+    ) : RendererComponent(gameObject)
     {
-        m_VAO = 0;
-        m_VBO[0] = m_VBO[1] = 0;
     }
 
     MeshComponent::~MeshComponent()
     {
-        if (glIsVertexArray(m_VAO)) {
-            glDeleteVertexArrays(1, &m_VAO);
-            glDeleteBuffers(2, m_VBO);
-        }
+        glDeleteBuffers(m_VAOs.size(), m_VAOs.data());
+        glDeleteBuffers(m_VBOs_position.size(), m_VBOs_position.data());
+        glDeleteBuffers(m_VBOs_uv.size(), m_VBOs_uv.data());
     }
 
     void MeshComponent::Tick(float dt)
@@ -29,21 +31,22 @@ namespace Engine
     void MeshComponent::Draw()
     {
         GLenum glError;
-        m_material->PrepareDraw(/*Context, Transform, etc.*/);
+        for (size_t i = 0; i < m_materials.size(); i++){
+            m_materials[i]->PrepareDraw();
 
-        glBindVertexArray(m_VAO);
-        glDrawArrays(GL_TRIANGLES, 0, m_position.size() / 3);
-        
-        glError = glGetError();
-        if(glError != GL_NO_ERROR) {
-            throw std::runtime_error("Cannot draw VAO.");
+            glBindVertexArray(m_VAOs[i]);
+            glDrawArrays(GL_TRIANGLES, 0, m_position[i].size() / 3);
+
+            glError = glGetError();
+            if(glError != GL_NO_ERROR) {
+                throw std::runtime_error("Cannot draw VAO.");
+            }
         }
     }
 
     bool MeshComponent::ReadAndFlatten(const char *filename)
     {
-        m_position.clear();
-        m_uv.clear();
+        assert(m_materials.empty() && "Recreating meshes.");
 
         tinyobj::ObjReader reader;
         reader.ParseFromFile(filename);
@@ -61,15 +64,30 @@ namespace Engine
 
         const tinyobj::attrib_t & attrib = reader.GetAttrib();
         const std::vector<tinyobj::shape_t> & shapes = reader.GetShapes();
+        const std::vector<tinyobj::material_t> & materials = reader.GetMaterials();
 
-        m_position.reserve(shapes.size() * 3);
-        m_uv.reserve(shapes.size() * 3);
+        // Convert materials
+        m_materials.resize(materials.size() + 1);
+        SetDefaultMaterial();
+        for (size_t i = 0; i < materials.size(); i++) {
+            SetObjMaterial(i+1, materials[i]);
+        }
 
+        m_position.resize(m_materials.size());
+        m_uv.resize(m_materials.size());
+
+        // Create
         for (size_t s = 0; s < shapes.size(); s++) {
             size_t index_offset = 0;
             for (size_t f = 0; f < shapes[s].mesh.num_face_vertices.size(); f++) {
                 size_t fv = size_t(shapes[s].mesh.num_face_vertices[f]);
                 assert(fv == 3 && "Mesh is not triangulated");
+
+                auto material_id = shapes[s].mesh.material_ids[f] + 1;
+
+                assert(material_id <= m_materials.size()
+                    && "Material ID too high, check material conversion.");
+
                 for (size_t v = 0; v < fv; v++) {
                     tinyobj::index_t idx = shapes[s].mesh.indices[index_offset + v];
                     float vx = attrib.vertices[3*size_t(idx.vertex_index)+0];
@@ -81,61 +99,90 @@ namespace Engine
                     float ty = attrib.texcoords[2*size_t(idx.texcoord_index)+1];
 
                     // Flatten coordinates for VBO
-                    m_position.push_back(vx);
-                    m_position.push_back(vy);
-                    m_position.push_back(vz);
-                    m_uv.push_back(tx);
-                    m_uv.push_back(ty);
+                    m_position[material_id].push_back(vx);
+                    m_position[material_id].push_back(vy);
+                    m_position[material_id].push_back(vz);
+                    m_uv[material_id].push_back(tx);
+                    m_uv[material_id].push_back(ty);
                 }
                 index_offset += fv;
             }
         }
 
-        m_position.shrink_to_fit();
-        m_uv.shrink_to_fit();
-        assert(m_position.size() % 3 == 0 && m_uv.size() % 2 == 0);
-        assert(m_position.size() / 3 == m_uv.size() / 2);
-
         if (m_position.empty())
             return false;
-        this->SetupVertices();
+
+        if (!this->SetupVertices())
+            return false;
         return true;
     }
 
-    void MeshComponent::SetupVertices()
+    void MeshComponent::SetObjMaterial(size_t id, const tinyobj::material_t &obj_material)
     {
-        if (glIsVertexArray(m_VAO)) {
-            glDeleteVertexArrays(1, &m_VAO);
-            glDeleteBuffers(2, m_VBO);
+        static std::random_device rd;
+        static std::mt19937 gen(rd());
+        static std::uniform_real_distribution<> dis(0.0, 1.0);
+        m_materials[id] = std::make_shared<SingleColor>(nullptr, dis(gen), dis(gen), dis(gen), 1.0);
+    }
 
-            m_VAO = 0;
-            m_VBO[0] = m_VBO[1] = 0;
-        }
+    void MeshComponent::SetDefaultMaterial()
+    {
+        static std::random_device rd;
+        static std::mt19937 gen(rd());
+        static std::uniform_real_distribution<> dis(0.0, 1.0);
+        m_materials[0] = std::make_shared<SingleColor>(nullptr, dis(gen), dis(gen), dis(gen), 1.0);
+    }
+
+    bool MeshComponent::SetupVertices()
+    {
         GLenum glError;
 
-        glGenVertexArrays(1, &m_VAO);
-        glGenBuffers(2, m_VBO);
-        glBindVertexArray(m_VAO);
+        size_t material_count = this->m_materials.size();
+        m_VAOs.resize(material_count);
+        m_VBOs_position.resize(material_count);
+        m_VBOs_uv.resize(material_count);
 
+        glGenVertexArrays(material_count, m_VAOs.data());
+        glGenBuffers(material_count, m_VBOs_position.data());
+        glGenBuffers(material_count, m_VBOs_uv.data());
         glError = glGetError();
         if(glError != GL_NO_ERROR) {
-            throw std::runtime_error("Failed to allocate VAO and VBO");
-        }
-        
-        glBindBuffer(GL_ARRAY_BUFFER, m_VBO[0]);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(float) * m_position.size(), m_position.data(), GL_STATIC_DRAW);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-
-        glBindBuffer(GL_ARRAY_BUFFER, m_VBO[1]);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(float) * m_uv.size(), m_uv.data(), GL_STATIC_DRAW);
-        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
-
-        glError = glGetError();
-        if(glError != GL_NO_ERROR) {
-            throw std::runtime_error("Failed to write VAO and VBO");
+            SDL_LogError(0, "Failed to allocate VAO and VBO.");
+            return false;
         }
 
-        glEnableVertexAttribArray(0);
-        glEnableVertexAttribArray(1);
+        for (size_t i = 0; i < material_count; i++) {
+            assert(m_position[i].size() % 3 == 0);
+            assert(m_uv[i].size() % 2 == 0);
+            assert(m_position[i].size() / 3 == m_uv[i].size() / 2);
+
+            glBindVertexArray(m_VAOs[i]);
+            glError = glGetError();
+            if(glError != GL_NO_ERROR) {
+                SDL_LogError(0, "Failed to bind VAO and VBO for material %llu", i);
+                return false;
+            }
+            
+            glBindBuffer(GL_ARRAY_BUFFER, m_VBOs_position[i]);
+            glBufferData(GL_ARRAY_BUFFER, sizeof(float) * m_position[i].size(), m_position[i].data(), GL_STATIC_DRAW);
+            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+            glBindBuffer(GL_ARRAY_BUFFER, m_VBOs_uv[i]);
+            glBufferData(GL_ARRAY_BUFFER, sizeof(float) * m_uv[i].size(), m_uv[i].data(), GL_STATIC_DRAW);
+            glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
+            glError = glGetError();
+            if(glError != GL_NO_ERROR) {
+                SDL_LogError(0, "Failed to write VAO and VBO for material %llu", i);
+                return false;
+            }
+
+            glEnableVertexAttribArray(0);
+            glEnableVertexAttribArray(1);
+            glError = glGetError();
+            if(glError != GL_NO_ERROR) {
+                SDL_LogError(0, "Failed to enable vertex attribute for material %llu", i);
+                return false;
+            }
+        }
+        return true;
     }
 }
