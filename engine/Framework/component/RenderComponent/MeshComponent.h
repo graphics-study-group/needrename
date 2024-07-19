@@ -42,8 +42,8 @@ namespace Engine
         std::vector <GLuint> m_VBOs_uv;
 
         /// @brief 
-        /// @return location of new material in material vector (a.k.a. material slots)
-        void SetObjMaterial(size_t id, const tinyobj::material_t & obj_material);
+        /// @return True if successful
+        bool SetObjMaterial(size_t id, const tinyobj::material_t & obj_material);
 
         void SetDefaultMaterial();
 
