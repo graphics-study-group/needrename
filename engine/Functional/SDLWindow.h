@@ -29,6 +29,7 @@ namespace Engine
         SDL_Renderer *GetRenderer();
 
         /// Create a new render of this window, replacing the old one
+        [[deprecated("Directly use OpenGL framebuffers instead.")]]
         void CreateRenderer();
 
         /// Call this function in an event loop to process CLICK events
@@ -55,8 +56,16 @@ namespace Engine
         /// @return TRUE if the event loop is to be continued
         virtual bool DispatchEvents(SDL_Event &);
 
-        const int GetHeight() const;
-        const int GetWidth() const;
+        /// @brief Enable (or disable) MSAA for default FBO.
+        /// Must be called before window creation.
+        /// @param samples
+        static void EnableMSAA(int samples);
+
+        [[deprecated("Does not consider HDPI displays. Use SDL_GetWindowSizeInPixels instead.")]]
+        int GetHeight() const;
+
+        [[deprecated("Does not consider HDPI displays. Use SDL_GetWindowSizeInPixels instead.")]]
+        int GetWidth() const;
 
     protected:
         bool blockMouseEvent;
