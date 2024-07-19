@@ -185,12 +185,24 @@ namespace Engine
         return ret;
     }
 
-    const int SDLWindow::GetHeight() const
+    void SDLWindow::EnableMSAA(int samples)
+    {
+        if (samples == 0) {
+            SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 0);
+            // glDisable(GL_MULTISAMPLE);
+        } else {
+            SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
+            SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, samples);
+            // glEnable(GL_MULTISAMPLE);
+        }
+    }
+
+    int SDLWindow::GetHeight() const
     {
         return height;
     }
 
-    const int SDLWindow::GetWidth() const
+    int SDLWindow::GetWidth() const
     {
         return width;
     }

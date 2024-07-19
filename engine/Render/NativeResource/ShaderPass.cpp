@@ -10,7 +10,7 @@ namespace Engine
 {
     void ShaderPass::Use() const noexcept
     {
-        assert(this->IsValid() && "Trying to use unlinked program");
+        assert(this->IsValid() && "Trying to use unlinked program.");
         glUseProgram(m_handle);
     }
 
@@ -80,6 +80,48 @@ namespace Engine
         assert(this->IsValid() && "Trying to get uniform location from uncompiled program.");
 
         return glGetUniformLocation(m_handle, name);
+    }
+
+    bool ShaderPass::SetUniformInteger(GLint location, GLint value) noexcept
+    {
+        assert(!glGetError());
+
+        glUniform1i(location, value);
+        GLenum err = glGetError();
+        if (err) {
+            SDL_LogError(0, "Fail to set uniform location %d, OpenGL error: %d", location, err);
+            return false;
+        }
+        return true;
+    }
+
+    bool ShaderPass::SetUniformIntegerVector(GLint location, const std::vector <GLint> & vector) noexcept
+    {
+        assert(!glGetError());
+
+        switch(vector.size()) {
+            case 1:
+                glUniform1i(location, vector[0]);
+                break;
+            case 2:
+                glUniform2i(location, vector[0], vector[1]);
+                break;
+            case 3:
+                glUniform3i(location, vector[0], vector[1], vector[2]);
+                break;
+            case 4:
+                glUniform4i(location, vector[0], vector[1], vector[2], vector[3]);
+                break;
+            default:
+                SDL_LogError(0, "Exotic vector size %lld for uniform location %d.", vector.size(), location);
+                return false;
+        }
+        GLenum err = glGetError();
+        if (err) {
+            SDL_LogError(0, "Fail to set uniform location %d, OpenGL error: %d", location, err);
+            return false;
+        }
+        return true;
     }
 
     GLint ShaderPass::GetAttribute(const char *name) const noexcept
