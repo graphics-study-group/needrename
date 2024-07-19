@@ -1,10 +1,9 @@
 #include "RendererComponent.h"
-#include "Render/Material.h"
+#include "Render/Material/Material.h"
 
 namespace Engine
 {
-    RendererComponent::RendererComponent(std::shared_ptr<Material> material, std::weak_ptr<GameObject> gameObject) : Component(gameObject) {
-        m_material = material;
+    RendererComponent::RendererComponent(std::weak_ptr<GameObject> gameObject) : Component(gameObject) {
         // material->RegisterComponent(this);
     }
     void RendererComponent::Tick(float dt)

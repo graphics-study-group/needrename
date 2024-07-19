@@ -13,14 +13,16 @@ namespace Engine
     {
     public:
         TestTriangleRendererComponent(std::shared_ptr<Material> material, std::weak_ptr<GameObject> gameObject) 
-            : RendererComponent(material, gameObject) {
+            : RendererComponent(gameObject) {
+            m_materials.push_back(material);
+
             float clip_space_coordinate[] = {
-                -0.5f,  0.5f, 0.0f,
-                 0.5f, -0.5f, 0.0f,
-                -0.5f, -0.5f, 0.0f,
-                 0.5f,  0.5f, 0.0f,
-                 0.5f, -0.5f, 0.0f,
-                -0.5f,  0.5f, 0.0f
+                -0.8f,  0.8f, 0.0f,
+                 0.8f, -0.8f, 0.0f,
+                -0.8f, -0.8f, 0.0f,
+                 0.8f,  0.8f, 0.0f,
+                 0.8f, -0.8f, 0.0f,
+                -0.8f,  0.8f, 0.0f
             };
 
             float uv[] = {
@@ -65,7 +67,7 @@ namespace Engine
         virtual void Tick(float dt) {};
         virtual void Draw(/*Context*/) override {
             GLenum glError;
-            m_material->PrepareDraw(/*Context, Transform, etc.*/);
+            m_materials[0]->PrepareDraw(/*Context, Transform, etc.*/);
 
             glBindVertexArray(m_VAO);
             glDrawArrays(GL_TRIANGLES, 0, 6);
