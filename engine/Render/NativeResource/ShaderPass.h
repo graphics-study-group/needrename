@@ -2,6 +2,7 @@
 #define RENDER_NATIVERESOURCE_SHADERPASS_INCLUDED
 
 #include "NativeResource.h"
+#include <vector>
 
 namespace Engine {
     /// A single pass consists of vertex and fragment shaders.
@@ -30,7 +31,19 @@ namespace Engine {
         /// @return layout location of the uniform, -1 if not available.
         GLint GetUniform(const char * name) const noexcept;
 
-        /// @brief Get layout location of a give atttribute name
+        /// @brief Set single integer (or sampler) uniform scalar variable of current active program
+        /// @param location
+        /// @param value
+        /// @return True if successful.
+        static bool SetUniformInteger(GLint location, GLint value) noexcept;
+
+        /// @brief Set single integer (or sampler) uniform vector variable of current active program
+        /// @param location
+        /// @param value
+        /// @return True if successful.
+        static bool SetUniformIntegerVector(GLint location, const std::vector <GLint> & vector) noexcept;
+
+        /// @brief Get layout location of a given attribute name
         /// @param name Name of the attribute
         /// @return layout location of the attribute, -1 if not available.
         /// @note Consider using layout directive with index instead of this method.
