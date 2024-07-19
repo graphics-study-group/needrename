@@ -15,10 +15,15 @@ namespace Engine {
 
         void SetAlbedo(std::shared_ptr <ImmutableTexture2D> texture) noexcept;
         void virtual PrepareDraw(/*...*/) override;
+
     protected:
         static std::unique_ptr <ShaderPass> pass;
+
         static GLint location_albedo;
+        static GLint location_normal;
+
         std::shared_ptr <ImmutableTexture2D> m_albedo;
+        std::shared_ptr <ImmutableTexture2D> m_normal;
     };
 }
 

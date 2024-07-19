@@ -1,6 +1,8 @@
 #include "MeshComponent.h"
 
+#include "Render/NativeResource/ImmutableTexture2D.h"
 #include "Render/Material/SingleColor.h"
+#include "Render/Material/Shadeless.h"
 
 #include <tiny_obj_loader.h>
 #include <SDL3/SDL.h>
@@ -70,7 +72,10 @@ namespace Engine
         m_materials.resize(materials.size() + 1);
         SetDefaultMaterial();
         for (size_t i = 0; i < materials.size(); i++) {
-            SetObjMaterial(i+1, materials[i]);
+            if(!SetObjMaterial(i+1, materials[i])) {
+                m_materials.clear();
+                return false;
+            }
         }
 
         m_position.resize(m_materials.size());
@@ -83,10 +88,9 @@ namespace Engine
                 size_t fv = size_t(shapes[s].mesh.num_face_vertices[f]);
                 assert(fv == 3 && "Mesh is not triangulated");
 
-                auto material_id = shapes[s].mesh.material_ids[f] + 1;
-
+                size_t material_id = shapes[s].mesh.material_ids[f] + 1;
                 assert(material_id <= m_materials.size()
-                    && "Material ID too high, check material conversion.");
+                    && "Material ID out of range, check material conversion.");
 
                 for (size_t v = 0; v < fv; v++) {
                     tinyobj::index_t idx = shapes[s].mesh.indices[index_offset + v];
@@ -117,20 +121,21 @@ namespace Engine
         return true;
     }
 
-    void MeshComponent::SetObjMaterial(size_t id, const tinyobj::material_t &obj_material)
+    bool MeshComponent::SetObjMaterial(size_t id, const tinyobj::material_t &obj_material)
     {
-        static std::random_device rd;
-        static std::mt19937 gen(rd());
-        static std::uniform_real_distribution<> dis(0.0, 1.0);
-        m_materials[id] = std::make_shared<SingleColor>(nullptr, dis(gen), dis(gen), dis(gen), 1.0);
+        auto material = std::make_shared<ShadelessMaterial>(nullptr);
+        auto texture = std::make_shared<ImmutableTexture2D>();
+        if(!texture->LoadFromFile(obj_material.diffuse_texname.c_str(), GL_RGBA8, 1)) {
+            return false;
+        }
+        material->SetAlbedo(texture);
+        m_materials[id] = material;
+        return true;
     }
 
     void MeshComponent::SetDefaultMaterial()
     {
-        static std::random_device rd;
-        static std::mt19937 gen(rd());
-        static std::uniform_real_distribution<> dis(0.0, 1.0);
-        m_materials[0] = std::make_shared<SingleColor>(nullptr, dis(gen), dis(gen), dis(gen), 1.0);
+        m_materials[0] = std::make_shared<SingleColor>(nullptr, 1.0, 0.0, 1.0, 1.0);
     }
 
     bool MeshComponent::SetupVertices()
