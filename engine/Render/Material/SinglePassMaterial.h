@@ -1,8 +1,8 @@
-#ifndef RENDER_SINGLEPASSMATERIAL_INCLUDED
-#define RENDER_SINGLEPASSMATERIAL_INCLUDED
+#ifndef RENDER_MATERIAL_SINGLEPASSMATERIAL_INCLUDED
+#define RENDER_MATERIAL_SINGLEPASSMATERIAL_INCLUDED
 
 #include "Material.h"
-#include "NativeResource/ShaderPass.h"
+#include "Render/NativeResource/ShaderPass.h"
 #include <glad/glad.h>
 
 namespace Engine
@@ -18,4 +18,4 @@ namespace Engine
 } // namespace Engine
 
 
-#endif // RENDER_SINGLEPASSMATERIAL_INCLUDED
+#endif // RENDER_MATERIAL_SINGLEPASSMATERIAL_INCLUDED
