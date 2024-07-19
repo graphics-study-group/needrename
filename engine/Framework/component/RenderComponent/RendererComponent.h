@@ -2,6 +2,7 @@
 #define FRAMEWORK_COMPONENT_RENDERCOMPONENT_RENDERERCOMPONENT_INCLUDED
 
 #include "Framework/component/Component.h"
+#include <vector>
 
 namespace Engine
 {
@@ -10,14 +11,14 @@ namespace Engine
     class RendererComponent : public Component
     {
     public:
-        RendererComponent(std::shared_ptr<Material> material, std::weak_ptr<GameObject> gameObject);
+        RendererComponent(std::weak_ptr<GameObject> gameObject);
         virtual ~RendererComponent() = default;
 
         virtual void Tick(float dt);
         virtual void Draw(/*Context*/) = 0;
 
     protected:
-        std::shared_ptr <Material> m_material;
+        std::vector<std::shared_ptr<Material>> m_materials;
         std::weak_ptr <GameObject> m_parentGameObject;
     };
 }
