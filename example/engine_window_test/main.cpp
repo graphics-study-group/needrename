@@ -5,37 +5,14 @@
 #include "MainClass.h"
 #include "Functional/SDLWindow.h"
 
-#include "Render/SinglePassMaterial.h"
+#include "Render/Material/SingleColor.h"
 #include "Render/RenderSystem.h"
 #include "Framework/go/GameObject.h"
-#include "Framework/component/RenderComponent/MeshComponent.h"
+#include "Framework/component/RenderComponent/TestTriangleRendererComponent.h"
 
 using namespace Engine;
 
 Engine::MainClass * cmc;
-
-const char vert [] = R"(
-#version 330 core
-layout (location = 0) in vec3 aPos;
-layout (location = 1) in vec2 uv;
-out vec3 clip_space_coordinate;
-out vec2 vert_uv;
-void main() {
-    gl_Position = vec4(aPos.x, aPos.y - 1.0, aPos.z, 1.0);
-    clip_space_coordinate = aPos;
-    vert_uv = uv;
-}
-)";
-
-const char frag [] = R"(
-#version 330 core
-in vec3 clip_space_coordinate;
-in vec2 vert_uv;
-out vec4 albedo;
-void main() {
-    albedo = vec4(1.0, 0.0, 0.0, 1.0);
-}
-)";
 
 int main(int argc, char * argv[])
 {
@@ -50,13 +27,12 @@ int main(int argc, char * argv[])
             opt->enableVerbose ? SDL_LOG_PRIORITY_VERBOSE : SDL_LOG_PRIORITY_INFO);
     cmc->Initialize(opt);
 
+    // Setup material
+    std::shared_ptr <SingleColor> mat = std::make_shared<SingleColor>(cmc->renderer, 0.0, 1.0, 0.0, 1.0);
+
     std::shared_ptr <GameObject> go = std::make_shared<GameObject>();
-    std::shared_ptr <ShaderPass> pass = std::make_shared <ShaderPass> ();
-    assert(pass->Compile(vert, frag));
-    std::shared_ptr <Material> mat = std::make_shared<SinglePassMaterial>(cmc->renderer, pass);
-    std::shared_ptr <MeshComponent> testMesh = 
-        std::make_shared<MeshComponent>(mat, go);
-    testMesh->ReadAndFlatten("D:/test.obj");
+    std::shared_ptr <TestTriangleRendererComponent> testMesh = 
+        std::make_shared<TestTriangleRendererComponent>(mat, go);
     
     cmc->renderer->RegisterComponent(testMesh);
 
