@@ -5,45 +5,13 @@
 #include "MainClass.h"
 #include "Functional/SDLWindow.h"
 
-#include "Render/SinglePassMaterial.h"
 #include "Render/RenderSystem.h"
-#include "Render/NativeResource/ImmutableTexture2D.h"
 #include "Framework/go/GameObject.h"
-#include "Framework/component/RenderComponent/TestTriangleRendererComponent.h"
+#include "Framework/component/RenderComponent/MeshComponent.h"
 
 using namespace Engine;
 
 Engine::MainClass * cmc;
-
-const char vert [] = R"(
-#version 330 core
-
-layout (location = 0) in vec3 aPos;
-layout (location = 1) in vec2 uv;
-
-out vec3 clip_space_coordinate;
-out vec2 vert_uv;
-
-void main() {
-    gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);
-    clip_space_coordinate = aPos;
-    vert_uv = uv;
-}
-)";
-
-const char frag [] = R"(
-#version 330 core
-
-in vec3 clip_space_coordinate;
-in vec2 vert_uv;
-uniform sampler2D sampler;
-
-out vec4 albedo;
-void main() {
-    albedo = texture(sampler, vert_uv);
-    // albedo = vec4(vert_uv.x, vert_uv.y, 0.0, 1.0);
-}
-)";
 
 int main(int argc, char * argv[])
 {
@@ -56,29 +24,15 @@ int main(int argc, char * argv[])
     cmc = new Engine::MainClass(
             SDL_INIT_VIDEO,
             opt->enableVerbose ? SDL_LOG_PRIORITY_VERBOSE : SDL_LOG_PRIORITY_INFO);
+    SDLWindow::EnableMSAA(4);
     cmc->Initialize(opt);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     std::shared_ptr <GameObject> go = std::make_shared<GameObject>();
-
-    std::shared_ptr <ShaderPass> pass = std::make_shared <ShaderPass> ();
-    assert(pass->Compile(vert, frag));
-
-    std::shared_ptr <Material> mat = std::make_shared<SinglePassMaterial>(cmc->renderer, pass);
-
-    std::shared_ptr <TestTriangleRendererComponent> testMesh = 
-        std::make_shared<TestTriangleRendererComponent>(mat, go);
-
-    std::shared_ptr <ImmutableTexture2D> texture = std::make_shared<ImmutableTexture2D>();
-    assert(texture->LoadFromFile("D:/checker.png", GL_RGBA32F, 12));
-    texture->Bind();
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-    // Set up uniforms
-    auto location = pass->GetUniform("sampler");
-    pass->Use();
-    glUniform1i(location, 0);
-    texture->BindToLocation(0);
+    std::shared_ptr <MeshComponent> testMesh = 
+        std::make_shared<MeshComponent>(go);
+    testMesh->ReadAndFlatten("D:/testmesh/mesh.obj");
 
     cmc->renderer->RegisterComponent(testMesh);
 
