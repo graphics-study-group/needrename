@@ -26,7 +26,12 @@ namespace Engine
     {
         if (opt->instantQuit)
             return;
-        this->window = std::make_shared<SDLWindow>(opt->title.c_str(), opt->resol_x, opt->resol_y, this->sdl_flags);
+        this->window = std::make_shared<SDLWindow>(
+            opt->title.c_str(), 
+            opt->resol_x, 
+            opt->resol_y, 
+            SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY
+            );
         this->window->CreateRenderer();
 
         this->renderer = std::make_shared<RenderSystem>();
@@ -52,7 +57,7 @@ namespace Engine
             // instead of being set here.
             auto pWindow = this->window->GetWindow();
             int w, h;
-            SDL_GetWindowSize(pWindow, &w, &h);
+            SDL_GetWindowSizeInPixels(pWindow, &w, &h);
             glViewport(0, 0, w, h);
             
             this->renderer->Render();
