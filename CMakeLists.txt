@@ -12,11 +12,17 @@ endif()
 
 add_subdirectory(third_party)
 
-if (RELEASE)
-    add_compile_options(-O2)
-else()
-    add_compile_options(-g -Wall -Wextra -Wpedantic)
-endif()
+# Debug options
+add_compile_options($<$<CONFIG:Debug>:-g>)
+add_compile_options($<$<CONFIG:Debug>:-Og>)
+add_compile_options($<$<CONFIG:Debug>:-Wall>)
+add_compile_options($<$<CONFIG:Debug>:-Wextra>)
+add_compile_options($<$<CONFIG:Debug>:-Wpedantic>)
+add_compile_options($<$<CONFIG:Debug>:-Weffc++>)
+# add_compile_options($<$<CONFIG:Debug>:-pg>)
+# add_link_options($<$<CONFIG:Debug>:-pg>)
+
+# Link libstdc++, etc. statically
 add_link_options(-static-libstdc++ -static-libgcc)
 
 add_subdirectory(engine)
