@@ -1,6 +1,7 @@
 #ifndef RENDER_NATIVERESOURCE_IMMUTABLETEXTURE2D_INCLUDED
 #define RENDER_NATIVERESOURCE_IMMUTABLETEXTURE2D_INCLUDED
 
+#include <filesystem>
 #include "ImmutableTexture.h"
 
 namespace Engine
@@ -14,7 +15,7 @@ namespace Engine
         void Download(GLvoid * data) const override;
         void Bind() const override;
 
-        bool LoadFromFile(const char * filename, GLenum textureFormat, GLuint levels);
+        bool LoadFromFile(std::filesystem::path path, GLenum textureFormat, GLuint levels);
     };
 } // namespace Engine
 

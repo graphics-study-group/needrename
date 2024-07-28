@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <vector>
+#include <filesystem>
 #include <GLAD/glad.h>
 #include "Render/Material/Material.h"
 #include "Framework/component/RenderComponent/RendererComponent.h"
@@ -27,12 +28,14 @@ namespace Engine
         virtual void Tick(float dt) override;
         virtual void Draw() override;
 
-        bool ReadAndFlatten(const char * filename);
+        bool ReadAndFlatten(std::filesystem::path path);
         // TODO: set resources: mesh model, texture, shader 
     protected:
 
         typedef std::vector <float> Positions;
         typedef std::vector <float> UVs;
+
+        std::filesystem::path m_model_absolute_path;
 
         std::vector <Positions> m_position;
         std::vector <UVs> m_uv;
