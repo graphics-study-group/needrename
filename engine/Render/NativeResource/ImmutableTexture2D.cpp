@@ -65,18 +65,21 @@ namespace Engine
 
     bool ImmutableTexture2D::LoadFromFile(const char * filename, GLenum textureFormat, GLuint levels)
     {
+        // XXX: We need better asset managing system
         int width, height, channels;
-        int ok = stbi_info(filename, &width, &height, &channels);
-        if (!ok) {
-            SDL_LogError(0, "Cannot load image file %s information, format unsupported.", filename);
+        stbi_set_flip_vertically_on_load(true);
+        unsigned char * data = stbi_load(filename, &width, &height, &channels, 0);
+        if (data == nullptr) {
+            SDL_LogError(0, "Cannot load image file %s, STB reports \"%s\".", filename, stbi_failure_reason());
             return false;
         }
         if (channels != 3 && channels != 4) {
             SDL_LogError(0, "Image file %s contains unexpected color format.", filename);
+            stbi_image_free(data);
             return false;
         }
-
         if (!this->Create(width, height, 0, textureFormat, levels)) {
+            stbi_image_free(data);
             return false;
         }
 
@@ -86,19 +89,13 @@ namespace Engine
             SDL_LogWarn(0, "Pixel alignment is not set to 1, setting it to 1.");
             glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
         }
-        stbi_set_flip_vertically_on_load(true);
-        unsigned char * data = stbi_load(filename, &width, &height, &channels, 0);
-        if (data == nullptr) {
-            SDL_LogError(0, "Cannot load image file %s, STB reports %s.", filename, stbi_failure_reason());
-            return false;
-        }
         bool result;
         if (channels == 4)
             result = this->FullUpload(GL_RGBA, GL_UNSIGNED_BYTE, (void *) data);
         else
             result = this->FullUpload(GL_RGB, GL_UNSIGNED_BYTE, (void *) data);
-        stbi_image_free(data);
 
+        stbi_image_free(data);
         return result;
     }
 

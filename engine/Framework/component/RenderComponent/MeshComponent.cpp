@@ -125,6 +125,7 @@ namespace Engine
     {
         auto material = std::make_shared<ShadelessMaterial>(nullptr);
         auto texture = std::make_shared<ImmutableTexture2D>();
+        // XXX: We need better asset managing system
         if(!texture->LoadFromFile(obj_material.diffuse_texname.c_str(), GL_RGBA8, 1)) {
             return false;
         }
