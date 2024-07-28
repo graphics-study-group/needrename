@@ -26,8 +26,7 @@ int main(int argc, char * argv[])
             opt->enableVerbose ? SDL_LOG_PRIORITY_VERBOSE : SDL_LOG_PRIORITY_INFO);
     SDLWindow::EnableMSAA(4);
     cmc->Initialize(opt);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_DEPTH_TEST);
 
     std::shared_ptr <GameObject> go = std::make_shared<GameObject>();
     std::shared_ptr <MeshComponent> testMesh = 
