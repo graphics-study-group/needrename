@@ -11,8 +11,6 @@ add_library(engine STATIC ${SRC})
 target_include_directories(
     engine
     PUBLIC
-    ${GLAD_INCLUDE_DIRECTORY}
-    ${STB_INCLUDE_DIRECTORY}
     ${ENGINE_DIR}
 )
 target_link_libraries(engine PUBLIC SDL3::SDL3 GLAD tinyobjloader stb)
