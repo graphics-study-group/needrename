@@ -11,6 +11,9 @@
 #include <cassert>
 #include <random>
 
+#include <codecvt>
+#include <locale>
+
 namespace Engine
 {
     MeshComponent::MeshComponent(
@@ -46,21 +49,23 @@ namespace Engine
         }
     }
 
-    bool MeshComponent::ReadAndFlatten(const char *filename)
+    bool MeshComponent::ReadAndFlatten(std::filesystem::path path)
     {
         assert(m_materials.empty() && "Recreating meshes.");
 
+        m_model_absolute_path = std::filesystem::absolute(path);
+        
         tinyobj::ObjReader reader;
-        reader.ParseFromFile(filename);
+        reader.ParseFromFile(m_model_absolute_path.string());
 
         if (!reader.Error().empty()) {
-            std::cerr << "TinyObjReader reports errors reading " << filename << std::endl ;
+            std::cerr << "TinyObjReader reports errors reading " << m_model_absolute_path << std::endl ;
             std::cerr << "\t" << reader.Error() << std::endl;
             return false;
         }
 
         if (!reader.Warning().empty()) {
-            std::cerr << "TinyObjReader reports warnings reading " << filename << std::endl ;
+            std::cerr << "TinyObjReader reports warnings reading " << m_model_absolute_path << std::endl ;
             std::cerr << "\t" << reader.Warning() << std::endl;
         }
 
@@ -126,7 +131,8 @@ namespace Engine
         auto material = std::make_shared<ShadelessMaterial>(nullptr);
         auto texture = std::make_shared<ImmutableTexture2D>();
         // XXX: We need better asset managing system
-        if(!texture->LoadFromFile(obj_material.diffuse_texname.c_str(), GL_RGBA8, 1)) {
+        auto image_path = m_model_absolute_path.parent_path() / obj_material.diffuse_texname;
+        if(!texture->LoadFromFile(image_path, GL_RGBA8, 1)) {
             return false;
         }
         material->SetAlbedo(texture);

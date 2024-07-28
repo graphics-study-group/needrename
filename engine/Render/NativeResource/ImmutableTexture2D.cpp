@@ -63,18 +63,22 @@ namespace Engine
         glBindTexture(GL_TEXTURE_2D, m_handle);
     }
 
-    bool ImmutableTexture2D::LoadFromFile(const char * filename, GLenum textureFormat, GLuint levels)
+    bool ImmutableTexture2D::LoadFromFile(std::filesystem::path path, GLenum textureFormat, GLuint levels)
     {
         // XXX: We need better asset managing system
         int width, height, channels;
         stbi_set_flip_vertically_on_load(true);
-        unsigned char * data = stbi_load(filename, &width, &height, &channels, 0);
+
+        // Beware of UTF-16 wchar_t <=> UTF-8 char conversion on Windows platform
+        const char * p = path.string().c_str();
+        unsigned char * data = stbi_load(p, &width, &height, &channels, 0);
+
         if (data == nullptr) {
-            SDL_LogError(0, "Cannot load image file %s, STB reports \"%s\".", filename, stbi_failure_reason());
+            SDL_LogError(0, "Cannot load image file %s, STB reports \"%s\".", p, stbi_failure_reason());
             return false;
         }
         if (channels != 3 && channels != 4) {
-            SDL_LogError(0, "Image file %s contains unexpected color format.", filename);
+            SDL_LogError(0, "Image file %s contains unexpected color format.", p);
             stbi_image_free(data);
             return false;
         }
