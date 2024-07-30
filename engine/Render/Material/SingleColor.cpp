@@ -51,7 +51,7 @@ namespace Engine {
     {
     }
 
-    void SingleColor::PrepareDraw()
+    void SingleColor::PrepareDraw(MaterialDrawContext const* context)
     {
         pass->Use();
         glUniform4f(location_color, r, g, b, a);

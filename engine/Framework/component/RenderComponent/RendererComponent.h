@@ -19,7 +19,6 @@ namespace Engine
 
     protected:
         std::vector<std::shared_ptr<Material>> m_materials;
-        std::weak_ptr <GameObject> m_parentGameObject;
     };
 }
 #endif // FRAMEWORK_COMPONENT_RENDERCOMPONENT_RENDERERCOMPONENT_INCLUDED

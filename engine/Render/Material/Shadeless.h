@@ -14,11 +14,12 @@ namespace Engine {
         ~ShadelessMaterial();
 
         void SetAlbedo(std::shared_ptr <ImmutableTexture2D> texture) noexcept;
-        void virtual PrepareDraw(/*...*/) override;
+        void virtual PrepareDraw(const MaterialDrawContext* context) override;
 
     protected:
         static std::unique_ptr <ShaderPass> pass;
 
+        static GLint location_model_matrix;
         static GLint location_albedo;
         static GLint location_normal;
 

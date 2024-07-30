@@ -5,8 +5,10 @@
 #include <vector>
 #include <filesystem>
 #include <GLAD/glad.h>
+#include "Core/Math/Transform.h"
 #include "Render/Material/Material.h"
 #include "Framework/component/RenderComponent/RendererComponent.h"
+#include "Framework/go/GameObject.h"
 
 namespace tinyobj
 {
@@ -24,13 +26,16 @@ namespace Engine
         MeshComponent(std::weak_ptr<GameObject> gameObject);
         virtual ~MeshComponent();
 
-        // TODO: tick for animation
         virtual void Tick(float dt) override;
         virtual void Draw() override;
 
+        Transform GetWorldTransform() const;
+        const Transform & GetRelativeTransform() const { return m_relative_transform; }
+        void SetRelativeTransform(const Transform & transform) { m_relative_transform = transform; }
         bool ReadAndFlatten(std::filesystem::path path);
         // TODO: set resources: mesh model, texture, shader 
     protected:
+        Transform m_relative_transform;
 
         typedef std::vector <float> Positions;
         typedef std::vector <float> UVs;
