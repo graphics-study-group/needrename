@@ -12,7 +12,7 @@ namespace Engine {
         SingleColor(std::shared_ptr <RenderSystem> system, GLfloat r, GLfloat g, GLfloat b, GLfloat a);
         ~SingleColor();
 
-        void virtual PrepareDraw(const MaterialDrawContext* context) override;
+        virtual void PrepareDraw(const CameraContext & CameraContext, const RendererContext & RendererContext) override;
 
     protected:
         static std::unique_ptr <ShaderPass> pass;

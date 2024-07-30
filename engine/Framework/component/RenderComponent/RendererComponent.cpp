@@ -15,6 +15,11 @@ namespace Engine
         return parentGameObject->GetWorldTransform();
     }
 
+    RendererContext RendererComponent::CreateContext() const
+    {
+        return RendererContext{ this->GetWorldTransform().GetModelMatrix() };
+    }
+
     void RendererComponent::Tick(float dt)
     {
     }

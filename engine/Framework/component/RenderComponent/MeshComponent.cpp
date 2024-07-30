@@ -3,6 +3,7 @@
 #include "Render/NativeResource/ImmutableTexture2D.h"
 #include "Render/Material/SingleColor.h"
 #include "Render/Material/Shadeless.h"
+#include "Framework/component/RenderComponent/CameraComponent.h"
 
 #include <tiny_obj_loader.h>
 #include <SDL3/SDL.h>
@@ -37,10 +38,8 @@ namespace Engine
     {
         GLenum glError;
         for (size_t i = 0; i < m_materials.size(); i++){
-            MaterialDrawContext context;
-            Transform world_transform = this->GetWorldTransform();
-            context.model_matrix = world_transform.GetModelMatrix();
-            m_materials[i]->PrepareDraw(&context);
+
+            m_materials[i]->PrepareDraw(CameraContext{}, this->CreateContext());
 
             glBindVertexArray(m_VAOs[i]);
             glDrawArrays(GL_TRIANGLES, 0, m_position[i].size() / 3);
@@ -51,7 +50,7 @@ namespace Engine
             }
         }
     }
-    
+
     bool MeshComponent::ReadAndFlatten(std::filesystem::path path)
     {
         assert(m_materials.empty() && "Recreating meshes.");

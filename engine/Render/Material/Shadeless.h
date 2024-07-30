@@ -14,7 +14,7 @@ namespace Engine {
         ~ShadelessMaterial();
 
         void SetAlbedo(std::shared_ptr <ImmutableTexture2D> texture) noexcept;
-        void virtual PrepareDraw(const MaterialDrawContext* context) override;
+        virtual void PrepareDraw(const CameraContext & CameraContext, const RendererContext & RendererContext) override;
 
     protected:
         static std::unique_ptr <ShaderPass> pass;

@@ -4,6 +4,7 @@
 #include <memory>
 #include <GLAD/glad.h>
 #include "RendererComponent.h"
+#include "Framework/component/RenderComponent/CameraComponent.h"
 
 namespace Engine
 {
@@ -67,7 +68,7 @@ namespace Engine
         virtual void Tick(float dt) {};
         virtual void Draw(/*Context*/) override {
             GLenum glError;
-            m_materials[0]->PrepareDraw(nullptr);
+            m_materials[0]->PrepareDraw(CameraContext{}, this->CreateContext());
 
             glBindVertexArray(m_VAO);
             glDrawArrays(GL_TRIANGLES, 0, 6);
