@@ -11,7 +11,7 @@ namespace Engine
     public:
         SinglePassMaterial (std::shared_ptr<RenderSystem> system, std::shared_ptr<ShaderPass> pass);
         virtual ~SinglePassMaterial();
-        void virtual PrepareDraw(/*...*/) override;
+        void virtual PrepareDraw(const MaterialDrawContext* context) override;
     protected:
         std::shared_ptr <ShaderPass> m_pass;
     };
