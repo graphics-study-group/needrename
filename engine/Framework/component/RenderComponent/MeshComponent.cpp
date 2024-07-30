@@ -37,7 +37,10 @@ namespace Engine
     {
         GLenum glError;
         for (size_t i = 0; i < m_materials.size(); i++){
-            m_materials[i]->PrepareDraw();
+            MaterialDrawContext context;
+            Transform world_transform = this->GetWorldTransform();
+            context.model_matrix = world_transform.GetModelMatrix();
+            m_materials[i]->PrepareDraw(&context);
 
             glBindVertexArray(m_VAOs[i]);
             glDrawArrays(GL_TRIANGLES, 0, m_position[i].size() / 3);
@@ -47,6 +50,12 @@ namespace Engine
                 throw std::runtime_error("Cannot draw VAO.");
             }
         }
+    }
+
+    Transform MeshComponent::GetWorldTransform() const
+    {
+        auto parentGameObject = m_parentGameObject.lock();
+        return parentGameObject->GetWorldTransform() * m_relative_transform;
     }
 
     bool MeshComponent::ReadAndFlatten(std::filesystem::path path)
