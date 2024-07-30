@@ -51,13 +51,7 @@ namespace Engine
             }
         }
     }
-
-    Transform MeshComponent::GetWorldTransform() const
-    {
-        auto parentGameObject = m_parentGameObject.lock();
-        return parentGameObject->GetWorldTransform() * m_relative_transform;
-    }
-
+    
     bool MeshComponent::ReadAndFlatten(std::filesystem::path path)
     {
         assert(m_materials.empty() && "Recreating meshes.");
