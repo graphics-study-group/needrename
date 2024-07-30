@@ -49,7 +49,7 @@ namespace Engine
 
         std::tuple <GLsizei, GLsizei, GLsizei> GetDimension() const noexcept;
     protected:
-        std::tuple <GLsizei, GLsizei, GLsizei> dimensions;
+        std::tuple <GLsizei, GLsizei, GLsizei> dimensions = {0, 0, 0};
     };
 } // namespace Engine
 

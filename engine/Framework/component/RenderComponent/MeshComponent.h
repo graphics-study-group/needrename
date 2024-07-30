@@ -35,14 +35,14 @@ namespace Engine
         typedef std::vector <float> Positions;
         typedef std::vector <float> UVs;
 
-        std::filesystem::path m_model_absolute_path;
+        std::filesystem::path m_model_absolute_path = {};
 
-        std::vector <Positions> m_position;
-        std::vector <UVs> m_uv;
+        std::vector <Positions> m_position = {};
+        std::vector <UVs> m_uv = {};
 
-        std::vector <GLuint> m_VAOs;
-        std::vector <GLuint> m_VBOs_position;
-        std::vector <GLuint> m_VBOs_uv;
+        std::vector <GLuint> m_VAOs = {};
+        std::vector <GLuint> m_VBOs_position = {};
+        std::vector <GLuint> m_VBOs_uv = {};
 
         /// @brief 
         /// @return True if successful
