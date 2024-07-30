@@ -29,13 +29,9 @@ namespace Engine
         virtual void Tick(float dt) override;
         virtual void Draw() override;
 
-        Transform GetWorldTransform() const;
-        const Transform & GetRelativeTransform() const { return m_relative_transform; }
-        void SetRelativeTransform(const Transform & transform) { m_relative_transform = transform; }
         bool ReadAndFlatten(std::filesystem::path path);
         // TODO: set resources: mesh model, texture, shader 
     protected:
-        Transform m_relative_transform;
 
         typedef std::vector <float> Positions;
         typedef std::vector <float> UVs;
