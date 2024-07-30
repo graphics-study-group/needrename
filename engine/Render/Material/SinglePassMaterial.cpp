@@ -14,7 +14,7 @@ namespace Engine {
     SinglePassMaterial::~SinglePassMaterial () {
     }
     
-    void SinglePassMaterial::PrepareDraw()
+    void SinglePassMaterial::PrepareDraw(const MaterialDrawContext* context)
     {
         m_pass->Use();
     }
