@@ -70,7 +70,9 @@ namespace Engine
         stbi_set_flip_vertically_on_load(true);
 
         // Beware of UTF-16 wchar_t <=> UTF-8 char conversion on Windows platform
-        const char * p = path.string().c_str();
+        std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+        std::string converted = converter.to_bytes(path.wstring());
+        const char * p = converted.c_str();
         unsigned char * data = stbi_load(p, &width, &height, &channels, 0);
 
         if (data == nullptr) {
