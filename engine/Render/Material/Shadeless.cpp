@@ -1,6 +1,7 @@
 #include "Shadeless.h"
 #include "Render/NativeResource/ShaderPass.h"
 #include "Render/NativeResource/ImmutableTexture2D.h"
+#include "Framework/component/RenderComponent/RendererComponent.h"
 
 #include <cassert>
 
@@ -72,12 +73,12 @@ namespace Engine
         this->m_albedo = texture;
     }
 
-    void ShadelessMaterial::PrepareDraw(const MaterialDrawContext* context)
+    void ShadelessMaterial::PrepareDraw(const CameraContext & cameraContext, const RendererContext & rendererContext)
     {
         assert(m_albedo && "Albedo texture is missing.");
 
         pass->Use();
-        glUniformMatrix4fv(location_model_matrix, 1, GL_FALSE, &context->model_matrix[0][0]);
+        glUniformMatrix4fv(location_model_matrix, 1, GL_FALSE, &rendererContext.model_matrix[0][0]);
         m_albedo->BindToLocation(0);
         ShaderPass::SetUniformInteger(location_albedo, 0);
 

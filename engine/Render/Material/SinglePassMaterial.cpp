@@ -14,7 +14,7 @@ namespace Engine {
     SinglePassMaterial::~SinglePassMaterial () {
     }
     
-    void SinglePassMaterial::PrepareDraw(const MaterialDrawContext* context)
+    void SinglePassMaterial::PrepareDraw(const CameraContext & CameraContext, const RendererContext & RendererContext)
     {
         m_pass->Use();
     }

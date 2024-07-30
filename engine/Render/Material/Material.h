@@ -6,16 +6,15 @@
 
 namespace Engine {
     class RenderSystem;
+    struct RendererContext;
+    struct CameraContext;
 
-    struct MaterialDrawContext {
-        glm::mat4 model_matrix;
-    };
     class Material {
     public:
         Material (std::shared_ptr<RenderSystem> system);
         virtual ~Material () = default;
 
-        virtual void PrepareDraw(const MaterialDrawContext* context) = 0;
+        virtual void PrepareDraw(const CameraContext & CameraContext, const RendererContext & RendererContext) = 0;
     protected:
         std::weak_ptr <RenderSystem> m_renderSystem;
     };
