@@ -13,7 +13,8 @@ namespace Engine
 
         void Tick(float dt);
         
-    private:
+    // XXX: public for debug
+    public:
         std::shared_ptr<Level> current_level;
     };
 }

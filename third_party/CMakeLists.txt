@@ -1,4 +1,5 @@
-add_subdirectory(SDL3)
 add_subdirectory(glad)
-add_subdirectory(tinyobjloader)
+add_subdirectory(glm)
+add_subdirectory(SDL3)
 add_subdirectory(stb)
+add_subdirectory(tinyobjloader)

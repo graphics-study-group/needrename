@@ -67,7 +67,7 @@ namespace Engine
         virtual void Tick(float dt) {};
         virtual void Draw(/*Context*/) override {
             GLenum glError;
-            m_materials[0]->PrepareDraw(/*Context, Transform, etc.*/);
+            m_materials[0]->PrepareDraw(nullptr);
 
             glBindVertexArray(m_VAO);
             glDrawArrays(GL_TRIANGLES, 0, 6);

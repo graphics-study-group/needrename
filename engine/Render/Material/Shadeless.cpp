@@ -10,11 +10,13 @@ constexpr std::string_view vert = R"(
 layout (location = 0) in vec3 aPos;
 layout (location = 1) in vec2 uv;
 
+uniform mat4 model_matrix;
+
 out vec3 clip_space_coordinate;
 out vec2 vert_uv;
 
 void main() {
-    gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);
+    gl_Position = model_matrix * vec4(aPos.x, aPos.y, aPos.z, 1.0);
     clip_space_coordinate = aPos;
     vert_uv = uv;
 }
@@ -39,6 +41,7 @@ void main() {
 namespace Engine
 {
     std::unique_ptr <ShaderPass> ShadelessMaterial::pass;
+    GLint ShadelessMaterial::location_model_matrix;
     GLint ShadelessMaterial::location_albedo;
     GLint ShadelessMaterial::location_normal;
 
@@ -52,6 +55,7 @@ namespace Engine
             auto result = pass->Compile(vert.data(), frag.data());
             assert(result);
 
+            location_model_matrix = pass->GetUniform("model_matrix");
             location_albedo = pass->GetUniform("albedo");
             // location_normal = pass->GetUniform("normal");
             assert(location_albedo >= 0);
@@ -68,11 +72,12 @@ namespace Engine
         this->m_albedo = texture;
     }
 
-    void ShadelessMaterial::PrepareDraw()
+    void ShadelessMaterial::PrepareDraw(const MaterialDrawContext* context)
     {
         assert(m_albedo && "Albedo texture is missing.");
 
         pass->Use();
+        glUniformMatrix4fv(location_model_matrix, 1, GL_FALSE, &context->model_matrix[0][0]);
         m_albedo->BindToLocation(0);
         ShaderPass::SetUniformInteger(location_albedo, 0);
 
