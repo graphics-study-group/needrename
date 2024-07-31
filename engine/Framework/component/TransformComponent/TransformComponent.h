@@ -18,11 +18,15 @@ namespace Engine
         void Tick(float dt) override;
 
         void SetTransform(const Transform & transform);
+
+        /// @brief Get the transform that transform local coordinate to parent local coordinate
+        /// @return Transform
         const Transform& GetTransform() const;
+    
+        /// @brief Get the transform that transform local coordinate to parent local coordinate
+        /// @return Transform
         Transform& GetTransform();
-
-        Transform GetWorldTransform() const;
-
+        
     protected:
         Transform m_transform {};
     };
