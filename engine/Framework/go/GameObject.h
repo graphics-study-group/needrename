@@ -1,6 +1,10 @@
 #ifndef GAMEOBJECT_H
 #define GAMEOBJECT_H
 
+// Suppress warning from std::enable_shared_from_this
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wnon-virtual-dtor"
+
 #include <vector>
 #include <memory>
 #include "Framework/component/TransformComponent/TransformComponent.h"
@@ -30,8 +34,10 @@ namespace Engine
     protected:
         size_t m_id;
 
-        std::vector<std::shared_ptr<Component>> m_components;
+        std::vector<std::shared_ptr<Component>> m_components {};
     };
 }
+
+#pragma GCC diagnostic pop
 
 #endif // GAMEOBJECT_H

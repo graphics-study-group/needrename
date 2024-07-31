@@ -35,7 +35,7 @@ namespace Engine
         virtual void Draw(/*Context*/) = 0;
 
     protected:
-        std::vector<std::shared_ptr<Material>> m_materials;
+        std::vector<std::shared_ptr<Material>> m_materials{};
     };
 }
 #endif // FRAMEWORK_COMPONENT_RENDERCOMPONENT_RENDERERCOMPONENT_INCLUDED
