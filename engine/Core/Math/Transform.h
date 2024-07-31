@@ -38,7 +38,7 @@ namespace Engine
         Transform & SetRotation(glm::quat quat);
 
         /// @brief Set the rotation component of transform, using axis-angles representation
-        /// @param axisAngles 
+        /// @param axisAngles angle in degrees * normalized rotation axis
         /// @return this for chaining set operations
         Transform & SetRotationAxisAngles(glm::vec3 axisAngles);
 
@@ -47,10 +47,24 @@ namespace Engine
         /// @return this for chaining set operations
         Transform & SetScale(glm::vec3 scale);
 
+        /// @brief Get the position component
+        /// @return position
         const glm::vec3& GetPosition() const;
-        glm::vec3 GetEulerAngles() const;
-        const glm::quat& GetQuat() const;
-        glm::vec3 GetAxisAngles() const;
+
+        /// @brief Get the euler angle representation of rotation
+        /// @return a copy of euler angle in pitch-roll-yaw order.
+        glm::vec3 GetRotationEuler() const;
+
+        /// @brief Get quaternion representation of rotation
+        /// @return quaternion
+        const glm::quat& GetRotation() const;
+
+        /// @brief Get axis-angle representation of rotation
+        /// @return axis-angle representation (angle in degrees * normalized rotation axis)
+        glm::vec3 GetRotationAxisAngles() const;
+
+        /// @brief Get scale component of transform
+        /// @return scale
         const glm::vec3& GetScale() const;
     public:
         glm::vec3 m_position {0.0f};
