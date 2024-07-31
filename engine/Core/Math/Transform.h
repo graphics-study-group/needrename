@@ -3,6 +3,7 @@
 
 #include <glm.hpp>
 #include <gtc/matrix_transform.hpp>
+#include <gtc/quaternion.hpp>
 
 namespace Engine
 {
@@ -21,7 +22,7 @@ namespace Engine
         Transform operator*(const Transform & other) const;
     public:
         glm::vec3 m_position {0.0f};
-        glm::vec3 m_rotation {0.0f};
+        glm::quat m_rotation {1.0f, 0.0f, 0.0f, 0.0f};
         glm::vec3 m_scale {1.0f};
     };
 }
