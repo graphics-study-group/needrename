@@ -27,3 +27,6 @@ add_link_options(-static-libstdc++ -static-libgcc)
 
 add_subdirectory(engine)
 add_subdirectory(example)
+
+include(CTest)
+add_subdirectory(test)
