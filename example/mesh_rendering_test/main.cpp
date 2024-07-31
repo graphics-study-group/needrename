@@ -19,7 +19,7 @@ public:
     void Tick(float dt) override
     {
         auto & transform = m_transformComponent->GetTransform();
-        transform.SetRotation(glm::quat(glm::vec3(0.0f, glm::radians(30.0f) * dt, 0.0f)) * transform.GetQuat());
+        transform.SetRotation(glm::quat(glm::vec3(0.0f, glm::radians(30.0f) * dt, 0.0f)) * transform.GetRotation());
 
         // Note: The translation of euler is not consistent. so this code will not work.
         // glm::vec3 euler = m_transformComponent->GetEulerAngles();
@@ -47,7 +47,7 @@ public:
     void Tick(float dt) override
     {
         auto & transform = m_transformComponent->GetTransform();
-        transform.SetRotation(glm::quat(glm::vec3(glm::radians(60.f) * dt, 0.0f, 0.0f)) * transform.GetQuat());
+        transform.SetRotation(glm::quat(glm::vec3(glm::radians(60.f) * dt, 0.0f, 0.0f)) * transform.GetRotation());
     }
 
     void Initialize(MainClass * cmc, const char* path)

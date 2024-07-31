@@ -1,5 +1,7 @@
 #include "Transform.h"
 
+#include <cassert>
+
 namespace Engine
 {
     glm::mat4 Transform::GetModelMatrix() const
@@ -40,9 +42,11 @@ namespace Engine
 
     Transform & Transform::SetRotationAxisAngles(glm::vec3 axisAngles)
     {
-         m_rotation = glm::angleAxis(glm::radians(axisAngles.z), glm::vec3(0, 0, 1))
-                * glm::angleAxis(glm::radians(axisAngles.y), glm::vec3(0, 1, 0))
-                * glm::angleAxis(glm::radians(axisAngles.x), glm::vec3(1, 0, 0));
+        glm::vec3 axis = glm::normalize(axisAngles);
+        float angle = axisAngles.x / axis.x;
+        assert(abs(axisAngles.y / axis.y - angle) <= 1e-6);
+        assert(abs(axisAngles.z / axis.z - angle) <= 1e-6);
+        m_rotation = glm::angleAxis(glm::radians(angle), axis);
         return *this;
     }
 
@@ -57,17 +61,17 @@ namespace Engine
         return m_position;
     }
 
-    glm::vec3 Transform::GetEulerAngles() const
+    glm::vec3 Transform::GetRotationEuler() const
     {
         return glm::eulerAngles(m_rotation);
     }
 
-    const glm::quat &Transform::GetQuat() const
+    const glm::quat &Transform::GetRotation() const
     {
         return m_rotation;
     }
 
-    glm::vec3 Transform::GetAxisAngles() const
+    glm::vec3 Transform::GetRotationAxisAngles() const
     {
         glm::vec3 axis = glm::axis(m_rotation);
         float angle = glm::degrees(glm::angle(m_rotation));

@@ -3,12 +3,12 @@
 
 namespace Engine
 {
-    GameObject::GameObject()
+    GameObject::GameObject() : 
+        m_parentGameObject(), 
+        m_transformComponent(std::make_shared<TransformComponent>(weak_from_this()))
     {
         //ctor
         // TODO: Implement a way to generate unique IDs for GameObjects
-        m_parentGameObject = std::weak_ptr<GameObject>();
-        m_transformComponent = std::make_shared<TransformComponent>(weak_from_this());
         this->AddComponent(m_transformComponent);
     }
 
