@@ -6,7 +6,7 @@
 
 namespace Engine
 {
-    glm::mat4 Transform::GetModelMatrix() const
+    glm::mat4 Transform::GetTransformMatrix() const
     {
         glm::mat4 modelMatrix = glm::translate(glm::mat4(1.0f), m_position);
         modelMatrix = modelMatrix * glm::mat4_cast(m_rotation);
