@@ -15,7 +15,7 @@ namespace Engine
     Transform Transform::operator*(const Transform &other) const
     {
         Transform result{
-            m_position + m_rotation * m_scale * other.m_position,
+            m_position + m_scale * (m_rotation * other.m_position),
             m_rotation * other.m_rotation,
             m_scale * other.m_scale
         };
