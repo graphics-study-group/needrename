@@ -17,7 +17,7 @@ namespace Engine
 
     RendererContext RendererComponent::CreateContext() const
     {
-        return RendererContext{ this->GetWorldTransform().GetModelMatrix() };
+        return RendererContext{ this->GetWorldTransform().GetTransformMatrix() };
     }
 
     void RendererComponent::Tick(float dt)
