@@ -28,20 +28,27 @@ int main(int argc, char * argv[])
         t1 = RandomTransform();
         t2 = RandomTransform();
 
-        Transform t3 = t2 * t1;
         glm::mat4 m1, m2, m3;
+        m1 = t1.GetTransformMatrix();
+        m2 = t2.GetTransformMatrix();
 
-        m1 = t1.GetModelMatrix();
-        m2 = t2.GetModelMatrix();
-        m3 = t3.GetModelMatrix();
+        Transform t4;
+        t4.Decompose(m1);
+
+        assert(glm::distance(t1.GetPosition(), t4.GetPosition()) <= 1e-4);
+        assert(glm::distance(t1.GetRotationAxisAngles(), t4.GetRotationAxisAngles()) <= 1e-4);
+        assert(glm::distance(t1.GetScale(), t4.GetScale()) <= 1e-4);
+
+        Transform t3 = t2 * t1;
+        m3 = t3.GetTransformMatrix();
 
         glm::vec4 origin {0.0, 0.0, 0.0, 1.0};
-        glm::vec4 v1 = m2 * m1 * origin;
+        glm::vec4 v1 = m2 * (m1 * origin);
         glm::vec4 v2 = m3 * origin;
 
         printf("v1: %f, %f, %f, %f\t", v1.x, v1.y, v1.z, v1.w);
         printf("v2: %f, %f, %f, %f\n", v2.x, v2.y, v2.z, v2.w);
-        assert(glm::distance(v1, v2) <= 1e-3);
+        assert(glm::distance(v1, v2) <= 1e-4);
     }
     return 0;
 }
