@@ -82,9 +82,9 @@ int main(int argc, char * argv[])
     glEnable(GL_DEPTH_TEST);
 
     std::shared_ptr<MeshTest> testMesh = std::make_shared<MeshTest>();
-    testMesh->Initialize(cmc, "E:/CaptainChen/Projects/game/assets/__noupload/keqing/mesh.obj");
+    testMesh->Initialize(cmc, "D:/testmesh/mesh.obj");
     std::shared_ptr<MeshTest2> testMesh2 = std::make_shared<MeshTest2>();
-    testMesh2->Initialize(cmc, "E:/CaptainChen/Projects/game/assets/__noupload/keqing/mesh.obj");
+    testMesh2->Initialize(cmc, "D:/testmesh/mesh.obj");
     testMesh2->m_parentGameObject = testMesh;
     cmc->world->current_level->AddGameObject(testMesh);
     cmc->world->current_level->AddGameObject(testMesh2);
