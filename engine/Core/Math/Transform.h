@@ -14,12 +14,15 @@ namespace Engine
         /// the matrix is constructed such that
         /// ret = scale * location * rotation
         /// @return transform matrix 
-        glm::mat4 GetModelMatrix() const;
+        glm::mat4 GetTransformMatrix() const;
 
-        /// @brief Apply transform to another transform
-        /// @param other 
-        /// @return 
-        Transform operator*(const Transform & other) const;
+        /// @brief Decomposite a transform matrix into translation, rotation and scale components.
+        /// Causes error if the matrix contains other components (i.e. skew or perspective).
+        /// @param mat
+        void Decompose(glm::mat4 mat);
+
+        [[deprecated]]
+        Transform operator*(const Transform &other) const;
 
         /// @brief Set the position component of transform
         /// @param position 
