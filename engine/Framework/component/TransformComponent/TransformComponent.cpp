@@ -32,10 +32,4 @@ namespace Engine
     {
         return m_transform;
     }
-
-    Transform TransformComponent::GetWorldTransform() const
-    {
-        auto parentGameObject = m_parentGameObject.lock();
-        return parentGameObject->GetWorldTransform() * m_transform;
-    }
 }
