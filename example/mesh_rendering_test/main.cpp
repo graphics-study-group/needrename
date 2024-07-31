@@ -18,15 +18,43 @@ class MeshTest : public GameObject
 public:
     void Tick(float dt) override
     {
-        auto rotation = m_transformComponent->GetRotation();
-        rotation.y += dt * 30.f;
-        m_transformComponent->SetRotation(rotation);
+        glm::quat rotation = m_transformComponent->GetQuat();
+        rotation = glm::quat(glm::vec3(0.0f, glm::radians(30.0f) * dt, 0.0f)) * rotation;
+        m_transformComponent->SetQuat(rotation);
+
+        // Note: The translation of euler is not consistent. so this code will not work.
+        // glm::vec3 euler = m_transformComponent->GetEulerAngles();
+        // euler.y += glm::radians(30.0f);
+        // m_transformComponent->SetEulerAngles(euler);
     }
 
     void Initialize(MainClass * cmc, const char* path)
     {
         m_transformComponent->SetPosition(glm::vec3(0.0f, -0.9f, 0.0f));
-        m_transformComponent->SetRotation(glm::vec3(0.0f, 180.f, 0.0f));
+        m_transformComponent->SetEulerAngles(glm::vec3(0.0f, glm::radians(180.0f), 0.0f));
+        std::shared_ptr <MeshComponent> testMesh = 
+            std::make_shared<MeshComponent>(weak_from_this());
+        testMesh->ReadAndFlatten(path);
+        AddComponent(testMesh);
+        cmc->renderer->RegisterComponent(std::dynamic_pointer_cast<Engine::RendererComponent>(this->m_components[1]));
+    }
+};
+
+class MeshTest2 : public GameObject
+{
+public:
+    void Tick(float dt) override
+    {
+        glm::quat rotation = m_transformComponent->GetQuat();
+        rotation = glm::quat(glm::vec3(glm::radians(60.f) * dt, 0.0f, 0.0f)) * rotation;
+        m_transformComponent->SetQuat(rotation);
+    }
+
+    void Initialize(MainClass * cmc, const char* path)
+    {
+        m_transformComponent->SetPosition(glm::vec3(0.3f, 0.6f, 0.0f));
+        m_transformComponent->SetEulerAngles(glm::vec3(0.0f, glm::radians(180.0f), 0.0f));
+        m_transformComponent->SetScale(glm::vec3(0.5f, 0.5f, 0.5f));
         std::shared_ptr <MeshComponent> testMesh = 
             std::make_shared<MeshComponent>(weak_from_this());
         testMesh->ReadAndFlatten(path);
@@ -54,7 +82,12 @@ int main(int argc, char * argv[])
 
     std::shared_ptr<MeshTest> testMesh = std::make_shared<MeshTest>();
     testMesh->Initialize(cmc, "E:/CaptainChen/Projects/game/assets/__noupload/keqing/mesh.obj");
+    std::shared_ptr<MeshTest2> testMesh2 = std::make_shared<MeshTest2>();
+    testMesh2->Initialize(cmc, "E:/CaptainChen/Projects/game/assets/__noupload/keqing/mesh.obj");
+    testMesh2->m_parentGameObject = testMesh;
     cmc->world->current_level->AddGameObject(testMesh);
+    cmc->world->current_level->AddGameObject(testMesh2);
+
     cmc->MainLoop();
 
     SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "Unloading StartupOptions");
