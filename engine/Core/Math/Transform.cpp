@@ -1,6 +1,8 @@
 #include "Transform.h"
 
 #include <cassert>
+#define GLM_ENABLE_EXPERIMENTAL
+#include <gtx/matrix_decompose.hpp>
 
 namespace Engine
 {
@@ -10,6 +12,16 @@ namespace Engine
         modelMatrix = modelMatrix * glm::mat4_cast(m_rotation);
         modelMatrix = glm::scale(modelMatrix, m_scale);
         return modelMatrix;
+    }
+
+    void Transform::Decompose(glm::mat4 mat)
+    {
+        glm::vec3 skew;
+        glm::vec4 persp;
+        bool success = glm::decompose(mat, m_scale, m_rotation, m_position, skew, persp);
+        assert(success && "Failed to decompose matrix, perspective matrix is singular.");
+        assert(glm::length(skew) <= 1e-3 && "Matrix contains skew component.");
+        assert(glm::distance(persp, glm::vec4{0.0, 0.0, 0.0, 1.0}) <= 1e-3 && "Matrix contains perspective component.");
     }
 
     Transform Transform::operator*(const Transform &other) const
