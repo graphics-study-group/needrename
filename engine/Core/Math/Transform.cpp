@@ -43,22 +43,26 @@ namespace Engine
     Transform & Transform::SetRotationEuler(glm::vec3 euler)
     {
         m_rotation = glm::quat(euler);
+        assert(glm::abs(glm::length(m_rotation) - 1) <= 1e-6);
         return *this;
     }
 
     Transform & Transform::SetRotation(glm::quat quat)
     {
-        m_rotation = quat;
+        m_rotation = glm::normalize(quat);
+        assert(glm::abs(glm::length(m_rotation) - 1) <= 1e-6);
         return *this;
     }
 
     Transform & Transform::SetRotationAxisAngles(glm::vec3 axisAngles)
     {
         glm::vec3 axis = glm::normalize(axisAngles);
+        assert(abs(axis.x) > 1e-3);
         float angle = axisAngles.x / axis.x;
-        assert(abs(axisAngles.y / axis.y - angle) <= 1e-6);
-        assert(abs(axisAngles.z / axis.z - angle) <= 1e-6);
+        assert(abs(axis.y) <= 1e-6 || abs(axisAngles.y / axis.y - angle) <= 1e-6);
+        assert(abs(axis.z) <= 1e-6 || abs(axisAngles.z / axis.z - angle) <= 1e-6);
         m_rotation = glm::angleAxis(glm::radians(angle), axis);
+        assert(glm::abs(glm::length(m_rotation) - 1) <= 1e-6);
         return *this;
     }
 
