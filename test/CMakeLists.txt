@@ -13,6 +13,8 @@ add_custom_command(TARGET SDL_init_test POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
     $<TARGET_FILE:SDL3::SDL3>
     $<TARGET_FILE_DIR:SDL_init_test>
+    DEPENDS SDL3::SDL3
+    COMMENT "Copying SDL DLLs"
 )
 
 if (ASSET_FOLDER STREQUAL "")
