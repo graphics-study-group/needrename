@@ -1,5 +1,6 @@
 #include "Framework/go/GameObject.h"
 #include "Framework/component/Component.h"
+#include "GameObject.h"
 
 namespace Engine
 {
@@ -30,9 +31,14 @@ namespace Engine
         m_components.push_back(component);
     }
 
-    Transform GameObject::GetTransform()
+    const Transform & GameObject::GetTransform() const
     {
         return m_transformComponent->GetTransform();
+    }
+
+    Transform & GameObject::GetTransformRef() 
+    {
+        return m_transformComponent->GetTransformRef();
     }
 
     Transform GameObject::GetWorldTransform()

@@ -18,7 +18,7 @@ class MeshTest : public GameObject
 public:
     void Tick(float dt) override
     {
-        auto & transform = m_transformComponent->GetTransform();
+        auto & transform = m_transformComponent->GetTransformRef();
         transform.SetRotation(glm::quat(glm::vec3(0.0f, glm::radians(30.0f) * dt, 0.0f)) * transform.GetRotation());
 
         // Note: The translation of euler is not consistent. so this code will not work.
@@ -29,7 +29,7 @@ public:
 
     void Initialize(MainClass * cmc, const char* path)
     {
-        auto & transform = m_transformComponent->GetTransform();
+        auto & transform = m_transformComponent->GetTransformRef();
         transform
             .SetPosition(glm::vec3(0.0f, -0.9f, 0.0f))
             .SetRotationEuler(glm::vec3(0.0f, glm::radians(180.0f), 0.0f));
@@ -46,13 +46,13 @@ class MeshTest2 : public GameObject
 public:
     void Tick(float dt) override
     {
-        auto & transform = m_transformComponent->GetTransform();
+        auto & transform = m_transformComponent->GetTransformRef();
         transform.SetRotation(glm::quat(glm::vec3(glm::radians(60.f) * dt, 0.0f, 0.0f)) * transform.GetRotation());
     }
 
     void Initialize(MainClass * cmc, const char* path)
     {
-        auto & transform = m_transformComponent->GetTransform();
+        auto & transform = m_transformComponent->GetTransformRef();
         transform.SetPosition(glm::vec3(0.3f, 0.6f, 0.0f))
                  .SetRotationEuler(glm::vec3(0.0f, glm::radians(180.0f), 0.0f))
                  .SetScale(glm::vec3(0.5f, 0.5f, 0.5f));

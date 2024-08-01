@@ -28,7 +28,7 @@ namespace Engine
         return m_transform;
     }
 
-    Transform &TransformComponent::GetTransform()
+    Transform &TransformComponent::GetTransformRef()
     {
         return m_transform;
     }
