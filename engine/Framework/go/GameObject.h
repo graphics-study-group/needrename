@@ -23,7 +23,10 @@ namespace Engine
         virtual void Tick(float dt);
 
         void AddComponent(std::shared_ptr<Component> component);
-        Transform GetTransform();
+
+        const Transform & GetTransform() const;
+        Transform & GetTransformRef();
+
         Transform GetWorldTransform();
         void SetTransform(const Transform& transform);
 

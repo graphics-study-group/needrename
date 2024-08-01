@@ -25,7 +25,7 @@ namespace Engine
     
         /// @brief Get the transform that transform local coordinate to parent local coordinate
         /// @return Transform
-        Transform& GetTransform();
+        Transform& GetTransformRef();
         
     protected:
         Transform m_transform {};
