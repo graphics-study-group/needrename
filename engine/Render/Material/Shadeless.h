@@ -20,6 +20,8 @@ namespace Engine {
         static std::unique_ptr <ShaderPass> pass;
 
         static GLint location_model_matrix;
+        static GLint location_projection_matrix;
+        static GLint location_view_matrix;
         static GLint location_albedo;
         static GLint location_normal;
 

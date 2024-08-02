@@ -1,5 +1,6 @@
 #include "RendererComponent.h"
 #include "Render/Material/Material.h"
+#include "Framework/component/RenderComponent/CameraComponent.h"
 #include "Framework/go/GameObject.h"
 
 namespace Engine

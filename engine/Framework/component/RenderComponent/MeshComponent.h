@@ -27,7 +27,7 @@ namespace Engine
         virtual ~MeshComponent();
 
         virtual void Tick(float dt) override;
-        virtual void Draw() override;
+        virtual void Draw(CameraContext context) override;
 
         bool ReadAndFlatten(std::filesystem::path path);
         // TODO: set resources: mesh model, texture, shader 
