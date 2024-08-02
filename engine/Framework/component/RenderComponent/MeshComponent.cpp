@@ -34,12 +34,12 @@ namespace Engine
     {
     }
 
-    void MeshComponent::Draw()
+    void MeshComponent::Draw(CameraContext context)
     {
         GLenum glError;
         for (size_t i = 0; i < m_materials.size(); i++){
 
-            m_materials[i]->PrepareDraw(CameraContext{}, this->CreateContext());
+            m_materials[i]->PrepareDraw(context, this->CreateContext());
 
             glBindVertexArray(m_VAOs[i]);
             glDrawArrays(GL_TRIANGLES, 0, m_position[i].size() / 3);
