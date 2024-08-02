@@ -8,6 +8,7 @@
 namespace Engine
 {
     class Material;
+    class CameraContext;
 
     /// @brief A context storing renderer related information for rendering
     struct RendererContext{
@@ -32,7 +33,7 @@ namespace Engine
         virtual RendererContext CreateContext() const;
 
         virtual void Tick(float dt);
-        virtual void Draw(/*Context*/) = 0;
+        virtual void Draw(CameraContext context) = 0;
 
     protected:
         std::vector<std::shared_ptr<Material>> m_materials{};

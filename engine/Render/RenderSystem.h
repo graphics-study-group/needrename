@@ -7,6 +7,7 @@
 namespace Engine
 {
     class RendererComponent;
+    class CameraComponent;
 
     class RenderSystem
     {
@@ -16,10 +17,12 @@ namespace Engine
 
         void Render();
         void RegisterComponent(std::shared_ptr <RendererComponent>);
+        void SetActiveCamera(std::shared_ptr <CameraComponent>);
         
     private:
         // TODO: data: mesh, texture, light
-        std::vector <std::shared_ptr<RendererComponent>> m_components;
+        std::vector <std::shared_ptr<RendererComponent>> m_components {};
+        std::shared_ptr <CameraComponent> m_active_camera {};
     };
 }
 

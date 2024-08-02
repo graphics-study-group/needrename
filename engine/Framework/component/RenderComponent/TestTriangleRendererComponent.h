@@ -66,9 +66,9 @@ namespace Engine
         };
 
         virtual void Tick(float dt) {};
-        virtual void Draw(/*Context*/) override {
+        virtual void Draw(CameraContext context) override {
             GLenum glError;
-            m_materials[0]->PrepareDraw(CameraContext{}, this->CreateContext());
+            m_materials[0]->PrepareDraw(context, this->CreateContext());
 
             glBindVertexArray(m_VAO);
             glDrawArrays(GL_TRIANGLES, 0, 6);
