@@ -32,11 +32,27 @@ namespace Engine
         /// @return context
         CameraContext CreateContext() const;
 
+        /// @brief Set up vertical field of view angle of camera
+        /// @param fov angle in degrees
+        /// @return this for chainning
+        CameraComponent & set_fov_vertical(float fov);
+
+        /// @brief Set up aspect ratio
+        /// @param aspect width / height
+        /// @return this for chainning
+        CameraComponent & set_aspect_ratio(float aspect);
+
+        /// @brief Set up clipping plane coordinate
+        /// @param near near clipping coordinate
+        /// @param far far clipping coordinate
+        /// @return this for chainning
+        CameraComponent & set_clipping(float near, float far);
+
     protected:
-        float m_fov_vertical{};
-        float m_aspect_ratio{};
-        float m_clipping_near{};
-        float m_clipping_far{};
+        float m_fov_vertical{45};
+        float m_aspect_ratio{1.0};
+        float m_clipping_near{1e-3};
+        float m_clipping_far{1e3};
     };
 } // namespace Engine
 
