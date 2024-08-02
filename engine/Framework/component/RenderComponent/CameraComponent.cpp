@@ -37,11 +37,31 @@ namespace Engine{
 
     glm::mat4 CameraComponent::GetProjectionMatrix() const
     {
-        return glm::mat4();
+        assert(abs(m_fov_vertical) > 1e-3);
+        assert(abs(m_aspect_ratio) > 1e-3);
+        // assert(abs(m_clipping_near) > 1e-6);
+        // assert(abs(m_clipping_far) > 1e-6);
+        return glm::perspectiveRH(glm::radians(m_fov_vertical), m_aspect_ratio, m_clipping_near, m_clipping_far);
     }
 
     CameraContext CameraComponent::CreateContext() const
     {
         return CameraContext{this->GetViewMatrix(), this->GetProjectionMatrix()};
+    }
+    CameraComponent & CameraComponent::set_fov_vertical(float fov)
+    {
+        m_fov_vertical = fov;
+        return *this;
+    }
+    CameraComponent & CameraComponent::set_aspect_ratio(float aspect)
+    {
+        m_aspect_ratio = aspect;
+        return *this;
+    }
+    CameraComponent & CameraComponent::set_clipping(float near, float far)
+    {
+        m_clipping_near = near;
+        m_clipping_far = far;
+        return *this;
     }
 };

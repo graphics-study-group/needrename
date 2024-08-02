@@ -39,6 +39,12 @@ void test_translation() {
     assert(glm::distance(glm::vec3{x}, glm::vec3{1.0f, 0.0f, -1.0f}) <= 1e-3);
     assert(glm::distance(glm::vec3{y}, glm::vec3{0.0f, 0.0f, -2.0f}) <= 1e-3);
     assert(glm::distance(glm::vec3{z}, glm::vec3{0.0f, 1.0f, -1.0f}) <= 1e-3);
+
+    o = proj * o;
+    x = proj * x;
+    y = proj * y;
+    z = proj * z;
+    print_vectors(o, x, y, z);
 }
 
 void test_rotation() {
@@ -58,6 +64,12 @@ void test_rotation() {
     assert(glm::distance(glm::vec3{x}, glm::vec3{0.0f, 0.0f, -1.0f}) <= 1e-3);
     assert(glm::distance(glm::vec3{y}, glm::vec3{-1.0f, 0.0f, 0.0f}) <= 1e-3);
     assert(glm::distance(glm::vec3{z}, glm::vec3{0.0f, 1.0f, 0.0f}) <= 1e-3);
+
+    o = proj * o;
+    x = proj * x;
+    y = proj * y;
+    z = proj * z;
+    print_vectors(o, x, y, z);
 }
 
 int main() {
