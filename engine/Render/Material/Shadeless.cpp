@@ -23,7 +23,7 @@ void main() {
     gl_Position = projection_matrix * view_matrix * model_matrix * vec4(aPos.x, aPos.y, aPos.z, 1.0);
     // Remember to flip the z axis
     gl_Position.z = - gl_Position.z;
-    clip_space_coordinate = aPos;
+    clip_space_coordinate = gl_Position.xyz;
     vert_uv = uv;
 }
 )";
