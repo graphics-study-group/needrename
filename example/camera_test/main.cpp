@@ -19,17 +19,36 @@ class Camera : public GameObject
 public:
     void Tick(float dt) override
     {
+        if(orbit_angle > 2 * pi)
+            orbit_angle -= 2 * pi;
+        orbit_angle += dt / 2.0;
+        auto & transform = m_transformComponent->GetTransformRef();
+        glm::vec3 pos, rot;
+        pos = glm::vec3(radius * glm::sin(orbit_angle), radius * glm::cos(orbit_angle), 0.7f);
+        rot = glm::vec3(0.0f, 0.0f, pi - orbit_angle);
+        transform.SetPosition(pos).SetRotationEuler(rot);
+
+        SDL_LogInfo(0, "Rotation angle: %f, delta-t: %f", glm::degrees(orbit_angle), dt);
     }
 
     void Initialize(std::shared_ptr<RenderSystem> sys)
     {
         auto & transform = m_transformComponent->GetTransformRef();
-        transform.SetPosition(glm::vec3(0.0f, -5.0f, 0.7f));
+        glm::vec3 pos, rot;
+        pos = glm::vec3(radius * glm::sin(orbit_angle), radius * glm::cos(orbit_angle), 0.7f);
+        rot = glm::vec3(0.0f, 0.0f, pi - orbit_angle);
+        transform.SetPosition(pos).SetRotationEuler(rot);
 
         std::shared_ptr <CameraComponent> cc = std::make_shared<CameraComponent>(weak_from_this());
         AddComponent(std::dynamic_pointer_cast<Component>(cc));
         sys->SetActiveCamera(cc);
     }
+
+protected:
+    float pi {glm::pi<float>()};
+    float orbit_angle {0.0f};
+    float radius{5.0f};
+
 };
 
 class MeshTest : public GameObject
