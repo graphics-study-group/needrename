@@ -1,5 +1,10 @@
 #include "MainClass.h"
+
+#include "Framework/world/WorldSystem.h"
+#include "Render/RenderSystem.h"
+
 #include <exception>
+#include <glad/glad.h>
 
 namespace Engine
 {
@@ -21,7 +26,12 @@ namespace Engine
     {
         if (opt->instantQuit)
             return;
-        this->window = std::make_shared<SDLWindow>(opt->title.c_str(), opt->resol_x, opt->resol_y, this->sdl_flags);
+        this->window = std::make_shared<SDLWindow>(
+            opt->title.c_str(), 
+            opt->resol_x, 
+            opt->resol_y, 
+            SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY
+            );
         this->window->CreateRenderer();
 
         this->renderer = std::make_shared<RenderSystem>();
@@ -40,18 +50,26 @@ namespace Engine
             float current_time = SDL_GetTicks();
             float dt = (current_time - FPS_TIMER) / 1000.0f;
             
-            this->window->anteEventLoop(); // ???
-            this->world->tick(dt);
-            this->renderer->render();
-            this->window->postEventLoop();
+            this->window->BeforeEventLoop(); // ???
+            this->world->Tick(dt);
+
+            // FIXME: Viewport infomation should be pass to Render() by context and camera
+            // instead of being set here.
+            auto pWindow = this->window->GetWindow();
+            int w, h;
+            SDL_GetWindowSizeInPixels(pWindow, &w, &h);
+            glViewport(0, 0, w, h);
+            
+            this->renderer->Render();
+
+            this->window->AfterEventLoop();
 
             // TODO: write a control system instead of using this window event
             try
             {
                 while (SDL_PollEvent(&event))
                 {
-                    if (event.type == SDL_EVENT_QUIT)
-                    {
+                    if (event.type == SDL_EVENT_QUIT) {
                         onQuit = true;
                         break;
                     }
@@ -66,7 +84,7 @@ namespace Engine
             {
                 fprintf(stderr, "%s", except.what());
                 // Do a forced redraw to print error messages
-                this->window->onDrawOverall(true);
+                this->window->OnDrawOverall(true);
                 throw;
             }
 
