@@ -1,6 +1,5 @@
 #include "RenderSystem.h"
 #include <SDL3/SDL.h>
-#include <glad/glad.h>
 #include "Framework/component/RenderComponent/RendererComponent.h"
 #include "Framework/component/RenderComponent/CameraComponent.h"
 
@@ -16,7 +15,6 @@ namespace Engine
             cameraContext.projection_matrix = glm::identity<glm::mat4>();
             cameraContext.view_matrix = glm::identity<glm::mat4>();
         }
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
         for (auto comp : m_components) {
             comp->Draw(cameraContext);
         }

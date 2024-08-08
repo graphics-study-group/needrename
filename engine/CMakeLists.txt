@@ -13,4 +13,4 @@ target_include_directories(
     PUBLIC
     ${ENGINE_DIR}
 )
-target_link_libraries(engine PUBLIC SDL3::SDL3 GLAD glm tinyobjloader stb)
+target_link_libraries(engine PUBLIC SDL3::SDL3 Vulkan::Vulkan glm tinyobjloader stb)
