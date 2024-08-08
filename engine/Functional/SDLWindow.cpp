@@ -35,6 +35,7 @@ namespace Engine
         return this->renderer;
     }
 
+    [[deprecated("SDL_CreateRenderer is deprecated.")]]
     void SDLWindow::CreateRenderer()
     {
         if (this->renderer != nullptr)

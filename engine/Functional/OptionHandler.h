@@ -7,30 +7,16 @@
 
 struct StartupOptions
 {
-    int resol_x, resol_y;
-    int fntSz;
-    bool enableVerbose;
+    int resol_x {1024}, resol_y {768};
+    int fntSz {12};
+    bool enableVerbose {false};
 
-    std::string title;
-    std::string fntName;
-    std::string graphics_api;
-    std::string startupScript;
+    std::string title{};
+    std::string fntName{};
+    std::string graphics_api{};
+    std::string startupScript{};
 
-    bool instantQuit;
-
-    StartupOptions()
-    {
-        resol_x = 1024, resol_y = 768;
-        fntSz = 12;
-        enableVerbose = false;
-
-        title = "Chess Engine";
-        fntName = "ZfullGB.ttf";
-        graphics_api = "opengl";
-        startupScript = "";
-
-        instantQuit = false;
-    }
+    bool instantQuit {false};
 };
 
 namespace OptionDeclaration
