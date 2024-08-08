@@ -30,8 +30,8 @@ namespace Engine {
     std::unique_ptr <ShaderPass> SingleColor::pass;
     GLint SingleColor::location_color;
 
-    SingleColor::SingleColor(std::shared_ptr<RenderSystem> system, GLfloat _r, GLfloat _g, GLfloat _b, GLfloat _a)
-        : Material(system), r(_r), g(_g), b(_b), a(_a)
+    SingleColor::SingleColor(GLfloat _r, GLfloat _g, GLfloat _b, GLfloat _a)
+        : Material(), r(_r), g(_g), b(_b), a(_a)
     {
         if (!pass) {
             pass = std::make_unique <ShaderPass> ();
@@ -49,6 +49,16 @@ namespace Engine {
 
     SingleColor::~SingleColor()
     {
+    }
+
+    void SingleColor::Load()
+    {
+        throw std::runtime_error("Not implemented");
+    }
+
+    void SingleColor::Unload()
+    {
+        throw std::runtime_error("Not implemented");
     }
 
     void SingleColor::PrepareDraw(const CameraContext & CameraContext, const RendererContext & RendererContext)

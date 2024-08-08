@@ -3,15 +3,17 @@
 
 #include <memory>
 #include <glm.hpp>
+#include "Asset/Asset.h"
 
 namespace Engine {
     class RenderSystem;
     struct RendererContext;
     struct CameraContext;
 
-    class Material {
+    class Material: public Asset
+    {
     public:
-        Material (std::shared_ptr<RenderSystem> system);
+        Material () = default;
         virtual ~Material () = default;
 
         virtual void PrepareDraw(const CameraContext & CameraContext, const RendererContext & RendererContext) = 0;

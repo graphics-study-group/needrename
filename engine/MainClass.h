@@ -6,12 +6,10 @@
 #include "Exception/exception.h"
 #include "Functional/OptionHandler.h"
 #include "Functional/SDLWindow.h"
+#include "GlobalSystem.h"
 
 namespace Engine
 {
-    class RenderSystem;
-    class WorldSystem;
-
     class MainClass
     {
     public:
@@ -21,11 +19,8 @@ namespace Engine
         void Initialize(const StartupOptions*);
         void MainLoop();
 
-    // private:
+    private:
         Uint32 sdl_flags;
-        std::shared_ptr<SDLWindow> window;
-        std::shared_ptr<RenderSystem> renderer;
-        std::shared_ptr<WorldSystem> world;
     };
 }
 

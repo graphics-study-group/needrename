@@ -9,9 +9,11 @@ namespace Engine {
 
     class SingleColor : public Material {
     public:
-        SingleColor(std::shared_ptr <RenderSystem> system, GLfloat r, GLfloat g, GLfloat b, GLfloat a);
+        SingleColor(GLfloat r, GLfloat g, GLfloat b, GLfloat a);
         ~SingleColor();
 
+        virtual void Load() override;
+        virtual void Unload() override;
         virtual void PrepareDraw(const CameraContext & CameraContext, const RendererContext & RendererContext) override;
 
     protected:
