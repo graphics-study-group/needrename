@@ -1,5 +1,6 @@
 #include <SDL3/SDL.h>
 #include <cassert>
+#include <string>
 
 #include "consts.h"
 #include "MainClass.h"
@@ -9,53 +10,59 @@
 #include "Framework/go/GameObject.h"
 #include "Framework/level/Level.h"
 #include "Framework/world/WorldSystem.h"
+#include "Framework/component/RenderComponent/CameraComponent.h"
 #include "Framework/component/RenderComponent/MeshComponent.h"
 
+#include "cmake_config.h"
+
 using namespace Engine;
+
+class Camera : public GameObject
+{
+public:
+    void Tick(float dt) override
+    {
+        if(orbit_angle > 2 * pi)
+            orbit_angle -= 2 * pi;
+        orbit_angle += dt / 2.0;
+        auto & transform = m_transformComponent->GetTransformRef();
+        glm::vec3 pos, rot;
+        pos = glm::vec3(radius * glm::sin(orbit_angle), radius * glm::cos(orbit_angle), 0.7f);
+        rot = glm::vec3(0.0f, 0.0f, pi - orbit_angle);
+        transform.SetPosition(pos).SetRotationEuler(rot);
+
+        SDL_LogInfo(0, "Rotation angle: %f, delta-t: %f", glm::degrees(orbit_angle), dt);
+    }
+
+    void Initialize(std::shared_ptr<RenderSystem> sys)
+    {
+        auto & transform = m_transformComponent->GetTransformRef();
+        glm::vec3 pos, rot;
+        pos = glm::vec3(radius * glm::sin(orbit_angle), radius * glm::cos(orbit_angle), 0.7f);
+        rot = glm::vec3(0.0f, 0.0f, pi - orbit_angle);
+        transform.SetPosition(pos).SetRotationEuler(rot);
+
+        std::shared_ptr <CameraComponent> cc = std::make_shared<CameraComponent>(weak_from_this());
+        AddComponent(std::dynamic_pointer_cast<Component>(cc));
+        sys->SetActiveCamera(cc);
+    }
+
+protected:
+    float pi {glm::pi<float>()};
+    float orbit_angle {0.0f};
+    float radius{5.0f};
+
+};
 
 class MeshTest : public GameObject
 {
 public:
-    void Tick(float dt) override
+    void Tick(float) override
     {
-        auto & transform = m_transformComponent->GetTransformRef();
-        transform.SetRotation(glm::quat(glm::vec3(0.0f, glm::radians(30.0f) * dt, 0.0f)) * transform.GetRotation());
-
-        // Note: The translation of euler is not consistent. so this code will not work.
-        // glm::vec3 euler = m_transformComponent->GetEulerAngles();
-        // euler.y += glm::radians(30.0f);
-        // m_transformComponent->SetEulerAngles(euler);
     }
 
     void Initialize(MainClass * cmc, const char* path)
     {
-        auto & transform = m_transformComponent->GetTransformRef();
-        transform
-            .SetPosition(glm::vec3(0.0f, -0.9f, 0.0f))
-            .SetRotationEuler(glm::vec3(0.0f, glm::radians(180.0f), 0.0f));
-        std::shared_ptr <MeshComponent> testMesh = 
-            std::make_shared<MeshComponent>(weak_from_this());
-        testMesh->ReadAndFlatten(path);
-        AddComponent(testMesh);
-        globalSystems.renderer->RegisterComponent(std::dynamic_pointer_cast<Engine::RendererComponent>(this->m_components[1]));
-    }
-};
-
-class MeshTest2 : public GameObject
-{
-public:
-    void Tick(float dt) override
-    {
-        auto & transform = m_transformComponent->GetTransformRef();
-        transform.SetRotation(glm::quat(glm::vec3(glm::radians(60.f) * dt, 0.0f, 0.0f)) * transform.GetRotation());
-    }
-
-    void Initialize(MainClass * cmc, const char* path)
-    {
-        auto & transform = m_transformComponent->GetTransformRef();
-        transform.SetPosition(glm::vec3(0.3f, 0.6f, 0.0f))
-                 .SetRotationEuler(glm::vec3(0.0f, glm::radians(180.0f), 0.0f))
-                 .SetScale(glm::vec3(0.5f, 0.5f, 0.5f));
         std::shared_ptr <MeshComponent> testMesh = 
             std::make_shared<MeshComponent>(weak_from_this());
         testMesh->ReadAndFlatten(path);
@@ -82,12 +89,12 @@ int main(int argc, char * argv[])
     glEnable(GL_DEPTH_TEST);
 
     std::shared_ptr<MeshTest> testMesh = std::make_shared<MeshTest>();
-    testMesh->Initialize(cmc, "D:/testmesh/mesh.obj");
-    std::shared_ptr<MeshTest2> testMesh2 = std::make_shared<MeshTest2>();
-    testMesh2->Initialize(cmc, "D:/testmesh/mesh.obj");
-    testMesh2->m_parentGameObject = testMesh;
+    testMesh->Initialize(cmc, (std::string(ENGINE_ASSETS_DIR) + "/__noupload/keqing/mesh.obj").c_str());
     globalSystems.world->current_level->AddGameObject(testMesh);
-    globalSystems.world->current_level->AddGameObject(testMesh2);
+
+    std::shared_ptr<Camera> camera = std::make_shared<Camera>();
+    camera->Initialize(globalSystems.renderer);
+    globalSystems.world->current_level->AddGameObject(camera);
 
     cmc->MainLoop();
 
