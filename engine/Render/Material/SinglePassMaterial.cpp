@@ -5,13 +5,20 @@
 
 namespace Engine {
     SinglePassMaterial::SinglePassMaterial (
-        std::shared_ptr <RenderSystem> system, 
         std::shared_ptr <ShaderPass> pass
-    ) : Material(system) {
+    ) {
         m_pass = pass;
     }
 
     SinglePassMaterial::~SinglePassMaterial () {
+    }
+
+    void SinglePassMaterial::Load() {
+        throw std::runtime_error("Not implemented");
+    }
+
+    void SinglePassMaterial::Unload() {
+        throw std::runtime_error("Not implemented");
     }
     
     void SinglePassMaterial::PrepareDraw(const CameraContext & CameraContext, const RendererContext & RendererContext)

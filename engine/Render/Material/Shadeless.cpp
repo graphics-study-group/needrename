@@ -53,7 +53,7 @@ namespace Engine
     GLint ShadelessMaterial::location_albedo;
     GLint ShadelessMaterial::location_normal;
 
-    ShadelessMaterial::ShadelessMaterial(std::shared_ptr<RenderSystem> system) : Material(system)
+    ShadelessMaterial::ShadelessMaterial()
     {
         if (!pass) {
             pass = std::make_unique <ShaderPass> ();
@@ -83,6 +83,16 @@ namespace Engine
     {
         assert(texture);
         this->m_albedo = texture;
+    }
+
+    void ShadelessMaterial::Load()
+    {
+        throw std::runtime_error("Not implemented");
+    }
+
+    void ShadelessMaterial::Unload()
+    {
+        throw std::runtime_error("Not implemented");
     }
 
     void ShadelessMaterial::PrepareDraw(const CameraContext & cameraContext, const RendererContext & rendererContext)

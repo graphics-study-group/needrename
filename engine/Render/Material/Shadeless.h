@@ -10,10 +10,12 @@ namespace Engine {
 
     class ShadelessMaterial : public Material {
     public:
-        ShadelessMaterial(std::shared_ptr <RenderSystem> system);
+        ShadelessMaterial();
         ~ShadelessMaterial();
 
         void SetAlbedo(std::shared_ptr <ImmutableTexture2D> texture) noexcept;
+        virtual void Load() override;
+        virtual void Unload() override;
         virtual void PrepareDraw(const CameraContext & CameraContext, const RendererContext & RendererContext) override;
 
     protected:

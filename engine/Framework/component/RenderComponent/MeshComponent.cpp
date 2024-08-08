@@ -130,7 +130,7 @@ namespace Engine
 
     bool MeshComponent::SetObjMaterial(size_t id, const tinyobj::material_t &obj_material)
     {
-        auto material = std::make_shared<ShadelessMaterial>(nullptr);
+        auto material = std::make_shared<ShadelessMaterial>();
         auto texture = std::make_shared<ImmutableTexture2D>();
         // XXX: We need better asset managing system
         auto image_path = m_model_absolute_path.parent_path() / obj_material.diffuse_texname;
@@ -144,7 +144,7 @@ namespace Engine
 
     void MeshComponent::SetDefaultMaterial()
     {
-        m_materials[0] = std::make_shared<SingleColor>(nullptr, 1.0, 0.0, 1.0, 1.0);
+        m_materials[0] = std::make_shared<SingleColor>(1.0, 0.0, 1.0, 1.0);
     }
 
     bool MeshComponent::SetupVertices()

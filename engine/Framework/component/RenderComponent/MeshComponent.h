@@ -30,9 +30,8 @@ namespace Engine
         virtual void Draw(CameraContext context) override;
 
         bool ReadAndFlatten(std::filesystem::path path);
-        // TODO: set resources: mesh model, texture, shader 
-    protected:
 
+    protected:
         typedef std::vector <float> Positions;
         typedef std::vector <float> UVs;
 

@@ -37,7 +37,7 @@ public:
             std::make_shared<MeshComponent>(weak_from_this());
         testMesh->ReadAndFlatten(path);
         AddComponent(testMesh);
-        cmc->renderer->RegisterComponent(std::dynamic_pointer_cast<Engine::RendererComponent>(this->m_components[1]));
+        globalSystems.renderer->RegisterComponent(std::dynamic_pointer_cast<Engine::RendererComponent>(this->m_components[1]));
     }
 };
 
@@ -60,7 +60,7 @@ public:
             std::make_shared<MeshComponent>(weak_from_this());
         testMesh->ReadAndFlatten(path);
         AddComponent(testMesh);
-        cmc->renderer->RegisterComponent(std::dynamic_pointer_cast<Engine::RendererComponent>(this->m_components[1]));
+        globalSystems.renderer->RegisterComponent(std::dynamic_pointer_cast<Engine::RendererComponent>(this->m_components[1]));
     }
 };
 
@@ -86,8 +86,8 @@ int main(int argc, char * argv[])
     std::shared_ptr<MeshTest2> testMesh2 = std::make_shared<MeshTest2>();
     testMesh2->Initialize(cmc, "D:/testmesh/mesh.obj");
     testMesh2->m_parentGameObject = testMesh;
-    cmc->world->current_level->AddGameObject(testMesh);
-    cmc->world->current_level->AddGameObject(testMesh2);
+    globalSystems.world->current_level->AddGameObject(testMesh);
+    globalSystems.world->current_level->AddGameObject(testMesh2);
 
     cmc->MainLoop();
 

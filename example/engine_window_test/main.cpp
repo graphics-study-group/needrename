@@ -28,13 +28,13 @@ int main(int argc, char * argv[])
     cmc->Initialize(opt);
 
     // Setup material
-    std::shared_ptr <SingleColor> mat = std::make_shared<SingleColor>(cmc->renderer, 0.0, 1.0, 0.0, 1.0);
+    std::shared_ptr <SingleColor> mat = std::make_shared<SingleColor>(0.0, 1.0, 0.0, 1.0);
 
     std::shared_ptr <GameObject> go = std::make_shared<GameObject>();
     std::shared_ptr <TestTriangleRendererComponent> testMesh = 
         std::make_shared<TestTriangleRendererComponent>(mat, go);
     
-    cmc->renderer->RegisterComponent(testMesh);
+    globalSystems.renderer->RegisterComponent(testMesh);
 
     cmc->MainLoop();
 

@@ -9,8 +9,10 @@ namespace Engine
 {
     class SinglePassMaterial : public Material {
     public:
-        SinglePassMaterial (std::shared_ptr<RenderSystem> system, std::shared_ptr<ShaderPass> pass);
+        SinglePassMaterial (std::shared_ptr<ShaderPass> pass);
         virtual ~SinglePassMaterial();
+        virtual void Load() override;
+        virtual void Unload() override;
         virtual void PrepareDraw(const CameraContext & CameraContext, const RendererContext & RendererContext) override;
     protected:
         std::shared_ptr <ShaderPass> m_pass;

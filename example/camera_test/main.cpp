@@ -64,7 +64,7 @@ public:
             std::make_shared<MeshComponent>(weak_from_this());
         testMesh->ReadAndFlatten(path);
         AddComponent(testMesh);
-        cmc->renderer->RegisterComponent(std::dynamic_pointer_cast<Engine::RendererComponent>(this->m_components[1]));
+        globalSystems.renderer->RegisterComponent(std::dynamic_pointer_cast<Engine::RendererComponent>(this->m_components[1]));
     }
 };
 
@@ -86,12 +86,12 @@ int main(int argc, char * argv[])
     glEnable(GL_DEPTH_TEST);
 
     std::shared_ptr<MeshTest> testMesh = std::make_shared<MeshTest>();
-    testMesh->Initialize(cmc, "D:/testmesh/mesh.obj");
-    cmc->world->current_level->AddGameObject(testMesh);
+    testMesh->Initialize(cmc, "E:/CaptainChen/Projects/MyCodes/game/assets/__noupload/keqing/mesh.obj");
+    globalSystems.world->current_level->AddGameObject(testMesh);
 
     std::shared_ptr<Camera> camera = std::make_shared<Camera>();
-    camera->Initialize(cmc->renderer);
-    cmc->world->current_level->AddGameObject(camera);
+    camera->Initialize(globalSystems.renderer);
+    globalSystems.world->current_level->AddGameObject(camera);
 
     cmc->MainLoop();
 

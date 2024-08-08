@@ -2,6 +2,7 @@
 
 #include "Framework/world/WorldSystem.h"
 #include "Render/RenderSystem.h"
+#include "Asset/AssetManager/AssetManager.h"
 
 #include <exception>
 #include <glad/glad.h>
@@ -14,7 +15,7 @@ namespace Engine
         if (SDL_Init(flags) < 0)
             throw Exception::SDLExceptions::cant_init();
         SDL_SetLogPriorities(logPrior);
-        this->window = nullptr;
+        globalSystems.window = nullptr;
     }
 
     MainClass::~MainClass()
@@ -26,16 +27,17 @@ namespace Engine
     {
         if (opt->instantQuit)
             return;
-        this->window = std::make_shared<SDLWindow>(
+        globalSystems.window = std::make_shared<SDLWindow>(
             opt->title.c_str(), 
             opt->resol_x, 
             opt->resol_y, 
             SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY
             );
-        this->window->CreateRenderer();
+        globalSystems.window->CreateRenderer();
 
-        this->renderer = std::make_shared<RenderSystem>();
-        this->world = std::make_shared<WorldSystem>();
+        globalSystems.renderer = std::make_shared<RenderSystem>();
+        globalSystems.world = std::make_shared<WorldSystem>();
+        globalSystems.assetManager = std::make_shared<AssetManager>();
     }
 
     void MainClass::MainLoop()
@@ -50,19 +52,19 @@ namespace Engine
             float current_time = SDL_GetTicks();
             float dt = (current_time - FPS_TIMER) / 1000.0f;
             
-            this->window->BeforeEventLoop(); // ???
-            this->world->Tick(dt);
+            globalSystems.window->BeforeEventLoop(); // ???
+            globalSystems.world->Tick(dt);
 
             // FIXME: Viewport infomation should be pass to Render() by context and camera
             // instead of being set here.
-            auto pWindow = this->window->GetWindow();
+            auto pWindow = globalSystems.window->GetWindow();
             int w, h;
             SDL_GetWindowSizeInPixels(pWindow, &w, &h);
             glViewport(0, 0, w, h);
             
-            this->renderer->Render();
+            globalSystems.renderer->Render();
 
-            this->window->AfterEventLoop();
+            globalSystems.window->AfterEventLoop();
 
             // TODO: write a control system instead of using this window event
             try
@@ -84,7 +86,7 @@ namespace Engine
             {
                 fprintf(stderr, "%s", except.what());
                 // Do a forced redraw to print error messages
-                this->window->OnDrawOverall(true);
+                globalSystems.window->OnDrawOverall(true);
                 throw;
             }
 
