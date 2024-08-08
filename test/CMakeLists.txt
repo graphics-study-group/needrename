@@ -4,6 +4,10 @@ add_executable(transform_test transform_test.cpp)
 target_link_libraries(transform_test engine)
 add_test(NAME transform_test COMMAND transform_test)
 
+add_executable(camera_transform_test camera_transform_test.cpp)
+target_link_libraries(camera_transform_test engine)
+add_test(NAME camera_transform_test COMMAND camera_transform_test)
+
 add_executable(vulkan_init_test vulkan_init_test.cpp)
 target_link_libraries(vulkan_init_test engine)
 add_test(NAME vulkan_init_test COMMAND vulkan_init_test)
