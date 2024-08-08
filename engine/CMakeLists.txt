@@ -14,3 +14,5 @@ target_include_directories(
     ${ENGINE_DIR}
 )
 target_link_libraries(engine PUBLIC SDL3::SDL3 GLAD glm tinyobjloader stb json cereal)
+
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h)
