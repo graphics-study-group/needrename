@@ -1,6 +1,5 @@
 #include "SDLWindow.h"
 #include "Exception/exception.h"
-#include <glad/glad.h>
 
 namespace Engine
 {
@@ -8,14 +7,8 @@ namespace Engine
                          Uint32 flags) : width(w), height(h)
     {
         // ctor
-
         this->blockMouseEvent = false;
         this->blockKeyboardEvent = false;
-
-        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
-        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
-        SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-        SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
 
         this->window = SDL_CreateWindow(title, w, h, flags);
         if (this->window == nullptr)
@@ -30,24 +23,6 @@ namespace Engine
             SDL_DestroyRenderer(this->renderer);
         SDL_GL_DeleteContext(this->glcontext);
         SDL_DestroyWindow(this->window);
-
-        // Delete all objects, note that do not delete them again
-        // for (CDrawableObj * p : this->objDrawRespReg)
-        // 	delete p;
-
-        // if (!this->objClickRespReg.empty()) {
-        // 	SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "Objects are not deleted!");
-        // 	for (auto item : this->objClickRespReg)
-        // 		SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "\tID:%u",
-        // 				item->getIdentifier());
-        // }
-
-        // if (!this->objKeyRespReg.empty()) {
-        // 	SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "Objects are not deleted!");
-        // 	for (auto item : this->objKeyRespReg)
-        // 		SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "\tID:%u",
-        // 				item->getIdentifier());
-        // }
     }
 
     SDL_Window *SDLWindow::GetWindow()
@@ -69,8 +44,6 @@ namespace Engine
         if (this->renderer == nullptr)
             throw Exception::SDLExceptions::cant_create_renderer();
         this->glcontext = SDL_GL_CreateContext(this->window);
-        if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress))
-            throw Exception::SDLExceptions::cant_load_glad();
     }
 
     void SDLWindow::SetIcon(SDL_Surface *surface, bool freeSurface)
@@ -84,31 +57,6 @@ namespace Engine
     {
         SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "Clicking (%d, %d)",
                      event.button.x, event.button.y);
-        // 	for (CClickableObj * obj : this->objClickRespReg) {
-        // // TODO (hp#1#): Add click event response
-        // 		SDL_Rect * respArea = obj->getRespArea();
-        // 		SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION,
-        // 				"Object %u, respArea (x:%d, y:%d, h:%d, w:%d)", obj->getIdentifier(),
-        // 				respArea->x, respArea->y, respArea->h, respArea->w);
-        // 		if (event.button.x >= respArea->x && event.button.y >= respArea->y
-        // 				&& event.button.x <= respArea->x + respArea->w
-        // 				&& event.button.y <= respArea->y + respArea->h) {
-        // 			bool ret = true;
-        // 			if (event.button.state == SDL_PRESSED) {
-        // 				if (event.button.button == SDL_BUTTON_LEFT)
-        // 					ret = obj->onClick(event);
-        // 				else if (event.button.button == SDL_BUTTON_RIGHT)
-        // 					ret = obj->onClickRight(event);
-        // 			}
-        // 			if (!lockedFocus)
-        // 				for (CKeyboardObj * newFocus : this->objKeyRespReg)
-        // 					if (obj->getIdentifier() == newFocus->getIdentifier()) {
-        // 						this->keyFocus = newFocus;
-        // 						break;
-        // 					}
-        // 			return ret;
-        // 		}
-        // 	}
         return true;
     }
 
@@ -187,14 +135,6 @@ namespace Engine
 
     void SDLWindow::EnableMSAA(int samples)
     {
-        if (samples == 0) {
-            SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 0);
-            // glDisable(GL_MULTISAMPLE);
-        } else {
-            SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
-            SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, samples);
-            // glEnable(GL_MULTISAMPLE);
-        }
     }
 
     int SDLWindow::GetHeight() const

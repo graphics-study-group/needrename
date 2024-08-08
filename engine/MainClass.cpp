@@ -4,7 +4,6 @@
 #include "Render/RenderSystem.h"
 
 #include <exception>
-#include <glad/glad.h>
 
 namespace Engine
 {
@@ -53,12 +52,7 @@ namespace Engine
             this->window->BeforeEventLoop(); // ???
             this->world->Tick(dt);
 
-            // FIXME: Viewport infomation should be pass to Render() by context and camera
-            // instead of being set here.
-            auto pWindow = this->window->GetWindow();
-            int w, h;
-            SDL_GetWindowSizeInPixels(pWindow, &w, &h);
-            glViewport(0, 0, w, h);
+            // TODO: Set up viewport information
             
             this->renderer->Render();
 

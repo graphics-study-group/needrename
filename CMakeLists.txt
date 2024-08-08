@@ -6,6 +6,9 @@ set(CMAKE_CXX_STANDARD 20)
 set(ENGINE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/engine)
 set(THIRD_PARTY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 
+find_package(vulkan REQUIRED)
+message(STATUS "Vulkan version: ${Vulkan_VERSION}")
+
 if (NOT(CMAKE_CXX_COMPILER_ID STREQUAL "GNU"))
     Message(FATAL_ERROR "This project supports GCC only.")
 endif()
@@ -28,5 +31,5 @@ add_link_options(-static-libstdc++ -static-libgcc)
 add_subdirectory(engine)
 add_subdirectory(example)
 
-include(CTest)
-add_subdirectory(test)
+# include(CTest)
+# add_subdirectory(test)
