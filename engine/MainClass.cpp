@@ -48,7 +48,7 @@ namespace Engine
             float current_time = SDL_GetTicks();
             float dt = (current_time - FPS_TIMER) / 1000.0f;
             
-            this->window->BeforeEventLoop(); // ???
+            this->window->BeforeEventLoop();
             this->world->Tick(dt);
 
             // TODO: Set up viewport information
@@ -76,8 +76,6 @@ namespace Engine
             catch (std::exception &except)
             {
                 fprintf(stderr, "%s", except.what());
-                // Do a forced redraw to print error messages
-                this->window->OnDrawOverall(true);
                 throw;
             }
 

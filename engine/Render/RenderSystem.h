@@ -2,7 +2,6 @@
 #define RENDER_RENDERSYSTEM_INCLUDED
 
 #include "Functional/SDLWindow.h"
-#include <set>
 #include <vector>
 #include <memory>
 #include <vulkan/vulkan.hpp>
@@ -79,14 +78,14 @@ namespace Engine
         /// @return QueueFamilyIndices
         QueueFamilyIndices FillQueueFamily(const vk::PhysicalDevice & device) const;
         
-        /// @brief 
+        /// @brief Fill up swap chain support information
         /// @param device 
-        /// @return 
+        /// @return SwapchainSupport
         SwapchainSupport FillSwapchainSupport(const vk::PhysicalDevice & device) const;
 
-        /// @brief 
+        /// @brief Select a swap chain config from all supported ones
         /// @param support 
-        /// @return 
+        /// @return std::tuple <vk::Extent2D, vk::SurfaceFormatKHR, vk::PresentModeKHR>
         std::tuple <vk::Extent2D, vk::SurfaceFormatKHR, vk::PresentModeKHR>
         SelectSwapchainConfig(const SwapchainSupport & support) const;
 
@@ -94,9 +93,8 @@ namespace Engine
         /// @param selectedPhysicalDevice vk::PhysicalDevice
         void CreateLogicalDevice(const vk::PhysicalDevice & selectedPhysicalDevice);
 
-        /// @brief 
+        /// @brief Create a swap chain, possibly replace the older one.
         /// @param selectedPhysicalDevice 
-        /// @param indices 
         void CreateSwapchain(const vk::PhysicalDevice & selectedPhysicalDevice);
 
         static constexpr std::string_view validation_layer_name = "VK_LAYER_KHRONOS_validation";

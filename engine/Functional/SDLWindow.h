@@ -1,9 +1,10 @@
-#ifndef SDLWINDOW_H
-#define SDLWINDOW_H
+#ifndef FUNCTIONAL_SDLWINDOW_INCLUDED
+#define FUNCTIONAL_SDLWINDOW_INCLUDED
 
 #include <SDL3/SDL.h>
 #include <list>
 #include <string>
+#include <memory>
 #include <functional>
 
 #include "consts.h"
@@ -17,32 +18,22 @@ namespace Engine
     public:
         SDLWindow(const char *, int, int, Uint32);
 
+        SDLWindow(const SDLWindow &) = delete;
+        SDLWindow(SDLWindow &&);
+        SDLWindow & operator = (const SDLWindow &) = delete;
+        SDLWindow & operator = (SDLWindow &&) = delete;
+
         /// @note Delete EVERY registered object before the destruction of this class !!
         virtual ~SDLWindow();
+
+        /// @brief 
+        void Release();
 
         /// Set the icon of this window
         void SetIcon(SDL_Surface *, bool = true);
 
         /// Get the underlying pointer of this window
         SDL_Window *GetWindow();
-        /// Get the bound renderer
-        SDL_Renderer *GetRenderer();
-
-        /// Create a new render of this window, replacing the old one
-        [[deprecated("Directly use OpenGL framebuffers instead.")]]
-        void CreateRenderer();
-
-        /// Call this function in an event loop to process CLICK events
-        /// @return TRUE if the event loop is to be continued
-        virtual bool OnClickOverall(SDL_Event &);
-
-        /// Call this function in an event loop to re-draw all objects
-        /// @return TRUE if the event loop is to be continued
-        virtual bool OnDrawOverall(bool = false);
-
-        /// Call this function in an event loop to dispatch KEYDOWN and KEYUP events
-        /// @return TRUE if the event loop is to be continued
-        virtual bool OnKeyOverall(SDL_Event &);
 
         /// Call this function in an event loop before processing any events
         /// @return TRUE if the event loop is to be continued
@@ -56,11 +47,6 @@ namespace Engine
         /// @return TRUE if the event loop is to be continued
         virtual bool DispatchEvents(SDL_Event &);
 
-        /// @brief Enable (or disable) MSAA for default FBO.
-        /// Must be called before window creation.
-        /// @param samples
-        static void EnableMSAA(int samples);
-
         [[deprecated("Does not consider HDPI displays. Use SDL_GetWindowSizeInPixels instead.")]]
         int GetHeight() const;
 
@@ -73,9 +59,7 @@ namespace Engine
 
         bool lockedFocus;
 
-        SDL_Window *window;
-        SDL_Renderer *renderer;
-        SDL_GLContext glcontext;
+        SDL_Window * window;
 
         const int width, height;
 
@@ -84,4 +68,4 @@ namespace Engine
     private:
     };
 }
-#endif // SDLWINDOW_H
+#endif // FUNCTIONAL_SDLWINDOW_INCLUDED
