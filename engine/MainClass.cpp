@@ -87,4 +87,7 @@ namespace Engine
         }
         SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "The main loop is ended.");
     }
-}
+    std::shared_ptr<RenderSystem> MainClass::GetRenderSystem() {
+      return renderer;
+    }
+}  // namespace Engine

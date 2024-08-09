@@ -21,6 +21,8 @@ namespace Engine
         void Initialize(const StartupOptions*, Uint32 = 0);
         void MainLoop();
 
+        std::shared_ptr <RenderSystem> GetRenderSystem();
+
     protected:
         std::shared_ptr <SDLWindow> window {};
         std::shared_ptr <RenderSystem> renderer {};
