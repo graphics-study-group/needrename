@@ -25,6 +25,15 @@ add_custom_command(TARGET SDL_init_test POST_BUILD
     COMMENT "Copying SDL DLLs"
 )
 
+# Copy shader files
+add_custom_command(TARGET vulkan_init_test POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    "${PROJECT_BINARY_DIR}/shader/"
+    "$<TARGET_FILE_DIR:vulkan_init_test>/shader"
+    DEPENDS shader
+    COMMENT "Copying shaders"
+)
+
 if (ASSET_FOLDER STREQUAL "")
     message(WARNING "ASSET_FOLDER not set. Related tests will be skipped.")
 else()
