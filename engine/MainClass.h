@@ -18,14 +18,13 @@ namespace Engine
         MainClass(Uint32, SDL_LogPriority = SDL_LOG_PRIORITY_INFO);
         virtual ~MainClass();
 
-        void Initialize(const StartupOptions*);
+        void Initialize(const StartupOptions*, Uint32 = 0);
         void MainLoop();
 
-    // private:
-        Uint32 sdl_flags;
-        std::shared_ptr<SDLWindow> window;
-        std::shared_ptr<RenderSystem> renderer;
-        std::shared_ptr<WorldSystem> world;
+    protected:
+        std::shared_ptr <SDLWindow> window {};
+        std::shared_ptr <RenderSystem> renderer {};
+        std::shared_ptr <WorldSystem> world {};
     };
 }
 

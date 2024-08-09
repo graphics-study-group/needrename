@@ -9,7 +9,6 @@ namespace Engine
 {
     MainClass::MainClass(Uint32 flags, SDL_LogPriority logPrior)
     {
-        this->sdl_flags = flags;
         if (SDL_Init(flags) < 0)
             throw Exception::SDLExceptions::cant_init();
         SDL_SetLogPriorities(logPrior);
@@ -21,15 +20,17 @@ namespace Engine
         SDL_Quit();
     }
 
-    void MainClass::Initialize(const StartupOptions *opt)
+    void MainClass::Initialize(const StartupOptions *opt, Uint32 flags)
     {
+        if (flags == 0) 
+            flags = SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
         if (opt->instantQuit)
             return;
         this->window = std::make_shared<SDLWindow>(
             opt->title.c_str(), 
             opt->resol_x, 
             opt->resol_y, 
-            SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY
+            flags
             );
 
         this->renderer = std::make_shared<RenderSystem>(this->window);
