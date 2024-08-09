@@ -36,8 +36,10 @@ int main(int, char **)
     cmc->Initialize(&opt);
 
     auto system = cmc->GetRenderSystem();
-    Pipeline p{system};
+    PipelineLayout pl{system};
+    pl.CreatePipelineLayout({}, {});
 
+    RenderPass rp{system};
     vk::AttachmentDescription att{};
     att.format = system->getSwapchainInfo().format.format;
     att.samples = vk::SampleCountFlagBits::e1;
@@ -59,15 +61,14 @@ int main(int, char **)
     */
     subp.colorAttachmentCount = 1;
     subp.pColorAttachments = &ref;
-
+    rp.CreateRenderPass({att}, {subp}, {});
+    Pipeline p{system};
     ShaderModule fragModule {system};
     ShaderModule vertModule {system};
     fragModule.CreateShaderModule(readFile("shader/debug_fragment_color.frag.spv"));
     vertModule.CreateShaderModule(readFile("shader/debug_vertex_color.vert.spv"));
 
-    p.CreateRenderPass({att}, {subp});
-    p.CreatePipelineLayout({}, {});
-    p.CreatePipeline({
+    p.CreatePipeline(rp.GetSubpass(0), pl, {
         fragModule.GetStageCreateInfo(vk::ShaderStageFlagBits::eFragment),
         vertModule.GetStageCreateInfo(vk::ShaderStageFlagBits::eVertex)
         });
