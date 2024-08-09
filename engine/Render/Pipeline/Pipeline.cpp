@@ -4,10 +4,11 @@ namespace Engine
 {
     Pipeline::Pipeline(std::weak_ptr<RenderSystem> system) : m_system(system) {}
 
-    void Pipeline::CreatePipeline(const std::vector<vk::PipelineShaderStageCreateInfo> & stage) {
+    void Pipeline::CreatePipeline(Subpass subpass,
+        const PipelineLayout & layout,
+        const std::vector<vk::PipelineShaderStageCreateInfo> & stage)
+    {
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating pipeline.");
-        assert(m_layout);
-        assert(m_pass);
         assert(!stage.empty());
 
         vk::GraphicsPipelineCreateInfo info{};
@@ -38,42 +39,15 @@ namespace Engine
         auto dynamic = CreateDynamicState();
         info.pDynamicState = &dynamic;
 
-        info.layout = m_layout.get();
-        info.renderPass = m_pass.get();
-        info.subpass = 0;
+        info.layout = layout.get();
+        info.renderPass = subpass.pass;
+        info.subpass = subpass.index;
 
         auto ret = m_system.lock()->getDevice().createGraphicsPipelineUnique(nullptr, info);
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Pipeline creation successful with result %d.", static_cast<int>(ret.result));
         m_pipeline = std::move(ret.value);
     }
 
-    void Pipeline::CreatePipelineLayout(
-        const std::vector<vk::DescriptorSetLayout>& set,
-        const std::vector<vk::PushConstantRange>& push) {
-        SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating pipeline layout.");
-        vk::PipelineLayoutCreateInfo info{};
-        info.setLayoutCount = set.size();
-        info.pSetLayouts = set.empty() ? nullptr : set.data(); 
-        info.pushConstantRangeCount = push.size();
-        info.pPushConstantRanges = push.empty() ? nullptr : push.data();
-        m_layout = m_system.lock()->getDevice().createPipelineLayoutUnique(info);
-    }
-
-    void Pipeline::CreateRenderPass(
-        const std::vector<vk::AttachmentDescription>& attachment,
-        const std::vector<vk::SubpassDescription>& subpass) {
-        SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating render pass.");
-
-        assert(!attachment.empty());
-        assert(!subpass.empty());
-
-        vk::RenderPassCreateInfo info{};
-        info.attachmentCount = attachment.size();
-        info.pAttachments = attachment.data();
-        info.subpassCount = subpass.size();
-        info.pSubpasses = subpass.data();
-        m_pass = m_system.lock()->getDevice().createRenderPassUnique(info);
-    }
 
     vk::PipelineDynamicStateCreateInfo Pipeline::CreateDynamicState() {
         vk::PipelineDynamicStateCreateInfo info{};
