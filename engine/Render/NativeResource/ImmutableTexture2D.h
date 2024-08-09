@@ -15,6 +15,10 @@ namespace Engine
         void Download(GLvoid * data) const override;
         void Bind() const override;
 
+        void Load() override;
+        void Unload() override;
+
+    private:
         bool LoadFromFile(std::filesystem::path path, GLenum textureFormat, GLuint levels);
     };
 } // namespace Engine

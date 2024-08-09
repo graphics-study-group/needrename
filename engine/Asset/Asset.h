@@ -11,8 +11,8 @@ namespace Engine
     class Asset
     {
     public:
-        Asset() = default;
-        virtual ~Asset() = default;
+        Asset();
+        virtual ~Asset();
 
         /// @brief Load asset from file to the memory
         virtual void Load() = 0;
@@ -30,6 +30,7 @@ namespace Engine
 
         inline bool IsValid() const { return m_valid; }
         inline GUID GetGUID() const { return m_guid; }
+        inline void SetGUID(GUID guid) { m_guid = guid; }
 
     protected:
         bool m_valid = false;

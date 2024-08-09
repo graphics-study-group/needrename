@@ -4,6 +4,14 @@
 
 namespace Engine
 {
+    Asset::Asset()
+    {
+    }
+
+    Asset::~Asset()
+    {
+    }
+
     std::filesystem::path Asset::GetAssetPath()
     {
         return globalSystems.assetManager->GetAssetPath(m_guid);

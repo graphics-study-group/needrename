@@ -4,8 +4,6 @@ namespace Engine
 {
     WorldSystem::WorldSystem()
     {
-        // TODO: load level from file or template level
-        current_level = std::make_shared<Level>();
     }
 
     WorldSystem::~WorldSystem()
@@ -14,6 +12,7 @@ namespace Engine
 
     void WorldSystem::Tick(float dt)
     {
-        current_level->Tick(dt);
+        if (current_level)
+            current_level->Tick(dt);
     }
 }

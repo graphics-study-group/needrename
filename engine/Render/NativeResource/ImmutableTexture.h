@@ -2,17 +2,21 @@
 #define RENDER_NATIVERESOURCE_IMMUTABLETEXTURE_INCLUDED
 
 #include "NativeResource.h"
+#include "Asset/Asset.h"
 #include <tuple>
 
 namespace Engine
 {
     /// @brief An immutable texture on GPU.
     /// Confer https://www.khronos.org/opengl/wiki/Texture_Storage for details
-    class ImmutableTexture : public NativeResource {
+    class ImmutableTexture : public NativeResource, public Asset
+    {
     public:
         virtual ~ImmutableTexture();
         bool IsValid() const noexcept override;
         void Release() noexcept override;
+        void Load() override;
+        void Unload() override;
 
         /// @brief Create an immutable texture of given mipmap levels, format and dimensions, as if the texture name is generated, bound and allocated.
         /// All parameters are passed as-is to glTexStorage*.
@@ -31,27 +35,27 @@ namespace Engine
         /// @param type data type of the pixel data.
         /// @param data pointer to the data. Beware of memory access.
         /// @note You might want to adjust pixel storage parameters first with glPixelStore*().
-        virtual bool FullUpload(GLenum format, GLenum type, GLvoid * data) const = 0;
+        virtual bool FullUpload(GLenum format, GLenum type, GLvoid *data) const = 0;
 
         /// @brief Download data from texture on GPU
         /// @param data pointer to sufficiently large data buffer, allocated by the caller.
-        virtual void Download(GLvoid * data) const = 0;
+        virtual void Download(GLvoid *data) const = 0;
 
         /// @brief Bind this texture to location for shader.
         /// Equivalent to calling glBindTexture and then glActiveTexture.
         /// Use GetUnifrom from ShaderPass and glUniformi to set sampler uniform,
         /// and then invoke this member to bind texture.
-        /// @param location location to be bound. 
+        /// @param location location to be bound.
         void BindToLocation(GLuint location) const;
 
         /// @brief Bind this texture with glBindTexture.
         virtual void Bind() const = 0;
 
-        std::tuple <GLsizei, GLsizei, GLsizei> GetDimension() const noexcept;
+        std::tuple<GLsizei, GLsizei, GLsizei> GetDimension() const noexcept;
+
     protected:
-        std::tuple <GLsizei, GLsizei, GLsizei> dimensions = {0, 0, 0};
+        std::tuple<GLsizei, GLsizei, GLsizei> dimensions = {0, 0, 0};
     };
 } // namespace Engine
-
 
 #endif // RENDER_NATIVERESOURCE_IMMUTABLETEXTURE_INCLUDED

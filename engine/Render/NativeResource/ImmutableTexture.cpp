@@ -21,6 +21,16 @@ namespace Engine
         this->m_handle = 0;
     }
 
+    void ImmutableTexture::Load()
+    {
+        throw std::runtime_error("Not implemented");
+    }
+
+    void ImmutableTexture::Unload()
+    {
+        throw std::runtime_error("Not implemented");
+    }
+
     void ImmutableTexture::BindToLocation(GLuint location) const
     {
         assert(location <= GL_MAX_TEXTURE_IMAGE_UNITS && "Texture location limit exceeded.");

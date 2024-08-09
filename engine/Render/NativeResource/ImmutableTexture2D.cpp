@@ -63,6 +63,19 @@ namespace Engine
         glBindTexture(GL_TEXTURE_2D, m_handle);
     }
 
+    void ImmutableTexture2D::Load()
+    {
+        std::filesystem::path path = GetAssetPath();
+        if (!path.empty()) {
+            LoadFromFile(path, GL_RGBA8, 1);
+        }
+    }
+
+    void ImmutableTexture2D::Unload()
+    {
+        
+    }
+
     bool ImmutableTexture2D::LoadFromFile(std::filesystem::path path, GLenum textureFormat, GLuint levels)
     {
         // XXX: We need better asset managing system

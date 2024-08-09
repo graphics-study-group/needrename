@@ -12,9 +12,12 @@ namespace Engine
         ~WorldSystem();
 
         void Tick(float dt);
-        
-    // XXX: public for debug
-    public:
+
+        void SetCurrentLevel(std::shared_ptr<Level> level)
+        {
+            current_level = level;
+        }        
+    protected:
         std::shared_ptr<Level> current_level;
     };
 }
