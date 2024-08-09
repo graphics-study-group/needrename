@@ -11,7 +11,7 @@ add_library(engine STATIC ${SRC})
 target_include_directories(
     engine
     PUBLIC
-    ${ENGINE_DIR}
+    ${ENGINE_SOURCE_DIR}
 )
 target_link_libraries(engine PUBLIC SDL3::SDL3 GLAD glm tinyobjloader stb json cereal)
 

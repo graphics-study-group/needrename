@@ -55,6 +55,20 @@ namespace Engine
 
     ShadelessMaterial::ShadelessMaterial()
     {
+    }
+
+    ShadelessMaterial::~ShadelessMaterial()
+    {
+    }
+
+    void ShadelessMaterial::SetAlbedo(std::shared_ptr<ImmutableTexture2D> texture) noexcept
+    {
+        assert(texture);
+        this->m_albedo = texture;
+    }
+
+    void ShadelessMaterial::Load()
+    {
         if (!pass) {
             pass = std::make_unique <ShaderPass> ();
 
@@ -73,26 +87,18 @@ namespace Engine
             assert(location_view_matrix >= 0);
             assert(location_albedo >= 0);
         }
-    }
 
-    ShadelessMaterial::~ShadelessMaterial()
-    {
-    }
-
-    void ShadelessMaterial::SetAlbedo(std::shared_ptr<ImmutableTexture2D> texture) noexcept
-    {
-        assert(texture);
-        this->m_albedo = texture;
-    }
-
-    void ShadelessMaterial::Load()
-    {
-        throw std::runtime_error("Not implemented");
+        if(m_albedo) {
+            m_albedo->Load();
+        }
+        if(m_normal) {
+            m_normal->Load();
+        }
     }
 
     void ShadelessMaterial::Unload()
     {
-        throw std::runtime_error("Not implemented");
+        /// XXX:ShadelessMaterial Unload not implemented
     }
 
     void ShadelessMaterial::PrepareDraw(const CameraContext & cameraContext, const RendererContext & rendererContext)

@@ -1,0 +1,42 @@
+# Blender 4.1.0 MTL File: 'None'
+# www.blender.org
+
+newmtl Bunny_Material.001
+Ns 96.078453
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 2
+map_Kd bunny1.png
+
+newmtl Bunny_Material.002
+Ns 96.078453
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 2
+map_Kd bunny2.png
+
+newmtl Bunny_Material.003
+Ns 96.078453
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 2
+map_Kd bunny3.png
+
+newmtl Bunny_Material.004
+Ns 96.078453
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 2
+map_Kd bunny4.png

@@ -1,0 +1,42 @@
+{
+    "ambient": [
+        1.0,
+        1.0,
+        1.0
+    ],
+    "anisotropy": 0.0,
+    "anisotropy_rotation": 0.0,
+    "clearcoat_roughness": 0.0,
+    "clearcoat_thickness": 0.0,
+    "diffuse": [
+        0.6000000238418579,
+        0.6000000238418579,
+        0.6000000238418579
+    ],
+    "diffuse_tex": "8DD07559F342C48D9EC7A99D8E6B1DE7",
+    "dissolve": 1.0,
+    "emission": [
+        0.0,
+        0.0,
+        0.0
+    ],
+    "guid": "8D3BBEC3AD40B0FE5CA93170DEBD3D8E",
+    "illum": 2,
+    "ior": 1.0,
+    "metallic": 0.0,
+    "name": "Bunny_Material.004",
+    "roughness": 0.0,
+    "sheen": 0.0,
+    "shininess": 96.07845306396484,
+    "specular": [
+        0.5,
+        0.5,
+        0.5
+    ],
+    "transmittance": [
+        0.0,
+        0.0,
+        0.0
+    ],
+    "type": "Shadeless"
+}

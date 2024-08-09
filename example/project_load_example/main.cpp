@@ -1,72 +1,27 @@
 #include <SDL3/SDL.h>
+#include <nlohmann/json.hpp>
 #include <cassert>
+#include <iostream>
+#include <fstream>
 
+#include "cmake_config.h"
 #include "consts.h"
 #include "MainClass.h"
+#include "GlobalSystem.h"
 #include "Functional/SDLWindow.h"
-
-#include "Render/RenderSystem.h"
 #include "Framework/go/GameObject.h"
 #include "Framework/level/Level.h"
 #include "Framework/world/WorldSystem.h"
-#include "Asset/AssetManager/AssetManager.h"
-#include "Framework/component/RenderComponent/CameraComponent.h"
 #include "Framework/component/RenderComponent/MeshComponent.h"
+#include "Render/RenderSystem.h"
+#include "Render/Material/Shadeless.h"
+#include "Asset/AssetManager/AssetManager.h"
 
 using namespace Engine;
 
-class Camera : public GameObject
+class TestMesh : public GameObject
 {
-public:
-    void Tick(float dt) override
-    {
-        if(orbit_angle > 2 * pi)
-            orbit_angle -= 2 * pi;
-        orbit_angle += dt / 2.0;
-        auto & transform = m_transformComponent->GetTransformRef();
-        glm::vec3 pos, rot;
-        pos = glm::vec3(radius * glm::sin(orbit_angle), radius * glm::cos(orbit_angle), 0.7f);
-        rot = glm::vec3(0.0f, 0.0f, pi - orbit_angle);
-        transform.SetPosition(pos).SetRotationEuler(rot);
 
-        SDL_LogInfo(0, "Rotation angle: %f, delta-t: %f", glm::degrees(orbit_angle), dt);
-    }
-
-    void Initialize(std::shared_ptr<RenderSystem> sys)
-    {
-        auto & transform = m_transformComponent->GetTransformRef();
-        glm::vec3 pos, rot;
-        pos = glm::vec3(radius * glm::sin(orbit_angle), radius * glm::cos(orbit_angle), 0.7f);
-        rot = glm::vec3(0.0f, 0.0f, pi - orbit_angle);
-        transform.SetPosition(pos).SetRotationEuler(rot);
-
-        std::shared_ptr <CameraComponent> cc = std::make_shared<CameraComponent>(weak_from_this());
-        AddComponent(std::dynamic_pointer_cast<Component>(cc));
-        sys->SetActiveCamera(cc);
-    }
-
-protected:
-    float pi {glm::pi<float>()};
-    float orbit_angle {0.0f};
-    float radius{5.0f};
-
-};
-
-class MeshTest : public GameObject
-{
-public:
-    void Tick(float) override
-    {
-    }
-
-    void Initialize(MainClass * cmc, const char* path)
-    {
-        std::shared_ptr <MeshComponent> testMesh = 
-            std::make_shared<MeshComponent>(weak_from_this());
-        testMesh->ReadAndFlatten(path);
-        AddComponent(testMesh);
-        globalSystems.renderer->RegisterComponent(std::dynamic_pointer_cast<Engine::RendererComponent>(this->m_components[1]));
-    }
 };
 
 Engine::MainClass * cmc;
@@ -84,19 +39,37 @@ int main(int argc, char * argv[])
             opt->enableVerbose ? SDL_LOG_PRIORITY_VERBOSE : SDL_LOG_PRIORITY_INFO);
     SDLWindow::EnableMSAA(4);
     cmc->Initialize(opt);
-    glEnable(GL_DEPTH_TEST);
 
-    globalSystems.assetManager->LoadProject("E:/CaptainChen/Projects/MyCodes/needrename/example/project_load_test/project");
-    globalSystems.assetManager->LoadExternalResource("E:/CaptainChen/Projects/MyCodes/needrename/assets/__noupload/keqing/mesh.obj", "./");
+    std::filesystem::path project_path(ENGINE_ROOT_DIR);
+    project_path = project_path / "test_project";
+    globalSystems.assetManager->LoadProject(project_path);
+
+    /// XXX: should use reflection to load prefab. This is just a test.
+    nlohmann::json prefab_json;
+    std::ifstream prefab_file(project_path / "assets" / "four_bunny.prefab.asset");
+    prefab_file >> prefab_json;
+    prefab_file.close();
+    nlohmann::json component_json = prefab_json["components"][0];
+    std::shared_ptr<TestMesh> test_mesh_go = std::make_shared<TestMesh>();
+    std::shared_ptr<MeshComponent> mesh_component = std::make_shared<MeshComponent>(test_mesh_go);
+    test_mesh_go->AddComponent(mesh_component);
+    Mesh mesh;
+    mesh.SetGUID(stringToGUID(component_json["mesh"]));
+    mesh_component->SetMesh(std::make_shared<Mesh>(mesh));
+    for(auto & material_guid : component_json["materials"])
+    {
+        std::shared_ptr<ShadelessMaterial> mat = std::make_shared<ShadelessMaterial>();
+        mat->SetGUID(stringToGUID(material_guid));
+        mesh_component->AddMaterial(mat);
+    }
+
+    // Add the game object to the render system and world system
+    globalSystems.renderer->RegisterComponent(mesh_component);
+    std::shared_ptr<Level> level = std::make_shared<Level>();
+    level->AddGameObject(test_mesh_go);
+    globalSystems.world->SetCurrentLevel(level);
     
-    // std::shared_ptr<MeshTest> testMesh = std::make_shared<MeshTest>();
-    // testMesh->Initialize(cmc, "E:/CaptainChen/Projects/MyCodes/game/assets/__noupload/keqing/mesh.obj");
-    // globalSystems.world->current_level->AddGameObject(testMesh);
-
-    // std::shared_ptr<Camera> camera = std::make_shared<Camera>();
-    // camera->Initialize(globalSystems.renderer);
-    // globalSystems.world->current_level->AddGameObject(camera);
-
+    level->Load();
     cmc->MainLoop();
 
     SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "Unloading StartupOptions");

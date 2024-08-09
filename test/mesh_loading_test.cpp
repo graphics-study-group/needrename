@@ -34,8 +34,8 @@ int main(int argc, char * argv[])
 
     std::filesystem::path mesh {argv[1]};
     mesh = mesh / "mesh.obj";
-    if(!testMesh->ReadAndFlatten(mesh))
-        return -1;
+    // if(!testMesh->ReadAndFlatten(mesh))
+    //     return -1;
 
     delete cmc;
     return 0;

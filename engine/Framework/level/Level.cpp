@@ -1,3 +1,8 @@
+#include <filesystem>
+#include <iostream>
+#include <fstream>
+#include <nlohmann/json.hpp>
+
 #include "Framework/level/level.h"
 #include "Framework/go/GameObject.h"
 
@@ -11,6 +16,19 @@ namespace Engine
     Level::~Level()
     {
         //dtor
+    }
+
+    void Level::Load()
+    {
+        std::filesystem::path json_path = GetAssetPath();
+        std::ifstream json_file(json_path);
+        nlohmann::json json;
+        json_file >> json;
+        
+    }
+
+    void Level::Unload()
+    {
     }
 
     void Level::Tick(float dt)

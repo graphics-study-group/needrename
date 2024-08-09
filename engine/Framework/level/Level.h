@@ -4,21 +4,25 @@
 #include <vector>
 #include <memory>
 
+#include "Asset/Asset.h"
+
 namespace Engine
 {
     class GameObject;
 
-    class Level final
+    class Level : public Asset
     {
     public:
         Level();
         ~Level();
 
-        void Tick(float dt);
-        // void RenderEditor();
-        void AddGameObject(std::shared_ptr<GameObject> gameObject);
+        virtual void Load() override;
+        virtual void Unload() override;
+        virtual void Tick(float dt);
 
-    private:
+        virtual void AddGameObject(std::shared_ptr<GameObject> gameObject);
+
+    protected:
         std::vector<std::shared_ptr<GameObject>> m_gameObjects;
     };
 }

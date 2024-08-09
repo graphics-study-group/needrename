@@ -56,7 +56,9 @@ namespace Engine
 
         /// @brief Generate a GUID
         /// @return GUID
-        GUID GenerateGUID();
+        inline GUID GenerateGUID() { return generateGUID(m_guid_gen); }
+
+        void AddAsset(const GUID &guid, const std::filesystem::path &path);
 
     private:
         /// @brief Load an external obj resource, copy to the project asset directory, and create a meta file

@@ -9,6 +9,7 @@
 #include "Render/Material/Material.h"
 #include "Framework/component/RenderComponent/RendererComponent.h"
 #include "Framework/go/GameObject.h"
+#include "Asset/Mesh/Mesh.h"
 
 namespace tinyobj
 {
@@ -26,20 +27,18 @@ namespace Engine
         MeshComponent(std::weak_ptr<GameObject> gameObject);
         virtual ~MeshComponent();
 
+        virtual void Load() override;
+        virtual void Unload() override;
         virtual void Tick(float dt) override;
         virtual void Draw(CameraContext context) override;
 
-        bool ReadAndFlatten(std::filesystem::path path);
+        virtual void SetMesh(std::shared_ptr<Mesh> mesh);
+        virtual void AddMaterial(std::shared_ptr<Material> material);
 
     protected:
-        typedef std::vector <float> Positions;
-        typedef std::vector <float> UVs;
+        std::shared_ptr<Mesh> m_mesh;
 
-        std::filesystem::path m_model_absolute_path{};
-
-        std::vector <Positions> m_position{};
-        std::vector <UVs> m_uv{};
-
+        std::vector <size_t> m_array_size;
         std::vector <GLuint> m_VAOs{};
         std::vector <GLuint> m_VBOs_position{};
         std::vector <GLuint> m_VBOs_uv{};
