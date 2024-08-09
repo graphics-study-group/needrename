@@ -35,6 +35,21 @@ namespace Engine
     {
     public:
 
+        struct QueueInfo {
+            vk::Queue graphicsQueue;
+            vk::Queue presentQueue;
+        };
+
+        struct SwapchainInfo {
+            vk::UniqueSwapchainKHR swapchain;
+            // Images retreived from swapchain don't require clean up.
+            std::vector <vk::Image> images;
+            // However, image views do need clean up.
+            std::vector <vk::UniqueImageView> imageViews;
+            vk::SurfaceFormatKHR format;
+            vk::Extent2D extent;
+        };
+
         RenderSystem(std::weak_ptr <SDLWindow> parent_window);
 
         RenderSystem(const RenderSystem &) = delete;
@@ -47,7 +62,12 @@ namespace Engine
         void Render();
         void RegisterComponent(std::shared_ptr <RendererComponent>);
         void SetActiveCamera(std::shared_ptr <CameraComponent>);
-        
+
+        vk::Instance getInstance() const;
+        vk::SurfaceKHR getSurface() const;
+        vk::Device getDevice() const;
+        const QueueInfo & getQueueInfo () const;
+        const SwapchainInfo & getSwapchainInfo() const;
         
     protected:
 
@@ -112,20 +132,8 @@ namespace Engine
         vk::UniqueSurfaceKHR m_surface{};
         vk::UniqueDevice m_device{};
         
-        struct {
-            vk::Queue graphicsQueue;
-            vk::Queue presentQueue;
-        } m_queues {};
-
-        struct {
-            vk::UniqueSwapchainKHR swapchain;
-            // Images retreived from swapchain don't require clean up.
-            std::vector <vk::Image> images;
-            // However, image views do need clean up.
-            std::vector <vk::UniqueImageView> imageViews;
-            vk::SurfaceFormatKHR format;
-            vk::Extent2D extent;
-        } m_swapchain{};
+        QueueInfo  m_queues {};
+        SwapchainInfo m_swapchain{};
     };
 }
 

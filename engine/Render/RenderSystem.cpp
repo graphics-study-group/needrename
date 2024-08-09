@@ -60,6 +60,18 @@ namespace Engine
         m_active_camera = cameraComponent;
     }
 
+    vk::Instance RenderSystem::getInstance() const { return m_instance.get(); }
+    vk::SurfaceKHR RenderSystem::getSurface() const { return m_surface.get(); }
+    vk::Device RenderSystem::getDevice() const { return m_device.get(); }
+
+    const RenderSystem::QueueInfo & RenderSystem::getQueueInfo() const {
+        return m_queues;
+    }
+
+    const RenderSystem::SwapchainInfo &RenderSystem::getSwapchainInfo() const {
+        return m_swapchain;
+    }
+
     void RenderSystem::CreateInstance(const vk::ApplicationInfo &appInfo)
     {
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating Vulkan instance.");
@@ -175,7 +187,8 @@ namespace Engine
         // Select surface format
         vk::SurfaceFormatKHR pickedFormat = support.formats[0];
         for (const auto & format : support.formats) {
-            if (format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear && format.format == vk::Format::eB8G8R8A8Srgb) {
+            if (format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear 
+                && format.format == vk::Format::eB8G8R8A8Srgb) {
                 pickedFormat = format;
             }
         }
@@ -194,8 +207,12 @@ namespace Engine
             height = static_cast<uint32_t>(h);
             extent = vk::Extent2D{width, height};
 
-            extent.width = std::clamp(extent.width, support.capabilities.minImageExtent.width, support.capabilities.maxImageExtent.width);
-            extent.height = std::clamp(extent.height, support.capabilities.minImageExtent.height, support.capabilities.maxImageExtent.height);
+            extent.width = std::clamp(extent.width, 
+                support.capabilities.minImageExtent.width,
+                support.capabilities.maxImageExtent.width);
+            extent.height = std::clamp(extent.height, 
+                support.capabilities.minImageExtent.height, 
+                support.capabilities.maxImageExtent.height);
 
             if (extent.width != width || extent.height != height) {
                 SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Extent clamped to (%u, %u).", extent.width, extent.height);
@@ -259,10 +276,7 @@ namespace Engine
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating swap chain.");
         // Fill in selected configuration
         auto support = FillSwapchainSupport(selectedPhysicalDevice);
-        auto selected_tuple = SelectSwapchainConfig(support);
-        const auto & extent = std::get<0>(selected_tuple);
-        const auto & format = std::get<1>(selected_tuple);
-        const auto & mode = std::get<2>(selected_tuple);
+        auto [extent, format, mode] = SelectSwapchainConfig(support);
 
         uint32_t image_count = support.capabilities.minImageCount + 1;
         if (support.capabilities.maxImageCount > 0 && image_count > support.capabilities.maxImageCount) {
