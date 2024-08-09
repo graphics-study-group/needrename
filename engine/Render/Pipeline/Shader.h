@@ -10,11 +10,8 @@ namespace Engine
     {
     public:
         ShaderModule(std::weak_ptr <RenderSystem> system);
-
         void CreateShaderModule(const std::vector<char> & data);
-
         vk::PipelineShaderStageCreateInfo GetStageCreateInfo(vk::ShaderStageFlagBits stageBit);
-    
     };
 } // namespace Engine
 
