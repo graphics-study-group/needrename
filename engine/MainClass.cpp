@@ -32,7 +32,7 @@ namespace Engine
             SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY
             );
 
-        this->renderer = std::make_shared<RenderSystem>();
+        this->renderer = std::make_shared<RenderSystem>(this->window);
         this->world = std::make_shared<WorldSystem>();
     }
 
