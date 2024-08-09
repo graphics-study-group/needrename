@@ -6,16 +6,13 @@ namespace Engine
     SDLWindow::SDLWindow(const char *title, int w, int h,
                          Uint32 flags) : width(w), height(h)
     {
-        // ctor
-        this->blockMouseEvent = false;
-        this->blockKeyboardEvent = false;
-
         this->window = SDL_CreateWindow(title, w, h, flags);
         if (!this->window)
             throw Exception::SDLExceptions::cant_create_window();
     }
 
-    SDLWindow::SDLWindow(SDLWindow && other) : window(other.window), width(other.width), height(other.height) {
+    SDLWindow::SDLWindow(SDLWindow && other) 
+        : window(other.window), width(other.width), height(other.height), postProcs(std::move(other.postProcs)) {
         other.window = nullptr;
     }
 

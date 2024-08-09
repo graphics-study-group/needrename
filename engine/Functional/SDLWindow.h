@@ -54,17 +54,9 @@ namespace Engine
         int GetWidth() const;
 
     protected:
-        bool blockMouseEvent;
-        bool blockKeyboardEvent;
-
-        bool lockedFocus;
-
         SDL_Window * window;
-
         const int width, height;
-
-        std::list<std::function<bool(void)>> postProcs;
-
+        std::list<std::function<bool(void)>> postProcs {};
     private:
     };
 }
