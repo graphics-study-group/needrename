@@ -31,7 +31,7 @@ int main(int, char **)
 {
     SDL_Init(SDL_INIT_VIDEO);
 
-    StartupOptions opt{.resol_x = 800, .resol_y = 600, .title = "Vulkan Test"};
+    StartupOptions opt{.resol_x = 1600, .resol_y = 900, .title = "Vulkan Test"};
 
     cmc = new Engine::MainClass(
             SDL_INIT_VIDEO,
@@ -57,12 +57,16 @@ int main(int, char **)
         });
     
     uint32_t in_flight_frame_id = 0;
-    uint32_t total_test_frame = 60;
+    uint32_t total_test_frame = 200;
     
     system->UpdateSwapchain();
     rp.CreateFramebuffers();
 
+    uint64_t start_timer = SDL_GetPerformanceCounter();
     while(total_test_frame--) {
+        
+        uint64_t frame_start_timer = SDL_GetPerformanceCounter();
+
         vk::Fence fence = system->getSynchronization().GetCommandBufferFence(in_flight_frame_id);
         vk::Result waitFenceResult = system->getDevice().waitForFences({fence}, vk::True, 0x7FFFFFFF);
         if (waitFenceResult == vk::Result::eTimeout) {
@@ -70,6 +74,11 @@ int main(int, char **)
             return -1;
         }
         CommandBuffer & cb = system->GetGraphicsCommandBufferWaitAndReset(in_flight_frame_id, 0x7fffffff);
+        system->getDevice().resetFences({fence});
+
+        uint64_t fence_end_timer = SDL_GetPerformanceCounter();
+        SDL_LogVerbose(0, "Waiting for fence for %lf milliseconds.", 
+            1000.0 * (fence_end_timer - frame_start_timer) / SDL_GetPerformanceFrequency());
 
         auto result = system->getDevice().acquireNextImageKHR(
             system->getSwapchainInfo().swapchain.get(), 
@@ -81,11 +90,13 @@ int main(int, char **)
             SDL_LogError(0, "Timed out waiting for next frame.");
             return -1;
         }
-        uint32_t index = result.value;
-        SDL_LogVerbose(0, 
-            "Frame number %u, frame in flight id %u, return value %d.", 
-            index, in_flight_frame_id, static_cast<int32_t>(result.result));
 
+        uint64_t image_end_timer = SDL_GetPerformanceCounter();
+        SDL_LogVerbose(0, "Waiting for next image for %lf milliseconds.", 
+            1000.0 * (image_end_timer - fence_end_timer) / SDL_GetPerformanceFrequency());
+        
+        uint32_t index = result.value;
+        cb.Begin();
         cb.BeginRenderPass(rp, system->getSwapchainInfo().extent, index);
         cb.BindPipelineProgram(p);
         vk::Rect2D scissor{{0, 0}, system->getSwapchainInfo().extent};
@@ -93,6 +104,10 @@ int main(int, char **)
         cb.Draw();
         cb.End();
         cb.SubmitToQueue(system->getQueueInfo().graphicsQueue, system->getSynchronization());
+
+        uint64_t record_end_timer = SDL_GetPerformanceCounter();
+        SDL_LogVerbose(0, "Recording command buffer for %lf milliseconds.", 
+            1000.0 * (record_end_timer - image_end_timer) / SDL_GetPerformanceFrequency());
 
         vk::PresentInfoKHR info{};
         auto semaphores = system->getSynchronization().GetCommandBufferSigningSignals(in_flight_frame_id);
@@ -102,9 +117,21 @@ int main(int, char **)
         info.setPImageIndices(&index);
         system->getQueueInfo().presentQueue.presentKHR(info);
 
-        system->getDevice().resetFences({fence});
-        in_flight_frame_id = (in_flight_frame_id + 1) % 2;
+        uint64_t submission_end_timer = SDL_GetPerformanceCounter();
+        SDL_LogVerbose(0, "Presenting for %lf milliseconds.", 
+            1000.0 * (submission_end_timer - record_end_timer) / SDL_GetPerformanceFrequency());
+        SDL_LogVerbose(0, "Total: %lf milliseconds, or %lf fps for frame %u.", 
+            1000.0 * (submission_end_timer - frame_start_timer) / SDL_GetPerformanceFrequency(),
+            1.0 / ((1.0 * submission_end_timer - frame_start_timer) / SDL_GetPerformanceFrequency()),
+            in_flight_frame_id
+            );
+
+        in_flight_frame_id = (in_flight_frame_id + 1) % 3;
     }
+    uint64_t end_timer = SDL_GetPerformanceCounter();
+    uint64_t duration = end_timer - start_timer;
+    double duration_time = 1.0 * duration / SDL_GetPerformanceFrequency();
+    SDL_LogInfo(0, "Took %lf seconds for 200 frames (avg. %lf fps).", duration_time, 200.0 / duration_time);
     system->WaitForIdle();
 
     SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "Unloading Main-class");
