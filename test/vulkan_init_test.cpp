@@ -102,6 +102,7 @@ int main(int, char **)
 
         in_flight_frame_id = (in_flight_frame_id + 1) % 2;
     }
+    system->WaitForIdle();
 
     SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "Unloading Main-class");
     delete cmc;

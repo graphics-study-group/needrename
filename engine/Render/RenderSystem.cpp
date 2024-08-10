@@ -79,6 +79,10 @@ namespace Engine
         return m_commandbuffers[frame_index];
     }
 
+    void RenderSystem::WaitForIdle() const {
+        m_device->waitIdle();
+    }
+
     void RenderSystem::CreateInstance(const vk::ApplicationInfo &appInfo)
     {
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating Vulkan instance.");
