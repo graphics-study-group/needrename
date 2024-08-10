@@ -18,6 +18,20 @@ Engine::MainClass * cmc;
 
 int main(int argc, char * argv[])
 {
+    std::filesystem::path project_path(ENGINE_ROOT_DIR);
+    project_path = project_path / "test_project";
+    std::filesystem::path mesh_path(ENGINE_ASSETS_DIR);
+    mesh_path = mesh_path / "four_bunny" / "four_bunny.obj";
+
+    std::filesystem::path loaded_asset_path = project_path / "assets" / "loading_test";
+    if (std::filesystem::exists(loaded_asset_path))
+        std::filesystem::remove_all(loaded_asset_path);
+    if (!std::filesystem::create_directories(loaded_asset_path))
+    {
+        SDL_LogCritical(SDL_LOG_CATEGORY_APPLICATION, "Failed to create directory %s", loaded_asset_path.c_str());
+        return -1;
+    }
+
     SDL_Init(SDL_INIT_VIDEO);
 
     StartupOptions * opt = ParseOptions(argc, argv);
@@ -30,15 +44,10 @@ int main(int argc, char * argv[])
     SDLWindow::EnableMSAA(4);
     cmc->Initialize(opt);
 
-    std::filesystem::path project_path(ENGINE_ROOT_DIR);
-    project_path = project_path / "test_project";
-    std::filesystem::path mesh_path(ENGINE_ASSETS_DIR);
-    mesh_path = mesh_path / "four_bunny" / "four_bunny.obj";
-
     globalSystems.assetManager->LoadProject(project_path);
-    globalSystems.assetManager->LoadExternalResource(mesh_path, "");
+    globalSystems.assetManager->LoadExternalResource(mesh_path, std::filesystem::path("loading_test"));
     
-    // cmc->MainLoop();
+    std::filesystem::remove_all(loaded_asset_path);
 
     SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "Unloading StartupOptions");
     delete opt;

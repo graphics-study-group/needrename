@@ -41,17 +41,21 @@ namespace Engine
         m_positions.clear();
         m_uvs.clear();
         m_offsets.clear();
-        m_triangles.clear();
+        m_triangle_vert_ids.clear();
+        m_triangle_normal_ids.clear();
+        m_triangle_uv_ids.clear();
 
         m_positions = attrib.vertices;
         m_uvs = attrib.texcoords;
 
         for (const auto &shape : shapes)
         {
-            m_offsets.push_back(m_triangles.size());
+            m_offsets.push_back(m_triangle_vert_ids.size());
             for (const auto &index : shape.mesh.indices)
             {
-                m_triangles.push_back(index.vertex_index);
+                m_triangle_vert_ids.push_back(index.vertex_index);
+                m_triangle_normal_ids.push_back(index.normal_index);
+                m_triangle_uv_ids.push_back(index.texcoord_index);
             }
         }
     }

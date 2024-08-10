@@ -13,11 +13,49 @@
 #include "Framework/level/Level.h"
 #include "Framework/world/WorldSystem.h"
 #include "Framework/component/RenderComponent/MeshComponent.h"
+#include "Framework/component/RenderComponent/CameraComponent.h"
 #include "Render/RenderSystem.h"
 #include "Render/Material/Shadeless.h"
 #include "Asset/AssetManager/AssetManager.h"
 
 using namespace Engine;
+
+class Camera : public GameObject
+{
+public:
+    void Tick(float dt) override
+    {
+        if(orbit_angle > 2 * pi)
+            orbit_angle -= 2 * pi;
+        orbit_angle += dt / 2.0;
+        auto & transform = m_transformComponent->GetTransformRef();
+        glm::vec3 pos, rot;
+        pos = glm::vec3(radius * glm::sin(orbit_angle), radius * glm::cos(orbit_angle), 0.05f);
+        rot = glm::vec3(0.0f, 0.0f, pi - orbit_angle);
+        transform.SetPosition(pos).SetRotationEuler(rot);
+
+        SDL_LogInfo(0, "Rotation angle: %f, delta-t: %f", glm::degrees(orbit_angle), dt);
+    }
+
+    void Initialize()
+    {
+        auto & transform = m_transformComponent->GetTransformRef();
+        glm::vec3 pos, rot;
+        pos = glm::vec3(radius * glm::sin(orbit_angle), radius * glm::cos(orbit_angle), 0.05f);
+        rot = glm::vec3(0.0f, 0.0f, pi - orbit_angle);
+        transform.SetPosition(pos).SetRotationEuler(rot);
+
+        std::shared_ptr <CameraComponent> cc = std::make_shared<CameraComponent>(weak_from_this());
+        AddComponent(std::dynamic_pointer_cast<Component>(cc));
+        globalSystems.renderer->SetActiveCamera(cc);
+    }
+
+protected:
+    float pi {glm::pi<float>()};
+    float orbit_angle {0.0f};
+    float radius{1.0f};
+
+};
 
 class TestMesh : public GameObject
 {
@@ -39,12 +77,14 @@ int main(int argc, char * argv[])
             opt->enableVerbose ? SDL_LOG_PRIORITY_VERBOSE : SDL_LOG_PRIORITY_INFO);
     SDLWindow::EnableMSAA(4);
     cmc->Initialize(opt);
+    glEnable(GL_DEPTH_TEST);
 
     std::filesystem::path project_path(ENGINE_ROOT_DIR);
     project_path = project_path / "test_project";
     globalSystems.assetManager->LoadProject(project_path);
 
-    /// XXX: should use reflection to load prefab. This is just a test.
+    // Load an mesh GO
+    // XXX: should use reflection to load prefab. This is just a test.
     nlohmann::json prefab_json;
     std::ifstream prefab_file(project_path / "assets" / "four_bunny.prefab.asset");
     prefab_file >> prefab_json;
@@ -63,10 +103,23 @@ int main(int argc, char * argv[])
         mesh_component->AddMaterial(mat);
     }
 
-    // Add the game object to the render system and world system
     globalSystems.renderer->RegisterComponent(mesh_component);
+
+    // Load camera
+    std::shared_ptr<Camera> camera = std::make_shared<Camera>();
+    camera->Initialize();
+
+    // Load level
+    // XXX: should use reflection to load level. This is just a test.
     std::shared_ptr<Level> level = std::make_shared<Level>();
     level->AddGameObject(test_mesh_go);
+    level->AddGameObject(camera);
+    nlohmann::json level_json;
+    std::ifstream level_file(project_path / "assets" / "default_level.level.asset");
+    level_file >> level_json;
+    level_file.close();
+    level->SetGUID(stringToGUID(level_json["guid"]));
+
     globalSystems.world->SetCurrentLevel(level);
     
     level->Load();

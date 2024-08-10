@@ -65,7 +65,7 @@ namespace Engine
     {
         auto it = m_assets.find(guid);
         if (it != m_assets.end())
-            return it->second;
+            return GetAssetsDirectory() / it->second;
         else
             throw std::runtime_error("Asset not found");
     }
@@ -127,7 +127,7 @@ namespace Engine
         mesh_json["type"] = "Mesh";
         mesh_json["submesh_count"] = assetMesh.GetSubmeshCount();
 
-        std::filesystem::path mesh_json_path = GetAssetsDirectory() / path_in_project / (path.stem().string() + ".asset");
+        std::filesystem::path mesh_json_path = GetAssetsDirectory() / path_in_project / (path.stem().string() + ".mesh_data.asset");
         std::ofstream mesh_file(mesh_json_path);
         if (mesh_file.is_open())
         {

@@ -19,6 +19,8 @@ namespace Engine
 
     std::filesystem::path Asset::GetMetaPath()
     {
-        return globalSystems.assetManager->GetAssetPath(m_guid) / ".asset";
+        std::filesystem::path metaPath = globalSystems.assetManager->GetAssetPath(m_guid);
+        metaPath.replace_extension(metaPath.extension().string() + ".asset");
+        return metaPath;
     }
 }

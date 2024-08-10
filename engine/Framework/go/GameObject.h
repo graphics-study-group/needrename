@@ -20,6 +20,8 @@ namespace Engine
         GameObject();
         virtual ~GameObject();
 
+        virtual void Load();
+        virtual void Unload();
         virtual void Tick(float dt);
 
         void AddComponent(std::shared_ptr<Component> component);

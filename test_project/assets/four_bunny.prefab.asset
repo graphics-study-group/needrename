@@ -2,16 +2,16 @@
     "components": [
         {
             "materials": [
-                "E41CB12FD78BDCB60BBD7033B551A6BB",
-                "D29140658A2762FA690107CDCFCDCFD9",
-                "3B0477F53DCED1F9F2E0CE2DF3BE1DB4",
-                "8D3BBEC3AD40B0FE5CA93170DEBD3D8E"
+                "F4583D4C252CB29FF65AC48D8AE98E40",
+                "B914605DFBB70C44D5122123324DCC18",
+                "5C6A9C39816986989E8085861902EB99",
+                "8F001A3AE0A05B0A34BDE30711FA6972"
             ],
-            "mesh": "E09EFDA3DAF3F23880A4ED3C740428B3",
+            "mesh": "11F849FBD24D9F09F8102D457A293AA6",
             "type": "MeshComponent"
         }
     ],
-    "guid": "5C179D1AF11876EE5CCB8EE653FF5A1A",
+    "guid": "D792F67498FF3A32E09228D254BBAA9B",
     "name": "four_bunny",
     "type": "GameObject"
 }
