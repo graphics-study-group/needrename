@@ -70,6 +70,30 @@ namespace Engine
         return m_commandbuffers[frame_index];
     }
 
+    uint32_t RenderSystem::GetNextImage(uint32_t frame_id, uint64_t timeout) {
+        auto result = m_device->acquireNextImageKHR(
+            m_swapchain.swapchain.get(), 
+            timeout, 
+            m_synch->GetNextImageSemaphore(frame_id),
+            nullptr
+        );
+        if (result.result == vk::Result::eTimeout) {
+            SDL_LogError(0, "Timed out waiting for next frame.");
+            return -1;
+        }
+        return result.value;
+    }
+
+    vk::Result RenderSystem::Present(uint32_t frame_index, uint32_t in_flight_index) {
+        vk::PresentInfoKHR info{};
+        auto semaphores = m_synch->GetCommandBufferSigningSignals(in_flight_index);
+        info.setWaitSemaphores(semaphores);
+        std::array<vk::SwapchainKHR, 1> swapchains {m_swapchain.swapchain.get()};
+        info.setSwapchains(swapchains);
+        info.setPImageIndices(&frame_index);
+        return m_queues.presentQueue.presentKHR(info);
+    }
+
     void RenderSystem::WaitForIdle() const {
         m_device->waitIdle();
     }
@@ -207,6 +231,15 @@ namespace Engine
         }
         // Select display mode
         vk::PresentModeKHR pickedMode = vk::PresentModeKHR::eFifo;
+        for (const auto & mode : support.modes) {
+            if (mode == vk::PresentModeKHR::eMailbox) {
+                pickedMode = mode;
+                break;
+            }
+        }
+        if (pickedMode == vk::PresentModeKHR::eFifo) {
+            SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Mailbox mode not supported, fall back to FIFO.");
+        }
 
         // Measure extent
         vk::Extent2D extent{};
