@@ -3,11 +3,12 @@
 
 #include <concepts>
 #include <utility>
-
-#include "Render/RenderSystem.h"
+#include <memory>
 
 namespace Engine
 {
+    class RenderSystem;
+
     template <class T>
     concept IsVulkanHandleWrapper = requires {
         T::objectType;
