@@ -36,36 +36,39 @@ namespace Engine
         const auto & device = system.getDevice();
         m_imageAvailable[0] = device.createSemaphoreUnique({});
         m_imageAvailable[1] = device.createSemaphoreUnique({});
+        m_imageAvailable[2] = device.createSemaphoreUnique({});
 
         m_renderFinished[0] = device.createSemaphoreUnique({});
         m_renderFinished[1] = device.createSemaphoreUnique({});
+        m_renderFinished[2] = device.createSemaphoreUnique({});
 
         m_inflight[0] = device.createFenceUnique({vk::FenceCreateFlagBits::eSignaled});
         m_inflight[1] = device.createFenceUnique({vk::FenceCreateFlagBits::eSignaled});
+        m_inflight[2] = device.createFenceUnique({vk::FenceCreateFlagBits::eSignaled});
     }
 
     vk::Semaphore InFlightTwoStageSynchronization::GetNextImageSemaphore(uint32_t inflight) const {
-        assert(inflight < 2);
+        assert(inflight < 3);
         return m_imageAvailable[inflight].get();
     }
     std::vector<vk::Semaphore> 
     InFlightTwoStageSynchronization::GetCommandBufferWaitSignals(uint32_t inflight) const {
-        assert(inflight < 2);
+        assert(inflight < 3);
         return {m_imageAvailable[inflight].get()};
     }
     std::vector<vk::PipelineStageFlags> 
     InFlightTwoStageSynchronization::GetCommandBufferWaitSignalFlags(uint32_t inflight) const {
-        assert(inflight < 2);
+        assert(inflight < 3);
         return {vk::PipelineStageFlagBits::eColorAttachmentOutput};
     }
     std::vector<vk::Semaphore> 
     InFlightTwoStageSynchronization::GetCommandBufferSigningSignals(uint32_t inflight) const {
-        assert(inflight < 2);
+        assert(inflight < 3);
         return {m_renderFinished[inflight].get()};
     }
     vk::Fence 
     InFlightTwoStageSynchronization::GetCommandBufferFence(uint32_t inflight) const {
-        assert(inflight < 2);
+        assert(inflight < 3);
         return {m_inflight[inflight].get()};
     }
 } // namespace Engine

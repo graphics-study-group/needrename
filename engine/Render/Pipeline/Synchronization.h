@@ -62,9 +62,9 @@ namespace Engine
         virtual vk::Fence GetCommandBufferFence(uint32_t inflight) const;
 
     protected:
-        std::array<vk::UniqueSemaphore, 2> m_imageAvailable {};
-        std::array<vk::UniqueSemaphore, 2> m_renderFinished {};
-        std::array<vk::UniqueFence, 2> m_inflight {};
+        std::array<vk::UniqueSemaphore, 3> m_imageAvailable {};
+        std::array<vk::UniqueSemaphore, 3> m_renderFinished {};
+        std::array<vk::UniqueFence, 3> m_inflight {};
     };
 } // namespace Engine
 
