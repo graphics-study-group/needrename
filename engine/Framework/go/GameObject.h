@@ -1,5 +1,5 @@
-#ifndef GAMEOBJECT_H
-#define GAMEOBJECT_H
+#ifndef FRMAEWORK_GO_GAMEOBJECT_H
+#define FRMAEWORK_GO_GAMEOBJECT_H
 
 // Suppress warning from std::enable_shared_from_this
 #pragma GCC diagnostic push
@@ -45,4 +45,4 @@ namespace Engine
 
 #pragma GCC diagnostic pop
 
-#endif // GAMEOBJECT_H
+#endif // FRMAEWORK_GO_GAMEOBJECT_H

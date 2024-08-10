@@ -80,7 +80,6 @@ namespace Engine
 
     bool ImmutableTexture2D::LoadFromFile(std::filesystem::path path, GLenum textureFormat, GLuint levels)
     {
-        // XXX: We need better asset managing system
         int width, height, channels;
         stbi_set_flip_vertically_on_load(true);
 

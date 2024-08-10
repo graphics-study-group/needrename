@@ -1,5 +1,5 @@
-#ifndef WORLDSYSTEM_H
-#define WORLDSYSTEM_H
+#ifndef FRAMEWORK_WORLD_WORLDSYSTEM_H
+#define FRAMEWORK_WORLD_WORLDSYSTEM_H
 
 #include "Framework/level/Level.h"
 
@@ -21,4 +21,4 @@ namespace Engine
         std::shared_ptr<Level> current_level;
     };
 }
-#endif // WORLDSYSTEM_H
+#endif // FRAMEWORK_WORLD_WORLDSYSTEM_H

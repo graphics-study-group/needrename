@@ -1,5 +1,5 @@
-#ifndef LEVEL_H
-#define LEVEL_H
+#ifndef FRAMEWORK_LEVEL_LEVEL_H
+#define FRAMEWORK_LEVEL_LEVEL_H
 
 #include <vector>
 #include <memory>
@@ -27,4 +27,4 @@ namespace Engine
     };
 }
 
-#endif // LEVEL_H
+#endif // FRAMEWORK_LEVEL_LEVEL_H

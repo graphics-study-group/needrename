@@ -20,7 +20,6 @@ namespace Engine
         void SetActiveCamera(std::shared_ptr <CameraComponent>);
         
     private:
-        // TODO: data: mesh, texture, light
         std::vector <std::shared_ptr<RendererComponent>> m_components {};
         std::shared_ptr <CameraComponent> m_active_camera {};
     };

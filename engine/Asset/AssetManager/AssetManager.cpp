@@ -40,7 +40,6 @@ namespace Engine
         }
     }
 
-    // TODO: load asset not implemented
     void AssetManager::LoadExternalResource(std::filesystem::path resourcePath, std::filesystem::path path_in_project)
     {
         if (!std::filesystem::exists(GetAssetsDirectory() / path_in_project))
