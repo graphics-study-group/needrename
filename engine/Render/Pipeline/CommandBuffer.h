@@ -18,6 +18,8 @@ namespace Engine
         /// @param command_pool 
         void CreateCommandBuffer(vk::Device logical_device, vk::CommandPool command_pool, uint32_t inflight_frame_index);
 
+        void Begin();
+
         void BeginRenderPass(const RenderPass & pass, vk::Extent2D extent, uint32_t framebuffer_id);
 
         void BindPipelineProgram(const Pipeline & pipeline);
