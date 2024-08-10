@@ -4,7 +4,7 @@
 #include "Render/VkWrapper.tcc"
 #include <vulkan/vulkan.hpp>
 
-
+#include "Render/Pipeline/Framebuffers.h"
 
 namespace Engine
 {
@@ -19,13 +19,25 @@ namespace Engine
     {
     public:
         RenderPass (std::weak_ptr <RenderSystem> system);
-        void CreateRenderPass(
-            std::vector <vk::AttachmentDescription> attachments, 
-            std::vector <vk::SubpassDescription> subpasses, 
-            std::vector <vk::SubpassDependency> dependencies
-        );
-        Framebuffers CreateFramebuffers();
+
+        void CreateRenderPass();
+
+        void CreateFramebuffers();
         Subpass GetSubpass(uint32_t index);
+
+        RenderPass & SetAttachments(std::vector <vk::AttachmentDescription> attachments);
+        RenderPass & SetSubpasses(std::vector <vk::SubpassDescription> subpasses);
+        RenderPass & SetDependencies(std::vector <vk::SubpassDependency> dependencies);
+
+        const std::vector <vk::AttachmentDescription> & GetAttachments() const;
+
+        const Framebuffers & GetFramebuffers() const;
+    protected:
+        std::vector <vk::AttachmentDescription> m_attachments {};
+        std::vector <vk::SubpassDescription> m_subpasses {};
+        std::vector <vk::SubpassDependency> m_dependencies {};
+
+        Framebuffers m_framebuffers;
     };
 } // namespace Engine
 

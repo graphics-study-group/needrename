@@ -6,6 +6,7 @@
 
 #include "Framework/component/RenderComponent/RendererComponent.h"
 #include "Framework/component/RenderComponent/CameraComponent.h"
+#include "Render/Pipeline/CommandBuffer.h"
 
 namespace Engine
 {
@@ -26,6 +27,9 @@ namespace Engine
         auto physical = this->SelectPhysicalDevice();
         this->CreateLogicalDevice(physical);
         this->CreateSwapchain(physical);
+
+        // Create synchorization semaphores
+        this->m_synch = std::make_unique<TwoStageSynchronization>(*this);
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Vulkan initialization finished.");
     }
 
@@ -36,17 +40,6 @@ namespace Engine
     }
 
     void RenderSystem::Render() {
-      CameraContext cameraContext{};
-      if (m_active_camera) {
-        cameraContext = m_active_camera->CreateContext();
-      } else {
-        SDL_LogWarn(0, "No active camera.");
-        cameraContext.projection_matrix = glm::identity<glm::mat4>();
-        cameraContext.view_matrix = glm::identity<glm::mat4>();
-      }
-      for (auto comp : m_components) {
-        comp->Draw(cameraContext);
-      }
     }
 
     void RenderSystem::RegisterComponent(std::shared_ptr<RendererComponent> comp)
@@ -69,6 +62,16 @@ namespace Engine
 
     const RenderSystem::SwapchainInfo &RenderSystem::getSwapchainInfo() const {
         return m_swapchain;
+    }
+
+    const Synchronization& RenderSystem::getSynchronization() const {
+        return *m_synch;
+    }
+
+    CommandBuffer RenderSystem::CreateGraphicsCommandBuffer() {
+        CommandBuffer cb{};
+        cb.CreateCommandBuffer(m_device.get(), m_queues.graphicsPool.get());
+        return cb;
     }
 
     void RenderSystem::CreateInstance(const vk::ApplicationInfo &appInfo)
@@ -285,6 +288,7 @@ namespace Engine
                 image_count, support.capabilities.maxImageCount);
             image_count = support.capabilities.maxImageCount;
         }
+        SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating a swapchain with %u images.", image_count);
 
         vk::SwapchainCreateInfoKHR info;
         info.surface = m_surface.get();
@@ -321,7 +325,10 @@ namespace Engine
         m_swapchain.format = format;
         m_swapchain.extent = extent;
 
-        SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Retreiving image views for %llu framebuffers.", m_swapchain.images.size());
+        SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, 
+            "Retreiving image views for %llu swap chain images.", 
+            m_swapchain.images.size()
+        );
         m_swapchain.imageViews.resize(m_swapchain.images.size());
         for (size_t i = 0; i < m_swapchain.images.size(); i++) {
             vk::ImageViewCreateInfo info;

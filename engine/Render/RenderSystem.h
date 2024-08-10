@@ -6,10 +6,13 @@
 #include <memory>
 #include <vulkan/vulkan.hpp>
 
+#include "Render/Pipeline/Synchronization.h"
+
 namespace Engine
 {
     class RendererComponent;
     class CameraComponent;
+    class CommandBuffer;
 
     struct QueueFamilyIndices
     {
@@ -70,6 +73,9 @@ namespace Engine
         vk::Device getDevice() const;
         const QueueInfo & getQueueInfo () const;
         const SwapchainInfo & getSwapchainInfo() const;
+        const Synchronization & getSynchronization() const;
+
+        CommandBuffer CreateGraphicsCommandBuffer();
         
     protected:
 
@@ -138,6 +144,8 @@ namespace Engine
         
         QueueInfo  m_queues {};
         SwapchainInfo m_swapchain{};
+
+        std::unique_ptr <Synchronization> m_synch {};
     };
 }
 

@@ -2,7 +2,7 @@
 
 namespace Engine
 {
-    Pipeline::Pipeline(std::weak_ptr<RenderSystem> system) : m_system(system) {}
+    Pipeline::Pipeline(std::weak_ptr<RenderSystem> system) : VkWrapper(system) {}
 
     void Pipeline::CreatePipeline(Subpass subpass,
         const PipelineLayout & layout,
@@ -45,7 +45,7 @@ namespace Engine
 
         auto ret = m_system.lock()->getDevice().createGraphicsPipelineUnique(nullptr, info);
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Pipeline creation successful with result %d.", static_cast<int>(ret.result));
-        m_pipeline = std::move(ret.value);
+        m_handle = std::move(ret.value);
     }
 
 
