@@ -3,8 +3,12 @@ cmake_minimum_required(VERSION 3.16)
 project(hello_sdl3)
 set(CMAKE_CXX_STANDARD 20)
 
-set(ENGINE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/engine)
+set(ENGINE_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+set(ENGINE_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/engine)
 set(THIRD_PARTY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
+set(ASSETS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/assets)
+set(EXAMPLES_DIR ${CMAKE_CURRENT_SOURCE_DIR}/example)
+set(TESTS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/test)
 
 find_package(vulkan REQUIRED )
 message(STATUS "Vulkan version: ${Vulkan_VERSION}")
@@ -17,7 +21,7 @@ add_subdirectory(third_party)
 
 # Debug options
 add_compile_options($<$<CONFIG:Debug>:-g>)
-add_compile_options($<$<CONFIG:Debug>:-Og>)
+add_compile_options($<$<CONFIG:Debug>:-O0>)
 add_compile_options($<$<CONFIG:Debug>:-Wall>)
 add_compile_options($<$<CONFIG:Debug>:-Wextra>)
 add_compile_options($<$<CONFIG:Debug>:-Wpedantic>)

@@ -18,6 +18,22 @@ namespace Engine
         //dtor
     }
 
+    void GameObject::Load()
+    {
+        for (auto component : m_components)
+        {
+            component->Load();
+        }
+    }
+
+    void GameObject::Unload()
+    {
+        for (auto component : m_components)
+        {
+            component->Unload();
+        }
+    }
+
     void GameObject::Tick(float dt)
     {
         for (auto component : m_components)

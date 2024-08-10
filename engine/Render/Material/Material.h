@@ -1,17 +1,19 @@
-#ifndef RENDER_MATERIAL_INCLUDED
-#define RENDER_MATERIAL_INCLUDED
+#ifndef RENDER_MATERIAL_MATERIAL_INCLUDED
+#define RENDER_MATERIAL_MATERIAL_INCLUDED
 
 #include <memory>
 #include <glm.hpp>
+#include "Asset/Asset.h"
 
 namespace Engine {
     class RenderSystem;
     struct RendererContext;
     struct CameraContext;
 
-    class Material {
+    class Material: public Asset
+    {
     public:
-        Material (std::shared_ptr<RenderSystem> system);
+        Material (std::weak_ptr <AssetManager> manager, std::shared_ptr<RenderSystem> system);
         virtual ~Material () = default;
 
         virtual void PrepareDraw(const CameraContext & CameraContext, const RendererContext & RendererContext) = 0;
@@ -20,4 +22,4 @@ namespace Engine {
     };
 };
 
-#endif // RENDER_MATERIAL_INCLUDED
+#endif // RENDER_MATERIAL_MATERIAL_INCLUDED
