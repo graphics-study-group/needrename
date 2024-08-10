@@ -77,6 +77,8 @@ namespace Engine
 
         CommandBuffer & GetGraphicsCommandBuffer(uint32_t frame_index);
         CommandBuffer & GetGraphicsCommandBufferWaitAndReset(uint32_t frame_index, uint64_t timeout);
+
+        void WaitForIdle() const;
         
     protected:
 
