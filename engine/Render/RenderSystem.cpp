@@ -68,10 +68,15 @@ namespace Engine
         return *m_synch;
     }
 
-    CommandBuffer RenderSystem::CreateGraphicsCommandBuffer() {
-        CommandBuffer cb{};
-        cb.CreateCommandBuffer(m_device.get(), m_queues.graphicsPool.get());
-        return cb;
+    CommandBuffer & RenderSystem::GetGraphicsCommandBuffer(uint32_t frame_index) {
+        return m_commandbuffers[frame_index];
+    }
+
+    CommandBuffer& RenderSystem::GetGraphicsCommandBufferWaitAndReset(uint32_t frame_index, uint64_t timeout) {
+        m_device->waitForFences({m_synch->GetCommandBufferFence(frame_index)}, vk::True, timeout);
+        m_commandbuffers[frame_index].Reset();
+        m_commandbuffers[frame_index].CreateCommandBuffer(m_device.get(), m_queues.graphicsPool.get(), frame_index);
+        return m_commandbuffers[frame_index];
     }
 
     void RenderSystem::CreateInstance(const vk::ApplicationInfo &appInfo)
@@ -345,6 +350,12 @@ namespace Engine
             info.subresourceRange.baseMipLevel = 0;
             info.subresourceRange.levelCount = 1;
             m_swapchain.imageViews[i] = m_device->createImageViewUnique(info);
+        }
+
+        SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating command buffers.");
+        m_commandbuffers.resize(image_count);
+        for (uint32_t i = 0; i < image_count; i++) {
+            m_commandbuffers[i].CreateCommandBuffer(m_device.get(), m_queues.graphicsPool.get(), i);
         }
     }
 

@@ -6,13 +6,13 @@
 #include <memory>
 #include <vulkan/vulkan.hpp>
 
+#include "Render/Pipeline/CommandBuffer.h"
 #include "Render/Pipeline/Synchronization.h"
 
 namespace Engine
 {
     class RendererComponent;
     class CameraComponent;
-    class CommandBuffer;
 
     struct QueueFamilyIndices
     {
@@ -75,7 +75,8 @@ namespace Engine
         const SwapchainInfo & getSwapchainInfo() const;
         const Synchronization & getSynchronization() const;
 
-        CommandBuffer CreateGraphicsCommandBuffer();
+        CommandBuffer & GetGraphicsCommandBuffer(uint32_t frame_index);
+        CommandBuffer & GetGraphicsCommandBufferWaitAndReset(uint32_t frame_index, uint64_t timeout);
         
     protected:
 
@@ -146,6 +147,7 @@ namespace Engine
         SwapchainInfo m_swapchain{};
 
         std::unique_ptr <Synchronization> m_synch {};
+        std::vector <CommandBuffer> m_commandbuffers {};
     };
 }
 

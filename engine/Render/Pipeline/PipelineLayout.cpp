@@ -1,4 +1,6 @@
 #include "PipelineLayout.h"
+#include "Render/RenderSystem.h"
+#include <SDL3/SDL.h>
 
 namespace Engine {
     PipelineLayout::PipelineLayout(std::weak_ptr<RenderSystem> system) : VkWrapper(system) {}

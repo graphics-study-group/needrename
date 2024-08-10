@@ -6,7 +6,7 @@
 
 namespace Engine
 {
-    void CommandBuffer::CreateCommandBuffer(vk::Device logical_device, vk::CommandPool command_pool)
+    void CommandBuffer::CreateCommandBuffer(vk::Device logical_device, vk::CommandPool command_pool, uint32_t frame_index)
     {
         vk::CommandBufferAllocateInfo info{};
         info.commandPool = command_pool;
@@ -21,13 +21,14 @@ namespace Engine
         binfo.flags = vk::CommandBufferUsageFlags{0};
         binfo.pInheritanceInfo = nullptr;
         m_handle.get().begin(binfo);
+        m_inflight_frame_index = frame_index;
     }
 
-    void CommandBuffer::BeginRenderPass(const RenderPass& pass, uint32_t frame_index, vk::Extent2D extent)
+    void CommandBuffer::BeginRenderPass(const RenderPass& pass, vk::Extent2D extent, uint32_t framebuffer_id)
     {
         vk::RenderPassBeginInfo info{};
         info.renderPass = pass.get();
-        info.framebuffer = pass.GetFramebuffers().GetFramebuffer(frame_index);
+        info.framebuffer = pass.GetFramebuffers().GetFramebuffer(m_inflight_frame_index);
         info.renderArea.offset = vk::Offset2D{0, 0};
         info.renderArea.extent = extent;
 
@@ -74,16 +75,15 @@ namespace Engine
 
     void CommandBuffer::SubmitToQueue(
         vk::Queue queue, 
-        const Synchronization & synch,
-        uint32_t frame_index
+        const Synchronization & synch
     ) {
         vk::SubmitInfo info{};
         info.commandBufferCount = 1;
         info.pCommandBuffers = &m_handle.get();
 
-        auto wait = synch.GetCommandBufferWaitSignals(frame_index);
-        auto waitFlags = synch.GetCommandBufferWaitSignalFlags(frame_index);
-        auto signal = synch.GetCommandBufferSigningSignals(frame_index);
+        auto wait = synch.GetCommandBufferWaitSignals(m_inflight_frame_index);
+        auto waitFlags = synch.GetCommandBufferWaitSignalFlags(m_inflight_frame_index);
+        auto signal = synch.GetCommandBufferSigningSignals(m_inflight_frame_index);
 
         assert(wait.size() == waitFlags.size());
         info.waitSemaphoreCount = wait.size();

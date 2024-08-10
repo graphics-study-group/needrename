@@ -63,33 +63,32 @@ int main(int, char **)
             SDL_LogError(0, "Timed out waiting for fence.");
             return -1;
         }
-        system->getDevice().resetFences({fence});
 
         auto result = system->getDevice().acquireNextImageKHR(
             system->getSwapchainInfo().swapchain.get(), 
             0x7FFFFFFF, 
-            system->getSynchronization().GetNextImageSemaphore(),
+            system->getSynchronization().GetNextImageSemaphore(0),
             nullptr
         );
-
         if (result.result == vk::Result::eTimeout) {
             SDL_LogError(0, "Timed out waiting for next frame.");
             return -1;
         }
-        
         uint32_t index = result.value;
+
+        CommandBuffer & cb = system->GetGraphicsCommandBufferWaitAndReset(index, 0x7fffffff);
+        system->getDevice().resetFences({fence});
+
         SDL_LogVerbose(0, 
             "Frame number %u, return value %d.", 
             result.value, static_cast<int32_t>(result.result));
-        CommandBuffer cb = system->CreateGraphicsCommandBuffer();
-        cb.BeginRenderPass(rp, index, system->getSwapchainInfo().extent);
+        cb.BeginRenderPass(rp, system->getSwapchainInfo().extent, index);
         cb.BindPipelineProgram(p);
         vk::Rect2D scissor{{0, 0}, system->getSwapchainInfo().extent};
         cb.SetupViewport(system->getSwapchainInfo().extent.width, system->getSwapchainInfo().extent.height, scissor);
         cb.Draw();
         cb.End();
-        cb.SubmitToQueue(system->getQueueInfo().graphicsQueue, system->getSynchronization(), index);
-        cb.Reset();
+        cb.SubmitToQueue(system->getQueueInfo().graphicsQueue, system->getSynchronization());
 
         vk::PresentInfoKHR info{};
         auto semaphores = system->getSynchronization().GetCommandBufferSigningSignals(0);
