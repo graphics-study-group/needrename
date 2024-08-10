@@ -6,6 +6,7 @@
 #include "Functional/SDLWindow.h"
 #include "Render/Pipeline/Shader.h"
 #include "Render/Pipeline/Pipeline.h"
+#include "Render/Pipeline/Framebuffers.h"
 #include "Render/Pipeline/PremadeRenderPass/SingleRenderPass.h"
 
 using namespace Engine;
@@ -51,6 +52,8 @@ int main(int, char **)
         fragModule.GetStageCreateInfo(vk::ShaderStageFlagBits::eFragment),
         vertModule.GetStageCreateInfo(vk::ShaderStageFlagBits::eVertex)
         });
+
+    Framebuffers fb{rp.CreateFramebuffers()};
 
     SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "Unloading Main-class");
     delete cmc;

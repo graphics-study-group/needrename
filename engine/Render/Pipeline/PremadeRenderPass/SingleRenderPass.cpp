@@ -3,6 +3,7 @@
 namespace Engine
 {
     SingleRenderPass::SingleRenderPass(std::weak_ptr<RenderSystem> system) : RenderPass(system) {
+        CreateRenderPass();
     }
 
     void SingleRenderPass::CreateRenderPass() {
