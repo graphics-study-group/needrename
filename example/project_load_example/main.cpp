@@ -83,10 +83,17 @@ int main(int argc, char * argv[])
     project_path = project_path / "test_project";
     globalSystems.assetManager->LoadProject(project_path);
 
+    // globalSystems.assetManager->LoadExternalResource(std::filesystem::path(ENGINE_ROOT_DIR) / "assets" / "bunny" / "bunny.obj", "bunny");
+    // globalSystems.assetManager->LoadExternalResource(std::filesystem::path(ENGINE_ROOT_DIR) / "assets" / "__noupload" / "keqing" / "mesh.obj", "keqing");
+
     // Load an mesh GO
     // XXX: should use reflection to load prefab. This is just a test.
     nlohmann::json prefab_json;
+
     std::ifstream prefab_file(project_path / "assets" / "four_bunny.prefab.asset");
+    // std::ifstream prefab_file(project_path / "assets" / "bunny" / "bunny.prefab.asset");
+    // std::ifstream prefab_file(project_path / "assets" / "keqing" / "mesh.prefab.asset");
+
     prefab_file >> prefab_json;
     prefab_file.close();
     nlohmann::json component_json = prefab_json["components"][0];
