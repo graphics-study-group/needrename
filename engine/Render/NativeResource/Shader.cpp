@@ -12,20 +12,20 @@ namespace Engine
 
     void Shader::Release() noexcept
     {
-        if (this->IsValid()) {
+        if (this->IsNativeValid()) {
             glDeleteShader(m_handle);
         }
         m_handle = 0;
     }
 
-    bool Shader::IsValid() const noexcept
+    bool Shader::IsNativeValid() const noexcept
     {
         return glIsShader(m_handle);
     }
 
     bool Shader::Compile(GLenum type, const char *source)
     {
-        assert((!this->IsValid()) && "Re-compiling existing shader.");
+        assert((!this->IsNativeValid()) && "Re-compiling existing shader.");
         assert(!glGetError());
 
         GLenum glError;

@@ -18,6 +18,8 @@ namespace Engine
 
     void Mesh::Load()
     {
+        Asset::Load();
+
         std::filesystem::path mesh_path = GetAssetPath();
         std::ifstream is(mesh_path, std::ios::binary);
         if (is.is_open())
@@ -33,7 +35,14 @@ namespace Engine
 
     void Mesh::Unload()
     {
-        throw std::runtime_error("Not implemented");
+        Asset::Unload();
+        
+        m_offsets.clear();
+        m_triangle_vert_ids.clear();
+        m_triangle_normal_ids.clear();
+        m_triangle_uv_ids.clear();
+        m_positions.clear();
+        m_uvs.clear();
     }
 
     void Mesh::LoadFromTinyobj(const tinyobj::attrib_t &attrib, const std::vector<tinyobj::shape_t> &shapes)

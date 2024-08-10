@@ -51,10 +51,11 @@ namespace Engine
 
     void MeshComponent::Draw(CameraContext context)
     {
+        assert(m_mesh && m_mesh->IsValid());
         GLenum glError;
         for (size_t i = 0; i < m_materials.size(); i++)
         {
-
+            assert(m_materials[i] && m_materials[i]->IsValid());
             m_materials[i]->PrepareDraw(context, this->CreateContext());
 
             glBindVertexArray(m_VAOs[i]);

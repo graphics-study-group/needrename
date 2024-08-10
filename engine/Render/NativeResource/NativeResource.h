@@ -27,7 +27,7 @@ namespace Engine {
 
         /// @brief Check if the object holds an actual object on GPU.
         /// @return True if valid.
-        virtual bool IsValid() const noexcept = 0;
+        virtual bool IsNativeValid() const noexcept = 0;
     protected:
         GLuint m_handle = 0;
     };

@@ -44,6 +44,10 @@ namespace Engine
         /// @return path to the asset file
         std::filesystem::path GetAssetPath(const std::shared_ptr<Asset> &asset) const;
 
+        /// @brief Generate a GUID
+        /// @return GUID
+        inline GUID GenerateGUID() { return generateGUID(m_guid_gen); }
+
         inline std::filesystem::path GetProjectPath() const { return m_projectPath; }
         inline std::filesystem::path GetAssetsDirectory() const { return m_projectPath / "assets"; }
 
@@ -53,10 +57,6 @@ namespace Engine
         std::filesystem::path m_projectPath;
         /// @brief GUID to asset path map
         std::unordered_map<GUID, std::filesystem::path, GUIDHash> m_assets;
-
-        /// @brief Generate a GUID
-        /// @return GUID
-        inline GUID GenerateGUID() { return generateGUID(m_guid_gen); }
 
         void AddAsset(const GUID &guid, const std::filesystem::path &path);
 

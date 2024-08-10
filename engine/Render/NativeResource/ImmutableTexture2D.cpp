@@ -10,7 +10,7 @@ namespace Engine
     bool ImmutableTexture2D::Create(GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLsizei levels)
     {
         assert(depth == 0);
-        assert((!this->IsValid()) && "Re-creating an immutable texture.");
+        assert((!this->IsNativeValid()) && "Re-creating an immutable texture.");
         assert(!glGetError());
 
         GLenum glError;
@@ -37,7 +37,7 @@ namespace Engine
 
     bool ImmutableTexture2D::FullUpload(GLenum format, GLenum type, GLvoid *data) const
     {
-        assert(this->IsValid());
+        assert(this->IsNativeValid());
         assert(!glGetError());
 
         this->Bind();
@@ -59,12 +59,13 @@ namespace Engine
 
     void ImmutableTexture2D::Bind() const
     {
-        assert(this->IsValid());
+        assert(this->IsNativeValid());
         glBindTexture(GL_TEXTURE_2D, m_handle);
     }
 
     void ImmutableTexture2D::Load()
     {
+        Asset::Load();
         std::filesystem::path path = GetAssetPath();
         if (!path.empty()) {
             LoadFromFile(path, GL_RGBA8, 1);
@@ -73,7 +74,8 @@ namespace Engine
 
     void ImmutableTexture2D::Unload()
     {
-        
+        Asset::Unload();
+        this->Release();
     }
 
     bool ImmutableTexture2D::LoadFromFile(std::filesystem::path path, GLenum textureFormat, GLuint levels)
