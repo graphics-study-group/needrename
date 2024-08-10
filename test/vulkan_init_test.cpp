@@ -6,6 +6,7 @@
 #include "Functional/SDLWindow.h"
 #include "Render/Pipeline/Shader.h"
 #include "Render/Pipeline/Pipeline.h"
+#include "Render/Pipeline/PremadeRenderPass/SingleRenderPass.h"
 
 using namespace Engine;
 
@@ -39,29 +40,7 @@ int main(int, char **)
     PipelineLayout pl{system};
     pl.CreatePipelineLayout({}, {});
 
-    RenderPass rp{system};
-    vk::AttachmentDescription att{};
-    att.format = system->getSwapchainInfo().format.format;
-    att.samples = vk::SampleCountFlagBits::e1;
-    att.loadOp = vk::AttachmentLoadOp::eClear;
-    att.storeOp = vk::AttachmentStoreOp::eStore;
-    att.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
-    att.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
-    att.initialLayout = vk::ImageLayout::eUndefined;
-    att.finalLayout = vk::ImageLayout::ePresentSrcKHR;
-
-    vk::AttachmentReference ref{};
-    ref.attachment = 0;
-    ref.layout = vk::ImageLayout::eColorAttachmentOptimal;
-
-    vk::SubpassDescription subp{};
-    /* The index in color attachment array is used in shader layout.
-     * For example, `layout(location = 0) out vec4 outColor` refers to the first attachment in this array.
-     * It is also used for per-framebuffer blending setup.
-    */
-    subp.colorAttachmentCount = 1;
-    subp.pColorAttachments = &ref;
-    rp.CreateRenderPass({att}, {subp}, {});
+    SingleRenderPass rp{system};
     Pipeline p{system};
     ShaderModule fragModule {system};
     ShaderModule vertModule {system};
