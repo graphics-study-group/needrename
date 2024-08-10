@@ -131,7 +131,7 @@ namespace Engine
 
         void CreateCommandPools(const QueueFamilyIndices & indices);
 
-        static constexpr std::string_view validation_layer_name = "VK_LAYER_KHRONOS_validation";
+        static constexpr const char * validation_layer_name = "VK_LAYER_KHRONOS_validation";
         static constexpr std::array <std::string_view, 1> device_extension_name = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
 

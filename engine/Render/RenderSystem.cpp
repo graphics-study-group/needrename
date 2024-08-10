@@ -56,26 +56,17 @@ namespace Engine
     vk::SurfaceKHR RenderSystem::getSurface() const { return m_surface.get(); }
     vk::Device RenderSystem::getDevice() const { return m_device.get(); }
 
-    const RenderSystem::QueueInfo & RenderSystem::getQueueInfo() const {
-        return m_queues;
-    }
+    const RenderSystem::QueueInfo & RenderSystem::getQueueInfo() const { return m_queues; }
 
-    const RenderSystem::SwapchainInfo &RenderSystem::getSwapchainInfo() const {
-        return m_swapchain;
-    }
+    const RenderSystem::SwapchainInfo &RenderSystem::getSwapchainInfo() const { return m_swapchain; }
 
-    const Synchronization& RenderSystem::getSynchronization() const {
-        return *m_synch;
-    }
+    const Synchronization& RenderSystem::getSynchronization() const { return *m_synch; }
 
-    CommandBuffer & RenderSystem::GetGraphicsCommandBuffer(uint32_t frame_index) {
-        return m_commandbuffers[frame_index];
-    }
+    CommandBuffer & RenderSystem::GetGraphicsCommandBuffer(uint32_t frame_index) { return m_commandbuffers[frame_index]; }
 
     CommandBuffer& RenderSystem::GetGraphicsCommandBufferWaitAndReset(uint32_t frame_index, uint64_t timeout) {
         m_device->waitForFences({m_synch->GetCommandBufferFence(frame_index)}, vk::True, timeout);
         m_commandbuffers[frame_index].Reset();
-        m_commandbuffers[frame_index].CreateCommandBuffer(m_device.get(), m_queues.graphicsPool.get(), frame_index);
         return m_commandbuffers[frame_index];
     }
 
@@ -106,7 +97,7 @@ namespace Engine
         instInfo.ppEnabledExtensionNames = pExt;
         if (CheckValidationLayer()) {
             instInfo.enabledLayerCount = 1;
-            instInfo.ppEnabledLayerNames = std::array<const char *, 1>{validation_layer_name.data()}.data();
+            instInfo.ppEnabledLayerNames = &(validation_layer_name);
         } else {
             instInfo.enabledLayerCount = 0;
         }
@@ -117,10 +108,10 @@ namespace Engine
     {
         auto layers = vk::enumerateInstanceLayerProperties();
         for (const auto & layer : layers) {
-            if(strcmp(layer.layerName, validation_layer_name.data()) == 0)
+            if(strcmp(layer.layerName, validation_layer_name) == 0)
                 return true;
         }
-        SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Validation layer %s not available.", validation_layer_name.data());
+        SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Validation layer %s not available.", validation_layer_name);
         return false;
     }
 
@@ -148,7 +139,13 @@ namespace Engine
 
     bool RenderSystem::IsDeviceSuitable(const vk::PhysicalDevice &device) const 
     {
-        SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "\tInspecting %s.", device.getProperties().deviceName.data());
+        auto props = device.getProperties();
+        SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "\tInspecting %s.", props.deviceName.data());
+
+        if (!(props.deviceType == vk::PhysicalDeviceType::eDiscreteGpu)) {
+            SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Not discrete GPU.");
+            return false;
+        }
 
         // Check if all queue families are available
         if (!FillQueueFamily(device).isComplete()) {
