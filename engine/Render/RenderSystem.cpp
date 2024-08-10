@@ -26,7 +26,6 @@ namespace Engine
         auto physical = this->SelectPhysicalDevice();
         this->CreateLogicalDevice(physical);
         this->CreateSwapchain(physical);
-
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Vulkan initialization finished.");
     }
 
@@ -223,52 +222,53 @@ namespace Engine
 
     void RenderSystem::CreateLogicalDevice(
         const vk::PhysicalDevice &selectedPhysicalDevice) {
-      SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating logical device.");
+        SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating logical device.");
 
-      auto indices = FillQueueFamily(selectedPhysicalDevice);
-      // Find unique indices
-      std::vector<uint32_t> indices_vector{indices.graphics.value(),
-                                           indices.present.value()};
-      std::sort(indices_vector.begin(), indices_vector.end());
-      auto end = std::unique(indices_vector.begin(), indices_vector.end());
-      // Create DeviceQueueCreateInfo
-      float priority = 1.0f;
-      std::vector<vk::DeviceQueueCreateInfo> dqcs;
-      dqcs.reserve(std::distance(indices_vector.begin(), end));
-      for (auto itr = indices_vector.begin(); itr != end; ++itr) {
-        vk::DeviceQueueCreateInfo dqc;
-        dqc.pQueuePriorities = &priority;
-        dqc.queueCount = 1;
-        dqc.queueFamilyIndex = *itr;
-        dqcs.push_back(dqc);
-      }
-      dqcs.shrink_to_fit();
+        auto indices = FillQueueFamily(selectedPhysicalDevice);
+        // Find unique indices
+        std::vector<uint32_t> indices_vector{indices.graphics.value(),
+                                            indices.present.value()};
+        std::sort(indices_vector.begin(), indices_vector.end());
+        auto end = std::unique(indices_vector.begin(), indices_vector.end());
+        // Create DeviceQueueCreateInfo
+        float priority = 1.0f;
+        std::vector<vk::DeviceQueueCreateInfo> dqcs;
+        dqcs.reserve(std::distance(indices_vector.begin(), end));
+        for (auto itr = indices_vector.begin(); itr != end; ++itr) {
+            vk::DeviceQueueCreateInfo dqc;
+            dqc.pQueuePriorities = &priority;
+            dqc.queueCount = 1;
+            dqc.queueFamilyIndex = *itr;
+            dqcs.push_back(dqc);
+        }
+        dqcs.shrink_to_fit();
 
-      vk::PhysicalDeviceFeatures pdf{};
+        vk::PhysicalDeviceFeatures pdf{};
 
-      vk::DeviceCreateInfo dci{};
-      dci.queueCreateInfoCount = static_cast<uint32_t>(dqcs.size());
-      dci.pQueueCreateInfos = dqcs.data();
-      dci.pEnabledFeatures = &pdf;
+        vk::DeviceCreateInfo dci{};
+        dci.queueCreateInfoCount = static_cast<uint32_t>(dqcs.size());
+        dci.pQueueCreateInfos = dqcs.data();
+        dci.pEnabledFeatures = &pdf;
 
-      // Fill up extensions
-      dci.enabledExtensionCount = device_extension_name.size();
-      std::vector<const char *> extensions;
-      for (const auto &extension : device_extension_name) {
-        extensions.push_back(extension.data());
-      }
-      dci.ppEnabledExtensionNames = extensions.data();
+        // Fill up extensions
+        dci.enabledExtensionCount = device_extension_name.size();
+        std::vector<const char *> extensions;
+        for (const auto &extension : device_extension_name) {
+            extensions.push_back(extension.data());
+        }
+        dci.ppEnabledExtensionNames = extensions.data();
 
-      // Validation layers are not used for logical devices.
-      dci.enabledLayerCount = 0;
+        // Validation layers are not used for logical devices.
+        dci.enabledLayerCount = 0;
 
-      m_device = selectedPhysicalDevice.createDeviceUnique(dci);
+        m_device = selectedPhysicalDevice.createDeviceUnique(dci);
 
-      SDL_LogInfo(0, "Retreiving queues.");
-      this->m_queues.graphicsQueue =
-          m_device->getQueue(indices.graphics.value(), 0);
-      this->m_queues.presentQueue =
-          m_device->getQueue(indices.present.value(), 0);
+        SDL_LogInfo(0, "Retreiving queues.");
+        this->m_queues.graphicsQueue =
+            m_device->getQueue(indices.graphics.value(), 0);
+        this->m_queues.presentQueue =
+            m_device->getQueue(indices.present.value(), 0);
+        this->CreateCommandPools(indices);
     }
 
     void RenderSystem::CreateSwapchain(const vk::PhysicalDevice & selectedPhysicalDevice) 
@@ -339,6 +339,18 @@ namespace Engine
             info.subresourceRange.levelCount = 1;
             m_swapchain.imageViews[i] = m_device->createImageViewUnique(info);
         }
+    }
+
+    void RenderSystem::CreateCommandPools(const QueueFamilyIndices & indices) 
+    {
+        SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating command pools.");
+        vk::CommandPoolCreateInfo info{};
+        info.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer;
+        info.queueFamilyIndex = indices.graphics.value();
+        m_queues.graphicsPool = m_device->createCommandPoolUnique(info);
+
+        info.queueFamilyIndex = indices.present.value();
+        m_queues.presentPool = m_device->createCommandPoolUnique(info);
     }
 
     void RenderSystem::CreateSurface() 

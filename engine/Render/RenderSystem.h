@@ -37,7 +37,9 @@ namespace Engine
 
         struct QueueInfo {
             vk::Queue graphicsQueue;
+            vk::UniqueCommandPool graphicsPool;
             vk::Queue presentQueue;
+            vk::UniqueCommandPool presentPool;
         };
 
         struct SwapchainInfo {
@@ -116,6 +118,8 @@ namespace Engine
         /// @brief Create a swap chain, possibly replace the older one.
         /// @param selectedPhysicalDevice 
         void CreateSwapchain(const vk::PhysicalDevice & selectedPhysicalDevice);
+
+        void CreateCommandPools(const QueueFamilyIndices & indices);
 
         static constexpr std::string_view validation_layer_name = "VK_LAYER_KHRONOS_validation";
         static constexpr std::array <std::string_view, 1> device_extension_name = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
