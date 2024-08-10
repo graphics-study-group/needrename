@@ -82,6 +82,8 @@ namespace Engine
         CommandBuffer & GetGraphicsCommandBuffer(uint32_t frame_index);
         CommandBuffer & GetGraphicsCommandBufferWaitAndReset(uint32_t frame_index, uint64_t timeout);
 
+        uint32_t GetNextImage(uint32_t in_flight_index, uint64_t timeout);
+        vk::Result Present(uint32_t frame_index, uint32_t in_flight_index);
         
     protected:
 

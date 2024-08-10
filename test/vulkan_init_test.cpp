@@ -31,7 +31,7 @@ int main(int, char **)
 {
     SDL_Init(SDL_INIT_VIDEO);
 
-    StartupOptions opt{.resol_x = 1600, .resol_y = 900, .title = "Vulkan Test"};
+    StartupOptions opt{.resol_x = 1920, .resol_y = 1080, .title = "Vulkan Test"};
 
     cmc = new Engine::MainClass(
             SDL_INIT_VIDEO,
@@ -80,22 +80,13 @@ int main(int, char **)
         SDL_LogVerbose(0, "Waiting for fence for %lf milliseconds.", 
             1000.0 * (fence_end_timer - frame_start_timer) / SDL_GetPerformanceFrequency());
 
-        auto result = system->getDevice().acquireNextImageKHR(
-            system->getSwapchainInfo().swapchain.get(), 
-            0x7FFFFFFF, 
-            system->getSynchronization().GetNextImageSemaphore(in_flight_frame_id),
-            nullptr
-        );
-        if (result.result == vk::Result::eTimeout) {
-            SDL_LogError(0, "Timed out waiting for next frame.");
-            return -1;
-        }
+        uint32_t index = system->GetNextImage(in_flight_frame_id, 0x7FFFFFFF);
+        assert(index < 3);
 
         uint64_t image_end_timer = SDL_GetPerformanceCounter();
         SDL_LogVerbose(0, "Waiting for next image for %lf milliseconds.", 
             1000.0 * (image_end_timer - fence_end_timer) / SDL_GetPerformanceFrequency());
-        
-        uint32_t index = result.value;
+    
         cb.Begin();
         cb.BeginRenderPass(rp, system->getSwapchainInfo().extent, index);
         cb.BindPipelineProgram(p);
@@ -109,13 +100,7 @@ int main(int, char **)
         SDL_LogVerbose(0, "Recording command buffer for %lf milliseconds.", 
             1000.0 * (record_end_timer - image_end_timer) / SDL_GetPerformanceFrequency());
 
-        vk::PresentInfoKHR info{};
-        auto semaphores = system->getSynchronization().GetCommandBufferSigningSignals(in_flight_frame_id);
-        info.setWaitSemaphores(semaphores);
-        std::array<vk::SwapchainKHR, 1> swapchains {system->getSwapchainInfo().swapchain.get()};
-        info.setSwapchains(swapchains);
-        info.setPImageIndices(&index);
-        system->getQueueInfo().presentQueue.presentKHR(info);
+        system->Present(index, in_flight_frame_id);
 
         uint64_t submission_end_timer = SDL_GetPerformanceCounter();
         SDL_LogVerbose(0, "Presenting for %lf milliseconds.", 
