@@ -29,7 +29,7 @@ namespace Engine
         this->CreateSwapchain(physical);
 
         // Create synchorization semaphores
-        this->m_synch = std::make_unique<TwoStageSynchronization>(*this);
+        this->m_synch = std::make_unique<InFlightTwoStageSynchronization>(*this);
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Vulkan initialization finished.");
     }
 
@@ -352,6 +352,9 @@ namespace Engine
             m_swapchain.imageViews[i] = m_device->createImageViewUnique(info);
         }
 
+        // Allocate command buffer for each framebuffer
+        // Do note that frame id in flight doesn't equal to frame buffer index
+        // However, creating more frames in flight than framebuffers is useless.
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating command buffers.");
         m_commandbuffers.resize(image_count);
         for (uint32_t i = 0; i < image_count; i++) {

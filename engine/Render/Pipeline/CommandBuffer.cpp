@@ -28,7 +28,7 @@ namespace Engine
     {
         vk::RenderPassBeginInfo info{};
         info.renderPass = pass.get();
-        info.framebuffer = pass.GetFramebuffers().GetFramebuffer(m_inflight_frame_index);
+        info.framebuffer = pass.GetFramebuffers().GetFramebuffer(framebuffer_id);
         info.renderArea.offset = vk::Offset2D{0, 0};
         info.renderArea.extent = extent;
 
@@ -93,7 +93,7 @@ namespace Engine
         info.signalSemaphoreCount = signal.size();
         info.pSignalSemaphores = signal.data();
         std::array<vk::SubmitInfo, 1> infos{info};
-        queue.submit(infos, synch.GetCommandBufferFence(0));
+        queue.submit(infos, synch.GetCommandBufferFence(m_inflight_frame_index));
     }
 
     void CommandBuffer::Reset() {
