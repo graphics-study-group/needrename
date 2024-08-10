@@ -19,6 +19,8 @@ namespace Engine
 
     void Level::Load()
     {
+        Asset::Load();
+
         std::filesystem::path json_path = GetMetaPath();
         std::ifstream json_file(json_path);
         nlohmann::json json;
@@ -33,6 +35,11 @@ namespace Engine
 
     void Level::Unload()
     {
+        Asset::Unload();
+        for(auto & go : m_gameObjects)
+        {
+            go->Unload();
+        }
     }
 
     void Level::Tick(float dt)

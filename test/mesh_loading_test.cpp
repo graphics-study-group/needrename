@@ -70,6 +70,8 @@ int main(int argc, char * argv[])
     
     level->Load();
 
+    level->Unload();
+
     delete cmc;
     return 0;
 }

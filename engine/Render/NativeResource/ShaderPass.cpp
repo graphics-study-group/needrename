@@ -10,7 +10,7 @@ namespace Engine
 {
     void ShaderPass::Use() const noexcept
     {
-        assert(this->IsValid() && "Trying to use unlinked program.");
+        assert(this->IsNativeValid() && "Trying to use unlinked program.");
         glUseProgram(m_handle);
     }
 
@@ -19,14 +19,14 @@ namespace Engine
         this->Release();
     }
 
-    bool ShaderPass::IsValid() const noexcept
+    bool ShaderPass::IsNativeValid() const noexcept
     {
         return glIsProgram(m_handle);
     }
 
     void ShaderPass::Release() noexcept
     {
-        if (this->IsValid()) {
+        if (this->IsNativeValid()) {
             glDeleteProgram(m_handle);
         }
         this->m_handle = 0;
@@ -34,7 +34,7 @@ namespace Engine
 
     bool ShaderPass::Compile(const char *vertex, const char *fragment)
     {
-        assert((!this->IsValid()) && "Re-compiling a shader pass program.");
+        assert((!this->IsNativeValid()) && "Re-compiling a shader pass program.");
         assert(!glGetError());
 
         GLenum glError = GL_NO_ERROR;
@@ -77,7 +77,7 @@ namespace Engine
     GLint ShaderPass::GetUniform(const char * name) const noexcept
     {
         static_assert(std::is_same_v<GLchar, char> == true, "GLchar and char should be the same type.");
-        assert(this->IsValid() && "Trying to get uniform location from uncompiled program.");
+        assert(this->IsNativeValid() && "Trying to get uniform location from uncompiled program.");
 
         return glGetUniformLocation(m_handle, name);
     }
@@ -126,7 +126,7 @@ namespace Engine
 
     GLint ShaderPass::GetAttribute(const char *name) const noexcept
     {
-        assert(this->IsValid() && "Trying to get attribute location from uncompiled program.");
+        assert(this->IsNativeValid() && "Trying to get attribute location from uncompiled program.");
         return glGetAttribLocation(m_handle, name);
     }
 

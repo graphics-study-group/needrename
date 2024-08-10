@@ -24,8 +24,6 @@ out vec2 vert_uv;
 
 void main() {
     gl_Position = projection_matrix * view_matrix * model_matrix * vec4(aPos.x, aPos.y, aPos.z, 1.0);
-    // Remember to flip the z axis
-    gl_Position.z = - gl_Position.z;
     clip_space_coordinate = gl_Position.xyz;
     vert_uv = uv;
 }
@@ -62,6 +60,10 @@ namespace Engine
 
     ShadelessMaterial::~ShadelessMaterial()
     {
+        if(IsValid())
+        {
+            Unload();
+        }
     }
 
     void ShadelessMaterial::SetAlbedo(std::shared_ptr<ImmutableTexture2D> texture) noexcept
@@ -72,6 +74,8 @@ namespace Engine
 
     void ShadelessMaterial::Load()
     {
+        Asset::Load();
+
         std::filesystem::path path = GetMetaPath();
         std::ifstream json_file(path);
         nlohmann::json mat_json;
@@ -81,11 +85,13 @@ namespace Engine
         {
             m_albedo = std::make_shared<ImmutableTexture2D>();
             m_albedo->SetGUID(stringToGUID(mat_json["diffuse_tex"]));
+            m_albedo->Load();
         }
         if(mat_json["normal_tex"] != nullptr)
         {
             m_normal = std::make_shared<ImmutableTexture2D>();
             m_normal->SetGUID(stringToGUID(mat_json["normal_tex"]));
+            m_normal->Load();
         }
 
         if (!pass) {
@@ -106,18 +112,18 @@ namespace Engine
             assert(location_view_matrix >= 0);
             assert(location_albedo >= 0);
         }
-
-        if(m_albedo) {
-            m_albedo->Load();
-        }
-        if(m_normal) {
-            m_normal->Load();
-        }
     }
 
     void ShadelessMaterial::Unload()
     {
-        /// XXX:ShadelessMaterial Unload not implemented
+        Asset::Unload();
+
+        if(m_albedo) {
+            m_albedo->Unload();
+        }
+        if(m_normal) {
+            m_normal->Unload();
+        }
     }
 
     void ShadelessMaterial::PrepareDraw(const CameraContext & cameraContext, const RendererContext & rendererContext)

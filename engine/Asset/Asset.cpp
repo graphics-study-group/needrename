@@ -6,10 +6,21 @@ namespace Engine
 {
     Asset::Asset()
     {
+        m_guid = globalSystems.assetManager->GenerateGUID();
     }
 
     Asset::~Asset()
     {
+    }
+
+    void Asset::Load()
+    {
+        m_valid = true;
+    }
+
+    void Asset::Unload()
+    {
+        m_valid = false;
     }
 
     std::filesystem::path Asset::GetAssetPath()

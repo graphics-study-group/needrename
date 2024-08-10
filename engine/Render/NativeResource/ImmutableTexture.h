@@ -13,7 +13,7 @@ namespace Engine
     {
     public:
         virtual ~ImmutableTexture();
-        bool IsValid() const noexcept override;
+        bool IsNativeValid() const noexcept override;
         void Release() noexcept override;
         void Load() override;
         void Unload() override;

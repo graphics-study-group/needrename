@@ -12,7 +12,7 @@ namespace Engine {
         ShaderPass() = default;
         virtual ~ShaderPass();
 
-        bool IsValid() const noexcept override;
+        bool IsNativeValid() const noexcept override;
         void Release() noexcept override;
 
         /// @brief Setup OpenGL pipeline to use the program

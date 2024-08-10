@@ -13,7 +13,7 @@ namespace Engine
         /// @note To fully delete a shader, the program attached to must be unlinked firstly. 
         virtual void Release() noexcept override;
 
-        virtual bool IsValid() const noexcept override;
+        virtual bool IsNativeValid() const noexcept override;
 
         bool Compile(GLenum type, const char * source);
     };

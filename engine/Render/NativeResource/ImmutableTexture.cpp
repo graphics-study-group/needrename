@@ -8,27 +8,27 @@ namespace Engine
         this->Release();
     }
 
-    bool ImmutableTexture::IsValid() const noexcept
+    bool ImmutableTexture::IsNativeValid() const noexcept
     {
         return glIsTexture(m_handle);
     }
 
     void ImmutableTexture::Release() noexcept
     {
-        if (this->IsValid()) {
+        if (this->IsNativeValid()) {
             glDeleteTextures(1, &m_handle);
         }
         this->m_handle = 0;
     }
-
+    
     void ImmutableTexture::Load()
     {
-        throw std::runtime_error("Not implemented");
+        Asset::Load();
     }
 
     void ImmutableTexture::Unload()
     {
-        throw std::runtime_error("Not implemented");
+        Asset::Unload();
     }
 
     void ImmutableTexture::BindToLocation(GLuint location) const

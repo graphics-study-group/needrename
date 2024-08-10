@@ -15,10 +15,10 @@ namespace Engine
         virtual ~Asset();
 
         /// @brief Load asset from file to the memory
-        virtual void Load() = 0;
+        virtual void Load();
 
         /// @brief Unload asset from memory
-        virtual void Unload() = 0;
+        virtual void Unload();
 
         /// @brief Get the path to the asset file
         /// @return path to the asset file
