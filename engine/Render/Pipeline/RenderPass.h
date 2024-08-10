@@ -4,8 +4,12 @@
 #include "Render/VkWrapper.tcc"
 #include <vulkan/vulkan.hpp>
 
+
+
 namespace Engine
 {
+    class Framebuffers;
+    
     struct Subpass {
         vk::RenderPass pass;
         uint32_t index;
@@ -20,6 +24,7 @@ namespace Engine
             std::vector <vk::SubpassDescription> subpasses, 
             std::vector <vk::SubpassDependency> dependencies
         );
+        Framebuffers CreateFramebuffers();
         Subpass GetSubpass(uint32_t index);
     };
 } // namespace Engine

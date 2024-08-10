@@ -1,5 +1,7 @@
 #include "RenderPass.h"
 
+#include "Render/Pipeline/Framebuffers.h"
+
 namespace Engine
 {
     RenderPass::RenderPass(std::weak_ptr<RenderSystem> system) : VkWrapper(system) {}
@@ -18,6 +20,14 @@ namespace Engine
         info.setDependencyCount(dependencies.size());
         info.setPDependencies(dependencies.empty() ? nullptr : dependencies.data());
         m_handle = m_system.lock()->getDevice().createRenderPassUnique(info);
+    }
+
+    Framebuffers RenderPass::CreateFramebuffers() {
+        Framebuffers fb{m_system};
+        fb.CreateFramebuffers(*this);
+
+        // There should be copy ellision
+        return fb;
     }
 
     Subpass RenderPass::GetSubpass(
