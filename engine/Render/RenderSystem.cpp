@@ -24,9 +24,9 @@ namespace Engine
         this->CreateInstance(appInfo);
         this->CreateSurface();
 
-        auto physical = this->SelectPhysicalDevice();
-        this->CreateLogicalDevice(physical);
-        this->CreateSwapchain(physical);
+        m_selected_physical_device = this->SelectPhysicalDevice();
+        this->CreateLogicalDevice();
+        this->CreateSwapchain();
 
         // Create synchorization semaphores
         this->m_synch = std::make_unique<InFlightTwoStageSynchronization>(*this);
@@ -81,6 +81,11 @@ namespace Engine
 
     void RenderSystem::WaitForIdle() const {
         m_device->waitIdle();
+    }
+
+    void RenderSystem::UpdateSwapchain() {
+        this->WaitForIdle();
+        this->CreateSwapchain();
     }
 
     void RenderSystem::CreateInstance(const vk::ApplicationInfo &appInfo)
@@ -232,11 +237,10 @@ namespace Engine
         return std::make_tuple(extent, pickedFormat, pickedMode);
     }
 
-    void RenderSystem::CreateLogicalDevice(
-        const vk::PhysicalDevice &selectedPhysicalDevice) {
+    void RenderSystem::CreateLogicalDevice() {
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating logical device.");
 
-        auto indices = FillQueueFamily(selectedPhysicalDevice);
+        auto indices = FillQueueFamily(m_selected_physical_device);
         // Find unique indices
         std::vector<uint32_t> indices_vector{indices.graphics.value(),
                                             indices.present.value()};
@@ -273,7 +277,7 @@ namespace Engine
         // Validation layers are not used for logical devices.
         dci.enabledLayerCount = 0;
 
-        m_device = selectedPhysicalDevice.createDeviceUnique(dci);
+        m_device = m_selected_physical_device.createDeviceUnique(dci);
 
         SDL_LogInfo(0, "Retreiving queues.");
         this->m_queues.graphicsQueue =
@@ -283,11 +287,11 @@ namespace Engine
         this->CreateCommandPools(indices);
     }
 
-    void RenderSystem::CreateSwapchain(const vk::PhysicalDevice & selectedPhysicalDevice) 
+    void RenderSystem::CreateSwapchain() 
     {
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating swap chain.");
         // Fill in selected configuration
-        auto support = FillSwapchainSupport(selectedPhysicalDevice);
+        auto support = FillSwapchainSupport(m_selected_physical_device);
         auto [extent, format, mode] = SelectSwapchainConfig(support);
 
         uint32_t image_count = support.capabilities.minImageCount + 1;
@@ -319,7 +323,7 @@ namespace Engine
             info.oldSwapchain = nullptr;
         }
 
-        auto indices = FillQueueFamily(selectedPhysicalDevice);
+        auto indices = FillQueueFamily(m_selected_physical_device);
         std::vector <uint32_t> queues {indices.graphics.value(), indices.present.value()};
         if (indices.graphics != indices.present) {
             info.imageSharingMode = vk::SharingMode::eConcurrent;
@@ -338,6 +342,7 @@ namespace Engine
             "Retreiving image views for %llu swap chain images.", 
             m_swapchain.images.size()
         );
+        m_swapchain.imageViews.clear();
         m_swapchain.imageViews.resize(m_swapchain.images.size());
         for (size_t i = 0; i < m_swapchain.images.size(); i++) {
             vk::ImageViewCreateInfo info;
@@ -360,6 +365,7 @@ namespace Engine
         // Do note that frame id in flight doesn't equal to frame buffer index
         // However, creating more frames in flight than framebuffers is useless.
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating command buffers.");
+        m_commandbuffers.clear();
         m_commandbuffers.resize(image_count);
         for (uint32_t i = 0; i < image_count; i++) {
             m_commandbuffers[i].CreateCommandBuffer(m_device.get(), m_queues.graphicsPool.get(), i);

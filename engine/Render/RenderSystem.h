@@ -67,6 +67,11 @@ namespace Engine
         void Render();
         void RegisterComponent(std::shared_ptr <RendererComponent>);
         void SetActiveCamera(std::shared_ptr <CameraComponent>);
+        void WaitForIdle() const;
+
+        /// @brief Update the swapchain in response of a window resize etc.
+        /// @note You need to recreate framebuffers that refer to the swap chain.
+        void UpdateSwapchain();
 
         vk::Instance getInstance() const;
         vk::SurfaceKHR getSurface() const;
@@ -74,11 +79,9 @@ namespace Engine
         const QueueInfo & getQueueInfo () const;
         const SwapchainInfo & getSwapchainInfo() const;
         const Synchronization & getSynchronization() const;
-
         CommandBuffer & GetGraphicsCommandBuffer(uint32_t frame_index);
         CommandBuffer & GetGraphicsCommandBufferWaitAndReset(uint32_t frame_index, uint64_t timeout);
 
-        void WaitForIdle() const;
         
     protected:
 
@@ -121,12 +124,10 @@ namespace Engine
         SelectSwapchainConfig(const SwapchainSupport & support) const;
 
         /// @brief Create a logical device from selected physical device.
-        /// @param selectedPhysicalDevice vk::PhysicalDevice
-        void CreateLogicalDevice(const vk::PhysicalDevice & selectedPhysicalDevice);
+        void CreateLogicalDevice();
 
         /// @brief Create a swap chain, possibly replace the older one.
-        /// @param selectedPhysicalDevice 
-        void CreateSwapchain(const vk::PhysicalDevice & selectedPhysicalDevice);
+        void CreateSwapchain();
 
         void CreateCommandPools(const QueueFamilyIndices & indices);
 
@@ -139,6 +140,7 @@ namespace Engine
         std::vector <std::shared_ptr<RendererComponent>> m_components {};
         std::shared_ptr <CameraComponent> m_active_camera {};
 
+        vk::PhysicalDevice m_selected_physical_device;
         // Order of declaration effects destructing order!
 
         vk::UniqueInstance m_instance{};

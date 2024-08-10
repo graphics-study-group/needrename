@@ -59,6 +59,9 @@ int main(int, char **)
     uint32_t in_flight_frame_id = 0;
     uint32_t total_test_frame = 60;
     
+    system->UpdateSwapchain();
+    rp.CreateFramebuffers();
+
     while(total_test_frame--) {
         vk::Fence fence = system->getSynchronization().GetCommandBufferFence(in_flight_frame_id);
         vk::Result waitFenceResult = system->getDevice().waitForFences({fence}, vk::True, 0x7FFFFFFF);
@@ -67,7 +70,6 @@ int main(int, char **)
             return -1;
         }
         CommandBuffer & cb = system->GetGraphicsCommandBufferWaitAndReset(in_flight_frame_id, 0x7fffffff);
-        system->getDevice().resetFences({fence});
 
         auto result = system->getDevice().acquireNextImageKHR(
             system->getSwapchainInfo().swapchain.get(), 
@@ -100,6 +102,7 @@ int main(int, char **)
         info.setPImageIndices(&index);
         system->getQueueInfo().presentQueue.presentKHR(info);
 
+        system->getDevice().resetFences({fence});
         in_flight_frame_id = (in_flight_frame_id + 1) % 2;
     }
     system->WaitForIdle();
