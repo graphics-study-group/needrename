@@ -2,6 +2,7 @@
 
 #include "Framework/world/WorldSystem.h"
 #include "Render/RenderSystem.h"
+#include "Asset/AssetManager/AssetManager.h"
 
 #include <exception>
 

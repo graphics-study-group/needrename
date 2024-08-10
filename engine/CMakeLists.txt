@@ -11,6 +11,8 @@ add_library(engine STATIC ${SRC})
 target_include_directories(
     engine
     PUBLIC
-    ${ENGINE_DIR}
+    ${ENGINE_SOURCE_DIR}
 )
-target_link_libraries(engine PUBLIC SDL3::SDL3 Vulkan::Vulkan glm tinyobjloader stb)
+target_link_libraries(engine PUBLIC SDL3::SDL3 Vulkan::Vulkan glm tinyobjloader stb json cereal )
+
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h)

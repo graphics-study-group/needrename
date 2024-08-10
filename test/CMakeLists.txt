@@ -1,4 +1,9 @@
-set(ASSET_FOLDER "D:/testmesh/")
+function(add_custom_test test_name source_file)
+    add_executable(${test_name} ${source_file})
+    target_link_libraries(${test_name} engine)
+    add_test(NAME ${test_name} COMMAND ${test_name} ${ARGN})
+    set_target_properties(${test_name} PROPERTIES FOLDER tests)
+endfunction()
 
 add_executable(transform_test transform_test.cpp)
 target_link_libraries(transform_test engine)

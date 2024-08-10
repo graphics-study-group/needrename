@@ -3,6 +3,7 @@
 #include "Framework/component/RenderComponent/RendererComponent.h"
 
 namespace Engine {
-    Material::Material (std::shared_ptr<RenderSystem> system) : m_renderSystem(system) {
+    Material::Material (std::weak_ptr <AssetManager> manager, std::shared_ptr<RenderSystem> system) 
+    : Asset(manager), m_renderSystem(system) {
     }
 };
