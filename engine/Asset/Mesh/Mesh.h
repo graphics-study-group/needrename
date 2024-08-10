@@ -25,13 +25,17 @@ namespace Engine
 
         size_t GetSubmeshCount() const;
         inline const std::vector <size_t> & GetOffsets() const { return m_offsets; }
-        inline const std::vector <size_t> & GetTriangles() const { return m_triangles; }
+        inline const std::vector <size_t> & GetTriangle_vert_ids() const { return m_triangle_vert_ids; }
+        inline const std::vector <size_t> & GetTriangle_normal_ids() const { return m_triangle_normal_ids; }
+        inline const std::vector <size_t> & GetTriangle_uv_ids() const { return m_triangle_uv_ids; }
         inline const std::vector <float> & GetPositions() const { return m_positions; }
         inline const std::vector <float> & GetUVs() const { return m_uvs; }
     
     protected:
         std::vector <size_t> m_offsets;
-        std::vector <size_t> m_triangles;
+        std::vector <size_t> m_triangle_vert_ids;
+        std::vector <size_t> m_triangle_normal_ids;
+        std::vector <size_t> m_triangle_uv_ids;
         std::vector <float> m_positions;
         std::vector <float> m_uvs;
     
@@ -41,7 +45,7 @@ namespace Engine
         template <class Archive>
         void serialize(Archive & ar)
         {
-            ar(m_offsets, m_triangles, m_positions, m_uvs);
+            ar(m_offsets, m_triangle_vert_ids, m_triangle_normal_ids, m_triangle_uv_ids, m_positions, m_uvs);
         }
     };
 }

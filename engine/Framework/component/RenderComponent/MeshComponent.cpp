@@ -99,7 +99,9 @@ namespace Engine
         }
 
         auto &mesh_offsets = m_mesh->GetOffsets();
-        auto &mesh_triangles = m_mesh->GetTriangles();
+        auto &mesh_triangles_vert = m_mesh->GetTriangle_vert_ids();
+        auto &mesh_triangles_normal = m_mesh->GetTriangle_normal_ids();
+        auto &mesh_triangles_uv = m_mesh->GetTriangle_uv_ids();
         auto &mesh_position = m_mesh->GetPositions();
         auto &mesh_uv = m_mesh->GetUVs();
 
@@ -110,14 +112,14 @@ namespace Engine
             tmp_position.clear();
             tmp_uv.clear();
             size_t start = mesh_offsets[i];
-            size_t end = i + 1 < mesh_offsets.size() ? mesh_offsets[i + 1] : mesh_triangles.size();
+            size_t end = i + 1 < mesh_offsets.size() ? mesh_offsets[i + 1] : mesh_triangles_vert.size();
             for (size_t j = start; j < end; j++)
             {
-                size_t index = mesh_triangles[j] * 3;
+                size_t index = mesh_triangles_vert[j] * 3;
                 tmp_position.push_back(mesh_position[index]);
                 tmp_position.push_back(mesh_position[index + 1]);
                 tmp_position.push_back(mesh_position[index + 2]);
-                size_t uv_index = mesh_triangles[j] * 2;
+                size_t uv_index = mesh_triangles_uv[j] * 2;
                 tmp_uv.push_back(mesh_uv[uv_index]);
                 tmp_uv.push_back(mesh_uv[uv_index + 1]);
             }

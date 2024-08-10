@@ -18,7 +18,7 @@ add_subdirectory(third_party)
 
 # Debug options
 add_compile_options($<$<CONFIG:Debug>:-g>)
-add_compile_options($<$<CONFIG:Debug>:-Og>)
+add_compile_options($<$<CONFIG:Debug>:-O0>)
 add_compile_options($<$<CONFIG:Debug>:-Wall>)
 add_compile_options($<$<CONFIG:Debug>:-Wextra>)
 add_compile_options($<$<CONFIG:Debug>:-Wpedantic>)

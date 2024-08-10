@@ -5,6 +5,9 @@
 #include "Framework/component/RenderComponent/CameraComponent.h"
 
 #include <cassert>
+#include <filesystem>
+#include <fstream>
+#include <nlohmann/json.hpp>
 
 constexpr std::string_view vert = R"(
 #version 330 core
@@ -69,6 +72,22 @@ namespace Engine
 
     void ShadelessMaterial::Load()
     {
+        std::filesystem::path path = GetMetaPath();
+        std::ifstream json_file(path);
+        nlohmann::json mat_json;
+        json_file >> mat_json;
+        json_file.close();
+        if(mat_json["diffuse_tex"] != nullptr)
+        {
+            m_albedo = std::make_shared<ImmutableTexture2D>();
+            m_albedo->SetGUID(stringToGUID(mat_json["diffuse_tex"]));
+        }
+        if(mat_json["normal_tex"] != nullptr)
+        {
+            m_normal = std::make_shared<ImmutableTexture2D>();
+            m_normal->SetGUID(stringToGUID(mat_json["normal_tex"]));
+        }
+
         if (!pass) {
             pass = std::make_unique <ShaderPass> ();
 

@@ -1,5 +1,4 @@
 #include <filesystem>
-#include <iostream>
 #include <fstream>
 #include <nlohmann/json.hpp>
 
@@ -20,11 +19,16 @@ namespace Engine
 
     void Level::Load()
     {
-        std::filesystem::path json_path = GetAssetPath();
+        std::filesystem::path json_path = GetMetaPath();
         std::ifstream json_file(json_path);
         nlohmann::json json;
         json_file >> json;
-        
+        json_file.close();
+        // TODO: use reflection to load game objects
+        for(auto & go : m_gameObjects)
+        {
+            go->Load();
+        }
     }
 
     void Level::Unload()
