@@ -17,11 +17,14 @@ namespace Engine
         assert(cbvector.size() == 1);
         m_handle = std::move(cbvector[0]);
 
+        m_inflight_frame_index = frame_index;
+    }
+
+    void CommandBuffer::Begin() {
         vk::CommandBufferBeginInfo binfo{};
         binfo.flags = vk::CommandBufferUsageFlags{0};
         binfo.pInheritanceInfo = nullptr;
-        m_handle.get().begin(binfo);
-        m_inflight_frame_index = frame_index;
+        m_handle->begin(binfo);
     }
 
     void CommandBuffer::BeginRenderPass(const RenderPass& pass, vk::Extent2D extent, uint32_t framebuffer_id)
@@ -33,7 +36,8 @@ namespace Engine
         info.renderArea.extent = extent;
 
         const auto & attachments = pass.GetAttachments();
-        std::vector <vk::ClearValue> clear_color{attachments.size()};
+        std::vector <vk::ClearValue> clear_color{};
+        clear_color.reserve(attachments.size());
         for (size_t i = 0; i < attachments.size(); i++) {
             if (attachments[i].loadOp == vk::AttachmentLoadOp::eClear && attachments[i].stencilLoadOp == vk::AttachmentLoadOp::eClear) {
                 SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "An attachment has both color and stencil load op set.");
@@ -45,6 +49,7 @@ namespace Engine
                 clear_color.emplace_back(vk::ClearDepthStencilValue{0.0f, 0u});
             }
         }
+        clear_color.shrink_to_fit();
         info.clearValueCount = clear_color.size();
         info.pClearValues = clear_color.data();
         m_handle->beginRenderPass(info, vk::SubpassContents::eInline);
@@ -97,7 +102,7 @@ namespace Engine
     }
 
     void CommandBuffer::Reset() {
-        m_handle.get().reset();
+        m_handle->reset();
     }
     
 } // namespace Engine
