@@ -25,7 +25,16 @@ namespace Engine
         subp.colorAttachmentCount = 1;
         subp.pColorAttachments = &ref;
 
-        RenderPass::CreateRenderPass({att}, {subp}, {});
+        vk::SubpassDependency dep{};
+        dep.srcSubpass = vk::SubpassExternal;
+        dep.srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+        dep.srcAccessMask = vk::AccessFlagBits::eNone;
+        dep.dstSubpass = 0;
+        dep.dstStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+        dep.dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
+
+        SetAttachments({att}).SetSubpasses({subp}).SetDependencies({dep});
+        RenderPass::CreateRenderPass();
     }
 } // namespace Engine
 

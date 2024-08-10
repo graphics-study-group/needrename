@@ -7,6 +7,7 @@
 #include "Render/Pipeline/Shader.h"
 #include "Render/Pipeline/Pipeline.h"
 #include "Render/Pipeline/Framebuffers.h"
+#include "Render/Pipeline/CommandBuffer.h"
 #include "Render/Pipeline/PremadeRenderPass/SingleRenderPass.h"
 
 using namespace Engine;
@@ -42,6 +43,8 @@ int main(int, char **)
     pl.CreatePipelineLayout({}, {});
 
     SingleRenderPass rp{system};
+    rp.CreateFramebuffers();
+
     Pipeline p{system};
     ShaderModule fragModule {system};
     ShaderModule vertModule {system};
@@ -52,8 +55,50 @@ int main(int, char **)
         fragModule.GetStageCreateInfo(vk::ShaderStageFlagBits::eFragment),
         vertModule.GetStageCreateInfo(vk::ShaderStageFlagBits::eVertex)
         });
+    
+    while(1) {
+        vk::Fence fence = system->getSynchronization().GetCommandBufferFence(0);
+        vk::Result waitFenceResult = system->getDevice().waitForFences({fence}, vk::True, 0x7FFFFFFF);
+        if (waitFenceResult == vk::Result::eTimeout) {
+            SDL_LogError(0, "Timed out waiting for fence.");
+            return -1;
+        }
+        system->getDevice().resetFences({fence});
 
-    Framebuffers fb{rp.CreateFramebuffers()};
+        auto result = system->getDevice().acquireNextImageKHR(
+            system->getSwapchainInfo().swapchain.get(), 
+            0x7FFFFFFF, 
+            system->getSynchronization().GetNextImageSemaphore(),
+            nullptr
+        );
+
+        if (result.result == vk::Result::eTimeout) {
+            SDL_LogError(0, "Timed out waiting for next frame.");
+            return -1;
+        }
+        
+        uint32_t index = result.value;
+        SDL_LogVerbose(0, 
+            "Frame number %u, return value %d.", 
+            result.value, static_cast<int32_t>(result.result));
+        CommandBuffer cb = system->CreateGraphicsCommandBuffer();
+        cb.BeginRenderPass(rp, index, system->getSwapchainInfo().extent);
+        cb.BindPipelineProgram(p);
+        vk::Rect2D scissor{{0, 0}, system->getSwapchainInfo().extent};
+        cb.SetupViewport(system->getSwapchainInfo().extent.width, system->getSwapchainInfo().extent.height, scissor);
+        cb.Draw();
+        cb.End();
+        cb.SubmitToQueue(system->getQueueInfo().graphicsQueue, system->getSynchronization(), index);
+        cb.Reset();
+
+        vk::PresentInfoKHR info{};
+        auto semaphores = system->getSynchronization().GetCommandBufferSigningSignals(0);
+        info.setWaitSemaphores(semaphores);
+        std::array<vk::SwapchainKHR, 1> swapchains {system->getSwapchainInfo().swapchain.get()};
+        info.setSwapchains(swapchains);
+        info.setPImageIndices(&index);
+        system->getQueueInfo().presentQueue.presentKHR(info);
+    }
 
     SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "Unloading Main-class");
     delete cmc;

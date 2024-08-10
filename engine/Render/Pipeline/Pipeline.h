@@ -8,7 +8,7 @@
 #include "Render/Pipeline/PipelineLayout.h"
 
 namespace Engine{
-    class Pipeline {
+    class Pipeline : public VkWrapper<vk::UniquePipeline> {
     public:
 
         Pipeline (std::weak_ptr <RenderSystem> system);
@@ -35,10 +35,6 @@ namespace Engine{
             vk::DynamicState::eViewport,
             vk::DynamicState::eScissor
         };
-
-        std::weak_ptr <RenderSystem> m_system;
-
-        vk::UniquePipeline m_pipeline {};
     };
 }
 

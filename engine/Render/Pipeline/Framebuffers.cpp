@@ -27,6 +27,11 @@ namespace Engine
         m_framebuffers.shrink_to_fit();
     }
 
+    vk::Framebuffer Framebuffers::GetFramebuffer(uint32_t index) const {
+        assert(m_framebuffers.size() > index);
+        return m_framebuffers[index].get();
+    }
+
     
 } // namespace Engine
 
