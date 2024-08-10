@@ -32,7 +32,7 @@ namespace Engine
                 {
                     nlohmann::json json_data = nlohmann::json::parse(file);
                     GUID guid = stringToGUID(json_data["guid"]);
-                    AddAsset(guid, relative_path.stem());
+                    AddAsset(guid, relative_path.parent_path() / relative_path.stem());
                     file.close();
                 }
                 else
@@ -44,6 +44,8 @@ namespace Engine
     // TODO: load asset not implemented
     void AssetManager::LoadExternalResource(std::filesystem::path resourcePath, std::filesystem::path path_in_project)
     {
+        if (!std::filesystem::exists(GetAssetsDirectory() / path_in_project))
+            std::filesystem::create_directory(GetAssetsDirectory() / path_in_project);
         std::string extension = resourcePath.extension().string();
         if (extension == ".obj")
         {
@@ -133,7 +135,7 @@ namespace Engine
         {
             mesh_file << mesh_json.dump(4);
             mesh_file.close();
-            AddAsset(mesh_guid, mesh_json_path.stem());
+            AddAsset(mesh_guid, path_in_project / mesh_json_path.stem());
         }
         else
         {
@@ -165,7 +167,7 @@ namespace Engine
         {
             prefab_file << prefab_json.dump(4);
             prefab_file.close();
-            AddAsset(prefab_guid, prefab_json_path.stem());
+            AddAsset(prefab_guid, path_in_project / prefab_json_path.stem());
         }
         else
         {
@@ -233,7 +235,7 @@ namespace Engine
         {
             material_file << material_json.dump(4);
             material_file.close();
-            AddAsset(guid, json_path.stem());
+            AddAsset(guid, path_in_project / json_path.stem());
         }
         else
         {
@@ -266,7 +268,7 @@ namespace Engine
         {
             tex_file << texture_json.dump(4);
             tex_file.close();
-            AddAsset(guid, json_path.stem());
+            AddAsset(guid, path_in_project / json_path.stem());
         }
         else
         {
