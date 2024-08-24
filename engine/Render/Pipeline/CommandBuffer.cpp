@@ -7,7 +7,7 @@
 
 namespace Engine
 {
-    void CommandBuffer::CreateCommandBuffer(vk::Device logical_device, vk::CommandPool command_pool, uint32_t frame_index)
+    void RenderCommandBuffer::CreateCommandBuffer(vk::Device logical_device, vk::CommandPool command_pool, uint32_t frame_index)
     {
         vk::CommandBufferAllocateInfo info{};
         info.commandPool = command_pool;
@@ -21,12 +21,12 @@ namespace Engine
         m_inflight_frame_index = frame_index;
     }
 
-    void CommandBuffer::Begin() {
+    void RenderCommandBuffer::Begin() {
         vk::CommandBufferBeginInfo binfo{};
         m_handle->begin(binfo);
     }
 
-    void CommandBuffer::BeginRenderPass(
+    void RenderCommandBuffer::BeginRenderPass(
         const RenderPass& pass, 
         vk::Extent2D extent, 
         uint32_t framebuffer_id, 
@@ -43,11 +43,11 @@ namespace Engine
         m_handle->beginRenderPass(info, vk::SubpassContents::eInline);
     }
 
-    void CommandBuffer::BindPipelineProgram(const Pipeline& pipeline) {
+    void RenderCommandBuffer::BindPipelineProgram(const Pipeline& pipeline) {
         m_handle->bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline.get());
     }
 
-    void CommandBuffer::SetupViewport(float vpWidth, float vpHeight, vk::Rect2D scissor) {
+    void RenderCommandBuffer::SetupViewport(float vpWidth, float vpHeight, vk::Rect2D scissor) {
         vk::Viewport vp;
         vp.setWidth(vpWidth).setHeight(vpHeight);
         vp.setX(0.0f).setY(0.0f);
@@ -57,18 +57,26 @@ namespace Engine
         m_handle->setScissor(0, 1, &scissor);
     }
 
-    void CommandBuffer::DrawMesh(const HomogeneousMesh& mesh) {
+    void RenderCommandBuffer::CommitVertexBuffer(const HomogeneousMesh& mesh) {
+        SDL_LogVerbose(SDL_LOG_CATEGORY_RENDER, "Allocating staging buffer and memory for %u vertices.", mesh.GetVertexCount());
+        auto [staging_buffer, staging_memory] = mesh.WriteToStagingBuffer();
+        vk::BufferCopy copy{0, 0, mesh.GetVertexCount() * HomogeneousMesh::SINGLE_VERTEX_BUFFER_SIZE_WITH_INDEX};
+        m_handle->copyBuffer(staging_buffer.get(), mesh.GetBuffer(), {copy});
+    }
+
+    void RenderCommandBuffer::DrawMesh(const HomogeneousMesh& mesh) {
         auto bindings = mesh.GetBindingInfo();
         m_handle->bindVertexBuffers(0, bindings.first, bindings.second);
+        // m_handle->bindIndexBuffer(vk::IndexType::eUint32);
         m_handle->draw(mesh.GetVertexCount(), 1, 0, 0);
     }
 
-    void CommandBuffer::End() {
+    void RenderCommandBuffer::End() {
         m_handle->endRenderPass();
         m_handle->end();
     }
 
-    void CommandBuffer::SubmitToQueue(
+    void RenderCommandBuffer::SubmitToQueue(
         vk::Queue queue, 
         const Synchronization & synch
     ) {
@@ -91,9 +99,9 @@ namespace Engine
         queue.submit(infos, synch.GetCommandBufferFence(m_inflight_frame_index));
     }
 
-    void CommandBuffer::Reset() {
+    void RenderCommandBuffer::Reset() {
         m_handle->reset();
     }
-    
+
 } // namespace Engine
 

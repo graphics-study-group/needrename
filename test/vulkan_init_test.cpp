@@ -22,6 +22,7 @@ public:
     TestHomoMesh(std::weak_ptr<RenderSystem> system) : HomogeneousMesh(system) {
         this->m_positions = {0.0f, -0.5f, 0.0f, 0.5f, 0.5f, 0.0f, -0.5f, 0.5f, 0.0f};
         this->m_colors = {1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f};
+        this->m_indices = {0, 1, 2};
     }
 };
 
@@ -87,7 +88,7 @@ int main(int, char **)
             SDL_LogError(0, "Timed out waiting for fence.");
             return -1;
         }
-        CommandBuffer & cb = system->GetGraphicsCommandBufferWaitAndReset(in_flight_frame_id, 0x7fffffff);
+        RenderCommandBuffer & cb = system->GetGraphicsCommandBufferWaitAndReset(in_flight_frame_id, 0x7fffffff);
         system->getDevice().resetFences({fence});
 
         auto fence_end_timer = sch::high_resolution_clock::now();
@@ -98,6 +99,9 @@ int main(int, char **)
         auto image_end_timer = sch::high_resolution_clock::now();
     
         cb.Begin();
+        if (mesh.NeedCommitment()) {
+            cb.CommitVertexBuffer(mesh);
+        }
         cb.BeginRenderPass(rp, system->getSwapchainInfo().extent, index, {{{0.0f, 0.0f, 0.0f, 1.0f}}});
 
         auto bind_pipeline_begin = sch::high_resolution_clock::now();
