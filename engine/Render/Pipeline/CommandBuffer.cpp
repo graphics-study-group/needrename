@@ -67,8 +67,9 @@ namespace Engine
     void RenderCommandBuffer::DrawMesh(const HomogeneousMesh& mesh) {
         auto bindings = mesh.GetBindingInfo();
         m_handle->bindVertexBuffers(0, bindings.first, bindings.second);
-        // m_handle->bindIndexBuffer(vk::IndexType::eUint32);
-        m_handle->draw(mesh.GetVertexCount(), 1, 0, 0);
+        auto indices = mesh.GetIndexInfo();
+        m_handle->bindIndexBuffer(indices.first, indices.second, vk::IndexType::eUint32);
+        m_handle->drawIndexed(mesh.GetVertexCount(), 1, 0, 0, 0);
     }
 
     void RenderCommandBuffer::End() {
