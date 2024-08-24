@@ -22,36 +22,23 @@ namespace Engine
 
     void CommandBuffer::Begin() {
         vk::CommandBufferBeginInfo binfo{};
-        binfo.flags = vk::CommandBufferUsageFlags{0};
-        binfo.pInheritanceInfo = nullptr;
         m_handle->begin(binfo);
     }
 
-    void CommandBuffer::BeginRenderPass(const RenderPass& pass, vk::Extent2D extent, uint32_t framebuffer_id)
-    {
-        vk::RenderPassBeginInfo info{};
-        info.renderPass = pass.get();
-        info.framebuffer = pass.GetFramebuffers().GetFramebuffer(framebuffer_id);
-        info.renderArea.offset = vk::Offset2D{0, 0};
-        info.renderArea.extent = extent;
+    void CommandBuffer::BeginRenderPass(
+        const RenderPass& pass, 
+        vk::Extent2D extent, 
+        uint32_t framebuffer_id, 
+        std::vector <vk::ClearValue> clear
+    ) {
+        assert(clear.size() == pass.GetAttachments().size());
 
-        const auto & attachments = pass.GetAttachments();
-        std::vector <vk::ClearValue> clear_color{};
-        clear_color.reserve(attachments.size());
-        for (size_t i = 0; i < attachments.size(); i++) {
-            if (attachments[i].loadOp == vk::AttachmentLoadOp::eClear && attachments[i].stencilLoadOp == vk::AttachmentLoadOp::eClear) {
-                SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "An attachment has both color and stencil load op set.");
-            }
-
-            if (attachments[i].loadOp == vk::AttachmentLoadOp::eClear) {
-                clear_color.emplace_back(vk::ClearColorValue{0.0f, 0.0f, 0.0f, 1.0f});
-            } else if (attachments[i].stencilLoadOp == vk::AttachmentLoadOp::eClear) {
-                clear_color.emplace_back(vk::ClearDepthStencilValue{0.0f, 0u});
-            }
-        }
-        clear_color.shrink_to_fit();
-        info.clearValueCount = clear_color.size();
-        info.pClearValues = clear_color.data();
+        vk::RenderPassBeginInfo info{
+            pass.get(),
+            pass.GetFramebuffers().GetFramebuffer(framebuffer_id),
+            {vk::Offset2D{0, 0}, extent},
+            clear
+        };
         m_handle->beginRenderPass(info, vk::SubpassContents::eInline);
     }
 
