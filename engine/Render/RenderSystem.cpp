@@ -15,16 +15,18 @@ namespace Engine
         // C++ wrappers for Vulkan functions throw exceptions
         // So we don't need to do mundane error checking
         // Create instance
-        vk::ApplicationInfo appInfo;
-        appInfo.pApplicationName = "no name";
-        appInfo.applicationVersion = VK_MAKE_VERSION(0, 1, 0);
-        appInfo.pEngineName = "no name";
-        appInfo.engineVersion = VK_MAKE_VERSION(0, 1, 0);
-        appInfo.apiVersion = VK_API_VERSION_1_0;
+        vk::ApplicationInfo appInfo{
+            "no name",
+            VK_MAKE_VERSION(0, 1, 0),
+            "no name",
+            VK_MAKE_VERSION(0, 1, 0),
+            VK_API_VERSION_1_0
+            };
         this->CreateInstance(appInfo);
         this->CreateSurface();
 
         m_selected_physical_device = this->SelectPhysicalDevice();
+        m_memory_properties = m_selected_physical_device.getMemoryProperties();
         this->CreateLogicalDevice();
         this->CreateSwapchain();
 
@@ -52,7 +54,17 @@ namespace Engine
         m_active_camera = cameraComponent;
     }
 
-    vk::Instance RenderSystem::getInstance() const { return m_instance.get(); }
+    uint32_t RenderSystem::FindPhysicalMemory(uint32_t type, vk::MemoryPropertyFlags properties) {
+        for (uint32_t i = 0; i < m_memory_properties.memoryTypeCount; i++) {
+            if ((type & (1 << i)) && (m_memory_properties.memoryTypes[i].propertyFlags & properties) == properties) {
+                return i;
+            }
+        }
+        SDL_LogCritical(SDL_LOG_CATEGORY_RENDER, "Failed to find physical memory on GPU with type %u.", type);
+        return 0;
+    }
+
+vk::Instance RenderSystem::getInstance() const { return m_instance.get(); }
     vk::SurfaceKHR RenderSystem::getSurface() const { return m_surface.get(); }
     vk::Device RenderSystem::getDevice() const { return m_device.get(); }
 
@@ -85,12 +97,10 @@ namespace Engine
     }
 
     vk::Result RenderSystem::Present(uint32_t frame_index, uint32_t in_flight_index) {
-        vk::PresentInfoKHR info{};
-        auto semaphores = m_synch->GetCommandBufferSigningSignals(in_flight_index);
-        info.setWaitSemaphores(semaphores);
         std::array<vk::SwapchainKHR, 1> swapchains {m_swapchain.swapchain.get()};
-        info.setSwapchains(swapchains);
-        info.setPImageIndices(&frame_index);
+        std::array<uint32_t, 1> frame_indices {in_flight_index};
+        auto semaphores = m_synch->GetCommandBufferSigningSignals(in_flight_index);
+        vk::PresentInfoKHR info{semaphores, swapchains, frame_indices};
         return m_queues.presentQueue.presentKHR(info);
     }
 
@@ -119,12 +129,16 @@ namespace Engine
         instInfo.pApplicationInfo = &appInfo;
         instInfo.enabledExtensionCount = extCount;
         instInfo.ppEnabledExtensionNames = pExt;
+#ifndef NDEBUG
         if (CheckValidationLayer()) {
             instInfo.enabledLayerCount = 1;
             instInfo.ppEnabledLayerNames = &(validation_layer_name);
         } else {
             instInfo.enabledLayerCount = 0;
         }
+#else
+        instInfo.enabledLayerCount = 0;
+#endif
         this->m_instance = vk::createInstanceUnique(instInfo);
     }
 
@@ -166,10 +180,10 @@ namespace Engine
         auto props = device.getProperties();
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "\tInspecting %s.", props.deviceName.data());
 
-        if (!(props.deviceType == vk::PhysicalDeviceType::eDiscreteGpu)) {
+        /* if (!(props.deviceType == vk::PhysicalDeviceType::eDiscreteGpu)) {
             SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Not discrete GPU.");
             return false;
-        }
+        } */
 
         // Check if all queue families are available
         if (!FillQueueFamily(device).isComplete()) {
@@ -232,7 +246,7 @@ namespace Engine
         // Select display mode
         vk::PresentModeKHR pickedMode = vk::PresentModeKHR::eFifo;
         for (const auto & mode : support.modes) {
-            if (mode == vk::PresentModeKHR::eMailbox) {
+            if (mode == vk::PresentModeKHR::eImmediate) {
                 pickedMode = mode;
                 break;
             }
@@ -345,7 +359,7 @@ namespace Engine
         info.preTransform = support.capabilities.currentTransform;
         // Disable alpha blending for framebuffers
         info.compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque;
-        info.clipped = vk::False;
+        info.clipped = vk::True;
         if (m_swapchain.swapchain) {
             SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Replacing old swap chain.");
             info.oldSwapchain = m_swapchain.swapchain.get();

@@ -10,11 +10,20 @@
 #include "Render/Pipeline/Framebuffers.h"
 #include "Render/Pipeline/CommandBuffer.h"
 #include "Render/Pipeline/PremadeRenderPass/SingleRenderPass.h"
+#include "Render/Renderer/HomogeneousMesh.h"
 
 using namespace Engine;
 namespace sch = std::chrono;
 
 Engine::MainClass * cmc;
+
+class TestHomoMesh : public HomogeneousMesh {
+public:
+    TestHomoMesh(std::weak_ptr<RenderSystem> system) : HomogeneousMesh(system) {
+        this->m_positions = {0.0f, -0.5f, 0.0f, 0.5f, 0.5f, 0.0f, -0.5f, 0.5f, 0.0f};
+        this->m_colors = {1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f};
+    }
+};
 
 std::vector<char> readFile(const std::string& filename) {
     std::ifstream file(filename, std::ios::ate | std::ios::binary);
@@ -51,7 +60,7 @@ int main(int, char **)
     ShaderModule fragModule {system};
     ShaderModule vertModule {system};
     fragModule.CreateShaderModule(readFile("shader/debug_fragment_color.frag.spv"));
-    vertModule.CreateShaderModule(readFile("shader/debug_vertex_color.vert.spv"));
+    vertModule.CreateShaderModule(readFile("shader/debug_vertex_trig.vert.spv"));
 
     p.CreatePipeline(rp.GetSubpass(0), pl, {
         fragModule.GetStageCreateInfo(vk::ShaderStageFlagBits::eFragment),
@@ -64,6 +73,9 @@ int main(int, char **)
     system->UpdateSwapchain();
     rp.CreateFramebuffers();
 
+    TestHomoMesh mesh{system};
+    mesh.Prepare();
+    
     uint64_t start_timer = SDL_GetPerformanceCounter();
     while(total_test_frame--) {
         
@@ -93,7 +105,7 @@ int main(int, char **)
         cb.BindPipelineProgram(p);
         vk::Rect2D scissor{{0, 0}, system->getSwapchainInfo().extent};
         cb.SetupViewport(system->getSwapchainInfo().extent.width, system->getSwapchainInfo().extent.height, scissor);
-        cb.Draw();
+        cb.DrawMesh(mesh);
         cb.End();
 
         cb.SubmitToQueue(system->getQueueInfo().graphicsQueue, system->getSynchronization());
