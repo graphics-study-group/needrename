@@ -47,9 +47,9 @@ int main(int argc, char * argv[])
     std::shared_ptr<GameObject> test_mesh_go = std::make_shared<GameObject>();
     std::shared_ptr<MeshComponent> mesh_component = std::make_shared<MeshComponent>(test_mesh_go);
     test_mesh_go->AddComponent(mesh_component);
-    Mesh mesh;
+    MeshAsset mesh;
     mesh.SetGUID(stringToGUID(component_json["mesh"]));
-    mesh_component->SetMesh(std::make_shared<Mesh>(mesh));
+    mesh_component->SetMesh(std::make_shared<MeshAsset>(mesh));
     for(auto & material_guid : component_json["materials"])
     {
         std::shared_ptr<ShadelessMaterial> mat = std::make_shared<ShadelessMaterial>();

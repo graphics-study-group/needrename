@@ -1,4 +1,4 @@
-#include "Mesh.h"
+#include "MeshAsset.h"
 #include <cereal/cereal.hpp>
 #include <cereal/types/vector.hpp>
 #include <cereal/archives/binary.hpp>
@@ -8,15 +8,15 @@
 
 namespace Engine
 {
-    Mesh::Mesh(std::weak_ptr <AssetManager> manager) : Asset(manager)
+    MeshAsset::MeshAsset(std::weak_ptr <AssetManager> manager) : Asset(manager)
     {
     }
 
-    Mesh::~Mesh()
+    MeshAsset::~MeshAsset()
     {
     }
 
-    void Mesh::Load()
+    void MeshAsset::Load()
     {
         Asset::Load();
 
@@ -33,7 +33,7 @@ namespace Engine
         }
     }
 
-    void Mesh::Unload()
+    void MeshAsset::Unload()
     {
         Asset::Unload();
         
@@ -45,7 +45,7 @@ namespace Engine
         m_uvs.clear();
     }
 
-    void Mesh::LoadFromTinyobj(const tinyobj::attrib_t &attrib, const std::vector<tinyobj::shape_t> &shapes)
+    void MeshAsset::LoadFromTinyobj(const tinyobj::attrib_t &attrib, const std::vector<tinyobj::shape_t> &shapes)
     {
         m_positions.clear();
         m_uvs.clear();
@@ -69,7 +69,7 @@ namespace Engine
         }
     }
 
-    size_t Mesh::GetSubmeshCount() const
+    size_t MeshAsset::GetSubmeshCount() const
     {
         return m_offsets.size();
     }

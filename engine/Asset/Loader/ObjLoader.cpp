@@ -6,7 +6,7 @@
 #include <cereal/archives/binary.hpp>
 #include <cereal/cereal.hpp>
 
-#include "Asset/Mesh/Mesh.h"
+#include "Asset/Mesh/MeshAsset.h"
 
 namespace Engine
 {
@@ -34,7 +34,7 @@ namespace Engine
 
         nlohmann::json mesh_json;
         std::vector<GUID> material_guids;
-        Mesh assetMesh{m_manager};
+        MeshAsset assetMesh{m_manager};
         GUID mesh_guid = assetMesh.GetGUID();
 
         std::unordered_map<std::string, GUID> texture_path_guid_map;
