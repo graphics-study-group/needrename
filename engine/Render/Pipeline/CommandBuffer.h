@@ -20,7 +20,7 @@ namespace Engine
 
         void Begin();
 
-        void BeginRenderPass(const RenderPass & pass, vk::Extent2D extent, uint32_t framebuffer_id);
+        void BeginRenderPass(const RenderPass & pass, vk::Extent2D extent, uint32_t framebuffer_id, std::vector <vk::ClearValue> clear);
 
         void BindPipelineProgram(const Pipeline & pipeline);
 
@@ -37,7 +37,7 @@ namespace Engine
 
         void Reset();
     protected:
-        uint32_t m_inflight_frame_index;
+        uint32_t m_inflight_frame_index {};
         vk::UniqueCommandBuffer m_handle {};
     };
 } // namespace Engine
