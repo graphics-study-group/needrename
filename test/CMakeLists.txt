@@ -1,6 +1,6 @@
 
-# add_custom_test(mesh_loading_test mesh_loading_test.cpp)
-# add_custom_test(external_resource_loading_test external_resource_loading_test.cpp)
+# Do not rewrite the following commands into a single macro,
+# which will disrupt VS Code integration with CTest.
 
 add_executable(transform_test transform_test.cpp)
 target_link_libraries(transform_test engine)
@@ -33,9 +33,8 @@ add_custom_command(TARGET SDL_init_test POST_BUILD
 
 # Copy shader files
 add_custom_command(TARGET vulkan_init_test POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-    "${PROJECT_BINARY_DIR}/shader/"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different 
+    "${PROJECT_BINARY_DIR}/shader"
     "$<TARGET_FILE_DIR:vulkan_init_test>/shader"
-    DEPENDS shader
     COMMENT "Copying shaders"
 )

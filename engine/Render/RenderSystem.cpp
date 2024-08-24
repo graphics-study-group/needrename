@@ -74,9 +74,9 @@ vk::Instance RenderSystem::getInstance() const { return m_instance.get(); }
 
     const Synchronization& RenderSystem::getSynchronization() const { return *m_synch; }
 
-    CommandBuffer & RenderSystem::GetGraphicsCommandBuffer(uint32_t frame_index) { return m_commandbuffers[frame_index]; }
+    RenderCommandBuffer & RenderSystem::GetGraphicsCommandBuffer(uint32_t frame_index) { return m_commandbuffers[frame_index]; }
 
-    CommandBuffer& RenderSystem::GetGraphicsCommandBufferWaitAndReset(uint32_t frame_index, uint64_t timeout) {
+    RenderCommandBuffer& RenderSystem::GetGraphicsCommandBufferWaitAndReset(uint32_t frame_index, uint64_t timeout) {
         m_device->waitForFences({m_synch->GetCommandBufferFence(frame_index)}, vk::True, timeout);
         m_commandbuffers[frame_index].Reset();
         return m_commandbuffers[frame_index];
@@ -405,9 +405,9 @@ vk::Instance RenderSystem::getInstance() const { return m_instance.get(); }
             m_swapchain.imageViews[i] = m_device->createImageViewUnique(info);
         }
 
-        // Allocate command buffer for each framebuffer
+        // Allocate command buffer for each image in the swap chain
         // Do note that frame id in flight doesn't equal to frame buffer index
-        // However, creating more frames in flight than framebuffers is useless.
+        // However, creating more frames in flight than images is useless.
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating command buffers.");
         m_commandbuffers.clear();
         m_commandbuffers.resize(image_count);

@@ -11,10 +11,12 @@ namespace Engine
     class Synchronization;
     class HomogeneousMesh;
 
-    class CommandBuffer
+    /// @brief A command buffer used for rendering.
+    class RenderCommandBuffer
     {
     public:
-        /// @brief Create a command buffer. This function is ideally only called from RenderSystem
+        /// @brief Create a command buffer used for rendering.
+        /// This function is ideally only called from RenderSystem
         /// @param logical_device 
         /// @param command_pool 
         void CreateCommandBuffer(vk::Device logical_device, vk::CommandPool command_pool, uint32_t inflight_frame_index);
@@ -26,6 +28,8 @@ namespace Engine
         void BindPipelineProgram(const Pipeline & pipeline);
 
         void SetupViewport(float vpWidth, float vpHeight, vk::Rect2D scissor);
+
+        void CommitVertexBuffer(const HomogeneousMesh & mesh);
 
         void DrawMesh(const HomogeneousMesh & mesh);
 

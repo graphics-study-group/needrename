@@ -85,8 +85,8 @@ namespace Engine
         const QueueInfo & getQueueInfo () const;
         const SwapchainInfo & getSwapchainInfo() const;
         const Synchronization & getSynchronization() const;
-        CommandBuffer & GetGraphicsCommandBuffer(uint32_t frame_index);
-        CommandBuffer & GetGraphicsCommandBufferWaitAndReset(uint32_t frame_index, uint64_t timeout);
+        RenderCommandBuffer & GetGraphicsCommandBuffer(uint32_t frame_index);
+        RenderCommandBuffer & GetGraphicsCommandBufferWaitAndReset(uint32_t frame_index, uint64_t timeout);
 
         uint32_t GetNextImage(uint32_t in_flight_index, uint64_t timeout);
         vk::Result Present(uint32_t frame_index, uint32_t in_flight_index);
@@ -160,7 +160,7 @@ namespace Engine
         SwapchainInfo m_swapchain{};
 
         std::unique_ptr <Synchronization> m_synch {};
-        std::vector <CommandBuffer> m_commandbuffers {};
+        std::vector <RenderCommandBuffer> m_commandbuffers {};
     };
 }
 
