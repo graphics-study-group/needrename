@@ -10,11 +10,11 @@
 
 namespace Engine
 {
-    class Mesh: public Asset
+    class MeshAsset: public Asset
     {
     public:
-        Mesh(std::weak_ptr <AssetManager> manager);
-        virtual ~Mesh();
+        MeshAsset(std::weak_ptr <AssetManager> manager);
+        virtual ~MeshAsset();
 
         /// @brief Load mesh data. (no material)
         virtual void Load() override;
