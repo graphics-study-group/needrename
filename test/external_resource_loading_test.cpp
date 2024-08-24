@@ -41,7 +41,6 @@ int main(int argc, char * argv[])
     cmc = new Engine::MainClass(
             SDL_INIT_VIDEO,
             opt->enableVerbose ? SDL_LOG_PRIORITY_VERBOSE : SDL_LOG_PRIORITY_INFO);
-    SDLWindow::EnableMSAA(4);
     cmc->Initialize(opt);
 
     globalSystems.assetManager->LoadProject(project_path);

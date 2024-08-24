@@ -18,6 +18,7 @@ add_test(NAME SDL_init_test COMMAND SDL_init_test)
 set_target_properties(SDL_init_test PROPERTIES FOLDER tests)
 
 add_executable(vulkan_init_test vulkan_init_test.cpp)
+add_dependencies(vulkan_init_test shader)
 target_link_libraries(vulkan_init_test engine)
 add_test(NAME vulkan_init_test COMMAND vulkan_init_test)
 set_target_properties(vulkan_init_test PROPERTIES FOLDER tests)
