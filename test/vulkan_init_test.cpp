@@ -1,6 +1,7 @@
 #include <SDL3/SDL.h>
 #include <cassert>
 #include <fstream>
+#include <chrono>
 
 #include "MainClass.h"
 #include "Functional/SDLWindow.h"
@@ -11,6 +12,7 @@
 #include "Render/Pipeline/PremadeRenderPass/SingleRenderPass.h"
 
 using namespace Engine;
+namespace sch = std::chrono;
 
 Engine::MainClass * cmc;
 
@@ -57,7 +59,7 @@ int main(int, char **)
         });
     
     uint32_t in_flight_frame_id = 0;
-    uint32_t total_test_frame = 200;
+    uint32_t total_test_frame = 60;
     
     system->UpdateSwapchain();
     rp.CreateFramebuffers();
@@ -65,7 +67,7 @@ int main(int, char **)
     uint64_t start_timer = SDL_GetPerformanceCounter();
     while(total_test_frame--) {
         
-        uint64_t frame_start_timer = SDL_GetPerformanceCounter();
+        auto frame_start_timer = sch::high_resolution_clock::now();
 
         vk::Fence fence = system->getSynchronization().GetCommandBufferFence(in_flight_frame_id);
         vk::Result waitFenceResult = system->getDevice().waitForFences({fence}, vk::True, 0x7FFFFFFF);
@@ -76,38 +78,48 @@ int main(int, char **)
         CommandBuffer & cb = system->GetGraphicsCommandBufferWaitAndReset(in_flight_frame_id, 0x7fffffff);
         system->getDevice().resetFences({fence});
 
-        uint64_t fence_end_timer = SDL_GetPerformanceCounter();
-        SDL_LogVerbose(0, "Waiting for fence for %lf milliseconds.", 
-            1000.0 * (fence_end_timer - frame_start_timer) / SDL_GetPerformanceFrequency());
+        auto fence_end_timer = sch::high_resolution_clock::now();
 
         uint32_t index = system->GetNextImage(in_flight_frame_id, 0x7FFFFFFF);
         assert(index < 3);
 
-        uint64_t image_end_timer = SDL_GetPerformanceCounter();
-        SDL_LogVerbose(0, "Waiting for next image for %lf milliseconds.", 
-            1000.0 * (image_end_timer - fence_end_timer) / SDL_GetPerformanceFrequency());
+        auto image_end_timer = sch::high_resolution_clock::now();
     
         cb.Begin();
-        cb.BeginRenderPass(rp, system->getSwapchainInfo().extent, index);
+        cb.BeginRenderPass(rp, system->getSwapchainInfo().extent, index, {{{0.0f, 0.0f, 0.0f, 1.0f}}});
+
+        auto bind_pipeline_begin = sch::high_resolution_clock::now();
+
         cb.BindPipelineProgram(p);
         vk::Rect2D scissor{{0, 0}, system->getSwapchainInfo().extent};
         cb.SetupViewport(system->getSwapchainInfo().extent.width, system->getSwapchainInfo().extent.height, scissor);
         cb.Draw();
         cb.End();
+
         cb.SubmitToQueue(system->getQueueInfo().graphicsQueue, system->getSynchronization());
 
-        uint64_t record_end_timer = SDL_GetPerformanceCounter();
-        SDL_LogVerbose(0, "Recording command buffer for %lf milliseconds.", 
-            1000.0 * (record_end_timer - image_end_timer) / SDL_GetPerformanceFrequency());
+        auto submit_end_timer = sch::high_resolution_clock::now();
 
         system->Present(index, in_flight_frame_id);
 
-        uint64_t submission_end_timer = SDL_GetPerformanceCounter();
-        SDL_LogVerbose(0, "Presenting for %lf milliseconds.", 
-            1000.0 * (submission_end_timer - record_end_timer) / SDL_GetPerformanceFrequency());
+        auto submission_end_timer = sch::high_resolution_clock::now();
+
+        std::chrono::duration<double, std::milli> waiting, image, begining, record, presenting, total;
+        waiting = fence_end_timer - frame_start_timer;
+        image = image_end_timer - fence_end_timer;
+        begining = bind_pipeline_begin - image_end_timer;
+        record = submit_end_timer - bind_pipeline_begin;
+        presenting = submission_end_timer - submit_end_timer;
+        total = submission_end_timer - frame_start_timer;
+
+        SDL_LogVerbose(0, "Waiting for fence for %lf milliseconds.", waiting.count());
+        SDL_LogVerbose(0, "Waiting for next image for %lf milliseconds.", image.count());
+        SDL_LogVerbose(0, "Begining recording command buffer for %lf milliseconds.", begining.count());
+        SDL_LogVerbose(0, "Recording for %lf milliseconds.", record.count());
+        SDL_LogVerbose(0, "Presenting for %lf milliseconds.", presenting.count());
         SDL_LogVerbose(0, "Total: %lf milliseconds, or %lf fps for frame %u.", 
-            1000.0 * (submission_end_timer - frame_start_timer) / SDL_GetPerformanceFrequency(),
-            1.0 / ((1.0 * submission_end_timer - frame_start_timer) / SDL_GetPerformanceFrequency()),
+            total.count(),
+            1000.0 / total.count(),
             in_flight_frame_id
             );
 
