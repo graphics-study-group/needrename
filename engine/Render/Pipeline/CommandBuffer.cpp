@@ -3,6 +3,7 @@
 #include "Render/Pipeline/Synchronization.h"
 #include "Render/Pipeline/RenderPass.h"
 #include "Render/Pipeline/Pipeline.h"
+#include "Render/Renderer/HomogeneousMesh.h"
 
 namespace Engine
 {
@@ -56,8 +57,10 @@ namespace Engine
         m_handle->setScissor(0, 1, &scissor);
     }
 
-    void CommandBuffer::Draw() {
-        m_handle->draw(3, 1, 0, 0);
+    void CommandBuffer::DrawMesh(const HomogeneousMesh& mesh) {
+        auto bindings = mesh.GetBindingInfo();
+        m_handle->bindVertexBuffers(0, bindings.first, bindings.second);
+        m_handle->draw(mesh.GetVertexCount(), 1, 0, 0);
     }
 
     void CommandBuffer::End() {

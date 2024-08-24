@@ -22,7 +22,6 @@ namespace Engine{
     protected:
 
         vk::PipelineDynamicStateCreateInfo CreateDynamicState();
-        vk::PipelineVertexInputStateCreateInfo CreateVertexInputState();
         vk::PipelineInputAssemblyStateCreateInfo CreateInputAssembly();
         vk::PipelineViewportStateCreateInfo CreateViewportState();
         vk::PipelineRasterizationStateCreateInfo CreateRasterizationState();

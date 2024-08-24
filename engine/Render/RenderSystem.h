@@ -73,6 +73,12 @@ namespace Engine
         /// @note You need to recreate framebuffers that refer to the swap chain.
         void UpdateSwapchain();
 
+        /// @brief Find a physical memory satisfying demands.
+        /// @param type type of the requested memory
+        /// @param properties properties of the request memory
+        /// @return 
+        uint32_t FindPhysicalMemory(uint32_t type, vk::MemoryPropertyFlags properties);
+
         vk::Instance getInstance() const;
         vk::SurfaceKHR getSurface() const;
         vk::Device getDevice() const;
@@ -142,7 +148,8 @@ namespace Engine
         std::vector <std::shared_ptr<RendererComponent>> m_components {};
         std::shared_ptr <CameraComponent> m_active_camera {};
 
-        vk::PhysicalDevice m_selected_physical_device;
+        vk::PhysicalDevice m_selected_physical_device {};
+        vk::PhysicalDeviceMemoryProperties m_memory_properties {};
         // Order of declaration effects destructing order!
 
         vk::UniqueInstance m_instance{};

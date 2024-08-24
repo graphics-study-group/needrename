@@ -1,4 +1,5 @@
 #include "Pipeline.h"
+#include "Render/Renderer/HomogeneousMesh.h"
 
 namespace Engine
 {
@@ -15,7 +16,7 @@ namespace Engine
         info.stageCount = stage.size();
         info.pStages = stage.data();
 
-        auto vertex_input = CreateVertexInputState();
+        auto vertex_input = HomogeneousMesh::GetVertexInputState();
         info.pVertexInputState = &vertex_input;
 
         auto input_assemb = CreateInputAssembly();
@@ -53,15 +54,6 @@ namespace Engine
         vk::PipelineDynamicStateCreateInfo info{};
         info.dynamicStateCount = static_cast<uint32_t>(dynamic_states.size());
         info.pDynamicStates = dynamic_states.data();
-        return info;
-    }
-
-    vk::PipelineVertexInputStateCreateInfo Pipeline::CreateVertexInputState() {
-        vk::PipelineVertexInputStateCreateInfo info{};
-        info.vertexBindingDescriptionCount = 0;
-        info.pVertexBindingDescriptions = nullptr;
-        info.vertexAttributeDescriptionCount = 0;
-        info.pVertexAttributeDescriptions = nullptr;
         return info;
     }
 

@@ -9,6 +9,7 @@ namespace Engine
     class RenderPass;
     class Pipeline;
     class Synchronization;
+    class HomogeneousMesh;
 
     class CommandBuffer
     {
@@ -26,7 +27,7 @@ namespace Engine
 
         void SetupViewport(float vpWidth, float vpHeight, vk::Rect2D scissor);
 
-        void Draw();
+        void DrawMesh(const HomogeneousMesh & mesh);
 
         void End();
 
