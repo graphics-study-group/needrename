@@ -59,9 +59,9 @@ namespace Engine
 
     void RenderCommandBuffer::CommitVertexBuffer(const HomogeneousMesh& mesh) {
         SDL_LogVerbose(SDL_LOG_CATEGORY_RENDER, "Allocating staging buffer and memory for %u vertices.", mesh.GetVertexCount());
-        auto [staging_buffer, staging_memory] = mesh.WriteToStagingBuffer();
+        auto buffer = mesh.WriteToStagingBuffer();
         vk::BufferCopy copy{0, 0, mesh.GetVertexCount() * HomogeneousMesh::SINGLE_VERTEX_BUFFER_SIZE_WITH_INDEX};
-        m_handle->copyBuffer(staging_buffer.get(), mesh.GetBuffer(), {copy});
+        m_handle->copyBuffer(buffer.GetBuffer(), mesh.GetBuffer().GetBuffer(), {copy});
     }
 
     void RenderCommandBuffer::DrawMesh(const HomogeneousMesh& mesh) {

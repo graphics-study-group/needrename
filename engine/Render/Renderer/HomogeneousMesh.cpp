@@ -2,7 +2,7 @@
 #include <vulkan/vulkan.hpp>
 
 namespace Engine {
-    HomogeneousMesh::HomogeneousMesh(std::weak_ptr<RenderSystem> system) : m_system(system) {
+    HomogeneousMesh::HomogeneousMesh(std::weak_ptr<RenderSystem> system) : m_system(system), m_buffer(system) {
     }
 
     HomogeneousMesh::~HomogeneousMesh() {
@@ -13,32 +13,11 @@ namespace Engine {
         const uint32_t new_vertex_count = m_positions.size() / 3;
         const uint64_t buffer_size = new_vertex_count * SINGLE_VERTEX_BUFFER_SIZE_WITH_INDEX;
 
-        auto system = this->m_system.lock();
-        auto device = system->getDevice();
-
         if (m_vertex_count != new_vertex_count) {
             m_updated = true;
             m_vertex_count = new_vertex_count;
             SDL_LogVerbose(SDL_LOG_CATEGORY_RENDER, "(Re-)Allocating buffer and memory for %u vertices.", m_vertex_count);
-            // Create buffer
-            vk::BufferCreateInfo info{
-                vk::BufferCreateFlags{0}, 
-                buffer_size,
-                vk::BufferUsageFlagBits::eVertexBuffer | 
-                vk::BufferUsageFlagBits::eIndexBuffer | 
-                vk::BufferUsageFlagBits::eTransferDst,
-                vk::SharingMode::eExclusive
-            };
-            m_buffer = device.createBufferUnique(info);
-
-            // Allocate memory
-            vk::MemoryRequirements requirements = device.getBufferMemoryRequirements(m_buffer.get());
-            uint32_t memory_index = system->FindPhysicalMemory(
-                requirements.memoryTypeBits,
-                vk::MemoryPropertyFlagBits::eDeviceLocal
-            );
-            m_memory = device.allocateMemoryUnique({std::max(buffer_size, requirements.size), memory_index});
-            device.bindBufferMemory(m_buffer.get(), m_memory.get(), 0);
+            m_buffer.Create(Buffer::BufferType::Vertex, buffer_size);
         }
     }
 
@@ -48,38 +27,21 @@ namespace Engine {
         return need;
     }
 
-    std::pair<vk::UniqueBuffer, vk::UniqueDeviceMemory> HomogeneousMesh::WriteToStagingBuffer() const {
+    Buffer HomogeneousMesh::WriteToStagingBuffer() const {
         assert(m_positions.size() % 3 == 0);
         assert(m_positions.size() / 3 == GetVertexCount());
         const uint64_t buffer_size = GetVertexCount() * SINGLE_VERTEX_BUFFER_SIZE_WITH_INDEX;
 
-        auto system = this->m_system.lock();
-        auto device = system->getDevice();
+        Buffer buffer(m_system);
+        buffer.Create(Buffer::BufferType::Staging, buffer_size);
 
-        vk::UniqueBuffer staging_buffer;
-        vk::UniqueDeviceMemory staging_memory;
-
-        vk::BufferCreateInfo info{
-            vk::BufferCreateFlags{0}, 
-            buffer_size,
-            vk::BufferUsageFlagBits::eTransferSrc,
-            vk::SharingMode::eExclusive
-        };
-        staging_buffer = device.createBufferUnique(info);
-
-        vk::MemoryRequirements requirements = device.getBufferMemoryRequirements(m_buffer.get());
-        uint32_t memory_index = system->FindPhysicalMemory(
-            requirements.memoryTypeBits, 
-            vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
-        );
-        staging_memory = device.allocateMemoryUnique({std::max(buffer_size, requirements.size), memory_index});
-        device.bindBufferMemory(staging_buffer.get(), staging_memory.get(), 0);
-
-        std::byte * data = reinterpret_cast<std::byte*>(device.mapMemory(staging_memory.get(), 0, buffer_size));
+        auto device = m_system.lock()->getDevice();
+        std::byte * data = buffer.Map();
         WriteToMemory(data);
-        device.unmapMemory(staging_memory.get());
+        buffer.Unmap();
 
-        return std::make_pair(std::move(staging_buffer), std::move(staging_memory));
+        // Copy eilision here.
+        return buffer;
     }
 
     void HomogeneousMesh::WriteToMemory(std::byte* pointer) const {
@@ -109,9 +71,9 @@ namespace Engine {
     }
 
     std::pair<vk::Buffer, vk::DeviceSize> HomogeneousMesh::GetIndexInfo() const {
-        assert(this->m_buffer);
+        assert(this->m_buffer.GetBuffer());
         uint64_t total_size = GetVertexCount() * SINGLE_VERTEX_BUFFER_SIZE_WITHOUT_INDEX;
-        return std::make_pair(m_buffer.get(), total_size);
+        return std::make_pair(m_buffer.GetBuffer(), total_size);
     }
 
     uint32_t HomogeneousMesh::GetVertexCount() const {
@@ -119,14 +81,14 @@ namespace Engine {
         return m_vertex_count;
     }
 
-    const vk::Buffer & HomogeneousMesh::GetBuffer() const {
-        return m_buffer.get();
+    const Buffer & HomogeneousMesh::GetBuffer() const {
+        return m_buffer;
     }
 
     std::pair <std::array<vk::Buffer, HomogeneousMesh::BINDING_COUNT>, std::array<vk::DeviceSize, HomogeneousMesh::BINDING_COUNT>> 
     HomogeneousMesh::GetBindingInfo() const {
-        assert(this->m_buffer);
-        std::array<vk::Buffer, BINDING_COUNT> buffer {this->m_buffer.get(), this->m_buffer.get()};
+        assert(this->m_buffer.GetBuffer());
+        std::array<vk::Buffer, BINDING_COUNT> buffer {this->m_buffer.GetBuffer(), this->m_buffer.GetBuffer()};
         std::array<vk::DeviceSize, BINDING_COUNT> binding_offset {0, m_positions.size() * sizeof(float)};
         return std::make_pair(buffer, binding_offset);
     }
