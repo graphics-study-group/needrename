@@ -2,6 +2,7 @@
 #define RENDER_RENDERER_MESH_INCLUDED
 
 #include "Render/RenderSystem.h"
+#include "Render/Pipeline/Memory/Buffer.h"
 
 namespace Engine{
     
@@ -24,11 +25,10 @@ namespace Engine{
         /// @return whether commitment is needed.
         bool NeedCommitment();
 
-        std::pair<vk::UniqueBuffer, vk::UniqueDeviceMemory> 
-        WriteToStagingBuffer() const;
+        Buffer WriteToStagingBuffer() const;
 
         uint32_t GetVertexCount() const;
-        const vk::Buffer & GetBuffer() const;
+        const Buffer & GetBuffer() const;
 
         std::pair <
             std::array<vk::Buffer, HomogeneousMesh::BINDING_COUNT>, 
@@ -58,8 +58,7 @@ namespace Engine{
             vk::VertexInputAttributeDescription{1, bindings[1].binding, vk::Format::eR32G32B32Sfloat, 0},
         };
 
-        vk::UniqueBuffer m_buffer {};
-        vk::UniqueDeviceMemory m_memory {};
+        Buffer m_buffer;
 
         bool m_updated {false};
         uint32_t m_vertex_count {0};
