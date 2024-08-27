@@ -23,7 +23,7 @@ namespace Engine
 
         void Begin();
 
-        void BeginRenderPass(const RenderPass & pass, vk::Extent2D extent, uint32_t framebuffer_id, std::vector <vk::ClearValue> clear);
+        void BeginRenderPass(const RenderPass & pass, vk::Extent2D extent, uint32_t framebuffer_id);
 
         void BindPipelineProgram(const Pipeline & pipeline);
 

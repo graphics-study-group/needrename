@@ -29,16 +29,13 @@ namespace Engine
     void RenderCommandBuffer::BeginRenderPass(
         const RenderPass& pass, 
         vk::Extent2D extent, 
-        uint32_t framebuffer_id, 
-        std::vector <vk::ClearValue> clear
+        uint32_t framebuffer_id
     ) {
-        assert(clear.size() == pass.GetAttachments().size());
-
         vk::RenderPassBeginInfo info{
             pass.get(),
             pass.GetFramebuffers().GetFramebuffer(framebuffer_id),
             {vk::Offset2D{0, 0}, extent},
-            clear
+            pass.GetClearValues()
         };
         m_handle->beginRenderPass(info, vk::SubpassContents::eInline);
     }

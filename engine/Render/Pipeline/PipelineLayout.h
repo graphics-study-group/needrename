@@ -6,6 +6,7 @@
 
 namespace Engine
 {
+    /// @brief Pipeline layouts define constant data (uniforms, etc.) settings for a pipeline.
     class PipelineLayout : public VkWrapper<vk::UniquePipelineLayout>
     {
     public:

@@ -12,6 +12,8 @@ namespace Engine
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating pipeline.");
         assert(!stage.empty());
 
+        m_attached_subpass = subpass;
+
         vk::GraphicsPipelineCreateInfo info{};
         info.stageCount = stage.size();
         info.pStages = stage.data();
@@ -47,6 +49,11 @@ namespace Engine
         auto ret = m_system.lock()->getDevice().createGraphicsPipelineUnique(nullptr, info);
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Pipeline creation successful with result %d.", static_cast<int>(ret.result));
         m_handle = std::move(ret.value);
+    }
+
+    const Subpass& Pipeline::GetSubpass() const {
+        assert(m_attached_subpass.pass);
+        return m_attached_subpass;
     }
 
 

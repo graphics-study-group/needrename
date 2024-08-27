@@ -46,8 +46,24 @@ namespace Engine
         return *this;
     }
 
+    RenderPass& RenderPass::SetClearValues(std::vector<vk::ClearValue> clear_values) {
+        if (clear_values.size() != m_attachments.size()) {
+            SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, 
+                "Unmatched clear value size, expecting %llu, got %llu", 
+                m_attachments.size(), clear_values.size()
+            );
+        }
+        m_clear_values = clear_values;
+        return *this;
+    }
+
     const std::vector<vk::AttachmentDescription>& RenderPass::GetAttachments() const {
         return m_attachments;
+    }
+
+    auto RenderPass::GetClearValues() const -> const decltype(m_clear_values)&
+    {
+        return m_clear_values;
     }
 
     const Framebuffers& RenderPass::GetFramebuffers() const {
