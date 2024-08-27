@@ -9,7 +9,7 @@
 #include "Render/Pipeline/Pipeline.h"
 #include "Render/Pipeline/Framebuffers.h"
 #include "Render/Pipeline/CommandBuffer.h"
-#include "Render/Pipeline/PremadeRenderPass/SingleRenderPass.h"
+#include "Render/Pipeline/PremadePipeline/SingleRenderPass.h"
 #include "Render/Renderer/HomogeneousMesh.h"
 
 using namespace Engine;
@@ -56,6 +56,7 @@ int main(int, char **)
 
     SingleRenderPass rp{system};
     rp.CreateFramebuffers();
+    rp.SetClearValues({{{0.0f, 0.0f, 0.0f, 1.0f}}});
 
     Pipeline p{system};
     ShaderModule fragModule {system};
@@ -102,7 +103,7 @@ int main(int, char **)
         if (mesh.NeedCommitment()) {
             cb.CommitVertexBuffer(mesh);
         }
-        cb.BeginRenderPass(rp, system->getSwapchainInfo().extent, index, {{{0.0f, 0.0f, 0.0f, 1.0f}}});
+        cb.BeginRenderPass(rp, system->getSwapchainInfo().extent, index);
 
         auto bind_pipeline_begin = sch::high_resolution_clock::now();
 

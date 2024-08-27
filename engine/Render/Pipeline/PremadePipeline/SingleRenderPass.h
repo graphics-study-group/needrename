@@ -11,6 +11,12 @@ namespace Engine {
     public:
         SingleRenderPass(std::weak_ptr <RenderSystem> system);
         void CreateRenderPass();
+    
+    private:
+        // Hide setting functions
+        using RenderPass::SetAttachments;
+        using RenderPass::SetDependencies;
+        using RenderPass::SetSubpasses;
     };
 };
 
