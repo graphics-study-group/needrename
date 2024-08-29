@@ -25,7 +25,7 @@ namespace Engine{
         /// @return whether commitment is needed.
         bool NeedCommitment();
 
-        Buffer WriteToStagingBuffer() const;
+        Buffer CreateStagingBuffer() const;
 
         uint32_t GetVertexCount() const;
         const Buffer & GetBuffer() const;
