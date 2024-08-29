@@ -48,6 +48,35 @@ namespace Engine
         std::weak_ptr <RenderSystem> m_system {};
         T m_handle {};
     };
+
+    /// @brief A move-only wrapper for vk namespace wrappers, without render system pointer
+    template <class T> requires IsUniqueVulkanHandleWrapper <T>
+    class VkWrapperIndependent
+    {
+    public:
+        typedef T::element_type element_type;
+        VkWrapperIndependent () = default;
+        virtual ~VkWrapperIndependent () = default;
+
+        VkWrapperIndependent(const VkWrapperIndependent &) = delete;
+        VkWrapperIndependent(VkWrapperIndependent && other) : m_handle(std::move(other.handle)) {};
+        VkWrapperIndependent & operator= (const VkWrapperIndependent &) = delete;
+        VkWrapperIndependent & operator= (VkWrapperIndependent & other) {
+            if (this->handle != other.handle) {
+                this->Release();
+                std::swap(this->handle, other.handle);
+            }
+        }
+
+        /// @brief Release the resource wrapped.
+        void release() { m_handle.release(); };
+
+        element_type & get() { return m_handle.get(); };
+        const element_type & get() const { return m_handle.get(); };
+    
+    protected:
+        T m_handle {};
+    };
 } // namespace Engine
 
 

@@ -10,23 +10,18 @@
 
 namespace Engine
 {
-    RenderSystem::RenderSystem(std::weak_ptr <SDLWindow> parent_window) : m_window(parent_window)
+    RenderSystem::RenderSystem(
+        std::weak_ptr <SDLWindow> parent_window
+    ) : m_window(parent_window)
     {
         // C++ wrappers for Vulkan functions throw exceptions
         // So we don't need to do mundane error checking
         // Create instance
-        vk::ApplicationInfo appInfo{
-            "no name",
-            VK_MAKE_VERSION(0, 1, 0),
-            "no name",
-            VK_MAKE_VERSION(0, 1, 0),
-            VK_API_VERSION_1_0
-            };
-        this->CreateInstance(appInfo);
+        
+        this->m_instance.Create("no name", "no name");
         this->CreateSurface();
 
-        m_selected_physical_device = this->SelectPhysicalDevice();
-        m_memory_properties = m_selected_physical_device.getMemoryProperties();
+        m_selected_physical_device = RenderSystemState::PhysicalDevice::SelectPhysicalDevice(m_instance.get(), m_surface.get());
         this->CreateLogicalDevice();
         this->CreateSwapchain();
 
@@ -55,8 +50,9 @@ namespace Engine
     }
 
     uint32_t RenderSystem::FindPhysicalMemory(uint32_t type, vk::MemoryPropertyFlags properties) {
-        for (uint32_t i = 0; i < m_memory_properties.memoryTypeCount; i++) {
-            if ((type & (1 << i)) && (m_memory_properties.memoryTypes[i].propertyFlags & properties) == properties) {
+        const auto & memory_properties = m_selected_physical_device.GetMemoryProperties();
+        for (uint32_t i = 0; i < memory_properties.memoryTypeCount; i++) {
+            if ((type & (1 << i)) && (memory_properties.memoryTypes[i].propertyFlags & properties) == properties) {
                 return i;
             }
         }
@@ -64,16 +60,12 @@ namespace Engine
         return 0;
     }
 
-vk::Instance RenderSystem::getInstance() const { return m_instance.get(); }
+    vk::Instance RenderSystem::getInstance() const { return m_instance.get(); }
     vk::SurfaceKHR RenderSystem::getSurface() const { return m_surface.get(); }
     vk::Device RenderSystem::getDevice() const { return m_device.get(); }
-
     const RenderSystem::QueueInfo & RenderSystem::getQueueInfo() const { return m_queues; }
-
     const RenderSystem::SwapchainInfo &RenderSystem::getSwapchainInfo() const { return m_swapchain; }
-
     const Synchronization& RenderSystem::getSynchronization() const { return *m_synch; }
-
     RenderCommandBuffer & RenderSystem::GetGraphicsCommandBuffer(uint32_t frame_index) { return m_commandbuffers[frame_index]; }
 
     RenderCommandBuffer& RenderSystem::GetGraphicsCommandBufferWaitAndReset(uint32_t frame_index, uint64_t timeout) {
@@ -111,124 +103,6 @@ vk::Instance RenderSystem::getInstance() const { return m_instance.get(); }
     void RenderSystem::UpdateSwapchain() {
         this->WaitForIdle();
         this->CreateSwapchain();
-    }
-
-    void RenderSystem::CreateInstance(const vk::ApplicationInfo &appInfo)
-    {
-        SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating Vulkan instance.");
-        const char * const * pExt;
-        uint32_t extCount;
-        pExt = SDL_Vulkan_GetInstanceExtensions(&extCount);
-
-        SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "%u vulkan extensions requested.", extCount);
-        for (uint32_t i = 0; i < extCount; i++) {
-            SDL_LogVerbose(SDL_LOG_CATEGORY_RENDER, "\t%s", pExt[i]);
-        }
-
-        vk::InstanceCreateInfo instInfo;
-        instInfo.pApplicationInfo = &appInfo;
-        instInfo.enabledExtensionCount = extCount;
-        instInfo.ppEnabledExtensionNames = pExt;
-#ifndef NDEBUG
-        if (CheckValidationLayer()) {
-            instInfo.enabledLayerCount = 1;
-            instInfo.ppEnabledLayerNames = &(validation_layer_name);
-        } else {
-            instInfo.enabledLayerCount = 0;
-        }
-#else
-        instInfo.enabledLayerCount = 0;
-#endif
-        this->m_instance = vk::createInstanceUnique(instInfo);
-    }
-
-    bool RenderSystem::CheckValidationLayer()
-    {
-        auto layers = vk::enumerateInstanceLayerProperties();
-        for (const auto & layer : layers) {
-            if(strcmp(layer.layerName, validation_layer_name) == 0)
-                return true;
-        }
-        SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Validation layer %s not available.", validation_layer_name);
-        return false;
-    }
-
-    vk::PhysicalDevice RenderSystem::SelectPhysicalDevice() const
-    {
-        SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Selecting physical devices.");
-        auto devices = m_instance->enumeratePhysicalDevices();
-        SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Found %llu Vulkan devices.", devices.size());
-
-        const vk::PhysicalDevice * selected_device = nullptr;
-        for (const auto & device : devices) {
-            if (IsDeviceSuitable(device)) {
-                selected_device = &device;
-                break;
-            }
-        }
-        
-        if (!selected_device) {
-            SDL_LogCritical(SDL_LOG_CATEGORY_RENDER, "Cannot select appropiate device.");
-        }
-        assert(selected_device);
-        SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Device %s selected.", selected_device->getProperties().deviceName.data());
-        return *selected_device;
-    }
-
-    bool RenderSystem::IsDeviceSuitable(const vk::PhysicalDevice &device) const 
-    {
-        auto props = device.getProperties();
-        SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "\tInspecting %s.", props.deviceName.data());
-
-        /* if (!(props.deviceType == vk::PhysicalDeviceType::eDiscreteGpu)) {
-            SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Not discrete GPU.");
-            return false;
-        } */
-
-        // Check if all queue families are available
-        if (!FillQueueFamily(device).isComplete()) {
-            SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Cannot find complete queue family.");
-            return false;
-        }
-
-        // Check if swapchain is supported
-        auto support = FillSwapchainSupport(device);
-        if (support.formats.empty() || support.modes.empty()) {
-            SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Cannot find suitable swapchain.");
-            return false;
-        }
-
-        // Check if all extensions are available
-        std::unordered_set <std::string> required_extensions{};
-        for (const auto & extension_name : device_extension_name) {
-            required_extensions.insert(extension_name.data());
-        }
-
-        auto extensions = device.enumerateDeviceExtensionProperties();
-        for (const auto & extension : extensions) {
-            required_extensions.erase(extension.extensionName);
-        }
-
-        if (!required_extensions.empty()) {
-            SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, 
-                "Cannot find all extensions, %llu extensions not found.",
-                required_extensions.size()
-                );
-            for (const auto & name : required_extensions) {
-                SDL_LogVerbose(SDL_LOG_CATEGORY_RENDER, "\t%s", name.data());
-            }
-        }
-        return true;
-    }
-
-    SwapchainSupport RenderSystem::FillSwapchainSupport(const vk::PhysicalDevice &device) const 
-    {
-        SwapchainSupport support{
-            device.getSurfaceCapabilitiesKHR(m_surface.get()), 
-            device.getSurfaceFormatsKHR(m_surface.get()), 
-            device.getSurfacePresentModesKHR(m_surface.get())
-        };
-        return support;
     }
 
     std::tuple<vk::Extent2D, vk::SurfaceFormatKHR, vk::PresentModeKHR>
@@ -284,7 +158,7 @@ vk::Instance RenderSystem::getInstance() const { return m_instance.get(); }
     void RenderSystem::CreateLogicalDevice() {
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating logical device.");
 
-        auto indices = FillQueueFamily(m_selected_physical_device);
+        auto indices = m_selected_physical_device.GetQueueFamilyIndices();
         // Find unique indices
         std::vector<uint32_t> indices_vector{indices.graphics.value(),
                                             indices.present.value()};
@@ -321,7 +195,7 @@ vk::Instance RenderSystem::getInstance() const { return m_instance.get(); }
         // Validation layers are not used for logical devices.
         dci.enabledLayerCount = 0;
 
-        m_device = m_selected_physical_device.createDeviceUnique(dci);
+        m_device = m_selected_physical_device.get().createDeviceUnique(dci);
 
         SDL_LogInfo(0, "Retreiving queues.");
         this->m_queues.graphicsQueue =
@@ -335,7 +209,7 @@ vk::Instance RenderSystem::getInstance() const { return m_instance.get(); }
     {
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating swap chain.");
         // Fill in selected configuration
-        auto support = FillSwapchainSupport(m_selected_physical_device);
+        auto support = m_selected_physical_device.GetSwapchainSupport();
         auto [extent, format, mode] = SelectSwapchainConfig(support);
 
         uint32_t image_count = support.capabilities.minImageCount + 1;
@@ -367,7 +241,7 @@ vk::Instance RenderSystem::getInstance() const { return m_instance.get(); }
             info.oldSwapchain = nullptr;
         }
 
-        auto indices = FillQueueFamily(m_selected_physical_device);
+        auto indices = m_selected_physical_device.GetQueueFamilyIndices();
         std::vector <uint32_t> queues {indices.graphics.value(), indices.present.value()};
         if (indices.graphics != indices.present) {
             info.imageSharingMode = vk::SharingMode::eConcurrent;
@@ -447,21 +321,5 @@ vk::Instance RenderSystem::getInstance() const { return m_instance.get(); }
 
         // Pass the instance to it to assure successful deletion
         m_surface = vk::UniqueSurfaceKHR(surface, m_instance.get());
-    }
-
-    QueueFamilyIndices RenderSystem::FillQueueFamily(const vk::PhysicalDevice &device) const
-    {
-        QueueFamilyIndices q;
-        auto queueFamilyProps = device.getQueueFamilyProperties();
-        for (size_t i = 0; i < queueFamilyProps.size(); i++) {
-            const auto & prop = queueFamilyProps[i];
-            if (prop.queueFlags & vk::QueueFlagBits::eGraphics) {
-                if (!q.graphics.has_value()) q.graphics = i;
-            }
-            if (device.getSurfaceSupportKHR(i, m_surface.get())) {
-                if (!q.present.has_value()) q.present = i;
-            }
-        }
-        return q;
     }
 }  // namespace Engine
