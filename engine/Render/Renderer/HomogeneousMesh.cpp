@@ -27,7 +27,7 @@ namespace Engine {
         return need;
     }
 
-    Buffer HomogeneousMesh::WriteToStagingBuffer() const {
+    Buffer HomogeneousMesh::CreateStagingBuffer() const {
         assert(m_positions.size() % 3 == 0);
         assert(m_positions.size() / 3 == GetVertexCount());
         const uint64_t buffer_size = GetVertexCount() * SINGLE_VERTEX_BUFFER_SIZE_WITH_INDEX;
@@ -35,7 +35,6 @@ namespace Engine {
         Buffer buffer(m_system);
         buffer.Create(Buffer::BufferType::Staging, buffer_size);
 
-        auto device = m_system.lock()->getDevice();
         std::byte * data = buffer.Map();
         WriteToMemory(data);
         buffer.Unmap();
