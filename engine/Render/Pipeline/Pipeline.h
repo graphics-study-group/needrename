@@ -9,7 +9,7 @@
 
 namespace Engine{
     /// @brief A Vulkan pipeline.
-    /// Pipelines define fixed-function stages of an actual rasterization pipeline on graphic cards, 
+    /// Pipelines define fixed-function and programmable stages of an actual rasterization pipeline on graphic cards, 
     /// whereas passes specify data (called attachments) flow within them.
     class Pipeline : public VkWrapper<vk::UniquePipeline> {
     public:

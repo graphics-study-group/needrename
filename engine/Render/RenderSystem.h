@@ -9,34 +9,20 @@
 #include "Render/Pipeline/CommandBuffer.h"
 #include "Render/Pipeline/Synchronization.h"
 
+#include "Render/RenderSystem/Instance.h"
+#include "Render/RenderSystem/PhysicalDevice.h"
+
 namespace Engine
 {
     class RendererComponent;
     class CameraComponent;
 
-    struct QueueFamilyIndices
-    {
-        std::optional <uint32_t> graphics {};
-        std::optional <uint32_t> present {};
-
-        bool isComplete() {
-            if (!graphics.has_value()) return false;
-            if (!present.has_value()) return false;
-            return true;
-        }
-    };
-
-    struct SwapchainSupport
-    {
-        vk::SurfaceCapabilitiesKHR capabilities;
-        // std::unordered_set requires default constructor
-        std::vector <vk::SurfaceFormatKHR> formats;
-        std::vector <vk::PresentModeKHR> modes;
-    };
-
     class RenderSystem
     {
     public:
+
+        using SwapchainSupport = Engine::RenderSystemState::PhysicalDevice::SwapchainSupport;
+        using QueueFamilyIndices = Engine::RenderSystemState::PhysicalDevice::QueueFamilyIndices;
 
         struct QueueInfo {
             vk::Queue graphicsQueue;
@@ -92,38 +78,9 @@ namespace Engine
         vk::Result Present(uint32_t frame_index, uint32_t in_flight_index);
         
     protected:
-
-        /// @brief Create a Vulkan instance.
-        /// @param appInfo vk::ApplicationInfo
-        void CreateInstance(const vk::ApplicationInfo & appInfo);
-
-        /// @brief Check if validation layer VK_LAYER_KHRONOS_validation is available.
-        /// @return true if available
-        bool CheckValidationLayer();
-
         /// @brief Create a vk::SurfaceKHR.
         /// It should be called right after instance creation, before selecting a physical device.
         void CreateSurface();
-
-        /// @brief Select a suitable physical device.
-        /// Should be called after surface creation, before logical device creation.
-        /// @return vk::PhysicalDevice
-        vk::PhysicalDevice SelectPhysicalDevice() const;
-        
-        /// @brief Check if a device is suitable
-        /// @param device vk::PhysicalDevice
-        /// @return true if it is.
-        bool IsDeviceSuitable(const vk::PhysicalDevice & device) const;
-
-        /// @brief Fill up a queue family struct of a given physical device.
-        /// @param device vk::PhysicalDevice
-        /// @return QueueFamilyIndices
-        QueueFamilyIndices FillQueueFamily(const vk::PhysicalDevice & device) const;
-        
-        /// @brief Fill up swap chain support information
-        /// @param device 
-        /// @return SwapchainSupport
-        SwapchainSupport FillSwapchainSupport(const vk::PhysicalDevice & device) const;
 
         /// @brief Select a swap chain config from all supported ones
         /// @param support 
@@ -148,11 +105,10 @@ namespace Engine
         std::vector <std::shared_ptr<RendererComponent>> m_components {};
         std::shared_ptr <CameraComponent> m_active_camera {};
 
-        vk::PhysicalDevice m_selected_physical_device {};
-        vk::PhysicalDeviceMemoryProperties m_memory_properties {};
+        RenderSystemState::PhysicalDevice m_selected_physical_device {};
         // Order of declaration effects destructing order!
 
-        vk::UniqueInstance m_instance{};
+        RenderSystemState::Instance m_instance {};
         vk::UniqueSurfaceKHR m_surface{};
         vk::UniqueDevice m_device{};
         
