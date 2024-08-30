@@ -8,6 +8,9 @@
 #include "Render/Pipeline/PipelineLayout.h"
 
 namespace Engine{
+
+    class ShaderModule;
+
     /// @brief A Vulkan pipeline.
     /// Pipelines define fixed-function and programmable stages of an actual rasterization pipeline on graphic cards, 
     /// whereas passes specify data (called attachments) flow within them.
@@ -19,7 +22,7 @@ namespace Engine{
         void CreatePipeline(
             Subpass subpass, 
             const PipelineLayout & layout, 
-            const std::vector<vk::PipelineShaderStageCreateInfo> & stage
+            const std::vector<std::reference_wrapper<const ShaderModule>> & shaders
         );
 
         const Subpass & GetSubpass() const;

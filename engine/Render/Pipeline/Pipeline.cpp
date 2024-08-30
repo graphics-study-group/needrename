@@ -1,5 +1,6 @@
 #include "Pipeline.h"
 #include "Render/Renderer/HomogeneousMesh.h"
+#include "Render/Pipeline/Shader.h"
 
 namespace Engine
 {
@@ -7,16 +8,22 @@ namespace Engine
 
     void Pipeline::CreatePipeline(Subpass subpass,
         const PipelineLayout & layout,
-        const std::vector<vk::PipelineShaderStageCreateInfo> & stage)
-    {
+        const std::vector<std::reference_wrapper<const ShaderModule>> & shaders
+    ) {
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating pipeline.");
-        assert(!stage.empty());
+        assert(!shaders.empty());
 
         m_attached_subpass = subpass;
 
+        std::vector <vk::PipelineShaderStageCreateInfo> stages;
+        stages.resize(shaders.size());
+        for (size_t i = 0; i < shaders.size(); i++) {
+            stages[i] = (shaders[i].get().GetStageCreateInfo());
+        }
+
         vk::GraphicsPipelineCreateInfo info{};
-        info.stageCount = stage.size();
-        info.pStages = stage.data();
+        info.stageCount = stages.size();
+        info.pStages = stages.data();
 
         auto vertex_input = HomogeneousMesh::GetVertexInputState();
         info.pVertexInputState = &vertex_input;
