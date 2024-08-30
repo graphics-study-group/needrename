@@ -8,7 +8,7 @@ namespace Engine
 
     void SingleRenderPass::CreateRenderPass() {
         vk::AttachmentDescription att{};
-        att.format = m_system.lock()->getSwapchainInfo().format.format;
+        att.format = m_system.lock()->GetSwapchain().GetImageFormat().format;
         att.samples = vk::SampleCountFlagBits::e1;
         att.loadOp = vk::AttachmentLoadOp::eClear;
         att.storeOp = vk::AttachmentStoreOp::eStore;

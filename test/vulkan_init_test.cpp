@@ -103,13 +103,14 @@ int main(int, char **)
         if (mesh.NeedCommitment()) {
             cb.CommitVertexBuffer(mesh);
         }
-        cb.BeginRenderPass(rp, system->getSwapchainInfo().extent, index);
+        vk::Extent2D extent {system->GetSwapchain().GetExtent()};
+        cb.BeginRenderPass(rp, extent, index);
 
         auto bind_pipeline_begin = sch::high_resolution_clock::now();
 
         cb.BindPipelineProgram(p);
-        vk::Rect2D scissor{{0, 0}, system->getSwapchainInfo().extent};
-        cb.SetupViewport(system->getSwapchainInfo().extent.width, system->getSwapchainInfo().extent.height, scissor);
+        vk::Rect2D scissor{{0, 0}, system->GetSwapchain().GetExtent()};
+        cb.SetupViewport(extent.width, extent.height, scissor);
         cb.DrawMesh(mesh);
         cb.End();
 

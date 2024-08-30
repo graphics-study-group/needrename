@@ -6,7 +6,7 @@
 
 namespace Engine::RenderSystemState {
 
-    PhysicalDevice::QueueFamilyIndices PhysicalDevice::FillQueueFamilyIndices(vk::PhysicalDevice device, vk::SurfaceKHR surface) {
+    QueueFamilyIndices PhysicalDevice::FillQueueFamilyIndices(vk::PhysicalDevice device, vk::SurfaceKHR surface) {
         QueueFamilyIndices q;
         auto queueFamilyProps = device.getQueueFamilyProperties();
         for (size_t i = 0; i < queueFamilyProps.size(); i++) {
@@ -21,7 +21,7 @@ namespace Engine::RenderSystemState {
         return q;
     }
 
-    PhysicalDevice::SwapchainSupport PhysicalDevice::FillSwapchainSupport(vk::PhysicalDevice device, vk::SurfaceKHR surface) {
+    SwapchainSupport PhysicalDevice::FillSwapchainSupport(vk::PhysicalDevice device, vk::SurfaceKHR surface) {
         SwapchainSupport support{
             device.getSurfaceCapabilitiesKHR(surface), 
             device.getSurfaceFormatsKHR(surface), 
@@ -61,11 +61,11 @@ namespace Engine::RenderSystemState {
         return m_device;
     }
 
-const PhysicalDevice::SwapchainSupport& PhysicalDevice::GetSwapchainSupport() const {
+    const SwapchainSupport& PhysicalDevice::GetSwapchainSupport() const {
         return m_support;
     }
 
-    const PhysicalDevice::QueueFamilyIndices& PhysicalDevice::GetQueueFamilyIndices() const {
+    const QueueFamilyIndices& PhysicalDevice::GetQueueFamilyIndices() const {
         return m_indices;
     }
 

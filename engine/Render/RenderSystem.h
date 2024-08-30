@@ -11,6 +11,7 @@
 
 #include "Render/RenderSystem/Instance.h"
 #include "Render/RenderSystem/PhysicalDevice.h"
+#include "Render/RenderSystem/Swapchain.h"
 
 namespace Engine
 {
@@ -21,24 +22,14 @@ namespace Engine
     {
     public:
 
-        using SwapchainSupport = Engine::RenderSystemState::PhysicalDevice::SwapchainSupport;
-        using QueueFamilyIndices = Engine::RenderSystemState::PhysicalDevice::QueueFamilyIndices;
+        using SwapchainSupport = Engine::RenderSystemState::SwapchainSupport;
+        using QueueFamilyIndices = Engine::RenderSystemState::QueueFamilyIndices;
 
         struct QueueInfo {
             vk::Queue graphicsQueue;
             vk::UniqueCommandPool graphicsPool;
             vk::Queue presentQueue;
             vk::UniqueCommandPool presentPool;
-        };
-
-        struct SwapchainInfo {
-            vk::UniqueSwapchainKHR swapchain;
-            // Images retreived from swapchain don't require clean up.
-            std::vector <vk::Image> images;
-            // However, image views do need clean up.
-            std::vector <vk::UniqueImageView> imageViews;
-            vk::SurfaceFormatKHR format;
-            vk::Extent2D extent;
         };
 
         RenderSystem(std::weak_ptr <SDLWindow> parent_window);
@@ -69,7 +60,7 @@ namespace Engine
         vk::SurfaceKHR getSurface() const;
         vk::Device getDevice() const;
         const QueueInfo & getQueueInfo () const;
-        const SwapchainInfo & getSwapchainInfo() const;
+        const RenderSystemState::Swapchain & GetSwapchain() const;
         const Synchronization & getSynchronization() const;
         RenderCommandBuffer & GetGraphicsCommandBuffer(uint32_t frame_index);
         RenderCommandBuffer & GetGraphicsCommandBufferWaitAndReset(uint32_t frame_index, uint64_t timeout);
@@ -81,12 +72,6 @@ namespace Engine
         /// @brief Create a vk::SurfaceKHR.
         /// It should be called right after instance creation, before selecting a physical device.
         void CreateSurface();
-
-        /// @brief Select a swap chain config from all supported ones
-        /// @param support 
-        /// @return std::tuple <vk::Extent2D, vk::SurfaceFormatKHR, vk::PresentModeKHR>
-        std::tuple <vk::Extent2D, vk::SurfaceFormatKHR, vk::PresentModeKHR>
-        SelectSwapchainConfig(const SwapchainSupport & support) const;
 
         /// @brief Create a logical device from selected physical device.
         void CreateLogicalDevice();
@@ -113,7 +98,7 @@ namespace Engine
         vk::UniqueDevice m_device{};
         
         QueueInfo  m_queues {};
-        SwapchainInfo m_swapchain{};
+        RenderSystemState::Swapchain m_swapchain{};
 
         std::unique_ptr <Synchronization> m_synch {};
         std::vector <RenderCommandBuffer> m_commandbuffers {};
