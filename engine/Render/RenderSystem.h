@@ -56,6 +56,12 @@ namespace Engine
         /// @return 
         uint32_t FindPhysicalMemory(uint32_t type, vk::MemoryPropertyFlags properties);
 
+        /// @brief Blocks and waits for a fence, signaling a frame is ready for rendering.
+        /// Resets corresponding command buffer and fence.
+        /// @param frame_index 
+        /// @param timeout 
+        void WaitForFrameBegin(uint32_t frame_index, uint64_t timeout = std::numeric_limits<uint64_t>::max());
+
         vk::Instance getInstance() const;
         vk::SurfaceKHR getSurface() const;
         vk::Device getDevice() const;
@@ -63,9 +69,8 @@ namespace Engine
         const RenderSystemState::Swapchain & GetSwapchain() const;
         const Synchronization & getSynchronization() const;
         RenderCommandBuffer & GetGraphicsCommandBuffer(uint32_t frame_index);
-        RenderCommandBuffer & GetGraphicsCommandBufferWaitAndReset(uint32_t frame_index, uint64_t timeout);
 
-        uint32_t GetNextImage(uint32_t in_flight_index, uint64_t timeout);
+        uint32_t GetNextImage(uint32_t in_flight_index, uint64_t timeout = std::numeric_limits<uint64_t>::max());
         vk::Result Present(uint32_t frame_index, uint32_t in_flight_index);
         
     protected:

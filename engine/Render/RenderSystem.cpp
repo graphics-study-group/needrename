@@ -60,6 +60,16 @@ namespace Engine
         return 0;
     }
 
+    void RenderSystem::WaitForFrameBegin(uint32_t frame_index, uint64_t timeout) {
+        vk::Fence fence = getSynchronization().GetCommandBufferFence(frame_index);
+        vk::Result waitFenceResult = getDevice().waitForFences({fence}, vk::True, timeout);
+        if (waitFenceResult == vk::Result::eTimeout) {
+            SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Timed out waiting for fence for frame id %u.", frame_index);
+        }
+        m_commandbuffers[frame_index].Reset();
+        getDevice().resetFences({fence});
+    }
+
     vk::Instance RenderSystem::getInstance() const { return m_instance.get(); }
     vk::SurfaceKHR RenderSystem::getSurface() const { return m_surface.get(); }
     vk::Device RenderSystem::getDevice() const { return m_device.get(); }
@@ -67,12 +77,6 @@ namespace Engine
     const RenderSystemState::Swapchain& RenderSystem::GetSwapchain() const { return m_swapchain; }
     const Synchronization& RenderSystem::getSynchronization() const { return *m_synch; }
     RenderCommandBuffer & RenderSystem::GetGraphicsCommandBuffer(uint32_t frame_index) { return m_commandbuffers[frame_index]; }
-
-    RenderCommandBuffer& RenderSystem::GetGraphicsCommandBufferWaitAndReset(uint32_t frame_index, uint64_t timeout) {
-        m_device->waitForFences({m_synch->GetCommandBufferFence(frame_index)}, vk::True, timeout);
-        m_commandbuffers[frame_index].Reset();
-        return m_commandbuffers[frame_index];
-    }
 
     uint32_t RenderSystem::GetNextImage(uint32_t frame_id, uint64_t timeout) {
         auto result = m_device->acquireNextImageKHR(
