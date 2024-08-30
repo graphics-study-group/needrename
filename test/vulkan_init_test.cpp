@@ -61,13 +61,12 @@ int main(int, char **)
     Pipeline p{system};
     ShaderModule fragModule {system};
     ShaderModule vertModule {system};
-    fragModule.CreateShaderModule(readFile("shader/debug_fragment_color.frag.spv"));
-    vertModule.CreateShaderModule(readFile("shader/debug_vertex_trig.vert.spv"));
+    std::vector <char> shaderData = readFile("shader/debug_fragment_color.frag.spv");
+    fragModule.CreateShaderModule(reinterpret_cast<std::byte*>(shaderData.data()), shaderData.size(), ShaderModule::ShaderType::Fragment);
+    shaderData = readFile("shader/debug_vertex_trig.vert.spv");
+    vertModule.CreateShaderModule(reinterpret_cast<std::byte*>(shaderData.data()), shaderData.size(), ShaderModule::ShaderType::Vertex);
 
-    p.CreatePipeline(rp.GetSubpass(0), pl, {
-        fragModule.GetStageCreateInfo(vk::ShaderStageFlagBits::eFragment),
-        vertModule.GetStageCreateInfo(vk::ShaderStageFlagBits::eVertex)
-        });
+    p.CreatePipeline(rp.GetSubpass(0), pl, {fragModule,vertModule});
     
     uint32_t in_flight_frame_id = 0;
     uint32_t total_test_frame = 60;
