@@ -82,14 +82,8 @@ int main(int, char **)
         
         auto frame_start_timer = sch::high_resolution_clock::now();
 
-        vk::Fence fence = system->getSynchronization().GetCommandBufferFence(in_flight_frame_id);
-        vk::Result waitFenceResult = system->getDevice().waitForFences({fence}, vk::True, 0x7FFFFFFF);
-        if (waitFenceResult == vk::Result::eTimeout) {
-            SDL_LogError(0, "Timed out waiting for fence.");
-            return -1;
-        }
-        RenderCommandBuffer & cb = system->GetGraphicsCommandBufferWaitAndReset(in_flight_frame_id, 0x7fffffff);
-        system->getDevice().resetFences({fence});
+        system->WaitForFrameBegin(in_flight_frame_id);
+        RenderCommandBuffer & cb = system->GetGraphicsCommandBuffer(in_flight_frame_id);
 
         auto fence_end_timer = sch::high_resolution_clock::now();
 
