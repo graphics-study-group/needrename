@@ -31,8 +31,8 @@ namespace Engine
 
         void CreateRenderPass();
 
-        void CreateFramebuffers();
-        Subpass GetSubpass(uint32_t index);
+        void CreateFramebuffersFromSwapchain();
+        Subpass GetSubpass(uint32_t index) const;
 
         RenderPass & SetAttachments(std::vector <vk::AttachmentDescription> attachments);
         RenderPass & SetSubpasses(std::vector <vk::SubpassDescription> subpasses);

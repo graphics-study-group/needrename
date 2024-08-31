@@ -7,7 +7,7 @@
 namespace Engine
 {
     class RenderPass;
-    class Pipeline;
+    class Material;
     class Synchronization;
     class HomogeneousMesh;
 
@@ -25,12 +25,17 @@ namespace Engine
 
         void BeginRenderPass(const RenderPass & pass, vk::Extent2D extent, uint32_t framebuffer_id);
 
-        void BindPipelineProgram(const Pipeline & pipeline);
+        /// @brief Bind a material for rendering, and write per-material descriptors.
+        /// @param material 
+        /// @param pass_index 
+        void BindMaterial(const Material & material, uint32_t pass_index);
 
         void SetupViewport(float vpWidth, float vpHeight, vk::Rect2D scissor);
 
         void CommitVertexBuffer(const HomogeneousMesh & mesh);
 
+        /// @brief Write per-mesh descriptors, and send draw call to GPU.
+        /// @param mesh 
         void DrawMesh(const HomogeneousMesh & mesh);
 
         void End();

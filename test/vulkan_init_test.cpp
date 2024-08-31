@@ -5,6 +5,7 @@
 
 #include "MainClass.h"
 #include "Functional/SDLWindow.h"
+#include "Render/Material/Material.h"
 #include "Render/Pipeline/Shader.h"
 #include "Render/Pipeline/Framebuffers.h"
 #include "Render/Pipeline/CommandBuffer.h"
@@ -17,16 +18,8 @@ namespace sch = std::chrono;
 
 Engine::MainClass * cmc;
 
-class TestHomoMesh : public HomogeneousMesh {
-public:
-    TestHomoMesh(std::weak_ptr<RenderSystem> system) : HomogeneousMesh(system) {
-        this->m_positions = {0.0f, -0.5f, 0.0f, 0.5f, 0.5f, 0.0f, -0.5f, 0.5f, 0.0f};
-        this->m_colors = {1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f};
-        this->m_indices = {0, 1, 2};
-    }
-};
 
-std::vector<char> readFile(const std::string& filename) {
+std::vector <char> readFile(const std::string& filename) {
     std::ifstream file(filename, std::ios::ate | std::ios::binary);
 
     if (!file.is_open()) throw std::runtime_error("failed to open file!");
@@ -38,6 +31,42 @@ std::vector<char> readFile(const std::string& filename) {
     file.close();
     return buffer;
 }
+
+class TestHomoMesh : public HomogeneousMesh {
+public:
+    TestHomoMesh(std::weak_ptr<RenderSystem> system) : HomogeneousMesh(system) {
+        this->m_positions = {0.0f, -0.5f, 0.0f, 0.5f, 0.5f, 0.0f, -0.5f, 0.5f, 0.0f};
+        this->m_colors = {1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f};
+        this->m_indices = {0, 1, 2};
+    }
+};
+
+class TestMaterial : public Material {
+    ShaderModule fragModule;
+    ShaderModule vertModule;
+public:
+    TestMaterial (
+        std::weak_ptr <RenderSystem> system, 
+        const RenderPass & pass
+    ) : Material(system), fragModule(system), vertModule(system) {
+        std::vector <char> shaderData = readFile("shader/debug_fragment_color.frag.spv");
+        fragModule.CreateShaderModule(
+            reinterpret_cast<std::byte*>(shaderData.data()), 
+            shaderData.size(), 
+            ShaderModule::ShaderType::Fragment
+        );
+        shaderData = readFile("shader/debug_vertex_trig.vert.spv");
+        vertModule.CreateShaderModule(
+            reinterpret_cast<std::byte*>(shaderData.data()),
+            shaderData.size(), 
+            ShaderModule::ShaderType::Vertex
+        );
+
+        m_pipelines[0].first = std::make_unique <PremadePipeline::DefaultPipeline> (system);
+        m_pipelines[0].second = std::make_unique <PipelineLayout> (system);
+        m_pipelines[0].first->CreatePipeline(pass.GetSubpass(0), *(m_pipelines[0].second.get()), {fragModule, vertModule});
+    }
+};
 
 int main(int, char **)
 {
@@ -55,24 +84,16 @@ int main(int, char **)
     pl.CreatePipelineLayout({}, {});
 
     SingleRenderPass rp{system};
-    rp.CreateFramebuffers();
+    rp.CreateFramebuffersFromSwapchain();
     rp.SetClearValues({{{0.0f, 0.0f, 0.0f, 1.0f}}});
 
-    PremadePipeline::DefaultPipeline p{system};
-    ShaderModule fragModule {system};
-    ShaderModule vertModule {system};
-    std::vector <char> shaderData = readFile("shader/debug_fragment_color.frag.spv");
-    fragModule.CreateShaderModule(reinterpret_cast<std::byte*>(shaderData.data()), shaderData.size(), ShaderModule::ShaderType::Fragment);
-    shaderData = readFile("shader/debug_vertex_trig.vert.spv");
-    vertModule.CreateShaderModule(reinterpret_cast<std::byte*>(shaderData.data()), shaderData.size(), ShaderModule::ShaderType::Vertex);
+    TestMaterial material{system, rp};
 
-    p.CreatePipeline(rp.GetSubpass(0), pl, {fragModule,vertModule});
-    
     uint32_t in_flight_frame_id = 0;
     uint32_t total_test_frame = 60;
     
     system->UpdateSwapchain();
-    rp.CreateFramebuffers();
+    rp.CreateFramebuffersFromSwapchain();
 
     TestHomoMesh mesh{system};
     mesh.Prepare();
@@ -101,7 +122,7 @@ int main(int, char **)
 
         auto bind_pipeline_begin = sch::high_resolution_clock::now();
 
-        cb.BindPipelineProgram(p);
+        cb.BindMaterial(material, 0);
         vk::Rect2D scissor{{0, 0}, system->GetSwapchain().GetExtent()};
         cb.SetupViewport(extent.width, extent.height, scissor);
         cb.DrawMesh(mesh);

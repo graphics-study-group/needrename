@@ -1,5 +1,6 @@
 #include "CommandBuffer.h"
 
+#include "Render/Material/Material.h"
 #include "Render/Pipeline/Synchronization.h"
 #include "Render/Pipeline/RenderPass.h"
 #include "Render/Pipeline/Pipeline.h"
@@ -40,8 +41,9 @@ namespace Engine
         m_handle->beginRenderPass(info, vk::SubpassContents::eInline);
     }
 
-    void RenderCommandBuffer::BindPipelineProgram(const Pipeline& pipeline) {
-        m_handle->bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline.get());
+    void RenderCommandBuffer::BindMaterial(const Material & material, uint32_t pass_index) {
+        m_handle->bindPipeline(vk::PipelineBindPoint::eGraphics, material.GetPipeline(pass_index).get());
+        // TODO: Write per-material descriptors
     }
 
     void RenderCommandBuffer::SetupViewport(float vpWidth, float vpHeight, vk::Rect2D scissor) {
@@ -62,6 +64,8 @@ namespace Engine
     }
 
     void RenderCommandBuffer::DrawMesh(const HomogeneousMesh& mesh) {
+        // TODO: Write per-mesh descriptors
+        // which are typically the model transform (via push constant) and skeletal transforms.
         auto bindings = mesh.GetBindingInfo();
         m_handle->bindVertexBuffers(0, bindings.first, bindings.second);
         auto indices = mesh.GetIndexInfo();
