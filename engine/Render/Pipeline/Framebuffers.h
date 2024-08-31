@@ -11,7 +11,7 @@ namespace Engine
     {
     public:
         Framebuffers(std::weak_ptr <RenderSystem> system);
-        void CreateFramebuffers(const RenderPass & pass);
+        void CreateFramebuffersFromSwapchain(const RenderPass & pass);
         vk::Framebuffer GetFramebuffer(uint32_t index) const;
     protected:
         std::weak_ptr <RenderSystem> m_system;

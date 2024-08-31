@@ -7,7 +7,7 @@ namespace Engine
     Framebuffers::Framebuffers(std::weak_ptr<RenderSystem> system) : m_system(system) {
     }
 
-    void Framebuffers::CreateFramebuffers(const RenderPass& pass) {
+    void Framebuffers::CreateFramebuffersFromSwapchain(const RenderPass& pass) {
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating framebuffers.");
         m_framebuffers.clear();
 

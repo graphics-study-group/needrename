@@ -1,9 +1,18 @@
 #include "Material.h"
-#include "Render/RenderSystem.h"
-#include "Framework/component/RenderComponent/RendererComponent.h"
+#include "Render/Pipeline/Pipeline.h"
 
 namespace Engine {
-    Material::Material (std::weak_ptr <AssetManager> manager, std::shared_ptr<RenderSystem> system) 
-    : Asset(manager), m_renderSystem(system) {
+    Material::Material (std::weak_ptr<RenderSystem> system) 
+    : m_renderSystem(system) {
+    }
+    const Pipeline& Material::GetPipeline(uint32_t pass_index) const {
+        auto itr = m_pipelines.find(pass_index);
+        assert(itr != m_pipelines.end());
+        return *(itr->second.first);
+    }
+    const PipelineLayout& Material::GetPipelineLayout(uint32_t pass_index) const {
+        auto itr = m_pipelines.find(pass_index);
+        assert(itr != m_pipelines.end());
+        return *(itr->second.second);
     }
 };

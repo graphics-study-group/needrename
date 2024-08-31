@@ -19,14 +19,14 @@ namespace Engine
         m_handle = m_system.lock()->getDevice().createRenderPassUnique(info);
     }
 
-    void RenderPass::CreateFramebuffers() {
+    void RenderPass::CreateFramebuffersFromSwapchain() {
         Framebuffers fb{m_system};
-        fb.CreateFramebuffers(*this);
+        fb.CreateFramebuffersFromSwapchain(*this);
         m_framebuffers = std::move(fb);
     }
 
     Subpass RenderPass::GetSubpass(
-        uint32_t index) {
+        uint32_t index) const {
         assert(m_handle && "Getting subpass from an empty render pass.");
         return {m_handle.get(), index};
     }
