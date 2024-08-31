@@ -6,9 +6,9 @@
 #include "MainClass.h"
 #include "Functional/SDLWindow.h"
 #include "Render/Pipeline/Shader.h"
-#include "Render/Pipeline/Pipeline.h"
 #include "Render/Pipeline/Framebuffers.h"
 #include "Render/Pipeline/CommandBuffer.h"
+#include "Render/Pipeline/PremadePipeline/DefaultPipeline.h"
 #include "Render/Pipeline/PremadePipeline/SingleRenderPass.h"
 #include "Render/Renderer/HomogeneousMesh.h"
 
@@ -58,7 +58,7 @@ int main(int, char **)
     rp.CreateFramebuffers();
     rp.SetClearValues({{{0.0f, 0.0f, 0.0f, 1.0f}}});
 
-    Pipeline p{system};
+    PremadePipeline::DefaultPipeline p{system};
     ShaderModule fragModule {system};
     ShaderModule vertModule {system};
     std::vector <char> shaderData = readFile("shader/debug_fragment_color.frag.spv");

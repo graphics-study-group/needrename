@@ -19,24 +19,20 @@ namespace Engine{
 
         Pipeline (std::weak_ptr <RenderSystem> system);
 
-        void CreatePipeline(
+        virtual void CreatePipeline(
             Subpass subpass, 
             const PipelineLayout & layout, 
             const std::vector<std::reference_wrapper<const ShaderModule>> & shaders
-        );
+        ) = 0;
 
         const Subpass & GetSubpass() const;
 
     protected:
 
-        vk::PipelineDynamicStateCreateInfo CreateDynamicState();
-        vk::PipelineInputAssemblyStateCreateInfo CreateInputAssembly();
-        vk::PipelineViewportStateCreateInfo CreateViewportState();
-        vk::PipelineRasterizationStateCreateInfo CreateRasterizationState();
-        vk::PipelineMultisampleStateCreateInfo CreateMultisampleState();
-        vk::PipelineDepthStencilStateCreateInfo CreateDepthStencilState();
-        vk::PipelineColorBlendAttachmentState CreateColorBlendAttachmentState();
-        vk::PipelineColorBlendStateCreateInfo CreateColorBlendState(const std::vector<vk::PipelineColorBlendAttachmentState> & attachments);
+        static vk::PipelineVertexInputStateCreateInfo GetVertexInputState();
+        static vk::PipelineDynamicStateCreateInfo GetDynamicState();
+        static vk::PipelineInputAssemblyStateCreateInfo GetInputAssemblyState();
+        static vk::PipelineViewportStateCreateInfo GetViewportState();
 
         Subpass m_attached_subpass {};
 
