@@ -33,7 +33,5 @@ namespace Engine
         assert(m_framebuffers.size() > index);
         return m_framebuffers[index].get();
     }
-
-    
 } // namespace Engine
 
