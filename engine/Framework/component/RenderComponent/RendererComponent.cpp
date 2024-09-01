@@ -5,9 +5,13 @@
 
 namespace Engine
 {
-    RendererComponent::RendererComponent(std::weak_ptr<GameObject> gameObject) : Component(gameObject) {
-        // material->RegisterComponent(this);
+    RendererComponent::RendererComponent(
+        std::weak_ptr<GameObject> gameObject, 
+        std::weak_ptr<RenderSystem> system
+    ) : Component(gameObject), m_system(system) {
     }
+
+    RendererComponent::~RendererComponent() {}
 
     Transform RendererComponent::GetWorldTransform() const
     {
@@ -16,12 +20,14 @@ namespace Engine
         return parentGameObject->GetWorldTransform();
     }
 
-    RendererContext RendererComponent::CreateContext() const
-    {
-        return RendererContext{ this->GetWorldTransform().GetTransformMatrix() };
-    }
-
     void RendererComponent::Tick(float dt)
     {
+    }
+    std::shared_ptr<Material> RendererComponent::GetMaterial(uint32_t slot) const {
+        assert(slot < m_materials.size());
+        return m_materials[slot];
+    }
+    auto RendererComponent::GetMaterials() -> decltype(m_materials)& {
+        return m_materials;
     }
 } // namespace Engine

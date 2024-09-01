@@ -23,6 +23,12 @@ target_link_libraries(vulkan_init_test engine)
 add_test(NAME vulkan_init_test COMMAND vulkan_init_test)
 set_target_properties(vulkan_init_test PROPERTIES FOLDER tests)
 
+add_executable(mesh_loading_test mesh_loading_test.cpp)
+add_dependencies(mesh_loading_test shader)
+target_link_libraries(mesh_loading_test engine)
+add_test(NAME mesh_loading_test COMMAND mesh_loading_test)
+set_target_properties(mesh_loading_test PROPERTIES FOLDER tests)
+
 # Copy SDL dll
 add_custom_command(TARGET SDL_init_test POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different

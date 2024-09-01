@@ -36,6 +36,7 @@ namespace Engine
 
         this->renderer = std::make_shared<RenderSystem>(this->window);
         this->world = std::make_shared<WorldSystem>();
+        this->asset = std::make_shared<AssetManager> ();
     }
 
     void MainClass::MainLoop()
@@ -88,7 +89,10 @@ namespace Engine
         }
         SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "The main loop is ended.");
     }
-    std::shared_ptr<RenderSystem> MainClass::GetRenderSystem() {
-      return renderer;
+    std::shared_ptr<AssetManager> MainClass::GetAssetManager() const {
+        return asset;
+    }
+    std::shared_ptr<RenderSystem> MainClass::GetRenderSystem() const {
+        return renderer;
     }
 }  // namespace Engine
