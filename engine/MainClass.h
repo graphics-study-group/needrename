@@ -11,6 +11,7 @@ namespace Engine
 {
     class RenderSystem;
     class WorldSystem;
+    class AssetManager;
 
     class MainClass
     {
@@ -21,12 +22,14 @@ namespace Engine
         void Initialize(const StartupOptions*, Uint32 = 0);
         void MainLoop();
 
-        std::shared_ptr <RenderSystem> GetRenderSystem();
+        std::shared_ptr <RenderSystem> GetRenderSystem() const;
+        std::shared_ptr <AssetManager> GetAssetManager() const;
 
     protected:
         std::shared_ptr <SDLWindow> window {};
         std::shared_ptr <RenderSystem> renderer {};
         std::shared_ptr <WorldSystem> world {};
+        std::shared_ptr <AssetManager> asset {};
     };
 }
 
