@@ -1,5 +1,5 @@
-#ifndef RENDER_RENDERER_MESH_INCLUDED
-#define RENDER_RENDERER_MESH_INCLUDED
+#ifndef RENDER_RENDERER_HOMOGENEOUSMESH_INCLUDED
+#define RENDER_RENDERER_HOMOGENEOUSMESH_INCLUDED
 
 #include "Render/RenderSystem.h"
 #include "Render/Pipeline/Memory/Buffer.h"
@@ -12,8 +12,6 @@ namespace Engine{
 
         static constexpr const uint32_t BINDING_COUNT = 2;
         static constexpr const size_t SINGLE_VERTEX_BUFFER_SIZE_WITHOUT_INDEX = sizeof(float) * 6;
-        static constexpr const size_t SINGLE_VERTEX_BUFFER_SIZE_WITH_INDEX 
-            = SINGLE_VERTEX_BUFFER_SIZE_WITHOUT_INDEX + sizeof(uint32_t);
 
         HomogeneousMesh(std::weak_ptr <RenderSystem> system);
         ~HomogeneousMesh();
@@ -26,8 +24,9 @@ namespace Engine{
         bool NeedCommitment();
 
         Buffer CreateStagingBuffer() const;
-
+        uint32_t GetVertexIndexCount() const;
         uint32_t GetVertexCount() const;
+        uint64_t GetExpectedBufferSize() const;
         const Buffer & GetBuffer() const;
 
         std::pair <
@@ -40,6 +39,10 @@ namespace Engine{
         GetIndexInfo() const;
 
         static vk::PipelineVertexInputStateCreateInfo GetVertexInputState();
+
+        void SetPositions (std::vector <float> positions);
+        void SetColors (std::vector <float> colors);
+        void SetIndices (std::vector <uint32_t> indices);
 
     protected:
         std::weak_ptr <RenderSystem> m_system;
@@ -61,7 +64,8 @@ namespace Engine{
         Buffer m_buffer;
 
         bool m_updated {false};
-        uint32_t m_vertex_count {0};
+
+        uint64_t m_allocated_buffer_size {0};
 
         std::vector <uint32_t> m_indices {};
         std::vector <float> m_positions {};
@@ -73,4 +77,4 @@ namespace Engine{
     };
 };
 
-#endif // RENDER_RENDERER_MESH_INCLUDED
+#endif // RENDER_RENDERER_HOMOGENEOUSMESH_INCLUDED
