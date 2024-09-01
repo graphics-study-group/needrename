@@ -10,14 +10,14 @@ namespace Engine {
 
     void HomogeneousMesh::Prepare() {
         assert(m_positions.size() % 3 == 0);
-        const uint32_t new_vertex_count = m_positions.size() / 3;
-        const uint64_t buffer_size = new_vertex_count * SINGLE_VERTEX_BUFFER_SIZE_WITH_INDEX;
+        const uint32_t new_vertex_count = GetVertexCount();
+        const uint64_t buffer_size = GetExpectedBufferSize();
 
-        if (m_vertex_count != new_vertex_count) {
+        if (m_allocated_buffer_size != buffer_size) {
             m_updated = true;
-            m_vertex_count = new_vertex_count;
-            SDL_LogVerbose(SDL_LOG_CATEGORY_RENDER, "(Re-)Allocating buffer and memory for %u vertices.", m_vertex_count);
+            SDL_LogVerbose(SDL_LOG_CATEGORY_RENDER, "(Re-)Allocating buffer and memory for %u vertices.", new_vertex_count);
             m_buffer.Create(Buffer::BufferType::Vertex, buffer_size);
+            m_allocated_buffer_size = buffer_size;
         }
     }
 
@@ -29,8 +29,7 @@ namespace Engine {
 
     Buffer HomogeneousMesh::CreateStagingBuffer() const {
         assert(m_positions.size() % 3 == 0);
-        assert(m_positions.size() / 3 == GetVertexCount());
-        const uint64_t buffer_size = GetVertexCount() * SINGLE_VERTEX_BUFFER_SIZE_WITH_INDEX;
+        const uint64_t buffer_size = GetExpectedBufferSize();
 
         Buffer buffer(m_system);
         buffer.Create(Buffer::BufferType::Staging, buffer_size);
@@ -69,18 +68,46 @@ namespace Engine {
         };
     }
 
+    void HomogeneousMesh::SetPositions(std::vector<float> positions) {
+        assert(positions.size() % 3 == 0);
+        m_positions = positions;
+        m_updated = true;
+    }
+
+    void HomogeneousMesh::SetColors(std::vector<float> colors) {
+        assert(colors.size() % 3 == 0);
+        m_colors = colors;
+        m_updated = true;
+    }
+
+    void HomogeneousMesh::SetIndices(std::vector<uint32_t> indices) {
+        m_indices = indices;
+        m_updated = true;
+    }
+
     std::pair<vk::Buffer, vk::DeviceSize> HomogeneousMesh::GetIndexInfo() const {
         assert(this->m_buffer.GetBuffer());
         uint64_t total_size = GetVertexCount() * SINGLE_VERTEX_BUFFER_SIZE_WITHOUT_INDEX;
         return std::make_pair(m_buffer.GetBuffer(), total_size);
     }
 
-    uint32_t HomogeneousMesh::GetVertexCount() const {
-        assert(m_vertex_count == m_indices.size());
-        return m_vertex_count;
+    uint32_t HomogeneousMesh::GetVertexIndexCount() const {
+        return m_indices.size();
     }
 
-    const Buffer & HomogeneousMesh::GetBuffer() const {
+    uint32_t HomogeneousMesh::GetVertexCount() const {
+        // TODO: clear up assumptions on vertex data.
+        assert(m_positions.size() % 3 == 0);
+        assert(m_colors.size() % 3 == 0);
+        assert(m_positions.size() / 3 == m_colors.size() / 3);
+        return m_positions.size() / 3;
+    }
+
+    uint64_t HomogeneousMesh::GetExpectedBufferSize() const {
+        return GetVertexIndexCount() * sizeof(uint32_t) + GetVertexCount() * SINGLE_VERTEX_BUFFER_SIZE_WITHOUT_INDEX;
+    }
+
+const Buffer & HomogeneousMesh::GetBuffer() const {
         return m_buffer;
     }
 
