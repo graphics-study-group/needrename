@@ -54,7 +54,7 @@ namespace Engine
         int GetWidth() const;
 
     protected:
-        SDL_Window * window;
+        SDL_Window * window {nullptr};
         const int width, height;
         std::list<std::function<bool(void)>> postProcs {};
     private:

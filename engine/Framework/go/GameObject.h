@@ -37,7 +37,7 @@ namespace Engine
         std::shared_ptr<TransformComponent> m_transformComponent;
 
     protected:
-        size_t m_id;
+        size_t m_id {};
 
         std::vector<std::shared_ptr<Component>> m_components {};
     };

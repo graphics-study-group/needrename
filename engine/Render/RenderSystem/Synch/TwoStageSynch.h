@@ -1,7 +1,7 @@
 #ifndef RENDER_PIPELINE_SYNCHRONIZATION_TWOSTAGESYNCHRONIZATION_INCLUDED
 #define RENDER_PIPELINE_SYNCHRONIZATION_TWOSTAGESYNCHRONIZATION_INCLUDED
 
-#include "Render/Pipeline/Synch/Synchronization.h"
+#include "Render/RenderSystem/Synch/Synchronization.h"
 
 namespace Engine {
     /// @brief A synchronization class with only three synchronization primitives:

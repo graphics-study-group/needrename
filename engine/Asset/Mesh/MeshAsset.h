@@ -31,12 +31,12 @@ namespace Engine
         inline const std::vector <float> & GetUVs() const { return m_uvs; }
     
     protected:
-        std::vector <size_t> m_offsets;
-        std::vector <size_t> m_triangle_vert_ids;
-        std::vector <size_t> m_triangle_normal_ids;
-        std::vector <size_t> m_triangle_uv_ids;
-        std::vector <float> m_positions;
-        std::vector <float> m_uvs;
+        std::vector <size_t> m_offsets {};
+        std::vector <size_t> m_triangle_vert_ids {};
+        std::vector <size_t> m_triangle_normal_ids {};
+        std::vector <size_t> m_triangle_uv_ids {};
+        std::vector <float> m_positions {};
+        std::vector <float> m_uvs {};
     
     private:
         friend class cereal::access;

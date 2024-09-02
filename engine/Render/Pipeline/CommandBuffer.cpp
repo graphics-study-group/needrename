@@ -1,10 +1,10 @@
 #include "CommandBuffer.h"
 
 #include "Render/Material/Material.h"
-#include "Render/Pipeline/Synchronization.h"
 #include "Render/Pipeline/RenderPass.h"
 #include "Render/Pipeline/Pipeline.h"
 #include "Render/Renderer/HomogeneousMesh.h"
+#include "Render/RenderSystem/Synch/Synchronization.h"
 
 namespace Engine
 {
