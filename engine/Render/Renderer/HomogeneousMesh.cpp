@@ -103,7 +103,7 @@ namespace Engine {
         return GetVertexIndexCount() * sizeof(uint32_t) + GetVertexCount() * VertexStruct::VERTEX_TOTAL_SIZE;
     }
 
-const Buffer & HomogeneousMesh::GetBuffer() const {
+    const Buffer & HomogeneousMesh::GetBuffer() const {
         return m_buffer;
     }
 

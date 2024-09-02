@@ -85,14 +85,14 @@ int main(int argc, char * argv[])
     TestMaterial material{render_system, rp};
 
     uint32_t in_flight_frame_id = 0;
-    uint32_t total_test_frame = 360;
+    uint32_t total_test_frame = 60;
     
     render_system->UpdateSwapchain();
     rp.CreateFramebuffersFromSwapchain();
 
     mesh_component->GetSubmesh(0)->Prepare();
     
-    while(true) {
+    do {
 
         render_system->WaitForFrameBegin(in_flight_frame_id);
         RenderCommandBuffer & cb = render_system->GetGraphicsCommandBuffer(in_flight_frame_id);
@@ -118,7 +118,7 @@ int main(int argc, char * argv[])
         render_system->Present(index, in_flight_frame_id);
 
         in_flight_frame_id = (in_flight_frame_id + 1) % 3;
-    }
+    } while(total_test_frame--);
     render_system->WaitForIdle();
 
     delete cmc;

@@ -7,7 +7,7 @@
 #include <vulkan/vulkan.hpp>
 
 #include "Render/Pipeline/CommandBuffer.h"
-#include "Render/Pipeline/Synchronization.h"
+#include "Render/Pipeline/Synch/InflightTwoStageSynch.h"
 
 #include "Render/RenderSystem/Instance.h"
 #include "Render/RenderSystem/PhysicalDevice.h"
