@@ -9,7 +9,6 @@ namespace Engine {
     }
 
     void HomogeneousMesh::Prepare() {
-        assert(m_positions.size() % 3 == 0);
         const uint32_t new_vertex_count = GetVertexCount();
         const uint64_t buffer_size = GetExpectedBufferSize();
 
@@ -49,7 +48,7 @@ namespace Engine {
         // Position
         std::memcpy(&pointer[offset], m_positions.data(), m_positions.size() * VertexStruct::VERTEX_POSITION_SIZE);
         offset += m_positions.size() * VertexStruct::VERTEX_POSITION_SIZE;
-        // Color
+        // Attributes
         std::memcpy(&pointer[offset], m_attributes.data(), m_attributes.size() * VertexStruct::VERTEX_ATTRIBUTE_SIZE);
         offset += m_attributes.size() * VertexStruct::VERTEX_ATTRIBUTE_SIZE;
 
@@ -111,7 +110,7 @@ namespace Engine {
     HomogeneousMesh::GetBindingInfo() const {
         assert(this->m_buffer.GetBuffer());
         std::array<vk::Buffer, BINDING_COUNT> buffer {this->m_buffer.GetBuffer(), this->m_buffer.GetBuffer()};
-        std::array<vk::DeviceSize, BINDING_COUNT> binding_offset {0, m_positions.size() * sizeof(float)};
+        std::array<vk::DeviceSize, BINDING_COUNT> binding_offset {0, m_positions.size() * VertexStruct::VERTEX_POSITION_SIZE};
         return std::make_pair(buffer, binding_offset);
     }
 }
