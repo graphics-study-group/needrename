@@ -21,8 +21,12 @@ Engine::MainClass * cmc;
 class TestHomoMesh : public HomogeneousMesh {
 public:
     TestHomoMesh(std::weak_ptr<RenderSystem> system) : HomogeneousMesh(system) {
-        this->m_positions = {0.0f, -0.5f, 0.0f, 0.5f, 0.5f, 0.0f, -0.5f, 0.5f, 0.0f};
-        this->m_colors = {1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f};
+        this->m_positions = {{0.0f, -0.5f, 0.0f}, {0.5f, 0.5f, 0.0f}, {-0.5f, 0.5f, 0.0f}};
+        this->m_attributes = {
+            {1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}, 
+            {0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}, 
+            {0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}
+        };
         this->m_indices = {0, 1, 2};
     }
 };

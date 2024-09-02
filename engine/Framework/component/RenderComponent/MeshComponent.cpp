@@ -23,7 +23,8 @@ namespace Engine {
         m_submeshes.clear();
         m_submeshes.push_back(std::make_shared<HomogeneousMesh>(m_system));
 
-        std::vector <float> positions, colors;
+        std::vector <VertexStruct::VertexPosition> positions;
+        std::vector <VertexStruct::VertexAttribute> attributes;
         std::vector <uint32_t> indices;
         const auto & pos_index = asset.GetTriangle_vert_ids();
         // Load uv as color for testing
@@ -35,19 +36,21 @@ namespace Engine {
         assert(pos_index.size() == color_index.size());
 
         for (size_t i = 0; i < pos_index.size(); i++) {
-            positions.push_back(pos[3 * pos_index[i] + 0]);
-            positions.push_back(pos[3 * pos_index[i] + 1]);
-            positions.push_back(pos[3 * pos_index[i] + 2]);
-            colors.push_back(uv[2 * color_index[i] + 0]);
-            colors.push_back(uv[2 * color_index[i] + 1]);
-            colors.push_back(0.0f);
+            positions.push_back({
+                pos[3 * pos_index[i] + 0], pos[3 * pos_index[i] + 1], pos[3 * pos_index[i] + 2]
+            });
+            attributes.push_back({
+                .color = {uv[2 * color_index[i] + 0], uv[2 * color_index[i] + 1], 0.0f},
+                .normal = {0.0f, 0.0f, 0.0f},
+                .texcoord1 = {0.0f, 0.0f}
+            });
             // No deduplication for quick and dirty test
             indices.push_back(i);
         }
 
         auto & mesh = *(m_submeshes[0]);
         mesh.SetPositions(positions);
-        mesh.SetColors(colors);
+        mesh.SetAttributes(attributes);
         mesh.SetIndices(indices);
     }
 };

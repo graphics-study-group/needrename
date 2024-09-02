@@ -1,6 +1,7 @@
 #ifndef RENDER_RENDERER_HOMOGENEOUSMESH_INCLUDED
 #define RENDER_RENDERER_HOMOGENEOUSMESH_INCLUDED
 
+#include "Render/Renderer/VertexStruct.h"
 #include "Render/RenderSystem.h"
 #include "Render/Pipeline/Memory/Buffer.h"
 
@@ -11,7 +12,6 @@ namespace Engine{
     public:
 
         static constexpr const uint32_t BINDING_COUNT = 2;
-        static constexpr const size_t SINGLE_VERTEX_BUFFER_SIZE_WITHOUT_INDEX = sizeof(float) * 6;
 
         HomogeneousMesh(std::weak_ptr <RenderSystem> system);
         ~HomogeneousMesh();
@@ -40,8 +40,8 @@ namespace Engine{
 
         static vk::PipelineVertexInputStateCreateInfo GetVertexInputState();
 
-        void SetPositions (std::vector <float> positions);
-        void SetColors (std::vector <float> colors);
+        void SetPositions (std::vector <VertexStruct::VertexPosition> positions);
+        void SetAttributes (std::vector <VertexStruct::VertexAttribute> attributes);
         void SetIndices (std::vector <uint32_t> indices);
 
     protected:
@@ -49,16 +49,35 @@ namespace Engine{
 
         static constexpr const std::array<vk::VertexInputBindingDescription, BINDING_COUNT> bindings = {
             // Position
-            vk::VertexInputBindingDescription{0, sizeof(float)*3, vk::VertexInputRate::eVertex},
-            // Vertex color
-            vk::VertexInputBindingDescription{1, sizeof(float)*3, vk::VertexInputRate::eVertex}
+            vk::VertexInputBindingDescription{0, VertexStruct::VERTEX_POSITION_SIZE, vk::VertexInputRate::eVertex},
+            // Other attributes
+            vk::VertexInputBindingDescription{1, VertexStruct::VERTEX_ATTRIBUTE_SIZE, vk::VertexInputRate::eVertex}
         };
 
-        static constexpr const std::array<vk::VertexInputAttributeDescription, BINDING_COUNT> attributes = {
+        static constexpr const std::array<vk::VertexInputAttributeDescription, VertexStruct::VERTEX_ATTRIBUTE_COUNT + 1> attributes = {
             // Position
             vk::VertexInputAttributeDescription{0, bindings[0].binding, vk::Format::eR32G32B32Sfloat, 0},
             // Vertex color
-            vk::VertexInputAttributeDescription{1, bindings[1].binding, vk::Format::eR32G32B32Sfloat, 0},
+            vk::VertexInputAttributeDescription{
+                1, 
+                bindings[1].binding, 
+                vk::Format::eR32G32B32Sfloat, 
+                VertexStruct::OFFSET_COLOR
+            },
+            // Vertex normal
+            vk::VertexInputAttributeDescription{
+                2, 
+                bindings[1].binding, 
+                vk::Format::eR32G32B32Sfloat, 
+                VertexStruct::OFFSET_NORMAL
+            },
+            // Texcoord 1
+            vk::VertexInputAttributeDescription{
+                3,
+                bindings[1].binding,
+                vk::Format::eR32G32Sfloat,
+                VertexStruct::OFFSET_TEXCOORD1
+            }
         };
 
         Buffer m_buffer;
@@ -68,10 +87,8 @@ namespace Engine{
         uint64_t m_allocated_buffer_size {0};
 
         std::vector <uint32_t> m_indices {};
-        std::vector <float> m_positions {};
-        std::vector <float> m_colors {};
-        std::vector <float> m_normals {};
-        std::vector <float> m_uvs {};
+        std::vector <VertexStruct::VertexPosition> m_positions {};
+        std::vector <VertexStruct::VertexAttribute> m_attributes {};
 
         void WriteToMemory(std::byte * pointer) const;
     };
