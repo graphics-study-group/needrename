@@ -1,14 +1,14 @@
 #ifndef RENDER_PIPELINE_SYNCHRONIZATION_INFLIGHTTWOSTAGESYNCH_INCLUDED
 #define RENDER_PIPELINE_SYNCHRONIZATION_INFLIGHTTWOSTAGESYNCH_INCLUDED
 
-#include "Render/Pipeline/Synch/Synchronization.h"
+#include "Render/RenderSystem/Synch/Synchronization.h"
 
 namespace Engine {
     class InFlightTwoStageSynch : public Synchronization
     {
     public:
 
-        InFlightTwoStageSynch(const RenderSystem & system);
+        InFlightTwoStageSynch(const RenderSystem & system, uint32_t inflight_frame_count);
         virtual ~InFlightTwoStageSynch() = default;
 
         virtual vk::Semaphore GetNextImageSemaphore(uint32_t inflight) const;
@@ -18,10 +18,10 @@ namespace Engine {
         virtual vk::Fence GetCommandBufferFence(uint32_t inflight) const;
 
     protected:
-        static constexpr uint32_t INFLIGHT_SIZE = 3;
-        std::array<vk::UniqueSemaphore, INFLIGHT_SIZE> m_imageAvailable {};
-        std::array<vk::UniqueSemaphore, INFLIGHT_SIZE> m_renderFinished {};
-        std::array<vk::UniqueFence, INFLIGHT_SIZE> m_inflight {};
+        uint32_t m_inflight_frame_count;
+        std::vector<vk::UniqueSemaphore> m_imageAvailable {};
+        std::vector<vk::UniqueSemaphore> m_renderFinished {};
+        std::vector<vk::UniqueFence> m_inflight {};
     };
 };
 

@@ -26,7 +26,7 @@ namespace Engine
         this->CreateSwapchain();
 
         // Create synchorization semaphores
-        this->m_synch = std::make_unique<InFlightTwoStageSynch>(*this);
+        this->m_synch = std::make_unique<InFlightTwoStageSynch>(*this, 3);
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Vulkan initialization finished.");
     }
 
