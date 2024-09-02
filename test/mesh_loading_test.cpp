@@ -92,7 +92,7 @@ int main(int argc, char * argv[])
 
     mesh_component->GetSubmesh(0)->Prepare();
     
-    while(total_test_frame--) {
+    while(true) {
 
         render_system->WaitForFrameBegin(in_flight_frame_id);
         RenderCommandBuffer & cb = render_system->GetGraphicsCommandBuffer(in_flight_frame_id);

@@ -15,7 +15,10 @@ namespace Engine {
 
         if (m_allocated_buffer_size != buffer_size) {
             m_updated = true;
-            SDL_LogVerbose(SDL_LOG_CATEGORY_RENDER, "(Re-)Allocating buffer and memory for %u vertices.", new_vertex_count);
+            SDL_LogVerbose(SDL_LOG_CATEGORY_RENDER, 
+                "(Re-)Allocating buffer and memory for %u vertices (%llu bytes).", 
+                new_vertex_count, buffer_size
+            );
             m_buffer.Create(Buffer::BufferType::Vertex, buffer_size);
             m_allocated_buffer_size = buffer_size;
         }
@@ -28,7 +31,6 @@ namespace Engine {
     }
 
     Buffer HomogeneousMesh::CreateStagingBuffer() const {
-        assert(m_positions.size() % 3 == 0);
         const uint64_t buffer_size = GetExpectedBufferSize();
 
         Buffer buffer(m_system);
@@ -45,16 +47,15 @@ namespace Engine {
     void HomogeneousMesh::WriteToMemory(std::byte* pointer) const {
         uint64_t offset = 0;
         // Position
-        std::memcpy(&pointer[offset], m_positions.data(), m_positions.size() * sizeof(float));
-        offset += m_positions.size() * sizeof(float);
+        std::memcpy(&pointer[offset], m_positions.data(), m_positions.size() * VertexStruct::VERTEX_POSITION_SIZE);
+        offset += m_positions.size() * VertexStruct::VERTEX_POSITION_SIZE;
         // Color
-        std::memcpy(&pointer[offset], m_colors.data(), m_colors.size() * sizeof(float));
-        offset += m_colors.size() * sizeof(float);
+        std::memcpy(&pointer[offset], m_attributes.data(), m_attributes.size() * VertexStruct::VERTEX_ATTRIBUTE_SIZE);
+        offset += m_attributes.size() * VertexStruct::VERTEX_ATTRIBUTE_SIZE;
 
 #ifndef NDEBUG
-        assert(m_positions.size() % 3 == 0);
-        const uint32_t vertex_count = m_positions.size() / 3;
-        const uint64_t buffer_size = vertex_count * SINGLE_VERTEX_BUFFER_SIZE_WITHOUT_INDEX;
+        const uint32_t vertex_count = m_positions.size();
+        const uint64_t buffer_size = vertex_count * VertexStruct::VERTEX_TOTAL_SIZE;
         assert(offset == buffer_size);
 #endif
 
@@ -68,15 +69,13 @@ namespace Engine {
         };
     }
 
-    void HomogeneousMesh::SetPositions(std::vector<float> positions) {
-        assert(positions.size() % 3 == 0);
+    void HomogeneousMesh::SetPositions(std::vector<VertexStruct::VertexPosition> positions) {
         m_positions = positions;
         m_updated = true;
     }
 
-    void HomogeneousMesh::SetColors(std::vector<float> colors) {
-        assert(colors.size() % 3 == 0);
-        m_colors = colors;
+    void HomogeneousMesh::SetAttributes(std::vector<VertexStruct::VertexAttribute> attributes) {
+        m_attributes = attributes;
         m_updated = true;
     }
 
@@ -87,7 +86,7 @@ namespace Engine {
 
     std::pair<vk::Buffer, vk::DeviceSize> HomogeneousMesh::GetIndexInfo() const {
         assert(this->m_buffer.GetBuffer());
-        uint64_t total_size = GetVertexCount() * SINGLE_VERTEX_BUFFER_SIZE_WITHOUT_INDEX;
+        uint64_t total_size = GetVertexCount() * VertexStruct::VERTEX_TOTAL_SIZE;
         return std::make_pair(m_buffer.GetBuffer(), total_size);
     }
 
@@ -96,15 +95,12 @@ namespace Engine {
     }
 
     uint32_t HomogeneousMesh::GetVertexCount() const {
-        // TODO: clear up assumptions on vertex data.
-        assert(m_positions.size() % 3 == 0);
-        assert(m_colors.size() % 3 == 0);
-        assert(m_positions.size() / 3 == m_colors.size() / 3);
-        return m_positions.size() / 3;
+        assert(m_positions.size() == m_attributes.size());
+        return m_positions.size();
     }
 
     uint64_t HomogeneousMesh::GetExpectedBufferSize() const {
-        return GetVertexIndexCount() * sizeof(uint32_t) + GetVertexCount() * SINGLE_VERTEX_BUFFER_SIZE_WITHOUT_INDEX;
+        return GetVertexIndexCount() * sizeof(uint32_t) + GetVertexCount() * VertexStruct::VERTEX_TOTAL_SIZE;
     }
 
 const Buffer & HomogeneousMesh::GetBuffer() const {
