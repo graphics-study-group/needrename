@@ -3,7 +3,7 @@
 
 #include "Render/Renderer/VertexStruct.h"
 #include "Render/RenderSystem.h"
-#include "Render/Pipeline/Memory/Buffer.h"
+#include "Render/Memory/Buffer.h"
 
 namespace Engine{
     
