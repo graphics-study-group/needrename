@@ -3,9 +3,13 @@
 
 #include "Render/VkWrapper.tcc"
 #include "Structs.h"
+#include "Render/Memory/Image2D.h"
 #include <vector>
 
 namespace Engine {
+
+    class RenderSystem;
+
     namespace RenderSystemState {
         class PhysicalDevice;
         class Swapchain {
@@ -16,9 +20,12 @@ namespace Engine {
             // However, image views do need clean up.
             std::vector <vk::UniqueImageView> m_image_views {};
 
+            std::vector <Engine::AllocatedImage2D> m_depth_images {};
+
             vk::SurfaceFormatKHR m_image_format {};
-            vk::Format m_depth_format {};
             vk::Extent2D m_extent {};
+
+            bool is_depth_enabled {false};
 
             /// @brief Select a swap chain config from all supported ones
             /// @param support 
@@ -28,20 +35,25 @@ namespace Engine {
             SelectSwapchainConfig(const SwapchainSupport & support, vk::Extent2D expected_extent);
 
             void RetrieveImageViews(vk::Device device);
-
         public:
-            
+            static constexpr vk::Format DEPTH_FORMAT = vk::Format::eD32Sfloat;
+
             void CreateSwapchain(const PhysicalDevice & physical_device, 
                 vk::Device logical_device, 
                 vk::SurfaceKHR surface, 
                 vk::Extent2D expected_extent
             );
 
+            void DisableDepthTesting();
+            void EnableDepthTesting(std::weak_ptr <RenderSystem> system);
+
             vk::SwapchainKHR GetSwapchain() const;
             auto GetImages() const -> const decltype(m_images) &;
             auto GetImageViews() const -> const decltype(m_image_views) &;
+            auto GetDepthImages() const -> const decltype(m_depth_images) &;
             vk::SurfaceFormatKHR GetImageFormat() const;
             vk::Extent2D GetExtent() const;
+            bool IsDepthEnabled() const;
         };
     }
 }

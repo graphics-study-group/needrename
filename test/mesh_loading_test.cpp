@@ -25,7 +25,7 @@ using namespace Engine;
 
 Engine::MainClass * cmc;
 
-int main(int argc, char * argv[])
+int main(int, char *[])
 {
     SDL_Init(SDL_INIT_VIDEO);
     SDL_LogInfo(0, "Loading mesh...");

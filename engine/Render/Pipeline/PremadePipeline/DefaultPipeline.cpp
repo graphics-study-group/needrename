@@ -42,7 +42,20 @@ namespace Engine {
             auto multisample = CreateMultisampleState();
             info.pMultisampleState = &multisample;
 
-            info.pDepthStencilState = nullptr;
+            vk::PipelineDepthStencilStateCreateInfo depth_stencil{
+                vk::PipelineDepthStencilStateCreateFlags{}, 
+                vk::False, vk::False,
+                vk::CompareOp::eLess,   // Lower => closer
+                vk::False,
+                vk::False,
+                {}, {},
+                0.0f, 1.0f
+            };
+            if (m_system.lock()->GetSwapchain().IsDepthEnabled()) {
+                depth_stencil.depthTestEnable = vk::True;
+                depth_stencil.depthWriteEnable = vk::True;
+            }
+            info.pDepthStencilState = &depth_stencil;
 
             std::vector<vk::PipelineColorBlendAttachmentState> attachment{ CreateColorBlendAttachmentState() };
             auto color_blend = CreateColorBlendState(attachment);

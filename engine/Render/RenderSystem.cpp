@@ -100,6 +100,10 @@ namespace Engine
         return m_queues.presentQueue.presentKHR(info);
     }
 
+    void RenderSystem::EnableDepthTesting() {
+        m_swapchain.EnableDepthTesting(this->shared_from_this());
+    }
+
     void RenderSystem::WaitForIdle() const {
         m_device->waitIdle();
     }

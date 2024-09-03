@@ -7,6 +7,11 @@ namespace Engine
     }
 
     void SingleRenderPass::CreateRenderPass() {
+        if (m_system.lock()->GetSwapchain().IsDepthEnabled()) {
+            SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, 
+                "The render pass has no depth support, but the swap chain is depth test enabled."
+            );
+        }
         vk::AttachmentDescription att{};
         att.format = m_system.lock()->GetSwapchain().GetImageFormat().format;
         att.samples = vk::SampleCountFlagBits::e1;
