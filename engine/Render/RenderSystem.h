@@ -13,12 +13,16 @@
 #include "Render/RenderSystem/PhysicalDevice.h"
 #include "Render/RenderSystem/Swapchain.h"
 
+// Suppress warning from std::enable_shared_from_this
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wnon-virtual-dtor"
+
 namespace Engine
 {
     class RendererComponent;
     class CameraComponent;
 
-    class RenderSystem
+    class RenderSystem : public std::enable_shared_from_this<RenderSystem>
     {
     public:
 
@@ -47,7 +51,7 @@ namespace Engine
         void WaitForIdle() const;
 
         /// @brief Update the swapchain in response of a window resize etc.
-        /// @note You need to recreate framebuffers that refer to the swap chain.
+        /// @note You need to recreate depth images and framebuffers that refer to the swap chain.
         void UpdateSwapchain();
 
         /// @brief Find a physical memory satisfying demands.
@@ -69,9 +73,10 @@ namespace Engine
         const RenderSystemState::Swapchain & GetSwapchain() const;
         const Synchronization & getSynchronization() const;
         RenderCommandBuffer & GetGraphicsCommandBuffer(uint32_t frame_index);
-
         uint32_t GetNextImage(uint32_t in_flight_index, uint64_t timeout = std::numeric_limits<uint64_t>::max());
         vk::Result Present(uint32_t frame_index, uint32_t in_flight_index);
+
+        void EnableDepthTesting();
         
     protected:
         /// @brief Create a vk::SurfaceKHR.
@@ -109,5 +114,7 @@ namespace Engine
         std::vector <RenderCommandBuffer> m_commandbuffers {};
     };
 }
+
+#pragma GCC diagnostic pop
 
 #endif // RENDER_RENDERSYSTEM_INCLUDED

@@ -10,7 +10,7 @@
 #include "Render/Pipeline/Framebuffers.h"
 #include "Render/Pipeline/CommandBuffer.h"
 #include "Render/Pipeline/PremadePipeline/DefaultPipeline.h"
-#include "Render/Pipeline/PremadePipeline/SingleRenderPass.h"
+#include "Render/Pipeline/PremadePipeline/SingleRenderPassWithDepth.h"
 #include "Render/Renderer/HomogeneousMesh.h"
 
 using namespace Engine;
@@ -43,18 +43,21 @@ int main(int, char **)
     cmc->Initialize(&opt);
 
     auto system = cmc->GetRenderSystem();
+    system->EnableDepthTesting();
 
-    SingleRenderPass rp{system};
+    SingleRenderPassWithDepth rp{system};
+    rp.CreateRenderPass();
+    rp.SetClearValues({
+        vk::ClearValue{vk::ClearColorValue{0.0f, 0.0f, 0.0f, 1.0f}},
+        vk::ClearValue{vk::ClearDepthStencilValue{1.0f, 0U}}
+    });
     rp.CreateFramebuffersFromSwapchain();
-    rp.SetClearValues({{{0.0f, 0.0f, 0.0f, 1.0f}}});
+    
 
     TestMaterial material{system, rp};
 
     uint32_t in_flight_frame_id = 0;
     uint32_t total_test_frame = 60;
-    
-    system->UpdateSwapchain();
-    rp.CreateFramebuffersFromSwapchain();
 
     TestHomoMesh mesh{system};
     mesh.Prepare();

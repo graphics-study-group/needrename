@@ -14,10 +14,19 @@ namespace Engine
         auto system = m_system.lock();
         const auto & swapchain = system->GetSwapchain();
         const auto & image_views = swapchain.GetImageViews();
+        const std::vector <AllocatedImage2D> & depth_images = swapchain.GetDepthImages();
         vk::Extent2D extent = swapchain.GetExtent();
         m_framebuffers.reserve(image_views.size());
         for (size_t i = 0; i < image_views.size(); i++) {
-            std::vector <vk::ImageView> imageViews = { image_views[i].get() };
+            std::vector <vk::ImageView> imageViews;
+            // XXX: We need to design a better scheme for mapping attachments to images
+            if (swapchain.IsDepthEnabled()) {
+                imageViews = { image_views[i].get(), depth_images[i].GetImageView() };
+            } else {
+                imageViews = { image_views[i].get() };
+            }
+            assert(pass.GetAttachments().size() == imageViews.size());
+
             vk::FramebufferCreateInfo info{};
             info.renderPass = pass.get();
             info.attachmentCount = imageViews.size();
