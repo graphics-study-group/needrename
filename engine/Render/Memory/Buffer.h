@@ -46,8 +46,8 @@ namespace Engine{
         vk::UniqueBuffer m_buffer {};
         vk::UniqueDeviceMemory m_memory {};
 
-        vk::MemoryPropertyFlags GetMemoryProperty(BufferType type);
-        vk::BufferUsageFlags GetBufferUsage(BufferType type);
+        static vk::MemoryPropertyFlags GetMemoryProperty(BufferType type);
+        static vk::BufferUsageFlags GetBufferUsage(BufferType type);
     };
 }
 
