@@ -23,6 +23,12 @@ target_link_libraries(vulkan_init_test engine)
 add_test(NAME vulkan_init_test COMMAND vulkan_init_test)
 set_target_properties(vulkan_init_test PROPERTIES FOLDER tests)
 
+add_executable(constant_data_test constant_data_test.cpp)
+add_dependencies(constant_data_test shader)
+target_link_libraries(constant_data_test engine)
+add_test(NAME constant_data_test COMMAND constant_data_test)
+set_target_properties(constant_data_test PROPERTIES FOLDER tests)
+
 add_executable(mesh_loading_test mesh_loading_test.cpp)
 add_dependencies(mesh_loading_test shader)
 target_link_libraries(mesh_loading_test engine)

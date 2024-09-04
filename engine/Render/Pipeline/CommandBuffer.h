@@ -11,6 +11,10 @@ namespace Engine
     class Synchronization;
     class HomogeneousMesh;
 
+    namespace ConstantData {
+        struct PerCameraStruct;
+    }
+
     /// @brief A command buffer used for rendering.
     class RenderCommandBuffer
     {
@@ -19,7 +23,7 @@ namespace Engine
         /// This function is ideally only called from RenderSystem
         /// @param logical_device 
         /// @param command_pool 
-        void CreateCommandBuffer(vk::Device logical_device, vk::CommandPool command_pool, uint32_t inflight_frame_index);
+        void CreateCommandBuffer(std::shared_ptr<RenderSystem> system, vk::CommandPool command_pool, uint32_t inflight_frame_index);
 
         void Begin();
 
@@ -49,6 +53,8 @@ namespace Engine
     protected:
         uint32_t m_inflight_frame_index {};
         vk::UniqueCommandBuffer m_handle {};
+        std::weak_ptr <RenderSystem> m_system {};
+        std::optional<std::pair <std::reference_wrapper<const Material>, uint32_t>> m_bound_material {};
     };
 } // namespace Engine
 
