@@ -3,10 +3,13 @@
 #include <fstream>
 #include <chrono>
 
+#include <glm.hpp>
+#include <gtc/matrix_transform.hpp>
+
 #include "MainClass.h"
 #include "Functional/SDLWindow.h"
 #include "Render/ConstantData/PerCameraConstants.h"
-#include "Render/Material/TestMaterial.h"
+#include "Render/Material/TestMaterialWithTransform.h"
 #include "Render/Pipeline/Shader.h"
 #include "Render/Pipeline/Framebuffers.h"
 #include "Render/Pipeline/CommandBuffer.h"
@@ -54,26 +57,28 @@ int main(int, char **)
     });
     rp.CreateFramebuffersFromSwapchain();
 
-    TestMaterial material{system, rp};
+    TestMaterialWithTransform material{system, rp};
 
     uint32_t in_flight_frame_id = 0;
-    uint32_t total_test_frame = 60;
+    uint32_t total_test_frame = 1440;
 
     TestHomoMesh mesh{system};
     mesh.Prepare();
 
-    ConstantData::PerCameraStruct transform {
-
-    };
+    ConstantData::PerCameraStruct transform { glm::mat4{1.0f}, glm::mat4{1.0f} };
     
     while(total_test_frame--) {
+
+        transform.proj_matrix = glm::rotate(transform.proj_matrix, 0.02f, glm::vec3{0.0f, 0.0f, 1.0f});
 
         system->WaitForFrameBegin(in_flight_frame_id);
         RenderCommandBuffer & cb = system->GetGraphicsCommandBuffer(in_flight_frame_id);
 
         uint32_t index = system->GetNextImage(in_flight_frame_id, 0x7FFFFFFF);
         assert(index < 3);
-    
+
+        system->WritePerCameraConstants(transform, in_flight_frame_id);
+
         cb.Begin();
         if (mesh.NeedCommitment()) {
             cb.CommitVertexBuffer(mesh);

@@ -1,4 +1,4 @@
-#include "TestMaterial.h"
+#include "TestMaterialWithTransform.h"
 
 #include "Render/Pipeline/Shader.h"
 #include "Render/Pipeline/RenderPass.h"
@@ -20,7 +20,7 @@ inline std::vector <char> readFile(const std::string& filename) {
 }
 
 namespace Engine {
-    TestMaterial::TestMaterial (
+    TestMaterialWithTransform::TestMaterialWithTransform (
         std::weak_ptr <RenderSystem> system, 
         const RenderPass & pass
     ) : Material(system), fragModule(system), vertModule(system) {
@@ -32,7 +32,7 @@ namespace Engine {
             ShaderModule::ShaderType::Fragment
         );
                 
-        shaderData = readFile("shader/debug_vertex_trig.vert.spv");
+        shaderData = readFile("shader/debug_vert_trig_transform.vert.spv");
         vertModule.CreateShaderModule(
             reinterpret_cast<std::byte*>(shaderData.data()),
             shaderData.size(), 
