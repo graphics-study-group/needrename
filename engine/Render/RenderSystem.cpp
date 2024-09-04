@@ -14,10 +14,13 @@ namespace Engine
         std::weak_ptr <SDLWindow> parent_window
     ) : m_window(parent_window)
     {
+    }
+
+    void RenderSystem::Create() {
+        assert(!this->m_instance.get() || "Recreating render system");
         // C++ wrappers for Vulkan functions throw exceptions
         // So we don't need to do mundane error checking
         // Create instance
-        
         this->m_instance.Create("no name", "no name");
         this->CreateSurface();
 
@@ -27,6 +30,7 @@ namespace Engine
 
         // Create synchorization semaphores
         this->m_synch = std::make_unique<InFlightTwoStageSynch>(*this, 3);
+        this->m_descriptor_pool.Create(shared_from_this(), 3);
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Vulkan initialization finished.");
     }
 
@@ -77,6 +81,9 @@ namespace Engine
     const RenderSystemState::Swapchain& RenderSystem::GetSwapchain() const { return m_swapchain; }
     const Synchronization& RenderSystem::getSynchronization() const { return *m_synch; }
     RenderCommandBuffer & RenderSystem::GetGraphicsCommandBuffer(uint32_t frame_index) { return m_commandbuffers[frame_index]; }
+    const RenderSystemState::GlobalConstantDescriptorPool& RenderSystem::GetGlobalConstantDescriptorPool() const {
+        return m_descriptor_pool;
+    }
 
     uint32_t RenderSystem::GetNextImage(uint32_t frame_id, uint64_t timeout) {
         auto result = m_device->acquireNextImageKHR(
@@ -102,6 +109,11 @@ namespace Engine
 
     void RenderSystem::EnableDepthTesting() {
         m_swapchain.EnableDepthTesting(this->shared_from_this());
+    }
+
+    void RenderSystem::WritePerCameraConstants(const ConstantData::PerCameraStruct& data, uint32_t in_flight_index) {
+        std::byte * ptr = m_descriptor_pool.GetPerCameraConstantMemory(in_flight_index);
+        std::memcpy(ptr, &data, sizeof data);
     }
 
     void RenderSystem::WaitForIdle() const {
@@ -188,7 +200,7 @@ namespace Engine
         m_commandbuffers.clear();
         m_commandbuffers.resize(image_count);
         for (uint32_t i = 0; i < image_count; i++) {
-            m_commandbuffers[i].CreateCommandBuffer(m_device.get(), m_queues.graphicsPool.get(), i);
+            m_commandbuffers[i].CreateCommandBuffer(shared_from_this(), m_queues.graphicsPool.get(), i);
         }
     }
 

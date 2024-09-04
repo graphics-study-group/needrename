@@ -35,6 +35,7 @@ namespace Engine
             );
 
         this->renderer = std::make_shared<RenderSystem>(this->window);
+        this->renderer->Create();
         this->world = std::make_shared<WorldSystem>();
         this->asset = std::make_shared<AssetManager> ();
     }

@@ -12,6 +12,7 @@
 #include "Render/RenderSystem/Instance.h"
 #include "Render/RenderSystem/PhysicalDevice.h"
 #include "Render/RenderSystem/Swapchain.h"
+#include "Render/RenderSystem/DescriptorPool.h"
 
 // Suppress warning from std::enable_shared_from_this
 #pragma GCC diagnostic push
@@ -21,6 +22,10 @@ namespace Engine
 {
     class RendererComponent;
     class CameraComponent;
+
+    namespace ConstantData {
+        struct PerCameraStruct;
+    }
 
     class RenderSystem : public std::enable_shared_from_this<RenderSystem>
     {
@@ -42,6 +47,8 @@ namespace Engine
         RenderSystem(RenderSystem &&) = delete;
         void operator= (const RenderSystem &) = delete;
         void operator= (RenderSystem &&) = delete; 
+
+        void Create();
 
         ~RenderSystem();
 
@@ -66,6 +73,10 @@ namespace Engine
         /// @param timeout 
         void WaitForFrameBegin(uint32_t frame_index, uint64_t timeout = std::numeric_limits<uint64_t>::max());
 
+        uint32_t GetNextImage(uint32_t in_flight_index, uint64_t timeout = std::numeric_limits<uint64_t>::max());
+
+        vk::Result Present(uint32_t frame_index, uint32_t in_flight_index);
+
         vk::Instance getInstance() const;
         vk::SurfaceKHR getSurface() const;
         vk::Device getDevice() const;
@@ -73,10 +84,11 @@ namespace Engine
         const RenderSystemState::Swapchain & GetSwapchain() const;
         const Synchronization & getSynchronization() const;
         RenderCommandBuffer & GetGraphicsCommandBuffer(uint32_t frame_index);
-        uint32_t GetNextImage(uint32_t in_flight_index, uint64_t timeout = std::numeric_limits<uint64_t>::max());
-        vk::Result Present(uint32_t frame_index, uint32_t in_flight_index);
+        const RenderSystemState::GlobalConstantDescriptorPool & GetGlobalConstantDescriptorPool() const;
 
         void EnableDepthTesting();
+
+        void WritePerCameraConstants(const ConstantData::PerCameraStruct & data, uint32_t in_flight_index);
         
     protected:
         /// @brief Create a vk::SurfaceKHR.
@@ -109,6 +121,7 @@ namespace Engine
         
         QueueInfo  m_queues {};
         RenderSystemState::Swapchain m_swapchain{};
+        RenderSystemState::GlobalConstantDescriptorPool m_descriptor_pool{};
 
         std::unique_ptr <Synchronization> m_synch {};
         std::vector <RenderCommandBuffer> m_commandbuffers {};
