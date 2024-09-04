@@ -8,18 +8,22 @@
 
 namespace Engine
 {
-    void RenderCommandBuffer::CreateCommandBuffer(vk::Device logical_device, vk::CommandPool command_pool, uint32_t frame_index)
-    {
+    void RenderCommandBuffer::CreateCommandBuffer(
+        std::shared_ptr<RenderSystem> system, 
+        vk::CommandPool command_pool, 
+        uint32_t frame_index
+    ) {
         vk::CommandBufferAllocateInfo info{};
         info.commandPool = command_pool;
         info.commandBufferCount = 1;
         info.level = vk::CommandBufferLevel::ePrimary;
 
-        auto cbvector = logical_device.allocateCommandBuffersUnique(info);
+        auto cbvector = system->getDevice().allocateCommandBuffersUnique(info);
         assert(cbvector.size() == 1);
         m_handle = std::move(cbvector[0]);
 
         m_inflight_frame_index = frame_index;
+        m_system = system;
     }
 
     void RenderCommandBuffer::Begin() {
@@ -43,6 +47,16 @@ namespace Engine
 
     void RenderCommandBuffer::BindMaterial(const Material & material, uint32_t pass_index) {
         m_handle->bindPipeline(vk::PipelineBindPoint::eGraphics, material.GetPipeline(pass_index).get());
+        m_bound_material = std::make_pair(std::cref(material), pass_index);
+        const auto & global_pool = m_system.lock()->GetGlobalConstantDescriptorPool();
+        const auto & per_camera_descriptor_set = global_pool.GetPerCameraConstantSet(m_inflight_frame_index);
+        m_handle->bindDescriptorSets(
+            vk::PipelineBindPoint::eGraphics, 
+            material.GetPipelineLayout(pass_index).get(), 
+            0,
+            {per_camera_descriptor_set},
+            {}
+        );
         // TODO: Write per-material descriptors
     }
 
@@ -103,6 +117,7 @@ namespace Engine
 
     void RenderCommandBuffer::Reset() {
         m_handle->reset();
+        m_bound_material.reset();
     }
 
 } // namespace Engine
