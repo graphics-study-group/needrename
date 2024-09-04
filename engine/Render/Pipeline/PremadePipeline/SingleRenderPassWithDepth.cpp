@@ -6,7 +6,7 @@ namespace Engine {
 
     void SingleRenderPassWithDepth::CreateRenderPass() {
         const auto & swapchain = m_system.lock()->GetSwapchain();
-        if (swapchain.IsDepthEnabled()) {
+        if (!swapchain.IsDepthEnabled()) {
             SDL_LogError(SDL_LOG_CATEGORY_RENDER, 
                 "The render pass has depth support, but the swap chain is not depth test enabled."
             );
