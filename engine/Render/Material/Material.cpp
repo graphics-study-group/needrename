@@ -2,6 +2,11 @@
 #include "Render/Pipeline/Pipeline.h"
 
 namespace Engine {
+    std::vector<vk::DescriptorSetLayout> Material::GetGlobalDescriptorSetLayout() {
+        const auto & pool = m_renderSystem.lock()->GetGlobalConstantDescriptorPool();
+        return {pool.GetPerCameraConstantLayout().get()};
+    }
+
     Material::Material (std::weak_ptr<RenderSystem> system) 
     : m_renderSystem(system) {
     }

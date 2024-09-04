@@ -1,7 +1,7 @@
 #ifndef RENDER_MATERIAL_MATERIAL_INCLUDED
 #define RENDER_MATERIAL_MATERIAL_INCLUDED
 
-#include <memory>
+#include <vulkan/vulkan.hpp>
 #include <unordered_map>
 
 namespace Engine {
@@ -21,6 +21,10 @@ namespace Engine {
                 std::unique_ptr <PipelineLayout>
             >
         > m_pipelines;
+
+        /// @brief A helper function for constructing pipeline layout
+        /// @return 
+        std::vector <vk::DescriptorSetLayout> GetGlobalDescriptorSetLayout();
 
     public:
         // TODO: construct material from MaterialAsset
