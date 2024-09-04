@@ -42,7 +42,8 @@ namespace Engine {
         m_pipelines[0].first = std::make_unique <PremadePipeline::DefaultPipeline> (system);
         m_pipelines[0].second = std::make_unique <PipelineLayout> (system);
         auto & layout = *(m_pipelines[0].second.get());
-        layout.CreatePipelineLayout({}, {});
+        vk::DescriptorSetLayout per_camera_layout = system.lock()->GetGlobalConstantDescriptorPool().GetPerCameraConstantLayout().get();
+        layout.CreatePipelineLayout({per_camera_layout}, {});
         m_pipelines[0].first->CreatePipeline(pass.GetSubpass(0), layout, {fragModule, vertModule});
     }
 }

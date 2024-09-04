@@ -15,6 +15,7 @@ namespace Engine {
         case ImageType::TextureImage:
             return vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst;
         }
+        __builtin_unreachable();
     }
 
     vk::ImageAspectFlags AllocatedImage2D::GetImageAspect(ImageType type) {
@@ -26,6 +27,7 @@ namespace Engine {
         case ImageType::TextureImage:
             return vk::ImageAspectFlagBits::eColor;
         }
+        __builtin_unreachable();
     }
 
     AllocatedImage2D::AllocatedImage2D(std::weak_ptr<RenderSystem> system) : m_system(system) {
