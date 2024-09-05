@@ -36,7 +36,6 @@ namespace Engine{
         void Unmap() const;
     
     protected:
-
         size_t m_size {0ULL};
 
         [[maybe_unused]]

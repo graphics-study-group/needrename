@@ -69,6 +69,14 @@ int main(int, char **)
     
     while(total_test_frame--) {
 
+        if (mesh.NeedCommitment()) {
+            auto & tcb = system->GetTransferCommandBuffer();
+            tcb.Begin();
+            tcb.CommitVertexBuffer(mesh);
+            tcb.End();
+            tcb.SubmitAndExecute();
+        }
+
         transform.proj_matrix = glm::rotate(transform.proj_matrix, 0.02f, glm::vec3{0.0f, 0.0f, 1.0f});
 
         system->WaitForFrameBegin(in_flight_frame_id);
@@ -80,13 +88,6 @@ int main(int, char **)
         system->WritePerCameraConstants(transform, in_flight_frame_id);
 
         cb.Begin();
-        if (mesh.NeedCommitment()) {
-            auto & tcb = system->GetTransferCommandBuffer();
-            tcb.Begin();
-            tcb.CommitVertexBuffer(mesh);
-            tcb.End();
-            tcb.SubmitToQueueAndExecute(system->getQueueInfo().graphicsQueue);
-        }
         vk::Extent2D extent {system->GetSwapchain().GetExtent()};
         cb.BeginRenderPass(rp, extent, index);
 
@@ -96,7 +97,7 @@ int main(int, char **)
         cb.DrawMesh(mesh);
         cb.End();
 
-        cb.SubmitToQueue(system->getQueueInfo().graphicsQueue, system->getSynchronization());
+        cb.Submit(system->getSynchronization());
 
         system->Present(index, in_flight_frame_id);
 

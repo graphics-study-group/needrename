@@ -23,7 +23,7 @@ namespace Engine{
         /// @return whether commitment is needed.
         bool NeedCommitment();
 
-        Buffer CreateStagingBuffer() const;
+        std::unique_ptr <Buffer> CreateStagingBuffer() const;
         uint32_t GetVertexIndexCount() const;
         uint32_t GetVertexCount() const;
         uint64_t GetExpectedBufferSize() const;

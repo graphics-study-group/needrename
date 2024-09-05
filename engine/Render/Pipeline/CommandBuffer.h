@@ -41,8 +41,6 @@ namespace Engine
 
         void SetupViewport(float vpWidth, float vpHeight, vk::Rect2D scissor);
 
-        void CommitVertexBuffer(const HomogeneousMesh & mesh);
-
         /// @brief Write per-mesh descriptors, and send draw call to GPU.
         /// @param mesh 
         void DrawMesh(const HomogeneousMesh & mesh);
@@ -62,7 +60,10 @@ namespace Engine
         std::optional<std::pair <std::reference_wrapper<const Material>, uint32_t>> m_bound_material {};
     };
 
-    /// @brief A dispensable command buffer for one-time commands like transfering.
+    /// @brief A dispensable command buffer for one-time command like transfer.
+    /// @note Due to possible hazards, a transfer command can only be 
+    /// recorded when rendering is completely halted by VkDeviceWaitIdle().
+    /// This can have dire consequences over performance, and should be avoided at all costs.
     class OneTimeCommandBuffer {
     public:
         void Create(std::shared_ptr <RenderSystem> system, vk::CommandPool command_pool, vk::Queue queue);

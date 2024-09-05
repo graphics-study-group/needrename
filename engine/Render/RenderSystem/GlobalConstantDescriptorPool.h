@@ -15,12 +15,14 @@ namespace Engine {
 
             // Per camera constant descriptor set layout
             Engine::ConstantData::PerCameraConstantLayout m_per_camera_constant_layout{};
-            // Per camera constant uniform buffers
+            // Per camera constant uniform buffers. Per camera constants contain only uniform buffers.
             std::vector <Engine::Buffer> m_per_camera_buffers {};
             // Per camera constant descriptor sets. These sets don't need explicit freeing.
             std::vector <vk::DescriptorSet> m_per_camera_descriptor_sets {};
-            // Mapped memories for buffers
+            // Mapped memories for buffers.
             std::vector <std::byte *> m_per_camera_memories {};
+
+            // TODO: Per scene constant descriptors (e.g. ambient, sunlight, etc.)
 
             void CreateLayouts(std::shared_ptr <RenderSystem> system);
             void AllocateGlobalSets(std::shared_ptr <RenderSystem> system, uint32_t inflight_frame_count);
