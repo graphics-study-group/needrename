@@ -38,6 +38,7 @@ namespace Engine
         struct QueueInfo {
             vk::Queue graphicsQueue;
             vk::UniqueCommandPool graphicsPool;
+            vk::UniqueCommandPool graphicsOneTimePool;
             vk::Queue presentQueue;
             vk::UniqueCommandPool presentPool;
         };
@@ -87,6 +88,7 @@ namespace Engine
         RenderCommandBuffer & GetGraphicsCommandBuffer(uint32_t frame_index);
         const RenderSystemState::GlobalConstantDescriptorPool & GetGlobalConstantDescriptorPool() const;
         RenderSystemState::MaterialDescriptorManager & GetMaterialDescriptorManager();
+        OneTimeCommandBuffer & GetTransferCommandBuffer();
 
         void EnableDepthTesting();
 
@@ -128,6 +130,7 @@ namespace Engine
 
         std::unique_ptr <Synchronization> m_synch {};
         std::vector <RenderCommandBuffer> m_commandbuffers {};
+        OneTimeCommandBuffer m_one_time_commandbuffer {};
     };
 }
 

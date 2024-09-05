@@ -56,6 +56,26 @@ namespace Engine
         std::weak_ptr <RenderSystem> m_system {};
         std::optional<std::pair <std::reference_wrapper<const Material>, uint32_t>> m_bound_material {};
     };
+
+    /// @brief A dispensable command buffer for one-time commands like transfering.
+    class OneTimeCommandBuffer {
+    public:
+        void Create(std::shared_ptr <RenderSystem> system, vk::CommandPool command_pool);
+
+        void Begin();
+
+        void CommitVertexBuffer(const HomogeneousMesh & mesh);
+
+        void CommitTextureImage();
+
+        void End();
+
+        void SubmitToQueueAndExecute(vk::Queue queue);
+    protected:
+        std::weak_ptr <RenderSystem> m_system {};
+        vk::UniqueCommandBuffer m_handle {};
+        vk::UniqueFence m_complete_fence {};
+    };
 } // namespace Engine
 
 
