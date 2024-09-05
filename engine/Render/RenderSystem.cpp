@@ -89,6 +89,12 @@ namespace Engine
         return m_material_descriptor_manager;
     }
 
+    OneTimeCommandBuffer& RenderSystem::GetTransferCommandBuffer() {
+        m_device->resetCommandPool(m_queues.graphicsOneTimePool.get());
+        
+        return m_one_time_commandbuffer;
+    }
+
     uint32_t RenderSystem::GetNextImage(uint32_t frame_id, uint64_t timeout) {
         auto result = m_device->acquireNextImageKHR(
             m_swapchain.GetSwapchain(), 
@@ -215,9 +221,13 @@ namespace Engine
         info.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer;
         info.queueFamilyIndex = indices.graphics.value();
         m_queues.graphicsPool = m_device->createCommandPoolUnique(info);
+        m_queues.graphicsOneTimePool = m_device->createCommandPoolUnique(info);
 
         info.queueFamilyIndex = indices.present.value();
         m_queues.presentPool = m_device->createCommandPoolUnique(info);
+
+        // Prepare a one-time transfer command buffer
+        m_one_time_commandbuffer.Create(shared_from_this(), m_queues.graphicsOneTimePool.get());
     }
 
     void RenderSystem::CreateSurface() 

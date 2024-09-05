@@ -133,5 +133,49 @@ namespace Engine
         m_bound_material.reset();
     }
 
+    void OneTimeCommandBuffer::Create(std::shared_ptr<RenderSystem> system, vk::CommandPool command_pool) {
+        // Allocate command buffer
+        vk::CommandBufferAllocateInfo info{
+            command_pool, vk::CommandBufferLevel::ePrimary, 1
+        };
+        auto cbvector = system->getDevice().allocateCommandBuffersUnique(info);
+        assert(cbvector.size() == 1);
+        m_handle = std::move(cbvector[0]);
+
+        // Create fence
+        vk::FenceCreateInfo finfo {};
+        m_complete_fence = system->getDevice().createFenceUnique(finfo);
+        m_system = system;
+    }
+
+    void OneTimeCommandBuffer::CommitVertexBuffer(const HomogeneousMesh& mesh) {
+        auto buffer = mesh.CreateStagingBuffer();
+        vk::BufferCopy copy{0, 0, static_cast<vk::DeviceSize>(mesh.GetExpectedBufferSize())};
+        m_handle->copyBuffer(buffer.GetBuffer(), mesh.GetBuffer().GetBuffer(), {copy});
+    }
+
+    void OneTimeCommandBuffer::Begin() {
+        vk::CommandBufferBeginInfo binfo{};
+        m_handle->begin(binfo);
+    }
+
+    void OneTimeCommandBuffer::End() {
+        m_handle->end();
+    }
+
+    void OneTimeCommandBuffer::SubmitToQueueAndExecute(vk::Queue queue) {
+        vk::SubmitInfo info{};
+        info.commandBufferCount = 1;
+        info.pCommandBuffers = &m_handle.get();
+        info.waitSemaphoreCount = 0;
+        info.signalSemaphoreCount = 0;
+
+        std::array<vk::SubmitInfo, 1> infos{info};
+        queue.submit(infos, m_complete_fence.get());
+
+        auto device = m_system.lock()->getDevice();
+        device.waitForFences({m_complete_fence.get()}, vk::True, std::numeric_limits<uint64_t>::max());
+        device.resetFences({m_complete_fence.get()});
+    }
 } // namespace Engine
 
