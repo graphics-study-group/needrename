@@ -12,7 +12,8 @@
 #include "Render/RenderSystem/Instance.h"
 #include "Render/RenderSystem/PhysicalDevice.h"
 #include "Render/RenderSystem/Swapchain.h"
-#include "Render/RenderSystem/DescriptorPool.h"
+#include "Render/RenderSystem/GlobalConstantDescriptorPool.h"
+#include "Render/RenderSystem/MaterialDescriptorManager.h"
 
 // Suppress warning from std::enable_shared_from_this
 #pragma GCC diagnostic push
@@ -85,6 +86,7 @@ namespace Engine
         const Synchronization & getSynchronization() const;
         RenderCommandBuffer & GetGraphicsCommandBuffer(uint32_t frame_index);
         const RenderSystemState::GlobalConstantDescriptorPool & GetGlobalConstantDescriptorPool() const;
+        RenderSystemState::MaterialDescriptorManager & GetMaterialDescriptorManager();
 
         void EnableDepthTesting();
 
@@ -122,6 +124,7 @@ namespace Engine
         QueueInfo  m_queues {};
         RenderSystemState::Swapchain m_swapchain{};
         RenderSystemState::GlobalConstantDescriptorPool m_descriptor_pool{};
+        RenderSystemState::MaterialDescriptorManager m_material_descriptor_manager{};
 
         std::unique_ptr <Synchronization> m_synch {};
         std::vector <RenderCommandBuffer> m_commandbuffers {};

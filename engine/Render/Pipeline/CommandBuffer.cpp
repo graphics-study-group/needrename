@@ -46,17 +46,30 @@ namespace Engine
     }
 
     void RenderCommandBuffer::BindMaterial(const Material & material, uint32_t pass_index) {
-        m_handle->bindPipeline(vk::PipelineBindPoint::eGraphics, material.GetPipeline(pass_index).get());
+        m_handle->bindPipeline(vk::PipelineBindPoint::eGraphics, material.GetPipeline(pass_index)->get());
         m_bound_material = std::make_pair(std::cref(material), pass_index);
         const auto & global_pool = m_system.lock()->GetGlobalConstantDescriptorPool();
         const auto & per_camera_descriptor_set = global_pool.GetPerCameraConstantSet(m_inflight_frame_index);
-        m_handle->bindDescriptorSets(
-            vk::PipelineBindPoint::eGraphics, 
-            material.GetPipelineLayout(pass_index).get(), 
-            0,
-            {per_camera_descriptor_set},
-            {}
-        );
+        auto material_descriptor_set = material.GetDescriptorSet(pass_index);
+
+        if (material_descriptor_set) {
+            m_handle->bindDescriptorSets(
+                vk::PipelineBindPoint::eGraphics, 
+                material.GetPipelineLayout(pass_index)->get(), 
+                0,
+                {per_camera_descriptor_set, material_descriptor_set},
+                {}
+            );
+        } else {
+            m_handle->bindDescriptorSets(
+                vk::PipelineBindPoint::eGraphics, 
+                material.GetPipelineLayout(pass_index)->get(), 
+                0,
+                {per_camera_descriptor_set},
+                {}
+            );
+        }
+        
         // TODO: Write per-material descriptors
     }
 

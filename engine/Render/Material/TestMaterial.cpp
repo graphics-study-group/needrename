@@ -39,10 +39,11 @@ namespace Engine {
             ShaderModule::ShaderType::Vertex
         );
     
-        m_pipelines[0].first = std::make_unique <PremadePipeline::DefaultPipeline> (system);
-        m_pipelines[0].second = std::make_unique <PipelineLayout> (system);
-        auto & layout = *(m_pipelines[0].second.get());
+        m_passes.resize(1);
+        m_passes[0].pipeline = std::make_unique <PremadePipeline::DefaultPipeline> (system);
+        m_passes[0].pipeline_layout = std::make_unique <PipelineLayout> (system);
+        auto & layout = *(m_passes[0].pipeline_layout.get());
         layout.CreatePipelineLayout(GetGlobalDescriptorSetLayout(), {});
-        m_pipelines[0].first->CreatePipeline(pass.GetSubpass(0), layout, {fragModule, vertModule});
+        m_passes[0].pipeline->CreatePipeline(pass.GetSubpass(0), layout, {fragModule, vertModule});
     }
 }

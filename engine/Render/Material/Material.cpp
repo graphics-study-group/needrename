@@ -10,14 +10,16 @@ namespace Engine {
     Material::Material (std::weak_ptr<RenderSystem> system) 
     : m_renderSystem(system) {
     }
-    const Pipeline& Material::GetPipeline(uint32_t pass_index) const {
-        auto itr = m_pipelines.find(pass_index);
-        assert(itr != m_pipelines.end());
-        return *(itr->second.first);
+    const Pipeline * Material::GetPipeline(uint32_t pass_index) const {
+        assert(pass_index < m_passes.size());
+        return m_passes[pass_index].pipeline.get();
     }
-    const PipelineLayout& Material::GetPipelineLayout(uint32_t pass_index) const {
-        auto itr = m_pipelines.find(pass_index);
-        assert(itr != m_pipelines.end());
-        return *(itr->second.second);
+    const PipelineLayout * Material::GetPipelineLayout(uint32_t pass_index) const {
+        assert(pass_index < m_passes.size());
+        return m_passes[pass_index].pipeline_layout.get();
+    }
+    vk::DescriptorSet Material::GetDescriptorSet(uint32_t pass_index) const {
+        assert(pass_index < m_passes.size());
+        return m_passes[pass_index].descriptor_set;
     }
 };
