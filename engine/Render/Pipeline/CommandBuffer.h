@@ -23,7 +23,12 @@ namespace Engine
         /// This function is ideally only called from RenderSystem
         /// @param logical_device 
         /// @param command_pool 
-        void CreateCommandBuffer(std::shared_ptr<RenderSystem> system, vk::CommandPool command_pool, uint32_t inflight_frame_index);
+        void CreateCommandBuffer(
+            std::shared_ptr<RenderSystem> system, 
+            vk::CommandPool command_pool, 
+            vk::Queue queue, 
+            uint32_t inflight_frame_index
+        );
 
         void Begin();
 
@@ -44,8 +49,7 @@ namespace Engine
 
         void End();
 
-        void SubmitToQueue(
-            vk::Queue queue, 
+        void Submit(
             const Synchronization & synch
         );
 
@@ -53,6 +57,7 @@ namespace Engine
     protected:
         uint32_t m_inflight_frame_index {};
         vk::UniqueCommandBuffer m_handle {};
+        vk::Queue m_queue {};
         std::weak_ptr <RenderSystem> m_system {};
         std::optional<std::pair <std::reference_wrapper<const Material>, uint32_t>> m_bound_material {};
     };
@@ -60,7 +65,7 @@ namespace Engine
     /// @brief A dispensable command buffer for one-time commands like transfering.
     class OneTimeCommandBuffer {
     public:
-        void Create(std::shared_ptr <RenderSystem> system, vk::CommandPool command_pool);
+        void Create(std::shared_ptr <RenderSystem> system, vk::CommandPool command_pool, vk::Queue queue);
 
         void Begin();
 
@@ -70,9 +75,10 @@ namespace Engine
 
         void End();
 
-        void SubmitToQueueAndExecute(vk::Queue queue);
+        void SubmitAndExecute();
     protected:
         std::weak_ptr <RenderSystem> m_system {};
+        vk::Queue m_queue {};
         vk::UniqueCommandBuffer m_handle {};
         vk::UniqueFence m_complete_fence {};
     };

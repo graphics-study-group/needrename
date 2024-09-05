@@ -92,7 +92,7 @@ int main(int, char **)
         cb.DrawMesh(mesh);
         cb.End();
 
-        cb.SubmitToQueue(system->getQueueInfo().graphicsQueue, system->getSynchronization());
+        cb.Submit(system->getSynchronization());
 
         auto submit_end_timer = sch::high_resolution_clock::now();
 

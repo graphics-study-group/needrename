@@ -10,7 +10,8 @@ namespace Engine
 {
     void RenderCommandBuffer::CreateCommandBuffer(
         std::shared_ptr<RenderSystem> system, 
-        vk::CommandPool command_pool, 
+        vk::CommandPool command_pool,
+        vk::Queue queue,
         uint32_t frame_index
     ) {
         vk::CommandBufferAllocateInfo info{};
@@ -24,6 +25,7 @@ namespace Engine
 
         m_inflight_frame_index = frame_index;
         m_system = system;
+        m_queue = queue;
     }
 
     void RenderCommandBuffer::Begin() {
@@ -105,10 +107,7 @@ namespace Engine
         m_handle->end();
     }
 
-    void RenderCommandBuffer::SubmitToQueue(
-        vk::Queue queue, 
-        const Synchronization & synch
-    ) {
+    void RenderCommandBuffer::Submit(const Synchronization & synch) {
         vk::SubmitInfo info{};
         info.commandBufferCount = 1;
         info.pCommandBuffers = &m_handle.get();
@@ -125,7 +124,7 @@ namespace Engine
         info.signalSemaphoreCount = signal.size();
         info.pSignalSemaphores = signal.data();
         std::array<vk::SubmitInfo, 1> infos{info};
-        queue.submit(infos, synch.GetCommandBufferFence(m_inflight_frame_index));
+        m_queue.submit(infos, synch.GetCommandBufferFence(m_inflight_frame_index));
     }
 
     void RenderCommandBuffer::Reset() {
@@ -133,7 +132,7 @@ namespace Engine
         m_bound_material.reset();
     }
 
-    void OneTimeCommandBuffer::Create(std::shared_ptr<RenderSystem> system, vk::CommandPool command_pool) {
+    void OneTimeCommandBuffer::Create(std::shared_ptr<RenderSystem> system, vk::CommandPool command_pool, vk::Queue queue) {
         // Allocate command buffer
         vk::CommandBufferAllocateInfo info{
             command_pool, vk::CommandBufferLevel::ePrimary, 1
@@ -146,6 +145,7 @@ namespace Engine
         vk::FenceCreateInfo finfo {};
         m_complete_fence = system->getDevice().createFenceUnique(finfo);
         m_system = system;
+        m_queue = queue;
     }
 
     void OneTimeCommandBuffer::CommitVertexBuffer(const HomogeneousMesh& mesh) {
@@ -163,7 +163,7 @@ namespace Engine
         m_handle->end();
     }
 
-    void OneTimeCommandBuffer::SubmitToQueueAndExecute(vk::Queue queue) {
+    void OneTimeCommandBuffer::SubmitAndExecute() {
         vk::SubmitInfo info{};
         info.commandBufferCount = 1;
         info.pCommandBuffers = &m_handle.get();
@@ -171,7 +171,7 @@ namespace Engine
         info.signalSemaphoreCount = 0;
 
         std::array<vk::SubmitInfo, 1> infos{info};
-        queue.submit(infos, m_complete_fence.get());
+        m_queue.submit(infos, m_complete_fence.get());
 
         auto device = m_system.lock()->getDevice();
         device.waitForFences({m_complete_fence.get()}, vk::True, std::numeric_limits<uint64_t>::max());

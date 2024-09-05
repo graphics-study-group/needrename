@@ -210,7 +210,7 @@ namespace Engine
         m_commandbuffers.clear();
         m_commandbuffers.resize(image_count);
         for (uint32_t i = 0; i < image_count; i++) {
-            m_commandbuffers[i].CreateCommandBuffer(shared_from_this(), m_queues.graphicsPool.get(), i);
+            m_commandbuffers[i].CreateCommandBuffer(shared_from_this(), m_queues.graphicsPool.get(), m_queues.graphicsQueue, i);
         }
     }
 
@@ -227,7 +227,7 @@ namespace Engine
         m_queues.presentPool = m_device->createCommandPoolUnique(info);
 
         // Prepare a one-time transfer command buffer
-        m_one_time_commandbuffer.Create(shared_from_this(), m_queues.graphicsOneTimePool.get());
+        m_one_time_commandbuffer.Create(shared_from_this(), m_queues.graphicsOneTimePool.get(), m_queues.graphicsQueue);
     }
 
     void RenderSystem::CreateSurface() 
