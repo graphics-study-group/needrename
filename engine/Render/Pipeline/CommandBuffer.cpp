@@ -85,13 +85,6 @@ namespace Engine
         m_handle->setScissor(0, 1, &scissor);
     }
 
-    void RenderCommandBuffer::CommitVertexBuffer(const HomogeneousMesh& mesh) {
-        SDL_LogVerbose(SDL_LOG_CATEGORY_RENDER, "Allocating staging buffer and memory for %u vertices.", mesh.GetVertexCount());
-        auto buffer = mesh.CreateStagingBuffer();
-        vk::BufferCopy copy{0, 0, static_cast<vk::DeviceSize>(mesh.GetExpectedBufferSize())};
-        m_handle->copyBuffer(buffer.GetBuffer(), mesh.GetBuffer().GetBuffer(), {copy});
-    }
-
     void RenderCommandBuffer::DrawMesh(const HomogeneousMesh& mesh) {
         // TODO: Write per-mesh descriptors
         // which are typically the model transform (via push constant) and skeletal transforms.
@@ -149,13 +142,16 @@ namespace Engine
     }
 
     void OneTimeCommandBuffer::CommitVertexBuffer(const HomogeneousMesh& mesh) {
-        auto buffer = mesh.CreateStagingBuffer();
+        auto device = m_system.lock()->getDevice();
+        device.waitIdle();
+
+        auto buffer {mesh.CreateStagingBuffer()};
         vk::BufferCopy copy{0, 0, static_cast<vk::DeviceSize>(mesh.GetExpectedBufferSize())};
-        m_handle->copyBuffer(buffer.GetBuffer(), mesh.GetBuffer().GetBuffer(), {copy});
+        m_handle->copyBuffer(buffer->GetBuffer(), mesh.GetBuffer().GetBuffer(), {copy});
     }
 
     void OneTimeCommandBuffer::Begin() {
-        vk::CommandBufferBeginInfo binfo{};
+        vk::CommandBufferBeginInfo binfo{vk::CommandBufferUsageFlagBits::eOneTimeSubmit};
         m_handle->begin(binfo);
     }
 
@@ -164,6 +160,8 @@ namespace Engine
     }
 
     void OneTimeCommandBuffer::SubmitAndExecute() {
+        auto device = m_system.lock()->getDevice();
+
         vk::SubmitInfo info{};
         info.commandBufferCount = 1;
         info.pCommandBuffers = &m_handle.get();
@@ -172,8 +170,6 @@ namespace Engine
 
         std::array<vk::SubmitInfo, 1> infos{info};
         m_queue.submit(infos, m_complete_fence.get());
-
-        auto device = m_system.lock()->getDevice();
         device.waitForFences({m_complete_fence.get()}, vk::True, std::numeric_limits<uint64_t>::max());
         device.resetFences({m_complete_fence.get()});
     }

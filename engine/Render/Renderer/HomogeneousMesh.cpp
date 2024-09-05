@@ -29,17 +29,16 @@ namespace Engine {
         return need;
     }
 
-    Buffer HomogeneousMesh::CreateStagingBuffer() const {
+    std::unique_ptr <Buffer> HomogeneousMesh::CreateStagingBuffer() const {
         const uint64_t buffer_size = GetExpectedBufferSize();
 
-        Buffer buffer(m_system);
-        buffer.Create(Buffer::BufferType::Staging, buffer_size);
+        auto buffer = std::make_unique<Buffer>(m_system);
+        buffer->Create(Buffer::BufferType::Staging, buffer_size);
 
-        std::byte * data = buffer.Map();
+        std::byte * data = buffer->Map();
         WriteToMemory(data);
-        buffer.Unmap();
+        buffer->Unmap();
 
-        // Copy eilision here.
         return buffer;
     }
 
@@ -60,6 +59,8 @@ namespace Engine {
 
         // Index
         std::memcpy(&pointer[offset], m_indices.data(), m_indices.size() * sizeof(uint32_t));
+        offset += m_indices.size() * sizeof(uint32_t);
+        assert(offset == GetExpectedBufferSize());
     }
 
     vk::PipelineVertexInputStateCreateInfo HomogeneousMesh::GetVertexInputState() {

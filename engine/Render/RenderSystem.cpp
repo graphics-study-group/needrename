@@ -91,7 +91,6 @@ namespace Engine
 
     OneTimeCommandBuffer& RenderSystem::GetTransferCommandBuffer() {
         m_device->resetCommandPool(m_queues.graphicsOneTimePool.get());
-        
         return m_one_time_commandbuffer;
     }
 

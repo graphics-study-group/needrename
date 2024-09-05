@@ -102,7 +102,11 @@ int main(int, char *[])
     
         cb.Begin();
         if (mesh_component->GetSubmesh(0)->NeedCommitment()) {
-            cb.CommitVertexBuffer(*(mesh_component->GetSubmesh(0)));
+            auto & tcb = render_system->GetTransferCommandBuffer();
+            tcb.Begin();
+            tcb.CommitVertexBuffer(*(mesh_component->GetSubmesh(0)));
+            tcb.End();
+            tcb.SubmitAndExecute();
         }
         vk::Extent2D extent {render_system->GetSwapchain().GetExtent()};
         cb.BeginRenderPass(rp, extent, index);
