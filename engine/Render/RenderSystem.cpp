@@ -31,6 +31,7 @@ namespace Engine
         // Create synchorization semaphores
         this->m_synch = std::make_unique<InFlightTwoStageSynch>(*this, 3);
         this->m_descriptor_pool.Create(shared_from_this(), 3);
+        this->m_material_descriptor_manager.Create(shared_from_this());
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Vulkan initialization finished.");
     }
 
@@ -83,6 +84,9 @@ namespace Engine
     RenderCommandBuffer & RenderSystem::GetGraphicsCommandBuffer(uint32_t frame_index) { return m_commandbuffers[frame_index]; }
     const RenderSystemState::GlobalConstantDescriptorPool& RenderSystem::GetGlobalConstantDescriptorPool() const {
         return m_descriptor_pool;
+    }
+    RenderSystemState::MaterialDescriptorManager& RenderSystem::GetMaterialDescriptorManager() {
+        return m_material_descriptor_manager;
     }
 
     uint32_t RenderSystem::GetNextImage(uint32_t frame_id, uint64_t timeout) {

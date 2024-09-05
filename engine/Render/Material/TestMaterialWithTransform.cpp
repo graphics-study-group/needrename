@@ -38,11 +38,25 @@ namespace Engine {
             shaderData.size(), 
             ShaderModule::ShaderType::Vertex
         );
-    
-        m_pipelines[0].first = std::make_unique <PremadePipeline::DefaultPipeline> (system);
-        m_pipelines[0].second = std::make_unique <PipelineLayout> (system);
-        auto & layout = *(m_pipelines[0].second.get());
-        layout.CreatePipelineLayout(GetGlobalDescriptorSetLayout(), {});
-        m_pipelines[0].first->CreatePipeline(pass.GetSubpass(0), layout, {fragModule, vertModule});
+        m_passes.resize(1);
+        m_passes[0].pipeline = std::make_unique <PremadePipeline::DefaultPipeline> (system);
+        m_passes[0].pipeline_layout = std::make_unique <PipelineLayout> (system);
+
+        auto & manager = system.lock()->GetMaterialDescriptorManager();
+        vk::DescriptorSetLayoutBinding binding {
+            0, 
+            vk::DescriptorType::eUniformBuffer,
+            1,
+            vk::ShaderStageFlagBits::eVertex,
+            {}
+        };
+        vk::DescriptorSetLayout set_layout = manager.NewDescriptorSetLayout("TestMaterial", {binding});
+        m_passes[0].descriptor_set = manager.AllocateDescriptorSet(set_layout);
+
+        auto & pipeline_layout = *(m_passes[0].pipeline_layout.get());
+        auto set_layouts = GetGlobalDescriptorSetLayout();
+        set_layouts.push_back(set_layout);
+        pipeline_layout.CreatePipelineLayout(set_layouts, {});
+        m_passes[0].pipeline->CreatePipeline(pass.GetSubpass(0), pipeline_layout, {fragModule, vertModule});
     }
 }

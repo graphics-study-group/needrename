@@ -13,17 +13,18 @@ namespace Engine {
     class Material
     {
     protected:
-        std::weak_ptr <RenderSystem> m_renderSystem;
-        std::unordered_map <
-            uint32_t, 
-            std::pair<
-                std::unique_ptr <Pipeline>, 
-                std::unique_ptr <PipelineLayout>
-            >
-        > m_pipelines;
+        struct MaterialPass {
+            std::unique_ptr <Pipeline> pipeline {};
+            std::unique_ptr <PipelineLayout> pipeline_layout {};
+            vk::DescriptorSet descriptor_set {};
+        };
 
-        /// @brief A helper function for constructing pipeline layout
-        /// @return 
+        std::weak_ptr <RenderSystem> m_renderSystem;
+        std::vector <MaterialPass> m_passes {};
+
+        /// @brief Get global constant descriptor layouts for PipelineLayout construction.
+        /// A helper function for constructing pipeline layout.
+        /// @return A vector of vk::DescriptorSetLayout for global constant descriptors
         std::vector <vk::DescriptorSetLayout> GetGlobalDescriptorSetLayout();
 
     public:
@@ -34,8 +35,9 @@ namespace Engine {
 
         // TODO: Design an interface for per-material descriptors
 
-        const Pipeline & GetPipeline(uint32_t pass_index) const;
-        const PipelineLayout & GetPipelineLayout (uint32_t pass_index) const;
+        const Pipeline * GetPipeline(uint32_t pass_index) const;
+        const PipelineLayout * GetPipelineLayout (uint32_t pass_index) const;
+        vk::DescriptorSet GetDescriptorSet(uint32_t pass_index) const;
     };
 };
 
