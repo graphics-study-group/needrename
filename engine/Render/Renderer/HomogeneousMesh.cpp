@@ -29,15 +29,15 @@ namespace Engine {
         return need;
     }
 
-    std::unique_ptr <Buffer> HomogeneousMesh::CreateStagingBuffer() const {
+    Buffer HomogeneousMesh::CreateStagingBuffer() const {
         const uint64_t buffer_size = GetExpectedBufferSize();
 
-        auto buffer = std::make_unique<Buffer>(m_system);
-        buffer->Create(Buffer::BufferType::Staging, buffer_size);
+        Buffer buffer{m_system};
+        buffer.Create(Buffer::BufferType::Staging, buffer_size);
 
-        std::byte * data = buffer->Map();
+        std::byte * data = buffer.Map();
         WriteToMemory(data);
-        buffer->Unmap();
+        buffer.Unmap();
 
         return buffer;
     }

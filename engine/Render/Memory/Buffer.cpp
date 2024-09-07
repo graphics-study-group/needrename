@@ -39,6 +39,10 @@ namespace Engine
         return m_memory.get();
     }
 
+    size_t Buffer::GetSize() const {
+        return m_size;
+    }
+
     std::byte* Buffer::Map() const {
         auto device = m_system.lock()->getDevice();
         return reinterpret_cast<std::byte*>(device.mapMemory(m_memory.get(), m_offset, m_size));

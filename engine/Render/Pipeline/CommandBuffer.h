@@ -3,6 +3,7 @@
 
 #include "Render/VkWrapper.tcc"
 #include <vulkan/vulkan.hpp>
+#include <list>
 
 namespace Engine
 {
@@ -10,6 +11,8 @@ namespace Engine
     class Material;
     class Synchronization;
     class HomogeneousMesh;
+    class Buffer;
+    class AllocatedImage2DTexture;
 
     namespace ConstantData {
         struct PerCameraStruct;
@@ -72,7 +75,7 @@ namespace Engine
 
         void CommitVertexBuffer(const HomogeneousMesh & mesh);
 
-        void CommitTextureImage();
+        void CommitTextureImage(const AllocatedImage2DTexture & texture, std::byte * data, size_t length);
 
         void End();
 
@@ -82,6 +85,10 @@ namespace Engine
         vk::Queue m_queue {};
         vk::UniqueCommandBuffer m_handle {};
         vk::UniqueFence m_complete_fence {};
+
+        // Temporary buffers created by transfer commands.
+        // Cleared after transfer transactions are finished.
+        std::list <Buffer> m_pending_buffers {};
     };
 } // namespace Engine
 
