@@ -19,7 +19,7 @@
 
 #include "Render/RenderSystem.h"
 #include "Render/Memory/Image2DTexture.h"
-#include "Render/Material/TestMaterial.h"
+#include "Render/Material/TestMaterialWithSampler.h"
 #include "Render/Pipeline/PremadePipeline/DefaultPipeline.h"
 #include "Render/Pipeline/PremadePipeline/SingleRenderPass.h"
 #include "Render/Renderer/HomogeneousMesh.h"
@@ -29,13 +29,14 @@ using namespace Engine;
 class TestHomoMesh : public HomogeneousMesh {
 public:
     TestHomoMesh(std::weak_ptr<RenderSystem> system) : HomogeneousMesh(system) {
-        this->m_positions = {{0.0f, -0.5f, 0.0f}, {0.5f, 0.5f, 0.0f}, {-0.5f, 0.5f, 0.0f}};
+        this->m_positions = {{-0.5f, 0.5f, 0.0f}, {-0.5f, -0.5f, 0.0f}, {0.5f, -0.5f, 0.0f}, {0.5f, 0.5f, 0.0f}};
         this->m_attributes = {
             {.color = {1.0f, 0.0f, 0.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {0.0f, 0.0f}}, 
-            {.color = {0.0f, 1.0f, 0.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {0.0f, 0.0f}}, 
-            {.color = {0.0f, 0.0f, 1.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {0.0f, 0.0f}}
+            {.color = {0.0f, 1.0f, 0.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {0.0f, 1.0f}}, 
+            {.color = {0.0f, 0.0f, 1.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {1.0f, 1.0f}},
+            {.color = {1.0f, 0.0f, 1.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {1.0f, 0.0f}}
         };
-        this->m_indices = {0, 1, 2};
+        this->m_indices = {0, 1, 2, 0, 2, 3};
     }
 };
 
@@ -65,8 +66,6 @@ int main(int, char *[])
     rp.CreateFramebuffersFromSwapchain();
     rp.SetClearValues({{{0.0f, 0.0f, 0.0f, 1.0f}}});
 
-    TestMaterial material{render_system, rp};
-
     uint32_t in_flight_frame_id = 0;
     uint32_t total_test_frame = 1440;
     
@@ -83,6 +82,8 @@ int main(int, char *[])
     assert(image_data);
     AllocatedImage2DTexture texture{render_system};
     texture.Create(tex_width, tex_height, vk::Format::eR8G8B8A8Srgb);
+
+    TestMaterialWithSampler material{render_system, rp, texture};
 
     auto & tcb = render_system->GetTransferCommandBuffer();
     tcb.Begin();
