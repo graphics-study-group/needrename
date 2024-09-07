@@ -94,7 +94,7 @@ namespace Engine
         m_handle->bindVertexBuffers(0, bindings.first, bindings.second);
         auto indices = mesh.GetIndexInfo();
         m_handle->bindIndexBuffer(indices.first, indices.second, vk::IndexType::eUint32);
-        m_handle->drawIndexed(mesh.GetVertexCount(), 1, 0, 0, 0);
+        m_handle->drawIndexed(mesh.GetVertexIndexCount(), 1, 0, 0, 0);
     }
 
     void RenderCommandBuffer::End() {
