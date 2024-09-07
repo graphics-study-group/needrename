@@ -3,12 +3,30 @@
 #include "Render/RenderSystem.h"
 
 namespace Engine {
-    vk::MemoryPropertyFlags AllocatedImage2D::GetMemoryProperty(ImageType) {
-        return vk::MemoryPropertyFlagBits::eDeviceLocal;
+    vk::MemoryPropertyFlags AllocatedImage2D::GetMemoryProperty(ImageType type) {
+        switch(type) {
+        case ImageType::DepthImageTransient:
+            return vk::MemoryPropertyFlagBits::eDeviceLocal | vk::MemoryPropertyFlagBits::eLazilyAllocated;
+        default:
+            return vk::MemoryPropertyFlagBits::eDeviceLocal;
+        }
+    }
+
+    uint16_t AllocatedImage2D::GetFormatSize(vk::Format format) {
+        switch(format) {
+        case vk::Format::eR8G8B8A8Srgb:
+            return 4;
+        case vk::Format::eR8G8B8Srgb:
+            return 3;
+        default:
+            return 0;
+        }
     }
 
     vk::ImageUsageFlags AllocatedImage2D::GetImageUsage(ImageType type) {
         switch (type) {
+        case ImageType::DepthImageTransient:
+            return vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eTransientAttachment;
         case ImageType::DepthStencilImage:
         case ImageType::DepthImage:
             return vk::ImageUsageFlagBits::eDepthStencilAttachment;
@@ -20,6 +38,7 @@ namespace Engine {
 
     vk::ImageAspectFlags AllocatedImage2D::GetImageAspect(ImageType type) {
         switch (type) {
+        case ImageType::DepthImageTransient:
         case ImageType::DepthImage:
             return vk::ImageAspectFlagBits::eDepth;
         case ImageType::DepthStencilImage:
@@ -71,6 +90,10 @@ namespace Engine {
             }
         };
         m_view = device.createImageViewUnique(vinfo);
+
+        m_format = format;
+        m_extent = vk::Extent2D{width, height};
+        m_mip_level = mip;
     }
 
     vk::Image AllocatedImage2D::GetImage() const {
@@ -83,5 +106,8 @@ namespace Engine {
 
     vk::ImageView AllocatedImage2D::GetImageView() const {
         return m_view.get();
+    }
+    vk::Extent2D AllocatedImage2D::GetExtent() const {
+        return m_extent;
     }
 };

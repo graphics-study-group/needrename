@@ -1,5 +1,7 @@
 #include "CommandBuffer.h"
 
+#include "Render/Memory/Buffer.h"
+#include "Render/Memory/Image2DTexture.h"
 #include "Render/Material/Material.h"
 #include "Render/Pipeline/RenderPass.h"
 #include "Render/Pipeline/Pipeline.h"
@@ -147,7 +149,71 @@ namespace Engine
 
         auto buffer {mesh.CreateStagingBuffer()};
         vk::BufferCopy copy{0, 0, static_cast<vk::DeviceSize>(mesh.GetExpectedBufferSize())};
-        m_handle->copyBuffer(buffer->GetBuffer(), mesh.GetBuffer().GetBuffer(), {copy});
+        m_handle->copyBuffer(buffer.GetBuffer(), mesh.GetBuffer().GetBuffer(), {copy});
+
+        m_pending_buffers.push_back(std::move(buffer));
+    }
+
+    void OneTimeCommandBuffer::CommitTextureImage(const AllocatedImage2DTexture& texture, std::byte * data, size_t length) {
+        Buffer buffer {texture.CreateStagingBuffer()};
+        assert(length <= buffer.GetSize());
+        std::byte * mapped_ptr = buffer.Map();
+        std::memcpy(mapped_ptr, data, length);
+        buffer.Unmap();
+
+        // Transit layout to TransferDstOptimal
+        vk::ImageSubresourceRange range {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1};  // FIXME: mip level
+        vk::ImageMemoryBarrier barrier {
+            vk::AccessFlags{0},
+            vk::AccessFlagBits::eTransferWrite,
+            vk::ImageLayout::eUndefined,
+            vk::ImageLayout::eTransferDstOptimal,
+            vk::QueueFamilyIgnored,
+            vk::QueueFamilyIgnored,
+            texture.GetImage(),
+            range
+        };
+        m_handle->pipelineBarrier(
+            vk::PipelineStageFlagBits::eTopOfPipe, 
+            vk::PipelineStageFlagBits::eTransfer,
+            vk::DependencyFlags{0},
+            {},
+            {},
+            { barrier }
+        );
+
+        // Copy buffer to image
+        vk::BufferImageCopy copy{
+            0, 0, 0,
+            vk::ImageSubresourceLayers {
+                vk::ImageAspectFlagBits::eColor,
+                0, 0, 1
+            },
+            vk::Offset3D{0, 0, 0},
+            vk::Extent3D{texture.GetExtent(), 1}
+        };
+        m_handle->copyBufferToImage(
+            buffer.GetBuffer(), 
+            texture.GetImage(), 
+            vk::ImageLayout::eTransferDstOptimal,
+            { copy }
+        );
+
+        // Transfer image for sampling
+        barrier.oldLayout = vk::ImageLayout::eTransferDstOptimal;
+        barrier.newLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+        barrier.srcAccessMask = vk::AccessFlagBits::eTransferWrite;
+        barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
+        m_handle->pipelineBarrier(
+            vk::PipelineStageFlagBits::eTransfer, 
+            vk::PipelineStageFlagBits::eFragmentShader,
+            vk::DependencyFlags{0},
+            {},
+            {},
+            { barrier }
+        );
+
+        m_pending_buffers.push_back(std::move(buffer));
     }
 
     void OneTimeCommandBuffer::Begin() {
@@ -172,6 +238,7 @@ namespace Engine
         m_queue.submit(infos, m_complete_fence.get());
         device.waitForFences({m_complete_fence.get()}, vk::True, std::numeric_limits<uint64_t>::max());
         device.resetFences({m_complete_fence.get()});
+        m_pending_buffers.clear();
     }
 } // namespace Engine
 

@@ -35,6 +35,12 @@ target_link_libraries(mesh_loading_test engine)
 add_test(NAME mesh_loading_test COMMAND mesh_loading_test)
 set_target_properties(mesh_loading_test PROPERTIES FOLDER tests)
 
+add_executable(image_read_test image_read_test.cpp)
+add_dependencies(image_read_test shader)
+target_link_libraries(image_read_test engine)
+add_test(NAME image_read_test COMMAND image_read_test)
+set_target_properties(image_read_test PROPERTIES FOLDER tests)
+
 # Copy SDL dll
 add_custom_command(TARGET SDL_init_test POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different

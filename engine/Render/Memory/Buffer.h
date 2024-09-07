@@ -32,6 +32,8 @@ namespace Engine{
         vk::Buffer GetBuffer () const;
         vk::DeviceMemory GetMemory () const;
 
+        size_t GetSize() const;
+
         std::byte * Map() const;
         void Unmap() const;
     

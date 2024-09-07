@@ -11,6 +11,7 @@ namespace Engine {
     public:
         enum class ImageType {
             DepthImage,
+            DepthImageTransient,
             DepthStencilImage,
             TextureImage
         };
@@ -24,6 +25,11 @@ namespace Engine {
 
         vk::UniqueImageView m_view {};
 
+        vk::Extent2D m_extent{};
+        uint32_t m_mip_level {};
+        vk::Format m_format {};
+        
+        static uint16_t GetFormatSize(vk::Format format);
         static vk::MemoryPropertyFlags GetMemoryProperty(ImageType type);
         static vk::ImageUsageFlags GetImageUsage(ImageType type);
         static vk::ImageAspectFlags GetImageAspect(ImageType type);
@@ -37,6 +43,8 @@ namespace Engine {
         vk::Image GetImage() const;
         vk::DeviceMemory GetMemory() const;
         vk::ImageView GetImageView() const;
+
+        vk::Extent2D GetExtent() const;
     };
 };
 
