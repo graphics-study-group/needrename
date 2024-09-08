@@ -144,12 +144,37 @@ namespace Engine
     }
 
     void OneTimeCommandBuffer::CommitVertexBuffer(const HomogeneousMesh& mesh) {
-        auto device = m_system.lock()->getDevice();
-        device.waitIdle();
+        // auto device = m_system.lock()->getDevice();
+        // device.waitIdle();
+
+        // Set up a barrier for buffer transfering
+        vk::MemoryBarrier barrier {
+            vk::AccessFlagBits::eVertexAttributeRead | vk::AccessFlagBits::eIndexRead,
+            vk::AccessFlagBits::eTransferWrite
+        };
+        m_handle->pipelineBarrier(
+            vk::PipelineStageFlagBits::eVertexInput,
+            vk::PipelineStageFlagBits::eTransfer,
+            vk::DependencyFlags{0},
+            { barrier },
+            {},
+            {}
+        );
 
         auto buffer {mesh.CreateStagingBuffer()};
         vk::BufferCopy copy{0, 0, static_cast<vk::DeviceSize>(mesh.GetExpectedBufferSize())};
         m_handle->copyBuffer(buffer.GetBuffer(), mesh.GetBuffer().GetBuffer(), {copy});
+
+        barrier.srcAccessMask = vk::AccessFlagBits::eTransferWrite;
+        barrier.dstAccessMask = vk::AccessFlagBits::eVertexAttributeRead | vk::AccessFlagBits::eIndexRead;
+        m_handle->pipelineBarrier(
+            vk::PipelineStageFlagBits::eTransfer,
+            vk::PipelineStageFlagBits::eVertexInput,
+            vk::DependencyFlags{0},
+            { barrier },
+            {},
+            {}
+        );
 
         m_pending_buffers.push_back(std::move(buffer));
     }
@@ -164,7 +189,7 @@ namespace Engine
         // Transit layout to TransferDstOptimal
         vk::ImageSubresourceRange range {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1};  // FIXME: mip level
         vk::ImageMemoryBarrier barrier {
-            vk::AccessFlags{0},
+            vk::AccessFlagBits::eShaderRead,
             vk::AccessFlagBits::eTransferWrite,
             vk::ImageLayout::eUndefined,
             vk::ImageLayout::eTransferDstOptimal,
@@ -174,7 +199,7 @@ namespace Engine
             range
         };
         m_handle->pipelineBarrier(
-            vk::PipelineStageFlagBits::eTopOfPipe, 
+            vk::PipelineStageFlagBits::eFragmentShader, 
             vk::PipelineStageFlagBits::eTransfer,
             vk::DependencyFlags{0},
             {},
@@ -236,7 +261,10 @@ namespace Engine
 
         std::array<vk::SubmitInfo, 1> infos{info};
         m_queue.submit(infos, m_complete_fence.get());
-        device.waitForFences({m_complete_fence.get()}, vk::True, std::numeric_limits<uint64_t>::max());
+        auto fence_result = device.waitForFences({m_complete_fence.get()}, vk::True, std::numeric_limits<uint64_t>::max());
+        if (fence_result == vk::Result::eTimeout) {
+            SDL_LogCritical(SDL_LOG_CATEGORY_RENDER, "Timed out waiting for transfer command buffer execution.");
+        }
         device.resetFences({m_complete_fence.get()});
         m_pending_buffers.clear();
     }
