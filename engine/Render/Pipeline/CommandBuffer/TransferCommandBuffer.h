@@ -27,7 +27,8 @@ namespace Engine {
 
         void SubmitAndExecute();
     protected:
-        std::weak_ptr <RenderSystem> m_system {};
+        RenderSystem * m_system {nullptr};
+
         vk::Queue m_queue {};
         vk::UniqueCommandBuffer m_handle {};
         vk::UniqueFence m_complete_fence {};

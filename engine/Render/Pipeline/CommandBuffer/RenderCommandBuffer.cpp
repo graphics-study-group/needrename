@@ -25,7 +25,7 @@ namespace Engine {
         m_handle = std::move(cbvector[0]);
 
         m_inflight_frame_index = frame_index;
-        m_system = system;
+        m_system = system.get();
         m_queue = queue;
     }
 
@@ -51,7 +51,7 @@ namespace Engine {
     void RenderCommandBuffer::BindMaterial(const Material & material, uint32_t pass_index) {
         m_handle->bindPipeline(vk::PipelineBindPoint::eGraphics, material.GetPipeline(pass_index)->get());
         m_bound_material = std::make_pair(std::cref(material), pass_index);
-        const auto & global_pool = m_system.lock()->GetGlobalConstantDescriptorPool();
+        const auto & global_pool = m_system->GetGlobalConstantDescriptorPool();
         const auto & per_camera_descriptor_set = global_pool.GetPerCameraConstantSet(m_inflight_frame_index);
         auto material_descriptor_set = material.GetDescriptorSet(pass_index);
 
@@ -102,7 +102,7 @@ namespace Engine {
     }
 
     void RenderCommandBuffer::Submit() {
-        const auto & synch = m_system.lock()->getSynchronization();
+        const auto & synch = m_system->getSynchronization();
         vk::SubmitInfo info{};
         info.commandBufferCount = 1;
         info.pCommandBuffers = &m_handle.get();

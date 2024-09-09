@@ -51,7 +51,9 @@ namespace Engine {
         uint32_t m_inflight_frame_index {};
         vk::UniqueCommandBuffer m_handle {};
         vk::Queue m_queue {};
-        std::weak_ptr <RenderSystem> m_system {};
+
+        RenderSystem * m_system {nullptr};
+
         std::optional<std::pair <std::reference_wrapper<const Material>, uint32_t>> m_bound_material {};
     };
 }
