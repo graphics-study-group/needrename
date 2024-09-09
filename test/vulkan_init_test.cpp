@@ -96,7 +96,7 @@ int main(int, char **)
         cb.DrawMesh(mesh);
         cb.End();
 
-        cb.Submit(system->getSynchronization());
+        cb.Submit();
 
         auto submit_end_timer = sch::high_resolution_clock::now();
 

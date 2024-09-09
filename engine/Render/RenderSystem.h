@@ -88,7 +88,7 @@ namespace Engine
         RenderCommandBuffer & GetGraphicsCommandBuffer(uint32_t frame_index);
         const RenderSystemState::GlobalConstantDescriptorPool & GetGlobalConstantDescriptorPool() const;
         RenderSystemState::MaterialDescriptorManager & GetMaterialDescriptorManager();
-        OneTimeCommandBuffer & GetTransferCommandBuffer();
+        TransferCommandBuffer & GetTransferCommandBuffer();
 
         void EnableDepthTesting();
 
@@ -130,7 +130,7 @@ namespace Engine
 
         std::unique_ptr <Synchronization> m_synch {};
         std::vector <RenderCommandBuffer> m_commandbuffers {};
-        OneTimeCommandBuffer m_one_time_commandbuffer {};
+        TransferCommandBuffer m_one_time_commandbuffer {};
     };
 }
 

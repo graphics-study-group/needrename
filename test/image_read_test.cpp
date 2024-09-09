@@ -48,8 +48,8 @@ int main(int, char *[])
     SDL_LogInfo(0, "Loading mesh...");
 
     StartupOptions opt;
-    opt.resol_x = 800;
-    opt.resol_y = 600;
+    opt.resol_x = 1920;
+    opt.resol_y = 1080;
     cmc = new Engine::MainClass(
             SDL_INIT_VIDEO,
             SDL_LOG_PRIORITY_VERBOSE
@@ -67,7 +67,7 @@ int main(int, char *[])
     rp.SetClearValues({{{0.0f, 0.0f, 0.0f, 1.0f}}});
 
     uint32_t in_flight_frame_id = 0;
-    uint32_t total_test_frame = 1440;
+    uint32_t total_test_frame = 144;
     
     render_system->UpdateSwapchain();
     rp.CreateFramebuffersFromSwapchain();
@@ -85,15 +85,6 @@ int main(int, char *[])
 
     TestMaterialWithSampler material{render_system, rp, texture};
 
-    auto & tcb = render_system->GetTransferCommandBuffer();
-    tcb.Begin();
-    tcb.CommitVertexBuffer(mesh);
-    tcb.CommitTextureImage(texture, reinterpret_cast<std::byte *>(image_data), tex_width * tex_height * 4);
-    tcb.End();
-    tcb.SubmitAndExecute();
-
-    stbi_image_free(image_data);
-
     do {
 
         render_system->WaitForFrameBegin(in_flight_frame_id);
@@ -101,7 +92,14 @@ int main(int, char *[])
 
         uint32_t index = render_system->GetNextImage(in_flight_frame_id, 0x7FFFFFFF);
         assert(index < 3);
-    
+
+        auto & tcb = render_system->GetTransferCommandBuffer();
+        tcb.Begin();
+        tcb.CommitVertexBuffer(mesh);
+        tcb.CommitTextureImage(texture, reinterpret_cast<std::byte *>(image_data), tex_width * tex_height * 4);
+        tcb.End();
+        tcb.SubmitAndExecute();
+
         cb.Begin();
         vk::Extent2D extent {render_system->GetSwapchain().GetExtent()};
         cb.BeginRenderPass(rp, extent, index);
@@ -112,12 +110,14 @@ int main(int, char *[])
         cb.DrawMesh(mesh);
         cb.End();
 
-        cb.Submit(render_system->getSynchronization());
+        cb.Submit();
 
         render_system->Present(index, in_flight_frame_id);
 
         in_flight_frame_id = (in_flight_frame_id + 1) % 3;
     } while(total_test_frame--);
+
+    stbi_image_free(image_data);
     render_system->WaitForIdle();
 
     delete cmc;

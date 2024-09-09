@@ -117,7 +117,7 @@ int main(int, char *[])
         cb.DrawMesh(*(mesh_component->GetSubmesh(0)));
         cb.End();
 
-        cb.Submit(render_system->getSynchronization());
+        cb.Submit();
 
         render_system->Present(index, in_flight_frame_id);
 
