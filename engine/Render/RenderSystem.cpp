@@ -89,7 +89,7 @@ namespace Engine
         return m_material_descriptor_manager;
     }
 
-    OneTimeCommandBuffer& RenderSystem::GetTransferCommandBuffer() {
+    TransferCommandBuffer & RenderSystem::GetTransferCommandBuffer() {
         m_device->resetCommandPool(m_queues.graphicsOneTimePool.get());
         return m_one_time_commandbuffer;
     }
