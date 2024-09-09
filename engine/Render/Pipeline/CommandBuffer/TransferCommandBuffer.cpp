@@ -22,7 +22,7 @@ namespace Engine {
         // Create fence
         vk::FenceCreateInfo finfo {};
         m_complete_fence = system->getDevice().createFenceUnique(finfo);
-        m_system = system;
+        m_system = system.get();
         m_queue = queue;
     }
 
@@ -134,7 +134,7 @@ namespace Engine {
     }
 
     void TransferCommandBuffer::SubmitAndExecute() {
-        auto device = m_system.lock()->getDevice();
+        auto device = m_system->getDevice();
 
         vk::SubmitInfo info{};
         info.commandBufferCount = 1;
