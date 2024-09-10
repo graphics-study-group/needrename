@@ -29,6 +29,7 @@ namespace Engine
         inline const std::vector <size_t> & GetTriangle_normal_ids() const { return m_triangle_normal_ids; }
         inline const std::vector <size_t> & GetTriangle_uv_ids() const { return m_triangle_uv_ids; }
         inline const std::vector <float> & GetPositions() const { return m_positions; }
+        inline const std::vector <float> & GetNormals() const { return m_normals; }
         inline const std::vector <float> & GetUVs() const { return m_uvs; }
     
     protected:
@@ -37,6 +38,7 @@ namespace Engine
         std::vector <size_t> m_triangle_normal_ids;
         std::vector <size_t> m_triangle_uv_ids;
         std::vector <float> m_positions;
+        std::vector <float> m_normals;
         std::vector <float> m_uvs;
     
     private:
@@ -45,7 +47,7 @@ namespace Engine
         template <class Archive>
         void serialize(Archive & ar)
         {
-            ar(m_offsets, m_triangle_vert_ids, m_triangle_normal_ids, m_triangle_uv_ids, m_positions, m_uvs);
+            ar(m_offsets, m_triangle_vert_ids, m_triangle_normal_ids, m_triangle_uv_ids, m_positions, m_normals, m_uvs);
         }
     };
 }
