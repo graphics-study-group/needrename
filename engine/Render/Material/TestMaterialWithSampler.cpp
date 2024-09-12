@@ -63,9 +63,7 @@ namespace Engine {
         m_passes[0].descriptor_set = descriptor_set;
 
         auto & pipeline_layout = *(m_passes[0].pipeline_layout.get());
-        auto set_layouts = GetGlobalDescriptorSetLayout();
-        set_layouts.push_back(set_layout);
-        pipeline_layout.CreatePipelineLayout(set_layouts, {});
+        pipeline_layout.CreateWithDefault({set_layout});
         m_passes[0].pipeline->CreatePipeline(pass.GetSubpass(0), pipeline_layout, {fragModule, vertModule});
 
         // Write texture descriptor

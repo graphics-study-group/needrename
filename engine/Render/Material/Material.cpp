@@ -6,7 +6,6 @@ namespace Engine {
         const auto & pool = m_renderSystem.lock()->GetGlobalConstantDescriptorPool();
         return {pool.GetPerCameraConstantLayout().get()};
     }
-
     Material::Material (std::weak_ptr<RenderSystem> system) 
     : m_renderSystem(system) {
     }

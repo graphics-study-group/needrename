@@ -1,14 +1,17 @@
 #include "RenderCommandBuffer.h"
 
-#include "Render/RenderSystem.h"
 #include "Render/Memory/Buffer.h"
+#include "Render/Memory/Image2DTexture.h"
 #include "Render/Material/Material.h"
 #include "Render/Pipeline/RenderPass.h"
 #include "Render/Pipeline/Pipeline.h"
+#include "Render/Pipeline/PipelineLayout.h"
 #include "Render/Renderer/HomogeneousMesh.h"
 #include "Render/RenderSystem/Synch/Synchronization.h"
+#include "Render/ConstantData/PerModelConstants.h"
 
-namespace Engine {
+namespace Engine
+{
     void RenderCommandBuffer::CreateCommandBuffer(
         std::shared_ptr<RenderSystem> system, 
         vk::CommandPool command_pool,
@@ -49,8 +52,13 @@ namespace Engine {
     }
 
     void RenderCommandBuffer::BindMaterial(const Material & material, uint32_t pass_index) {
-        m_handle->bindPipeline(vk::PipelineBindPoint::eGraphics, material.GetPipeline(pass_index)->get());
+        const auto & pipeline = material.GetPipeline(pass_index)->get();
+        const auto & pipeline_layout = material.GetPipelineLayout(pass_index)->get();
+
+        m_handle->bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
         m_bound_material = std::make_pair(std::cref(material), pass_index);
+        m_bound_material_pipeline = std::make_pair(pipeline, pipeline_layout);
+
         const auto & global_pool = m_system->GetGlobalConstantDescriptorPool();
         const auto & per_camera_descriptor_set = global_pool.GetPerCameraConstantSet(m_inflight_frame_index);
         auto material_descriptor_set = material.GetDescriptorSet(pass_index);
@@ -58,7 +66,7 @@ namespace Engine {
         if (material_descriptor_set) {
             m_handle->bindDescriptorSets(
                 vk::PipelineBindPoint::eGraphics, 
-                material.GetPipelineLayout(pass_index)->get(), 
+                pipeline_layout, 
                 0,
                 {per_camera_descriptor_set, material_descriptor_set},
                 {}
@@ -66,7 +74,7 @@ namespace Engine {
         } else {
             m_handle->bindDescriptorSets(
                 vk::PipelineBindPoint::eGraphics, 
-                material.GetPipelineLayout(pass_index)->get(), 
+                pipeline_layout, 
                 0,
                 {per_camera_descriptor_set},
                 {}
@@ -93,6 +101,14 @@ namespace Engine {
         m_handle->bindVertexBuffers(0, bindings.first, bindings.second);
         auto indices = mesh.GetIndexInfo();
         m_handle->bindIndexBuffer(indices.first, indices.second, vk::IndexType::eUint32);
+
+        m_handle->pushConstants(
+            m_bound_material_pipeline.value().second, 
+            vk::ShaderStageFlagBits::eVertex, 
+            0, 
+            ConstantData::PerModelConstantPushConstant::PUSH_RANGE_SIZE,
+            reinterpret_cast<const void *>(&mesh.GetModelTransform())
+        );
         m_handle->drawIndexed(mesh.GetVertexIndexCount(), 1, 0, 0, 0);
     }
 
@@ -102,11 +118,11 @@ namespace Engine {
     }
 
     void RenderCommandBuffer::Submit() {
-        const auto & synch = m_system->getSynchronization();
         vk::SubmitInfo info{};
         info.commandBufferCount = 1;
         info.pCommandBuffers = &m_handle.get();
 
+        const auto & synch = m_system->getSynchronization();
         auto wait = synch.GetCommandBufferWaitSignals(m_inflight_frame_index);
         auto waitFlags = synch.GetCommandBufferWaitSignalFlags(m_inflight_frame_index);
         auto signal = synch.GetCommandBufferSigningSignals(m_inflight_frame_index);
@@ -125,5 +141,6 @@ namespace Engine {
     void RenderCommandBuffer::Reset() {
         m_handle->reset();
         m_bound_material.reset();
+        m_bound_material_pipeline.reset();
     }
 }
