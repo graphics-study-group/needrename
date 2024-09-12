@@ -10,7 +10,7 @@ namespace Engine {
     class AllocatedImage2DTexture;
 
     class TestMaterialWithSampler : public Material {
-        vk::UniqueSampler m_sampler;
+        vk::UniqueSampler m_sampler {};
         ShaderModule fragModule;
         ShaderModule vertModule;
     public:

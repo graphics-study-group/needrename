@@ -13,6 +13,8 @@ namespace Engine
     class HomogeneousMesh;
     class Buffer;
     class AllocatedImage2DTexture;
+    class Pipeline;
+    class PipelineLayout;
 
     namespace ConstantData {
         struct PerCameraStruct;
@@ -60,7 +62,9 @@ namespace Engine
         vk::UniqueCommandBuffer m_handle {};
         vk::Queue m_queue {};
         std::weak_ptr <RenderSystem> m_system {};
-        std::optional<std::pair <std::reference_wrapper<const Material>, uint32_t>> m_bound_material {};
+
+        std::optional <std::pair<std::reference_wrapper<const Material>, uint32_t>> m_bound_material;
+        std::optional <std::pair<vk::Pipeline, vk::PipelineLayout>> m_bound_material_pipeline;
     };
 
     /// @brief A dispensable command buffer for one-time command like transfer.

@@ -84,6 +84,16 @@ namespace Engine {
         m_updated = true;
     }
 
+    void HomogeneousMesh::SetModelTransform(glm::mat4 matrix)
+    {
+        m_model_transform = matrix;
+    }
+
+    const glm::mat4 &HomogeneousMesh::GetModelTransform() const
+    {
+        return m_model_transform;
+    }
+
     std::pair<vk::Buffer, vk::DeviceSize> HomogeneousMesh::GetIndexInfo() const {
         assert(this->m_buffer.GetBuffer());
         uint64_t total_size = GetVertexCount() * VertexStruct::VERTEX_TOTAL_SIZE;
