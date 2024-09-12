@@ -8,14 +8,14 @@ namespace Engine {
     class RenderSystem;
     
     namespace ConstantData {
-        struct PerModelStruct {
+        struct PerModelPushStruct {
             glm::mat4 model_matrix;
         };
 
         class PerModelConstantPushConstant {
         public:
             static constexpr uint32_t PUSH_RANGE_OFFSET = 0u;
-            static constexpr uint32_t PUSH_RANGE_SIZE = sizeof(PerModelStruct);
+            static constexpr uint32_t PUSH_RANGE_SIZE = sizeof(PerModelPushStruct);
             static vk::PushConstantRange GetPushConstantRange();
         };
     }
