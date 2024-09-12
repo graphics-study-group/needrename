@@ -1,0 +1,21 @@
+# Git LFS
+# Image files
+*.jpg filter=lfs diff=lfs merge=lfs
+*.jpeg filter=lfs diff=lfs merge=lfs
+*.png filter=lfs diff=lfs merge=lfs
+*.svg filter=lfs diff=lfs merge=lfs
+*.psd filter=lfs diff=lfs merge=lfs
+
+# mesh files
+*.obj filter=lfs diff=lfs merge=lfs
+*.mtl filter=lfs diff=lfs merge=lfs
+*.fbx filter=lfs diff=lfs merge=lfs
+*.blend filter=lfs diff=lfs merge=lfs
+
+# binary files
+*.mesh_data filter=lfs diff=lfs merge=lfs
+*.exe filter=lfs diff=lfs merge=lfs
+*.dll filter=lfs diff=lfs merge=lfs
+*.so filter=lfs diff=lfs merge=lfs
+*.lib filter=lfs diff=lfs merge=lfs
+*.a filter=lfs diff=lfs merge=lfs
