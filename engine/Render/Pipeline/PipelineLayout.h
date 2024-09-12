@@ -11,7 +11,8 @@ namespace Engine
     {
     public:
         PipelineLayout(std::weak_ptr <RenderSystem> system);
-        void CreatePipelineLayout(const std::vector<vk::DescriptorSetLayout> & set, const std::vector<vk::PushConstantRange> & push);
+        void CreatePipelineLayout (const std::vector<vk::DescriptorSetLayout> & set, const std::vector<vk::PushConstantRange> & push);
+        void CreateWithDefault (const std::vector <vk::DescriptorSetLayout> & extra_descriptor_set);
     };
 } // namespace Engine
 
