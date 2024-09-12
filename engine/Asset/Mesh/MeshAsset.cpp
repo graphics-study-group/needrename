@@ -42,12 +42,14 @@ namespace Engine
         m_triangle_normal_ids.clear();
         m_triangle_uv_ids.clear();
         m_positions.clear();
+        m_normals.clear();
         m_uvs.clear();
     }
 
     void MeshAsset::LoadFromTinyobj(const tinyobj::attrib_t &attrib, const std::vector<tinyobj::shape_t> &shapes)
     {
         m_positions.clear();
+        m_normals.clear();
         m_uvs.clear();
         m_offsets.clear();
         m_triangle_vert_ids.clear();
@@ -55,6 +57,7 @@ namespace Engine
         m_triangle_uv_ids.clear();
 
         m_positions = attrib.vertices;
+        m_normals = attrib.normals;
         m_uvs = attrib.texcoords;
 
         for (const auto &shape : shapes)

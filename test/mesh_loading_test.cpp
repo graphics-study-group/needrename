@@ -128,4 +128,3 @@ int main(int, char *[])
     delete cmc;
     return 0;
 }
-
