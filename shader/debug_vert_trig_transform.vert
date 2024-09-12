@@ -10,7 +10,11 @@ layout(set = 0, binding = 0) uniform CameraBuffer{
     mat4 proj;
 } camera;
 
+layout(push_constant) uniform ModelTransform {
+    mat4 model;
+} modelTransform;
+
 void main() {
-    gl_Position = camera.proj * camera.view * vec4(inPosition.xy, 0.0, 1.0);
+    gl_Position = camera.proj * camera.view * modelTransform.model * vec4(inPosition.xy, 0.0, 1.0);
     fragColor = inColor;
 }

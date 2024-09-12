@@ -35,6 +35,8 @@ public:
     }
 };
 
+constexpr uint32_t MAXIMUM_FRAME_COUNT = 14400;
+
 int main(int, char **)
 {
     SDL_Init(SDL_INIT_VIDEO);
@@ -60,7 +62,7 @@ int main(int, char **)
     TestMaterialWithTransform material{system, rp};
 
     uint32_t in_flight_frame_id = 0;
-    uint32_t total_test_frame = 1440;
+    uint32_t total_test_frame = MAXIMUM_FRAME_COUNT;
 
     TestHomoMesh mesh{system};
     mesh.Prepare();
@@ -77,7 +79,14 @@ int main(int, char **)
             tcb.SubmitAndExecute();
         }
 
-        transform.proj_matrix = glm::rotate(transform.proj_matrix, 0.02f, glm::vec3{0.0f, 0.0f, 1.0f});
+        if (total_test_frame > MAXIMUM_FRAME_COUNT / 3 * 2) {
+            transform.proj_matrix = glm::rotate(transform.proj_matrix, 0.002f, glm::vec3{0.0f, 0.0f, 1.0f});
+        } else if (total_test_frame > MAXIMUM_FRAME_COUNT / 3) {
+            transform.view_matrix = glm::rotate(transform.view_matrix, -0.002f, glm::vec3{0.0f, 0.0f, 1.0f});
+        } else {
+            glm::mat4 old_transform = mesh.GetModelTransform();
+            mesh.SetModelTransform(glm::rotate(old_transform, 0.002f, glm::vec3{0.0f, 0.0f, 1.0f}));
+        }
 
         system->WaitForFrameBegin(in_flight_frame_id);
         RenderCommandBuffer & cb = system->GetGraphicsCommandBuffer(in_flight_frame_id);

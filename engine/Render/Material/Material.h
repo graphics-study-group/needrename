@@ -25,6 +25,7 @@ namespace Engine {
         /// @brief Get global constant descriptor layouts for PipelineLayout construction.
         /// A helper function for constructing pipeline layout.
         /// @return A vector of vk::DescriptorSetLayout for global constant descriptors
+        [[deprecated("Use PipelineLayout::CreateWithDefault instead.")]]
         std::vector <vk::DescriptorSetLayout> GetGlobalDescriptorSetLayout();
 
     public:

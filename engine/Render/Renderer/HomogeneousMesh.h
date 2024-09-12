@@ -44,6 +44,9 @@ namespace Engine{
         void SetAttributes (std::vector <VertexStruct::VertexAttribute> attributes);
         void SetIndices (std::vector <uint32_t> indices);
 
+        void SetModelTransform(glm::mat4 matrix);
+        const glm::mat4 & GetModelTransform() const;
+
     protected:
         std::weak_ptr <RenderSystem> m_system;
 
@@ -89,6 +92,8 @@ namespace Engine{
         std::vector <uint32_t> m_indices {};
         std::vector <VertexStruct::VertexPosition> m_positions {};
         std::vector <VertexStruct::VertexAttribute> m_attributes {};
+
+        glm::mat4 m_model_transform {1.0f};
 
         void WriteToMemory(std::byte * pointer) const;
     };
