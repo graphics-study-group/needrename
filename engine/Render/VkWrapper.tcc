@@ -29,7 +29,7 @@ namespace Engine
         virtual ~VkWrapper () = default;
 
         VkWrapper(const VkWrapper &) = delete;
-        VkWrapper(VkWrapper && other) : m_handle(std::move(other.handle)) {};
+        VkWrapper(VkWrapper && other) : m_handle(std::move(other.m_handle)) {};
         VkWrapper & operator= (const VkWrapper &) = delete;
         VkWrapper & operator= (VkWrapper & other) {
             if (this->handle != other.handle) {
