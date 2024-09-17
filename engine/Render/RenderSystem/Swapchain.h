@@ -4,6 +4,7 @@
 #include "Render/VkWrapper.tcc"
 #include "Structs.h"
 #include "Render/Memory/Image2D.h"
+#include "Render/Memory/SwapchainImage.h"
 #include <vector>
 
 namespace Engine {
@@ -54,6 +55,11 @@ namespace Engine {
             vk::SurfaceFormatKHR GetImageFormat() const;
             vk::Extent2D GetExtent() const;
             bool IsDepthEnabled() const;
+
+            uint32_t GetFrameCount() const;
+
+            SwapchainImage GetImage(uint32_t frame_id) const;
+            SwapchainImage GetDepthImage(uint32_t frame_id) const;
         };
     }
 }

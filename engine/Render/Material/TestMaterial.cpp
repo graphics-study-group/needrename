@@ -43,7 +43,8 @@ namespace Engine {
         m_passes[0].pipeline = std::make_unique <PremadePipeline::DefaultPipeline> (system);
         m_passes[0].pipeline_layout = std::make_unique <PipelineLayout> (system);
         auto & layout = *(m_passes[0].pipeline_layout.get());
-        layout.CreatePipelineLayout(GetGlobalDescriptorSetLayout(), {});
+        // layout.CreatePipelineLayout(GetGlobalDescriptorSetLayout(), {});
+        layout.CreateWithDefault({});
         m_passes[0].pipeline->CreatePipeline(pass.GetSubpass(0), layout, {fragModule, vertModule});
     }
 }

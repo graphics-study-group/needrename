@@ -1,5 +1,6 @@
 #include "Framebuffers.h"
 
+#include "Render/Pipeline/RenderTarget/Framebuffer.h"
 #include "Render/Pipeline/RenderPass.h"
 
 namespace Engine
@@ -13,29 +14,23 @@ namespace Engine
 
         auto system = m_system.lock();
         const auto & swapchain = system->GetSwapchain();
-        const auto & image_views = swapchain.GetImageViews();
         const std::vector <AllocatedImage2D> & depth_images = swapchain.GetDepthImages();
         vk::Extent2D extent = swapchain.GetExtent();
-        m_framebuffers.reserve(image_views.size());
-        for (size_t i = 0; i < image_views.size(); i++) {
-            std::vector <vk::ImageView> imageViews;
+
+        uint32_t frame_count = swapchain.GetFrameCount();
+        for (size_t i = 0; i < frame_count; i++) {
+            std::vector <SwapchainImage> images;
             // XXX: We need to design a better scheme for mapping attachments to images
             if (swapchain.IsDepthEnabled()) {
-                imageViews = { image_views[i].get(), depth_images[i].GetImageView() };
+                images = { swapchain.GetImage(i), swapchain.GetDepthImage(i) };
+                m_framebuffers.emplace_back(system);
+                m_framebuffers[i].Create(pass, swapchain.GetExtent(), {std::cref(images[0]), std::cref(images[1])});
             } else {
-                imageViews = { image_views[i].get() };
+                images = { swapchain.GetImage(i) };
+                m_framebuffers.emplace_back(system);
+                m_framebuffers[i].Create(pass, swapchain.GetExtent(), {std::cref(images[0])});
             }
-            assert(pass.GetAttachments().size() == imageViews.size());
-
-            vk::FramebufferCreateInfo info{};
-            info.renderPass = pass.get();
-            info.attachmentCount = imageViews.size();
-            info.pAttachments = imageViews.data();
-            info.setWidth(extent.width).setHeight(extent.height);
-            info.layers = 1;
-            m_framebuffers.emplace_back(system->getDevice().createFramebufferUnique(info));
         }
-        m_framebuffers.shrink_to_fit();
     }
 
     vk::Framebuffer Framebuffers::GetFramebuffer(uint32_t index) const {

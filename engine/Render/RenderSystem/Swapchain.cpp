@@ -18,7 +18,7 @@ namespace Engine::RenderSystemState{
         // Select display mode
         vk::PresentModeKHR pickedMode = vk::PresentModeKHR::eFifo;
         for (const auto & mode : support.modes) {
-            if (mode == vk::PresentModeKHR::eImmediate) {
+            if (mode == vk::PresentModeKHR::eMailbox) {
                 pickedMode = mode;
                 break;
             }
@@ -165,5 +165,22 @@ namespace Engine::RenderSystemState{
     vk::Extent2D Swapchain::GetExtent() const { return m_extent; }
     bool Swapchain::IsDepthEnabled() const {
         return is_depth_enabled;
+    }
+
+    uint32_t Swapchain::GetFrameCount() const
+    {
+        assert(m_images.size() == m_depth_images.size() && m_images.size() == m_image_views.size());
+        return m_images.size();
+    }
+
+    SwapchainImage Swapchain::GetImage(uint32_t frame_id) const
+    {
+        assert(frame_id < m_images.size());
+        return SwapchainImage(m_images[frame_id], m_image_views[frame_id].get());
+    }
+    SwapchainImage Swapchain::GetDepthImage(uint32_t frame_id) const
+    {
+        assert(frame_id < m_images.size());
+        return SwapchainImage(m_depth_images[frame_id].GetImage(), m_depth_images[frame_id].GetImageView());
     }
 }
