@@ -2,12 +2,13 @@
 #define RENDER_MEMORY_IMAGE_INCLUDED
 
 #include <vulkan/vulkan.hpp>
+#include "Render/Memory/ImageInterface.h"
 
 namespace Engine {
 
     class RenderSystem;
 
-    class AllocatedImage2D {
+    class AllocatedImage2D : public ImageInterface {
     public:
         enum class ImageType {
             DepthImage,
@@ -40,9 +41,10 @@ namespace Engine {
 
         void Create(uint32_t width, uint32_t height, ImageType type, vk::Format format, uint32_t mip = 1);
 
-        vk::Image GetImage() const;
+        vk::Image GetImage() const override;
+        vk::ImageView GetImageView() const override;
+
         vk::DeviceMemory GetMemory() const;
-        vk::ImageView GetImageView() const;
 
         vk::Extent2D GetExtent() const;
     };
