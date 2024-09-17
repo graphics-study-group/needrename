@@ -10,6 +10,7 @@ namespace Engine {
 
     void Framebuffer::Create(const RenderPass &pass, vk::Extent2D extent, std::vector<std::reference_wrapper<const ImageInterface>> attachments)
     {
+        assert(pass.GetAttachments().size() == attachments.size());
         std::vector <vk::ImageView> views {attachments.size(), vk::ImageView{}};
         for (size_t i = 0; i < attachments.size(); i++) {
             views[i] = attachments[i].get().GetImageView();
