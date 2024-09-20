@@ -25,13 +25,12 @@ namespace Engine
         std::vector <vk::SubpassDescription> m_subpasses {};
         std::vector <vk::SubpassDependency> m_dependencies {};
         std::vector <vk::ClearValue> m_clear_values {};
-        Framebuffers m_framebuffers;
+
     public:
         RenderPass (std::weak_ptr <RenderSystem> system);
 
         void CreateRenderPass();
 
-        void CreateFramebuffersFromSwapchain();
         Subpass GetSubpass(uint32_t index) const;
 
         RenderPass & SetAttachments(std::vector <vk::AttachmentDescription> attachments);
@@ -41,8 +40,6 @@ namespace Engine
 
         auto GetAttachments() const -> const decltype(m_attachments) &;
         auto GetClearValues() const -> const decltype(m_clear_values) &;
-
-        const Framebuffers & GetFramebuffers() const;
     protected:
     };
 } // namespace Engine

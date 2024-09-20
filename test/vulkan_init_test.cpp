@@ -85,7 +85,7 @@ int main(int, char **)
             tcb.SubmitAndExecute();
         }
         vk::Extent2D extent {system->GetSwapchain().GetExtent()};
-        cb.BeginRenderPass(rts.GetRenderPass(), extent, index);
+        cb.BeginRenderPass(rts, extent, index);
 
         auto bind_pipeline_begin = sch::high_resolution_clock::now();
 

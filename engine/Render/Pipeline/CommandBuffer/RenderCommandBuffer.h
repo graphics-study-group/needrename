@@ -1,11 +1,11 @@
-#ifndef RENDER_PIPELINE_COMMANDBUFFER_RENDERCOMMANDBUFFER_INCLUDED
-#define RENDER_PIPELINE_COMMANDBUFFER_RENDERCOMMANDBUFFER_INCLUDED
+#ifndef PIPELINE_COMMANDBUFFER_RENDERCOMMANDBUFFER_INCLUDED
+#define PIPELINE_COMMANDBUFFER_RENDERCOMMANDBUFFER_INCLUDED
 
 #include "Render/VkWrapper.tcc"
 #include <vulkan/vulkan.hpp>
 
 namespace Engine {
-    class RenderPass;
+    class RenderTargetSetup;
     class Material;
     class Synchronization;
     class HomogeneousMesh;
@@ -29,7 +29,7 @@ namespace Engine {
 
         void Begin();
 
-        void BeginRenderPass(const RenderPass & pass, vk::Extent2D extent, uint32_t framebuffer_id);
+        void BeginRenderPass(const RenderTargetSetup & pass, vk::Extent2D extent, uint32_t framebuffer_id);
 
         /// @brief Bind a material for rendering, and write per-material descriptors.
         /// @param material 
@@ -59,4 +59,4 @@ namespace Engine {
     };
 }
 
-#endif // RENDER_PIPELINE_COMMANDBUFFER_RENDERCOMMANDBUFFER_INCLUDED
+#endif // PIPELINE_COMMANDBUFFER_RENDERCOMMANDBUFFER_INCLUDED

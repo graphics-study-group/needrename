@@ -3,7 +3,7 @@
 #include "Render/Memory/Buffer.h"
 #include "Render/Memory/Image2DTexture.h"
 #include "Render/Material/Material.h"
-#include "Render/Pipeline/RenderTarget/RenderPass.h"
+#include "Render/Pipeline/RenderTarget/RenderTargetSetup.h"
 #include "Render/Pipeline/Pipeline.h"
 #include "Render/Pipeline/PipelineLayout.h"
 #include "Render/Renderer/HomogeneousMesh.h"
@@ -38,15 +38,15 @@ namespace Engine
     }
 
     void RenderCommandBuffer::BeginRenderPass(
-        const RenderPass& pass, 
+        const RenderTargetSetup& setup, 
         vk::Extent2D extent, 
         uint32_t framebuffer_id
     ) {
         vk::RenderPassBeginInfo info{
-            pass.get(),
-            pass.GetFramebuffers().GetFramebuffer(framebuffer_id),
+            setup.GetRenderPass().get(),
+            setup.GetFramebuffers().GetFramebuffer(framebuffer_id),
             {vk::Offset2D{0, 0}, extent},
-            pass.GetClearValues()
+            setup.GetRenderPass().GetClearValues()
         };
         m_handle->beginRenderPass(info, vk::SubpassContents::eInline);
     }
