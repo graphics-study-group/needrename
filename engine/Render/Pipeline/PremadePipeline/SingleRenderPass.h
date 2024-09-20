@@ -1,7 +1,7 @@
 #ifndef RENDER_PIPELINE_PREMADERENDERPASS_SINGLERENDERPASS_INCLUDED
 #define RENDER_PIPELINE_PREMADERENDERPASS_SINGLERENDERPASS_INCLUDED
 
-#include "Render/Pipeline/RenderPass.h"
+#include "Render/Pipeline/RenderTarget/RenderPass.h"
 
 namespace Engine {
 

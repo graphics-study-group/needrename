@@ -11,7 +11,7 @@ namespace Engine {
     public:
         Framebuffer(std::weak_ptr <RenderSystem> system);
 
-        void Create(const RenderPass & pass, vk::Extent2D extent, std::vector <std::reference_wrapper<const ImageInterface>> attachments);
+        void Create(const RenderPass & pass, vk::Extent2D extent, std::vector <vk::ImageView> attachments);
     };
 }
 

@@ -3,7 +3,7 @@
 #include "Render/Memory/Buffer.h"
 #include "Render/Memory/Image2DTexture.h"
 #include "Render/Material/Material.h"
-#include "Render/Pipeline/RenderPass.h"
+#include "Render/Pipeline/RenderTarget/RenderPass.h"
 #include "Render/Pipeline/Pipeline.h"
 #include "Render/Pipeline/PipelineLayout.h"
 #include "Render/Renderer/HomogeneousMesh.h"

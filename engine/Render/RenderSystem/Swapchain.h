@@ -58,8 +58,8 @@ namespace Engine {
 
             uint32_t GetFrameCount() const;
 
-            SwapchainImage GetImage(uint32_t frame_id) const;
-            SwapchainImage GetDepthImage(uint32_t frame_id) const;
+            SwapchainImage GetColorImagesAndViews() const;
+            SwapchainImage GetDepthImagesAndViews() const;
         };
     }
 }

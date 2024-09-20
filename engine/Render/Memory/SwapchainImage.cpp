@@ -1,16 +1,19 @@
 #include "SwapchainImage.h"
 
 namespace Engine {
-    SwapchainImage::SwapchainImage(vk::Image _image, vk::ImageView _image_view) 
-        : m_image(_image), m_image_view(_image_view)
+    SwapchainImage::SwapchainImage(
+        std::vector<vk::Image> _images, std::vector<vk::ImageView> _image_views
+    ) : m_images(_images), m_image_views(_image_views)
     {
     }
-    vk::Image SwapchainImage::GetImage() const
+    vk::Image SwapchainImage::GetImage(uint32_t frame) const
     {
-        return m_image;
+        assert(frame < m_images.size());
+        return m_images[frame];
     }
-    vk::ImageView SwapchainImage::GetImageView() const
+    vk::ImageView SwapchainImage::GetImageView(uint32_t frame) const
     {
-        return m_image_view;
+        assert(frame < m_image_views.size());
+        return m_image_views[frame];
     }
 }
