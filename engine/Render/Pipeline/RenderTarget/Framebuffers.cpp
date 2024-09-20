@@ -1,7 +1,7 @@
 #include "Framebuffers.h"
 
 #include "Render/Pipeline/RenderTarget/Framebuffer.h"
-#include "Render/Pipeline/RenderPass.h"
+#include "Render/Pipeline/RenderTarget/RenderPass.h"
 
 namespace Engine
 {
@@ -14,21 +14,22 @@ namespace Engine
 
         auto system = m_system.lock();
         const auto & swapchain = system->GetSwapchain();
-        const std::vector <AllocatedImage2D> & depth_images = swapchain.GetDepthImages();
+        auto color_images = swapchain.GetColorImagesAndViews();
+        auto depth_images = swapchain.GetDepthImagesAndViews();
         vk::Extent2D extent = swapchain.GetExtent();
 
         uint32_t frame_count = swapchain.GetFrameCount();
         for (size_t i = 0; i < frame_count; i++) {
-            std::vector <SwapchainImage> images;
+            std::vector <vk::ImageView> image_views;
             // XXX: We need to design a better scheme for mapping attachments to images
             if (swapchain.IsDepthEnabled()) {
-                images = { swapchain.GetImage(i), swapchain.GetDepthImage(i) };
+                image_views = { color_images.GetImageView(i), depth_images.GetImageView(i) };
                 m_framebuffers.emplace_back(system);
-                m_framebuffers[i].Create(pass, swapchain.GetExtent(), {std::cref(images[0]), std::cref(images[1])});
+                m_framebuffers[i].Create(pass, swapchain.GetExtent(), image_views);
             } else {
-                images = { swapchain.GetImage(i) };
+                image_views = { color_images.GetImageView(i) };
                 m_framebuffers.emplace_back(system);
-                m_framebuffers[i].Create(pass, swapchain.GetExtent(), {std::cref(images[0])});
+                m_framebuffers[i].Create(pass, swapchain.GetExtent(), image_views);
             }
         }
     }

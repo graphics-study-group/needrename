@@ -7,7 +7,7 @@
 #include "Functional/SDLWindow.h"
 #include "Render/Material/TestMaterial.h"
 #include "Render/Pipeline/Shader.h"
-#include "Render/Pipeline/RenderTarget/Framebuffers.h"
+#include "Render/Pipeline/RenderTarget/RenderTargetSetup.h"
 #include "Render/Pipeline/CommandBuffer.h"
 #include "Render/Pipeline/PremadePipeline/DefaultPipeline.h"
 #include "Render/Pipeline/PremadePipeline/SingleRenderPassWithDepth.h"
@@ -45,16 +45,15 @@ int main(int, char **)
     auto system = cmc->GetRenderSystem();
     system->EnableDepthTesting();
 
-    SingleRenderPassWithDepth rp{system};
-    rp.CreateRenderPass();
-    rp.SetClearValues({
+    RenderTargetSetup rts{system};
+    rts.CreateFromSwapchain();
+    rts.SetClearValues({
         vk::ClearValue{vk::ClearColorValue{0.0f, 0.0f, 0.0f, 1.0f}},
         vk::ClearValue{vk::ClearDepthStencilValue{1.0f, 0U}}
     });
-    rp.CreateFramebuffersFromSwapchain();
     
 
-    TestMaterial material{system, rp};
+    TestMaterial material{system, rts.GetRenderPass()};
 
     uint32_t in_flight_frame_id = 0;
     uint32_t total_test_frame = 60;
@@ -86,7 +85,7 @@ int main(int, char **)
             tcb.SubmitAndExecute();
         }
         vk::Extent2D extent {system->GetSwapchain().GetExtent()};
-        cb.BeginRenderPass(rp, extent, index);
+        cb.BeginRenderPass(rts.GetRenderPass(), extent, index);
 
         auto bind_pipeline_begin = sch::high_resolution_clock::now();
 

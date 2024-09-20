@@ -2,16 +2,17 @@
 #define RENDER_MEMORY_SWAPCHAINIMAGE_INCLUDED
 
 #include "Render/Memory/ImageInterface.h"
+#include <vector>
 
 namespace Engine {
-    class SwapchainImage : public ImageInterface {
-        vk::Image m_image;
-        vk::ImageView m_image_view;
+    class SwapchainImage : public ImagePerFrameInterface {
+        std::vector <vk::Image> m_images;
+        std::vector <vk::ImageView> m_image_views;
     public:
-        SwapchainImage(vk::Image _image, vk::ImageView _image_view);
+        SwapchainImage(std::vector <vk::Image> _images, std::vector <vk::ImageView> _image_views);
 
-        vk::Image GetImage() const override;
-        vk::ImageView GetImageView() const override;
+        vk::Image GetImage(uint32_t frame) const override;
+        vk::ImageView GetImageView(uint32_t frame) const override;
     };
 }
 

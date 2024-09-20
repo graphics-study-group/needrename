@@ -173,14 +173,25 @@ namespace Engine::RenderSystemState{
         return m_images.size();
     }
 
-    SwapchainImage Swapchain::GetImage(uint32_t frame_id) const
+    SwapchainImage Swapchain::GetDepthImagesAndViews() const
     {
-        assert(frame_id < m_images.size());
-        return SwapchainImage(m_images[frame_id], m_image_views[frame_id].get());
+        std::vector <vk::Image> images;
+        std::vector <vk::ImageView> image_views;
+        for (size_t i = 0; i < m_depth_images.size(); i++) {
+            images.push_back(m_depth_images[i].GetImage());
+            image_views.push_back(m_depth_images[i].GetImageView());
+        }
+        return SwapchainImage(images, image_views);
     }
-    SwapchainImage Swapchain::GetDepthImage(uint32_t frame_id) const
+
+    SwapchainImage Swapchain::GetColorImagesAndViews() const
     {
-        assert(frame_id < m_images.size());
-        return SwapchainImage(m_depth_images[frame_id].GetImage(), m_depth_images[frame_id].GetImageView());
+        std::vector <vk::Image> images;
+        std::vector <vk::ImageView> image_views;
+        for (size_t i = 0; i < m_images.size(); i++) {
+            images.push_back(m_images[i]);
+            image_views.push_back(m_image_views[i].get());
+        }
+        return SwapchainImage(images, image_views);
     }
 }
