@@ -4,6 +4,9 @@ Our _coordinate system_ is in accord with _Blender_.
 We choose a right-handed cartesian frame, with X pointing right of the screen, Y pointing front (pointing the screen) and Z pointing up.
 Namely, this is a LFU coordinate system.
 
+Note that the screen coordiante system for Vulkan is defined as: X pointing to the right of the screen, Y pointing to the bottom of the screen, and Z is chosen when specifying depth comparison operation.
+If the operation is chosen as `VK_COMPARE_OP_LESS`, then fragments with lower depth values will be presented, and therefore Z points inwards to the screen.
+
 ## Rotation
 
 Our _rotation_ is in general represented by quaternions, supported by GLM library and stored in w-x-y-z order.
