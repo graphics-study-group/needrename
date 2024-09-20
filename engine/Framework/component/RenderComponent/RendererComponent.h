@@ -22,7 +22,7 @@ namespace Engine
         /// @brief Get the transform which transforms local coordinate 
         /// to world coordinate (i.e. the model matrix)
         /// @return Transform
-        Transform GetWorldTransform() const;
+        virtual Transform GetWorldTransform() const;
 
         void Tick(float dt) override;
 

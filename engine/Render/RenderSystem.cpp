@@ -44,14 +44,25 @@ namespace Engine
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Destroying other resources by RAII.");
     }
 
-    void RenderSystem::DrawMeshes(uint32_t command_buffer_id, uint32_t pass)
+    void RenderSystem::DrawMeshes(uint32_t inflight, uint32_t pass)
     {
-        RenderCommandBuffer & cb = this->GetGraphicsCommandBuffer(command_buffer_id);
+        RenderCommandBuffer & cb = this->GetGraphicsCommandBuffer(inflight);
 
+        // Write camera transforms
+        if (m_active_camera) {
+            std::byte * camera_ptr = this->GetGlobalConstantDescriptorPool().GetPerCameraConstantMemory(inflight);
+            ConstantData::PerCameraStruct camera_struct {
+                m_active_camera->GetViewMatrix(), 
+                m_active_camera->GetProjectionMatrix()
+            };
+            std::memcpy(camera_ptr, &camera_struct, sizeof camera_struct);
+        }
+        
         vk::Extent2D extent {this->GetSwapchain().GetExtent()};
         vk::Rect2D scissor{{0, 0}, extent};
         cb.SetupViewport(extent.width, extent.height, scissor);
         for (const auto & component : m_components) {
+            glm::mat4 model_matrix = component->GetWorldTransform().GetTransformMatrix();
             auto down_casted_ptr = std::dynamic_pointer_cast<MeshComponent>(component);
             if (down_casted_ptr == nullptr) {
                 continue;
@@ -63,7 +74,7 @@ namespace Engine
             for (const auto & material : materials) {
                 cb.BindMaterial(*material, pass);
                 for (const auto & mesh : meshes) {
-                    cb.DrawMesh(*mesh);
+                    cb.DrawMesh(*mesh, model_matrix);
                 }
             }
         }

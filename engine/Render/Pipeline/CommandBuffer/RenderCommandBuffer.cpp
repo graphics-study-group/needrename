@@ -95,9 +95,23 @@ namespace Engine
         m_handle->setScissor(0, 1, &scissor);
     }
 
+    void RenderCommandBuffer::DrawMesh(const HomogeneousMesh& mesh, glm::mat4 & model_matrix) {
+        auto bindings = mesh.GetBindingInfo();
+        m_handle->bindVertexBuffers(0, bindings.first, bindings.second);
+        auto indices = mesh.GetIndexInfo();
+        m_handle->bindIndexBuffer(indices.first, indices.second, vk::IndexType::eUint32);
+
+        m_handle->pushConstants(
+            m_bound_material_pipeline.value().second, 
+            vk::ShaderStageFlagBits::eVertex, 
+            0, 
+            ConstantData::PerModelConstantPushConstant::PUSH_RANGE_SIZE,
+            reinterpret_cast<const void *>(&model_matrix)
+        );
+        m_handle->drawIndexed(mesh.GetVertexIndexCount(), 1, 0, 0, 0);
+    }
+
     void RenderCommandBuffer::DrawMesh(const HomogeneousMesh& mesh) {
-        // TODO: Write per-mesh descriptors
-        // which are typically the model transform (via push constant) and skeletal transforms.
         auto bindings = mesh.GetBindingInfo();
         m_handle->bindVertexBuffers(0, bindings.first, bindings.second);
         auto indices = mesh.GetIndexInfo();

@@ -3,6 +3,7 @@
 
 #include "Render/VkWrapper.tcc"
 #include <vulkan/vulkan.hpp>
+#include <glm.hpp>
 
 namespace Engine {
     class RenderTargetSetup;
@@ -41,6 +42,7 @@ namespace Engine {
         /// @brief Write per-mesh descriptors, and send draw call to GPU.
         /// @param mesh 
         void DrawMesh(const HomogeneousMesh & mesh);
+        void DrawMesh(const HomogeneousMesh& mesh, glm::mat4 & model_matrix);
 
         void End();
 
