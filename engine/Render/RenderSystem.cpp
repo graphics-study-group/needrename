@@ -5,7 +5,10 @@
 #include <unordered_set>
 
 #include "Framework/component/RenderComponent/RendererComponent.h"
+#include "Framework/component/RenderComponent/MeshComponent.h"
 #include "Framework/component/RenderComponent/CameraComponent.h"
+#include "Render/Renderer/HomogeneousMesh.h"
+#include "Render/Material/Material.h"
 #include "Render/Pipeline/CommandBuffer.h"
 
 namespace Engine
@@ -41,12 +44,39 @@ namespace Engine
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Destroying other resources by RAII.");
     }
 
-    void RenderSystem::Render() {
+    void RenderSystem::DrawMeshes(uint32_t command_buffer_id, uint32_t pass)
+    {
+        RenderCommandBuffer & cb = this->GetGraphicsCommandBuffer(command_buffer_id);
+
+        vk::Extent2D extent {this->GetSwapchain().GetExtent()};
+        vk::Rect2D scissor{{0, 0}, extent};
+        cb.SetupViewport(extent.width, extent.height, scissor);
+        for (const auto & component : m_components) {
+            auto down_casted_ptr = std::dynamic_pointer_cast<MeshComponent>(component);
+            if (down_casted_ptr == nullptr) {
+                continue;
+            }
+
+            const auto & materials = down_casted_ptr->GetMaterials();
+            const auto & meshes = down_casted_ptr->GetSubmeshes();
+
+            for (const auto & material : materials) {
+                cb.BindMaterial(*material, pass);
+                for (const auto & mesh : meshes) {
+                    cb.DrawMesh(*mesh);
+                }
+            }
+        }
     }
 
     void RenderSystem::RegisterComponent(std::shared_ptr<RendererComponent> comp)
     {
         m_components.push_back(comp);
+    }
+
+    void RenderSystem::ClearComponent()
+    {
+        m_components.clear();
     }
 
     void RenderSystem::SetActiveCamera(std::shared_ptr <CameraComponent> cameraComponent)

@@ -5,6 +5,7 @@
 
 #include "MainClass.h"
 #include "Functional/SDLWindow.h"
+#include "Framework/component/RenderComponent/MeshComponent.h"
 #include "Render/Material/TestMaterial.h"
 #include "Render/Pipeline/Shader.h"
 #include "Render/Pipeline/RenderTarget/RenderTargetSetup.h"
@@ -31,6 +32,28 @@ public:
     }
 };
 
+class TestMeshComponent : public MeshComponent {
+public: 
+    TestMeshComponent(std::weak_ptr <RenderSystem> system, std::shared_ptr<Material> mat) 
+    : MeshComponent(std::weak_ptr<GameObject>(), system) {
+        m_materials.push_back(mat);
+        m_submeshes.push_back(std::make_shared<TestHomoMesh>(system));
+        m_submeshes[0]->Prepare();
+        if (m_submeshes[0]->NeedCommitment()) {
+            auto & tcb = system.lock()->GetTransferCommandBuffer();
+            tcb.Begin();
+            tcb.CommitVertexBuffer(*m_submeshes[0]);
+            tcb.End();
+            tcb.SubmitAndExecute();
+        }
+    }
+
+    ~TestMeshComponent() {
+        m_materials.clear();
+        m_submeshes.clear();
+    }
+};
+
 int main(int, char **)
 {
     SDL_Init(SDL_INIT_VIDEO);
@@ -53,13 +76,13 @@ int main(int, char **)
     });
     
 
-    TestMaterial material{system, rts.GetRenderPass()};
+    std::shared_ptr material = std::make_shared<TestMaterial>(system, rts.GetRenderPass());
 
     uint32_t in_flight_frame_id = 0;
     uint32_t total_test_frame = 60;
 
-    TestHomoMesh mesh{system};
-    mesh.Prepare();
+    std::shared_ptr tmc = std::make_shared<TestMeshComponent>(system, material);
+    system->RegisterComponent(tmc);
     
     uint64_t start_timer = SDL_GetPerformanceCounter();
     while(total_test_frame--) {
@@ -68,54 +91,23 @@ int main(int, char **)
 
         system->WaitForFrameBegin(in_flight_frame_id);
         RenderCommandBuffer & cb = system->GetGraphicsCommandBuffer(in_flight_frame_id);
-
-        auto fence_end_timer = sch::high_resolution_clock::now();
-
         uint32_t index = system->GetNextImage(in_flight_frame_id, 0x7FFFFFFF);
-        assert(index < 3);
 
-        auto image_end_timer = sch::high_resolution_clock::now();
+        assert(index < 3);
     
         cb.Begin();
-        if (mesh.NeedCommitment()) {
-            auto & tcb = system->GetTransferCommandBuffer();
-            tcb.Begin();
-            tcb.CommitVertexBuffer(mesh);
-            tcb.End();
-            tcb.SubmitAndExecute();
-        }
         vk::Extent2D extent {system->GetSwapchain().GetExtent()};
         cb.BeginRenderPass(rts, extent, index);
-
-        auto bind_pipeline_begin = sch::high_resolution_clock::now();
-
-        cb.BindMaterial(material, 0);
-        vk::Rect2D scissor{{0, 0}, system->GetSwapchain().GetExtent()};
-        cb.SetupViewport(extent.width, extent.height, scissor);
-        cb.DrawMesh(mesh);
+        system->DrawMeshes(in_flight_frame_id);
         cb.End();
-
         cb.Submit();
-
-        auto submit_end_timer = sch::high_resolution_clock::now();
 
         system->Present(index, in_flight_frame_id);
 
         auto submission_end_timer = sch::high_resolution_clock::now();
 
-        std::chrono::duration<double, std::milli> waiting, image, begining, record, presenting, total;
-        waiting = fence_end_timer - frame_start_timer;
-        image = image_end_timer - fence_end_timer;
-        begining = bind_pipeline_begin - image_end_timer;
-        record = submit_end_timer - bind_pipeline_begin;
-        presenting = submission_end_timer - submit_end_timer;
+        std::chrono::duration<double, std::milli> total;
         total = submission_end_timer - frame_start_timer;
-
-        SDL_LogVerbose(0, "Waiting for fence for %lf milliseconds.", waiting.count());
-        SDL_LogVerbose(0, "Waiting for next image for %lf milliseconds.", image.count());
-        SDL_LogVerbose(0, "Begining recording command buffer for %lf milliseconds.", begining.count());
-        SDL_LogVerbose(0, "Recording for %lf milliseconds.", record.count());
-        SDL_LogVerbose(0, "Presenting for %lf milliseconds.", presenting.count());
         SDL_LogVerbose(0, "Total: %lf milliseconds, or %lf fps for frame %u.", 
             total.count(),
             1000.0 / total.count(),
@@ -129,6 +121,9 @@ int main(int, char **)
     double duration_time = 1.0 * duration / SDL_GetPerformanceFrequency();
     SDL_LogInfo(0, "Took %lf seconds for 200 frames (avg. %lf fps).", duration_time, 200.0 / duration_time);
     system->WaitForIdle();
+    system->ClearComponent();
+    tmc.reset();
+    material.reset();
 
     SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "Unloading Main-class");
     delete cmc;

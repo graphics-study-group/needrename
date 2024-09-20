@@ -21,4 +21,7 @@ namespace Engine {
         assert(pass_index < m_passes.size());
         return m_passes[pass_index].descriptor_set;
     }
+    void Material::WriteDescriptors() const
+    {
+    }
 };
