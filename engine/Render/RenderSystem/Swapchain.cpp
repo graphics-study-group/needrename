@@ -169,7 +169,9 @@ namespace Engine::RenderSystemState{
 
     uint32_t Swapchain::GetFrameCount() const
     {
-        assert(m_images.size() == m_depth_images.size() && m_images.size() == m_image_views.size());
+        assert((!is_depth_enabled && m_depth_images.size() == 0) 
+            || (is_depth_enabled && m_images.size() == m_depth_images.size()));
+        assert(m_images.size() == m_image_views.size());
         return m_images.size();
     }
 
