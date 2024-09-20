@@ -44,6 +44,11 @@ namespace Engine
         float m_aspect_ratio{1.0};
         float m_clipping_near{1e-3};
         float m_clipping_far{1e3};
+
+        glm::mat4 m_projection_matrix{1.0f}, m_view_matrix{1.0f};
+
+        void UpdateProjectionMatrix();
+        void UpdateViewMatrix();
     };
 } // namespace Engine
 

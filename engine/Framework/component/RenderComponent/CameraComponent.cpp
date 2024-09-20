@@ -9,6 +9,7 @@
 namespace Engine{
     CameraComponent::CameraComponent(std::weak_ptr<GameObject> gameObject) : Component(gameObject)
     {
+        UpdateViewMatrix();
     }
 
     void CameraComponent::Tick(float)
@@ -17,10 +18,47 @@ namespace Engine{
 
     glm::mat4 CameraComponent::GetViewMatrix() const
     {
+        return m_view_matrix;
+    }
+
+    glm::mat4 CameraComponent::GetProjectionMatrix() const
+    {
+        return m_projection_matrix;
+    }
+    CameraComponent & CameraComponent::set_fov_vertical(float fov)
+    {
+        m_fov_vertical = fov;
+        UpdateProjectionMatrix();
+        return *this;
+    }
+    CameraComponent & CameraComponent::set_aspect_ratio(float aspect)
+    {
+        m_aspect_ratio = aspect;
+        UpdateProjectionMatrix();
+        return *this;
+    }
+    CameraComponent & CameraComponent::set_clipping(float near, float far)
+    {
+        m_clipping_near = near;
+        m_clipping_far = far;
+        UpdateProjectionMatrix();
+        return *this;
+    }
+    void CameraComponent::UpdateProjectionMatrix()
+    {
+        assert(abs(m_fov_vertical) > 1e-3);
+        assert(abs(m_aspect_ratio) > 1e-3);
+        // assert(abs(m_clipping_near) > 1e-6);
+        // assert(abs(m_clipping_far) > 1e-6);
+        m_projection_matrix = glm::perspectiveRH(glm::radians(m_fov_vertical), m_aspect_ratio, m_clipping_near, m_clipping_far);
+    }
+    void CameraComponent::UpdateViewMatrix()
+    {
         auto parent = m_parentGameObject.lock();
         if (!parent) {
             SDL_LogWarn(0, "Missing parent game object for camera");
-            return glm::mat4(1.0f);
+            m_view_matrix = glm::mat4(1.0f);
+            return;
         }
         Transform transform = parent->GetWorldTransform();
         glm::mat4 tmat = transform.GetTransformMatrix();
@@ -31,32 +69,6 @@ namespace Engine{
         // Y axis points front, so we just transform (0,1,0) to get local front vector
         glm::vec4 front{0.0f, 1.0f, 0.0f, 1.0f};
         front = tmat * front;
-
-        return glm::lookAtRH(glm::vec3{origin}, glm::vec3{front}, glm::vec3{0.0, 0.0, 1.0});
-    }
-
-    glm::mat4 CameraComponent::GetProjectionMatrix() const
-    {
-        assert(abs(m_fov_vertical) > 1e-3);
-        assert(abs(m_aspect_ratio) > 1e-3);
-        // assert(abs(m_clipping_near) > 1e-6);
-        // assert(abs(m_clipping_far) > 1e-6);
-        return glm::perspectiveRH(glm::radians(m_fov_vertical), m_aspect_ratio, m_clipping_near, m_clipping_far);
-    }
-    CameraComponent & CameraComponent::set_fov_vertical(float fov)
-    {
-        m_fov_vertical = fov;
-        return *this;
-    }
-    CameraComponent & CameraComponent::set_aspect_ratio(float aspect)
-    {
-        m_aspect_ratio = aspect;
-        return *this;
-    }
-    CameraComponent & CameraComponent::set_clipping(float near, float far)
-    {
-        m_clipping_near = near;
-        m_clipping_far = far;
-        return *this;
+        m_view_matrix = glm::lookAtRH(glm::vec3{origin}, glm::vec3{front}, glm::vec3{0.0, 0.0, 1.0});
     }
 };
