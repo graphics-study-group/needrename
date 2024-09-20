@@ -33,9 +33,10 @@ public:
 };
 
 class TestMeshComponent : public MeshComponent {
+    Transform transform;
 public: 
     TestMeshComponent(std::weak_ptr <RenderSystem> system, std::shared_ptr<Material> mat) 
-    : MeshComponent(std::weak_ptr<GameObject>(), system) {
+    : MeshComponent(std::weak_ptr<GameObject>(), system), transform() {
         m_materials.push_back(mat);
         m_submeshes.push_back(std::make_shared<TestHomoMesh>(system));
         m_submeshes[0]->Prepare();
@@ -46,11 +47,17 @@ public:
             tcb.End();
             tcb.SubmitAndExecute();
         }
+
+        transform.SetPosition(glm::vec3{1.0, 0.0, 0.0});
     }
 
     ~TestMeshComponent() {
         m_materials.clear();
         m_submeshes.clear();
+    }
+
+    Transform GetWorldTransform() const override {
+        return transform;
     }
 };
 
@@ -122,8 +129,6 @@ int main(int, char **)
     SDL_LogInfo(0, "Took %lf seconds for 200 frames (avg. %lf fps).", duration_time, 200.0 / duration_time);
     system->WaitForIdle();
     system->ClearComponent();
-    tmc.reset();
-    material.reset();
 
     SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "Unloading Main-class");
     delete cmc;
