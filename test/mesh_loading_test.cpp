@@ -18,7 +18,7 @@
 #include "Render/RenderSystem.h"
 #include "Render/Material/TestMaterial.h"
 #include "Render/Pipeline/PremadePipeline/DefaultPipeline.h"
-#include "Render/Pipeline/PremadePipeline/SingleRenderPass.h"
+#include "Render/Pipeline/RenderTarget/RenderTargetSetup.h"
 #include "Render/Renderer/HomogeneousMesh.h"
 
 using namespace Engine;
@@ -78,17 +78,14 @@ int main(int, char *[])
     PipelineLayout pl{render_system};
     pl.CreatePipelineLayout({}, {});
 
-    SingleRenderPass rp{render_system};
-    rp.CreateFramebuffersFromSwapchain();
-    rp.SetClearValues({{{0.0f, 0.0f, 0.0f, 1.0f}}});
+    RenderTargetSetup rts{render_system};
+    rts.CreateFromSwapchain();
+    rts.SetClearValues({{{0.0f, 0.0f, 0.0f, 1.0f}}});
 
-    TestMaterial material{render_system, rp};
+    TestMaterial material{render_system, rts.GetRenderPass()};
 
     uint32_t in_flight_frame_id = 0;
     uint32_t total_test_frame = 60;
-    
-    render_system->UpdateSwapchain();
-    rp.CreateFramebuffersFromSwapchain();
 
     mesh_component->GetSubmesh(0)->Prepare();
     
@@ -109,7 +106,7 @@ int main(int, char *[])
             tcb.SubmitAndExecute();
         }
         vk::Extent2D extent {render_system->GetSwapchain().GetExtent()};
-        cb.BeginRenderPass(rp, extent, index);
+        cb.BeginRenderPass(rts, extent, index);
 
         cb.BindMaterial(material, 0);
         vk::Rect2D scissor{{0, 0}, render_system->GetSwapchain().GetExtent()};

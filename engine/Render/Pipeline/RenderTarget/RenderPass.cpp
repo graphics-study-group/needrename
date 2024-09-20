@@ -4,7 +4,7 @@
 
 namespace Engine
 {
-    RenderPass::RenderPass(std::weak_ptr<RenderSystem> system) : VkWrapper(system), m_framebuffers(system) {}
+    RenderPass::RenderPass(std::weak_ptr<RenderSystem> system) : VkWrapper(system) {}
 
     void RenderPass::CreateRenderPass() {
 
@@ -17,12 +17,6 @@ namespace Engine
         info.setDependencyCount(m_dependencies.size());
         info.setPDependencies(m_dependencies.empty() ? nullptr : m_dependencies.data());
         m_handle = m_system.lock()->getDevice().createRenderPassUnique(info);
-    }
-
-    void RenderPass::CreateFramebuffersFromSwapchain() {
-        Framebuffers fb{m_system};
-        fb.CreateFramebuffersFromSwapchain(*this);
-        m_framebuffers = std::move(fb);
     }
 
     Subpass RenderPass::GetSubpass(
@@ -65,10 +59,5 @@ namespace Engine
     {
         return m_clear_values;
     }
-
-    const Framebuffers& RenderPass::GetFramebuffers() const {
-        return m_framebuffers;
-    }
-
 } // namespace Engine
 

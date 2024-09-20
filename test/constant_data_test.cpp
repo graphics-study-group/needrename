@@ -14,7 +14,7 @@
 #include "Render/Pipeline/RenderTarget/Framebuffers.h"
 #include "Render/Pipeline/CommandBuffer.h"
 #include "Render/Pipeline/PremadePipeline/DefaultPipeline.h"
-#include "Render/Pipeline/PremadePipeline/SingleRenderPassWithDepth.h"
+#include "Render/Pipeline/RenderTarget/RenderTargetSetup.h"
 #include "Render/Renderer/HomogeneousMesh.h"
 
 using namespace Engine;
@@ -51,15 +51,14 @@ int main(int, char **)
     auto system = cmc->GetRenderSystem();
     system->EnableDepthTesting();
 
-    SingleRenderPassWithDepth rp{system};
-    rp.CreateRenderPass();
-    rp.SetClearValues({
+    RenderTargetSetup rts{system};
+    rts.CreateFromSwapchain();
+    rts.SetClearValues({
         vk::ClearValue{vk::ClearColorValue{0.0f, 0.0f, 0.0f, 1.0f}},
         vk::ClearValue{vk::ClearDepthStencilValue{1.0f, 0U}}
     });
-    rp.CreateFramebuffersFromSwapchain();
 
-    TestMaterialWithTransform material{system, rp};
+    TestMaterialWithTransform material{system, rts.GetRenderPass()};
 
     uint32_t in_flight_frame_id = 0;
     uint32_t total_test_frame = MAXIMUM_FRAME_COUNT;
@@ -98,7 +97,7 @@ int main(int, char **)
 
         cb.Begin();
         vk::Extent2D extent {system->GetSwapchain().GetExtent()};
-        cb.BeginRenderPass(rp, extent, index);
+        cb.BeginRenderPass(rts, extent, index);
 
         cb.BindMaterial(material, 0);
         vk::Rect2D scissor{{0, 0}, system->GetSwapchain().GetExtent()};

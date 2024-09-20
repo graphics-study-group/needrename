@@ -25,7 +25,7 @@ namespace Engine {
     void RenderTargetSetup::CreateFromSwapchain()
     {
         CreateRenderPassFromSwapchain();
-        m_renderpass->CreateFramebuffersFromSwapchain();
+        m_framebuffers.CreateFramebuffersFromSwapchain(*m_renderpass.get());
     }
 
     void RenderTargetSetup::Create(const ImagePerFrameInterface &color_targets, const ImagePerFrameInterface &depth_target)

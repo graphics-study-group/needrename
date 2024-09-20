@@ -21,7 +21,7 @@
 #include "Render/Memory/Image2DTexture.h"
 #include "Render/Material/TestMaterialWithSampler.h"
 #include "Render/Pipeline/PremadePipeline/DefaultPipeline.h"
-#include "Render/Pipeline/PremadePipeline/SingleRenderPass.h"
+#include "Render/Pipeline/RenderTarget/RenderTargetSetup.h"
 #include "Render/Renderer/HomogeneousMesh.h"
 
 using namespace Engine;
@@ -62,15 +62,12 @@ int main(int, char *[])
     PipelineLayout pl{render_system};
     pl.CreatePipelineLayout({}, {});
 
-    SingleRenderPass rp{render_system};
-    rp.CreateFramebuffersFromSwapchain();
-    rp.SetClearValues({{{0.0f, 0.0f, 0.0f, 1.0f}}});
+    RenderTargetSetup rts{render_system};
+    rts.CreateFromSwapchain();
+    rts.SetClearValues({{{0.0f, 0.0f, 0.0f, 1.0f}}});
 
     uint32_t in_flight_frame_id = 0;
     uint32_t total_test_frame = 144;
-    
-    render_system->UpdateSwapchain();
-    rp.CreateFramebuffersFromSwapchain();
 
     TestHomoMesh mesh {render_system};
     mesh.Prepare();
@@ -83,7 +80,7 @@ int main(int, char *[])
     AllocatedImage2DTexture texture{render_system};
     texture.Create(tex_width, tex_height, vk::Format::eR8G8B8A8Srgb);
 
-    TestMaterialWithSampler material{render_system, rp, texture};
+    TestMaterialWithSampler material{render_system, rts.GetRenderPass(), texture};
 
     do {
 
@@ -102,7 +99,7 @@ int main(int, char *[])
 
         cb.Begin();
         vk::Extent2D extent {render_system->GetSwapchain().GetExtent()};
-        cb.BeginRenderPass(rp, extent, index);
+        cb.BeginRenderPass(rts, extent, index);
 
         cb.BindMaterial(material, 0);
         vk::Rect2D scissor{{0, 0}, render_system->GetSwapchain().GetExtent()};
