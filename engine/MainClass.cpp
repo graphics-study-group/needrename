@@ -57,7 +57,7 @@ namespace Engine
 
             // TODO: Set up viewport information
             
-            this->renderer->Render();
+            // this->renderer->Render();
 
             this->window->AfterEventLoop();
 

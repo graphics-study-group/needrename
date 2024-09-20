@@ -54,8 +54,11 @@ namespace Engine
 
         ~RenderSystem();
 
-        void Render();
+        void DrawMeshes(uint32_t command_buffer_id, uint32_t pass = 0);
+        
         void RegisterComponent(std::shared_ptr <RendererComponent>);
+        void ClearComponent();
+
         void SetActiveCamera(std::shared_ptr <CameraComponent>);
         void WaitForIdle() const;
 
