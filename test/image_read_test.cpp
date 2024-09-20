@@ -29,14 +29,14 @@ using namespace Engine;
 class TestHomoMesh : public HomogeneousMesh {
 public:
     TestHomoMesh(std::weak_ptr<RenderSystem> system) : HomogeneousMesh(system) {
-        this->m_positions = {{-0.5f, 0.5f, 0.0f}, {-0.5f, -0.5f, 0.0f}, {0.5f, -0.5f, 0.0f}, {0.5f, 0.5f, 0.0f}};
+        this->m_positions = {{-0.5f, -0.5f, 0.0f}, {-0.5f, 0.5f, 0.0f}, {0.5f, 0.5f, 0.0f}, {0.5f, -0.5f, 0.0f}};
         this->m_attributes = {
             {.color = {1.0f, 0.0f, 0.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {0.0f, 0.0f}}, 
             {.color = {0.0f, 1.0f, 0.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {0.0f, 1.0f}}, 
             {.color = {0.0f, 0.0f, 1.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {1.0f, 1.0f}},
             {.color = {1.0f, 0.0f, 1.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {1.0f, 0.0f}}
         };
-        this->m_indices = {0, 1, 2, 0, 2, 3};
+        this->m_indices = {2, 1, 0, 3, 2, 0};
     }
 };
 
