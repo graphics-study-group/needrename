@@ -41,6 +41,11 @@ target_link_libraries(image_read_test engine)
 add_test(NAME image_read_test COMMAND image_read_test)
 set_target_properties(image_read_test PROPERTIES FOLDER tests)
 
+add_executable(external_resource_loading_test external_resource_loading_test.cpp)
+target_link_libraries(external_resource_loading_test engine)
+add_test(NAME external_resource_loading_test COMMAND external_resource_loading_test)
+set_target_properties(external_resource_loading_test PROPERTIES FOLDER tests)
+
 # Copy SDL dll
 add_custom_command(TARGET SDL_init_test POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
