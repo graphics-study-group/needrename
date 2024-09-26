@@ -46,6 +46,11 @@ target_link_libraries(external_resource_loading_test engine)
 add_test(NAME external_resource_loading_test COMMAND external_resource_loading_test)
 set_target_properties(external_resource_loading_test PROPERTIES FOLDER tests)
 
+add_executable(complex_mesh_test complex_mesh_test.cpp)
+target_link_libraries(complex_mesh_test engine)
+add_test(NAME complex_mesh_test COMMAND complex_mesh_test)
+set_target_properties(complex_mesh_test PROPERTIES FOLDER tests)
+
 # Copy SDL dll
 add_custom_command(TARGET SDL_init_test POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
