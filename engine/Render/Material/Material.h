@@ -3,11 +3,11 @@
 
 #include <vulkan/vulkan.hpp>
 #include <unordered_map>
+#include "Render/Pipeline/PipelineLayout.h"
+#include "Render/Pipeline/Pipeline.h"
 
 namespace Engine {
     class RenderSystem;
-    class Pipeline;
-    class PipelineLayout;
 
     /// @brief A material at runtime, constructed from MaterialAsset
     class Material
@@ -33,8 +33,6 @@ namespace Engine {
 
         Material (std::weak_ptr <RenderSystem> system);
         virtual ~Material () = default;
-
-        // TODO: Design an interface for per-material descriptors
 
         const Pipeline * GetPipeline(uint32_t pass_index) const;
         const PipelineLayout * GetPipelineLayout (uint32_t pass_index) const;

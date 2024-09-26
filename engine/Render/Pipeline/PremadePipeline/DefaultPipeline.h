@@ -7,6 +7,7 @@ namespace Engine {
     namespace PremadePipeline {
         class DefaultPipeline : public Pipeline {
         public:
+            [[deprecated("Use ConfigurablePipeline for flexibility.")]]
             DefaultPipeline(std::weak_ptr <RenderSystem> system);
 
             void CreatePipeline(Subpass subpass, 
