@@ -2,7 +2,7 @@
 
 #include "Render/Pipeline/Shader.h"
 #include "Render/Pipeline/RenderTarget/RenderPass.h"
-#include "Render/Pipeline/PremadePipeline/DefaultPipeline.h"
+#include "Render/Pipeline/PremadePipeline/ConfigurablePipeline.h"
 
 #include <fstream>
 
@@ -39,7 +39,7 @@ namespace Engine {
             ShaderModule::ShaderType::Vertex
         );
         m_passes.resize(1);
-        m_passes[0].pipeline = std::make_unique <PremadePipeline::DefaultPipeline> (system);
+        m_passes[0].pipeline = std::make_unique <PremadePipeline::ConfigurablePipeline> (system);
         m_passes[0].pipeline_layout = std::make_unique <PipelineLayout> (system);
 
         auto & manager = system.lock()->GetMaterialDescriptorManager();

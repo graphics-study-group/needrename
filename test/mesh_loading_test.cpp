@@ -17,8 +17,8 @@
 
 #include "Render/RenderSystem.h"
 #include "Render/Material/TestMaterial.h"
-#include "Render/Pipeline/PremadePipeline/DefaultPipeline.h"
 #include "Render/Pipeline/RenderTarget/RenderTargetSetup.h"
+#include "Render/Pipeline/PipelineLayout.h"
 #include "Render/Renderer/HomogeneousMesh.h"
 
 using namespace Engine;

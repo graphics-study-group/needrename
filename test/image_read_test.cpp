@@ -20,8 +20,8 @@
 #include "Render/RenderSystem.h"
 #include "Render/Memory/Image2DTexture.h"
 #include "Render/Material/TestMaterialWithSampler.h"
-#include "Render/Pipeline/PremadePipeline/DefaultPipeline.h"
 #include "Render/Pipeline/RenderTarget/RenderTargetSetup.h"
+#include "Render/Pipeline/PipelineLayout.h"
 #include "Render/Renderer/HomogeneousMesh.h"
 
 using namespace Engine;

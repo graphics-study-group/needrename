@@ -13,7 +13,6 @@
 #include "Render/Pipeline/Shader.h"
 #include "Render/Pipeline/RenderTarget/Framebuffers.h"
 #include "Render/Pipeline/CommandBuffer.h"
-#include "Render/Pipeline/PremadePipeline/DefaultPipeline.h"
 #include "Render/Pipeline/RenderTarget/RenderTargetSetup.h"
 #include "Render/Renderer/HomogeneousMesh.h"
 
