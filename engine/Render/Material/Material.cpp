@@ -3,11 +3,11 @@
 
 namespace Engine {
     std::vector<vk::DescriptorSetLayout> Material::GetGlobalDescriptorSetLayout() {
-        const auto & pool = m_renderSystem.lock()->GetGlobalConstantDescriptorPool();
+        const auto & pool = m_system.lock()->GetGlobalConstantDescriptorPool();
         return {pool.GetPerCameraConstantLayout().get()};
     }
     Material::Material (std::weak_ptr<RenderSystem> system) 
-    : m_renderSystem(system) {
+    : m_system(system) {
     }
     const PipelineLayout * Material::GetPipelineLayout(uint32_t pass_index) const {
         assert(pass_index < m_passes.size());
