@@ -49,14 +49,21 @@ namespace Engine
         RenderCommandBuffer & cb = this->GetGraphicsCommandBuffer(inflight);
 
         // Write camera transforms
+        std::byte * camera_ptr = this->GetGlobalConstantDescriptorPool().GetPerCameraConstantMemory(inflight);
+        ConstantData::PerCameraStruct camera_struct;
         if (m_active_camera) {
-            std::byte * camera_ptr = this->GetGlobalConstantDescriptorPool().GetPerCameraConstantMemory(inflight);
-            ConstantData::PerCameraStruct camera_struct {
+            camera_struct = {
                 m_active_camera->GetViewMatrix(), 
                 m_active_camera->GetProjectionMatrix()
             };
-            std::memcpy(camera_ptr, &camera_struct, sizeof camera_struct);
+            
+        } else {
+            camera_struct = {
+                glm::mat4{1.0f}, 
+                glm::mat4{1.0f}
+            };
         }
+        std::memcpy(camera_ptr, &camera_struct, sizeof camera_struct);
         
         vk::Extent2D extent {this->GetSwapchain().GetExtent()};
         vk::Rect2D scissor{{0, 0}, extent};

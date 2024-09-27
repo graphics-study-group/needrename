@@ -10,6 +10,7 @@ namespace Engine{
     CameraComponent::CameraComponent(std::weak_ptr<GameObject> gameObject) : Component(gameObject)
     {
         UpdateViewMatrix();
+        UpdateProjectionMatrix();
     }
 
     void CameraComponent::Tick(float)

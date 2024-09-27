@@ -15,6 +15,6 @@ layout(push_constant) uniform ModelTransform {
 } modelTransform;
 
 void main() {
-    gl_Position = camera.proj * camera.view * modelTransform.model * vec4(inPosition.xy, 0.0, 1.0);
+    gl_Position = camera.proj * camera.view * modelTransform.model * vec4(inPosition.xyz, 1.0);
     fragColor = inColor;
 }
