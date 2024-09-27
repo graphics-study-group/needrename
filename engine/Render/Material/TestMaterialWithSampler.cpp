@@ -84,11 +84,11 @@ namespace Engine {
     }
     const Pipeline *TestMaterialWithSampler::GetPipeline(uint32_t pass_index, const RenderTargetSetup &rts)
     {
-        auto pipeline = m_passes[0].pipeline.get();
+        auto pipeline = m_passes[pass_index].pipeline.get();
 
         // TODO: Check render target setup
-        if (!pipeline) {
-            pipeline->CreatePipeline(rts.GetRenderPass().GetSubpass(0));
+        if (!pipeline->get()) {
+            pipeline->CreatePipeline(rts.GetRenderPass().GetSubpass(pass_index));
         }
         return pipeline;
     }
