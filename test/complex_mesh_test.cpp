@@ -4,13 +4,15 @@
 #include <chrono>
 #include <filesystem>
 #include <tiny_obj_loader.h>
+#include <stb_image.h>
 
 #include "MainClass.h"
 #include "Functional/SDLWindow.h"
 #include "Framework/go/GameObject.h"
 #include "Framework/component/RenderComponent/CameraComponent.h"
 #include "Framework/component/RenderComponent/MeshComponent.h"
-#include "Render/Material/TestMaterialWithTransform.h"
+#include "Render/Memory/Image2DTexture.h"
+#include "Render/Material/Shadeless.h"
 #include "Render/Pipeline/Shader.h"
 #include "Render/Pipeline/RenderTarget/RenderTargetSetup.h"
 #include "Render/Pipeline/CommandBuffer.h"
@@ -26,6 +28,15 @@ Engine::MainClass * cmc;
 
 class MeshComponentFromFile : public MeshComponent {
     Transform transform;
+    stbi_uc * m_raw_image_data {};
+    AllocatedImage2DTexture m_texture;
+
+    void LoadTexture(std::filesystem::path texture_filename) {
+        int tex_width, tex_height, tex_channel;
+        m_raw_image_data = stbi_load(texture_filename.string().c_str(), &tex_width, &tex_height, &tex_channel, 4);
+        assert(m_raw_image_data);
+        m_texture.Create(tex_width, tex_height, vk::Format::eR8G8B8A8Srgb);
+    }
 
     void LoadMesh(std::filesystem::path mesh) {
         tinyobj::ObjReaderConfig reader_config{};
@@ -34,8 +45,8 @@ class MeshComponentFromFile : public MeshComponent {
         m_materials.clear();
         m_submeshes.clear();
 
-        std::shared_ptr<Material> mat = std::make_shared<TestMaterialWithTransform>(m_system);
-        std::shared_ptr<HomogeneousMesh> hmsh = std::make_shared<HomogeneousMesh>(m_system);
+        std::shared_ptr mat = std::make_shared<Shadeless>(m_system);
+        std::shared_ptr hmsh = std::make_shared<HomogeneousMesh>(m_system);
         m_materials.push_back(mat);
         m_submeshes.push_back(hmsh);
 
@@ -58,7 +69,7 @@ class MeshComponentFromFile : public MeshComponent {
 
         const auto & attrib = reader.GetAttrib();
         const auto & shapes = reader.GetShapes();
-        // const auto & materials = reader.GetMaterials();
+        const auto & materials = reader.GetMaterials();
 
         assert(shapes.size() == 1);
         for (size_t shp = 0; shp < shapes.size(); shp++) {
@@ -69,9 +80,16 @@ class MeshComponentFromFile : public MeshComponent {
             attributes.resize(shape_vertices_size * 3);
             indices.resize(shape_vertices_size * 3);
 
+            // Construct material
+            auto material_id = shape.mesh.material_ids[0];
+            const std::string & dname = materials[material_id].diffuse_texname;
+            LoadTexture(mesh.parent_path() / dname);
+            mat->UpdateTexture(m_texture);
+
             for (size_t fc = 0; fc < shape_vertices_size; fc++) {
                 unsigned int face_vertex_count = shape.mesh.num_face_vertices[fc];
                 assert(face_vertex_count == 3);
+                assert(material_id == shape.mesh.material_ids[fc]);
                 for (unsigned int vrtx = 0; vrtx < face_vertex_count; vrtx++) {
                     tinyobj::index_t index = shape.mesh.indices[fc * 3 + vrtx];
                     // assert(index.vertex_index == index.normal_index && index.vertex_index == index.texcoord_index);
@@ -81,10 +99,10 @@ class MeshComponentFromFile : public MeshComponent {
                     
                     assert(index.texcoord_index >= 0);
                     float uv_u{attrib.texcoords[size_t(index.texcoord_index)*2+0]};
-                    float uv_v{attrib.texcoords[size_t(index.texcoord_index)*2+1]};
+                    float uv_v{1.0f - attrib.texcoords[size_t(index.texcoord_index)*2+1]};
 
                     positions[fc * 3 + vrtx] = VertexStruct::VertexPosition{.position = {x, y, z}};
-                    attributes[fc * 3 + vrtx] = VertexStruct::VertexAttribute{.color = {1.0f, 0.0f, 0.0f}, .texcoord1 = {uv_u, uv_v}};
+                    attributes[fc * 3 + vrtx] = VertexStruct::VertexAttribute{.color = {1.0f, 1.0f, 1.0f}, .texcoord1 = {uv_u, uv_v}};
                     indices[fc * 3 + vrtx] = fc * 3 + vrtx;
                 }
             }
@@ -96,7 +114,7 @@ class MeshComponentFromFile : public MeshComponent {
 
 public: 
     MeshComponentFromFile(std::weak_ptr <RenderSystem> system, std::filesystem::path mesh_file_name) 
-    : MeshComponent(std::weak_ptr<GameObject>(), system), transform() {
+    : MeshComponent(std::weak_ptr<GameObject>(), system), transform(), m_texture(system) {
         transform.SetPosition(glm::vec3{0.0, 0.0, 0.0});
         transform.SetScale(glm::vec3{2.0f, 2.0f, 2.0f});
         LoadMesh(mesh_file_name);
@@ -107,6 +125,11 @@ public:
             submesh->Prepare();
             tcb.CommitVertexBuffer(*submesh);
         }
+
+        if (m_raw_image_data) {
+            size_t length =  m_texture.GetExtent().height * m_texture.GetExtent().width * 4;
+            tcb.CommitTextureImage(m_texture, reinterpret_cast<std::byte *>(m_raw_image_data), length);
+        }
         tcb.End();
         tcb.SubmitAndExecute();
     }
@@ -114,6 +137,11 @@ public:
     ~MeshComponentFromFile() {
         m_materials.clear();
         m_submeshes.clear();
+
+        if (m_raw_image_data) {
+            stbi_image_free(m_raw_image_data);
+            m_raw_image_data = nullptr;
+        }
     }
 
     Transform GetWorldTransform() const override {
