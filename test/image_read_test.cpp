@@ -59,9 +59,6 @@ int main(int, char *[])
     auto render_system = cmc->GetRenderSystem();
 
     // Try render the mesh
-    PipelineLayout pl{render_system};
-    pl.CreatePipelineLayout({}, {});
-
     RenderTargetSetup rts{render_system};
     rts.CreateFromSwapchain();
     rts.SetClearValues({{{0.0f, 0.0f, 0.0f, 1.0f}}});
@@ -104,7 +101,7 @@ int main(int, char *[])
         cb.BindMaterial(material, 0);
         vk::Rect2D scissor{{0, 0}, render_system->GetSwapchain().GetExtent()};
         cb.SetupViewport(extent.width, extent.height, scissor);
-        cb.DrawMesh(mesh);
+        cb.DrawMesh(mesh, glm::mat4{1.0f});
         cb.End();
 
         cb.Submit();
