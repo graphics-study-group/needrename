@@ -19,7 +19,7 @@ namespace Engine {
             vk::DescriptorSet descriptor_set {};
         };
 
-        std::weak_ptr <RenderSystem> m_renderSystem;
+        std::weak_ptr <RenderSystem> m_system;
         std::vector <MaterialPass> m_passes {};
 
         /// @brief Get global constant descriptor layouts for PipelineLayout construction.
