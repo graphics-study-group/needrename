@@ -82,7 +82,7 @@ int main(int, char **)
     });
     
 
-    std::shared_ptr material = std::make_shared<TestMaterial>(system, rts.GetRenderPass());
+    std::shared_ptr material = std::make_shared<TestMaterial>(system);
 
     uint32_t in_flight_frame_id = 0;
     uint32_t total_test_frame = 60;

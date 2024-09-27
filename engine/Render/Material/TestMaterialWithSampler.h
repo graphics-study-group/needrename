@@ -15,10 +15,11 @@ namespace Engine {
         ShaderModule vertModule;
     public:
         TestMaterialWithSampler (
-            std::weak_ptr <RenderSystem> system, 
-            const RenderPass & pass,
+            std::weak_ptr <RenderSystem> system,
             const AllocatedImage2DTexture & texture
         );
+
+        const virtual Pipeline * GetPipeline(uint32_t pass_index, const RenderTargetSetup & rts) override;
     };
 }
 

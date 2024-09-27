@@ -80,7 +80,7 @@ int main(int, char *[])
     AllocatedImage2DTexture texture{render_system};
     texture.Create(tex_width, tex_height, vk::Format::eR8G8B8A8Srgb);
 
-    TestMaterialWithSampler material{render_system, rts.GetRenderPass(), texture};
+    TestMaterialWithSampler material{render_system, texture};
 
     do {
 

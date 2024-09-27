@@ -19,11 +19,11 @@ namespace Engine{
 
         Pipeline (std::weak_ptr <RenderSystem> system);
 
-        virtual void CreatePipeline(
-            Subpass subpass, 
+        virtual void SetPipelineConfiguration(
             const PipelineLayout & layout, 
             const std::vector<std::reference_wrapper<const ShaderModule>> & shaders
         ) = 0;
+        virtual void CreatePipeline(Subpass subpass) = 0;
 
         const Subpass & GetSubpass() const;
 

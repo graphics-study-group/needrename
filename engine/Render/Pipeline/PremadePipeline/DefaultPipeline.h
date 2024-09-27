@@ -10,11 +10,17 @@ namespace Engine {
             [[deprecated("Use ConfigurablePipeline for flexibility.")]]
             DefaultPipeline(std::weak_ptr <RenderSystem> system);
 
-            void CreatePipeline(Subpass subpass, 
+            virtual void SetPipelineConfiguration(
                 const PipelineLayout & layout, 
                 const std::vector<std::reference_wrapper<const ShaderModule>> & shaders
-                ) override;
+            ) override;
+            virtual void CreatePipeline(Subpass subpass) override;
+
         protected:
+            // TODO: we urgently need better lifetime management for vk types
+            vk::PipelineLayout m_layout{};
+            std::vector<std::reference_wrapper<const ShaderModule>> m_shaders;
+
             static vk::PipelineRasterizationStateCreateInfo CreateRasterizationState();
             static vk::PipelineMultisampleStateCreateInfo CreateMultisampleState();
             static vk::PipelineDepthStencilStateCreateInfo CreateDepthStencilState();

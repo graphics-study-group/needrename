@@ -48,11 +48,13 @@ namespace Engine
             {vk::Offset2D{0, 0}, extent},
             setup.GetRenderPass().GetClearValues()
         };
+        m_bound_render_target = std::cref(setup);
         m_handle->beginRenderPass(info, vk::SubpassContents::eInline);
     }
 
-    void RenderCommandBuffer::BindMaterial(const Material & material, uint32_t pass_index) {
-        const auto & pipeline = material.GetPipeline(pass_index)->get();
+    void RenderCommandBuffer::BindMaterial(Material & material, uint32_t pass_index) {
+        assert(m_bound_render_target.has_value());
+        const auto & pipeline = material.GetPipeline(pass_index, m_bound_render_target.value())->get();
         const auto & pipeline_layout = material.GetPipelineLayout(pass_index)->get();
 
         m_handle->bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
