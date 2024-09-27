@@ -2,6 +2,7 @@
 
 #include "Render/Pipeline/Shader.h"
 #include "Render/Pipeline/RenderTarget/RenderPass.h"
+#include "Render/Pipeline/RenderTarget/RenderTargetSetup.h"
 #include "Render/Pipeline/PremadePipeline/ConfigurablePipeline.h"
 #include "Render/Memory/Image2DTexture.h"
 
@@ -22,8 +23,7 @@ inline std::vector <char> readFile(const std::string& filename) {
 
 namespace Engine {
     TestMaterialWithSampler::TestMaterialWithSampler (
-        std::weak_ptr <RenderSystem> system, 
-        const RenderPass & pass,
+        std::weak_ptr <RenderSystem> system,
         const AllocatedImage2DTexture & texture
     ) : Material(system), fragModule(system), vertModule(system) {
 
@@ -64,7 +64,7 @@ namespace Engine {
 
         auto & pipeline_layout = *(m_passes[0].pipeline_layout.get());
         pipeline_layout.CreateWithDefault({set_layout});
-        m_passes[0].pipeline->CreatePipeline(pass.GetSubpass(0), pipeline_layout, {fragModule, vertModule});
+        m_passes[0].pipeline->SetPipelineConfiguration(pipeline_layout, {fragModule, vertModule});
 
         // Write texture descriptor
         vk::DescriptorImageInfo image_info {
@@ -82,5 +82,14 @@ namespace Engine {
         };
         system.lock()->getDevice().updateDescriptorSets({write}, {});
     }
-}
+    const Pipeline *TestMaterialWithSampler::GetPipeline(uint32_t pass_index, const RenderTargetSetup &rts)
+    {
+        auto pipeline = m_passes[0].pipeline.get();
 
+        // TODO: Check render target setup
+        if (!pipeline) {
+            pipeline->CreatePipeline(rts.GetRenderPass().GetSubpass(0));
+        }
+        return pipeline;
+    }
+}

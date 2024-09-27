@@ -2,6 +2,7 @@
 
 #include "Render/Pipeline/Shader.h"
 #include "Render/Pipeline/RenderTarget/RenderPass.h"
+#include "Render/Pipeline/RenderTarget/RenderTargetSetup.h"
 #include "Render/Pipeline/PremadePipeline/ConfigurablePipeline.h"
 
 #include <fstream>
@@ -21,8 +22,7 @@ inline std::vector <char> readFile(const std::string& filename) {
 
 namespace Engine {
     TestMaterial::TestMaterial (
-        std::weak_ptr <RenderSystem> system, 
-        const RenderPass & pass
+        std::weak_ptr <RenderSystem> system
     ) : Material(system), fragModule(system), vertModule(system) {
 
         std::vector <char> shaderData = readFile("shader/debug_fragment_color.frag.spv");
@@ -45,6 +45,17 @@ namespace Engine {
         auto & layout = *(m_passes[0].pipeline_layout.get());
         // layout.CreatePipelineLayout(GetGlobalDescriptorSetLayout(), {});
         layout.CreateWithDefault({});
-        m_passes[0].pipeline->CreatePipeline(pass.GetSubpass(0), layout, {fragModule, vertModule});
+        m_passes[0].pipeline->SetPipelineConfiguration(layout, {fragModule, vertModule});
+    }
+
+    const Pipeline *TestMaterial::GetPipeline(uint32_t pass_index, const RenderTargetSetup &rts)
+    {
+        auto pipeline = m_passes[0].pipeline.get();
+
+        // TODO: Check render target setup
+        if (!pipeline->get()) {
+            pipeline->CreatePipeline(rts.GetRenderPass().GetSubpass(0));
+        }
+        return pipeline;
     }
 }

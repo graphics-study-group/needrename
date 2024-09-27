@@ -57,7 +57,7 @@ int main(int, char **)
         vk::ClearValue{vk::ClearDepthStencilValue{1.0f, 0U}}
     });
 
-    TestMaterialWithTransform material{system, rts.GetRenderPass()};
+    TestMaterialWithTransform material{system};
 
     uint32_t in_flight_frame_id = 0;
     uint32_t total_test_frame = MAXIMUM_FRAME_COUNT;

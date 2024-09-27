@@ -82,7 +82,7 @@ int main(int, char *[])
     rts.CreateFromSwapchain();
     rts.SetClearValues({{{0.0f, 0.0f, 0.0f, 1.0f}}});
 
-    TestMaterial material{render_system, rts.GetRenderPass()};
+    TestMaterial material{render_system};
 
     uint32_t in_flight_frame_id = 0;
     uint32_t total_test_frame = 60;

@@ -7,33 +7,32 @@ namespace Engine::PremadePipeline {
     {
     }
 
-    void ConfigurablePipeline::CreatePipeline(
-        Subpass subpass, 
+    void ConfigurablePipeline::SetPipelineConfiguration(
         const PipelineLayout &layout, 
         const std::vector<std::reference_wrapper<const ShaderModule>> &shaders
-    )
-    {
-        this->CreatePipeline(subpass, layout, shaders, PipelineConfig{});
+    ) {
+        this->SetPipelineConfiguration(layout, shaders, {});
     }
 
-    void ConfigurablePipeline::CreatePipeline(
-        Subpass subpass, 
+    void ConfigurablePipeline::SetPipelineConfiguration(
         const PipelineLayout &layout, 
         const std::vector<std::reference_wrapper<const ShaderModule>> &shaders, 
         const PipelineConfig &config
-    )
-    {
-        SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating pipeline.");
+    ) {
         assert(!shaders.empty());
+        m_layout = layout.get();
+        m_shaders = shaders;
+        m_config = config;
+    }
 
-        m_attached_subpass = subpass;
-
+    void ConfigurablePipeline::CreatePipeline(Subpass subpass)
+    {
         std::vector <vk::PipelineShaderStageCreateInfo> stages;
-        stages.resize(shaders.size());
-        for (size_t i = 0; i < shaders.size(); i++) {
-            stages[i] = (shaders[i].get().GetStageCreateInfo());
+        stages.resize(m_shaders.size());
+        for (size_t i = 0; i < m_shaders.size(); i++) {
+            stages[i] = (m_shaders[i].get().GetStageCreateInfo());
         }
-
+        
         vk::GraphicsPipelineCreateInfo info{};
         info.stageCount = stages.size();
         info.pStages = stages.data();
@@ -47,7 +46,7 @@ namespace Engine::PremadePipeline {
         auto viewport = GetViewportState();
         info.pViewportState = &viewport;
 
-        auto raster = config.rasterization.ToVulkanRasterizationStateCreateInfo();
+        auto raster = m_config.rasterization.ToVulkanRasterizationStateCreateInfo();
         info.pRasterizationState = &raster;
 
         auto multisample = CreateMultisampleState();
@@ -75,7 +74,8 @@ namespace Engine::PremadePipeline {
         auto dynamic = GetDynamicState();
         info.pDynamicState = &dynamic;
 
-        info.layout = layout.get();
+        info.layout = m_layout;
+        m_attached_subpass = subpass;
         info.renderPass = subpass.pass;
         info.subpass = subpass.index;
 
@@ -84,8 +84,9 @@ namespace Engine::PremadePipeline {
         m_handle = std::move(ret.value);
     }
 
-    vk::PipelineMultisampleStateCreateInfo 
-    ConfigurablePipeline::CreateMultisampleState() {
+    vk::PipelineMultisampleStateCreateInfo
+    ConfigurablePipeline::CreateMultisampleState()
+    {
         vk::PipelineMultisampleStateCreateInfo info{};
         info.sampleShadingEnable = vk::False;
         info.rasterizationSamples = vk::SampleCountFlagBits::e1;

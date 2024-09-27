@@ -7,20 +7,27 @@ namespace Engine {
         DefaultPipeline::DefaultPipeline(std::weak_ptr<RenderSystem> system) : Pipeline(system) {
         }
 
+        void DefaultPipeline::SetPipelineConfiguration(
+            const PipelineLayout &layout, 
+            const std::vector<std::reference_wrapper<const ShaderModule>> &shaders
+        ) {
+            assert(!shaders.empty());
+            m_layout = layout.get();
+            m_shaders = shaders;
+        }
+
         void DefaultPipeline::CreatePipeline(
-            Subpass subpass, 
-            const PipelineLayout& layout, 
-            const std::vector<std::reference_wrapper<const ShaderModule>>& shaders
+            Subpass subpass
         ) {
             SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating pipeline.");
-            assert(!shaders.empty());
+            
 
             m_attached_subpass = subpass;
 
             std::vector <vk::PipelineShaderStageCreateInfo> stages;
-            stages.resize(shaders.size());
-            for (size_t i = 0; i < shaders.size(); i++) {
-                stages[i] = (shaders[i].get().GetStageCreateInfo());
+            stages.resize(m_shaders.size());
+            for (size_t i = 0; i < m_shaders.size(); i++) {
+                stages[i] = (m_shaders[i].get().GetStageCreateInfo());
             }
 
             vk::GraphicsPipelineCreateInfo info{};
@@ -64,7 +71,7 @@ namespace Engine {
             auto dynamic = GetDynamicState();
             info.pDynamicState = &dynamic;
 
-            info.layout = layout.get();
+            info.layout = m_layout;
             info.renderPass = subpass.pass;
             info.subpass = subpass.index;
 
