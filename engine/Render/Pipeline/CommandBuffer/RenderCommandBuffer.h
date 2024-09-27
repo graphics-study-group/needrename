@@ -42,7 +42,7 @@ namespace Engine {
         /// @brief Write per-mesh descriptors, and send draw call to GPU.
         /// @param mesh 
         void DrawMesh(const HomogeneousMesh & mesh);
-        void DrawMesh(const HomogeneousMesh& mesh, glm::mat4 & model_matrix);
+        void DrawMesh(const HomogeneousMesh& mesh, const glm::mat4 & model_matrix);
 
         void End();
 

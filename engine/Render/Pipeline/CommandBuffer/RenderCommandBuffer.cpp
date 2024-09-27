@@ -97,7 +97,7 @@ namespace Engine
         m_handle->setScissor(0, 1, &scissor);
     }
 
-    void RenderCommandBuffer::DrawMesh(const HomogeneousMesh& mesh, glm::mat4 & model_matrix) {
+    void RenderCommandBuffer::DrawMesh(const HomogeneousMesh& mesh, const glm::mat4 & model_matrix) {
         auto bindings = mesh.GetBindingInfo();
         m_handle->bindVertexBuffers(0, bindings.first, bindings.second);
         auto indices = mesh.GetIndexInfo();
