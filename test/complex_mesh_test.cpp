@@ -7,8 +7,10 @@
 
 #include "MainClass.h"
 #include "Functional/SDLWindow.h"
+#include "Framework/go/GameObject.h"
+#include "Framework/component/RenderComponent/CameraComponent.h"
 #include "Framework/component/RenderComponent/MeshComponent.h"
-#include "Render/Material/TestMaterial.h"
+#include "Render/Material/TestMaterialWithTransform.h"
 #include "Render/Pipeline/Shader.h"
 #include "Render/Pipeline/RenderTarget/RenderTargetSetup.h"
 #include "Render/Pipeline/CommandBuffer.h"
@@ -22,19 +24,6 @@ namespace sch = std::chrono;
 
 Engine::MainClass * cmc;
 
-class TestHomoMesh : public HomogeneousMesh {
-public:
-    TestHomoMesh(std::weak_ptr<RenderSystem> system) : HomogeneousMesh(system) {
-        this->m_positions = {{0.0f, -0.5f, 0.0f}, {0.5f, 0.5f, 0.0f}, {-0.5f, 0.5f, 0.0f}};
-        this->m_attributes = {
-            {.color = {1.0f, 0.0f, 0.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {0.0f, 0.0f}}, 
-            {.color = {0.0f, 1.0f, 0.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {0.0f, 0.0f}}, 
-            {.color = {0.0f, 0.0f, 1.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {0.0f, 0.0f}}
-        };
-        this->m_indices = {0, 1, 2};
-    }
-};
-
 class MeshComponentFromFile : public MeshComponent {
     Transform transform;
 
@@ -45,10 +34,14 @@ class MeshComponentFromFile : public MeshComponent {
         m_materials.clear();
         m_submeshes.clear();
 
-        // std::shared_ptr<Material> mat = std::make_shared<TestMaterial>(m_system);
-        // std::shared_ptr<HomogeneousMesh> hmsh = std::make_shared<HomogeneousMesh>(m_system);
-        // m_materials.push_back(mat);
-        // m_submeshes.push_back(hmsh);
+        std::shared_ptr<Material> mat = std::make_shared<TestMaterialWithTransform>(m_system);
+        std::shared_ptr<HomogeneousMesh> hmsh = std::make_shared<HomogeneousMesh>(m_system);
+        m_materials.push_back(mat);
+        m_submeshes.push_back(hmsh);
+
+        std::vector <VertexStruct::VertexPosition> positions;
+        std::vector <VertexStruct::VertexAttribute> attributes;
+        std::vector <uint32_t> indices;
 
         if (!reader.ParseFromFile(mesh.string(), reader_config)) {
             SDL_LogCritical(0, "Failed to load OBJ file %s", mesh.string().c_str());
@@ -65,32 +58,57 @@ class MeshComponentFromFile : public MeshComponent {
 
         const auto & attrib = reader.GetAttrib();
         const auto & shapes = reader.GetShapes();
-        const auto & materials = reader.GetMaterials();
+        // const auto & materials = reader.GetMaterials();
 
         assert(shapes.size() == 1);
         for (size_t shp = 0; shp < shapes.size(); shp++) {
             const auto & shape = shapes[shp];
-            for (size_t fc = 0; fc < shape.mesh.num_face_vertices.size(); fc++) {
+            auto shape_vertices_size = shape.mesh.num_face_vertices.size();
+
+            positions.resize(shape_vertices_size * 3);
+            attributes.resize(shape_vertices_size * 3);
+            indices.resize(shape_vertices_size * 3);
+
+            for (size_t fc = 0; fc < shape_vertices_size; fc++) {
                 unsigned int face_vertex_count = shape.mesh.num_face_vertices[fc];
                 assert(face_vertex_count == 3);
                 for (unsigned int vrtx = 0; vrtx < face_vertex_count; vrtx++) {
-                    tinyobj::index_t index = shape.mesh.indices[vrtx];
-                    assert(index.vertex_index == index.normal_index && index.vertex_index == index.texcoord_index);
+                    tinyobj::index_t index = shape.mesh.indices[fc * 3 + vrtx];
+                    // assert(index.vertex_index == index.normal_index && index.vertex_index == index.texcoord_index);
+                    float x{attrib.vertices[size_t(index.vertex_index)*3+0]};
+                    float y{attrib.vertices[size_t(index.vertex_index)*3+1]};
+                    float z{attrib.vertices[size_t(index.vertex_index)*3+2]};
+                    
+                    assert(index.texcoord_index >= 0);
+                    float uv_u{attrib.texcoords[size_t(index.texcoord_index)*2+0]};
+                    float uv_v{attrib.texcoords[size_t(index.texcoord_index)*2+1]};
+
+                    positions[fc * 3 + vrtx] = VertexStruct::VertexPosition{.position = {x, y, z}};
+                    attributes[fc * 3 + vrtx] = VertexStruct::VertexAttribute{.color = {1.0f, 0.0f, 0.0f}, .texcoord1 = {uv_u, uv_v}};
+                    indices[fc * 3 + vrtx] = fc * 3 + vrtx;
                 }
             }
         }
-
+        hmsh->SetPositions(positions);
+        hmsh->SetAttributes(attributes);
+        hmsh->SetIndices(indices);
     }
 
 public: 
     MeshComponentFromFile(std::weak_ptr <RenderSystem> system, std::filesystem::path mesh_file_name) 
     : MeshComponent(std::weak_ptr<GameObject>(), system), transform() {
-        transform.SetPosition(glm::vec3{1.0, 0.0, 0.0});
+        transform.SetPosition(glm::vec3{0.0, 0.0, 0.0});
+        transform.SetScale(glm::vec3{2.0f, 2.0f, 2.0f});
         LoadMesh(mesh_file_name);
 
+        auto & tcb = system.lock()->GetTransferCommandBuffer();
+        tcb.Begin();
         for (auto & submesh : m_submeshes) {
             submesh->Prepare();
+            tcb.CommitVertexBuffer(*submesh);
         }
+        tcb.End();
+        tcb.SubmitAndExecute();
     }
 
     ~MeshComponentFromFile() {
@@ -123,11 +141,21 @@ int main(int, char **)
         vk::ClearValue{vk::ClearColorValue{0.0f, 0.0f, 0.0f, 1.0f}},
         vk::ClearValue{vk::ClearDepthStencilValue{1.0f, 0U}}
     });
-
+    
+    // Setup mesh
     std::filesystem::path mesh_path{ENGINE_ASSETS_DIR};
     mesh_path /= "bunny/bunny.obj";
     std::shared_ptr tmc = std::make_shared<MeshComponentFromFile>(system, mesh_path);
     system->RegisterComponent(tmc);
+
+    // Setup camera
+    auto camera_go = std::make_shared<GameObject>();
+    Transform transform{};
+    transform.SetPosition({0.0f, -1.0f, 0.0f});
+    camera_go->SetTransform(transform);
+    auto camera_comp = std::make_shared<CameraComponent>(camera_go);
+    camera_go->AddComponent(camera_comp);
+    system->SetActiveCamera(camera_comp);
 
     uint32_t in_flight_frame_id = 0;
     uint32_t total_test_frame = 60;
