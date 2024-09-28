@@ -78,11 +78,10 @@ namespace Engine
             const auto & materials = down_casted_ptr->GetMaterials();
             const auto & meshes = down_casted_ptr->GetSubmeshes();
 
-            for (const auto & material : materials) {
-                cb.BindMaterial(*material, pass);
-                for (const auto & mesh : meshes) {
-                    cb.DrawMesh(*mesh, model_matrix);
-                }
+            assert(materials.size() == meshes.size());
+            for (size_t id = 0; id < materials.size(); id++){
+                cb.BindMaterial(*materials[id], pass);
+                cb.DrawMesh(*meshes[id], model_matrix);
             }
         }
     }
