@@ -28,15 +28,9 @@ Engine::MainClass * cmc;
 
 class MeshComponentFromFile : public MeshComponent {
     Transform transform;
-    stbi_uc * m_raw_image_data {};
-    AllocatedImage2DTexture m_texture;
 
-    void LoadTexture(std::filesystem::path texture_filename) {
-        int tex_width, tex_height, tex_channel;
-        m_raw_image_data = stbi_load(texture_filename.string().c_str(), &tex_width, &tex_height, &tex_channel, 4);
-        assert(m_raw_image_data);
-        m_texture.Create(tex_width, tex_height, vk::Format::eR8G8B8A8Srgb);
-    }
+    std::vector <std::unique_ptr<AllocatedImage2DTexture>> m_textures {};
+    std::vector <std::filesystem::path> m_texture_files {};
 
     void LoadMesh(std::filesystem::path mesh) {
         tinyobj::ObjReaderConfig reader_config{};
@@ -45,14 +39,14 @@ class MeshComponentFromFile : public MeshComponent {
         m_materials.clear();
         m_submeshes.clear();
 
-        std::shared_ptr mat = std::make_shared<Shadeless>(m_system);
-        std::shared_ptr hmsh = std::make_shared<HomogeneousMesh>(m_system);
-        m_materials.push_back(mat);
-        m_submeshes.push_back(hmsh);
+        // std::shared_ptr mat = std::make_shared<Shadeless>(m_system);
+        // std::shared_ptr hmsh = std::make_shared<HomogeneousMesh>(m_system);
+        // m_materials.push_back(mat);
+        // m_submeshes.push_back(hmsh);
 
-        std::vector <VertexStruct::VertexPosition> positions;
-        std::vector <VertexStruct::VertexAttribute> attributes;
-        std::vector <uint32_t> indices;
+        std::vector <std::vector<VertexStruct::VertexPosition>> positions;
+        std::vector <std::vector<VertexStruct::VertexAttribute>> attributes;
+        std::vector <std::vector<uint32_t>> indices;
 
         if (!reader.ParseFromFile(mesh.string(), reader_config)) {
             SDL_LogCritical(0, "Failed to load OBJ file %s", mesh.string().c_str());
@@ -71,25 +65,34 @@ class MeshComponentFromFile : public MeshComponent {
         const auto & shapes = reader.GetShapes();
         const auto & materials = reader.GetMaterials();
 
-        assert(shapes.size() == 1);
+        // Process materials
+        m_textures.clear();
+        m_texture_files.clear();
+        for (const auto & material : materials) {
+            auto ptr = std::make_shared<Shadeless>(m_system);
+            m_materials.push_back(ptr);
+
+            const std::string & dname = material.diffuse_texname;
+            m_texture_files.push_back(mesh.parent_path() / dname);
+            auto tex_ptr = std::make_unique<AllocatedImage2DTexture>(m_system);
+            m_textures.push_back(std::move(tex_ptr));
+
+            SDL_LogInfo(0, "Material name %s: diffuse map %s.", material.name.c_str(), m_texture_files.rbegin()->string().c_str());
+        }
+        positions.resize(materials.size());
+        attributes.resize(materials.size());
+        indices.resize(materials.size());
+
+        // assert(shapes.size() == 1);
         for (size_t shp = 0; shp < shapes.size(); shp++) {
             const auto & shape = shapes[shp];
             auto shape_vertices_size = shape.mesh.num_face_vertices.size();
 
-            positions.resize(shape_vertices_size * 3);
-            attributes.resize(shape_vertices_size * 3);
-            indices.resize(shape_vertices_size * 3);
-
-            // Construct material
-            auto material_id = shape.mesh.material_ids[0];
-            const std::string & dname = materials[material_id].diffuse_texname;
-            LoadTexture(mesh.parent_path() / dname);
-            mat->UpdateTexture(m_texture);
-
             for (size_t fc = 0; fc < shape_vertices_size; fc++) {
                 unsigned int face_vertex_count = shape.mesh.num_face_vertices[fc];
                 assert(face_vertex_count == 3);
-                assert(material_id == shape.mesh.material_ids[fc]);
+                // assert(material_id == shape.mesh.material_ids[fc]);
+                auto material_id = shape.mesh.material_ids[fc];
                 for (unsigned int vrtx = 0; vrtx < face_vertex_count; vrtx++) {
                     tinyobj::index_t index = shape.mesh.indices[fc * 3 + vrtx];
                     // assert(index.vertex_index == index.normal_index && index.vertex_index == index.texcoord_index);
@@ -99,24 +102,30 @@ class MeshComponentFromFile : public MeshComponent {
                     
                     assert(index.texcoord_index >= 0);
                     float uv_u{attrib.texcoords[size_t(index.texcoord_index)*2+0]};
-                    float uv_v{1.0f - attrib.texcoords[size_t(index.texcoord_index)*2+1]};
+                    float uv_v{attrib.texcoords[size_t(index.texcoord_index)*2+1]};
 
-                    positions[fc * 3 + vrtx] = VertexStruct::VertexPosition{.position = {x, y, z}};
-                    attributes[fc * 3 + vrtx] = VertexStruct::VertexAttribute{.color = {1.0f, 1.0f, 1.0f}, .texcoord1 = {uv_u, uv_v}};
-                    indices[fc * 3 + vrtx] = fc * 3 + vrtx;
+                    positions[material_id].push_back(VertexStruct::VertexPosition{.position = {x, y, z}});
+                    attributes[material_id].push_back(VertexStruct::VertexAttribute{.color = {1.0f, 1.0f, 1.0f}, .texcoord1 = {uv_u, uv_v}});
+                    indices[material_id].push_back(positions[material_id].size() - 1);
                 }
             }
         }
-        hmsh->SetPositions(positions);
-        hmsh->SetAttributes(attributes);
-        hmsh->SetIndices(indices);
+
+        for (size_t mat = 0; mat < materials.size(); mat++) {
+            assert(positions[mat].size() % 3 == 0);
+            assert(attributes[mat].size() == positions[mat].size() && positions[mat].size() == indices[mat].size());
+            m_submeshes.push_back(std::make_shared<HomogeneousMesh>(m_system));
+            m_submeshes[mat]->SetPositions(positions[mat]);
+            m_submeshes[mat]->SetAttributes(attributes[mat]);
+            m_submeshes[mat]->SetIndices(indices[mat]);
+        }
     }
 
 public: 
     MeshComponentFromFile(std::weak_ptr <RenderSystem> system, std::filesystem::path mesh_file_name) 
-    : MeshComponent(std::weak_ptr<GameObject>(), system), transform(), m_texture(system) {
-        transform.SetPosition(glm::vec3{0.0, 0.0, 0.0});
-        transform.SetScale(glm::vec3{2.0f, 2.0f, 2.0f});
+    : MeshComponent(std::weak_ptr<GameObject>(), system), transform() {
+        transform.SetPosition(glm::vec3{0.0, 0.0, -0.5});
+        transform.SetScale(glm::vec3{.5f, .5f, .5f});
         LoadMesh(mesh_file_name);
 
         auto & tcb = system.lock()->GetTransferCommandBuffer();
@@ -126,9 +135,22 @@ public:
             tcb.CommitVertexBuffer(*submesh);
         }
 
-        if (m_raw_image_data) {
-            size_t length =  m_texture.GetExtent().height * m_texture.GetExtent().width * 4;
-            tcb.CommitTextureImage(m_texture, reinterpret_cast<std::byte *>(m_raw_image_data), length);
+        stbi_set_flip_vertically_on_load(true);
+        for (size_t mat = 0; mat < m_materials.size(); mat++) {
+            // Read images
+            SDL_LogInfo(0, "Processing material slot %llu", mat);
+            int tex_width, tex_height, tex_channel;
+            stbi_uc * raw_image_data = stbi_load(m_texture_files[mat].string().c_str(), &tex_width, &tex_height, &tex_channel, 4);
+            assert(raw_image_data);
+            m_textures[mat]->Create(tex_width, tex_height, vk::Format::eR8G8B8A8Srgb);
+            tcb.CommitTextureImage(*m_textures[mat], reinterpret_cast<std::byte *>(raw_image_data), tex_width * tex_height * 4);
+
+            // Write descriptors
+            auto mat_ptr = std::dynamic_pointer_cast<Shadeless>(m_materials[mat]);
+            assert(mat_ptr);
+            mat_ptr->UpdateTexture(*m_textures[mat]);
+
+            stbi_image_free(raw_image_data);
         }
         tcb.End();
         tcb.SubmitAndExecute();
@@ -137,11 +159,6 @@ public:
     ~MeshComponentFromFile() {
         m_materials.clear();
         m_submeshes.clear();
-
-        if (m_raw_image_data) {
-            stbi_image_free(m_raw_image_data);
-            m_raw_image_data = nullptr;
-        }
     }
 
     Transform GetWorldTransform() const override {
@@ -182,6 +199,7 @@ int main(int, char **)
     transform.SetPosition({0.0f, -1.0f, 0.0f});
     camera_go->SetTransform(transform);
     auto camera_comp = std::make_shared<CameraComponent>(camera_go);
+    camera_comp->set_aspect_ratio(1920.0 / 1080.0);
     camera_go->AddComponent(camera_comp);
     system->SetActiveCamera(camera_comp);
 
