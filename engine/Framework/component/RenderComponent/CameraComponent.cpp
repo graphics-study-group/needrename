@@ -52,6 +52,7 @@ namespace Engine{
         // assert(abs(m_clipping_near) > 1e-6);
         // assert(abs(m_clipping_far) > 1e-6);
         m_projection_matrix = glm::perspectiveRH(glm::radians(m_fov_vertical), m_aspect_ratio, m_clipping_near, m_clipping_far);
+        m_projection_matrix[1][1] *= -1.0f;
     }
     void CameraComponent::UpdateViewMatrix()
     {
