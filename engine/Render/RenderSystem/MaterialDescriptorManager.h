@@ -16,7 +16,7 @@ namespace Engine {
 
             std::unordered_map <std::string, vk::UniqueDescriptorSetLayout> m_layouts {};
 
-            static constexpr uint32_t MAX_SET_SIZE = 16;
+            static constexpr uint32_t MAX_SET_SIZE = 64;
             static constexpr std::array <vk::DescriptorPoolSize, 2> DESCRIPTOR_POOL_SIZES = {
                 vk::DescriptorPoolSize{vk::DescriptorType::eUniformBuffer, 64},
                 vk::DescriptorPoolSize{vk::DescriptorType::eCombinedImageSampler, 64}
