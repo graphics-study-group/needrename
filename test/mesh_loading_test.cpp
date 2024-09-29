@@ -7,20 +7,25 @@
 
 #include "cmake_config.h"
 #include "MainClass.h"
-#include "GlobalSystem.h"
 #include "Functional/SDLWindow.h"
 
+#include "Asset/Mesh/MeshAsset.h"
 #include "Asset/AssetManager/AssetManager.h"
 #include "Framework/level/Level.h"
+#include "Framework/go/GameObject.h"
 #include "Framework/component/RenderComponent/MeshComponent.h"
-#include "Render/Material/Shadeless.h"
+
 #include "Render/RenderSystem.h"
+#include "Render/Material/TestMaterial.h"
+#include "Render/Pipeline/RenderTarget/RenderTargetSetup.h"
+#include "Render/Pipeline/PipelineLayout.h"
+#include "Render/Renderer/HomogeneousMesh.h"
 
 using namespace Engine;
 
 Engine::MainClass * cmc;
 
-int main(int argc, char * argv[])
+int main(int, char *[])
 {
     SDL_Init(SDL_INIT_VIDEO);
     SDL_LogInfo(0, "Loading mesh...");
@@ -34,9 +39,11 @@ int main(int argc, char * argv[])
     );
     cmc->Initialize(&opt);
 
+    auto asset_manager = cmc->GetAssetManager();
+    auto render_system = cmc->GetRenderSystem();
     std::filesystem::path project_path(ENGINE_ROOT_DIR);
     project_path = project_path / "test_project";
-    globalSystems.assetManager->LoadProject(project_path);
+    cmc->GetAssetManager()->LoadProject(project_path);
 
     // Load an mesh GO
     nlohmann::json prefab_json;
@@ -45,22 +52,18 @@ int main(int argc, char * argv[])
     prefab_file.close();
     nlohmann::json component_json = prefab_json["components"][0];
     std::shared_ptr<GameObject> test_mesh_go = std::make_shared<GameObject>();
-    std::shared_ptr<MeshComponent> mesh_component = std::make_shared<MeshComponent>(test_mesh_go);
+    std::shared_ptr<MeshComponent> mesh_component = std::make_shared<MeshComponent>(test_mesh_go, render_system);
     test_mesh_go->AddComponent(mesh_component);
-    Mesh mesh;
+    MeshAsset mesh {asset_manager};
     mesh.SetGUID(stringToGUID(component_json["mesh"]));
-    mesh_component->SetMesh(std::make_shared<Mesh>(mesh));
-    for(auto & material_guid : component_json["materials"])
-    {
-        std::shared_ptr<ShadelessMaterial> mat = std::make_shared<ShadelessMaterial>();
-        mat->SetGUID(stringToGUID(material_guid));
-        mesh_component->AddMaterial(mat);
-    }
 
-    globalSystems.renderer->RegisterComponent(mesh_component);
+    mesh.Load();
+    mesh_component->Materialize(mesh);
+    mesh.Unload();
+    
 
     // Load level
-    std::shared_ptr<Level> level = std::make_shared<Level>();
+    std::shared_ptr<Level> level = std::make_shared<Level>(asset_manager);
     level->AddGameObject(test_mesh_go);
     nlohmann::json level_json;
     std::ifstream level_file(project_path / "assets" / "default_level.level.asset");
@@ -69,8 +72,55 @@ int main(int argc, char * argv[])
     level->SetGUID(stringToGUID(level_json["guid"]));
     
     level->Load();
-
     level->Unload();
+
+    // Try render the mesh
+    PipelineLayout pl{render_system};
+    pl.CreatePipelineLayout({}, {});
+
+    RenderTargetSetup rts{render_system};
+    rts.CreateFromSwapchain();
+    rts.SetClearValues({{{0.0f, 0.0f, 0.0f, 1.0f}}});
+
+    TestMaterial material{render_system};
+
+    uint32_t in_flight_frame_id = 0;
+    uint32_t total_test_frame = 60;
+
+    mesh_component->GetSubmesh(0)->Prepare();
+    
+    do {
+
+        render_system->WaitForFrameBegin(in_flight_frame_id);
+        RenderCommandBuffer & cb = render_system->GetGraphicsCommandBuffer(in_flight_frame_id);
+
+        uint32_t index = render_system->GetNextImage(in_flight_frame_id, 0x7FFFFFFF);
+        assert(index < 3);
+    
+        cb.Begin();
+        if (mesh_component->GetSubmesh(0)->NeedCommitment()) {
+            auto & tcb = render_system->GetTransferCommandBuffer();
+            tcb.Begin();
+            tcb.CommitVertexBuffer(*(mesh_component->GetSubmesh(0)));
+            tcb.End();
+            tcb.SubmitAndExecute();
+        }
+        vk::Extent2D extent {render_system->GetSwapchain().GetExtent()};
+        cb.BeginRenderPass(rts, extent, index);
+
+        cb.BindMaterial(material, 0);
+        vk::Rect2D scissor{{0, 0}, render_system->GetSwapchain().GetExtent()};
+        cb.SetupViewport(extent.width, extent.height, scissor);
+        cb.DrawMesh(*(mesh_component->GetSubmesh(0)));
+        cb.End();
+
+        cb.Submit();
+
+        render_system->Present(index, in_flight_frame_id);
+
+        in_flight_frame_id = (in_flight_frame_id + 1) % 3;
+    } while(total_test_frame--);
+    render_system->WaitForIdle();
 
     delete cmc;
     return 0;

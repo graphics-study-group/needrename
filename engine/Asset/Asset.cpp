@@ -1,12 +1,11 @@
 #include "Asset.h"
-#include "GlobalSystem.h"
 #include "AssetManager/AssetManager.h"
 
 namespace Engine
 {
-    Asset::Asset()
+    Asset::Asset(std::weak_ptr <AssetManager> manager) : m_manager(manager)
     {
-        m_guid = globalSystems.assetManager->GenerateGUID();
+        m_guid = m_manager.lock()->GenerateGUID();
     }
 
     Asset::~Asset()
@@ -25,12 +24,12 @@ namespace Engine
 
     std::filesystem::path Asset::GetAssetPath()
     {
-        return globalSystems.assetManager->GetAssetPath(m_guid);
+        return m_manager.lock()->GetAssetPath(m_guid);
     }
 
     std::filesystem::path Asset::GetMetaPath()
     {
-        std::filesystem::path metaPath = globalSystems.assetManager->GetAssetPath(m_guid);
+        std::filesystem::path metaPath = m_manager.lock()->GetAssetPath(m_guid);
         metaPath.replace_extension(metaPath.extension().string() + ".asset");
         return metaPath;
     }

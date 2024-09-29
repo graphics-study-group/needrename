@@ -1,14 +1,9 @@
 #include <SDL3/SDL.h>
 #include <cassert>
 
-#include "consts.h"
 #include "MainClass.h"
 #include "Functional/SDLWindow.h"
 
-#include "Render/Material/SingleColor.h"
-#include "Render/RenderSystem.h"
-#include "Framework/go/GameObject.h"
-#include "Framework/component/RenderComponent/TestTriangleRendererComponent.h"
 
 using namespace Engine;
 
@@ -26,18 +21,7 @@ int main(int argc, char * argv[])
             SDL_INIT_VIDEO,
             opt->enableVerbose ? SDL_LOG_PRIORITY_VERBOSE : SDL_LOG_PRIORITY_INFO);
     cmc->Initialize(opt);
-
-    // Setup material
-    std::shared_ptr <SingleColor> mat = std::make_shared<SingleColor>(0.0, 1.0, 0.0, 1.0);
-
-    std::shared_ptr <GameObject> go = std::make_shared<GameObject>();
-    std::shared_ptr <TestTriangleRendererComponent> testMesh = 
-        std::make_shared<TestTriangleRendererComponent>(mat, go);
-    
-    globalSystems.renderer->RegisterComponent(testMesh);
-
     cmc->MainLoop();
-
     SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "Unloading StartupOptions");
     delete opt;
     SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "Unloading Main-class");

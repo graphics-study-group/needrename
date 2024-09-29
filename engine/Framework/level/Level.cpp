@@ -7,7 +7,7 @@
 
 namespace Engine
 {
-    Level::Level()
+    Level::Level(std::weak_ptr <AssetManager> manager) : Asset(manager)
     {
         //ctor
     }

@@ -12,7 +12,7 @@
 
 namespace Engine
 {
-    class AssetManager
+    class AssetManager : public std::enable_shared_from_this<AssetManager>
     {
     public:
         AssetManager() = default;

@@ -4,3 +4,5 @@ CMakeFiles/
 __*
 
 CMakeCache.txt
+
+test_project/**

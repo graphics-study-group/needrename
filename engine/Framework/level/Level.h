@@ -13,7 +13,7 @@ namespace Engine
     class Level : public Asset
     {
     public:
-        Level();
+        Level(std::weak_ptr <AssetManager> manager);
         ~Level();
 
         virtual void Load() override;
@@ -23,7 +23,7 @@ namespace Engine
         virtual void AddGameObject(std::shared_ptr<GameObject> gameObject);
 
     protected:
-        std::vector<std::shared_ptr<GameObject>> m_gameObjects;
+        std::vector<std::shared_ptr<GameObject>> m_gameObjects {};
     };
 }
 

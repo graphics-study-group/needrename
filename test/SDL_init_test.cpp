@@ -2,7 +2,7 @@
 #include <SDL3/SDL_main.h>
 #include <array>
 
-int main(int argc, char *argv[])
+int main(int, char *[])
 {
     SDL_SetLogPriorities(SDL_LOG_PRIORITY_VERBOSE);
 

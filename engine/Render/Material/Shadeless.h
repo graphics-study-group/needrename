@@ -1,34 +1,28 @@
 #ifndef RENDER_MATERIAL_SHADELESS_INCLUDED
 #define RENDER_MATERIAL_SHADELESS_INCLUDED
 
-#include "Material.h"
-#include <glad/glad.h>
+#include "Render/Material/Material.h"
+#include "Render/Pipeline/Shader.h"
 
 namespace Engine {
-    class ShaderPass;
-    class ImmutableTexture2D;
+    class ShaderModule;
+    class RenderPass;
+    class AllocatedImage2DTexture;
 
-    class ShadelessMaterial : public Material {
+    class Shadeless : public Material {
+        vk::UniqueSampler m_sampler {};
+        ShaderModule fragModule;
+        ShaderModule vertModule;
     public:
-        ShadelessMaterial();
-        ~ShadelessMaterial();
+        Shadeless (std::weak_ptr <RenderSystem> system);
+        Shadeless (
+            std::weak_ptr <RenderSystem> system,
+            const AllocatedImage2DTexture & texture
+        );
 
-        void SetAlbedo(std::shared_ptr <ImmutableTexture2D> texture) noexcept;
-        virtual void Load() override;
-        virtual void Unload() override;
-        virtual void PrepareDraw(const CameraContext & CameraContext, const RendererContext & RendererContext) override;
+        const virtual Pipeline * GetPipeline(uint32_t pass_index, const RenderTargetSetup & rts) override;
 
-    protected:
-        static std::unique_ptr <ShaderPass> pass;
-
-        static GLint location_model_matrix;
-        static GLint location_projection_matrix;
-        static GLint location_view_matrix;
-        static GLint location_albedo;
-        static GLint location_normal;
-
-        std::shared_ptr <ImmutableTexture2D> m_albedo;
-        std::shared_ptr <ImmutableTexture2D> m_normal;
+        void UpdateTexture(const AllocatedImage2DTexture & texture);
     };
 }
 
