@@ -1,5 +1,5 @@
-#ifndef FRMAEWORK_GO_GAMEOBJECT_H
-#define FRMAEWORK_GO_GAMEOBJECT_H
+#ifndef FRAMEWORK_GO_GAMEOBJECT_INCLUDED
+#define FRAMEWORK_GO_GAMEOBJECT_INCLUDED
 
 // Suppress warning from std::enable_shared_from_this
 #pragma GCC diagnostic push
@@ -37,7 +37,7 @@ namespace Engine
         std::shared_ptr<TransformComponent> m_transformComponent;
 
     protected:
-        size_t m_id;
+        size_t m_id {};
 
         std::vector<std::shared_ptr<Component>> m_components {};
     };
@@ -45,4 +45,4 @@ namespace Engine
 
 #pragma GCC diagnostic pop
 
-#endif // FRMAEWORK_GO_GAMEOBJECT_H
+#endif // FRAMEWORK_GO_GAMEOBJECT_INCLUDED

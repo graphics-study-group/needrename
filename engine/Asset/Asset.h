@@ -7,11 +7,12 @@
 
 namespace Engine
 {
+    class AssetManager;
     /// @brief Base class for all assets.
     class Asset
     {
     public:
-        Asset();
+        Asset(std::weak_ptr <AssetManager> m_manager);
         virtual ~Asset();
 
         /// @brief Load asset from file to the memory
@@ -33,6 +34,7 @@ namespace Engine
         inline void SetGUID(GUID guid) { m_guid = guid; }
 
     protected:
+        std::weak_ptr <AssetManager> m_manager;
         bool m_valid = false;
         GUID m_guid;
     };

@@ -6,11 +6,13 @@
 #include <cereal/archives/binary.hpp>
 #include <cereal/cereal.hpp>
 
-#include "GlobalSystem.h"
-#include "Asset/Mesh/Mesh.h"
+#include "Asset/Mesh/MeshAsset.h"
 
 namespace Engine
 {
+    ObjLoader::ObjLoader(std::weak_ptr<AssetManager> manager) : m_manager(manager) {
+    }
+
     void ObjLoader::LoadObjResource(const std::filesystem::path &path, const std::filesystem::path &path_in_project)
     {
         tinyobj::ObjReader reader;
@@ -32,7 +34,7 @@ namespace Engine
 
         nlohmann::json mesh_json;
         std::vector<GUID> material_guids;
-        Mesh assetMesh;
+        MeshAsset assetMesh{m_manager};
         GUID mesh_guid = assetMesh.GetGUID();
 
         std::unordered_map<std::string, GUID> texture_path_guid_map;
@@ -45,7 +47,7 @@ namespace Engine
 
         // Save mesh data to binary file
         assetMesh.LoadFromTinyobj(attrib, shapes);
-        std::filesystem::path mesh_data_path = globalSystems.assetManager->GetAssetsDirectory() / path_in_project / (path.stem().string() + ".mesh_data");
+        std::filesystem::path mesh_data_path = m_manager.lock()->GetAssetsDirectory() / path_in_project / (path.stem().string() + ".mesh_data");
         std::ofstream os(mesh_data_path, std::ios::binary);
         cereal::BinaryOutputArchive oarchive(os);
         oarchive(assetMesh);
@@ -56,13 +58,13 @@ namespace Engine
         mesh_json["type"] = "Mesh";
         mesh_json["submesh_count"] = assetMesh.GetSubmeshCount();
 
-        std::filesystem::path mesh_json_path = globalSystems.assetManager->GetAssetsDirectory() / path_in_project / (path.stem().string() + ".mesh_data.asset");
+        std::filesystem::path mesh_json_path = m_manager.lock()->GetAssetsDirectory() / path_in_project / (path.stem().string() + ".mesh_data.asset");
         std::ofstream mesh_file(mesh_json_path);
         if (mesh_file.is_open())
         {
             mesh_file << mesh_json.dump(4);
             mesh_file.close();
-            globalSystems.assetManager->AddAsset(mesh_guid, path_in_project / mesh_json_path.stem());
+            m_manager.lock()->AddAsset(mesh_guid, path_in_project / mesh_json_path.stem());
         }
         else
         {
@@ -71,7 +73,7 @@ namespace Engine
 
         // Save mesh prefab file
         nlohmann::json prefab_json;
-        GUID prefab_guid = globalSystems.assetManager->GenerateGUID();
+        GUID prefab_guid = m_manager.lock()->GenerateGUID();
         prefab_json["guid"] = GUIDToString(prefab_guid);
         prefab_json["name"] = path.stem().string();
         prefab_json["type"] = "GameObject";
@@ -88,13 +90,13 @@ namespace Engine
         }
         prefab_json["components"].push_back(mesh_component_json);
         
-        std::filesystem::path prefab_json_path = globalSystems.assetManager->GetAssetsDirectory() / path_in_project / (path.stem().string() + ".prefab.asset");
+        std::filesystem::path prefab_json_path = m_manager.lock()->GetAssetsDirectory() / path_in_project / (path.stem().string() + ".prefab.asset");
         std::ofstream prefab_file(prefab_json_path);
         if (prefab_file.is_open())
         {
             prefab_file << prefab_json.dump(4);
             prefab_file.close();
-            globalSystems.assetManager->AddAsset(prefab_guid, path_in_project / prefab_json_path.stem());
+            m_manager.lock()->AddAsset(prefab_guid, path_in_project / prefab_json_path.stem());
         }
         else
         {
@@ -104,7 +106,7 @@ namespace Engine
 
     void ObjLoader::LoadObjMaterialResource(std::unordered_map<std::string, GUID> &texture_path_guid_map, const std::filesystem::path &parent_directory, const tinyobj::material_t &material, const std::filesystem::path &path_in_project, GUID &guid)
     {
-        guid = globalSystems.assetManager->GenerateGUID();
+        guid = m_manager.lock()->GenerateGUID();
         nlohmann::json material_json;
         material_json["guid"] = GUIDToString(guid);
         material_json["name"] = material.name;
@@ -156,13 +158,13 @@ namespace Engine
         if(LoadObjTextureResource(texture_path_guid_map, parent_directory, material.normal_texname, path_in_project, tex_guid))
             material_json["normal_tex"] = GUIDToString(tex_guid);
 
-        std::filesystem::path json_path = globalSystems.assetManager->GetAssetsDirectory() / path_in_project / (material.name + ".asset");
+        std::filesystem::path json_path = m_manager.lock()->GetAssetsDirectory() / path_in_project / (material.name + ".asset");
         std::ofstream material_file(json_path);
         if (material_file.is_open())
         {
             material_file << material_json.dump(4);
             material_file.close();
-            globalSystems.assetManager->AddAsset(guid, path_in_project / json_path.stem());
+            m_manager.lock()->AddAsset(guid, path_in_project / json_path.stem());
         }
         else
         {
@@ -180,13 +182,13 @@ namespace Engine
             return true;
         }
 
-        guid = globalSystems.assetManager->GenerateGUID();
+        guid = m_manager.lock()->GenerateGUID();
         nlohmann::json texture_json;
         texture_json["guid"] = GUIDToString(guid);
         texture_json["name"] = filename;
         texture_json["type"] = "ImmutableTexture2D";
 
-        std::filesystem::path texpath_in_project = globalSystems.assetManager->GetAssetsDirectory() / path_in_project / filename;
+        std::filesystem::path texpath_in_project = m_manager.lock()->GetAssetsDirectory() / path_in_project / filename;
         std::filesystem::path tex_origin_path = parent_directory / filename;
         std::filesystem::copy_file(tex_origin_path, texpath_in_project);
         std::filesystem::path json_path = texpath_in_project.replace_filename(texpath_in_project.filename().string() + ".asset");
@@ -195,7 +197,7 @@ namespace Engine
         {
             tex_file << texture_json.dump(4);
             tex_file.close();
-            globalSystems.assetManager->AddAsset(guid, path_in_project / json_path.stem());
+            m_manager.lock()->AddAsset(guid, path_in_project / json_path.stem());
         }
         else
         {

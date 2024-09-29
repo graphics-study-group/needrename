@@ -1,161 +1,56 @@
 #include "MeshComponent.h"
 
-#include "Render/NativeResource/ImmutableTexture2D.h"
-#include "Render/Material/SingleColor.h"
-#include "Render/Material/Shadeless.h"
-#include "Framework/component/RenderComponent/CameraComponent.h"
+#include "Render/Renderer/HomogeneousMesh.h"
+#include "Asset/Mesh/MeshAsset.h"
 
-#include <tiny_obj_loader.h>
-#include <SDL3/SDL.h>
-
-#include <iostream>
-#include <cassert>
-#include <random>
-
-#include <codecvt>
-#include <locale>
-
-namespace Engine
-{
+namespace Engine {
     MeshComponent::MeshComponent(
-        std::weak_ptr<GameObject> gameObject) : RendererComponent(gameObject)
-    {
+        std::weak_ptr<GameObject> gameObject, 
+        std::weak_ptr <RenderSystem> system
+    ) : RendererComponent(gameObject, system) {
     }
 
-    MeshComponent::~MeshComponent()
-    {
+    std::shared_ptr<HomogeneousMesh> MeshComponent::GetSubmesh(uint32_t slot) const {
+        assert(slot < m_submeshes.size());
+        return m_submeshes[slot];
     }
-
-    void MeshComponent::Load()
-    {
-        m_mesh->Load();
-        for (auto &material : m_materials)
-        {
-            material->Load();
-        }
-        SetupVertices();
+    auto MeshComponent::GetSubmeshes() -> decltype(m_submeshes)& {
+        return m_submeshes;
     }
+    void MeshComponent::Materialize(const MeshAsset& asset) {
+        // Simply load all vertices into one submesh for testing
+        // XXX: full implementation
+        m_submeshes.clear();
+        m_submeshes.push_back(std::make_shared<HomogeneousMesh>(m_system));
 
-    void MeshComponent::Unload()
-    {
-        m_mesh->Unload();
-        for (auto &material : m_materials)
-        {
-            material->Unload();
-        }
-    }
+        std::vector <VertexStruct::VertexPosition> positions;
+        std::vector <VertexStruct::VertexAttribute> attributes;
+        std::vector <uint32_t> indices;
+        const auto & pos_index = asset.GetTriangle_vert_ids();
+        // Load uv as color for testing
+        const auto & color_index = asset.GetTriangle_uv_ids();
+        const auto & pos = asset.GetPositions();
+        const auto & uv = asset.GetUVs();
 
-    void MeshComponent::Tick(float dt)
-    {
-    }
+        assert(pos_index.size() % 3 == 0);
+        assert(pos_index.size() == color_index.size());
 
-    void MeshComponent::Draw(CameraContext context)
-    {
-        assert(m_mesh && m_mesh->IsValid());
-        GLenum glError;
-        for (size_t i = 0; i < m_materials.size(); i++)
-        {
-            assert(m_materials[i] && m_materials[i]->IsValid());
-            m_materials[i]->PrepareDraw(context, this->CreateContext());
-
-            glBindVertexArray(m_VAOs[i]);
-            glDrawArrays(GL_TRIANGLES, 0, m_array_size[i]);
-
-            glError = glGetError();
-            if (glError != GL_NO_ERROR)
-            {
-                throw std::runtime_error("Cannot draw VAO.");
-            }
-        }
-    }
-
-    void MeshComponent::SetMesh(std::shared_ptr<Mesh> mesh)
-    {
-        m_mesh = mesh;
-    }
-
-    void MeshComponent::AddMaterial(std::shared_ptr<Material> material)
-    {
-        m_materials.push_back(material);
-    }
-
-    bool MeshComponent::SetupVertices()
-    {
-        GLenum glError;
-
-        size_t submesh_count = m_mesh->GetSubmeshCount();
-        m_array_size.resize(submesh_count);
-        m_VAOs.resize(submesh_count);
-        m_VBOs_position.resize(submesh_count);
-        m_VBOs_uv.resize(submesh_count);
-
-        glGenVertexArrays(submesh_count, m_VAOs.data());
-        glGenBuffers(submesh_count, m_VBOs_position.data());
-        glGenBuffers(submesh_count, m_VBOs_uv.data());
-        glError = glGetError();
-        if (glError != GL_NO_ERROR)
-        {
-            SDL_LogError(0, "Failed to allocate VAO and VBO.");
-            return false;
+        for (size_t i = 0; i < pos_index.size(); i++) {
+            positions.push_back({
+                pos[3 * pos_index[i] + 0], pos[3 * pos_index[i] + 1], pos[3 * pos_index[i] + 2]
+            });
+            attributes.push_back({
+                .color = {uv[2 * color_index[i] + 0], uv[2 * color_index[i] + 1], 0.0f},
+                .normal = {0.0f, 0.0f, 0.0f},
+                .texcoord1 = {0.0f, 0.0f}
+            });
+            // No deduplication for quick and dirty test
+            indices.push_back(i);
         }
 
-        auto &mesh_offsets = m_mesh->GetOffsets();
-        auto &mesh_triangles_vert = m_mesh->GetTriangle_vert_ids();
-        auto &mesh_triangles_normal = m_mesh->GetTriangle_normal_ids();
-        auto &mesh_triangles_uv = m_mesh->GetTriangle_uv_ids();
-        auto &mesh_position = m_mesh->GetPositions();
-        auto &mesh_uv = m_mesh->GetUVs();
-
-        std::vector<float> tmp_position;
-        std::vector<float> tmp_uv;
-        for (size_t i = 0; i < submesh_count; i++)
-        {
-            tmp_position.clear();
-            tmp_uv.clear();
-            size_t start = mesh_offsets[i];
-            size_t end = i + 1 < mesh_offsets.size() ? mesh_offsets[i + 1] : mesh_triangles_vert.size();
-            for (size_t j = start; j < end; j++)
-            {
-                size_t index = mesh_triangles_vert[j] * 3;
-                tmp_position.push_back(mesh_position[index]);
-                tmp_position.push_back(mesh_position[index + 1]);
-                tmp_position.push_back(mesh_position[index + 2]);
-                size_t uv_index = mesh_triangles_uv[j] * 2;
-                tmp_uv.push_back(mesh_uv[uv_index]);
-                tmp_uv.push_back(mesh_uv[uv_index + 1]);
-            }
-            m_array_size[i] = tmp_position.size() / 3;
-
-            glBindVertexArray(m_VAOs[i]);
-            glError = glGetError();
-            if (glError != GL_NO_ERROR)
-            {
-                SDL_LogError(0, "Failed to bind VAO and VBO for material %llu", i);
-                return false;
-            }
-
-            glBindBuffer(GL_ARRAY_BUFFER, m_VBOs_position[i]);
-            glBufferData(GL_ARRAY_BUFFER, sizeof(float) * tmp_position.size(), tmp_position.data(), GL_STATIC_DRAW);
-            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *)0);
-            glBindBuffer(GL_ARRAY_BUFFER, m_VBOs_uv[i]);
-            glBufferData(GL_ARRAY_BUFFER, sizeof(float) * tmp_uv.size(), tmp_uv.data(), GL_STATIC_DRAW);
-            glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void *)0);
-            glError = glGetError();
-            if (glError != GL_NO_ERROR)
-            {
-                SDL_LogError(0, "Failed to write VAO and VBO for material %llu", i);
-                return false;
-            }
-
-            glEnableVertexAttribArray(0);
-            glEnableVertexAttribArray(1);
-            glError = glGetError();
-            if (glError != GL_NO_ERROR)
-            {
-                SDL_LogError(0, "Failed to enable vertex attribute for material %llu", i);
-                return false;
-            }
-        }
-        return true;
+        auto & mesh = *(m_submeshes[0]);
+        mesh.SetPositions(positions);
+        mesh.SetAttributes(attributes);
+        mesh.SetIndices(indices);
     }
-}
+};

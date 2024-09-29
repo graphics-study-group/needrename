@@ -13,6 +13,8 @@ target_include_directories(
     PUBLIC
     ${ENGINE_SOURCE_DIR}
 )
-target_link_libraries(engine PUBLIC SDL3::SDL3 GLAD glm tinyobjloader stb json cereal)
+target_link_libraries(engine PUBLIC SDL3::SDL3 Vulkan::Vulkan glm tinyobjloader stb json cereal )
+target_precompile_headers(engine PRIVATE <vulkan/vulkan.hpp>)
+target_precompile_headers(engine PRIVATE "Render/VkWrapper.tcc")
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h)

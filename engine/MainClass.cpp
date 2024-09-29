@@ -5,17 +5,15 @@
 #include "Asset/AssetManager/AssetManager.h"
 
 #include <exception>
-#include <glad/glad.h>
 
 namespace Engine
 {
     MainClass::MainClass(Uint32 flags, SDL_LogPriority logPrior)
     {
-        this->sdl_flags = flags;
         if (SDL_Init(flags) < 0)
             throw Exception::SDLExceptions::cant_init();
         SDL_SetLogPriorities(logPrior);
-        globalSystems.window = nullptr;
+        this->window = nullptr;
     }
 
     MainClass::~MainClass()
@@ -23,21 +21,23 @@ namespace Engine
         SDL_Quit();
     }
 
-    void MainClass::Initialize(const StartupOptions *opt)
+    void MainClass::Initialize(const StartupOptions *opt, Uint32 flags)
     {
+        if (flags == 0) 
+            flags = SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
         if (opt->instantQuit)
             return;
-        globalSystems.window = std::make_shared<SDLWindow>(
+        this->window = std::make_shared<SDLWindow>(
             opt->title.c_str(), 
             opt->resol_x, 
             opt->resol_y, 
-            SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY
+            flags
             );
-        globalSystems.window->CreateRenderer();
 
-        globalSystems.renderer = std::make_shared<RenderSystem>();
-        globalSystems.world = std::make_shared<WorldSystem>();
-        globalSystems.assetManager = std::make_shared<AssetManager>();
+        this->renderer = std::make_shared<RenderSystem>(this->window);
+        this->renderer->Create();
+        this->world = std::make_shared<WorldSystem>();
+        this->asset = std::make_shared<AssetManager> ();
     }
 
     void MainClass::MainLoop()
@@ -52,19 +52,14 @@ namespace Engine
             float current_time = SDL_GetTicks();
             float dt = (current_time - FPS_TIMER) / 1000.0f;
             
-            globalSystems.window->BeforeEventLoop(); // ???
-            globalSystems.world->Tick(dt);
+            this->window->BeforeEventLoop();
+            this->world->Tick(dt);
 
-            // FIXME: Viewport infomation should be pass to Render() by context and camera
-            // instead of being set here.
-            auto pWindow = globalSystems.window->GetWindow();
-            int w, h;
-            SDL_GetWindowSizeInPixels(pWindow, &w, &h);
-            glViewport(0, 0, w, h);
+            // TODO: Set up viewport information
             
-            globalSystems.renderer->Render();
+            // this->renderer->Render();
 
-            globalSystems.window->AfterEventLoop();
+            this->window->AfterEventLoop();
 
             // TODO: write a control system instead of using this window event
             try
@@ -85,8 +80,6 @@ namespace Engine
             catch (std::exception &except)
             {
                 fprintf(stderr, "%s", except.what());
-                // Do a forced redraw to print error messages
-                globalSystems.window->OnDrawOverall(true);
                 throw;
             }
 
@@ -97,4 +90,10 @@ namespace Engine
         }
         SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "The main loop is ended.");
     }
-}
+    std::shared_ptr<AssetManager> MainClass::GetAssetManager() const {
+        return asset;
+    }
+    std::shared_ptr<RenderSystem> MainClass::GetRenderSystem() const {
+        return renderer;
+    }
+}  // namespace Engine

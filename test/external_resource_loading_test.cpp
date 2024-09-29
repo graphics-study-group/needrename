@@ -7,7 +7,6 @@
 #include "cmake_config.h"
 #include "consts.h"
 #include "MainClass.h"
-#include "GlobalSystem.h"
 #include "Functional/SDLWindow.h"
 #include "Render/RenderSystem.h"
 #include "Asset/AssetManager/AssetManager.h"
@@ -28,7 +27,7 @@ int main(int argc, char * argv[])
         std::filesystem::remove_all(loaded_asset_path);
     if (!std::filesystem::create_directories(loaded_asset_path))
     {
-        SDL_LogCritical(SDL_LOG_CATEGORY_APPLICATION, "Failed to create directory %s", loaded_asset_path.c_str());
+        SDL_LogCritical(SDL_LOG_CATEGORY_APPLICATION, "Failed to create directory %s", loaded_asset_path.string().c_str());
         return -1;
     }
 
@@ -41,13 +40,12 @@ int main(int argc, char * argv[])
     cmc = new Engine::MainClass(
             SDL_INIT_VIDEO,
             opt->enableVerbose ? SDL_LOG_PRIORITY_VERBOSE : SDL_LOG_PRIORITY_INFO);
-    SDLWindow::EnableMSAA(4);
     cmc->Initialize(opt);
 
-    globalSystems.assetManager->LoadProject(project_path);
-    globalSystems.assetManager->LoadExternalResource(mesh_path, std::filesystem::path("loading_test"));
+    cmc->GetAssetManager()->LoadProject(project_path);
+    cmc->GetAssetManager()->LoadExternalResource(mesh_path, std::filesystem::path("loading_test"));
     
-    std::filesystem::remove_all(loaded_asset_path);
+    // std::filesystem::remove_all(loaded_asset_path);
 
     SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "Unloading StartupOptions");
     delete opt;

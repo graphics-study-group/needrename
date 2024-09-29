@@ -11,7 +11,7 @@ namespace Engine
     class ObjLoader
     {
     public:
-        ObjLoader() = default;
+        ObjLoader(std::weak_ptr <AssetManager> manager);
         virtual ~ObjLoader() = default;
 
     public:
@@ -37,6 +37,9 @@ namespace Engine
         /// @param guid to store the GUID of the texture
         /// @return true if the texture is loaded successfully
         bool LoadObjTextureResource(std::unordered_map<std::string, GUID> &texture_path_guid_map, const std::filesystem::path &parent_directory, const std::string &filename, const std::filesystem::path &path_in_project, GUID &guid);
+    
+    protected:
+        std::weak_ptr <AssetManager> m_manager;
     };
 }
 

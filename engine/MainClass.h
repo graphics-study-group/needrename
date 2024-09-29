@@ -6,21 +6,30 @@
 #include "Exception/exception.h"
 #include "Functional/OptionHandler.h"
 #include "Functional/SDLWindow.h"
-#include "GlobalSystem.h"
 
 namespace Engine
 {
+    class RenderSystem;
+    class WorldSystem;
+    class AssetManager;
+
     class MainClass
     {
     public:
         MainClass(Uint32, SDL_LogPriority = SDL_LOG_PRIORITY_INFO);
         virtual ~MainClass();
 
-        void Initialize(const StartupOptions*);
+        void Initialize(const StartupOptions*, Uint32 = 0);
         void MainLoop();
 
-    private:
-        Uint32 sdl_flags;
+        std::shared_ptr <RenderSystem> GetRenderSystem() const;
+        std::shared_ptr <AssetManager> GetAssetManager() const;
+
+    protected:
+        std::shared_ptr <SDLWindow> window {};
+        std::shared_ptr <RenderSystem> renderer {};
+        std::shared_ptr <WorldSystem> world {};
+        std::shared_ptr <AssetManager> asset {};
     };
 }
 

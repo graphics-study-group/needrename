@@ -8,35 +8,26 @@
 namespace Engine
 {
     class Material;
-    class CameraContext;
-
-    /// @brief A context storing renderer related information for rendering
-    struct RendererContext{
-        /// @brief model matrix
-        glm::mat4 model_matrix;
-    };
+    class RenderSystem;
 
     class RendererComponent : public Component
     {
+    protected:
+        std::vector<std::shared_ptr<Material>> m_materials{};
+        std::weak_ptr <RenderSystem> m_system;
     public:
-        RendererComponent(std::weak_ptr<GameObject> gameObject);
-        virtual ~RendererComponent() = default;
+        RendererComponent(std::weak_ptr<GameObject> gameObject, std::weak_ptr <RenderSystem> system);
+        virtual ~RendererComponent() = 0;
 
         /// @brief Get the transform which transforms local coordinate 
         /// to world coordinate (i.e. the model matrix)
         /// @return Transform
-        Transform GetWorldTransform() const;
+        virtual Transform GetWorldTransform() const;
 
-        /// @brief Get the context for this renderer,
-        /// which should be passed to material draw calls.
-        /// @return RendererContext
-        virtual RendererContext CreateContext() const;
+        void Tick(float dt) override;
 
-        virtual void Tick(float dt);
-        virtual void Draw(CameraContext context) = 0;
-
-    protected:
-        std::vector<std::shared_ptr<Material>> m_materials{};
+        std::shared_ptr <Material> GetMaterial (uint32_t slot) const;
+        auto GetMaterials () -> decltype(m_materials) &;
     };
 }
 #endif // FRAMEWORK_COMPONENT_RENDERCOMPONENT_RENDERERCOMPONENT_INCLUDED

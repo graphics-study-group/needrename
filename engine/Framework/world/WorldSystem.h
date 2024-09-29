@@ -18,7 +18,7 @@ namespace Engine
             current_level = level;
         }        
     protected:
-        std::shared_ptr<Level> current_level;
+        std::shared_ptr<Level> current_level {};
     };
 }
 #endif // FRAMEWORK_WORLD_WORLDSYSTEM_H
