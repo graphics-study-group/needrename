@@ -112,6 +112,7 @@ int main(int, char *[])
         vk::Rect2D scissor{{0, 0}, render_system->GetSwapchain().GetExtent()};
         cb.SetupViewport(extent.width, extent.height, scissor);
         cb.DrawMesh(*(mesh_component->GetSubmesh(0)));
+        cb.EndRendering();
         cb.End();
 
         cb.Submit();

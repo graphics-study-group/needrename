@@ -188,8 +188,7 @@ int main(int, char **)
     });
     
     // Setup mesh
-    std::filesystem::path mesh_path{ENGINE_ASSETS_DIR};
-    mesh_path /= "bunny/bunny.obj";
+    std::filesystem::path mesh_path{"C:\\Users\\Vincent Lee\\3D Objects\\furina\\obj\\furina_combined.obj"};
     std::shared_ptr tmc = std::make_shared<MeshComponentFromFile>(system, mesh_path);
     system->RegisterComponent(tmc);
 
