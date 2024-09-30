@@ -37,24 +37,82 @@ namespace Engine
         m_handle->begin(binfo);
     }
 
-    void RenderCommandBuffer::BeginRenderPass(
-        const RenderTargetSetup& setup, 
-        vk::Extent2D extent, 
-        uint32_t framebuffer_id
-    ) {
-        vk::RenderPassBeginInfo info{
-            setup.GetRenderPass().get(),
-            setup.GetFramebuffers().GetFramebuffer(framebuffer_id),
-            {vk::Offset2D{0, 0}, extent},
-            setup.GetRenderPass().GetClearValues()
+    void RenderCommandBuffer::BeginRendering(const RenderTargetSetup &pass, vk::Extent2D extent, uint32_t framebuffer_id)
+    {
+        m_bound_render_target = std::cref(pass);
+        const auto & clear_values = pass.GetClearValues();
+        auto color = pass.GetColorAttachment(framebuffer_id);
+        auto depth = pass.GetDepthAttachment(framebuffer_id);
+        m_image_for_present = color.first;
+        std::vector <vk::RenderingAttachmentInfo> color_attachment{
+            {
+                color.second,
+                vk::ImageLayout::eColorAttachmentOptimal,
+                vk::ResolveModeFlagBits::eNone,
+                {},
+                vk::ImageLayout::eUndefined,
+                vk::AttachmentLoadOp::eClear,
+                vk::AttachmentStoreOp::eStore,
+                clear_values[0]
+            }
         };
-        m_bound_render_target = std::cref(setup);
-        m_handle->beginRenderPass(info, vk::SubpassContents::eInline);
+        vk::RenderingAttachmentInfo depth_attachment{
+            depth.second,
+            vk::ImageLayout::eDepthAttachmentOptimal,
+            vk::ResolveModeFlagBits::eNone,
+            {},
+            vk::ImageLayout::eUndefined,
+            vk::AttachmentLoadOp::eClear,
+            vk::AttachmentStoreOp::eDontCare,
+            clear_values[1]
+        };
+
+        vk::RenderingInfo info {
+            vk::RenderingFlags{0},
+            vk::Rect2D{{0, 0}, extent},
+            1,
+            0,
+            color_attachment,
+            &depth_attachment,
+            nullptr
+        };
+
+        // Transit attachments layout, from undefined to optimal
+        vk::ImageSubresourceRange color_range {
+            vk::ImageAspectFlagBits::eColor,
+            0, vk::RemainingMipLevels, 0, vk::RemainingArrayLayers
+        };
+        vk::ImageSubresourceRange depth_range {color_range};
+        depth_range.aspectMask = vk::ImageAspectFlagBits::eDepth;
+
+        vk::ImageMemoryBarrier2 color_barrier {
+            vk::PipelineStageFlagBits2::eAllCommands, vk::AccessFlagBits2::eMemoryWrite,
+            vk::PipelineStageFlagBits2::eAllCommands, vk::AccessFlagBits2::eMemoryRead | vk::AccessFlagBits2::eMemoryWrite,
+            vk::ImageLayout::eUndefined,
+            vk::ImageLayout::eColorAttachmentOptimal,
+            0U, 0U,
+            color.first,
+            color_range
+        };
+        vk::ImageMemoryBarrier2 depth_barrier {color_barrier};
+        depth_barrier.newLayout = vk::ImageLayout::eDepthAttachmentOptimal;
+        depth_barrier.image = depth.first;
+        depth_barrier.subresourceRange = depth_range;
+
+        std::array<vk::ImageMemoryBarrier2, 2> barriers = {color_barrier, depth_barrier};
+        vk::DependencyInfo dep {
+            vk::DependencyFlags{0},
+            {}, {}, barriers
+        };
+        m_handle->pipelineBarrier2(dep);
+
+        // Begin rendering after transit
+        m_handle->beginRendering(info);
     }
 
     void RenderCommandBuffer::BindMaterial(Material & material, uint32_t pass_index) {
         assert(m_bound_render_target.has_value());
-        const auto & pipeline = material.GetPipeline(pass_index, m_bound_render_target.value())->get();
+        const auto & pipeline = material.GetPipeline(pass_index)->get();
         const auto & pipeline_layout = material.GetPipelineLayout(pass_index)->get();
 
         m_handle->bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
@@ -113,6 +171,35 @@ namespace Engine
         m_handle->drawIndexed(mesh.GetVertexIndexCount(), 1, 0, 0, 0);
     }
 
+    void RenderCommandBuffer::EndRendering()
+    {
+        m_handle->endRendering();
+        // Transit color attachment to present layout
+        if (m_image_for_present.has_value()) {
+            vk::ImageSubresourceRange color_range {
+                vk::ImageAspectFlagBits::eColor,
+                0, vk::RemainingMipLevels, 0, vk::RemainingArrayLayers
+            };
+
+            vk::ImageMemoryBarrier2 color_barrier {
+                vk::PipelineStageFlagBits2::eAllCommands, vk::AccessFlagBits2::eMemoryWrite,
+                vk::PipelineStageFlagBits2::eAllCommands, vk::AccessFlagBits2::eMemoryRead | vk::AccessFlagBits2::eMemoryWrite,
+                vk::ImageLayout::eColorAttachmentOptimal,
+                vk::ImageLayout::ePresentSrcKHR,
+                0U, 0U,
+                m_image_for_present.value(),
+                color_range
+            };
+
+            std::array<vk::ImageMemoryBarrier2, 1> barriers = {color_barrier};
+            vk::DependencyInfo dep {
+                vk::DependencyFlags{0},
+                {}, {}, barriers
+            };
+            m_handle->pipelineBarrier2(dep);
+        }
+    }
+
     void RenderCommandBuffer::DrawMesh(const HomogeneousMesh& mesh) {
         auto bindings = mesh.GetBindingInfo();
         m_handle->bindVertexBuffers(0, bindings.first, bindings.second);
@@ -130,7 +217,6 @@ namespace Engine
     }
 
     void RenderCommandBuffer::End() {
-        m_handle->endRenderPass();
         m_handle->end();
     }
 

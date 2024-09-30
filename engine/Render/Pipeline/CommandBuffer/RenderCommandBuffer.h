@@ -30,7 +30,7 @@ namespace Engine {
 
         void Begin();
 
-        void BeginRenderPass(const RenderTargetSetup & pass, vk::Extent2D extent, uint32_t framebuffer_id);
+        void BeginRendering(const RenderTargetSetup & pass, vk::Extent2D extent, uint32_t framebuffer_id);
 
         /// @brief Bind a material for rendering, and write per-material descriptors.
         /// @param material 
@@ -44,6 +44,8 @@ namespace Engine {
         void DrawMesh(const HomogeneousMesh & mesh);
         void DrawMesh(const HomogeneousMesh& mesh, const glm::mat4 & model_matrix);
 
+        void EndRendering();
+
         void End();
 
         void Submit();
@@ -56,6 +58,7 @@ namespace Engine {
 
         RenderSystem * m_system {nullptr};
 
+        std::optional<vk::Image> m_image_for_present {};
         std::optional<std::reference_wrapper<const RenderTargetSetup>> m_bound_render_target {};
         std::optional<std::pair <std::reference_wrapper<const Material>, uint32_t>> m_bound_material {};
         std::optional<std::pair<vk::Pipeline, vk::PipelineLayout>> m_bound_material_pipeline {};

@@ -31,7 +31,7 @@ namespace Engine {
                 const PipelineConfig & config
             );
 
-            virtual void CreatePipeline(Subpass subpass) override;
+            virtual void CreatePipeline() override;
         protected:
 
             // TODO: we urgently need better lifetime management for vk types
