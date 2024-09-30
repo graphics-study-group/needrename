@@ -105,6 +105,7 @@ int main(int, char **)
         vk::Extent2D extent {system->GetSwapchain().GetExtent()};
         cb.BeginRendering(rts, extent, index);
         system->DrawMeshes(in_flight_frame_id);
+        cb.EndRendering();
         cb.End();
         cb.Submit();
 
