@@ -10,6 +10,8 @@
 #include "Render/RenderSystem/Synch/Synchronization.h"
 #include "Render/ConstantData/PerModelConstants.h"
 
+#include "Render/Pipeline/CommandBuffer/LayoutTransferHelper.h"
+
 namespace Engine
 {
     void RenderCommandBuffer::CreateCommandBuffer(
@@ -78,28 +80,11 @@ namespace Engine
         };
 
         // Transit attachments layout, from undefined to optimal
-        vk::ImageSubresourceRange color_range {
-            vk::ImageAspectFlagBits::eColor,
-            0, vk::RemainingMipLevels, 0, vk::RemainingArrayLayers
-        };
-        vk::ImageSubresourceRange depth_range {color_range};
-        depth_range.aspectMask = vk::ImageAspectFlagBits::eDepth;
 
-        vk::ImageMemoryBarrier2 color_barrier {
-            vk::PipelineStageFlagBits2::eAllCommands, vk::AccessFlagBits2::eMemoryWrite,
-            vk::PipelineStageFlagBits2::eAllCommands, vk::AccessFlagBits2::eMemoryRead | vk::AccessFlagBits2::eMemoryWrite,
-            vk::ImageLayout::eUndefined,
-            vk::ImageLayout::eColorAttachmentOptimal,
-            0U, 0U,
-            color.first,
-            color_range
+        std::array<vk::ImageMemoryBarrier2, 2> barriers = {
+            LayoutTransferHelper::GetAttachmentBarrier(LayoutTransferHelper::AttachmentTransferType::ColorAttachmentPrepare, color.first),
+            LayoutTransferHelper::GetAttachmentBarrier(LayoutTransferHelper::AttachmentTransferType::DepthAttachmentPrepare, depth.first),
         };
-        vk::ImageMemoryBarrier2 depth_barrier {color_barrier};
-        depth_barrier.newLayout = vk::ImageLayout::eDepthAttachmentOptimal;
-        depth_barrier.image = depth.first;
-        depth_barrier.subresourceRange = depth_range;
-
-        std::array<vk::ImageMemoryBarrier2, 2> barriers = {color_barrier, depth_barrier};
         vk::DependencyInfo dep {
             vk::DependencyFlags{0},
             {}, {}, barriers
@@ -176,22 +161,9 @@ namespace Engine
         m_handle->endRendering();
         // Transit color attachment to present layout
         if (m_image_for_present.has_value()) {
-            vk::ImageSubresourceRange color_range {
-                vk::ImageAspectFlagBits::eColor,
-                0, vk::RemainingMipLevels, 0, vk::RemainingArrayLayers
+            std::array<vk::ImageMemoryBarrier2, 1> barriers = {
+                LayoutTransferHelper::GetAttachmentBarrier(LayoutTransferHelper::AttachmentTransferType::ColorAttachmentPresent, m_image_for_present.value())
             };
-
-            vk::ImageMemoryBarrier2 color_barrier {
-                vk::PipelineStageFlagBits2::eAllCommands, vk::AccessFlagBits2::eMemoryWrite,
-                vk::PipelineStageFlagBits2::eAllCommands, vk::AccessFlagBits2::eMemoryRead | vk::AccessFlagBits2::eMemoryWrite,
-                vk::ImageLayout::eColorAttachmentOptimal,
-                vk::ImageLayout::ePresentSrcKHR,
-                0U, 0U,
-                m_image_for_present.value(),
-                color_range
-            };
-
-            std::array<vk::ImageMemoryBarrier2, 1> barriers = {color_barrier};
             vk::DependencyInfo dep {
                 vk::DependencyFlags{0},
                 {}, {}, barriers
