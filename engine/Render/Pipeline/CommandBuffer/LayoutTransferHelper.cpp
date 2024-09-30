@@ -24,25 +24,27 @@ namespace Engine {
     }
     std::pair<vk::PipelineStageFlagBits2, vk::AccessFlags2> LayoutTransferHelper::GetScope1(AttachmentTransferType type)
     {
+        // Locate scope 1 at the last stage where the old layout is needed
         switch(type) {
         case AttachmentTransferType::ColorAttachmentPrepare:
-            return std::make_pair(vk::PipelineStageFlagBits2::eAllCommands, vk::AccessFlagBits2::eColorAttachmentWrite);
+            return std::make_pair(vk::PipelineStageFlagBits2::eBottomOfPipe, vk::AccessFlagBits2::eNone);
         case AttachmentTransferType::ColorAttachmentPresent:
             return std::make_pair(vk::PipelineStageFlagBits2::eColorAttachmentOutput, vk::AccessFlagBits2::eColorAttachmentWrite);
         case AttachmentTransferType::DepthAttachmentPrepare:
-            return std::make_pair(vk::PipelineStageFlagBits2::eAllCommands, vk::AccessFlagBits2::eDepthStencilAttachmentWrite);
+            return std::make_pair(vk::PipelineStageFlagBits2::eLateFragmentTests, vk::AccessFlagBits2::eDepthStencilAttachmentWrite);
         }
         __builtin_unreachable();
     }
     std::pair<vk::PipelineStageFlagBits2, vk::AccessFlags2> LayoutTransferHelper::GetScope2(AttachmentTransferType type)
     {
+        // Locate scope 2 at the first stage where the new layout is needed
         switch(type) {
         case AttachmentTransferType::ColorAttachmentPrepare:
-            return std::make_pair(vk::PipelineStageFlagBits2::eAllCommands, vk::AccessFlagBits2::eColorAttachmentRead | vk::AccessFlagBits2::eColorAttachmentWrite);
+            return std::make_pair(vk::PipelineStageFlagBits2::eColorAttachmentOutput, vk::AccessFlagBits2::eColorAttachmentRead | vk::AccessFlagBits2::eColorAttachmentWrite);
         case AttachmentTransferType::ColorAttachmentPresent:
             return std::make_pair(vk::PipelineStageFlagBits2::eBottomOfPipe, vk::AccessFlagBits2::eNone);
         case AttachmentTransferType::DepthAttachmentPrepare:
-            return std::make_pair(vk::PipelineStageFlagBits2::eAllCommands, vk::AccessFlagBits2::eDepthStencilAttachmentRead | vk::AccessFlagBits2::eDepthStencilAttachmentWrite);
+            return std::make_pair(vk::PipelineStageFlagBits2::eEarlyFragmentTests, vk::AccessFlagBits2::eDepthStencilAttachmentRead | vk::AccessFlagBits2::eDepthStencilAttachmentWrite);
         }
         __builtin_unreachable();
     }
