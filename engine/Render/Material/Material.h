@@ -34,7 +34,7 @@ namespace Engine {
         Material (std::weak_ptr <RenderSystem> system);
         virtual ~Material () = default;
 
-        const virtual Pipeline * GetPipeline(uint32_t pass_index, const RenderTargetSetup & rts) = 0;
+        const virtual Pipeline * GetPipeline(uint32_t pass_index) = 0;
         const PipelineLayout * GetPipelineLayout (uint32_t pass_index) const;
         vk::DescriptorSet GetDescriptorSet(uint32_t pass_index) const;
         virtual void WriteDescriptors () const;

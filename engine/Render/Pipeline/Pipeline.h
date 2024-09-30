@@ -23,7 +23,7 @@ namespace Engine{
             const PipelineLayout & layout, 
             const std::vector<std::reference_wrapper<const ShaderModule>> & shaders
         ) = 0;
-        virtual void CreatePipeline(Subpass subpass) = 0;
+        virtual void CreatePipeline() = 0;
 
         const Subpass & GetSubpass() const;
 

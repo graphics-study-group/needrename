@@ -14,7 +14,7 @@ namespace Engine {
                 const PipelineLayout & layout, 
                 const std::vector<std::reference_wrapper<const ShaderModule>> & shaders
             ) override;
-            virtual void CreatePipeline(Subpass subpass) override;
+            virtual void CreatePipeline() override;
 
         protected:
             // TODO: we urgently need better lifetime management for vk types

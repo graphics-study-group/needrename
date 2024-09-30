@@ -70,13 +70,13 @@ namespace Engine {
     ) : Shadeless(system) {
         this->UpdateTexture(texture);
     }
-    const Pipeline *Shadeless::GetPipeline(uint32_t pass_index, const RenderTargetSetup &rts)
+    const Pipeline *Shadeless::GetPipeline(uint32_t pass_index)
     {
         auto pipeline = m_passes[pass_index].pipeline.get();
 
         // TODO: Check render target setup
         if (!pipeline->get()) {
-            pipeline->CreatePipeline(rts.GetRenderPass().GetSubpass(pass_index));
+            pipeline->CreatePipeline();
         }
         return pipeline;
     }

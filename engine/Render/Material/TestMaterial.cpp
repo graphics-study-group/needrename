@@ -48,13 +48,11 @@ namespace Engine {
         m_passes[0].pipeline->SetPipelineConfiguration(layout, {fragModule, vertModule});
     }
 
-    const Pipeline *TestMaterial::GetPipeline(uint32_t pass_index, const RenderTargetSetup &rts)
+    const Pipeline *TestMaterial::GetPipeline(uint32_t pass_index)
     {
         auto pipeline = m_passes[pass_index].pipeline.get();
-
-        // TODO: Check render target setup
         if (!pipeline->get()) {
-            pipeline->CreatePipeline(rts.GetRenderPass().GetSubpass(pass_index));
+            pipeline->CreatePipeline();
         }
         return pipeline;
     }

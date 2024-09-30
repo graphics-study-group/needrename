@@ -10,7 +10,7 @@ namespace Engine::RenderSystemState
             VK_MAKE_VERSION(0, 1, 0),
             engine_name,
             VK_MAKE_VERSION(0, 1, 0),
-            VK_API_VERSION_1_0
+            VK_API_VERSION_1_3
         };
         
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating Vulkan instance.");

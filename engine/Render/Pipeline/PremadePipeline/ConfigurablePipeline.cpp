@@ -25,7 +25,7 @@ namespace Engine::PremadePipeline {
         m_config = config;
     }
 
-    void ConfigurablePipeline::CreatePipeline(Subpass subpass)
+    void ConfigurablePipeline::CreatePipeline()
     {
         std::vector <vk::PipelineShaderStageCreateInfo> stages;
         stages.resize(m_shaders.size());
@@ -75,9 +75,19 @@ namespace Engine::PremadePipeline {
         info.pDynamicState = &dynamic;
 
         info.layout = m_layout;
-        m_attached_subpass = subpass;
-        info.renderPass = subpass.pass;
-        info.subpass = subpass.index;
+
+        // Dynamic rendering setup
+        info.renderPass = nullptr;
+        info.subpass = 0;
+
+        std::array<vk::Format, 1> color_attachment_formats = {vk::Format::eB8G8R8A8Srgb};
+        vk::PipelineRenderingCreateInfo rinfo {
+            0,
+            color_attachment_formats,
+            vk::Format::eD32Sfloat,
+            vk::Format::eUndefined
+        };
+        info.pNext = &rinfo;
 
         auto ret = m_system.lock()->getDevice().createGraphicsPipelineUnique(nullptr, info);
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Pipeline creation successful with result %d.", static_cast<int>(ret.result));

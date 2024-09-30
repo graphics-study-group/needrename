@@ -16,7 +16,7 @@ namespace Engine {
             std::weak_ptr <RenderSystem> system
         );
 
-        const virtual Pipeline * GetPipeline(uint32_t pass_index, const RenderTargetSetup & rts) override;
+        const virtual Pipeline * GetPipeline(uint32_t pass_index) override;
     };
 }
 
