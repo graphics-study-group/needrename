@@ -13,14 +13,27 @@ namespace Engine {
             scope1.first, scope1.second,
             scope2.first, scope2.second,
             layouts.first, layouts.second,
-            0U, 0U, image,
+            vk::QueueFamilyIgnored, vk::QueueFamilyIgnored, image,
             subresource
         };
         return barrier;
     }
     vk::ImageMemoryBarrier2 LayoutTransferHelper::GetTextureBarrier(TextureTransferType type, vk::Image image)
     {
-        return vk::ImageMemoryBarrier2();
+        auto [scope1, scope2, layouts] = std::tuple{GetScope1(type), GetScope2(type), GetLayouts(type)};
+        vk::ImageSubresourceRange subresource{
+            GetAspectFlags(type),
+            0, vk::RemainingMipLevels,
+            0, vk::RemainingArrayLayers
+        };
+        vk::ImageMemoryBarrier2 barrier {
+            scope1.first, scope1.second,
+            scope2.first, scope2.second,
+            layouts.first, layouts.second,
+            vk::QueueFamilyIgnored, vk::QueueFamilyIgnored, image,
+            subresource
+        };
+        return barrier;
     }
     std::pair<vk::PipelineStageFlagBits2, vk::AccessFlags2> LayoutTransferHelper::GetScope1(AttachmentTransferType type)
     {
@@ -71,5 +84,40 @@ namespace Engine {
             return vk::ImageAspectFlagBits::eDepth;
         }
         __builtin_unreachable();
+    }
+
+    std::pair<vk::PipelineStageFlagBits2, vk::AccessFlags2> LayoutTransferHelper::GetScope1(TextureTransferType type)
+    {
+        switch (type) {
+        case TextureTransferType::TextureUploadBefore:
+            return std::make_pair(vk::PipelineStageFlagBits2::eFragmentShader, vk::AccessFlagBits2::eShaderRead);
+        case TextureTransferType::TextureUploadAfter:
+            return std::make_pair(vk::PipelineStageFlagBits2::eTransfer, vk::AccessFlagBits2::eTransferWrite);
+        }
+        __builtin_unreachable();
+    }
+    std::pair<vk::PipelineStageFlagBits2, vk::AccessFlags2> LayoutTransferHelper::GetScope2(TextureTransferType type)
+    {
+        switch (type) {
+        case TextureTransferType::TextureUploadBefore:
+            return std::make_pair(vk::PipelineStageFlagBits2::eTransfer, vk::AccessFlagBits2::eTransferWrite);
+        case TextureTransferType::TextureUploadAfter:
+            return std::make_pair(vk::PipelineStageFlagBits2::eFragmentShader, vk::AccessFlagBits2::eShaderRead);
+        }
+        __builtin_unreachable();
+    }
+    std::pair<vk::ImageLayout, vk::ImageLayout> LayoutTransferHelper::GetLayouts(TextureTransferType type)
+    {
+        switch (type) {
+        case TextureTransferType::TextureUploadBefore:
+            return std::make_pair(vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
+        case TextureTransferType::TextureUploadAfter:
+            return std::make_pair(vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal);
+        }
+        __builtin_unreachable();
+    }
+    vk::ImageAspectFlags LayoutTransferHelper::GetAspectFlags(TextureTransferType type)
+    {
+        return vk::ImageAspectFlagBits::eColor;
     }
 }

@@ -5,6 +5,8 @@
 #include "Render/Memory/Image2DTexture.h"
 #include "Render/Renderer/HomogeneousMesh.h"
 
+#include "LayoutTransferHelper.h"
+
 namespace Engine {
     void TransferCommandBuffer::Create(
         std::shared_ptr<RenderSystem> system, 
@@ -70,25 +72,14 @@ namespace Engine {
         buffer.Unmap();
 
         // Transit layout to TransferDstOptimal
-        vk::ImageSubresourceRange range {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1};  // FIXME: mip level
-        vk::ImageMemoryBarrier barrier {
-            vk::AccessFlagBits::eShaderRead,
-            vk::AccessFlagBits::eTransferWrite,
-            vk::ImageLayout::eUndefined,
-            vk::ImageLayout::eTransferDstOptimal,
-            vk::QueueFamilyIgnored,
-            vk::QueueFamilyIgnored,
-            texture.GetImage(),
-            range
+        std::array<vk::ImageMemoryBarrier2, 1> barriers = {
+            LayoutTransferHelper::GetTextureBarrier(LayoutTransferHelper::TextureTransferType::TextureUploadBefore, texture.GetImage())
         };
-        m_handle->pipelineBarrier(
-            vk::PipelineStageFlagBits::eFragmentShader, 
-            vk::PipelineStageFlagBits::eTransfer,
-            vk::DependencyFlags{0},
-            {},
-            {},
-            { barrier }
-        );
+        vk::DependencyInfo dinfo {
+            vk::DependencyFlags{},
+            {}, {}, barriers
+        };
+        m_handle->pipelineBarrier2(dinfo);
 
         // Copy buffer to image
         vk::BufferImageCopy copy{
@@ -108,18 +99,12 @@ namespace Engine {
         );
 
         // Transfer image for sampling
-        barrier.oldLayout = vk::ImageLayout::eTransferDstOptimal;
-        barrier.newLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
-        barrier.srcAccessMask = vk::AccessFlagBits::eTransferWrite;
-        barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
-        m_handle->pipelineBarrier(
-            vk::PipelineStageFlagBits::eTransfer, 
-            vk::PipelineStageFlagBits::eFragmentShader,
-            vk::DependencyFlags{0},
-            {},
-            {},
-            { barrier }
+        barriers[0] = LayoutTransferHelper::GetTextureBarrier(
+            LayoutTransferHelper::TextureTransferType::TextureUploadAfter, 
+            texture.GetImage()
         );
+        dinfo.setImageMemoryBarriers(barriers);
+        m_handle->pipelineBarrier2(dinfo);
 
         m_pending_buffers.push_back(std::move(buffer));
     }

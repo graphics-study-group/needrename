@@ -25,6 +25,11 @@ namespace Engine {
         static std::pair<vk::PipelineStageFlagBits2, vk::AccessFlags2> GetScope2(AttachmentTransferType);
         static std::pair<vk::ImageLayout, vk::ImageLayout> GetLayouts(AttachmentTransferType);
         static vk::ImageAspectFlags GetAspectFlags(AttachmentTransferType);
+
+        static std::pair<vk::PipelineStageFlagBits2, vk::AccessFlags2> GetScope1(TextureTransferType);
+        static std::pair<vk::PipelineStageFlagBits2, vk::AccessFlags2> GetScope2(TextureTransferType);
+        static std::pair<vk::ImageLayout, vk::ImageLayout> GetLayouts(TextureTransferType);
+        static vk::ImageAspectFlags GetAspectFlags(TextureTransferType);
     };
 }
 
