@@ -127,7 +127,6 @@ namespace Engine
         }
         
         material.WriteDescriptors();
-        // TODO: Write per-material descriptors
     }
 
     void RenderCommandBuffer::SetupViewport(float vpWidth, float vpHeight, vk::Rect2D scissor) {
@@ -141,6 +140,11 @@ namespace Engine
     }
 
     void RenderCommandBuffer::DrawMesh(const HomogeneousMesh& mesh, const glm::mat4 & model_matrix) {
+#ifndef NDEBUG
+        if (!m_bound_material.has_value()) {
+            SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Rendering a mesh with no material bound.");
+        }
+#endif
         auto bindings = mesh.GetBindingInfo();
         m_handle->bindVertexBuffers(0, bindings.first, bindings.second);
         auto indices = mesh.GetIndexInfo();
@@ -158,18 +162,14 @@ namespace Engine
 
     void RenderCommandBuffer::EndRendering()
     {
-        m_handle->endRendering();
-        // Transit color attachment to present layout
-        if (m_image_for_present.has_value()) {
-            std::array<vk::ImageMemoryBarrier2, 1> barriers = {
-                LayoutTransferHelper::GetAttachmentBarrier(LayoutTransferHelper::AttachmentTransferType::ColorAttachmentPresent, m_image_for_present.value())
-            };
-            vk::DependencyInfo dep {
-                vk::DependencyFlags{0},
-                {}, {}, barriers
-            };
-            m_handle->pipelineBarrier2(dep);
+#ifndef NDEBUG
+        // assert(m_bound_render_target.has_value());
+        if (!m_bound_render_target.has_value()) {
+            SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "End rendering called without beginning a rendering pass.");
         }
+#endif
+        m_handle->endRendering();
+        m_bound_render_target.reset();
     }
 
     void RenderCommandBuffer::DrawMesh(const HomogeneousMesh& mesh) {
@@ -189,6 +189,22 @@ namespace Engine
     }
 
     void RenderCommandBuffer::End() {
+#ifndef NDEBUG
+        if (m_bound_render_target.has_value()) {
+            SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Command buffer ended within rendering pass.");
+        }
+#endif
+        // Transit color attachment to present layout
+        if (m_image_for_present.has_value()) {
+            std::array<vk::ImageMemoryBarrier2, 1> barriers = {
+                LayoutTransferHelper::GetAttachmentBarrier(LayoutTransferHelper::AttachmentTransferType::ColorAttachmentPresent, m_image_for_present.value())
+            };
+            vk::DependencyInfo dep {
+                vk::DependencyFlags{0},
+                {}, {}, barriers
+            };
+            m_handle->pipelineBarrier2(dep);
+        }
         m_handle->end();
     }
 
@@ -217,5 +233,6 @@ namespace Engine
         m_handle->reset();
         m_bound_material.reset();
         m_bound_material_pipeline.reset();
+        m_image_for_present.reset();
     }
 }

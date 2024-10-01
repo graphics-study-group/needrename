@@ -28,8 +28,13 @@ namespace Engine {
             uint32_t inflight_frame_index
         );
 
+        /// @brief Record a begin command in command buffer
         void Begin();
 
+        /// @brief Begin a Vulkan rendering pass
+        /// @param pass render targets
+        /// @param extent extent of the rendering pass
+        /// @param framebuffer_id ID of the framebuffer, acquired from GetNextImage.
         void BeginRendering(const RenderTargetSetup & pass, vk::Extent2D extent, uint32_t framebuffer_id);
 
         /// @brief Bind a material for rendering, and write per-material descriptors.
@@ -37,6 +42,10 @@ namespace Engine {
         /// @param pass_index 
         void BindMaterial(Material & material, uint32_t pass_index);
 
+        /// @brief Setup the viewport parameters
+        /// @param vpWidth width of the viewport
+        /// @param vpHeight height of the viewport
+        /// @param scissor scissor rectangle
         void SetupViewport(float vpWidth, float vpHeight, vk::Rect2D scissor);
 
         /// @brief Write per-mesh descriptors, and send draw call to GPU.
@@ -44,10 +53,13 @@ namespace Engine {
         void DrawMesh(const HomogeneousMesh & mesh);
         void DrawMesh(const HomogeneousMesh& mesh, const glm::mat4 & model_matrix);
 
+        /// @brief End the render pass
         void EndRendering();
 
+        /// @brief End recording of the command buffer
         void End();
 
+        /// @brief Submit the command buffer to graphics queue
         void Submit();
 
         void Reset();
