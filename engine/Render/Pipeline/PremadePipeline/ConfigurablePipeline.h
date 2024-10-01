@@ -6,25 +6,20 @@
 
 namespace Engine {
     namespace PremadePipeline {
+        /// @brief A basic configurable rasterization pipeline with color and depth attachments created according to the swapchain
         class ConfigurablePipeline : public Pipeline {
         public:
             ConfigurablePipeline(std::weak_ptr <RenderSystem> system);
-
-            /* void CreatePipeline(Subpass subpass, 
-                const PipelineLayout & layout, 
-                const std::vector<std::reference_wrapper<const ShaderModule>> & shaders
-                ) override;
-
-            void CreatePipeline(Subpass subpass, 
-                const PipelineLayout & layout, 
-                const std::vector<std::reference_wrapper<const ShaderModule>> & shaders,
-                const PipelineConfig & config
-                ); */
             
             virtual void SetPipelineConfiguration(
                 const PipelineLayout & layout, 
                 const std::vector<std::reference_wrapper<const ShaderModule>> & shaders
             ) override;
+
+            /// @brief Set the configuration of the pipeline.
+            /// @param layout constant data (descriptors and push constants) layout of the pipeline.
+            /// @param shaders vector of shader modules. It should at least contain a fragment shader and a vertex shader.
+            /// @param config configuration for fixed-function stages.
             void SetPipelineConfiguration(
                 const PipelineLayout & layout, 
                 const std::vector<std::reference_wrapper<const ShaderModule>> & shaders,
@@ -36,7 +31,7 @@ namespace Engine {
 
             // TODO: we urgently need better lifetime management for vk types
             vk::PipelineLayout m_layout{};
-            std::vector<std::reference_wrapper<const ShaderModule>> m_shaders;
+            std::vector<std::reference_wrapper<const ShaderModule>> m_shaders {};
             PipelineConfig m_config{};
 
             static vk::PipelineMultisampleStateCreateInfo CreateMultisampleState();

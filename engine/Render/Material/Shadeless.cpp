@@ -73,8 +73,6 @@ namespace Engine {
     const Pipeline *Shadeless::GetPipeline(uint32_t pass_index)
     {
         auto pipeline = m_passes[pass_index].pipeline.get();
-
-        // TODO: Check render target setup
         if (!pipeline->get()) {
             pipeline->CreatePipeline();
         }

@@ -85,7 +85,6 @@ namespace Engine {
     const Pipeline *TestMaterialWithSampler::GetPipeline(uint32_t pass_index)
     {
         auto pipeline = m_passes[pass_index].pipeline.get();
-
         if (!pipeline->get()) {
             pipeline->CreatePipeline();
         }
