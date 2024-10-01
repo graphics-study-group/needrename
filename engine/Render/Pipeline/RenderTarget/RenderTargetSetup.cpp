@@ -1,8 +1,5 @@
 #include "RenderTargetSetup.h"
 
-#include "Render/Pipeline/PremadePipeline/SingleRenderPass.h"
-#include "Render/Pipeline/PremadePipeline/SingleRenderPassWithDepth.h"
-
 namespace Engine {
 
 

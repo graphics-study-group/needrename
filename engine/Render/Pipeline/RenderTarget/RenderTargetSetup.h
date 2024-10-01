@@ -6,7 +6,6 @@
 
 namespace Engine {
     class ImagePerFrameInterface;
-    class RenderSystemState::Swapchain;
     /// @brief Render target setup.
     /// Automatically manages render pass and frame buffers.
     class RenderTargetSetup {
