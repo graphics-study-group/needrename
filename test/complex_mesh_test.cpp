@@ -16,7 +16,6 @@
 #include "Render/Pipeline/Shader.h"
 #include "Render/Pipeline/RenderTarget/RenderTargetSetup.h"
 #include "Render/Pipeline/CommandBuffer.h"
-#include "Render/Pipeline/PremadePipeline/SingleRenderPassWithDepth.h"
 #include "Render/Renderer/HomogeneousMesh.h"
 
 #include "cmake_config.h"
