@@ -96,12 +96,13 @@ int main(int, char **)
 
         cb.Begin();
         vk::Extent2D extent {system->GetSwapchain().GetExtent()};
-        cb.BeginRenderPass(rts, extent, index);
+        cb.BeginRendering(rts, extent, index);
 
         cb.BindMaterial(material, 0);
         vk::Rect2D scissor{{0, 0}, system->GetSwapchain().GetExtent()};
         cb.SetupViewport(extent.width, extent.height, scissor);
         cb.DrawMesh(mesh);
+        cb.EndRendering();
         cb.End();
 
         cb.Submit();

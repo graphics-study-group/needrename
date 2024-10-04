@@ -203,12 +203,16 @@ namespace Engine
         }
         dqcs.shrink_to_fit();
 
-        vk::PhysicalDeviceFeatures pdf{};
-
         vk::DeviceCreateInfo dci{};
         dci.queueCreateInfoCount = static_cast<uint32_t>(dqcs.size());
         dci.pQueueCreateInfos = dqcs.data();
-        dci.pEnabledFeatures = &pdf;
+
+        vk::PhysicalDeviceFeatures2 pdf{};
+        vk::PhysicalDeviceVulkan13Features features13 {};
+        features13.dynamicRendering = true;
+        features13.synchronization2 = true;
+        pdf.pNext = &features13;
+        dci.pNext = &pdf;
 
         // Fill up extensions
         dci.enabledExtensionCount = device_extension_name.size();

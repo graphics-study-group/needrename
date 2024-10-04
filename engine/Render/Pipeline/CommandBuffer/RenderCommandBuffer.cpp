@@ -10,6 +10,8 @@
 #include "Render/RenderSystem/Synch/Synchronization.h"
 #include "Render/ConstantData/PerModelConstants.h"
 
+#include "Render/Pipeline/CommandBuffer/LayoutTransferHelper.h"
+
 namespace Engine
 {
     void RenderCommandBuffer::CreateCommandBuffer(
@@ -37,24 +39,65 @@ namespace Engine
         m_handle->begin(binfo);
     }
 
-    void RenderCommandBuffer::BeginRenderPass(
-        const RenderTargetSetup& setup, 
-        vk::Extent2D extent, 
-        uint32_t framebuffer_id
-    ) {
-        vk::RenderPassBeginInfo info{
-            setup.GetRenderPass().get(),
-            setup.GetFramebuffers().GetFramebuffer(framebuffer_id),
-            {vk::Offset2D{0, 0}, extent},
-            setup.GetRenderPass().GetClearValues()
+    void RenderCommandBuffer::BeginRendering(const RenderTargetSetup &pass, vk::Extent2D extent, uint32_t framebuffer_id)
+    {
+        m_bound_render_target = std::cref(pass);
+        const auto & clear_values = pass.GetClearValues();
+        auto color = pass.GetColorAttachment(framebuffer_id);
+        auto depth = pass.GetDepthAttachment(framebuffer_id);
+        m_image_for_present = color.first;
+        std::vector <vk::RenderingAttachmentInfo> color_attachment{
+            {
+                color.second,
+                vk::ImageLayout::eColorAttachmentOptimal,
+                vk::ResolveModeFlagBits::eNone,
+                {},
+                vk::ImageLayout::eUndefined,
+                vk::AttachmentLoadOp::eClear,
+                vk::AttachmentStoreOp::eStore,
+                clear_values[0]
+            }
         };
-        m_bound_render_target = std::cref(setup);
-        m_handle->beginRenderPass(info, vk::SubpassContents::eInline);
+        vk::RenderingAttachmentInfo depth_attachment{
+            depth.second,
+            vk::ImageLayout::eDepthAttachmentOptimal,
+            vk::ResolveModeFlagBits::eNone,
+            {},
+            vk::ImageLayout::eUndefined,
+            vk::AttachmentLoadOp::eClear,
+            vk::AttachmentStoreOp::eDontCare,
+            clear_values[1]
+        };
+
+        vk::RenderingInfo info {
+            vk::RenderingFlags{0},
+            vk::Rect2D{{0, 0}, extent},
+            1,
+            0,
+            color_attachment,
+            &depth_attachment,
+            nullptr
+        };
+
+        // Transit attachments layout, from undefined to optimal
+
+        std::array<vk::ImageMemoryBarrier2, 2> barriers = {
+            LayoutTransferHelper::GetAttachmentBarrier(LayoutTransferHelper::AttachmentTransferType::ColorAttachmentPrepare, color.first),
+            LayoutTransferHelper::GetAttachmentBarrier(LayoutTransferHelper::AttachmentTransferType::DepthAttachmentPrepare, depth.first),
+        };
+        vk::DependencyInfo dep {
+            vk::DependencyFlags{0},
+            {}, {}, barriers
+        };
+        m_handle->pipelineBarrier2(dep);
+
+        // Begin rendering after transit
+        m_handle->beginRendering(info);
     }
 
     void RenderCommandBuffer::BindMaterial(Material & material, uint32_t pass_index) {
         assert(m_bound_render_target.has_value());
-        const auto & pipeline = material.GetPipeline(pass_index, m_bound_render_target.value())->get();
+        const auto & pipeline = material.GetPipeline(pass_index)->get();
         const auto & pipeline_layout = material.GetPipelineLayout(pass_index)->get();
 
         m_handle->bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
@@ -84,7 +127,6 @@ namespace Engine
         }
         
         material.WriteDescriptors();
-        // TODO: Write per-material descriptors
     }
 
     void RenderCommandBuffer::SetupViewport(float vpWidth, float vpHeight, vk::Rect2D scissor) {
@@ -98,6 +140,11 @@ namespace Engine
     }
 
     void RenderCommandBuffer::DrawMesh(const HomogeneousMesh& mesh, const glm::mat4 & model_matrix) {
+#ifndef NDEBUG
+        if (!m_bound_material.has_value()) {
+            SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Rendering a mesh with no material bound.");
+        }
+#endif
         auto bindings = mesh.GetBindingInfo();
         m_handle->bindVertexBuffers(0, bindings.first, bindings.second);
         auto indices = mesh.GetIndexInfo();
@@ -111,6 +158,18 @@ namespace Engine
             reinterpret_cast<const void *>(&model_matrix)
         );
         m_handle->drawIndexed(mesh.GetVertexIndexCount(), 1, 0, 0, 0);
+    }
+
+    void RenderCommandBuffer::EndRendering()
+    {
+#ifndef NDEBUG
+        // assert(m_bound_render_target.has_value());
+        if (!m_bound_render_target.has_value()) {
+            SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "End rendering called without beginning a rendering pass.");
+        }
+#endif
+        m_handle->endRendering();
+        m_bound_render_target.reset();
     }
 
     void RenderCommandBuffer::DrawMesh(const HomogeneousMesh& mesh) {
@@ -130,7 +189,22 @@ namespace Engine
     }
 
     void RenderCommandBuffer::End() {
-        m_handle->endRenderPass();
+#ifndef NDEBUG
+        if (m_bound_render_target.has_value()) {
+            SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Command buffer ended within rendering pass.");
+        }
+#endif
+        // Transit color attachment to present layout
+        if (m_image_for_present.has_value()) {
+            std::array<vk::ImageMemoryBarrier2, 1> barriers = {
+                LayoutTransferHelper::GetAttachmentBarrier(LayoutTransferHelper::AttachmentTransferType::ColorAttachmentPresent, m_image_for_present.value())
+            };
+            vk::DependencyInfo dep {
+                vk::DependencyFlags{0},
+                {}, {}, barriers
+            };
+            m_handle->pipelineBarrier2(dep);
+        }
         m_handle->end();
     }
 
@@ -159,5 +233,6 @@ namespace Engine
         m_handle->reset();
         m_bound_material.reset();
         m_bound_material_pipeline.reset();
+        m_image_for_present.reset();
     }
 }

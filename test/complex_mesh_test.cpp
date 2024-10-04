@@ -16,7 +16,6 @@
 #include "Render/Pipeline/Shader.h"
 #include "Render/Pipeline/RenderTarget/RenderTargetSetup.h"
 #include "Render/Pipeline/CommandBuffer.h"
-#include "Render/Pipeline/PremadePipeline/SingleRenderPassWithDepth.h"
 #include "Render/Renderer/HomogeneousMesh.h"
 
 #include "cmake_config.h"
@@ -188,8 +187,7 @@ int main(int, char **)
     });
     
     // Setup mesh
-    std::filesystem::path mesh_path{ENGINE_ASSETS_DIR};
-    mesh_path /= "bunny/bunny.obj";
+    std::filesystem::path mesh_path{"C:\\Users\\Vincent Lee\\3D Objects\\furina\\obj\\furina_combined.obj"};
     std::shared_ptr tmc = std::make_shared<MeshComponentFromFile>(system, mesh_path);
     system->RegisterComponent(tmc);
 
@@ -218,8 +216,9 @@ int main(int, char **)
     
         cb.Begin();
         vk::Extent2D extent {system->GetSwapchain().GetExtent()};
-        cb.BeginRenderPass(rts, extent, index);
+        cb.BeginRendering(rts, extent, index);
         system->DrawMeshes(in_flight_frame_id);
+        cb.EndRendering();
         cb.End();
         cb.Submit();
 

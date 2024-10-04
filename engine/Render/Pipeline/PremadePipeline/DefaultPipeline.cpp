@@ -17,13 +17,8 @@ namespace Engine {
         }
 
         void DefaultPipeline::CreatePipeline(
-            Subpass subpass
         ) {
             SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating pipeline.");
-            
-
-            m_attached_subpass = subpass;
-
             std::vector <vk::PipelineShaderStageCreateInfo> stages;
             stages.resize(m_shaders.size());
             for (size_t i = 0; i < m_shaders.size(); i++) {
@@ -72,8 +67,8 @@ namespace Engine {
             info.pDynamicState = &dynamic;
 
             info.layout = m_layout;
-            info.renderPass = subpass.pass;
-            info.subpass = subpass.index;
+            info.renderPass = nullptr;
+            info.subpass = 0;
 
             auto ret = m_system.lock()->getDevice().createGraphicsPipelineUnique(nullptr, info);
             SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Pipeline creation successful with result %d.", static_cast<int>(ret.result));

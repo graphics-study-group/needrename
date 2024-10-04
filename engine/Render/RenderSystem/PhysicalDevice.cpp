@@ -96,6 +96,14 @@ namespace Engine::RenderSystemState {
             return false;
         }
 
+        // Check features
+        auto device_features = device.getFeatures2<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan13Features>();
+        auto features13 = device_features.get<vk::PhysicalDeviceVulkan13Features>();
+        if (!(features13.dynamicRendering && features13.synchronization2)) {
+            SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "This physical device does not support needed Vulkan 1.3 features.");
+            return false;
+        }
+
         // Check if all extensions are available
         std::unordered_set <std::string> required_extensions{};
         for (const auto & extension_name : DEVICE_EXTENSION_NAMES) {
@@ -115,7 +123,9 @@ namespace Engine::RenderSystemState {
             for (const auto & name : required_extensions) {
                 SDL_LogVerbose(SDL_LOG_CATEGORY_RENDER, "\t%s", name.data());
             }
+            return false;
         }
+
         return true;
     }
 }

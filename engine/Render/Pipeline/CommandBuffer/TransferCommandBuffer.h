@@ -19,8 +19,14 @@ namespace Engine {
 
         void Begin();
 
+        /// @brief Upload vertex buffer and vertex index buffer to GPU
+        /// @param mesh mesh with vertex and index buffer
         void CommitVertexBuffer(const HomogeneousMesh & mesh);
 
+        /// @brief Upload pixel data to a texture on GPU
+        /// @param texture texture to be updated
+        /// @param data pixel data, whose layout is specified by the texture
+        /// @param length length of the pixel data, typically width * height * depth of the pixel (3 bytes for RGB and 4 bytes for RGBA)
         void CommitTextureImage(const AllocatedImage2DTexture & texture, std::byte * data, size_t length);
 
         void End();
