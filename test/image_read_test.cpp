@@ -57,11 +57,15 @@ int main(int, char *[])
     cmc->Initialize(&opt);
 
     auto render_system = cmc->GetRenderSystem();
+    render_system->EnableDepthTesting();
 
     // Try render the mesh
     RenderTargetSetup rts{render_system};
     rts.CreateFromSwapchain();
-    rts.SetClearValues({{{0.0f, 0.0f, 0.0f, 1.0f}}});
+    rts.SetClearValues({
+        vk::ClearValue{vk::ClearColorValue{0.0f, 0.0f, 0.0f, 1.0f}},
+        vk::ClearValue{vk::ClearDepthStencilValue{1.0f, 0U}}
+    });
 
     uint32_t in_flight_frame_id = 0;
     uint32_t total_test_frame = 144;
@@ -88,6 +92,8 @@ int main(int, char *[])
         assert(index < 3);
 
         auto & tcb = render_system->GetTransferCommandBuffer();
+
+        // Repeatly uploading these data to test synchronization.
         tcb.Begin();
         tcb.CommitVertexBuffer(mesh);
         tcb.CommitTextureImage(texture, reinterpret_cast<std::byte *>(image_data), tex_width * tex_height * 4);
@@ -96,12 +102,13 @@ int main(int, char *[])
 
         cb.Begin();
         vk::Extent2D extent {render_system->GetSwapchain().GetExtent()};
-        cb.BeginRenderPass(rts, extent, index);
+        cb.BeginRendering(rts, extent, index);
 
         cb.BindMaterial(material, 0);
         vk::Rect2D scissor{{0, 0}, render_system->GetSwapchain().GetExtent()};
         cb.SetupViewport(extent.width, extent.height, scissor);
         cb.DrawMesh(mesh, glm::mat4{1.0f});
+        cb.EndRendering();
         cb.End();
 
         cb.Submit();
