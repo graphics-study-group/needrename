@@ -41,6 +41,7 @@ int main(int, char *[])
 
     auto asset_manager = cmc->GetAssetManager();
     auto render_system = cmc->GetRenderSystem();
+    render_system->EnableDepthTesting();
     std::filesystem::path project_path(ENGINE_ROOT_DIR);
     project_path = project_path / "test_project";
     cmc->GetAssetManager()->LoadProject(project_path);
@@ -80,12 +81,14 @@ int main(int, char *[])
 
     RenderTargetSetup rts{render_system};
     rts.CreateFromSwapchain();
-    rts.SetClearValues({{{0.0f, 0.0f, 0.0f, 1.0f}}});
-
+    rts.SetClearValues({
+        vk::ClearValue{vk::ClearColorValue{0.0f, 0.0f, 0.0f, 1.0f}},
+        vk::ClearValue{vk::ClearDepthStencilValue{1.0f, 0U}}
+    });
     TestMaterial material{render_system};
 
     uint32_t in_flight_frame_id = 0;
-    uint32_t total_test_frame = 60;
+    uint32_t total_test_frame = 60000;
 
     mesh_component->GetSubmesh(0)->Prepare();
     
