@@ -8,13 +8,14 @@
 #include <vector>
 #include <memory>
 #include "Framework/component/TransformComponent/TransformComponent.h"
+#include "Reflection/reflection.h"
 
 namespace Engine
 {
     class Component;
     class Transfrom;
 
-    class GameObject : public std::enable_shared_from_this<GameObject>
+    class [[REFLECTION]] GameObject : public std::enable_shared_from_this<GameObject>
     {
     public:
         GameObject();
