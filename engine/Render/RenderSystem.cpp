@@ -31,6 +31,8 @@ namespace Engine
         this->CreateLogicalDevice();
         this->CreateSwapchain();
 
+        this->m_allocator_state.Create(shared_from_this());
+
         // Create synchorization semaphores
         this->m_synch = std::make_unique<InFlightTwoStageSynch>(*this, 3);
         this->m_descriptor_pool.Create(shared_from_this(), 3);
@@ -125,7 +127,9 @@ namespace Engine
     vk::Instance RenderSystem::getInstance() const { return m_instance.get(); }
     vk::SurfaceKHR RenderSystem::getSurface() const { return m_surface.get(); }
     vk::Device RenderSystem::getDevice() const { return m_device.get(); }
-    const RenderSystem::QueueInfo & RenderSystem::getQueueInfo() const { return m_queues; }
+    vk::PhysicalDevice RenderSystem::GetPhysicalDevice() const { return m_selected_physical_device.get(); }
+    const RenderSystemState::AllocatorState &RenderSystem::GetAllocatorState() const { return m_allocator_state; }
+    const RenderSystem::QueueInfo &RenderSystem::getQueueInfo() const { return m_queues; }
     const RenderSystemState::Swapchain& RenderSystem::GetSwapchain() const { return m_swapchain; }
     const Synchronization& RenderSystem::getSynchronization() const { return *m_synch; }
     RenderCommandBuffer & RenderSystem::GetGraphicsCommandBuffer(uint32_t frame_index) { return m_commandbuffers[frame_index]; }
