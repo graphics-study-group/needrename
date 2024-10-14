@@ -51,6 +51,11 @@ target_link_libraries(complex_mesh_test engine)
 add_test(NAME complex_mesh_test COMMAND complex_mesh_test)
 set_target_properties(complex_mesh_test PROPERTIES FOLDER tests)
 
+add_executable(reflection_registeration reflection_registeration_test.cpp)
+target_link_libraries(reflection_registeration engine)
+add_test(NAME reflection_registeration COMMAND reflection_registeration)
+set_target_properties(reflection_registeration PROPERTIES FOLDER tests)
+
 # Copy SDL dll
 add_custom_command(TARGET SDL_init_test POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
