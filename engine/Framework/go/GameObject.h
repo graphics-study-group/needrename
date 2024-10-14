@@ -15,7 +15,7 @@ namespace Engine
     class Component;
     class Transfrom;
 
-    class [[REFLECTION]] GameObject : public std::enable_shared_from_this<GameObject>
+    class REFLECTION GameObject : public std::enable_shared_from_this<GameObject>
     {
     public:
         GameObject();
@@ -27,20 +27,19 @@ namespace Engine
 
         void AddComponent(std::shared_ptr<Component> component);
 
-        const Transform & GetTransform() const;
-        Transform & GetTransformRef();
-
-        Transform GetWorldTransform();
-        void SetTransform(const Transform& transform);
+        REFLECTION const Transform & GetTransform() const;
+        REFLECTION void SetTransform(const Transform& transform);
+        REFLECTION Transform & GetTransformRef();
+        REFLECTION Transform GetWorldTransform();
 
     public:
-        std::weak_ptr<GameObject> m_parentGameObject;
+        REFLECTION std::weak_ptr<GameObject> m_parentGameObject;
         std::shared_ptr<TransformComponent> m_transformComponent;
+        REFLECTION std::vector<std::shared_ptr<Component>> m_components {};
 
     protected:
         size_t m_id {};
 
-        std::vector<std::shared_ptr<Component>> m_components {};
     };
 }
 

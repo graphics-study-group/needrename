@@ -1,13 +1,23 @@
 #ifndef REFLECTION_REFLECTION_INCLUDED
 #define REFLECTION_REFLECTION_INCLUDED
 
+#include <vector>
+#include <memory>
+
 #include "Type.h"
 #include "Field.h"
 
-#define REFLECTION clang::annotate("reflection")
+// Suppress warning from attributes
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wattributes"
+
+#define REFLECTION [[clang::annotate("reflection")]]
 
 namespace Engine
 {
+    namespace Reflection
+    {
+    }
 }
 
 #endif // REFLECTION_REFLECTION_INCLUDED
