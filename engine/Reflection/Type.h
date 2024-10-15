@@ -13,59 +13,58 @@ namespace Engine
     {
         class Registrar;
 
+        using WrapperMemberFunc = std::function<void(void *, void *&, std::vector<void *>)>;
+
         class Type
         {
         public:
-            static std::unordered_map<std::string, std::shared_ptr<Type>> s_typeMap;
+            static constexpr const char *constructer_name = "$Constructor";
+            static std::unordered_map<std::string, std::shared_ptr<Type>> s_type_map;
 
         public:
             Type() = default;
             virtual ~Type() = default;
 
+        private:
+            WrapperMemberFunc FindFunction(const std::string &name);
+
         protected:
             friend class Registrar;
 
             std::string m_name{};
+            std::vector<std::shared_ptr<Type>> m_base_type;
             // std::unordered_map<std::string, std::shared_ptr<Field>> m_fields {};
-            std::unordered_map<std::string, std::function<void(void *, void *&, std::vector<void *>)>> m_methods{};
+            std::unordered_map<std::string, WrapperMemberFunc> m_methods{};
 
             void setName(const std::string &name);
-            void AddMethod(const std::string &name, std::function<void(void *, void *&, std::vector<void *>)> method);
+            void AddMethod(const std::string &name, WrapperMemberFunc method);
+            void AddBaseType(std::shared_ptr<Type> base_type);
 
         public:
             const std::string &GetName() const;
-            void *CreateInstance();
-            template <typename T>
-            T *CreateInstance();
+            template <typename... Args>
+            void *CreateInstance(Args... args);
             template <typename... Args>
             void *InvokeMethod(void *obj, const std::string &name, Args... args);
-            template <typename T, typename... Args>
-            T InvokeMethod(void *obj, const std::string &name, Args... args);
         };
 
-        template <typename T>
-        T *Type::CreateInstance()
+        template <typename... Args>
+        void *Type::CreateInstance(Args... args)
         {
-            return static_cast<T *>(CreateInstance());
+            return InvokeMethod(nullptr, constructer_name, args...);
         }
 
         template <typename... Args>
         void *Type::InvokeMethod(void *obj, const std::string &name, Args... args)
         {
-            auto func_iter = m_methods.find(name);
-            if (func_iter == m_methods.end())
+            WrapperMemberFunc func = FindFunction(name);
+            if (!func)
                 throw std::runtime_error("Method " + name + " not found");
             std::vector<void *> arg_pointers;
             (arg_pointers.push_back(reinterpret_cast<void *>(std::addressof(args))), ...);
             void *ret = nullptr;
-            func_iter->second(obj, ret, arg_pointers);
+            func(obj, ret, arg_pointers);
             return ret;
-        }
-
-        template <typename T, typename... Args>
-        T Type::InvokeMethod(void *obj, const std::string &name, Args... args)
-        {
-            return *static_cast<T *>(InvokeMethod(obj, name, args...));
         }
     }
 }
