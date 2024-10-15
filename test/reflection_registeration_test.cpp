@@ -139,6 +139,19 @@ namespace Engine
                 Type_FooA->AddBaseType(Type_BBase);
             }
         };
+
+        template <typename T>
+        std::shared_ptr<Type> GetType(const T &obj)
+        {
+            if constexpr (std::is_same_v<T, FooA>)
+                return Type::s_type_map["FooA"];
+            else if constexpr (std::is_same_v<T, FooBase>)
+                return Type::s_type_map["FooBase"];
+            else if constexpr (std::is_same_v<T, BBase>)
+                return Type::s_type_map["BBase"];
+            else
+                return nullptr;
+        }
     }
 }
 
@@ -151,6 +164,7 @@ int main()
     type->InvokeMethod(foo.get(), "PrintInfo");
     int sum = *static_cast<int *>(type->InvokeMethod(foo.get(), "Add", 1, 2));
     std::cout << "Sum: " << sum << std::endl;
+    std::cout << "Type of foo: " << Engine::Reflection::GetType(*foo)->GetName() << std::endl;
 
     void *foo2 = type->CreateInstance(84651, 4532);
     type->InvokeMethod(foo2, "PrintInfo");

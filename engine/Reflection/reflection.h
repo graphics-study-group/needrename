@@ -17,6 +17,8 @@ namespace Engine
 {
     namespace Reflection
     {
+        template<typename T>
+        static std::shared_ptr<Type> GetType(const T &obj);
     }
 }
 
