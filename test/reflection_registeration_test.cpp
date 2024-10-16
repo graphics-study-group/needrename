@@ -7,6 +7,8 @@ public:
     FooBase() = default;
     virtual ~FooBase() = default;
 
+    REFLECTION int m_foobase = 1324;
+
     REFLECTION void PrintHelloWorld()
     {
         std::cout << "Hello World!" << std::endl;
@@ -19,6 +21,8 @@ public:
     BBase() = default;
     virtual ~BBase() = default;
 
+    REFLECTION int m_bbase = 23;
+
     REFLECTION void PrintB()
     {
         std::cout << "B" << std::endl;
@@ -27,12 +31,12 @@ public:
 
 class REFLECTION FooA : public FooBase, public BBase
 {
-    int m_a;
-    int m_b;
-
 public:
     FooA(int a, int b) : m_a(a), m_b(b) {}
     virtual ~FooA() = default;
+
+    REFLECTION int m_a = 42;
+    REFLECTION int m_b = 800;
 
     REFLECTION void PrintInfo()
     {
@@ -104,6 +108,7 @@ namespace Engine
                 type->setName("FooBase");
                 type->AddMethod(Type::constructer_name, Reflection_FooBase::wrapperConstructor);
                 type->AddMethod("PrintHelloWorld", Reflection_FooBase::wrapperPrintHelloWorld);
+                type->AddField("m_foobase", &FooBase::m_foobase);
                 Type::s_type_map["FooBase"] = type;
                 return type;
             }
@@ -114,6 +119,7 @@ namespace Engine
                 type->setName("BBase");
                 type->AddMethod(Type::constructer_name, Reflection_BBase::wrapperConstructor);
                 type->AddMethod("PrintB", Reflection_BBase::wrapperPrintB);
+                type->AddField("m_bbase", &BBase::m_bbase);
                 Type::s_type_map["BBase"] = type;
                 return type;
             }
@@ -125,6 +131,8 @@ namespace Engine
                 type->AddMethod(Type::constructer_name, Reflection_FooA::wrapperConstructor);
                 type->AddMethod("PrintInfo", Reflection_FooA::wrapperPrintInfo);
                 type->AddMethod("Add", Reflection_FooA::wrapperAdd);
+                type->AddField("m_a", &FooA::m_a);
+                type->AddField("m_b", &FooA::m_b);
                 Type::s_type_map["FooA"] = type;
                 return type;
             }
@@ -171,6 +179,9 @@ int main()
     sum = *static_cast<int *>(type->InvokeMethod(foo2, "Add", 3, 4));
     std::cout << "Sum: " << sum << std::endl;
     type->InvokeMethod(foo2, "PrintHelloWorld");
+
+    std::cout << *static_cast<int *>(type->GetField(foo.get(), "m_a")) << std::endl;
+    std::cout << type->GetField<int>(foo.get(), "m_b") << std::endl;
 
     return 0;
 }

@@ -41,5 +41,20 @@ namespace Engine
         {
             m_base_type.push_back(base_type);
         }
+
+        void *Type::GetField(void *obj, const std::string &name)
+        {
+            if (m_fields.find(name) != m_fields.end())
+            {
+                return reinterpret_cast<void *>(reinterpret_cast<std::byte *>(obj) + m_fields[name]);
+            }
+            for (auto &base_type : m_base_type)
+            {
+                void *field = base_type->GetField(obj, name);
+                if (field)
+                    return field;
+            }
+            return nullptr;
+        }
     }
 }
