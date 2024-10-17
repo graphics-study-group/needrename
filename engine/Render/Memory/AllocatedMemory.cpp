@@ -57,4 +57,26 @@ namespace Engine {
         }
         return *this;
     }
+    vk::Buffer AllocatedMemory::GetBuffer() const
+    {
+        assert(m_vk_handle.index() == 1 && "Getting buffer handle from other memory handle type.");
+        return static_cast<vk::Buffer>(std::get<1>(m_vk_handle));
+    }
+    vk::Image AllocatedMemory::GetImage() const
+    {
+        assert(m_vk_handle.index() == 0 && "Getting image handle from other memory handle type.");
+        return static_cast<vk::Image>(std::get<0>(m_vk_handle));
+    }
+    std::byte *AllocatedMemory::MapMemory()
+    {
+        assert(m_allocator && m_allocation && "Invalild allocator or allocation.");
+        void * ptr{nullptr};
+        vmaMapMemory(m_allocator, m_allocation, &ptr);
+        return reinterpret_cast<std::byte*>(ptr);
+    }
+    void AllocatedMemory::UnmapMemory()
+    {
+        assert(m_allocator && m_allocation && "Invalild allocator or allocation.");
+        vmaUnmapMemory(m_allocator, m_allocation);
+    }
 }
