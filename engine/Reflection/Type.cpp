@@ -8,43 +8,6 @@ namespace Engine
         // class Type
         std::unordered_map<std::string, std::shared_ptr<Type>> Type::s_type_map;
 
-        Type::Type(const std::string &name)
-            : m_name(name)
-        {
-            // TODO: better way to store type of basic types
-            if (name == "void" || name == typeid(void).name())
-                m_type_info = &typeid(void);
-            else if (name == "int" || name == typeid(int).name())
-                m_type_info = &typeid(int);
-            else if (name == "float" || name == typeid(float).name())
-                m_type_info = &typeid(float);
-            else if (name == "double" || name == typeid(double).name())
-                m_type_info = &typeid(double);
-            else if (name == "char" || name == typeid(char).name())
-                m_type_info = &typeid(char);
-            else if (name == "bool" || name == typeid(bool).name())
-                m_type_info = &typeid(bool);
-            else if (name == "short" || name == typeid(short).name())
-                m_type_info = &typeid(short);
-            else if (name == "long" || name == typeid(long).name())
-                m_type_info = &typeid(long);
-            else if (name == "unsigned int" || name == typeid(unsigned int).name())
-                m_type_info = &typeid(unsigned int);
-            else if (name == "unsigned char" || name == typeid(unsigned char).name())
-                m_type_info = &typeid(unsigned char);
-            else if (name == "unsigned short" || name == typeid(unsigned short).name())
-                m_type_info = &typeid(unsigned short);
-            else if (name == "unsigned long" || name == typeid(unsigned long).name())
-                m_type_info = &typeid(unsigned long);
-            else if (name == "long long" || name == typeid(long long).name())
-                m_type_info = &typeid(long long);
-            else if (name == "unsigned long long" || name == typeid(unsigned long long).name())
-                m_type_info = &typeid(unsigned long long);
-            else
-                m_type_info = nullptr;
-            this->reflectable = false;
-        }
-
         Type::Type(const std::string &name, const std::type_info *type_info, bool reflectable)
             : m_name(name), m_type_info(type_info), reflectable(reflectable)
         {

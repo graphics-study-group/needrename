@@ -18,6 +18,9 @@ namespace Engine
         class Method;
         class Var;
 
+        /// @brief The Type class represents a type in the reflection system.
+        /// It contains information about the type such as its name, base types, fields, and methods.
+        /// Note that only reflected types and some basic types use their own name. The other types use their type_info name.
         class Type : public std::enable_shared_from_this<Type>
         {
         public:
@@ -26,7 +29,6 @@ namespace Engine
 
         public:
             Type() = delete;
-            Type(const std::string &name);
             Type(const std::string &name, const std::type_info *type_info, bool reflectable = false);
             virtual ~Type() = default;
         

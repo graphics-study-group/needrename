@@ -106,8 +106,8 @@ namespace Engine
             {
                 std::shared_ptr<Type> type = std::make_shared<Type>("FooBase", &typeid(FooBase), true);
                 type->AddMethod(Type::constructer_name, std::make_shared<Method>(Type::constructer_name, Reflection_FooBase::wrapperConstructor, type));
-                type->AddMethod("PrintHelloWorld", std::make_shared<Method>("PrintHelloWorld", Reflection_FooBase::wrapperPrintHelloWorld, std::make_shared<Type>("void")));
-                type->AddField(std::make_shared<Type>("int"), "m_foobase", &FooBase::m_foobase);
+                type->AddMethod("PrintHelloWorld", std::make_shared<Method>("PrintHelloWorld", Reflection_FooBase::wrapperPrintHelloWorld, GetType("void")));
+                type->AddField(GetType("int"), "m_foobase", &FooBase::m_foobase);
                 Type::s_type_map["FooBase"] = type;
                 return type;
             }
@@ -116,8 +116,8 @@ namespace Engine
             {
                 std::shared_ptr<Type> type = std::make_shared<Type>("BBase", &typeid(BBase), true);
                 type->AddMethod(Type::constructer_name, std::make_shared<Method>(Type::constructer_name, Reflection_BBase::wrapperConstructor, type));
-                type->AddMethod("PrintB", std::make_shared<Method>("PrintB", Reflection_BBase::wrapperPrintB, std::make_shared<Type>("void")));
-                type->AddField(std::make_shared<Type>("int"), "m_bbase", &BBase::m_bbase);
+                type->AddMethod("PrintB", std::make_shared<Method>("PrintB", Reflection_BBase::wrapperPrintB, GetType("void")));
+                type->AddField(GetType("int"), "m_bbase", &BBase::m_bbase);
                 Type::s_type_map["BBase"] = type;
                 return type;
             }
@@ -126,10 +126,10 @@ namespace Engine
             {
                 std::shared_ptr<Type> type = std::make_shared<Type>("FooA", &typeid(FooA), true);
                 type->AddMethod(Type::constructer_name, std::make_shared<Method>(Type::constructer_name, Reflection_FooA::wrapperConstructor, type));
-                type->AddMethod("PrintInfo", std::make_shared<Method>("PrintInfo", Reflection_FooA::wrapperPrintInfo, std::make_shared<Type>("void")));
-                type->AddMethod("Add", std::make_shared<Method>("Add", Reflection_FooA::wrapperAdd, std::make_shared<Type>("int")));
-                type->AddField(std::make_shared<Type>("int"), "m_a", &FooA::m_a);
-                type->AddField(std::make_shared<Type>("int"), "m_b", &FooA::m_b);
+                type->AddMethod("PrintInfo", std::make_shared<Method>("PrintInfo", Reflection_FooA::wrapperPrintInfo, GetType("void")));
+                type->AddMethod("Add", std::make_shared<Method>("Add", Reflection_FooA::wrapperAdd, GetType("int")));
+                type->AddField(GetType("int"), "m_a", &FooA::m_a);
+                type->AddField(GetType("int"), "m_b", &FooA::m_b);
                 Type::s_type_map["FooA"] = type;
                 return type;
             }
@@ -146,7 +146,7 @@ namespace Engine
         };
 
         template <typename T>
-        std::shared_ptr<Type> GetType(const T &obj)
+        std::shared_ptr<Type> GetTypeFromObject(const T &obj)
         {
             if constexpr (std::is_same_v<T, FooA>)
                 return Type::s_type_map["FooA"];
@@ -155,13 +155,14 @@ namespace Engine
             else if constexpr (std::is_same_v<T, BBase>)
                 return Type::s_type_map["BBase"];
             else
-                return std::make_shared<Type>(typeid(T).name(), &typeid(T), false);
+                return GetType(typeid(T).name());
         }
     }
 }
 
 int main()
 {
+    Engine::Reflection::Initialize();
     Engine::Reflection::Registrar::RegisterAllTypes();
     auto type = Engine::Reflection::Type::s_type_map["FooA"];
 
