@@ -6,6 +6,7 @@
 
 #include "Type.h"
 #include "Field.h"
+#include "Method.h"
 
 // Suppress warning from attributes
 #pragma GCC diagnostic push

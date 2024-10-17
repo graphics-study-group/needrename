@@ -104,35 +104,32 @@ namespace Engine
         public:
             static std::shared_ptr<Type> Register_FooBase()
             {
-                std::shared_ptr<Type> type = std::make_shared<Type>();
-                type->setName("FooBase");
-                type->AddMethod(Type::constructer_name, Reflection_FooBase::wrapperConstructor);
-                type->AddMethod("PrintHelloWorld", Reflection_FooBase::wrapperPrintHelloWorld);
-                type->AddField("m_foobase", &FooBase::m_foobase);
+                std::shared_ptr<Type> type = std::make_shared<Type>("FooBase", &typeid(FooBase), true);
+                type->AddMethod(Type::constructer_name, std::make_shared<Method>(Type::constructer_name, Reflection_FooBase::wrapperConstructor, type));
+                type->AddMethod("PrintHelloWorld", std::make_shared<Method>("PrintHelloWorld", Reflection_FooBase::wrapperPrintHelloWorld, std::make_shared<Type>("void")));
+                type->AddField(std::make_shared<Type>("int"), "m_foobase", &FooBase::m_foobase);
                 Type::s_type_map["FooBase"] = type;
                 return type;
             }
 
             static std::shared_ptr<Type> Register_BBase()
             {
-                std::shared_ptr<Type> type = std::make_shared<Type>();
-                type->setName("BBase");
-                type->AddMethod(Type::constructer_name, Reflection_BBase::wrapperConstructor);
-                type->AddMethod("PrintB", Reflection_BBase::wrapperPrintB);
-                type->AddField("m_bbase", &BBase::m_bbase);
+                std::shared_ptr<Type> type = std::make_shared<Type>("BBase", &typeid(BBase), true);
+                type->AddMethod(Type::constructer_name, std::make_shared<Method>(Type::constructer_name, Reflection_BBase::wrapperConstructor, type));
+                type->AddMethod("PrintB", std::make_shared<Method>("PrintB", Reflection_BBase::wrapperPrintB, std::make_shared<Type>("void")));
+                type->AddField(std::make_shared<Type>("int"), "m_bbase", &BBase::m_bbase);
                 Type::s_type_map["BBase"] = type;
                 return type;
             }
 
             static std::shared_ptr<Type> Register_FooA()
             {
-                std::shared_ptr<Type> type = std::make_shared<Type>();
-                type->setName("FooA");
-                type->AddMethod(Type::constructer_name, Reflection_FooA::wrapperConstructor);
-                type->AddMethod("PrintInfo", Reflection_FooA::wrapperPrintInfo);
-                type->AddMethod("Add", Reflection_FooA::wrapperAdd);
-                type->AddField("m_a", &FooA::m_a);
-                type->AddField("m_b", &FooA::m_b);
+                std::shared_ptr<Type> type = std::make_shared<Type>("FooA", &typeid(FooA), true);
+                type->AddMethod(Type::constructer_name, std::make_shared<Method>(Type::constructer_name, Reflection_FooA::wrapperConstructor, type));
+                type->AddMethod("PrintInfo", std::make_shared<Method>("PrintInfo", Reflection_FooA::wrapperPrintInfo, std::make_shared<Type>("void")));
+                type->AddMethod("Add", std::make_shared<Method>("Add", Reflection_FooA::wrapperAdd, std::make_shared<Type>("int")));
+                type->AddField(std::make_shared<Type>("int"), "m_a", &FooA::m_a);
+                type->AddField(std::make_shared<Type>("int"), "m_b", &FooA::m_b);
                 Type::s_type_map["FooA"] = type;
                 return type;
             }
@@ -158,7 +155,7 @@ namespace Engine
             else if constexpr (std::is_same_v<T, BBase>)
                 return Type::s_type_map["BBase"];
             else
-                return nullptr;
+                return std::make_shared<Type>(typeid(T).name(), &typeid(T), false);
         }
     }
 }
@@ -168,20 +165,19 @@ int main()
     Engine::Reflection::Registrar::RegisterAllTypes();
     auto type = Engine::Reflection::Type::s_type_map["FooA"];
 
-    std::shared_ptr<FooA> foo = std::shared_ptr<FooA>(static_cast<FooA *>(type->CreateInstance(123, 456)));
-    type->InvokeMethod(foo.get(), "PrintInfo");
-    int sum = *static_cast<int *>(type->InvokeMethod(foo.get(), "Add", 1, 2));
+    Engine::Reflection::Var foo = type->CreateInstance(123, 456);
+    foo.InvokeMethod("PrintInfo");
+    int sum = foo.InvokeMethod("Add", 1, 2).Get<int>();
     std::cout << "Sum: " << sum << std::endl;
-    std::cout << "Type of foo: " << Engine::Reflection::GetType(*foo)->GetName() << std::endl;
+    std::cout << "Type of foo: " << foo.m_type->GetName() << std::endl;
 
-    void *foo2 = type->CreateInstance(84651, 4532);
-    type->InvokeMethod(foo2, "PrintInfo");
-    sum = *static_cast<int *>(type->InvokeMethod(foo2, "Add", 3, 4));
+    Engine::Reflection::Var foo2 = type->CreateInstance(84651, 4532);
+    foo2.InvokeMethod("PrintInfo");
+    sum = foo2.InvokeMethod("Add", 3, 4).Get<int>();
     std::cout << "Sum: " << sum << std::endl;
-    type->InvokeMethod(foo2, "PrintHelloWorld");
+    foo2.InvokeMethod("PrintHelloWorld");
 
-    std::cout << *static_cast<int *>(type->GetField(foo.get(), "m_a")) << std::endl;
-    std::cout << type->GetField<int>(foo.get(), "m_b") << std::endl;
+    std::cout << foo.GetMember("m_a").Get<int>() << std::endl;
 
     return 0;
 }
