@@ -56,7 +56,7 @@ namespace Engine::RenderSystemState {
         return m_allocator;
     }
 
-    AllocatedMemory AllocatorState::AllocateBuffer(BufferType type, size_t size)
+    AllocatedMemory AllocatorState::AllocateBuffer(BufferType type, size_t size) const
     {
         assert(m_allocator && "Allocated not initalized.");
         auto [busage, flags, musage] = GetBufferFlags(type);
@@ -77,5 +77,28 @@ namespace Engine::RenderSystemState {
         RaiseException(result);
         assert(buffer != nullptr && allocation != nullptr);
         return AllocatedMemory(static_cast<vk::Buffer>(buffer), allocation, m_allocator);
+    }
+
+    std::unique_ptr<AllocatedMemory> AllocatorState::AllocateBufferUnique(BufferType type, size_t size) const
+    {
+        assert(m_allocator && "Allocated not initalized.");
+        auto [busage, flags, musage] = GetBufferFlags(type);
+
+        VkBufferCreateInfo bcinfo {};
+        bcinfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        bcinfo.size = size;
+        bcinfo.usage = static_cast<VkBufferUsageFlags>(busage);
+
+        VmaAllocationCreateInfo ainfo = {};
+        ainfo.flags = flags;
+        ainfo.usage = musage;
+        
+        VkBuffer buffer {};
+        VmaAllocation allocation{};
+
+        VkResult result = vmaCreateBuffer(m_allocator, &bcinfo, &ainfo, &buffer, &allocation, nullptr);
+        RaiseException(result);
+        assert(buffer != nullptr && allocation != nullptr);
+        return std::make_unique<AllocatedMemory>(static_cast<vk::Buffer>(buffer), allocation, m_allocator);
     }
 }

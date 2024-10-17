@@ -22,6 +22,11 @@ namespace Engine {
         AllocatedMemory (AllocatedMemory && other);
         AllocatedMemory & operator = (AllocatedMemory && other);
 
+        vk::Buffer GetBuffer() const;
+        vk::Image GetImage() const;
+
+        std::byte * MapMemory();
+        void UnmapMemory();
     };
 }
 

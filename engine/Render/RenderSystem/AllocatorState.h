@@ -37,7 +37,8 @@ namespace Engine {
             void Create(std::shared_ptr <RenderSystem> system);
             VmaAllocator GetAllocator() const;
 
-            AllocatedMemory AllocateBuffer(BufferType type, size_t size);
+            AllocatedMemory AllocateBuffer(BufferType type, size_t size) const;
+            std::unique_ptr <AllocatedMemory> AllocateBufferUnique(BufferType type, size_t size) const;
         };
     }
 }
