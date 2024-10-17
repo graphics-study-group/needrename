@@ -40,7 +40,7 @@ namespace Engine::RenderSystemState {
     {
         m_system = system;
 
-        VmaAllocatorCreateInfo info;
+        VmaAllocatorCreateInfo info {};
         info.device = system->getDevice();
         info.physicalDevice = system->GetPhysicalDevice();
         info.instance = system->getInstance();
