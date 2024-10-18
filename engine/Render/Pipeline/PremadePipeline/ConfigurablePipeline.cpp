@@ -87,7 +87,7 @@ namespace Engine::PremadePipeline {
         vk::PipelineRenderingCreateInfo rinfo {
             0,
             color_attachment_formats,
-            swapchain.DEPTH_FORMAT,
+            ImageUtils::GetVkFormat(swapchain.DEPTH_FORMAT),
             vk::Format::eUndefined
         };
         info.pNext = &rinfo;
