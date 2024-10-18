@@ -68,9 +68,9 @@ namespace Engine {
         {
             switch (format) {
                 case ImageFormat::R8G8B8SRGB:
-                    return vk::Format::eR8G8B8A8Srgb;
-                case ImageFormat::R8G8B8A8SRGB:
                     return vk::Format::eR8G8B8Srgb;
+                case ImageFormat::R8G8B8A8SRGB:
+                    return vk::Format::eR8G8B8A8Srgb;
                 case ImageFormat::D32SFLOAT:
                     return vk::Format::eD32Sfloat;
             }
