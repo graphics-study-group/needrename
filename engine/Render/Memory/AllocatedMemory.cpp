@@ -6,6 +6,11 @@ namespace Engine {
         if (m_allocator == nullptr) return;
 
         assert(m_allocation);
+
+        if (m_mapped_memory) {
+            this->UnmapMemory();
+        }
+
         switch (this->m_vk_handle.index()) {
         case 0:
             vmaDestroyImage(m_allocator, std::get<0>(m_vk_handle), m_allocation);
@@ -70,13 +75,18 @@ namespace Engine {
     std::byte *AllocatedMemory::MapMemory()
     {
         assert(m_allocator && m_allocation && "Invalild allocator or allocation.");
+        if (m_mapped_memory) {
+            return m_mapped_memory;
+        }
         void * ptr{nullptr};
         vmaMapMemory(m_allocator, m_allocation, &ptr);
-        return reinterpret_cast<std::byte*>(ptr);
+        m_mapped_memory = reinterpret_cast<std::byte*>(ptr);
+        return m_mapped_memory;
     }
     void AllocatedMemory::UnmapMemory()
     {
         assert(m_allocator && m_allocation && "Invalild allocator or allocation.");
         vmaUnmapMemory(m_allocator, m_allocation);
+        m_mapped_memory = nullptr;
     }
 }

@@ -50,13 +50,6 @@ namespace Engine::RenderSystemState{
         system->getDevice().updateDescriptorSets(writes, {});
     }
 
-    GlobalConstantDescriptorPool::~GlobalConstantDescriptorPool()
-    {
-        for (auto & buffer : m_per_camera_buffers) {
-            buffer.Unmap();
-        }
-    }
-
     void GlobalConstantDescriptorPool::Create(std::weak_ptr<RenderSystem> system, uint32_t inflight_frame_count)
     {
         auto p_system = system.lock();

@@ -1,5 +1,5 @@
-#ifndef RENDER_MEMORY_ALLOCATEDIMAGE_INCLUDED
-#define RENDER_MEMORY_ALLOCATEDIMAGE_INCLUDED
+#ifndef RENDER_MEMORY_ALLOCATEDMEMORY_INCLUDED
+#define RENDER_MEMORY_ALLOCATEDMEMORY_INCLUDED
 
 #include <vk_mem_alloc.h>
 
@@ -8,6 +8,8 @@ namespace Engine {
         std::variant <vk::Image, vk::Buffer> m_vk_handle;
         VmaAllocation m_allocation;
         VmaAllocator m_allocator;
+
+        std::byte * m_mapped_memory {nullptr};
 
         void ClearAndInvalidate();
 
@@ -30,4 +32,4 @@ namespace Engine {
     };
 }
 
-#endif // RENDER_MEMORY_ALLOCATEDIMAGE_INCLUDED
+#endif // RENDER_MEMORY_ALLOCATEDMEMORY_INCLUDED
