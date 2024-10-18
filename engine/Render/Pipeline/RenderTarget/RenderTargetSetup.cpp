@@ -19,7 +19,11 @@ namespace Engine {
 
     void RenderTargetSetup::SetClearValues(std::vector<vk::ClearValue> clear_values)
     {
-        assert(clear_values.size() == 2);
+        // TODO: Better clear values and attachment matching
+        assert( 
+            (clear_values.size() == 1 && !m_swapchain.IsDepthEnabled()) || 
+            (clear_values.size() == 2 && m_swapchain.IsDepthEnabled())
+        );
         m_clear_values = clear_values;
     }
 
