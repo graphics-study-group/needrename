@@ -13,7 +13,7 @@ namespace Engine {
 
     public:
         AllocatedImage2DTexture(std::weak_ptr <RenderSystem> system);
-        void Create(uint32_t width, uint32_t height, vk::Format format, uint32_t mip = 1);
+        void Create(uint32_t width, uint32_t height, ImageUtils::ImageFormat format, uint32_t mip = 1);
         
         Buffer CreateStagingBuffer() const;
     };

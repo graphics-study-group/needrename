@@ -3,7 +3,7 @@
 #include "Render/RenderSystem.h"
 
 namespace Engine::RenderSystemState {
-    std::tuple<vk::BufferUsageFlags, VmaAllocationCreateFlags, VmaMemoryUsage> AllocatorState::GetBufferFlags(BufferType type)
+    std::tuple<vk::BufferUsageFlags, VmaAllocationCreateFlags, VmaMemoryUsage> constexpr AllocatorState::GetBufferFlags(BufferType type)
     {
         switch (type) {
             case BufferType::Staging:
@@ -25,7 +25,11 @@ namespace Engine::RenderSystemState {
                     VMA_MEMORY_USAGE_AUTO_PREFER_HOST
                     );
         }
-        __builtin_unreachable();
+        return std::make_tuple(
+            vk::BufferUsageFlags{},
+            0,
+            VMA_MEMORY_USAGE_AUTO
+        );
     }
 
     void AllocatorState::RaiseException(VkResult result)
@@ -82,5 +86,48 @@ namespace Engine::RenderSystemState {
     std::unique_ptr<AllocatedMemory> AllocatorState::AllocateBufferUnique(BufferType type, size_t size) const
     {
         return std::make_unique<AllocatedMemory>(AllocateBuffer(type, size));
+    }
+
+    AllocatedMemory AllocatorState::AllocateImage(ImageUtils::ImageType type, VkExtent3D dimension, VkFormat format) const
+    {
+        return AllocateImageEx(type, dimension, format, 1, 1);
+    }
+
+    std::unique_ptr<AllocatedMemory> AllocatorState::AllocateImageUnique(ImageUtils::ImageType type, VkExtent3D dimension, VkFormat format) const
+    {
+        return std::make_unique<AllocatedMemory>(AllocateImage(type, dimension, format));
+    }
+
+    AllocatedMemory AllocatorState::AllocateImageEx(
+        ImageUtils::ImageType type, 
+        VkExtent3D dimension, 
+        VkFormat format, 
+        uint32_t miplevel, 
+        uint32_t array_layers
+    ) const
+    {
+        const auto [iusage, musage] = ImageUtils::GetImageFlags(type);
+        VkImageCreateInfo iinfo {};
+        iinfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+        iinfo.imageType = static_cast<VkImageType>(ImageUtils::GetVkTypeFromExtent(dimension));
+        iinfo.format = format;
+        iinfo.extent = dimension;
+        iinfo.mipLevels = miplevel;
+        iinfo.arrayLayers = array_layers;
+        iinfo.samples = VK_SAMPLE_COUNT_1_BIT;
+        iinfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+        iinfo.usage = static_cast<VkImageUsageFlags>(iusage);
+        iinfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        iinfo.queueFamilyIndexCount = 0;
+        iinfo.pQueueFamilyIndices = nullptr;
+        iinfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+        VmaAllocationCreateInfo ainfo {};
+        ainfo.usage = musage;
+
+        VkImage image;
+        VmaAllocation allocation;
+        vmaCreateImage(m_allocator, &iinfo, &ainfo, &image, &allocation, nullptr);
+        return AllocatedMemory(static_cast<vk::Image>(image), allocation, m_allocator);
     }
 }

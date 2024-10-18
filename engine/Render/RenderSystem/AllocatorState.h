@@ -4,6 +4,7 @@
 #include <memory>
 #include <vk_mem_alloc.h>
 
+#include "Render/ImageUtils.h"
 #include "Render/Memory/AllocatedMemory.h"
 
 namespace Engine {
@@ -24,7 +25,7 @@ namespace Engine {
             std::weak_ptr <RenderSystem> m_system {};
             VmaAllocator m_allocator {};
 
-            static std::tuple<vk::BufferUsageFlags, VmaAllocationCreateFlags, VmaMemoryUsage> GetBufferFlags(BufferType type);
+            static constexpr std::tuple<vk::BufferUsageFlags, VmaAllocationCreateFlags, VmaMemoryUsage> GetBufferFlags(BufferType type);
             static void RaiseException(VkResult result);
 
         public:
@@ -39,6 +40,17 @@ namespace Engine {
 
             AllocatedMemory AllocateBuffer(BufferType type, size_t size) const;
             std::unique_ptr <AllocatedMemory> AllocateBufferUnique(BufferType type, size_t size) const;
+
+            AllocatedMemory AllocateImage(ImageUtils::ImageType type, VkExtent3D dimension, VkFormat format) const;
+            std::unique_ptr <AllocatedMemory> AllocateImageUnique(ImageUtils::ImageType type, VkExtent3D dimension, VkFormat format) const;
+
+            AllocatedMemory AllocateImageEx (
+                ImageUtils::ImageType type, 
+                VkExtent3D dimension, 
+                VkFormat format, 
+                uint32_t miplevel,
+                uint32_t array_layers
+            ) const;
         };
     }
 }
