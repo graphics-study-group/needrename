@@ -141,7 +141,7 @@ public:
             int tex_width, tex_height, tex_channel;
             stbi_uc * raw_image_data = stbi_load(m_texture_files[mat].string().c_str(), &tex_width, &tex_height, &tex_channel, 4);
             assert(raw_image_data);
-            m_textures[mat]->Create(tex_width, tex_height, vk::Format::eR8G8B8A8Srgb);
+            m_textures[mat]->Create(tex_width, tex_height, ImageUtils::ImageFormat::R8G8B8A8SRGB);
             tcb.CommitTextureImage(*m_textures[mat], reinterpret_cast<std::byte *>(raw_image_data), tex_width * tex_height * 4);
 
             // Write descriptors
