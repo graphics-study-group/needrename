@@ -37,7 +37,7 @@ namespace Engine {
 
             void RetrieveImageViews(vk::Device device);
         public:
-            static constexpr vk::Format DEPTH_FORMAT = vk::Format::eD32Sfloat;
+            static constexpr auto DEPTH_FORMAT = ImageUtils::ImageFormat::D32SFLOAT;
 
             void CreateSwapchain(const PhysicalDevice & physical_device, 
                 vk::Device logical_device, 

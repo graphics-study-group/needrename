@@ -4,6 +4,8 @@
 #include <vulkan/vulkan.hpp>
 #include <memory>
 
+#include "Render/RenderSystem/AllocatorState.h"
+
 namespace Engine{
 
     class RenderSystem;
@@ -13,15 +15,7 @@ namespace Engine{
     class Buffer {
     public:
 
-        enum class BufferType {
-            // Staging buffer on host memory
-            Staging,
-            // Vertex buffer on device memory
-            Vertex,
-            // Uniform buffer on host memory
-            Uniform
-        };
-
+        using BufferType = RenderSystemState::AllocatorState::BufferType;
         Buffer (std::weak_ptr <RenderSystem> system);
 
         /// @brief Create a buffer, and perform allocation if needed.
@@ -30,7 +24,6 @@ namespace Engine{
         void Create(BufferType type, size_t size);
 
         vk::Buffer GetBuffer () const;
-        vk::DeviceMemory GetMemory () const;
 
         size_t GetSize() const;
 
@@ -40,15 +33,8 @@ namespace Engine{
     protected:
         size_t m_size {0ULL};
 
-        [[maybe_unused]]
-        size_t m_offset {0ULL};
-
         std::weak_ptr <RenderSystem> m_system;
-        vk::UniqueBuffer m_buffer {};
-        vk::UniqueDeviceMemory m_memory {};
-
-        static vk::MemoryPropertyFlags GetMemoryProperty(BufferType type);
-        static vk::BufferUsageFlags GetBufferUsage(BufferType type);
+        std::unique_ptr <AllocatedMemory> m_allocated_memory {};
     };
 }
 

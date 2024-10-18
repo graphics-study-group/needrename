@@ -141,7 +141,7 @@ namespace Engine::RenderSystemState{
             m_depth_images[i].Create(
                 m_extent.width, 
                 m_extent.height, 
-                AllocatedImage2D::ImageType::DepthImage,
+                ImageUtils::ImageType::DepthImage,
                 DEPTH_FORMAT
             );
         }

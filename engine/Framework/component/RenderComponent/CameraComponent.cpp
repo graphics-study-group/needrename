@@ -15,6 +15,7 @@ namespace Engine{
 
     void CameraComponent::Tick(float)
     {
+        // TODO: Update view and projection matrix
     }
 
     glm::mat4 CameraComponent::GetViewMatrix() const

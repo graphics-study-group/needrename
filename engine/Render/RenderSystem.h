@@ -9,6 +9,7 @@
 #include "Render/Pipeline/CommandBuffer.h"
 #include "Render/RenderSystem/Synch/InflightTwoStageSynch.h"
 
+#include "Render/RenderSystem/AllocatorState.h"
 #include "Render/RenderSystem/Instance.h"
 #include "Render/RenderSystem/PhysicalDevice.h"
 #include "Render/RenderSystem/Swapchain.h"
@@ -85,6 +86,8 @@ namespace Engine
         vk::Instance getInstance() const;
         vk::SurfaceKHR getSurface() const;
         vk::Device getDevice() const;
+        vk::PhysicalDevice GetPhysicalDevice() const;
+        const RenderSystemState::AllocatorState & GetAllocatorState() const;
         const QueueInfo & getQueueInfo () const;
         const RenderSystemState::Swapchain & GetSwapchain() const;
         const Synchronization & getSynchronization() const;
@@ -125,6 +128,8 @@ namespace Engine
         RenderSystemState::Instance m_instance {};
         vk::UniqueSurfaceKHR m_surface{};
         vk::UniqueDevice m_device{};
+
+        RenderSystemState::AllocatorState m_allocator_state {};
         
         QueueInfo  m_queues {};
         RenderSystemState::Swapchain m_swapchain{};
