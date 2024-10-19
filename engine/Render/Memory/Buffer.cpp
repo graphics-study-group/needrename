@@ -24,6 +24,14 @@ namespace Engine
         return m_allocated_memory->MapMemory();
     }
 
+    void Buffer::Flush(size_t offset, size_t size) const {
+        m_allocated_memory->FlushMemory(offset, size);
+    }
+
+    void Buffer::Invalidate(size_t offset, size_t size) const {
+        m_allocated_memory->InvalidateMemory(offset, size);
+    }
+
     void Buffer::Unmap() const {
         m_allocated_memory->UnmapMemory();
     }
