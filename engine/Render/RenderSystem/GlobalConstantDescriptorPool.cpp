@@ -78,4 +78,8 @@ namespace Engine::RenderSystemState{
         assert(inflight < m_per_camera_memories.size());
         return m_per_camera_memories[inflight];
     }
+    void GlobalConstantDescriptorPool::FlushPerCameraConstantMemory(uint32_t inflight) const {
+        assert(inflight < m_per_camera_memories.size());
+        m_per_camera_buffers[inflight].Flush();
+    }
 };

@@ -28,6 +28,8 @@ namespace Engine {
         vk::Image GetImage() const;
 
         std::byte * MapMemory();
+        void FlushMemory (size_t offset = 0, size_t size = 0);
+        void InvalidateMemory (size_t offset = 0, size_t size = 0);
         void UnmapMemory();
     };
 }

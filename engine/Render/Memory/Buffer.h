@@ -28,6 +28,8 @@ namespace Engine{
         size_t GetSize() const;
 
         std::byte * Map() const;
+        void Flush(size_t offset = 0, size_t size = 0) const;
+        void Invalidate (size_t offset = 0, size_t size = 0) const;
         void Unmap() const;
     
     protected:

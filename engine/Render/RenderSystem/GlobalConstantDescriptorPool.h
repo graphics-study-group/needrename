@@ -34,6 +34,7 @@ namespace Engine {
             auto GetPerCameraConstantLayout() const -> const decltype(m_per_camera_constant_layout) &;
             auto GetPerCameraConstantSet(uint32_t inflight) const -> const decltype(m_per_camera_descriptor_sets[inflight]) &;
             std::byte * GetPerCameraConstantMemory(uint32_t inflight) const;
+            void FlushPerCameraConstantMemory(uint32_t inflight) const;
         };
     }
 }
