@@ -67,12 +67,6 @@ namespace Engine
         /// @note You need to recreate depth images and framebuffers that refer to the swap chain.
         void UpdateSwapchain();
 
-        /// @brief Find a physical memory satisfying demands.
-        /// @param type type of the requested memory
-        /// @param properties properties of the request memory
-        /// @return 
-        uint32_t FindPhysicalMemory(uint32_t type, vk::MemoryPropertyFlags properties);
-
         /// @brief Blocks and waits for a fence, signaling a frame is ready for rendering.
         /// Resets corresponding command buffer and fence.
         /// @param frame_index 
