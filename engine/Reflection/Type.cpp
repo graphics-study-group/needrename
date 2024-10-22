@@ -36,11 +36,11 @@ namespace Engine
             m_name = name;
         }
 
-        void Type::AddMethod(const std::string &name, std::shared_ptr<Method> method)
+        void Type::AddMethod(std::shared_ptr<Method> method)
         {
-            if (m_methods.find(name) != m_methods.end())
-                throw std::runtime_error("Method " + name + " already exists");
-            m_methods[name] = method;
+            if (m_methods.find(method->m_name) != m_methods.end())
+                throw std::runtime_error("Method " + method->m_name + " already exists");
+            m_methods[method->m_name] = method;
         }
 
         void Type::AddBaseType(std::shared_ptr<Type> base_type)

@@ -5,6 +5,7 @@
 #include <functional>
 #include <vector>
 #include <memory>
+#include "utils.h"
 
 namespace Engine
 {
@@ -13,14 +14,13 @@ namespace Engine
         class Type;
         class Var;
 
-        /// @brief Wrapper function for member function. Format: <the owerner object of the member function, return value, arguments>
-        using WrapperMemberFunc = std::function<void(void *, void *&, std::vector<void *>)>;
-
         class Method
         {
         public:
             Method() = delete;
             Method(const std::string &name, WrapperMemberFunc func, std::shared_ptr<Type> return_type);
+            template <typename T>
+            Method(const std::string &name, WrapperMemberFunc func, std::shared_ptr<Type> return_type, T original_func);
             ~Method() = default;
 
         protected:

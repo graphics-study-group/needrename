@@ -9,7 +9,7 @@ public:
 
     REFLECTION int m_foobase = 1324;
 
-    REFLECTION void PrintHelloWorld()
+    REFLECTION virtual void PrintHelloWorld()
     {
         std::cout << "Hello World!" << std::endl;
     }
@@ -47,66 +47,40 @@ public:
     {
         return a + b;
     }
+
+    REFLECTION int Add(int a, int b, int c)
+    {
+        return a + b + c + m_a + m_b;
+    }
+
+    REFLECTION virtual void PrintHelloWorld()
+    {
+        std::cout << "Hello World from FooA!" << std::endl;
+    }
 };
 
 namespace Engine
 {
     namespace Reflection
     {
-        namespace Reflection_FooBase
-        {
-            void wrapperConstructor(void *obj, void *&ret, std::vector<void *> args)
-            {
-                ret = static_cast<void *>(new FooBase());
-            }
-
-            void wrapperPrintHelloWorld(void *obj, void *&ret, std::vector<void *> args)
-            {
-                static_cast<FooBase *>(obj)->PrintHelloWorld();
-            }
-        }
-
-        namespace Reflection_BBase
-        {
-            void wrapperConstructor(void *obj, void *&ret, std::vector<void *> args)
-            {
-                ret = static_cast<void *>(new BBase());
-            }
-
-            void wrapperPrintB(void *obj, void *&ret, std::vector<void *> args)
-            {
-                static_cast<BBase *>(obj)->PrintB();
-            }
-        }
-
-        namespace Reflection_FooA
-        {
-            void wrapperConstructor(void *obj, void *&ret, std::vector<void *> args)
-            {
-                ret = static_cast<void *>(new FooA(*static_cast<int *>(args[0]), *static_cast<int *>(args[1])));
-            }
-
-            void wrapperPrintInfo(void *obj, void *&ret, std::vector<void *> args)
-            {
-                static_cast<FooA *>(obj)->PrintInfo();
-            }
-
-            void wrapperAdd(void *obj, void *&ret, std::vector<void *> args)
-            {
-                int *ret_ptr = static_cast<int *>(malloc(sizeof(int)));
-                *ret_ptr = static_cast<FooA *>(obj)->Add(*static_cast<int *>(args[0]), *static_cast<int *>(args[1]));
-                ret = static_cast<void *>(ret_ptr);
-            }
-        }
-
         class Registrar
         {
         public:
             static std::shared_ptr<Type> Register_FooBase()
             {
                 std::shared_ptr<Type> type = std::make_shared<Type>("FooBase", &typeid(FooBase), true);
-                type->AddMethod(Type::constructer_name, std::make_shared<Method>(Type::constructer_name, Reflection_FooBase::wrapperConstructor, type));
-                type->AddMethod("PrintHelloWorld", std::make_shared<Method>("PrintHelloWorld", Reflection_FooBase::wrapperPrintHelloWorld, GetType("void")));
+                type->AddMethod(
+                    std::make_shared<Method>(
+                        std::string(Type::constructer_name) + GetMangledName<>(),
+                        [](void *obj, void *&ret, std::vector<void *> args)
+                        { ret = static_cast<void *>(new FooBase()); },
+                        type));
+                type->AddMethod(
+                    "PrintHelloWorld",
+                    [](void *obj, void *&ret, std::vector<void *> args)
+                    { static_cast<FooBase *>(obj)->PrintHelloWorld(); },
+                    GetType("void"),
+                    &FooBase::PrintHelloWorld);
                 type->AddField(GetType("int"), "m_foobase", &FooBase::m_foobase);
                 Type::s_type_map["FooBase"] = type;
                 return type;
@@ -115,8 +89,18 @@ namespace Engine
             static std::shared_ptr<Type> Register_BBase()
             {
                 std::shared_ptr<Type> type = std::make_shared<Type>("BBase", &typeid(BBase), true);
-                type->AddMethod(Type::constructer_name, std::make_shared<Method>(Type::constructer_name, Reflection_BBase::wrapperConstructor, type));
-                type->AddMethod("PrintB", std::make_shared<Method>("PrintB", Reflection_BBase::wrapperPrintB, GetType("void")));
+                type->AddMethod(
+                    std::make_shared<Method>(
+                        std::string(Type::constructer_name) + GetMangledName<>(),
+                        [](void *obj, void *&ret, std::vector<void *> args)
+                        { ret = static_cast<void *>(new BBase()); },
+                        type));
+                type->AddMethod(
+                    "PrintB",
+                    [](void *obj, void *&ret, std::vector<void *> args)
+                    { static_cast<BBase *>(obj)->PrintB(); },
+                    GetType("void"),
+                    &BBase::PrintB);
                 type->AddField(GetType("int"), "m_bbase", &BBase::m_bbase);
                 Type::s_type_map["BBase"] = type;
                 return type;
@@ -125,9 +109,36 @@ namespace Engine
             static std::shared_ptr<Type> Register_FooA()
             {
                 std::shared_ptr<Type> type = std::make_shared<Type>("FooA", &typeid(FooA), true);
-                type->AddMethod(Type::constructer_name, std::make_shared<Method>(Type::constructer_name, Reflection_FooA::wrapperConstructor, type));
-                type->AddMethod("PrintInfo", std::make_shared<Method>("PrintInfo", Reflection_FooA::wrapperPrintInfo, GetType("void")));
-                type->AddMethod("Add", std::make_shared<Method>("Add", Reflection_FooA::wrapperAdd, GetType("int")));
+                type->AddMethod(
+                    std::make_shared<Method>(
+                        std::string(Type::constructer_name) + GetMangledName<int, int>(),
+                        [](void *obj, void *&ret, std::vector<void *> args)
+                        { ret = static_cast<void *>(new FooA(*static_cast<int *>(args[0]), *static_cast<int *>(args[1]))); },
+                        type));
+                type->AddMethod(
+                    "PrintInfo",
+                    [](void *obj, void *&ret, std::vector<void *> args)
+                    { static_cast<FooA *>(obj)->PrintInfo(); },
+                    GetType("void"),
+                    &FooA::PrintInfo);
+                type->AddMethod(
+                    "Add",
+                    [](void *obj, void *&ret, std::vector<void *> args)
+                    { int *ret_ptr = static_cast<int *>(malloc(sizeof(int))); *ret_ptr = static_cast<FooA *>(obj)->Add(*static_cast<int *>(args[0]), *static_cast<int *>(args[1])); ret = static_cast<void *>(ret_ptr); },
+                    GetType("int"),
+                    (int(FooA::*)(int, int)) & FooA::Add);
+                type->AddMethod(
+                    "Add",
+                    [](void *obj, void *&ret, std::vector<void *> args)
+                    { int *ret_ptr = static_cast<int *>(malloc(sizeof(int))); *ret_ptr = static_cast<FooA *>(obj)->Add(*static_cast<int *>(args[0]), *static_cast<int *>(args[1]), *static_cast<int *>(args[2])); ret = static_cast<void *>(ret_ptr); },
+                    GetType("int"),
+                    (int(FooA::*)(int, int, int)) & FooA::Add);
+                type->AddMethod(
+                    "PrintHelloWorld",
+                    [](void *obj, void *&ret, std::vector<void *> args)
+                    { static_cast<FooA *>(obj)->PrintHelloWorld(); },
+                    GetType("void"),
+                    &FooA::PrintHelloWorld);
                 type->AddField(GetType("int"), "m_a", &FooA::m_a);
                 type->AddField(GetType("int"), "m_b", &FooA::m_b);
                 Type::s_type_map["FooA"] = type;
@@ -170,7 +181,10 @@ int main()
     foo.InvokeMethod("PrintInfo");
     int sum = foo.InvokeMethod("Add", 1, 2).Get<int>();
     std::cout << "Sum: " << sum << std::endl;
+    std::cout << "Sum3: " << foo.InvokeMethod("Add", 1, 2, 3).Get<int>() << std::endl;
     std::cout << "Type of foo: " << foo.m_type->GetName() << std::endl;
+    Engine::Reflection::Var base(Engine::Reflection::GetType("FooBase"), foo.GetDataPtr());
+    base.InvokeMethod("PrintHelloWorld");
 
     Engine::Reflection::Var foo2 = type->CreateInstance(84651, 4532);
     foo2.InvokeMethod("PrintInfo");
@@ -179,6 +193,9 @@ int main()
     foo2.InvokeMethod("PrintHelloWorld");
 
     std::cout << foo.GetMember("m_a").Get<int>() << std::endl;
+
+    std::cout << Engine::Reflection::GetMangledName<int, char, float, double>() << std::endl;
+    // std::cout << Engine::Reflection::GetFunctionArgsMangledName(FooA::Add) << std::endl;
 
     return 0;
 }

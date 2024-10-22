@@ -2,11 +2,20 @@
 #include "Field.h"
 #include "Var.h"
 #include "Method.h"
+#include "utils.h"
 
 namespace Engine
 {
     namespace Reflection
     {
+        template <typename T>
+        void Type::AddMethod(const std::string &name, WrapperMemberFunc func, std::shared_ptr<Type> return_type, T original_func)
+        {
+            static_assert(std::is_member_function_pointer_v<T>);
+            std::string mangled_name = name + GetFunctionArgsMangledName(original_func);
+            m_methods[mangled_name] = std::make_shared<Method>(mangled_name, func, return_type);
+        }
+
         template <typename T>
         void Type::AddField(const std::shared_ptr<Type> field_type, const std::string &name, T field)
         {
@@ -17,7 +26,6 @@ namespace Engine
         template <typename... Args>
         Var Type::CreateInstance(Args... args)
         {
-            /// TODO: implement name mangling
             auto constructor = GetMethod(constructer_name, args...);
             if (!constructor)
                 throw std::runtime_error("Constructor not found");
@@ -27,8 +35,8 @@ namespace Engine
         template <typename... Args>
         std::shared_ptr<Method> Type::GetMethod(const std::string &name, Args... args)
         {
-            // TODO: implement name mangling
-            return GetMethodFromManagedName(name);
+            auto mangled_name = name + GetMangledName(args...);
+            return GetMethodFromManagedName(mangled_name);
         }
     }
 }

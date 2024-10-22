@@ -8,6 +8,7 @@
 #include <memory>
 #include <functional>
 #include <unordered_map>
+#include "utils.h"
 
 namespace Engine
 {
@@ -43,10 +44,13 @@ namespace Engine
             std::unordered_map<std::string, std::shared_ptr<Method>> m_methods{};
 
             void SetName(const std::string &name);
-            void AddMethod(const std::string &name, std::shared_ptr<Method> method);
+            template <typename T>
+            void AddMethod(const std::string &name, WrapperMemberFunc func, std::shared_ptr<Type> return_type, T original_func);
+            void AddMethod(std::shared_ptr<Method> method);
             void AddBaseType(std::shared_ptr<Type> base_type);
             template <typename T>
             void AddField(const std::shared_ptr<Type> field_type, const std::string &name, T field);
+            void AddField(const std::shared_ptr<Field> field);
 
         public:
             std::string m_name{};
