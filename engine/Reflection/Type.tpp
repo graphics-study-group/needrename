@@ -20,7 +20,7 @@ namespace Engine
         void Type::AddField(const std::shared_ptr<Type> field_type, const std::string &name, T field)
         {
             static_assert(std::is_member_pointer_v<T>);
-            m_fields[name] = std::make_shared<Field>(shared_from_this(), field_type, *reinterpret_cast<std::uintptr_t *>(&field));
+            m_fields[name] = std::make_shared<Field>(name, shared_from_this(), field_type, *reinterpret_cast<std::uintptr_t *>(&field));
         }
 
         template <typename... Args>

@@ -21,12 +21,11 @@ add_subdirectory(third_party)
 
 # Debug options
 add_compile_options($<$<CONFIG:Debug>:-g>)
-add_compile_options($<$<CONFIG:Debug>:-O0>)
+add_compile_options($<$<CONFIG:Debug>:-Og>)
 add_compile_options($<$<CONFIG:Debug>:-Wall>)
 add_compile_options($<$<CONFIG:Debug>:-Wextra>)
 add_compile_options($<$<CONFIG:Debug>:-Wpedantic>)
 add_compile_options($<$<CONFIG:Debug>:-Weffc++>)
-add_compile_options($<$<CONFIG:Debug>:--verbose>)
 # add_compile_options($<$<CONFIG:Debug>:-pg>)
 # add_link_options($<$<CONFIG:Debug>:-pg>)
 

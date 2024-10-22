@@ -9,7 +9,7 @@ namespace Engine
 {
     namespace Reflection
     {
-        /// @brief Wrapper function for member function. Format: <the owerner object of the member function, return value, arguments>
+        /// @brief Wrapper function for member function. Format: <void func(the owerner object of the member function, return value, arguments)>
         using WrapperMemberFunc = std::function<void(void *, void *&, std::vector<void *>)>;
 
         template <typename... Args>

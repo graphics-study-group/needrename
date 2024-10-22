@@ -6,8 +6,8 @@ namespace Engine
 {
     namespace Reflection
     {
-        Field::Field(std::weak_ptr<Type> classtype, std::shared_ptr<Type> fieldtype, std::uintptr_t offset)
-            : m_classtype(classtype), m_fieldtype(fieldtype), m_offset(offset)
+        Field::Field(const std::string &name, std::weak_ptr<Type> classtype, std::shared_ptr<Type> fieldtype, std::uintptr_t offset)
+            : m_name(name), m_classtype(classtype), m_fieldtype(fieldtype), m_offset(offset)
         {
         }
 

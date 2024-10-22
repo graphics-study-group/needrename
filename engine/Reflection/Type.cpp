@@ -48,6 +48,13 @@ namespace Engine
             m_base_type.push_back(base_type);
         }
 
+        void Type::AddField(const std::shared_ptr<Field> field)
+        {
+            if (m_fields.find(field->m_name) != m_fields.end())
+                throw std::runtime_error("Field " + field->m_name + " already exists");
+            m_fields[field->m_name] = field;
+        }
+
         std::shared_ptr<Field> Type::GetField(const std::string &name)
         {
             if (m_fields.find(name) != m_fields.end())
