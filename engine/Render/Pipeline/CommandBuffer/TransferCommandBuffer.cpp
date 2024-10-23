@@ -69,6 +69,7 @@ namespace Engine {
         assert(length <= buffer.GetSize());
         std::byte * mapped_ptr = buffer.Map();
         std::memcpy(mapped_ptr, data, length);
+        buffer.Flush();
         buffer.Unmap();
 
         // Transit layout to TransferDstOptimal
