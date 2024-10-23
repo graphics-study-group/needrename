@@ -46,21 +46,13 @@ namespace Engine
         auto color = pass.GetColorAttachment(framebuffer_id);
         auto depth = pass.GetDepthAttachment(framebuffer_id);
         m_image_for_present = color.image;
+
         assert(
             color.load_op == vk::AttachmentLoadOp::eClear &&
             color.store_op == vk::AttachmentStoreOp::eStore
         );
         std::vector <vk::RenderingAttachmentInfo> color_attachment{
-            {
-                color.image_view,
-                vk::ImageLayout::eColorAttachmentOptimal,
-                vk::ResolveModeFlagBits::eNone,
-                {},
-                vk::ImageLayout::eUndefined,
-                color.load_op,
-                color.store_op,
-                clear_values[0]
-            }
+            GetVkAttachmentInfo(color, vk::ImageLayout::eColorAttachmentOptimal, clear_values[0])
         };
 
         assert(
@@ -68,14 +60,7 @@ namespace Engine
             depth.store_op == vk::AttachmentStoreOp::eDontCare
         );
         vk::RenderingAttachmentInfo depth_attachment{
-            depth.image_view,
-            vk::ImageLayout::eDepthAttachmentOptimal,
-            vk::ResolveModeFlagBits::eNone,
-            {},
-            vk::ImageLayout::eUndefined,
-            depth.load_op,
-            depth.store_op,
-            clear_values[1]
+            GetVkAttachmentInfo(color, vk::ImageLayout::eDepthAttachmentOptimal, clear_values[1])
         };
 
         vk::RenderingInfo info {

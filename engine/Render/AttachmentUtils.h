@@ -44,6 +44,20 @@ namespace Engine {
             }
             return vk::AttachmentStoreOp{};
         }
+
+        constexpr vk::RenderingAttachmentInfo GetVkAttachmentInfo(const AttachmentDescription& desc, vk::ImageLayout layout, vk::ClearValue clear) {
+            vk::RenderingAttachmentInfo info {
+                desc.image_view,
+                layout,
+                vk::ResolveModeFlagBits::eNone,
+                nullptr,
+                vk::ImageLayout::eUndefined,
+                desc.load_op,
+                desc.store_op,
+                clear
+            };
+            return info;
+        }
     }
 }
 
