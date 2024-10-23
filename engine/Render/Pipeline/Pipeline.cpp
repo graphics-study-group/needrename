@@ -6,12 +6,6 @@ namespace Engine
 {
     Pipeline::Pipeline(std::weak_ptr<RenderSystem> system) : VkWrapper(system) {}
 
-    const Subpass& Pipeline::GetSubpass() const {
-        assert(m_attached_subpass.pass);
-        return m_attached_subpass;
-    }
-
-
     vk::PipelineVertexInputStateCreateInfo Pipeline::GetVertexInputState() {
         return HomogeneousMesh::GetVertexInputState();
     }
