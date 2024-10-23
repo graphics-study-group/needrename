@@ -1,8 +1,8 @@
 #include "RenderTargetSetup.h"
 
+#include "Render/RenderSystem.h"
+
 namespace Engine {
-
-
     RenderTargetSetup::RenderTargetSetup(std::shared_ptr<RenderSystem> system) : m_swapchain(system->GetSwapchain())
     {
     }
@@ -13,7 +13,7 @@ namespace Engine {
         m_depth_target = std::make_shared<SwapchainImage>(m_swapchain.GetDepthImagesAndViews());
     }
 
-    void RenderTargetSetup::Create(const ImagePerFrameInterface &color_targets, const ImagePerFrameInterface &depth_target)
+    void RenderTargetSetup::Create(const RenderImageTexture &color_targets, const RenderImageTexture &depth_target)
     {
     }
 
@@ -27,16 +27,26 @@ namespace Engine {
         m_clear_values = clear_values;
     }
 
-    std::pair<vk::Image, vk::ImageView> RenderTargetSetup::GetColorAttachment(uint32_t frame_id, uint32_t index) const
+    AttachmentUtils::AttachmentDescription RenderTargetSetup::GetColorAttachment(uint32_t frame_id, uint32_t index) const
     {
         assert(m_color_target);
-        return std::make_pair(m_color_target->GetImage(frame_id), m_color_target->GetImageView(frame_id));
+        return {
+            m_color_target->GetImage(frame_id), 
+            m_color_target->GetImageView(frame_id),
+            AttachmentUtils::GetVkLoadOp(m_color_target->GetLoadOperation()),
+            AttachmentUtils::GetVkStoreOp(m_color_target->GetStoreOperation())
+        };
     }
 
-    std::pair<vk::Image, vk::ImageView> RenderTargetSetup::GetDepthAttachment(uint32_t frame_id) const
+    AttachmentUtils::AttachmentDescription RenderTargetSetup::GetDepthAttachment(uint32_t frame_id) const
     {
         assert(m_depth_target);
-        return std::make_pair(m_depth_target->GetImage(frame_id), m_depth_target->GetImageView(frame_id));
+        return {
+            m_depth_target->GetImage(frame_id), 
+            m_depth_target->GetImageView(frame_id),
+            AttachmentUtils::GetVkLoadOp(m_depth_target->GetLoadOperation()),
+            AttachmentUtils::GetVkStoreOp(m_depth_target->GetStoreOperation())
+        };
     }
 
     const std::vector<vk::ClearValue> &RenderTargetSetup::GetClearValues() const
