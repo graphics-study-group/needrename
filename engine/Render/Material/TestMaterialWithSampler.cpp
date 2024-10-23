@@ -1,7 +1,6 @@
 #include "TestMaterialWithSampler.h"
 
 #include "Render/Pipeline/Shader.h"
-#include "Render/Pipeline/RenderTarget/RenderPass.h"
 #include "Render/Pipeline/RenderTarget/RenderTargetSetup.h"
 #include "Render/Pipeline/PremadePipeline/ConfigurablePipeline.h"
 #include "Render/Memory/Image2DTexture.h"

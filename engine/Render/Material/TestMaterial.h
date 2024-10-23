@@ -6,7 +6,6 @@
 
 namespace Engine {
     class ShaderModule;
-    class RenderPass;
 
     class TestMaterial : public Material {
         ShaderModule fragModule;
