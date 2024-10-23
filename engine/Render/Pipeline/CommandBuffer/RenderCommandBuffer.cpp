@@ -43,26 +43,54 @@ namespace Engine
     {
         m_bound_render_target = std::cref(pass);
         const auto & clear_values = pass.GetClearValues();
-        auto color = pass.GetColorAttachment(framebuffer_id);
         auto depth = pass.GetDepthAttachment(framebuffer_id);
 
         m_image_for_present = pass.GetImageForPresentation(framebuffer_id);
 
-        assert(
-            color.load_op == vk::AttachmentLoadOp::eClear &&
-            color.store_op == vk::AttachmentStoreOp::eStore
-        );
-        std::vector <vk::RenderingAttachmentInfo> color_attachment{
-            GetVkAttachmentInfo(color, vk::ImageLayout::eColorAttachmentOptimal, clear_values[0])
-        };
+        auto max_color_index = pass.GetColorAttachmentSize();
+
+        std::vector <vk::RenderingAttachmentInfo> color_attachment;
+        color_attachment.resize(max_color_index);
+        std::vector<vk::ImageMemoryBarrier2> barriers;
+        barriers.resize(max_color_index + 1);
+    
+        for (size_t i = 0; i < max_color_index; i++) {
+            auto color = pass.GetColorAttachment(framebuffer_id, i);
+
+            // Prepare attachment information
+            assert(
+                color.load_op == vk::AttachmentLoadOp::eClear &&
+                color.store_op == vk::AttachmentStoreOp::eStore &&
+                "Pathological color buffer operation."
+            );
+            color_attachment[i] = GetVkAttachmentInfo(color, vk::ImageLayout::eColorAttachmentOptimal, clear_values[0]);
+
+            // Set up layout transition barrier
+            barriers[i] = LayoutTransferHelper::GetAttachmentBarrier(
+                LayoutTransferHelper::AttachmentTransferType::ColorAttachmentPrepare, 
+                color.image
+            );
+        }
 
         assert(
             depth.load_op == vk::AttachmentLoadOp::eClear &&
-            depth.store_op == vk::AttachmentStoreOp::eDontCare
+            depth.store_op == vk::AttachmentStoreOp::eDontCare &&
+            "Pathological depth buffer operation."
         );
         vk::RenderingAttachmentInfo depth_attachment{
             GetVkAttachmentInfo(depth, vk::ImageLayout::eDepthAttachmentOptimal, clear_values[1])
         };
+        barriers[color_attachment.size()] = LayoutTransferHelper::GetAttachmentBarrier(
+            LayoutTransferHelper::AttachmentTransferType::DepthAttachmentPrepare, 
+            depth.image
+        );
+
+        // Issue layout transition barriers
+        vk::DependencyInfo dep {
+            vk::DependencyFlags{0},
+            {}, {}, barriers
+        };
+        m_handle->pipelineBarrier2(dep);
 
         vk::RenderingInfo info {
             vk::RenderingFlags{0},
@@ -73,19 +101,6 @@ namespace Engine
             &depth_attachment,
             nullptr
         };
-
-        // Transit attachments layout, from undefined to optimal
-
-        std::array<vk::ImageMemoryBarrier2, 2> barriers = {
-            LayoutTransferHelper::GetAttachmentBarrier(LayoutTransferHelper::AttachmentTransferType::ColorAttachmentPrepare, color.image),
-            LayoutTransferHelper::GetAttachmentBarrier(LayoutTransferHelper::AttachmentTransferType::DepthAttachmentPrepare, depth.image),
-        };
-        vk::DependencyInfo dep {
-            vk::DependencyFlags{0},
-            {}, {}, barriers
-        };
-        m_handle->pipelineBarrier2(dep);
-
         // Begin rendering after transit
         m_handle->beginRendering(info);
     }
