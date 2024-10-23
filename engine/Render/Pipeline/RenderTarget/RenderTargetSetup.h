@@ -11,7 +11,7 @@ namespace Engine {
     /// Automatically manages render pass and frame buffers.
     class RenderTargetSetup {
         const RenderSystemState::Swapchain & m_swapchain;
-        std::shared_ptr <const RenderImageTexture> m_color_target {nullptr};
+        std::vector <std::shared_ptr <const RenderImageTexture>> m_color_targets {};
         std::shared_ptr <const RenderImageTexture> m_depth_target {nullptr};
         std::vector <vk::ClearValue> m_clear_values {};
     public:
