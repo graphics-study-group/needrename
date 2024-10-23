@@ -36,9 +36,14 @@ add_compile_definitions($<$<CONFIG:Release>:NDEBUG>)
 # Link libstdc++, etc. statically
 add_link_options(-static-libstdc++ -static-libgcc)
 
+# a cache variable to store all the files that need reflection.
+set(REFLECTION_SEARCH_FILES CACHE STRING "" FORCE)
 add_subdirectory(engine)
 add_subdirectory(example)
 add_subdirectory(shader)
 
 include(CTest)
 add_subdirectory(test)
+
+# make sure this is the last one in order to record all the files that need reflection
+add_subdirectory(reflection_parser)

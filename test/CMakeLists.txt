@@ -52,6 +52,7 @@ add_test(NAME complex_mesh_test COMMAND complex_mesh_test)
 set_target_properties(complex_mesh_test PROPERTIES FOLDER tests)
 
 add_executable(reflection_registeration reflection_registeration_test.cpp)
+set(REFLECTION_SEARCH_FILES "${REFLECTION_SEARCH_FILES};${CMAKE_CURRENT_SOURCE_DIR}/reflection_registeration_test.cpp" CACHE STRING "" FORCE)
 target_link_libraries(reflection_registeration engine)
 add_test(NAME reflection_registeration COMMAND reflection_registeration)
 set_target_properties(reflection_registeration PROPERTIES FOLDER tests)

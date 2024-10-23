@@ -21,3 +21,5 @@ target_precompile_headers(engine PRIVATE <vulkan/vulkan.hpp>)
 target_precompile_headers(engine PRIVATE "Render/VkWrapper.tcc")
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h)
+
+set(REFLECTION_SEARCH_FILES "${REFLECTION_SEARCH_FILES};${HEADER}" CACHE STRING "" FORCE)

@@ -8,12 +8,7 @@
 #include "Field.h"
 #include "Method.h"
 #include "utils.h"
-
-// Suppress warning from attributes
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wattributes"
-
-#define REFLECTION [[clang::annotate("reflection")]]
+#include "macros.h"
 
 namespace Engine
 {
