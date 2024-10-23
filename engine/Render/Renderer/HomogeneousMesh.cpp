@@ -37,6 +37,7 @@ namespace Engine {
 
         std::byte * data = buffer.Map();
         WriteToMemory(data);
+        buffer.Flush();
         buffer.Unmap();
 
         return buffer;

@@ -1,5 +1,7 @@
 #include "AllocatedMemory.h"
 
+#include <vulkan/vulkan.hpp>
+
 namespace Engine {
     void AllocatedMemory::ClearAndInvalidate()
     {
@@ -75,13 +77,36 @@ namespace Engine {
     std::byte *AllocatedMemory::MapMemory()
     {
         assert(m_allocator && m_allocation && "Invalild allocator or allocation.");
+        assert(m_vk_handle.index() == 1 && "Invaild mapping of non-buffer data to host memory.");
         if (m_mapped_memory) {
+            // assert(m_allocation->GetMappedData() == m_mapped_memory && "Inconsistent mapped memory pointer.");
             return m_mapped_memory;
         }
         void * ptr{nullptr};
-        vmaMapMemory(m_allocator, m_allocation, &ptr);
+        vk::detail::resultCheck(
+            static_cast<vk::Result>(vmaMapMemory(m_allocator, m_allocation, &ptr)), 
+            "Cannot map memory."
+        );
         m_mapped_memory = reinterpret_cast<std::byte*>(ptr);
         return m_mapped_memory;
+    }
+    void AllocatedMemory::FlushMemory(size_t offset, size_t size) {
+        if (size == 0) {
+            size = VK_WHOLE_SIZE;
+        }
+        vk::detail::resultCheck(
+            static_cast<vk::Result>(vmaFlushAllocation(m_allocator, m_allocation, offset, size)),
+            "Failed to flush mapped memory."
+        );
+    }
+    void AllocatedMemory::InvalidateMemory(size_t offset, size_t size) {
+        if (size == 0) {
+            size = VK_WHOLE_SIZE;
+        }
+        vk::detail::resultCheck(
+            static_cast<vk::Result>(vmaInvalidateAllocation(m_allocator, m_allocation, offset, size)),
+            "Failed to invalidate mapped memory."
+        );
     }
     void AllocatedMemory::UnmapMemory()
     {

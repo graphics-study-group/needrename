@@ -103,17 +103,6 @@ namespace Engine
         m_active_camera = cameraComponent;
     }
 
-    uint32_t RenderSystem::FindPhysicalMemory(uint32_t type, vk::MemoryPropertyFlags properties) {
-        const auto & memory_properties = m_selected_physical_device.GetMemoryProperties();
-        for (uint32_t i = 0; i < memory_properties.memoryTypeCount; i++) {
-            if ((type & (1 << i)) && (memory_properties.memoryTypes[i].propertyFlags & properties) == properties) {
-                return i;
-            }
-        }
-        SDL_LogCritical(SDL_LOG_CATEGORY_RENDER, "Failed to find physical memory on GPU with type %u.", type);
-        return 0;
-    }
-
     void RenderSystem::WaitForFrameBegin(uint32_t frame_index, uint64_t timeout) {
         vk::Fence fence = getSynchronization().GetCommandBufferFence(frame_index);
         vk::Result waitFenceResult = getDevice().waitForFences({fence}, vk::True, timeout);
@@ -155,6 +144,12 @@ namespace Engine
         if (result.result == vk::Result::eTimeout) {
             SDL_LogError(0, "Timed out waiting for next frame.");
             return -1;
+        } else if (result.result != vk::Result::eSuccess) {
+            SDL_LogWarn(
+                SDL_LOG_CATEGORY_RENDER, 
+                "AcquireNextImage returned %s other than success.",
+                vk::to_string(result.result).c_str()
+                );
         }
         return result.value;
     }
@@ -164,7 +159,15 @@ namespace Engine
         std::array<uint32_t, 1> frame_indices {in_flight_index};
         auto semaphores = m_synch->GetCommandBufferSigningSignals(in_flight_index);
         vk::PresentInfoKHR info{semaphores, swapchains, frame_indices};
-        return m_queues.presentQueue.presentKHR(info);
+        vk::Result result = m_queues.presentQueue.presentKHR(info);
+        if (result != vk::Result::eSuccess) {
+            SDL_LogWarn(
+                SDL_LOG_CATEGORY_RENDER, 
+                "Presenting returned %s other than success.",
+                vk::to_string(result).c_str()
+                );
+        }
+        return result;
     }
 
     void RenderSystem::EnableDepthTesting() {
