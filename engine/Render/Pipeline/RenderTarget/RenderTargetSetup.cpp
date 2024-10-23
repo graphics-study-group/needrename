@@ -9,7 +9,7 @@ namespace Engine {
 
     void RenderTargetSetup::CreateFromSwapchain()
     {
-        m_color_target = std::make_shared<SwapchainImage>(m_swapchain.GetColorImagesAndViews());
+        m_color_targets = {std::make_shared<SwapchainImage>(m_swapchain.GetColorImagesAndViews())};
         m_depth_target = std::make_shared<SwapchainImage>(m_swapchain.GetDepthImagesAndViews());
     }
 
@@ -21,20 +21,20 @@ namespace Engine {
     {
         // TODO: Better clear values and attachment matching
         assert( 
-            (clear_values.size() == 1 && !m_swapchain.IsDepthEnabled()) || 
-            (clear_values.size() == 2 && m_swapchain.IsDepthEnabled())
+            (clear_values.size() == m_color_targets.size() && !m_depth_target) || 
+            (clear_values.size() == m_color_targets.size() + 1 && m_depth_target)
         );
         m_clear_values = clear_values;
     }
 
     AttachmentUtils::AttachmentDescription RenderTargetSetup::GetColorAttachment(uint32_t frame_id, uint32_t index) const
     {
-        assert(m_color_target);
+        assert(index < m_color_targets.size() && m_color_targets[index]);
         return {
-            m_color_target->GetImage(frame_id), 
-            m_color_target->GetImageView(frame_id),
-            AttachmentUtils::GetVkLoadOp(m_color_target->GetLoadOperation()),
-            AttachmentUtils::GetVkStoreOp(m_color_target->GetStoreOperation())
+            m_color_targets[index]->GetImage(frame_id), 
+            m_color_targets[index]->GetImageView(frame_id),
+            AttachmentUtils::GetVkLoadOp(m_color_targets[index]->GetLoadOperation()),
+            AttachmentUtils::GetVkStoreOp(m_color_targets[index]->GetStoreOperation())
         };
     }
 
