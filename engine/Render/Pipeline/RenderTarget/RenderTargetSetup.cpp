@@ -11,6 +11,7 @@ namespace Engine {
     {
         m_color_targets = {std::make_shared<SwapchainImage>(m_swapchain.GetColorImagesAndViews())};
         m_depth_target = std::make_shared<SwapchainImage>(m_swapchain.GetDepthImagesAndViews());
+        m_present_attachment_id = 0;
     }
 
     void RenderTargetSetup::Create(const RenderImageTexture &color_targets, const RenderImageTexture &depth_target)
@@ -36,6 +37,21 @@ namespace Engine {
             AttachmentUtils::GetVkLoadOp(m_color_targets[index]->GetLoadOperation()),
             AttachmentUtils::GetVkStoreOp(m_color_targets[index]->GetStoreOperation())
         };
+    }
+
+    vk::Image RenderTargetSetup::GetImageForPresentation(uint32_t frame_id) const
+    {
+        if (m_present_attachment_id < m_color_targets.size()) {
+            return m_color_targets[m_present_attachment_id]->GetImage(frame_id);
+        } else if (m_present_attachment_id == m_color_targets.size()) {
+            return m_depth_target->GetImage(frame_id);
+        }
+        return nullptr;
+    }
+
+    size_t RenderTargetSetup::GetColorAttachmentSize() const
+    {
+        return m_color_targets.size();
     }
 
     AttachmentUtils::AttachmentDescription RenderTargetSetup::GetDepthAttachment(uint32_t frame_id) const
