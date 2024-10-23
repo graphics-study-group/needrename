@@ -45,27 +45,36 @@ namespace Engine
         const auto & clear_values = pass.GetClearValues();
         auto color = pass.GetColorAttachment(framebuffer_id);
         auto depth = pass.GetDepthAttachment(framebuffer_id);
-        m_image_for_present = color.first;
+        m_image_for_present = color.image;
+        assert(
+            color.load_op == vk::AttachmentLoadOp::eClear &&
+            color.store_op == vk::AttachmentStoreOp::eStore
+        );
         std::vector <vk::RenderingAttachmentInfo> color_attachment{
             {
-                color.second,
+                color.image_view,
                 vk::ImageLayout::eColorAttachmentOptimal,
                 vk::ResolveModeFlagBits::eNone,
                 {},
                 vk::ImageLayout::eUndefined,
-                vk::AttachmentLoadOp::eClear,
-                vk::AttachmentStoreOp::eStore,
+                color.load_op,
+                color.store_op,
                 clear_values[0]
             }
         };
+
+        assert(
+            depth.load_op == vk::AttachmentLoadOp::eClear &&
+            depth.store_op == vk::AttachmentStoreOp::eDontCare
+        );
         vk::RenderingAttachmentInfo depth_attachment{
-            depth.second,
+            depth.image_view,
             vk::ImageLayout::eDepthAttachmentOptimal,
             vk::ResolveModeFlagBits::eNone,
             {},
             vk::ImageLayout::eUndefined,
-            vk::AttachmentLoadOp::eClear,
-            vk::AttachmentStoreOp::eDontCare,
+            depth.load_op,
+            depth.store_op,
             clear_values[1]
         };
 
@@ -82,8 +91,8 @@ namespace Engine
         // Transit attachments layout, from undefined to optimal
 
         std::array<vk::ImageMemoryBarrier2, 2> barriers = {
-            LayoutTransferHelper::GetAttachmentBarrier(LayoutTransferHelper::AttachmentTransferType::ColorAttachmentPrepare, color.first),
-            LayoutTransferHelper::GetAttachmentBarrier(LayoutTransferHelper::AttachmentTransferType::DepthAttachmentPrepare, depth.first),
+            LayoutTransferHelper::GetAttachmentBarrier(LayoutTransferHelper::AttachmentTransferType::ColorAttachmentPrepare, color.image),
+            LayoutTransferHelper::GetAttachmentBarrier(LayoutTransferHelper::AttachmentTransferType::DepthAttachmentPrepare, depth.image),
         };
         vk::DependencyInfo dep {
             vk::DependencyFlags{0},
