@@ -21,7 +21,7 @@ namespace Engine {
                     0,
                     vk::DescriptorType::eUniformBuffer,
                     1,
-                    vk::ShaderStageFlagBits::eVertex
+                    vk::ShaderStageFlagBits::eAllGraphics
                 }
             };
         public:
