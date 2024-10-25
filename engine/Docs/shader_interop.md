@@ -2,9 +2,10 @@
 
 In the engine we use a frequency-based descriptor management system.
 The descriptors are used in two sets:
-1. *Set index 0* stores global per-scene, per-view or per-camera uniforms, such as environment light direction, view and projection matrices;
-2. *Set index 1* stores per-material uniforms, such as diffuse textures.
-3. Model matrices are pushed to shader via *push constants*.
+1. *Set index 0* stores global per-scene uniforms, such as environmental light;
+2. *Set index 1* stores per-view or per-camera uniforms, such as environment light direction, view and projection matrices;
+3. *Set index 2* stores per-material uniforms, such as diffuse textures.
+4. Model matrices are pushed to shader via *push constants*.
 
 ## Global Descriptor Management
 
@@ -17,12 +18,12 @@ Due to multiple frames in flight, this class actually holds multiple copies of b
 When `AllocateGlobalSets` is called, it allocates buffers for each frame-in-flight, maps these buffers persistently onto host memory, and the requests descriptor sets, one for each frame, with the layout provided in `ConstantData`.
 Then, it writes out descriptor set with `vkUpdateDescriptorSets`, pointing these descriptors to the allocated buffers.
 
-To update global constants, call `GetPerCameraConstantMemory` with frame index to acquire the pointer to mapped host memory, write to it (perferably with `memcpy`), and flush buffer with `FlushPerCameraConstantMemory`.
+To update per camera global constants for example, call `GetPerCameraConstantMemory` with frame index to acquire the pointer to mapped host memory, write to it (perferably with `memcpy`), and flush buffer with `FlushPerCameraConstantMemory`.
 This is wrapped in `RenderSystem::WritePerCameraConstants`.
 
-To use these constants in shader, simply use `layout` directive with `set = 0`, for example:
+To use these constants in shader, simply use `layout` directive with `set = 0|1`, for example:
 ```glsl
-layout(set = 0, binding = 0) uniform CameraBuffer{
+layout(set = 1, binding = 0) uniform CameraBuffer{
     mat4 view;
     mat4 proj;
 } camera;
