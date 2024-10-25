@@ -1,5 +1,7 @@
 #include "Var.h"
 #include "Method.h"
+#include "Type.h"
+#include <stdexcept>
 
 namespace Engine
 {
