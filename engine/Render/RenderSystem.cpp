@@ -177,6 +177,7 @@ namespace Engine
     void RenderSystem::WritePerCameraConstants(const ConstantData::PerCameraStruct& data, uint32_t in_flight_index) {
         std::byte * ptr = m_descriptor_pool.GetPerCameraConstantMemory(in_flight_index);
         std::memcpy(ptr, &data, sizeof data);
+        m_descriptor_pool.FlushPerCameraConstantMemory(in_flight_index);
     }
 
     void RenderSystem::WaitForIdle() const {
