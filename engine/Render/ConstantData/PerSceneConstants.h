@@ -1,5 +1,5 @@
-#ifndef RENDER_CONSTANTDATA_PERCAMERACONSTANTS_INCLUDED
-#define RENDER_CONSTANTDATA_PERCAMERACONSTANTS_INCLUDED
+#ifndef RENDER_CONSTANTDATA_PERSCENECONSTANTS_INCLUDED
+#define RENDER_CONSTANTDATA_PERSCENECONSTANTS_INCLUDED
 
 #include <glm.hpp>
 #include "Render/VkWrapper.tcc"
@@ -9,12 +9,12 @@ namespace Engine {
     class RenderSystem;
 
     namespace ConstantData {
-        struct PerCameraStruct {
-            glm::mat4 view_matrix;
-            glm::mat4 proj_matrix;
+        struct PerSceneStruct {
+            glm::vec4 light_source;
+            glm::vec4 light_color;
         };
 
-        class PerCameraConstantLayout : public VkWrapperIndependent<vk::UniqueDescriptorSetLayout> {
+        class PerSceneConstantLayout : public VkWrapperIndependent<vk::UniqueDescriptorSetLayout> {
         protected:
             static constexpr std::array <vk::DescriptorSetLayoutBinding, 1> BINDINGS = {
                 vk::DescriptorSetLayoutBinding{
@@ -25,10 +25,10 @@ namespace Engine {
                 }
             };
         public:
-            static constexpr uint32_t PER_CAMERA_SET_NUMBER = 1;
+            static constexpr uint32_t PER_SCENE_SET_NUMBER = 0;
             void Create(vk::Device device);
         };
     }
 }
 
-#endif // RENDER_CONSTANTDATA_PERCAMERACONSTANTS_INCLUDED
+#endif // RENDER_CONSTANTDATA_PERSCENECONSTANTS_INCLUDED

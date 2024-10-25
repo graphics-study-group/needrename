@@ -115,6 +115,7 @@ namespace Engine
         m_bound_material_pipeline = std::make_pair(pipeline, pipeline_layout);
 
         const auto & global_pool = m_system->GetGlobalConstantDescriptorPool();
+        const auto & per_scenc_descriptor_set = global_pool.GetPerSceneConstantSet(m_inflight_frame_index);
         const auto & per_camera_descriptor_set = global_pool.GetPerCameraConstantSet(m_inflight_frame_index);
         auto material_descriptor_set = material.GetDescriptorSet(pass_index);
 
@@ -123,7 +124,7 @@ namespace Engine
                 vk::PipelineBindPoint::eGraphics, 
                 pipeline_layout, 
                 0,
-                {per_camera_descriptor_set, material_descriptor_set},
+                {per_scenc_descriptor_set, per_camera_descriptor_set, material_descriptor_set},
                 {}
             );
         } else {
@@ -131,7 +132,7 @@ namespace Engine
                 vk::PipelineBindPoint::eGraphics, 
                 pipeline_layout, 
                 0,
-                {per_camera_descriptor_set},
+                {per_scenc_descriptor_set, per_camera_descriptor_set},
                 {}
             );
         }

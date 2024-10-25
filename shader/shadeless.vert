@@ -8,7 +8,7 @@ layout(location = 3) in vec2 inTexcoord;
 layout(location = 0) out vec3 fragColor;
 layout(location = 1) out vec2 outTexcoord;
 
-layout(set = 0, binding = 0) uniform CameraBuffer{
+layout(set = 1, binding = 0) uniform CameraBuffer{
     mat4 view;
     mat4 proj;
 } camera;

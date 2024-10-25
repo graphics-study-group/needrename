@@ -23,9 +23,10 @@ namespace Engine {
     void PipelineLayout::CreateWithDefault(const std::vector<vk::DescriptorSetLayout> & extra_descriptor_set)
     {
         auto system = m_system.lock();
+        const auto & pool = system->GetGlobalConstantDescriptorPool();
+
         std::array <vk::PushConstantRange, 1> default_push_constant{ConstantData::PerModelConstantPushConstant::GetPushConstantRange()};
-        std::vector <vk::DescriptorSetLayout> default_set_layout;
-        default_set_layout.push_back(system->GetGlobalConstantDescriptorPool().GetPerCameraConstantLayout().get());
+        std::vector <vk::DescriptorSetLayout> default_set_layout{pool.GetPerSceneConstantLayout().get(), pool.GetPerCameraConstantLayout().get()};
         default_set_layout.insert(default_set_layout.end(), extra_descriptor_set.begin(), extra_descriptor_set.end());
 
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating pipeline layout.");

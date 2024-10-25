@@ -4,7 +4,7 @@
 namespace Engine {
     std::vector<vk::DescriptorSetLayout> Material::GetGlobalDescriptorSetLayout() {
         const auto & pool = m_system.lock()->GetGlobalConstantDescriptorPool();
-        return {pool.GetPerCameraConstantLayout().get()};
+        return {pool.GetPerSceneConstantLayout().get(), pool.GetPerCameraConstantLayout().get()};
     }
     Material::Material (std::weak_ptr<RenderSystem> system) 
     : m_system(system) {
