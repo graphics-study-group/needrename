@@ -10,10 +10,15 @@
 #include <unordered_map>
 #include "utils.h"
 
+// Suppress warning from std::enable_shared_from_this
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wnon-virtual-dtor"
+
 namespace Engine
 {
     namespace Reflection
     {
+        class TypeRegistrar;
         class Registrar;
         class Field;
         class Method;
@@ -25,31 +30,37 @@ namespace Engine
         class Type : public std::enable_shared_from_this<Type>
         {
         public:
-            static constexpr const char *constructer_name = "$Constructor";
+            static constexpr const char *k_constructor_name = "$Constructor";
             static std::unordered_map<std::string, std::shared_ptr<Type>> s_type_map;
 
-        public:
+        protected:
+            friend class Registrar;
+            friend class TypeRegistrar;
             Type() = delete;
             Type(const std::string &name, const std::type_info *type_info, bool reflectable = false);
+
+            // suppress the warning of -Weffc++
+            Type(const Type &) = delete;
+            void operator=(const Type &) = delete;
+        public:
             virtual ~Type() = default;
         
         private:
             std::shared_ptr<Method> GetMethodFromManagedName(const std::string &name);
 
         protected:
-            friend class Registrar;
-
             std::vector<std::shared_ptr<Type>> m_base_type{};
             std::unordered_map<std::string, std::shared_ptr<Field>> m_fields{};
             std::unordered_map<std::string, std::shared_ptr<Method>> m_methods{};
 
             void SetName(const std::string &name);
+            template <typename... Args>
+            void AddConstructor(const WrapperMemberFunc &func);
             template <typename T>
-            void AddMethod(const std::string &name, WrapperMemberFunc func, std::shared_ptr<Type> return_type, T original_func);
+            void AddMethod(const std::string &name, const WrapperMemberFunc &func, std::shared_ptr<Type> return_type, T original_func);
             void AddMethod(std::shared_ptr<Method> method);
             void AddBaseType(std::shared_ptr<Type> base_type);
-            template <typename T>
-            void AddField(const std::shared_ptr<Type> field_type, const std::string &name, T field);
+            void AddField(const std::shared_ptr<Type> field_type, const std::string &name, const WrapperFieldFunc &field_getter);
             void AddField(const std::shared_ptr<Field> field);
 
         public:
@@ -66,6 +77,8 @@ namespace Engine
         };
     }
 }
+
+#pragma GCC diagnostic pop
 
 #include "Type.tpp"
 

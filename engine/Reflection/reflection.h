@@ -10,15 +10,26 @@
 #include "utils.h"
 #include "macros.h"
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wattributes"
+
 namespace Engine
 {
     namespace Reflection
     {
+        class Registrar
+        {
+        public:
+            /// @brief Register a new type.
+            static void RegisterNewType(const std::string &name, const std::type_info *type_info, bool reflectable = false);
+            /// @brief Register basic types such as int, float, double, etc. Called by Initialize.
+            static void RegisterBasicTypes();
+            /// @brief Register all types. Called by Initialize.
+            static void RegisterAllTypes();
+        };
+
         /// @brief Initialize the reflection system. Must be called before using any reflection features.
         void Initialize();
-
-        /// @brief Register basic types such as int, float, double, etc. Called by Initialize.
-        void RegisterBasicTypes();
 
         /// @brief Get the Reflection::Type class of an object. Note that this function is implemented in generated code.
         /// @tparam T the type of the object

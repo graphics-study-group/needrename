@@ -8,7 +8,7 @@ namespace Engine
     namespace Reflection
     {
         Var::Var(std::shared_ptr<Type> type, void *data)
-            : m_type(type), m_data(data)
+            :  m_data(data), m_type(type)
         {
         }
 
@@ -23,6 +23,13 @@ namespace Engine
             if (!field)
                 throw std::runtime_error("Field not found");
             return field->GetVar(m_data);
+        }
+
+        Var &Var::operator=(const Var &var)
+        {
+            m_type = var.m_type;
+            m_data = var.m_data;
+            return *this;
         }
     }
 }

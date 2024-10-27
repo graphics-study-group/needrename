@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <cstdint>
+#include "utils.h"
 
 namespace Engine
 {
@@ -13,13 +14,15 @@ namespace Engine
 
         class Field
         {
-        public:
+        protected:
+            friend class Type;
             Field() = delete;
-            Field(const std::string &name, std::weak_ptr<Type> classtype, std::shared_ptr<Type> fieldtype, std::uintptr_t offset);
+            Field(const std::string &name, std::weak_ptr<Type> classtype, std::shared_ptr<Type> fieldtype, const WrapperFieldFunc &getter_func);
+        public:
             ~Field() = default;
         
         protected:
-            std::uintptr_t m_offset;
+            WrapperFieldFunc m_getter;
         
         public:
             std::string m_name;

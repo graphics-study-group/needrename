@@ -6,8 +6,8 @@ namespace Engine
 {
     namespace Reflection
     {
-        Field::Field(const std::string &name, std::weak_ptr<Type> classtype, std::shared_ptr<Type> fieldtype, std::uintptr_t offset)
-            : m_name(name), m_classtype(classtype), m_fieldtype(fieldtype), m_offset(offset)
+        Field::Field(const std::string &name, std::weak_ptr<Type> classtype, std::shared_ptr<Type> fieldtype, const WrapperFieldFunc &getter_func)
+            :  m_getter(getter_func), m_name(name), m_classtype(classtype), m_fieldtype(fieldtype)
         {
         }
 
@@ -15,12 +15,16 @@ namespace Engine
         {
             if (obj.m_type != m_classtype.lock())
                 throw std::runtime_error("Invalid object type");
-            return Var(m_fieldtype, reinterpret_cast<void *>(reinterpret_cast<std::uintptr_t>(obj.GetDataPtr()) + m_offset));
+            void *data = nullptr;
+            m_getter(obj.GetDataPtr(), data);
+            return Var(m_fieldtype, data);
         }
 
         Var Field::GetVar(void *obj)
         {
-            return Var(m_fieldtype, reinterpret_cast<void *>(reinterpret_cast<std::uintptr_t>(obj) + m_offset));
+            void *data = nullptr;
+            m_getter(obj, data);
+            return Var(m_fieldtype, data);
         }
     }
 }

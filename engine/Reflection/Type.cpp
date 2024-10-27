@@ -48,6 +48,11 @@ namespace Engine
             m_base_type.push_back(base_type);
         }
 
+        void Type::AddField(const std::shared_ptr<Type> field_type, const std::string &name, const WrapperFieldFunc &field)
+        {
+            m_fields[name] = std::shared_ptr<Field>(new Field(name, shared_from_this(), field_type, field));
+        }
+
         void Type::AddField(const std::shared_ptr<Field> field)
         {
             if (m_fields.find(field->m_name) != m_fields.end())

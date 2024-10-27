@@ -8,25 +8,25 @@ namespace Engine
 {
     namespace Reflection
     {
-        template <typename T>
-        void Type::AddMethod(const std::string &name, WrapperMemberFunc func, std::shared_ptr<Type> return_type, T original_func)
+        template<typename... Args>
+        void Type::AddConstructor(const WrapperMemberFunc &func)
         {
-            static_assert(std::is_member_function_pointer_v<T>);
-            std::string mangled_name = name + GetFunctionArgsMangledName(original_func);
-            m_methods[mangled_name] = std::make_shared<Method>(mangled_name, func, return_type);
+            std::string mangled_name = k_constructor_name + GetMangledName<Args...>();
+            m_methods[mangled_name] = std::shared_ptr<Method>(new Method(mangled_name, func, shared_from_this()));
         }
 
         template <typename T>
-        void Type::AddField(const std::shared_ptr<Type> field_type, const std::string &name, T field)
+        void Type::AddMethod(const std::string &name, const WrapperMemberFunc &func, std::shared_ptr<Type> return_type, T original_func)
         {
-            static_assert(std::is_member_pointer_v<T>);
-            m_fields[name] = std::make_shared<Field>(name, shared_from_this(), field_type, *reinterpret_cast<std::uintptr_t *>(&field));
+            static_assert(std::is_member_function_pointer_v<T>);
+            std::string mangled_name = name + GetFunctionArgsMangledName(original_func);
+            m_methods[mangled_name] = std::shared_ptr<Method>(new Method(mangled_name, func, return_type));
         }
 
         template <typename... Args>
         Var Type::CreateInstance(Args... args)
         {
-            auto constructor = GetMethod(constructer_name, args...);
+            auto constructor = GetMethod(k_constructor_name, args...);
             if (!constructor)
                 throw std::runtime_error("Constructor not found");
             return constructor->Invoke(nullptr, args...);

@@ -5,12 +5,18 @@
 #include <vector>
 #include <functional>
 
+// use type of parameters only
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+
 namespace Engine
 {
     namespace Reflection
     {
         /// @brief Wrapper function for member function. Format: <void func(the owerner object of the member function, return value, arguments)>
         using WrapperMemberFunc = std::function<void(void *, void *&, std::vector<void *>)>;
+        /// @brief Wrapper function for getting a field of an object. Format: <void func(the owerner object of the field, return value)>
+        using WrapperFieldFunc = std::function<void(void *, void *&)>;
 
         template <typename... Args>
         std::string GetMangledName()
@@ -55,5 +61,7 @@ namespace Engine
         }
     }
 }
+
+#pragma GCC diagnostic pop
 
 #endif // REFLECTION_UTILS_INCLUDED

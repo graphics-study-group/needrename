@@ -13,17 +13,18 @@ namespace Engine
         class Var
         {
         public:
-            Var() = delete;
+            Var() = default;
+            Var(const Var &var) = default;
             template <typename T>
             Var(T &obj);
             Var(std::shared_ptr<Type> type, void *data);
             ~Var() = default;
 
         protected:
-            void *m_data;
+            void *m_data = nullptr;
 
         public:
-            std::shared_ptr<Type> m_type;
+            std::shared_ptr<Type> m_type = nullptr;
 
             void *GetDataPtr();
 
@@ -34,6 +35,8 @@ namespace Engine
             template <typename... Args>
             Var InvokeMethod(const std::string &name, Args...);
             Var GetMember(const std::string &name);
+
+            Var &operator=(const Var &var);
         };
     }
 }

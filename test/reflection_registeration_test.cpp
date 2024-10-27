@@ -63,58 +63,57 @@ namespace Engine
 {
     namespace Reflection
     {
-        class Registrar
+        class TypeRegistrar
         {
         public:
             static std::shared_ptr<Type> Register_FooBase()
             {
-                std::shared_ptr<Type> type = std::make_shared<Type>("FooBase", &typeid(FooBase), true);
-                type->AddMethod(
-                    std::make_shared<Method>(
-                        std::string(Type::constructer_name) + GetMangledName<>(),
-                        [](void *obj, void *&ret, std::vector<void *> args)
-                        { ret = static_cast<void *>(new FooBase()); },
-                        type));
+                std::shared_ptr<Type> type = std::shared_ptr<Type>(new Type("FooBase", &typeid(FooBase), true));
+                type->AddConstructor<>(
+                    [](void *obj, void *&ret, std::vector<void *> args)
+                    { ret = static_cast<void *>(new FooBase()); });
                 type->AddMethod(
                     "PrintHelloWorld",
                     [](void *obj, void *&ret, std::vector<void *> args)
                     { static_cast<FooBase *>(obj)->PrintHelloWorld(); },
                     GetType("void"),
                     &FooBase::PrintHelloWorld);
-                type->AddField(GetType("int"), "m_foobase", &FooBase::m_foobase);
+                type->AddField(
+                    GetType("int"),
+                    "m_foobase",
+                    [](void *obj, void *&ret)
+                    { ret = static_cast<void *>(&static_cast<FooBase *>(obj)->m_foobase); });
                 Type::s_type_map["FooBase"] = type;
                 return type;
             }
 
             static std::shared_ptr<Type> Register_BBase()
             {
-                std::shared_ptr<Type> type = std::make_shared<Type>("BBase", &typeid(BBase), true);
-                type->AddMethod(
-                    std::make_shared<Method>(
-                        std::string(Type::constructer_name) + GetMangledName<>(),
-                        [](void *obj, void *&ret, std::vector<void *> args)
-                        { ret = static_cast<void *>(new BBase()); },
-                        type));
+                std::shared_ptr<Type> type = std::shared_ptr<Type>(new Type("BBase", &typeid(BBase), true));
+                type->AddConstructor<>(
+                    [](void *obj, void *&ret, std::vector<void *> args)
+                    { ret = static_cast<void *>(new BBase()); });
                 type->AddMethod(
                     "PrintB",
                     [](void *obj, void *&ret, std::vector<void *> args)
                     { static_cast<BBase *>(obj)->PrintB(); },
                     GetType("void"),
                     &BBase::PrintB);
-                type->AddField(GetType("int"), "m_bbase", &BBase::m_bbase);
+                type->AddField(
+                    GetType("int"),
+                    "m_bbase",
+                    [](void *obj, void *&ret)
+                    { ret = static_cast<void *>(&static_cast<BBase *>(obj)->m_bbase); });
                 Type::s_type_map["BBase"] = type;
                 return type;
             }
 
             static std::shared_ptr<Type> Register_FooA()
             {
-                std::shared_ptr<Type> type = std::make_shared<Type>("FooA", &typeid(FooA), true);
-                type->AddMethod(
-                    std::make_shared<Method>(
-                        std::string(Type::constructer_name) + GetMangledName<int, int>(),
-                        [](void *obj, void *&ret, std::vector<void *> args)
-                        { ret = static_cast<void *>(new FooA(*static_cast<int *>(args[0]), *static_cast<int *>(args[1]))); },
-                        type));
+                std::shared_ptr<Type> type = std::shared_ptr<Type>(new Type("FooA", &typeid(FooA), true));
+                type->AddConstructor<int, int>(
+                    [](void *obj, void *&ret, std::vector<void *> args)
+                    { ret = static_cast<void *>(new FooA(*static_cast<int *>(args[0]), *static_cast<int *>(args[1]))); });
                 type->AddMethod(
                     "PrintInfo",
                     [](void *obj, void *&ret, std::vector<void *> args)
@@ -139,8 +138,16 @@ namespace Engine
                     { static_cast<FooA *>(obj)->PrintHelloWorld(); },
                     GetType("void"),
                     &FooA::PrintHelloWorld);
-                type->AddField(GetType("int"), "m_a", &FooA::m_a);
-                type->AddField(GetType("int"), "m_b", &FooA::m_b);
+                type->AddField(
+                    GetType("int"),
+                    "m_a",
+                    [](void *obj, void *&ret)
+                    { ret = static_cast<void *>(&static_cast<FooA *>(obj)->m_a); });
+                type->AddField(
+                    GetType("int"),
+                    "m_b",
+                    [](void *obj, void *&ret)
+                    { ret = static_cast<void *>(&static_cast<FooA *>(obj)->m_b); });
                 Type::s_type_map["FooA"] = type;
                 return type;
             }
@@ -174,8 +181,8 @@ namespace Engine
 int main()
 {
     Engine::Reflection::Initialize();
-    Engine::Reflection::Registrar::RegisterAllTypes();
-    auto type = Engine::Reflection::Type::s_type_map["FooA"];
+    Engine::Reflection::TypeRegistrar::RegisterAllTypes();
+    auto type = Engine::Reflection::GetType("FooA");
 
     Engine::Reflection::Var foo = type->CreateInstance(123, 456);
     foo.InvokeMethod("PrintInfo");
