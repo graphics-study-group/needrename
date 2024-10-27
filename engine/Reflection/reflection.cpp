@@ -8,7 +8,7 @@ namespace Engine
         void Initialize()
         {
             Registrar::RegisterBasicTypes();
-            // Registrar::RegisterAllTypes();
+            Registrar::RegisterAllTypes();
         }
 
         void Registrar::RegisterBasicTypes()
@@ -27,11 +27,6 @@ namespace Engine
             Type::s_type_map["unsigned long"] = Type::s_type_map[typeid(unsigned long).name()] = std::shared_ptr<Type>(new Type("unsigned long", &typeid(unsigned long), false));
             Type::s_type_map["long long"] = Type::s_type_map[typeid(long long).name()] = std::shared_ptr<Type>(new Type("long long", &typeid(long long), false));
             Type::s_type_map["unsigned long long"] = Type::s_type_map[typeid(unsigned long long).name()] = std::shared_ptr<Type>(new Type("unsigned long long", &typeid(unsigned long long), false));
-        }
-
-        void Registrar::RegisterAllTypes()
-        {
-
         }
 
         void Registrar::RegisterNewType(const std::string &name, const std::type_info *type_info, bool reflectable)

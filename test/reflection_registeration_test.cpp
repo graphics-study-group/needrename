@@ -151,17 +151,17 @@ namespace Engine
                 Type::s_type_map["FooA"] = type;
                 return type;
             }
-
-            static void RegisterAllTypes()
-            {
-                auto Type_FooBase = Register_FooBase();
-                auto Type_BBase = Register_BBase();
-                auto Type_FooA = Register_FooA();
-
-                Type_FooA->AddBaseType(Type_FooBase);
-                Type_FooA->AddBaseType(Type_BBase);
-            }
         };
+
+        void Registrar::RegisterAllTypes()
+        {
+            auto Type_FooBase = TypeRegistrar::Register_FooBase();
+            auto Type_BBase = TypeRegistrar::Register_BBase();
+            auto Type_FooA = TypeRegistrar::Register_FooA();
+
+            Type_FooA->AddBaseType(Type_FooBase);
+            Type_FooA->AddBaseType(Type_BBase);
+        }
 
         template <typename T>
         std::shared_ptr<Type> GetTypeFromObject(const T &obj)
@@ -181,7 +181,6 @@ namespace Engine
 int main()
 {
     Engine::Reflection::Initialize();
-    Engine::Reflection::TypeRegistrar::RegisterAllTypes();
     auto type = Engine::Reflection::GetType("FooA");
 
     Engine::Reflection::Var foo = type->CreateInstance(123, 456);
