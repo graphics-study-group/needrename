@@ -2,6 +2,7 @@
 #define RENDER_RENDERSYSTEM_DESCRIPTORPOOL_INCLUDED
 
 #include "Render/ConstantData/PerCameraConstants.h"
+#include "Render/ConstantData/PerSceneConstants.h"
 
 namespace Engine {
     namespace RenderSystemState {
@@ -22,6 +23,15 @@ namespace Engine {
             // Mapped memories for buffers.
             std::vector <std::byte *> m_per_camera_memories {};
 
+            // Per scene constant descriptor set layout
+            Engine::ConstantData::PerSceneConstantLayout m_per_scene_constant_layout{};
+            // Per scene constant uniform buffers. Per camera constants contain only uniform buffers.
+            std::vector <Engine::Buffer> m_per_scene_buffers {};
+            // Per scene constant descriptor sets. These sets don't need explicit freeing.
+            std::vector <vk::DescriptorSet> m_per_scene_descriptor_sets {};
+            // Mapped memories for buffers.
+            std::vector <std::byte *> m_per_scene_memories {};
+
             // TODO: Per scene constant descriptors (e.g. ambient, sunlight, etc.)
 
             void CreateLayouts(std::shared_ptr <RenderSystem> system);
@@ -34,6 +44,12 @@ namespace Engine {
             auto GetPerCameraConstantLayout() const -> const decltype(m_per_camera_constant_layout) &;
             auto GetPerCameraConstantSet(uint32_t inflight) const -> const decltype(m_per_camera_descriptor_sets[inflight]) &;
             std::byte * GetPerCameraConstantMemory(uint32_t inflight) const;
+            void FlushPerCameraConstantMemory(uint32_t inflight) const;
+
+            auto GetPerSceneConstantLayout() const -> const decltype(m_per_scene_constant_layout) &;
+            auto GetPerSceneConstantSet(uint32_t inflight) const -> const decltype(m_per_scene_descriptor_sets[inflight]) &;
+            std::byte * GetPerSceneConstantMemory(uint32_t inflight) const;
+            void FlushPerSceneConstantMemory(uint32_t inflight) const;
         };
     }
 }

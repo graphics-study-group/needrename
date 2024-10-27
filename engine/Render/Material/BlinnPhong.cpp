@@ -1,4 +1,4 @@
-#include "Shadeless.h"
+#include "BlinnPhong.h"
 
 #include "Render/Pipeline/Shader.h"
 #include "Render/Pipeline/RenderTarget/RenderTargetSetup.h"
@@ -21,16 +21,35 @@ inline std::vector <char> readFile(const std::string& filename) {
 }
 
 namespace Engine {
-    Shadeless::Shadeless(std::weak_ptr<RenderSystem> system): Material(system), fragModule(system), vertModule(system)
+    std::vector<vk::DescriptorSetLayoutBinding> BlinnPhong::GetBindings()
     {
-        std::vector <char> shaderData = readFile("shader/Shadeless.frag.spv");
+        vk::DescriptorSetLayoutBinding binding_texture {
+            0, 
+            vk::DescriptorType::eCombinedImageSampler,
+            1,
+            vk::ShaderStageFlagBits::eFragment,
+            { &m_sampler.get() }
+        };
+        vk::DescriptorSetLayoutBinding binding_uniform {
+            1,
+            vk::DescriptorType::eUniformBuffer,
+            1,
+            vk::ShaderStageFlagBits::eFragment,
+            {}
+        };
+        return std::vector<vk::DescriptorSetLayoutBinding>{binding_texture, binding_uniform};
+    }
+
+    BlinnPhong::BlinnPhong(std::weak_ptr<RenderSystem> system): Material(system), fragModule(system), vertModule(system), m_uniform_buffer(system)
+    {
+        std::vector <char> shaderData = readFile("shader/blinn_phong.frag.spv");
         fragModule.CreateShaderModule(
             reinterpret_cast<std::byte*>(shaderData.data()), 
             shaderData.size(), 
             ShaderModule::ShaderType::Fragment
         );
                 
-        shaderData = readFile("shader/Shadeless.vert.spv");
+        shaderData = readFile("shader/blinn_phong.vert.spv");
         vertModule.CreateShaderModule(
             reinterpret_cast<std::byte*>(shaderData.data()),
             shaderData.size(), 
@@ -47,29 +66,34 @@ namespace Engine {
         m_passes[0].pipeline_layout = std::make_unique <PipelineLayout> (system);
 
         auto & manager = system.lock()->GetMaterialDescriptorManager();
-        vk::DescriptorSetLayoutBinding binding {
-            0, 
-            vk::DescriptorType::eCombinedImageSampler,
-            1,
-            vk::ShaderStageFlagBits::eFragment,
-            { &m_sampler.get() }
-        };
-        vk::DescriptorSetLayout set_layout = manager.NewDescriptorSetLayout("Shadeless", {binding});
+        
+        vk::DescriptorSetLayout set_layout = manager.NewDescriptorSetLayout("BlinnPhong", GetBindings());
         auto descriptor_set = manager.AllocateDescriptorSet(set_layout);
         m_passes[0].descriptor_set = descriptor_set;
 
         auto & pipeline_layout = *(m_passes[0].pipeline_layout.get());
         pipeline_layout.CreateWithDefault({set_layout});
         m_passes[0].pipeline->SetPipelineConfiguration(pipeline_layout, {fragModule, vertModule});
+
+        // Create uniform buffer and write descriptor
+        m_uniform_buffer.Create(Buffer::BufferType::Uniform, sizeof(UniformData));
+        m_mapped_buffer = m_uniform_buffer.Map();
+        vk::DescriptorBufferInfo dbinfo {
+            m_uniform_buffer.GetBuffer(), 0, sizeof(UniformData)
+        };
+        vk::WriteDescriptorSet write {
+            m_passes[0].descriptor_set,
+            1,
+            0,
+            1,
+            vk::DescriptorType::eUniformBuffer,
+            {},
+            {&dbinfo}
+        };
+        m_system.lock()->getDevice().updateDescriptorSets({write}, {});
     }
 
-    Shadeless::Shadeless (
-        std::weak_ptr <RenderSystem> system,
-        const AllocatedImage2DTexture & texture
-    ) : Shadeless(system) {
-        this->UpdateTexture(texture);
-    }
-    const Pipeline *Shadeless::GetPipeline(uint32_t pass_index)
+    const Pipeline *BlinnPhong::GetPipeline(uint32_t pass_index)
     {
         auto pipeline = m_passes[pass_index].pipeline.get();
         if (!pipeline->get()) {
@@ -78,7 +102,7 @@ namespace Engine {
         return pipeline;
     }
 
-    void Shadeless::UpdateTexture(const AllocatedImage2DTexture &texture)
+    void BlinnPhong::UpdateTexture(const AllocatedImage2DTexture &texture)
     {
         // Write texture descriptor
         vk::DescriptorImageInfo image_info {
@@ -95,5 +119,12 @@ namespace Engine {
             {&image_info}
         };
         m_system.lock()->getDevice().updateDescriptorSets({write}, {});
+    }
+
+    void BlinnPhong::UpdateUniform(const UniformData &uniform)
+    {
+        assert(m_mapped_buffer);
+        memcpy(m_mapped_buffer, &uniform, sizeof uniform);
+        m_uniform_buffer.Flush();
     }
 }
