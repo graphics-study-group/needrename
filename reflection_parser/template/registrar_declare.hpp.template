@@ -1,0 +1,15 @@
+#include <memory>
+
+namespace Engine
+{
+    namespace Reflection
+    {
+        class TypeRegistrar
+        {
+        public:
+            % for class_name in class_names:
+            static std::shared_ptr<Type> Register_${class_name}();
+            % endfor
+        };
+    }
+}
