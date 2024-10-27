@@ -12,6 +12,7 @@ namespace Engine {
     class BlinnPhong : public Material {
     public:
         struct UniformData {
+            // Specular color (rgb) with expoential shininess index (a)
             glm::vec4 specular;
             glm::vec4 ambient;
         };
