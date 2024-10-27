@@ -23,3 +23,10 @@ message(STATUS "SPIR-V files to be compiled: ${SPIRV_BINARY_FILES}")
 add_custom_target(
     shader DEPENDS ${SPIRV_BINARY_FILES}
 )
+
+add_custom_command(TARGET shader POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different 
+    "${PROJECT_BINARY_DIR}/shader"
+    "${PROJECT_BINARY_DIR}/test/shader"
+    COMMENT "Copying shaders"
+)

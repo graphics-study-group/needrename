@@ -47,6 +47,7 @@ add_test(NAME external_resource_loading_test COMMAND external_resource_loading_t
 set_target_properties(external_resource_loading_test PROPERTIES FOLDER tests)
 
 add_executable(complex_mesh_test complex_mesh_test.cpp)
+add_dependencies(complex_mesh_test shader)
 target_link_libraries(complex_mesh_test engine)
 add_test(NAME complex_mesh_test COMMAND complex_mesh_test)
 set_target_properties(complex_mesh_test PROPERTIES FOLDER tests)
@@ -58,12 +59,4 @@ add_custom_command(TARGET SDL_init_test POST_BUILD
     $<TARGET_FILE_DIR:SDL_init_test>
     DEPENDS SDL3::SDL3
     COMMENT "Copying SDL DLLs"
-)
-
-# Copy shader files
-add_custom_command(TARGET vulkan_init_test POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different 
-    "${PROJECT_BINARY_DIR}/shader"
-    "$<TARGET_FILE_DIR:vulkan_init_test>/shader"
-    COMMENT "Copying shaders"
 )
