@@ -105,8 +105,8 @@ class MeshComponentFromFile : public MeshComponent {
                     
                     assert(index.normal_index >= 0);
                     float normal_x{attrib.normals[size_t(index.normal_index)*3+0]};
-                    float normal_y{attrib.normals[size_t(index.normal_index)*3+0]};
-                    float normal_z{attrib.normals[size_t(index.normal_index)*3+0]};
+                    float normal_y{attrib.normals[size_t(index.normal_index)*3+1]};
+                    float normal_z{attrib.normals[size_t(index.normal_index)*3+2]};
 
                     positions[material_id].push_back(VertexStruct::VertexPosition{.position = {x, y, z}});
                     attributes[material_id].push_back(VertexStruct::VertexAttribute{
@@ -157,7 +157,10 @@ public:
             auto mat_ptr = std::dynamic_pointer_cast<BlinnPhong>(m_materials[mat]);
             assert(mat_ptr);
             mat_ptr->UpdateTexture(*m_textures[mat]);
-            mat_ptr->UpdateUniform(BlinnPhong::UniformData{glm::vec4{}, glm::vec4{0.2, 0.2, 0.2, 1.0}});
+            mat_ptr->UpdateUniform(BlinnPhong::UniformData{
+                glm::vec4{0.5, 0.5, 0.5, 4.0}, 
+                glm::vec4{0.1, 0.1, 0.1, 1.0}
+            });
 
             stbi_image_free(raw_image_data);
         }
@@ -214,8 +217,8 @@ int main(int, char **)
 
     // Write scene data
     ConstantData::PerSceneStruct scene {
-        glm::vec3{5.0, 5.0, 5.0},          // Light source position
-        glm::vec3{}                         // Light color
+        glm::vec4{5.0, 5.0, 5.0, 1.0},          // Light source position
+        glm::vec4{}                         // Light color
     };
     for (uint32_t i = 0; i < 3; i++) {
         auto ptr = system->GetGlobalConstantDescriptorPool().GetPerSceneConstantMemory(i);
