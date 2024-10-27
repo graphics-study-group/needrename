@@ -154,9 +154,9 @@ namespace Engine
         return result.value;
     }
 
-    vk::Result RenderSystem::Present(uint32_t frame_index, uint32_t in_flight_index) {
+    vk::Result RenderSystem::Present(uint32_t framebuffer_index, uint32_t in_flight_index) {
         std::array<vk::SwapchainKHR, 1> swapchains { m_swapchain.GetSwapchain() };
-        std::array<uint32_t, 1> frame_indices {in_flight_index};
+        std::array<uint32_t, 1> frame_indices {framebuffer_index};
         auto semaphores = m_synch->GetCommandBufferSigningSignals(in_flight_index);
         vk::PresentInfoKHR info{semaphores, swapchains, frame_indices};
         vk::Result result = m_queues.presentQueue.presentKHR(info);
