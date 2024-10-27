@@ -21,7 +21,7 @@ Then, it writes out descriptor set with `vkUpdateDescriptorSets`, pointing these
 To update per camera global constants for example, call `GetPerCameraConstantMemory` with frame index to acquire the pointer to mapped host memory, write to it (perferably with `memcpy`), and flush buffer with `FlushPerCameraConstantMemory`.
 This is wrapped in `RenderSystem::WritePerCameraConstants`.
 
-To use these constants in shader, simply use `layout` directive with `set = 0|1`, for example:
+To use these constants in shader, simply use layout directive with `set = 0|1`, for example:
 ```glsl
 layout(set = 1, binding = 0) uniform CameraBuffer{
     mat4 view;
@@ -41,11 +41,11 @@ To update these descriptors, you will have to override `WriteDescriptor` virtual
 It is called in the `RenderCommandBuffer::BindMaterial` before actual drawing.
 Typically the descriptors should not be updated frequently, and you can mannually update the descriptor set by exposing new interfaces.
 
-To access these uniforms in shader, use `layout` directive with `set = 1`, for example:
+To access these uniforms in shader, use layout directive with `set = 2`, for example:
 ```glsl
-layout(set = 1, binding = 0) uniform sampler2D Sampler;
+layout(set = 2, binding = 0) uniform sampler2D Sampler;
 ```
 
 ## Per-model Constant
 
-Currently per-model constants supports only model matrices via push constant, you can access them with `push_constant` `layout` directive.
+Currently per-model constants supports only model matrices via push constant, you can access them with `push_constant` layout directive.
