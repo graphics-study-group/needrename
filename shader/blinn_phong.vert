@@ -21,8 +21,14 @@ layout(push_constant) uniform ModelTransform {
 
 void main() {
     gl_Position = camera.proj * camera.view * modelTransform.model * vec4(vertex_position.xyz, 1.0);
+
     to_frag_color = vertex_color;
     to_frag_uv_0 = vertex_uv_0;
-    to_frag_normal = vertex_normal;
+
+    // Transform normal to world space
+    // TODO: Consider non-uniform scaling
+    to_frag_normal = mat3(modelTransform.model) * vertex_normal;
+
+    // Get world space fragment position
     to_frag_position = vec3(modelTransform.model * vec4(vertex_position.xyz, 1.0));
 }
