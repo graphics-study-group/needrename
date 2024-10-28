@@ -14,6 +14,8 @@ def main():
     with open(args.reflection_macros_header, "r") as f:
         reflection_macros = f.read()
     # generate the all reflection file
+    if not os.path.exists(args.generated_code_dir):
+        os.makedirs(args.generated_code_dir)
     output_file = os.path.join(args.generated_code_dir, "all_reflection_files.hpp")
     with open(output_file, "w") as f:
         f.write(reflection_macros)
