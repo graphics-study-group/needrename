@@ -4,6 +4,8 @@ namespace Engine
 {
     namespace Reflection
     {
+        class Type;
+
         class TypeRegistrar
         {
         public:

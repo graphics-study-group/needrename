@@ -3,7 +3,7 @@ from io import StringIO
 import clang.cindex as CX
 
 from mako.template import Template
-from reflection.Type import Type
+from reflection.Type import Type, Method, Field
 
 # TODO: 使用模板生成代码：根据名称获得类型Type，Type需要能过获得实例，调用构造函数
 # 构造函数和成员函数等，需要使用wrapper包装，wrapper讲参数包装为void*数组，解包调用成员函数
@@ -13,34 +13,68 @@ from reflection.Type import Type
 
 class ReflectionParser:
     def __init__(self):
-        self.types = []
+        self.types = {}
+    
+    def is_reflection(self, node: CX.Cursor):
+        for child in node.get_children():
+            if child.kind == CX.CursorKind.ANNOTATE_ATTR and child.spelling == "reflection":
+                return True
+        return False
 
-    def traverse(self, node: CX.Cursor, parent=None, current_class=None):
-        if node.kind == CX.CursorKind.ANNOTATE_ATTR and node.spelling == "reflection":
-            assert parent is not None
-            if parent.kind == CX.CursorKind.CLASS_DECL or parent.kind == CX.CursorKind.STRUCT_DECL:
-                print(f"Class: {parent.spelling}")
-                assert current_class is None
-                current_class = Type(parent.spelling)
-                self.types.append(current_class)
+    def traverse_class(self, node: CX.Cursor):
+        class_name = node.spelling
+        one_type = Type(class_name)
+        for child in node.get_children():
+            if child.kind == CX.CursorKind.CXX_BASE_SPECIFIER:
+                base_type = child.spelling
+                one_type.base_types.append(base_type)
+            elif child.kind == CX.CursorKind.FIELD_DECL:
+                field_name = child.spelling
+                field_type = child.type.spelling
+                one_field = Field(field_name)
+                one_field.type = field_type
+                one_type.fields.append(one_field)
+            elif child.kind == CX.CursorKind.CONSTRUCTOR:
+                one_constructor = Method(class_name)
+                for constructor_child in child.get_children():
+                    if constructor_child.kind == CX.CursorKind.PARM_DECL:
+                        arg_type = constructor_child.type.spelling
+                        one_constructor.arg_types.append(arg_type)
+                one_type.constructors.append(one_constructor)
+            elif child.kind == CX.CursorKind.CXX_METHOD:
+                method_name = child.spelling
+                one_method = Method(method_name)
+                for method_child in child.get_children():
+                    if method_child.kind == CX.CursorKind.PARM_DECL:
+                        arg_type = method_child.type.spelling
+                        one_method.arg_types.append(arg_type)
+                    elif method_child.kind == CX.CursorKind.TYPE_REF:
+                        return_type = method_child.spelling
+                        one_method.return_type = return_type
+                one_type.methods.append(one_method)
+        self.types[class_name] = one_type
 
-            elif parent.kind == CX.CursorKind.FIELD_DECL:
-                print(f"Field: {parent.spelling}")
-            elif parent.kind == CX.CursorKind.CXX_METHOD:
-                print(f"Method: {parent.spelling}")
+    def traverse(self, node: CX.Cursor):
+        if self.is_reflection(node):
+            if node.kind == CX.CursorKind.CLASS_DECL or node.kind == CX.CursorKind.STRUCT_DECL:
+                if node.spelling not in self.types:
+                    self.traverse_class(node)
             else:
-                raise Exception(f"Unsupported reflection type: {str(parent.kind)}")
-                
-        children = list(node.get_children())
-        for child in children:
-            self.traverse(child, node, current_class)
+                raise Exception(f"Reflection attribute can only be used in a class or struct, but found {node.spelling} not in a class")
+        else:
+            for child in node.get_children():
+                self.traverse(child)
 
     def generate_code(self, generated_code_dir: str):
         with open("template/registrar_declare.hpp.template", "r") as f:
             template_declare = Template(f.read())
-        class_names = [one_type.name for one_type in self.types]
+        class_names = [class_name for class_name in self.types.keys()]
         with open(os.path.join(generated_code_dir, "registrar_declare.hpp"), "w") as f:
             f.write(template_declare.render(class_names=class_names))
+        with open("template/registrar_impl.ipp.template", "r") as f:
+            template_impl = Template(f.read())
+        with open(os.path.join(generated_code_dir, "registrar_impl.ipp"), "w") as f:
+            f.write(template_impl.render(classes_map=self.types))
 
 
 def process_file(path: str, generated_code_dir: str):
