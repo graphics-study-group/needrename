@@ -1,5 +1,7 @@
 #version 450
 
+layout(constant_id = 0) const int SPECULAR_SHADING_MODE = 2;
+
 layout(location = 0) in vec3 frag_color;
 layout(location = 1) in vec2 frag_uv;
 layout(location = 2) in vec3 frag_normal;
@@ -24,23 +26,32 @@ layout(set = 2, binding = 1) uniform Material {
 } material;
 
 void main() {
-    // Get normalized normal vector in world space
-    vec3 normal = normalize(frag_normal);
+    vec3 frag_position_vs = (camera.view * vec4(frag_position, 1.0)).xyz;
+    // Get normalized normal vector in view space
+    vec3 normal_vs = normalize(mat3(camera.view) * frag_normal);
     // Get normalized incident vector pointing from the light source
-    vec3 incident = normalize(frag_position - scene.light_source);
-    // Get view position in world space
-    // TODO: Inversing a matrix is inefficient, consider passing it as uniform
-    vec3 view_position = (inverse(camera.view) * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+    vec3 incident_vs = (camera.view * vec4(frag_position - scene.light_source, 1.0)).xyz;
+    incident_vs = normalize(incident_vs);
+    // Get view position in view space
+    vec3 view_position_vs = vec3(0.0, 0.0, 0.0);
     // Get view vector
-    vec3 view = normalize(view_position - frag_position);
+    vec3 view_vs = normalize(view_position_vs - frag_position_vs);
 
     // Calculate diffuse coefficient
-    float diffuse_coef = max(0.0, dot(-incident, normal));
+    float diffuse_coef = max(0.0, dot(-incident_vs, normal_vs));
 
     // Calculate specular coefficient
     float shininess = material.specular_color.w;
-    vec3 reflected = reflect(incident, normal);
-    float specular_coef = pow(max(0.0, dot(view, reflected)), shininess);
+    float specular_coef = 0.0;
+    if (SPECULAR_SHADING_MODE == 1) {
+        // Phong shading
+        vec3 reflected = reflect(incident_vs, normal_vs);
+        specular_coef = pow(max(0.0, dot(view_vs, reflected)), shininess);
+    } else if (SPECULAR_SHADING_MODE == 2) {
+        // Blinn Phong shading
+        vec3 halfway = normalize(view_vs - incident_vs);
+        specular_coef = pow(max(0.0, dot(normal_vs, halfway)), shininess);
+    }
 
     // Sample base color
     vec3 base_color = texture(base_tex, frag_uv).rgb * frag_color;
