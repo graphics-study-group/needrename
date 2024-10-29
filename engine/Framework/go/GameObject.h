@@ -13,19 +13,19 @@
 namespace Engine
 {
     class Component;
-    class Transfrom;
+    class Transform;
 
     class REFLECTION GameObject : public std::enable_shared_from_this<GameObject>
     {
     public:
-        GameObject();
+        REFLECTION GameObject();
         virtual ~GameObject();
 
         virtual void Load();
         virtual void Unload();
         virtual void Tick(float dt);
 
-        void AddComponent(std::shared_ptr<Component> component);
+        REFLECTION void AddComponent(std::shared_ptr<Component> component);
 
         REFLECTION const Transform & GetTransform() const;
         REFLECTION void SetTransform(const Transform& transform);

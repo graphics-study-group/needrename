@@ -83,7 +83,9 @@ static_cast<${class_name} *>(obj)->${method.name}(\
 
             % for class_type in topological_sorted_types:
             % for base_type in class_type.base_types:
+            % if base_type in classes_map:
             Type_${class_type.name}->AddBaseType(Type_${base_type});
+            % endif
             % endfor
             % endfor
         }

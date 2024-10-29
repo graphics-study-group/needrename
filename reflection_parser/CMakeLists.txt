@@ -22,7 +22,7 @@ message(STATUS "Python environment activate command: ${ACTIVATE_COMMAND}")
 string(REPLACE ";" " -I" REFLECTION_SEARCH_INCLUDE_DIRS_ARGS "${REFLECTION_SEARCH_INCLUDE_DIRS}")
 set(REFLECTION_SEARCH_INCLUDE_DIRS_ARGS "-I${REFLECTION_SEARCH_INCLUDE_DIRS_ARGS}")
 
-set(REFLECTION_PARSER_ARGS "-std=c++20 ${REFLECTION_SEARCH_INCLUDE_DIRS_ARGS}")
+set(REFLECTION_PARSER_ARGS "-x c++ -w -MG -M -ferror-limit=0 -std=c++20 -o ${CMAKE_BINARY_DIR}/parser_log.txt ${REFLECTION_SEARCH_INCLUDE_DIRS_ARGS}")
 message(STATUS "Reflection parser args: ${REFLECTION_PARSER_ARGS}")
 
 add_custom_target(reflection_parser ALL

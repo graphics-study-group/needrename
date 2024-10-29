@@ -8,7 +8,7 @@ def main():
     parser.add_argument("--reflection_search_files", type=str, help="a txt file records all the files that need to search for reflection", required=True)
     parser.add_argument("--generated_code_dir", type=str, help="the output directory of the generated files", required=True)
     parser.add_argument("--reflection_macros_header", type=str, help="a header file records all the macros about reflection", required=True)
-    parser.add_argument("--args", type=str, help="the arguments to pass to the clang compiler", default="-std=c++20")
+    parser.add_argument("--args", type=str, help="the arguments to pass to the clang compiler", default="-x c++ -w -MG -M -ferror-limit=0 -std=c++20")
     args = parser.parse_args()
 
     headers = args.reflection_search_files.strip().split(';')

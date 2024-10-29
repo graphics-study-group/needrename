@@ -31,9 +31,9 @@ class ReflectionParser:
             if child.kind == CX.CursorKind.CXX_BASE_SPECIFIER:
                 base_type = child.referenced.spelling # XXX: base class ignored the namespace
                 one_type.base_types.append(base_type)
-            elif child.kind == CX.CursorKind.FIELD_DECL:
-                if not self.is_reflection(child):
-                    continue
+            if not self.is_reflection(child):
+                continue
+            if child.kind == CX.CursorKind.FIELD_DECL:  
                 field_name = child.spelling
                 field_type = child.type.spelling
                 one_field = Field(field_name)
@@ -61,6 +61,8 @@ class ReflectionParser:
                         return_type = method_child.spelling
                         one_method.return_type = return_type
                 one_type.methods.append(one_method)
+            else:
+                raise Exception(f"Unknown reflection attribute {child.kind} in class {class_name}")
         self.types[class_name] = one_type
 
     def traverse(self, node: CX.Cursor):
@@ -94,6 +96,8 @@ class ReflectionParser:
             idx[one_type.name] = i
         for one_type in types.values():
             for base_type in one_type.base_types:
+                if base_type not in idx:
+                    continue
                 edges[idx[base_type]].append(idx[one_type.name])
                 in_degree[idx[one_type.name]] += 1
         queue = []

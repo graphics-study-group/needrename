@@ -10,7 +10,7 @@ class REFLECTION TestGO: public Engine::GameObject
 class REFLECTION FooBase
 {
 public:
-    FooBase() = default;
+    REFLECTION FooBase() = default;
     virtual ~FooBase() = default;
 
     REFLECTION int m_foobase = 1324;
@@ -24,7 +24,7 @@ public:
 class REFLECTION BBase
 {
 public:
-    BBase() = default;
+    REFLECTION BBase() = default;
     virtual ~BBase() = default;
 
     REFLECTION int m_bbase = 23;
@@ -38,7 +38,7 @@ public:
 class REFLECTION FooA : public FooBase, public BBase
 {
 public:
-    FooA(int a, int b) : m_a(a), m_b(b) {}
+    REFLECTION FooA(int a, int b) : m_a(a), m_b(b) {}
     virtual ~FooA() = default;
 
     REFLECTION int m_a = 42;
