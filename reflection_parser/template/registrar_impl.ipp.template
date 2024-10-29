@@ -74,5 +74,18 @@ static_cast<${class_name} *>(obj)->${method.name}(\
             }
             % endfor
         };
+
+        void Registrar::RegisterAllTypes()
+        {
+            % for class_type in classes_map.values():
+            auto Type_${class_type.name} = TypeRegistrar::Register_${class_type.name}();
+            % endfor
+
+            % for class_type in topological_sorted_types:
+            % for base_type in class_type.base_types:
+            Type_${class_type.name}->AddBaseType(Type_${base_type});
+            % endfor
+            % endfor
+        }
     }
 }

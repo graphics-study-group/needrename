@@ -1,5 +1,11 @@
 #include <iostream>
 #include "Reflection/reflection.h"
+#include "Framework/go/GameObject.h"
+
+class REFLECTION TestGO: public Engine::GameObject
+{
+
+};
 
 class REFLECTION FooBase
 {
@@ -202,6 +208,7 @@ int main()
 
     std::cout << Engine::Reflection::GetMangledName<int, char, float, double>() << std::endl;
     // std::cout << Engine::Reflection::GetFunctionArgsMangledName(FooA::Add) << std::endl;
+    std::cout << typeid(TestGO).name() << ' ' << typeid(Engine::GameObject).name() << std::endl;
 
     return 0;
 }

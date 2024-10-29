@@ -38,6 +38,8 @@ namespace Engine
 
             Var &operator=(const Var &var);
         };
+
+        // TODO: Implement const type
     }
 }
 

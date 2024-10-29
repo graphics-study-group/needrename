@@ -19,6 +19,12 @@ else()
 endif()
 message(STATUS "Python environment activate command: ${ACTIVATE_COMMAND}")
 
+string(REPLACE ";" " -I" REFLECTION_SEARCH_INCLUDE_DIRS_ARGS "${REFLECTION_SEARCH_INCLUDE_DIRS}")
+set(REFLECTION_SEARCH_INCLUDE_DIRS_ARGS "-I${REFLECTION_SEARCH_INCLUDE_DIRS_ARGS}")
+
+set(REFLECTION_PARSER_ARGS "-std=c++20 ${REFLECTION_SEARCH_INCLUDE_DIRS_ARGS}")
+message(STATUS "Reflection parser args: ${REFLECTION_PARSER_ARGS}")
+
 add_custom_target(reflection_parser ALL
     COMMAND ${CMAKE_COMMAND} -E echo " ********** Precompile started ********** "
     COMMAND ${CMAKE_COMMAND} -E echo "[Precompile]: run parser python script"
@@ -28,6 +34,7 @@ add_custom_target(reflection_parser ALL
                 --reflection_search_files "${REFLECTION_SEARCH_FILES}"
                 --generated_code_dir ${CMAKE_CURRENT_SOURCE_DIR}/generated
                 --reflection_macros_header ${ENGINE_SOURCE_DIR}/Reflection/macros.h
+                --args ${REFLECTION_PARSER_ARGS}
 
     COMMAND ${CMAKE_COMMAND} -E echo " ********** Precompile finished ********** "
     
