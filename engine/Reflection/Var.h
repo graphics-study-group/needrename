@@ -40,6 +40,7 @@ namespace Engine
         };
 
         // TODO: Implement const type
+        // TODO: Implement pointer and reference type
     }
 }
 

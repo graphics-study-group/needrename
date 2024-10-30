@@ -1,0 +1,4 @@
+#include "all_reflection_files.hpp"
+#include "registrar_declare.hpp"
+#include "registrar_impl.ipp"
+#include "reflection_global_function_impl.ipp"

@@ -40,8 +40,9 @@ namespace Engine
 
         /// @brief Get the Reflection::Type from a name
         /// @param name the type name
+        /// @param type_info the type_info of the type. default is nullptr, than the Type will be registered with nullptr type_info
         /// @return the shared pointer to the Type class
-        std::shared_ptr<Type> GetType(const std::string &name);
+        std::shared_ptr<Type> GetType(const std::string &name, std::type_info *type_info = nullptr);
     }
 }
 

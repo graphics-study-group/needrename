@@ -39,6 +39,7 @@ namespace Engine
         struct FunctionTraits<R (*)(Args...)>
         {
             using ReturnType = R;
+            using PointerParameterTypes = std::tuple<typename std::add_pointer<typename std::remove_reference<Args>::type>::type...>;
             using ParameterTypes = std::tuple<Args...>;
         };
 
@@ -46,6 +47,7 @@ namespace Engine
         struct FunctionTraits<R (cls::*)(Args...)>
         {
             using ReturnType = R;
+            using PointerParameterTypes = std::tuple<typename std::add_pointer<typename std::remove_reference<Args>::type>::type...>;
             using ParameterTypes = std::tuple<Args...>;
         };
 
@@ -53,10 +55,11 @@ namespace Engine
         std::string GetFunctionArgsMangledName(T func)
         {
             using Traits = FunctionTraits<T>;
-            using ParameterTypes = typename Traits::ParameterTypes;
+            using ParameterTypes = typename Traits::PointerParameterTypes;
+        
             std::string ret = std::to_string(std::tuple_size<ParameterTypes>::value);
             std::apply([&ret](auto &&...args)
-                       { ((ret += typeid(args).name()), ...); }, ParameterTypes{});
+                       { ((ret += typeid(*args).name()), ...); }, ParameterTypes{});
             return ret;
         }
     }

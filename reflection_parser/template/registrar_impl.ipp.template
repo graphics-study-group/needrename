@@ -1,79 +1,85 @@
 #include <memory>
 #include <Reflection/Type.h>
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+
 namespace Engine
 {
     namespace Reflection
     {
         class Type;
 
-        class TypeRegistrar
+        % for class_type in classes_map.values():
+        <% class_name = class_type.name %>
+        std::shared_ptr<Type> TypeRegistrar::Register_${class_name}()
         {
-        public:
-            % for class_type in classes_map.values():
-            <% class_name = class_type.name %>
-            static std::shared_ptr<Type> Register_${class_name}()
-            {
-                std::shared_ptr<Type> type = std::shared_ptr<Type>(new Type("${class_name}", &typeid(${class_name}), true));
+            std::shared_ptr<Type> type = std::shared_ptr<Type>(new Type("${class_name}", &typeid(${class_name}), true));
 
-                % for constructor in class_type.constructors:
-                type->AddConstructor<\
-                    % for i in range(len(constructor.arg_types)):
+            % for constructor in class_type.constructors:
+            type->AddConstructor<\
+                % for i in range(len(constructor.arg_types)):
 ${constructor.arg_types[i]}\
+                    % if i < len(constructor.arg_types) - 1:
+, \
+                    % endif
+                % endfor
+>(
+                [](void *obj, void *&ret, const std::vector<void *> &args)
+                { ret = static_cast<void *>(new ${class_name}(\
+                    % for i in range(len(constructor.arg_types)):
+*static_cast<std::remove_reference<${constructor.arg_types[i]}>::type *>(args[${i}])\
                         % if i < len(constructor.arg_types) - 1:
 , \
                         % endif
                     % endfor
->(
-                    [](void *obj, void *&ret, std::vector<void *> args)
-                    { ret = static_cast<void *>(new FooA(\
-                        % for i in range(len(constructor.arg_types)):
-*static_cast<${constructor.arg_types[i]} *>(args[${i}])\
-                            % if i < len(constructor.arg_types) - 1:
-, \
-                            % endif
-                        % endfor
 )); });
-                % endfor
-
-                % for method in class_type.methods:
-                type->AddMethod(
-                    "${method.name}",
-                    [](void *obj, void *&ret, std::vector<void *> args)
-                    { \
-                        % if method.return_type != "void":
-void *ret_ptr = malloc(sizeof(${method.return_type})); *ret_ptr = static_cast<${class_name} *>(obj)->${method.name}(\
-                        % else:
-static_cast<${class_name} *>(obj)->${method.name}(\
-                        % endif
-                        % for i in range(len(method.arg_types)):
-*static_cast<${method.arg_types[i]} *>(args[${i}])\
-                            % if i < len(method.arg_types) - 1:
-, \
-                            % endif
-                        % endfor
-); \
-                        % if method.return_type != "void":
-                            ret = ret_ptr;\
-                        % endif
-},
-                    GetType("${method.return_type}"),
-                    &${class_name}::${method.name});
-                % endfor
-                
-                % for field in class_type.fields:
-                type->AddField(
-                    GetType("${field.type}"),
-                    "${field.name}",
-                    [](void *obj, void *&ret)
-                    { ret = static_cast<void *>(&static_cast<${class_name} *>(obj)->${field.name}); });
-                % endfor
-
-                Type::s_type_map["${class_name}"] = type;
-                return type;
-            }
             % endfor
-        };
+
+            % for method in class_type.methods:
+            type->AddMethod(
+                "${method.name}",
+                [](void *obj, void *&ret, const std::vector<void *> &args)
+                { \
+                    % if method.return_type != "void":
+std::remove_reference<${method.return_type}>::type *ret_ptr = static_cast<std::remove_reference<${method.return_type}>::type *>(malloc(sizeof(${method.return_type}))); *ret_ptr = static_cast<std::remove_reference<${class_name}>::type *>(obj)->${method.name}(\
+                    % else:
+static_cast<std::remove_reference<${class_name}>::type *>(obj)->${method.name}(\
+                    % endif
+                    % for i in range(len(method.arg_types)):
+*static_cast<std::remove_reference<${method.arg_types[i]}>::type *>(args[${i}])\
+                        % if i < len(method.arg_types) - 1:
+, \
+                        % endif
+                    % endfor
+); \
+                    % if method.return_type != "void":
+ret = static_cast<void *>(ret_ptr);\
+                    % endif
+},
+                GetType("${method.return_type}"),
+                (${method.return_type} (${class_name}::*)(\
+                % for i in range(len(method.arg_types)):
+${method.arg_types[i]}\
+                    % if i < len(method.arg_types) - 1:
+, \
+                    % endif
+                % endfor
+))&${class_name}::${method.name});
+            % endfor
+            
+            % for field in class_type.fields:
+            type->AddField(
+                GetType("${field.type}"),
+                "${field.name}",
+                [](void *obj, void *&ret)
+                { ret = static_cast<void *>(&static_cast<${class_name} *>(obj)->${field.name}); });
+            % endfor
+
+            Type::s_type_map["${class_name}"] = Type::s_type_map[typeid(${class_name}).name()] = type;
+            return type;
+        }
+        % endfor
 
         void Registrar::RegisterAllTypes()
         {
@@ -91,3 +97,5 @@ static_cast<${class_name} *>(obj)->${method.name}(\
         }
     }
 }
+
+#pragma GCC diagnostic pop

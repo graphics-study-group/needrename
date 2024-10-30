@@ -1,18 +1,13 @@
 message("COMPILE engine library")
-file(GLOB_RECURSE SRC "./*")
-foreach(SRC IN ITEMS ${SRC}) 
-    get_filename_component(SRC_PATH "${SRC}" PATH)
-    file(RELATIVE_PATH SRC_PATH_REL "${CMAKE_CURRENT_SOURCE_DIR}" "${SRC_PATH}")
-    string(REPLACE "/" "\\" GROUP_PATH "${SRC_PATH_REL}")
-    source_group("${GROUP_PATH}" FILES "${SRC}")
-endforeach()
+file(GLOB_RECURSE SOURCE "./*.cpp")
+file(GLOB_RECURSE HEADER "./*.h")
 
-add_library(engine STATIC ${SRC})
+add_library(engine STATIC ${SOURCE})
 target_include_directories(
     engine
     PUBLIC
     ${ENGINE_SOURCE_DIR}
-    ${REFLECTION_PARSER_DIR}/generated
+    ${REFLECTION_PARSER_DIR}
 )
 
 target_link_libraries(engine PUBLIC SDL3::SDL3 Vulkan::Vulkan glm tinyobjloader stb json cereal)

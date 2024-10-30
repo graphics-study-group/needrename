@@ -34,12 +34,14 @@ namespace Engine
             Type::s_type_map[name] = std::shared_ptr<Type>(new Type(name, type_info, reflectable));
         }
 
-        std::shared_ptr<Type> GetType(const std::string &name)
+        std::shared_ptr<Type> GetType(const std::string &name, std::type_info *type_info)
         {
             if (Type::s_type_map.find(name) != Type::s_type_map.end())
                 return Type::s_type_map[name];
-            Registrar::RegisterNewType(name, nullptr, false);
+            Registrar::RegisterNewType(name, type_info, false);
             return Type::s_type_map[name];
         }
     }
 }
+
+#include <generated/generated_reflection.ipp>
