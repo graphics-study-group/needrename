@@ -9,6 +9,7 @@ namespace Engine {
     void GUISystem::CleanUp()
     {
         if (m_context != nullptr) {
+            ImGui_ImplSDL3_Shutdown();
             ImGui_ImplVulkan_Shutdown();
             ImGui::DestroyContext(m_context);
         }
@@ -49,7 +50,7 @@ namespace Engine {
         info.MinImageCount = info.ImageCount;
         info.UseDynamicRendering = true;
         info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
-        
+
         VkPipelineRenderingCreateInfoKHR pipeline {};
         pipeline.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR;
         pipeline.pNext = nullptr;
