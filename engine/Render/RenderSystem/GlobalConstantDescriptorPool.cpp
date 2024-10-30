@@ -92,8 +92,7 @@ namespace Engine::RenderSystemState{
         vk::DescriptorPoolCreateInfo info {
             vk::DescriptorPoolCreateFlags{},
             MAX_SET_SIZE,
-            DESCRIPTOR_POOL_SIZES.size(),
-            DESCRIPTOR_POOL_SIZES.data()
+            DESCRIPTOR_POOL_SIZES
         };
         m_handle = p_system->getDevice().createDescriptorPoolUnique(info);
 
