@@ -37,7 +37,14 @@ ${constructor.arg_types[i]}\
             % endfor
 
             % for method in class_type.methods:
-            type->AddMethod(
+            type->AddMethod<\
+                % for i in range(len(method.arg_types)):
+${method.arg_types[i]}\
+                    % if i < len(method.arg_types) - 1:
+, \
+                    % endif
+                % endfor
+>(
                 "${method.name}",
                 [](void *obj, void *&ret, const std::vector<void *> &args)
                 { \
@@ -57,15 +64,7 @@ static_cast<std::remove_reference<${class_name}>::type *>(obj)->${method.name}(\
 ret = static_cast<void *>(ret_ptr);\
                     % endif
 },
-                GetType("${method.return_type}"),
-                (${method.return_type} (${class_name}::*)(\
-                % for i in range(len(method.arg_types)):
-${method.arg_types[i]}\
-                    % if i < len(method.arg_types) - 1:
-, \
-                    % endif
-                % endfor
-))&${class_name}::${method.name});
+                GetType("${method.return_type}"));
             % endfor
             
             % for field in class_type.fields:

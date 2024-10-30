@@ -4,9 +4,10 @@ namespace Engine
 {
     namespace Reflection
     {
-        Method::Method(const std::string &final_name, const WrapperMemberFunc &func, std::shared_ptr<Type> return_type)
+        Method::Method(const std::string &final_name, const WrapperMemberFunc &func, std::shared_ptr<Type> return_type, bool is_final_name)
             : m_func(func), m_return_type(return_type), m_name(final_name)
         {
+            assert(is_final_name == true);
         }
     }
 }

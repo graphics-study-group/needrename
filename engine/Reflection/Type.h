@@ -56,8 +56,8 @@ namespace Engine
             void SetName(const std::string &name);
             template <typename... Args>
             void AddConstructor(const WrapperMemberFunc &func);
-            template <typename T>
-            void AddMethod(const std::string &name, const WrapperMemberFunc &func, std::shared_ptr<Type> return_type, T original_func);
+            template <typename... Args>
+            void AddMethod(const std::string &name, const WrapperMemberFunc &func, std::shared_ptr<Type> return_type);
             void AddMethod(std::shared_ptr<Method> method);
             void AddBaseType(std::shared_ptr<Type> base_type);
             void AddField(const std::shared_ptr<Type> field_type, const std::string &name, const WrapperFieldFunc &field_getter);

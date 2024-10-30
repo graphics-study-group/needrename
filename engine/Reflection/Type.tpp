@@ -12,15 +12,14 @@ namespace Engine
         void Type::AddConstructor(const WrapperMemberFunc &func)
         {
             std::string mangled_name = k_constructor_name + GetMangledName<Args...>();
-            m_methods[mangled_name] = std::shared_ptr<Method>(new Method(mangled_name, func, shared_from_this()));
+            m_methods[mangled_name] = std::shared_ptr<Method>(new Method(mangled_name, func, shared_from_this(), true));
         }
 
-        template <typename T>
-        void Type::AddMethod(const std::string &name, const WrapperMemberFunc &func, std::shared_ptr<Type> return_type, T original_func)
+        template <typename... Args>
+        void Type::AddMethod(const std::string &name, const WrapperMemberFunc &func, std::shared_ptr<Type> return_type)
         {
-            static_assert(std::is_member_function_pointer_v<T>);
-            std::string mangled_name = name + GetFunctionArgsMangledName(original_func);
-            m_methods[mangled_name] = std::shared_ptr<Method>(new Method(mangled_name, func, return_type));
+            std::string mangled_name = name + GetMangledName<Args...>();
+            m_methods[mangled_name] = std::shared_ptr<Method>(new Method(mangled_name, func, return_type, true));
         }
 
         template <typename... Args>

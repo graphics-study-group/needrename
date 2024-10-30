@@ -6,12 +6,11 @@ namespace Engine
 {
     namespace Reflection
     {
-        template <typename T>
-        Method::Method(const std::string &name_no_mangled, const WrapperMemberFunc &func, std::shared_ptr<Type> return_type, T original_func)
+        template <typename... Args>
+        Method::Method(const std::string &name_no_mangled, const WrapperMemberFunc &func, std::shared_ptr<Type> return_type)
             : m_name(name_no_mangled), m_func(func), m_return_type(return_type)
         {
-            static_assert(std::is_member_function_pointer_v<T>);
-            m_name += GetFunctionArgsMangledName(original_func);
+            m_name += GetMangledName<Args...>();
         }
 
         template <typename... Args>

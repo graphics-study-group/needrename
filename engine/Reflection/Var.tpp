@@ -13,6 +13,7 @@ namespace Engine
         {
         }
 
+        // TODO: do some type checking in Get and Set
         template <typename T>
         T &Var::Get()
         {

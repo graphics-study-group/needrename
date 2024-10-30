@@ -1,11 +1,4 @@
 #include "Reflection/reflection.h"
-#include "Framework/go/GameObject.h"
-
-class REFLECTION TestGO: public Engine::GameObject
-{
-
-};
-
 class REFLECTION FooBase
 {
 public:
@@ -41,4 +34,32 @@ public:
     REFLECTION int Add(int a, int b);
     REFLECTION int Add(int a, int b, int c);
     REFLECTION virtual void PrintHelloWorld();
+};
+
+class REFLECTION TestData
+{
+public:
+    REFLECTION TestData() = default;
+    virtual ~TestData() = default;
+
+    REFLECTION float data[100] = {0.0f};
+};
+
+class REFLECTION ConstTest
+{
+public:
+    REFLECTION ConstTest() = default;
+    virtual ~ConstTest() = default;
+
+    REFLECTION const TestData *m_const_data = nullptr;
+    REFLECTION TestData *m_data = nullptr;
+
+    REFLECTION const TestData *GetConstDataPtr() const;
+    REFLECTION void SetConstDataPtr(const TestData *data);
+    REFLECTION void SetConstDataRef(const TestData &data);
+    // REFLECTION const TestData &GetConstDataRef() const;
+    REFLECTION const TestData *GetTestDataPtrAndAdd();
+
+    REFLECTION TestData *GetTestDataPtr();
+    REFLECTION TestData &GetTestDataRef();
 };

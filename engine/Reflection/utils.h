@@ -31,37 +31,6 @@ namespace Engine
         {
             return GetMangledName<Args...>();
         }
-
-        template <typename T>
-        struct FunctionTraits;
-
-        template <typename R, typename... Args>
-        struct FunctionTraits<R (*)(Args...)>
-        {
-            using ReturnType = R;
-            using PointerParameterTypes = std::tuple<typename std::add_pointer<typename std::remove_reference<Args>::type>::type...>;
-            using ParameterTypes = std::tuple<Args...>;
-        };
-
-        template <typename R, typename cls, typename... Args>
-        struct FunctionTraits<R (cls::*)(Args...)>
-        {
-            using ReturnType = R;
-            using PointerParameterTypes = std::tuple<typename std::add_pointer<typename std::remove_reference<Args>::type>::type...>;
-            using ParameterTypes = std::tuple<Args...>;
-        };
-
-        template <typename T>
-        std::string GetFunctionArgsMangledName(T func)
-        {
-            using Traits = FunctionTraits<T>;
-            using ParameterTypes = typename Traits::PointerParameterTypes;
-        
-            std::string ret = std::to_string(std::tuple_size<ParameterTypes>::value);
-            std::apply([&ret](auto &&...args)
-                       { ((ret += typeid(*args).name()), ...); }, ParameterTypes{});
-            return ret;
-        }
     }
 }
 

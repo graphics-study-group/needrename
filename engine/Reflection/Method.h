@@ -19,9 +19,9 @@ namespace Engine
         protected:
             friend class Type;
             Method() = delete;
+            Method(const std::string &final_name, const WrapperMemberFunc &func, std::shared_ptr<Type> return_type, bool is_final_name);
+            template <typename... Args>
             Method(const std::string &name, const WrapperMemberFunc &func, std::shared_ptr<Type> return_type);
-            template <typename T>
-            Method(const std::string &name, const WrapperMemberFunc &func, std::shared_ptr<Type> return_type, T original_func);
         public:
             ~Method() = default;
 
