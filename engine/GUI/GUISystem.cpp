@@ -51,15 +51,11 @@ namespace Engine {
         info.UseDynamicRendering = true;
         info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
 
-        VkPipelineRenderingCreateInfoKHR pipeline {};
-        pipeline.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR;
-        pipeline.pNext = nullptr;
-        pipeline.colorAttachmentCount = 1;
-        pipeline.pColorAttachmentFormats = &swapchain_format;
-        pipeline.depthAttachmentFormat = static_cast<VkFormat>(ImageUtils::GetVkFormat(swapchain.DEPTH_FORMAT));
-        pipeline.viewMask = 0;
+        VkPipelineRenderingCreateInfoKHR pipeline{
+            static_cast<VkPipelineRenderingCreateInfoKHR>(swapchain.GetPipelineRenderingCreateInfo())
+        };
         info.PipelineRenderingCreateInfo = pipeline;
 
-        assert(ImGui_ImplVulkan_Init(&info) && "Failed to initialize Vulkan backend.");
+        assert(ImGui_ImplVulkan_Init(&info) && "Failed to initialize Vulkan backend for ImGui.");
     }
 }

@@ -80,16 +80,9 @@ namespace Engine::PremadePipeline {
         info.renderPass = nullptr;
         info.subpass = 0;
 
-        // Get formats from swapchain
+        // Get info from swapchain
         const auto & swapchain = m_system.lock()->GetSwapchain();
-
-        std::array<vk::Format, 1> color_attachment_formats = {swapchain.GetImageFormat().format};
-        vk::PipelineRenderingCreateInfo rinfo {
-            0,
-            color_attachment_formats,
-            ImageUtils::GetVkFormat(swapchain.DEPTH_FORMAT),
-            vk::Format::eUndefined
-        };
+        vk::PipelineRenderingCreateInfo rinfo = swapchain.GetPipelineRenderingCreateInfo();
         info.pNext = &rinfo;
 
         auto ret = m_system.lock()->getDevice().createGraphicsPipelineUnique(nullptr, info);
