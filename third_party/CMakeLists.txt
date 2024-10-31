@@ -18,7 +18,7 @@ add_library(imgui ${IMGUI_SOURCE})
 target_link_libraries(imgui PUBLIC SDL3::SDL3 Vulkan::Vulkan)
 target_include_directories(
     imgui 
-    PUBLIC 
+    SYSTEM PUBLIC 
     "${THIRD_PARTY_DIR}/imgui/"
     "${THIRD_PARTY_DIR}/imgui/backends/"
 )
