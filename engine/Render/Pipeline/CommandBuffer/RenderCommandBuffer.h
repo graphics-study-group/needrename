@@ -63,6 +63,8 @@ namespace Engine {
         void Submit();
 
         void Reset();
+
+        vk::CommandBuffer get();
     protected:
         uint32_t m_inflight_frame_index {};
         vk::UniqueCommandBuffer m_handle {};

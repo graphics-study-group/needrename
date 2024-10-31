@@ -58,11 +58,10 @@ namespace Engine
             auto color = pass.GetColorAttachment(framebuffer_id, i);
 
             // Prepare attachment information
-            assert(
-                color.load_op == vk::AttachmentLoadOp::eClear &&
-                color.store_op == vk::AttachmentStoreOp::eStore &&
-                "Pathological color buffer operation."
-            );
+            if (!((color.load_op == vk::AttachmentLoadOp::eClear || color.load_op == vk::AttachmentLoadOp::eLoad) &&
+                color.store_op == vk::AttachmentStoreOp::eStore)) {
+                SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Pathological color buffer operations.");
+            }
             color_attachment[i] = GetVkAttachmentInfo(color, vk::ImageLayout::eColorAttachmentOptimal, clear_values[0]);
 
             // Set up layout transition barrier
@@ -72,11 +71,10 @@ namespace Engine
             );
         }
 
-        assert(
-            depth.load_op == vk::AttachmentLoadOp::eClear &&
-            depth.store_op == vk::AttachmentStoreOp::eDontCare &&
-            "Pathological depth buffer operation."
-        );
+        if (!(depth.load_op == vk::AttachmentLoadOp::eClear 
+            && depth.store_op == vk::AttachmentStoreOp::eDontCare)) {
+            SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Pathological depth buffer operations.");
+        }
         vk::RenderingAttachmentInfo depth_attachment{
             GetVkAttachmentInfo(depth, vk::ImageLayout::eDepthAttachmentOptimal, clear_values[1])
         };
@@ -247,5 +245,10 @@ namespace Engine
         m_bound_material.reset();
         m_bound_material_pipeline.reset();
         m_image_for_present.reset();
+    }
+
+    vk::CommandBuffer RenderCommandBuffer::get()
+    {
+        return m_handle.get();
     }
 }
