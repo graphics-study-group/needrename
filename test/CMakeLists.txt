@@ -52,6 +52,11 @@ target_link_libraries(complex_mesh_test engine)
 add_test(NAME complex_mesh_test COMMAND complex_mesh_test)
 set_target_properties(complex_mesh_test PROPERTIES FOLDER tests)
 
+add_executable(imgui_test imgui_test.cpp)
+target_link_libraries(imgui_test engine)
+add_test(NAME imgui_test COMMAND imgui_test)
+set_target_properties(imgui_test PROPERTIES FOLDER tests)
+
 # Copy SDL dll
 add_custom_command(TARGET SDL_init_test POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
