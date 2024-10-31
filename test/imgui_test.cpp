@@ -47,8 +47,9 @@ int main(int, char **)
                 quited = true;
                 break;
             }
+            gsys->ProcessEvent(&event);
         }
-        gsys->ProcessEvent(&event);
+        
         gsys->PrepareGUI();
         ImGui::ShowDemoWindow();
 
@@ -69,6 +70,7 @@ int main(int, char **)
         rsys->Present(index, in_flight_frame_id);
 
         in_flight_frame_id = (in_flight_frame_id + 1) % 3;
+        SDL_Delay(10);
     }
 
     rsys->WaitForIdle();
