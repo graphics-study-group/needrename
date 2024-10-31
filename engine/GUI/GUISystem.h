@@ -23,6 +23,11 @@ namespace Engine {
         GUISystem(std::shared_ptr <RenderSystem> render_system);
         ~GUISystem();
 
+        GUISystem(const GUISystem &) = delete;
+        GUISystem(GUISystem &&) = delete;
+        void operator= (const GUISystem &) = delete;
+        void operator= (GUISystem &&) = delete; 
+
         void ProcessEvent(SDL_Event * event) const;
         void PrepareGUI() const;
         void DrawGUI(RenderCommandBuffer & cb) const;
