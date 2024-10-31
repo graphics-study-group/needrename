@@ -28,7 +28,7 @@ ${constructor.arg_types[i]}\
                 [](void *obj, void *&ret, const std::vector<void *> &args)
                 { ret = static_cast<void *>(new ${class_name}(\
                     % for i in range(len(constructor.arg_types)):
-*static_cast<std::remove_reference<${constructor.arg_types[i]}>::type *>(args[${i}])\
+*reinterpret_cast<std::remove_reference<${constructor.arg_types[i]}>::type *>(args[${i}])\
                         % if i < len(constructor.arg_types) - 1:
 , \
                         % endif
@@ -48,22 +48,49 @@ ${method.arg_types[i]}\
                 "${method.name}",
                 [](void *obj, void *&ret, const std::vector<void *> &args)
                 { \
-                    % if method.return_type != "void":
-std::remove_reference<${method.return_type}>::type *ret_ptr = static_cast<std::remove_reference<${method.return_type}>::type *>(malloc(sizeof(${method.return_type}))); *ret_ptr = static_cast<std::remove_reference<${class_name}>::type *>(obj)->${method.name}(\
-                    % else:
+                    % if method.return_type_is_reference:
+ret = reinterpret_cast<void *>(&static_cast<std::remove_reference<${class_name}>::type *>(obj)->${method.name}(\
+                    % elif method.return_type == "void":
 static_cast<std::remove_reference<${class_name}>::type *>(obj)->${method.name}(\
+                    % else:
+std::remove_reference<${method.return_type}>::type *ret_ptr = reinterpret_cast<std::remove_reference<${method.return_type}>::type *>(malloc(sizeof(${method.return_type}))); *ret_ptr = static_cast<std::remove_reference<${class_name}>::type *>(obj)->${method.name}(\
                     % endif
                     % for i in range(len(method.arg_types)):
-*static_cast<std::remove_reference<${method.arg_types[i]}>::type *>(args[${i}])\
+*reinterpret_cast<std::remove_reference<${method.arg_types[i]}>::type *>(args[${i}])\
+                        % if i < len(method.arg_types) - 1:
+, \
+                        % endif
+                    % endfor
+                    % if method.return_type_is_reference:
+)); \
+                    % elif method.return_type == "void":
+); \
+                    % else:
+); ret = reinterpret_cast<void *>(ret_ptr);\
+                    % endif
+}, 
+                % if method.is_const:
+                [](const void *obj, void *&ret, const std::vector<void *> &args)
+                { \
+                    % if method.return_type != "void":
+std::remove_reference<${method.return_type}>::type *ret_ptr = reinterpret_cast<std::remove_reference<${method.return_type}>::type *>(malloc(sizeof(${method.return_type}))); *ret_ptr = static_cast<std::add_const<std::remove_reference<${class_name}>::type>::type *>(obj)->${method.name}(\
+                    % else:
+static_cast<std::add_const<std::remove_reference<${class_name}>::type>::type *>(obj)->${method.name}(\
+                    % endif
+                    % for i in range(len(method.arg_types)):
+*reinterpret_cast<std::remove_reference<${method.arg_types[i]}>::type *>(args[${i}])\
                         % if i < len(method.arg_types) - 1:
 , \
                         % endif
                     % endfor
 ); \
                     % if method.return_type != "void":
-ret = static_cast<void *>(ret_ptr);\
+ret = reinterpret_cast<void *>(ret_ptr);\
                     % endif
 },
+                % else:
+                nullptr,
+                % endif
                 GetType("${method.return_type}"));
             % endfor
             
@@ -72,7 +99,9 @@ ret = static_cast<void *>(ret_ptr);\
                 GetType("${field.type}"),
                 "${field.name}",
                 [](void *obj, void *&ret)
-                { ret = static_cast<void *>(&static_cast<${class_name} *>(obj)->${field.name}); });
+                { ret = static_cast<void *>(&static_cast<${class_name} *>(obj)->${field.name}); },
+                [](const void *obj, const void *&ret)
+                { ret = static_cast<const void *>(&static_cast<const ${class_name} *>(obj)->${field.name}); });
             % endfor
 
             Type::s_type_map["${class_name}"] = Type::s_type_map[typeid(${class_name}).name()] = type;

@@ -13,20 +13,22 @@ namespace Engine
     {
         class Type;
         class Var;
+        class ConstVar;
 
         class Method
         {
         protected:
             friend class Type;
             Method() = delete;
-            Method(const std::string &final_name, const WrapperMemberFunc &func, std::shared_ptr<Type> return_type, bool is_final_name);
+            Method(const std::string &final_name, const WrapperMemberFunc &func, const WrapperConstMemberFunc &const_func, std::shared_ptr<Type> return_type, bool is_final_name);
             template <typename... Args>
-            Method(const std::string &name, const WrapperMemberFunc &func, std::shared_ptr<Type> return_type);
+            Method(const std::string &name, const WrapperMemberFunc &func, const WrapperConstMemberFunc &const_func, std::shared_ptr<Type> return_type);
         public:
             ~Method() = default;
 
         protected:
             WrapperMemberFunc m_func{};
+            WrapperConstMemberFunc m_const_func{};
 
         public:
             std::shared_ptr<Type> m_return_type{};
@@ -36,6 +38,10 @@ namespace Engine
             Var Invoke(Var &obj, Args...);
             template <typename... Args>
             Var Invoke(void *obj, Args...);
+            template <typename... Args>
+            Var ConstInvoke(ConstVar &obj, Args...);
+            template <typename... Args>
+            Var ConstInvoke(const void *obj, Args...);
         };
     }
 }

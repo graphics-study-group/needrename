@@ -11,18 +11,20 @@ namespace Engine
     {
         class Type;
         class Var;
+        class ConstVar;
 
         class Field
         {
         protected:
             friend class Type;
             Field() = delete;
-            Field(const std::string &name, std::weak_ptr<Type> classtype, std::shared_ptr<Type> fieldtype, const WrapperFieldFunc &getter_func);
+            Field(const std::string &name, std::weak_ptr<Type> classtype, std::shared_ptr<Type> fieldtype, const WrapperFieldFunc &getter_func, const WrapperConstFieldFunc &const_getter_func);
         public:
             ~Field() = default;
         
         protected:
             WrapperFieldFunc m_getter;
+            WrapperConstFieldFunc m_const_getter;
         
         public:
             std::string m_name;
@@ -31,6 +33,8 @@ namespace Engine
 
             Var GetVar(Var &obj);
             Var GetVar(void *obj);
+            ConstVar GetConstVar(ConstVar &obj);
+            ConstVar GetConstVar(const void *obj);
         };
     }
 }

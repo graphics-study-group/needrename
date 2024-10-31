@@ -34,7 +34,7 @@ namespace Engine
             Type::s_type_map[name] = std::shared_ptr<Type>(new Type(name, type_info, reflectable));
         }
 
-        std::shared_ptr<Type> GetType(const std::string &name, std::type_info *type_info)
+        std::shared_ptr<Type> GetType(const std::string &name, const std::type_info *type_info)
         {
             if (Type::s_type_map.find(name) != Type::s_type_map.end())
                 return Type::s_type_map[name];
@@ -44,4 +44,4 @@ namespace Engine
     }
 }
 
-#include <generated/generated_reflection.ipp>
+#include "generated/generated_reflection.ipp"

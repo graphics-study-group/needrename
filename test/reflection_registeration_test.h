@@ -1,3 +1,6 @@
+#ifndef CTEST_REFLECTION_REGISTERATION_TEST_H
+#define CTEST_REFLECTION_REGISTERATION_TEST_H
+
 #include "Reflection/reflection.h"
 class REFLECTION FooBase
 {
@@ -7,7 +10,7 @@ public:
 
     REFLECTION int m_foobase = 1000;
 
-    REFLECTION virtual void PrintHelloWorld();
+    REFLECTION virtual void PrintHelloWorld() const;
 };
 
 class REFLECTION BBase
@@ -33,7 +36,7 @@ public:
     REFLECTION void PrintInfo();
     REFLECTION int Add(int a, int b);
     REFLECTION int Add(int a, int b, int c);
-    REFLECTION virtual void PrintHelloWorld();
+    REFLECTION virtual void PrintHelloWorld() const;
 };
 
 class REFLECTION TestData
@@ -44,6 +47,8 @@ public:
 
     REFLECTION float data[100] = {0.0f};
 };
+
+typedef TestData &TDR;
 
 class REFLECTION ConstTest
 {
@@ -61,5 +66,7 @@ public:
     REFLECTION const TestData *GetTestDataPtrAndAdd();
 
     REFLECTION TestData *GetTestDataPtr();
-    REFLECTION TestData &GetTestDataRef();
+    REFLECTION TDR GetTestDataRef();
 };
+
+#endif // CTEST_REFLECTION_REGISTERATION_TEST_H

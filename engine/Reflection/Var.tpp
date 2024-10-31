@@ -7,12 +7,6 @@ namespace Engine
 {
     namespace Reflection
     {
-        template <typename T>
-        Var::Var(T &obj)
-            : m_type(GetType(obj)), m_data(reinterpret_cast<void *>(&obj))
-        {
-        }
-
         // TODO: do some type checking in Get and Set
         template <typename T>
         T &Var::Get()
@@ -29,10 +23,31 @@ namespace Engine
         template <typename... Args>
         Var Var::InvokeMethod(const std::string &name, Args... args)
         {
-            auto method = m_type->GetMethod(name, args...);
+            std::shared_ptr<Method> method = m_type->GetMethod(name, args...);
             if(!method)
                 throw std::runtime_error("Method not found");
             return method->Invoke(m_data, args...);
+        }
+
+        template <typename T>
+        const T &ConstVar::Get() const
+        {
+            return *static_cast<const T *>(m_data);
+        }
+
+        template <typename T>
+        const T &ConstVar::Set(const T &value) const
+        {
+            return *static_cast<const T *>(m_data) = value;
+        }
+
+        template <typename... Args>
+        ConstVar ConstVar::InvokeMethod(const std::string &name, Args... args)
+        {
+            std::shared_ptr<Method> method = m_type->GetMethod(name, args...);
+            if(!method)
+                throw std::runtime_error("Method not found");
+            return method->ConstInvoke(m_data, args...);
         }
     }
 }

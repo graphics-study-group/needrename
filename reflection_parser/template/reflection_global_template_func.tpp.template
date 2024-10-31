@@ -1,0 +1,25 @@
+#include <memory>
+
+namespace Engine
+{
+    namespace Reflection
+    {
+        template <typename T>
+        std::shared_ptr<Type> GetTypeFromObject(const T &obj)
+        {
+            return GetType(typeid(T).name(), &typeid(T));
+        }
+
+        template <typename T>
+        Var GetVar(const T &obj)
+        {
+            return Var(GetTypeFromObject(obj), &obj);
+        }
+
+        template <typename T>
+        ConstVar GetConstVar(const T &obj)
+        {
+            return ConstVar(GetTypeFromObject(obj), &obj);
+        }
+    }
+}

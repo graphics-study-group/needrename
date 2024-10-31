@@ -51,7 +51,10 @@ class ReflectionParser:
                 method_name = child.spelling
                 method = Method(method_name)
                 method.return_type = child.result_type.spelling
+                method.return_type_is_reference = child.result_type.get_canonical().kind == CX.TypeKind.LVALUEREFERENCE or child.result_type.get_canonical().kind == CX.TypeKind.RVALUEREFERENCE
+                method.is_const = child.is_const_method()
                 for method_child in child.get_children():
+                    # print(f"method: {method_name}, child: {method_child.spelling}, kind: {method_child.kind}")
                     if method_child.kind == CX.CursorKind.PARM_DECL:
                         arg_type = method_child.type.spelling
                         method.arg_types.append(arg_type)
@@ -84,10 +87,15 @@ class ReflectionParser:
         with open(os.path.join(generated_code_dir, "registrar_impl.ipp"), "w") as f:
             f.write(template_impl.render(classes_map=self.types, topological_sorted_types=self.topological_sort(self.types)))
         
-        with open("template/reflection_global_function_impl.ipp.template", "r") as f:
+        with open("template/reflection_global_template_func.tpp.template", "r") as f:
             template_rgfi = Template(f.read())
-        with open(os.path.join(generated_code_dir, "reflection_global_function_impl.ipp"), "w") as f:
+        with open(os.path.join(generated_code_dir, "reflection_global_template_func.tpp"), "w") as f:
             f.write(template_rgfi.render(class_names=class_names))
+            
+        with open("template/generated_reflection.tpp.template", "r") as f:
+            template_gr = Template(f.read())
+        with open(os.path.join(generated_code_dir, "generated_reflection.tpp"), "w") as f:
+            f.write(template_gr.render())
         
         with open("template/generated_reflection.ipp.template", "r") as f:
             template_gr = Template(f.read())

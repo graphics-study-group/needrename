@@ -14,6 +14,8 @@ class Method:
         self.name = name
         self.arg_types = []
         self.return_type = "void"
+        self.return_type_is_reference = False
+        self.is_const = False
     
     def __str__(self):
         return f"Method: {self.name}, arg_types: {self.arg_types}, return_type: {self.return_type}"

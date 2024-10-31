@@ -15,8 +15,12 @@ namespace Engine
     {
         /// @brief Wrapper function for member function. Format: <void func(the owerner object of the member function, return value, arguments)>
         using WrapperMemberFunc = std::function<void(void *, void *&, std::vector<void *>)>;
+        /// @brief Wrapper function for const member function. Format: <void func(the owerner object of the member function, return value, arguments)>
+        using WrapperConstMemberFunc = std::function<void(const void *, void *&, std::vector<void *>)>;
         /// @brief Wrapper function for getting a field of an object. Format: <void func(the owerner object of the field, return value)>
         using WrapperFieldFunc = std::function<void(void *, void *&)>;
+        /// @brief Wrapper function for getting a const field of an object. Format: <void func(the owerner object of the field, return value)>
+        using WrapperConstFieldFunc = std::function<void(const void *, const void *&)>;
 
         template <typename... Args>
         std::string GetMangledName()

@@ -23,6 +23,7 @@ namespace Engine
         class Field;
         class Method;
         class Var;
+        class ConstVar;
 
         /// @brief The Type class represents a type in the reflection system.
         /// It contains information about the type such as its name, base types, fields, and methods.
@@ -57,10 +58,10 @@ namespace Engine
             template <typename... Args>
             void AddConstructor(const WrapperMemberFunc &func);
             template <typename... Args>
-            void AddMethod(const std::string &name, const WrapperMemberFunc &func, std::shared_ptr<Type> return_type);
+            void AddMethod(const std::string &name, const WrapperMemberFunc &func, const WrapperConstMemberFunc &const_func, std::shared_ptr<Type> return_type);
             void AddMethod(std::shared_ptr<Method> method);
             void AddBaseType(std::shared_ptr<Type> base_type);
-            void AddField(const std::shared_ptr<Type> field_type, const std::string &name, const WrapperFieldFunc &field_getter);
+            void AddField(const std::shared_ptr<Type> field_type, const std::string &name, const WrapperFieldFunc &field_getter, const WrapperConstFieldFunc &const_field_getter);
             void AddField(const std::shared_ptr<Field> field);
 
         public:
