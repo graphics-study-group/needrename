@@ -96,7 +96,12 @@ namespace Engine
     std::shared_ptr<AssetManager> MainClass::GetAssetManager() const {
         return asset;
     }
-    std::shared_ptr<RenderSystem> MainClass::GetRenderSystem() const {
+    std::shared_ptr<GUISystem> MainClass::GetGUISystem() const
+    {
+        return gui;
+    }
+    std::shared_ptr<RenderSystem> MainClass::GetRenderSystem() const
+    {
         return renderer;
     }
 }  // namespace Engine

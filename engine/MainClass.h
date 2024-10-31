@@ -25,6 +25,7 @@ namespace Engine
 
         std::shared_ptr <RenderSystem> GetRenderSystem() const;
         std::shared_ptr <AssetManager> GetAssetManager() const;
+        std::shared_ptr <GUISystem> GetGUISystem() const;
 
     protected:
         std::shared_ptr <SDLWindow> window {};

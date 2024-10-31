@@ -2,12 +2,12 @@
 #define ENGINE_GUI_GUISYSTEM_INCLUDED
 
 #include <memory>
+#include <SDL3/SDL.h>
 #include <imgui.h>
-
-typedef struct SDL_Window;
 
 namespace Engine {
     class RenderSystem;
+    class RenderCommandBuffer;
 
     class GUISystem {
     protected:
@@ -23,6 +23,9 @@ namespace Engine {
         GUISystem(std::shared_ptr <RenderSystem> render_system);
         ~GUISystem();
 
+        void ProcessEvent(SDL_Event * event) const;
+        void PrepareGUI() const;
+        void DrawGUI(RenderCommandBuffer & cb) const;
         void Create(SDL_Window * window);
     };
 }

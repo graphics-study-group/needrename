@@ -1,6 +1,7 @@
 #include "GUISystem.h"
 
 #include "Render/RenderSystem.h"
+#include "Render/Pipeline/CommandBuffer/RenderCommandBuffer.h"
 #include <SDL3/SDL.h>
 #include <backends/imgui_impl_sdl3.h>
 #include <backends/imgui_impl_vulkan.h>
@@ -25,7 +26,25 @@ namespace Engine {
         CleanUp();
     }
 
-    void GUISystem::Create(SDL_Window * window)
+    void GUISystem::ProcessEvent(SDL_Event *event) const
+    {
+        ImGui_ImplSDL3_ProcessEvent(event);
+    }
+
+    void GUISystem::PrepareGUI() const
+    {
+        ImGui_ImplSDL3_NewFrame();
+        ImGui_ImplVulkan_NewFrame();
+        ImGui::NewFrame();
+    }
+
+    void GUISystem::DrawGUI(RenderCommandBuffer &cb) const
+    {
+        ImGui::Render();
+        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), static_cast<VkCommandBuffer>(cb.get()), nullptr);
+    }
+
+    void GUISystem::Create(SDL_Window *window)
     {
         SDL_LogInfo(0, "Initializing GUI system with ImGui.");
         assert(m_context == nullptr && "Re-creating GUI system.");
@@ -35,7 +54,6 @@ namespace Engine {
 
         auto system = m_render_system.lock();
         const auto & swapchain = system->GetSwapchain();
-        VkFormat swapchain_format = static_cast<VkFormat>(swapchain.GetImageFormat().format);
 
         ImGui_ImplVulkan_InitInfo info {};
         /* info.CheckVkResultFn = [](VkResult result){
