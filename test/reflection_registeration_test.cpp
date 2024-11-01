@@ -116,12 +116,15 @@ int main()
     std::cout << "crp_test: m_data[0] == " << crp_test.GetMember("m_data").Get<TestData *>()->data[0] << std::endl;
     std::cout << "data_get: m_data[0] == " << data_get.Get<TestData *>()->data[0] << std::endl;
     std::cout << "[] crp_test: SetTestDataPtr(data3)" << std::endl;
-    crp_test.InvokeMethod<const TestData &>("SetConstDataRef", data3); // TODO: The reference did not work. It seems copied "data3" anyway.
+    crp_test.InvokeMethod<const TestData &>("SetConstDataRef", data3); // Attention: Must set the template argument explicitly when passing a reference
     std::cout << "crp_test: m_const_data[0] == " << crp_test.GetMember("m_const_data").Get<const TestData *>()->data[0] << std::endl;
-    std::cout << "Const Var (const ConstTest) const_ref_var:" << std::endl;
+    std::cout << "[] Const Var (const ConstTest) const_ref_var:" << std::endl;
     const ConstTest &const_ref = crp_test.Get<ConstTest>();
     Engine::Reflection::ConstVar const_ref_var = Engine::Reflection::GetConstVar(const_ref);
     Engine::Reflection::ConstVar const_data_get = const_ref_var.InvokeMethod("GetConstDataPtr");
+    std::cout << "const_data_get: m_data[0] == " << const_data_get.Get<const TestData *>()->data[0] << std::endl;
+    std::cout << "[] make data3 +1.0f" << std::endl;
+    data3.data[0] += 1.0f;
     std::cout << "const_data_get: m_data[0] == " << const_data_get.Get<const TestData *>()->data[0] << std::endl;
 
     return 0;

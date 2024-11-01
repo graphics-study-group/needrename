@@ -71,9 +71,9 @@ namespace Engine
 
             const std::string &GetName() const;
             template <typename... Args>
-            Var CreateInstance(Args... args);
+            Var CreateInstance(Args&&... args);
             template <typename... Args>
-            std::shared_ptr<Method> GetMethod(const std::string &name, Args... args);
+            std::shared_ptr<Method> GetMethod(const std::string &name, Args&&... args);
             std::shared_ptr<Field> GetField(const std::string &name);
         };
     }

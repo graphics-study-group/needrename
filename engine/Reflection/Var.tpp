@@ -21,12 +21,12 @@ namespace Engine
         }
 
         template <typename... Args>
-        Var Var::InvokeMethod(const std::string &name, Args... args)
+        Var Var::InvokeMethod(const std::string &name, Args&&... args)
         {
-            std::shared_ptr<Method> method = m_type->GetMethod(name, args...);
+            std::shared_ptr<Method> method = m_type->GetMethod(name, std::forward<Args>(args)...);
             if(!method)
                 throw std::runtime_error("Method not found");
-            return method->Invoke(m_data, args...);
+            return method->Invoke(m_data, std::forward<Args>(args)...);
         }
 
         template <typename T>
@@ -42,12 +42,12 @@ namespace Engine
         }
 
         template <typename... Args>
-        ConstVar ConstVar::InvokeMethod(const std::string &name, Args... args)
+        ConstVar ConstVar::InvokeMethod(const std::string &name, Args&&... args)
         {
-            std::shared_ptr<Method> method = m_type->GetMethod(name, args...);
+            std::shared_ptr<Method> method = m_type->GetMethod(name, std::forward<Args>(args)...);
             if(!method)
                 throw std::runtime_error("Method not found");
-            return method->ConstInvoke(m_data, args...);
+            return method->ConstInvoke(m_data, std::forward<Args>(args)...);
         }
     }
 }

@@ -35,13 +35,13 @@ namespace Engine
             std::string m_name{};
 
             template <typename... Args>
-            Var Invoke(Var &obj, Args...);
+            Var Invoke(Var &obj, Args&&...);
             template <typename... Args>
-            Var Invoke(void *obj, Args...);
+            Var Invoke(void *obj, Args&&...);
             template <typename... Args>
-            Var ConstInvoke(ConstVar &obj, Args...);
+            Var ConstInvoke(ConstVar &obj, Args&&...);
             template <typename... Args>
-            Var ConstInvoke(const void *obj, Args...);
+            Var ConstInvoke(const void *obj, Args&&...);
         };
     }
 }

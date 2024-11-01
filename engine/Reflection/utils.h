@@ -31,7 +31,7 @@ namespace Engine
         }
 
         template <typename... Args>
-        std::string GetMangledName(Args... args)
+        std::string GetMangledName(Args&&... args)
         {
             return GetMangledName<Args...>();
         }

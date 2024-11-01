@@ -32,7 +32,7 @@ namespace Engine
             template <typename T>
             T &Set(const T &value);
             template <typename... Args>
-            Var InvokeMethod(const std::string &name, Args...);
+            Var InvokeMethod(const std::string &name, Args&&...);
             Var GetMember(const std::string &name);
 
             Var &operator=(const Var &var);
@@ -61,7 +61,7 @@ namespace Engine
             template <typename T>
             const T &Set(const T &value) const;
             template <typename... Args>
-            ConstVar InvokeMethod(const std::string &name, Args...);
+            ConstVar InvokeMethod(const std::string &name, Args&&...);
             ConstVar GetMember(const std::string &name);
 
             ConstVar &operator=(const ConstVar &var);

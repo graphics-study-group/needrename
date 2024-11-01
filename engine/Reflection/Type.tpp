@@ -23,18 +23,18 @@ namespace Engine
         }
 
         template <typename... Args>
-        Var Type::CreateInstance(Args... args)
+        Var Type::CreateInstance(Args&&... args)
         {
-            auto constructor = GetMethod(k_constructor_name, args...);
+            auto constructor = GetMethod(k_constructor_name, std::forward<Args>(args)...);
             if (!constructor)
                 throw std::runtime_error("Constructor not found");
-            return constructor->Invoke(nullptr, args...);
+            return constructor->Invoke(nullptr, std::forward<Args>(args)...);
         }
 
         template <typename... Args>
-        std::shared_ptr<Method> Type::GetMethod(const std::string &name, Args... args)
+        std::shared_ptr<Method> Type::GetMethod(const std::string &name, Args&&... args)
         {
-            auto mangled_name = name + GetMangledName(args...);
+            auto mangled_name = name + GetMangledName(std::forward<Args>(args)...);
             return GetMethodFromManagedName(mangled_name);
         }
     }
