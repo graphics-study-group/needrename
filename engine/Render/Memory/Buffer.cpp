@@ -7,36 +7,13 @@ namespace Engine
     }
 
     void Buffer::Create(BufferType type, size_t size) {
-        auto system = m_system.lock();
-        auto device = system->getDevice();
-        auto property = GetMemoryProperty(type);
-        auto usage =  GetBufferUsage(type);
-
+        auto & allocator_state = m_system.lock()->GetAllocatorState();
+        m_allocated_memory = std::make_unique<AllocatedMemory>(allocator_state.AllocateBuffer(type, size));
         m_size = size;
-
-        vk::BufferCreateInfo buffer_info {
-            vk::BufferCreateFlags{0},
-            m_size,
-            usage,
-            vk::SharingMode::eExclusive
-        };
-        m_buffer = device.createBufferUnique(buffer_info);
-
-        vk::MemoryRequirements requirements = device.getBufferMemoryRequirements(m_buffer.get());
-        uint32_t memory_index = system->FindPhysicalMemory(
-            requirements.memoryTypeBits, 
-            property
-        );
-        m_memory = device.allocateMemoryUnique({std::max(m_size, requirements.size), memory_index});
-        device.bindBufferMemory(m_buffer.get(), m_memory.get(), m_offset);
     }
 
     vk::Buffer Buffer::GetBuffer() const {
-        return m_buffer.get();
-    }
-
-    vk::DeviceMemory Buffer::GetMemory() const {
-        return m_memory.get();
+        return m_allocated_memory->GetBuffer();
     }
 
     size_t Buffer::GetSize() const {
@@ -44,41 +21,19 @@ namespace Engine
     }
 
     std::byte* Buffer::Map() const {
-        auto device = m_system.lock()->getDevice();
-        return reinterpret_cast<std::byte*>(device.mapMemory(m_memory.get(), m_offset, m_size));
+        return m_allocated_memory->MapMemory();
+    }
+
+    void Buffer::Flush(size_t offset, size_t size) const {
+        m_allocated_memory->FlushMemory(offset, size);
+    }
+
+    void Buffer::Invalidate(size_t offset, size_t size) const {
+        m_allocated_memory->InvalidateMemory(offset, size);
     }
 
     void Buffer::Unmap() const {
-        auto device = m_system.lock()->getDevice();
-        device.unmapMemory(m_memory.get());
+        m_allocated_memory->UnmapMemory();
     }
-
-    vk::MemoryPropertyFlags Buffer::GetMemoryProperty(BufferType type) {
-        switch (type) {
-            case BufferType::Staging:
-                return vk::MemoryPropertyFlagBits::eHostCoherent | vk::MemoryPropertyFlagBits::eHostVisible;
-            case BufferType::Vertex:
-                return vk::MemoryPropertyFlagBits::eDeviceLocal;
-            case BufferType::Uniform:
-                return vk::MemoryPropertyFlagBits::eHostCoherent | vk::MemoryPropertyFlagBits::eHostVisible;
-        }
-        return vk::MemoryPropertyFlags();
-    }
-
-    vk::BufferUsageFlags Buffer::GetBufferUsage(BufferType type) {
-        switch (type) {
-            case BufferType::Staging:
-                return vk::BufferUsageFlagBits::eTransferSrc;
-            case BufferType::Vertex:
-                return vk::BufferUsageFlagBits::eTransferDst 
-                    | vk::BufferUsageFlagBits::eIndexBuffer 
-                    | vk::BufferUsageFlagBits::eVertexBuffer;
-            case BufferType::Uniform:
-                return vk::BufferUsageFlagBits::eUniformBuffer;
-        }
-        return vk::BufferUsageFlags();
-    }
-
-    
 } // namespace Engine
 

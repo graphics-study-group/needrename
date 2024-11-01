@@ -12,7 +12,7 @@
 #include "Framework/component/RenderComponent/CameraComponent.h"
 #include "Framework/component/RenderComponent/MeshComponent.h"
 #include "Render/Memory/Image2DTexture.h"
-#include "Render/Material/Shadeless.h"
+#include "Render/Material/BlinnPhong.h"
 #include "Render/Pipeline/Shader.h"
 #include "Render/Pipeline/RenderTarget/RenderTargetSetup.h"
 #include "Render/Pipeline/CommandBuffer.h"
@@ -68,7 +68,7 @@ class MeshComponentFromFile : public MeshComponent {
         m_textures.clear();
         m_texture_files.clear();
         for (const auto & material : materials) {
-            auto ptr = std::make_shared<Shadeless>(m_system);
+            auto ptr = std::make_shared<BlinnPhong>(m_system);
             m_materials.push_back(ptr);
 
             const std::string & dname = material.diffuse_texname;
@@ -102,9 +102,18 @@ class MeshComponentFromFile : public MeshComponent {
                     assert(index.texcoord_index >= 0);
                     float uv_u{attrib.texcoords[size_t(index.texcoord_index)*2+0]};
                     float uv_v{attrib.texcoords[size_t(index.texcoord_index)*2+1]};
+                    
+                    assert(index.normal_index >= 0);
+                    float normal_x{attrib.normals[size_t(index.normal_index)*3+0]};
+                    float normal_y{attrib.normals[size_t(index.normal_index)*3+1]};
+                    float normal_z{attrib.normals[size_t(index.normal_index)*3+2]};
 
                     positions[material_id].push_back(VertexStruct::VertexPosition{.position = {x, y, z}});
-                    attributes[material_id].push_back(VertexStruct::VertexAttribute{.color = {1.0f, 1.0f, 1.0f}, .texcoord1 = {uv_u, uv_v}});
+                    attributes[material_id].push_back(VertexStruct::VertexAttribute{
+                        .color = {1.0f, 1.0f, 1.0f}, 
+                        .normal = {normal_x, normal_y, normal_z}, 
+                        .texcoord1 = {uv_u, uv_v}
+                    });
                     indices[material_id].push_back(positions[material_id].size() - 1);
                 }
             }
@@ -141,13 +150,17 @@ public:
             int tex_width, tex_height, tex_channel;
             stbi_uc * raw_image_data = stbi_load(m_texture_files[mat].string().c_str(), &tex_width, &tex_height, &tex_channel, 4);
             assert(raw_image_data);
-            m_textures[mat]->Create(tex_width, tex_height, vk::Format::eR8G8B8A8Srgb);
+            m_textures[mat]->Create(tex_width, tex_height, ImageUtils::ImageFormat::R8G8B8A8SRGB);
             tcb.CommitTextureImage(*m_textures[mat], reinterpret_cast<std::byte *>(raw_image_data), tex_width * tex_height * 4);
 
             // Write descriptors
-            auto mat_ptr = std::dynamic_pointer_cast<Shadeless>(m_materials[mat]);
+            auto mat_ptr = std::dynamic_pointer_cast<BlinnPhong>(m_materials[mat]);
             assert(mat_ptr);
             mat_ptr->UpdateTexture(*m_textures[mat]);
+            mat_ptr->UpdateUniform(BlinnPhong::UniformData{
+                glm::vec4{0.5, 0.5, 0.5, 4.0}, 
+                glm::vec4{0.1, 0.1, 0.1, 1.0}
+            });
 
             stbi_image_free(raw_image_data);
         }
@@ -194,12 +207,24 @@ int main(int, char **)
     // Setup camera
     auto camera_go = std::make_shared<GameObject>();
     Transform transform{};
-    transform.SetPosition({0.0f, -1.0f, 0.0f});
+    transform.SetPosition({0.0f, 1.0f, 0.0f});
+    transform.SetRotationEuler(glm::vec3{0.0, 0.0, 3.1415926});
     camera_go->SetTransform(transform);
     auto camera_comp = std::make_shared<CameraComponent>(camera_go);
     camera_comp->set_aspect_ratio(1920.0 / 1080.0);
     camera_go->AddComponent(camera_comp);
     system->SetActiveCamera(camera_comp);
+
+    // Write scene data
+    ConstantData::PerSceneStruct scene {
+        glm::vec4{5.0, 5.0, 5.0, 1.0},          // Light source position
+        glm::vec4{}                         // Light color
+    };
+    for (uint32_t i = 0; i < 3; i++) {
+        auto ptr = system->GetGlobalConstantDescriptorPool().GetPerSceneConstantMemory(i);
+        memcpy(ptr, &scene, sizeof scene);
+        system->GetGlobalConstantDescriptorPool().FlushPerSceneConstantMemory(i);
+    }
 
     uint32_t in_flight_frame_id = 0;
     uint32_t total_test_frame = 60;

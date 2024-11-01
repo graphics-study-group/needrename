@@ -9,6 +9,7 @@
 #include "Render/Pipeline/CommandBuffer.h"
 #include "Render/RenderSystem/Synch/InflightTwoStageSynch.h"
 
+#include "Render/RenderSystem/AllocatorState.h"
 #include "Render/RenderSystem/Instance.h"
 #include "Render/RenderSystem/PhysicalDevice.h"
 #include "Render/RenderSystem/Swapchain.h"
@@ -66,12 +67,6 @@ namespace Engine
         /// @note You need to recreate depth images and framebuffers that refer to the swap chain.
         void UpdateSwapchain();
 
-        /// @brief Find a physical memory satisfying demands.
-        /// @param type type of the requested memory
-        /// @param properties properties of the request memory
-        /// @return 
-        uint32_t FindPhysicalMemory(uint32_t type, vk::MemoryPropertyFlags properties);
-
         /// @brief Blocks and waits for a fence, signaling a frame is ready for rendering.
         /// Resets corresponding command buffer and fence.
         /// @param frame_index 
@@ -85,6 +80,8 @@ namespace Engine
         vk::Instance getInstance() const;
         vk::SurfaceKHR getSurface() const;
         vk::Device getDevice() const;
+        vk::PhysicalDevice GetPhysicalDevice() const;
+        const RenderSystemState::AllocatorState & GetAllocatorState() const;
         const QueueInfo & getQueueInfo () const;
         const RenderSystemState::Swapchain & GetSwapchain() const;
         const Synchronization & getSynchronization() const;
@@ -125,6 +122,8 @@ namespace Engine
         RenderSystemState::Instance m_instance {};
         vk::UniqueSurfaceKHR m_surface{};
         vk::UniqueDevice m_device{};
+
+        RenderSystemState::AllocatorState m_allocator_state {};
         
         QueueInfo  m_queues {};
         RenderSystemState::Swapchain m_swapchain{};

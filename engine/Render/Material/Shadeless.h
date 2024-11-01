@@ -6,7 +6,6 @@
 
 namespace Engine {
     class ShaderModule;
-    class RenderPass;
     class AllocatedImage2DTexture;
 
     class Shadeless : public Material {

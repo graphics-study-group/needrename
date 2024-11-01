@@ -141,7 +141,7 @@ namespace Engine::RenderSystemState{
             m_depth_images[i].Create(
                 m_extent.width, 
                 m_extent.height, 
-                AllocatedImage2D::ImageType::DepthImage,
+                ImageUtils::ImageType::DepthImage,
                 DEPTH_FORMAT
             );
         }
@@ -183,7 +183,7 @@ namespace Engine::RenderSystemState{
             images.push_back(m_depth_images[i].GetImage());
             image_views.push_back(m_depth_images[i].GetImageView());
         }
-        return SwapchainImage(images, image_views);
+        return SwapchainImage(images, image_views, true);
     }
 
     SwapchainImage Swapchain::GetColorImagesAndViews() const
@@ -194,6 +194,6 @@ namespace Engine::RenderSystemState{
             images.push_back(m_images[i]);
             image_views.push_back(m_image_views[i].get());
         }
-        return SwapchainImage(images, image_views);
+        return SwapchainImage(images, image_views, false);
     }
 }

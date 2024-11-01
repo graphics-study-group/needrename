@@ -10,7 +10,7 @@ target_include_directories(
     ${REFLECTION_PARSER_DIR}
 )
 
-target_link_libraries(engine PUBLIC SDL3::SDL3 Vulkan::Vulkan glm tinyobjloader stb json cereal)
+target_link_libraries(engine PUBLIC SDL3::SDL3 Vulkan::Vulkan glm tinyobjloader stb json cereal vma)
 add_dependencies(engine reflection_parser)
 target_precompile_headers(engine PRIVATE <vulkan/vulkan.hpp>)
 target_precompile_headers(engine PRIVATE "Render/VkWrapper.tcc")

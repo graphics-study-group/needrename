@@ -21,11 +21,11 @@ namespace Engine {
                     0,
                     vk::DescriptorType::eUniformBuffer,
                     1,
-                    vk::ShaderStageFlagBits::eVertex
+                    vk::ShaderStageFlagBits::eAllGraphics
                 }
             };
         public:
-            static constexpr uint32_t PER_CAMERA_SET_NUMBER = 0;
+            static constexpr uint32_t PER_CAMERA_SET_NUMBER = 1;
             void Create(vk::Device device);
         };
     }

@@ -21,6 +21,9 @@ namespace Engine {
             // However, image views do need clean up.
             std::vector <vk::UniqueImageView> m_image_views {};
 
+            // Contrary to the tutorial published at https://vulkan-tutorial.com/Depth_buffering
+            // we need to provide depth images for each concurrent frame or explicitly synchronize
+            // early and late fragment test, c.f. https://stackoverflow.com/questions/62371266/
             std::vector <Engine::AllocatedImage2D> m_depth_images {};
 
             vk::SurfaceFormatKHR m_image_format {};
@@ -37,7 +40,7 @@ namespace Engine {
 
             void RetrieveImageViews(vk::Device device);
         public:
-            static constexpr vk::Format DEPTH_FORMAT = vk::Format::eD32Sfloat;
+            static constexpr auto DEPTH_FORMAT = ImageUtils::ImageFormat::D32SFLOAT;
 
             void CreateSwapchain(const PhysicalDevice & physical_device, 
                 vk::Device logical_device, 
