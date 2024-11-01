@@ -10,17 +10,17 @@ namespace Engine
 {
     class GameObject;
 
-    class Level : public Asset
+    class REFLECTION Level : public Asset
     {
     public:
-        Level(std::weak_ptr <AssetManager> manager);
+        REFLECTION Level(std::weak_ptr <AssetManager> manager);
         ~Level();
 
         virtual void Load() override;
         virtual void Unload() override;
         virtual void Tick(float dt);
 
-        virtual void AddGameObject(std::shared_ptr<GameObject> gameObject);
+        REFLECTION virtual void AddGameObject(std::shared_ptr<GameObject> gameObject);
 
     protected:
         std::vector<std::shared_ptr<GameObject>> m_gameObjects {};

@@ -10,10 +10,10 @@
 
 namespace Engine
 {
-    class MeshAsset: public Asset
+    class REFLECTION MeshAsset: public Asset
     {
     public:
-        MeshAsset(std::weak_ptr <AssetManager> manager);
+        REFLECTION MeshAsset(std::weak_ptr <AssetManager> manager);
         virtual ~MeshAsset();
 
         /// @brief Load mesh data. (no material)

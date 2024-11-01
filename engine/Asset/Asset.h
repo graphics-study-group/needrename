@@ -4,15 +4,16 @@
 #include <string>
 #include <filesystem>
 #include "Core/guid.h"
+#include "Reflection/reflection.h"
 
 namespace Engine
 {
     class AssetManager;
     /// @brief Base class for all assets.
-    class Asset
+    class REFLECTION Asset
     {
     public:
-        Asset(std::weak_ptr <AssetManager> m_manager);
+        REFLECTION Asset(std::weak_ptr <AssetManager> m_manager);
         virtual ~Asset();
 
         /// @brief Load asset from file to the memory
@@ -23,15 +24,15 @@ namespace Engine
 
         /// @brief Get the path to the asset file
         /// @return path to the asset file
-        virtual std::filesystem::path GetAssetPath();
+        REFLECTION virtual std::filesystem::path GetAssetPath();
 
         /// @brief Get the path to the asset meta file
         /// @return path to the asset meta file
-        virtual std::filesystem::path GetMetaPath();
+        REFLECTION virtual std::filesystem::path GetMetaPath();
 
-        inline bool IsValid() const { return m_valid; }
-        inline GUID GetGUID() const { return m_guid; }
-        inline void SetGUID(GUID guid) { m_guid = guid; }
+        REFLECTION inline bool IsValid() const { return m_valid; }
+        REFLECTION inline GUID GetGUID() const { return m_guid; }
+        REFLECTION inline void SetGUID(GUID guid) { m_guid = guid; }
 
     protected:
         std::weak_ptr <AssetManager> m_manager;

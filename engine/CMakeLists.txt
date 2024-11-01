@@ -17,5 +17,6 @@ target_precompile_headers(engine PRIVATE "Render/VkWrapper.tcc")
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h)
 
+# TODO: Get all the include directories from the engine and its dependencies
 set(REFLECTION_SEARCH_FILES "${REFLECTION_SEARCH_FILES};${HEADER}" CACHE STRING "" FORCE)
 set(REFLECTION_SEARCH_INCLUDE_DIRS "${REFLECTION_SEARCH_INCLUDE_DIRS};${ENGINE_SOURCE_DIR}" CACHE STRING "" FORCE)

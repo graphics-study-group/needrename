@@ -81,7 +81,7 @@ class ReflectionParser:
             if node.kind == CX.CursorKind.CLASS_DECL or node.kind == CX.CursorKind.STRUCT_DECL:
                 self.traverse_class(node)
             else:
-                raise Exception(f"Reflection attribute can only be used in a class or struct, but found {node.spelling} not in a class")
+                raise Exception(f"Reflection attribute can only be used in a class or struct, but found '{node.spelling}' '{node.kind}' not in a class")
         else:
             for child in node.get_children():
                 self.traverse(child)
@@ -149,12 +149,33 @@ def process_file(path: str, generated_code_dir: str, args: str):
     flag = CX.TranslationUnit.PARSE_INCOMPLETE \
         + CX.TranslationUnit.PARSE_SKIP_FUNCTION_BODIES \
         + CX.TranslationUnit.PARSE_INCLUDE_BRIEF_COMMENTS_IN_CODE_COMPLETION
+    # print(f"args: {args}")
     try:
         tu = index.parse(path, args=args.split(), options=flag)
     except CX.TranslationUnitLoadError as e:
-        print(f"When parsing {path}, error occurs:")
+        print(f"parser: When parsing {path}, error occurs:")
         print(e)
         raise e
+    
+    diagnostics = tu.diagnostics
+    for diag in diagnostics:
+        severity = diag.severity
+        message = diag.spelling
+        location = diag.location
+        filename = location.file.name
+        if severity == CX.Diagnostic.Ignored:
+            severity_str = "Ignored"
+        elif severity == CX.Diagnostic.Note:
+            severity_str = "Note"
+        elif severity == CX.Diagnostic.Warning:
+            severity_str = "Warning"
+        elif severity == CX.Diagnostic.Error:
+            severity_str = "Error"
+        elif severity == CX.Diagnostic.Fatal:
+            severity_str = "Fatal"
+        else:
+            severity_str = "Unknown"
+        print(f"parser: {severity_str}: '{filename}' line {location.line} column {location.column}: {message}")
     
     Parser = ReflectionParser()
     Parser.traverse(tu.cursor)
