@@ -244,9 +244,15 @@ void SubmitMaterialData(std::shared_ptr <MeshComponentFromFile> mesh) {
     mesh->UpdateUniformData(g_SceneData.r, g_SceneData.g, g_SceneData.b, g_SceneData.coef);
 }
 
-int main(int, char **)
+int main(int argc, char ** argv)
 {
     SDL_Init(SDL_INIT_VIDEO);
+
+    int64_t max_frame_count = std::numeric_limits<int64_t>::max();
+    if (argc > 1) {
+        max_frame_count = std::atoll(argv[1]);
+        if (max_frame_count == 0) return -1;
+    }
 
     StartupOptions opt{.resol_x = 1920, .resol_y = 1080, .title = "Vulkan Test"};
 
@@ -323,6 +329,8 @@ int main(int, char **)
 
         in_flight_frame_id = (in_flight_frame_id + 1) % 3;
         SDL_Delay(5);
+
+        if (frame_count >= max_frame_count) break;
     }
     uint64_t end_timer = SDL_GetPerformanceCounter();
     uint64_t duration = end_timer - start_timer;

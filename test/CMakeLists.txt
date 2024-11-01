@@ -49,7 +49,7 @@ set_target_properties(external_resource_loading_test PROPERTIES FOLDER tests)
 add_executable(complex_mesh_test complex_mesh_test.cpp)
 add_dependencies(complex_mesh_test shader)
 target_link_libraries(complex_mesh_test engine)
-add_test(NAME complex_mesh_test COMMAND complex_mesh_test)
+add_test(NAME complex_mesh_test COMMAND complex_mesh_test 120)
 set_target_properties(complex_mesh_test PROPERTIES FOLDER tests)
 
 add_executable(imgui_test imgui_test.cpp)
