@@ -38,7 +38,7 @@ class ReflectionParser:
         one_type.mangled_name = self.get_mangled_name(node)
         for child in node.get_children():
             if child.kind == CX.CursorKind.CXX_BASE_SPECIFIER:
-                base_type = child.referenced.spelling # XXX: base class ignored the namespace
+                base_type = child.referenced.spelling
                 one_type.base_types.append(base_type)
             if not self.is_reflection(child):
                 continue

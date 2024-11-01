@@ -66,9 +66,6 @@ namespace Engine
 
             ConstVar &operator=(const ConstVar &var);
         };
-
-        // TODO: Implement const type
-        // TODO: Implement pointer and reference type
     }
 }
 

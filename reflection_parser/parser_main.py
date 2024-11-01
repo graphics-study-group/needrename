@@ -1,5 +1,7 @@
 import os
 import argparse
+import filecmp
+import shutil
 
 from processor import process_file
 
@@ -11,13 +13,18 @@ def main():
     parser.add_argument("--args", type=str, help="the arguments to pass to the clang compiler", default="-x c++ -w -MG -M -ferror-limit=0 -std=c++20")
     args = parser.parse_args()
 
+    # create the generated code directory
+    if not os.path.exists(args.generated_code_dir):
+        os.makedirs(args.generated_code_dir)
+    temp_gen_dir = os.path.join(args.generated_code_dir, "temp")
+    if not os.path.exists(temp_gen_dir):
+        os.makedirs(temp_gen_dir)
+
+    # generate the all reflection file header
     headers = args.reflection_search_files.strip().split(';')
     with open(args.reflection_macros_header, "r") as f:
         reflection_macros = f.read()
-    # generate the all reflection file
-    if not os.path.exists(args.generated_code_dir):
-        os.makedirs(args.generated_code_dir)
-    output_file = os.path.join(args.generated_code_dir, "all_reflection_files.hpp")
+    output_file = os.path.join(temp_gen_dir, "all_reflection_files.hpp")
     with open(output_file, "w") as f:
         f.write(reflection_macros)
         f.write("\n")
@@ -26,8 +33,21 @@ def main():
                 continue
             f.write('#include "%s"\n' % header)
     
-    # process all the headers
-    process_file(output_file, args.generated_code_dir, args.args)
+    # process the reflection
+    print("parser: processing all reflection files and generating reflection code")
+    process_file(output_file, temp_gen_dir, args.args)
+    
+    # copy the result when the generated files are different
+    print("check and copy the generated files")
+    for file in os.listdir(temp_gen_dir):
+        src_file = os.path.join(temp_gen_dir, file)
+        dest_file = os.path.join(args.generated_code_dir, file)
+        if not os.path.exists(dest_file) or not filecmp.cmp(src_file, dest_file):
+            print("copy file '%s'" % file)
+            shutil.copy2(src_file, dest_file)
+        else:
+            print("file '%s' skipped (no changes)" % file)
+    shutil.rmtree(temp_gen_dir)
 
 
 if __name__ == "__main__":
