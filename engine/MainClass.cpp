@@ -3,6 +3,7 @@
 #include "Framework/world/WorldSystem.h"
 #include "Render/RenderSystem.h"
 #include "Asset/AssetManager/AssetManager.h"
+#include "GUI/GUISystem.h"
 
 #include <exception>
 
@@ -38,6 +39,8 @@ namespace Engine
         this->renderer->Create();
         this->world = std::make_shared<WorldSystem>();
         this->asset = std::make_shared<AssetManager> ();
+        this->gui = std::make_shared<GUISystem>(this->renderer);
+        this->gui->Create(this->window->GetWindow());
     }
 
     void MainClass::MainLoop()
@@ -93,7 +96,12 @@ namespace Engine
     std::shared_ptr<AssetManager> MainClass::GetAssetManager() const {
         return asset;
     }
-    std::shared_ptr<RenderSystem> MainClass::GetRenderSystem() const {
+    std::shared_ptr<GUISystem> MainClass::GetGUISystem() const
+    {
+        return gui;
+    }
+    std::shared_ptr<RenderSystem> MainClass::GetRenderSystem() const
+    {
         return renderer;
     }
 }  // namespace Engine

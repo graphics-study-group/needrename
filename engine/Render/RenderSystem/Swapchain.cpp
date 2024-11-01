@@ -186,6 +186,13 @@ namespace Engine::RenderSystemState{
         return SwapchainImage(images, image_views, true);
     }
 
+    vk::PipelineRenderingCreateInfo Swapchain::GetPipelineRenderingCreateInfo() const
+    {
+        return vk::PipelineRenderingCreateInfo{
+            0, 1, &m_image_format.format, ImageUtils::GetVkFormat(DEPTH_FORMAT), vk::Format::eUndefined, nullptr
+        };
+    }
+
     SwapchainImage Swapchain::GetColorImagesAndViews() const
     {
         std::vector <vk::Image> images;
