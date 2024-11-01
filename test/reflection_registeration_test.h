@@ -66,7 +66,7 @@ public:
     REFLECTION const TestData *GetConstDataPtr() const;
     REFLECTION void SetConstDataPtr(const TestData *data);
     REFLECTION void SetConstDataRef(const TestData &data);
-    // REFLECTION const TestData &GetConstDataRef() const;
+    REFLECTION const TestData &GetConstDataRef() const;
     REFLECTION const TestData *GetTestDataPtrAndAdd();
 
     REFLECTION TestData *GetTestDataPtr();

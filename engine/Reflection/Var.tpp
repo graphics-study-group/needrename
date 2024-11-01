@@ -11,13 +11,19 @@ namespace Engine
         template <typename T>
         T &Var::Get()
         {
-            return *static_cast<T *>(m_data);
+            if constexpr (std::is_reference_v<T>)
+                return *static_cast<std::remove_reference_t<T> *>(m_data);
+            else
+                return *static_cast<T *>(m_data);
         }
 
         template <typename T>
         T &Var::Set(const T &value)
         {
-            return *static_cast<T *>(m_data) = value;
+            if constexpr (std::is_reference_v<T>)
+                return *static_cast<std::remove_reference_t<T> *>(m_data) = value;
+            else
+                return *static_cast<T *>(m_data) = value;
         }
 
         template <typename... Args>

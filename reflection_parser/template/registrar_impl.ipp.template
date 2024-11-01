@@ -49,7 +49,7 @@ ${method.arg_types[i]}\
                 [](void *obj, void *&ret, const std::vector<void *> &args)
                 { \
                     % if method.return_type_is_reference:
-ret = reinterpret_cast<void *>(&static_cast<std::remove_reference<${class_name}>::type *>(obj)->${method.name}(\
+ret = const_cast<void*>(reinterpret_cast<const void *>(&static_cast<std::remove_reference<${class_name}>::type *>(obj)->${method.name}(\
                     % elif method.return_type == "void":
 static_cast<std::remove_reference<${class_name}>::type *>(obj)->${method.name}(\
                     % else:
@@ -62,7 +62,7 @@ std::remove_reference<${method.return_type}>::type *ret_ptr = reinterpret_cast<s
                         % endif
                     % endfor
                     % if method.return_type_is_reference:
-)); \
+))); \
                     % elif method.return_type == "void":
 ); \
                     % else:
@@ -72,10 +72,12 @@ std::remove_reference<${method.return_type}>::type *ret_ptr = reinterpret_cast<s
                 % if method.is_const:
                 [](const void *obj, void *&ret, const std::vector<void *> &args)
                 { \
-                    % if method.return_type != "void":
-std::remove_reference<${method.return_type}>::type *ret_ptr = reinterpret_cast<std::remove_reference<${method.return_type}>::type *>(malloc(sizeof(${method.return_type}))); *ret_ptr = static_cast<std::add_const<std::remove_reference<${class_name}>::type>::type *>(obj)->${method.name}(\
-                    % else:
+                    % if method.return_type_is_reference:
+ret = const_cast<void*>(reinterpret_cast<const void *>(&static_cast<std::add_const<std::remove_reference<${class_name}>::type>::type *>(obj)->${method.name}(\
+                    % elif method.return_type == "void":
 static_cast<std::add_const<std::remove_reference<${class_name}>::type>::type *>(obj)->${method.name}(\
+                    % else:
+std::remove_reference<${method.return_type}>::type *ret_ptr = reinterpret_cast<std::remove_reference<${method.return_type}>::type *>(malloc(sizeof(${method.return_type}))); *ret_ptr = static_cast<std::add_const<std::remove_reference<${class_name}>::type>::type *>(obj)->${method.name}(\
                     % endif
                     % for i in range(len(method.arg_types)):
 *reinterpret_cast<std::remove_reference<${method.arg_types[i]}>::type *>(args[${i}])\
@@ -83,11 +85,14 @@ static_cast<std::add_const<std::remove_reference<${class_name}>::type>::type *>(
 , \
                         % endif
                     % endfor
+                    % if method.return_type_is_reference:
+))); \
+                    % elif method.return_type == "void":
 ); \
-                    % if method.return_type != "void":
-ret = reinterpret_cast<void *>(ret_ptr);\
+                    % else:
+); ret = reinterpret_cast<void *>(ret_ptr);\
                     % endif
-},
+}, 
                 % else:
                 nullptr,
                 % endif

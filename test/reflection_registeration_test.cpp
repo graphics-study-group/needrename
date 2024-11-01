@@ -46,10 +46,10 @@ void ConstTest::SetConstDataRef(const TestData &data)
     m_const_data = &data;
 }
 
-// const TestData &ConstTest::GetConstDataRef() const
-// {
-//     return *m_const_data;
-// }
+const TestData &ConstTest::GetConstDataRef() const
+{
+    return *m_const_data;
+}
 
 const TestData *ConstTest::GetTestDataPtrAndAdd()
 {
@@ -84,6 +84,7 @@ void TestHalloWorld::TestHalloWorld2::NamespaceTest::PrintInfo() const
 
 int main()
 {
+    // TODO: implement assert to check the result for the test
     Engine::Reflection::Initialize();
     auto FooAtype = Engine::Reflection::GetType("FooA");
 
@@ -130,8 +131,9 @@ int main()
     std::cout << "crp_test: m_data[0] == " << crp_test.GetMember("m_data").Get<TestData *>()->data[0] << std::endl;
     std::cout << "data_get: m_data[0] == " << data_get.Get<TestData *>()->data[0] << std::endl;
     std::cout << "[] crp_test: SetTestDataPtr(data3)" << std::endl;
-    crp_test.InvokeMethod<const TestData &>("SetConstDataRef", data3); // Attention: Must set the template argument explicitly when passing a reference
+    crp_test.InvokeMethod("SetConstDataRef", data3);
     std::cout << "crp_test: m_const_data[0] == " << crp_test.GetMember("m_const_data").Get<const TestData *>()->data[0] << std::endl;
+    std::cout << "crp_test (GetConstDataRef): m_const_data[0] == " << crp_test.InvokeMethod("GetConstDataRef").Get<const TestData &>().data[0] << std::endl;
     std::cout << "[] Const Var (const ConstTest) const_ref_var:" << std::endl;
     const ConstTest &const_ref = crp_test.Get<ConstTest>();
     Engine::Reflection::ConstVar const_ref_var = Engine::Reflection::GetConstVar(const_ref);
