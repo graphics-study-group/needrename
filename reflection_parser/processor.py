@@ -16,14 +16,26 @@ class ReflectionParser:
             if child.kind == CX.CursorKind.ANNOTATE_ATTR and child.spelling == "reflection":
                 return True
         return False
+    
+    
+    def get_full_name(self, node: CX.Cursor, last=True):
+        if node.kind != CX.CursorKind.TRANSLATION_UNIT:
+            return self.get_full_name(node.semantic_parent, False) + node.spelling + ("::" if not last else "")
+        return ""
+        
+    def get_mangled_name(self, node: CX.Cursor):
+        if node.kind != CX.CursorKind.TRANSLATION_UNIT:
+            return self.get_mangled_name(node.semantic_parent) + node.spelling + str(len(node.spelling))
+        return ""
 
 
     def traverse_class(self, node: CX.Cursor):
-        class_name = node.spelling
+        class_name = self.get_full_name(node)
         if class_name in self.types:
             one_type = self.types[class_name]
         else:
             one_type = Type(class_name)
+        one_type.mangled_name = self.get_mangled_name(node)
         for child in node.get_children():
             if child.kind == CX.CursorKind.CXX_BASE_SPECIFIER:
                 base_type = child.referenced.spelling # XXX: base class ignored the namespace
@@ -78,9 +90,9 @@ class ReflectionParser:
     def generate_code(self, generated_code_dir: str):
         with open("template/registrar_declare.hpp.template", "r") as f:
             template_declare = Template(f.read())
-        class_names = [class_name for class_name in self.types.keys()]
+        mangled_names = [one_type.mangled_name for one_type in self.types.values()]
         with open(os.path.join(generated_code_dir, "registrar_declare.hpp"), "w") as f:
-            f.write(template_declare.render(class_names=class_names))
+            f.write(template_declare.render(mangled_names=mangled_names))
         
         with open("template/registrar_impl.ipp.template", "r") as f:
             template_impl = Template(f.read())
@@ -90,7 +102,7 @@ class ReflectionParser:
         with open("template/reflection_global_template_func.tpp.template", "r") as f:
             template_rgfi = Template(f.read())
         with open(os.path.join(generated_code_dir, "reflection_global_template_func.tpp"), "w") as f:
-            f.write(template_rgfi.render(class_names=class_names))
+            f.write(template_rgfi.render())
             
         with open("template/generated_reflection.tpp.template", "r") as f:
             template_gr = Template(f.read())

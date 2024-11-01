@@ -67,6 +67,21 @@ TestData &ConstTest::GetTestDataRef()
     return *m_data;
 }
 
+void NamespaceTest::PrintInfo() const
+{
+    std::cout << "NamespaceTest: Hahahaha!" << std::endl;
+}
+
+void TestHalloWorld::NamespaceTest::PrintInfo() const
+{
+    std::cout << "TestHalloWorld::NamespaceTest: Hahahaha!" << std::endl;
+}
+
+void TestHalloWorld::TestHalloWorld2::NamespaceTest::PrintInfo() const
+{
+    std::cout << "TestHalloWorld::TestHalloWorld2::NamespaceTest: Hahahaha!" << std::endl;
+}
+
 int main()
 {
     Engine::Reflection::Initialize();
@@ -107,7 +122,6 @@ int main()
     data3.data[0] = 1000.0f;
     Engine::Reflection::Var crp_test = Engine::Reflection::GetType("ConstTest")->CreateInstance();
     crp_test.InvokeMethod("SetConstDataPtr", (const TestData *)&data1);
-
     crp_test.GetMember("m_data").Set(&data2);
     std::cout << "crp_test: m_const_data[0] == " << crp_test.GetMember("m_const_data").Get<const TestData *>()->data[0] << std::endl;
     std::cout << "crp_test: m_data[0] == " << crp_test.GetMember("m_data").Get<TestData *>()->data[0] << std::endl;
@@ -126,6 +140,14 @@ int main()
     std::cout << "[] make data3 +1.0f" << std::endl;
     data3.data[0] += 1.0f;
     std::cout << "const_data_get: m_data[0] == " << const_data_get.Get<const TestData *>()->data[0] << std::endl;
+
+    std::cout << "----------------------------------- Test namespace of classes -----------------------------------" << std::endl;
+    Engine::Reflection::Var ns_test = Engine::Reflection::GetType("NamespaceTest")->CreateInstance();
+    ns_test.InvokeMethod("PrintInfo");
+    Engine::Reflection::Var ns_test2 = Engine::Reflection::GetType("TestHalloWorld::NamespaceTest")->CreateInstance();
+    ns_test2.InvokeMethod("PrintInfo");
+    Engine::Reflection::Var ns_test3 = Engine::Reflection::GetType("TestHalloWorld::TestHalloWorld2::NamespaceTest")->CreateInstance();
+    ns_test3.InvokeMethod("PrintInfo");
 
     return 0;
 }

@@ -12,6 +12,7 @@ class Type:
 class Method:
     def __init__(self, name: str):
         self.name = name
+        self.mangled_name = name
         self.arg_types = []
         self.return_type = "void"
         self.return_type_is_reference = False

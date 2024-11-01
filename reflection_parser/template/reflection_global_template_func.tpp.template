@@ -1,5 +1,8 @@
 #include <memory>
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+
 namespace Engine
 {
     namespace Reflection
@@ -23,3 +26,5 @@ namespace Engine
         }
     }
 }
+
+#pragma GCC diagnostic pop

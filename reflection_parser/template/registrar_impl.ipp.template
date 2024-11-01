@@ -11,8 +11,8 @@ namespace Engine
         class Type;
 
         % for class_type in classes_map.values():
-        <% class_name = class_type.name %>
-        std::shared_ptr<Type> TypeRegistrar::Register_${class_name}()
+        <% class_name, mangled_name = class_type.name, class_type.mangled_name %>
+        std::shared_ptr<Type> TypeRegistrar::Register_${mangled_name}()
         {
             std::shared_ptr<Type> type = std::shared_ptr<Type>(new Type("${class_name}", &typeid(${class_name}), true));
 
@@ -112,13 +112,13 @@ ret = reinterpret_cast<void *>(ret_ptr);\
         void Registrar::RegisterAllTypes()
         {
             % for class_type in classes_map.values():
-            auto Type_${class_type.name} = TypeRegistrar::Register_${class_type.name}();
+            auto Type_${class_type.mangled_name} = TypeRegistrar::Register_${class_type.mangled_name}();
             % endfor
 
             % for class_type in topological_sorted_types:
             % for base_type in class_type.base_types:
             % if base_type in classes_map:
-            Type_${class_type.name}->AddBaseType(Type_${base_type});
+            Type_${class_type.mangled_name}->AddBaseType(Type_${classes_map[base_type].mangled_name});
             % endif
             % endfor
             % endfor

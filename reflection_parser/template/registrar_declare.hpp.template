@@ -9,8 +9,8 @@ namespace Engine
         class TypeRegistrar
         {
         public:
-            % for class_name in class_names:
-            static std::shared_ptr<Type> Register_${class_name}();
+            % for mangled_name in mangled_names:
+            static std::shared_ptr<Type> Register_${mangled_name}();
             % endfor
         };
     }

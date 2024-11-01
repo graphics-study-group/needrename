@@ -2,6 +2,7 @@
 #define CTEST_REFLECTION_REGISTERATION_TEST_H
 
 #include "Reflection/reflection.h"
+
 class REFLECTION FooBase
 {
 public:
@@ -50,6 +51,9 @@ public:
 
 typedef TestData &TDR;
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Weffc++"
+
 class REFLECTION ConstTest
 {
 public:
@@ -68,5 +72,40 @@ public:
     REFLECTION TestData *GetTestDataPtr();
     REFLECTION TDR GetTestDataRef();
 };
+
+#pragma GCC diagnostic pop
+
+class REFLECTION NamespaceTest
+{
+public:
+    REFLECTION NamespaceTest() = default;
+    virtual ~NamespaceTest() = default;
+
+    REFLECTION void PrintInfo() const;
+};
+
+namespace TestHalloWorld
+{
+    class REFLECTION NamespaceTest
+    {
+    public:
+        REFLECTION NamespaceTest() = default;
+        virtual ~NamespaceTest() = default;
+
+        REFLECTION void PrintInfo() const;
+    };
+
+    namespace TestHalloWorld2
+    {
+        class REFLECTION NamespaceTest
+        {
+        public:
+            REFLECTION NamespaceTest() = default;
+            virtual ~NamespaceTest() = default;
+
+            REFLECTION void PrintInfo() const;
+        };
+    }
+}
 
 #endif // CTEST_REFLECTION_REGISTERATION_TEST_H
