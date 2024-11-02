@@ -11,6 +11,7 @@ def main():
     parser.add_argument("--generated_code_dir", type=str, help="the output directory of the generated files", required=True)
     parser.add_argument("--reflection_macros_header", type=str, help="a header file records all the macros about reflection", required=True)
     parser.add_argument("--args", type=str, help="the arguments to pass to the clang compiler", default="-x c++ -w -MG -M -ferror-limit=0 -std=c++20")
+    parser.add_argument("--verbose", action="store_true", help="print verbose information")
     args = parser.parse_args()
 
     # create the generated code directory
@@ -34,8 +35,8 @@ def main():
             f.write('#include "%s"\n' % header)
     
     # process the reflection
-    print("parser: processing all reflection files and generating reflection code")
-    process_file(output_file, temp_gen_dir, args.args)
+    print("[parser] processing all reflection files and generating reflection code")
+    process_file(output_file, temp_gen_dir, args.args, args.verbose)
     
     # copy the result when the generated files are different
     print("check and copy the generated files")

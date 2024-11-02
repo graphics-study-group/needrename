@@ -19,27 +19,30 @@ else()
 endif()
 message(STATUS "Python environment activate command: ${ACTIVATE_COMMAND}")
 
-string(REPLACE ";" ";" REFLECTION_SEARCH_INCLUDE_DIRS_LIST "${REFLECTION_SEARCH_INCLUDE_DIRS}")
-list(FILTER REFLECTION_SEARCH_INCLUDE_DIRS_LIST EXCLUDE REGEX "^$")
-string(REPLACE ";" " -I" REFLECTION_SEARCH_INCLUDE_DIRS_ARGS "${REFLECTION_SEARCH_INCLUDE_DIRS_LIST}")
-set(REFLECTION_SEARCH_INCLUDE_DIRS_ARGS "-I${REFLECTION_SEARCH_INCLUDE_DIRS_ARGS}")
-
+string(REPLACE ";" " -I" REFLECTION_SEARCH_INCLUDE_DIRS_ARGS "${REFLECTION_SEARCH_INCLUDE_DIRS}")
 set(REFLECTION_PARSER_ARGS "-x c++ -w -MG -M -ferror-limit=0 -std=c++20 -o ${CMAKE_BINARY_DIR}/parser_log.txt ${REFLECTION_SEARCH_INCLUDE_DIRS_ARGS}")
 message(STATUS "Reflection parser args: ${REFLECTION_PARSER_ARGS}")
 
-add_custom_target(reflection_parser ALL
+add_custom_command(
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/task_stamped
+
     COMMAND ${CMAKE_COMMAND} -E echo " ********** Precompile started ********** "
     COMMAND ${CMAKE_COMMAND} -E echo "[Precompile]: run parser python script"
-
     COMMAND ${ACTIVATE_COMMAND} &&
             ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/parser_main.py
                 --reflection_search_files "${REFLECTION_SEARCH_FILES}"
                 --generated_code_dir ${CMAKE_CURRENT_SOURCE_DIR}/generated
                 --reflection_macros_header ${ENGINE_SOURCE_DIR}/Reflection/macros.h
                 --args ${REFLECTION_PARSER_ARGS}
-
+                --verbose
+    COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_CURRENT_BINARY_DIR}/task_stamped
     COMMAND ${CMAKE_COMMAND} -E echo " ********** Precompile finished ********** "
     
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    COMMENT "test parser python"
+    DEPENDS ${REFLECTION_SEARCH_FILES}
+    COMMENT "Files need reflection have changed, re-run reflection parser"
+)
+
+add_custom_target(reflection_parser ALL
+    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/task_stamped
 )

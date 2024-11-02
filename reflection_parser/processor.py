@@ -144,7 +144,7 @@ class ReflectionParser:
         return [types_list[i] for i in result]
 
 
-def process_file(path: str, generated_code_dir: str, args: str):
+def process_file(path: str, generated_code_dir: str, args: str, verbose: bool = False):
     index = CX.Index.create()
     flag = CX.TranslationUnit.PARSE_INCOMPLETE \
         + CX.TranslationUnit.PARSE_SKIP_FUNCTION_BODIES \
@@ -153,29 +153,30 @@ def process_file(path: str, generated_code_dir: str, args: str):
     try:
         tu = index.parse(path, args=args.split(), options=flag)
     except CX.TranslationUnitLoadError as e:
-        print(f"parser: When parsing {path}, error occurs:")
+        print(f"[parser] When parsing {path}, error occurs:")
         print(e)
         raise e
     
-    diagnostics = tu.diagnostics
-    for diag in diagnostics:
-        severity = diag.severity
-        message = diag.spelling
-        location = diag.location
-        filename = location.file.name
-        if severity == CX.Diagnostic.Ignored:
-            severity_str = "Ignored"
-        elif severity == CX.Diagnostic.Note:
-            severity_str = "Note"
-        elif severity == CX.Diagnostic.Warning:
-            severity_str = "Warning"
-        elif severity == CX.Diagnostic.Error:
-            severity_str = "Error"
-        elif severity == CX.Diagnostic.Fatal:
-            severity_str = "Fatal"
-        else:
-            severity_str = "Unknown"
-        print(f"parser: {severity_str}: '{filename}' line {location.line} column {location.column}: {message}")
+    if verbose:
+        diagnostics = tu.diagnostics
+        for diag in diagnostics:
+            severity = diag.severity
+            message = diag.spelling
+            location = diag.location
+            filename = location.file.name
+            if severity == CX.Diagnostic.Ignored:
+                severity_str = "Ignored"
+            elif severity == CX.Diagnostic.Note:
+                severity_str = "Note"
+            elif severity == CX.Diagnostic.Warning:
+                severity_str = "Warning"
+            elif severity == CX.Diagnostic.Error:
+                severity_str = "Error"
+            elif severity == CX.Diagnostic.Fatal:
+                severity_str = "Fatal"
+            else:
+                severity_str = "Unknown"
+            print(f"[parser] {severity_str}: '{filename}' line {location.line} column {location.column}: {message}")
     
     Parser = ReflectionParser()
     Parser.traverse(tu.cursor)
