@@ -31,6 +31,7 @@ void FooA::PrintHelloWorld() const
     std::cout << "Hello World from FooA!" << std::endl;
 }
 
+using namespace TestDataNamespace;
 const TestData *ConstTest::GetConstDataPtr() const
 {
     return m_const_data;
@@ -121,7 +122,7 @@ int main()
     data1.data[0] = 1.0f;
     data2.data[0] = 100.0f;
     data3.data[0] = 1000.0f;
-    Engine::Reflection::Var crp_test = Engine::Reflection::GetType("ConstTest")->CreateInstance();
+    Engine::Reflection::Var crp_test = Engine::Reflection::GetType("TestDataNamespace::ConstTest")->CreateInstance();
     crp_test.InvokeMethod("SetConstDataPtr", (const TestData *)&data1);
     crp_test.GetMember("m_data").Set(&data2);
     std::cout << "crp_test: m_const_data[0] == " << crp_test.GetMember("m_const_data").Get<const TestData *>()->data[0] << std::endl;

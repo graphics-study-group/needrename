@@ -58,6 +58,12 @@ target_link_libraries(reflection_registeration_test engine)
 add_test(NAME reflection_registeration_test COMMAND reflection_registeration_test)
 set_target_properties(reflection_registeration_test PROPERTIES FOLDER tests)
 
+add_executable(serialization_test serialization_test.cpp)
+set(REFLECTION_SEARCH_FILES "${REFLECTION_SEARCH_FILES};${CMAKE_CURRENT_SOURCE_DIR}/serialization_test.h" CACHE STRING "" FORCE)
+target_link_libraries(serialization_test engine)
+add_test(NAME serialization_test COMMAND serialization_test)
+set_target_properties(serialization_test PROPERTIES FOLDER tests)
+
 # Copy SDL dll
 add_custom_command(TARGET SDL_init_test POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different

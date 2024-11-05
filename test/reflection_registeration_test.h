@@ -42,37 +42,44 @@ public:
     REFL_ENABLE virtual void PrintHelloWorld() const;
 };
 
-class REFL_SER_CLASS(REFL_WHITELIST) TestData
+namespace TestDataNamespace
 {
-public:
-    REFL_ENABLE TestData() = default;
-    virtual ~TestData() = default;
 
-    REFL_SER_ENABLE float data[100] = {0.0f};
-};
+    class REFL_SER_CLASS(REFL_WHITELIST) TestData
+    {
+    public:
+        REFL_ENABLE TestData() = default;
+        virtual ~TestData() = default;
 
-typedef TestData &TDR;
+        REFL_SER_ENABLE float data[100] = {0.0f};
+    };
+
+    typedef TestData &TDR;
+}
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Weffc++"
 
-class REFL_SER_CLASS(REFL_WHITELIST) ConstTest
+namespace TestDataNamespace
 {
-public:
-    REFL_ENABLE ConstTest() = default;
-    virtual ~ConstTest() = default;
+    class REFL_SER_CLASS(REFL_WHITELIST) ConstTest
+    {
+    public:
+        REFL_ENABLE ConstTest() = default;
+        virtual ~ConstTest() = default;
 
-    REFL_SER_ENABLE const TestData *m_const_data = nullptr;
-    REFL_SER_ENABLE TestData *m_data = nullptr;
+        REFL_SER_ENABLE const TestData *m_const_data = nullptr;
+        REFL_SER_ENABLE TestData *m_data = nullptr;
 
-    REFL_ENABLE const TestData *GetConstDataPtr() const;
-    REFL_ENABLE void SetConstDataPtr(const TestData *data);
-    REFL_ENABLE void SetConstDataRef(const TestData &data);
-    REFL_ENABLE const TestData &GetConstDataRef() const;
-    REFL_ENABLE const TestData *GetTestDataPtrAndAdd();
-    REFL_ENABLE TestData *GetTestDataPtr();
-    REFL_ENABLE TDR GetTestDataRef();
-};
+        REFL_ENABLE const TestData *GetConstDataPtr() const;
+        REFL_ENABLE void SetConstDataPtr(const TestData *data);
+        REFL_ENABLE void SetConstDataRef(const TestData &data);
+        REFL_ENABLE const TestData &GetConstDataRef() const;
+        REFL_ENABLE const TestData *GetTestDataPtrAndAdd();
+        REFL_ENABLE TestData *GetTestDataPtr();
+        REFL_ENABLE TDR GetTestDataRef();
+    };
+}
 
 #pragma GCC diagnostic pop
 

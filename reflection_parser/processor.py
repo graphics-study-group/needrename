@@ -66,26 +66,10 @@ class ReflectionParser:
         if mode == "BlackList":
             return not has_disable
         return False
-    
-    
-    def get_full_name(self, node: CX.Cursor, last=True):
-        if node.kind != CX.CursorKind.TRANSLATION_UNIT:
-            return self.get_full_name(node.semantic_parent, False) + node.spelling + ("::" if not last else "")
-        return ""
-        
-    def get_mangled_name(self, node: CX.Cursor):
-        if node.kind != CX.CursorKind.TRANSLATION_UNIT:
-            return self.get_mangled_name(node.semantic_parent) + node.spelling + str(len(node.spelling))
-        return ""
 
 
     def traverse_class(self, node: CX.Cursor, args: list):
-        class_name = self.get_full_name(node)
-        if class_name in self.types:
-            one_type = self.types[class_name]
-        else:
-            one_type = Type(class_name)
-        one_type.mangled_name = self.get_mangled_name(node)
+        current_type = Type(node.type)
         
         mode = "WhiteList"
         if "BlackList" in args:
@@ -93,55 +77,31 @@ class ReflectionParser:
         serialization_mode = "DefaultSerialization"
         if "CustomSerialization" in args:
             serialization_mode = "CustomSerialization"
-        
+         
         for child in node.get_children():
             if child.kind == CX.CursorKind.CXX_BASE_SPECIFIER:
-                base_type = self.get_full_name(child.referenced)
-                one_type.base_types.append(base_type)
+                current_type.base_types.append(Type(child.type))
             if not self.is_reflection(child, mode):
                 continue
             # check if the class has been reflected
             # put it here to avoid taking class declaration as reflection
-            if self.types.get(class_name) is not None:
-                raise Exception(f"Class {class_name} has already been reflected")
-            if child.kind == CX.CursorKind.FIELD_DECL:  
-                field_name = child.spelling
-                field_type = child.type.spelling
-                field = Field(field_name)
-                field.type = field_type
-                one_type.fields.append(field)
+            if self.types.get(current_type.full_name) is not None:
+                raise Exception(f"Class {current_type.full_name} has already been reflected")
+            if child.kind == CX.CursorKind.FIELD_DECL:
+                current_type.fields.append(Field(child))
             elif child.kind == CX.CursorKind.CONSTRUCTOR:
-                constructor = Method(class_name)
-                for constructor_child in child.get_children():
-                    if constructor_child.kind == CX.CursorKind.PARM_DECL:
-                        arg_type = constructor_child.type.spelling
-                        constructor.arg_types.append(arg_type)
-                one_type.constructors.append(constructor)
+                current_type.constructors.append(Method(child))
             elif child.kind == CX.CursorKind.CXX_METHOD:
-                method_name = child.spelling
-                method = Method(method_name)
-                method.return_type = child.result_type.spelling
-                method.return_type_is_reference = child.result_type.get_canonical().kind == CX.TypeKind.LVALUEREFERENCE or child.result_type.get_canonical().kind == CX.TypeKind.RVALUEREFERENCE
-                method.is_const = child.is_const_method()
-                for method_child in child.get_children():
-                    # print(f"method: {method_name}, child: {method_child.spelling}, kind: {method_child.kind}")
-                    if method_child.kind == CX.CursorKind.PARM_DECL:
-                        arg_type = method_child.type.spelling
-                        method.arg_types.append(arg_type)
-                one_type.methods.append(method)
+                current_type.methods.append(Method(child))
         
         if serialization_mode == "DefaultSerialization":
             for child in node.get_children():
                 if not self.is_serialized(child, mode):
                     continue
                 if child.kind == CX.CursorKind.FIELD_DECL:
-                    field_name = child.spelling
-                    field_type = child.type.spelling
-                    field = Field(field_name)
-                    field.type = field_type
-                    one_type.serialized_fields.append(field)
+                    current_type.serialized_fields.append(Field(child))
 
-        self.types[class_name] = one_type
+        self.types[current_type.full_name] = current_type
 
 
     def traverse(self, node: CX.Cursor):
