@@ -3,6 +3,7 @@ class Type:
         self.name = name
         self.base_types = []
         self.fields = []
+        self.serialized_fields = []
         self.constructors = []
         self.methods = []
 

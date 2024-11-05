@@ -24,7 +24,7 @@ set(REFLECTION_PARSER_ARGS "-x c++ -w -MG -M -ferror-limit=0 -std=c++20 -o ${CMA
 message(STATUS "Reflection parser args: ${REFLECTION_PARSER_ARGS}")
 
 add_custom_command(
-    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/task_stamped
+    OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/generated/task_stamped
 
     COMMAND ${CMAKE_COMMAND} -E echo " ********** Precompile started ********** "
     COMMAND ${CMAKE_COMMAND} -E echo "[Precompile]: run parser python script"
@@ -35,7 +35,7 @@ add_custom_command(
                 --reflection_macros_header ${ENGINE_SOURCE_DIR}/Reflection/macros.h
                 --args ${REFLECTION_PARSER_ARGS}
                 --verbose
-    COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_CURRENT_BINARY_DIR}/task_stamped
+    COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_CURRENT_SOURCE_DIR}/generated/task_stamped
     COMMAND ${CMAKE_COMMAND} -E echo " ********** Precompile finished ********** "
     
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
@@ -44,5 +44,5 @@ add_custom_command(
 )
 
 add_custom_target(reflection_parser ALL
-    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/task_stamped
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/generated/task_stamped
 )

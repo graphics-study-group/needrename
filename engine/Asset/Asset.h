@@ -10,10 +10,10 @@ namespace Engine
 {
     class AssetManager;
     /// @brief Base class for all assets.
-    class REFLECTION Asset
+    class REFL_SER_CLASS(REFL_BLACKLIST) Asset
     {
     public:
-        REFLECTION Asset(std::weak_ptr <AssetManager> m_manager);
+        Asset(std::weak_ptr <AssetManager> m_manager);
         virtual ~Asset();
 
         /// @brief Load asset from file to the memory
@@ -24,15 +24,15 @@ namespace Engine
 
         /// @brief Get the path to the asset file
         /// @return path to the asset file
-        REFLECTION virtual std::filesystem::path GetAssetPath();
+        virtual std::filesystem::path GetAssetPath();
 
         /// @brief Get the path to the asset meta file
         /// @return path to the asset meta file
-        REFLECTION virtual std::filesystem::path GetMetaPath();
+        virtual std::filesystem::path GetMetaPath();
 
-        REFLECTION inline bool IsValid() const { return m_valid; }
-        REFLECTION inline GUID GetGUID() const { return m_guid; }
-        REFLECTION inline void SetGUID(GUID guid) { m_guid = guid; }
+        inline bool IsValid() const { return m_valid; }
+        inline GUID GetGUID() const { return m_guid; }
+        inline void SetGUID(GUID guid) { m_guid = guid; }
 
     protected:
         std::weak_ptr <AssetManager> m_manager;

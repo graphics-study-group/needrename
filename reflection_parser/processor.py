@@ -11,10 +11,60 @@ class ReflectionParser:
         self.types = {}
     
     
-    def is_reflection(self, node: CX.Cursor):
+    def get_reflection_class_args(self, node: CX.Cursor):
         for child in node.get_children():
-            if child.kind == CX.CursorKind.ANNOTATE_ATTR and child.spelling == "reflection":
-                return True
+            if child.kind == CX.CursorKind.ANNOTATE_ATTR and child.spelling.startswith("%REFL_SER_CLASS"):
+                return child.spelling.split()[1:]
+        return None
+    
+    def is_reflection(self, node: CX.Cursor, mode: str = "WhiteList"):
+        has_enable = False
+        has_disable = False
+        for child in node.get_children():
+            if child.kind == CX.CursorKind.ANNOTATE_ATTR:
+                if child.spelling.startswith("%REFLECTION ENABLE"):
+                    has_enable = True
+                if child.spelling.startswith("%REFLECTION DISABLE"):
+                    has_disable = True
+        if has_enable and has_disable:
+            print(f"[parser] Warning: the reflection mode of {node.spelling} has both ENABLE and DISABLE. reflection will be disabled")
+            return False
+        if has_enable and node.kind not in [CX.CursorKind.FIELD_DECL, CX.CursorKind.CONSTRUCTOR, CX.CursorKind.CXX_METHOD]:
+            print(f"[parser] Warning: the reflection mode of {node.spelling} has ENABLE but not in FIELD_DECL, CONSTRUCTOR, CXX_METHOD. reflection will be disabled")
+            return False
+        if node.access_specifier != CX.AccessSpecifier.PUBLIC:
+            if has_enable:
+                print(f"[parser] Warning: the reflection mode of {node.spelling} has ENABLE but not in PUBLIC. reflection will be disabled")
+            return False
+        if mode == "WhiteList":
+            return has_enable
+        if mode == "BlackList":
+            return not has_disable
+        return False
+    
+    def is_serialized(self, node: CX.Cursor, mode: str = "WhiteList"):
+        has_enable = False
+        has_disable = False
+        for child in node.get_children():
+            if child.kind == CX.CursorKind.ANNOTATE_ATTR:
+                if child.spelling.startswith("%SERIALIZATION ENABLE"):
+                    has_enable = True
+                if child.spelling.startswith("%SERIALIZATION DISABLE"):
+                    has_disable = True
+        if has_enable and has_disable:
+            print(f"[parser] Warning: the serialization mode of {node.spelling} has both ENABLE and DISABLE. serialization will be disabled")
+            return False
+        if has_enable and node.kind not in [CX.CursorKind.FIELD_DECL]:
+            print(f"[parser] Warning: the serialization mode of {node.spelling} has ENABLE but not in FIELD_DECL. serialization will be disabled")
+            return False
+        if node.access_specifier != CX.AccessSpecifier.PUBLIC:
+            if has_enable:
+                print(f"[parser] Warning: the serialization mode of {node.spelling} has ENABLE but not in PUBLIC. serialization will be disabled")
+            return False
+        if mode == "WhiteList":
+            return has_enable
+        if mode == "BlackList":
+            return not has_disable
         return False
     
     
@@ -29,19 +79,31 @@ class ReflectionParser:
         return ""
 
 
-    def traverse_class(self, node: CX.Cursor):
+    def traverse_class(self, node: CX.Cursor, args: list):
         class_name = self.get_full_name(node)
         if class_name in self.types:
             one_type = self.types[class_name]
         else:
             one_type = Type(class_name)
         one_type.mangled_name = self.get_mangled_name(node)
+        
+        mode = "WhiteList"
+        if "BlackList" in args:
+            mode = "BlackList"
+        serialization_mode = "DefaultSerialization"
+        if "CustomSerialization" in args:
+            serialization_mode = "CustomSerialization"
+        
         for child in node.get_children():
             if child.kind == CX.CursorKind.CXX_BASE_SPECIFIER:
-                base_type = child.referenced.spelling
+                base_type = self.get_full_name(child.referenced)
                 one_type.base_types.append(base_type)
-            if not self.is_reflection(child):
+            if not self.is_reflection(child, mode):
                 continue
+            # check if the class has been reflected
+            # put it here to avoid taking class declaration as reflection
+            if self.types.get(class_name) is not None:
+                raise Exception(f"Class {class_name} has already been reflected")
             if child.kind == CX.CursorKind.FIELD_DECL:  
                 field_name = child.spelling
                 field_type = child.type.spelling
@@ -49,8 +111,6 @@ class ReflectionParser:
                 field.type = field_type
                 one_type.fields.append(field)
             elif child.kind == CX.CursorKind.CONSTRUCTOR:
-                if not self.is_reflection(child):
-                    continue
                 constructor = Method(class_name)
                 for constructor_child in child.get_children():
                     if constructor_child.kind == CX.CursorKind.PARM_DECL:
@@ -58,8 +118,6 @@ class ReflectionParser:
                         constructor.arg_types.append(arg_type)
                 one_type.constructors.append(constructor)
             elif child.kind == CX.CursorKind.CXX_METHOD:
-                if not self.is_reflection(child):
-                    continue
                 method_name = child.spelling
                 method = Method(method_name)
                 method.return_type = child.result_type.spelling
@@ -71,17 +129,28 @@ class ReflectionParser:
                         arg_type = method_child.type.spelling
                         method.arg_types.append(arg_type)
                 one_type.methods.append(method)
-            else:
-                raise Exception(f"Unknown reflection attribute {child.kind} in class {class_name}")
+        
+        if serialization_mode == "DefaultSerialization":
+            for child in node.get_children():
+                if not self.is_serialized(child, mode):
+                    continue
+                if child.kind == CX.CursorKind.FIELD_DECL:
+                    field_name = child.spelling
+                    field_type = child.type.spelling
+                    field = Field(field_name)
+                    field.type = field_type
+                    one_type.serialized_fields.append(field)
+
         self.types[class_name] = one_type
 
 
     def traverse(self, node: CX.Cursor):
-        if self.is_reflection(node):
+        args = self.get_reflection_class_args(node)
+        if args is not None:
             if node.kind == CX.CursorKind.CLASS_DECL or node.kind == CX.CursorKind.STRUCT_DECL:
-                self.traverse_class(node)
+                self.traverse_class(node, args)
             else:
-                raise Exception(f"Reflection attribute can only be used in a class or struct, but found '{node.spelling}' '{node.kind}' not in a class")
+                raise Exception(f"Reflection macro can only be used in a class or struct, but found '{node.spelling}' '{node.kind}' not in a class")
         else:
             for child in node.get_children():
                 self.traverse(child)
