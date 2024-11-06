@@ -10,7 +10,7 @@ namespace Engine {
 
     void HomogeneousMesh::Prepare() {
         const uint32_t new_vertex_count = GetVertexCount();
-        const uint64_t buffer_size = GetExpectedBufferSize();
+        const uint64_t buffer_size = this->GetExpectedBufferSize();
 
         if (m_allocated_buffer_size != buffer_size) {
             m_updated = true;
@@ -30,13 +30,13 @@ namespace Engine {
     }
 
     Buffer HomogeneousMesh::CreateStagingBuffer() const {
-        const uint64_t buffer_size = GetExpectedBufferSize();
+        const uint64_t buffer_size = this->GetExpectedBufferSize();
 
         Buffer buffer{m_system};
         buffer.Create(Buffer::BufferType::Staging, buffer_size);
 
         std::byte * data = buffer.Map();
-        WriteToMemory(data);
+        this->WriteToMemory(data);
         buffer.Flush();
         buffer.Unmap();
 

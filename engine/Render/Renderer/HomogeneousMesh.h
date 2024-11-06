@@ -8,6 +8,8 @@
 namespace Engine{
     
     /// @brief A homogeneous mesh of only one material at runtime, constructed from mesh asset.
+    /// Contains mesh data on host side, which must be uploaded to device by 
+    /// `CreateStagingBuffer` and `vkCmdCopyBuffer`.
     class HomogeneousMesh {
     public:
 
@@ -26,8 +28,9 @@ namespace Engine{
         Buffer CreateStagingBuffer() const;
         uint32_t GetVertexIndexCount() const;
         uint32_t GetVertexCount() const;
-        uint64_t GetExpectedBufferSize() const;
         const Buffer & GetBuffer() const;
+
+        virtual uint64_t GetExpectedBufferSize() const;
 
         virtual 
         std::pair <std::vector<vk::Buffer>, std::vector<vk::DeviceSize>>
@@ -96,7 +99,7 @@ namespace Engine{
 
         glm::mat4 m_model_transform {1.0f};
 
-        void WriteToMemory(std::byte * pointer) const;
+        virtual void WriteToMemory(std::byte * pointer) const;
     };
 };
 
