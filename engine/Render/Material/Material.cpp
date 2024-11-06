@@ -9,7 +9,12 @@ namespace Engine {
     Material::Material (std::weak_ptr<RenderSystem> system) 
     : m_system(system) {
     }
-    const PipelineLayout * Material::GetPipelineLayout(uint32_t pass_index) const {
+    const Pipeline *Material::GetSkinnedPipeline(uint32_t pass_index)
+    {
+        return this->GetPipeline(pass_index);
+    }
+    const PipelineLayout *Material::GetPipelineLayout(uint32_t pass_index) const
+    {
         assert(pass_index < m_passes.size());
         return m_passes[pass_index].pipeline_layout.get();
     }

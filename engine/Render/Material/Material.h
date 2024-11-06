@@ -16,6 +16,8 @@ namespace Engine {
         struct MaterialPass {
             std::unique_ptr <Pipeline> pipeline {};
             std::unique_ptr <PipelineLayout> pipeline_layout {};
+            std::unique_ptr <Pipeline> skinned_pipeline {};
+            std::unique_ptr <PipelineLayout> skinned_pipeline_layout {};
             vk::DescriptorSet descriptor_set {};
         };
 
@@ -35,6 +37,8 @@ namespace Engine {
         virtual ~Material () = default;
 
         const virtual Pipeline * GetPipeline(uint32_t pass_index) = 0;
+        const virtual Pipeline * GetSkinnedPipeline(uint32_t pass_index);
+
         const PipelineLayout * GetPipelineLayout (uint32_t pass_index) const;
         vk::DescriptorSet GetDescriptorSet(uint32_t pass_index) const;
         virtual void WriteDescriptors () const;

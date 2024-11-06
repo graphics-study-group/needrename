@@ -20,14 +20,17 @@ namespace Engine {
         m_handle = m_system.lock()->getDevice().createPipelineLayoutUnique(info);
     }
 
-    void PipelineLayout::CreateWithDefault(const std::vector<vk::DescriptorSetLayout> & extra_descriptor_set)
+    void PipelineLayout::CreateWithDefault(vk::DescriptorSetLayout material_descriptor_set, bool skinned)
     {
         auto system = m_system.lock();
         const auto & pool = system->GetGlobalConstantDescriptorPool();
 
         std::array <vk::PushConstantRange, 1> default_push_constant{ConstantData::PerModelConstantPushConstant::GetPushConstantRange()};
         std::vector <vk::DescriptorSetLayout> default_set_layout{pool.GetPerSceneConstantLayout().get(), pool.GetPerCameraConstantLayout().get()};
-        default_set_layout.insert(default_set_layout.end(), extra_descriptor_set.begin(), extra_descriptor_set.end());
+        default_set_layout.push_back(material_descriptor_set);
+        if (skinned) {
+            default_set_layout.push_back({});
+        }
 
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating pipeline layout.");
         vk::PipelineLayoutCreateInfo info{

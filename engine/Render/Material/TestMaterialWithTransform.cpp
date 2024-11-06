@@ -53,7 +53,7 @@ namespace Engine {
         vk::DescriptorSetLayout set_layout = manager.NewDescriptorSetLayout("TestMaterial", {binding});
         m_passes[0].descriptor_set = manager.AllocateDescriptorSet(set_layout);
         auto & pipeline_layout = *(m_passes[0].pipeline_layout.get());
-        pipeline_layout.CreateWithDefault({set_layout});
+        pipeline_layout.CreateWithDefault(set_layout);
 
         m_passes[0].pipeline->SetPipelineConfiguration(pipeline_layout, {fragModule, vertModule});
     }
