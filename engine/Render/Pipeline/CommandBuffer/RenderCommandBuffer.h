@@ -40,7 +40,7 @@ namespace Engine {
         /// @brief Bind a material for rendering, and write per-material descriptors.
         /// @param material 
         /// @param pass_index 
-        void BindMaterial(Material & material, uint32_t pass_index);
+        void BindMaterial(Material & material, uint32_t pass_index, bool skinned = false);
 
         /// @brief Setup the viewport parameters
         /// @param vpWidth width of the viewport

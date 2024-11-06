@@ -40,6 +40,7 @@ namespace Engine {
         const virtual Pipeline * GetSkinnedPipeline(uint32_t pass_index);
 
         const PipelineLayout * GetPipelineLayout (uint32_t pass_index) const;
+        const PipelineLayout * GetSkinnedPipelineLayout (uint32_t pass_index) const;
         vk::DescriptorSet GetDescriptorSet(uint32_t pass_index) const;
         virtual void WriteDescriptors () const;
     };

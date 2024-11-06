@@ -103,37 +103,35 @@ namespace Engine
         m_handle->beginRendering(info);
     }
 
-    void RenderCommandBuffer::BindMaterial(Material & material, uint32_t pass_index) {
+    void RenderCommandBuffer::BindMaterial(Material & material, uint32_t pass_index, bool skinned) {
         assert(m_bound_render_target.has_value());
-        const auto & pipeline = material.GetPipeline(pass_index)->get();
-        const auto & pipeline_layout = material.GetPipelineLayout(pass_index)->get();
+        const vk::Pipeline & pipeline = 
+            skinned ? material.GetSkinnedPipeline(pass_index)->get() : material.GetPipeline(pass_index)->get();
+        const vk::PipelineLayout & pipeline_layout = 
+            skinned ?  material.GetSkinnedPipelineLayout(pass_index)->get() : material.GetPipelineLayout(pass_index)->get();
 
         m_handle->bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
         m_bound_material = std::make_pair(std::cref(material), pass_index);
         m_bound_material_pipeline = std::make_pair(pipeline, pipeline_layout);
 
         const auto & global_pool = m_system->GetGlobalConstantDescriptorPool();
-        const auto & per_scenc_descriptor_set = global_pool.GetPerSceneConstantSet(m_inflight_frame_index);
+        const auto & per_scene_descriptor_set = global_pool.GetPerSceneConstantSet(m_inflight_frame_index);
         const auto & per_camera_descriptor_set = global_pool.GetPerCameraConstantSet(m_inflight_frame_index);
         auto material_descriptor_set = material.GetDescriptorSet(pass_index);
 
-        if (material_descriptor_set) {
-            m_handle->bindDescriptorSets(
-                vk::PipelineBindPoint::eGraphics, 
-                pipeline_layout, 
-                0,
-                {per_scenc_descriptor_set, per_camera_descriptor_set, material_descriptor_set},
-                {}
-            );
-        } else {
-            m_handle->bindDescriptorSets(
-                vk::PipelineBindPoint::eGraphics, 
-                pipeline_layout, 
-                0,
-                {per_scenc_descriptor_set, per_camera_descriptor_set},
-                {}
-            );
-        }
+        std::vector <vk::DescriptorSet> descriptor_sets = {per_scene_descriptor_set, per_camera_descriptor_set};
+        descriptor_sets.reserve(4);
+
+        if (material_descriptor_set) descriptor_sets.push_back(material_descriptor_set);
+        if (skinned) /* FIXME: Fill descriptor sets with bone matrices */;
+        m_handle->bindDescriptorSets(
+            vk::PipelineBindPoint::eGraphics, 
+            pipeline_layout, 
+            0,
+            descriptor_sets,
+            {}
+        );
+ 
         
         material.WriteDescriptors();
     }
