@@ -66,7 +66,7 @@ namespace Engine {
 
     vk::PipelineVertexInputStateCreateInfo HomogeneousMesh::GetVertexInputState() {
         return vk::PipelineVertexInputStateCreateInfo{
-            vk::PipelineVertexInputStateCreateFlags{0}, bindings, attributes
+            vk::PipelineVertexInputStateCreateFlags{0}, BINDINGS, ATTRIBUTES
         };
     }
 
@@ -118,11 +118,15 @@ namespace Engine {
         return m_buffer;
     }
 
-    std::pair <std::array<vk::Buffer, HomogeneousMesh::BINDING_COUNT>, std::array<vk::DeviceSize, HomogeneousMesh::BINDING_COUNT>> 
+    std::pair <std::vector<vk::Buffer>, std::vector<vk::DeviceSize>> 
     HomogeneousMesh::GetBindingInfo() const {
         assert(this->m_buffer.GetBuffer());
-        std::array<vk::Buffer, BINDING_COUNT> buffer {this->m_buffer.GetBuffer(), this->m_buffer.GetBuffer()};
-        std::array<vk::DeviceSize, BINDING_COUNT> binding_offset {0, m_positions.size() * VertexStruct::VERTEX_POSITION_SIZE};
+        std::vector<vk::Buffer> buffer {this->m_buffer.GetBuffer(), this->m_buffer.GetBuffer()};
+        std::vector<vk::DeviceSize> binding_offset {
+            vk::DeviceSize{0}, 
+            vk::DeviceSize{m_positions.size() * VertexStruct::VERTEX_POSITION_SIZE}
+        };
+        assert(buffer.size() == binding_offset.size());
         return std::make_pair(buffer, binding_offset);
     }
 }

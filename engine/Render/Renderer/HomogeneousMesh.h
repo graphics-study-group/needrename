@@ -14,7 +14,7 @@ namespace Engine{
         static constexpr const uint32_t BINDING_COUNT = 2;
 
         HomogeneousMesh(std::weak_ptr <RenderSystem> system);
-        ~HomogeneousMesh();
+        virtual ~HomogeneousMesh();
 
         void Prepare();
 
@@ -29,16 +29,17 @@ namespace Engine{
         uint64_t GetExpectedBufferSize() const;
         const Buffer & GetBuffer() const;
 
-        std::pair <
-            std::array<vk::Buffer, HomogeneousMesh::BINDING_COUNT>, 
-            std::array<vk::DeviceSize, HomogeneousMesh::BINDING_COUNT>
-        >
+        virtual 
+        std::pair <std::vector<vk::Buffer>, std::vector<vk::DeviceSize>>
         GetBindingInfo() const;
 
+        virtual
         std::pair <vk::Buffer, vk::DeviceSize>
         GetIndexInfo() const;
 
-        static vk::PipelineVertexInputStateCreateInfo GetVertexInputState();
+        static
+        vk::PipelineVertexInputStateCreateInfo
+        GetVertexInputState();
 
         void SetPositions (std::vector <VertexStruct::VertexPosition> positions);
         void SetAttributes (std::vector <VertexStruct::VertexAttribute> attributes);
@@ -50,34 +51,34 @@ namespace Engine{
     protected:
         std::weak_ptr <RenderSystem> m_system;
 
-        static constexpr const std::array<vk::VertexInputBindingDescription, BINDING_COUNT> bindings = {
+        static constexpr const std::array<vk::VertexInputBindingDescription, BINDING_COUNT> BINDINGS = {
             // Position
             vk::VertexInputBindingDescription{0, VertexStruct::VERTEX_POSITION_SIZE, vk::VertexInputRate::eVertex},
             // Other attributes
             vk::VertexInputBindingDescription{1, VertexStruct::VERTEX_ATTRIBUTE_SIZE, vk::VertexInputRate::eVertex}
         };
 
-        static constexpr const std::array<vk::VertexInputAttributeDescription, VertexStruct::VERTEX_ATTRIBUTE_COUNT + 1> attributes = {
+        static constexpr const std::array<vk::VertexInputAttributeDescription, VertexStruct::VERTEX_ATTRIBUTE_COUNT + 1> ATTRIBUTES = {
             // Position
-            vk::VertexInputAttributeDescription{0, bindings[0].binding, vk::Format::eR32G32B32Sfloat, 0},
+            vk::VertexInputAttributeDescription{0, BINDINGS[0].binding, vk::Format::eR32G32B32Sfloat, 0},
             // Vertex color
             vk::VertexInputAttributeDescription{
                 1, 
-                bindings[1].binding, 
+                BINDINGS[1].binding, 
                 vk::Format::eR32G32B32Sfloat, 
                 VertexStruct::OFFSET_COLOR
             },
             // Vertex normal
             vk::VertexInputAttributeDescription{
                 2, 
-                bindings[1].binding, 
+                BINDINGS[1].binding, 
                 vk::Format::eR32G32B32Sfloat, 
                 VertexStruct::OFFSET_NORMAL
             },
             // Texcoord 1
             vk::VertexInputAttributeDescription{
                 3,
-                bindings[1].binding,
+                BINDINGS[1].binding,
                 vk::Format::eR32G32Sfloat,
                 VertexStruct::OFFSET_TEXCOORD1
             }
