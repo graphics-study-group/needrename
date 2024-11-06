@@ -26,7 +26,7 @@ namespace Engine{
 
     protected:
 
-        static vk::PipelineVertexInputStateCreateInfo GetVertexInputState();
+        static vk::PipelineVertexInputStateCreateInfo GetVertexInputState(bool skinned = false);
         static vk::PipelineDynamicStateCreateInfo GetDynamicState();
         static vk::PipelineInputAssemblyStateCreateInfo GetInputAssemblyState();
         static vk::PipelineViewportStateCreateInfo GetViewportState();

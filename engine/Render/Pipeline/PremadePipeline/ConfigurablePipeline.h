@@ -23,7 +23,8 @@ namespace Engine {
             void SetPipelineConfiguration(
                 const PipelineLayout & layout, 
                 const std::vector<std::reference_wrapper<const ShaderModule>> & shaders,
-                const PipelineConfig & config
+                const PipelineConfig & config,
+                bool skinned = false
             );
 
             virtual void CreatePipeline() override;
@@ -33,6 +34,7 @@ namespace Engine {
             vk::PipelineLayout m_layout{};
             std::vector<std::reference_wrapper<const ShaderModule>> m_shaders {};
             PipelineConfig m_config{};
+            bool m_skinned{false};
 
             static vk::PipelineMultisampleStateCreateInfo CreateMultisampleState();
             static vk::PipelineDepthStencilStateCreateInfo CreateDepthStencilState();

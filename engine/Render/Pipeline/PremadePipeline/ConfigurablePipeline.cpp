@@ -17,12 +17,14 @@ namespace Engine::PremadePipeline {
     void ConfigurablePipeline::SetPipelineConfiguration(
         const PipelineLayout &layout, 
         const std::vector<std::reference_wrapper<const ShaderModule>> &shaders, 
-        const PipelineConfig &config
+        const PipelineConfig &config,
+        bool skinned
     ) {
         assert(!shaders.empty());
         m_layout = layout.get();
         m_shaders = shaders;
         m_config = config;
+        m_skinned = skinned;
     }
 
     void ConfigurablePipeline::CreatePipeline()
@@ -37,7 +39,7 @@ namespace Engine::PremadePipeline {
         info.stageCount = stages.size();
         info.pStages = stages.data();
 
-        auto vertex_input = GetVertexInputState();
+        auto vertex_input = GetVertexInputState(m_skinned);
         info.pVertexInputState = &vertex_input;
 
         auto input_assemb = GetInputAssemblyState();

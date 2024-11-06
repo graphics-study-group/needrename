@@ -1,12 +1,14 @@
 #include "Pipeline.h"
 #include "Render/Renderer/HomogeneousMesh.h"
+#include "Render/Renderer/SkinnedHomogeneousMesh.h"
 #include "Render/Pipeline/Shader.h"
 
 namespace Engine
 {
     Pipeline::Pipeline(std::weak_ptr<RenderSystem> system) : VkWrapper(system) {}
 
-    vk::PipelineVertexInputStateCreateInfo Pipeline::GetVertexInputState() {
+    vk::PipelineVertexInputStateCreateInfo Pipeline::GetVertexInputState(bool skinned) {
+        if (skinned) return SkinnedHomogeneousMesh::GetVertexInputState();
         return HomogeneousMesh::GetVertexInputState();
     }
 
