@@ -39,7 +39,6 @@ namespace SerializationTest
     public:
         PtrTest() = default;
         virtual ~PtrTest() = default;
-        void operator=(BaseData *ptr) { m_ptr = ptr; }
 
         BaseData *m_ptr = nullptr;
     };

@@ -142,6 +142,16 @@ class ReflectionParser:
             template_gr = Template(f.read())
         with open(os.path.join(generated_code_dir, "generated_reflection.ipp"), "w") as f:
             f.write(template_gr.render())
+            
+        with open("template/generated_serialization.hpp.template", "r") as f:
+            template_gs_hpp = Template(f.read())
+        with open(os.path.join(generated_code_dir, "generated_serialization.hpp"), "w") as f:
+            f.write(template_gs_hpp.render(classes_map=self.types))
+        
+        with open("template/generated_serialization.ipp.template", "r") as f:
+            template_gs_ipp = Template(f.read())
+        with open(os.path.join(generated_code_dir, "generated_serialization.ipp"), "w") as f:
+            f.write(template_gs_ipp.render(classes_map=self.types))
     
     
     def topological_sort(self, types):

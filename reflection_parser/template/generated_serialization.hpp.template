@@ -1,0 +1,29 @@
+#include <type_traits>
+
+% for class_type in classes_map.values():
+<% split_name = class_type.full_name.split("::") %>
+% for i in range(len(split_name) - 1):
+namespace ${split_name[i]}
+{
+% endfor
+class ${split_name[-1]};
+% for i in range(len(split_name) - 1):
+}
+% endfor
+% endfor
+
+namespace Engine
+{
+    namespace Serialization
+    {
+        class SerializedBuffer;
+
+        % for class_type in classes_map.values():
+        void save(const ${class_type.full_name} &value, SerializedBuffer& buffer);
+        % endfor
+
+        % for class_type in classes_map.values():
+        void load(const ${class_type.full_name} &value, SerializedBuffer& buffer);
+        % endfor
+    }
+}
