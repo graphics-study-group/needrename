@@ -1,5 +1,5 @@
-#ifndef RENDER_MATERIAL_BLINNPHONG_INCLUDED
-#define RENDER_MATERIAL_BLINNPHONG_INCLUDED
+#ifndef RENDER_MATERIAL_BONEWEIGHTVISUALIZER_INCLUDED
+#define RENDER_MATERIAL_BONEWEIGHTVISUALIZER_INCLUDED
 
 #include "Render/Material/Material.h"
 #include "Render/Pipeline/Shader.h"
@@ -7,17 +7,13 @@
 
 namespace Engine {
     class ShaderModule;
-    class AllocatedImage2DTexture;
 
-    class BlinnPhong : public Material {
+    class BoneWeightVisualizer : public Material {
     public:
         struct UniformData {
-            // Specular color (rgb) with exponential shininess index (a)
-            glm::vec4 specular;
-            glm::vec4 ambient;
+            uint32_t bone_index;
         };
     private:
-        vk::UniqueSampler m_sampler {};
         ShaderModule fragModule;
         ShaderModule vertModule;
 
@@ -28,13 +24,13 @@ namespace Engine {
         UniformData m_uniform_data {};
     public:
 
-        BlinnPhong (std::weak_ptr <RenderSystem> system);
+        BoneWeightVisualizer (std::weak_ptr <RenderSystem> system);
 
         const virtual Pipeline * GetPipeline(uint32_t pass_index) override;
+        const virtual Pipeline * GetSkinnedPipeline(uint32_t pass_index) override;
 
-        void UpdateTexture(const AllocatedImage2DTexture & texture);
         void UpdateUniform(const UniformData & uniform);
     };
 }
 
-#endif // RENDER_MATERIAL_BLINNPHONG_INCLUDED
+#endif // RENDER_MATERIAL_BONEWEIGHTVISUALIZER_INCLUDED
