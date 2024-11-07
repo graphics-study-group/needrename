@@ -13,14 +13,14 @@ namespace Engine
 {
     namespace Serialization
     {
-        ## list of all base types such as bool, int, long double
-        <% base_type_list = [CX.TypeKind.from_id(i) for i in range(3, 24)] %>
+        ## list of all basic types such as bool, int, long double
+        <% basic_type_list = [CX.TypeKind.from_id(i) for i in range(3, 24)] %>
         % for class_type in classes_map.values():
-        void save(const ${class_type.full_name} &value, SerializedBuffer& buffer)
+        void save(const ${class_type.full_name} &value, Archive& buffer)
         {
             % for base_type in class_type.base_types:
             {
-                SerializedBuffer temp_buffer;
+                Archive temp_buffer;
                 save((const ${base_type.full_name} &)value, temp_buffer);
                 buffer.json["${base_type.name}"] = temp_buffer.json;
                 buffer.buffers.insert(buffer.buffers.end(), temp_buffer.buffers.begin(), temp_buffer.buffers.end());
@@ -30,7 +30,7 @@ namespace Engine
             Json &json = buffer.json;
             
             % for field in class_type.serialized_fields:
-            % if field.type.cx_type.kind in base_type_list:
+            % if field.type.cx_type.kind in basic_type_list:
             {
                 json["${field.name}"] = value.${field.name};
             }
@@ -38,10 +38,10 @@ namespace Engine
             {
                 if (value.${field.name} != nullptr)
                 {
-                % if field.type.cx_type.get_pointee().kind in base_type_list:
+                % if field.type.cx_type.get_pointee().kind in basic_type_list:
                     json["${field.name}"] = *value.${field.name};
                 % else:
-                    SerializedBuffer temp_buffer;
+                    Archive temp_buffer;
                     save(*value.${field.name}, temp_buffer);
                     json["${field.name}"] = temp_buffer.json;
                 % endif
@@ -52,10 +52,10 @@ namespace Engine
                 json["${field.name}"] = Json::array();
                 for (const auto& item : value.${field.name})
                 {
-                % if field.type.cx_type.element_type.kind in base_type_list:
+                % if field.type.cx_type.element_type.kind in basic_type_list:
                     json["${field.name}"].push_back(item);
                 % else:
-                    SerializedBuffer temp_buffer;
+                    Archive temp_buffer;
                     save(item, temp_buffer);
                     json["${field.name}"].push_back(temp_buffer.json);
                     buffer.buffers.insert(buffer.buffers.end(), temp_buffer.buffers.begin(), temp_buffer.buffers.end());
@@ -64,7 +64,7 @@ namespace Engine
             }
             % else:
             {
-                SerializedBuffer temp_buffer;
+                Archive temp_buffer;
                 save(value.${field.name}, temp_buffer);
                 json["${field.name}"] = temp_buffer.json;
                 buffer.buffers.insert(buffer.buffers.end(), temp_buffer.buffers.begin(), temp_buffer.buffers.end());
@@ -75,7 +75,7 @@ namespace Engine
         % endfor
 
         % for class_type in classes_map.values():
-        void load(const ${class_type.full_name} &value, SerializedBuffer& buffer)
+        void load(const ${class_type.full_name} &value, Archive& buffer)
         {
             
         }

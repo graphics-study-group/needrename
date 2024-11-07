@@ -9,6 +9,7 @@
 #include "Method.h"
 #include "utils.h"
 #include "macros.h"
+#include "serialization.h"
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wattributes"

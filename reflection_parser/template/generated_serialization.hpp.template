@@ -16,14 +16,14 @@ namespace Engine
 {
     namespace Serialization
     {
-        class SerializedBuffer;
+        class Archive;
 
         % for class_type in classes_map.values():
-        void save(const ${class_type.full_name} &value, SerializedBuffer& buffer);
+        void save(const ${class_type.full_name} &value, Archive& buffer);
         % endfor
 
         % for class_type in classes_map.values():
-        void load(const ${class_type.full_name} &value, SerializedBuffer& buffer);
+        void load(const ${class_type.full_name} &value, Archive& buffer);
         % endfor
     }
 }

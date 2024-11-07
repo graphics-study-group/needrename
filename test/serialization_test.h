@@ -13,7 +13,7 @@ namespace SerializationTest
         BaseData() = default;
         virtual ~BaseData() = default;
 
-        float data[100] = {0.0f};
+        float data[3] = {0.0f};
     };
 
     class REFL_SER_CLASS(REFL_BLACKLIST) InheritTest : public BaseData
@@ -25,14 +25,14 @@ namespace SerializationTest
         int m_inherit = 1000;
     };
 
-    class REFL_SER_CLASS(REFL_BLACKLIST) SharedPtrTest
-    {
-    public:
-        SharedPtrTest() = default;
-        virtual ~SharedPtrTest() = default;
+    // class REFL_SER_CLASS(REFL_BLACKLIST) SharedPtrTest
+    // {
+    // public:
+    //     SharedPtrTest() = default;
+    //     virtual ~SharedPtrTest() = default;
 
-        std::shared_ptr<BaseData> m_shared_ptr {};
-    };
+    //     std::shared_ptr<BaseData> m_shared_ptr {};
+    // };
 
     class REFL_SER_CLASS(REFL_BLACKLIST) PtrTest
     {
@@ -43,13 +43,28 @@ namespace SerializationTest
         BaseData *m_ptr = nullptr;
     };
 
-    class REFL_SER_CLASS(REFL_BLACKLIST) VectorTest
+    // class REFL_SER_CLASS(REFL_BLACKLIST) VectorTest
+    // {
+    // public:
+    //     VectorTest() = default;
+    //     virtual ~VectorTest() = default;
+
+    //     std::vector<BaseData> m_vector {};
+    // };
+
+    class REFL_SER_CLASS(REFL_BLACKLIST) CustomTest
     {
     public:
-        VectorTest() = default;
-        virtual ~VectorTest() = default;
+        CustomTest() = default;
+        virtual ~CustomTest() = default;
 
-        std::vector<BaseData> m_vector {};
+        int m_a = 621;
+        int m_b = 182376;
+
+        REFL_SER_DISABLE inline void save(Engine::Serialization::Archive& buffer) const
+        {
+            buffer.json["data"] = m_a * 1000000 + m_b;
+        }
     };
 }
 
