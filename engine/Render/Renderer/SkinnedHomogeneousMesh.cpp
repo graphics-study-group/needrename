@@ -28,6 +28,13 @@ namespace Engine{
         return std::make_pair(buffer, binding_offset);
     }
 
+    std::pair<vk::Buffer, vk::DeviceSize> SkinnedHomogeneousMesh::GetIndexInfo() const
+    {
+        assert(this->m_buffer.GetBuffer());
+        uint64_t total_size = GetVertexCount() * (VertexStruct::VERTEX_TOTAL_SIZE + VertexStruct::SKINNED_VERTEX_ATTRIBUTE_SIZE);
+        return std::make_pair(m_buffer.GetBuffer(), total_size);
+    }
+
     vk::PipelineVertexInputStateCreateInfo Engine::SkinnedHomogeneousMesh::GetVertexInputState()
     {
         return vk::PipelineVertexInputStateCreateInfo{

@@ -17,6 +17,10 @@ namespace Engine {
         std::pair <std::vector<vk::Buffer>, std::vector<vk::DeviceSize>>
         GetBindingInfo() const override;
 
+        virtual
+        std::pair <vk::Buffer, vk::DeviceSize>
+        GetIndexInfo() const;
+
         static
         vk::PipelineVertexInputStateCreateInfo
         GetVertexInputState();
