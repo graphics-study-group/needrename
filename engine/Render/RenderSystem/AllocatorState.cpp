@@ -32,10 +32,6 @@ namespace Engine::RenderSystemState {
         );
     }
 
-    void AllocatorState::RaiseException(VkResult result)
-    {
-    }
-
     AllocatorState::~AllocatorState()
     {
         vmaDestroyAllocator(m_allocator);
@@ -78,7 +74,7 @@ namespace Engine::RenderSystemState {
         VmaAllocation allocation{};
 
         VkResult result = vmaCreateBuffer(m_allocator, &bcinfo, &ainfo, &buffer, &allocation, nullptr);
-        RaiseException(result);
+        vk::detail::resultCheck(static_cast<vk::Result>(result), "Failed to allocate buffer.");
         assert(buffer != nullptr && allocation != nullptr);
         return AllocatedMemory(static_cast<vk::Buffer>(buffer), allocation, m_allocator);
     }
