@@ -19,7 +19,9 @@ namespace Engine {
             std::unique_ptr <PipelineLayout> pipeline_layout {};
             std::unique_ptr <SkinnedConfigurablePipeline> skinned_pipeline {};
             std::unique_ptr <PipelineLayout> skinned_pipeline_layout {};
-            vk::DescriptorSet descriptor_set {};
+
+            vk::DescriptorSet material_descriptor_set {};
+            vk::DescriptorSetLayout material_descriptor_set_layout {};
         };
 
         std::weak_ptr <RenderSystem> m_system;
@@ -40,9 +42,12 @@ namespace Engine {
         const virtual Pipeline * GetPipeline(uint32_t pass_index) = 0;
         const virtual Pipeline * GetSkinnedPipeline(uint32_t pass_index);
 
-        const PipelineLayout * GetPipelineLayout (uint32_t pass_index) const;
-        const PipelineLayout * GetSkinnedPipelineLayout (uint32_t pass_index) const;
+        const PipelineLayout * GetPipelineLayout (uint32_t pass_index);
+        const PipelineLayout * GetSkinnedPipelineLayout (uint32_t pass_index);
+
         vk::DescriptorSet GetDescriptorSet(uint32_t pass_index) const;
+        vk::DescriptorSetLayout GetMaterialDescriptorSetLayout (uint32_t pass_index) const;
+
         virtual void WriteDescriptors () const;
     };
 };

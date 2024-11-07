@@ -51,8 +51,9 @@ namespace Engine {
 
         auto & manager = system.lock()->GetMaterialDescriptorManager();
         vk::DescriptorSetLayout set_layout = manager.NewDescriptorSetLayout("BoneWeightVisualizer", GetBindings());
+        m_passes[0].material_descriptor_set_layout = set_layout;
         auto descriptor_set = manager.AllocateDescriptorSet(set_layout);
-        m_passes[0].descriptor_set = descriptor_set;
+        m_passes[0].material_descriptor_set = descriptor_set;
 
         auto & pipeline_layout = *(m_passes[0].skinned_pipeline_layout.get());
         pipeline_layout.CreateWithDefaultSkinned(set_layout);
@@ -66,7 +67,7 @@ namespace Engine {
             m_uniform_buffer.GetBuffer(), 0, sizeof(UniformData)
         };
         vk::WriteDescriptorSet write {
-            m_passes[0].descriptor_set,
+            m_passes[0].material_descriptor_set,
             0,
             0,
             1,

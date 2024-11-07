@@ -58,8 +58,9 @@ namespace Engine {
             { &m_sampler.get() }
         };
         vk::DescriptorSetLayout set_layout = manager.NewDescriptorSetLayout("TestMaterial", {binding});
+        m_passes[0].material_descriptor_set_layout = set_layout;
         auto descriptor_set = manager.AllocateDescriptorSet(set_layout);
-        m_passes[0].descriptor_set = descriptor_set;
+        m_passes[0].material_descriptor_set = descriptor_set;
 
         auto & pipeline_layout = *(m_passes[0].pipeline_layout.get());
         pipeline_layout.CreateWithDefault(set_layout);
