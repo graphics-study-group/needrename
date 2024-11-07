@@ -62,7 +62,7 @@ namespace Engine {
         m_sampler = system.lock()->getDevice().createSamplerUnique(sinfo);
 
         m_passes.resize(1);
-        m_passes[0].pipeline = std::make_unique <PremadePipeline::ConfigurablePipeline> (system);
+        m_passes[0].pipeline = std::make_unique <ConfigurablePipeline> (system);
         m_passes[0].pipeline_layout = std::make_unique <PipelineLayout> (system);
 
         auto & manager = system.lock()->GetMaterialDescriptorManager();

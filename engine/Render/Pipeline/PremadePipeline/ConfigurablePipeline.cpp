@@ -1,8 +1,9 @@
 #include "ConfigurablePipeline.h"
 
+#include "Render/Renderer/HomogeneousMesh.h"
 #include "Render/Pipeline/Shader.h"
 
-namespace Engine::PremadePipeline {
+namespace Engine {
     ConfigurablePipeline::ConfigurablePipeline(std::weak_ptr<RenderSystem> system) : Pipeline(system)
     {
     }
@@ -17,14 +18,12 @@ namespace Engine::PremadePipeline {
     void ConfigurablePipeline::SetPipelineConfiguration(
         const PipelineLayout &layout, 
         const std::vector<std::reference_wrapper<const ShaderModule>> &shaders, 
-        const PipelineConfig &config,
-        bool skinned
+        const PipelineConfig &config
     ) {
         assert(!shaders.empty());
         m_layout = layout.get();
         m_shaders = shaders;
         m_config = config;
-        m_skinned = skinned;
     }
 
     void ConfigurablePipeline::CreatePipeline()
@@ -39,7 +38,7 @@ namespace Engine::PremadePipeline {
         info.stageCount = stages.size();
         info.pStages = stages.data();
 
-        auto vertex_input = GetVertexInputState(m_skinned);
+        auto vertex_input = HomogeneousMesh::GetVertexInputState();
         info.pVertexInputState = &vertex_input;
 
         auto input_assemb = GetInputAssemblyState();

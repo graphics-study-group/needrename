@@ -123,7 +123,7 @@ namespace Engine
         descriptor_sets.reserve(4);
 
         if (material_descriptor_set) descriptor_sets.push_back(material_descriptor_set);
-        if (skinned) /* FIXME: Fill descriptor sets with bone matrices */;
+        if (skinned) {/* FIXME: Fill descriptor sets with bone matrices */;}
         m_handle->bindDescriptorSets(
             vk::PipelineBindPoint::eGraphics, 
             pipeline_layout, 

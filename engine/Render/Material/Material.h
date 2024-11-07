@@ -4,7 +4,8 @@
 #include <vulkan/vulkan.hpp>
 #include <unordered_map>
 #include "Render/Pipeline/PipelineLayout.h"
-#include "Render/Pipeline/Pipeline.h"
+#include "Render/Pipeline/PremadePipeline/ConfigurablePipeline.h"
+#include "Render/Pipeline/PremadePipeline/SkinnedConfigurablePipeline.h"
 
 namespace Engine {
     class RenderSystem;
@@ -14,9 +15,9 @@ namespace Engine {
     {
     protected:
         struct MaterialPass {
-            std::unique_ptr <Pipeline> pipeline {};
+            std::unique_ptr <ConfigurablePipeline> pipeline {};
             std::unique_ptr <PipelineLayout> pipeline_layout {};
-            std::unique_ptr <Pipeline> skinned_pipeline {};
+            std::unique_ptr <SkinnedConfigurablePipeline> skinned_pipeline {};
             std::unique_ptr <PipelineLayout> skinned_pipeline_layout {};
             vk::DescriptorSet descriptor_set {};
         };

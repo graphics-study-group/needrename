@@ -46,7 +46,7 @@ namespace Engine {
         );
 
         m_passes.resize(1);
-        m_passes[0].skinned_pipeline = std::make_unique <PremadePipeline::ConfigurablePipeline> (system);
+        m_passes[0].skinned_pipeline = std::make_unique <SkinnedConfigurablePipeline> (system);
         m_passes[0].skinned_pipeline_layout = std::make_unique <PipelineLayout> (system);
 
         auto & manager = system.lock()->GetMaterialDescriptorManager();
@@ -57,8 +57,8 @@ namespace Engine {
         auto & pipeline_layout = *(m_passes[0].skinned_pipeline_layout.get());
         pipeline_layout.CreateWithDefault(set_layout, true);
 
-        auto ptr_pipeline = dynamic_cast<PremadePipeline::ConfigurablePipeline *>(m_passes[0].skinned_pipeline.get());
-        ptr_pipeline->SetPipelineConfiguration(pipeline_layout, {fragModule, vertModule}, {}, true);
+        auto ptr_pipeline = dynamic_cast<SkinnedConfigurablePipeline *>(m_passes[0].skinned_pipeline.get());
+        ptr_pipeline->SetPipelineConfiguration(pipeline_layout, {fragModule, vertModule}, {});
 
         m_uniform_buffer.Create(Buffer::BufferType::Uniform, sizeof(UniformData));
         m_mapped_buffer = m_uniform_buffer.Map();

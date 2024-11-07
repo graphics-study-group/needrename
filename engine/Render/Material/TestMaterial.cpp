@@ -39,19 +39,19 @@ namespace Engine {
         );
     
         m_passes.resize(1);
-        m_passes[0].pipeline = std::make_unique <PremadePipeline::ConfigurablePipeline> (system);
+        m_passes[0].pipeline = std::make_unique <ConfigurablePipeline> (system);
         m_passes[0].pipeline_layout = std::make_unique <PipelineLayout> (system);
         auto & layout = *(m_passes[0].pipeline_layout.get());
         // layout.CreatePipelineLayout(GetGlobalDescriptorSetLayout(), {});
         layout.CreateWithDefault({});
         m_passes[0].pipeline->SetPipelineConfiguration(layout, {fragModule, vertModule});
 
-        m_passes[0].skinned_pipeline = std::make_unique <PremadePipeline::ConfigurablePipeline> (system);
+        m_passes[0].skinned_pipeline = std::make_unique <SkinnedConfigurablePipeline> (system);
         m_passes[0].skinned_pipeline_layout = std::make_unique <PipelineLayout> (system);
         auto & skinned_layout = *(m_passes[0].skinned_pipeline_layout.get());
         // layout.CreatePipelineLayout(GetGlobalDescriptorSetLayout(), {});
         skinned_layout.CreateWithDefault({}, true);
-        dynamic_cast<PremadePipeline::ConfigurablePipeline*>(m_passes[0].skinned_pipeline.get())->SetPipelineConfiguration(layout, {fragModule, vertModule}, {}, true);
+        (m_passes[0].skinned_pipeline.get())->SetPipelineConfiguration(layout, {fragModule, vertModule}, {});
     }
 
     const Pipeline *TestMaterial::GetPipeline(uint32_t pass_index)

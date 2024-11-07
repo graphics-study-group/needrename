@@ -7,11 +7,6 @@ namespace Engine
 {
     Pipeline::Pipeline(std::weak_ptr<RenderSystem> system) : VkWrapper(system) {}
 
-    vk::PipelineVertexInputStateCreateInfo Pipeline::GetVertexInputState(bool skinned) {
-        if (skinned) return SkinnedHomogeneousMesh::GetVertexInputState();
-        return HomogeneousMesh::GetVertexInputState();
-    }
-
     vk::PipelineDynamicStateCreateInfo Pipeline::GetDynamicState() {
         vk::PipelineDynamicStateCreateInfo info{};
         info.dynamicStateCount = static_cast<uint32_t>(dynamic_states.size());
