@@ -44,7 +44,6 @@ namespace Engine {
             HomogeneousMesh::ATTRIBUTES[2],
             // Texcoord 1
             HomogeneousMesh::ATTRIBUTES[3],
-
             // Bone indices
             vk::VertexInputAttributeDescription{
                 4,

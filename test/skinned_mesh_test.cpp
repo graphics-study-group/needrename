@@ -8,7 +8,7 @@
 #include "Framework/go/GameObject.h"
 #include "Framework/component/RenderComponent/MeshComponent.h"
 #include "Framework/component/RenderComponent/CameraComponent.h"
-#include "Render/Material/TestMaterial.h"
+#include "Render/Material/BoneWeightVisualizer.h"
 #include "Render/Pipeline/Shader.h"
 #include "Render/Pipeline/RenderTarget/RenderTargetSetup.h"
 #include "Render/Pipeline/CommandBuffer.h"
@@ -61,7 +61,7 @@ public:
         if (m_submeshes[0]->NeedCommitment()) {
             auto & tcb = system.lock()->GetTransferCommandBuffer();
             tcb.Begin();
-            tcb.CommitVertexBuffer(*m_submeshes[0]);
+            tcb.CommitVertexBuffer(dynamic_cast<SkinnedHomogeneousMesh &>(*(m_submeshes[0])));
             tcb.End();
             tcb.SubmitAndExecute();
         }
@@ -101,7 +101,8 @@ int main(int, char **)
     });
     
     // Setup material
-    std::shared_ptr material = std::make_shared<TestMaterial>(rsys);
+    std::shared_ptr material = std::make_shared<BoneWeightVisualizer>(rsys);
+    material->UpdateUniform({0});
 
     std::shared_ptr tmc = std::make_shared<TestMeshComponent>(rsys, material);
     rsys->RegisterComponent(tmc);
@@ -129,8 +130,12 @@ int main(int, char **)
     
         cb.Begin();
         vk::Extent2D extent {rsys->GetSwapchain().GetExtent()};
+        vk::Rect2D scissor{{0, 0}, extent};
+        cb.SetupViewport(extent.width, extent.height, scissor);
         cb.BeginRendering(rts, extent, index);
-        rsys->DrawMeshes(in_flight_frame_id);
+        // rsys->DrawMeshes(in_flight_frame_id);
+        cb.BindMaterial(*material, 0, true);
+        cb.DrawMesh(*tmc->GetSubmesh(0));
         cb.EndRendering();
         cb.End();
         cb.Submit();

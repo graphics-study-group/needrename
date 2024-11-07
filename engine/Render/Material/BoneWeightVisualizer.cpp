@@ -20,7 +20,7 @@ namespace Engine {
     std::vector<vk::DescriptorSetLayoutBinding> BoneWeightVisualizer::GetBindings()
     {
         vk::DescriptorSetLayoutBinding binding_uniform {
-            1,
+            0,
             vk::DescriptorType::eUniformBuffer,
             1,
             vk::ShaderStageFlagBits::eAllGraphics,
@@ -55,7 +55,7 @@ namespace Engine {
         m_passes[0].descriptor_set = descriptor_set;
 
         auto & pipeline_layout = *(m_passes[0].skinned_pipeline_layout.get());
-        pipeline_layout.CreateWithDefault(set_layout);
+        pipeline_layout.CreateWithDefault(set_layout, true);
 
         auto ptr_pipeline = dynamic_cast<PremadePipeline::ConfigurablePipeline *>(m_passes[0].skinned_pipeline.get());
         ptr_pipeline->SetPipelineConfiguration(pipeline_layout, {fragModule, vertModule}, {}, true);
@@ -67,7 +67,7 @@ namespace Engine {
         };
         vk::WriteDescriptorSet write {
             m_passes[0].descriptor_set,
-            1,
+            0,
             0,
             1,
             vk::DescriptorType::eUniformBuffer,
