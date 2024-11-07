@@ -60,7 +60,7 @@ namespace Engine {
                 5,
                 BINDINGS[2].binding,
                 vk::Format::eR32G32B32A32Sfloat,
-                VertexStruct::OFFSET_BONE_INDEX
+                VertexStruct::OFFSET_WEIGHT
             }
         };
 
