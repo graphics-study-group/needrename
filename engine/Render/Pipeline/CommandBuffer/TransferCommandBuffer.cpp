@@ -33,34 +33,26 @@ namespace Engine {
         // device.waitIdle();
 
         // Set up a barrier for buffer transfering
-        vk::MemoryBarrier barrier {
-            vk::AccessFlagBits::eVertexAttributeRead | vk::AccessFlagBits::eIndexRead,
-            vk::AccessFlagBits::eTransferWrite
-        };
-        m_handle->pipelineBarrier(
-            vk::PipelineStageFlagBits::eVertexInput,
-            vk::PipelineStageFlagBits::eTransfer,
-            vk::DependencyFlags{0},
-            { barrier },
-            {},
-            {}
-        );
+        std::array <vk::MemoryBarrier2, 1> barriers = {vk::MemoryBarrier2{
+            vk::PipelineStageFlagBits2::eVertexInput,
+            vk::AccessFlagBits2::eVertexAttributeRead | vk::AccessFlagBits2::eIndexRead,
+            vk::PipelineStageFlagBits2::eTransfer,
+            vk::AccessFlagBits2::eTransferWrite
+        }};
+        m_handle->pipelineBarrier2(vk::DependencyInfo{{}, barriers, {}, {}});
+
 
         auto buffer {mesh.CreateStagingBuffer()};
         vk::BufferCopy copy{0, 0, static_cast<vk::DeviceSize>(mesh.GetExpectedBufferSize())};
         m_handle->copyBuffer(buffer.GetBuffer(), mesh.GetBuffer().GetBuffer(), {copy});
 
-        barrier.srcAccessMask = vk::AccessFlagBits::eTransferWrite;
-        barrier.dstAccessMask = vk::AccessFlagBits::eVertexAttributeRead | vk::AccessFlagBits::eIndexRead;
-        m_handle->pipelineBarrier(
-            vk::PipelineStageFlagBits::eTransfer,
-            vk::PipelineStageFlagBits::eVertexInput,
-            vk::DependencyFlags{0},
-            { barrier },
-            {},
-            {}
-        );
-
+        barriers[0] = {
+            vk::PipelineStageFlagBits2::eTransfer,
+            vk::AccessFlagBits2::eTransferWrite |,
+            vk::PipelineStageFlagBits2::eVertexInput,
+            vk::AccessFlagBits2::eVertexAttributeRead | vk::AccessFlagBits2::eIndexRead
+        };
+        m_handle->pipelineBarrier2(vk::DependencyInfo{{}, barriers, {}, {}});
         m_pending_buffers.push_back(std::move(buffer));
     }
 
