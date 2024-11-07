@@ -27,9 +27,9 @@ namespace Engine {
 
         std::array <vk::PushConstantRange, 1> default_push_constant{ConstantData::PerModelConstantPushConstant::GetPushConstantRange()};
         std::vector <vk::DescriptorSetLayout> default_set_layout{pool.GetPerSceneConstantLayout().get(), pool.GetPerCameraConstantLayout().get()};
-        default_set_layout.push_back(material_descriptor_set);
+        if(material_descriptor_set) default_set_layout.push_back(material_descriptor_set);
         if (skinned) {
-            default_set_layout.push_back({});
+            /* TODO: Fill bone descriptors */
         }
 
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating pipeline layout.");

@@ -110,7 +110,7 @@ int main(int, char **)
     // Setup camera
     auto camera_go = std::make_shared<GameObject>();
     Transform transform{};
-    transform.SetPosition({0.0f, 1.0f, 0.0f});
+    transform.SetPosition({0.0f, 3.0f, 0.0f});
     transform.SetRotationEuler(glm::vec3{0.0, 0.0, 3.1415926});
     camera_go->SetTransform(transform);
     auto camera_comp = std::make_shared<CameraComponent>(camera_go);
@@ -134,8 +134,9 @@ int main(int, char **)
         cb.SetupViewport(extent.width, extent.height, scissor);
         cb.BeginRendering(rts, extent, index);
         // rsys->DrawMeshes(in_flight_frame_id);
+        rsys->WriteActiveCameraConstants(in_flight_frame_id);
         cb.BindMaterial(*material, 0, true);
-        cb.DrawMesh(*tmc->GetSubmesh(0));
+        cb.DrawMesh(*tmc->GetSubmesh(0), glm::mat4{1.0f});
         cb.EndRendering();
         cb.End();
         cb.Submit();

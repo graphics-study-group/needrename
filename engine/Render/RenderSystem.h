@@ -92,6 +92,7 @@ namespace Engine
 
         void EnableDepthTesting();
 
+        void WriteActiveCameraConstants(uint32_t inflight_index);
         void WritePerCameraConstants(const ConstantData::PerCameraStruct & data, uint32_t in_flight_index);
         
     protected:

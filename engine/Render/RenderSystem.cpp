@@ -49,23 +49,7 @@ namespace Engine
     void RenderSystem::DrawMeshes(uint32_t inflight, uint32_t pass)
     {
         RenderCommandBuffer & cb = this->GetGraphicsCommandBuffer(inflight);
-
-        // Write camera transforms
-        std::byte * camera_ptr = this->GetGlobalConstantDescriptorPool().GetPerCameraConstantMemory(inflight);
-        ConstantData::PerCameraStruct camera_struct;
-        if (m_active_camera) {
-            camera_struct = {
-                m_active_camera->GetViewMatrix(), 
-                m_active_camera->GetProjectionMatrix()
-            };
-            
-        } else {
-            camera_struct = {
-                glm::mat4{1.0f}, 
-                glm::mat4{1.0f}
-            };
-        }
-        std::memcpy(camera_ptr, &camera_struct, sizeof camera_struct);
+        this->WriteActiveCameraConstants(inflight);
         
         vk::Extent2D extent {this->GetSwapchain().GetExtent()};
         vk::Rect2D scissor{{0, 0}, extent};
@@ -174,7 +158,26 @@ namespace Engine
         m_swapchain.EnableDepthTesting(this->shared_from_this());
     }
 
-    void RenderSystem::WritePerCameraConstants(const ConstantData::PerCameraStruct& data, uint32_t in_flight_index) {
+    void RenderSystem::WriteActiveCameraConstants(uint32_t inflight_index)
+    {
+        ConstantData::PerCameraStruct camera_struct;
+        if (m_active_camera) {
+            camera_struct = {
+                m_active_camera->GetViewMatrix(), 
+                m_active_camera->GetProjectionMatrix()
+            };
+            
+        } else {
+            camera_struct = {
+                glm::mat4{1.0f}, 
+                glm::mat4{1.0f}
+            };
+        }
+        this->WritePerCameraConstants(camera_struct, inflight_index);
+    }
+
+    void RenderSystem::WritePerCameraConstants(const ConstantData::PerCameraStruct &data, uint32_t in_flight_index)
+    {
         std::byte * ptr = m_descriptor_pool.GetPerCameraConstantMemory(in_flight_index);
         std::memcpy(ptr, &data, sizeof data);
         m_descriptor_pool.FlushPerCameraConstantMemory(in_flight_index);
