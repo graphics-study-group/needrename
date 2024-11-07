@@ -21,7 +21,7 @@ namespace Engine
             % for base_type in class_type.base_types:
             {
                 Archive temp_buffer;
-                save((const ${base_type.full_name} &)value, temp_buffer);
+                serialize((const ${base_type.full_name} &)value, temp_buffer);
                 buffer.json["${base_type.name}"] = temp_buffer.json;
                 buffer.buffers.insert(buffer.buffers.end(), temp_buffer.buffers.begin(), temp_buffer.buffers.end());
             }
@@ -42,7 +42,7 @@ namespace Engine
                     json["${field.name}"] = *value.${field.name};
                 % else:
                     Archive temp_buffer;
-                    save(*value.${field.name}, temp_buffer);
+                    serialize(*value.${field.name}, temp_buffer);
                     json["${field.name}"] = temp_buffer.json;
                 % endif
                 }
@@ -56,7 +56,7 @@ namespace Engine
                     json["${field.name}"].push_back(item);
                 % else:
                     Archive temp_buffer;
-                    save(item, temp_buffer);
+                    serialize(item, temp_buffer);
                     json["${field.name}"].push_back(temp_buffer.json);
                     buffer.buffers.insert(buffer.buffers.end(), temp_buffer.buffers.begin(), temp_buffer.buffers.end());
                 % endif
@@ -65,7 +65,7 @@ namespace Engine
             % else:
             {
                 Archive temp_buffer;
-                save(value.${field.name}, temp_buffer);
+                serialize(value.${field.name}, temp_buffer);
                 json["${field.name}"] = temp_buffer.json;
                 buffer.buffers.insert(buffer.buffers.end(), temp_buffer.buffers.begin(), temp_buffer.buffers.end());
             }

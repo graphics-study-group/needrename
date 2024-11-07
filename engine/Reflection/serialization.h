@@ -24,6 +24,59 @@ namespace Engine
         };
 
         template <typename T>
+        void save(const std::vector<T>& value, Archive& buffer)
+        {
+            Json &json = buffer.json;
+            json = Json::array();
+            for (const auto& item : value)
+            {
+                Archive temp_buffer;
+                serialize(item, temp_buffer);
+                json.push_back(temp_buffer.json);
+                buffer.buffers.insert(buffer.buffers.end(), temp_buffer.buffers.begin(), temp_buffer.buffers.end());
+            }
+        }
+
+        template <typename T>
+        void save(const std::shared_ptr<T>& value, Archive& buffer)
+        {
+            Json &json = buffer.json;
+            if (value)
+            {
+                Archive temp_buffer;
+                serialize(*value, temp_buffer);
+                json = temp_buffer.json;
+                buffer.buffers.insert(buffer.buffers.end(), temp_buffer.buffers.begin(), temp_buffer.buffers.end());
+            }
+        }
+
+        template <typename T>
+        void save(const std::unique_ptr<T>& value, Archive& buffer)
+        {
+            Json &json = buffer.json;
+            if (value)
+            {
+                Archive temp_buffer;
+                serialize(*value, temp_buffer);
+                json = temp_buffer.json;
+                buffer.buffers.insert(buffer.buffers.end(), temp_buffer.buffers.begin(), temp_buffer.buffers.end());
+            }
+        }
+
+        template <typename T>
+        void save(const std::weak_ptr<T>& value, Archive& buffer)
+        {
+            Json &json = buffer.json;
+            if (auto shared = value.lock())
+            {
+                Archive temp_buffer;
+                serialize(*shared, temp_buffer);
+                json = temp_buffer.json;
+                buffer.buffers.insert(buffer.buffers.end(), temp_buffer.buffers.begin(), temp_buffer.buffers.end());
+            }
+        }
+
+        template <typename T>
         class has_custom_save {
             template <typename U>
             static auto test(int) -> decltype((static_cast<void (U::*)(Archive&) const>(&U::save), std::true_type()));

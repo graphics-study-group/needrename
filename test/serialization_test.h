@@ -25,14 +25,14 @@ namespace SerializationTest
         int m_inherit = 1000;
     };
 
-    // class REFL_SER_CLASS(REFL_BLACKLIST) SharedPtrTest
-    // {
-    // public:
-    //     SharedPtrTest() = default;
-    //     virtual ~SharedPtrTest() = default;
+    class REFL_SER_CLASS(REFL_BLACKLIST) SharedPtrTest
+    {
+    public:
+        SharedPtrTest() = default;
+        virtual ~SharedPtrTest() = default;
 
-    //     std::shared_ptr<BaseData> m_shared_ptr {};
-    // };
+        std::shared_ptr<BaseData> m_shared_ptr {};
+    };
 
     class REFL_SER_CLASS(REFL_BLACKLIST) PtrTest
     {
@@ -43,14 +43,14 @@ namespace SerializationTest
         BaseData *m_ptr = nullptr;
     };
 
-    // class REFL_SER_CLASS(REFL_BLACKLIST) VectorTest
-    // {
-    // public:
-    //     VectorTest() = default;
-    //     virtual ~VectorTest() = default;
+    class REFL_SER_CLASS(REFL_BLACKLIST) VectorTest
+    {
+    public:
+        VectorTest() = default;
+        virtual ~VectorTest() = default;
 
-    //     std::vector<BaseData> m_vector {};
-    // };
+        std::vector<BaseData> m_vector {};
+    };
 
     class REFL_SER_CLASS(REFL_BLACKLIST) CustomTest
     {
