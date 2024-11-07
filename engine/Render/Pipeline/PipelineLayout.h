@@ -19,7 +19,8 @@ namespace Engine
         /// 2. Per-material constant descriptors;
         /// 3. Per-mesh constant descriptors, if the mesh is skinned.
         /// @param material_descriptor_set 2nd descriptor set
-        void CreateWithDefault (vk::DescriptorSetLayout material_descriptor_set, bool skinned = false);
+        void CreateWithDefault (vk::DescriptorSetLayout material_descriptor_set);
+        void CreateWithDefaultSkinned (vk::DescriptorSetLayout material_descriptor_set);
     };
 } // namespace Engine
 

@@ -20,7 +20,7 @@ namespace Engine {
         m_handle = m_system.lock()->getDevice().createPipelineLayoutUnique(info);
     }
 
-    void PipelineLayout::CreateWithDefault(vk::DescriptorSetLayout material_descriptor_set, bool skinned)
+    void PipelineLayout::CreateWithDefaultSkinned(vk::DescriptorSetLayout material_descriptor_set)
     {
         auto system = m_system.lock();
         const auto & pool = system->GetGlobalConstantDescriptorPool();
@@ -28,9 +28,25 @@ namespace Engine {
         std::array <vk::PushConstantRange, 1> default_push_constant{ConstantData::PerModelConstantPushConstant::GetPushConstantRange()};
         std::vector <vk::DescriptorSetLayout> default_set_layout{pool.GetPerSceneConstantLayout().get(), pool.GetPerCameraConstantLayout().get()};
         if(material_descriptor_set) default_set_layout.push_back(material_descriptor_set);
-        if (skinned) {
-            /* TODO: Fill bone descriptors */
-        }
+        /* TODO: Fill bone descriptors */
+
+        SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating pipeline layout.");
+        vk::PipelineLayoutCreateInfo info{
+            vk::PipelineLayoutCreateFlags{0},
+            default_set_layout,
+            default_push_constant
+        };
+        m_handle = system->getDevice().createPipelineLayoutUnique(info);
+    }
+
+    void PipelineLayout::CreateWithDefault(vk::DescriptorSetLayout material_descriptor_set)
+    {
+        auto system = m_system.lock();
+        const auto & pool = system->GetGlobalConstantDescriptorPool();
+
+        std::array <vk::PushConstantRange, 1> default_push_constant{ConstantData::PerModelConstantPushConstant::GetPushConstantRange()};
+        std::vector <vk::DescriptorSetLayout> default_set_layout{pool.GetPerSceneConstantLayout().get(), pool.GetPerCameraConstantLayout().get()};
+        if(material_descriptor_set) default_set_layout.push_back(material_descriptor_set);
 
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating pipeline layout.");
         vk::PipelineLayoutCreateInfo info{

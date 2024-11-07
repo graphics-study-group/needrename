@@ -50,7 +50,7 @@ namespace Engine {
         m_passes[0].skinned_pipeline_layout = std::make_unique <PipelineLayout> (system);
         auto & skinned_layout = *(m_passes[0].skinned_pipeline_layout.get());
         // layout.CreatePipelineLayout(GetGlobalDescriptorSetLayout(), {});
-        skinned_layout.CreateWithDefault({}, true);
+        skinned_layout.CreateWithDefaultSkinned({});
         (m_passes[0].skinned_pipeline.get())->SetPipelineConfiguration(layout, {fragModule, vertModule}, {});
     }
 

@@ -55,7 +55,7 @@ namespace Engine {
         m_passes[0].descriptor_set = descriptor_set;
 
         auto & pipeline_layout = *(m_passes[0].skinned_pipeline_layout.get());
-        pipeline_layout.CreateWithDefault(set_layout, true);
+        pipeline_layout.CreateWithDefaultSkinned(set_layout);
 
         auto ptr_pipeline = dynamic_cast<SkinnedConfigurablePipeline *>(m_passes[0].skinned_pipeline.get());
         ptr_pipeline->SetPipelineConfiguration(pipeline_layout, {fragModule, vertModule}, {});
