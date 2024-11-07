@@ -5,6 +5,7 @@
 #include "Render/Memory/Image2DTexture.h"
 #include "Render/Renderer/HomogeneousMesh.h"
 
+#include "BufferTransferHelper.h"
 #include "LayoutTransferHelper.h"
 
 namespace Engine {
@@ -33,12 +34,9 @@ namespace Engine {
         // device.waitIdle();
 
         // Set up a barrier for buffer transfering
-        std::array <vk::MemoryBarrier2, 1> barriers = {vk::MemoryBarrier2{
-            vk::PipelineStageFlagBits2::eVertexInput,
-            vk::AccessFlagBits2::eVertexAttributeRead | vk::AccessFlagBits2::eIndexRead,
-            vk::PipelineStageFlagBits2::eTransfer,
-            vk::AccessFlagBits2::eTransferWrite
-        }};
+        std::array <vk::MemoryBarrier2, 1> barriers = {
+            BufferTransferHelper::GetBufferBarrier(BufferTransferHelper::BufferTransferType::VertexBefore)
+        };
         m_handle->pipelineBarrier2(vk::DependencyInfo{{}, barriers, {}, {}});
 
 
@@ -46,12 +44,7 @@ namespace Engine {
         vk::BufferCopy copy{0, 0, static_cast<vk::DeviceSize>(mesh.GetExpectedBufferSize())};
         m_handle->copyBuffer(buffer.GetBuffer(), mesh.GetBuffer().GetBuffer(), {copy});
 
-        barriers[0] = {
-            vk::PipelineStageFlagBits2::eTransfer,
-            vk::AccessFlagBits2::eTransferWrite |,
-            vk::PipelineStageFlagBits2::eVertexInput,
-            vk::AccessFlagBits2::eVertexAttributeRead | vk::AccessFlagBits2::eIndexRead
-        };
+        barriers[0] = BufferTransferHelper::GetBufferBarrier(BufferTransferHelper::BufferTransferType::VertexAfter);
         m_handle->pipelineBarrier2(vk::DependencyInfo{{}, barriers, {}, {}});
         m_pending_buffers.push_back(std::move(buffer));
     }
