@@ -16,6 +16,7 @@ namespace Engine {
         );
 
         const virtual Pipeline * GetPipeline(uint32_t pass_index) override;
+        const virtual Pipeline * GetSkinnedPipeline(uint32_t pass_index) override;
     };
 }
 

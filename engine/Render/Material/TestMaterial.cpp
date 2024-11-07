@@ -45,11 +45,26 @@ namespace Engine {
         // layout.CreatePipelineLayout(GetGlobalDescriptorSetLayout(), {});
         layout.CreateWithDefault({});
         m_passes[0].pipeline->SetPipelineConfiguration(layout, {fragModule, vertModule});
+
+        m_passes[0].skinned_pipeline = std::make_unique <PremadePipeline::ConfigurablePipeline> (system);
+        m_passes[0].skinned_pipeline_layout = std::make_unique <PipelineLayout> (system);
+        auto & skinned_layout = *(m_passes[0].skinned_pipeline_layout.get());
+        // layout.CreatePipelineLayout(GetGlobalDescriptorSetLayout(), {});
+        skinned_layout.CreateWithDefault({}, true);
+        dynamic_cast<PremadePipeline::ConfigurablePipeline*>(m_passes[0].skinned_pipeline.get())->SetPipelineConfiguration(layout, {fragModule, vertModule}, {}, true);
     }
 
     const Pipeline *TestMaterial::GetPipeline(uint32_t pass_index)
     {
         auto pipeline = m_passes[pass_index].pipeline.get();
+        if (!pipeline->get()) {
+            pipeline->CreatePipeline();
+        }
+        return pipeline;
+    }
+    const Pipeline *TestMaterial::GetSkinnedPipeline(uint32_t pass_index)
+    {
+        auto pipeline = m_passes[pass_index].skinned_pipeline.get();
         if (!pipeline->get()) {
             pipeline->CreatePipeline();
         }
