@@ -20,10 +20,7 @@ namespace Engine
 
         % for class_type in classes_map.values():
         void save(const ${class_type.full_name} &value, Archive& buffer);
-        % endfor
-
-        % for class_type in classes_map.values():
-        void load(const ${class_type.full_name} &value, Archive& buffer);
+        void load(${class_type.full_name} &value, Archive& buffer);
         % endfor
     }
 }

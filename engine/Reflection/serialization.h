@@ -24,57 +24,24 @@ namespace Engine
         };
 
         template <typename T>
-        void save(const std::vector<T>& value, Archive& buffer)
-        {
-            Json &json = buffer.json;
-            json = Json::array();
-            for (const auto& item : value)
-            {
-                Archive temp_buffer;
-                serialize(item, temp_buffer);
-                json.push_back(temp_buffer.json);
-                buffer.buffers.insert(buffer.buffers.end(), temp_buffer.buffers.begin(), temp_buffer.buffers.end());
-            }
-        }
+        void save(const std::vector<T>& value, Archive& buffer);
+        template <typename T>
+        void load(std::vector<T>& value, Archive& buffer);
 
         template <typename T>
-        void save(const std::shared_ptr<T>& value, Archive& buffer)
-        {
-            Json &json = buffer.json;
-            if (value)
-            {
-                Archive temp_buffer;
-                serialize(*value, temp_buffer);
-                json = temp_buffer.json;
-                buffer.buffers.insert(buffer.buffers.end(), temp_buffer.buffers.begin(), temp_buffer.buffers.end());
-            }
-        }
+        void save(const std::shared_ptr<T>& value, Archive& buffer);
+        template <typename T>
+        void load(std::shared_ptr<T>& value, Archive& buffer);
 
         template <typename T>
-        void save(const std::unique_ptr<T>& value, Archive& buffer)
-        {
-            Json &json = buffer.json;
-            if (value)
-            {
-                Archive temp_buffer;
-                serialize(*value, temp_buffer);
-                json = temp_buffer.json;
-                buffer.buffers.insert(buffer.buffers.end(), temp_buffer.buffers.begin(), temp_buffer.buffers.end());
-            }
-        }
+        void save(const std::unique_ptr<T>& value, Archive& buffer);
+        template <typename T>
+        void load(std::unique_ptr<T>& value, Archive& buffer);
 
         template <typename T>
-        void save(const std::weak_ptr<T>& value, Archive& buffer)
-        {
-            Json &json = buffer.json;
-            if (auto shared = value.lock())
-            {
-                Archive temp_buffer;
-                serialize(*shared, temp_buffer);
-                json = temp_buffer.json;
-                buffer.buffers.insert(buffer.buffers.end(), temp_buffer.buffers.begin(), temp_buffer.buffers.end());
-            }
-        }
+        void save(const std::weak_ptr<T>& value, Archive& buffer);
+        template <typename T>
+        void load(std::weak_ptr<T>& value, Archive& buffer);
 
         template <typename T>
         class has_custom_save {
@@ -92,6 +59,30 @@ namespace Engine
         class has_generated_save {
             template <typename U>
             static auto test(int) -> decltype((static_cast<void (*)(const U&, Archive&)>(Engine::Serialization::save), std::true_type()));
+
+            template <typename>
+            static std::false_type test(...);
+
+        public:
+            static constexpr bool value = decltype(test<T>(0))::value;
+        };
+
+        template <typename T>
+        class has_custom_load {
+            template <typename U>
+            static auto test(int) -> decltype((static_cast<void (U::*)(Archive&)>(&U::load), std::true_type()));
+
+            template <typename>
+            static std::false_type test(...);
+
+        public:
+            static constexpr bool value = decltype(test<T>(0))::value;
+        };
+
+        template <typename T>
+        class has_generated_load {
+            template <typename U>
+            static auto test(int) -> decltype((static_cast<void (*)(U&, Archive&)>(Engine::Serialization::load), std::true_type()));
 
             template <typename>
             static std::false_type test(...);
@@ -127,7 +118,37 @@ namespace Engine
         {
             throw std::runtime_error("No serialization function found for type");
         }
+
+        template <typename T>
+        typename std::enable_if<has_custom_load<T>::value && has_generated_load<T>::value, void>::type
+        deserialize(T& value, Archive& buffer)
+        {
+            value.load(buffer);
+        }
+
+        template <typename T>
+        typename std::enable_if<has_custom_load<T>::value && !has_generated_load<T>::value, void>::type
+        deserialize(T& value, Archive& buffer)
+        {
+            value.load(buffer);
+        }
+
+        template <typename T>
+        typename std::enable_if<!has_custom_load<T>::value && has_generated_load<T>::value, void>::type
+        deserialize(T& value, Archive& buffer)
+        {
+            Engine::Serialization::load(value, buffer);
+        }
+
+        template <typename T>
+        typename std::enable_if<!has_custom_load<T>::value && !has_generated_load<T>::value, void>::type
+        deserialize(T& value, Archive& buffer)
+        {
+            throw std::runtime_error("No deserialization function found for type");
+        }
     }
 }
+
+#include "serialization.tpp"
 
 #endif

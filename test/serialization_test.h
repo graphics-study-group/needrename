@@ -65,6 +65,12 @@ namespace SerializationTest
         {
             buffer.json["data"] = m_a * 1000000 + m_b;
         }
+
+        REFL_SER_DISABLE inline void load(Engine::Serialization::Archive& buffer)
+        {
+            m_a = buffer.json["data"].get<int>() / 1000000;
+            m_b = buffer.json["data"].get<int>() % 1000000;
+        }
     };
 }
 
