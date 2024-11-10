@@ -5,6 +5,7 @@
 
 class REFL_SER_CLASS(REFL_BLACKLIST) FooBase
 {
+    REFL_SER_BODY()
 public:
     FooBase() = default;
     virtual ~FooBase() = default;
@@ -16,6 +17,7 @@ public:
 
 class REFL_SER_CLASS(REFL_BLACKLIST) BBase
 {
+    REFL_SER_BODY()
 public:
     BBase() = default;
     virtual ~BBase() = default;
@@ -29,6 +31,7 @@ protected:
 
 class REFL_SER_CLASS(REFL_WHITELIST) FooA : public FooBase, public BBase
 {
+    REFL_SER_BODY()
 public:
     REFL_ENABLE FooA(int a, int b) : m_a(a), m_b(b) {}
     virtual ~FooA() = default;
@@ -47,6 +50,7 @@ namespace TestDataNamespace
 
     class REFL_SER_CLASS(REFL_WHITELIST) TestData
     {
+        REFL_SER_BODY()
     public:
         REFL_ENABLE TestData() = default;
         virtual ~TestData() = default;
@@ -64,11 +68,12 @@ namespace TestDataNamespace
 {
     class REFL_SER_CLASS(REFL_WHITELIST) ConstTest
     {
+        REFL_SER_BODY()
     public:
         REFL_ENABLE ConstTest() = default;
         virtual ~ConstTest() = default;
 
-        REFL_SER_ENABLE const TestData *m_const_data = nullptr;
+        REFL_ENABLE const TestData *m_const_data = nullptr;
         REFL_SER_ENABLE TestData *m_data = nullptr;
 
         REFL_ENABLE const TestData *GetConstDataPtr() const;
@@ -85,6 +90,7 @@ namespace TestDataNamespace
 
 class REFL_SER_CLASS(REFL_WHITELIST) NamespaceTest
 {
+    REFL_SER_BODY()
 public:
     REFL_ENABLE NamespaceTest() = default;
     virtual ~NamespaceTest() = default;
@@ -96,6 +102,7 @@ namespace TestHalloWorld
 {
     class REFL_SER_CLASS(REFL_WHITELIST) NamespaceTest
     {
+        REFL_SER_BODY()
     public:
         REFL_ENABLE NamespaceTest() = default;
         virtual ~NamespaceTest() = default;
@@ -107,6 +114,7 @@ namespace TestHalloWorld
     {
         class REFL_SER_CLASS(REFL_WHITELIST) NamespaceTest
         {
+            REFL_SER_BODY()
         public:
             REFL_ENABLE NamespaceTest() = default;
             virtual ~NamespaceTest() = default;

@@ -1,5 +1,5 @@
-#ifndef RESOURCE_MESH_MESH_INCLUDED
-#define RESOURCE_MESH_MESH_INCLUDED
+#ifndef ASSET_MESH_MESHASSET_INCLUDED
+#define ASSET_MESH_MESHASSET_INCLUDED
 
 #include <vector>
 #include <filesystem>
@@ -12,6 +12,7 @@ namespace Engine
 {
     class REFL_SER_CLASS(REFL_BLACKLIST) MeshAsset: public Asset
     {
+        REFL_SER_BODY()
     public:
         MeshAsset(std::weak_ptr <AssetManager> manager);
         virtual ~MeshAsset();
@@ -51,4 +52,4 @@ namespace Engine
     };
 }
 
-#endif // RESOURCE_MESH_MESH_INCLUDED
+#endif // ASSET_MESH_MESHASSET_INCLUDED

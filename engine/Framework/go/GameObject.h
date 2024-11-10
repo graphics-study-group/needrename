@@ -17,6 +17,7 @@ namespace Engine
 
     class REFL_SER_CLASS(REFL_WHITELIST) GameObject : public std::enable_shared_from_this<GameObject>
     {
+        REFL_SER_BODY()
     public:
         REFL_ENABLE GameObject();
         virtual ~GameObject();

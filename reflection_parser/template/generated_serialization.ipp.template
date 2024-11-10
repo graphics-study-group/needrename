@@ -9,121 +9,118 @@ import clang.cindex as CX
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 
-namespace Engine
+## list of all basic types such as bool, int, long double
+<% basic_type_list = [CX.TypeKind.from_id(i) for i in range(3, 24)] %>
+% for class_type in classes_map.values():
+void ${class_type.full_name}::__serialization_save__(Engine::Serialization::Archive& buffer) const
 {
-    namespace Serialization
+    nlohmann::json &json = buffer.json;
+
+    % for base_type in class_type.base_types:
     {
-        ## list of all basic types such as bool, int, long double
-        <% basic_type_list = [CX.TypeKind.from_id(i) for i in range(3, 24)] %>
-        % for class_type in classes_map.values():
-        void save(const ${class_type.full_name} &value, Archive& buffer)
-        {
-            Json &json = buffer.json;
-
-            % for base_type in class_type.base_types:
-            {
-                Archive temp_buffer;
-                serialize((const ${base_type.full_name} &)value, temp_buffer);
-                json["${base_type.name}"] = temp_buffer.json;
-                buffer.buffers.insert(buffer.buffers.end(), temp_buffer.buffers.begin(), temp_buffer.buffers.end());
-            }
-            % endfor
-            
-            % for field in class_type.serialized_fields:
-            % if field.type.cx_type.kind in basic_type_list:
-            {
-                json["${field.name}"] = value.${field.name};
-            }
-            % elif field.type.cx_type.kind == CX.TypeKind.POINTER:
-            {
-                if (value.${field.name} != nullptr)
-                {
-                % if field.type.cx_type.get_pointee().kind in basic_type_list:
-                    json["${field.name}"] = *value.${field.name};
-                % else:
-                    Archive temp_buffer;
-                    serialize(*value.${field.name}, temp_buffer);
-                    json["${field.name}"] = temp_buffer.json;
-                % endif
-                }
-            }
-            % elif field.type.cx_type.kind == CX.TypeKind.CONSTANTARRAY:
-            {
-                json["${field.name}"] = Json::array();
-                for (const auto& item : value.${field.name})
-                {
-                % if field.type.cx_type.element_type.kind in basic_type_list:
-                    json["${field.name}"].push_back(item);
-                % else:
-                    Archive temp_buffer;
-                    serialize(item, temp_buffer);
-                    json["${field.name}"].push_back(temp_buffer.json);
-                    buffer.buffers.insert(buffer.buffers.end(), temp_buffer.buffers.begin(), temp_buffer.buffers.end());
-                % endif
-                }
-            }
-            % else:
-            {
-                Archive temp_buffer;
-                serialize(value.${field.name}, temp_buffer);
-                json["${field.name}"] = temp_buffer.json;
-                buffer.buffers.insert(buffer.buffers.end(), temp_buffer.buffers.begin(), temp_buffer.buffers.end());
-            }
-            % endif
-            % endfor
-        }
-        void load(${class_type.full_name} &value, Archive& buffer)
-        {
-            Json &json = buffer.json;
-
-            % for base_type in class_type.base_types:
-            {
-                Archive temp_buffer = {json["${base_type.name}"], buffer.buffers};
-                deserialize((${base_type.full_name} &)value, temp_buffer);
-            }
-            % endfor
-            
-            % for field in class_type.serialized_fields:
-            % if field.type.cx_type.kind in basic_type_list:
-            {
-                value.${field.name} = json["${field.name}"];
-            }
-            % elif field.type.cx_type.kind == CX.TypeKind.POINTER:
-            {
-                if (json.find("${field.name}") != json.end())
-                {
-                % if field.type.cx_type.get_pointee().kind in basic_type_list:
-                    value.${field.name} = new ${field.type.cx_type.get_pointee().spelling}(json["${field.name}"].get<${field.type.cx_type.get_pointee().spelling}>());
-                % else:
-                    Archive temp_buffer = {json["${field.name}"], buffer.buffers};
-                    deserialize(*value.${field.name}, temp_buffer);
-                % endif
-                }
-            }
-            % elif field.type.cx_type.kind == CX.TypeKind.CONSTANTARRAY:
-            {
-                const auto &array = json["${field.name}"];
-                for (size_t i = 0; i < array.size(); ++i)
-                {
-                % if field.type.cx_type.element_type.kind in basic_type_list:
-                    value.${field.name}[i] = array[i].get<${field.type.cx_type.element_type.spelling}>();
-                % else:
-                    Archive temp_buffer = {array[i], buffer.buffers};
-                    deserialize(value.${field.name}[i], temp_buffer);
-                % endif
-                }
-            }
-            % else:
-            {
-                Archive temp_buffer = {json["${field.name}"], buffer.buffers};
-                deserialize(value.${field.name}, temp_buffer);
-            }
-            % endif
-            
-            % endfor
-        }
-        % endfor
+        Engine::Serialization::Archive temp_buffer;
+        serialize((const ${base_type.full_name} &)*this, temp_buffer);
+        json["${base_type.name}"] = temp_buffer.json;
+        buffer.buffers.insert(buffer.buffers.end(), temp_buffer.buffers.begin(), temp_buffer.buffers.end());
     }
+    % endfor
+    
+    % for field in class_type.serialized_fields:
+    % if field.type.cx_type.kind in basic_type_list:
+    {
+        json["${field.name}"] = this->${field.name};
+    }
+    % elif field.type.cx_type.kind == CX.TypeKind.POINTER:
+    {
+        if (this->${field.name} != nullptr)
+        {
+        % if field.type.cx_type.get_pointee().kind in basic_type_list:
+            json["${field.name}"] = *this->${field.name};
+        % else:
+            Engine::Serialization::Archive temp_buffer;
+            serialize(*this->${field.name}, temp_buffer);
+            json["${field.name}"] = temp_buffer.json;
+        % endif
+        }
+    }
+    % elif field.type.cx_type.kind == CX.TypeKind.CONSTANTARRAY:
+    {
+        json["${field.name}"] = nlohmann::json::array();
+        for (const auto& item : this->${field.name})
+        {
+        % if field.type.cx_type.element_type.kind in basic_type_list:
+            json["${field.name}"].push_back(item);
+        % else:
+            Engine::Serialization::Archive temp_buffer;
+            serialize(item, temp_buffer);
+            json["${field.name}"].push_back(temp_buffer.json);
+            buffer.buffers.insert(buffer.buffers.end(), temp_buffer.buffers.begin(), temp_buffer.buffers.end());
+        % endif
+        }
+    }
+    % else:
+    {
+        Engine::Serialization::Archive temp_buffer;
+        serialize(this->${field.name}, temp_buffer);
+        json["${field.name}"] = temp_buffer.json;
+        buffer.buffers.insert(buffer.buffers.end(), temp_buffer.buffers.begin(), temp_buffer.buffers.end());
+    }
+    % endif
+    % endfor
+
+    assert(json.find("__type") == json.end());
+    json["__type"] = "${class_type.full_name}";
 }
+void ${class_type.full_name}::__serialization_load__(Engine::Serialization::Archive& buffer)
+{
+    nlohmann::json &json = buffer.json;
+
+    % for base_type in class_type.base_types:
+    {
+        Engine::Serialization::Archive temp_buffer = {json["${base_type.name}"], buffer.buffers};
+        deserialize((${base_type.full_name} &)*this, temp_buffer);
+    }
+    % endfor
+    
+    % for field in class_type.serialized_fields:
+    % if field.type.cx_type.kind in basic_type_list:
+    {
+        this->${field.name} = json["${field.name}"];
+    }
+    % elif field.type.cx_type.kind == CX.TypeKind.POINTER:
+    {
+        if (json.find("${field.name}") != json.end())
+        {
+        % if field.type.cx_type.get_pointee().kind in basic_type_list:
+            this->${field.name} = new ${field.type.cx_type.get_pointee().spelling}(json["${field.name}"].get<${field.type.cx_type.get_pointee().spelling}>());
+        % else:
+            Engine::Serialization::Archive temp_buffer = {json["${field.name}"], buffer.buffers};
+            deserialize(*this->${field.name}, temp_buffer);
+        % endif
+        }
+    }
+    % elif field.type.cx_type.kind == CX.TypeKind.CONSTANTARRAY:
+    {
+        const auto &array = json["${field.name}"];
+        for (size_t i = 0; i < array.size(); ++i)
+        {
+        % if field.type.cx_type.element_type.kind in basic_type_list:
+            this->${field.name}[i] = array[i].get<${field.type.cx_type.element_type.spelling}>();
+        % else:
+            Engine::Serialization::Archive temp_buffer = {array[i], buffer.buffers};
+            deserialize(this->${field.name}[i], temp_buffer);
+        % endif
+        }
+    }
+    % else:
+    {
+        Engine::Serialization::Archive temp_buffer = {json["${field.name}"], buffer.buffers};
+        deserialize(this->${field.name}, temp_buffer);
+    }
+    % endif
+    
+    % endfor
+}
+% endfor
 
 #pragma GCC diagnostic pop

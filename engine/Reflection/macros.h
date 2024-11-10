@@ -13,3 +13,9 @@
 #define SER_DISABLE [[clang::annotate("%SERIALIZATION DISABLE")]]
 #define REFL_SER_ENABLE [[clang::annotate("%REFLECTION ENABLE"), clang::annotate("%SERIALIZATION ENABLE")]]
 #define REFL_SER_DISABLE [[clang::annotate("%REFLECTION DISABLE"), clang::annotate("%SERIALIZATION DISABLE")]]
+
+#define REFL_SER_BODY(...) \
+    public: \
+    friend class Engine::Reflection::Registrar; \
+    REFL_SER_DISABLE virtual void __serialization_save__(Engine::Serialization::Archive& buffer) const; \
+    REFL_SER_DISABLE virtual void __serialization_load__(Engine::Serialization::Archive& buffer);

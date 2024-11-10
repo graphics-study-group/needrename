@@ -9,6 +9,7 @@ namespace SerializationTest
 {
     class REFL_SER_CLASS(REFL_BLACKLIST) BaseData
     {
+        REFL_SER_BODY()
     public:
         BaseData() = default;
         virtual ~BaseData() = default;
@@ -18,6 +19,7 @@ namespace SerializationTest
 
     class REFL_SER_CLASS(REFL_BLACKLIST) InheritTest : public BaseData
     {
+        REFL_SER_BODY()
     public:
         InheritTest() = default;
         virtual ~InheritTest() = default;
@@ -27,6 +29,7 @@ namespace SerializationTest
 
     class REFL_SER_CLASS(REFL_BLACKLIST) SharedPtrTest
     {
+        REFL_SER_BODY()
     public:
         SharedPtrTest() = default;
         virtual ~SharedPtrTest() = default;
@@ -36,6 +39,7 @@ namespace SerializationTest
 
     class REFL_SER_CLASS(REFL_BLACKLIST) PtrTest
     {
+        REFL_SER_BODY()
     public:
         PtrTest() = default;
         virtual ~PtrTest() = default;
@@ -45,6 +49,7 @@ namespace SerializationTest
 
     class REFL_SER_CLASS(REFL_BLACKLIST) VectorTest
     {
+        REFL_SER_BODY()
     public:
         VectorTest() = default;
         virtual ~VectorTest() = default;
@@ -52,8 +57,19 @@ namespace SerializationTest
         std::vector<BaseData> m_vector {};
     };
 
+    class REFL_SER_CLASS(REFL_BLACKLIST) PolymorphismTest
+    {
+        REFL_SER_BODY()
+    public:
+        PolymorphismTest() = default;
+        virtual ~PolymorphismTest() = default;
+
+        std::vector<std::shared_ptr<BaseData>> m_vector {};
+    };
+
     class REFL_SER_CLASS(REFL_BLACKLIST) CustomTest
     {
+        REFL_SER_BODY()
     public:
         CustomTest() = default;
         virtual ~CustomTest() = default;

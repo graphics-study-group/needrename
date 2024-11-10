@@ -12,6 +12,7 @@ namespace Engine
 
     class REFL_SER_CLASS(REFL_WHITELIST) Level : public Asset
     {
+        REFL_SER_BODY()
     public:
         REFL_ENABLE Level(std::weak_ptr <AssetManager> manager);
         ~Level();

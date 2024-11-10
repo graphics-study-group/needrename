@@ -12,6 +12,7 @@ namespace Engine
     /// @brief Base class for all assets.
     class REFL_SER_CLASS(REFL_BLACKLIST) Asset
     {
+        REFL_SER_BODY()
     public:
         Asset(std::weak_ptr <AssetManager> m_manager);
         virtual ~Asset();

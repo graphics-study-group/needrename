@@ -1,3 +1,6 @@
+## Discarded. Using member function __serialization_save__, __serialization_load__ instead.
+
+<%doc>
 #include <type_traits>
 
 % for class_type in classes_map.values():
@@ -24,3 +27,4 @@ namespace Engine
         % endfor
     }
 }
+</%doc>
