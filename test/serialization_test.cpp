@@ -1,9 +1,12 @@
 #include <iostream>
 #include "serialization_test.h"
-#include "Reflection/serialization.h"
+#include "meta_serialization_test_reflection_init.ipp"
 
 int main()
 {
+    Engine::Reflection::Initialize();
+    RegisterAllTypes();
+
     using namespace SerializationTest;
     std::shared_ptr<BaseData> base_data_ptr = std::make_shared<BaseData>();
     for(int i = 0; i < 3; i++)

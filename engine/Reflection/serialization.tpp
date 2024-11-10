@@ -60,58 +60,58 @@ namespace Engine
         template <typename T>
         void load(std::vector<T>& value, Archive& buffer)
         {
-            const Json &json = buffer.json;
-            value.clear();
-            for (const auto& item : json)
-            {
-                Archive temp_buffer;
-                temp_buffer.json = item;
-                T temp;
-                deserialize(temp, temp_buffer);
-                value.push_back(temp);
-            }
+            // const Json &json = buffer.json;
+            // value.clear();
+            // for (const auto& item : json)
+            // {
+            //     Archive temp_buffer;
+            //     temp_buffer.json = item;
+            //     T temp;
+            //     deserialize(temp, temp_buffer);
+            //     value.push_back(temp);
+            // }
         }
 
         template <typename T>
         void load(std::shared_ptr<T>& value, Archive& buffer)
         {
-            const Json &json = buffer.json;
-            if (!json.is_null())
-            {
-                Archive temp_buffer;
-                temp_buffer.json = json;
-                T temp;
-                deserialize(temp, temp_buffer);
-                value = std::make_shared<T>(temp);
-            }
+            // const Json &json = buffer.json;
+            // if (!json.is_null())
+            // {
+            //     Archive temp_buffer;
+            //     temp_buffer.json = json;
+            //     T temp;
+            //     deserialize(temp, temp_buffer);
+            //     value = std::make_shared<T>(temp);
+            // }
         }
 
         template <typename T>
         void load(std::unique_ptr<T>& value, Archive& buffer)
         {
-            const Json &json = buffer.json;
-            if (!json.is_null())
-            {
-                Archive temp_buffer;
-                temp_buffer.json = json;
-                T temp;
-                deserialize(temp, temp_buffer);
-                value = std::make_unique<T>(temp);
-            }
+            // const Json &json = buffer.json;
+            // if (!json.is_null())
+            // {
+            //     Archive temp_buffer;
+            //     temp_buffer.json = json;
+            //     T temp;
+            //     deserialize(temp, temp_buffer);
+            //     value = std::make_unique<T>(temp);
+            // }
         }
 
         template <typename T>
         void load(std::weak_ptr<T>& value, Archive& buffer)
         {
-            const Json &json = buffer.json;
-            if (!json.is_null())
-            {
-                Archive temp_buffer;
-                temp_buffer.json = json;
-                T temp;
-                deserialize(temp, temp_buffer);
-                value = std::make_shared<T>(temp);
-            }
+            // const Json &json = buffer.json;
+            // if (!json.is_null())
+            // {
+            //     Archive temp_buffer;
+            //     temp_buffer.json = json;
+            //     T temp;
+            //     deserialize(temp, temp_buffer);
+            //     value = std::make_shared<T>(temp);
+            // }
         }
     }
 }

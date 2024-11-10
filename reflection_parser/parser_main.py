@@ -7,6 +7,7 @@ from processor import process_file
 
 def main():
     parser = argparse.ArgumentParser(description="a parser based on libclang, used for reflection")
+    parser.add_argument("--target_name", type=str, help="the target name for this parsing run", required=True)
     parser.add_argument("--reflection_search_files", type=str, help="a txt file records all the files that need to search for reflection", required=True)
     parser.add_argument("--generated_code_dir", type=str, help="the output directory of the generated files", required=True)
     parser.add_argument("--reflection_macros_header", type=str, help="a header file records all the macros about reflection", required=True)
@@ -36,7 +37,7 @@ def main():
     
     # process the reflection
     print("[parser] processing all reflection files and generating reflection code")
-    process_file(output_file, temp_gen_dir, args.args, args.verbose)
+    process_file(output_file, temp_gen_dir, args.target_name, args.args, args.verbose)
     
     # copy the result when the generated files are different
     print("check and copy the generated files")

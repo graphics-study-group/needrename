@@ -4,8 +4,6 @@
 #include <vector>
 #include <nlohmann/json.hpp>
 
-#include "generated/generated_serialization.hpp"
-
 namespace Engine
 {
     namespace Serialization
@@ -175,4 +173,4 @@ namespace Engine
 
 #include "serialization.tpp"
 
-#endif
+#endif // REFLECTION_SERIALIZATION_INCLUDED

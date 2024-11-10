@@ -1,6 +1,4 @@
-#include "generated_serialization.hpp"
-#include "all_reflection_files.hpp"
-#include "Reflection/serialization.h"
+#include <Reflection/serialization.h>
 
 <%
 import clang.cindex as CX

@@ -112,21 +112,6 @@ std::add_pointer<${method.return_type.full_name}>::type ret_ptr = reinterpret_ca
             return type;
         }
         % endfor
-
-        void Registrar::RegisterAllTypes()
-        {
-            % for class_type in classes_map.values():
-            auto Type_${class_type.mangled_name} = TypeRegistrar::Register_${class_type.mangled_name}();
-            % endfor
-
-            % for class_type in topological_sorted_types:
-            % for base_type in class_type.base_types:
-            % if base_type.full_name in classes_map:
-            Type_${class_type.mangled_name}->AddBaseType(Type_${classes_map[base_type.full_name].mangled_name});
-            % endif
-            % endfor
-            % endfor
-        }
     }
 }
 

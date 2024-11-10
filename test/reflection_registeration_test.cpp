@@ -1,5 +1,6 @@
 #include <iostream>
 #include "reflection_registeration_test.h"
+#include "meta_reflection_registeration_test_reflection_init.ipp"
 
 void FooBase::PrintHelloWorld() const
 {
@@ -87,6 +88,8 @@ int main()
 {
     // TODO: implement assert to check the result for the test
     Engine::Reflection::Initialize();
+    RegisterAllTypes();
+
     auto FooAtype = Engine::Reflection::GetType("FooA");
 
     std::cout << "----------------------------------- Test a FooA var -----------------------------------" << std::endl;

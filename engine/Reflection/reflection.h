@@ -25,8 +25,6 @@ namespace Engine
             static void RegisterNewType(const std::string &name, const std::type_info *type_info, bool reflectable = false);
             /// @brief Register basic types such as int, float, double, etc. Called by Initialize.
             static void RegisterBasicTypes();
-            /// @brief Register all types. Called by Initialize.
-            static void RegisterAllTypes();
         };
 
         /// @brief Initialize the reflection system. Must be called before using any reflection features.
@@ -53,6 +51,33 @@ namespace Engine
     }
 }
 
-#include "generated/generated_reflection.tpp"
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+
+namespace Engine
+{
+    namespace Reflection
+    {
+        template <typename T>
+        std::shared_ptr<Type> GetTypeFromObject(const T &obj)
+        {
+            return GetType(typeid(T).name(), &typeid(T));
+        }
+
+        template <typename T>
+        Var GetVar(const T &obj)
+        {
+            return Var(GetTypeFromObject(obj), &obj);
+        }
+
+        template <typename T>
+        ConstVar GetConstVar(const T &obj)
+        {
+            return ConstVar(GetTypeFromObject(obj), &obj);
+        }
+    }
+}
+
+#pragma GCC diagnostic pop
 
 #endif // REFLECTION_REFLECTION_INCLUDED

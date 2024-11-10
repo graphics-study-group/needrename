@@ -18,7 +18,6 @@ namespace Engine
 {
     namespace Reflection
     {
-        class TypeRegistrar;
         class Registrar;
         class Field;
         class Method;
@@ -34,9 +33,7 @@ namespace Engine
             static constexpr const char *k_constructor_name = "$Constructor";
             static std::unordered_map<std::string, std::shared_ptr<Type>> s_type_map;
 
-        protected:
-            friend class Registrar;
-            friend class TypeRegistrar;
+        public:
             Type() = delete;
             Type(const std::string &name, const std::type_info *type_info, bool reflectable = false);
 
@@ -54,6 +51,7 @@ namespace Engine
             std::unordered_map<std::string, std::shared_ptr<Field>> m_fields{};
             std::unordered_map<std::string, std::shared_ptr<Method>> m_methods{};
 
+        public:
             void SetName(const std::string &name);
             template <typename... Args>
             void AddConstructor(const WrapperMemberFunc &func);

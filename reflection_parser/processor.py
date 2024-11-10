@@ -116,7 +116,7 @@ class ReflectionParser:
                 self.traverse(child)
 
 
-    def generate_code(self, generated_code_dir: str):
+    def generate_code(self, generated_code_dir: str, target_name: str):
         with open("template/registrar_declare.hpp.template", "r") as f:
             template_declare = Template(f.read())
         mangled_names = [one_type.mangled_name for one_type in self.types.values()]
@@ -126,32 +126,28 @@ class ReflectionParser:
         with open("template/registrar_impl.ipp.template", "r") as f:
             template_impl = Template(f.read())
         with open(os.path.join(generated_code_dir, "registrar_impl.ipp"), "w") as f:
-            f.write(template_impl.render(classes_map=self.types, topological_sorted_types=self.topological_sort(self.types)))
-        
-        with open("template/reflection_global_template_func.tpp.template", "r") as f:
-            template_rgfi = Template(f.read())
-        with open(os.path.join(generated_code_dir, "reflection_global_template_func.tpp"), "w") as f:
-            f.write(template_rgfi.render())
+            f.write(template_impl.render(classes_map=self.types))
             
-        with open("template/generated_reflection.tpp.template", "r") as f:
+        topological_sorted_types=self.topological_sort(self.types)
+        with open("template/reflection_init.ipp.template", "r") as f:
+            template_init = Template(f.read())
+        with open(os.path.join(generated_code_dir, target_name + "_reflection_init.ipp"), "w") as f:
+            f.write(template_init.render(classes_map=self.types, topological_sorted_types=topological_sorted_types))
+        
+        with open("template/generated_reflection.cpp.template", "r") as f:
             template_gr = Template(f.read())
-        with open(os.path.join(generated_code_dir, "generated_reflection.tpp"), "w") as f:
+        with open(os.path.join(generated_code_dir, "generated_reflection.cpp"), "w") as f:
             f.write(template_gr.render())
         
-        with open("template/generated_reflection.ipp.template", "r") as f:
-            template_gr = Template(f.read())
-        with open(os.path.join(generated_code_dir, "generated_reflection.ipp"), "w") as f:
-            f.write(template_gr.render())
-            
-        with open("template/generated_serialization.hpp.template", "r") as f:
-            template_gs_hpp = Template(f.read())
-        with open(os.path.join(generated_code_dir, "generated_serialization.hpp"), "w") as f:
-            f.write(template_gs_hpp.render(classes_map=self.types))
-        
-        with open("template/generated_serialization.ipp.template", "r") as f:
+        with open("template/serialization_impl.ipp.template", "r") as f:
             template_gs_ipp = Template(f.read())
-        with open(os.path.join(generated_code_dir, "generated_serialization.ipp"), "w") as f:
+        with open(os.path.join(generated_code_dir, "serialization_impl.ipp"), "w") as f:
             f.write(template_gs_ipp.render(classes_map=self.types))
+            
+        with open("template/reflection.hpp.template", "r") as f:
+            template_reflection = Template(f.read())
+        with open(os.path.join(generated_code_dir, target_name + "_reflection.hpp"), "w") as f:
+            f.write(template_reflection.render())
     
     
     def topological_sort(self, types):
@@ -180,19 +176,19 @@ class ReflectionParser:
                 in_degree[v] -= 1
                 if in_degree[v] == 0:
                     queue.append(v)
+        print([types_list[i].name for i in result])
         return [types_list[i] for i in result]
 
 
-def process_file(path: str, generated_code_dir: str, args: str, verbose: bool = False):
+def process_file(path: str, generated_code_dir: str, target_name: str, args: str, verbose: bool = False):
     index = CX.Index.create()
     flag = CX.TranslationUnit.PARSE_INCOMPLETE \
         + CX.TranslationUnit.PARSE_SKIP_FUNCTION_BODIES \
         + CX.TranslationUnit.PARSE_INCLUDE_BRIEF_COMMENTS_IN_CODE_COMPLETION
-    # print(f"args: {args}")
     try:
         tu = index.parse(path, args=args.split(), options=flag)
     except CX.TranslationUnitLoadError as e:
-        print(f"[parser] When parsing {path}, error occurs:")
+        print(f"[parser] When parsing {path} , error occurs:")
         print(e)
         raise e
     
@@ -219,4 +215,4 @@ def process_file(path: str, generated_code_dir: str, args: str, verbose: bool = 
     
     Parser = ReflectionParser()
     Parser.traverse(tu.cursor)
-    Parser.generate_code(generated_code_dir)
+    Parser.generate_code(generated_code_dir, target_name)

@@ -2,6 +2,7 @@
 [Bb]uild/
 CMakeFiles/
 __*
+__generated__
 
 CMakeCache.txt
 

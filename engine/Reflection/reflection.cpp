@@ -1,6 +1,8 @@
 #include "reflection.h"
 #include "Type.h"
 
+#include "meta_engine_reflection_init.ipp"
+
 namespace Engine
 {
     namespace Reflection
@@ -8,7 +10,7 @@ namespace Engine
         void Initialize()
         {
             Registrar::RegisterBasicTypes();
-            Registrar::RegisterAllTypes();
+            RegisterAllTypes();
         }
 
         void Registrar::RegisterBasicTypes()
@@ -43,5 +45,3 @@ namespace Engine
         }
     }
 }
-
-#include "generated/generated_reflection.ipp"

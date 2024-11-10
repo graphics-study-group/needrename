@@ -1,7 +1,7 @@
 #ifndef CTEST_REFLECTION_REGISTERATION_TEST_H
 #define CTEST_REFLECTION_REGISTERATION_TEST_H
 
-#include "Reflection/reflection.h"
+#include "meta_reflection_registeration_test_reflection.hpp"
 
 class REFL_SER_CLASS(REFL_BLACKLIST) FooBase
 {

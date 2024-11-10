@@ -6,5 +6,3 @@ namespace Engine
     {
     }
 }
-
-#include "generated/generated_serialization.ipp"

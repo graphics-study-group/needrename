@@ -3,7 +3,7 @@
 
 #include <memory>
 #include <vector>
-#include "Reflection/reflection.h"
+#include "meta_serialization_test_reflection.hpp"
 
 namespace SerializationTest
 {
