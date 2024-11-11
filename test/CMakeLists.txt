@@ -52,29 +52,8 @@ target_link_libraries(complex_mesh_test engine)
 add_test(NAME complex_mesh_test COMMAND complex_mesh_test)
 set_target_properties(complex_mesh_test PROPERTIES FOLDER tests)
 
-include(${REFLECTION_PARSER_DIR}/parser.cmake)
-
-add_executable(reflection_registeration_test reflection_registeration_test.cpp)
-target_link_libraries(reflection_registeration_test PUBLIC engine)
-target_include_directories(reflection_registeration_test PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/reflection_registeration_test)
-set(all_include_dirs)
-get_include_directories_for_target(reflection_registeration_test all_include_dirs)
-add_reflection_parser(meta_reflection_registeration_test "${CMAKE_CURRENT_SOURCE_DIR}/reflection_registeration_test.h" "${CMAKE_CURRENT_SOURCE_DIR}/__generated__/reflection_registeration_test" "${all_include_dirs}")
-add_dependencies(reflection_registeration_test meta_reflection_registeration_test)
-target_link_libraries(reflection_registeration_test PUBLIC meta_reflection_registeration_test)
-add_test(NAME reflection_registeration_test COMMAND reflection_registeration_test)
-set_target_properties(reflection_registeration_test PROPERTIES FOLDER tests)
-
-add_executable(serialization_test serialization_test.cpp)
-target_link_libraries(serialization_test PUBLIC engine)
-target_include_directories(serialization_test PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/serialization_test)
-set(all_include_dirs)
-get_include_directories_for_target(serialization_test all_include_dirs)
-add_reflection_parser(meta_serialization_test "${CMAKE_CURRENT_SOURCE_DIR}/serialization_test.h" "${CMAKE_CURRENT_SOURCE_DIR}/__generated__/serialization_test" "${all_include_dirs}")
-add_dependencies(serialization_test meta_serialization_test)
-target_link_libraries(serialization_test PUBLIC meta_serialization_test)
-add_test(NAME serialization_test COMMAND serialization_test)
-set_target_properties(serialization_test PROPERTIES FOLDER tests)
+add_subdirectory(reflection_test)
+add_subdirectory(serialization_test)
 
 # Copy SDL dll
 add_custom_command(TARGET SDL_init_test POST_BUILD

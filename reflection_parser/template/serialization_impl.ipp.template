@@ -5,6 +5,7 @@ import clang.cindex as CX
 %>
 
 #pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-variable"
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 
 ## list of all basic types such as bool, int, long double

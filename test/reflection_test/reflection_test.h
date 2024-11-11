@@ -1,7 +1,7 @@
-#ifndef CTEST_REFLECTION_REGISTERATION_TEST_H
-#define CTEST_REFLECTION_REGISTERATION_TEST_H
+#ifndef CTEST_REFLECTION_TEST_H
+#define CTEST_REFLECTION_TEST_H
 
-#include "meta_reflection_registeration_test_reflection.hpp"
+#include <meta_reflection_test/reflection.hpp>
 
 class REFL_SER_CLASS(REFL_BLACKLIST) FooBase
 {
@@ -124,4 +124,4 @@ namespace TestHalloWorld
     }
 }
 
-#endif // CTEST_REFLECTION_REGISTERATION_TEST_H
+#endif // CTEST_REFLECTION_TEST_H

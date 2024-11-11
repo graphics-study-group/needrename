@@ -1,6 +1,6 @@
 #include <iostream>
 #include "serialization_test.h"
-#include "meta_serialization_test_reflection_init.ipp"
+#include "meta_serialization_test/reflection_init.ipp"
 
 int main()
 {

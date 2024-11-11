@@ -1,6 +1,6 @@
 #include <iostream>
-#include "reflection_registeration_test.h"
-#include "meta_reflection_registeration_test_reflection_init.ipp"
+#include "reflection_test.h"
+#include "meta_reflection_test/reflection_init.ipp"
 
 void FooBase::PrintHelloWorld() const
 {

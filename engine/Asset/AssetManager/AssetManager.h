@@ -10,6 +10,9 @@
 #include "Core/guid.h"
 #include "Asset/Asset.h"
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wnon-virtual-dtor"
+
 namespace Engine
 {
     class AssetManager : public std::enable_shared_from_this<AssetManager>
@@ -61,5 +64,7 @@ namespace Engine
         std::unordered_map<GUID, std::filesystem::path, GUIDHash> m_assets;
     };
 } // namespace Engine
+
+#pragma GCC diagnostic pop
 
 #endif // ASSET_ASSETMANAGER_ASSETMANAGER_INCLUDED

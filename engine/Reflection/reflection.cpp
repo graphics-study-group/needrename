@@ -1,7 +1,7 @@
 #include "reflection.h"
 #include "Type.h"
 
-#include "meta_engine_reflection_init.ipp"
+#include "meta_engine/reflection_init.ipp"
 
 namespace Engine
 {

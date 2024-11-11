@@ -9,6 +9,7 @@ from reflection.Type import Type, Method, Field
 class ReflectionParser:
     def __init__(self):
         self.types = {}
+        self.files = []
     
     
     def get_reflection_class_args(self, node: CX.Cursor):
@@ -105,6 +106,9 @@ class ReflectionParser:
 
 
     def traverse(self, node: CX.Cursor):
+        if node.location.file is not None:
+            if node.location.file.name.replace('\\', '/') not in self.files:
+                return
         args = self.get_reflection_class_args(node)
         if args is not None:
             if node.kind == CX.CursorKind.CLASS_DECL or node.kind == CX.CursorKind.STRUCT_DECL:
@@ -116,7 +120,7 @@ class ReflectionParser:
                 self.traverse(child)
 
 
-    def generate_code(self, generated_code_dir: str, target_name: str):
+    def generate_code(self, generated_code_dir: str):
         with open("template/registrar_declare.hpp.template", "r") as f:
             template_declare = Template(f.read())
         mangled_names = [one_type.mangled_name for one_type in self.types.values()]
@@ -131,7 +135,7 @@ class ReflectionParser:
         topological_sorted_types=self.topological_sort(self.types)
         with open("template/reflection_init.ipp.template", "r") as f:
             template_init = Template(f.read())
-        with open(os.path.join(generated_code_dir, target_name + "_reflection_init.ipp"), "w") as f:
+        with open(os.path.join(generated_code_dir, "reflection_init.ipp"), "w") as f:
             f.write(template_init.render(classes_map=self.types, topological_sorted_types=topological_sorted_types))
         
         with open("template/generated_reflection.cpp.template", "r") as f:
@@ -146,7 +150,7 @@ class ReflectionParser:
             
         with open("template/reflection.hpp.template", "r") as f:
             template_reflection = Template(f.read())
-        with open(os.path.join(generated_code_dir, target_name + "_reflection.hpp"), "w") as f:
+        with open(os.path.join(generated_code_dir, "reflection.hpp"), "w") as f:
             f.write(template_reflection.render())
     
     
@@ -180,15 +184,15 @@ class ReflectionParser:
         return [types_list[i] for i in result]
 
 
-def process_file(path: str, generated_code_dir: str, target_name: str, args: str, verbose: bool = False):
+def process_file(all_header_file_path: str, files: list, generated_code_dir: str, args: str, verbose: bool = False):
     index = CX.Index.create()
     flag = CX.TranslationUnit.PARSE_INCOMPLETE \
         + CX.TranslationUnit.PARSE_SKIP_FUNCTION_BODIES \
         + CX.TranslationUnit.PARSE_INCLUDE_BRIEF_COMMENTS_IN_CODE_COMPLETION
     try:
-        tu = index.parse(path, args=args.split(), options=flag)
+        tu = index.parse(all_header_file_path, args=args.split(), options=flag)
     except CX.TranslationUnitLoadError as e:
-        print(f"[parser] When parsing {path} , error occurs:")
+        print(f"[parser] When parsing {all_header_file_path} , error occurs:")
         print(e)
         raise e
     
@@ -214,5 +218,8 @@ def process_file(path: str, generated_code_dir: str, target_name: str, args: str
             print(f"[parser] {severity_str}: '{filename}' line {location.line} column {location.column}: {message}")
     
     Parser = ReflectionParser()
+    files = [all_header_file_path] + files
+    for file in files:
+        Parser.files.append(file.replace("\\", "/"))
     Parser.traverse(tu.cursor)
-    Parser.generate_code(generated_code_dir, target_name)
+    Parser.generate_code(generated_code_dir)

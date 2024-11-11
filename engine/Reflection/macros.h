@@ -19,3 +19,16 @@
     friend class Engine::Reflection::Registrar; \
     REFL_SER_DISABLE virtual void __serialization_save__(Engine::Serialization::Archive& buffer) const; \
     REFL_SER_DISABLE virtual void __serialization_load__(Engine::Serialization::Archive& buffer);
+
+namespace Engine
+{
+    namespace Reflection
+    {
+        class Registrar;
+    }
+
+    namespace Serialization
+    {
+        struct Archive;
+    }
+}

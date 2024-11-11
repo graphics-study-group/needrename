@@ -15,10 +15,11 @@ def main():
     parser.add_argument("--verbose", action="store_true", help="print verbose information")
     args = parser.parse_args()
 
+    generated_code_dir = args.generated_code_dir
     # create the generated code directory
-    if not os.path.exists(args.generated_code_dir):
-        os.makedirs(args.generated_code_dir)
-    temp_gen_dir = os.path.join(args.generated_code_dir, "temp")
+    if not os.path.exists(generated_code_dir):
+        os.makedirs(generated_code_dir)
+    temp_gen_dir = os.path.join(generated_code_dir, "temp")
     if not os.path.exists(temp_gen_dir):
         os.makedirs(temp_gen_dir)
 
@@ -37,13 +38,13 @@ def main():
     
     # process the reflection
     print("[parser] processing all reflection files and generating reflection code")
-    process_file(output_file, temp_gen_dir, args.target_name, args.args, args.verbose)
+    process_file(output_file, headers, temp_gen_dir, args.args, args.verbose)
     
     # copy the result when the generated files are different
     print("check and copy the generated files")
     for file in os.listdir(temp_gen_dir):
         src_file = os.path.join(temp_gen_dir, file)
-        dest_file = os.path.join(args.generated_code_dir, file)
+        dest_file = os.path.join(generated_code_dir, file)
         if not os.path.exists(dest_file) or not filecmp.cmp(src_file, dest_file):
             print("copy file '%s'" % file)
             shutil.copy2(src_file, dest_file)

@@ -37,8 +37,8 @@ function(add_reflection_parser target_name reflection_search_files generated_cod
 
     set(TASK_STAMPED_FILE "${generated_code_dir}/task_stamped")
 
-    if (NOT EXISTS ${generated_code_dir}/generated_reflection.cpp)
-        configure_file(${REFLECTION_PARSER_DIR}/template/empty.template ${generated_code_dir}/generated_reflection.cpp)
+    if (NOT EXISTS ${generated_code_dir}/${target_name}/generated_reflection.cpp)
+        configure_file(${REFLECTION_PARSER_DIR}/template/empty.template ${generated_code_dir}/${target_name}/generated_reflection.cpp)
     endif()
 
     add_custom_command(
@@ -50,7 +50,7 @@ function(add_reflection_parser target_name reflection_search_files generated_cod
                 ${Python3_EXECUTABLE} ${REFLECTION_PARSER_DIR}/parser_main.py
                     --target_name "${target_name}"
                     --reflection_search_files "${reflection_search_files}"
-                    --generated_code_dir ${generated_code_dir}
+                    --generated_code_dir ${generated_code_dir}/${target_name}
                     --reflection_macros_header ${ENGINE_SOURCE_DIR}/Reflection/macros.h
                     --args ${REFLECTION_PARSER_ARGS}
                     --verbose
@@ -66,7 +66,7 @@ function(add_reflection_parser target_name reflection_search_files generated_cod
         DEPENDS ${TASK_STAMPED_FILE}
     )
     add_library(${target_name} INTERFACE)
-    target_sources(${target_name} INTERFACE ${generated_code_dir}/generated_reflection.cpp)
+    target_sources(${target_name} INTERFACE ${generated_code_dir}/${target_name}/generated_reflection.cpp)
     target_include_directories(${target_name} INTERFACE ${generated_code_dir})
     target_link_libraries(${target_name} INTERFACE json)
     add_dependencies(${target_name} ${target_name}_generation)
