@@ -10,9 +10,8 @@
 
 namespace Engine
 {
-    class REFL_SER_CLASS(REFL_BLACKLIST) MeshAsset: public Asset
+    class MeshAsset: public Asset
     {
-        REFL_SER_BODY()
     public:
         MeshAsset(std::weak_ptr <AssetManager> manager);
         virtual ~MeshAsset();

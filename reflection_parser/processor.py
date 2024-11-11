@@ -78,7 +78,7 @@ class ReflectionParser:
         serialization_mode = "DefaultSerialization"
         if "CustomSerialization" in args:
             serialization_mode = "CustomSerialization"
-         
+        
         for child in node.get_children():
             if child.kind == CX.CursorKind.CXX_BASE_SPECIFIER:
                 current_type.base_types.append(Type(child.type))
@@ -102,7 +102,8 @@ class ReflectionParser:
                 if child.kind == CX.CursorKind.FIELD_DECL:
                     current_type.serialized_fields.append(Field(child))
 
-        self.types[current_type.full_name] = current_type
+        if self.types.get(current_type.full_name) is None:
+            self.types[current_type.full_name] = current_type
 
 
     def traverse(self, node: CX.Cursor):
@@ -180,7 +181,6 @@ class ReflectionParser:
                 in_degree[v] -= 1
                 if in_degree[v] == 0:
                     queue.append(v)
-        print([types_list[i].name for i in result])
         return [types_list[i] for i in result]
 
 
