@@ -11,7 +11,7 @@ namespace SerializationTest
     {
         REFL_SER_BODY()
     public:
-        BaseData() = default;
+        BaseData(float a);
         virtual ~BaseData() = default;
 
         float data[3] = {0.0f};
@@ -21,7 +21,7 @@ namespace SerializationTest
     {
         REFL_SER_BODY()
     public:
-        InheritTest() = default;
+        InheritTest(float a);
         virtual ~InheritTest() = default;
 
         int m_inherit = 1000;
