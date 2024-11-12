@@ -45,7 +45,7 @@ namespace Engine
         class has_custom_save
         {
             template <typename U>
-            static auto test(int) -> decltype((static_cast<void (U::*)(Archive &) const>(&U::save), std::true_type()));
+            static auto test(int) -> decltype(std::declval<U>().save(std::declval<Archive &>()), std::true_type());
 
             template <typename>
             static std::false_type test(...);
@@ -58,7 +58,7 @@ namespace Engine
         class has_custom_load
         {
             template <typename U>
-            static auto test(int) -> decltype((static_cast<void (U::*)(Archive &)>(&U::load), std::true_type()));
+            static auto test(int) -> decltype(std::declval<U>().load(std::declval<Archive &>()), std::true_type());
 
             template <typename>
             static std::false_type test(...);
@@ -71,7 +71,7 @@ namespace Engine
         class has_generated_save
         {
             template <typename U>
-            static auto test(int) -> decltype((static_cast<void (U::*)(Archive &) const>(&U::__serialization_save__), std::true_type()));
+            static auto test(int) -> decltype(std::declval<U>().__serialization_save__(std::declval<Archive &>()), std::true_type());
 
             template <typename>
             static std::false_type test(...);
@@ -84,7 +84,7 @@ namespace Engine
         class has_generated_load
         {
             template <typename U>
-            static auto test(int) -> decltype((static_cast<void (U::*)(Archive &)>(&U::__serialization_load__), std::true_type()));
+            static auto test(int) -> decltype(std::declval<U>().__serialization_load__(std::declval<Archive &>()), std::true_type());
 
             template <typename>
             static std::false_type test(...);
@@ -169,14 +169,20 @@ namespace Engine
         typename std::enable_if<!has_custom_save<T>::value && !has_generated_save<T>::value && !has_special_save<T>::value, void>::type
         serialize(const T &value, Archive &buffer)
         {
-            throw std::runtime_error("No serialization function found for type");
+            throw std::runtime_error(std::string("No serialization function found for type: ") + typeid(T).name() + "\nNote: \n"
+                                     +"  - If the type is a custom type, make sure to define a member function like save(Engine::Serialization::Archive &)\n"
+                                     +"  - The type must have a default constructor with no arguments\n"
+                                     +"  - Do not use pointers, use std::shared_ptr or std::unique_ptr instead\n");
         }
 
         template <typename T>
         typename std::enable_if<!has_custom_load<T>::value && !has_generated_load<T>::value && !has_special_load<T>::value, void>::type
         deserialize(T &value, Archive &buffer)
         {
-            throw std::runtime_error("No deserialization function found for type");
+            throw std::runtime_error(std::string("No deserialization function found for type: ") + typeid(T).name() + "\nNote: \n"
+                                     +"  - If the type is a custom type, make sure to define a member function like load(Engine::Serialization::Archive &)\n"
+                                     +"  - The type must have a default constructor with no arguments\n"
+                                     +"  - Do not use pointers, use std::shared_ptr or std::unique_ptr instead\n");
         }
 
 #pragma GCC diagnostic pop

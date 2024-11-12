@@ -2,8 +2,8 @@ message("COMPILE engine library")
 file(GLOB_RECURSE SOURCE "./*.cpp")
 file(GLOB_RECURSE HEADER "./*.h")
 
-list(FILTER SOURCE EXCLUDE REGEX "./generated/.*")
-list(FILTER HEADER EXCLUDE REGEX "./generated/.*")
+list(FILTER SOURCE EXCLUDE REGEX "__generated__/.*")
+list(FILTER HEADER EXCLUDE REGEX "__generated__/.*")
 
 add_library(engine STATIC ${SOURCE})
 target_include_directories(
@@ -19,7 +19,6 @@ target_precompile_headers(engine PRIVATE "Render/VkWrapper.tcc")
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h)
 
 include(${REFLECTION_PARSER_DIR}/parser.cmake)
-# set reflection search files and include directories
 set(all_include_dirs)
 get_include_directories_for_target(engine all_include_dirs)
 

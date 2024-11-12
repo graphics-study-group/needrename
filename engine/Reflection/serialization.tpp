@@ -1,4 +1,5 @@
 #include "serialization.h"
+#include "reflection.h"
 
 namespace Engine
 {
@@ -44,19 +45,7 @@ namespace Engine
             }
         }
 
-        template <typename T>
-        void save(const std::weak_ptr<T>& value, Archive& buffer)
-        {
-            Json &json = buffer.json;
-            if (auto shared = value.lock())
-            {
-                Archive temp_buffer;
-                serialize(*shared, temp_buffer);
-                json = temp_buffer.json;
-                buffer.buffers.insert(buffer.buffers.end(), temp_buffer.buffers.begin(), temp_buffer.buffers.end());
-            }
-        }
-
+        // TODO: Implement load_and_construct for class T
         template <typename T>
         void load(std::vector<T>& value, Archive& buffer)
         {
@@ -66,10 +55,8 @@ namespace Engine
             {
                 Archive temp_buffer;
                 temp_buffer.json = item;
-                throw std::runtime_error("Not implemented");
-                // T temp;
-                // deserialize(temp, temp_buffer);
-                // value.push_back(temp);
+                value.emplace_back();
+                deserialize(value.back(), temp_buffer);
             }
         }
 
@@ -81,10 +68,10 @@ namespace Engine
             {
                 Archive temp_buffer;
                 temp_buffer.json = json;
-                throw std::runtime_error("Not implemented");
-                // T temp;
-                // deserialize(temp, temp_buffer);
-                // value = std::make_shared<T>(temp);
+                auto type = Engine::Reflection::GetType(json["__type"]);
+                auto var = type->CreateInstance();
+                value = std::shared_ptr<T>(static_cast<T*>(var.GetDataPtr()));
+                deserialize(*value, temp_buffer);
             }
         }
 
@@ -96,25 +83,10 @@ namespace Engine
             {
                 Archive temp_buffer;
                 temp_buffer.json = json;
-                throw std::runtime_error("Not implemented");
-                // T temp;
-                // deserialize(temp, temp_buffer);
-                // value = std::make_unique<T>(temp);
-            }
-        }
-
-        template <typename T>
-        void load(std::weak_ptr<T>& value, Archive& buffer)
-        {
-            const Json &json = buffer.json;
-            if (!json.is_null())
-            {
-                Archive temp_buffer;
-                temp_buffer.json = json;
-                throw std::runtime_error("Not implemented");
-                // T temp;
-                // deserialize(temp, temp_buffer);
-                // value = std::make_shared<T>(temp);
+                auto type = Engine::Reflection::GetType(json["__type"]);
+                auto var = type->CreateInstance();
+                value = std::unique_ptr<T>(static_cast<T*>(var.GetDataPtr()));
+                deserialize(*value, temp_buffer);
             }
         }
     }
