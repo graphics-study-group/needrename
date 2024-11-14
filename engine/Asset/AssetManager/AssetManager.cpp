@@ -11,8 +11,6 @@
 
 namespace Engine
 {
-    std::mt19937_64 AssetManager::m_guid_gen{std::random_device{}()};
-
     void AssetManager::LoadProject(std::filesystem::path path)
     {
         if(!std::filesystem::exists(path))

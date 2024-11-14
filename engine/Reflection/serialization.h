@@ -68,32 +68,6 @@ namespace Engine
         };
 
         template <typename T>
-        class has_generated_save
-        {
-            template <typename U>
-            static auto test(int) -> decltype(std::declval<U>().__serialization_save__(std::declval<Archive &>()), std::true_type());
-
-            template <typename>
-            static std::false_type test(...);
-
-        public:
-            static constexpr bool value = decltype(test<T>(0))::value;
-        };
-
-        template <typename T>
-        class has_generated_load
-        {
-            template <typename U>
-            static auto test(int) -> decltype(std::declval<U>().__serialization_load__(std::declval<Archive &>()), std::true_type());
-
-            template <typename>
-            static std::false_type test(...);
-
-        public:
-            static constexpr bool value = decltype(test<T>(0))::value;
-        };
-
-        template <typename T>
         class has_special_save
         {
             template <typename U>
@@ -120,6 +94,32 @@ namespace Engine
         };
 
         template <typename T>
+        class has_generated_save
+        {
+            template <typename U>
+            static auto test(int) -> decltype(std::declval<U>().__serialization_save__(std::declval<Archive &>()), std::true_type());
+
+            template <typename>
+            static std::false_type test(...);
+
+        public:
+            static constexpr bool value = decltype(test<T>(0))::value;
+        };
+
+        template <typename T>
+        class has_generated_load
+        {
+            template <typename U>
+            static auto test(int) -> decltype(std::declval<U>().__serialization_load__(std::declval<Archive &>()), std::true_type());
+
+            template <typename>
+            static std::false_type test(...);
+
+        public:
+            static constexpr bool value = decltype(test<T>(0))::value;
+        };
+
+        template <typename T>
         typename std::enable_if<has_custom_save<T>::value, void>::type
         serialize(const T &value, Archive &buffer)
         {
@@ -134,31 +134,31 @@ namespace Engine
         }
 
         template <typename T>
-        typename std::enable_if<!has_custom_save<T>::value && has_generated_save<T>::value, void>::type
-        serialize(const T &value, Archive &buffer)
-        {
-            value.__serialization_save__(buffer);
-        }
-
-        template <typename T>
-        typename std::enable_if<!has_custom_load<T>::value && has_generated_load<T>::value, void>::type
-        deserialize(T &value, Archive &buffer)
-        {
-            value.__serialization_load__(buffer);
-        }
-
-        template <typename T>
-        typename std::enable_if<!has_custom_save<T>::value && !has_generated_save<T>::value && has_special_save<T>::value, void>::type
+        typename std::enable_if<!has_custom_save<T>::value && has_special_save<T>::value, void>::type
         serialize(const T &value, Archive &buffer)
         {
             Engine::Serialization::save(value, buffer);
         }
 
         template <typename T>
-        typename std::enable_if<!has_custom_load<T>::value && !has_generated_load<T>::value && has_special_load<T>::value, void>::type
+        typename std::enable_if<!has_custom_load<T>::value && has_special_load<T>::value, void>::type
         deserialize(T &value, Archive &buffer)
         {
             Engine::Serialization::load(value, buffer);
+        }
+
+        template <typename T>
+        typename std::enable_if<!has_custom_save<T>::value && !has_special_save<T>::value && has_generated_save<T>::value, void>::type
+        serialize(const T &value, Archive &buffer)
+        {
+            value.__serialization_save__(buffer);
+        }
+
+        template <typename T>
+        typename std::enable_if<!has_custom_load<T>::value && !has_special_load<T>::value && has_generated_load<T>::value, void>::type
+        deserialize(T &value, Archive &buffer)
+        {
+            value.__serialization_load__(buffer);
         }
 
 #pragma GCC diagnostic push

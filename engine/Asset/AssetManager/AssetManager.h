@@ -57,7 +57,7 @@ namespace Engine
         void AddAsset(const GUID &guid, const std::filesystem::path &path);
 
     protected:
-        static std::mt19937_64 m_guid_gen;
+        std::mt19937_64 m_guid_gen{std::random_device{}()};
 
         std::filesystem::path m_projectPath;
         /// @brief GUID to asset path map

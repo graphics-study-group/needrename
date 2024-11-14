@@ -69,4 +69,10 @@ namespace Engine
     {
         m_transformComponent->SetTransform(transform);
     }
+
+    void GameObject::SetParent(std::shared_ptr<GameObject> parent)
+    {
+        m_parentGameObject = parent;
+        parent->m_childGameObject.push_back(shared_from_this());
+    }
 }
