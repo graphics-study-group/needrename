@@ -5,15 +5,18 @@
 #include "Asset/AssetManager/AssetManager.h"
 
 #include <exception>
+#include <mutex>
 
 namespace Engine
 {
-    MainClass::MainClass(Uint32 flags, SDL_LogPriority logPrior)
+    static std::shared_ptr<MainClass> g_main_class_ptr = nullptr;
+    static std::once_flag g_main_class_flag;
+
+    std::shared_ptr<MainClass> MainClass::GetInstance()
     {
-        if (SDL_Init(flags) < 0)
-            throw Exception::SDLExceptions::cant_init();
-        SDL_SetLogPriorities(logPrior);
-        this->window = nullptr;
+        std::call_once(g_main_class_flag, [&]
+                       { g_main_class_ptr = std::shared_ptr<MainClass>(new MainClass()); });
+        return g_main_class_ptr;
     }
 
     MainClass::~MainClass()
@@ -21,23 +24,27 @@ namespace Engine
         SDL_Quit();
     }
 
-    void MainClass::Initialize(const StartupOptions *opt, Uint32 flags)
+    void MainClass::Initialize(const StartupOptions *opt, Uint32 sdl_init_flags, SDL_LogPriority sdl_logPrior, Uint32 sdl_window_flags)
     {
-        if (flags == 0) 
-            flags = SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
+        if (SDL_Init(sdl_init_flags) < 0)
+            throw Exception::SDLExceptions::cant_init();
+        SDL_SetLogPriorities(sdl_logPrior);
+        this->window = nullptr;
+
+        if (sdl_window_flags == 0)
+            sdl_window_flags = SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
         if (opt->instantQuit)
             return;
         this->window = std::make_shared<SDLWindow>(
-            opt->title.c_str(), 
-            opt->resol_x, 
-            opt->resol_y, 
-            flags
-            );
+            opt->title.c_str(),
+            opt->resol_x,
+            opt->resol_y,
+            sdl_window_flags);
 
         this->renderer = std::make_shared<RenderSystem>(this->window);
         this->renderer->Create();
         this->world = std::make_shared<WorldSystem>();
-        this->asset = std::make_shared<AssetManager> ();
+        this->asset = std::make_shared<AssetManager>();
     }
 
     void MainClass::MainLoop()
@@ -51,12 +58,12 @@ namespace Engine
         {
             float current_time = SDL_GetTicks();
             float dt = (current_time - FPS_TIMER) / 1000.0f;
-            
+
             this->window->BeforeEventLoop();
             this->world->Tick(dt);
 
             // TODO: Set up viewport information
-            
+
             // this->renderer->Render();
 
             this->window->AfterEventLoop();
@@ -66,7 +73,8 @@ namespace Engine
             {
                 while (SDL_PollEvent(&event))
                 {
-                    if (event.type == SDL_EVENT_QUIT) {
+                    if (event.type == SDL_EVENT_QUIT)
+                    {
                         onQuit = true;
                         break;
                     }
@@ -90,10 +98,19 @@ namespace Engine
         }
         SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "The main loop is ended.");
     }
-    std::shared_ptr<AssetManager> MainClass::GetAssetManager() const {
+
+    std::shared_ptr<AssetManager> MainClass::GetAssetManager() const
+    {
         return asset;
     }
-    std::shared_ptr<RenderSystem> MainClass::GetRenderSystem() const {
+
+    std::shared_ptr<WorldSystem> MainClass::GetWorldSystem() const
+    {
+        return world;
+    }
+
+    std::shared_ptr<RenderSystem> MainClass::GetRenderSystem() const
+    {
         return renderer;
     }
-}  // namespace Engine
+} // namespace Engine

@@ -1,7 +1,9 @@
 #ifndef FRAMEWORK_WORLD_WORLDSYSTEM_H
 #define FRAMEWORK_WORLD_WORLDSYSTEM_H
 
-#include "Framework/level/Level.h"
+#include <random>
+#include <Core/guid.h>
+#include <Framework/level/Level.h>
 
 namespace Engine
 {
@@ -13,11 +15,12 @@ namespace Engine
 
         void Tick(float dt);
 
-        void SetCurrentLevel(std::shared_ptr<Level> level)
-        {
-            current_level = level;
-        }        
+        GUID GenerateID();
+
+        void SetCurrentLevel(std::shared_ptr<Level> level);
     protected:
+        std::mt19937_64 m_id_gen{std::random_device{}()};
+
         std::shared_ptr<Level> current_level {};
     };
 }

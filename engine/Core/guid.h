@@ -3,14 +3,16 @@
 
 #include <cstdint>
 #include <string>
+#include <sstream>
 #include <random>
+#include <iomanip>
 
 namespace Engine
 {
     struct GUID
     {
-        uint64_t mostSigBits;
-        uint64_t leastSigBits;
+        unsigned long long mostSigBits;
+        unsigned long long leastSigBits;
 
         bool operator==(const GUID& other) const
         {
@@ -22,8 +24,8 @@ namespace Engine
     {
         std::size_t operator()(const GUID& guid) const
         {
-            std::size_t h1 = std::hash<uint64_t>{}(guid.mostSigBits);
-            std::size_t h2 = std::hash<uint64_t>{}(guid.leastSigBits);
+            std::size_t h1 = std::hash<unsigned long long>{}(guid.mostSigBits);
+            std::size_t h2 = std::hash<unsigned long long>{}(guid.leastSigBits);
             return h1 ^ (h2 << 1);
         }
     };
@@ -31,7 +33,7 @@ namespace Engine
     template <typename Generator>
     inline GUID generateGUID(Generator& gen)
     {
-        std::uniform_int_distribution<uint64_t> dis(0, 0xFFFFFFFFFFFFFFFF);
+        std::uniform_int_distribution<unsigned long long> dis(0, 0xFFFFFFFFFFFFFFFF);
         GUID guid;
         guid.mostSigBits = dis(gen);
         guid.leastSigBits = dis(gen);

@@ -1,6 +1,6 @@
 #include "CameraComponent.h"
 
-#include "Framework/go/GameObject.h"
+#include <Framework/object/GameObject.h>
 
 #include <SDL3/SDL.h>
 #include <glm.hpp>

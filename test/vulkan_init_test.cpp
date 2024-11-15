@@ -15,8 +15,6 @@
 using namespace Engine;
 namespace sch = std::chrono;
 
-Engine::MainClass * cmc;
-
 class TestHomoMesh : public HomogeneousMesh {
 public:
     TestHomoMesh(std::weak_ptr<RenderSystem> system) : HomogeneousMesh(system) {
@@ -65,10 +63,8 @@ int main(int, char **)
 
     StartupOptions opt{.resol_x = 1920, .resol_y = 1080, .title = "Vulkan Test"};
 
-    cmc = new Engine::MainClass(
-            SDL_INIT_VIDEO,
-            SDL_LOG_PRIORITY_VERBOSE);
-    cmc->Initialize(&opt);
+    auto cmc = MainClass::GetInstance();
+    cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
 
     auto system = cmc->GetRenderSystem();
     system->EnableDepthTesting();
@@ -130,6 +126,5 @@ int main(int, char **)
     system->ClearComponent();
 
     SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "Unloading Main-class");
-    delete cmc;
     return 0;
 }

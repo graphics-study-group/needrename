@@ -13,8 +13,6 @@
 
 using namespace Engine;
 
-Engine::MainClass * cmc;
-
 int main(int argc, char * argv[])
 {
     std::filesystem::path project_path(ENGINE_ROOT_DIR);
@@ -37,10 +35,8 @@ int main(int argc, char * argv[])
     if (opt->instantQuit)
         return -1;
 
-    cmc = new Engine::MainClass(
-            SDL_INIT_VIDEO,
-            opt->enableVerbose ? SDL_LOG_PRIORITY_VERBOSE : SDL_LOG_PRIORITY_INFO);
-    cmc->Initialize(opt);
+    auto cmc = MainClass::GetInstance();
+    cmc->Initialize(opt, SDL_INIT_VIDEO, opt->enableVerbose ? SDL_LOG_PRIORITY_VERBOSE : SDL_LOG_PRIORITY_INFO);
 
     cmc->GetAssetManager()->LoadProject(project_path);
     cmc->GetAssetManager()->LoadExternalResource(mesh_path, std::filesystem::path("loading_test"));
@@ -49,8 +45,6 @@ int main(int argc, char * argv[])
 
     SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "Unloading StartupOptions");
     delete opt;
-    SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "Unloading Main-class");
-    delete cmc;
 
     return 0;
 }

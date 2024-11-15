@@ -14,7 +14,7 @@
 #include "Asset/Mesh/MeshAsset.h"
 #include "Asset/AssetManager/AssetManager.h"
 #include "Framework/level/Level.h"
-#include "Framework/go/GameObject.h"
+#include <Framework/object/GameObject.h>
 #include "Framework/component/RenderComponent/MeshComponent.h"
 
 #include "Render/RenderSystem.h"
@@ -40,8 +40,6 @@ public:
     }
 };
 
-Engine::MainClass * cmc;
-
 int main(int, char *[])
 {
     SDL_Init(SDL_INIT_VIDEO);
@@ -50,11 +48,8 @@ int main(int, char *[])
     StartupOptions opt;
     opt.resol_x = 1920;
     opt.resol_y = 1080;
-    cmc = new Engine::MainClass(
-            SDL_INIT_VIDEO,
-            SDL_LOG_PRIORITY_VERBOSE
-    );
-    cmc->Initialize(&opt);
+    auto cmc = MainClass::GetInstance();
+    cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
 
     auto render_system = cmc->GetRenderSystem();
     render_system->EnableDepthTesting();
@@ -121,6 +116,5 @@ int main(int, char *[])
     stbi_image_free(image_data);
     render_system->WaitForIdle();
 
-    delete cmc;
     return 0;
 }

@@ -7,8 +7,6 @@
 
 using namespace Engine;
 
-Engine::MainClass * cmc;
-
 int main(int argc, char * argv[])
 {
     SDL_Init(SDL_INIT_VIDEO);
@@ -17,15 +15,11 @@ int main(int argc, char * argv[])
     if (opt->instantQuit)
         return -1;
 
-    cmc = new Engine::MainClass(
-            SDL_INIT_VIDEO,
-            opt->enableVerbose ? SDL_LOG_PRIORITY_VERBOSE : SDL_LOG_PRIORITY_INFO);
-    cmc->Initialize(opt);
+    auto cmc = MainClass::GetInstance();
+    cmc->Initialize(opt, SDL_INIT_VIDEO, opt->enableVerbose ? SDL_LOG_PRIORITY_VERBOSE : SDL_LOG_PRIORITY_INFO, 0u);
     cmc->MainLoop();
-    SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "Unloading StartupOptions");
-    delete opt;
-    SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "Unloading Main-class");
-    delete cmc;
 
+    delete opt;
+    
     return 0;
 }

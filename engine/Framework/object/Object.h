@@ -10,7 +10,8 @@ namespace Engine
     class REFL_SER_CLASS(REFL_WHITELIST) Object
     {
     public:
-        REFL_ENABLE Object() = default;
+        REFL_ENABLE Object();
+        REFL_ENABLE Object(GUID id);
         virtual ~Object() = default;
 
     protected:

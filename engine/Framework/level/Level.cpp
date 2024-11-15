@@ -3,7 +3,7 @@
 #include <nlohmann/json.hpp>
 
 #include "Framework/level/level.h"
-#include "Framework/go/GameObject.h"
+#include <Framework/object/GameObject.h>
 
 namespace Engine
 {

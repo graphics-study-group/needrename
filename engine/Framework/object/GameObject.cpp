@@ -1,15 +1,13 @@
-#include "Framework/go/GameObject.h"
+#include <Framework/object/GameObject.h>
 #include "Framework/component/Component.h"
 #include "GameObject.h"
 
 namespace Engine
 {
     GameObject::GameObject() : 
-        m_parentGameObject(), 
         m_transformComponent(std::make_shared<TransformComponent>(weak_from_this()))
     {
         //ctor
-        // TODO: Implement a way to generate unique IDs for GameObjects
         this->AddComponent(m_transformComponent);
     }
 

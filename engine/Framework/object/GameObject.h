@@ -4,7 +4,7 @@
 #include <vector>
 #include <memory>
 #include <Framework/component/TransformComponent/TransformComponent.h>
-#include <Object/Object.h>
+#include <Framework/object/Object.h>
 #include <meta_engine/reflection.hpp>
 
 // Suppress warning from std::enable_shared_from_this
@@ -36,7 +36,7 @@ namespace Engine
         REFL_ENABLE void SetParent(std::shared_ptr<GameObject> parent);
 
     public:
-        REFL_ENABLE std::weak_ptr<GameObject> m_parentGameObject;
+        REFL_ENABLE std::weak_ptr<GameObject> m_parentGameObject{};
         REFL_ENABLE std::vector<std::shared_ptr<GameObject>> m_childGameObject;
         REFL_ENABLE std::shared_ptr<TransformComponent> m_transformComponent;
         REFL_ENABLE std::vector<std::shared_ptr<Component>> m_components {};

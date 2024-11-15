@@ -1,4 +1,4 @@
-#include "Framework/go/GameObject.h"
+#include <Framework/object/GameObject.h>
 #include "Framework/component/RenderComponent/CameraComponent.h"
 
 using namespace Engine;

@@ -8,7 +8,7 @@
 
 #include "MainClass.h"
 #include "Functional/SDLWindow.h"
-#include "Framework/go/GameObject.h"
+#include <Framework/object/GameObject.h>
 #include "Framework/component/RenderComponent/CameraComponent.h"
 #include "Framework/component/RenderComponent/MeshComponent.h"
 #include "Render/Memory/Image2DTexture.h"
@@ -22,8 +22,6 @@
 
 using namespace Engine;
 namespace sch = std::chrono;
-
-Engine::MainClass * cmc;
 
 class MeshComponentFromFile : public MeshComponent {
     Transform transform;
@@ -184,10 +182,8 @@ int main(int, char **)
 
     StartupOptions opt{.resol_x = 1920, .resol_y = 1080, .title = "Vulkan Test"};
 
-    cmc = new Engine::MainClass(
-            SDL_INIT_VIDEO,
-            SDL_LOG_PRIORITY_VERBOSE);
-    cmc->Initialize(&opt);
+    auto cmc = MainClass::GetInstance();
+    cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
 
     auto system = cmc->GetRenderSystem();
     system->EnableDepthTesting();
@@ -269,6 +265,5 @@ int main(int, char **)
     system->ClearComponent();
 
     SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "Unloading Main-class");
-    delete cmc;
     return 0;
 }
