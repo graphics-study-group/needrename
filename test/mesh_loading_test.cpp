@@ -48,7 +48,7 @@ int main(int, char *[])
     prefab_file.close();
     nlohmann::json component_json = prefab_json["components"][0];
     std::shared_ptr<GameObject> test_mesh_go = std::make_shared<GameObject>();
-    std::shared_ptr<MeshComponent> mesh_component = std::make_shared<MeshComponent>(test_mesh_go, render_system);
+    std::shared_ptr<MeshComponent> mesh_component = std::make_shared<MeshComponent>(test_mesh_go);
     test_mesh_go->AddComponent(mesh_component);
     MeshAsset mesh {asset_manager};
     mesh.SetGUID(stringToGUID(component_json["mesh"]));

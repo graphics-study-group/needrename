@@ -12,7 +12,7 @@ namespace Engine {
     protected:
         std::vector <std::shared_ptr<HomogeneousMesh>> m_submeshes;
     public:
-        MeshComponent(std::weak_ptr<GameObject> gameObject, std::weak_ptr <RenderSystem> system);
+        MeshComponent(std::weak_ptr<GameObject> gameObject);
 
         std::shared_ptr <HomogeneousMesh> GetSubmesh(uint32_t slot) const;
         auto GetSubmeshes () -> decltype(m_submeshes) &;

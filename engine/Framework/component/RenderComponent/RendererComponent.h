@@ -16,7 +16,7 @@ namespace Engine
         std::vector<std::shared_ptr<Material>> m_materials{};
         std::weak_ptr <RenderSystem> m_system;
     public:
-        RendererComponent(std::weak_ptr<GameObject> gameObject, std::weak_ptr <RenderSystem> system);
+        RendererComponent(std::weak_ptr<GameObject> gameObject);
         virtual ~RendererComponent() = 0;
 
         /// @brief Get the transform which transforms local coordinate 

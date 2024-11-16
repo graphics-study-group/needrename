@@ -31,13 +31,13 @@ public:
 class TestMeshComponent : public MeshComponent {
     Transform transform;
 public: 
-    TestMeshComponent(std::weak_ptr <RenderSystem> system, std::shared_ptr<Material> mat) 
-    : MeshComponent(std::weak_ptr<GameObject>(), system), transform() {
+    TestMeshComponent(std::shared_ptr<Material> mat) 
+    : MeshComponent(std::weak_ptr<GameObject>()), transform() {
         m_materials.push_back(mat);
-        m_submeshes.push_back(std::make_shared<TestHomoMesh>(system));
+        m_submeshes.push_back(std::make_shared<TestHomoMesh>(m_system));
         m_submeshes[0]->Prepare();
         if (m_submeshes[0]->NeedCommitment()) {
-            auto & tcb = system.lock()->GetTransferCommandBuffer();
+            auto & tcb = m_system.lock()->GetTransferCommandBuffer();
             tcb.Begin();
             tcb.CommitVertexBuffer(*m_submeshes[0]);
             tcb.End();
@@ -82,7 +82,7 @@ int main(int, char **)
     uint32_t in_flight_frame_id = 0;
     uint32_t total_test_frame = 60;
 
-    std::shared_ptr tmc = std::make_shared<TestMeshComponent>(system, material);
+    std::shared_ptr tmc = std::make_shared<TestMeshComponent>(material);
     system->RegisterComponent(tmc);
     
     uint64_t start_timer = SDL_GetPerformanceCounter();

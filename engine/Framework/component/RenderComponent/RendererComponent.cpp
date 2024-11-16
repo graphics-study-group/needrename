@@ -1,14 +1,15 @@
 #include "RendererComponent.h"
-#include "Render/Material/Material.h"
-#include "Framework/component/RenderComponent/CameraComponent.h"
+#include <Render/Material/Material.h>
+#include <Framework/component/RenderComponent/CameraComponent.h>
 #include <Framework/object/GameObject.h>
+#include <MainClass.h>
 
 namespace Engine
 {
     RendererComponent::RendererComponent(
-        std::weak_ptr<GameObject> gameObject, 
-        std::weak_ptr<RenderSystem> system
-    ) : Component(gameObject), m_system(system) {
+        std::weak_ptr<GameObject> gameObject) : Component(gameObject)
+    {
+        m_system = MainClass::GetInstance()->GetRenderSystem();
     }
 
     RendererComponent::~RendererComponent() {}
@@ -23,11 +24,13 @@ namespace Engine
     void RendererComponent::Tick(float dt)
     {
     }
-    std::shared_ptr<Material> RendererComponent::GetMaterial(uint32_t slot) const {
+    std::shared_ptr<Material> RendererComponent::GetMaterial(uint32_t slot) const
+    {
         assert(slot < m_materials.size());
         return m_materials[slot];
     }
-    auto RendererComponent::GetMaterials() -> decltype(m_materials)& {
+    auto RendererComponent::GetMaterials() -> decltype(m_materials) &
+    {
         return m_materials;
     }
 } // namespace Engine

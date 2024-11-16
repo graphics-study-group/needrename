@@ -128,13 +128,13 @@ class MeshComponentFromFile : public MeshComponent {
     }
 
 public: 
-    MeshComponentFromFile(std::weak_ptr <RenderSystem> system, std::filesystem::path mesh_file_name) 
-    : MeshComponent(std::weak_ptr<GameObject>(), system), transform() {
+    MeshComponentFromFile(std::filesystem::path mesh_file_name) 
+    : MeshComponent(std::weak_ptr<GameObject>()), transform() {
         transform.SetPosition(glm::vec3{0.0, 0.0, -0.5});
         transform.SetScale(glm::vec3{.5f, .5f, .5f});
         LoadMesh(mesh_file_name);
 
-        auto & tcb = system.lock()->GetTransferCommandBuffer();
+        auto & tcb = m_system.lock()->GetTransferCommandBuffer();
         tcb.Begin();
         for (auto & submesh : m_submeshes) {
             submesh->Prepare();
@@ -197,7 +197,7 @@ int main(int, char **)
     
     // Setup mesh
     std::filesystem::path mesh_path{std::string(ENGINE_ASSETS_DIR) + "/four_bunny/four_bunny.obj"};
-    std::shared_ptr tmc = std::make_shared<MeshComponentFromFile>(system, mesh_path);
+    std::shared_ptr tmc = std::make_shared<MeshComponentFromFile>(mesh_path);
     system->RegisterComponent(tmc);
 
     // Setup camera

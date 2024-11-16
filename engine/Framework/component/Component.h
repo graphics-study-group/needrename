@@ -2,12 +2,13 @@
 #define FRAMEWORK_COMPONENT_COMPONENT_INCLUDED
 
 #include <memory>
+#include <Framework/object/Object.h>
 
 namespace Engine
 {
     class GameObject;
 
-    class Component
+    class Component: public Object
     {
     public:
         Component(std::weak_ptr<GameObject> gameObject);

@@ -28,10 +28,16 @@ namespace Engine
         virtual void Tick(float dt);
 
         REFL_ENABLE void AddComponent(std::shared_ptr<Component> component);
+        template <typename T, typename... Args>
+        void AddComponent(Args &&... args)
+        {
+            static_assert(std::is_base_of<Component, T>::value, "T must be derived from Component");
+            AddComponent(std::make_shared<T>(shared_from_this(), std::forward<Args>(args)...));
+        }
 
-        REFL_ENABLE const Transform & GetTransform() const;
-        REFL_ENABLE void SetTransform(const Transform& transform);
-        REFL_ENABLE Transform & GetTransformRef();
+        REFL_ENABLE const Transform &GetTransform() const;
+        REFL_ENABLE void SetTransform(const Transform &transform);
+        REFL_ENABLE Transform &GetTransformRef();
         REFL_ENABLE Transform GetWorldTransform();
         REFL_ENABLE void SetParent(std::shared_ptr<GameObject> parent);
 
@@ -39,7 +45,7 @@ namespace Engine
         REFL_ENABLE std::weak_ptr<GameObject> m_parentGameObject{};
         REFL_ENABLE std::vector<std::shared_ptr<GameObject>> m_childGameObject;
         REFL_ENABLE std::shared_ptr<TransformComponent> m_transformComponent;
-        REFL_ENABLE std::vector<std::shared_ptr<Component>> m_components {};
+        REFL_ENABLE std::vector<std::shared_ptr<Component>> m_components{};
     };
 }
 
