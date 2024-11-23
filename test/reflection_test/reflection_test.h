@@ -33,7 +33,7 @@ class REFL_SER_CLASS(REFL_WHITELIST) FooA : public FooBase, public BBase
 {
     REFL_SER_BODY()
 public:
-    REFL_ENABLE FooA(int a, int b) : m_a(a), m_b(b) {}
+    REFL_ENABLE FooA(int a, int b);
     virtual ~FooA() = default;
 
     REFL_SER_ENABLE int m_a = 200000;
