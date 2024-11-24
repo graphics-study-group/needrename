@@ -6,7 +6,7 @@ namespace Engine
     namespace Serialization
     {
         template <typename T>
-        void save(const std::vector<T>& value, Archive& buffer)
+        void save_to_archive(const std::vector<T>& value, Archive& buffer)
         {
             Json &json = buffer.json;
             json = Json::array();
@@ -20,7 +20,7 @@ namespace Engine
         }
 
         template <typename T>
-        void save(const std::shared_ptr<T>& value, Archive& buffer)
+        void save_to_archive(const std::shared_ptr<T>& value, Archive& buffer)
         {
             Json &json = buffer.json;
             if (value)
@@ -33,7 +33,7 @@ namespace Engine
         }
 
         template <typename T>
-        void save(const std::unique_ptr<T>& value, Archive& buffer)
+        void save_to_archive(const std::unique_ptr<T>& value, Archive& buffer)
         {
             Json &json = buffer.json;
             if (value)
@@ -47,7 +47,7 @@ namespace Engine
 
         // TODO: Implement load_and_construct for class T
         template <typename T>
-        void load(std::vector<T>& value, Archive& buffer)
+        void load_from_archive(std::vector<T>& value, Archive& buffer)
         {
             const Json &json = buffer.json;
             value.clear();
@@ -61,7 +61,7 @@ namespace Engine
         }
 
         template <typename T>
-        void load(std::shared_ptr<T>& value, Archive& buffer)
+        void load_from_archive(std::shared_ptr<T>& value, Archive& buffer)
         {
             const Json &json = buffer.json;
             if (!json.is_null())
@@ -85,7 +85,7 @@ namespace Engine
         }
 
         template <typename T>
-        void load(std::unique_ptr<T>& value, Archive& buffer)
+        void load_from_archive(std::unique_ptr<T>& value, Archive& buffer)
         {
             const Json &json = buffer.json;
             if (!json.is_null())

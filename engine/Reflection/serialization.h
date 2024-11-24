@@ -22,30 +22,30 @@ namespace Engine
         };
 
         template <typename T>
-        void save(const std::vector<T> &value, Archive &buffer);
+        void save_to_archive(const std::vector<T> &value, Archive &buffer);
         template <typename T>
-        void load(std::vector<T> &value, Archive &buffer);
+        void load_from_archive(std::vector<T> &value, Archive &buffer);
 
         template <typename T>
-        void save(const std::shared_ptr<T> &value, Archive &buffer);
+        void save_to_archive(const std::shared_ptr<T> &value, Archive &buffer);
         template <typename T>
-        void load(std::shared_ptr<T> &value, Archive &buffer);
+        void load_from_archive(std::shared_ptr<T> &value, Archive &buffer);
 
         template <typename T>
-        void save(const std::unique_ptr<T> &value, Archive &buffer);
+        void save_to_archive(const std::unique_ptr<T> &value, Archive &buffer);
         template <typename T>
-        void load(std::unique_ptr<T> &value, Archive &buffer);
+        void load_from_archive(std::unique_ptr<T> &value, Archive &buffer);
 
         template <typename T>
-        void save(const std::weak_ptr<T> &value, Archive &buffer);
+        void save_to_archive(const std::weak_ptr<T> &value, Archive &buffer);
         template <typename T>
-        void load(std::weak_ptr<T> &value, Archive &buffer);
+        void load_from_archive(std::weak_ptr<T> &value, Archive &buffer);
 
         template <typename T>
         class has_custom_save
         {
             template <typename U>
-            static auto test(int) -> decltype(std::declval<U>().save(std::declval<Archive &>()), std::true_type());
+            static auto test(int) -> decltype(std::declval<U>().save_to_archive(std::declval<Archive &>()), std::true_type());
 
             template <typename>
             static std::false_type test(...);
@@ -58,7 +58,7 @@ namespace Engine
         class has_custom_load
         {
             template <typename U>
-            static auto test(int) -> decltype(std::declval<U>().load(std::declval<Archive &>()), std::true_type());
+            static auto test(int) -> decltype(std::declval<U>().load_from_archive(std::declval<Archive &>()), std::true_type());
 
             template <typename>
             static std::false_type test(...);
@@ -71,7 +71,7 @@ namespace Engine
         class has_special_save
         {
             template <typename U>
-            static auto test(int) -> decltype((static_cast<void (*)(const U &, Archive &)>(Engine::Serialization::save), std::true_type()));
+            static auto test(int) -> decltype((static_cast<void (*)(const U &, Archive &)>(Engine::Serialization::save_to_archive), std::true_type()));
 
             template <typename>
             static std::false_type test(...);
@@ -84,7 +84,7 @@ namespace Engine
         class has_special_load
         {
             template <typename U>
-            static auto test(int) -> decltype((static_cast<void (*)(U &, Archive &)>(Engine::Serialization::load), std::true_type()));
+            static auto test(int) -> decltype((static_cast<void (*)(U &, Archive &)>(Engine::Serialization::load_from_archive), std::true_type()));
 
             template <typename>
             static std::false_type test(...);
@@ -123,28 +123,28 @@ namespace Engine
         typename std::enable_if<has_custom_save<T>::value, void>::type
         serialize(const T &value, Archive &buffer)
         {
-            value.save(buffer);
+            value.save_to_archive(buffer);
         }
 
         template <typename T>
         typename std::enable_if<has_custom_load<T>::value, void>::type
         deserialize(T &value, Archive &buffer)
         {
-            value.load(buffer);
+            value.load_from_archive(buffer);
         }
 
         template <typename T>
         typename std::enable_if<!has_custom_save<T>::value && has_special_save<T>::value, void>::type
         serialize(const T &value, Archive &buffer)
         {
-            Engine::Serialization::save(value, buffer);
+            Engine::Serialization::save_to_archive(value, buffer);
         }
 
         template <typename T>
         typename std::enable_if<!has_custom_load<T>::value && has_special_load<T>::value, void>::type
         deserialize(T &value, Archive &buffer)
         {
-            Engine::Serialization::load(value, buffer);
+            Engine::Serialization::load_from_archive(value, buffer);
         }
 
         template <typename T>
@@ -170,7 +170,7 @@ namespace Engine
         serialize(const T &value, Archive &buffer)
         {
             throw std::runtime_error(std::string("No serialization function found for type: ") + typeid(T).name() + "\nNote: \n"
-                                     +"  - If the type is a custom type, make sure to define a member function like save(Engine::Serialization::Archive &)\n"
+                                     +"  - If the type is a custom type, make sure to define a member function like save_to_archive(Engine::Serialization::Archive &)\n"
                                      +"  - The type must have a default constructor with no arguments\n"
                                      +"  - Do not use pointers, use std::shared_ptr or std::unique_ptr instead\n");
         }
@@ -180,7 +180,7 @@ namespace Engine
         deserialize(T &value, Archive &buffer)
         {
             throw std::runtime_error(std::string("No deserialization function found for type: ") + typeid(T).name() + "\nNote: \n"
-                                     +"  - If the type is a custom type, make sure to define a member function like load(Engine::Serialization::Archive &)\n"
+                                     +"  - If the type is a custom type, make sure to define a member function like load_from_archive(Engine::Serialization::Archive &)\n"
                                      +"  - The type must have a default constructor with no arguments\n"
                                      +"  - Do not use pointers, use std::shared_ptr or std::unique_ptr instead\n");
         }
