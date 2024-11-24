@@ -9,7 +9,7 @@ namespace Engine
         std::unordered_map<std::string, std::shared_ptr<Type>> Type::s_type_map;
 
         Type::Type(const std::string &name, const std::type_info *type_info, bool reflectable)
-            : m_name(name), m_type_info(type_info), reflectable(reflectable)
+            : m_name(name), m_type_info(type_info), m_reflectable(reflectable)
         {
         }
 

@@ -69,9 +69,18 @@ namespace Engine
                 Archive temp_buffer;
                 temp_buffer.json = json;
                 auto type = Engine::Reflection::GetType(json["__type"]);
-                auto var = type->CreateInstance();
-                value = std::shared_ptr<T>(static_cast<T*>(var.GetDataPtr()));
-                deserialize(*value, temp_buffer);
+                if (type->m_reflectable)
+                {
+                    auto var = type->CreateInstance();
+                    value = std::shared_ptr<T>(static_cast<T*>(var.GetDataPtr()));
+                    deserialize(*value, temp_buffer);
+                }
+                else
+                {
+                    value = std::make_shared<T>();
+                    assert(type->m_type_info == nullptr || type->m_type_info->name() == typeid(T).name());
+                    deserialize(*value, temp_buffer);
+                }
             }
         }
 
@@ -84,9 +93,18 @@ namespace Engine
                 Archive temp_buffer;
                 temp_buffer.json = json;
                 auto type = Engine::Reflection::GetType(json["__type"]);
-                auto var = type->CreateInstance();
-                value = std::unique_ptr<T>(static_cast<T*>(var.GetDataPtr()));
-                deserialize(*value, temp_buffer);
+                if (type->m_reflectable)
+                {
+                    auto var = type->CreateInstance();
+                    value = std::shared_ptr<T>(static_cast<T*>(var.GetDataPtr()));
+                    deserialize(*value, temp_buffer);
+                }
+                else
+                {
+                    value = std::make_shared<T>();
+                    assert(type->m_type_info == nullptr || type->m_type_info->name() == typeid(T).name());
+                    deserialize(*value, temp_buffer);
+                }
             }
         }
     }

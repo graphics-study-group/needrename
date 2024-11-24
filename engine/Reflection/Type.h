@@ -65,7 +65,7 @@ namespace Engine
         public:
             std::string m_name{};
             const std::type_info *m_type_info{};
-            bool reflectable = false;
+            bool m_reflectable = false;
 
             const std::string &GetName() const;
             template <typename... Args>
