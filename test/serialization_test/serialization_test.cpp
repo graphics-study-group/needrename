@@ -14,7 +14,7 @@ int main()
         base_data_ptr->data[i] = 182.376f * i;
     }
 
-    Engine::Serialization::Archive buffer;
+    Engine::Serialization::Archive archive;
 
     InheritTest inherit_test;
     for(int i = 0; i < 3; i++)
@@ -23,25 +23,25 @@ int main()
     }
     inherit_test.m_inherit = 1000;
 
-    buffer.clear();
-    Engine::Serialization::serialize(inherit_test, buffer);
-    std::cout << "inherit test:" << std::endl << buffer.json.dump(4) << std::endl;
+    archive.clear();
+    Engine::Serialization::serialize(inherit_test, archive);
+    std::cout << "inherit test:" << std::endl << archive.m_context->json.dump(4) << std::endl;
     inherit_test.data[0] = 0;
     inherit_test.m_inherit = 0;
     InheritTest inherit_test2;
-    Engine::Serialization::deserialize(inherit_test2, buffer);
+    Engine::Serialization::deserialize(inherit_test2, archive);
     for(int i = 0; i < 3; i++)
         assert(inherit_test2.data[i] == 182.376f * i);
     assert(inherit_test2.m_inherit == 1000);
 
     SharedPtrTest shared_ptr_test;
     shared_ptr_test.m_shared_ptr = base_data_ptr;
-    buffer.clear();
-    Engine::Serialization::serialize(shared_ptr_test, buffer);
-    std::cout << "shared ptr test:" << std::endl << buffer.json.dump(4) << std::endl;
+    archive.clear();
+    Engine::Serialization::serialize(shared_ptr_test, archive);
+    std::cout << "shared ptr test:" << std::endl << archive.m_context->json.dump(4) << std::endl;
     shared_ptr_test.m_shared_ptr.reset();
     SharedPtrTest shared_ptr_test2;
-    Engine::Serialization::deserialize(shared_ptr_test2, buffer);
+    Engine::Serialization::deserialize(shared_ptr_test2, archive);
     for(int i = 0; i < 3; i++)
         assert(shared_ptr_test2.m_shared_ptr->data[i] == 182.376f * i);
 
@@ -55,12 +55,12 @@ int main()
         }
         vector_test.m_vector.push_back(base_data);
     }
-    buffer.clear();
-    Engine::Serialization::serialize(vector_test, buffer);
-    std::cout << "vector test:" << std::endl << buffer.json.dump(4) << std::endl;
+    archive.clear();
+    Engine::Serialization::serialize(vector_test, archive);
+    std::cout << "vector test:" << std::endl << archive.m_context->json.dump(4) << std::endl;
     vector_test.m_vector.clear();
     VectorTest vector_test2;
-    Engine::Serialization::deserialize(vector_test2, buffer);
+    Engine::Serialization::deserialize(vector_test2, archive);
     for(int i = 0; i < 3; i++)
     {
         for(int j = 0; j < 3; j++)
@@ -72,13 +72,13 @@ int main()
     CustomTest custom_test;
     custom_test.m_a = 123;
     custom_test.m_b = 852765;
-    buffer.clear();
-    Engine::Serialization::serialize(custom_test, buffer);
-    std::cout << "custom test:" << std::endl << buffer.json.dump(4) << std::endl;
+    archive.clear();
+    Engine::Serialization::serialize(custom_test, archive);
+    std::cout << "custom test:" << std::endl << archive.m_context->json.dump(4) << std::endl;
     custom_test.m_a = 0;
     custom_test.m_b = 0;
     CustomTest custom_test2;
-    Engine::Serialization::deserialize(custom_test2, buffer);
+    Engine::Serialization::deserialize(custom_test2, archive);
     assert(custom_test2.m_a == 123);
     assert(custom_test2.m_b == 852765);
 
@@ -92,12 +92,12 @@ int main()
         inherit_data_ptr->data[i] = 10.0f * i;
     inherit_data_ptr->m_inherit = 1000;
     polymorphism_test.m_vector.push_back(inherit_data_ptr);
-    buffer.clear();
-    Engine::Serialization::serialize(polymorphism_test, buffer);
-    std::cout << "polymorphism test:" << std::endl << buffer.json.dump(4) << std::endl;
+    archive.clear();
+    Engine::Serialization::serialize(polymorphism_test, archive);
+    std::cout << "polymorphism test:" << std::endl << archive.m_context->json.dump(4) << std::endl;
     polymorphism_test.m_vector.clear();
     PolymorphismTest polymorphism_test2;
-    Engine::Serialization::deserialize(polymorphism_test2, buffer);
+    Engine::Serialization::deserialize(polymorphism_test2, archive);
     assert(polymorphism_test2.m_vector.size() == 2);
     for(int i = 0; i < 3; i++)
         assert(polymorphism_test2.m_vector[0]->data[i] == 100.0f * i);

@@ -41,6 +41,8 @@ function(add_reflection_parser target_name reflection_search_files generated_cod
         configure_file(${REFLECTION_PARSER_DIR}/template/empty.template ${generated_code_dir}/${target_name}/generated_reflection.cpp)
     endif()
 
+    file(GLOB_RECURSE template_files ${REFLECTION_PARSER_DIR}/template/*.template)
+
     add_custom_command(
         OUTPUT ${TASK_STAMPED_FILE}
 
@@ -58,7 +60,7 @@ function(add_reflection_parser target_name reflection_search_files generated_cod
         COMMAND ${CMAKE_COMMAND} -E echo " ********** Precompile finished ********** "
 
         WORKING_DIRECTORY ${REFLECTION_PARSER_DIR}
-        DEPENDS ${reflection_search_files}
+        DEPENDS ${reflection_search_files} ${template_files}
         COMMENT "Files need reflection have changed, re-run reflection parser"
     )
 

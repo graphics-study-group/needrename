@@ -77,15 +77,21 @@ namespace SerializationTest
         int m_a = 621;
         int m_b = 182376;
 
-        REFL_SER_DISABLE inline void save_to_archive(Engine::Serialization::Archive& buffer) const
+        REFL_SER_DISABLE inline void save_to_archive(Engine::Serialization::Archive& archive) const
         {
-            buffer.json["data"] = m_a * 1000000 + m_b;
+            if (!archive.m_context->initialized)
+                archive.init("Anything", this);
+            Engine::Serialization::Json &json = *archive.m_cursor;
+            json["data"] = m_a * 1000000 + m_b;
         }
 
-        REFL_SER_DISABLE inline void load_from_archive(Engine::Serialization::Archive& buffer)
+        REFL_SER_DISABLE inline void load_from_archive(Engine::Serialization::Archive& archive)
         {
-            m_a = buffer.json["data"].get<int>() / 1000000;
-            m_b = buffer.json["data"].get<int>() % 1000000;
+            if (!archive.m_cursor)
+                archive.load_init(this);
+            Engine::Serialization::Json &json = *archive.m_cursor;
+            m_a = json["data"].get<int>() / 1000000;
+            m_b = json["data"].get<int>() % 1000000;
         }
     };
 }

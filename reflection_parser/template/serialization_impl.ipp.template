@@ -15,9 +15,7 @@ import clang.cindex as CX
     % for base_type in class_type.base_types:
     % if base_type.full_name in classes_map:
     {
-        
-        ${generate_type_save(classes_map[base_type.full_name], base_type.name + "::")}
-        
+        ${generate_type_save(classes_map[base_type.full_name], base_type.name + "::")}  
     }
     % endif
     % endfor
@@ -31,13 +29,20 @@ import clang.cindex as CX
     {
         if (this->${field.name} != nullptr)
         {
-        % if field.type.cx_type.get_pointee().kind in basic_type_list:
-            json["${prefix + field.name}"] = *this->${field.name};
-        % else:
-            Engine::Serialization::Archive temp_buffer;
-            serialize(*this->${field.name}, temp_buffer);
-            json["${prefix + field.name}"] = temp_buffer.json;
-        % endif
+            unsigned long long adr_id = reinterpret_cast<unsigned long long>(this->${field.name});
+            std::string adr_str = std::string("&") + std::to_string(adr_id);
+            if (archive.m_context->id_map.find(adr_id) == archive.m_context->id_map.end())
+            {
+                archive.m_context->id_map[adr_id] = archive.m_context->current_id++;
+                archive.m_context->json["%data"][adr_str] = nlohmann::json::object();
+                Engine::Serialization::Archive temp_archive(archive, &archive.m_context->json["%data"][adr_str]);
+                serialize(*this->${field.name}, temp_archive);
+            }
+            json["${prefix + field.name}"] = adr_str;
+        }
+        else
+        {
+            json["${prefix + field.name}"] = nullptr;
         }
     }
     % elif field.type.cx_type.kind == CX.TypeKind.CONSTANTARRAY:
@@ -48,32 +53,32 @@ import clang.cindex as CX
         % if field.type.cx_type.element_type.kind in basic_type_list:
             json["${prefix + field.name}"].push_back(item);
         % else:
-            Engine::Serialization::Archive temp_buffer;
-            serialize(item, temp_buffer);
-            json["${prefix + field.name}"].push_back(temp_buffer.json);
-            buffer.buffers.insert(buffer.buffers.end(), temp_buffer.buffers.begin(), temp_buffer.buffers.end());
+            json["${prefix + field.name}"].push_back(nlohmann::json::object());
+            Engine::Serialization::Archive temp_archive(archive, &json["${prefix + field.name}"].back());
+            serialize(item, temp_archive);
         % endif
         }
     }
     % else:
     {
-        Engine::Serialization::Archive temp_buffer;
-        serialize(this->${field.name}, temp_buffer);
-        json["${prefix + field.name}"] = temp_buffer.json;
-        buffer.buffers.insert(buffer.buffers.end(), temp_buffer.buffers.begin(), temp_buffer.buffers.end());
+        json["${prefix + field.name}"] = nlohmann::json::object();
+        Engine::Serialization::Archive temp_archive(archive, &json["${prefix + field.name}"]);
+        serialize(this->${field.name}, temp_archive);
     }
     % endif
     % endfor
 </%def>
 % for class_type in classes_map.values():
-void ${class_type.full_name}::__serialization_save__(Engine::Serialization::Archive& buffer) const
+void ${class_type.full_name}::__serialization_save__(Engine::Serialization::Archive& archive) const
 {
-    nlohmann::json &json = buffer.json;
+    if (!archive.m_context->initialized)
+        archive.init("Anything", this);
+    nlohmann::json &json = *archive.m_cursor;
     
     ${generate_type_save(class_type, "")}
 
-    assert(json.find("__type") == json.end());
-    json["__type"] = "${class_type.full_name}";
+    assert(json.find("%type") == json.end());
+    json["%type"] = "${class_type.full_name}";
 }
 <%def name="generate_type_load(class_type, prefix)">
     % for base_type in class_type.base_types:
@@ -91,14 +96,37 @@ void ${class_type.full_name}::__serialization_save__(Engine::Serialization::Arch
     }
     % elif field.type.cx_type.kind == CX.TypeKind.POINTER:
     {
-        if (json.find("${field.name}") != json.end())
+        if (json.find("${field.name}") != json.end() && !json["${prefix + field.name}"].is_null())
         {
-        % if field.type.cx_type.get_pointee().kind in basic_type_list:
-            this->${prefix + field.name} = new ${field.type.cx_type.get_pointee().spelling}(json["${prefix + field.name}"].get<${field.type.cx_type.get_pointee().spelling}>());
-        % else:
-            Engine::Serialization::Archive temp_buffer = {json["${prefix + field.name}"], buffer.buffers};
-            deserialize(*this->${prefix + field.name}, temp_buffer);
-        % endif
+            std::string str_id = json["${prefix + field.name}"].get<std::string>();
+            int id = std::stoi(str_id.substr(1));
+            if (archive.m_context->pointer_map.find(id) == archive.m_context->pointer_map.end())
+            {
+                Engine::Serialization::Archive temp_archive(archive, &archive.m_context->json["%data"][str_id]);
+                auto type = Engine::Reflection::GetType(archive.m_context->json["%data"][str_id]["%type"].get<std::string>());
+                if(type->m_reflectable)
+                {
+                    Engine::Reflection::Var var = type->CreateInstance();
+                    archive.m_context->pointer_map[id] = var.GetDataPtr();
+                    this->${prefix + field.name} = static_cast<decltype(this->${prefix + field.name})>(var.GetDataPtr());
+                    deserialize(*this->${prefix + field.name}, temp_archive);
+                }
+                else
+                {
+                    assert(type->m_type_info == nullptr || type->m_type_info->name() == typeid(*this->${prefix + field.name}).name());
+                    this->${prefix + field.name} = new (std::remove_pointer_t<decltype(this->${prefix + field.name})>)();
+                    archive.m_context->pointer_map[id] = this->${prefix + field.name};
+                    deserialize(*this->${prefix + field.name}, temp_archive);
+                }
+            }
+            else
+            {
+                this->${prefix + field.name} = static_cast<decltype(this->${prefix + field.name})>(archive.m_context->pointer_map[id]);
+            }
+        }
+        else
+        {
+            this->${prefix + field.name} = nullptr;
         }
     }
     % elif field.type.cx_type.kind == CX.TypeKind.CONSTANTARRAY:
@@ -109,23 +137,25 @@ void ${class_type.full_name}::__serialization_save__(Engine::Serialization::Arch
         % if field.type.cx_type.element_type.kind in basic_type_list:
             this->${prefix + field.name}[i] = array[i].get<${field.type.cx_type.element_type.spelling}>();
         % else:
-            Engine::Serialization::Archive temp_buffer = {array[i], buffer.buffers};
-            deserialize(this->${prefix + field.name}[i], temp_buffer);
+            Engine::Serialization::Archive temp_archive(archive, &array[i]);
+            deserialize(this->${prefix + field.name}[i], temp_archive);
         % endif
         }
     }
     % else:
     {
-        Engine::Serialization::Archive temp_buffer = {json["${prefix + field.name}"], buffer.buffers};
-        deserialize(this->${prefix + field.name}, temp_buffer);
+        Engine::Serialization::Archive temp_archive(archive, &json["${prefix + field.name}"]);
+        deserialize(this->${prefix + field.name}, temp_archive);
     }
     % endif
     % endfor
 </%def>
-void ${class_type.full_name}::__serialization_load__(Engine::Serialization::Archive& buffer)
+void ${class_type.full_name}::__serialization_load__(Engine::Serialization::Archive& archive)
 {
-    nlohmann::json &json = buffer.json;
+    if (!archive.m_cursor)
+        archive.load_init(this);
 
+    nlohmann::json &json = *archive.m_cursor;
     ${generate_type_load(class_type, "")}
 }
 % endfor

@@ -2,25 +2,12 @@
 #define REFLECTION_SERIALIZATION_INCLUDED
 
 #include <vector>
-#include <nlohmann/json.hpp>
+#include "Archive.h"
 
 namespace Engine
 {
     namespace Serialization
     {
-        using Json = nlohmann::json;
-        struct Archive
-        {
-            Json json{};
-            std::vector<std::pair<std::string, std::shared_ptr<std::byte>>> buffers{}; // Identification string, buffer start pointer
-
-            void clear()
-            {
-                json.clear();
-                buffers.clear();
-            }
-        };
-
         template <typename T>
         void save_to_archive(const std::vector<T> &value, Archive &buffer);
         template <typename T>
