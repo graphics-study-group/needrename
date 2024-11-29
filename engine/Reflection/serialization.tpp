@@ -6,13 +6,30 @@ namespace Engine
     namespace Serialization
     {
         template <typename T>
+        typename std::enable_if<is_basic_type<T>::value, void>::type
+        save_to_archive(const T &value, Archive &archive)
+        {
+            Json &json = *archive.m_cursor;
+            json["%type"] = typeid(T).name();
+            json["data"] = value;
+        }
+
+        template <typename T>
+        typename std::enable_if<is_basic_type<T>::value, void>::type
+        load_from_archive(T &value, Archive &archive)
+        {
+            Json &json = *archive.m_cursor;
+            value = json["data"].get<T>();
+        }
+
+        template <typename T>
         void save_to_archive(const std::vector<T>& value, Archive& archive)
         {
             Json &json = *archive.m_cursor;
             json = Json::array();
             for (auto& item : value)
             {
-                if constexpr (std::is_integral_v<T> || std::is_floating_point_v<T> || std::is_same_v<T, std::string> || std::is_same_v<T, bool>)
+                if constexpr (is_basic_type<T>::value)
                 {
                     json.push_back(item);
                 }
@@ -33,7 +50,7 @@ namespace Engine
             value.clear();
             for (auto& item : json)
             {
-                if constexpr (std::is_integral_v<T> || std::is_floating_point_v<T> || std::is_same_v<T, std::string> || std::is_same_v<T, bool>)
+                if constexpr (is_basic_type<T>::value)
                 {
                     value.push_back(item.get<T>());
                 }
@@ -84,12 +101,14 @@ namespace Engine
                     if (type->m_reflectable)
                     {
                         auto var = type->CreateInstance();
+                        archive.m_context->pointer_map[id] = var.GetDataPtr();
                         value = std::shared_ptr<T>(static_cast<T*>(var.GetDataPtr()));
                         deserialize(*value, temp_archive);
                     }
                     else
                     {
                         value = std::make_shared<T>();
+                        archive.m_context->pointer_map[id] = value.get();
                         assert(type->m_type_info == nullptr || type->m_type_info->name() == typeid(T).name());
                         deserialize(*value, temp_archive);
                     }

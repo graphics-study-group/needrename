@@ -29,16 +29,16 @@ import clang.cindex as CX
     {
         if (this->${field.name} != nullptr)
         {
-            unsigned long long adr_id = reinterpret_cast<unsigned long long>(this->${field.name});
-            std::string adr_str = std::string("&") + std::to_string(adr_id);
+            Engine::Serialization::AddressID adr_id = reinterpret_cast<Engine::Serialization::AddressID>(this->${field.name});
             if (archive.m_context->id_map.find(adr_id) == archive.m_context->id_map.end())
             {
                 archive.m_context->id_map[adr_id] = archive.m_context->current_id++;
-                archive.m_context->json["%data"][adr_str] = nlohmann::json::object();
-                Engine::Serialization::Archive temp_archive(archive, &archive.m_context->json["%data"][adr_str]);
+                std::string str_id = std::string("&") + std::to_string(archive.m_context->id_map[adr_id]);
+                archive.m_context->json["%data"][str_id] = Engine::Serialization::Json::object();
+                Engine::Serialization::Archive temp_archive(archive, &archive.m_context->json["%data"][str_id]);
                 serialize(*this->${field.name}, temp_archive);
             }
-            json["${prefix + field.name}"] = adr_str;
+            json["${prefix + field.name}"] = std::string("&") + std::to_string(archive.m_context->id_map[adr_id]);;
         }
         else
         {
@@ -47,13 +47,13 @@ import clang.cindex as CX
     }
     % elif field.type.cx_type.kind == CX.TypeKind.CONSTANTARRAY:
     {
-        json["${prefix + field.name}"] = nlohmann::json::array();
+        json["${prefix + field.name}"] = Engine::Serialization::Json::array();
         for (const auto& item : this->${field.name})
         {
         % if field.type.cx_type.element_type.kind in basic_type_list:
             json["${prefix + field.name}"].push_back(item);
         % else:
-            json["${prefix + field.name}"].push_back(nlohmann::json::object());
+            json["${prefix + field.name}"].push_back(Engine::Serialization::Json::object());
             Engine::Serialization::Archive temp_archive(archive, &json["${prefix + field.name}"].back());
             serialize(item, temp_archive);
         % endif
@@ -61,7 +61,7 @@ import clang.cindex as CX
     }
     % else:
     {
-        json["${prefix + field.name}"] = nlohmann::json::object();
+        json["${prefix + field.name}"] = Engine::Serialization::Json::object();
         Engine::Serialization::Archive temp_archive(archive, &json["${prefix + field.name}"]);
         serialize(this->${field.name}, temp_archive);
     }
@@ -71,9 +71,9 @@ import clang.cindex as CX
 % for class_type in classes_map.values():
 void ${class_type.full_name}::__serialization_save__(Engine::Serialization::Archive& archive) const
 {
-    if (!archive.m_context->initialized)
-        archive.init("Anything", this);
-    nlohmann::json &json = *archive.m_cursor;
+    if (!archive.m_context->save_prepared)
+        archive.prepare_save("Anything", this);
+    Engine::Serialization::Json &json = *archive.m_cursor;
     
     ${generate_type_save(class_type, "")}
 
@@ -107,8 +107,8 @@ void ${class_type.full_name}::__serialization_save__(Engine::Serialization::Arch
                 if(type->m_reflectable)
                 {
                     Engine::Reflection::Var var = type->CreateInstance();
-                    archive.m_context->pointer_map[id] = var.GetDataPtr();
                     this->${prefix + field.name} = static_cast<decltype(this->${prefix + field.name})>(var.GetDataPtr());
+                    archive.m_context->pointer_map[id] = this->${prefix + field.name};
                     deserialize(*this->${prefix + field.name}, temp_archive);
                 }
                 else
@@ -131,7 +131,7 @@ void ${class_type.full_name}::__serialization_save__(Engine::Serialization::Arch
     }
     % elif field.type.cx_type.kind == CX.TypeKind.CONSTANTARRAY:
     {
-        const auto &array = json["${prefix + field.name}"];
+        auto &array = json["${prefix + field.name}"];
         for (size_t i = 0; i < array.size(); ++i)
         {
         % if field.type.cx_type.element_type.kind in basic_type_list:
@@ -152,10 +152,10 @@ void ${class_type.full_name}::__serialization_save__(Engine::Serialization::Arch
 </%def>
 void ${class_type.full_name}::__serialization_load__(Engine::Serialization::Archive& archive)
 {
-    if (!archive.m_cursor)
-        archive.load_init(this);
+    if (!archive.m_context->load_prepared)
+        archive.prepare_load(this);
 
-    nlohmann::json &json = *archive.m_cursor;
+    Engine::Serialization::Json &json = *archive.m_cursor;
     ${generate_type_load(class_type, "")}
 }
 % endfor

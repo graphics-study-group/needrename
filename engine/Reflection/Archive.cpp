@@ -10,9 +10,9 @@ namespace Engine
         {
         }
 
-        void Archive::init(const std::string &archive_type_name, const void *main_data)
+        void Archive::prepare_save(const std::string &archive_type_name, const void *main_data)
         {
-            if (m_context->initialized)
+            if (m_context->save_prepared)
                 throw std::runtime_error("Archive already initialized");
             m_context->json["%archive_type"] = archive_type_name;
             m_context->json["%data"] = Json::object();
@@ -26,15 +26,16 @@ namespace Engine
                 m_context->json["%data"][main_id] = Json::object();
                 m_cursor = &m_context->json["%data"][main_id];
             }
-            m_context->initialized = true;
+            m_context->save_prepared = true;
         }
 
-        void Archive::load_init(void *main_data)
+        void Archive::prepare_load(void *main_data)
         {
             std::string str_id = m_context->json["%main_id"].get<std::string>();
             int id = std::stoi(str_id.substr(1));
             m_context->pointer_map[id] = main_data;
             m_cursor = &m_context->json["%data"][str_id];
+            m_context->load_prepared = true;
         }
 
         void Archive::clear()
@@ -42,8 +43,10 @@ namespace Engine
             m_context->json.clear();
             m_context->extra_datas.clear();
             m_context->id_map.clear();
+            m_context->pointer_map.clear();
             m_context->current_id = 0;
-            m_context->initialized = false;
+            m_context->save_prepared = false;
+            m_context->load_prepared = false;
 
             m_cursor = nullptr;
         }

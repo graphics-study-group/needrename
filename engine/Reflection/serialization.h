@@ -9,24 +9,34 @@ namespace Engine
     namespace Serialization
     {
         template <typename T>
-        void save_to_archive(const std::vector<T> &value, Archive &buffer);
-        template <typename T>
-        void load_from_archive(std::vector<T> &value, Archive &buffer);
+        using is_basic_type = std::disjunction<std::is_integral<T>, std::is_floating_point<T>, std::is_same<T, std::string>, std::is_same<T, bool>>;
 
         template <typename T>
-        void save_to_archive(const std::shared_ptr<T> &value, Archive &buffer);
+        typename std::enable_if<is_basic_type<T>::value, void>::type
+        save_to_archive(const T &value, Archive &archive);
         template <typename T>
-        void load_from_archive(std::shared_ptr<T> &value, Archive &buffer);
+        typename std::enable_if<is_basic_type<T>::value, void>::type
+        load_from_archive(T &value, Archive &archive);
 
         template <typename T>
-        void save_to_archive(const std::unique_ptr<T> &value, Archive &buffer);
+        void save_to_archive(const std::vector<T> &value, Archive &archive);
         template <typename T>
-        void load_from_archive(std::unique_ptr<T> &value, Archive &buffer);
+        void load_from_archive(std::vector<T> &value, Archive &archive);
 
         template <typename T>
-        void save_to_archive(const std::weak_ptr<T> &value, Archive &buffer);
+        void save_to_archive(const std::shared_ptr<T> &value, Archive &archive);
         template <typename T>
-        void load_from_archive(std::weak_ptr<T> &value, Archive &buffer);
+        void load_from_archive(std::shared_ptr<T> &value, Archive &archive);
+
+        template <typename T>
+        void save_to_archive(const std::unique_ptr<T> &value, Archive &archive);
+        template <typename T>
+        void load_from_archive(std::unique_ptr<T> &value, Archive &archive);
+
+        template <typename T>
+        void save_to_archive(const std::weak_ptr<T> &value, Archive &archive);
+        template <typename T>
+        void load_from_archive(std::weak_ptr<T> &value, Archive &archive);
 
         template <typename T>
         class has_custom_save
@@ -108,44 +118,44 @@ namespace Engine
 
         template <typename T>
         typename std::enable_if<has_custom_save<T>::value, void>::type
-        serialize(const T &value, Archive &buffer)
+        serialize(const T &value, Archive &archive)
         {
-            value.save_to_archive(buffer);
+            value.save_to_archive(archive);
         }
 
         template <typename T>
         typename std::enable_if<has_custom_load<T>::value, void>::type
-        deserialize(T &value, Archive &buffer)
+        deserialize(T &value, Archive &archive)
         {
-            value.load_from_archive(buffer);
+            value.load_from_archive(archive);
         }
 
         template <typename T>
         typename std::enable_if<!has_custom_save<T>::value && has_special_save<T>::value, void>::type
-        serialize(const T &value, Archive &buffer)
+        serialize(const T &value, Archive &archive)
         {
-            Engine::Serialization::save_to_archive(value, buffer);
+            Engine::Serialization::save_to_archive(value, archive);
         }
 
         template <typename T>
         typename std::enable_if<!has_custom_load<T>::value && has_special_load<T>::value, void>::type
-        deserialize(T &value, Archive &buffer)
+        deserialize(T &value, Archive &archive)
         {
-            Engine::Serialization::load_from_archive(value, buffer);
+            Engine::Serialization::load_from_archive(value, archive);
         }
 
         template <typename T>
         typename std::enable_if<!has_custom_save<T>::value && !has_special_save<T>::value && has_generated_save<T>::value, void>::type
-        serialize(const T &value, Archive &buffer)
+        serialize(const T &value, Archive &archive)
         {
-            value.__serialization_save__(buffer);
+            value.__serialization_save__(archive);
         }
 
         template <typename T>
         typename std::enable_if<!has_custom_load<T>::value && !has_special_load<T>::value && has_generated_load<T>::value, void>::type
-        deserialize(T &value, Archive &buffer)
+        deserialize(T &value, Archive &archive)
         {
-            value.__serialization_load__(buffer);
+            value.__serialization_load__(archive);
         }
 
 #pragma GCC diagnostic push
@@ -154,7 +164,7 @@ namespace Engine
 
         template <typename T>
         typename std::enable_if<!has_custom_save<T>::value && !has_generated_save<T>::value && !has_special_save<T>::value, void>::type
-        serialize(const T &value, Archive &buffer)
+        serialize(const T &value, Archive &archive)
         {
             throw std::runtime_error(std::string("No serialization function found for type: ") + typeid(T).name() + "\nNote: \n"
                                      +"  - If the type is a custom type, make sure to define a member function like save_to_archive(Engine::Serialization::Archive &)\n"
@@ -164,7 +174,7 @@ namespace Engine
 
         template <typename T>
         typename std::enable_if<!has_custom_load<T>::value && !has_generated_load<T>::value && !has_special_load<T>::value, void>::type
-        deserialize(T &value, Archive &buffer)
+        deserialize(T &value, Archive &archive)
         {
             throw std::runtime_error(std::string("No deserialization function found for type: ") + typeid(T).name() + "\nNote: \n"
                                      +"  - If the type is a custom type, make sure to define a member function like load_from_archive(Engine::Serialization::Archive &)\n"

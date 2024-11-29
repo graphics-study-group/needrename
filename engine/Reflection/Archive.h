@@ -31,7 +31,8 @@ namespace Engine
                 IDMap id_map{};
                 int current_id = 0;
                 PointerMap pointer_map{};
-                bool initialized = false;
+                bool save_prepared = false;
+                bool load_prepared = false;
             };
 
         public:
@@ -44,8 +45,8 @@ namespace Engine
             Json *m_cursor;
 
         public:
-            void init(const std::string &archive_type_name, const void *main_data = nullptr);
-            void load_init(void *main_data);
+            void prepare_save(const std::string &archive_type_name, const void *main_data = nullptr);
+            void prepare_load(void *main_data);
             void clear();
             void save_to_file(const std::filesystem::path &path);
         };
