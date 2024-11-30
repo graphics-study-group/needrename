@@ -107,7 +107,7 @@ namespace SerializationTest
         virtual ~ArrayPtrTest() = default;
 
         int m_array[3] = {1, 2, 3};
-        void *m_ptr_array[2][2] = {{nullptr, nullptr}, {nullptr, nullptr}};
+        BaseData *m_ptr_array[2][2] = {{nullptr, nullptr}, {nullptr, nullptr}};
     };
 }
 
