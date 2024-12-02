@@ -39,6 +39,16 @@ namespace SerializationTest
         std::shared_ptr<int> m_int_ptr {};
     };
 
+    class REFL_SER_CLASS(REFL_BLACKLIST) UniquePtrTest
+    {
+        REFL_SER_BODY()
+    public:
+        UniquePtrTest() = default;
+        virtual ~UniquePtrTest() = default;
+
+        std::unique_ptr<BaseData> m_unique_ptr {};
+    };
+
     class REFL_SER_CLASS(REFL_BLACKLIST) VectorTest
     {
         REFL_SER_BODY()
