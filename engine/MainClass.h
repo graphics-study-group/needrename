@@ -35,7 +35,7 @@ namespace Engine
         std::shared_ptr<RenderSystem> renderer{};
         std::shared_ptr<WorldSystem> world{};
         std::shared_ptr<AssetManager> asset{};
-        std::shared_ptr<GUISystem> gui {};
+        std::shared_ptr<GUISystem> gui{};
     };
 }
 
