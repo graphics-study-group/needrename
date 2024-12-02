@@ -17,6 +17,7 @@
 #include "Render/Pipeline/RenderTarget/RenderTargetSetup.h"
 #include "Render/Pipeline/CommandBuffer.h"
 #include "Render/Renderer/HomogeneousMesh.h"
+#include "GUI/GUISystem.h"
 
 #include "cmake_config.h"
 
@@ -25,7 +26,10 @@ namespace sch = std::chrono;
 
 class MeshComponentFromFile : public MeshComponent {
     Transform transform;
-
+    BlinnPhong::UniformData m_uniform_data {
+        glm::vec4{0.5, 0.5, 0.5, 4.0}, 
+        glm::vec4{0.1, 0.1, 0.1, 1.0}
+    };
     std::vector <std::unique_ptr<AllocatedImage2DTexture>> m_textures {};
     std::vector <std::filesystem::path> m_texture_files {};
 
@@ -155,10 +159,7 @@ public:
             auto mat_ptr = std::dynamic_pointer_cast<BlinnPhong>(m_materials[mat]);
             assert(mat_ptr);
             mat_ptr->UpdateTexture(*m_textures[mat]);
-            mat_ptr->UpdateUniform(BlinnPhong::UniformData{
-                glm::vec4{0.5, 0.5, 0.5, 4.0}, 
-                glm::vec4{0.1, 0.1, 0.1, 1.0}
-            });
+            mat_ptr->UpdateUniform(m_uniform_data);
 
             stbi_image_free(raw_image_data);
         }
@@ -174,21 +175,93 @@ public:
     Transform GetWorldTransform() const override {
         return transform;
     }
+
+    void UpdateUniformData(float spec_r, float spec_g, float spec_b, float spec_coef) {
+        uint8_t identity = 
+            (fabs(spec_r - m_uniform_data.specular.r) < 1e-3) +
+            (fabs(spec_g - m_uniform_data.specular.g) < 1e-3) +
+            (fabs(spec_b - m_uniform_data.specular.b) < 1e-3) +
+            (fabs(spec_coef - m_uniform_data.specular.a) < 1e-3);
+        if (identity == 4)  return;
+
+        m_uniform_data.specular = glm::vec4{spec_r, spec_g, spec_b, spec_coef};
+        for (auto & material : m_materials) {
+            auto mat_ptr = std::dynamic_pointer_cast<BlinnPhong>(material);
+            assert(mat_ptr);
+            mat_ptr->UpdateUniform(m_uniform_data);
+        }
+    }
 };
 
-int main(int, char **)
+struct {
+    float zenith, azimuth;
+    float r,g,b,coef;
+} g_SceneData {M_PI_2, M_PI_2, 0.5f, 0.5f, 0.5f, 4.0f};
+
+glm::vec3 GetCartesian(float zenith, float azimuth) {
+    static constexpr float RADIUS = 10.0f;
+    return glm::vec3{
+        RADIUS * sin(zenith) * cos(azimuth),
+        RADIUS * sin(zenith) * sin(azimuth),
+        RADIUS * cos(zenith)
+    };
+}
+
+void PrepareGui() {
+    ImGuiWindowFlags flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse;
+    ImGui::SetNextWindowPos({10, 10});
+    ImGui::SetNextWindowSize(ImVec2{300, 300});
+    ImGui::Begin("Configuration", nullptr, flags);
+    ImGui::SliderAngle("Zenith", &g_SceneData.zenith, -180.0f, 180.0f);
+    ImGui::SliderAngle("Azimuth", &g_SceneData.azimuth, 0.0f, 360.0f);
+    
+    glm::vec3 light_source = GetCartesian(g_SceneData.zenith, g_SceneData.azimuth);
+    ImGui::Text("Coordinate: (%.3f, %.3f, %.3f).", light_source.x, light_source.y, light_source.z);
+
+    ImGui::Separator();
+
+    ImGui::ColorPicker3("Specular color", &g_SceneData.r);
+    ImGui::SliderFloat("Specular strength", &g_SceneData.coef, 0.0f, 64.0f);
+    ImGui::End();
+}
+
+void SubmitSceneData(std::shared_ptr <RenderSystem> rsys, uint32_t id) {
+    ConstantData::PerSceneStruct scene {
+        glm::vec4{
+            GetCartesian(g_SceneData.zenith, g_SceneData.azimuth),
+            0.0f
+        },
+        glm::vec4{1.0, 1.0, 1.0, 0.0},
+    };
+    auto ptr = rsys->GetGlobalConstantDescriptorPool().GetPerSceneConstantMemory(id);
+    memcpy(ptr, &scene, sizeof scene);
+    rsys->GetGlobalConstantDescriptorPool().FlushPerSceneConstantMemory(id);    
+}
+
+void SubmitMaterialData(std::shared_ptr <MeshComponentFromFile> mesh) {
+    mesh->UpdateUniformData(g_SceneData.r, g_SceneData.g, g_SceneData.b, g_SceneData.coef);
+}
+
+int main(int argc, char ** argv)
 {
     SDL_Init(SDL_INIT_VIDEO);
+
+    int64_t max_frame_count = std::numeric_limits<int64_t>::max();
+    if (argc > 1) {
+        max_frame_count = std::atoll(argv[1]);
+        if (max_frame_count == 0) return -1;
+    }
 
     StartupOptions opt{.resol_x = 1920, .resol_y = 1080, .title = "Vulkan Test"};
 
     auto cmc = MainClass::GetInstance();
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
 
-    auto system = cmc->GetRenderSystem();
-    system->EnableDepthTesting();
+    auto rsys = cmc->GetRenderSystem();
+    rsys->EnableDepthTesting();
+    auto gsys = cmc->GetGUISystem();
 
-    RenderTargetSetup rts{system};
+    RenderTargetSetup rts{rsys};
     rts.CreateFromSwapchain();
     rts.SetClearValues({
         vk::ClearValue{vk::ClearColorValue{0.0f, 0.0f, 0.0f, 1.0f}},
@@ -198,7 +271,7 @@ int main(int, char **)
     // Setup mesh
     std::filesystem::path mesh_path{std::string(ENGINE_ASSETS_DIR) + "/four_bunny/four_bunny.obj"};
     std::shared_ptr tmc = std::make_shared<MeshComponentFromFile>(mesh_path);
-    system->RegisterComponent(tmc);
+    rsys->RegisterComponent(tmc);
 
     // Setup camera
     auto camera_go = std::make_shared<GameObject>();
@@ -209,60 +282,58 @@ int main(int, char **)
     auto camera_comp = std::make_shared<CameraComponent>(camera_go);
     camera_comp->set_aspect_ratio(1920.0 / 1080.0);
     camera_go->AddComponent(camera_comp);
-    system->SetActiveCamera(camera_comp);
-
-    // Write scene data
-    ConstantData::PerSceneStruct scene {
-        glm::vec4{5.0, 5.0, 5.0, 1.0},          // Light source position
-        glm::vec4{}                         // Light color
-    };
-    for (uint32_t i = 0; i < 3; i++) {
-        auto ptr = system->GetGlobalConstantDescriptorPool().GetPerSceneConstantMemory(i);
-        memcpy(ptr, &scene, sizeof scene);
-        system->GetGlobalConstantDescriptorPool().FlushPerSceneConstantMemory(i);
-    }
+    rsys->SetActiveCamera(camera_comp);
 
     uint32_t in_flight_frame_id = 0;
-    uint32_t total_test_frame = 60;
+    uint64_t frame_count = 0;
     uint64_t start_timer = SDL_GetPerformanceCounter();
-    while(total_test_frame--) {
+    while(++frame_count) {
+        bool quited = false;
+        SDL_Event event;
+        while(SDL_PollEvent(&event) != 0) {
+            switch(event.type) {
+            case SDL_EVENT_QUIT:
+                quited = true;
+                break;
+            }
+            gsys->ProcessEvent(&event);
+        }
+        if (quited) break;
         
-        auto frame_start_timer = sch::high_resolution_clock::now();
+        gsys->PrepareGUI();
 
-        system->WaitForFrameBegin(in_flight_frame_id);
-        RenderCommandBuffer & cb = system->GetGraphicsCommandBuffer(in_flight_frame_id);
-        uint32_t index = system->GetNextImage(in_flight_frame_id, 0x7FFFFFFF);
+        // Draw GUI and gather data
+        PrepareGui();
 
-        assert(index < 3);
-    
+        // Submit data
+        SubmitSceneData(rsys, in_flight_frame_id);
+        SubmitMaterialData(tmc);
+
+        // Draw
+        rsys->WaitForFrameBegin(in_flight_frame_id);
+        RenderCommandBuffer & cb = rsys->GetGraphicsCommandBuffer(in_flight_frame_id);
+        uint32_t index = rsys->GetNextImage(in_flight_frame_id, 0x7FFFFFFF);
         cb.Begin();
-        vk::Extent2D extent {system->GetSwapchain().GetExtent()};
+        vk::Extent2D extent {rsys->GetSwapchain().GetExtent()};
         cb.BeginRendering(rts, extent, index);
-        system->DrawMeshes(in_flight_frame_id);
+        rsys->DrawMeshes(in_flight_frame_id);
+        gsys->DrawGUI(cb);
         cb.EndRendering();
         cb.End();
         cb.Submit();
-
-        system->Present(index, in_flight_frame_id);
-
-        auto submission_end_timer = sch::high_resolution_clock::now();
-
-        std::chrono::duration<double, std::milli> total;
-        total = submission_end_timer - frame_start_timer;
-        SDL_LogVerbose(0, "Total: %lf milliseconds, or %lf fps for frame %u.", 
-            total.count(),
-            1000.0 / total.count(),
-            in_flight_frame_id
-            );
+        rsys->Present(index, in_flight_frame_id);
 
         in_flight_frame_id = (in_flight_frame_id + 1) % 3;
+        SDL_Delay(5);
+
+        if (frame_count >= max_frame_count) break;
     }
     uint64_t end_timer = SDL_GetPerformanceCounter();
     uint64_t duration = end_timer - start_timer;
     double duration_time = 1.0 * duration / SDL_GetPerformanceFrequency();
-    SDL_LogInfo(0, "Took %lf seconds for 200 frames (avg. %lf fps).", duration_time, 200.0 / duration_time);
-    system->WaitForIdle();
-    system->ClearComponent();
+    SDL_LogInfo(0, "Took %lf seconds for %llu frames (avg. %lf fps).", duration_time, frame_count, frame_count * 1.0 / duration_time);
+    rsys->WaitForIdle();
+    rsys->ClearComponent();
 
     SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "Unloading Main-class");
     return 0;

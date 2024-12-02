@@ -9,9 +9,10 @@ namespace Engine {
         /// @brief A descriptor pool and related infrastructures for per-view global constants like camera matrices
         class GlobalConstantDescriptorPool : public Engine::VkWrapperIndependent <vk::UniqueDescriptorPool> {
         protected:
-            static constexpr uint32_t MAX_SET_SIZE = 16;
-            static constexpr std::array <vk::DescriptorPoolSize, 1> DESCRIPTOR_POOL_SIZES = {
-                vk::DescriptorPoolSize{vk::DescriptorType::eUniformBuffer, 64}
+            static constexpr uint32_t MAX_SET_SIZE = 64;
+            static constexpr std::array <vk::DescriptorPoolSize, 2> DESCRIPTOR_POOL_SIZES = {
+                vk::DescriptorPoolSize{vk::DescriptorType::eCombinedImageSampler, 128},
+                vk::DescriptorPoolSize{vk::DescriptorType::eUniformBuffer, 128}
             };
 
             // Per camera constant descriptor set layout

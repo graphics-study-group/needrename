@@ -12,6 +12,7 @@ namespace Engine
     class RenderSystem;
     class WorldSystem;
     class AssetManager;
+    class GUISystem;
 
     class MainClass
     {
@@ -27,12 +28,14 @@ namespace Engine
         std::shared_ptr<RenderSystem> GetRenderSystem() const;
         std::shared_ptr<WorldSystem> GetWorldSystem() const;
         std::shared_ptr<AssetManager> GetAssetManager() const;
+        std::shared_ptr<GUISystem> GetGUISystem() const;
 
     protected:
         std::shared_ptr<SDLWindow> window{};
         std::shared_ptr<RenderSystem> renderer{};
         std::shared_ptr<WorldSystem> world{};
         std::shared_ptr<AssetManager> asset{};
+        std::shared_ptr<GUISystem> gui {};
     };
 }
 

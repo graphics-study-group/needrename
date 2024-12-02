@@ -63,6 +63,8 @@ namespace Engine {
 
             SwapchainImage GetColorImagesAndViews() const;
             SwapchainImage GetDepthImagesAndViews() const;
+
+            vk::PipelineRenderingCreateInfo GetPipelineRenderingCreateInfo() const;
         };
     }
 }
