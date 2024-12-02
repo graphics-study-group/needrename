@@ -37,6 +37,7 @@ namespace SerializationTest
         std::shared_ptr<BaseData> m_shared_ptr {};
         std::shared_ptr<BaseData> m_shared_ptr2 {};
         std::shared_ptr<int> m_int_ptr {};
+        std::weak_ptr<BaseData> m_weak_ptr {};
     };
 
     class REFL_SER_CLASS(REFL_BLACKLIST) UniquePtrTest

@@ -39,6 +39,7 @@ int main()
     shared_ptr_test.m_shared_ptr = base_data_ptr;
     shared_ptr_test.m_shared_ptr2 = shared_ptr_test.m_shared_ptr;
     shared_ptr_test.m_int_ptr = std::make_shared<int>(621);
+    shared_ptr_test.m_weak_ptr = shared_ptr_test.m_shared_ptr;
     archive.clear();
     Engine::Serialization::serialize(shared_ptr_test, archive);
     std::cout << "shared ptr test:" << std::endl << archive.m_context->json.dump(4) << std::endl;
@@ -49,6 +50,7 @@ int main()
     for(int i = 0; i < 3; i++)
         assert(shared_ptr_test2.m_shared_ptr->data[i] == 182.376f * i);
     assert(shared_ptr_test2.m_shared_ptr2.get() == shared_ptr_test2.m_shared_ptr.get());
+    assert(shared_ptr_test2.m_weak_ptr.lock().get() == shared_ptr_test2.m_shared_ptr.get());
     assert(*shared_ptr_test2.m_int_ptr == 621);
 
     UniquePtrTest unique_ptr_test;

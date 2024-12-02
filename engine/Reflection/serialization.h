@@ -43,6 +43,11 @@ namespace Engine
         void load_from_archive(std::shared_ptr<T> &value, Archive &archive);
 
         template <typename T>
+        void save_to_archive(const std::weak_ptr<T> &value, Archive &archive);
+        template <typename T>
+        void load_from_archive(std::weak_ptr<T> &value, Archive &archive);
+
+        template <typename T>
         void save_to_archive(const std::unique_ptr<T> &value, Archive &archive);
         template <typename T>
         void load_from_archive(std::unique_ptr<T> &value, Archive &archive);
@@ -135,14 +140,7 @@ namespace Engine
         {
             if (!archive.m_context->save_prepared)
             {
-                if constexpr (std::is_same_v<T, std::shared_ptr<T>>)
-                {
-                    archive.prepare_save(static_pointer_cast<const void>(value));
-                }
-                else
-                {
-                    archive.prepare_save();
-                }
+                archive.prepare_save();
             }
         }
 
@@ -151,14 +149,7 @@ namespace Engine
         {
             if (!archive.m_context->load_prepared)
             {
-                if constexpr (std::is_same_v<T, std::shared_ptr<T>>)
-                {
-                    archive.prepare_load(static_pointer_cast<void>(value));
-                }
-                else
-                {
-                    archive.prepare_load();
-                }
+                archive.prepare_load();
             }
         }
 
