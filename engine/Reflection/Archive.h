@@ -17,7 +17,7 @@ namespace Engine
         using BufferList = std::vector<BufferNamePair>;
         using AddressID = unsigned long long;
         using IDMap = std::unordered_map<AddressID, int>;
-        using PointerMap = std::unordered_map<int, void *>;
+        using PointerMap = std::unordered_map<int, std::shared_ptr<void>>;
 
         /// @brief An archive class is used to store serialized data
         /// @details TODO: Add more details
@@ -45,8 +45,8 @@ namespace Engine
             Json *m_cursor;
 
         public:
-            void prepare_save(const std::string &archive_type_name, const void *main_data = nullptr);
-            void prepare_load(void *main_data);
+            void prepare_save(const std::string &archive_type_name, std::shared_ptr<const void> main_data = nullptr);
+            void prepare_load(std::shared_ptr<void> main_data = nullptr);
             void clear();
             void save_to_file(const std::filesystem::path &path);
         };

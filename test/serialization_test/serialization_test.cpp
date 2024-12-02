@@ -30,31 +30,10 @@ int main()
     inherit_test.m_inherit = 0;
     InheritTest inherit_test2;
     Engine::Serialization::deserialize(inherit_test2, archive);
+    archive.clear();
     for(int i = 0; i < 3; i++)
         assert(inherit_test2.data[i] == 182.376f * i);
     assert(inherit_test2.m_inherit == 1000);
-
-    PtrTest ptr_test;
-    ptr_test.m_ptr = base_data_ptr.get();
-    ptr_test.m_ptr2 = ptr_test.m_ptr;
-    ptr_test.m_int_ptr = new int(314159);
-    ptr_test.m_int_ptr2 = ptr_test.m_int_ptr;
-
-    archive.clear();
-    Engine::Serialization::serialize(ptr_test, archive);
-    std::cout << "ptr test:" << std::endl << archive.m_context->json.dump(4) << std::endl;
-    ptr_test.m_ptr = nullptr;
-    ptr_test.m_int_ptr = new int(758);
-    *ptr_test.m_int_ptr2 = 4654513;
-    PtrTest ptr_test2;
-    Engine::Serialization::deserialize(ptr_test2, archive);
-    for(int i = 0; i < 3; i++)
-    {
-        assert(ptr_test2.m_ptr->data[i] == 182.376f * i);
-        assert(ptr_test2.m_ptr2->data[i] == 182.376f * i);
-    }
-    assert(*ptr_test2.m_int_ptr == 314159);
-    assert(*ptr_test2.m_int_ptr2 == 314159);
 
     SharedPtrTest shared_ptr_test;
     shared_ptr_test.m_shared_ptr = base_data_ptr;
@@ -65,6 +44,7 @@ int main()
     shared_ptr_test.m_shared_ptr.reset();
     SharedPtrTest shared_ptr_test2;
     Engine::Serialization::deserialize(shared_ptr_test2, archive);
+    archive.clear();
     for(int i = 0; i < 3; i++)
         assert(shared_ptr_test2.m_shared_ptr->data[i] == 182.376f * i);
     assert(shared_ptr_test2.m_shared_ptr2.get() == shared_ptr_test2.m_shared_ptr.get());
@@ -85,6 +65,7 @@ int main()
     vector_test.m_vector.clear();
     VectorTest vector_test2;
     Engine::Serialization::deserialize(vector_test2, archive);
+    archive.clear();
     for(int i = 0; i < 3; i++)
     {
         for(int j = 0; j < 3; j++)
@@ -103,6 +84,7 @@ int main()
     custom_test.m_b = 0;
     CustomTest custom_test2;
     Engine::Serialization::deserialize(custom_test2, archive);
+    archive.clear();
     assert(custom_test2.m_a == 123);
     assert(custom_test2.m_b == 852765);
 
@@ -122,6 +104,7 @@ int main()
     polymorphism_test.m_vector.clear();
     PolymorphismTest polymorphism_test2;
     Engine::Serialization::deserialize(polymorphism_test2, archive);
+    archive.clear();
     assert(polymorphism_test2.m_vector.size() == 2);
     for(int i = 0; i < 3; i++)
         assert(polymorphism_test2.m_vector[0]->data[i] == 100.0f * i);
@@ -137,22 +120,23 @@ int main()
     base_data_ptr2 = std::make_shared<BaseData>();
     for(int i = 0; i < 3; i++)
         base_data_ptr2->data[i] = 100.0f * i;
-    array_ptr_test.m_ptr_array[0][0] = base_data_ptr2.get();
+    array_ptr_test.m_ptr_array[0][0] = base_data_ptr2;
     inherit_data_ptr = std::make_shared<InheritTest>();
     for(int i = 0; i < 3; i++)
         inherit_data_ptr->data[i] = 10.0f * i;
     inherit_data_ptr->m_inherit = 1000;
-    array_ptr_test.m_ptr_array[1][1] = inherit_data_ptr.get();
+    array_ptr_test.m_ptr_array[1][1] = inherit_data_ptr;
     archive.clear();
     Engine::Serialization::serialize(array_ptr_test, archive);
     std::cout << "array ptr test:" << std::endl << archive.m_context->json.dump(4) << std::endl;
     ArrayPtrTest array_ptr_test2;
     Engine::Serialization::deserialize(array_ptr_test2, archive);
+    archive.clear();
     for(int i = 0; i < 3; i++)
         assert(array_ptr_test2.m_array[i] == i * 100 + 1);
     for(int i = 0; i < 3; i++)
-        assert(dynamic_cast<BaseData *>(array_ptr_test2.m_ptr_array[0][0])->data[i] == 100.0f * i);
-    auto inherit_data_ptr3 = dynamic_cast<InheritTest *>(array_ptr_test2.m_ptr_array[1][1]);
+        assert(array_ptr_test2.m_ptr_array[0][0]->data[i] == 100.0f * i);
+    auto inherit_data_ptr3 = dynamic_pointer_cast<InheritTest>(array_ptr_test2.m_ptr_array[1][1]);
     for(int i = 0; i < 3; i++)
         assert(inherit_data_ptr3->data[i] == 10.0f * i);
     assert(inherit_data_ptr3->m_inherit == 1000);

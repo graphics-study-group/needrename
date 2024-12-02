@@ -38,7 +38,7 @@ import clang.cindex as CX
 void ${class_type.full_name}::__serialization_save__(Engine::Serialization::Archive& archive) const
 {
     if (!archive.m_context->save_prepared)
-        archive.prepare_save("Anything", this);
+        archive.prepare_save("Anything");
     Engine::Serialization::Json &json = *archive.m_cursor;
     
     ${generate_type_save(class_type, "")}
@@ -89,7 +89,7 @@ void ${class_type.full_name}::__serialization_save__(Engine::Serialization::Arch
 void ${class_type.full_name}::__serialization_load__(Engine::Serialization::Archive& archive)
 {
     if (!archive.m_context->load_prepared)
-        archive.prepare_load(this);
+        archive.prepare_load();
 
     Engine::Serialization::Json &json = *archive.m_cursor;
     ${generate_type_load(class_type, "")}

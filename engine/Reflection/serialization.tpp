@@ -26,63 +26,67 @@ namespace Engine
         typename std::enable_if<std::is_pointer<T>::value, void>::type
         save_to_archive(const T &value, Archive &archive)
         {
-            Json &json = *archive.m_cursor;
-            if (value != nullptr)
-            {
-                AddressID adr_id = reinterpret_cast<AddressID>(value);
-                if (archive.m_context->id_map.find(adr_id) == archive.m_context->id_map.end())
-                {
-                    archive.m_context->id_map[adr_id] = archive.m_context->current_id++;
-                    std::string str_id = std::string("&") + std::to_string(archive.m_context->id_map[adr_id]);
-                    archive.m_context->json["%data"][str_id] = Json::object();
-                    Archive temp_archive(archive, &archive.m_context->json["%data"][str_id]);
-                    serialize(*value, temp_archive);
-                }
-                json = std::string("&") + std::to_string(archive.m_context->id_map[adr_id]);
-            }
-            else
-            {
-                json = nullptr;
-            }
+            static_assert(false, "Raw pointers are not allowed, use std::shared_ptr, std::unique_ptr or custom serialization functions instead");
+
+            // Json &json = *archive.m_cursor;
+            // if (value != nullptr)
+            // {
+            //     AddressID adr_id = reinterpret_cast<AddressID>(value);
+            //     if (archive.m_context->id_map.find(adr_id) == archive.m_context->id_map.end())
+            //     {
+            //         archive.m_context->id_map[adr_id] = archive.m_context->current_id++;
+            //         std::string str_id = std::string("&") + std::to_string(archive.m_context->id_map[adr_id]);
+            //         archive.m_context->json["%data"][str_id] = Json::object();
+            //         Archive temp_archive(archive, &archive.m_context->json["%data"][str_id]);
+            //         serialize(*value, temp_archive);
+            //     }
+            //     json = std::string("&") + std::to_string(archive.m_context->id_map[adr_id]);
+            // }
+            // else
+            // {
+            //     json = nullptr;
+            // }
         }
 
         template <typename T>
         typename std::enable_if<std::is_pointer<T>::value, void>::type
         load_from_archive(T &value, Archive &archive)
         {
-            Json &json = *archive.m_cursor;
-            if (!json.is_null())
-            {
-                std::string str_id = json.get<std::string>();
-                int id = std::stoi(str_id.substr(1));
-                if (archive.m_context->pointer_map.find(id) == archive.m_context->pointer_map.end())
-                {
-                    Archive temp_archive(archive, &archive.m_context->json["%data"][str_id]);
-                    auto type = Engine::Reflection::GetType(archive.m_context->json["%data"][str_id]["%type"].get<std::string>());
-                    if (type->m_reflectable)
-                    {
-                        Engine::Reflection::Var var = type->CreateInstance();
-                        value = static_cast<T>(var.GetDataPtr());
-                        archive.m_context->pointer_map[id] = value;
-                        deserialize(*value, temp_archive);
-                    }
-                    else
-                    {
-                        assert(type->m_type_info == nullptr || type->m_type_info->name() == typeid(*value).name());
-                        value = new (std::remove_pointer_t<T>)();
-                        archive.m_context->pointer_map[id] = value;
-                        deserialize(*value, temp_archive);
-                    }
-                }
-                else
-                {
-                    value = static_cast<T>(archive.m_context->pointer_map[id]);
-                }
-            }
-            else
-            {
-                value = nullptr;
-            }
+            static_assert(false, "Raw pointers are not allowed, use std::shared_ptr, std::unique_ptr or custom serialization functions instead");
+
+            // Json &json = *archive.m_cursor;
+            // if (!json.is_null())
+            // {
+            //     std::string str_id = json.get<std::string>();
+            //     int id = std::stoi(str_id.substr(1));
+            //     if (archive.m_context->pointer_map.find(id) == archive.m_context->pointer_map.end())
+            //     {
+            //         Archive temp_archive(archive, &archive.m_context->json["%data"][str_id]);
+            //         auto type = Engine::Reflection::GetType(archive.m_context->json["%data"][str_id]["%type"].get<std::string>());
+            //         if (type->m_reflectable)
+            //         {
+            //             Engine::Reflection::Var var = type->CreateInstance();
+            //             value = static_cast<T>(var.GetDataPtr());
+            //             archive.m_context->pointer_map[id] = value;
+            //             deserialize(*value, temp_archive);
+            //         }
+            //         else
+            //         {
+            //             assert(type->m_type_info == nullptr || type->m_type_info->name() == typeid(*value).name());
+            //             value = new (std::remove_pointer_t<T>)();
+            //             archive.m_context->pointer_map[id] = value;
+            //             deserialize(*value, temp_archive);
+            //         }
+            //     }
+            //     else
+            //     {
+            //         value = static_cast<T>(archive.m_context->pointer_map[id]);
+            //     }
+            // }
+            // else
+            // {
+            //     value = nullptr;
+            // }
         }
 
         template <typename T>
@@ -206,21 +210,21 @@ namespace Engine
                     if (type->m_reflectable)
                     {
                         auto var = type->CreateInstance();
-                        archive.m_context->pointer_map[id] = var.GetDataPtr();
-                        value = std::shared_ptr<T>(static_cast<T *>(var.GetDataPtr()));
+                        archive.m_context->pointer_map[id] = std::shared_ptr<void>(static_cast<T *>(var.GetDataPtr()));
+                        value = static_pointer_cast<T>(archive.m_context->pointer_map[id]);
                         deserialize(*value, temp_archive);
                     }
                     else
                     {
                         value = std::make_shared<T>();
-                        archive.m_context->pointer_map[id] = value.get();
+                        archive.m_context->pointer_map[id] = value;
                         assert(type->m_type_info == nullptr || type->m_type_info->name() == typeid(T).name());
                         deserialize(*value, temp_archive);
                     }
                 }
                 else
                 {
-                    value = std::shared_ptr<T>(static_cast<T *>(archive.m_context->pointer_map[id]));
+                    value = static_pointer_cast<T>(archive.m_context->pointer_map[id]);
                 }
             }
             else
@@ -260,26 +264,20 @@ namespace Engine
             {
                 std::string str_id = json.get<std::string>();
                 int id = std::stoi(str_id.substr(1));
-                if (archive.m_context->pointer_map.find(id) == archive.m_context->pointer_map.end())
+                
+                Archive temp_archive(archive, &archive.m_context->json["%data"][str_id]);
+                auto type = Engine::Reflection::GetType(archive.m_context->json["%data"][str_id]["%type"].get<std::string>());
+                if (type->m_reflectable)
                 {
-                    Archive temp_archive(archive, &archive.m_context->json["%data"][str_id]);
-                    auto type = Engine::Reflection::GetType(archive.m_context->json["%data"][str_id]["%type"].get<std::string>());
-                    if (type->m_reflectable)
-                    {
-                        auto var = type->CreateInstance();
-                        value = std::unique_ptr<T>(static_cast<T *>(var.GetDataPtr()));
-                        deserialize(*value, temp_archive);
-                    }
-                    else
-                    {
-                        value = std::make_unique<T>();
-                        assert(type->m_type_info == nullptr || type->m_type_info->name() == typeid(T).name());
-                        deserialize(*value, temp_archive);
-                    }
+                    auto var = type->CreateInstance();
+                    value = std::unique_ptr<T>(static_cast<T *>(var.GetDataPtr()));
+                    deserialize(*value, temp_archive);
                 }
                 else
                 {
-                    value = std::unique_ptr<T>(static_cast<T *>(archive.m_context->pointer_map[id]));
+                    value = std::make_unique<T>();
+                    assert(type->m_type_info == nullptr || type->m_type_info->name() == typeid(T).name());
+                    deserialize(*value, temp_archive);
                 }
             }
             else

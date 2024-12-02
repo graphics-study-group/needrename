@@ -74,7 +74,7 @@ namespace TestDataNamespace
         virtual ~ConstTest() = default;
 
         REFL_ENABLE const TestData *m_const_data = nullptr;
-        REFL_SER_ENABLE TestData *m_data = nullptr;
+        REFL_ENABLE TestData *m_data = nullptr;
 
         REFL_ENABLE const TestData *GetConstDataPtr() const;
         REFL_ENABLE void SetConstDataPtr(const TestData *data);
