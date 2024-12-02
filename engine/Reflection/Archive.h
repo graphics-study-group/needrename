@@ -45,7 +45,7 @@ namespace Engine
             Json *m_cursor;
 
         public:
-            void prepare_save(const std::string &archive_type_name, std::shared_ptr<const void> main_data = nullptr);
+            void prepare_save(std::shared_ptr<const void> main_data = nullptr);
             void prepare_load(std::shared_ptr<void> main_data = nullptr);
             void clear();
             void save_to_file(const std::filesystem::path &path);

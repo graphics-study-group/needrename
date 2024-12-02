@@ -38,6 +38,7 @@ int main()
     SharedPtrTest shared_ptr_test;
     shared_ptr_test.m_shared_ptr = base_data_ptr;
     shared_ptr_test.m_shared_ptr2 = shared_ptr_test.m_shared_ptr;
+    shared_ptr_test.m_int_ptr = std::make_shared<int>(621);
     archive.clear();
     Engine::Serialization::serialize(shared_ptr_test, archive);
     std::cout << "shared ptr test:" << std::endl << archive.m_context->json.dump(4) << std::endl;
@@ -48,6 +49,7 @@ int main()
     for(int i = 0; i < 3; i++)
         assert(shared_ptr_test2.m_shared_ptr->data[i] == 182.376f * i);
     assert(shared_ptr_test2.m_shared_ptr2.get() == shared_ptr_test2.m_shared_ptr.get());
+    assert(*shared_ptr_test2.m_int_ptr == 621);
 
     VectorTest vector_test;
     for(int i = 0; i < 3; i++)
@@ -142,6 +144,17 @@ int main()
     assert(inherit_data_ptr3->m_inherit == 1000);
     assert(array_ptr_test2.m_ptr_array[0][1] == nullptr);
     assert(array_ptr_test2.m_ptr_array[1][0] == nullptr);
+
+    std::shared_ptr<SelfPtrTest> self_ptr_test = std::make_shared<SelfPtrTest>();
+    self_ptr_test->m_self_ptr = self_ptr_test;
+    archive.clear();
+    Engine::Serialization::serialize(self_ptr_test, archive);
+    std::cout << "self ptr test:" << std::endl << archive.m_context->json.dump(4) << std::endl;
+    self_ptr_test->m_self_ptr.reset();
+    std::shared_ptr<SelfPtrTest> self_ptr_test2 = std::make_shared<SelfPtrTest>();
+    Engine::Serialization::deserialize(self_ptr_test2, archive);
+    archive.clear();
+    assert(self_ptr_test2->m_self_ptr.get() == self_ptr_test2.get());
 
     return 0;
 }

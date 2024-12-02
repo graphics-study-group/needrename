@@ -36,6 +36,7 @@ namespace SerializationTest
 
         std::shared_ptr<BaseData> m_shared_ptr {};
         std::shared_ptr<BaseData> m_shared_ptr2 {};
+        std::shared_ptr<int> m_int_ptr {};
     };
 
     class REFL_SER_CLASS(REFL_BLACKLIST) VectorTest
@@ -70,16 +71,12 @@ namespace SerializationTest
 
         REFL_SER_DISABLE inline void save_to_archive(Engine::Serialization::Archive& archive) const
         {
-            if (!archive.m_context->save_prepared)
-                archive.prepare_save("Anything");
             Engine::Serialization::Json &json = *archive.m_cursor;
             json["data"] = m_a * 1000000 + m_b;
         }
 
         REFL_SER_DISABLE inline void load_from_archive(Engine::Serialization::Archive& archive)
         {
-            if (!archive.m_context->load_prepared)
-                archive.prepare_load();
             Engine::Serialization::Json &json = *archive.m_cursor;
             m_a = json["data"].get<int>() / 1000000;
             m_b = json["data"].get<int>() % 1000000;
@@ -95,6 +92,16 @@ namespace SerializationTest
 
         int m_array[3] = {1, 2, 3};
         std::shared_ptr<BaseData> m_ptr_array[2][2] = {{nullptr, nullptr}, {nullptr, nullptr}};
+    };
+
+    class REFL_SER_CLASS(REFL_BLACKLIST) SelfPtrTest
+    {
+        REFL_SER_BODY()
+    public:
+        SelfPtrTest() = default;
+        virtual ~SelfPtrTest() = default;
+
+        std::shared_ptr<SelfPtrTest> m_self_ptr {};
     };
 }
 

@@ -10,11 +10,10 @@ namespace Engine
         {
         }
 
-        void Archive::prepare_save(const std::string &archive_type_name, std::shared_ptr<const void> main_data)
+        void Archive::prepare_save(std::shared_ptr<const void> main_data)
         {
             if (m_context->save_prepared)
                 throw std::runtime_error("Archive already initialized");
-            m_context->json["%archive_type"] = archive_type_name;
             m_context->json["%data"] = Json::object();
             m_context->json["%extra_data"] = Json::array();
             std::string main_id;

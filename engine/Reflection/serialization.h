@@ -131,9 +131,42 @@ namespace Engine
         };
 
         template <typename T>
+        void prepare_save(const T &value, Archive &archive)
+        {
+            if (!archive.m_context->save_prepared)
+            {
+                if constexpr (std::is_same_v<T, std::shared_ptr<T>>)
+                {
+                    archive.prepare_save(static_pointer_cast<const void>(value));
+                }
+                else
+                {
+                    archive.prepare_save();
+                }
+            }
+        }
+
+        template <typename T>
+        void prepare_load(T &value, Archive &archive)
+        {
+            if (!archive.m_context->load_prepared)
+            {
+                if constexpr (std::is_same_v<T, std::shared_ptr<T>>)
+                {
+                    archive.prepare_load(static_pointer_cast<void>(value));
+                }
+                else
+                {
+                    archive.prepare_load();
+                }
+            }
+        }
+
+        template <typename T>
         typename std::enable_if<has_custom_save<T>::value, void>::type
         serialize(const T &value, Archive &archive)
         {
+            prepare_save(value, archive);
             value.save_to_archive(archive);
         }
 
@@ -141,6 +174,7 @@ namespace Engine
         typename std::enable_if<has_custom_load<T>::value, void>::type
         deserialize(T &value, Archive &archive)
         {
+            prepare_load(value, archive);
             value.load_from_archive(archive);
         }
 
@@ -148,6 +182,7 @@ namespace Engine
         typename std::enable_if<!has_custom_save<T>::value && has_special_save<T>::value, void>::type
         serialize(const T &value, Archive &archive)
         {
+            prepare_save(value, archive);
             Engine::Serialization::save_to_archive(value, archive);
         }
 
@@ -155,6 +190,7 @@ namespace Engine
         typename std::enable_if<!has_custom_load<T>::value && has_special_load<T>::value, void>::type
         deserialize(T &value, Archive &archive)
         {
+            prepare_load(value, archive);
             Engine::Serialization::load_from_archive(value, archive);
         }
 
@@ -162,6 +198,7 @@ namespace Engine
         typename std::enable_if<!has_custom_save<T>::value && !has_special_save<T>::value && has_generated_save<T>::value, void>::type
         serialize(const T &value, Archive &archive)
         {
+            prepare_save(value, archive);
             value.__serialization_save__(archive);
         }
 
@@ -169,6 +206,7 @@ namespace Engine
         typename std::enable_if<!has_custom_load<T>::value && !has_special_load<T>::value && has_generated_load<T>::value, void>::type
         deserialize(T &value, Archive &archive)
         {
+            prepare_load(value, archive);
             value.__serialization_load__(archive);
         }
 
