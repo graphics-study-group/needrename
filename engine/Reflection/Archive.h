@@ -13,8 +13,6 @@ namespace Engine
     {
         using Json = nlohmann::json;
         using Buffer = std::vector<std::byte>;
-        using BufferNamePair = std::pair<std::string, Buffer>;
-        using BufferList = std::vector<BufferNamePair>;
         using AddressID = unsigned long long;
         using IDMap = std::unordered_map<AddressID, int>;
         using PointerMap = std::unordered_map<int, std::shared_ptr<void>>;
@@ -27,10 +25,13 @@ namespace Engine
             struct GlobalContext
             {
                 Json json{};
-                BufferList extra_datas{};
+                Buffer extra_data{};
+
                 IDMap id_map{};
                 int current_id = 0;
+
                 PointerMap pointer_map{};
+
                 bool save_prepared = false;
                 bool load_prepared = false;
             };

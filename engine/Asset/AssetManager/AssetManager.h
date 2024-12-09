@@ -5,10 +5,11 @@
 #include <memory>
 #include <random>
 #include <unordered_map>
+#include <queue>
 #include <filesystem>
 #include <tiny_obj_loader.h>
-#include "Core/guid.h"
-#include "Asset/Asset.h"
+#include <Core/guid.h>
+#include <Asset/Asset.h>
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wnon-virtual-dtor"
@@ -56,12 +57,19 @@ namespace Engine
 
         void AddAsset(const GUID &guid, const std::filesystem::path &path);
 
+        void AddToLoadingQueue(const GUID &guid);
+        void AddToLoadingQueue(const Asset &asset);
+
+        void LoadAssetsInQueue();
+
     protected:
         std::mt19937_64 m_guid_gen{std::random_device{}()};
 
         std::filesystem::path m_projectPath;
         /// @brief GUID to asset path map
-        std::unordered_map<GUID, std::filesystem::path, GUIDHash> m_assets;
+        std::unordered_map<GUID, std::filesystem::path, GUIDHash> m_assets_map;
+
+        std::queue<GUID> m_loading_queue;
     };
 } // namespace Engine
 

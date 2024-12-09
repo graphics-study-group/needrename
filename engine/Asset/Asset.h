@@ -14,14 +14,8 @@ namespace Engine
     {
         REFL_SER_BODY()
     public:
-        Asset(std::weak_ptr <AssetManager> m_manager);
+        Asset();
         virtual ~Asset();
-
-        /// @brief Load asset from file to the memory
-        virtual void Load();
-
-        /// @brief Unload asset from memory
-        virtual void Unload();
 
         /// @brief Get the path to the asset file
         /// @return path to the asset file
@@ -31,13 +25,24 @@ namespace Engine
         /// @return path to the asset meta file
         virtual std::filesystem::path GetMetaPath();
 
+        /// @brief Save the asset to the archive. Only used for automatic serialization when it is a member of another class. Only save the GUID of the asset
+        virtual void save_to_archive(Serialization::Archive& archive) const;
+        /// @brief Load the asset from the archive. Only used for automatic serialization when it is a member of another class. Only load the GUID of the asset
+        virtual void load_from_archive(Serialization::Archive& archive);
+
+        /// @brief Save the asset to the archive. It will call generated save function __serialization_save__(). Save all the data of the asset. Usually called by AssetManager
+        virtual void save_asset_to_archive(Serialization::Archive& archive) const;
+        /// @brief Load the asset from the archive. It will call generated load function __serialization_load__(). Load all the data of the asset. Usually called by AssetManager
+        virtual void load_asset_from_archive(Serialization::Archive& archive);
+
         inline bool IsValid() const { return m_valid; }
         inline GUID GetGUID() const { return m_guid; }
         inline void SetGUID(GUID guid) { m_guid = guid; }
 
     protected:
-        std::weak_ptr <AssetManager> m_manager;
-        bool m_valid = false;
+        REFL_SER_DISABLE std::weak_ptr <AssetManager> m_manager;
+
+        REFL_SER_DISABLE bool m_valid = false;
         GUID m_guid;
     };
 }

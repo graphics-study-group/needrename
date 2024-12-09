@@ -10,12 +10,4 @@ namespace Engine
     Component::~Component()
     {
     }
-
-    void Component::Load()
-    {
-    }
-
-    void Component::Unload()
-    {
-    }
 }

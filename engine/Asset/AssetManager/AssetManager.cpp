@@ -28,8 +28,11 @@ namespace Engine
                 if (file.is_open())
                 {
                     nlohmann::json json_data = nlohmann::json::parse(file);
-                    GUID guid = stringToGUID(json_data["guid"]);
-                    AddAsset(guid, relative_path.parent_path() / relative_path.stem());
+                    if (json_data.contains("%guid"))
+                    {
+                        GUID guid(json_data["%guid"]);
+                        AddAsset(guid, relative_path.parent_path() / relative_path.stem());
+                    }
                     file.close();
                 }
                 else
@@ -62,8 +65,8 @@ namespace Engine
 
     std::filesystem::path AssetManager::GetAssetPath(GUID guid) const
     {
-        auto it = m_assets.find(guid);
-        if (it != m_assets.end())
+        auto it = m_assets_map.find(guid);
+        if (it != m_assets_map.end())
             return GetAssetsDirectory() / it->second;
         else
             throw std::runtime_error("Asset not found");
@@ -76,8 +79,23 @@ namespace Engine
 
     void AssetManager::AddAsset(const GUID &guid, const std::filesystem::path &path)
     {
-        if(m_assets.find(guid) != m_assets.end())
+        if(m_assets_map.find(guid) != m_assets_map.end())
             throw std::runtime_error("asset GUID already exists");
-        m_assets[guid] = path;
+        m_assets_map[guid] = path;
+    }
+
+    void AssetManager::AddToLoadingQueue(const GUID &guid)
+    {
+        m_loading_queue.push(guid);
+    }
+
+    void AssetManager::AddToLoadingQueue(const Asset &asset)
+    {
+        m_loading_queue.push(asset.GetGUID());
+    }
+
+    void AssetManager::LoadAssetsInQueue()
+    {
+        throw std::runtime_error("Not implemented");
     }
 } // namespace Engine

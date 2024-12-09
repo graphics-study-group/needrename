@@ -41,7 +41,7 @@ int main(int argc, char * argv[])
     cmc->GetAssetManager()->LoadProject(project_path);
     cmc->GetAssetManager()->LoadExternalResource(mesh_path, std::filesystem::path("loading_test"));
     
-    // std::filesystem::remove_all(loaded_asset_path);
+    std::filesystem::remove_all(loaded_asset_path);
 
     SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "Unloading StartupOptions");
     delete opt;

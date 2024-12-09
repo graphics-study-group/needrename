@@ -34,7 +34,7 @@ namespace Engine
 
         nlohmann::json mesh_json;
         std::vector<GUID> material_guids;
-        MeshAsset assetMesh{m_manager};
+        MeshAsset assetMesh;
         GUID mesh_guid = assetMesh.GetGUID();
 
         std::unordered_map<std::string, GUID> texture_path_guid_map;
@@ -53,7 +53,7 @@ namespace Engine
         oarchive(assetMesh);
 
         // Save mesh meta file
-        mesh_json["guid"] = GUIDToString(mesh_guid);
+        mesh_json["guid"] = mesh_guid.toString();
         mesh_json["name"] = path.stem().string();
         mesh_json["type"] = "Mesh";
         mesh_json["submesh_count"] = assetMesh.GetSubmeshCount();
@@ -74,19 +74,19 @@ namespace Engine
         // Save mesh prefab file
         nlohmann::json prefab_json;
         GUID prefab_guid = m_manager.lock()->GenerateGUID();
-        prefab_json["guid"] = GUIDToString(prefab_guid);
+        prefab_json["guid"] = prefab_guid.toString();
         prefab_json["name"] = path.stem().string();
         prefab_json["type"] = "GameObject";
         prefab_json["components"] = nlohmann::json::array();
         nlohmann::json mesh_component_json;
         mesh_component_json["type"] = "MeshComponent";
-        mesh_component_json["mesh"] = GUIDToString(mesh_guid);
+        mesh_component_json["mesh"] = mesh_guid.toString();
         mesh_component_json["materials"] = nlohmann::json::array();
         for (size_t s = 0; s < shapes.size(); s++)
         {
             // XXX: every face in a shape must have the same material
             size_t material_id = shapes[s].mesh.material_ids[0];
-            mesh_component_json["materials"].push_back(GUIDToString(material_guids[material_id]));
+            mesh_component_json["materials"].push_back(material_guids[material_id].toString());
         }
         prefab_json["components"].push_back(mesh_component_json);
         
@@ -108,7 +108,7 @@ namespace Engine
     {
         guid = m_manager.lock()->GenerateGUID();
         nlohmann::json material_json;
-        material_json["guid"] = GUIDToString(guid);
+        material_json["guid"] = guid.toString();
         material_json["name"] = material.name;
         material_json["type"] = "Shadeless";
 
@@ -132,31 +132,31 @@ namespace Engine
         GUID tex_guid;
         // XXX: texture options are not implemented
         if(LoadObjTextureResource(texture_path_guid_map, parent_directory, material.ambient_texname, path_in_project, tex_guid))
-            material_json["ambient_tex"] = GUIDToString(tex_guid);
+            material_json["ambient_tex"] = tex_guid.toString();
         if(LoadObjTextureResource(texture_path_guid_map, parent_directory, material.diffuse_texname, path_in_project, tex_guid))
-            material_json["diffuse_tex"] = GUIDToString(tex_guid);
+            material_json["diffuse_tex"] = tex_guid.toString();
         if(LoadObjTextureResource(texture_path_guid_map, parent_directory, material.specular_texname, path_in_project, tex_guid))
-            material_json["specular_tex"] = GUIDToString(tex_guid);
+            material_json["specular_tex"] = tex_guid.toString();
         if(LoadObjTextureResource(texture_path_guid_map, parent_directory, material.specular_highlight_texname, path_in_project, tex_guid))
-            material_json["specular_highlight_tex"] = GUIDToString(tex_guid);
+            material_json["specular_highlight_tex"] = tex_guid.toString();
         if(LoadObjTextureResource(texture_path_guid_map, parent_directory, material.bump_texname, path_in_project, tex_guid))
-            material_json["bump_tex"] = GUIDToString(tex_guid);
+            material_json["bump_tex"] = tex_guid.toString();
         if(LoadObjTextureResource(texture_path_guid_map, parent_directory, material.displacement_texname, path_in_project, tex_guid))
-            material_json["displacement_tex"] = GUIDToString(tex_guid);
+            material_json["displacement_tex"] = tex_guid.toString();
         if(LoadObjTextureResource(texture_path_guid_map, parent_directory, material.alpha_texname, path_in_project, tex_guid))
-            material_json["alpha_tex"] = GUIDToString(tex_guid);
+            material_json["alpha_tex"] = tex_guid.toString();
         if(LoadObjTextureResource(texture_path_guid_map, parent_directory, material.reflection_texname, path_in_project, tex_guid))
-            material_json["reflection_tex"] = GUIDToString(tex_guid);
+            material_json["reflection_tex"] = tex_guid.toString();
         if(LoadObjTextureResource(texture_path_guid_map, parent_directory, material.roughness_texname, path_in_project, tex_guid))
-            material_json["roughness_tex"] = GUIDToString(tex_guid);
+            material_json["roughness_tex"] = tex_guid.toString();
         if(LoadObjTextureResource(texture_path_guid_map, parent_directory, material.metallic_texname, path_in_project, tex_guid))
-            material_json["metallic_tex"] = GUIDToString(tex_guid);
+            material_json["metallic_tex"] = tex_guid.toString();
         if(LoadObjTextureResource(texture_path_guid_map, parent_directory, material.sheen_texname, path_in_project, tex_guid))
-            material_json["sheen_tex"] = GUIDToString(tex_guid);
+            material_json["sheen_tex"] = tex_guid.toString();
         if(LoadObjTextureResource(texture_path_guid_map, parent_directory, material.emissive_texname, path_in_project, tex_guid))
-            material_json["emissive_tex"] = GUIDToString(tex_guid);
+            material_json["emissive_tex"] = tex_guid.toString();
         if(LoadObjTextureResource(texture_path_guid_map, parent_directory, material.normal_texname, path_in_project, tex_guid))
-            material_json["normal_tex"] = GUIDToString(tex_guid);
+            material_json["normal_tex"] = tex_guid.toString();
 
         std::filesystem::path json_path = m_manager.lock()->GetAssetsDirectory() / path_in_project / (material.name + ".asset");
         std::ofstream material_file(json_path);
@@ -184,7 +184,7 @@ namespace Engine
 
         guid = m_manager.lock()->GenerateGUID();
         nlohmann::json texture_json;
-        texture_json["guid"] = GUIDToString(guid);
+        texture_json["guid"] = guid.toString();
         texture_json["name"] = filename;
         texture_json["type"] = "ImmutableTexture2D";
 

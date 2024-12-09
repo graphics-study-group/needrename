@@ -14,11 +14,9 @@ namespace Engine
     {
         REFL_SER_BODY()
     public:
-        REFL_ENABLE Level(std::weak_ptr <AssetManager> manager);
+        REFL_ENABLE Level();
         ~Level();
 
-        virtual void Load() override;
-        virtual void Unload() override;
         virtual void Tick(float dt);
 
         REFL_ENABLE virtual void AddGameObject(std::shared_ptr<GameObject> gameObject);

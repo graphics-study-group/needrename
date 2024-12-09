@@ -14,8 +14,6 @@ namespace Engine
         Component(std::weak_ptr<GameObject> gameObject);
         virtual ~Component();
 
-        virtual void Load();
-        virtual void Unload();
         virtual void Tick(float dt) = 0;
 
     protected:

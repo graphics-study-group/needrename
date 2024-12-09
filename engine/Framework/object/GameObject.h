@@ -22,9 +22,7 @@ namespace Engine
     public:
         REFL_ENABLE GameObject();
         virtual ~GameObject();
-
-        virtual void Load();
-        virtual void Unload();
+    
         virtual void Tick(float dt);
 
         REFL_ENABLE void AddComponent(std::shared_ptr<Component> component);
