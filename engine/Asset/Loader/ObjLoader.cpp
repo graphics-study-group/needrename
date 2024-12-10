@@ -3,14 +3,15 @@
 #include <fstream>
 #include <tiny_obj_loader.h>
 #include <nlohmann/json.hpp>
-#include <cereal/archives/binary.hpp>
-#include <cereal/cereal.hpp>
-
-#include "Asset/Mesh/MeshAsset.h"
+#include <Asset/Mesh/MeshAsset.h>
+#include <Asset/Material/MtlMaterialAsset.h>
+#include <Asset/Texture/TextureAsset.h>
+#include <MainClass.h>
 
 namespace Engine
 {
-    ObjLoader::ObjLoader(std::weak_ptr<AssetManager> manager) : m_manager(manager) {
+    ObjLoader::ObjLoader() {
+        m_manager = MainClass::GetInstance()->GetAssetManager();
     }
 
     void ObjLoader::LoadObjResource(const std::filesystem::path &path, const std::filesystem::path &path_in_project)
@@ -34,8 +35,8 @@ namespace Engine
 
         nlohmann::json mesh_json;
         std::vector<GUID> material_guids;
-        MeshAsset assetMesh;
-        GUID mesh_guid = assetMesh.GetGUID();
+        MeshAsset mesh_asset;
+        GUID mesh_guid = mesh_asset.GetGUID();
 
         std::unordered_map<std::string, GUID> texture_path_guid_map;
         for (size_t i = 0; i < materials.size(); i++)
@@ -46,17 +47,17 @@ namespace Engine
         }
 
         // Save mesh data to binary file
-        assetMesh.LoadFromTinyobj(attrib, shapes);
+        mesh_asset.LoadFromTinyobj(attrib, shapes);
         std::filesystem::path mesh_data_path = m_manager.lock()->GetAssetsDirectory() / path_in_project / (path.stem().string() + ".mesh_data");
         std::ofstream os(mesh_data_path, std::ios::binary);
         cereal::BinaryOutputArchive oarchive(os);
-        oarchive(assetMesh);
+        oarchive(mesh_asset);
 
         // Save mesh meta file
         mesh_json["guid"] = mesh_guid.toString();
         mesh_json["name"] = path.stem().string();
         mesh_json["type"] = "Mesh";
-        mesh_json["submesh_count"] = assetMesh.GetSubmeshCount();
+        mesh_json["submesh_count"] = mesh_asset.GetSubmeshCount();
 
         std::filesystem::path mesh_json_path = m_manager.lock()->GetAssetsDirectory() / path_in_project / (path.stem().string() + ".mesh_data.asset");
         std::ofstream mesh_file(mesh_json_path);
@@ -104,30 +105,34 @@ namespace Engine
         }
     }
 
-    void ObjLoader::LoadObjMaterialResource(std::unordered_map<std::string, GUID> &texture_path_guid_map, const std::filesystem::path &parent_directory, const tinyobj::material_t &material, const std::filesystem::path &path_in_project, GUID &guid)
+    std::shared_ptr<MtlMaterialAsset> ObjLoader::LoadObjMaterialResource(std::unordered_map<std::string, GUID> &texture_path_guid_map, const std::filesystem::path &parent_directory, const tinyobj::material_t &material, const std::filesystem::path &path_in_project, GUID &guid)
     {
-        guid = m_manager.lock()->GenerateGUID();
-        nlohmann::json material_json;
-        material_json["guid"] = guid.toString();
-        material_json["name"] = material.name;
-        material_json["type"] = "Shadeless";
+        std::shared_ptr<MtlMaterialAsset> material_asset = std::make_shared<MtlMaterialAsset>();
+        guid = material_asset->GetGUID();
+        material_asset->m_name = material.name;
 
-        material_json["ambient"] = {material.ambient[0], material.ambient[1], material.ambient[2]};
-        material_json["diffuse"] = {material.diffuse[0], material.diffuse[1], material.diffuse[2]};
-        material_json["specular"] = {material.specular[0], material.specular[1], material.specular[2]};
-        material_json["transmittance"] = {material.transmittance[0], material.transmittance[1], material.transmittance[2]};
-        material_json["emission"] = {material.emission[0], material.emission[1], material.emission[2]};
-        material_json["shininess"] = material.shininess;
-        material_json["ior"] = material.ior;
-        material_json["dissolve"] = material.dissolve;
-        material_json["illum"] = material.illum;
-        material_json["roughness"] = material.roughness;
-        material_json["metallic"] = material.metallic;
-        material_json["sheen"] = material.sheen;
-        material_json["clearcoat_thickness"] = material.clearcoat_thickness;
-        material_json["clearcoat_roughness"] = material.clearcoat_roughness;
-        material_json["anisotropy"] = material.anisotropy;
-        material_json["anisotropy_rotation"] = material.anisotropy_rotation;
+        material_asset->m_ambient = {material.ambient[0], material.ambient[1], material.ambient[2]};
+        material_asset->m_diffuse = {material.diffuse[0], material.diffuse[1], material.diffuse[2]};
+        material_asset->m_specular = {material.specular[0], material.specular[1], material.specular[2]};
+        material_asset->m_transmittance = {material.transmittance[0], material.transmittance[1], material.transmittance[2]};
+        material_asset->m_emission = {material.emission[0], material.emission[1], material.emission[2]};
+        material_asset->m_shininess = material.shininess;
+        material_asset->m_ior = material.ior;
+        material_asset->m_dissolve = material.dissolve;
+        material_asset->m_illum = material.illum;
+
+        GUID tex_guid;
+        // XXX: texture options are not implemented
+        // if(LoadObjTextureResource(texture_path_guid_map, parent_directory, material.ambient_texname, path_in_project, tex_guid))
+        //     material_asset->m_ambient_tex = 
+
+        material_asset->m_roughness = material.roughness;
+        material_asset->m_metallic = material.metallic;
+        material_asset->m_sheen = material.sheen;
+        material_asset->m_clearcoat_thickness = material.clearcoat_thickness;
+        material_asset->m_clearcoat_roughness = material.clearcoat_roughness;
+        material_asset->m_anisotropy = material.anisotropy;
+        material_asset->m_anisotropy_rotation = material.anisotropy_rotation;
 
         GUID tex_guid;
         // XXX: texture options are not implemented
@@ -181,6 +186,8 @@ namespace Engine
             guid = texture_path_guid_map[filename];
             return true;
         }
+
+        
 
         guid = m_manager.lock()->GenerateGUID();
         nlohmann::json texture_json;

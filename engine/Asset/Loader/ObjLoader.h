@@ -11,7 +11,7 @@ namespace Engine
     class ObjLoader
     {
     public:
-        ObjLoader(std::weak_ptr <AssetManager> manager);
+        ObjLoader();
         virtual ~ObjLoader() = default;
 
     public:

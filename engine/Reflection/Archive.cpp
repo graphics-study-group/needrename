@@ -1,4 +1,5 @@
 #include "Archive.h"
+#include <fstream>
 #include <Reflection/reflection.h>
 
 namespace Engine
@@ -40,7 +41,7 @@ namespace Engine
         void Archive::clear()
         {
             m_context->json.clear();
-            m_context->extra_datas.clear();
+            m_context->extra_data.clear();
             m_context->id_map.clear();
             m_context->pointer_map.clear();
             m_context->current_id = 0;
@@ -50,9 +51,65 @@ namespace Engine
             m_cursor = nullptr;
         }
 
-        void Archive::save_to_file(const std::filesystem::path &path)
+        void Archive::save_to_file(std::filesystem::path path)
         {
-            throw std::runtime_error("Not implemented");
+            if(path.extension() == ".asset")
+                path.replace_extension("");
+            std::filesystem::path json_path = path.append(".asset");
+
+            std::ofstream json_file(json_path);
+            if(json_file.is_open())
+            {
+                json_file << m_context->json.dump(4);
+                json_file.close();
+            }
+            else
+            {
+                throw std::runtime_error("Failed to open json file");
+            }
+
+            if (m_context->extra_data.size() > 0)
+            {
+                std::ofstream extra_data_file(path, std::ios::binary);
+                if (extra_data_file.is_open())
+                {
+                    extra_data_file.write(reinterpret_cast<const char *>(m_context->extra_data.data()), m_context->extra_data.size());
+                    extra_data_file.close();
+                }
+                else
+                {
+                    throw std::runtime_error("Failed to open extra data file");
+                }
+            }
+        }
+
+        void Archive::load_from_file(std::filesystem::path path)
+        {
+            clear();
+            if(path.extension() == ".asset")
+                path.replace_extension("");
+            std::filesystem::path json_path = path.append(".asset");
+            std::ifstream json_file(json_path);
+            if(json_file.is_open())
+            {
+                json_file >> m_context->json;
+                json_file.close();
+            }
+            else
+            {
+                throw std::runtime_error("Failed to open json file");
+            }
+
+            std::ifstream extra_data_file(path, std::ios::binary);
+            if (extra_data_file.is_open())
+            {
+                extra_data_file.seekg(0, std::ios::end);
+                size_t size = extra_data_file.tellg();
+                extra_data_file.seekg(0, std::ios::beg);
+                m_context->extra_data.resize(size);
+                extra_data_file.read(reinterpret_cast<char *>(m_context->extra_data.data()), size);
+                extra_data_file.close();
+            }
         }
     }
 }

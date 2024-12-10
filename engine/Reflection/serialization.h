@@ -2,6 +2,8 @@
 #define REFLECTION_SERIALIZATION_INCLUDED
 
 #include <vector>
+#include <glm.hpp>
+#include <gtc/quaternion.hpp>
 #include "Archive.h"
 
 namespace Engine
@@ -56,6 +58,24 @@ namespace Engine
         void save_to_archive(const std::weak_ptr<T> &value, Archive &archive);
         template <typename T>
         void load_from_archive(std::weak_ptr<T> &value, Archive &archive);
+
+        void save_to_archive(const glm::vec2 &value, Archive &archive);
+        void load_from_archive(glm::vec2 &value, Archive &archive);
+
+        void save_to_archive(const glm::vec3 &value, Archive &archive);
+        void load_from_archive(glm::vec3 &value, Archive &archive);
+
+        void save_to_archive(const glm::vec4 &value, Archive &archive);
+        void load_from_archive(glm::vec4 &value, Archive &archive);
+
+        void save_to_archive(const glm::quat &value, Archive &archive);
+        void load_from_archive(glm::quat &value, Archive &archive);
+
+        void save_to_archive(const glm::mat3 &value, Archive &archive);
+        void load_from_archive(glm::mat3 &value, Archive &archive);
+
+        void save_to_archive(const glm::mat4 &value, Archive &archive);
+        void load_from_archive(glm::mat4 &value, Archive &archive);
 
         template <typename T>
         class has_custom_save

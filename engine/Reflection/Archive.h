@@ -49,7 +49,8 @@ namespace Engine
             void prepare_save(std::shared_ptr<const void> main_data = nullptr);
             void prepare_load(std::shared_ptr<void> main_data = nullptr);
             void clear();
-            void save_to_file(const std::filesystem::path &path);
+            void save_to_file(std::filesystem::path path);
+            void load_from_file(std::filesystem::path path);
         };
     }
 }
