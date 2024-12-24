@@ -11,6 +11,7 @@ namespace Engine
 {
     class REFL_SER_CLASS(REFL_WHITELIST) MeshAsset: public Asset
     {
+        REFL_SER_BODY()
     public:
         REFL_ENABLE MeshAsset();
         virtual ~MeshAsset();

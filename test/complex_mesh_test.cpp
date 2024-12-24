@@ -199,7 +199,7 @@ struct {
 } g_SceneData {M_PI_2, M_PI_2, 0.5f, 0.5f, 0.5f, 4.0f};
 
 glm::vec3 GetCartesian(float zenith, float azimuth) {
-    static constexpr float RADIUS = 10.0f;
+    static constexpr float RADIUS = 2.0f;
     return glm::vec3{
         RADIUS * sin(zenith) * cos(azimuth),
         RADIUS * sin(zenith) * sin(azimuth),
@@ -269,7 +269,7 @@ int main(int argc, char ** argv)
     });
     
     // Setup mesh
-    std::filesystem::path mesh_path{std::string(ENGINE_ASSETS_DIR) + "/four_bunny/four_bunny.obj"};
+    std::filesystem::path mesh_path{std::string(ENGINE_ASSETS_DIR) + "/__furina/furina_combined.obj"};
     std::shared_ptr tmc = std::make_shared<MeshComponentFromFile>(mesh_path);
     rsys->RegisterComponent(tmc);
 

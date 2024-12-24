@@ -11,6 +11,7 @@ namespace Engine
 {
     class REFL_SER_CLASS(REFL_BLACKLIST) MtlMaterialAsset : public Asset
     {
+        REFL_SER_BODY()
     public:
         MtlMaterialAsset() = default;
         virtual ~MtlMaterialAsset() = default;
