@@ -6,6 +6,8 @@
 
 namespace Engine
 {
+    /// @brief An instance of a given material,
+    /// where all mutable data such as texture and uniforms are stored.
     class MaterialInstance {
     
     public:
