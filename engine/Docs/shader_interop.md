@@ -43,7 +43,72 @@ Typically the descriptors should not be updated frequently, and you can mannuall
 
 To access these uniforms in shader, use layout directive with `set = 2`, for example:
 ```glsl
-layout(set = 2, binding = 0) uniform sampler2D Sampler;
+layout(set = 2, binding = 1) uniform sampler2D Sampler;
+```
+
+A specific type of material is expressed in a JSON file, similar to the following example.
+```json
+{
+    "name": "phong",
+    "passes" : [
+        {
+            "name": "lit",
+            "pipeline": {
+                "dsAttachment": {
+                    "compareOp": "less",
+                    "loadOp": "clear",
+                    "storeOp": "discard",
+                    "clear": 0
+                },
+                "colorAttachments": [
+                    {
+                        "loadOp": "clear",
+                        "storeOp": "store",
+                        "clear": [0, 0, 0, 1]
+                    }
+                ],
+                "filling": "fill",
+                "culling": "back",
+                "frontface": "ccw",
+            },
+            "uniforms": {
+                "textures" : [
+                    {
+                        "name": "base",
+                        "binding": 1
+                    },
+                    {
+                        "name": "normal",
+                        "binding": 2
+                    }
+                ],
+                // UBO is assumed to take binding 0.
+                "ubo": [
+                    {
+                        "name": "color",
+                        "offset": 64,
+                        "size": 64
+                    }
+                    {
+                        "name": "specular",
+                        "offset": 0,
+                        "size": 64  // vec4
+                    }
+                ],
+            },
+            "shaders": [
+                {
+                    "stage": "vertex",
+                    "file": "phong.vert.spv"
+                },
+                {
+                    "stage": "fragment",
+                    "file": "phong.frag.spv"
+                }
+            ]
+        }
+    ]
+}
 ```
 
 ## Per-model Constant
