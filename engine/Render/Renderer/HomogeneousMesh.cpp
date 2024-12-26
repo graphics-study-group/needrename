@@ -1,8 +1,9 @@
 #include "HomogeneousMesh.h"
 #include <vulkan/vulkan.hpp>
+#include <Asset/Mesh/MeshAsset.h>
 
 namespace Engine {
-    HomogeneousMesh::HomogeneousMesh(std::weak_ptr<RenderSystem> system) : m_system(system), m_buffer(system) {
+    HomogeneousMesh::HomogeneousMesh(std::weak_ptr<RenderSystem> system, std::shared_ptr<MeshAsset> mesh_asset, size_t submesh_idx) : m_system(system), m_buffer(system), m_mesh_asset(mesh_asset), m_submesh_idx(submesh_idx) {
     }
 
     HomogeneousMesh::~HomogeneousMesh() {
@@ -45,22 +46,18 @@ namespace Engine {
 
     void HomogeneousMesh::WriteToMemory(std::byte* pointer) const {
         uint64_t offset = 0;
+        const auto &positions = m_mesh_asset->m_submeshes[m_submesh_idx].m_positions;
+        const auto &attributes = m_mesh_asset->m_submeshes[m_submesh_idx].m_attributes;
+        const auto &indices = m_mesh_asset->m_submeshes[m_submesh_idx].m_indices;
         // Position
-        std::memcpy(&pointer[offset], m_positions.data(), m_positions.size() * VertexStruct::VERTEX_POSITION_SIZE);
-        offset += m_positions.size() * VertexStruct::VERTEX_POSITION_SIZE;
+        std::memcpy(&pointer[offset], positions.data(), positions.size() * VertexStruct::VERTEX_POSITION_SIZE);
+        offset += positions.size() * VertexStruct::VERTEX_POSITION_SIZE;
         // Attributes
-        std::memcpy(&pointer[offset], m_attributes.data(), m_attributes.size() * VertexStruct::VERTEX_ATTRIBUTE_SIZE);
-        offset += m_attributes.size() * VertexStruct::VERTEX_ATTRIBUTE_SIZE;
-
-#ifndef NDEBUG
-        const uint32_t vertex_count = m_positions.size();
-        const uint64_t buffer_size = vertex_count * VertexStruct::VERTEX_TOTAL_SIZE;
-        assert(offset == buffer_size);
-#endif
-
+        std::memcpy(&pointer[offset], attributes.data(), attributes.size() * VertexStruct::VERTEX_ATTRIBUTE_SIZE);
+        offset += attributes.size() * VertexStruct::VERTEX_ATTRIBUTE_SIZE;
         // Index
-        std::memcpy(&pointer[offset], m_indices.data(), m_indices.size() * sizeof(uint32_t));
-        offset += m_indices.size() * sizeof(uint32_t);
+        std::memcpy(&pointer[offset], indices.data(), indices.size() * sizeof(uint32_t));
+        offset += indices.size() * sizeof(uint32_t);
         assert(offset == GetExpectedBufferSize());
     }
 
@@ -70,31 +67,6 @@ namespace Engine {
         };
     }
 
-    void HomogeneousMesh::SetPositions(std::vector<VertexStruct::VertexPosition> positions) {
-        m_positions = positions;
-        m_updated = true;
-    }
-
-    void HomogeneousMesh::SetAttributes(std::vector<VertexStruct::VertexAttribute> attributes) {
-        m_attributes = attributes;
-        m_updated = true;
-    }
-
-    void HomogeneousMesh::SetIndices(std::vector<uint32_t> indices) {
-        m_indices = indices;
-        m_updated = true;
-    }
-
-    void HomogeneousMesh::SetModelTransform(glm::mat4 matrix)
-    {
-        m_model_transform = matrix;
-    }
-
-    const glm::mat4 &HomogeneousMesh::GetModelTransform() const
-    {
-        return m_model_transform;
-    }
-
     std::pair<vk::Buffer, vk::DeviceSize> HomogeneousMesh::GetIndexInfo() const {
         assert(this->m_buffer.GetBuffer());
         uint64_t total_size = GetVertexCount() * VertexStruct::VERTEX_TOTAL_SIZE;
@@ -102,16 +74,15 @@ namespace Engine {
     }
 
     uint32_t HomogeneousMesh::GetVertexIndexCount() const {
-        return m_indices.size();
+        return m_mesh_asset->GetSubmeshVertexIndexCount(m_submesh_idx);
     }
 
     uint32_t HomogeneousMesh::GetVertexCount() const {
-        assert(m_positions.size() == m_attributes.size());
-        return m_positions.size();
+        return m_mesh_asset->GetSubmeshVertexCount(m_submesh_idx);
     }
 
     uint64_t HomogeneousMesh::GetExpectedBufferSize() const {
-        return GetVertexIndexCount() * sizeof(uint32_t) + GetVertexCount() * VertexStruct::VERTEX_TOTAL_SIZE;
+        return m_mesh_asset->GetSubmeshExpectedBufferSize(m_submesh_idx);
     }
 
     const Buffer & HomogeneousMesh::GetBuffer() const {
@@ -122,7 +93,7 @@ namespace Engine {
     HomogeneousMesh::GetBindingInfo() const {
         assert(this->m_buffer.GetBuffer());
         std::array<vk::Buffer, BINDING_COUNT> buffer {this->m_buffer.GetBuffer(), this->m_buffer.GetBuffer()};
-        std::array<vk::DeviceSize, BINDING_COUNT> binding_offset {0, m_positions.size() * VertexStruct::VERTEX_POSITION_SIZE};
+        std::array<vk::DeviceSize, BINDING_COUNT> binding_offset {0, GetVertexCount() * VertexStruct::VERTEX_POSITION_SIZE};
         return std::make_pair(buffer, binding_offset);
     }
 }

@@ -6,6 +6,7 @@
 #include "Render/Memory/Buffer.h"
 
 namespace Engine{
+    class MeshAsset;
     
     /// @brief A homogeneous mesh of only one material at runtime, constructed from mesh asset.
     class HomogeneousMesh {
@@ -13,7 +14,7 @@ namespace Engine{
 
         static constexpr const uint32_t BINDING_COUNT = 2;
 
-        HomogeneousMesh(std::weak_ptr <RenderSystem> system);
+        HomogeneousMesh(std::weak_ptr <RenderSystem> system, std::shared_ptr<MeshAsset> mesh_asset, size_t submesh_idx);
         ~HomogeneousMesh();
 
         void Prepare();
@@ -39,13 +40,6 @@ namespace Engine{
         GetIndexInfo() const;
 
         static vk::PipelineVertexInputStateCreateInfo GetVertexInputState();
-
-        void SetPositions (std::vector <VertexStruct::VertexPosition> positions);
-        void SetAttributes (std::vector <VertexStruct::VertexAttribute> attributes);
-        void SetIndices (std::vector <uint32_t> indices);
-
-        void SetModelTransform(glm::mat4 matrix);
-        const glm::mat4 & GetModelTransform() const;
 
     protected:
         std::weak_ptr <RenderSystem> m_system;
@@ -89,11 +83,8 @@ namespace Engine{
 
         uint64_t m_allocated_buffer_size {0};
 
-        std::vector <uint32_t> m_indices {};
-        std::vector <VertexStruct::VertexPosition> m_positions {};
-        std::vector <VertexStruct::VertexAttribute> m_attributes {};
-
-        glm::mat4 m_model_transform {1.0f};
+        std::shared_ptr<MeshAsset> m_mesh_asset;
+        size_t m_submesh_idx;
 
         void WriteToMemory(std::byte * pointer) const;
     };

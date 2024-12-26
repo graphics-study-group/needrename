@@ -1,25 +1,31 @@
 #ifndef FRAMEWORK_COMPONENT_RENDERCOMPONENT_MESHCOMPONENT_INCLUDED
 #define FRAMEWORK_COMPONENT_RENDERCOMPONENT_MESHCOMPONENT_INCLUDED
 
-#include "Framework/component/RenderComponent/RendererComponent.h"
+#include <Asset/Mesh/MeshAsset.h>
+#include <Framework/component/RenderComponent/RendererComponent.h>
 
-namespace Engine {
-
+namespace Engine
+{
     class MeshAsset;
     class HomogeneousMesh;
 
-    class MeshComponent : public RendererComponent {
+    class MeshComponent : public RendererComponent
+    {
     protected:
-        std::vector <std::shared_ptr<HomogeneousMesh>> m_submeshes;
+        std::vector<std::shared_ptr<HomogeneousMesh>> m_submeshes;
+
     public:
         MeshComponent(std::weak_ptr<GameObject> gameObject);
 
-        std::shared_ptr <HomogeneousMesh> GetSubmesh(uint32_t slot) const;
-        auto GetSubmeshes () -> decltype(m_submeshes) &;
+        std::shared_ptr<HomogeneousMesh> GetSubmesh(uint32_t slot) const;
+        auto GetSubmeshes() -> decltype(m_submeshes) &;
 
         /// @brief Materialize a runtime mesh component from a mesh asset
-        /// @param asset 
-        void Materialize (const MeshAsset & asset);
+        void Materialize();
+
+        virtual void Tick(float dt) override;
+    public:
+        std::shared_ptr<MeshAsset> m_mesh_asset;
     };
 }
 

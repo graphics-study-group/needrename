@@ -44,6 +44,8 @@ namespace Engine
 
         REFL_SER_DISABLE bool m_valid = false;
         GUID m_guid;
+
+        inline void SetValid(bool valid) { m_valid = valid; }
     };
 }
 

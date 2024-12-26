@@ -40,15 +40,6 @@ class MeshComponentFromFile : public MeshComponent {
         m_materials.clear();
         m_submeshes.clear();
 
-        // std::shared_ptr mat = std::make_shared<Shadeless>(m_system);
-        // std::shared_ptr hmsh = std::make_shared<HomogeneousMesh>(m_system);
-        // m_materials.push_back(mat);
-        // m_submeshes.push_back(hmsh);
-
-        std::vector <std::vector<VertexStruct::VertexPosition>> positions;
-        std::vector <std::vector<VertexStruct::VertexAttribute>> attributes;
-        std::vector <std::vector<uint32_t>> indices;
-
         if (!reader.ParseFromFile(mesh.string(), reader_config)) {
             SDL_LogCritical(0, "Failed to load OBJ file %s", mesh.string().c_str());
             if (!reader.Error().empty()) {
@@ -62,9 +53,48 @@ class MeshComponentFromFile : public MeshComponent {
             SDL_LogWarn(0, "TinyObjLoader reports: %s", reader.Warning().c_str());
         }
 
-        const auto & attrib = reader.GetAttrib();
-        const auto & shapes = reader.GetShapes();
-        const auto & materials = reader.GetMaterials();
+        const auto &attrib = reader.GetAttrib();
+        const auto &origin_shapes = reader.GetShapes();
+        std::vector<tinyobj::shape_t> shapes;
+        const auto &origin_materials = reader.GetMaterials();
+        std::vector<tinyobj::material_t> materials;
+
+        for (size_t shp = 0; shp < origin_shapes.size(); shp++) {
+            const auto &shape = origin_shapes[shp];
+            auto shape_vertices_size = shape.mesh.num_face_vertices.size();
+            std::map<int, tinyobj::shape_t> material_id_map;
+            int shape_id = 0;
+            for (size_t fc = 0; fc < shape_vertices_size; fc++) {
+                auto &material_id = shape.mesh.material_ids[fc];
+                if (material_id_map.find(material_id) == material_id_map.end()) {
+                    material_id_map[material_id] = tinyobj::shape_t{
+                        .name = shape.name + "_" + std::to_string(shape_id++),
+                        .mesh = tinyobj::mesh_t{}
+                    };
+                }
+                auto &new_shape = material_id_map[material_id];
+                unsigned int face_vertex_count = shape.mesh.num_face_vertices[fc];
+                assert(face_vertex_count == 3);
+                new_shape.mesh.num_face_vertices.push_back(face_vertex_count);
+                new_shape.mesh.material_ids.push_back(material_id);
+                new_shape.mesh.smoothing_group_ids.push_back(shape.mesh.smoothing_group_ids[fc]);
+                for (unsigned int vrtx = 0; vrtx < face_vertex_count; vrtx++) {
+                    new_shape.mesh.indices.push_back(shape.mesh.indices[fc * 3 + vrtx]);
+                }
+            }
+            for (const auto & [_, new_shape] : material_id_map) {
+                shapes.push_back(new_shape);
+                materials.push_back(origin_materials[new_shape.mesh.material_ids[0]]);
+                std::fill(
+                    shapes.back().mesh.material_ids.begin(),
+                    shapes.back().mesh.material_ids.end(),
+                    materials.size() - 1
+                );
+            }
+        }
+
+        this->m_mesh_asset = std::make_shared<MeshAsset>();
+        this->m_mesh_asset->LoadFromTinyobj(attrib, shapes);
 
         // Process materials
         m_textures.clear();
@@ -80,55 +110,8 @@ class MeshComponentFromFile : public MeshComponent {
 
             SDL_LogInfo(0, "Material name %s: diffuse map %s.", material.name.c_str(), m_texture_files.rbegin()->string().c_str());
         }
-        positions.resize(materials.size());
-        attributes.resize(materials.size());
-        indices.resize(materials.size());
 
-        // assert(shapes.size() == 1);
-        for (size_t shp = 0; shp < shapes.size(); shp++) {
-            const auto & shape = shapes[shp];
-            auto shape_vertices_size = shape.mesh.num_face_vertices.size();
-
-            for (size_t fc = 0; fc < shape_vertices_size; fc++) {
-                unsigned int face_vertex_count = shape.mesh.num_face_vertices[fc];
-                assert(face_vertex_count == 3);
-                // assert(material_id == shape.mesh.material_ids[fc]);
-                auto material_id = shape.mesh.material_ids[fc];
-                for (unsigned int vrtx = 0; vrtx < face_vertex_count; vrtx++) {
-                    tinyobj::index_t index = shape.mesh.indices[fc * 3 + vrtx];
-                    // assert(index.vertex_index == index.normal_index && index.vertex_index == index.texcoord_index);
-                    float x{attrib.vertices[size_t(index.vertex_index)*3+0]};
-                    float y{attrib.vertices[size_t(index.vertex_index)*3+1]};
-                    float z{attrib.vertices[size_t(index.vertex_index)*3+2]};
-                    
-                    assert(index.texcoord_index >= 0);
-                    float uv_u{attrib.texcoords[size_t(index.texcoord_index)*2+0]};
-                    float uv_v{attrib.texcoords[size_t(index.texcoord_index)*2+1]};
-                    
-                    assert(index.normal_index >= 0);
-                    float normal_x{attrib.normals[size_t(index.normal_index)*3+0]};
-                    float normal_y{attrib.normals[size_t(index.normal_index)*3+1]};
-                    float normal_z{attrib.normals[size_t(index.normal_index)*3+2]};
-
-                    positions[material_id].push_back(VertexStruct::VertexPosition{.position = {x, y, z}});
-                    attributes[material_id].push_back(VertexStruct::VertexAttribute{
-                        .color = {1.0f, 1.0f, 1.0f}, 
-                        .normal = {normal_x, normal_y, normal_z}, 
-                        .texcoord1 = {uv_u, uv_v}
-                    });
-                    indices[material_id].push_back(positions[material_id].size() - 1);
-                }
-            }
-        }
-
-        for (size_t mat = 0; mat < materials.size(); mat++) {
-            assert(positions[mat].size() % 3 == 0);
-            assert(attributes[mat].size() == positions[mat].size() && positions[mat].size() == indices[mat].size());
-            m_submeshes.push_back(std::make_shared<HomogeneousMesh>(m_system));
-            m_submeshes[mat]->SetPositions(positions[mat]);
-            m_submeshes[mat]->SetAttributes(attributes[mat]);
-            m_submeshes[mat]->SetIndices(indices[mat]);
-        }
+        Materialize();
     }
 
 public: 
