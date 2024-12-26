@@ -2,6 +2,8 @@
 #define REFLECTION_SERIALIZATION_INCLUDED
 
 #include <vector>
+#include <unordered_map>
+#include <map>
 #include <glm.hpp>
 #include <gtc/quaternion.hpp>
 #include "Archive.h"
@@ -33,6 +35,16 @@ namespace Engine
         template <typename T>
         typename std::enable_if<std::is_array<T>::value, void>::type
         load_from_archive(T &value, Archive &archive);
+
+        template <typename T>
+        void save_to_archive(const std::unordered_map<std::string, T> &value, Archive &archive);
+        template <typename T>
+        void load_from_archive(std::unordered_map<std::string, T> &value, Archive &archive);
+
+        template <typename T>
+        void save_to_archive(const std::map<std::string, T> &value, Archive &archive);
+        template <typename T>
+        void load_from_archive(std::map<std::string, T> &value, Archive &archive);
 
         template <typename T>
         void save_to_archive(const std::vector<T> &value, Archive &archive);

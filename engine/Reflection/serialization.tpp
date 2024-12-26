@@ -132,6 +132,86 @@ namespace Engine
         }
 
         template <typename T>
+        void save_to_archive(const std::unordered_map<std::string, T> &value, Archive &archive)
+        {
+            Json &json = *archive.m_cursor;
+            json = Json::object();
+            for (auto &item : value)
+            {
+                if constexpr (is_basic_type<T>::value)
+                {
+                    json[item.first] = item.second;
+                }
+                else
+                {
+                    json[item.first] = Json::object();
+                    Archive temp_archive(archive, &json[item.first]);
+                    serialize(item.second, temp_archive);
+                }
+            }
+        }
+
+        template <typename T>
+        void load_from_archive(std::unordered_map<std::string, T> &value, Archive &archive)
+        {
+            Json &json = *archive.m_cursor;
+            value.clear();
+            for (auto &item : json.items())
+            {
+                if constexpr (is_basic_type<T>::value)
+                {
+                    value[item.key()] = item.value().get<T>();
+                }
+                else
+                {
+                    Archive temp_archive(archive, &item.value());
+                    value[item.key()] = T();
+                    deserialize(value[item.key()], temp_archive);
+                }
+            }
+        }
+
+        template <typename T>
+        void save_to_archive(const std::map<std::string, T> &value, Archive &archive)
+        {
+            Json &json = *archive.m_cursor;
+            json = Json::object();
+            for (auto &item : value)
+            {
+                if constexpr (is_basic_type<T>::value)
+                {
+                    json[item.first] = item.second;
+                }
+                else
+                {
+                    json[item.first] = Json::object();
+                    Archive temp_archive(archive, &json[item.first]);
+                    serialize(item.second, temp_archive);
+                }
+            }
+        }
+
+        template <typename T>
+        void load_from_archive(std::map<std::string, T> &value, Archive &archive)
+        {
+            Json &json = *archive.m_cursor;
+            value.clear();
+            for (auto &item : json.items())
+            {
+                if constexpr (is_basic_type<T>::value)
+                {
+                    value[item.key()] = item.value().get<T>();
+                }
+                else
+                {
+                    Archive temp_archive(archive, &item.value());
+                    value[item.key()] = T();
+                    deserialize(value[item.key()], temp_archive);
+                }
+            }
+        }
+
+        template <typename T>
         void save_to_archive(const std::vector<T> &value, Archive &archive)
         {
             Json &json = *archive.m_cursor;
