@@ -1,18 +1,41 @@
 #include "Image2DTextureAsset.h"
 #include <stb_image.h>
+#include <stb_image_write.h>
 
 namespace Engine
 {
+    static void write_png_to_mem(void *context, void *data, int size)
+    {
+        auto &extra_data = *reinterpret_cast<std::vector<std::byte> *>(context);
+        extra_data.insert(extra_data.end(), reinterpret_cast<std::byte *>(data), reinterpret_cast<std::byte *>(data) + size);
+    }
+
     void Image2DTextureAsset::save_asset_to_archive(Serialization::Archive &archive) const
     {
         __serialization_save__(archive);
-        // TODO: Save the image data
+        auto &data = archive.m_context->extra_data;
+        assert(data.empty());
+
+        stbi_flip_vertically_on_write(true);
+        stbi_write_png_to_func(write_png_to_mem, &data, m_width, m_height, m_channel, m_data.data(), 0);
     }
 
     void Image2DTextureAsset::load_asset_from_archive(Serialization::Archive &archive)
     {
         __serialization_load__(archive);
-        // TODO: Load the image data
+        auto &data = archive.m_context->extra_data;
+
+        stbi_set_flip_vertically_on_load(true);
+        int width, height, channel;
+        stbi_uc *raw_image_data = stbi_load_from_memory(reinterpret_cast<const stbi_uc *>(data.data()), data.size(), &width, &height, &channel, 0);
+        assert(raw_image_data);
+        assert(width == m_width && height == m_height && channel == m_channel);
+
+        m_data.resize(m_width * m_height * m_channel);
+        std::memcpy(m_data.data(), raw_image_data, m_width * m_height * m_channel);
+        stbi_image_free(raw_image_data);
+
+        Asset::SetValid(true);
     }
 
     void Image2DTextureAsset::Unload()
@@ -24,10 +47,10 @@ namespace Engine
     void Image2DTextureAsset::LoadFromMemory(const std::byte *data, size_t size)
     {
         stbi_set_flip_vertically_on_load(true);
-        stbi_uc *raw_image_data = stbi_load_from_memory(reinterpret_cast<const stbi_uc *>(data), size, &m_width, &m_height, &m_channel, 4);
+        stbi_uc *raw_image_data = stbi_load_from_memory(reinterpret_cast<const stbi_uc *>(data), size, &m_width, &m_height, &m_channel, 0);
         assert(raw_image_data);
-        m_data.resize(m_width * m_height * 4);
-        std::memcpy(m_data.data(), raw_image_data, m_width * m_height * 4);
+        m_data.resize(m_width * m_height * m_channel);
+        std::memcpy(m_data.data(), raw_image_data, m_width * m_height * m_channel);
         stbi_image_free(raw_image_data);
         m_format = ImageUtils::ImageFormat::R8G8B8A8SRGB;
         m_mip_level = 1;
@@ -38,10 +61,10 @@ namespace Engine
     {
         m_name = path.stem().string();
         stbi_set_flip_vertically_on_load(true);
-        stbi_uc *raw_image_data = stbi_load(path.string().c_str(), &m_width, &m_height, &m_channel, 4);
+        stbi_uc *raw_image_data = stbi_load(path.string().c_str(), &m_width, &m_height, &m_channel, 0);
         assert(raw_image_data);
-        m_data.resize(m_width * m_height * 4);
-        std::memcpy(m_data.data(), raw_image_data, m_width * m_height * 4);
+        m_data.resize(m_width * m_height * m_channel);
+        std::memcpy(m_data.data(), raw_image_data, m_width * m_height * m_channel);
         stbi_image_free(raw_image_data);
         m_format = ImageUtils::ImageFormat::R8G8B8A8SRGB;
         m_mip_level = 1;
