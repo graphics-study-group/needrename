@@ -132,6 +132,22 @@ namespace Engine
         }
 
         template <typename T>
+        typename std::enable_if<std::is_enum<T>::value, void>::type
+        save_to_archive(const T &value, Archive &archive)
+        {
+            Json &json = *archive.m_cursor;
+            json = static_cast<int>(value);
+        }
+
+        template <typename T>
+        typename std::enable_if<std::is_enum<T>::value, void>::type
+        load_from_archive(T &value, Archive &archive)
+        {
+            Json &json = *archive.m_cursor;
+            value = static_cast<T>(json.get<int>());
+        }
+
+        template <typename T>
         void save_to_archive(const std::unordered_map<std::string, T> &value, Archive &archive)
         {
             Json &json = *archive.m_cursor;

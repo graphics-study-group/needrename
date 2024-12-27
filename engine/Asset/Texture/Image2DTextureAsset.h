@@ -22,7 +22,7 @@ namespace Engine
         REFL_SER_ENABLE int m_height{};
         REFL_SER_ENABLE int m_channel{};
         REFL_SER_ENABLE ImageUtils::ImageFormat m_format{};
-        REFL_SER_ENABLE uint32_t m_mip_level{};
+        REFL_SER_ENABLE unsigned m_mip_level{};
 
         void LoadFromMemory(const std::byte *data, size_t size);
         void LoadFromFile(const std::filesystem::path &path);

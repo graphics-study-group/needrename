@@ -21,7 +21,7 @@ import clang.cindex as CX
     % endfor
 
     % for field in class_type.serialized_fields:
-    % if field.type.cx_type.kind in basic_type_list:
+    % if field.type.cx_type.kind in basic_type_list or field.type.cx_type.spelling == "std::string":
     {
         json["${prefix + field.name}"] = this->${field.name};
     }
@@ -54,7 +54,7 @@ void ${class_type.full_name}::__serialization_save__(Engine::Serialization::Arch
     % endfor
     
     % for field in class_type.serialized_fields:
-    % if field.type.cx_type.kind in basic_type_list:
+    % if field.type.cx_type.kind in basic_type_list or field.type.cx_type.spelling == "std::string":
     {
         if (json.find("${prefix + field.name}") != json.end())
         {

@@ -16,7 +16,6 @@ namespace Engine
             if (m_context->save_prepared)
                 throw std::runtime_error("Archive already initialized");
             m_context->json["%data"] = Json::object();
-            m_context->json["%extra_data"] = Json::array();
             std::string main_id;
             if (main_data)
                 m_context->id_map[(AddressID)main_data.get()] = m_context->current_id;

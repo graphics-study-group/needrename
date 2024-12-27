@@ -43,11 +43,15 @@ namespace Engine
     void Asset::save_asset_to_archive(Serialization::Archive& archive) const
     {
         __serialization_save__(archive);
+        Serialization::Json &json = *archive.m_cursor;
+        json["Asset::m_guid"] = m_guid.toString();
     }
 
     void Asset::load_asset_from_archive(Serialization::Archive& archive)
     {
         __serialization_load__(archive);
+        Serialization::Json &json = *archive.m_cursor;
+        m_guid.fromString(json["Asset::m_guid"].get<std::string>());
         SetValid(true);
     }
 

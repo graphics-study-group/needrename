@@ -106,7 +106,7 @@ namespace Engine
             archive.clear();
             archive.prepare_save();
             texture->save_asset_to_archive(archive);
-            archive.save_to_file(m_manager.lock()->GetAssetsDirectory() / path_in_project / (texture->m_name + ".texture.asset"));
+            archive.save_to_file(m_manager.lock()->GetAssetsDirectory() / path_in_project / (texture->m_name + ".png.asset"));
         }
     }
 }
