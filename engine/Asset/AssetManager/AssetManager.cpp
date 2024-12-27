@@ -48,8 +48,8 @@ namespace Engine
         std::string extension = resourcePath.extension().string();
         if (extension == ".obj")
         {
-            ObjLoader loader();
-            // loader.LoadObjResource(resourcePath, path_in_project);
+            ObjLoader loader;
+            loader.LoadObjResource(resourcePath, path_in_project);
         }
         else
         {

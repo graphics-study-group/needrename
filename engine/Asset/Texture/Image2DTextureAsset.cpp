@@ -36,7 +36,7 @@ namespace Engine
 
     void Image2DTextureAsset::LoadFromFile(const std::filesystem::path &path)
     {
-        m_name = path.string();
+        m_name = path.filename().string();
         stbi_set_flip_vertically_on_load(true);
         stbi_uc *raw_image_data = stbi_load(path.string().c_str(), &m_width, &m_height, &m_channel, 4);
         assert(raw_image_data);

@@ -55,7 +55,8 @@ namespace Engine
         {
             if(path.extension() == ".asset")
                 path.replace_extension("");
-            std::filesystem::path json_path = path.append(".asset");
+            std::filesystem::path json_path = path;
+            json_path.replace_filename(json_path.filename().string() + ".asset");
 
             std::ofstream json_file(json_path);
             if(json_file.is_open())

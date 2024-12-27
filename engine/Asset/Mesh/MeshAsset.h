@@ -33,6 +33,7 @@ namespace Engine
         virtual void save_asset_to_archive(Serialization::Archive& archive) const override;
         virtual void load_asset_from_archive(Serialization::Archive& archive) override;
     
+        std::string m_name;
         std::vector<Submesh> m_submeshes {};
     };
 }
