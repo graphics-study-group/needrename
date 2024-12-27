@@ -1,9 +1,14 @@
 #include "Image2DTexture.h"
 
 #include "Render/Memory/Buffer.h"
+#include "Asset/Texture/Image2DTextureAsset.h"
 
 namespace Engine {
     AllocatedImage2DTexture::AllocatedImage2DTexture(std::weak_ptr<RenderSystem> system) : AllocatedImage2D(system) {
+    }
+
+    void AllocatedImage2DTexture::Create(const Image2DTextureAsset &asset) {
+        AllocatedImage2D::Create(asset.m_width, asset.m_height, ImageUtils::ImageType::TextureImage, asset.m_format, asset.m_mip_level);
     }
 
     void AllocatedImage2DTexture::Create(uint32_t width, uint32_t height, ImageUtils::ImageFormat format, uint32_t mip) {

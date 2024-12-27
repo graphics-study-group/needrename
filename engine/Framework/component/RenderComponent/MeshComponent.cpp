@@ -31,6 +31,14 @@ namespace Engine
             m_submeshes.push_back(std::make_shared<HomogeneousMesh>(
                 m_system, m_mesh_asset, i));
         }
+
+        // TODO: Materialize the materials
+        // RenderComponent::Materialize();
+    }
+
+    void MeshComponent::Init()
+    {
+        Materialize();
     }
 
     void MeshComponent::Tick(float dt)

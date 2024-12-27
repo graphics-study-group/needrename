@@ -8,6 +8,7 @@
 namespace Engine
 {
     class Material;
+    class MaterialAsset;
     class RenderSystem;
 
     class RendererComponent : public Component
@@ -24,10 +25,13 @@ namespace Engine
         /// @return Transform
         virtual Transform GetWorldTransform() const;
 
+        virtual void Init() override;
         virtual void Tick(float dt) override;
 
         std::shared_ptr <Material> GetMaterial (uint32_t slot) const;
         auto GetMaterials () -> decltype(m_materials) &;
+
+        std::vector<std::shared_ptr<MaterialAsset>> m_material_assets;
     };
 }
 #endif // FRAMEWORK_COMPONENT_RENDERCOMPONENT_RENDERERCOMPONENT_INCLUDED

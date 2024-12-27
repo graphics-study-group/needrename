@@ -12,8 +12,9 @@ namespace Engine
     {
     public:
         Component(std::weak_ptr<GameObject> gameObject);
-        virtual ~Component();
+        virtual ~Component() = default;
 
+        virtual void Init();
         virtual void Tick(float dt) = 0;
 
     protected:

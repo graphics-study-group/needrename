@@ -18,6 +18,7 @@
 #include "Render/Pipeline/CommandBuffer.h"
 #include "Render/Renderer/HomogeneousMesh.h"
 #include "GUI/GUISystem.h"
+#include "Asset/Material/MaterialAsset.h"
 
 #include "cmake_config.h"
 
@@ -30,8 +31,6 @@ class MeshComponentFromFile : public MeshComponent {
         glm::vec4{0.5, 0.5, 0.5, 4.0}, 
         glm::vec4{0.1, 0.1, 0.1, 1.0}
     };
-    std::vector <std::unique_ptr<AllocatedImage2DTexture>> m_textures {};
-    std::vector <std::filesystem::path> m_texture_files {};
 
     void LoadMesh(std::filesystem::path mesh) {
         tinyobj::ObjReaderConfig reader_config{};
@@ -59,6 +58,7 @@ class MeshComponentFromFile : public MeshComponent {
         const auto &origin_materials = reader.GetMaterials();
         std::vector<tinyobj::material_t> materials;
 
+        // Split the subshapes by material
         for (size_t shp = 0; shp < origin_shapes.size(); shp++) {
             const auto &shape = origin_shapes[shp];
             auto shape_vertices_size = shape.mesh.num_face_vertices.size();
@@ -69,7 +69,9 @@ class MeshComponentFromFile : public MeshComponent {
                 if (material_id_map.find(material_id) == material_id_map.end()) {
                     material_id_map[material_id] = tinyobj::shape_t{
                         .name = shape.name + "_" + std::to_string(shape_id++),
-                        .mesh = tinyobj::mesh_t{}
+                        .mesh = tinyobj::mesh_t{},
+                        .lines = tinyobj::lines_t{},
+                        .points = tinyobj::points_t{}
                     };
                 }
                 auto &new_shape = material_id_map[material_id];
@@ -96,22 +98,17 @@ class MeshComponentFromFile : public MeshComponent {
         this->m_mesh_asset = std::make_shared<MeshAsset>();
         this->m_mesh_asset->LoadFromTinyobj(attrib, shapes);
 
-        // Process materials
-        m_textures.clear();
-        m_texture_files.clear();
         for (const auto & material : materials) {
-            auto ptr = std::make_shared<BlinnPhong>(m_system);
-            m_materials.push_back(ptr);
-
-            const std::string & dname = material.diffuse_texname;
-            m_texture_files.push_back(mesh.parent_path() / dname);
-            auto tex_ptr = std::make_unique<AllocatedImage2DTexture>(m_system);
-            m_textures.push_back(std::move(tex_ptr));
-
-            SDL_LogInfo(0, "Material name %s: diffuse map %s.", material.name.c_str(), m_texture_files.rbegin()->string().c_str());
+            this->m_material_assets.push_back(std::make_shared<MaterialAsset>());
+            this->m_material_assets.back()->LoadFromTinyObj(material, mesh.parent_path());
         }
 
         Materialize();
+
+        for (size_t i = 0; i < m_material_assets.size(); i++) {
+            auto ptr = std::make_shared<BlinnPhong>(m_system, m_material_assets[i]);
+            m_materials.push_back(ptr);
+        }
     }
 
 public: 
@@ -128,24 +125,12 @@ public:
             tcb.CommitVertexBuffer(*submesh);
         }
 
-        stbi_set_flip_vertically_on_load(true);
-        for (size_t mat = 0; mat < m_materials.size(); mat++) {
-            // Read images
-            SDL_LogInfo(0, "Processing material slot %llu", mat);
-            int tex_width, tex_height, tex_channel;
-            stbi_uc * raw_image_data = stbi_load(m_texture_files[mat].string().c_str(), &tex_width, &tex_height, &tex_channel, 4);
-            assert(raw_image_data);
-            m_textures[mat]->Create(tex_width, tex_height, ImageUtils::ImageFormat::R8G8B8A8SRGB);
-            tcb.CommitTextureImage(*m_textures[mat], reinterpret_cast<std::byte *>(raw_image_data), tex_width * tex_height * 4);
-
-            // Write descriptors
-            auto mat_ptr = std::dynamic_pointer_cast<BlinnPhong>(m_materials[mat]);
+        for (auto & material : m_materials) {
+            std::shared_ptr<BlinnPhong> mat_ptr = std::dynamic_pointer_cast<BlinnPhong>(material);
             assert(mat_ptr);
-            mat_ptr->UpdateTexture(*m_textures[mat]);
-            mat_ptr->UpdateUniform(m_uniform_data);
-
-            stbi_image_free(raw_image_data);
+            mat_ptr->CommitBuffer(tcb);
         }
+
         tcb.End();
         tcb.SubmitAndExecute();
     }

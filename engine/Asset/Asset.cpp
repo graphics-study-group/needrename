@@ -48,6 +48,11 @@ namespace Engine
     void Asset::load_asset_from_archive(Serialization::Archive& archive)
     {
         __serialization_load__(archive);
-        m_valid = true;
+        SetValid(true);
+    }
+
+    void Asset::Unload()
+    {
+        SetValid(false);
     }
 }

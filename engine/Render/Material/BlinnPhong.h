@@ -4,10 +4,11 @@
 #include "Render/Material/Material.h"
 #include "Render/Pipeline/Shader.h"
 #include "Render/Memory/Buffer.h"
+#include "Render/Memory/Image2DTexture.h"
 
 namespace Engine {
     class ShaderModule;
-    class AllocatedImage2DTexture;
+    class MaterialAsset;
 
     class BlinnPhong : public Material {
     public:
@@ -25,14 +26,14 @@ namespace Engine {
 
         Buffer m_uniform_buffer;
         std::byte * m_mapped_buffer{nullptr};
-        UniformData m_uniform_data;
+        std::unique_ptr<AllocatedImage2DTexture> m_texture {};
+
     public:
 
-        BlinnPhong (std::weak_ptr <RenderSystem> system);
+        BlinnPhong (std::weak_ptr <RenderSystem> system, std::shared_ptr <MaterialAsset> asset);
 
         const virtual Pipeline * GetPipeline(uint32_t pass_index) override;
-
-        void UpdateTexture(const AllocatedImage2DTexture & texture);
+        void CommitBuffer(TransferCommandBuffer & tcb);
         void UpdateUniform(const UniformData & uniform);
     };
 }

@@ -21,6 +21,10 @@ namespace Engine
         return parentGameObject->GetWorldTransform();
     }
 
+    void RendererComponent::Init()
+    {
+        // TODO: Implement materialize from material assets. Load shader from material assets. Construct a universal material class for rendering. Unimplemented due to we haven't implemented a universal material class.
+    }
     void RendererComponent::Tick(float dt)
     {
     }
@@ -29,6 +33,7 @@ namespace Engine
         assert(slot < m_materials.size());
         return m_materials[slot];
     }
+    
     auto RendererComponent::GetMaterials() -> decltype(m_materials) &
     {
         return m_materials;

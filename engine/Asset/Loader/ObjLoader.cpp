@@ -4,7 +4,7 @@
 #include <tiny_obj_loader.h>
 #include <nlohmann/json.hpp>
 #include <Asset/Mesh/MeshAsset.h>
-#include <Asset/Material/MtlMaterialAsset.h>
+#include <Asset/Material/MaterialAsset.h>
 #include <Asset/Texture/TextureAsset.h>
 #include <MainClass.h>
 

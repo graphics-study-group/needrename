@@ -14,6 +14,8 @@ namespace Engine
     protected:
         std::vector<std::shared_ptr<HomogeneousMesh>> m_submeshes;
 
+        void Materialize();
+
     public:
         MeshComponent(std::weak_ptr<GameObject> gameObject);
 
@@ -21,10 +23,9 @@ namespace Engine
         auto GetSubmeshes() -> decltype(m_submeshes) &;
 
         /// @brief Materialize a runtime mesh component from a mesh asset
-        void Materialize();
-
+        virtual void Init() override;
         virtual void Tick(float dt) override;
-    public:
+
         std::shared_ptr<MeshAsset> m_mesh_asset;
     };
 }

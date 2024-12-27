@@ -35,6 +35,8 @@ namespace Engine
         /// @brief Load the asset from the archive. It will call generated load function __serialization_load__(). Load all the data of the asset. Usually called by AssetManager
         virtual void load_asset_from_archive(Serialization::Archive& archive);
 
+        virtual void Unload();
+
         inline bool IsValid() const { return m_valid; }
         inline GUID GetGUID() const { return m_guid; }
         inline void SetGUID(GUID guid) { m_guid = guid; }

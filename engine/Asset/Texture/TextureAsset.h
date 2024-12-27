@@ -1,25 +1,20 @@
 #ifndef ASSET_TEXTURE_TEXTUREASSET_INCLUDED
 #define ASSET_TEXTURE_TEXTUREASSET_INCLUDED
 
-#include <vector>
+#include <string>
 #include <Asset/Asset.h>
 #include <meta_engine/reflection.hpp>
 
 namespace Engine
 {
-    class TextureAsset : public Asset
+    class REFL_SER_CLASS(REFL_WHITELIST) TextureAsset : public Asset
     {
+        REFL_SER_BODY()
     public:
-        TextureAsset() = default;
+        REFL_ENABLE TextureAsset() = default;
         virtual ~TextureAsset() = default;
 
-    public:
-        std::string m_name;
-        
-        std::vector<std::byte> m_data;
-
-        virtual void save_asset_to_archive(Serialization::Archive& archive) const override;
-        virtual void load_asset_from_archive(Serialization::Archive& archive) override;
+        REFL_SER_ENABLE std::string m_name {};
     };
 }
 

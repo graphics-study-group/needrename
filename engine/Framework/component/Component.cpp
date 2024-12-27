@@ -7,7 +7,7 @@ namespace Engine
     {
     }
 
-    Component::~Component()
+    void Component::Init()
     {
     }
 }
