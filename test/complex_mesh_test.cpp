@@ -220,7 +220,7 @@ int main(int argc, char ** argv)
         if (max_frame_count == 0) return -1;
     }
 
-    StartupOptions opt{.resol_x = 1920, .resol_y = 1080, .title = "Vulkan Test"};
+    StartupOptions opt{.resol_x = 1280, .resol_y = 720, .title = "Vulkan Test"};
 
     auto cmc = MainClass::GetInstance();
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
@@ -237,14 +237,14 @@ int main(int argc, char ** argv)
     });
     
     // Setup mesh
-    std::filesystem::path mesh_path{std::string(ENGINE_ASSETS_DIR) + "/__furina/furina_combined.obj"};
+    std::filesystem::path mesh_path{std::string(ENGINE_ASSETS_DIR) + "/four_bunny/four_bunny.obj"};
     std::shared_ptr tmc = std::make_shared<MeshComponentFromFile>(mesh_path);
     rsys->RegisterComponent(tmc);
 
     // Setup camera
     auto camera_go = std::make_shared<GameObject>();
     Transform transform{};
-    transform.SetPosition({0.0f, 1.0f, 0.0f});
+    transform.SetPosition({0.0f, 0.5f, -0.5f});
     transform.SetRotationEuler(glm::vec3{0.0, 0.0, 3.1415926});
     camera_go->SetTransform(transform);
     auto camera_comp = std::make_shared<CameraComponent>(camera_go);
