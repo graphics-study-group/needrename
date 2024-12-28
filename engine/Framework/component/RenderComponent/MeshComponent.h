@@ -3,21 +3,25 @@
 
 #include <Asset/Mesh/MeshAsset.h>
 #include <Framework/component/RenderComponent/RendererComponent.h>
+#include <meta_engine/reflection.hpp>
 
 namespace Engine
 {
     class MeshAsset;
     class HomogeneousMesh;
 
-    class MeshComponent : public RendererComponent
+    class REFL_SER_CLASS(REFL_WHITELIST) MeshComponent : public RendererComponent
     {
+        REFL_SER_BODY()
     protected:
-        std::vector<std::shared_ptr<HomogeneousMesh>> m_submeshes;
+        std::vector<std::shared_ptr<HomogeneousMesh>> m_submeshes{};
 
         void Materialize();
 
     public:
-        MeshComponent(std::weak_ptr<GameObject> gameObject);
+        REFL_ENABLE MeshComponent() = default;
+        REFL_ENABLE MeshComponent(std::weak_ptr<GameObject> gameObject);
+        virtual ~MeshComponent() = default;
 
         std::shared_ptr<HomogeneousMesh> GetSubmesh(uint32_t slot) const;
         auto GetSubmeshes() -> decltype(m_submeshes) &;
@@ -26,7 +30,7 @@ namespace Engine
         virtual void Init() override;
         virtual void Tick(float dt) override;
 
-        std::shared_ptr<MeshAsset> m_mesh_asset;
+        REFL_SER_ENABLE std::shared_ptr<MeshAsset> m_mesh_asset{};
     };
 }
 

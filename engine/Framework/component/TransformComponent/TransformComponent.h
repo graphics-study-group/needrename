@@ -2,17 +2,18 @@
 #define FRAMEWORK_COMPONENT_TRANSFORMCOMPONENT_TRANSFORMCOMPONENT_INCLUDED
 
 #include <glm.hpp>
-#include "Core/Math/Transform.h"
-#include "Framework/component/Component.h"
+#include <Core/Math/Transform.h>
+#include <Framework/component/Component.h>
+#include <meta_engine/reflection.hpp>
 
 namespace Engine
 {
-    class Component;
-
-    class TransformComponent : public Component
+    class REFL_SER_CLASS(REFL_WHITELIST) TransformComponent : public Component
     {
+        REFL_SER_BODY()
     public:
-        TransformComponent(std::weak_ptr<GameObject> gameObject);
+        REFL_ENABLE TransformComponent() = default;
+        REFL_ENABLE TransformComponent(std::weak_ptr<GameObject> gameObject);
         virtual ~TransformComponent();
 
         void Tick(float dt) override;

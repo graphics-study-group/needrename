@@ -2,23 +2,25 @@
 #define FRAMEWORK_COMPONENT_COMPONENT_INCLUDED
 
 #include <memory>
-#include <Framework/object/Object.h>
+#include <meta_engine/reflection.hpp>
 
 namespace Engine
 {
     class GameObject;
 
-    class Component: public Object
+    class REFL_SER_CLASS(REFL_WHITELIST) Component
     {
+        REFL_SER_BODY()
     public:
-        Component(std::weak_ptr<GameObject> gameObject);
+        REFL_ENABLE Component() = default;
+        REFL_ENABLE Component(std::weak_ptr<GameObject> gameObject);
         virtual ~Component() = default;
 
         virtual void Init();
-        virtual void Tick(float dt) = 0;
+        virtual void Tick(float dt);
 
-    protected:
-        std::weak_ptr<GameObject> m_parentGameObject;
+    public:
+        REFL_SER_ENABLE std::weak_ptr<GameObject> m_parentGameObject{};
     };
 }
 #endif // FRAMEWORK_COMPONENT_COMPONENT_INCLUDED

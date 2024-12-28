@@ -10,4 +10,8 @@ namespace Engine
     void Component::Init()
     {
     }
+
+    void Component::Tick(float dt)
+    {
+    }
 }

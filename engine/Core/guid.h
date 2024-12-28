@@ -12,12 +12,14 @@ namespace Engine
 {
     class REFL_SER_CLASS(REFL_WHITELIST) GUID
     {
+        REFL_SER_BODY()
     public:
         unsigned long long mostSigBits = 0;
         unsigned long long leastSigBits = 0;
 
         REFL_ENABLE GUID() = default;
         REFL_ENABLE GUID(const std::string &str);
+        virtual ~GUID() = default;
 
         bool operator==(const GUID& other) const;
 

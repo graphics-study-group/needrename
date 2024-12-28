@@ -4,7 +4,6 @@
 #include <vector>
 #include <memory>
 #include <Framework/component/TransformComponent/TransformComponent.h>
-#include <Framework/object/Object.h>
 #include <meta_engine/reflection.hpp>
 
 // Suppress warning from std::enable_shared_from_this
@@ -16,18 +15,18 @@ namespace Engine
     class Component;
     class Transform;
 
-    class REFL_SER_CLASS(REFL_WHITELIST) GameObject : public Object, public std::enable_shared_from_this<GameObject>
+    class REFL_SER_CLASS(REFL_WHITELIST) GameObject : public std::enable_shared_from_this<GameObject>
     {
         REFL_SER_BODY()
     public:
         REFL_ENABLE GameObject();
         virtual ~GameObject();
-    
+
         virtual void Tick(float dt);
 
         REFL_ENABLE void AddComponent(std::shared_ptr<Component> component);
         template <typename T, typename... Args>
-        void AddComponent(Args &&... args)
+        void AddComponent(Args &&...args)
         {
             static_assert(std::is_base_of<Component, T>::value, "T must be derived from Component");
             AddComponent(std::make_shared<T>(shared_from_this(), std::forward<Args>(args)...));
@@ -40,10 +39,11 @@ namespace Engine
         REFL_ENABLE void SetParent(std::shared_ptr<GameObject> parent);
 
     public:
-        REFL_ENABLE std::weak_ptr<GameObject> m_parentGameObject{};
-        REFL_ENABLE std::vector<std::shared_ptr<GameObject>> m_childGameObject;
-        REFL_ENABLE std::shared_ptr<TransformComponent> m_transformComponent;
-        REFL_ENABLE std::vector<std::shared_ptr<Component>> m_components{};
+        REFL_SER_ENABLE std::weak_ptr<GameObject> m_parentGameObject{};
+        REFL_SER_ENABLE std::vector<std::shared_ptr<GameObject>> m_childGameObject;
+
+        REFL_SER_ENABLE std::shared_ptr<TransformComponent> m_transformComponent;
+        REFL_SER_ENABLE std::vector<std::shared_ptr<Component>> m_components{};
     };
 }
 

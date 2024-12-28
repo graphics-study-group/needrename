@@ -2,14 +2,17 @@
 #define FRAMEWORK_COMPONENT_RENDERCOMPONENT_CAMERACOMPONENT_INCLUDED
 
 #include <glm.hpp>
-#include "Framework/component/Component.h"
+#include <Framework/component/Component.h>
+#include <meta_engine/reflection.hpp>
 
 namespace Engine
 {
     /// @brief A perspective camera component
-    class CameraComponent : public Component {
+    class REFL_SER_CLASS(REFL_WHITELIST) CameraComponent : public Component {
+        REFL_SER_BODY()
     public:
-        CameraComponent(std::weak_ptr<GameObject> gameObject);
+        REFL_ENABLE CameraComponent() = default;
+        REFL_ENABLE CameraComponent(std::weak_ptr<GameObject> gameObject);
         virtual ~CameraComponent() = default;
         virtual void Tick(float) override;
 
