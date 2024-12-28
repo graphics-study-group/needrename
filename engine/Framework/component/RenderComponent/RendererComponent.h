@@ -35,7 +35,7 @@ namespace Engine
         std::shared_ptr<Material> GetMaterial(uint32_t slot) const;
         auto GetMaterials() -> decltype(m_materials) &;
 
-        std::vector<std::shared_ptr<MaterialAsset>> m_material_assets{};
+        REFL_SER_ENABLE std::vector<std::shared_ptr<MaterialAsset>> m_material_assets{};
     };
 }
 #endif // FRAMEWORK_COMPONENT_RENDERCOMPONENT_RENDERERCOMPONENT_INCLUDED

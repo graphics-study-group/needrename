@@ -4,6 +4,9 @@
 #include <Asset/Mesh/MeshAsset.h>
 #include <Asset/Material/MaterialAsset.h>
 #include <Asset/Texture/Image2DTextureAsset.h>
+#include <Asset/Scene/GameObjectAsset.h>
+#include <Framework/object/GameObject.h>
+#include <Framework/component/RenderComponent/MeshComponent.h>
 #include <Asset/AssetManager/AssetManager.h>
 #include <MainClass.h>
 
@@ -74,7 +77,7 @@ namespace Engine
 
         std::shared_ptr<MeshAsset> m_mesh_asset = std::make_shared<MeshAsset>();
         m_mesh_asset->m_name = path.stem().string();
-        m_mesh_asset->LoadFromTinyobj(attrib, shapes);
+        m_mesh_asset->LoadFromTinyobj(attrib, shapes); // TODO: Move this to ObjLoader class
 
         std::vector<std::shared_ptr<MaterialAsset>> m_material_assets;
         std::vector<std::shared_ptr<Image2DTextureAsset>> m_texture_assets;
@@ -82,7 +85,7 @@ namespace Engine
         for (const auto &material : materials)
         {
             std::shared_ptr<MaterialAsset> m_material_asset = std::make_shared<MaterialAsset>();
-            m_material_asset->LoadFromTinyObj(material, path.parent_path());
+            m_material_asset->LoadFromTinyObj(material, path.parent_path()); // TODO: Move this to ObjLoader class
             m_material_assets.push_back(m_material_asset);
             for (const auto &[name, texture] : m_material_asset->m_textures)
             {
@@ -108,5 +111,17 @@ namespace Engine
             texture->save_asset_to_archive(archive);
             archive.save_to_file(m_manager.lock()->GetAssetsDirectory() / path_in_project / (texture->m_name + ".png.asset"));
         }
+
+        std::shared_ptr<GameObjectAsset> m_game_object_asset = std::make_shared<GameObjectAsset>();
+        m_game_object_asset->m_MainObject = std::make_shared<GameObject>();
+        std::shared_ptr<MeshComponent> m_mesh_component = std::make_shared<MeshComponent>(m_game_object_asset->m_MainObject);
+        m_mesh_component->m_mesh_asset = m_mesh_asset;
+        m_mesh_component->m_material_assets = m_material_assets;
+        m_game_object_asset->m_MainObject->AddComponent(m_mesh_component);
+
+        archive.clear();
+        archive.prepare_save();
+        m_game_object_asset->save_asset_to_archive(archive);
+        archive.save_to_file(m_manager.lock()->GetAssetsDirectory() / path_in_project / (m_mesh_asset->m_name + ".gameobject.asset"));
     }
 }

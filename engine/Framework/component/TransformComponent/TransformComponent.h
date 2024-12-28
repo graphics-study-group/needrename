@@ -28,8 +28,8 @@ namespace Engine
         /// @return Transform
         Transform& GetTransformRef();
         
-    protected:
-        Transform m_transform {};
+    public:
+        REFL_SER_ENABLE Transform m_transform {};
     };
 }
 
