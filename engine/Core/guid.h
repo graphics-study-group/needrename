@@ -12,7 +12,7 @@ namespace Engine
 {
     class REFL_SER_CLASS(REFL_WHITELIST) GUID
     {
-        REFL_SER_BODY()
+        REFL_SER_BODY(GUID)
     public:
         unsigned long long mostSigBits = 0;
         unsigned long long leastSigBits = 0;

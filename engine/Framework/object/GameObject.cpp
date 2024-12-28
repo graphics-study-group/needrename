@@ -1,19 +1,25 @@
-#include <Framework/object/GameObject.h>
-#include "Framework/component/Component.h"
 #include "GameObject.h"
+#include <Framework/object/GameObject.h>
+#include <Framework/component/Component.h>
+#include <MainClass.h>
 
 namespace Engine
 {
-    GameObject::GameObject() : 
-        m_transformComponent(std::make_shared<TransformComponent>(weak_from_this()))
+    // GameObject::GameObject() :
+    //     m_transformComponent(std::make_shared<TransformComponent>(weak_from_this()))
+    // {
+    //     //ctor
+    //     this->AddComponent(m_transformComponent);
+    // }
+
+    GameObject::GameObject(const WorldSystem *marker)
     {
-        //ctor
-        this->AddComponent(m_transformComponent);
+        // assert(marker == MainClass::GetWorldSystem().get());
     }
 
     GameObject::~GameObject()
     {
-        //dtor
+        // dtor
     }
 
     void GameObject::Init()
@@ -35,14 +41,15 @@ namespace Engine
     void GameObject::AddComponent(std::shared_ptr<Component> component)
     {
         m_components.push_back(component);
+        component->m_parentGameObject = weak_from_this();
     }
 
-    const Transform & GameObject::GetTransform() const
+    const Transform &GameObject::GetTransform() const
     {
         return m_transformComponent->GetTransform();
     }
 
-    Transform & GameObject::GetTransformRef() 
+    Transform &GameObject::GetTransformRef()
     {
         return m_transformComponent->GetTransformRef();
     }
@@ -50,12 +57,12 @@ namespace Engine
     Transform GameObject::GetWorldTransform()
     {
         auto parentGameObject = m_parentGameObject.lock();
-        if(parentGameObject)
+        if (parentGameObject)
             return parentGameObject->GetWorldTransform() * m_transformComponent->GetTransform();
         return m_transformComponent->GetTransform();
     }
 
-    void GameObject::SetTransform(const Transform& transform)
+    void GameObject::SetTransform(const Transform &transform)
     {
         m_transformComponent->SetTransform(transform);
     }

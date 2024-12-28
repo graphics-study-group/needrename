@@ -11,7 +11,7 @@ namespace Engine
 
     class REFL_SER_CLASS(REFL_WHITELIST) GameObjectAsset : public Asset
     {
-        REFL_SER_BODY()
+        REFL_SER_BODY(GameObjectAsset)
     public:
         REFL_ENABLE GameObjectAsset() = default;
         ~GameObjectAsset() = default;

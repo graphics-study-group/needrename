@@ -10,9 +10,8 @@ namespace Engine
 {
     class REFL_SER_CLASS(REFL_WHITELIST) TransformComponent : public Component
     {
-        REFL_SER_BODY()
+        REFL_SER_BODY(TransformComponent)
     public:
-        REFL_ENABLE TransformComponent() = default;
         REFL_ENABLE TransformComponent(std::weak_ptr<GameObject> gameObject);
         virtual ~TransformComponent();
 

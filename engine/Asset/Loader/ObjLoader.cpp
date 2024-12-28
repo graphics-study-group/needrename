@@ -8,6 +8,7 @@
 #include <Framework/object/GameObject.h>
 #include <Framework/component/RenderComponent/MeshComponent.h>
 #include <Asset/AssetManager/AssetManager.h>
+#include <Framework/world/WorldSystem.h>
 #include <MainClass.h>
 
 namespace Engine
@@ -113,7 +114,7 @@ namespace Engine
         }
 
         std::shared_ptr<GameObjectAsset> m_game_object_asset = std::make_shared<GameObjectAsset>();
-        m_game_object_asset->m_MainObject = std::make_shared<GameObject>();
+        m_game_object_asset->m_MainObject = MainClass::GetInstance()->GetWorldSystem()->CreateGameObject<GameObject>();
         std::shared_ptr<MeshComponent> m_mesh_component = std::make_shared<MeshComponent>(m_game_object_asset->m_MainObject);
         m_mesh_component->m_mesh_asset = m_mesh_asset;
         m_mesh_component->m_material_assets = m_material_assets;

@@ -12,7 +12,7 @@ namespace Engine
     /// @brief Base class for all assets.
     class REFL_SER_CLASS(REFL_BLACKLIST) Asset
     {
-        REFL_SER_BODY()
+        REFL_SER_BODY(Asset)
     public:
         Asset();
         virtual ~Asset();

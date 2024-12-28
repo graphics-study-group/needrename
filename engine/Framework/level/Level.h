@@ -12,7 +12,7 @@ namespace Engine
 
     class REFL_SER_CLASS(REFL_WHITELIST) Level : public Asset
     {
-        REFL_SER_BODY()
+        REFL_SER_BODY(Level)
     public:
         REFL_ENABLE Level();
         ~Level();

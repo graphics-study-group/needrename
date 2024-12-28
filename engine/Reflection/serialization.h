@@ -12,6 +12,17 @@ namespace Engine
 {
     namespace Serialization
     {
+        struct __SerializationMarker__
+        {
+        };
+
+        template <typename T>
+        typename std::enable_if<std::is_constructible<T, __SerializationMarker__>::value, T &&>::type
+        backdoor_declval() { return T(__SerializationMarker__{}); }
+        template <typename T>
+        typename std::enable_if<!std::is_constructible<T, __SerializationMarker__>::value, T &&>::type
+        backdoor_declval() { return T(); }
+
         template <typename T>
         using is_basic_type = std::disjunction<std::is_integral<T>, std::is_floating_point<T>, std::is_same<T, std::string>, std::is_same<T, bool>>;
 
@@ -59,6 +70,14 @@ namespace Engine
         void load_from_archive(std::vector<T> &value, Archive &archive);
 
         template <typename T>
+        typename std::enable_if<std::is_constructible<T, __SerializationMarker__>::value, std::shared_ptr<T>>::type
+        backdoor_create_shared() { return std::make_shared<T>(__SerializationMarker__{}); }
+
+        template <typename T>
+        typename std::enable_if<!std::is_constructible<T, __SerializationMarker__>::value, std::shared_ptr<T>>::type
+        backdoor_create_shared() { return std::make_shared<T>(); }
+
+        template <typename T>
         void save_to_archive(const std::shared_ptr<T> &value, Archive &archive);
         template <typename T>
         void load_from_archive(std::shared_ptr<T> &value, Archive &archive);
@@ -67,6 +86,14 @@ namespace Engine
         void save_to_archive(const std::weak_ptr<T> &value, Archive &archive);
         template <typename T>
         void load_from_archive(std::weak_ptr<T> &value, Archive &archive);
+
+        template <typename T>
+        typename std::enable_if<std::is_constructible<T, __SerializationMarker__>::value, std::unique_ptr<T>>::type
+        backdoor_create_unique() { return std::make_unique<T>(__SerializationMarker__{}); }
+
+        template <typename T>
+        typename std::enable_if<!std::is_constructible<T, __SerializationMarker__>::value, std::unique_ptr<T>>::type
+        backdoor_create_unique() { return std::make_unique<T>(); }
 
         template <typename T>
         void save_to_archive(const std::unique_ptr<T> &value, Archive &archive);
@@ -100,7 +127,7 @@ namespace Engine
         class has_custom_save
         {
             template <typename U>
-            static auto test(int) -> decltype(std::declval<U>().save_to_archive(std::declval<Archive &>()), std::true_type());
+            static auto test(int) -> decltype(backdoor_declval<U>().save_to_archive(std::declval<Archive &>()), std::true_type());
 
             template <typename>
             static std::false_type test(...);
@@ -113,7 +140,7 @@ namespace Engine
         class has_custom_load
         {
             template <typename U>
-            static auto test(int) -> decltype(std::declval<U>().load_from_archive(std::declval<Archive &>()), std::true_type());
+            static auto test(int) -> decltype(backdoor_declval<U>().load_from_archive(std::declval<Archive &>()), std::true_type());
 
             template <typename>
             static std::false_type test(...);
@@ -152,7 +179,7 @@ namespace Engine
         class has_generated_save
         {
             template <typename U>
-            static auto test(int) -> decltype(std::declval<U>().__serialization_save__(std::declval<Archive &>()), std::true_type());
+            static auto test(int) -> decltype(backdoor_declval<U>().__serialization_save__(std::declval<Archive &>()), std::true_type());
 
             template <typename>
             static std::false_type test(...);
@@ -165,7 +192,7 @@ namespace Engine
         class has_generated_load
         {
             template <typename U>
-            static auto test(int) -> decltype(std::declval<U>().__serialization_load__(std::declval<Archive &>()), std::true_type());
+            static auto test(int) -> decltype(backdoor_declval<U>().__serialization_load__(std::declval<Archive &>()), std::true_type());
 
             template <typename>
             static std::false_type test(...);
@@ -248,20 +275,14 @@ namespace Engine
         typename std::enable_if<!has_custom_save<T>::value && !has_generated_save<T>::value && !has_special_save<T>::value, void>::type
         serialize(const T &value, Archive &archive)
         {
-            throw std::runtime_error(std::string("No serialization function found for type: ") + typeid(T).name() + "\nNote: \n"
-                                     +"  - If the type is a custom type, make sure to define a member function like save_to_archive(Engine::Serialization::Archive &)\n"
-                                     +"  - The type must have a default constructor with no arguments\n"
-                                     +"  - Do not use pointers, use std::shared_ptr or std::unique_ptr instead\n");
+            throw std::runtime_error(std::string("No serialization function found for type: ") + typeid(T).name() + "\nNote: \n" + "  - If the type is a custom type, make sure to define a member function like save_to_archive(Engine::Serialization::Archive &)\n" + "  - The type must have a default constructor with no arguments\n" + "  - Do not use pointers, use std::shared_ptr or std::unique_ptr instead\n");
         }
 
         template <typename T>
         typename std::enable_if<!has_custom_load<T>::value && !has_generated_load<T>::value && !has_special_load<T>::value, void>::type
         deserialize(T &value, Archive &archive)
         {
-            throw std::runtime_error(std::string("No deserialization function found for type: ") + typeid(T).name() + "\nNote: \n"
-                                     +"  - If the type is a custom type, make sure to define a member function like load_from_archive(Engine::Serialization::Archive &)\n"
-                                     +"  - The type must have a default constructor with no arguments\n"
-                                     +"  - Do not use pointers, use std::shared_ptr or std::unique_ptr instead\n");
+            throw std::runtime_error(std::string("No deserialization function found for type: ") + typeid(T).name() + "\nNote: \n" + "  - If the type is a custom type, make sure to define a member function like load_from_archive(Engine::Serialization::Archive &)\n" + "  - The type must have a default constructor with no arguments\n" + "  - Do not use pointers, use std::shared_ptr or std::unique_ptr instead\n");
         }
 
 #pragma GCC diagnostic pop

@@ -10,7 +10,7 @@ namespace Engine
 {
     class REFL_SER_CLASS(REFL_BLACKLIST) Transform
     {
-        REFL_SER_BODY()
+        REFL_SER_BODY(Transform)
     public:
         Transform() = default;
         Transform(glm::vec3 position, glm::quat rotation, glm::vec3 scale);

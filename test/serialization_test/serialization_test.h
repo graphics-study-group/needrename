@@ -9,7 +9,7 @@ namespace SerializationTest
 {
     class REFL_SER_CLASS(REFL_BLACKLIST) BaseData
     {
-        REFL_SER_BODY()
+        REFL_SER_BODY(BaseData)
     public:
         BaseData() = default;
         virtual ~BaseData() = default;
@@ -19,7 +19,7 @@ namespace SerializationTest
 
     class REFL_SER_CLASS(REFL_BLACKLIST) InheritTest : public BaseData
     {
-        REFL_SER_BODY()
+        REFL_SER_BODY(InheritTest)
     public:
         InheritTest() = default;
         virtual ~InheritTest() = default;
@@ -29,7 +29,7 @@ namespace SerializationTest
 
     class REFL_SER_CLASS(REFL_BLACKLIST) SharedPtrTest
     {
-        REFL_SER_BODY()
+        REFL_SER_BODY(SharedPtrTest)
     public:
         SharedPtrTest() = default;
         virtual ~SharedPtrTest() = default;
@@ -42,7 +42,7 @@ namespace SerializationTest
 
     class REFL_SER_CLASS(REFL_BLACKLIST) UniquePtrTest
     {
-        REFL_SER_BODY()
+        REFL_SER_BODY(UniquePtrTest)
     public:
         UniquePtrTest() = default;
         virtual ~UniquePtrTest() = default;
@@ -52,7 +52,7 @@ namespace SerializationTest
 
     class REFL_SER_CLASS(REFL_BLACKLIST) VectorTest
     {
-        REFL_SER_BODY()
+        REFL_SER_BODY(VectorTest)
     public:
         VectorTest() = default;
         virtual ~VectorTest() = default;
@@ -62,7 +62,7 @@ namespace SerializationTest
 
     class REFL_SER_CLASS(REFL_BLACKLIST) PolymorphismTest
     {
-        REFL_SER_BODY()
+        REFL_SER_BODY(PolymorphismTest)
     public:
         PolymorphismTest() = default;
         virtual ~PolymorphismTest() = default;
@@ -72,7 +72,7 @@ namespace SerializationTest
 
     class REFL_SER_CLASS(REFL_BLACKLIST) CustomTest
     {
-        REFL_SER_BODY()
+        REFL_SER_BODY(CustomTest)
     public:
         CustomTest() = default;
         virtual ~CustomTest() = default;
@@ -96,7 +96,7 @@ namespace SerializationTest
 
     class REFL_SER_CLASS(REFL_BLACKLIST) ArrayPtrTest
     {
-        REFL_SER_BODY()
+        REFL_SER_BODY(ArrayPtrTest)
     public:
         ArrayPtrTest() = default;
         virtual ~ArrayPtrTest() = default;
@@ -107,7 +107,7 @@ namespace SerializationTest
 
     class REFL_SER_CLASS(REFL_BLACKLIST) SelfPtrTest
     {
-        REFL_SER_BODY()
+        REFL_SER_BODY(SelfPtrTest)
     public:
         SelfPtrTest() = default;
         virtual ~SelfPtrTest() = default;

@@ -12,14 +12,13 @@ namespace Engine
 
     class REFL_SER_CLASS(REFL_WHITELIST) MeshComponent : public RendererComponent
     {
-        REFL_SER_BODY()
+        REFL_SER_BODY(MeshComponent)
     protected:
         std::vector<std::shared_ptr<HomogeneousMesh>> m_submeshes{};
 
         void Materialize();
 
     public:
-        REFL_ENABLE MeshComponent() = default;
         REFL_ENABLE MeshComponent(std::weak_ptr<GameObject> gameObject);
         virtual ~MeshComponent() = default;
 

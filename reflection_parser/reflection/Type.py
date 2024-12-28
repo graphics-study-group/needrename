@@ -4,7 +4,7 @@ from reflection.utils import *
 class Type:
     def __init__(self, cx_type: CX.Type):
         self.cx_type = cx_type
-        self.name = self.cx_type.spelling
+        self.name = get_simple_name(self.cx_type)
         self.full_name = get_type_full_name(self.cx_type)
         self.mangled_name = get_type_mangled_name(self.cx_type)
         self.base_types = []

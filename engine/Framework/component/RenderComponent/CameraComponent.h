@@ -9,9 +9,8 @@ namespace Engine
 {
     /// @brief A perspective camera component
     class REFL_SER_CLASS(REFL_WHITELIST) CameraComponent : public Component {
-        REFL_SER_BODY()
+        REFL_SER_BODY(CameraComponent)
     public:
-        REFL_ENABLE CameraComponent() = default;
         REFL_ENABLE CameraComponent(std::weak_ptr<GameObject> gameObject);
         virtual ~CameraComponent() = default;
         virtual void Tick(float) override;

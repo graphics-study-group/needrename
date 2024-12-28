@@ -15,7 +15,7 @@ namespace Engine
 
     class REFL_SER_CLASS(REFL_WHITELIST) MaterialAsset : public Asset
     {
-        REFL_SER_BODY()
+        REFL_SER_BODY(MaterialAsset)
     public:
         REFL_ENABLE MaterialAsset() = default;
         virtual ~MaterialAsset() = default;

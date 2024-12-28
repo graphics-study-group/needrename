@@ -14,13 +14,12 @@ namespace Engine
 
     class REFL_SER_CLASS(REFL_WHITELIST) RendererComponent : public Component
     {
-        REFL_SER_BODY()
+        REFL_SER_BODY(RendererComponent)
     protected:
         std::vector<std::shared_ptr<Material>> m_materials{};
         std::weak_ptr<RenderSystem> m_system{};
 
     public:
-        REFL_ENABLE RendererComponent() = default;
         REFL_ENABLE RendererComponent(std::weak_ptr<GameObject> gameObject);
         virtual ~RendererComponent() = default;
 

@@ -14,12 +14,16 @@ namespace Engine
 {
     class Component;
     class Transform;
+    class WorldSystem;
 
     class REFL_SER_CLASS(REFL_WHITELIST) GameObject : public std::enable_shared_from_this<GameObject>
     {
-        REFL_SER_BODY()
+        REFL_SER_BODY(GameObject)
     public:
-        REFL_ENABLE GameObject();
+        // GameObject must be created by WorldSystem's factory function
+        GameObject() = delete;
+        // No use. Just make sure the GameObject must be created by WorldSystem's factory function
+        GameObject(const WorldSystem *marker);
         virtual ~GameObject();
 
         virtual void Init();
@@ -27,11 +31,7 @@ namespace Engine
 
         REFL_ENABLE void AddComponent(std::shared_ptr<Component> component);
         template <typename T, typename... Args>
-        void AddComponent(Args &&...args)
-        {
-            static_assert(std::is_base_of<Component, T>::value, "T must be derived from Component");
-            AddComponent(std::make_shared<T>(shared_from_this(), std::forward<Args>(args)...));
-        }
+        void AddComponent(Args &&...args);
 
         REFL_ENABLE const Transform &GetTransform() const;
         REFL_ENABLE void SetTransform(const Transform &transform);
@@ -46,6 +46,14 @@ namespace Engine
         REFL_SER_ENABLE std::shared_ptr<TransformComponent> m_transformComponent;
         REFL_SER_ENABLE std::vector<std::shared_ptr<Component>> m_components{};
     };
+
+    template <typename T, typename... Args>
+    void GameObject::AddComponent(Args &&...args)
+    {
+        static_assert(std::is_base_of<Component, T>::value, "T must be derived from Component");
+        auto component = std::make_shared<T>(weak_from_this(), std::forward<Args>(args)...);
+        AddComponent(component);
+    }
 }
 
 #pragma GCC diagnostic pop

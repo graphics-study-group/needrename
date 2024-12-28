@@ -34,16 +34,6 @@ import clang.cindex as CX
     % endif
     % endfor
 </%def>
-% for class_type in classes_map.values():
-void ${class_type.full_name}::__serialization_save__(Engine::Serialization::Archive& archive) const
-{
-    Engine::Serialization::Json &json = *archive.m_cursor;
-    
-    ${generate_type_save(class_type, "")}
-
-    assert(json.find("%type") == json.end());
-    json["%type"] = "${class_type.full_name}";
-}
 <%def name="generate_type_load(class_type, prefix)">
     % for base_type in class_type.base_types:
     % if base_type.full_name in classes_map:
@@ -84,10 +74,40 @@ void ${class_type.full_name}::__serialization_save__(Engine::Serialization::Arch
     % endif
     % endfor
 </%def>
+% for class_type in classes_map.values():
+void ${class_type.full_name}::__serialization_save__(Engine::Serialization::Archive& archive) const
+{
+    Engine::Serialization::Json &json = *archive.m_cursor;
+    
+    ${generate_type_save(class_type, "")}
+
+    assert(json.find("%type") == json.end());
+    json["%type"] = "${class_type.full_name}";
+}
 void ${class_type.full_name}::__serialization_load__(Engine::Serialization::Archive& archive)
 {
     Engine::Serialization::Json &json = *archive.m_cursor;
     ${generate_type_load(class_type, "")}
+}
+${class_type.full_name}::${class_type.name}(Engine::Serialization::__SerializationMarker__ marker) \
+<%
+base_type_name_list = []
+for base_type in class_type.base_types:
+    if base_type.full_name in classes_map:
+        base_type_name_list.append(base_type.name)
+%>
+% if len(base_type_name_list) > 0:
+: \
+% endif
+% for i, base_type_name in enumerate(base_type_name_list):
+${base_type_name}(marker)\
+% if i < len(base_type_name_list) - 1:
+, 
+% else:
+
+% endif
+% endfor
+{
 }
 % endfor
 

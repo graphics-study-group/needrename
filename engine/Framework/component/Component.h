@@ -10,9 +10,9 @@ namespace Engine
 
     class REFL_SER_CLASS(REFL_WHITELIST) Component
     {
-        REFL_SER_BODY()
+        REFL_SER_BODY(Component)
     public:
-        REFL_ENABLE Component() = default;
+        Component() = delete;
         REFL_ENABLE Component(std::weak_ptr<GameObject> gameObject);
         virtual ~Component() = default;
 

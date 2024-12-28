@@ -9,6 +9,7 @@
 #include "MainClass.h"
 #include "Functional/SDLWindow.h"
 #include <Framework/object/GameObject.h>
+#include <Framework/world/WorldSystem.h>
 #include "Framework/component/RenderComponent/CameraComponent.h"
 #include "Framework/component/RenderComponent/MeshComponent.h"
 #include "Render/Memory/Image2DTexture.h"
@@ -242,7 +243,7 @@ int main(int argc, char ** argv)
     rsys->RegisterComponent(tmc);
 
     // Setup camera
-    auto camera_go = std::make_shared<GameObject>();
+    auto camera_go = cmc->GetWorldSystem()->CreateGameObject<GameObject>();
     Transform transform{};
     transform.SetPosition({0.0f, 0.5f, -0.5f});
     transform.SetRotationEuler(glm::vec3{0.0, 0.0, 3.1415926});

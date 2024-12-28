@@ -9,7 +9,7 @@ namespace Engine
 {
     class REFL_SER_CLASS(REFL_WHITELIST) Image2DTextureAsset : public TextureAsset
     {
-        REFL_SER_BODY()
+        REFL_SER_BODY(Image2DTextureAsset)
     public:
         REFL_ENABLE Image2DTextureAsset() = default;
         virtual ~Image2DTextureAsset() = default;

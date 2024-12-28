@@ -305,14 +305,14 @@ namespace Engine
                     auto type = Engine::Reflection::GetType(archive.m_context->json["%data"][str_id]["%type"].get<std::string>());
                     if (type->m_reflectable)
                     {
-                        auto var = type->CreateInstance();
+                        auto var = type->CreateInstance(__SerializationMarker__{});
                         archive.m_context->pointer_map[id] = std::shared_ptr<void>(static_cast<T *>(var.GetDataPtr()));
                         value = static_pointer_cast<T>(archive.m_context->pointer_map[id]);
                         deserialize(*value, temp_archive);
                     }
                     else
                     {
-                        value = std::make_shared<T>();
+                        value = backdoor_create_shared<T>();
                         archive.m_context->pointer_map[id] = value;
                         assert(type->m_type_info == nullptr || type->m_type_info->name() == typeid(T).name());
                         deserialize(*value, temp_archive);
@@ -366,14 +366,14 @@ namespace Engine
                     auto type = Engine::Reflection::GetType(archive.m_context->json["%data"][str_id]["%type"].get<std::string>());
                     if (type->m_reflectable)
                     {
-                        auto var = type->CreateInstance();
+                        auto var = type->CreateInstance(Serialization::__SerializationMarker__{});
                         archive.m_context->pointer_map[id] = std::shared_ptr<void>(static_cast<T *>(var.GetDataPtr()));
                         value = static_pointer_cast<T>(archive.m_context->pointer_map[id]);
                         deserialize(*(value.lock()), temp_archive);
                     }
                     else
                     {
-                        value = std::make_shared<T>();
+                        value = backdoor_create_shared<T>();
                         archive.m_context->pointer_map[id] = value.lock();
                         assert(type->m_type_info == nullptr || type->m_type_info->name() == typeid(T).name());
                         deserialize(*(value.lock()), temp_archive);
@@ -426,13 +426,13 @@ namespace Engine
                 auto type = Engine::Reflection::GetType(archive.m_context->json["%data"][str_id]["%type"].get<std::string>());
                 if (type->m_reflectable)
                 {
-                    auto var = type->CreateInstance();
+                    auto var = type->CreateInstance(Serialization::__SerializationMarker__{});
                     value = std::unique_ptr<T>(static_cast<T *>(var.GetDataPtr()));
                     deserialize(*value, temp_archive);
                 }
                 else
                 {
-                    value = std::make_unique<T>();
+                    value = backdoor_create_unique<T>();
                     assert(type->m_type_info == nullptr || type->m_type_info->name() == typeid(T).name());
                     deserialize(*value, temp_archive);
                 }
