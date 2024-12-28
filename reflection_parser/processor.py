@@ -1,7 +1,7 @@
 import os
 from io import StringIO
 import clang.cindex as CX
-
+from pathlib import Path
 from mako.template import Template
 from reflection.Type import Type, Method, Field
 
@@ -108,7 +108,8 @@ class ReflectionParser:
 
     def traverse(self, node: CX.Cursor):
         if node.location.file is not None:
-            if node.location.file.name.replace('\\', '/') not in self.files:
+            path = str(Path(node.location.file.name).resolve())
+            if path not in self.files:
                 return
         args = self.get_reflection_class_args(node)
         if args is not None:
@@ -218,8 +219,6 @@ def process_file(all_header_file_path: str, files: list, generated_code_dir: str
             print(f"[parser] {severity_str}: '{filename}' line {location.line} column {location.column}: {message}")
     
     Parser = ReflectionParser()
-    files = [all_header_file_path] + files
-    for file in files:
-        Parser.files.append(file.replace("\\", "/"))
+    Parser.files = [all_header_file_path] + files
     Parser.traverse(tu.cursor)
     Parser.generate_code(generated_code_dir)

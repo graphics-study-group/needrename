@@ -2,6 +2,7 @@ import os
 import argparse
 import filecmp
 import shutil
+from pathlib import Path
 
 from processor import process_file
 
@@ -25,9 +26,13 @@ def main():
 
     # generate the all reflection file header
     headers = args.reflection_search_files.strip().split(';')
+    for i in range(len(headers)):
+        headers[i] = str(Path(headers[i]).resolve())
+     
     with open(args.reflection_macros_header, "r") as f:
         reflection_macros = f.read()
     output_file = os.path.join(temp_gen_dir, "all_reflection_files.hpp")
+    output_file = str(Path(output_file).resolve())
     with open(output_file, "w") as f:
         f.write(reflection_macros)
         f.write("\n")
