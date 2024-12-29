@@ -3,9 +3,6 @@
 #include <nlohmann/json.hpp>
 #include <fstream>
 #include <cassert>
-#include <iostream>
-#include <cereal/cereal.hpp>
-#include <cereal/archives/binary.hpp>
 
 #include "Asset/Loader/ObjLoader.h"
 
@@ -13,7 +10,7 @@ namespace Engine
 {
     void AssetManager::LoadProject(std::filesystem::path path)
     {
-        if(!std::filesystem::exists(path))
+        if (!std::filesystem::exists(path))
             throw std::runtime_error("Project path does not exist");
         m_projectPath = path;
         auto asset_path = path / "assets";
@@ -28,20 +25,22 @@ namespace Engine
                 if (file.is_open())
                 {
                     nlohmann::json json_data = nlohmann::json::parse(file);
-                    if (json_data.contains("%guid"))
+                    if (json_data.contains("%main_id"))
                     {
-                        GUID guid(json_data["%guid"]);
-                        AddAsset(guid, relative_path.parent_path() / relative_path.stem());
+                        std::string str_id = json_data["%main_id"].get<std::string>();
+                        if (json_data["%data"].contains(str_id) && json_data["%data"][str_id].contains("m_guid"))
+                        {
+                            GUID guid(json_data["%data"][str_id]["m_guid"].get<std::string>());
+                            AddAsset(guid, relative_path);
+                        }
                     }
                     file.close();
                 }
-                else
-                    throw std::runtime_error("Failed to open asset file");
             }
         }
     }
 
-    void AssetManager::LoadExternalResource(std::filesystem::path resourcePath, std::filesystem::path path_in_project)
+    void AssetManager::ImportExternalResource(std::filesystem::path resourcePath, std::filesystem::path path_in_project)
     {
         if (!std::filesystem::exists(GetAssetsDirectory() / path_in_project))
             std::filesystem::create_directory(GetAssetsDirectory() / path_in_project);
@@ -79,23 +78,32 @@ namespace Engine
 
     void AssetManager::AddAsset(const GUID &guid, const std::filesystem::path &path)
     {
-        if(m_assets_map.find(guid) != m_assets_map.end())
+        if (m_assets_map.find(guid) != m_assets_map.end())
             throw std::runtime_error("asset GUID already exists");
         m_assets_map[guid] = path;
     }
 
-    void AssetManager::AddToLoadingQueue(const GUID &guid)
+    void AssetManager::AddToLoadingQueue(std::shared_ptr<Asset> asset)
     {
-        m_loading_queue.push(guid);
-    }
-
-    void AssetManager::AddToLoadingQueue(const Asset &asset)
-    {
-        m_loading_queue.push(asset.GetGUID());
+        m_loading_queue.push(asset);
     }
 
     void AssetManager::LoadAssetsInQueue()
     {
         throw std::runtime_error("Not implemented");
+    }
+
+    std::shared_ptr<Asset> AssetManager::LoadAssetImmediately(const GUID &guid)
+    {
+        auto path = GetAssetPath(guid);
+        Serialization::Archive archive;
+        archive.load_from_file(path);
+        auto type = Reflection::GetType(archive.GetMainDataProperty("%type").get<std::string>());
+        assert(type->m_reflectable);
+        auto var = type->CreateInstance(Serialization::__SerializationMarker__{});
+        std::shared_ptr<Asset> ret = std::shared_ptr<Asset>(static_cast<Asset *>(var.GetDataPtr()));
+        archive.prepare_load();
+        ret->load_asset_from_archive(archive);
+        return ret;
     }
 } // namespace Engine

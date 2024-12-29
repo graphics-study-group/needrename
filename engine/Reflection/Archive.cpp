@@ -88,7 +88,8 @@ namespace Engine
             clear();
             if(path.extension() == ".asset")
                 path.replace_extension("");
-            std::filesystem::path json_path = path.append(".asset");
+            std::filesystem::path json_path = path;
+            json_path.replace_filename(json_path.filename().string() + ".asset");
             std::ifstream json_file(json_path);
             if(json_file.is_open())
             {
@@ -97,7 +98,7 @@ namespace Engine
             }
             else
             {
-                throw std::runtime_error("Failed to open json file");
+                throw std::runtime_error("Failed to open .asset file");
             }
 
             std::ifstream extra_data_file(path, std::ios::binary);

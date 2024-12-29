@@ -51,6 +51,17 @@ namespace Engine
             void clear();
             void save_to_file(std::filesystem::path path);
             void load_from_file(std::filesystem::path path);
+
+            template<typename T>
+            const Json &GetMainDataProperty(const T& property) const
+            {
+                auto &json = m_context->json;
+                assert(json.contains("%main_id"));
+                std::string str_id = json["%main_id"].get<std::string>();
+                assert(json["%data"].contains(str_id));
+                assert(json["%data"][str_id].contains(property));
+                return json["%data"][str_id][property];
+            }
         };
     }
 }

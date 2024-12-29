@@ -247,7 +247,6 @@ namespace Engine
             }
         }
 
-        // TODO: Implement load_and_construct for class T
         template <typename T>
         void load_from_archive(std::vector<T> &value, Archive &archive)
         {

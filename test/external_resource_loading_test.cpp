@@ -4,12 +4,12 @@
 #include <iostream>
 #include <fstream>
 
-#include "cmake_config.h"
-#include "consts.h"
-#include "MainClass.h"
-#include "Functional/SDLWindow.h"
-#include "Render/RenderSystem.h"
-#include "Asset/AssetManager/AssetManager.h"
+#include <cmake_config.h>
+#include <MainClass.h>
+#include <Functional/SDLWindow.h>
+#include <Render/RenderSystem.h>
+#include <Asset/AssetManager/AssetManager.h>
+#include <Asset/Scene/GameObjectAsset.h>
 
 using namespace Engine;
 
@@ -19,16 +19,10 @@ int main(int argc, char * argv[])
     project_path = project_path / "external_resource_loading_test_project";
     if (std::filesystem::exists(project_path))
         std::filesystem::remove_all(project_path);
+    std::filesystem::create_directory(project_path);
 
     std::filesystem::path mesh_path(ENGINE_ASSETS_DIR);
     mesh_path = mesh_path / "four_bunny" / "four_bunny.obj";
-
-    std::filesystem::path loaded_asset_path = project_path / "assets";
-    if (!std::filesystem::create_directories(loaded_asset_path))
-    {
-        SDL_LogCritical(SDL_LOG_CATEGORY_APPLICATION, "Failed to create directory %s", loaded_asset_path.string().c_str());
-        return -1;
-    }
 
     SDL_Init(SDL_INIT_VIDEO);
 
@@ -39,12 +33,24 @@ int main(int argc, char * argv[])
     auto cmc = MainClass::GetInstance();
     cmc->Initialize(opt, SDL_INIT_VIDEO, opt->enableVerbose ? SDL_LOG_PRIORITY_VERBOSE : SDL_LOG_PRIORITY_INFO);
 
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading project");
     cmc->GetAssetManager()->LoadProject(project_path);
-    cmc->GetAssetManager()->LoadExternalResource(mesh_path, std::filesystem::path("loading_test"));
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Importing external resource");
+    cmc->GetAssetManager()->ImportExternalResource(mesh_path, std::filesystem::path("."));
+
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading the prefab which has just imported");
+    std::filesystem::path prefab_path = cmc->GetAssetManager()->GetAssetsDirectory() / mesh_path.filename();
+    prefab_path.replace_extension(".gameobject.asset");
+    nlohmann::json prefab_json;
+    std::ifstream prefab_file(prefab_path);
+    prefab_file >> prefab_json;
+    prefab_file.close();
+    GUID prefab_guid(prefab_json["%data"]["&0"]["Asset::m_guid"].get<std::string>());
+    auto prefab_asset = dynamic_pointer_cast<GameObjectAsset>(cmc->GetAssetManager()->LoadAssetImmediately(prefab_guid));
     
     // std::filesystem::remove_all(project_path);
 
-    SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "Unloading StartupOptions");
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Unloading StartupOptions");
     delete opt;
 
     return 0;

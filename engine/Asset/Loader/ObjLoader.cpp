@@ -98,12 +98,14 @@ namespace Engine
         archive.prepare_save();
         m_mesh_asset->save_asset_to_archive(archive);
         archive.save_to_file(m_manager.lock()->GetAssetsDirectory() / path_in_project / (m_mesh_asset->m_name + ".mesh.asset"));
+        m_manager.lock()->AddAsset(m_mesh_asset->GetGUID(), path_in_project / (m_mesh_asset->m_name + ".mesh.asset"));
         for (const auto &material : m_material_assets)
         {
             archive.clear();
             archive.prepare_save();
             material->save_asset_to_archive(archive);
             archive.save_to_file(m_manager.lock()->GetAssetsDirectory() / path_in_project / (material->m_name + ".material.asset"));
+            m_manager.lock()->AddAsset(material->GetGUID(), path_in_project / (material->m_name + ".material.asset"));
         }
         for (const auto &texture : m_texture_assets)
         {
@@ -111,6 +113,7 @@ namespace Engine
             archive.prepare_save();
             texture->save_asset_to_archive(archive);
             archive.save_to_file(m_manager.lock()->GetAssetsDirectory() / path_in_project / (texture->m_name + ".png.asset"));
+            m_manager.lock()->AddAsset(texture->GetGUID(), path_in_project / (texture->m_name + ".png.asset"));
         }
 
         std::shared_ptr<GameObjectAsset> m_game_object_asset = std::make_shared<GameObjectAsset>();
@@ -124,5 +127,6 @@ namespace Engine
         archive.prepare_save();
         m_game_object_asset->save_asset_to_archive(archive);
         archive.save_to_file(m_manager.lock()->GetAssetsDirectory() / path_in_project / (m_mesh_asset->m_name + ".gameobject.asset"));
+        m_manager.lock()->AddAsset(m_game_object_asset->GetGUID(), path_in_project / (m_mesh_asset->m_name + ".gameobject.asset"));
     }
 }

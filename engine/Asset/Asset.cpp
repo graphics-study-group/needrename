@@ -6,8 +6,7 @@ namespace Engine
 {
     Asset::Asset()
     {
-        m_manager = MainClass::GetInstance()->GetAssetManager();
-        m_guid = m_manager.lock()->GenerateGUID();
+        m_guid = MainClass::GetInstance()->GetAssetManager()->GenerateGUID();
     }
 
     Asset::~Asset()
@@ -16,12 +15,12 @@ namespace Engine
 
     std::filesystem::path Asset::GetAssetPath()
     {
-        return m_manager.lock()->GetAssetPath(m_guid);
+        return MainClass::GetInstance()->GetAssetManager()->GetAssetPath(m_guid);
     }
 
     std::filesystem::path Asset::GetMetaPath()
     {
-        std::filesystem::path metaPath = m_manager.lock()->GetAssetPath(m_guid);
+        std::filesystem::path metaPath = MainClass::GetInstance()->GetAssetManager()->GetAssetPath(m_guid);
         metaPath.replace_extension(metaPath.extension().string() + ".asset");
         return metaPath;
     }
@@ -29,14 +28,14 @@ namespace Engine
     void Asset::save_to_archive(Serialization::Archive& archive) const
     {
         Serialization::Json &json = *archive.m_cursor;
-        json = m_guid.toString();
-        // TODO: use asset manager queue
+        json["Asset::m_guid"] = m_guid.toString();
+        json["%type"] = Reflection::GetTypeFromObject(*this)->m_name;
     }
 
     void Asset::load_from_archive(Serialization::Archive& archive)
     {
         Serialization::Json &json = *archive.m_cursor;
-        m_guid.fromString(json.get<std::string>());
+        m_guid.fromString(json["Asset::m_guid"].get<std::string>());
         // TODO: use asset manager queue
     }
 

@@ -48,6 +48,7 @@ namespace Engine
         this->asset = std::make_shared<AssetManager>();
         this->gui = std::make_shared<GUISystem>(this->renderer);
         this->gui->Create(this->window->GetWindow());
+        Reflection::Initialize();
     }
 
     void MainClass::MainLoop()
@@ -116,9 +117,14 @@ namespace Engine
     {
         return gui;
     }
+
     std::shared_ptr<RenderSystem> MainClass::GetRenderSystem() const
-   
     {
         return renderer;
+    }
+
+    void MainClass::RunOneFrame(SDL_Event &event)
+    {
+        
     }
 } // namespace Engine

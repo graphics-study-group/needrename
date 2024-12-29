@@ -29,7 +29,7 @@ namespace Engine
         /// @brief Load an external resource, copy to the project asset directory
         /// @param resourcePath Path to the external resource
         /// @param path_in_project Path to the output asset file
-        void LoadExternalResource(std::filesystem::path resourcePath, std::filesystem::path path_in_project);
+        void ImportExternalResource(std::filesystem::path resourcePath, std::filesystem::path path_in_project);
 
         /// @brief Save an asset modified in the engine editor to the project asset directory
         /// @tparam AssetType
@@ -57,10 +57,10 @@ namespace Engine
 
         void AddAsset(const GUID &guid, const std::filesystem::path &path);
 
-        void AddToLoadingQueue(const GUID &guid);
-        void AddToLoadingQueue(const Asset &asset);
+        void AddToLoadingQueue(std::shared_ptr<Asset> asset);
 
         void LoadAssetsInQueue();
+        std::shared_ptr<Asset> LoadAssetImmediately(const GUID &guid);
 
     protected:
         std::mt19937_64 m_guid_gen{std::random_device{}()};
@@ -69,7 +69,7 @@ namespace Engine
         /// @brief GUID to asset path map
         std::unordered_map<GUID, std::filesystem::path, GUIDHash> m_assets_map;
 
-        std::queue<GUID> m_loading_queue;
+        std::queue<std::shared_ptr<Asset>> m_loading_queue;
     };
 } // namespace Engine
 

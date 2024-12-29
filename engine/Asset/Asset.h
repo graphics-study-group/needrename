@@ -42,8 +42,6 @@ namespace Engine
         inline void SetGUID(GUID guid) { m_guid = guid; }
 
     protected:
-        REFL_SER_DISABLE std::weak_ptr <AssetManager> m_manager;
-
         REFL_SER_DISABLE bool m_valid = false;
         GUID m_guid;
 
