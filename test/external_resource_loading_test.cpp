@@ -15,14 +15,15 @@ using namespace Engine;
 
 int main(int argc, char * argv[])
 {
-    std::filesystem::path project_path(ENGINE_ROOT_DIR);
-    project_path = project_path / "test_project";
+    std::filesystem::path project_path(ENGINE_TESTS_DIR);
+    project_path = project_path / "external_resource_loading_test_project";
+    if (std::filesystem::exists(project_path))
+        std::filesystem::remove_all(project_path);
+
     std::filesystem::path mesh_path(ENGINE_ASSETS_DIR);
     mesh_path = mesh_path / "four_bunny" / "four_bunny.obj";
 
-    std::filesystem::path loaded_asset_path = project_path / "assets" / "loading_test";
-    if (std::filesystem::exists(loaded_asset_path))
-        std::filesystem::remove_all(loaded_asset_path);
+    std::filesystem::path loaded_asset_path = project_path / "assets";
     if (!std::filesystem::create_directories(loaded_asset_path))
     {
         SDL_LogCritical(SDL_LOG_CATEGORY_APPLICATION, "Failed to create directory %s", loaded_asset_path.string().c_str());
@@ -41,7 +42,7 @@ int main(int argc, char * argv[])
     cmc->GetAssetManager()->LoadProject(project_path);
     cmc->GetAssetManager()->LoadExternalResource(mesh_path, std::filesystem::path("loading_test"));
     
-    // std::filesystem::remove_all(loaded_asset_path);
+    // std::filesystem::remove_all(project_path);
 
     SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "Unloading StartupOptions");
     delete opt;

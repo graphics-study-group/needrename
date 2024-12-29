@@ -22,22 +22,6 @@ namespace Engine
         // dtor
     }
 
-    void GameObject::Init()
-    {
-        for (auto component : m_components)
-        {
-            component->Init();
-        }
-    }
-
-    void GameObject::Tick(float dt)
-    {
-        for (auto component : m_components)
-        {
-            component->Tick(dt);
-        }
-    }
-
     void GameObject::AddComponent(std::shared_ptr<Component> component)
     {
         m_components.push_back(component);

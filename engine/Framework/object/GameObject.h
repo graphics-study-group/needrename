@@ -26,9 +26,6 @@ namespace Engine
         GameObject(const WorldSystem *marker);
         virtual ~GameObject();
 
-        virtual void Init();
-        virtual void Tick(float dt);
-
         REFL_ENABLE void AddComponent(std::shared_ptr<Component> component);
         template <typename T, typename... Args>
         void AddComponent(Args &&...args);
