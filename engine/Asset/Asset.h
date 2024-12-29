@@ -10,7 +10,7 @@ namespace Engine
 {
     class AssetManager;
     /// @brief Base class for all assets.
-    class REFL_SER_CLASS(REFL_BLACKLIST) Asset
+    class REFL_SER_CLASS(REFL_BLACKLIST) Asset : public std::enable_shared_from_this<Asset>
     {
         REFL_SER_BODY(Asset)
     public:
@@ -26,14 +26,14 @@ namespace Engine
         virtual std::filesystem::path GetMetaPath();
 
         /// @brief Save the asset to the archive. Only used for automatic serialization when it is a member of another class. Only save the GUID of the asset
-        virtual void save_to_archive(Serialization::Archive& archive) const;
+        virtual void save_to_archive(Serialization::Archive &archive) const;
         /// @brief Load the asset from the archive. Only used for automatic serialization when it is a member of another class. Only load the GUID of the asset
-        virtual void load_from_archive(Serialization::Archive& archive);
+        virtual void load_from_archive(Serialization::Archive &archive);
 
         /// @brief Save the asset to the archive. It will call generated save function __serialization_save__(). Save all the data of the asset. Usually called by AssetManager
-        virtual void save_asset_to_archive(Serialization::Archive& archive) const;
+        virtual void save_asset_to_archive(Serialization::Archive &archive) const;
         /// @brief Load the asset from the archive. It will call generated load function __serialization_load__(). Load all the data of the asset. Usually called by AssetManager
-        virtual void load_asset_from_archive(Serialization::Archive& archive);
+        virtual void load_asset_from_archive(Serialization::Archive &archive);
 
         virtual void Unload();
 

@@ -1,4 +1,6 @@
 #include "WorldSystem.h"
+#include <Asset/Scene/LevelAsset.h>
+#include <Asset/Scene/GameObjectAsset.h>
 
 namespace Engine
 {
@@ -29,5 +31,18 @@ namespace Engine
     GUID WorldSystem::GenerateID()
     {
         return generateGUID(m_id_gen);
+    }
+
+    void WorldSystem::LoadLevelAsset(std::shared_ptr<LevelAsset> levelAsset)
+    {
+        for (auto & go : levelAsset->m_gameobjects)
+        {
+            AddGameObjectToWorld(go);
+        }
+    }
+
+    void WorldSystem::LoadGameObjectAsset(std::shared_ptr<GameObjectAsset> gameObjectAsset)
+    {
+        AddGameObjectToWorld(gameObjectAsset->m_MainObject);
     }
 }

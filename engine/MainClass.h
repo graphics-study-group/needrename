@@ -2,6 +2,7 @@
 #define MAINCLASS_H
 
 #include <memory>
+#include <filesystem>
 #include "consts.h"
 #include "Exception/exception.h"
 #include "Functional/OptionHandler.h"
@@ -23,6 +24,7 @@ namespace Engine
         virtual ~MainClass();
 
         void Initialize(const StartupOptions *opt, Uint32 sdl_init_flags, SDL_LogPriority = SDL_LOG_PRIORITY_INFO, Uint32 sdl_window_flags = 0);
+        void LoadProject(const std::filesystem::path &path);
         void MainLoop();
 
         std::shared_ptr<RenderSystem> GetRenderSystem() const;

@@ -10,6 +10,9 @@
 
 namespace Engine
 {
+    class LevelAsset;
+    class GameObjectAsset;
+
     class WorldSystem
     {
     public:
@@ -24,6 +27,8 @@ namespace Engine
         std::shared_ptr<T> CreateGameObject();
         template<typename T>
         void AddGameObjectToWorld(std::shared_ptr<T> go);
+        void LoadLevelAsset(std::shared_ptr<LevelAsset> levelAsset);
+        void LoadGameObjectAsset(std::shared_ptr<GameObjectAsset> gameObjectAsset);
 
     protected:
         std::mt19937_64 m_id_gen{std::random_device{}()};

@@ -25,12 +25,13 @@ namespace Engine
                 if (file.is_open())
                 {
                     nlohmann::json json_data = nlohmann::json::parse(file);
+                    // TODO: need better way to check if it is an asset file
                     if (json_data.contains("%main_id"))
                     {
                         std::string str_id = json_data["%main_id"].get<std::string>();
-                        if (json_data["%data"].contains(str_id) && json_data["%data"][str_id].contains("m_guid"))
+                        if (json_data["%data"].contains(str_id) && json_data["%data"][str_id].contains("Asset::m_guid"))
                         {
-                            GUID guid(json_data["%data"][str_id]["m_guid"].get<std::string>());
+                            GUID guid(json_data["%data"][str_id]["Asset::m_guid"].get<std::string>());
                             AddAsset(guid, relative_path);
                         }
                     }
@@ -90,7 +91,18 @@ namespace Engine
 
     void AssetManager::LoadAssetsInQueue()
     {
-        throw std::runtime_error("Not implemented");
+        while (!m_loading_queue.empty())
+        {
+            auto asset = m_loading_queue.front();
+            auto path = GetAssetPath(asset->GetGUID());
+
+            Serialization::Archive archive;
+            archive.load_from_file(path);
+            archive.prepare_load();
+            asset->load_asset_from_archive(archive);
+
+            m_loading_queue.pop();
+        }
     }
 
     std::shared_ptr<Asset> AssetManager::LoadAssetImmediately(const GUID &guid)

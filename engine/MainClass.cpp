@@ -4,7 +4,10 @@
 #include "Render/RenderSystem.h"
 #include "Asset/AssetManager/AssetManager.h"
 #include "GUI/GUISystem.h"
+#include <Asset/Scene/LevelAsset.h>
 
+#include <nlohmann/json.hpp>
+#include <fstream>
 #include <exception>
 #include <mutex>
 
@@ -23,6 +26,27 @@ namespace Engine
     MainClass::~MainClass()
     {
         SDL_Quit();
+    }
+
+    void MainClass::LoadProject(const std::filesystem::path &path)
+    {
+        this->asset->LoadProject(path);
+        
+        nlohmann::json project_config;
+        std::ifstream file(path / "project.config");
+        if (file.is_open())
+        {
+            project_config = nlohmann::json::parse(file);
+            file.close();
+        }
+        else
+        {
+            throw std::runtime_error("Cannot open project.config");
+        }
+        assert(project_config.contains("default_level"));
+        GUID default_level_guid(project_config["default_level"].get<std::string>());
+        auto level_asset = std::dynamic_pointer_cast<LevelAsset>(this->asset->LoadAssetImmediately(default_level_guid));
+        this->world->LoadLevelAsset(level_asset);
     }
 
     void MainClass::Initialize(const StartupOptions *opt, Uint32 sdl_init_flags, SDL_LogPriority sdl_logPrior, Uint32 sdl_window_flags)
@@ -60,6 +84,8 @@ namespace Engine
 
         while (!onQuit)
         {
+            this->asset->LoadAssetsInQueue();
+
             float current_time = SDL_GetTicks();
             float dt = (current_time - FPS_TIMER) / 1000.0f;
 
