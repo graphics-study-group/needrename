@@ -12,7 +12,7 @@ namespace Engine
 
     void Image2DTextureAsset::save_asset_to_archive(Serialization::Archive &archive) const
     {
-        __serialization_save__(archive);
+        Asset::save_asset_to_archive(archive);
         auto &data = archive.m_context->extra_data;
         assert(data.empty());
 
@@ -22,7 +22,7 @@ namespace Engine
 
     void Image2DTextureAsset::load_asset_from_archive(Serialization::Archive &archive)
     {
-        __serialization_load__(archive);
+        Asset::load_asset_from_archive(archive);
         auto &data = archive.m_context->extra_data;
 
         stbi_set_flip_vertically_on_load(true);
