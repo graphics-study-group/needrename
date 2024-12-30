@@ -11,6 +11,7 @@
 #include <Framework/world/WorldSystem.h>
 #include <Asset/AssetManager/AssetManager.h>
 #include <Asset/Scene/GameObjectAsset.h>
+#include <Framework/component/RenderComponent/CameraComponent.h>
 
 using namespace Engine;
 
@@ -57,12 +58,10 @@ int main(int argc, char *argv[])
 
     SDL_Init(SDL_INIT_VIDEO);
 
-    StartupOptions *opt = ParseOptions(argc, argv);
-    if (opt->instantQuit)
-        return -1;
+    StartupOptions opt{.resol_x = 1280, .resol_y = 720, .title = "External Resource Loading Test"};
 
     auto cmc = MainClass::GetInstance();
-    cmc->Initialize(opt, SDL_INIT_VIDEO, opt->enableVerbose ? SDL_LOG_PRIORITY_VERBOSE : SDL_LOG_PRIORITY_INFO);
+    cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading project");
     cmc->LoadProject(project_path);
@@ -81,14 +80,22 @@ int main(int argc, char *argv[])
     auto prefab_asset = dynamic_pointer_cast<GameObjectAsset>(cmc->GetAssetManager()->LoadAssetImmediately(prefab_guid));
 
     cmc->GetWorldSystem()->LoadGameObjectAsset(prefab_asset);
+
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Setting up camera");
+    auto camera_go = cmc->GetWorldSystem()->CreateGameObject<GameObject>();
+    Transform transform{};
+    transform.SetPosition({0.0f, 1.0f, 0.0f});
+    transform.SetRotationEuler(glm::vec3{0.0, 0.0, 3.1415926});
+    camera_go->SetTransform(transform);
+    auto camera_comp = camera_go->template AddComponent<CameraComponent>();
+    camera_comp->set_aspect_ratio(1.0 * opt.resol_x / opt.resol_y);
+    cmc->GetRenderSystem()->SetActiveCamera(camera_comp);
+    cmc->GetWorldSystem()->AddGameObjectToWorld(camera_go);
     
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Entering main loop");
     cmc->MainLoop();
 
-    // std::filesystem::remove_all(project_path);
-
-    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Unloading StartupOptions");
-    delete opt;
+    std::filesystem::remove_all(project_path);
 
     return 0;
 }

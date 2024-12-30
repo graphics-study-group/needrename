@@ -39,7 +39,7 @@ namespace Engine
         std::shared_ptr<AssetManager> asset{};
         std::shared_ptr<GUISystem> gui{};
 
-        void RunOneFrame(SDL_Event &event);
+        void RunOneFrame(SDL_Event &event, float dt);
     };
 }
 

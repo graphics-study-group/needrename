@@ -16,8 +16,6 @@ namespace Engine
     protected:
         std::vector<std::shared_ptr<HomogeneousMesh>> m_submeshes{};
 
-        void Materialize();
-
     public:
         REFL_ENABLE MeshComponent(std::weak_ptr<GameObject> gameObject);
         virtual ~MeshComponent() = default;

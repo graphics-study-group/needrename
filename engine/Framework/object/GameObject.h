@@ -28,7 +28,7 @@ namespace Engine
 
         REFL_ENABLE void AddComponent(std::shared_ptr<Component> component);
         template <typename T, typename... Args>
-        void AddComponent(Args &&...args);
+        std::shared_ptr<T> AddComponent(Args &&...args);
 
         REFL_ENABLE const Transform &GetTransform() const;
         REFL_ENABLE void SetTransform(const Transform &transform);
@@ -45,11 +45,12 @@ namespace Engine
     };
 
     template <typename T, typename... Args>
-    void GameObject::AddComponent(Args &&...args)
+    std::shared_ptr<T> GameObject::AddComponent(Args &&...args)
     {
         static_assert(std::is_base_of<Component, T>::value, "T must be derived from Component");
         auto component = std::make_shared<T>(weak_from_this(), std::forward<Args>(args)...);
         AddComponent(component);
+        return component;
     }
 }
 

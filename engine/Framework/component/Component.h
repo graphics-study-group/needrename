@@ -8,7 +8,7 @@ namespace Engine
 {
     class GameObject;
 
-    class REFL_SER_CLASS(REFL_WHITELIST) Component
+    class REFL_SER_CLASS(REFL_WHITELIST) Component : public std::enable_shared_from_this<Component>
     {
         REFL_SER_BODY(Component)
     public:

@@ -104,7 +104,14 @@ class MeshComponentFromFile : public MeshComponent {
             this->m_material_assets.back()->LoadFromTinyObj(material, mesh.parent_path());
         }
 
-        Materialize();
+        assert(m_mesh_asset && m_mesh_asset->IsValid());
+        m_submeshes.clear();
+        size_t submesh_count = m_mesh_asset->GetSubmeshCount();
+        for (size_t i = 0; i < submesh_count; i++)
+        {
+            m_submeshes.push_back(std::make_shared<HomogeneousMesh>(
+                m_system, m_mesh_asset, i));
+        }
 
         for (size_t i = 0; i < m_material_assets.size(); i++) {
             auto ptr = std::make_shared<BlinnPhong>(m_system, m_material_assets[i]);
@@ -227,7 +234,7 @@ int main(int argc, char ** argv)
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
 
     auto rsys = cmc->GetRenderSystem();
-    rsys->EnableDepthTesting();
+    // rsys->EnableDepthTesting();
     auto gsys = cmc->GetGUISystem();
 
     RenderTargetSetup rts{rsys};

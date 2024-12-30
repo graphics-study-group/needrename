@@ -20,10 +20,12 @@ namespace Engine
         return m_submeshes;
     }
 
-    void MeshComponent::Materialize()
+    void MeshComponent::Init()
     {
-        assert(m_mesh_asset && m_mesh_asset->IsValid());
+        RendererComponent::Init();
 
+        // Create submeshes from mesh assets
+        assert(m_mesh_asset && m_mesh_asset->IsValid());
         m_submeshes.clear();
         size_t submesh_count = m_mesh_asset->GetSubmeshCount();
         for (size_t i = 0; i < submesh_count; i++)
@@ -32,13 +34,16 @@ namespace Engine
                 m_system, m_mesh_asset, i));
         }
 
-        // TODO: Materialize the materials
-        // RenderComponent::Materialize();
-    }
-
-    void MeshComponent::Init()
-    {
-        Materialize();
+        // Commit vertex buffer to GPU
+        auto &tcb = m_system.lock()->GetTransferCommandBuffer();
+        tcb.Begin();
+        for (auto &submesh : m_submeshes)
+        {
+            submesh->Prepare();
+            tcb.CommitVertexBuffer(*submesh);
+        }
+        tcb.End();
+        tcb.SubmitAndExecute();
     }
 
     void MeshComponent::Tick(float dt)

@@ -84,42 +84,15 @@ namespace Engine
 
         while (!onQuit)
         {
+            // TODO: asynchronous execution
             this->asset->LoadAssetsInQueue();
 
             float current_time = SDL_GetTicks();
             float dt = (current_time - FPS_TIMER) / 1000.0f;
 
-            this->window->BeforeEventLoop();
-            this->world->Tick(dt);
-
-            // TODO: Set up viewport information
-
-            // this->renderer->Render();
-
-            this->window->AfterEventLoop();
-
-            // TODO: write a control system instead of using this window event
-            try
-            {
-                while (SDL_PollEvent(&event))
-                {
-                    if (event.type == SDL_EVENT_QUIT)
-                    {
-                        onQuit = true;
-                        break;
-                    }
-                    // if (!this->window->dispatchEvents(event))
-                    // {
-                    //     onQuit = true;
-                    //     SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "Exited after onEvent()");
-                    // }
-                }
-            }
-            catch (std::exception &except)
-            {
-                fprintf(stderr, "%s", except.what());
-                throw;
-            }
+            this->RunOneFrame(event, dt);
+            if (event.type == SDL_EVENT_QUIT)
+                onQuit = true;
 
             current_time = SDL_GetTicks();
             if (current_time - FPS_TIMER < TPF_LIMIT)
@@ -127,6 +100,8 @@ namespace Engine
             FPS_TIMER = current_time;
         }
         SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "The main loop is ended.");
+        renderer->WaitForIdle();
+        renderer->ClearComponent();
     }
 
     std::shared_ptr<AssetManager> MainClass::GetAssetManager() const
@@ -149,8 +124,22 @@ namespace Engine
         return renderer;
     }
 
-    void MainClass::RunOneFrame(SDL_Event &event)
+    void MainClass::RunOneFrame(SDL_Event &event, float dt)
     {
-        
+        this->window->BeforeEventLoop();
+        this->world->Tick(dt);
+
+        // TODO: Set up viewport information
+
+        this->renderer->Render();
+
+        this->window->AfterEventLoop();
+
+        while (SDL_PollEvent(&event))
+        {
+            this->gui->ProcessEvent(&event);
+            if (event.type == SDL_EVENT_QUIT)
+                break;
+        }
     }
 } // namespace Engine
