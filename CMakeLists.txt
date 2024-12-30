@@ -10,6 +10,7 @@ set(ASSETS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/assets)
 set(REFLECTION_PARSER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/reflection_parser)
 set(EXAMPLES_DIR ${CMAKE_CURRENT_SOURCE_DIR}/example)
 set(TESTS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/test)
+set(PROJECTS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/projects)
 
 find_package(vulkan REQUIRED)
 message(STATUS "Vulkan version: ${Vulkan_VERSION}")

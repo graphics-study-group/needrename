@@ -26,6 +26,8 @@ namespace Engine
         void Initialize(const StartupOptions *opt, Uint32 sdl_init_flags, SDL_LogPriority = SDL_LOG_PRIORITY_INFO, Uint32 sdl_window_flags = 0);
         void LoadProject(const std::filesystem::path &path);
         void MainLoop();
+        void LoopFiniteFrame(int max_frame_count);
+        void LoopFiniteTime(float max_time);
 
         std::shared_ptr<RenderSystem> GetRenderSystem() const;
         std::shared_ptr<WorldSystem> GetWorldSystem() const;

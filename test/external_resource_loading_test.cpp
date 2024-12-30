@@ -15,43 +15,13 @@
 
 using namespace Engine;
 
-void CreateEmptyProject(const std::filesystem::path &project_path)
-{
-    std::filesystem::create_directory(project_path);
-    const char default_level[] = R"(
-{
-    "%main_id": "&0",
-    "%data": {
-        "&0": {
-            "m_gameobjects": [],
-            "Asset::m_guid": "ABCDEF00000000000000000000000000",
-            "%type": "Engine::LevelAsset"
-        }
-    }
-}
-)";
-    const char project_config[] = R"(
-{
-    "default_level": "ABCDEF00000000000000000000000000"
-}
-)";
-    if (!std::filesystem::exists(project_path / "assets"))
-        std::filesystem::create_directory(project_path / "assets");
-    std::ofstream project_file(project_path / "project.config");
-    project_file << project_config;
-    project_file.close();
-    std::ofstream level_file(project_path / "assets" / "default_level.level.asset");
-    level_file << default_level;
-    level_file.close();
-}
-
 int main(int argc, char *argv[])
 {
     std::filesystem::path project_path(ENGINE_TESTS_DIR);
     project_path = project_path / "external_resource_loading_test_project";
     if (std::filesystem::exists(project_path))
         std::filesystem::remove_all(project_path);
-    CreateEmptyProject(project_path);
+    std::filesystem::copy(std::filesystem::path(ENGINE_PROJECTS_DIR) / "empty_project", project_path, std::filesystem::copy_options::recursive);
 
     std::filesystem::path mesh_path(ENGINE_ASSETS_DIR);
     mesh_path = mesh_path / "four_bunny" / "four_bunny.obj";
@@ -93,7 +63,7 @@ int main(int argc, char *argv[])
     cmc->GetWorldSystem()->AddGameObjectToWorld(camera_go);
     
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Entering main loop");
-    cmc->MainLoop();
+    cmc->LoopFiniteFrame(10000);
 
     std::filesystem::remove_all(project_path);
 

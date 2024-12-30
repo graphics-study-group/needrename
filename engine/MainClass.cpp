@@ -95,8 +95,72 @@ namespace Engine
                 onQuit = true;
 
             current_time = SDL_GetTicks();
-            if (current_time - FPS_TIMER < TPF_LIMIT)
-                SDL_Delay(TPF_LIMIT - current_time + FPS_TIMER);
+            // if (current_time - FPS_TIMER < TPF_LIMIT)
+            //     SDL_Delay(TPF_LIMIT - current_time + FPS_TIMER);
+            FPS_TIMER = current_time;
+        }
+        SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "The main loop is ended.");
+        renderer->WaitForIdle();
+        renderer->ClearComponent();
+    }
+
+    void MainClass::LoopFiniteFrame(int max_frame_count)
+    {
+        SDL_Event event;
+        bool onQuit = false;
+
+        unsigned int FPS_TIMER = 0;
+        int frame_count = 0;
+
+        while (!onQuit && frame_count < max_frame_count)
+        {
+            // TODO: asynchronous execution
+            this->asset->LoadAssetsInQueue();
+
+            float current_time = SDL_GetTicks();
+            float dt = (current_time - FPS_TIMER) / 1000.0f;
+
+            this->RunOneFrame(event, dt);
+            if (event.type == SDL_EVENT_QUIT)
+                onQuit = true;
+
+            current_time = SDL_GetTicks();
+            // if (current_time - FPS_TIMER < TPF_LIMIT)
+            //     SDL_Delay(TPF_LIMIT - current_time + FPS_TIMER);
+            FPS_TIMER = current_time;
+
+            frame_count ++;
+        }
+        SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "The main loop is ended.");
+        renderer->WaitForIdle();
+        renderer->ClearComponent();
+    }
+
+    void MainClass::LoopFiniteTime(float max_time)
+    {
+        SDL_Event event;
+        bool onQuit = false;
+
+        unsigned int FPS_TIMER = 0;
+        float current_time = SDL_GetTicks();
+        float start_time = current_time;
+        float dt = 0.0f;
+
+        while (!onQuit && current_time - start_time < max_time)
+        {
+            // TODO: asynchronous execution
+            this->asset->LoadAssetsInQueue();
+
+            float current_time = SDL_GetTicks();
+            float dt = (current_time - FPS_TIMER) / 1000.0f;
+
+            this->RunOneFrame(event, dt);
+            if (event.type == SDL_EVENT_QUIT)
+                onQuit = true;
+
+            current_time = SDL_GetTicks();
+            // if (current_time - FPS_TIMER < TPF_LIMIT)
+            //     SDL_Delay(TPF_LIMIT - current_time + FPS_TIMER);
             FPS_TIMER = current_time;
         }
         SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "The main loop is ended.");
