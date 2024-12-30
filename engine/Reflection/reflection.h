@@ -60,7 +60,7 @@ namespace Engine
         template <typename T>
         std::shared_ptr<Type> GetTypeFromObject(const T &obj)
         {
-            return GetType(typeid(T).name(), &typeid(T));
+            return GetType(typeid(obj).name(), &typeid(obj));
         }
 
         template <typename T>
