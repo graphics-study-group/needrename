@@ -78,7 +78,7 @@ namespace Engine
 
         std::shared_ptr<MeshAsset> m_mesh_asset = std::make_shared<MeshAsset>();
         m_mesh_asset->m_name = path.stem().string();
-        m_mesh_asset->LoadFromTinyobj(attrib, shapes); // TODO: Move this to ObjLoader class
+        LoadMeshAssetFromTinyObj(*m_mesh_asset, attrib, shapes);
 
         std::vector<std::shared_ptr<MaterialAsset>> m_material_assets;
         std::vector<std::shared_ptr<Image2DTextureAsset>> m_texture_assets;
@@ -86,7 +86,7 @@ namespace Engine
         for (const auto &material : materials)
         {
             std::shared_ptr<MaterialAsset> m_material_asset = std::make_shared<MaterialAsset>();
-            m_material_asset->LoadFromTinyObj(material, path.parent_path()); // TODO: Move this to ObjLoader class
+            LoadMaterialAssetFromTinyObj(*m_material_asset, material, path.parent_path());
             m_material_assets.push_back(m_material_asset);
             for (const auto &[name, texture] : m_material_asset->m_textures)
             {
@@ -128,5 +128,143 @@ namespace Engine
         m_game_object_asset->save_asset_to_archive(archive);
         archive.save_to_file(m_manager.lock()->GetAssetsDirectory() / path_in_project / (m_mesh_asset->m_name + ".gameobject.asset"));
         m_manager.lock()->AddAsset(m_game_object_asset->GetGUID(), path_in_project / (m_mesh_asset->m_name + ".gameobject.asset"));
+    }
+
+    void ObjLoader::LoadMeshAssetFromTinyObj(MeshAsset &mesh_asset, const tinyobj::attrib_t &attrib, const std::vector<tinyobj::shape_t> &shapes)
+    {
+        mesh_asset.m_submeshes.clear();
+
+        const auto &positions = attrib.vertices;
+        const auto &normals = attrib.normals;
+        const auto &uvs = attrib.texcoords;
+        const auto &colors = attrib.colors;
+
+        for (const auto &shape : shapes)
+        {
+            mesh_asset.m_submeshes.emplace_back();
+            auto &submesh = mesh_asset.m_submeshes.back();
+            uint32_t vertex_id = 0;
+            std::map<std::tuple<int, int, int>, uint32_t> vertex_id_map;
+            for (const auto &index : shape.mesh.indices)
+            {
+                std::tuple<int, int, int> key(index.vertex_index, index.normal_index, index.texcoord_index);
+                if (vertex_id_map.find(key) == vertex_id_map.end())
+                {
+                    vertex_id_map[key] = vertex_id++;
+                    submesh.m_positions.push_back(VertexStruct::VertexPosition{
+                        .position = {positions[index.vertex_index * 3], positions[index.vertex_index * 3 + 1], positions[index.vertex_index * 3 + 2]}});
+                    VertexStruct::VertexAttribute attr = {};
+                    if (colors.size() > 0)
+                    {
+                        attr.color[0] = colors[index.vertex_index * 3];
+                        attr.color[1] = colors[index.vertex_index * 3 + 1];
+                        attr.color[2] = colors[index.vertex_index * 3 + 2];
+                    }
+                    if (index.normal_index >= 0)
+                    {
+                        attr.normal[0] = normals[index.normal_index * 3];
+                        attr.normal[1] = normals[index.normal_index * 3 + 1];
+                        attr.normal[2] = normals[index.normal_index * 3 + 2];
+                    }
+                    if (index.texcoord_index >= 0)
+                    {
+                        attr.texcoord1[0] = uvs[index.texcoord_index * 2];
+                        attr.texcoord1[1] = uvs[index.texcoord_index * 2 + 1];
+                    }
+                    submesh.m_attributes.push_back(attr);
+                }
+                submesh.m_indices.push_back(vertex_id_map[key]);
+            }
+        }
+
+        mesh_asset.SetValid(true);
+    }
+
+    void ObjLoader::LoadMaterialAssetFromTinyObj(MaterialAsset &material_asset, const tinyobj::material_t &material, const std::filesystem::path &base_path)
+    {
+        material_asset.m_name = material.name;
+        material_asset.m_vec4s["ambient"] = glm::vec4{material.ambient[0], material.ambient[1], material.ambient[2], 1.0f};
+        material_asset.m_vec4s["diffuse"] = glm::vec4{material.diffuse[0], material.diffuse[1], material.diffuse[2], 1.0f};
+        material_asset.m_vec4s["specular"] = glm::vec4{material.specular[0], material.specular[1], material.specular[2], 1.0f};
+        material_asset.m_vec4s["transmittance"] = glm::vec4{material.transmittance[0], material.transmittance[1], material.transmittance[2], 1.0f};
+        material_asset.m_vec4s["emission"] = glm::vec4{material.emission[0], material.emission[1], material.emission[2], 1.0f};
+        material_asset.m_floats["shininess"] = material.shininess;
+        material_asset.m_floats["ior"] = material.ior;
+        material_asset.m_floats["dissolve"] = material.dissolve;
+        material_asset.m_ints["illum"] = material.illum;
+        if (!material.ambient_texname.empty())
+        {
+            auto texture = std::make_shared<Image2DTextureAsset>();
+            texture->LoadFromFile(base_path / material.ambient_texname);
+            material_asset.m_textures["ambient"] = texture;
+        }
+        if (!material.diffuse_texname.empty())
+        {
+            auto texture = std::make_shared<Image2DTextureAsset>();
+            texture->LoadFromFile(base_path / material.diffuse_texname);
+            material_asset.m_textures["diffuse"] = texture;
+        }
+        if (!material.specular_texname.empty())
+        {
+            auto texture = std::make_shared<Image2DTextureAsset>();
+            texture->LoadFromFile(base_path / material.specular_texname);
+            material_asset.m_textures["specular"] = texture;
+        }
+        if (!material.specular_highlight_texname.empty())
+        {
+            auto texture = std::make_shared<Image2DTextureAsset>();
+            texture->LoadFromFile(base_path / material.specular_highlight_texname);
+            material_asset.m_textures["specular_highlight"] = texture;
+        }
+        if (!material.bump_texname.empty())
+        {
+            auto texture = std::make_shared<Image2DTextureAsset>();
+            texture->LoadFromFile(base_path / material.bump_texname);
+            material_asset.m_textures["bump"] = texture;
+        }
+        if (!material.displacement_texname.empty())
+        {
+            auto texture = std::make_shared<Image2DTextureAsset>();
+            texture->LoadFromFile(base_path / material.displacement_texname);
+            material_asset.m_textures["displacement"] = texture;
+        }
+        if (!material.alpha_texname.empty())
+        {
+            auto texture = std::make_shared<Image2DTextureAsset>();
+            texture->LoadFromFile(base_path / material.alpha_texname);
+            material_asset.m_textures["alpha"] = texture;
+        }
+        if (!material.roughness_texname.empty())
+        {
+            auto texture = std::make_shared<Image2DTextureAsset>();
+            texture->LoadFromFile(base_path / material.roughness_texname);
+            material_asset.m_textures["roughness"] = texture;
+        }
+        if (!material.metallic_texname.empty())
+        {
+            auto texture = std::make_shared<Image2DTextureAsset>();
+            texture->LoadFromFile(base_path / material.metallic_texname);
+            material_asset.m_textures["metallic"] = texture;
+        }
+        if (!material.sheen_texname.empty())
+        {
+            auto texture = std::make_shared<Image2DTextureAsset>();
+            texture->LoadFromFile(base_path / material.sheen_texname);
+            material_asset.m_textures["sheen"] = texture;
+        }
+        if (!material.emissive_texname.empty())
+        {
+            auto texture = std::make_shared<Image2DTextureAsset>();
+            texture->LoadFromFile(base_path / material.emissive_texname);
+            material_asset.m_textures["emissive"] = texture;
+        }
+        if (!material.normal_texname.empty())
+        {
+            auto texture = std::make_shared<Image2DTextureAsset>();
+            texture->LoadFromFile(base_path / material.normal_texname);
+            material_asset.m_textures["normal"] = texture;
+        }
+
+        material_asset.SetValid(true);
     }
 }

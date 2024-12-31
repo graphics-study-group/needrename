@@ -20,6 +20,7 @@
 #include "Render/Renderer/HomogeneousMesh.h"
 #include "GUI/GUISystem.h"
 #include "Asset/Material/MaterialAsset.h"
+#include <Asset/Loader/ObjLoader.h>
 
 #include "cmake_config.h"
 
@@ -97,11 +98,12 @@ class MeshComponentFromFile : public MeshComponent {
         }
 
         this->m_mesh_asset = std::make_shared<MeshAsset>();
-        this->m_mesh_asset->LoadFromTinyobj(attrib, shapes);
+        ObjLoader loader;
+        loader.LoadMeshAssetFromTinyObj(*this->m_mesh_asset, attrib, shapes);
 
         for (const auto & material : materials) {
             this->m_material_assets.push_back(std::make_shared<MaterialAsset>());
-            this->m_material_assets.back()->LoadFromTinyObj(material, mesh.parent_path());
+            loader.LoadMaterialAssetFromTinyObj(*this->m_material_assets.back(), material, mesh.parent_path());
         }
 
         assert(m_mesh_asset && m_mesh_asset->IsValid());

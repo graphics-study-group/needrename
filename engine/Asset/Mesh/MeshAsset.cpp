@@ -13,56 +13,6 @@ namespace Engine
     {
     }
 
-    void MeshAsset::LoadFromTinyobj(const tinyobj::attrib_t &attrib, const std::vector<tinyobj::shape_t> &shapes)
-    {
-        m_submeshes.clear();
-
-        const auto &positions = attrib.vertices;
-        const auto &normals = attrib.normals;
-        const auto &uvs = attrib.texcoords;
-        const auto &colors = attrib.colors;
-
-        for (const auto &shape : shapes)
-        {
-            m_submeshes.emplace_back();
-            auto &submesh = m_submeshes.back();
-            uint32_t vertex_id = 0;
-            std::map<std::tuple<int, int, int>, uint32_t> vertex_id_map;
-            for (const auto &index : shape.mesh.indices)
-            {
-                std::tuple<int, int, int> key(index.vertex_index, index.normal_index, index.texcoord_index);
-                if (vertex_id_map.find(key) == vertex_id_map.end())
-                {
-                    vertex_id_map[key] = vertex_id++;
-                    submesh.m_positions.push_back(VertexStruct::VertexPosition{
-                        .position = {positions[index.vertex_index * 3], positions[index.vertex_index * 3 + 1], positions[index.vertex_index * 3 + 2]}});
-                    VertexStruct::VertexAttribute attr = {};
-                    if (colors.size() > 0)
-                    {
-                        attr.color[0] = colors[index.vertex_index * 3];
-                        attr.color[1] = colors[index.vertex_index * 3 + 1];
-                        attr.color[2] = colors[index.vertex_index * 3 + 2];
-                    }
-                    if (index.normal_index >= 0)
-                    {
-                        attr.normal[0] = normals[index.normal_index * 3];
-                        attr.normal[1] = normals[index.normal_index * 3 + 1];
-                        attr.normal[2] = normals[index.normal_index * 3 + 2];
-                    }
-                    if (index.texcoord_index >= 0)
-                    {
-                        attr.texcoord1[0] = uvs[index.texcoord_index * 2];
-                        attr.texcoord1[1] = uvs[index.texcoord_index * 2 + 1];
-                    }
-                    submesh.m_attributes.push_back(attr);
-                }
-                submesh.m_indices.push_back(vertex_id_map[key]);
-            }
-        }
-
-        Asset::SetValid(true);
-    }
-
     size_t MeshAsset::GetSubmeshCount() const
     {
         return m_submeshes.size();

@@ -4,13 +4,13 @@
 #include <memory>
 #include <string>
 #include <glm.hpp>
-#include <tiny_obj_loader.h>
 #include <unordered_map>
 #include <Asset/Asset.h>
 #include <meta_engine/reflection.hpp>
 
 namespace Engine
 {
+    class ObjLoader;
     class TextureAsset;
 
     class REFL_SER_CLASS(REFL_WHITELIST) MaterialAsset : public Asset
@@ -27,7 +27,7 @@ namespace Engine
         REFL_SER_ENABLE std::unordered_map<std::string, glm::mat4> m_mat4s{};
         REFL_SER_ENABLE std::unordered_map<std::string, std::shared_ptr<TextureAsset>> m_textures{};
 
-        void LoadFromTinyObj(const tinyobj::material_t &material, const std::filesystem::path &base_path = "");
+        friend class ObjLoader;
     };
 }
 

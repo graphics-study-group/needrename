@@ -1,7 +1,6 @@
 #ifndef ASSET_MESH_MESHASSET_INCLUDED
 #define ASSET_MESH_MESHASSET_INCLUDED
 
-#include <tiny_obj_loader.h>
 #include <Asset/Asset.h>
 #include <Render/Renderer/VertexStruct.h>
 #include <meta_engine/reflection.hpp>
@@ -9,6 +8,8 @@
 
 namespace Engine
 {
+    class ObjLoader;
+
     class REFL_SER_CLASS(REFL_WHITELIST) MeshAsset : public Asset
     {
         REFL_SER_BODY(MeshAsset)
@@ -16,7 +17,7 @@ namespace Engine
         REFL_ENABLE MeshAsset();
         virtual ~MeshAsset();
 
-        void LoadFromTinyobj(const tinyobj::attrib_t &attrib, const std::vector<tinyobj::shape_t> &shapes);
+        friend class ObjLoader;
 
         struct Submesh
         {
