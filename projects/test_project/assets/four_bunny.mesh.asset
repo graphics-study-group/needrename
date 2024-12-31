@@ -1,0 +1,9 @@
+{
+    "%data": {
+        "&0": {
+            "%type": "Engine::MeshAsset",
+            "Asset::m_guid": "A07EC6F0B54DB772E3B7290D41098EB8"
+        }
+    },
+    "%main_id": "&0"
+}

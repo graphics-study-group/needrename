@@ -1,0 +1,118 @@
+{
+    "%main_id": "&0",
+    "%data": {
+        "&0": {
+            "m_gameobjects": [
+				"&1",
+				"&9"
+			],
+            "Asset::m_guid": "FF182376000000000000000000000000",
+            "%type": "Engine::LevelAsset"
+        },
+        "&1": {
+            "%type": "Engine::GameObject",
+            "m_childGameObject": [],
+            "m_components": [
+                "&2",
+                "&3"
+            ],
+            "m_parentGameObject": null,
+            "m_transformComponent": "&2"
+        },
+        "&2": {
+            "%type": "Engine::TransformComponent",
+            "Component::m_parentGameObject": "&1",
+            "m_transform": {
+                "%type": "Engine::Transform",
+                "m_position": [
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "m_rotation": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0
+                ],
+                "m_scale": [
+                    1.0,
+                    1.0,
+                    1.0
+                ]
+            }
+        },
+        "&3": {
+            "%type": "Engine::MeshComponent",
+            "Component::m_parentGameObject": "&1",
+            "RendererComponent::m_material_assets": [
+                "&4",
+                "&5",
+                "&6",
+                "&7"
+            ],
+            "m_mesh_asset": "&8"
+        },
+        "&4": {
+            "%type": "Engine::MaterialAsset",
+            "Asset::m_guid": "59C77DD65329D7C93E9A88B13E91CD0A"
+        },
+        "&5": {
+            "%type": "Engine::MaterialAsset",
+            "Asset::m_guid": "4544551BBCBF9F96535E4FBFA3A1889B"
+        },
+        "&6": {
+            "%type": "Engine::MaterialAsset",
+            "Asset::m_guid": "80E2F0B43E53D5749455FC2ACEADB0AA"
+        },
+        "&7": {
+            "%type": "Engine::MaterialAsset",
+            "Asset::m_guid": "3060B175AB1541B50BB5268849EF969B"
+        },
+        "&8": {
+            "%type": "Engine::MeshAsset",
+            "Asset::m_guid": "A07EC6F0B54DB772E3B7290D41098EB8"
+        },
+		"&9": {
+            "%type": "Engine::GameObject",
+            "m_childGameObject": [],
+            "m_components": [
+                "&10",
+                "&11"
+            ],
+            "m_parentGameObject": null,
+            "m_transformComponent": "&10"
+        },
+		"&10": {
+            "%type": "Engine::TransformComponent",
+            "Component::m_parentGameObject": "&9",
+            "m_transform": {
+                "%type": "Engine::Transform",
+                "m_position": [
+                    0.0,
+                    1.0,
+                    0.0
+                ],
+                "m_rotation": [
+                    0.0,
+                    0.0,
+                    1.0,
+                    0.0
+                ],
+                "m_scale": [
+                    1.0,
+                    1.0,
+                    1.0
+                ]
+            }
+        },
+		"&11": {
+            "%type": "Engine::CameraComponent",
+            "Component::m_parentGameObject": "&9",
+            "m_fov_vertical": 45.0,
+			"m_aspect_ratio": 1.777778,
+			"m_clipping_near": 0.001,
+			"m_clipping_far": 1000.0
+        }
+    }
+}
