@@ -22,7 +22,7 @@ namespace Engine
         void LoadObjResource(const std::filesystem::path &path, const std::filesystem::path &path_in_project);
     
     protected:
-        std::weak_ptr <AssetManager> m_manager;
+        std::weak_ptr <AssetManager> m_manager{};
     };
 }
 

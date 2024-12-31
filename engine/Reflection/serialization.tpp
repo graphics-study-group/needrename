@@ -419,7 +419,7 @@ namespace Engine
             if (!json.is_null())
             {
                 std::string str_id = json.get<std::string>();
-                int id = std::stoi(str_id.substr(1));
+                // int id = std::stoi(str_id.substr(1));
 
                 Archive temp_archive(archive, &archive.m_context->json["%data"][str_id]);
                 auto type = Engine::Reflection::GetType(archive.m_context->json["%data"][str_id]["%type"].get<std::string>());

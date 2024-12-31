@@ -11,14 +11,14 @@ namespace Engine
         {
         }
 
-        void Archive::prepare_save(std::shared_ptr<const void> main_data)
+        void Archive::prepare_save()
         {
             if (m_context->save_prepared)
                 throw std::runtime_error("Archive already initialized");
             m_context->json["%data"] = Json::object();
             std::string main_id;
-            if (main_data)
-                m_context->id_map[(AddressID)main_data.get()] = m_context->current_id;
+            // if (main_data)
+            //     m_context->id_map[(AddressID)main_data.get()] = m_context->current_id;
             main_id = std::string("&") + std::to_string(m_context->current_id);
             m_context->current_id++;
             m_context->json["%main_id"] = main_id;
@@ -27,12 +27,12 @@ namespace Engine
             m_context->save_prepared = true;
         }
 
-        void Archive::prepare_load(std::shared_ptr<void> main_data)
+        void Archive::prepare_load()
         {
             std::string str_id = m_context->json["%main_id"].get<std::string>();
-            int id = std::stoi(str_id.substr(1));
-            if(main_data)
-                m_context->pointer_map[id] = main_data;
+            // int id = std::stoi(str_id.substr(1));
+            // if(main_data)
+            //     m_context->pointer_map[id] = main_data;
             m_cursor = &m_context->json["%data"][str_id];
             m_context->load_prepared = true;
         }

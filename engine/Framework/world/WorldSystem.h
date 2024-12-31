@@ -21,13 +21,24 @@ namespace Engine
 
         void Tick(float dt);
 
+        /// @brief Generate a GUID using the random generator in the WorldSystem.
         GUID GenerateID();
 
+        /// @brief GameObject factory function. Create a GameObject and return a shared pointer to it.
+        /// @tparam T T must be derived from GameObject
+        /// @tparam ...Args The arguments to be passed to the constructor of T
+        /// @return The shared pointer to the created GameObject
         template <typename T, typename... Args>
         std::shared_ptr<T> CreateGameObject();
+
+        /// @brief Add a GameObject to the loading queue.
         template <typename T>
         void AddGameObjectToWorld(std::shared_ptr<T> go);
+
+        /// @brief Load a level asset. Add all GameObjects in the level asset to the loading queue.
         void LoadLevelAsset(std::shared_ptr<LevelAsset> levelAsset);
+
+        /// @brief Load a GameObject asset. Add the GameObject in the asset to the loading queue.
         void LoadGameObjectAsset(std::shared_ptr<GameObjectAsset> gameObjectAsset);
 
     protected:

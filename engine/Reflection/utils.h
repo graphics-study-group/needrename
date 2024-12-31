@@ -22,6 +22,7 @@ namespace Engine
         /// @brief Wrapper function for getting a const field of an object. Format: <void func(the owerner object of the field, return value)>
         using WrapperConstFieldFunc = std::function<void(const void *, const void *&)>;
 
+        /// @brief Get the mangled name of some arguments.
         template <typename... Args>
         std::string GetMangledName()
         {
@@ -30,6 +31,7 @@ namespace Engine
             return name;
         }
 
+        /// @brief Get the mangled name of some arguments.
         template <typename... Args>
         std::string GetMangledName(Args&&... args)
         {

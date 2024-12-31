@@ -45,7 +45,7 @@ namespace Engine
         tcb.SubmitAndExecute();
     }
 
-    void RendererComponent::Tick(float dt)
+    void RendererComponent::Tick(float)
     {
     }
 

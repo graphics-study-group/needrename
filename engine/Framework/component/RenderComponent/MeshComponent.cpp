@@ -46,7 +46,7 @@ namespace Engine
         tcb.SubmitAndExecute();
     }
 
-    void MeshComponent::Tick(float dt)
+    void MeshComponent::Tick(float)
     {
     }
 };

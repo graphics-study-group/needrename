@@ -26,7 +26,14 @@ namespace Engine
         GameObject(const WorldSystem *marker);
         virtual ~GameObject();
 
+        /// @brief Add a component to the GameObject. Will set the component's parent to this GameObject.
+        /// @param component The component to be added
         REFL_ENABLE void AddComponent(std::shared_ptr<Component> component);
+
+        /// @brief Add a component of type T to the GameObject.
+        /// @tparam T T must be derived from Component
+        /// @tparam Args The arguments to be passed to the constructor of T
+        /// @return The shared pointer to the created component
         template <typename T, typename... Args>
         std::shared_ptr<T> AddComponent(Args &&...args);
 
@@ -38,9 +45,9 @@ namespace Engine
 
     public:
         REFL_SER_ENABLE std::weak_ptr<GameObject> m_parentGameObject{};
-        REFL_SER_ENABLE std::vector<std::shared_ptr<GameObject>> m_childGameObject;
+        REFL_SER_ENABLE std::vector<std::shared_ptr<GameObject>> m_childGameObject{};
 
-        REFL_SER_ENABLE std::shared_ptr<TransformComponent> m_transformComponent;
+        REFL_SER_ENABLE std::shared_ptr<TransformComponent> m_transformComponent{};
         REFL_SER_ENABLE std::vector<std::shared_ptr<Component>> m_components{};
     };
 

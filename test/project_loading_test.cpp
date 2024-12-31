@@ -14,7 +14,7 @@
 
 using namespace Engine;
 
-int main(int argc, char *argv[])
+int main()
 {
     std::filesystem::path project_path(ENGINE_PROJECTS_DIR);
     project_path = project_path / "test_project";
