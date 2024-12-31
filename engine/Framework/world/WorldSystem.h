@@ -23,9 +23,9 @@ namespace Engine
 
         GUID GenerateID();
 
-        template<typename T, typename... Args>
+        template <typename T, typename... Args>
         std::shared_ptr<T> CreateGameObject();
-        template<typename T>
+        template <typename T>
         void AddGameObjectToWorld(std::shared_ptr<T> go);
         void LoadLevelAsset(std::shared_ptr<LevelAsset> levelAsset);
         void LoadGameObjectAsset(std::shared_ptr<GameObjectAsset> gameObjectAsset);
@@ -33,11 +33,12 @@ namespace Engine
     protected:
         std::mt19937_64 m_id_gen{std::random_device{}()};
 
-        std::vector<std::shared_ptr<GameObject>> m_go_loading_queue;
-        std::vector<std::shared_ptr<Component>> m_all_components;
+        std::vector<std::shared_ptr<GameObject>> m_go_loading_queue{};
+        std::vector<std::shared_ptr<GameObject>> m_game_objects{};
+        std::vector<std::shared_ptr<Component>> m_all_components{};
     };
 
-    template<typename T, typename... Args>
+    template <typename T, typename... Args>
     std::shared_ptr<T> WorldSystem::CreateGameObject()
     {
         static_assert(std::is_base_of<GameObject, T>::value, "T must be derived from GameObject");
@@ -47,7 +48,7 @@ namespace Engine
         return game_object;
     }
 
-    template<typename T>
+    template <typename T>
     void WorldSystem::AddGameObjectToWorld(std::shared_ptr<T> go)
     {
         static_assert(std::is_base_of<GameObject, T>::value, "T must be derived from GameObject");
