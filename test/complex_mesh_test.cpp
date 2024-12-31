@@ -122,8 +122,6 @@ class MeshComponentFromFile : public MeshComponent {
 public: 
     MeshComponentFromFile(std::filesystem::path mesh_file_name) 
     : MeshComponent(std::weak_ptr<GameObject>()), transform() {
-        transform.SetPosition(glm::vec3{0.0, 0.0, -0.5});
-        transform.SetScale(glm::vec3{.5f, .5f, .5f});
         LoadMesh(mesh_file_name);
 
         auto & tcb = m_system.lock()->GetTransferCommandBuffer();
@@ -252,7 +250,7 @@ int main(int argc, char ** argv)
     // Setup camera
     auto camera_go = cmc->GetWorldSystem()->CreateGameObject<GameObject>();
     Transform transform{};
-    transform.SetPosition({0.0f, 0.5f, -0.5f});
+    transform.SetPosition({0.0f, 1.0f, 0.0f});
     transform.SetRotationEuler(glm::vec3{0.0, 0.0, 3.1415926});
     camera_go->SetTransform(transform);
     auto camera_comp = std::make_shared<CameraComponent>(camera_go);

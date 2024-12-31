@@ -23,7 +23,8 @@ void print_vectors(glm::vec3 o, glm::vec3 x, glm::vec3 y, glm::vec3 z) {
 }
 
 void test_translation() {
-    auto go = std::make_shared<GameObject>();
+    // use backdoor constructor to create it temporarily
+    auto go = std::make_shared<GameObject>(Serialization::__SerializationMarker__{});
     // eye space +x axis and +z axis align up with NDC +x axis and +z axis
     go->GetTransformRef().SetPosition(glm::vec3(0, -1, 0));
 
@@ -49,7 +50,7 @@ void test_translation() {
 }
 
 void test_rotation() {
-    auto go = std::make_shared<GameObject>();
+    auto go = std::make_shared<GameObject>(Serialization::__SerializationMarker__{});
     // eye space +x axis and +z axis align up with NDC -z axis and +y axis
     go->GetTransformRef().SetRotationEuler(glm::vec3(0, 0, glm::radians(-90.0f)));
     auto cp = std::make_shared<CameraComponent>(go);

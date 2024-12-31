@@ -23,7 +23,7 @@ int main(int, char **)
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
 
     auto rsys = cmc->GetRenderSystem();
-    rsys->EnableDepthTesting();
+    // rsys->EnableDepthTesting();
     auto gsys = cmc->GetGUISystem();
 
     RenderTargetSetup rts{rsys};

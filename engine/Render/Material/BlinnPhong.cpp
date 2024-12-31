@@ -130,6 +130,7 @@ namespace Engine {
 
         UniformData uniform;
         uniform.specular = m_asset->m_vec4s["specular"];
+        uniform.specular.w = m_asset->m_floats["shininess"];
         uniform.ambient = m_asset->m_vec4s["ambient"];
 
         assert(m_mapped_buffer);
