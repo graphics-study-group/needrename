@@ -50,10 +50,10 @@ def get_simple_name(cx_type: CX.Type):
     return result
 
 
-def get_mangled_quliafied_name(node: CX.Cursor):
+def get_mangled_qualified_name(node: CX.Cursor):
     if node.kind in [CX.CursorKind.TRANSLATION_UNIT, CX.CursorKind.LINKAGE_SPEC]:
         return ""
-    return get_mangled_quliafied_name(node.semantic_parent) + node.spelling + str(len(node.spelling))
+    return get_mangled_qualified_name(node.semantic_parent) + node.spelling + str(len(node.spelling))
     
 
 def get_type_mangled_name(cx_type: CX.Type):
@@ -62,9 +62,9 @@ def get_type_mangled_name(cx_type: CX.Type):
         result += "const"
     
     if cx_type.kind == CX.TypeKind.RECORD:
-        result += get_mangled_quliafied_name(cx_type.get_declaration())
+        result += get_mangled_qualified_name(cx_type.get_declaration())
     elif cx_type.kind == CX.TypeKind.ELABORATED:
-        result += get_mangled_quliafied_name(cx_type.get_declaration())
+        result += get_mangled_qualified_name(cx_type.get_declaration())
     else:
         result += cx_type.spelling
     return result
