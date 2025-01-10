@@ -5,99 +5,29 @@ namespace Engine
 {
     namespace Serialization
     {
-        template <typename T>
-        typename std::enable_if<is_basic_type<T>::value, void>::type
-        save_to_archive(const T &value, Archive &archive)
+        template <is_basic_type T>
+        void save_to_archive(const T &value, Archive &archive)
         {
             Json &json = *archive.m_cursor;
             json["%type"] = typeid(T).name();
             json["data"] = value;
         }
 
-        template <typename T>
-        typename std::enable_if<is_basic_type<T>::value, void>::type
-        load_from_archive(T &value, Archive &archive)
+        template <is_basic_type T>
+        void load_from_archive(T &value, Archive &archive)
         {
             Json &json = *archive.m_cursor;
             value = json["data"].get<T>();
         }
 
-        template <typename T>
-        typename std::enable_if<std::is_pointer<T>::value, void>::type
-        save_to_archive(const T &value, Archive &archive)
-        {
-            static_assert(false, "Raw pointers are not allowed, use std::shared_ptr, std::unique_ptr or custom serialization functions instead");
-
-            // Json &json = *archive.m_cursor;
-            // if (value != nullptr)
-            // {
-            //     AddressID adr_id = reinterpret_cast<AddressID>(value);
-            //     if (archive.m_context->id_map.find(adr_id) == archive.m_context->id_map.end())
-            //     {
-            //         archive.m_context->id_map[adr_id] = archive.m_context->current_id++;
-            //         std::string str_id = std::string("&") + std::to_string(archive.m_context->id_map[adr_id]);
-            //         archive.m_context->json["%data"][str_id] = Json::object();
-            //         Archive temp_archive(archive, &archive.m_context->json["%data"][str_id]);
-            //         serialize(*value, temp_archive);
-            //     }
-            //     json = std::string("&") + std::to_string(archive.m_context->id_map[adr_id]);
-            // }
-            // else
-            // {
-            //     json = nullptr;
-            // }
-        }
-
-        template <typename T>
-        typename std::enable_if<std::is_pointer<T>::value, void>::type
-        load_from_archive(T &value, Archive &archive)
-        {
-            static_assert(false, "Raw pointers are not allowed, use std::shared_ptr, std::unique_ptr or custom serialization functions instead");
-
-            // Json &json = *archive.m_cursor;
-            // if (!json.is_null())
-            // {
-            //     std::string str_id = json.get<std::string>();
-            //     int id = std::stoi(str_id.substr(1));
-            //     if (archive.m_context->pointer_map.find(id) == archive.m_context->pointer_map.end())
-            //     {
-            //         Archive temp_archive(archive, &archive.m_context->json["%data"][str_id]);
-            //         auto type = Engine::Reflection::GetType(archive.m_context->json["%data"][str_id]["%type"].get<std::string>());
-            //         if (type->m_reflectable)
-            //         {
-            //             Engine::Reflection::Var var = type->CreateInstance();
-            //             value = static_cast<T>(var.GetDataPtr());
-            //             archive.m_context->pointer_map[id] = value;
-            //             deserialize(*value, temp_archive);
-            //         }
-            //         else
-            //         {
-            //             assert(type->m_type_info == nullptr || type->m_type_info->name() == typeid(*value).name());
-            //             value = new (std::remove_pointer_t<T>)();
-            //             archive.m_context->pointer_map[id] = value;
-            //             deserialize(*value, temp_archive);
-            //         }
-            //     }
-            //     else
-            //     {
-            //         value = static_cast<T>(archive.m_context->pointer_map[id]);
-            //     }
-            // }
-            // else
-            // {
-            //     value = nullptr;
-            // }
-        }
-
-        template <typename T>
-        typename std::enable_if<std::is_array<T>::value, void>::type
-        save_to_archive(const T &value, Archive &archive)
+        template <is_array_type T>
+        void save_to_archive(const T &value, Archive &archive)
         {
             Json &json = *archive.m_cursor;
             json = Json::array();
             for (auto &item : value)
             {
-                if constexpr (is_basic_type<std::remove_const_t<std::remove_reference_t<decltype(value[0])>>>::value)
+                if constexpr (is_basic_type<std::remove_const_t<std::remove_reference_t<decltype(value[0])>>>)
                 {
                     json.push_back(item);
                 }
@@ -110,15 +40,14 @@ namespace Engine
             }
         }
 
-        template <typename T>
-        typename std::enable_if<std::is_array<T>::value, void>::type
-        load_from_archive(T &value, Archive &archive)
+        template <is_array_type T>
+        void load_from_archive(T &value, Archive &archive)
         {
             Json &json = *archive.m_cursor;
             int i = 0;
             for (auto &item : json)
             {
-                if constexpr (is_basic_type<std::remove_reference_t<decltype(value[0])>>::value)
+                if constexpr (is_basic_type<std::remove_reference_t<decltype(value[0])>>)
                 {
                     value[i] = item.get<std::remove_reference_t<decltype(value[0])>>();
                 }
@@ -131,17 +60,15 @@ namespace Engine
             }
         }
 
-        template <typename T>
-        typename std::enable_if<std::is_enum<T>::value, void>::type
-        save_to_archive(const T &value, Archive &archive)
+        template <is_enum_type T>
+        void save_to_archive(const T &value, Archive &archive)
         {
             Json &json = *archive.m_cursor;
             json = static_cast<int>(value);
         }
 
-        template <typename T>
-        typename std::enable_if<std::is_enum<T>::value, void>::type
-        load_from_archive(T &value, Archive &archive)
+        template <is_enum_type T>
+        void load_from_archive(T &value, Archive &archive)
         {
             Json &json = *archive.m_cursor;
             value = static_cast<T>(json.get<int>());
@@ -154,7 +81,7 @@ namespace Engine
             json = Json::object();
             for (auto &item : value)
             {
-                if constexpr (is_basic_type<T>::value)
+                if constexpr (is_basic_type<T>)
                 {
                     json[item.first] = item.second;
                 }
@@ -174,7 +101,7 @@ namespace Engine
             value.clear();
             for (auto &item : json.items())
             {
-                if constexpr (is_basic_type<T>::value)
+                if constexpr (is_basic_type<T>)
                 {
                     value[item.key()] = item.value().get<T>();
                 }
@@ -194,7 +121,7 @@ namespace Engine
             json = Json::object();
             for (auto &item : value)
             {
-                if constexpr (is_basic_type<T>::value)
+                if constexpr (is_basic_type<T>)
                 {
                     json[item.first] = item.second;
                 }
@@ -214,7 +141,7 @@ namespace Engine
             value.clear();
             for (auto &item : json.items())
             {
-                if constexpr (is_basic_type<T>::value)
+                if constexpr (is_basic_type<T>)
                 {
                     value[item.key()] = item.value().get<T>();
                 }
@@ -234,7 +161,7 @@ namespace Engine
             json = Json::array();
             for (auto &item : value)
             {
-                if constexpr (is_basic_type<T>::value)
+                if constexpr (is_basic_type<T>)
                 {
                     json.push_back(item);
                 }
@@ -254,7 +181,7 @@ namespace Engine
             value.clear();
             for (auto &item : json)
             {
-                if constexpr (is_basic_type<T>::value)
+                if constexpr (is_basic_type<T>)
                 {
                     value.push_back(item.get<T>());
                 }
@@ -304,7 +231,7 @@ namespace Engine
                     auto type = Engine::Reflection::GetType(archive.m_context->json["%data"][str_id]["%type"].get<std::string>());
                     if (type->m_reflectable)
                     {
-                        auto var = type->CreateInstance(__SerializationMarker__{});
+                        auto var = type->CreateInstance(SerializationMarker{});
                         archive.m_context->pointer_map[id] = std::shared_ptr<void>(static_cast<T *>(var.GetDataPtr()));
                         value = static_pointer_cast<T>(archive.m_context->pointer_map[id]);
                         deserialize(*value, temp_archive);
@@ -365,7 +292,7 @@ namespace Engine
                     auto type = Engine::Reflection::GetType(archive.m_context->json["%data"][str_id]["%type"].get<std::string>());
                     if (type->m_reflectable)
                     {
-                        auto var = type->CreateInstance(Serialization::__SerializationMarker__{});
+                        auto var = type->CreateInstance(Serialization::SerializationMarker{});
                         archive.m_context->pointer_map[id] = std::shared_ptr<void>(static_cast<T *>(var.GetDataPtr()));
                         value = static_pointer_cast<T>(archive.m_context->pointer_map[id]);
                         deserialize(*(value.lock()), temp_archive);
@@ -425,7 +352,7 @@ namespace Engine
                 auto type = Engine::Reflection::GetType(archive.m_context->json["%data"][str_id]["%type"].get<std::string>());
                 if (type->m_reflectable)
                 {
-                    auto var = type->CreateInstance(Serialization::__SerializationMarker__{});
+                    auto var = type->CreateInstance(Serialization::SerializationMarker{});
                     value = std::unique_ptr<T>(static_cast<T *>(var.GetDataPtr()));
                     deserialize(*value, temp_archive);
                 }

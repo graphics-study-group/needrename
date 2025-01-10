@@ -112,7 +112,7 @@ namespace Engine
         archive.load_from_file(path);
         auto type = Reflection::GetType(archive.GetMainDataProperty("%type").get<std::string>());
         assert(type->m_reflectable);
-        auto var = type->CreateInstance(Serialization::__SerializationMarker__{});
+        auto var = type->CreateInstance(Serialization::SerializationMarker{});
         std::shared_ptr<Asset> ret = std::shared_ptr<Asset>(static_cast<Asset *>(var.GetDataPtr()));
         archive.prepare_load();
         ret->load_asset_from_archive(archive);

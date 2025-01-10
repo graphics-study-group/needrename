@@ -17,9 +17,9 @@
 #define REFL_SER_BODY(class_name, ...) \
     public: \
     friend class Engine::Reflection::Registrar; \
-    REFL_DISABLE virtual void __serialization_save__(Engine::Serialization::Archive& buffer) const; \
-    REFL_DISABLE virtual void __serialization_load__(Engine::Serialization::Archive& buffer); \
-    REFL_ENABLE class_name(Engine::Serialization::__SerializationMarker__ marker);
+    REFL_DISABLE virtual void _SERIALIZATION_SAVE_(Engine::Serialization::Archive& buffer) const; \
+    REFL_DISABLE virtual void _SERIALIZATION_LOAD_(Engine::Serialization::Archive& buffer); \
+    REFL_ENABLE class_name(Engine::Serialization::SerializationMarker marker);
 
 namespace Engine
 {
@@ -31,6 +31,6 @@ namespace Engine
     namespace Serialization
     {
         class Archive;
-        struct __SerializationMarker__;
+        struct SerializationMarker;
     }
 }

@@ -75,7 +75,7 @@ import clang.cindex as CX
     % endfor
 </%def>
 % for class_type in classes_map.values():
-void ${class_type.full_name}::__serialization_save__(Engine::Serialization::Archive& archive) const
+void ${class_type.full_name}::_SERIALIZATION_SAVE_(Engine::Serialization::Archive& archive) const
 {
     Engine::Serialization::Json &json = *archive.m_cursor;
     
@@ -84,12 +84,12 @@ void ${class_type.full_name}::__serialization_save__(Engine::Serialization::Arch
     assert(json.find("%type") == json.end());
     json["%type"] = "${class_type.full_name}";
 }
-void ${class_type.full_name}::__serialization_load__(Engine::Serialization::Archive& archive)
+void ${class_type.full_name}::_SERIALIZATION_LOAD_(Engine::Serialization::Archive& archive)
 {
     Engine::Serialization::Json &json = *archive.m_cursor;
     ${generate_type_load(class_type, "")}
 }
-${class_type.full_name}::${class_type.name}(Engine::Serialization::__SerializationMarker__ marker) \
+${class_type.full_name}::${class_type.name}(Engine::Serialization::SerializationMarker marker) \
 <%
 base_type_name_list = []
 for base_type in class_type.base_types:
