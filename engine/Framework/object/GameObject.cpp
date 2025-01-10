@@ -5,14 +5,7 @@
 
 namespace Engine
 {
-    // GameObject::GameObject() :
-    //     m_transformComponent(std::make_shared<TransformComponent>(weak_from_this()))
-    // {
-    //     //ctor
-    //     this->AddComponent(m_transformComponent);
-    // }
-
-    GameObject::GameObject(const WorldSystem *marker)
+    GameObject::GameObject(const WorldSystem *)
     {
         // assert(marker == MainClass::GetWorldSystem().get());
     }

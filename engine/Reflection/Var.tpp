@@ -48,7 +48,7 @@ namespace Engine
         }
 
         template <typename... Args>
-        ConstVar ConstVar::InvokeMethod(const std::string &name, Args&&... args)
+        Var ConstVar::InvokeMethod(const std::string &name, Args&&... args)
         {
             std::shared_ptr<Method> method = m_type->GetMethod(name, std::forward<Args>(args)...);
             if(!method)

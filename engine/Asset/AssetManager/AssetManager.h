@@ -52,8 +52,8 @@ namespace Engine
         /// @return GUID
         inline GUID GenerateGUID() { return generateGUID(m_guid_gen); }
 
-        inline std::filesystem::path GetProjectPath() const { return m_projectPath; }
-        inline std::filesystem::path GetAssetsDirectory() const { return m_projectPath / "assets"; }
+        inline std::filesystem::path GetProjectPath() const { return m_project_path; }
+        inline std::filesystem::path GetAssetsDirectory() const { return m_project_path / "assets"; }
 
         void AddAsset(const GUID &guid, const std::filesystem::path &path);
 
@@ -65,11 +65,11 @@ namespace Engine
     protected:
         std::mt19937_64 m_guid_gen{std::random_device{}()};
 
-        std::filesystem::path m_projectPath;
+        std::filesystem::path m_project_path{};
         /// @brief GUID to asset path map
-        std::unordered_map<GUID, std::filesystem::path, GUIDHash> m_assets_map;
+        std::unordered_map<GUID, std::filesystem::path, GUIDHash> m_assets_map{};
 
-        std::queue<std::shared_ptr<Asset>> m_loading_queue;
+        std::queue<std::shared_ptr<Asset>> m_loading_queue{};
     };
 } // namespace Engine
 

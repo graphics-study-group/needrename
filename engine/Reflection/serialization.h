@@ -12,6 +12,7 @@ namespace Engine
 {
     namespace Serialization
     {
+        /// @brief A marker struct used to identify the serialization process
         struct __SerializationMarker__
         {
         };
@@ -267,26 +268,19 @@ namespace Engine
             value.__serialization_load__(archive);
         }
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-variable"
-#pragma GCC diagnostic ignored "-Wunused-parameter"
-
         template <typename T>
         typename std::enable_if<!has_custom_save<T>::value && !has_generated_save<T>::value && !has_special_save<T>::value, void>::type
         serialize(const T &value, Archive &archive)
         {
-            throw std::runtime_error(std::string("No serialization function found for type: ") + typeid(T).name() + "\nNote: \n" + "  - If the type is a custom type, make sure to define a member function like save_to_archive(Engine::Serialization::Archive &)\n" + "  - The type must have a default constructor with no arguments\n" + "  - Do not use pointers, use std::shared_ptr or std::unique_ptr instead\n");
+            static_assert(false, "No serialization function found for this type");
         }
 
         template <typename T>
         typename std::enable_if<!has_custom_load<T>::value && !has_generated_load<T>::value && !has_special_load<T>::value, void>::type
         deserialize(T &value, Archive &archive)
         {
-            throw std::runtime_error(std::string("No deserialization function found for type: ") + typeid(T).name() + "\nNote: \n" + "  - If the type is a custom type, make sure to define a member function like load_from_archive(Engine::Serialization::Archive &)\n" + "  - The type must have a default constructor with no arguments\n" + "  - Do not use pointers, use std::shared_ptr or std::unique_ptr instead\n");
+            static_assert(false, "No deserialization function found for this type");
         }
-
-#pragma GCC diagnostic pop
-
     }
 }
 

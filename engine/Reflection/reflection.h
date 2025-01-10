@@ -42,9 +42,15 @@ namespace Engine
         /// @return the shared pointer to the Type class
         std::shared_ptr<Type> GetType(const std::string &name, const std::type_info *type_info = nullptr);
 
+        /// @brief Get the Reflection::Var class from an object.
+        /// @param obj the object to get the Var of
+        /// @return Var
         template<typename T>
         Var GetVar(T &obj);
 
+        /// @brief Get the Reflection::ConstVar class from an object.
+        /// @param obj the object to get the ConstVar of
+        /// @return ConstVar
         template<typename T>
         ConstVar GetConstVar(const T &obj);
     }

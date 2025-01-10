@@ -4,6 +4,9 @@
 #include <memory>
 #include <meta_engine/reflection.hpp>
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wnon-virtual-dtor"
+
 namespace Engine
 {
     class GameObject;
@@ -16,11 +19,18 @@ namespace Engine
         REFL_ENABLE Component(std::weak_ptr<GameObject> gameObject);
         virtual ~Component() = default;
 
+        /// @brief Initialize the component. Called when the parent GameObject before the first Tick after the GameObject is created.
         virtual void Init();
+
+        /// @brief Called every frame.
+        /// @param dt delta time
         virtual void Tick(float dt);
 
     public:
         REFL_SER_ENABLE std::weak_ptr<GameObject> m_parentGameObject{};
     };
 }
+
+#pragma GCC diagnostic pop
+
 #endif // FRAMEWORK_COMPONENT_COMPONENT_INCLUDED

@@ -12,7 +12,7 @@ namespace Engine
     {
         if (!std::filesystem::exists(path))
             throw std::runtime_error("Project path does not exist");
-        m_projectPath = path;
+        m_project_path = path;
         auto asset_path = path / "assets";
         if (!std::filesystem::exists(asset_path))
             std::filesystem::create_directory(asset_path);

@@ -31,7 +31,7 @@ namespace Engine
     void MainClass::LoadProject(const std::filesystem::path &path)
     {
         this->asset->LoadProject(path);
-        
+
         nlohmann::json project_config;
         std::ifstream file(path / "project.config");
         if (file.is_open())
@@ -51,7 +51,7 @@ namespace Engine
 
     void MainClass::Initialize(const StartupOptions *opt, Uint32 sdl_init_flags, SDL_LogPriority sdl_logPrior, Uint32 sdl_window_flags)
     {
-        if (SDL_Init(sdl_init_flags) < 0)
+        if (!SDL_Init(sdl_init_flags))
             throw Exception::SDLExceptions::cant_init();
         SDL_SetLogPriorities(sdl_logPrior);
         this->window = nullptr;
@@ -129,7 +129,7 @@ namespace Engine
             //     SDL_Delay(TPF_LIMIT - current_time + FPS_TIMER);
             FPS_TIMER = current_time;
 
-            frame_count ++;
+            frame_count++;
         }
         SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "The main loop is ended.");
         renderer->WaitForIdle();
@@ -144,7 +144,6 @@ namespace Engine
         unsigned int FPS_TIMER = 0;
         float current_time = SDL_GetTicks();
         float start_time = current_time;
-        float dt = 0.0f;
 
         while (!onQuit && current_time - start_time < max_time)
         {

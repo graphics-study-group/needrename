@@ -302,7 +302,7 @@ int main(int argc, char ** argv)
         in_flight_frame_id = (in_flight_frame_id + 1) % 3;
         SDL_Delay(5);
 
-        if (frame_count >= max_frame_count) break;
+        if ((int64_t)frame_count >= max_frame_count) break;
     }
     uint64_t end_timer = SDL_GetPerformanceCounter();
     uint64_t duration = end_timer - start_timer;

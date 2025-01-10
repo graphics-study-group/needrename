@@ -28,8 +28,7 @@ namespace Engine
         void LoadMaterialAssetFromTinyObj(MaterialAsset &material_asset, const tinyobj::material_t &material, const std::filesystem::path &base_path);
     
     protected:
-        std::weak_ptr <AssetManager> m_manager;
-
+        std::weak_ptr <AssetManager> m_manager{};
     };
 }
 

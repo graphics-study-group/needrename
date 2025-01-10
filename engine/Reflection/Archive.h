@@ -17,19 +17,24 @@ namespace Engine
         using IDMap = std::unordered_map<AddressID, int>;
         using PointerMap = std::unordered_map<int, std::shared_ptr<void>>;
 
-        /// @brief An archive class is used to store serialized data
-        /// @details TODO: Add more details
+        /// @brief An Archive is used to store serialized data. It can be used to save data to a file or load data from a file.
+        /// @details An Archive holds a global context and the current state. The global context stores major data during serialization and deserialization, while the current state tracks the position in the data for reading or writing.
         class Archive
         {
         public:
             struct GlobalContext
             {
+                // The json object stores the data in a json format.
                 Json json{};
+                // The extra data is used to store additional data. Usually binary data.
                 Buffer extra_data{};
 
+                // The map between object pointer and id in this archive. Used in serialization.
                 IDMap id_map{};
+                // The current id used to assign to the next object.
                 int current_id = 0;
 
+                // The map between id and shared pointer in this archive. Used in deserialization.
                 PointerMap pointer_map{};
 
                 bool save_prepared = false;
@@ -38,22 +43,34 @@ namespace Engine
 
         public:
             Archive() = default;
-            ~Archive() = default;
+            virtual ~Archive() = default;
             Archive(const Archive &, Json *cursor = nullptr);
 
-        public:
-            std::shared_ptr<GlobalContext> m_context = std::make_shared<GlobalContext>();
-            Json *m_cursor;
+            Archive &operator=(const Archive &) = delete;
 
         public:
-            void prepare_save(std::shared_ptr<const void> main_data = nullptr);
-            void prepare_load(std::shared_ptr<void> main_data = nullptr);
+            // The global context is shared between all archives.
+            std::shared_ptr<GlobalContext> m_context = std::make_shared<GlobalContext>();
+            // The current cursor is used to track the current position during serialization and deserialization.
+            Json *m_cursor = nullptr;
+
+        public:
+            /// @brief Prepare the archive for saving data. It will initialize the global context and set the cursor.
+            void prepare_save();
+            /// @brief Prepare the archive for loading data. It will initialize the global context and set the cursor.
+            void prepare_load();
+            /// @brief Clear the archive and reset it to the initial state.
             void clear();
+            /// @brief Save the archive to a file.
             void save_to_file(std::filesystem::path path);
+            /// @brief Load the archive from a file.
             void load_from_file(std::filesystem::path path);
 
-            template<typename T>
-            const Json &GetMainDataProperty(const T& property) const
+            /// @brief Get the json property of the main object stored in the archive.
+            /// @param property the property name
+            /// @return the json object
+            template <typename T>
+            const Json &GetMainDataProperty(const T &property) const
             {
                 auto &json = m_context->json;
                 assert(json.contains("%main_id"));

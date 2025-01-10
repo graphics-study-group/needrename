@@ -33,9 +33,6 @@ namespace Engine
 
     void MeshAsset::save_asset_to_archive(Serialization::Archive &archive) const
     {
-        // save base class (such as GUID)
-        Asset::save_asset_to_archive(archive);
-
         auto &data = archive.m_context->extra_data;
         assert(data.empty());
 
@@ -77,12 +74,13 @@ namespace Engine
                 reinterpret_cast<const std::byte *>(m_submeshes[i].m_attributes.data()),
                 reinterpret_cast<const std::byte *>(m_submeshes[i].m_attributes.data() + m_submeshes[i].m_attributes.size()));
         }
+
+        // save base class (such as GUID)
+        Asset::save_asset_to_archive(archive);
     }
 
     void MeshAsset::load_asset_from_archive(Serialization::Archive &archive)
     {
-        Asset::load_asset_from_archive(archive);
-
         auto &data = archive.m_context->extra_data;
         size_t offset = 0;
 
@@ -106,5 +104,7 @@ namespace Engine
             std::memcpy(m_submeshes[i].m_attributes.data(), &data[offset], m_vertex_size * sizeof(decltype(m_submeshes[i].m_attributes)::value_type));
             offset += m_vertex_size * sizeof(decltype(m_submeshes[i].m_attributes)::value_type);
         }
+
+        Asset::load_asset_from_archive(archive);
     }
 }

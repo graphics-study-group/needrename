@@ -1,6 +1,8 @@
 #include "CameraComponent.h"
 
 #include <Framework/object/GameObject.h>
+#include <Render/RenderSystem.h>
+#include <MainClass.h>
 
 #include <SDL3/SDL.h>
 #include <glm.hpp>
@@ -11,6 +13,15 @@ namespace Engine{
     {
         UpdateViewMatrix();
         UpdateProjectionMatrix();
+    }
+
+    void CameraComponent::Init()
+    {
+        UpdateViewMatrix();
+        UpdateProjectionMatrix();
+        
+        // XXX: This is a hack. We should not set active camera here.
+        MainClass::GetInstance()->GetRenderSystem()->SetActiveCamera(std::dynamic_pointer_cast<CameraComponent>(shared_from_this()));
     }
 
     void CameraComponent::Tick(float)

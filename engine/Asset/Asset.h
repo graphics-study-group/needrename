@@ -6,6 +6,9 @@
 #include <Core/guid.h>
 #include <meta_engine/reflection.hpp>
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wnon-virtual-dtor"
+
 namespace Engine
 {
     class AssetManager;
@@ -43,10 +46,12 @@ namespace Engine
 
     protected:
         REFL_SER_DISABLE bool m_valid = false;
-        GUID m_guid;
+        GUID m_guid{};
 
         inline void SetValid(bool valid) { m_valid = valid; }
     };
 }
+
+#pragma GCC diagnostic pop
 
 #endif // ASSET_ASSET_INCLUDED

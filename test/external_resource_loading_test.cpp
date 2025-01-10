@@ -15,7 +15,7 @@
 
 using namespace Engine;
 
-int main(int argc, char *argv[])
+int main()
 {
     std::filesystem::path project_path(ENGINE_TESTS_DIR);
     project_path = project_path / "external_resource_loading_test_project";
