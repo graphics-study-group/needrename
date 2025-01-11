@@ -4,6 +4,7 @@
 #include <vector>
 #include <unordered_map>
 #include <map>
+#include <any>
 #include <glm.hpp>
 #include <gtc/quaternion.hpp>
 #include "Archive.h"
@@ -74,6 +75,9 @@ namespace Engine
         /// @brief concept to check if a type is an enum
         template <typename T>
         concept is_enum_type = std::is_enum<T>::value;
+        /// @brief concept to check if a type is std::any
+        template <typename T>
+        concept is_std_any = std::is_same<T, std::any>::value;
 
         template <is_basic_type T>
         void save_to_archive(const T &value, Archive &archive);
@@ -88,6 +92,11 @@ namespace Engine
         template <is_enum_type T>
         void save_to_archive(const T &value, Archive &archive);
         template <is_enum_type T>
+        void load_from_archive(T &value, Archive &archive);
+
+        template <is_std_any T>
+        void save_to_archive(const T &value, Archive &archive);
+        template <is_std_any T>
         void load_from_archive(T &value, Archive &archive);
 
         template <typename T>

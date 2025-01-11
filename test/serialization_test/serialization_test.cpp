@@ -8,14 +8,59 @@ int main()
     RegisterAllTypes();
 
     using namespace SerializationTest;
+
+    Engine::Serialization::Archive archive;
+
+    std::shared_ptr<StdintTest> stdint_test = std::make_shared<StdintTest>();
+    stdint_test->m_int8 = 1;
+    stdint_test->m_int16 = 2;
+    stdint_test->m_int32 = 3;
+    stdint_test->m_int64 = 4;
+    stdint_test->m_uint8 = 5;
+    stdint_test->m_uint16 = 6;
+    stdint_test->m_uint32 = 7;
+    stdint_test->m_uint64 = 8;
+    Engine::Serialization::serialize(stdint_test, archive);
+    std::cout << "stdint test:" << std::endl << archive.m_context->json.dump(4) << std::endl;
+    stdint_test->m_int8 = 0;
+    stdint_test->m_int16 = 0;
+    stdint_test->m_int32 = 0;
+    stdint_test->m_int64 = 0;
+    stdint_test->m_uint8 = 0;
+    stdint_test->m_uint16 = 0;
+    stdint_test->m_uint32 = 0;
+    stdint_test->m_uint64 = 0;
+    std::shared_ptr<StdintTest> stdint_test2 = std::make_shared<StdintTest>();
+    Engine::Serialization::deserialize(stdint_test2, archive);
+    archive.clear();
+    assert(stdint_test2->m_int8 == 1);
+    assert(stdint_test2->m_int16 == 2);
+    assert(stdint_test2->m_int32 == 3);
+    assert(stdint_test2->m_int64 == 4);
+    assert(stdint_test2->m_uint8 == 5);
+    assert(stdint_test2->m_uint16 == 6);
+    assert(stdint_test2->m_uint32 == 7);
+    assert(stdint_test2->m_uint64 == 8);
+
+    std::shared_ptr<StdAnyTest> std_any_test = std::make_shared<StdAnyTest>();
+    std_any_test->m_any_vector.push_back(1);
+    std_any_test->m_any_vector.push_back(2.0f);
+    std_any_test->m_any_vector.push_back(std::string("Hello World!"));
+    Engine::Serialization::serialize(std_any_test, archive);
+    std::cout << "std any test:" << std::endl << archive.m_context->json.dump(4) << std::endl;
+    std_any_test->m_any_vector.clear();
+    std::shared_ptr<StdAnyTest> std_any_test2 = std::make_shared<StdAnyTest>();
+    Engine::Serialization::deserialize(std_any_test2, archive);
+    archive.clear();
+    assert(std::any_cast<int>(std_any_test2->m_any_vector[0]) == 1);
+    assert(std::any_cast<float>(std_any_test2->m_any_vector[1]) == 2.0f);
+    assert(std::any_cast<std::string>(std_any_test2->m_any_vector[2]) == "Hello World!");
+
     std::shared_ptr<BaseData> base_data_ptr = std::make_shared<BaseData>();
     for(int i = 0; i < 3; i++)
     {
         base_data_ptr->data[i] = 182.376f * i;
     }
-
-    Engine::Serialization::Archive archive;
-
     InheritTest inherit_test;
     for(int i = 0; i < 3; i++)
     {

@@ -3,10 +3,39 @@
 
 #include <memory>
 #include <vector>
+#include <any>
+#include <cstdint>
 #include <meta_serialization_test/reflection.hpp>
 
 namespace SerializationTest
 {
+    class REFL_SER_CLASS(REFL_BLACKLIST) StdintTest
+    {
+        REFL_SER_BODY(StdintTest)
+    public:
+        StdintTest() = default;
+        virtual ~StdintTest() = default;
+
+        int8_t m_int8 = 0;
+        int16_t m_int16 = 0;
+        int32_t m_int32 = 0;
+        int64_t m_int64 = 0;
+        uint8_t m_uint8 = 0;
+        uint16_t m_uint16 = 0;
+        uint32_t m_uint32 = 0;
+        uint64_t m_uint64 = 0;
+    };
+
+    class REFL_SER_CLASS(REFL_BLACKLIST) StdAnyTest
+    {
+        REFL_SER_BODY(StdAnyTest)
+    public:
+        StdAnyTest() = default;
+        virtual ~StdAnyTest() = default;
+
+        std::vector<std::any> m_any_vector {};
+    };
+
     class REFL_SER_CLASS(REFL_BLACKLIST) BaseData
     {
         REFL_SER_BODY(BaseData)
