@@ -21,7 +21,7 @@ int main()
 
     SDL_Init(SDL_INIT_VIDEO);
 
-    StartupOptions opt{.resol_x = 1280, .resol_y = 720, .title = "External Resource Loading Test"};
+    StartupOptions opt{.resol_x = 1280, .resol_y = 720, .title = "Project Loading Test"};
 
     auto cmc = MainClass::GetInstance();
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
