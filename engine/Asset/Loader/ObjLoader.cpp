@@ -24,7 +24,7 @@ namespace Engine
         tinyobj::ObjReader reader{};
 
         if (!reader.ParseFromFile(path.string(), reader_config))
-            throw std::runtime_error("Cannot load OBJ file:" + path.string());
+            throw std::runtime_error("Cannot load OBJ file:" + path.string() + ", " + reader.Error());
 
         SDL_LogInfo(0, "Loaded OBJ file %s", path.string().c_str());
         if (!reader.Warning().empty())
