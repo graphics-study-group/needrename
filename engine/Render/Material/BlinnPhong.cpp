@@ -108,7 +108,8 @@ namespace Engine {
 
     void BlinnPhong::CommitBuffer(TransferCommandBuffer & tcb)
     {
-        std::shared_ptr<Image2DTextureAsset> texture_asset = dynamic_pointer_cast<Image2DTextureAsset>(m_asset->m_textures["diffuse"]);
+        assert(m_asset->m_properties["diffuse_texture"].m_type == MaterialProperty::Type::Texture);
+        std::shared_ptr<Image2DTextureAsset> texture_asset = std::dynamic_pointer_cast<Image2DTextureAsset>(std::any_cast<std::shared_ptr<TextureAsset>>(m_asset->m_properties["diffuse_texture"].m_value));
         assert(texture_asset);
         m_texture->Create(*texture_asset);
         tcb.CommitTextureImage(*m_texture, texture_asset->GetPixelData(), texture_asset->GetPixelDataSize());
@@ -129,9 +130,9 @@ namespace Engine {
         m_system.lock()->getDevice().updateDescriptorSets({write}, {});
 
         UniformData uniform;
-        uniform.specular = m_asset->m_vec4s["specular"];
-        uniform.specular.w = m_asset->m_floats["shininess"];
-        uniform.ambient = m_asset->m_vec4s["ambient"];
+        uniform.specular = std::any_cast<glm::vec4>(m_asset->m_properties["specular"].m_value);
+        uniform.specular.w = std::any_cast<float>(m_asset->m_properties["shininess"].m_value);
+        uniform.ambient = std::any_cast<glm::vec4>(m_asset->m_properties["ambient"].m_value);
 
         assert(m_mapped_buffer);
         memcpy(m_mapped_buffer, &uniform, sizeof uniform);

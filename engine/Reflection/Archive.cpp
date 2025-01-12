@@ -60,7 +60,7 @@ namespace Engine
             std::ofstream json_file(json_path);
             if(json_file.is_open())
             {
-                json_file << m_context->json.dump(4);
+                json_file << m_context->json.dump(4) << std::endl;
                 json_file.close();
             }
             else

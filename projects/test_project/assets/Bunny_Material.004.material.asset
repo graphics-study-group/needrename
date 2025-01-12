@@ -2,56 +2,75 @@
     "%data": {
         "&0": {
             "%type": "Engine::MaterialAsset",
-            "Asset::m_guid": "3060B175AB1541B50BB5268849EF969B",
-            "m_floats": {
-                "dissolve": 1.0,
-                "ior": 1.0,
-                "shininess": 96.07845306396484
-            },
-            "m_ints": {
-                "illum": 2
-            },
-            "m_mat4s": {},
+            "Asset::m_guid": "E529DEB3AEF24FC72EAAC078AF0D33FB",
             "m_name": "Bunny_Material.004",
-            "m_textures": {
-                "diffuse": "&1"
-            },
-            "m_vec4s": {
-                "ambient": [
-                    1.0,
-                    1.0,
-                    1.0,
-                    1.0
-                ],
-                "diffuse": [
-                    0.6000000238418579,
-                    0.6000000238418579,
-                    0.6000000238418579,
-                    1.0
-                ],
-                "emission": [
-                    0.0,
-                    0.0,
-                    0.0,
-                    1.0
-                ],
-                "specular": [
-                    0.5,
-                    0.5,
-                    0.5,
-                    1.0
-                ],
-                "transmittance": [
-                    0.0,
-                    0.0,
-                    0.0,
-                    1.0
-                ]
+            "m_properties": {
+                "ambient": {
+                    "m_type": "Vec4",
+                    "m_value": [
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0
+                    ]
+                },
+                "diffuse": {
+                    "m_type": "Vec4",
+                    "m_value": [
+                        0.6000000238418579,
+                        0.6000000238418579,
+                        0.6000000238418579,
+                        1.0
+                    ]
+                },
+                "diffuse_texture": {
+                    "m_type": "Texture",
+                    "m_value": "&1"
+                },
+                "dissolve": {
+                    "m_type": "Float",
+                    "m_value": 1.0
+                },
+                "emission": {
+                    "m_type": "Vec4",
+                    "m_value": [
+                        0.0,
+                        0.0,
+                        0.0,
+                        1.0
+                    ]
+                },
+                "ior": {
+                    "m_type": "Float",
+                    "m_value": 1.0
+                },
+                "shininess": {
+                    "m_type": "Float",
+                    "m_value": 96.07845306396484
+                },
+                "specular": {
+                    "m_type": "Vec4",
+                    "m_value": [
+                        0.5,
+                        0.5,
+                        0.5,
+                        1.0
+                    ]
+                },
+                "transmittance": {
+                    "m_type": "Vec4",
+                    "m_value": [
+                        0.0,
+                        0.0,
+                        0.0,
+                        1.0
+                    ]
+                }
             }
         },
         "&1": {
             "%type": "Engine::Image2DTextureAsset",
-            "Asset::m_guid": "F8691A2BFE4BF8766470E23334A425DD"
+            "Asset::m_guid": "C6B9E03D3C6C2992B4D23F1256767FB7"
         }
     },
     "%main_id": "&0"

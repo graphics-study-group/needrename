@@ -88,9 +88,13 @@ namespace Engine
             std::shared_ptr<MaterialAsset> m_material_asset = std::make_shared<MaterialAsset>();
             LoadMaterialAssetFromTinyObj(*m_material_asset, material, path.parent_path());
             m_material_assets.push_back(m_material_asset);
-            for (const auto &[name, texture] : m_material_asset->m_textures)
+
+            for (const auto &[name, property] : m_material_asset->m_properties)
             {
-                m_texture_assets.push_back(std::dynamic_pointer_cast<Image2DTextureAsset>(texture));
+                if (property.m_type == MaterialProperty::Type::Texture)
+                {
+                    m_texture_assets.push_back(std::dynamic_pointer_cast<Image2DTextureAsset>(std::any_cast<std::shared_ptr<TextureAsset>>(property.m_value)));
+                }
             }
         }
 
@@ -183,86 +187,92 @@ namespace Engine
     void ObjLoader::LoadMaterialAssetFromTinyObj(MaterialAsset &material_asset, const tinyobj::material_t &material, const std::filesystem::path &base_path)
     {
         material_asset.m_name = material.name;
-        material_asset.m_vec4s["ambient"] = glm::vec4{material.ambient[0], material.ambient[1], material.ambient[2], 1.0f};
-        material_asset.m_vec4s["diffuse"] = glm::vec4{material.diffuse[0], material.diffuse[1], material.diffuse[2], 1.0f};
-        material_asset.m_vec4s["specular"] = glm::vec4{material.specular[0], material.specular[1], material.specular[2], 1.0f};
-        material_asset.m_vec4s["transmittance"] = glm::vec4{material.transmittance[0], material.transmittance[1], material.transmittance[2], 1.0f};
-        material_asset.m_vec4s["emission"] = glm::vec4{material.emission[0], material.emission[1], material.emission[2], 1.0f};
-        material_asset.m_floats["shininess"] = material.shininess;
-        material_asset.m_floats["ior"] = material.ior;
-        material_asset.m_floats["dissolve"] = material.dissolve;
-        material_asset.m_ints["illum"] = material.illum;
+
+        // TODO: For every illumination model, load corresponding shader and set the material properties. 
+        // For now, just load every property from the tinyobj::material_t file.
+        switch(material.illum)
+        {
+        }
+
+        material_asset.m_properties["ambient"] = glm::vec4{material.ambient[0], material.ambient[1], material.ambient[2], 1.0f};
+        material_asset.m_properties["diffuse"] = glm::vec4{material.diffuse[0], material.diffuse[1], material.diffuse[2], 1.0f};
+        material_asset.m_properties["specular"] = glm::vec4{material.specular[0], material.specular[1], material.specular[2], 1.0f};
+        material_asset.m_properties["transmittance"] = glm::vec4{material.transmittance[0], material.transmittance[1], material.transmittance[2], 1.0f};
+        material_asset.m_properties["emission"] = glm::vec4{material.emission[0], material.emission[1], material.emission[2], 1.0f};
+        material_asset.m_properties["shininess"] = (float)material.shininess;
+        material_asset.m_properties["ior"] = (float)material.ior;
+        material_asset.m_properties["dissolve"] = (float)material.dissolve;
         if (!material.ambient_texname.empty())
         {
             auto texture = std::make_shared<Image2DTextureAsset>();
             texture->LoadFromFile(base_path / material.ambient_texname);
-            material_asset.m_textures["ambient"] = texture;
+            material_asset.m_properties["ambient_texture"] = std::dynamic_pointer_cast<TextureAsset>(texture);
         }
         if (!material.diffuse_texname.empty())
         {
             auto texture = std::make_shared<Image2DTextureAsset>();
             texture->LoadFromFile(base_path / material.diffuse_texname);
-            material_asset.m_textures["diffuse"] = texture;
+            material_asset.m_properties["diffuse_texture"] = std::dynamic_pointer_cast<TextureAsset>(texture);
         }
         if (!material.specular_texname.empty())
         {
             auto texture = std::make_shared<Image2DTextureAsset>();
             texture->LoadFromFile(base_path / material.specular_texname);
-            material_asset.m_textures["specular"] = texture;
+            material_asset.m_properties["specular_texture"] = std::dynamic_pointer_cast<TextureAsset>(texture);
         }
         if (!material.specular_highlight_texname.empty())
         {
             auto texture = std::make_shared<Image2DTextureAsset>();
             texture->LoadFromFile(base_path / material.specular_highlight_texname);
-            material_asset.m_textures["specular_highlight"] = texture;
+            material_asset.m_properties["specular_highlight_texture"] = std::dynamic_pointer_cast<TextureAsset>(texture);
         }
         if (!material.bump_texname.empty())
         {
             auto texture = std::make_shared<Image2DTextureAsset>();
             texture->LoadFromFile(base_path / material.bump_texname);
-            material_asset.m_textures["bump"] = texture;
+            material_asset.m_properties["bump_texture"] = std::dynamic_pointer_cast<TextureAsset>(texture);
         }
         if (!material.displacement_texname.empty())
         {
             auto texture = std::make_shared<Image2DTextureAsset>();
             texture->LoadFromFile(base_path / material.displacement_texname);
-            material_asset.m_textures["displacement"] = texture;
+            material_asset.m_properties["displacement_texture"] = std::dynamic_pointer_cast<TextureAsset>(texture);
         }
         if (!material.alpha_texname.empty())
         {
             auto texture = std::make_shared<Image2DTextureAsset>();
             texture->LoadFromFile(base_path / material.alpha_texname);
-            material_asset.m_textures["alpha"] = texture;
+            material_asset.m_properties["alpha_texture"] = std::dynamic_pointer_cast<TextureAsset>(texture);
         }
         if (!material.roughness_texname.empty())
         {
             auto texture = std::make_shared<Image2DTextureAsset>();
             texture->LoadFromFile(base_path / material.roughness_texname);
-            material_asset.m_textures["roughness"] = texture;
+            material_asset.m_properties["roughness_texture"] = std::dynamic_pointer_cast<TextureAsset>(texture);
         }
         if (!material.metallic_texname.empty())
         {
             auto texture = std::make_shared<Image2DTextureAsset>();
             texture->LoadFromFile(base_path / material.metallic_texname);
-            material_asset.m_textures["metallic"] = texture;
+            material_asset.m_properties["metallic_texture"] = std::dynamic_pointer_cast<TextureAsset>(texture);
         }
         if (!material.sheen_texname.empty())
         {
             auto texture = std::make_shared<Image2DTextureAsset>();
             texture->LoadFromFile(base_path / material.sheen_texname);
-            material_asset.m_textures["sheen"] = texture;
+            material_asset.m_properties["sheen_texture"] = std::dynamic_pointer_cast<TextureAsset>(texture);
         }
         if (!material.emissive_texname.empty())
         {
             auto texture = std::make_shared<Image2DTextureAsset>();
             texture->LoadFromFile(base_path / material.emissive_texname);
-            material_asset.m_textures["emissive"] = texture;
+            material_asset.m_properties["emissive_texture"] = std::dynamic_pointer_cast<TextureAsset>(texture);
         }
         if (!material.normal_texname.empty())
         {
             auto texture = std::make_shared<Image2DTextureAsset>();
             texture->LoadFromFile(base_path / material.normal_texname);
-            material_asset.m_textures["normal"] = texture;
+            material_asset.m_properties["normal_texture"] = std::dynamic_pointer_cast<TextureAsset>(texture);
         }
 
         material_asset.SetValid(true);

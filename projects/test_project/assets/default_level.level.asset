@@ -3,8 +3,8 @@
     "%data": {
         "&0": {
             "m_gameobjects": [
-				"&1",
-				"&9"
+                "&1",
+                "&9"
 			],
             "Asset::m_guid": "FF182376000000000000000000000000",
             "%type": "Engine::LevelAsset"
@@ -55,23 +55,23 @@
         },
         "&4": {
             "%type": "Engine::MaterialAsset",
-            "Asset::m_guid": "59C77DD65329D7C93E9A88B13E91CD0A"
+            "Asset::m_guid": "94D39186221227442ECBB92D477D9DB5"
         },
         "&5": {
             "%type": "Engine::MaterialAsset",
-            "Asset::m_guid": "4544551BBCBF9F96535E4FBFA3A1889B"
+            "Asset::m_guid": "A6B18DFFAA7354D5FE4093B3167C93BA"
         },
         "&6": {
             "%type": "Engine::MaterialAsset",
-            "Asset::m_guid": "80E2F0B43E53D5749455FC2ACEADB0AA"
+            "Asset::m_guid": "4D173F6C4813A4D343B98067B574EFEB"
         },
         "&7": {
             "%type": "Engine::MaterialAsset",
-            "Asset::m_guid": "3060B175AB1541B50BB5268849EF969B"
+            "Asset::m_guid": "E529DEB3AEF24FC72EAAC078AF0D33FB"
         },
         "&8": {
             "%type": "Engine::MeshAsset",
-            "Asset::m_guid": "A07EC6F0B54DB772E3B7290D41098EB8"
+            "Asset::m_guid": "F26EEDD4F9909352CBB22B244AD4A126"
         },
 		"&9": {
             "%type": "Engine::GameObject",
