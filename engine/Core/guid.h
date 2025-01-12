@@ -14,8 +14,8 @@ namespace Engine
     {
         REFL_SER_BODY(GUID)
     public:
-        unsigned long long mostSigBits = 0;
-        unsigned long long leastSigBits = 0;
+        uint64_t mostSigBits = 0;
+        uint64_t leastSigBits = 0;
 
         REFL_ENABLE GUID() = default;
         REFL_ENABLE GUID(const std::string &str);
@@ -34,8 +34,8 @@ namespace Engine
     {
         std::size_t operator()(const GUID& guid) const
         {
-            std::size_t h1 = std::hash<unsigned long long>{}(guid.mostSigBits);
-            std::size_t h2 = std::hash<unsigned long long>{}(guid.leastSigBits);
+            std::size_t h1 = std::hash<uint64_t>{}(guid.mostSigBits);
+            std::size_t h2 = std::hash<uint64_t>{}(guid.leastSigBits);
             return h1 ^ (h2 << 1);
         }
     };
@@ -43,7 +43,7 @@ namespace Engine
     template <typename Generator>
     GUID generateGUID(Generator& gen)
     {
-        std::uniform_int_distribution<unsigned long long> dis(0, 0xFFFFFFFFFFFFFFFF);
+        std::uniform_int_distribution<uint64_t> dis(0, 0xFFFFFFFFFFFFFFFF);
         GUID guid;
         guid.mostSigBits = dis(gen);
         guid.leastSigBits = dis(gen);
