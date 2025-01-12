@@ -22,7 +22,7 @@ This document describes how the engine uses the Python version of **libclang** t
     - Reflection and serialization can be controlled via **whitelist** and **blacklist** modes, defined using:
 
         - **`REFL_SER_CLASS(REFL_WHITELIST)`**: Only classes with the **ENABLE** annotation are reflected.
-    - **`REFL_SER_CLASS(REFL_BLACKLIST)`**: Reflects all public fields that are not marked as **DISABLE**.
+        - **`REFL_SER_CLASS(REFL_BLACKLIST)`**: Reflects all public fields that are not marked as **DISABLE**.
     - A class must include the macro **`REFL_SER_BODY(class_name)`** to generate automatic serialization member functions and a backdoor constructor for serialization.
 
 5. **Function and Variable Reflection/Serialization**
