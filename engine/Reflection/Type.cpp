@@ -5,21 +5,21 @@ namespace Engine
 {
     namespace Reflection
     {
-        // class Type
-        std::unordered_map<std::string, std::shared_ptr<Type>> Type::s_type_map;
+        std::unordered_map<std::type_index, std::shared_ptr<Type>> Type::s_index_type_map;
+        std::unordered_map<std::string, std::type_index> Type::s_name_index_map;
 
-        Type::Type(const std::string &name, const std::type_info *type_info, bool reflectable)
-            : m_name(name), m_type_info(type_info), m_reflectable(reflectable)
+        Type::Type(const std::string &name, bool reflectable)
+            : m_name(name), m_reflectable(reflectable)
         {
         }
 
-        std::shared_ptr<Method> Type::GetMethodFromManagedName(const std::string &name)
+        std::shared_ptr<Method> Type::GetMethodFromMangledName(const std::string &name)
         {
             if (m_methods.find(name) != m_methods.end())
                 return m_methods[name];
             for (auto &base_type : m_base_type)
             {
-                auto func = base_type->GetMethodFromManagedName(name);
+                auto func = base_type->GetMethodFromMangledName(name);
                 if (func)
                     return func;
             }

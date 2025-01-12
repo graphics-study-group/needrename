@@ -1,4 +1,6 @@
 #include <memory>
+#include <typeindex>
+#include <typeinfo>
 #include <Reflection/Type.h>
 
 #pragma GCC diagnostic push
@@ -13,7 +15,7 @@ namespace Engine
         % for class_type in classes_map.values():
         std::shared_ptr<Type> TypeRegistrar::Register_${class_type.mangled_name}()
         {
-            std::shared_ptr<Type> type = std::shared_ptr<Type>(new Type("${class_type.full_name}", &typeid(${class_type.full_name}), true));
+            std::shared_ptr<Type> type = std::shared_ptr<Type>(new Type("${class_type.full_name}", true));
 
             % for constructor in class_type.constructors:
             type->AddConstructor<\
@@ -108,7 +110,8 @@ std::add_pointer<${method.return_type.full_name}>::type ret_ptr = reinterpret_ca
                 { ret = static_cast<const void *>(&static_cast<const ${class_type.full_name} *>(obj)->${field.name}); });
             % endfor
 
-            Type::s_type_map["${class_type.full_name}"] = Type::s_type_map[typeid(${class_type.full_name}).name()] = type;
+            Type::s_index_type_map[std::type_index(typeid(${class_type.full_name}))] = type;
+            Type::s_name_index_map.emplace("${class_type.full_name}", std::type_index(typeid(${class_type.full_name})));
             return type;
         }
         % endfor

@@ -35,7 +35,7 @@ namespace Engine
         std::shared_ptr<Method> Type::GetMethod(const std::string &name, Args&&... args)
         {
             auto mangled_name = name + GetMangledName(std::forward<Args>(args)...);
-            return GetMethodFromManagedName(mangled_name);
+            return GetMethodFromMangledName(mangled_name);
         }
     }
 }

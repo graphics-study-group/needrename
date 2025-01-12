@@ -9,7 +9,7 @@ namespace Engine
         void save_to_archive(const T &value, Archive &archive)
         {
             Json &json = *archive.m_cursor;
-            json["%type"] = Engine::Reflection::GetType(typeid(T).name())->m_name;
+            json["%type"] = Engine::Reflection::GetType(std::type_index(typeid(T)))->m_name;
             json["data"] = value;
         }
 
@@ -465,7 +465,6 @@ namespace Engine
                     {
                         value = backdoor_create_shared<T>();
                         archive.m_context->pointer_map[id] = value;
-                        assert(type->m_type_info == nullptr || type->m_type_info->name() == typeid(T).name());
                         deserialize(*value, temp_archive);
                     }
                 }
@@ -526,7 +525,6 @@ namespace Engine
                     {
                         value = backdoor_create_shared<T>();
                         archive.m_context->pointer_map[id] = value.lock();
-                        assert(type->m_type_info == nullptr || type->m_type_info->name() == typeid(T).name());
                         deserialize(*(value.lock()), temp_archive);
                     }
                 }
@@ -584,7 +582,6 @@ namespace Engine
                 else
                 {
                     value = backdoor_create_unique<T>();
-                    assert(type->m_type_info == nullptr || type->m_type_info->name() == typeid(T).name());
                     deserialize(*value, temp_archive);
                 }
             }

@@ -1,6 +1,7 @@
 #ifndef CTEST_REFLECTION_TEST_H
 #define CTEST_REFLECTION_TEST_H
 
+#include <cstdint>
 #include <meta_reflection_test/reflection.hpp>
 
 class REFL_SER_CLASS(REFL_BLACKLIST) Test_stdint

@@ -49,6 +49,22 @@ The parser generates reflection for several key classes:
 
 1. **Type**
     - Represents a class's type. It can hold any type, but only types marked as **`m_reflectable == true`** are considered for reflection. Types that support reflection can create instances of **`Var`** using **`Type::CreateInstance`**.
+    - **Storage and Initialization**
+      - A static hash table, **`s_index_type_map`**, stores shared pointers to **`Type`** instances, indexed by **`std::type_index`**.
+      - Another static hash table, **`s_name_index_map`**, maps type names to their corresponding **`std::type_index`**.
+      - During initialization, these tables are pre-registered with basic types like **`int`**, **`float`**, etc. Once the reflection system is initialized via the parser, all **`Type`** of reflected classes are registered into these tables.
+    - **Type Retrieval and Registration**
+      - The following functions are used to retrieve or register types:
+        1. `GetType(std::string)` and `GetType(std::type_index)`:
+           - These functions search the hash tables for the corresponding **`Type`** instance.
+           - If found, they return a shared pointer to the **`Type`**.
+           - If not found, they return **`nullptr`**.
+        2. `GetTypeFromObject`and `GetOrCreateType`:
+           - These functions will register a new **`Type`** in the hash tables if one is not found.
+           - During registration:
+             - **`Type::m_name`** is set to the name provided during the first registration.
+             - If no name is provided, **`typeid(T).name`** is used as the default name.
+             - Once registered, the name cannot be easily modified, so it is crucial to provide a meaningful name at the time of registration.
 2. **Var**
     - A container that holds a type and a pointer to an instance of that type (as a `void*`). You can cast the `void*` pointer to obtain the desired class type. The **`Var`** class also provides functions like **`Var::InvokeMethod`** and **`Var::GetMember`** to invoke member functions and access member variables. 
     - **`Var`** supports polymorphism, meaning that if a **`Var`** holds an instance of type A but points to an object of type B (a derived class), **`InvokeMethod`** will invoke methods from type B.

@@ -8,6 +8,8 @@
 #include <memory>
 #include <functional>
 #include <unordered_map>
+#include <typeindex>
+#include <typeinfo>
 #include "utils.h"
 
 // Suppress warning from std::enable_shared_from_this
@@ -32,16 +34,17 @@ namespace Engine
         public:
             // The name of the constructor method
             static constexpr const char *k_constructor_name = "$Constructor";
-            // The map between type name and type
-            static std::unordered_map<std::string, std::shared_ptr<Type>> s_type_map;
+            // The map between std::type_index and type
+            static std::unordered_map<std::type_index, std::shared_ptr<Type>> s_index_type_map;
+            // The map between type name and std::type_index
+            static std::unordered_map<std::string, std::type_index> s_name_index_map;
 
         public:
             Type() = delete;
             /// @brief Construct a new Type object.
             /// @param name Type name
-            /// @param type_info the type_info of the type. Can be nullptr.
             /// @param reflectable whether the type is reflectable
-            Type(const std::string &name, const std::type_info *type_info, bool reflectable = false);
+            Type(const std::string &name, bool reflectable = false);
 
             // suppress the warning of -Weffc++
             Type(const Type &) = delete;
@@ -50,7 +53,7 @@ namespace Engine
             virtual ~Type() = default;
         
         private:
-            std::shared_ptr<Method> GetMethodFromManagedName(const std::string &name);
+            std::shared_ptr<Method> GetMethodFromMangledName(const std::string &name);
 
         protected:
             std::vector<std::shared_ptr<Type>> m_base_type{};
@@ -90,9 +93,6 @@ namespace Engine
 
         public:
             std::string m_name{};
-            // The type_info of the type. Could be nullptr.
-            // TODO: need better way to deal with it. May be delete it?
-            const std::type_info *m_type_info{};
             // Whether the type is reflectable
             bool m_reflectable = false;
 
