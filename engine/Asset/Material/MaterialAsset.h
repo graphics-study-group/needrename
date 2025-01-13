@@ -7,12 +7,12 @@
 #include <glm.hpp>
 #include <unordered_map>
 #include <Asset/Asset.h>
+#include <Asset/AssetRef.h>
 #include <meta_engine/reflection.hpp>
 
 namespace Engine
 {
-    class ObjLoader;
-    class TextureAsset;
+    class ObjLoader;  
 
     struct REFL_SER_CLASS(REFL_WHITELIST) MaterialProperty
     {
@@ -38,7 +38,7 @@ namespace Engine
         MaterialProperty(int value);
         MaterialProperty(const glm::vec4 &value);
         MaterialProperty(const glm::mat4 &value);
-        MaterialProperty(const std::shared_ptr<TextureAsset> &value);
+        MaterialProperty(const std::shared_ptr<AssetRef> &value);
         virtual ~MaterialProperty() = default;
     };
 

@@ -1,5 +1,5 @@
 #include "MaterialAsset.h"
-#include <Asset/Texture/Image2DTextureAsset.h>
+#include <Asset/AssetRef.h>
 
 namespace Engine
 {
@@ -23,7 +23,7 @@ namespace Engine
     {
     }
 
-    MaterialProperty::MaterialProperty(const std::shared_ptr<TextureAsset> &value)
+    MaterialProperty::MaterialProperty(const std::shared_ptr<AssetRef> &value)
         : m_type(Type::Texture), m_value(value)
     {
     }
@@ -66,7 +66,7 @@ namespace Engine
             json["m_type"] = "Texture";
             json["m_value"] = Serialization::Json::object();
             Serialization::Archive temp_archive(archive, &json["m_value"]);
-            Serialization::serialize(std::any_cast<std::shared_ptr<TextureAsset>>(m_value), temp_archive);
+            Serialization::serialize(std::any_cast<std::shared_ptr<AssetRef>>(m_value), temp_archive);
             break;
         }
         }
@@ -103,9 +103,9 @@ namespace Engine
         else if (type == "Texture")
         {
             m_type = Type::Texture;
-            m_value = std::make_shared<TextureAsset>();
+            m_value = std::make_shared<AssetRef>();
             Serialization::Archive temp_archive(archive, &json["m_value"]);
-            Serialization::deserialize(std::any_cast<std::shared_ptr<TextureAsset> &>(m_value), temp_archive);
+            Serialization::deserialize(std::any_cast<std::shared_ptr<AssetRef> &>(m_value), temp_archive);
         }
     }
 }

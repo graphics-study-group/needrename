@@ -2,7 +2,7 @@
     "%data": {
         "&0": {
             "%type": "Engine::Image2DTextureAsset",
-            "Asset::m_guid": "BB856D660632280402B18043F87DAE1C",
+            "Asset::m_guid": "9556F2CD1416496196DC5D47D5BD745E",
             "TextureAsset::m_name": "bunny1",
             "m_channel": 4,
             "m_format": 0,

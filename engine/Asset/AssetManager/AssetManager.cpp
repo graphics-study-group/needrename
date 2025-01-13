@@ -3,8 +3,10 @@
 #include <nlohmann/json.hpp>
 #include <fstream>
 #include <cassert>
-
+#include <Asset/Asset.h>
+#include <Asset/AssetRef.h>
 #include "Asset/Loader/ObjLoader.h"
+#include <meta_engine/reflection.hpp>
 
 namespace Engine
 {
@@ -57,12 +59,6 @@ namespace Engine
         }
     }
 
-    template <typename AssetType>
-    void AssetManager::SaveAsset(AssetType asset, std::filesystem::path path)
-    {
-        throw std::runtime_error("Not implemented");
-    }
-
     std::filesystem::path AssetManager::GetAssetPath(GUID guid) const
     {
         auto it = m_assets_map.find(guid);
@@ -84,22 +80,29 @@ namespace Engine
         m_assets_map[guid] = path;
     }
 
-    void AssetManager::AddToLoadingQueue(std::shared_ptr<Asset> asset)
+    void AssetManager::AddToLoadingQueue(std::shared_ptr<AssetRef> asset_ref)
     {
-        m_loading_queue.push(asset);
+        m_loading_queue.push(asset_ref);
     }
 
     void AssetManager::LoadAssetsInQueue()
     {
         while (!m_loading_queue.empty())
         {
-            auto asset = m_loading_queue.front();
-            auto path = GetAssetPath(asset->GetGUID());
+            auto asset_ref = m_loading_queue.front();
+            auto path = GetAssetPath(asset_ref->GetGUID());
 
             Serialization::Archive archive;
             archive.load_from_file(path);
             archive.prepare_load();
-            asset->load_asset_from_archive(archive);
+
+            auto asset_type = Reflection::GetType(archive.GetMainDataProperty("%type").get<std::string>());
+            assert(asset_type->m_reflectable);
+            // TODO: asset memory management
+            auto var = asset_type->CreateInstance(Serialization::SerializationMarker{});
+            auto asset_ptr = std::shared_ptr<Asset>(static_cast<Asset *>(var.GetDataPtr()));
+            asset_ptr->load_asset_from_archive(archive);
+            asset_ref->m_asset = asset_ptr;
 
             m_loading_queue.pop();
         }

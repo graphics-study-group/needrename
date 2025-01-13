@@ -2,7 +2,7 @@
     "%data": {
         "&0": {
             "%type": "Engine::MaterialAsset",
-            "Asset::m_guid": "E529DEB3AEF24FC72EAAC078AF0D33FB",
+            "Asset::m_guid": "974ECA3CEE4E33F565E07976BDAB15F6",
             "m_name": "Bunny_Material.004",
             "m_properties": {
                 "ambient": {
@@ -69,8 +69,8 @@
             }
         },
         "&1": {
-            "%type": "Engine::Image2DTextureAsset",
-            "Asset::m_guid": "C6B9E03D3C6C2992B4D23F1256767FB7"
+            "%type": "Engine::AssetRef",
+            "m_guid": "5FD38A217E92797E66081E87B6FD01AF"
         }
     },
     "%main_id": "&0"

@@ -16,7 +16,6 @@ namespace Engine
 
         virtual void save_asset_to_archive(Serialization::Archive &archive) const override;
         virtual void load_asset_from_archive(Serialization::Archive &archive) override;
-        virtual void Unload() override;
 
         REFL_SER_ENABLE int m_width{};
         REFL_SER_ENABLE int m_height{};

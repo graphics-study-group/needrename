@@ -38,12 +38,6 @@ namespace Engine
         assert(width == m_width && height == m_height && channel == m_channel);
     }
 
-    void Image2DTextureAsset::Unload()
-    {
-        m_data.clear();
-        Asset::SetValid(false);
-    }
-
     void Image2DTextureAsset::LoadFromFile(const std::filesystem::path &path)
     {
         m_name = path.stem().string();
@@ -55,7 +49,6 @@ namespace Engine
         stbi_image_free(raw_image_data);
         m_format = ImageUtils::ImageFormat::R8G8B8A8SRGB;
         m_mip_level = 1;
-        Asset::SetValid(true);
     }
 
     std::byte *Image2DTextureAsset::GetPixelData()

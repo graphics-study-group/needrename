@@ -1,13 +1,12 @@
 #ifndef FRAMEWORK_COMPONENT_RENDERCOMPONENT_MESHCOMPONENT_INCLUDED
 #define FRAMEWORK_COMPONENT_RENDERCOMPONENT_MESHCOMPONENT_INCLUDED
 
-#include <Asset/Mesh/MeshAsset.h>
 #include <Framework/component/RenderComponent/RendererComponent.h>
+#include <Asset/AssetRef.h>
 #include <meta_engine/reflection.hpp>
 
 namespace Engine
 {
-    class MeshAsset;
     class HomogeneousMesh;
 
     class REFL_SER_CLASS(REFL_WHITELIST) MeshComponent : public RendererComponent
@@ -27,7 +26,7 @@ namespace Engine
         virtual void Init() override;
         virtual void Tick(float dt) override;
 
-        REFL_SER_ENABLE std::shared_ptr<MeshAsset> m_mesh_asset{};
+        REFL_SER_ENABLE std::shared_ptr<AssetRef> m_mesh_asset{};
     };
 }
 

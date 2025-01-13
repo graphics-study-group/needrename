@@ -9,13 +9,15 @@
 #include <filesystem>
 #include <tiny_obj_loader.h>
 #include <Core/guid.h>
-#include <Asset/Asset.h>
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wnon-virtual-dtor"
 
 namespace Engine
 {
+    class Asset;
+    class AssetRef;
+
     class AssetManager : public std::enable_shared_from_this<AssetManager>
     {
     public:
@@ -30,13 +32,6 @@ namespace Engine
         /// @param resourcePath Path to the external resource
         /// @param path_in_project Path to the output asset file
         void ImportExternalResource(std::filesystem::path resourcePath, std::filesystem::path path_in_project);
-
-        /// @brief Save an asset modified in the engine editor to the project asset directory
-        /// @tparam AssetType
-        /// @param asset asset to save
-        /// @param path path to save the asset
-        template <typename AssetType>
-        void SaveAsset(AssetType asset, std::filesystem::path path);
 
         /// @brief Get the path to the asset file
         /// @param guid GUID of the asset
@@ -57,7 +52,7 @@ namespace Engine
 
         void AddAsset(const GUID &guid, const std::filesystem::path &path);
 
-        void AddToLoadingQueue(std::shared_ptr<Asset> asset);
+        void AddToLoadingQueue(std::shared_ptr<AssetRef> asset);
 
         void LoadAssetsInQueue();
         std::shared_ptr<Asset> LoadAssetImmediately(const GUID &guid);
@@ -69,7 +64,7 @@ namespace Engine
         /// @brief GUID to asset path map
         std::unordered_map<GUID, std::filesystem::path, GUIDHash> m_assets_map{};
 
-        std::queue<std::shared_ptr<Asset>> m_loading_queue{};
+        std::queue<std::shared_ptr<AssetRef>> m_loading_queue{};
     };
 } // namespace Engine
 

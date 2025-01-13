@@ -27,16 +27,12 @@ namespace Engine
 
     void Asset::save_to_archive(Serialization::Archive& archive) const
     {
-        Serialization::Json &json = *archive.m_cursor;
-        json["Asset::m_guid"] = m_guid.toString();
-        json["%type"] = Reflection::GetTypeFromObject(*this)->m_name;
+        throw std::runtime_error("Asset serialization is not allowed. Use AssetRef instead.");
     }
 
     void Asset::load_from_archive(Serialization::Archive& archive)
     {
-        Serialization::Json &json = *archive.m_cursor;
-        m_guid.fromString(json["Asset::m_guid"].get<std::string>());
-        MainClass::GetInstance()->GetAssetManager()->AddToLoadingQueue(shared_from_this());
+        throw std::runtime_error("Asset serialization is not allowed. Use AssetRef instead.");
     }
 
     void Asset::save_asset_to_archive(Serialization::Archive& archive) const
@@ -51,11 +47,10 @@ namespace Engine
         _SERIALIZATION_LOAD_(archive);
         Serialization::Json &json = *archive.m_cursor;
         m_guid.fromString(json["Asset::m_guid"].get<std::string>());
-        SetValid(true);
     }
 
-    void Asset::Unload()
+    GUID Asset::GetGUID() const
     {
-        SetValid(false);
+        return m_guid;
     }
 }

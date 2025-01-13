@@ -19,7 +19,9 @@
 #include "Render/Pipeline/CommandBuffer.h"
 #include "Render/Renderer/HomogeneousMesh.h"
 #include "GUI/GUISystem.h"
+#include <Asset/AssetRef.h>
 #include "Asset/Material/MaterialAsset.h"
+#include <Asset/Mesh/MeshAsset.h>
 #include <Asset/Loader/ObjLoader.h>
 
 #include "cmake_config.h"
@@ -97,18 +99,18 @@ class MeshComponentFromFile : public MeshComponent {
             }
         }
 
-        this->m_mesh_asset = std::make_shared<MeshAsset>();
+        this->m_mesh_asset = std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(std::make_shared<MeshAsset>()));
         ObjLoader loader;
-        loader.LoadMeshAssetFromTinyObj(*this->m_mesh_asset, attrib, shapes);
+        loader.LoadMeshAssetFromTinyObj(*(this->m_mesh_asset->as<MeshAsset>()), attrib, shapes);
 
         for (const auto & material : materials) {
-            this->m_material_assets.push_back(std::make_shared<MaterialAsset>());
-            loader.LoadMaterialAssetFromTinyObj(*this->m_material_assets.back(), material, mesh.parent_path());
+            this->m_material_assets.push_back(std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(std::make_shared<MaterialAsset>())));
+            loader.LoadMaterialAssetFromTinyObj(*(this->m_material_assets.back()->as<MaterialAsset>()), material, mesh.parent_path());
         }
 
         assert(m_mesh_asset && m_mesh_asset->IsValid());
         m_submeshes.clear();
-        size_t submesh_count = m_mesh_asset->GetSubmeshCount();
+        size_t submesh_count = m_mesh_asset->as<MeshAsset>()->GetSubmeshCount();
         for (size_t i = 0; i < submesh_count; i++)
         {
             m_submeshes.push_back(std::make_shared<HomogeneousMesh>(

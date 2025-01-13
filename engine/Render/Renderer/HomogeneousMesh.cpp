@@ -1,9 +1,10 @@
 #include "HomogeneousMesh.h"
 #include <vulkan/vulkan.hpp>
+#include <Asset/AssetRef.h>
 #include <Asset/Mesh/MeshAsset.h>
 
 namespace Engine {
-    HomogeneousMesh::HomogeneousMesh(std::weak_ptr<RenderSystem> system, std::shared_ptr<MeshAsset> mesh_asset, size_t submesh_idx) : m_system(system), m_buffer(system), m_mesh_asset(mesh_asset), m_submesh_idx(submesh_idx) {
+    HomogeneousMesh::HomogeneousMesh(std::weak_ptr<RenderSystem> system, std::shared_ptr<AssetRef> mesh_asset, size_t submesh_idx) : m_system(system), m_buffer(system), m_mesh_asset(mesh_asset), m_submesh_idx(submesh_idx) {
     }
 
     HomogeneousMesh::~HomogeneousMesh() {
@@ -46,9 +47,10 @@ namespace Engine {
 
     void HomogeneousMesh::WriteToMemory(std::byte* pointer) const {
         uint64_t offset = 0;
-        const auto &positions = m_mesh_asset->m_submeshes[m_submesh_idx].m_positions;
-        const auto &attributes = m_mesh_asset->m_submeshes[m_submesh_idx].m_attributes;
-        const auto &indices = m_mesh_asset->m_submeshes[m_submesh_idx].m_indices;
+        auto &mesh_asset = *m_mesh_asset->as<MeshAsset>();
+        const auto &positions = mesh_asset.m_submeshes[m_submesh_idx].m_positions;
+        const auto &attributes = mesh_asset.m_submeshes[m_submesh_idx].m_attributes;
+        const auto &indices = mesh_asset.m_submeshes[m_submesh_idx].m_indices;
         // Position
         std::memcpy(&pointer[offset], positions.data(), positions.size() * VertexStruct::VERTEX_POSITION_SIZE);
         offset += positions.size() * VertexStruct::VERTEX_POSITION_SIZE;
@@ -74,15 +76,15 @@ namespace Engine {
     }
 
     uint32_t HomogeneousMesh::GetVertexIndexCount() const {
-        return m_mesh_asset->GetSubmeshVertexIndexCount(m_submesh_idx);
+        return m_mesh_asset->as<MeshAsset>()->GetSubmeshVertexIndexCount(m_submesh_idx);
     }
 
     uint32_t HomogeneousMesh::GetVertexCount() const {
-        return m_mesh_asset->GetSubmeshVertexCount(m_submesh_idx);
+        return m_mesh_asset->as<MeshAsset>()->GetSubmeshVertexCount(m_submesh_idx);
     }
 
     uint64_t HomogeneousMesh::GetExpectedBufferSize() const {
-        return m_mesh_asset->GetSubmeshExpectedBufferSize(m_submesh_idx);
+        return m_mesh_asset->as<MeshAsset>()->GetSubmeshExpectedBufferSize(m_submesh_idx);
     }
 
     const Buffer & HomogeneousMesh::GetBuffer() const {

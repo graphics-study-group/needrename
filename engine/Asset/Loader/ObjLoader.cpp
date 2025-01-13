@@ -1,6 +1,7 @@
 #include "ObjLoader.h"
 #include <tiny_obj_loader.h>
 #include <nlohmann/json.hpp>
+#include <Asset/AssetRef.h>
 #include <Asset/Mesh/MeshAsset.h>
 #include <Asset/Material/MaterialAsset.h>
 #include <Asset/Texture/Image2DTextureAsset.h>
@@ -93,7 +94,8 @@ namespace Engine
             {
                 if (property.m_type == MaterialProperty::Type::Texture)
                 {
-                    m_texture_assets.push_back(std::dynamic_pointer_cast<Image2DTextureAsset>(std::any_cast<std::shared_ptr<TextureAsset>>(property.m_value)));
+                    auto ref = std::any_cast<std::shared_ptr<AssetRef>>(property.m_value);
+                    m_texture_assets.push_back(ref->as<Image2DTextureAsset>());
                 }
             }
         }
@@ -123,8 +125,11 @@ namespace Engine
         std::shared_ptr<GameObjectAsset> m_game_object_asset = std::make_shared<GameObjectAsset>();
         m_game_object_asset->m_MainObject = MainClass::GetInstance()->GetWorldSystem()->CreateGameObject<GameObject>();
         std::shared_ptr<MeshComponent> m_mesh_component = std::make_shared<MeshComponent>(m_game_object_asset->m_MainObject);
-        m_mesh_component->m_mesh_asset = m_mesh_asset;
-        m_mesh_component->m_material_assets = m_material_assets;
+        m_mesh_component->m_mesh_asset = std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(m_mesh_asset));
+        for (const auto &material : m_material_assets)
+        {
+            m_mesh_component->m_material_assets.push_back(std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(material)));
+        }
         m_game_object_asset->m_MainObject->AddComponent(m_mesh_component);
 
         archive.clear();
@@ -180,8 +185,6 @@ namespace Engine
                 submesh.m_indices.push_back(vertex_id_map[key]);
             }
         }
-
-        mesh_asset.SetValid(true);
     }
 
     void ObjLoader::LoadMaterialAssetFromTinyObj(MaterialAsset &material_asset, const tinyobj::material_t &material, const std::filesystem::path &base_path)
@@ -206,75 +209,73 @@ namespace Engine
         {
             auto texture = std::make_shared<Image2DTextureAsset>();
             texture->LoadFromFile(base_path / material.ambient_texname);
-            material_asset.m_properties["ambient_texture"] = std::dynamic_pointer_cast<TextureAsset>(texture);
+            material_asset.m_properties["ambient_texture"] = std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(texture));
         }
         if (!material.diffuse_texname.empty())
         {
             auto texture = std::make_shared<Image2DTextureAsset>();
             texture->LoadFromFile(base_path / material.diffuse_texname);
-            material_asset.m_properties["diffuse_texture"] = std::dynamic_pointer_cast<TextureAsset>(texture);
+            material_asset.m_properties["diffuse_texture"] = std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(texture));
         }
         if (!material.specular_texname.empty())
         {
             auto texture = std::make_shared<Image2DTextureAsset>();
             texture->LoadFromFile(base_path / material.specular_texname);
-            material_asset.m_properties["specular_texture"] = std::dynamic_pointer_cast<TextureAsset>(texture);
+            material_asset.m_properties["specular_texture"] = std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(texture));
         }
         if (!material.specular_highlight_texname.empty())
         {
             auto texture = std::make_shared<Image2DTextureAsset>();
             texture->LoadFromFile(base_path / material.specular_highlight_texname);
-            material_asset.m_properties["specular_highlight_texture"] = std::dynamic_pointer_cast<TextureAsset>(texture);
+            material_asset.m_properties["specular_highlight_texture"] = std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(texture));
         }
         if (!material.bump_texname.empty())
         {
             auto texture = std::make_shared<Image2DTextureAsset>();
             texture->LoadFromFile(base_path / material.bump_texname);
-            material_asset.m_properties["bump_texture"] = std::dynamic_pointer_cast<TextureAsset>(texture);
+            material_asset.m_properties["bump_texture"] = std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(texture));
         }
         if (!material.displacement_texname.empty())
         {
             auto texture = std::make_shared<Image2DTextureAsset>();
             texture->LoadFromFile(base_path / material.displacement_texname);
-            material_asset.m_properties["displacement_texture"] = std::dynamic_pointer_cast<TextureAsset>(texture);
+            material_asset.m_properties["displacement_texture"] = std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(texture));
         }
         if (!material.alpha_texname.empty())
         {
             auto texture = std::make_shared<Image2DTextureAsset>();
             texture->LoadFromFile(base_path / material.alpha_texname);
-            material_asset.m_properties["alpha_texture"] = std::dynamic_pointer_cast<TextureAsset>(texture);
+            material_asset.m_properties["alpha_texture"] = std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(texture));
         }
         if (!material.roughness_texname.empty())
         {
             auto texture = std::make_shared<Image2DTextureAsset>();
             texture->LoadFromFile(base_path / material.roughness_texname);
-            material_asset.m_properties["roughness_texture"] = std::dynamic_pointer_cast<TextureAsset>(texture);
+            material_asset.m_properties["roughness_texture"] = std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(texture));
         }
         if (!material.metallic_texname.empty())
         {
             auto texture = std::make_shared<Image2DTextureAsset>();
             texture->LoadFromFile(base_path / material.metallic_texname);
-            material_asset.m_properties["metallic_texture"] = std::dynamic_pointer_cast<TextureAsset>(texture);
+            material_asset.m_properties["metallic_texture"] = std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(texture));
         }
         if (!material.sheen_texname.empty())
         {
             auto texture = std::make_shared<Image2DTextureAsset>();
             texture->LoadFromFile(base_path / material.sheen_texname);
-            material_asset.m_properties["sheen_texture"] = std::dynamic_pointer_cast<TextureAsset>(texture);
+            material_asset.m_properties["sheen_texture"] = std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(texture));
         }
         if (!material.emissive_texname.empty())
         {
             auto texture = std::make_shared<Image2DTextureAsset>();
             texture->LoadFromFile(base_path / material.emissive_texname);
-            material_asset.m_properties["emissive_texture"] = std::dynamic_pointer_cast<TextureAsset>(texture);
+            material_asset.m_properties["emissive_texture"] = std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(texture));
         }
         if (!material.normal_texname.empty())
         {
             auto texture = std::make_shared<Image2DTextureAsset>();
             texture->LoadFromFile(base_path / material.normal_texname);
-            material_asset.m_properties["normal_texture"] = std::dynamic_pointer_cast<TextureAsset>(texture);
+            material_asset.m_properties["normal_texture"] = std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(texture));
         }
-
-        material_asset.SetValid(true);
     }
 }

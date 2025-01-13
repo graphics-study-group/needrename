@@ -6,7 +6,7 @@
 #include "Render/Memory/Buffer.h"
 
 namespace Engine{
-    class MeshAsset;
+    class AssetRef;
     
     /// @brief A homogeneous mesh of only one material at runtime, constructed from mesh asset.
     class HomogeneousMesh {
@@ -14,7 +14,7 @@ namespace Engine{
 
         static constexpr const uint32_t BINDING_COUNT = 2;
 
-        HomogeneousMesh(std::weak_ptr <RenderSystem> system, std::shared_ptr<MeshAsset> mesh_asset, size_t submesh_idx);
+        HomogeneousMesh(std::weak_ptr <RenderSystem> system, std::shared_ptr<AssetRef> mesh_asset, size_t submesh_idx);
         ~HomogeneousMesh();
 
         void Prepare();
@@ -83,7 +83,7 @@ namespace Engine{
 
         uint64_t m_allocated_buffer_size {0};
 
-        std::shared_ptr<MeshAsset> m_mesh_asset;
+        std::shared_ptr<AssetRef> m_mesh_asset;
         size_t m_submesh_idx;
 
         void WriteToMemory(std::byte * pointer) const;

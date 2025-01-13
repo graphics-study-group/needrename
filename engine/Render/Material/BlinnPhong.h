@@ -9,7 +9,7 @@
 namespace Engine
 {
     class ShaderModule;
-    class MaterialAsset;
+    class AssetRef;
 
     class BlinnPhong : public Material
     {
@@ -33,7 +33,7 @@ namespace Engine
         std::unique_ptr<AllocatedImage2DTexture> m_texture{};
 
     public:
-        BlinnPhong(std::weak_ptr<RenderSystem> system, std::shared_ptr<MaterialAsset> asset);
+        BlinnPhong(std::weak_ptr<RenderSystem> system, std::shared_ptr<AssetRef> asset);
         BlinnPhong(const BlinnPhong &) = delete;
         BlinnPhong operator=(const BlinnPhong &) = delete;
 

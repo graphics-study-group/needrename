@@ -6,6 +6,7 @@
 #include "Render/Memory/Image2DTexture.h"
 #include "Asset/Material/MaterialAsset.h"
 #include "Asset/Texture/Image2DTextureAsset.h"
+#include <Asset/AssetRef.h>
 
 #include <fstream>
 
@@ -42,7 +43,7 @@ namespace Engine {
         return std::vector<vk::DescriptorSetLayoutBinding>{binding_texture, binding_uniform};
     }
 
-    BlinnPhong::BlinnPhong(std::weak_ptr<RenderSystem> system, std::shared_ptr<MaterialAsset> asset): Material(system, asset), fragModule(system), vertModule(system), m_uniform_buffer(system)
+    BlinnPhong::BlinnPhong(std::weak_ptr<RenderSystem> system, std::shared_ptr<AssetRef> asset): Material(system, asset), fragModule(system), vertModule(system), m_uniform_buffer(system)
     {
         std::vector <char> shaderData = readFile("shader/blinn_phong.frag.spv");
         fragModule.CreateShaderModule(
@@ -108,8 +109,9 @@ namespace Engine {
 
     void BlinnPhong::CommitBuffer(TransferCommandBuffer & tcb)
     {
-        assert(m_asset->m_properties["diffuse_texture"].m_type == MaterialProperty::Type::Texture);
-        std::shared_ptr<Image2DTextureAsset> texture_asset = std::dynamic_pointer_cast<Image2DTextureAsset>(std::any_cast<std::shared_ptr<TextureAsset>>(m_asset->m_properties["diffuse_texture"].m_value));
+        auto &asset = *m_asset->as<MaterialAsset>();
+        assert(asset.m_properties["diffuse_texture"].m_type == MaterialProperty::Type::Texture);
+        std::shared_ptr<Image2DTextureAsset> texture_asset = std::any_cast<std::shared_ptr<AssetRef>>(asset.m_properties["diffuse_texture"].m_value)->as<Image2DTextureAsset>();
         assert(texture_asset);
         m_texture->Create(*texture_asset);
         tcb.CommitTextureImage(*m_texture, texture_asset->GetPixelData(), texture_asset->GetPixelDataSize());
@@ -130,9 +132,9 @@ namespace Engine {
         m_system.lock()->getDevice().updateDescriptorSets({write}, {});
 
         UniformData uniform;
-        uniform.specular = std::any_cast<glm::vec4>(m_asset->m_properties["specular"].m_value);
-        uniform.specular.w = std::any_cast<float>(m_asset->m_properties["shininess"].m_value);
-        uniform.ambient = std::any_cast<glm::vec4>(m_asset->m_properties["ambient"].m_value);
+        uniform.specular = std::any_cast<glm::vec4>(asset.m_properties["specular"].m_value);
+        uniform.specular.w = std::any_cast<float>(asset.m_properties["shininess"].m_value);
+        uniform.ambient = std::any_cast<glm::vec4>(asset.m_properties["ambient"].m_value);
 
         assert(m_mapped_buffer);
         memcpy(m_mapped_buffer, &uniform, sizeof uniform);

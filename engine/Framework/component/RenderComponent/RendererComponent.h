@@ -4,12 +4,12 @@
 #include <vector>
 #include <Core/Math/Transform.h>
 #include <Framework/component/Component.h>
+#include <Asset/AssetRef.h>
 #include <meta_engine/reflection.hpp>
 
 namespace Engine
 {
     class Material;
-    class MaterialAsset;
     class RenderSystem;
 
     class REFL_SER_CLASS(REFL_WHITELIST) RendererComponent : public Component
@@ -34,7 +34,7 @@ namespace Engine
         std::shared_ptr<Material> GetMaterial(uint32_t slot) const;
         auto GetMaterials() -> decltype(m_materials) &;
 
-        REFL_SER_ENABLE std::vector<std::shared_ptr<MaterialAsset>> m_material_assets{};
+        REFL_SER_ENABLE std::vector<std::shared_ptr<AssetRef>> m_material_assets{};
     };
 }
 #endif // FRAMEWORK_COMPONENT_RENDERCOMPONENT_RENDERERCOMPONENT_INCLUDED
