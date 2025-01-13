@@ -8,13 +8,20 @@ The Asset Management system is responsible for handling various types of game as
     - Every `Asset` has a unique `GUID` (Globally Unique Identifier), which is stored both in the runtime structure and in the asset file.
     - The `AssetManager` keeps a mapping between `GUID` and file paths, ensuring assets can be located and loaded correctly.
 2. **Serialization of `Asset`s**
-    - `Asset`s primarily use the serialization system for storage and reading.
-    - `Asset`s implement custom serialization functions: `save_to_archive` and `load_from_archive`. These functions ensure that only the `GUID` and `type` information are saved, while other asset data is handled by the `save_asset_to_archive` and `load_asset_from_archive` functions. These two functions are generally only called by the `AssetManager`.
-    - When a structure is deserialized (e.g., a `GameObject`), if the structure references an `Asset`, the deserialization function will call the `Asset`'s `load_from_archive` function. This reads the `Asset`'s `GUID` and `type` and adds the `Asset` to the `AssetManager`'s "pending load" queue, marking the `Asset` as unavailable (`m_valid == false`).
-    - The `AssetManager` will load the assets in the queue during idle times and mark them as available once they are fully loaded.
+    - `Asset`s utilize the serialization system for storage and retrieval. However, direct serialization using standard `serialize` functions is **not supported**.
+    - `Asset` serialization must be handled exclusively through the `AssetManager`. Attempting to serialize an `Asset` directly will invoke the pre-defined custom serialization functions (`save_to_archive` and `load_from_archive`) and result in a runtime error.
+    - The `AssetManager` handles asset storage and loading by invoking the `Asset`'s **`save_asset_to_archive`** and **`load_asset_from_archive`** functions.
+    - When other types (e.g., `GameObject`) try to reference an `Asset`, the `AssetRef` class should be used.
+        - **`AssetRef`** stores a smart pointer to the `Asset` and its globally unique identifier (GUID). Initially, the pointer is null.
+        - During serialization, only the GUID is stored.
+        - During deserialization:
+            1. `AssetRef` places itself into the `AssetManager`'s "pending load" queue.
+            2. At a later point, `AssetManager` locates the corresponding asset using its GUID.
+            3. `AssetManager` allocates memory for the `Asset` using its internal memory management system and invokes the `load_asset_from_archive` function to initialize it.
+            4. The `AssetRef`'s pointer is then updated to the loaded `Asset`, marking it as fully initialized.
 3. **Custom `Asset` Serialization**
     - The `save_asset_to_archive` and `load_asset_from_archive` functions will call generated deserialization logic for derived `Asset` classes. These functions automatically store and retrieve the member variables of the classes.
-    - If custom data needs to be stored, these functions can be overridden. However, it's essential to ensure that the `Asset::m_guid` is saved and that `m_valid` is set to true when loading completes. One can call `Asset::load_asset_from_archive` at the end of the overridden function to ensure this process is followed correctly.
+    - If custom data needs to be stored, these functions can be overridden. However, it's essential to ensure that the `Asset::m_guid` is saved. One can call `Asset::load_asset_from_archive` at the end of the overridden function to ensure this process is followed correctly.
 4. **Project and `Asset` Loading**
     - When the engine starts, `MainClass::LoadProject` is called. At this point, the `AssetManager` scans the asset folder, builds a mapping between `GUID` and file paths, and prepares the assets for later use.
     - During game level loading, any additional referenced assets are added to the `AssetManager`'s queue. These assets are then loaded during idle periods. Currently, the system loads and clears the queue at the start of each frame in the main loop (with potential future improvements for background loading).
