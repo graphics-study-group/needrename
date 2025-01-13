@@ -109,18 +109,18 @@ void NamespaceTest::PrintInfo() const
     std::cout << "NamespaceTest: Hahahaha!" << std::endl;
 }
 
-const void *TestHalloWorld_NamespaceTest_PrintInfo_Called = nullptr;
-void TestHalloWorld::NamespaceTest::PrintInfo() const
+const void *TestHelloWorld_NamespaceTest_PrintInfo_Called = nullptr;
+void TestHelloWorld::NamespaceTest::PrintInfo() const
 {
-    TestHalloWorld_NamespaceTest_PrintInfo_Called = this;
-    std::cout << "TestHalloWorld::NamespaceTest: Hahahaha!" << std::endl;
+    TestHelloWorld_NamespaceTest_PrintInfo_Called = this;
+    std::cout << "TestHelloWorld::NamespaceTest: Hahahaha!" << std::endl;
 }
 
-const void *TestHalloWorld_TestHalloWorld2_NamespaceTest_PrintInfo_Called = nullptr;
-void TestHalloWorld::TestHalloWorld2::NamespaceTest::PrintInfo() const
+const void *TestHelloWorld_TestHelloWorld2_NamespaceTest_PrintInfo_Called = nullptr;
+void TestHelloWorld::TestHelloWorld2::NamespaceTest::PrintInfo() const
 {
-    TestHalloWorld_TestHalloWorld2_NamespaceTest_PrintInfo_Called = this;
-    std::cout << "TestHalloWorld::TestHalloWorld2::NamespaceTest: Hahahaha!" << std::endl;
+    TestHelloWorld_TestHelloWorld2_NamespaceTest_PrintInfo_Called = this;
+    std::cout << "TestHelloWorld::TestHelloWorld2::NamespaceTest: Hahahaha!" << std::endl;
 }
 
 int main()
@@ -256,12 +256,12 @@ int main()
     Engine::Reflection::Var ns_test = Engine::Reflection::GetType("NamespaceTest")->CreateInstance();
     ns_test.InvokeMethod("PrintInfo");
     assert(ns_test.GetDataPtr() == NamespaceTest_PrintInfo_Called);
-    Engine::Reflection::Var ns_test2 = Engine::Reflection::GetType("TestHalloWorld::NamespaceTest")->CreateInstance();
+    Engine::Reflection::Var ns_test2 = Engine::Reflection::GetType("TestHelloWorld::NamespaceTest")->CreateInstance();
     ns_test2.InvokeMethod("PrintInfo");
-    assert(ns_test2.GetDataPtr() == TestHalloWorld_NamespaceTest_PrintInfo_Called);
-    Engine::Reflection::Var ns_test3 = Engine::Reflection::GetType("TestHalloWorld::TestHalloWorld2::NamespaceTest")->CreateInstance();
+    assert(ns_test2.GetDataPtr() == TestHelloWorld_NamespaceTest_PrintInfo_Called);
+    Engine::Reflection::Var ns_test3 = Engine::Reflection::GetType("TestHelloWorld::TestHelloWorld2::NamespaceTest")->CreateInstance();
     ns_test3.InvokeMethod("PrintInfo");
-    assert(ns_test3.GetDataPtr() == TestHalloWorld_TestHalloWorld2_NamespaceTest_PrintInfo_Called);
+    assert(ns_test3.GetDataPtr() == TestHelloWorld_TestHelloWorld2_NamespaceTest_PrintInfo_Called);
 
     return 0;
 }

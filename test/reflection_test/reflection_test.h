@@ -116,7 +116,7 @@ public:
     REFL_ENABLE void PrintInfo() const;
 };
 
-namespace TestHalloWorld
+namespace TestHelloWorld
 {
     class REFL_SER_CLASS(REFL_WHITELIST) NamespaceTest
     {
@@ -128,7 +128,7 @@ namespace TestHalloWorld
         REFL_ENABLE void PrintInfo() const;
     };
 
-    namespace TestHalloWorld2
+    namespace TestHelloWorld2
     {
         class REFL_SER_CLASS(REFL_WHITELIST) NamespaceTest
         {
