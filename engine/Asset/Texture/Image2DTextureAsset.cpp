@@ -15,7 +15,7 @@ namespace Engine
         auto &data = archive.m_context->extra_data;
         assert(data.empty());
 
-        stbi_flip_vertically_on_write(true);
+        stbi_flip_vertically_on_write(false); // this is a static variable, so we need to reset it every time
         stbi_write_png_to_func(write_png_to_mem, &data, m_width, m_height, m_channel, m_data.data(), 0);
 
         Asset::save_asset_to_archive(archive);
@@ -25,7 +25,7 @@ namespace Engine
     {
         auto &data = archive.m_context->extra_data;
 
-        stbi_set_flip_vertically_on_load(true);
+        stbi_set_flip_vertically_on_load(false); // this is a static variable, so we need to reset it every time
         int width, height, channel;
         stbi_uc *raw_image_data = stbi_load_from_memory(reinterpret_cast<const stbi_uc *>(data.data()), data.size(), &width, &height, &channel, 0);
         assert(raw_image_data);
@@ -44,23 +44,10 @@ namespace Engine
         Asset::SetValid(false);
     }
 
-    void Image2DTextureAsset::LoadFromMemory(const std::byte *data, size_t size)
-    {
-        stbi_set_flip_vertically_on_load(true);
-        stbi_uc *raw_image_data = stbi_load_from_memory(reinterpret_cast<const stbi_uc *>(data), size, &m_width, &m_height, &m_channel, 0);
-        assert(raw_image_data);
-        m_data.resize(m_width * m_height * m_channel);
-        std::memcpy(m_data.data(), raw_image_data, m_width * m_height * m_channel);
-        stbi_image_free(raw_image_data);
-        m_format = ImageUtils::ImageFormat::R8G8B8A8SRGB;
-        m_mip_level = 1;
-        Asset::SetValid(true);
-    }
-
     void Image2DTextureAsset::LoadFromFile(const std::filesystem::path &path)
     {
         m_name = path.stem().string();
-        stbi_set_flip_vertically_on_load(true);
+        stbi_set_flip_vertically_on_load(true); // this is a static variable, so we need to reset it every time
         stbi_uc *raw_image_data = stbi_load(path.string().c_str(), &m_width, &m_height, &m_channel, 0);
         assert(raw_image_data);
         m_data.resize(m_width * m_height * m_channel);
