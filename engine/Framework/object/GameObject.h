@@ -19,12 +19,12 @@ namespace Engine
     class REFL_SER_CLASS(REFL_WHITELIST) GameObject : public std::enable_shared_from_this<GameObject>
     {
         REFL_SER_BODY(GameObject)
-    public:
+    private:
+        friend class WorldSystem;
         // GameObject must be created by WorldSystem's factory function
-        GameObject() = delete;
-        // No use. Just make sure the GameObject must be created by WorldSystem's factory function
-        GameObject(const WorldSystem *marker);
-        virtual ~GameObject();
+        GameObject() = default;
+    public:
+        virtual ~GameObject() = default;
 
         /// @brief Add a component to the GameObject. Will set the component's parent to this GameObject.
         /// @param component The component to be added

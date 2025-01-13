@@ -29,7 +29,7 @@ namespace Engine
         /// @tparam ...Args The arguments to be passed to the constructor of T
         /// @return The shared pointer to the created GameObject
         template <typename T, typename... Args>
-        std::shared_ptr<T> CreateGameObject();
+        std::shared_ptr<T> CreateGameObject(Args... args);
 
         /// @brief Add a GameObject to the loading queue.
         template <typename T>
@@ -50,10 +50,11 @@ namespace Engine
     };
 
     template <typename T, typename... Args>
-    std::shared_ptr<T> WorldSystem::CreateGameObject()
+    std::shared_ptr<T> WorldSystem::CreateGameObject(Args... args)
     {
         static_assert(std::is_base_of<GameObject, T>::value, "T must be derived from GameObject");
-        auto game_object = std::make_shared<T>(this);
+        GameObject *go_ptr = new T(std::forward<Args>(args)...);
+        auto game_object = std::shared_ptr<T>(go_ptr);
         game_object->template AddComponent<TransformComponent>();
         game_object->m_transformComponent = dynamic_pointer_cast<TransformComponent>(game_object->m_components[0]);
         return game_object;

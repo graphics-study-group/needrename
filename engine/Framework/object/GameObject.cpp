@@ -5,16 +5,6 @@
 
 namespace Engine
 {
-    GameObject::GameObject(const WorldSystem *)
-    {
-        // assert(marker == MainClass::GetWorldSystem().get());
-    }
-
-    GameObject::~GameObject()
-    {
-        // dtor
-    }
-
     void GameObject::AddComponent(std::shared_ptr<Component> component)
     {
         m_components.push_back(component);
