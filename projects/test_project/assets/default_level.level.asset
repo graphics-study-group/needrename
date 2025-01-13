@@ -5,7 +5,7 @@
             "m_gameobjects": [
                 "&1",
                 "&9"
-			],
+            ],
             "Asset::m_guid": "FF182376000000000000000000000000",
             "%type": "Engine::LevelAsset"
         },
@@ -73,7 +73,7 @@
             "%type": "Engine::MeshAsset",
             "Asset::m_guid": "F26EEDD4F9909352CBB22B244AD4A126"
         },
-		"&9": {
+        "&9": {
             "%type": "Engine::GameObject",
             "m_childGameObject": [],
             "m_components": [
@@ -83,7 +83,7 @@
             "m_parentGameObject": null,
             "m_transformComponent": "&10"
         },
-		"&10": {
+        "&10": {
             "%type": "Engine::TransformComponent",
             "Component::m_parentGameObject": "&9",
             "m_transform": {
@@ -106,13 +106,13 @@
                 ]
             }
         },
-		"&11": {
+        "&11": {
             "%type": "Engine::CameraComponent",
             "Component::m_parentGameObject": "&9",
             "m_fov_vertical": 45.0,
-			"m_aspect_ratio": 1.777778,
-			"m_clipping_near": 0.001,
-			"m_clipping_far": 1000.0
+            "m_aspect_ratio": 1.777778,
+            "m_clipping_near": 0.001,
+            "m_clipping_far": 1000.0
         }
     }
 }
