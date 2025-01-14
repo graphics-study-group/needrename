@@ -15,7 +15,7 @@ function(setup_python_environment)
 
     # Find Python3 in virtual environment
     set(ENV{VIRTUAL_ENV} "${REFLECTION_PARSER_DIR}/${PARSER_ENV_DIR}")
-    set(Python3_FIND_VIRTUALENV FIRST)
+    set(Python3_FIND_VIRTUALENV ONLY)
     unset(Python3_FOUND)
     unset(Python3_EXECUTABLE)
     find_package(Python3 COMPONENTS Interpreter)
@@ -37,9 +37,17 @@ function(add_reflection_parser target_name reflection_search_files generated_cod
         setup_python_environment()
     endif()
 
+    if(WIN32)
+        # On Windows we have to force clang to use MinGW, since it defaults to MSVC.
+        set(TARGET_TRIPLE "--target=x86_64-w64-mingw32 -stdlib=libstdc++")
+    else()
+        # On other platforms we leave it as default.
+        set(TARGET_TRIPLE "")
+    endif()
+
     string(REPLACE ";" " -I" REFLECTION_SEARCH_INCLUDE_DIRS_ARGS "${reflection_search_include_dirs}")
     set(REFLECTION_SEARCH_INCLUDE_DIRS_ARGS "-I${REFLECTION_SEARCH_INCLUDE_DIRS_ARGS}")
-    set(REFLECTION_PARSER_ARGS "-x c++ -w -MG -M -ferror-limit=0 -std=c++20 --target=x86_64-w64-mingw32 -o ${CMAKE_BINARY_DIR}/parser_log.txt ${REFLECTION_SEARCH_INCLUDE_DIRS_ARGS}")
+    set(REFLECTION_PARSER_ARGS "-x c++ -w -MG -M -ferror-limit=0 -std=c++20 ${TARGET_TRIPLE} -o ${CMAKE_BINARY_DIR}/parser_log.txt ${REFLECTION_SEARCH_INCLUDE_DIRS_ARGS}")
     message(STATUS "Reflection parser args: ${REFLECTION_PARSER_ARGS}")
 
     set(TASK_STAMPED_FILE "${generated_code_dir}/task_stamped")
