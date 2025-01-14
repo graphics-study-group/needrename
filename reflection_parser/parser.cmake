@@ -1,13 +1,24 @@
+function(create_python_venv)
+    # Find system Python3
+    find_package(Python3 COMPONENTS Interpreter)
+    execute_process(COMMAND ${Python3_EXECUTABLE} -m venv "${REFLECTION_PARSER_DIR}/${PARSER_ENV_DIR}")
+endfunction()
+
 function(setup_python_environment)
     set(PARSER_ENV_DIR parser_env)
-    if (WIN32)
-        set(Python3_ROOT_DIR "${REFLECTION_PARSER_DIR}/${PARSER_ENV_DIR}/Scripts")
-        set(Python3_FIND_REGISTRY NEVER)
-    else()
-        set(Python3_ROOT_DIR "${REFLECTION_PARSER_DIR}/${PARSER_ENV_DIR}/bin")
+
+    # Set up venv for the first time
+    if (NOT EXISTS "${REFLECTION_PARSER_DIR}/${PARSER_ENV_DIR}/Scripts")
+        message(STATUS "Setting up virtual environment for the first time...")
+        create_python_venv()
     endif()
-    set(Python3_FIND_STRATEGY LOCATION)
-    find_package(Python3)
+
+    # Find Python3 in virtual environment
+    set(ENV{VIRTUAL_ENV} "${REFLECTION_PARSER_DIR}/${PARSER_ENV_DIR}")
+    set(Python3_FIND_VIRTUALENV FIRST)
+    unset(Python3_FOUND)
+    unset(Python3_EXECUTABLE)
+    find_package(Python3 COMPONENTS Interpreter)
 
     if (NOT Python3_FOUND)
         message(FATAL_ERROR "Python not found!")
@@ -15,11 +26,10 @@ function(setup_python_environment)
         message(STATUS "Python found: ${Python3_EXECUTABLE}")
     endif()
 
-    message(STATUS "Python environment activate command: ${ACTIVATE_COMMAND}")
+    execute_process(COMMAND ${Python3_EXECUTABLE} -m pip install -r "${REFLECTION_PARSER_DIR}/requirements.txt")
 
     set(PYTHON_ENV_SETUP_DONE TRUE PARENT_SCOPE)
     set(Python3_EXECUTABLE ${Python3_EXECUTABLE} PARENT_SCOPE)
-    set(ACTIVATE_COMMAND ${ACTIVATE_COMMAND} PARENT_SCOPE)
 endfunction()
 
 function(add_reflection_parser target_name reflection_search_files generated_code_dir reflection_search_include_dirs)
