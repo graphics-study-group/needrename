@@ -15,8 +15,6 @@
 using namespace Engine;
 namespace sch = std::chrono;
 
-Engine::MainClass * cmc;
-
 class TestHomoMesh : public HomogeneousMesh {
 public:
     TestHomoMesh(std::weak_ptr<RenderSystem> system) : HomogeneousMesh(system) {
@@ -33,13 +31,13 @@ public:
 class TestMeshComponent : public MeshComponent {
     Transform transform;
 public: 
-    TestMeshComponent(std::weak_ptr <RenderSystem> system, std::shared_ptr<Material> mat) 
-    : MeshComponent(std::weak_ptr<GameObject>(), system), transform() {
+    TestMeshComponent(std::shared_ptr<Material> mat) 
+    : MeshComponent(std::weak_ptr<GameObject>()), transform() {
         m_materials.push_back(mat);
-        m_submeshes.push_back(std::make_shared<TestHomoMesh>(system));
+        m_submeshes.push_back(std::make_shared<TestHomoMesh>(m_system));
         m_submeshes[0]->Prepare();
         if (m_submeshes[0]->NeedCommitment()) {
-            auto & tcb = system.lock()->GetTransferCommandBuffer();
+            auto & tcb = m_system.lock()->GetTransferCommandBuffer();
             tcb.Begin();
             tcb.CommitVertexBuffer(*m_submeshes[0]);
             tcb.End();
@@ -65,10 +63,8 @@ int main(int, char **)
 
     StartupOptions opt{.resol_x = 1920, .resol_y = 1080, .title = "Vulkan Test"};
 
-    cmc = new Engine::MainClass(
-            SDL_INIT_VIDEO,
-            SDL_LOG_PRIORITY_VERBOSE);
-    cmc->Initialize(&opt);
+    auto cmc = MainClass::GetInstance();
+    cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
 
     auto system = cmc->GetRenderSystem();
     system->EnableDepthTesting();
@@ -86,7 +82,7 @@ int main(int, char **)
     uint32_t in_flight_frame_id = 0;
     uint32_t total_test_frame = 60;
 
-    std::shared_ptr tmc = std::make_shared<TestMeshComponent>(system, material);
+    std::shared_ptr tmc = std::make_shared<TestMeshComponent>(material);
     system->RegisterComponent(tmc);
     
     uint64_t start_timer = SDL_GetPerformanceCounter();
@@ -130,6 +126,5 @@ int main(int, char **)
     system->ClearComponent();
 
     SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "Unloading Main-class");
-    delete cmc;
     return 0;
 }

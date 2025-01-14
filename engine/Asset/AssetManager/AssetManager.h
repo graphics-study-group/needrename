@@ -1,17 +1,23 @@
-#ifndef RESOURCE_ASSETMANAGER_ASSETMANAGER_INCLUDED
-#define RESOURCE_ASSETMANAGER_ASSETMANAGER_INCLUDED
+#ifndef ASSET_ASSETMANAGER_ASSETMANAGER_INCLUDED
+#define ASSET_ASSETMANAGER_ASSETMANAGER_INCLUDED
 
 #include <string>
 #include <memory>
 #include <random>
 #include <unordered_map>
+#include <queue>
 #include <filesystem>
 #include <tiny_obj_loader.h>
-#include "Core/guid.h"
-#include "Asset/Asset.h"
+#include <Core/guid.h>
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wnon-virtual-dtor"
 
 namespace Engine
 {
+    class Asset;
+    class AssetRef;
+
     class AssetManager : public std::enable_shared_from_this<AssetManager>
     {
     public:
@@ -25,14 +31,7 @@ namespace Engine
         /// @brief Load an external resource, copy to the project asset directory
         /// @param resourcePath Path to the external resource
         /// @param path_in_project Path to the output asset file
-        void LoadExternalResource(std::filesystem::path resourcePath, std::filesystem::path path_in_project);
-
-        /// @brief Save an asset modified in the engine editor to the project asset directory
-        /// @tparam AssetType
-        /// @param asset asset to save
-        /// @param path path to save the asset
-        template <typename AssetType>
-        void SaveAsset(AssetType asset, std::filesystem::path path);
+        void ImportExternalResource(std::filesystem::path resourcePath, std::filesystem::path path_in_project);
 
         /// @brief Get the path to the asset file
         /// @param guid GUID of the asset
@@ -48,18 +47,27 @@ namespace Engine
         /// @return GUID
         inline GUID GenerateGUID() { return generateGUID(m_guid_gen); }
 
-        inline std::filesystem::path GetProjectPath() const { return m_projectPath; }
-        inline std::filesystem::path GetAssetsDirectory() const { return m_projectPath / "assets"; }
+        inline std::filesystem::path GetProjectPath() const { return m_project_path; }
+        inline std::filesystem::path GetAssetsDirectory() const { return m_project_path / "assets"; }
 
         void AddAsset(const GUID &guid, const std::filesystem::path &path);
 
-    protected:
-        static std::mt19937_64 m_guid_gen;
+        void AddToLoadingQueue(std::shared_ptr<AssetRef> asset);
 
-        std::filesystem::path m_projectPath;
+        void LoadAssetsInQueue();
+        std::shared_ptr<Asset> LoadAssetImmediately(const GUID &guid);
+
+    protected:
+        std::mt19937_64 m_guid_gen{std::random_device{}()};
+
+        std::filesystem::path m_project_path{};
         /// @brief GUID to asset path map
-        std::unordered_map<GUID, std::filesystem::path, GUIDHash> m_assets;
+        std::unordered_map<GUID, std::filesystem::path, GUIDHash> m_assets_map{};
+
+        std::queue<std::shared_ptr<AssetRef>> m_loading_queue{};
     };
 } // namespace Engine
 
-#endif // RESOURCE_ASSETMANAGER_ASSETMANAGER_INCLUDED
+#pragma GCC diagnostic pop
+
+#endif // ASSET_ASSETMANAGER_ASSETMANAGER_INCLUDED

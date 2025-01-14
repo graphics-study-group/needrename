@@ -1,17 +1,21 @@
 #ifndef ASSET_LOADER_OBJLOADER_INCLUDED
 #define ASSET_LOADER_OBJLOADER_INCLUDED
 
-#include <filesystem>
+#include <tiny_obj_loader.h>
 #include <unordered_map>
-
-#include "Asset/AssetManager/AssetManager.h"
+#include <memory>
+#include <filesystem>
 
 namespace Engine
 {
+    class AssetManager;
+    class MeshAsset;
+    class MaterialAsset;
+
     class ObjLoader
     {
     public:
-        ObjLoader(std::weak_ptr <AssetManager> manager);
+        ObjLoader();
         virtual ~ObjLoader() = default;
 
     public:
@@ -19,27 +23,12 @@ namespace Engine
         /// @param path path to the external obj resource
         /// @param path_in_project path to the output asset directory relative to the project asset directory
         void LoadObjResource(const std::filesystem::path &path, const std::filesystem::path &path_in_project);
-    
-    private:
-        /// @brief Load an external material resource, read from .mtl file associated with an obj file. create a meta file at @param path_in_project
-        /// @param texture_path_guid_map to mark the texture files that have been loaded, prevent loading the same texture multiple times
-        /// @param parent_directory path to the parent directory of the obj file
-        /// @param material material data read from tinyobjloader
-        /// @param path_in_project path to the output asset directory relative to the project asset directory
-        /// @param guid to store the GUID of the material
-        void LoadObjMaterialResource(std::unordered_map<std::string, GUID> &texture_path_guid_map, const std::filesystem::path &parent_directory, const tinyobj::material_t &material, const std::filesystem::path &path_in_project, GUID &guid);
 
-        /// @brief Load an external texture resource, read from .mtl file associated with an obj file. create a meta file at @param path_in_project
-        /// @param texture_path_guid_map to mark the texture files that have been loaded, prevent loading the same texture multiple times
-        /// @param parent_directory path to the parent directory of the obj file
-        /// @param filename file name of the texture file
-        /// @param path_in_project path to the output asset directory relative to the project asset directory
-        /// @param guid to store the GUID of the texture
-        /// @return true if the texture is loaded successfully
-        bool LoadObjTextureResource(std::unordered_map<std::string, GUID> &texture_path_guid_map, const std::filesystem::path &parent_directory, const std::string &filename, const std::filesystem::path &path_in_project, GUID &guid);
+        void LoadMeshAssetFromTinyObj(MeshAsset &mesh_asset, const tinyobj::attrib_t &attrib, const std::vector<tinyobj::shape_t> &shapes);
+        void LoadMaterialAssetFromTinyObj(MaterialAsset &material_asset, const tinyobj::material_t &material, const std::filesystem::path &base_path);
     
     protected:
-        std::weak_ptr <AssetManager> m_manager;
+        std::weak_ptr <AssetManager> m_manager{};
     };
 }
 

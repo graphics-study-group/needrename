@@ -1,0 +1,15 @@
+{
+    "%data": {
+        "&0": {
+            "%type": "Engine::Image2DTextureAsset",
+            "Asset::m_guid": "770563372C2A6D85EF12771BD333C774",
+            "TextureAsset::m_name": "bunny2",
+            "m_channel": 4,
+            "m_format": 0,
+            "m_height": 3072,
+            "m_mip_level": 1,
+            "m_width": 3072
+        }
+    },
+    "%main_id": "&0"
+}

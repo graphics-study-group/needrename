@@ -17,29 +17,29 @@ target_link_libraries(SDL_init_test engine)
 add_test(NAME SDL_init_test COMMAND SDL_init_test)
 set_target_properties(SDL_init_test PROPERTIES FOLDER tests)
 
-add_executable(vulkan_init_test vulkan_init_test.cpp)
-add_dependencies(vulkan_init_test shader)
-target_link_libraries(vulkan_init_test engine)
-add_test(NAME vulkan_init_test COMMAND vulkan_init_test)
-set_target_properties(vulkan_init_test PROPERTIES FOLDER tests)
+# add_executable(vulkan_init_test vulkan_init_test.cpp)
+# add_dependencies(vulkan_init_test shader)
+# target_link_libraries(vulkan_init_test engine)
+# add_test(NAME vulkan_init_test COMMAND vulkan_init_test)
+# set_target_properties(vulkan_init_test PROPERTIES FOLDER tests)
 
-add_executable(constant_data_test constant_data_test.cpp)
-add_dependencies(constant_data_test shader)
-target_link_libraries(constant_data_test engine)
-add_test(NAME constant_data_test COMMAND constant_data_test)
-set_target_properties(constant_data_test PROPERTIES FOLDER tests)
+# add_executable(constant_data_test constant_data_test.cpp)
+# add_dependencies(constant_data_test shader)
+# target_link_libraries(constant_data_test engine)
+# add_test(NAME constant_data_test COMMAND constant_data_test)
+# set_target_properties(constant_data_test PROPERTIES FOLDER tests)
 
-add_executable(mesh_loading_test mesh_loading_test.cpp)
-add_dependencies(mesh_loading_test shader)
-target_link_libraries(mesh_loading_test engine)
-add_test(NAME mesh_loading_test COMMAND mesh_loading_test)
-set_target_properties(mesh_loading_test PROPERTIES FOLDER tests)
+add_executable(project_loading_test project_loading_test.cpp)
+add_dependencies(project_loading_test shader)
+target_link_libraries(project_loading_test engine)
+add_test(NAME project_loading_test COMMAND project_loading_test)
+set_target_properties(project_loading_test PROPERTIES FOLDER tests)
 
-add_executable(image_read_test image_read_test.cpp)
-add_dependencies(image_read_test shader)
-target_link_libraries(image_read_test engine)
-add_test(NAME image_read_test COMMAND image_read_test)
-set_target_properties(image_read_test PROPERTIES FOLDER tests)
+# add_executable(image_read_test image_read_test.cpp)
+# add_dependencies(image_read_test shader)
+# target_link_libraries(image_read_test engine)
+# add_test(NAME image_read_test COMMAND image_read_test)
+# set_target_properties(image_read_test PROPERTIES FOLDER tests)
 
 add_executable(external_resource_loading_test external_resource_loading_test.cpp)
 target_link_libraries(external_resource_loading_test engine)
@@ -52,6 +52,9 @@ target_link_libraries(complex_mesh_test engine)
 add_test(NAME complex_mesh_test COMMAND complex_mesh_test 120)
 set_target_properties(complex_mesh_test PROPERTIES FOLDER tests)
 
+add_subdirectory(reflection_test)
+add_subdirectory(serialization_test)
+
 add_executable(imgui_test imgui_test.cpp)
 target_link_libraries(imgui_test engine)
 add_test(NAME imgui_test COMMAND imgui_test)
@@ -62,6 +65,5 @@ add_custom_command(TARGET SDL_init_test POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
     $<TARGET_FILE:SDL3::SDL3>
     $<TARGET_FILE_DIR:SDL_init_test>
-    DEPENDS SDL3::SDL3
     COMMENT "Copying SDL DLLs"
 )

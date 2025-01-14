@@ -7,15 +7,11 @@ namespace Engine
     {
     }
 
-    Component::~Component()
+    void Component::Init()
     {
     }
 
-    void Component::Load()
-    {
-    }
-
-    void Component::Unload()
+    void Component::Tick(float)
     {
     }
 }

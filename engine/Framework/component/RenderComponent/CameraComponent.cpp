@@ -1,6 +1,8 @@
 #include "CameraComponent.h"
 
-#include "Framework/go/GameObject.h"
+#include <Framework/object/GameObject.h>
+#include <Render/RenderSystem.h>
+#include <MainClass.h>
 
 #include <SDL3/SDL.h>
 #include <glm.hpp>
@@ -13,9 +15,18 @@ namespace Engine{
         UpdateProjectionMatrix();
     }
 
+    void CameraComponent::Init()
+    {
+        UpdateViewMatrix();
+        UpdateProjectionMatrix();
+        
+        // XXX: This is a hack. We should not set active camera here.
+        MainClass::GetInstance()->GetRenderSystem()->SetActiveCamera(std::dynamic_pointer_cast<CameraComponent>(shared_from_this()));
+    }
+
     void CameraComponent::Tick(float)
     {
-        // TODO: Update view and projection matrix
+        UpdateViewMatrix();
     }
 
     glm::mat4 CameraComponent::GetViewMatrix() const

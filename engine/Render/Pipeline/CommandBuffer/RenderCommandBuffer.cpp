@@ -187,13 +187,6 @@ namespace Engine
         auto indices = mesh.GetIndexInfo();
         m_handle->bindIndexBuffer(indices.first, indices.second, vk::IndexType::eUint32);
 
-        m_handle->pushConstants(
-            m_bound_material_pipeline.value().second, 
-            vk::ShaderStageFlagBits::eVertex, 
-            0, 
-            ConstantData::PerModelConstantPushConstant::PUSH_RANGE_SIZE,
-            reinterpret_cast<const void *>(&mesh.GetModelTransform())
-        );
         m_handle->drawIndexed(mesh.GetVertexIndexCount(), 1, 0, 0, 0);
     }
 

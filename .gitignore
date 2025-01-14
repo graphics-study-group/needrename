@@ -2,7 +2,8 @@
 [Bb]uild/
 CMakeFiles/
 __*
+__generated__
 
 CMakeCache.txt
 
-test_project/**
+# projects/test_project

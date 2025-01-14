@@ -1,209 +1,281 @@
 #include "ObjLoader.h"
-#include <iostream>
-#include <fstream>
 #include <tiny_obj_loader.h>
 #include <nlohmann/json.hpp>
-#include <cereal/archives/binary.hpp>
-#include <cereal/cereal.hpp>
-
-#include "Asset/Mesh/MeshAsset.h"
+#include <Asset/AssetRef.h>
+#include <Asset/Mesh/MeshAsset.h>
+#include <Asset/Material/MaterialAsset.h>
+#include <Asset/Texture/Image2DTextureAsset.h>
+#include <Asset/Scene/GameObjectAsset.h>
+#include <Framework/object/GameObject.h>
+#include <Framework/component/RenderComponent/MeshComponent.h>
+#include <Asset/AssetManager/AssetManager.h>
+#include <Framework/world/WorldSystem.h>
+#include <MainClass.h>
 
 namespace Engine
 {
-    ObjLoader::ObjLoader(std::weak_ptr<AssetManager> manager) : m_manager(manager) {
+    ObjLoader::ObjLoader()
+    {
+        m_manager = MainClass::GetInstance()->GetAssetManager();
     }
 
     void ObjLoader::LoadObjResource(const std::filesystem::path &path, const std::filesystem::path &path_in_project)
     {
-        tinyobj::ObjReader reader;
-        reader.ParseFromFile(path.string());
-        if (!reader.Error().empty())
-        {
-            throw std::runtime_error("TinyObjReader reports errors reading " + path.string());
-        }
+        tinyobj::ObjReaderConfig reader_config{};
+        tinyobj::ObjReader reader{};
 
+        if (!reader.ParseFromFile(path.string(), reader_config))
+            throw std::runtime_error("Cannot load OBJ file:" + path.string() + ", " + reader.Error());
+
+        SDL_LogInfo(0, "Loaded OBJ file %s", path.string().c_str());
         if (!reader.Warning().empty())
+            SDL_LogWarn(0, "TinyObjLoader reports: %s", reader.Warning().c_str());
+
+        const auto &attrib = reader.GetAttrib();
+        const auto &origin_shapes = reader.GetShapes();
+        std::vector<tinyobj::shape_t> shapes;
+        const auto &origin_materials = reader.GetMaterials();
+        std::vector<tinyobj::material_t> materials;
+
+        // Split the subshapes by material
+        for (size_t shp = 0; shp < origin_shapes.size(); shp++)
         {
-            std::cerr << "TinyObjReader reports warnings reading " << path.string() << std::endl;
-            std::cerr << "\t" << reader.Warning() << std::endl;
+            const auto &shape = origin_shapes[shp];
+            auto shape_vertices_size = shape.mesh.num_face_vertices.size();
+            std::map<int, tinyobj::shape_t> material_id_map;
+            int shape_id = 0;
+            for (size_t fc = 0; fc < shape_vertices_size; fc++)
+            {
+                auto &material_id = shape.mesh.material_ids[fc];
+                if (material_id_map.find(material_id) == material_id_map.end())
+                {
+                    material_id_map[material_id] = tinyobj::shape_t{
+                        .name = shape.name + "_" + std::to_string(shape_id++),
+                        .mesh = tinyobj::mesh_t{},
+                        .lines = tinyobj::lines_t{},
+                        .points = tinyobj::points_t{}};
+                }
+                auto &new_shape = material_id_map[material_id];
+                unsigned int face_vertex_count = shape.mesh.num_face_vertices[fc];
+                assert(face_vertex_count == 3);
+                new_shape.mesh.num_face_vertices.push_back(face_vertex_count);
+                new_shape.mesh.material_ids.push_back(material_id);
+                new_shape.mesh.smoothing_group_ids.push_back(shape.mesh.smoothing_group_ids[fc]);
+                for (unsigned int vrtx = 0; vrtx < face_vertex_count; vrtx++)
+                {
+                    new_shape.mesh.indices.push_back(shape.mesh.indices[fc * 3 + vrtx]);
+                }
+            }
+            for (const auto &[_, new_shape] : material_id_map)
+            {
+                shapes.push_back(new_shape);
+                materials.push_back(origin_materials[new_shape.mesh.material_ids[0]]);
+                std::fill(
+                    shapes.back().mesh.material_ids.begin(),
+                    shapes.back().mesh.material_ids.end(),
+                    materials.size() - 1);
+            }
         }
 
-        const tinyobj::attrib_t &attrib = reader.GetAttrib();
-        const std::vector<tinyobj::shape_t> &shapes = reader.GetShapes();
-        const std::vector<tinyobj::material_t> &materials = reader.GetMaterials();
+        std::shared_ptr<MeshAsset> m_mesh_asset = std::make_shared<MeshAsset>();
+        m_mesh_asset->m_name = path.stem().string();
+        LoadMeshAssetFromTinyObj(*m_mesh_asset, attrib, shapes);
 
-        nlohmann::json mesh_json;
-        std::vector<GUID> material_guids;
-        MeshAsset assetMesh{m_manager};
-        GUID mesh_guid = assetMesh.GetGUID();
+        std::vector<std::shared_ptr<MaterialAsset>> m_material_assets;
+        std::vector<std::shared_ptr<Image2DTextureAsset>> m_texture_assets;
 
-        std::unordered_map<std::string, GUID> texture_path_guid_map;
-        for (size_t i = 0; i < materials.size(); i++)
+        for (const auto &material : materials)
         {
-            GUID mat_guid;
-            LoadObjMaterialResource(texture_path_guid_map, path.parent_path(), materials[i], path_in_project, mat_guid);
-            material_guids.push_back(mat_guid);
+            std::shared_ptr<MaterialAsset> m_material_asset = std::make_shared<MaterialAsset>();
+            LoadMaterialAssetFromTinyObj(*m_material_asset, material, path.parent_path());
+            m_material_assets.push_back(m_material_asset);
+
+            for (const auto &[name, property] : m_material_asset->m_properties)
+            {
+                if (property.m_type == MaterialProperty::Type::Texture)
+                {
+                    auto ref = std::any_cast<std::shared_ptr<AssetRef>>(property.m_value);
+                    m_texture_assets.push_back(ref->as<Image2DTextureAsset>());
+                }
+            }
         }
 
-        // Save mesh data to binary file
-        assetMesh.LoadFromTinyobj(attrib, shapes);
-        std::filesystem::path mesh_data_path = m_manager.lock()->GetAssetsDirectory() / path_in_project / (path.stem().string() + ".mesh_data");
-        std::ofstream os(mesh_data_path, std::ios::binary);
-        cereal::BinaryOutputArchive oarchive(os);
-        oarchive(assetMesh);
-
-        // Save mesh meta file
-        mesh_json["guid"] = GUIDToString(mesh_guid);
-        mesh_json["name"] = path.stem().string();
-        mesh_json["type"] = "Mesh";
-        mesh_json["submesh_count"] = assetMesh.GetSubmeshCount();
-
-        std::filesystem::path mesh_json_path = m_manager.lock()->GetAssetsDirectory() / path_in_project / (path.stem().string() + ".mesh_data.asset");
-        std::ofstream mesh_file(mesh_json_path);
-        if (mesh_file.is_open())
+        Serialization::Archive archive;
+        archive.prepare_save();
+        m_mesh_asset->save_asset_to_archive(archive);
+        archive.save_to_file(m_manager.lock()->GetAssetsDirectory() / path_in_project / (m_mesh_asset->m_name + ".mesh.asset"));
+        m_manager.lock()->AddAsset(m_mesh_asset->GetGUID(), path_in_project / (m_mesh_asset->m_name + ".mesh.asset"));
+        for (const auto &material : m_material_assets)
         {
-            mesh_file << mesh_json.dump(4);
-            mesh_file.close();
-            m_manager.lock()->AddAsset(mesh_guid, path_in_project / mesh_json_path.stem());
+            archive.clear();
+            archive.prepare_save();
+            material->save_asset_to_archive(archive);
+            archive.save_to_file(m_manager.lock()->GetAssetsDirectory() / path_in_project / (material->m_name + ".material.asset"));
+            m_manager.lock()->AddAsset(material->GetGUID(), path_in_project / (material->m_name + ".material.asset"));
         }
-        else
+        for (const auto &texture : m_texture_assets)
         {
-            throw std::runtime_error("Failed to open mesh file");
+            archive.clear();
+            archive.prepare_save();
+            texture->save_asset_to_archive(archive);
+            archive.save_to_file(m_manager.lock()->GetAssetsDirectory() / path_in_project / (texture->m_name + ".png.asset"));
+            m_manager.lock()->AddAsset(texture->GetGUID(), path_in_project / (texture->m_name + ".png.asset"));
         }
 
-        // Save mesh prefab file
-        nlohmann::json prefab_json;
-        GUID prefab_guid = m_manager.lock()->GenerateGUID();
-        prefab_json["guid"] = GUIDToString(prefab_guid);
-        prefab_json["name"] = path.stem().string();
-        prefab_json["type"] = "GameObject";
-        prefab_json["components"] = nlohmann::json::array();
-        nlohmann::json mesh_component_json;
-        mesh_component_json["type"] = "MeshComponent";
-        mesh_component_json["mesh"] = GUIDToString(mesh_guid);
-        mesh_component_json["materials"] = nlohmann::json::array();
-        for (size_t s = 0; s < shapes.size(); s++)
+        std::shared_ptr<GameObjectAsset> m_game_object_asset = std::make_shared<GameObjectAsset>();
+        m_game_object_asset->m_MainObject = MainClass::GetInstance()->GetWorldSystem()->CreateGameObject<GameObject>();
+        std::shared_ptr<MeshComponent> m_mesh_component = std::make_shared<MeshComponent>(m_game_object_asset->m_MainObject);
+        m_mesh_component->m_mesh_asset = std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(m_mesh_asset));
+        for (const auto &material : m_material_assets)
         {
-            // XXX: every face in a shape must have the same material
-            size_t material_id = shapes[s].mesh.material_ids[0];
-            mesh_component_json["materials"].push_back(GUIDToString(material_guids[material_id]));
+            m_mesh_component->m_material_assets.push_back(std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(material)));
         }
-        prefab_json["components"].push_back(mesh_component_json);
-        
-        std::filesystem::path prefab_json_path = m_manager.lock()->GetAssetsDirectory() / path_in_project / (path.stem().string() + ".prefab.asset");
-        std::ofstream prefab_file(prefab_json_path);
-        if (prefab_file.is_open())
+        m_game_object_asset->m_MainObject->AddComponent(m_mesh_component);
+
+        archive.clear();
+        archive.prepare_save();
+        m_game_object_asset->save_asset_to_archive(archive);
+        archive.save_to_file(m_manager.lock()->GetAssetsDirectory() / path_in_project / (m_mesh_asset->m_name + ".gameobject.asset"));
+        m_manager.lock()->AddAsset(m_game_object_asset->GetGUID(), path_in_project / (m_mesh_asset->m_name + ".gameobject.asset"));
+    }
+
+    void ObjLoader::LoadMeshAssetFromTinyObj(MeshAsset &mesh_asset, const tinyobj::attrib_t &attrib, const std::vector<tinyobj::shape_t> &shapes)
+    {
+        mesh_asset.m_submeshes.clear();
+
+        const auto &positions = attrib.vertices;
+        const auto &normals = attrib.normals;
+        const auto &uvs = attrib.texcoords;
+        const auto &colors = attrib.colors;
+
+        for (const auto &shape : shapes)
         {
-            prefab_file << prefab_json.dump(4);
-            prefab_file.close();
-            m_manager.lock()->AddAsset(prefab_guid, path_in_project / prefab_json_path.stem());
-        }
-        else
-        {
-            throw std::runtime_error("Failed to open prefab file");
+            mesh_asset.m_submeshes.emplace_back();
+            auto &submesh = mesh_asset.m_submeshes.back();
+            uint32_t vertex_id = 0;
+            std::map<std::tuple<int, int, int>, uint32_t> vertex_id_map;
+            for (const auto &index : shape.mesh.indices)
+            {
+                std::tuple<int, int, int> key(index.vertex_index, index.normal_index, index.texcoord_index);
+                if (vertex_id_map.find(key) == vertex_id_map.end())
+                {
+                    vertex_id_map[key] = vertex_id++;
+                    submesh.m_positions.push_back(VertexStruct::VertexPosition{
+                        .position = {positions[index.vertex_index * 3], positions[index.vertex_index * 3 + 1], positions[index.vertex_index * 3 + 2]}});
+                    VertexStruct::VertexAttribute attr = {};
+                    if (colors.size() > 0)
+                    {
+                        attr.color[0] = colors[index.vertex_index * 3];
+                        attr.color[1] = colors[index.vertex_index * 3 + 1];
+                        attr.color[2] = colors[index.vertex_index * 3 + 2];
+                    }
+                    if (index.normal_index >= 0)
+                    {
+                        attr.normal[0] = normals[index.normal_index * 3];
+                        attr.normal[1] = normals[index.normal_index * 3 + 1];
+                        attr.normal[2] = normals[index.normal_index * 3 + 2];
+                    }
+                    if (index.texcoord_index >= 0)
+                    {
+                        attr.texcoord1[0] = uvs[index.texcoord_index * 2];
+                        attr.texcoord1[1] = uvs[index.texcoord_index * 2 + 1];
+                    }
+                    submesh.m_attributes.push_back(attr);
+                }
+                submesh.m_indices.push_back(vertex_id_map[key]);
+            }
         }
     }
 
-    void ObjLoader::LoadObjMaterialResource(std::unordered_map<std::string, GUID> &texture_path_guid_map, const std::filesystem::path &parent_directory, const tinyobj::material_t &material, const std::filesystem::path &path_in_project, GUID &guid)
+    void ObjLoader::LoadMaterialAssetFromTinyObj(MaterialAsset &material_asset, const tinyobj::material_t &material, const std::filesystem::path &base_path)
     {
-        guid = m_manager.lock()->GenerateGUID();
-        nlohmann::json material_json;
-        material_json["guid"] = GUIDToString(guid);
-        material_json["name"] = material.name;
-        material_json["type"] = "Shadeless";
+        material_asset.m_name = material.name;
 
-        material_json["ambient"] = {material.ambient[0], material.ambient[1], material.ambient[2]};
-        material_json["diffuse"] = {material.diffuse[0], material.diffuse[1], material.diffuse[2]};
-        material_json["specular"] = {material.specular[0], material.specular[1], material.specular[2]};
-        material_json["transmittance"] = {material.transmittance[0], material.transmittance[1], material.transmittance[2]};
-        material_json["emission"] = {material.emission[0], material.emission[1], material.emission[2]};
-        material_json["shininess"] = material.shininess;
-        material_json["ior"] = material.ior;
-        material_json["dissolve"] = material.dissolve;
-        material_json["illum"] = material.illum;
-        material_json["roughness"] = material.roughness;
-        material_json["metallic"] = material.metallic;
-        material_json["sheen"] = material.sheen;
-        material_json["clearcoat_thickness"] = material.clearcoat_thickness;
-        material_json["clearcoat_roughness"] = material.clearcoat_roughness;
-        material_json["anisotropy"] = material.anisotropy;
-        material_json["anisotropy_rotation"] = material.anisotropy_rotation;
-
-        GUID tex_guid;
-        // XXX: texture options are not implemented
-        if(LoadObjTextureResource(texture_path_guid_map, parent_directory, material.ambient_texname, path_in_project, tex_guid))
-            material_json["ambient_tex"] = GUIDToString(tex_guid);
-        if(LoadObjTextureResource(texture_path_guid_map, parent_directory, material.diffuse_texname, path_in_project, tex_guid))
-            material_json["diffuse_tex"] = GUIDToString(tex_guid);
-        if(LoadObjTextureResource(texture_path_guid_map, parent_directory, material.specular_texname, path_in_project, tex_guid))
-            material_json["specular_tex"] = GUIDToString(tex_guid);
-        if(LoadObjTextureResource(texture_path_guid_map, parent_directory, material.specular_highlight_texname, path_in_project, tex_guid))
-            material_json["specular_highlight_tex"] = GUIDToString(tex_guid);
-        if(LoadObjTextureResource(texture_path_guid_map, parent_directory, material.bump_texname, path_in_project, tex_guid))
-            material_json["bump_tex"] = GUIDToString(tex_guid);
-        if(LoadObjTextureResource(texture_path_guid_map, parent_directory, material.displacement_texname, path_in_project, tex_guid))
-            material_json["displacement_tex"] = GUIDToString(tex_guid);
-        if(LoadObjTextureResource(texture_path_guid_map, parent_directory, material.alpha_texname, path_in_project, tex_guid))
-            material_json["alpha_tex"] = GUIDToString(tex_guid);
-        if(LoadObjTextureResource(texture_path_guid_map, parent_directory, material.reflection_texname, path_in_project, tex_guid))
-            material_json["reflection_tex"] = GUIDToString(tex_guid);
-        if(LoadObjTextureResource(texture_path_guid_map, parent_directory, material.roughness_texname, path_in_project, tex_guid))
-            material_json["roughness_tex"] = GUIDToString(tex_guid);
-        if(LoadObjTextureResource(texture_path_guid_map, parent_directory, material.metallic_texname, path_in_project, tex_guid))
-            material_json["metallic_tex"] = GUIDToString(tex_guid);
-        if(LoadObjTextureResource(texture_path_guid_map, parent_directory, material.sheen_texname, path_in_project, tex_guid))
-            material_json["sheen_tex"] = GUIDToString(tex_guid);
-        if(LoadObjTextureResource(texture_path_guid_map, parent_directory, material.emissive_texname, path_in_project, tex_guid))
-            material_json["emissive_tex"] = GUIDToString(tex_guid);
-        if(LoadObjTextureResource(texture_path_guid_map, parent_directory, material.normal_texname, path_in_project, tex_guid))
-            material_json["normal_tex"] = GUIDToString(tex_guid);
-
-        std::filesystem::path json_path = m_manager.lock()->GetAssetsDirectory() / path_in_project / (material.name + ".asset");
-        std::ofstream material_file(json_path);
-        if (material_file.is_open())
+        // TODO: For every illumination model, load corresponding shader and set the material properties. 
+        // For now, just load every property from the tinyobj::material_t file.
+        switch(material.illum)
         {
-            material_file << material_json.dump(4);
-            material_file.close();
-            m_manager.lock()->AddAsset(guid, path_in_project / json_path.stem());
-        }
-        else
-        {
-            throw std::runtime_error("Failed to open material file");
-        }
-    }
-
-    bool ObjLoader::LoadObjTextureResource(std::unordered_map<std::string, GUID> &texture_path_guid_map, const std::filesystem::path &parent_directory, const std::string &filename, const std::filesystem::path &path_in_project, GUID &guid)
-    {
-        if(filename.empty())
-            return false;
-        if(texture_path_guid_map.find(filename) != texture_path_guid_map.end())
-        {
-            guid = texture_path_guid_map[filename];
-            return true;
         }
 
-        guid = m_manager.lock()->GenerateGUID();
-        nlohmann::json texture_json;
-        texture_json["guid"] = GUIDToString(guid);
-        texture_json["name"] = filename;
-        texture_json["type"] = "ImmutableTexture2D";
-
-        std::filesystem::path texpath_in_project = m_manager.lock()->GetAssetsDirectory() / path_in_project / filename;
-        std::filesystem::path tex_origin_path = parent_directory / filename;
-        std::filesystem::copy_file(tex_origin_path, texpath_in_project);
-        std::filesystem::path json_path = texpath_in_project.replace_filename(texpath_in_project.filename().string() + ".asset");
-        std::ofstream tex_file(json_path);
-        if (tex_file.is_open())
+        material_asset.m_properties["ambient"] = glm::vec4{material.ambient[0], material.ambient[1], material.ambient[2], 1.0f};
+        material_asset.m_properties["diffuse"] = glm::vec4{material.diffuse[0], material.diffuse[1], material.diffuse[2], 1.0f};
+        material_asset.m_properties["specular"] = glm::vec4{material.specular[0], material.specular[1], material.specular[2], 1.0f};
+        material_asset.m_properties["transmittance"] = glm::vec4{material.transmittance[0], material.transmittance[1], material.transmittance[2], 1.0f};
+        material_asset.m_properties["emission"] = glm::vec4{material.emission[0], material.emission[1], material.emission[2], 1.0f};
+        material_asset.m_properties["shininess"] = (float)material.shininess;
+        material_asset.m_properties["ior"] = (float)material.ior;
+        material_asset.m_properties["dissolve"] = (float)material.dissolve;
+        if (!material.ambient_texname.empty())
         {
-            tex_file << texture_json.dump(4);
-            tex_file.close();
-            m_manager.lock()->AddAsset(guid, path_in_project / json_path.stem());
+            auto texture = std::make_shared<Image2DTextureAsset>();
+            texture->LoadFromFile(base_path / material.ambient_texname);
+            material_asset.m_properties["ambient_texture"] = std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(texture));
         }
-        else
+        if (!material.diffuse_texname.empty())
         {
-            throw std::runtime_error("Failed to open texture file");
+            auto texture = std::make_shared<Image2DTextureAsset>();
+            texture->LoadFromFile(base_path / material.diffuse_texname);
+            material_asset.m_properties["diffuse_texture"] = std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(texture));
         }
-        texture_path_guid_map[filename] = guid;
-        return true;
+        if (!material.specular_texname.empty())
+        {
+            auto texture = std::make_shared<Image2DTextureAsset>();
+            texture->LoadFromFile(base_path / material.specular_texname);
+            material_asset.m_properties["specular_texture"] = std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(texture));
+        }
+        if (!material.specular_highlight_texname.empty())
+        {
+            auto texture = std::make_shared<Image2DTextureAsset>();
+            texture->LoadFromFile(base_path / material.specular_highlight_texname);
+            material_asset.m_properties["specular_highlight_texture"] = std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(texture));
+        }
+        if (!material.bump_texname.empty())
+        {
+            auto texture = std::make_shared<Image2DTextureAsset>();
+            texture->LoadFromFile(base_path / material.bump_texname);
+            material_asset.m_properties["bump_texture"] = std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(texture));
+        }
+        if (!material.displacement_texname.empty())
+        {
+            auto texture = std::make_shared<Image2DTextureAsset>();
+            texture->LoadFromFile(base_path / material.displacement_texname);
+            material_asset.m_properties["displacement_texture"] = std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(texture));
+        }
+        if (!material.alpha_texname.empty())
+        {
+            auto texture = std::make_shared<Image2DTextureAsset>();
+            texture->LoadFromFile(base_path / material.alpha_texname);
+            material_asset.m_properties["alpha_texture"] = std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(texture));
+        }
+        if (!material.roughness_texname.empty())
+        {
+            auto texture = std::make_shared<Image2DTextureAsset>();
+            texture->LoadFromFile(base_path / material.roughness_texname);
+            material_asset.m_properties["roughness_texture"] = std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(texture));
+        }
+        if (!material.metallic_texname.empty())
+        {
+            auto texture = std::make_shared<Image2DTextureAsset>();
+            texture->LoadFromFile(base_path / material.metallic_texname);
+            material_asset.m_properties["metallic_texture"] = std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(texture));
+        }
+        if (!material.sheen_texname.empty())
+        {
+            auto texture = std::make_shared<Image2DTextureAsset>();
+            texture->LoadFromFile(base_path / material.sheen_texname);
+            material_asset.m_properties["sheen_texture"] = std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(texture));
+        }
+        if (!material.emissive_texname.empty())
+        {
+            auto texture = std::make_shared<Image2DTextureAsset>();
+            texture->LoadFromFile(base_path / material.emissive_texname);
+            material_asset.m_properties["emissive_texture"] = std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(texture));
+        }
+        if (!material.normal_texname.empty())
+        {
+            auto texture = std::make_shared<Image2DTextureAsset>();
+            texture->LoadFromFile(base_path / material.normal_texname);
+            material_asset.m_properties["normal_texture"] = std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(texture));
+        }
     }
 }

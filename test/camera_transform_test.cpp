@@ -1,4 +1,12 @@
-#include "Framework/go/GameObject.h"
+#include <SDL3/SDL.h>
+#include <cassert>
+#include <iostream>
+#include <fstream>
+
+#include <cmake_config.h>
+#include <MainClass.h>
+#include <Framework/world/WorldSystem.h>
+#include <Framework/object/GameObject.h>
 #include "Framework/component/RenderComponent/CameraComponent.h"
 
 using namespace Engine;
@@ -23,7 +31,7 @@ void print_vectors(glm::vec3 o, glm::vec3 x, glm::vec3 y, glm::vec3 z) {
 }
 
 void test_translation() {
-    auto go = std::make_shared<GameObject>();
+    auto go = MainClass::GetInstance()->GetWorldSystem()->CreateGameObject<GameObject>();   
     // eye space +x axis and +z axis align up with NDC +x axis and +z axis
     go->GetTransformRef().SetPosition(glm::vec3(0, -1, 0));
 
@@ -49,7 +57,7 @@ void test_translation() {
 }
 
 void test_rotation() {
-    auto go = std::make_shared<GameObject>();
+    auto go = MainClass::GetInstance()->GetWorldSystem()->CreateGameObject<GameObject>();   
     // eye space +x axis and +z axis align up with NDC -z axis and +y axis
     go->GetTransformRef().SetRotationEuler(glm::vec3(0, 0, glm::radians(-90.0f)));
     auto cp = std::make_shared<CameraComponent>(go);
@@ -72,6 +80,15 @@ void test_rotation() {
 }
 
 int main() {
+    SDL_Init(SDL_INIT_VIDEO);
+
+    StartupOptions opt{.resol_x = 1280, .resol_y = 720, .title = "External Resource Loading Test"};
+
+    auto cmc = MainClass::GetInstance();
+    cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
+
     test_translation();
     test_rotation();
+
+    return 0;
 }

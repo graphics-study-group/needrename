@@ -3,19 +3,31 @@
 
 #include <cstdint>
 #include <string>
+#include <sstream>
 #include <random>
+#include <iomanip>
+#include <meta_engine/reflection.hpp>
 
 namespace Engine
 {
-    struct GUID
+    class REFL_SER_CLASS(REFL_WHITELIST) GUID
     {
-        uint64_t mostSigBits;
-        uint64_t leastSigBits;
+        REFL_SER_BODY(GUID)
+    public:
+        uint64_t mostSigBits = 0;
+        uint64_t leastSigBits = 0;
 
-        bool operator==(const GUID& other) const
-        {
-            return mostSigBits == other.mostSigBits && leastSigBits == other.leastSigBits;
-        }
+        REFL_ENABLE GUID() = default;
+        REFL_ENABLE GUID(const std::string &str);
+        virtual ~GUID() = default;
+
+        bool operator==(const GUID& other) const;
+
+        REFL_ENABLE std::string toString() const;
+        REFL_ENABLE void fromString(const std::string &str);
+
+        void save_to_archive(Serialization::Archive& archive) const;
+        void load_from_archive(Serialization::Archive& archive);
     };
 
     struct GUIDHash
@@ -29,29 +41,13 @@ namespace Engine
     };
     
     template <typename Generator>
-    inline GUID generateGUID(Generator& gen)
+    GUID generateGUID(Generator& gen)
     {
         std::uniform_int_distribution<uint64_t> dis(0, 0xFFFFFFFFFFFFFFFF);
         GUID guid;
         guid.mostSigBits = dis(gen);
         guid.leastSigBits = dis(gen);
         return guid;
-    }
-
-    inline std::string GUIDToString(const GUID &GUID)
-    {
-        std::stringstream ss;
-        ss << std::hex << std::uppercase << std::setw(16) << std::setfill('0') << GUID.mostSigBits;
-        ss << std::hex << std::uppercase << std::setw(16) << std::setfill('0') << GUID.leastSigBits;
-        return ss.str();
-    }
-
-    inline GUID stringToGUID(const std::string &str)
-    {
-        GUID GUID;
-        GUID.mostSigBits = std::stoull(str.substr(0, 16), nullptr, 16);
-        GUID.leastSigBits = std::stoull(str.substr(16, 16), nullptr, 16);
-        return GUID;
     }
 }
 

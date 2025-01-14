@@ -1,0 +1,10 @@
+{
+    "%main_id": "&0",
+    "%data": {
+        "&0": {
+            "m_gameobjects": [],
+            "Asset::m_guid": "FF182376000000000000000000000000",
+            "%type": "Engine::LevelAsset"
+        }
+    }
+}

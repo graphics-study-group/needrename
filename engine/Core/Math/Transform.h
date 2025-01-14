@@ -4,12 +4,18 @@
 #include <glm.hpp>
 #include <gtc/matrix_transform.hpp>
 #include <gtc/quaternion.hpp>
+#include <meta_engine/reflection.hpp>
 
 namespace Engine
 {
-    class Transform
+    class REFL_SER_CLASS(REFL_BLACKLIST) Transform
     {
+        REFL_SER_BODY(Transform)
     public:
+        Transform() = default;
+        Transform(glm::vec3 position, glm::quat rotation, glm::vec3 scale);
+        virtual ~Transform() = default;
+        
         /// @brief Get the matrix representing the transform
         /// the matrix is constructed such that
         /// ret = scale * location * rotation
@@ -22,7 +28,7 @@ namespace Engine
         void Decompose(glm::mat4 mat);
 
         [[deprecated]]
-        Transform operator*(const Transform &other) const;
+        REFL_DISABLE Transform operator*(const Transform &other) const;
 
         /// @brief Set the position component of transform
         /// @param position 
@@ -69,6 +75,7 @@ namespace Engine
         /// @brief Get scale component of transform
         /// @return scale
         const glm::vec3& GetScale() const;
+
     public:
         glm::vec3 m_position {0.0f};
         glm::quat m_rotation {1.0f, 0.0f, 0.0f, 0.0f};

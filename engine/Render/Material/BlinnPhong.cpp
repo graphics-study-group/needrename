@@ -4,6 +4,9 @@
 #include "Render/Pipeline/RenderTarget/RenderTargetSetup.h"
 #include "Render/Pipeline/PremadePipeline/ConfigurablePipeline.h"
 #include "Render/Memory/Image2DTexture.h"
+#include "Asset/Material/MaterialAsset.h"
+#include "Asset/Texture/Image2DTextureAsset.h"
+#include <Asset/AssetRef.h>
 
 #include <fstream>
 
@@ -40,7 +43,7 @@ namespace Engine {
         return std::vector<vk::DescriptorSetLayoutBinding>{binding_texture, binding_uniform};
     }
 
-    BlinnPhong::BlinnPhong(std::weak_ptr<RenderSystem> system): Material(system), fragModule(system), vertModule(system), m_uniform_buffer(system)
+    BlinnPhong::BlinnPhong(std::weak_ptr<RenderSystem> system, std::shared_ptr<AssetRef> asset): Material(system, asset), fragModule(system), vertModule(system), m_uniform_buffer(system)
     {
         std::vector <char> shaderData = readFile("shader/blinn_phong.frag.spv");
         fragModule.CreateShaderModule(
@@ -91,6 +94,8 @@ namespace Engine {
             {&dbinfo}
         };
         m_system.lock()->getDevice().updateDescriptorSets({write}, {});
+
+        m_texture = std::make_unique<AllocatedImage2DTexture>(m_system);
     }
 
     const Pipeline *BlinnPhong::GetPipeline(uint32_t pass_index)
@@ -102,12 +107,18 @@ namespace Engine {
         return pipeline;
     }
 
-    void BlinnPhong::UpdateTexture(const AllocatedImage2DTexture &texture)
+    void BlinnPhong::CommitBuffer(TransferCommandBuffer & tcb)
     {
-        // Write texture descriptor
+        auto &asset = *m_asset->as<MaterialAsset>();
+        assert(asset.m_properties["diffuse_texture"].m_type == MaterialProperty::Type::Texture);
+        std::shared_ptr<Image2DTextureAsset> texture_asset = std::any_cast<std::shared_ptr<AssetRef>>(asset.m_properties["diffuse_texture"].m_value)->as<Image2DTextureAsset>();
+        assert(texture_asset);
+        m_texture->Create(*texture_asset);
+        tcb.CommitTextureImage(*m_texture, texture_asset->GetPixelData(), texture_asset->GetPixelDataSize());
+
         vk::DescriptorImageInfo image_info {
             m_sampler.get(),
-            texture.GetImageView(),
+            m_texture->GetImageView(),
             vk::ImageLayout::eShaderReadOnlyOptimal
         };
         vk::WriteDescriptorSet write {
@@ -119,6 +130,15 @@ namespace Engine {
             {&image_info}
         };
         m_system.lock()->getDevice().updateDescriptorSets({write}, {});
+
+        UniformData uniform;
+        uniform.specular = std::any_cast<glm::vec4>(asset.m_properties["specular"].m_value);
+        uniform.specular.w = std::any_cast<float>(asset.m_properties["shininess"].m_value);
+        uniform.ambient = std::any_cast<glm::vec4>(asset.m_properties["ambient"].m_value);
+
+        assert(m_mapped_buffer);
+        memcpy(m_mapped_buffer, &uniform, sizeof uniform);
+        m_uniform_buffer.Flush();
     }
 
     void BlinnPhong::UpdateUniform(const UniformData &uniform)

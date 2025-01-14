@@ -2,15 +2,19 @@
 #define FRAMEWORK_COMPONENT_RENDERCOMPONENT_CAMERACOMPONENT_INCLUDED
 
 #include <glm.hpp>
-#include "Framework/component/Component.h"
+#include <Framework/component/Component.h>
+#include <meta_engine/reflection.hpp>
 
 namespace Engine
 {
     /// @brief A perspective camera component
-    class CameraComponent : public Component {
+    class REFL_SER_CLASS(REFL_WHITELIST) CameraComponent : public Component {
+        REFL_SER_BODY(CameraComponent)
     public:
-        CameraComponent(std::weak_ptr<GameObject> gameObject);
+        REFL_ENABLE CameraComponent(std::weak_ptr<GameObject> gameObject);
         virtual ~CameraComponent() = default;
+
+        virtual void Init() override;
         virtual void Tick(float) override;
 
         /// @brief Acquire view matrix that transforms world coordinate to eye coordinate
@@ -39,12 +43,13 @@ namespace Engine
         /// @return this for chainning
         CameraComponent & set_clipping(float near, float far);
 
-    protected:
-        float m_fov_vertical{45};
-        float m_aspect_ratio{1.0};
-        float m_clipping_near{1e-3};
-        float m_clipping_far{1e3};
+    public:
+        REFL_SER_ENABLE float m_fov_vertical{45};
+        REFL_SER_ENABLE float m_aspect_ratio{1.0};
+        REFL_SER_ENABLE float m_clipping_near{1e-3};
+        REFL_SER_ENABLE float m_clipping_far{1e3};
 
+    protected:
         glm::mat4 m_projection_matrix{1.0f}, m_view_matrix{1.0f};
 
         void UpdateProjectionMatrix();

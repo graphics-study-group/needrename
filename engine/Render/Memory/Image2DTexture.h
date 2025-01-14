@@ -5,6 +5,7 @@
 
 namespace Engine {
     class RenderSystem;
+    class Image2DTextureAsset;
     class Buffer;
 
     class AllocatedImage2DTexture : public AllocatedImage2D {
@@ -13,6 +14,7 @@ namespace Engine {
 
     public:
         AllocatedImage2DTexture(std::weak_ptr <RenderSystem> system);
+        void Create(const Image2DTextureAsset &asset);
         void Create(uint32_t width, uint32_t height, ImageUtils::ImageFormat format, uint32_t mip = 1);
         
         Buffer CreateStagingBuffer() const;

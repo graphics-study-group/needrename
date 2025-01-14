@@ -1,0 +1,114 @@
+#include <Reflection/serialization.h>
+
+<%
+import clang.cindex as CX
+%>
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-variable"
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+
+## list of all basic types such as bool, int, long double
+<% basic_type_list = [CX.TypeKind.from_id(i) for i in range(3, 24)] %>
+
+<%def name="generate_type_save(class_type, prefix)">
+    % for base_type in class_type.base_types:
+    % if base_type.full_name in classes_map:
+    {
+        ${generate_type_save(classes_map[base_type.full_name], base_type.name + "::")}  
+    }
+    % endif
+    % endfor
+
+    % for field in class_type.serialized_fields:
+    % if field.type.cx_type.kind in basic_type_list or field.type.cx_type.spelling == "std::string":
+    {
+        json["${prefix + field.name}"] = this->${field.name};
+    }
+    % else:
+    {
+        json["${prefix + field.name}"] = Engine::Serialization::Json::object();
+        Engine::Serialization::Archive temp_archive(archive, &json["${prefix + field.name}"]);
+        serialize(this->${field.name}, temp_archive);
+    }
+    % endif
+    % endfor
+</%def>
+<%def name="generate_type_load(class_type, prefix)">
+    % for base_type in class_type.base_types:
+    % if base_type.full_name in classes_map:
+    {
+        ${generate_type_load(classes_map[base_type.full_name], base_type.name + "::")}
+    }
+    % endif
+    % endfor
+    
+    % for field in class_type.serialized_fields:
+    % if field.type.cx_type.kind in basic_type_list or field.type.cx_type.spelling == "std::string":
+    {
+        if (json.find("${prefix + field.name}") != json.end())
+        {
+            this->${prefix + field.name} = json["${prefix + field.name}"];
+        }
+    }
+    % elif field.type.cx_type.kind == CX.TypeKind.POINTER:
+    {
+        if (json.find("${prefix + field.name}") != json.end())
+        {
+            Engine::Serialization::Archive temp_archive(archive, &json["${prefix + field.name}"]);
+            deserialize(this->${prefix + field.name}, temp_archive);
+        }
+        else
+        {
+            this->${prefix + field.name} = nullptr;
+        }
+    }
+    % else:
+    {
+        if (json.find("${prefix + field.name}") != json.end())
+        {
+            Engine::Serialization::Archive temp_archive(archive, &json["${prefix + field.name}"]);
+            deserialize(this->${prefix + field.name}, temp_archive);
+        }
+    }
+    % endif
+    % endfor
+</%def>
+% for class_type in classes_map.values():
+void ${class_type.full_name}::_SERIALIZATION_SAVE_(Engine::Serialization::Archive& archive) const
+{
+    Engine::Serialization::Json &json = *archive.m_cursor;
+    
+    ${generate_type_save(class_type, "")}
+
+    assert(json.find("%type") == json.end());
+    json["%type"] = "${class_type.full_name}";
+}
+void ${class_type.full_name}::_SERIALIZATION_LOAD_(Engine::Serialization::Archive& archive)
+{
+    Engine::Serialization::Json &json = *archive.m_cursor;
+    ${generate_type_load(class_type, "")}
+}
+${class_type.full_name}::${class_type.name}(Engine::Serialization::SerializationMarker marker) \
+<%
+base_type_name_list = []
+for base_type in class_type.base_types:
+    if base_type.full_name in classes_map:
+        base_type_name_list.append(base_type.name)
+%>
+% if len(base_type_name_list) > 0:
+: \
+% endif
+% for i, base_type_name in enumerate(base_type_name_list):
+${base_type_name}(marker)\
+% if i < len(base_type_name_list) - 1:
+, 
+% else:
+
+% endif
+% endfor
+{
+}
+% endfor
+
+#pragma GCC diagnostic pop
