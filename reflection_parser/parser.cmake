@@ -2,9 +2,11 @@ function(setup_python_environment)
     set(PARSER_ENV_DIR parser_env)
     if (WIN32)
         set(Python3_ROOT_DIR "${REFLECTION_PARSER_DIR}/${PARSER_ENV_DIR}/Scripts")
+        set(Python3_FIND_REGISTRY NEVER)
     else()
         set(Python3_ROOT_DIR "${REFLECTION_PARSER_DIR}/${PARSER_ENV_DIR}/bin")
     endif()
+    set(Python3_FIND_STRATEGY LOCATION)
     find_package(Python3)
 
     if (NOT Python3_FOUND)
@@ -13,11 +15,6 @@ function(setup_python_environment)
         message(STATUS "Python found: ${Python3_EXECUTABLE}")
     endif()
 
-    if (WIN32)
-        set(ACTIVATE_COMMAND "${REFLECTION_PARSER_DIR}/${PARSER_ENV_DIR}/Scripts/activate.bat")
-    else()
-        set(ACTIVATE_COMMAND "source ${REFLECTION_PARSER_DIR}/${PARSER_ENV_DIR}/bin/activate")
-    endif()
     message(STATUS "Python environment activate command: ${ACTIVATE_COMMAND}")
 
     set(PYTHON_ENV_SETUP_DONE TRUE PARENT_SCOPE)
@@ -32,7 +29,7 @@ function(add_reflection_parser target_name reflection_search_files generated_cod
 
     string(REPLACE ";" " -I" REFLECTION_SEARCH_INCLUDE_DIRS_ARGS "${reflection_search_include_dirs}")
     set(REFLECTION_SEARCH_INCLUDE_DIRS_ARGS "-I${REFLECTION_SEARCH_INCLUDE_DIRS_ARGS}")
-    set(REFLECTION_PARSER_ARGS "-x c++ -w -MG -M -ferror-limit=0 -std=c++20 -o ${CMAKE_BINARY_DIR}/parser_log.txt ${REFLECTION_SEARCH_INCLUDE_DIRS_ARGS}")
+    set(REFLECTION_PARSER_ARGS "-x c++ -w -MG -M -ferror-limit=0 -std=c++20 --target=x86_64-w64-mingw32 -o ${CMAKE_BINARY_DIR}/parser_log.txt ${REFLECTION_SEARCH_INCLUDE_DIRS_ARGS}")
     message(STATUS "Reflection parser args: ${REFLECTION_PARSER_ARGS}")
 
     set(TASK_STAMPED_FILE "${generated_code_dir}/task_stamped")
@@ -48,8 +45,7 @@ function(add_reflection_parser target_name reflection_search_files generated_cod
 
         COMMAND ${CMAKE_COMMAND} -E echo " ********** Precompile started ********** "
         COMMAND ${CMAKE_COMMAND} -E echo "[Precompile]: run parser python script"
-        COMMAND ${ACTIVATE_COMMAND} &&
-                ${Python3_EXECUTABLE} ${REFLECTION_PARSER_DIR}/parser_main.py
+        COMMAND ${Python3_EXECUTABLE} ${REFLECTION_PARSER_DIR}/parser_main.py
                     --target_name "${target_name}"
                     --reflection_search_files "${reflection_search_files}"
                     --generated_code_dir ${generated_code_dir}/${target_name}
