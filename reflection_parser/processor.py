@@ -198,8 +198,13 @@ def process_file(all_header_file_path: str, files: list, generated_code_dir: str
         raise e
     
     if verbose:
-        diagnostics = tu.diagnostics
-        for diag in diagnostics:
+        print(f"Processing translation unit {tu.spelling}")
+        print("Included files for this translation unit:")
+        for inclusion in tu.get_includes():
+            print(f"    {inclusion.include} @ {inclusion.location.line}")
+
+        print("Generated diagnostics for this translation unit:")
+        for diag in tu.diagnostics:
             severity = diag.severity
             message = diag.spelling
             location = diag.location
@@ -216,7 +221,7 @@ def process_file(all_header_file_path: str, files: list, generated_code_dir: str
                 severity_str = "Fatal"
             else:
                 severity_str = "Unknown"
-            print(f"[parser] {severity_str}: '{filename}' line {location.line} column {location.column}: {message}")
+            print(f"    [parser] {severity_str}: '{filename}' line {location.line} column {location.column}: {message}")
     
     Parser = ReflectionParser()
     Parser.files = [all_header_file_path] + files
