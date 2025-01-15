@@ -236,7 +236,8 @@ def process_file(all_header_file_path: str, files: list, generated_code_dir: str
     if verbose or error_count > 0 or warning_count > 0:
         print("Included files for this translation unit:")
         for inclusion in tu.get_includes():
-            print(f"    {inclusion.include} @ {inclusion.location.line}")
+            print(f"    {inclusion.include}")
+            print(f"        from {inclusion.source} line {inclusion.location.line}")
     
     Parser = ReflectionParser()
     Parser.files = [all_header_file_path] + files
