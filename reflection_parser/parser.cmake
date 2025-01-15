@@ -93,6 +93,12 @@ function(add_reflection_parser target_name reflection_search_files generated_cod
     add_custom_target(${target_name}_generation ALL
         DEPENDS ${TASK_STAMPED_FILE}
     )
+    set_property(
+        TARGET ${target_name}_generation
+        APPEND
+        PROPERTY ADDITIONAL_CLEAN_FILES ${generated_code_dir}
+    )
+
     add_library(${target_name} INTERFACE)
     target_sources(${target_name} INTERFACE ${generated_code_dir}/${target_name}/generated_reflection.cpp)
     target_include_directories(${target_name} INTERFACE ${generated_code_dir})
