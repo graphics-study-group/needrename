@@ -45,10 +45,10 @@ function(add_reflection_parser target_name reflection_search_files generated_cod
 
     if(WIN32)
         # On Windows we have to force clang to use MinGW, since it defaults to MSVC.
-        set(TARGET_TRIPLE "--target=x86_64-w64-mingw32 -stdlib=libstdc++")
+        set(EXTRA_ARGS "--target=x86_64-w64-mingw32 -stdlib=libstdc++")
     else()
         # On other platforms we leave it as default.
-        set(TARGET_TRIPLE "")
+        set(EXTRA_ARGS "")
     endif()
 
     if (REFLECTION_VERBOSE)
@@ -59,7 +59,7 @@ function(add_reflection_parser target_name reflection_search_files generated_cod
 
     string(REPLACE ";" " -I" REFLECTION_SEARCH_INCLUDE_DIRS_ARGS "${reflection_search_include_dirs}")
     set(REFLECTION_SEARCH_INCLUDE_DIRS_ARGS "-I${REFLECTION_SEARCH_INCLUDE_DIRS_ARGS}")
-    set(REFLECTION_PARSER_ARGS "-x c++ -w -MG -M -ferror-limit=0 -std=c++20 ${TARGET_TRIPLE} -o ${CMAKE_BINARY_DIR}/parser_log.txt ${REFLECTION_SEARCH_INCLUDE_DIRS_ARGS}")
+    set(REFLECTION_PARSER_ARGS "-xc++ -MG -M -ferror-limit=0 -std=c++20 ${EXTRA_ARGS} -o ${CMAKE_BINARY_DIR}/parser_log.txt ${REFLECTION_SEARCH_INCLUDE_DIRS_ARGS}")
     message(DEBUG "Reflection parser args: ${REFLECTION_PARSER_ARGS}")
 
     set(TASK_STAMPED_FILE "${generated_code_dir}/task_stamped")

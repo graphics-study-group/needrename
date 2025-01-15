@@ -206,7 +206,7 @@ def process_file(all_header_file_path: str, files: list, generated_code_dir: str
         severity = diag.severity
         message = diag.spelling
         location = diag.location
-        filename = location.file.name
+        filename = location.file.name if location.file else "stdin"
         printed = False
 
         if severity == CX.Diagnostic.Ignored:
@@ -233,7 +233,7 @@ def process_file(all_header_file_path: str, files: list, generated_code_dir: str
             print(f"    [parser] {severity_str}: '{filename}' line {location.line} column {location.column}: {message}")
     print(f"    [parser] {warning_count} warnings, {error_count} errors.")
 
-    if verbose or error_count > 0 or warning_count > 0:
+    if verbose or error_count > 0:
         print("Included files for this translation unit:")
         for inclusion in tu.get_includes():
             print(f"    {inclusion.include}")
