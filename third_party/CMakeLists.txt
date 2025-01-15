@@ -13,7 +13,7 @@ file(GLOB IMGUI_SOURCE
     "${THIRD_PARTY_DIR}/imgui/backends/*_vulkan.cpp"
     "${THIRD_PARTY_DIR}/imgui/backends/*_sdl3.cpp"
 )
-message(STATUS "Found ImGUI files: ${IMGUI_SOURCE}")
+message(DEBUG "Found ImGUI files: ${IMGUI_SOURCE}")
 add_library(imgui ${IMGUI_SOURCE})
 target_link_libraries(imgui PUBLIC SDL3::SDL3 Vulkan::Vulkan)
 target_include_directories(

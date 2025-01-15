@@ -24,9 +24,9 @@ function(setup_python_environment)
     find_package(Python3 COMPONENTS Interpreter)
 
     if (NOT Python3_FOUND)
-        message(FATAL_ERROR "Python not found!")
+        message(FATAL_ERROR "Python not found! Check if venv is setup correctly.")
     else()
-        message(STATUS "Python found: ${Python3_EXECUTABLE}")
+        message(DEBUG "Python found: ${Python3_EXECUTABLE}")
     endif()
     
     if (NOT EXISTS "${REFLECTION_PARSER_DIR}/${PARSER_ENV_DIR}/Lib/site-packages/clang")
@@ -51,10 +51,16 @@ function(add_reflection_parser target_name reflection_search_files generated_cod
         set(TARGET_TRIPLE "")
     endif()
 
+    if (REFLECTION_VERBOSE)
+        set(REFLECTION_VERBOSE --verbose)
+    else()
+        set(REFLECTION_VERBOSE)
+    endif()
+
     string(REPLACE ";" " -I" REFLECTION_SEARCH_INCLUDE_DIRS_ARGS "${reflection_search_include_dirs}")
     set(REFLECTION_SEARCH_INCLUDE_DIRS_ARGS "-I${REFLECTION_SEARCH_INCLUDE_DIRS_ARGS}")
     set(REFLECTION_PARSER_ARGS "-x c++ -w -MG -M -ferror-limit=0 -std=c++20 ${TARGET_TRIPLE} -o ${CMAKE_BINARY_DIR}/parser_log.txt ${REFLECTION_SEARCH_INCLUDE_DIRS_ARGS}")
-    message(STATUS "Reflection parser args: ${REFLECTION_PARSER_ARGS}")
+    message(DEBUG "Reflection parser args: ${REFLECTION_PARSER_ARGS}")
 
     set(TASK_STAMPED_FILE "${generated_code_dir}/task_stamped")
 
@@ -75,7 +81,7 @@ function(add_reflection_parser target_name reflection_search_files generated_cod
                     --generated_code_dir ${generated_code_dir}/${target_name}
                     --reflection_macros_header ${ENGINE_SOURCE_DIR}/Reflection/macros.h
                     --args ${REFLECTION_PARSER_ARGS}
-                    --verbose
+                    ${REFLECTION_VERBOSE}
         COMMAND ${CMAKE_COMMAND} -E touch ${TASK_STAMPED_FILE}
         COMMAND ${CMAKE_COMMAND} -E echo " ********** Precompile finished ********** "
 
