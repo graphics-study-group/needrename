@@ -197,31 +197,46 @@ def process_file(all_header_file_path: str, files: list, generated_code_dir: str
         print(e)
         raise e
     
-    if verbose:
-        print(f"Processing translation unit {tu.spelling}")
+    print(f"Processing translation unit {tu.spelling}")
+    
+    print("Generated diagnostics for this translation unit:")
+
+    warning_count, error_count = 0, 0
+    for diag in tu.diagnostics:
+        severity = diag.severity
+        message = diag.spelling
+        location = diag.location
+        filename = location.file.name
+        printed = False
+
+        if severity == CX.Diagnostic.Ignored:
+            severity_str = "Ignored"
+            printed = verbose
+        elif severity == CX.Diagnostic.Note:
+            severity_str = "Note"
+            printed = verbose
+        elif severity == CX.Diagnostic.Warning:
+            severity_str = "Warning"
+            warning_count += 1
+            printed = True
+        elif severity == CX.Diagnostic.Error:
+            severity_str = "Error"
+            error_count += 1
+            printed = True
+        elif severity == CX.Diagnostic.Fatal:
+            severity_str = "Fatal"
+            printed = True
+        else:
+            raise KeyError(f"Unknown diagnostic type: {message}.")
+        
+        if printed:
+            print(f"    [parser] {severity_str}: '{filename}' line {location.line} column {location.column}: {message}")
+    print(f"    [parser] {warning_count} warnings, {error_count} errors.")
+
+    if verbose or error_count > 0 or warning_count > 0:
         print("Included files for this translation unit:")
         for inclusion in tu.get_includes():
             print(f"    {inclusion.include} @ {inclusion.location.line}")
-
-        print("Generated diagnostics for this translation unit:")
-        for diag in tu.diagnostics:
-            severity = diag.severity
-            message = diag.spelling
-            location = diag.location
-            filename = location.file.name
-            if severity == CX.Diagnostic.Ignored:
-                severity_str = "Ignored"
-            elif severity == CX.Diagnostic.Note:
-                severity_str = "Note"
-            elif severity == CX.Diagnostic.Warning:
-                severity_str = "Warning"
-            elif severity == CX.Diagnostic.Error:
-                severity_str = "Error"
-            elif severity == CX.Diagnostic.Fatal:
-                severity_str = "Fatal"
-            else:
-                severity_str = "Unknown"
-            print(f"    [parser] {severity_str}: '{filename}' line {location.line} column {location.column}: {message}")
     
     Parser = ReflectionParser()
     Parser.files = [all_header_file_path] + files
