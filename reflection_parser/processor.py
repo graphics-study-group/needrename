@@ -201,7 +201,7 @@ def process_file(all_header_file_path: str, files: list, generated_code_dir: str
     
     print("Generated diagnostics for this translation unit:")
 
-    warning_count, error_count = 0, 0
+    warning_count, error_count, fatal_count = 0, 0, 0
     for diag in tu.diagnostics:
         severity = diag.severity
         message = diag.spelling
@@ -225,6 +225,7 @@ def process_file(all_header_file_path: str, files: list, generated_code_dir: str
             printed = True
         elif severity == CX.Diagnostic.Fatal:
             severity_str = "Fatal"
+            fatal_count += 1
             printed = True
         else:
             raise KeyError(f"Unknown diagnostic type: {message}.")
@@ -233,11 +234,14 @@ def process_file(all_header_file_path: str, files: list, generated_code_dir: str
             print(f"    [parser] {severity_str}: '{filename}' line {location.line} column {location.column}: {message}")
     print(f"    [parser] {warning_count} warnings, {error_count} errors.")
 
-    if verbose or error_count > 0:
+    if verbose or error_count > 0 or fatal_count > 0:
         print("Included files for this translation unit:")
         for inclusion in tu.get_includes():
             print(f"    {inclusion.include}")
             print(f"        from {inclusion.source} line {inclusion.location.line}")
+    
+    if error_count > 0 or fatal_count > 0:
+        raise RuntimeError(f"Ill-formed translation unit {tu.spelling}.")
     
     Parser = ReflectionParser()
     Parser.files = [all_header_file_path] + files
