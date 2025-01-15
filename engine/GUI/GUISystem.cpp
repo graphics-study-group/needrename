@@ -74,6 +74,6 @@ namespace Engine {
         };
         info.PipelineRenderingCreateInfo = pipeline;
 
-        assert(ImGui_ImplVulkan_Init(&info) && "Failed to initialize Vulkan backend for ImGui.");
+        if(!ImGui_ImplVulkan_Init(&info)) SDL_LogCritical(0, "Failed to initialize Vulkan backend for ImGui.");
     }
 }

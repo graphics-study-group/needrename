@@ -1,25 +1,41 @@
+function(create_python_venv)
+    # Find system Python3
+    find_package(Python3 COMPONENTS Interpreter)
+    execute_process(COMMAND ${Python3_EXECUTABLE} -m venv "${REFLECTION_PARSER_DIR}/${PARSER_ENV_DIR}")
+endfunction()
+
 function(setup_python_environment)
     set(PARSER_ENV_DIR parser_env)
-    if (WIN32)
-        set(Python3_ROOT_DIR "${REFLECTION_PARSER_DIR}/${PARSER_ENV_DIR}/Scripts")
-        set(Python3_FIND_REGISTRY NEVER)
-    else()
-        set(Python3_ROOT_DIR "${REFLECTION_PARSER_DIR}/${PARSER_ENV_DIR}/bin")
+
+    # Set up venv for the first time
+    if (NOT EXISTS "${REFLECTION_PARSER_DIR}/${PARSER_ENV_DIR}")
+        message(STATUS "Setting up virtual environment for the first time...")
+        create_python_venv()
+        if (NOT EXISTS "${REFLECTION_PARSER_DIR}/${PARSER_ENV_DIR}")
+            message(FATAL_ERROR "Failed to create virtual environment. Please check whether venv is supported and installed.")
+        endif()
     endif()
-    set(Python3_FIND_STRATEGY LOCATION)
-    find_package(Python3)
+
+    # Find Python3 in virtual environment
+    set(ENV{VIRTUAL_ENV} "${REFLECTION_PARSER_DIR}/${PARSER_ENV_DIR}")
+    set(Python3_FIND_VIRTUALENV ONLY)
+    unset(Python3_FOUND)
+    unset(Python3_EXECUTABLE)
+    find_package(Python3 COMPONENTS Interpreter)
 
     if (NOT Python3_FOUND)
-        message(FATAL_ERROR "Python not found!")
+        message(FATAL_ERROR "Python not found! Check if venv is setup correctly.")
     else()
-        message(STATUS "Python found: ${Python3_EXECUTABLE}")
+        message(DEBUG "Python found: ${Python3_EXECUTABLE}")
     endif()
-
-    message(STATUS "Python environment activate command: ${ACTIVATE_COMMAND}")
+    
+    if (NOT EXISTS "${REFLECTION_PARSER_DIR}/${PARSER_ENV_DIR}/Lib/site-packages/clang")
+        message(STATUS "Installing requirements in venv.")
+        execute_process(COMMAND ${Python3_EXECUTABLE} -m pip install -r "${REFLECTION_PARSER_DIR}/requirements.txt")
+    endif()
 
     set(PYTHON_ENV_SETUP_DONE TRUE PARENT_SCOPE)
     set(Python3_EXECUTABLE ${Python3_EXECUTABLE} PARENT_SCOPE)
-    set(ACTIVATE_COMMAND ${ACTIVATE_COMMAND} PARENT_SCOPE)
 endfunction()
 
 function(add_reflection_parser target_name reflection_search_files generated_code_dir reflection_search_include_dirs)
@@ -27,10 +43,26 @@ function(add_reflection_parser target_name reflection_search_files generated_cod
         setup_python_environment()
     endif()
 
+    if(WIN32)
+        # On Windows we have to force clang to use MinGW, since it defaults to MSVC.
+        set(EXTRA_ARGS "--target=x86_64-w64-windows-gnu -stdlib=libstdc++")
+    else()
+        # On other platforms we leave it as default.
+        set(EXTRA_ARGS "")
+    endif()
+    # Define FLT_MAX and FLT_MIN to work around float.h inclusion
+    set(EXTRA_ARGS "${EXTRA_ARGS} -DFLT_MAX -DFLT_MIN")
+
+    if (REFLECTION_VERBOSE)
+        set(REFLECTION_VERBOSE --verbose)
+    else()
+        set(REFLECTION_VERBOSE)
+    endif()
+
     string(REPLACE ";" " -I" REFLECTION_SEARCH_INCLUDE_DIRS_ARGS "${reflection_search_include_dirs}")
     set(REFLECTION_SEARCH_INCLUDE_DIRS_ARGS "-I${REFLECTION_SEARCH_INCLUDE_DIRS_ARGS}")
-    set(REFLECTION_PARSER_ARGS "-x c++ -w -MG -M -ferror-limit=0 -std=c++20 --target=x86_64-w64-mingw32 -o ${CMAKE_BINARY_DIR}/parser_log.txt ${REFLECTION_SEARCH_INCLUDE_DIRS_ARGS}")
-    message(STATUS "Reflection parser args: ${REFLECTION_PARSER_ARGS}")
+    set(REFLECTION_PARSER_ARGS "-xc++ -MG -M -ferror-limit=0 -std=c++20 ${EXTRA_ARGS} -o ${CMAKE_BINARY_DIR}/parser_log.txt ${REFLECTION_SEARCH_INCLUDE_DIRS_ARGS}")
+    message(DEBUG "Reflection parser args: ${REFLECTION_PARSER_ARGS}")
 
     set(TASK_STAMPED_FILE "${generated_code_dir}/task_stamped")
 
@@ -51,7 +83,7 @@ function(add_reflection_parser target_name reflection_search_files generated_cod
                     --generated_code_dir ${generated_code_dir}/${target_name}
                     --reflection_macros_header ${ENGINE_SOURCE_DIR}/Reflection/macros.h
                     --args ${REFLECTION_PARSER_ARGS}
-                    --verbose
+                    ${REFLECTION_VERBOSE}
         COMMAND ${CMAKE_COMMAND} -E touch ${TASK_STAMPED_FILE}
         COMMAND ${CMAKE_COMMAND} -E echo " ********** Precompile finished ********** "
 
@@ -63,6 +95,12 @@ function(add_reflection_parser target_name reflection_search_files generated_cod
     add_custom_target(${target_name}_generation ALL
         DEPENDS ${TASK_STAMPED_FILE}
     )
+    set_property(
+        TARGET ${target_name}_generation
+        APPEND
+        PROPERTY ADDITIONAL_CLEAN_FILES ${generated_code_dir}
+    )
+
     add_library(${target_name} INTERFACE)
     target_sources(${target_name} INTERFACE ${generated_code_dir}/${target_name}/generated_reflection.cpp)
     target_include_directories(${target_name} INTERFACE ${generated_code_dir})
