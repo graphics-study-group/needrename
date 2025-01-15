@@ -45,11 +45,13 @@ function(add_reflection_parser target_name reflection_search_files generated_cod
 
     if(WIN32)
         # On Windows we have to force clang to use MinGW, since it defaults to MSVC.
-        set(EXTRA_ARGS "--target=x86_64-w64-mingw32 -stdlib=libstdc++")
+        set(EXTRA_ARGS "--target=x86_64-w64-windows-gnu -stdlib=libstdc++")
     else()
         # On other platforms we leave it as default.
         set(EXTRA_ARGS "")
     endif()
+    # Define FLT_MAX and FLT_MIN to work around float.h inclusion
+    set(EXTRA_ARGS "${EXTRA_ARGS} -DFLT_MAX -DFLT_MIN")
 
     if (REFLECTION_VERBOSE)
         set(REFLECTION_VERBOSE --verbose)
