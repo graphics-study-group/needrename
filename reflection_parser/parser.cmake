@@ -8,9 +8,12 @@ function(setup_python_environment)
     set(PARSER_ENV_DIR parser_env)
 
     # Set up venv for the first time
-    if (NOT EXISTS "${REFLECTION_PARSER_DIR}/${PARSER_ENV_DIR}/Scripts")
+    if (NOT EXISTS "${REFLECTION_PARSER_DIR}/${PARSER_ENV_DIR}")
         message(STATUS "Setting up virtual environment for the first time...")
         create_python_venv()
+        if (NOT EXISTS "${REFLECTION_PARSER_DIR}/${PARSER_ENV_DIR}")
+            message(FATAL_ERROR "Failed to create virtual environment. Please check whether venv is supported and installed.")
+        endif()
     endif()
 
     # Find Python3 in virtual environment
@@ -25,8 +28,11 @@ function(setup_python_environment)
     else()
         message(STATUS "Python found: ${Python3_EXECUTABLE}")
     endif()
-
-    execute_process(COMMAND ${Python3_EXECUTABLE} -m pip install -r "${REFLECTION_PARSER_DIR}/requirements.txt")
+    
+    if (NOT EXISTS "${REFLECTION_PARSER_DIR}/${PARSER_ENV_DIR}/Lib/site-packages/clang")
+        message(STATUS "Installing requirements in venv.")
+        execute_process(COMMAND ${Python3_EXECUTABLE} -m pip install -r "${REFLECTION_PARSER_DIR}/requirements.txt")
+    endif()
 
     set(PYTHON_ENV_SETUP_DONE TRUE PARENT_SCOPE)
     set(Python3_EXECUTABLE ${Python3_EXECUTABLE} PARENT_SCOPE)
