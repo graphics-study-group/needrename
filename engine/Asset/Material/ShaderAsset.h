@@ -28,6 +28,18 @@ namespace Engine {
             Mat4,
             Texture
         };
+        constexpr size_t SizeOf(Type type) {
+            switch(type) {
+            case Type::Float:
+            case Type::Int:
+                return 4;
+            case Type::Vec4:
+                return 16;
+            case Type::Mat4:
+                return 64;
+            }
+            return 0;
+        }
 
         /// @brief Binding of this uniform, in general 0 for uniform variables in UBOs.
         uint32_t binding;

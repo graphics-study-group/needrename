@@ -15,7 +15,15 @@ namespace Engine{
         vk::FrontFace ToVkFrontFace(FrontFace face);
 
         vk::PipelineRasterizationStateCreateInfo
-        ToVulkanRasterizationStateCreateInfo(MaterialTemplateSinglePassProperties::RasterizerProperties);
+        ToVulkanRasterizationStateCreateInfo(const MaterialTemplateSinglePassProperties::RasterizerProperties &);
+        vk::PipelineDepthStencilStateCreateInfo
+        ToVulkanDepthStencilStateCreateInfo(const MaterialTemplateSinglePassProperties::DSProperties &);
+        vk::PipelineShaderStageCreateInfo
+        ToVulkanShaderStageCreateInfo(const MaterialTemplateSinglePassProperties::Shaders &);
+        vk::PipelineLayoutCreateInfo
+        ToVulkanPipelineLayoutCreateInfo(const MaterialTemplateSinglePassProperties::Shaders &);
+        vk::PipelineRenderingCreateInfo
+        ToVulkanPipelineRenderingCreateInfo(const MaterialTemplateSinglePassProperties::Attachments &);
     }
 }
 

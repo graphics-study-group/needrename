@@ -5,10 +5,32 @@
 #include <Asset/AssetRef.h>
 #include <meta_engine/reflection.hpp>
 
+#include <Render/ImageUtils.h>
 #include <Asset/Material/ShaderAsset.h>
 
 namespace Engine
 {
+    /// @brief Properties for a single pass, contains enough information to create a complete pipeline.
+    /// @details In Vulkan, to create a pipeline, the following information must be supplied: \n 
+    /// 1. Programmable stage configuration for shaders -- `VkPipelineShaderStageCreateInfo` \n 
+    /// 2. How are vertex buffers intepreted -- `VkPipelineVertexInputStateCreateInfo` \n 
+    /// 3. What shape should the vertices draw -- `VkPipelineInputAssemblyStateCreateInfo` \n 
+    /// 4. How to tessellate the primitives -- `VkPipelineTessellationStateCreateInfo` \n 
+    /// 5. What is the view port to be drawn -- `VkPipelineViewportStateCreateInfo` \n 
+    /// 6. How is the rasterizer configured -- `VkPipelineRasterizationStateCreateInfo` \n 
+    /// 7. Whether it needs multisampling -- `VkPipelineMultisampleStateCreateInfo` \n 
+    /// 8. How is depth-stencil test carried out -- `VkPipelineDepthStencilStateCreateInfo` \n 
+    /// 9. How to blend the colors -- `VkPipelineColorBlendStateCreateInfo` \n 
+    /// 10. Among these configurations, which ones are allowed to be dynamic -- `VkPipelineDynamicStateCreateInfo` \n 
+    /// 11. How should global uniform data be passed to the shaders -- `VkPipelineLayout` \n 
+    /// 12. Which pass and subpass should be used, or, in case of dynamic rendering, how are attachments arranged -- `vkPipelineRenderingCreateInfo`. \n 
+    /// Some of these structs can be determined statically when loading the material, and are stored in this struct or left as default.
+    /// And these are either fixed or filled in at run-time: 
+    /// 2nd and 3rd, which are decided based on the mesh to be drawn;
+    /// 5th, which is always dynamic and unspecified until rendering; 
+    /// 7th, which is decided by run-time settings;
+    /// 9th, which is always disabled;
+    /// 10th, which is always fixed to be viewports and scissors.
     struct REFL_SER_CLASS(REFL_WHITELIST) MaterialTemplateSinglePassProperties
     {
         REFL_SER_BODY(MaterialTemplateSinglePassProperties)
@@ -39,8 +61,10 @@ namespace Engine
 
         /// @brief C.f. `vkPipelineDepthStencilStateCreateInfo`
         struct DSProperties {
-            bool ds_write_enabled = true;
-            bool ds_test_enabled = true;
+            bool ds_write_enabled{true};
+            bool ds_test_enabled{true};
+            float min_depth{0.0f};
+            float max_depth{1.0f};
         } depth_stencil;
         
         /// @brief C.f. `vkPipelineShaderStageCreateInfo`
@@ -53,6 +77,15 @@ namespace Engine
             /// @brief stores information regarding layout info, aka descriptors and push constants.
             std::vector <ShaderVariableProperty> uniforms;
         } shaders;
+
+        /// @brief C.f. `vkPipelineRenderingCreateInfo`
+        struct Attachments {
+            /// @brief Color attachments. If left empty, then this struct is ignored
+            /// and the pipeline will be configured to use the current swapchain as attachments.
+            std::vector <ImageUtils::ImageFormat> color;
+            ImageUtils::ImageFormat depth;
+            ImageUtils::ImageFormat stencil;
+        } attachments;
 
         // XXX: We had better support pipeline caches to speed up loading...
         // C.f. `vkGetPipelineCacheData`

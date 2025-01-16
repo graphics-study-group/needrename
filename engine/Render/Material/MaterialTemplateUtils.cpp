@@ -41,7 +41,7 @@ namespace Engine {
             __builtin_unreachable();
         }
 
-        vk::PipelineRasterizationStateCreateInfo ToVulkanRasterizationStateCreateInfo(MaterialTemplateSinglePassProperties::RasterizerProperties prop)
+        vk::PipelineRasterizationStateCreateInfo ToVulkanRasterizationStateCreateInfo(const MaterialTemplateSinglePassProperties::RasterizerProperties & prop)
         {
             vk::PipelineRasterizationStateCreateInfo info{};
             info.depthClampEnable = vk::False;
