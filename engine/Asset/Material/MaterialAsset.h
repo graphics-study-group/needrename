@@ -10,6 +10,8 @@
 #include <Asset/AssetRef.h>
 #include <meta_engine/reflection.hpp>
 
+#include <Asset/Material/ShaderAsset.h>
+
 namespace Engine
 {
     class ObjLoader;  
@@ -18,14 +20,7 @@ namespace Engine
     {
         REFL_SER_BODY(MaterialProperty)
 
-        enum class Type
-        {
-            Float,
-            Int,
-            Vec4,
-            Mat4,
-            Texture
-        };
+        using Type = ShaderVariableProperty::Type;
 
         Type m_type{};
         std::any m_value{};
