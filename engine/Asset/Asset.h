@@ -3,23 +3,22 @@
 
 #include <string>
 #include <filesystem>
-#include "Core/guid.h"
+#include <Core/guid.h>
+#include <meta_engine/reflection.hpp>
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wnon-virtual-dtor"
 
 namespace Engine
 {
     class AssetManager;
     /// @brief Base class for all assets.
-    class Asset
+    class REFL_SER_CLASS(REFL_WHITELIST) Asset : public std::enable_shared_from_this<Asset>
     {
+        REFL_SER_BODY(Asset)
     public:
-        Asset(std::weak_ptr <AssetManager> m_manager);
+        REFL_ENABLE Asset();
         virtual ~Asset();
-
-        /// @brief Load asset from file to the memory
-        virtual void Load();
-
-        /// @brief Unload asset from memory
-        virtual void Unload();
 
         /// @brief Get the path to the asset file
         /// @return path to the asset file
@@ -29,15 +28,23 @@ namespace Engine
         /// @return path to the asset meta file
         virtual std::filesystem::path GetMetaPath();
 
-        inline bool IsValid() const { return m_valid; }
-        inline GUID GetGUID() const { return m_guid; }
-        inline void SetGUID(GUID guid) { m_guid = guid; }
+        /// @brief Not allowed
+        virtual void save_to_archive(Serialization::Archive &archive) const;
+        /// @brief Not allowed
+        virtual void load_from_archive(Serialization::Archive &archive);
+
+        /// @brief Save the asset to the archive. It will call generated save function _SERIALIZATION_SAVE_(). Save all the data of the asset. Usually called by AssetManager
+        virtual void save_asset_to_archive(Serialization::Archive &archive) const;
+        /// @brief Load the asset from the archive. It will call generated load function _SERIALIZATION_LOAD_(). Load all the data of the asset. Usually called by AssetManager
+        virtual void load_asset_from_archive(Serialization::Archive &archive);
+
+        REFL_ENABLE GUID GetGUID() const;
 
     protected:
-        std::weak_ptr <AssetManager> m_manager;
-        bool m_valid = false;
-        GUID m_guid;
+        GUID m_guid{};
     };
 }
+
+#pragma GCC diagnostic pop
 
 #endif // ASSET_ASSET_INCLUDED

@@ -1,0 +1,16 @@
+#include <memory>
+
+namespace Engine
+{
+    namespace Reflection
+    {
+        class Type;
+
+        namespace TypeRegistrar
+        {
+            % for mangled_name in mangled_names:
+            std::shared_ptr<Type> Register_${mangled_name}();
+            % endfor
+        };
+    }
+}

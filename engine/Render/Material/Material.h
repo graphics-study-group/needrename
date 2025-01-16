@@ -8,8 +8,9 @@
 
 namespace Engine {
     class RenderSystem;
+    class AssetRef;
 
-    /// @brief A material at runtime, constructed from MaterialAsset
+    /// @brief A material at runtime, constructed from a AssetRef of MaterialAsset
     class Material
     {
     protected:
@@ -21,6 +22,7 @@ namespace Engine {
 
         std::weak_ptr <RenderSystem> m_system;
         std::vector <MaterialPass> m_passes {};
+        std::shared_ptr <AssetRef> m_asset {};
 
         /// @brief Get global constant descriptor layouts for PipelineLayout construction.
         /// A helper function for constructing pipeline layout.
@@ -29,9 +31,7 @@ namespace Engine {
         std::vector <vk::DescriptorSetLayout> GetGlobalDescriptorSetLayout();
 
     public:
-        // TODO: construct material from MaterialAsset
-
-        Material (std::weak_ptr <RenderSystem> system);
+        Material (std::weak_ptr <RenderSystem> system, std::shared_ptr <AssetRef> asset = nullptr);
         virtual ~Material () = default;
 
         const virtual Pipeline * GetPipeline(uint32_t pass_index) = 0;

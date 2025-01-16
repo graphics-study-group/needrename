@@ -1,0 +1,74 @@
+{
+    "%data": {
+        "&0": {
+            "%type": "Engine::GameObjectAsset",
+            "Asset::m_guid": "64B50FDB8FA5628D605BB3906098F791",
+            "m_MainObject": "&1"
+        },
+        "&1": {
+            "%type": "Engine::GameObject",
+            "m_childGameObject": [],
+            "m_components": [
+                "&2",
+                "&3"
+            ],
+            "m_parentGameObject": null,
+            "m_transformComponent": "&2"
+        },
+        "&2": {
+            "%type": "Engine::TransformComponent",
+            "Component::m_parentGameObject": "&1",
+            "m_transform": {
+                "%type": "Engine::Transform",
+                "m_position": [
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "m_rotation": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0
+                ],
+                "m_scale": [
+                    1.0,
+                    1.0,
+                    1.0
+                ]
+            }
+        },
+        "&3": {
+            "%type": "Engine::MeshComponent",
+            "Component::m_parentGameObject": "&1",
+            "RendererComponent::m_material_assets": [
+                "&4",
+                "&5",
+                "&6",
+                "&7"
+            ],
+            "m_mesh_asset": "&8"
+        },
+        "&4": {
+            "%type": "Engine::AssetRef",
+            "m_guid": "7F978EE240081E5AF7B01401B58B69C7"
+        },
+        "&5": {
+            "%type": "Engine::AssetRef",
+            "m_guid": "6F3CCB482A18788734B10EB911613960"
+        },
+        "&6": {
+            "%type": "Engine::AssetRef",
+            "m_guid": "80EF3C3569A820560F1AB724E8F099A0"
+        },
+        "&7": {
+            "%type": "Engine::AssetRef",
+            "m_guid": "974ECA3CEE4E33F565E07976BDAB15F6"
+        },
+        "&8": {
+            "%type": "Engine::AssetRef",
+            "m_guid": "E52A9FD7CA5EE8E5E4D247F496A388F6"
+        }
+    },
+    "%main_id": "&0"
+}

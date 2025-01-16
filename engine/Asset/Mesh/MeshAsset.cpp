@@ -1,14 +1,11 @@
 #include "MeshAsset.h"
-#include <cereal/cereal.hpp>
-#include <cereal/types/vector.hpp>
-#include <cereal/archives/binary.hpp>
-#include <tiny_obj_loader.h>
 #include <fstream>
 #include <cassert>
+#include <map>
 
 namespace Engine
 {
-    MeshAsset::MeshAsset(std::weak_ptr <AssetManager> manager) : Asset(manager)
+    MeshAsset::MeshAsset()
     {
     }
 
@@ -16,64 +13,98 @@ namespace Engine
     {
     }
 
-    void MeshAsset::Load()
-    {
-        Asset::Load();
-
-        std::filesystem::path mesh_path = GetAssetPath();
-        std::ifstream is(mesh_path, std::ios::binary);
-        if (is.is_open())
-        {
-            cereal::BinaryInputArchive archive(is);
-            archive(*this);
-        }
-        else
-        {
-            throw std::runtime_error("Failed to open file: " + mesh_path.string());
-        }
-    }
-
-    void MeshAsset::Unload()
-    {
-        Asset::Unload();
-        
-        m_offsets.clear();
-        m_triangle_vert_ids.clear();
-        m_triangle_normal_ids.clear();
-        m_triangle_uv_ids.clear();
-        m_positions.clear();
-        m_normals.clear();
-        m_uvs.clear();
-    }
-
-    void MeshAsset::LoadFromTinyobj(const tinyobj::attrib_t &attrib, const std::vector<tinyobj::shape_t> &shapes)
-    {
-        m_positions.clear();
-        m_normals.clear();
-        m_uvs.clear();
-        m_offsets.clear();
-        m_triangle_vert_ids.clear();
-        m_triangle_normal_ids.clear();
-        m_triangle_uv_ids.clear();
-
-        m_positions = attrib.vertices;
-        m_normals = attrib.normals;
-        m_uvs = attrib.texcoords;
-
-        for (const auto &shape : shapes)
-        {
-            m_offsets.push_back(m_triangle_vert_ids.size());
-            for (const auto &index : shape.mesh.indices)
-            {
-                m_triangle_vert_ids.push_back(index.vertex_index);
-                m_triangle_normal_ids.push_back(index.normal_index);
-                m_triangle_uv_ids.push_back(index.texcoord_index);
-            }
-        }
-    }
-
     size_t MeshAsset::GetSubmeshCount() const
     {
-        return m_offsets.size();
+        return m_submeshes.size();
+    }
+
+    uint32_t MeshAsset::GetSubmeshVertexIndexCount(size_t submesh_idx) const
+    {
+        return m_submeshes[submesh_idx].m_indices.size();
+    }
+    uint32_t MeshAsset::GetSubmeshVertexCount(size_t submesh_idx) const
+    {
+        return m_submeshes[submesh_idx].m_positions.size();
+    }
+    uint64_t MeshAsset::GetSubmeshExpectedBufferSize(size_t submesh_idx) const
+    {
+        return GetSubmeshVertexIndexCount(submesh_idx) * sizeof(uint32_t) + GetSubmeshVertexCount(submesh_idx) * VertexStruct::VERTEX_TOTAL_SIZE;
+    }
+
+    void MeshAsset::save_asset_to_archive(Serialization::Archive &archive) const
+    {
+        auto &data = archive.m_context->extra_data;
+        assert(data.empty());
+
+        size_t reserved_size = sizeof(size_t); // submesh count
+        size_t submesh_count = GetSubmeshCount();
+        for(size_t i = 0; i < submesh_count; i++)
+        {
+            reserved_size += sizeof(size_t) * 2 + GetSubmeshExpectedBufferSize(i); // size of indices + size of vertex + all indices and vertex data
+        }
+        data.reserve(reserved_size);
+
+        data.insert(
+            data.end(),
+            reinterpret_cast<const std::byte *>(&submesh_count),
+            reinterpret_cast<const std::byte *>((&submesh_count) + 1));
+        for(size_t i = 0; i < submesh_count; i++)
+        {
+            size_t m_indices_size = m_submeshes[i].m_indices.size();
+            data.insert(
+                data.end(),
+                reinterpret_cast<const std::byte *>(&m_indices_size),
+                reinterpret_cast<const std::byte *>((&m_indices_size) + 1));
+            data.insert(
+                data.end(),
+                reinterpret_cast<const std::byte *>(m_submeshes[i].m_indices.data()),
+                reinterpret_cast<const std::byte *>(m_submeshes[i].m_indices.data() + m_submeshes[i].m_indices.size()));
+
+            size_t m_vertex_size = m_submeshes[i].m_positions.size();
+            data.insert(
+                data.end(),
+                reinterpret_cast<const std::byte *>(&m_vertex_size),
+                reinterpret_cast<const std::byte *>((&m_vertex_size) + 1));
+            data.insert(
+                data.end(),
+                reinterpret_cast<const std::byte *>(m_submeshes[i].m_positions.data()),
+                reinterpret_cast<const std::byte *>(m_submeshes[i].m_positions.data() + m_submeshes[i].m_positions.size()));
+            data.insert(
+                data.end(),
+                reinterpret_cast<const std::byte *>(m_submeshes[i].m_attributes.data()),
+                reinterpret_cast<const std::byte *>(m_submeshes[i].m_attributes.data() + m_submeshes[i].m_attributes.size()));
+        }
+
+        // save base class (such as GUID)
+        Asset::save_asset_to_archive(archive);
+    }
+
+    void MeshAsset::load_asset_from_archive(Serialization::Archive &archive)
+    {
+        auto &data = archive.m_context->extra_data;
+        size_t offset = 0;
+
+        size_t submesh_count = *reinterpret_cast<const size_t *>(&data[offset]);
+        offset += sizeof(size_t);
+        m_submeshes.resize(submesh_count);
+        for(size_t i = 0; i < submesh_count; i++)
+        {
+            size_t m_indices_size = *reinterpret_cast<const size_t *>(&data[offset]);
+            offset += sizeof(size_t);
+            m_submeshes[i].m_indices.resize(m_indices_size);
+            std::memcpy(m_submeshes[i].m_indices.data(), &data[offset], m_indices_size * sizeof(decltype(m_submeshes[i].m_indices)::value_type));
+            offset += m_indices_size * sizeof(decltype(m_submeshes[i].m_indices)::value_type);
+
+            size_t m_vertex_size = *reinterpret_cast<const size_t *>(&data[offset]);
+            offset += sizeof(size_t);
+            m_submeshes[i].m_positions.resize(m_vertex_size);
+            std::memcpy(m_submeshes[i].m_positions.data(), &data[offset], m_vertex_size * sizeof(decltype(m_submeshes[i].m_positions)::value_type));
+            offset += m_vertex_size * sizeof(decltype(m_submeshes[i].m_positions)::value_type);
+            m_submeshes[i].m_attributes.resize(m_vertex_size);
+            std::memcpy(m_submeshes[i].m_attributes.data(), &data[offset], m_vertex_size * sizeof(decltype(m_submeshes[i].m_attributes)::value_type));
+            offset += m_vertex_size * sizeof(decltype(m_submeshes[i].m_attributes)::value_type);
+        }
+
+        Asset::load_asset_from_archive(archive);
     }
 }

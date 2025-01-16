@@ -1,0 +1,77 @@
+{
+    "%data": {
+        "&0": {
+            "%type": "Engine::MaterialAsset",
+            "Asset::m_guid": "6F3CCB482A18788734B10EB911613960",
+            "m_name": "Bunny_Material.002",
+            "m_properties": {
+                "ambient": {
+                    "m_type": "Vec4",
+                    "m_value": [
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0
+                    ]
+                },
+                "diffuse": {
+                    "m_type": "Vec4",
+                    "m_value": [
+                        0.6000000238418579,
+                        0.6000000238418579,
+                        0.6000000238418579,
+                        1.0
+                    ]
+                },
+                "diffuse_texture": {
+                    "m_type": "Texture",
+                    "m_value": "&1"
+                },
+                "dissolve": {
+                    "m_type": "Float",
+                    "m_value": 1.0
+                },
+                "emission": {
+                    "m_type": "Vec4",
+                    "m_value": [
+                        0.0,
+                        0.0,
+                        0.0,
+                        1.0
+                    ]
+                },
+                "ior": {
+                    "m_type": "Float",
+                    "m_value": 1.0
+                },
+                "shininess": {
+                    "m_type": "Float",
+                    "m_value": 96.07845306396484
+                },
+                "specular": {
+                    "m_type": "Vec4",
+                    "m_value": [
+                        0.5,
+                        0.5,
+                        0.5,
+                        1.0
+                    ]
+                },
+                "transmittance": {
+                    "m_type": "Vec4",
+                    "m_value": [
+                        0.0,
+                        0.0,
+                        0.0,
+                        1.0
+                    ]
+                }
+            }
+        },
+        "&1": {
+            "%type": "Engine::AssetRef",
+            "m_guid": "770563372C2A6D85EF12771BD333C774"
+        }
+    },
+    "%main_id": "&0"
+}

@@ -2,23 +2,35 @@
 #define FRAMEWORK_COMPONENT_COMPONENT_INCLUDED
 
 #include <memory>
+#include <meta_engine/reflection.hpp>
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wnon-virtual-dtor"
 
 namespace Engine
 {
     class GameObject;
 
-    class Component
+    class REFL_SER_CLASS(REFL_WHITELIST) Component : public std::enable_shared_from_this<Component>
     {
+        REFL_SER_BODY(Component)
     public:
-        Component(std::weak_ptr<GameObject> gameObject);
-        virtual ~Component();
+        Component() = delete;
+        REFL_ENABLE Component(std::weak_ptr<GameObject> gameObject);
+        virtual ~Component() = default;
 
-        virtual void Load();
-        virtual void Unload();
-        virtual void Tick(float dt) = 0;
+        /// @brief Initialize the component. Called when the parent GameObject before the first Tick after the GameObject is created.
+        virtual void Init();
 
-    protected:
-        std::weak_ptr<GameObject> m_parentGameObject;
+        /// @brief Called every frame.
+        /// @param dt delta time
+        virtual void Tick(float dt);
+
+    public:
+        REFL_SER_ENABLE std::weak_ptr<GameObject> m_parentGameObject{};
     };
 }
+
+#pragma GCC diagnostic pop
+
 #endif // FRAMEWORK_COMPONENT_COMPONENT_INCLUDED

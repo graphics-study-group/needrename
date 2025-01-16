@@ -1,54 +1,42 @@
-#ifndef RESOURCE_MESH_MESH_INCLUDED
-#define RESOURCE_MESH_MESH_INCLUDED
+#ifndef ASSET_MESH_MESHASSET_INCLUDED
+#define ASSET_MESH_MESHASSET_INCLUDED
 
+#include <Asset/Asset.h>
+#include <Render/Renderer/VertexStruct.h>
+#include <meta_engine/reflection.hpp>
 #include <vector>
-#include <filesystem>
-#include <cereal/cereal.hpp>
-#include <cereal/types/vector.hpp>
-#include "tiny_obj_loader.h"
-#include "Asset/Asset.h"
 
 namespace Engine
 {
-    class MeshAsset: public Asset
+    class ObjLoader;
+
+    class REFL_SER_CLASS(REFL_WHITELIST) MeshAsset : public Asset
     {
+        REFL_SER_BODY(MeshAsset)
     public:
-        MeshAsset(std::weak_ptr <AssetManager> manager);
+        REFL_ENABLE MeshAsset();
         virtual ~MeshAsset();
 
-        /// @brief Load mesh data. (no material)
-        virtual void Load() override;
-        virtual void Unload() override;
+        friend class ObjLoader;
 
-        void LoadFromTinyobj(const tinyobj::attrib_t & attrib, const std::vector<tinyobj::shape_t> & shapes);
-
-        size_t GetSubmeshCount() const;
-        inline const std::vector <size_t> & GetOffsets() const { return m_offsets; }
-        inline const std::vector <size_t> & GetTriangle_vert_ids() const { return m_triangle_vert_ids; }
-        inline const std::vector <size_t> & GetTriangle_normal_ids() const { return m_triangle_normal_ids; }
-        inline const std::vector <size_t> & GetTriangle_uv_ids() const { return m_triangle_uv_ids; }
-        inline const std::vector <float> & GetPositions() const { return m_positions; }
-        inline const std::vector <float> & GetNormals() const { return m_normals; }
-        inline const std::vector <float> & GetUVs() const { return m_uvs; }
-    
-    protected:
-        std::vector <size_t> m_offsets {};
-        std::vector <size_t> m_triangle_vert_ids {};
-        std::vector <size_t> m_triangle_normal_ids {};
-        std::vector <size_t> m_triangle_uv_ids {};
-        std::vector <float> m_positions {};
-        std::vector <float> m_normals {};
-        std::vector <float> m_uvs {};
-    
-    private:
-        friend class cereal::access;
-    
-        template <class Archive>
-        void serialize(Archive & ar)
+        struct Submesh
         {
-            ar(m_offsets, m_triangle_vert_ids, m_triangle_normal_ids, m_triangle_uv_ids, m_positions, m_normals, m_uvs);
-        }
+            std::vector<uint32_t> m_indices{};
+            std::vector<VertexStruct::VertexPosition> m_positions{};
+            std::vector<VertexStruct::VertexAttribute> m_attributes{};
+        };
+
+        REFL_ENABLE size_t GetSubmeshCount() const;
+        REFL_ENABLE uint32_t GetSubmeshVertexIndexCount(size_t submesh_idx) const;
+        REFL_ENABLE uint32_t GetSubmeshVertexCount(size_t submesh_idx) const;
+        REFL_ENABLE uint64_t GetSubmeshExpectedBufferSize(size_t submesh_idx) const;
+
+        virtual void save_asset_to_archive(Serialization::Archive &archive) const override;
+        virtual void load_asset_from_archive(Serialization::Archive &archive) override;
+
+        std::string m_name{};
+        std::vector<Submesh> m_submeshes{};
     };
 }
 
-#endif // RESOURCE_MESH_MESH_INCLUDED
+#endif // ASSET_MESH_MESHASSET_INCLUDED

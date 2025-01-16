@@ -6,6 +6,7 @@
 #include <memory>
 #include <vulkan/vulkan.hpp>
 
+#include "Render/Pipeline/RenderTarget/RenderTargetSetup.h"
 #include "Render/Pipeline/CommandBuffer.h"
 #include "Render/RenderSystem/Synch/InflightTwoStageSynch.h"
 
@@ -75,6 +76,8 @@ namespace Engine
 
         uint32_t GetNextImage(uint32_t in_flight_index, uint64_t timeout = std::numeric_limits<uint64_t>::max());
 
+        void Render();
+
         vk::Result Present(uint32_t frame_index, uint32_t in_flight_index);
 
         vk::Instance getInstance() const;
@@ -110,6 +113,7 @@ namespace Engine
         static constexpr const char * validation_layer_name = "VK_LAYER_KHRONOS_validation";
         static constexpr std::array <std::string_view, 1> device_extension_name = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
+        uint32_t m_in_flight_frame_id = 0;
 
         std::weak_ptr <SDLWindow> m_window;
         // TODO: data: mesh, texture, light
@@ -119,6 +123,7 @@ namespace Engine
         RenderSystemState::PhysicalDevice m_selected_physical_device {};
         // Order of declaration effects destructing order!
 
+        std::unique_ptr<RenderTargetSetup> m_render_target_setup {};
         RenderSystemState::Instance m_instance {};
         vk::UniqueSurfaceKHR m_surface{};
         vk::UniqueDevice m_device{};

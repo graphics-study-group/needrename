@@ -10,6 +10,8 @@
 #include "Render/Renderer/HomogeneousMesh.h"
 #include "Render/Material/Material.h"
 #include "Render/Pipeline/CommandBuffer.h"
+#include <MainClass.h>
+#include <GUI/GUISystem.h>
 
 namespace Engine
 {
@@ -32,6 +34,15 @@ namespace Engine
         this->CreateSwapchain();
 
         this->m_allocator_state.Create(shared_from_this());
+
+        this->EnableDepthTesting();
+
+        this->m_render_target_setup = std::make_unique<RenderTargetSetup>(shared_from_this());
+        this->m_render_target_setup->CreateFromSwapchain();
+        this->m_render_target_setup->SetClearValues({
+            vk::ClearValue{vk::ClearColorValue{0.0f, 0.0f, 0.0f, 1.0f}},
+            vk::ClearValue{vk::ClearDepthStencilValue{1.0f, 0U}}
+        });
 
         // Create synchorization semaphores
         this->m_synch = std::make_unique<InFlightTwoStageSynch>(*this, 3);
@@ -152,6 +163,28 @@ namespace Engine
                 );
         }
         return result.value;
+    }
+
+    void RenderSystem::Render()
+    {
+        MainClass::GetInstance()->GetGUISystem()->PrepareGUI();
+
+        WaitForFrameBegin(m_in_flight_frame_id);
+        RenderCommandBuffer & cb = GetGraphicsCommandBuffer(m_in_flight_frame_id);
+        uint32_t index = GetNextImage(m_in_flight_frame_id, 0x7FFFFFFF);
+        cb.Begin();
+        vk::Extent2D extent {GetSwapchain().GetExtent()};
+        cb.BeginRendering(*this->m_render_target_setup, extent, index);
+
+        this->DrawMeshes(m_in_flight_frame_id);
+        MainClass::GetInstance()->GetGUISystem()->DrawGUI(cb);
+
+        cb.EndRendering();
+        cb.End();
+        cb.Submit();
+        Present(index, m_in_flight_frame_id);
+
+        m_in_flight_frame_id = (m_in_flight_frame_id + 1) % 3; // XXX: 3 is hardcoded. (Why 3?)
     }
 
     vk::Result RenderSystem::Present(uint32_t framebuffer_index, uint32_t in_flight_index) {

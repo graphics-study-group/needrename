@@ -1,5 +1,5 @@
 #include "Framework/component/TransformComponent/TransformComponent.h"
-#include "Framework/go/GameObject.h"
+#include <Framework/object/GameObject.h>
 #include "TransformComponent.h"
 
 namespace Engine
@@ -14,7 +14,7 @@ namespace Engine
     {
     }
 
-    void TransformComponent::Tick(float dt)
+    void TransformComponent::Tick(float)
     {
     }
 

@@ -13,21 +13,17 @@
 using namespace Engine;
 namespace sch = std::chrono;
 
-Engine::MainClass * cmc;
-
 int main(int, char **)
 {
     SDL_Init(SDL_INIT_VIDEO);
 
     StartupOptions opt{.resol_x = 1920, .resol_y = 1080, .title = "Vulkan Test"};
 
-    cmc = new Engine::MainClass(
-            SDL_INIT_VIDEO,
-            SDL_LOG_PRIORITY_VERBOSE);
-    cmc->Initialize(&opt);
+    auto cmc = MainClass::GetInstance();
+    cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
 
     auto rsys = cmc->GetRenderSystem();
-    rsys->EnableDepthTesting();
+    // rsys->EnableDepthTesting();
     auto gsys = cmc->GetGUISystem();
 
     RenderTargetSetup rts{rsys};
@@ -76,7 +72,5 @@ int main(int, char **)
     rsys->WaitForIdle();
     rsys->ClearComponent();
 
-    SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "Unloading Main-class");
-    delete cmc;
     return 0;
 }

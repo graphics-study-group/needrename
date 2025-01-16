@@ -1,0 +1,121 @@
+#include <memory>
+#include <typeindex>
+#include <typeinfo>
+#include <Reflection/Type.h>
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+
+namespace Engine
+{
+    namespace Reflection
+    {
+        class Type;
+
+        % for class_type in classes_map.values():
+        std::shared_ptr<Type> TypeRegistrar::Register_${class_type.mangled_name}()
+        {
+            std::shared_ptr<Type> type = std::shared_ptr<Type>(new Type("${class_type.full_name}", true));
+
+            % for constructor in class_type.constructors:
+            type->AddConstructor<\
+                % for i in range(len(constructor.arg_types)):
+${constructor.arg_types[i].full_name}\
+                    % if i < len(constructor.arg_types) - 1:
+, \
+                    % endif
+                % endfor
+>(
+                [](void *obj, void *&ret, const std::vector<void *> &args)
+                { ret = static_cast<void *>(new ${class_type.full_name}(\
+                    % for i in range(len(constructor.arg_types)):
+*reinterpret_cast<std::remove_reference<${constructor.arg_types[i].full_name}>::type *>(args[${i}])\
+                        % if i < len(constructor.arg_types) - 1:
+, \
+                        % endif
+                    % endfor
+)); });
+            % endfor
+
+            % for method in class_type.methods:
+            type->AddMethod<\
+                % for i in range(len(method.arg_types)):
+${method.arg_types[i].full_name}\
+                    % if i < len(method.arg_types) - 1:
+, \
+                    % endif
+                % endfor
+>(
+                "${method.name}",
+                [](void *obj, void *&ret, const std::vector<void *> &args)
+                { \
+                    % if method.return_type_is_reference:
+ret = const_cast<void*>(reinterpret_cast<const void *>(&static_cast<std::remove_reference<${class_type.full_name}>::type *>(obj)->${method.name}(\
+                    % elif method.return_type.name == "void":
+static_cast<std::add_pointer<${class_type.full_name}>::type>(obj)->${method.name}(\
+                    % else:
+std::add_pointer<${method.return_type.full_name}>::type ret_ptr = reinterpret_cast<std::remove_reference<${method.return_type.full_name}>::type *>(malloc(sizeof(${method.return_type.full_name}))); *ret_ptr = static_cast<std::add_pointer<${class_type.full_name}>::type>(obj)->${method.name}(\
+                    % endif
+                    % for i in range(len(method.arg_types)):
+*reinterpret_cast<std::remove_reference<${method.arg_types[i].full_name}>::type *>(args[${i}])\
+                        % if i < len(method.arg_types) - 1:
+, \
+                        % endif
+                    % endfor
+                    % if method.return_type_is_reference:
+))); \
+                    % elif method.return_type.name == "void":
+); \
+                    % else:
+); ret = reinterpret_cast<void *>(ret_ptr);\
+                    % endif
+}, 
+                % if method.is_const:
+                [](const void *obj, void *&ret, const std::vector<void *> &args)
+                { \
+                    % if method.return_type_is_reference:
+ret = const_cast<void*>(reinterpret_cast<const void *>(&static_cast<std::add_const<std::remove_reference<${class_type.full_name}>::type>::type *>(obj)->${method.name}(\
+                    % elif method.return_type.name == "void":
+static_cast<std::add_pointer<std::add_const<${class_type.full_name}>::type>::type>(obj)->${method.name}(\
+                    % else:
+std::add_pointer<${method.return_type.full_name}>::type ret_ptr = reinterpret_cast<std::remove_reference<${method.return_type.full_name}>::type *>(malloc(sizeof(${method.return_type.full_name}))); *ret_ptr = static_cast<std::add_pointer<std::add_const<${class_type.full_name}>::type>::type>(obj)->${method.name}(\
+                    % endif
+                    % for i in range(len(method.arg_types)):
+*reinterpret_cast<std::remove_reference<${method.arg_types[i].full_name}>::type *>(args[${i}])\
+                        % if i < len(method.arg_types) - 1:
+, \
+                        % endif
+                    % endfor
+                    % if method.return_type_is_reference:
+))); \
+                    % elif method.return_type.name == "void":
+); \
+                    % else:
+); ret = reinterpret_cast<void *>(ret_ptr);\
+                    % endif
+}, 
+                % else:
+                nullptr,
+                % endif
+                GetType("${method.return_type.full_name}"));
+            % endfor
+            
+            % for field in class_type.fields:
+            type->AddField(
+                GetType("${field.type.full_name}"),
+                "${field.name}",
+                [](void *obj, void *&ret)
+                { ret = static_cast<void *>(&static_cast<${class_type.full_name} *>(obj)->${field.name}); },
+                [](const void *obj, const void *&ret)
+                { ret = static_cast<const void *>(&static_cast<const ${class_type.full_name} *>(obj)->${field.name}); });
+            % endfor
+
+            Type::s_index_type_map[std::type_index(typeid(${class_type.full_name}))] = type;
+            Type::s_name_index_map.emplace("${class_type.full_name}", std::type_index(typeid(${class_type.full_name})));
+            return type;
+        }
+        % endfor
+    }
+}
+
+#pragma GCC diagnostic pop

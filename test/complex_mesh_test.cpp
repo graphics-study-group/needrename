@@ -8,7 +8,8 @@
 
 #include "MainClass.h"
 #include "Functional/SDLWindow.h"
-#include "Framework/go/GameObject.h"
+#include <Framework/object/GameObject.h>
+#include <Framework/world/WorldSystem.h>
 #include "Framework/component/RenderComponent/CameraComponent.h"
 #include "Framework/component/RenderComponent/MeshComponent.h"
 #include "Render/Memory/Image2DTexture.h"
@@ -18,13 +19,15 @@
 #include "Render/Pipeline/CommandBuffer.h"
 #include "Render/Renderer/HomogeneousMesh.h"
 #include "GUI/GUISystem.h"
+#include <Asset/AssetRef.h>
+#include "Asset/Material/MaterialAsset.h"
+#include <Asset/Mesh/MeshAsset.h>
+#include <Asset/Loader/ObjLoader.h>
 
 #include "cmake_config.h"
 
 using namespace Engine;
 namespace sch = std::chrono;
-
-Engine::MainClass * cmc;
 
 class MeshComponentFromFile : public MeshComponent {
     Transform transform;
@@ -32,8 +35,6 @@ class MeshComponentFromFile : public MeshComponent {
         glm::vec4{0.5, 0.5, 0.5, 4.0}, 
         glm::vec4{0.1, 0.1, 0.1, 1.0}
     };
-    std::vector <std::unique_ptr<AllocatedImage2DTexture>> m_textures {};
-    std::vector <std::filesystem::path> m_texture_files {};
 
     void LoadMesh(std::filesystem::path mesh) {
         tinyobj::ObjReaderConfig reader_config{};
@@ -41,15 +42,6 @@ class MeshComponentFromFile : public MeshComponent {
 
         m_materials.clear();
         m_submeshes.clear();
-
-        // std::shared_ptr mat = std::make_shared<Shadeless>(m_system);
-        // std::shared_ptr hmsh = std::make_shared<HomogeneousMesh>(m_system);
-        // m_materials.push_back(mat);
-        // m_submeshes.push_back(hmsh);
-
-        std::vector <std::vector<VertexStruct::VertexPosition>> positions;
-        std::vector <std::vector<VertexStruct::VertexAttribute>> attributes;
-        std::vector <std::vector<uint32_t>> indices;
 
         if (!reader.ParseFromFile(mesh.string(), reader_config)) {
             SDL_LogCritical(0, "Failed to load OBJ file %s", mesh.string().c_str());
@@ -64,107 +56,91 @@ class MeshComponentFromFile : public MeshComponent {
             SDL_LogWarn(0, "TinyObjLoader reports: %s", reader.Warning().c_str());
         }
 
-        const auto & attrib = reader.GetAttrib();
-        const auto & shapes = reader.GetShapes();
-        const auto & materials = reader.GetMaterials();
+        const auto &attrib = reader.GetAttrib();
+        const auto &origin_shapes = reader.GetShapes();
+        std::vector<tinyobj::shape_t> shapes;
+        const auto &origin_materials = reader.GetMaterials();
+        std::vector<tinyobj::material_t> materials;
 
-        // Process materials
-        m_textures.clear();
-        m_texture_files.clear();
-        for (const auto & material : materials) {
-            auto ptr = std::make_shared<BlinnPhong>(m_system);
-            m_materials.push_back(ptr);
-
-            const std::string & dname = material.diffuse_texname;
-            m_texture_files.push_back(mesh.parent_path() / dname);
-            auto tex_ptr = std::make_unique<AllocatedImage2DTexture>(m_system);
-            m_textures.push_back(std::move(tex_ptr));
-
-            SDL_LogInfo(0, "Material name %s: diffuse map %s.", material.name.c_str(), m_texture_files.rbegin()->string().c_str());
-        }
-        positions.resize(materials.size());
-        attributes.resize(materials.size());
-        indices.resize(materials.size());
-
-        // assert(shapes.size() == 1);
-        for (size_t shp = 0; shp < shapes.size(); shp++) {
-            const auto & shape = shapes[shp];
+        // Split the subshapes by material
+        for (size_t shp = 0; shp < origin_shapes.size(); shp++) {
+            const auto &shape = origin_shapes[shp];
             auto shape_vertices_size = shape.mesh.num_face_vertices.size();
-
+            std::map<int, tinyobj::shape_t> material_id_map;
+            int shape_id = 0;
             for (size_t fc = 0; fc < shape_vertices_size; fc++) {
+                auto &material_id = shape.mesh.material_ids[fc];
+                if (material_id_map.find(material_id) == material_id_map.end()) {
+                    material_id_map[material_id] = tinyobj::shape_t{
+                        .name = shape.name + "_" + std::to_string(shape_id++),
+                        .mesh = tinyobj::mesh_t{},
+                        .lines = tinyobj::lines_t{},
+                        .points = tinyobj::points_t{}
+                    };
+                }
+                auto &new_shape = material_id_map[material_id];
                 unsigned int face_vertex_count = shape.mesh.num_face_vertices[fc];
                 assert(face_vertex_count == 3);
-                // assert(material_id == shape.mesh.material_ids[fc]);
-                auto material_id = shape.mesh.material_ids[fc];
+                new_shape.mesh.num_face_vertices.push_back(face_vertex_count);
+                new_shape.mesh.material_ids.push_back(material_id);
+                new_shape.mesh.smoothing_group_ids.push_back(shape.mesh.smoothing_group_ids[fc]);
                 for (unsigned int vrtx = 0; vrtx < face_vertex_count; vrtx++) {
-                    tinyobj::index_t index = shape.mesh.indices[fc * 3 + vrtx];
-                    // assert(index.vertex_index == index.normal_index && index.vertex_index == index.texcoord_index);
-                    float x{attrib.vertices[size_t(index.vertex_index)*3+0]};
-                    float y{attrib.vertices[size_t(index.vertex_index)*3+1]};
-                    float z{attrib.vertices[size_t(index.vertex_index)*3+2]};
-                    
-                    assert(index.texcoord_index >= 0);
-                    float uv_u{attrib.texcoords[size_t(index.texcoord_index)*2+0]};
-                    float uv_v{attrib.texcoords[size_t(index.texcoord_index)*2+1]};
-                    
-                    assert(index.normal_index >= 0);
-                    float normal_x{attrib.normals[size_t(index.normal_index)*3+0]};
-                    float normal_y{attrib.normals[size_t(index.normal_index)*3+1]};
-                    float normal_z{attrib.normals[size_t(index.normal_index)*3+2]};
-
-                    positions[material_id].push_back(VertexStruct::VertexPosition{.position = {x, y, z}});
-                    attributes[material_id].push_back(VertexStruct::VertexAttribute{
-                        .color = {1.0f, 1.0f, 1.0f}, 
-                        .normal = {normal_x, normal_y, normal_z}, 
-                        .texcoord1 = {uv_u, uv_v}
-                    });
-                    indices[material_id].push_back(positions[material_id].size() - 1);
+                    new_shape.mesh.indices.push_back(shape.mesh.indices[fc * 3 + vrtx]);
                 }
+            }
+            for (const auto & [_, new_shape] : material_id_map) {
+                shapes.push_back(new_shape);
+                materials.push_back(origin_materials[new_shape.mesh.material_ids[0]]);
+                std::fill(
+                    shapes.back().mesh.material_ids.begin(),
+                    shapes.back().mesh.material_ids.end(),
+                    materials.size() - 1
+                );
             }
         }
 
-        for (size_t mat = 0; mat < materials.size(); mat++) {
-            assert(positions[mat].size() % 3 == 0);
-            assert(attributes[mat].size() == positions[mat].size() && positions[mat].size() == indices[mat].size());
-            m_submeshes.push_back(std::make_shared<HomogeneousMesh>(m_system));
-            m_submeshes[mat]->SetPositions(positions[mat]);
-            m_submeshes[mat]->SetAttributes(attributes[mat]);
-            m_submeshes[mat]->SetIndices(indices[mat]);
+        this->m_mesh_asset = std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(std::make_shared<MeshAsset>()));
+        ObjLoader loader;
+        loader.LoadMeshAssetFromTinyObj(*(this->m_mesh_asset->as<MeshAsset>()), attrib, shapes);
+
+        for (const auto & material : materials) {
+            this->m_material_assets.push_back(std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(std::make_shared<MaterialAsset>())));
+            loader.LoadMaterialAssetFromTinyObj(*(this->m_material_assets.back()->as<MaterialAsset>()), material, mesh.parent_path());
+        }
+
+        assert(m_mesh_asset && m_mesh_asset->IsValid());
+        m_submeshes.clear();
+        size_t submesh_count = m_mesh_asset->as<MeshAsset>()->GetSubmeshCount();
+        for (size_t i = 0; i < submesh_count; i++)
+        {
+            m_submeshes.push_back(std::make_shared<HomogeneousMesh>(
+                m_system, m_mesh_asset, i));
+        }
+
+        for (size_t i = 0; i < m_material_assets.size(); i++) {
+            auto ptr = std::make_shared<BlinnPhong>(m_system, m_material_assets[i]);
+            m_materials.push_back(ptr);
         }
     }
 
 public: 
-    MeshComponentFromFile(std::weak_ptr <RenderSystem> system, std::filesystem::path mesh_file_name) 
-    : MeshComponent(std::weak_ptr<GameObject>(), system), transform() {
-        transform.SetPosition(glm::vec3{0.0, 0.0, -0.5});
-        transform.SetScale(glm::vec3{.5f, .5f, .5f});
+    MeshComponentFromFile(std::filesystem::path mesh_file_name) 
+    : MeshComponent(std::weak_ptr<GameObject>()), transform() {
         LoadMesh(mesh_file_name);
 
-        auto & tcb = system.lock()->GetTransferCommandBuffer();
+        auto & tcb = m_system.lock()->GetTransferCommandBuffer();
         tcb.Begin();
         for (auto & submesh : m_submeshes) {
             submesh->Prepare();
             tcb.CommitVertexBuffer(*submesh);
         }
 
-        stbi_set_flip_vertically_on_load(true);
-        for (size_t mat = 0; mat < m_materials.size(); mat++) {
-            // Read images
-            SDL_LogInfo(0, "Processing material slot %llu", mat);
-            int tex_width, tex_height, tex_channel;
-            stbi_uc * raw_image_data = stbi_load(m_texture_files[mat].string().c_str(), &tex_width, &tex_height, &tex_channel, 4);
-            assert(raw_image_data);
-            m_textures[mat]->Create(tex_width, tex_height, ImageUtils::ImageFormat::R8G8B8A8SRGB);
-            tcb.CommitTextureImage(*m_textures[mat], reinterpret_cast<std::byte *>(raw_image_data), tex_width * tex_height * 4);
-
-            // Write descriptors
-            auto mat_ptr = std::dynamic_pointer_cast<BlinnPhong>(m_materials[mat]);
+        for (auto & material : m_materials) {
+            std::shared_ptr<BlinnPhong> mat_ptr = std::dynamic_pointer_cast<BlinnPhong>(material);
             assert(mat_ptr);
-            mat_ptr->UpdateTexture(*m_textures[mat]);
-            mat_ptr->UpdateUniform(m_uniform_data);
-
-            stbi_image_free(raw_image_data);
+            mat_ptr->CommitBuffer(tcb);
         }
+
         tcb.End();
         tcb.SubmitAndExecute();
     }
@@ -201,7 +177,7 @@ struct {
 } g_SceneData {M_PI_2, M_PI_2, 0.5f, 0.5f, 0.5f, 4.0f};
 
 glm::vec3 GetCartesian(float zenith, float azimuth) {
-    static constexpr float RADIUS = 10.0f;
+    static constexpr float RADIUS = 2.0f;
     return glm::vec3{
         RADIUS * sin(zenith) * cos(azimuth),
         RADIUS * sin(zenith) * sin(azimuth),
@@ -254,15 +230,13 @@ int main(int argc, char ** argv)
         if (max_frame_count == 0) return -1;
     }
 
-    StartupOptions opt{.resol_x = 1920, .resol_y = 1080, .title = "Vulkan Test"};
+    StartupOptions opt{.resol_x = 1280, .resol_y = 720, .title = "Vulkan Test"};
 
-    cmc = new Engine::MainClass(
-            SDL_INIT_VIDEO,
-            SDL_LOG_PRIORITY_VERBOSE);
-    cmc->Initialize(&opt);
+    auto cmc = MainClass::GetInstance();
+    cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
 
     auto rsys = cmc->GetRenderSystem();
-    rsys->EnableDepthTesting();
+    // rsys->EnableDepthTesting();
     auto gsys = cmc->GetGUISystem();
 
     RenderTargetSetup rts{rsys};
@@ -273,12 +247,12 @@ int main(int argc, char ** argv)
     });
     
     // Setup mesh
-    std::filesystem::path mesh_path{"C:\\Users\\Vincent Lee\\3D Objects\\furina\\obj\\furina_combined.obj"};
-    std::shared_ptr tmc = std::make_shared<MeshComponentFromFile>(rsys, mesh_path);
+    std::filesystem::path mesh_path{std::string(ENGINE_ASSETS_DIR) + "/four_bunny/four_bunny.obj"};
+    std::shared_ptr tmc = std::make_shared<MeshComponentFromFile>(mesh_path);
     rsys->RegisterComponent(tmc);
 
     // Setup camera
-    auto camera_go = std::make_shared<GameObject>();
+    auto camera_go = cmc->GetWorldSystem()->CreateGameObject<GameObject>();
     Transform transform{};
     transform.SetPosition({0.0f, 1.0f, 0.0f});
     transform.SetRotationEuler(glm::vec3{0.0, 0.0, 3.1415926});
@@ -330,7 +304,7 @@ int main(int argc, char ** argv)
         in_flight_frame_id = (in_flight_frame_id + 1) % 3;
         SDL_Delay(5);
 
-        if (frame_count >= max_frame_count) break;
+        if ((int64_t)frame_count >= max_frame_count) break;
     }
     uint64_t end_timer = SDL_GetPerformanceCounter();
     uint64_t duration = end_timer - start_timer;
@@ -340,6 +314,5 @@ int main(int argc, char ** argv)
     rsys->ClearComponent();
 
     SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "Unloading Main-class");
-    delete cmc;
     return 0;
 }

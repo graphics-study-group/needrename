@@ -1,0 +1,15 @@
+#include "registrar_declare.hpp"
+static void RegisterAllTypes()
+{
+    % for class_type in classes_map.values():
+    auto Type_${class_type.mangled_name} = Engine::Reflection::TypeRegistrar::Register_${class_type.mangled_name}();
+    % endfor
+
+    % for class_type in topological_sorted_types:
+    % for base_type in class_type.base_types:
+    % if base_type.full_name in classes_map:
+    Type_${class_type.mangled_name}->AddBaseType(Type_${classes_map[base_type.full_name].mangled_name});
+    % endif
+    % endfor
+    % endfor
+}

@@ -1,6 +1,8 @@
 #ifndef SDL_EXCEPTION_H_INCLUDED
 #define SDL_EXCEPTION_H_INCLUDED
 
+#include "exception.h"
+
 namespace Exception::SDLExceptions
 {
 class cant_init : public SDLException

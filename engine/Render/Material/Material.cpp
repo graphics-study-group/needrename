@@ -6,8 +6,8 @@ namespace Engine {
         const auto & pool = m_system.lock()->GetGlobalConstantDescriptorPool();
         return {pool.GetPerSceneConstantLayout().get(), pool.GetPerCameraConstantLayout().get()};
     }
-    Material::Material (std::weak_ptr<RenderSystem> system) 
-    : m_system(system) {
+    Material::Material (std::weak_ptr<RenderSystem> system, std::shared_ptr <AssetRef> asset) 
+    : m_system(system), m_asset(asset) {
     }
     const PipelineLayout * Material::GetPipelineLayout(uint32_t pass_index) const {
         assert(pass_index < m_passes.size());

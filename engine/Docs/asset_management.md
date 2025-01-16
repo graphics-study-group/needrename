@@ -1,15 +1,30 @@
 # Asset Management
 
-The asset management system is responsible for handling various types of game assets, such as textures, models, materials, and game object prefabs. It ensures that these assets are efficiently loaded, managed, and utilized during the game's runtime.
+The Asset Management system is responsible for handling various types of game assets, such as textures, models, materials, and game object prefabs. It ensures that these assets are efficiently loaded, managed, and utilized during the game's runtime.
 
-## How an External Resource Operates Within a Game
+## Structure and Workflow
 
-Taking an OBJ format model as an example:
-
-Firstly, when the engine is running, it loads a project folder and reads the existing assets within the project.
-
-When the project imports an external OBJ model resource, the *Asset Manager* reads the external OBJ resource, retrieves the associated triangular mesh model data, material data, and texture data, converts it into the game's internal asset format, and assigns a *Globally Unique Identifier* (GUID). It is stored in the ```assets``` directory of the project folder, with each resource becoming a ```name.type.asset``` file, which may include a ```name.type``` data file if necessary, where .asset is in ```JSON``` format. The ```.asset``` file stores the asset's reference relationships (represented by GUIDs) and some basic data. At this time, the Asset Manager will also import the asset into the system, which is a mapping from a GUID to a path.
-
-When the engine loads a *level*, the level will call all internal *GameObject*s to load all their assets. At this point, all assets will query the path through the GUID to the Asset Manager, read the referenced resource files, and load them into memory or video memory.
-
-After the loading is complete, when the world system calls *Tick*, these *GameObject*s can operate within the game.
+1. **`Asset` Identification and GUID**
+    - Every `Asset` has a unique `GUID` (Globally Unique Identifier), which is stored both in the runtime structure and in the asset file.
+    - The `AssetManager` keeps a mapping between `GUID` and file paths, ensuring assets can be located and loaded correctly.
+2. **Serialization of `Asset`s**
+    - `Asset`s utilize the serialization system for storage and retrieval. However, direct serialization using standard `serialize` functions is **not supported**.
+    - `Asset` serialization must be handled exclusively through the `AssetManager`. Attempting to serialize an `Asset` directly will invoke the pre-defined custom serialization functions (`save_to_archive` and `load_from_archive`) and result in a runtime error.
+    - The `AssetManager` handles asset storage and loading by invoking the `Asset`'s **`save_asset_to_archive`** and **`load_asset_from_archive`** functions.
+    - When other types (e.g., `GameObject`) try to reference an `Asset`, the `AssetRef` class should be used.
+        - **`AssetRef`** stores a smart pointer to the `Asset` and its globally unique identifier (GUID). Initially, the pointer is null.
+        - During serialization, only the GUID is stored.
+        - During deserialization:
+            1. `AssetRef` places itself into the `AssetManager`'s "pending load" queue.
+            2. At a later point, `AssetManager` locates the corresponding asset using its GUID.
+            3. `AssetManager` allocates memory for the `Asset` using its internal memory management system and invokes the `load_asset_from_archive` function to initialize it.
+            4. The `AssetRef`'s pointer is then updated to the loaded `Asset`, marking it as fully initialized.
+3. **Custom `Asset` Serialization**
+    - The `save_asset_to_archive` and `load_asset_from_archive` functions will call generated deserialization logic for derived `Asset` classes. These functions automatically store and retrieve the member variables of the classes.
+    - If custom data needs to be stored, these functions can be overridden. However, it's essential to ensure that the `Asset::m_guid` is saved. One can call `Asset::load_asset_from_archive` at the end of the overridden function to ensure this process is followed correctly.
+4. **Project and `Asset` Loading**
+    - When the engine starts, `MainClass::LoadProject` is called. At this point, the `AssetManager` scans the asset folder, builds a mapping between `GUID` and file paths, and prepares the assets for later use.
+    - During game level loading, any additional referenced assets are added to the `AssetManager`'s queue. These assets are then loaded during idle periods. Currently, the system loads and clears the queue at the start of each frame in the main loop (with potential future improvements for background loading).
+5. **Importing External Resources**
+    - When importing external resources (e.g., `.obj` files), the appropriate `Loader` is used to read the external file, convert it into an internal asset format, and store it via the `save_asset_to_archive` function.
+    - For assets like models (`.obj` files), various asset components such as models, materials, and textures are separated. When importing, a `GameObjectAsset` prefab is created to ensure the engine can later place the entire model into the world.

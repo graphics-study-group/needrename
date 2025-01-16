@@ -14,6 +14,7 @@
 
 # binary files
 *.mesh_data filter=lfs diff=lfs merge=lfs
+*.mesh filter=lfs diff=lfs merge=lfs
 *.exe filter=lfs diff=lfs merge=lfs
 *.dll filter=lfs diff=lfs merge=lfs
 *.so filter=lfs diff=lfs merge=lfs
