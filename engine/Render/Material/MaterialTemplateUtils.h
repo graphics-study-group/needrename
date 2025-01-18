@@ -3,6 +3,7 @@
 
 #include <vulkan/vulkan.hpp>
 #include <Asset/Material/MaterialTemplateAsset.h>
+#include <Asset/Material/ShaderAsset.h>
 
 namespace Engine{
     namespace MaterialTemplateUtils{
@@ -14,14 +15,21 @@ namespace Engine{
         vk::CullModeFlags ToVkCullMode(CullingMode mode);
         vk::FrontFace ToVkFrontFace(FrontFace face);
 
+        vk::ShaderStageFlagBits
+        ToVulkanShaderStageFlagBits(ShaderAsset::ShaderType type);
+
         vk::PipelineRasterizationStateCreateInfo
         ToVulkanRasterizationStateCreateInfo(const MaterialTemplateSinglePassProperties::RasterizerProperties &);
         vk::PipelineDepthStencilStateCreateInfo
         ToVulkanDepthStencilStateCreateInfo(const MaterialTemplateSinglePassProperties::DSProperties &);
+
+        std::vector<vk::DescriptorSetLayoutBinding>
+        ToVulkanDescriptorSetLayoutBindings(const MaterialTemplateSinglePassProperties::Shaders &, vk::Sampler default_sampler);
         vk::PipelineShaderStageCreateInfo
-        ToVulkanShaderStageCreateInfo(const MaterialTemplateSinglePassProperties::Shaders &);
+        ToVulkanShaderStageCreateInfo(const MaterialTemplateSinglePassProperties::Shaders &, std::vector<vk::UniqueShaderModule> &);
         vk::PipelineLayoutCreateInfo
         ToVulkanPipelineLayoutCreateInfo(const MaterialTemplateSinglePassProperties::Shaders &);
+
         vk::PipelineRenderingCreateInfo
         ToVulkanPipelineRenderingCreateInfo(const MaterialTemplateSinglePassProperties::Attachments &);
     }

@@ -1,4 +1,6 @@
 #include "MaterialTemplateUtils.h"
+#include <ranges>
+#include <SDL3/SDL.h>
 
 namespace Engine {
     namespace MaterialTemplateUtils {
@@ -41,6 +43,19 @@ namespace Engine {
             __builtin_unreachable();
         }
 
+        vk::ShaderStageFlagBits ToVulkanShaderStageFlagBits(ShaderAsset::ShaderType type)
+        {
+            using Type = ShaderAsset::ShaderType;
+            switch(type) {
+            case Type::Fragment:
+                return vk::ShaderStageFlagBits::eFragment;
+            case Type::Vertex:
+                return vk::ShaderStageFlagBits::eVertex;
+            default:
+                return vk::ShaderStageFlagBits::eAll;
+            }
+        }
+
         vk::PipelineRasterizationStateCreateInfo ToVulkanRasterizationStateCreateInfo(const MaterialTemplateSinglePassProperties::RasterizerProperties & prop)
         {
             vk::PipelineRasterizationStateCreateInfo info{};
@@ -52,6 +67,82 @@ namespace Engine {
             info.frontFace = ToVkFrontFace(prop.front);
             info.depthBiasEnable = vk::False;
             return info;
+        }
+
+        vk::PipelineDepthStencilStateCreateInfo
+        ToVulkanDepthStencilStateCreateInfo(const MaterialTemplateSinglePassProperties::DSProperties & p) {
+            vk::PipelineDepthStencilStateCreateInfo info{
+                vk::PipelineDepthStencilStateCreateFlags{}, 
+                p.ds_test_enabled, p.ds_write_enabled,
+                vk::CompareOp::eLess,   // Lower => closer
+                vk::False,
+                vk::False,
+                {}, {},
+                p.min_depth, p.max_depth
+            };
+            return info;
+        }
+
+        std::vector<vk::DescriptorSetLayoutBinding>
+        ToVulkanDescriptorSetLayoutBindings(const MaterialTemplateSinglePassProperties::Shaders & p, vk::Sampler default_sampler){
+            // Filter out non-material descriptors
+            auto material_uniforms_range = std::ranges::take_while_view(
+                p.uniforms, 
+                [](const ShaderVariableProperty & prop) -> bool {
+                    return prop.frequency == ShaderVariableProperty::Frequency::PerMaterial;
+                }
+            );
+
+            std::vector <vk::DescriptorSetLayoutBinding> bindings;
+            // Prepare default UBO
+            bindings.push_back(vk::DescriptorSetLayoutBinding{
+                0,
+                vk::DescriptorType::eUniformBuffer,
+                1,
+                vk::ShaderStageFlagBits::eAll,
+                {}
+            });
+            for (const ShaderVariableProperty & prop : material_uniforms_range) {
+
+                if (prop.binding == 0) {
+                    if (!ShaderVariableProperty::InUBO(prop.type)) {
+                        SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Non-UBO descriptor occupying UBO binding. This descriptor is ignored.");
+                    }
+                    continue;
+                }
+
+                if (ShaderVariableProperty::InUBO(prop.type)) {
+                    SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "UBO descriptor not in binding zero. This descriptor is ignored.");
+                    continue;
+                }
+                if (prop.offset != 0) {
+                    SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Non-zero offset for uniforms outside UBO. Offset is ignored.");
+                }
+                bindings.push_back(vk::DescriptorSetLayoutBinding{
+                    prop.binding,
+                    vk::DescriptorType::eCombinedImageSampler,
+                    1,
+                    vk::ShaderStageFlagBits::eAll,
+                    // vkSampler is a handle. Taking its address should be fine.
+                    { &default_sampler }
+                });
+            }
+            return bindings;
+        }
+
+        vk::PipelineShaderStageCreateInfo
+        ToVulkanShaderStageCreateInfo(const MaterialTemplateSinglePassProperties::Shaders & p, std::vector<vk::UniqueShaderModule> & v) {
+            v.clear();
+        }
+
+        vk::PipelineLayoutCreateInfo
+        ToVulkanPipelineLayoutCreateInfo(const MaterialTemplateSinglePassProperties::Shaders & p) {
+
+        }
+
+        vk::PipelineRenderingCreateInfo
+        ToVulkanPipelineRenderingCreateInfo(const MaterialTemplateSinglePassProperties::Attachments & p){
+
         }
     }
 };
