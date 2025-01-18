@@ -70,21 +70,25 @@ namespace Engine
         /// @brief C.f. `vkPipelineShaderStageCreateInfo`
         struct Shaders {
             /// @brief A vector of all shader programs used in the pipeline
-            std::vector <AssetRef> shaders;
+            std::vector <AssetRef> shaders {};
             // TODO: Support shader specialization
             // std::vector <...> specialization;
 
-            /// @brief stores information regarding layout info, aka descriptors and push constants.
-            std::vector <ShaderVariableProperty> uniforms;
-        } shaders;
+            /// @brief stores information regarding layout info, aka descriptors, shared across all stages.
+            std::vector <ShaderVariableProperty> uniforms {};
+        } shaders {};
 
         /// @brief C.f. `vkPipelineRenderingCreateInfo`
+        /// Use UNDEFINED image format to adapt to swapchain.
         struct Attachments {
             /// @brief Color attachments. If left empty, then this struct is ignored
             /// and the pipeline will be configured to use the current swapchain as attachments.
-            std::vector <ImageUtils::ImageFormat> color;
-            ImageUtils::ImageFormat depth;
-            ImageUtils::ImageFormat stencil;
+            std::vector <ImageUtils::ImageFormat> color {};
+            std::vector <AttachmentUtils::AttachmentOp> color_ops {};
+
+            ImageUtils::ImageFormat depth {};
+            ImageUtils::ImageFormat stencil {};
+            AttachmentUtils::AttachmentOp ds_ops {};
         } attachments;
 
         // XXX: We had better support pipeline caches to speed up loading...
@@ -97,6 +101,14 @@ namespace Engine
         REFL_SER_BODY(MaterialTemplateProperties)
 
         std::unordered_map <uint32_t, MaterialTemplateSinglePassProperties> properties;
+    };
+
+    class REFL_SER_CLASS(REFL_WHITELIST) MaterialTemplateAsset : public Asset
+    {
+        REFL_SER_BODY(MaterialTemplateAsset)
+    public:
+        MaterialTemplateProperties properties;
+        std::string name;
     };
 }
 

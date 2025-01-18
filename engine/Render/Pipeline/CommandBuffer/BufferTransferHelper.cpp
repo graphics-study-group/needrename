@@ -32,6 +32,8 @@ namespace Engine {
                 vk::AccessFlagBits2::eTransferWrite
             );
         }
+        // Suppress return-type warning
+        __builtin_unreachable();
     }
     std::pair<vk::PipelineStageFlagBits2, vk::AccessFlags2> BufferTransferHelper::GetScope2(BufferTransferType type)
     {
@@ -57,5 +59,7 @@ namespace Engine {
                 vk::AccessFlagBits2::eShaderStorageRead
             );
         }
+        // Suppress return-type warning
+        __builtin_unreachable();
     }
 }

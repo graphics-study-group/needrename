@@ -12,6 +12,8 @@ namespace Engine {
     /// We manually store them in MaterialTemplateAsset for now.
     struct REFL_SER_CLASS(REFL_WHITELIST) ShaderVariableProperty
     {
+        REFL_SER_BODY(ShaderVariableProperty)
+
         /// @brief How frequently the value this variable changes?
         /// Corresponds to descriptor set index of this variable.
         enum class Frequency {
@@ -27,8 +29,9 @@ namespace Engine {
             Vec4,
             Mat4,
             Texture
-        };
-        constexpr size_t SizeOf(Type type) {
+        } type;
+
+        static constexpr size_t SizeOf(Type type) {
             switch(type) {
             case Type::Float:
             case Type::Int:
@@ -37,11 +40,24 @@ namespace Engine {
                 return 16;
             case Type::Mat4:
                 return 64;
+            default:
+                return 0;
             }
-            return 0;
         }
 
-        /// @brief Binding of this uniform, in general 0 for uniform variables in UBOs.
+        static constexpr bool InUBO (Type type) {
+            switch(type) {
+            case Type::Float:
+            case Type::Int:
+            case Type::Vec4:
+            case Type::Mat4:
+                return true;
+            default:
+                return false;
+            }
+        }
+
+        /// @brief Binding of this uniform, should be 0 for uniform variables in UBOs.
         uint32_t binding;
 
         /// @brief Offset of this uniform variable in UBO.
@@ -58,10 +74,10 @@ namespace Engine {
             None,
             Vertex,
             Fragment
-        } shaderType;
+        } shaderType {ShaderType::None};
 
         // XXX: We currently use filename only. Ideally we should directly store SPIR-V binaries.
-        std::string filename;
+        std::string filename {};
         // std::vector <uint32_t *> binary;
     };
 }
