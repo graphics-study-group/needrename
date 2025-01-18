@@ -9,12 +9,29 @@
 #include "Render/Pipeline/RenderTarget/RenderTargetSetup.h"
 #include "Render/RenderSystem.h"
 #include "GUI/GUISystem.h"
-
 #include "Render/Material/MaterialTemplate.h"
+#include "Render/Renderer/HomogeneousMesh.h"
+#include "Asset/Mesh/MeshAsset.h"
 #include "Asset/Material/MaterialTemplateAsset.h"
 
 using namespace Engine;
 namespace sch = std::chrono;
+
+
+struct TestMeshAsset : public MeshAsset {
+    TestMeshAsset() {
+        this->m_submeshes.resize(1);
+        this->m_submeshes[0] = {
+            .m_indices = {0, 1, 2},
+            .m_positions = {{0.0f, -0.5f, 0.0f}, {0.5f, 0.5f, 0.0f}, {-0.5f, 0.5f, 0.0f}},
+            .m_attributes = {
+                {.color = {1.0f, 0.0f, 0.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {0.0f, 0.0f}}, 
+                {.color = {0.0f, 1.0f, 0.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {0.0f, 0.0f}}, 
+                {.color = {0.0f, 0.0f, 1.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {0.0f, 0.0f}}
+            },
+        };
+    }
+};
 
 struct TestMaterialAsset : public MaterialTemplateAsset {
 
@@ -77,6 +94,11 @@ int main(int argc, char ** argv)
     auto test_asset_ref = std::make_shared<AssetRef>(test_asset);
     MaterialTemplate material_template{rsys, test_asset_ref};
 
+    auto test_mesh_asset = std::make_shared<TestMeshAsset>();
+    auto test_mesh_asset_ref = std::make_shared<AssetRef>(test_mesh_asset);
+    HomogeneousMesh test_mesh{rsys, test_mesh_asset_ref, 0};
+    test_mesh.Prepare();
+
     uint32_t in_flight_frame_id = 0;
     bool quited = false;
     while(max_frame_count--) {
@@ -103,6 +125,10 @@ int main(int argc, char ** argv)
         vk::Extent2D extent {rsys->GetSwapchain().GetExtent()};
         cb.BeginRendering(rts, extent, index);
         gsys->DrawGUI(cb);
+        // We haven't design new command buffer yet, so just use raw vulkan functions for testing.
+        vk::CommandBuffer rcb = cb.get();
+        rcb.bindPipeline(vk::PipelineBindPoint::eGraphics, material_template.GetPipeline(0));
+        cb.DrawMesh(test_mesh);
         cb.EndRendering();
         cb.End();
         cb.Submit();
