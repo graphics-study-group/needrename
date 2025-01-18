@@ -13,8 +13,14 @@
 using namespace Engine;
 namespace sch = std::chrono;
 
-int main(int, char **)
+int main(int argc, char ** argv)
 {
+    int64_t max_frame_count = std::numeric_limits<int64_t>::max();
+    if (argc > 1) {
+        max_frame_count = std::atoll(argv[1]);
+        if (max_frame_count == 0) return -1;
+    }
+
     SDL_Init(SDL_INIT_VIDEO);
 
     StartupOptions opt{.resol_x = 1920, .resol_y = 1080, .title = "Vulkan Test"};
@@ -35,7 +41,7 @@ int main(int, char **)
 
     uint32_t in_flight_frame_id = 0;
     bool quited = false;
-    while(!quited) {
+    while(max_frame_count--) {
         SDL_Event event;
         while(SDL_PollEvent(&event) != 0) {
             switch(event.type) {
@@ -67,6 +73,8 @@ int main(int, char **)
 
         in_flight_frame_id = (in_flight_frame_id + 1) % 3;
         SDL_Delay(10);
+
+        if (quited) break;
     }
 
     rsys->WaitForIdle();
