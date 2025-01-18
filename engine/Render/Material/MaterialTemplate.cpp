@@ -153,4 +153,38 @@ namespace Engine
         ) : m_system(system), m_asset(asset)
     {
     }
+    vk::Pipeline MaterialTemplate::GetPipeline(uint32_t pass_index) const
+    {
+        assert(m_passes.find(pass_index) != m_passes.end() && "Invaild pass index");
+        return m_passes.at(pass_index).pipeline.get();
+    }
+    vk::PipelineLayout MaterialTemplate::GetPipelineLayout(uint32_t pass_index) const
+    {
+        assert(m_passes.find(pass_index) != m_passes.end() && "Invaild pass index");
+        return m_passes.at(pass_index).pipeline_layout.get();
+    }
+    vk::DescriptorSetLayout MaterialTemplate::GetDescriptorSetLayout(uint32_t pass_index) const
+    {
+        assert(m_passes.find(pass_index) != m_passes.end() && "Invaild pass index");
+        return m_passes.at(pass_index).desc_layout.get();
+    }
+    vk::DescriptorSet MaterialTemplate::AllocateDescriptorSet(uint32_t pass_index)
+    {
+        assert(m_passes.find(pass_index) != m_passes.end() && "Invaild pass index");
+        vk::DescriptorSetAllocateInfo dsai {
+            m_poolInfo.pool.get(), {m_passes.at(pass_index).desc_layout.get()}
+        };
+        auto sets = m_system.lock()->getDevice().allocateDescriptorSets(dsai);
+        return sets[0];
+    }
+    AttachmentUtils::AttachmentOp MaterialTemplate::GetDSAttachmentOperation(uint32_t pass_index) const
+    {
+        assert(m_passes.find(pass_index) != m_passes.end() && "Invaild pass index");
+        return m_passes.at(pass_index).attachments.ds_attachment_ops;
+    }
+    AttachmentUtils::AttachmentOp MaterialTemplate::GetColorAttachmentOperation(uint32_t index, uint32_t pass_index) const
+    {
+        assert(m_passes.find(pass_index) != m_passes.end() && "Invaild pass index");
+        return m_passes.at(pass_index).attachments.color_attachment_ops.at(index);
+    }
 } // namespace Engine

@@ -65,8 +65,8 @@ namespace Engine {
         vk::DescriptorSetLayout GetDescriptorSetLayout(uint32_t pass_index = 0) const;
         vk::DescriptorSet AllocateDescriptorSet(uint32_t pass_index = 0);
 
-        AttachmentUtils::AttachmentOp GetDSAttachmentOperation(uint32_t pass_index = 0);
-        AttachmentUtils::AttachmentOp GetColorAttachmentOperation(uint32_t index, uint32_t pass_index = 0);
+        AttachmentUtils::AttachmentOp GetDSAttachmentOperation(uint32_t pass_index = 0) const;
+        AttachmentUtils::AttachmentOp GetColorAttachmentOperation(uint32_t index, uint32_t pass_index = 0) const;
     };
 }
 
