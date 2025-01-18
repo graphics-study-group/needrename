@@ -152,6 +152,11 @@ namespace Engine
         std::shared_ptr<AssetRef> asset
         ) : m_system(system), m_asset(asset)
     {
+        assert(asset);
+        auto mtasset = asset->as<MaterialTemplateAsset>();
+
+        m_name = mtasset->name;
+        CreatePipelines(mtasset->properties);
     }
     vk::Pipeline MaterialTemplate::GetPipeline(uint32_t pass_index) const
     {

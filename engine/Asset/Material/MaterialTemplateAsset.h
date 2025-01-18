@@ -6,6 +6,7 @@
 #include <meta_engine/reflection.hpp>
 
 #include <Render/ImageUtils.h>
+#include <Render/AttachmentUtils.h>
 #include <Asset/Material/ShaderAsset.h>
 
 namespace Engine
@@ -34,6 +35,9 @@ namespace Engine
     struct REFL_SER_CLASS(REFL_WHITELIST) MaterialTemplateSinglePassProperties
     {
         REFL_SER_BODY(MaterialTemplateSinglePassProperties)
+
+        MaterialTemplateSinglePassProperties() = default;
+        virtual ~MaterialTemplateSinglePassProperties() = default;
 
         /// @brief C.f. `vkPipelineRasterizationStateCreateInfo`
         struct RasterizerProperties {
@@ -100,7 +104,10 @@ namespace Engine
     {
         REFL_SER_BODY(MaterialTemplateProperties)
 
-        std::unordered_map <uint32_t, MaterialTemplateSinglePassProperties> properties;
+        MaterialTemplateProperties() = default;
+        virtual ~MaterialTemplateProperties() = default;
+
+        std::unordered_map <uint32_t, MaterialTemplateSinglePassProperties> properties {};
     };
 
     class REFL_SER_CLASS(REFL_WHITELIST) MaterialTemplateAsset : public Asset

@@ -87,8 +87,9 @@ namespace Engine {
                 case ImageFormat::R8G8B8A8SRGB:
                 case ImageFormat::D32SFLOAT:
                     return 4;
+                default:
+                    return 0;
             }
-            return 0;
         }
     }
 }
