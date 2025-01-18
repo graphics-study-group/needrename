@@ -61,7 +61,7 @@ namespace Engine
             float line_width{1.0f};
             CullingMode culling{CullingMode::None};
             FrontFace front{FrontFace::Counterclockwise};
-        } rasterizer;
+        } rasterizer {};
 
         /// @brief C.f. `vkPipelineDepthStencilStateCreateInfo`
         struct DSProperties {
@@ -69,7 +69,7 @@ namespace Engine
             bool ds_test_enabled{true};
             float min_depth{0.0f};
             float max_depth{1.0f};
-        } depth_stencil;
+        } depth_stencil {};
         
         /// @brief C.f. `vkPipelineShaderStageCreateInfo`
         struct Shaders {
@@ -93,7 +93,7 @@ namespace Engine
             ImageUtils::ImageFormat depth {};
             ImageUtils::ImageFormat stencil {};
             AttachmentUtils::AttachmentOp ds_ops {};
-        } attachments;
+        } attachments {};
 
         // XXX: We had better support pipeline caches to speed up loading...
         // C.f. `vkGetPipelineCacheData`
@@ -114,6 +114,10 @@ namespace Engine
     {
         REFL_SER_BODY(MaterialTemplateAsset)
     public:
+
+        MaterialTemplateAsset() = default;
+        virtual ~MaterialTemplateAsset() = default;
+
         MaterialTemplateProperties properties;
         std::string name;
     };

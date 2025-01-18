@@ -14,13 +14,16 @@ namespace Engine {
     {
         REFL_SER_BODY(ShaderVariableProperty)
 
+        ShaderVariableProperty() = default;
+        virtual ~ShaderVariableProperty() = default;
+
         /// @brief How frequently the value this variable changes?
         /// Corresponds to descriptor set index of this variable.
         enum class Frequency {
             PerScene = 0,
             PerMaterial = 1,
             PerModel = 2
-        } frequency;
+        } frequency {};
 
         /// @brief what is the type of this variable?
         enum class Type {
@@ -29,7 +32,7 @@ namespace Engine {
             Vec4,
             Mat4,
             Texture
-        } type;
+        } type {};
 
         static constexpr size_t SizeOf(Type type) {
             switch(type) {
@@ -58,11 +61,11 @@ namespace Engine {
         }
 
         /// @brief Binding of this uniform, should be 0 for uniform variables in UBOs.
-        uint32_t binding;
+        uint32_t binding {};
 
         /// @brief Offset of this uniform variable in UBO.
         /// Ignored for non-UBO variables such as textures.
-        uint32_t offset;
+        uint32_t offset {};
     };
 
     class REFL_SER_CLASS(REFL_WHITELIST) ShaderAsset : public Asset {

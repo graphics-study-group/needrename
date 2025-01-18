@@ -16,17 +16,17 @@ namespace Engine {
     class MaterialTemplate {
 
         std::weak_ptr <RenderSystem> m_system;
-        std::shared_ptr <AssetRef> m_asset {};
+        std::shared_ptr <AssetRef> m_asset;
 
         struct PassInfo {
-            vk::UniquePipeline pipeline;
-            vk::UniquePipelineLayout pipeline_layout;
-            vk::UniqueDescriptorSetLayout desc_layout;
-            std::vector <vk::UniqueShaderModule> shaders;
+            vk::UniquePipeline pipeline {};
+            vk::UniquePipelineLayout pipeline_layout {};
+            vk::UniqueDescriptorSetLayout desc_layout {};
+            std::vector <vk::UniqueShaderModule> shaders {};
 
             struct {
-                std::vector <AttachmentUtils::AttachmentOp> color_attachment_ops;
-                AttachmentUtils::AttachmentOp ds_attachment_ops;
+                std::vector <AttachmentUtils::AttachmentOp> color_attachment_ops {};
+                AttachmentUtils::AttachmentOp ds_attachment_ops {};
             } attachments;
 
             constexpr static std::array<vk::DynamicState, 2> PIPELINE_DYNAMIC_STATES = {
