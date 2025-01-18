@@ -23,7 +23,7 @@ struct TestMeshAsset : public MeshAsset {
         this->m_submeshes.resize(1);
         this->m_submeshes[0] = {
             .m_indices = {0, 1, 2},
-            .m_positions = {{0.0f, -0.5f, 0.0f}, {0.5f, 0.5f, 0.0f}, {-0.5f, 0.5f, 0.0f}},
+            .m_positions = {{0.0f, -0.5f, 0.5f}, {0.5f, 0.5f, 0.5f}, {-0.5f, 0.5f, 0.5f}},
             .m_attributes = {
                 {.color = {1.0f, 0.0f, 0.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {0.0f, 0.0f}}, 
                 {.color = {0.0f, 1.0f, 0.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {0.0f, 0.0f}}, 
@@ -80,7 +80,6 @@ int main(int argc, char ** argv)
 
     auto rsys = cmc->GetRenderSystem();
     // rsys->EnableDepthTesting();
-    auto gsys = cmc->GetGUISystem();
 
     RenderTargetSetup rts{rsys};
     rts.CreateFromSwapchain();
@@ -99,6 +98,12 @@ int main(int argc, char ** argv)
     HomogeneousMesh test_mesh{rsys, test_mesh_asset_ref, 0};
     test_mesh.Prepare();
 
+    auto & tcb = rsys->GetTransferCommandBuffer();
+    tcb.Begin();
+    tcb.CommitVertexBuffer(test_mesh);
+    tcb.End();
+    tcb.SubmitAndExecute();
+
     uint32_t in_flight_frame_id = 0;
     bool quited = false;
     while(max_frame_count--) {
@@ -109,11 +114,7 @@ int main(int argc, char ** argv)
                 quited = true;
                 break;
             }
-            gsys->ProcessEvent(&event);
         }
-        
-        gsys->PrepareGUI();
-        ImGui::ShowDemoWindow();
 
         rsys->WaitForFrameBegin(in_flight_frame_id);
         RenderCommandBuffer & cb = rsys->GetGraphicsCommandBuffer(in_flight_frame_id);
@@ -122,14 +123,19 @@ int main(int argc, char ** argv)
         assert(index < 3);
     
         cb.Begin();
+
         vk::Extent2D extent {rsys->GetSwapchain().GetExtent()};
+        vk::Rect2D scissor{{0, 0}, extent};
         cb.BeginRendering(rts, extent, index);
-        gsys->DrawGUI(cb);
+
+        cb.SetupViewport(extent.width, extent.height, scissor);
         // We haven't design new command buffer yet, so just use raw vulkan functions for testing.
         vk::CommandBuffer rcb = cb.get();
         rcb.bindPipeline(vk::PipelineBindPoint::eGraphics, material_template.GetPipeline(0));
         cb.DrawMesh(test_mesh);
+
         cb.EndRendering();
+
         cb.End();
         cb.Submit();
 

@@ -40,10 +40,11 @@ namespace Engine
             };
             pass_info.desc_layout = device.createDescriptorSetLayoutUnique(dslci);
 
-            vk::PipelineLayoutCreateInfo plci;
             std::array <vk::PushConstantRange, 1> push_constants{ConstantData::PerModelConstantPushConstant::GetPushConstantRange()};
             std::vector <vk::DescriptorSetLayout> set_layouts{pool.GetPerSceneConstantLayout().get(), pool.GetPerCameraConstantLayout().get()};
             set_layouts.push_back(pass_info.desc_layout.get());
+
+            vk::PipelineLayoutCreateInfo plci{{}, set_layouts, push_constants};
             pass_info.pipeline_layout = device.createPipelineLayoutUnique(plci);
         }
 
@@ -84,7 +85,17 @@ namespace Engine
         // Fill in attachment information
         if (use_swapchain_attachments) {
             prci = m_system.lock()->GetSwapchain().GetPipelineRenderingCreateInfo();
-            cbass.push_back({vk::False});
+            cbass.push_back(
+                vk::PipelineColorBlendAttachmentState{
+                    vk::False,
+                    vk::BlendFactor::eSrcAlpha, vk::BlendFactor::eOneMinusSrcAlpha, vk::BlendOp::eAdd,
+                    vk::BlendFactor::eOne, vk::BlendFactor::eZero, vk::BlendOp::eAdd,
+                    vk::ColorComponentFlagBits::eR | 
+                    vk::ColorComponentFlagBits::eG |
+                    vk::ColorComponentFlagBits::eB |
+                    vk::ColorComponentFlagBits::eA
+                }
+            );
             pass_info.attachments.color_attachment_ops.push_back({
                 vk::AttachmentLoadOp::eClear, 
                 vk::AttachmentStoreOp::eStore,
