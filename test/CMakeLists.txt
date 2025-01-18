@@ -57,8 +57,14 @@ add_subdirectory(serialization_test)
 
 add_executable(imgui_test imgui_test.cpp)
 target_link_libraries(imgui_test engine)
-add_test(NAME imgui_test COMMAND imgui_test)
+add_test(NAME imgui_test COMMAND imgui_test 120)
 set_target_properties(imgui_test PROPERTIES FOLDER tests)
+
+add_executable(new_material_test new_material_test.cpp)
+add_dependencies(new_material_test shader)
+target_link_libraries(new_material_test engine)
+add_test(NAME new_material_test COMMAND new_material_test 120)
+set_target_properties(new_material_test PROPERTIES FOLDER tests)
 
 # Copy SDL dll
 add_custom_command(TARGET SDL_init_test POST_BUILD
