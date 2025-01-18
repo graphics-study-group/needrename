@@ -35,12 +35,22 @@ namespace Engine
         template <typename T>
         std::shared_ptr<T> as();
 
+        template <typename T>
+        std::shared_ptr <const T> cas() const;
+
     protected:
         friend class AssetManager;
 
         std::shared_ptr<Asset> m_asset{};
         GUID m_guid{};
     };
+
+    template <typename T>
+    std::shared_ptr<const T> AssetRef::cas() const
+    {
+        static_assert(std::is_base_of<Asset, T>::value, "T must be a derived class of Asset");
+        return std::dynamic_pointer_cast<const T>(m_asset);
+    }
 
     template <typename T>
     std::shared_ptr<T> AssetRef::as()
