@@ -144,6 +144,7 @@ namespace Engine
                 ShaderVariable{
                     .type = uniform.type, 
                     .location = ShaderVariable::Location{
+                        .set = static_cast<uint32_t>(uniform.frequency),
                         .binding = uniform.binding, 
                         .offset = uniform.offset
                     }

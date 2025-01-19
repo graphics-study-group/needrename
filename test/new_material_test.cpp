@@ -68,7 +68,7 @@ struct TestMaterialAsset : public MaterialTemplateAsset {
         prop2.name = "proj";
 
         mtspp.shaders.uniforms = {
-            // prop1, prop2
+            prop1, prop2
         };
         this->properties.properties[0] = mtspp;
     }

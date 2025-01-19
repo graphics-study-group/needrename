@@ -20,6 +20,7 @@ namespace Engine {
 
             Type type {};
             struct Location {
+                uint32_t set {};
                 uint32_t binding {};
                 uint32_t offset {};
             } location {};
