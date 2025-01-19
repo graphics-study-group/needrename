@@ -41,8 +41,11 @@ namespace Engine
             pass_info.desc_layout = device.createDescriptorSetLayoutUnique(dslci);
 
             std::array <vk::PushConstantRange, 1> push_constants{ConstantData::PerModelConstantPushConstant::GetPushConstantRange()};
-            std::vector <vk::DescriptorSetLayout> set_layouts{pool.GetPerSceneConstantLayout().get(), pool.GetPerCameraConstantLayout().get()};
-            set_layouts.push_back(pass_info.desc_layout.get());
+            std::array <vk::DescriptorSetLayout, 3> set_layouts{
+                pool.GetPerSceneConstantLayout().get(), 
+                pool.GetPerCameraConstantLayout().get(),
+                pass_info.desc_layout.get()
+            };
 
             vk::PipelineLayoutCreateInfo plci{{}, set_layouts, push_constants};
             pass_info.pipeline_layout = device.createPipelineLayoutUnique(plci);
@@ -131,6 +134,23 @@ namespace Engine
         pass_info.pipeline = std::move(ret.value);
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Successfully created pass %u for material %s.", pass_index, m_name.c_str());
 
+        // Save uniform locations
+        for (const auto & uniform : prop.shaders.uniforms) {
+            if (pass_info.uniforms.name_mapping.find(uniform.name) != pass_info.uniforms.name_mapping.end()) {
+                SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Found duplicated uniform name %s.", uniform.name.c_str());
+            }
+            pass_info.uniforms.name_mapping[uniform.name] = pass_info.uniforms.variables.size();
+            pass_info.uniforms.variables.push_back(
+                ShaderVariable{
+                    .type = uniform.type, 
+                    .location = ShaderVariable::Location{
+                        .binding = uniform.binding, 
+                        .offset = uniform.offset
+                    }
+                }
+            );
+        }
+
         this->m_passes[pass_index] = std::move(pass_info);
     }
 
@@ -192,6 +212,14 @@ namespace Engine
         };
         auto sets = m_system.lock()->getDevice().allocateDescriptorSets(dsai);
         return sets[0];
+    }
+    const MaterialTemplate::ShaderVariable &MaterialTemplate::GetVariable(const std::string &name, uint32_t pass_index) const
+    {
+        return this->GetVariable(this->m_passes.at(pass_index).uniforms.name_mapping.at(name), pass_index);
+    }
+    const MaterialTemplate::ShaderVariable &MaterialTemplate::GetVariable(uint32_t index, uint32_t pass_index) const
+    {
+        return this->m_passes.at(pass_index).uniforms.variables.at(pass_index);
     }
     AttachmentUtils::AttachmentOp MaterialTemplate::GetDSAttachmentOperation(uint32_t pass_index) const
     {

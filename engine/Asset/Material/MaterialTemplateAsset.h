@@ -118,8 +118,8 @@ namespace Engine
         MaterialTemplateAsset() = default;
         virtual ~MaterialTemplateAsset() = default;
 
-        MaterialTemplateProperties properties;
-        std::string name;
+        MaterialTemplateProperties properties {};
+        std::string name {};
     };
 }
 

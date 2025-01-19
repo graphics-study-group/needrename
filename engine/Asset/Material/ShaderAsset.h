@@ -21,8 +21,9 @@ namespace Engine {
         /// Corresponds to descriptor set index of this variable.
         enum class Frequency {
             PerScene = 0,
-            PerMaterial = 1,
-            PerModel = 2
+            PerCamera = 1,
+            PerMaterial = 2,
+            PerModel = 3
         } frequency {};
 
         /// @brief what is the type of this variable?
@@ -66,6 +67,9 @@ namespace Engine {
         /// @brief Offset of this uniform variable in UBO.
         /// Ignored for non-UBO variables such as textures.
         uint32_t offset {};
+
+        /// @brief Name of this uniform, which can be used as an alternative of binding or offset
+        std::string name {};
     };
 
     class REFL_SER_CLASS(REFL_WHITELIST) ShaderAsset : public Asset {

@@ -9,6 +9,7 @@
 #include "Render/Pipeline/RenderTarget/RenderTargetSetup.h"
 #include "Render/RenderSystem.h"
 #include "GUI/GUISystem.h"
+#include "Render/ConstantData/PerModelConstants.h"
 #include "Render/Material/MaterialTemplate.h"
 #include "Render/Renderer/HomogeneousMesh.h"
 #include "Asset/Mesh/MeshAsset.h"
@@ -46,7 +47,7 @@ struct TestMaterialAsset : public MaterialTemplateAsset {
     void initalize() {
         this->name = "test material";
 
-        this->vertex->filename = "shader/debug_vertex_trig.vert.spv";
+        this->vertex->filename = "shader/debug_vert_trig_transform.vert.spv";
         this->vertex->shaderType = ShaderAsset::ShaderType::Vertex;
         this->fragment->filename = "shader/debug_fragment_color.frag.spv";
         this->fragment->shaderType = ShaderAsset::ShaderType::Fragment;
@@ -56,8 +57,18 @@ struct TestMaterialAsset : public MaterialTemplateAsset {
         MaterialTemplateSinglePassProperties mtspp {};
         std::vector <AssetRef> shaders = { *vertex_ref, *fragment_ref };
         mtspp.shaders.shaders = shaders;
-        mtspp.shaders.uniforms = {
 
+        ShaderVariableProperty prop1, prop2;
+        prop1.frequency = prop2.frequency = ShaderVariableProperty::Frequency::PerCamera;
+        prop1.type = prop2.type = ShaderVariableProperty::Type::Mat4;
+        prop1.binding = prop2.binding = 0;
+        prop1.offset = 0;
+        prop2.offset = 64;
+        prop1.name = "view";
+        prop2.name = "proj";
+
+        mtspp.shaders.uniforms = {
+            // prop1, prop2
         };
         this->properties.properties[0] = mtspp;
     }
@@ -104,6 +115,8 @@ int main(int argc, char ** argv)
     tcb.End();
     tcb.SubmitAndExecute();
 
+    glm::mat4 eye4 = glm::mat4(1.0f);
+
     uint32_t in_flight_frame_id = 0;
     bool quited = false;
     while(max_frame_count--) {
@@ -132,6 +145,32 @@ int main(int argc, char ** argv)
         // We haven't design new command buffer yet, so just use raw vulkan functions for testing.
         vk::CommandBuffer rcb = cb.get();
         rcb.bindPipeline(vk::PipelineBindPoint::eGraphics, material_template.GetPipeline(0));
+        // Push model matrix...
+        rcb.pushConstants(
+            material_template.GetPipelineLayout(0), 
+            vk::ShaderStageFlagBits::eVertex, 
+            0, 
+            ConstantData::PerModelConstantPushConstant::PUSH_RANGE_SIZE,
+            reinterpret_cast<const void *>(&eye4)
+        );
+        // Write view and projection matrices...
+        const auto & global_pool = rsys->GetGlobalConstantDescriptorPool();
+        std::byte * camera_ptr = global_pool.GetPerCameraConstantMemory(in_flight_frame_id);
+        struct {
+            glm::mat4 view{1.0f};
+            glm::mat4 proj{1.0f};
+        } camera_mats;
+        std::memcpy(camera_ptr, &camera_mats, sizeof camera_mats);
+
+        const auto & per_scenc_descriptor_set = global_pool.GetPerSceneConstantSet(in_flight_frame_id);
+        const auto & per_camera_descriptor_set = global_pool.GetPerCameraConstantSet(in_flight_frame_id);
+        rcb.bindDescriptorSets(
+                vk::PipelineBindPoint::eGraphics, 
+                material_template.GetPipelineLayout(0), 
+                0,
+                {per_scenc_descriptor_set, per_camera_descriptor_set},
+                {}
+        );
         cb.DrawMesh(test_mesh);
 
         cb.EndRendering();
