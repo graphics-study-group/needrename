@@ -40,6 +40,7 @@ namespace Engine {
             struct Uniforms {
                 std::unordered_map <std::string, uint32_t> name_mapping {};
                 std::vector <ShaderVariable> variables {};
+                uint64_t maximal_ubo_size {};
             } uniforms {};
 
             constexpr static std::array<vk::DynamicState, 2> PIPELINE_DYNAMIC_STATES = {
@@ -76,18 +77,21 @@ namespace Engine {
         MaterialTemplate (std::weak_ptr <RenderSystem> system, std::shared_ptr <AssetRef> asset = nullptr);
         virtual ~MaterialTemplate () = default;
 
-        MaterialInstance * CreateMaterial();
-
         vk::Pipeline GetPipeline(uint32_t pass_index = 0) const;
         vk::PipelineLayout GetPipelineLayout(uint32_t pass_index = 0) const;
+        auto GetAllPassInfo() const -> const decltype(m_passes) &;
         vk::DescriptorSetLayout GetDescriptorSetLayout(uint32_t pass_index = 0) const;
         vk::DescriptorSet AllocateDescriptorSet(uint32_t pass_index = 0);
     
         const ShaderVariable & GetVariable(const std::string & name, uint32_t pass_index = 0) const;
         const ShaderVariable & GetVariable(uint32_t index, uint32_t pass_index = 0) const;
+        const uint32_t GetVariableIndex(const std::string & name, uint32_t pass_index = 0) const;
     
         AttachmentUtils::AttachmentOp GetDSAttachmentOperation(uint32_t pass_index = 0) const;
         AttachmentUtils::AttachmentOp GetColorAttachmentOperation(uint32_t index, uint32_t pass_index = 0) const;
+
+        uint64_t GetMaximalUBOSize(uint32_t pass_index = 0) const;
+        void PlaceUBOVariables(const MaterialInstance & instance, void * memory, uint32_t pass_index = 0) const;
     };
 }
 

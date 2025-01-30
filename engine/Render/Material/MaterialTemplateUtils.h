@@ -4,9 +4,18 @@
 #include <vulkan/vulkan.hpp>
 #include <Asset/Material/MaterialTemplateAsset.h>
 #include <Asset/Material/ShaderAsset.h>
+#include <unordered_set>
+#include <typeindex>
 
 namespace Engine{
     namespace MaterialTemplateUtils{
+        const static std::unordered_set <std::type_index> REGISTERED_SHADER_UNIFORM_TYPES = {
+            typeid(int),
+            typeid(float),
+            typeid(glm::vec4),
+            typeid(glm::mat4)
+        };
+
         using FillingMode = MaterialTemplateSinglePassProperties::RasterizerProperties::FillingMode;
         using CullingMode = MaterialTemplateSinglePassProperties::RasterizerProperties::CullingMode;
         using FrontFace = MaterialTemplateSinglePassProperties::RasterizerProperties::FrontFace;

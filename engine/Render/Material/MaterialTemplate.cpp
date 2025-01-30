@@ -135,6 +135,7 @@ namespace Engine
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Successfully created pass %u for material %s.", pass_index, m_name.c_str());
 
         // Save uniform locations
+        pass_info.uniforms.maximal_ubo_size = 0ull;
         for (const auto & uniform : prop.shaders.uniforms) {
             if (pass_info.uniforms.name_mapping.find(uniform.name) != pass_info.uniforms.name_mapping.end()) {
                 SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Found duplicated uniform name %s.", uniform.name.c_str());
@@ -150,6 +151,13 @@ namespace Engine
                     }
                 }
             );
+
+            if(uniform.frequency == ShaderVariableProperty::Frequency::PerMaterial) {
+                pass_info.uniforms.maximal_ubo_size = std::max(
+                    pass_info.uniforms.maximal_ubo_size,
+                    uniform.offset + ShaderVariableProperty::SizeOf(uniform.type)
+                );
+            }
         }
 
         this->m_passes[pass_index] = std::move(pass_info);
@@ -200,6 +208,10 @@ namespace Engine
         assert(m_passes.find(pass_index) != m_passes.end() && "Invaild pass index");
         return m_passes.at(pass_index).pipeline_layout.get();
     }
+    auto MaterialTemplate::GetAllPassInfo() const -> const decltype(m_passes) &
+    {
+        return m_passes;
+    }
     vk::DescriptorSetLayout MaterialTemplate::GetDescriptorSetLayout(uint32_t pass_index) const
     {
         assert(m_passes.find(pass_index) != m_passes.end() && "Invaild pass index");
@@ -216,11 +228,16 @@ namespace Engine
     }
     const MaterialTemplate::ShaderVariable &MaterialTemplate::GetVariable(const std::string &name, uint32_t pass_index) const
     {
-        return this->GetVariable(this->m_passes.at(pass_index).uniforms.name_mapping.at(name), pass_index);
+        return this->GetVariable(this->GetVariableIndex(name, pass_index), pass_index);
     }
     const MaterialTemplate::ShaderVariable &MaterialTemplate::GetVariable(uint32_t index, uint32_t pass_index) const
     {
         return this->m_passes.at(pass_index).uniforms.variables.at(pass_index);
+    }
+    const uint32_t MaterialTemplate::GetVariableIndex(const std::string &name, uint32_t pass_index) const
+    {
+        assert(m_passes.find(pass_index) != m_passes.end() && "Invaild pass index");
+        return this->m_passes.at(pass_index).uniforms.name_mapping.at(name);
     }
     AttachmentUtils::AttachmentOp MaterialTemplate::GetDSAttachmentOperation(uint32_t pass_index) const
     {
@@ -231,5 +248,13 @@ namespace Engine
     {
         assert(m_passes.find(pass_index) != m_passes.end() && "Invaild pass index");
         return m_passes.at(pass_index).attachments.color_attachment_ops.at(index);
+    }
+    uint64_t MaterialTemplate::GetMaximalUBOSize(uint32_t pass_index) const
+    {
+        assert(m_passes.find(pass_index) != m_passes.end() && "Invaild pass index");
+        return m_passes.at(pass_index).uniforms.maximal_ubo_size;
+    }
+    void MaterialTemplate::PlaceUBOVariables(const MaterialInstance &instance, void *memory, uint32_t pass_index) const
+    {
     }
 } // namespace Engine
