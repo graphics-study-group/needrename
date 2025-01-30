@@ -24,6 +24,11 @@ namespace Engine {
         }
     }
 
+    auto MaterialInstance::GetVariables(uint32_t pass_index) const -> const decltype(m_variables.at(0)) &
+    {
+        return m_variables.at(pass_index);
+    }
+
     void MaterialInstance::WriteUBOUniform(uint32_t pass, uint32_t index, std::any uniform)
     {
         assert(

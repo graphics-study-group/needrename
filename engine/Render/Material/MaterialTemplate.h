@@ -80,7 +80,14 @@ namespace Engine {
         vk::Pipeline GetPipeline(uint32_t pass_index = 0) const;
         vk::PipelineLayout GetPipelineLayout(uint32_t pass_index = 0) const;
         auto GetAllPassInfo() const -> const decltype(m_passes) &;
+        auto GetPassInfo(uint32_t pass_index) const -> const PassInfo &;
         vk::DescriptorSetLayout GetDescriptorSetLayout(uint32_t pass_index = 0) const;
+
+        /// @brief Allocate a descriptor set with the layout of a given pass index.
+        /// As per Vulkan recommendation, allocated descriptors are generally not required to be cleaned up to speed up allocation.
+        /// When its descriptor pool is de-allocated, all descriptors attached are automatically destroyed.
+        /// @param pass_index 
+        /// @return Allocated descriptor set
         vk::DescriptorSet AllocateDescriptorSet(uint32_t pass_index = 0);
     
         const ShaderVariable & GetVariable(const std::string & name, uint32_t pass_index = 0) const;
@@ -90,7 +97,19 @@ namespace Engine {
         AttachmentUtils::AttachmentOp GetDSAttachmentOperation(uint32_t pass_index = 0) const;
         AttachmentUtils::AttachmentOp GetColorAttachmentOperation(uint32_t index, uint32_t pass_index = 0) const;
 
+        /// @brief Get the maximal UBO size of a given pass, estimated from offsets and types of uniforms.
+        /// Can be used to allocate uniform or staging buffers.
+        /// @param pass_index 
+        /// @return Estimated maximal UBO size
         uint64_t GetMaximalUBOSize(uint32_t pass_index = 0) const;
+
+        /// @brief Place UBO variables at given memory address.
+        /// @param instance material instance saving values of uniforms
+        /// @param memory pointer to a sufficently large buffer. Caller should allocate and de-allocate this buffer.
+        /// @param pass_index 
+        /// @note While it is possible to directly write to UBO using this method, it is not recommended to do so as
+        /// the uniform buffer memory might be sequentially writable but not randomly writable.
+        /// Confer `VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT` for more details.
         void PlaceUBOVariables(const MaterialInstance & instance, void * memory, uint32_t pass_index = 0) const;
     };
 }

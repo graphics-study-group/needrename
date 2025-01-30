@@ -1,9 +1,12 @@
 #include "MaterialTemplate.h"
+#include "MaterialInstance.h"
 #include "Asset/AssetRef.h"
 #include "Render/RenderSystem.h"
 #include "MaterialTemplateUtils.h"
 #include "Render/ConstantData/PerModelConstants.h"
 #include "Render/Renderer/HomogeneousMesh.h"
+
+#include <glm.hpp>
 #include <fstream>
 
 inline std::vector <char> readFile(const std::string& filename) {
@@ -212,6 +215,10 @@ namespace Engine
     {
         return m_passes;
     }
+    auto MaterialTemplate::GetPassInfo(uint32_t pass_index) const -> const PassInfo &
+    {
+        return m_passes.at(pass_index);
+    }
     vk::DescriptorSetLayout MaterialTemplate::GetDescriptorSetLayout(uint32_t pass_index) const
     {
         assert(m_passes.find(pass_index) != m_passes.end() && "Invaild pass index");
@@ -256,5 +263,29 @@ namespace Engine
     }
     void MaterialTemplate::PlaceUBOVariables(const MaterialInstance &instance, void *memory, uint32_t pass_index) const
     {
+        using Type = ShaderVariable::Type;
+        const auto & variables = instance.GetVariables(pass_index);
+        const auto & uniforms = this->GetPassInfo(pass_index).uniforms.variables;
+        for (const auto & [idx, var] : variables) {
+            assert(idx < uniforms.size() && "Uniform variable index is too large.");
+            const auto offset = uniforms[idx].location.offset;
+            switch(uniforms[idx].type) {
+            case Type::Int:
+                *(reinterpret_cast<int*>(memory + offset)) = std::any_cast<int>(var);
+                break;
+            case Type::Float:
+                *(reinterpret_cast<float*>(memory + offset)) = std::any_cast<float>(var);
+                break;
+            case Type::Vec4:
+                // Let's hope it works...
+                *(reinterpret_cast<glm::vec4*>(memory + offset)) = std::any_cast<glm::vec4>(var);
+                break;
+            case Type::Mat4:
+                *(reinterpret_cast<glm::mat4*>(memory + offset)) = std::any_cast<glm::mat4>(var);
+                break;
+            default:
+                SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Unsupported uniform type for index %u of pass %u", idx, pass_index);
+            }
+        }
     }
 } // namespace Engine

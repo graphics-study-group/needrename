@@ -25,6 +25,8 @@ namespace Engine
     public:
         MaterialInstance(std::weak_ptr <RenderSystem> system, std::shared_ptr <MaterialTemplate> tpl);
 
+        auto GetVariables(uint32_t pass_index) const -> const decltype(m_variables.at(0)) &;
+
         /// @brief Set the texture uniform descriptor to point to a given texture.
         /// @param name 
         /// @param texture 
