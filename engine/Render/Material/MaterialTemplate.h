@@ -92,7 +92,7 @@ namespace Engine {
     
         const ShaderVariable & GetVariable(const std::string & name, uint32_t pass_index = 0) const;
         const ShaderVariable & GetVariable(uint32_t index, uint32_t pass_index = 0) const;
-        const uint32_t GetVariableIndex(const std::string & name, uint32_t pass_index = 0) const;
+        uint32_t GetVariableIndex(const std::string & name, uint32_t pass_index = 0) const;
     
         AttachmentUtils::AttachmentOp GetDSAttachmentOperation(uint32_t pass_index = 0) const;
         AttachmentUtils::AttachmentOp GetColorAttachmentOperation(uint32_t index, uint32_t pass_index = 0) const;

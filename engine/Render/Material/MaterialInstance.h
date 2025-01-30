@@ -12,7 +12,7 @@ namespace Engine
     class MaterialInstance {
     public:
         struct PassInfo {
-            Buffer ubo;
+            std::unique_ptr<Buffer> ubo;
             vk::DescriptorSet desc_set;
         };
 
@@ -40,7 +40,7 @@ namespace Engine
 
         /// @brief Write descriptors to GPU.
         /// Should be called before drawing.
-        virtual void PushDescriptors();
+        void PushDescriptors();
     };
 } // namespace Engine
 

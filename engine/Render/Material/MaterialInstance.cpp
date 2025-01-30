@@ -10,14 +10,15 @@ namespace Engine {
     {
         // Allocate uniform buffers and per-material descriptor sets
         for (const auto & [idx, info] : tpl->GetAllPassInfo()) {
-            PassInfo pass{Buffer{system}, {}};
+            PassInfo pass{};
             pass.desc_set = tpl->AllocateDescriptorSet(idx);
 
             auto ubo_size = tpl->GetMaximalUBOSize(idx);
             if (ubo_size == 0) {
-                SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Found zero-sized UBO when processing pass %ull of material", ubo_size);
+                SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Found zero-sized UBO when processing pass %llu of material", ubo_size);
             } else {
-                pass.ubo.Create(Buffer::BufferType::Uniform, tpl->GetMaximalUBOSize(idx));
+                pass.ubo = std::make_unique<Buffer>(system);
+                pass.ubo->Create(Buffer::BufferType::Uniform, tpl->GetMaximalUBOSize(idx));
             }
 
             m_pass_info[idx] = std::move(pass);

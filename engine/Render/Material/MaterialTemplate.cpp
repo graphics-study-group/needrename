@@ -239,9 +239,9 @@ namespace Engine
     }
     const MaterialTemplate::ShaderVariable &MaterialTemplate::GetVariable(uint32_t index, uint32_t pass_index) const
     {
-        return this->m_passes.at(pass_index).uniforms.variables.at(pass_index);
+        return this->m_passes.at(pass_index).uniforms.variables.at(index);
     }
-    const uint32_t MaterialTemplate::GetVariableIndex(const std::string &name, uint32_t pass_index) const
+    uint32_t MaterialTemplate::GetVariableIndex(const std::string &name, uint32_t pass_index) const
     {
         assert(m_passes.find(pass_index) != m_passes.end() && "Invaild pass index");
         return this->m_passes.at(pass_index).uniforms.name_mapping.at(name);
