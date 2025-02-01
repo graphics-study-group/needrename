@@ -24,23 +24,70 @@ namespace Engine{
         vk::CullModeFlags ToVkCullMode(CullingMode mode);
         vk::FrontFace ToVkFrontFace(FrontFace face);
 
+        /**
+         * Converts a ShaderAsset::ShaderType to a Vulkan shader stage flag bits.
+         *
+         * @param type The shader type to convert.
+         * @return The corresponding Vulkan shader stage flag bits.
+         */ 
         vk::ShaderStageFlagBits
         ToVulkanShaderStageFlagBits(ShaderAsset::ShaderType type);
 
+        /**
+         * Converts a MaterialTemplateSinglePassProperties::RasterizerProperties to a Vulkan pipeline rasterization state create info.
+         *
+         * @param props The rasterizer properties to convert.
+         * @return The corresponding Vulkan pipeline rasterization state create info.
+         */
         vk::PipelineRasterizationStateCreateInfo
-        ToVulkanRasterizationStateCreateInfo(const MaterialTemplateSinglePassProperties::RasterizerProperties &);
+        ToVulkanRasterizationStateCreateInfo(const MaterialTemplateSinglePassProperties::RasterizerProperties &props);
+
+        /**
+         * Converts a MaterialTemplateSinglePassProperties::DSProperties to a Vulkan pipeline depth stencil state create info.
+         *
+         * @param props The DS properties to convert.
+         * @return The corresponding Vulkan pipeline depth stencil state create info.
+         */
         vk::PipelineDepthStencilStateCreateInfo
-        ToVulkanDepthStencilStateCreateInfo(const MaterialTemplateSinglePassProperties::DSProperties &);
+        ToVulkanDepthStencilStateCreateInfo(const MaterialTemplateSinglePassProperties::DSProperties &props);
 
+        /**
+         * Converts a MaterialTemplateSinglePassProperties::Shaders and a default sampler to a list of Vulkan descriptor set layout bindings.
+         *
+         * @param shaders The shaders to convert.
+         * @param default_sampler The default sampler to use for the bindings.
+         * @return A list of Vulkan descriptor set layout bindings.
+         */
         std::vector<vk::DescriptorSetLayoutBinding>
-        ToVulkanDescriptorSetLayoutBindings(const MaterialTemplateSinglePassProperties::Shaders &, vk::Sampler default_sampler);
-        vk::PipelineShaderStageCreateInfo
-        ToVulkanShaderStageCreateInfo(const MaterialTemplateSinglePassProperties::Shaders &, std::vector<vk::UniqueShaderModule> &);
-        vk::PipelineLayoutCreateInfo
-        ToVulkanPipelineLayoutCreateInfo(const MaterialTemplateSinglePassProperties::Shaders &);
+        ToVulkanDescriptorSetLayoutBindings(const MaterialTemplateSinglePassProperties::Shaders &shaders, vk::Sampler default_sampler);
 
+        /**
+         * Converts a MaterialTemplateSinglePassProperties::Shaders and a vector of unique shader modules to a Vulkan pipeline shader stage create info.
+         *
+         * @param shaders The shaders to convert.
+         * @param shader_modules The unique shader modules to use for the stages.
+         * @return The corresponding Vulkan pipeline shader stage create info.
+         */
+        vk::PipelineShaderStageCreateInfo
+        ToVulkanShaderStageCreateInfo(const MaterialTemplateSinglePassProperties::Shaders &shaders, std::vector<vk::UniqueShaderModule> &shader_modules);
+
+        /**
+         * Converts a MaterialTemplateSinglePassProperties::Shaders to a Vulkan pipeline layout create info.
+         *
+         * @param shaders The shaders to convert.
+         * @return The corresponding Vulkan pipeline layout create info.
+         */
+        vk::PipelineLayoutCreateInfo
+        ToVulkanPipelineLayoutCreateInfo(const MaterialTemplateSinglePassProperties::Shaders &shaders);
+
+        /**
+         * Converts a MaterialTemplateSinglePassProperties::Attachments to a Vulkan pipeline rendering create info.
+         *
+         * @param attachments The attachments to convert.
+         * @return The corresponding Vulkan pipeline rendering create info.
+         */
         vk::PipelineRenderingCreateInfo
-        ToVulkanPipelineRenderingCreateInfo(const MaterialTemplateSinglePassProperties::Attachments &);
+        ToVulkanPipelineRenderingCreateInfo(const MaterialTemplateSinglePassProperties::Attachments &attachments);
     }
 }
 
