@@ -74,43 +74,133 @@ namespace Engine {
         /// @param props pipeline description from the asset
         void CreatePipelines(const MaterialTemplateProperties & props);
     public:
+        /**
+         * @brief Construct a new Material Template object.
+         * 
+         * @param system The RenderSystem associated with this material template.
+         * @param asset A shared pointer to the AssetRef representing the material template's properties.
+         */
         MaterialTemplate (std::weak_ptr <RenderSystem> system, std::shared_ptr <AssetRef> asset = nullptr);
+
         virtual ~MaterialTemplate () = default;
 
+        /**
+         * @brief Get the pipeline for a specific pass index.
+         * 
+         * @param pass_index The index of the pass to retrieve the pipeline from.
+         * @return vk::Pipeline The pipeline associated with the specified pass index.
+         */
         vk::Pipeline GetPipeline(uint32_t pass_index = 0) const;
+
+        /**
+         * @brief Get the pipeline layout for a specific pass index.
+         * 
+         * @param pass_index The index of the pass to retrieve the pipeline layout from.
+         * @return vk::PipelineLayout The pipeline layout associated with the specified pass index.
+         */
         vk::PipelineLayout GetPipelineLayout(uint32_t pass_index = 0) const;
+
+        /**
+         * @brief Get all pass information.
+         * 
+         * @return const decltype(m_passes) & A reference to a constant unordered_map containing all pass information.
+         */
         auto GetAllPassInfo() const -> const decltype(m_passes) &;
+
+        /**
+         * @brief Get the pass information for a specific pass index.
+         * 
+         * @param pass_index The index of the pass to retrieve the information from.
+         * @return const PassInfo & A constant reference to the PassInfo struct associated with the specified pass index.
+         */
         auto GetPassInfo(uint32_t pass_index) const -> const PassInfo &;
+
+        /**
+         * @brief Get the descriptor set layout for a specific pass index.
+         * 
+         * @param pass_index The index of the pass to retrieve the descriptor set layout from.
+         * @return vk::DescriptorSetLayout The descriptor set layout associated with the specified pass index.
+         */
         vk::DescriptorSetLayout GetDescriptorSetLayout(uint32_t pass_index = 0) const;
 
         /// @brief Allocate a descriptor set with the layout of a given pass index.
         /// As per Vulkan recommendation, allocated descriptors are generally not required to be cleaned up to speed up allocation.
         /// When its descriptor pool is de-allocated, all descriptors attached are automatically destroyed.
-        /// @param pass_index 
+        /// @param pass_index
         /// @return Allocated descriptor set
         vk::DescriptorSet AllocateDescriptorSet(uint32_t pass_index = 0);
     
+        /**
+         * @brief Get a shader variable by name for a specific pass index.
+         * 
+         * @param name The name of the shader variable to retrieve.
+         * @param pass_index The index of the pass to retrieve the shader variable from.
+         * @return const ShaderVariable & A constant reference to the ShaderVariable struct associated with the specified name and pass index.
+         */
         const ShaderVariable & GetVariable(const std::string & name, uint32_t pass_index = 0) const;
+
+        /**
+         * @brief Get a shader variable by index for a specific pass index.
+         * 
+         * @param index The index of the shader variable to retrieve.
+         * @param pass_index The index of the pass to retrieve the shader variable from.
+         * @return const ShaderVariable & A constant reference to the ShaderVariable struct associated with the specified index and pass index.
+         */
         const ShaderVariable & GetVariable(uint32_t index, uint32_t pass_index = 0) const;
+
+        /**
+         * @brief Get the index of a shader variable by name for a specific pass index.
+         * 
+         * @param name The name of the shader variable to retrieve the index for.
+         * @param pass_index The index of the pass to retrieve the index from.
+         * @return uint32_t The index associated with the specified name and pass index.
+         */
         uint32_t GetVariableIndex(const std::string & name, uint32_t pass_index = 0) const;
     
+        /**
+         * @brief Get the depth stencil attachment operation for a specific pass index.
+         * 
+         * @param pass_index The index of the pass to retrieve the depth stencil attachment operation from.
+         * @return AttachmentUtils::AttachmentOp The depth stencil attachment operation associated with the specified pass index.
+         */
         AttachmentUtils::AttachmentOp GetDSAttachmentOperation(uint32_t pass_index = 0) const;
+
+        /**
+         * @brief Get the color attachment operation for a specific pass index and index.
+         * 
+         * @param index The index of the color attachment to retrieve the operation from.
+         * @param pass_index The index of the pass to retrieve the operation from.
+         * @return AttachmentUtils::AttachmentOp The color attachment operation associated with the specified index and pass index.
+         */
         AttachmentUtils::AttachmentOp GetColorAttachmentOperation(uint32_t index, uint32_t pass_index = 0) const;
 
         /// @brief Get the maximal UBO size of a given pass, estimated from offsets and types of uniforms.
         /// Can be used to allocate uniform or staging buffers.
-        /// @param pass_index 
+        /// @param pass_index
         /// @return Estimated maximal UBO size
         uint64_t GetMaximalUBOSize(uint32_t pass_index = 0) const;
 
-        /// @brief Place UBO variables at given memory address.
-        /// @param instance material instance saving values of uniforms
-        /// @param memory pointer to a sufficently large buffer. Caller should allocate and de-allocate this buffer.
-        /// @param pass_index 
-        /// @note While it is possible to directly write to UBO using this method, it is not recommended to do so as
-        /// the uniform buffer memory might be sequentially writable but not randomly writable.
-        /// Confer `VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT` for more details.
-        void PlaceUBOVariables(const MaterialInstance & instance, void * memory, uint32_t pass_index = 0) const;
+        /**
+         * @brief Place UBO variables at given buffer, ready for directly writing into UBO.
+         * 
+         * @param instance material instance saving values of uniforms
+         * @param memory Buffer. It should ideally be large enough to avoid memory allocation.
+         * @param pass_index
+         */
+        void PlaceUBOVariables(const MaterialInstance & instance, std::vector<std::byte> & memory, uint32_t pass_index = 0) const;
+
+        /**
+         * @brief Get the descriptor image info for a specific material instance and pass index.
+         *
+         * This method retrieves a vector of pairs containing binding indices and corresponding descriptor image information
+         * for a given material instance and pass index. The returned vector can be used to update descriptor sets with images.
+         *
+         * @param instance The MaterialInstance object from which to retrieve the descriptor image info.
+         * @param pass_index The index of the pass for which to retrieve the descriptor image info.
+         * @return A vector of pairs, where each pair contains a binding index and a vk::DescriptorImageInfo struct.
+         */
+        std::vector<std::pair<uint32_t, vk::DescriptorImageInfo>>
+        GetDescriptorImageInfo(const MaterialInstance & instance, uint32_t pass_index) const;
     };
 }
 

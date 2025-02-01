@@ -203,12 +203,12 @@ namespace Engine
     }
     vk::Pipeline MaterialTemplate::GetPipeline(uint32_t pass_index) const
     {
-        assert(m_passes.find(pass_index) != m_passes.end() && "Invaild pass index");
+        assert(!m_passes.contains(pass_index) && "Invaild pass index");
         return m_passes.at(pass_index).pipeline.get();
     }
     vk::PipelineLayout MaterialTemplate::GetPipelineLayout(uint32_t pass_index) const
     {
-        assert(m_passes.find(pass_index) != m_passes.end() && "Invaild pass index");
+        assert(!m_passes.contains(pass_index) && "Invaild pass index");
         return m_passes.at(pass_index).pipeline_layout.get();
     }
     auto MaterialTemplate::GetAllPassInfo() const -> const decltype(m_passes) &
@@ -221,12 +221,12 @@ namespace Engine
     }
     vk::DescriptorSetLayout MaterialTemplate::GetDescriptorSetLayout(uint32_t pass_index) const
     {
-        assert(m_passes.find(pass_index) != m_passes.end() && "Invaild pass index");
+        assert(!m_passes.contains(pass_index) && "Invaild pass index");
         return m_passes.at(pass_index).desc_layout.get();
     }
     vk::DescriptorSet MaterialTemplate::AllocateDescriptorSet(uint32_t pass_index)
     {
-        assert(m_passes.find(pass_index) != m_passes.end() && "Invaild pass index");
+        assert(!m_passes.contains(pass_index) && "Invaild pass index");
         vk::DescriptorSetAllocateInfo dsai {
             m_poolInfo.pool.get(), {m_passes.at(pass_index).desc_layout.get()}
         };
@@ -243,49 +243,97 @@ namespace Engine
     }
     uint32_t MaterialTemplate::GetVariableIndex(const std::string &name, uint32_t pass_index) const
     {
-        assert(m_passes.find(pass_index) != m_passes.end() && "Invaild pass index");
+        assert(!m_passes.contains(pass_index) && "Invaild pass index");
         return this->m_passes.at(pass_index).uniforms.name_mapping.at(name);
     }
     AttachmentUtils::AttachmentOp MaterialTemplate::GetDSAttachmentOperation(uint32_t pass_index) const
     {
-        assert(m_passes.find(pass_index) != m_passes.end() && "Invaild pass index");
+        assert(!m_passes.contains(pass_index) && "Invaild pass index");
         return m_passes.at(pass_index).attachments.ds_attachment_ops;
     }
     AttachmentUtils::AttachmentOp MaterialTemplate::GetColorAttachmentOperation(uint32_t index, uint32_t pass_index) const
     {
-        assert(m_passes.find(pass_index) != m_passes.end() && "Invaild pass index");
+        assert(!m_passes.contains(pass_index) && "Invaild pass index");
         return m_passes.at(pass_index).attachments.color_attachment_ops.at(index);
     }
     uint64_t MaterialTemplate::GetMaximalUBOSize(uint32_t pass_index) const
     {
-        assert(m_passes.find(pass_index) != m_passes.end() && "Invaild pass index");
+        assert(!m_passes.contains(pass_index) && "Invaild pass index");
         return m_passes.at(pass_index).uniforms.maximal_ubo_size;
     }
-    void MaterialTemplate::PlaceUBOVariables(const MaterialInstance &instance, void *memory, uint32_t pass_index) const
+    void MaterialTemplate::PlaceUBOVariables(const MaterialInstance &instance, std::vector<std::byte> & memory, uint32_t pass_index) const
     {
         using Type = ShaderVariable::Type;
         const auto & variables = instance.GetVariables(pass_index);
-        const auto & uniforms = this->GetPassInfo(pass_index).uniforms.variables;
+        const auto & pass_info = this->GetPassInfo(pass_index);
+        const auto & uniforms = pass_info.uniforms.variables;
+
+        if (memory.size() <= pass_info.uniforms.maximal_ubo_size) {
+            SDL_LogWarn(
+                SDL_LOG_CATEGORY_RENDER, 
+                "Performing buffer allocation for material %s pass %u", 
+                m_name.c_str(), 
+                pass_index
+            );
+            memory.resize(pass_info.uniforms.maximal_ubo_size);
+        }
+
         for (const auto & [idx, var] : variables) {
             assert(idx < uniforms.size() && "Uniform variable index is too large.");
             const auto offset = uniforms[idx].location.offset;
-            switch(uniforms[idx].type) {
-            case Type::Int:
-                *(reinterpret_cast<int*>(memory + offset)) = std::any_cast<int>(var);
-                break;
-            case Type::Float:
-                *(reinterpret_cast<float*>(memory + offset)) = std::any_cast<float>(var);
-                break;
-            case Type::Vec4:
-                // Let's hope it works...
-                *(reinterpret_cast<glm::vec4*>(memory + offset)) = std::any_cast<glm::vec4>(var);
-                break;
-            case Type::Mat4:
-                *(reinterpret_cast<glm::mat4*>(memory + offset)) = std::any_cast<glm::mat4>(var);
-                break;
-            default:
-                SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Unsupported uniform type for index %u of pass %u", idx, pass_index);
+            try {
+                switch(uniforms[idx].type) {
+                case Type::Int:
+                    *(reinterpret_cast<int*>(memory.data() + offset)) = std::any_cast<int>(var);
+                    break;
+                case Type::Float:
+                    *(reinterpret_cast<float*>(memory.data() + offset)) = std::any_cast<float>(var);
+                    break;
+                case Type::Vec4:
+                    // Let's hope it works...
+                    *(reinterpret_cast<glm::vec4*>(memory.data() + offset)) = std::any_cast<glm::vec4>(var);
+                    break;
+                case Type::Mat4:
+                    *(reinterpret_cast<glm::mat4*>(memory.data() + offset)) = std::any_cast<glm::mat4>(var);
+                    break;
+                default:
+                    SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Ignoring unsupported uniform type for index %u of pass %u", idx, pass_index);
+                }
+            } catch(std::bad_any_cast & e) {
+                SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Mismatched uniform type of uniform index %u", idx);
+                continue;
             }
         }
+    }
+    std::vector<std::pair<uint32_t, vk::DescriptorImageInfo>> 
+    MaterialTemplate::GetDescriptorImageInfo(const MaterialInstance &instance, uint32_t pass_index) const
+    {
+        const auto & pass_info = this->GetPassInfo(pass_index);
+        const auto & instance_vars = instance.GetVariables(pass_index);
+        std::vector<std::pair<uint32_t, vk::DescriptorImageInfo>> info;
+
+        for (size_t idx = 0; idx < pass_info.uniforms.variables.size(); idx++) {
+            const auto& uniform = pass_info.uniforms.variables[idx];
+            if (uniform.type == ShaderVariable::Type::Texture) {
+                if (!instance_vars.contains(idx)) {
+                    SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Texture variable %llu not found in instance.", idx);
+                    continue;
+                }
+                ImageInterface * image = nullptr;
+                try {
+                    image = std::any_cast<ImageInterface *> (instance_vars.at(idx));
+                } catch (std::bad_any_cast & e) {
+                    SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Variable %llu is not a texture.", idx);
+                    continue;
+                }
+
+                vk::DescriptorImageInfo image_info {};
+                image_info.imageView = image->GetImageView();
+                image_info.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+                image_info.sampler = nullptr;
+                info.push_back(std::make_pair(uniform.location.binding, image_info));
+            }
+        }
+        return info;
     }
 } // namespace Engine

@@ -1,5 +1,6 @@
 #include "MaterialInstance.h"
 #include "MaterialTemplateUtils.h"
+#include "Render/RenderSystem.h"
 #include <SDL3/SDL.h>
 
 namespace Engine {
@@ -44,5 +45,52 @@ namespace Engine {
         );
 
         m_variables[pass][index] = uniform;
+        m_pass_info[pass].is_dirty = true;
+    }
+
+    void MaterialInstance::WriteDescriptors(uint32_t pass)
+    {
+        assert(m_pass_info.find(pass) != m_pass_info.end() && "Cannot find pass.");
+        auto & pass_info = m_pass_info[pass];
+
+        if (!pass_info.is_dirty)    return;
+
+        auto tpl = m_parent_template.lock();
+
+        // write uniform buffer
+        auto & ubo = *(pass_info.ubo.get());
+        tpl->PlaceUBOVariables(*this, m_buffer, pass);
+        std::memcpy(ubo.Map(), m_buffer.data(), ubo.GetSize());
+        ubo.Flush();
+        
+        // Prepare descriptor writes
+        std::vector <vk::WriteDescriptorSet> writes;
+
+        auto image_writes = tpl->GetDescriptorImageInfo(*this, pass);
+        writes.reserve(image_writes.size() + 1);
+        for (const auto & [binding, image_info] : image_writes) {
+            vk::WriteDescriptorSet write {
+                    pass_info.desc_set, binding, 0, 1,
+                    vk::DescriptorType::eCombinedImageSampler,
+                    &image_info, nullptr, nullptr
+            };
+            writes.push_back(write);
+        }
+
+        // write ubo descriptors
+        std::array <vk::DescriptorBufferInfo, 1> ubo_buffer_info = {
+            vk::DescriptorBufferInfo{ubo.GetBuffer(), 0, vk::WholeSize}
+        };
+        vk::WriteDescriptorSet ubo_write {
+            pass_info.desc_set, 0, 0,
+            vk::DescriptorType::eUniformBuffer,
+            {},
+            ubo_buffer_info,
+            {}
+        };
+        writes.push_back(ubo_write);
+
+        m_system.lock()->getDevice().updateDescriptorSets(writes, {});
+        pass_info.is_dirty = false;
     }
 }
