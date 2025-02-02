@@ -19,8 +19,8 @@ layout(set = 1, binding = 0) uniform CameraBuffer{
     mat4 proj;
 } camera;
 
-layout(set = 2, binding = 0) uniform sampler2D base_tex;
-layout(set = 2, binding = 1) uniform Material {
+layout(set = 2, binding = 1) uniform sampler2D base_tex;
+layout(set = 2, binding = 0) uniform Material {
     vec4 specular_color;
     vec4 ambient_color;
 } material;

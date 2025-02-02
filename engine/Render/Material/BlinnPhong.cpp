@@ -27,14 +27,14 @@ namespace Engine {
     std::vector<vk::DescriptorSetLayoutBinding> BlinnPhong::GetBindings()
     {
         vk::DescriptorSetLayoutBinding binding_texture {
-            0, 
+            1, 
             vk::DescriptorType::eCombinedImageSampler,
             1,
             vk::ShaderStageFlagBits::eFragment,
             { &m_sampler.get() }
         };
         vk::DescriptorSetLayoutBinding binding_uniform {
-            1,
+            0,
             vk::DescriptorType::eUniformBuffer,
             1,
             vk::ShaderStageFlagBits::eFragment,
@@ -86,7 +86,7 @@ namespace Engine {
         };
         vk::WriteDescriptorSet write {
             m_passes[0].descriptor_set,
-            1,
+            0,
             0,
             1,
             vk::DescriptorType::eUniformBuffer,
@@ -123,7 +123,7 @@ namespace Engine {
         };
         vk::WriteDescriptorSet write {
             m_passes[0].descriptor_set,
-            0,
+            1,
             0,
             1,
             vk::DescriptorType::eCombinedImageSampler,
