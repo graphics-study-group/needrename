@@ -147,8 +147,7 @@ namespace Engine {
                     vk::DescriptorType::eCombinedImageSampler,
                     1,
                     vk::ShaderStageFlagBits::eAll,
-                    // vkSampler is a handle. Taking its address should be fine.
-                    { &default_sampler }
+                    {}
                 });
             }
             return bindings;

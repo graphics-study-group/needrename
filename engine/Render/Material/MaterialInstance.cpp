@@ -31,6 +31,18 @@ namespace Engine {
         return m_variables.at(pass_index);
     }
 
+    void MaterialInstance::WriteTextureUniform(uint32_t pass, uint32_t index, const ImageInterface &texture)
+    {
+        assert(m_pass_info.contains(pass) && "Cannot find pass.");
+        assert(
+            m_parent_template.lock()->GetVariable(index, pass).location.set
+            && "Cannot find uniform in designated pass."
+        );
+
+        m_variables[pass][index] = std::any(std::cref(texture));
+        m_pass_info[pass].is_dirty = true;
+    }
+
     void MaterialInstance::WriteUBOUniform(uint32_t pass, uint32_t index, std::any uniform)
     {
         assert(
@@ -50,7 +62,7 @@ namespace Engine {
 
     void MaterialInstance::WriteDescriptors(uint32_t pass)
     {
-        assert(m_pass_info.find(pass) != m_pass_info.end() && "Cannot find pass.");
+        assert(m_pass_info.contains(pass) && "Cannot find pass.");
         auto & pass_info = m_pass_info[pass];
 
         if (!pass_info.is_dirty)    return;

@@ -201,14 +201,18 @@ namespace Engine
         m_name = mtasset->name;
         CreatePipelines(mtasset->properties);
     }
+    std::shared_ptr<MaterialInstance> MaterialTemplate::CreateInstance()
+    {
+        return std::make_shared<MaterialInstance>(m_system, *this);
+    }
     vk::Pipeline MaterialTemplate::GetPipeline(uint32_t pass_index) const
     {
-        assert(!m_passes.contains(pass_index) && "Invaild pass index");
+        assert(m_passes.contains(pass_index) && "Invaild pass index");
         return m_passes.at(pass_index).pipeline.get();
     }
     vk::PipelineLayout MaterialTemplate::GetPipelineLayout(uint32_t pass_index) const
     {
-        assert(!m_passes.contains(pass_index) && "Invaild pass index");
+        assert(m_passes.contains(pass_index) && "Invaild pass index");
         return m_passes.at(pass_index).pipeline_layout.get();
     }
     auto MaterialTemplate::GetAllPassInfo() const -> const decltype(m_passes) &
@@ -221,12 +225,12 @@ namespace Engine
     }
     vk::DescriptorSetLayout MaterialTemplate::GetDescriptorSetLayout(uint32_t pass_index) const
     {
-        assert(!m_passes.contains(pass_index) && "Invaild pass index");
+        assert(m_passes.contains(pass_index) && "Invaild pass index");
         return m_passes.at(pass_index).desc_layout.get();
     }
     vk::DescriptorSet MaterialTemplate::AllocateDescriptorSet(uint32_t pass_index)
     {
-        assert(!m_passes.contains(pass_index) && "Invaild pass index");
+        assert(m_passes.contains(pass_index) && "Invaild pass index");
         vk::DescriptorSetAllocateInfo dsai {
             m_poolInfo.pool.get(), {m_passes.at(pass_index).desc_layout.get()}
         };
@@ -243,22 +247,22 @@ namespace Engine
     }
     uint32_t MaterialTemplate::GetVariableIndex(const std::string &name, uint32_t pass_index) const
     {
-        assert(!m_passes.contains(pass_index) && "Invaild pass index");
+        assert(m_passes.contains(pass_index) && "Invaild pass index");
         return this->m_passes.at(pass_index).uniforms.name_mapping.at(name);
     }
     AttachmentUtils::AttachmentOp MaterialTemplate::GetDSAttachmentOperation(uint32_t pass_index) const
     {
-        assert(!m_passes.contains(pass_index) && "Invaild pass index");
+        assert(m_passes.contains(pass_index) && "Invaild pass index");
         return m_passes.at(pass_index).attachments.ds_attachment_ops;
     }
     AttachmentUtils::AttachmentOp MaterialTemplate::GetColorAttachmentOperation(uint32_t index, uint32_t pass_index) const
     {
-        assert(!m_passes.contains(pass_index) && "Invaild pass index");
+        assert(m_passes.contains(pass_index) && "Invaild pass index");
         return m_passes.at(pass_index).attachments.color_attachment_ops.at(index);
     }
     uint64_t MaterialTemplate::GetMaximalUBOSize(uint32_t pass_index) const
     {
-        assert(!m_passes.contains(pass_index) && "Invaild pass index");
+        assert(m_passes.contains(pass_index) && "Invaild pass index");
         return m_passes.at(pass_index).uniforms.maximal_ubo_size;
     }
     void MaterialTemplate::PlaceUBOVariables(const MaterialInstance &instance, std::vector<std::byte> & memory, uint32_t pass_index) const
@@ -319,18 +323,18 @@ namespace Engine
                     SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Texture variable %llu not found in instance.", idx);
                     continue;
                 }
-                ImageInterface * image = nullptr;
+                const ImageInterface * image = nullptr;
                 try {
-                    image = std::any_cast<ImageInterface *> (instance_vars.at(idx));
-                } catch (std::bad_any_cast & e) {
-                    SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Variable %llu is not a texture.", idx);
+                    image = &(std::any_cast<const ImageInterface &> (instance_vars.at(idx)));
+                } catch (std::exception & e) {
+                    SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Variable %llu is not a texture, or the texture is invalid.", idx);
                     continue;
                 }
 
                 vk::DescriptorImageInfo image_info {};
                 image_info.imageView = image->GetImageView();
                 image_info.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
-                image_info.sampler = nullptr;
+                image_info.sampler = m_default_sampler.get();
                 info.push_back(std::make_pair(uniform.location.binding, image_info));
             }
         }

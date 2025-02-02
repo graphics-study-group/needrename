@@ -37,10 +37,14 @@ namespace Engine
          */
         auto GetVariables(uint32_t pass_index) const -> const decltype(m_variables.at(0)) &;
 
-        /// @brief Set the texture uniform descriptor to point to a given texture.
-        /// @param name 
-        /// @param texture 
-        // void WriteTextureUniform(const std::string & name, const AllocatedImage2DTexture & texture);
+        /**
+         * @brief Set the texture uniform descriptor to point to a given texture.
+         * @param name 
+         * @param texture 
+         * 
+         * TODO: Figure out a way to connect samplers with textures
+         */
+        void WriteTextureUniform(uint32_t pass, uint32_t index, const ImageInterface & texture);
     
         /**
          * @brief Set the uniform variable descriptor to point to a given value.
