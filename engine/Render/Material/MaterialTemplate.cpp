@@ -203,7 +203,7 @@ namespace Engine
     }
     std::shared_ptr<MaterialInstance> MaterialTemplate::CreateInstance()
     {
-        return std::make_shared<MaterialInstance>(m_system, *this);
+        return std::make_shared<MaterialInstance>(m_system, shared_from_this());
     }
     vk::Pipeline MaterialTemplate::GetPipeline(uint32_t pass_index) const
     {

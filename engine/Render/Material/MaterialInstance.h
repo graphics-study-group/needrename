@@ -7,6 +7,7 @@
 
 namespace Engine
 {
+    class ImageInterface;
     /// @brief A light-weight instance of a given material,
     /// where all mutable data such as texture and uniforms are stored.
     class MaterialInstance {

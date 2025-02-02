@@ -13,7 +13,7 @@ namespace Engine {
     /// @brief A factory class for instantiation of materials.
     /// Contains all public immutable data for a given type of materials, such as pipeline
     /// and its configurations, descriptor set layout and attachment operations.
-    class MaterialTemplate {
+    class MaterialTemplate : std::enable_shared_from_this<MaterialTemplate> {
     public:
         struct ShaderVariable {
             using Type = ShaderVariableProperty::Type;

@@ -1,5 +1,6 @@
 #include "MaterialInstance.h"
 #include "MaterialTemplateUtils.h"
+#include "Render/Memory/ImageInterface.h"
 #include "Render/RenderSystem.h"
 #include <SDL3/SDL.h>
 
