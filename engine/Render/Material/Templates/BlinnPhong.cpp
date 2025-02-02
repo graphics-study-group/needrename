@@ -1,4 +1,6 @@
 #include "BlinnPhong.h"
+#include "Render/Memory/Image2DTexture.h"
+#include <SDL3/SDL.h>
 
 namespace Engine::Materials
 {
@@ -52,5 +54,38 @@ namespace Engine::Materials
             light_source, light_color, view, proj, base_tex, specular_color, ambient_color
         };
         this->properties.properties[0] = mtspp;
+    }
+
+    BlinnPhongInstance::BlinnPhongInstance(
+        std::weak_ptr <RenderSystem> system, 
+        std::shared_ptr<MaterialTemplate> tpl
+    ) : MaterialInstance(system, tpl)
+    {
+        texture_id = tpl->GetVariableIndex("base_tex", 0).value();
+        specular_id = tpl->GetVariableIndex("specular", 0).value();
+        ambient_id = tpl->GetVariableIndex("ambient", 0).value();
+    }
+
+    void BlinnPhongInstance::SetBaseTexture(const AllocatedImage2DTexture & image) {
+        this->WriteTextureUniform(0, texture_id, image);
+    }
+    void BlinnPhongInstance::SetSpecular(glm::vec4 spec) {
+        this->WriteUBOUniform(0, specular_id, spec);
+    }
+    void BlinnPhongInstance::SetAmbient(glm::vec4 ambi) {
+        this->WriteUBOUniform(0, ambient_id, ambi);
+    }
+
+    BlinnPhongTemplate::BlinnPhongTemplate(
+        std::weak_ptr <RenderSystem> system,
+        std::shared_ptr <AssetRef> asset
+    ) : MaterialTemplate(system, asset) {
+        if (asset->as<BlinnPhongAsset>() == nullptr) {
+            SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Constructing Blinn-Phong material template with a mis-matched asset.");
+        }
+    }
+    std::shared_ptr<MaterialInstance> BlinnPhongTemplate::CreateInstance()
+    {
+        return std::make_shared<BlinnPhongInstance>(this->m_system, this->shared_from_this());
     }
 } // namespace Engine::Materials

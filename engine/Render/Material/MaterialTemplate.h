@@ -15,9 +15,13 @@ namespace Engine {
     /// Contains all public immutable data for a given type of materials, such as pipeline
     /// and its configurations, descriptor set layout and attachment operations.
     ///
+    /// There are two ways to use this class:
+    /// To use it dynamically, construct an `MaterialTemplateAsset` and pass it in when constructing.
+    /// To use it statically, inherent a subclass, and create corresponding asset and instance classes.
+    ///
     /// When using indices in its methods, all indices are assumed to be valid.
     /// In-valid indices will cause assertion failure.
-    class MaterialTemplate : std::enable_shared_from_this<MaterialTemplate> {
+    class MaterialTemplate : protected std::enable_shared_from_this<MaterialTemplate> {
     public:
         struct ShaderVariable {
             using Type = ShaderVariableProperty::Type;
@@ -62,7 +66,7 @@ namespace Engine {
              vk::UniqueDescriptorPool pool {};
         };
 
-    private:
+    protected:
         std::weak_ptr <RenderSystem> m_system;
         std::shared_ptr <AssetRef> m_asset;
 

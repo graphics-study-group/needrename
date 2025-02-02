@@ -5,6 +5,7 @@
 #include "Render/Material/MaterialInstance.h"
 
 namespace Engine {
+    class AllocatedImage2DTexture;
     namespace Materials {
         /***
          * @brief Built-in asset for classic Blinn-Phong shading.
@@ -13,19 +14,26 @@ namespace Engine {
          * Associated with two shaders: `blinn_phong.frag` and `blinn_phong.vert`.
          */
         class BlinnPhongAsset : public MaterialTemplateAsset {
-            std::shared_ptr <ShaderAsset> vs, fs;
-            std::shared_ptr <AssetRef> vs_ref, fs_ref;
+            std::shared_ptr <ShaderAsset> vs {}, fs {};
+            std::shared_ptr <AssetRef> vs_ref {}, fs_ref {};
 
         public:
             BlinnPhongAsset();
         };
 
         class BlinnPhongInstance : public MaterialInstance {
-
+            uint32_t texture_id, specular_id, ambient_id;
+        public:
+            BlinnPhongInstance(std::weak_ptr <RenderSystem> system, std::shared_ptr<MaterialTemplate> tpl);
+            void SetBaseTexture(const AllocatedImage2DTexture & image);
+            void SetSpecular(glm::vec4 spec);
+            void SetAmbient(glm::vec4 spec);
         };
 
         class BlinnPhongTemplate : public MaterialTemplate {
-
+        public:
+            BlinnPhongTemplate(std::weak_ptr <RenderSystem> system, std::shared_ptr<AssetRef> asset);
+            std::shared_ptr <MaterialInstance> CreateInstance() override;
         };
     }
 }
