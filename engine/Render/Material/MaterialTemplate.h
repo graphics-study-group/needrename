@@ -2,6 +2,7 @@
 #define RENDER_MATERIAL_MATERIALTEMPLATE_INCLUDED
 
 #include <vulkan/vulkan.hpp>
+#include <optional>
 #include "Render/AttachmentUtils.h"
 #include "Asset/Material/MaterialTemplateAsset.h"
 
@@ -13,6 +14,9 @@ namespace Engine {
     /// @brief A factory class for instantiation of materials.
     /// Contains all public immutable data for a given type of materials, such as pipeline
     /// and its configurations, descriptor set layout and attachment operations.
+    ///
+    /// When using indices in its methods, all indices are assumed to be valid.
+    /// In-valid indices will cause assertion failure.
     class MaterialTemplate : std::enable_shared_from_this<MaterialTemplate> {
     public:
         struct ShaderVariable {
@@ -98,7 +102,7 @@ namespace Engine {
          * @param pass_index The index of the pass to retrieve the pipeline from.
          * @return vk::Pipeline The pipeline associated with the specified pass index.
          */
-        vk::Pipeline GetPipeline(uint32_t pass_index = 0) const;
+        vk::Pipeline GetPipeline(uint32_t pass_index) const noexcept;
 
         /**
          * @brief Get the pipeline layout for a specific pass index.
@@ -106,14 +110,14 @@ namespace Engine {
          * @param pass_index The index of the pass to retrieve the pipeline layout from.
          * @return vk::PipelineLayout The pipeline layout associated with the specified pass index.
          */
-        vk::PipelineLayout GetPipelineLayout(uint32_t pass_index = 0) const;
+        vk::PipelineLayout GetPipelineLayout(uint32_t pass_index) const noexcept;
 
         /**
          * @brief Get all pass information.
          * 
          * @return const decltype(m_passes) & A reference to a constant unordered_map containing all pass information.
          */
-        auto GetAllPassInfo() const -> const decltype(m_passes) &;
+        auto GetAllPassInfo() const noexcept -> const decltype(m_passes) &;
 
         /**
          * @brief Get the pass information for a specific pass index.
@@ -129,14 +133,14 @@ namespace Engine {
          * @param pass_index The index of the pass to retrieve the descriptor set layout from.
          * @return vk::DescriptorSetLayout The descriptor set layout associated with the specified pass index.
          */
-        vk::DescriptorSetLayout GetDescriptorSetLayout(uint32_t pass_index = 0) const;
+        vk::DescriptorSetLayout GetDescriptorSetLayout(uint32_t pass_index) const;
 
         /// @brief Allocate a descriptor set with the layout of a given pass index.
         /// As per Vulkan recommendation, allocated descriptors are generally not required to be cleaned up to speed up allocation.
         /// When its descriptor pool is de-allocated, all descriptors attached are automatically destroyed.
         /// @param pass_index
         /// @return Allocated descriptor set
-        vk::DescriptorSet AllocateDescriptorSet(uint32_t pass_index = 0);
+        vk::DescriptorSet AllocateDescriptorSet(uint32_t pass_index);
     
         /**
          * @brief Get a shader variable by name for a specific pass index.
@@ -145,7 +149,8 @@ namespace Engine {
          * @param pass_index The index of the pass to retrieve the shader variable from.
          * @return const ShaderVariable & A constant reference to the ShaderVariable struct associated with the specified name and pass index.
          */
-        const ShaderVariable & GetVariable(const std::string & name, uint32_t pass_index = 0) const;
+        std::optional<std::reference_wrapper<const ShaderVariable>>
+        GetVariable(const std::string & name, uint32_t pass_index) const;
 
         /**
          * @brief Get a shader variable by index for a specific pass index.
@@ -154,7 +159,7 @@ namespace Engine {
          * @param pass_index The index of the pass to retrieve the shader variable from.
          * @return const ShaderVariable & A constant reference to the ShaderVariable struct associated with the specified index and pass index.
          */
-        const ShaderVariable & GetVariable(uint32_t index, uint32_t pass_index = 0) const;
+        const ShaderVariable & GetVariable(uint32_t index, uint32_t pass_index) const;
 
         /**
          * @brief Get the index of a shader variable by name for a specific pass index.
@@ -163,7 +168,7 @@ namespace Engine {
          * @param pass_index The index of the pass to retrieve the index from.
          * @return uint32_t The index associated with the specified name and pass index.
          */
-        uint32_t GetVariableIndex(const std::string & name, uint32_t pass_index = 0) const;
+        std::optional<uint32_t> GetVariableIndex(const std::string & name, uint32_t pass_index) const noexcept;
     
         /**
          * @brief Get the depth stencil attachment operation for a specific pass index.
@@ -171,22 +176,22 @@ namespace Engine {
          * @param pass_index The index of the pass to retrieve the depth stencil attachment operation from.
          * @return AttachmentUtils::AttachmentOp The depth stencil attachment operation associated with the specified pass index.
          */
-        AttachmentUtils::AttachmentOp GetDSAttachmentOperation(uint32_t pass_index = 0) const;
+        AttachmentUtils::AttachmentOp GetDSAttachmentOperation(uint32_t pass_index) const;
 
         /**
          * @brief Get the color attachment operation for a specific pass index and index.
          * 
-         * @param index The index of the color attachment to retrieve the operation from.
+         * @param attachment_index The index of the color attachment to retrieve the operation from.
          * @param pass_index The index of the pass to retrieve the operation from.
          * @return AttachmentUtils::AttachmentOp The color attachment operation associated with the specified index and pass index.
          */
-        AttachmentUtils::AttachmentOp GetColorAttachmentOperation(uint32_t index, uint32_t pass_index = 0) const;
+        AttachmentUtils::AttachmentOp GetColorAttachmentOperation(uint32_t attachment_index, uint32_t pass_index) const;
 
         /// @brief Get the maximal UBO size of a given pass, estimated from offsets and types of uniforms.
         /// Can be used to allocate uniform or staging buffers.
         /// @param pass_index
         /// @return Estimated maximal UBO size
-        uint64_t GetMaximalUBOSize(uint32_t pass_index = 0) const;
+        uint64_t GetMaximalUBOSize(uint32_t pass_index) const;
 
         /**
          * @brief Place UBO variables at given buffer, ready for directly writing into UBO.
@@ -195,7 +200,7 @@ namespace Engine {
          * @param memory Buffer. It should ideally be large enough to avoid memory allocation.
          * @param pass_index
          */
-        void PlaceUBOVariables(const MaterialInstance & instance, std::vector<std::byte> & memory, uint32_t pass_index = 0) const;
+        void PlaceUBOVariables(const MaterialInstance & instance, std::vector<std::byte> & memory, uint32_t pass_index) const;
 
         /**
          * @brief Get the descriptor image info for a specific material instance and pass index.

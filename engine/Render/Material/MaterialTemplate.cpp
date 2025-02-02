@@ -205,17 +205,17 @@ namespace Engine
     {
         return std::make_shared<MaterialInstance>(m_system, shared_from_this());
     }
-    vk::Pipeline MaterialTemplate::GetPipeline(uint32_t pass_index) const
+    vk::Pipeline MaterialTemplate::GetPipeline(uint32_t pass_index) const noexcept
     {
         assert(m_passes.contains(pass_index) && "Invaild pass index");
         return m_passes.at(pass_index).pipeline.get();
     }
-    vk::PipelineLayout MaterialTemplate::GetPipelineLayout(uint32_t pass_index) const
+    vk::PipelineLayout MaterialTemplate::GetPipelineLayout(uint32_t pass_index) const noexcept
     {
         assert(m_passes.contains(pass_index) && "Invaild pass index");
         return m_passes.at(pass_index).pipeline_layout.get();
     }
-    auto MaterialTemplate::GetAllPassInfo() const -> const decltype(m_passes) &
+    auto MaterialTemplate::GetAllPassInfo() const noexcept -> const decltype(m_passes) &
     {
         return m_passes;
     }
@@ -237,18 +237,25 @@ namespace Engine
         auto sets = m_system.lock()->getDevice().allocateDescriptorSets(dsai);
         return sets[0];
     }
-    const MaterialTemplate::ShaderVariable &MaterialTemplate::GetVariable(const std::string &name, uint32_t pass_index) const
+    std::optional<std::reference_wrapper<const MaterialTemplate::ShaderVariable>>
+    MaterialTemplate::GetVariable(const std::string &name, uint32_t pass_index) const
     {
-        return this->GetVariable(this->GetVariableIndex(name, pass_index), pass_index);
+        auto idx = this->GetVariableIndex(name, pass_index);
+        if (!idx)   return std::nullopt;
+        return this->GetVariable(idx.value(), pass_index);
     }
     const MaterialTemplate::ShaderVariable &MaterialTemplate::GetVariable(uint32_t index, uint32_t pass_index) const
     {
         return this->m_passes.at(pass_index).uniforms.variables.at(index);
     }
-    uint32_t MaterialTemplate::GetVariableIndex(const std::string &name, uint32_t pass_index) const
+    std::optional<uint32_t> MaterialTemplate::GetVariableIndex(const std::string &name, uint32_t pass_index) const noexcept
     {
-        assert(m_passes.contains(pass_index) && "Invaild pass index");
-        return this->m_passes.at(pass_index).uniforms.name_mapping.at(name);
+        auto pitr = m_passes.find(pass_index);
+        assert(pitr != m_passes.end() && "Invaild pass index");
+        auto itr = pitr->second.uniforms.name_mapping.find(name);
+        if (itr == pitr->second.uniforms.name_mapping.end())
+            return std::nullopt;
+        return itr->second;
     }
     AttachmentUtils::AttachmentOp MaterialTemplate::GetDSAttachmentOperation(uint32_t pass_index) const
     {
