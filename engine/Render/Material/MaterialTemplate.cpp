@@ -330,9 +330,11 @@ namespace Engine
                     SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Texture variable %llu not found in instance.", idx);
                     continue;
                 }
+
+                // These pointers mixed with references are truly ugly, try figuring out a better way.
                 const ImageInterface * image = nullptr;
                 try {
-                    image = &(std::any_cast<const ImageInterface &> (instance_vars.at(idx)));
+                    image = &(std::any_cast<std::reference_wrapper<const ImageInterface>> (instance_vars.at(idx)).get());
                 } catch (std::exception & e) {
                     SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Variable %llu is not a texture, or the texture is invalid.", idx);
                     continue;

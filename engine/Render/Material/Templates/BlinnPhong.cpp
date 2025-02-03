@@ -12,8 +12,8 @@ namespace Engine::Materials
         fs_ref = std::make_shared<AssetRef>(fs);
         
         this->name = "Built-in Blinn-Phong";
-        vs->filename = "shader/blinn_phong.vert";
-        fs->filename = "shader/blinn_phong.frag";
+        vs->filename = "shader/blinn_phong.vert.spv";
+        fs->filename = "shader/blinn_phong.frag.spv";
         vs->shaderType = ShaderAsset::ShaderType::Vertex;
         fs->shaderType = ShaderAsset::ShaderType::Fragment;
 
@@ -62,8 +62,8 @@ namespace Engine::Materials
     ) : MaterialInstance(system, tpl)
     {
         texture_id = tpl->GetVariableIndex("base_tex", 0).value();
-        specular_id = tpl->GetVariableIndex("specular", 0).value();
-        ambient_id = tpl->GetVariableIndex("ambient", 0).value();
+        specular_id = tpl->GetVariableIndex("specular_color", 0).value();
+        ambient_id = tpl->GetVariableIndex("ambient_color", 0).value();
     }
 
     void BlinnPhongInstance::SetBaseTexture(const AllocatedImage2DTexture & image) {

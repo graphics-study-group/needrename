@@ -87,7 +87,7 @@ namespace Engine {
         ToVulkanDescriptorSetLayoutBindings(const MaterialTemplateSinglePassProperties::Shaders & p, vk::Sampler default_sampler){
 #ifndef NDEBUG
             // Test whether scene and camera uniforms are compatible
-            auto scene_uniforms_range = std::ranges::take_while_view(
+            auto scene_uniforms_range = std::ranges::filter_view(
                 p.uniforms, 
                 [](const ShaderVariableProperty & prop) -> bool {
                     return prop.frequency == ShaderVariableProperty::Frequency::PerScene;
@@ -95,7 +95,7 @@ namespace Engine {
             );
             if (!scene_uniforms_range.empty()) SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Found non-compatible scene uniforms.");
 
-            auto camera_uniforms_range = std::ranges::take_while_view(
+            auto camera_uniforms_range = std::ranges::filter_view(
                 p.uniforms, 
                 [](const ShaderVariableProperty & prop) -> bool {
                     return prop.frequency == ShaderVariableProperty::Frequency::PerCamera;
@@ -110,7 +110,7 @@ namespace Engine {
 #endif
 
             // Filter out non-material descriptors. Descriptors for scenes or cameras are managed seperately.
-            auto material_uniforms_range = std::ranges::take_while_view(
+            auto material_uniforms_range = std::ranges::filter_view(
                 p.uniforms, 
                 [](const ShaderVariableProperty & prop) -> bool {
                     return prop.frequency == ShaderVariableProperty::Frequency::PerMaterial;
