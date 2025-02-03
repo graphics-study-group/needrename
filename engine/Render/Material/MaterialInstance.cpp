@@ -106,4 +106,8 @@ namespace Engine {
         m_system.lock()->getDevice().updateDescriptorSets(writes, {});
         pass_info.is_dirty = false;
     }
+    vk::DescriptorSet MaterialInstance::GetDescriptor(uint32_t pass) const
+    {
+        return m_pass_info.at(pass).desc_set;
+    }
 }

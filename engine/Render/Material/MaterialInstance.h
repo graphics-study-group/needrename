@@ -67,6 +67,8 @@ namespace Engine
          * @param pass The index of the pass.
          */
         void WriteDescriptors(uint32_t pass);
+
+        vk::DescriptorSet GetDescriptor(uint32_t pass) const;
     };
 } // namespace Engine
 

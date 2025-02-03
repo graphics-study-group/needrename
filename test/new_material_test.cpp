@@ -10,10 +10,13 @@
 #include "Render/RenderSystem.h"
 #include "GUI/GUISystem.h"
 #include "Render/ConstantData/PerModelConstants.h"
-#include "Render/Material/MaterialTemplate.h"
+#include "Render/Material/Templates/BlinnPhong.h"
 #include "Render/Renderer/HomogeneousMesh.h"
+#include "Render/Memory/Image2DTexture.h"
 #include "Asset/Mesh/MeshAsset.h"
-#include "Asset/Material/MaterialTemplateAsset.h"
+#include "Asset/Texture/Image2DTextureAsset.h"
+
+#include "cmake_config.h"
 
 using namespace Engine;
 namespace sch = std::chrono;
@@ -23,54 +26,20 @@ struct TestMeshAsset : public MeshAsset {
     TestMeshAsset() {
         this->m_submeshes.resize(1);
         this->m_submeshes[0] = {
-            .m_indices = {0, 1, 2},
-            .m_positions = {{0.0f, -0.5f, 0.5f}, {0.5f, 0.5f, 0.5f}, {-0.5f, 0.5f, 0.5f}},
+            .m_indices = {0, 3, 2, 0, 2, 1},
+            .m_positions = {
+                {0.5f, -0.5f, 0.0f}, 
+                {0.5f, 0.5f, 0.0f}, 
+                {-0.5f, 0.5f, 0.0f},
+                {-0.5f, -0.5f, 0.0f},
+            },
             .m_attributes = {
-                {.color = {1.0f, 0.0f, 0.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {0.0f, 0.0f}}, 
-                {.color = {0.0f, 1.0f, 0.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {0.0f, 0.0f}}, 
-                {.color = {0.0f, 0.0f, 1.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {0.0f, 0.0f}}
+                {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {1.0f, 0.0f}}, 
+                {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {1.0f, 1.0f}}, 
+                {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {0.0f, 1.0f}},
+                {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {0.0f, 0.0f}}
             },
         };
-    }
-};
-
-struct TestMaterialAsset : public MaterialTemplateAsset {
-
-    std::shared_ptr<ShaderAsset> vertex {}, fragment {};
-    std::shared_ptr<AssetRef> vertex_ref {}, fragment_ref {};
-
-    TestMaterialAsset () : MaterialTemplateAsset() {
-        vertex = std::make_shared <ShaderAsset> ();
-        fragment = std::make_shared <ShaderAsset> ();
-    }
-
-    void initalize() {
-        this->name = "test material";
-
-        this->vertex->filename = "shader/debug_vert_trig_transform.vert.spv";
-        this->vertex->shaderType = ShaderAsset::ShaderType::Vertex;
-        this->fragment->filename = "shader/debug_fragment_color.frag.spv";
-        this->fragment->shaderType = ShaderAsset::ShaderType::Fragment;
-        vertex_ref = std::make_shared<AssetRef>(vertex);
-        fragment_ref = std::make_shared<AssetRef>(fragment);
-
-        MaterialTemplateSinglePassProperties mtspp {};
-        std::vector <AssetRef> shaders = { *vertex_ref, *fragment_ref };
-        mtspp.shaders.shaders = shaders;
-
-        ShaderVariableProperty prop1, prop2;
-        prop1.frequency = prop2.frequency = ShaderVariableProperty::Frequency::PerCamera;
-        prop1.type = prop2.type = ShaderVariableProperty::Type::Mat4;
-        prop1.binding = prop2.binding = 0;
-        prop1.offset = 0;
-        prop2.offset = 64;
-        prop1.name = "view";
-        prop2.name = "proj";
-
-        mtspp.shaders.uniforms = {
-            prop1, prop2
-        };
-        this->properties.properties[0] = mtspp;
     }
 };
 
@@ -99,11 +68,22 @@ int main(int argc, char ** argv)
         vk::ClearValue{vk::ClearDepthStencilValue{1.0f, 0U}}
     });
 
-    auto test_asset = std::make_shared<TestMaterialAsset>();
-    test_asset->initalize();
-    auto test_asset_ref = std::make_shared<AssetRef>(test_asset);
-    MaterialTemplate material_template{rsys, test_asset_ref};
+    // Prepare texture
+    auto test_texture_asset = std::make_shared<Image2DTextureAsset>();
+    test_texture_asset->LoadFromFile(std::string(ENGINE_ASSETS_DIR) + "/bunny/bunny.png");
+    auto allocated_image_texture = std::make_shared<AllocatedImage2DTexture>(rsys);
+    allocated_image_texture->Create(*test_texture_asset);
 
+    // Prepare material
+    auto test_asset = std::make_shared<Materials::BlinnPhongAsset>();
+    auto test_asset_ref = std::make_shared<AssetRef>(test_asset);
+    auto test_template = std::make_shared<Materials::BlinnPhongTemplate>(rsys, test_asset_ref);
+    auto test_material_instance = std::make_shared<Materials::BlinnPhongInstance>(rsys, test_template);
+    test_material_instance->SetAmbient(glm::vec4(1.0, 1.0, 1.0, 1.0));
+    test_material_instance->SetSpecular(glm::vec4(0.0, 0.0, 0.0, 0.0));
+    test_material_instance->SetBaseTexture(*allocated_image_texture);
+
+    // Prepare mesh
     auto test_mesh_asset = std::make_shared<TestMeshAsset>();
     auto test_mesh_asset_ref = std::make_shared<AssetRef>(test_mesh_asset);
     HomogeneousMesh test_mesh{rsys, test_mesh_asset_ref, 0};
@@ -112,6 +92,7 @@ int main(int argc, char ** argv)
     auto & tcb = rsys->GetTransferCommandBuffer();
     tcb.Begin();
     tcb.CommitVertexBuffer(test_mesh);
+    tcb.CommitTextureImage(*allocated_image_texture, test_texture_asset->GetPixelData(), test_texture_asset->GetPixelDataSize());
     tcb.End();
     tcb.SubmitAndExecute();
 
@@ -144,10 +125,10 @@ int main(int argc, char ** argv)
         cb.SetupViewport(extent.width, extent.height, scissor);
         // We haven't design new command buffer yet, so just use raw vulkan functions for testing.
         vk::CommandBuffer rcb = cb.get();
-        rcb.bindPipeline(vk::PipelineBindPoint::eGraphics, material_template.GetPipeline(0));
+        rcb.bindPipeline(vk::PipelineBindPoint::eGraphics, test_template->GetPipeline(0));
         // Push model matrix...
         rcb.pushConstants(
-            material_template.GetPipelineLayout(0), 
+            test_template->GetPipelineLayout(0), 
             vk::ShaderStageFlagBits::eVertex, 
             0, 
             ConstantData::PerModelConstantPushConstant::PUSH_RANGE_SIZE,
@@ -166,9 +147,9 @@ int main(int argc, char ** argv)
         const auto & per_camera_descriptor_set = global_pool.GetPerCameraConstantSet(in_flight_frame_id);
         rcb.bindDescriptorSets(
                 vk::PipelineBindPoint::eGraphics, 
-                material_template.GetPipelineLayout(0), 
+                test_template->GetPipelineLayout(0), 
                 0,
-                {per_scenc_descriptor_set, per_camera_descriptor_set},
+                {per_scenc_descriptor_set, per_camera_descriptor_set, test_material_instance->GetDescriptor(0)},
                 {}
         );
         cb.DrawMesh(test_mesh);
