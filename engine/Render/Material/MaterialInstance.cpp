@@ -27,6 +27,11 @@ namespace Engine {
         }
     }
 
+    const MaterialTemplate &MaterialInstance::GetTemplate() const
+    {
+        return *m_parent_template.lock();
+    }
+
     auto MaterialInstance::GetVariables(uint32_t pass_index) const -> const decltype(m_variables.at(0)) &
     {
         return m_variables.at(pass_index);

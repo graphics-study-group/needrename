@@ -29,6 +29,8 @@ namespace Engine
     
     public:
         MaterialInstance(std::weak_ptr <RenderSystem> system, std::shared_ptr <MaterialTemplate> tpl);
+
+        const MaterialTemplate & GetTemplate() const;
         
         /**
          * @brief Get the variables of a specific pass

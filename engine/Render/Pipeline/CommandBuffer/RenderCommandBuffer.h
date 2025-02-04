@@ -8,6 +8,7 @@
 namespace Engine {
     class RenderTargetSetup;
     class Material;
+    class MaterialInstance;
     class Synchronization;
     class HomogeneousMesh;
     class Buffer;
@@ -40,7 +41,13 @@ namespace Engine {
         /// @brief Bind a material for rendering, and write per-material descriptors.
         /// @param material 
         /// @param pass_index 
+        [[deprecated]]
         void BindMaterial(Material & material, uint32_t pass_index);
+
+        /// @brief Bind a material for rendering, and write per-material descriptors.
+        /// @param material 
+        /// @param pass_index 
+        void BindMaterial(MaterialInstance & material, uint32_t pass_index);
 
         /// @brief Setup the viewport parameters
         /// @param vpWidth width of the viewport
@@ -74,7 +81,6 @@ namespace Engine {
 
         std::optional<vk::Image> m_image_for_present {};
         std::optional<std::reference_wrapper<const RenderTargetSetup>> m_bound_render_target {};
-        std::optional<std::pair <std::reference_wrapper<const Material>, uint32_t>> m_bound_material {};
         std::optional<std::pair<vk::Pipeline, vk::PipelineLayout>> m_bound_material_pipeline {};
     };
 }

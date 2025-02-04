@@ -3,6 +3,7 @@
 #include "Render/Memory/Buffer.h"
 #include "Render/Memory/Image2DTexture.h"
 #include "Render/Material/Material.h"
+#include "Render/Material/MaterialInstance.h"
 #include "Render/Pipeline/RenderTarget/RenderTargetSetup.h"
 #include "Render/Pipeline/Pipeline.h"
 #include "Render/Pipeline/PipelineLayout.h"
@@ -109,7 +110,6 @@ namespace Engine
         const auto & pipeline_layout = material.GetPipelineLayout(pass_index)->get();
 
         m_handle->bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
-        m_bound_material = std::make_pair(std::cref(material), pass_index);
         m_bound_material_pipeline = std::make_pair(pipeline, pipeline_layout);
 
         const auto & global_pool = m_system->GetGlobalConstantDescriptorPool();
@@ -138,6 +138,41 @@ namespace Engine
         material.WriteDescriptors();
     }
 
+    void RenderCommandBuffer::BindMaterial(MaterialInstance &material, uint32_t pass_index)
+    {
+        assert(m_bound_render_target.has_value());
+        const auto & pipeline = material.GetTemplate().GetPipeline(pass_index);
+        const auto & pipeline_layout = material.GetTemplate().GetPipelineLayout(pass_index);
+
+        m_handle->bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
+        m_bound_material_pipeline = std::make_pair(pipeline, pipeline_layout);
+
+        const auto & global_pool = m_system->GetGlobalConstantDescriptorPool();
+        const auto & per_scenc_descriptor_set = global_pool.GetPerSceneConstantSet(m_inflight_frame_index);
+        const auto & per_camera_descriptor_set = global_pool.GetPerCameraConstantSet(m_inflight_frame_index);
+        auto material_descriptor_set = material.GetDescriptor(pass_index);
+
+        if (material_descriptor_set) {
+            m_handle->bindDescriptorSets(
+                vk::PipelineBindPoint::eGraphics, 
+                pipeline_layout, 
+                0,
+                {per_scenc_descriptor_set, per_camera_descriptor_set, material_descriptor_set},
+                {}
+            );
+        } else {
+            m_handle->bindDescriptorSets(
+                vk::PipelineBindPoint::eGraphics, 
+                pipeline_layout, 
+                0,
+                {per_scenc_descriptor_set, per_camera_descriptor_set},
+                {}
+            );
+        }
+        
+        material.WriteDescriptors(pass_index);
+    }
+
     void RenderCommandBuffer::SetupViewport(float vpWidth, float vpHeight, vk::Rect2D scissor) {
         vk::Viewport vp;
         vp.setWidth(vpWidth).setHeight(vpHeight);
@@ -149,11 +184,6 @@ namespace Engine
     }
 
     void RenderCommandBuffer::DrawMesh(const HomogeneousMesh& mesh, const glm::mat4 & model_matrix) {
-#ifndef NDEBUG
-        if (!m_bound_material.has_value()) {
-            SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Rendering a mesh with no material bound.");
-        }
-#endif
         auto bindings = mesh.GetBindingInfo();
         m_handle->bindVertexBuffers(0, bindings.first, bindings.second);
         auto indices = mesh.GetIndexInfo();
@@ -235,7 +265,6 @@ namespace Engine
 
     void RenderCommandBuffer::Reset() {
         m_handle->reset();
-        m_bound_material.reset();
         m_bound_material_pipeline.reset();
         m_image_for_present.reset();
     }

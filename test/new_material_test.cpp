@@ -91,14 +91,22 @@ int main(int argc, char ** argv)
     test_mesh.Prepare();
 
     // Submit scene data
+    const auto & global_pool = rsys->GetGlobalConstantDescriptorPool();
+    struct {
+        glm::mat4 view{1.0f};
+        glm::mat4 proj{1.0f};
+    } camera_mats;
     ConstantData::PerSceneStruct scene {
         glm::vec4{-5.0f, -5.0f, -5.0f, 0.0f},
         glm::vec4{1.0, 1.0, 1.0, 0.0},
     };
     for (uint32_t i = 0; i < 3; i++) {
-        auto ptr = rsys->GetGlobalConstantDescriptorPool().GetPerSceneConstantMemory(i);
+        auto ptr = global_pool.GetPerSceneConstantMemory(i);
         memcpy(ptr, &scene, sizeof scene);
-        rsys->GetGlobalConstantDescriptorPool().FlushPerSceneConstantMemory(i); 
+        global_pool.FlushPerSceneConstantMemory(i); 
+        std::byte * camera_ptr = global_pool.GetPerCameraConstantMemory(i);
+        std::memcpy(camera_ptr, &camera_mats, sizeof camera_mats);
+        global_pool.FlushPerCameraConstantMemory(i);
     }
     
     auto & tcb = rsys->GetTransferCommandBuffer();
@@ -135,34 +143,15 @@ int main(int argc, char ** argv)
         cb.BeginRendering(rts, extent, index);
 
         cb.SetupViewport(extent.width, extent.height, scissor);
-        // We haven't design new command buffer yet, so just use raw vulkan functions for testing.
-        vk::CommandBuffer rcb = cb.get();
-        rcb.bindPipeline(vk::PipelineBindPoint::eGraphics, test_template->GetPipeline(0));
+        cb.BindMaterial(*test_material_instance, 0);
         // Push model matrix...
+        vk::CommandBuffer rcb = cb.get();
         rcb.pushConstants(
             test_template->GetPipelineLayout(0), 
             vk::ShaderStageFlagBits::eVertex, 
             0, 
             ConstantData::PerModelConstantPushConstant::PUSH_RANGE_SIZE,
             reinterpret_cast<const void *>(&eye4)
-        );
-        // Write view and projection matrices...
-        const auto & global_pool = rsys->GetGlobalConstantDescriptorPool();
-        std::byte * camera_ptr = global_pool.GetPerCameraConstantMemory(in_flight_frame_id);
-        struct {
-            glm::mat4 view{1.0f};
-            glm::mat4 proj{1.0f};
-        } camera_mats;
-        std::memcpy(camera_ptr, &camera_mats, sizeof camera_mats);
-
-        const auto & per_scenc_descriptor_set = global_pool.GetPerSceneConstantSet(in_flight_frame_id);
-        const auto & per_camera_descriptor_set = global_pool.GetPerCameraConstantSet(in_flight_frame_id);
-        rcb.bindDescriptorSets(
-                vk::PipelineBindPoint::eGraphics, 
-                test_template->GetPipelineLayout(0), 
-                0,
-                {per_scenc_descriptor_set, per_camera_descriptor_set, test_material_instance->GetDescriptor(0)},
-                {}
         );
         cb.DrawMesh(test_mesh);
 
