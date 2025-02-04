@@ -49,7 +49,7 @@ namespace Engine {
         m_pending_buffers.push_back(std::move(buffer));
     }
 
-    void TransferCommandBuffer::CommitTextureImage(const AllocatedImage2DTexture& texture, std::byte * data, size_t length) {
+    void TransferCommandBuffer::CommitTextureImage(const AllocatedImage2DTexture& texture, const std::byte * data, size_t length) {
         Buffer buffer {texture.CreateStagingBuffer()};
         assert(length <= buffer.GetSize());
         std::byte * mapped_ptr = buffer.Map();

@@ -24,7 +24,7 @@ namespace Engine
         REFL_SER_ENABLE unsigned m_mip_level{};
 
         void LoadFromFile(const std::filesystem::path &path);
-        std::byte *GetPixelData();
+        const std::byte *GetPixelData() const;
         size_t GetPixelDataSize() const;
 
     protected:

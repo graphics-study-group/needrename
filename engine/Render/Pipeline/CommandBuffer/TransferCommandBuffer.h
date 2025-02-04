@@ -27,7 +27,7 @@ namespace Engine {
         /// @param texture texture to be updated
         /// @param data pixel data, whose layout is specified by the texture
         /// @param length length of the pixel data, typically width * height * depth of the pixel (3 bytes for RGB and 4 bytes for RGBA)
-        void CommitTextureImage(const AllocatedImage2DTexture & texture, std::byte * data, size_t length);
+        void CommitTextureImage(const AllocatedImage2DTexture & texture, const std::byte * data, size_t length);
 
         void End();
 

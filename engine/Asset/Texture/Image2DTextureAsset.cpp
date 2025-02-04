@@ -51,7 +51,7 @@ namespace Engine
         m_mip_level = 1;
     }
 
-    std::byte *Image2DTextureAsset::GetPixelData()
+    const std::byte *Image2DTextureAsset::GetPixelData() const
     {
         return m_data.data();
     }
