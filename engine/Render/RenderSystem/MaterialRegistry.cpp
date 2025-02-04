@@ -6,7 +6,8 @@ namespace Engine::RenderSystemState {
     void MaterialRegistry::Create(std::weak_ptr<RenderSystem> system)
     {
         this->m_system = system;
-        this->AddDefaultMaterials();
+        // XXX: Adding default materials before asset system crashes.
+        // this->AddDefaultMaterials();
     }
 
     void MaterialRegistry::AddDefaultMaterials()
