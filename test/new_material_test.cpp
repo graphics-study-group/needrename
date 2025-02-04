@@ -81,7 +81,7 @@ int main(int argc, char ** argv)
     auto test_material_instance = std::make_shared<Materials::BlinnPhongInstance>(rsys, test_template);
     test_material_instance->SetAmbient(glm::vec4(0.0, 0.0, 0.0, 0.0));
     test_material_instance->SetSpecular(glm::vec4(1.0, 1.0, 1.0, 64.0));
-    test_material_instance->SetBaseTexture(*allocated_image_texture);
+    test_material_instance->SetBaseTexture(allocated_image_texture);
     test_material_instance->WriteDescriptors(0);
 
     // Prepare mesh

@@ -30,6 +30,16 @@ namespace Engine
     public:
         MaterialInstance(std::weak_ptr <RenderSystem> system, std::shared_ptr <MaterialTemplate> tpl);
 
+        /**
+         * @brief Get the template associated with this material instance.
+         * 
+         * This method returns a constant reference to the `MaterialTemplate` object
+         * that was used to create this material instance. The template provides information
+         * about the material's structure and configuration, including its passes,
+         * bindings, and other properties.
+         * 
+         * @return A constant reference to the `MaterialTemplate` associated with this material instance.
+         */ 
         const MaterialTemplate & GetTemplate() const;
         
         /**
@@ -47,7 +57,7 @@ namespace Engine
          * 
          * TODO: Figure out a way to connect samplers with textures
          */
-        void WriteTextureUniform(uint32_t pass, uint32_t index, const ImageInterface & texture);
+        void WriteTextureUniform(uint32_t pass, uint32_t index, std::shared_ptr<const ImageInterface> texture);
     
         /**
          * @brief Set the uniform variable descriptor to point to a given value.
@@ -70,6 +80,15 @@ namespace Engine
          */
         void WriteDescriptors(uint32_t pass);
 
+        /**
+         * @brief Get the descriptor set for a specific pass
+         *
+         * This method returns the descriptor set associated with the given pass index.
+         * The descriptor set contains the bindings for various resources such as textures and uniform buffers.
+         *
+         * @param pass_index The index of the pass
+         * @return A reference to the `vk::DescriptorSet` object associated with the specified pass
+         */
         vk::DescriptorSet GetDescriptor(uint32_t pass) const;
     };
 } // namespace Engine

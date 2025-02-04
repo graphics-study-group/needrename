@@ -331,10 +331,9 @@ namespace Engine
                     continue;
                 }
 
-                // These pointers mixed with references are truly ugly, try figuring out a better way.
-                const ImageInterface * image = nullptr;
+                std::shared_ptr<const ImageInterface> image{};
                 try {
-                    image = &(std::any_cast<std::reference_wrapper<const ImageInterface>> (instance_vars.at(idx)).get());
+                    image = (std::any_cast<std::shared_ptr<const ImageInterface>> (instance_vars.at(idx)));
                 } catch (std::exception & e) {
                     SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Variable %llu is not a texture, or the texture is invalid.", idx);
                     continue;
