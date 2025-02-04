@@ -14,12 +14,12 @@ namespace Engine {
          * 
          * Associated with two shaders: `blinn_phong.frag` and `blinn_phong.vert`.
          */
-        class BlinnPhongAsset : public MaterialTemplateAsset {
+        class BlinnPhongTemplateAsset : public MaterialTemplateAsset {
             std::shared_ptr <ShaderAsset> vs {}, fs {};
             std::shared_ptr <AssetRef> vs_ref {}, fs_ref {};
 
         public:
-            BlinnPhongAsset();
+            BlinnPhongTemplateAsset();
         };
 
         class BlinnPhongInstance : public MaterialInstance {

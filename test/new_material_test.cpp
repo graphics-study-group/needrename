@@ -75,7 +75,7 @@ int main(int argc, char ** argv)
     allocated_image_texture->Create(*test_texture_asset);
 
     // Prepare material
-    auto test_asset = std::make_shared<Materials::BlinnPhongAsset>();
+    auto test_asset = std::make_shared<Materials::BlinnPhongTemplateAsset>();
     auto test_asset_ref = std::make_shared<AssetRef>(test_asset);
     auto test_template = std::make_shared<Materials::BlinnPhongTemplate>(rsys, test_asset_ref);
     auto test_material_instance = std::make_shared<Materials::BlinnPhongInstance>(rsys, test_template);

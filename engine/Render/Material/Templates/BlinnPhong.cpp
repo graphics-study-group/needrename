@@ -7,7 +7,7 @@
 
 namespace Engine::Materials
 {
-    BlinnPhongAsset::BlinnPhongAsset() : MaterialTemplateAsset()
+    BlinnPhongTemplateAsset::BlinnPhongTemplateAsset() : MaterialTemplateAsset()
     {
         vs = std::make_shared<ShaderAsset>();
         fs = std::make_shared<ShaderAsset>();
@@ -121,7 +121,7 @@ namespace Engine::Materials
         std::weak_ptr <RenderSystem> system,
         std::shared_ptr <AssetRef> asset
     ) : MaterialTemplate(system, asset) {
-        if (asset->as<BlinnPhongAsset>() == nullptr) {
+        if (asset->as<BlinnPhongTemplateAsset>() == nullptr) {
             SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Constructing Blinn-Phong material template with a mis-matched asset.");
         }
     }
