@@ -29,6 +29,7 @@ namespace Engine
     
     public:
         MaterialInstance(std::weak_ptr <RenderSystem> system, std::shared_ptr <MaterialTemplate> tpl);
+        virtual ~MaterialInstance() = default;
 
         /**
          * @brief Get the template associated with this material instance.

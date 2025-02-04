@@ -23,7 +23,7 @@ namespace Engine {
         };
 
         class BlinnPhongInstance : public MaterialInstance {
-            uint32_t texture_id, specular_id, ambient_id;
+            uint32_t texture_id{}, specular_id{}, ambient_id{};
         public:
             BlinnPhongInstance(std::weak_ptr <RenderSystem> system, std::shared_ptr<MaterialTemplate> tpl);
             void SetBaseTexture(std::shared_ptr<const AllocatedImage2DTexture> image);

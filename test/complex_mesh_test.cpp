@@ -13,7 +13,7 @@
 #include "Framework/component/RenderComponent/CameraComponent.h"
 #include "Framework/component/RenderComponent/MeshComponent.h"
 #include "Render/Memory/Image2DTexture.h"
-#include "Render/Material/BlinnPhong.h"
+#include "Render/Material/Templates/BlinnPhong.h"
 #include "Render/Pipeline/Shader.h"
 #include "Render/Pipeline/RenderTarget/RenderTargetSetup.h"
 #include "Render/Pipeline/CommandBuffer.h"
@@ -31,7 +31,13 @@ namespace sch = std::chrono;
 
 class MeshComponentFromFile : public MeshComponent {
     Transform transform;
-    BlinnPhong::UniformData m_uniform_data {
+
+    struct UniformData {
+        glm::vec4 specular;
+        glm::vec4 ambient;
+    };
+
+    UniformData m_uniform_data {
         glm::vec4{0.5, 0.5, 0.5, 4.0}, 
         glm::vec4{0.1, 0.1, 0.1, 1.0}
     };
@@ -103,6 +109,7 @@ class MeshComponentFromFile : public MeshComponent {
         ObjLoader loader;
         loader.LoadMeshAssetFromTinyObj(*(this->m_mesh_asset->as<MeshAsset>()), attrib, shapes);
 
+        // Read material assets
         for (const auto & material : materials) {
             this->m_material_assets.push_back(std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(std::make_shared<MaterialAsset>())));
             loader.LoadMaterialAssetFromTinyObj(*(this->m_material_assets.back()->as<MaterialAsset>()), material, mesh.parent_path());
@@ -116,11 +123,6 @@ class MeshComponentFromFile : public MeshComponent {
             m_submeshes.push_back(std::make_shared<HomogeneousMesh>(
                 m_system, m_mesh_asset, i));
         }
-
-        for (size_t i = 0; i < m_material_assets.size(); i++) {
-            auto ptr = std::make_shared<BlinnPhong>(m_system, m_material_assets[i]);
-            m_materials.push_back(ptr);
-        }
     }
 
 public: 
@@ -128,17 +130,18 @@ public:
     : MeshComponent(std::weak_ptr<GameObject>()), transform() {
         LoadMesh(mesh_file_name);
 
-        auto & tcb = m_system.lock()->GetTransferCommandBuffer();
+        auto system = m_system.lock();
+        auto & tcb = system->GetTransferCommandBuffer();
         tcb.Begin();
         for (auto & submesh : m_submeshes) {
             submesh->Prepare();
             tcb.CommitVertexBuffer(*submesh);
         }
 
-        for (auto & material : m_materials) {
-            std::shared_ptr<BlinnPhong> mat_ptr = std::dynamic_pointer_cast<BlinnPhong>(material);
-            assert(mat_ptr);
-            mat_ptr->CommitBuffer(tcb);
+        for (size_t i = 0; i < m_material_assets.size(); i++) {
+            auto ptr = std::make_shared<Materials::BlinnPhongInstance>(m_system, system->GetMaterialRegistry().GetMaterial("Built-in Blinn-Phong"));
+            ptr->Convert(m_material_assets[i], tcb);
+            m_materials.push_back(ptr);
         }
 
         tcb.End();
@@ -164,9 +167,10 @@ public:
 
         m_uniform_data.specular = glm::vec4{spec_r, spec_g, spec_b, spec_coef};
         for (auto & material : m_materials) {
-            auto mat_ptr = std::dynamic_pointer_cast<BlinnPhong>(material);
+            auto mat_ptr = std::dynamic_pointer_cast<Materials::BlinnPhongInstance>(material);
             assert(mat_ptr);
-            mat_ptr->UpdateUniform(m_uniform_data);
+            mat_ptr->SetAmbient(m_uniform_data.ambient);
+            mat_ptr->SetSpecular(m_uniform_data.specular);
         }
     }
 };
