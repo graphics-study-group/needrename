@@ -8,7 +8,6 @@
 #include "Framework/component/RenderComponent/MeshComponent.h"
 #include "Framework/component/RenderComponent/CameraComponent.h"
 #include "Render/Renderer/HomogeneousMesh.h"
-#include "Render/Material/Material.h"
 #include "Render/Pipeline/CommandBuffer.h"
 #include <MainClass.h>
 #include <GUI/GUISystem.h>

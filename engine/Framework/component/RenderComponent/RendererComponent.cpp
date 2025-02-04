@@ -1,5 +1,5 @@
 #include "RendererComponent.h"
-#include <Render/Material/Material.h>
+#include "Render/RenderSystem.h"
 #include <Render/Material/Templates/BlinnPhong.h>
 #include <Framework/component/RenderComponent/CameraComponent.h>
 #include <Framework/object/GameObject.h>

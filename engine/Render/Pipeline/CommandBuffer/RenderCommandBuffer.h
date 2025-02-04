@@ -41,12 +41,6 @@ namespace Engine {
         /// @brief Bind a material for rendering, and write per-material descriptors.
         /// @param material 
         /// @param pass_index 
-        [[deprecated]]
-        void BindMaterial(Material & material, uint32_t pass_index);
-
-        /// @brief Bind a material for rendering, and write per-material descriptors.
-        /// @param material 
-        /// @param pass_index 
         void BindMaterial(MaterialInstance & material, uint32_t pass_index);
 
         /// @brief Setup the viewport parameters
