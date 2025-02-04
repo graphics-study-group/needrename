@@ -279,7 +279,7 @@ namespace Engine
         const auto & pass_info = this->GetPassInfo(pass_index);
         const auto & uniforms = pass_info.uniforms.variables;
 
-        if (memory.size() <= pass_info.uniforms.maximal_ubo_size) {
+        if (memory.size() < pass_info.uniforms.maximal_ubo_size) {
             SDL_LogWarn(
                 SDL_LOG_CATEGORY_RENDER, 
                 "Performing buffer allocation for material %s pass %u", 
@@ -307,8 +307,6 @@ namespace Engine
                 case Type::Mat4:
                     *(reinterpret_cast<glm::mat4*>(memory.data() + offset)) = std::any_cast<glm::mat4>(var);
                     break;
-                default:
-                    SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Ignoring unsupported uniform type for index %u of pass %u", idx, pass_index);
                 }
             } catch(std::bad_any_cast & e) {
                 SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Mismatched uniform type of uniform index %u", idx);
