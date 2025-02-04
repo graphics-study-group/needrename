@@ -15,7 +15,8 @@ namespace Engine
         struct PassInfo {
             std::unique_ptr<Buffer> ubo {};
             vk::DescriptorSet desc_set {};
-            bool is_dirty {false};
+            bool is_ubo_dirty {false};
+            bool is_descriptor_set_dirty {false};
         };
 
     protected:
@@ -74,8 +75,13 @@ namespace Engine
 
         
         /**
+         * @brief Write out UBO changes if it is dirty.
+         */
+        void WriteUBO(uint32_t pass);
+        
+        /**
          * @brief Write out pending descriptor changes to the descriptor set.
-         * Writes uniform buffers to update uniform variables, and calls vk::WriteDescriptorSet to upload.
+         * Calls vk::WriteDescriptorSet to upload.
          * 
          * @param pass The index of the pass.
          */

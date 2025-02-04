@@ -46,7 +46,7 @@ namespace Engine {
         );
 
         m_variables[pass][index] = std::any(texture);
-        m_pass_info[pass].is_dirty = true;
+        m_pass_info[pass].is_descriptor_set_dirty = true;
     }
 
     void MaterialInstance::WriteUBOUniform(uint32_t pass, uint32_t index, std::any uniform)
@@ -63,15 +63,14 @@ namespace Engine {
         );
 
         m_variables[pass][index] = uniform;
-        m_pass_info[pass].is_dirty = true;
+        m_pass_info[pass].is_ubo_dirty = true;
     }
 
-    void MaterialInstance::WriteDescriptors(uint32_t pass)
+    void MaterialInstance::WriteUBO(uint32_t pass)
     {
         assert(m_pass_info.contains(pass) && "Cannot find pass.");
         auto & pass_info = m_pass_info[pass];
-
-        if (!pass_info.is_dirty)    return;
+        if (!pass_info.is_ubo_dirty)    return;
 
         auto tpl = m_parent_template.lock();
 
@@ -80,6 +79,19 @@ namespace Engine {
         tpl->PlaceUBOVariables(*this, m_buffer, pass);
         std::memcpy(ubo.Map(), m_buffer.data(), ubo.GetSize());
         ubo.Flush();
+
+        pass_info.is_ubo_dirty = false;
+    }
+
+    void MaterialInstance::WriteDescriptors(uint32_t pass)
+    {
+        assert(m_pass_info.contains(pass) && "Cannot find pass.");
+        auto & pass_info = m_pass_info[pass];
+
+        if (!pass_info.is_descriptor_set_dirty)    return;
+
+        auto tpl = m_parent_template.lock();
+        auto & ubo = *(pass_info.ubo.get());
         
         // Prepare descriptor writes
         std::vector <vk::WriteDescriptorSet> writes;
@@ -109,7 +121,7 @@ namespace Engine {
         writes.push_back(ubo_write);
 
         m_system.lock()->getDevice().updateDescriptorSets(writes, {});
-        pass_info.is_dirty = false;
+        pass_info.is_descriptor_set_dirty = false;
     }
     vk::DescriptorSet MaterialInstance::GetDescriptor(uint32_t pass) const
     {

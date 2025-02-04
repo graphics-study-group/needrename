@@ -170,6 +170,7 @@ namespace Engine
             );
         }
         
+        material.WriteUBO(pass_index);
         material.WriteDescriptors(pass_index);
     }
 
