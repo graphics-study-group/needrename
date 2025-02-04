@@ -18,7 +18,7 @@ namespace Engine
             bool is_dirty {false};
         };
 
-    private:
+    protected:
         std::weak_ptr <RenderSystem> m_system;
         std::weak_ptr <MaterialTemplate> m_parent_template;
         std::unordered_map <uint32_t, std::unordered_map<uint32_t, std::any>> m_variables {};

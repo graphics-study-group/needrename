@@ -1,5 +1,8 @@
 #include "BlinnPhong.h"
+#include "Asset/Material/MaterialAsset.h"
+#include "Asset/Texture/Image2DTextureAsset.h"
 #include "Render/Memory/Image2DTexture.h"
+#include "Render/Pipeline/CommandBuffer/TransferCommandBuffer.h"
 #include <SDL3/SDL.h>
 
 namespace Engine::Materials
@@ -66,7 +69,7 @@ namespace Engine::Materials
         ambient_id = tpl->GetVariableIndex("ambient_color", 0).value();
     }
 
-    void BlinnPhongInstance::SetBaseTexture(const AllocatedImage2DTexture & image) {
+    void BlinnPhongInstance::SetBaseTexture(std::shared_ptr<const AllocatedImage2DTexture> image) {
         this->WriteTextureUniform(0, texture_id, image);
     }
     void BlinnPhongInstance::SetSpecular(glm::vec4 spec) {
@@ -74,6 +77,44 @@ namespace Engine::Materials
     }
     void BlinnPhongInstance::SetAmbient(glm::vec4 ambi) {
         this->WriteUBOUniform(0, ambient_id, ambi);
+    }
+
+    void BlinnPhongInstance::Convert(std::shared_ptr<AssetRef> asset, TransferCommandBuffer & tcb)
+    {
+        const auto & material_asset = asset->cas<MaterialAsset>();
+
+        // We currently only care about base texture and specular and ambient vectors
+        // Load texture asset
+        const auto & base_texture_prop = material_asset->m_properties.at("diffuse_texture");
+        assert(base_texture_prop.m_type == MaterialProperty::Type::Texture);
+        auto base_texture_asset = (std::any_cast<std::shared_ptr<AssetRef>>(base_texture_prop.m_value))->as<Image2DTextureAsset>();
+        auto base_texture = std::make_shared<AllocatedImage2DTexture>(m_system);
+        base_texture->Create(*base_texture_asset);
+        this->SetBaseTexture(base_texture);
+        tcb.CommitTextureImage(*base_texture, base_texture_asset->GetPixelData(), base_texture_asset->GetPixelDataSize());
+
+        // Load specular and ambient vectors
+        auto itr = material_asset->m_properties.find("specular");
+        glm::vec4 specular_prop = 
+            itr == material_asset->m_properties.end() ? 
+            glm::vec4{0.0f, 0.0f, 0.0f, 0.0f} : 
+            std::any_cast<glm::vec4>(itr->second.m_value);
+
+        itr = material_asset->m_properties.find("shinness");
+        float shinness_prop = 
+            itr == material_asset->m_properties.end() ? 
+            0.0f : 
+            std::any_cast<float>(material_asset->m_properties.at("shinness").m_value);
+
+        itr = material_asset->m_properties.find("ambient");
+        glm::vec4 ambient_prop = 
+            itr == material_asset->m_properties.end() ?
+            glm::vec4{0.0f, 0.0f, 0.0f, 0.0f} :
+            std::any_cast<glm::vec4>(itr->second.m_value);
+
+        glm::vec4 specular{specular_prop.r, specular_prop.g, specular_prop.b, shinness_prop};
+        this->SetSpecular(specular);
+        this->SetAmbient(ambient_prop);
     }
 
     BlinnPhongTemplate::BlinnPhongTemplate(
