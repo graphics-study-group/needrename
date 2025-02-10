@@ -13,6 +13,9 @@ namespace Engine
     class Asset;
     class AssetManager;
 
+    template <class T>
+    concept AssetClass = std::is_base_of<Asset, T>::value;
+
     class REFL_SER_CLASS(REFL_WHITELIST) AssetRef : public std::enable_shared_from_this<AssetRef>
     {
         REFL_SER_BODY(AssetRef)
@@ -32,8 +35,11 @@ namespace Engine
         REFL_ENABLE bool IsValid();
         REFL_ENABLE GUID GetGUID();
 
-        template <typename T>
+        template <AssetClass T>
         std::shared_ptr<T> as();
+
+        template <AssetClass T>
+        std::shared_ptr <const T> cas() const;
 
     protected:
         friend class AssetManager;
@@ -42,7 +48,14 @@ namespace Engine
         GUID m_guid{};
     };
 
-    template <typename T>
+    template <AssetClass T>
+    std::shared_ptr<const T> AssetRef::cas() const
+    {
+        static_assert(std::is_base_of<Asset, T>::value, "T must be a derived class of Asset");
+        return std::dynamic_pointer_cast<const T>(m_asset);
+    }
+
+    template <AssetClass T>
     std::shared_ptr<T> AssetRef::as()
     {
         static_assert(std::is_base_of<Asset, T>::value, "T must be a derived class of Asset");

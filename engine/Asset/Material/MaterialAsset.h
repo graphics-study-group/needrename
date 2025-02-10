@@ -10,6 +10,8 @@
 #include <Asset/AssetRef.h>
 #include <meta_engine/reflection.hpp>
 
+#include <Asset/Material/ShaderAsset.h>
+
 namespace Engine
 {
     class ObjLoader;  
@@ -18,14 +20,7 @@ namespace Engine
     {
         REFL_SER_BODY(MaterialProperty)
 
-        enum class Type
-        {
-            Float,
-            Int,
-            Vec4,
-            Mat4,
-            Texture
-        };
+        using Type = ShaderVariableProperty::Type;
 
         Type m_type{};
         std::any m_value{};
@@ -50,7 +45,7 @@ namespace Engine
         virtual ~MaterialAsset() = default;
 
         REFL_SER_ENABLE std::string m_name{};
-        // TODO: REFL_SER_ENABLE std::shared_ptr<ShaderAsset> m_shader{};
+        // TODO: REFL_SER_ENABLE std::shared_ptr<MaterialTemplateAsset> m_shader{};
         REFL_SER_ENABLE std::unordered_map<std::string, MaterialProperty> m_properties{};
 
         friend class ObjLoader;

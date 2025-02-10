@@ -5,6 +5,7 @@
 #include "Render/Memory/Image2DTexture.h"
 #include "Render/Renderer/HomogeneousMesh.h"
 
+#include "BufferTransferHelper.h"
 #include "LayoutTransferHelper.h"
 
 namespace Engine {
@@ -33,38 +34,22 @@ namespace Engine {
         // device.waitIdle();
 
         // Set up a barrier for buffer transfering
-        vk::MemoryBarrier barrier {
-            vk::AccessFlagBits::eVertexAttributeRead | vk::AccessFlagBits::eIndexRead,
-            vk::AccessFlagBits::eTransferWrite
+        std::array <vk::MemoryBarrier2, 1> barriers = {
+            BufferTransferHelper::GetBufferBarrier(BufferTransferHelper::BufferTransferType::VertexBefore)
         };
-        m_handle->pipelineBarrier(
-            vk::PipelineStageFlagBits::eVertexInput,
-            vk::PipelineStageFlagBits::eTransfer,
-            vk::DependencyFlags{0},
-            { barrier },
-            {},
-            {}
-        );
+        m_handle->pipelineBarrier2(vk::DependencyInfo{{}, barriers, {}, {}});
+
 
         auto buffer {mesh.CreateStagingBuffer()};
         vk::BufferCopy copy{0, 0, static_cast<vk::DeviceSize>(mesh.GetExpectedBufferSize())};
         m_handle->copyBuffer(buffer.GetBuffer(), mesh.GetBuffer().GetBuffer(), {copy});
 
-        barrier.srcAccessMask = vk::AccessFlagBits::eTransferWrite;
-        barrier.dstAccessMask = vk::AccessFlagBits::eVertexAttributeRead | vk::AccessFlagBits::eIndexRead;
-        m_handle->pipelineBarrier(
-            vk::PipelineStageFlagBits::eTransfer,
-            vk::PipelineStageFlagBits::eVertexInput,
-            vk::DependencyFlags{0},
-            { barrier },
-            {},
-            {}
-        );
-
+        barriers[0] = BufferTransferHelper::GetBufferBarrier(BufferTransferHelper::BufferTransferType::VertexAfter);
+        m_handle->pipelineBarrier2(vk::DependencyInfo{{}, barriers, {}, {}});
         m_pending_buffers.push_back(std::move(buffer));
     }
 
-    void TransferCommandBuffer::CommitTextureImage(const AllocatedImage2DTexture& texture, std::byte * data, size_t length) {
+    void TransferCommandBuffer::CommitTextureImage(const AllocatedImage2DTexture& texture, const std::byte * data, size_t length) {
         Buffer buffer {texture.CreateStagingBuffer()};
         assert(length <= buffer.GetSize());
         std::byte * mapped_ptr = buffer.Map();

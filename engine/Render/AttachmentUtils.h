@@ -16,6 +16,12 @@ namespace Engine {
             DontCare
         };
 
+        struct AttachmentOp {
+            vk::AttachmentLoadOp load_op;
+            vk::AttachmentStoreOp store_op;
+            vk::ClearValue clear_value;
+        };
+
         struct AttachmentDescription {
             vk::Image image;
             vk::ImageView image_view;
@@ -55,6 +61,20 @@ namespace Engine {
                 desc.load_op,
                 desc.store_op,
                 clear
+            };
+            return info;
+        }
+
+        constexpr vk::RenderingAttachmentInfo GetVkAttachmentInfo(vk::ImageView view, AttachmentOp op, vk::ImageLayout layout) {
+            vk::RenderingAttachmentInfo info {
+                view,
+                layout,
+                vk::ResolveModeFlagBits::eNone,
+                nullptr,
+                vk::ImageLayout::eUndefined,
+                op.load_op,
+                op.store_op,
+                op.clear_value
             };
             return info;
         }

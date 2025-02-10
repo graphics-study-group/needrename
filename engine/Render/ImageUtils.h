@@ -13,6 +13,7 @@ namespace Engine {
         };
 
         enum class ImageFormat {
+            UNDEFINED,
             R8G8B8A8SRGB,
             R8G8B8SRGB,
             D32SFLOAT,
@@ -67,6 +68,8 @@ namespace Engine {
         constexpr vk::Format GetVkFormat(ImageFormat format)
         {
             switch (format) {
+                case ImageFormat::UNDEFINED:
+                    return vk::Format::eUndefined;
                 case ImageFormat::R8G8B8SRGB:
                     return vk::Format::eR8G8B8Srgb;
                 case ImageFormat::R8G8B8A8SRGB:
@@ -84,8 +87,9 @@ namespace Engine {
                 case ImageFormat::R8G8B8A8SRGB:
                 case ImageFormat::D32SFLOAT:
                     return 4;
+                default:
+                    return 0;
             }
-            return 0;
         }
     }
 }

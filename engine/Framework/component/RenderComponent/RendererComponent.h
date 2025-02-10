@@ -9,14 +9,14 @@
 
 namespace Engine
 {
-    class Material;
+    class MaterialInstance;
     class RenderSystem;
 
     class REFL_SER_CLASS(REFL_WHITELIST) RendererComponent : public Component
     {
         REFL_SER_BODY(RendererComponent)
     protected:
-        std::vector<std::shared_ptr<Material>> m_materials{};
+        std::vector<std::shared_ptr<MaterialInstance>> m_materials{};
         std::weak_ptr<RenderSystem> m_system{};
 
     public:
@@ -31,7 +31,7 @@ namespace Engine
         virtual void Init() override;
         virtual void Tick(float dt) override;
 
-        std::shared_ptr<Material> GetMaterial(uint32_t slot) const;
+        std::shared_ptr<MaterialInstance> GetMaterial(uint32_t slot) const;
         auto GetMaterials() -> decltype(m_materials) &;
 
         REFL_SER_ENABLE std::vector<std::shared_ptr<AssetRef>> m_material_assets{};

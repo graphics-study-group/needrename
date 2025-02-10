@@ -8,7 +8,6 @@
 #include "Framework/component/RenderComponent/MeshComponent.h"
 #include "Framework/component/RenderComponent/CameraComponent.h"
 #include "Render/Renderer/HomogeneousMesh.h"
-#include "Render/Material/Material.h"
 #include "Render/Pipeline/CommandBuffer.h"
 #include <MainClass.h>
 #include <GUI/GUISystem.h>
@@ -48,6 +47,7 @@ namespace Engine
         this->m_synch = std::make_unique<InFlightTwoStageSynch>(*this, 3);
         this->m_descriptor_pool.Create(shared_from_this(), 3);
         this->m_material_descriptor_manager.Create(shared_from_this());
+        this->m_material_registry.Create(shared_from_this());
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Vulkan initialization finished.");
     }
 
@@ -138,6 +138,11 @@ namespace Engine
     }
     RenderSystemState::MaterialDescriptorManager& RenderSystem::GetMaterialDescriptorManager() {
         return m_material_descriptor_manager;
+    }
+
+    RenderSystemState::MaterialRegistry &RenderSystem::GetMaterialRegistry()
+    {
+        return m_material_registry;
     }
 
     TransferCommandBuffer & RenderSystem::GetTransferCommandBuffer() {

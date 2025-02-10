@@ -9,6 +9,7 @@ namespace Engine {
     class ImagePerFrameInterface;
     /// @brief Render target setup.
     /// Automatically manages render pass and frame buffers.
+    /// TODO: Load, store and clear values are to be integrated into MaterialTemplate
     class RenderTargetSetup {
         const RenderSystemState::Swapchain & m_swapchain;
         std::vector <std::shared_ptr <const RenderImageTexture>> m_color_targets {};
