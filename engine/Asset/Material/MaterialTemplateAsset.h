@@ -36,11 +36,13 @@ namespace Engine
     {
         REFL_SER_BODY(MaterialTemplateSinglePassProperties)
 
-        MaterialTemplateSinglePassProperties() = default;
+        REFL_ENABLE MaterialTemplateSinglePassProperties() = default;
         virtual ~MaterialTemplateSinglePassProperties() = default;
 
         /// @brief C.f. `vkPipelineRasterizationStateCreateInfo`
-        struct RasterizerProperties {
+        REFL_SER_ENABLE struct REFL_SER_CLASS(REFL_WHITELIST) RasterizerProperties {
+            REFL_SER_SIMPLE_STRUCT(RasterizerProperties)
+
             enum class FillingMode {
                 Fill,
                 Line,
@@ -64,7 +66,9 @@ namespace Engine
         } rasterizer {};
 
         /// @brief C.f. `vkPipelineDepthStencilStateCreateInfo`
-        struct DSProperties {
+        REFL_SER_ENABLE struct REFL_SER_CLASS(REFL_WHITELIST) DSProperties {
+            REFL_SER_SIMPLE_STRUCT(DSProperties)
+
             bool ds_write_enabled{true};
             bool ds_test_enabled{true};
             float min_depth{0.0f};
@@ -72,7 +76,9 @@ namespace Engine
         } depth_stencil {};
         
         /// @brief C.f. `vkPipelineShaderStageCreateInfo`
-        struct Shaders {
+        REFL_SER_ENABLE struct REFL_SER_CLASS(REFL_WHITELIST) Shaders {
+            REFL_SER_SIMPLE_STRUCT(Shaders)
+
             /// @brief A vector of all shader programs used in the pipeline
             std::vector <AssetRef> shaders {};
             // TODO: Support shader specialization
@@ -84,7 +90,9 @@ namespace Engine
 
         /// @brief C.f. `vkPipelineRenderingCreateInfo`
         /// Use UNDEFINED image format to adapt to swapchain.
-        struct Attachments {
+        REFL_SER_ENABLE struct REFL_SER_CLASS(REFL_WHITELIST) Attachments {
+            REFL_SER_SIMPLE_STRUCT(Attachments)
+
             /// @brief Color attachments. If left empty, then this struct is ignored
             /// and the pipeline will be configured to use the current swapchain as attachments.
             std::vector <ImageUtils::ImageFormat> color {};
@@ -104,10 +112,10 @@ namespace Engine
     {
         REFL_SER_BODY(MaterialTemplateProperties)
 
-        MaterialTemplateProperties() = default;
+        REFL_ENABLE MaterialTemplateProperties() = default;
         virtual ~MaterialTemplateProperties() = default;
 
-        std::unordered_map <uint32_t, MaterialTemplateSinglePassProperties> properties {};
+        REFL_SER_ENABLE std::unordered_map <uint32_t, MaterialTemplateSinglePassProperties> properties {};
     };
 
     class REFL_SER_CLASS(REFL_WHITELIST) MaterialTemplateAsset : public Asset
@@ -115,11 +123,11 @@ namespace Engine
         REFL_SER_BODY(MaterialTemplateAsset)
     public:
 
-        MaterialTemplateAsset() = default;
+        REFL_ENABLE MaterialTemplateAsset() = default;
         virtual ~MaterialTemplateAsset() = default;
 
-        MaterialTemplateProperties properties {};
-        std::string name {};
+        REFL_SER_ENABLE MaterialTemplateProperties properties {};
+        REFL_SER_ENABLE std::string name {};
     };
 }
 
