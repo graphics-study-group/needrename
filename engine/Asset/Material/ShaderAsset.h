@@ -14,12 +14,12 @@ namespace Engine {
     {
         REFL_SER_BODY(ShaderVariableProperty)
 
-        ShaderVariableProperty() = default;
+        REFL_ENABLE ShaderVariableProperty() = default;
         virtual ~ShaderVariableProperty() = default;
 
         /// @brief How frequently the value this variable changes?
         /// Corresponds to descriptor set index of this variable.
-        enum class Frequency {
+        REFL_SER_ENABLE enum class Frequency {
             PerScene = 0,
             PerCamera = 1,
             PerMaterial = 2,
@@ -27,7 +27,7 @@ namespace Engine {
         } frequency {};
 
         /// @brief what is the type of this variable?
-        enum class Type {
+        REFL_SER_ENABLE enum class Type {
             Float,
             Int,
             Vec4,
@@ -62,14 +62,14 @@ namespace Engine {
         }
 
         /// @brief Binding of this uniform, should be 0 for uniform variables in UBOs.
-        uint32_t binding {};
+        REFL_SER_ENABLE uint32_t binding {};
 
         /// @brief Offset of this uniform variable in UBO.
         /// Ignored for non-UBO variables such as textures.
-        uint32_t offset {};
+        REFL_SER_ENABLE uint32_t offset {};
 
         /// @brief Name of this uniform, which can be used as an alternative of binding or offset
-        std::string name {};
+        REFL_SER_ENABLE std::string name {};
     };
 
     class REFL_SER_CLASS(REFL_WHITELIST) ShaderAsset : public Asset {
@@ -77,14 +77,14 @@ namespace Engine {
     public:
         REFL_ENABLE ShaderAsset () = default;
 
-        enum class ShaderType {
+        REFL_SER_ENABLE enum class ShaderType {
             None,
             Vertex,
             Fragment
         } shaderType {ShaderType::None};
 
         // XXX: We currently use filename only. Ideally we should directly store SPIR-V binaries.
-        std::string filename {};
+        REFL_SER_ENABLE std::string filename {};
         // std::vector <uint32_t *> binary;
     };
 }

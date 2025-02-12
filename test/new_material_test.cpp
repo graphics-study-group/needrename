@@ -90,6 +90,21 @@ int main(int argc, char ** argv)
     test_material_instance->SetBaseTexture(allocated_image_texture);
     test_material_instance->WriteDescriptors(0);
 
+    Serialization::Archive archive;
+    archive.prepare_save();
+    test_asset->save_asset_to_archive(archive);
+    archive.save_to_file(project_path / "BlinnPhongTemplate.asset");
+
+    archive.clear();
+    archive.prepare_save();
+    test_asset->properties.properties[0].shaders.shaders[0].as<ShaderAsset>()->save_asset_to_archive(archive);
+    archive.save_to_file(project_path / "blinn_phong.vert.asset");
+
+    archive.clear();
+    archive.prepare_save();
+    test_asset->properties.properties[0].shaders.shaders[1].as<ShaderAsset>()->save_asset_to_archive(archive);
+    archive.save_to_file(project_path / "blinn_phong.frag.asset");
+
     // Prepare mesh
     auto test_mesh_asset = std::make_shared<TestMeshAsset>();
     auto test_mesh_asset_ref = std::make_shared<AssetRef>(test_mesh_asset);

@@ -40,7 +40,7 @@ namespace Engine
         virtual ~MaterialTemplateSinglePassProperties() = default;
 
         /// @brief C.f. `vkPipelineRasterizationStateCreateInfo`
-        REFL_SER_ENABLE struct REFL_SER_CLASS(REFL_WHITELIST) RasterizerProperties {
+        REFL_SER_ENABLE struct REFL_SER_CLASS(REFL_BLACKLIST) RasterizerProperties {
             REFL_SER_SIMPLE_STRUCT(RasterizerProperties)
 
             enum class FillingMode {
@@ -66,7 +66,7 @@ namespace Engine
         } rasterizer {};
 
         /// @brief C.f. `vkPipelineDepthStencilStateCreateInfo`
-        REFL_SER_ENABLE struct REFL_SER_CLASS(REFL_WHITELIST) DSProperties {
+        REFL_SER_ENABLE struct REFL_SER_CLASS(REFL_BLACKLIST) DSProperties {
             REFL_SER_SIMPLE_STRUCT(DSProperties)
 
             bool ds_write_enabled{true};
@@ -76,7 +76,7 @@ namespace Engine
         } depth_stencil {};
         
         /// @brief C.f. `vkPipelineShaderStageCreateInfo`
-        REFL_SER_ENABLE struct REFL_SER_CLASS(REFL_WHITELIST) Shaders {
+        REFL_SER_ENABLE struct REFL_SER_CLASS(REFL_BLACKLIST) Shaders {
             REFL_SER_SIMPLE_STRUCT(Shaders)
 
             /// @brief A vector of all shader programs used in the pipeline
@@ -90,7 +90,7 @@ namespace Engine
 
         /// @brief C.f. `vkPipelineRenderingCreateInfo`
         /// Use UNDEFINED image format to adapt to swapchain.
-        REFL_SER_ENABLE struct REFL_SER_CLASS(REFL_WHITELIST) Attachments {
+        REFL_SER_ENABLE struct REFL_SER_CLASS(REFL_BLACKLIST) Attachments {
             REFL_SER_SIMPLE_STRUCT(Attachments)
 
             /// @brief Color attachments. If left empty, then this struct is ignored
