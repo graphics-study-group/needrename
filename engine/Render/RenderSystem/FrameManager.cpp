@@ -46,13 +46,13 @@ namespace Engine::RenderSystemState{
         current_frame_in_flight = 0;
     }
 
-    uint32_t FrameManager::GetFrameInFlight()
+    uint32_t FrameManager::GetFrameInFlight() const noexcept
     {
         assert(this->current_frame_in_flight < FRAMES_IN_FLIGHT && "Frame Manager is in invalid state.");
         return this->current_frame_in_flight;
     }
 
-    uint32_t FrameManager::GetFramebuffer()
+    uint32_t FrameManager::GetFramebuffer() const noexcept
     {
         assert(this->current_framebuffer < std::numeric_limits<uint32_t>::max() && "Frame Manager is in invalid state.");
         return this->current_framebuffer;
@@ -60,6 +60,7 @@ namespace Engine::RenderSystemState{
 
     RenderCommandBuffer & FrameManager::GetCommandBuffer()
     {
+        assert(this->current_framebuffer < std::numeric_limits<uint32_t>::max() && "Frame Manager is in invalid state.");
         return render_command_buffers[GetFrameInFlight()];
     }
 
@@ -120,7 +121,7 @@ namespace Engine::RenderSystemState{
                 );
         }
 
-        // Increment FIF counter
+        // Increment FIF counter, reset framebuffer index
         current_frame_in_flight = (current_frame_in_flight + 1) % FRAMES_IN_FLIGHT;
         current_framebuffer = std::numeric_limits<uint32_t>::max();
     }

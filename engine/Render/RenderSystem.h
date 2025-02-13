@@ -70,17 +70,11 @@ namespace Engine
         /// @note You need to recreate depth images and framebuffers that refer to the swap chain.
         void UpdateSwapchain();
 
-        /// @brief Blocks and waits for a fence, signaling a frame is ready for rendering.
-        /// Resets corresponding command buffer and fence.
-        /// @param frame_index 
-        /// @param timeout 
-        void WaitForFrameBegin(uint32_t frame_index, uint64_t timeout = std::numeric_limits<uint64_t>::max());
-
-        uint32_t GetNextImage(uint32_t in_flight_index, uint64_t timeout = std::numeric_limits<uint64_t>::max());
+        uint32_t StartFrame();
 
         void Render();
 
-        vk::Result Present(uint32_t frame_index, uint32_t in_flight_index);
+        void CompleteFrame();
 
         vk::Instance getInstance() const;
         vk::SurfaceKHR getSurface() const;
@@ -90,10 +84,13 @@ namespace Engine
         const QueueInfo & getQueueInfo () const;
         const RenderSystemState::Swapchain & GetSwapchain() const;
         // const Synchronization & getSynchronization() const;
+        [[deprecated]]
         RenderCommandBuffer & GetGraphicsCommandBuffer(uint32_t frame_index);
+        RenderCommandBuffer & GetCurrentCommandBuffer();
         const RenderSystemState::GlobalConstantDescriptorPool & GetGlobalConstantDescriptorPool() const;
         RenderSystemState::MaterialDescriptorManager & GetMaterialDescriptorManager();
         RenderSystemState::MaterialRegistry & GetMaterialRegistry();
+        RenderSystemState::FrameManager & GetFrameManager ();
         TransferCommandBuffer & GetTransferCommandBuffer();
 
         void EnableDepthTesting();

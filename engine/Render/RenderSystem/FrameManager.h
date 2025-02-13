@@ -19,6 +19,8 @@ namespace Engine {
             std::vector <RenderCommandBuffer> render_command_buffers {};
 
             uint32_t current_frame_in_flight {std::numeric_limits<uint32_t>::max()};
+
+            // Current frame buffer id. Set by `StartFrame()` method.
             uint32_t current_framebuffer {std::numeric_limits<uint32_t>::max()};
 
             vk::Queue present_queue {};
@@ -27,9 +29,15 @@ namespace Engine {
         public:
             void Create (std::shared_ptr <RenderSystem> system);
 
-            uint32_t GetFrameInFlight();
-            uint32_t GetFramebuffer();
+            uint32_t GetFrameInFlight() const noexcept;
+            uint32_t GetFramebuffer() const noexcept;
+            
+            /**
+             * @brief Get the command buffer assigned to the current frame in flight.
+             * Must be called between `StartFrame()` and `CompleteFrame()`
+             */
             RenderCommandBuffer & GetCommandBuffer ();
+
             std::vector <RenderCommandBuffer> & GetCommandBuffers ();
 
             /**

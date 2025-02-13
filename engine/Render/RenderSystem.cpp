@@ -114,15 +114,44 @@ namespace Engine
         m_active_camera = cameraComponent;
     }
 
-    vk::Instance RenderSystem::getInstance() const { return m_instance.get(); }
-    vk::SurfaceKHR RenderSystem::getSurface() const { return m_surface.get(); }
-    vk::Device RenderSystem::getDevice() const { return m_device.get(); }
-    vk::PhysicalDevice RenderSystem::GetPhysicalDevice() const { return m_selected_physical_device.get(); }
-    const RenderSystemState::AllocatorState &RenderSystem::GetAllocatorState() const { return m_allocator_state; }
-    const RenderSystem::QueueInfo &RenderSystem::getQueueInfo() const { return m_queues; }
-    const RenderSystemState::Swapchain& RenderSystem::GetSwapchain() const { return m_swapchain; }
-    RenderCommandBuffer & RenderSystem::GetGraphicsCommandBuffer(uint32_t frame_index) { return m_frame_manager.GetCommandBuffers()[frame_index]; }
-    const RenderSystemState::GlobalConstantDescriptorPool& RenderSystem::GetGlobalConstantDescriptorPool() const {
+    vk::Instance RenderSystem::getInstance() const 
+    { 
+        return m_instance.get(); 
+    }
+    vk::SurfaceKHR RenderSystem::getSurface() const 
+    { 
+        return m_surface.get(); 
+    }
+    vk::Device RenderSystem::getDevice() const 
+    { 
+        return m_device.get(); 
+    }
+    vk::PhysicalDevice RenderSystem::GetPhysicalDevice() const 
+    { 
+        return m_selected_physical_device.get(); 
+    }
+    const RenderSystemState::AllocatorState &RenderSystem::GetAllocatorState() const 
+    { 
+        return m_allocator_state; 
+    }
+    const RenderSystem::QueueInfo &RenderSystem::getQueueInfo() const 
+    { 
+        return m_queues; 
+    }
+    const RenderSystemState::Swapchain& RenderSystem::GetSwapchain() const 
+    { 
+        return m_swapchain; 
+    }
+    RenderCommandBuffer & RenderSystem::GetGraphicsCommandBuffer(uint32_t frame_index) 
+    { 
+        return m_frame_manager.GetCommandBuffers()[frame_index]; 
+    }
+    RenderCommandBuffer & RenderSystem::GetCurrentCommandBuffer()
+    {
+        return m_frame_manager.GetCommandBuffer();
+    }
+    const RenderSystemState::GlobalConstantDescriptorPool &RenderSystem::GetGlobalConstantDescriptorPool() const
+    {
         return m_descriptor_pool;
     }
     RenderSystemState::MaterialDescriptorManager& RenderSystem::GetMaterialDescriptorManager() {
@@ -132,6 +161,11 @@ namespace Engine
     RenderSystemState::MaterialRegistry &RenderSystem::GetMaterialRegistry()
     {
         return m_material_registry;
+    }
+
+    RenderSystemState::FrameManager &RenderSystem::GetFrameManager()
+    {
+        return m_frame_manager;
     }
 
     TransferCommandBuffer & RenderSystem::GetTransferCommandBuffer() {
@@ -158,6 +192,11 @@ namespace Engine
         m_frame_manager.CompleteFrame();
     }
 
+    void RenderSystem::CompleteFrame()
+    {
+        m_frame_manager.CompleteFrame();
+    }
+
     void RenderSystem::EnableDepthTesting() {
         m_swapchain.EnableDepthTesting(this->shared_from_this());
     }
@@ -175,6 +214,11 @@ namespace Engine
     void RenderSystem::UpdateSwapchain() {
         this->WaitForIdle();
         this->CreateSwapchain();
+    }
+
+    uint32_t RenderSystem::StartFrame()
+    {
+        return m_frame_manager.StartFrame();
     }
 
     void RenderSystem::CreateLogicalDevice() {
