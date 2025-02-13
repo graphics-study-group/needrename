@@ -5,7 +5,6 @@
 #include "Render/Material/MaterialInstance.h"
 #include "Render/Pipeline/RenderTarget/RenderTargetSetup.h"
 #include "Render/Renderer/HomogeneousMesh.h"
-#include "Render/RenderSystem/Synch/Synchronization.h"
 #include "Render/ConstantData/PerModelConstants.h"
 
 #include "Render/Pipeline/CommandBuffer/LayoutTransferHelper.h"

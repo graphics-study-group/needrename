@@ -8,7 +8,6 @@
 
 #include "Render/Pipeline/RenderTarget/RenderTargetSetup.h"
 #include "Render/Pipeline/CommandBuffer.h"
-#include "Render/RenderSystem/Synch/InflightTwoStageSynch.h"
 
 #include "Render/RenderSystem/AllocatorState.h"
 #include "Render/RenderSystem/Instance.h"
