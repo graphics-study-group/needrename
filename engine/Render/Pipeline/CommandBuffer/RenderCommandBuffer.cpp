@@ -27,6 +27,11 @@ namespace Engine
         uint32_t frame_in_flight
     ) {
         this->m_handle = cb;
+        this->m_queue = queue;
+        this->m_completed_fence = fence;
+        this->m_image_ready_semaphore = wait;
+        this->m_completed_semaphore = signal;
+        this->m_inflight_frame_index = frame_in_flight;
     }
 
     void RenderCommandBuffer::Begin() {

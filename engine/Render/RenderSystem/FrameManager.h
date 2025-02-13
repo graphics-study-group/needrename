@@ -1,10 +1,10 @@
 #ifndef RENDER_RENDERSYSTEM_FRAMEMANAGER_INCLUDED
 #define RENDER_RENDERSYSTEM_FRAMEMANAGER_INCLUDED
 
-#include "Render/RenderSystem.h"
 #include "Render/Pipeline/CommandBuffer/RenderCommandBuffer.h"
 
 namespace Engine {
+    class RenderSystem;
     namespace RenderSystemState {
         /// @brief Multiple frame in flight manager
         class FrameManager final {
@@ -16,14 +16,14 @@ namespace Engine {
             std::array <vk::UniqueSemaphore, FRAMES_IN_FLIGHT> command_executed_semaphores {};
             std::array <vk::UniqueFence, FRAMES_IN_FLIGHT> command_executed_fences {};
             std::array <vk::UniqueCommandBuffer, FRAMES_IN_FLIGHT> command_buffers {};
-            std::vector <RenderCommandBuffer> render_command_buffers;
+            std::vector <RenderCommandBuffer> render_command_buffers {};
 
-            uint32_t current_frame_in_flight {std::numeric_limits<uint64_t>::max()};
-            uint32_t current_framebuffer {std::numeric_limits<uint64_t>::max()};
+            uint32_t current_frame_in_flight {std::numeric_limits<uint32_t>::max()};
+            uint32_t current_framebuffer {std::numeric_limits<uint32_t>::max()};
 
             vk::Queue present_queue {};
             vk::SwapchainKHR swapchain {};
-            std::weak_ptr <RenderSystem> m_system;
+            std::weak_ptr <RenderSystem> m_system {};
         public:
             void Create (std::shared_ptr <RenderSystem> system);
 

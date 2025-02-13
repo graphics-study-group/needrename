@@ -1,5 +1,7 @@
 #include "FrameManager.h"
 
+#include "Render/RenderSystem.h"
+
 namespace Engine::RenderSystemState{
 
     void FrameManager::Create(std::shared_ptr <RenderSystem> system)
