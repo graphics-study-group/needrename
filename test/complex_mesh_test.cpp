@@ -267,7 +267,6 @@ int main(int argc, char ** argv)
     camera_go->AddComponent(camera_comp);
     rsys->SetActiveCamera(camera_comp);
 
-    uint32_t in_flight_frame_id = 0;
     uint64_t frame_count = 0;
     uint64_t start_timer = SDL_GetPerformanceCounter();
     while(++frame_count) {
@@ -289,24 +288,23 @@ int main(int argc, char ** argv)
         PrepareGui();
 
         // Submit data
-        SubmitSceneData(rsys, in_flight_frame_id);
+        SubmitSceneData(rsys, rsys->GetFrameManager().GetFrameInFlight());
         SubmitMaterialData(tmc);
 
         // Draw
-        rsys->WaitForFrameBegin(in_flight_frame_id);
-        RenderCommandBuffer & cb = rsys->GetGraphicsCommandBuffer(in_flight_frame_id);
-        uint32_t index = rsys->GetNextImage(in_flight_frame_id, 0x7FFFFFFF);
+        auto index = rsys->StartFrame();
+        RenderCommandBuffer & cb = rsys->GetCurrentCommandBuffer();
+
         cb.Begin();
         vk::Extent2D extent {rsys->GetSwapchain().GetExtent()};
         cb.BeginRendering(rts, extent, index);
-        rsys->DrawMeshes(in_flight_frame_id);
+        rsys->DrawMeshes(rsys->GetFrameManager().GetFrameInFlight());
         gsys->DrawGUI(cb);
         cb.EndRendering();
         cb.End();
         cb.Submit();
-        rsys->Present(index, in_flight_frame_id);
+        rsys->CompleteFrame();
 
-        in_flight_frame_id = (in_flight_frame_id + 1) % 3;
         SDL_Delay(5);
 
         if ((int64_t)frame_count >= max_frame_count) break;

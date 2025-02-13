@@ -39,7 +39,6 @@ int main(int argc, char ** argv)
         vk::ClearValue{vk::ClearDepthStencilValue{1.0f, 0U}}
     });
 
-    uint32_t in_flight_frame_id = 0;
     bool quited = false;
     while(max_frame_count--) {
         SDL_Event event;
@@ -55,9 +54,8 @@ int main(int argc, char ** argv)
         gsys->PrepareGUI();
         ImGui::ShowDemoWindow();
 
-        rsys->WaitForFrameBegin(in_flight_frame_id);
-        RenderCommandBuffer & cb = rsys->GetGraphicsCommandBuffer(in_flight_frame_id);
-        uint32_t index = rsys->GetNextImage(in_flight_frame_id, 0x7FFFFFFF);
+        auto index = rsys->StartFrame();
+        RenderCommandBuffer & cb = rsys->GetCurrentCommandBuffer();
 
         assert(index < 3);
     
@@ -69,9 +67,8 @@ int main(int argc, char ** argv)
         cb.End();
         cb.Submit();
 
-        rsys->Present(index, in_flight_frame_id);
+        rsys->CompleteFrame();
 
-        in_flight_frame_id = (in_flight_frame_id + 1) % 3;
         SDL_Delay(10);
 
         if (quited) break;
