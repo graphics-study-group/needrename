@@ -17,6 +17,7 @@
 #include "Render/RenderSystem/GlobalConstantDescriptorPool.h"
 #include "Render/RenderSystem/MaterialDescriptorManager.h"
 #include "Render/RenderSystem/MaterialRegistry.h"
+#include "Render/RenderSystem/FrameManager.h"
 
 // Suppress warning from std::enable_shared_from_this
 #pragma GCC diagnostic push
@@ -88,7 +89,7 @@ namespace Engine
         const RenderSystemState::AllocatorState & GetAllocatorState() const;
         const QueueInfo & getQueueInfo () const;
         const RenderSystemState::Swapchain & GetSwapchain() const;
-        const Synchronization & getSynchronization() const;
+        // const Synchronization & getSynchronization() const;
         RenderCommandBuffer & GetGraphicsCommandBuffer(uint32_t frame_index);
         const RenderSystemState::GlobalConstantDescriptorPool & GetGlobalConstantDescriptorPool() const;
         RenderSystemState::MaterialDescriptorManager & GetMaterialDescriptorManager();
@@ -115,7 +116,7 @@ namespace Engine
         static constexpr const char * validation_layer_name = "VK_LAYER_KHRONOS_validation";
         static constexpr std::array <std::string_view, 1> device_extension_name = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
-        uint32_t m_in_flight_frame_id = 0;
+        // uint32_t m_in_flight_frame_id = 0;
 
         std::weak_ptr <SDLWindow> m_window;
         // TODO: data: mesh, texture, light
@@ -137,9 +138,10 @@ namespace Engine
         RenderSystemState::GlobalConstantDescriptorPool m_descriptor_pool{};
         RenderSystemState::MaterialDescriptorManager m_material_descriptor_manager{};
         RenderSystemState::MaterialRegistry m_material_registry{};
+        RenderSystemState::FrameManager m_frame_manager{};
 
-        std::unique_ptr <Synchronization> m_synch {};
-        std::vector <RenderCommandBuffer> m_commandbuffers {};
+        // std::unique_ptr <Synchronization> m_synch {};
+        // std::vector <RenderCommandBuffer> m_commandbuffers {};
         TransferCommandBuffer m_one_time_commandbuffer {};
     };
 }

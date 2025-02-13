@@ -12,29 +12,26 @@
 
 namespace Engine
 {
-    void RenderCommandBuffer::CreateCommandBuffer(
-        std::shared_ptr<RenderSystem> system, 
-        vk::CommandPool command_pool,
-        vk::Queue queue,
-        uint32_t frame_index
+    RenderCommandBuffer::RenderCommandBuffer(
+        std::weak_ptr<RenderSystem> system
+        ) : m_system(system.lock().get())
+    {
+    }
+
+    void RenderCommandBuffer::SetCommandBuffer(
+        vk::CommandBuffer cb, 
+        vk::Queue queue, 
+        vk::Fence fence, 
+        vk::Semaphore wait, 
+        vk::Semaphore signal, 
+        uint32_t frame_in_flight
     ) {
-        vk::CommandBufferAllocateInfo info{};
-        info.commandPool = command_pool;
-        info.commandBufferCount = 1;
-        info.level = vk::CommandBufferLevel::ePrimary;
-
-        auto cbvector = system->getDevice().allocateCommandBuffersUnique(info);
-        assert(cbvector.size() == 1);
-        m_handle = std::move(cbvector[0]);
-
-        m_inflight_frame_index = frame_index;
-        m_system = system.get();
-        m_queue = queue;
+        this->m_handle = cb;
     }
 
     void RenderCommandBuffer::Begin() {
         vk::CommandBufferBeginInfo binfo{};
-        m_handle->begin(binfo);
+        m_handle.begin(binfo);
     }
 
     void RenderCommandBuffer::BeginRendering(const RenderTargetSetup &pass, vk::Extent2D extent, uint32_t framebuffer_id)
@@ -86,7 +83,7 @@ namespace Engine
             vk::DependencyFlags{0},
             {}, {}, barriers
         };
-        m_handle->pipelineBarrier2(dep);
+        m_handle.pipelineBarrier2(dep);
 
         vk::RenderingInfo info {
             vk::RenderingFlags{0},
@@ -98,7 +95,7 @@ namespace Engine
             nullptr
         };
         // Begin rendering after transit
-        m_handle->beginRendering(info);
+        m_handle.beginRendering(info);
     }
 
     void RenderCommandBuffer::BindMaterial(MaterialInstance &material, uint32_t pass_index)
@@ -107,7 +104,7 @@ namespace Engine
         const auto & pipeline = material.GetTemplate().GetPipeline(pass_index);
         const auto & pipeline_layout = material.GetTemplate().GetPipelineLayout(pass_index);
 
-        m_handle->bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
+        m_handle.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
         m_bound_material_pipeline = std::make_pair(pipeline, pipeline_layout);
 
         const auto & global_pool = m_system->GetGlobalConstantDescriptorPool();
@@ -116,7 +113,7 @@ namespace Engine
         auto material_descriptor_set = material.GetDescriptor(pass_index);
 
         if (material_descriptor_set) {
-            m_handle->bindDescriptorSets(
+            m_handle.bindDescriptorSets(
                 vk::PipelineBindPoint::eGraphics, 
                 pipeline_layout, 
                 0,
@@ -124,7 +121,7 @@ namespace Engine
                 {}
             );
         } else {
-            m_handle->bindDescriptorSets(
+            m_handle.bindDescriptorSets(
                 vk::PipelineBindPoint::eGraphics, 
                 pipeline_layout, 
                 0,
@@ -143,24 +140,24 @@ namespace Engine
         vp.setX(0.0f).setY(0.0f);
         vp.setMaxDepth(1.0f).setMinDepth(0.0f);
 
-        m_handle->setViewport(0, 1, &vp);
-        m_handle->setScissor(0, 1, &scissor);
+        m_handle.setViewport(0, 1, &vp);
+        m_handle.setScissor(0, 1, &scissor);
     }
 
     void RenderCommandBuffer::DrawMesh(const HomogeneousMesh& mesh, const glm::mat4 & model_matrix) {
         auto bindings = mesh.GetBindingInfo();
-        m_handle->bindVertexBuffers(0, bindings.first, bindings.second);
+        m_handle.bindVertexBuffers(0, bindings.first, bindings.second);
         auto indices = mesh.GetIndexInfo();
-        m_handle->bindIndexBuffer(indices.first, indices.second, vk::IndexType::eUint32);
+        m_handle.bindIndexBuffer(indices.first, indices.second, vk::IndexType::eUint32);
 
-        m_handle->pushConstants(
+        m_handle.pushConstants(
             m_bound_material_pipeline.value().second, 
             vk::ShaderStageFlagBits::eVertex, 
             0, 
             ConstantData::PerModelConstantPushConstant::PUSH_RANGE_SIZE,
             reinterpret_cast<const void *>(&model_matrix)
         );
-        m_handle->drawIndexed(mesh.GetVertexIndexCount(), 1, 0, 0, 0);
+        m_handle.drawIndexed(mesh.GetVertexIndexCount(), 1, 0, 0, 0);
     }
 
     void RenderCommandBuffer::EndRendering()
@@ -171,17 +168,17 @@ namespace Engine
             SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "End rendering called without beginning a rendering pass.");
         }
 #endif
-        m_handle->endRendering();
+        m_handle.endRendering();
         m_bound_render_target.reset();
     }
 
     void RenderCommandBuffer::DrawMesh(const HomogeneousMesh& mesh) {
         auto bindings = mesh.GetBindingInfo();
-        m_handle->bindVertexBuffers(0, bindings.first, bindings.second);
+        m_handle.bindVertexBuffers(0, bindings.first, bindings.second);
         auto indices = mesh.GetIndexInfo();
-        m_handle->bindIndexBuffer(indices.first, indices.second, vk::IndexType::eUint32);
+        m_handle.bindIndexBuffer(indices.first, indices.second, vk::IndexType::eUint32);
 
-        m_handle->drawIndexed(mesh.GetVertexIndexCount(), 1, 0, 0, 0);
+        m_handle.drawIndexed(mesh.GetVertexIndexCount(), 1, 0, 0, 0);
     }
 
     void RenderCommandBuffer::End() {
@@ -200,41 +197,40 @@ namespace Engine
                     vk::DependencyFlags{0},
                     {}, {}, barriers
                 };
-                m_handle->pipelineBarrier2(dep);
+                m_handle.pipelineBarrier2(dep);
             }
         }
-        m_handle->end();
+        m_handle.end();
     }
 
     void RenderCommandBuffer::Submit() {
         vk::SubmitInfo info{};
         info.commandBufferCount = 1;
-        info.pCommandBuffers = &m_handle.get();
+        info.pCommandBuffers = &m_handle;
 
-        const auto & synch = m_system->getSynchronization();
-        auto wait = synch.GetCommandBufferWaitSignals(m_inflight_frame_index);
-        auto waitFlags = synch.GetCommandBufferWaitSignalFlags(m_inflight_frame_index);
-        auto signal = synch.GetCommandBufferSigningSignals(m_inflight_frame_index);
+        // const auto & synch = m_system.getSynchronization();
+        auto wait = this->m_image_ready_semaphore;
+        auto waitFlags = vk::PipelineStageFlags{vk::PipelineStageFlagBits::eColorAttachmentOutput};
+        auto signal = this->m_completed_semaphore;
 
-        assert(wait.size() == waitFlags.size());
-        info.waitSemaphoreCount = wait.size();
-        info.pWaitSemaphores = wait.data();
-        info.pWaitDstStageMask = waitFlags.data();
+        info.waitSemaphoreCount = 1;
+        info.pWaitSemaphores = &wait;
+        info.pWaitDstStageMask = &waitFlags;
 
-        info.signalSemaphoreCount = signal.size();
-        info.pSignalSemaphores = signal.data();
+        info.signalSemaphoreCount = 1;
+        info.pSignalSemaphores = &signal;
         std::array<vk::SubmitInfo, 1> infos{info};
-        m_queue.submit(infos, synch.GetCommandBufferFence(m_inflight_frame_index));
+        m_queue.submit(infos, m_completed_fence);
     }
 
     void RenderCommandBuffer::Reset() {
-        m_handle->reset();
+        m_handle.reset();
         m_bound_material_pipeline.reset();
         m_image_for_present.reset();
     }
 
     vk::CommandBuffer RenderCommandBuffer::get()
     {
-        return m_handle.get();
+        return m_handle;
     }
 }

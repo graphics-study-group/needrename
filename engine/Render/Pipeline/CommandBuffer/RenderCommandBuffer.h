@@ -9,7 +9,6 @@ namespace Engine {
     class RenderTargetSetup;
     class Material;
     class MaterialInstance;
-    class Synchronization;
     class HomogeneousMesh;
     class Buffer;
     class AllocatedImage2DTexture;
@@ -18,15 +17,15 @@ namespace Engine {
     class RenderCommandBuffer
     {
     public:
-        /// @brief Create a command buffer used for rendering.
-        /// This function is ideally only called from RenderSystem
-        /// @param logical_device 
-        /// @param command_pool 
-        void CreateCommandBuffer(
-            std::shared_ptr<RenderSystem> system, 
-            vk::CommandPool command_pool, 
-            vk::Queue queue, 
-            uint32_t inflight_frame_index
+        RenderCommandBuffer (std::weak_ptr <RenderSystem> system);
+
+        void SetCommandBuffer(
+            vk::CommandBuffer cb,
+            vk::Queue queue,
+            vk::Fence fence,
+            vk::Semaphore wait,
+            vk::Semaphore signal,
+            uint32_t frame_in_flight
         );
 
         /// @brief Record a begin command in command buffer
@@ -68,7 +67,7 @@ namespace Engine {
         vk::CommandBuffer get();
     protected:
         uint32_t m_inflight_frame_index {};
-        vk::UniqueCommandBuffer m_handle {};
+        vk::CommandBuffer m_handle {};
         vk::Queue m_queue {};
 
         RenderSystem * m_system {nullptr};
@@ -76,6 +75,9 @@ namespace Engine {
         std::optional<vk::Image> m_image_for_present {};
         std::optional<std::reference_wrapper<const RenderTargetSetup>> m_bound_render_target {};
         std::optional<std::pair<vk::Pipeline, vk::PipelineLayout>> m_bound_material_pipeline {};
+
+        vk::Fence m_completed_fence{};
+        vk::Semaphore m_image_ready_semaphore{}, m_completed_semaphore{};
     };
 }
 
