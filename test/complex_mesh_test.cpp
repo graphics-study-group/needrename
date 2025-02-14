@@ -19,6 +19,7 @@
 #include "Render/Pipeline/CommandBuffer.h"
 #include "Render/Renderer/HomogeneousMesh.h"
 #include "GUI/GUISystem.h"
+#include <Asset/AssetManager/AssetManager.h>
 #include <Asset/AssetRef.h>
 #include "Asset/Material/MaterialAsset.h"
 #include <Asset/Mesh/MeshAsset.h>
@@ -240,7 +241,12 @@ int main(int argc, char ** argv)
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
 
     auto rsys = cmc->GetRenderSystem();
-    rsys->GetMaterialRegistry().AddDefaultMaterials();
+    // rsys->GetMaterialRegistry().AddDefaultMaterials();
+    auto asys = cmc->GetAssetManager();
+    asys->SetBuiltinAssetPath(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
+    asys->LoadBuiltinAssets();
+    asys->LoadAssetImmediately(asys->GetAssetRef(std::filesystem::path("~/material_templates/BlinnPhongTemplate.asset")));
+
     // rsys->EnableDepthTesting();
     auto gsys = cmc->GetGUISystem();
 

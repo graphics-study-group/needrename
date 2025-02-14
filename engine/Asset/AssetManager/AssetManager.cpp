@@ -10,6 +10,38 @@
 
 namespace Engine
 {
+    void AssetManager::SetBuiltinAssetPath(const std::filesystem::path &path)
+    {
+        m_builtin_asset_path = path;
+    }
+
+    void AssetManager::LoadBuiltinAssets()
+    {
+        for (const std::filesystem::directory_entry &entry : std::filesystem::recursive_directory_iterator(m_builtin_asset_path))
+        {
+            std::filesystem::path relative_path = std::filesystem::relative(entry.path(), m_builtin_asset_path);
+            if (relative_path.extension() == ".asset")
+            {
+                std::ifstream file(entry.path());
+                if (file.is_open())
+                {
+                    nlohmann::json json_data = nlohmann::json::parse(file);
+                    // TODO: need better way to check if it is an asset file
+                    if (json_data.contains("%main_id"))
+                    {
+                        std::string str_id = json_data["%main_id"].get<std::string>();
+                        if (json_data["%data"].contains(str_id) && json_data["%data"][str_id].contains("Asset::m_guid"))
+                        {
+                            GUID guid(json_data["%data"][str_id]["Asset::m_guid"].get<std::string>());
+                            AddAsset(guid, "~" / relative_path);
+                        }
+                    }
+                    file.close();
+                }
+            }
+        }
+    }
+
     void AssetManager::LoadProject(std::filesystem::path path)
     {
         if (!std::filesystem::exists(path))
@@ -63,7 +95,12 @@ namespace Engine
     {
         auto it = m_assets_map.find(guid);
         if (it != m_assets_map.end())
-            return GetAssetsDirectory() / it->second;
+        {
+            if (it->second.begin()->string() == "~")
+                return m_builtin_asset_path / it->second.relative_path().string().substr(2);
+            else
+                return GetAssetsDirectory() / it->second;
+        }
         else
             throw std::runtime_error("Asset not found");
     }
@@ -73,11 +110,19 @@ namespace Engine
         return GetAssetPath(asset->GetGUID());
     }
 
+    std::shared_ptr<AssetRef> AssetManager::GetAssetRef(const std::filesystem::path &path)
+    {
+        if (m_path_to_guid.find(path) == m_path_to_guid.end())
+            return nullptr;
+        return std::make_shared<AssetRef>(m_path_to_guid[path]);
+    }
+
     void AssetManager::AddAsset(const GUID &guid, const std::filesystem::path &path)
     {
         if (m_assets_map.find(guid) != m_assets_map.end())
             throw std::runtime_error("asset GUID already exists");
         m_assets_map[guid] = path;
+        m_path_to_guid[path] = guid;
     }
 
     void AssetManager::AddToLoadingQueue(std::shared_ptr<AssetRef> asset_ref)
@@ -120,5 +165,11 @@ namespace Engine
         archive.prepare_load();
         ret->load_asset_from_archive(archive);
         return ret;
+    }
+
+    void AssetManager::LoadAssetImmediately(std::shared_ptr<AssetRef> asset_ref)
+    {
+        auto guid = asset_ref->GetGUID();
+        asset_ref->m_asset = LoadAssetImmediately(guid);
     }
 } // namespace Engine

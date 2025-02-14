@@ -84,8 +84,11 @@ namespace Engine {
         } shaderType {ShaderType::None};
 
         // XXX: We currently use filename only. Ideally we should directly store SPIR-V binaries.
-        REFL_SER_ENABLE std::string filename {};
-        // std::vector <uint32_t *> binary;
+        REFL_SER_ENABLE std::string m_name {};
+        std::vector <uint32_t> binary;
+
+        virtual void save_asset_to_archive(Serialization::Archive &archive) const override;
+        virtual void load_asset_from_archive(Serialization::Archive &archive) override;
     };
 }
 

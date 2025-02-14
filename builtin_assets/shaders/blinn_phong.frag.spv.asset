@@ -1,0 +1,11 @@
+{
+    "%data": {
+        "&0": {
+            "%type": "Engine::ShaderAsset",
+            "Asset::m_guid": "9B381210B6EF92D084CBEB4E09F3D652",
+            "m_name": "blinn_phong.frag.spv",
+            "shaderType": 2
+        }
+    },
+    "%main_id": "&0"
+}
