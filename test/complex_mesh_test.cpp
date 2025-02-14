@@ -240,12 +240,16 @@ int main(int argc, char ** argv)
     auto cmc = MainClass::GetInstance();
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
 
-    auto rsys = cmc->GetRenderSystem();
-    // rsys->GetMaterialRegistry().AddDefaultMaterials();
     auto asys = cmc->GetAssetManager();
     asys->SetBuiltinAssetPath(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
     asys->LoadBuiltinAssets();
-    asys->LoadAssetImmediately(asys->GetAssetRef(std::filesystem::path("~/material_templates/BlinnPhongTemplate.asset")));
+    
+    auto test_asset = asys->GetNewAssetRef(std::filesystem::path("~/material_templates/BlinnPhongTemplate.asset"));
+    asys->LoadAssetImmediately(test_asset);
+    asys->LoadAssetsInQueue();
+
+    auto rsys = cmc->GetRenderSystem();
+    rsys->GetMaterialRegistry().AddMaterial(test_asset);
 
     // rsys->EnableDepthTesting();
     auto gsys = cmc->GetGUISystem();

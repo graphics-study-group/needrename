@@ -71,7 +71,7 @@ namespace Engine
         /// @brief Get an unloaded AssetRef of the given path
         /// @param path the path of the asset file relative to the project directory
         /// @return an unloaded AssetRef if the path exist, which only contains the GUID. nullptr otherwise
-        std::shared_ptr<AssetRef> GetAssetRef(const std::filesystem::path &path);
+        std::shared_ptr<AssetRef> GetNewAssetRef(const std::filesystem::path &path);
 
         /***************** Asset Loading ****************/
 

@@ -110,7 +110,7 @@ namespace Engine
         return GetAssetPath(asset->GetGUID());
     }
 
-    std::shared_ptr<AssetRef> AssetManager::GetAssetRef(const std::filesystem::path &path)
+    std::shared_ptr<AssetRef> AssetManager::GetNewAssetRef(const std::filesystem::path &path)
     {
         if (m_path_to_guid.find(path) == m_path_to_guid.end())
             return nullptr;

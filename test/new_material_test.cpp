@@ -47,8 +47,8 @@ struct TestMeshAsset : public MeshAsset {
 std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate()
 {
     auto test_asset = std::make_shared<MaterialTemplateAsset>();
-    auto vs_ref = MainClass::GetInstance()->GetAssetManager()->GetAssetRef("~/shaders/blinn_phong.vert.spv.asset");
-    auto fs_ref = MainClass::GetInstance()->GetAssetManager()->GetAssetRef("~/shaders/blinn_phong.frag.spv.asset");
+    auto vs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/blinn_phong.vert.spv.asset");
+    auto fs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/blinn_phong.frag.spv.asset");
     MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(vs_ref);
     MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(fs_ref);
     

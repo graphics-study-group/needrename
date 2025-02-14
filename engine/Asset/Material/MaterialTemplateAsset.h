@@ -126,8 +126,6 @@ namespace Engine
         REFL_ENABLE MaterialTemplateAsset() = default;
         virtual ~MaterialTemplateAsset() = default;
 
-        virtual void load_asset_from_archive(Serialization::Archive &archive) override;
-
         REFL_SER_ENABLE MaterialTemplateProperties properties {};
         REFL_SER_ENABLE std::string name {};
     };
