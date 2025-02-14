@@ -12,11 +12,13 @@
 #include <MainClass.h>
 #include <GUI/GUISystem.h>
 
+#include <iostream>
+
 namespace Engine
 {
     RenderSystem::RenderSystem(
         std::weak_ptr <SDLWindow> parent_window
-    ) : m_window(parent_window), m_frame_manager(*this)
+    ) : m_window(parent_window), m_allocator_state(*this), m_frame_manager(*this)
     {
     }
 
@@ -32,7 +34,7 @@ namespace Engine
         this->CreateLogicalDevice();
         this->CreateSwapchain();
 
-        this->m_allocator_state.Create(shared_from_this());
+        this->m_allocator_state.Create();
 
         this->EnableDepthTesting();
 
@@ -53,49 +55,8 @@ namespace Engine
     RenderSystem::~RenderSystem() 
     {
         // Resources are released by RAII.
-        SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Destroying other resources by RAII.");
-    }
-
-    void RenderSystem::DrawMeshes(uint32_t inflight, uint32_t pass)
-    {
-        RenderCommandBuffer & cb = this->GetGraphicsCommandBuffer(inflight);
-
-        // Write camera transforms
-        std::byte * camera_ptr = this->GetGlobalConstantDescriptorPool().GetPerCameraConstantMemory(inflight);
-        ConstantData::PerCameraStruct camera_struct;
-        if (m_active_camera) {
-            camera_struct = {
-                m_active_camera->GetViewMatrix(), 
-                m_active_camera->GetProjectionMatrix()
-            };
-            
-        } else {
-            camera_struct = {
-                glm::mat4{1.0f}, 
-                glm::mat4{1.0f}
-            };
-        }
-        std::memcpy(camera_ptr, &camera_struct, sizeof camera_struct);
-        
-        vk::Extent2D extent {this->GetSwapchain().GetExtent()};
-        vk::Rect2D scissor{{0, 0}, extent};
-        cb.SetupViewport(extent.width, extent.height, scissor);
-        for (const auto & component : m_components) {
-            glm::mat4 model_matrix = component->GetWorldTransform().GetTransformMatrix();
-            auto down_casted_ptr = std::dynamic_pointer_cast<MeshComponent>(component);
-            if (down_casted_ptr == nullptr) {
-                continue;
-            }
-
-            const auto & materials = down_casted_ptr->GetMaterials();
-            const auto & meshes = down_casted_ptr->GetSubmeshes();
-
-            assert(materials.size() == meshes.size());
-            for (size_t id = 0; id < materials.size(); id++){
-                cb.BindMaterial(*materials[id], pass);
-                cb.DrawMesh(*meshes[id], model_matrix);
-            }
-        }
+        // SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Destroying other resources by RAII.");
+        std::cerr << "Render system deconstructed" << std::endl ;
     }
 
     void RenderSystem::DrawMeshes(uint32_t pass)

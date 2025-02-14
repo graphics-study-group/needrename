@@ -9,11 +9,6 @@ namespace Engine::RenderSystemState{
     {
     }
 
-    FrameManager::~FrameManager()
-    {
-        std::cerr << "Frame Manager deconstructing" << std::endl;
-    }
-
     void FrameManager::Create()
     {
         auto device = m_system.getDevice();

@@ -131,19 +131,20 @@ namespace Engine
         std::shared_ptr <CameraComponent> m_active_camera {};
 
         RenderSystemState::PhysicalDevice m_selected_physical_device {};
+
         // Order of declaration effects destructing order!
+
         std::unique_ptr<RenderTargetSetup> m_render_target_setup {};
         RenderSystemState::Instance m_instance {};
         vk::UniqueSurfaceKHR m_surface{};
         vk::UniqueDevice m_device{};
-
-        RenderSystemState::AllocatorState m_allocator_state {};
         
         QueueInfo  m_queues {};
+        RenderSystemState::AllocatorState m_allocator_state;
         RenderSystemState::Swapchain m_swapchain{};
         RenderSystemState::FrameManager m_frame_manager;
         RenderSystemState::GlobalConstantDescriptorPool m_descriptor_pool{};
-        RenderSystemState::MaterialRegistry m_material_registry{};
+        RenderSystemState::MaterialRegistry m_material_registry {};
         
 
         TransferCommandBuffer m_one_time_commandbuffer {};
