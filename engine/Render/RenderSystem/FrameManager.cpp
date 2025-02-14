@@ -34,8 +34,8 @@ namespace Engine::RenderSystemState{
         render_command_buffers.clear();
         for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; i++) {
             command_buffers[i] = std::move(new_command_buffers[i]);
-            render_command_buffers.emplace_back(&m_system);
-            render_command_buffers[i].SetCommandBuffer(
+            render_command_buffers.emplace_back(
+                m_system,
                 command_buffers[i].get(), 
                 queue, 
                 command_executed_fences[i].get(),

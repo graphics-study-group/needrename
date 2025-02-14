@@ -12,28 +12,25 @@
 namespace Engine
 {
     RenderCommandBuffer::RenderCommandBuffer(
-        RenderSystem * system
-        ) : m_system(system)
-    {
-    }
-
-    void RenderCommandBuffer::SetCommandBuffer(
+        RenderSystem & system, 
         vk::CommandBuffer cb, 
         vk::Queue queue, 
         vk::Fence fence, 
         vk::Semaphore wait, 
         vk::Semaphore signal, 
         uint32_t frame_in_flight
-    ) {
-        this->m_handle = cb;
-        this->m_queue = queue;
-        this->m_completed_fence = fence;
-        this->m_image_ready_semaphore = wait;
-        this->m_completed_semaphore = signal;
-        this->m_inflight_frame_index = frame_in_flight;
+        ) : m_system(system), 
+        m_handle(cb), 
+        m_queue(queue), 
+        m_completed_fence(fence), 
+        m_image_ready_semaphore(wait), 
+        m_completed_semaphore(signal), 
+        m_inflight_frame_index(frame_in_flight)
+    {
     }
 
-    void RenderCommandBuffer::Begin() {
+    void RenderCommandBuffer::Begin()
+    {
         vk::CommandBufferBeginInfo binfo{};
         m_handle.begin(binfo);
     }
@@ -111,7 +108,7 @@ namespace Engine
         m_handle.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
         m_bound_material_pipeline = std::make_pair(pipeline, pipeline_layout);
 
-        const auto & global_pool = m_system->GetGlobalConstantDescriptorPool();
+        const auto & global_pool = m_system.GetGlobalConstantDescriptorPool();
         const auto & per_scenc_descriptor_set = global_pool.GetPerSceneConstantSet(m_inflight_frame_index);
         const auto & per_camera_descriptor_set = global_pool.GetPerCameraConstantSet(m_inflight_frame_index);
         auto material_descriptor_set = material.GetDescriptor(pass_index);
