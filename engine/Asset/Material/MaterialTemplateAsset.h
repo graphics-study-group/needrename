@@ -80,7 +80,7 @@ namespace Engine
             REFL_SER_SIMPLE_STRUCT(Shaders)
 
             /// @brief A vector of all shader programs used in the pipeline
-            std::vector <AssetRef> shaders {};
+            std::vector <std::shared_ptr<AssetRef>> shaders {};
             // TODO: Support shader specialization
             // std::vector <...> specialization;
 

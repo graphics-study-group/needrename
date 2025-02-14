@@ -59,7 +59,7 @@ namespace Engine
         pass_info.shaders.resize(prop.shaders.shaders.size());
         psscis.resize(prop.shaders.shaders.size());
         for (size_t i = 0; i < prop.shaders.shaders.size(); i++) {
-            auto shader_asset = prop.shaders.shaders[i].cas<ShaderAsset>();
+            auto shader_asset = prop.shaders.shaders[i]->cas<ShaderAsset>();
             auto code = shader_asset->binary;
             vk::ShaderModuleCreateInfo ci {
                 {},
