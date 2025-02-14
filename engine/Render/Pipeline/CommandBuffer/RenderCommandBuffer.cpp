@@ -12,8 +12,8 @@
 namespace Engine
 {
     RenderCommandBuffer::RenderCommandBuffer(
-        std::weak_ptr<RenderSystem> system
-        ) : m_system(system.lock().get())
+        RenderSystem * system
+        ) : m_system(system)
     {
     }
 
@@ -213,6 +213,8 @@ namespace Engine
         info.pCommandBuffers = &m_handle;
 
         // const auto & synch = m_system.getSynchronization();
+
+        // Stall the pipelines' color attachment output before any image is ready.
         auto wait = this->m_image_ready_semaphore;
         auto waitFlags = vk::PipelineStageFlags{vk::PipelineStageFlagBits::eColorAttachmentOutput};
         auto signal = this->m_completed_semaphore;

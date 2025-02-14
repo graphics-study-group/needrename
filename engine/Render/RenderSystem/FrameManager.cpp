@@ -2,12 +2,21 @@
 
 #include "Render/RenderSystem.h"
 
-namespace Engine::RenderSystemState{
+#include <iostream>
 
-    void FrameManager::Create(std::shared_ptr <RenderSystem> system)
+namespace Engine::RenderSystemState{
+    FrameManager::FrameManager(RenderSystem &sys) : m_system(sys)
     {
-        m_system = system;
-        auto device = system->getDevice();
+    }
+
+    FrameManager::~FrameManager()
+    {
+        std::cerr << "Frame Manager deconstructing" << std::endl;
+    }
+
+    void FrameManager::Create()
+    {
+        auto device = m_system.getDevice();
 
         vk::SemaphoreCreateInfo sinfo {};
         vk::FenceCreateInfo finfo {
@@ -19,8 +28,8 @@ namespace Engine::RenderSystemState{
             command_executed_fences[i] = device.createFenceUnique(finfo);
         }
 
-        auto pool = system->getQueueInfo().graphicsPool.get();
-        auto queue = system->getQueueInfo().graphicsQueue;
+        auto pool = m_system.getQueueInfo().graphicsPool.get();
+        auto queue = m_system.getQueueInfo().graphicsQueue;
 
         vk::CommandBufferAllocateInfo cbinfo {
             pool, vk::CommandBufferLevel::ePrimary, FRAMES_IN_FLIGHT
@@ -30,7 +39,7 @@ namespace Engine::RenderSystemState{
         render_command_buffers.clear();
         for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; i++) {
             command_buffers[i] = std::move(new_command_buffers[i]);
-            render_command_buffers.emplace_back(system);
+            render_command_buffers.emplace_back(&m_system);
             render_command_buffers[i].SetCommandBuffer(
                 command_buffers[i].get(), 
                 queue, 
@@ -41,8 +50,8 @@ namespace Engine::RenderSystemState{
             );
         }
 
-        present_queue = system->getQueueInfo().presentQueue;
-        swapchain = system->GetSwapchain().GetSwapchain();
+        present_queue = m_system.getQueueInfo().presentQueue;
+        swapchain = m_system.GetSwapchain().GetSwapchain();
         current_frame_in_flight = 0;
     }
 
@@ -71,8 +80,7 @@ namespace Engine::RenderSystemState{
 
     uint32_t FrameManager::StartFrame(uint64_t timeout)
     {
-        auto system = m_system.lock();
-        auto device = system->getDevice();
+        auto device = m_system.getDevice();
         uint32_t fif = GetFrameInFlight();
 
         // Wait for command buffer execution.
@@ -110,6 +118,7 @@ namespace Engine::RenderSystemState{
         // Queue a present directive
         std::array<vk::SwapchainKHR, 1> swapchains { swapchain };
         std::array<uint32_t, 1> frame_indices { GetFramebuffer() };
+        // Wait for command buffer before presenting the frame
         std::array<vk::Semaphore, 1> semaphores {command_executed_semaphores[GetFrameInFlight()].get()};
         vk::PresentInfoKHR info{semaphores, swapchains, frame_indices};
         vk::Result result = present_queue.presentKHR(info);

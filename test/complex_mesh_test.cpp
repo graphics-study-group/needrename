@@ -298,7 +298,7 @@ int main(int argc, char ** argv)
         cb.Begin();
         vk::Extent2D extent {rsys->GetSwapchain().GetExtent()};
         cb.BeginRendering(rts, extent, index);
-        rsys->DrawMeshes(rsys->GetFrameManager().GetFrameInFlight());
+        rsys->DrawMeshes();
         gsys->DrawGUI(cb);
         cb.EndRendering();
         cb.End();

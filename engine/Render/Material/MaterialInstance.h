@@ -13,6 +13,7 @@ namespace Engine
     class MaterialInstance {
     public:
         struct PassInfo {
+            // FIXME: We are only allocating one buffer for multiple frames-in-flight. This might lead to synchronization problems.
             std::unique_ptr<Buffer> ubo {};
             vk::DescriptorSet desc_set {};
             bool is_ubo_dirty {false};

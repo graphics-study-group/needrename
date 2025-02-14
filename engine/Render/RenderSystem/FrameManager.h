@@ -10,7 +10,6 @@ namespace Engine {
         class FrameManager final {
         public:
             static constexpr uint32_t FRAMES_IN_FLIGHT = 3;
-
         private:
             std::array <vk::UniqueSemaphore, FRAMES_IN_FLIGHT> image_acquired_semaphores {};
             std::array <vk::UniqueSemaphore, FRAMES_IN_FLIGHT> command_executed_semaphores {};
@@ -25,9 +24,11 @@ namespace Engine {
 
             vk::Queue present_queue {};
             vk::SwapchainKHR swapchain {};
-            std::weak_ptr <RenderSystem> m_system {};
+            RenderSystem & m_system;
         public:
-            void Create (std::shared_ptr <RenderSystem> system);
+            FrameManager (RenderSystem & sys);
+
+            void Create ();
 
             uint32_t GetFrameInFlight() const noexcept;
             uint32_t GetFramebuffer() const noexcept;

@@ -16,7 +16,7 @@ namespace Engine
 {
     RenderSystem::RenderSystem(
         std::weak_ptr <SDLWindow> parent_window
-    ) : m_window(parent_window)
+    ) : m_window(parent_window), m_frame_manager(*this)
     {
     }
 
@@ -44,10 +44,9 @@ namespace Engine
         });
 
         // Create synchorization semaphores
-        this->m_descriptor_pool.Create(shared_from_this(), 3);
-        this->m_material_descriptor_manager.Create(shared_from_this());
+        this->m_frame_manager.Create();
+        this->m_descriptor_pool.Create(shared_from_this(), m_frame_manager.FRAMES_IN_FLIGHT);
         this->m_material_registry.Create(shared_from_this());
-        this->m_frame_manager.Create(shared_from_this());
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Vulkan initialization finished.");
     }
 
@@ -63,6 +62,48 @@ namespace Engine
 
         // Write camera transforms
         std::byte * camera_ptr = this->GetGlobalConstantDescriptorPool().GetPerCameraConstantMemory(inflight);
+        ConstantData::PerCameraStruct camera_struct;
+        if (m_active_camera) {
+            camera_struct = {
+                m_active_camera->GetViewMatrix(), 
+                m_active_camera->GetProjectionMatrix()
+            };
+            
+        } else {
+            camera_struct = {
+                glm::mat4{1.0f}, 
+                glm::mat4{1.0f}
+            };
+        }
+        std::memcpy(camera_ptr, &camera_struct, sizeof camera_struct);
+        
+        vk::Extent2D extent {this->GetSwapchain().GetExtent()};
+        vk::Rect2D scissor{{0, 0}, extent};
+        cb.SetupViewport(extent.width, extent.height, scissor);
+        for (const auto & component : m_components) {
+            glm::mat4 model_matrix = component->GetWorldTransform().GetTransformMatrix();
+            auto down_casted_ptr = std::dynamic_pointer_cast<MeshComponent>(component);
+            if (down_casted_ptr == nullptr) {
+                continue;
+            }
+
+            const auto & materials = down_casted_ptr->GetMaterials();
+            const auto & meshes = down_casted_ptr->GetSubmeshes();
+
+            assert(materials.size() == meshes.size());
+            for (size_t id = 0; id < materials.size(); id++){
+                cb.BindMaterial(*materials[id], pass);
+                cb.DrawMesh(*meshes[id], model_matrix);
+            }
+        }
+    }
+
+    void RenderSystem::DrawMeshes(uint32_t pass)
+    {
+        RenderCommandBuffer & cb = this->GetCurrentCommandBuffer();
+
+        // Write camera transforms
+        std::byte * camera_ptr = this->GetGlobalConstantDescriptorPool().GetPerCameraConstantMemory(m_frame_manager.GetFrameInFlight());
         ConstantData::PerCameraStruct camera_struct;
         if (m_active_camera) {
             camera_struct = {
@@ -154,9 +195,6 @@ namespace Engine
     {
         return m_descriptor_pool;
     }
-    RenderSystemState::MaterialDescriptorManager& RenderSystem::GetMaterialDescriptorManager() {
-        return m_material_descriptor_manager;
-    }
 
     RenderSystemState::MaterialRegistry &RenderSystem::GetMaterialRegistry()
     {
@@ -183,7 +221,7 @@ namespace Engine
         vk::Extent2D extent {GetSwapchain().GetExtent()};
         cb.BeginRendering(*this->m_render_target_setup, extent, index);
 
-        this->DrawMeshes(m_frame_manager.GetFrameInFlight());
+        this->DrawMeshes();
         MainClass::GetInstance()->GetGUISystem()->DrawGUI(cb);
 
         cb.EndRendering();

@@ -17,7 +17,12 @@ namespace Engine {
     class RenderCommandBuffer
     {
     public:
-        RenderCommandBuffer (std::weak_ptr <RenderSystem> system);
+        RenderCommandBuffer (RenderSystem * system);
+
+        RenderCommandBuffer (const RenderCommandBuffer &) = delete;
+        RenderCommandBuffer (RenderCommandBuffer &&) = default;
+        RenderCommandBuffer & operator = (const RenderCommandBuffer &) = delete;
+        RenderCommandBuffer & operator = (RenderCommandBuffer &&) = default;
 
         void SetCommandBuffer(
             vk::CommandBuffer cb,

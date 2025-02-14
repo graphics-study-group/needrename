@@ -57,7 +57,7 @@ namespace Engine
 
         ~RenderSystem();
 
-        void DrawMeshes(uint32_t command_buffer_id, uint32_t pass = 0);
+        void DrawMeshes(uint32_t pass = 0);
         
         void RegisterComponent(std::shared_ptr <RendererComponent>);
         void ClearComponent();
@@ -76,20 +76,31 @@ namespace Engine
         void CompleteFrame();
 
         vk::Instance getInstance() const;
+
         vk::SurfaceKHR getSurface() const;
+
         vk::Device getDevice() const;
+
         vk::PhysicalDevice GetPhysicalDevice() const;
+
         const RenderSystemState::AllocatorState & GetAllocatorState() const;
+
         const QueueInfo & getQueueInfo () const;
+
         const RenderSystemState::Swapchain & GetSwapchain() const;
+
         // const Synchronization & getSynchronization() const;
         [[deprecated]]
         RenderCommandBuffer & GetGraphicsCommandBuffer(uint32_t frame_index);
+
         RenderCommandBuffer & GetCurrentCommandBuffer();
+
         const RenderSystemState::GlobalConstantDescriptorPool & GetGlobalConstantDescriptorPool() const;
-        RenderSystemState::MaterialDescriptorManager & GetMaterialDescriptorManager();
+
         RenderSystemState::MaterialRegistry & GetMaterialRegistry();
+
         RenderSystemState::FrameManager & GetFrameManager ();
+
         TransferCommandBuffer & GetTransferCommandBuffer();
 
         void EnableDepthTesting();
@@ -121,7 +132,6 @@ namespace Engine
 
         RenderSystemState::PhysicalDevice m_selected_physical_device {};
         // Order of declaration effects destructing order!
-
         std::unique_ptr<RenderTargetSetup> m_render_target_setup {};
         RenderSystemState::Instance m_instance {};
         vk::UniqueSurfaceKHR m_surface{};
@@ -131,13 +141,11 @@ namespace Engine
         
         QueueInfo  m_queues {};
         RenderSystemState::Swapchain m_swapchain{};
+        RenderSystemState::FrameManager m_frame_manager;
         RenderSystemState::GlobalConstantDescriptorPool m_descriptor_pool{};
-        RenderSystemState::MaterialDescriptorManager m_material_descriptor_manager{};
         RenderSystemState::MaterialRegistry m_material_registry{};
-        RenderSystemState::FrameManager m_frame_manager{};
+        
 
-        // std::unique_ptr <Synchronization> m_synch {};
-        // std::vector <RenderCommandBuffer> m_commandbuffers {};
         TransferCommandBuffer m_one_time_commandbuffer {};
     };
 }
