@@ -7,58 +7,6 @@
 
 namespace Engine::Materials
 {
-    // BlinnPhongTemplateAsset::BlinnPhongTemplateAsset() : MaterialTemplateAsset()
-    // {
-    //     vs = std::make_shared<ShaderAsset>();
-    //     fs = std::make_shared<ShaderAsset>();
-    //     vs_ref = std::make_shared<AssetRef>(vs);
-    //     fs_ref = std::make_shared<AssetRef>(fs);
-        
-    //     this->name = "Built-in Blinn-Phong";
-    //     vs->filename = "shader/blinn_phong.vert.spv";
-    //     fs->filename = "shader/blinn_phong.frag.spv";
-    //     vs->shaderType = ShaderAsset::ShaderType::Vertex;
-    //     fs->shaderType = ShaderAsset::ShaderType::Fragment;
-
-    //     MaterialTemplateSinglePassProperties mtspp{};
-    //     mtspp.shaders.shaders = std::vector<AssetRef>{*vs_ref, *fs_ref};
-
-    //     ShaderVariableProperty light_source, light_color;
-    //     light_source.frequency = light_color.frequency = ShaderVariableProperty::Frequency::PerScene;
-    //     light_source.type = light_color.type = ShaderVariableProperty::Type::Vec4;
-    //     light_source.binding = light_color.binding = 0;
-    //     light_source.offset = 0;
-    //     light_source.name = "light_source";
-    //     light_color.offset = 16;
-    //     light_color.name = "light_color";
-
-    //     ShaderVariableProperty view, proj;
-    //     view.frequency = proj.frequency = ShaderVariableProperty::Frequency::PerCamera;
-    //     view.type = proj.type = ShaderVariableProperty::Type::Mat4;
-    //     view.binding = proj.binding = 0;
-    //     view.offset = 0;
-    //     proj.offset = 64;
-    //     view.name = "view";
-    //     proj.name = "proj";
-
-    //     ShaderVariableProperty base_tex, specular_color, ambient_color;
-    //     base_tex.frequency = specular_color.frequency = ambient_color.frequency = ShaderVariableProperty::Frequency::PerMaterial;
-    //     base_tex.type = ShaderVariableProperty::Type::Texture;
-    //     specular_color.type = ambient_color.type = ShaderVariableProperty::Type::Vec4;
-    //     base_tex.binding = 1;
-    //     specular_color.binding = ambient_color.binding = 0;
-    //     specular_color.offset = 0;
-    //     ambient_color.offset = 16;
-    //     base_tex.name = "base_tex";
-    //     specular_color.name = "specular_color";
-    //     ambient_color.name = "ambient_color";
-
-    //     mtspp.shaders.uniforms = {
-    //         light_source, light_color, view, proj, base_tex, specular_color, ambient_color
-    //     };
-    //     this->properties.properties[0] = mtspp;
-    // }
-
     BlinnPhongInstance::BlinnPhongInstance(
         std::weak_ptr <RenderSystem> system, 
         std::shared_ptr<MaterialTemplate> tpl
@@ -85,7 +33,7 @@ namespace Engine::Materials
 
         // We currently only care about base texture and specular and ambient vectors
         // Load texture asset
-        const auto & base_texture_prop = material_asset->m_properties.at("diffuse_texture");
+        const auto & base_texture_prop = material_asset->m_properties.at("base_tex");
         assert(base_texture_prop.m_type == MaterialProperty::Type::Texture);
         auto base_texture_asset = (std::any_cast<std::shared_ptr<AssetRef>>(base_texture_prop.m_value))->as<Image2DTextureAsset>();
         auto base_texture = std::make_shared<AllocatedImage2DTexture>(m_system);
@@ -94,26 +42,18 @@ namespace Engine::Materials
         tcb.CommitTextureImage(*base_texture, base_texture_asset->GetPixelData(), base_texture_asset->GetPixelDataSize());
 
         // Load specular and ambient vectors
-        auto itr = material_asset->m_properties.find("specular");
+        auto itr = material_asset->m_properties.find("specular_color");
         glm::vec4 specular_prop = 
             itr == material_asset->m_properties.end() ? 
             glm::vec4{0.0f, 0.0f, 0.0f, 0.0f} : 
             std::any_cast<glm::vec4>(itr->second.m_value);
 
-        itr = material_asset->m_properties.find("shinness");
-        float shinness_prop = 
-            itr == material_asset->m_properties.end() ? 
-            0.0f : 
-            std::any_cast<float>(material_asset->m_properties.at("shinness").m_value);
-
-        itr = material_asset->m_properties.find("ambient");
+        itr = material_asset->m_properties.find("ambient_color");
         glm::vec4 ambient_prop = 
             itr == material_asset->m_properties.end() ?
             glm::vec4{0.0f, 0.0f, 0.0f, 0.0f} :
             std::any_cast<glm::vec4>(itr->second.m_value);
-
-        glm::vec4 specular{specular_prop.r, specular_prop.g, specular_prop.b, shinness_prop};
-        this->SetSpecular(specular);
+        this->SetSpecular(specular_prop);
         this->SetAmbient(ambient_prop);
     }
 

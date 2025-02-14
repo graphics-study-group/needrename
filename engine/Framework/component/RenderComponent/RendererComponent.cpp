@@ -1,6 +1,7 @@
 #include "RendererComponent.h"
 #include "Render/RenderSystem.h"
-#include <Render/Material/Templates/BlinnPhong.h>
+#include <Render/Material/MaterialInstance.h>
+#include <Asset/Material/MaterialAsset.h>
 #include <Framework/component/RenderComponent/CameraComponent.h>
 #include <Framework/object/GameObject.h>
 #include <MainClass.h>
@@ -26,11 +27,12 @@ namespace Engine
         auto system = m_system.lock();
         system->RegisterComponent(std::dynamic_pointer_cast<RendererComponent>(shared_from_this()));
 
-        // TODO: Implement materialize from material assets. Load shader from material assets. Construct a universal material class for rendering. Unimplemented due to we haven't implemented a universal material class.
-        // XXX: No universal material class is implemented. We use BlinnPhong as a placeholder.
         for (size_t i = 0; i < m_material_assets.size(); i++)
         {
-            auto ptr = std::make_shared<Materials::BlinnPhongInstance>(m_system, system->GetMaterialRegistry().GetMaterial("Built-in Blinn-Phong"));
+            // XXX: This is a temporary solution: It simply check the m_name in material assets and add it to the registry. We should reconsider the relationship between MaterialRegistry and MaterialTemplateAsset.
+            auto tpl = m_material_assets[i]->as<MaterialAsset>()->m_template;
+            m_system.lock()->GetMaterialRegistry().AddMaterial(tpl);
+            auto ptr = std::make_shared<MaterialInstance>(m_system, m_system.lock()->GetMaterialRegistry().GetMaterial(tpl->as<MaterialTemplateAsset>()->name));
             m_materials.push_back(ptr);
         }
 
@@ -38,7 +40,7 @@ namespace Engine
         tcb.Begin();
         for (size_t i = 0; i < m_material_assets.size(); i++)
         {
-            auto mat_ptr = std::dynamic_pointer_cast<Materials::BlinnPhongInstance>(m_materials[i]);
+            auto mat_ptr = std::dynamic_pointer_cast<MaterialInstance>(m_materials[i]);
             assert(mat_ptr);
             mat_ptr->Convert(m_material_assets[i], tcb);
         }

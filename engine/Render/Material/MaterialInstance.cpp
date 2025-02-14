@@ -1,7 +1,10 @@
 #include "MaterialInstance.h"
 #include "MaterialTemplateUtils.h"
 #include "Render/Memory/ImageInterface.h"
+#include <Render/Memory/Image2DTexture.h>
 #include "Render/RenderSystem.h"
+#include <Asset/Material/MaterialAsset.h>
+#include <Asset/Texture/Image2DTextureAsset.h>
 #include <SDL3/SDL.h>
 
 namespace Engine {
@@ -126,5 +129,50 @@ namespace Engine {
     vk::DescriptorSet MaterialInstance::GetDescriptor(uint32_t pass) const
     {
         return m_pass_info.at(pass).desc_set;
+    }
+    void MaterialInstance::Convert(std::shared_ptr <AssetRef> asset, TransferCommandBuffer & tcb)
+    {
+        const auto & material_asset = asset->cas<MaterialAsset>();
+
+        const auto & all_passes = m_parent_template.lock()->GetAllPassInfo();
+        for(const auto & [pass_index, pass_info] : all_passes)
+        {
+            for(const auto & [uniform_name, uniform_idx] : pass_info.uniforms.name_mapping)
+            {
+                auto itr = material_asset->m_properties.find(uniform_name);
+                if(itr == material_asset->m_properties.end()) continue;
+
+                auto & uniform = pass_info.uniforms.variables[uniform_idx];
+                switch(uniform.type)
+                {
+                    case MaterialTemplate::ShaderVariable::Type::Int:
+                        assert(itr->second.m_type == MaterialProperty::Type::Int);
+                        this->WriteUBOUniform(pass_index, uniform_idx, std::any_cast<glm::vec4>(itr->second.m_value));
+                        break;
+                    case MaterialTemplate::ShaderVariable::Type::Float:
+                        assert(itr->second.m_type == MaterialProperty::Type::Float);
+                        this->WriteUBOUniform(pass_index, uniform_idx, std::any_cast<glm::vec4>(itr->second.m_value));
+                        break;
+                    case MaterialTemplate::ShaderVariable::Type::Vec4:
+                        assert(itr->second.m_type == MaterialProperty::Type::Vec4);
+                        this->WriteUBOUniform(pass_index, uniform_idx, std::any_cast<glm::vec4>(itr->second.m_value));
+                        break;
+                    case MaterialTemplate::ShaderVariable::Type::Mat4:
+                        assert(itr->second.m_type == MaterialProperty::Type::Mat4);
+                        this->WriteUBOUniform(pass_index, uniform_idx, std::any_cast<glm::vec4>(itr->second.m_value));
+                        break;
+                    case MaterialTemplate::ShaderVariable::Type::Texture:
+                    {
+                        assert(itr->second.m_type == MaterialProperty::Type::Texture);
+                        auto texture_asset = std::any_cast<std::shared_ptr<AssetRef>>(itr->second.m_value)->as<Image2DTextureAsset>();
+                        auto texture = std::make_shared<AllocatedImage2DTexture>(m_system);
+                        texture->Create(*texture_asset);
+                        this->WriteTextureUniform(pass_index, uniform_idx, texture);
+                        tcb.CommitTextureImage(*texture, texture_asset->GetPixelData(), texture_asset->GetPixelDataSize());
+                        break;
+                    }
+                }
+            }
+        }
     }
 }

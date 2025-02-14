@@ -83,7 +83,6 @@ namespace Engine {
             Fragment
         } shaderType {ShaderType::None};
 
-        // XXX: We currently use filename only. Ideally we should directly store SPIR-V binaries.
         REFL_SER_ENABLE std::string m_name {};
         std::vector <uint32_t> binary;
 
