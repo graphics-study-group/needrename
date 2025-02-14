@@ -26,7 +26,6 @@ namespace Engine {
             VmaAllocator m_allocator {};
 
             static constexpr std::tuple<vk::BufferUsageFlags, VmaAllocationCreateFlags, VmaMemoryUsage> GetBufferFlags(BufferType type);
-            static void RaiseException(VkResult result);
 
         public:
             AllocatorState(RenderSystem & system);
