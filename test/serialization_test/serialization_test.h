@@ -171,7 +171,7 @@ namespace SerializationTest
             int m_inner_int = 0;
         };
 
-        InnerClass m_inner_class;
+        InnerClass m_inner_class {};
         double m_double = 0.0;
     };
 }

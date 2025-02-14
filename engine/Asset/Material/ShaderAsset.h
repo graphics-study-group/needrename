@@ -84,7 +84,7 @@ namespace Engine {
         } shaderType {ShaderType::None};
 
         REFL_SER_ENABLE std::string m_name {};
-        std::vector <uint32_t> binary;
+        std::vector <uint32_t> binary {};
 
         virtual void save_asset_to_archive(Serialization::Archive &archive) const override;
         virtual void load_asset_from_archive(Serialization::Archive &archive) override;
