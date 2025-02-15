@@ -110,6 +110,19 @@ namespace Engine
         void load_from_archive(std::map<std::string, T> &value, Archive &archive);
 
         template <typename T>
+        concept not_string = !std::is_same<std::remove_cvref<T>, std::string>::value;
+
+        template <not_string key_type, typename T>
+        void save_to_archive(const std::unordered_map<key_type, T> &value, Archive &archive);
+        template <not_string key_type, typename T>
+        void load_from_archive(std::unordered_map<key_type, T> &value, Archive &archive);
+
+        template <not_string key_type, typename T>
+        void save_to_archive(const std::map<key_type, T> &value, Archive &archive);
+        template <not_string key_type, typename T>
+        void load_from_archive(std::map<key_type, T> &value, Archive &archive);
+
+        template <typename T>
         void save_to_archive(const std::vector<T> &value, Archive &archive);
         template <typename T>
         void load_from_archive(std::vector<T> &value, Archive &archive);

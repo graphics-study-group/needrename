@@ -14,7 +14,8 @@
 
 namespace Engine
 {
-    class ObjLoader;  
+    class ObjLoader;
+    class AssetRef;
 
     struct REFL_SER_CLASS(REFL_WHITELIST) MaterialProperty
     {
@@ -45,7 +46,7 @@ namespace Engine
         virtual ~MaterialAsset() = default;
 
         REFL_SER_ENABLE std::string m_name{};
-        // TODO: REFL_SER_ENABLE std::shared_ptr<MaterialTemplateAsset> m_shader{};
+        REFL_SER_ENABLE std::shared_ptr<AssetRef> m_template{};
         REFL_SER_ENABLE std::unordered_map<std::string, MaterialProperty> m_properties{};
 
         friend class ObjLoader;

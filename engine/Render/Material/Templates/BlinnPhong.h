@@ -8,20 +8,6 @@ namespace Engine {
     class AllocatedImage2DTexture;
     class TransferCommandBuffer;
     namespace Materials {
-        /***
-         * @brief Built-in asset for classic Blinn-Phong shading.
-         * Use it directly with `MaterialTemplate`, or use the helper class `BlinnPhongTemplate`.
-         * 
-         * Associated with two shaders: `blinn_phong.frag` and `blinn_phong.vert`.
-         */
-        class BlinnPhongTemplateAsset : public MaterialTemplateAsset {
-            std::shared_ptr <ShaderAsset> vs {}, fs {};
-            std::shared_ptr <AssetRef> vs_ref {}, fs_ref {};
-
-        public:
-            BlinnPhongTemplateAsset();
-        };
-
         class BlinnPhongInstance : public MaterialInstance {
             uint32_t texture_id{}, specular_id{}, ambient_id{};
         public:
@@ -29,7 +15,7 @@ namespace Engine {
             void SetBaseTexture(std::shared_ptr<const AllocatedImage2DTexture> image);
             void SetSpecular(glm::vec4 spec);
             void SetAmbient(glm::vec4 spec);
-            void Convert(std::shared_ptr <AssetRef> asset, TransferCommandBuffer & tcb);
+            virtual void Convert(std::shared_ptr <AssetRef> asset, TransferCommandBuffer & tcb) override;
         };
 
         class BlinnPhongTemplate : public MaterialTemplate {

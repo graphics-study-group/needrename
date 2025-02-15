@@ -15,6 +15,7 @@
 #include "Render/Memory/Image2DTexture.h"
 #include "Asset/Mesh/MeshAsset.h"
 #include "Asset/Texture/Image2DTextureAsset.h"
+#include "Asset/AssetManager/AssetManager.h"
 
 #include "cmake_config.h"
 
@@ -43,6 +44,57 @@ struct TestMeshAsset : public MeshAsset {
     }
 };
 
+std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate()
+{
+    auto test_asset = std::make_shared<MaterialTemplateAsset>();
+    auto vs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/blinn_phong.vert.spv.asset");
+    auto fs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/blinn_phong.frag.spv.asset");
+    MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(vs_ref);
+    MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(fs_ref);
+    
+    test_asset->name = "Blinn-Phong";
+
+    MaterialTemplateSinglePassProperties mtspp{};
+    mtspp.shaders.shaders = std::vector<std::shared_ptr<AssetRef>>{vs_ref, fs_ref};
+
+    ShaderVariableProperty light_source, light_color;
+    light_source.frequency = light_color.frequency = ShaderVariableProperty::Frequency::PerScene;
+    light_source.type = light_color.type = ShaderVariableProperty::Type::Vec4;
+    light_source.binding = light_color.binding = 0;
+    light_source.offset = 0;
+    light_source.name = "light_source";
+    light_color.offset = 16;
+    light_color.name = "light_color";
+
+    ShaderVariableProperty view, proj;
+    view.frequency = proj.frequency = ShaderVariableProperty::Frequency::PerCamera;
+    view.type = proj.type = ShaderVariableProperty::Type::Mat4;
+    view.binding = proj.binding = 0;
+    view.offset = 0;
+    proj.offset = 64;
+    view.name = "view";
+    proj.name = "proj";
+
+    ShaderVariableProperty base_tex, specular_color, ambient_color;
+    base_tex.frequency = specular_color.frequency = ambient_color.frequency = ShaderVariableProperty::Frequency::PerMaterial;
+    base_tex.type = ShaderVariableProperty::Type::Texture;
+    specular_color.type = ambient_color.type = ShaderVariableProperty::Type::Vec4;
+    base_tex.binding = 1;
+    specular_color.binding = ambient_color.binding = 0;
+    specular_color.offset = 0;
+    ambient_color.offset = 16;
+    base_tex.name = "base_tex";
+    specular_color.name = "specular_color";
+    ambient_color.name = "ambient_color";
+
+    mtspp.shaders.uniforms = {
+        light_source, light_color, view, proj, base_tex, specular_color, ambient_color
+    };
+    test_asset->properties.properties[0] = mtspp;
+
+    return test_asset;
+}
+
 int main(int argc, char ** argv)
 {
     int64_t max_frame_count = std::numeric_limits<int64_t>::max();
@@ -57,6 +109,7 @@ int main(int argc, char ** argv)
 
     auto cmc = MainClass::GetInstance();
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
+    cmc->GetAssetManager()->SetBuiltinAssetPath(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
 
     auto rsys = cmc->GetRenderSystem();
     // rsys->EnableDepthTesting();
@@ -75,7 +128,8 @@ int main(int argc, char ** argv)
     allocated_image_texture->Create(*test_texture_asset);
 
     // Prepare material
-    auto test_asset = std::make_shared<Materials::BlinnPhongTemplateAsset>();
+    cmc->GetAssetManager()->LoadBuiltinAssets();
+    auto test_asset = ConstructMaterialTemplate();
     auto test_asset_ref = std::make_shared<AssetRef>(test_asset);
     auto test_template = std::make_shared<Materials::BlinnPhongTemplate>(rsys, test_asset_ref);
     auto test_material_instance = std::make_shared<Materials::BlinnPhongInstance>(rsys, test_template);
@@ -83,6 +137,27 @@ int main(int argc, char ** argv)
     test_material_instance->SetSpecular(glm::vec4(1.0, 1.0, 1.0, 64.0));
     test_material_instance->SetBaseTexture(allocated_image_texture);
     test_material_instance->WriteDescriptors(0);
+
+    // std::filesystem::path project_path(ENGINE_TESTS_DIR);
+    // project_path = project_path / "new_material_test_project";
+    // if (std::filesystem::exists(project_path))
+    //     std::filesystem::remove_all(project_path);
+    // std::filesystem::copy(std::filesystem::path(ENGINE_PROJECTS_DIR) / "empty_project", project_path, std::filesystem::copy_options::recursive);
+
+    // Serialization::Archive archive;
+    // archive.prepare_save();
+    // test_asset->save_asset_to_archive(archive);
+    // archive.save_to_file(project_path / "BlinnPhongTemplate.asset");
+
+    // archive.clear();
+    // archive.prepare_save();
+    // test_asset->properties.properties[0].shaders.shaders[0]->as<ShaderAsset>()->save_asset_to_archive(archive);
+    // archive.save_to_file(project_path / "blinn_phong.vert.spv.asset");
+
+    // archive.clear();
+    // archive.prepare_save();
+    // test_asset->properties.properties[0].shaders.shaders[1]->as<ShaderAsset>()->save_asset_to_archive(archive);
+    // archive.save_to_file(project_path / "blinn_phong.frag.spv.asset");
 
     // Prepare mesh
     auto test_mesh_asset = std::make_shared<TestMeshAsset>();
