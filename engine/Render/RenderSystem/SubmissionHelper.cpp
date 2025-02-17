@@ -134,6 +134,7 @@ namespace Engine::RenderSystemState {
             SDL_LogError(SDL_LOG_CATEGORY_RENDER, "An error occured when waiting for submission fence.");
         }
 
+        m_system.getDevice().resetFences({m_completion_fence.get()});
         m_one_time_cb.reset();
         m_pending_dellocations.clear();
     }
