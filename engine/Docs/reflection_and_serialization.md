@@ -73,13 +73,13 @@ The parser generates reflection for several key classes:
 
 1. **Serialization Functions**
     - The parser generates member functions for each reflective class as **`__serialization_save__`** and **`__serialization_load__`** to handle serialization and deserialization.
-    - For special types like smart pointers or STL containers (e.g., `std::vector`), the serialization system implements specific serialization functions.
+    - For special types like smart pointers or STL containers (e.g., `std::vector`), the serialization system implements specific outter serialization functions.
 2. **Custom Serialization**
     - If a class wants to customize its serialization process, it can implement the functions:
         - **`save_to_archive(Archive&)`**
         - **`load_from_archive(Archive&)`**
     - The serialization system follows the priority:
-        - Custom serialization functions > Special serialization functions for specific types (e.g., smart pointers) > Generated serialization functions.
+        - Internal serialization functions > External serialization functions > Generated serialization functions.
 3. **Serialization and Deserialization**
     - Developers can use the templates:
         - **`serialize(T, Archive)`**

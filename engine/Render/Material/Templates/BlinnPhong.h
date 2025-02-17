@@ -3,6 +3,7 @@
 
 #include "Render/Material/MaterialTemplate.h"
 #include "Render/Material/MaterialInstance.h"
+#include <glm.hpp>
 
 namespace Engine {
     class AllocatedImage2DTexture;

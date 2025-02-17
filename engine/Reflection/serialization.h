@@ -1,13 +1,8 @@
 #ifndef REFLECTION_SERIALIZATION_INCLUDED
 #define REFLECTION_SERIALIZATION_INCLUDED
 
-#include <vector>
-#include <unordered_map>
-#include <map>
-#include <any>
-#include <glm.hpp>
-#include <gtc/quaternion.hpp>
 #include "Archive.h"
+#include "serialization_base.h"
 
 namespace Engine
 {
@@ -61,137 +56,32 @@ namespace Engine
         }
 
         /***********************************************************************
-         * Special Serialization functions
-         *
-         * Special serialization functions for basic types, arrays, enums, glm types, STL, etc.
-         ***********************************************************************/
-
-        /// @brief concept to check if a type is a basic type which json can serialize
-        template <typename T>
-        concept is_basic_type = std::disjunction<std::is_integral<T>, std::is_floating_point<T>, std::is_same<T, std::string>, std::is_same<T, bool>>::value;
-        /// @brief concept to check if a type is an array
-        template <typename T>
-        concept is_array_type = std::is_array<T>::value;
-        /// @brief concept to check if a type is an enum
-        template <typename T>
-        concept is_enum_type = std::is_enum<T>::value;
-        /// @brief concept to check if a type is std::any
-        template <typename T>
-        concept is_std_any = std::is_same<T, std::any>::value;
-
-        template <is_basic_type T>
-        void save_to_archive(const T &value, Archive &archive);
-        template <is_basic_type T>
-        void load_from_archive(T &value, Archive &archive);
-
-        template <is_array_type T>
-        void save_to_archive(const T &value, Archive &archive);
-        template <is_array_type T>
-        void load_from_archive(T &value, Archive &archive);
-
-        template <is_enum_type T>
-        void save_to_archive(const T &value, Archive &archive);
-        template <is_enum_type T>
-        void load_from_archive(T &value, Archive &archive);
-
-        template <is_std_any T>
-        void save_to_archive(const T &value, Archive &archive);
-        template <is_std_any T>
-        void load_from_archive(T &value, Archive &archive);
-
-        template <typename T>
-        void save_to_archive(const std::unordered_map<std::string, T> &value, Archive &archive);
-        template <typename T>
-        void load_from_archive(std::unordered_map<std::string, T> &value, Archive &archive);
-
-        template <typename T>
-        void save_to_archive(const std::map<std::string, T> &value, Archive &archive);
-        template <typename T>
-        void load_from_archive(std::map<std::string, T> &value, Archive &archive);
-
-        template <typename T>
-        concept not_string = !std::is_same<std::remove_cvref<T>, std::string>::value;
-
-        template <not_string key_type, typename T>
-        void save_to_archive(const std::unordered_map<key_type, T> &value, Archive &archive);
-        template <not_string key_type, typename T>
-        void load_from_archive(std::unordered_map<key_type, T> &value, Archive &archive);
-
-        template <not_string key_type, typename T>
-        void save_to_archive(const std::map<key_type, T> &value, Archive &archive);
-        template <not_string key_type, typename T>
-        void load_from_archive(std::map<key_type, T> &value, Archive &archive);
-
-        template <typename T>
-        void save_to_archive(const std::vector<T> &value, Archive &archive);
-        template <typename T>
-        void load_from_archive(std::vector<T> &value, Archive &archive);
-
-        template <typename T>
-        void save_to_archive(const std::shared_ptr<T> &value, Archive &archive);
-        template <typename T>
-        void load_from_archive(std::shared_ptr<T> &value, Archive &archive);
-
-        template <typename T>
-        void save_to_archive(const std::weak_ptr<T> &value, Archive &archive);
-        template <typename T>
-        void load_from_archive(std::weak_ptr<T> &value, Archive &archive);
-
-        template <typename T>
-        void save_to_archive(const std::unique_ptr<T> &value, Archive &archive);
-        template <typename T>
-        void load_from_archive(std::unique_ptr<T> &value, Archive &archive);
-
-        template <typename T>
-        void save_to_archive(const std::weak_ptr<T> &value, Archive &archive);
-        template <typename T>
-        void load_from_archive(std::weak_ptr<T> &value, Archive &archive);
-
-        void save_to_archive(const glm::vec2 &value, Archive &archive);
-        void load_from_archive(glm::vec2 &value, Archive &archive);
-
-        void save_to_archive(const glm::vec3 &value, Archive &archive);
-        void load_from_archive(glm::vec3 &value, Archive &archive);
-
-        void save_to_archive(const glm::vec4 &value, Archive &archive);
-        void load_from_archive(glm::vec4 &value, Archive &archive);
-
-        void save_to_archive(const glm::quat &value, Archive &archive);
-        void load_from_archive(glm::quat &value, Archive &archive);
-
-        void save_to_archive(const glm::mat3 &value, Archive &archive);
-        void load_from_archive(glm::mat3 &value, Archive &archive);
-
-        void save_to_archive(const glm::mat4 &value, Archive &archive);
-        void load_from_archive(glm::mat4 &value, Archive &archive);
-
-        /***********************************************************************
          * Serialization Functions Selection
          *
          * Use SFINAE to select the correct serialization function for a type.
-         * The selection order is custom save/load > special save/load > generated save/load.
+         * The selection order is internal save/load > external save/load > generated save/load.
          ***********************************************************************/
 
         template <typename T>
-        concept has_custom_save = requires { std::declval<T>().save_to_archive(std::declval<Archive &>()); };
+        concept has_internal_save = requires(const T &value, Archive &archive) { value.save_to_archive(archive); };
         template <typename T>
-        concept has_custom_load = requires { std::declval<T>().load_from_archive(std::declval<Archive &>()); };
+        concept has_internal_load = requires(T &value, Archive &archive) { value.load_from_archive(archive); };
 
         template <typename T>
-        concept has_special_save = requires { Engine::Serialization::save_to_archive(std::declval<std::add_const_t<T &>>(), std::declval<Archive &>()); };
+        concept has_external_save = requires(const T &value, Archive &archive) { save_to_archive(value, archive); };
         template <typename T>
-        concept has_special_load = requires { Engine::Serialization::load_from_archive(std::declval<T &>(), std::declval<Archive &>()); };
+        concept has_external_load = requires(T &value, Archive &archive) { load_from_archive(value, archive); };
 
         template <typename T>
-        concept has_generated_save = requires { std::declval<T>()._SERIALIZATION_SAVE_(std::declval<Archive &>()); };
+        concept has_generated_save = requires(const T &value, Archive &archive) { value._SERIALIZATION_SAVE_(archive); };
         template <typename T>
-        concept has_generated_load = requires { std::declval<T>()._SERIALIZATION_LOAD_(std::declval<Archive &>()); };
+        concept has_generated_load = requires(T &value, Archive &archive) { value._SERIALIZATION_LOAD_(archive); };
 
         template <typename T>
-        concept has_save = has_custom_save<T> || has_special_save<T> || has_generated_save<T>;
+        concept has_save = has_internal_save<T> || has_external_save<T> || has_generated_save<T>;
 
         template <typename T>
-        concept has_load = has_custom_load<T> || has_special_load<T> || has_generated_load<T>;
+        concept has_load = has_internal_load<T> || has_external_load<T> || has_generated_load<T>;
 
         template <has_save T>
         void serialize(const T &value, Archive &archive)
@@ -200,13 +90,13 @@ namespace Engine
             {
                 archive.prepare_save();
             }
-            if constexpr (has_custom_save<T>)
+            if constexpr (has_internal_save<T>)
             {
                 value.save_to_archive(archive);
             }
-            else if constexpr (has_special_save<T>)
+            else if constexpr (has_external_save<T>)
             {
-                Engine::Serialization::save_to_archive(value, archive);
+                save_to_archive(value, archive);
             }
             else if constexpr (has_generated_save<T>)
             {
@@ -221,13 +111,13 @@ namespace Engine
             {
                 archive.prepare_load();
             }
-            if constexpr (has_custom_load<T>)
+            if constexpr (has_internal_load<T>)
             {
                 value.load_from_archive(archive);
             }
-            else if constexpr (has_special_load<T>)
+            else if constexpr (has_external_load<T>)
             {
-                Engine::Serialization::load_from_archive(value, archive);
+                load_from_archive(value, archive);
             }
             else if constexpr (has_generated_load<T>)
             {
@@ -236,7 +126,5 @@ namespace Engine
         }
     }
 }
-
-#include "serialization.tpp"
 
 #endif // REFLECTION_SERIALIZATION_INCLUDED
