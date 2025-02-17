@@ -183,10 +183,6 @@ int main(int argc, char ** argv)
         std::memcpy(camera_ptr, &camera_mats, sizeof camera_mats);
         global_pool.FlushPerCameraConstantMemory(i);
     }
-    
-
-    rsys->GetFrameManager().GetSubmissionHelper().EnqueueVertexBufferSubmission(test_mesh);
-    rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(*allocated_image_texture, test_texture_asset->GetPixelData(), test_texture_asset->GetPixelDataSize());
 
     glm::mat4 eye4 = glm::mat4(1.0f);
 
@@ -200,6 +196,10 @@ int main(int argc, char ** argv)
                 break;
             }
         }
+
+        // Repeat submission to test for synchronization problems
+        rsys->GetFrameManager().GetSubmissionHelper().EnqueueVertexBufferSubmission(test_mesh);
+        rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(*allocated_image_texture, test_texture_asset->GetPixelData(), test_texture_asset->GetPixelDataSize());
 
         auto index = rsys->StartFrame();
         RenderCommandBuffer & cb = rsys->GetCurrentCommandBuffer();
