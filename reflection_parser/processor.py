@@ -71,6 +71,10 @@ class ReflectionParser:
 
     def traverse_class(self, node: CX.Cursor, args: list):
         current_type = Type(node.type)
+        # check if the class has been parsed
+        # some clang bug may cause the same class to be parsed multiple times
+        if self.types.get(current_type.full_name) is not None:
+            return
         
         mode = "WhiteList"
         if "BlackList" in args:
@@ -78,22 +82,32 @@ class ReflectionParser:
         serialization_mode = "DefaultSerialization"
         if "CustomSerialization" in args:
             serialization_mode = "CustomSerialization"
+            
+        # a marker to indicate if the class is parsed
+        # it should not be parsed when the node is a forward declaration
+        flag = False
         
         for child in node.get_children():
+            # record base types
             if child.kind == CX.CursorKind.CXX_BASE_SPECIFIER:
                 current_type.base_types.append(Type(child.type))
+            # ignore inner classes
+            if child.kind == CX.CursorKind.STRUCT_DECL or child.kind == CX.CursorKind.CLASS_DECL:
+                continue
+            # check if the field, constructor, or method should be reflected
             if not self.is_reflection(child, mode):
                 continue
-            # check if the class has been reflected
-            # put it here to avoid taking class declaration as reflection
-            if self.types.get(current_type.full_name) is not None:
-                raise Exception(f"Class {current_type.full_name} has already been reflected")
+            # if the node is not a forward declaration, it must have one of the following kinds
+            # because every reflected class has a backdoor constructor in REFL_SER_BODY() macro
             if child.kind == CX.CursorKind.FIELD_DECL:
                 current_type.fields.append(Field(child))
+                flag = True
             elif child.kind == CX.CursorKind.CONSTRUCTOR:
                 current_type.constructors.append(Method(child))
+                flag = True
             elif child.kind == CX.CursorKind.CXX_METHOD:
                 current_type.methods.append(Method(child))
+                flag = True
         
         if serialization_mode == "DefaultSerialization":
             for child in node.get_children():
@@ -101,9 +115,11 @@ class ReflectionParser:
                     continue
                 if child.kind == CX.CursorKind.FIELD_DECL:
                     current_type.serialized_fields.append(Field(child))
+                    flag = True
 
-        if self.types.get(current_type.full_name) is None:
+        if flag:
             self.types[current_type.full_name] = current_type
+        return
 
 
     def traverse(self, node: CX.Cursor):
@@ -117,9 +133,8 @@ class ReflectionParser:
                 self.traverse_class(node, args)
             else:
                 raise Exception(f"Reflection macro can only be used in a class or struct, but found '{node.spelling}' '{node.kind}' not in a class")
-        else:
-            for child in node.get_children():
-                self.traverse(child)
+        for child in node.get_children():
+            self.traverse(child)
 
 
     def generate_code(self, generated_code_dir: str):

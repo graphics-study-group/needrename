@@ -219,5 +219,25 @@ int main()
     archive.clear();
     assert(self_ptr_test2->m_self_ptr.get() == self_ptr_test2.get());
 
+    StructStructTest struct_struct_test;
+    struct_struct_test.m_inner_struct.m_inner_float = 3.1415926f;
+    struct_struct_test.m_inner_struct.m_inner_int = 100;
+    struct_struct_test.m_inner_class.m_inner_int = 200;
+    struct_struct_test.m_double = 2.718281828459045;
+    archive.clear();
+    Engine::Serialization::serialize(struct_struct_test, archive);
+    std::cout << "struct struct test:" << std::endl << archive.m_context->json.dump(4) << std::endl;
+    struct_struct_test.m_inner_struct.m_inner_float = 0.0f;
+    struct_struct_test.m_inner_struct.m_inner_int = 0;
+    struct_struct_test.m_inner_class.m_inner_int = 0;
+    struct_struct_test.m_double = 0.0;
+    StructStructTest struct_struct_test2;
+    Engine::Serialization::deserialize(struct_struct_test2, archive);
+    archive.clear();
+    assert(struct_struct_test2.m_inner_struct.m_inner_float == 3.1415926f);
+    assert(struct_struct_test2.m_inner_struct.m_inner_int == 100);
+    assert(struct_struct_test2.m_inner_class.m_inner_int == 200);
+    assert(struct_struct_test2.m_double == 2.718281828459045);
+
     return 0;
 }

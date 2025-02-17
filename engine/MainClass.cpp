@@ -67,10 +67,11 @@ namespace Engine
             sdl_window_flags);
 
         this->renderer = std::make_shared<RenderSystem>(this->window);
-        this->renderer->Create();
         this->world = std::make_shared<WorldSystem>();
         this->asset = std::make_shared<AssetManager>();
         this->gui = std::make_shared<GUISystem>(this->renderer);
+
+        this->renderer->Create();
         this->gui->Create(this->window->GetWindow());
         Reflection::Initialize();
     }

@@ -5,7 +5,7 @@
             "Asset::m_guid": "9556F2CD1416496196DC5D47D5BD745E",
             "TextureAsset::m_name": "bunny1",
             "m_channel": 4,
-            "m_format": 0,
+            "m_format": 1,
             "m_height": 3072,
             "m_mip_level": 1,
             "m_width": 3072

@@ -14,12 +14,22 @@
 #define REFL_SER_ENABLE [[clang::annotate("%REFLECTION ENABLE"), clang::annotate("%SERIALIZATION ENABLE")]]
 #define REFL_SER_DISABLE [[clang::annotate("%REFLECTION DISABLE"), clang::annotate("%SERIALIZATION DISABLE")]]
 
+/// Serialization body for regular class. Declare some virtual serialization functions and backdoor constructor.
 #define REFL_SER_BODY(class_name, ...) \
     public: \
     friend class Engine::Reflection::Registrar; \
     REFL_DISABLE virtual void _SERIALIZATION_SAVE_(Engine::Serialization::Archive& buffer) const; \
     REFL_DISABLE virtual void _SERIALIZATION_LOAD_(Engine::Serialization::Archive& buffer); \
     REFL_ENABLE class_name(Engine::Serialization::SerializationMarker marker);
+
+/// Serialization body for simple struct. Declare non-virtual serialization functions, backdoor constructor and default constructor.
+#define REFL_SER_SIMPLE_STRUCT(class_name, ...) \
+    public: \
+    friend class Engine::Reflection::Registrar; \
+    REFL_DISABLE void _SERIALIZATION_SAVE_(Engine::Serialization::Archive& buffer) const; \
+    REFL_DISABLE void _SERIALIZATION_LOAD_(Engine::Serialization::Archive& buffer); \
+    REFL_ENABLE class_name(Engine::Serialization::SerializationMarker marker); \
+    REFL_ENABLE class_name() = default;
 
 namespace Engine
 {

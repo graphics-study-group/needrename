@@ -19,6 +19,7 @@ The Asset Management system is responsible for handling various types of game as
             2. At a later point, `AssetManager` locates the corresponding asset using its GUID.
             3. `AssetManager` allocates memory for the `Asset` using its internal memory management system and invokes the `load_asset_from_archive` function to initialize it.
             4. The `AssetRef`'s pointer is then updated to the loaded `Asset`, marking it as fully initialized.
+        - `AssetRef` should be regarded as a structure that stores data rather than a pointer or reference. It is necessary to avoid circular references to a certain asset type in `AssetRef`. For example, if Asset A containing Asset B's AssetRef and B containing A's AssetRef, the AssetManager will fall into a dead loop.
 3. **Custom `Asset` Serialization**
     - The `save_asset_to_archive` and `load_asset_from_archive` functions will call generated deserialization logic for derived `Asset` classes. These functions automatically store and retrieve the member variables of the classes.
     - If custom data needs to be stored, these functions can be overridden. However, it's essential to ensure that the `Asset::m_guid` is saved. One can call `Asset::load_asset_from_archive` at the end of the overridden function to ensure this process is followed correctly.

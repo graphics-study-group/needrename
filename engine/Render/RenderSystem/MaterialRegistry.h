@@ -14,7 +14,6 @@ namespace Engine
         public:
             MaterialRegistry() = default;
             void Create(std::weak_ptr <RenderSystem>);
-            void AddDefaultMaterials();
             void AddMaterial(std::shared_ptr <AssetRef> ref);
             auto GetMaterial(const std::string & name) -> decltype(this->at(name));
         };

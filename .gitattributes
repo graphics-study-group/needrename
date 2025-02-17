@@ -20,3 +20,4 @@
 *.so filter=lfs diff=lfs merge=lfs
 *.lib filter=lfs diff=lfs merge=lfs
 *.a filter=lfs diff=lfs merge=lfs
+*.spv filter=lfs diff=lfs merge=lfs
