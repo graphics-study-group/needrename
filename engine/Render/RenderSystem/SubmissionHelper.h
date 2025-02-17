@@ -27,10 +27,38 @@ namespace Engine {
         public:
             SubmissionHelper (RenderSystem & system);
 
+            /***
+             * @brief Enqueue a vertex buffer uploading.
+             * Record corresponding memory barriers and buffer writes to a disposable command buffer at the beginning of a frame.
+             * A staging buffer is created, and will be de-allocated at the end of the frame.
+             * 
+             * @param mesh A homogeneous mesh whose vertex buffer is to be updated.
+             */
             void EnqueueVertexBufferSubmission(const HomogeneousMesh & mesh);
+
+            /***
+             * @brief Enqueue a texture buffer submission.
+             * Record corresponding image barriers and buffer writes to a disposable command buffer at the beginning of a frame.
+             * A staging buffer is created, and will be de-allocated at the end of the frame.
+             * The layout of the image will be transferred to optimal for shader read after submission.
+             * Only color aspect and the very first level of mipmap is considered for submission, and no blitting or mipmap generation is recorded.
+             * 
+             * @param texture
+             * @param data
+             * @param length
+             */
             void EnqueueTextureBufferSubmission(const AllocatedImage2DTexture& texture, const std::byte * data, size_t length);
 
+            /***
+             * @brief Start the frame. Allocated a new command buffer if needed, record all pending operations, and submit the
+             * buffer to the graphics queue allocated by the render system.
+             */
             void StartFrame();
+
+            /***
+             * @brief Complete the frame. Wait for execution of the disposable command buffer, de-allocate staging buffers,
+             * reset the fence, and remove the command buffer.
+             */
             void CompleteFrame();
         };
     }
