@@ -7,7 +7,6 @@
 
 namespace Engine
 {
-    class TransferCommandBuffer;
     class ImageInterface;
     /// @brief A light-weight instance of a given material,
     /// where all mutable data such as texture and uniforms are stored.
@@ -104,9 +103,8 @@ namespace Engine
          * @brief Covert a material asset to the material instance. Load properties to the uniforms.
          * 
          * @param asset The MaterialAsset to convert.
-         * @param tcb 
          */
-        virtual void Convert(std::shared_ptr <AssetRef> asset, TransferCommandBuffer & tcb);
+        virtual void Convert(std::shared_ptr <AssetRef> asset);
     };
 } // namespace Engine
 

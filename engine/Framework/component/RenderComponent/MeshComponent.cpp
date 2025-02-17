@@ -36,15 +36,11 @@ namespace Engine
         }
 
         // Commit vertex buffer to GPU
-        auto &tcb = m_system.lock()->GetTransferCommandBuffer();
-        tcb.Begin();
         for (auto &submesh : m_submeshes)
         {
             submesh->Prepare();
-            tcb.CommitVertexBuffer(*submesh);
+            m_system.lock()->GetFrameManager().GetSubmissionHelper().EnqueueVertexBufferSubmission(*submesh);
         }
-        tcb.End();
-        tcb.SubmitAndExecute();
     }
 
     void MeshComponent::Tick(float)

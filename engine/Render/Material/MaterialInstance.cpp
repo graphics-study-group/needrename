@@ -130,7 +130,7 @@ namespace Engine {
     {
         return m_pass_info.at(pass).desc_set;
     }
-    void MaterialInstance::Convert(std::shared_ptr <AssetRef> asset, TransferCommandBuffer & tcb)
+    void MaterialInstance::Convert(std::shared_ptr <AssetRef> asset)
     {
         const auto & material_asset = asset->cas<MaterialAsset>();
 
@@ -168,7 +168,11 @@ namespace Engine {
                         auto texture = std::make_shared<AllocatedImage2DTexture>(m_system);
                         texture->Create(*texture_asset);
                         this->WriteTextureUniform(pass_index, uniform_idx, texture);
-                        tcb.CommitTextureImage(*texture, texture_asset->GetPixelData(), texture_asset->GetPixelDataSize());
+                        m_system.lock()->GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
+                            *texture,
+                            texture_asset->GetPixelData(),
+                            texture_asset->GetPixelDataSize()
+                        );
                         break;
                     }
                 }

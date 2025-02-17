@@ -132,21 +132,18 @@ public:
         LoadMesh(mesh_file_name);
 
         auto system = m_system.lock();
-        auto & tcb = system->GetTransferCommandBuffer();
-        tcb.Begin();
+        auto & helper = system->GetFrameManager().GetSubmissionHelper();
+
         for (auto & submesh : m_submeshes) {
             submesh->Prepare();
-            tcb.CommitVertexBuffer(*submesh);
+            helper.EnqueueVertexBufferSubmission(*submesh);
         }
 
         for (size_t i = 0; i < m_material_assets.size(); i++) {
             auto ptr = std::make_shared<Materials::BlinnPhongInstance>(m_system, system->GetMaterialRegistry().GetMaterial("Built-in Blinn-Phong"));
-            ptr->Convert(m_material_assets[i], tcb);
+            ptr->Convert(m_material_assets[i]);
             m_materials.push_back(ptr);
         }
-
-        tcb.End();
-        tcb.SubmitAndExecute();
     }
 
     ~MeshComponentFromFile() {

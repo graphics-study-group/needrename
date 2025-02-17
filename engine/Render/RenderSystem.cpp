@@ -167,11 +167,6 @@ namespace Engine
         return m_frame_manager;
     }
 
-    TransferCommandBuffer & RenderSystem::GetTransferCommandBuffer() {
-        m_device->resetCommandPool(m_queues.graphicsOneTimePool.get());
-        return m_one_time_commandbuffer;
-    }
-
     void RenderSystem::Render()
     {
         MainClass::GetInstance()->GetGUISystem()->PrepareGUI();
@@ -303,9 +298,6 @@ namespace Engine
 
         info.queueFamilyIndex = indices.present.value();
         m_queues.presentPool = m_device->createCommandPoolUnique(info);
-
-        // Prepare a one-time transfer command buffer
-        m_one_time_commandbuffer.Create(shared_from_this(), m_queues.graphicsOneTimePool.get(), m_queues.graphicsQueue);
     }
 
     void RenderSystem::CreateSurface() 

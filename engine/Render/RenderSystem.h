@@ -101,8 +101,6 @@ namespace Engine
 
         RenderSystemState::FrameManager & GetFrameManager ();
 
-        TransferCommandBuffer & GetTransferCommandBuffer();
-
         void EnableDepthTesting();
 
         void WritePerCameraConstants(const ConstantData::PerCameraStruct & data, uint32_t in_flight_index);
@@ -145,9 +143,6 @@ namespace Engine
         RenderSystemState::FrameManager m_frame_manager;
         RenderSystemState::GlobalConstantDescriptorPool m_descriptor_pool{};
         RenderSystemState::MaterialRegistry m_material_registry {};
-        
-
-        TransferCommandBuffer m_one_time_commandbuffer {};
     };
 }
 

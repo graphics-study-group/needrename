@@ -36,16 +36,12 @@ namespace Engine
             m_materials.push_back(ptr);
         }
 
-        auto &tcb = system->GetTransferCommandBuffer();
-        tcb.Begin();
         for (size_t i = 0; i < m_material_assets.size(); i++)
         {
             auto mat_ptr = std::dynamic_pointer_cast<MaterialInstance>(m_materials[i]);
             assert(mat_ptr);
-            mat_ptr->Convert(m_material_assets[i], tcb);
+            mat_ptr->Convert(m_material_assets[i]);
         }
-        tcb.End();
-        tcb.SubmitAndExecute();
     }
 
     void RendererComponent::Tick(float)

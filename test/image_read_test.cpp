@@ -85,14 +85,8 @@ int main(int, char *[])
         uint32_t index = render_system->GetNextImage(in_flight_frame_id, 0x7FFFFFFF);
         assert(index < 3);
 
-        auto & tcb = render_system->GetTransferCommandBuffer();
-
         // Repeatly uploading these data to test synchronization.
-        tcb.Begin();
-        tcb.CommitVertexBuffer(mesh);
-        tcb.CommitTextureImage(texture, reinterpret_cast<std::byte *>(image_data), tex_width * tex_height * 4);
-        tcb.End();
-        tcb.SubmitAndExecute();
+        render_system.CommitTextureImage(texture, reinterpret_cast<std::byte *>(image_data), tex_width * tex_height * 4);
 
         cb.Begin();
         vk::Extent2D extent {render_system->GetSwapchain().GetExtent()};

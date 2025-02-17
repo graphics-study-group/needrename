@@ -184,12 +184,9 @@ int main(int argc, char ** argv)
         global_pool.FlushPerCameraConstantMemory(i);
     }
     
-    auto & tcb = rsys->GetTransferCommandBuffer();
-    tcb.Begin();
-    tcb.CommitVertexBuffer(test_mesh);
-    tcb.CommitTextureImage(*allocated_image_texture, test_texture_asset->GetPixelData(), test_texture_asset->GetPixelDataSize());
-    tcb.End();
-    tcb.SubmitAndExecute();
+
+    rsys->GetFrameManager().GetSubmissionHelper().EnqueueVertexBufferSubmission(test_mesh);
+    rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(*allocated_image_texture, test_texture_asset->GetPixelData(), test_texture_asset->GetPixelDataSize());
 
     glm::mat4 eye4 = glm::mat4(1.0f);
 

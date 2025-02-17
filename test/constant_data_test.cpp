@@ -65,11 +65,7 @@ int main(int, char **)
     while(total_test_frame--) {
 
         if (mesh.NeedCommitment()) {
-            auto & tcb = system->GetTransferCommandBuffer();
-            tcb.Begin();
-            tcb.CommitVertexBuffer(mesh);
-            tcb.End();
-            tcb.SubmitAndExecute();
+            system->GetFrameManager().GetSubmissionHelper().EnqueueVertexBufferSubmission(mesh);
         }
 
         if (total_test_frame > MAXIMUM_FRAME_COUNT / 3 * 2) {
