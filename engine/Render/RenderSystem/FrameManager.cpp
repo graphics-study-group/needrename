@@ -2,8 +2,6 @@
 
 #include "Render/RenderSystem.h"
 
-#include <iostream>
-
 namespace Engine::RenderSystemState{
     FrameManager::FrameManager(RenderSystem &sys) : m_system(sys)
     {
@@ -48,6 +46,8 @@ namespace Engine::RenderSystemState{
         present_queue = m_system.getQueueInfo().presentQueue;
         swapchain = m_system.GetSwapchain().GetSwapchain();
         current_frame_in_flight = 0;
+
+        m_submission_helper = std::make_unique <SubmissionHelper> (m_system);
     }
 
     uint32_t FrameManager::GetFrameInFlight() const noexcept
@@ -75,6 +75,8 @@ namespace Engine::RenderSystemState{
 
     uint32_t FrameManager::StartFrame(uint64_t timeout)
     {
+        m_submission_helper->StartFrame();
+
         auto device = m_system.getDevice();
         uint32_t fif = GetFrameInFlight();
 
@@ -128,5 +130,12 @@ namespace Engine::RenderSystemState{
         // Increment FIF counter, reset framebuffer index
         current_frame_in_flight = (current_frame_in_flight + 1) % FRAMES_IN_FLIGHT;
         current_framebuffer = std::numeric_limits<uint32_t>::max();
+
+        // Handle submissions
+        m_submission_helper->CompleteFrame();
+    }
+    SubmissionHelper &FrameManager::GetSubmissionHelper()
+    {
+        return *m_submission_helper;
     }
 }

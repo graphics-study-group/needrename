@@ -2,9 +2,11 @@
 #define RENDER_RENDERSYSTEM_FRAMEMANAGER_INCLUDED
 
 #include "Render/Pipeline/CommandBuffer/RenderCommandBuffer.h"
+#include "Render/RenderSystem/SubmissionHelper.h"
 
 namespace Engine {
     class RenderSystem;
+
     namespace RenderSystemState {
         /// @brief Multiple frame in flight manager
         class FrameManager final {
@@ -25,6 +27,8 @@ namespace Engine {
             vk::Queue present_queue {};
             vk::SwapchainKHR swapchain {};
             RenderSystem & m_system;
+
+            std::unique_ptr <SubmissionHelper> m_submission_helper {};
         public:
             FrameManager (RenderSystem & sys);
 
@@ -64,6 +68,8 @@ namespace Engine {
              * Use fence to ensure that the command buffer execution is finished.
              */
             void CompleteFrame ();
+
+            SubmissionHelper & GetSubmissionHelper();
         };
     }
 }
