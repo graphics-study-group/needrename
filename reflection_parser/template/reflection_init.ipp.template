@@ -1,4 +1,5 @@
 #include "registrar_declare.hpp"
+#include <Reflection/Type.h>
 static void RegisterAllTypes()
 {
     % for class_type in classes_map.values():

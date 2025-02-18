@@ -40,8 +40,8 @@ def main():
     output_file = os.path.join(temp_gen_dir, "all_reflection_files.hpp")
     output_file = str(Path(output_file).resolve())
     with open(output_file, "w") as f:
-        f.write(reflection_macros)
-        f.write("\n")
+        # f.write(reflection_macros)
+        # f.write("\n")
         for header in headers:
             if header == "":  # skip empty header
                 continue

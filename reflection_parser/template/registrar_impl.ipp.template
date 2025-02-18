@@ -2,6 +2,7 @@
 #include <typeindex>
 #include <typeinfo>
 #include <Reflection/Type.h>
+#include <Reflection/utils.h>
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
