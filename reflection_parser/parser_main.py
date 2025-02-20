@@ -17,7 +17,6 @@ def main():
     parser.add_argument("--target_name", type=str, help="the target name for this parsing run", required=True)
     parser.add_argument("--reflection_search_files", type=str, help="a txt file records all the files that need to search for reflection", required=True)
     parser.add_argument("--generated_code_dir", type=str, help="the output directory of the generated files", required=True)
-    parser.add_argument("--reflection_macros_header", type=str, help="a header file records all the macros about reflection", required=True)
     parser.add_argument("--args", type=str, help="the arguments to pass to the clang compiler", default="-x c++ -w -MG -M -ferror-limit=0 -std=c++20")
     parser.add_argument("--verbose", action="store_true", help="print verbose information")
     args = parser.parse_args()
@@ -35,13 +34,9 @@ def main():
     for i in range(len(headers)):
         headers[i] = str(Path(headers[i]).resolve())
      
-    with open(args.reflection_macros_header, "r") as f:
-        reflection_macros = f.read()
     output_file = os.path.join(temp_gen_dir, "all_reflection_files.hpp")
     output_file = str(Path(output_file).resolve())
     with open(output_file, "w") as f:
-        # f.write(reflection_macros)
-        # f.write("\n")
         for header in headers:
             if header == "":  # skip empty header
                 continue

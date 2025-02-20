@@ -81,7 +81,6 @@ function(add_reflection_parser target_name reflection_search_files generated_cod
                     --target_name "${target_name}"
                     --reflection_search_files "${reflection_search_files}"
                     --generated_code_dir ${generated_code_dir}/${target_name}
-                    --reflection_macros_header ${ENGINE_SOURCE_DIR}/Reflection/macros.h
                     --args ${REFLECTION_PARSER_ARGS}
                     ${REFLECTION_VERBOSE}
         COMMAND ${CMAKE_COMMAND} -E touch ${TASK_STAMPED_FILE}

@@ -10,6 +10,7 @@ class ReflectionParser:
     def __init__(self):
         self.types = {}
         self.files = []
+        self.file_types = {}
     
     
     def get_reflection_class_args(self, node: CX.Cursor):
@@ -149,11 +150,10 @@ class ReflectionParser:
         with open(os.path.join(generated_code_dir, "registrar_impl.ipp"), "w") as f:
             f.write(template_impl.render(classes_map=self.types))
             
-        topological_sorted_types=self.topological_sort(self.types)
         with open("template/reflection_init.ipp.template", "r") as f:
             template_init = Template(f.read())
         with open(os.path.join(generated_code_dir, "reflection_init.ipp"), "w") as f:
-            f.write(template_init.render(classes_map=self.types, topological_sorted_types=topological_sorted_types))
+            f.write(template_init.render(classes_map=self.types))
         
         with open("template/generated_reflection.cpp.template", "r") as f:
             template_gr = Template(f.read())
@@ -164,35 +164,6 @@ class ReflectionParser:
             template_gs_ipp = Template(f.read())
         with open(os.path.join(generated_code_dir, "serialization_impl.ipp"), "w") as f:
             f.write(template_gs_ipp.render(classes_map=self.types))
-            
-    
-    def topological_sort(self, types):
-        n = len(types)
-        edges = [[] for _ in range(n)]
-        in_degree = [0 for _ in range(n)]
-        idx = {}
-        types_list = list(types.values())
-        for i, one_type in enumerate(types.values()):
-            idx[one_type.name] = i
-        for one_type in types.values():
-            for base_type in one_type.base_types:
-                if base_type not in idx:
-                    continue
-                edges[idx[base_type]].append(idx[one_type.name])
-                in_degree[idx[one_type.name]] += 1
-        queue = []
-        for i in range(n):
-            if in_degree[i] == 0:
-                queue.append(i)
-        result = []
-        while queue:
-            u = queue.pop(0)
-            result.append(u)
-            for v in edges[u]:
-                in_degree[v] -= 1
-                if in_degree[v] == 0:
-                    queue.append(v)
-        return [types_list[i] for i in result]
 
 
 def process_file(all_header_file_path: str, files: list, generated_code_dir: str, args: str, verbose: bool = False):
