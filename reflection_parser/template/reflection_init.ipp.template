@@ -2,14 +2,14 @@
 #include <Reflection/Type.h>
 static void RegisterAllTypes()
 {
-    % for class_type in classes_map.values():
+    % for class_type in parser.types.values():
     auto Type_${class_type.mangled_name} = Engine::Reflection::TypeRegistrar::Register_${class_type.mangled_name}();
     % endfor
 
-    % for class_type in classes_map.values():
+    % for class_type in parser.types.values():
     % for base_type in class_type.base_types:
-    % if base_type.full_name in classes_map:
-    Type_${class_type.mangled_name}->AddBaseType(Type_${classes_map[base_type.full_name].mangled_name});
+    % if base_type.full_name in parser.types:
+    Type_${class_type.mangled_name}->AddBaseType(Type_${parser.types[base_type.full_name].mangled_name});
     % endif
     % endfor
     % endfor

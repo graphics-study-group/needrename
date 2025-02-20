@@ -1,8 +1,9 @@
 #include <memory>
 #include <typeindex>
 #include <typeinfo>
-#include <Reflection/Type.h>
-#include <Reflection/utils.h>
+#include <Reflection/reflection.h>
+#include "registrar_declare.hpp"
+#include "${file_path}"
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
@@ -13,7 +14,7 @@ namespace Engine
     {
         class Type;
 
-        % for class_type in classes_map.values():
+        % for class_type in parser.file_types[file_path]:
         std::shared_ptr<Type> TypeRegistrar::Register_${class_type.mangled_name}()
         {
             std::shared_ptr<Type> type = std::shared_ptr<Type>(new Type("${class_type.full_name}", true));

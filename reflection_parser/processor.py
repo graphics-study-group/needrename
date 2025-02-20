@@ -120,6 +120,11 @@ class ReflectionParser:
 
         if flag:
             self.types[current_type.full_name] = current_type
+            assert node.location.file is not None
+            path = str(Path(node.location.file.name).resolve())
+            if path not in self.file_types:
+                self.file_types[path] = []
+            self.file_types[path].append(current_type)
         return
 
 
@@ -147,23 +152,26 @@ class ReflectionParser:
         
         with open("template/registrar_impl.ipp.template", "r") as f:
             template_impl = Template(f.read())
-        with open(os.path.join(generated_code_dir, "registrar_impl.ipp"), "w") as f:
-            f.write(template_impl.render(classes_map=self.types))
+        for i, file_path in enumerate(self.files):
+            if file_path not in self.file_types.keys():
+                continue
+            filename = Path(file_path).name
+            with open(os.path.join(generated_code_dir, f"{i}_registrar_impl_{filename}.cpp"), "w") as f:
+                f.write(template_impl.render(file_path=file_path, parser=self))
             
         with open("template/reflection_init.ipp.template", "r") as f:
             template_init = Template(f.read())
         with open(os.path.join(generated_code_dir, "reflection_init.ipp"), "w") as f:
-            f.write(template_init.render(classes_map=self.types))
-        
-        with open("template/generated_reflection.cpp.template", "r") as f:
-            template_gr = Template(f.read())
-        with open(os.path.join(generated_code_dir, "generated_reflection.cpp"), "w") as f:
-            f.write(template_gr.render())
-        
+            f.write(template_init.render(parser=self))
+            
         with open("template/serialization_impl.ipp.template", "r") as f:
             template_gs_ipp = Template(f.read())
-        with open(os.path.join(generated_code_dir, "serialization_impl.ipp"), "w") as f:
-            f.write(template_gs_ipp.render(classes_map=self.types))
+        for i, file_path in enumerate(self.files):
+            if file_path not in self.file_types.keys():
+                continue
+            filename = Path(file_path).name
+            with open(os.path.join(generated_code_dir, f"{i}_serialization_impl_{filename}.cpp"), "w") as f:
+                f.write(template_gs_ipp.render(file_path=file_path, parser=self))
 
 
 def process_file(all_header_file_path: str, files: list, generated_code_dir: str, args: str, verbose: bool = False):

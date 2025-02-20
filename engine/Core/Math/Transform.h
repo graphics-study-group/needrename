@@ -5,6 +5,7 @@
 #include <gtc/matrix_transform.hpp>
 #include <gtc/quaternion.hpp>
 #include <Reflection/macros.h>
+#include <Reflection/serialization_glm.h>
 
 namespace Engine
 {

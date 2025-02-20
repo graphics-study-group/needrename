@@ -4,7 +4,9 @@
 #include <Asset/Asset.h>
 #include <Asset/AssetRef.h>
 #include <Reflection/macros.h>
-
+#include <Reflection/serialization_unordered_map.h>
+#include <Reflection/serialization_vector.h>
+#include <Reflection/serialization_smart_pointer.h>
 #include <Render/ImageUtils.h>
 #include <Render/AttachmentUtils.h>
 #include <Asset/Material/ShaderAsset.h>

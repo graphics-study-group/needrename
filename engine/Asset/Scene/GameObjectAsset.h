@@ -4,6 +4,7 @@
 #include <memory>
 #include <Asset/Asset.h>
 #include <Reflection/macros.h>
+#include <Reflection/serialization_smart_pointer.h>
 
 namespace Engine
 {

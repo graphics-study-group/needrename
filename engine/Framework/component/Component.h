@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <Reflection/macros.h>
+#include <Reflection/serialization_smart_pointer.h>
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wnon-virtual-dtor"
