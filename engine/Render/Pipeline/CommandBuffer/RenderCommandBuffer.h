@@ -9,7 +9,6 @@ namespace Engine {
     class RenderTargetSetup;
     class Material;
     class MaterialInstance;
-    class Synchronization;
     class HomogeneousMesh;
     class Buffer;
     class AllocatedImage2DTexture;
@@ -18,16 +17,20 @@ namespace Engine {
     class RenderCommandBuffer
     {
     public:
-        /// @brief Create a command buffer used for rendering.
-        /// This function is ideally only called from RenderSystem
-        /// @param logical_device 
-        /// @param command_pool 
-        void CreateCommandBuffer(
-            std::shared_ptr<RenderSystem> system, 
-            vk::CommandPool command_pool, 
-            vk::Queue queue, 
-            uint32_t inflight_frame_index
+        RenderCommandBuffer (
+            RenderSystem & system,
+            vk::CommandBuffer cb,
+            vk::Queue queue,
+            vk::Fence fence,
+            vk::Semaphore wait,
+            vk::Semaphore signal,
+            uint32_t frame_in_flight
         );
+
+        RenderCommandBuffer (const RenderCommandBuffer &) = delete;
+        RenderCommandBuffer (RenderCommandBuffer &&) = default;
+        RenderCommandBuffer & operator = (const RenderCommandBuffer &) = delete;
+        RenderCommandBuffer & operator = (RenderCommandBuffer &&) = default;
 
         /// @brief Record a begin command in command buffer
         void Begin();
@@ -67,11 +70,13 @@ namespace Engine {
 
         vk::CommandBuffer get();
     protected:
-        uint32_t m_inflight_frame_index {};
-        vk::UniqueCommandBuffer m_handle {};
-        vk::Queue m_queue {};
+        RenderSystem & m_system;
 
-        RenderSystem * m_system {nullptr};
+        uint32_t m_inflight_frame_index ;
+        vk::CommandBuffer m_handle;
+        vk::Queue m_queue;
+        vk::Fence m_completed_fence;
+        vk::Semaphore m_image_ready_semaphore, m_completed_semaphore;
 
         std::optional<vk::Image> m_image_for_present {};
         std::optional<std::reference_wrapper<const RenderTargetSetup>> m_bound_render_target {};

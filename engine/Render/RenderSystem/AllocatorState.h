@@ -22,20 +22,22 @@ namespace Engine {
             };
 
         private:
-            std::weak_ptr <RenderSystem> m_system {};
+            RenderSystem & m_system;
             VmaAllocator m_allocator {};
 
             static constexpr std::tuple<vk::BufferUsageFlags, VmaAllocationCreateFlags, VmaMemoryUsage> GetBufferFlags(BufferType type);
-            static void RaiseException(VkResult result);
 
         public:
-            AllocatorState() = default;
+            AllocatorState(RenderSystem & system);
+
             AllocatorState(const AllocatorState &) = delete;
-            void operator = (const AllocatorState &) = delete;
+            AllocatorState(AllocatorState &&) = default;
+            AllocatorState & operator = (const AllocatorState &) = delete;
+            AllocatorState & operator = (AllocatorState &) = default;
 
             ~AllocatorState();
 
-            void Create(std::shared_ptr <RenderSystem> system);
+            void Create();
             VmaAllocator GetAllocator() const;
 
             AllocatedMemory AllocateBuffer(BufferType type, size_t size) const;

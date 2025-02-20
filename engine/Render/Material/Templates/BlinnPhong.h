@@ -6,7 +6,6 @@
 
 namespace Engine {
     class AllocatedImage2DTexture;
-    class TransferCommandBuffer;
     namespace Materials {
         class BlinnPhongInstance : public MaterialInstance {
             uint32_t texture_id{}, specular_id{}, ambient_id{};
@@ -15,7 +14,7 @@ namespace Engine {
             void SetBaseTexture(std::shared_ptr<const AllocatedImage2DTexture> image);
             void SetSpecular(glm::vec4 spec);
             void SetAmbient(glm::vec4 spec);
-            virtual void Convert(std::shared_ptr <AssetRef> asset, TransferCommandBuffer & tcb) override;
+            virtual void Convert(std::shared_ptr <AssetRef> asset) override;
         };
 
         class BlinnPhongTemplate : public MaterialTemplate {

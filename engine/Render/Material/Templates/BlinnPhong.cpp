@@ -1,8 +1,8 @@
 #include "BlinnPhong.h"
 #include "Asset/Material/MaterialAsset.h"
 #include "Asset/Texture/Image2DTextureAsset.h"
+#include "Render/RenderSystem.h"
 #include "Render/Memory/Image2DTexture.h"
-#include "Render/Pipeline/CommandBuffer/TransferCommandBuffer.h"
 #include <SDL3/SDL.h>
 
 namespace Engine::Materials
@@ -27,7 +27,7 @@ namespace Engine::Materials
         this->WriteUBOUniform(0, ambient_id, ambi);
     }
 
-    void BlinnPhongInstance::Convert(std::shared_ptr<AssetRef> asset, TransferCommandBuffer & tcb)
+    void BlinnPhongInstance::Convert(std::shared_ptr<AssetRef> asset)
     {
         const auto & material_asset = asset->cas<MaterialAsset>();
 
@@ -39,7 +39,11 @@ namespace Engine::Materials
         auto base_texture = std::make_shared<AllocatedImage2DTexture>(m_system);
         base_texture->Create(*base_texture_asset);
         this->SetBaseTexture(base_texture);
-        tcb.CommitTextureImage(*base_texture, base_texture_asset->GetPixelData(), base_texture_asset->GetPixelDataSize());
+        m_system.lock()->GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
+            *base_texture, 
+            base_texture_asset->GetPixelData(), 
+            base_texture_asset->GetPixelDataSize()
+        );
 
         // Load specular and ambient vectors
         auto itr = material_asset->m_properties.find("specular_color");

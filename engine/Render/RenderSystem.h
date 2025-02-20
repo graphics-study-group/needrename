@@ -8,7 +8,6 @@
 
 #include "Render/Pipeline/RenderTarget/RenderTargetSetup.h"
 #include "Render/Pipeline/CommandBuffer.h"
-#include "Render/RenderSystem/Synch/InflightTwoStageSynch.h"
 
 #include "Render/RenderSystem/AllocatorState.h"
 #include "Render/RenderSystem/Instance.h"
@@ -17,6 +16,7 @@
 #include "Render/RenderSystem/GlobalConstantDescriptorPool.h"
 #include "Render/RenderSystem/MaterialDescriptorManager.h"
 #include "Render/RenderSystem/MaterialRegistry.h"
+#include "Render/RenderSystem/FrameManager.h"
 
 // Suppress warning from std::enable_shared_from_this
 #pragma GCC diagnostic push
@@ -57,7 +57,7 @@ namespace Engine
 
         ~RenderSystem();
 
-        void DrawMeshes(uint32_t command_buffer_id, uint32_t pass = 0);
+        void DrawMeshes(uint32_t pass = 0);
         
         void RegisterComponent(std::shared_ptr <RendererComponent>);
         void ClearComponent();
@@ -69,31 +69,37 @@ namespace Engine
         /// @note You need to recreate depth images and framebuffers that refer to the swap chain.
         void UpdateSwapchain();
 
-        /// @brief Blocks and waits for a fence, signaling a frame is ready for rendering.
-        /// Resets corresponding command buffer and fence.
-        /// @param frame_index 
-        /// @param timeout 
-        void WaitForFrameBegin(uint32_t frame_index, uint64_t timeout = std::numeric_limits<uint64_t>::max());
-
-        uint32_t GetNextImage(uint32_t in_flight_index, uint64_t timeout = std::numeric_limits<uint64_t>::max());
+        uint32_t StartFrame();
 
         void Render();
 
-        vk::Result Present(uint32_t frame_index, uint32_t in_flight_index);
+        void CompleteFrame();
 
         vk::Instance getInstance() const;
+
         vk::SurfaceKHR getSurface() const;
+
         vk::Device getDevice() const;
+
         vk::PhysicalDevice GetPhysicalDevice() const;
+
         const RenderSystemState::AllocatorState & GetAllocatorState() const;
+
         const QueueInfo & getQueueInfo () const;
+
         const RenderSystemState::Swapchain & GetSwapchain() const;
-        const Synchronization & getSynchronization() const;
+
+        // const Synchronization & getSynchronization() const;
+        [[deprecated]]
         RenderCommandBuffer & GetGraphicsCommandBuffer(uint32_t frame_index);
+
+        RenderCommandBuffer & GetCurrentCommandBuffer();
+
         const RenderSystemState::GlobalConstantDescriptorPool & GetGlobalConstantDescriptorPool() const;
-        RenderSystemState::MaterialDescriptorManager & GetMaterialDescriptorManager();
+
         RenderSystemState::MaterialRegistry & GetMaterialRegistry();
-        TransferCommandBuffer & GetTransferCommandBuffer();
+
+        RenderSystemState::FrameManager & GetFrameManager ();
 
         void EnableDepthTesting();
 
@@ -115,7 +121,7 @@ namespace Engine
         static constexpr const char * validation_layer_name = "VK_LAYER_KHRONOS_validation";
         static constexpr std::array <std::string_view, 1> device_extension_name = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
-        uint32_t m_in_flight_frame_id = 0;
+        // uint32_t m_in_flight_frame_id = 0;
 
         std::weak_ptr <SDLWindow> m_window;
         // TODO: data: mesh, texture, light
@@ -123,24 +129,20 @@ namespace Engine
         std::shared_ptr <CameraComponent> m_active_camera {};
 
         RenderSystemState::PhysicalDevice m_selected_physical_device {};
+
         // Order of declaration effects destructing order!
 
         std::unique_ptr<RenderTargetSetup> m_render_target_setup {};
         RenderSystemState::Instance m_instance {};
         vk::UniqueSurfaceKHR m_surface{};
         vk::UniqueDevice m_device{};
-
-        RenderSystemState::AllocatorState m_allocator_state {};
         
         QueueInfo  m_queues {};
+        RenderSystemState::AllocatorState m_allocator_state;
         RenderSystemState::Swapchain m_swapchain{};
+        RenderSystemState::FrameManager m_frame_manager;
         RenderSystemState::GlobalConstantDescriptorPool m_descriptor_pool{};
-        RenderSystemState::MaterialDescriptorManager m_material_descriptor_manager{};
-        RenderSystemState::MaterialRegistry m_material_registry{};
-
-        std::unique_ptr <Synchronization> m_synch {};
-        std::vector <RenderCommandBuffer> m_commandbuffers {};
-        TransferCommandBuffer m_one_time_commandbuffer {};
+        RenderSystemState::MaterialRegistry m_material_registry {};
     };
 }
 

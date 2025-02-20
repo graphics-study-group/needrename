@@ -12,11 +12,13 @@
 #include <MainClass.h>
 #include <GUI/GUISystem.h>
 
+#include <iostream>
+
 namespace Engine
 {
     RenderSystem::RenderSystem(
         std::weak_ptr <SDLWindow> parent_window
-    ) : m_window(parent_window)
+    ) : m_window(parent_window), m_allocator_state(*this), m_frame_manager(*this)
     {
     }
 
@@ -32,7 +34,7 @@ namespace Engine
         this->CreateLogicalDevice();
         this->CreateSwapchain();
 
-        this->m_allocator_state.Create(shared_from_this());
+        this->m_allocator_state.Create();
 
         this->EnableDepthTesting();
 
@@ -44,9 +46,8 @@ namespace Engine
         });
 
         // Create synchorization semaphores
-        this->m_synch = std::make_unique<InFlightTwoStageSynch>(*this, 3);
-        this->m_descriptor_pool.Create(shared_from_this(), 3);
-        this->m_material_descriptor_manager.Create(shared_from_this());
+        this->m_frame_manager.Create();
+        this->m_descriptor_pool.Create(shared_from_this(), m_frame_manager.FRAMES_IN_FLIGHT);
         this->m_material_registry.Create(shared_from_this());
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Vulkan initialization finished.");
     }
@@ -54,15 +55,16 @@ namespace Engine
     RenderSystem::~RenderSystem() 
     {
         // Resources are released by RAII.
-        SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Destroying other resources by RAII.");
+        // SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Destroying other resources by RAII.");
+        std::cerr << "Render system deconstructed" << std::endl ;
     }
 
-    void RenderSystem::DrawMeshes(uint32_t inflight, uint32_t pass)
+    void RenderSystem::DrawMeshes(uint32_t pass)
     {
-        RenderCommandBuffer & cb = this->GetGraphicsCommandBuffer(inflight);
+        RenderCommandBuffer & cb = this->GetCurrentCommandBuffer();
 
         // Write camera transforms
-        std::byte * camera_ptr = this->GetGlobalConstantDescriptorPool().GetPerCameraConstantMemory(inflight);
+        std::byte * camera_ptr = this->GetGlobalConstantDescriptorPool().GetPerCameraConstantMemory(m_frame_manager.GetFrameInFlight());
         ConstantData::PerCameraStruct camera_struct;
         if (m_active_camera) {
             camera_struct = {
@@ -114,30 +116,45 @@ namespace Engine
         m_active_camera = cameraComponent;
     }
 
-    void RenderSystem::WaitForFrameBegin(uint32_t frame_index, uint64_t timeout) {
-        vk::Fence fence = getSynchronization().GetCommandBufferFence(frame_index);
-        vk::Result waitFenceResult = getDevice().waitForFences({fence}, vk::True, timeout);
-        if (waitFenceResult == vk::Result::eTimeout) {
-            SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Timed out waiting for fence for frame id %u.", frame_index);
-        }
-        m_commandbuffers[frame_index].Reset();
-        getDevice().resetFences({fence});
+    vk::Instance RenderSystem::getInstance() const 
+    { 
+        return m_instance.get(); 
     }
-
-    vk::Instance RenderSystem::getInstance() const { return m_instance.get(); }
-    vk::SurfaceKHR RenderSystem::getSurface() const { return m_surface.get(); }
-    vk::Device RenderSystem::getDevice() const { return m_device.get(); }
-    vk::PhysicalDevice RenderSystem::GetPhysicalDevice() const { return m_selected_physical_device.get(); }
-    const RenderSystemState::AllocatorState &RenderSystem::GetAllocatorState() const { return m_allocator_state; }
-    const RenderSystem::QueueInfo &RenderSystem::getQueueInfo() const { return m_queues; }
-    const RenderSystemState::Swapchain& RenderSystem::GetSwapchain() const { return m_swapchain; }
-    const Synchronization& RenderSystem::getSynchronization() const { return *m_synch; }
-    RenderCommandBuffer & RenderSystem::GetGraphicsCommandBuffer(uint32_t frame_index) { return m_commandbuffers[frame_index]; }
-    const RenderSystemState::GlobalConstantDescriptorPool& RenderSystem::GetGlobalConstantDescriptorPool() const {
+    vk::SurfaceKHR RenderSystem::getSurface() const 
+    { 
+        return m_surface.get(); 
+    }
+    vk::Device RenderSystem::getDevice() const 
+    { 
+        return m_device.get(); 
+    }
+    vk::PhysicalDevice RenderSystem::GetPhysicalDevice() const 
+    { 
+        return m_selected_physical_device.get(); 
+    }
+    const RenderSystemState::AllocatorState &RenderSystem::GetAllocatorState() const 
+    { 
+        return m_allocator_state; 
+    }
+    const RenderSystem::QueueInfo &RenderSystem::getQueueInfo() const 
+    { 
+        return m_queues; 
+    }
+    const RenderSystemState::Swapchain& RenderSystem::GetSwapchain() const 
+    { 
+        return m_swapchain; 
+    }
+    RenderCommandBuffer & RenderSystem::GetGraphicsCommandBuffer(uint32_t frame_index) 
+    { 
+        return m_frame_manager.GetCommandBuffers()[frame_index]; 
+    }
+    RenderCommandBuffer & RenderSystem::GetCurrentCommandBuffer()
+    {
+        return m_frame_manager.GetCommandBuffer();
+    }
+    const RenderSystemState::GlobalConstantDescriptorPool &RenderSystem::GetGlobalConstantDescriptorPool() const
+    {
         return m_descriptor_pool;
-    }
-    RenderSystemState::MaterialDescriptorManager& RenderSystem::GetMaterialDescriptorManager() {
-        return m_material_descriptor_manager;
     }
 
     RenderSystemState::MaterialRegistry &RenderSystem::GetMaterialRegistry()
@@ -145,67 +162,33 @@ namespace Engine
         return m_material_registry;
     }
 
-    TransferCommandBuffer & RenderSystem::GetTransferCommandBuffer() {
-        m_device->resetCommandPool(m_queues.graphicsOneTimePool.get());
-        return m_one_time_commandbuffer;
-    }
-
-    uint32_t RenderSystem::GetNextImage(uint32_t frame_id, uint64_t timeout) {
-        auto result = m_device->acquireNextImageKHR(
-            m_swapchain.GetSwapchain(), 
-            timeout, 
-            m_synch->GetNextImageSemaphore(frame_id),
-            nullptr
-        );
-        if (result.result == vk::Result::eTimeout) {
-            SDL_LogError(0, "Timed out waiting for next frame.");
-            return -1;
-        } else if (result.result != vk::Result::eSuccess) {
-            SDL_LogWarn(
-                SDL_LOG_CATEGORY_RENDER, 
-                "AcquireNextImage returned %s other than success.",
-                vk::to_string(result.result).c_str()
-                );
-        }
-        return result.value;
+    RenderSystemState::FrameManager &RenderSystem::GetFrameManager()
+    {
+        return m_frame_manager;
     }
 
     void RenderSystem::Render()
     {
         MainClass::GetInstance()->GetGUISystem()->PrepareGUI();
-
-        WaitForFrameBegin(m_in_flight_frame_id);
-        RenderCommandBuffer & cb = GetGraphicsCommandBuffer(m_in_flight_frame_id);
-        uint32_t index = GetNextImage(m_in_flight_frame_id, 0x7FFFFFFF);
+        
+        uint32_t index = m_frame_manager.StartFrame();
+        RenderCommandBuffer & cb = m_frame_manager.GetCommandBuffer();
         cb.Begin();
         vk::Extent2D extent {GetSwapchain().GetExtent()};
         cb.BeginRendering(*this->m_render_target_setup, extent, index);
 
-        this->DrawMeshes(m_in_flight_frame_id);
+        this->DrawMeshes();
         MainClass::GetInstance()->GetGUISystem()->DrawGUI(cb);
 
         cb.EndRendering();
         cb.End();
         cb.Submit();
-        Present(index, m_in_flight_frame_id);
-
-        m_in_flight_frame_id = (m_in_flight_frame_id + 1) % 3; // XXX: 3 is hardcoded. (Why 3?)
+        m_frame_manager.CompleteFrame();
     }
 
-    vk::Result RenderSystem::Present(uint32_t framebuffer_index, uint32_t in_flight_index) {
-        std::array<vk::SwapchainKHR, 1> swapchains { m_swapchain.GetSwapchain() };
-        std::array<uint32_t, 1> frame_indices {framebuffer_index};
-        auto semaphores = m_synch->GetCommandBufferSigningSignals(in_flight_index);
-        vk::PresentInfoKHR info{semaphores, swapchains, frame_indices};
-        vk::Result result = m_queues.presentQueue.presentKHR(info);
-        if (result != vk::Result::eSuccess) {
-            SDL_LogWarn(
-                SDL_LOG_CATEGORY_RENDER, 
-                "Presenting returned %s other than success.",
-                vk::to_string(result).c_str()
-                );
-        }
-        return result;
+    void RenderSystem::CompleteFrame()
+    {
+        m_frame_manager.CompleteFrame();
     }
 
     void RenderSystem::EnableDepthTesting() {
@@ -225,6 +208,11 @@ namespace Engine
     void RenderSystem::UpdateSwapchain() {
         this->WaitForIdle();
         this->CreateSwapchain();
+    }
+
+    uint32_t RenderSystem::StartFrame()
+    {
+        return m_frame_manager.StartFrame();
     }
 
     void RenderSystem::CreateLogicalDevice() {
@@ -297,17 +285,6 @@ namespace Engine
             m_surface.get(),
             expected_extent
         );
-
-        // Allocate command buffer for each image in the swap chain
-        // Do note that frame id in flight doesn't equal to frame buffer index
-        // However, creating more frames in flight than images is useless.
-        SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating command buffers.");
-        size_t image_count = m_swapchain.GetImageViews().size();
-        m_commandbuffers.clear();
-        m_commandbuffers.resize(image_count);
-        for (uint32_t i = 0; i < image_count; i++) {
-            m_commandbuffers[i].CreateCommandBuffer(shared_from_this(), m_queues.graphicsPool.get(), m_queues.graphicsQueue, i);
-        }
     }
 
     void RenderSystem::CreateCommandPools(const QueueFamilyIndices & indices) 
@@ -321,9 +298,6 @@ namespace Engine
 
         info.queueFamilyIndex = indices.present.value();
         m_queues.presentPool = m_device->createCommandPoolUnique(info);
-
-        // Prepare a one-time transfer command buffer
-        m_one_time_commandbuffer.Create(shared_from_this(), m_queues.graphicsOneTimePool.get(), m_queues.graphicsQueue);
     }
 
     void RenderSystem::CreateSurface() 
