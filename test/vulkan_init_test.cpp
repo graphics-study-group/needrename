@@ -37,11 +37,7 @@ public:
         m_submeshes.push_back(std::make_shared<TestHomoMesh>(m_system));
         m_submeshes[0]->Prepare();
         if (m_submeshes[0]->NeedCommitment()) {
-            auto & tcb = m_system.lock()->GetTransferCommandBuffer();
-            tcb.Begin();
-            tcb.CommitVertexBuffer(*m_submeshes[0]);
-            tcb.End();
-            tcb.SubmitAndExecute();
+            m_system.lock().GetFrameManager().GetSubmissionHelper().EnqueueVertexBufferSubmission(*m_submeshes[0]);
         }
 
         transform.SetPosition(glm::vec3{1.0, 0.0, 0.0});

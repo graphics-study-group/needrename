@@ -6,7 +6,15 @@
 
 namespace Engine {
     namespace RenderSystemState {
-        /// @brief A descriptor pool and related infrastructures for per-view global constants like camera matrices
+        /**
+         * @brief A descriptor pool and related infrastructures for per-view global constants like camera matrices.
+         * 
+         * As a rule of thumb, all resources that are frequently written by CPU and read by GPU should be duplicated
+         * for each frame in flight, so that when the resource is being written by CPU, its GPU copy, which might be
+         * being used for rendering, is left intact. Most of the buffers and texture images are not frequently written
+         * by CPU, and is therefore exempted from duplication. However, uniform buffers do need duplication, and is
+         * therefore managed by this class.
+         */ 
         class GlobalConstantDescriptorPool : public Engine::VkWrapperIndependent <vk::UniqueDescriptorPool> {
         protected:
             static constexpr uint32_t MAX_SET_SIZE = 64;

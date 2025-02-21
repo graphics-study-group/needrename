@@ -31,23 +31,19 @@ namespace Engine::RenderSystemState {
             VMA_MEMORY_USAGE_AUTO
         );
     }
-
-    void AllocatorState::RaiseException(VkResult result)
+    AllocatorState::AllocatorState(RenderSystem &system) : m_system(system)
     {
     }
-
     AllocatorState::~AllocatorState()
     {
         vmaDestroyAllocator(m_allocator);
     }
-    void AllocatorState::Create(std::shared_ptr<RenderSystem> system)
+    void AllocatorState::Create()
     {
-        m_system = system;
-
         VmaAllocatorCreateInfo info {};
-        info.device = system->getDevice();
-        info.physicalDevice = system->GetPhysicalDevice();
-        info.instance = system->getInstance();
+        info.device = m_system.getDevice();
+        info.physicalDevice = m_system.GetPhysicalDevice();
+        info.instance = m_system.getInstance();
         info.vulkanApiVersion = vk::ApiVersion13;
 
         vmaDestroyAllocator(m_allocator);
@@ -78,7 +74,7 @@ namespace Engine::RenderSystemState {
         VmaAllocation allocation{};
 
         VkResult result = vmaCreateBuffer(m_allocator, &bcinfo, &ainfo, &buffer, &allocation, nullptr);
-        RaiseException(result);
+        vk::detail::resultCheck(vk::Result{result}, "Failed to create buffer.");
         assert(buffer != nullptr && allocation != nullptr);
         return AllocatedMemory(static_cast<vk::Buffer>(buffer), allocation, m_allocator);
     }
