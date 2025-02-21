@@ -1,6 +1,7 @@
 #include "Asset.h"
 #include <Asset/AssetManager/AssetManager.h>
 #include <MainClass.h>
+#include <Reflection/serialization.h>
 
 namespace Engine
 {

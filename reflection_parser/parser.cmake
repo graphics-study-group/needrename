@@ -38,6 +38,35 @@ function(setup_python_environment)
     set(Python3_EXECUTABLE ${Python3_EXECUTABLE} PARENT_SCOPE)
 endfunction()
 
+function(generate_cpp_names reflection_search_files generated_code_dir)
+    set(generated_files "")
+    set(config_json "")
+    set(index 1)
+    foreach(file ${reflection_search_files})
+        get_filename_component(filename ${file} NAME)
+        set(registrar_impl "${generated_code_dir}/${index}_registrar_impl_${filename}.cpp")
+        set(serialization_impl "${generated_code_dir}/${index}_serialization_impl_${filename}.cpp")
+        list(APPEND generated_files "${registrar_impl}")
+        list(APPEND generated_files "${serialization_impl}")
+        set(config_json "${config_json}
+        \{
+            \"input_path\": \"${file}\",
+            \"output_impl_path\":
+            \{
+                \"registrar\": \"${registrar_impl}\",
+                \"serialization\": \"${serialization_impl}\"
+            \}
+        \},")
+        math(EXPR index "${index} + 1")
+    endforeach()
+    string(LENGTH "${config_json}" str_length)
+    math(EXPR new_length "${str_length} - 1") # strip the last comma
+    string(SUBSTRING "${config_json}" 0 ${new_length} config_json)
+
+    set(GENERATED_CPPS ${generated_files} PARENT_SCOPE)
+    set(CONFIG_TARGET_FILES ${config_json} PARENT_SCOPE)
+endfunction()
+
 function(add_reflection_parser target_name reflection_search_files generated_code_dir reflection_search_include_dirs)
     if (NOT PYTHON_ENV_SETUP_DONE)
         setup_python_environment()
@@ -59,16 +88,28 @@ function(add_reflection_parser target_name reflection_search_files generated_cod
         set(REFLECTION_VERBOSE)
     endif()
 
+    # translate include directories into -I format
     string(REPLACE ";" " -I" REFLECTION_SEARCH_INCLUDE_DIRS_ARGS "${reflection_search_include_dirs}")
     set(REFLECTION_SEARCH_INCLUDE_DIRS_ARGS "-I${REFLECTION_SEARCH_INCLUDE_DIRS_ARGS}")
+    # set up parser args
     set(REFLECTION_PARSER_ARGS "-xc++ -MG -M -ferror-limit=0 -std=c++20 ${EXTRA_ARGS} -o ${CMAKE_BINARY_DIR}/parser_log.txt ${REFLECTION_SEARCH_INCLUDE_DIRS_ARGS}")
     message(DEBUG "Reflection parser args: ${REFLECTION_PARSER_ARGS}")
 
+    # set up task stamped file, which is used to check if the parser needs to run
     set(TASK_STAMPED_FILE "${generated_code_dir}/task_stamped")
 
-    if (NOT EXISTS ${generated_code_dir}/${target_name}/generated_reflection.cpp)
-        configure_file(${REFLECTION_PARSER_DIR}/template/empty.template ${generated_code_dir}/${target_name}/generated_reflection.cpp)
-    endif()
+    # set up the generated filenames of the file to be parsed
+    set(CONFIG_GENERATED_CODE_DIR ${generated_code_dir}/${target_name})
+    generate_cpp_names("${reflection_search_files}" "${CONFIG_GENERATED_CODE_DIR}")
+    foreach(cpp_file ${GENERATED_CPPS})
+        if (NOT EXISTS ${cpp_file})
+            # generate empty file, used in cmake configuration
+            configure_file(${REFLECTION_PARSER_DIR}/template/empty.template ${cpp_file})
+        endif()
+    endforeach()
+
+    # generate config.json
+    configure_file(${REFLECTION_PARSER_DIR}/template/config.json.template ${generated_code_dir}/config.json)
 
     file(GLOB_RECURSE template_files ${REFLECTION_PARSER_DIR}/template/*.template)
 
@@ -78,11 +119,7 @@ function(add_reflection_parser target_name reflection_search_files generated_cod
         COMMAND ${CMAKE_COMMAND} -E echo " ********** Precompile started ********** "
         COMMAND ${CMAKE_COMMAND} -E echo "[Precompile]: run parser python script"
         COMMAND ${Python3_EXECUTABLE} ${REFLECTION_PARSER_DIR}/parser_main.py
-                    --target_name "${target_name}"
-                    --reflection_search_files "${reflection_search_files}"
-                    --generated_code_dir ${generated_code_dir}/${target_name}
-                    --reflection_macros_header ${ENGINE_SOURCE_DIR}/Reflection/macros.h
-                    --args ${REFLECTION_PARSER_ARGS}
+                    --config ${generated_code_dir}/config.json
                     ${REFLECTION_VERBOSE}
         COMMAND ${CMAKE_COMMAND} -E touch ${TASK_STAMPED_FILE}
         COMMAND ${CMAKE_COMMAND} -E echo " ********** Precompile finished ********** "
@@ -102,7 +139,7 @@ function(add_reflection_parser target_name reflection_search_files generated_cod
     )
 
     add_library(${target_name} INTERFACE)
-    target_sources(${target_name} INTERFACE ${generated_code_dir}/${target_name}/generated_reflection.cpp)
+    target_sources(${target_name} INTERFACE ${GENERATED_CPPS})
     target_include_directories(${target_name} INTERFACE ${generated_code_dir})
     target_link_libraries(${target_name} INTERFACE json)
     add_dependencies(${target_name} ${target_name}_generation)

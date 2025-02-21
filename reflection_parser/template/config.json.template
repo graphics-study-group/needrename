@@ -1,0 +1,8 @@
+{
+    "args": "@REFLECTION_PARSER_ARGS@",
+    "target_name": "@target_name@",
+    "generated_code_dir": "@CONFIG_GENERATED_CODE_DIR@",
+    "target_files":
+    [@CONFIG_TARGET_FILES@
+    ]
+}

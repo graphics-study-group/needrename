@@ -1,4 +1,5 @@
 #include "ShaderAsset.h"
+#include <Reflection/serialization.h>
 
 namespace Engine
 {

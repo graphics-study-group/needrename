@@ -1,5 +1,7 @@
 #include "MaterialAsset.h"
 #include <Asset/AssetRef.h>
+#include <Reflection/serialization_glm.h>
+#include <Reflection/serialization_smart_pointer.h>
 
 namespace Engine
 {

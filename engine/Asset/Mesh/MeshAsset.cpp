@@ -2,6 +2,7 @@
 #include <fstream>
 #include <cassert>
 #include <map>
+#include <Reflection/serialization.h>
 
 namespace Engine
 {

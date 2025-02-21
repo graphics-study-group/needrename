@@ -3,7 +3,8 @@
 
 #include <memory>
 #include <Asset/Asset.h>
-#include <meta_engine/reflection.hpp>
+#include <Reflection/macros.h>
+#include <Reflection/serialization_smart_pointer.h>
 
 namespace Engine
 {
