@@ -66,6 +66,12 @@ target_link_libraries(new_material_test engine)
 add_test(NAME new_material_test COMMAND new_material_test 120)
 set_target_properties(new_material_test PROPERTIES FOLDER tests)
 
+add_executable(input_test input_test.cpp)
+add_dependencies(input_test shader)
+target_link_libraries(input_test engine)
+add_test(NAME input_test COMMAND input_test 120)
+set_target_properties(input_test PROPERTIES FOLDER tests)
+
 # Copy SDL dll
 add_custom_command(TARGET SDL_init_test POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different

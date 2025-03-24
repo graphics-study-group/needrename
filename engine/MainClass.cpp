@@ -60,11 +60,7 @@ namespace Engine
             sdl_window_flags = SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
         if (opt->instantQuit)
             return;
-        this->window = std::make_shared<SDLWindow>(
-            opt->title.c_str(),
-            opt->resol_x,
-            opt->resol_y,
-            sdl_window_flags);
+        this->window = std::make_shared<SDLWindow>(opt->title.c_str(), opt->resol_x, opt->resol_y, sdl_window_flags);
 
         this->renderer = std::make_shared<RenderSystem>(this->window);
         this->world = std::make_shared<WorldSystem>();
@@ -95,9 +91,6 @@ namespace Engine
             if (event.type == SDL_EVENT_QUIT)
                 onQuit = true;
 
-            current_time = SDL_GetTicks();
-            // if (current_time - FPS_TIMER < TPF_LIMIT)
-            //     SDL_Delay(TPF_LIMIT - current_time + FPS_TIMER);
             FPS_TIMER = current_time;
         }
         SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "The main loop is ended.");
@@ -125,9 +118,6 @@ namespace Engine
             if (event.type == SDL_EVENT_QUIT)
                 onQuit = true;
 
-            current_time = SDL_GetTicks();
-            // if (current_time - FPS_TIMER < TPF_LIMIT)
-            //     SDL_Delay(TPF_LIMIT - current_time + FPS_TIMER);
             FPS_TIMER = current_time;
 
             frame_count++;
@@ -158,9 +148,6 @@ namespace Engine
             if (event.type == SDL_EVENT_QUIT)
                 onQuit = true;
 
-            current_time = SDL_GetTicks();
-            // if (current_time - FPS_TIMER < TPF_LIMIT)
-            //     SDL_Delay(TPF_LIMIT - current_time + FPS_TIMER);
             FPS_TIMER = current_time;
         }
         SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "The main loop is ended.");
@@ -190,14 +177,11 @@ namespace Engine
 
     void MainClass::RunOneFrame(SDL_Event &event, float dt)
     {
-        this->window->BeforeEventLoop();
         this->world->Tick(dt);
 
         // TODO: Set up viewport information
 
         this->renderer->Render();
-
-        this->window->AfterEventLoop();
 
         while (SDL_PollEvent(&event))
         {
