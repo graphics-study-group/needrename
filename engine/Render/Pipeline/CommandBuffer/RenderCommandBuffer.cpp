@@ -72,7 +72,7 @@ namespace Engine
             GetVkAttachmentInfo(
                 depth, 
                 vk::ImageLayout::eDepthAttachmentOptimal, 
-                vk::ClearDepthStencilValue{}
+                vk::ClearDepthStencilValue{1.0f, 0U}
             )
         };
         barriers[color_attachment.size()] = LayoutTransferHelper::GetAttachmentBarrier(
