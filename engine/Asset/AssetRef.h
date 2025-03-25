@@ -3,7 +3,7 @@
 
 #include <memory>
 #include <Core/guid.h>
-#include <meta_engine/reflection.hpp>
+#include <Reflection/macros.h>
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wnon-virtual-dtor"

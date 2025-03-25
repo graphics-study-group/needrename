@@ -6,6 +6,7 @@
 #include <Asset/Material/ShaderAsset.h>
 #include <unordered_set>
 #include <typeindex>
+#include <glm.hpp>
 
 namespace Engine{
     namespace MaterialTemplateUtils{

@@ -4,7 +4,9 @@
 #include <memory>
 #include <vector>
 #include <Asset/Asset.h>
-#include <meta_engine/reflection.hpp>
+#include <Reflection/macros.h>
+#include <Reflection/serialization_vector.h>
+#include <Reflection/serialization_smart_pointer.h>
 
 namespace Engine
 {

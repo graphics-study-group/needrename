@@ -1,4 +1,5 @@
 #include "guid.h"
+#include <Reflection/serialization.h>
 
 namespace Engine
 {

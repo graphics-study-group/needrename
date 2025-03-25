@@ -1,3 +1,9 @@
+#ifndef REFLECTION_MACROS_INCLUDED
+#define REFLECTION_MACROS_INCLUDED
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wattributes"
+
 // reflection mode: 'WhiteList', 'BlackList'. Default is 'WhiteList'
 // serialization mode: 'DefaultSerialization' for automatic generating function, 'CustomSerializaion' for custom serialization. Default is 'DefaultSerialize'
 #define REFL_WHITELIST "WhiteList"
@@ -44,3 +50,5 @@ namespace Engine
         struct SerializationMarker;
     }
 }
+
+#endif // REFLECTION_MACROS_INCLUDED

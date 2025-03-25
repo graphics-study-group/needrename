@@ -10,9 +10,6 @@
 #include "utils.h"
 #include "macros.h"
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wattributes"
-
 namespace Engine
 {
     namespace Reflection

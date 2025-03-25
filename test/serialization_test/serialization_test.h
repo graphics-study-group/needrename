@@ -5,7 +5,10 @@
 #include <vector>
 #include <any>
 #include <cstdint>
-#include <meta_serialization_test/reflection.hpp>
+#include <Reflection/macros.h>
+#include <Reflection/serialization_smart_pointer.h>
+#include <Reflection/serialization_vector.h>
+#include <Reflection/serialization_any.h>
 
 namespace SerializationTest
 {

@@ -1,6 +1,8 @@
 #include <iostream>
+#include <cassert>
 #include "reflection_test.h"
 #include "meta_reflection_test/reflection_init.ipp"
+#include <Reflection/reflection.h>
 
 const void *FooBase_PrintHelloWorld_Called = nullptr;
 void FooBase::PrintHelloWorld() const

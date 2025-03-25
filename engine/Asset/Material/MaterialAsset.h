@@ -8,9 +8,10 @@
 #include <unordered_map>
 #include <Asset/Asset.h>
 #include <Asset/AssetRef.h>
-#include <meta_engine/reflection.hpp>
-
 #include <Asset/Material/ShaderAsset.h>
+#include <Reflection/macros.h>
+#include <Reflection/serialization_smart_pointer.h>
+#include <Reflection/serialization_unordered_map.h>
 
 namespace Engine
 {

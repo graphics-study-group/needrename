@@ -10,6 +10,7 @@ class ReflectionParser:
     def __init__(self):
         self.types = {}
         self.files = []
+        self.file_types = {}
     
     
     def get_reflection_class_args(self, node: CX.Cursor):
@@ -119,6 +120,11 @@ class ReflectionParser:
 
         if flag:
             self.types[current_type.full_name] = current_type
+            assert node.location.file is not None
+            path = str(Path(node.location.file.name).resolve())
+            if path not in self.file_types:
+                self.file_types[path] = []
+            self.file_types[path].append(current_type)
         return
 
 
@@ -137,78 +143,48 @@ class ReflectionParser:
             self.traverse(child)
 
 
-    def generate_code(self, generated_code_dir: str):
+    def generate_code(self, generated_code_dir: str, output_files: list):
         with open("template/registrar_declare.hpp.template", "r") as f:
             template_declare = Template(f.read())
         mangled_names = [one_type.mangled_name for one_type in self.types.values()]
         with open(os.path.join(generated_code_dir, "registrar_declare.hpp"), "w") as f:
             f.write(template_declare.render(mangled_names=mangled_names))
-        
-        with open("template/registrar_impl.ipp.template", "r") as f:
-            template_impl = Template(f.read())
-        with open(os.path.join(generated_code_dir, "registrar_impl.ipp"), "w") as f:
-            f.write(template_impl.render(classes_map=self.types))
             
-        topological_sorted_types=self.topological_sort(self.types)
         with open("template/reflection_init.ipp.template", "r") as f:
             template_init = Template(f.read())
         with open(os.path.join(generated_code_dir, "reflection_init.ipp"), "w") as f:
-            f.write(template_init.render(classes_map=self.types, topological_sorted_types=topological_sorted_types))
+            f.write(template_init.render(parser=self))
         
-        with open("template/generated_reflection.cpp.template", "r") as f:
-            template_gr = Template(f.read())
-        with open(os.path.join(generated_code_dir, "generated_reflection.cpp"), "w") as f:
-            f.write(template_gr.render())
-        
+        with open("template/registrar_impl.ipp.template", "r") as f:
+            template_impl = Template(f.read())
+        for file in output_files:
+            input_path = str(Path(file["input_path"]).resolve())
+            if input_path not in self.file_types.keys():
+                continue
+            output_path = file["output_impl_path"]["registrar"]
+            with open(output_path, "w") as out:
+                out.write(template_impl.render(file_path=input_path, parser=self))
+                
         with open("template/serialization_impl.ipp.template", "r") as f:
             template_gs_ipp = Template(f.read())
-        with open(os.path.join(generated_code_dir, "serialization_impl.ipp"), "w") as f:
-            f.write(template_gs_ipp.render(classes_map=self.types))
-            
-        with open("template/reflection.hpp.template", "r") as f:
-            template_reflection = Template(f.read())
-        with open(os.path.join(generated_code_dir, "reflection.hpp"), "w") as f:
-            f.write(template_reflection.render())
-    
-    
-    def topological_sort(self, types):
-        n = len(types)
-        edges = [[] for _ in range(n)]
-        in_degree = [0 for _ in range(n)]
-        idx = {}
-        types_list = list(types.values())
-        for i, one_type in enumerate(types.values()):
-            idx[one_type.name] = i
-        for one_type in types.values():
-            for base_type in one_type.base_types:
-                if base_type not in idx:
-                    continue
-                edges[idx[base_type]].append(idx[one_type.name])
-                in_degree[idx[one_type.name]] += 1
-        queue = []
-        for i in range(n):
-            if in_degree[i] == 0:
-                queue.append(i)
-        result = []
-        while queue:
-            u = queue.pop(0)
-            result.append(u)
-            for v in edges[u]:
-                in_degree[v] -= 1
-                if in_degree[v] == 0:
-                    queue.append(v)
-        return [types_list[i] for i in result]
+        for file in output_files:
+            input_path = str(Path(file["input_path"]).resolve())
+            if input_path not in self.file_types.keys():
+                continue
+            output_path = file["output_impl_path"]["serialization"]
+            with open(output_path, "w") as out:
+                out.write(template_gs_ipp.render(file_path=input_path, parser=self))
 
 
-def process_file(all_header_file_path: str, files: list, generated_code_dir: str, args: str, verbose: bool = False):
+def clang_parse(file, config, verbose):
     index = CX.Index.create()
     flag = CX.TranslationUnit.PARSE_INCOMPLETE \
         + CX.TranslationUnit.PARSE_SKIP_FUNCTION_BODIES \
         + CX.TranslationUnit.PARSE_INCLUDE_BRIEF_COMMENTS_IN_CODE_COMPLETION
     try:
-        tu = index.parse(all_header_file_path, args=args.split(), options=flag)
+        tu = index.parse(file, args=config["args"].split(), options=flag)
     except CX.TranslationUnitLoadError as e:
-        print(f"[parser] When parsing {all_header_file_path} , error occurs:")
+        print(f"[parser] When parsing {all_reflection_file_header_path} , error occurs:")
         print(e)
         raise e
     
@@ -258,7 +234,20 @@ def process_file(all_header_file_path: str, files: list, generated_code_dir: str
     if error_count > 0 or fatal_count > 0:
         raise RuntimeError(f"Ill-formed translation unit {tu.spelling}.")
     
+    return tu
+
+
+def process(config, verbose: bool = False):
+    # generate the all reflection file header
+    target_files = [str(Path(target["input_path"]).resolve()) for target in config["target_files"]]
+    all_reflection_file_header_path = str(Path(os.path.join(config["generated_code_dir"], "all_reflection_files.hpp")).resolve())
+    with open(all_reflection_file_header_path, "w") as f:
+        for file_path in target_files:
+            f.write('#include "%s"\n' % file_path)
+    
+    tu = clang_parse(all_reflection_file_header_path, config, verbose)
+    
     Parser = ReflectionParser()
-    Parser.files = [all_header_file_path] + files
+    Parser.files = [all_reflection_file_header_path] + target_files
     Parser.traverse(tu.cursor)
-    Parser.generate_code(generated_code_dir)
+    Parser.generate_code(config["generated_code_dir"], config["target_files"])

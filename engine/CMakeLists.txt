@@ -35,4 +35,4 @@ get_include_directories_for_target(engine all_include_dirs)
 
 add_reflection_parser(meta_engine "${HEADER}" "${ENGINE_SOURCE_DIR}/__generated__" "${all_include_dirs}")
 add_dependencies(engine meta_engine)
-target_link_libraries(engine PUBLIC meta_engine)
+target_link_libraries(engine PRIVATE meta_engine)

@@ -38,6 +38,14 @@ namespace Engine
             return GetMangledName<Args...>();
         }
     }
+
+    namespace Serialization
+    {
+        /// @brief A marker struct used to identify the serialization process
+        struct SerializationMarker
+        {
+        };
+    }
 }
 
 #pragma GCC diagnostic pop

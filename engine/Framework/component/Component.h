@@ -2,7 +2,8 @@
 #define FRAMEWORK_COMPONENT_COMPONENT_INCLUDED
 
 #include <memory>
-#include <meta_engine/reflection.hpp>
+#include <Reflection/macros.h>
+#include <Reflection/serialization_smart_pointer.h>
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wnon-virtual-dtor"
