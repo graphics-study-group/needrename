@@ -31,9 +31,18 @@ namespace Engine {
                 vk::PipelineStageFlagBits2::eTransfer,
                 vk::AccessFlagBits2::eTransferWrite
             );
+        case BufferTransferType::ClearAfter:
+            return std::make_pair(
+                vk::PipelineStageFlagBits2::eClear,
+                vk::AccessFlagBits2::eTransferWrite
+            );
+        default:
+            assert(false && "Unexpected buffer transfer type.");
+            return std::make_pair(
+                vk::PipelineStageFlagBits2::eNone,
+                vk::AccessFlagBits2::eNone
+            );
         }
-        // Suppress return-type warning
-        __builtin_unreachable();
     }
     std::pair<vk::PipelineStageFlagBits2, vk::AccessFlags2> BufferTransferHelper::GetScope2(BufferTransferType type)
     {
@@ -58,8 +67,17 @@ namespace Engine {
                 vk::PipelineStageFlagBits2::eVertexShader, 
                 vk::AccessFlagBits2::eShaderStorageRead
             );
+        case BufferTransferType::ClearAfter:
+            return std::make_pair(
+                vk::PipelineStageFlagBits2::eCopy,
+                vk::AccessFlagBits2::eTransferWrite
+            );
+        default:
+            assert(false && "Unexpected buffer transfer type.");
+            return std::make_pair(
+                vk::PipelineStageFlagBits2::eNone,
+                vk::AccessFlagBits2::eNone
+            );
         }
-        // Suppress return-type warning
-        __builtin_unreachable();
     }
 }

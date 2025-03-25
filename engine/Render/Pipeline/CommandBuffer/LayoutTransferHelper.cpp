@@ -90,8 +90,10 @@ namespace Engine {
     {
         switch (type) {
         case TextureTransferType::TextureUploadBefore:
+        case TextureTransferType::TextureClearBefore:
             return std::make_pair(vk::PipelineStageFlagBits2::eFragmentShader, vk::AccessFlagBits2::eShaderRead);
         case TextureTransferType::TextureUploadAfter:
+        case TextureTransferType::TextureClearAfter:
             return std::make_pair(vk::PipelineStageFlagBits2::eTransfer, vk::AccessFlagBits2::eTransferWrite);
         }
         __builtin_unreachable();
@@ -100,8 +102,10 @@ namespace Engine {
     {
         switch (type) {
         case TextureTransferType::TextureUploadBefore:
+        case TextureTransferType::TextureClearBefore:
             return std::make_pair(vk::PipelineStageFlagBits2::eTransfer, vk::AccessFlagBits2::eTransferWrite);
         case TextureTransferType::TextureUploadAfter:
+        case TextureTransferType::TextureClearAfter:
             return std::make_pair(vk::PipelineStageFlagBits2::eFragmentShader, vk::AccessFlagBits2::eShaderRead);
         }
         __builtin_unreachable();
@@ -110,8 +114,10 @@ namespace Engine {
     {
         switch (type) {
         case TextureTransferType::TextureUploadBefore:
+        case TextureTransferType::TextureClearBefore:
             return std::make_pair(vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
         case TextureTransferType::TextureUploadAfter:
+        case TextureTransferType::TextureClearAfter:
             return std::make_pair(vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal);
         }
         __builtin_unreachable();

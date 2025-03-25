@@ -15,7 +15,9 @@ namespace Engine {
 
         enum class TextureTransferType {
             TextureUploadBefore,
-            TextureUploadAfter
+            TextureUploadAfter,
+            TextureClearBefore,
+            TextureClearAfter
         };
 
         static vk::ImageMemoryBarrier2 GetAttachmentBarrier(AttachmentTransferType type, vk::Image image);
