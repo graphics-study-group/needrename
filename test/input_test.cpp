@@ -148,7 +148,7 @@ int main(int argc, char **argv)
     StartupOptions opt{.resol_x = 1280, .resol_y = 720, .title = "Input Test"};
 
     auto cmc = MainClass::GetInstance();
-    cmc->Initialize(&opt, SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_GAMEPAD, SDL_LOG_PRIORITY_VERBOSE);
+    cmc->Initialize(&opt, SDL_INIT_VIDEO | SDL_INIT_GAMEPAD, SDL_LOG_PRIORITY_VERBOSE);
     cmc->GetAssetManager()->SetBuiltinAssetPath(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
     cmc->GetAssetManager()->LoadBuiltinAssets();
 
@@ -176,6 +176,26 @@ int main(int argc, char **argv)
         while (SDL_PollEvent(&event))
         {
             SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Event: %s", sdlEventMap[event.type].c_str());
+            if (event.type == SDL_EVENT_JOYSTICK_AXIS_MOTION)
+                SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Joystick axis motion: %d %d %d %llu", event.jaxis.which, event.jaxis.axis, event.jaxis.value, event.jaxis.timestamp);
+            else if (event.type == SDL_EVENT_GAMEPAD_AXIS_MOTION)
+                SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Gamepad axis motion: %d %d %d %llu", event.gaxis.which, event.gaxis.axis, event.gaxis.value, event.gaxis.timestamp);
+            else if (event.type == SDL_EVENT_KEY_UP)
+                SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Key up: %d %d %d %d %d %llu", event.key.which, event.key.windowID, event.key.scancode, event.key.key, event.key.mod, event.key.timestamp);
+            else if (event.type == SDL_EVENT_MOUSE_BUTTON_UP)
+                SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, 
+                            "Mouse button event: type=%d, reserved=%u, timestamp=%llu, windowID=%u, which=%d, button=%u, down=%s, clicks=%u, x=%.2f, y=%.2f", 
+                            event.button.type, 
+                            event.button.reserved, 
+                            event.button.timestamp, 
+                            event.button.windowID, 
+                            event.button.which, 
+                            event.button.button, 
+                            event.button.down ? "true" : "false", 
+                            event.button.clicks, 
+                            event.button.x, 
+                            event.button.y);
+
             gui->ProcessEvent(&event);
             if (event.type == SDL_EVENT_QUIT)
                 break;

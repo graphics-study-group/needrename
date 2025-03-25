@@ -4,6 +4,8 @@
 #include "Render/RenderSystem.h"
 #include "Asset/AssetManager/AssetManager.h"
 #include "GUI/GUISystem.h"
+#include <Input/KBMInput.h>
+#include <Input/GamepadInput.h>
 #include <Asset/Scene/LevelAsset.h>
 
 #include <nlohmann/json.hpp>
@@ -66,6 +68,9 @@ namespace Engine
         this->world = std::make_shared<WorldSystem>();
         this->asset = std::make_shared<AssetManager>();
         this->gui = std::make_shared<GUISystem>(this->renderer);
+        this->inputs.push_back(std::make_shared<KBMInput>());
+        if (sdl_init_flags & SDL_INIT_GAMEPAD)
+            this->inputs.push_back(std::make_shared<GamepadInput>());
 
         this->renderer->Create();
         this->gui->Create(this->window->GetWindow());
@@ -74,24 +79,14 @@ namespace Engine
 
     void MainClass::MainLoop()
     {
-        SDL_Event event;
-        bool onQuit = false;
-
         unsigned int FPS_TIMER = 0;
-
-        while (!onQuit)
+        while (!m_on_quit)
         {
-            // TODO: asynchronous execution
-            this->asset->LoadAssetsInQueue();
-
             float current_time = SDL_GetTicks();
             float dt = (current_time - FPS_TIMER) / 1000.0f;
-
-            this->RunOneFrame(event, dt);
-            if (event.type == SDL_EVENT_QUIT)
-                onQuit = true;
-
             FPS_TIMER = current_time;
+
+            this->RunOneFrame(dt);
         }
         SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "The main loop is ended.");
         renderer->WaitForIdle();
@@ -100,26 +95,16 @@ namespace Engine
 
     void MainClass::LoopFiniteFrame(int max_frame_count)
     {
-        SDL_Event event;
-        bool onQuit = false;
-
         unsigned int FPS_TIMER = 0;
         int frame_count = 0;
 
-        while (!onQuit && frame_count < max_frame_count)
+        while (!m_on_quit && frame_count < max_frame_count)
         {
-            // TODO: asynchronous execution
-            this->asset->LoadAssetsInQueue();
-
             float current_time = SDL_GetTicks();
             float dt = (current_time - FPS_TIMER) / 1000.0f;
-
-            this->RunOneFrame(event, dt);
-            if (event.type == SDL_EVENT_QUIT)
-                onQuit = true;
-
             FPS_TIMER = current_time;
 
+            this->RunOneFrame(dt);
             frame_count++;
         }
         SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "The main loop is ended.");
@@ -129,26 +114,17 @@ namespace Engine
 
     void MainClass::LoopFiniteTime(float max_time)
     {
-        SDL_Event event;
-        bool onQuit = false;
-
         unsigned int FPS_TIMER = 0;
         float current_time = SDL_GetTicks();
         float start_time = current_time;
 
-        while (!onQuit && current_time - start_time < max_time)
+        while (!m_on_quit && current_time - start_time < max_time)
         {
-            // TODO: asynchronous execution
-            this->asset->LoadAssetsInQueue();
-
             float current_time = SDL_GetTicks();
             float dt = (current_time - FPS_TIMER) / 1000.0f;
-
-            this->RunOneFrame(event, dt);
-            if (event.type == SDL_EVENT_QUIT)
-                onQuit = true;
-
             FPS_TIMER = current_time;
+
+            this->RunOneFrame(dt);
         }
         SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "The main loop is ended.");
         renderer->WaitForIdle();
@@ -175,19 +151,34 @@ namespace Engine
         return renderer;
     }
 
-    void MainClass::RunOneFrame(SDL_Event &event, float dt)
+    void MainClass::RunOneFrame(float dt)
     {
+        // TODO: asynchronous execution
+        this->asset->LoadAssetsInQueue();
+
+        SDL_Event event;
+        while (SDL_PollEvent(&event))
+        {
+            if (event.type == SDL_EVENT_QUIT)
+            {
+                m_on_quit = true;
+                break;
+            }
+            this->gui->ProcessEvent(&event);
+            if (this->gui->WantCaptureMouse() && SDL_EVENT_MOUSE_MOTION <= event.type && event.type < SDL_EVENT_JOYSTICK_AXIS_MOTION) // 0x600+
+                continue;
+            if (this->gui->WantCaptureKeyboard() && (event.type == SDL_EVENT_KEY_DOWN || event.type == SDL_EVENT_KEY_UP))
+                continue;
+            for (auto &input : this->inputs)
+            {
+                input->ProcessEvent(&event);
+            }
+        }
+
         this->world->Tick(dt);
 
         // TODO: Set up viewport information
 
         this->renderer->Render();
-
-        while (SDL_PollEvent(&event))
-        {
-            this->gui->ProcessEvent(&event);
-            if (event.type == SDL_EVENT_QUIT)
-                break;
-        }
     }
 } // namespace Engine
