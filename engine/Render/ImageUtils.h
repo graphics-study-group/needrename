@@ -9,11 +9,14 @@ namespace Engine {
         enum class ImageType {
             DepthImage,
             DepthStencilImage,
-            TextureImage
+            TextureImage,
+            ColorAttachment,
+            // DepthStencilAttachment
         };
 
         enum class ImageFormat {
             UNDEFINED,
+            B8G8R8A8SRGB,
             R8G8B8A8SRGB,
             R8G8B8SRGB,
             D32SFLOAT,
@@ -33,6 +36,11 @@ namespace Engine {
                     vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled,
                     VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE
                 );
+            case ImageType::ColorAttachment:
+                return std::make_tuple(
+                    vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eColorAttachment,
+                    VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE
+                );
             }
             return std::make_tuple(
                 vk::ImageUsageFlags{},
@@ -48,6 +56,7 @@ namespace Engine {
                 case ImageType::DepthStencilImage:
                     return vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
                 case ImageType::TextureImage:
+                case ImageType::ColorAttachment:
                     return vk::ImageAspectFlagBits::eColor;
             }
             return vk::ImageAspectFlags{};
@@ -70,6 +79,8 @@ namespace Engine {
             switch (format) {
                 case ImageFormat::UNDEFINED:
                     return vk::Format::eUndefined;
+                case ImageFormat::B8G8R8A8SRGB:
+                    return vk::Format::eB8G8R8A8Srgb;
                 case ImageFormat::R8G8B8SRGB:
                     return vk::Format::eR8G8B8Srgb;
                 case ImageFormat::R8G8B8A8SRGB:
@@ -84,6 +95,7 @@ namespace Engine {
             switch (format) {
                 case ImageFormat::R8G8B8SRGB:
                     return 3;
+                case ImageFormat::B8G8R8A8SRGB:
                 case ImageFormat::R8G8B8A8SRGB:
                 case ImageFormat::D32SFLOAT:
                     return 4;

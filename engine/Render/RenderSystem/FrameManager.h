@@ -14,9 +14,13 @@ namespace Engine {
             static constexpr uint32_t FRAMES_IN_FLIGHT = 3;
         private:
             std::array <vk::UniqueSemaphore, FRAMES_IN_FLIGHT> image_acquired_semaphores {};
-            std::array <vk::UniqueSemaphore, FRAMES_IN_FLIGHT> command_executed_semaphores {};
+            std::array <vk::UniqueSemaphore, FRAMES_IN_FLIGHT> render_command_executed_semaphores {};
+            std::array <vk::UniqueSemaphore, FRAMES_IN_FLIGHT> copy_to_swapchain_completed_semaphores {};
+            std::array <vk::UniqueSemaphore, FRAMES_IN_FLIGHT> next_frame_ready_semaphores {};
             std::array <vk::UniqueFence, FRAMES_IN_FLIGHT> command_executed_fences {};
             std::array <vk::UniqueCommandBuffer, FRAMES_IN_FLIGHT> command_buffers {};
+            std::array <vk::UniqueCommandBuffer, FRAMES_IN_FLIGHT> copy_to_swapchain_command_buffers {};
+
             std::vector <RenderCommandBuffer> render_command_buffers {};
 
             uint32_t current_frame_in_flight {std::numeric_limits<uint32_t>::max()};
@@ -24,11 +28,13 @@ namespace Engine {
             // Current frame buffer id. Set by `StartFrame()` method.
             uint32_t current_framebuffer {std::numeric_limits<uint32_t>::max()};
 
+            vk::Queue graphic_queue {};
             vk::Queue present_queue {};
             vk::SwapchainKHR swapchain {};
             RenderSystem & m_system;
 
             std::unique_ptr <SubmissionHelper> m_submission_helper {};
+
         public:
             FrameManager (RenderSystem & sys);
 
@@ -58,6 +64,8 @@ namespace Engine {
              * @note The index of the available image might be different from the counter of the current frame in flight.
              */
             uint32_t StartFrame (uint64_t timeout = std::numeric_limits<uint64_t>::max());
+
+            void CopyToFramebuffer (vk::Image image);
 
             /**
              * @brief Announce the completion of CPU works of this frame in flight.

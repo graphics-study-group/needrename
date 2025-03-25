@@ -169,6 +169,8 @@ namespace Engine
 
     void RenderSystem::Render()
     {
+        assert(false || "Disabled.");
+        /*
         MainClass::GetInstance()->GetGUISystem()->PrepareGUI();
         
         uint32_t index = m_frame_manager.StartFrame();
@@ -184,6 +186,7 @@ namespace Engine
         cb.End();
         cb.Submit();
         m_frame_manager.CompleteFrame();
+        */
     }
 
     void RenderSystem::CompleteFrame()
