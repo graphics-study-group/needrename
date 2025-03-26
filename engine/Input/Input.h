@@ -12,6 +12,7 @@ namespace Engine
         virtual ~Input() = default;
 
         virtual void ProcessEvent(SDL_Event *event) = 0;
+        virtual void Update(float dt) = 0;
     };
 }
 

@@ -11,7 +11,8 @@ namespace Engine
         GamepadInput() = default;
         virtual ~GamepadInput() = default;
 
-        virtual void ProcessEvent(SDL_Event *event);
+        virtual void ProcessEvent(SDL_Event *event) override;
+        virtual void Update(float dt) override;
     };
 }
 

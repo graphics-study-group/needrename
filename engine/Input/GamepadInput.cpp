@@ -6,4 +6,8 @@ namespace Engine
     void GamepadInput::ProcessEvent(SDL_Event *event)
     {
     }
+
+    void GamepadInput::Update(float dt)
+    {
+    }
 }

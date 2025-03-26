@@ -156,57 +156,7 @@ int main(int argc, char **argv)
     cmc->LoadProject(project_path);
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Entering main loop");
-
-    auto asset_manager = cmc->GetAssetManager();
-    auto world = cmc->GetWorldSystem();
-    auto gui = cmc->GetGUISystem();
-    auto renderer = cmc->GetRenderSystem();
-
-    SDL_Event event;
-    int frame_count = 0;
-    float FPS_TIMER = 0.0f;
-    while (frame_count < max_frame_count)
-    {
-        float current_time = SDL_GetTicks();
-        float dt = (current_time - FPS_TIMER) / 1000.0f;
-
-        asset_manager->LoadAssetsInQueue();
-        world->Tick(dt);
-        renderer->Render();
-        while (SDL_PollEvent(&event))
-        {
-            SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Event: %s", sdlEventMap[event.type].c_str());
-            if (event.type == SDL_EVENT_JOYSTICK_AXIS_MOTION)
-                SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Joystick axis motion: %d %d %d %llu", event.jaxis.which, event.jaxis.axis, event.jaxis.value, event.jaxis.timestamp);
-            else if (event.type == SDL_EVENT_GAMEPAD_AXIS_MOTION)
-                SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Gamepad axis motion: %d %d %d %llu", event.gaxis.which, event.gaxis.axis, event.gaxis.value, event.gaxis.timestamp);
-            else if (event.type == SDL_EVENT_KEY_UP)
-                SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Key up: %d %d %d %d %d %llu", event.key.which, event.key.windowID, event.key.scancode, event.key.key, event.key.mod, event.key.timestamp);
-            else if (event.type == SDL_EVENT_MOUSE_BUTTON_UP)
-                SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, 
-                            "Mouse button event: type=%d, reserved=%u, timestamp=%llu, windowID=%u, which=%d, button=%u, down=%s, clicks=%u, x=%.2f, y=%.2f", 
-                            event.button.type, 
-                            event.button.reserved, 
-                            event.button.timestamp, 
-                            event.button.windowID, 
-                            event.button.which, 
-                            event.button.button, 
-                            event.button.down ? "true" : "false", 
-                            event.button.clicks, 
-                            event.button.x, 
-                            event.button.y);
-
-            gui->ProcessEvent(&event);
-            if (event.type == SDL_EVENT_QUIT)
-                break;
-        }
-        if (event.type == SDL_EVENT_QUIT)
-            break;
-        frame_count++;
-    }
-    SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "The main loop is ended.");
-    renderer->WaitForIdle();
-    renderer->ClearComponent();
+    cmc->LoopFiniteFrame(max_frame_count);
 
     return 0;
 }
