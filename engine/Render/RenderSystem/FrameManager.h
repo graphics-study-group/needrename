@@ -65,6 +65,27 @@ namespace Engine {
              */
             uint32_t StartFrame (uint64_t timeout = std::numeric_limits<uint64_t>::max());
 
+            /**
+             * @brief Copy the given image to current acquired framebuffer.
+             * The image must be in Color Attachment Optimal layout, which should be guaranteed so long as
+             * this method is called immediately after a draw call to copy a color attachment to the framebuffer.
+             * 
+             * The method transits the image to Transfer Source Layout and the framebuffer to Transfer Destination Layout,
+             * record a image copy command (not blitting command, so resizing is not possible), and transits the image
+             * back to Color Attachment Optimal layout.
+             * 
+             * The command buffer used is distinct from the render command buffer, but is submitted into the same graphic
+             * queue. Execution is halted before the semaphore marking the completion of the render command buffer is
+             * signaled. Only after its execution is completed, semaphores for presenting and rendering for the next frame
+             * will be signaled, which means only exactly one render command buffer can be executed at the same time.
+             */
+            void CopyToFrameBuffer (vk::Image image, vk::Extent2D extent, vk::Offset2D offsetSrc = {0, 0}, vk::Offset2D offsetDst = {0, 0});
+
+            /**
+             * @brief Copy the given image to current acquired framebuffer.
+             * This overload executes the copy with zero offset and the swapchain extent.
+             * See another overload for more information.
+             */
             void CopyToFramebuffer (vk::Image image);
 
             /**

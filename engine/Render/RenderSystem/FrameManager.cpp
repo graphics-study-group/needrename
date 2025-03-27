@@ -119,7 +119,7 @@ namespace Engine::RenderSystemState{
         return current_framebuffer;
     }
 
-    void FrameManager::CopyToFramebuffer(vk::Image image)
+    void FrameManager::CopyToFrameBuffer(vk::Image image, vk::Extent2D extent, vk::Offset2D offsetSrc, vk::Offset2D offsetDst)
     {
         uint32_t fif = GetFrameInFlight();
         auto cb = copy_to_swapchain_command_buffers[fif].get();
@@ -176,13 +176,13 @@ namespace Engine::RenderSystemState{
                         vk::ImageAspectFlagBits::eColor,
                         0, 0, 1
                     },
-                    vk::Offset3D{0, 0, 0},
+                    vk::Offset3D{offsetSrc, 0},
                     vk::ImageSubresourceLayers{
                         vk::ImageAspectFlagBits::eColor,
                         0, 0, 1
                     },
-                    vk::Offset3D{0, 0, 0},
-                    vk::Extent3D{m_system.GetSwapchain().GetExtent(), 1}
+                    vk::Offset3D{offsetDst, 0},
+                    vk::Extent3D{extent, 1}
                 }
             }
         );
@@ -245,6 +245,11 @@ namespace Engine::RenderSystemState{
             ss
         };
         graphic_queue.submit(sinfo);
+    }
+
+    void FrameManager::CopyToFramebuffer(vk::Image image)
+    {
+        CopyToFrameBuffer(image, m_system.GetSwapchain().GetExtent());
     }
 
     void FrameManager::CompleteFrame()
