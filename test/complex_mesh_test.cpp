@@ -15,7 +15,6 @@
 #include "Render/Memory/Image2DTexture.h"
 #include "Render/Material/Templates/BlinnPhong.h"
 #include "Render/Pipeline/Shader.h"
-#include "Render/Pipeline/RenderTarget/RenderTargetSetup.h"
 #include "Render/Pipeline/CommandBuffer.h"
 #include "Render/Renderer/HomogeneousMesh.h"
 #include "GUI/GUISystem.h"
@@ -250,13 +249,6 @@ int main(int argc, char ** argv)
 
     // rsys->EnableDepthTesting();
     auto gsys = cmc->GetGUISystem();
-
-    RenderTargetSetup rts{rsys};
-    rts.CreateFromSwapchain();
-    rts.SetClearValues({
-        vk::ClearValue{vk::ClearColorValue{0.0f, 0.0f, 0.0f, 1.0f}},
-        vk::ClearValue{vk::ClearDepthStencilValue{1.0f, 0U}}
-    });
 
     Engine::AllocatedImage2D color{rsys}, depth{rsys};
     color.Create(1280, 720, Engine::ImageUtils::ImageType::ColorAttachment, Engine::ImageUtils::ImageFormat::B8G8R8A8SRGB, 1);

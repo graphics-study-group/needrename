@@ -4,7 +4,6 @@
 #include "Render/VkWrapper.tcc"
 #include "Structs.h"
 #include "Render/Memory/Image2D.h"
-#include "Render/Memory/SwapchainImage.h"
 #include <vector>
 
 namespace Engine {
@@ -60,9 +59,6 @@ namespace Engine {
             bool IsDepthEnabled() const;
 
             uint32_t GetFrameCount() const;
-
-            SwapchainImage GetColorImagesAndViews() const;
-            SwapchainImage GetDepthImagesAndViews() const;
 
             vk::PipelineRenderingCreateInfo GetPipelineRenderingCreateInfo() const;
         };

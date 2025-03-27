@@ -38,13 +38,6 @@ namespace Engine
 
         this->EnableDepthTesting();
 
-        this->m_render_target_setup = std::make_unique<RenderTargetSetup>(shared_from_this());
-        this->m_render_target_setup->CreateFromSwapchain();
-        this->m_render_target_setup->SetClearValues({
-            vk::ClearValue{vk::ClearColorValue{0.0f, 0.0f, 0.0f, 1.0f}},
-            vk::ClearValue{vk::ClearDepthStencilValue{1.0f, 0U}}
-        });
-
         // Create synchorization semaphores
         this->m_frame_manager.Create();
         this->m_descriptor_pool.Create(shared_from_this(), m_frame_manager.FRAMES_IN_FLIGHT);

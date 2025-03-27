@@ -175,32 +175,10 @@ namespace Engine::RenderSystemState{
         return m_images.size();
     }
 
-    SwapchainImage Swapchain::GetDepthImagesAndViews() const
-    {
-        std::vector <vk::Image> images;
-        std::vector <vk::ImageView> image_views;
-        for (size_t i = 0; i < m_depth_images.size(); i++) {
-            images.push_back(m_depth_images[i].GetImage());
-            image_views.push_back(m_depth_images[i].GetImageView());
-        }
-        return SwapchainImage(images, image_views, true);
-    }
-
     vk::PipelineRenderingCreateInfo Swapchain::GetPipelineRenderingCreateInfo() const
     {
         return vk::PipelineRenderingCreateInfo{
             0, 1, &m_image_format.format, ImageUtils::GetVkFormat(DEPTH_FORMAT), vk::Format::eUndefined, nullptr
         };
-    }
-
-    SwapchainImage Swapchain::GetColorImagesAndViews() const
-    {
-        std::vector <vk::Image> images;
-        std::vector <vk::ImageView> image_views;
-        for (size_t i = 0; i < m_images.size(); i++) {
-            images.push_back(m_images[i]);
-            image_views.push_back(m_image_views[i].get());
-        }
-        return SwapchainImage(images, image_views, false);
     }
 }

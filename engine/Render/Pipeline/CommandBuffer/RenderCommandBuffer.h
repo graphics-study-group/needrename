@@ -7,7 +7,6 @@
 #include <glm.hpp>
 
 namespace Engine {
-    class RenderTargetSetup;
     class Material;
     class MaterialInstance;
     class HomogeneousMesh;
@@ -82,7 +81,6 @@ namespace Engine {
         vk::Fence m_completed_fence;
         vk::Semaphore m_wait_semaphore, m_signal_semaphore;
 
-        std::optional<std::reference_wrapper<const RenderTargetSetup>> m_bound_render_target {};
         std::optional<std::pair<vk::Pipeline, vk::PipelineLayout>> m_bound_material_pipeline {};
     };
 }

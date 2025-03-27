@@ -6,7 +6,6 @@
 #include <memory>
 #include <vulkan/vulkan.hpp>
 
-#include "Render/Pipeline/RenderTarget/RenderTargetSetup.h"
 #include "Render/Pipeline/CommandBuffer.h"
 
 #include "Render/RenderSystem/AllocatorState.h"
@@ -132,7 +131,6 @@ namespace Engine
 
         // Order of declaration effects destructing order!
 
-        std::unique_ptr<RenderTargetSetup> m_render_target_setup {};
         RenderSystemState::Instance m_instance {};
         vk::UniqueSurfaceKHR m_surface{};
         vk::UniqueDevice m_device{};
