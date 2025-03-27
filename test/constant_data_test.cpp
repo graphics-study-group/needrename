@@ -12,7 +12,6 @@
 #include "Render/Material/TestMaterialWithTransform.h"
 #include "Render/Pipeline/Shader.h"
 #include "Render/Pipeline/CommandBuffer.h"
-#include "Render/Pipeline/RenderTarget/RenderTargetSetup.h"
 #include "Render/Renderer/HomogeneousMesh.h"
 
 using namespace Engine;

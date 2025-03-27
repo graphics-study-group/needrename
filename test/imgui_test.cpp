@@ -6,7 +6,6 @@
 #include "MainClass.h"
 #include "Functional/SDLWindow.h"
 #include "Framework/component/RenderComponent/MeshComponent.h"
-#include "Render/Pipeline/RenderTarget/RenderTargetSetup.h"
 #include "Render/RenderSystem.h"
 #include "GUI/GUISystem.h"
 
@@ -32,12 +31,20 @@ int main(int argc, char ** argv)
     // rsys->EnableDepthTesting();
     auto gsys = cmc->GetGUISystem();
 
-    RenderTargetSetup rts{rsys};
-    rts.CreateFromSwapchain();
-    rts.SetClearValues({
-        vk::ClearValue{vk::ClearColorValue{0.0f, 0.0f, 0.0f, 1.0f}},
-        vk::ClearValue{vk::ClearDepthStencilValue{1.0f, 0U}}
-    });
+    Engine::AllocatedImage2D color{rsys}, depth{rsys};
+    color.Create(1920, 1080, Engine::ImageUtils::ImageType::ColorAttachment, Engine::ImageUtils::ImageFormat::B8G8R8A8SRGB, 1);
+    depth.Create(1920, 1080, Engine::ImageUtils::ImageType::DepthImage, Engine::ImageUtils::ImageFormat::D32SFLOAT, 1);
+
+    Engine::AttachmentUtils::AttachmentDescription color_att, depth_att;
+    color_att.image = color.GetImage();
+    color_att.image_view = color.GetImageView();
+    color_att.load_op = vk::AttachmentLoadOp::eClear;
+    color_att.store_op = vk::AttachmentStoreOp::eStore;
+
+    depth_att.image = depth.GetImage();
+    depth_att.image_view = depth.GetImageView();
+    depth_att.load_op = vk::AttachmentLoadOp::eClear;
+    depth_att.store_op = vk::AttachmentStoreOp::eDontCare;
 
     bool quited = false;
     while(max_frame_count--) {
@@ -61,12 +68,12 @@ int main(int argc, char ** argv)
     
         cb.Begin();
         vk::Extent2D extent {rsys->GetSwapchain().GetExtent()};
-        cb.BeginRendering(rts, extent, index);
+        cb.BeginRendering(color_att, depth_att, extent, index);
         gsys->DrawGUI(cb);
         cb.EndRendering();
         cb.End();
-        cb.Submit();
-
+        cb.Submit(frame_count != 1);
+        rsys->GetFrameManager().CopyToFramebuffer(color.GetImage());
         rsys->CompleteFrame();
 
         SDL_Delay(10);
