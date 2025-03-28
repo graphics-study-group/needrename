@@ -35,8 +35,7 @@ namespace Engine
         std::shared_ptr<WorldSystem> GetWorldSystem() const;
         std::shared_ptr<AssetManager> GetAssetManager() const;
         std::shared_ptr<GUISystem> GetGUISystem() const;
-        template <typename InputType>
-        std::shared_ptr<InputType> GetInput() const;
+        std::shared_ptr<InputType> GetInputSystem() const;
 
     protected:
         std::shared_ptr<SDLWindow> window{};
@@ -44,24 +43,12 @@ namespace Engine
         std::shared_ptr<WorldSystem> world{};
         std::shared_ptr<AssetManager> asset{};
         std::shared_ptr<GUISystem> gui{};
-        std::vector<std::shared_ptr<Input>> inputs{};
+        std::shared_ptr<Input> input{};
 
         bool m_on_quit = false;
 
         void RunOneFrame(float dt);
     };
-
-    template <typename InputType>
-    std::shared_ptr<InputType> MainClass::GetInput() const
-    {
-        for (auto &input : inputs)
-        {
-            auto casted = std::dynamic_pointer_cast<InputType>(input);
-            if (casted)
-                return casted;
-        }
-        return nullptr;
-    }
 }
 
 #endif // MAINCLASS_H

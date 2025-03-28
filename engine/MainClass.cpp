@@ -4,8 +4,7 @@
 #include "Render/RenderSystem.h"
 #include "Asset/AssetManager/AssetManager.h"
 #include "GUI/GUISystem.h"
-#include <Input/KBMInput.h>
-#include <Input/GamepadInput.h>
+#include <Input/DefaultInput.h>
 #include <Asset/Scene/LevelAsset.h>
 
 #include <nlohmann/json.hpp>
@@ -68,9 +67,7 @@ namespace Engine
         this->world = std::make_shared<WorldSystem>();
         this->asset = std::make_shared<AssetManager>();
         this->gui = std::make_shared<GUISystem>(this->renderer);
-        this->inputs.push_back(std::make_shared<KBMInput>());
-        if (sdl_init_flags & SDL_INIT_GAMEPAD)
-            this->inputs.push_back(std::make_shared<GamepadInput>());
+        this->input = std::make_shared<Input>();
 
         this->renderer->Create();
         this->gui->Create(this->window->GetWindow());
@@ -149,6 +146,11 @@ namespace Engine
     std::shared_ptr<RenderSystem> MainClass::GetRenderSystem() const
     {
         return renderer;
+    }
+
+    std::shared_ptr<Input> MainClass::GetInputSystem() const
+    {
+        return input;
     }
 
     void MainClass::RunOneFrame(float dt)
