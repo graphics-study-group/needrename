@@ -9,9 +9,12 @@ namespace Engine {
         enum class ImageType {
             DepthImage,
             DepthStencilImage,
+            // Color attachment image used for sampling. Can be transferred to.
             TextureImage,
+            // Color attachment image used for rendering. Can be transferred from.
             ColorAttachment,
-            // DepthStencilAttachment
+            // General color texture image, suitable for transfering from/to, rendering and sampling.
+            ColorGeneral
         };
 
         enum class ImageFormat {
@@ -33,12 +36,23 @@ namespace Engine {
                 );
             case ImageType::TextureImage:
                 return std::make_tuple(
-                    vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled,
+                    vk::ImageUsageFlagBits::eTransferDst |
+                    vk::ImageUsageFlagBits::eSampled,
                     VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE
                 );
             case ImageType::ColorAttachment:
                 return std::make_tuple(
-                    vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eColorAttachment,
+                    vk::ImageUsageFlagBits::eTransferSrc |
+                    vk::ImageUsageFlagBits::eColorAttachment,
+                    VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE
+                );
+            case ImageType::ColorGeneral:
+                // Seems vk::ImageUsageFlags has no performance impact for desktop GPUs.
+                return std::make_tuple(
+                    vk::ImageUsageFlagBits::eTransferSrc |
+                    vk::ImageUsageFlagBits::eTransferDst | 
+                    vk::ImageUsageFlagBits::eSampled |
+                    vk::ImageUsageFlagBits::eColorAttachment,
                     VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE
                 );
             }
@@ -57,6 +71,7 @@ namespace Engine {
                     return vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
                 case ImageType::TextureImage:
                 case ImageType::ColorAttachment:
+                case ImageType::ColorGeneral:
                     return vk::ImageAspectFlagBits::eColor;
             }
             return vk::ImageAspectFlags{};
