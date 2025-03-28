@@ -136,8 +136,8 @@ namespace Engine::RenderSystemState{
         // We dont need barriers here since the semaphore ensures that rendering is completed
         std::array<vk::ImageMemoryBarrier2, 2> barriers = {
             vk::ImageMemoryBarrier2{
-                vk::PipelineStageFlagBits2::eNone,
-                vk::AccessFlagBits2::eNone,
+                vk::PipelineStageFlagBits2::eTransfer,
+                vk::AccessFlagBits2::eNone, // > Set up execution dep instead of memory dep.
                 vk::PipelineStageFlagBits2::eTransfer,
                 vk::AccessFlagBits2::eTransferWrite,
                 vk::ImageLayout::eUndefined,
@@ -150,7 +150,7 @@ namespace Engine::RenderSystemState{
                 }
             },
             vk::ImageMemoryBarrier2{
-                vk::PipelineStageFlagBits2::eNone,
+                vk::PipelineStageFlagBits2::eTransfer,
                 vk::AccessFlagBits2::eNone,
                 vk::PipelineStageFlagBits2::eTransfer,
                 vk::AccessFlagBits2::eTransferRead,
@@ -196,7 +196,7 @@ namespace Engine::RenderSystemState{
             vk::ImageMemoryBarrier2{
                 vk::PipelineStageFlagBits2::eTransfer,
                 vk::AccessFlagBits2::eTransferWrite,
-                vk::PipelineStageFlagBits2::eNone,
+                vk::PipelineStageFlagBits2::eBottomOfPipe,
                 vk::AccessFlagBits2::eNone,
                 vk::ImageLayout::eTransferDstOptimal,
                 vk::ImageLayout::ePresentSrcKHR,
@@ -211,7 +211,7 @@ namespace Engine::RenderSystemState{
             vk::ImageMemoryBarrier2{
                 vk::PipelineStageFlagBits2::eTransfer,
                 vk::AccessFlagBits2::eTransferRead,
-                vk::PipelineStageFlagBits2::eNone,
+                vk::PipelineStageFlagBits2::eBottomOfPipe,
                 vk::AccessFlagBits2::eNone,
                 vk::ImageLayout::eTransferSrcOptimal,
                 vk::ImageLayout::eColorAttachmentOptimal,
