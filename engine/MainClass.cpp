@@ -4,7 +4,7 @@
 #include "Render/RenderSystem.h"
 #include "Asset/AssetManager/AssetManager.h"
 #include "GUI/GUISystem.h"
-#include <Input/DefaultInput.h>
+#include <Input/Input.h>
 #include <Asset/Scene/LevelAsset.h>
 
 #include <nlohmann/json.hpp>
@@ -171,12 +171,10 @@ namespace Engine
                 continue;
             if (this->gui->WantCaptureKeyboard() && (event.type == SDL_EVENT_KEY_DOWN || event.type == SDL_EVENT_KEY_UP))
                 continue;
-            for (auto &input : this->inputs)
-            {
-                input->ProcessEvent(&event);
-            }
+            input->ProcessEvent(&event);
         }
 
+        this->input->Update(dt);
         this->world->Tick(dt);
 
         // TODO: Set up viewport information

@@ -35,7 +35,7 @@ namespace Engine
         std::shared_ptr<WorldSystem> GetWorldSystem() const;
         std::shared_ptr<AssetManager> GetAssetManager() const;
         std::shared_ptr<GUISystem> GetGUISystem() const;
-        std::shared_ptr<InputType> GetInputSystem() const;
+        std::shared_ptr<Input> GetInputSystem() const;
 
     protected:
         std::shared_ptr<SDLWindow> window{};

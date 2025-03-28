@@ -27,7 +27,7 @@ namespace Engine
         {
             TypeKey,
             TypeMouseButton,
-            TypeMouseMovement,
+            TypeMouseMotion,
             TypeMouseWheel,
             TypeGamepadButton,
             TypeGamepadAxis
@@ -39,6 +39,7 @@ namespace Engine
             REFL_SER_BODY(InputAxis)
         public:
             InputAxis() = default;
+            InputAxis(const std::string &name, AxisType type, float gravity = 3.0f, float dead = 0.001f, float sensitivity = 3.0f, bool snap = false, bool invert = false);
             virtual ~InputAxis() = default;
 
             std::string m_name{};
@@ -65,6 +66,7 @@ namespace Engine
             REFL_SER_BODY(ButtonAxis)
         public:
             ButtonAxis() = default;
+            ButtonAxis(const std::string &name, AxisType type, const std::string &positive,  const std::string &negative, float gravity = 3.0f, float dead = 0.001f, float sensitivity = 3.0f, bool snap = false, bool invert = false);
             virtual ~ButtonAxis() = default;
 
             std::string m_positive{};
@@ -79,6 +81,7 @@ namespace Engine
             REFL_SER_BODY(MotionAxis)
         public:
             MotionAxis() = default;
+            MotionAxis(const std::string &name, AxisType type, const std::string &axis, float motion_sensitivity = 1.0f, float gravity = 3.0f, float dead = 0.001f, float sensitivity = 3.0f, bool snap = false, bool invert = false);
             virtual ~MotionAxis() = default;
 
             std::string m_axis{};
@@ -95,6 +98,7 @@ namespace Engine
             REFL_SER_BODY(GamepadAxis)
         public:
             GamepadAxis() = default;
+            GamepadAxis(const std::string &name, AxisType type, const std::string &axis, float scale = 0.01f, float gravity = 3.0f, float dead = 0.001f, float sensitivity = 3.0f, bool snap = false, bool invert = false);
             virtual ~GamepadAxis() = default;
 
             std::string m_axis{};

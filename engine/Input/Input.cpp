@@ -110,6 +110,15 @@ namespace Engine
             {"kp 0", SDL_SCANCODE_KP_0},
             {"kp period", SDL_SCANCODE_KP_PERIOD},
 
+            {"left ctrl", SDL_SCANCODE_LCTRL},
+            {"left shift", SDL_SCANCODE_LSHIFT},
+            {"left alt", SDL_SCANCODE_LALT},
+            {"left gui", SDL_SCANCODE_LGUI},
+            {"right ctrl", SDL_SCANCODE_RCTRL},
+            {"right shift", SDL_SCANCODE_RSHIFT},
+            {"right alt", SDL_SCANCODE_RALT},
+            {"right gui", SDL_SCANCODE_RGUI},
+
             {"mouse left", SDL_BUTTON_LEFT},
             {"mouse middle", SDL_BUTTON_MIDDLE},
             {"mouse right", SDL_BUTTON_RIGHT},
@@ -145,6 +154,11 @@ namespace Engine
             {"gamepad axis trigger right", SDL_GAMEPAD_AXIS_RIGHT_TRIGGER},
     };
 
+    Input::InputAxis::InputAxis(const std::string &name, AxisType type, float gravity, float dead, float sensitivity, bool snap, bool invert)
+        : m_name(name), m_type(type), m_gravity(gravity), m_dead(dead), m_sensitivity(sensitivity), m_snap(snap), m_invert(invert)
+    {
+    }
+
     float Input::InputAxis::GetRawValue() const
     {
         return m_invert ? -m_value : m_value;
@@ -155,7 +169,7 @@ namespace Engine
         return m_invert ? -m_smoothed_value : m_smoothed_value;
     }
 
-    void Input::InputAxis::ProcessEvent(SDL_Event *event)
+    void Input::InputAxis::ProcessEvent(SDL_Event *)
     {
     }
 
@@ -173,32 +187,44 @@ namespace Engine
             m_smoothed_value = 0.0f;
     }
 
+    Input::ButtonAxis::ButtonAxis(const std::string &name, AxisType type, const std::string &positive, const std::string &negative, float gravity, float dead, float sensitivity, bool snap, bool invert)
+        : InputAxis(name, type, gravity, dead, sensitivity, snap, invert), m_positive(positive), m_negative(negative)
+    {
+        assert(type == AxisType::TypeKey || type == AxisType::TypeMouseButton || type == AxisType::TypeGamepadButton);
+    }
+
     void Input::ButtonAxis::ProcessEvent(SDL_Event *event)
     {
         if (event->type == SDL_EVENT_KEY_DOWN || event->type == SDL_EVENT_KEY_UP)
         {
-            if (event->key.scancode == k_name_code_map.at(m_positive))
+            if (k_name_code_map.find(m_positive) != k_name_code_map.end() && event->key.scancode == k_name_code_map.at(m_positive))
                 m_value += event->key.down ? 1.0f : -1.0f;
-            if (event->key.scancode == k_name_code_map.at(m_negative))
+            if (k_name_code_map.find(m_negative) != k_name_code_map.end() && event->key.scancode == k_name_code_map.at(m_negative))
                 m_value += event->key.down ? -1.0f : 1.0f;
             m_value = std::clamp(m_value, -1.0f, 1.0f);
         }
         else if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN || event->type == SDL_EVENT_MOUSE_BUTTON_UP)
         {
-            if (event->button.button == k_name_code_map.at(m_positive))
+            if (k_name_code_map.find(m_positive) != k_name_code_map.end() && event->button.button == k_name_code_map.at(m_positive))
                 m_value += event->button.down ? 1.0f : -1.0f;
-            if (event->button.button == k_name_code_map.at(m_negative))
+            if (k_name_code_map.find(m_negative) != k_name_code_map.end() && event->button.button == k_name_code_map.at(m_negative))
                 m_value += event->button.down ? -1.0f : 1.0f;
             m_value = std::clamp(m_value, -1.0f, 1.0f);
         }
         else if (event->type == SDL_EVENT_GAMEPAD_BUTTON_DOWN || event->type == SDL_EVENT_GAMEPAD_BUTTON_UP)
         {
-            if (event->button.button == k_name_code_map.at(m_positive))
+            if (k_name_code_map.find(m_positive) != k_name_code_map.end() && event->button.button == k_name_code_map.at(m_positive))
                 m_value += event->button.down ? 1.0f : -1.0f;
-            if (event->button.button == k_name_code_map.at(m_negative))
+            if (k_name_code_map.find(m_negative) != k_name_code_map.end() && event->button.button == k_name_code_map.at(m_negative))
                 m_value += event->button.down ? -1.0f : 1.0f;
             m_value = std::clamp(m_value, -1.0f, 1.0f);
         }
+    }
+
+    Input::MotionAxis::MotionAxis(const std::string &name, AxisType type, const std::string &axis, float motion_sensitivity, float gravity, float dead, float sensitivity, bool snap, bool invert)
+        : InputAxis(name, type, gravity, dead, sensitivity, snap, invert), m_axis(axis), m_motion_sensitivity(motion_sensitivity)
+    {
+        assert(type == AxisType::TypeMouseMotion || type == AxisType::TypeMouseWheel);
     }
 
     void Input::MotionAxis::ProcessEvent(SDL_Event *event)
@@ -226,11 +252,17 @@ namespace Engine
         InputAxis::UpdateSmoothedValue(dt);
     }
 
+    Input::GamepadAxis::GamepadAxis(const std::string &name, AxisType type, const std::string &axis, float scale, float gravity, float dead, float sensitivity, bool snap, bool invert)
+        : InputAxis(name, type, gravity, dead, sensitivity, snap, invert), m_axis(axis), m_scale(scale)
+    {
+        assert(type == AxisType::TypeGamepadAxis);
+    }
+
     void Input::GamepadAxis::ProcessEvent(SDL_Event *event)
     {
         if (event->type == SDL_EVENT_GAMEPAD_AXIS_MOTION)
         {
-            if (event->gaxis.axis == k_name_code_map.at(m_axis))
+            if (k_name_code_map.find(m_axis) != k_name_code_map.end() && event->gaxis.axis == k_name_code_map.at(m_axis))
                 m_value = event->gaxis.value * m_scale;
         }
     }
@@ -263,6 +295,7 @@ namespace Engine
                     result = temp;
             }
         }
+        return result;
     }
 
     float Input::GetAxisRaw(const std::string &axis_name) const
