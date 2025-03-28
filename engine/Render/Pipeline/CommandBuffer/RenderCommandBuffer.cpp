@@ -5,8 +5,11 @@
 #include "Render/Material/MaterialInstance.h"
 #include "Render/Renderer/HomogeneousMesh.h"
 #include "Render/ConstantData/PerModelConstants.h"
+#include "Render/RenderSystem/GlobalConstantDescriptorPool.h"
 
 #include "Render/Pipeline/CommandBuffer/LayoutTransferHelper.h"
+
+#include <SDL3/SDL.h>
 
 namespace Engine
 {

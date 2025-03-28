@@ -17,6 +17,10 @@
 #include "Render/Pipeline/Shader.h"
 #include "Render/Pipeline/CommandBuffer.h"
 #include "Render/Renderer/HomogeneousMesh.h"
+#include "Render/RenderSystem/Swapchain.h"
+#include "Render/RenderSystem/FrameManager.h"
+#include "Render/RenderSystem/GlobalConstantDescriptorPool.h"
+#include "Render/RenderSystem/MaterialRegistry.h"
 #include "GUI/GUISystem.h"
 #include <Asset/AssetManager/AssetManager.h>
 #include <Asset/AssetRef.h>

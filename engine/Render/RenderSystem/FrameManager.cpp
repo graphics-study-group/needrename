@@ -1,6 +1,10 @@
 #include "FrameManager.h"
 
+#include "Render/Memory/Buffer.h"
 #include "Render/RenderSystem.h"
+#include "Render/RenderSystem/Swapchain.h"
+
+#include <SDL3/SDL.h>
 
 namespace Engine::RenderSystemState{
     FrameManager::FrameManager(RenderSystem &sys) : m_system(sys)

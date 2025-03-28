@@ -9,6 +9,15 @@
 #include "Framework/component/RenderComponent/CameraComponent.h"
 #include "Render/Renderer/HomogeneousMesh.h"
 #include "Render/Pipeline/CommandBuffer.h"
+#include "Render/RenderSystem/AllocatorState.h"
+#include "Render/RenderSystem/Instance.h"
+#include "Render/RenderSystem/PhysicalDevice.h"
+#include "Render/RenderSystem/Swapchain.h"
+#include "Render/RenderSystem/GlobalConstantDescriptorPool.h"
+#include "Render/RenderSystem/MaterialDescriptorManager.h"
+#include "Render/RenderSystem/MaterialRegistry.h"
+#include "Render/RenderSystem/FrameManager.h"
+
 #include <MainClass.h>
 #include <GUI/GUISystem.h>
 
@@ -16,32 +25,77 @@
 
 namespace Engine
 {
+    struct RenderSystem::impl {
+        impl(RenderSystem & parent, std::weak_ptr <SDLWindow> parent_window) 
+        : m_window(parent_window), m_allocator_state(parent), m_frame_manager(parent) {
+
+        };
+
+        /// @brief Create a vk::SurfaceKHR.
+        /// It should be called right after instance creation, before selecting a physical device.
+        void CreateSurface();
+
+        /// @brief Create a logical device from selected physical device.
+        void CreateLogicalDevice();
+
+        /// @brief Create a swap chain, possibly replace the older one.
+        void CreateSwapchain();
+
+        void CreateCommandPools(const QueueFamilyIndices & indices);
+
+        static constexpr const char * validation_layer_name = "VK_LAYER_KHRONOS_validation";
+        static constexpr std::array <std::string_view, 1> device_extension_name = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+
+        // uint32_t m_in_flight_frame_id = 0;
+
+        std::weak_ptr <SDLWindow> m_window;
+        // TODO: data: mesh, texture, light
+        std::vector <std::shared_ptr<RendererComponent>> m_components {};
+        std::shared_ptr <CameraComponent> m_active_camera {};
+
+        RenderSystemState::PhysicalDevice m_selected_physical_device {};
+
+        // Order of declaration effects destructing order!
+
+        RenderSystemState::Instance m_instance {};
+        vk::UniqueSurfaceKHR m_surface{};
+        vk::UniqueDevice m_device{};
+        
+        QueueInfo  m_queues {};
+        RenderSystemState::AllocatorState m_allocator_state;
+        RenderSystemState::Swapchain m_swapchain{};
+        RenderSystemState::FrameManager m_frame_manager;
+        RenderSystemState::GlobalConstantDescriptorPool m_descriptor_pool{};
+        RenderSystemState::MaterialRegistry m_material_registry {};
+    };
+
     RenderSystem::RenderSystem(
         std::weak_ptr <SDLWindow> parent_window
-    ) : m_window(parent_window), m_allocator_state(*this), m_frame_manager(*this)
+    )
     {
+        this->pimpl = std::make_unique<RenderSystem::impl>(*this, parent_window);
     }
 
     void RenderSystem::Create() {
-        assert(!this->m_instance.get() || "Recreating render system");
+        assert(!this->pimpl->m_instance.get() || "Recreating render system");
         // C++ wrappers for Vulkan functions throw exceptions
         // So we don't need to do mundane error checking
         // Create instance
-        this->m_instance.Create("no name", "no name");
-        this->CreateSurface();
+        pimpl->m_instance.Create("no name", "no name");
+        pimpl->CreateSurface();
 
-        m_selected_physical_device = RenderSystemState::PhysicalDevice::SelectPhysicalDevice(m_instance.get(), m_surface.get());
-        this->CreateLogicalDevice();
-        this->CreateSwapchain();
+        pimpl->m_selected_physical_device = RenderSystemState::PhysicalDevice::SelectPhysicalDevice(pimpl->m_instance.get(), pimpl->m_surface.get());
+        pimpl->CreateLogicalDevice();
+        pimpl->CreateSwapchain();
 
-        this->m_allocator_state.Create();
+        pimpl->m_allocator_state.Create();
 
         this->EnableDepthTesting();
 
         // Create synchorization semaphores
-        this->m_frame_manager.Create();
-        this->m_descriptor_pool.Create(shared_from_this(), m_frame_manager.FRAMES_IN_FLIGHT);
-        this->m_material_registry.Create(shared_from_this());
+        pimpl->m_frame_manager.Create();
+        pimpl->m_descriptor_pool.Create(shared_from_this(), pimpl->m_frame_manager.FRAMES_IN_FLIGHT);
+        pimpl->m_material_registry.Create(shared_from_this());
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Vulkan initialization finished.");
     }
 
@@ -57,12 +111,12 @@ namespace Engine
         RenderCommandBuffer & cb = this->GetCurrentCommandBuffer();
 
         // Write camera transforms
-        std::byte * camera_ptr = this->GetGlobalConstantDescriptorPool().GetPerCameraConstantMemory(m_frame_manager.GetFrameInFlight());
+        std::byte * camera_ptr = this->GetGlobalConstantDescriptorPool().GetPerCameraConstantMemory(pimpl->m_frame_manager.GetFrameInFlight());
         ConstantData::PerCameraStruct camera_struct;
-        if (m_active_camera) {
+        if (pimpl->m_active_camera) {
             camera_struct = {
-                m_active_camera->GetViewMatrix(), 
-                m_active_camera->GetProjectionMatrix()
+                pimpl->m_active_camera->GetViewMatrix(), 
+                pimpl->m_active_camera->GetProjectionMatrix()
             };
             
         } else {
@@ -76,7 +130,7 @@ namespace Engine
         vk::Extent2D extent {this->GetSwapchain().GetExtent()};
         vk::Rect2D scissor{{0, 0}, extent};
         cb.SetupViewport(extent.width, extent.height, scissor);
-        for (const auto & component : m_components) {
+        for (const auto & component : pimpl->m_components) {
             glm::mat4 model_matrix = component->GetWorldTransform().GetTransformMatrix();
             auto down_casted_ptr = std::dynamic_pointer_cast<MeshComponent>(component);
             if (down_casted_ptr == nullptr) {
@@ -96,68 +150,68 @@ namespace Engine
 
     void RenderSystem::RegisterComponent(std::shared_ptr<RendererComponent> comp)
     {
-        m_components.push_back(comp);
+        pimpl->m_components.push_back(comp);
     }
 
     void RenderSystem::ClearComponent()
     {
-        m_components.clear();
+        pimpl->m_components.clear();
     }
 
     void RenderSystem::SetActiveCamera(std::shared_ptr <CameraComponent> cameraComponent)
     {
-        m_active_camera = cameraComponent;
+        pimpl->m_active_camera = cameraComponent;
     }
 
     vk::Instance RenderSystem::getInstance() const 
     { 
-        return m_instance.get(); 
+        return pimpl->m_instance.get(); 
     }
     vk::SurfaceKHR RenderSystem::getSurface() const 
     { 
-        return m_surface.get(); 
+        return pimpl->m_surface.get(); 
     }
     vk::Device RenderSystem::getDevice() const 
     { 
-        return m_device.get(); 
+        return pimpl->m_device.get(); 
     }
     vk::PhysicalDevice RenderSystem::GetPhysicalDevice() const 
     { 
-        return m_selected_physical_device.get(); 
+        return pimpl->m_selected_physical_device.get(); 
     }
     const RenderSystemState::AllocatorState &RenderSystem::GetAllocatorState() const 
     { 
-        return m_allocator_state; 
+        return pimpl->m_allocator_state; 
     }
     const RenderSystem::QueueInfo &RenderSystem::getQueueInfo() const 
     { 
-        return m_queues; 
+        return pimpl->m_queues; 
     }
     const RenderSystemState::Swapchain& RenderSystem::GetSwapchain() const 
     { 
-        return m_swapchain; 
+        return pimpl->m_swapchain; 
     }
     RenderCommandBuffer & RenderSystem::GetGraphicsCommandBuffer(uint32_t frame_index) 
     { 
-        return m_frame_manager.GetCommandBuffers()[frame_index]; 
+        return pimpl->m_frame_manager.GetCommandBuffers()[frame_index]; 
     }
     RenderCommandBuffer & RenderSystem::GetCurrentCommandBuffer()
     {
-        return m_frame_manager.GetCommandBuffer();
+        return pimpl->m_frame_manager.GetCommandBuffer();
     }
     const RenderSystemState::GlobalConstantDescriptorPool &RenderSystem::GetGlobalConstantDescriptorPool() const
     {
-        return m_descriptor_pool;
+        return pimpl->m_descriptor_pool;
     }
 
     RenderSystemState::MaterialRegistry &RenderSystem::GetMaterialRegistry()
     {
-        return m_material_registry;
+        return pimpl->m_material_registry;
     }
 
     RenderSystemState::FrameManager &RenderSystem::GetFrameManager()
     {
-        return m_frame_manager;
+        return pimpl->m_frame_manager;
     }
 
     void RenderSystem::Render()
@@ -184,34 +238,34 @@ namespace Engine
 
     void RenderSystem::CompleteFrame()
     {
-        m_frame_manager.CompleteFrame();
+        pimpl->m_frame_manager.CompleteFrame();
     }
 
     void RenderSystem::EnableDepthTesting() {
-        m_swapchain.EnableDepthTesting(this->shared_from_this());
+        pimpl->m_swapchain.EnableDepthTesting(this->shared_from_this());
     }
 
     void RenderSystem::WritePerCameraConstants(const ConstantData::PerCameraStruct& data, uint32_t in_flight_index) {
-        std::byte * ptr = m_descriptor_pool.GetPerCameraConstantMemory(in_flight_index);
+        std::byte * ptr = pimpl->m_descriptor_pool.GetPerCameraConstantMemory(in_flight_index);
         std::memcpy(ptr, &data, sizeof data);
-        m_descriptor_pool.FlushPerCameraConstantMemory(in_flight_index);
+        pimpl->m_descriptor_pool.FlushPerCameraConstantMemory(in_flight_index);
     }
 
     void RenderSystem::WaitForIdle() const {
-        m_device->waitIdle();
+        pimpl->m_device->waitIdle();
     }
 
     void RenderSystem::UpdateSwapchain() {
         this->WaitForIdle();
-        this->CreateSwapchain();
+        pimpl->CreateSwapchain();
     }
 
     uint32_t RenderSystem::StartFrame()
     {
-        return m_frame_manager.StartFrame();
+        return pimpl->m_frame_manager.StartFrame();
     }
 
-    void RenderSystem::CreateLogicalDevice() {
+    void RenderSystem::impl::CreateLogicalDevice() {
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating logical device.");
 
         auto indices = m_selected_physical_device.GetQueueFamilyIndices();
@@ -265,7 +319,7 @@ namespace Engine
         this->CreateCommandPools(indices);
     }
 
-    void RenderSystem::CreateSwapchain() 
+    void RenderSystem::impl::CreateSwapchain() 
     {
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating swap chain.");
        
@@ -283,7 +337,7 @@ namespace Engine
         );
     }
 
-    void RenderSystem::CreateCommandPools(const QueueFamilyIndices & indices) 
+    void RenderSystem::impl::CreateCommandPools(const QueueFamilyIndices & indices) 
     {
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating command pools.");
         vk::CommandPoolCreateInfo info{};
@@ -296,7 +350,7 @@ namespace Engine
         m_queues.presentPool = m_device->createCommandPoolUnique(info);
     }
 
-    void RenderSystem::CreateSurface() 
+    void RenderSystem::impl::CreateSurface() 
     {
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating KHR surface.");
 

@@ -2,6 +2,7 @@
 #include <vulkan/vulkan.hpp>
 #include <Asset/AssetRef.h>
 #include <Asset/Mesh/MeshAsset.h>
+#include <SDL3/SDL.h>
 
 namespace Engine {
     HomogeneousMesh::HomogeneousMesh(std::weak_ptr<RenderSystem> system, std::shared_ptr<AssetRef> mesh_asset, size_t submesh_idx) : m_system(system), m_buffer(system), m_mesh_asset(mesh_asset), m_submesh_idx(submesh_idx) {

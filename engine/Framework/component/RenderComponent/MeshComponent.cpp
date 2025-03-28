@@ -1,6 +1,7 @@
 #include "MeshComponent.h"
 
 #include "Render/Renderer/HomogeneousMesh.h"
+#include "Render/RenderSystem/FrameManager.h"
 #include "Asset/Mesh/MeshAsset.h"
 #include <Asset/AssetRef.h>
 

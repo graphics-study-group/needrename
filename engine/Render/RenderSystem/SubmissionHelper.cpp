@@ -6,6 +6,8 @@
 #include "Render/Pipeline/CommandBuffer/BufferTransferHelper.h"
 #include "Render/Pipeline/CommandBuffer/LayoutTransferHelper.h"
 
+#include <SDL3/SDL.h>
+
 namespace Engine::RenderSystemState {
     SubmissionHelper::SubmissionHelper(RenderSystem &system) : m_system(system)
     {

@@ -6,7 +6,15 @@
 #include "MainClass.h"
 #include "Functional/SDLWindow.h"
 #include "Framework/component/RenderComponent/MeshComponent.h"
+#include "Render/Memory/Image2DTexture.h"
+#include "Render/ImageUtils.h"
+#include "Render/AttachmentUtils.h"
+#include "Render/Pipeline/CommandBuffer.h"
 #include "Render/RenderSystem.h"
+#include "Render/RenderSystem/Swapchain.h"
+#include "Render/RenderSystem/FrameManager.h"
+#include "Render/RenderSystem/GlobalConstantDescriptorPool.h"
+#include "Render/RenderSystem/MaterialRegistry.h"
 #include "GUI/GUISystem.h"
 
 using namespace Engine;
@@ -72,7 +80,7 @@ int main(int argc, char ** argv)
         gsys->DrawGUI(cb);
         cb.EndRendering();
         cb.End();
-        cb.Submit(frame_count != 1);
+        cb.Submit();
         rsys->GetFrameManager().CopyToFramebuffer(color.GetImage());
         rsys->CompleteFrame();
 
