@@ -195,7 +195,7 @@ namespace Engine
 
     void Input::ButtonAxis::ProcessEvent(SDL_Event *event)
     {
-        if (event->type == SDL_EVENT_KEY_DOWN || event->type == SDL_EVENT_KEY_UP)
+        if ((event->type == SDL_EVENT_KEY_DOWN || event->type == SDL_EVENT_KEY_UP) && event->key.repeat == false)
         {
             if (k_name_code_map.find(m_positive) != k_name_code_map.end() && event->key.scancode == k_name_code_map.at(m_positive))
                 m_value += event->key.down ? 1.0f : -1.0f;

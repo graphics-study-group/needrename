@@ -9,6 +9,7 @@
 #include <Render/RenderSystem.h>
 #include <Framework/world/WorldSystem.h>
 #include <Asset/AssetManager/AssetManager.h>
+#include <Asset/Scene/GameObjectAsset.h>
 #include <Framework/component/RenderComponent/CameraComponent.h>
 #include <Input/Input.h>
 #include <Framework/component/Component.h>
@@ -22,24 +23,24 @@ public:
 
     std::shared_ptr<CameraComponent> m_camera;
     float m_rotation_speed = 10.0f;
+    float m_move_speed = 1.0f;
+    float m_roll_speed = 1.0f;
     
     virtual void Tick(float dt) override
     {
         auto input = MainClass::GetInstance()->GetInputSystem();
         auto move_forward = input->GetAxis("move forward");
-        auto move_left = input->GetAxis("move left");
+        auto move_right = input->GetAxis("move right");
         auto move_up = input->GetAxis("move up");
+        auto roll_right = input->GetAxisRaw("roll right");
         auto look_button = input->GetAxisRaw("look button");
         auto look_x = input->GetAxisRaw("look x");
         auto look_y = input->GetAxisRaw("look y");
-
+        Transform &transform = m_parentGameObject.lock()->GetTransformRef();
         if (look_button > 0.0f)
-        {
-            auto transform = m_parentGameObject.lock()->GetTransform();
-            Transform delta_transform{};
-            delta_transform.SetRotationEuler(glm::vec3{look_y * m_rotation_speed * dt, 0.0f, look_x * m_rotation_speed * dt});
-            m_parentGameObject.lock()->SetTransform(delta_transform * transform);
-        }
+            transform.SetRotation(transform.GetRotation() * glm::quat(glm::vec3{look_y * m_rotation_speed * dt, 0.0f, look_x * m_rotation_speed * dt}));
+        transform.SetRotation(transform.GetRotation() * glm::quat(glm::vec3{0.0f, roll_right * m_roll_speed * dt, 0.0f}));
+        transform.SetPosition(transform.GetPosition() + transform.GetRotation() * glm::vec3{move_right, move_forward, move_up} * m_move_speed * dt);
     }
 };
 
@@ -68,16 +69,17 @@ int main(int argc, char **argv)
 
     auto input = MainClass::GetInstance()->GetInputSystem();
     input->AddAxis(Input::ButtonAxis("move forward", Input::AxisType::TypeKey, "w", "s"));
-    input->AddAxis(Input::ButtonAxis("move left", Input::AxisType::TypeKey, "a", "d"));
+    input->AddAxis(Input::ButtonAxis("move right", Input::AxisType::TypeKey, "d", "a"));
     input->AddAxis(Input::ButtonAxis("move up", Input::AxisType::TypeKey, "space", "left shift"));
+    input->AddAxis(Input::ButtonAxis("roll right", Input::AxisType::TypeKey, "e", "q"));
     input->AddAxis(Input::ButtonAxis("look button", Input::AxisType::TypeMouseButton, "mouse right", ""));
     input->AddAxis(Input::MotionAxis("look x", Input::AxisType::TypeMouseMotion, "x", 1.0f, 3.0f, 0.001f, 3.0f, false, true));
-    input->AddAxis(Input::MotionAxis("look y", Input::AxisType::TypeMouseMotion, "y", 1.0f, 3.0f, 0.001f, 3.0f, false, false));
+    input->AddAxis(Input::MotionAxis("look y", Input::AxisType::TypeMouseMotion, "y", 1.0f, 3.0f, 0.001f, 3.0f, false, true));
 
     auto camera_go = cmc->GetWorldSystem()->CreateGameObject<GameObject>();
     Transform transform{};
-    transform.SetPosition({0.0f, 1.0f, 0.0f});
-    transform.SetRotationEuler(glm::vec3{0.0, 0.0, 3.1415926});
+    transform.SetPosition({0.0f, 0.2f, -0.7f});
+    transform.SetRotationEuler(glm::vec3{1.57, 0.0, 3.1415926});
     transform.SetScale({1.0f, 1.0f, 1.0f});
     camera_go->SetTransform(transform);
     auto camera_comp = camera_go->template AddComponent<CameraComponent>();

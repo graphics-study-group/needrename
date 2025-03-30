@@ -76,11 +76,11 @@ namespace Engine
 
     void MainClass::MainLoop()
     {
-        unsigned int FPS_TIMER = 0;
+        Uint64 FPS_TIMER = 0;
         while (!m_on_quit)
         {
-            float current_time = SDL_GetTicks();
-            float dt = (current_time - FPS_TIMER) / 1000.0f;
+            Uint64 current_time = SDL_GetTicksNS();
+            float dt = (current_time - FPS_TIMER) * 1e-9f;
             FPS_TIMER = current_time;
 
             this->RunOneFrame(dt);
@@ -92,13 +92,13 @@ namespace Engine
 
     void MainClass::LoopFiniteFrame(int max_frame_count)
     {
-        unsigned int FPS_TIMER = 0;
+        Uint64 FPS_TIMER = 0;
         int frame_count = 0;
 
         while (!m_on_quit && frame_count < max_frame_count)
         {
-            float current_time = SDL_GetTicks();
-            float dt = (current_time - FPS_TIMER) / 1000.0f;
+            Uint64 current_time = SDL_GetTicksNS();
+            float dt = (current_time - FPS_TIMER) * 1e-9f;
             FPS_TIMER = current_time;
 
             this->RunOneFrame(dt);
@@ -111,14 +111,14 @@ namespace Engine
 
     void MainClass::LoopFiniteTime(float max_time)
     {
-        unsigned int FPS_TIMER = 0;
-        float current_time = SDL_GetTicks();
-        float start_time = current_time;
+        Uint64 FPS_TIMER = 0;
+        Uint64 start_time = SDL_GetTicksNS();
+        Uint64 current_time = start_time;
 
-        while (!m_on_quit && current_time - start_time < max_time)
+        while (!m_on_quit && (current_time - start_time) * 1e-9f < max_time)
         {
-            float current_time = SDL_GetTicks();
-            float dt = (current_time - FPS_TIMER) / 1000.0f;
+            current_time = SDL_GetTicksNS();
+            float dt = (current_time - FPS_TIMER) * 1e-9f;
             FPS_TIMER = current_time;
 
             this->RunOneFrame(dt);
