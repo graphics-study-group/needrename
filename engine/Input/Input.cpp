@@ -161,12 +161,22 @@ namespace Engine
 
     float Input::InputAxis::GetRawValue() const
     {
-        return m_invert ? -m_value : m_value;
+        float ret = m_value;
+        if (m_invert)
+            ret = -ret;
+        if (m_dead > 0.0f && std::abs(ret) < m_dead)
+            ret = 0.0f;
+        return ret;
     }
 
     float Input::InputAxis::GetValue() const
     {
-        return m_invert ? -m_smoothed_value : m_smoothed_value;
+        float ret = m_smoothed_value;
+        if (m_invert)
+            ret = -ret;
+        if (m_dead > 0.0f && std::abs(ret) < m_dead)
+            ret = 0.0f;
+        return ret;
     }
 
     void Input::InputAxis::ProcessEvent(SDL_Event *)
@@ -183,8 +193,6 @@ namespace Engine
             m_smoothed_value += dir * m_sensitivity * dt;
         if ((dir > 0.0f && m_smoothed_value > m_value) || (dir < 0.0f && m_smoothed_value < m_value))
             m_smoothed_value = m_value;
-        if (-m_dead < m_smoothed_value && m_smoothed_value < m_dead)
-            m_smoothed_value = 0.0f;
     }
 
     Input::ButtonAxis::ButtonAxis(const std::string &name, AxisType type, const std::string &positive, const std::string &negative, float gravity, float dead, float sensitivity, bool snap, bool invert)
@@ -213,10 +221,10 @@ namespace Engine
         }
         else if (event->type == SDL_EVENT_GAMEPAD_BUTTON_DOWN || event->type == SDL_EVENT_GAMEPAD_BUTTON_UP)
         {
-            if (k_name_code_map.find(m_positive) != k_name_code_map.end() && event->button.button == k_name_code_map.at(m_positive))
-                m_value += event->button.down ? 1.0f : -1.0f;
-            if (k_name_code_map.find(m_negative) != k_name_code_map.end() && event->button.button == k_name_code_map.at(m_negative))
-                m_value += event->button.down ? -1.0f : 1.0f;
+            if (k_name_code_map.find(m_positive) != k_name_code_map.end() && event->gbutton.button == k_name_code_map.at(m_positive))
+                m_value += event->gbutton.down ? 1.0f : -1.0f;
+            if (k_name_code_map.find(m_negative) != k_name_code_map.end() && event->gbutton.button == k_name_code_map.at(m_negative))
+                m_value += event->gbutton.down ? -1.0f : 1.0f;
             m_value = std::clamp(m_value, -1.0f, 1.0f);
         }
     }

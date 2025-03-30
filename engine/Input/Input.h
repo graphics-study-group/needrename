@@ -46,7 +46,7 @@ namespace Engine
             AxisType m_type{};
 
             float m_gravity = 3.0f;     // Speed in units per second that the axis falls toward neutral when no input is present.
-            float m_dead = 0.001f;      // How far the user needs to move an analog stick before your application registers the movement. At runtime, input from all analog devices that falls within this range will be considered null.
+            float m_dead = 0.01f;      // How far the user needs to move an analog stick before your application registers the movement. At runtime, input from all analog devices that falls within this range will be considered null.
             float m_sensitivity = 3.0f; // Speed in units per second that the axis will move toward the target value. This is for digital devices only.
             bool m_snap = false;        // If enabled, the axis value will reset to zero when pressing a button that corresponds to the opposite direction.
             bool m_invert = false;
@@ -66,7 +66,7 @@ namespace Engine
             REFL_SER_BODY(ButtonAxis)
         public:
             ButtonAxis() = default;
-            ButtonAxis(const std::string &name, AxisType type, const std::string &positive,  const std::string &negative, float gravity = 3.0f, float dead = 0.001f, float sensitivity = 3.0f, bool snap = false, bool invert = false);
+            ButtonAxis(const std::string &name, AxisType type, const std::string &positive,  const std::string &negative, float gravity = 3.0f, float dead = 0.01f, float sensitivity = 3.0f, bool snap = false, bool invert = false);
             virtual ~ButtonAxis() = default;
 
             std::string m_positive{};
@@ -81,7 +81,7 @@ namespace Engine
             REFL_SER_BODY(MotionAxis)
         public:
             MotionAxis() = default;
-            MotionAxis(const std::string &name, AxisType type, const std::string &axis, float motion_sensitivity = 1.0f, float gravity = 3.0f, float dead = 0.001f, float sensitivity = 3.0f, bool snap = false, bool invert = false);
+            MotionAxis(const std::string &name, AxisType type, const std::string &axis, float motion_sensitivity = 1.0f, float gravity = 3.0f, float dead = 0.01f, float sensitivity = 3.0f, bool snap = false, bool invert = false);
             virtual ~MotionAxis() = default;
 
             std::string m_axis{};
@@ -98,11 +98,11 @@ namespace Engine
             REFL_SER_BODY(GamepadAxis)
         public:
             GamepadAxis() = default;
-            GamepadAxis(const std::string &name, AxisType type, const std::string &axis, float scale = 0.01f, float gravity = 3.0f, float dead = 0.001f, float sensitivity = 3.0f, bool snap = false, bool invert = false);
+            GamepadAxis(const std::string &name, AxisType type, const std::string &axis, float scale = 1.0f / 32768.0f, float gravity = 3.0f, float dead = 0.01f, float sensitivity = 3.0f, bool snap = false, bool invert = false);
             virtual ~GamepadAxis() = default;
 
             std::string m_axis{};
-            float m_scale = 0.01f;
+            float m_scale = 1.0f / 32768.0f;
 
             virtual void ProcessEvent(SDL_Event *event) override;
         };
