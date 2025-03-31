@@ -32,7 +32,8 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h.in ${CMAKE_CURRENT_SOU
 include(${REFLECTION_PARSER_DIR}/parser.cmake)
 set(all_include_dirs)
 get_include_directories_for_target(engine all_include_dirs)
+filter_files_with_reflection_macros(HEADER REFLECTION_SEARCH_HEADERS)
 
-add_reflection_parser(meta_engine "${HEADER}" "${ENGINE_SOURCE_DIR}/__generated__" "${all_include_dirs}")
+add_reflection_parser(meta_engine "${REFLECTION_SEARCH_HEADERS}" "${ENGINE_SOURCE_DIR}/__generated__" "${all_include_dirs}")
 add_dependencies(engine meta_engine)
 target_link_libraries(engine PRIVATE meta_engine)
