@@ -1,17 +1,18 @@
 import os
-from io import StringIO
+import re
 import clang.cindex as CX
 from pathlib import Path
 from mako.template import Template
 from reflection.Type import Type, Method, Field
+from reflection.utils import find_smart_pointer_type_from_template
 
 
 class ReflectionParser:
     def __init__(self):
-        self.types = {}
-        self.files = []
-        self.file_types = {}
-    
+        self.types = {} # a map from type name to Type object
+        self.files = [] # a list of files to be parsed
+        self.file_type_map = {} # a map from file path to types in the file
+        self.type_file_map = {} # a map from type name to file path
     
     def get_reflection_class_args(self, node: CX.Cursor):
         for child in node.get_children():
@@ -115,16 +116,20 @@ class ReflectionParser:
                 if not self.is_serialized(child, mode):
                     continue
                 if child.kind == CX.CursorKind.FIELD_DECL:
-                    current_type.serialized_fields.append(Field(child))
+                    # smart pointer serialization requires extra headers, so we should record them
+                    field = Field(child)
+                    find_smart_pointer_type_from_template(field.type.cx_type, current_type.serialization_smart_pointer_typenames)
+                    current_type.serialized_fields.append(field)
                     flag = True
 
         if flag:
             self.types[current_type.full_name] = current_type
             assert node.location.file is not None
             path = str(Path(node.location.file.name).resolve())
-            if path not in self.file_types:
-                self.file_types[path] = []
-            self.file_types[path].append(current_type)
+            if path not in self.file_type_map:
+                self.file_type_map[path] = []
+            self.file_type_map[path].append(current_type)
+            self.type_file_map[current_type.full_name] = path
         return
 
 
@@ -159,7 +164,7 @@ class ReflectionParser:
             template_impl = Template(f.read())
         for file in output_files:
             input_path = str(Path(file["input_path"]).resolve())
-            if input_path not in self.file_types.keys():
+            if input_path not in self.file_type_map.keys():
                 continue
             output_path = file["output_impl_path"]["registrar"]
             with open(output_path, "w") as out:
@@ -169,7 +174,7 @@ class ReflectionParser:
             template_gs_ipp = Template(f.read())
         for file in output_files:
             input_path = str(Path(file["input_path"]).resolve())
-            if input_path not in self.file_types.keys():
+            if input_path not in self.file_type_map.keys():
                 continue
             output_path = file["output_impl_path"]["serialization"]
             with open(output_path, "w") as out:
@@ -184,7 +189,7 @@ def clang_parse(file, config, verbose):
     try:
         tu = index.parse(file, args=config["args"].split(), options=flag)
     except CX.TranslationUnitLoadError as e:
-        print(f"[parser] When parsing {all_reflection_file_header_path} , error occurs:")
+        print(f"[parser] When parsing {file} , error occurs:")
         print(e)
         raise e
     

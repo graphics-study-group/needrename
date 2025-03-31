@@ -14,7 +14,7 @@ namespace Engine
     {
         class Type;
 
-        % for class_type in parser.file_types[file_path]:
+        % for class_type in parser.file_type_map[file_path]:
         std::shared_ptr<Type> TypeRegistrar::Register_${class_type.mangled_name}()
         {
             std::shared_ptr<Type> type = std::shared_ptr<Type>(new Type("${class_type.full_name}", true));

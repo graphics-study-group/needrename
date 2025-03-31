@@ -1,6 +1,7 @@
 #include "GameObject.h"
 #include <Framework/object/GameObject.h>
 #include <Framework/component/Component.h>
+#include <Framework/component/TransformComponent/TransformComponent.h>
 #include <MainClass.h>
 
 namespace Engine

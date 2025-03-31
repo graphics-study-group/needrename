@@ -5,6 +5,8 @@
 #include <memory>
 #include <Framework/component/TransformComponent/TransformComponent.h>
 #include <Reflection/macros.h>
+#include <Reflection/serialization_smart_pointer.h>
+#include <Reflection/serialization_vector.h>
 
 // Suppress warning from std::enable_shared_from_this
 #pragma GCC diagnostic push
