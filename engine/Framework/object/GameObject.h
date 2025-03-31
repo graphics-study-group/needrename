@@ -3,7 +3,7 @@
 
 #include <vector>
 #include <memory>
-#include <Framework/component/TransformComponent/TransformComponent.h>
+#include <Core/Math/Transform.h>
 #include <Reflection/macros.h>
 #include <Reflection/serialization_smart_pointer.h>
 #include <Reflection/serialization_vector.h>
@@ -15,7 +15,7 @@
 namespace Engine
 {
     class Component;
-    class Transform;
+    class TransformComponent;
     class WorldSystem;
 
     class REFL_SER_CLASS(REFL_WHITELIST) GameObject : public std::enable_shared_from_this<GameObject>
