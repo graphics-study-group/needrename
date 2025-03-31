@@ -38,20 +38,20 @@ function(setup_python_environment)
     set(Python3_EXECUTABLE ${Python3_EXECUTABLE} PARENT_SCOPE)
 endfunction()
 
-function(generate_cpp_names reflection_search_files generated_code_dir)
+function(generate_cpp_names reflection_search_files)
     set(generated_files "")
     set(config_json "")
     set(index 1)
     foreach(file ${reflection_search_files})
         get_filename_component(filename ${file} NAME)
-        set(registrar_impl "${generated_code_dir}/${index}_registrar_impl_${filename}.cpp")
-        set(serialization_impl "${generated_code_dir}/${index}_serialization_impl_${filename}.cpp")
+        set(registrar_impl "${index}_registrar_impl_${filename}.cpp")
+        set(serialization_impl "${index}_serialization_impl_${filename}.cpp")
         list(APPEND generated_files "${registrar_impl}")
         list(APPEND generated_files "${serialization_impl}")
         set(config_json "${config_json}
         \{
             \"input_path\": \"${file}\",
-            \"output_impl_path\":
+            \"output_impl_file\":
             \{
                 \"registrar\": \"${registrar_impl}\",
                 \"serialization\": \"${serialization_impl}\"
@@ -100,7 +100,8 @@ function(add_reflection_parser target_name reflection_search_files generated_cod
 
     # set up the generated filenames of the file to be parsed
     set(CONFIG_GENERATED_CODE_DIR ${generated_code_dir}/${target_name})
-    generate_cpp_names("${reflection_search_files}" "${CONFIG_GENERATED_CODE_DIR}")
+    generate_cpp_names("${reflection_search_files}")
+    list(TRANSFORM GENERATED_CPPS PREPEND "${CONFIG_GENERATED_CODE_DIR}/")
     foreach(cpp_file ${GENERATED_CPPS})
         if (NOT EXISTS ${cpp_file})
             # generate empty file, used in cmake configuration

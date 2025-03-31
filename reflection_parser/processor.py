@@ -166,7 +166,7 @@ class ReflectionParser:
             input_path = str(Path(file["input_path"]).resolve())
             if input_path not in self.file_type_map.keys():
                 continue
-            output_path = file["output_impl_path"]["registrar"]
+            output_path = os.path.join(generated_code_dir, file["output_impl_file"]["registrar"])
             with open(output_path, "w") as out:
                 out.write(template_impl.render(file_path=input_path, parser=self))
                 
@@ -176,7 +176,7 @@ class ReflectionParser:
             input_path = str(Path(file["input_path"]).resolve())
             if input_path not in self.file_type_map.keys():
                 continue
-            output_path = file["output_impl_path"]["serialization"]
+            output_path = os.path.join(generated_code_dir, file["output_impl_file"]["serialization"])
             with open(output_path, "w") as out:
                 out.write(template_gs_ipp.render(file_path=input_path, parser=self))
 
