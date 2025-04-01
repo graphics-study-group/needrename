@@ -10,6 +10,7 @@ class Type:
         self.base_types = []
         self.fields = []
         self.serialized_fields = []
+        self.serialization_smart_pointer_typenames = []
         self.constructors = []
         self.methods = []
 

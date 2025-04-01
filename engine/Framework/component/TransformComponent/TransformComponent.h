@@ -8,6 +8,9 @@
 
 namespace Engine
 {
+    class Transform;
+    class GameObject;
+
     class REFL_SER_CLASS(REFL_WHITELIST) TransformComponent : public Component
     {
         REFL_SER_BODY(TransformComponent)

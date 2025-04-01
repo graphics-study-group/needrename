@@ -1,5 +1,22 @@
 #include <Reflection/serialization.h>
-#include "all_reflection_files.hpp"
+#include "${file_path}"
+
+<%def name="generate_headers(class_type)">
+% for base_type in class_type.base_types:
+% if base_type.full_name in parser.types:
+${generate_headers(parser.types[base_type.full_name])}
+% endif
+% endfor
+% for smart_pointer_typename in class_type.serialization_smart_pointer_typenames:
+% if smart_pointer_typename in parser.type_file_map.keys():
+#include "${parser.type_file_map[smart_pointer_typename]}"
+% endif
+% endfor
+</%def>
+
+% for class_type in parser.file_type_map[file_path]:
+${generate_headers(class_type)}
+% endfor
 
 <%
 import clang.cindex as CX
@@ -75,7 +92,7 @@ import clang.cindex as CX
     % endif
     % endfor
 </%def>
-% for class_type in parser.file_types[file_path]:
+% for class_type in parser.file_type_map[file_path]:
 void ${class_type.full_name}::_SERIALIZATION_SAVE_(Engine::Serialization::Archive& archive) const
 {
     Engine::Serialization::Json &json = *archive.m_cursor;

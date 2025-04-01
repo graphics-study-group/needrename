@@ -4,11 +4,13 @@
 #include <vector>
 #include <Core/Math/Transform.h>
 #include <Framework/component/Component.h>
-#include <Asset/AssetRef.h>
 #include <Reflection/macros.h>
+#include <Reflection/serialization_vector.h>
+#include <Reflection/serialization_smart_pointer.h>
 
 namespace Engine
 {
+    class AssetRef;
     class MaterialInstance;
     class RenderSystem;
 
