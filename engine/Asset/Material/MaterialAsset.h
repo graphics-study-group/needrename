@@ -7,7 +7,6 @@
 #include <glm.hpp>
 #include <unordered_map>
 #include <Asset/Asset.h>
-#include <Asset/AssetRef.h>
 #include <Asset/Material/ShaderAsset.h>
 #include <Reflection/macros.h>
 #include <Reflection/serialization_smart_pointer.h>

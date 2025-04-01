@@ -2,11 +2,11 @@
 #define FRAMEWORK_COMPONENT_RENDERCOMPONENT_MESHCOMPONENT_INCLUDED
 
 #include <Framework/component/RenderComponent/RendererComponent.h>
-#include <Asset/AssetRef.h>
 #include <Reflection/macros.h>
 
 namespace Engine
 {
+    class AssetRef;
     class HomogeneousMesh;
 
     class REFL_SER_CLASS(REFL_WHITELIST) MeshComponent : public RendererComponent
