@@ -49,6 +49,20 @@ namespace Engine {
              */
             void EnqueueTextureBufferSubmission(const AllocatedImage2DTexture& texture, const std::byte * data, size_t length);
 
+            /**
+             * @brief Enqueue a texture clear operation.
+             * Record corresponding image barriers to a disposable command buffer at the beginning of a frame, and issue a clear operation.
+             * The layout of the image will be transferred to optimal for shader read after clear operation.
+             * Useful for creating a blank default texture.
+             * Only color aspect is cleared. All mipmap levels and arrays are cleared.
+             * 
+             * @note Not tested yet.
+             * 
+             * @param texture
+             * @param color
+             */
+            void EnqueueTextureClear(const AllocatedImage2DTexture & texture, std::tuple<float, float, float, float> color_rgba);
+
             /***
              * @brief Start the frame. Allocated a new command buffer if needed, record all pending operations, and submit the
              * buffer to the graphics queue allocated by the render system.

@@ -8,7 +8,6 @@
 #include "Framework/component/RenderComponent/MeshComponent.h"
 #include "Render/Material/TestMaterial.h"
 #include "Render/Pipeline/Shader.h"
-#include "Render/Pipeline/RenderTarget/RenderTargetSetup.h"
 #include "Render/Pipeline/CommandBuffer.h"
 #include "Render/Renderer/HomogeneousMesh.h"
 

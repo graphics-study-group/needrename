@@ -1,22 +1,10 @@
 #ifndef RENDER_RENDERSYSTEM_INCLUDED
 #define RENDER_RENDERSYSTEM_INCLUDED
 
-#include "Functional/SDLWindow.h"
-#include <vector>
 #include <memory>
 #include <vulkan/vulkan.hpp>
 
-#include "Render/Pipeline/RenderTarget/RenderTargetSetup.h"
-#include "Render/Pipeline/CommandBuffer.h"
-
-#include "Render/RenderSystem/AllocatorState.h"
-#include "Render/RenderSystem/Instance.h"
-#include "Render/RenderSystem/PhysicalDevice.h"
-#include "Render/RenderSystem/Swapchain.h"
-#include "Render/RenderSystem/GlobalConstantDescriptorPool.h"
-#include "Render/RenderSystem/MaterialDescriptorManager.h"
-#include "Render/RenderSystem/MaterialRegistry.h"
-#include "Render/RenderSystem/FrameManager.h"
+#include "Render/RenderSystem/Structs.h"
 
 // Suppress warning from std::enable_shared_from_this
 #pragma GCC diagnostic push
@@ -24,15 +12,29 @@
 
 namespace Engine
 {
+    class SDLWindow;
     class RendererComponent;
     class CameraComponent;
+    class RenderCommandBuffer;
 
     namespace ConstantData {
         struct PerCameraStruct;
-    }
+    };
+
+    namespace RenderSystemState {
+        class Swapchain;
+        class AllocatorState;
+        class GlobalConstantDescriptorPool;
+        class MaterialRegistry;
+        class FrameManager;
+    };
 
     class RenderSystem : public std::enable_shared_from_this<RenderSystem>
     {
+    private:
+        class impl;
+        std::unique_ptr <impl> pimpl;
+
     public:
 
         using SwapchainSupport = Engine::RenderSystemState::SwapchainSupport;
@@ -104,45 +106,6 @@ namespace Engine
         void EnableDepthTesting();
 
         void WritePerCameraConstants(const ConstantData::PerCameraStruct & data, uint32_t in_flight_index);
-        
-    protected:
-        /// @brief Create a vk::SurfaceKHR.
-        /// It should be called right after instance creation, before selecting a physical device.
-        void CreateSurface();
-
-        /// @brief Create a logical device from selected physical device.
-        void CreateLogicalDevice();
-
-        /// @brief Create a swap chain, possibly replace the older one.
-        void CreateSwapchain();
-
-        void CreateCommandPools(const QueueFamilyIndices & indices);
-
-        static constexpr const char * validation_layer_name = "VK_LAYER_KHRONOS_validation";
-        static constexpr std::array <std::string_view, 1> device_extension_name = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
-
-        // uint32_t m_in_flight_frame_id = 0;
-
-        std::weak_ptr <SDLWindow> m_window;
-        // TODO: data: mesh, texture, light
-        std::vector <std::shared_ptr<RendererComponent>> m_components {};
-        std::shared_ptr <CameraComponent> m_active_camera {};
-
-        RenderSystemState::PhysicalDevice m_selected_physical_device {};
-
-        // Order of declaration effects destructing order!
-
-        std::unique_ptr<RenderTargetSetup> m_render_target_setup {};
-        RenderSystemState::Instance m_instance {};
-        vk::UniqueSurfaceKHR m_surface{};
-        vk::UniqueDevice m_device{};
-        
-        QueueInfo  m_queues {};
-        RenderSystemState::AllocatorState m_allocator_state;
-        RenderSystemState::Swapchain m_swapchain{};
-        RenderSystemState::FrameManager m_frame_manager;
-        RenderSystemState::GlobalConstantDescriptorPool m_descriptor_pool{};
-        RenderSystemState::MaterialRegistry m_material_registry {};
     };
 }
 

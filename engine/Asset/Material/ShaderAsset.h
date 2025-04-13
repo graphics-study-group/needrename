@@ -2,7 +2,6 @@
 #define ASSET_MATERIAL_SHADERASSET_INCLUDED
 
 #include <Asset/Asset.h>
-#include <Asset/AssetRef.h>
 #include <Reflection/macros.h>
 
 namespace Engine {

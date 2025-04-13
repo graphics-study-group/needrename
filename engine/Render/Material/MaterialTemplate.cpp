@@ -5,9 +5,12 @@
 #include "MaterialTemplateUtils.h"
 #include "Render/ConstantData/PerModelConstants.h"
 #include "Render/Renderer/HomogeneousMesh.h"
+#include "Render/RenderSystem/GlobalConstantDescriptorPool.h"
+#include "Render/RenderSystem/Swapchain.h"
 
 #include <glm.hpp>
 #include <fstream>
+#include <SDL3/SDL.h>
 
 namespace Engine
 {

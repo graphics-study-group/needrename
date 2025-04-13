@@ -14,9 +14,13 @@ namespace Engine {
             static constexpr uint32_t FRAMES_IN_FLIGHT = 3;
         private:
             std::array <vk::UniqueSemaphore, FRAMES_IN_FLIGHT> image_acquired_semaphores {};
-            std::array <vk::UniqueSemaphore, FRAMES_IN_FLIGHT> command_executed_semaphores {};
+            std::array <vk::UniqueSemaphore, FRAMES_IN_FLIGHT> render_command_executed_semaphores {};
+            std::array <vk::UniqueSemaphore, FRAMES_IN_FLIGHT> copy_to_swapchain_completed_semaphores {};
+            std::array <vk::UniqueSemaphore, FRAMES_IN_FLIGHT> next_frame_ready_semaphores {};
             std::array <vk::UniqueFence, FRAMES_IN_FLIGHT> command_executed_fences {};
             std::array <vk::UniqueCommandBuffer, FRAMES_IN_FLIGHT> command_buffers {};
+            std::array <vk::UniqueCommandBuffer, FRAMES_IN_FLIGHT> copy_to_swapchain_command_buffers {};
+
             std::vector <RenderCommandBuffer> render_command_buffers {};
 
             uint32_t current_frame_in_flight {std::numeric_limits<uint32_t>::max()};
@@ -24,11 +28,13 @@ namespace Engine {
             // Current frame buffer id. Set by `StartFrame()` method.
             uint32_t current_framebuffer {std::numeric_limits<uint32_t>::max()};
 
+            vk::Queue graphic_queue {};
             vk::Queue present_queue {};
             vk::SwapchainKHR swapchain {};
             RenderSystem & m_system;
 
             std::unique_ptr <SubmissionHelper> m_submission_helper {};
+
         public:
             FrameManager (RenderSystem & sys);
 
@@ -58,6 +64,29 @@ namespace Engine {
              * @note The index of the available image might be different from the counter of the current frame in flight.
              */
             uint32_t StartFrame (uint64_t timeout = std::numeric_limits<uint64_t>::max());
+
+            /**
+             * @brief Copy the given image to current acquired framebuffer.
+             * The image must be in Color Attachment Optimal layout, which should be guaranteed so long as
+             * this method is called immediately after a draw call to copy a color attachment to the framebuffer.
+             * 
+             * The method transits the image to Transfer Source Layout and the framebuffer to Transfer Destination Layout,
+             * record a image copy command (not blitting command, so resizing is not possible), and transits the image
+             * back to Color Attachment Optimal layout.
+             * 
+             * The command buffer used is distinct from the render command buffer, but is submitted into the same graphic
+             * queue. Execution is halted before the semaphore marking the completion of the render command buffer is
+             * signaled. Only after its execution is completed, semaphores for presenting and rendering for the next frame
+             * will be signaled, which means only exactly one render command buffer can be executed at the same time.
+             */
+            void CopyToFrameBuffer (vk::Image image, vk::Extent2D extent, vk::Offset2D offsetSrc = {0, 0}, vk::Offset2D offsetDst = {0, 0});
+
+            /**
+             * @brief Copy the given image to current acquired framebuffer.
+             * This overload executes the copy with zero offset and the swapchain extent.
+             * See another overload for more information.
+             */
+            void CopyToFramebuffer (vk::Image image);
 
             /**
              * @brief Announce the completion of CPU works of this frame in flight.

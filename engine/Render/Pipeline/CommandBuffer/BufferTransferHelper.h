@@ -7,10 +7,16 @@ namespace Engine {
     class BufferTransferHelper {
     public:
         enum class BufferTransferType {
+            // Barrier before writing to a vertex buffer.
             VertexBefore,
+            // Barrier after writing to a vertex buffer.
             VertexAfter,
+            // Barrier before writing to a read-only storage buffer.
             ReadonlyStorageBefore,
+            // Barrier after writing to a read-only storage buffer.
             ReadonlyStorageAfter,
+            // Barrier between clear (e.g. `vkCmdFillBuffer`) and copy (e.g. `vkCmdCopyBufferToImage`) commands.
+            ClearAfter
         };
         
         static vk::MemoryBarrier2 GetBufferBarrier(BufferTransferType type);
