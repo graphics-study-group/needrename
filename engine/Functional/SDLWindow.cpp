@@ -3,17 +3,11 @@
 
 namespace Engine
 {
-    SDLWindow::SDLWindow(const char *title, int w, int h,
-                         Uint32 flags) : width(w), height(h)
+    SDLWindow::SDLWindow(const char *title, int width, int height, Uint32 flags)
     {
-        this->window = SDL_CreateWindow(title, w, h, flags);
+        this->window = SDL_CreateWindow(title, width, height, flags);
         if (!this->window)
             throw Exception::SDLExceptions::cant_create_window();
-    }
-
-    SDLWindow::SDLWindow(SDLWindow && other) 
-        : window(other.window), width(other.width), height(other.height), postProcs(std::move(other.postProcs)) {
-        other.window = nullptr;
     }
 
     SDLWindow::~SDLWindow()
@@ -40,44 +34,4 @@ namespace Engine
         if (freeSurface)
             SDL_DestroySurface(surface);
     }
-
-    bool SDLWindow::DispatchEvents(SDL_Event &event)
-    {
-        // SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Dispatching an event : %u\n", event.type);
-        switch (event.type)
-        {
-        default:
-            break;
-        }
-        return true;
-    }
-
-    bool SDLWindow::BeforeEventLoop()
-    {
-        return true;
-    }
-
-    bool SDLWindow::AfterEventLoop()
-    {
-        bool ret = true;
-        for (auto item : this->postProcs)
-            if (item() == false)
-            {
-                ret = false;
-                break;
-            }
-
-        return ret;
-    }
-
-    int SDLWindow::GetHeight() const
-    {
-        return height;
-    }
-
-    int SDLWindow::GetWidth() const
-    {
-        return width;
-    }
-
 } // namespace Engine

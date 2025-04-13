@@ -28,6 +28,8 @@ namespace Engine {
         void operator= (const GUISystem &) = delete;
         void operator= (GUISystem &&) = delete; 
 
+        bool WantCaptureMouse() const;
+        bool WantCaptureKeyboard() const;
         void ProcessEvent(SDL_Event * event) const;
         void PrepareGUI() const;
         void DrawGUI(RenderCommandBuffer & cb) const;

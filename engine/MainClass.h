@@ -1,6 +1,7 @@
 #ifndef MAINCLASS_H
 #define MAINCLASS_H
 
+#include <vector>
 #include <memory>
 #include <filesystem>
 #include "consts.h"
@@ -14,6 +15,7 @@ namespace Engine
     class WorldSystem;
     class AssetManager;
     class GUISystem;
+    class Input;
 
     class MainClass
     {
@@ -33,6 +35,7 @@ namespace Engine
         std::shared_ptr<WorldSystem> GetWorldSystem() const;
         std::shared_ptr<AssetManager> GetAssetManager() const;
         std::shared_ptr<GUISystem> GetGUISystem() const;
+        std::shared_ptr<Input> GetInputSystem() const;
 
     protected:
         std::shared_ptr<SDLWindow> window{};
@@ -40,8 +43,11 @@ namespace Engine
         std::shared_ptr<WorldSystem> world{};
         std::shared_ptr<AssetManager> asset{};
         std::shared_ptr<GUISystem> gui{};
+        std::shared_ptr<Input> input{};
 
-        void RunOneFrame(SDL_Event &event, float dt);
+        bool m_on_quit = false;
+
+        void RunOneFrame(float dt);
     };
 }
 

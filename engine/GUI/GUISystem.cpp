@@ -28,6 +28,16 @@ namespace Engine {
         CleanUp();
     }
 
+    bool GUISystem::WantCaptureMouse() const
+    {
+        return ImGui::GetIO().WantCaptureMouse;
+    }
+
+    bool GUISystem::WantCaptureKeyboard() const
+    {
+        return ImGui::GetIO().WantCaptureKeyboard;
+    }
+
     void GUISystem::ProcessEvent(SDL_Event *event) const
     {
         ImGui_ImplSDL3_ProcessEvent(event);

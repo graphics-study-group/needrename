@@ -4,6 +4,7 @@
 #include "Render/RenderSystem.h"
 #include "Asset/AssetManager/AssetManager.h"
 #include "GUI/GUISystem.h"
+#include <Input/Input.h>
 #include <Asset/Scene/LevelAsset.h>
 
 #include <nlohmann/json.hpp>
@@ -60,16 +61,13 @@ namespace Engine
             sdl_window_flags = SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
         if (opt->instantQuit)
             return;
-        this->window = std::make_shared<SDLWindow>(
-            opt->title.c_str(),
-            opt->resol_x,
-            opt->resol_y,
-            sdl_window_flags);
+        this->window = std::make_shared<SDLWindow>(opt->title.c_str(), opt->resol_x, opt->resol_y, sdl_window_flags);
 
         this->renderer = std::make_shared<RenderSystem>(this->window);
         this->world = std::make_shared<WorldSystem>();
         this->asset = std::make_shared<AssetManager>();
         this->gui = std::make_shared<GUISystem>(this->renderer);
+        this->input = std::make_shared<Input>();
 
         this->renderer->Create();
         this->gui->Create(this->window->GetWindow());
@@ -78,27 +76,14 @@ namespace Engine
 
     void MainClass::MainLoop()
     {
-        SDL_Event event;
-        bool onQuit = false;
-
-        unsigned int FPS_TIMER = 0;
-
-        while (!onQuit)
+        Uint64 FPS_TIMER = 0;
+        while (!m_on_quit)
         {
-            // TODO: asynchronous execution
-            this->asset->LoadAssetsInQueue();
-
-            float current_time = SDL_GetTicks();
-            float dt = (current_time - FPS_TIMER) / 1000.0f;
-
-            this->RunOneFrame(event, dt);
-            if (event.type == SDL_EVENT_QUIT)
-                onQuit = true;
-
-            current_time = SDL_GetTicks();
-            // if (current_time - FPS_TIMER < TPF_LIMIT)
-            //     SDL_Delay(TPF_LIMIT - current_time + FPS_TIMER);
+            Uint64 current_time = SDL_GetTicksNS();
+            float dt = (current_time - FPS_TIMER) * 1e-9f;
             FPS_TIMER = current_time;
+
+            this->RunOneFrame(dt);
         }
         SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "The main loop is ended.");
         renderer->WaitForIdle();
@@ -107,29 +92,16 @@ namespace Engine
 
     void MainClass::LoopFiniteFrame(int max_frame_count)
     {
-        SDL_Event event;
-        bool onQuit = false;
-
-        unsigned int FPS_TIMER = 0;
+        Uint64 FPS_TIMER = 0;
         int frame_count = 0;
 
-        while (!onQuit && frame_count < max_frame_count)
+        while (!m_on_quit && frame_count < max_frame_count)
         {
-            // TODO: asynchronous execution
-            this->asset->LoadAssetsInQueue();
-
-            float current_time = SDL_GetTicks();
-            float dt = (current_time - FPS_TIMER) / 1000.0f;
-
-            this->RunOneFrame(event, dt);
-            if (event.type == SDL_EVENT_QUIT)
-                onQuit = true;
-
-            current_time = SDL_GetTicks();
-            // if (current_time - FPS_TIMER < TPF_LIMIT)
-            //     SDL_Delay(TPF_LIMIT - current_time + FPS_TIMER);
+            Uint64 current_time = SDL_GetTicksNS();
+            float dt = (current_time - FPS_TIMER) * 1e-9f;
             FPS_TIMER = current_time;
 
+            this->RunOneFrame(dt);
             frame_count++;
         }
         SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "The main loop is ended.");
@@ -139,29 +111,17 @@ namespace Engine
 
     void MainClass::LoopFiniteTime(float max_time)
     {
-        SDL_Event event;
-        bool onQuit = false;
+        Uint64 FPS_TIMER = 0;
+        Uint64 start_time = SDL_GetTicksNS();
+        Uint64 current_time = start_time;
 
-        unsigned int FPS_TIMER = 0;
-        float current_time = SDL_GetTicks();
-        float start_time = current_time;
-
-        while (!onQuit && current_time - start_time < max_time)
+        while (!m_on_quit && (current_time - start_time) * 1e-9f < max_time)
         {
-            // TODO: asynchronous execution
-            this->asset->LoadAssetsInQueue();
-
-            float current_time = SDL_GetTicks();
-            float dt = (current_time - FPS_TIMER) / 1000.0f;
-
-            this->RunOneFrame(event, dt);
-            if (event.type == SDL_EVENT_QUIT)
-                onQuit = true;
-
-            current_time = SDL_GetTicks();
-            // if (current_time - FPS_TIMER < TPF_LIMIT)
-            //     SDL_Delay(TPF_LIMIT - current_time + FPS_TIMER);
+            current_time = SDL_GetTicksNS();
+            float dt = (current_time - FPS_TIMER) * 1e-9f;
             FPS_TIMER = current_time;
+
+            this->RunOneFrame(dt);
         }
         SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "The main loop is ended.");
         renderer->WaitForIdle();
@@ -188,22 +148,37 @@ namespace Engine
         return renderer;
     }
 
-    void MainClass::RunOneFrame(SDL_Event &event, float dt)
+    std::shared_ptr<Input> MainClass::GetInputSystem() const
     {
-        this->window->BeforeEventLoop();
+        return input;
+    }
+
+    void MainClass::RunOneFrame(float dt)
+    {
+        // TODO: asynchronous execution
+        this->asset->LoadAssetsInQueue();
+
+        SDL_Event event;
+        while (SDL_PollEvent(&event))
+        {
+            if (event.type == SDL_EVENT_QUIT)
+            {
+                m_on_quit = true;
+                break;
+            }
+            this->gui->ProcessEvent(&event);
+            if (this->gui->WantCaptureMouse() && SDL_EVENT_MOUSE_MOTION <= event.type && event.type < SDL_EVENT_JOYSTICK_AXIS_MOTION) // 0x600+
+                continue;
+            if (this->gui->WantCaptureKeyboard() && (event.type == SDL_EVENT_KEY_DOWN || event.type == SDL_EVENT_KEY_UP))
+                continue;
+            input->ProcessEvent(&event);
+        }
+
+        this->input->Update(dt);
         this->world->Tick(dt);
 
         // TODO: Set up viewport information
 
         this->renderer->Render();
-
-        this->window->AfterEventLoop();
-
-        while (SDL_PollEvent(&event))
-        {
-            this->gui->ProcessEvent(&event);
-            if (event.type == SDL_EVENT_QUIT)
-                break;
-        }
     }
 } // namespace Engine
