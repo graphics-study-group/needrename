@@ -6,6 +6,8 @@
 #include <vector>
 #include <unordered_map>
 #include <Reflection/macros.h>
+#include <Reflection/serialization_vector.h>
+#include <Reflection/serialization_smart_pointer.h>
 #include <SDL3/SDL_events.h>
 
 namespace Engine
