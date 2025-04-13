@@ -15,6 +15,7 @@
 #include <Render/RenderSystem/FrameManager.h>
 #include <Framework/world/WorldSystem.h>
 #include <Asset/AssetManager/AssetManager.h>
+#include <Input/Input.h>
 
 using namespace Engine;
 
@@ -25,7 +26,7 @@ int main()
 
     SDL_Init(SDL_INIT_VIDEO);
 
-    StartupOptions opt{.resol_x = 1920, .resol_y = 1080, .title = "Project Loading Test"};
+    StartupOptions opt{.resol_x = 1920, .resol_y = 1080, .title = "Editor"};
 
     auto cmc = MainClass::GetInstance();
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
@@ -55,34 +56,33 @@ int main()
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Entering main loop");
 
-    SDL_Event event;
     bool onQuit = false;
-
-    unsigned int FPS_TIMER = 0;
-    float current_time = SDL_GetTicks();
-    float start_time = current_time;
-
-    while (true)
+    Uint64 FPS_TIMER = 0;
+    while (!onQuit)
     {
+        Uint64 current_time = SDL_GetTicksNS();
+        float dt = (current_time - FPS_TIMER) * 1e-9f;
+        FPS_TIMER = current_time;
+
         asset_manager->LoadAssetsInQueue();
 
-        bool quited = false;
         SDL_Event event;
-        while (SDL_PollEvent(&event) != 0)
+        while (SDL_PollEvent(&event))
         {
-            switch (event.type)
+            if (event.type == SDL_EVENT_QUIT)
             {
-            case SDL_EVENT_QUIT:
-                quited = true;
+                onQuit = true;
                 break;
             }
+            // this->gui->ProcessEvent(&event);
+            // if (this->gui->WantCaptureMouse() && SDL_EVENT_MOUSE_MOTION <= event.type && event.type < SDL_EVENT_JOYSTICK_AXIS_MOTION) // 0x600+
+            //     continue;
+            // if (this->gui->WantCaptureKeyboard() && (event.type == SDL_EVENT_KEY_DOWN || event.type == SDL_EVENT_KEY_UP))
+            //     continue;
+            cmc->GetInputSystem()->ProcessEvent(&event);
         }
-        if (quited)
-            break;
 
-        float current_time = SDL_GetTicks();
-        float dt = (current_time - FPS_TIMER) / 1000.0f;
-        FPS_TIMER = current_time;
+        cmc->GetInputSystem()->Update(dt);
         world->Tick(dt);
 
         // Draw
