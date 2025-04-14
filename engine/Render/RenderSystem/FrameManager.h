@@ -54,9 +54,12 @@ namespace Engine {
             /**
              * @brief Start the rendering of a new frame.
              * 
-             * Wait for the previous command buffer of the same frame in flight counter to finish execution,
+             * Wait for the previous _copy_ command buffer of the same frame in flight counter to finish execution,
              * reset corresponding command buffer and fence and acquire a new image on the swapchain that 
              * is ready for rendering.
+             * 
+             * This method waits for the command buffer used in `CopyToFrameBuffer`. So if it is not called in the
+             * previous frame (which is unlikely), it will hang indefinitely.
              * 
              * @param timeout timeout in milliseconds
              * @return The index of the available image on the swapchain,
@@ -78,13 +81,19 @@ namespace Engine {
              * queue. Execution is halted before the semaphore marking the completion of the render command buffer is
              * signaled. Only after its execution is completed, semaphores for presenting and rendering for the next frame
              * will be signaled, which means only exactly one render command buffer can be executed at the same time.
+             * A fence is signaled after this command buffer has finished execution. The same fence is used to control render
+             * command buffer acquisition for this frame. c.f. `StartFrame()`
+             * 
+             * @warning One overload of this method must be called *exactly once* each frame.
              */
             void CopyToFrameBuffer (vk::Image image, vk::Extent2D extent, vk::Offset2D offsetSrc = {0, 0}, vk::Offset2D offsetDst = {0, 0});
 
             /**
              * @brief Copy the given image to current acquired framebuffer.
              * This overload executes the copy with zero offset and the swapchain extent.
-             * See another overload for more information.
+             * See the complete overload for more information.
+             *
+             * @warning One overload of this method must be called *exactly once* each frame.
              */
             void CopyToFramebuffer (vk::Image image);
 

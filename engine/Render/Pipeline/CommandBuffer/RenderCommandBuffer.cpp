@@ -204,7 +204,7 @@ namespace Engine
         info.signalSemaphoreCount = 1;
         info.pSignalSemaphores = &signal;
         std::array<vk::SubmitInfo, 1> infos{info};
-        m_queue.submit(infos, m_completed_fence);
+        m_queue.submit(infos, nullptr);
     }
 
     void RenderCommandBuffer::Reset() {

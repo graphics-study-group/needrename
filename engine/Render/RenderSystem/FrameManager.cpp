@@ -248,7 +248,7 @@ namespace Engine::RenderSystemState{
             {cb},
             ss
         };
-        graphic_queue.submit(sinfo);
+        graphic_queue.submit(sinfo, this->command_executed_fences[this->GetFrameInFlight()].get());
     }
 
     void FrameManager::CopyToFramebuffer(vk::Image image)
