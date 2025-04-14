@@ -16,6 +16,8 @@
 #include <Framework/world/WorldSystem.h>
 #include <Asset/AssetManager/AssetManager.h>
 #include <Input/Input.h>
+#include <GUI/GUISystem.h>
+#include <imgui_impl_vulkan.h>
 
 using namespace Engine;
 
@@ -35,13 +37,21 @@ int main()
     auto rsys = cmc->GetRenderSystem();
     auto asset_manager = cmc->GetAssetManager();
     auto world = cmc->GetWorldSystem();
+    auto gui = cmc->GetGUISystem();
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading project");
     cmc->LoadProject(project_path);
 
     Engine::AllocatedImage2D color{rsys}, depth{rsys};
-    color.Create(1920, 1080, Engine::ImageUtils::ImageType::ColorAttachment, Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB, 1);
-    depth.Create(1920, 1080, Engine::ImageUtils::ImageType::DepthImage, Engine::ImageUtils::ImageFormat::D32SFLOAT, 1);
+    color.Create(480, 320, Engine::ImageUtils::ImageType::ColorAttachment, Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB, 1);
+    depth.Create(480, 320, Engine::ImageUtils::ImageType::DepthImage, Engine::ImageUtils::ImageFormat::D32SFLOAT, 1);
+    Engine::AllocatedImage2D color_editor{rsys}, depth_editor{rsys};
+    color_editor.Create(1920, 1080, Engine::ImageUtils::ImageType::ColorAttachment, Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB, 1);
+    depth_editor.Create(1920, 1080, Engine::ImageUtils::ImageType::DepthImage, Engine::ImageUtils::ImageFormat::D32SFLOAT, 1);
+    vk::SamplerCreateInfo sci{};
+    sci.magFilter = sci.minFilter = vk::Filter::eNearest;
+    sci.addressModeU = sci.addressModeV = sci.addressModeW = vk::SamplerAddressMode::eRepeat;
+    vk::Sampler sampler = rsys->getDevice().createSampler(sci);
 
     Engine::AttachmentUtils::AttachmentDescription color_att, depth_att;
     color_att.image = color.GetImage();
@@ -53,6 +63,17 @@ int main()
     depth_att.image_view = depth.GetImageView();
     depth_att.load_op = vk::AttachmentLoadOp::eClear;
     depth_att.store_op = vk::AttachmentStoreOp::eDontCare;
+
+    Engine::AttachmentUtils::AttachmentDescription color_editor_att, depth_editor_att;
+    color_editor_att.image = color.GetImage();
+    color_editor_att.image_view = color.GetImageView();
+    color_editor_att.load_op = vk::AttachmentLoadOp::eClear;
+    color_editor_att.store_op = vk::AttachmentStoreOp::eStore;
+
+    depth_editor_att.image = depth.GetImage();
+    depth_editor_att.image_view = depth.GetImageView();
+    depth_editor_att.load_op = vk::AttachmentLoadOp::eClear;
+    depth_editor_att.store_op = vk::AttachmentStoreOp::eDontCare;
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Entering main loop");
 
@@ -74,13 +95,15 @@ int main()
                 onQuit = true;
                 break;
             }
-            // this->gui->ProcessEvent(&event);
-            // if (this->gui->WantCaptureMouse() && SDL_EVENT_MOUSE_MOTION <= event.type && event.type < SDL_EVENT_JOYSTICK_AXIS_MOTION) // 0x600+
-            //     continue;
-            // if (this->gui->WantCaptureKeyboard() && (event.type == SDL_EVENT_KEY_DOWN || event.type == SDL_EVENT_KEY_UP))
-            //     continue;
+            gui->ProcessEvent(&event);
+            if (gui->WantCaptureMouse() && SDL_EVENT_MOUSE_MOTION <= event.type && event.type < SDL_EVENT_JOYSTICK_AXIS_MOTION) // 0x600+
+                continue;
+            if (gui->WantCaptureKeyboard() && (event.type == SDL_EVENT_KEY_DOWN || event.type == SDL_EVENT_KEY_UP))
+                continue;
             cmc->GetInputSystem()->ProcessEvent(&event);
         }
+
+        gui->PrepareGUI();
 
         cmc->GetInputSystem()->Update(dt);
         world->Tick(dt);
@@ -94,9 +117,24 @@ int main()
         cb.BeginRendering(color_att, depth_att, extent, index);
         rsys->DrawMeshes();
         cb.EndRendering();
+
+        vk::Extent2D extent2{/*...*/}; // Some Editor extent
+        cb.BeginRendering(color_editor_att, depth_editor_att, extent, index);
+
+        // Draw Editor GUI using color_att
+        {
+            ImGui::Begin("Game");
+            ImTextureID image_id = reinterpret_cast<ImTextureID>(ImGui_ImplVulkan_AddTexture(sampler, color_att.image_view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL));
+            ImGui::Image(image_id, ImVec2(480, 320), ImVec2(0.0, 1.0), ImVec2(1.0, 0.0), ImVec4(1, 1, 1, 1), ImVec4(0, 1, 0, 1));
+            ImGui::End();
+        }
+
+        cb.EndRendering();
+
         cb.End();
         cb.Submit();
-        rsys->GetFrameManager().CopyToFramebuffer(color.GetImage());
+
+        rsys->GetFrameManager().CopyToFramebuffer(color_editor.GetImage());
         rsys->CompleteFrame();
     }
     rsys->WaitForIdle();
