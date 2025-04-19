@@ -62,9 +62,6 @@ namespace Engine {
              * reset corresponding command buffer and fence and acquire a new image on the swapchain that 
              * is ready for rendering.
              * 
-             * This method waits for the command buffer used in `CopyToFrameBuffer`. So if it is not called in the
-             * previous frame (which is unlikely), it will hang indefinitely.
-             * 
              * @param timeout timeout in milliseconds
              * @return The index of the available image on the swapchain,
              * which is used to determine which framebuffer to render to.
@@ -80,15 +77,6 @@ namespace Engine {
              * The method transits the image to Transfer Source Layout and the framebuffer to Transfer Destination Layout,
              * record a image copy command (not blitting command, so resizing is not possible), and transits the image
              * back to Color Attachment Optimal layout.
-             * 
-             * The command buffer used is distinct from the render command buffer, but is submitted into the same graphic
-             * queue. Execution is halted before the semaphore marking the completion of the render command buffer is
-             * signaled. Only after its execution is completed, semaphores for presenting and rendering for the next frame
-             * will be signaled, which means only exactly one render command buffer can be executed at the same time.
-             * A fence is signaled after this command buffer has finished execution. The same fence is used to control render
-             * command buffer acquisition for this frame. c.f. `StartFrame()`
-             * 
-             * @warning One overload of this method must be called *exactly once* each frame.
              */
             void CopyToFrameBuffer (vk::Image image, vk::Extent2D extent, vk::Offset2D offsetSrc = {0, 0}, vk::Offset2D offsetDst = {0, 0});
 
@@ -96,14 +84,21 @@ namespace Engine {
              * @brief Copy the given image to current acquired framebuffer.
              * This overload executes the copy with zero offset and the swapchain extent.
              * See the complete overload for more information.
-             *
-             * @warning One overload of this method must be called *exactly once* each frame.
              */
             void CopyToFramebuffer (vk::Image image);
 
             /**
-             * @brief Announce the completion of CPU works of this frame in flight.
-             * Queue a present command and increment FIF counter.
+             * @brief Present the swapchain image, and announce the completion of CPU works of this frame in flight.
+             * 
+             * Record and submit the command buffer for frame image copying, then queue a 
+             * present command and increment the FIF counter.
+             * 
+             * The command buffer used for copying is distinct from the render command buffer, but is submitted into the
+             * same graphic queue. Execution is halted before the semaphore marking the completion of the render command
+             * buffer is signaled. Only after its execution is completed, semaphores for presenting and rendering for the
+             * next frame will be signaled, which means only exactly one render command buffer can be executed at the same time.
+             * A fence is signaled after this command buffer has finished execution. The same fence is used to control render
+             * command buffer acquisition for this frame, c.f. `StartFrame()`.
              * 
              * Ensure the command buffer is submitted to the queue before presenting.
              * Submitting the command buffer commences the GPU side of the rendering asynchronously.
