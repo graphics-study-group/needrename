@@ -7,9 +7,133 @@
 #include <SDL3/SDL.h>
 
 namespace Engine::RenderSystemState{
+    struct FrameManager::PresentingHelper {
+        struct PresentingOperation {
+            vk::Image image;
+            vk::Extent2D extent;
+            vk::Offset2D offset_src, offset_dst;
+        };
+
+        std::vector <PresentingOperation> operations {};
+
+        /**
+         * @brief Record the command buffer according to the saved operations.
+         * The operations saved in the struct are left untouched.
+         * 
+         * `vkBeginCommandBuffer` and `vkEndCommandBuffer` are called on the buffer in this method, and therefore
+         * the buffer is expected to be in Pending state when called, and will be in Executable state after calling.
+         * 
+         * The method transits the image to Transfer Source Layout and the framebuffer to Transfer Destination Layout,
+         * record a image copy command (not blitting command, so resizing is not possible), and transits the image
+         * back to Color Attachment Optimal layout.
+         */
+        void RecordCopyCommand(const vk::CommandBuffer & cb, const vk::Image & framebuffer) const {
+            // We can cache this vector to further speed up recording.
+            std::vector <vk::ImageMemoryBarrier2> barriers(operations.size() + 1, vk::ImageMemoryBarrier2{});
+            vk::CommandBufferBeginInfo cbbi {};
+            cb.begin(cbbi);
+            // Prepare barriers
+            for (size_t i = 0; i < operations.size(); i++) {
+                barriers[i] = vk::ImageMemoryBarrier2{
+                    vk::PipelineStageFlagBits2::eTransfer,
+                    vk::AccessFlagBits2::eNone,
+                    vk::PipelineStageFlagBits2::eTransfer,
+                    vk::AccessFlagBits2::eTransferRead,
+                    vk::ImageLayout::eColorAttachmentOptimal,
+                    vk::ImageLayout::eTransferSrcOptimal,
+                    vk::QueueFamilyIgnored,
+                    vk::QueueFamilyIgnored,
+                    operations[i].image,
+                    vk::ImageSubresourceRange{
+                        vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1
+                    }
+                };
+            }
+            *(barriers.rbegin()) = vk::ImageMemoryBarrier2{
+                vk::PipelineStageFlagBits2::eTransfer,
+                vk::AccessFlagBits2::eNone, // > Set up execution dep instead of memory dep.
+                vk::PipelineStageFlagBits2::eTransfer,
+                vk::AccessFlagBits2::eTransferWrite,
+                vk::ImageLayout::eUndefined,
+                vk::ImageLayout::eTransferDstOptimal,
+                vk::QueueFamilyIgnored,
+                vk::QueueFamilyIgnored,
+                framebuffer,
+                vk::ImageSubresourceRange{
+                    vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1
+                }
+            };
+            vk::DependencyInfo dep{
+                {}, {}, {}, barriers
+            };
+            cb.pipelineBarrier2(dep);
+
+            // Record copying command.
+            for (const auto & op : operations) {
+                cb.copyImage(
+                    op.image,
+                    vk::ImageLayout::eTransferSrcOptimal,
+                    framebuffer,
+                    vk::ImageLayout::eTransferDstOptimal,
+                    {
+                        vk::ImageCopy{
+                            vk::ImageSubresourceLayers{
+                                vk::ImageAspectFlagBits::eColor,
+                                0, 0, 1
+                            },
+                            vk::Offset3D{op.offset_src, 0},
+                            vk::ImageSubresourceLayers{
+                                vk::ImageAspectFlagBits::eColor,
+                                0, 0, 1
+                            },
+                            vk::Offset3D{op.offset_dst, 0},
+                            vk::Extent3D{op.extent, 1}
+                        }
+                    }
+                );
+            }
+
+            // Prepare another set of barriers
+            for (size_t i = 0; i < operations.size(); i++) {
+                barriers[i] = vk::ImageMemoryBarrier2{
+                    vk::PipelineStageFlagBits2::eTransfer,
+                    vk::AccessFlagBits2::eTransferRead,
+                    vk::PipelineStageFlagBits2::eBottomOfPipe,
+                    vk::AccessFlagBits2::eNone,
+                    vk::ImageLayout::eTransferSrcOptimal,
+                    vk::ImageLayout::eColorAttachmentOptimal,
+                    vk::QueueFamilyIgnored,
+                    vk::QueueFamilyIgnored,
+                    operations[i].image,
+                    vk::ImageSubresourceRange{
+                        vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1
+                    }
+                };
+            }
+            *(barriers.rbegin()) = vk::ImageMemoryBarrier2{
+                vk::PipelineStageFlagBits2::eTransfer,
+                vk::AccessFlagBits2::eTransferWrite,
+                vk::PipelineStageFlagBits2::eBottomOfPipe,
+                vk::AccessFlagBits2::eNone,
+                vk::ImageLayout::eTransferDstOptimal,
+                vk::ImageLayout::ePresentSrcKHR,
+                vk::QueueFamilyIgnored,
+                vk::QueueFamilyIgnored,
+                framebuffer,
+                vk::ImageSubresourceRange{
+                    vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1
+                }
+            };
+            cb.pipelineBarrier2(dep);
+            cb.end();
+        };
+    };
+
     FrameManager::FrameManager(RenderSystem &sys) : m_system(sys)
     {
     }
+
+    FrameManager::~FrameManager() = default;
 
     void FrameManager::Create()
     {
@@ -61,6 +185,7 @@ namespace Engine::RenderSystemState{
         current_frame_in_flight = 0;
 
         m_submission_helper = std::make_unique <SubmissionHelper> (m_system);
+        m_presenting_helper = std::make_unique <PresentingHelper> ();
     }
 
     uint32_t FrameManager::GetFrameInFlight() const noexcept
@@ -125,106 +250,23 @@ namespace Engine::RenderSystemState{
 
     void FrameManager::CopyToFrameBuffer(vk::Image image, vk::Extent2D extent, vk::Offset2D offsetSrc, vk::Offset2D offsetDst)
     {
-        uint32_t fif = GetFrameInFlight();
-        auto cb = copy_to_swapchain_command_buffers[fif].get();
-        auto framebuffer_image = m_system.GetSwapchain().GetImages()[this->current_framebuffer];
+        m_presenting_helper->operations.emplace_back(image, extent, offsetSrc, offsetDst);
+    }
 
-        vk::CommandBufferBeginInfo cbbi {};
-        cb.begin(cbbi);
+    void FrameManager::CopyToFramebuffer(vk::Image image)
+    {
+        CopyToFrameBuffer(image, m_system.GetSwapchain().GetExtent());
+    }
 
-        // Transit for transfer
-        // We dont need barriers here since the semaphore ensures that rendering is completed
-        std::array<vk::ImageMemoryBarrier2, 2> barriers = {
-            vk::ImageMemoryBarrier2{
-                vk::PipelineStageFlagBits2::eTransfer,
-                vk::AccessFlagBits2::eNone, // > Set up execution dep instead of memory dep.
-                vk::PipelineStageFlagBits2::eTransfer,
-                vk::AccessFlagBits2::eTransferWrite,
-                vk::ImageLayout::eUndefined,
-                vk::ImageLayout::eTransferDstOptimal,
-                vk::QueueFamilyIgnored,
-                vk::QueueFamilyIgnored,
-                framebuffer_image,
-                vk::ImageSubresourceRange{
-                    vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1
-                }
-            },
-            vk::ImageMemoryBarrier2{
-                vk::PipelineStageFlagBits2::eTransfer,
-                vk::AccessFlagBits2::eNone,
-                vk::PipelineStageFlagBits2::eTransfer,
-                vk::AccessFlagBits2::eTransferRead,
-                vk::ImageLayout::eColorAttachmentOptimal,
-                vk::ImageLayout::eTransferSrcOptimal,
-                vk::QueueFamilyIgnored,
-                vk::QueueFamilyIgnored,
-                image,
-                vk::ImageSubresourceRange{
-                    vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1
-                }
-            }
-        };
-        vk::DependencyInfo dep{
-            {}, {}, {}, barriers
-        };
-        cb.pipelineBarrier2(dep);
+    void FrameManager::CompleteFrame()
+    {
+        // Copy framebuffers
+        const auto fif = GetFrameInFlight();
+        const auto framebuffer_image = this->m_system.GetSwapchain().GetImages()[GetFramebuffer()];
+        const auto & copy_cb = copy_to_swapchain_command_buffers[fif].get();
 
-        cb.copyImage(
-            image,
-            vk::ImageLayout::eTransferSrcOptimal,
-            framebuffer_image,
-            vk::ImageLayout::eTransferDstOptimal,
-            {
-                vk::ImageCopy{
-                    vk::ImageSubresourceLayers{
-                        vk::ImageAspectFlagBits::eColor,
-                        0, 0, 1
-                    },
-                    vk::Offset3D{offsetSrc, 0},
-                    vk::ImageSubresourceLayers{
-                        vk::ImageAspectFlagBits::eColor,
-                        0, 0, 1
-                    },
-                    vk::Offset3D{offsetDst, 0},
-                    vk::Extent3D{extent, 1}
-                }
-            }
-        );
-
-        // Transit for presenting
-        barriers = {
-            vk::ImageMemoryBarrier2{
-                vk::PipelineStageFlagBits2::eTransfer,
-                vk::AccessFlagBits2::eTransferWrite,
-                vk::PipelineStageFlagBits2::eBottomOfPipe,
-                vk::AccessFlagBits2::eNone,
-                vk::ImageLayout::eTransferDstOptimal,
-                vk::ImageLayout::ePresentSrcKHR,
-                vk::QueueFamilyIgnored,
-                vk::QueueFamilyIgnored,
-                framebuffer_image,
-                vk::ImageSubresourceRange{
-                    vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1
-                }
-            },
-            // The second barrier might be ignored.
-            vk::ImageMemoryBarrier2{
-                vk::PipelineStageFlagBits2::eTransfer,
-                vk::AccessFlagBits2::eTransferRead,
-                vk::PipelineStageFlagBits2::eBottomOfPipe,
-                vk::AccessFlagBits2::eNone,
-                vk::ImageLayout::eTransferSrcOptimal,
-                vk::ImageLayout::eColorAttachmentOptimal,
-                vk::QueueFamilyIgnored,
-                vk::QueueFamilyIgnored,
-                image,
-                vk::ImageSubresourceRange{
-                    vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1
-                }
-            }
-        };
-        cb.pipelineBarrier2(dep);
-        cb.end();
+        m_presenting_helper->RecordCopyCommand(copy_cb, framebuffer_image);
+        m_presenting_helper->operations.clear();
 
         // Wait for both command execution and image aquisition.
         std::array <vk::Semaphore, 2> rces = {
@@ -245,24 +287,16 @@ namespace Engine::RenderSystemState{
         vk::SubmitInfo sinfo {
             rces,
             psfb,
-            {cb},
+            {copy_cb},
             ss
         };
         graphic_queue.submit(sinfo, this->command_executed_fences[this->GetFrameInFlight()].get());
-    }
 
-    void FrameManager::CopyToFramebuffer(vk::Image image)
-    {
-        CopyToFrameBuffer(image, m_system.GetSwapchain().GetExtent());
-    }
-
-    void FrameManager::CompleteFrame()
-    {
         // Queue a present directive
         std::array<vk::SwapchainKHR, 1> swapchains { swapchain };
         std::array<uint32_t, 1> frame_indices { GetFramebuffer() };
         // Wait for command buffer before presenting the frame
-        std::array<vk::Semaphore, 1> semaphores {copy_to_swapchain_completed_semaphores[GetFrameInFlight()].get()};
+        std::array<vk::Semaphore, 1> semaphores {copy_to_swapchain_completed_semaphores[fif].get()};
         vk::PresentInfoKHR info{semaphores, swapchains, frame_indices};
         vk::Result result = present_queue.presentKHR(info);
         if (result != vk::Result::eSuccess) {

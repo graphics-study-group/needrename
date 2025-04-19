@@ -13,6 +13,8 @@ namespace Engine {
         public:
             static constexpr uint32_t FRAMES_IN_FLIGHT = 3;
         private:
+            struct PresentingHelper;
+
             std::array <vk::UniqueSemaphore, FRAMES_IN_FLIGHT> image_acquired_semaphores {};
             std::array <vk::UniqueSemaphore, FRAMES_IN_FLIGHT> render_command_executed_semaphores {};
             std::array <vk::UniqueSemaphore, FRAMES_IN_FLIGHT> copy_to_swapchain_completed_semaphores {};
@@ -34,9 +36,11 @@ namespace Engine {
             RenderSystem & m_system;
 
             std::unique_ptr <SubmissionHelper> m_submission_helper {};
+            std::unique_ptr <PresentingHelper> m_presenting_helper {};
 
         public:
             FrameManager (RenderSystem & sys);
+            ~FrameManager ();
 
             void Create ();
 
