@@ -23,11 +23,11 @@ namespace Engine::RenderSystemState{
          * `vkBeginCommandBuffer` and `vkEndCommandBuffer` are called on the buffer in this method, and therefore
          * the buffer is expected to be in Pending state when called, and will be in Executable state after calling.
          * 
-         * The method transits the image to Transfer Source Layout and the framebuffer to Transfer Destination Layout,
+         * The method transits the image to Transfer Source Layout and the dst to Transfer Destination Layout,
          * record a image copy command (not blitting command, so resizing is not possible), and transits the image
          * back to Color Attachment Optimal layout.
          */
-        void RecordCopyCommand(const vk::CommandBuffer & cb, const vk::Image & framebuffer) const {
+        void RecordCopyCommand(const vk::CommandBuffer & cb, const vk::Image & dst, bool is_framebuffer = true) const {
             // We can cache this vector to further speed up recording.
             std::vector <vk::ImageMemoryBarrier2> barriers(operations.size() + 1, vk::ImageMemoryBarrier2{});
             vk::CommandBufferBeginInfo cbbi {};
@@ -58,7 +58,7 @@ namespace Engine::RenderSystemState{
                 vk::ImageLayout::eTransferDstOptimal,
                 vk::QueueFamilyIgnored,
                 vk::QueueFamilyIgnored,
-                framebuffer,
+                dst,
                 vk::ImageSubresourceRange{
                     vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1
                 }
@@ -73,7 +73,7 @@ namespace Engine::RenderSystemState{
                 cb.copyImage(
                     op.image,
                     vk::ImageLayout::eTransferSrcOptimal,
-                    framebuffer,
+                    dst,
                     vk::ImageLayout::eTransferDstOptimal,
                     {
                         vk::ImageCopy{
@@ -116,10 +116,10 @@ namespace Engine::RenderSystemState{
                 vk::PipelineStageFlagBits2::eBottomOfPipe,
                 vk::AccessFlagBits2::eNone,
                 vk::ImageLayout::eTransferDstOptimal,
-                vk::ImageLayout::ePresentSrcKHR,
+                is_framebuffer ? vk::ImageLayout::ePresentSrcKHR : vk::ImageLayout::eReadOnlyOptimal,
                 vk::QueueFamilyIgnored,
                 vk::QueueFamilyIgnored,
-                framebuffer,
+                dst,
                 vk::ImageSubresourceRange{
                     vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1
                 }
@@ -258,7 +258,7 @@ namespace Engine::RenderSystemState{
         StageCopyComposition(image, m_system.GetSwapchain().GetExtent());
     }
 
-    void FrameManager::CompleteFrame()
+    void FrameManager::CompositeToFramebufferAndPresent()
     {
         // Copy framebuffers
         const auto fif = GetFrameInFlight();
@@ -307,6 +307,56 @@ namespace Engine::RenderSystemState{
                 );
         }
 
+        CompleteFrame();
+    }
+
+    vk::Fence FrameManager::CompositeToImage(vk::Image image, uint64_t timeout)
+    {
+        // Copy framebuffers
+        const auto fif = GetFrameInFlight();
+        const auto & copy_cb = copy_to_swapchain_command_buffers[fif].get();
+
+        m_presenting_helper->RecordCopyCommand(copy_cb, image, false);
+        m_presenting_helper->operations.clear();
+
+        // Wait for command execution.
+        std::array <vk::Semaphore, 2> rces = {
+            render_command_executed_semaphores[fif].get(),
+            image_acquired_semaphores[fif].get()        // > Although the image is not needed, the semaphore must be cleared.
+        };
+        std::array <vk::PipelineStageFlags, 2> psfb = {
+            vk::PipelineStageFlagBits::eTransfer,
+            vk::PipelineStageFlagBits::eTransfer
+        };
+
+        // Signal ready for next frame.
+        std::array <vk::Semaphore, 1> ss = {
+            next_frame_ready_semaphores[fif].get(),
+        };
+
+        vk::SubmitInfo sinfo {
+            rces,
+            psfb,
+            {copy_cb},
+            ss
+        };
+        graphic_queue.submit(sinfo, this->command_executed_fences[this->GetFrameInFlight()].get());
+
+        if (timeout) {
+            auto device = m_system.getDevice();
+            auto result = device.waitForFences({this->command_executed_fences[fif].get()}, true, timeout);
+            if (result != vk::Result::eSuccess) {
+                SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Timed out waiting for composition for frame id %u.", fif);
+            }
+            device.resetFences({this->command_executed_fences[fif].get()});
+        }
+
+        CompleteFrame();
+        return this->command_executed_fences[fif].get();
+    }
+
+    void FrameManager::CompleteFrame()
+    {
         // Increment FIF counter, reset framebuffer index
         current_frame_in_flight = (current_frame_in_flight + 1) % FRAMES_IN_FLIGHT;
         current_framebuffer = std::numeric_limits<uint32_t>::max();

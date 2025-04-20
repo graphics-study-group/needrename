@@ -238,7 +238,7 @@ namespace Engine
 
     void RenderSystem::CompleteFrame()
     {
-        pimpl->m_frame_manager.CompleteFrame();
+        pimpl->m_frame_manager.CompositeToFramebufferAndPresent();
     }
 
     void RenderSystem::EnableDepthTesting() {

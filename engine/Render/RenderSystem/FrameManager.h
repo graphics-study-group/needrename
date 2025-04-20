@@ -38,6 +38,9 @@ namespace Engine {
             std::unique_ptr <SubmissionHelper> m_submission_helper {};
             std::unique_ptr <PresentingHelper> m_presenting_helper {};
 
+            /// @brief Progress the frame state machine.
+            void CompleteFrame();
+
         public:
             FrameManager (RenderSystem & sys);
             ~FrameManager ();
@@ -86,12 +89,11 @@ namespace Engine {
              * See the complete overload for more information.
              */
             void StageCopyComposition (vk::Image image);
-
+            
             /**
-             * @brief Present the swapchain image, and announce the completion of CPU works of this frame in flight.
+             * @brief Execute staged composition operation to the framebuffer, and equeue a present command.
              * 
-             * Record and submit the command buffer for frame image copying, then queue a 
-             * present command and increment the FIF counter.
+             * Record and submit the command buffer for frame image copying.
              * 
              * The command buffer used for copying is distinct from the render command buffer, but is submitted into the
              * same graphic queue. Execution is halted before the semaphore marking the completion of the render command
@@ -100,11 +102,24 @@ namespace Engine {
              * A fence is signaled after this command buffer has finished execution. The same fence is used to control render
              * command buffer acquisition for this frame, c.f. `StartFrame()`.
              * 
-             * Ensure the command buffer is submitted to the queue before presenting.
-             * Submitting the command buffer commences the GPU side of the rendering asynchronously.
-             * Use fence to ensure that the command buffer execution is finished.
+             * @note This should be the last method to be called each frame, and it will progress the internal state machine.
+             * Either `CompositeToFramebufferAndPresent()` or `CompositeToImage()` must be called exactly once each frame.
              */
-            void CompleteFrame ();
+            void CompositeToFramebufferAndPresent ();
+
+            /**
+             * @brief Execute staged composition operation to a given image.
+             * The image is guaranteed to be in a layout suitable for sampling after the composite.
+             * 
+             * If timeout is not zero, this method will be synchronous and will wait for the copy
+             * command to be completed until timed out.
+             * If the method is called in an asynchronous way, the fence returned can be used
+             * to check its completion.
+             * 
+             * @note This should be the last method to be called each frame, and it will progress the internal state machine.
+             * Either `CompositeToFramebufferAndPresent()` or `CompositeToImage()` must be called exactly once each frame.
+             */
+            vk::Fence CompositeToImage (vk::Image image, uint64_t timeout = std::numeric_limits<uint64_t>::max());
 
             SubmissionHelper & GetSubmissionHelper();
         };
