@@ -70,7 +70,7 @@ namespace Engine {
             uint32_t StartFrame (uint64_t timeout = std::numeric_limits<uint64_t>::max());
 
             /**
-             * @brief Copy the given image to current acquired framebuffer.
+             * @brief Stage a composition by copy of the given image to an undetermined image.
              * The image must be in Color Attachment Optimal layout, which should be guaranteed so long as
              * this method is called immediately after a draw call to copy a color attachment to the framebuffer.
              * 
@@ -78,14 +78,14 @@ namespace Engine {
              * record a image copy command (not blitting command, so resizing is not possible), and transits the image
              * back to Color Attachment Optimal layout.
              */
-            void CopyToFrameBuffer (vk::Image image, vk::Extent2D extent, vk::Offset2D offsetSrc = {0, 0}, vk::Offset2D offsetDst = {0, 0});
+            void StageCopyComposition (vk::Image image, vk::Extent2D extent, vk::Offset2D offsetSrc = {0, 0}, vk::Offset2D offsetDst = {0, 0});
 
             /**
-             * @brief Copy the given image to current acquired framebuffer.
+             * @brief Stage a composition by copy of the given image to an undetermined image.
              * This overload executes the copy with zero offset and the swapchain extent.
              * See the complete overload for more information.
              */
-            void CopyToFramebuffer (vk::Image image);
+            void StageCopyComposition (vk::Image image);
 
             /**
              * @brief Present the swapchain image, and announce the completion of CPU works of this frame in flight.

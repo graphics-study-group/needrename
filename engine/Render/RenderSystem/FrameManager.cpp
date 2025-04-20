@@ -248,14 +248,14 @@ namespace Engine::RenderSystemState{
         return current_framebuffer;
     }
 
-    void FrameManager::CopyToFrameBuffer(vk::Image image, vk::Extent2D extent, vk::Offset2D offsetSrc, vk::Offset2D offsetDst)
+    void FrameManager::StageCopyComposition(vk::Image image, vk::Extent2D extent, vk::Offset2D offsetSrc, vk::Offset2D offsetDst)
     {
         m_presenting_helper->operations.emplace_back(image, extent, offsetSrc, offsetDst);
     }
 
-    void FrameManager::CopyToFramebuffer(vk::Image image)
+    void FrameManager::StageCopyComposition(vk::Image image)
     {
-        CopyToFrameBuffer(image, m_system.GetSwapchain().GetExtent());
+        StageCopyComposition(image, m_system.GetSwapchain().GetExtent());
     }
 
     void FrameManager::CompleteFrame()
