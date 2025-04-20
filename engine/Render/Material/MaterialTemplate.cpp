@@ -329,7 +329,7 @@ namespace Engine
 
                 vk::DescriptorImageInfo image_info {};
                 image_info.imageView = image->GetImageView();
-                image_info.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+                image_info.imageLayout = vk::ImageLayout::eReadOnlyOptimal;
                 image_info.sampler = m_default_sampler.get();
                 info.push_back(std::make_pair(uniform.location.binding, image_info));
             }

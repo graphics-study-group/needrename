@@ -118,7 +118,7 @@ namespace Engine {
             return std::make_pair(vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
         case TextureTransferType::TextureUploadAfter:
         case TextureTransferType::TextureClearAfter:
-            return std::make_pair(vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal);
+            return std::make_pair(vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eReadOnlyOptimal);
         }
         __builtin_unreachable();
     }
