@@ -1,6 +1,13 @@
 #ifndef ENGINE_RENDER_FULLRENDERSYSTEM_INCLUDED
 #define ENGINE_RENDER_FULLRENDERSYSTEM_INCLUDED
 
+/** THIS FILE IS USED AS INTERFACE ONLY, DO NOT INCLUDE IT IN THE INTERNAL ENGINE LIBRARY. **/
+
+#include "Render/ConstantData/PerCameraConstants.h"
+#include "Render/ConstantData/PerModelConstants.h"
+#include "Render/ConstantData/PerSceneConstants.h"
+
+#include "Render/RenderSystem/Structs.h"
 #include "Render/RenderSystem/Swapchain.h"
 #include "Render/RenderSystem/FrameManager.h"
 #include "Render/RenderSystem/GlobalConstantDescriptorPool.h"
