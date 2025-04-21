@@ -64,7 +64,7 @@ namespace Engine
 
         vk::RenderingAttachmentInfo depth_attachment;
         if (depth.image && depth.image_view) {
-            vk::RenderingAttachmentInfo depth_attachment{
+            depth_attachment = vk::RenderingAttachmentInfo{
                 GetVkAttachmentInfo(
                     depth, 
                     vk::ImageLayout::eDepthAttachmentOptimal, 
