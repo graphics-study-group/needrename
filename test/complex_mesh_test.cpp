@@ -12,15 +12,7 @@
 #include <Framework/world/WorldSystem.h>
 #include "Framework/component/RenderComponent/CameraComponent.h"
 #include "Framework/component/RenderComponent/MeshComponent.h"
-#include "Render/Memory/Image2DTexture.h"
-#include "Render/Material/Templates/BlinnPhong.h"
-#include "Render/Pipeline/Shader.h"
-#include "Render/Pipeline/CommandBuffer.h"
-#include "Render/Renderer/HomogeneousMesh.h"
-#include "Render/RenderSystem/Swapchain.h"
-#include "Render/RenderSystem/FrameManager.h"
-#include "Render/RenderSystem/GlobalConstantDescriptorPool.h"
-#include "Render/RenderSystem/MaterialRegistry.h"
+#include "Render/FullRenderSystem.h"
 #include "GUI/GUISystem.h"
 #include <Asset/AssetManager/AssetManager.h>
 #include <Asset/AssetRef.h>
