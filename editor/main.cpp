@@ -43,15 +43,8 @@ int main()
     cmc->LoadProject(project_path);
 
     Engine::AllocatedImage2D color{rsys}, depth{rsys};
-    color.Create(480, 320, Engine::ImageUtils::ImageType::ColorAttachment, Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB, 1);
-    depth.Create(480, 320, Engine::ImageUtils::ImageType::DepthImage, Engine::ImageUtils::ImageFormat::D32SFLOAT, 1);
-    Engine::AllocatedImage2D color_editor{rsys}, depth_editor{rsys};
-    color_editor.Create(1920, 1080, Engine::ImageUtils::ImageType::ColorAttachment, Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB, 1);
-    depth_editor.Create(1920, 1080, Engine::ImageUtils::ImageType::DepthImage, Engine::ImageUtils::ImageFormat::D32SFLOAT, 1);
-    vk::SamplerCreateInfo sci{};
-    sci.magFilter = sci.minFilter = vk::Filter::eNearest;
-    sci.addressModeU = sci.addressModeV = sci.addressModeW = vk::SamplerAddressMode::eRepeat;
-    vk::Sampler sampler = rsys->getDevice().createSampler(sci);
+    color.Create(1920, 1080, Engine::ImageUtils::ImageType::ColorGeneral, Engine::ImageUtils::ImageFormat::B8G8R8A8SRGB, 1);
+    depth.Create(1920, 1080, Engine::ImageUtils::ImageType::DepthImage, Engine::ImageUtils::ImageFormat::D32SFLOAT, 1);
 
     Engine::AttachmentUtils::AttachmentDescription color_att, depth_att;
     color_att.image = color.GetImage();
@@ -64,14 +57,22 @@ int main()
     depth_att.load_op = vk::AttachmentLoadOp::eClear;
     depth_att.store_op = vk::AttachmentStoreOp::eDontCare;
 
+    Engine::AllocatedImage2D color_editor{rsys}, depth_editor{rsys};
+    color_editor.Create(1920, 1080, Engine::ImageUtils::ImageType::ColorAttachment, Engine::ImageUtils::ImageFormat::B8G8R8A8SRGB, 1);
+    depth_editor.Create(1920, 1080, Engine::ImageUtils::ImageType::DepthImage, Engine::ImageUtils::ImageFormat::D32SFLOAT, 1);
+    vk::SamplerCreateInfo sci{};
+    sci.magFilter = sci.minFilter = vk::Filter::eNearest;
+    sci.addressModeU = sci.addressModeV = sci.addressModeW = vk::SamplerAddressMode::eRepeat;
+    vk::Sampler sampler = rsys->getDevice().createSampler(sci);
+
     Engine::AttachmentUtils::AttachmentDescription color_editor_att, depth_editor_att;
-    color_editor_att.image = color.GetImage();
-    color_editor_att.image_view = color.GetImageView();
+    color_editor_att.image = color_editor.GetImage();
+    color_editor_att.image_view = color_editor.GetImageView();
     color_editor_att.load_op = vk::AttachmentLoadOp::eClear;
     color_editor_att.store_op = vk::AttachmentStoreOp::eStore;
 
-    depth_editor_att.image = depth.GetImage();
-    depth_editor_att.image_view = depth.GetImageView();
+    depth_editor_att.image = depth_editor.GetImage();
+    depth_editor_att.image_view = depth_editor.GetImageView();
     depth_editor_att.load_op = vk::AttachmentLoadOp::eClear;
     depth_editor_att.store_op = vk::AttachmentStoreOp::eDontCare;
 
@@ -103,8 +104,6 @@ int main()
             cmc->GetInputSystem()->ProcessEvent(&event);
         }
 
-        gui->PrepareGUI();
-
         cmc->GetInputSystem()->Update(dt);
         world->Tick(dt);
 
@@ -116,25 +115,30 @@ int main()
         vk::Extent2D extent{rsys->GetSwapchain().GetExtent()};
         cb.BeginRendering(color_att, depth_att, extent, index);
         rsys->DrawMeshes();
+        gui->PrepareGUI();
+        gui->DrawGUI(cb);
         cb.EndRendering();
 
-        vk::Extent2D extent2{/*...*/}; // Some Editor extent
-        cb.BeginRendering(color_editor_att, depth_editor_att, extent, index);
-
-        // Draw Editor GUI using color_att
+        vk::Extent2D extent2{rsys->GetSwapchain().GetExtent()};
+        cb.BeginRendering(color_editor_att, depth_editor_att, extent2, index);
+        gui->PrepareGUI();
         {
-            ImGui::Begin("Game");
+            ImGuiWindowFlags flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse;
+            ImGui::SetNextWindowPos({10, 10});
+            ImGui::SetNextWindowSize(ImVec2{300, 300});
+            ImGui::Begin("Game", nullptr, flags);
             ImTextureID image_id = reinterpret_cast<ImTextureID>(ImGui_ImplVulkan_AddTexture(sampler, color_att.image_view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL));
             ImGui::Image(image_id, ImVec2(480, 320), ImVec2(0.0, 1.0), ImVec2(1.0, 0.0), ImVec4(1, 1, 1, 1), ImVec4(0, 1, 0, 1));
             ImGui::End();
         }
-
+        gui->DrawGUI(cb);
         cb.EndRendering();
 
         cb.End();
         cb.Submit();
 
         rsys->GetFrameManager().CopyToFramebuffer(color_editor.GetImage());
+        // rsys->GetFrameManager().CopyToFramebuffer(color.GetImage());
         rsys->CompleteFrame();
     }
     rsys->WaitForIdle();
