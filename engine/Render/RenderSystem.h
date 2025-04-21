@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <vulkan/vulkan.hpp>
+#include <glm.hpp>
 
 #include "Render/RenderSystem/Structs.h"
 
