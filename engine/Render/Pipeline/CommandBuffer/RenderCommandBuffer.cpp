@@ -168,7 +168,17 @@ namespace Engine
         m_handle.endRendering();
     }
 
-    void RenderCommandBuffer::DrawMesh(const HomogeneousMesh& mesh) {
+    void RenderCommandBuffer::InsertAttachmentBarrier(AttachmentBarrierType type, vk::Image image)
+    {
+        std::array <vk::ImageMemoryBarrier2, 1> barriers {
+            LayoutTransferHelper::GetAttachmentBarrier(type, image)
+        };
+        vk::DependencyInfo dep{{}, {}, {}, barriers};
+        m_handle.pipelineBarrier2(dep);
+    }
+
+    void RenderCommandBuffer::DrawMesh(const HomogeneousMesh &mesh)
+    {
         auto bindings = mesh.GetBindingInfo();
         m_handle.bindVertexBuffers(0, bindings.first, bindings.second);
         auto indices = mesh.GetIndexInfo();
