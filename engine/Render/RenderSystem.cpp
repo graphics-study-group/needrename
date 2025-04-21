@@ -108,23 +108,23 @@ namespace Engine
 
     void RenderSystem::DrawMeshes(uint32_t pass)
     {
+        glm::mat4 view{1.0f}, proj{1.0f};
+        if (pimpl->m_active_camera) {
+            view = pimpl->m_active_camera->GetViewMatrix();
+            proj = pimpl->m_active_camera->GetProjectionMatrix();
+        }
+        DrawMeshes(view, proj, pass);
+    }
+
+    void RenderSystem::DrawMeshes(const glm::mat4 &view_matrix, const glm::mat4 &projection_matrix, uint32_t pass)
+    {
         RenderCommandBuffer & cb = this->GetCurrentCommandBuffer();
 
         // Write camera transforms
         std::byte * camera_ptr = this->GetGlobalConstantDescriptorPool().GetPerCameraConstantMemory(pimpl->m_frame_manager.GetFrameInFlight());
-        ConstantData::PerCameraStruct camera_struct;
-        if (pimpl->m_active_camera) {
-            camera_struct = {
-                pimpl->m_active_camera->GetViewMatrix(), 
-                pimpl->m_active_camera->GetProjectionMatrix()
-            };
-            
-        } else {
-            camera_struct = {
-                glm::mat4{1.0f}, 
-                glm::mat4{1.0f}
-            };
-        }
+        ConstantData::PerCameraStruct camera_struct {
+            view_matrix, projection_matrix
+        };
         std::memcpy(camera_ptr, &camera_struct, sizeof camera_struct);
         
         vk::Extent2D extent {this->GetSwapchain().GetExtent()};

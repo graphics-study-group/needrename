@@ -59,7 +59,18 @@ namespace Engine
 
         ~RenderSystem();
 
+        /**
+         * @brief Draw meshes using the matrices of the active camera (identity matrices if default).
+         */
         void DrawMeshes(uint32_t pass = 0);
+
+        /**
+         * @brief Draw meshes with the given view and projection matrices.
+         * 
+         * This method writes camera uniforms and viewport state.
+         * Then it binds materials and records draw calls on the current render command buffer.
+         */
+        void DrawMeshes(const glm::mat4 & view_matrix, const glm::mat4 & projection_matrix, uint32_t pass = 0);
         
         void RegisterComponent(std::shared_ptr <RendererComponent>);
         void ClearComponent();
