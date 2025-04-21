@@ -9,6 +9,7 @@ namespace Engine {
         enum class ImageType {
             DepthImage,
             DepthStencilImage,
+            SampledDepthImage,
             // Color attachment image used for sampling. Can be transferred to.
             TextureImage,
             // Color attachment image used for rendering. Can be transferred from.
@@ -32,6 +33,14 @@ namespace Engine {
             case ImageType::DepthStencilImage:
                 return std::make_tuple(
                     vk::ImageUsageFlagBits::eDepthStencilAttachment,
+                    VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE
+                );
+            case ImageType::SampledDepthImage:
+                return std::make_tuple(
+                    vk::ImageUsageFlags{
+                        vk::ImageUsageFlagBits::eDepthStencilAttachment | 
+                        vk::ImageUsageFlagBits::eSampled
+                    },
                     VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE
                 );
             case ImageType::TextureImage:
@@ -66,6 +75,7 @@ namespace Engine {
         {
             switch(type) {
                 case ImageType::DepthImage:
+                case ImageType::SampledDepthImage:
                     return vk::ImageAspectFlagBits::eDepth;
                 case ImageType::DepthStencilImage:
                     return vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
