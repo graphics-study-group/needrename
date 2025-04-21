@@ -66,6 +66,7 @@ std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate()
     auto shadow_map_vs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/shadowmap.vert.spv.asset");
     auto vs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/blinn_phong.vert.spv.asset");
     auto fs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/blinn_phong.frag.spv.asset");
+    MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(shadow_map_vs_ref);
     MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(vs_ref);
     MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(fs_ref);
     
@@ -111,7 +112,7 @@ std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate()
         view, proj
     };
     lit_pass.shaders.uniforms = {
-        light_source, light_color, view, proj, base_tex, specular_color, ambient_color
+        light_source, light_color, view, proj, base_tex, shadowmap_tex, specular_color, ambient_color
     };
     test_asset->properties.properties[0] = shadow_map_pass;
     test_asset->properties.properties[1] = lit_pass;
@@ -202,8 +203,8 @@ int main(int argc, char ** argv)
     cmc->GetAssetManager()->LoadBuiltinAssets();
     auto test_asset = ConstructMaterialTemplate();
     auto test_asset_ref = std::make_shared<AssetRef>(test_asset);
-    auto test_template = std::make_shared<Materials::BlinnPhongTemplate>(rsys, test_asset_ref);
-    auto test_material_instance = std::make_shared<Materials::BlinnPhongInstance>(rsys, test_template);
+    auto test_template = std::make_shared<MaterialTemplate>(rsys, test_asset_ref);
+    auto test_material_instance = std::make_shared<MaterialInstance>(rsys, test_template);
     test_material_instance->WriteDescriptors(0);
     test_material_instance->WriteUBOUniform(1, test_template->GetVariableIndex("ambient_color", 1).value(), glm::vec4(0.0, 0.0, 0.0, 0.0));
     test_material_instance->WriteUBOUniform(1, test_template->GetVariableIndex("specular_color", 1).value(), glm::vec4(1.0, 1.0, 1.0, 64.0));
