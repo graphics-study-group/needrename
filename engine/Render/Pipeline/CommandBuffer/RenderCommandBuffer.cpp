@@ -48,17 +48,12 @@ namespace Engine
         std::vector <vk::RenderingAttachmentInfo> color_attachment;
         std::vector<vk::ImageMemoryBarrier2> barriers;
         
-        if (color.image) {
-            color_attachment.resize(1);
-            if (!((color.load_op == vk::AttachmentLoadOp::eClear || color.load_op == vk::AttachmentLoadOp::eLoad) &&
-                color.store_op == vk::AttachmentStoreOp::eStore)) {
-                SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Pathological color buffer operations.");
-            }
-            color_attachment[0] = GetVkAttachmentInfo(
+        if (color.image && color.image_view) {
+            color_attachment.push_back(GetVkAttachmentInfo(
                 color,
                 vk::ImageLayout::eColorAttachmentOptimal, 
                 vk::ClearColorValue{0, 0, 0, 0}
-            );
+            ));
 
             // Set up layout transition barrier
             barriers.push_back(LayoutTransferHelper::GetAttachmentBarrier(
@@ -68,11 +63,7 @@ namespace Engine
         }
 
         vk::RenderingAttachmentInfo depth_attachment;
-        if (depth.image) {
-            if (!(depth.load_op == vk::AttachmentLoadOp::eClear 
-                && depth.store_op == vk::AttachmentStoreOp::eDontCare)) {
-                SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Pathological depth buffer operations.");
-            }
+        if (depth.image && depth.image_view) {
             vk::RenderingAttachmentInfo depth_attachment{
                 GetVkAttachmentInfo(
                     depth, 
