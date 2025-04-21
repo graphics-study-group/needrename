@@ -52,6 +52,12 @@ target_link_libraries(complex_mesh_test engine)
 add_test(NAME complex_mesh_test COMMAND complex_mesh_test 120)
 set_target_properties(complex_mesh_test PROPERTIES FOLDER tests)
 
+add_executable(shadow_map_test shadow_map_test.cpp)
+add_dependencies(shadow_map_test shader)
+target_link_libraries(shadow_map_test engine)
+add_test(NAME shadow_map_test COMMAND shadow_map_test 120)
+set_target_properties(shadow_map_test PROPERTIES FOLDER tests)
+
 add_subdirectory(reflection_test)
 add_subdirectory(serialization_test)
 
