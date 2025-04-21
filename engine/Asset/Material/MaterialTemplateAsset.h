@@ -95,11 +95,13 @@ namespace Engine
         REFL_SER_ENABLE struct REFL_SER_CLASS(REFL_BLACKLIST) Attachments {
             REFL_SER_SIMPLE_STRUCT(Attachments)
 
-            /// @brief Color attachments. If left empty, then this struct is ignored
-            /// and the pipeline will be configured to use the current swapchain as attachments.
+            /// @brief Color attachments. If they and depth attachment are all left empty,
+            /// the pipeline will be configured to use the current swapchain as attachments.
             std::vector <ImageUtils::ImageFormat> color {};
             std::vector <AttachmentUtils::AttachmentOp> color_ops {};
 
+            /// @brief Depth attachment format. If color attachments and it are all left empty,
+            /// the pipeline will be configured to use the current swapchain as attachments.
             ImageUtils::ImageFormat depth {};
             ImageUtils::ImageFormat stencil {};
             AttachmentUtils::AttachmentOp ds_ops {};

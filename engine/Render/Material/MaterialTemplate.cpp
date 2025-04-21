@@ -49,6 +49,7 @@ namespace Engine
         pass_info.shaders.resize(prop.shaders.shaders.size());
         psscis.resize(prop.shaders.shaders.size());
         for (size_t i = 0; i < prop.shaders.shaders.size(); i++) {
+            assert(prop.shaders.shaders[i] && "Invalid shader asset.");
             auto shader_asset = prop.shaders.shaders[i]->cas<ShaderAsset>();
             auto code = shader_asset->binary;
             vk::ShaderModuleCreateInfo ci {
@@ -65,7 +66,7 @@ namespace Engine
             };
         }
 
-        bool use_swapchain_attachments = prop.attachments.color.empty();
+        bool use_swapchain_attachments = prop.attachments.color.empty() && prop.attachments.depth == ImageUtils::ImageFormat::UNDEFINED;
 
         auto vis = HomogeneousMesh::GetVertexInputState();
         auto iasi = vk::PipelineInputAssemblyStateCreateInfo {{}, vk::PrimitiveTopology::eTriangleList, vk::False};
@@ -103,7 +104,18 @@ namespace Engine
                 vk::ClearValue{vk::ClearDepthStencilValue{1.0f, 0u}}
             };
         } else {
-            SDL_LogCritical(SDL_LOG_CATEGORY_RENDER, "Custom attachments not implemented yet.");
+            if (prop.attachments.color.empty() && prop.attachments.depth != ImageUtils::ImageFormat::UNDEFINED) {
+                prci = vk::PipelineRenderingCreateInfo{
+                    0, 0, nullptr, ImageUtils::GetVkFormat(prop.attachments.depth), vk::Format::eUndefined, nullptr
+                };
+                pass_info.attachments.ds_attachment_ops = {
+                    vk::AttachmentLoadOp::eClear,
+                    vk::AttachmentStoreOp::eDontCare,
+                    vk::ClearValue{vk::ClearDepthStencilValue{1.0f, 0u}}
+                };
+            } else {
+                SDL_LogCritical(SDL_LOG_CATEGORY_RENDER, "Custom color attachments not implemented yet.");
+            }
         }
         cbsi.logicOpEnable = vk::False;
         cbsi.setAttachments(cbass);

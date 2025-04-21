@@ -74,6 +74,7 @@ std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate()
 
     MaterialTemplateSinglePassProperties shadow_map_pass{}, lit_pass{};
     shadow_map_pass.shaders.shaders = std::vector {shadow_map_vs_ref};
+    shadow_map_pass.attachments.depth = ImageUtils::ImageFormat::D32SFLOAT;
     lit_pass.shaders.shaders = std::vector {vs_ref, fs_ref};
 
     ShaderVariableProperty light_source, light_color;
