@@ -47,9 +47,9 @@ namespace Engine {
             case ColorAttachmentWAR:
                 return std::make_pair(vk::ImageLayout::eUndefined, vk::ImageLayout::eColorAttachmentOptimal);
             case DepthAttachmentRAW:
-                return std::make_pair(vk::ImageLayout::eDepthAttachmentOptimal, vk::ImageLayout::eReadOnlyOptimal);
+                return std::make_pair(vk::ImageLayout::eDepthStencilAttachmentOptimal, vk::ImageLayout::eReadOnlyOptimal);
             case DepthAttachmentWAR:
-                return std::make_pair(vk::ImageLayout::eUndefined, vk::ImageLayout::eDepthAttachmentOptimal);
+                return std::make_pair(vk::ImageLayout::eUndefined, vk::ImageLayout::eDepthStencilAttachmentOptimal);
         }
         __builtin_unreachable();
     }
@@ -103,7 +103,7 @@ namespace Engine {
         case ColorAttachmentPresent:
             return std::make_pair(vk::ImageLayout::eColorAttachmentOptimal, vk::ImageLayout::ePresentSrcKHR);
         case DepthAttachmentPrepare:
-            return std::make_pair(vk::ImageLayout::eUndefined, vk::ImageLayout::eDepthAttachmentOptimal);
+            return std::make_pair(vk::ImageLayout::eUndefined, vk::ImageLayout::eDepthStencilAttachmentOptimal);
         }
         __builtin_unreachable();
     }

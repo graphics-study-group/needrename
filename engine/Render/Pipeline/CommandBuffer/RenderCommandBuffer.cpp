@@ -67,7 +67,7 @@ namespace Engine
             depth_attachment = vk::RenderingAttachmentInfo{
                 GetVkAttachmentInfo(
                     depth, 
-                    vk::ImageLayout::eDepthAttachmentOptimal, 
+                    vk::ImageLayout::eDepthStencilAttachmentOptimal, 
                     vk::ClearDepthStencilValue{1.0f, 0U}
                 )
             };
