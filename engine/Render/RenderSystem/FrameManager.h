@@ -13,6 +13,8 @@ namespace Engine {
         public:
             static constexpr uint32_t FRAMES_IN_FLIGHT = 3;
         private:
+            struct PresentingHelper;
+
             std::array <vk::UniqueSemaphore, FRAMES_IN_FLIGHT> image_acquired_semaphores {};
             std::array <vk::UniqueSemaphore, FRAMES_IN_FLIGHT> render_command_executed_semaphores {};
             std::array <vk::UniqueSemaphore, FRAMES_IN_FLIGHT> copy_to_swapchain_completed_semaphores {};
@@ -34,9 +36,14 @@ namespace Engine {
             RenderSystem & m_system;
 
             std::unique_ptr <SubmissionHelper> m_submission_helper {};
+            std::unique_ptr <PresentingHelper> m_presenting_helper {};
+
+            /// @brief Progress the frame state machine.
+            void CompleteFrame();
 
         public:
             FrameManager (RenderSystem & sys);
+            ~FrameManager ();
 
             void Create ();
 
@@ -58,9 +65,6 @@ namespace Engine {
              * reset corresponding command buffer and fence and acquire a new image on the swapchain that 
              * is ready for rendering.
              * 
-             * This method waits for the command buffer used in `CopyToFrameBuffer`. So if it is not called in the
-             * previous frame (which is unlikely), it will hang indefinitely.
-             * 
              * @param timeout timeout in milliseconds
              * @return The index of the available image on the swapchain,
              * which is used to determine which framebuffer to render to.
@@ -69,43 +73,53 @@ namespace Engine {
             uint32_t StartFrame (uint64_t timeout = std::numeric_limits<uint64_t>::max());
 
             /**
-             * @brief Copy the given image to current acquired framebuffer.
+             * @brief Stage a composition by copy of the given image to an undetermined image.
              * The image must be in Color Attachment Optimal layout, which should be guaranteed so long as
              * this method is called immediately after a draw call to copy a color attachment to the framebuffer.
              * 
              * The method transits the image to Transfer Source Layout and the framebuffer to Transfer Destination Layout,
              * record a image copy command (not blitting command, so resizing is not possible), and transits the image
              * back to Color Attachment Optimal layout.
-             * 
-             * The command buffer used is distinct from the render command buffer, but is submitted into the same graphic
-             * queue. Execution is halted before the semaphore marking the completion of the render command buffer is
-             * signaled. Only after its execution is completed, semaphores for presenting and rendering for the next frame
-             * will be signaled, which means only exactly one render command buffer can be executed at the same time.
-             * A fence is signaled after this command buffer has finished execution. The same fence is used to control render
-             * command buffer acquisition for this frame. c.f. `StartFrame()`
-             * 
-             * @warning One overload of this method must be called *exactly once* each frame.
              */
-            void CopyToFrameBuffer (vk::Image image, vk::Extent2D extent, vk::Offset2D offsetSrc = {0, 0}, vk::Offset2D offsetDst = {0, 0});
+            void StageCopyComposition (vk::Image image, vk::Extent2D extent, vk::Offset2D offsetSrc = {0, 0}, vk::Offset2D offsetDst = {0, 0});
 
             /**
-             * @brief Copy the given image to current acquired framebuffer.
+             * @brief Stage a composition by copy of the given image to an undetermined image.
              * This overload executes the copy with zero offset and the swapchain extent.
              * See the complete overload for more information.
-             *
-             * @warning One overload of this method must be called *exactly once* each frame.
              */
-            void CopyToFramebuffer (vk::Image image);
+            void StageCopyComposition (vk::Image image);
+            
+            /**
+             * @brief Execute staged composition operation to the framebuffer, and equeue a present command.
+             * 
+             * Record and submit the command buffer for frame image copying.
+             * 
+             * The command buffer used for copying is distinct from the render command buffer, but is submitted into the
+             * same graphic queue. Execution is halted before the semaphore marking the completion of the render command
+             * buffer is signaled. Only after its execution is completed, semaphores for presenting and rendering for the
+             * next frame will be signaled, which means only exactly one render command buffer can be executed at the same time.
+             * A fence is signaled after this command buffer has finished execution. The same fence is used to control render
+             * command buffer acquisition for this frame, c.f. `StartFrame()`.
+             * 
+             * @note This should be the last method to be called each frame, and it will progress the internal state machine.
+             * Either `CompositeToFramebufferAndPresent()` or `CompositeToImage()` must be called exactly once each frame.
+             */
+            void CompositeToFramebufferAndPresent ();
 
             /**
-             * @brief Announce the completion of CPU works of this frame in flight.
-             * Queue a present command and increment FIF counter.
+             * @brief Execute staged composition operation to a given image.
+             * The image is guaranteed to be in a layout suitable for sampling after the composite.
              * 
-             * Ensure the command buffer is submitted to the queue before presenting.
-             * Submitting the command buffer commences the GPU side of the rendering asynchronously.
-             * Use fence to ensure that the command buffer execution is finished.
+             * If timeout is not zero, this method will be synchronous and will wait for the copy
+             * command to be completed until timed out.
+             * If the method is called in an asynchronous way, the fence returned can be used
+             * to check its completion.
+             * 
+             * @note This should be the last method to be called each frame, and it will progress the internal state machine.
+             * Either `CompositeToFramebufferAndPresent()` or `CompositeToImage()` must be called exactly once each frame.
              */
-            void CompleteFrame ();
+            vk::Fence CompositeToImage (vk::Image image, uint64_t timeout = std::numeric_limits<uint64_t>::max());
 
             SubmissionHelper & GetSubmissionHelper();
         };

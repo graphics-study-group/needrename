@@ -241,7 +241,7 @@ int main(int argc, char ** argv)
         cb.End();
         cb.Submit();
 
-        rsys->GetFrameManager().CopyToFramebuffer(color.GetImage());
+        rsys->GetFrameManager().StageCopyComposition(color.GetImage());
         rsys->CompleteFrame();
 
         SDL_Delay(10);

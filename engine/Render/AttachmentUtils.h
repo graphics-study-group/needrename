@@ -71,10 +71,10 @@ namespace Engine {
         };
 
         struct AttachmentDescription {
-            vk::Image image;
-            vk::ImageView image_view;
-            vk::AttachmentLoadOp load_op;
-            vk::AttachmentStoreOp store_op;
+            vk::Image image {};
+            vk::ImageView image_view {};
+            vk::AttachmentLoadOp load_op {};
+            vk::AttachmentStoreOp store_op {};
         };
 
         constexpr vk::AttachmentLoadOp GetVkLoadOp(LoadOperation op) {
