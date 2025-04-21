@@ -112,33 +112,37 @@ int main()
         RenderCommandBuffer &cb = rsys->GetCurrentCommandBuffer();
 
         cb.Begin();
-        vk::Extent2D extent{rsys->GetSwapchain().GetExtent()};
-        cb.BeginRendering(color_att, depth_att, extent, index);
-        rsys->DrawMeshes();
-        gui->PrepareGUI();
-        gui->DrawGUI(cb);
-        cb.EndRendering();
-
-        vk::Extent2D extent2{rsys->GetSwapchain().GetExtent()};
-        cb.BeginRendering(color_editor_att, depth_editor_att, extent2, index);
-        gui->PrepareGUI();
         {
+            vk::Extent2D extent{rsys->GetSwapchain().GetExtent()};
+            cb.BeginRendering(color_att, depth_att, extent, index);
+            rsys->DrawMeshes();
+            gui->PrepareGUI();
+            gui->DrawGUI(cb);
+            cb.EndRendering();
+        }
+
+        cb.InsertAttachmentBarrier(RenderCommandBuffer::AttachmentBarrierType::ColorAttachmentRAW, color_att.image);
+
+        {
+            vk::Extent2D extent2{rsys->GetSwapchain().GetExtent()};
+            cb.BeginRendering(color_editor_att, depth_editor_att, extent2, index);
+            gui->PrepareGUI();
             ImGuiWindowFlags flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse;
             ImGui::SetNextWindowPos({10, 10});
-            ImGui::SetNextWindowSize(ImVec2{300, 300});
+            ImGui::SetNextWindowSize(ImVec2{1000, 1000});
             ImGui::Begin("Game", nullptr, flags);
             ImTextureID image_id = reinterpret_cast<ImTextureID>(ImGui_ImplVulkan_AddTexture(sampler, color_att.image_view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL));
-            ImGui::Image(image_id, ImVec2(480, 320), ImVec2(0.0, 1.0), ImVec2(1.0, 0.0), ImVec4(1, 1, 1, 1), ImVec4(0, 1, 0, 1));
+            ImGui::Image(image_id, ImVec2(1000, 1000), ImVec2(0.0, 1.0), ImVec2(1.0, 0.0), ImVec4(1, 1, 1, 1), ImVec4(0, 1, 0, 1));
             ImGui::End();
+            gui->DrawGUI(cb);
+            cb.EndRendering();
         }
-        gui->DrawGUI(cb);
-        cb.EndRendering();
 
         cb.End();
         cb.Submit();
 
-        rsys->GetFrameManager().CopyToFramebuffer(color_editor.GetImage());
-        // rsys->GetFrameManager().CopyToFramebuffer(color.GetImage());
+        rsys->GetFrameManager().StageCopyComposition(color_editor.GetImage());
+        // rsys->GetFrameManager().StageCopyComposition(color.GetImage());
         rsys->CompleteFrame();
     }
     rsys->WaitForIdle();
