@@ -209,7 +209,7 @@ int main(int argc, char ** argv)
     test_material_instance->WriteDescriptors(0);
     test_material_instance->WriteUBOUniform(1, test_template->GetVariableIndex("ambient_color", 1).value(), glm::vec4(0.0, 0.0, 0.0, 0.0));
     test_material_instance->WriteUBOUniform(1, test_template->GetVariableIndex("specular_color", 1).value(), glm::vec4(1.0, 1.0, 1.0, 64.0));
-    test_material_instance->WriteTextureUniform(1, test_template->GetVariableIndex("base_tex", 1).value(), allocated_image_texture);
+    test_material_instance->WriteTextureUniform(1, test_template->GetVariableIndex("base_tex", 1).value(), shadow); // Here we print shadow texture for testing.
     test_material_instance->WriteTextureUniform(1, test_template->GetVariableIndex("shadowmap_tex", 1).value(), shadow);
     test_material_instance->WriteDescriptors(1);
 
