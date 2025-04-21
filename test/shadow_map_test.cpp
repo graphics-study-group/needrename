@@ -218,7 +218,9 @@ int main(int argc, char ** argv)
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(*allocated_image_texture, test_texture_asset->GetPixelData(), test_texture_asset->GetPixelDataSize());
 
     bool quited = false;
-    while(max_frame_count--) {
+
+    int64_t frame_count = 0;
+    while(++frame_count) {
         SDL_Event event;
         while(SDL_PollEvent(&event) != 0) {
             switch(event.type) {
@@ -278,14 +280,14 @@ int main(int argc, char ** argv)
         }
 
         cb.End();
-        cb.Submit();
+        cb.Submit(frame_count != 1);
 
         rsys->GetFrameManager().StageCopyComposition(color->GetImage());
         rsys->CompleteFrame();
 
         SDL_Delay(10);
 
-        if (quited) break;
+        if (quited || frame_count > max_frame_count) break;
     }
 
     rsys->WaitForIdle();
