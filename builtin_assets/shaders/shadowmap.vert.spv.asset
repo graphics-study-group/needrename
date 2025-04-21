@@ -1,0 +1,11 @@
+{
+    "%data": {
+        "&0": {
+            "%type": "Engine::ShaderAsset",
+            "Asset::m_guid": "2191CAAF586849B8B5565ED808897D7E",
+            "m_name": "shadowmap.vert.spv",
+            "shaderType": 1
+        }
+    },
+    "%main_id": "&0"
+}
