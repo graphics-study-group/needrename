@@ -239,7 +239,7 @@ int main(int argc, char ** argv)
         {
             vk::Extent2D shadow_map_extent {2048, 2048};
             vk::Rect2D shadow_map_scissor {{0, 0}, shadow_map_extent};
-            cb.BeginRendering({nullptr}, shadow_att, shadow_map_extent, index);
+            cb.BeginRendering({nullptr}, shadow_att, shadow_map_extent);
             cb.SetupViewport(shadow_map_extent.width, shadow_map_extent.height, shadow_map_scissor);
             cb.BindMaterial(*test_material_instance, 0);
 
@@ -261,7 +261,7 @@ int main(int argc, char ** argv)
         {
             vk::Extent2D extent {rsys->GetSwapchain().GetExtent()};
             vk::Rect2D scissor{{0, 0}, extent};
-            cb.BeginRendering(color_att, depth_att, extent, index);
+            cb.BeginRendering(color_att, depth_att, extent);
             cb.SetupViewport(extent.width, extent.height, scissor);
             cb.BindMaterial(*test_material_instance, 1);
             // Push model matrix...

@@ -75,7 +75,7 @@ int main(int argc, char ** argv)
     
         cb.Begin();
         vk::Extent2D extent {rsys->GetSwapchain().GetExtent()};
-        cb.BeginRendering(color_att, depth_att, extent, index);
+        cb.BeginRendering(color_att, depth_att, extent);
         gsys->DrawGUI(cb);
         cb.EndRendering();
         cb.End();

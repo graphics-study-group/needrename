@@ -219,7 +219,7 @@ int main(int argc, char ** argv)
 
         vk::Extent2D extent {rsys->GetSwapchain().GetExtent()};
         vk::Rect2D scissor{{0, 0}, extent};
-        cb.BeginRendering(color_att, depth_att, extent, index);
+        cb.BeginRendering(color_att, depth_att, extent);
 
         cb.SetupViewport(extent.width, extent.height, scissor);
         cb.BindMaterial(*test_material_instance, 0);

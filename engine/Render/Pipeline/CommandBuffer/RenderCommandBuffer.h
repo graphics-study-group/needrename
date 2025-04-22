@@ -13,6 +13,7 @@ namespace Engine {
     class HomogeneousMesh;
     class Buffer;
     class AllocatedImage2DTexture;
+    class RenderTargetBinding;
 
     /// @brief A command buffer used for rendering.
     class RenderCommandBuffer
@@ -42,8 +43,12 @@ namespace Engine {
         void BeginRendering(
             AttachmentUtils::AttachmentDescription color, 
             AttachmentUtils::AttachmentDescription depth, 
-            vk::Extent2D extent, 
-            uint32_t framebuffer_id
+            vk::Extent2D extent
+        );
+
+        void BeginRendering(
+            const RenderTargetBinding & binding,
+            vk::Extent2D extent
         );
 
         /// @brief Bind a material for rendering, and write per-material descriptors.
