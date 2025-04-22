@@ -236,7 +236,9 @@ namespace Engine
 
     void RenderSystem::CompleteFrame()
     {
-        pimpl->m_frame_manager.CompositeToFramebufferAndPresent();
+        if(pimpl->m_frame_manager.CompositeToFramebufferAndPresent()) {
+            this->UpdateSwapchain();
+        }
     }
 
     void RenderSystem::WritePerCameraConstants(const ConstantData::PerCameraStruct& data, uint32_t in_flight_index) {
@@ -250,8 +252,10 @@ namespace Engine
     }
 
     void RenderSystem::UpdateSwapchain() {
+        pimpl->m_selected_physical_device.UpdateSwapchainSupport(pimpl->m_surface.get());
         this->WaitForIdle();
         pimpl->CreateSwapchain();
+        pimpl->m_frame_manager.UpdateSwapchain();
     }
 
     uint32_t RenderSystem::StartFrame()

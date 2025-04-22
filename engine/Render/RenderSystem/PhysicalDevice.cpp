@@ -61,6 +61,11 @@ namespace Engine::RenderSystemState {
         return m_device;
     }
 
+    void PhysicalDevice::UpdateSwapchainSupport(vk::SurfaceKHR surface)
+    {
+        this->m_support = this->FillSwapchainSupport(m_device, surface);
+    }
+
     const SwapchainSupport& PhysicalDevice::GetSwapchainSupport() const {
         return m_support;
     }
