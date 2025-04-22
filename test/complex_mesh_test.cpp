@@ -243,7 +243,6 @@ int main(int argc, char ** argv)
     auto rsys = cmc->GetRenderSystem();
     rsys->GetMaterialRegistry().AddMaterial(test_asset);
 
-    // rsys->EnableDepthTesting();
     auto gsys = cmc->GetGUISystem();
 
     Engine::AllocatedImage2D color{rsys}, depth{rsys};

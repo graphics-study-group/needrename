@@ -90,8 +90,6 @@ namespace Engine
 
         pimpl->m_allocator_state.Create();
 
-        this->EnableDepthTesting();
-
         // Create synchorization semaphores
         pimpl->m_frame_manager.Create();
         pimpl->m_descriptor_pool.Create(shared_from_this(), pimpl->m_frame_manager.FRAMES_IN_FLIGHT);
@@ -239,10 +237,6 @@ namespace Engine
     void RenderSystem::CompleteFrame()
     {
         pimpl->m_frame_manager.CompositeToFramebufferAndPresent();
-    }
-
-    void RenderSystem::EnableDepthTesting() {
-        pimpl->m_swapchain.EnableDepthTesting(this->shared_from_this());
     }
 
     void RenderSystem::WritePerCameraConstants(const ConstantData::PerCameraStruct& data, uint32_t in_flight_index) {

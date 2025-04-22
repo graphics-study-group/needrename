@@ -62,7 +62,6 @@ int main(int, char **)
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
 
     auto system = cmc->GetRenderSystem();
-    system->EnableDepthTesting();
 
     RenderTargetSetup rts{system};
     rts.CreateFromSwapchain();

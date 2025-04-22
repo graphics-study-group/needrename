@@ -128,27 +128,6 @@ namespace Engine::RenderSystemState{
         this->RetrieveImageViews(logical_device);
     }
 
-    void Swapchain::DisableDepthTesting() {
-        m_depth_images.clear();
-        is_depth_enabled = false;
-    }
-
-    void Swapchain::EnableDepthTesting(std::weak_ptr<RenderSystem> system) {
-        assert(m_depth_images.empty());
-        m_depth_images.reserve(m_images.size());
-        for (size_t i = 0; i < m_images.size(); i++) {
-            m_depth_images.emplace_back(system);
-            m_depth_images[i].Create(
-                m_extent.width, 
-                m_extent.height, 
-                ImageUtils::ImageType::DepthImage,
-                DEPTH_FORMAT
-            );
-        }
-        m_depth_images.shrink_to_fit();
-        is_depth_enabled = true;
-    }
-
     vk::SwapchainKHR Swapchain::GetSwapchain() const {
         return m_swapchain.get();
     }
@@ -158,19 +137,12 @@ namespace Engine::RenderSystemState{
     auto Swapchain::GetImageViews() const -> const decltype(m_image_views)& {
         return m_image_views;
     }
-    auto Swapchain::GetDepthImages() const -> const decltype(m_depth_images)& {
-        return m_depth_images;
-    }
+
     vk::SurfaceFormatKHR Swapchain::GetImageFormat() const { return m_image_format; }
     vk::Extent2D Swapchain::GetExtent() const { return m_extent; }
-    bool Swapchain::IsDepthEnabled() const {
-        return is_depth_enabled;
-    }
 
     uint32_t Swapchain::GetFrameCount() const
     {
-        assert((!is_depth_enabled && m_depth_images.size() == 0) 
-            || (is_depth_enabled && m_images.size() == m_depth_images.size()));
         assert(m_images.size() == m_image_views.size());
         return m_images.size();
     }

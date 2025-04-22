@@ -25,8 +25,8 @@ using namespace Engine;
 namespace sch = std::chrono;
 
 
-struct TestMeshAsset : public MeshAsset {
-    TestMeshAsset() {
+struct LowerPlaneMeshAsset : public MeshAsset {
+    LowerPlaneMeshAsset() {
         this->m_submeshes.resize(1);
         this->m_submeshes[0] = {
             .m_indices = {0, 3, 2, 0, 2, 1},
@@ -114,8 +114,6 @@ int main(int argc, char ** argv)
     cmc->GetAssetManager()->SetBuiltinAssetPath(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
 
     auto rsys = cmc->GetRenderSystem();
-    // rsys->EnableDepthTesting();
-
     // Prepare texture
     auto test_texture_asset = std::make_shared<Image2DTextureAsset>();
     test_texture_asset->LoadFromFile(std::string(ENGINE_ASSETS_DIR) + "/bunny/bunny.png");
@@ -155,7 +153,7 @@ int main(int argc, char ** argv)
     // archive.save_to_file(project_path / "blinn_phong.frag.spv.asset");
 
     // Prepare mesh
-    auto test_mesh_asset = std::make_shared<TestMeshAsset>();
+    auto test_mesh_asset = std::make_shared<LowerPlaneMeshAsset>();
     auto test_mesh_asset_ref = std::make_shared<AssetRef>(test_mesh_asset);
     HomogeneousMesh test_mesh{rsys, test_mesh_asset_ref, 0};
     test_mesh.Prepare();

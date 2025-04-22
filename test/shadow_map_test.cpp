@@ -138,7 +138,6 @@ int main(int argc, char ** argv)
     cmc->GetAssetManager()->SetBuiltinAssetPath(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
 
     auto rsys = cmc->GetRenderSystem();
-    // rsys->EnableDepthTesting();
 
     // Prepare texture
     auto test_texture_asset = std::make_shared<Image2DTextureAsset>();

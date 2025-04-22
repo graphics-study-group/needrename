@@ -115,8 +115,6 @@ namespace Engine
 
         RenderSystemState::FrameManager & GetFrameManager ();
 
-        void EnableDepthTesting();
-
         void WritePerCameraConstants(const ConstantData::PerCameraStruct & data, uint32_t in_flight_index);
     };
 }
