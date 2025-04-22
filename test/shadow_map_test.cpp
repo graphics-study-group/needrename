@@ -216,6 +216,11 @@ int main(int argc, char ** argv)
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueVertexBufferSubmission(test_mesh_2);
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(*allocated_image_texture, test_texture_asset->GetPixelData(), test_texture_asset->GetPixelDataSize());
 
+    RenderTargetBinding shadow_pass_binding, lit_pass_binding;
+    shadow_pass_binding.SetDepthAttachment(shadow_att);
+    lit_pass_binding.SetColorAttachment(color_att);
+    lit_pass_binding.SetDepthAttachment(depth_att);
+
     bool quited = false;
 
     int64_t frame_count = 0;
@@ -239,7 +244,7 @@ int main(int argc, char ** argv)
         {
             vk::Extent2D shadow_map_extent {2048, 2048};
             vk::Rect2D shadow_map_scissor {{0, 0}, shadow_map_extent};
-            cb.BeginRendering({nullptr}, shadow_att, shadow_map_extent);
+            cb.BeginRendering(shadow_pass_binding, shadow_map_extent);
             cb.SetupViewport(shadow_map_extent.width, shadow_map_extent.height, shadow_map_scissor);
             cb.BindMaterial(*test_material_instance, 0);
 
@@ -261,7 +266,7 @@ int main(int argc, char ** argv)
         {
             vk::Extent2D extent {rsys->GetSwapchain().GetExtent()};
             vk::Rect2D scissor{{0, 0}, extent};
-            cb.BeginRendering(color_att, depth_att, extent);
+            cb.BeginRendering(lit_pass_binding, extent);
             cb.SetupViewport(extent.width, extent.height, scissor);
             cb.BindMaterial(*test_material_instance, 1);
             // Push model matrix...
