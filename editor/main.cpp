@@ -18,6 +18,9 @@
 #include <Input/Input.h>
 #include <GUI/GUISystem.h>
 #include <imgui_impl_vulkan.h>
+#include <SDL3/SDL.h>
+#include <backends/imgui_impl_sdl3.h>
+#include <backends/imgui_impl_vulkan.h>
 
 using namespace Engine;
 
@@ -57,13 +60,15 @@ int main()
     depth_att.load_op = vk::AttachmentLoadOp::eClear;
     depth_att.store_op = vk::AttachmentStoreOp::eDontCare;
 
-    Engine::AllocatedImage2D color_editor{rsys}, depth_editor{rsys};
-    color_editor.Create(1920, 1080, Engine::ImageUtils::ImageType::ColorAttachment, Engine::ImageUtils::ImageFormat::B8G8R8A8SRGB, 1);
-    depth_editor.Create(1920, 1080, Engine::ImageUtils::ImageType::DepthImage, Engine::ImageUtils::ImageFormat::D32SFLOAT, 1);
     vk::SamplerCreateInfo sci{};
     sci.magFilter = sci.minFilter = vk::Filter::eNearest;
     sci.addressModeU = sci.addressModeV = sci.addressModeW = vk::SamplerAddressMode::eRepeat;
     vk::Sampler sampler = rsys->getDevice().createSampler(sci);
+    ImTextureID color_att_id = reinterpret_cast<ImTextureID>(ImGui_ImplVulkan_AddTexture(sampler, color_att.image_view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL));
+
+    Engine::AllocatedImage2D color_editor{rsys}, depth_editor{rsys};
+    color_editor.Create(1920, 1080, Engine::ImageUtils::ImageType::ColorAttachment, Engine::ImageUtils::ImageFormat::B8G8R8A8SRGB, 1);
+    depth_editor.Create(1920, 1080, Engine::ImageUtils::ImageType::DepthImage, Engine::ImageUtils::ImageFormat::D32SFLOAT, 1);
 
     Engine::AttachmentUtils::AttachmentDescription color_editor_att, depth_editor_att;
     color_editor_att.image = color_editor.GetImage();
@@ -107,17 +112,20 @@ int main()
         cmc->GetInputSystem()->Update(dt);
         world->Tick(dt);
 
+        ImGui_ImplSDL3_NewFrame();
+
         // Draw
-        auto index = rsys->StartFrame();
+        rsys->StartFrame();
         RenderCommandBuffer &cb = rsys->GetCurrentCommandBuffer();
 
         cb.Begin();
         {
-            vk::Extent2D extent{rsys->GetSwapchain().GetExtent()};
-            cb.BeginRendering(color_att, depth_att, extent, index);
+            cb.BeginRendering(color_att, depth_att, color.GetExtent(), 1234u);
             rsys->DrawMeshes();
-            gui->PrepareGUI();
-            gui->DrawGUI(cb);
+            // TODO: Event Process ????
+            // ImGui_ImplVulkan_NewFrame();
+            // ImGui::NewFrame();
+            // gui->DrawGUI(cb);
             cb.EndRendering();
         }
 
@@ -125,14 +133,13 @@ int main()
 
         {
             vk::Extent2D extent2{rsys->GetSwapchain().GetExtent()};
-            cb.BeginRendering(color_editor_att, depth_editor_att, extent2, index);
-            gui->PrepareGUI();
-            ImGuiWindowFlags flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse;
-            ImGui::SetNextWindowPos({10, 10});
-            ImGui::SetNextWindowSize(ImVec2{1000, 1000});
-            ImGui::Begin("Game", nullptr, flags);
-            ImTextureID image_id = reinterpret_cast<ImTextureID>(ImGui_ImplVulkan_AddTexture(sampler, color_att.image_view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL));
-            ImGui::Image(image_id, ImVec2(1000, 1000), ImVec2(0.0, 1.0), ImVec2(1.0, 0.0), ImVec4(1, 1, 1, 1), ImVec4(0, 1, 0, 1));
+            cb.BeginRendering(color_editor_att, depth_editor_att, extent2, 182376u);
+            ImGui_ImplVulkan_NewFrame();
+            ImGui::NewFrame();
+            ImGui::SetNextWindowPos({400, 10});
+            ImGui::SetNextWindowSize(ImVec2{1300, 760});
+            ImGui::Begin("Game");
+            ImGui::Image(color_att_id, ImVec2(1280, 720));
             ImGui::End();
             gui->DrawGUI(cb);
             cb.EndRendering();
@@ -142,7 +149,6 @@ int main()
         cb.Submit();
 
         rsys->GetFrameManager().StageCopyComposition(color_editor.GetImage());
-        // rsys->GetFrameManager().StageCopyComposition(color.GetImage());
         rsys->CompleteFrame();
     }
     rsys->WaitForIdle();
