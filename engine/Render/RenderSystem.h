@@ -85,8 +85,6 @@ namespace Engine
 
         uint32_t StartFrame();
 
-        void Render();
-
         void CompleteFrame();
 
         vk::Instance getInstance() const;
