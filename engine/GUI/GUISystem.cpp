@@ -46,7 +46,7 @@ namespace Engine {
         ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), static_cast<VkCommandBuffer>(cb.get()), nullptr);
     }
 
-    void GUISystem::Create(SDL_Window *window)
+    void GUISystem::Create(SDL_Window *window, vk::Format format)
     {
         SDL_LogInfo(0, "Initializing GUI system with ImGui.");
         assert(m_context == nullptr && "Re-creating GUI system.");
@@ -71,8 +71,13 @@ namespace Engine {
         info.UseDynamicRendering = true;
         info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
 
+        std::array <vk::Format, 1> formats = {{format == vk::Format::eUndefined ? system->GetSwapchain().GetImageFormat().format : format}};
         VkPipelineRenderingCreateInfoKHR pipeline{
-            static_cast<VkPipelineRenderingCreateInfoKHR>(swapchain.GetPipelineRenderingCreateInfo())
+            static_cast<VkPipelineRenderingCreateInfoKHR>(
+                vk::PipelineRenderingCreateInfo {
+                    0, formats, vk::Format::eUndefined, vk::Format::eUndefined
+                }
+            )
         };
         info.PipelineRenderingCreateInfo = pipeline;
 

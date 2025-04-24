@@ -49,8 +49,6 @@ namespace Engine {
 
 
             uint32_t GetFrameCount() const;
-
-            vk::PipelineRenderingCreateInfo GetPipelineRenderingCreateInfo() const;
         };
     }
 }

@@ -146,11 +146,4 @@ namespace Engine::RenderSystemState{
         assert(m_images.size() == m_image_views.size());
         return m_images.size();
     }
-
-    vk::PipelineRenderingCreateInfo Swapchain::GetPipelineRenderingCreateInfo() const
-    {
-        return vk::PipelineRenderingCreateInfo{
-            0, 1, &m_image_format.format, ImageUtils::GetVkFormat(DEPTH_FORMAT), vk::Format::eUndefined, nullptr
-        };
-    }
 }
