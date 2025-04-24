@@ -212,28 +212,6 @@ namespace Engine
         return pimpl->m_frame_manager;
     }
 
-    void RenderSystem::Render()
-    {
-        assert(false || "Disabled.");
-        /*
-        MainClass::GetInstance()->GetGUISystem()->PrepareGUI();
-        
-        uint32_t index = m_frame_manager.StartFrame();
-        RenderCommandBuffer & cb = m_frame_manager.GetCommandBuffer();
-        cb.Begin();
-        vk::Extent2D extent {GetSwapchain().GetExtent()};
-        cb.BeginRendering(*this->m_render_target_setup, extent, index);
-
-        this->DrawMeshes();
-        MainClass::GetInstance()->GetGUISystem()->DrawGUI(cb);
-
-        cb.EndRendering();
-        cb.End();
-        cb.Submit();
-        m_frame_manager.CompleteFrame();
-        */
-    }
-
     void RenderSystem::CompleteFrame()
     {
         if(pimpl->m_frame_manager.CompositeToFramebufferAndPresent()) {
