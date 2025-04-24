@@ -78,7 +78,7 @@ namespace Engine::RenderSystemState{
         vk::SurfaceKHR surface, 
         vk::Extent2D expected_extent
     ) {
-        const auto swapchain_support = physical_device.GetSwapchainSupport();
+        const auto swapchain_support = physical_device.GetSwapchainSupport(surface);
         const auto [extent, format, mode] = SelectSwapchainConfig(swapchain_support, expected_extent);
 
         uint32_t image_count = swapchain_support.capabilities.minImageCount + 1;
@@ -110,7 +110,7 @@ namespace Engine::RenderSystemState{
             info.oldSwapchain = nullptr;
         }
 
-        auto indices = physical_device.GetQueueFamilyIndices();
+        auto indices = physical_device.GetQueueFamilyIndices(surface);
         std::vector <uint32_t> queues {indices.graphics.value(), indices.present.value()};
         if (indices.graphics != indices.present) {
             info.imageSharingMode = vk::SharingMode::eConcurrent;

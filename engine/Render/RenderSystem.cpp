@@ -252,7 +252,6 @@ namespace Engine
     }
 
     void RenderSystem::UpdateSwapchain() {
-        pimpl->m_selected_physical_device.UpdateSwapchainSupport(pimpl->m_surface.get());
         this->WaitForIdle();
         pimpl->CreateSwapchain();
         pimpl->m_frame_manager.UpdateSwapchain();
@@ -266,7 +265,7 @@ namespace Engine
     void RenderSystem::impl::CreateLogicalDevice() {
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating logical device.");
 
-        auto indices = m_selected_physical_device.GetQueueFamilyIndices();
+        auto indices = m_selected_physical_device.GetQueueFamilyIndices(m_surface.get());
         // Find unique indices
         std::vector<uint32_t> indices_vector{indices.graphics.value(),
                                             indices.present.value()};
