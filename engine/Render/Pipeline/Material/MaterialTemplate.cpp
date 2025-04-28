@@ -304,76 +304,16 @@ namespace Engine
     }
     void MaterialTemplate::PlaceUBOVariables(const MaterialInstance &instance, std::vector<std::byte> & memory, uint32_t pass_index) const
     {
-        using Type = ShaderVariable::Type;
         const auto & variables = instance.GetVariables(pass_index);
         const auto & pass_info = this->GetPassInfo(pass_index);
-        const auto & uniforms = pass_info.uniforms.variables;
 
-        if (memory.size() < pass_info.uniforms.maximal_ubo_size) {
-            SDL_LogWarn(
-                SDL_LOG_CATEGORY_RENDER, 
-                "Performing buffer allocation for material %s pass %u", 
-                m_name.c_str(), 
-                pass_index
-            );
-            memory.resize(pass_info.uniforms.maximal_ubo_size);
-        }
-
-        for (const auto & [idx, var] : variables) {
-            assert(idx < uniforms.size() && "Uniform variable index is too large.");
-            const auto offset = uniforms[idx].location.offset;
-            try {
-                switch(uniforms[idx].type) {
-                case Type::Int:
-                    *(reinterpret_cast<int*>(memory.data() + offset)) = std::any_cast<int>(var);
-                    break;
-                case Type::Float:
-                    *(reinterpret_cast<float*>(memory.data() + offset)) = std::any_cast<float>(var);
-                    break;
-                case Type::Vec4:
-                    // Let's hope it works...
-                    *(reinterpret_cast<glm::vec4*>(memory.data() + offset)) = std::any_cast<glm::vec4>(var);
-                    break;
-                case Type::Mat4:
-                    *(reinterpret_cast<glm::mat4*>(memory.data() + offset)) = std::any_cast<glm::mat4>(var);
-                    break;
-                }
-            } catch(std::bad_any_cast & e) {
-                SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Mismatched uniform type of uniform index %u", idx);
-                continue;
-            }
-        }
+        PipelineInfo::PlaceUBOVariables(variables, pass_info, memory);
     }
     std::vector<std::pair<uint32_t, vk::DescriptorImageInfo>> 
     MaterialTemplate::GetDescriptorImageInfo(const MaterialInstance &instance, uint32_t pass_index) const
     {
         const auto & pass_info = this->GetPassInfo(pass_index);
         const auto & instance_vars = instance.GetVariables(pass_index);
-        std::vector<std::pair<uint32_t, vk::DescriptorImageInfo>> info;
-
-        for (size_t idx = 0; idx < pass_info.uniforms.variables.size(); idx++) {
-            const auto& uniform = pass_info.uniforms.variables[idx];
-            if (uniform.type == ShaderVariable::Type::Texture) {
-                if (!instance_vars.contains(idx)) {
-                    SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Texture variable %llu not found in instance.", idx);
-                    continue;
-                }
-
-                std::shared_ptr<const ImageInterface> image{};
-                try {
-                    image = (std::any_cast<std::shared_ptr<const ImageInterface>> (instance_vars.at(idx)));
-                } catch (std::exception & e) {
-                    SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Variable %llu is not a texture, or the texture is invalid.", idx);
-                    continue;
-                }
-
-                vk::DescriptorImageInfo image_info {};
-                image_info.imageView = image->GetImageView();
-                image_info.imageLayout = vk::ImageLayout::eReadOnlyOptimal;
-                image_info.sampler = m_default_sampler.get();
-                info.push_back(std::make_pair(uniform.location.binding, image_info));
-            }
-        }
-        return info;
+        return PipelineInfo::GetDescriptorImageInfo(instance_vars, pass_info, m_default_sampler.get());
     }
 } // namespace Engine

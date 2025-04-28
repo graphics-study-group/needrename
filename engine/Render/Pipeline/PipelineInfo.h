@@ -4,7 +4,8 @@
 /** Structures holding information with regards to VkPipeline etc. */
 
 #include <vulkan/vulkan.hpp>
-#include <Asset/Material/ShaderAsset.h>
+#include "Asset/Material/ShaderAsset.h"
+#include "Render/AttachmentUtils.h"
 
 namespace Engine {
     namespace PipelineInfo {
@@ -55,6 +56,21 @@ namespace Engine {
                 vk::DescriptorPoolSize{vk::DescriptorType::eCombinedImageSampler, 64}
             };
         };
+
+        /**
+         * @brief Place UBO variables at given buffer, ready for directly writing into UBO.
+         * 
+         * @remark For internal use only.
+         */
+        void PlaceUBOVariables(const std::unordered_map <uint32_t, std::any> & variables, const PassInfo & info, std::vector<std::byte> & memory);
+
+        /**
+         * @brief Get the descriptor image info for a specific material instance and pass index.
+         * 
+         * @remark For internal use only.
+         */
+        std::vector<std::pair<uint32_t, vk::DescriptorImageInfo>> 
+        GetDescriptorImageInfo(const std::unordered_map <uint32_t, std::any> & variables, const PassInfo & info, vk::Sampler sampler);
     }
 }
 
