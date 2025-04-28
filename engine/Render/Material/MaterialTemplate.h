@@ -5,6 +5,7 @@
 #include <optional>
 #include "Render/AttachmentUtils.h"
 #include "Asset/Material/MaterialTemplateAsset.h"
+#include "Render/Material/PipelineInfo.h"
 
 namespace Engine {
     class MaterialInstance;
@@ -23,54 +24,14 @@ namespace Engine {
     /// In-valid indices will cause assertion failure.
     class MaterialTemplate : protected std::enable_shared_from_this<MaterialTemplate> {
     public:
-        struct ShaderVariable {
-            using Type = ShaderVariableProperty::Type;
-
-            Type type {};
-            struct Location {
-                uint32_t set {};
-                uint32_t binding {};
-                uint32_t offset {};
-            } location {};
-        };
-
-        struct PassInfo {
-            vk::UniquePipeline pipeline {};
-            vk::UniquePipelineLayout pipeline_layout {};
-            vk::UniqueDescriptorSetLayout desc_layout {};
-            std::vector <vk::UniqueShaderModule> shaders {};
-
-            struct Attachments {
-                std::vector <AttachmentUtils::AttachmentOp> color_attachment_ops {};
-                AttachmentUtils::AttachmentOp ds_attachment_ops {};
-            } attachments {};
-
-            struct Uniforms {
-                std::unordered_map <std::string, uint32_t> name_mapping {};
-                std::vector <ShaderVariable> variables {};
-                uint64_t maximal_ubo_size {};
-            } uniforms {};
-
-            constexpr static std::array<vk::DynamicState, 2> PIPELINE_DYNAMIC_STATES = {
-                vk::DynamicState::eViewport,
-                vk::DynamicState::eScissor
-            };
-        };
-
-        struct PoolInfo {
-            static constexpr uint32_t MAX_SET_SIZE = 64;
-            static constexpr std::array <vk::DescriptorPoolSize, 2> DESCRIPTOR_POOL_SIZES = {
-                vk::DescriptorPoolSize{vk::DescriptorType::eUniformBuffer, 64},
-                vk::DescriptorPoolSize{vk::DescriptorType::eCombinedImageSampler, 64}
-            };
-             vk::UniqueDescriptorPool pool {};
-        };
+        using PassInfo = PipelineInfo::MaterialPassInfo;
+        using PoolInfo = PipelineInfo::MaterialPoolInfo;
+        using ShaderVariable = PipelineInfo::ShaderVariable;
 
     protected:
         std::weak_ptr <RenderSystem> m_system;
         std::shared_ptr <AssetRef> m_asset;
 
-        
         std::unordered_map <uint32_t, PassInfo> m_passes {};
         PoolInfo m_poolInfo {};
         vk::UniqueSampler m_default_sampler {};
