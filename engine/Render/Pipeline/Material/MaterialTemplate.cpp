@@ -2,7 +2,7 @@
 #include "MaterialInstance.h"
 #include "Asset/AssetRef.h"
 #include "Render/RenderSystem.h"
-#include "PipelineUtils.h"
+#include "Render/Pipeline/PipelineUtils.h"
 #include "Render/ConstantData/PerModelConstants.h"
 #include "Render/Renderer/HomogeneousMesh.h"
 #include "Render/RenderSystem/GlobalConstantDescriptorPool.h"
