@@ -65,7 +65,11 @@ namespace Engine {
         void PlaceUBOVariables(const std::unordered_map <uint32_t, std::any> & variables, const PassInfo & info, std::vector<std::byte> & memory);
 
         /**
-         * @brief Get the descriptor image info for a specific material instance and pass index.
+         * @brief Get the descriptor image info for a specific variable set.
+         * 
+         * @param sampler If null, the vk::WriteDescriptorSet is assumed to be of type `VK_DESCRIPTOR_TYPE_STORAGE_IMAGE`,
+         * and the layout is `VK_IMAGE_LAYOUT_GENERAL`. Otherwise, it is assumed to be of type 
+         * `VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER`, and the layout is `VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL`.
          * 
          * @remark For internal use only.
          */

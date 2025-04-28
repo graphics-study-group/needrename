@@ -10,11 +10,14 @@ namespace Engine {
             DepthImage,
             DepthStencilImage,
             SampledDepthImage,
-            // Color attachment image used for sampling. Can be transferred to.
+            // Color image used for sampling. Can be transferred to.
             TextureImage,
             // Color attachment image used for rendering. Can be transferred from.
             ColorAttachment,
+            // Color storage image used for compute shader. Can be transferred from/to.
+            ColorCompute,
             // General color texture image, suitable for transfering from/to, rendering and sampling.
+            // Seems vk::ImageUsageFlags has no performance impact for desktop GPUs.
             ColorGeneral
         };
 
@@ -55,12 +58,19 @@ namespace Engine {
                     vk::ImageUsageFlagBits::eColorAttachment,
                     VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE
                 );
+            case ImageType::ColorCompute:
+                return std::make_tuple(
+                    vk::ImageUsageFlagBits::eTransferSrc |
+                    vk::ImageUsageFlagBits::eTransferDst |
+                    vk::ImageUsageFlagBits::eStorage,
+                    VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE
+                );
             case ImageType::ColorGeneral:
-                // Seems vk::ImageUsageFlags has no performance impact for desktop GPUs.
                 return std::make_tuple(
                     vk::ImageUsageFlagBits::eTransferSrc |
                     vk::ImageUsageFlagBits::eTransferDst | 
                     vk::ImageUsageFlagBits::eSampled |
+                    vk::ImageUsageFlagBits::eStorage |
                     vk::ImageUsageFlagBits::eColorAttachment,
                     VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE
                 );
@@ -81,6 +91,7 @@ namespace Engine {
                     return vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
                 case ImageType::TextureImage:
                 case ImageType::ColorAttachment:
+                case ImageType::ColorCompute:
                 case ImageType::ColorGeneral:
                     return vk::ImageAspectFlagBits::eColor;
             }

@@ -72,7 +72,7 @@ namespace Engine::PipelineInfo {
 
                 vk::DescriptorImageInfo image_info {};
                 image_info.imageView = image->GetImageView();
-                image_info.imageLayout = vk::ImageLayout::eReadOnlyOptimal;
+                image_info.imageLayout = sampler ? vk::ImageLayout::eReadOnlyOptimal : vk::ImageLayout::eGeneral;
                 image_info.sampler = sampler;
                 ret.push_back(std::make_pair(uniform.location.binding, image_info));
             }
