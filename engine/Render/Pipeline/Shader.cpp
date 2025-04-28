@@ -1,6 +1,8 @@
 #include "Shader.h"
 #include "Render/RenderSystem.h"
 
+#include <SDL3/SDL.h>
+
 namespace Engine
 {
     ShaderModule::ShaderModule(std::weak_ptr<RenderSystem> system) : VkWrapper(system) {}

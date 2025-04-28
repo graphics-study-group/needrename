@@ -2,21 +2,25 @@
 #define PIPELINE_COMMANDBUFFER_RENDERCOMMANDBUFFER_INCLUDED
 
 #include "Render/VkWrapper.tcc"
+#include "Render/AttachmentUtils.h"
+#include "Render/Pipeline/CommandBuffer/LayoutTransferHelper.h"
 #include <vulkan/vulkan.hpp>
 #include <glm.hpp>
 
 namespace Engine {
-    class RenderTargetSetup;
     class Material;
     class MaterialInstance;
     class HomogeneousMesh;
     class Buffer;
     class AllocatedImage2DTexture;
+    class RenderTargetBinding;
 
     /// @brief A command buffer used for rendering.
     class RenderCommandBuffer
     {
     public:
+        using AttachmentBarrierType = LayoutTransferHelper::AttachmentBarrierType;
+
         RenderCommandBuffer (
             RenderSystem & system,
             vk::CommandBuffer cb,
@@ -36,10 +40,16 @@ namespace Engine {
         void Begin();
 
         /// @brief Begin a Vulkan rendering pass
-        /// @param pass render targets
-        /// @param extent extent of the rendering pass
-        /// @param framebuffer_id ID of the framebuffer, acquired from GetNextImage.
-        void BeginRendering(const RenderTargetSetup & pass, vk::Extent2D extent, uint32_t framebuffer_id);
+        void BeginRendering(
+            AttachmentUtils::AttachmentDescription color, 
+            AttachmentUtils::AttachmentDescription depth, 
+            vk::Extent2D extent
+        );
+
+        void BeginRendering(
+            const RenderTargetBinding & binding,
+            vk::Extent2D extent
+        );
 
         /// @brief Bind a material for rendering, and write per-material descriptors.
         /// @param material 
@@ -51,6 +61,13 @@ namespace Engine {
         /// @param vpHeight height of the viewport
         /// @param scissor scissor rectangle
         void SetupViewport(float vpWidth, float vpHeight, vk::Rect2D scissor);
+
+        /**
+         * @brief Insert a barrier for an given image used as color or depth attachment.
+         * Inserted barrier will establish a memory dependency between correpsonding stages to avoid the given hazard.
+         * Further, the image layout will be transfered to be adequate for attachment write or shader read.
+         */
+        void InsertAttachmentBarrier(AttachmentBarrierType type, vk::Image image);
 
         /// @brief Write per-mesh descriptors, and send draw call to GPU.
         /// @param mesh 
@@ -64,7 +81,8 @@ namespace Engine {
         void End();
 
         /// @brief Submit the command buffer to graphics queue
-        void Submit();
+        /// @param wait whether wait for the semaphore before execution. Used for the first CB only.
+        void Submit(bool wait_for_semaphore = true);
 
         void Reset();
 
@@ -76,10 +94,8 @@ namespace Engine {
         vk::CommandBuffer m_handle;
         vk::Queue m_queue;
         vk::Fence m_completed_fence;
-        vk::Semaphore m_image_ready_semaphore, m_completed_semaphore;
+        vk::Semaphore m_wait_semaphore, m_signal_semaphore;
 
-        std::optional<vk::Image> m_image_for_present {};
-        std::optional<std::reference_wrapper<const RenderTargetSetup>> m_bound_render_target {};
         std::optional<std::pair<vk::Pipeline, vk::PipelineLayout>> m_bound_material_pipeline {};
     };
 }

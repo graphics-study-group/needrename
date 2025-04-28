@@ -51,7 +51,6 @@ int main(int, char *[])
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
 
     auto render_system = cmc->GetRenderSystem();
-    render_system->EnableDepthTesting();
 
     // Try render the mesh
     RenderTargetSetup rts{render_system};

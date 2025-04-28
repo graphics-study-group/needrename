@@ -12,7 +12,6 @@
 #include "Render/Material/TestMaterialWithTransform.h"
 #include "Render/Pipeline/Shader.h"
 #include "Render/Pipeline/CommandBuffer.h"
-#include "Render/Pipeline/RenderTarget/RenderTargetSetup.h"
 #include "Render/Renderer/HomogeneousMesh.h"
 
 using namespace Engine;
@@ -43,7 +42,6 @@ int main(int, char **)
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
 
     auto system = cmc->GetRenderSystem();
-    system->EnableDepthTesting();
 
     RenderTargetSetup rts{system};
     rts.CreateFromSwapchain();

@@ -195,8 +195,6 @@ namespace Engine
 
         // TODO: Set up viewport information
 
-        this->renderer->Render();
-
         this->window->AfterEventLoop();
 
         while (SDL_PollEvent(&event))

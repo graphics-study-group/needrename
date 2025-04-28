@@ -12,12 +12,7 @@
 #include <Framework/world/WorldSystem.h>
 #include "Framework/component/RenderComponent/CameraComponent.h"
 #include "Framework/component/RenderComponent/MeshComponent.h"
-#include "Render/Memory/Image2DTexture.h"
-#include "Render/Material/Templates/BlinnPhong.h"
-#include "Render/Pipeline/Shader.h"
-#include "Render/Pipeline/RenderTarget/RenderTargetSetup.h"
-#include "Render/Pipeline/CommandBuffer.h"
-#include "Render/Renderer/HomogeneousMesh.h"
+#include "Render/FullRenderSystem.h"
 #include "GUI/GUISystem.h"
 #include <Asset/AssetManager/AssetManager.h>
 #include <Asset/AssetRef.h>
@@ -248,16 +243,24 @@ int main(int argc, char ** argv)
     auto rsys = cmc->GetRenderSystem();
     rsys->GetMaterialRegistry().AddMaterial(test_asset);
 
-    // rsys->EnableDepthTesting();
     auto gsys = cmc->GetGUISystem();
 
-    RenderTargetSetup rts{rsys};
-    rts.CreateFromSwapchain();
-    rts.SetClearValues({
-        vk::ClearValue{vk::ClearColorValue{0.0f, 0.0f, 0.0f, 1.0f}},
-        vk::ClearValue{vk::ClearDepthStencilValue{1.0f, 0U}}
-    });
-    
+    Engine::AllocatedImage2D color{rsys}, depth{rsys};
+    color.Create(1280, 720, Engine::ImageUtils::ImageType::ColorAttachment, Engine::ImageUtils::ImageFormat::B8G8R8A8SRGB, 1);
+    depth.Create(1280, 720, Engine::ImageUtils::ImageType::DepthImage, Engine::ImageUtils::ImageFormat::D32SFLOAT, 1);
+
+    Engine::AttachmentUtils::AttachmentDescription color_att, depth_att;
+    color_att.image = color.GetImage();
+    color_att.image_view = color.GetImageView();
+    color_att.load_op = vk::AttachmentLoadOp::eClear;
+    color_att.store_op = vk::AttachmentStoreOp::eStore;
+
+    depth_att.image = depth.GetImage();
+    depth_att.image_view = depth.GetImageView();
+    depth_att.load_op = vk::AttachmentLoadOp::eClear;
+    depth_att.store_op = vk::AttachmentStoreOp::eDontCare;
+
+
     // Setup mesh
     std::filesystem::path mesh_path{std::string(ENGINE_ASSETS_DIR) + "/four_bunny/four_bunny.obj"};
     std::shared_ptr tmc = std::make_shared<MeshComponentFromFile>(mesh_path);
@@ -304,13 +307,15 @@ int main(int argc, char ** argv)
 
         cb.Begin();
         vk::Extent2D extent {rsys->GetSwapchain().GetExtent()};
-        cb.BeginRendering(rts, extent, index);
+        cb.BeginRendering(color_att, depth_att, extent);
         rsys->DrawMeshes();
         gsys->DrawGUI(cb);
         cb.EndRendering();
         cb.End();
-        cb.Submit();
-        rsys->CompleteFrame();
+        cb.Submit(frame_count != 1);
+        rsys->GetFrameManager().StageCopyComposition(color.GetImage());
+        // rsys->GetFrameManager().CopyToFrameBuffer(color.GetImage(), rsys->GetSwapchain().GetExtent(), {0, 0}, {100, 100});
+        rsys->GetFrameManager().CompositeToFramebufferAndPresent();
 
         SDL_Delay(5);
 

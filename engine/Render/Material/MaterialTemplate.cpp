@@ -5,9 +5,12 @@
 #include "MaterialTemplateUtils.h"
 #include "Render/ConstantData/PerModelConstants.h"
 #include "Render/Renderer/HomogeneousMesh.h"
+#include "Render/RenderSystem/GlobalConstantDescriptorPool.h"
+#include "Render/RenderSystem/Swapchain.h"
 
 #include <glm.hpp>
 #include <fstream>
+#include <SDL3/SDL.h>
 
 namespace Engine
 {
@@ -46,6 +49,7 @@ namespace Engine
         pass_info.shaders.resize(prop.shaders.shaders.size());
         psscis.resize(prop.shaders.shaders.size());
         for (size_t i = 0; i < prop.shaders.shaders.size(); i++) {
+            assert(prop.shaders.shaders[i] && "Invalid shader asset.");
             auto shader_asset = prop.shaders.shaders[i]->cas<ShaderAsset>();
             auto code = shader_asset->binary;
             vk::ShaderModuleCreateInfo ci {
@@ -62,7 +66,7 @@ namespace Engine
             };
         }
 
-        bool use_swapchain_attachments = prop.attachments.color.empty();
+        bool use_swapchain_attachments = prop.attachments.color.empty() && prop.attachments.depth == ImageUtils::ImageFormat::UNDEFINED;
 
         auto vis = HomogeneousMesh::GetVertexInputState();
         auto iasi = vk::PipelineInputAssemblyStateCreateInfo {{}, vk::PrimitiveTopology::eTriangleList, vk::False};
@@ -75,9 +79,25 @@ namespace Engine
         vk::PipelineColorBlendStateCreateInfo cbsi {};
         vk::PipelineRenderingCreateInfo prci {};
         std::vector<vk::PipelineColorBlendAttachmentState> cbass;
+
+        vk::Format default_color_format {m_system.lock()->GetSwapchain().GetImageFormat().format};
+        vk::Format default_depth_format {ImageUtils::GetVkFormat(m_system.lock()->GetSwapchain().DEPTH_FORMAT)};
+        AttachmentUtils::AttachmentOp default_color_op{
+            vk::AttachmentLoadOp::eClear, 
+            vk::AttachmentStoreOp::eStore,
+            vk::ClearValue{vk::ClearColorValue{0.0f, 0.0f, 0.0f, 1.0f}}
+        };
+        AttachmentUtils::AttachmentOp default_depth_op{
+            vk::AttachmentLoadOp::eClear,
+            vk::AttachmentStoreOp::eDontCare,
+            vk::ClearValue{vk::ClearDepthStencilValue{1.0f, 0u}}
+        };
+
         // Fill in attachment information
         if (use_swapchain_attachments) {
-            prci = m_system.lock()->GetSwapchain().GetPipelineRenderingCreateInfo();
+            prci = vk::PipelineRenderingCreateInfo {
+                0, {default_color_format}, default_depth_format, vk::Format::eUndefined
+            };
             cbass.push_back(
                 vk::PipelineColorBlendAttachmentState{
                     vk::False,
@@ -89,18 +109,41 @@ namespace Engine
                     vk::ColorComponentFlagBits::eA
                 }
             );
-            pass_info.attachments.color_attachment_ops.push_back({
-                vk::AttachmentLoadOp::eClear, 
-                vk::AttachmentStoreOp::eStore,
-                vk::ClearValue{vk::ClearColorValue{0.0f, 0.0f, 0.0f, 1.0f}}
-            });
-            pass_info.attachments.ds_attachment_ops = {
-                vk::AttachmentLoadOp::eClear,
-                vk::AttachmentStoreOp::eDontCare,
-                vk::ClearValue{vk::ClearDepthStencilValue{1.0f, 0u}}
+
+            pass_info.attachments.color_attachment_ops.push_back(
+                prop.attachments.color_ops.empty() ? default_color_op : prop.attachments.color_ops[0]
+            );
+            pass_info.attachments.ds_attachment_ops = default_depth_op;
+
+        } else if (prop.attachments.color.empty() && prop.attachments.depth != ImageUtils::ImageFormat::UNDEFINED) {
+            // Has depth attachment with no color attachments => depth-only
+            prci = vk::PipelineRenderingCreateInfo{
+                0, 0, nullptr, ImageUtils::GetVkFormat(prop.attachments.depth), vk::Format::eUndefined, nullptr
             };
+            pass_info.attachments.ds_attachment_ops = prop.attachments.ds_ops;
         } else {
-            SDL_LogCritical(SDL_LOG_CATEGORY_RENDER, "Custom attachments not implemented yet.");
+            // All custom attachments
+            // XXX: This case is not thoroughly tested!
+            std::vector <vk::Format> color_attachment_formats {prop.attachments.color.size(), vk::Format::eUndefined};
+            pass_info.attachments.color_attachment_ops.resize(prop.attachments.color_ops.size());
+    
+            assert(prop.attachments.color.size() == prop.attachments.color_ops.size() && "Mismatched color attachment and operation size.");
+            for (size_t i = 0; i < prop.attachments.color.size(); i++) {
+                color_attachment_formats[i] = (
+                    prop.attachments.color[i] == ImageUtils::ImageFormat::UNDEFINED ?
+                    default_color_format :
+                    ImageUtils::GetVkFormat(prop.attachments.color[i])
+                );
+                pass_info.attachments.color_attachment_ops[i] = prop.attachments.color_ops[i];
+            }
+            pass_info.attachments.ds_attachment_ops = prop.attachments.ds_ops;
+
+            prci = vk::PipelineRenderingCreateInfo{
+                0, 
+                color_attachment_formats,
+                prop.attachments.depth == ImageUtils::ImageFormat::UNDEFINED ? default_depth_format : ImageUtils::GetVkFormat(prop.attachments.depth),
+                vk::Format::eUndefined
+            };
         }
         cbsi.logicOpEnable = vk::False;
         cbsi.setAttachments(cbass);
@@ -326,7 +369,7 @@ namespace Engine
 
                 vk::DescriptorImageInfo image_info {};
                 image_info.imageView = image->GetImageView();
-                image_info.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+                image_info.imageLayout = vk::ImageLayout::eReadOnlyOptimal;
                 image_info.sampler = m_default_sampler.get();
                 info.push_back(std::make_pair(uniform.location.binding, image_info));
             }

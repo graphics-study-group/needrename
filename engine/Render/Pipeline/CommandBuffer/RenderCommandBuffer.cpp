@@ -3,11 +3,14 @@
 #include "Render/Memory/Buffer.h"
 #include "Render/Memory/Image2DTexture.h"
 #include "Render/Material/MaterialInstance.h"
-#include "Render/Pipeline/RenderTarget/RenderTargetSetup.h"
 #include "Render/Renderer/HomogeneousMesh.h"
 #include "Render/ConstantData/PerModelConstants.h"
+#include "Render/RenderSystem/GlobalConstantDescriptorPool.h"
+#include "Render/Pipeline/RenderTargetBinding.h"
 
 #include "Render/Pipeline/CommandBuffer/LayoutTransferHelper.h"
+
+#include <SDL3/SDL.h>
 
 namespace Engine
 {
@@ -23,8 +26,8 @@ namespace Engine
         m_handle(cb), 
         m_queue(queue), 
         m_completed_fence(fence), 
-        m_image_ready_semaphore(wait), 
-        m_completed_semaphore(signal), 
+        m_wait_semaphore(wait), 
+        m_signal_semaphore(signal), 
         m_inflight_frame_index(frame_in_flight)
     {
     }
@@ -35,49 +38,42 @@ namespace Engine
         m_handle.begin(binfo);
     }
 
-    void RenderCommandBuffer::BeginRendering(const RenderTargetSetup &pass, vk::Extent2D extent, uint32_t framebuffer_id)
+    void RenderCommandBuffer::BeginRendering(
+        AttachmentUtils::AttachmentDescription color, 
+        AttachmentUtils::AttachmentDescription depth,
+        vk::Extent2D extent)
     {
-        m_bound_render_target = std::cref(pass);
-        const auto & clear_values = pass.GetClearValues();
-        auto depth = pass.GetDepthAttachment(framebuffer_id);
-
-        m_image_for_present = pass.GetImageForPresentation(framebuffer_id);
-
-        auto max_color_index = pass.GetColorAttachmentSize();
-
         std::vector <vk::RenderingAttachmentInfo> color_attachment;
-        color_attachment.resize(max_color_index);
-        std::vector<vk::ImageMemoryBarrier2> barriers;
-        barriers.resize(max_color_index + 1);
-    
-        for (size_t i = 0; i < max_color_index; i++) {
-            auto color = pass.GetColorAttachment(framebuffer_id, i);
-
-            // Prepare attachment information
-            if (!((color.load_op == vk::AttachmentLoadOp::eClear || color.load_op == vk::AttachmentLoadOp::eLoad) &&
-                color.store_op == vk::AttachmentStoreOp::eStore)) {
-                SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Pathological color buffer operations.");
-            }
-            color_attachment[i] = GetVkAttachmentInfo(color, vk::ImageLayout::eColorAttachmentOptimal, clear_values[0]);
+        std::vector <vk::ImageMemoryBarrier2> barriers;
+        
+        if (color.image && color.image_view) {
+            color_attachment.push_back(GetVkAttachmentInfo(
+                color,
+                vk::ImageLayout::eColorAttachmentOptimal, 
+                vk::ClearColorValue{0, 0, 0, 0}
+            ));
 
             // Set up layout transition barrier
-            barriers[i] = LayoutTransferHelper::GetAttachmentBarrier(
+            barriers.push_back(LayoutTransferHelper::GetAttachmentBarrier(
                 LayoutTransferHelper::AttachmentTransferType::ColorAttachmentPrepare, 
                 color.image
-            );
+            ));
         }
 
-        if (!(depth.load_op == vk::AttachmentLoadOp::eClear 
-            && depth.store_op == vk::AttachmentStoreOp::eDontCare)) {
-            SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Pathological depth buffer operations.");
+        vk::RenderingAttachmentInfo depth_attachment;
+        if (depth.image && depth.image_view) {
+            depth_attachment = vk::RenderingAttachmentInfo{
+                GetVkAttachmentInfo(
+                    depth, 
+                    vk::ImageLayout::eDepthStencilAttachmentOptimal, 
+                    vk::ClearDepthStencilValue{1.0f, 0U}
+                )
+            };
+            barriers.push_back(LayoutTransferHelper::GetAttachmentBarrier(
+                LayoutTransferHelper::AttachmentTransferType::DepthAttachmentPrepare, 
+                depth.image
+            ));
         }
-        vk::RenderingAttachmentInfo depth_attachment{
-            GetVkAttachmentInfo(depth, vk::ImageLayout::eDepthAttachmentOptimal, clear_values[1])
-        };
-        barriers[color_attachment.size()] = LayoutTransferHelper::GetAttachmentBarrier(
-            LayoutTransferHelper::AttachmentTransferType::DepthAttachmentPrepare, 
-            depth.image
-        );
 
         // Issue layout transition barriers
         vk::DependencyInfo dep {
@@ -92,7 +88,59 @@ namespace Engine
             1,
             0,
             color_attachment,
-            &depth_attachment,
+            depth.image ? &depth_attachment : nullptr,
+            nullptr
+        };
+        // Begin rendering after transit
+        m_handle.beginRendering(info);
+    }
+
+    void RenderCommandBuffer::BeginRendering(const RenderTargetBinding &binding, vk::Extent2D extent)
+    {
+        size_t total_attachment_count = binding.GetColorAttachmentCount() + binding.HasDepthAttachment();
+        std::vector <vk::RenderingAttachmentInfo> color_attachment_info (binding.GetColorAttachmentCount(), vk::RenderingAttachmentInfo{});
+        std::vector <vk::ImageMemoryBarrier2> barriers (total_attachment_count, vk::ImageMemoryBarrier2{});
+
+        const auto & color_attachments = binding.GetColorAttachments();
+        for (size_t i = 0; i < color_attachments.size(); i++) {
+            color_attachment_info[i] = GetVkAttachmentInfo(
+                color_attachments[i],
+                vk::ImageLayout::eColorAttachmentOptimal, 
+                vk::ClearColorValue{0, 0, 0, 0}
+            );
+            barriers[i] = LayoutTransferHelper::GetAttachmentBarrier(
+                LayoutTransferHelper::AttachmentTransferType::ColorAttachmentPrepare, 
+                color_attachments[i].image
+            );
+        }
+
+        vk::RenderingAttachmentInfo depth_attachment_info {};
+        if (binding.HasDepthAttachment()) {
+            const auto & depth_attachment = binding.GetDepthAttachment();
+            depth_attachment_info = GetVkAttachmentInfo(
+                depth_attachment,
+                vk::ImageLayout::eDepthStencilAttachmentOptimal, 
+                vk::ClearDepthStencilValue{1.0f, 0U}
+            );
+            *(barriers.rbegin()) = LayoutTransferHelper::GetAttachmentBarrier(
+                LayoutTransferHelper::AttachmentTransferType::DepthAttachmentPrepare, 
+                depth_attachment.image
+            );
+        }
+
+        vk::DependencyInfo dep {
+            vk::DependencyFlags{0},
+            {}, {}, barriers
+        };
+        m_handle.pipelineBarrier2(dep);
+
+        vk::RenderingInfo info {
+            vk::RenderingFlags{0},
+            vk::Rect2D{{0, 0}, extent},
+            1,
+            0,
+            color_attachment_info,
+            binding.HasDepthAttachment() ? &depth_attachment_info : nullptr,
             nullptr
         };
         // Begin rendering after transit
@@ -101,7 +149,6 @@ namespace Engine
 
     void RenderCommandBuffer::BindMaterial(MaterialInstance &material, uint32_t pass_index)
     {
-        assert(m_bound_render_target.has_value());
         const auto & pipeline = material.GetTemplate().GetPipeline(pass_index);
         const auto & pipeline_layout = material.GetTemplate().GetPipelineLayout(pass_index);
 
@@ -163,17 +210,20 @@ namespace Engine
 
     void RenderCommandBuffer::EndRendering()
     {
-#ifndef NDEBUG
-        // assert(m_bound_render_target.has_value());
-        if (!m_bound_render_target.has_value()) {
-            SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "End rendering called without beginning a rendering pass.");
-        }
-#endif
         m_handle.endRendering();
-        m_bound_render_target.reset();
     }
 
-    void RenderCommandBuffer::DrawMesh(const HomogeneousMesh& mesh) {
+    void RenderCommandBuffer::InsertAttachmentBarrier(AttachmentBarrierType type, vk::Image image)
+    {
+        std::array <vk::ImageMemoryBarrier2, 1> barriers {
+            LayoutTransferHelper::GetAttachmentBarrier(type, image)
+        };
+        vk::DependencyInfo dep{{}, {}, {}, barriers};
+        m_handle.pipelineBarrier2(dep);
+    }
+
+    void RenderCommandBuffer::DrawMesh(const HomogeneousMesh &mesh)
+    {
         auto bindings = mesh.GetBindingInfo();
         m_handle.bindVertexBuffers(0, bindings.first, bindings.second);
         auto indices = mesh.GetIndexInfo();
@@ -183,53 +233,38 @@ namespace Engine
     }
 
     void RenderCommandBuffer::End() {
-#ifndef NDEBUG
-        if (m_bound_render_target.has_value()) {
-            SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Command buffer ended within rendering pass.");
-        }
-#endif
-        // Transit color attachment to present layout
-        if (m_image_for_present.has_value()) {
-            if (m_image_for_present.value() != nullptr) {
-                std::array<vk::ImageMemoryBarrier2, 1> barriers = {
-                    LayoutTransferHelper::GetAttachmentBarrier(LayoutTransferHelper::AttachmentTransferType::ColorAttachmentPresent, m_image_for_present.value())
-                };
-                vk::DependencyInfo dep {
-                    vk::DependencyFlags{0},
-                    {}, {}, barriers
-                };
-                m_handle.pipelineBarrier2(dep);
-            }
-        }
         m_handle.end();
     }
 
-    void RenderCommandBuffer::Submit() {
+    void RenderCommandBuffer::Submit(bool wait_for_semaphore) {
         vk::SubmitInfo info{};
         info.commandBufferCount = 1;
         info.pCommandBuffers = &m_handle;
 
         // const auto & synch = m_system.getSynchronization();
 
-        // Stall the pipelines' color attachment output before any image is ready.
-        auto wait = this->m_image_ready_semaphore;
-        auto waitFlags = vk::PipelineStageFlags{vk::PipelineStageFlagBits::eColorAttachmentOutput};
-        auto signal = this->m_completed_semaphore;
+        // Stall the execution of this commandbuffer until previous one has finished.
+        auto wait = this->m_wait_semaphore;
+        auto waitFlags = vk::PipelineStageFlags{vk::PipelineStageFlagBits::eTopOfPipe};
+        auto signal = this->m_signal_semaphore;
 
-        info.waitSemaphoreCount = 1;
-        info.pWaitSemaphores = &wait;
-        info.pWaitDstStageMask = &waitFlags;
-
+        if (wait_for_semaphore) {
+            info.waitSemaphoreCount = 1;
+            info.pWaitSemaphores = &wait;
+            info.pWaitDstStageMask = &waitFlags;
+        } else {
+            info.waitSemaphoreCount = 0;
+        }
+        
         info.signalSemaphoreCount = 1;
         info.pSignalSemaphores = &signal;
         std::array<vk::SubmitInfo, 1> infos{info};
-        m_queue.submit(infos, m_completed_fence);
+        m_queue.submit(infos, nullptr);
     }
 
     void RenderCommandBuffer::Reset() {
         m_handle.reset();
         m_bound_material_pipeline.reset();
-        m_image_for_present.reset();
     }
 
     vk::CommandBuffer RenderCommandBuffer::get()

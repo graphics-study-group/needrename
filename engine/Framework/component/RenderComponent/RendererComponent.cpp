@@ -1,5 +1,6 @@
 #include "RendererComponent.h"
 #include "Render/RenderSystem.h"
+#include "Render/RenderSystem/MaterialRegistry.h"
 #include <Render/Material/MaterialInstance.h>
 #include <Asset/Material/MaterialAsset.h>
 #include <Framework/component/RenderComponent/CameraComponent.h>

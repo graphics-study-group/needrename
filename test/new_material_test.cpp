@@ -6,8 +6,10 @@
 #include "MainClass.h"
 #include "Functional/SDLWindow.h"
 #include "Framework/component/RenderComponent/MeshComponent.h"
-#include "Render/Pipeline/RenderTarget/RenderTargetSetup.h"
 #include "Render/RenderSystem.h"
+#include "Render/RenderSystem/GlobalConstantDescriptorPool.h"
+#include "Render/RenderSystem/FrameManager.h"
+#include "Render/RenderSystem/Swapchain.h"
 #include "GUI/GUISystem.h"
 #include "Render/ConstantData/PerModelConstants.h"
 #include "Render/Material/Templates/BlinnPhong.h"
@@ -23,8 +25,8 @@ using namespace Engine;
 namespace sch = std::chrono;
 
 
-struct TestMeshAsset : public MeshAsset {
-    TestMeshAsset() {
+struct LowerPlaneMeshAsset : public MeshAsset {
+    LowerPlaneMeshAsset() {
         this->m_submeshes.resize(1);
         this->m_submeshes[0] = {
             .m_indices = {0, 3, 2, 0, 2, 1},
@@ -112,15 +114,6 @@ int main(int argc, char ** argv)
     cmc->GetAssetManager()->SetBuiltinAssetPath(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
 
     auto rsys = cmc->GetRenderSystem();
-    // rsys->EnableDepthTesting();
-
-    RenderTargetSetup rts{rsys};
-    rts.CreateFromSwapchain();
-    rts.SetClearValues({
-        vk::ClearValue{vk::ClearColorValue{0.0f, 0.0f, 0.0f, 1.0f}},
-        vk::ClearValue{vk::ClearDepthStencilValue{1.0f, 0U}}
-    });
-
     // Prepare texture
     auto test_texture_asset = std::make_shared<Image2DTextureAsset>();
     test_texture_asset->LoadFromFile(std::string(ENGINE_ASSETS_DIR) + "/bunny/bunny.png");
@@ -160,7 +153,7 @@ int main(int argc, char ** argv)
     // archive.save_to_file(project_path / "blinn_phong.frag.spv.asset");
 
     // Prepare mesh
-    auto test_mesh_asset = std::make_shared<TestMeshAsset>();
+    auto test_mesh_asset = std::make_shared<LowerPlaneMeshAsset>();
     auto test_mesh_asset_ref = std::make_shared<AssetRef>(test_mesh_asset);
     HomogeneousMesh test_mesh{rsys, test_mesh_asset_ref, 0};
     test_mesh.Prepare();
@@ -186,6 +179,22 @@ int main(int argc, char ** argv)
 
     glm::mat4 eye4 = glm::mat4(1.0f);
 
+    // Prepare attachments
+    Engine::AllocatedImage2D color{rsys}, depth{rsys};
+    color.Create(1920, 1080, Engine::ImageUtils::ImageType::ColorAttachment, Engine::ImageUtils::ImageFormat::B8G8R8A8SRGB, 1);
+    depth.Create(1920, 1080, Engine::ImageUtils::ImageType::DepthImage, Engine::ImageUtils::ImageFormat::D32SFLOAT, 1);
+
+    Engine::AttachmentUtils::AttachmentDescription color_att, depth_att;
+    color_att.image = color.GetImage();
+    color_att.image_view = color.GetImageView();
+    color_att.load_op = vk::AttachmentLoadOp::eClear;
+    color_att.store_op = vk::AttachmentStoreOp::eStore;
+
+    depth_att.image = depth.GetImage();
+    depth_att.image_view = depth.GetImageView();
+    depth_att.load_op = vk::AttachmentLoadOp::eClear;
+    depth_att.store_op = vk::AttachmentStoreOp::eDontCare;
+
     bool quited = false;
     while(max_frame_count--) {
         SDL_Event event;
@@ -210,7 +219,7 @@ int main(int argc, char ** argv)
 
         vk::Extent2D extent {rsys->GetSwapchain().GetExtent()};
         vk::Rect2D scissor{{0, 0}, extent};
-        cb.BeginRendering(rts, extent, index);
+        cb.BeginRendering(color_att, depth_att, extent);
 
         cb.SetupViewport(extent.width, extent.height, scissor);
         cb.BindMaterial(*test_material_instance, 0);
@@ -230,6 +239,7 @@ int main(int argc, char ** argv)
         cb.End();
         cb.Submit();
 
+        rsys->GetFrameManager().StageCopyComposition(color.GetImage());
         rsys->CompleteFrame();
 
         SDL_Delay(10);

@@ -51,8 +51,6 @@ namespace Engine::RenderSystemState {
 
         PhysicalDevice dev;
         dev.m_device = selected_device;
-        dev.m_indices = FillQueueFamilyIndices(selected_device, surface);
-        dev.m_support = FillSwapchainSupport(selected_device, surface);
         dev.m_memory_properties = selected_device.getMemoryProperties();
         return dev;
     }
@@ -61,12 +59,12 @@ namespace Engine::RenderSystemState {
         return m_device;
     }
 
-    const SwapchainSupport& PhysicalDevice::GetSwapchainSupport() const {
-        return m_support;
+    SwapchainSupport PhysicalDevice::GetSwapchainSupport(vk::SurfaceKHR surface) const {
+        return FillSwapchainSupport(this->m_device, surface);
     }
 
-    const QueueFamilyIndices& PhysicalDevice::GetQueueFamilyIndices() const {
-        return m_indices;
+    QueueFamilyIndices PhysicalDevice::GetQueueFamilyIndices(vk::SurfaceKHR surface) const {
+        return FillQueueFamilyIndices(this->m_device, surface);
     }
 
     const vk::PhysicalDeviceMemoryProperties& PhysicalDevice::GetMemoryProperties() const {

@@ -16,8 +16,11 @@ namespace Engine::RenderSystemState {
         static PhysicalDevice SelectPhysicalDevice(vk::Instance instance, vk::SurfaceKHR surface);
 
         vk::PhysicalDevice get() const;
-        const SwapchainSupport & GetSwapchainSupport () const;
-        const QueueFamilyIndices & GetQueueFamilyIndices () const;
+
+        SwapchainSupport GetSwapchainSupport (vk::SurfaceKHR surface) const;
+
+        QueueFamilyIndices GetQueueFamilyIndices (vk::SurfaceKHR surface) const;
+
         const vk::PhysicalDeviceMemoryProperties & GetMemoryProperties () const;
 
     protected:

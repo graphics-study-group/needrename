@@ -6,6 +6,8 @@
 #include "Render/Pipeline/CommandBuffer/BufferTransferHelper.h"
 #include "Render/Pipeline/CommandBuffer/LayoutTransferHelper.h"
 
+#include <SDL3/SDL.h>
+
 namespace Engine::RenderSystemState {
     SubmissionHelper::SubmissionHelper(RenderSystem &system) : m_system(system)
     {
@@ -80,6 +82,43 @@ namespace Engine::RenderSystemState {
             cb.pipelineBarrier2(dinfo);
 
             m_pending_dellocations.push_back(std::move(buffer));
+        };
+        m_pending_operations.push(enqueued);
+    }
+
+    void SubmissionHelper::EnqueueTextureClear(const AllocatedImage2DTexture & texture, std::tuple<float,float,float,float> color)
+    {
+        auto enqueued = [&texture, color, this] (vk::CommandBuffer cb) {
+            // Transit layout to TransferDstOptimal
+            std::array<vk::ImageMemoryBarrier2, 1> barriers = {
+                LayoutTransferHelper::GetTextureBarrier(LayoutTransferHelper::TextureTransferType::TextureClearBefore, texture.GetImage())
+            };
+            vk::DependencyInfo dinfo {
+                vk::DependencyFlags{},
+                {}, {}, barriers
+            };
+            cb.pipelineBarrier2(dinfo);
+            auto [r, g, b, a] = color;
+            cb.clearColorImage(
+                texture.GetImage(), 
+                vk::ImageLayout::eTransferDstOptimal,
+                vk::ClearColorValue{r, g, b, a},
+                {
+                    vk::ImageSubresourceRange{
+                        vk::ImageAspectFlagBits::eColor,
+                        0, vk::RemainingMipLevels,
+                        0, vk::RemainingArrayLayers
+                    }
+                }
+            );
+
+            // Transfer image for sampling
+            barriers[0] = LayoutTransferHelper::GetTextureBarrier(
+                LayoutTransferHelper::TextureTransferType::TextureClearAfter, 
+                texture.GetImage()
+            );
+            dinfo.setImageMemoryBarriers(barriers);
+            cb.pipelineBarrier2(dinfo);
         };
         m_pending_operations.push(enqueued);
     }
