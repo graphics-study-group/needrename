@@ -4,6 +4,7 @@
 #include <memory>
 #include <SDL3/SDL.h>
 #include <imgui.h>
+#include <vulkan/vulkan.hpp>
 
 namespace Engine {
     class RenderSystem;

@@ -8,11 +8,7 @@
 
 #include "MainClass.h"
 #include "Functional/SDLWindow.h"
-#include "Render/ConstantData/PerCameraConstants.h"
-#include "Render/Material/TestMaterialWithTransform.h"
-#include "Render/Pipeline/Shader.h"
-#include "Render/Pipeline/CommandBuffer.h"
-#include "Render/Renderer/HomogeneousMesh.h"
+#include "Render/FullRenderSystem.h"
 
 using namespace Engine;
 namespace sch = std::chrono;

@@ -2,7 +2,7 @@
 
 #include "Render/Memory/Buffer.h"
 #include "Render/Memory/Image2DTexture.h"
-#include "Render/Material/MaterialInstance.h"
+#include "Render/Pipeline/Material/MaterialInstance.h"
 #include "Render/Renderer/HomogeneousMesh.h"
 #include "Render/ConstantData/PerModelConstants.h"
 #include "Render/RenderSystem/GlobalConstantDescriptorPool.h"

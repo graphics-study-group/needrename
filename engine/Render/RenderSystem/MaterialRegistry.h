@@ -1,7 +1,7 @@
 #ifndef RENDER_RENDERSYSTEM_MATERIALREGISTRY_INCLUDED
 #define RENDER_RENDERSYSTEM_MATERIALREGISTRY_INCLUDED
 
-#include "Render/Material/MaterialTemplate.h"
+#include "Render/Pipeline/Material/MaterialTemplate.h"
 #include <string>
 #include <unordered_map>
 #include <memory>

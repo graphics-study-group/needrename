@@ -5,7 +5,7 @@
 #include <optional>
 #include "Render/AttachmentUtils.h"
 #include "Asset/Material/MaterialTemplateAsset.h"
-#include "Render/Material/PipelineInfo.h"
+#include "Render/Pipeline/Material/PipelineInfo.h"
 
 namespace Engine {
     class MaterialInstance;

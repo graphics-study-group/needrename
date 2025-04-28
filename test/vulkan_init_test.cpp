@@ -6,10 +6,7 @@
 #include "MainClass.h"
 #include "Functional/SDLWindow.h"
 #include "Framework/component/RenderComponent/MeshComponent.h"
-#include "Render/Material/TestMaterial.h"
-#include "Render/Pipeline/Shader.h"
-#include "Render/Pipeline/CommandBuffer.h"
-#include "Render/Renderer/HomogeneousMesh.h"
+#include "Render/FullRenderSystem.h"
 
 using namespace Engine;
 namespace sch = std::chrono;

@@ -21,9 +21,9 @@
 
 #include "Render/Memory/Image2DTexture.h"
 
-#include "Render/Material/MaterialInstance.h"
-#include "Render/Material/MaterialTemplate.h"
-#include "Render/Material/Templates/BlinnPhong.h"
+#include "Render/Pipeline/Material/MaterialInstance.h"
+#include "Render/Pipeline/Material/MaterialTemplate.h"
+#include "Render/Pipeline/Material/Templates/BlinnPhong.h"
 
 #include "Render/RenderSystem.h"
 
