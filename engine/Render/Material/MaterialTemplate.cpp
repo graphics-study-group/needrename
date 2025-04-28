@@ -2,7 +2,7 @@
 #include "MaterialInstance.h"
 #include "Asset/AssetRef.h"
 #include "Render/RenderSystem.h"
-#include "MaterialTemplateUtils.h"
+#include "PipelineUtils.h"
 #include "Render/ConstantData/PerModelConstants.h"
 #include "Render/Renderer/HomogeneousMesh.h"
 #include "Render/RenderSystem/GlobalConstantDescriptorPool.h"
@@ -27,7 +27,7 @@ namespace Engine
             const auto & pool = m_system.lock()->GetGlobalConstantDescriptorPool();
 
             // TODO: supply a default sampler.
-            auto desc_bindings = MaterialTemplateUtils::ToVulkanDescriptorSetLayoutBindings(prop.shaders, m_default_sampler.get());
+            auto desc_bindings = PipelineUtils::ToVulkanDescriptorSetLayoutBindings(prop.shaders, m_default_sampler.get());
             vk::DescriptorSetLayoutCreateInfo dslci {
                 {}, desc_bindings
             };
@@ -60,7 +60,7 @@ namespace Engine
             pass_info.shaders[i] = device.createShaderModuleUnique(ci);
             psscis[i] = vk::PipelineShaderStageCreateInfo {
                 {},
-                MaterialTemplateUtils::ToVulkanShaderStageFlagBits(shader_asset->shaderType),
+                PipelineUtils::ToVulkanShaderStageFlagBits(shader_asset->shaderType),
                 pass_info.shaders[i].get(),
                 "main"
             };
@@ -71,9 +71,9 @@ namespace Engine
         auto vis = HomogeneousMesh::GetVertexInputState();
         auto iasi = vk::PipelineInputAssemblyStateCreateInfo {{}, vk::PrimitiveTopology::eTriangleList, vk::False};
         auto vsi = vk::PipelineViewportStateCreateInfo {{}, 1, nullptr, 1, nullptr};
-        auto rsci = MaterialTemplateUtils::ToVulkanRasterizationStateCreateInfo(prop.rasterizer);
+        auto rsci = PipelineUtils::ToVulkanRasterizationStateCreateInfo(prop.rasterizer);
         auto msi = vk::PipelineMultisampleStateCreateInfo{{}, vk::SampleCountFlagBits::e1, vk::False};
-        auto dsci = MaterialTemplateUtils::ToVulkanDepthStencilStateCreateInfo(prop.depth_stencil);
+        auto dsci = PipelineUtils::ToVulkanDepthStencilStateCreateInfo(prop.depth_stencil);
         auto dsi = vk::PipelineDynamicStateCreateInfo{{}, PassInfo::PIPELINE_DYNAMIC_STATES};
         
         vk::PipelineColorBlendStateCreateInfo cbsi {};

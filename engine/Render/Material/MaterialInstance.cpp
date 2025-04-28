@@ -1,5 +1,5 @@
 #include "MaterialInstance.h"
-#include "MaterialTemplateUtils.h"
+#include "PipelineUtils.h"
 #include "Render/Memory/ImageInterface.h"
 #include <Render/Memory/Image2DTexture.h>
 #include "Render/RenderSystem.h"
@@ -56,8 +56,8 @@ namespace Engine {
     void MaterialInstance::WriteUBOUniform(uint32_t pass, uint32_t index, std::any uniform)
     {
         assert(
-            MaterialTemplateUtils::REGISTERED_SHADER_UNIFORM_TYPES.find(uniform.type()) 
-            != MaterialTemplateUtils::REGISTERED_SHADER_UNIFORM_TYPES.end()
+            PipelineUtils::REGISTERED_SHADER_UNIFORM_TYPES.find(uniform.type()) 
+            != PipelineUtils::REGISTERED_SHADER_UNIFORM_TYPES.end()
             && "Unsupported uniform type."
         );
         assert(m_pass_info.find(pass) != m_pass_info.end() && "Cannot find pass.");

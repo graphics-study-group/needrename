@@ -1,9 +1,9 @@
-#include "MaterialTemplateUtils.h"
+#include "PipelineUtils.h"
 #include <ranges>
 #include <SDL3/SDL.h>
 
 namespace Engine {
-    namespace MaterialTemplateUtils {
+    namespace PipelineUtils {
         vk::PolygonMode ToVkPolygonMode(MaterialTemplateSinglePassProperties::RasterizerProperties::FillingMode mode)
         {
             

@@ -9,7 +9,7 @@
 #include <glm.hpp>
 
 namespace Engine{
-    namespace MaterialTemplateUtils{
+    namespace PipelineUtils{
         const static std::unordered_set <std::type_index> REGISTERED_SHADER_UNIFORM_TYPES = {
             typeid(int),
             typeid(float),
