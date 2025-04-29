@@ -62,7 +62,7 @@ namespace Engine {
          * 
          * @remark For internal use only.
          */
-        void PlaceUBOVariables(const std::unordered_map <uint32_t, std::any> & variables, const PassInfo & info, std::vector<std::byte> & memory);
+        void PlaceUBOVariables(const std::unordered_map <uint32_t, std::any> & variables, const PassInfo & info, std::vector<std::byte> & memory) noexcept;
 
         /**
          * @brief Get the descriptor image info for a specific variable set.
@@ -74,7 +74,7 @@ namespace Engine {
          * @remark For internal use only.
          */
         std::vector<std::pair<uint32_t, vk::DescriptorImageInfo>> 
-        GetDescriptorImageInfo(const std::unordered_map <uint32_t, std::any> & variables, const PassInfo & info, vk::Sampler sampler);
+        GetDescriptorImageInfo(const std::unordered_map <uint32_t, std::any> & variables, const PassInfo & info, vk::Sampler sampler) noexcept;
     }
 }
 
