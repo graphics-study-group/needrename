@@ -12,13 +12,7 @@ namespace Engine
     /// where all mutable data such as texture and uniforms are stored.
     class MaterialInstance {
     public:
-        struct PassInfo {
-            // FIXME: We are only allocating one buffer for multiple frames-in-flight. This might lead to synchronization problems.
-            std::unique_ptr<Buffer> ubo {};
-            vk::DescriptorSet desc_set {};
-            bool is_ubo_dirty {false};
-            bool is_descriptor_set_dirty {false};
-        };
+        using PassInfo = PipelineInfo::InstancedPassInfo;
 
     protected:
         std::weak_ptr <RenderSystem> m_system;

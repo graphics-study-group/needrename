@@ -8,6 +8,7 @@
 #include "Render/AttachmentUtils.h"
 
 namespace Engine {
+    class Buffer;
     namespace PipelineInfo {
         struct ShaderVariable {
             using Type = ShaderVariableProperty::Type;
@@ -31,14 +32,14 @@ namespace Engine {
                 std::vector <ShaderVariable> variables {};
                 uint64_t maximal_ubo_size {};
             } uniforms {};
+        };
 
+        struct MaterialPassInfo : PassInfo {
             constexpr static std::array<vk::DynamicState, 2> PIPELINE_DYNAMIC_STATES = {
                 vk::DynamicState::eViewport,
                 vk::DynamicState::eScissor
             };
-        };
 
-        struct MaterialPassInfo : PassInfo {
             struct Attachments {
                 std::vector <AttachmentUtils::AttachmentOp> color_attachment_ops {};
                 AttachmentUtils::AttachmentOp ds_attachment_ops {};
@@ -55,6 +56,14 @@ namespace Engine {
                 vk::DescriptorPoolSize{vk::DescriptorType::eUniformBuffer, 64},
                 vk::DescriptorPoolSize{vk::DescriptorType::eCombinedImageSampler, 64}
             };
+        };
+
+        struct InstancedPassInfo {
+            // FIXME: We are only allocating one buffer for multiple frames-in-flight. This might lead to synchronization problems.
+            std::unique_ptr<Buffer> ubo {};
+            vk::DescriptorSet desc_set {};
+            bool is_ubo_dirty {false};
+            bool is_descriptor_set_dirty {false};
         };
 
         /**
