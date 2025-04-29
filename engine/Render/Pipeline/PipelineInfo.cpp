@@ -66,14 +66,37 @@ namespace Engine::PipelineInfo {
                 try {
                     image = (std::any_cast<std::shared_ptr<const ImageInterface>> (variables.at(idx)));
                 } catch (std::exception & e) {
-                    SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Variable %llu is not a texture, or the texture is invalid.", idx);
+                    SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Variable %llu is not an image, or the image is invalid.", idx);
                     continue;
                 }
 
+                if (!sampler)    SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Sampler not supplied for a sampled image.");
+
                 vk::DescriptorImageInfo image_info {};
                 image_info.imageView = image->GetImageView();
-                image_info.imageLayout = sampler ? vk::ImageLayout::eReadOnlyOptimal : vk::ImageLayout::eGeneral;
+                image_info.imageLayout = vk::ImageLayout::eReadOnlyOptimal;
                 image_info.sampler = sampler;
+                ret.push_back(std::make_pair(uniform.location.binding, image_info));
+            } else if (uniform.type == ShaderVariable::Type::StorageImage) {
+                if (!variables.contains(idx)) {
+                    SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Storage image variable %llu not found in instance.", idx);
+                    continue;
+                }
+
+                std::shared_ptr<const ImageInterface> image{};
+                try {
+                    image = (std::any_cast<std::shared_ptr<const ImageInterface>> (variables.at(idx)));
+                } catch (std::exception & e) {
+                    SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Variable %llu is not an image, or the image is invalid.", idx);
+                    continue;
+                }
+
+                if (sampler)    SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Sampler supplied for a storage image.");
+
+                vk::DescriptorImageInfo image_info {};
+                image_info.imageView = image->GetImageView();
+                image_info.imageLayout = vk::ImageLayout::eGeneral;
+                image_info.sampler = nullptr;
                 ret.push_back(std::make_pair(uniform.location.binding, image_info));
             }
         }

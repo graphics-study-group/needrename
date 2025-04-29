@@ -56,11 +56,10 @@ namespace Engine{
          * Converts a MaterialTemplateSinglePassProperties::Shaders and a default sampler to a list of Vulkan descriptor set layout bindings.
          *
          * @param shaders The shaders to convert.
-         * @param default_sampler The default sampler to use for the bindings.
          * @return A list of Vulkan descriptor set layout bindings.
          */
         std::vector<vk::DescriptorSetLayoutBinding>
-        ToVulkanDescriptorSetLayoutBindings(const MaterialTemplateSinglePassProperties::Shaders &shaders, vk::Sampler default_sampler);
+        ToVulkanDescriptorSetLayoutBindings(const MaterialTemplateSinglePassProperties::Shaders &shaders);
 
         /**
          * Converts a MaterialTemplateSinglePassProperties::Shaders and a vector of unique shader modules to a Vulkan pipeline shader stage create info.

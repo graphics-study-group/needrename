@@ -31,7 +31,10 @@ namespace Engine {
             Int,
             Vec4,
             Mat4,
-            Texture
+            // Texture to be sampled (or combined image sampler).
+            Texture,
+            // Storage image. Generally used in compute shaders.
+            StorageImage,
         } type {};
 
         static constexpr size_t SizeOf(Type type) {
@@ -79,7 +82,11 @@ namespace Engine {
         REFL_SER_ENABLE enum class ShaderType {
             None,
             Vertex,
-            Fragment
+            Fragment,
+            Compute,
+            TessellationControl,
+            TessellationEvaluation,
+            Geometry
         } shaderType {ShaderType::None};
 
         REFL_SER_ENABLE std::string m_name {};

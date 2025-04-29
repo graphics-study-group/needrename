@@ -26,8 +26,7 @@ namespace Engine
         {
             const auto & pool = m_system.lock()->GetGlobalConstantDescriptorPool();
 
-            // TODO: supply a default sampler.
-            auto desc_bindings = PipelineUtils::ToVulkanDescriptorSetLayoutBindings(prop.shaders, m_default_sampler.get());
+            auto desc_bindings = PipelineUtils::ToVulkanDescriptorSetLayoutBindings(prop.shaders);
             vk::DescriptorSetLayoutCreateInfo dslci {
                 {}, desc_bindings
             };

@@ -67,9 +67,9 @@ namespace Engine {
         /**
          * @brief Get the descriptor image info for a specific variable set.
          * 
-         * @param sampler If null, the vk::WriteDescriptorSet is assumed to be of type `VK_DESCRIPTOR_TYPE_STORAGE_IMAGE`,
-         * and the layout is `VK_IMAGE_LAYOUT_GENERAL`. Otherwise, it is assumed to be of type 
-         * `VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER`, and the layout is `VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL`.
+         * The layout for the image is selected based on its type.
+         * If the type is `Texture`, then the layout is `ReadOnlyOptimal`.
+         * If the type is `StorageImage`, then the layout is `General`.
          * 
          * @remark For internal use only.
          */

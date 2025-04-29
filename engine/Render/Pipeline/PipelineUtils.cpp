@@ -51,7 +51,10 @@ namespace Engine {
                 return vk::ShaderStageFlagBits::eFragment;
             case Type::Vertex:
                 return vk::ShaderStageFlagBits::eVertex;
+            case Type::Compute:
+                return vk::ShaderStageFlagBits::eCompute;
             default:
+                SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Unsupported shader stage.");
                 return vk::ShaderStageFlagBits::eAll;
             }
         }
@@ -84,7 +87,7 @@ namespace Engine {
         }
 
         std::vector<vk::DescriptorSetLayoutBinding>
-        ToVulkanDescriptorSetLayoutBindings(const MaterialTemplateSinglePassProperties::Shaders & p, vk::Sampler default_sampler){
+        ToVulkanDescriptorSetLayoutBindings(const MaterialTemplateSinglePassProperties::Shaders & p){
 #ifndef NDEBUG
             // Test whether scene and camera uniforms are compatible
             auto scene_uniforms_range = std::ranges::filter_view(
@@ -128,6 +131,7 @@ namespace Engine {
             });
             for (const ShaderVariableProperty & prop : material_uniforms_range) {
 
+                // Ignore UBO variables.
                 if (prop.binding == 0) {
                     if (!ShaderVariableProperty::InUBO(prop.type)) {
                         SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Non-UBO descriptor occupying UBO binding. This descriptor is ignored.");
@@ -142,13 +146,31 @@ namespace Engine {
                 if (prop.offset != 0) {
                     SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Non-zero offset for uniforms outside UBO. Offset is ignored.");
                 }
-                bindings.push_back(vk::DescriptorSetLayoutBinding{
-                    prop.binding,
-                    vk::DescriptorType::eCombinedImageSampler,
-                    1,
-                    vk::ShaderStageFlagBits::eAll,
-                    {}
-                });
+
+                
+                switch(prop.type) {
+                    using Type = ShaderVariableProperty::Type;
+                case Type::Texture:
+                    bindings.push_back(vk::DescriptorSetLayoutBinding{
+                        prop.binding,
+                        vk::DescriptorType::eCombinedImageSampler,
+                        1,
+                        vk::ShaderStageFlagBits::eAll,
+                        {}
+                    });
+                    break;
+                case Type::StorageImage:
+                    bindings.push_back(vk::DescriptorSetLayoutBinding{
+                        prop.binding,
+                        vk::DescriptorType::eStorageImage,
+                        1,
+                        vk::ShaderStageFlagBits::eAll,
+                        {}
+                    });
+                    break;
+                default:
+                    SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Unsupported out-of-UBO property type.");
+                }
             }
             return bindings;
         }
