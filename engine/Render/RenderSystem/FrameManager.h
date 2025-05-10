@@ -104,8 +104,11 @@ namespace Engine {
              * 
              * @note This should be the last method to be called each frame, and it will progress the internal state machine.
              * Either `CompositeToFramebufferAndPresent()` or `CompositeToImage()` must be called exactly once each frame.
+             * 
+             * @return whether the swapchain needs to be recreated after presenting.
              */
-            void CompositeToFramebufferAndPresent ();
+            [[nodiscard]]
+            bool CompositeToFramebufferAndPresent ();
 
             /**
              * @brief Execute staged composition operation to a given image.
@@ -120,6 +123,11 @@ namespace Engine {
              * Either `CompositeToFramebufferAndPresent()` or `CompositeToImage()` must be called exactly once each frame.
              */
             vk::Fence CompositeToImage (vk::Image image, uint64_t timeout = std::numeric_limits<uint64_t>::max());
+            
+            /**
+             * @brief Re-fetch cached swapchain infomation.
+             */
+            void UpdateSwapchain();
 
             SubmissionHelper & GetSubmissionHelper();
         };

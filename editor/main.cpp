@@ -120,7 +120,7 @@ int main()
 
         cb.Begin();
         {
-            cb.BeginRendering(color_att, depth_att, color.GetExtent(), 1234u);
+            cb.BeginRendering(color_att, depth_att, color.GetExtent());
             rsys->DrawMeshes();
             // TODO: Event Process ????
             // ImGui_ImplVulkan_NewFrame();
@@ -133,7 +133,7 @@ int main()
 
         {
             vk::Extent2D extent2{rsys->GetSwapchain().GetExtent()};
-            cb.BeginRendering(color_editor_att, depth_editor_att, extent2, 182376u);
+            cb.BeginRendering(color_editor_att, depth_editor_att, extent2);
             ImGui_ImplVulkan_NewFrame();
             ImGui::NewFrame();
             ImGui::SetNextWindowPos({400, 10});

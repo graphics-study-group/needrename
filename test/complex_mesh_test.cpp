@@ -243,7 +243,6 @@ int main(int argc, char ** argv)
     auto rsys = cmc->GetRenderSystem();
     rsys->GetMaterialRegistry().AddMaterial(test_asset);
 
-    // rsys->EnableDepthTesting();
     auto gsys = cmc->GetGUISystem();
 
     Engine::AllocatedImage2D color{rsys}, depth{rsys};
@@ -308,7 +307,7 @@ int main(int argc, char ** argv)
 
         cb.Begin();
         vk::Extent2D extent {rsys->GetSwapchain().GetExtent()};
-        cb.BeginRendering(color_att, depth_att, extent, index);
+        cb.BeginRendering(color_att, depth_att, extent);
         rsys->DrawMeshes();
         gsys->DrawGUI(cb);
         cb.EndRendering();

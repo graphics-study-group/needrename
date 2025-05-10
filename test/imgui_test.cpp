@@ -36,7 +36,6 @@ int main(int argc, char ** argv)
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
 
     auto rsys = cmc->GetRenderSystem();
-    // rsys->EnableDepthTesting();
     auto gsys = cmc->GetGUISystem();
 
     Engine::AllocatedImage2D color{rsys}, depth{rsys};
@@ -76,7 +75,7 @@ int main(int argc, char ** argv)
     
         cb.Begin();
         vk::Extent2D extent {rsys->GetSwapchain().GetExtent()};
-        cb.BeginRendering(color_att, depth_att, extent, index);
+        cb.BeginRendering(color_att, depth_att, extent);
         gsys->DrawGUI(cb);
         cb.EndRendering();
         cb.End();

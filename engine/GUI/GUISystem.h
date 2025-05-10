@@ -33,7 +33,7 @@ namespace Engine {
         void ProcessEvent(SDL_Event * event) const;
         void PrepareGUI() const;
         void DrawGUI(RenderCommandBuffer & cb) const;
-        void Create(SDL_Window * window);
+        void Create(SDL_Window * window, vk::Format color_attachment_format = vk::Format::eUndefined);
     };
 }
 

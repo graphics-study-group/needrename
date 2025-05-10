@@ -85,8 +85,6 @@ namespace Engine
 
         uint32_t StartFrame();
 
-        void Render();
-
         void CompleteFrame();
 
         vk::Instance getInstance() const;
@@ -114,8 +112,6 @@ namespace Engine
         RenderSystemState::MaterialRegistry & GetMaterialRegistry();
 
         RenderSystemState::FrameManager & GetFrameManager ();
-
-        void EnableDepthTesting();
 
         void WritePerCameraConstants(const ConstantData::PerCameraStruct & data, uint32_t in_flight_index);
     };

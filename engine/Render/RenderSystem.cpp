@@ -90,8 +90,6 @@ namespace Engine
 
         pimpl->m_allocator_state.Create();
 
-        this->EnableDepthTesting();
-
         // Create synchorization semaphores
         pimpl->m_frame_manager.Create();
         pimpl->m_descriptor_pool.Create(shared_from_this(), pimpl->m_frame_manager.FRAMES_IN_FLIGHT);
@@ -214,35 +212,11 @@ namespace Engine
         return pimpl->m_frame_manager;
     }
 
-    void RenderSystem::Render()
-    {
-        assert(false || "Disabled.");
-        /*
-        MainClass::GetInstance()->GetGUISystem()->PrepareGUI();
-        
-        uint32_t index = m_frame_manager.StartFrame();
-        RenderCommandBuffer & cb = m_frame_manager.GetCommandBuffer();
-        cb.Begin();
-        vk::Extent2D extent {GetSwapchain().GetExtent()};
-        cb.BeginRendering(*this->m_render_target_setup, extent, index);
-
-        this->DrawMeshes();
-        MainClass::GetInstance()->GetGUISystem()->DrawGUI(cb);
-
-        cb.EndRendering();
-        cb.End();
-        cb.Submit();
-        m_frame_manager.CompleteFrame();
-        */
-    }
-
     void RenderSystem::CompleteFrame()
     {
-        pimpl->m_frame_manager.CompositeToFramebufferAndPresent();
-    }
-
-    void RenderSystem::EnableDepthTesting() {
-        pimpl->m_swapchain.EnableDepthTesting(this->shared_from_this());
+        if(pimpl->m_frame_manager.CompositeToFramebufferAndPresent()) {
+            this->UpdateSwapchain();
+        }
     }
 
     void RenderSystem::WritePerCameraConstants(const ConstantData::PerCameraStruct& data, uint32_t in_flight_index) {
@@ -258,6 +232,7 @@ namespace Engine
     void RenderSystem::UpdateSwapchain() {
         this->WaitForIdle();
         pimpl->CreateSwapchain();
+        pimpl->m_frame_manager.UpdateSwapchain();
     }
 
     uint32_t RenderSystem::StartFrame()
@@ -268,7 +243,7 @@ namespace Engine
     void RenderSystem::impl::CreateLogicalDevice() {
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating logical device.");
 
-        auto indices = m_selected_physical_device.GetQueueFamilyIndices();
+        auto indices = m_selected_physical_device.GetQueueFamilyIndices(m_surface.get());
         // Find unique indices
         std::vector<uint32_t> indices_vector{indices.graphics.value(),
                                             indices.present.value()};

@@ -258,7 +258,7 @@ namespace Engine::RenderSystemState{
         StageCopyComposition(image, m_system.GetSwapchain().GetExtent());
     }
 
-    void FrameManager::CompositeToFramebufferAndPresent()
+    bool FrameManager::CompositeToFramebufferAndPresent()
     {
         // Copy framebuffers
         const auto fif = GetFrameInFlight();
@@ -297,17 +297,25 @@ namespace Engine::RenderSystemState{
         std::array<uint32_t, 1> frame_indices { GetFramebuffer() };
         // Wait for command buffer before presenting the frame
         std::array<vk::Semaphore, 1> semaphores {copy_to_swapchain_completed_semaphores[fif].get()};
-        vk::PresentInfoKHR info{semaphores, swapchains, frame_indices};
-        vk::Result result = present_queue.presentKHR(info);
-        if (result != vk::Result::eSuccess) {
-            SDL_LogWarn(
-                SDL_LOG_CATEGORY_RENDER, 
-                "Presenting returned %s other than success.",
-                vk::to_string(result).c_str()
-                );
-        }
 
+        bool needs_recreating = false;
+        try {
+            vk::PresentInfoKHR info{semaphores, swapchains, frame_indices};
+            vk::Result result = present_queue.presentKHR(info);
+            if (result != vk::Result::eSuccess) {
+                SDL_LogWarn(
+                    SDL_LOG_CATEGORY_RENDER, 
+                    "Presenting returned %s other than success.",
+                    vk::to_string(result).c_str()
+                    );
+            }
+        } catch (vk::OutOfDateKHRError & e) {
+            SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Swapchain out of date.");
+            needs_recreating = true;
+        }
+        
         CompleteFrame();
+        return needs_recreating;
     }
 
     vk::Fence FrameManager::CompositeToImage(vk::Image image, uint64_t timeout)
@@ -363,6 +371,10 @@ namespace Engine::RenderSystemState{
 
         // Handle submissions
         m_submission_helper->CompleteFrame();
+    }
+    void FrameManager::UpdateSwapchain()
+    {
+        this->swapchain = m_system.GetSwapchain().GetSwapchain();
     }
     SubmissionHelper &FrameManager::GetSubmissionHelper()
     {

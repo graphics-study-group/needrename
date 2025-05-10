@@ -6,6 +6,7 @@
 #include "Render/Renderer/HomogeneousMesh.h"
 #include "Render/ConstantData/PerModelConstants.h"
 #include "Render/RenderSystem/GlobalConstantDescriptorPool.h"
+#include "Render/Pipeline/RenderTargetBinding.h"
 
 #include "Render/Pipeline/CommandBuffer/LayoutTransferHelper.h"
 
@@ -40,13 +41,10 @@ namespace Engine
     void RenderCommandBuffer::BeginRendering(
         AttachmentUtils::AttachmentDescription color, 
         AttachmentUtils::AttachmentDescription depth,
-        vk::Extent2D extent, 
-        uint32_t framebuffer_id)
+        vk::Extent2D extent)
     {
-        // const auto & clear_values = pass.GetClearValues();
-
         std::vector <vk::RenderingAttachmentInfo> color_attachment;
-        std::vector<vk::ImageMemoryBarrier2> barriers;
+        std::vector <vk::ImageMemoryBarrier2> barriers;
         
         if (color.image && color.image_view) {
             color_attachment.push_back(GetVkAttachmentInfo(
@@ -67,7 +65,7 @@ namespace Engine
             depth_attachment = vk::RenderingAttachmentInfo{
                 GetVkAttachmentInfo(
                     depth, 
-                    vk::ImageLayout::eDepthAttachmentOptimal, 
+                    vk::ImageLayout::eDepthStencilAttachmentOptimal, 
                     vk::ClearDepthStencilValue{1.0f, 0U}
                 )
             };
@@ -91,6 +89,58 @@ namespace Engine
             0,
             color_attachment,
             depth.image ? &depth_attachment : nullptr,
+            nullptr
+        };
+        // Begin rendering after transit
+        m_handle.beginRendering(info);
+    }
+
+    void RenderCommandBuffer::BeginRendering(const RenderTargetBinding &binding, vk::Extent2D extent)
+    {
+        size_t total_attachment_count = binding.GetColorAttachmentCount() + binding.HasDepthAttachment();
+        std::vector <vk::RenderingAttachmentInfo> color_attachment_info (binding.GetColorAttachmentCount(), vk::RenderingAttachmentInfo{});
+        std::vector <vk::ImageMemoryBarrier2> barriers (total_attachment_count, vk::ImageMemoryBarrier2{});
+
+        const auto & color_attachments = binding.GetColorAttachments();
+        for (size_t i = 0; i < color_attachments.size(); i++) {
+            color_attachment_info[i] = GetVkAttachmentInfo(
+                color_attachments[i],
+                vk::ImageLayout::eColorAttachmentOptimal, 
+                vk::ClearColorValue{0, 0, 0, 0}
+            );
+            barriers[i] = LayoutTransferHelper::GetAttachmentBarrier(
+                LayoutTransferHelper::AttachmentTransferType::ColorAttachmentPrepare, 
+                color_attachments[i].image
+            );
+        }
+
+        vk::RenderingAttachmentInfo depth_attachment_info {};
+        if (binding.HasDepthAttachment()) {
+            const auto & depth_attachment = binding.GetDepthAttachment();
+            depth_attachment_info = GetVkAttachmentInfo(
+                depth_attachment,
+                vk::ImageLayout::eDepthStencilAttachmentOptimal, 
+                vk::ClearDepthStencilValue{1.0f, 0U}
+            );
+            *(barriers.rbegin()) = LayoutTransferHelper::GetAttachmentBarrier(
+                LayoutTransferHelper::AttachmentTransferType::DepthAttachmentPrepare, 
+                depth_attachment.image
+            );
+        }
+
+        vk::DependencyInfo dep {
+            vk::DependencyFlags{0},
+            {}, {}, barriers
+        };
+        m_handle.pipelineBarrier2(dep);
+
+        vk::RenderingInfo info {
+            vk::RenderingFlags{0},
+            vk::Rect2D{{0, 0}, extent},
+            1,
+            0,
+            color_attachment_info,
+            binding.HasDepthAttachment() ? &depth_attachment_info : nullptr,
             nullptr
         };
         // Begin rendering after transit

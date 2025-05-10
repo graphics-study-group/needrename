@@ -51,10 +51,10 @@ struct HighPlaneMeshAsset : public MeshAsset {
                 {-0.5f, -0.5f, 0.0f},
             },
             .m_attributes = {
-                {.color = {1.0f, 0.0f, 0.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {1.0f, 0.0f}}, 
-                {.color = {1.0f, 0.0f, 0.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {1.0f, 1.0f}}, 
-                {.color = {1.0f, 0.0f, 0.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {0.0f, 1.0f}},
-                {.color = {1.0f, 0.0f, 0.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {0.0f, 0.0f}}
+                {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {1.0f, 0.0f}}, 
+                {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {1.0f, 1.0f}}, 
+                {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {0.0f, 1.0f}},
+                {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {0.0f, 0.0f}}
             },
         };
     }
@@ -138,7 +138,6 @@ int main(int argc, char ** argv)
     cmc->GetAssetManager()->SetBuiltinAssetPath(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
 
     auto rsys = cmc->GetRenderSystem();
-    // rsys->EnableDepthTesting();
 
     // Prepare texture
     auto test_texture_asset = std::make_shared<Image2DTextureAsset>();
@@ -182,9 +181,11 @@ int main(int argc, char ** argv)
     auto color = std::make_shared<Engine::AllocatedImage2D>(rsys);
     auto depth = std::make_shared<Engine::AllocatedImage2D>(rsys);
     auto shadow = std::make_shared<Engine::AllocatedImage2D>(rsys);
+    auto blank_color = std::make_shared<Engine::AllocatedImage2DTexture>(rsys);
     color->Create(1920, 1080, Engine::ImageUtils::ImageType::ColorAttachment, Engine::ImageUtils::ImageFormat::B8G8R8A8SRGB, 1);
     depth->Create(1920, 1080, Engine::ImageUtils::ImageType::DepthImage, Engine::ImageUtils::ImageFormat::D32SFLOAT, 1);
     shadow->Create(2048, 2048, Engine::ImageUtils::ImageType::SampledDepthImage, Engine::ImageUtils::ImageFormat::D32SFLOAT, 1);
+    blank_color->Create(16, 16, Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB, 1);
 
     Engine::AttachmentUtils::AttachmentDescription color_att, depth_att, shadow_att;
     color_att.image = color->GetImage();
@@ -209,13 +210,18 @@ int main(int argc, char ** argv)
     test_material_instance->WriteDescriptors(0);
     test_material_instance->WriteUBOUniform(1, test_template->GetVariableIndex("ambient_color", 1).value(), glm::vec4(0.0, 0.0, 0.0, 0.0));
     test_material_instance->WriteUBOUniform(1, test_template->GetVariableIndex("specular_color", 1).value(), glm::vec4(1.0, 1.0, 1.0, 64.0));
-    test_material_instance->WriteTextureUniform(1, test_template->GetVariableIndex("base_tex", 1).value(), shadow); // Here we print shadow texture for testing.
+    test_material_instance->WriteTextureUniform(1, test_template->GetVariableIndex("base_tex", 1).value(), blank_color);
     test_material_instance->WriteTextureUniform(1, test_template->GetVariableIndex("shadowmap_tex", 1).value(), shadow);
     test_material_instance->WriteDescriptors(1);
 
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueVertexBufferSubmission(test_mesh);
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueVertexBufferSubmission(test_mesh_2);
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(*allocated_image_texture, test_texture_asset->GetPixelData(), test_texture_asset->GetPixelDataSize());
+
+    RenderTargetBinding shadow_pass_binding, lit_pass_binding;
+    shadow_pass_binding.SetDepthAttachment(shadow_att);
+    lit_pass_binding.SetColorAttachment(color_att);
+    lit_pass_binding.SetDepthAttachment(depth_att);
 
     bool quited = false;
 
@@ -234,13 +240,26 @@ int main(int argc, char ** argv)
         RenderCommandBuffer & cb = rsys->GetCurrentCommandBuffer();
 
         assert(index < 3);
+
+        switch (frame_count % 3) {
+        case 0:
+            rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*blank_color, {1.0f, 0.0f, 0.0f, 0.0f});
+            break;
+        case 1:
+            rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*blank_color, {0.0f, 1.0f, 0.0f, 0.0f});
+            break;
+        case 2:
+            rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*blank_color, {0.0f, 0.0f, 1.0f, 0.0f});
+            break;
+        }
+        
     
         cb.Begin();
         // Shadow map pass
         {
             vk::Extent2D shadow_map_extent {2048, 2048};
             vk::Rect2D shadow_map_scissor {{0, 0}, shadow_map_extent};
-            cb.BeginRendering({nullptr}, shadow_att, shadow_map_extent, index);
+            cb.BeginRendering(shadow_pass_binding, shadow_map_extent);
             cb.SetupViewport(shadow_map_extent.width, shadow_map_extent.height, shadow_map_scissor);
             cb.BindMaterial(*test_material_instance, 0);
 
@@ -262,7 +281,7 @@ int main(int argc, char ** argv)
         {
             vk::Extent2D extent {rsys->GetSwapchain().GetExtent()};
             vk::Rect2D scissor{{0, 0}, extent};
-            cb.BeginRendering(color_att, depth_att, extent, index);
+            cb.BeginRendering(lit_pass_binding, extent);
             cb.SetupViewport(extent.width, extent.height, scissor);
             cb.BindMaterial(*test_material_instance, 1);
             // Push model matrix...

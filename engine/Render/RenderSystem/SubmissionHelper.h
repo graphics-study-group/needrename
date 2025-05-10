@@ -56,8 +56,6 @@ namespace Engine {
              * Useful for creating a blank default texture.
              * Only color aspect is cleared. All mipmap levels and arrays are cleared.
              * 
-             * @note Not tested yet.
-             * 
              * @param texture
              * @param color
              */
