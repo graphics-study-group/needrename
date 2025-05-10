@@ -40,7 +40,8 @@ int main()
     auto rsys = cmc->GetRenderSystem();
     auto asset_manager = cmc->GetAssetManager();
     auto world = cmc->GetWorldSystem();
-    auto gui = cmc->GetGUISystem();
+    auto gui = std::make_shared<GUISystem>(rsys);
+    gui->Create(cmc->GetWindow()->GetWindow());
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading project");
     cmc->LoadProject(project_path);

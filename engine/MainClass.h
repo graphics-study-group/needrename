@@ -31,10 +31,11 @@ namespace Engine
         void LoopFiniteFrame(int max_frame_count);
         void LoopFiniteTime(float max_time);
 
+        std::shared_ptr<SDLWindow> GetWindow() const;
         std::shared_ptr<RenderSystem> GetRenderSystem() const;
         std::shared_ptr<WorldSystem> GetWorldSystem() const;
         std::shared_ptr<AssetManager> GetAssetManager() const;
-        std::shared_ptr<GUISystem> GetGUISystem() const;
+        // std::shared_ptr<GUISystem> GetGUISystem() const;
         std::shared_ptr<Input> GetInputSystem() const;
 
     protected:
@@ -42,7 +43,7 @@ namespace Engine
         std::shared_ptr<RenderSystem> renderer{};
         std::shared_ptr<WorldSystem> world{};
         std::shared_ptr<AssetManager> asset{};
-        std::shared_ptr<GUISystem> gui{};
+        // std::shared_ptr<GUISystem> gui{};
         std::shared_ptr<Input> input{};
 
         bool m_on_quit = false;

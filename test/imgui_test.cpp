@@ -36,7 +36,8 @@ int main(int argc, char ** argv)
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
 
     auto rsys = cmc->GetRenderSystem();
-    auto gsys = cmc->GetGUISystem();
+    auto gsys = std::make_shared<GUISystem>(rsys);
+    gsys->Create(cmc->GetWindow()->GetWindow());
 
     Engine::AllocatedImage2D color{rsys}, depth{rsys};
     color.Create(1920, 1080, Engine::ImageUtils::ImageType::ColorAttachment, Engine::ImageUtils::ImageFormat::B8G8R8A8SRGB, 1);
