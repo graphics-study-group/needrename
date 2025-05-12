@@ -5,9 +5,19 @@
 #include <string>
 #include <memory>
 #include "consts.h"
+#include <Render/AttachmentUtils.h>
 
 namespace Engine
 {
+    class AllocatedImage2D;
+
+    struct WindowAttachmentDescription
+    {
+        Engine::AttachmentUtils::AttachmentDescription color;
+        Engine::AttachmentUtils::AttachmentDescription depth;
+        vk::Extent2D extent;
+    };
+
     /// A wrapper of SDL_Window
     /// Note that memory is managed manually
     class SDLWindow
@@ -20,20 +30,20 @@ namespace Engine
         SDLWindow &operator=(const SDLWindow &) = delete;
         SDLWindow &operator=(SDLWindow &&) = delete;
 
-        /// @note Delete EVERY registered object before the destruction of this class !!
         virtual ~SDLWindow();
 
-        /// @brief Release the window
-        void Release();
-
-        /// Set the icon of this window
-        void SetIcon(SDL_Surface *, bool = true);
+        std::shared_ptr<WindowAttachmentDescription> GetAttachmentDescription();
 
         /// Get the underlying pointer of this window
         SDL_Window *GetWindow();
 
     protected:
-        SDL_Window *window{nullptr};
+        SDL_Window *m_window{nullptr};
+        std::shared_ptr<WindowAttachmentDescription> m_attachment_description{};
+
+    private:
+        std::shared_ptr<Engine::AllocatedImage2D> m_color_image{};
+        std::shared_ptr<Engine::AllocatedImage2D> m_depth_image{};
     };
 }
 #endif // FUNCTIONAL_SDLWINDOW_INCLUDED

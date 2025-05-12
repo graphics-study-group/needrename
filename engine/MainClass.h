@@ -39,8 +39,10 @@ namespace Engine
         std::shared_ptr<Input> GetInputSystem() const;
 
     protected:
-        std::shared_ptr<SDLWindow> window{};
+        // XXX: window must destroyed before renderer. Because the window has some AllocatedImage2D. So the permutation of renderer and window can not be changed. 
         std::shared_ptr<RenderSystem> renderer{};
+        std::shared_ptr<SDLWindow> window{};
+
         std::shared_ptr<WorldSystem> world{};
         std::shared_ptr<AssetManager> asset{};
         // std::shared_ptr<GUISystem> gui{};

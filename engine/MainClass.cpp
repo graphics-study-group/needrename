@@ -2,6 +2,9 @@
 
 #include "Framework/world/WorldSystem.h"
 #include "Render/RenderSystem.h"
+#include <Render/Pipeline/CommandBuffer.h>
+#include <Render/RenderSystem/FrameManager.h>
+#include <Render/Memory/Buffer.h>
 #include "Asset/AssetManager/AssetManager.h"
 #include "GUI/GUISystem.h"
 #include <Input/Input.h>
@@ -184,7 +187,16 @@ namespace Engine
         this->world->Tick(dt);
 
         // TODO: Set up viewport information
-
-        // this->renderer->Render();
+        auto attachments = this->window->GetAttachmentDescription();
+        renderer->StartFrame();
+        RenderCommandBuffer &cb = renderer->GetCurrentCommandBuffer();
+        cb.Begin();
+        cb.BeginRendering(attachments->color, attachments->depth, attachments->extent);
+        renderer->DrawMeshes();
+        cb.EndRendering();
+        cb.End();
+        cb.Submit();
+        renderer->GetFrameManager().StageCopyComposition(attachments->color.image);
+        renderer->CompleteFrame();
     }
 } // namespace Engine
