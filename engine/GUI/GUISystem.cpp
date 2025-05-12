@@ -92,5 +92,7 @@ namespace Engine {
         info.PipelineRenderingCreateInfo = pipeline;
 
         if(!ImGui_ImplVulkan_Init(&info)) SDL_LogCritical(0, "Failed to initialize Vulkan backend for ImGui.");
+
+        ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     }
 }

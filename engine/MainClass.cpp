@@ -69,12 +69,11 @@ namespace Engine
         this->renderer = std::make_shared<RenderSystem>(this->window);
         this->world = std::make_shared<WorldSystem>();
         this->asset = std::make_shared<AssetManager>();
-        // TODO: add gui system in engine after the events between editor and the game are separated
-        // this->gui = std::make_shared<GUISystem>(this->renderer);
+        this->gui = std::make_shared<GUISystem>(this->renderer);
         this->input = std::make_shared<Input>();
 
         this->renderer->Create();
-        // this->gui->Create(this->window->GetWindow());
+        this->gui->Create(this->window->GetWindow());
         Reflection::Initialize();
     }
 
@@ -147,10 +146,10 @@ namespace Engine
         return world;
     }
 
-    // std::shared_ptr<GUISystem> MainClass::GetGUISystem() const
-    // {
-    //     return gui;
-    // }
+    std::shared_ptr<GUISystem> MainClass::GetGUISystem() const
+    {
+        return gui;
+    }
 
     std::shared_ptr<RenderSystem> MainClass::GetRenderSystem() const
     {
@@ -175,6 +174,7 @@ namespace Engine
                 m_on_quit = true;
                 break;
             }
+            // TODO: add gui system in engine after the events between editor and the game are separated
             // this->gui->ProcessEvent(&event);
             // if (this->gui->WantCaptureMouse() && SDL_EVENT_MOUSE_MOTION <= event.type && event.type < SDL_EVENT_JOYSTICK_AXIS_MOTION) // 0x600+
             //     continue;

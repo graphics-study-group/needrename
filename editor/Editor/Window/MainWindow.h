@@ -15,6 +15,8 @@ namespace Editor
 
         void Tick(float dt);
 
+        void AddWidget(std::shared_ptr<Widget> widget);
+
     protected:
         std::vector<std::shared_ptr<Widget>> m_widgets;
     };

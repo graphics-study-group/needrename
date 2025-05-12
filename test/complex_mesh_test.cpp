@@ -243,8 +243,7 @@ int main(int argc, char ** argv)
     auto rsys = cmc->GetRenderSystem();
     rsys->GetMaterialRegistry().AddMaterial(test_asset);
 
-    auto gsys = std::make_shared<GUISystem>(rsys);
-    gsys->Create(cmc->GetWindow()->GetWindow());
+    auto gsys = cmc->GetGUISystem();
 
     Engine::AllocatedImage2D color{rsys}, depth{rsys};
     color.Create(1280, 720, Engine::ImageUtils::ImageType::ColorAttachment, Engine::ImageUtils::ImageFormat::B8G8R8A8SRGB, 1);

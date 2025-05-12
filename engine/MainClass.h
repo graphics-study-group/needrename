@@ -35,17 +35,16 @@ namespace Engine
         std::shared_ptr<RenderSystem> GetRenderSystem() const;
         std::shared_ptr<WorldSystem> GetWorldSystem() const;
         std::shared_ptr<AssetManager> GetAssetManager() const;
-        // std::shared_ptr<GUISystem> GetGUISystem() const;
+        std::shared_ptr<GUISystem> GetGUISystem() const;
         std::shared_ptr<Input> GetInputSystem() const;
 
     protected:
         // XXX: window must destroyed before renderer. Because the window has some AllocatedImage2D. So the permutation of renderer and window can not be changed. 
         std::shared_ptr<RenderSystem> renderer{};
         std::shared_ptr<SDLWindow> window{};
-
         std::shared_ptr<WorldSystem> world{};
         std::shared_ptr<AssetManager> asset{};
-        // std::shared_ptr<GUISystem> gui{};
+        std::shared_ptr<GUISystem> gui{};
         std::shared_ptr<Input> input{};
 
         bool m_on_quit = false;
