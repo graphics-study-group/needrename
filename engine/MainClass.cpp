@@ -73,6 +73,7 @@ namespace Engine
         this->input = std::make_shared<Input>();
 
         this->renderer->Create();
+        this->window->CreateRenderTargetBinding(this->renderer);
         this->gui->Create(this->window->GetWindow());
         Reflection::Initialize();
     }
@@ -187,16 +188,15 @@ namespace Engine
         this->world->Tick(dt);
 
         // TODO: Set up viewport information
-        auto attachments = this->window->GetAttachmentDescription();
         renderer->StartFrame();
         RenderCommandBuffer &cb = renderer->GetCurrentCommandBuffer();
         cb.Begin();
-        cb.BeginRendering(attachments->color, attachments->depth, attachments->extent);
+        cb.BeginRendering(window->GetRenderTargetBinding());
         renderer->DrawMeshes();
         cb.EndRendering();
         cb.End();
         cb.Submit();
-        renderer->GetFrameManager().StageCopyComposition(attachments->color.image);
+        renderer->GetFrameManager().StageCopyComposition(window->GetRenderTargetBinding().GetColorAttachments()[0].image);
         renderer->CompleteFrame();
     }
 } // namespace Engine

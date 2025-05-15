@@ -95,7 +95,7 @@ namespace Engine
         m_handle.beginRendering(info);
     }
 
-    void RenderCommandBuffer::BeginRendering(const RenderTargetBinding &binding, vk::Extent2D extent)
+    void RenderCommandBuffer::BeginRendering(const RenderTargetBinding &binding)
     {
         size_t total_attachment_count = binding.GetColorAttachmentCount() + binding.HasDepthAttachment();
         std::vector <vk::RenderingAttachmentInfo> color_attachment_info (binding.GetColorAttachmentCount(), vk::RenderingAttachmentInfo{});
@@ -136,7 +136,7 @@ namespace Engine
 
         vk::RenderingInfo info {
             vk::RenderingFlags{0},
-            vk::Rect2D{{0, 0}, extent},
+            vk::Rect2D{{0, 0}, binding.GetExtent()},
             1,
             0,
             color_attachment_info,

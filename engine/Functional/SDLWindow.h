@@ -5,18 +5,12 @@
 #include <string>
 #include <memory>
 #include "consts.h"
-#include <Render/AttachmentUtils.h>
+#include <Render/Pipeline/RenderTargetBinding.h>
 
 namespace Engine
 {
     class AllocatedImage2D;
-
-    struct WindowAttachmentDescription
-    {
-        Engine::AttachmentUtils::AttachmentDescription color;
-        Engine::AttachmentUtils::AttachmentDescription depth;
-        vk::Extent2D extent;
-    };
+    class RenderSystem;
 
     /// A wrapper of SDL_Window
     /// Note that memory is managed manually
@@ -32,18 +26,18 @@ namespace Engine
 
         virtual ~SDLWindow();
 
-        std::shared_ptr<WindowAttachmentDescription> GetAttachmentDescription();
+        void CreateRenderTargetBinding(std::shared_ptr<RenderSystem> render_system);
+        const RenderTargetBinding &GetRenderTargetBinding() const;
 
         /// Get the underlying pointer of this window
         SDL_Window *GetWindow();
 
     protected:
         SDL_Window *m_window{nullptr};
-        std::shared_ptr<WindowAttachmentDescription> m_attachment_description{};
-
+        RenderTargetBinding m_render_target_binding{};
+    
     private:
         std::shared_ptr<Engine::AllocatedImage2D> m_color_image{};
-        std::shared_ptr<Engine::AllocatedImage2D> m_depth_image{};
     };
 }
 #endif // FUNCTIONAL_SDLWINDOW_INCLUDED

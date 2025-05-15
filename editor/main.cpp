@@ -101,12 +101,11 @@ int main()
         cmc->GetInputSystem()->Update(dt);
         world->Tick(dt);
 
-        auto attachments = cmc->GetWindow()->GetAttachmentDescription();
         rsys->StartFrame();
         RenderCommandBuffer &cb = rsys->GetCurrentCommandBuffer();
         cb.Begin();
 
-        cb.BeginRendering(attachments->color, attachments->depth, attachments->extent);
+        cb.BeginRendering(cmc->GetWindow()->GetRenderTargetBinding());
         gui->PrepareGUI();
         main_window.Render();
         gui->DrawGUI(cb);
@@ -114,7 +113,7 @@ int main()
 
         cb.End();
         cb.Submit();
-        rsys->GetFrameManager().StageCopyComposition(attachments->color.image);
+        rsys->GetFrameManager().StageCopyComposition(cmc->GetWindow()->GetRenderTargetBinding().GetColorAttachments()[0].image);
         rsys->CompleteFrame();
     }
     rsys->WaitForIdle();

@@ -21,28 +21,24 @@ namespace Engine
         }
     }
 
-    std::shared_ptr<WindowAttachmentDescription> SDLWindow::GetAttachmentDescription()
+    void SDLWindow::CreateRenderTargetBinding(std::shared_ptr<RenderSystem> render_system)
     {
-        if (!m_attachment_description)
-        {
-            m_color_image = std::make_shared<Engine::AllocatedImage2D>(MainClass::GetInstance()->GetRenderSystem());
-            m_depth_image = std::make_shared<Engine::AllocatedImage2D>(MainClass::GetInstance()->GetRenderSystem());
-            int w, h;
-            SDL_GetWindowSizeInPixels(m_window, &w, &h);
-            m_color_image->Create(w, h, Engine::ImageUtils::ImageType::ColorAttachment, Engine::ImageUtils::ImageFormat::B8G8R8A8SRGB, 1);
-            m_depth_image->Create(w, h, Engine::ImageUtils::ImageType::DepthImage, Engine::ImageUtils::ImageFormat::D32SFLOAT, 1);
-            m_attachment_description = std::make_shared<WindowAttachmentDescription>();
-            m_attachment_description->color.image = m_color_image->GetImage();
-            m_attachment_description->color.image_view = m_color_image->GetImageView();
-            m_attachment_description->color.load_op = vk::AttachmentLoadOp::eClear;
-            m_attachment_description->color.store_op = vk::AttachmentStoreOp::eStore;
-            m_attachment_description->depth.image = m_depth_image->GetImage();
-            m_attachment_description->depth.image_view = m_depth_image->GetImageView();
-            m_attachment_description->depth.load_op = vk::AttachmentLoadOp::eClear;
-            m_attachment_description->depth.store_op = vk::AttachmentStoreOp::eDontCare;
-            m_attachment_description->extent = vk::Extent2D{static_cast<uint32_t>(w), static_cast<uint32_t>(h)};
-        }
-        return m_attachment_description;
+        int w, h;
+        SDL_GetWindowSizeInPixels(m_window, &w, &h);
+        m_color_image = std::make_shared<Engine::AllocatedImage2D>(render_system);
+        m_color_image->Create(w, h, Engine::ImageUtils::ImageType::ColorAttachment, Engine::ImageUtils::ImageFormat::B8G8R8A8SRGB, 1);
+        Engine::AttachmentUtils::AttachmentDescription color_att;
+        color_att.image = m_color_image->GetImage();
+        color_att.image_view = m_color_image->GetImageView();
+        color_att.load_op = vk::AttachmentLoadOp::eClear;
+        color_att.store_op = vk::AttachmentStoreOp::eStore;
+        m_render_target_binding.SetColorAttachment(color_att);
+        m_render_target_binding.SetExtent(vk::Extent2D{static_cast<uint32_t>(w), static_cast<uint32_t>(h)});
+    }
+
+    const RenderTargetBinding &SDLWindow::GetRenderTargetBinding() const
+    {
+        return m_render_target_binding;
     }
 
     SDL_Window *SDLWindow::GetWindow()

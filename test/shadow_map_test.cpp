@@ -220,8 +220,10 @@ int main(int argc, char ** argv)
 
     RenderTargetBinding shadow_pass_binding, lit_pass_binding;
     shadow_pass_binding.SetDepthAttachment(shadow_att);
+    shadow_pass_binding.SetExtent({2048, 2048});
     lit_pass_binding.SetColorAttachment(color_att);
     lit_pass_binding.SetDepthAttachment(depth_att);
+    lit_pass_binding.SetExtent({1920, 1080});
 
     bool quited = false;
 
@@ -257,10 +259,9 @@ int main(int argc, char ** argv)
         cb.Begin();
         // Shadow map pass
         {
-            vk::Extent2D shadow_map_extent {2048, 2048};
-            vk::Rect2D shadow_map_scissor {{0, 0}, shadow_map_extent};
-            cb.BeginRendering(shadow_pass_binding, shadow_map_extent);
-            cb.SetupViewport(shadow_map_extent.width, shadow_map_extent.height, shadow_map_scissor);
+            vk::Rect2D shadow_map_scissor {{0, 0}, shadow_pass_binding.GetExtent()};
+            cb.BeginRendering(shadow_pass_binding);
+            cb.SetupViewport(shadow_pass_binding.GetExtent().width, shadow_pass_binding.GetExtent().height, shadow_map_scissor);
             cb.BindMaterial(*test_material_instance, 0);
 
             vk::CommandBuffer rcb = cb.get();
@@ -279,10 +280,9 @@ int main(int argc, char ** argv)
         cb.InsertAttachmentBarrier(RenderCommandBuffer::AttachmentBarrierType::DepthAttachmentRAW, shadow_att.image);
         // Lit pass
         {
-            vk::Extent2D extent {rsys->GetSwapchain().GetExtent()};
-            vk::Rect2D scissor{{0, 0}, extent};
-            cb.BeginRendering(lit_pass_binding, extent);
-            cb.SetupViewport(extent.width, extent.height, scissor);
+            vk::Rect2D scissor{{0, 0}, lit_pass_binding.GetExtent()};
+            cb.BeginRendering(lit_pass_binding);
+            cb.SetupViewport(lit_pass_binding.GetExtent().width, lit_pass_binding.GetExtent().height, scissor);
             cb.BindMaterial(*test_material_instance, 1);
             // Push model matrix...
             vk::CommandBuffer rcb = cb.get();

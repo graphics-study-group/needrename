@@ -21,6 +21,10 @@ namespace Engine {
     {
         return m_color_attachments;
     }
+    vk::Extent2D RenderTargetBinding::GetExtent() const noexcept
+    {
+        return m_extent;
+    }
     void RenderTargetBinding::SetDepthAttachment(AttachmentDescription attachment)
     {
         assert(attachment.image != nullptr && attachment.image_view != nullptr);
@@ -38,5 +42,9 @@ namespace Engine {
             assert(att.image != nullptr && att.image_view != nullptr);
         }
         m_color_attachments = std::vector(attachments);
+    }
+    void RenderTargetBinding::SetExtent(vk::Extent2D extent)
+    {
+        m_extent = extent;
     }
 };
