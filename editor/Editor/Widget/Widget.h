@@ -9,7 +9,7 @@ namespace Editor
         Widget(const char *name);
         virtual ~Widget() = default;
 
-        virtual void Tick(float dt);
+        virtual void Render();
 
         const char *m_name;
     };

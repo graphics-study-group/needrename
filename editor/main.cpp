@@ -46,6 +46,8 @@ int main()
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Create Editor Window");
     Editor::MainWindow main_window;
+    main_window.AddWidget(std::make_shared<Editor::Widget>("Test Widget"));
+    main_window.AddWidget(std::make_shared<Editor::Widget>("Test Widget 2"));
 
     // Engine::AllocatedImage2D color{rsys}, depth{rsys};
     // color.Create(1920, 1080, Engine::ImageUtils::ImageType::ColorGeneral, Engine::ImageUtils::ImageFormat::B8G8R8A8SRGB, 1);
@@ -93,23 +95,23 @@ int main()
                 continue;
             if (gui->WantCaptureKeyboard() && (event.type == SDL_EVENT_KEY_DOWN || event.type == SDL_EVENT_KEY_UP))
                 continue;
-            // cmc->GetInputSystem()->ProcessEvent(&event);
+            cmc->GetInputSystem()->ProcessEvent(&event);
         }
 
-        // cmc->GetInputSystem()->Update(dt);
+        cmc->GetInputSystem()->Update(dt);
         world->Tick(dt);
 
         auto attachments = cmc->GetWindow()->GetAttachmentDescription();
         rsys->StartFrame();
         RenderCommandBuffer &cb = rsys->GetCurrentCommandBuffer();
         cb.Begin();
-        cb.BeginRendering(attachments->color, attachments->depth, attachments->extent);
-        
-        gui->PrepareGUI();
-        main_window.Tick(dt);
-        gui->DrawGUI(cb);
 
+        cb.BeginRendering(attachments->color, attachments->depth, attachments->extent);
+        gui->PrepareGUI();
+        main_window.Render();
+        gui->DrawGUI(cb);
         cb.EndRendering();
+
         cb.End();
         cb.Submit();
         rsys->GetFrameManager().StageCopyComposition(attachments->color.image);

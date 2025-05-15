@@ -7,7 +7,7 @@ namespace Editor
     {
     }
 
-    void Widget::Tick(float dt)
+    void Widget::Render()
     {
         if (ImGui::Begin(m_name))
         {

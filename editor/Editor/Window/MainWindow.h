@@ -13,12 +13,15 @@ namespace Editor
         MainWindow();
         virtual ~MainWindow() = default;
 
-        void Tick(float dt);
+        virtual void Render();
 
         void AddWidget(std::shared_ptr<Widget> widget);
 
     protected:
-        std::vector<std::shared_ptr<Widget>> m_widgets;
+        static constexpr const char *k_main_window_widget_name = "##editor.main_window_widget";
+        static constexpr const char *k_main_window_dockspace_name = "##editor.main_window_dockspace";
+
+        std::vector<std::shared_ptr<Widget>> m_widgets{};
     };
 }
 
