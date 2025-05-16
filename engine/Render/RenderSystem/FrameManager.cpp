@@ -150,43 +150,38 @@ namespace Engine::RenderSystemState{
         };
         for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; i++) {
             image_acquired_semaphores[i] = device.createSemaphoreUnique(sinfo);
-            DEBUG_SET_NAME(
+            DEBUG_SET_NAME_TEMPLATE(
                 device, 
-                vk::ObjectType::eSemaphore, 
-                (VkSemaphore)image_acquired_semaphores[i].get(), 
-                std::format("Image acquired {}", i).c_str()
+                image_acquired_semaphores[i].get(), 
+                std::format("Semaphore - image acquired {}", i)
             );
 
             render_command_executed_semaphores[i] = device.createSemaphoreUnique(sinfo);
-            DEBUG_SET_NAME(
+            DEBUG_SET_NAME_TEMPLATE(
                 device, 
-                vk::ObjectType::eSemaphore, 
-                (VkSemaphore)render_command_executed_semaphores[i].get(), 
-                std::format("rcb executed {}", i).c_str()
+                render_command_executed_semaphores[i].get(), 
+                std::format("Semaphore - render CB executed {}", i)
             );
 
             copy_to_swapchain_completed_semaphores[i] = device.createSemaphoreUnique(sinfo);
-            DEBUG_SET_NAME(
+            DEBUG_SET_NAME_TEMPLATE(
                 device, 
-                vk::ObjectType::eSemaphore, 
-                (VkSemaphore)copy_to_swapchain_completed_semaphores[i].get(), 
-                std::format("final copy completed {}", i).c_str()
+                copy_to_swapchain_completed_semaphores[i].get(), 
+                std::format("Semaphore - final copy completed {}", i)
             );
 
             next_frame_ready_semaphores[i] = device.createSemaphoreUnique(sinfo);
-            DEBUG_SET_NAME(
+            DEBUG_SET_NAME_TEMPLATE(
                 device, 
-                vk::ObjectType::eSemaphore, 
-                (VkSemaphore)next_frame_ready_semaphores[i].get(), 
-                std::format("next frame ready {}", i).c_str()
+                next_frame_ready_semaphores[i].get(), 
+                std::format("Semaphore - next frame ready {}", i)
             );
 
             command_executed_fences[i] = device.createFenceUnique(finfo);
-            DEBUG_SET_NAME(
+            DEBUG_SET_NAME_TEMPLATE(
                 device, 
-                vk::ObjectType::eFence, 
-                (VkFence)command_executed_fences[i].get(), 
-                std::format("Command executed {}", i).c_str()
+                command_executed_fences[i].get(), 
+                std::format("Fence - all commands executed {}", i)
             );
         }
 
@@ -211,22 +206,20 @@ namespace Engine::RenderSystemState{
                 render_command_executed_semaphores[i].get(),
                 i
             );
-            DEBUG_SET_NAME(
+            DEBUG_SET_NAME_TEMPLATE(
                 device, 
-                vk::ObjectType::eCommandBuffer, 
-                (VkCommandBuffer)command_buffers[i].get(), 
-                std::format("Main render command buffer {}", i).c_str()
+                command_buffers[i].get(), 
+                std::format("Command buffer - main render {}", i)
             );
         }
 
         new_command_buffers = device.allocateCommandBuffersUnique(cbinfo);
         for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; i++) {
             copy_to_swapchain_command_buffers[i] = std::move(new_command_buffers[i]);
-            DEBUG_SET_NAME(
+            DEBUG_SET_NAME_TEMPLATE(
                 device, 
-                vk::ObjectType::eCommandBuffer, 
-                (VkCommandBuffer)copy_to_swapchain_command_buffers[i].get(), 
-                std::format("Copy command buffer {}", i).c_str()
+                copy_to_swapchain_command_buffers[i].get(), 
+                std::format("Command buffer - composition {}", i)
             );
         }
 
