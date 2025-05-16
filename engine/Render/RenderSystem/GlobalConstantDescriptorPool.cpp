@@ -1,6 +1,7 @@
 #include "GlobalConstantDescriptorPool.h"
 
 #include "Render/RenderSystem.h"
+#include "Render/DebugUtils.h"
 
 namespace Engine::RenderSystemState{
     void GlobalConstantDescriptorPool::CreateLayouts(std::shared_ptr <RenderSystem> system) {
@@ -53,6 +54,19 @@ namespace Engine::RenderSystemState{
             m_per_scene_descriptor_sets.size() == inflight_frame_count
         );
 
+        for (size_t i = 0; i < inflight_frame_count; i++) {
+            DEBUG_SET_NAME_TEMPLATE(
+                system->getDevice(), 
+                m_per_camera_descriptor_sets[i], 
+                std::format("Desc Set - Camera {}", i)
+            );
+            DEBUG_SET_NAME_TEMPLATE(
+                system->getDevice(), 
+                m_per_scene_descriptor_sets[i], 
+                std::format("Desc Set - Scene {}", i)
+            );
+        }
+
         // Write descriptor sets
         std::vector <vk::DescriptorBufferInfo> buffers {inflight_frame_count * 2};
         std::vector <vk::WriteDescriptorSet> writes {inflight_frame_count * 2};
@@ -97,6 +111,7 @@ namespace Engine::RenderSystemState{
             DESCRIPTOR_POOL_SIZES
         };
         m_handle = p_system->getDevice().createDescriptorPoolUnique(info);
+        DEBUG_SET_NAME_TEMPLATE(p_system->getDevice(), m_handle.get(), "Desc Pool - Global");
 
         CreateLayouts(p_system);
         AllocateGlobalSets(p_system, inflight_frame_count);

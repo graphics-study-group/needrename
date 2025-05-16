@@ -8,6 +8,8 @@
 #include "Render/RenderSystem/GlobalConstantDescriptorPool.h"
 #include "Render/RenderSystem/Swapchain.h"
 
+#include "Render/DebugUtils.h"
+
 #include <glm.hpp>
 #include <fstream>
 #include <SDL3/SDL.h>
@@ -208,6 +210,7 @@ namespace Engine
         };
         vk::Device dvc = m_system.lock()->getDevice();
         this->m_poolInfo.pool = dvc.createDescriptorPoolUnique(dpci);
+        DEBUG_SET_NAME_TEMPLATE(dvc, this->m_poolInfo.pool.get(), std::format("Desc Pool - Material {}", m_name));
 
         // Create a fallback point-clamp sampler
         vk::SamplerCreateInfo sci {};
