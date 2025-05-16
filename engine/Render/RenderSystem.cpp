@@ -23,6 +23,8 @@
 
 #include <iostream>
 
+VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
+
 namespace Engine
 {
     struct RenderSystem::impl {
@@ -78,14 +80,16 @@ namespace Engine
 
     void RenderSystem::Create() {
         assert(!this->pimpl->m_instance.get() || "Recreating render system");
-        // C++ wrappers for Vulkan functions throw exceptions
-        // So we don't need to do mundane error checking
-        // Create instance
+        VULKAN_HPP_DEFAULT_DISPATCHER.init(
+            reinterpret_cast<PFN_vkGetInstanceProcAddr>(SDL_Vulkan_GetVkGetInstanceProcAddr())
+        );
         pimpl->m_instance.Create("no name", "no name");
+        VULKAN_HPP_DEFAULT_DISPATCHER.init(pimpl->m_instance.get());
         pimpl->CreateSurface();
 
         pimpl->m_selected_physical_device = RenderSystemState::PhysicalDevice::SelectPhysicalDevice(pimpl->m_instance.get(), pimpl->m_surface.get());
         pimpl->CreateLogicalDevice();
+        VULKAN_HPP_DEFAULT_DISPATCHER.init(pimpl->m_device.get());
         pimpl->CreateSwapchain();
 
         pimpl->m_allocator_state.Create();
