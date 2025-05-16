@@ -236,11 +236,6 @@ int main(int argc, char ** argv)
             }
         }
 
-        auto index = rsys->StartFrame();
-        RenderCommandBuffer & cb = rsys->GetCurrentCommandBuffer();
-
-        assert(index < 3);
-
         switch (frame_count % 3) {
         case 0:
             rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*blank_color, {1.0f, 0.0f, 0.0f, 0.0f});
@@ -252,7 +247,10 @@ int main(int argc, char ** argv)
             rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*blank_color, {0.0f, 0.0f, 1.0f, 0.0f});
             break;
         }
-        
+
+        auto index = rsys->StartFrame();
+        RenderCommandBuffer & cb = rsys->GetCurrentCommandBuffer();
+        assert(index < 3);
     
         cb.Begin("Main Render Loop");
         // Shadow map pass
