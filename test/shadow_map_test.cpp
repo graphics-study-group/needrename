@@ -182,10 +182,10 @@ int main(int argc, char ** argv)
     auto depth = std::make_shared<Engine::AllocatedImage2D>(rsys);
     auto shadow = std::make_shared<Engine::AllocatedImage2D>(rsys);
     auto blank_color = std::make_shared<Engine::AllocatedImage2DTexture>(rsys);
-    color->Create(1920, 1080, Engine::ImageUtils::ImageType::ColorAttachment, Engine::ImageUtils::ImageFormat::B8G8R8A8SRGB, 1);
-    depth->Create(1920, 1080, Engine::ImageUtils::ImageType::DepthImage, Engine::ImageUtils::ImageFormat::D32SFLOAT, 1);
-    shadow->Create(2048, 2048, Engine::ImageUtils::ImageType::SampledDepthImage, Engine::ImageUtils::ImageFormat::D32SFLOAT, 1);
-    blank_color->Create(16, 16, Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB, 1);
+    color->Create(1920, 1080, Engine::ImageUtils::ImageType::ColorAttachment, Engine::ImageUtils::ImageFormat::B8G8R8A8SRGB, 1, "Color attachment");
+    depth->Create(1920, 1080, Engine::ImageUtils::ImageType::DepthImage, Engine::ImageUtils::ImageFormat::D32SFLOAT, 1, "Depth attachment");
+    shadow->Create(2048, 2048, Engine::ImageUtils::ImageType::SampledDepthImage, Engine::ImageUtils::ImageFormat::D32SFLOAT, 1, "Shadow map");
+    blank_color->Create(16, 16, Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB, 1, "Blank color");
 
     Engine::AttachmentUtils::AttachmentDescription color_att, depth_att, shadow_att;
     color_att.image = color->GetImage();

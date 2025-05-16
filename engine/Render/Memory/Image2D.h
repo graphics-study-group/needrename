@@ -25,7 +25,14 @@ namespace Engine {
 
         AllocatedImage2D(std::weak_ptr <RenderSystem> system);
 
-        void Create(uint32_t width, uint32_t height, ImageUtils::ImageType type, ImageUtils::ImageFormat format, uint32_t mip = 1);
+        void Create(
+            uint32_t width, 
+            uint32_t height, 
+            ImageUtils::ImageType type, 
+            ImageUtils::ImageFormat format, 
+            uint32_t mip = 1, 
+            const std::string & name = ""
+        );
 
         vk::Image GetImage() const override;
         vk::ImageView GetImageView() const override;
