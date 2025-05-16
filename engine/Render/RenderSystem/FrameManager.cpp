@@ -147,10 +147,44 @@ namespace Engine::RenderSystemState{
         };
         for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; i++) {
             image_acquired_semaphores[i] = device.createSemaphoreUnique(sinfo);
+            DEBUG_SET_NAME(
+                device, 
+                vk::ObjectType::eSemaphore, 
+                (VkSemaphore)image_acquired_semaphores[i].get(), 
+                std::format("Image acquired {}", i).c_str()
+            );
+
             render_command_executed_semaphores[i] = device.createSemaphoreUnique(sinfo);
+            DEBUG_SET_NAME(
+                device, 
+                vk::ObjectType::eSemaphore, 
+                (VkSemaphore)render_command_executed_semaphores[i].get(), 
+                std::format("rcb executed {}", i).c_str()
+            );
+
             copy_to_swapchain_completed_semaphores[i] = device.createSemaphoreUnique(sinfo);
+            DEBUG_SET_NAME(
+                device, 
+                vk::ObjectType::eSemaphore, 
+                (VkSemaphore)copy_to_swapchain_completed_semaphores[i].get(), 
+                std::format("final copy completed {}", i).c_str()
+            );
+
             next_frame_ready_semaphores[i] = device.createSemaphoreUnique(sinfo);
+            DEBUG_SET_NAME(
+                device, 
+                vk::ObjectType::eSemaphore, 
+                (VkSemaphore)next_frame_ready_semaphores[i].get(), 
+                std::format("next frame ready {}", i).c_str()
+            );
+
             command_executed_fences[i] = device.createFenceUnique(finfo);
+            DEBUG_SET_NAME(
+                device, 
+                vk::ObjectType::eFence, 
+                (VkFence)command_executed_fences[i].get(), 
+                std::format("Command executed {}", i).c_str()
+            );
         }
 
         auto pool = m_system.getQueueInfo().graphicsPool.get();
@@ -174,11 +208,23 @@ namespace Engine::RenderSystemState{
                 render_command_executed_semaphores[i].get(),
                 i
             );
+            DEBUG_SET_NAME(
+                device, 
+                vk::ObjectType::eCommandBuffer, 
+                (VkCommandBuffer)command_buffers[i].get(), 
+                std::format("Main render command buffer {}", i).c_str()
+            );
         }
 
         new_command_buffers = device.allocateCommandBuffersUnique(cbinfo);
         for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; i++) {
             copy_to_swapchain_command_buffers[i] = std::move(new_command_buffers[i]);
+            DEBUG_SET_NAME(
+                device, 
+                vk::ObjectType::eCommandBuffer, 
+                (VkCommandBuffer)copy_to_swapchain_command_buffers[i].get(), 
+                std::format("Copy command buffer {}", i).c_str()
+            );
         }
 
         graphic_queue = queue;
