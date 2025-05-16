@@ -35,8 +35,8 @@ namespace Engine
 
     void RenderCommandBuffer::Begin(const std::string & name)
     {
-        DEBUG_CMD_START_LABEL(m_handle, name.c_str());
         m_handle.begin(vk::CommandBufferBeginInfo{});
+        DEBUG_CMD_START_LABEL(m_handle, name.c_str());
     }
 
     void RenderCommandBuffer::BeginRendering(
@@ -236,8 +236,8 @@ namespace Engine
     }
 
     void RenderCommandBuffer::End() {
-        m_handle.end();
         DEBUG_CMD_END_LABEL(m_handle);
+        m_handle.end();
     }
 
     void RenderCommandBuffer::Submit(bool wait_for_semaphore) {

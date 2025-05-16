@@ -31,8 +31,10 @@ namespace Engine::RenderSystemState{
         void RecordCopyCommand(const vk::CommandBuffer & cb, const vk::Image & dst, bool is_framebuffer = true) const {
             // We can cache this vector to further speed up recording.
             std::vector <vk::ImageMemoryBarrier2> barriers(operations.size() + 1, vk::ImageMemoryBarrier2{});
-            DEBUG_CMD_START_LABEL(cb, "Final Copy");
+
             cb.begin(vk::CommandBufferBeginInfo{});
+            DEBUG_CMD_START_LABEL(cb, "Final Copy");
+
             // Prepare barriers
             for (size_t i = 0; i < operations.size(); i++) {
                 barriers[i] = vk::ImageMemoryBarrier2{
@@ -126,8 +128,9 @@ namespace Engine::RenderSystemState{
                 }
             };
             cb.pipelineBarrier2(dep);
-            cb.end();
+
             DEBUG_CMD_END_LABEL(cb);
+            cb.end();
         };
     };
 
