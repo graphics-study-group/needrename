@@ -27,7 +27,7 @@ namespace Engine {
         assert(buffer_size > 0);
 
         Buffer buffer{m_system};
-        buffer.Create(Buffer::BufferType::Staging, buffer_size);
+        buffer.Create(Buffer::BufferType::Staging, buffer_size, "Buffer - texture staging");
         return buffer;
     }
 }

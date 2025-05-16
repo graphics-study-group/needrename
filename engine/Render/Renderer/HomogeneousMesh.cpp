@@ -21,7 +21,7 @@ namespace Engine {
                 "(Re-)Allocating buffer and memory for %u vertices (%llu bytes).", 
                 new_vertex_count, buffer_size
             );
-            m_buffer.Create(Buffer::BufferType::Vertex, buffer_size);
+            m_buffer.Create(Buffer::BufferType::Vertex, buffer_size, "Buffer - mesh vertices");
             m_allocated_buffer_size = buffer_size;
         }
     }
@@ -36,7 +36,7 @@ namespace Engine {
         const uint64_t buffer_size = GetExpectedBufferSize();
 
         Buffer buffer{m_system};
-        buffer.Create(Buffer::BufferType::Staging, buffer_size);
+        buffer.Create(Buffer::BufferType::Staging, buffer_size, "Buffer - mesh staging");
 
         std::byte * data = buffer.Map();
         WriteToMemory(data);

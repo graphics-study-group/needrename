@@ -16,7 +16,8 @@ namespace Engine::RenderSystemState{
             m_per_camera_buffers.emplace_back(system);
             m_per_camera_buffers[i].Create(
                 Engine::Buffer::BufferType::Uniform, 
-                sizeof(Engine::ConstantData::PerCameraStruct)
+                sizeof(Engine::ConstantData::PerCameraStruct),
+                std::format("Buffer - camera uniforms {}", i)
             );
             m_per_camera_memories.push_back(m_per_camera_buffers[i].Map());
         }
@@ -27,7 +28,8 @@ namespace Engine::RenderSystemState{
             m_per_scene_buffers.emplace_back(system);
             m_per_scene_buffers[i].Create(
                 Engine::Buffer::BufferType::Uniform, 
-                sizeof(Engine::ConstantData::PerSceneStruct)
+                sizeof(Engine::ConstantData::PerSceneStruct),
+                std::format("Buffer - scene uniforms {}", i)
             );
             m_per_scene_memories.push_back(m_per_scene_buffers[i].Map());
         }
