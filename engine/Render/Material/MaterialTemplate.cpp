@@ -59,7 +59,10 @@ namespace Engine
                 code.size() * sizeof(uint32_t),
                 reinterpret_cast<const uint32_t *> (code.data())
             };
+            
             pass_info.shaders[i] = device.createShaderModuleUnique(ci);
+            DEBUG_SET_NAME_TEMPLATE(device, pass_info.shaders[i].get(), std::format("Shader Module - {}", shader_asset->m_name));
+
             psscis[i] = vk::PipelineShaderStageCreateInfo {
                 {},
                 MaterialTemplateUtils::ToVulkanShaderStageFlagBits(shader_asset->shaderType),
