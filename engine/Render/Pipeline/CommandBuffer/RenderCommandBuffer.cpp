@@ -9,6 +9,7 @@
 #include "Render/Pipeline/RenderTargetBinding.h"
 
 #include "Render/Pipeline/CommandBuffer/LayoutTransferHelper.h"
+#include "Render/DebugUtils.h"
 
 #include <SDL3/SDL.h>
 
@@ -32,10 +33,10 @@ namespace Engine
     {
     }
 
-    void RenderCommandBuffer::Begin()
+    void RenderCommandBuffer::Begin(const std::string & name)
     {
-        vk::CommandBufferBeginInfo binfo{};
-        m_handle.begin(binfo);
+        DEBUG_CMD_START_LABEL(m_handle, name.c_str());
+        m_handle.begin(vk::CommandBufferBeginInfo{});
     }
 
     void RenderCommandBuffer::BeginRendering(
@@ -95,8 +96,9 @@ namespace Engine
         m_handle.beginRendering(info);
     }
 
-    void RenderCommandBuffer::BeginRendering(const RenderTargetBinding &binding, vk::Extent2D extent)
+    void RenderCommandBuffer::BeginRendering(const RenderTargetBinding &binding, vk::Extent2D extent, const std::string & name)
     {
+        DEBUG_CMD_START_LABEL(m_handle, name.c_str());
         size_t total_attachment_count = binding.GetColorAttachmentCount() + binding.HasDepthAttachment();
         std::vector <vk::RenderingAttachmentInfo> color_attachment_info (binding.GetColorAttachmentCount(), vk::RenderingAttachmentInfo{});
         std::vector <vk::ImageMemoryBarrier2> barriers (total_attachment_count, vk::ImageMemoryBarrier2{});
@@ -211,6 +213,7 @@ namespace Engine
     void RenderCommandBuffer::EndRendering()
     {
         m_handle.endRendering();
+        DEBUG_CMD_END_LABEL(m_handle);
     }
 
     void RenderCommandBuffer::InsertAttachmentBarrier(AttachmentBarrierType type, vk::Image image)
@@ -234,6 +237,7 @@ namespace Engine
 
     void RenderCommandBuffer::End() {
         m_handle.end();
+        DEBUG_CMD_END_LABEL(m_handle);
     }
 
     void RenderCommandBuffer::Submit(bool wait_for_semaphore) {

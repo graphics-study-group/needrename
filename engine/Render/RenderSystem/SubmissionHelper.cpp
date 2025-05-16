@@ -6,6 +6,8 @@
 #include "Render/Pipeline/CommandBuffer/BufferTransferHelper.h"
 #include "Render/Pipeline/CommandBuffer/LayoutTransferHelper.h"
 
+#include "Render/DebugUtils.h"
+
 #include <SDL3/SDL.h>
 
 namespace Engine::RenderSystemState {
@@ -141,6 +143,7 @@ namespace Engine::RenderSystemState {
         vk::CommandBufferBeginInfo cbbinfo {
             vk::CommandBufferUsageFlagBits::eOneTimeSubmit
         };
+        DEBUG_CMD_START_LABEL(m_one_time_cb.get(), "Resource Submission");
         m_one_time_cb->begin(cbbinfo);
 
         while(!m_pending_operations.empty()) {
@@ -150,6 +153,7 @@ namespace Engine::RenderSystemState {
         }
 
         m_one_time_cb->end();
+        DEBUG_CMD_END_LABEL(m_one_time_cb.get());
 
         std::array <vk::CommandBuffer, 1> submitted_cb = {m_one_time_cb.get()};
         std::array <vk::SubmitInfo, 1> sinfos = {
