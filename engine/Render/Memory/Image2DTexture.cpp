@@ -14,7 +14,7 @@ namespace Engine {
             ImageUtils::ImageType::TextureImage, 
             asset.m_format, 
             asset.m_mip_level,
-            asset.m_name
+            std::format("Image - {} (asset)", asset.m_name)
         );
     }
 
