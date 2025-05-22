@@ -51,9 +51,6 @@ namespace Engine {
              * 
              * @warning Must be called before either `CompositeToFramebufferAndPresent` or `CompositeToImage`, once each frame.
              * Non-standard call-sites are likely to result in deadlocks and vulkan device losses.
-             * 
-             * @param wait_for_semaphore whether wait for the semaphore before execution. Used for the first CB only.
-             * @warning Supplying `wait_for_semaphore` parameter incorrectly will result in deadlocks and possible vulkan device losses. 
              */
             void SubmitMainCommandBuffer();
 
