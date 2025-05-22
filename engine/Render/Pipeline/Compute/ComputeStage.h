@@ -17,6 +17,7 @@ namespace Engine {
         void CreatePipeline();
     public:
         ComputeStage(std::weak_ptr <RenderSystem> system, std::shared_ptr <AssetRef> asset);
+        virtual ~ComputeStage();
     };
 }
 
