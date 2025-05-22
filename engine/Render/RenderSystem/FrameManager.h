@@ -1,45 +1,19 @@
 #ifndef RENDER_RENDERSYSTEM_FRAMEMANAGER_INCLUDED
 #define RENDER_RENDERSYSTEM_FRAMEMANAGER_INCLUDED
 
-#include "Render/Pipeline/CommandBuffer/RenderCommandBuffer.h"
-#include "Render/RenderSystem/SubmissionHelper.h"
-
 namespace Engine {
     class RenderSystem;
+    class RenderCommandBuffer;
 
     namespace RenderSystemState {
+        class SubmissionHelper;
         /// @brief Multiple frame in flight manager
         class FrameManager final {
         public:
             static constexpr uint32_t FRAMES_IN_FLIGHT = 3;
         private:
-            struct PresentingHelper;
-
-            std::array <vk::UniqueSemaphore, FRAMES_IN_FLIGHT> image_acquired_semaphores {};
-            std::array <vk::UniqueSemaphore, FRAMES_IN_FLIGHT> render_command_executed_semaphores {};
-            std::array <vk::UniqueSemaphore, FRAMES_IN_FLIGHT> copy_to_swapchain_completed_semaphores {};
-            std::array <vk::UniqueSemaphore, FRAMES_IN_FLIGHT> next_frame_ready_semaphores {};
-            std::array <vk::UniqueFence, FRAMES_IN_FLIGHT> command_executed_fences {};
-            std::array <vk::UniqueCommandBuffer, FRAMES_IN_FLIGHT> command_buffers {};
-            std::array <vk::UniqueCommandBuffer, FRAMES_IN_FLIGHT> copy_to_swapchain_command_buffers {};
-
-            std::vector <RenderCommandBuffer> render_command_buffers {};
-
-            uint32_t current_frame_in_flight {std::numeric_limits<uint32_t>::max()};
-
-            // Current frame buffer id. Set by `StartFrame()` method.
-            uint32_t current_framebuffer {std::numeric_limits<uint32_t>::max()};
-
-            vk::Queue graphic_queue {};
-            vk::Queue present_queue {};
-            vk::SwapchainKHR swapchain {};
-            RenderSystem & m_system;
-
-            std::unique_ptr <SubmissionHelper> m_submission_helper {};
-            std::unique_ptr <PresentingHelper> m_presenting_helper {};
-
-            /// @brief Progress the frame state machine.
-            void CompleteFrame();
+            struct impl;
+            std::unique_ptr <impl> pimpl;
 
         public:
             FrameManager (RenderSystem & sys);

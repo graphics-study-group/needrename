@@ -1,5 +1,7 @@
 #include "FrameManager.h"
 
+#include "Render/RenderSystem/SubmissionHelper.h"
+#include "Render/Pipeline/CommandBuffer.h"
 #include "Render/Memory/Buffer.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/Swapchain.h"
@@ -8,7 +10,7 @@
 #include <SDL3/SDL.h>
 
 namespace Engine::RenderSystemState{
-    struct FrameManager::PresentingHelper {
+    struct PresentingHelper {
         struct PresentingOperation {
             vk::Image image;
             vk::Extent2D extent;
@@ -134,13 +136,45 @@ namespace Engine::RenderSystemState{
         };
     };
 
-    FrameManager::FrameManager(RenderSystem &sys) : m_system(sys)
+    struct FrameManager::impl {
+        std::array <vk::UniqueSemaphore, FRAMES_IN_FLIGHT> image_acquired_semaphores {};
+        std::array <vk::UniqueSemaphore, FRAMES_IN_FLIGHT> render_command_executed_semaphores {};
+        std::array <vk::UniqueSemaphore, FRAMES_IN_FLIGHT> copy_to_swapchain_completed_semaphores {};
+        std::array <vk::UniqueSemaphore, FRAMES_IN_FLIGHT> next_frame_ready_semaphores {};
+        std::array <vk::UniqueFence, FRAMES_IN_FLIGHT> command_executed_fences {};
+        std::array <vk::UniqueCommandBuffer, FRAMES_IN_FLIGHT> command_buffers {};
+        std::array <vk::UniqueCommandBuffer, FRAMES_IN_FLIGHT> copy_to_swapchain_command_buffers {};
+
+        std::vector <RenderCommandBuffer> render_command_buffers {};
+
+        uint32_t current_frame_in_flight {std::numeric_limits<uint32_t>::max()};
+
+        // Current frame buffer id. Set by `StartFrame()` method.
+        uint32_t current_framebuffer {std::numeric_limits<uint32_t>::max()};
+
+        vk::Queue graphic_queue {};
+        vk::Queue present_queue {};
+        vk::SwapchainKHR swapchain {};
+        RenderSystem & m_system;
+
+        std::unique_ptr <SubmissionHelper> m_submission_helper {};
+        std::unique_ptr <PresentingHelper> m_presenting_helper {};
+
+        /// @brief Progress the frame state machine.
+        void CompleteFrame();
+
+        impl(RenderSystem & sys) : m_system(sys) {};
+        void Create();
+    };
+
+    FrameManager::FrameManager(RenderSystem &sys) 
+        : pimpl(std::make_unique<impl>(sys))
     {
     }
 
     FrameManager::~FrameManager() = default;
 
-    void FrameManager::Create()
+    void FrameManager::impl::Create()
     {
         auto device = m_system.getDevice();
 
@@ -226,51 +260,55 @@ namespace Engine::RenderSystemState{
         m_submission_helper = std::make_unique <SubmissionHelper> (m_system);
         m_presenting_helper = std::make_unique <PresentingHelper> ();
     }
+    
+    void FrameManager::Create() {
+        pimpl->Create();
+    }
 
     uint32_t FrameManager::GetFrameInFlight() const noexcept
     {
-        assert(this->current_frame_in_flight < FRAMES_IN_FLIGHT && "Frame Manager is in invalid state.");
-        return this->current_frame_in_flight;
+        assert(this->pimpl->current_frame_in_flight < FRAMES_IN_FLIGHT && "Frame Manager is in invalid state.");
+        return this->pimpl->current_frame_in_flight;
     }
 
     uint32_t FrameManager::GetFramebuffer() const noexcept
     {
-        assert(this->current_framebuffer < std::numeric_limits<uint32_t>::max() && "Frame Manager is in invalid state.");
-        return this->current_framebuffer;
+        assert(this->pimpl->current_framebuffer < std::numeric_limits<uint32_t>::max() && "Frame Manager is in invalid state.");
+        return this->pimpl->current_framebuffer;
     }
 
     RenderCommandBuffer & FrameManager::GetCommandBuffer()
     {
-        assert(this->current_framebuffer < std::numeric_limits<uint32_t>::max() && "Frame Manager is in invalid state.");
-        return render_command_buffers[GetFrameInFlight()];
+        assert(this->pimpl->current_framebuffer < std::numeric_limits<uint32_t>::max() && "Frame Manager is in invalid state.");
+        return pimpl->render_command_buffers[GetFrameInFlight()];
     }
 
     std::vector<RenderCommandBuffer> &FrameManager::GetCommandBuffers()
     {
-        return render_command_buffers;
+        return pimpl->render_command_buffers;
     }
 
     uint32_t FrameManager::StartFrame(uint64_t timeout)
     {
-        m_submission_helper->StartFrame();
+        pimpl->m_submission_helper->StartFrame();
 
-        auto device = m_system.getDevice();
+        auto device = pimpl->m_system.getDevice();
         uint32_t fif = GetFrameInFlight();
 
         // Wait for command buffer execution.
-        vk::Fence fence = command_executed_fences[fif].get();
+        vk::Fence fence = pimpl->command_executed_fences[fif].get();
         vk::Result wait_result = device.waitForFences({fence}, vk::True, timeout);
         if (wait_result == vk::Result::eTimeout) {
             SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Timed out waiting for fence for frame id %u.", fif);
         }
-        render_command_buffers[fif].Reset();
+        pimpl->render_command_buffers[fif].Reset();
         device.resetFences({fence});
 
         // Acquire new image
         auto acquire_result = device.acquireNextImageKHR(
-            swapchain, 
+            pimpl->swapchain, 
             timeout, 
-            image_acquired_semaphores[fif].get(),
+            pimpl->image_acquired_semaphores[fif].get(),
             nullptr
         );
         if (acquire_result.result == vk::Result::eTimeout) {
@@ -283,57 +321,57 @@ namespace Engine::RenderSystemState{
                 vk::to_string(acquire_result.result).c_str()
                 );
         }
-        current_framebuffer = acquire_result.value;
-        return current_framebuffer;
+        pimpl->current_framebuffer = acquire_result.value;
+        return pimpl->current_framebuffer;
     }
 
     void FrameManager::SubmitMainCommandBuffer(bool wait_for_semaphore)
     {
         uint32_t fif = GetFrameInFlight();
         vk::SubmitInfo info{};
-        vk::CommandBuffer cb = render_command_buffers[fif].get();
+        vk::CommandBuffer cb = pimpl->render_command_buffers[fif].get();
         info.commandBufferCount = 1;
         info.pCommandBuffers = &cb;
         if (wait_for_semaphore) {
              // Stall the execution of this commandbuffer until previous one has finished.
             auto waitFlags = vk::PipelineStageFlags{vk::PipelineStageFlagBits::eTopOfPipe};
             info.setWaitSemaphores({
-                this->next_frame_ready_semaphores[(fif + FRAMES_IN_FLIGHT - 1) % FRAMES_IN_FLIGHT].get()
+                this->pimpl->next_frame_ready_semaphores[(fif + FRAMES_IN_FLIGHT - 1) % FRAMES_IN_FLIGHT].get()
             });
             info.pWaitDstStageMask = &waitFlags;
         } else {
             info.waitSemaphoreCount = 0;
         }
         
-        info.setSignalSemaphores({this->render_command_executed_semaphores[fif].get()});
+        info.setSignalSemaphores({this->pimpl->render_command_executed_semaphores[fif].get()});
         std::array<vk::SubmitInfo, 1> infos{info};
-        this->graphic_queue.submit(infos, nullptr);
+        this->pimpl->graphic_queue.submit(infos, nullptr);
     }
 
     void FrameManager::StageCopyComposition(vk::Image image, vk::Extent2D extent, vk::Offset2D offsetSrc, vk::Offset2D offsetDst)
     {
-        m_presenting_helper->operations.emplace_back(image, extent, offsetSrc, offsetDst);
+        pimpl->m_presenting_helper->operations.emplace_back(image, extent, offsetSrc, offsetDst);
     }
 
     void FrameManager::StageCopyComposition(vk::Image image)
     {
-        StageCopyComposition(image, m_system.GetSwapchain().GetExtent());
+        StageCopyComposition(image, pimpl->m_system.GetSwapchain().GetExtent());
     }
 
     bool FrameManager::CompositeToFramebufferAndPresent()
     {
         // Copy framebuffers
         const auto fif = GetFrameInFlight();
-        const auto framebuffer_image = this->m_system.GetSwapchain().GetImages()[GetFramebuffer()];
-        const auto & copy_cb = copy_to_swapchain_command_buffers[fif].get();
+        const auto framebuffer_image = this->pimpl->m_system.GetSwapchain().GetImages()[GetFramebuffer()];
+        const auto & copy_cb = pimpl->copy_to_swapchain_command_buffers[fif].get();
 
-        m_presenting_helper->RecordCopyCommand(copy_cb, framebuffer_image);
-        m_presenting_helper->operations.clear();
+        pimpl->m_presenting_helper->RecordCopyCommand(copy_cb, framebuffer_image);
+        pimpl->m_presenting_helper->operations.clear();
 
         // Wait for both command execution and image aquisition.
         std::array <vk::Semaphore, 2> rces = {
-            render_command_executed_semaphores[fif].get(),
-            image_acquired_semaphores[fif].get()
+            pimpl->render_command_executed_semaphores[fif].get(),
+            pimpl->image_acquired_semaphores[fif].get()
         };
         std::array <vk::PipelineStageFlags, 2> psfb = {
             vk::PipelineStageFlagBits::eTransfer,
@@ -342,8 +380,8 @@ namespace Engine::RenderSystemState{
 
         // Signal ready for presenting and for next frame.
         std::array <vk::Semaphore, 2> ss = {
-            copy_to_swapchain_completed_semaphores[fif].get(),
-            next_frame_ready_semaphores[fif].get()
+            pimpl->copy_to_swapchain_completed_semaphores[fif].get(),
+            pimpl->next_frame_ready_semaphores[fif].get()
         };
 
         vk::SubmitInfo sinfo {
@@ -352,18 +390,18 @@ namespace Engine::RenderSystemState{
             {copy_cb},
             ss
         };
-        graphic_queue.submit(sinfo, this->command_executed_fences[this->GetFrameInFlight()].get());
+        pimpl->graphic_queue.submit(sinfo, this->pimpl->command_executed_fences[this->GetFrameInFlight()].get());
 
         // Queue a present directive
-        std::array<vk::SwapchainKHR, 1> swapchains { swapchain };
+        std::array<vk::SwapchainKHR, 1> swapchains { pimpl->swapchain };
         std::array<uint32_t, 1> frame_indices { GetFramebuffer() };
         // Wait for command buffer before presenting the frame
-        std::array<vk::Semaphore, 1> semaphores {copy_to_swapchain_completed_semaphores[fif].get()};
+        std::array<vk::Semaphore, 1> semaphores {pimpl->copy_to_swapchain_completed_semaphores[fif].get()};
 
         bool needs_recreating = false;
         try {
             vk::PresentInfoKHR info{semaphores, swapchains, frame_indices};
-            vk::Result result = present_queue.presentKHR(info);
+            vk::Result result = pimpl->present_queue.presentKHR(info);
             if (result != vk::Result::eSuccess) {
                 SDL_LogWarn(
                     SDL_LOG_CATEGORY_RENDER, 
@@ -376,7 +414,7 @@ namespace Engine::RenderSystemState{
             needs_recreating = true;
         }
         
-        CompleteFrame();
+        pimpl->CompleteFrame();
         return needs_recreating;
     }
 
@@ -384,15 +422,15 @@ namespace Engine::RenderSystemState{
     {
         // Copy framebuffers
         const auto fif = GetFrameInFlight();
-        const auto & copy_cb = copy_to_swapchain_command_buffers[fif].get();
+        const auto & copy_cb = pimpl->copy_to_swapchain_command_buffers[fif].get();
 
-        m_presenting_helper->RecordCopyCommand(copy_cb, image, false);
-        m_presenting_helper->operations.clear();
+        pimpl->m_presenting_helper->RecordCopyCommand(copy_cb, image, false);
+        pimpl->m_presenting_helper->operations.clear();
 
         // Wait for command execution.
         std::array <vk::Semaphore, 2> rces = {
-            render_command_executed_semaphores[fif].get(),
-            image_acquired_semaphores[fif].get()        // > Although the image is not needed, the semaphore must be cleared.
+            pimpl->render_command_executed_semaphores[fif].get(),
+            pimpl->image_acquired_semaphores[fif].get()        // > Although the image is not needed, the semaphore must be cleared.
         };
         std::array <vk::PipelineStageFlags, 2> psfb = {
             vk::PipelineStageFlagBits::eTransfer,
@@ -401,7 +439,7 @@ namespace Engine::RenderSystemState{
 
         // Signal ready for next frame.
         std::array <vk::Semaphore, 1> ss = {
-            next_frame_ready_semaphores[fif].get(),
+            pimpl->next_frame_ready_semaphores[fif].get(),
         };
 
         vk::SubmitInfo sinfo {
@@ -410,22 +448,22 @@ namespace Engine::RenderSystemState{
             {copy_cb},
             ss
         };
-        graphic_queue.submit(sinfo, this->command_executed_fences[this->GetFrameInFlight()].get());
+        pimpl->graphic_queue.submit(sinfo, this->pimpl->command_executed_fences[this->GetFrameInFlight()].get());
 
         if (timeout) {
-            auto device = m_system.getDevice();
-            auto result = device.waitForFences({this->command_executed_fences[fif].get()}, true, timeout);
+            auto device = pimpl->m_system.getDevice();
+            auto result = device.waitForFences({this->pimpl->command_executed_fences[fif].get()}, true, timeout);
             if (result != vk::Result::eSuccess) {
                 SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Timed out waiting for composition for frame id %u.", fif);
             }
-            device.resetFences({this->command_executed_fences[fif].get()});
+            device.resetFences({this->pimpl->command_executed_fences[fif].get()});
         }
 
-        CompleteFrame();
-        return this->command_executed_fences[fif].get();
+        pimpl->CompleteFrame();
+        return this->pimpl->command_executed_fences[fif].get();
     }
 
-    void FrameManager::CompleteFrame()
+    void FrameManager::impl::CompleteFrame()
     {
         // Increment FIF counter, reset framebuffer index
         current_frame_in_flight = (current_frame_in_flight + 1) % FRAMES_IN_FLIGHT;
@@ -436,10 +474,10 @@ namespace Engine::RenderSystemState{
     }
     void FrameManager::UpdateSwapchain()
     {
-        this->swapchain = m_system.GetSwapchain().GetSwapchain();
+        this->pimpl->swapchain = pimpl->m_system.GetSwapchain().GetSwapchain();
     }
     SubmissionHelper &FrameManager::GetSubmissionHelper()
     {
-        return *m_submission_helper;
+        return *(pimpl->m_submission_helper);
     }
 }

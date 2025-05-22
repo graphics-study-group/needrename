@@ -2,6 +2,7 @@
 
 #include "Render/Renderer/HomogeneousMesh.h"
 #include "Render/RenderSystem/FrameManager.h"
+#include "Render/RenderSystem/SubmissionHelper.h"
 #include "Asset/Mesh/MeshAsset.h"
 #include <Asset/AssetRef.h>
 

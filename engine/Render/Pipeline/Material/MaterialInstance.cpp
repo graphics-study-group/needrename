@@ -4,6 +4,7 @@
 #include <Render/Memory/Image2DTexture.h>
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/FrameManager.h"
+#include "Render/RenderSystem/SubmissionHelper.h"
 #include <Asset/Material/MaterialAsset.h>
 #include <Asset/Texture/Image2DTextureAsset.h>
 #include <SDL3/SDL.h>

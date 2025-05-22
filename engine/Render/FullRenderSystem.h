@@ -10,6 +10,7 @@
 #include "Render/RenderSystem/Structs.h"
 #include "Render/RenderSystem/Swapchain.h"
 #include "Render/RenderSystem/FrameManager.h"
+#include "Render/RenderSystem/SubmissionHelper.h"
 #include "Render/RenderSystem/GlobalConstantDescriptorPool.h"
 #include "Render/RenderSystem/MaterialRegistry.h"
 
