@@ -21,7 +21,7 @@ namespace Engine{
         /// @brief Create a buffer, and perform allocation if needed.
         /// @param type 
         /// @param size 
-        void Create(BufferType type, size_t size);
+        void Create(BufferType type, size_t size, const std::string & name = "");
 
         vk::Buffer GetBuffer () const;
 

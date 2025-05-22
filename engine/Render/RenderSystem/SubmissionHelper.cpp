@@ -6,6 +6,8 @@
 #include "Render/Pipeline/CommandBuffer/BufferTransferHelper.h"
 #include "Render/Pipeline/CommandBuffer/LayoutTransferHelper.h"
 
+#include "Render/DebugUtils.h"
+
 #include <SDL3/SDL.h>
 
 namespace Engine::RenderSystemState {
@@ -136,12 +138,14 @@ namespace Engine::RenderSystemState {
         auto cbs = m_system.getDevice().allocateCommandBuffersUnique(cbainfo);
         assert(cbs.size() == 1);
         m_one_time_cb = std::move(cbs[0]);
+        DEBUG_SET_NAME_TEMPLATE(m_system.getDevice(), m_one_time_cb.get(), "One-time submission CB");
 
         // Record all operations
         vk::CommandBufferBeginInfo cbbinfo {
             vk::CommandBufferUsageFlagBits::eOneTimeSubmit
         };
         m_one_time_cb->begin(cbbinfo);
+        DEBUG_CMD_START_LABEL(m_one_time_cb.get(), "Resource Submission");
 
         while(!m_pending_operations.empty()) {
             auto enqueued = m_pending_operations.front();
@@ -149,6 +153,7 @@ namespace Engine::RenderSystemState {
             m_pending_operations.pop();
         }
 
+        DEBUG_CMD_END_LABEL(m_one_time_cb.get());
         m_one_time_cb->end();
 
         std::array <vk::CommandBuffer, 1> submitted_cb = {m_one_time_cb.get()};

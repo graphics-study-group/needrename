@@ -40,18 +40,38 @@ namespace Engine {
             void Create();
             VmaAllocator GetAllocator() const;
 
-            AllocatedMemory AllocateBuffer(BufferType type, size_t size) const;
-            std::unique_ptr <AllocatedMemory> AllocateBufferUnique(BufferType type, size_t size) const;
+            AllocatedMemory AllocateBuffer(
+                BufferType type, 
+                size_t size,
+                const std::string & name = ""
+            ) const;
 
-            AllocatedMemory AllocateImage(ImageUtils::ImageType type, VkExtent3D dimension, VkFormat format) const;
-            std::unique_ptr <AllocatedMemory> AllocateImageUnique(ImageUtils::ImageType type, VkExtent3D dimension, VkFormat format) const;
+            std::unique_ptr <AllocatedMemory> AllocateBufferUnique(
+                BufferType type, 
+                size_t size,
+                const std::string & name = ""
+            ) const;
+
+            AllocatedMemory AllocateImage(
+                ImageUtils::ImageType type, 
+                VkExtent3D dimension, 
+                VkFormat format,
+                const std::string & name = ""
+            ) const;
+            std::unique_ptr <AllocatedMemory> AllocateImageUnique(
+                ImageUtils::ImageType type, 
+                VkExtent3D dimension, 
+                VkFormat format,
+                const std::string & name = ""
+            ) const;
 
             AllocatedMemory AllocateImageEx (
                 ImageUtils::ImageType type, 
                 VkExtent3D dimension, 
                 VkFormat format, 
                 uint32_t miplevel,
-                uint32_t array_layers
+                uint32_t array_layers,
+                const std::string & name = ""
             ) const;
         };
     }

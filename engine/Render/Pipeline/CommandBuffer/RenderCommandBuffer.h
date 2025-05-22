@@ -37,7 +37,7 @@ namespace Engine {
         RenderCommandBuffer & operator = (RenderCommandBuffer &&) = default;
 
         /// @brief Record a begin command in command buffer
-        void Begin();
+        void Begin(const std::string & name = "");
 
         /// @brief Begin a Vulkan rendering pass
         void BeginRendering(
@@ -48,7 +48,8 @@ namespace Engine {
 
         void BeginRendering(
             const RenderTargetBinding & binding,
-            vk::Extent2D extent
+            vk::Extent2D extent,
+            const std::string & name = ""
         );
 
         /// @brief Bind a material for rendering, and write per-material descriptors.
