@@ -3,6 +3,7 @@
 #include "Render/Memory/Buffer.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/Swapchain.h"
+#include "Render/DebugUtils.h"
 
 #include <SDL3/SDL.h>
 
@@ -30,8 +31,10 @@ namespace Engine::RenderSystemState{
         void RecordCopyCommand(const vk::CommandBuffer & cb, const vk::Image & dst, bool is_framebuffer = true) const {
             // We can cache this vector to further speed up recording.
             std::vector <vk::ImageMemoryBarrier2> barriers(operations.size() + 1, vk::ImageMemoryBarrier2{});
-            vk::CommandBufferBeginInfo cbbi {};
-            cb.begin(cbbi);
+
+            cb.begin(vk::CommandBufferBeginInfo{});
+            DEBUG_CMD_START_LABEL(cb, "Final Copy");
+
             // Prepare barriers
             for (size_t i = 0; i < operations.size(); i++) {
                 barriers[i] = vk::ImageMemoryBarrier2{
@@ -125,6 +128,8 @@ namespace Engine::RenderSystemState{
                 }
             };
             cb.pipelineBarrier2(dep);
+
+            DEBUG_CMD_END_LABEL(cb);
             cb.end();
         };
     };
@@ -145,10 +150,39 @@ namespace Engine::RenderSystemState{
         };
         for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; i++) {
             image_acquired_semaphores[i] = device.createSemaphoreUnique(sinfo);
+            DEBUG_SET_NAME_TEMPLATE(
+                device, 
+                image_acquired_semaphores[i].get(), 
+                std::format("Semaphore - image acquired {}", i)
+            );
+
             render_command_executed_semaphores[i] = device.createSemaphoreUnique(sinfo);
+            DEBUG_SET_NAME_TEMPLATE(
+                device, 
+                render_command_executed_semaphores[i].get(), 
+                std::format("Semaphore - render CB executed {}", i)
+            );
+
             copy_to_swapchain_completed_semaphores[i] = device.createSemaphoreUnique(sinfo);
+            DEBUG_SET_NAME_TEMPLATE(
+                device, 
+                copy_to_swapchain_completed_semaphores[i].get(), 
+                std::format("Semaphore - final copy completed {}", i)
+            );
+
             next_frame_ready_semaphores[i] = device.createSemaphoreUnique(sinfo);
+            DEBUG_SET_NAME_TEMPLATE(
+                device, 
+                next_frame_ready_semaphores[i].get(), 
+                std::format("Semaphore - next frame ready {}", i)
+            );
+
             command_executed_fences[i] = device.createFenceUnique(finfo);
+            DEBUG_SET_NAME_TEMPLATE(
+                device, 
+                command_executed_fences[i].get(), 
+                std::format("Fence - all commands executed {}", i)
+            );
         }
 
         auto pool = m_system.getQueueInfo().graphicsPool.get();
@@ -172,11 +206,21 @@ namespace Engine::RenderSystemState{
                 render_command_executed_semaphores[i].get(),
                 i
             );
+            DEBUG_SET_NAME_TEMPLATE(
+                device, 
+                command_buffers[i].get(), 
+                std::format("Command buffer - main render {}", i)
+            );
         }
 
         new_command_buffers = device.allocateCommandBuffersUnique(cbinfo);
         for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; i++) {
             copy_to_swapchain_command_buffers[i] = std::move(new_command_buffers[i]);
+            DEBUG_SET_NAME_TEMPLATE(
+                device, 
+                copy_to_swapchain_command_buffers[i].get(), 
+                std::format("Command buffer - composition {}", i)
+            );
         }
 
         graphic_queue = queue;

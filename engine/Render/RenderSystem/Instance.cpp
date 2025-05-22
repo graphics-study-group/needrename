@@ -18,15 +18,25 @@ namespace Engine::RenderSystemState
         uint32_t extCount;
         pExt = SDL_Vulkan_GetInstanceExtensions(&extCount);
 
+        std::vector <const char *> extensions;
+        for (uint32_t i = 0; i < extCount; i++) {
+            extensions.push_back(pExt[i]);
+        }
+#ifndef NDEBUG
+        extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+#endif
+
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "%u vulkan extensions requested.", extCount);
         for (uint32_t i = 0; i < extCount; i++) {
             SDL_LogVerbose(SDL_LOG_CATEGORY_RENDER, "\t%s", pExt[i]);
         }
 
-        vk::InstanceCreateInfo instInfo;
-        instInfo.pApplicationInfo = &appInfo;
-        instInfo.enabledExtensionCount = extCount;
-        instInfo.ppEnabledExtensionNames = pExt;
+        vk::InstanceCreateInfo instInfo {
+            vk::InstanceCreateFlags{}, 
+            &appInfo,
+            {},
+            extensions
+        };
 #ifndef NDEBUG
         if (CheckValidationLayer()) {
             instInfo.enabledLayerCount = 1;

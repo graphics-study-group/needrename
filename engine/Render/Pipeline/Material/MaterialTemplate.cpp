@@ -8,6 +8,8 @@
 #include "Render/RenderSystem/GlobalConstantDescriptorPool.h"
 #include "Render/RenderSystem/Swapchain.h"
 
+#include "Render/DebugUtils.h"
+
 #include <glm.hpp>
 #include <fstream>
 #include <SDL3/SDL.h>
@@ -56,7 +58,10 @@ namespace Engine
                 code.size() * sizeof(uint32_t),
                 reinterpret_cast<const uint32_t *> (code.data())
             };
+            
             pass_info.shaders[i] = device.createShaderModuleUnique(ci);
+            DEBUG_SET_NAME_TEMPLATE(device, pass_info.shaders[i].get(), std::format("Shader Module - {}", shader_asset->m_name));
+
             psscis[i] = vk::PipelineShaderStageCreateInfo {
                 {},
                 PipelineUtils::ToVulkanShaderStageFlagBits(shader_asset->shaderType),
@@ -207,6 +212,7 @@ namespace Engine
         };
         vk::Device dvc = m_system.lock()->getDevice();
         this->m_poolInfo.pool = dvc.createDescriptorPoolUnique(dpci);
+        DEBUG_SET_NAME_TEMPLATE(dvc, this->m_poolInfo.pool.get(), std::format("Desc Pool - Material {}", m_name));
 
         // Create a fallback point-clamp sampler
         vk::SamplerCreateInfo sci {};
