@@ -230,7 +230,7 @@ int main(int argc, char ** argv)
         cb.EndRendering();
 
         cb.End();
-        rsys->GetFrameManager().SubmitMainCommandBuffer(false);
+        rsys->GetFrameManager().SubmitMainCommandBuffer();
         rsys->GetFrameManager().StageCopyComposition(color.GetImage());
         rsys->CompleteFrame();
 

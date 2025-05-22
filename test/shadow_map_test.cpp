@@ -297,7 +297,7 @@ int main(int argc, char ** argv)
         }
 
         cb.End();
-        rsys->GetFrameManager().SubmitMainCommandBuffer(frame_count != 1);
+        rsys->GetFrameManager().SubmitMainCommandBuffer();
         rsys->GetFrameManager().StageCopyComposition(color->GetImage());
         rsys->CompleteFrame();
 

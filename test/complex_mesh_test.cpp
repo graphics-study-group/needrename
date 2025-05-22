@@ -312,7 +312,7 @@ int main(int argc, char ** argv)
         gsys->DrawGUI(cb);
         cb.EndRendering();
         cb.End();
-        rsys->GetFrameManager().SubmitMainCommandBuffer(frame_count != 1);
+        rsys->GetFrameManager().SubmitMainCommandBuffer();
         rsys->GetFrameManager().StageCopyComposition(color.GetImage());
         // rsys->GetFrameManager().CopyToFrameBuffer(color.GetImage(), rsys->GetSwapchain().GetExtent(), {0, 0}, {100, 100});
         rsys->GetFrameManager().CompositeToFramebufferAndPresent();

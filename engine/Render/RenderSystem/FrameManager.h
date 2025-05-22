@@ -55,7 +55,7 @@ namespace Engine {
              * @param wait_for_semaphore whether wait for the semaphore before execution. Used for the first CB only.
              * @warning Supplying `wait_for_semaphore` parameter incorrectly will result in deadlocks and possible vulkan device losses. 
              */
-            void SubmitMainCommandBuffer(bool wait_for_semaphore);
+            void SubmitMainCommandBuffer();
 
             /**
              * @brief Stage a composition by copy of the given image to an undetermined image.

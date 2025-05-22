@@ -152,6 +152,8 @@ namespace Engine::RenderSystemState{
         // Current frame buffer id. Set by `StartFrame()` method.
         uint32_t current_framebuffer {std::numeric_limits<uint32_t>::max()};
 
+        uint64_t total_frame_count {0};
+
         vk::Queue graphic_queue {};
         vk::Queue present_queue {};
         vk::SwapchainKHR swapchain {};
@@ -325,8 +327,9 @@ namespace Engine::RenderSystemState{
         return pimpl->current_framebuffer;
     }
 
-    void FrameManager::SubmitMainCommandBuffer(bool wait_for_semaphore)
+    void FrameManager::SubmitMainCommandBuffer()
     {
+        bool wait_for_semaphore = (pimpl->total_frame_count > 0);
         uint32_t fif = GetFrameInFlight();
         vk::SubmitInfo info{};
         vk::CommandBuffer cb = pimpl->render_command_buffers[fif].get();
@@ -468,6 +471,7 @@ namespace Engine::RenderSystemState{
         // Increment FIF counter, reset framebuffer index
         current_frame_in_flight = (current_frame_in_flight + 1) % FRAMES_IN_FLIGHT;
         current_framebuffer = std::numeric_limits<uint32_t>::max();
+        total_frame_count++;
 
         // Handle submissions
         m_submission_helper->CompleteFrame();
