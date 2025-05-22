@@ -79,7 +79,7 @@ int main(int argc, char ** argv)
         gsys->DrawGUI(cb);
         cb.EndRendering();
         cb.End();
-        cb.Submit();
+        rsys->GetFrameManager().SubmitMainCommandBuffer(true);
         rsys->GetFrameManager().StageCopyComposition(color.GetImage());
         rsys->CompleteFrame();
 

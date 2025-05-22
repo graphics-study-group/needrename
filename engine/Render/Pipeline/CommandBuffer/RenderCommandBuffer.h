@@ -24,10 +24,6 @@ namespace Engine {
         RenderCommandBuffer (
             RenderSystem & system,
             vk::CommandBuffer cb,
-            vk::Queue queue,
-            vk::Fence fence,
-            vk::Semaphore wait,
-            vk::Semaphore signal,
             uint32_t frame_in_flight
         );
 
@@ -81,10 +77,6 @@ namespace Engine {
         /// @brief End recording of the command buffer
         void End();
 
-        /// @brief Submit the command buffer to graphics queue
-        /// @param wait whether wait for the semaphore before execution. Used for the first CB only.
-        void Submit(bool wait_for_semaphore = true);
-
         void Reset();
 
         vk::CommandBuffer get();
@@ -93,9 +85,6 @@ namespace Engine {
 
         uint32_t m_inflight_frame_index ;
         vk::CommandBuffer m_handle;
-        vk::Queue m_queue;
-        vk::Fence m_completed_fence;
-        vk::Semaphore m_wait_semaphore, m_signal_semaphore;
 
         std::optional<std::pair<vk::Pipeline, vk::PipelineLayout>> m_bound_material_pipeline {};
     };

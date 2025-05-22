@@ -16,19 +16,11 @@
 namespace Engine
 {
     RenderCommandBuffer::RenderCommandBuffer(
-        RenderSystem & system, 
-        vk::CommandBuffer cb, 
-        vk::Queue queue, 
-        vk::Fence fence, 
-        vk::Semaphore wait, 
-        vk::Semaphore signal, 
+        RenderSystem & system,
+        vk::CommandBuffer cb,
         uint32_t frame_in_flight
         ) : m_system(system), 
         m_handle(cb), 
-        m_queue(queue), 
-        m_completed_fence(fence), 
-        m_wait_semaphore(wait), 
-        m_signal_semaphore(signal), 
         m_inflight_frame_index(frame_in_flight)
     {
     }
@@ -238,32 +230,6 @@ namespace Engine
     void RenderCommandBuffer::End() {
         DEBUG_CMD_END_LABEL(m_handle);
         m_handle.end();
-    }
-
-    void RenderCommandBuffer::Submit(bool wait_for_semaphore) {
-        vk::SubmitInfo info{};
-        info.commandBufferCount = 1;
-        info.pCommandBuffers = &m_handle;
-
-        // const auto & synch = m_system.getSynchronization();
-
-        // Stall the execution of this commandbuffer until previous one has finished.
-        auto wait = this->m_wait_semaphore;
-        auto waitFlags = vk::PipelineStageFlags{vk::PipelineStageFlagBits::eTopOfPipe};
-        auto signal = this->m_signal_semaphore;
-
-        if (wait_for_semaphore) {
-            info.waitSemaphoreCount = 1;
-            info.pWaitSemaphores = &wait;
-            info.pWaitDstStageMask = &waitFlags;
-        } else {
-            info.waitSemaphoreCount = 0;
-        }
-        
-        info.signalSemaphoreCount = 1;
-        info.pSignalSemaphores = &signal;
-        std::array<vk::SubmitInfo, 1> infos{info};
-        m_queue.submit(infos, nullptr);
     }
 
     void RenderCommandBuffer::Reset() {

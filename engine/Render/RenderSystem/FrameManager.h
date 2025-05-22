@@ -73,6 +73,17 @@ namespace Engine {
             uint32_t StartFrame (uint64_t timeout = std::numeric_limits<uint64_t>::max());
 
             /**
+             * @brief Submit the main command buffer to the graphics queue for execution.
+             * 
+             * @warning Must be called before either `CompositeToFramebufferAndPresent` or `CompositeToImage`, once each frame.
+             * Non-standard call-sites are likely to result in deadlocks and vulkan device losses.
+             * 
+             * @param wait_for_semaphore whether wait for the semaphore before execution. Used for the first CB only.
+             * @warning Supplying `wait_for_semaphore` parameter incorrectly will result in deadlocks and possible vulkan device losses. 
+             */
+            void SubmitMainCommandBuffer(bool wait_for_semaphore);
+
+            /**
              * @brief Stage a composition by copy of the given image to an undetermined image.
              * The image must be in Color Attachment Optimal layout, which should be guaranteed so long as
              * this method is called immediately after a draw call to copy a color attachment to the framebuffer.
@@ -102,8 +113,9 @@ namespace Engine {
              * A fence is signaled after this command buffer has finished execution. The same fence is used to control render
              * command buffer acquisition for this frame, c.f. `StartFrame()`.
              * 
-             * @note This should be the last method to be called each frame, and it will progress the internal state machine.
+             * @warning This should be the last method to be called each frame, and it will progress the internal state machine.
              * Either `CompositeToFramebufferAndPresent()` or `CompositeToImage()` must be called exactly once each frame.
+             * Non-standard call-sites are likely to result in deadlocks and vulkan device losses.
              * 
              * @return whether the swapchain needs to be recreated after presenting.
              */
@@ -119,8 +131,9 @@ namespace Engine {
              * If the method is called in an asynchronous way, the fence returned can be used
              * to check its completion.
              * 
-             * @note This should be the last method to be called each frame, and it will progress the internal state machine.
+             * @warning This should be the last method to be called each frame, and it will progress the internal state machine.
              * Either `CompositeToFramebufferAndPresent()` or `CompositeToImage()` must be called exactly once each frame.
+             * Non-standard call-sites are likely to result in deadlocks and vulkan device losses.
              */
             vk::Fence CompositeToImage (vk::Image image, uint64_t timeout = std::numeric_limits<uint64_t>::max());
             

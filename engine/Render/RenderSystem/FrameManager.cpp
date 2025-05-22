@@ -198,12 +198,7 @@ namespace Engine::RenderSystemState{
             command_buffers[i] = std::move(new_command_buffers[i]);
             render_command_buffers.emplace_back(
                 m_system,
-                command_buffers[i].get(), 
-                queue, 
-                command_executed_fences[i].get(),
-                // Wait for the last
-                next_frame_ready_semaphores[(i + FRAMES_IN_FLIGHT - 1) % FRAMES_IN_FLIGHT].get(),
-                render_command_executed_semaphores[i].get(),
+                command_buffers[i].get(),
                 i
             );
             DEBUG_SET_NAME_TEMPLATE(
@@ -290,6 +285,29 @@ namespace Engine::RenderSystemState{
         }
         current_framebuffer = acquire_result.value;
         return current_framebuffer;
+    }
+
+    void FrameManager::SubmitMainCommandBuffer(bool wait_for_semaphore)
+    {
+        uint32_t fif = GetFrameInFlight();
+        vk::SubmitInfo info{};
+        vk::CommandBuffer cb = render_command_buffers[fif].get();
+        info.commandBufferCount = 1;
+        info.pCommandBuffers = &cb;
+        if (wait_for_semaphore) {
+             // Stall the execution of this commandbuffer until previous one has finished.
+            auto waitFlags = vk::PipelineStageFlags{vk::PipelineStageFlagBits::eTopOfPipe};
+            info.setWaitSemaphores({
+                this->next_frame_ready_semaphores[(fif + FRAMES_IN_FLIGHT - 1) % FRAMES_IN_FLIGHT].get()
+            });
+            info.pWaitDstStageMask = &waitFlags;
+        } else {
+            info.waitSemaphoreCount = 0;
+        }
+        
+        info.setSignalSemaphores({this->render_command_executed_semaphores[fif].get()});
+        std::array<vk::SubmitInfo, 1> infos{info};
+        this->graphic_queue.submit(infos, nullptr);
     }
 
     void FrameManager::StageCopyComposition(vk::Image image, vk::Extent2D extent, vk::Offset2D offsetSrc, vk::Offset2D offsetDst)
