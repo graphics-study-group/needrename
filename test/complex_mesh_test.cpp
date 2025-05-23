@@ -303,7 +303,7 @@ int main(int argc, char ** argv)
 
         // Draw
         auto index = rsys->StartFrame();
-        RenderCommandBuffer & cb = rsys->GetCurrentCommandBuffer();
+        RenderCommandBuffer cb = rsys->GetFrameManager().GetCommandBuffer();
 
         cb.Begin();
         vk::Extent2D extent {rsys->GetSwapchain().GetExtent()};

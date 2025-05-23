@@ -4,6 +4,7 @@
 namespace Engine {
     class RenderSystem;
     class RenderCommandBuffer;
+    class GraphicsContext;
 
     namespace RenderSystemState {
         class SubmissionHelper;
@@ -28,9 +29,10 @@ namespace Engine {
              * @brief Get the command buffer assigned to the current frame in flight.
              * Must be called between `StartFrame()` and `CompleteFrame()`
              */
-            RenderCommandBuffer & GetCommandBuffer ();
+            [[deprecated]]
+            RenderCommandBuffer GetCommandBuffer ();
 
-            std::vector <RenderCommandBuffer> & GetCommandBuffers ();
+            GraphicsContext GetGraphicsContext();
 
             /**
              * @brief Start the rendering of a new frame.

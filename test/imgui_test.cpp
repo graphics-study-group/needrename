@@ -69,7 +69,7 @@ int main(int argc, char ** argv)
         ImGui::ShowDemoWindow();
 
         auto index = rsys->StartFrame();
-        RenderCommandBuffer & cb = rsys->GetCurrentCommandBuffer();
+        RenderCommandBuffer cb = rsys->GetFrameManager().GetCommandBuffer();
 
         assert(index < 3);
     

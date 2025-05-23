@@ -6,6 +6,7 @@
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/Swapchain.h"
 #include "Render/DebugUtils.h"
+#include "Render/Pipeline/CommandBuffer/GraphicsContext.h"
 
 #include <SDL3/SDL.h>
 
@@ -145,8 +146,6 @@ namespace Engine::RenderSystemState{
         std::array <vk::UniqueCommandBuffer, FRAMES_IN_FLIGHT> command_buffers {};
         std::array <vk::UniqueCommandBuffer, FRAMES_IN_FLIGHT> copy_to_swapchain_command_buffers {};
 
-        std::vector <RenderCommandBuffer> render_command_buffers {};
-
         uint32_t current_frame_in_flight {std::numeric_limits<uint32_t>::max()};
 
         // Current frame buffer id. Set by `StartFrame()` method.
@@ -229,14 +228,8 @@ namespace Engine::RenderSystemState{
         };
         auto new_command_buffers = device.allocateCommandBuffersUnique(cbinfo);
 
-        render_command_buffers.clear();
         for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; i++) {
             command_buffers[i] = std::move(new_command_buffers[i]);
-            render_command_buffers.emplace_back(
-                m_system,
-                command_buffers[i].get(),
-                i
-            );
             DEBUG_SET_NAME_TEMPLATE(
                 device, 
                 command_buffers[i].get(), 
@@ -279,15 +272,23 @@ namespace Engine::RenderSystemState{
         return this->pimpl->current_framebuffer;
     }
 
-    RenderCommandBuffer & FrameManager::GetCommandBuffer()
+    RenderCommandBuffer FrameManager::GetCommandBuffer()
     {
         assert(this->pimpl->current_framebuffer < std::numeric_limits<uint32_t>::max() && "Frame Manager is in invalid state.");
-        return pimpl->render_command_buffers[GetFrameInFlight()];
+        return RenderCommandBuffer(
+            pimpl->m_system, 
+            pimpl->command_buffers[GetFrameInFlight()].get(), 
+            GetFrameInFlight()
+        );
     }
 
-    std::vector<RenderCommandBuffer> &FrameManager::GetCommandBuffers()
+    GraphicsContext FrameManager::GetGraphicsContext()
     {
-        return pimpl->render_command_buffers;
+        return GraphicsContext(RenderCommandBuffer(
+            pimpl->m_system, 
+            pimpl->command_buffers[GetFrameInFlight()].get(), 
+            GetFrameInFlight()
+        ));
     }
 
     uint32_t FrameManager::StartFrame(uint64_t timeout)
@@ -303,7 +304,7 @@ namespace Engine::RenderSystemState{
         if (wait_result == vk::Result::eTimeout) {
             SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Timed out waiting for fence for frame id %u.", fif);
         }
-        pimpl->render_command_buffers[fif].Reset();
+        pimpl->command_buffers[fif]->reset();
         device.resetFences({fence});
 
         // Acquire new image
@@ -332,7 +333,7 @@ namespace Engine::RenderSystemState{
         bool wait_for_semaphore = (pimpl->total_frame_count > 0);
         uint32_t fif = GetFrameInFlight();
         vk::SubmitInfo info{};
-        vk::CommandBuffer cb = pimpl->render_command_buffers[fif].GetCommandBuffer();
+        vk::CommandBuffer cb = pimpl->command_buffers[fif].get();
         info.commandBufferCount = 1;
         info.pCommandBuffers = &cb;
         if (wait_for_semaphore) {

@@ -120,7 +120,7 @@ namespace Engine
 
     void RenderSystem::DrawMeshes(const glm::mat4 &view_matrix, const glm::mat4 &projection_matrix, uint32_t pass)
     {
-        RenderCommandBuffer & cb = this->GetCurrentCommandBuffer();
+        RenderCommandBuffer cb = this->GetFrameManager().GetCommandBuffer();
 
         // Write camera transforms
         std::byte * camera_ptr = this->GetGlobalConstantDescriptorPool().GetPerCameraConstantMemory(pimpl->m_frame_manager.GetFrameInFlight());
@@ -192,14 +192,6 @@ namespace Engine
     const RenderSystemState::Swapchain& RenderSystem::GetSwapchain() const 
     { 
         return pimpl->m_swapchain; 
-    }
-    RenderCommandBuffer & RenderSystem::GetGraphicsCommandBuffer(uint32_t frame_index) 
-    { 
-        return pimpl->m_frame_manager.GetCommandBuffers()[frame_index]; 
-    }
-    RenderCommandBuffer & RenderSystem::GetCurrentCommandBuffer()
-    {
-        return pimpl->m_frame_manager.GetCommandBuffer();
     }
     const RenderSystemState::GlobalConstantDescriptorPool &RenderSystem::GetGlobalConstantDescriptorPool() const
     {

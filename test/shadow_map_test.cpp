@@ -249,7 +249,7 @@ int main(int argc, char ** argv)
         }
 
         auto index = rsys->StartFrame();
-        RenderCommandBuffer & cb = rsys->GetCurrentCommandBuffer();
+        RenderCommandBuffer cb = rsys->GetFrameManager().GetCommandBuffer();
         assert(index < 3);
     
         cb.Begin("Main Render Loop");
