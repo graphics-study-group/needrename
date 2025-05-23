@@ -332,7 +332,7 @@ namespace Engine::RenderSystemState{
         bool wait_for_semaphore = (pimpl->total_frame_count > 0);
         uint32_t fif = GetFrameInFlight();
         vk::SubmitInfo info{};
-        vk::CommandBuffer cb = pimpl->render_command_buffers[fif].get();
+        vk::CommandBuffer cb = pimpl->render_command_buffers[fif].GetCommandBuffer();
         info.commandBufferCount = 1;
         info.pCommandBuffers = &cb;
         if (wait_for_semaphore) {

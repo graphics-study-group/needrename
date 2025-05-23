@@ -4,6 +4,7 @@
 #include "Render/VkWrapper.tcc"
 #include "Render/AttachmentUtils.h"
 #include "Render/Pipeline/CommandBuffer/LayoutTransferHelper.h"
+#include "Render/Pipeline/CommandBuffer/ICommandBuffer.h"
 #include <vulkan/vulkan.hpp>
 #include <glm.hpp>
 
@@ -16,7 +17,7 @@ namespace Engine {
     class RenderTargetBinding;
 
     /// @brief A command buffer used for rendering.
-    class RenderCommandBuffer
+    class RenderCommandBuffer : public ICommandBuffer
     {
     public:
         using AttachmentBarrierType = LayoutTransferHelper::AttachmentBarrierType;
@@ -31,9 +32,6 @@ namespace Engine {
         RenderCommandBuffer (RenderCommandBuffer &&) = default;
         RenderCommandBuffer & operator = (const RenderCommandBuffer &) = delete;
         RenderCommandBuffer & operator = (RenderCommandBuffer &&) = default;
-
-        /// @brief Record a begin command in command buffer
-        void Begin(const std::string & name = "");
 
         /// @brief Begin a Vulkan rendering pass
         void BeginRendering(
@@ -74,17 +72,12 @@ namespace Engine {
         /// @brief End the render pass
         void EndRendering();
 
-        /// @brief End recording of the command buffer
-        void End();
-
         void Reset();
 
-        vk::CommandBuffer get();
     protected:
         RenderSystem & m_system;
 
         uint32_t m_inflight_frame_index ;
-        vk::CommandBuffer m_handle;
 
         std::optional<std::pair<vk::Pipeline, vk::PipelineLayout>> m_bound_material_pipeline {};
     };

@@ -261,7 +261,7 @@ int main(int argc, char ** argv)
             cb.SetupViewport(shadow_map_extent.width, shadow_map_extent.height, shadow_map_scissor);
             cb.BindMaterial(*test_material_instance, 0);
 
-            vk::CommandBuffer rcb = cb.get();
+            vk::CommandBuffer rcb = cb.GetCommandBuffer();
             rcb.pushConstants(
                 test_template->GetPipelineLayout(0), 
                 vk::ShaderStageFlagBits::eVertex, 
@@ -283,7 +283,7 @@ int main(int argc, char ** argv)
             cb.SetupViewport(extent.width, extent.height, scissor);
             cb.BindMaterial(*test_material_instance, 1);
             // Push model matrix...
-            vk::CommandBuffer rcb = cb.get();
+            vk::CommandBuffer rcb = cb.GetCommandBuffer();
             rcb.pushConstants(
                 test_template->GetPipelineLayout(0), 
                 vk::ShaderStageFlagBits::eVertex, 

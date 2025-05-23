@@ -43,7 +43,7 @@ namespace Engine {
     void GUISystem::DrawGUI(RenderCommandBuffer &cb) const
     {
         ImGui::Render();
-        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), static_cast<VkCommandBuffer>(cb.get()), nullptr);
+        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), static_cast<VkCommandBuffer>(cb.GetCommandBuffer()), nullptr);
     }
 
     void GUISystem::Create(SDL_Window *window, vk::Format format)
