@@ -44,7 +44,7 @@ namespace Engine {
         };
 
         // TODO: Infer aspect mask from image format, instead of usage.
-        switch(currentAccess) {
+        switch(previousAccess) {
             case ImageAccessType::ColorAttachmentRead:
             case ImageAccessType::ColorAttachmentWrite:
             case ImageAccessType::ShaderRead:
