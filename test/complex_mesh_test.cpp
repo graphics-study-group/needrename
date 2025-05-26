@@ -303,9 +303,13 @@ int main(int argc, char ** argv)
 
         // Draw
         auto index = rsys->StartFrame();
-        RenderCommandBuffer cb = rsys->GetFrameManager().GetCommandBuffer();
+        auto context = rsys->GetFrameManager().GetGraphicsContext();
+        RenderCommandBuffer & cb = dynamic_cast<RenderCommandBuffer &>(context.GetCommandBuffer());
 
         cb.Begin();
+        context.UseImage(color_att.image, GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite, GraphicsContext::ImageAccessType::None);
+        context.UseImage(depth_att.image, GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite, GraphicsContext::ImageAccessType::None);
+        context.PrepareCommandBuffer();
         vk::Extent2D extent {rsys->GetSwapchain().GetExtent()};
         cb.BeginRendering(color_att, depth_att, extent);
         rsys->DrawMeshes();

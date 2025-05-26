@@ -204,11 +204,16 @@ int main(int argc, char ** argv)
         rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(*allocated_image_texture, test_texture_asset->GetPixelData(), test_texture_asset->GetPixelDataSize());
 
         auto index = rsys->StartFrame();
-        RenderCommandBuffer cb = rsys->GetFrameManager().GetCommandBuffer();
+        auto context = rsys->GetFrameManager().GetGraphicsContext();
+        RenderCommandBuffer & cb = dynamic_cast<RenderCommandBuffer &>(context.GetCommandBuffer());
 
         assert(index < 3);
     
         cb.Begin();
+
+        context.UseImage(color_att.image, GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite, GraphicsContext::ImageAccessType::None);
+        context.UseImage(depth_att.image, GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite, GraphicsContext::ImageAccessType::None);
+        context.PrepareCommandBuffer();
 
         vk::Extent2D extent {rsys->GetSwapchain().GetExtent()};
         vk::Rect2D scissor{{0, 0}, extent};

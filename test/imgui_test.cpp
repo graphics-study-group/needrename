@@ -6,15 +6,7 @@
 #include "MainClass.h"
 #include "Functional/SDLWindow.h"
 #include "Framework/component/RenderComponent/MeshComponent.h"
-#include "Render/Memory/Image2DTexture.h"
-#include "Render/ImageUtils.h"
-#include "Render/AttachmentUtils.h"
-#include "Render/Pipeline/CommandBuffer.h"
-#include "Render/RenderSystem.h"
-#include "Render/RenderSystem/Swapchain.h"
-#include "Render/RenderSystem/FrameManager.h"
-#include "Render/RenderSystem/GlobalConstantDescriptorPool.h"
-#include "Render/RenderSystem/MaterialRegistry.h"
+#include "Render/FullRenderSystem.h"
 #include "GUI/GUISystem.h"
 
 using namespace Engine;
@@ -69,11 +61,15 @@ int main(int argc, char ** argv)
         ImGui::ShowDemoWindow();
 
         auto index = rsys->StartFrame();
-        RenderCommandBuffer cb = rsys->GetFrameManager().GetCommandBuffer();
+        auto context = rsys->GetFrameManager().GetGraphicsContext();
+        RenderCommandBuffer & cb = dynamic_cast<RenderCommandBuffer &>(context.GetCommandBuffer());
 
         assert(index < 3);
     
         cb.Begin();
+        context.UseImage(color_att.image, GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite, GraphicsContext::ImageAccessType::None);
+        context.UseImage(depth_att.image, GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite, GraphicsContext::ImageAccessType::None);
+        context.PrepareCommandBuffer();
         vk::Extent2D extent {rsys->GetSwapchain().GetExtent()};
         cb.BeginRendering(color_att, depth_att, extent);
         gsys->DrawGUI(cb);

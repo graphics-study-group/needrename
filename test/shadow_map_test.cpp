@@ -255,6 +255,12 @@ int main(int argc, char ** argv)
     
         cb.Begin("Main Render Loop");
         // Shadow map pass
+        context.UseImage(
+            shadow_att.image, 
+            GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite, 
+            GraphicsContext::ImageAccessType::None
+        );
+        context.PrepareCommandBuffer();
         {
             vk::Extent2D shadow_map_extent {2048, 2048};
             vk::Rect2D shadow_map_scissor {{0, 0}, shadow_map_extent};
@@ -274,15 +280,24 @@ int main(int argc, char ** argv)
             cb.DrawMesh(test_mesh_2);
             cb.EndRendering();
         }
-        
+
+        // Lit pass
         context.UseImage(
             shadow_att.image, 
             GraphicsContext::ImageGraphicsAccessType::ShaderRead, 
             GraphicsContext::ImageAccessType::DepthAttachmentWrite
         );
+        context.UseImage(
+            color_att.image, 
+            GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite, 
+            GraphicsContext::ImageAccessType::None
+        );
+        context.UseImage(
+            depth_att.image, 
+            GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite, 
+            GraphicsContext::ImageAccessType::None
+        );
         context.PrepareCommandBuffer();
-
-        // Lit pass
         {
             vk::Extent2D extent {rsys->GetSwapchain().GetExtent()};
             vk::Rect2D scissor{{0, 0}, extent};
