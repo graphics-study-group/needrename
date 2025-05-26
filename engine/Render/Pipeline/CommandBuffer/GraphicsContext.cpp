@@ -54,8 +54,23 @@ namespace Engine {
             case ImageAccessType::DepthAttachmentWrite:
                 descriptor.range.aspectMask = vk::ImageAspectFlagBits::eDepth;
                 break;
-            default:
-                SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Failed to infer aspect range when inserting an image barrier.");
+            case ImageAccessType::None:
+                switch(currentAccess) {
+                    case ImageAccessType::ColorAttachmentRead:
+                    case ImageAccessType::ColorAttachmentWrite:
+                    case ImageAccessType::ShaderRead:
+                        descriptor.range.aspectMask = vk::ImageAspectFlagBits::eColor;
+                        break;
+                    case ImageAccessType::DepthAttachmentRead:
+                    case ImageAccessType::DepthAttachmentWrite:
+                        descriptor.range.aspectMask = vk::ImageAspectFlagBits::eDepth;
+                        break;
+                }
+        }
+
+        if (descriptor.range.aspectMask == vk::ImageAspectFlagBits::eNone) {
+            SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Failed to infer aspect range when inserting an image barrier.");
+            descriptor.range.aspectMask = vk::ImageAspectFlagBits::eColor | vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
         }
 
         auto dst_tuple = AccessHelper::GetAccessScope(currentAccess);
