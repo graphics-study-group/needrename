@@ -31,19 +31,12 @@ namespace Engine
         vk::Extent2D extent)
     {
         std::vector <vk::RenderingAttachmentInfo> color_attachment;
-        std::vector <vk::ImageMemoryBarrier2> barriers;
         
         if (color.image && color.image_view) {
             color_attachment.push_back(GetVkAttachmentInfo(
                 color,
                 vk::ImageLayout::eColorAttachmentOptimal, 
                 vk::ClearColorValue{0, 0, 0, 0}
-            ));
-
-            // Set up layout transition barrier
-            barriers.push_back(LayoutTransferHelper::GetAttachmentBarrier(
-                LayoutTransferHelper::AttachmentTransferType::ColorAttachmentPrepare, 
-                color.image
             ));
         }
 
@@ -56,18 +49,7 @@ namespace Engine
                     vk::ClearDepthStencilValue{1.0f, 0U}
                 )
             };
-            barriers.push_back(LayoutTransferHelper::GetAttachmentBarrier(
-                LayoutTransferHelper::AttachmentTransferType::DepthAttachmentPrepare, 
-                depth.image
-            ));
         }
-
-        // Issue layout transition barriers
-        vk::DependencyInfo dep {
-            vk::DependencyFlags{0},
-            {}, {}, barriers
-        };
-        cb.pipelineBarrier2(dep);
 
         vk::RenderingInfo info {
             vk::RenderingFlags{0},
@@ -85,9 +67,7 @@ namespace Engine
     void RenderCommandBuffer::BeginRendering(const RenderTargetBinding &binding, vk::Extent2D extent, const std::string & name)
     {
         DEBUG_CMD_START_LABEL(cb, name.c_str());
-        size_t total_attachment_count = binding.GetColorAttachmentCount() + binding.HasDepthAttachment();
         std::vector <vk::RenderingAttachmentInfo> color_attachment_info (binding.GetColorAttachmentCount(), vk::RenderingAttachmentInfo{});
-        std::vector <vk::ImageMemoryBarrier2> barriers (total_attachment_count, vk::ImageMemoryBarrier2{});
 
         const auto & color_attachments = binding.GetColorAttachments();
         for (size_t i = 0; i < color_attachments.size(); i++) {
@@ -95,10 +75,6 @@ namespace Engine
                 color_attachments[i],
                 vk::ImageLayout::eColorAttachmentOptimal, 
                 vk::ClearColorValue{0, 0, 0, 0}
-            );
-            barriers[i] = LayoutTransferHelper::GetAttachmentBarrier(
-                LayoutTransferHelper::AttachmentTransferType::ColorAttachmentPrepare, 
-                color_attachments[i].image
             );
         }
 
@@ -110,17 +86,7 @@ namespace Engine
                 vk::ImageLayout::eDepthStencilAttachmentOptimal, 
                 vk::ClearDepthStencilValue{1.0f, 0U}
             );
-            *(barriers.rbegin()) = LayoutTransferHelper::GetAttachmentBarrier(
-                LayoutTransferHelper::AttachmentTransferType::DepthAttachmentPrepare, 
-                depth_attachment.image
-            );
         }
-
-        vk::DependencyInfo dep {
-            vk::DependencyFlags{0},
-            {}, {}, barriers
-        };
-        cb.pipelineBarrier2(dep);
 
         vk::RenderingInfo info {
             vk::RenderingFlags{0},
