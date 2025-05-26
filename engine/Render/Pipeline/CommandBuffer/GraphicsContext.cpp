@@ -3,6 +3,7 @@
 #include <queue>
 #include <SDL3/SDL.h>
 #include "Render/Pipeline/CommandBuffer/GraphicsCommandBuffer.h"
+#include "ComputeContext.h"
 
 namespace Engine {
     struct GraphicsContext::impl {

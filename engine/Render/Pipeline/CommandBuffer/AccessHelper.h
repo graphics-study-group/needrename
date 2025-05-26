@@ -11,13 +11,13 @@ namespace Engine {
             None,
             /// Read by transfer command, in transfer source layout.
             TransferRead,
-            /// Read by rasterization pipeline in attachment load operation, in color attachment layout.
+            /// Read by rasterization pipeline in attachment load, blending, etc. operation, in color attachment layout.
             /// @warning Disregarded for now.
             ColorAttachmentRead,
             /// Read by rasterization pipeline in attachment load operation, in depth attachment layout.
             /// @warning Disregarded for now.
             DepthAttachmentRead,
-            /// Read by shader, in shader readonly layout.
+            /// Read by shader as texture with a sampler, in read-only layout.
             ShaderRead,
             /// Write by rasterization pipeline color output stage, in color attachment layout.
             ColorAttachmentWrite,
@@ -25,8 +25,10 @@ namespace Engine {
             DepthAttachmentWrite,
             /// Write by transfer command, in transfer destination layout.
             TransferWrite,
-            /// Random write in shaders as storage image, in general layout.
+            /// Random write in compute shaders as storage image, in general layout.
             ShaderRandomWrite,
+            /// Random read and write in compute shaders as storage image, in general layout.
+            ShaderReadRandomWrite
         };
 
         enum class ImageGraphicsAccessType {
@@ -42,6 +44,15 @@ namespace Engine {
             ColorAttachmentWrite,
             /// Write by rasterization pipeline depth test stage, in depth attachment layout.
             DepthAttachmentWrite,
+        };
+
+        enum class ImageComputeAccessType {
+            /// Read by shader as texture with a sampler, in read-only layout.
+            ShaderRead,
+            /// Random write in compute shaders as storage image, in general layout.
+            ShaderRandomWrite,
+            /// Random read and write in compute shaders as storage image, in general layout.
+            ShaderReadRandomWrite
         };
 
         constexpr inline std::tuple<vk::PipelineStageFlags2, vk::AccessFlags2, vk::ImageLayout> GetAccessScope(ImageAccessType access)
@@ -88,7 +99,17 @@ namespace Engine {
                         vk::ImageLayout::eTransferDstOptimal
                     };
                 case ImageAccessType::ShaderRandomWrite:
-                    break;
+                    return {
+                        vk::PipelineStageFlagBits2::eComputeShader,
+                        vk::AccessFlagBits2::eShaderStorageWrite,
+                        vk::ImageLayout::eGeneral
+                    };
+                case ImageAccessType::ShaderReadRandomWrite:
+                    return {
+                        vk::PipelineStageFlagBits2::eComputeShader,
+                        vk::AccessFlagBits2::eShaderStorageWrite | vk::AccessFlagBits2::eShaderStorageRead,
+                        vk::ImageLayout::eGeneral
+                    };
             }
             SDL_LogError(SDL_LogCategory::SDL_LOG_CATEGORY_RENDER, "Undefined or unimplemented image access type.");
             return std::tuple<vk::PipelineStageFlags2, vk::AccessFlags2, vk::ImageLayout>();

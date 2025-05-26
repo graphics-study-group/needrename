@@ -18,6 +18,15 @@ namespace Engine {
 
         virtual ICommandBuffer & GetCommandBuffer() const noexcept = 0;
 
+        /**
+         * @brief Mark an image for use in this context.
+         * All subresources (e.g. mipmaps and array layers) of the image is marked for use.
+         * The actual recording of barriers are defered until `PrepareCommandBuffer` is called.
+         * 
+         * @param currentAccess Intended access type of the image.
+         * @param previousAccess The last access type of the image. This is supposed to be
+         * automatically managed with a RenderGraph mechanism in future if possible.
+         */
         virtual void UseImage(
             vk::Image img,
             ImageAccessType currentAccess,
@@ -31,6 +40,15 @@ namespace Engine {
             ImageAccessType previousAccess
         ) noexcept = 0; */
 
+        /* virtual void UseBuffer (
+            vk::Buffer buffer,
+            BufferAccessType currentAccess,
+            BufferAccessType previousAccess
+        ) noexcept = 0; */
+
+        /**
+         * @brief Record memory barriers according to `UseX()` directives.
+         */
         virtual void PrepareCommandBuffer () = 0;
     };
 }

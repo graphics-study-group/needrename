@@ -3,7 +3,6 @@
 
 #include "Render/VkWrapper.tcc"
 #include "Render/AttachmentUtils.h"
-#include "Render/Pipeline/CommandBuffer/LayoutTransferHelper.h"
 #include "Render/Pipeline/CommandBuffer/ICommandBuffer.h"
 #include <vulkan/vulkan.hpp>
 #include <glm.hpp>
