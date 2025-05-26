@@ -1,5 +1,5 @@
-#ifndef PIPELINE_COMMANDBUFFER_RENDERCOMMANDBUFFER_INCLUDED
-#define PIPELINE_COMMANDBUFFER_RENDERCOMMANDBUFFER_INCLUDED
+#ifndef PIPELINE_COMMANDBUFFER_GraphicsCommandBuffer_INCLUDED
+#define PIPELINE_COMMANDBUFFER_GraphicsCommandBuffer_INCLUDED
 
 #include "Render/VkWrapper.tcc"
 #include "Render/AttachmentUtils.h"
@@ -17,21 +17,19 @@ namespace Engine {
     class RenderTargetBinding;
 
     /// @brief A command buffer used for rendering.
-    class RenderCommandBuffer : public ICommandBuffer
+    class GraphicsCommandBuffer : public ICommandBuffer
     {
     public:
-        using AttachmentBarrierType = LayoutTransferHelper::AttachmentBarrierType;
-
-        RenderCommandBuffer (
+        GraphicsCommandBuffer (
             RenderSystem & system,
             vk::CommandBuffer cb,
             uint32_t frame_in_flight
         );
 
-        RenderCommandBuffer (const RenderCommandBuffer &) = delete;
-        RenderCommandBuffer (RenderCommandBuffer &&) = default;
-        RenderCommandBuffer & operator = (const RenderCommandBuffer &) = delete;
-        RenderCommandBuffer & operator = (RenderCommandBuffer &&) = default;
+        GraphicsCommandBuffer (const GraphicsCommandBuffer &) = delete;
+        GraphicsCommandBuffer (GraphicsCommandBuffer &&) = default;
+        GraphicsCommandBuffer & operator = (const GraphicsCommandBuffer &) = delete;
+        GraphicsCommandBuffer & operator = (GraphicsCommandBuffer &&) = default;
 
         /// @brief Begin a Vulkan rendering pass
         void BeginRendering(
@@ -65,7 +63,7 @@ namespace Engine {
         /// @brief End the render pass
         void EndRendering();
 
-        void Reset();
+        void Reset() noexcept override;
 
     protected:
         RenderSystem & m_system;
@@ -76,4 +74,4 @@ namespace Engine {
     };
 }
 
-#endif // PIPELINE_COMMANDBUFFER_RENDERCOMMANDBUFFER_INCLUDED
+#endif // PIPELINE_COMMANDBUFFER_GraphicsCommandBuffer_INCLUDED

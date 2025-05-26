@@ -3,7 +3,7 @@
 
 namespace Engine {
     class RenderSystem;
-    class RenderCommandBuffer;
+    class GraphicsCommandBuffer;
     class GraphicsContext;
 
     namespace RenderSystemState {
@@ -30,7 +30,7 @@ namespace Engine {
              * Must be called between `StartFrame()` and `CompleteFrame()`
              */
             [[deprecated]]
-            RenderCommandBuffer GetCommandBuffer ();
+            GraphicsCommandBuffer GetCommandBuffer ();
 
             GraphicsContext GetGraphicsContext();
 

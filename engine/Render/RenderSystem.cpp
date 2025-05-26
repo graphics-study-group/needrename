@@ -120,7 +120,7 @@ namespace Engine
 
     void RenderSystem::DrawMeshes(const glm::mat4 &view_matrix, const glm::mat4 &projection_matrix, uint32_t pass)
     {
-        RenderCommandBuffer cb = this->GetFrameManager().GetCommandBuffer();
+        GraphicsCommandBuffer cb = this->GetFrameManager().GetCommandBuffer();
 
         // Write camera transforms
         std::byte * camera_ptr = this->GetGlobalConstantDescriptorPool().GetPerCameraConstantMemory(pimpl->m_frame_manager.GetFrameInFlight());

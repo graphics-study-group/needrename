@@ -1,4 +1,4 @@
-#include "RenderCommandBuffer.h"
+#include "GraphicsCommandBuffer.h"
 
 #include "Render/Memory/Buffer.h"
 #include "Render/Memory/Image2DTexture.h"
@@ -15,7 +15,7 @@
 
 namespace Engine
 {
-    RenderCommandBuffer::RenderCommandBuffer(
+    GraphicsCommandBuffer::GraphicsCommandBuffer(
         RenderSystem & system,
         vk::CommandBuffer cb,
         uint32_t frame_in_flight
@@ -25,7 +25,7 @@ namespace Engine
     {
     }
 
-    void RenderCommandBuffer::BeginRendering(
+    void GraphicsCommandBuffer::BeginRendering(
         AttachmentUtils::AttachmentDescription color, 
         AttachmentUtils::AttachmentDescription depth,
         vk::Extent2D extent)
@@ -64,7 +64,7 @@ namespace Engine
         cb.beginRendering(info);
     }
 
-    void RenderCommandBuffer::BeginRendering(const RenderTargetBinding &binding, vk::Extent2D extent, const std::string & name)
+    void GraphicsCommandBuffer::BeginRendering(const RenderTargetBinding &binding, vk::Extent2D extent, const std::string & name)
     {
         DEBUG_CMD_START_LABEL(cb, name.c_str());
         std::vector <vk::RenderingAttachmentInfo> color_attachment_info (binding.GetColorAttachmentCount(), vk::RenderingAttachmentInfo{});
@@ -101,7 +101,7 @@ namespace Engine
         cb.beginRendering(info);
     }
 
-    void RenderCommandBuffer::BindMaterial(MaterialInstance &material, uint32_t pass_index)
+    void GraphicsCommandBuffer::BindMaterial(MaterialInstance &material, uint32_t pass_index)
     {
         const auto & pipeline = material.GetTemplate().GetPipeline(pass_index);
         const auto & pipeline_layout = material.GetTemplate().GetPipelineLayout(pass_index);
@@ -136,7 +136,7 @@ namespace Engine
         material.WriteDescriptors(pass_index);
     }
 
-    void RenderCommandBuffer::SetupViewport(float vpWidth, float vpHeight, vk::Rect2D scissor) {
+    void GraphicsCommandBuffer::SetupViewport(float vpWidth, float vpHeight, vk::Rect2D scissor) {
         vk::Viewport vp;
         vp.setWidth(vpWidth).setHeight(vpHeight);
         vp.setX(0.0f).setY(0.0f);
@@ -146,7 +146,7 @@ namespace Engine
         cb.setScissor(0, 1, &scissor);
     }
 
-    void RenderCommandBuffer::DrawMesh(const HomogeneousMesh& mesh, const glm::mat4 & model_matrix) {
+    void GraphicsCommandBuffer::DrawMesh(const HomogeneousMesh& mesh, const glm::mat4 & model_matrix) {
         auto bindings = mesh.GetBindingInfo();
         cb.bindVertexBuffers(0, bindings.first, bindings.second);
         auto indices = mesh.GetIndexInfo();
@@ -162,13 +162,13 @@ namespace Engine
         cb.drawIndexed(mesh.GetVertexIndexCount(), 1, 0, 0, 0);
     }
 
-    void RenderCommandBuffer::EndRendering()
+    void GraphicsCommandBuffer::EndRendering()
     {
         cb.endRendering();
         DEBUG_CMD_END_LABEL(cb);
     }
 
-    void RenderCommandBuffer::DrawMesh(const HomogeneousMesh &mesh)
+    void GraphicsCommandBuffer::DrawMesh(const HomogeneousMesh &mesh)
     {
         auto bindings = mesh.GetBindingInfo();
         cb.bindVertexBuffers(0, bindings.first, bindings.second);
@@ -178,7 +178,7 @@ namespace Engine
         cb.drawIndexed(mesh.GetVertexIndexCount(), 1, 0, 0, 0);
     }
 
-    void RenderCommandBuffer::Reset() {
+    void GraphicsCommandBuffer::Reset() noexcept {
         cb.reset();
         m_bound_material_pipeline.reset();
     }

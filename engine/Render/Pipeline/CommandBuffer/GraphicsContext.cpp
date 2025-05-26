@@ -2,11 +2,11 @@
 
 #include <queue>
 #include <SDL3/SDL.h>
-#include "Render/Pipeline/CommandBuffer/RenderCommandBuffer.h"
+#include "Render/Pipeline/CommandBuffer/GraphicsCommandBuffer.h"
 
 namespace Engine {
     struct GraphicsContext::impl {
-        RenderCommandBuffer cb;
+        GraphicsCommandBuffer cb;
 
         struct GraphicsBarrierDescriptor {
             struct SyncScope{
@@ -20,10 +20,10 @@ namespace Engine {
         };
         std::deque <GraphicsBarrierDescriptor> barriers;
 
-        impl(RenderCommandBuffer && _cb) : cb(std::move(_cb)) {};
+        impl(GraphicsCommandBuffer && _cb) : cb(std::move(_cb)) {};
     };
 
-    GraphicsContext::GraphicsContext(RenderCommandBuffer &&cb) : pimpl(std::make_unique<GraphicsContext::impl>(std::move(cb)))
+    GraphicsContext::GraphicsContext(GraphicsCommandBuffer &&cb) : pimpl(std::make_unique<GraphicsContext::impl>(std::move(cb)))
     {
     }
 

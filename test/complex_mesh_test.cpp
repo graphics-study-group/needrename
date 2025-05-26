@@ -304,7 +304,7 @@ int main(int argc, char ** argv)
         // Draw
         auto index = rsys->StartFrame();
         auto context = rsys->GetFrameManager().GetGraphicsContext();
-        RenderCommandBuffer & cb = dynamic_cast<RenderCommandBuffer &>(context.GetCommandBuffer());
+        GraphicsCommandBuffer & cb = dynamic_cast<GraphicsCommandBuffer &>(context.GetCommandBuffer());
 
         cb.Begin();
         context.UseImage(color_att.image, GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite, GraphicsContext::ImageAccessType::None);

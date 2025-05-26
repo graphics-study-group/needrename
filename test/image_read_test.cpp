@@ -74,7 +74,7 @@ int main(int, char *[])
     do {
 
         render_system->WaitForFrameBegin(in_flight_frame_id);
-        RenderCommandBuffer & cb = render_system->GetGraphicsCommandBuffer(in_flight_frame_id);
+        GraphicsCommandBuffer & cb = render_system->GetGraphicsCommandBuffer(in_flight_frame_id);
 
         uint32_t index = render_system->GetNextImage(in_flight_frame_id, 0x7FFFFFFF);
         assert(index < 3);

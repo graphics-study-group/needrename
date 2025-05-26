@@ -4,7 +4,7 @@
 #include "ICommandContext.h"
 
 namespace Engine {
-    class RenderCommandBuffer;
+    class GraphicsCommandBuffer;
 
     class GraphicsContext : public ICommandContext
     {
@@ -12,8 +12,8 @@ namespace Engine {
         std::unique_ptr <impl> pimpl;
     public:
         using ImageGraphicsAccessType = AccessHelper::ImageGraphicsAccessType;
-        
-        GraphicsContext(RenderCommandBuffer && cb);
+
+        GraphicsContext(GraphicsCommandBuffer && cb);
         virtual ~GraphicsContext();
 
         ICommandBuffer & GetCommandBuffer() const noexcept override;

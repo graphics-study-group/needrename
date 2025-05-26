@@ -62,7 +62,7 @@ int main(int argc, char ** argv)
 
         auto index = rsys->StartFrame();
         auto context = rsys->GetFrameManager().GetGraphicsContext();
-        RenderCommandBuffer & cb = dynamic_cast<RenderCommandBuffer &>(context.GetCommandBuffer());
+        GraphicsCommandBuffer & cb = dynamic_cast<GraphicsCommandBuffer &>(context.GetCommandBuffer());
 
         assert(index < 3);
     

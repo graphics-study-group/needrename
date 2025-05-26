@@ -16,7 +16,7 @@ namespace Engine
     class SDLWindow;
     class RendererComponent;
     class CameraComponent;
-    class RenderCommandBuffer;
+    class GraphicsCommandBuffer;
 
     namespace ConstantData {
         struct PerCameraStruct;

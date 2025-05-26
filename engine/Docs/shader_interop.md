@@ -38,7 +38,7 @@ In your material class, to manipulate descriptors, first create an array of bind
 You don't need to worry about cleaning up these sets, as they are automatically freed when the descriptor pool is destroyed.
 
 To update these descriptors, you will have to override `WriteDescriptor` virtual function and call `vkUpdateDescriptorSets` in it.
-It is called in the `RenderCommandBuffer::BindMaterial` before actual drawing.
+It is called in the `GraphicsCommandBuffer::BindMaterial` before actual drawing.
 Typically the descriptors should not be updated frequently, and you can mannually update the descriptor set by exposing new interfaces.
 
 To access these uniforms in shader, use layout directive with `set = 2`, for example:

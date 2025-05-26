@@ -1,7 +1,7 @@
 #include "GUISystem.h"
 
 #include "Render/RenderSystem.h"
-#include "Render/Pipeline/CommandBuffer/RenderCommandBuffer.h"
+#include "Render/Pipeline/CommandBuffer/GraphicsCommandBuffer.h"
 #include "Render/RenderSystem/Swapchain.h"
 #include "Render/RenderSystem/GlobalConstantDescriptorPool.h"
 #include <SDL3/SDL.h>
@@ -40,7 +40,7 @@ namespace Engine {
         ImGui::NewFrame();
     }
 
-    void GUISystem::DrawGUI(RenderCommandBuffer &cb) const
+    void GUISystem::DrawGUI(GraphicsCommandBuffer &cb) const
     {
         ImGui::Render();
         ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), static_cast<VkCommandBuffer>(cb.GetCommandBuffer()), nullptr);
