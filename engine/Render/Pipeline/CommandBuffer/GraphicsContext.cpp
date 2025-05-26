@@ -5,6 +5,8 @@
 #include "Render/Pipeline/CommandBuffer/GraphicsCommandBuffer.h"
 #include "ComputeContext.h"
 
+#include "Render/Pipeline/CommandBuffer/AccessHelperFuncs.h"
+
 namespace Engine {
     struct GraphicsContext::impl {
         GraphicsCommandBuffer cb;
@@ -27,37 +29,10 @@ namespace Engine {
         vk::ImageMemoryBarrier2 barrier;
         barrier.image = img;
         barrier.subresourceRange = vk::ImageSubresourceRange{
-            vk::ImageAspectFlagBits::eColor, 
+            InferImageAspectFromUsage(currentAccess, previousAccess), 
             0, vk::RemainingMipLevels, 
             0, vk::RemainingArrayLayers
         };
-
-        // TODO: Infer aspect mask from image format, instead of usage.
-        switch(previousAccess) {
-            case ImageAccessType::ColorAttachmentRead:
-            case ImageAccessType::ColorAttachmentWrite:
-            case ImageAccessType::ShaderRead:
-                barrier.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
-                break;
-            case ImageAccessType::DepthAttachmentRead:
-            case ImageAccessType::DepthAttachmentWrite:
-                barrier.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eDepth;
-                break;
-            default:
-                switch(currentAccess) {
-                    case ImageAccessType::ColorAttachmentRead:
-                    case ImageAccessType::ColorAttachmentWrite:
-                    case ImageAccessType::ShaderRead:
-                        barrier.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
-                        break;
-                    case ImageAccessType::DepthAttachmentRead:
-                    case ImageAccessType::DepthAttachmentWrite:
-                        barrier.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eDepth;
-                        break;
-                    default:
-                        barrier.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eNone;
-                }
-        }
 
         if (barrier.subresourceRange.aspectMask == vk::ImageAspectFlagBits::eNone) {
             SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Failed to infer aspect range when inserting an image barrier.");

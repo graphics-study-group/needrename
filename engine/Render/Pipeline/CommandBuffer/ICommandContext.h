@@ -2,7 +2,7 @@
 #define PIPELINE_COMMANDBUFFER_COMMANDCONTEXT_INCLUDED
 
 #include <vulkan/vulkan.hpp>
-#include "AccessHelper.h"
+#include "AccessHelperTypes.h"
 
 namespace Engine {
     class ICommandBuffer;
