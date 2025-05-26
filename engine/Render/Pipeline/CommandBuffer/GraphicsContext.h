@@ -6,22 +6,29 @@
 namespace Engine {
     class RenderCommandBuffer;
 
-    class GraphicsContext : ICommandContext
+    class GraphicsContext : public ICommandContext
     {
         struct impl;
         std::unique_ptr <impl> pimpl;
     public:
+        using ImageGraphicsAccessType = AccessHelper::ImageGraphicsAccessType;
+        
         GraphicsContext(RenderCommandBuffer && cb);
         virtual ~GraphicsContext();
 
         ICommandBuffer & GetCommandBuffer() const noexcept override;
 
         void UseImage(
-            vk::Image & img,
-            AccessType currentAccess,
-            AccessType previousAccess,
-            ContextType previousCtx
+            vk::Image img,
+            ImageAccessType currentAccess,
+            ImageAccessType previousAccess
         ) noexcept override;
+
+        void UseImage(
+            vk::Image img,
+            ImageGraphicsAccessType currentAccess,
+            ImageAccessType previousAccess
+        ) noexcept;
 
         void PrepareCommandBuffer() override;
     };
