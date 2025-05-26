@@ -6,7 +6,6 @@
 
 namespace Engine {
     class ComputeContext : public ICommandContext {
-        void UseImage(vk::Image img, ImageAccessType currentAccess, ImageAccessType previousAccess) noexcept override;
         struct impl;
         std::unique_ptr <impl> pimpl;
     public:

@@ -11,12 +11,6 @@ namespace Engine {
         struct impl;
         std::unique_ptr <impl> pimpl;
 
-        void UseImage(
-            vk::Image img,
-            ImageAccessType currentAccess,
-            ImageAccessType previousAccess
-        ) noexcept override;
-
     public:
         using ImageGraphicsAccessType = AccessHelper::ImageGraphicsAccessType;
 

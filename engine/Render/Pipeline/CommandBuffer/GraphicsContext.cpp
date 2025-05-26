@@ -24,48 +24,28 @@ namespace Engine {
     {
         return pimpl->cb;
     }
-    void GraphicsContext::UseImage(vk::Image img, ImageAccessType currentAccess, ImageAccessType previousAccess) noexcept
-    {
-        vk::ImageMemoryBarrier2 barrier;
-        barrier.image = img;
-        barrier.subresourceRange = vk::ImageSubresourceRange{
-            InferImageAspectFromUsage(currentAccess, previousAccess), 
-            0, vk::RemainingMipLevels, 
-            0, vk::RemainingArrayLayers
-        };
-
-        if (barrier.subresourceRange.aspectMask == vk::ImageAspectFlagBits::eNone) {
-            SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Failed to infer aspect range when inserting an image barrier.");
-            barrier.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor | vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
-        }
-
-        std::tie(barrier.dstStageMask, barrier.dstAccessMask, barrier.newLayout) = AccessHelper::GetAccessScope(currentAccess);
-        std::tie(barrier.srcStageMask, barrier.srcAccessMask, barrier.oldLayout) = AccessHelper::GetAccessScope(previousAccess);
-        barrier.dstQueueFamilyIndex = barrier.srcQueueFamilyIndex = vk::QueueFamilyIgnored;
-
-        pimpl->barriers.push_back(std::move(barrier));
-    }
-
     void GraphicsContext::UseImage(vk::Image img, ImageGraphicsAccessType currentAccess, ImageAccessType previousAccess) noexcept
     {
+        vk::ImageMemoryBarrier2 barrier;
         using type = ImageGraphicsAccessType;
         switch(currentAccess) {
             case type::ColorAttachmentRead:
-                this->UseImage(img, ImageAccessType::ColorAttachmentRead, previousAccess);
+                barrier = GetImageBarrier(img, ImageAccessType::ColorAttachmentRead, previousAccess);
                 break;
             case type::DepthAttachmentRead:
-                this->UseImage(img, ImageAccessType::DepthAttachmentRead, previousAccess);
+                barrier = GetImageBarrier(img, ImageAccessType::DepthAttachmentRead, previousAccess);
                 break;
             case type::ShaderRead:
-                this->UseImage(img, ImageAccessType::ShaderRead, previousAccess);
+                barrier = GetImageBarrier(img, ImageAccessType::ShaderRead, previousAccess);
                 break;
             case type::ColorAttachmentWrite:
-                this->UseImage(img, ImageAccessType::ColorAttachmentWrite, previousAccess);
+                barrier = GetImageBarrier(img, ImageAccessType::ColorAttachmentWrite, previousAccess);
                 break;
             case type::DepthAttachmentWrite:
-                this->UseImage(img, ImageAccessType::DepthAttachmentWrite, previousAccess);
+                barrier = GetImageBarrier(img, ImageAccessType::DepthAttachmentWrite, previousAccess);
                 break;
         }
+        pimpl->barriers.push_back(std::move(barrier));
     }
     void GraphicsContext::PrepareCommandBuffer()
     {

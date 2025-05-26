@@ -10,10 +10,6 @@ namespace Engine {
         impl(ComputeCommandBuffer &&cb_) : cb(std::move(cb_)) {}
     };
 
-    void ComputeContext::UseImage(vk::Image img, ImageAccessType currentAccess, ImageAccessType previousAccess) noexcept
-    {
-    }
-
     ComputeContext::ComputeContext(
         ComputeCommandBuffer &&cb
     ) : pimpl(std::make_unique<ComputeContext::impl>(std::move(cb)))
@@ -23,17 +19,19 @@ namespace Engine {
 
     void ComputeContext::UseImage(vk::Image img, ImageComputeAccessType currentAccess, ImageAccessType previousAccess) noexcept
     {
+        vk::ImageMemoryBarrier2 barrier;
         switch(currentAccess) {
             case ImageComputeAccessType::ShaderRandomWrite:
-                UseImage(img, ImageAccessType::ShaderRandomWrite, previousAccess);
+                barrier = GetImageBarrier(img, ImageAccessType::ShaderRandomWrite, previousAccess);
                 break;
             case ImageComputeAccessType::ShaderRead:
-                UseImage(img, ImageAccessType::ShaderRead, previousAccess);
+                barrier = GetImageBarrier(img, ImageAccessType::ShaderRead, previousAccess);
                 break;
             case ImageComputeAccessType::ShaderReadRandomWrite:
-                UseImage(img, ImageAccessType::ShaderReadRandomWrite, previousAccess);
+                barrier = GetImageBarrier(img, ImageAccessType::ShaderReadRandomWrite, previousAccess);
                 break;
         }
+        pimpl->barriers.push_back(std::move(barrier));
     }
 
     void ComputeContext::PrepareCommandBuffer()
