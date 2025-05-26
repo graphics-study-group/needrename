@@ -17,6 +17,8 @@ namespace Engine {
         virtual void Begin(const std::string & name = "") const;
 
         virtual void End() const noexcept;
+
+        virtual void Reset() noexcept;
     };
 }
 

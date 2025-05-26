@@ -23,4 +23,8 @@ namespace Engine {
         DEBUG_CMD_END_LABEL(cb);
         cb.end();
     }
+
+    void ICommandBuffer::Reset() noexcept {
+        cb.reset();
+    }
 }
