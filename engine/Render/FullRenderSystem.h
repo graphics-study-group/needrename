@@ -16,6 +16,7 @@
 
 #include "Render/Pipeline/Shader.h"
 #include "Render/Pipeline/CommandBuffer.h"
+#include "Render/Pipeline/CommandBuffer/GraphicsContext.h"
 #include "Render/Pipeline/RenderTargetBinding.h"
 
 #include "Render/Renderer/HomogeneousMesh.h"
