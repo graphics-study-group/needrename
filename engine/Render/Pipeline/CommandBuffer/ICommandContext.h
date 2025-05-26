@@ -17,7 +17,7 @@ namespace Engine {
         virtual ~ICommandContext() = default;
 
         virtual ICommandBuffer & GetCommandBuffer() const noexcept = 0;
-
+    private:
         /**
          * @brief Mark an image for use in this context.
          * All subresources (e.g. mipmaps and array layers) of the image is marked for use.
@@ -45,7 +45,7 @@ namespace Engine {
             BufferAccessType currentAccess,
             BufferAccessType previousAccess
         ) noexcept = 0; */
-
+    public:
         /**
          * @brief Record memory barriers according to `UseX()` directives.
          */

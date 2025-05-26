@@ -10,6 +10,13 @@ namespace Engine {
     {
         struct impl;
         std::unique_ptr <impl> pimpl;
+
+        void UseImage(
+            vk::Image img,
+            ImageAccessType currentAccess,
+            ImageAccessType previousAccess
+        ) noexcept override;
+
     public:
         using ImageGraphicsAccessType = AccessHelper::ImageGraphicsAccessType;
 
@@ -18,18 +25,18 @@ namespace Engine {
 
         ICommandBuffer & GetCommandBuffer() const noexcept override;
 
-        void UseImage(
-            vk::Image img,
-            ImageAccessType currentAccess,
-            ImageAccessType previousAccess
-        ) noexcept override;
-
+        /**
+         * @brief Mark an image for use for the following graphics context.
+         */
         void UseImage(
             vk::Image img,
             ImageGraphicsAccessType currentAccess,
             ImageAccessType previousAccess
         ) noexcept;
 
+        /**
+         * @brief Set up barriers according to `UseX()` directives.
+         */
         void PrepareCommandBuffer() override;
     };
 }
