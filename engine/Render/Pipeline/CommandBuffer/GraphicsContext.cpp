@@ -8,19 +8,7 @@
 namespace Engine {
     struct GraphicsContext::impl {
         GraphicsCommandBuffer cb;
-
-        struct GraphicsBarrierDescriptor {
-            struct SyncScope{
-                vk::PipelineStageFlags2 stage;
-                vk::AccessFlags2 access;
-                vk::ImageLayout layout;
-                uint32_t queue;
-            } src, dst;
-            vk::Image image;
-            vk::ImageSubresourceRange range;
-        };
-        std::deque <GraphicsBarrierDescriptor> barriers;
-
+        std::vector <vk::ImageMemoryBarrier2> barriers {};
         impl(GraphicsCommandBuffer && _cb) : cb(std::move(_cb)) {};
     };
 
@@ -36,9 +24,9 @@ namespace Engine {
     }
     void GraphicsContext::UseImage(vk::Image img, ImageAccessType currentAccess, ImageAccessType previousAccess) noexcept
     {
-        impl::GraphicsBarrierDescriptor descriptor;
-        descriptor.image = img;
-        descriptor.range = vk::ImageSubresourceRange{
+        vk::ImageMemoryBarrier2 barrier;
+        barrier.image = img;
+        barrier.subresourceRange = vk::ImageSubresourceRange{
             vk::ImageAspectFlagBits::eColor, 
             0, vk::RemainingMipLevels, 
             0, vk::RemainingArrayLayers
@@ -49,48 +37,38 @@ namespace Engine {
             case ImageAccessType::ColorAttachmentRead:
             case ImageAccessType::ColorAttachmentWrite:
             case ImageAccessType::ShaderRead:
-                descriptor.range.aspectMask = vk::ImageAspectFlagBits::eColor;
+                barrier.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
                 break;
             case ImageAccessType::DepthAttachmentRead:
             case ImageAccessType::DepthAttachmentWrite:
-                descriptor.range.aspectMask = vk::ImageAspectFlagBits::eDepth;
+                barrier.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eDepth;
                 break;
-            case ImageAccessType::None:
+            default:
                 switch(currentAccess) {
                     case ImageAccessType::ColorAttachmentRead:
                     case ImageAccessType::ColorAttachmentWrite:
                     case ImageAccessType::ShaderRead:
-                        descriptor.range.aspectMask = vk::ImageAspectFlagBits::eColor;
+                        barrier.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
                         break;
                     case ImageAccessType::DepthAttachmentRead:
                     case ImageAccessType::DepthAttachmentWrite:
-                        descriptor.range.aspectMask = vk::ImageAspectFlagBits::eDepth;
+                        barrier.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eDepth;
                         break;
+                    default:
+                        barrier.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eNone;
                 }
         }
 
-        if (descriptor.range.aspectMask == vk::ImageAspectFlagBits::eNone) {
+        if (barrier.subresourceRange.aspectMask == vk::ImageAspectFlagBits::eNone) {
             SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Failed to infer aspect range when inserting an image barrier.");
-            descriptor.range.aspectMask = vk::ImageAspectFlagBits::eColor | vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
+            barrier.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor | vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
         }
 
-        auto dst_tuple = AccessHelper::GetAccessScope(currentAccess);
-        descriptor.dst = {
-            std::get<0>(dst_tuple),
-            std::get<1>(dst_tuple),
-            std::get<2>(dst_tuple),
-            vk::QueueFamilyIgnored
-        };
+        std::tie(barrier.dstStageMask, barrier.dstAccessMask, barrier.newLayout) = AccessHelper::GetAccessScope(currentAccess);
+        std::tie(barrier.srcStageMask, barrier.srcAccessMask, barrier.oldLayout) = AccessHelper::GetAccessScope(previousAccess);
+        barrier.dstQueueFamilyIndex = barrier.srcQueueFamilyIndex = vk::QueueFamilyIgnored;
 
-        auto src_tuple = AccessHelper::GetAccessScope(previousAccess);
-        descriptor.src = {
-            std::get<0>(src_tuple),
-            std::get<1>(src_tuple),
-            std::get<2>(src_tuple),
-            vk::QueueFamilyIgnored
-        };
-
-        pimpl->barriers.push_back(std::move(descriptor));
+        pimpl->barriers.push_back(std::move(barrier));
     }
 
     void GraphicsContext::UseImage(vk::Image img, ImageGraphicsAccessType currentAccess, ImageAccessType previousAccess) noexcept
@@ -117,21 +95,7 @@ namespace Engine {
     void GraphicsContext::PrepareCommandBuffer()
     {
         if (pimpl->barriers.empty())    return;
-        std::vector <vk::ImageMemoryBarrier2> barriers (pimpl->barriers.size(), vk::ImageMemoryBarrier2{});
-        for (size_t i = 0; i < barriers.size(); i++) {
-            const auto & barrier = pimpl->barriers.front();
-            barriers[i] = vk::ImageMemoryBarrier2{
-                barrier.src.stage, barrier.src.access,
-                barrier.dst.stage, barrier.dst.access,
-                barrier.src.layout, barrier.dst.layout,
-                barrier.src.queue, barrier.dst.queue,
-                barrier.image,
-                barrier.range
-            };
-            pimpl->barriers.pop_front();
-        }
-
-        vk::DependencyInfo dep{vk::DependencyFlags{0}, {}, {}, barriers};
+        vk::DependencyInfo dep{vk::DependencyFlags{0}, {}, {}, pimpl->barriers};
         this->GetCommandBuffer().GetCommandBuffer().pipelineBarrier2(dep);
     }
 }
