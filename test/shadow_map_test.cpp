@@ -249,7 +249,8 @@ int main(int argc, char ** argv)
         }
 
         auto index = rsys->StartFrame();
-        RenderCommandBuffer cb = rsys->GetFrameManager().GetCommandBuffer();
+        auto context = rsys->GetFrameManager().GetGraphicsContext();
+        RenderCommandBuffer & cb = dynamic_cast<RenderCommandBuffer &>(context.GetCommandBuffer());
         assert(index < 3);
     
         cb.Begin("Main Render Loop");
@@ -274,7 +275,13 @@ int main(int argc, char ** argv)
             cb.EndRendering();
         }
         
-        cb.InsertAttachmentBarrier(RenderCommandBuffer::AttachmentBarrierType::DepthAttachmentRAW, shadow_att.image);
+        context.UseImage(
+            shadow_att.image, 
+            GraphicsContext::ImageGraphicsAccessType::ShaderRead, 
+            GraphicsContext::ImageAccessType::DepthAttachmentWrite
+        );
+        context.PrepareCommandBuffer();
+
         // Lit pass
         {
             vk::Extent2D extent {rsys->GetSwapchain().GetExtent()};

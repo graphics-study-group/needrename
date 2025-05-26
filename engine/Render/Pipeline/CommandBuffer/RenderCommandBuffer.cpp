@@ -202,15 +202,6 @@ namespace Engine
         DEBUG_CMD_END_LABEL(cb);
     }
 
-    void RenderCommandBuffer::InsertAttachmentBarrier(AttachmentBarrierType type, vk::Image image)
-    {
-        std::array <vk::ImageMemoryBarrier2, 1> barriers {
-            LayoutTransferHelper::GetAttachmentBarrier(type, image)
-        };
-        vk::DependencyInfo dep{{}, {}, {}, barriers};
-        cb.pipelineBarrier2(dep);
-    }
-
     void RenderCommandBuffer::DrawMesh(const HomogeneousMesh &mesh)
     {
         auto bindings = mesh.GetBindingInfo();

@@ -57,13 +57,6 @@ namespace Engine {
         /// @param scissor scissor rectangle
         void SetupViewport(float vpWidth, float vpHeight, vk::Rect2D scissor);
 
-        /**
-         * @brief Insert a barrier for an given image used as color or depth attachment.
-         * Inserted barrier will establish a memory dependency between correpsonding stages to avoid the given hazard.
-         * Further, the image layout will be transfered to be adequate for attachment write or shader read.
-         */
-        void InsertAttachmentBarrier(AttachmentBarrierType type, vk::Image image);
-
         /// @brief Write per-mesh descriptors, and send draw call to GPU.
         /// @param mesh 
         void DrawMesh(const HomogeneousMesh & mesh);
