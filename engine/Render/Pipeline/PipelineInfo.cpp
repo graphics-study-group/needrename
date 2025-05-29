@@ -22,11 +22,13 @@ namespace Engine::PipelineInfo {
         }
 
         for (const auto & [idx, var] : variables) {
+            using Type = ShaderVariable::Type;
+            using UBOType = ShaderUBOVariableProperty::UBOType;
+
+            if (info.uniforms.variables[idx].type != Type::Undefined)   continue;
             assert(idx < info.uniforms.variables.size() && "Uniform variable index is too large.");
             const auto offset = info.uniforms.variables[idx].location.offset;
     
-            using Type = ShaderVariable::Type;
-            using UBOType = ShaderUBOVariableProperty::UBOType;
             switch(info.uniforms.variables[idx].ubo_type) {
             case UBOType::Int:
                 assert(var.type() == typeid(int));
