@@ -20,6 +20,7 @@
 #include <SDL3/SDL.h>
 
 #include <Editor/Window/MainWindow.h>
+#include <Editor/Widget/GameWidget.h>
 
 using namespace Engine;
 
@@ -48,27 +49,9 @@ int main()
     Editor::MainWindow main_window;
     main_window.AddWidget(std::make_shared<Editor::Widget>("Test Widget"));
     main_window.AddWidget(std::make_shared<Editor::Widget>("Test Widget 2"));
-
-    // Engine::AllocatedImage2D color{rsys}, depth{rsys};
-    // color.Create(1920, 1080, Engine::ImageUtils::ImageType::ColorGeneral, Engine::ImageUtils::ImageFormat::B8G8R8A8SRGB, 1);
-    // depth.Create(1920, 1080, Engine::ImageUtils::ImageType::DepthImage, Engine::ImageUtils::ImageFormat::D32SFLOAT, 1);
-
-    // Engine::AttachmentUtils::AttachmentDescription color_att, depth_att;
-    // color_att.image = color.GetImage();
-    // color_att.image_view = color.GetImageView();
-    // color_att.load_op = vk::AttachmentLoadOp::eClear;
-    // color_att.store_op = vk::AttachmentStoreOp::eStore;
-
-    // depth_att.image = depth.GetImage();
-    // depth_att.image_view = depth.GetImageView();
-    // depth_att.load_op = vk::AttachmentLoadOp::eClear;
-    // depth_att.store_op = vk::AttachmentStoreOp::eDontCare;
-
-    // vk::SamplerCreateInfo sci{};
-    // sci.magFilter = sci.minFilter = vk::Filter::eNearest;
-    // sci.addressModeU = sci.addressModeV = sci.addressModeW = vk::SamplerAddressMode::eRepeat;
-    // vk::Sampler sampler = rsys->getDevice().createSampler(sci);
-    // ImTextureID color_att_id = reinterpret_cast<ImTextureID>(ImGui_ImplVulkan_AddTexture(sampler, color_att.image_view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL));
+    auto game_widget = std::make_shared<Editor::GameWidget>("Game");
+    game_widget->CreateRenderTargetBinding(rsys);
+    main_window.AddWidget(game_widget);
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Entering main loop");
 
@@ -104,6 +87,8 @@ int main()
         rsys->StartFrame();
         RenderCommandBuffer &cb = rsys->GetCurrentCommandBuffer();
         cb.Begin();
+
+        game_widget->PreRender(cb);
 
         cb.BeginRendering(cmc->GetWindow()->GetRenderTargetBinding());
         gui->PrepareGUI();
