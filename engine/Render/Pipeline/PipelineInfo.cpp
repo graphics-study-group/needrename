@@ -8,8 +8,9 @@
 
 namespace Engine::PipelineInfo {
     void PlaceUBOVariables(
-        const std::unordered_map<uint32_t,std::any>& variables, 
-        const PassInfo & info, std::vector<std::byte>& memory
+        const std::unordered_map<uint32_t, std::any>& variables, 
+        const PassInfo & info,
+        std::vector<std::byte>& memory
     ) noexcept
     {
         if (memory.size() < info.uniforms.maximal_ubo_size) {
@@ -25,21 +26,22 @@ namespace Engine::PipelineInfo {
             const auto offset = info.uniforms.variables[idx].location.offset;
     
             using Type = ShaderVariable::Type;
-            switch(info.uniforms.variables[idx].type) {
-            case Type::Int:
+            using UBOType = ShaderUBOVariableProperty::UBOType;
+            switch(info.uniforms.variables[idx].ubo_type) {
+            case UBOType::Int:
                 assert(var.type() == typeid(int));
                 *(reinterpret_cast<int*>(memory.data() + offset)) = *std::any_cast<int>(&var);
                 break;
-            case Type::Float:
+            case UBOType::Float:
                 assert(var.type() == typeid(float));
                 *(reinterpret_cast<float*>(memory.data() + offset)) = *std::any_cast<float>(&var);
                 break;
-            case Type::Vec4:
+            case UBOType::Vec4:
                 // Let's hope it works...
                 assert(var.type() == typeid(glm::vec4));
                 *(reinterpret_cast<glm::vec4*>(memory.data() + offset)) = *std::any_cast<glm::vec4>(&var);
                 break;
-            case Type::Mat4:
+            case UBOType::Mat4:
                 assert(var.type() == typeid(glm::mat4));
                 *(reinterpret_cast<glm::mat4*>(memory.data() + offset)) = *std::any_cast<glm::mat4>(&var);
                 break;
@@ -96,6 +98,20 @@ namespace Engine::PipelineInfo {
                 image_info.sampler = nullptr;
                 ret.push_back(std::make_pair(uniform.location.binding, image_info));
             }
+        }
+        return ret;
+    }
+    std::vector<std::pair<uint32_t,vk::DescriptorBufferInfo>> 
+    GetDescriptorBufferInfo(
+        const std::unordered_map<uint32_t,std::any>& variables, 
+        const PassInfo & info
+    ) noexcept
+    {
+        std::vector<std::pair<uint32_t, vk::DescriptorBufferInfo>> ret;
+
+        for (size_t idx = 0; idx < info.uniforms.variables.size(); idx++) {
+            const auto& uniform = info.uniforms.variables[idx];
+            const auto& instance_var = variables.find(idx);
         }
         return ret;
     }

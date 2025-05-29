@@ -22,8 +22,10 @@ namespace Engine
         REFL_SER_BODY(MaterialProperty)
 
         using Type = ShaderVariableProperty::Type;
+        using UBOType = ShaderUBOVariableProperty::UBOType;
 
         Type m_type{};
+        UBOType m_ubo_type{};
         std::any m_value{};
 
         void save_to_archive(Serialization::Archive &archive) const;

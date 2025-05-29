@@ -19,8 +19,7 @@ namespace Engine
     void MaterialTemplate::CreatePipeline(
         uint32_t pass_index, 
         const MaterialTemplateSinglePassProperties &prop,
-        vk::Device device
-    )
+        vk::Device device)
     {
         PassInfo pass_info;
 
@@ -174,25 +173,45 @@ namespace Engine
         // Save uniform locations
         pass_info.uniforms.maximal_ubo_size = 0ull;
         for (const auto & uniform : prop.shaders.uniforms) {
-            if (pass_info.uniforms.name_mapping.find(uniform.name) != pass_info.uniforms.name_mapping.end()) {
-                SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Found duplicated uniform name %s.", uniform.name.c_str());
-            }
-            pass_info.uniforms.name_mapping[uniform.name] = pass_info.uniforms.variables.size();
-            pass_info.uniforms.variables.push_back(
-                ShaderVariable{
-                    .type = uniform.type, 
-                    .location = ShaderVariable::Location{
-                        .set = static_cast<uint32_t>(uniform.frequency),
-                        .binding = uniform.binding, 
-                        .offset = uniform.offset
-                    }
-                }
-            );
-
             if(uniform.frequency == ShaderVariableProperty::Frequency::PerMaterial) {
+                if (pass_info.uniforms.name_mapping.find(uniform.name) != pass_info.uniforms.name_mapping.end()) {
+                    SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Found duplicated uniform name %s.", uniform.name.c_str());
+                }
+                pass_info.uniforms.name_mapping[uniform.name] = pass_info.uniforms.variables.size();
+                pass_info.uniforms.variables.push_back(
+                    ShaderVariable{
+                        .type = uniform.type,
+                        .ubo_type = ShaderUBOVariableProperty::UBOType::Undefined,
+                        .location = ShaderVariable::Location{
+                            .set = static_cast<uint32_t>(uniform.frequency),
+                            .binding = uniform.binding, 
+                            .offset = 0
+                        }
+                    }
+                );
+            }
+        }
+        for (const auto & uv : prop.shaders.ubo_variables) {
+            if(uv.frequency == ShaderVariableProperty::Frequency::PerMaterial) {
+                if (pass_info.uniforms.name_mapping.find(uv.name) != pass_info.uniforms.name_mapping.end()) {
+                    SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Found duplicated uniform name %s.", uv.name.c_str());
+                }
+                pass_info.uniforms.name_mapping[uv.name] = pass_info.uniforms.variables.size();
+                pass_info.uniforms.variables.push_back(
+                    ShaderVariable{
+                        .type = ShaderVariable::Type::Undefined, 
+                        .ubo_type = uv.type,
+                        .location = ShaderVariable::Location{
+                            .set = static_cast<uint32_t>(uv.frequency),
+                            .binding = uv.binding, 
+                            .offset = uv.offset
+                        }
+                    }
+                );
+
                 pass_info.uniforms.maximal_ubo_size = std::max(
                     pass_info.uniforms.maximal_ubo_size,
-                    uniform.offset + ShaderVariableProperty::SizeOf(uniform.type)
+                    uv.offset + ShaderUBOVariableProperty::SizeOf(uv.type)
                 );
             }
         }

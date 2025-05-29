@@ -54,6 +54,11 @@ namespace Engine {
         m_pass_info[pass].is_descriptor_set_dirty = true;
     }
 
+    void MaterialInstance::WriteStorageBufferUniform(uint32_t pass, uint32_t index, std::shared_ptr <const Buffer> buffer)
+    {
+        assert(false && "Unimplemented");
+    }
+
     void MaterialInstance::WriteUBOUniform(uint32_t pass, uint32_t index, std::any uniform)
     {
         assert(
@@ -147,21 +152,10 @@ namespace Engine {
                 auto & uniform = pass_info.uniforms.variables[uniform_idx];
                 switch(uniform.type)
                 {
-                    case MaterialTemplate::ShaderVariable::Type::Int:
-                        assert(itr->second.m_type == MaterialProperty::Type::Int);
-                        this->WriteUBOUniform(pass_index, uniform_idx, std::any_cast<glm::vec4>(itr->second.m_value));
+                    case MaterialTemplate::ShaderVariable::Type::StorageBuffer:
+                        assert(false && "Unimplemented");
                         break;
-                    case MaterialTemplate::ShaderVariable::Type::Float:
-                        assert(itr->second.m_type == MaterialProperty::Type::Float);
-                        this->WriteUBOUniform(pass_index, uniform_idx, std::any_cast<glm::vec4>(itr->second.m_value));
-                        break;
-                    case MaterialTemplate::ShaderVariable::Type::Vec4:
-                        assert(itr->second.m_type == MaterialProperty::Type::Vec4);
-                        this->WriteUBOUniform(pass_index, uniform_idx, std::any_cast<glm::vec4>(itr->second.m_value));
-                        break;
-                    case MaterialTemplate::ShaderVariable::Type::Mat4:
-                        assert(itr->second.m_type == MaterialProperty::Type::Mat4);
-                        this->WriteUBOUniform(pass_index, uniform_idx, std::any_cast<glm::vec4>(itr->second.m_value));
+                    case MaterialTemplate::ShaderVariable::Type::UBO:
                         break;
                     case MaterialTemplate::ShaderVariable::Type::Texture:
                     {
@@ -177,6 +171,29 @@ namespace Engine {
                         );
                         break;
                     }
+                    case MaterialTemplate::ShaderVariable::Type::Undefined:
+                    // Is this a UBO variable?
+                        switch(uniform.ubo_type) {
+                            case MaterialTemplate::ShaderVariable::UBOType::Int:
+                                assert(itr->second.m_ubo_type == MaterialTemplate::ShaderVariable::UBOType::Int);
+                                this->WriteUBOUniform(pass_index, uniform_idx, std::any_cast<glm::vec4>(itr->second.m_value));
+                                break;
+                            case MaterialTemplate::ShaderVariable::UBOType::Float:
+                                assert(itr->second.m_ubo_type == MaterialTemplate::ShaderVariable::UBOType::Float);
+                                this->WriteUBOUniform(pass_index, uniform_idx, std::any_cast<glm::vec4>(itr->second.m_value));
+                                break;
+                            case MaterialTemplate::ShaderVariable::UBOType::Vec4:
+                                assert(itr->second.m_ubo_type == MaterialTemplate::ShaderVariable::UBOType::Vec4);
+                                this->WriteUBOUniform(pass_index, uniform_idx, std::any_cast<glm::vec4>(itr->second.m_value));
+                                break;
+                            case MaterialTemplate::ShaderVariable::UBOType::Mat4:
+                                assert(itr->second.m_ubo_type == MaterialTemplate::ShaderVariable::UBOType::Mat4);
+                                this->WriteUBOUniform(pass_index, uniform_idx, std::any_cast<glm::vec4>(itr->second.m_value));
+                                break;
+                            default:
+                                SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Found uniform variable that is neither a UBO variable nor a uniform variable.");
+                        }
+
                 }
             }
         }

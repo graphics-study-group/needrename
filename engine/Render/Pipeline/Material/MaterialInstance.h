@@ -8,6 +8,7 @@
 namespace Engine
 {
     class ImageInterface;
+    class Buffer;
     /// @brief A light-weight instance of a given material,
     /// where all mutable data such as texture and uniforms are stored.
     class MaterialInstance {
@@ -55,6 +56,15 @@ namespace Engine
          * TODO: Figure out a way to connect samplers with textures
          */
         void WriteTextureUniform(uint32_t pass, uint32_t index, std::shared_ptr<const ImageInterface> texture);
+
+        /**
+         * @brief Set the storage buffer uniform descriptor to point to a given texture.
+         * @param name 
+         * @param buffer 
+         * 
+         * TODO: Figure out a way to connect samplers with textures
+         */
+        void WriteStorageBufferUniform(uint32_t pass, uint32_t index, std::shared_ptr <const Buffer> buffer);
     
         /**
          * @brief Set the uniform variable descriptor to point to a given value.

@@ -12,12 +12,14 @@ namespace Engine {
     namespace PipelineInfo {
         struct ShaderVariable {
             using Type = ShaderVariableProperty::Type;
+            using UBOType = ShaderUBOVariableProperty::UBOType;
 
             Type type {};
+            UBOType ubo_type {};
             struct Location {
-                uint32_t set {};
-                uint32_t binding {};
-                uint32_t offset {};
+                uint32_t set{};
+                uint32_t binding{};
+                uint32_t offset{};
             } location {};
         };
 
@@ -84,6 +86,14 @@ namespace Engine {
          */
         std::vector<std::pair<uint32_t, vk::DescriptorImageInfo>> 
         GetDescriptorImageInfo(const std::unordered_map <uint32_t, std::any> & variables, const PassInfo & info, vk::Sampler sampler) noexcept;
+
+        /**
+         * @brief Get the descriptor for storage buffers info for a specific variable set.
+         * @remark For internal use only.
+         * @warning unimplemented
+         */
+        std::vector<std::pair<uint32_t, vk::DescriptorBufferInfo>>
+        GetDescriptorBufferInfo(const std::unordered_map <uint32_t, std::any> & variables, const PassInfo & info) noexcept;
     }
 }
 

@@ -89,25 +89,78 @@ namespace Engine {
         std::vector<vk::DescriptorSetLayoutBinding>
         ToVulkanDescriptorSetLayoutBindings(const MaterialTemplateSinglePassProperties::Shaders & p){
 #ifndef NDEBUG
-            // Test whether scene and camera uniforms are compatible
+            // Test whether scene uniforms are compatible
             auto scene_uniforms_range = std::ranges::filter_view(
                 p.uniforms, 
                 [](const ShaderVariableProperty & prop) -> bool {
                     return prop.frequency == ShaderVariableProperty::Frequency::PerScene;
                 }
             );
-            if (!scene_uniforms_range.empty()) SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Found non-compatible scene uniforms.");
+            if (!scene_uniforms_range.empty()) SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Found non-compatible scene uniforms. Scene uniform should be empty.");
 
-            auto camera_uniforms_range = std::ranges::filter_view(
-                p.uniforms, 
-                [](const ShaderVariableProperty & prop) -> bool {
+            // Test wheter camera uniforms are compatible
+            size_t found_camera_uniform = false;
+            for (size_t i = 0; i < p.uniforms.size(); i++) {
+                if (p.uniforms[i].frequency == ShaderVariableProperty::Frequency::PerCamera) {
+                    if (found_camera_uniform) {
+                        SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Found too many camera uniforms. Camera uniform should contain exactly one UBO only.");
+                    }
+                    found_camera_uniform = true;
+                    if (p.uniforms[i].type != ShaderVariableProperty::Type::UBO) {
+                        SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Found camera uniform of wrong type. Camera uniform should contain exactly one UBO only.");
+                    }
+                    if (p.uniforms[i].binding != 0) {
+                        SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Found camera uniform of wrong binding. Camera uniform should contain exactly one UBO bound to the zeroth binding.");
+                    }
+                }
+            }
+
+            auto camera_uniforms_variable_range = std::ranges::filter_view(
+                p.ubo_variables, 
+                [](const ShaderUBOVariableProperty & prop) -> bool {
                     return prop.frequency == ShaderVariableProperty::Frequency::PerCamera;
                 }
             );
-            for (const auto & prop : camera_uniforms_range) {
-                using Type = ShaderVariableProperty::Type;
+            for (const auto & prop : camera_uniforms_variable_range) {
+                using Type = ShaderUBOVariableProperty::UBOType;
                 if (prop.type != Type::Mat4 || (prop.offset != 0 && prop.offset != 64) || (prop.binding != 0)) {
                     SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Found non-compatible camera uniforms %s.", prop.name.c_str());
+                }
+            }
+
+            // Test wheter material uniform variables binds to UBO
+            {
+                uint32_t material_ubo_binding = std::numeric_limits<uint32_t>::max();
+                auto material_uniforms_range = std::ranges::filter_view(
+                    p.uniforms, 
+                    [](const ShaderVariableProperty & prop) -> bool {
+                        return prop.frequency == ShaderVariableProperty::Frequency::PerMaterial;
+                    }
+                );
+                for (const auto & u : material_uniforms_range) {
+                    if (u.type == ShaderVariableProperty::Type::UBO) {
+                        if (material_ubo_binding != std::numeric_limits<uint32_t>::max()) {
+                            SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Found multiple material UBOs %s.", u.name.c_str());
+                        }
+                        material_ubo_binding = u.binding;
+                        if (material_ubo_binding != 0) {
+                            SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Material UBOs %s not bound to the zeroth binding.", u.name.c_str());
+                        }
+                    }
+                }
+                if (material_ubo_binding == std::numeric_limits<uint32_t>::max()) {
+                    SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Material does not have any UBOs.");
+                }
+                auto material_uniforms_variable_range = std::ranges::filter_view(
+                    p.ubo_variables, 
+                    [](const ShaderUBOVariableProperty & prop) -> bool {
+                        return prop.frequency == ShaderVariableProperty::Frequency::PerMaterial;
+                    }
+                );
+                for (const auto & uv : material_uniforms_variable_range) {
+                    if (uv.binding != material_ubo_binding) {
+                        SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Material UBO variable %s not bound to the correct binding.", uv.name.c_str());
+                    }
                 }
             }
 #endif
@@ -121,35 +174,28 @@ namespace Engine {
             );
 
             std::vector <vk::DescriptorSetLayoutBinding> bindings;
-            // Prepare default UBO
-            bindings.push_back(vk::DescriptorSetLayoutBinding{
-                0,
-                vk::DescriptorType::eUniformBuffer,
-                1,
-                vk::ShaderStageFlagBits::eAll,
-                {}
-            });
             for (const ShaderVariableProperty & prop : material_uniforms_range) {
-
-                // Ignore UBO variables.
-                if (prop.binding == 0) {
-                    if (!ShaderVariableProperty::InUBO(prop.type)) {
-                        SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Non-UBO descriptor occupying UBO binding. This descriptor is ignored.");
-                    }
-                    continue;
-                }
-
-                if (ShaderVariableProperty::InUBO(prop.type)) {
-                    SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "UBO descriptor not in binding zero. This descriptor is ignored.");
-                    continue;
-                }
-                if (prop.offset != 0) {
-                    SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Non-zero offset for uniforms outside UBO. Offset is ignored.");
-                }
-
                 
                 switch(prop.type) {
                     using Type = ShaderVariableProperty::Type;
+                case Type::UBO:
+                    bindings.push_back(vk::DescriptorSetLayoutBinding{
+                        prop.binding,
+                        vk::DescriptorType::eUniformBuffer,
+                        1,
+                        vk::ShaderStageFlagBits::eAll,
+                        0
+                    });
+                    break;
+                case Type::StorageBuffer:
+                    bindings.push_back(vk::DescriptorSetLayoutBinding{
+                        prop.binding,
+                        vk::DescriptorType::eStorageBuffer,
+                        1,
+                        vk::ShaderStageFlagBits::eAll,
+                        0
+                    });
+                    break;
                 case Type::Texture:
                     bindings.push_back(vk::DescriptorSetLayoutBinding{
                         prop.binding,
