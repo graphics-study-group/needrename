@@ -30,6 +30,7 @@ namespace Engine
         AttachmentUtils::AttachmentDescription depth,
         vk::Extent2D extent)
     {
+        DEBUG_CMD_START_LABEL(cb, "");
         std::vector <vk::RenderingAttachmentInfo> color_attachment;
         
         if (color.image && color.image_view) {
