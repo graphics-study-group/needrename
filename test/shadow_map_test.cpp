@@ -77,28 +77,26 @@ std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate()
     shadow_map_pass.attachments.depth = ImageUtils::ImageFormat::D32SFLOAT;
     lit_pass.shaders.shaders = std::vector {vs_ref, fs_ref};
 
-    ShaderVariableProperty light_source, light_color;
-    light_source.frequency = light_color.frequency = ShaderVariableProperty::Frequency::PerScene;
-    light_source.type = light_color.type = ShaderVariableProperty::Type::Vec4;
-    light_source.binding = light_color.binding = 0;
-    light_source.offset = 0;
-    light_source.name = "light_source";
-    light_color.offset = 16;
-    light_color.name = "light_color";
+    ShaderVariableProperty scene_ubo;
+    scene_ubo.frequency = ShaderVariableProperty::Frequency::PerScene;
+    scene_ubo.type = ShaderVariableProperty::Type::UBO;
+    scene_ubo.binding = 0;
+    scene_ubo.name = "scene_ubo";
 
-    ShaderVariableProperty view, proj;
-    view.frequency = proj.frequency = ShaderVariableProperty::Frequency::PerCamera;
-    view.type = proj.type = ShaderVariableProperty::Type::Mat4;
-    view.binding = proj.binding = 0;
-    view.offset = 0;
-    proj.offset = 64;
-    view.name = "view";
-    proj.name = "proj";
+    ShaderVariableProperty camera_ubo;
+    camera_ubo.frequency =ShaderVariableProperty::Frequency::PerCamera;
+    camera_ubo.type = ShaderVariableProperty::Type::UBO;
+    camera_ubo.binding = 0;
+    camera_ubo.name = "camera_ubo";
 
-    ShaderVariableProperty base_tex, shadowmap_tex, specular_color, ambient_color;
-    base_tex.frequency = shadowmap_tex.frequency = specular_color.frequency = ambient_color.frequency = ShaderVariableProperty::Frequency::PerMaterial;
+    ShaderVariableProperty material_ubo, base_tex, shadowmap_tex;
+    ShaderUBOVariableProperty specular_color, ambient_color;
+    material_ubo.frequency = shadowmap_tex.frequency = base_tex.frequency = ShaderVariableProperty::Frequency::PerMaterial;
+    specular_color.frequency = ambient_color.frequency = ShaderVariableProperty::Frequency::PerMaterial;
+    material_ubo.type = ShaderVariableProperty::Type::UBO;
     base_tex.type = shadowmap_tex.type = ShaderVariableProperty::Type::Texture;
-    specular_color.type = ambient_color.type = ShaderVariableProperty::Type::Vec4;
+    specular_color.type = ambient_color.type = ShaderUBOVariableProperty::UBOType::Vec4;
+    material_ubo.binding = 0;
     base_tex.binding = 1;
     shadowmap_tex.binding = 2;
     specular_color.binding = ambient_color.binding = 0;
@@ -110,10 +108,13 @@ std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate()
     ambient_color.name = "ambient_color";
 
     shadow_map_pass.shaders.uniforms = {
-        view, proj
+        camera_ubo
     };
     lit_pass.shaders.uniforms = {
-        light_source, light_color, view, proj, base_tex, shadowmap_tex, specular_color, ambient_color
+        scene_ubo, camera_ubo, material_ubo, base_tex, shadowmap_tex
+    };
+    lit_pass.shaders.ubo_variables = {
+        specular_color, ambient_color
     };
     test_asset->properties.properties[0] = shadow_map_pass;
     test_asset->properties.properties[1] = lit_pass;
