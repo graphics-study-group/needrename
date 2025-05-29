@@ -111,7 +111,10 @@ namespace Engine {
         for (const auto & [binding, image_info] : image_writes) {
             vk::WriteDescriptorSet write {
                     pass_info.desc_set, binding, 0, 1,
-                    vk::DescriptorType::eCombinedImageSampler,
+                    // TODO: We need a better way to check if its storage image or texture image.
+                    image_info.imageLayout == vk::ImageLayout::eGeneral ? 
+                        vk::DescriptorType::eStorageImage : 
+                        vk::DescriptorType::eCombinedImageSampler,
                     &image_info, nullptr, nullptr
             };
             writes.push_back(write);
