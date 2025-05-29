@@ -71,6 +71,7 @@ namespace Engine
             }
             break;
         case Type::Texture:
+        case Type::StorageImage:
         {
             json["m_type"] = "Texture";
             json["m_value"] = Serialization::Json::object();
@@ -78,6 +79,11 @@ namespace Engine
             Serialization::serialize(std::any_cast<std::shared_ptr<AssetRef>>(m_value), temp_archive);
             break;
         }
+        case Type::UBO:
+            // Ignore UBO
+            break;
+        case Type::StorageBuffer:
+            assert(false && "Unimplemented");
         }
     }
 
