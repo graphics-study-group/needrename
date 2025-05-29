@@ -28,6 +28,7 @@ namespace Engine
 
         void CreateRenderTargetBinding(std::shared_ptr<RenderSystem> render_system);
         const RenderTargetBinding &GetRenderTargetBinding() const;
+        vk::Extent2D GetExtent() const;
 
         /// Get the underlying pointer of this window
         SDL_Window *GetWindow();

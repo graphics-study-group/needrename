@@ -26,7 +26,6 @@ namespace Editor
         color_att.load_op = vk::AttachmentLoadOp::eClear;
         color_att.store_op = vk::AttachmentStoreOp::eStore;
         m_render_target_binding.SetColorAttachment(color_att);
-        m_render_target_binding.SetExtent(vk::Extent2D{static_cast<uint32_t>(m_game_width), static_cast<uint32_t>(m_game_height)});
 
         vk::SamplerCreateInfo sci{};
         sci.magFilter = sci.minFilter = vk::Filter::eNearest;
@@ -37,7 +36,7 @@ namespace Editor
 
     void GameWidget::PreRender(Engine::RenderCommandBuffer &cb)
     {
-        cb.BeginRendering(m_render_target_binding);
+        cb.BeginRendering(m_render_target_binding, m_color_image->GetExtent());
         Engine::MainClass::GetInstance()->GetRenderSystem()->DrawMeshes();
         cb.EndRendering();
         cb.InsertAttachmentBarrier(Engine::RenderCommandBuffer::AttachmentBarrierType::ColorAttachmentRAW, m_color_image->GetImage());

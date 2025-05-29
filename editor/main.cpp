@@ -90,7 +90,7 @@ int main()
 
         game_widget->PreRender(cb);
 
-        cb.BeginRendering(cmc->GetWindow()->GetRenderTargetBinding());
+        cb.BeginRendering(cmc->GetWindow()->GetRenderTargetBinding(), cmc->GetWindow()->GetExtent());
         gui->PrepareGUI();
         main_window.Render();
         gui->DrawGUI(cb);

@@ -191,7 +191,7 @@ namespace Engine
         renderer->StartFrame();
         RenderCommandBuffer &cb = renderer->GetCurrentCommandBuffer();
         cb.Begin();
-        cb.BeginRendering(window->GetRenderTargetBinding());
+        cb.BeginRendering(window->GetRenderTargetBinding(), window->GetExtent());
         renderer->DrawMeshes();
         cb.EndRendering();
         cb.End();

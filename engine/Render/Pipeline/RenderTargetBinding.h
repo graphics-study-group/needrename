@@ -13,17 +13,14 @@ namespace Engine {
 
         AttachmentDescription GetDepthAttachment() const noexcept;
         const std::vector <AttachmentDescription> & GetColorAttachments() const noexcept;
-        vk::Extent2D GetExtent() const noexcept;
 
         void SetDepthAttachment(AttachmentDescription attachment);
         void SetColorAttachment(AttachmentDescription attachment);
         void SetColorAttachments(std::initializer_list <AttachmentDescription> attachments);
-        void SetExtent(vk::Extent2D extent);
     
     private:
         std::vector <AttachmentDescription> m_color_attachments;
         AttachmentDescription m_depth_attachment;
-        vk::Extent2D m_extent;
     };
 }
 

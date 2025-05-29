@@ -33,12 +33,16 @@ namespace Engine
         color_att.load_op = vk::AttachmentLoadOp::eClear;
         color_att.store_op = vk::AttachmentStoreOp::eStore;
         m_render_target_binding.SetColorAttachment(color_att);
-        m_render_target_binding.SetExtent(vk::Extent2D{static_cast<uint32_t>(w), static_cast<uint32_t>(h)});
     }
 
     const RenderTargetBinding &SDLWindow::GetRenderTargetBinding() const
     {
         return m_render_target_binding;
+    }
+
+    vk::Extent2D SDLWindow::GetExtent() const
+    {
+        return m_color_image->GetExtent();
     }
 
     SDL_Window *SDLWindow::GetWindow()

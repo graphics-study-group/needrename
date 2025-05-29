@@ -47,7 +47,8 @@ namespace Engine {
         );
 
         void BeginRendering(
-            const RenderTargetBinding & binding
+            const RenderTargetBinding & binding,
+            vk::Extent2D extent
         );
 
         /// @brief Bind a material for rendering, and write per-material descriptors.
