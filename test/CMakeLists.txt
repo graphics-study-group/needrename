@@ -78,6 +78,11 @@ target_link_libraries(input_test engine)
 add_test(NAME input_test COMMAND input_test 120)
 set_target_properties(input_test PROPERTIES FOLDER tests)
 
+add_executable(delegate_test delegate_test.cpp)
+target_link_libraries(delegate_test engine)
+add_test(NAME delegate_test COMMAND delegate_test)
+set_target_properties(delegate_test PROPERTIES FOLDER tests)
+
 # Copy SDL dll
 add_custom_command(TARGET SDL_init_test POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
