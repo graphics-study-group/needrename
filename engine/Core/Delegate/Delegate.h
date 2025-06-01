@@ -51,6 +51,13 @@ namespace Engine
             return !m_object.expired();
         }
 
+        bool operator==(const Delegate &other) const
+        {
+            return m_object.lock() == other.m_object.lock() &&
+                   m_function.template target<typename Delegate<Args...>::FunctionType>() ==
+                       other.m_function.template target<typename Delegate<Args...>::FunctionType>();
+        }
+
     protected:
         std::weak_ptr<void> m_object{};
         FunctionType m_function{};
