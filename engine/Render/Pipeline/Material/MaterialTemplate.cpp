@@ -23,37 +23,18 @@ namespace Engine
     {
         PassInfo pass_info;
 
-        // Create pipeline layout
-        {
-            const auto & pool = m_system.lock()->GetGlobalConstantDescriptorPool();
-
-            auto desc_bindings = PipelineUtils::ToVulkanDescriptorSetLayoutBindings(prop.shaders);
-            vk::DescriptorSetLayoutCreateInfo dslci {
-                {}, desc_bindings
-            };
-            pass_info.desc_layout = device.createDescriptorSetLayoutUnique(dslci);
-
-            std::array <vk::PushConstantRange, 1> push_constants{ConstantData::PerModelConstantPushConstant::GetPushConstantRange()};
-            std::array <vk::DescriptorSetLayout, 3> set_layouts{
-                pool.GetPerSceneConstantLayout().get(), 
-                pool.GetPerCameraConstantLayout().get(),
-                pass_info.desc_layout.get()
-            };
-
-            vk::PipelineLayoutCreateInfo plci{{}, set_layouts, push_constants};
-            pass_info.pipeline_layout = device.createPipelineLayoutUnique(plci);
-        }
-
-        // Create shaders
+        // Process and reflect on shaders.
+        std::vector <ShaderUtils::ReflectedDataCollection> reflected;
         std::vector <vk::PipelineShaderStageCreateInfo> psscis;
         pass_info.shaders.resize(prop.shaders.shaders.size());
         psscis.resize(prop.shaders.shaders.size());
+        reflected.resize(prop.shaders.shaders.size());
         for (size_t i = 0; i < prop.shaders.shaders.size(); i++) {
             assert(prop.shaders.shaders[i] && "Invalid shader asset.");
 
             auto shader_asset = prop.shaders.shaders[i]->cas<ShaderAsset>();
             auto code = shader_asset->binary;
-            auto reflected = ShaderUtils::ReflectSpirvData(code);
+            reflected[i] = ShaderUtils::ReflectSpirvData(code);
             vk::ShaderModuleCreateInfo ci {
                 {},
                 code.size() * sizeof(uint32_t),
@@ -69,6 +50,36 @@ namespace Engine
                 pass_info.shaders[i].get(),
                 "main"
             };
+        }
+
+        // Create pipeline layout
+        {
+            const auto & pool = m_system.lock()->GetGlobalConstantDescriptorPool();
+
+            const std::vector <vk::DescriptorSetLayoutBinding> * desc_bindings {nullptr};
+            // auto desc_bindings = PipelineUtils::ToVulkanDescriptorSetLayoutBindings(prop.shaders);
+            for (const auto & ref : reflected) {
+                if (ref.has_material_descriptor_set) {
+                    if (desc_bindings != nullptr) {
+                        SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Multiple material descriptors found. Only one is used.");
+                    }
+                    desc_bindings = &ref.per_material_descriptor_set_layout.bindings;
+                }
+            }
+            vk::DescriptorSetLayoutCreateInfo dslci {
+                {}, *desc_bindings
+            };
+            pass_info.desc_layout = device.createDescriptorSetLayoutUnique(dslci);
+
+            std::array <vk::PushConstantRange, 1> push_constants{ConstantData::PerModelConstantPushConstant::GetPushConstantRange()};
+            std::array <vk::DescriptorSetLayout, 3> set_layouts{
+                pool.GetPerSceneConstantLayout().get(), 
+                pool.GetPerCameraConstantLayout().get(),
+                pass_info.desc_layout.get()
+            };
+
+            vk::PipelineLayoutCreateInfo plci{{}, set_layouts, push_constants};
+            pass_info.pipeline_layout = device.createPipelineLayoutUnique(plci);
         }
 
         bool use_swapchain_attachments = prop.attachments.color.empty() && prop.attachments.depth == ImageUtils::ImageFormat::UNDEFINED;
@@ -173,50 +184,7 @@ namespace Engine
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Successfully created pass %u for material %s.", pass_index, m_name.c_str());
 
         // Save uniform locations
-        pass_info.uniforms.maximal_ubo_size = 0ull;
-        for (const auto & uniform : prop.shaders.uniforms) {
-            if(uniform.frequency == ShaderVariableProperty::Frequency::PerMaterial) {
-                if (pass_info.uniforms.name_mapping.find(uniform.name) != pass_info.uniforms.name_mapping.end()) {
-                    SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Found duplicated uniform name %s.", uniform.name.c_str());
-                }
-                pass_info.uniforms.name_mapping[uniform.name] = pass_info.uniforms.variables.size();
-                pass_info.uniforms.variables.push_back(
-                    ShaderVariable{
-                        .type = uniform.type,
-                        .ubo_type = ShaderInBlockVariableProperty::InBlockVarType::Undefined,
-                        .location = ShaderVariable::Location{
-                            .set = static_cast<uint32_t>(uniform.frequency),
-                            .binding = uniform.binding, 
-                            .offset = 0
-                        }
-                    }
-                );
-            }
-        }
-        for (const auto & uv : prop.shaders.ubo_variables) {
-            if(uv.frequency == ShaderVariableProperty::Frequency::PerMaterial) {
-                if (pass_info.uniforms.name_mapping.find(uv.name) != pass_info.uniforms.name_mapping.end()) {
-                    SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Found duplicated uniform name %s.", uv.name.c_str());
-                }
-                pass_info.uniforms.name_mapping[uv.name] = pass_info.uniforms.variables.size();
-                pass_info.uniforms.variables.push_back(
-                    ShaderVariable{
-                        .type = ShaderVariable::Type::Undefined, 
-                        .ubo_type = uv.type,
-                        .location = ShaderVariable::Location{
-                            .set = static_cast<uint32_t>(uv.frequency),
-                            .binding = uv.binding, 
-                            .offset = uv.offset
-                        }
-                    }
-                );
-
-                pass_info.uniforms.maximal_ubo_size = std::max(
-                    pass_info.uniforms.maximal_ubo_size,
-                    uv.offset + ShaderInBlockVariableProperty::SizeOf(uv.type)
-                );
-            }
-        }
+        
 
         this->m_passes[pass_index] = std::move(pass_info);
     }
@@ -293,25 +261,36 @@ namespace Engine
         auto sets = m_system.lock()->getDevice().allocateDescriptorSets(dsai);
         return sets[0];
     }
-    std::optional<std::reference_wrapper<const MaterialTemplate::ShaderVariable>>
-    MaterialTemplate::GetVariable(const std::string &name, uint32_t pass_index) const
+    std::variant<std::monostate, std::reference_wrapper<const MaterialTemplate::DescVar>, std::reference_wrapper<const MaterialTemplate::InblockVar>>
+    MaterialTemplate::GetVariable(const std::string & name, uint32_t pass_index) const
     {
         auto idx = this->GetVariableIndex(name, pass_index);
-        if (!idx)   return std::nullopt;
-        return this->GetVariable(idx.value(), pass_index);
+        if (!idx)   return std::monostate{};
+        if (idx.value().second) {
+            return this->GetInBlockVariable(idx.value().first, pass_index);
+        }
+        return this->GetDescVariable(idx.value().first, pass_index);
     }
-    const MaterialTemplate::ShaderVariable &MaterialTemplate::GetVariable(uint32_t index, uint32_t pass_index) const
+    const MaterialTemplate::DescVar &MaterialTemplate::GetDescVariable(uint32_t index, uint32_t pass_index) const
     {
-        return this->m_passes.at(pass_index).uniforms.variables.at(index);
+        return this->m_passes.at(pass_index).desc.vars.at(index);
     }
-    std::optional<uint32_t> MaterialTemplate::GetVariableIndex(const std::string &name, uint32_t pass_index) const noexcept
+    const MaterialTemplate::InblockVar &MaterialTemplate::GetInBlockVariable(uint32_t index, uint32_t pass_index) const
+    {
+        return this->m_passes.at(pass_index).inblock.vars.at(index);
+    }
+    std::optional<std::pair<uint32_t, bool>> MaterialTemplate::GetVariableIndex(const std::string &name, uint32_t pass_index) const noexcept
     {
         auto pitr = m_passes.find(pass_index);
         assert(pitr != m_passes.end() && "Invaild pass index");
-        auto itr = pitr->second.uniforms.name_mapping.find(name);
-        if (itr == pitr->second.uniforms.name_mapping.end())
-            return std::nullopt;
-        return itr->second;
+        auto itr = pitr->second.inblock.names.find(name);
+        if (itr == pitr->second.inblock.names.end()) {
+            auto nitr = pitr->second.desc.names.find(name);
+            return nitr == pitr->second.desc.names.end() ? 
+                std::nullopt : 
+                std::optional<std::pair<uint32_t, bool>>{std::make_pair(nitr->second, false)};
+        }
+        return std::make_pair(itr->second, true);
     }
     AttachmentUtils::AttachmentOp MaterialTemplate::GetDSAttachmentOperation(uint32_t pass_index) const
     {
@@ -326,7 +305,7 @@ namespace Engine
     uint64_t MaterialTemplate::GetMaximalUBOSize(uint32_t pass_index) const
     {
         assert(m_passes.contains(pass_index) && "Invaild pass index");
-        return m_passes.at(pass_index).uniforms.maximal_ubo_size;
+        return m_passes.at(pass_index).inblock.maximal_ubo_size;
     }
     void MaterialTemplate::PlaceUBOVariables(const MaterialInstance &instance, std::vector<std::byte> & memory, uint32_t pass_index) const
     {

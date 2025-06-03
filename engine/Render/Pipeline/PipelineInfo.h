@@ -1,10 +1,12 @@
-#ifndef PIPELINE_MATERIAL_PIPELINEINFO_INCLUDED
-#define PIPELINE_MATERIAL_PIPELINEINFO_INCLUDED
+#ifndef RENDER_PIPELINE_PIPELINEINFO_INCLUDED
+#define RENDER_PIPELINE_PIPELINEINFO_INCLUDED
 
 /** Structures holding information with regards to VkPipeline etc. */
 
+#include <vector>
 #include <vulkan/vulkan.hpp>
 #include "Asset/Material/ShaderAsset.h"
+#include "Render/Pipeline/Material/ShaderUtils.h"
 #include "Render/AttachmentUtils.h"
 
 namespace Engine {
@@ -29,11 +31,16 @@ namespace Engine {
             vk::UniqueDescriptorSetLayout desc_layout {};
             std::vector <vk::UniqueShaderModule> shaders {};
 
-            struct Uniforms {
-                std::unordered_map <std::string, uint32_t> name_mapping {};
-                std::vector <ShaderVariable> variables {};
+            struct InblockVars{
+                std::unordered_map <std::string, uint32_t> names;
+                std::vector <ShaderUtils::InBlockVariableData> vars;
                 uint64_t maximal_ubo_size {};
-            } uniforms {};
+            } inblock;
+            
+            struct DescVars{
+                std::unordered_map <std::string, uint32_t> names;
+                std::vector <ShaderUtils::DesciptorVariableData> vars;
+            } desc;
         };
 
         struct MaterialPassInfo : PassInfo {
@@ -97,4 +104,4 @@ namespace Engine {
     }
 }
 
-#endif // PIPELINE_MATERIAL_PIPELINEINFO_INCLUDED
+#endif // RENDER_PIPELINE_PIPELINEINFO_INCLUDED

@@ -26,7 +26,8 @@ namespace Engine {
     public:
         using PassInfo = PipelineInfo::MaterialPassInfo;
         using PoolInfo = PipelineInfo::MaterialPoolInfo;
-        using ShaderVariable = PipelineInfo::ShaderVariable;
+        using DescVar = ShaderUtils::DesciptorVariableData;
+        using InblockVar = ShaderUtils::InBlockVariableData;
 
     protected:
         std::weak_ptr <RenderSystem> m_system;
@@ -114,26 +115,39 @@ namespace Engine {
          * @param pass_index The index of the pass to retrieve the shader variable from.
          * @return const ShaderVariable & A constant reference to the ShaderVariable struct associated with the specified name and pass index.
          */
-        std::optional<std::reference_wrapper<const ShaderVariable>>
+        std::variant<std::monostate, std::reference_wrapper<const DescVar>, std::reference_wrapper<const InblockVar>>
         GetVariable(const std::string & name, uint32_t pass_index) const;
 
         /**
-         * @brief Get a shader variable by index for a specific pass index.
+         * @brief Get a shader descriptor variable (textures, UBOs, SSBOs, etc.) by index for a specific pass index.
          * 
          * @param index The index of the shader variable to retrieve.
          * @param pass_index The index of the pass to retrieve the shader variable from.
-         * @return const ShaderVariable & A constant reference to the ShaderVariable struct associated with the specified index and pass index.
+         * @return const DescVar & A constant reference to the DescVar struct associated with the specified index and pass index.
          */
-        const ShaderVariable & GetVariable(uint32_t index, uint32_t pass_index) const;
+        const DescVar & GetDescVariable(uint32_t index, uint32_t pass_index) const;
+
+        /**
+         * @brief Get a shader in-block variable (floats, matrices, etc.) by index for a specific pass index.
+         * 
+         * @param index The index of the shader variable to retrieve.
+         * @param pass_index The index of the pass to retrieve the shader variable from.
+         * @return const InblockVar & A constant reference to the InblockVar struct associated with the specified index and pass index.
+         */
+        const InblockVar & GetInBlockVariable(uint32_t index, uint32_t pass_index) const;
 
         /**
          * @brief Get the index of a shader variable by name for a specific pass index.
+         * It first checks in-block names, and then descriptor names, so in-block variables 
+         * can mask descriptor variables with the same name. In that case a warning would be
+         * issued when the material is being created.
          * 
          * @param name The name of the shader variable to retrieve the index for.
          * @param pass_index The index of the pass to retrieve the index from.
-         * @return uint32_t The index associated with the specified name and pass index.
+         * @return (uint32_t, bool) The index associated with the specified name and pass index,
+         * and whether the variable is a in-block variable (floats, etc) or not.
          */
-        std::optional<uint32_t> GetVariableIndex(const std::string & name, uint32_t pass_index) const noexcept;
+        std::optional<std::pair<uint32_t, bool>> GetVariableIndex(const std::string & name, uint32_t pass_index) const noexcept;
     
         /**
          * @brief Get the depth stencil attachment operation for a specific pass index.

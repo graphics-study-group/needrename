@@ -46,7 +46,7 @@ namespace Engine {
     {
         assert(m_pass_info.contains(pass) && "Cannot find pass.");
         assert(
-            m_parent_template.lock()->GetVariable(index, pass).location.set
+            m_parent_template.lock()->GetDescVariable(index, pass).set
             && "Cannot find uniform in designated pass."
         );
 
@@ -68,7 +68,7 @@ namespace Engine {
         );
         assert(m_pass_info.find(pass) != m_pass_info.end() && "Cannot find pass.");
         assert(
-            m_parent_template.lock()->GetVariable(index, pass).location.set
+            m_parent_template.lock()->GetInBlockVariable(index, pass).block_location.set
             && "Cannot find uniform in designated pass."
         );
 
@@ -139,63 +139,6 @@ namespace Engine {
     }
     void MaterialInstance::Convert(std::shared_ptr <AssetRef> asset)
     {
-        const auto & material_asset = asset->cas<MaterialAsset>();
-
-        const auto & all_passes = m_parent_template.lock()->GetAllPassInfo();
-        for(const auto & [pass_index, pass_info] : all_passes)
-        {
-            for(const auto & [uniform_name, uniform_idx] : pass_info.uniforms.name_mapping)
-            {
-                auto itr = material_asset->m_properties.find(uniform_name);
-                if(itr == material_asset->m_properties.end()) continue;
-
-                auto & uniform = pass_info.uniforms.variables[uniform_idx];
-                switch(uniform.type)
-                {
-                    case MaterialTemplate::ShaderVariable::Type::StorageBuffer:
-                        assert(false && "Unimplemented");
-                        break;
-                    case MaterialTemplate::ShaderVariable::Type::UBO:
-                        break;
-                    case MaterialTemplate::ShaderVariable::Type::Texture:
-                    {
-                        assert(itr->second.m_type == MaterialProperty::Type::Texture);
-                        auto texture_asset = std::any_cast<std::shared_ptr<AssetRef>>(itr->second.m_value)->as<Image2DTextureAsset>();
-                        auto texture = std::make_shared<AllocatedImage2DTexture>(m_system);
-                        texture->Create(*texture_asset);
-                        this->WriteTextureUniform(pass_index, uniform_idx, texture);
-                        m_system.lock()->GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
-                            *texture,
-                            texture_asset->GetPixelData(),
-                            texture_asset->GetPixelDataSize()
-                        );
-                        break;
-                    }
-                    case MaterialTemplate::ShaderVariable::Type::Undefined:
-                    // Is this a UBO variable?
-                        switch(uniform.ubo_type) {
-                            case MaterialTemplate::ShaderVariable::InBlockVarType::Int:
-                                assert(itr->second.m_ubo_type == MaterialTemplate::ShaderVariable::InBlockVarType::Int);
-                                this->WriteUBOUniform(pass_index, uniform_idx, std::any_cast<glm::vec4>(itr->second.m_value));
-                                break;
-                            case MaterialTemplate::ShaderVariable::InBlockVarType::Float:
-                                assert(itr->second.m_ubo_type == MaterialTemplate::ShaderVariable::InBlockVarType::Float);
-                                this->WriteUBOUniform(pass_index, uniform_idx, std::any_cast<glm::vec4>(itr->second.m_value));
-                                break;
-                            case MaterialTemplate::ShaderVariable::InBlockVarType::Vec4:
-                                assert(itr->second.m_ubo_type == MaterialTemplate::ShaderVariable::InBlockVarType::Vec4);
-                                this->WriteUBOUniform(pass_index, uniform_idx, std::any_cast<glm::vec4>(itr->second.m_value));
-                                break;
-                            case MaterialTemplate::ShaderVariable::InBlockVarType::Mat4:
-                                assert(itr->second.m_ubo_type == MaterialTemplate::ShaderVariable::InBlockVarType::Mat4);
-                                this->WriteUBOUniform(pass_index, uniform_idx, std::any_cast<glm::vec4>(itr->second.m_value));
-                                break;
-                            default:
-                                SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Found uniform variable that is neither a UBO variable nor a uniform variable.");
-                        }
-
-                }
-            }
-        }
+        assert(false && "Unimplemented");
     }
 }

@@ -1,5 +1,5 @@
-#ifndef RENDER_MATERIAL_MATERIALTEMPLATEUTILS_INCLUDED
-#define RENDER_MATERIAL_MATERIALTEMPLATEUTILS_INCLUDED
+#ifndef RENDER_PIPELINE_PIPELINEUTILS_INCLUDED
+#define RENDER_PIPELINE_PIPELINEUTILS_INCLUDED
 
 #include <vulkan/vulkan.hpp>
 #include <Asset/Material/MaterialTemplateAsset.h>
@@ -58,6 +58,7 @@ namespace Engine{
          * @param shaders The shaders to convert.
          * @return A list of Vulkan descriptor set layout bindings.
          */
+        [[deprecated]]
         std::vector<vk::DescriptorSetLayoutBinding>
         ToVulkanDescriptorSetLayoutBindings(const MaterialTemplateSinglePassProperties::Shaders &shaders);
 
@@ -91,4 +92,4 @@ namespace Engine{
     }
 }
 
-#endif // RENDER_MATERIAL_MATERIALTEMPLATEUTILS_INCLUDED
+#endif // RENDER_PIPELINE_PIPELINEUTILS_INCLUDED
