@@ -90,12 +90,12 @@ std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate()
     camera_ubo.name = "camera_ubo";
 
     ShaderVariableProperty material_ubo, base_tex, shadowmap_tex;
-    ShaderUBOVariableProperty specular_color, ambient_color;
+    ShaderInBlockVariableProperty specular_color, ambient_color;
     material_ubo.frequency = shadowmap_tex.frequency = base_tex.frequency = ShaderVariableProperty::Frequency::PerMaterial;
     specular_color.frequency = ambient_color.frequency = ShaderVariableProperty::Frequency::PerMaterial;
     material_ubo.type = ShaderVariableProperty::Type::UBO;
     base_tex.type = shadowmap_tex.type = ShaderVariableProperty::Type::Texture;
-    specular_color.type = ambient_color.type = ShaderUBOVariableProperty::UBOType::Vec4;
+    specular_color.type = ambient_color.type = ShaderInBlockVariableProperty::InBlockVarType::Vec4;
     material_ubo.binding = 0;
     base_tex.binding = 1;
     shadowmap_tex.binding = 2;
@@ -209,10 +209,10 @@ int main(int argc, char ** argv)
     auto test_template = std::make_shared<MaterialTemplate>(rsys, test_asset_ref);
     auto test_material_instance = std::make_shared<MaterialInstance>(rsys, test_template);
     test_material_instance->WriteDescriptors(0);
-    test_material_instance->WriteUBOUniform(1, test_template->GetVariableIndex("ambient_color", 1).value(), glm::vec4(0.0, 0.0, 0.0, 0.0));
-    test_material_instance->WriteUBOUniform(1, test_template->GetVariableIndex("specular_color", 1).value(), glm::vec4(1.0, 1.0, 1.0, 64.0));
-    test_material_instance->WriteTextureUniform(1, test_template->GetVariableIndex("base_tex", 1).value(), blank_color);
-    test_material_instance->WriteTextureUniform(1, test_template->GetVariableIndex("shadowmap_tex", 1).value(), shadow);
+    test_material_instance->WriteUBOUniform(1, test_template->GetVariableIndex("ambient_color", 1).value().first, glm::vec4(0.0, 0.0, 0.0, 0.0));
+    test_material_instance->WriteUBOUniform(1, test_template->GetVariableIndex("specular_color", 1).value().first, glm::vec4(1.0, 1.0, 1.0, 64.0));
+    test_material_instance->WriteTextureUniform(1, test_template->GetVariableIndex("base_tex", 1).value().first, blank_color);
+    // test_material_instance->WriteTextureUniform(1, test_template->GetVariableIndex("shadowmap_tex", 1).value().first, shadow);
     test_material_instance->WriteDescriptors(1);
 
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueVertexBufferSubmission(test_mesh);

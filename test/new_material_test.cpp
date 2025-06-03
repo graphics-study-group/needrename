@@ -65,12 +65,12 @@ std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate()
     camera_ubo.name = "camera_ubo";
 
     ShaderVariableProperty material_ubo, base_tex;
-    ShaderUBOVariableProperty specular_color, ambient_color;
+    ShaderInBlockVariableProperty specular_color, ambient_color;
     material_ubo.frequency = base_tex.frequency = ShaderVariableProperty::Frequency::PerMaterial;
     specular_color.frequency = ambient_color.frequency = ShaderVariableProperty::Frequency::PerMaterial;\
     material_ubo.type = ShaderVariableProperty::Type::UBO;
     base_tex.type = ShaderVariableProperty::Type::Texture;
-    specular_color.type = ambient_color.type = ShaderUBOVariableProperty::UBOType::Vec4;
+    specular_color.type = ambient_color.type = ShaderInBlockVariableProperty::InBlockVarType::Vec4;
     material_ubo.binding = 0;
     base_tex.binding = 1;
     specular_color.binding = ambient_color.binding = 0;
