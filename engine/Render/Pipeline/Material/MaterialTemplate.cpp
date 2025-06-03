@@ -78,7 +78,7 @@ namespace Engine
             pass_info.inblock.vars.insert(pass_info.inblock.vars.end(), ref.inblock.vars.begin(), ref.inblock.vars.end());
 
             for (auto & [_, idx] : ref.desc.names) {
-                idx += pass_info.inblock.vars.size();
+                idx += pass_info.desc.vars.size();
             }
             pass_info.desc.names.merge(ref.desc.names);
             pass_info.desc.vars.insert(pass_info.desc.vars.end(), ref.desc.vars.begin(), ref.desc.vars.end());
@@ -368,7 +368,7 @@ namespace Engine
     }
     void MaterialTemplate::PlaceUBOVariables(const MaterialInstance &instance, std::vector<std::byte> & memory, uint32_t pass_index) const
     {
-        const auto & variables = instance.GetVariables(pass_index);
+        const auto & variables = instance.GetInBlockVariables(pass_index);
         const auto & pass_info = this->GetPassInfo(pass_index);
 
         PipelineInfo::PlaceUBOVariables(variables, pass_info, memory);
@@ -377,7 +377,7 @@ namespace Engine
     MaterialTemplate::GetDescriptorImageInfo(const MaterialInstance &instance, uint32_t pass_index) const
     {
         const auto & pass_info = this->GetPassInfo(pass_index);
-        const auto & instance_vars = instance.GetVariables(pass_index);
+        const auto & instance_vars = instance.GetDescVariables(pass_index);
         return PipelineInfo::GetDescriptorImageInfo(instance_vars, pass_info, m_default_sampler.get());
     }
 } // namespace Engine

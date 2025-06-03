@@ -18,16 +18,14 @@ namespace Engine {
         // Allocate uniform buffers and per-material descriptor sets
         for (const auto & [idx, info] : tpl->GetAllPassInfo()) {
             PassInfo pass{};
-            pass.desc_set = tpl->AllocateDescriptorSet(idx);
-
             auto ubo_size = tpl->GetMaximalUBOSize(idx);
             if (ubo_size == 0) {
                 SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Found zero-sized UBO when processing pass %llu of material", ubo_size);
             } else {
+                pass.desc_set = tpl->AllocateDescriptorSet(idx);
                 pass.ubo = std::make_unique<Buffer>(system);
                 pass.ubo->Create(Buffer::BufferType::Uniform, tpl->GetMaximalUBOSize(idx));
             }
-
             m_pass_info[idx] = std::move(pass);
         }
     }
@@ -37,9 +35,14 @@ namespace Engine {
         return *m_parent_template.lock();
     }
 
-    auto MaterialInstance::GetVariables(uint32_t pass_index) const -> const decltype(m_variables.at(0)) &
+    auto MaterialInstance::GetInBlockVariables(uint32_t pass_index) const -> const decltype(m_inblock_variables.at(0)) &
     {
-        return m_variables.at(pass_index);
+        return m_inblock_variables.at(pass_index);
+    }
+
+    auto MaterialInstance::GetDescVariables(uint32_t pass_index) const -> const decltype(m_desc_variables.at(0)) &
+    {
+        return m_desc_variables.at(pass_index);
     }
 
     void MaterialInstance::WriteTextureUniform(uint32_t pass, uint32_t index, std::shared_ptr <const ImageInterface> texture)
@@ -50,7 +53,7 @@ namespace Engine {
             && "Cannot find uniform in designated pass."
         );
 
-        m_variables[pass][index] = std::any(texture);
+        m_desc_variables[pass][index] = std::any(texture);
         m_pass_info[pass].is_descriptor_set_dirty = true;
     }
 
@@ -72,7 +75,7 @@ namespace Engine {
             && "Cannot find uniform in designated pass."
         );
 
-        m_variables[pass][index] = uniform;
+        m_inblock_variables[pass][index] = uniform;
         m_pass_info[pass].is_ubo_dirty = true;
     }
 
@@ -98,6 +101,7 @@ namespace Engine {
         assert(m_pass_info.contains(pass) && "Cannot find pass.");
         auto & pass_info = m_pass_info[pass];
 
+        if (!pass_info.desc_set)    return;
         if (!pass_info.is_descriptor_set_dirty)    return;
 
         auto tpl = m_parent_template.lock();

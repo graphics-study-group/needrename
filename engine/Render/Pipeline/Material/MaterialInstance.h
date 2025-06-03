@@ -18,7 +18,8 @@ namespace Engine
     protected:
         std::weak_ptr <RenderSystem> m_system;
         std::weak_ptr <MaterialTemplate> m_parent_template;
-        std::unordered_map <uint32_t, std::unordered_map<uint32_t, std::any>> m_variables {};
+        std::unordered_map <uint32_t, std::unordered_map<uint32_t, std::any>> m_desc_variables {};
+        std::unordered_map <uint32_t, std::unordered_map<uint32_t, std::any>> m_inblock_variables {};
         std::unordered_map <uint32_t, PassInfo> m_pass_info {};
 
         // A small buffer for uniform buffer staging to avoid random write to UBO.
@@ -46,7 +47,15 @@ namespace Engine
          * @param pass_index The index of the pass
          * @return A reference to the variables map for the specified pass
          */
-        auto GetVariables(uint32_t pass_index) const -> const decltype(m_variables.at(0)) &;
+        auto GetInBlockVariables(uint32_t pass_index) const -> const decltype(m_inblock_variables.at(0)) &;
+
+        /**
+         * @brief Get the variables of a specific pass
+         *
+         * @param pass_index The index of the pass
+         * @return A reference to the variables map for the specified pass
+         */
+        auto GetDescVariables(uint32_t pass_index) const -> const decltype(m_desc_variables.at(0)) &;
 
         /**
          * @brief Set the texture uniform descriptor to point to a given texture.
