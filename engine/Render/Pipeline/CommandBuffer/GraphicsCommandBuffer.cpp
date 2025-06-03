@@ -107,8 +107,16 @@ namespace Engine
         const auto & pipeline = material.GetTemplate().GetPipeline(pass_index);
         const auto & pipeline_layout = material.GetTemplate().GetPipelineLayout(pass_index);
 
-        cb.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
-        m_bound_material_pipeline = std::make_pair(pipeline, pipeline_layout);
+        bool bind_new_pipeline = false;
+        if (!m_bound_material_pipeline.has_value()) {
+            bind_new_pipeline = true;
+        } else if (pipeline != m_bound_material_pipeline.value().first || pipeline_layout != m_bound_material_pipeline.value().second) {
+            bind_new_pipeline = true;
+        }
+        if (bind_new_pipeline) {
+            cb.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
+            m_bound_material_pipeline = std::make_pair(pipeline, pipeline_layout);
+        }
 
         const auto & global_pool = m_system.GetGlobalConstantDescriptorPool();
         const auto & per_scenc_descriptor_set = global_pool.GetPerSceneConstantSet(m_inflight_frame_index);
