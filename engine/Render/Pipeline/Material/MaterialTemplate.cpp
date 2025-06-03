@@ -52,6 +52,46 @@ namespace Engine
             };
         }
 
+        // Save uniform locations
+        #ifndef NDEBUG
+        std::unordered_set <std::string> names;
+        for (auto & ref : reflected) {
+            for (auto & [name, _] : ref.inblock.names) {
+                if (names.find(name) != names.end()) {
+                    SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Duplicated variable name %s", name.c_str());
+                }
+                names.insert(name);
+            }
+            for (auto & [name, _] : ref.desc.names) {
+                if (names.find(name) != names.end()) {
+                    SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Duplicated variable name %s", name.c_str());
+                }
+                names.insert(name);
+            }
+        }
+        #endif
+        for (auto & ref : reflected) {
+            for (auto & [_, idx] : ref.inblock.names) {
+                idx += pass_info.inblock.vars.size();
+            }
+            pass_info.inblock.names.merge(ref.inblock.names);
+            pass_info.inblock.vars.insert(pass_info.inblock.vars.end(), ref.inblock.vars.begin(), ref.inblock.vars.end());
+
+            for (auto & [_, idx] : ref.desc.names) {
+                idx += pass_info.inblock.vars.size();
+            }
+            pass_info.desc.names.merge(ref.desc.names);
+            pass_info.desc.vars.insert(pass_info.desc.vars.end(), ref.desc.vars.begin(), ref.desc.vars.end());
+        }
+
+        pass_info.inblock.maximal_ubo_size = 0;
+        for (const auto & var : pass_info.inblock.vars) {
+            pass_info.inblock.maximal_ubo_size = std::max(
+                pass_info.inblock.maximal_ubo_size, 
+                1ULL * var.inblock_location.offset + var.inblock_location.size
+            );
+        }
+
         // Create pipeline layout
         {
             const auto & pool = m_system.lock()->GetGlobalConstantDescriptorPool();
@@ -82,7 +122,7 @@ namespace Engine
                 pass_info.pipeline_layout = device.createPipelineLayoutUnique(plci);
             } else {
                 SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Material %s pipeline %u has no material descriptors.", this->m_name.c_str(), pass_index);
-    
+
                 std::array <vk::PushConstantRange, 1> push_constants{ConstantData::PerModelConstantPushConstant::GetPushConstantRange()};
                 std::array <vk::DescriptorSetLayout, 2> set_layouts{
                     pool.GetPerSceneConstantLayout().get(), 
@@ -263,8 +303,19 @@ namespace Engine
     vk::DescriptorSet MaterialTemplate::AllocateDescriptorSet(uint32_t pass_index)
     {
         assert(m_passes.contains(pass_index) && "Invaild pass index");
+
+        auto layout = m_passes.at(pass_index).desc_layout.get();
+        if (!layout) {
+            SDL_LogWarn(
+                SDL_LOG_CATEGORY_RENDER, 
+                "Allocating empty descriptor for material %s pass %u", 
+                m_name.c_str(), pass_index
+            );
+            return nullptr;
+        }
+
         vk::DescriptorSetAllocateInfo dsai {
-            m_poolInfo.pool.get(), {m_passes.at(pass_index).desc_layout.get()}
+            m_poolInfo.pool.get(), {layout}
         };
         auto sets = m_system.lock()->getDevice().allocateDescriptorSets(dsai);
         return sets[0];
