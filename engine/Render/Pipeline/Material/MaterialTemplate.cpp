@@ -7,7 +7,7 @@
 #include "Render/Renderer/HomogeneousMesh.h"
 #include "Render/RenderSystem/GlobalConstantDescriptorPool.h"
 #include "Render/RenderSystem/Swapchain.h"
-
+#include "Render/Pipeline/Material/ShaderUtils.h"
 #include "Render/DebugUtils.h"
 
 #include <glm.hpp>
@@ -50,8 +50,10 @@ namespace Engine
         psscis.resize(prop.shaders.shaders.size());
         for (size_t i = 0; i < prop.shaders.shaders.size(); i++) {
             assert(prop.shaders.shaders[i] && "Invalid shader asset.");
+
             auto shader_asset = prop.shaders.shaders[i]->cas<ShaderAsset>();
             auto code = shader_asset->binary;
+            auto reflected = ShaderUtils::ReflectSpirvData(code);
             vk::ShaderModuleCreateInfo ci {
                 {},
                 code.size() * sizeof(uint32_t),
@@ -181,7 +183,7 @@ namespace Engine
                 pass_info.uniforms.variables.push_back(
                     ShaderVariable{
                         .type = uniform.type,
-                        .ubo_type = ShaderUBOVariableProperty::UBOType::Undefined,
+                        .ubo_type = ShaderInBlockVariableProperty::InBlockVarType::Undefined,
                         .location = ShaderVariable::Location{
                             .set = static_cast<uint32_t>(uniform.frequency),
                             .binding = uniform.binding, 
@@ -211,7 +213,7 @@ namespace Engine
 
                 pass_info.uniforms.maximal_ubo_size = std::max(
                     pass_info.uniforms.maximal_ubo_size,
-                    uv.offset + ShaderUBOVariableProperty::SizeOf(uv.type)
+                    uv.offset + ShaderInBlockVariableProperty::SizeOf(uv.type)
                 );
             }
         }

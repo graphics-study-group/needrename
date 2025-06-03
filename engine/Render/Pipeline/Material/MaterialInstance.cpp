@@ -174,20 +174,20 @@ namespace Engine {
                     case MaterialTemplate::ShaderVariable::Type::Undefined:
                     // Is this a UBO variable?
                         switch(uniform.ubo_type) {
-                            case MaterialTemplate::ShaderVariable::UBOType::Int:
-                                assert(itr->second.m_ubo_type == MaterialTemplate::ShaderVariable::UBOType::Int);
+                            case MaterialTemplate::ShaderVariable::InBlockVarType::Int:
+                                assert(itr->second.m_ubo_type == MaterialTemplate::ShaderVariable::InBlockVarType::Int);
                                 this->WriteUBOUniform(pass_index, uniform_idx, std::any_cast<glm::vec4>(itr->second.m_value));
                                 break;
-                            case MaterialTemplate::ShaderVariable::UBOType::Float:
-                                assert(itr->second.m_ubo_type == MaterialTemplate::ShaderVariable::UBOType::Float);
+                            case MaterialTemplate::ShaderVariable::InBlockVarType::Float:
+                                assert(itr->second.m_ubo_type == MaterialTemplate::ShaderVariable::InBlockVarType::Float);
                                 this->WriteUBOUniform(pass_index, uniform_idx, std::any_cast<glm::vec4>(itr->second.m_value));
                                 break;
-                            case MaterialTemplate::ShaderVariable::UBOType::Vec4:
-                                assert(itr->second.m_ubo_type == MaterialTemplate::ShaderVariable::UBOType::Vec4);
+                            case MaterialTemplate::ShaderVariable::InBlockVarType::Vec4:
+                                assert(itr->second.m_ubo_type == MaterialTemplate::ShaderVariable::InBlockVarType::Vec4);
                                 this->WriteUBOUniform(pass_index, uniform_idx, std::any_cast<glm::vec4>(itr->second.m_value));
                                 break;
-                            case MaterialTemplate::ShaderVariable::UBOType::Mat4:
-                                assert(itr->second.m_ubo_type == MaterialTemplate::ShaderVariable::UBOType::Mat4);
+                            case MaterialTemplate::ShaderVariable::InBlockVarType::Mat4:
+                                assert(itr->second.m_ubo_type == MaterialTemplate::ShaderVariable::InBlockVarType::Mat4);
                                 this->WriteUBOUniform(pass_index, uniform_idx, std::any_cast<glm::vec4>(itr->second.m_value));
                                 break;
                             default:

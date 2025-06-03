@@ -90,7 +90,7 @@ namespace Engine
             std::vector <ShaderVariableProperty> uniforms {};
 
             /// @brief stores information of variables stored in the UBO.
-            std::vector <ShaderUBOVariableProperty> ubo_variables {};
+            std::vector <ShaderInBlockVariableProperty> ubo_variables {};
         } shaders {};
 
         /// @brief C.f. `vkPipelineRenderingCreateInfo`

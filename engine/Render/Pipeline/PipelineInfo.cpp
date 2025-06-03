@@ -26,7 +26,7 @@ namespace Engine::PipelineInfo {
             const auto offset = info.uniforms.variables[idx].location.offset;
     
             using Type = ShaderVariable::Type;
-            using UBOType = ShaderUBOVariableProperty::UBOType;
+            using UBOType = ShaderInBlockVariableProperty::InBlockVarType;
             switch(info.uniforms.variables[idx].ubo_type) {
             case UBOType::Int:
                 assert(var.type() == typeid(int));

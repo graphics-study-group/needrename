@@ -12,10 +12,10 @@ namespace Engine {
     namespace PipelineInfo {
         struct ShaderVariable {
             using Type = ShaderVariableProperty::Type;
-            using UBOType = ShaderUBOVariableProperty::UBOType;
+            using InBlockVarType = ShaderInBlockVariableProperty::InBlockVarType;
 
             Type type {};
-            UBOType ubo_type {};
+            InBlockVarType ubo_type {};
             struct Location {
                 uint32_t set{};
                 uint32_t binding{};

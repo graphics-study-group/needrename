@@ -6,15 +6,15 @@
 
 namespace Engine {
 
-    struct REFL_SER_CLASS(REFL_WHITELIST) ShaderUBOVariableProperty 
+    struct REFL_SER_CLASS(REFL_WHITELIST) ShaderInBlockVariableProperty 
     {
-        REFL_SER_BODY(ShaderUBOVariableProperty)
+        REFL_SER_BODY(ShaderInBlockVariableProperty)
 
-        REFL_ENABLE ShaderUBOVariableProperty() = default;
-        virtual ~ShaderUBOVariableProperty() = default;
+        REFL_ENABLE ShaderInBlockVariableProperty() = default;
+        virtual ~ShaderInBlockVariableProperty() = default;
 
         /// @brief what is the type of this variable?
-        enum class UBOType {
+        enum class InBlockVarType {
             Undefined,
             Float,
             Int,
@@ -29,14 +29,14 @@ namespace Engine {
             PerModel = 3
         };
 
-        static constexpr size_t SizeOf(UBOType type) {
+        static constexpr size_t SizeOf(InBlockVarType type) {
             switch(type) {
-            case UBOType::Float:
-            case UBOType::Int:
+            case InBlockVarType::Float:
+            case InBlockVarType::Int:
                 return 4;
-            case UBOType::Vec4:
+            case InBlockVarType::Vec4:
                 return 16;
-            case UBOType::Mat4:
+            case InBlockVarType::Mat4:
                 return 64;
             default:
                 return 0;
@@ -44,7 +44,7 @@ namespace Engine {
         };
 
         /// @brief what is the type of this variable?
-        REFL_SER_ENABLE UBOType type {};
+        REFL_SER_ENABLE InBlockVarType type {};
 
         /// @brief How frequently the value this variable changes?
         /// Corresponds to descriptor set index of this variable.
@@ -71,7 +71,7 @@ namespace Engine {
         REFL_ENABLE ShaderVariableProperty() = default;
         virtual ~ShaderVariableProperty() = default;
 
-        using Frequency = ShaderUBOVariableProperty::Frequency;
+        using Frequency = ShaderInBlockVariableProperty::Frequency;
 
         /// @brief what is the type of this variable?
         REFL_SER_ENABLE enum class Type {

@@ -117,12 +117,12 @@ namespace Engine {
 
             auto camera_uniforms_variable_range = std::ranges::filter_view(
                 p.ubo_variables, 
-                [](const ShaderUBOVariableProperty & prop) -> bool {
+                [](const ShaderInBlockVariableProperty & prop) -> bool {
                     return prop.frequency == ShaderVariableProperty::Frequency::PerCamera;
                 }
             );
             for (const auto & prop : camera_uniforms_variable_range) {
-                using Type = ShaderUBOVariableProperty::UBOType;
+                using Type = ShaderInBlockVariableProperty::InBlockVarType;
                 if (prop.type != Type::Mat4 || (prop.offset != 0 && prop.offset != 64) || (prop.binding != 0)) {
                     SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Found non-compatible camera uniforms %s.", prop.name.c_str());
                 }
@@ -153,7 +153,7 @@ namespace Engine {
                 }
                 auto material_uniforms_variable_range = std::ranges::filter_view(
                     p.ubo_variables, 
-                    [](const ShaderUBOVariableProperty & prop) -> bool {
+                    [](const ShaderInBlockVariableProperty & prop) -> bool {
                         return prop.frequency == ShaderVariableProperty::Frequency::PerMaterial;
                     }
                 );
