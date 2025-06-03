@@ -52,40 +52,6 @@ std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate()
     MaterialTemplateSinglePassProperties mtspp{};
     mtspp.shaders.shaders = std::vector<std::shared_ptr<AssetRef>>{vs_ref, fs_ref};
 
-    ShaderVariableProperty scene_ubo;
-    scene_ubo.frequency = ShaderVariableProperty::Frequency::PerScene;
-    scene_ubo.type = ShaderVariableProperty::Type::UBO;
-    scene_ubo.binding = 0;
-    scene_ubo.name = "scene_ubo";
-
-    ShaderVariableProperty camera_ubo;
-    camera_ubo.frequency =ShaderVariableProperty::Frequency::PerCamera;
-    camera_ubo.type = ShaderVariableProperty::Type::UBO;
-    camera_ubo.binding = 0;
-    camera_ubo.name = "camera_ubo";
-
-    ShaderVariableProperty material_ubo, base_tex;
-    ShaderInBlockVariableProperty specular_color, ambient_color;
-    material_ubo.frequency = base_tex.frequency = ShaderVariableProperty::Frequency::PerMaterial;
-    specular_color.frequency = ambient_color.frequency = ShaderVariableProperty::Frequency::PerMaterial;\
-    material_ubo.type = ShaderVariableProperty::Type::UBO;
-    base_tex.type = ShaderVariableProperty::Type::Texture;
-    specular_color.type = ambient_color.type = ShaderInBlockVariableProperty::InBlockVarType::Vec4;
-    material_ubo.binding = 0;
-    base_tex.binding = 1;
-    specular_color.binding = ambient_color.binding = 0;
-    specular_color.offset = 0;
-    ambient_color.offset = 16;
-    base_tex.name = "base_tex";
-    specular_color.name = "specular_color";
-    ambient_color.name = "ambient_color";
-
-    mtspp.shaders.uniforms = {
-        scene_ubo, camera_ubo, material_ubo, base_tex
-    };
-    mtspp.shaders.ubo_variables = {
-        specular_color, ambient_color
-    };
     test_asset->properties.properties[0] = mtspp;
 
     return test_asset;

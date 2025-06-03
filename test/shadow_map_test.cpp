@@ -77,45 +77,6 @@ std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate()
     shadow_map_pass.attachments.depth = ImageUtils::ImageFormat::D32SFLOAT;
     lit_pass.shaders.shaders = std::vector {vs_ref, fs_ref};
 
-    ShaderVariableProperty scene_ubo;
-    scene_ubo.frequency = ShaderVariableProperty::Frequency::PerScene;
-    scene_ubo.type = ShaderVariableProperty::Type::UBO;
-    scene_ubo.binding = 0;
-    scene_ubo.name = "scene_ubo";
-
-    ShaderVariableProperty camera_ubo;
-    camera_ubo.frequency =ShaderVariableProperty::Frequency::PerCamera;
-    camera_ubo.type = ShaderVariableProperty::Type::UBO;
-    camera_ubo.binding = 0;
-    camera_ubo.name = "camera_ubo";
-
-    ShaderVariableProperty material_ubo, base_tex, shadowmap_tex;
-    ShaderInBlockVariableProperty specular_color, ambient_color;
-    material_ubo.frequency = shadowmap_tex.frequency = base_tex.frequency = ShaderVariableProperty::Frequency::PerMaterial;
-    specular_color.frequency = ambient_color.frequency = ShaderVariableProperty::Frequency::PerMaterial;
-    material_ubo.type = ShaderVariableProperty::Type::UBO;
-    base_tex.type = shadowmap_tex.type = ShaderVariableProperty::Type::Texture;
-    specular_color.type = ambient_color.type = ShaderInBlockVariableProperty::InBlockVarType::Vec4;
-    material_ubo.binding = 0;
-    base_tex.binding = 1;
-    shadowmap_tex.binding = 2;
-    specular_color.binding = ambient_color.binding = 0;
-    specular_color.offset = 0;
-    ambient_color.offset = 16;
-    base_tex.name = "base_tex";
-    shadowmap_tex.name = "shadowmap_tex";
-    specular_color.name = "specular_color";
-    ambient_color.name = "ambient_color";
-
-    shadow_map_pass.shaders.uniforms = {
-        camera_ubo
-    };
-    lit_pass.shaders.uniforms = {
-        scene_ubo, camera_ubo, material_ubo, base_tex, shadowmap_tex
-    };
-    lit_pass.shaders.ubo_variables = {
-        specular_color, ambient_color
-    };
     test_asset->properties.properties[0] = shadow_map_pass;
     test_asset->properties.properties[1] = lit_pass;
 
