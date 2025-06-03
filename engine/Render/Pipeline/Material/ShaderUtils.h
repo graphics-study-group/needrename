@@ -1,7 +1,8 @@
-#ifndef RENDER_PIPELINE_SHADER_INCLUDED
-#define RENDER_PIPELINE_SHADER_INCLUDED
+#ifndef PIPELINE_MATERIAL_SHADERUTILS_INCLUDED
+#define PIPELINE_MATERIAL_SHADERUTILS_INCLUDED
 
-#include "Render/Pipeline/PipelineInfo.h"
+#include "Asset/Material/ShaderAsset.h"
+#include <unordered_map>
 #include <vulkan/vulkan.hpp>
 
 namespace Engine
@@ -25,7 +26,7 @@ namespace Engine
                 uint32_t size;
             } inblock_location;
             
-            using Type = PipelineInfo::ShaderVariable::InBlockVarType;
+            using Type = ShaderInBlockVariableProperty::InBlockVarType;
             Type type;
         };
 
@@ -33,7 +34,7 @@ namespace Engine
             uint32_t set;
             uint32_t binding;
 
-            using Type = PipelineInfo::ShaderVariable::Type;
+            using Type = ShaderVariableProperty::Type;
             Type type;
         };
 
@@ -57,4 +58,4 @@ namespace Engine
 } // namespace Engine
 
 
-#endif // RENDER_PIPELINE_SHADER_INCLUDED
+#endif // PIPELINE_MATERIAL_SHADERUTILS_INCLUDED

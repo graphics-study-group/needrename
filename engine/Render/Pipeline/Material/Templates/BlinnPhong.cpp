@@ -14,9 +14,9 @@ namespace Engine::Materials
         std::shared_ptr<MaterialTemplate> tpl
     ) : MaterialInstance(system, tpl)
     {
-        texture_id = tpl->GetVariableIndex("base_tex", 0).value();
-        specular_id = tpl->GetVariableIndex("specular_color", 0).value();
-        ambient_id = tpl->GetVariableIndex("ambient_color", 0).value();
+        texture_id = tpl->GetVariableIndex("base_tex", 0).value().first;
+        specular_id = tpl->GetVariableIndex("specular_color", 0).value().first;
+        ambient_id = tpl->GetVariableIndex("ambient_color", 0).value().first;
     }
 
     void BlinnPhongInstance::SetBaseTexture(std::shared_ptr<const AllocatedImage2DTexture> image) {

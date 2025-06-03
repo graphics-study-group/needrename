@@ -95,7 +95,7 @@ namespace Engine
                             reflected.desc.vars.push_back(DesciptorVariableData{
                                 .set = refl_set.set,
                                 .binding = refl_binding.binding,
-                                .type = PipelineInfo::ShaderVariable::Type::UBO
+                                .type = DesciptorVariableData::Type::UBO
                             });
                             for (const auto & [name, type] : EnumerateInBlockVariables(refl_binding)) {
                                 reflected.inblock.names[name] = reflected.inblock.vars.size();
@@ -107,7 +107,7 @@ namespace Engine
                             reflected.desc.vars.push_back(DesciptorVariableData{
                                 .set = refl_set.set,
                                 .binding = refl_binding.binding,
-                                .type = PipelineInfo::ShaderVariable::Type::StorageBuffer
+                                .type = DesciptorVariableData::Type::StorageBuffer
                             });
                             break;
                         case vk::DescriptorType::eStorageImage:
@@ -115,7 +115,7 @@ namespace Engine
                             reflected.desc.vars.push_back(DesciptorVariableData{
                                 .set = refl_set.set,
                                 .binding = refl_binding.binding,
-                                .type = PipelineInfo::ShaderVariable::Type::StorageImage
+                                .type = DesciptorVariableData::Type::StorageImage
                             });
                             break;
                         case vk::DescriptorType::eCombinedImageSampler:
@@ -123,7 +123,7 @@ namespace Engine
                             reflected.desc.vars.push_back(DesciptorVariableData{
                                 .set = refl_set.set,
                                 .binding = refl_binding.binding,
-                                .type = PipelineInfo::ShaderVariable::Type::Texture
+                                .type = DesciptorVariableData::Type::Texture
                             });
                             break;
                         default:
