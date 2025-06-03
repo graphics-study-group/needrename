@@ -14,7 +14,6 @@
 #include "Render/RenderSystem/GlobalConstantDescriptorPool.h"
 #include "Render/RenderSystem/MaterialRegistry.h"
 
-#include "Render/Pipeline/Shader.h"
 #include "Render/Pipeline/CommandBuffer.h"
 #include "Render/Pipeline/CommandBuffer/GraphicsContext.h"
 #include "Render/Pipeline/RenderTargetBinding.h"
