@@ -66,20 +66,31 @@ namespace Engine
                     desc_bindings = &ref.per_material_descriptor_set_layout.bindings;
                 }
             }
-            vk::DescriptorSetLayoutCreateInfo dslci {
-                {}, *desc_bindings
-            };
-            pass_info.desc_layout = device.createDescriptorSetLayoutUnique(dslci);
-
-            std::array <vk::PushConstantRange, 1> push_constants{ConstantData::PerModelConstantPushConstant::GetPushConstantRange()};
-            std::array <vk::DescriptorSetLayout, 3> set_layouts{
-                pool.GetPerSceneConstantLayout().get(), 
-                pool.GetPerCameraConstantLayout().get(),
-                pass_info.desc_layout.get()
-            };
-
-            vk::PipelineLayoutCreateInfo plci{{}, set_layouts, push_constants};
-            pass_info.pipeline_layout = device.createPipelineLayoutUnique(plci);
+            if (desc_bindings) {
+                vk::DescriptorSetLayoutCreateInfo dslci {
+                    {}, *desc_bindings
+                };
+                pass_info.desc_layout = device.createDescriptorSetLayoutUnique(dslci);
+    
+                std::array <vk::PushConstantRange, 1> push_constants{ConstantData::PerModelConstantPushConstant::GetPushConstantRange()};
+                std::array <vk::DescriptorSetLayout, 3> set_layouts{
+                    pool.GetPerSceneConstantLayout().get(), 
+                    pool.GetPerCameraConstantLayout().get(),
+                    pass_info.desc_layout.get()
+                };
+                vk::PipelineLayoutCreateInfo plci{{}, set_layouts, push_constants};
+                pass_info.pipeline_layout = device.createPipelineLayoutUnique(plci);
+            } else {
+                SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Material %s pipeline %u has no material descriptors.", this->m_name.c_str(), pass_index);
+    
+                std::array <vk::PushConstantRange, 1> push_constants{ConstantData::PerModelConstantPushConstant::GetPushConstantRange()};
+                std::array <vk::DescriptorSetLayout, 2> set_layouts{
+                    pool.GetPerSceneConstantLayout().get(), 
+                    pool.GetPerCameraConstantLayout().get()
+                };
+                vk::PipelineLayoutCreateInfo plci{{}, set_layouts, push_constants};
+                pass_info.pipeline_layout = device.createPipelineLayoutUnique(plci);
+            }
         }
 
         bool use_swapchain_attachments = prop.attachments.color.empty() && prop.attachments.depth == ImageUtils::ImageFormat::UNDEFINED;
@@ -182,9 +193,6 @@ namespace Engine
         auto ret = device.createGraphicsPipelineUnique(nullptr, gpci);
         pass_info.pipeline = std::move(ret.value);
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Successfully created pass %u for material %s.", pass_index, m_name.c_str());
-
-        // Save uniform locations
-        
 
         this->m_passes[pass_index] = std::move(pass_info);
     }
