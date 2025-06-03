@@ -14,20 +14,31 @@ namespace Engine
         };
 
         struct InBlockVariableData {
-            struct Location{
+            struct BlockLocation {
                 uint32_t set;
                 uint32_t binding;
             } block_location;
-            PipelineInfo::ShaderVariable::UBOType type;
+
+            struct InBlockLocation {
+                uint32_t offset;
+                uint32_t abs_offset;
+                uint32_t size;
+            } inblock_location;
+            
+            using Type = PipelineInfo::ShaderVariable::InBlockVarType;
+            Type type;
         };
 
         struct DesciptorVariableData {
             uint32_t set;
             uint32_t binding;
-            PipelineInfo::ShaderVariable::Type type;
+
+            using Type = PipelineInfo::ShaderVariable::Type;
+            Type type;
         };
 
         struct ReflectedDataCollection {
+            bool has_material_descriptor_set;
             DescriptorSetLayoutData per_material_descriptor_set_layout;
 
             struct {
