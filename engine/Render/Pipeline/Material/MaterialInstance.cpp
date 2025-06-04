@@ -23,7 +23,7 @@ namespace Engine {
                 SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Found zero-sized UBO when processing pass %llu of material", ubo_size);
             } else {
                 pass.desc_set = tpl->AllocateDescriptorSet(idx);
-                pass.ubo = std::make_unique<Buffer>(system);
+                pass.ubo = std::make_unique<Buffer>(system.lock());
                 pass.ubo->Create(Buffer::BufferType::Uniform, tpl->GetMaximalUBOSize(idx));
             }
             m_pass_info[idx] = std::move(pass);

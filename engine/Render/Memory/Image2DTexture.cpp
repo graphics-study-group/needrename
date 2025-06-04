@@ -26,7 +26,7 @@ namespace Engine {
         uint64_t buffer_size = m_extent.height * m_extent.width * ImageUtils::GetPixelSize(m_format);
         assert(buffer_size > 0);
 
-        Buffer buffer{m_system};
+        Buffer buffer{m_system.lock()};
         buffer.Create(Buffer::BufferType::Staging, buffer_size, "Buffer - texture staging");
         return buffer;
     }

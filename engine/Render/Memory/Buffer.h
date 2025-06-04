@@ -16,7 +16,8 @@ namespace Engine{
     public:
 
         using BufferType = RenderSystemState::AllocatorState::BufferType;
-        Buffer (std::weak_ptr <RenderSystem> system);
+        Buffer (std::shared_ptr <RenderSystem> system);
+        Buffer (RenderSystem & system);
 
         /// @brief Create a buffer, and perform allocation if needed.
         /// @param type 
@@ -35,7 +36,7 @@ namespace Engine{
     protected:
         size_t m_size {0ULL};
 
-        std::weak_ptr <RenderSystem> m_system;
+        RenderSystem & m_system;
         std::unique_ptr <AllocatedMemory> m_allocated_memory {};
     };
 }
