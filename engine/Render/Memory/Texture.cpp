@@ -6,7 +6,7 @@
 #include "Render/RenderSystem/AllocatorState.h"
 
 namespace Engine {
-    Texture::Texture(RenderSystem & system) : m_system(system)
+    Texture::Texture(RenderSystem & system) noexcept : m_system(system)
     {
     }
 

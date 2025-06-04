@@ -177,13 +177,14 @@ namespace Engine::RenderSystemState {
             vk::ImageLayout::eUndefined,
             nullptr
         };
+        VkImageCreateInfo iinfo2 = static_cast<VkImageCreateInfo>(iinfo);
 
         VmaAllocationCreateInfo ainfo {};
         ainfo.usage = musage;
 
         VkImage image;
         VmaAllocation allocation;
-        vmaCreateImage(m_allocator, &static_cast<VkImageCreateInfo>(iinfo), &ainfo, &image, &allocation, nullptr);
+        vmaCreateImage(m_allocator, &iinfo2, &ainfo, &image, &allocation, nullptr);
         DEBUG_SET_NAME_TEMPLATE(m_system.getDevice(), static_cast<vk::Image>(image), name);
         return std::make_unique<AllocatedMemory>(AllocatedMemory(static_cast<vk::Image>(image), allocation, m_allocator));
     }
