@@ -12,12 +12,13 @@ namespace Engine {
     class Texture {
     public:
         struct TextureDesc {
-            vk::ImageType dimension;
+            uint32_t dimensions;
             uint32_t width, height, depth;
-            vk::Format format;
-            vk::ImageViewType view_type;
+            ImageUtils::ImageFormat format;
+            ImageUtils::ImageType type;
             uint32_t mipmap_levels;
             uint32_t array_layers;
+            bool is_cube_map;
         };
 
     private:
@@ -25,6 +26,7 @@ namespace Engine {
         TextureDesc m_desc;
         std::unique_ptr <AllocatedMemory> m_image;
         vk::UniqueImageView m_image_view;
+        std::string m_name;
 
     public:
         Texture(RenderSystem &) noexcept;
@@ -39,10 +41,11 @@ namespace Engine {
             ImageUtils::ImageType type,
             uint32_t mipLevels,
             uint32_t arrayLayers = 1,
-            bool isTextureArray = false,
             bool isCubeMap = false,
-            const std::string & name = ""
+            std::string name = ""
         );
+
+        void CreateTexture(TextureDesc desc, std::string name = "");
 
         const TextureDesc & GetTextureDescription() const noexcept;
 

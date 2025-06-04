@@ -21,11 +21,32 @@ namespace Engine {
         ImageUtils::ImageType type, 
         uint32_t mipLevels, 
         uint32_t arrayLayers,
-        bool isTextureArray,
         bool isCubeMap,
-        const std::string &name
+        std::string name
     ) {
+        
+        this->CreateTexture(TextureDesc{
+                .dimensions = dimension,
+                .width = width,
+                .height = height,
+                .depth = depth,
+                .format = format,
+                .type = type,
+                .mipmap_levels = mipLevels,
+                .array_layers = arrayLayers,
+                .is_cube_map = isCubeMap
+            }, 
+            name
+        );
+    }
+
+    void Texture::CreateTexture(TextureDesc desc, std::string name)
+    {
         auto & allocator = m_system.GetAllocatorState();
+        auto dimension = desc.dimensions;
+        auto [width, height, depth] = std::tie(desc.width, desc.height, desc.height);
+        auto mipLevels = desc.mipmap_levels;
+        auto arrayLayers = desc.array_layers;
 
         // Some prelimary checks
         assert(1 <= dimension && dimension <= 3);
@@ -35,10 +56,10 @@ namespace Engine {
 
         auto dim = dimension == 1 ? vk::ImageType::e1D : (dimension == 2 ? vk::ImageType::e2D : vk::ImageType::e3D);
         this->m_image = allocator.AllocateImageUniqueEx(
-            type,
+            desc.type,
             dim,
             vk::Extent3D{width, height, depth},
-            ImageUtils::GetVkFormat(format),
+            ImageUtils::GetVkFormat(desc.format),
             mipLevels,
             arrayLayers,
             vk::SampleCountFlagBits::e1,
@@ -46,19 +67,19 @@ namespace Engine {
         );
 
         vk::ImageViewType view_type;
-        if (isCubeMap) {
+        if (desc.is_cube_map) {
             assert(arrayLayers > 0 && arrayLayers % 6 == 0);
             view_type = arrayLayers > 6 ? vk::ImageViewType::eCubeArray : vk::ImageViewType::eCube;
         } else {
             switch(dim) {
                 case vk::ImageType::e1D:
-                    view_type = isTextureArray ? vk::ImageViewType::e1DArray : vk::ImageViewType::e1D;
+                    view_type = arrayLayers > 1 ? vk::ImageViewType::e1DArray : vk::ImageViewType::e1D;
                     break;
                 case vk::ImageType::e2D:
-                    view_type = isTextureArray ? vk::ImageViewType::e2DArray : vk::ImageViewType::e2D;
+                    view_type = arrayLayers > 1 ? vk::ImageViewType::e2DArray : vk::ImageViewType::e2D;
                     break;
                 case vk::ImageType::e3D:
-                    assert(!isTextureArray);
+                    assert(arrayLayers == 1);
                     view_type = vk::ImageViewType::e3D;
                     break;
             }
@@ -68,23 +89,17 @@ namespace Engine {
             vk::ImageViewCreateFlags{},
             m_image->GetImage(),
             view_type,
-            ImageUtils::GetVkFormat(format),
+            ImageUtils::GetVkFormat(desc.format),
             vk::ComponentMapping {},
             vk::ImageSubresourceRange {
-                ImageUtils::GetVkImageAspect(type),
+                ImageUtils::GetVkImageAspect(desc.type),
                 0, mipLevels, 0, arrayLayers
             }
         };
         m_image_view = m_system.getDevice().createImageViewUnique(vinfo);
 
-        this->m_desc = TextureDesc{
-            .dimension = dim,
-            .width = width, .height = height, .depth = depth,
-            .format = ImageUtils::GetVkFormat(format),
-            .view_type = view_type,
-            .mipmap_levels = mipLevels,
-            .array_layers = arrayLayers
-        };
+        this->m_desc = desc;
+        this->m_name = name;
     }
 
     const Texture::TextureDesc &Texture::GetTextureDescription() const noexcept
@@ -104,7 +119,7 @@ namespace Engine {
 
     Buffer Engine::Texture::CreateStagingBuffer() const
     {
-        uint64_t buffer_size = m_desc.height * m_desc.width * m_desc.depth * ImageUtils::GetPixelSize(m_desc.m_format);
+        uint64_t buffer_size = m_desc.height * m_desc.width * m_desc.depth * ImageUtils::GetPixelSize(m_desc.format);
         assert(buffer_size > 0);
 
         Buffer buffer{m_system};
