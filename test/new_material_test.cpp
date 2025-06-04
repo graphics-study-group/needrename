@@ -77,8 +77,8 @@ int main(int argc, char ** argv)
     // Prepare texture
     auto test_texture_asset = std::make_shared<Image2DTextureAsset>();
     test_texture_asset->LoadFromFile(std::string(ENGINE_ASSETS_DIR) + "/bunny/bunny.png");
-    auto allocated_image_texture = std::make_shared<AllocatedImage2DTexture>(rsys);
-    allocated_image_texture->Create(*test_texture_asset);
+    auto allocated_image_texture = std::make_shared<SampledTextureInstantiated>(*rsys);
+    allocated_image_texture->Instantiate(*test_texture_asset);
 
     // Prepare material
     cmc->GetAssetManager()->LoadBuiltinAssets();
@@ -90,27 +90,6 @@ int main(int argc, char ** argv)
     test_material_instance->SetSpecular(glm::vec4(1.0, 1.0, 1.0, 64.0));
     test_material_instance->SetBaseTexture(allocated_image_texture);
     test_material_instance->WriteDescriptors(0);
-
-    // std::filesystem::path project_path(ENGINE_TESTS_DIR);
-    // project_path = project_path / "new_material_test_project";
-    // if (std::filesystem::exists(project_path))
-    //     std::filesystem::remove_all(project_path);
-    // std::filesystem::copy(std::filesystem::path(ENGINE_PROJECTS_DIR) / "empty_project", project_path, std::filesystem::copy_options::recursive);
-
-    // Serialization::Archive archive;
-    // archive.prepare_save();
-    // test_asset->save_asset_to_archive(archive);
-    // archive.save_to_file(project_path / "BlinnPhongTemplate.asset");
-
-    // archive.clear();
-    // archive.prepare_save();
-    // test_asset->properties.properties[0].shaders.shaders[0]->as<ShaderAsset>()->save_asset_to_archive(archive);
-    // archive.save_to_file(project_path / "blinn_phong.vert.spv.asset");
-
-    // archive.clear();
-    // archive.prepare_save();
-    // test_asset->properties.properties[0].shaders.shaders[1]->as<ShaderAsset>()->save_asset_to_archive(archive);
-    // archive.save_to_file(project_path / "blinn_phong.frag.spv.asset");
 
     // Prepare mesh
     auto test_mesh_asset = std::make_shared<LowerPlaneMeshAsset>();
@@ -140,9 +119,22 @@ int main(int argc, char ** argv)
     glm::mat4 eye4 = glm::mat4(1.0f);
 
     // Prepare attachments
-    Engine::AllocatedImage2D color{rsys}, depth{rsys};
-    color.Create(1920, 1080, Engine::ImageUtils::ImageType::ColorAttachment, Engine::ImageUtils::ImageFormat::B8G8R8A8SRGB, 1);
-    depth.Create(1920, 1080, Engine::ImageUtils::ImageType::DepthImage, Engine::ImageUtils::ImageFormat::D32SFLOAT, 1);
+    Engine::Texture color{*rsys}, depth{*rsys};
+    Engine::Texture::TextureDesc desc {
+        .dimensions = 2,
+        .width = 1920,
+        .height = 1080,
+        .depth = 1,
+        .format = Engine::ImageUtils::ImageFormat::B8G8R8A8SRGB,
+        .type = Engine::ImageUtils::ImageType::ColorAttachment,
+        .mipmap_levels = 1,
+        .array_layers = 1,
+        .is_cube_map = false
+    };
+    color.CreateTexture(desc, "Color Attachment");
+    desc.format = Engine::ImageUtils::ImageFormat::D32SFLOAT;
+    desc.type = Engine::ImageUtils::ImageType::DepthImage;
+    depth.CreateTexture(desc, "Depth Attachment");
 
     Engine::AttachmentUtils::AttachmentDescription color_att, depth_att;
     color_att.image = color.GetImage();

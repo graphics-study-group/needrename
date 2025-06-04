@@ -245,9 +245,22 @@ int main(int argc, char ** argv)
 
     auto gsys = cmc->GetGUISystem();
 
-    Engine::AllocatedImage2D color{rsys}, depth{rsys};
-    color.Create(1280, 720, Engine::ImageUtils::ImageType::ColorAttachment, Engine::ImageUtils::ImageFormat::B8G8R8A8SRGB, 1);
-    depth.Create(1280, 720, Engine::ImageUtils::ImageType::DepthImage, Engine::ImageUtils::ImageFormat::D32SFLOAT, 1);
+    Engine::Texture color{*rsys}, depth{*rsys};
+    Engine::Texture::TextureDesc desc {
+        .dimensions = 2,
+        .width = 1280,
+        .height = 720,
+        .depth = 1,
+        .format = Engine::ImageUtils::ImageFormat::B8G8R8A8SRGB,
+        .type = Engine::ImageUtils::ImageType::ColorAttachment,
+        .mipmap_levels = 1,
+        .array_layers = 1,
+        .is_cube_map = false
+    };
+    color.CreateTexture(desc, "Color Attachment");
+    desc.format = Engine::ImageUtils::ImageFormat::D32SFLOAT;
+    desc.type = Engine::ImageUtils::ImageType::DepthImage;
+    depth.CreateTexture(desc, "Depth Attachment");
 
     Engine::AttachmentUtils::AttachmentDescription color_att, depth_att;
     color_att.image = color.GetImage();

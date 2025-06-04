@@ -104,8 +104,8 @@ int main(int argc, char ** argv)
     // Prepare texture
     auto test_texture_asset = std::make_shared<Image2DTextureAsset>();
     test_texture_asset->LoadFromFile(std::string(ENGINE_ASSETS_DIR) + "/bunny/bunny.png");
-    auto allocated_image_texture = std::make_shared<AllocatedImage2DTexture>(rsys);
-    allocated_image_texture->Create(*test_texture_asset);
+    auto allocated_image_texture = std::make_shared<SampledTextureInstantiated>(*rsys);
+    allocated_image_texture->Instantiate(*test_texture_asset);
 
     // Prepare mesh
     auto test_mesh_asset = std::make_shared<LowerPlaneMeshAsset>();
@@ -140,14 +140,32 @@ int main(int argc, char ** argv)
     glm::mat4 eye4 = glm::mat4(1.0f);
 
     // Prepare attachments
-    auto color = std::make_shared<Engine::AllocatedImage2D>(rsys);
-    auto depth = std::make_shared<Engine::AllocatedImage2D>(rsys);
-    auto shadow = std::make_shared<Engine::AllocatedImage2D>(rsys);
-    auto blank_color = std::make_shared<Engine::AllocatedImage2DTexture>(rsys);
-    color->Create(1920, 1080, Engine::ImageUtils::ImageType::ColorAttachment, Engine::ImageUtils::ImageFormat::B8G8R8A8SRGB, 1, "Color attachment");
-    depth->Create(1920, 1080, Engine::ImageUtils::ImageType::DepthImage, Engine::ImageUtils::ImageFormat::D32SFLOAT, 1, "Depth attachment");
-    shadow->Create(2048, 2048, Engine::ImageUtils::ImageType::SampledDepthImage, Engine::ImageUtils::ImageFormat::D32SFLOAT, 1, "Shadow map");
-    blank_color->Create(16, 16, Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB, 1, "Blank color");
+    auto color = std::make_shared<Engine::Texture>(*rsys);
+    auto depth = std::make_shared<Engine::Texture>(*rsys);
+    auto shadow = std::make_shared<Engine::SampledTexture>(*rsys);
+    auto blank_color = std::make_shared<Engine::SampledTexture>(*rsys);
+    Engine::Texture::TextureDesc desc {
+        .dimensions = 2,
+        .width = 1920,
+        .height = 1080,
+        .depth = 1,
+        .format = Engine::ImageUtils::ImageFormat::B8G8R8A8SRGB,
+        .type = Engine::ImageUtils::ImageType::ColorAttachment,
+        .mipmap_levels = 1,
+        .array_layers = 1,
+        .is_cube_map = false
+    };
+    color->CreateTexture(desc, "Color attachment");
+    desc.format = Engine::ImageUtils::ImageFormat::D32SFLOAT;
+    desc.type = Engine::ImageUtils::ImageType::DepthImage;
+    depth->CreateTexture(desc, "Depth attachment");
+    desc.width = desc.height = 2048;
+    desc.type =  Engine::ImageUtils::ImageType::SampledDepthImage;
+    shadow->CreateTextureAndSampler(desc, {}, "Shadow map");
+    desc.width = desc.height = 16;
+    desc.format = Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB;
+    desc.type = Engine::ImageUtils::ImageType::TextureImage;
+    blank_color->CreateTextureAndSampler(desc, {}, "Blank color");
 
     Engine::AttachmentUtils::AttachmentDescription color_att, depth_att, shadow_att;
     color_att.image = color->GetImage();
