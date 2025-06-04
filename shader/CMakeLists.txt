@@ -5,7 +5,7 @@ else()
     message(FATAL_ERROR "Cannot find glslValidator.")
 endif()
 
-file(GLOB GLSL_SOURCE_FILES "*.frag" "*.vert")
+file(GLOB GLSL_SOURCE_FILES "*.frag" "*.vert" "*.comp")
 
 foreach(GLSL ${GLSL_SOURCE_FILES})
     get_filename_component(GLSL_FILE_NAME ${GLSL} NAME)
