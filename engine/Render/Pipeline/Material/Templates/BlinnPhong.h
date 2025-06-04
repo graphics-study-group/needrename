@@ -6,7 +6,6 @@
 #include <glm.hpp>
 
 namespace Engine {
-    class AllocatedImage2DTexture;
     class SampledTexture;
     namespace Materials {
         class BlinnPhongInstance : public MaterialInstance {

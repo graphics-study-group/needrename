@@ -1,7 +1,6 @@
 #include "GraphicsCommandBuffer.h"
 
 #include "Render/Memory/Buffer.h"
-#include "Render/Memory/Image2DTexture.h"
 #include "Render/Pipeline/Material/MaterialInstance.h"
 #include "Render/Renderer/HomogeneousMesh.h"
 #include "Render/ConstantData/PerModelConstants.h"

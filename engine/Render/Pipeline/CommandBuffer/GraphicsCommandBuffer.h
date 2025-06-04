@@ -12,7 +12,6 @@ namespace Engine {
     class MaterialInstance;
     class HomogeneousMesh;
     class Buffer;
-    class AllocatedImage2DTexture;
     class RenderTargetBinding;
 
     /// @brief A command buffer used for rendering.
