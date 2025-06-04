@@ -10,7 +10,7 @@ namespace Engine {
     class Buffer;
     class HomogeneousMesh;
     class AllocatedImage2DTexture;
-    class SampledTexture;
+    class Texture;
 
     namespace RenderSystemState {
         /// @brief A helper for submitting data to GPU.
@@ -63,8 +63,20 @@ namespace Engine {
              * for how to organize the data.
              * @param length
              */
-            void EnqueueTextureBufferSubmission(const SampledTexture& texture, const std::byte * data, size_t length);
+            void EnqueueTextureBufferSubmission(const Texture& texture, const std::byte * data, size_t length);
             
+            /**
+             * @brief Enqueue a texture clear operation.
+             * Record corresponding image barriers to a disposable command buffer at the beginning of a frame, and issue a clear operation.
+             * The layout of the image will be transferred to optimal for shader read after clear operation.
+             * Useful for creating a blank default texture.
+             * Only color aspect is cleared. All mipmap levels and arrays are cleared.
+             * 
+             * @param texture
+             * @param color
+             */
+            [[deprecated]]
+            void EnqueueTextureClear(const AllocatedImage2DTexture & texture, std::tuple<float, float, float, float> color_rgba);
 
             /**
              * @brief Enqueue a texture clear operation.
@@ -76,7 +88,7 @@ namespace Engine {
              * @param texture
              * @param color
              */
-            void EnqueueTextureClear(const AllocatedImage2DTexture & texture, std::tuple<float, float, float, float> color_rgba);
+            void EnqueueTextureClear(const Texture & texture, std::tuple<float, float, float, float> color_rgba);
 
             /***
              * @brief Start the frame. Allocated a new command buffer if needed, record all pending operations, and submit the

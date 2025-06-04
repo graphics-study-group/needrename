@@ -1,7 +1,6 @@
 #include "MaterialInstance.h"
 #include "Render/Pipeline/PipelineUtils.h"
-#include "Render/Memory/ImageInterface.h"
-#include <Render/Memory/Image2DTexture.h>
+#include "Render/Memory/SampledTexture.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/FrameManager.h"
 #include "Render/RenderSystem/SubmissionHelper.h"
@@ -45,7 +44,7 @@ namespace Engine {
         return m_desc_variables.at(pass_index);
     }
 
-    void MaterialInstance::WriteTextureUniform(uint32_t pass, uint32_t index, std::shared_ptr <const ImageInterface> texture)
+    void MaterialInstance::WriteTextureUniform(uint32_t pass, uint32_t index, std::shared_ptr <const SampledTexture> texture)
     {
         assert(m_pass_info.contains(pass) && "Cannot find pass.");
         assert(

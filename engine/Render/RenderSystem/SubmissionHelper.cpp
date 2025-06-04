@@ -1,7 +1,7 @@
 #include "SubmissionHelper.h"
 
 #include "Render/Memory/Image2DTexture.h"
-
+#include "Render/Memory/Texture.h"
 #include "Render/Renderer/HomogeneousMesh.h"
 #include "Render/Pipeline/CommandBuffer/BufferTransferHelper.h"
 #include "Render/Pipeline/CommandBuffer/LayoutTransferHelper.h"
@@ -88,7 +88,98 @@ namespace Engine::RenderSystemState {
         m_pending_operations.push(enqueued);
     }
 
-    void SubmissionHelper::EnqueueTextureClear(const AllocatedImage2DTexture & texture, std::tuple<float,float,float,float> color)
+    void SubmissionHelper::EnqueueTextureBufferSubmission(const Texture &texture, const std::byte *data, size_t length)
+    {
+        auto enqueued = [&texture, data, length, this] (vk::CommandBuffer cb) {
+            Buffer buffer {texture.CreateStagingBuffer()};
+            assert(length <= buffer.GetSize());
+            std::byte * mapped_ptr = buffer.Map();
+            std::memcpy(mapped_ptr, data, length);
+            buffer.Flush();
+            buffer.Unmap();
+
+            // Transit layout to TransferDstOptimal
+            std::array<vk::ImageMemoryBarrier2, 1> barriers = {
+                LayoutTransferHelper::GetTextureBarrier(LayoutTransferHelper::TextureTransferType::TextureUploadBefore, texture.GetImage())
+            };
+            vk::DependencyInfo dinfo {
+                vk::DependencyFlags{},
+                {}, {}, barriers
+            };
+            cb.pipelineBarrier2(dinfo);
+
+            // Copy buffer to image
+            vk::BufferImageCopy copy{
+                0, 0, 0,
+                vk::ImageSubresourceLayers {
+                    vk::ImageAspectFlagBits::eColor,
+                    0, 0, 1
+                },
+                vk::Offset3D{0, 0, 0},
+                vk::Extent3D{
+                    texture.GetTextureDescription().width,
+                    texture.GetTextureDescription().height,
+                    texture.GetTextureDescription().depth
+                }
+            };
+            cb.copyBufferToImage(
+                buffer.GetBuffer(), 
+                texture.GetImage(), 
+                vk::ImageLayout::eTransferDstOptimal,
+                { copy }
+            );
+
+            // Transfer image for sampling
+            barriers[0] = LayoutTransferHelper::GetTextureBarrier(
+                LayoutTransferHelper::TextureTransferType::TextureUploadAfter, 
+                texture.GetImage()
+            );
+            dinfo.setImageMemoryBarriers(barriers);
+            cb.pipelineBarrier2(dinfo);
+
+            m_pending_dellocations.push_back(std::move(buffer));
+        };
+        m_pending_operations.push(enqueued);
+    }
+
+    void SubmissionHelper::EnqueueTextureClear(const AllocatedImage2DTexture &texture, std::tuple<float, float, float, float> color)
+    {
+        auto enqueued = [&texture, color, this] (vk::CommandBuffer cb) {
+            // Transit layout to TransferDstOptimal
+            std::array<vk::ImageMemoryBarrier2, 1> barriers = {
+                LayoutTransferHelper::GetTextureBarrier(LayoutTransferHelper::TextureTransferType::TextureClearBefore, texture.GetImage())
+            };
+            vk::DependencyInfo dinfo {
+                vk::DependencyFlags{},
+                {}, {}, barriers
+            };
+            cb.pipelineBarrier2(dinfo);
+            auto [r, g, b, a] = color;
+            cb.clearColorImage(
+                texture.GetImage(), 
+                vk::ImageLayout::eTransferDstOptimal,
+                vk::ClearColorValue{r, g, b, a},
+                {
+                    vk::ImageSubresourceRange{
+                        vk::ImageAspectFlagBits::eColor,
+                        0, vk::RemainingMipLevels,
+                        0, vk::RemainingArrayLayers
+                    }
+                }
+            );
+
+            // Transfer image for sampling
+            barriers[0] = LayoutTransferHelper::GetTextureBarrier(
+                LayoutTransferHelper::TextureTransferType::TextureClearAfter, 
+                texture.GetImage()
+            );
+            dinfo.setImageMemoryBarriers(barriers);
+            cb.pipelineBarrier2(dinfo);
+        };
+        m_pending_operations.push(enqueued);
+    }
+
+    void SubmissionHelper::EnqueueTextureClear(const Texture &texture, std::tuple<float, float, float, float> color)
     {
         auto enqueued = [&texture, color, this] (vk::CommandBuffer cb) {
             // Transit layout to TransferDstOptimal

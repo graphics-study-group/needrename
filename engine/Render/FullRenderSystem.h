@@ -21,6 +21,9 @@
 #include "Render/Renderer/HomogeneousMesh.h"
 
 #include "Render/Memory/Image2DTexture.h"
+#include "Render/Memory/Texture.h"
+#include "Render/Memory/SampledTexture.h"
+#include "Render/Memory/SampledTextureInstantiated.h"
 
 #include "Render/Pipeline/Material/MaterialInstance.h"
 #include "Render/Pipeline/Material/MaterialTemplate.h"

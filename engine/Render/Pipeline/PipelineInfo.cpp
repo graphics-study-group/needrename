@@ -4,7 +4,7 @@
 #include <SDL3/SDL.h>
 #include <glm.hpp>
 
-#include "Render/Memory/ImageInterface.h"
+#include "Render/Memory/SampledTexture.h"
 
 namespace Engine::PipelineInfo {
     void PlaceUBOVariables(
@@ -68,9 +68,9 @@ namespace Engine::PipelineInfo {
                     continue;
                 }
 
-                assert(instance_var->second.type() == typeid(std::shared_ptr<const ImageInterface>) && "Variable is not an image, or the image is invalid.");
-                std::shared_ptr<const ImageInterface> image{
-                    *std::any_cast<std::shared_ptr<const ImageInterface>> (&instance_var->second)
+                assert(instance_var->second.type() == typeid(std::shared_ptr<const SampledTexture>) && "Variable is not an image, or the image is invalid.");
+                std::shared_ptr<const SampledTexture> image{
+                    *std::any_cast<std::shared_ptr<const SampledTexture>> (&instance_var->second)
                 };
                 if (!sampler)    SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Sampler not supplied for a sampled image.");
 
@@ -85,9 +85,9 @@ namespace Engine::PipelineInfo {
                     continue;
                 }
 
-                assert(instance_var->second.type() == typeid(std::shared_ptr<const ImageInterface>) && "Variable is not an image, or the image is invalid.");
-                std::shared_ptr<const ImageInterface> image{
-                    *std::any_cast<std::shared_ptr<const ImageInterface>> (&instance_var->second)
+                assert(instance_var->second.type() == typeid(std::shared_ptr<const SampledTexture>) && "Variable is not an image, or the image is invalid.");
+                std::shared_ptr<const SampledTexture> image{
+                    *std::any_cast<std::shared_ptr<const SampledTexture>> (&instance_var->second)
                 };
 
                 if (sampler)    SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Sampler supplied for a storage image.");

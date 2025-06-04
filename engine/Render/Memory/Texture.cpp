@@ -44,7 +44,7 @@ namespace Engine {
     {
         auto & allocator = m_system.GetAllocatorState();
         auto dimension = desc.dimensions;
-        auto [width, height, depth] = std::tie(desc.width, desc.height, desc.height);
+        auto [width, height, depth] = std::tie(desc.width, desc.height, desc.depth);
         auto mipLevels = desc.mipmap_levels;
         auto arrayLayers = desc.array_layers;
 
