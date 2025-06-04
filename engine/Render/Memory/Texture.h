@@ -21,7 +21,7 @@ namespace Engine {
             bool is_cube_map;
         };
 
-    private:
+    protected:
         RenderSystem & m_system;
         TextureDesc m_desc;
         std::unique_ptr <AllocatedMemory> m_image;

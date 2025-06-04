@@ -51,6 +51,8 @@ namespace Engine {
         // Some prelimary checks
         assert(1 <= dimension && dimension <= 3);
         assert(width >= 1 && height >= 1 && depth >= 1);
+        assert(dimension != 1 || (height == 1 && depth == 1));
+        assert(dimension != 2 || (depth == 1));
         assert(mipLevels >= 1);
         assert(arrayLayers >= 1);
 
@@ -109,16 +111,23 @@ namespace Engine {
 
     vk::Image Engine::Texture::GetImage() const noexcept
     {
+        assert(this->m_image && this->m_image->GetImage());
         return this->m_image->GetImage();
     }
 
     vk::ImageView Engine::Texture::GetImageView() const noexcept
     {
+        assert(this->m_image_view);
         return this->m_image_view.get();
     }
 
     Buffer Engine::Texture::CreateStagingBuffer() const
     {
+        assert(
+            ((std::get<0>(ImageUtils::GetImageFlags(this->GetTextureDescription().type)) & vk::ImageUsageFlagBits::eTransferDst)
+            || (std::get<0>(ImageUtils::GetImageFlags(this->GetTextureDescription().type)) & vk::ImageUsageFlagBits::eTransferSrc))
+            && "A staging buffer is created, but the image does not support tranfer usage."
+        );
         uint64_t buffer_size = m_desc.height * m_desc.width * m_desc.depth * ImageUtils::GetPixelSize(m_desc.format);
         assert(buffer_size > 0);
 
