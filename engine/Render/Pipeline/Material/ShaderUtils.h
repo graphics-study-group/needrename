@@ -53,7 +53,22 @@ namespace Engine
             } desc;
         };
 
+        struct ReflectedDataCollectionCompute {
+            DescriptorSetLayoutData set_layout;
+
+            struct {
+                std::unordered_map <std::string, uint32_t> names;
+                std::vector <InBlockVariableData> vars;
+            } inblock;
+            
+            struct {
+                std::unordered_map <std::string, uint32_t> names;
+                std::vector <DesciptorVariableData> vars;
+            } desc;
+        };
+
         ReflectedDataCollection ReflectSpirvData(const std::vector<uint32_t> & spirv_code);
+        ReflectedDataCollectionCompute ReflectSpirvDataCompute(const std::vector <uint32_t> & spirv_code);
     }
 } // namespace Engine
 
