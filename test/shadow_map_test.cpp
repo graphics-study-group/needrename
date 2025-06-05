@@ -236,7 +236,7 @@ int main(int argc, char ** argv)
         cb.Begin("Main Render Loop");
         // Shadow map pass
         context.UseImage(
-            shadow_att.image, 
+            *shadow, 
             GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite, 
             GraphicsContext::ImageAccessType::None
         );
@@ -263,17 +263,17 @@ int main(int argc, char ** argv)
 
         // Lit pass
         context.UseImage(
-            shadow_att.image, 
+            *shadow, 
             GraphicsContext::ImageGraphicsAccessType::ShaderRead, 
             GraphicsContext::ImageAccessType::DepthAttachmentWrite
         );
         context.UseImage(
-            color_att.image, 
+            *color, 
             GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite, 
             GraphicsContext::ImageAccessType::None
         );
         context.UseImage(
-            depth_att.image, 
+            *depth, 
             GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite, 
             GraphicsContext::ImageAccessType::None
         );

@@ -170,8 +170,8 @@ int main(int argc, char ** argv)
     
         cb.Begin();
 
-        context.UseImage(color_att.image, GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite, GraphicsContext::ImageAccessType::None);
-        context.UseImage(depth_att.image, GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite, GraphicsContext::ImageAccessType::None);
+        context.UseImage(color, GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite, GraphicsContext::ImageAccessType::None);
+        context.UseImage(depth, GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite, GraphicsContext::ImageAccessType::None);
         context.PrepareCommandBuffer();
 
         vk::Extent2D extent {rsys->GetSwapchain().GetExtent()};
