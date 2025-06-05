@@ -25,6 +25,7 @@ namespace Engine {
             UNDEFINED,
             B8G8R8A8SRGB,
             R8G8B8A8SRGB,
+            R8G8B8A8SNorm,
             R8G8B8SRGB,
             D32SFLOAT,
         };
@@ -98,6 +99,20 @@ namespace Engine {
             return vk::ImageAspectFlags{};
         }
 
+        constexpr vk::ImageAspectFlags GetVkAspect(ImageFormat format) {
+            switch(format) {
+                case ImageFormat::R8G8B8SRGB:
+                case ImageFormat::B8G8R8A8SRGB:
+                case ImageFormat::R8G8B8A8SRGB:
+                case ImageFormat::R8G8B8A8SNorm:
+                    return vk::ImageAspectFlagBits::eColor;
+                case ImageFormat::D32SFLOAT:
+                    return vk::ImageAspectFlagBits::eDepth;
+                default:
+                    return vk::ImageAspectFlagBits::eNone;
+            }
+        }
+
         constexpr vk::ImageType GetVkTypeFromExtent(VkExtent3D extent)
         {
             assert(extent.width > 0 && extent.height > 0 && extent.depth > 0);
@@ -117,10 +132,12 @@ namespace Engine {
                     return vk::Format::eUndefined;
                 case ImageFormat::B8G8R8A8SRGB:
                     return vk::Format::eB8G8R8A8Srgb;
-                case ImageFormat::R8G8B8SRGB:
-                    return vk::Format::eR8G8B8Srgb;
                 case ImageFormat::R8G8B8A8SRGB:
                     return vk::Format::eR8G8B8A8Srgb;
+                case ImageFormat::R8G8B8A8SNorm:
+                    return vk::Format::eR8G8B8A8Snorm;
+                case ImageFormat::R8G8B8SRGB:
+                    return vk::Format::eR8G8B8Srgb;
                 case ImageFormat::D32SFLOAT:
                     return vk::Format::eD32Sfloat;
             }
@@ -133,6 +150,7 @@ namespace Engine {
                     return 3;
                 case ImageFormat::B8G8R8A8SRGB:
                 case ImageFormat::R8G8B8A8SRGB:
+                case ImageFormat::R8G8B8A8SNorm:
                 case ImageFormat::D32SFLOAT:
                     return 4;
                 default:
