@@ -68,16 +68,19 @@ namespace Engine::PipelineInfo {
                     continue;
                 }
 
-                assert(instance_var->second.type() == typeid(std::shared_ptr<const SampledTexture>) && "Variable is not an image, or the image is invalid.");
+                assert(
+                    instance_var->second.type() == typeid(std::shared_ptr<const SampledTexture>) 
+                    && "Sampled image variable is not a sampled image, or the image is invalid."
+                );
                 std::shared_ptr<const SampledTexture> image{
                     *std::any_cast<std::shared_ptr<const SampledTexture>> (&instance_var->second)
                 };
-                if (!sampler)    SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Sampler not supplied for a sampled image.");
+                assert((image->GetSampler() || sampler) && "Sampler not supplied for sampled image.");
 
                 vk::DescriptorImageInfo image_info {};
                 image_info.imageView = image->GetImageView();
                 image_info.imageLayout = vk::ImageLayout::eReadOnlyOptimal;
-                image_info.sampler = sampler;
+                image_info.sampler = image->GetSampler() ? image->GetSampler() : sampler;
                 ret.push_back(std::make_pair(uniform.binding, image_info));
             } else if (uniform.type == ShaderVariable::Type::StorageImage) {
                 if (instance_var == variables.end()) {
@@ -85,12 +88,13 @@ namespace Engine::PipelineInfo {
                     continue;
                 }
 
-                assert(instance_var->second.type() == typeid(std::shared_ptr<const SampledTexture>) && "Variable is not an image, or the image is invalid.");
-                std::shared_ptr<const SampledTexture> image{
-                    *std::any_cast<std::shared_ptr<const SampledTexture>> (&instance_var->second)
+                assert(
+                    instance_var->second.type() == typeid(std::shared_ptr<const Texture>) && 
+                    "Storage image variable is not a texture image, or the texture is invalid."
+                );
+                std::shared_ptr<const Texture> image{
+                    *std::any_cast<std::shared_ptr<const Texture>> (&instance_var->second)
                 };
-
-                if (sampler)    SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Sampler supplied for a storage image.");
 
                 vk::DescriptorImageInfo image_info {};
                 image_info.imageView = image->GetImageView();

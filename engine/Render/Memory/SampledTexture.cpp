@@ -1,6 +1,7 @@
 #include "SampledTexture.h"
 
 #include "Render/RenderSystem.h"
+#include "Render/DebugUtils.h"
 
 namespace Engine {
     SampledTexture::SampledTexture(RenderSystem &system) noexcept : Texture(system)
@@ -34,6 +35,7 @@ namespace Engine {
             false,
             nullptr
         });
+        DEBUG_SET_NAME_TEMPLATE(m_system.getDevice(), this->m_sampler.get(), "Temporary Sampler for SampledTexture");
         this->m_sampler_desc = samplerDesc;
     }
 
