@@ -3,7 +3,40 @@
 #include "Render/RenderSystem.h"
 #include "Render/DebugUtils.h"
 
+vk::Filter ToVkFilter(Engine::SampledTexture::SamplerDesc::FilterMode filter) {
+    using Mode = Engine::SampledTexture::SamplerDesc::FilterMode;
+    switch(filter) {
+        case Mode::Linear:
+            return vk::Filter::eLinear;
+        case Mode::Point:
+            return vk::Filter::eNearest;
+    }
+}
+
+vk::SamplerMipmapMode ToVkSamplerMipmapMode(Engine::SampledTexture::SamplerDesc::FilterMode filter) {
+    using Mode = Engine::SampledTexture::SamplerDesc::FilterMode;
+    switch(filter) {
+        case Mode::Linear:
+            return vk::SamplerMipmapMode::eLinear;
+        case Mode::Point:
+            return vk::SamplerMipmapMode::eNearest;
+    }
+}
+
+vk::SamplerAddressMode ToVkSamplerAddressMode(Engine::SampledTexture::SamplerDesc::AddressMode addr) {
+    using Mode = Engine::SampledTexture::SamplerDesc::AddressMode;
+    switch(addr) {
+        case Mode::Repeat:
+            return vk::SamplerAddressMode::eRepeat;
+        case Mode::MirroredRepeat:
+            return vk::SamplerAddressMode::eMirroredRepeat;
+        case Mode::ClampToEdge:
+            return vk::SamplerAddressMode::eClampToEdge;
+    }
+}
+
 namespace Engine {
+
     SampledTexture::SampledTexture(RenderSystem &system) noexcept : Texture(system)
     {
     }
@@ -21,17 +54,20 @@ namespace Engine {
     void SampledTexture::CreateSampler(SamplerDesc samplerDesc) {
         this->m_sampler = m_system.getDevice().createSamplerUnique(vk::SamplerCreateInfo{
             vk::SamplerCreateFlags{},
-            vk::Filter::eNearest, vk::Filter::eNearest,
-            vk::SamplerMipmapMode::eNearest,
-            vk::SamplerAddressMode::eRepeat,
-            vk::SamplerAddressMode::eRepeat,
-            vk::SamplerAddressMode::eRepeat,
-            0.0,
+            ToVkFilter(samplerDesc.min_filter),
+            ToVkFilter(samplerDesc.max_filter),
+            ToVkSamplerMipmapMode(samplerDesc.mipmap_filter),
+            ToVkSamplerAddressMode(samplerDesc.u_address),
+            ToVkSamplerAddressMode(samplerDesc.v_address),
+            ToVkSamplerAddressMode(samplerDesc.w_address),
+            samplerDesc.biasLod,
             false,
             0.0,
             false,
             vk::CompareOp::eNever,
-            0, 0, vk::BorderColor::eFloatTransparentBlack,
+            samplerDesc.minLod,
+            samplerDesc.maxLod,
+            vk::BorderColor::eFloatTransparentBlack,
             false,
             nullptr
         });
