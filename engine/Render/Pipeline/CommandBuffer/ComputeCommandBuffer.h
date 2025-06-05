@@ -7,21 +7,21 @@
 
 namespace Engine {
     class RenderSystem;
+    class ComputeStage;
     class ComputeCommandBuffer : public ICommandBuffer {
     public:
         ComputeCommandBuffer(RenderSystem & system,
             vk::CommandBuffer cb,
             uint32_t frame_in_flight);
 
-        void BindComputePipeline(vk::Pipeline, vk::PipelineLayout);
-
-        void SetComputeParam(uint32_t key, std::any value);
+        void BindComputeStage(ComputeStage & stage);
 
         void DispatchCompute(uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ);
 
     private:
         RenderSystem & system;
         uint32_t inflight_frame_index;
+        std::optional<std::reference_wrapper<ComputeStage>> m_bound_pipeline;
     };
 }
 
