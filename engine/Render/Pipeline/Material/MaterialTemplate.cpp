@@ -193,8 +193,20 @@ namespace Engine
             // XXX: This case is not thoroughly tested!
             std::vector <vk::Format> color_attachment_formats {prop.attachments.color.size(), vk::Format::eUndefined};
             pass_info.attachments.color_attachment_ops.resize(prop.attachments.color_ops.size());
-    
+            cbass.resize(
+                prop.attachments.color.size(), 
+                vk::PipelineColorBlendAttachmentState{
+                    vk::False,
+                    vk::BlendFactor::eSrcAlpha, vk::BlendFactor::eOneMinusSrcAlpha, vk::BlendOp::eAdd,
+                    vk::BlendFactor::eOne, vk::BlendFactor::eZero, vk::BlendOp::eAdd,
+                    vk::ColorComponentFlagBits::eR | 
+                    vk::ColorComponentFlagBits::eG |
+                    vk::ColorComponentFlagBits::eB |
+                    vk::ColorComponentFlagBits::eA
+                }
+            );
             assert(prop.attachments.color.size() == prop.attachments.color_ops.size() && "Mismatched color attachment and operation size.");
+
             for (size_t i = 0; i < prop.attachments.color.size(); i++) {
                 color_attachment_formats[i] = (
                     prop.attachments.color[i] == ImageUtils::ImageFormat::UNDEFINED ?
