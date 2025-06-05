@@ -50,6 +50,13 @@ std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate()
     test_asset->name = "Blinn-Phong";
 
     MaterialTemplateSinglePassProperties mtspp{};
+    mtspp.attachments.color = {
+        ImageUtils::ImageFormat::R8G8B8A8UNorm
+    };
+    mtspp.attachments.color_ops = {
+        AttachmentUtils::AttachmentOp{}
+    };
+    mtspp.attachments.depth = ImageUtils::ImageFormat::D32SFLOAT;
     mtspp.shaders.shaders = std::vector<std::shared_ptr<AssetRef>>{vs_ref, fs_ref};
 
     test_asset->properties.properties[0] = mtspp;
@@ -119,26 +126,29 @@ int main(int argc, char ** argv)
     glm::mat4 eye4 = glm::mat4(1.0f);
 
     // Prepare attachments
-    Engine::Texture color{*rsys}, depth{*rsys};
+    Engine::Texture depth{*rsys};
+    auto color = std::make_shared<Texture>(*rsys);
+    auto postproc = std::make_shared<Texture>(*rsys);
     Engine::Texture::TextureDesc desc {
         .dimensions = 2,
         .width = 1920,
         .height = 1080,
         .depth = 1,
-        .format = Engine::ImageUtils::ImageFormat::B8G8R8A8SRGB,
-        .type = Engine::ImageUtils::ImageType::ColorAttachment,
+        .format = Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm,
+        .type = Engine::ImageUtils::ImageType::ColorGeneral,
         .mipmap_levels = 1,
         .array_layers = 1,
         .is_cube_map = false
     };
-    color.CreateTexture(desc, "Color Attachment");
+    color->CreateTexture(desc, "Color Attachment");
+    postproc->CreateTexture(desc, "GaussianBlurred");
     desc.format = Engine::ImageUtils::ImageFormat::D32SFLOAT;
     desc.type = Engine::ImageUtils::ImageType::DepthImage;
     depth.CreateTexture(desc, "Depth Attachment");
 
     Engine::AttachmentUtils::AttachmentDescription color_att, depth_att;
-    color_att.image = color.GetImage();
-    color_att.image_view = color.GetImageView();
+    color_att.image = color->GetImage();
+    color_att.image_view = color->GetImageView();
     color_att.load_op = vk::AttachmentLoadOp::eClear;
     color_att.store_op = vk::AttachmentStoreOp::eStore;
 
@@ -147,7 +157,21 @@ int main(int argc, char ** argv)
     depth_att.load_op = vk::AttachmentLoadOp::eClear;
     depth_att.store_op = vk::AttachmentStoreOp::eDontCare;
 
+    auto asys = cmc->GetAssetManager();
+    auto cs_ref = asys->GetNewAssetRef("~/shaders/gaussian_blur.comp.spv.asset");
+    asys->LoadAssetImmediately(cs_ref);
+    ComputeStage cstage{*rsys, cs_ref};
+    cstage.SetDescVariable(
+        cstage.GetVariableIndex("inputImage").value().first,
+        std::const_pointer_cast<const Texture>(color)
+    );
+    cstage.SetDescVariable(
+        cstage.GetVariableIndex("outputImage").value().first,
+        std::const_pointer_cast<const Texture>(postproc)
+    );
+
     bool quited = false;
+    bool has_gaussian_blur = true;
     while(max_frame_count--) {
         SDL_Event event;
         while(SDL_PollEvent(&event) != 0) {
@@ -155,6 +179,10 @@ int main(int argc, char ** argv)
             case SDL_EVENT_QUIT:
                 quited = true;
                 break;
+            case SDL_EVENT_KEY_UP:
+                if(event.key.key == SDLK_G) {
+                    has_gaussian_blur = !has_gaussian_blur;
+                }
             }
         }
 
@@ -163,16 +191,16 @@ int main(int argc, char ** argv)
         rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(*allocated_image_texture, test_texture_asset->GetPixelData(), test_texture_asset->GetPixelDataSize());
 
         auto index = rsys->StartFrame();
-        auto context = rsys->GetFrameManager().GetGraphicsContext();
-        GraphicsCommandBuffer & cb = dynamic_cast<GraphicsCommandBuffer &>(context.GetCommandBuffer());
+        auto gcontext = rsys->GetFrameManager().GetGraphicsContext();
+        GraphicsCommandBuffer & cb = dynamic_cast<GraphicsCommandBuffer &>(gcontext.GetCommandBuffer());
 
         assert(index < 3);
     
         cb.Begin();
 
-        context.UseImage(color, GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite, GraphicsContext::ImageAccessType::None);
-        context.UseImage(depth, GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite, GraphicsContext::ImageAccessType::None);
-        context.PrepareCommandBuffer();
+        gcontext.UseImage(*color, GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite, GraphicsContext::ImageAccessType::None);
+        gcontext.UseImage(depth, GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite, GraphicsContext::ImageAccessType::None);
+        gcontext.PrepareCommandBuffer();
 
         vk::Extent2D extent {rsys->GetSwapchain().GetExtent()};
         vk::Rect2D scissor{{0, 0}, extent};
@@ -192,10 +220,45 @@ int main(int argc, char ** argv)
         cb.DrawMesh(test_mesh);
 
         cb.EndRendering();
+        if (has_gaussian_blur) {
+            auto ccontext = rsys->GetFrameManager().GetComputeContext();
+            ccontext.UseImage(
+                *color,
+                Engine::ComputeContext::ImageComputeAccessType::ShaderReadRandomWrite, 
+                Engine::ComputeContext::ImageAccessType::ColorAttachmentWrite
+            );
+            ccontext.UseImage(
+                *postproc,
+                Engine::ComputeContext::ImageComputeAccessType::ShaderRandomWrite, 
+                Engine::ComputeContext::ImageAccessType::None
+            );
+            ccontext.PrepareCommandBuffer();
+            auto ccb = dynamic_cast<ComputeCommandBuffer &>(ccontext.GetCommandBuffer());
+            ccb.BindComputeStage(cstage);
+            ccb.DispatchCompute(
+                postproc->GetTextureDescription().width / 16 + 1, 
+                postproc->GetTextureDescription().height / 16 + 1, 
+                1
+            );
+
+            gcontext.UseImage(*postproc, 
+                GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite, 
+                Engine::ComputeContext::ImageAccessType::ShaderRandomWrite
+            );
+            gcontext.PrepareCommandBuffer();
+        }
+        
 
         cb.End();
         rsys->GetFrameManager().SubmitMainCommandBuffer();
-        rsys->GetFrameManager().StageCopyComposition(color.GetImage());
+        rsys->GetFrameManager().StageBlitComposition(
+            has_gaussian_blur ? postproc->GetImage() : color->GetImage(), 
+            vk::Extent2D{
+                postproc->GetTextureDescription().width,
+                postproc->GetTextureDescription().height
+            }, 
+            rsys->GetSwapchain().GetExtent()
+        );
         rsys->CompleteFrame();
 
         SDL_Delay(10);
