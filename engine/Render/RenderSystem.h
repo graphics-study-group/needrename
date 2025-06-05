@@ -97,6 +97,8 @@ namespace Engine
 
         const RenderSystemState::AllocatorState & GetAllocatorState() const;
 
+        const QueueFamilyIndices & GetQueueFamilies() const;
+
         const QueueInfo & getQueueInfo () const;
 
         const RenderSystemState::Swapchain & GetSwapchain() const;

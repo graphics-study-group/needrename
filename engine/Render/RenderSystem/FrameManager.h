@@ -109,11 +109,6 @@ namespace Engine {
              * Non-standard call-sites are likely to result in deadlocks and vulkan device losses.
              */
             vk::Fence CompositeToImage (vk::Image image, uint64_t timeout = std::numeric_limits<uint64_t>::max());
-            
-            /**
-             * @brief Re-fetch cached swapchain infomation.
-             */
-            void UpdateSwapchain();
 
             SubmissionHelper & GetSubmissionHelper();
         };

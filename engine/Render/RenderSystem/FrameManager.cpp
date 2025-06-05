@@ -16,6 +16,7 @@ namespace Engine::RenderSystemState{
             vk::Image image;
             vk::Extent2D extent;
             vk::Offset2D offset_src, offset_dst;
+            uint32_t src_queue_family, present_queue_family;
         };
 
         std::vector <PresentingOperation> operations {};
@@ -40,6 +41,7 @@ namespace Engine::RenderSystemState{
 
             // Prepare barriers
             for (size_t i = 0; i < operations.size(); i++) {
+                bool ignore_queue_families = (operations[i].present_queue_family == operations[i].src_queue_family);
                 barriers[i] = vk::ImageMemoryBarrier2{
                     vk::PipelineStageFlagBits2::eTransfer,
                     vk::AccessFlagBits2::eNone,
@@ -47,8 +49,8 @@ namespace Engine::RenderSystemState{
                     vk::AccessFlagBits2::eTransferRead,
                     vk::ImageLayout::eColorAttachmentOptimal,
                     vk::ImageLayout::eTransferSrcOptimal,
-                    vk::QueueFamilyIgnored,
-                    vk::QueueFamilyIgnored,
+                    ignore_queue_families ? vk::QueueFamilyIgnored : operations[i].src_queue_family,
+                    ignore_queue_families ? vk::QueueFamilyIgnored : operations[i].present_queue_family,
                     operations[i].image,
                     vk::ImageSubresourceRange{
                         vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1
@@ -101,6 +103,7 @@ namespace Engine::RenderSystemState{
 
             // Prepare another set of barriers
             for (size_t i = 0; i < operations.size(); i++) {
+                bool ignore_queue_families = (operations[i].present_queue_family == operations[i].src_queue_family);
                 barriers[i] = vk::ImageMemoryBarrier2{
                     vk::PipelineStageFlagBits2::eTransfer,
                     vk::AccessFlagBits2::eTransferRead,
@@ -108,8 +111,8 @@ namespace Engine::RenderSystemState{
                     vk::AccessFlagBits2::eNone,
                     vk::ImageLayout::eTransferSrcOptimal,
                     vk::ImageLayout::eColorAttachmentOptimal,
-                    vk::QueueFamilyIgnored,
-                    vk::QueueFamilyIgnored,
+                    ignore_queue_families ? vk::QueueFamilyIgnored : operations[i].present_queue_family,
+                    ignore_queue_families ? vk::QueueFamilyIgnored : operations[i].src_queue_family,
                     operations[i].image,
                     vk::ImageSubresourceRange{
                         vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1
@@ -153,9 +156,9 @@ namespace Engine::RenderSystemState{
 
         uint64_t total_frame_count {0};
 
-        vk::Queue graphic_queue {};
+        /* vk::Queue graphic_queue {};
         vk::Queue present_queue {};
-        vk::SwapchainKHR swapchain {};
+        vk::SwapchainKHR swapchain {}; */
         RenderSystem & m_system;
 
         std::unique_ptr <SubmissionHelper> m_submission_helper {};
@@ -220,14 +223,14 @@ namespace Engine::RenderSystemState{
             );
         }
 
-        auto pool = m_system.getQueueInfo().graphicsPool.get();
-        auto queue = m_system.getQueueInfo().graphicsQueue;
-
-        vk::CommandBufferAllocateInfo cbinfo {
-            pool, vk::CommandBufferLevel::ePrimary, FRAMES_IN_FLIGHT
-        };
-        auto new_command_buffers = device.allocateCommandBuffersUnique(cbinfo);
-
+        // Allocate main render command buffers
+        auto new_command_buffers = device.allocateCommandBuffersUnique(
+            vk::CommandBufferAllocateInfo{
+                m_system.getQueueInfo().graphicsPool.get(),
+                vk::CommandBufferLevel::ePrimary,
+                FRAMES_IN_FLIGHT
+            }
+        );
         for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; i++) {
             command_buffers[i] = std::move(new_command_buffers[i]);
             DEBUG_SET_NAME_TEMPLATE(
@@ -237,7 +240,12 @@ namespace Engine::RenderSystemState{
             );
         }
 
-        new_command_buffers = device.allocateCommandBuffersUnique(cbinfo);
+        // Allocate copying and presenting command buffers
+        new_command_buffers = device.allocateCommandBuffersUnique(vk::CommandBufferAllocateInfo{
+            m_system.getQueueInfo().presentPool.get(),
+            vk::CommandBufferLevel::ePrimary,
+            FRAMES_IN_FLIGHT
+        });
         for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; i++) {
             copy_to_swapchain_command_buffers[i] = std::move(new_command_buffers[i]);
             DEBUG_SET_NAME_TEMPLATE(
@@ -247,11 +255,7 @@ namespace Engine::RenderSystemState{
             );
         }
 
-        graphic_queue = queue;
-        present_queue = m_system.getQueueInfo().presentQueue;
-        swapchain = m_system.GetSwapchain().GetSwapchain();
         current_frame_in_flight = 0;
-
         m_submission_helper = std::make_unique <SubmissionHelper> (m_system);
         m_presenting_helper = std::make_unique <PresentingHelper> ();
     }
@@ -309,7 +313,7 @@ namespace Engine::RenderSystemState{
 
         // Acquire new image
         auto acquire_result = device.acquireNextImageKHR(
-            pimpl->swapchain, 
+            pimpl->m_system.GetSwapchain().GetSwapchain(), 
             timeout, 
             pimpl->image_acquired_semaphores[fif].get(),
             nullptr
@@ -349,12 +353,20 @@ namespace Engine::RenderSystemState{
         
         info.setSignalSemaphores({this->pimpl->render_command_executed_semaphores[fif].get()});
         std::array<vk::SubmitInfo, 1> infos{info};
-        this->pimpl->graphic_queue.submit(infos, nullptr);
+        this->pimpl->m_system.getQueueInfo().graphicsQueue.submit(infos, nullptr);
     }
 
     void FrameManager::StageCopyComposition(vk::Image image, vk::Extent2D extent, vk::Offset2D offsetSrc, vk::Offset2D offsetDst)
     {
-        pimpl->m_presenting_helper->operations.emplace_back(image, extent, offsetSrc, offsetDst);
+        const auto & families = pimpl->m_system.GetQueueFamilies();
+        pimpl->m_presenting_helper->operations.emplace_back(
+            image,
+            extent,
+            offsetSrc,
+            offsetDst,
+            families.graphics.value(),
+            families.present.value()
+        );
     }
 
     void FrameManager::StageCopyComposition(vk::Image image)
@@ -394,10 +406,11 @@ namespace Engine::RenderSystemState{
             {copy_cb},
             ss
         };
-        pimpl->graphic_queue.submit(sinfo, this->pimpl->command_executed_fences[this->GetFrameInFlight()].get());
+        const auto & queueInfo = pimpl->m_system.getQueueInfo();
+        queueInfo.presentQueue.submit(sinfo, this->pimpl->command_executed_fences[this->GetFrameInFlight()].get());
 
         // Queue a present directive
-        std::array<vk::SwapchainKHR, 1> swapchains { pimpl->swapchain };
+        std::array<vk::SwapchainKHR, 1> swapchains { pimpl->m_system.GetSwapchain().GetSwapchain() };
         std::array<uint32_t, 1> frame_indices { GetFramebuffer() };
         // Wait for command buffer before presenting the frame
         std::array<vk::Semaphore, 1> semaphores {pimpl->copy_to_swapchain_completed_semaphores[fif].get()};
@@ -405,7 +418,7 @@ namespace Engine::RenderSystemState{
         bool needs_recreating = false;
         try {
             vk::PresentInfoKHR info{semaphores, swapchains, frame_indices};
-            vk::Result result = pimpl->present_queue.presentKHR(info);
+            vk::Result result = queueInfo.presentQueue.presentKHR(info);
             if (result != vk::Result::eSuccess) {
                 SDL_LogWarn(
                     SDL_LOG_CATEGORY_RENDER, 
@@ -452,7 +465,7 @@ namespace Engine::RenderSystemState{
             {copy_cb},
             ss
         };
-        pimpl->graphic_queue.submit(sinfo, this->pimpl->command_executed_fences[this->GetFrameInFlight()].get());
+        pimpl->m_system.getQueueInfo().presentQueue.submit(sinfo, this->pimpl->command_executed_fences[this->GetFrameInFlight()].get());
 
         if (timeout) {
             auto device = pimpl->m_system.getDevice();
@@ -477,10 +490,7 @@ namespace Engine::RenderSystemState{
         // Handle submissions
         m_submission_helper->CompleteFrame();
     }
-    void FrameManager::UpdateSwapchain()
-    {
-        this->pimpl->swapchain = pimpl->m_system.GetSwapchain().GetSwapchain();
-    }
+
     SubmissionHelper &FrameManager::GetSubmissionHelper()
     {
         return *(pimpl->m_submission_helper);
