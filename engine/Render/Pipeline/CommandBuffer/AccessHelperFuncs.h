@@ -79,6 +79,7 @@ namespace Engine {
         /**
          * @brief Infer the related aspect of an image from usages.
          */
+        [[deprecated]]
         constexpr inline vk::ImageAspectFlags InferImageAspectFromUsage(ImageAccessType currentAccess, ImageAccessType previousAccess)
         {
             switch(previousAccess) {

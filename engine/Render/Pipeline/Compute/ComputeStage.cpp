@@ -125,11 +125,13 @@ namespace Engine{
     void ComputeStage::SetInBlockVariable(uint32_t index, std::any var)
     {
         pimpl->m_inblock_variables[index] = var;
+        pimpl->m_instancedPassInfo.is_descriptor_set_dirty = true;
     }
 
     void ComputeStage::SetDescVariable(uint32_t index, std::any var)
     {
         pimpl->m_desc_variables[index] = var;
+        pimpl->m_instancedPassInfo.is_descriptor_set_dirty = true;
     }
 
     std::optional<std::pair<uint32_t, bool>> ComputeStage::GetVariableIndex(const std::string &name) const noexcept

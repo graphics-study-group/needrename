@@ -166,7 +166,7 @@ namespace Engine
             uint32_t descriptor_set_count;
             auto result = shaderModule.EnumerateDescriptorSets(&descriptor_set_count, nullptr);
             assert(result == SPV_REFLECT_RESULT_SUCCESS);
-            assert(descriptor_set_count == 1 && "Only exactly one descriptor set is supported for compute shader");
+            assert(descriptor_set_count == 1 && "Only exactly one descriptor set is supported for compute shader.");
             std::vector<SpvReflectDescriptorSet *> descriptor_sets{descriptor_set_count, nullptr};
             result = shaderModule.EnumerateDescriptorSets(&descriptor_set_count, descriptor_sets.data());
             assert(result == SPV_REFLECT_RESULT_SUCCESS);
@@ -174,6 +174,7 @@ namespace Engine
             ReflectedDataCollectionCompute reflected{};
 
             const SpvReflectDescriptorSet &refl_set = *(descriptor_sets[0]);
+            assert(refl_set.set == 0 && "Only exactly one descriptor set numbered zero is supported for compute shader.");
 
             ProcessDescriptors(
                 shaderModule, 

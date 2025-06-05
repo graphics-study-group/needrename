@@ -12,6 +12,7 @@
 namespace Engine {
     class Buffer;
     namespace PipelineInfo {
+        [[deprecated]]
         struct ShaderVariable {
             using Type = ShaderVariableProperty::Type;
             using InBlockVarType = ShaderInBlockVariableProperty::InBlockVarType;

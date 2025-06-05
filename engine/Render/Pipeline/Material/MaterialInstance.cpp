@@ -18,10 +18,10 @@ namespace Engine {
         for (const auto & [idx, info] : tpl->GetAllPassInfo()) {
             PassInfo pass{};
             auto ubo_size = tpl->GetMaximalUBOSize(idx);
+            pass.desc_set = tpl->AllocateDescriptorSet(idx);
             if (ubo_size == 0) {
                 SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Found zero-sized UBO when processing pass %llu of material", ubo_size);
             } else {
-                pass.desc_set = tpl->AllocateDescriptorSet(idx);
                 pass.ubo = std::make_unique<Buffer>(system.lock());
                 pass.ubo->Create(Buffer::BufferType::Uniform, tpl->GetMaximalUBOSize(idx));
             }
@@ -104,7 +104,7 @@ namespace Engine {
         if (!pass_info.is_descriptor_set_dirty)    return;
 
         auto tpl = m_parent_template.lock();
-        auto & ubo = *(pass_info.ubo.get());
+        
         
         // Prepare descriptor writes
         std::vector <vk::WriteDescriptorSet> writes;
@@ -124,17 +124,20 @@ namespace Engine {
         }
 
         // write ubo descriptors
-        std::array <vk::DescriptorBufferInfo, 1> ubo_buffer_info = {
-            vk::DescriptorBufferInfo{ubo.GetBuffer(), 0, vk::WholeSize}
-        };
-        vk::WriteDescriptorSet ubo_write {
-            pass_info.desc_set, 0, 0,
-            vk::DescriptorType::eUniformBuffer,
-            {},
-            ubo_buffer_info,
-            {}
-        };
-        writes.push_back(ubo_write);
+        if (pass_info.ubo) {
+            auto & ubo = *(pass_info.ubo.get());
+            std::array <vk::DescriptorBufferInfo, 1> ubo_buffer_info = {
+                vk::DescriptorBufferInfo{ubo.GetBuffer(), 0, vk::WholeSize}
+            };
+            vk::WriteDescriptorSet ubo_write {
+                pass_info.desc_set, 0, 0,
+                vk::DescriptorType::eUniformBuffer,
+                {},
+                ubo_buffer_info,
+                {}
+            };
+            writes.push_back(ubo_write);
+        }
 
         m_system.lock()->getDevice().updateDescriptorSets(writes, {});
         pass_info.is_descriptor_set_dirty = false;

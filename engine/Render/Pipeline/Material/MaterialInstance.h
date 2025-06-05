@@ -90,12 +90,18 @@ namespace Engine
         
         /**
          * @brief Write out UBO changes if it is dirty.
+         * 
+         * You in general does not need to call this function. It is automatically called
+         * when a direct draw call is issued on a command buffer.
          */
         void WriteUBO(uint32_t pass);
         
         /**
          * @brief Write out pending descriptor changes to the descriptor set.
          * Calls vk::WriteDescriptorSet to upload.
+         * 
+         * You in general does not need to call this function. It is automatically called
+         * when a direct draw call is issued on a command buffer.
          * 
          * @param pass The index of the pass.
          */
