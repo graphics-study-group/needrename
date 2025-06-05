@@ -22,18 +22,18 @@ namespace Engine {
         return pimpl->cb;
     }
 
-    void ComputeContext::UseImage(vk::Image img, ImageComputeAccessType currentAccess, ImageAccessType previousAccess) noexcept
+    void ComputeContext::UseImage(const Texture & texture, ImageComputeAccessType currentAccess, ImageAccessType previousAccess) noexcept
     {
         vk::ImageMemoryBarrier2 barrier;
         switch(currentAccess) {
             case ImageComputeAccessType::ShaderRandomWrite:
-                barrier = GetImageBarrier(img, ImageAccessType::ShaderRandomWrite, previousAccess);
+                barrier = GetImageBarrier(texture, ImageAccessType::ShaderRandomWrite, previousAccess);
                 break;
             case ImageComputeAccessType::ShaderRead:
-                barrier = GetImageBarrier(img, ImageAccessType::ShaderRead, previousAccess);
+                barrier = GetImageBarrier(texture, ImageAccessType::ShaderRead, previousAccess);
                 break;
             case ImageComputeAccessType::ShaderReadRandomWrite:
-                barrier = GetImageBarrier(img, ImageAccessType::ShaderReadRandomWrite, previousAccess);
+                barrier = GetImageBarrier(texture, ImageAccessType::ShaderReadRandomWrite, previousAccess);
                 break;
         }
         pimpl->barriers.push_back(std::move(barrier));

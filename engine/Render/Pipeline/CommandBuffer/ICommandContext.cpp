@@ -1,18 +1,19 @@
 #include "ICommandContext.h"
 
+#include "Render/Memory/Texture.h"
 #include "Render/Pipeline/CommandBuffer/AccessHelperFuncs.h"
 
 namespace Engine {
     vk::ImageMemoryBarrier2 ICommandContext::GetImageBarrier(
-        vk::Image img,
+        const Texture & texture,
         ImageAccessType currentAccess,
         ImageAccessType previousAccess
     ) noexcept
     {
         vk::ImageMemoryBarrier2 barrier;
-        barrier.image = img;
+        barrier.image = texture.GetImage();
         barrier.subresourceRange = vk::ImageSubresourceRange{
-            InferImageAspectFromUsage(currentAccess, previousAccess), 
+            ImageUtils::GetVkAspect(texture.GetTextureDescription().format), 
             0, vk::RemainingMipLevels, 
             0, vk::RemainingArrayLayers
         };

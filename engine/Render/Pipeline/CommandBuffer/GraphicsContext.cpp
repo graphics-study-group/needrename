@@ -24,25 +24,25 @@ namespace Engine {
     {
         return pimpl->cb;
     }
-    void GraphicsContext::UseImage(vk::Image img, ImageGraphicsAccessType currentAccess, ImageAccessType previousAccess) noexcept
+    void GraphicsContext::UseImage(const Texture & texture, ImageGraphicsAccessType currentAccess, ImageAccessType previousAccess) noexcept
     {
         vk::ImageMemoryBarrier2 barrier;
         using type = ImageGraphicsAccessType;
         switch(currentAccess) {
             case type::ColorAttachmentRead:
-                barrier = GetImageBarrier(img, ImageAccessType::ColorAttachmentRead, previousAccess);
+                barrier = GetImageBarrier(texture, ImageAccessType::ColorAttachmentRead, previousAccess);
                 break;
             case type::DepthAttachmentRead:
-                barrier = GetImageBarrier(img, ImageAccessType::DepthAttachmentRead, previousAccess);
+                barrier = GetImageBarrier(texture, ImageAccessType::DepthAttachmentRead, previousAccess);
                 break;
             case type::ShaderRead:
-                barrier = GetImageBarrier(img, ImageAccessType::ShaderRead, previousAccess);
+                barrier = GetImageBarrier(texture, ImageAccessType::ShaderRead, previousAccess);
                 break;
             case type::ColorAttachmentWrite:
-                barrier = GetImageBarrier(img, ImageAccessType::ColorAttachmentWrite, previousAccess);
+                barrier = GetImageBarrier(texture, ImageAccessType::ColorAttachmentWrite, previousAccess);
                 break;
             case type::DepthAttachmentWrite:
-                barrier = GetImageBarrier(img, ImageAccessType::DepthAttachmentWrite, previousAccess);
+                barrier = GetImageBarrier(texture, ImageAccessType::DepthAttachmentWrite, previousAccess);
                 break;
         }
         pimpl->barriers.push_back(std::move(barrier));

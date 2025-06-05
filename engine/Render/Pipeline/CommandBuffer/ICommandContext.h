@@ -1,11 +1,12 @@
-#ifndef PIPELINE_COMMANDBUFFER_COMMANDCONTEXT_INCLUDED
-#define PIPELINE_COMMANDBUFFER_COMMANDCONTEXT_INCLUDED
+#ifndef PIPELINE_COMMANDBUFFER_ICOMMANDCONTEXT_INCLUDED
+#define PIPELINE_COMMANDBUFFER_ICOMMANDCONTEXT_INCLUDED
 
 #include <vulkan/vulkan.hpp>
 #include "AccessHelperTypes.h"
 
 namespace Engine {
     class ICommandBuffer;
+    class Texture;
     class ICommandContext {
     public:
         using ImageAccessType = AccessHelper::ImageAccessType;
@@ -34,7 +35,7 @@ namespace Engine {
          * @return description of the barrier to be inserted.
          */
         static vk::ImageMemoryBarrier2 GetImageBarrier(
-            vk::Image img,
+            const Texture & texture,
             ImageAccessType currentAccess,
             ImageAccessType previousAccess
         ) noexcept;
@@ -54,4 +55,4 @@ namespace Engine {
     };
 }
 
-#endif // PIPELINE_COMMANDBUFFER_COMMANDCONTEXT_INCLUDED
+#endif // PIPELINE_COMMANDBUFFER_ICOMMANDCONTEXT_INCLUDED

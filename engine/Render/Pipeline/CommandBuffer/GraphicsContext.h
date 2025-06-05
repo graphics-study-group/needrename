@@ -23,7 +23,7 @@ namespace Engine {
          * @brief Mark an image for use for the following graphics context.
          */
         void UseImage(
-            vk::Image img,
+            const Texture & texture,
             ImageGraphicsAccessType currentAccess,
             ImageAccessType previousAccess
         ) noexcept;

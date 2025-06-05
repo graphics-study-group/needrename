@@ -5,6 +5,7 @@
 #include "Render/Pipeline/CommandBuffer/ComputeCommandBuffer.h"
 
 namespace Engine {
+    class Texture;
     class ComputeContext : public ICommandContext {
         struct impl;
         std::unique_ptr <impl> pimpl;
@@ -19,7 +20,7 @@ namespace Engine {
         /**
          * @brief Mark an image for use for the following compute context.
          */
-        void UseImage(vk::Image img, ImageComputeAccessType currentAccess, ImageAccessType previousAccess) noexcept;
+        void UseImage(const Texture & texture, ImageComputeAccessType currentAccess, ImageAccessType previousAccess) noexcept;
 
         /**
          * @brief Set up barriers according to `UseX()` directives.
