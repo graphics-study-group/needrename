@@ -13,6 +13,8 @@ namespace Engine {
 
         ComputeContext(ComputeCommandBuffer && cb);
         virtual ~ComputeContext();
+
+        ICommandBuffer & GetCommandBuffer() const noexcept override;
         
         /**
          * @brief Mark an image for use for the following compute context.

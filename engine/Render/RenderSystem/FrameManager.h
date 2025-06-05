@@ -5,6 +5,7 @@ namespace Engine {
     class RenderSystem;
     class GraphicsCommandBuffer;
     class GraphicsContext;
+    class ComputeContext;
 
     namespace RenderSystemState {
         class SubmissionHelper;
@@ -33,6 +34,8 @@ namespace Engine {
             GraphicsCommandBuffer GetCommandBuffer ();
 
             GraphicsContext GetGraphicsContext();
+
+            ComputeContext GetComputeContext();
 
             /**
              * @brief Start the rendering of a new frame.

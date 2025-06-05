@@ -7,6 +7,7 @@
 #include "Render/RenderSystem/Swapchain.h"
 #include "Render/DebugUtils.h"
 #include "Render/Pipeline/CommandBuffer/GraphicsContext.h"
+#include "Render/Pipeline/CommandBuffer/ComputeContext.h"
 
 #include <SDL3/SDL.h>
 
@@ -289,6 +290,15 @@ namespace Engine::RenderSystemState{
     GraphicsContext FrameManager::GetGraphicsContext()
     {
         return GraphicsContext(GraphicsCommandBuffer(
+            pimpl->m_system, 
+            pimpl->command_buffers[GetFrameInFlight()].get(), 
+            GetFrameInFlight()
+        ));
+    }
+
+    ComputeContext FrameManager::GetComputeContext()
+    {
+        return ComputeContext(ComputeCommandBuffer(
             pimpl->m_system, 
             pimpl->command_buffers[GetFrameInFlight()].get(), 
             GetFrameInFlight()

@@ -16,17 +16,22 @@
 
 #include "Render/Pipeline/CommandBuffer.h"
 #include "Render/Pipeline/CommandBuffer/GraphicsContext.h"
+#include "Render/Pipeline/CommandBuffer/ComputeContext.h"
+#include "Render/Pipeline/CommandBuffer/GraphicsCommandBuffer.h"
+#include "Render/Pipeline/CommandBuffer/ComputeCommandBuffer.h"
 #include "Render/Pipeline/RenderTargetBinding.h"
+
+#include "Render/Pipeline/Compute/ComputeStage.h"
+
+#include "Render/Pipeline/Material/MaterialInstance.h"
+#include "Render/Pipeline/Material/MaterialTemplate.h"
+#include "Render/Pipeline/Material/Templates/BlinnPhong.h"
 
 #include "Render/Renderer/HomogeneousMesh.h"
 
 #include "Render/Memory/Texture.h"
 #include "Render/Memory/SampledTexture.h"
 #include "Render/Memory/SampledTextureInstantiated.h"
-
-#include "Render/Pipeline/Material/MaterialInstance.h"
-#include "Render/Pipeline/Material/MaterialTemplate.h"
-#include "Render/Pipeline/Material/Templates/BlinnPhong.h"
 
 #include "Render/RenderSystem.h"
 

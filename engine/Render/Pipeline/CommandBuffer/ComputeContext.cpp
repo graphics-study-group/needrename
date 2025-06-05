@@ -17,6 +17,11 @@ namespace Engine {
     }
     ComputeContext::~ComputeContext() = default;
 
+    ICommandBuffer & ComputeContext::GetCommandBuffer() const noexcept
+    {
+        return pimpl->cb;
+    }
+
     void ComputeContext::UseImage(vk::Image img, ImageComputeAccessType currentAccess, ImageAccessType previousAccess) noexcept
     {
         vk::ImageMemoryBarrier2 barrier;

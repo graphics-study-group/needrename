@@ -112,6 +112,7 @@ namespace Engine{
             pimpl->m_instancedPassInfo.ubo = std::make_unique<Buffer>(system);
             pimpl->m_instancedPassInfo.ubo->Create(Buffer::BufferType::Uniform, ubo_size);
         }
+        // TODO: We obviously need a new pool for compute decriptors
         vk::DescriptorSetAllocateInfo dsai {
             system.GetGlobalConstantDescriptorPool().get(),
             { pimpl->m_passInfo.desc_layout.get() }
