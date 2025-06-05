@@ -71,6 +71,25 @@ namespace Engine {
             void StageCopyComposition (vk::Image image, vk::Extent2D extent, vk::Offset2D offsetSrc = {0, 0}, vk::Offset2D offsetDst = {0, 0});
 
             /**
+             * @brief Stage a composition by blitting of the given image to an undetermined image.
+             * The image must be in Color Attachment Optimal layout, which should be guaranteed so long as
+             * this method is called immediately after a draw call to copy a color attachment to the framebuffer.
+             * 
+             * The method transits the image to Transfer Source Layout and the framebuffer to Transfer Destination Layout,
+             * record a image blitting command, and transits the image back to Color Attachment Optimal layout.
+             * 
+             * With this method it is possible to resize images and swizzle RGB components.
+             */
+            void StageBlitComposition (
+                vk::Image image, 
+                vk::Extent2D extentSrc, 
+                vk::Extent2D extentDst, 
+                vk::Offset2D offsetSrc = {0, 0}, 
+                vk::Offset2D offsetDst = {0, 0}, 
+                vk::Filter filter = vk::Filter::eLinear
+            );
+
+            /**
              * @brief Stage a composition by copy of the given image to an undetermined image.
              * This overload executes the copy with zero offset and the swapchain extent.
              * See the complete overload for more information.

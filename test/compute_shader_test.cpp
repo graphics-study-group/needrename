@@ -60,6 +60,15 @@ int main(int argc, char * argv[]) {
     uint64_t frame_count = 0;
     while(++frame_count) {
         if (frame_count > max_frame_count)  break;
+
+        SDL_Event event;
+        while(SDL_PollEvent(&event) != 0) {
+            switch(event.type) {
+            case SDL_EVENT_QUIT:
+                rsys->WaitForIdle();
+                return 0;
+            }
+        }
         
         rsys->StartFrame();
         auto ccontext = rsys->GetFrameManager().GetComputeContext();
@@ -86,11 +95,19 @@ int main(int argc, char * argv[]) {
         ccontext.GetCommandBuffer().End();
 
         rsys->GetFrameManager().SubmitMainCommandBuffer();
-        rsys->GetFrameManager().StageCopyComposition(color->GetImage());
+        rsys->GetFrameManager().StageBlitComposition(
+            color->GetImage(), 
+            vk::Extent2D{
+                color->GetTextureDescription().width,
+                color->GetTextureDescription().height
+            }, 
+            rsys->GetSwapchain().GetExtent()
+        );
         rsys->CompleteFrame();
 
         SDL_Delay(5);
     }
-
+    
+    rsys->WaitForIdle();
     return 0;
 }

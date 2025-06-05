@@ -15,9 +15,24 @@ namespace Engine::RenderSystemState{
     struct PresentingHelper {
         struct PresentingOperation {
             vk::Image image;
-            vk::Extent2D extent;
-            vk::Offset2D offset_src, offset_dst;
             uint32_t src_queue_family, present_queue_family;
+
+            bool is_blitting;
+            union Parameters
+            {
+                struct {
+                    vk::Extent2D extent;
+                    vk::Offset2D offset_src;
+                    vk::Offset2D offset_dst;
+                } copy;
+                struct {
+                    vk::Extent2D extent_src;
+                    vk::Extent2D extent_dst;
+                    vk::Offset2D offset_src;
+                    vk::Offset2D offset_dst;
+                    vk::Filter filter;
+                } blit;
+            } parameters;
         };
 
         std::vector <PresentingOperation> operations {};
@@ -79,27 +94,63 @@ namespace Engine::RenderSystemState{
 
             // Record copying command.
             for (const auto & op : operations) {
-                cb.copyImage(
-                    op.image,
-                    vk::ImageLayout::eTransferSrcOptimal,
-                    dst,
-                    vk::ImageLayout::eTransferDstOptimal,
-                    {
-                        vk::ImageCopy{
-                            vk::ImageSubresourceLayers{
-                                vk::ImageAspectFlagBits::eColor,
-                                0, 0, 1
-                            },
-                            vk::Offset3D{op.offset_src, 0},
-                            vk::ImageSubresourceLayers{
-                                vk::ImageAspectFlagBits::eColor,
-                                0, 0, 1
-                            },
-                            vk::Offset3D{op.offset_dst, 0},
-                            vk::Extent3D{op.extent, 1}
+                if (op.is_blitting) {
+                    cb.blitImage(
+                        op.image,
+                        vk::ImageLayout::eTransferSrcOptimal,
+                        dst,
+                        vk::ImageLayout::eTransferDstOptimal, 
+                        {
+                            vk::ImageBlit{
+                                vk::ImageSubresourceLayers{
+                                    vk::ImageAspectFlagBits::eColor, 0, 0, 1
+                                },
+                                {
+                                    vk::Offset3D{op.parameters.blit.offset_src, 0}, 
+                                    vk::Offset3D{
+                                        op.parameters.blit.offset_src.x + op.parameters.blit.extent_src.width,
+                                        op.parameters.blit.offset_src.y + op.parameters.blit.extent_src.height,
+                                        1
+                                    }
+                                },
+                                vk::ImageSubresourceLayers{
+                                    vk::ImageAspectFlagBits::eColor, 0, 0, 1
+                                },
+                                {
+                                    vk::Offset3D{op.parameters.blit.offset_dst, 0}, 
+                                    vk::Offset3D{
+                                        op.parameters.blit.offset_dst.x + op.parameters.blit.extent_dst.width,
+                                        op.parameters.blit.offset_dst.y + op.parameters.blit.extent_dst.height,
+                                        1
+                                    }
+                                }
+                            }
+                        },
+                        op.parameters.blit.filter
+                    );
+                } else {
+                    cb.copyImage(
+                        op.image,
+                        vk::ImageLayout::eTransferSrcOptimal,
+                        dst,
+                        vk::ImageLayout::eTransferDstOptimal,
+                        {
+                            vk::ImageCopy{
+                                vk::ImageSubresourceLayers{
+                                    vk::ImageAspectFlagBits::eColor,
+                                    0, 0, 1
+                                },
+                                vk::Offset3D{op.parameters.copy.offset_src, 0},
+                                vk::ImageSubresourceLayers{
+                                    vk::ImageAspectFlagBits::eColor,
+                                    0, 0, 1
+                                },
+                                vk::Offset3D{op.parameters.copy.offset_dst, 0},
+                                vk::Extent3D{op.parameters.copy.extent, 1}
+                            }
                         }
-                    }
-                );
+                    );
+                }
             }
 
             // Prepare another set of barriers
@@ -369,14 +420,41 @@ namespace Engine::RenderSystemState{
     void FrameManager::StageCopyComposition(vk::Image image, vk::Extent2D extent, vk::Offset2D offsetSrc, vk::Offset2D offsetDst)
     {
         const auto & families = pimpl->m_system.GetQueueFamilies();
-        pimpl->m_presenting_helper->operations.emplace_back(
-            image,
-            extent,
-            offsetSrc,
-            offsetDst,
-            families.graphics.value(),
-            families.present.value()
-        );
+        PresentingHelper::PresentingOperation copy_op {
+            .image = image,
+            .src_queue_family = families.graphics.value(),
+            .present_queue_family = families.present.value(),
+            .is_blitting = false,
+            .parameters = {
+                .copy = {
+                    .extent = extent,
+                    .offset_src = offsetSrc,
+                    .offset_dst = offsetDst
+                }
+            }
+        };
+        pimpl->m_presenting_helper->operations.push_back(std::move(copy_op));
+    }
+
+    void FrameManager::StageBlitComposition(vk::Image image, vk::Extent2D extentSrc, vk::Extent2D extentDst, vk::Offset2D offsetSrc, vk::Offset2D offsetDst, vk::Filter filter)
+    {
+        const auto & families = pimpl->m_system.GetQueueFamilies();
+        PresentingHelper::PresentingOperation blit_op {
+            .image = image,
+            .src_queue_family = families.graphics.value(),
+            .present_queue_family = families.present.value(),
+            .is_blitting = true,
+            .parameters = {
+                .blit = {
+                    .extent_src = extentSrc,
+                    .extent_dst = extentDst,
+                    .offset_src = offsetSrc,
+                    .offset_dst = offsetDst,
+                    .filter = filter
+                }
+            }
+        };
+        pimpl->m_presenting_helper->operations.push_back(std::move(blit_op));
     }
 
     void FrameManager::StageCopyComposition(vk::Image image)
