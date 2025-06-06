@@ -39,6 +39,7 @@ namespace Engine
     
     private:
         std::shared_ptr<Engine::AllocatedImage2D> m_color_image{};
+        std::shared_ptr<Engine::AllocatedImage2D> m_depth_image{};
     };
 }
 #endif // FUNCTIONAL_SDLWINDOW_INCLUDED

@@ -81,11 +81,13 @@ namespace Engine
     void MainClass::MainLoop()
     {
         Uint64 FPS_TIMER = 0;
+        m_frame_count = 0;
         while (!m_on_quit)
         {
             Uint64 current_time = SDL_GetTicksNS();
             float dt = (current_time - FPS_TIMER) * 1e-9f;
             FPS_TIMER = current_time;
+            m_frame_count++;
 
             this->RunOneFrame(dt);
         }
@@ -97,16 +99,16 @@ namespace Engine
     void MainClass::LoopFiniteFrame(int max_frame_count)
     {
         Uint64 FPS_TIMER = 0;
-        int frame_count = 0;
+        m_frame_count = 0;
 
-        while (!m_on_quit && frame_count < max_frame_count)
+        while (!m_on_quit && m_frame_count < max_frame_count)
         {
             Uint64 current_time = SDL_GetTicksNS();
             float dt = (current_time - FPS_TIMER) * 1e-9f;
             FPS_TIMER = current_time;
+            m_frame_count++;
 
             this->RunOneFrame(dt);
-            frame_count++;
         }
         SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "The main loop is ended.");
         renderer->WaitForIdle();
@@ -118,12 +120,14 @@ namespace Engine
         Uint64 FPS_TIMER = 0;
         Uint64 start_time = SDL_GetTicksNS();
         Uint64 current_time = start_time;
+        m_frame_count = 0;
 
         while (!m_on_quit && (current_time - start_time) * 1e-9f < max_time)
         {
             current_time = SDL_GetTicksNS();
             float dt = (current_time - FPS_TIMER) * 1e-9f;
             FPS_TIMER = current_time;
+            m_frame_count++;
 
             this->RunOneFrame(dt);
         }
@@ -195,7 +199,7 @@ namespace Engine
         renderer->DrawMeshes();
         cb.EndRendering();
         cb.End();
-        cb.Submit();
+        cb.Submit(m_frame_count != 1);
         renderer->GetFrameManager().StageCopyComposition(window->GetRenderTargetBinding().GetColorAttachments()[0].image);
         renderer->CompleteFrame();
     }

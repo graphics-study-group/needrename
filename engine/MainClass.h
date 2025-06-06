@@ -47,6 +47,7 @@ namespace Engine
         std::shared_ptr<GUISystem> gui{};
         std::shared_ptr<Input> input{};
 
+        unsigned int m_frame_count = 0;
         bool m_on_quit = false;
 
         void RunOneFrame(float dt);
