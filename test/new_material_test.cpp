@@ -6,18 +6,11 @@
 #include "MainClass.h"
 #include "Functional/SDLWindow.h"
 #include "Framework/component/RenderComponent/MeshComponent.h"
-#include "Render/RenderSystem.h"
-#include "Render/RenderSystem/GlobalConstantDescriptorPool.h"
-#include "Render/RenderSystem/FrameManager.h"
-#include "Render/RenderSystem/Swapchain.h"
 #include "GUI/GUISystem.h"
-#include "Render/ConstantData/PerModelConstants.h"
-#include "Render/Material/Templates/BlinnPhong.h"
-#include "Render/Renderer/HomogeneousMesh.h"
-#include "Render/Memory/Image2DTexture.h"
 #include "Asset/Mesh/MeshAsset.h"
 #include "Asset/Texture/Image2DTextureAsset.h"
 #include "Asset/AssetManager/AssetManager.h"
+#include "Render/FullRenderSystem.h"
 
 #include "cmake_config.h"
 
@@ -57,41 +50,15 @@ std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate()
     test_asset->name = "Blinn-Phong";
 
     MaterialTemplateSinglePassProperties mtspp{};
+    mtspp.attachments.color = {
+        ImageUtils::ImageFormat::R8G8B8A8UNorm
+    };
+    mtspp.attachments.color_ops = {
+        AttachmentUtils::AttachmentOp{}
+    };
+    mtspp.attachments.depth = ImageUtils::ImageFormat::D32SFLOAT;
     mtspp.shaders.shaders = std::vector<std::shared_ptr<AssetRef>>{vs_ref, fs_ref};
 
-    ShaderVariableProperty light_source, light_color;
-    light_source.frequency = light_color.frequency = ShaderVariableProperty::Frequency::PerScene;
-    light_source.type = light_color.type = ShaderVariableProperty::Type::Vec4;
-    light_source.binding = light_color.binding = 0;
-    light_source.offset = 0;
-    light_source.name = "light_source";
-    light_color.offset = 16;
-    light_color.name = "light_color";
-
-    ShaderVariableProperty view, proj;
-    view.frequency = proj.frequency = ShaderVariableProperty::Frequency::PerCamera;
-    view.type = proj.type = ShaderVariableProperty::Type::Mat4;
-    view.binding = proj.binding = 0;
-    view.offset = 0;
-    proj.offset = 64;
-    view.name = "view";
-    proj.name = "proj";
-
-    ShaderVariableProperty base_tex, specular_color, ambient_color;
-    base_tex.frequency = specular_color.frequency = ambient_color.frequency = ShaderVariableProperty::Frequency::PerMaterial;
-    base_tex.type = ShaderVariableProperty::Type::Texture;
-    specular_color.type = ambient_color.type = ShaderVariableProperty::Type::Vec4;
-    base_tex.binding = 1;
-    specular_color.binding = ambient_color.binding = 0;
-    specular_color.offset = 0;
-    ambient_color.offset = 16;
-    base_tex.name = "base_tex";
-    specular_color.name = "specular_color";
-    ambient_color.name = "ambient_color";
-
-    mtspp.shaders.uniforms = {
-        light_source, light_color, view, proj, base_tex, specular_color, ambient_color
-    };
     test_asset->properties.properties[0] = mtspp;
 
     return test_asset;
@@ -117,8 +84,8 @@ int main(int argc, char ** argv)
     // Prepare texture
     auto test_texture_asset = std::make_shared<Image2DTextureAsset>();
     test_texture_asset->LoadFromFile(std::string(ENGINE_ASSETS_DIR) + "/bunny/bunny.png");
-    auto allocated_image_texture = std::make_shared<AllocatedImage2DTexture>(rsys);
-    allocated_image_texture->Create(*test_texture_asset);
+    auto allocated_image_texture = std::make_shared<SampledTextureInstantiated>(*rsys);
+    allocated_image_texture->Instantiate(*test_texture_asset);
 
     // Prepare material
     cmc->GetAssetManager()->LoadBuiltinAssets();
@@ -130,27 +97,6 @@ int main(int argc, char ** argv)
     test_material_instance->SetSpecular(glm::vec4(1.0, 1.0, 1.0, 64.0));
     test_material_instance->SetBaseTexture(allocated_image_texture);
     test_material_instance->WriteDescriptors(0);
-
-    // std::filesystem::path project_path(ENGINE_TESTS_DIR);
-    // project_path = project_path / "new_material_test_project";
-    // if (std::filesystem::exists(project_path))
-    //     std::filesystem::remove_all(project_path);
-    // std::filesystem::copy(std::filesystem::path(ENGINE_PROJECTS_DIR) / "empty_project", project_path, std::filesystem::copy_options::recursive);
-
-    // Serialization::Archive archive;
-    // archive.prepare_save();
-    // test_asset->save_asset_to_archive(archive);
-    // archive.save_to_file(project_path / "BlinnPhongTemplate.asset");
-
-    // archive.clear();
-    // archive.prepare_save();
-    // test_asset->properties.properties[0].shaders.shaders[0]->as<ShaderAsset>()->save_asset_to_archive(archive);
-    // archive.save_to_file(project_path / "blinn_phong.vert.spv.asset");
-
-    // archive.clear();
-    // archive.prepare_save();
-    // test_asset->properties.properties[0].shaders.shaders[1]->as<ShaderAsset>()->save_asset_to_archive(archive);
-    // archive.save_to_file(project_path / "blinn_phong.frag.spv.asset");
 
     // Prepare mesh
     auto test_mesh_asset = std::make_shared<LowerPlaneMeshAsset>();
@@ -180,13 +126,29 @@ int main(int argc, char ** argv)
     glm::mat4 eye4 = glm::mat4(1.0f);
 
     // Prepare attachments
-    Engine::AllocatedImage2D color{rsys}, depth{rsys};
-    color.Create(1920, 1080, Engine::ImageUtils::ImageType::ColorAttachment, Engine::ImageUtils::ImageFormat::B8G8R8A8SRGB, 1);
-    depth.Create(1920, 1080, Engine::ImageUtils::ImageType::DepthImage, Engine::ImageUtils::ImageFormat::D32SFLOAT, 1);
+    Engine::Texture depth{*rsys};
+    auto color = std::make_shared<Texture>(*rsys);
+    auto postproc = std::make_shared<Texture>(*rsys);
+    Engine::Texture::TextureDesc desc {
+        .dimensions = 2,
+        .width = 1920,
+        .height = 1080,
+        .depth = 1,
+        .format = Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm,
+        .type = Engine::ImageUtils::ImageType::ColorGeneral,
+        .mipmap_levels = 1,
+        .array_layers = 1,
+        .is_cube_map = false
+    };
+    color->CreateTexture(desc, "Color Attachment");
+    postproc->CreateTexture(desc, "GaussianBlurred");
+    desc.format = Engine::ImageUtils::ImageFormat::D32SFLOAT;
+    desc.type = Engine::ImageUtils::ImageType::DepthImage;
+    depth.CreateTexture(desc, "Depth Attachment");
 
     Engine::AttachmentUtils::AttachmentDescription color_att, depth_att;
-    color_att.image = color.GetImage();
-    color_att.image_view = color.GetImageView();
+    color_att.image = color->GetImage();
+    color_att.image_view = color->GetImageView();
     color_att.load_op = vk::AttachmentLoadOp::eClear;
     color_att.store_op = vk::AttachmentStoreOp::eStore;
 
@@ -195,7 +157,21 @@ int main(int argc, char ** argv)
     depth_att.load_op = vk::AttachmentLoadOp::eClear;
     depth_att.store_op = vk::AttachmentStoreOp::eDontCare;
 
+    auto asys = cmc->GetAssetManager();
+    auto cs_ref = asys->GetNewAssetRef("~/shaders/gaussian_blur.comp.spv.asset");
+    asys->LoadAssetImmediately(cs_ref);
+    ComputeStage cstage{*rsys, cs_ref};
+    cstage.SetDescVariable(
+        cstage.GetVariableIndex("inputImage").value().first,
+        std::const_pointer_cast<const Texture>(color)
+    );
+    cstage.SetDescVariable(
+        cstage.GetVariableIndex("outputImage").value().first,
+        std::const_pointer_cast<const Texture>(postproc)
+    );
+
     bool quited = false;
+    bool has_gaussian_blur = true;
     while(max_frame_count--) {
         SDL_Event event;
         while(SDL_PollEvent(&event) != 0) {
@@ -203,6 +179,10 @@ int main(int argc, char ** argv)
             case SDL_EVENT_QUIT:
                 quited = true;
                 break;
+            case SDL_EVENT_KEY_UP:
+                if(event.key.key == SDLK_G) {
+                    has_gaussian_blur = !has_gaussian_blur;
+                }
             }
         }
 
@@ -211,11 +191,16 @@ int main(int argc, char ** argv)
         rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(*allocated_image_texture, test_texture_asset->GetPixelData(), test_texture_asset->GetPixelDataSize());
 
         auto index = rsys->StartFrame();
-        RenderCommandBuffer & cb = rsys->GetCurrentCommandBuffer();
+        auto gcontext = rsys->GetFrameManager().GetGraphicsContext();
+        GraphicsCommandBuffer & cb = dynamic_cast<GraphicsCommandBuffer &>(gcontext.GetCommandBuffer());
 
         assert(index < 3);
     
         cb.Begin();
+
+        gcontext.UseImage(*color, GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite, GraphicsContext::ImageAccessType::None);
+        gcontext.UseImage(depth, GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite, GraphicsContext::ImageAccessType::None);
+        gcontext.PrepareCommandBuffer();
 
         vk::Extent2D extent {rsys->GetSwapchain().GetExtent()};
         vk::Rect2D scissor{{0, 0}, extent};
@@ -224,7 +209,7 @@ int main(int argc, char ** argv)
         cb.SetupViewport(extent.width, extent.height, scissor);
         cb.BindMaterial(*test_material_instance, 0);
         // Push model matrix...
-        vk::CommandBuffer rcb = cb.get();
+        vk::CommandBuffer rcb = cb.GetCommandBuffer();
         rcb.pushConstants(
             test_template->GetPipelineLayout(0), 
             vk::ShaderStageFlagBits::eVertex, 
@@ -235,11 +220,45 @@ int main(int argc, char ** argv)
         cb.DrawMesh(test_mesh);
 
         cb.EndRendering();
+        if (has_gaussian_blur) {
+            auto ccontext = rsys->GetFrameManager().GetComputeContext();
+            ccontext.UseImage(
+                *color,
+                Engine::ComputeContext::ImageComputeAccessType::ShaderReadRandomWrite, 
+                Engine::ComputeContext::ImageAccessType::ColorAttachmentWrite
+            );
+            ccontext.UseImage(
+                *postproc,
+                Engine::ComputeContext::ImageComputeAccessType::ShaderRandomWrite, 
+                Engine::ComputeContext::ImageAccessType::None
+            );
+            ccontext.PrepareCommandBuffer();
+            auto ccb = dynamic_cast<ComputeCommandBuffer &>(ccontext.GetCommandBuffer());
+            ccb.BindComputeStage(cstage);
+            ccb.DispatchCompute(
+                postproc->GetTextureDescription().width / 16 + 1, 
+                postproc->GetTextureDescription().height / 16 + 1, 
+                1
+            );
+
+            gcontext.UseImage(*postproc, 
+                GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite, 
+                Engine::ComputeContext::ImageAccessType::ShaderRandomWrite
+            );
+            gcontext.PrepareCommandBuffer();
+        }
+        
 
         cb.End();
-        cb.Submit();
-
-        rsys->GetFrameManager().StageCopyComposition(color.GetImage());
+        rsys->GetFrameManager().SubmitMainCommandBuffer();
+        rsys->GetFrameManager().StageBlitComposition(
+            has_gaussian_blur ? postproc->GetImage() : color->GetImage(), 
+            vk::Extent2D{
+                postproc->GetTextureDescription().width,
+                postproc->GetTextureDescription().height
+            }, 
+            rsys->GetSwapchain().GetExtent()
+        );
         rsys->CompleteFrame();
 
         SDL_Delay(10);

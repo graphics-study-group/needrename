@@ -5,7 +5,14 @@
 #include <SDL3/SDL.h>
 
 namespace Engine {
-    HomogeneousMesh::HomogeneousMesh(std::weak_ptr<RenderSystem> system, std::shared_ptr<AssetRef> mesh_asset, size_t submesh_idx) : m_system(system), m_buffer(system), m_mesh_asset(mesh_asset), m_submesh_idx(submesh_idx) {
+    HomogeneousMesh::HomogeneousMesh(
+        std::weak_ptr<RenderSystem> system,
+        std::shared_ptr<AssetRef> mesh_asset,
+        size_t submesh_idx
+    ) : m_system(system), 
+    m_buffer(system.lock()), 
+    m_mesh_asset(mesh_asset), 
+    m_submesh_idx(submesh_idx) {
     }
 
     HomogeneousMesh::~HomogeneousMesh() {
@@ -21,7 +28,7 @@ namespace Engine {
                 "(Re-)Allocating buffer and memory for %u vertices (%llu bytes).", 
                 new_vertex_count, buffer_size
             );
-            m_buffer.Create(Buffer::BufferType::Vertex, buffer_size);
+            m_buffer.Create(Buffer::BufferType::Vertex, buffer_size, "Buffer - mesh vertices");
             m_allocated_buffer_size = buffer_size;
         }
     }
@@ -35,8 +42,8 @@ namespace Engine {
     Buffer HomogeneousMesh::CreateStagingBuffer() const {
         const uint64_t buffer_size = GetExpectedBufferSize();
 
-        Buffer buffer{m_system};
-        buffer.Create(Buffer::BufferType::Staging, buffer_size);
+        Buffer buffer{m_system.lock()};
+        buffer.Create(Buffer::BufferType::Staging, buffer_size, "Buffer - mesh staging");
 
         std::byte * data = buffer.Map();
         WriteToMemory(data);

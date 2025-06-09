@@ -1,5 +1,5 @@
-#ifndef RENDER_MATERIAL_MATERIALTEMPLATEUTILS_INCLUDED
-#define RENDER_MATERIAL_MATERIALTEMPLATEUTILS_INCLUDED
+#ifndef RENDER_PIPELINE_PIPELINEUTILS_INCLUDED
+#define RENDER_PIPELINE_PIPELINEUTILS_INCLUDED
 
 #include <vulkan/vulkan.hpp>
 #include <Asset/Material/MaterialTemplateAsset.h>
@@ -9,7 +9,7 @@
 #include <glm.hpp>
 
 namespace Engine{
-    namespace MaterialTemplateUtils{
+    namespace PipelineUtils{
         const static std::unordered_set <std::type_index> REGISTERED_SHADER_UNIFORM_TYPES = {
             typeid(int),
             typeid(float),
@@ -56,11 +56,11 @@ namespace Engine{
          * Converts a MaterialTemplateSinglePassProperties::Shaders and a default sampler to a list of Vulkan descriptor set layout bindings.
          *
          * @param shaders The shaders to convert.
-         * @param default_sampler The default sampler to use for the bindings.
          * @return A list of Vulkan descriptor set layout bindings.
          */
+        [[deprecated]]
         std::vector<vk::DescriptorSetLayoutBinding>
-        ToVulkanDescriptorSetLayoutBindings(const MaterialTemplateSinglePassProperties::Shaders &shaders, vk::Sampler default_sampler);
+        ToVulkanDescriptorSetLayoutBindings(const MaterialTemplateSinglePassProperties::Shaders &shaders);
 
         /**
          * Converts a MaterialTemplateSinglePassProperties::Shaders and a vector of unique shader modules to a Vulkan pipeline shader stage create info.
@@ -92,4 +92,4 @@ namespace Engine{
     }
 }
 
-#endif // RENDER_MATERIAL_MATERIALTEMPLATEUTILS_INCLUDED
+#endif // RENDER_PIPELINE_PIPELINEUTILS_INCLUDED

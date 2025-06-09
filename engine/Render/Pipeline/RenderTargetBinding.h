@@ -19,8 +19,8 @@ namespace Engine {
         void SetColorAttachments(std::initializer_list <AttachmentDescription> attachments);
     
     private:
-        std::vector <AttachmentDescription> m_color_attachments;
-        AttachmentDescription m_depth_attachment;
+        std::vector <AttachmentDescription> m_color_attachments {};
+        AttachmentDescription m_depth_attachment {};
     };
 }
 

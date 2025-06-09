@@ -6,6 +6,7 @@ list(FILTER SOURCE EXCLUDE REGEX "__generated__/.*")
 list(FILTER HEADER EXCLUDE REGEX "__generated__/.*")
 
 add_library(engine STATIC ${SOURCE})
+target_compile_definitions(engine PUBLIC VULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1)
 target_include_directories(
     engine
     PUBLIC
@@ -23,6 +24,7 @@ target_link_libraries(engine
     cereal
     vma
     imgui
+    spirv-reflect
 )
 target_precompile_headers(engine PRIVATE <vulkan/vulkan.hpp>)
 target_precompile_headers(engine PRIVATE "Render/VkWrapper.tcc")

@@ -7,23 +7,19 @@
 
 namespace Engine
 {
-    class ImageInterface;
+    class SampledTexture;
+    class Buffer;
     /// @brief A light-weight instance of a given material,
     /// where all mutable data such as texture and uniforms are stored.
     class MaterialInstance {
     public:
-        struct PassInfo {
-            // FIXME: We are only allocating one buffer for multiple frames-in-flight. This might lead to synchronization problems.
-            std::unique_ptr<Buffer> ubo {};
-            vk::DescriptorSet desc_set {};
-            bool is_ubo_dirty {false};
-            bool is_descriptor_set_dirty {false};
-        };
+        using PassInfo = PipelineInfo::InstancedPassInfo;
 
     protected:
         std::weak_ptr <RenderSystem> m_system;
         std::weak_ptr <MaterialTemplate> m_parent_template;
-        std::unordered_map <uint32_t, std::unordered_map<uint32_t, std::any>> m_variables {};
+        std::unordered_map <uint32_t, std::unordered_map<uint32_t, std::any>> m_desc_variables {};
+        std::unordered_map <uint32_t, std::unordered_map<uint32_t, std::any>> m_inblock_variables {};
         std::unordered_map <uint32_t, PassInfo> m_pass_info {};
 
         // A small buffer for uniform buffer staging to avoid random write to UBO.
@@ -51,7 +47,15 @@ namespace Engine
          * @param pass_index The index of the pass
          * @return A reference to the variables map for the specified pass
          */
-        auto GetVariables(uint32_t pass_index) const -> const decltype(m_variables.at(0)) &;
+        auto GetInBlockVariables(uint32_t pass_index) const -> const decltype(m_inblock_variables.at(0)) &;
+
+        /**
+         * @brief Get the variables of a specific pass
+         *
+         * @param pass_index The index of the pass
+         * @return A reference to the variables map for the specified pass
+         */
+        auto GetDescVariables(uint32_t pass_index) const -> const decltype(m_desc_variables.at(0)) &;
 
         /**
          * @brief Set the texture uniform descriptor to point to a given texture.
@@ -60,7 +64,16 @@ namespace Engine
          * 
          * TODO: Figure out a way to connect samplers with textures
          */
-        void WriteTextureUniform(uint32_t pass, uint32_t index, std::shared_ptr<const ImageInterface> texture);
+        void WriteTextureUniform(uint32_t pass, uint32_t index, std::shared_ptr<const SampledTexture> texture);
+
+        /**
+         * @brief Set the storage buffer uniform descriptor to point to a given texture.
+         * @param name 
+         * @param buffer 
+         * 
+         * TODO: Figure out a way to connect samplers with textures
+         */
+        void WriteStorageBufferUniform(uint32_t pass, uint32_t index, std::shared_ptr <const Buffer> buffer);
     
         /**
          * @brief Set the uniform variable descriptor to point to a given value.
@@ -77,12 +90,18 @@ namespace Engine
         
         /**
          * @brief Write out UBO changes if it is dirty.
+         * 
+         * You in general does not need to call this function. It is automatically called
+         * when a direct draw call is issued on a command buffer.
          */
         void WriteUBO(uint32_t pass);
         
         /**
          * @brief Write out pending descriptor changes to the descriptor set.
          * Calls vk::WriteDescriptorSet to upload.
+         * 
+         * You in general does not need to call this function. It is automatically called
+         * when a direct draw call is issued on a command buffer.
          * 
          * @param pass The index of the pass.
          */

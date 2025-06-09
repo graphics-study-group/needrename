@@ -23,6 +23,8 @@
 
 #include <iostream>
 
+VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
+
 namespace Engine
 {
     struct RenderSystem::impl {
@@ -41,7 +43,7 @@ namespace Engine
         /// @brief Create a swap chain, possibly replace the older one.
         void CreateSwapchain();
 
-        void CreateCommandPools(const QueueFamilyIndices & indices);
+        void CreateCommandPools();
 
         static constexpr const char * validation_layer_name = "VK_LAYER_KHRONOS_validation";
         static constexpr std::array <std::string_view, 1> device_extension_name = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
@@ -61,7 +63,8 @@ namespace Engine
         vk::UniqueSurfaceKHR m_surface{};
         vk::UniqueDevice m_device{};
         
-        QueueInfo  m_queues {};
+        QueueFamilyIndices m_queue_families{};
+        QueueInfo  m_queues{};
         RenderSystemState::AllocatorState m_allocator_state;
         RenderSystemState::Swapchain m_swapchain{};
         RenderSystemState::FrameManager m_frame_manager;
@@ -78,14 +81,16 @@ namespace Engine
 
     void RenderSystem::Create() {
         assert(!this->pimpl->m_instance.get() || "Recreating render system");
-        // C++ wrappers for Vulkan functions throw exceptions
-        // So we don't need to do mundane error checking
-        // Create instance
+        VULKAN_HPP_DEFAULT_DISPATCHER.init(
+            reinterpret_cast<PFN_vkGetInstanceProcAddr>(SDL_Vulkan_GetVkGetInstanceProcAddr())
+        );
         pimpl->m_instance.Create("no name", "no name");
+        VULKAN_HPP_DEFAULT_DISPATCHER.init(pimpl->m_instance.get());
         pimpl->CreateSurface();
 
         pimpl->m_selected_physical_device = RenderSystemState::PhysicalDevice::SelectPhysicalDevice(pimpl->m_instance.get(), pimpl->m_surface.get());
         pimpl->CreateLogicalDevice();
+        VULKAN_HPP_DEFAULT_DISPATCHER.init(pimpl->m_device.get());
         pimpl->CreateSwapchain();
 
         pimpl->m_allocator_state.Create();
@@ -116,7 +121,7 @@ namespace Engine
 
     void RenderSystem::DrawMeshes(const glm::mat4 &view_matrix, const glm::mat4 &projection_matrix, uint32_t pass)
     {
-        RenderCommandBuffer & cb = this->GetCurrentCommandBuffer();
+        GraphicsCommandBuffer cb = this->GetFrameManager().GetCommandBuffer();
 
         // Write camera transforms
         std::byte * camera_ptr = this->GetGlobalConstantDescriptorPool().GetPerCameraConstantMemory(pimpl->m_frame_manager.GetFrameInFlight());
@@ -181,21 +186,17 @@ namespace Engine
     { 
         return pimpl->m_allocator_state; 
     }
-    const RenderSystem::QueueInfo &RenderSystem::getQueueInfo() const 
+    const RenderSystem::QueueFamilyIndices &RenderSystem::GetQueueFamilies() const
+    {
+        return pimpl->m_queue_families; 
+    }
+    const RenderSystem::QueueInfo &RenderSystem::getQueueInfo() const
     { 
         return pimpl->m_queues; 
     }
     const RenderSystemState::Swapchain& RenderSystem::GetSwapchain() const 
     { 
         return pimpl->m_swapchain; 
-    }
-    RenderCommandBuffer & RenderSystem::GetGraphicsCommandBuffer(uint32_t frame_index) 
-    { 
-        return pimpl->m_frame_manager.GetCommandBuffers()[frame_index]; 
-    }
-    RenderCommandBuffer & RenderSystem::GetCurrentCommandBuffer()
-    {
-        return pimpl->m_frame_manager.GetCommandBuffer();
     }
     const RenderSystemState::GlobalConstantDescriptorPool &RenderSystem::GetGlobalConstantDescriptorPool() const
     {
@@ -232,7 +233,6 @@ namespace Engine
     void RenderSystem::UpdateSwapchain() {
         this->WaitForIdle();
         pimpl->CreateSwapchain();
-        pimpl->m_frame_manager.UpdateSwapchain();
     }
 
     uint32_t RenderSystem::StartFrame()
@@ -243,10 +243,12 @@ namespace Engine
     void RenderSystem::impl::CreateLogicalDevice() {
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating logical device.");
 
-        auto indices = m_selected_physical_device.GetQueueFamilyIndices(m_surface.get());
+        m_queue_families = m_selected_physical_device.GetQueueFamilyIndices(m_surface.get());
         // Find unique indices
-        std::vector<uint32_t> indices_vector{indices.graphics.value(),
-                                            indices.present.value()};
+        std::vector<uint32_t> indices_vector{
+            m_queue_families.graphics.value(),
+            m_queue_families.present.value()
+        };
         std::sort(indices_vector.begin(), indices_vector.end());
         auto end = std::unique(indices_vector.begin(), indices_vector.end());
         // Create DeviceQueueCreateInfo
@@ -288,10 +290,10 @@ namespace Engine
 
         SDL_LogInfo(0, "Retreiving queues.");
         this->m_queues.graphicsQueue =
-            m_device->getQueue(indices.graphics.value(), 0);
+            m_device->getQueue(m_queue_families.graphics.value(), 0);
         this->m_queues.presentQueue =
-            m_device->getQueue(indices.present.value(), 0);
-        this->CreateCommandPools(indices);
+            m_device->getQueue(m_queue_families.present.value(), 0);
+        this->CreateCommandPools();
     }
 
     void RenderSystem::impl::CreateSwapchain() 
@@ -312,16 +314,16 @@ namespace Engine
         );
     }
 
-    void RenderSystem::impl::CreateCommandPools(const QueueFamilyIndices & indices) 
+    void RenderSystem::impl::CreateCommandPools() 
     {
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating command pools.");
         vk::CommandPoolCreateInfo info{};
         info.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer;
-        info.queueFamilyIndex = indices.graphics.value();
+        info.queueFamilyIndex = m_queue_families.graphics.value();
         m_queues.graphicsPool = m_device->createCommandPoolUnique(info);
         m_queues.graphicsOneTimePool = m_device->createCommandPoolUnique(info);
 
-        info.queueFamilyIndex = indices.present.value();
+        info.queueFamilyIndex = m_queue_families.present.value();
         m_queues.presentPool = m_device->createCommandPoolUnique(info);
     }
 

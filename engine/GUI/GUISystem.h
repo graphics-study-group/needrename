@@ -4,10 +4,11 @@
 #include <memory>
 #include <SDL3/SDL.h>
 #include <imgui.h>
+#include <vulkan/vulkan.hpp>
 
 namespace Engine {
     class RenderSystem;
-    class RenderCommandBuffer;
+    class GraphicsCommandBuffer;
 
     class GUISystem {
     protected:
@@ -32,7 +33,7 @@ namespace Engine {
         bool WantCaptureKeyboard() const;
         void ProcessEvent(SDL_Event * event) const;
         void PrepareGUI() const;
-        void DrawGUI(RenderCommandBuffer & cb) const;
+        void DrawGUI(GraphicsCommandBuffer & cb) const;
         void Create(SDL_Window * window, vk::Format color_attachment_format = vk::Format::eUndefined);
     };
 }

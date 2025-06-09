@@ -6,27 +6,27 @@
 namespace Engine
 {
     MaterialProperty::MaterialProperty(float value)
-        : m_type(Type::Float), m_value(value)
+        : m_type(Type::Undefined), m_ubo_type(InBlockVarType::Float), m_value(value)
     {
     }
 
     MaterialProperty::MaterialProperty(int value)
-        : m_type(Type::Int), m_value(value)
+        : m_type(Type::Undefined), m_ubo_type(InBlockVarType::Int), m_value(value)
     {
     }
 
     MaterialProperty::MaterialProperty(const glm::vec4 &value)
-        : m_type(Type::Vec4), m_value(value)
+        : m_type(Type::Undefined), m_ubo_type(InBlockVarType::Vec4), m_value(value)
     {
     }
 
     MaterialProperty::MaterialProperty(const glm::mat4 &value)
-        : m_type(Type::Mat4), m_value(value)
+        : m_type(Type::Undefined), m_ubo_type(InBlockVarType::Mat4), m_value(value)
     {
     }
 
     MaterialProperty::MaterialProperty(const std::shared_ptr<AssetRef> &value)
-        : m_type(Type::Texture), m_value(value)
+        : m_type(Type::Texture), m_ubo_type(InBlockVarType::Undefined), m_value(value)
     {
     }
 
@@ -35,35 +35,43 @@ namespace Engine
         Serialization::Json &json = *archive.m_cursor;
         switch (m_type)
         {
-        case Type::Float:
-        {
-            json["m_type"] = "Float";
-            json["m_value"] = std::any_cast<float>(m_value);
+        case Type::Undefined:
+            switch (m_ubo_type) {
+                case InBlockVarType::Float:
+                {
+                    json["m_type"] = "Float";
+                    json["m_value"] = std::any_cast<float>(m_value);
+                    break;
+                }
+                case InBlockVarType::Int:
+                {
+                    json["m_type"] = "Int";
+                    json["m_value"] = std::any_cast<int>(m_value);
+                    break;
+                }
+                case InBlockVarType::Vec4:
+                {
+                    json["m_type"] = "Vec4";
+                    json["m_value"] = Serialization::Json::object();
+                    Serialization::Archive temp_archive(archive, &json["m_value"]);
+                    Serialization::serialize(std::any_cast<glm::vec4>(m_value), temp_archive);
+                    break;
+                }
+                case InBlockVarType::Mat4:
+                {
+                    json["m_type"] = "Mat4";
+                    json["m_value"] = Serialization::Json::object();
+                    Serialization::Archive temp_archive(archive, &json["m_value"]);
+                    Serialization::serialize(std::any_cast<glm::mat4>(m_value), temp_archive);
+                    break;
+                }
+                case InBlockVarType::Undefined:
+                default:
+                    break;
+            }
             break;
-        }
-        case Type::Int:
-        {
-            json["m_type"] = "Int";
-            json["m_value"] = std::any_cast<int>(m_value);
-            break;
-        }
-        case Type::Vec4:
-        {
-            json["m_type"] = "Vec4";
-            json["m_value"] = Serialization::Json::object();
-            Serialization::Archive temp_archive(archive, &json["m_value"]);
-            Serialization::serialize(std::any_cast<glm::vec4>(m_value), temp_archive);
-            break;
-        }
-        case Type::Mat4:
-        {
-            json["m_type"] = "Mat4";
-            json["m_value"] = Serialization::Json::object();
-            Serialization::Archive temp_archive(archive, &json["m_value"]);
-            Serialization::serialize(std::any_cast<glm::mat4>(m_value), temp_archive);
-            break;
-        }
         case Type::Texture:
+        case Type::StorageImage:
         {
             json["m_type"] = "Texture";
             json["m_value"] = Serialization::Json::object();
@@ -71,6 +79,11 @@ namespace Engine
             Serialization::serialize(std::any_cast<std::shared_ptr<AssetRef>>(m_value), temp_archive);
             break;
         }
+        case Type::UBO:
+            // Ignore UBO
+            break;
+        case Type::StorageBuffer:
+            assert(false && "Unimplemented");
         }
     }
 
@@ -78,29 +91,28 @@ namespace Engine
     {
         Serialization::Json &json = *archive.m_cursor;
         std::string type = json["m_type"];
-        if (type == "Float")
+        std::string ubo_type = json["m_ubo_type"];
+        if (type == "Undefined")
         {
-            m_type = Type::Float;
-            m_value = json["m_value"].get<float>();
-        }
-        else if (type == "Int")
-        {
-            m_type = Type::Int;
-            m_value = json["m_value"].get<int>();
-        }
-        else if (type == "Vec4")
-        {
-            m_type = Type::Vec4;
-            m_value = glm::vec4{};
-            Serialization::Archive temp_archive(archive, &json["m_value"]);
-            Serialization::deserialize(std::any_cast<glm::vec4 &>(m_value), temp_archive);
-        }
-        else if (type == "Mat4")
-        {
-            m_type = Type::Mat4;
-            m_value = glm::mat4{};
-            Serialization::Archive temp_archive(archive, &json["m_value"]);
-            Serialization::deserialize(std::any_cast<glm::mat4 &>(m_value), temp_archive);
+            m_type = Type::Undefined;
+            if (ubo_type == "Float") {
+                m_ubo_type = InBlockVarType::Float;
+                m_value = json["m_value"].get<float>();
+            } else if (ubo_type == "Int") {
+                m_ubo_type = InBlockVarType::Int;
+                m_value = json["m_value"].get<int>();
+            } else if (ubo_type == "Mat4") {
+                m_ubo_type = InBlockVarType::Mat4;
+                m_value = glm::mat4{};
+                Serialization::Archive temp_archive(archive, &json["m_value"]);
+                Serialization::deserialize(std::any_cast<glm::mat4 &>(m_value), temp_archive);
+            } else if (ubo_type == "Vec4") {
+                m_ubo_type = InBlockVarType::Vec4;
+                m_value = glm::vec4{};
+                Serialization::Archive temp_archive(archive, &json["m_value"]);
+                Serialization::deserialize(std::any_cast<glm::vec4 &>(m_value), temp_archive);
+            }
+            
         }
         else if (type == "Texture")
         {

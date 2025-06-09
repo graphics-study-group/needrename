@@ -83,6 +83,12 @@ target_link_libraries(delegate_test engine)
 add_test(NAME delegate_test COMMAND delegate_test)
 set_target_properties(delegate_test PROPERTIES FOLDER tests)
 
+add_executable(compute_shader_test compute_shader_test.cpp)
+add_dependencies(compute_shader_test shader)
+target_link_libraries(compute_shader_test engine)
+add_test(NAME compute_shader_test COMMAND compute_shader_test 120)
+set_target_properties(compute_shader_test PROPERTIES FOLDER tests)
+
 # Copy SDL dll
 add_custom_command(TARGET SDL_init_test POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different

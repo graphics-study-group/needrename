@@ -77,44 +77,6 @@ std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate()
     shadow_map_pass.attachments.depth = ImageUtils::ImageFormat::D32SFLOAT;
     lit_pass.shaders.shaders = std::vector {vs_ref, fs_ref};
 
-    ShaderVariableProperty light_source, light_color;
-    light_source.frequency = light_color.frequency = ShaderVariableProperty::Frequency::PerScene;
-    light_source.type = light_color.type = ShaderVariableProperty::Type::Vec4;
-    light_source.binding = light_color.binding = 0;
-    light_source.offset = 0;
-    light_source.name = "light_source";
-    light_color.offset = 16;
-    light_color.name = "light_color";
-
-    ShaderVariableProperty view, proj;
-    view.frequency = proj.frequency = ShaderVariableProperty::Frequency::PerCamera;
-    view.type = proj.type = ShaderVariableProperty::Type::Mat4;
-    view.binding = proj.binding = 0;
-    view.offset = 0;
-    proj.offset = 64;
-    view.name = "view";
-    proj.name = "proj";
-
-    ShaderVariableProperty base_tex, shadowmap_tex, specular_color, ambient_color;
-    base_tex.frequency = shadowmap_tex.frequency = specular_color.frequency = ambient_color.frequency = ShaderVariableProperty::Frequency::PerMaterial;
-    base_tex.type = shadowmap_tex.type = ShaderVariableProperty::Type::Texture;
-    specular_color.type = ambient_color.type = ShaderVariableProperty::Type::Vec4;
-    base_tex.binding = 1;
-    shadowmap_tex.binding = 2;
-    specular_color.binding = ambient_color.binding = 0;
-    specular_color.offset = 0;
-    ambient_color.offset = 16;
-    base_tex.name = "base_tex";
-    shadowmap_tex.name = "shadowmap_tex";
-    specular_color.name = "specular_color";
-    ambient_color.name = "ambient_color";
-
-    shadow_map_pass.shaders.uniforms = {
-        view, proj
-    };
-    lit_pass.shaders.uniforms = {
-        light_source, light_color, view, proj, base_tex, shadowmap_tex, specular_color, ambient_color
-    };
     test_asset->properties.properties[0] = shadow_map_pass;
     test_asset->properties.properties[1] = lit_pass;
 
@@ -142,8 +104,8 @@ int main(int argc, char ** argv)
     // Prepare texture
     auto test_texture_asset = std::make_shared<Image2DTextureAsset>();
     test_texture_asset->LoadFromFile(std::string(ENGINE_ASSETS_DIR) + "/bunny/bunny.png");
-    auto allocated_image_texture = std::make_shared<AllocatedImage2DTexture>(rsys);
-    allocated_image_texture->Create(*test_texture_asset);
+    auto allocated_image_texture = std::make_shared<SampledTextureInstantiated>(*rsys);
+    allocated_image_texture->Instantiate(*test_texture_asset);
 
     // Prepare mesh
     auto test_mesh_asset = std::make_shared<LowerPlaneMeshAsset>();
@@ -178,14 +140,32 @@ int main(int argc, char ** argv)
     glm::mat4 eye4 = glm::mat4(1.0f);
 
     // Prepare attachments
-    auto color = std::make_shared<Engine::AllocatedImage2D>(rsys);
-    auto depth = std::make_shared<Engine::AllocatedImage2D>(rsys);
-    auto shadow = std::make_shared<Engine::AllocatedImage2D>(rsys);
-    auto blank_color = std::make_shared<Engine::AllocatedImage2DTexture>(rsys);
-    color->Create(1920, 1080, Engine::ImageUtils::ImageType::ColorAttachment, Engine::ImageUtils::ImageFormat::B8G8R8A8SRGB, 1);
-    depth->Create(1920, 1080, Engine::ImageUtils::ImageType::DepthImage, Engine::ImageUtils::ImageFormat::D32SFLOAT, 1);
-    shadow->Create(2048, 2048, Engine::ImageUtils::ImageType::SampledDepthImage, Engine::ImageUtils::ImageFormat::D32SFLOAT, 1);
-    blank_color->Create(16, 16, Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB, 1);
+    auto color = std::make_shared<Engine::Texture>(*rsys);
+    auto depth = std::make_shared<Engine::Texture>(*rsys);
+    auto shadow = std::make_shared<Engine::SampledTexture>(*rsys);
+    auto blank_color = std::make_shared<Engine::SampledTexture>(*rsys);
+    Engine::Texture::TextureDesc desc {
+        .dimensions = 2,
+        .width = 1920,
+        .height = 1080,
+        .depth = 1,
+        .format = Engine::ImageUtils::ImageFormat::B8G8R8A8SRGB,
+        .type = Engine::ImageUtils::ImageType::ColorAttachment,
+        .mipmap_levels = 1,
+        .array_layers = 1,
+        .is_cube_map = false
+    };
+    color->CreateTexture(desc, "Color attachment");
+    desc.format = Engine::ImageUtils::ImageFormat::D32SFLOAT;
+    desc.type = Engine::ImageUtils::ImageType::DepthImage;
+    depth->CreateTexture(desc, "Depth attachment");
+    desc.width = desc.height = 2048;
+    desc.type =  Engine::ImageUtils::ImageType::SampledDepthImage;
+    shadow->CreateTextureAndSampler(desc, {}, "Shadow map");
+    desc.width = desc.height = 16;
+    desc.format = Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB;
+    desc.type = Engine::ImageUtils::ImageType::TextureImage;
+    blank_color->CreateTextureAndSampler(desc, {}, "Blank color");
 
     Engine::AttachmentUtils::AttachmentDescription color_att, depth_att, shadow_att;
     color_att.image = color->GetImage();
@@ -208,10 +188,10 @@ int main(int argc, char ** argv)
     auto test_template = std::make_shared<MaterialTemplate>(rsys, test_asset_ref);
     auto test_material_instance = std::make_shared<MaterialInstance>(rsys, test_template);
     test_material_instance->WriteDescriptors(0);
-    test_material_instance->WriteUBOUniform(1, test_template->GetVariableIndex("ambient_color", 1).value(), glm::vec4(0.0, 0.0, 0.0, 0.0));
-    test_material_instance->WriteUBOUniform(1, test_template->GetVariableIndex("specular_color", 1).value(), glm::vec4(1.0, 1.0, 1.0, 64.0));
-    test_material_instance->WriteTextureUniform(1, test_template->GetVariableIndex("base_tex", 1).value(), blank_color);
-    test_material_instance->WriteTextureUniform(1, test_template->GetVariableIndex("shadowmap_tex", 1).value(), shadow);
+    test_material_instance->WriteUBOUniform(1, test_template->GetVariableIndex("ambient_color", 1).value().first, glm::vec4(0.0, 0.0, 0.0, 0.0));
+    test_material_instance->WriteUBOUniform(1, test_template->GetVariableIndex("specular_color", 1).value().first, glm::vec4(1.0, 1.0, 1.0, 64.0));
+    test_material_instance->WriteTextureUniform(1, test_template->GetVariableIndex("base_tex", 1).value().first, blank_color);
+    // test_material_instance->WriteTextureUniform(1, test_template->GetVariableIndex("shadowmap_tex", 1).value().first, shadow);
     test_material_instance->WriteDescriptors(1);
 
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueVertexBufferSubmission(test_mesh);
@@ -236,11 +216,6 @@ int main(int argc, char ** argv)
             }
         }
 
-        auto index = rsys->StartFrame();
-        RenderCommandBuffer & cb = rsys->GetCurrentCommandBuffer();
-
-        assert(index < 3);
-
         switch (frame_count % 3) {
         case 0:
             rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*blank_color, {1.0f, 0.0f, 0.0f, 0.0f});
@@ -252,18 +227,28 @@ int main(int argc, char ** argv)
             rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*blank_color, {0.0f, 0.0f, 1.0f, 0.0f});
             break;
         }
-        
+
+        auto index = rsys->StartFrame();
+        auto context = rsys->GetFrameManager().GetGraphicsContext();
+        GraphicsCommandBuffer & cb = dynamic_cast<GraphicsCommandBuffer &>(context.GetCommandBuffer());
+        assert(index < 3);
     
-        cb.Begin();
+        cb.Begin("Main Render Loop");
         // Shadow map pass
+        context.UseImage(
+            *shadow, 
+            GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite, 
+            GraphicsContext::ImageAccessType::None
+        );
+        context.PrepareCommandBuffer();
         {
             vk::Extent2D shadow_map_extent {2048, 2048};
             vk::Rect2D shadow_map_scissor {{0, 0}, shadow_map_extent};
-            cb.BeginRendering(shadow_pass_binding, shadow_map_extent);
+            cb.BeginRendering(shadow_pass_binding, shadow_map_extent, "Shadowmap Pass");
             cb.SetupViewport(shadow_map_extent.width, shadow_map_extent.height, shadow_map_scissor);
             cb.BindMaterial(*test_material_instance, 0);
 
-            vk::CommandBuffer rcb = cb.get();
+            vk::CommandBuffer rcb = cb.GetCommandBuffer();
             rcb.pushConstants(
                 test_template->GetPipelineLayout(0), 
                 vk::ShaderStageFlagBits::eVertex, 
@@ -275,17 +260,32 @@ int main(int argc, char ** argv)
             cb.DrawMesh(test_mesh_2);
             cb.EndRendering();
         }
-        
-        cb.InsertAttachmentBarrier(RenderCommandBuffer::AttachmentBarrierType::DepthAttachmentRAW, shadow_att.image);
+
         // Lit pass
+        context.UseImage(
+            *shadow, 
+            GraphicsContext::ImageGraphicsAccessType::ShaderRead, 
+            GraphicsContext::ImageAccessType::DepthAttachmentWrite
+        );
+        context.UseImage(
+            *color, 
+            GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite, 
+            GraphicsContext::ImageAccessType::None
+        );
+        context.UseImage(
+            *depth, 
+            GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite, 
+            GraphicsContext::ImageAccessType::None
+        );
+        context.PrepareCommandBuffer();
         {
             vk::Extent2D extent {rsys->GetSwapchain().GetExtent()};
             vk::Rect2D scissor{{0, 0}, extent};
-            cb.BeginRendering(lit_pass_binding, extent);
+            cb.BeginRendering(lit_pass_binding, extent, "Lit Pass");
             cb.SetupViewport(extent.width, extent.height, scissor);
             cb.BindMaterial(*test_material_instance, 1);
             // Push model matrix...
-            vk::CommandBuffer rcb = cb.get();
+            vk::CommandBuffer rcb = cb.GetCommandBuffer();
             rcb.pushConstants(
                 test_template->GetPipelineLayout(0), 
                 vk::ShaderStageFlagBits::eVertex, 
@@ -299,8 +299,7 @@ int main(int argc, char ** argv)
         }
 
         cb.End();
-        cb.Submit(frame_count != 1);
-
+        rsys->GetFrameManager().SubmitMainCommandBuffer();
         rsys->GetFrameManager().StageCopyComposition(color->GetImage());
         rsys->CompleteFrame();
 

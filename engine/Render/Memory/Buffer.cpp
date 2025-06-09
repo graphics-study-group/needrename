@@ -3,12 +3,17 @@
 
 namespace Engine
 {
-    Buffer::Buffer(std::weak_ptr<RenderSystem> system) : m_system(system) {
+    Buffer::Buffer(std::shared_ptr<RenderSystem> system) : m_system(*system) {
     }
 
-    void Buffer::Create(BufferType type, size_t size) {
-        auto & allocator_state = m_system.lock()->GetAllocatorState();
-        m_allocated_memory = std::make_unique<AllocatedMemory>(allocator_state.AllocateBuffer(type, size));
+    Buffer::Buffer(RenderSystem &system) : m_system(system)
+    {
+    }
+
+    void Buffer::Create(BufferType type, size_t size, const std::string &name)
+    {
+        auto & allocator_state = m_system.GetAllocatorState();
+        m_allocated_memory = std::make_unique<AllocatedMemory>(allocator_state.AllocateBuffer(type, size, name));
         m_size = size;
     }
 

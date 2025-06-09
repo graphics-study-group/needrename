@@ -9,12 +9,34 @@ namespace Engine::RenderSystemState {
     QueueFamilyIndices PhysicalDevice::FillQueueFamilyIndices(vk::PhysicalDevice device, vk::SurfaceKHR surface) {
         QueueFamilyIndices q;
         auto queueFamilyProps = device.getQueueFamilyProperties();
+        SDL_LogDebug(
+            SDL_LOG_CATEGORY_RENDER, 
+            "\tInspecting queue families"
+        );
         for (size_t i = 0; i < queueFamilyProps.size(); i++) {
             const auto & prop = queueFamilyProps[i];
-            if (prop.queueFlags & vk::QueueFlagBits::eGraphics) {
+
+            bool isGeneralQueueFamily = (prop.queueFlags & vk::QueueFlagBits::eGraphics) 
+                && (prop.queueFlags & vk::QueueFlagBits::eTransfer)
+                && (prop.queueFlags & vk::QueueFlagBits::eCompute);
+            bool supportPresenting = device.getSurfaceSupportKHR(i, surface);
+
+            SDL_LogDebug(
+                SDL_LOG_CATEGORY_RENDER, 
+                std::format(
+                    "\t\tQueue family {} {}{}{}({} present)", 
+                    i,
+                    prop.queueFlags & vk::QueueFlagBits::eGraphics ? "Graphics " : "",
+                    prop.queueFlags & vk::QueueFlagBits::eTransfer ? "Transfer " : "",
+                    prop.queueFlags & vk::QueueFlagBits::eCompute ? "Compute ": "",
+                    supportPresenting ? "Can" : "Cannot"
+                ).c_str()
+            );
+            
+            if (isGeneralQueueFamily) {
                 if (!q.graphics.has_value()) q.graphics = i;
             }
-            if (device.getSurfaceSupportKHR(i, surface)) {
+            if (supportPresenting) {
                 if (!q.present.has_value()) q.present = i;
             }
         }
