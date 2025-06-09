@@ -5,6 +5,8 @@
 #include <Render/Pipeline/CommandBuffer.h>
 #include <Render/RenderSystem/FrameManager.h>
 #include <Render/Memory/Buffer.h>
+#include <Render/Memory/Texture.h>
+#include <Render/Pipeline/CommandBuffer/GraphicsContext.h>
 #include "Asset/AssetManager/AssetManager.h"
 #include "GUI/GUISystem.h"
 #include <Input/Input.h>
@@ -179,28 +181,32 @@ namespace Engine
                 m_on_quit = true;
                 break;
             }
-            // TODO: add gui system in engine after the events between editor and the game are separated
-            // this->gui->ProcessEvent(&event);
-            // if (this->gui->WantCaptureMouse() && SDL_EVENT_MOUSE_MOTION <= event.type && event.type < SDL_EVENT_JOYSTICK_AXIS_MOTION) // 0x600+
-            //     continue;
-            // if (this->gui->WantCaptureKeyboard() && (event.type == SDL_EVENT_KEY_DOWN || event.type == SDL_EVENT_KEY_UP))
-            //     continue;
+            this->gui->ProcessEvent(&event);
+            if (this->gui->WantCaptureMouse() && SDL_EVENT_MOUSE_MOTION <= event.type && event.type < SDL_EVENT_JOYSTICK_AXIS_MOTION) // 0x600+
+                continue;
+            if (this->gui->WantCaptureKeyboard() && (event.type == SDL_EVENT_KEY_DOWN || event.type == SDL_EVENT_KEY_UP))
+                continue;
             input->ProcessEvent(&event);
         }
 
         this->input->Update(dt);
         this->world->Tick(dt);
 
-        // TODO: Set up viewport information
-        renderer->StartFrame();
-        RenderCommandBuffer &cb = renderer->GetCurrentCommandBuffer();
+        auto index = this->renderer->StartFrame();
+        auto context = this->renderer->GetFrameManager().GetGraphicsContext();
+        GraphicsCommandBuffer & cb = dynamic_cast<GraphicsCommandBuffer &>(context.GetCommandBuffer());
+
         cb.Begin();
-        cb.BeginRendering(window->GetRenderTargetBinding(), window->GetExtent());
-        renderer->DrawMeshes();
+        context.UseImage(this->window->GetColorTexture(), GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite, GraphicsContext::ImageAccessType::None);
+        context.UseImage(this->window->GetDepthTexture(), GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite, GraphicsContext::ImageAccessType::None);
+        context.PrepareCommandBuffer();
+        cb.BeginRendering(this->window->GetRenderTargetBinding(), this->window->GetExtent(), "Main Pass");
+        this->renderer->DrawMeshes();
+        this->gui->DrawGUI(cb);
         cb.EndRendering();
         cb.End();
-        cb.Submit(m_frame_count != 1);
-        renderer->GetFrameManager().StageCopyComposition(window->GetRenderTargetBinding().GetColorAttachments()[0].image);
-        renderer->CompleteFrame();
+        this->renderer->GetFrameManager().SubmitMainCommandBuffer();
+        this->renderer->GetFrameManager().StageCopyComposition(this->window->GetColorTexture().GetImage());
+        this->renderer->GetFrameManager().CompositeToFramebufferAndPresent();
     }
 } // namespace Engine

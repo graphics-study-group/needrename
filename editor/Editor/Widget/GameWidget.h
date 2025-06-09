@@ -9,8 +9,8 @@
 namespace Engine
 {
     class RenderSystem;
-    class AllocatedImage2D;
-    class RenderCommandBuffer;
+    class SampledTexture;
+    class GraphicsCommandBuffer;
 }
 
 namespace Editor
@@ -24,17 +24,15 @@ namespace Editor
         virtual void Render() override;
         
         void CreateRenderTargetBinding(std::shared_ptr<Engine::RenderSystem> render_system);
-        void PreRender(Engine::RenderCommandBuffer &cb);
+        void PreRender(Engine::GraphicsCommandBuffer &cb);
 
-    protected:
         Engine::RenderTargetBinding m_render_target_binding{};
 
         int m_game_width = 1280;
         int m_game_height = 720;
 
-    private:
-        std::shared_ptr<Engine::AllocatedImage2D> m_color_image{};
-        vk::Sampler m_sampler{};
+        std::shared_ptr<Engine::SampledTexture> m_color_texture{};
+        std::shared_ptr<Engine::SampledTexture> m_depth_texture{};
         ImTextureID m_color_att_id{};
     };
 }

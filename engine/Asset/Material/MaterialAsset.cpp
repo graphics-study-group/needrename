@@ -36,22 +36,23 @@ namespace Engine
         switch (m_type)
         {
         case Type::Undefined:
+            json["m_type"] = "Undefined";
             switch (m_ubo_type) {
                 case InBlockVarType::Float:
                 {
-                    json["m_type"] = "Float";
+                    json["m_ubo_type"] = "Float";
                     json["m_value"] = std::any_cast<float>(m_value);
                     break;
                 }
                 case InBlockVarType::Int:
                 {
-                    json["m_type"] = "Int";
+                    json["m_ubo_type"] = "Int";
                     json["m_value"] = std::any_cast<int>(m_value);
                     break;
                 }
                 case InBlockVarType::Vec4:
                 {
-                    json["m_type"] = "Vec4";
+                    json["m_ubo_type"] = "Vec4";
                     json["m_value"] = Serialization::Json::object();
                     Serialization::Archive temp_archive(archive, &json["m_value"]);
                     Serialization::serialize(std::any_cast<glm::vec4>(m_value), temp_archive);
@@ -59,7 +60,7 @@ namespace Engine
                 }
                 case InBlockVarType::Mat4:
                 {
-                    json["m_type"] = "Mat4";
+                    json["m_ubo_type"] = "Mat4";
                     json["m_value"] = Serialization::Json::object();
                     Serialization::Archive temp_archive(archive, &json["m_value"]);
                     Serialization::serialize(std::any_cast<glm::mat4>(m_value), temp_archive);
@@ -71,9 +72,16 @@ namespace Engine
             }
             break;
         case Type::Texture:
-        case Type::StorageImage:
         {
             json["m_type"] = "Texture";
+            json["m_value"] = Serialization::Json::object();
+            Serialization::Archive temp_archive(archive, &json["m_value"]);
+            Serialization::serialize(std::any_cast<std::shared_ptr<AssetRef>>(m_value), temp_archive);
+            break;
+        }
+        case Type::StorageImage:
+        {
+            json["m_type"] = "StorageImage";
             json["m_value"] = Serialization::Json::object();
             Serialization::Archive temp_archive(archive, &json["m_value"]);
             Serialization::serialize(std::any_cast<std::shared_ptr<AssetRef>>(m_value), temp_archive);
@@ -91,9 +99,9 @@ namespace Engine
     {
         Serialization::Json &json = *archive.m_cursor;
         std::string type = json["m_type"];
-        std::string ubo_type = json["m_ubo_type"];
         if (type == "Undefined")
         {
+            std::string ubo_type = json["m_ubo_type"];
             m_type = Type::Undefined;
             if (ubo_type == "Float") {
                 m_ubo_type = InBlockVarType::Float;

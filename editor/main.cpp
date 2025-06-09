@@ -8,8 +8,9 @@
 #include <Functional/SDLWindow.h>
 #include <Render/RenderSystem.h>
 #include <Render/AttachmentUtils.h>
-#include <Render/Memory/Image2DTexture.h>
 #include <Render/Memory/Buffer.h>
+#include <Render/Memory/Texture.h>
+#include <Render/Pipeline/CommandBuffer/GraphicsContext.h>
 #include <Render/Pipeline/CommandBuffer.h>
 #include <Render/RenderSystem/Swapchain.h>
 #include <Render/RenderSystem/FrameManager.h>
@@ -41,6 +42,7 @@ int main()
     auto asset_manager = cmc->GetAssetManager();
     auto world = cmc->GetWorldSystem();
     auto gui = cmc->GetGUISystem();
+    auto window = cmc->GetWindow();
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading project");
     cmc->LoadProject(project_path);
@@ -86,22 +88,27 @@ int main()
         cmc->GetInputSystem()->Update(dt);
         world->Tick(dt);
 
-        rsys->StartFrame();
-        RenderCommandBuffer &cb = rsys->GetCurrentCommandBuffer();
+        auto index = rsys->StartFrame();
+        auto context = rsys->GetFrameManager().GetGraphicsContext();
+        GraphicsCommandBuffer & cb = dynamic_cast<GraphicsCommandBuffer &>(context.GetCommandBuffer());
+
         cb.Begin();
+        context.UseImage(window->GetColorTexture(), GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite, GraphicsContext::ImageAccessType::None);
+        context.UseImage(window->GetDepthTexture(), GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite, GraphicsContext::ImageAccessType::None);
+        context.PrepareCommandBuffer();
 
         gui->PrepareGUI();
         game_widget->PreRender(cb);
         main_window.Render();
 
-        cb.BeginRendering(cmc->GetWindow()->GetRenderTargetBinding(), cmc->GetWindow()->GetExtent());
+        cb.BeginRendering(window->GetRenderTargetBinding(), window->GetExtent(), "Editor Pass");
+        rsys->DrawMeshes();
         gui->DrawGUI(cb);
         cb.EndRendering();
-
         cb.End();
-        cb.Submit(frame_count != 1);
-        rsys->GetFrameManager().StageCopyComposition(cmc->GetWindow()->GetRenderTargetBinding().GetColorAttachments()[0].image);
-        rsys->CompleteFrame();
+        rsys->GetFrameManager().SubmitMainCommandBuffer();
+        rsys->GetFrameManager().StageCopyComposition(window->GetColorTexture().GetImage());
+        rsys->GetFrameManager().CompositeToFramebufferAndPresent();
     }
     rsys->WaitForIdle();
     rsys->ClearComponent();

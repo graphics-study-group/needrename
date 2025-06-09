@@ -9,7 +9,7 @@
 
 namespace Engine
 {
-    class AllocatedImage2D;
+    class Texture;
     class RenderSystem;
 
     /// A wrapper of SDL_Window
@@ -29,6 +29,8 @@ namespace Engine
         void CreateRenderTargetBinding(std::shared_ptr<RenderSystem> render_system);
         const RenderTargetBinding &GetRenderTargetBinding() const;
         vk::Extent2D GetExtent() const;
+        const Texture &GetColorTexture() const noexcept;
+        const Texture &GetDepthTexture() const noexcept;
 
         /// Get the underlying pointer of this window
         SDL_Window *GetWindow();
@@ -36,10 +38,8 @@ namespace Engine
     protected:
         SDL_Window *m_window{nullptr};
         RenderTargetBinding m_render_target_binding{};
-    
-    private:
-        std::shared_ptr<Engine::AllocatedImage2D> m_color_image{};
-        std::shared_ptr<Engine::AllocatedImage2D> m_depth_image{};
+        std::shared_ptr<Texture> m_color_texture{};
+        std::shared_ptr<Texture> m_depth_texture{};
     };
 }
 #endif // FUNCTIONAL_SDLWINDOW_INCLUDED
