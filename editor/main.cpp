@@ -57,11 +57,13 @@ int main()
 
     bool onQuit = false;
     Uint64 FPS_TIMER = 0;
+    unsigned int frame_count = 0;
     while (!onQuit)
     {
         Uint64 current_time = SDL_GetTicksNS();
         float dt = (current_time - FPS_TIMER) * 1e-9f;
         FPS_TIMER = current_time;
+        frame_count++;
 
         asset_manager->LoadAssetsInQueue();
 
@@ -88,16 +90,16 @@ int main()
         RenderCommandBuffer &cb = rsys->GetCurrentCommandBuffer();
         cb.Begin();
 
+        gui->PrepareGUI();
         game_widget->PreRender(cb);
+        main_window.Render();
 
         cb.BeginRendering(cmc->GetWindow()->GetRenderTargetBinding(), cmc->GetWindow()->GetExtent());
-        gui->PrepareGUI();
-        main_window.Render();
         gui->DrawGUI(cb);
         cb.EndRendering();
 
         cb.End();
-        cb.Submit();
+        cb.Submit(frame_count != 1);
         rsys->GetFrameManager().StageCopyComposition(cmc->GetWindow()->GetRenderTargetBinding().GetColorAttachments()[0].image);
         rsys->CompleteFrame();
     }
