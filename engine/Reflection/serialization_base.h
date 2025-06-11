@@ -22,7 +22,7 @@ namespace Engine
         void save_to_archive(const T &value, Archive &archive)
         {
             Json &json = *archive.m_cursor;
-            json["%type"] = Engine::Reflection::GetType(std::type_index(typeid(T)))->m_name;
+            json["%type"] = Engine::Reflection::GetType(value)->m_name;
             json["data"] = value;
         }
 

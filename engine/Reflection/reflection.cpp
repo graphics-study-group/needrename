@@ -115,31 +115,5 @@ namespace Engine
                 return Type::s_index_type_map[it->second];
             return nullptr;
         }
-
-        std::shared_ptr<Type> GetType(const std::type_index &type_index)
-        {
-            if (Type::s_index_type_map.find(type_index) != Type::s_index_type_map.end())
-                return Type::s_index_type_map[type_index];
-            return nullptr;
-        }
-
-        std::shared_ptr<Type> GetOrCreateType(std::type_index type_index, const std::string &name)
-        {
-            if (Type::s_index_type_map.find(type_index) == Type::s_index_type_map.end())
-            {
-                if(name.empty())
-                {
-                    Type::s_index_type_map[type_index] = std::shared_ptr<Type>(new Type(type_index.name(), false));
-                }
-                else
-                {
-                    Type::s_index_type_map[type_index] = std::shared_ptr<Type>(new Type(name, false));
-                    assert(Type::s_name_index_map.find(name) == Type::s_name_index_map.end());
-                    Type::s_name_index_map.emplace(name, type_index);
-                }
-                Type::s_name_index_map.emplace(type_index.name(), type_index);
-            }
-            return Type::s_index_type_map[type_index];
-        }
     }
 }
