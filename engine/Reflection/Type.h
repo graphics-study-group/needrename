@@ -116,6 +116,10 @@ namespace Engine
             /// @param name the name of the field
             /// @return the shared pointer to the Field object
             std::shared_ptr<Field> GetField(const std::string &name);
+
+            /// @brief Get the unordered map of fields of the type.
+            /// @return 
+            const std::unordered_map<std::string, std::shared_ptr<Field>> &GetFields() const;
         };
     }
 }
