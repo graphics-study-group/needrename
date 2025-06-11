@@ -15,6 +15,7 @@ namespace Editor
         auto project_widget = std::make_shared<ProjectWidget>("Project");
         AddWidget(project_widget);
         auto inspector_widget = std::make_shared<InspectorWidget>("Inspector");
+        hierachy_widget->m_OnGameObjectSelectedDelegate.AddDelegate(inspector_widget, &InspectorWidget::SetSelectedGameObject);
         AddWidget(inspector_widget);
     }
 
