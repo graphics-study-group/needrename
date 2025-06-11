@@ -54,8 +54,8 @@ namespace Engine
          * @param name 
          * @return template <typename T> 
          */
-        template <typename T>
-        std::shared_ptr<Type> GetOrRegisterType(const std::string &name);
+        // template <typename T>
+        // std::shared_ptr<Type> GetOrRegisterType(const std::string &name);
 
         /// @brief Get the Reflection::Var class from an object.
         /// @param obj the object to get the Var of
@@ -104,20 +104,22 @@ namespace Engine
             return Type::s_index_type_map[type_index];
         }
 
-        template <typename T>
-        std::shared_ptr<Type> GetOrRegisterType(const std::string &name)
-        {
-            std::type_index type_index = std::type_index(typeid(T));
-            if (Type::s_index_type_map.find(type_index) == Type::s_index_type_map.end())
-            {
-                assert(!name.empty());
-                Type::s_index_type_map[type_index] = CreateType<T>(name);
-                assert(Type::s_name_index_map.find(name) == Type::s_name_index_map.end());
-                Type::s_name_index_map.emplace(name, type_index);
-                Type::s_name_index_map.emplace(type_index.name(), type_index);
-            }
-            return Type::s_index_type_map[type_index];
-        }
+        // template <typename T>
+        // std::shared_ptr<Type> GetOrRegisterType(const std::string &name)
+        // {
+        //     std::type_index type_index = std::type_index(typeid(T));
+        //     if (Type::s_index_type_map.find(type_index) == Type::s_index_type_map.end())
+        //     {
+        //         assert(!name.empty());
+        //         Type::s_index_type_map[type_index] = CreateType<T>(name);
+        //         assert(Type::s_name_index_map.find(name) == Type::s_name_index_map.end());
+        //         Type::s_name_index_map.emplace(name, type_index);
+        //         Type::s_name_index_map.emplace(type_index.name(), type_index);
+        //     }
+        //     assert(Type::s_name_index_map.find(name) != Type::s_name_index_map.end());
+        //     assert(Type::s_name_index_map.find(name)->second == type_index);
+        //     return Type::s_index_type_map[type_index];
+        // }
 
         template <typename T>
         Var GetVar(const T &obj)

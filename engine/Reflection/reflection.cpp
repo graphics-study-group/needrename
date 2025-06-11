@@ -3,6 +3,8 @@
 #include <cstdint>
 #include <cassert>
 #include <string>
+#include <glm.hpp>
+#include <gtc/quaternion.hpp>
 #include "meta_engine/reflection_init.ipp"
 
 namespace Engine
@@ -40,6 +42,10 @@ namespace Engine
             Type::s_index_type_map[std::type_index(typeid(double))] = std::shared_ptr<Type>(new Type("double", false));
             Type::s_index_type_map[std::type_index(typeid(long double))] = std::shared_ptr<Type>(new Type("long double", false));
             Type::s_index_type_map[std::type_index(typeid(std::string))] = std::shared_ptr<Type>(new Type("std::string", false));
+            Type::s_index_type_map[std::type_index(typeid(glm::vec2))] = std::shared_ptr<Type>(new Type("glm::vec2", false));
+            Type::s_index_type_map[std::type_index(typeid(glm::vec3))] = std::shared_ptr<Type>(new Type("glm::vec3", false));
+            Type::s_index_type_map[std::type_index(typeid(glm::vec4))] = std::shared_ptr<Type>(new Type("glm::vec4", false));
+            Type::s_index_type_map[std::type_index(typeid(glm::quat))] = std::shared_ptr<Type>(new Type("glm::quat", false));
 
             Type::s_name_index_map.emplace("void", std::type_index(typeid(void)));
             Type::s_name_index_map.emplace("std::nullptr_t", std::type_index(typeid(std::nullptr_t)));
