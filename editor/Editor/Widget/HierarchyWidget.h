@@ -3,7 +3,6 @@
 
 #include "Widget.h"
 #include <memory>
-#include <imgui.h>
 #include <Core/Delegate/MulticastDelegate.h>
 
 namespace Engine

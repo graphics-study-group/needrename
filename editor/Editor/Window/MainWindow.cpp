@@ -3,6 +3,8 @@
 #include <backends/imgui_impl_sdl3.h>
 #include <backends/imgui_impl_vulkan.h>
 #include <Editor/Widget/HierarchyWidget.h>
+#include <Editor/Widget/ProjectWidget.h>
+#include <Editor/Widget/InspectorWidget.h>
 
 namespace Editor
 {
@@ -10,6 +12,10 @@ namespace Editor
     {
         auto hierachy_widget = std::make_shared<HierarchyWidget>("Hierarchy");
         AddWidget(hierachy_widget);
+        auto project_widget = std::make_shared<ProjectWidget>("Project");
+        AddWidget(project_widget);
+        auto inspector_widget = std::make_shared<InspectorWidget>("Inspector");
+        AddWidget(inspector_widget);
     }
 
     void MainWindow::Render()
