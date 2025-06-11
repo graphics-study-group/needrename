@@ -34,6 +34,7 @@ namespace Editor
 
     private:
         std::shared_ptr<Engine::AllocatedImage2D> m_color_image{};
+        std::shared_ptr<Engine::AllocatedImage2D> m_depth_image{};
         vk::Sampler m_sampler{};
         ImTextureID m_color_att_id{};
     };

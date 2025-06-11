@@ -20,12 +20,19 @@ namespace Editor
     {
         m_color_image = std::make_shared<Engine::AllocatedImage2D>(render_system);
         m_color_image->Create(m_game_width, m_game_height, Engine::ImageUtils::ImageType::ColorGeneral, Engine::ImageUtils::ImageFormat::B8G8R8A8SRGB, 1);
-        Engine::AttachmentUtils::AttachmentDescription color_att;
+        m_depth_image = std::make_shared<Engine::AllocatedImage2D>(render_system);
+        m_depth_image->Create(m_game_width, m_game_height, Engine::ImageUtils::ImageType::DepthImage, Engine::ImageUtils::ImageFormat::D32SFLOAT, 1);
+        Engine::AttachmentUtils::AttachmentDescription color_att, depth_att;
         color_att.image = m_color_image->GetImage();
         color_att.image_view = m_color_image->GetImageView();
         color_att.load_op = vk::AttachmentLoadOp::eClear;
         color_att.store_op = vk::AttachmentStoreOp::eStore;
         m_render_target_binding.SetColorAttachment(color_att);
+        depth_att.image = m_depth_image->GetImage();
+        depth_att.image_view = m_depth_image->GetImageView();
+        depth_att.load_op = vk::AttachmentLoadOp::eClear;
+        depth_att.store_op = vk::AttachmentStoreOp::eDontCare;
+        m_render_target_binding.SetDepthAttachment(depth_att);
 
         vk::SamplerCreateInfo sci{};
         sci.magFilter = sci.minFilter = vk::Filter::eNearest;
