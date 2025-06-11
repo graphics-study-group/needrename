@@ -5,6 +5,7 @@
 #include <vector>
 #include <memory>
 #include <Core/guid.h>
+#include <Core/Delegate/MulticastDelegate.h>
 #include <Framework/object/GameObject.h>
 #include <Framework/component/TransformComponent/TransformComponent.h>
 
@@ -43,6 +44,11 @@ namespace Engine
 
         /// @brief Load a GameObject asset. Add the GameObject in the asset to the loading queue.
         void LoadGameObjectAsset(std::shared_ptr<GameObjectAsset> gameObjectAsset);
+
+        const std::vector<std::shared_ptr<GameObject>> &GetGameObjects() const;
+
+    public:
+        MulticastDelegate<> m_OnDataUpdateDelegate{};
 
     protected:
         std::mt19937_64 m_id_gen{std::random_device{}()};

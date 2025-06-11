@@ -49,4 +49,9 @@ namespace Engine
     {
         AddGameObjectToWorld(gameObjectAsset->m_MainObject);
     }
+
+    const std::vector<std::shared_ptr<GameObject>> &WorldSystem::GetGameObjects() const
+    {
+        return m_game_objects;
+    }
 }

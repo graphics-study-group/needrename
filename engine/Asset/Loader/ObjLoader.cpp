@@ -124,6 +124,7 @@ namespace Engine
 
         std::shared_ptr<GameObjectAsset> m_game_object_asset = std::make_shared<GameObjectAsset>();
         m_game_object_asset->m_MainObject = MainClass::GetInstance()->GetWorldSystem()->CreateGameObject<GameObject>();
+        m_game_object_asset->m_MainObject->m_name = m_mesh_asset->m_name;
         std::shared_ptr<MeshComponent> m_mesh_component = std::make_shared<MeshComponent>(m_game_object_asset->m_MainObject);
         m_mesh_component->m_mesh_asset = std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(m_mesh_asset));
         for (const auto &material : m_material_assets)

@@ -2,11 +2,14 @@
 #include <imgui_internal.h>
 #include <backends/imgui_impl_sdl3.h>
 #include <backends/imgui_impl_vulkan.h>
+#include <Editor/Widget/HierarchyWidget.h>
 
 namespace Editor
 {
     MainWindow::MainWindow()
     {
+        auto hierachy_widget = std::make_shared<HierarchyWidget>("Hierarchy");
+        AddWidget(hierachy_widget);
     }
 
     void MainWindow::Render()

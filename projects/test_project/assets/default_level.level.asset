@@ -16,6 +16,7 @@
                 "&2",
                 "&3"
             ],
+            "m_name": "four_bunny",
             "m_parentGameObject": null,
             "m_transformComponent": "&2"
         },
@@ -80,6 +81,7 @@
                 "&10",
                 "&11"
             ],
+            "m_name": "Camera",
             "m_parentGameObject": null,
             "m_transformComponent": "&10"
         },
