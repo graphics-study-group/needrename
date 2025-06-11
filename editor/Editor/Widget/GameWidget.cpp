@@ -21,7 +21,7 @@ namespace Editor
         m_color_image = std::make_shared<Engine::AllocatedImage2D>(render_system);
         m_color_image->Create(m_game_width, m_game_height, Engine::ImageUtils::ImageType::ColorGeneral, Engine::ImageUtils::ImageFormat::B8G8R8A8SRGB, 1);
         m_depth_image = std::make_shared<Engine::AllocatedImage2D>(render_system);
-        m_depth_image->Create(m_game_width, m_game_height, Engine::ImageUtils::ImageType::DepthImage, Engine::ImageUtils::ImageFormat::D32SFLOAT, 1);
+        m_depth_image->Create(m_game_width, m_game_height, Engine::ImageUtils::ImageType::SampledDepthImage, Engine::ImageUtils::ImageFormat::D32SFLOAT, 1);
         Engine::AttachmentUtils::AttachmentDescription color_att, depth_att;
         color_att.image = m_color_image->GetImage();
         color_att.image_view = m_color_image->GetImageView();

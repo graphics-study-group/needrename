@@ -22,7 +22,8 @@ namespace Editor
                           | ImGuiWindowFlags_NoBackground      // Disable drawing background color (WindowBg, etc.) and outside border
                           | ImGuiWindowFlags_NoSavedSettings   // Never load/save settings in .ini file
                           | ImGuiWindowFlags_MenuBar           // Has a menu-bar
-                          | ImGuiWindowFlags_NoNav             // No keyboard/gamepad navigation within the window
+                          | ImGuiWindowFlags_NoBringToFrontOnFocus // Disable bringing this window to front when focused
+                          | ImGuiWindowFlags_NoInputs             // No mouse, keyboard/gamepad navigation within the window
                           | ImGuiWindowFlags_NoDocking         // Disable docking of this window
             ;
 
