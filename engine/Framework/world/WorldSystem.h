@@ -35,6 +35,9 @@ namespace Engine
         template <typename T>
         void AddGameObjectToWorld(std::shared_ptr<T> go);
 
+        /// @brief Load all GameObjects in the loading queue. This will call Init() on all components of the GameObjects.
+        void LoadGameObjectInQueue();
+
         /// @brief Load a level asset. Add all GameObjects in the level asset to the loading queue.
         void LoadLevelAsset(std::shared_ptr<LevelAsset> levelAsset);
 

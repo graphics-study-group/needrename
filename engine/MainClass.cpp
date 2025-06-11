@@ -189,6 +189,7 @@ namespace Engine
         }
 
         this->input->Update(dt);
+        this->world->LoadGameObjectInQueue();
         this->world->Tick(dt);
 
         // TODO: Set up viewport information

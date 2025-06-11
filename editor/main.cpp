@@ -84,7 +84,9 @@ int main()
         }
 
         cmc->GetInputSystem()->Update(dt);
-        world->Tick(dt);
+        world->LoadGameObjectInQueue();
+        // Editor mode does not need to tick the world.
+        // world->Tick(dt);
 
         rsys->StartFrame();
         RenderCommandBuffer &cb = rsys->GetCurrentCommandBuffer();
