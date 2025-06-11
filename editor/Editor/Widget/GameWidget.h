@@ -18,7 +18,7 @@ namespace Editor
     class GameWidget : public Widget
     {
     public:
-        GameWidget(const char *name);
+        GameWidget(const std::string &name);
         virtual ~GameWidget();
 
         virtual void Render() override;

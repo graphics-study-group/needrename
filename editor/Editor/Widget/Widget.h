@@ -1,17 +1,19 @@
 #ifndef EDITOR_WIDGET_WIDGET_INCLUDED
 #define EDITOR_WIDGET_WIDGET_INCLUDED
 
+#include <string>
+
 namespace Editor
 {
     class Widget
     {
     public:
-        Widget(const char *name);
+        Widget(const std::string &name);
         virtual ~Widget() = default;
 
         virtual void Render();
 
-        const char *m_name;
+        const std::string m_name;
     };
 }
 
