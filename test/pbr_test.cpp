@@ -223,8 +223,8 @@ void PrepareGui() {
 
     ImGui::Separator();
 
-    ImGui::SliderFloat("Metalness", &g_SceneData.metalness, 0.0f, 64.0f);
-    ImGui::SliderFloat("Roughness", &g_SceneData.roughness, 0.0f, 64.0f);
+    ImGui::SliderFloat("Metalness", &g_SceneData.metalness, 0.0f, 1.0f);
+    ImGui::SliderFloat("Roughness", &g_SceneData.roughness, 0.0f, 1.0f);
     ImGui::End();
 }
 
@@ -276,7 +276,7 @@ int main(int argc, char ** argv)
         .width = 1280,
         .height = 720,
         .depth = 1,
-        .format = Engine::ImageUtils::ImageFormat::R8G8B8A8SNorm,
+        .format = Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm,
         .type = Engine::ImageUtils::ImageType::ColorAttachment,
         .mipmap_levels = 1,
         .array_layers = 1,
@@ -322,7 +322,7 @@ int main(int argc, char ** argv)
     // Setup camera
     auto camera_go = cmc->GetWorldSystem()->CreateGameObject<GameObject>();
     Transform transform{};
-    transform.SetPosition({0.0f, 1.0f, 0.0f});
+    transform.SetPosition({0.0f, 10.0f, 0.0f});
     transform.SetRotationEuler(glm::vec3{0.0, 0.0, 3.1415926});
     camera_go->SetTransform(transform);
     auto camera_comp = std::make_shared<CameraComponent>(camera_go);

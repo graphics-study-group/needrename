@@ -64,14 +64,14 @@ vec3 fresnelSchlick(vec3 F0, float cosTheta)
 
 void main()
 {
-    // Sample input textures to get shading model params.
     vec3 albedo = texture(albedoSampler, frag_uv).rgb;
+
     const float metalness = material.metalness;
     const float roughness = material.roughness;
 
-
-    vec3 Lo = normalize(- camera.view * vec4(frag_position, 1.0)).xyz;
-    vec3 N = (camera.view * vec4(frag_normal, 1.0)).xyz;
+    // Remember that we are in view space, and the camera is at exactly (0,0,0).
+    vec3 Lo = normalize((- camera.view * vec4(frag_position, 1.0)).xyz);
+    vec3 N = (camera.view * vec4(frag_normal, 0.0)).xyz;
     float cosLo = max(0.0, dot(N, Lo));
         
     // Specular reflection vector.
@@ -83,7 +83,7 @@ void main()
     vec3 directLighting = vec3(0);
     for(int i = 0; i < scene.light_count; ++i)
     {
-        vec3 Li = -(camera.view * vec4(scene.light_source[i].xyz, 1.0)).xyz;
+        vec3 Li = -(camera.view * vec4(frag_position - scene.light_source[i].xyz, 0.0)).xyz;
         vec3 Lradiance = scene.light_color[i].rgb;
         vec3 Lh = normalize(Li + Lo);
 
