@@ -47,7 +47,7 @@ int main()
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Create Editor Window");
     Editor::MainWindow main_window;
-    auto game_widget = std::make_shared<Editor::GameWidget>("Game");
+    auto game_widget = std::make_shared<Editor::GameWidget>(Editor::MainWindow::k_game_widget_name);
     game_widget->CreateRenderTargetBinding(rsys);
     main_window.AddWidget(game_widget);
 
