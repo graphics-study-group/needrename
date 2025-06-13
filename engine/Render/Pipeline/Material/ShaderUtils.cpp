@@ -32,14 +32,20 @@ namespace Engine
                     assert((type_desc.type_flags & SPV_REFLECT_TYPE_FLAG_FLOAT) && "Only vec4 vector type is supported.");
                     assert(type_desc.traits.numeric.vector.component_count == 4 && "Only vec4 vector type is supported.");
                     data.type = InBlockVariableData::Type::Vec4;
-                }
-                else if (type_desc.type_flags & SPV_REFLECT_TYPE_FLAG_MATRIX) {
+                } else if (type_desc.type_flags & SPV_REFLECT_TYPE_FLAG_MATRIX) {
                     assert((type_desc.type_flags & SPV_REFLECT_TYPE_FLAG_FLOAT) && "Only mat4 matrix type is supported.");
                     assert(type_desc.traits.numeric.matrix.column_count == 4 
                         && type_desc.traits.numeric.matrix.row_count == 4 
                         && "Only mat4 matrix type is supported."
                     );
                     data.type = InBlockVariableData::Type::Mat4;
+                } else if (type_desc.type_flags & SPV_REFLECT_TYPE_FLAG_FLOAT) {
+                    assert(type_desc.traits.numeric.scalar.width == 32 && "Only 4-byte single precision float is supported");
+                    data.type = InBlockVariableData::Type::Float;
+                } else if (type_desc.type_flags & SPV_REFLECT_TYPE_FLAG_INT) {
+                    assert(type_desc.traits.numeric.scalar.width == 32 && "Only 32 bit signed integer is supported");
+                    assert(type_desc.traits.numeric.scalar.signedness == 1 && "Only 32 bit signed integer is supported");
+                    data.type = InBlockVariableData::Type::Int;
                 }
             }
             return ret;
