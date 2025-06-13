@@ -1,0 +1,11 @@
+{
+    "%data": {
+        "&0": {
+            "%type": "Engine::ShaderAsset",
+            "Asset::m_guid": "A49ED5569C1C47859DA5AA85C4CC6D15",
+            "m_name": "pbr_base.vert.spv",
+            "shaderType": 1
+        }
+    },
+    "%main_id": "&0"
+}

@@ -1,0 +1,11 @@
+{
+    "%data": {
+        "&0": {
+            "%type": "Engine::ShaderAsset",
+            "Asset::m_guid": "A9BE0A978CB44D7D96C9FC525E4EC6A1",
+            "m_name": "lambertian_cook_torrance.frag.spv",
+            "shaderType": 2
+        }
+    },
+    "%main_id": "&0"
+}
