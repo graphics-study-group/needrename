@@ -111,6 +111,7 @@ int main(int argc, char ** argv)
         glm::mat4 proj{1.0f};
     } camera_mats;
     ConstantData::PerSceneStruct scene {
+        1,
         glm::vec4{-5.0f, -5.0f, -5.0f, 0.0f},
         glm::vec4{1.0, 1.0, 1.0, 0.0},
     };

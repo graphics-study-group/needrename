@@ -9,9 +9,23 @@ namespace Engine {
     class RenderSystem;
 
     namespace ConstantData {
+        /**
+         * Access this uniform struct in shader like this:
+```glsl
+layout(std140, set = 0, binding = 0) uniform PerSceneUniform {
+    uint light_count;
+    vec4 light_source[8];
+    vec4 light_color[8];
+};
+```
+         */
         struct PerSceneStruct {
-            glm::vec4 light_source;
-            glm::vec4 light_color;
+            static constexpr size_t MAX_LIGHT_SOURCES_PER_SCENE = 8;
+            uint32_t light_count;
+            // Light source in world coordinate. The last component is unused.
+            alignas(16) glm::vec4 light_source[MAX_LIGHT_SOURCES_PER_SCENE];
+            // Light color in RGB multiplied by its strength. The last component is unused.
+            alignas(16) glm::vec4 light_color[MAX_LIGHT_SOURCES_PER_SCENE];
         };
 
         class PerSceneConstantLayout : public VkWrapperIndependent<vk::UniqueDescriptorSetLayout> {

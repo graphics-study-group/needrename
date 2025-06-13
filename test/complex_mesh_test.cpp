@@ -202,6 +202,7 @@ void PrepareGui() {
 
 void SubmitSceneData(std::shared_ptr <RenderSystem> rsys, uint32_t id) {
     ConstantData::PerSceneStruct scene {
+        1,
         glm::vec4{
             GetCartesian(g_SceneData.zenith, g_SceneData.azimuth),
             0.0f
