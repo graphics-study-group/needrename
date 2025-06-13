@@ -33,7 +33,8 @@ namespace Engine {
         void BeginRendering(
             AttachmentUtils::AttachmentDescription color, 
             AttachmentUtils::AttachmentDescription depth, 
-            vk::Extent2D extent
+            vk::Extent2D extent,
+            const std::string & name = ""
         );
 
         void BeginRendering(

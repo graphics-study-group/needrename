@@ -27,9 +27,10 @@ namespace Engine
     void GraphicsCommandBuffer::BeginRendering(
         AttachmentUtils::AttachmentDescription color, 
         AttachmentUtils::AttachmentDescription depth,
-        vk::Extent2D extent)
+        vk::Extent2D extent,
+        const std::string & name)
     {
-        DEBUG_CMD_START_LABEL(cb, "");
+        DEBUG_CMD_START_LABEL(cb, name.c_str());
         std::vector <vk::RenderingAttachmentInfo> color_attachment;
         
         if (color.image && color.image_view) {
@@ -49,6 +50,8 @@ namespace Engine
                     vk::ClearDepthStencilValue{1.0f, 0U}
                 )
             };
+        } else {
+            
         }
 
         vk::RenderingInfo info {
