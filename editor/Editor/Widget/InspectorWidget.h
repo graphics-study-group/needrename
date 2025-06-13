@@ -22,7 +22,7 @@ namespace Editor
 
         virtual void Render() override;
     
-        virtual void SetSelectedGameObject(std::shared_ptr<Engine::GameObject> game_object);
+        virtual void SetSelectedGameObject(std::weak_ptr<Engine::GameObject> game_object);
 
     protected:
         enum class InspectorMode

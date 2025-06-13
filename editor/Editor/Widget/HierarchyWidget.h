@@ -21,10 +21,10 @@ namespace Editor
         virtual void Render() override;
     
     public:
-        Engine::MulticastDelegate<std::shared_ptr<Engine::GameObject>> m_OnGameObjectSelectedDelegate{};
+        Engine::MulticastDelegate<std::weak_ptr<Engine::GameObject>> m_OnGameObjectSelectedDelegate{};
 
     protected:
-        std::shared_ptr<Engine::GameObject> m_selected_game_object{nullptr};
+        std::weak_ptr<Engine::GameObject> m_selected_game_object{};
     };
 }
 

@@ -24,8 +24,13 @@ namespace Editor
             {
                 case InspectorMode::kInspectorModeGameObject:
                 {
-                    auto game_object = std::any_cast<std::shared_ptr<Engine::GameObject>>(m_inspected_object);
-                    assert(game_object != nullptr && "Inspected object is not a GameObject");
+                    auto weak_game_object = std::any_cast<std::weak_ptr<Engine::GameObject>>(m_inspected_object);
+                    if (weak_game_object.expired())
+                    {
+                        ImGui::Text("No GameObject selected");
+                        break;
+                    }
+                    auto game_object = weak_game_object.lock();
                     ImGui::Text((std::string("<GameObject>") + game_object->m_name).c_str());
                     ImGui::Separator();
                     unsigned int component_idx = 0;
@@ -73,9 +78,9 @@ namespace Editor
         ImGui::End();
     }
 
-    void InspectorWidget::SetSelectedGameObject(std::shared_ptr<Engine::GameObject> game_object)
+    void InspectorWidget::SetSelectedGameObject(std::weak_ptr<Engine::GameObject> game_object)
     {
-        if (game_object)
+        if (!game_object.expired())
         {
             m_inspector_mode = InspectorMode::kInspectorModeGameObject;
             m_inspected_object = game_object;

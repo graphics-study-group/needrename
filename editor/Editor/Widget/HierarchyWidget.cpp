@@ -21,9 +21,10 @@ namespace Editor
         {
             for (const auto &go : world->GetGameObjects())
             {
-                if (ImGui::Selectable(go->m_name.c_str(), m_selected_game_object == go))
+                auto selected = m_selected_game_object.lock();
+                if (ImGui::Selectable(go->m_name.c_str(), selected == go))
                 {
-                    if (m_selected_game_object != go)
+                    if (selected != go)
                     {
                         selected_changed = true;
                     }
