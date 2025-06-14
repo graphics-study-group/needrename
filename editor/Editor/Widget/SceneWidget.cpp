@@ -79,8 +79,7 @@ namespace Editor
 
             if (m_camera_control_on)
             {
-                ImVec2 mouse_delta = ImGui::GetMouseDragDelta(ImGuiMouseButton_Right);
-                ImGui::ResetMouseDragDelta(ImGuiMouseButton_Right);
+                ImVec2 mouse_delta = ImGui::GetIO().MouseDelta;
                 m_camera.RotateControl(mouse_delta.x, mouse_delta.y);
                 float delta_forward = ImGui::IsKeyDown(ImGuiKey_W) * 1.0f - ImGui::IsKeyDown(ImGuiKey_S) * 1.0f;
                 float delta_right = ImGui::IsKeyDown(ImGuiKey_D) * 1.0f - ImGui::IsKeyDown(ImGuiKey_A) * 1.0f;
