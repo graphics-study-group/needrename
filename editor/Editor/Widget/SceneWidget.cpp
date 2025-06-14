@@ -10,14 +10,14 @@ namespace Editor
 {
     SceneWidget::SceneWidget(const std::string &name) : Widget(name)
     {
-        m_camera.m_transform.SetPosition({0.0f, 0.05f, -0.7f});
-        m_camera.m_transform.SetRotationEuler(glm::vec3{1.57, 0.0, 3.1415926});
-        m_camera.m_fov = 45.0f;
-        m_camera.m_aspect_ratio = 1.0f;
-        m_camera.m_clipping_near = 1e-3f;
-        m_camera.m_clipping_far = 1e3f;
-        m_camera.UpdateViewMatrix();
-        m_camera.UpdateProjectionMatrix();
+        // m_camera.m_transform.SetPosition({0.0f, 0.05f, -0.7f});
+        // m_camera.m_transform.SetRotationEuler(glm::vec3{1.57, 0.0, 3.1415926});
+        // m_camera.m_fov = 45.0f;
+        // m_camera.m_aspect_ratio = 1.0f;
+        // m_camera.m_clipping_near = 1e-3f;
+        // m_camera.m_clipping_far = 1e3f;
+        // m_camera.UpdateViewMatrix();
+        // m_camera.UpdateProjectionMatrix();
     }
 
     SceneWidget::~SceneWidget()
