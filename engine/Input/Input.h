@@ -23,7 +23,7 @@ namespace Engine
         virtual ~Input() = default;
 
         virtual void ProcessEvent(SDL_Event *event);
-        virtual void Update(float dt);
+        virtual void Update();
 
         enum AxisType
         {
@@ -59,7 +59,7 @@ namespace Engine
             virtual float GetRawValue() const;
             virtual float GetValue() const;
             virtual void ProcessEvent(SDL_Event *event);
-            virtual void UpdateSmoothedValue(float dt);
+            virtual void UpdateSmoothedValue();
         };
 
         // ButtonAxis is a virtual axis that is controlled by a positive and negative button such as keyboard, mouse and gamepad button. It will be clamped to -1.0f or 1.0f.
@@ -91,7 +91,7 @@ namespace Engine
             REFL_SER_DISABLE float m_sum_one_frame = 0.0f;
 
             virtual void ProcessEvent(SDL_Event *event) override;
-            virtual void UpdateSmoothedValue(float dt) override;
+            virtual void UpdateSmoothedValue() override;
         };
 
         // GamepadAxis is a virtual axis that is controlled by a gamepad axis or trigger.

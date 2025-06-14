@@ -12,11 +12,11 @@ namespace Engine
     {
     }
 
-    void WorldSystem::Tick(float dt)
+    void WorldSystem::Tick()
     {
         for (auto &comp : m_all_components)
         {
-            comp->Tick(dt);
+            comp->Tick();
         }
     }
 

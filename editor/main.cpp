@@ -6,6 +6,7 @@
 #include <cmake_config.h>
 #include <MainClass.h>
 #include <Functional/SDLWindow.h>
+#include <Functional/Time.h>
 #include <Render/RenderSystem.h>
 #include <Render/AttachmentUtils.h>
 #include <Render/Memory/Image2DTexture.h>
@@ -62,10 +63,7 @@ int main()
     unsigned int frame_count = 0;
     while (!onQuit)
     {
-        Uint64 current_time = SDL_GetTicksNS();
-        float dt = (current_time - FPS_TIMER) * 1e-9f;
-        FPS_TIMER = current_time;
-        frame_count++;
+        cmc->GetTimeSystem()->NextFrame();
 
         asset_manager->LoadAssetsInQueue();
 
@@ -85,10 +83,10 @@ int main()
             cmc->GetInputSystem()->ProcessEvent(&event);
         }
 
-        cmc->GetInputSystem()->Update(dt);
+        cmc->GetInputSystem()->Update();
         world->LoadGameObjectInQueue();
         // Editor mode does not need to tick the world.
-        // world->Tick(dt);
+        // world->Tick();
 
         rsys->StartFrame();
         RenderCommandBuffer &cb = rsys->GetCurrentCommandBuffer();

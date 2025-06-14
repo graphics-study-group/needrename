@@ -24,7 +24,7 @@ namespace Engine{
         MainClass::GetInstance()->GetRenderSystem()->SetActiveCamera(std::dynamic_pointer_cast<CameraComponent>(shared_from_this()));
     }
 
-    void CameraComponent::Tick(float)
+    void CameraComponent::Tick()
     {
         UpdateViewMatrix();
     }

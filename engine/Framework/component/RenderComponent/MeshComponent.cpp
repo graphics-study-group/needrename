@@ -44,7 +44,7 @@ namespace Engine
         }
     }
 
-    void MeshComponent::Tick(float)
+    void MeshComponent::Tick()
     {
     }
 };

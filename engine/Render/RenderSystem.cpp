@@ -19,6 +19,7 @@
 #include "Render/RenderSystem/FrameManager.h"
 
 #include <MainClass.h>
+#include <Functional/SDLWindow.h>
 #include <GUI/GUISystem.h>
 
 #include <iostream>

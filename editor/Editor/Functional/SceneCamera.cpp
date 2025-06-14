@@ -1,4 +1,6 @@
 #include "SceneCamera.h"
+#include <MainClass.h>
+#include <Functional/Time.h>
 
 namespace Editor
 {
@@ -37,11 +39,12 @@ namespace Editor
 
     void SceneCamera::MoveControl(float delta_forward, float delta_right)
     {
+        float dt = Engine::MainClass::GetInstance()->GetTimeSystem()->GetDeltaTimeInSeconds();
         glm::vec3 forward = m_transform.GetRotation() * glm::vec3{0.0f, 0.0f, -1.0f};
         glm::vec3 right = m_transform.GetRotation() * glm::vec3{1.0f, 0.0f, 0.0f};
         glm::vec3 position = m_transform.GetPosition();
-        position += forward * delta_forward * m_move_speed;
-        position += right * delta_right * m_move_speed;
+        position += forward * delta_forward * m_move_speed * dt;
+        position += right * delta_right * m_move_speed * dt;
         m_transform.SetPosition(position);
     }
 
