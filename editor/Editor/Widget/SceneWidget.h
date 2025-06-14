@@ -5,6 +5,7 @@
 #include <Render/Pipeline/RenderTargetBinding.h>
 #include <memory>
 #include <imgui.h>
+#include <Editor/Functional/SceneCamera.h>
 
 namespace Engine
 {
@@ -28,6 +29,7 @@ namespace Editor
 
     protected:
         Engine::RenderTargetBinding m_render_target_binding{};
+        SceneCamera m_camera;
 
         int m_game_width = 1280;
         int m_game_height = 720;

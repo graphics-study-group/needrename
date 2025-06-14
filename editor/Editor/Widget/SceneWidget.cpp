@@ -9,6 +9,14 @@ namespace Editor
 {
     SceneWidget::SceneWidget(const std::string &name) : Widget(name)
     {
+        m_camera.m_transform.SetPosition({-0.3f, 0.05f, -0.7f});
+        m_camera.m_transform.SetRotationEuler(glm::vec3{1.57, 0.0, 3.1415926});
+        m_camera.m_fov_vertical = 45.0f;
+        m_camera.m_aspect_ratio = static_cast<float>(m_game_width) / static_cast<float>(m_game_height);
+        m_camera.m_clipping_near = 1e-3f;
+        m_camera.m_clipping_far = 1e3f;
+        m_camera.UpdateViewMatrix();
+        m_camera.UpdateProjectionMatrix();
     }
 
     SceneWidget::~SceneWidget()
@@ -44,7 +52,7 @@ namespace Editor
     void SceneWidget::PreRender(Engine::RenderCommandBuffer &cb)
     {
         cb.BeginRendering(m_render_target_binding, m_color_image->GetExtent());
-        Engine::MainClass::GetInstance()->GetRenderSystem()->DrawMeshes();
+        Engine::MainClass::GetInstance()->GetRenderSystem()->DrawMeshes(m_camera.m_view_matrix, m_camera.m_projection_matrix);
         cb.EndRendering();
         cb.InsertAttachmentBarrier(Engine::RenderCommandBuffer::AttachmentBarrierType::ColorAttachmentRAW, m_color_image->GetImage());
     }
@@ -53,7 +61,7 @@ namespace Editor
     {
         if (ImGui::Begin(m_name.c_str()))
         {
-            ImGui::Image(m_color_att_id, ImVec2(m_game_width, m_game_height));
+            ImGui::Image(m_color_att_id, ImVec2(m_game_width, m_game_height), ImVec2(0, 0), ImVec2(1, 1), ImVec4(1, 1, 1, 1), ImVec4(0.2f, 0.6f, 1.0f, 1.0f)); // 最后一个参数为边框颜色
         }
         ImGui::End();
     }
