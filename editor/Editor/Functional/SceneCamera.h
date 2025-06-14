@@ -16,6 +16,9 @@ namespace Editor
 
         void UpdateProjectionMatrix();
         void UpdateViewMatrix();
+
+        void MoveControl(float delta_forward, float delta_right);
+        void RotateControl(float delta_x, float delta_y);
     
     public:
         float m_move_speed{1.0f};

@@ -34,4 +34,22 @@ namespace Editor
         up = m_transform.GetRotation() * up;
         m_view_matrix = glm::lookAtRH(glm::vec3{origin}, glm::vec3{center}, glm::vec3{up});
     }
+
+    void SceneCamera::MoveControl(float delta_forward, float delta_right)
+    {
+        glm::vec3 forward = m_transform.GetRotation() * glm::vec3{0.0f, 0.0f, -1.0f};
+        glm::vec3 right = m_transform.GetRotation() * glm::vec3{1.0f, 0.0f, 0.0f};
+        glm::vec3 position = m_transform.GetPosition();
+        position += forward * delta_forward * m_move_speed;
+        position += right * delta_right * m_move_speed;
+        m_transform.SetPosition(position);
+    }
+
+    void SceneCamera::RotateControl(float delta_x, float delta_y)
+    {
+        glm::vec3 rotation = m_transform.GetRotationEuler();
+        rotation.x -= glm::radians(delta_y * m_rotate_speed);
+        rotation.y += glm::radians(delta_x * m_rotate_speed);
+        m_transform.SetRotationEuler(rotation);
+    }
 }

@@ -67,6 +67,26 @@ namespace Editor
         {
             m_viewport_size = ImGui::GetContentRegionAvail();
             ImGui::Image(m_color_att_id, m_viewport_size, ImVec2(0, 0), ImVec2(m_viewport_size.x / m_texture_width, m_viewport_size.y / m_texture_height));
+
+            if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
+            {
+                m_camera_control_on = true;
+            }
+            if (ImGui::IsMouseReleased(ImGuiMouseButton_Right))
+            {
+                m_camera_control_on = false;
+            }
+
+            if (m_camera_control_on)
+            {
+                ImVec2 mouse_delta = ImGui::GetMouseDragDelta(ImGuiMouseButton_Right);
+                ImGui::ResetMouseDragDelta(ImGuiMouseButton_Right);
+                m_camera.RotateControl(mouse_delta.x, mouse_delta.y);
+                float delta_forward = ImGui::IsKeyDown(ImGuiKey_W) * 1.0f - ImGui::IsKeyDown(ImGuiKey_S) * 1.0f;
+                float delta_right = ImGui::IsKeyDown(ImGuiKey_D) * 1.0f - ImGui::IsKeyDown(ImGuiKey_A) * 1.0f;
+                m_camera.MoveControl(delta_forward, delta_right);
+                m_camera.UpdateViewMatrix();
+            }
         }
         ImGui::End();
     }

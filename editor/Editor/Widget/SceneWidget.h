@@ -33,6 +33,8 @@ namespace Editor
 
         ImVec2 m_viewport_size{1280, 720};
 
+        bool m_camera_control_on{false};
+
     private:
         int m_texture_width{1960};
         int m_texture_height{1080};
