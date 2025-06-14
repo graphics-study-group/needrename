@@ -136,6 +136,7 @@ namespace Editor
             ImGui::DockBuilderDockWindow(k_hierarchy_widget_name, dock_left);
             ImGui::DockBuilderDockWindow(k_project_widget_name, dock_bottom);
             ImGui::DockBuilderDockWindow(k_inspector_widget_name, dock_right);
+            ImGui::DockBuilderDockWindow(k_scene_widget_name, dock_main_id);
             ImGui::DockBuilderDockWindow(k_game_widget_name, dock_main_id);
 
             ImGui::DockBuilderFinish(main_dockspace_id);

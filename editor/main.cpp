@@ -21,6 +21,7 @@
 
 #include <Editor/Window/MainWindow.h>
 #include <Editor/Widget/GameWidget.h>
+#include <Editor/Widget/SceneWidget.h>
 
 using namespace Engine;
 
@@ -47,6 +48,9 @@ int main()
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Create Editor Window");
     Editor::MainWindow main_window;
+    auto scene_widget = std::make_shared<Editor::SceneWidget>(Editor::MainWindow::k_scene_widget_name);
+    scene_widget->CreateRenderTargetBinding(rsys);
+    main_window.AddWidget(scene_widget);
     auto game_widget = std::make_shared<Editor::GameWidget>(Editor::MainWindow::k_game_widget_name);
     game_widget->CreateRenderTargetBinding(rsys);
     main_window.AddWidget(game_widget);
@@ -90,8 +94,9 @@ int main()
         RenderCommandBuffer &cb = rsys->GetCurrentCommandBuffer();
         cb.Begin();
 
-        gui->PrepareGUI();
+        scene_widget->PreRender(cb);
         game_widget->PreRender(cb);
+        gui->PrepareGUI();
         main_window.Render();
 
         cb.BeginRendering(cmc->GetWindow()->GetRenderTargetBinding(), cmc->GetWindow()->GetExtent());
