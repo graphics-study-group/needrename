@@ -51,9 +51,9 @@ int main()
     auto scene_widget = std::make_shared<Editor::SceneWidget>(Editor::MainWindow::k_scene_widget_name);
     scene_widget->CreateRenderTargetBinding(rsys);
     main_window.AddWidget(scene_widget);
-    auto game_widget = std::make_shared<Editor::GameWidget>(Editor::MainWindow::k_game_widget_name);
-    game_widget->CreateRenderTargetBinding(rsys);
-    main_window.AddWidget(game_widget);
+    // auto game_widget = std::make_shared<Editor::GameWidget>(Editor::MainWindow::k_game_widget_name);
+    // game_widget->CreateRenderTargetBinding(rsys);
+    // main_window.AddWidget(game_widget);
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Entering main loop");
 
@@ -95,7 +95,7 @@ int main()
         cb.Begin();
 
         scene_widget->PreRender(cb);
-        game_widget->PreRender(cb);
+        // game_widget->PreRender(cb);
         gui->PrepareGUI();
         main_window.Render();
 

@@ -29,12 +29,13 @@ namespace Editor
 
     protected:
         Engine::RenderTargetBinding m_render_target_binding{};
-        SceneCamera m_camera;
+        SceneCamera m_camera{};
 
-        int m_game_width = 1280;
-        int m_game_height = 720;
+        ImVec2 m_viewport_size{1280, 720};
 
     private:
+        int m_texture_width{1960};
+        int m_texture_height{1080};
         std::shared_ptr<Engine::AllocatedImage2D> m_color_image{};
         std::shared_ptr<Engine::AllocatedImage2D> m_depth_image{};
         vk::Sampler m_sampler{};

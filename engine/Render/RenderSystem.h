@@ -71,7 +71,7 @@ namespace Engine
          * This method writes camera uniforms and viewport state.
          * Then it binds materials and records draw calls on the current render command buffer.
          */
-        void DrawMeshes(const glm::mat4 & view_matrix, const glm::mat4 & projection_matrix, uint32_t pass = 0);
+        void DrawMeshes(const glm::mat4 & view_matrix, const glm::mat4 & projection_matrix, vk::Extent2D extent, uint32_t pass = 0);
         
         void RegisterComponent(std::shared_ptr <RendererComponent>);
         void ClearComponent();

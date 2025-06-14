@@ -23,7 +23,7 @@ namespace Editor
 
         Transform m_transform{};
 
-        float m_fov_vertical{45};
+        float m_fov{45};
         float m_aspect_ratio{1.0};
         float m_clipping_near{1e-3};
         float m_clipping_far{1e3};

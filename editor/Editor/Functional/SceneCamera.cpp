@@ -10,9 +10,16 @@ namespace Editor
 
     void SceneCamera::UpdateProjectionMatrix()
     {
-        assert(abs(m_fov_vertical) > 1e-3);
+        assert(abs(m_fov) > 1e-3);
         assert(abs(m_aspect_ratio) > 1e-3);
-        m_projection_matrix = glm::perspectiveRH(glm::radians(m_fov_vertical), m_aspect_ratio, m_clipping_near, m_clipping_far);
+        if (m_aspect_ratio > 1.0f)
+        {
+            m_projection_matrix = glm::perspectiveRH(glm::radians(m_fov), m_aspect_ratio, m_clipping_near, m_clipping_far);
+        }
+        else
+        {
+            m_projection_matrix = glm::perspectiveRH(2.0f * atanf(tanf(glm::radians(m_fov) / 2.0f) / m_aspect_ratio), m_aspect_ratio, m_clipping_near, m_clipping_far);
+        }
         m_projection_matrix[1][1] *= -1.0f;
     }
 
