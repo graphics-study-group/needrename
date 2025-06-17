@@ -48,7 +48,7 @@ namespace Engine
                 {},
                 PipelineUtils::ToVulkanShaderStageFlagBits(shader_asset->shaderType),
                 pass_info.shaders[i].get(),
-                "main"
+                shader_asset->m_entry_point.empty() ? "main" : shader_asset->m_entry_point.c_str()
             };
         }
 
