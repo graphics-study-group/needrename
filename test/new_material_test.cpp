@@ -56,6 +56,16 @@ std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate()
     mtspp.attachments.color_ops = {
         AttachmentUtils::AttachmentOp{}
     };
+    using CBP = MaterialTemplateSinglePassProperties::ColorBlendingProperties;
+    CBP cbp;
+    cbp.color_op = cbp.alpha_op = CBP::BlendOperation::Add;
+    cbp.src_color = CBP::BlendFactor::SrcAlpha;
+    cbp.dst_color = CBP::BlendFactor::OneMinusSrcAlpha;
+    cbp.src_alpha = CBP::BlendFactor::One;
+    cbp.dst_alpha = CBP::BlendFactor::Zero;
+    mtspp.attachments.color_blending = {
+        cbp
+    };
     mtspp.attachments.depth = ImageUtils::ImageFormat::D32SFLOAT;
     mtspp.shaders.shaders = std::vector<std::shared_ptr<AssetRef>>{vs_ref, fs_ref};
 
