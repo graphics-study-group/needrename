@@ -3,6 +3,7 @@
 
 #include "Widget.h"
 #include <memory>
+#include <filesystem>
 
 namespace Engine
 {
@@ -18,6 +19,9 @@ namespace Editor
         virtual ~ProjectWidget();
 
         virtual void Render() override;
+    
+    protected:
+        std::filesystem::path m_current_path{};
     };
 }
 
