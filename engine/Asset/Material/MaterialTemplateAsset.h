@@ -10,6 +10,7 @@
 #include <Render/ImageUtils.h>
 #include <Render/AttachmentUtils.h>
 #include <Asset/Material/ShaderAsset.h>
+#include <Asset/Material/PipelineProperty.h>
 
 namespace Engine
 {
@@ -40,131 +41,23 @@ namespace Engine
         REFL_ENABLE MaterialTemplateSinglePassProperties() = default;
         virtual ~MaterialTemplateSinglePassProperties() = default;
 
+        using RasterizerProperties = PipelineProperties::RasterizerProperties;
+        using DSProperties = PipelineProperties::DSProperties;
+        using Shaders = PipelineProperties::Shaders;
+        using Attachments = PipelineProperties::Attachments;
+
         /// @brief C.f. `vkPipelineRasterizationStateCreateInfo`
-        REFL_SER_ENABLE struct REFL_SER_CLASS(REFL_BLACKLIST) RasterizerProperties {
-            REFL_SER_SIMPLE_STRUCT(RasterizerProperties)
-
-            enum class FillingMode {
-                Fill,
-                Line,
-                Point
-            };
-            enum class CullingMode {
-                None,
-                Front,
-                Back,
-                All
-            };
-            enum class FrontFace {
-                Counterclockwise,
-                Clockwise
-            };
-
-            FillingMode filling{FillingMode::Fill};
-            float line_width{1.0f};
-            CullingMode culling{CullingMode::None};
-            FrontFace front{FrontFace::Counterclockwise};
-        } rasterizer {};
+        REFL_SER_ENABLE RasterizerProperties rasterizer {};
 
         /// @brief C.f. `vkPipelineDepthStencilStateCreateInfo`
-        REFL_SER_ENABLE struct REFL_SER_CLASS(REFL_BLACKLIST) DSProperties {
-            REFL_SER_SIMPLE_STRUCT(DSProperties)
-
-            bool ds_write_enabled{true};
-            bool ds_test_enabled{true};
-            float min_depth{0.0f};
-            float max_depth{1.0f};
-        } depth_stencil {};
+        REFL_SER_ENABLE DSProperties depth_stencil {};
         
         /// @brief C.f. `vkPipelineShaderStageCreateInfo`
-        REFL_SER_ENABLE struct REFL_SER_CLASS(REFL_BLACKLIST) Shaders {
-            REFL_SER_SIMPLE_STRUCT(Shaders)
-
-            /// @brief A vector of all shader programs used in the pipeline
-            std::vector <std::shared_ptr<AssetRef>> shaders {};
-            // TODO: Support shader specialization
-            // std::vector <...> specialization;
-
-            /// @brief stores information regarding layout info, aka descriptors, shared across all stages.
-            /// @deprecated Automatically reflected from shader SPIR-V source code.
-            std::vector <ShaderVariableProperty> uniforms {};
-
-            /// @brief stores information of variables stored in the UBO.
-            /// @deprecated Automatically reflected from shader SPIR-V source code.
-            std::vector <ShaderInBlockVariableProperty> ubo_variables {};
-        } shaders {};
-
-        /// @brief C.f. https://registry.khronos.org/vulkan/specs/latest/man/html/VkPipelineColorBlendAttachmentState.html
-        REFL_SER_ENABLE struct REFL_SER_CLASS(REFL_BLACKLIST) ColorBlendingProperties {
-            REFL_SER_SIMPLE_STRUCT(ColorBlendingProperties)
-
-            /// @brief C.f. https://registry.khronos.org/vulkan/specs/latest/man/html/VkBlendOp.html
-            enum class BlendOperation {
-                None,
-                Add,
-                Substract,
-                ReverseSubstract,
-                Min,
-                Max
-            };
-
-            /// @brief C.f. https://registry.khronos.org/vulkan/specs/latest/man/html/VkBlendFactor.html
-            enum class BlendFactor {
-                Zero,
-                One,
-                SrcColor,
-                OneMinusSrcColor,
-                DstColor,
-                OneMinusDstColor,
-                SrcAlpha,
-                OneMinusSrcAlpha,
-                DstAlpha,
-                OneMinusDstAlpha
-            };
-
-            /**
-             * @brief Blending operation of color components.
-             * If either `color_op` or `alpha_op` is set to `None`, blending will be disabled.
-             */
-            BlendOperation color_op {BlendOperation::None};
-            /**
-             * @brief Blending operation of alpha components.
-             * If either `color_op` or `alpha_op` is set to `None`, blending will be disabled.
-             */
-            BlendOperation alpha_op {BlendOperation::None};
-            BlendFactor src_color {BlendFactor::One};
-            BlendFactor dst_color {BlendFactor::Zero};
-            BlendFactor src_alpha {BlendFactor::One};
-            BlendFactor dst_alpha {BlendFactor::Zero};
-        };
+        REFL_SER_ENABLE Shaders shaders {};
 
         /// @brief C.f. `vkPipelineRenderingCreateInfo`
         /// Use UNDEFINED image format to adapt to swapchain.
-        REFL_SER_ENABLE struct REFL_SER_CLASS(REFL_BLACKLIST) Attachments {
-            REFL_SER_SIMPLE_STRUCT(Attachments)
-
-            /// @brief Color attachments. If they and depth attachment are all left empty,
-            /// the pipeline will be configured to use the current swapchain as attachments.
-            /// You can specify `UNDEFINED` format to use default image format determined at runtime.
-            std::vector <ImageUtils::ImageFormat> color {};
-            /**
-             * @brief Color attachment operations.
-             * When specified, its size must be equal to the size of `color`.
-             * @deprecated It should be specified at runtime.
-             */
-            std::vector <AttachmentUtils::AttachmentOp> color_ops {};
-            /**
-             * @brief Color attachment blending operations.
-             * When specified, its size must be equal to the size of `color`.
-             */
-            std::vector <ColorBlendingProperties> color_blending {};
-
-            /// @brief Depth attachment format. If color attachments and it are all left empty,
-            /// the pipeline will be configured to use the current swapchain as attachments.
-            ImageUtils::ImageFormat depth {};
-            ImageUtils::ImageFormat stencil {};
-            AttachmentUtils::AttachmentOp ds_ops {};
-        } attachments {};
+        REFL_SER_ENABLE Attachments attachments {};
 
         // XXX: We had better support pipeline caches to speed up loading...
         // C.f. `vkGetPipelineCacheData`

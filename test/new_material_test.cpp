@@ -56,7 +56,7 @@ std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate()
     mtspp.attachments.color_ops = {
         AttachmentUtils::AttachmentOp{}
     };
-    using CBP = MaterialTemplateSinglePassProperties::ColorBlendingProperties;
+    using CBP = PipelineProperties::ColorBlendingProperties;
     CBP cbp;
     cbp.color_op = cbp.alpha_op = CBP::BlendOperation::Add;
     cbp.src_color = CBP::BlendFactor::SrcAlpha;

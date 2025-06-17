@@ -209,8 +209,8 @@ namespace Engine
 
                 const auto & cb = prop.attachments.color_blending[i];
                 if (
-                    cb.color_op == MaterialTemplateSinglePassProperties::ColorBlendingProperties::BlendOperation::None ||
-                    cb.alpha_op == MaterialTemplateSinglePassProperties::ColorBlendingProperties::BlendOperation::None
+                    cb.color_op == PipelineUtils::BlendOperation::None ||
+                    cb.alpha_op == PipelineUtils::BlendOperation::None
                 ) {
                     cbass[i] = vk::PipelineColorBlendAttachmentState{
                         vk::False,

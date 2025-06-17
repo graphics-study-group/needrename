@@ -1,10 +1,13 @@
 #include "PipelineUtils.h"
+
+#include "Asset/Material/PipelineProperty.h"
+
 #include <ranges>
 #include <SDL3/SDL.h>
 
 namespace Engine {
     namespace PipelineUtils {
-        vk::PolygonMode ToVkPolygonMode(MaterialTemplateSinglePassProperties::RasterizerProperties::FillingMode mode)
+        vk::PolygonMode ToVkPolygonMode(FillingMode mode)
         {
             
             switch (mode) {
@@ -17,7 +20,7 @@ namespace Engine {
             }
             __builtin_unreachable();
         }
-        vk::CullModeFlags ToVkCullMode(MaterialTemplateSinglePassProperties::RasterizerProperties::CullingMode mode)
+        vk::CullModeFlags ToVkCullMode(CullingMode mode)
         {
             
             switch (mode) {
@@ -32,7 +35,7 @@ namespace Engine {
             }
             __builtin_unreachable();
         }
-        vk::FrontFace ToVkFrontFace(MaterialTemplateSinglePassProperties::RasterizerProperties::FrontFace face)
+        vk::FrontFace ToVkFrontFace(FrontFace face)
         {
             switch (face){
             case FrontFace::Counterclockwise:
@@ -106,7 +109,7 @@ namespace Engine {
             }
         }
 
-        vk::PipelineRasterizationStateCreateInfo ToVulkanRasterizationStateCreateInfo(const MaterialTemplateSinglePassProperties::RasterizerProperties & prop)
+        vk::PipelineRasterizationStateCreateInfo ToVulkanRasterizationStateCreateInfo(const PipelineProperties::RasterizerProperties & prop)
         {
             vk::PipelineRasterizationStateCreateInfo info{};
             info.depthClampEnable = vk::False;
@@ -120,7 +123,7 @@ namespace Engine {
         }
 
         vk::PipelineDepthStencilStateCreateInfo
-        ToVulkanDepthStencilStateCreateInfo(const MaterialTemplateSinglePassProperties::DSProperties & p) {
+        ToVulkanDepthStencilStateCreateInfo(const PipelineProperties::DSProperties & p) {
             vk::PipelineDepthStencilStateCreateInfo info{
                 vk::PipelineDepthStencilStateCreateFlags{}, 
                 p.ds_test_enabled, p.ds_write_enabled,
@@ -134,7 +137,7 @@ namespace Engine {
         }
 
         std::vector<vk::DescriptorSetLayoutBinding>
-        ToVulkanDescriptorSetLayoutBindings(const MaterialTemplateSinglePassProperties::Shaders & p){
+        ToVulkanDescriptorSetLayoutBindings(const PipelineProperties::Shaders & p){
 #ifndef NDEBUG
             // Test whether scene uniforms are compatible
             auto scene_uniforms_range = std::ranges::filter_view(
@@ -269,17 +272,17 @@ namespace Engine {
         }
 
         vk::PipelineShaderStageCreateInfo
-        ToVulkanShaderStageCreateInfo(const MaterialTemplateSinglePassProperties::Shaders & p, std::vector<vk::UniqueShaderModule> & v) {
+        ToVulkanShaderStageCreateInfo(const PipelineProperties::Shaders & p, std::vector<vk::UniqueShaderModule> & v) {
             v.clear();
         }
 
         vk::PipelineLayoutCreateInfo
-        ToVulkanPipelineLayoutCreateInfo(const MaterialTemplateSinglePassProperties::Shaders & p) {
+        ToVulkanPipelineLayoutCreateInfo(const PipelineProperties::Shaders & p) {
 
         }
 
         vk::PipelineRenderingCreateInfo
-        ToVulkanPipelineRenderingCreateInfo(const MaterialTemplateSinglePassProperties::Attachments & p){
+        ToVulkanPipelineRenderingCreateInfo(const PipelineProperties::Attachments & p){
 
         }
     }
