@@ -25,8 +25,8 @@ namespace Engine
     }
 
     void GraphicsCommandBuffer::BeginRendering(
-        AttachmentUtils::AttachmentDescription color, 
-        AttachmentUtils::AttachmentDescription depth,
+        const AttachmentUtils::AttachmentDescription & color, 
+        const AttachmentUtils::AttachmentDescription & depth,
         vk::Extent2D extent,
         const std::string & name)
     {

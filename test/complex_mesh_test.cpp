@@ -325,10 +325,24 @@ int main(int argc, char ** argv)
         context.UseImage(depth, GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite, GraphicsContext::ImageAccessType::None);
         context.PrepareCommandBuffer();
         vk::Extent2D extent {rsys->GetSwapchain().GetExtent()};
-        cb.BeginRendering(color_att, depth_att, extent);
+        cb.BeginRendering({
+                color.GetImage(),
+                color.GetImageView(),
+                vk::AttachmentLoadOp::eClear,
+                vk::AttachmentStoreOp::eStore
+            }, depth_att, extent);
         rsys->DrawMeshes();
-        gsys->DrawGUI(cb);
         cb.EndRendering();
+
+        context.UseImage(color, GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite, GraphicsContext::ImageAccessType::ColorAttachmentWrite);
+        context.PrepareCommandBuffer();
+        gsys->DrawGUI({
+                color.GetImage(),
+                color.GetImageView(),
+                vk::AttachmentLoadOp::eLoad,
+                vk::AttachmentStoreOp::eStore
+            }, extent, cb);
+
         cb.End();
         rsys->GetFrameManager().SubmitMainCommandBuffer();
         rsys->GetFrameManager().StageCopyComposition(color.GetImage());

@@ -366,8 +366,15 @@ int main(int argc, char ** argv)
         vk::Extent2D extent {rsys->GetSwapchain().GetExtent()};
         cb.BeginRendering(color_att, depth_att, extent);
         rsys->DrawMeshes();
-        gsys->DrawGUI(cb);
         cb.EndRendering();
+
+        context.UseImage(color, GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite, GraphicsContext::ImageAccessType::ColorAttachmentWrite);
+        context.PrepareCommandBuffer();
+        gsys->DrawGUI(
+            {color.GetImage(), color.GetImageView(), vk::AttachmentLoadOp::eLoad, vk::AttachmentStoreOp::eStore},
+            extent, cb
+        );
+
         cb.End();
 
         rsys->GetFrameManager().SubmitMainCommandBuffer();

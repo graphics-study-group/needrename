@@ -20,8 +20,10 @@ namespace Engine {
             /// Read by shader as texture with a sampler, in read-only layout.
             ShaderRead,
             /// Write by rasterization pipeline color output stage, in color attachment layout.
+            /// Implicitly sets the attachment read bit, as attachment load operations etc. read the attachment.
             ColorAttachmentWrite,
             /// Write by rasterization pipeline depth test stage, in depth attachment layout.
+            /// Implicitly sets the attachment read bit, as attachment load operations etc. read the attachment.
             DepthAttachmentWrite,
             /// Write by transfer command, in transfer destination layout.
             TransferWrite,
@@ -41,8 +43,10 @@ namespace Engine {
             /// Read by shader, in shader readonly layout.
             ShaderRead,
             /// Write by rasterization pipeline color output stage, in color attachment layout.
+            /// Implicitly sets the attachment read bit, as attachment load operations etc. read the attachment.
             ColorAttachmentWrite,
             /// Write by rasterization pipeline depth test stage, in depth attachment layout.
+            /// Implicitly sets the attachment read bit, as attachment load operations etc. read the attachment.
             DepthAttachmentWrite,
         };
 

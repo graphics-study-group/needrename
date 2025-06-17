@@ -31,8 +31,8 @@ namespace Engine {
 
         /// @brief Begin a Vulkan rendering pass
         void BeginRendering(
-            AttachmentUtils::AttachmentDescription color, 
-            AttachmentUtils::AttachmentDescription depth, 
+            const AttachmentUtils::AttachmentDescription & color, 
+            const AttachmentUtils::AttachmentDescription & depth, 
             vk::Extent2D extent,
             const std::string & name = ""
         );
