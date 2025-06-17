@@ -43,6 +43,53 @@ namespace Engine {
             __builtin_unreachable();
         }
 
+        vk::BlendOp ToVkBlendOp(BlendOperation op)
+        {
+            switch (op) {
+            case BlendOperation::None:
+                SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Requesting blend operation \"None\"");
+                return vk::BlendOp::eZeroEXT;
+            case BlendOperation::Add:
+                return vk::BlendOp::eAdd;
+            case BlendOperation::Substract:
+                return vk::BlendOp::eSubtract;
+            case BlendOperation::ReverseSubstract:
+                return vk::BlendOp::eReverseSubtract;
+            case BlendOperation::Min:
+                return vk::BlendOp::eMin;
+            case BlendOperation::Max:
+                return vk::BlendOp::eMax;
+            }
+            __builtin_unreachable();
+        }
+
+        vk::BlendFactor ToVkBlendFactor(BlendFactor factor)
+        {
+            switch(factor) {
+            case BlendFactor::Zero:
+                return vk::BlendFactor::eZero;
+            case BlendFactor::One:
+                return vk::BlendFactor::eOne;
+            case BlendFactor::SrcColor:
+                return vk::BlendFactor::eSrcColor;
+            case BlendFactor::OneMinusSrcColor:
+                return vk::BlendFactor::eOneMinusSrcColor;
+            case BlendFactor::DstColor:
+                return vk::BlendFactor::eDstColor;
+            case BlendFactor::OneMinusDstColor:
+                return vk::BlendFactor::eOneMinusDstColor;
+            case BlendFactor::SrcAlpha:
+                return vk::BlendFactor::eSrcAlpha;
+            case BlendFactor::OneMinusSrcAlpha:
+                return vk::BlendFactor::eOneMinusSrcAlpha;
+            case BlendFactor::DstAlpha:
+                return vk::BlendFactor::eDstAlpha;
+            case BlendFactor::OneMinusDstAlpha:
+                return vk::BlendFactor::eOneMinusDstAlpha;
+            }
+            __builtin_unreachable();
+        }
+
         vk::ShaderStageFlagBits ToVulkanShaderStageFlagBits(ShaderAsset::ShaderType type)
         {
             using Type = ShaderAsset::ShaderType;

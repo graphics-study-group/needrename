@@ -31,8 +31,7 @@ namespace Engine
     /// And these are either fixed or filled in at run-time: 
     /// 2nd and 3rd, which are decided based on the mesh to be drawn;
     /// 5th, which is always dynamic and unspecified until rendering; 
-    /// 7th, which is decided by run-time settings;
-    /// 9th, which is always disabled;
+    /// 7th, which is always disabled due to poor compatibility with deferred rendering;
     /// 10th, which is always fixed to be viewports and scissors.
     struct REFL_SER_CLASS(REFL_WHITELIST) MaterialTemplateSinglePassProperties
     {
@@ -87,11 +86,57 @@ namespace Engine
             // std::vector <...> specialization;
 
             /// @brief stores information regarding layout info, aka descriptors, shared across all stages.
+            /// @deprecated Automatically reflected from shader SPIR-V source code.
             std::vector <ShaderVariableProperty> uniforms {};
 
             /// @brief stores information of variables stored in the UBO.
+            /// @deprecated Automatically reflected from shader SPIR-V source code.
             std::vector <ShaderInBlockVariableProperty> ubo_variables {};
         } shaders {};
+
+        /// @brief C.f. https://registry.khronos.org/vulkan/specs/latest/man/html/VkPipelineColorBlendAttachmentState.html
+        REFL_SER_ENABLE struct REFL_SER_CLASS(REFL_BLACKLIST) ColorBlendingProperties {
+            REFL_SER_SIMPLE_STRUCT(ColorBlendingProperties)
+
+            /// @brief C.f. https://registry.khronos.org/vulkan/specs/latest/man/html/VkBlendOp.html
+            enum class BlendOperation {
+                None,
+                Add,
+                Substract,
+                ReverseSubstract,
+                Min,
+                Max
+            };
+
+            /// @brief C.f. https://registry.khronos.org/vulkan/specs/latest/man/html/VkBlendFactor.html
+            enum class BlendFactor {
+                Zero,
+                One,
+                SrcColor,
+                OneMinusSrcColor,
+                DstColor,
+                OneMinusDstColor,
+                SrcAlpha,
+                OneMinusSrcAlpha,
+                DstAlpha,
+                OneMinusDstAlpha
+            };
+
+            /**
+             * @brief Blending operation of color components.
+             * If either `color_op` or `alpha_op` is set to `None`, blending will be disabled.
+             */
+            BlendOperation color_op {BlendOperation::None};
+            /**
+             * @brief Blending operation of alpha components.
+             * If either `color_op` or `alpha_op` is set to `None`, blending will be disabled.
+             */
+            BlendOperation alpha_op {BlendOperation::None};
+            BlendFactor src_color {BlendFactor::One};
+            BlendFactor dst_color {BlendFactor::Zero};
+            BlendFactor src_alpha {BlendFactor::One};
+            BlendFactor dst_alpha {BlendFactor::Zero};
+        };
 
         /// @brief C.f. `vkPipelineRenderingCreateInfo`
         /// Use UNDEFINED image format to adapt to swapchain.
@@ -100,8 +145,19 @@ namespace Engine
 
             /// @brief Color attachments. If they and depth attachment are all left empty,
             /// the pipeline will be configured to use the current swapchain as attachments.
+            /// You can specify `UNDEFINED` format to use default image format determined at runtime.
             std::vector <ImageUtils::ImageFormat> color {};
+            /**
+             * @brief Color attachment operations.
+             * When specified, its size must be equal to the size of `color`.
+             * @deprecated It should be specified at runtime.
+             */
             std::vector <AttachmentUtils::AttachmentOp> color_ops {};
+            /**
+             * @brief Color attachment blending operations.
+             * When specified, its size must be equal to the size of `color`.
+             */
+            std::vector <ColorBlendingProperties> color_blending {};
 
             /// @brief Depth attachment format. If color attachments and it are all left empty,
             /// the pipeline will be configured to use the current swapchain as attachments.

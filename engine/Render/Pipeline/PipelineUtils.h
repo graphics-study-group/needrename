@@ -20,10 +20,14 @@ namespace Engine{
         using FillingMode = MaterialTemplateSinglePassProperties::RasterizerProperties::FillingMode;
         using CullingMode = MaterialTemplateSinglePassProperties::RasterizerProperties::CullingMode;
         using FrontFace = MaterialTemplateSinglePassProperties::RasterizerProperties::FrontFace;
+        using BlendOperation = MaterialTemplateSinglePassProperties::ColorBlendingProperties::BlendOperation;
+        using BlendFactor = MaterialTemplateSinglePassProperties::ColorBlendingProperties::BlendFactor;
 
         vk::PolygonMode ToVkPolygonMode(FillingMode mode);
         vk::CullModeFlags ToVkCullMode(CullingMode mode);
         vk::FrontFace ToVkFrontFace(FrontFace face);
+        vk::BlendOp ToVkBlendOp(BlendOperation op);
+        vk::BlendFactor ToVkBlendFactor(BlendFactor factor);
 
         /**
          * Converts a ShaderAsset::ShaderType to a Vulkan shader stage flag bits.
