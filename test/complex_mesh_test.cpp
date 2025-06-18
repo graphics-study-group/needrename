@@ -136,7 +136,9 @@ public:
 
         for (size_t i = 0; i < m_material_assets.size(); i++) {
             auto ptr = std::make_shared<Materials::BlinnPhongInstance>(m_system, system->GetMaterialRegistry().GetMaterial("Built-in Blinn-Phong"));
-            ptr->Convert(m_material_assets[i]);
+            auto mat_asset = m_material_assets[i]->cas<MaterialAsset>();
+            assert(mat_asset);
+            ptr->Instantiate(*mat_asset);
             m_materials.push_back(ptr);
         }
     }

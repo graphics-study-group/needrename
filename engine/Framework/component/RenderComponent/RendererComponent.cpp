@@ -40,8 +40,9 @@ namespace Engine
         for (size_t i = 0; i < m_material_assets.size(); i++)
         {
             auto mat_ptr = std::dynamic_pointer_cast<MaterialInstance>(m_materials[i]);
-            assert(mat_ptr);
-            mat_ptr->Convert(m_material_assets[i]);
+            auto mat_asset = (m_material_assets[i]->cas<MaterialAsset>());
+            assert(mat_ptr && mat_asset);
+            mat_ptr->Instantiate(*mat_asset);
         }
     }
 

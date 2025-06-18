@@ -30,7 +30,7 @@ namespace Engine {
 
     public:
         Texture(RenderSystem &) noexcept;
-        ~Texture();
+        virtual ~Texture();
         
         void CreateTexture(
             uint32_t dimensions,

@@ -28,13 +28,11 @@ namespace Engine::Materials
         this->WriteUBOUniform(0, ambient_id, ambi);
     }
 
-    void BlinnPhongInstance::Convert(std::shared_ptr<AssetRef> asset)
+    void BlinnPhongInstance::Instantiate(const MaterialAsset & asset)
     {
-        const auto & material_asset = asset->cas<MaterialAsset>();
-
         // We currently only care about base texture and specular and ambient vectors
         // Load texture asset
-        const auto & base_texture_prop = material_asset->m_properties.at("base_tex");
+        const auto & base_texture_prop = asset.m_properties.at("base_tex");
         assert(base_texture_prop.m_type == MaterialProperty::Type::Texture);
         auto base_texture_asset = (std::any_cast<std::shared_ptr<AssetRef>>(base_texture_prop.m_value))->as<Image2DTextureAsset>();
         auto base_texture = std::make_shared<SampledTextureInstantiated>(*m_system.lock());
@@ -47,15 +45,15 @@ namespace Engine::Materials
         );
 
         // Load specular and ambient vectors
-        auto itr = material_asset->m_properties.find("specular_color");
+        auto itr = asset.m_properties.find("specular_color");
         glm::vec4 specular_prop = 
-            itr == material_asset->m_properties.end() ? 
+            itr == asset.m_properties.end() ? 
             glm::vec4{0.0f, 0.0f, 0.0f, 0.0f} : 
             std::any_cast<glm::vec4>(itr->second.m_value);
 
-        itr = material_asset->m_properties.find("ambient_color");
+        itr = asset.m_properties.find("ambient_color");
         glm::vec4 ambient_prop = 
-            itr == material_asset->m_properties.end() ?
+            itr == asset.m_properties.end() ?
             glm::vec4{0.0f, 0.0f, 0.0f, 0.0f} :
             std::any_cast<glm::vec4>(itr->second.m_value);
         this->SetSpecular(specular_prop);
