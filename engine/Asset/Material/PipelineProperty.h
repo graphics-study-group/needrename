@@ -36,14 +36,22 @@ namespace Engine
             using StencilOperation = PipelineUtils::StencilOperation;
             using DSComparator = PipelineUtils::DSComparator;
 
+            /// @brief Operation used if stencil test is failed.
             StencilOperation fail_op {StencilOperation::Keep};
+            /// @brief Operation used if both stencil and depth tests are passed.
             StencilOperation pass_op {StencilOperation::Keep};
+            /// @brief Operation used if stencil test is passed but depth test is failed.
             StencilOperation zfail_op {StencilOperation::Keep};
 
+            /// @brief Comparator used for stencil test.
             DSComparator comparator {DSComparator::Never};
 
+            /// @brief 8-bits mask applied before stencil comparing.
             uint8_t compare_mask {0xFF};
+            /// @brief 8-bits mask applied before stencil writing.
             uint8_t write_mask {0xFF};
+            /// @brief Reference value used for stencil comparator.
+            /// It is possible to set the reference value in runtime.
             uint8_t reference {0x00};
         };
 
@@ -94,21 +102,43 @@ namespace Engine
 
             using BlendOperation = PipelineUtils::BlendOperation;
             using BlendFactor = PipelineUtils::BlendFactor;
+            using ColorChannelMask = PipelineUtils::ColorChannelMask;
 
             /**
              * @brief Blending operation of color components.
-             * If either `color_op` or `alpha_op` is set to `None`, blending will be disabled.
+             * If either `color_op` or `alpha_op` is set to `None`, blending will be disabled,
+             * and all other settings specified in the struct is ignored, including `color_write_mask`.
              */
             BlendOperation color_op {BlendOperation::None};
             /**
              * @brief Blending operation of alpha components.
-             * If either `color_op` or `alpha_op` is set to `None`, blending will be disabled.
+             * If either `color_op` or `alpha_op` is set to `None`, blending will be disabled,
+             * and all other settings specified in the struct is ignored, including `color_write_mask`.
              */
             BlendOperation alpha_op {BlendOperation::None};
+
+            /**
+             * @brief Factor multiplied to color to be drawn when blending.
+             * Common values are `One` and `SrcAlpha`.
+             */
             BlendFactor src_color {BlendFactor::One};
+            /**
+             * @brief Factor multiplied to color in the color attachment when blending.
+             * Common values are `Zero` and `OneMinusSrcAlpha`.
+             */
             BlendFactor dst_color {BlendFactor::Zero};
+            /**
+             * @brief Factor multiplied to alpha to be drawn when blending.
+             * The most common value is `One`.
+             */
             BlendFactor src_alpha {BlendFactor::One};
+            /**
+             * @brief Factor multiplied to alpha in the color attachment when blending.
+             * The most common value is `Zero`.
+             */
             BlendFactor dst_alpha {BlendFactor::Zero};
+
+            ColorChannelMask color_write_mask {ColorChannelMask::All};
         };
 
         /// @brief C.f. `vkPipelineRenderingCreateInfo`
@@ -136,6 +166,8 @@ namespace Engine
             /// the pipeline will be configured to use the current swapchain as attachments.
             ImageUtils::ImageFormat depth {};
             ImageUtils::ImageFormat stencil {};
+
+            /// @deprecated It should be specified at runtime.
             AttachmentUtils::AttachmentOp ds_ops {};
         };
     }

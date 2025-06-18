@@ -230,8 +230,7 @@ namespace Engine
                         PipelineUtils::ToVkBlendFactor(cb.src_alpha),
                         PipelineUtils::ToVkBlendFactor(cb.dst_alpha),
                         PipelineUtils::ToVkBlendOp(cb.alpha_op),
-                        vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | 
-                        vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA
+                        static_cast<vk::ColorComponentFlags>(static_cast<int>(cb.color_write_mask))
                     };
                 }
                 
