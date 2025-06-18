@@ -48,7 +48,7 @@ namespace Engine
                 {},
                 PipelineUtils::ToVulkanShaderStageFlagBits(shader_asset->shaderType),
                 pass_info.shaders[i].get(),
-                "main"
+                shader_asset->m_entry_point.empty() ? "main" : shader_asset->m_entry_point.c_str()
             };
         }
 
@@ -191,21 +191,13 @@ namespace Engine
         } else {
             // All custom attachments
             // XXX: This case is not thoroughly tested!
+
+            assert(prop.attachments.color.size() == prop.attachments.color_ops.size() && "Mismatched color attachment and operation size.");
+            assert(prop.attachments.color.size() == prop.attachments.color_blending.size() && "Mismatched color attachment and blending operation size.");
+
             std::vector <vk::Format> color_attachment_formats {prop.attachments.color.size(), vk::Format::eUndefined};
             pass_info.attachments.color_attachment_ops.resize(prop.attachments.color_ops.size());
-            cbass.resize(
-                prop.attachments.color.size(), 
-                vk::PipelineColorBlendAttachmentState{
-                    vk::False,
-                    vk::BlendFactor::eSrcAlpha, vk::BlendFactor::eOneMinusSrcAlpha, vk::BlendOp::eAdd,
-                    vk::BlendFactor::eOne, vk::BlendFactor::eZero, vk::BlendOp::eAdd,
-                    vk::ColorComponentFlagBits::eR | 
-                    vk::ColorComponentFlagBits::eG |
-                    vk::ColorComponentFlagBits::eB |
-                    vk::ColorComponentFlagBits::eA
-                }
-            );
-            assert(prop.attachments.color.size() == prop.attachments.color_ops.size() && "Mismatched color attachment and operation size.");
+            cbass.resize(prop.attachments.color_blending.size());
 
             for (size_t i = 0; i < prop.attachments.color.size(); i++) {
                 color_attachment_formats[i] = (
@@ -214,6 +206,34 @@ namespace Engine
                     ImageUtils::GetVkFormat(prop.attachments.color[i])
                 );
                 pass_info.attachments.color_attachment_ops[i] = prop.attachments.color_ops[i];
+
+                const auto & cb = prop.attachments.color_blending[i];
+                if (
+                    cb.color_op == PipelineUtils::BlendOperation::None ||
+                    cb.alpha_op == PipelineUtils::BlendOperation::None
+                ) {
+                    cbass[i] = vk::PipelineColorBlendAttachmentState{
+                        vk::False,
+                        vk::BlendFactor::eSrcAlpha, vk::BlendFactor::eOneMinusSrcAlpha, vk::BlendOp::eAdd,
+                        vk::BlendFactor::eOne, vk::BlendFactor::eZero, vk::BlendOp::eAdd,
+                        vk::ColorComponentFlagBits::eR | 
+                        vk::ColorComponentFlagBits::eG |
+                        vk::ColorComponentFlagBits::eB |
+                        vk::ColorComponentFlagBits::eA
+                    };
+                } else {
+                    cbass[i] = vk::PipelineColorBlendAttachmentState{
+                        vk::True,
+                        PipelineUtils::ToVkBlendFactor(cb.src_color),
+                        PipelineUtils::ToVkBlendFactor(cb.dst_color),
+                        PipelineUtils::ToVkBlendOp(cb.color_op),
+                        PipelineUtils::ToVkBlendFactor(cb.src_alpha),
+                        PipelineUtils::ToVkBlendFactor(cb.dst_alpha),
+                        PipelineUtils::ToVkBlendOp(cb.alpha_op),
+                        static_cast<vk::ColorComponentFlags>(static_cast<int>(cb.color_write_mask))
+                    };
+                }
+                
             }
             pass_info.attachments.ds_attachment_ops = prop.attachments.ds_ops;
 

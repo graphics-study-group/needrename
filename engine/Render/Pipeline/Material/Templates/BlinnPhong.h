@@ -1,5 +1,5 @@
-#ifndef RENDER_MATERIAL_TEMPLATES_BLINNPHONG_INCLUDED
-#define RENDER_MATERIAL_TEMPLATES_BLINNPHONG_INCLUDED
+#ifndef MATERIAL_TEMPLATES_BLINNPHONG_INCLUDED
+#define MATERIAL_TEMPLATES_BLINNPHONG_INCLUDED
 
 #include "Render/Pipeline/Material/MaterialTemplate.h"
 #include "Render/Pipeline/Material/MaterialInstance.h"
@@ -15,7 +15,7 @@ namespace Engine {
             void SetBaseTexture(std::shared_ptr<const SampledTexture> image);
             void SetSpecular(glm::vec4 spec);
             void SetAmbient(glm::vec4 spec);
-            virtual void Convert(std::shared_ptr <AssetRef> asset) override;
+            void Instantiate(const MaterialAsset & asset) override;
         };
 
         class BlinnPhongTemplate : public MaterialTemplate {
@@ -26,4 +26,4 @@ namespace Engine {
     }
 }
 
-#endif // RENDER_MATERIAL_TEMPLATES_BLINNPHONG_INCLUDED
+#endif // MATERIAL_TEMPLATES_BLINNPHONG_INCLUDED

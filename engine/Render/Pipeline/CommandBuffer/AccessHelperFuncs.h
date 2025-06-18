@@ -32,7 +32,7 @@ namespace Engine {
             case ImageAccessType::DepthAttachmentRead:
                 return {
                     vk::PipelineStageFlagBits2::eEarlyFragmentTests | vk::PipelineStageFlagBits2::eLateFragmentTests,
-                    vk::AccessFlagBits2::eDepthStencilAttachmentWrite,
+                    vk::AccessFlagBits2::eDepthStencilAttachmentRead,
                     vk::ImageLayout::eDepthStencilAttachmentOptimal
                 };
             case ImageAccessType::ShaderRead:
@@ -44,13 +44,13 @@ namespace Engine {
             case ImageAccessType::ColorAttachmentWrite:
                 return {
                     vk::PipelineStageFlagBits2::eColorAttachmentOutput,
-                    vk::AccessFlagBits2::eColorAttachmentWrite,
+                    vk::AccessFlagBits2::eColorAttachmentRead | vk::AccessFlagBits2::eColorAttachmentWrite,
                     vk::ImageLayout::eColorAttachmentOptimal,
                 };
             case ImageAccessType::DepthAttachmentWrite:
                 return {
                     vk::PipelineStageFlagBits2::eEarlyFragmentTests | vk::PipelineStageFlagBits2::eLateFragmentTests,
-                    vk::AccessFlagBits2::eDepthStencilAttachmentWrite,
+                    vk::AccessFlagBits2::eDepthStencilAttachmentRead | vk::AccessFlagBits2::eDepthStencilAttachmentWrite,
                     vk::ImageLayout::eDepthStencilAttachmentOptimal
                 };
             case ImageAccessType::TransferWrite:

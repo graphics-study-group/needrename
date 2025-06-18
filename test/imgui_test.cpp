@@ -84,9 +84,7 @@ int main(int argc, char ** argv)
         context.UseImage(depth, GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite, GraphicsContext::ImageAccessType::None);
         context.PrepareCommandBuffer();
         vk::Extent2D extent {rsys->GetSwapchain().GetExtent()};
-        cb.BeginRendering(color_att, depth_att, extent);
-        gsys->DrawGUI(cb);
-        cb.EndRendering();
+        gsys->DrawGUI(color_att, extent, cb);
         cb.End();
         rsys->GetFrameManager().SubmitMainCommandBuffer();
         rsys->GetFrameManager().StageCopyComposition(color.GetImage());

@@ -30,6 +30,7 @@ namespace Engine {
 
     public:
         SampledTexture(RenderSystem & system) noexcept;
+        virtual ~SampledTexture() = default;
         
         void CreateTextureAndSampler(TextureDesc textureDesc, SamplerDesc samplerDesc, std::string name);
         void CreateSampler(SamplerDesc samplerDesc);

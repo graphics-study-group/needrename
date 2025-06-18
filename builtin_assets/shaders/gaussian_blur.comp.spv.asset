@@ -4,6 +4,7 @@
             "%type": "Engine::ShaderAsset",
             "Asset::m_guid": "5A6BAC1050004EB19BE406A9FA40A8CC",
             "m_name": "gaussain_blur.comp.spv",
+            "m_entry_point": "main",
             "shaderType": 3
         }
     },

@@ -10,6 +10,7 @@
 #include <Render/ImageUtils.h>
 #include <Render/AttachmentUtils.h>
 #include <Asset/Material/ShaderAsset.h>
+#include <Asset/Material/PipelineProperty.h>
 
 namespace Engine
 {
@@ -31,8 +32,7 @@ namespace Engine
     /// And these are either fixed or filled in at run-time: 
     /// 2nd and 3rd, which are decided based on the mesh to be drawn;
     /// 5th, which is always dynamic and unspecified until rendering; 
-    /// 7th, which is decided by run-time settings;
-    /// 9th, which is always disabled;
+    /// 7th, which is always disabled due to poor compatibility with deferred rendering;
     /// 10th, which is always fixed to be viewports and scissors.
     struct REFL_SER_CLASS(REFL_WHITELIST) MaterialTemplateSinglePassProperties
     {
@@ -41,74 +41,23 @@ namespace Engine
         REFL_ENABLE MaterialTemplateSinglePassProperties() = default;
         virtual ~MaterialTemplateSinglePassProperties() = default;
 
+        using RasterizerProperties = PipelineProperties::RasterizerProperties;
+        using DSProperties = PipelineProperties::DSProperties;
+        using Shaders = PipelineProperties::Shaders;
+        using Attachments = PipelineProperties::Attachments;
+
         /// @brief C.f. `vkPipelineRasterizationStateCreateInfo`
-        REFL_SER_ENABLE struct REFL_SER_CLASS(REFL_BLACKLIST) RasterizerProperties {
-            REFL_SER_SIMPLE_STRUCT(RasterizerProperties)
-
-            enum class FillingMode {
-                Fill,
-                Line,
-                Point
-            };
-            enum class CullingMode {
-                None,
-                Front,
-                Back,
-                All
-            };
-            enum class FrontFace {
-                Counterclockwise,
-                Clockwise
-            };
-
-            FillingMode filling{FillingMode::Fill};
-            float line_width{1.0f};
-            CullingMode culling{CullingMode::None};
-            FrontFace front{FrontFace::Counterclockwise};
-        } rasterizer {};
+        REFL_SER_ENABLE RasterizerProperties rasterizer {};
 
         /// @brief C.f. `vkPipelineDepthStencilStateCreateInfo`
-        REFL_SER_ENABLE struct REFL_SER_CLASS(REFL_BLACKLIST) DSProperties {
-            REFL_SER_SIMPLE_STRUCT(DSProperties)
-
-            bool ds_write_enabled{true};
-            bool ds_test_enabled{true};
-            float min_depth{0.0f};
-            float max_depth{1.0f};
-        } depth_stencil {};
+        REFL_SER_ENABLE DSProperties depth_stencil {};
         
         /// @brief C.f. `vkPipelineShaderStageCreateInfo`
-        REFL_SER_ENABLE struct REFL_SER_CLASS(REFL_BLACKLIST) Shaders {
-            REFL_SER_SIMPLE_STRUCT(Shaders)
-
-            /// @brief A vector of all shader programs used in the pipeline
-            std::vector <std::shared_ptr<AssetRef>> shaders {};
-            // TODO: Support shader specialization
-            // std::vector <...> specialization;
-
-            /// @brief stores information regarding layout info, aka descriptors, shared across all stages.
-            std::vector <ShaderVariableProperty> uniforms {};
-
-            /// @brief stores information of variables stored in the UBO.
-            std::vector <ShaderInBlockVariableProperty> ubo_variables {};
-        } shaders {};
+        REFL_SER_ENABLE Shaders shaders {};
 
         /// @brief C.f. `vkPipelineRenderingCreateInfo`
         /// Use UNDEFINED image format to adapt to swapchain.
-        REFL_SER_ENABLE struct REFL_SER_CLASS(REFL_BLACKLIST) Attachments {
-            REFL_SER_SIMPLE_STRUCT(Attachments)
-
-            /// @brief Color attachments. If they and depth attachment are all left empty,
-            /// the pipeline will be configured to use the current swapchain as attachments.
-            std::vector <ImageUtils::ImageFormat> color {};
-            std::vector <AttachmentUtils::AttachmentOp> color_ops {};
-
-            /// @brief Depth attachment format. If color attachments and it are all left empty,
-            /// the pipeline will be configured to use the current swapchain as attachments.
-            ImageUtils::ImageFormat depth {};
-            ImageUtils::ImageFormat stencil {};
-            AttachmentUtils::AttachmentOp ds_ops {};
-        } attachments {};
+        REFL_SER_ENABLE Attachments attachments {};
 
         // XXX: We had better support pipeline caches to speed up loading...
         // C.f. `vkGetPipelineCacheData`

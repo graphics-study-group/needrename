@@ -1,10 +1,13 @@
 #include "PipelineUtils.h"
+
+#include "Asset/Material/PipelineProperty.h"
+
 #include <ranges>
 #include <SDL3/SDL.h>
 
 namespace Engine {
     namespace PipelineUtils {
-        vk::PolygonMode ToVkPolygonMode(MaterialTemplateSinglePassProperties::RasterizerProperties::FillingMode mode)
+        vk::PolygonMode ToVkPolygonMode(FillingMode mode)
         {
             
             switch (mode) {
@@ -17,7 +20,7 @@ namespace Engine {
             }
             __builtin_unreachable();
         }
-        vk::CullModeFlags ToVkCullMode(MaterialTemplateSinglePassProperties::RasterizerProperties::CullingMode mode)
+        vk::CullModeFlags ToVkCullMode(CullingMode mode)
         {
             
             switch (mode) {
@@ -32,13 +35,70 @@ namespace Engine {
             }
             __builtin_unreachable();
         }
-        vk::FrontFace ToVkFrontFace(MaterialTemplateSinglePassProperties::RasterizerProperties::FrontFace face)
+        vk::FrontFace ToVkFrontFace(FrontFace face)
         {
             switch (face){
             case FrontFace::Counterclockwise:
                 return vk::FrontFace::eCounterClockwise;
             case FrontFace::Clockwise:
                 return vk::FrontFace::eClockwise;
+            }
+            __builtin_unreachable();
+        }
+
+        vk::CompareOp ToVkCompareOp(DSComparator comp)
+        {
+            return static_cast<vk::CompareOp>(static_cast<int>(comp));
+        }
+
+        vk::StencilOp ToVkStencilOp(StencilOperation op)
+        {
+            return static_cast<vk::StencilOp>(static_cast<int>(op));
+        }
+
+        vk::BlendOp ToVkBlendOp(BlendOperation op)
+        {
+            switch (op) {
+            case BlendOperation::None:
+                SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Requesting blend operation \"None\"");
+                return vk::BlendOp::eZeroEXT;
+            case BlendOperation::Add:
+                return vk::BlendOp::eAdd;
+            case BlendOperation::Substract:
+                return vk::BlendOp::eSubtract;
+            case BlendOperation::ReverseSubstract:
+                return vk::BlendOp::eReverseSubtract;
+            case BlendOperation::Min:
+                return vk::BlendOp::eMin;
+            case BlendOperation::Max:
+                return vk::BlendOp::eMax;
+            }
+            __builtin_unreachable();
+        }
+
+        vk::BlendFactor ToVkBlendFactor(BlendFactor factor)
+        {
+            switch(factor) {
+            case BlendFactor::Zero:
+                return vk::BlendFactor::eZero;
+            case BlendFactor::One:
+                return vk::BlendFactor::eOne;
+            case BlendFactor::SrcColor:
+                return vk::BlendFactor::eSrcColor;
+            case BlendFactor::OneMinusSrcColor:
+                return vk::BlendFactor::eOneMinusSrcColor;
+            case BlendFactor::DstColor:
+                return vk::BlendFactor::eDstColor;
+            case BlendFactor::OneMinusDstColor:
+                return vk::BlendFactor::eOneMinusDstColor;
+            case BlendFactor::SrcAlpha:
+                return vk::BlendFactor::eSrcAlpha;
+            case BlendFactor::OneMinusSrcAlpha:
+                return vk::BlendFactor::eOneMinusSrcAlpha;
+            case BlendFactor::DstAlpha:
+                return vk::BlendFactor::eDstAlpha;
+            case BlendFactor::OneMinusDstAlpha:
+                return vk::BlendFactor::eOneMinusDstAlpha;
             }
             __builtin_unreachable();
         }
@@ -59,7 +119,7 @@ namespace Engine {
             }
         }
 
-        vk::PipelineRasterizationStateCreateInfo ToVulkanRasterizationStateCreateInfo(const MaterialTemplateSinglePassProperties::RasterizerProperties & prop)
+        vk::PipelineRasterizationStateCreateInfo ToVulkanRasterizationStateCreateInfo(const PipelineProperties::RasterizerProperties & prop)
         {
             vk::PipelineRasterizationStateCreateInfo info{};
             info.depthClampEnable = vk::False;
@@ -73,21 +133,38 @@ namespace Engine {
         }
 
         vk::PipelineDepthStencilStateCreateInfo
-        ToVulkanDepthStencilStateCreateInfo(const MaterialTemplateSinglePassProperties::DSProperties & p) {
+        ToVulkanDepthStencilStateCreateInfo(const PipelineProperties::DSProperties & p) {
             vk::PipelineDepthStencilStateCreateInfo info{
                 vk::PipelineDepthStencilStateCreateFlags{}, 
-                p.ds_test_enabled, p.ds_write_enabled,
-                vk::CompareOp::eLess,   // Lower => closer
-                vk::False,
-                vk::False,
-                {}, {},
+                p.depth_test_enable, p.depth_write_enable,
+                ToVkCompareOp(p.depth_comparator),   // Lower => closer
+                p.depth_bound_test_enable,
+                p.stencil_test_enable,
+                {
+                    ToVkStencilOp(p.stencil_front.fail_op),
+                    ToVkStencilOp(p.stencil_front.pass_op),
+                    ToVkStencilOp(p.stencil_front.zfail_op),
+                    ToVkCompareOp(p.stencil_front.comparator),
+                    p.stencil_front.compare_mask,
+                    p.stencil_front.write_mask,
+                    p.stencil_front.reference
+                },
+                {
+                    ToVkStencilOp(p.stencil_back.fail_op),
+                    ToVkStencilOp(p.stencil_back.pass_op),
+                    ToVkStencilOp(p.stencil_back.zfail_op),
+                    ToVkCompareOp(p.stencil_back.comparator),
+                    p.stencil_back.compare_mask,
+                    p.stencil_back.write_mask,
+                    p.stencil_back.reference
+                },
                 p.min_depth, p.max_depth
             };
             return info;
         }
 
         std::vector<vk::DescriptorSetLayoutBinding>
-        ToVulkanDescriptorSetLayoutBindings(const MaterialTemplateSinglePassProperties::Shaders & p){
+        ToVulkanDescriptorSetLayoutBindings(const PipelineProperties::Shaders & p){
 #ifndef NDEBUG
             // Test whether scene uniforms are compatible
             auto scene_uniforms_range = std::ranges::filter_view(
@@ -222,17 +299,17 @@ namespace Engine {
         }
 
         vk::PipelineShaderStageCreateInfo
-        ToVulkanShaderStageCreateInfo(const MaterialTemplateSinglePassProperties::Shaders & p, std::vector<vk::UniqueShaderModule> & v) {
+        ToVulkanShaderStageCreateInfo(const PipelineProperties::Shaders & p, std::vector<vk::UniqueShaderModule> & v) {
             v.clear();
         }
 
         vk::PipelineLayoutCreateInfo
-        ToVulkanPipelineLayoutCreateInfo(const MaterialTemplateSinglePassProperties::Shaders & p) {
+        ToVulkanPipelineLayoutCreateInfo(const PipelineProperties::Shaders & p) {
 
         }
 
         vk::PipelineRenderingCreateInfo
-        ToVulkanPipelineRenderingCreateInfo(const MaterialTemplateSinglePassProperties::Attachments & p){
+        ToVulkanPipelineRenderingCreateInfo(const PipelineProperties::Attachments & p){
 
         }
     }

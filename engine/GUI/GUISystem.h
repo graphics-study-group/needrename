@@ -8,6 +8,9 @@
 
 namespace Engine {
     class RenderSystem;
+    namespace AttachmentUtils{
+        class AttachmentDescription;
+    }
     class GraphicsCommandBuffer;
 
     class GUISystem {
@@ -33,7 +36,13 @@ namespace Engine {
         bool WantCaptureKeyboard() const;
         void ProcessEvent(SDL_Event * event) const;
         void PrepareGUI() const;
-        void DrawGUI(GraphicsCommandBuffer & cb) const;
+        /**
+         * @brief Record GUI rendering code on the given command buffer.
+         * This member records a new render pass on the given command buffer with a single color attachment 
+         * specified by the `attachment` parameter. If a previously used attachment is used again, synchronization 
+         * barriers must be set up correctly.
+         */
+        void DrawGUI(const AttachmentUtils::AttachmentDescription & attachment, vk::Extent2D extent, GraphicsCommandBuffer & cb) const;
         void Create(SDL_Window * window, vk::Format color_attachment_format = vk::Format::eUndefined);
     };
 }

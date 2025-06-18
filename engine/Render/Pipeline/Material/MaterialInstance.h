@@ -3,6 +3,10 @@
 
 #include "MaterialTemplate.h"
 #include "Render/Memory/Buffer.h"
+
+#include "Asset/InstantiatedFromAsset.h"
+#include "Asset/Material/MaterialAsset.h"
+
 #include <any>
 
 namespace Engine
@@ -11,7 +15,7 @@ namespace Engine
     class Buffer;
     /// @brief A light-weight instance of a given material,
     /// where all mutable data such as texture and uniforms are stored.
-    class MaterialInstance {
+    class MaterialInstance : public IInstantiatedFromAsset<MaterialAsset> {
     public:
         using PassInfo = PipelineInfo::InstancedPassInfo;
 
@@ -119,11 +123,11 @@ namespace Engine
         vk::DescriptorSet GetDescriptor(uint32_t pass) const;
 
         /**
-         * @brief Covert a material asset to the material instance. Load properties to the uniforms.
+         * @brief Instantiate a material asset to the material instance. Load properties to the uniforms.
          * 
          * @param asset The MaterialAsset to convert.
          */
-        virtual void Convert(std::shared_ptr <AssetRef> asset);
+        void Instantiate(const MaterialAsset & asset) override;
     };
 } // namespace Engine
 
