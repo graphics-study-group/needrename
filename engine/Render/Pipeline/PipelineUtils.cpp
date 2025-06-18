@@ -46,6 +46,16 @@ namespace Engine {
             __builtin_unreachable();
         }
 
+        vk::CompareOp ToVkCompareOp(DSComparator comp)
+        {
+            return static_cast<vk::CompareOp>(static_cast<int>(comp));
+        }
+
+        vk::StencilOp ToVkStencilOp(StencilOperation op)
+        {
+            return static_cast<vk::StencilOp>(static_cast<int>(op));
+        }
+
         vk::BlendOp ToVkBlendOp(BlendOperation op)
         {
             switch (op) {
@@ -126,11 +136,28 @@ namespace Engine {
         ToVulkanDepthStencilStateCreateInfo(const PipelineProperties::DSProperties & p) {
             vk::PipelineDepthStencilStateCreateInfo info{
                 vk::PipelineDepthStencilStateCreateFlags{}, 
-                p.ds_test_enabled, p.ds_write_enabled,
-                vk::CompareOp::eLess,   // Lower => closer
-                vk::False,
-                vk::False,
-                {}, {},
+                p.depth_test_enable, p.depth_write_enable,
+                ToVkCompareOp(p.depth_comparator),   // Lower => closer
+                p.depth_bound_test_enable,
+                p.stencil_test_enable,
+                {
+                    ToVkStencilOp(p.stencil_front.fail_op),
+                    ToVkStencilOp(p.stencil_front.pass_op),
+                    ToVkStencilOp(p.stencil_front.zfail_op),
+                    ToVkCompareOp(p.stencil_front.comparator),
+                    p.stencil_front.compare_mask,
+                    p.stencil_front.write_mask,
+                    p.stencil_front.reference
+                },
+                {
+                    ToVkStencilOp(p.stencil_back.fail_op),
+                    ToVkStencilOp(p.stencil_back.pass_op),
+                    ToVkStencilOp(p.stencil_back.zfail_op),
+                    ToVkCompareOp(p.stencil_back.comparator),
+                    p.stencil_back.compare_mask,
+                    p.stencil_back.write_mask,
+                    p.stencil_back.reference
+                },
                 p.min_depth, p.max_depth
             };
             return info;

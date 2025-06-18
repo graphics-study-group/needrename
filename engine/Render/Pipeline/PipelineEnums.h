@@ -20,6 +20,30 @@ namespace Engine {
             Clockwise
         };
 
+        /// @brief C.f. https://registry.khronos.org/vulkan/specs/latest/man/html/VkCompareOp.html
+        enum class DSComparator {
+            Never,
+            Less,
+            Equal,
+            LEqual,
+            Greater,
+            NEqual,
+            GEqual,
+            Always
+        };
+        
+        /// @brief C.f. https://registry.khronos.org/vulkan/specs/latest/man/html/VkStencilOp.html
+        enum class StencilOperation {
+            Keep,
+            Zero,
+            Replace,
+            IncrClamp,
+            DecrClamp,
+            Invert,
+            IncrWrap,
+            DecrWrap
+        };
+
         /// @brief C.f. https://registry.khronos.org/vulkan/specs/latest/man/html/VkBlendOp.html
         enum class BlendOperation {
             None,

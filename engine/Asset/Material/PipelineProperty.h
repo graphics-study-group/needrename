@@ -30,12 +30,42 @@ namespace Engine
             FrontFace front{FrontFace::Counterclockwise};
         };
 
+        struct REFL_SER_CLASS(REFL_BLACKLIST) StencilState {
+            REFL_SER_SIMPLE_STRUCT(StencilState)
+
+            using StencilOperation = PipelineUtils::StencilOperation;
+            using DSComparator = PipelineUtils::DSComparator;
+
+            StencilOperation fail_op {StencilOperation::Keep};
+            StencilOperation pass_op {StencilOperation::Keep};
+            StencilOperation zfail_op {StencilOperation::Keep};
+
+            DSComparator comparator {DSComparator::Never};
+
+            uint8_t compare_mask {0xFF};
+            uint8_t write_mask {0xFF};
+            uint8_t reference {0x00};
+        };
+
         /// @brief C.f. `vkPipelineDepthStencilStateCreateInfo`
         struct REFL_SER_CLASS(REFL_BLACKLIST) DSProperties {
             REFL_SER_SIMPLE_STRUCT(DSProperties)
 
-            bool ds_write_enabled{true};
-            bool ds_test_enabled{true};
+            using DSComparator = PipelineUtils::DSComparator;
+
+            bool depth_write_enable{true};
+            bool depth_test_enable{true};
+            /// @brief Depth comparator used in depth test.
+            /// Defaults to LESS operation, which means less depth => closer.
+            DSComparator depth_comparator{DSComparator::Less};
+
+            bool stencil_test_enable{false};
+            /// @brief Stencil operation state used by front-facing polygons.
+            StencilState stencil_front{};
+            /// @brief Stencil operation state used by back-facing polygons.
+            StencilState stencil_back{};
+
+            bool depth_bound_test_enable{false};
             float min_depth{0.0f};
             float max_depth{1.0f};
         };

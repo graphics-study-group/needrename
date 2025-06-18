@@ -30,6 +30,8 @@ namespace Engine{
         vk::PolygonMode ToVkPolygonMode(FillingMode mode);
         vk::CullModeFlags ToVkCullMode(CullingMode mode);
         vk::FrontFace ToVkFrontFace(FrontFace face);
+        vk::CompareOp ToVkCompareOp(DSComparator comp);
+        vk::StencilOp ToVkStencilOp(StencilOperation op);
         vk::BlendOp ToVkBlendOp(BlendOperation op);
         vk::BlendFactor ToVkBlendFactor(BlendFactor factor);
 
