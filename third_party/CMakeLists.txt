@@ -22,3 +22,11 @@ target_include_directories(
     "${THIRD_PARTY_DIR}/imgui/"
     "${THIRD_PARTY_DIR}/imgui/backends/"
 )
+
+add_library(spirv-reflect spirv-reflect/spirv_reflect.cpp)
+target_link_libraries(spirv-reflect PUBLIC Vulkan::Vulkan)
+target_include_directories(
+    spirv-reflect
+    SYSTEM PUBLIC
+    "${THIRD_PARTY_DIR}/spirv-reflect"
+)

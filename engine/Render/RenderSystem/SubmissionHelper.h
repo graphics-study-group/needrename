@@ -9,7 +9,7 @@
 namespace Engine {
     class Buffer;
     class HomogeneousMesh;
-    class AllocatedImage2DTexture;
+    class Texture;
 
     namespace RenderSystemState {
         /// @brief A helper for submitting data to GPU.
@@ -44,10 +44,11 @@ namespace Engine {
              * Only color aspect and the very first level of mipmap is considered for submission, and no blitting or mipmap generation is recorded.
              * 
              * @param texture
-             * @param data
+             * @param data Linearized buffer data. Refer to https://registry.khronos.org/vulkan/specs/latest/html/vkspec.html#copies-buffers-images-addressing
+             * for how to organize the data.
              * @param length
              */
-            void EnqueueTextureBufferSubmission(const AllocatedImage2DTexture& texture, const std::byte * data, size_t length);
+            void EnqueueTextureBufferSubmission(const Texture& texture, const std::byte * data, size_t length);
 
             /**
              * @brief Enqueue a texture clear operation.
@@ -59,7 +60,7 @@ namespace Engine {
              * @param texture
              * @param color
              */
-            void EnqueueTextureClear(const AllocatedImage2DTexture & texture, std::tuple<float, float, float, float> color_rgba);
+            void EnqueueTextureClear(const Texture & texture, std::tuple<float, float, float, float> color_rgba);
 
             /***
              * @brief Start the frame. Allocated a new command buffer if needed, record all pending operations, and submit the

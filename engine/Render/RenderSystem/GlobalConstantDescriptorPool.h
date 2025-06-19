@@ -18,9 +18,11 @@ namespace Engine {
         class GlobalConstantDescriptorPool : public Engine::VkWrapperIndependent <vk::UniqueDescriptorPool> {
         protected:
             static constexpr uint32_t MAX_SET_SIZE = 64;
-            static constexpr std::array <vk::DescriptorPoolSize, 2> DESCRIPTOR_POOL_SIZES = {
+            static constexpr std::array <vk::DescriptorPoolSize, 4> DESCRIPTOR_POOL_SIZES = {
                 vk::DescriptorPoolSize{vk::DescriptorType::eCombinedImageSampler, 128},
-                vk::DescriptorPoolSize{vk::DescriptorType::eUniformBuffer, 128}
+                vk::DescriptorPoolSize{vk::DescriptorType::eUniformBuffer, 128},
+                vk::DescriptorPoolSize{vk::DescriptorType::eStorageImage, 128},
+                vk::DescriptorPoolSize{vk::DescriptorType::eStorageBuffer, 128}
             };
 
             // Per camera constant descriptor set layout

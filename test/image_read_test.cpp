@@ -16,12 +16,7 @@
 #include <Framework/object/GameObject.h>
 #include "Framework/component/RenderComponent/MeshComponent.h"
 
-#include "Render/RenderSystem.h"
-#include "Render/Memory/Image2DTexture.h"
-#include "Render/Material/TestMaterialWithSampler.h"
-#include "Render/Pipeline/RenderTarget/RenderTargetSetup.h"
-#include "Render/Pipeline/PipelineLayout.h"
-#include "Render/Renderer/HomogeneousMesh.h"
+#include "Render/FullRenderSystem.h"
 
 using namespace Engine;
 
@@ -79,7 +74,7 @@ int main(int, char *[])
     do {
 
         render_system->WaitForFrameBegin(in_flight_frame_id);
-        RenderCommandBuffer & cb = render_system->GetGraphicsCommandBuffer(in_flight_frame_id);
+        GraphicsCommandBuffer & cb = render_system->GetGraphicsCommandBuffer(in_flight_frame_id);
 
         uint32_t index = render_system->GetNextImage(in_flight_frame_id, 0x7FFFFFFF);
         assert(index < 3);

@@ -1,6 +1,6 @@
 #include "MaterialRegistry.h"
 
-#include "Render/Material/Templates/BlinnPhong.h"
+#include "Render/Pipeline/Material/Templates/BlinnPhong.h"
 
 namespace Engine::RenderSystemState {
     void MaterialRegistry::Create(std::weak_ptr<RenderSystem> system)

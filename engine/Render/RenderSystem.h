@@ -1,5 +1,5 @@
-#ifndef RENDER_RENDERSYSTEM_INCLUDED
-#define RENDER_RENDERSYSTEM_INCLUDED
+#ifndef ENGINE_RENDER_RENDERSYSTEM_INCLUDED
+#define ENGINE_RENDER_RENDERSYSTEM_INCLUDED
 
 #include <memory>
 #include <vulkan/vulkan.hpp>
@@ -16,7 +16,7 @@ namespace Engine
     class SDLWindow;
     class RendererComponent;
     class CameraComponent;
-    class RenderCommandBuffer;
+    class GraphicsCommandBuffer;
 
     namespace ConstantData {
         struct PerCameraStruct;
@@ -97,15 +97,11 @@ namespace Engine
 
         const RenderSystemState::AllocatorState & GetAllocatorState() const;
 
+        const QueueFamilyIndices & GetQueueFamilies() const;
+
         const QueueInfo & getQueueInfo () const;
 
         const RenderSystemState::Swapchain & GetSwapchain() const;
-
-        // const Synchronization & getSynchronization() const;
-        [[deprecated]]
-        RenderCommandBuffer & GetGraphicsCommandBuffer(uint32_t frame_index);
-
-        RenderCommandBuffer & GetCurrentCommandBuffer();
 
         const RenderSystemState::GlobalConstantDescriptorPool & GetGlobalConstantDescriptorPool() const;
 
@@ -119,4 +115,4 @@ namespace Engine
 
 #pragma GCC diagnostic pop
 
-#endif // RENDER_RENDERSYSTEM_INCLUDED
+#endif // ENGINE_RENDER_RENDERSYSTEM_INCLUDED

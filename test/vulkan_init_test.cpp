@@ -6,10 +6,7 @@
 #include "MainClass.h"
 #include "Functional/SDLWindow.h"
 #include "Framework/component/RenderComponent/MeshComponent.h"
-#include "Render/Material/TestMaterial.h"
-#include "Render/Pipeline/Shader.h"
-#include "Render/Pipeline/CommandBuffer.h"
-#include "Render/Renderer/HomogeneousMesh.h"
+#include "Render/FullRenderSystem.h"
 
 using namespace Engine;
 namespace sch = std::chrono;
@@ -85,7 +82,7 @@ int main(int, char **)
         auto frame_start_timer = sch::high_resolution_clock::now();
 
         system->WaitForFrameBegin(in_flight_frame_id);
-        RenderCommandBuffer & cb = system->GetGraphicsCommandBuffer(in_flight_frame_id);
+        GraphicsCommandBuffer & cb = system->GetGraphicsCommandBuffer(in_flight_frame_id);
         uint32_t index = system->GetNextImage(in_flight_frame_id, 0x7FFFFFFF);
 
         assert(index < 3);

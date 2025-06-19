@@ -24,6 +24,7 @@ target_link_libraries(engine
     cereal
     vma
     imgui
+    spirv-reflect
 )
 target_precompile_headers(engine PRIVATE <vulkan/vulkan.hpp>)
 target_precompile_headers(engine PRIVATE "Render/VkWrapper.tcc")

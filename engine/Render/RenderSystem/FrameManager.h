@@ -1,45 +1,21 @@
 #ifndef RENDER_RENDERSYSTEM_FRAMEMANAGER_INCLUDED
 #define RENDER_RENDERSYSTEM_FRAMEMANAGER_INCLUDED
 
-#include "Render/Pipeline/CommandBuffer/RenderCommandBuffer.h"
-#include "Render/RenderSystem/SubmissionHelper.h"
-
 namespace Engine {
     class RenderSystem;
+    class GraphicsCommandBuffer;
+    class GraphicsContext;
+    class ComputeContext;
 
     namespace RenderSystemState {
+        class SubmissionHelper;
         /// @brief Multiple frame in flight manager
         class FrameManager final {
         public:
             static constexpr uint32_t FRAMES_IN_FLIGHT = 3;
         private:
-            struct PresentingHelper;
-
-            std::array <vk::UniqueSemaphore, FRAMES_IN_FLIGHT> image_acquired_semaphores {};
-            std::array <vk::UniqueSemaphore, FRAMES_IN_FLIGHT> render_command_executed_semaphores {};
-            std::array <vk::UniqueSemaphore, FRAMES_IN_FLIGHT> copy_to_swapchain_completed_semaphores {};
-            std::array <vk::UniqueSemaphore, FRAMES_IN_FLIGHT> next_frame_ready_semaphores {};
-            std::array <vk::UniqueFence, FRAMES_IN_FLIGHT> command_executed_fences {};
-            std::array <vk::UniqueCommandBuffer, FRAMES_IN_FLIGHT> command_buffers {};
-            std::array <vk::UniqueCommandBuffer, FRAMES_IN_FLIGHT> copy_to_swapchain_command_buffers {};
-
-            std::vector <RenderCommandBuffer> render_command_buffers {};
-
-            uint32_t current_frame_in_flight {std::numeric_limits<uint32_t>::max()};
-
-            // Current frame buffer id. Set by `StartFrame()` method.
-            uint32_t current_framebuffer {std::numeric_limits<uint32_t>::max()};
-
-            vk::Queue graphic_queue {};
-            vk::Queue present_queue {};
-            vk::SwapchainKHR swapchain {};
-            RenderSystem & m_system;
-
-            std::unique_ptr <SubmissionHelper> m_submission_helper {};
-            std::unique_ptr <PresentingHelper> m_presenting_helper {};
-
-            /// @brief Progress the frame state machine.
-            void CompleteFrame();
+            struct impl;
+            std::unique_ptr <impl> pimpl;
 
         public:
             FrameManager (RenderSystem & sys);
@@ -54,9 +30,12 @@ namespace Engine {
              * @brief Get the command buffer assigned to the current frame in flight.
              * Must be called between `StartFrame()` and `CompleteFrame()`
              */
-            RenderCommandBuffer & GetCommandBuffer ();
+            [[deprecated]]
+            GraphicsCommandBuffer GetCommandBuffer ();
 
-            std::vector <RenderCommandBuffer> & GetCommandBuffers ();
+            GraphicsContext GetGraphicsContext();
+
+            ComputeContext GetComputeContext();
 
             /**
              * @brief Start the rendering of a new frame.
@@ -73,6 +52,14 @@ namespace Engine {
             uint32_t StartFrame (uint64_t timeout = std::numeric_limits<uint64_t>::max());
 
             /**
+             * @brief Submit the main command buffer to the graphics queue for execution.
+             * 
+             * @warning Must be called before either `CompositeToFramebufferAndPresent` or `CompositeToImage`, once each frame.
+             * Non-standard call-sites are likely to result in deadlocks and vulkan device losses.
+             */
+            void SubmitMainCommandBuffer();
+
+            /**
              * @brief Stage a composition by copy of the given image to an undetermined image.
              * The image must be in Color Attachment Optimal layout, which should be guaranteed so long as
              * this method is called immediately after a draw call to copy a color attachment to the framebuffer.
@@ -82,6 +69,25 @@ namespace Engine {
              * back to Color Attachment Optimal layout.
              */
             void StageCopyComposition (vk::Image image, vk::Extent2D extent, vk::Offset2D offsetSrc = {0, 0}, vk::Offset2D offsetDst = {0, 0});
+
+            /**
+             * @brief Stage a composition by blitting of the given image to an undetermined image.
+             * The image must be in Color Attachment Optimal layout, which should be guaranteed so long as
+             * this method is called immediately after a draw call to copy a color attachment to the framebuffer.
+             * 
+             * The method transits the image to Transfer Source Layout and the framebuffer to Transfer Destination Layout,
+             * record a image blitting command, and transits the image back to Color Attachment Optimal layout.
+             * 
+             * With this method it is possible to resize images and swizzle RGB components.
+             */
+            void StageBlitComposition (
+                vk::Image image, 
+                vk::Extent2D extentSrc, 
+                vk::Extent2D extentDst, 
+                vk::Offset2D offsetSrc = {0, 0}, 
+                vk::Offset2D offsetDst = {0, 0}, 
+                vk::Filter filter = vk::Filter::eLinear
+            );
 
             /**
              * @brief Stage a composition by copy of the given image to an undetermined image.
@@ -102,8 +108,9 @@ namespace Engine {
              * A fence is signaled after this command buffer has finished execution. The same fence is used to control render
              * command buffer acquisition for this frame, c.f. `StartFrame()`.
              * 
-             * @note This should be the last method to be called each frame, and it will progress the internal state machine.
+             * @warning This should be the last method to be called each frame, and it will progress the internal state machine.
              * Either `CompositeToFramebufferAndPresent()` or `CompositeToImage()` must be called exactly once each frame.
+             * Non-standard call-sites are likely to result in deadlocks and vulkan device losses.
              * 
              * @return whether the swapchain needs to be recreated after presenting.
              */
@@ -119,15 +126,11 @@ namespace Engine {
              * If the method is called in an asynchronous way, the fence returned can be used
              * to check its completion.
              * 
-             * @note This should be the last method to be called each frame, and it will progress the internal state machine.
+             * @warning This should be the last method to be called each frame, and it will progress the internal state machine.
              * Either `CompositeToFramebufferAndPresent()` or `CompositeToImage()` must be called exactly once each frame.
+             * Non-standard call-sites are likely to result in deadlocks and vulkan device losses.
              */
             vk::Fence CompositeToImage (vk::Image image, uint64_t timeout = std::numeric_limits<uint64_t>::max());
-            
-            /**
-             * @brief Re-fetch cached swapchain infomation.
-             */
-            void UpdateSwapchain();
 
             SubmissionHelper & GetSubmissionHelper();
         };

@@ -149,4 +149,43 @@ namespace Engine::RenderSystemState {
         DEBUG_SET_NAME_TEMPLATE(m_system.getDevice(), static_cast<vk::Image>(image), name);
         return AllocatedMemory(static_cast<vk::Image>(image), allocation, m_allocator);
     }
+    std::unique_ptr<AllocatedMemory> AllocatorState::AllocateImageUniqueEx(
+        ImageUtils::ImageType type, 
+        vk::ImageType dimension,
+        vk::Extent3D extent, 
+        vk::Format format, 
+        uint32_t miplevel, 
+        uint32_t array_layers,
+        vk::SampleCountFlagBits samples,
+        const std::string &name
+    ) const
+    {
+        const auto [iusage, musage] = ImageUtils::GetImageFlags(type);
+        // VkImageCreateInfo iinfo {};
+        vk::ImageCreateInfo iinfo{
+            vk::ImageCreateFlags{0U},
+            dimension,
+            format,
+            extent,
+            miplevel,
+            array_layers,
+            samples,
+            vk::ImageTiling::eOptimal,
+            iusage,
+            vk::SharingMode::eExclusive,
+            {},
+            vk::ImageLayout::eUndefined,
+            nullptr
+        };
+        VkImageCreateInfo iinfo2 = static_cast<VkImageCreateInfo>(iinfo);
+
+        VmaAllocationCreateInfo ainfo {};
+        ainfo.usage = musage;
+
+        VkImage image;
+        VmaAllocation allocation;
+        vmaCreateImage(m_allocator, &iinfo2, &ainfo, &image, &allocation, nullptr);
+        DEBUG_SET_NAME_TEMPLATE(m_system.getDevice(), static_cast<vk::Image>(image), name);
+        return std::make_unique<AllocatedMemory>(AllocatedMemory(static_cast<vk::Image>(image), allocation, m_allocator));
+    }
 }

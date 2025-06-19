@@ -8,11 +8,7 @@
 
 #include "MainClass.h"
 #include "Functional/SDLWindow.h"
-#include "Render/ConstantData/PerCameraConstants.h"
-#include "Render/Material/TestMaterialWithTransform.h"
-#include "Render/Pipeline/Shader.h"
-#include "Render/Pipeline/CommandBuffer.h"
-#include "Render/Renderer/HomogeneousMesh.h"
+#include "Render/FullRenderSystem.h"
 
 using namespace Engine;
 namespace sch = std::chrono;
@@ -76,7 +72,7 @@ int main(int, char **)
         }
 
         system->WaitForFrameBegin(in_flight_frame_id);
-        RenderCommandBuffer & cb = system->GetGraphicsCommandBuffer(in_flight_frame_id);
+        GraphicsCommandBuffer & cb = system->GetGraphicsCommandBuffer(in_flight_frame_id);
 
         uint32_t index = system->GetNextImage(in_flight_frame_id, 0x7FFFFFFF);
         assert(index < 3);

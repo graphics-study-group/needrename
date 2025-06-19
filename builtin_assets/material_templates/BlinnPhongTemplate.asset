@@ -56,26 +56,8 @@
                                             "data": 0
                                         },
                                         "frequency": 0,
-                                        "name": "light_source",
-                                        "offset": {
-                                            "%type": "unsigned int",
-                                            "data": 0
-                                        },
-                                        "type": 2
-                                    },
-                                    {
-                                        "%type": "Engine::ShaderVariableProperty",
-                                        "binding": {
-                                            "%type": "unsigned int",
-                                            "data": 0
-                                        },
-                                        "frequency": 0,
-                                        "name": "light_color",
-                                        "offset": {
-                                            "%type": "unsigned int",
-                                            "data": 16
-                                        },
-                                        "type": 2
+                                        "name": "scene_ubo",
+                                        "type": 1
                                     },
                                     {
                                         "%type": "Engine::ShaderVariableProperty",
@@ -84,12 +66,8 @@
                                             "data": 0
                                         },
                                         "frequency": 1,
-                                        "name": "view",
-                                        "offset": {
-                                            "%type": "unsigned int",
-                                            "data": 0
-                                        },
-                                        "type": 3
+                                        "name": "camera_ubo",
+                                        "type": 1
                                     },
                                     {
                                         "%type": "Engine::ShaderVariableProperty",
@@ -97,13 +75,9 @@
                                             "%type": "unsigned int",
                                             "data": 0
                                         },
-                                        "frequency": 1,
-                                        "name": "proj",
-                                        "offset": {
-                                            "%type": "unsigned int",
-                                            "data": 64
-                                        },
-                                        "type": 3
+                                        "frequency": 2,
+                                        "name": "material_ubo",
+                                        "type": 1
                                     },
                                     {
                                         "%type": "Engine::ShaderVariableProperty",
@@ -117,10 +91,12 @@
                                             "%type": "unsigned int",
                                             "data": 0
                                         },
-                                        "type": 4
-                                    },
+                                        "type": 3
+                                    }
+                                ],
+                                "ubo_variables": [
                                     {
-                                        "%type": "Engine::ShaderVariableProperty",
+                                        "%type": "Engine::ShaderUBOVariableProperty",
                                         "binding": {
                                             "%type": "unsigned int",
                                             "data": 0
@@ -131,10 +107,10 @@
                                             "%type": "unsigned int",
                                             "data": 0
                                         },
-                                        "type": 2
+                                        "type": 3
                                     },
                                     {
-                                        "%type": "Engine::ShaderVariableProperty",
+                                        "%type": "Engine::ShaderUBOVariableProperty",
                                         "binding": {
                                             "%type": "unsigned int",
                                             "data": 0
@@ -145,7 +121,7 @@
                                             "%type": "unsigned int",
                                             "data": 16
                                         },
-                                        "type": 2
+                                        "type": 3
                                     }
                                 ]
                             }

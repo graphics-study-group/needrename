@@ -1,10 +1,11 @@
-#ifndef RENDER_MATERIAL_MATERIALTEMPLATE_INCLUDED
-#define RENDER_MATERIAL_MATERIALTEMPLATE_INCLUDED
+#ifndef PIPELINE_MATERIAL_MATERIALTEMPLATE_INCLUDED
+#define PIPELINE_MATERIAL_MATERIALTEMPLATE_INCLUDED
 
 #include <vulkan/vulkan.hpp>
 #include <optional>
 #include "Render/AttachmentUtils.h"
 #include "Asset/Material/MaterialTemplateAsset.h"
+#include "Render/Pipeline/PipelineInfo.h"
 
 namespace Engine {
     class MaterialInstance;
@@ -23,54 +24,15 @@ namespace Engine {
     /// In-valid indices will cause assertion failure.
     class MaterialTemplate : protected std::enable_shared_from_this<MaterialTemplate> {
     public:
-        struct ShaderVariable {
-            using Type = ShaderVariableProperty::Type;
-
-            Type type {};
-            struct Location {
-                uint32_t set {};
-                uint32_t binding {};
-                uint32_t offset {};
-            } location {};
-        };
-
-        struct PassInfo {
-            vk::UniquePipeline pipeline {};
-            vk::UniquePipelineLayout pipeline_layout {};
-            vk::UniqueDescriptorSetLayout desc_layout {};
-            std::vector <vk::UniqueShaderModule> shaders {};
-
-            struct Attachments {
-                std::vector <AttachmentUtils::AttachmentOp> color_attachment_ops {};
-                AttachmentUtils::AttachmentOp ds_attachment_ops {};
-            } attachments {};
-
-            struct Uniforms {
-                std::unordered_map <std::string, uint32_t> name_mapping {};
-                std::vector <ShaderVariable> variables {};
-                uint64_t maximal_ubo_size {};
-            } uniforms {};
-
-            constexpr static std::array<vk::DynamicState, 2> PIPELINE_DYNAMIC_STATES = {
-                vk::DynamicState::eViewport,
-                vk::DynamicState::eScissor
-            };
-        };
-
-        struct PoolInfo {
-            static constexpr uint32_t MAX_SET_SIZE = 64;
-            static constexpr std::array <vk::DescriptorPoolSize, 2> DESCRIPTOR_POOL_SIZES = {
-                vk::DescriptorPoolSize{vk::DescriptorType::eUniformBuffer, 64},
-                vk::DescriptorPoolSize{vk::DescriptorType::eCombinedImageSampler, 64}
-            };
-             vk::UniqueDescriptorPool pool {};
-        };
+        using PassInfo = PipelineInfo::MaterialPassInfo;
+        using PoolInfo = PipelineInfo::MaterialPoolInfo;
+        using DescVar = ShaderUtils::DesciptorVariableData;
+        using InblockVar = ShaderUtils::InBlockVariableData;
 
     protected:
         std::weak_ptr <RenderSystem> m_system;
         std::shared_ptr <AssetRef> m_asset;
 
-        
         std::unordered_map <uint32_t, PassInfo> m_passes {};
         PoolInfo m_poolInfo {};
         vk::UniqueSampler m_default_sampler {};
@@ -153,26 +115,39 @@ namespace Engine {
          * @param pass_index The index of the pass to retrieve the shader variable from.
          * @return const ShaderVariable & A constant reference to the ShaderVariable struct associated with the specified name and pass index.
          */
-        std::optional<std::reference_wrapper<const ShaderVariable>>
+        std::variant<std::monostate, std::reference_wrapper<const DescVar>, std::reference_wrapper<const InblockVar>>
         GetVariable(const std::string & name, uint32_t pass_index) const;
 
         /**
-         * @brief Get a shader variable by index for a specific pass index.
+         * @brief Get a shader descriptor variable (textures, UBOs, SSBOs, etc.) by index for a specific pass index.
          * 
          * @param index The index of the shader variable to retrieve.
          * @param pass_index The index of the pass to retrieve the shader variable from.
-         * @return const ShaderVariable & A constant reference to the ShaderVariable struct associated with the specified index and pass index.
+         * @return const DescVar & A constant reference to the DescVar struct associated with the specified index and pass index.
          */
-        const ShaderVariable & GetVariable(uint32_t index, uint32_t pass_index) const;
+        const DescVar & GetDescVariable(uint32_t index, uint32_t pass_index) const;
+
+        /**
+         * @brief Get a shader in-block variable (floats, matrices, etc.) by index for a specific pass index.
+         * 
+         * @param index The index of the shader variable to retrieve.
+         * @param pass_index The index of the pass to retrieve the shader variable from.
+         * @return const InblockVar & A constant reference to the InblockVar struct associated with the specified index and pass index.
+         */
+        const InblockVar & GetInBlockVariable(uint32_t index, uint32_t pass_index) const;
 
         /**
          * @brief Get the index of a shader variable by name for a specific pass index.
+         * It first checks in-block names, and then descriptor names, so in-block variables 
+         * can mask descriptor variables with the same name. In that case a warning would be
+         * issued when the material is being created.
          * 
          * @param name The name of the shader variable to retrieve the index for.
          * @param pass_index The index of the pass to retrieve the index from.
-         * @return uint32_t The index associated with the specified name and pass index.
+         * @return (uint32_t, bool) The index associated with the specified name and pass index,
+         * and whether the variable is a in-block variable (floats, etc) or not.
          */
-        std::optional<uint32_t> GetVariableIndex(const std::string & name, uint32_t pass_index) const noexcept;
+        std::optional<std::pair<uint32_t, bool>> GetVariableIndex(const std::string & name, uint32_t pass_index) const noexcept;
     
         /**
          * @brief Get the depth stencil attachment operation for a specific pass index.
@@ -221,4 +196,4 @@ namespace Engine {
     };
 }
 
-#endif // RENDER_MATERIAL_MATERIALTEMPLATE_INCLUDED
+#endif // PIPELINE_MATERIAL_MATERIALTEMPLATE_INCLUDED

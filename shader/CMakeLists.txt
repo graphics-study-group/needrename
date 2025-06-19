@@ -5,7 +5,7 @@ else()
     message(FATAL_ERROR "Cannot find glslValidator.")
 endif()
 
-file(GLOB GLSL_SOURCE_FILES "*.frag" "*.vert")
+file(GLOB GLSL_SOURCE_FILES "*.frag" "*.vert" "*.comp")
 
 foreach(GLSL ${GLSL_SOURCE_FILES})
     get_filename_component(GLSL_FILE_NAME ${GLSL} NAME)
@@ -13,7 +13,7 @@ foreach(GLSL ${GLSL_SOURCE_FILES})
     add_custom_command(
         OUTPUT ${SPIRV_OUTPUT}
         COMMAND ${CMAKE_COMMAND} -E make_directory "${PROJECT_BINARY_DIR}/shader/"
-        COMMAND ${Vulkan_GLSLANG_VALIDATOR_EXECUTABLE} -V ${GLSL} -o ${SPIRV_OUTPUT}
+        COMMAND ${Vulkan_GLSLANG_VALIDATOR_EXECUTABLE} $<$<CONFIG:Debug>:-gVS> -V ${GLSL} -o ${SPIRV_OUTPUT}
         COMMAND ${CMAKE_COMMAND} -E copy_if_different ${SPIRV_OUTPUT} "${BUILTIN_ASSETS_DIR}/shaders/${GLSL_FILE_NAME}.spv"
         DEPENDS ${GLSL}
     )

@@ -1,7 +1,6 @@
 #include "SubmissionHelper.h"
 
-#include "Render/Memory/Image2DTexture.h"
-
+#include "Render/Memory/Texture.h"
 #include "Render/Renderer/HomogeneousMesh.h"
 #include "Render/Pipeline/CommandBuffer/BufferTransferHelper.h"
 #include "Render/Pipeline/CommandBuffer/LayoutTransferHelper.h"
@@ -38,7 +37,7 @@ namespace Engine::RenderSystemState {
         m_pending_operations.push(enqueued);
     }
 
-    void SubmissionHelper::EnqueueTextureBufferSubmission(const AllocatedImage2DTexture &texture, const std::byte *data, size_t length)
+    void SubmissionHelper::EnqueueTextureBufferSubmission(const Texture &texture, const std::byte *data, size_t length)
     {
         auto enqueued = [&texture, data, length, this] (vk::CommandBuffer cb) {
             Buffer buffer {texture.CreateStagingBuffer()};
@@ -66,7 +65,11 @@ namespace Engine::RenderSystemState {
                     0, 0, 1
                 },
                 vk::Offset3D{0, 0, 0},
-                vk::Extent3D{texture.GetExtent(), 1}
+                vk::Extent3D{
+                    texture.GetTextureDescription().width,
+                    texture.GetTextureDescription().height,
+                    texture.GetTextureDescription().depth
+                }
             };
             cb.copyBufferToImage(
                 buffer.GetBuffer(), 
@@ -88,7 +91,7 @@ namespace Engine::RenderSystemState {
         m_pending_operations.push(enqueued);
     }
 
-    void SubmissionHelper::EnqueueTextureClear(const AllocatedImage2DTexture & texture, std::tuple<float,float,float,float> color)
+    void SubmissionHelper::EnqueueTextureClear(const Texture &texture, std::tuple<float, float, float, float> color)
     {
         auto enqueued = [&texture, color, this] (vk::CommandBuffer cb) {
             // Transit layout to TransferDstOptimal
