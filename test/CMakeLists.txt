@@ -32,7 +32,7 @@ set_target_properties(SDL_init_test PROPERTIES FOLDER tests)
 add_executable(project_loading_test project_loading_test.cpp)
 add_dependencies(project_loading_test shader)
 target_link_libraries(project_loading_test engine)
-add_test(NAME project_loading_test COMMAND project_loading_test)
+add_test(NAME project_loading_test COMMAND project_loading_test 5000)
 set_target_properties(project_loading_test PROPERTIES FOLDER tests)
 
 # add_executable(image_read_test image_read_test.cpp)

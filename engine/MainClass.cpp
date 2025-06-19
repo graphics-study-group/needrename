@@ -191,10 +191,11 @@ namespace Engine
 
         this->input->Update(dt);
         this->world->Tick(dt);
+        this->gui->PrepareGUI();
 
         auto index = this->renderer->StartFrame();
         auto context = this->renderer->GetFrameManager().GetGraphicsContext();
-        GraphicsCommandBuffer & cb = dynamic_cast<GraphicsCommandBuffer &>(context.GetCommandBuffer());
+        GraphicsCommandBuffer &cb = dynamic_cast<GraphicsCommandBuffer &>(context.GetCommandBuffer());
 
         cb.Begin();
         context.UseImage(this->window->GetColorTexture(), GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite, GraphicsContext::ImageAccessType::None);
@@ -202,8 +203,16 @@ namespace Engine
         context.PrepareCommandBuffer();
         cb.BeginRendering(this->window->GetRenderTargetBinding(), this->window->GetExtent(), "Main Pass");
         this->renderer->DrawMeshes();
-        this->gui->DrawGUI(cb);
         cb.EndRendering();
+
+        context.UseImage(this->window->GetColorTexture(), GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite, GraphicsContext::ImageAccessType::ColorAttachmentWrite);
+        context.PrepareCommandBuffer();
+        this->gui->DrawGUI({this->window->GetColorTexture().GetImage(),
+                            this->window->GetColorTexture().GetImageView(),
+                            vk::AttachmentLoadOp::eLoad,
+                            vk::AttachmentStoreOp::eStore},
+                           this->window->GetExtent(), cb);
+
         cb.End();
         this->renderer->GetFrameManager().SubmitMainCommandBuffer();
         this->renderer->GetFrameManager().StageCopyComposition(this->window->GetColorTexture().GetImage());

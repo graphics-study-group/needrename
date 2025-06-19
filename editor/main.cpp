@@ -90,7 +90,7 @@ int main()
 
         auto index = rsys->StartFrame();
         auto context = rsys->GetFrameManager().GetGraphicsContext();
-        GraphicsCommandBuffer & cb = dynamic_cast<GraphicsCommandBuffer &>(context.GetCommandBuffer());
+        GraphicsCommandBuffer &cb = dynamic_cast<GraphicsCommandBuffer &>(context.GetCommandBuffer());
 
         cb.Begin();
         context.UseImage(window->GetColorTexture(), GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite, GraphicsContext::ImageAccessType::None);
@@ -101,10 +101,14 @@ int main()
         game_widget->PreRender(cb);
         main_window.Render();
 
-        cb.BeginRendering(window->GetRenderTargetBinding(), window->GetExtent(), "Editor Pass");
-        rsys->DrawMeshes();
-        gui->DrawGUI(cb);
-        cb.EndRendering();
+        context.UseImage(window->GetColorTexture(), GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite, GraphicsContext::ImageAccessType::ColorAttachmentWrite);
+        context.PrepareCommandBuffer();
+        gui->DrawGUI({window->GetColorTexture().GetImage(),
+                      window->GetColorTexture().GetImageView(),
+                      vk::AttachmentLoadOp::eLoad,
+                      vk::AttachmentStoreOp::eStore},
+                     window->GetExtent(), cb);
+
         cb.End();
         rsys->GetFrameManager().SubmitMainCommandBuffer();
         rsys->GetFrameManager().StageCopyComposition(window->GetColorTexture().GetImage());

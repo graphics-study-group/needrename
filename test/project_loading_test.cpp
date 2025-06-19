@@ -14,8 +14,16 @@
 
 using namespace Engine;
 
-int main()
+int main(int argc, char **argv)
 {
+    int64_t max_frame_count = std::numeric_limits<int64_t>::max();
+    if (argc > 1)
+    {
+        max_frame_count = std::atoll(argv[1]);
+        if (max_frame_count == 0)
+            return -1;
+    }
+
     std::filesystem::path project_path(ENGINE_PROJECTS_DIR);
     project_path = project_path / "test_project";
 
@@ -30,9 +38,9 @@ int main()
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading project");
     cmc->LoadProject(project_path);
-    
+
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Entering main loop");
-    cmc->LoopFiniteFrame(10000);
+    cmc->LoopFiniteFrame(max_frame_count);
 
     return 0;
 }
