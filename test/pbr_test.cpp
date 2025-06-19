@@ -43,6 +43,9 @@ std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate()
     mtspp.attachments.color_ops = {
         AttachmentUtils::AttachmentOp{}
     };
+    mtspp.attachments.color_blending = {
+        PipelineProperties::ColorBlendingProperties{}
+    };
     mtspp.attachments.depth = ImageUtils::ImageFormat::D32SFLOAT;
     mtspp.shaders.shaders = std::vector<std::shared_ptr<AssetRef>>{vs_ref, fs_ref};
 
@@ -269,6 +272,7 @@ int main(int argc, char ** argv)
     auto pbr_material_template = std::make_shared<MaterialTemplate>(rsys, pbr_material_template_asset_ref);
 
     auto gsys = cmc->GetGUISystem();
+    gsys->CreateVulkanBackend(ImageUtils::GetVkFormat(Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm));
 
     Engine::Texture color{*rsys}, depth{*rsys};
     Engine::Texture::TextureDesc desc {

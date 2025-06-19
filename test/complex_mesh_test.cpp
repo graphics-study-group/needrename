@@ -247,6 +247,7 @@ int main(int argc, char ** argv)
     rsys->GetMaterialRegistry().AddMaterial(test_asset);
 
     auto gsys = cmc->GetGUISystem();
+    gsys->CreateVulkanBackend(ImageUtils::GetVkFormat(Engine::ImageUtils::ImageFormat::B8G8R8A8SRGB));
 
     Engine::Texture color{*rsys}, depth{*rsys};
     Engine::Texture::TextureDesc desc {
