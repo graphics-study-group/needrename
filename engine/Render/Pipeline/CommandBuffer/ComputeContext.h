@@ -12,7 +12,12 @@ namespace Engine {
     public:
         using ImageComputeAccessType = AccessHelper::ImageComputeAccessType;
 
-        ComputeContext(ComputeCommandBuffer && cb);
+        ComputeContext(
+            RenderSystem & system,
+            vk::CommandBuffer cb,
+            uint32_t frame_in_flight
+        );
+
         virtual ~ComputeContext();
 
         ICommandBuffer & GetCommandBuffer() const noexcept override;

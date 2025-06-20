@@ -14,7 +14,11 @@ namespace Engine {
         impl(GraphicsCommandBuffer && _cb) : cb(std::move(_cb)) {};
     };
 
-    GraphicsContext::GraphicsContext(GraphicsCommandBuffer &&cb) : pimpl(std::make_unique<GraphicsContext::impl>(std::move(cb)))
+    GraphicsContext::GraphicsContext(
+        RenderSystem & system,
+        vk::CommandBuffer cb,
+        uint32_t frame_in_flight
+    ) : TransferContext(system, cb, frame_in_flight), pimpl(std::make_unique<GraphicsContext::impl>(GraphicsCommandBuffer(system, cb, frame_in_flight)))
     {
     }
 
@@ -49,6 +53,8 @@ namespace Engine {
     }
     void GraphicsContext::PrepareCommandBuffer()
     {
+        TransferContext::PrepareCommandBuffer();
+
         if (pimpl->barriers.empty())    return;
         vk::DependencyInfo dep{vk::DependencyFlags{0}, {}, {}, pimpl->barriers};
         this->GetCommandBuffer().GetCommandBuffer().pipelineBarrier2(dep);
