@@ -36,7 +36,7 @@ static vk::ImageView ExtractImageViewForStorageImage(std::any var) noexcept
         return ptr->GetImageView();
     }
 
-    assert(!"A sampled image variable must be typed std::shared_ptr<const Texture> or std::shared_ptr<const SlicedTextureView>.");
+    assert(!"A storage image variable must be typed std::shared_ptr<const Texture> or std::shared_ptr<const SlicedTextureView>.");
     return nullptr;
 }
 

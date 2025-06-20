@@ -23,10 +23,12 @@ namespace Engine {
 
         enum class ImageFormat {
             UNDEFINED,
-            B8G8R8A8SRGB [[deprecated("Use R8G8B8A8SRGB instead.")]],
+            B8G8R8A8SRGB,
             R8G8B8A8SRGB,
             R8G8B8A8SNorm,
             R8G8B8A8UNorm,
+            // 32-bit packed float for HDR rendering. In Vulkan, it is actually B10-G11-R11.
+            R11G11B10UFloat,
             R8G8B8SRGB,
             D32SFLOAT,
         };
@@ -109,6 +111,7 @@ namespace Engine {
                 case ImageFormat::R8G8B8A8SRGB:
                 case ImageFormat::R8G8B8A8SNorm:
                 case ImageFormat::R8G8B8A8UNorm:
+                case ImageFormat::R11G11B10UFloat:
                     return vk::ImageAspectFlagBits::eColor;
                 case ImageFormat::D32SFLOAT:
                     return vk::ImageAspectFlagBits::eDepth;
@@ -142,6 +145,8 @@ namespace Engine {
                     return vk::Format::eR8G8B8A8Snorm;
                 case ImageFormat::R8G8B8A8UNorm:
                     return vk::Format::eR8G8B8A8Unorm;
+                case ImageFormat::R11G11B10UFloat:
+                    return vk::Format::eB10G11R11UfloatPack32;
                 case ImageFormat::R8G8B8SRGB:
                     return vk::Format::eR8G8B8Srgb;
                 case ImageFormat::D32SFLOAT:
@@ -158,6 +163,7 @@ namespace Engine {
                 case ImageFormat::R8G8B8A8SRGB:
                 case ImageFormat::R8G8B8A8SNorm:
                 case ImageFormat::R8G8B8A8UNorm:
+                case ImageFormat::R11G11B10UFloat:
                 case ImageFormat::D32SFLOAT:
                     return 4;
                 default:
