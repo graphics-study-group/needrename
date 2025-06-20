@@ -78,7 +78,7 @@ namespace Engine {
         std::array <vk::Format, 1> formats = {
             {
                 color_attachment_format == vk::Format::eUndefined ? 
-                    system->GetSwapchain().GetImageFormat().format : color_attachment_format
+                    ImageUtils::GetVkFormat(system->GetSwapchain().COLOR_FORMAT) : color_attachment_format
             }
         };
         VkPipelineRenderingCreateInfoKHR pipeline{

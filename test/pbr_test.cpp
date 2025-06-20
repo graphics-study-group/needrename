@@ -297,7 +297,7 @@ int main(int argc, char ** argv)
         .width = 4,
         .height = 4,
         .depth = 1,
-        .format = Engine::ImageUtils::ImageFormat::B8G8R8A8SRGB,
+        .format = Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB,
         .type = Engine::ImageUtils::ImageType::TextureImage,
         .mipmap_levels = 1,
         .array_layers = 1,

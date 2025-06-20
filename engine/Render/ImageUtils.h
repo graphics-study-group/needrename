@@ -23,7 +23,7 @@ namespace Engine {
 
         enum class ImageFormat {
             UNDEFINED,
-            B8G8R8A8SRGB,
+            B8G8R8A8SRGB [[deprecated("Use R8G8B8A8SRGB instead.")]],
             R8G8B8A8SRGB,
             R8G8B8A8SNorm,
             R8G8B8A8UNorm,

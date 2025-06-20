@@ -8,12 +8,27 @@ namespace Engine::RenderSystemState{
         assert(!support.formats.empty());
         assert(!support.modes.empty());
         // Select surface format
-        vk::SurfaceFormatKHR pickedFormat = support.formats[0];
+        vk::SurfaceFormatKHR pickedFormat{};
         for (const auto & format : support.formats) {
-            if (format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear 
-                && format.format == vk::Format::eB8G8R8A8Srgb) {
-                pickedFormat = format;
+            if (format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear) {
+                // Select R8G8B8A8 SRGB first
+                 if (format.format == vk::Format::eR8G8B8A8Srgb) {
+                    pickedFormat = format;
+                // Select B8G8R8A8 SRBG as backup
+                } else if (format.format == vk::Format::eB8G8R8A8Srgb) {
+                    if (pickedFormat.format != vk::Format::eR8G8B8A8Srgb) {
+                        pickedFormat = format;
+                    }
+                }
             }
+            
+        }
+        if (pickedFormat.format == vk::Format::eUndefined) {
+            SDL_LogCritical(SDL_LOG_CATEGORY_RENDER, "This device support neither B8G8R8A8 nor R8G8B8A8 swapchain format.");
+        } else if (pickedFormat.format == vk::Format::eB8G8R8A8Srgb) {
+            SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, 
+                "This device does not support R8G8B8A8 swapchain format. Falling back to B8G8R8A8. Blue and red channels may appear swapped."
+            );
         }
         // Select display mode
         vk::PresentModeKHR pickedMode = vk::PresentModeKHR::eFifo;
@@ -42,7 +57,7 @@ namespace Engine::RenderSystemState{
                 support.capabilities.maxImageExtent.height);
 
             if (extent.width != expected_extent.width || extent.height != expected_extent.height) {
-                SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Extent clamped to (%u, %u).", extent.width, extent.height);
+                SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Swapchain extent clamped to (%u, %u).", extent.width, extent.height);
             }
         }
         return std::make_tuple(extent, pickedFormat, pickedMode);
@@ -55,21 +70,29 @@ namespace Engine::RenderSystemState{
         );
         m_image_views.clear();
         m_image_views.resize(m_images.size());
+
+        vk::ImageViewCreateInfo ivci{
+            vk::ImageViewCreateFlags{},
+            nullptr,
+            vk::ImageViewType::e2D,
+            vk::Format::eR8G8B8A8Srgb,
+            m_image_format.format == vk::Format::eR8G8B8A8Srgb ? 
+                vk::ComponentMapping{} :
+                vk::ComponentMapping{
+                    vk::ComponentSwizzle::eB,
+                    vk::ComponentSwizzle::eIdentity,
+                    vk::ComponentSwizzle::eR,
+                    vk::ComponentSwizzle::eIdentity
+                },
+            vk::ImageSubresourceRange{
+                vk::ImageAspectFlagBits::eColor,
+                0, 1, 0, 1
+            }
+        };
+
         for (size_t i = 0; i < m_images.size(); i++) {
-            vk::ImageViewCreateInfo info;
-            info.image = m_images[i];
-            info.viewType = vk::ImageViewType::e2D;
-            info.format = m_image_format.format;
-            info.components.r = vk::ComponentSwizzle::eIdentity;
-            info.components.g = vk::ComponentSwizzle::eIdentity;
-            info.components.b = vk::ComponentSwizzle::eIdentity;
-            info.components.a = vk::ComponentSwizzle::eIdentity;
-            info.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
-            info.subresourceRange.baseArrayLayer = 0;
-            info.subresourceRange.layerCount = 1;
-            info.subresourceRange.baseMipLevel = 0;
-            info.subresourceRange.levelCount = 1;
-            m_image_views[i] = device.createImageViewUnique(info);
+            ivci.image = m_images[i];
+            m_image_views[i] = device.createImageViewUnique(ivci);
         }
     }
 

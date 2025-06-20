@@ -247,7 +247,7 @@ int main(int argc, char ** argv)
     rsys->GetMaterialRegistry().AddMaterial(test_asset);
 
     auto gsys = cmc->GetGUISystem();
-    gsys->CreateVulkanBackend(ImageUtils::GetVkFormat(Engine::ImageUtils::ImageFormat::B8G8R8A8SRGB));
+    gsys->CreateVulkanBackend(ImageUtils::GetVkFormat(Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB));
 
     Engine::Texture color{*rsys}, depth{*rsys};
     Engine::Texture::TextureDesc desc {
@@ -255,7 +255,7 @@ int main(int argc, char ** argv)
         .width = 1280,
         .height = 720,
         .depth = 1,
-        .format = Engine::ImageUtils::ImageFormat::B8G8R8A8SRGB,
+        .format = Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB,
         .type = Engine::ImageUtils::ImageType::ColorAttachment,
         .mipmap_levels = 1,
         .array_layers = 1,
