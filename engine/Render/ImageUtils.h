@@ -10,9 +10,9 @@ namespace Engine {
             DepthImage,
             DepthStencilImage,
             SampledDepthImage,
-            // Color image used for sampling. Can be transferred to.
+            // Color image used for sampling. Can be transferred from/to.
             TextureImage,
-            // Color attachment image used for rendering. Can be transferred from.
+            // Color attachment image used for rendering. Can be transferred from/to.
             ColorAttachment,
             // Color storage image used for compute shader. Can be transferred from/to.
             ColorCompute,
@@ -50,6 +50,7 @@ namespace Engine {
                 );
             case ImageType::TextureImage:
                 return std::make_tuple(
+                    vk::ImageUsageFlagBits::eTransferSrc |
                     vk::ImageUsageFlagBits::eTransferDst |
                     vk::ImageUsageFlagBits::eSampled,
                     VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE
@@ -57,6 +58,7 @@ namespace Engine {
             case ImageType::ColorAttachment:
                 return std::make_tuple(
                     vk::ImageUsageFlagBits::eTransferSrc |
+                    vk::ImageUsageFlagBits::eTransferDst |
                     vk::ImageUsageFlagBits::eColorAttachment,
                     VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE
                 );

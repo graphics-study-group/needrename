@@ -1,6 +1,7 @@
 #ifndef PIPELINE_COMMANDBUFFER_TRANSFERCOMMANDBUFFER_INCLUDED
 #define PIPELINE_COMMANDBUFFER_TRANSFERCOMMANDBUFFER_INCLUDED
 
+#include "Render/Pipeline/CommandBuffer/AccessHelperTypes.h"
 #include "Render/Pipeline/CommandBuffer/ICommandBuffer.h"
 
 namespace Engine {
@@ -32,7 +33,15 @@ namespace Engine {
 
         // void ClearDepthStencilImage(const Texture & img, std::tuple<float, uint8_t> depth_stencil_value);
 
-        void GenerateMipmaps(const Texture & img);
+        /**
+         * @brief Record a series of commands to generate the mipmap chain.
+         * It is synchronized internally, so you don't need to insert barriers through the context
+         * before executing this command.
+         * 
+         * In our synchronization system, this command is considered as a transfer read operation,
+         * and should be synchronized as such.
+         */
+        void GenerateMipmaps(const Texture & img, AccessHelper::ImageAccessType previousAccess);
 
     protected:
         RenderSystem & m_system;
