@@ -51,7 +51,8 @@ int main(int argc, char * argv[]) {
         .is_cube_map = false
     };
     color->CreateTexture(desc, "Color Compute Test");
-    ComputeStage cstage{*rsys, cs_ref};
+    ComputeStage cstage{*rsys};
+    cstage.InstantiateFromRef(cs_ref);
     cstage.SetDescVariable(
         cstage.GetVariableIndex("outputImage").value().first,
         std::const_pointer_cast<const Texture>(color)

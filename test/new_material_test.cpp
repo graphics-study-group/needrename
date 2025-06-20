@@ -172,7 +172,8 @@ int main(int argc, char ** argv)
     auto asys = cmc->GetAssetManager();
     auto cs_ref = asys->GetNewAssetRef("~/shaders/gaussian_blur.comp.spv.asset");
     asys->LoadAssetImmediately(cs_ref);
-    ComputeStage cstage{*rsys, cs_ref};
+    ComputeStage cstage{*rsys};
+    cstage.InstantiateFromRef(cs_ref);
     cstage.SetDescVariable(
         cstage.GetVariableIndex("inputImage").value().first,
         std::const_pointer_cast<const Texture>(color)

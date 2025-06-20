@@ -328,7 +328,8 @@ int main(int argc, char ** argv)
     auto cs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/bloom.comp.spv.asset");
     assert(cs_ref);
     MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(cs_ref);
-    auto bloom_compute_stage = std::make_shared<ComputeStage>(*rsys, cs_ref);
+    auto bloom_compute_stage = std::make_shared<ComputeStage>(*rsys);
+    bloom_compute_stage->InstantiateFromRef(cs_ref);
     bloom_compute_stage->SetDescVariable(
         bloom_compute_stage->GetVariableIndex("inputImage").value().first,
         std::const_pointer_cast<const Texture>(hdr_color)
