@@ -14,7 +14,9 @@ namespace Engine {
     {
         if (m_context != nullptr) {
             ImGui_ImplSDL3_Shutdown();
-            ImGui_ImplVulkan_Shutdown();
+            if (ImGui::GetIO().BackendRendererUserData) {
+                ImGui_ImplVulkan_Shutdown();
+            }
             ImGui::DestroyContext(m_context);
         }
         m_context = nullptr;
@@ -59,21 +61,20 @@ namespace Engine {
         cb.EndRendering();
     }
 
-    void GUISystem::Create(SDL_Window *window, vk::Format format)
+    void GUISystem::Create(SDL_Window *window)
     {
         SDL_LogInfo(0, "Initializing GUI system with ImGui.");
         assert(m_context == nullptr && "Re-creating GUI system.");
         m_context = ImGui::CreateContext();
         assert(m_context && "Failed to create ImGui context.");
         ImGui_ImplSDL3_InitForVulkan(window);
+    }
 
+    void GUISystem::CreateVulkanBackend(vk::Format color_attachment_format)
+    {
         auto system = m_render_system.lock();
         const auto & swapchain = system->GetSwapchain();
-
         ImGui_ImplVulkan_InitInfo info {};
-        /* info.CheckVkResultFn = [](VkResult result){
-            vk::detail::resultCheck(static_cast<vk::Result>(result), "ImGui check: ");
-        }; */
         info.Instance = system->getInstance();
         info.PhysicalDevice = system->GetPhysicalDevice();
         info.Device = system->getDevice();
@@ -84,7 +85,12 @@ namespace Engine {
         info.UseDynamicRendering = true;
         info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
 
-        std::array <vk::Format, 1> formats = {{format == vk::Format::eUndefined ? system->GetSwapchain().GetImageFormat().format : format}};
+        std::array <vk::Format, 1> formats = {
+            {
+                color_attachment_format == vk::Format::eUndefined ? 
+                    ImageUtils::GetVkFormat(system->GetSwapchain().COLOR_FORMAT) : color_attachment_format
+            }
+        };
         VkPipelineRenderingCreateInfoKHR pipeline{
             static_cast<VkPipelineRenderingCreateInfoKHR>(
                 vk::PipelineRenderingCreateInfo {

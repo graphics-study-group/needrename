@@ -147,7 +147,7 @@ namespace Engine
         vk::PipelineRenderingCreateInfo prci {};
         std::vector<vk::PipelineColorBlendAttachmentState> cbass;
 
-        vk::Format default_color_format {m_system.lock()->GetSwapchain().GetImageFormat().format};
+        vk::Format default_color_format {ImageUtils::GetVkFormat(m_system.lock()->GetSwapchain().COLOR_FORMAT)};
         vk::Format default_depth_format {ImageUtils::GetVkFormat(m_system.lock()->GetSwapchain().DEPTH_FORMAT)};
         AttachmentUtils::AttachmentOp default_color_op{
             vk::AttachmentLoadOp::eClear, 

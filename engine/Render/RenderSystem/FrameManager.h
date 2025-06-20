@@ -68,6 +68,7 @@ namespace Engine {
              * record a image copy command (not blitting command, so resizing is not possible), and transits the image
              * back to Color Attachment Optimal layout.
              */
+            [[deprecated("Refrain from using this method as it does not ensure color formats are correctly setup.")]]
             void StageCopyComposition (vk::Image image, vk::Extent2D extent, vk::Offset2D offsetSrc = {0, 0}, vk::Offset2D offsetDst = {0, 0});
 
             /**

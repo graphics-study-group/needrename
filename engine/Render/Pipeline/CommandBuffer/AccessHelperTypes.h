@@ -50,6 +50,11 @@ namespace Engine {
             DepthAttachmentWrite,
         };
 
+        enum class ImageTransferAccessType {
+            TransferRead,
+            TransferWrite
+        };
+
         enum class ImageComputeAccessType {
             /// Read by shader as texture with a sampler, in read-only layout.
             ShaderRead,

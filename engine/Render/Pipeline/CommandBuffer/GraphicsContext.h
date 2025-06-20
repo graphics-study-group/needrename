@@ -1,12 +1,12 @@
 #ifndef PIPELINE_COMMANDBUFFER_GRAPHICSCONTEXT_INCLUDED
 #define PIPELINE_COMMANDBUFFER_GRAPHICSCONTEXT_INCLUDED
 
-#include "ICommandContext.h"
+#include "TransferContext.h"
 
 namespace Engine {
     class GraphicsCommandBuffer;
 
-    class GraphicsContext : public ICommandContext
+    class GraphicsContext : public TransferContext
     {
         struct impl;
         std::unique_ptr <impl> pimpl;
@@ -14,7 +14,9 @@ namespace Engine {
     public:
         using ImageGraphicsAccessType = AccessHelper::ImageGraphicsAccessType;
 
-        GraphicsContext(GraphicsCommandBuffer && cb);
+        GraphicsContext(RenderSystem & system,
+            vk::CommandBuffer cb,
+            uint32_t frame_in_flight);
         virtual ~GraphicsContext();
 
         ICommandBuffer & GetCommandBuffer() const noexcept override;

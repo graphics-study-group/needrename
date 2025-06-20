@@ -43,6 +43,9 @@ std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate()
     mtspp.attachments.color_ops = {
         AttachmentUtils::AttachmentOp{}
     };
+    mtspp.attachments.color_blending = {
+        PipelineProperties::ColorBlendingProperties{}
+    };
     mtspp.attachments.depth = ImageUtils::ImageFormat::D32SFLOAT;
     mtspp.shaders.shaders = std::vector<std::shared_ptr<AssetRef>>{vs_ref, fs_ref};
 
@@ -269,6 +272,7 @@ int main(int argc, char ** argv)
     auto pbr_material_template = std::make_shared<MaterialTemplate>(rsys, pbr_material_template_asset_ref);
 
     auto gsys = cmc->GetGUISystem();
+    gsys->CreateVulkanBackend(ImageUtils::GetVkFormat(Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm));
 
     Engine::Texture color{*rsys}, depth{*rsys};
     Engine::Texture::TextureDesc desc {
@@ -278,11 +282,12 @@ int main(int argc, char ** argv)
         .depth = 1,
         .format = Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm,
         .type = Engine::ImageUtils::ImageType::ColorAttachment,
-        .mipmap_levels = 1,
+        .mipmap_levels = 9,
         .array_layers = 1,
         .is_cube_map = false
     };
     color.CreateTexture(desc, "Color Attachment");
+    desc.mipmap_levels = 1;
     desc.format = Engine::ImageUtils::ImageFormat::D32SFLOAT;
     desc.type = Engine::ImageUtils::ImageType::DepthImage;
     depth.CreateTexture(desc, "Depth Attachment");
@@ -293,7 +298,7 @@ int main(int argc, char ** argv)
         .width = 4,
         .height = 4,
         .depth = 1,
-        .format = Engine::ImageUtils::ImageFormat::B8G8R8A8SRGB,
+        .format = Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB,
         .type = Engine::ImageUtils::ImageType::TextureImage,
         .mipmap_levels = 1,
         .array_layers = 1,
@@ -312,7 +317,6 @@ int main(int argc, char ** argv)
     depth_att.image_view = depth.GetImageView();
     depth_att.load_op = vk::AttachmentLoadOp::eClear;
     depth_att.store_op = vk::AttachmentStoreOp::eDontCare;
-
 
     // Setup mesh
     std::filesystem::path mesh_path{std::string(ENGINE_ASSETS_DIR) + "/sphere/sphere.obj"};
@@ -368,13 +372,14 @@ int main(int argc, char ** argv)
         rsys->DrawMeshes();
         cb.EndRendering();
 
-        context.UseImage(color, GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite, GraphicsContext::ImageAccessType::ColorAttachmentWrite);
+        cb.GenerateMipmaps(color, GraphicsContext::ImageAccessType::ColorAttachmentWrite);
+
+        context.UseImage(color, GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite, GraphicsContext::ImageAccessType::TransferRead);
         context.PrepareCommandBuffer();
         gsys->DrawGUI(
             {color.GetImage(), color.GetImageView(), vk::AttachmentLoadOp::eLoad, vk::AttachmentStoreOp::eStore},
             extent, cb
         );
-
         cb.End();
 
         rsys->GetFrameManager().SubmitMainCommandBuffer();

@@ -3,7 +3,7 @@
 
 #include "Render/VkWrapper.tcc"
 #include "Render/AttachmentUtils.h"
-#include "Render/Pipeline/CommandBuffer/ICommandBuffer.h"
+#include "Render/Pipeline/CommandBuffer/TransferCommandBuffer.h"
 #include <vulkan/vulkan.hpp>
 #include <glm.hpp>
 
@@ -14,8 +14,15 @@ namespace Engine {
     class Buffer;
     class RenderTargetBinding;
 
-    /// @brief A command buffer used for rendering.
-    class GraphicsCommandBuffer : public ICommandBuffer
+    /**
+     * @brief A command buffer used for rendering.
+     * 
+     * `GraphicsCommandBuffer` inherits `TranferCommandBuffer` to facilitate memory
+     * operations like blitting and clearing. However these operations are generally
+     * only allowed outside a rendering pass. You need to call `EndRendering()` and
+     * setup proper barriers with the context before recording these commands.
+     */
+    class GraphicsCommandBuffer : public TransferCommandBuffer
     {
     public:
         GraphicsCommandBuffer (
@@ -65,10 +72,7 @@ namespace Engine {
         void Reset() noexcept override;
 
     protected:
-        RenderSystem & m_system;
-
         uint32_t m_inflight_frame_index ;
-
         std::optional<std::pair<vk::Pipeline, vk::PipelineLayout>> m_bound_material_pipeline {};
     };
 }

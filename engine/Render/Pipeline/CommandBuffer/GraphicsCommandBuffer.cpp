@@ -18,8 +18,7 @@ namespace Engine
         RenderSystem & system,
         vk::CommandBuffer cb,
         uint32_t frame_in_flight
-        ) : ICommandBuffer(cb),
-        m_system(system),
+        ) : TransferCommandBuffer(system, cb),
         m_inflight_frame_index(frame_in_flight)
     {
     }
