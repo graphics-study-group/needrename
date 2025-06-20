@@ -12,6 +12,7 @@
                 "&2",
                 "&3"
             ],
+            "m_name": "four_bunny",
             "m_parentGameObject": null,
             "m_transformComponent": "&2"
         },

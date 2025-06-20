@@ -1,6 +1,8 @@
 #include "Input.h"
 #include <cassert>
 #include <SDL3/SDL.h>
+#include <Functional/Time.h>
+#include <MainClass.h>
 
 namespace Engine
 {
@@ -183,8 +185,9 @@ namespace Engine
     {
     }
 
-    void Input::InputAxis::UpdateSmoothedValue(float dt)
+    void Input::InputAxis::UpdateSmoothedValue()
     {
+        float dt = MainClass::GetInstance()->GetTimeSystem()->GetDeltaTime();
         m_smoothed_value = (m_snap && m_value * m_smoothed_value < 0.0f) ? 0.0f : m_smoothed_value;
         float dir = m_value > m_smoothed_value ? 1.0f : -1.0f;
         if (m_value == 0.0f)
@@ -253,11 +256,11 @@ namespace Engine
         }
     }
 
-    void Input::MotionAxis::UpdateSmoothedValue(float dt)
+    void Input::MotionAxis::UpdateSmoothedValue()
     {
         m_value = m_sum_one_frame * m_motion_sensitivity;
         m_sum_one_frame = 0.0f;
-        InputAxis::UpdateSmoothedValue(dt);
+        InputAxis::UpdateSmoothedValue();
     }
 
     Input::GamepadAxis::GamepadAxis(const std::string &name, AxisType type, const std::string &axis, float scale, float gravity, float dead, float sensitivity, bool snap, bool invert)
@@ -283,11 +286,11 @@ namespace Engine
         }
     }
 
-    void Input::Update(float dt)
+    void Input::Update()
     {
         for (auto &axis : m_axes)
         {
-            axis->UpdateSmoothedValue(dt);
+            axis->UpdateSmoothedValue();
         }
     }
 

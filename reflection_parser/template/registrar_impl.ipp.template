@@ -99,12 +99,12 @@ std::add_pointer<${method.return_type.full_name}>::type ret_ptr = reinterpret_ca
                 % else:
                 nullptr,
                 % endif
-                GetType("${method.return_type.full_name}"));
+                GetType<${method.return_type.full_name}>());
             % endfor
             
             % for field in class_type.fields:
             type->AddField(
-                GetType("${field.type.full_name}"),
+                GetType<${field.type.full_name}>(),
                 "${field.name}",
                 [](void *obj, void *&ret)
                 { ret = static_cast<void *>(&static_cast<${class_type.full_name} *>(obj)->${field.name}); },

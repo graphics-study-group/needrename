@@ -3,13 +3,13 @@
 
 namespace Editor
 {
-    Widget::Widget(const char *name) : m_name(name)
+    Widget::Widget(const std::string &name) : m_name(name)
     {
     }
 
     void Widget::Render()
     {
-        if (ImGui::Begin(m_name))
+        if (ImGui::Begin(m_name.c_str()))
         {
         }
         ImGui::End();

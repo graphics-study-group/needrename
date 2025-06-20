@@ -3,6 +3,8 @@
 #include <cstdint>
 #include <cassert>
 #include <string>
+#include <glm.hpp>
+#include <gtc/quaternion.hpp>
 #include "meta_engine/reflection_init.ipp"
 
 namespace Engine
@@ -40,6 +42,10 @@ namespace Engine
             Type::s_index_type_map[std::type_index(typeid(double))] = std::shared_ptr<Type>(new Type("double", false));
             Type::s_index_type_map[std::type_index(typeid(long double))] = std::shared_ptr<Type>(new Type("long double", false));
             Type::s_index_type_map[std::type_index(typeid(std::string))] = std::shared_ptr<Type>(new Type("std::string", false));
+            Type::s_index_type_map[std::type_index(typeid(glm::vec2))] = std::shared_ptr<Type>(new Type("glm::vec2", false));
+            Type::s_index_type_map[std::type_index(typeid(glm::vec3))] = std::shared_ptr<Type>(new Type("glm::vec3", false));
+            Type::s_index_type_map[std::type_index(typeid(glm::vec4))] = std::shared_ptr<Type>(new Type("glm::vec4", false));
+            Type::s_index_type_map[std::type_index(typeid(glm::quat))] = std::shared_ptr<Type>(new Type("glm::quat", false));
 
             Type::s_name_index_map.emplace("void", std::type_index(typeid(void)));
             Type::s_name_index_map.emplace("std::nullptr_t", std::type_index(typeid(std::nullptr_t)));
@@ -114,32 +120,6 @@ namespace Engine
             if (it != Type::s_name_index_map.end())
                 return Type::s_index_type_map[it->second];
             return nullptr;
-        }
-
-        std::shared_ptr<Type> GetType(const std::type_index &type_index)
-        {
-            if (Type::s_index_type_map.find(type_index) != Type::s_index_type_map.end())
-                return Type::s_index_type_map[type_index];
-            return nullptr;
-        }
-
-        std::shared_ptr<Type> GetOrCreateType(std::type_index type_index, const std::string &name)
-        {
-            if (Type::s_index_type_map.find(type_index) == Type::s_index_type_map.end())
-            {
-                if(name.empty())
-                {
-                    Type::s_index_type_map[type_index] = std::shared_ptr<Type>(new Type(type_index.name(), false));
-                }
-                else
-                {
-                    Type::s_index_type_map[type_index] = std::shared_ptr<Type>(new Type(name, false));
-                    assert(Type::s_name_index_map.find(name) == Type::s_name_index_map.end());
-                    Type::s_name_index_map.emplace(name, type_index);
-                }
-                Type::s_name_index_map.emplace(type_index.name(), type_index);
-            }
-            return Type::s_index_type_map[type_index];
         }
     }
 }

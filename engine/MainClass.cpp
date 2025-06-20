@@ -10,6 +10,8 @@
 #include "Asset/AssetManager/AssetManager.h"
 #include "GUI/GUISystem.h"
 #include <Input/Input.h>
+#include <Functional/SDLWindow.h>
+#include <Functional/Time.h>
 #include <Asset/Scene/LevelAsset.h>
 
 #include <nlohmann/json.hpp>
@@ -67,7 +69,7 @@ namespace Engine
         if (opt->instantQuit)
             return;
         this->window = std::make_shared<SDLWindow>(opt->title.c_str(), opt->resol_x, opt->resol_y, sdl_window_flags);
-
+        this->time = std::make_shared<TimeSystem>();
         this->renderer = std::make_shared<RenderSystem>(this->window);
         this->world = std::make_shared<WorldSystem>();
         this->asset = std::make_shared<AssetManager>();
@@ -83,56 +85,26 @@ namespace Engine
 
     void MainClass::MainLoop()
     {
-        Uint64 FPS_TIMER = 0;
-        m_frame_count = 0;
         while (!m_on_quit)
         {
-            Uint64 current_time = SDL_GetTicksNS();
-            float dt = (current_time - FPS_TIMER) * 1e-9f;
-            FPS_TIMER = current_time;
-            m_frame_count++;
-
-            this->RunOneFrame(dt);
+            this->time->NextFrame();
+            this->RunOneFrame();
         }
         SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "The main loop is ended.");
         renderer->WaitForIdle();
         renderer->ClearComponent();
     }
 
-    void MainClass::LoopFiniteFrame(int max_frame_count)
+    void MainClass::LoopFinite(uint64_t max_frame_count, float max_time_seconds)
     {
-        Uint64 FPS_TIMER = 0;
-        m_frame_count = 0;
-
-        while (!m_on_quit && m_frame_count < max_frame_count)
+        while (!m_on_quit)
         {
-            Uint64 current_time = SDL_GetTicksNS();
-            float dt = (current_time - FPS_TIMER) * 1e-9f;
-            FPS_TIMER = current_time;
-            m_frame_count++;
-
-            this->RunOneFrame(dt);
-        }
-        SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "The main loop is ended.");
-        renderer->WaitForIdle();
-        renderer->ClearComponent();
-    }
-
-    void MainClass::LoopFiniteTime(float max_time)
-    {
-        Uint64 FPS_TIMER = 0;
-        Uint64 start_time = SDL_GetTicksNS();
-        Uint64 current_time = start_time;
-        m_frame_count = 0;
-
-        while (!m_on_quit && (current_time - start_time) * 1e-9f < max_time)
-        {
-            current_time = SDL_GetTicksNS();
-            float dt = (current_time - FPS_TIMER) * 1e-9f;
-            FPS_TIMER = current_time;
-            m_frame_count++;
-
-            this->RunOneFrame(dt);
+            this->time->NextFrame();
+            this->RunOneFrame();
+            if (max_frame_count > 0 && this->time->GetFrameCount() >= max_frame_count)
+                break;
+            if (max_time_seconds > 0.0f && this->time->GetDeltaTimeInSeconds() >= max_time_seconds)
+                break;
         }
         SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "The main loop is ended.");
         renderer->WaitForIdle();
@@ -142,6 +114,11 @@ namespace Engine
     std::shared_ptr<SDLWindow> MainClass::GetWindow() const
     {
         return window;
+    }
+
+    std::shared_ptr<TimeSystem> MainClass::GetTimeSystem() const
+    {
+        return time;
     }
 
     std::shared_ptr<AssetManager> MainClass::GetAssetManager() const
@@ -169,7 +146,7 @@ namespace Engine
         return input;
     }
 
-    void MainClass::RunOneFrame(float dt)
+    void MainClass::RunOneFrame()
     {
         // TODO: asynchronous execution
         this->asset->LoadAssetsInQueue();
@@ -190,8 +167,9 @@ namespace Engine
             input->ProcessEvent(&event);
         }
 
-        this->input->Update(dt);
-        this->world->Tick(dt);
+        this->input->Update();
+        this->world->LoadGameObjectInQueue();
+        this->world->Tick();
         this->gui->PrepareGUI();
 
         auto index = this->renderer->StartFrame();

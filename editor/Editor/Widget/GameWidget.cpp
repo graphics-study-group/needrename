@@ -8,7 +8,7 @@
 
 namespace Editor
 {
-    GameWidget::GameWidget(const char *name) : Widget(name)
+    GameWidget::GameWidget(const std::string &name) : Widget(name)
     {
     }
 
@@ -60,7 +60,7 @@ namespace Editor
 
     void GameWidget::Render()
     {
-        if (ImGui::Begin(m_name))
+        if (ImGui::Begin(m_name.c_str()))
         {
             ImGui::Image(m_color_att_id, ImVec2(m_game_width, m_game_height));
         }

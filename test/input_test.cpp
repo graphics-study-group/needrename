@@ -6,6 +6,7 @@
 #include <cmake_config.h>
 #include <MainClass.h>
 #include <Functional/SDLWindow.h>
+#include <Functional/Time.h>
 #include <Render/RenderSystem.h>
 #include <Framework/world/WorldSystem.h>
 #include <Asset/AssetManager/AssetManager.h>
@@ -26,7 +27,7 @@ public:
     float m_move_speed = 1.0f;
     float m_roll_speed = 1.0f;
     
-    virtual void Tick(float dt) override
+    virtual void Tick() override
     {
         auto input = MainClass::GetInstance()->GetInputSystem();
         auto move_forward = input->GetAxis("move forward");
@@ -37,6 +38,7 @@ public:
         auto look_x = input->GetAxisRaw("look x");
         auto look_y = input->GetAxisRaw("look y");
         Transform &transform = m_parentGameObject.lock()->GetTransformRef();
+        float dt = MainClass::GetInstance()->GetTimeSystem()->GetDeltaTimeInSeconds();
         transform.SetRotation(transform.GetRotation() * glm::quat(glm::vec3{look_y * m_rotation_speed * dt, roll_right * m_roll_speed * dt, look_x * m_rotation_speed * dt}));
         transform.SetPosition(transform.GetPosition() + transform.GetRotation() * glm::vec3{move_right, move_forward + move_backward, move_up} * m_move_speed * dt);
     }
@@ -95,7 +97,7 @@ int main(int argc, char **argv)
     cmc->GetWorldSystem()->AddGameObjectToWorld(camera_go);
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Entering main loop");
-    cmc->LoopFiniteFrame(max_frame_count);
+    cmc->LoopFinite(max_frame_count);
 
     return 0;
 }

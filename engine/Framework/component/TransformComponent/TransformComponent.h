@@ -18,7 +18,7 @@ namespace Engine
         REFL_ENABLE TransformComponent(std::weak_ptr<GameObject> gameObject);
         virtual ~TransformComponent();
 
-        void Tick(float dt) override;
+        void Tick() override;
 
         void SetTransform(const Transform & transform);
 

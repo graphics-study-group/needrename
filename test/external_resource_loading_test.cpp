@@ -65,7 +65,7 @@ int main()
     cmc->GetWorldSystem()->AddGameObjectToWorld(camera_go);
     
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Entering main loop");
-    cmc->LoopFiniteFrame(10000);
+    cmc->LoopFinite(10000, 0.0f);
 
     std::filesystem::remove_all(project_path);
 

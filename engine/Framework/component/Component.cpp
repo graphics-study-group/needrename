@@ -11,7 +11,7 @@ namespace Engine
     {
     }
 
-    void Component::Tick(float)
+    void Component::Tick()
     {
     }
 }

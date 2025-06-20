@@ -24,8 +24,7 @@ namespace Engine
         virtual void Init();
 
         /// @brief Called every frame.
-        /// @param dt delta time
-        virtual void Tick(float dt);
+        virtual void Tick();
 
     public:
         REFL_SER_ENABLE std::weak_ptr<GameObject> m_parentGameObject{};

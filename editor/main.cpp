@@ -6,6 +6,7 @@
 #include <cmake_config.h>
 #include <MainClass.h>
 #include <Functional/SDLWindow.h>
+#include <Functional/Time.h>
 #include <Render/RenderSystem.h>
 #include <Render/AttachmentUtils.h>
 #include <Render/Memory/Buffer.h>
@@ -22,6 +23,7 @@
 
 #include <Editor/Window/MainWindow.h>
 #include <Editor/Widget/GameWidget.h>
+#include <Editor/Widget/SceneWidget.h>
 
 using namespace Engine;
 
@@ -49,11 +51,12 @@ int main()
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Create Editor Window");
     Editor::MainWindow main_window;
-    main_window.AddWidget(std::make_shared<Editor::Widget>("Test Widget"));
-    main_window.AddWidget(std::make_shared<Editor::Widget>("Test Widget 2"));
-    auto game_widget = std::make_shared<Editor::GameWidget>("Game");
-    game_widget->CreateRenderTargetBinding(rsys);
-    main_window.AddWidget(game_widget);
+    auto scene_widget = std::make_shared<Editor::SceneWidget>(Editor::MainWindow::k_scene_widget_name);
+    scene_widget->CreateRenderTargetBinding(rsys);
+    main_window.AddWidget(scene_widget);
+    // auto game_widget = std::make_shared<Editor::GameWidget>(Editor::MainWindow::k_game_widget_name);
+    // game_widget->CreateRenderTargetBinding(rsys);
+    // main_window.AddWidget(game_widget);
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Entering main loop");
 
@@ -62,10 +65,7 @@ int main()
     unsigned int frame_count = 0;
     while (!onQuit)
     {
-        Uint64 current_time = SDL_GetTicksNS();
-        float dt = (current_time - FPS_TIMER) * 1e-9f;
-        FPS_TIMER = current_time;
-        frame_count++;
+        cmc->GetTimeSystem()->NextFrame();
 
         asset_manager->LoadAssetsInQueue();
 
@@ -85,8 +85,10 @@ int main()
             cmc->GetInputSystem()->ProcessEvent(&event);
         }
 
-        cmc->GetInputSystem()->Update(dt);
-        world->Tick(dt);
+        cmc->GetInputSystem()->Update();
+        world->LoadGameObjectInQueue();
+        // Editor mode does not need to tick the world.
+        // world->Tick();
 
         auto index = rsys->StartFrame();
         auto context = rsys->GetFrameManager().GetGraphicsContext();
@@ -97,8 +99,9 @@ int main()
         context.UseImage(window->GetDepthTexture(), GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite, GraphicsContext::ImageAccessType::None);
         context.PrepareCommandBuffer();
 
+        scene_widget->PreRender(cb);
+        // game_widget->PreRender(cb);
         gui->PrepareGUI();
-        game_widget->PreRender(cb);
         main_window.Render();
 
         context.UseImage(window->GetColorTexture(), GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite, GraphicsContext::ImageAccessType::ColorAttachmentWrite);

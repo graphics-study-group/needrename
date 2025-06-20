@@ -72,5 +72,10 @@ namespace Engine
             }
             return nullptr;
         }
+
+        const std::unordered_map<std::string, std::shared_ptr<Field>> &Type::GetFields() const
+        {
+            return m_fields;
+        }
     }
 }
