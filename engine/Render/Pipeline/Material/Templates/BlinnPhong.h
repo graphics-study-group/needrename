@@ -6,12 +6,14 @@
 #include <glm.hpp>
 
 namespace Engine {
+    class RenderSystem;
     class SampledTexture;
+
     namespace Materials {
         class BlinnPhongInstance : public MaterialInstance {
             uint32_t texture_id{}, specular_id{}, ambient_id{};
         public:
-            BlinnPhongInstance(std::weak_ptr <RenderSystem> system, std::shared_ptr<MaterialTemplate> tpl);
+            BlinnPhongInstance(RenderSystem & system, std::shared_ptr<MaterialTemplate> tpl);
             void SetBaseTexture(std::shared_ptr<const SampledTexture> image);
             void SetSpecular(glm::vec4 spec);
             void SetAmbient(glm::vec4 spec);
@@ -20,7 +22,7 @@ namespace Engine {
 
         class BlinnPhongTemplate : public MaterialTemplate {
         public:
-            BlinnPhongTemplate(std::weak_ptr <RenderSystem> system, std::shared_ptr<AssetRef> asset);
+            BlinnPhongTemplate(RenderSystem & system);
             std::shared_ptr <MaterialInstance> CreateInstance() override;
         };
     }

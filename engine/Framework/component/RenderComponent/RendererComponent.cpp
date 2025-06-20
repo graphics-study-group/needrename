@@ -33,7 +33,10 @@ namespace Engine
             // XXX: This is a temporary solution: It simply check the m_name in material assets and add it to the registry. We should reconsider the relationship between MaterialRegistry and MaterialTemplateAsset.
             auto tpl = m_material_assets[i]->as<MaterialAsset>()->m_template;
             m_system.lock()->GetMaterialRegistry().AddMaterial(tpl);
-            auto ptr = std::make_shared<MaterialInstance>(m_system, m_system.lock()->GetMaterialRegistry().GetMaterial(tpl->as<MaterialTemplateAsset>()->name));
+            auto ptr = std::make_shared<MaterialInstance>(
+                *(m_system.lock()), 
+                m_system.lock()->GetMaterialRegistry().GetMaterial(tpl->as<MaterialTemplateAsset>()->name)
+            );
             m_materials.push_back(ptr);
         }
 

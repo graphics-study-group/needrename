@@ -10,7 +10,7 @@
 
 namespace Engine {
     MaterialInstance::MaterialInstance(
-        std::weak_ptr <RenderSystem> system, 
+        RenderSystem & system, 
         std::shared_ptr<MaterialTemplate> tpl
         ) : m_system(system), m_parent_template(tpl)
     {
@@ -22,7 +22,7 @@ namespace Engine {
             if (ubo_size == 0) {
                 SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Found zero-sized UBO when processing pass %llu of material", ubo_size);
             } else {
-                pass.ubo = std::make_unique<Buffer>(system.lock());
+                pass.ubo = std::make_unique<Buffer>(system);
                 pass.ubo->Create(Buffer::BufferType::Uniform, tpl->GetMaximalUBOSize(idx));
             }
             m_pass_info[idx] = std::move(pass);
@@ -139,7 +139,7 @@ namespace Engine {
             writes.push_back(ubo_write);
         }
 
-        m_system.lock()->getDevice().updateDescriptorSets(writes, {});
+        m_system.getDevice().updateDescriptorSets(writes, {});
         pass_info.is_descriptor_set_dirty = false;
     }
     vk::DescriptorSet MaterialInstance::GetDescriptor(uint32_t pass) const
@@ -202,10 +202,10 @@ namespace Engine {
                         assert(itr->second.m_type == MaterialProperty::Type::Texture);
                         auto texture_asset = std::any_cast<std::shared_ptr<AssetRef>>(itr->second.m_value)->as<Image2DTextureAsset>();
                         // TODO: We should allocate texture from assets in a pool.
-                        auto texture = std::make_shared<SampledTextureInstantiated>(*(m_system.lock()));
+                        auto texture = std::make_shared<SampledTextureInstantiated>(m_system);
                         texture->Instantiate(*texture_asset);
                         this->WriteTextureUniform(pass_index, desc_idx, texture);
-                        m_system.lock()->GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
+                        m_system.GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
                             *texture,
                             texture_asset->GetPixelData(),
                             texture_asset->GetPixelDataSize()

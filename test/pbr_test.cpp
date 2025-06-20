@@ -165,7 +165,7 @@ public:
         auto id_albedo = material_template->GetVariableIndex("albedoSampler", 0).value();
         assert(id_albedo.second == false);
         for (size_t i = 0; i < m_submeshes.size(); i++) {
-            auto ptr = std::make_shared<MaterialInstance>(m_system, material_template);
+            auto ptr = std::make_shared<MaterialInstance>(*system, material_template);
             ptr->WriteTextureUniform(0, 1, albedo);
             m_materials.push_back(ptr);
         }
@@ -269,7 +269,8 @@ int main(int argc, char ** argv)
     auto rsys = cmc->GetRenderSystem();
     auto pbr_material_template_asset = ConstructMaterialTemplate();
     auto pbr_material_template_asset_ref = std::make_shared<AssetRef>(pbr_material_template_asset);
-    auto pbr_material_template = std::make_shared<MaterialTemplate>(rsys, pbr_material_template_asset_ref);
+    auto pbr_material_template = std::make_shared<MaterialTemplate>(*rsys);
+    pbr_material_template->InstantiateFromRef(pbr_material_template_asset_ref);
 
     auto gsys = cmc->GetGUISystem();
     gsys->CreateVulkanBackend(ImageUtils::GetVkFormat(Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm));

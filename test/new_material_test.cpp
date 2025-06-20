@@ -101,8 +101,9 @@ int main(int argc, char ** argv)
     cmc->GetAssetManager()->LoadBuiltinAssets();
     auto test_asset = ConstructMaterialTemplate();
     auto test_asset_ref = std::make_shared<AssetRef>(test_asset);
-    auto test_template = std::make_shared<Materials::BlinnPhongTemplate>(rsys, test_asset_ref);
-    auto test_material_instance = std::make_shared<Materials::BlinnPhongInstance>(rsys, test_template);
+    auto test_template = std::make_shared<Materials::BlinnPhongTemplate>(*rsys);
+    test_template->InstantiateFromRef(test_asset_ref);
+    auto test_material_instance = std::make_shared<Materials::BlinnPhongInstance>(*rsys, test_template);
     test_material_instance->SetAmbient(glm::vec4(0.0, 0.0, 0.0, 0.0));
     test_material_instance->SetSpecular(glm::vec4(1.0, 1.0, 1.0, 64.0));
     test_material_instance->SetBaseTexture(allocated_image_texture);
