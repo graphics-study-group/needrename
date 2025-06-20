@@ -33,7 +33,7 @@ namespace Engine
             .width = w,
             .height = h,
             .depth = 1,
-            .format = Engine::ImageUtils::ImageFormat::B8G8R8A8SRGB,
+            .format = Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB,
             .type = Engine::ImageUtils::ImageType::ColorAttachment,
             .mipmap_levels = 1,
             .array_layers = 1,

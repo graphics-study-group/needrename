@@ -25,7 +25,7 @@ namespace Editor
             .width = m_game_width,
             .height = m_game_height,
             .depth = 1,
-            .format = Engine::ImageUtils::ImageFormat::B8G8R8A8SRGB,
+            .format = Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB,
             .type = Engine::ImageUtils::ImageType::ColorGeneral,
             .mipmap_levels = 1,
             .array_layers = 1,

@@ -77,6 +77,7 @@ namespace Engine
         this->renderer->Create();
         this->window->CreateRenderTargetBinding(this->renderer);
         this->gui->Create(this->window->GetWindow());
+        this->gui->CreateVulkanBackend(ImageUtils::GetVkFormat(Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB));
         Reflection::Initialize();
     }
 
