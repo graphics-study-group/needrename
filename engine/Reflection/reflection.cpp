@@ -114,6 +114,11 @@ namespace Engine
             Type::s_name_index_map.emplace(name, type_index);
         }
 
+        std::shared_ptr<Type> GetType(const char *name)
+        {
+            return GetType(std::string(name));
+        }
+
         std::shared_ptr<Type> GetType(const std::string &name)
         {
             auto it = Type::s_name_index_map.find(name);

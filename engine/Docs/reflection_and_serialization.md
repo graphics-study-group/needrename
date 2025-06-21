@@ -72,7 +72,7 @@ The parser generates reflection for several key classes:
         2. `GetType<T>()`
            - This function will search the hash table for `typeid(T)`. If not found, it will create a `Type` and return. But it won't register the created `Type` to the hash maps.
            - If `T` is a special type which we specifically handled such as `std::vector`, smart pointers, the function will return a specifically handled `Type`.
-        3. `GetType(const T &obj)`:
+        3. `GetTypeFromObject(const T &obj)`:
            - Similar to `GetType<T>()`. 
            - If the obj is a polymorphic type, we will consider it as `typeid(obj)` instead of `T`.
 2. **Var**

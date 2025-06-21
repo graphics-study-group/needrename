@@ -38,7 +38,12 @@ namespace Engine
         /// @param obj the object to get the type of
         /// @return the shared pointer to the Type class of the object
         template <typename T>
-        std::shared_ptr<Type> GetType(const T &obj);
+        std::shared_ptr<Type> GetTypeFromObject(const T &obj);
+
+        /// @brief Get the Reflection::Type from a name. Return nullptr if the type is not found.
+        /// @param name the type name
+        /// @return the shared pointer to the Type class. nullptr if the type is not found
+        std::shared_ptr<Type> GetType(const char *name);
 
         /// @brief Get the Reflection::Type from a name. Return nullptr if the type is not found.
         /// @param name the type name
@@ -78,7 +83,7 @@ namespace Engine
         }
 
         template <typename T>
-        std::shared_ptr<Type> GetType(const T &obj)
+        std::shared_ptr<Type> GetTypeFromObject(const T &obj)
         {
             if (typeid(T) == typeid(obj))
                 return GetType<T>();
@@ -95,13 +100,13 @@ namespace Engine
         template <typename T>
         Var GetVar(const T &obj)
         {
-            return Var(GetType(obj), &obj);
+            return Var(GetTypeFromObject(obj), &obj);
         }
 
         template <typename T>
         ConstVar GetConstVar(const T &obj)
         {
-            return ConstVar(GetType(obj), &obj);
+            return ConstVar(GetTypeFromObject(obj), &obj);
         }
 
         template <typename T>

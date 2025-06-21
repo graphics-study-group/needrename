@@ -37,7 +37,7 @@ namespace Editor
                     for (const auto &component : game_object->m_components)
                     {
                         ImGui::PushID(component_idx++);
-                        auto component_type = Engine::Reflection::GetType(*component);
+                        auto component_type = Engine::Reflection::GetTypeFromObject(*component);
                         // ImGui::Text("<%s>", component_type->GetName().c_str());
                         // ImGui::TableNextRow();
                         // ImGui::TableNextColumn();

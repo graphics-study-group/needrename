@@ -23,7 +23,7 @@ namespace Engine
     {
         Serialization::Json &json = *archive.m_cursor;
         json["m_guid"] = m_guid.toString();
-        json["%type"] = Reflection::GetType(*this)->m_name;
+        json["%type"] = Reflection::GetTypeFromObject(*this)->m_name;
     }
 
     void AssetRef::load_from_archive(Serialization::Archive &archive)
