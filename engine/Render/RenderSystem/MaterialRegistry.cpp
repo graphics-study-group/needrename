@@ -12,8 +12,11 @@ namespace Engine::RenderSystemState {
     {
         auto asset = ref->cas<MaterialTemplateAsset>();
         assert(asset);
-        if(this->find(asset->name) == this->end())
-            this->operator[](asset->name) = std::make_shared<MaterialTemplate>(m_system, ref);
+        if(this->find(asset->name) == this->end()) {
+            auto ptr = std::make_shared<MaterialTemplate>(*(m_system.lock()));
+            this->operator[](asset->name) = ptr;
+            ptr->InstantiateFromRef(ref);
+        }
     }
     auto MaterialRegistry::GetMaterial(const std::string &name) -> decltype(this->at(name))
     {

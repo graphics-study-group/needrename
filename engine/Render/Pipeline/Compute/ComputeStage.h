@@ -1,25 +1,27 @@
 #ifndef PIPELINE_COMPUTE_COMPUTESTAGE_INCLUDED
 #define PIPELINE_COMPUTE_COMPUTESTAGE_INCLUDED
 
+#include "Asset/InstantiatedFromAsset.h"
 #include "Render/Pipeline/PipelineInfo.h"
 
 namespace Engine {
     class RenderSystem;
     class AssetRef;
 
-    class ComputeStage {
+    class ComputeStage : public IInstantiatedFromAsset <ShaderAsset> {
         using PassInfo = PipelineInfo::PassInfo;
         using InstancedPassInfo = PipelineInfo::InstancedPassInfo;
 
         RenderSystem & m_system;
-        std::shared_ptr <AssetRef> m_asset;
 
         struct impl;
         std::unique_ptr <impl> pimpl;
 
-        void CreatePipeline();
     public:
-        ComputeStage(RenderSystem & system, std::shared_ptr <AssetRef> asset);
+        ComputeStage(RenderSystem & system);
+
+        void Instantiate(const ShaderAsset & asset) override;
+
         ~ComputeStage();
 
         void SetInBlockVariable(uint32_t index, std::any var);

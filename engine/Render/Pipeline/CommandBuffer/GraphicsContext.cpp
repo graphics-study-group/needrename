@@ -58,5 +58,6 @@ namespace Engine {
         if (pimpl->barriers.empty())    return;
         vk::DependencyInfo dep{vk::DependencyFlags{0}, {}, {}, pimpl->barriers};
         this->GetCommandBuffer().GetCommandBuffer().pipelineBarrier2(dep);
+        pimpl->barriers.clear();
     }
 }

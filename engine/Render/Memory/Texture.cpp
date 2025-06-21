@@ -6,7 +6,8 @@
 #include "Render/RenderSystem/AllocatorState.h"
 
 namespace Engine {
-    Texture::Texture(RenderSystem & system) noexcept : m_system(system)
+
+    Texture::Texture(RenderSystem & system) noexcept : m_system(system), m_full_view(nullptr)
     {
     }
 
@@ -67,41 +68,10 @@ namespace Engine {
             vk::SampleCountFlagBits::e1,
             name
         );
-
-        vk::ImageViewType view_type;
-        if (desc.is_cube_map) {
-            assert(arrayLayers > 0 && arrayLayers % 6 == 0);
-            view_type = arrayLayers > 6 ? vk::ImageViewType::eCubeArray : vk::ImageViewType::eCube;
-        } else {
-            switch(dim) {
-                case vk::ImageType::e1D:
-                    view_type = arrayLayers > 1 ? vk::ImageViewType::e1DArray : vk::ImageViewType::e1D;
-                    break;
-                case vk::ImageType::e2D:
-                    view_type = arrayLayers > 1 ? vk::ImageViewType::e2DArray : vk::ImageViewType::e2D;
-                    break;
-                case vk::ImageType::e3D:
-                    assert(arrayLayers == 1);
-                    view_type = vk::ImageViewType::e3D;
-                    break;
-            }
-        }
-
-        vk::ImageViewCreateInfo vinfo {
-            vk::ImageViewCreateFlags{},
-            m_image->GetImage(),
-            view_type,
-            ImageUtils::GetVkFormat(desc.format),
-            vk::ComponentMapping {},
-            vk::ImageSubresourceRange {
-                ImageUtils::GetVkImageAspect(desc.type),
-                0, mipLevels, 0, arrayLayers
-            }
-        };
-        m_image_view = m_system.getDevice().createImageViewUnique(vinfo);
-
         this->m_desc = desc;
         this->m_name = name;
+
+        m_full_view = std::make_unique<SlicedTextureView>(m_system, *this, TextureSlice{0, desc.mipmap_levels, 0, desc.array_layers});
     }
 
     const Texture::TextureDesc &Texture::GetTextureDescription() const noexcept
@@ -115,10 +85,15 @@ namespace Engine {
         return this->m_image->GetImage();
     }
 
+    const SlicedTextureView &Texture::GetFullSlice() const noexcept
+    {
+        assert(m_full_view);
+        return *m_full_view;
+    }
+
     vk::ImageView Engine::Texture::GetImageView() const noexcept
     {
-        assert(this->m_image_view);
-        return this->m_image_view.get();
+        return this->GetFullSlice().GetImageView();
     }
 
     Buffer Engine::Texture::CreateStagingBuffer() const

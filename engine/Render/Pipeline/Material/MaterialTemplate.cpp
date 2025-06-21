@@ -94,7 +94,7 @@ namespace Engine
 
         // Create pipeline layout
         {
-            const auto & pool = m_system.lock()->GetGlobalConstantDescriptorPool();
+            const auto & pool = m_system.GetGlobalConstantDescriptorPool();
 
             const std::vector <vk::DescriptorSetLayoutBinding> * desc_bindings {nullptr};
             // auto desc_bindings = PipelineUtils::ToVulkanDescriptorSetLayoutBindings(prop.shaders);
@@ -147,8 +147,8 @@ namespace Engine
         vk::PipelineRenderingCreateInfo prci {};
         std::vector<vk::PipelineColorBlendAttachmentState> cbass;
 
-        vk::Format default_color_format {ImageUtils::GetVkFormat(m_system.lock()->GetSwapchain().COLOR_FORMAT)};
-        vk::Format default_depth_format {ImageUtils::GetVkFormat(m_system.lock()->GetSwapchain().DEPTH_FORMAT)};
+        vk::Format default_color_format {ImageUtils::GetVkFormat(m_system.GetSwapchain().COLOR_FORMAT)};
+        vk::Format default_depth_format {ImageUtils::GetVkFormat(m_system.GetSwapchain().DEPTH_FORMAT)};
         AttachmentUtils::AttachmentOp default_color_op{
             vk::AttachmentLoadOp::eClear, 
             vk::AttachmentStoreOp::eStore,
@@ -279,7 +279,7 @@ namespace Engine
             PoolInfo::DESCRIPTOR_POOL_SIZES,
             nullptr
         };
-        vk::Device dvc = m_system.lock()->getDevice();
+        vk::Device dvc = m_system.getDevice();
         this->m_poolInfo.pool = dvc.createDescriptorPoolUnique(dpci);
         DEBUG_SET_NAME_TEMPLATE(dvc, this->m_poolInfo.pool.get(), std::format("Desc Pool - Material {}", m_name));
 
@@ -295,16 +295,17 @@ namespace Engine
         }
     }
     MaterialTemplate::MaterialTemplate(
-        std::weak_ptr<RenderSystem> system, 
-        std::shared_ptr<AssetRef> asset
-        ) : m_system(system), m_asset(asset)
+        RenderSystem & system
+        ) : m_system(system)
     {
-        assert(asset);
-        auto mtasset = asset->as<MaterialTemplateAsset>();
-
-        m_name = mtasset->name;
-        CreatePipelines(mtasset->properties);
     }
+
+    void MaterialTemplate::Instantiate(const MaterialTemplateAsset &asset)
+    {
+        m_name = asset.name;
+        CreatePipelines(asset.properties);
+    }
+
     std::shared_ptr<MaterialInstance> MaterialTemplate::CreateInstance()
     {
         return std::make_shared<MaterialInstance>(m_system, shared_from_this());
@@ -349,7 +350,7 @@ namespace Engine
         vk::DescriptorSetAllocateInfo dsai {
             m_poolInfo.pool.get(), {layout}
         };
-        auto sets = m_system.lock()->getDevice().allocateDescriptorSets(dsai);
+        auto sets = m_system.getDevice().allocateDescriptorSets(dsai);
         return sets[0];
     }
     std::variant<std::monostate, std::reference_wrapper<const MaterialTemplate::DescVar>, std::reference_wrapper<const MaterialTemplate::InblockVar>>

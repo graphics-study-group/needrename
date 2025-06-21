@@ -38,7 +38,7 @@ std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate()
 
     MaterialTemplateSinglePassProperties mtspp{};
     mtspp.attachments.color = {
-        ImageUtils::ImageFormat::R8G8B8A8UNorm
+        ImageUtils::ImageFormat::R11G11B10UFloat
     };
     mtspp.attachments.color_ops = {
         AttachmentUtils::AttachmentOp{}
@@ -165,7 +165,7 @@ public:
         auto id_albedo = material_template->GetVariableIndex("albedoSampler", 0).value();
         assert(id_albedo.second == false);
         for (size_t i = 0; i < m_submeshes.size(); i++) {
-            auto ptr = std::make_shared<MaterialInstance>(m_system, material_template);
+            auto ptr = std::make_shared<MaterialInstance>(*system, material_template);
             ptr->WriteTextureUniform(0, 1, albedo);
             m_materials.push_back(ptr);
         }
@@ -235,7 +235,7 @@ void SubmitSceneData(std::shared_ptr <RenderSystem> rsys, uint32_t id) {
     ConstantData::PerSceneStruct scene {
         1,
         {glm::vec4{GetCartesian(g_SceneData.zenith, g_SceneData.azimuth), 0.0f}},
-        {glm::vec4{1.0, 1.0, 1.0, 0.0}},
+        {glm::vec4{2.0, 2.0, 2.0, 0.0}},
     };
     auto ptr = rsys->GetGlobalConstantDescriptorPool().GetPerSceneConstantMemory(id);
     memcpy(ptr, &scene, sizeof scene);
@@ -256,7 +256,7 @@ int main(int argc, char ** argv)
         if (max_frame_count == 0) return -1;
     }
 
-    StartupOptions opt{.resol_x = 1280, .resol_y = 720, .title = "PBR Test"};
+    StartupOptions opt{.resol_x = 1920, .resol_y = 1080, .title = "PBR Test"};
 
     auto cmc = MainClass::GetInstance();
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
@@ -269,27 +269,34 @@ int main(int argc, char ** argv)
     auto rsys = cmc->GetRenderSystem();
     auto pbr_material_template_asset = ConstructMaterialTemplate();
     auto pbr_material_template_asset_ref = std::make_shared<AssetRef>(pbr_material_template_asset);
-    auto pbr_material_template = std::make_shared<MaterialTemplate>(rsys, pbr_material_template_asset_ref);
+    auto pbr_material_template = std::make_shared<MaterialTemplate>(*rsys);
+    pbr_material_template->InstantiateFromRef(pbr_material_template_asset_ref);
 
     auto gsys = cmc->GetGUISystem();
 
-    Engine::Texture color{*rsys}, depth{*rsys};
+    std::shared_ptr hdr_color{std::make_shared<Texture>(*rsys)};
+    std::shared_ptr color{std::make_shared<Texture>(*rsys)};
+    std::shared_ptr depth{std::make_shared<Texture>(*rsys)};
     Engine::Texture::TextureDesc desc {
         .dimensions = 2,
-        .width = 1280,
-        .height = 720,
+        .width = 1920,
+        .height = 1080,
         .depth = 1,
-        .format = Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm,
-        .type = Engine::ImageUtils::ImageType::ColorAttachment,
-        .mipmap_levels = 9,
+        .format = Engine::ImageUtils::ImageFormat::R11G11B10UFloat,
+        .type = Engine::ImageUtils::ImageType::ColorGeneral,
+        .mipmap_levels = 1,
         .array_layers = 1,
         .is_cube_map = false
     };
-    color.CreateTexture(desc, "Color Attachment");
+    hdr_color->CreateTexture(desc, "HDR Color Attachment");
+    
+    desc.format = Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm;
+    color->CreateTexture(desc, "Color Attachment");
+
     desc.mipmap_levels = 1;
     desc.format = Engine::ImageUtils::ImageFormat::D32SFLOAT;
     desc.type = Engine::ImageUtils::ImageType::DepthImage;
-    depth.CreateTexture(desc, "Depth Attachment");
+    depth->CreateTexture(desc, "Depth Attachment");
 
     auto red_texture = std::make_shared<SampledTexture>(*rsys);
     desc = {
@@ -307,15 +314,29 @@ int main(int argc, char ** argv)
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*red_texture, {1.0, 0.0, 0.0, 1.0});
 
     Engine::AttachmentUtils::AttachmentDescription color_att, depth_att;
-    color_att.image = color.GetImage();
-    color_att.image_view = color.GetImageView();
+    color_att.image = hdr_color->GetImage();
+    color_att.image_view = hdr_color->GetImageView();
     color_att.load_op = vk::AttachmentLoadOp::eClear;
     color_att.store_op = vk::AttachmentStoreOp::eStore;
 
-    depth_att.image = depth.GetImage();
-    depth_att.image_view = depth.GetImageView();
+    depth_att.image = depth->GetImage();
+    depth_att.image_view = depth->GetImageView();
     depth_att.load_op = vk::AttachmentLoadOp::eClear;
     depth_att.store_op = vk::AttachmentStoreOp::eDontCare;
+
+    auto cs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/bloom.comp.spv.asset");
+    assert(cs_ref);
+    MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(cs_ref);
+    auto bloom_compute_stage = std::make_shared<ComputeStage>(*rsys);
+    bloom_compute_stage->InstantiateFromRef(cs_ref);
+    bloom_compute_stage->SetDescVariable(
+        bloom_compute_stage->GetVariableIndex("inputImage").value().first,
+        std::const_pointer_cast<const Texture>(hdr_color)
+    );
+    bloom_compute_stage->SetDescVariable(
+        bloom_compute_stage->GetVariableIndex("outputImage").value().first,
+        std::const_pointer_cast<const Texture>(color)
+    );
 
     // Setup mesh
     std::filesystem::path mesh_path{std::string(ENGINE_ASSETS_DIR) + "/sphere/sphere.obj"};
@@ -325,7 +346,7 @@ int main(int argc, char ** argv)
     // Setup camera
     auto camera_go = cmc->GetWorldSystem()->CreateGameObject<GameObject>();
     Transform transform{};
-    transform.SetPosition({0.0f, 10.0f, 0.0f});
+    transform.SetPosition({0.0f, 5.0f, 0.0f});
     transform.SetRotationEuler(glm::vec3{0.0, 0.0, 3.1415926});
     camera_go->SetTransform(transform);
     auto camera_comp = std::make_shared<CameraComponent>(camera_go);
@@ -363,36 +384,54 @@ int main(int argc, char ** argv)
         GraphicsCommandBuffer & cb = dynamic_cast<GraphicsCommandBuffer &>(context.GetCommandBuffer());
 
         cb.Begin();
-        context.UseImage(color, GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite, GraphicsContext::ImageAccessType::None);
-        context.UseImage(depth, GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite, GraphicsContext::ImageAccessType::None);
+        context.UseImage(*hdr_color, GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite, GraphicsContext::ImageAccessType::None);
+        context.UseImage(*depth, GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite, GraphicsContext::ImageAccessType::None);
         context.PrepareCommandBuffer();
         vk::Extent2D extent {rsys->GetSwapchain().GetExtent()};
         cb.BeginRendering(color_att, depth_att, extent);
         rsys->DrawMeshes();
         cb.EndRendering();
 
-        cb.GenerateMipmaps(color, GraphicsContext::ImageAccessType::ColorAttachmentWrite);
+        auto cctx = rsys->GetFrameManager().GetComputeContext();
+        auto ccb = dynamic_cast<ComputeCommandBuffer &>(cctx.GetCommandBuffer());
+        cctx.UseImage(
+            *hdr_color, 
+            ComputeContext::ImageComputeAccessType::ShaderReadRandomWrite,
+            ComputeContext::ImageAccessType::ColorAttachmentWrite
+        );
+        cctx.UseImage(
+            *color,
+            ComputeContext::ImageComputeAccessType::ShaderRandomWrite,
+            ComputeContext::ImageAccessType::None
+        );
+        cctx.PrepareCommandBuffer();
+        ccb.BindComputeStage(*bloom_compute_stage);
+        ccb.DispatchCompute(color->GetTextureDescription().width / 16 + 1, color->GetTextureDescription().height / 16 + 1, 1);
 
-        context.UseImage(color, GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite, GraphicsContext::ImageAccessType::TransferRead);
+        context.UseImage(
+            *color, 
+            GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite, 
+            GraphicsContext::ImageAccessType::ShaderRandomWrite
+        );
         context.PrepareCommandBuffer();
         gsys->DrawGUI(
-            {color.GetImage(), color.GetImageView(), vk::AttachmentLoadOp::eLoad, vk::AttachmentStoreOp::eStore},
+            {color->GetImage(), color->GetImageView(), vk::AttachmentLoadOp::eLoad, vk::AttachmentStoreOp::eStore},
             extent, cb
         );
         cb.End();
 
         rsys->GetFrameManager().SubmitMainCommandBuffer();
         rsys->GetFrameManager().StageBlitComposition(
-            color.GetImage(), 
+            color->GetImage(), 
             vk::Extent2D{
-                color.GetTextureDescription().width,
-                color.GetTextureDescription().height
+                color->GetTextureDescription().width,
+                color->GetTextureDescription().height
             }, 
             rsys->GetSwapchain().GetExtent()
         );
         rsys->CompleteFrame();
 
-        SDL_Delay(5);
+        // SDL_Delay(5);
 
         if ((int64_t)frame_count >= max_frame_count) break;
     }

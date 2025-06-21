@@ -186,8 +186,9 @@ int main(int argc, char ** argv)
     cmc->GetAssetManager()->LoadBuiltinAssets();
     auto test_asset = ConstructMaterialTemplate();
     auto test_asset_ref = std::make_shared<AssetRef>(test_asset);
-    auto test_template = std::make_shared<MaterialTemplate>(rsys, test_asset_ref);
-    auto test_material_instance = std::make_shared<MaterialInstance>(rsys, test_template);
+    auto test_template = std::make_shared<MaterialTemplate>(*rsys);
+    test_template->InstantiateFromRef(test_asset_ref);
+    auto test_material_instance = std::make_shared<MaterialInstance>(*rsys, test_template);
     test_material_instance->WriteDescriptors(0);
     test_material_instance->WriteUBOUniform(1, test_template->GetVariableIndex("ambient_color", 1).value().first, glm::vec4(0.0, 0.0, 0.0, 0.0));
     test_material_instance->WriteUBOUniform(1, test_template->GetVariableIndex("specular_color", 1).value().first, glm::vec4(1.0, 1.0, 1.0, 64.0));

@@ -5,6 +5,40 @@
 #include <glm.hpp>
 
 #include "Render/Memory/SampledTexture.h"
+#include "Render/Memory/TextureSlice.h"
+
+static std::pair<vk::ImageView, vk::Sampler> ExtractImageViewAndSampler(std::any var) noexcept
+{
+    using namespace Engine;
+    if (var.type() == typeid(std::shared_ptr<const SampledTexture>)) {
+        auto ptr = std::any_cast<std::shared_ptr<const SampledTexture>>(var);
+        return std::make_pair(ptr->GetImageView(), ptr->GetSampler());
+    }
+    if (var.type() == typeid(std::shared_ptr<const SlicedSampledTextureView>)) {
+        auto ptr = std::any_cast<std::shared_ptr<const SlicedSampledTextureView>>(var);
+        return std::make_pair(ptr->GetImageView(), dynamic_cast<const SampledTexture &>(ptr->GetTexture()).GetSampler());
+    }
+
+    // Or maybe we should force everyone to use immutable samplers...
+    assert(!"A sampled image variable must be typed std::shared_ptr<const SampledTexture> or std::shared_ptr<const SlicedSampledTextureView>.");
+    return std::make_pair(nullptr, nullptr);
+}
+
+static vk::ImageView ExtractImageViewForStorageImage(std::any var) noexcept
+{
+    using namespace Engine;
+    if (var.type() == typeid(std::shared_ptr<const Texture>)) {
+        auto ptr = std::any_cast<std::shared_ptr<const Texture>>(var);
+        return ptr->GetImageView();
+    }
+    if (var.type() == typeid(std::shared_ptr<const SlicedTextureView>)) {
+        auto ptr = std::any_cast<std::shared_ptr<const SlicedTextureView>>(var);
+        return ptr->GetImageView();
+    }
+
+    assert(!"A storage image variable must be typed std::shared_ptr<const Texture> or std::shared_ptr<const SlicedTextureView>.");
+    return nullptr;
+}
 
 namespace Engine::PipelineInfo {
     void PlaceUBOVariables(
@@ -68,19 +102,13 @@ namespace Engine::PipelineInfo {
                     continue;
                 }
 
-                assert(
-                    instance_var->second.type() == typeid(std::shared_ptr<const SampledTexture>) 
-                    && "Sampled image variable is not a sampled image, or the image is invalid."
-                );
-                std::shared_ptr<const SampledTexture> image{
-                    *std::any_cast<std::shared_ptr<const SampledTexture>> (&instance_var->second)
-                };
-                assert((image->GetSampler() || sampler) && "Sampler not supplied for sampled image.");
+                auto [view, img_sampler] = ExtractImageViewAndSampler(instance_var->second);
+                assert((img_sampler || sampler) && "Sampler not supplied for sampled image.");
 
                 vk::DescriptorImageInfo image_info {};
-                image_info.imageView = image->GetImageView();
+                image_info.imageView = view;
                 image_info.imageLayout = vk::ImageLayout::eReadOnlyOptimal;
-                image_info.sampler = image->GetSampler() ? image->GetSampler() : sampler;
+                image_info.sampler = img_sampler ? img_sampler : sampler;
                 ret.push_back(std::make_pair(uniform.binding, image_info));
             } else if (uniform.type == ShaderVariable::Type::StorageImage) {
                 if (instance_var == variables.end()) {
@@ -88,16 +116,10 @@ namespace Engine::PipelineInfo {
                     continue;
                 }
 
-                assert(
-                    instance_var->second.type() == typeid(std::shared_ptr<const Texture>) && 
-                    "Storage image variable is not a texture image, or the texture is invalid."
-                );
-                std::shared_ptr<const Texture> image{
-                    *std::any_cast<std::shared_ptr<const Texture>> (&instance_var->second)
-                };
+                auto view = ExtractImageViewForStorageImage(instance_var->second);
 
                 vk::DescriptorImageInfo image_info {};
-                image_info.imageView = image->GetImageView();
+                image_info.imageView = view;
                 image_info.imageLayout = vk::ImageLayout::eGeneral;
                 image_info.sampler = nullptr;
                 ret.push_back(std::make_pair(uniform.binding, image_info));
