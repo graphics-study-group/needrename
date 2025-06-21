@@ -99,8 +99,8 @@ int main()
         context.UseImage(window->GetDepthTexture(), GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite, GraphicsContext::ImageAccessType::None);
         context.PrepareCommandBuffer();
 
-        scene_widget->PreRender(cb);
-        // game_widget->PreRender(cb);
+        scene_widget->PreRender();
+        // game_widget->PreRender();
         gui->PrepareGUI();
         main_window.Render();
 

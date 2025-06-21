@@ -23,17 +23,17 @@ namespace Editor
 
         virtual void Render() override;
         
-        void CreateRenderTargetBinding(std::shared_ptr<Engine::RenderSystem> render_system);
-        void PreRender(Engine::GraphicsCommandBuffer &cb);
+        // void CreateRenderTargetBinding(std::shared_ptr<Engine::RenderSystem> render_system);
+        // void PreRender(Engine::GraphicsCommandBuffer &cb);
 
-        Engine::RenderTargetBinding m_render_target_binding{};
+        // Engine::RenderTargetBinding m_render_target_binding{};
 
-        int m_game_width = 1280;
-        int m_game_height = 720;
+        // int m_game_width = 1280;
+        // int m_game_height = 720;
 
-        std::shared_ptr<Engine::SampledTexture> m_color_texture{};
-        std::shared_ptr<Engine::SampledTexture> m_depth_texture{};
-        ImTextureID m_color_att_id{};
+        // std::shared_ptr<Engine::SampledTexture> m_color_texture{};
+        // std::shared_ptr<Engine::SampledTexture> m_depth_texture{};
+        // ImTextureID m_color_att_id{};
     };
 }
 

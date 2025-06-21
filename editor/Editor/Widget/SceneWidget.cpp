@@ -1,10 +1,13 @@
 #include "SceneWidget.h"
 #include <backends/imgui_impl_vulkan.h>
-#include <Render/Memory/Image2D.h>
 #include <MainClass.h>
 #include <Functional/SDLWindow.h>
 #include <Render/RenderSystem.h>
-#include <Render/Pipeline/CommandBuffer/RenderCommandBuffer.h>
+#include <Render/ImageUtils.h>
+#include <Render/Memory/SampledTexture.h>
+#include <Render/Pipeline/CommandBuffer/GraphicsCommandBuffer.h>
+#include <Render/Pipeline/CommandBuffer/GraphicsContext.h>
+#include <Render/RenderSystem/FrameManager.h>
 
 namespace Editor
 {
@@ -22,43 +25,56 @@ namespace Editor
 
     SceneWidget::~SceneWidget()
     {
-        vkDestroySampler(Engine::MainClass::GetInstance()->GetRenderSystem()->getDevice(), m_sampler, nullptr);
     }
 
     void SceneWidget::CreateRenderTargetBinding(std::shared_ptr<Engine::RenderSystem> render_system)
     {
         SDL_GetWindowSizeInPixels(Engine::MainClass::GetInstance()->GetWindow()->GetWindow(), &m_texture_width, &m_texture_height);
-        m_color_image = std::make_shared<Engine::AllocatedImage2D>(render_system);
-        m_color_image->Create(m_texture_width, m_texture_height, Engine::ImageUtils::ImageType::ColorGeneral, Engine::ImageUtils::ImageFormat::B8G8R8A8SRGB, 1);
-        m_depth_image = std::make_shared<Engine::AllocatedImage2D>(render_system);
-        m_depth_image->Create(m_texture_width, m_texture_height, Engine::ImageUtils::ImageType::SampledDepthImage, Engine::ImageUtils::ImageFormat::D32SFLOAT, 1);
+        m_color_texture = std::make_shared<Engine::SampledTexture>(*render_system);
+        m_depth_texture = std::make_shared<Engine::SampledTexture>(*render_system);
+        Engine::Texture::TextureDesc desc{
+            .dimensions = 2,
+            .width = m_texture_width,
+            .height = m_texture_height,
+            .depth = 1,
+            .format = Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB,
+            .type = Engine::ImageUtils::ImageType::ColorGeneral,
+            .mipmap_levels = 1,
+            .array_layers = 1,
+            .is_cube_map = false};
+        m_color_texture->CreateTextureAndSampler(desc, {}, "Scene color attachment");
+        desc.format = Engine::ImageUtils::ImageFormat::D32SFLOAT;
+        desc.type = Engine::ImageUtils::ImageType::SampledDepthImage;
+        m_depth_texture->CreateTextureAndSampler(desc, {}, "Scene depth attachment");
+
         Engine::AttachmentUtils::AttachmentDescription color_att, depth_att;
-        color_att.image = m_color_image->GetImage();
-        color_att.image_view = m_color_image->GetImageView();
+        color_att.image = m_color_texture->GetImage();
+        color_att.image_view = m_color_texture->GetImageView();
         color_att.load_op = vk::AttachmentLoadOp::eClear;
         color_att.store_op = vk::AttachmentStoreOp::eStore;
         m_render_target_binding.SetColorAttachment(color_att);
-        depth_att.image = m_depth_image->GetImage();
-        depth_att.image_view = m_depth_image->GetImageView();
+        depth_att.image = m_depth_texture->GetImage();
+        depth_att.image_view = m_depth_texture->GetImageView();
         depth_att.load_op = vk::AttachmentLoadOp::eClear;
         depth_att.store_op = vk::AttachmentStoreOp::eDontCare;
         m_render_target_binding.SetDepthAttachment(depth_att);
 
-        vk::SamplerCreateInfo sci{};
-        sci.magFilter = sci.minFilter = vk::Filter::eNearest;
-        sci.addressModeU = sci.addressModeV = sci.addressModeW = vk::SamplerAddressMode::eRepeat;
-        m_sampler = render_system->getDevice().createSampler(sci);
-        m_color_att_id = reinterpret_cast<ImTextureID>(ImGui_ImplVulkan_AddTexture(m_sampler, color_att.image_view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL));
+        m_color_att_id = reinterpret_cast<ImTextureID>(ImGui_ImplVulkan_AddTexture(m_color_texture->GetSampler(), color_att.image_view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL));
     }
 
-    void SceneWidget::PreRender(Engine::RenderCommandBuffer &cb)
+    void SceneWidget::PreRender()
     {
         m_camera.m_aspect_ratio = static_cast<float>(m_viewport_size.x) / static_cast<float>(m_viewport_size.y);
         m_camera.UpdateProjectionMatrix();
-        cb.BeginRendering(m_render_target_binding, {(uint32_t)m_viewport_size.x, (uint32_t)m_viewport_size.y});
+
+        auto context = Engine::MainClass::GetInstance()->GetRenderSystem()->GetFrameManager().GetGraphicsContext();
+        auto &cb = dynamic_cast<Engine::GraphicsCommandBuffer &>(context.GetCommandBuffer());
+        context.UseImage(*m_color_texture, Engine::GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite, Engine::GraphicsContext::ImageAccessType::None);
+        context.UseImage(*m_depth_texture, Engine::GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite, Engine::GraphicsContext::ImageAccessType::None);
+        context.PrepareCommandBuffer();
+        cb.BeginRendering(m_render_target_binding, {(uint32_t)m_viewport_size.x, (uint32_t)m_viewport_size.y}, "Editor Scene Pass");
         Engine::MainClass::GetInstance()->GetRenderSystem()->DrawMeshes(m_camera.m_view_matrix, m_camera.m_projection_matrix, {(uint32_t)m_viewport_size.x, (uint32_t)m_viewport_size.y});
         cb.EndRendering();
-        cb.InsertAttachmentBarrier(Engine::RenderCommandBuffer::AttachmentBarrierType::ColorAttachmentRAW, m_color_image->GetImage());
     }
 
     void SceneWidget::Render()
