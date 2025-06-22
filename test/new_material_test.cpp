@@ -56,6 +56,16 @@ std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate()
     mtspp.attachments.color_ops = {
         AttachmentUtils::AttachmentOp{}
     };
+    using CBP = PipelineProperties::ColorBlendingProperties;
+    CBP cbp;
+    cbp.color_op = cbp.alpha_op = CBP::BlendOperation::Add;
+    cbp.src_color = CBP::BlendFactor::SrcAlpha;
+    cbp.dst_color = CBP::BlendFactor::OneMinusSrcAlpha;
+    cbp.src_alpha = CBP::BlendFactor::One;
+    cbp.dst_alpha = CBP::BlendFactor::Zero;
+    mtspp.attachments.color_blending = {
+        cbp
+    };
     mtspp.attachments.depth = ImageUtils::ImageFormat::D32SFLOAT;
     mtspp.shaders.shaders = std::vector<std::shared_ptr<AssetRef>>{vs_ref, fs_ref};
 
@@ -91,8 +101,9 @@ int main(int argc, char ** argv)
     cmc->GetAssetManager()->LoadBuiltinAssets();
     auto test_asset = ConstructMaterialTemplate();
     auto test_asset_ref = std::make_shared<AssetRef>(test_asset);
-    auto test_template = std::make_shared<Materials::BlinnPhongTemplate>(rsys, test_asset_ref);
-    auto test_material_instance = std::make_shared<Materials::BlinnPhongInstance>(rsys, test_template);
+    auto test_template = std::make_shared<Materials::BlinnPhongTemplate>(*rsys);
+    test_template->InstantiateFromRef(test_asset_ref);
+    auto test_material_instance = std::make_shared<Materials::BlinnPhongInstance>(*rsys, test_template);
     test_material_instance->SetAmbient(glm::vec4(0.0, 0.0, 0.0, 0.0));
     test_material_instance->SetSpecular(glm::vec4(1.0, 1.0, 1.0, 64.0));
     test_material_instance->SetBaseTexture(allocated_image_texture);
@@ -111,6 +122,7 @@ int main(int argc, char ** argv)
         glm::mat4 proj{1.0f};
     } camera_mats;
     ConstantData::PerSceneStruct scene {
+        1,
         glm::vec4{-5.0f, -5.0f, -5.0f, 0.0f},
         glm::vec4{1.0, 1.0, 1.0, 0.0},
     };
@@ -160,7 +172,8 @@ int main(int argc, char ** argv)
     auto asys = cmc->GetAssetManager();
     auto cs_ref = asys->GetNewAssetRef("~/shaders/gaussian_blur.comp.spv.asset");
     asys->LoadAssetImmediately(cs_ref);
-    ComputeStage cstage{*rsys, cs_ref};
+    ComputeStage cstage{*rsys};
+    cstage.InstantiateFromRef(cs_ref);
     cstage.SetDescVariable(
         cstage.GetVariableIndex("inputImage").value().first,
         std::const_pointer_cast<const Texture>(color)

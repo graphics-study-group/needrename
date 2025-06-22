@@ -18,15 +18,14 @@ namespace Engine
         RenderSystem & system,
         vk::CommandBuffer cb,
         uint32_t frame_in_flight
-        ) : ICommandBuffer(cb),
-        m_system(system),
+        ) : TransferCommandBuffer(system, cb),
         m_inflight_frame_index(frame_in_flight)
     {
     }
 
     void GraphicsCommandBuffer::BeginRendering(
-        AttachmentUtils::AttachmentDescription color, 
-        AttachmentUtils::AttachmentDescription depth,
+        const AttachmentUtils::AttachmentDescription & color, 
+        const AttachmentUtils::AttachmentDescription & depth,
         vk::Extent2D extent,
         const std::string & name)
     {

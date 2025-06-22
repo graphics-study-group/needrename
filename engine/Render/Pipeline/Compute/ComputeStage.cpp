@@ -15,109 +15,110 @@ namespace Engine{
         std::unordered_map <uint32_t, std::any> m_desc_variables {};
         std::unordered_map <uint32_t, std::any> m_inblock_variables {};
 
-        std::vector <std::byte> m_ubo_staging_buffer;
+        std::vector <std::byte> m_ubo_staging_buffer {};
 
         PassInfo m_passInfo {};
         InstancedPassInfo m_instancedPassInfo {};
+
+        void CreatePipeline(RenderSystem & system, const ShaderAsset & asset) {
+            assert(asset.shaderType == ShaderAsset::ShaderType::Compute);
+            auto code = asset.binary;
+
+            auto reflected = ShaderUtils::ReflectSpirvDataCompute(code);
+            // Save uniform locations (Reused from MaterialTemplate)
+            #ifndef NDEBUG
+            std::unordered_set <std::string> names;
+            for (auto & [name, _] : reflected.inblock.names) {
+                if (names.find(name) != names.end()) {
+                    SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Duplicated variable name %s", name.c_str());
+                }
+                names.insert(name);
+            }
+            for (auto & [name, _] : reflected.desc.names) {
+                if (names.find(name) != names.end()) {
+                    SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Duplicated variable name %s", name.c_str());
+                }
+                names.insert(name);
+            }
+            #endif
+            for (auto & [_, idx] : reflected.inblock.names) {
+                idx += m_passInfo.inblock.vars.size();
+            }
+            m_passInfo.inblock.names.merge(reflected.inblock.names);
+            m_passInfo.inblock.vars.insert(m_passInfo.inblock.vars.end(), reflected.inblock.vars.begin(), reflected.inblock.vars.end());
+
+            for (auto & [_, idx] : reflected.desc.names) {
+                idx += m_passInfo.desc.vars.size();
+            }
+            m_passInfo.desc.names.merge(reflected.desc.names);
+            m_passInfo.desc.vars.insert(m_passInfo.desc.vars.end(), reflected.desc.vars.begin(), reflected.desc.vars.end());
+            
+            m_passInfo.inblock.maximal_ubo_size = 0;
+            for (const auto & var : m_passInfo.inblock.vars) {
+                m_passInfo.inblock.maximal_ubo_size = std::max(
+                    m_passInfo.inblock.maximal_ubo_size, 
+                    1ULL * var.inblock_location.offset + var.inblock_location.size
+                );
+            }
+
+            vk::DescriptorSetLayoutCreateInfo dslci = reflected.set_layout.create_info;
+            m_passInfo.desc_layout = system.getDevice().createDescriptorSetLayoutUnique(dslci);
+
+            vk::PipelineLayoutCreateInfo plci{
+                vk::PipelineLayoutCreateFlags{},
+                { m_passInfo.desc_layout.get() },
+                {}
+            };
+            m_passInfo.pipeline_layout = system.getDevice().createPipelineLayoutUnique(plci);
+
+            vk::ShaderModuleCreateInfo smci {
+                vk::ShaderModuleCreateFlags{},
+                code.size() * sizeof(uint32_t),
+                reinterpret_cast<const uint32_t *> (code.data())
+            };
+            m_passInfo.shaders.resize(1);
+            m_passInfo.shaders[0] = system.getDevice().createShaderModuleUnique(smci);
+
+            vk::PipelineShaderStageCreateInfo pssci{
+                vk::PipelineShaderStageCreateFlags{},
+                vk::ShaderStageFlagBits::eCompute,
+                m_passInfo.shaders[0].get(),
+                "main"
+            };
+            vk::ComputePipelineCreateInfo cpci{
+                vk::PipelineCreateFlags{},
+                pssci,
+                m_passInfo.pipeline_layout.get()
+            };
+            auto ret = system.getDevice().createComputePipelineUnique(nullptr, cpci);
+            m_passInfo.pipeline = std::move(ret.value);
+        }
     };
 
-    void ComputeStage::CreatePipeline()
+    ComputeStage::ComputeStage(
+        RenderSystem &system
+    ) : m_system(system), pimpl(std::make_unique<ComputeStage::impl>())
     {
-        auto shader_ref = m_asset->cas<ShaderAsset>();
-        assert(shader_ref->shaderType == ShaderAsset::ShaderType::Compute);
-        auto code = shader_ref->binary;
-
-        auto reflected = ShaderUtils::ReflectSpirvDataCompute(code);
-        // Save uniform locations (Reused from MaterialTemplate)
-        #ifndef NDEBUG
-        std::unordered_set <std::string> names;
-        for (auto & [name, _] : reflected.inblock.names) {
-            if (names.find(name) != names.end()) {
-                SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Duplicated variable name %s", name.c_str());
-            }
-            names.insert(name);
-        }
-        for (auto & [name, _] : reflected.desc.names) {
-            if (names.find(name) != names.end()) {
-                SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Duplicated variable name %s", name.c_str());
-            }
-            names.insert(name);
-        }
-        #endif
-        for (auto & [_, idx] : reflected.inblock.names) {
-            idx += pimpl->m_passInfo.inblock.vars.size();
-        }
-        pimpl->m_passInfo.inblock.names.merge(reflected.inblock.names);
-        pimpl->m_passInfo.inblock.vars.insert(pimpl->m_passInfo.inblock.vars.end(), reflected.inblock.vars.begin(), reflected.inblock.vars.end());
-
-        for (auto & [_, idx] : reflected.desc.names) {
-            idx += pimpl->m_passInfo.desc.vars.size();
-        }
-        pimpl->m_passInfo.desc.names.merge(reflected.desc.names);
-        pimpl->m_passInfo.desc.vars.insert(pimpl->m_passInfo.desc.vars.end(), reflected.desc.vars.begin(), reflected.desc.vars.end());
-        
-        pimpl->m_passInfo.inblock.maximal_ubo_size = 0;
-        for (const auto & var : pimpl->m_passInfo.inblock.vars) {
-            pimpl->m_passInfo.inblock.maximal_ubo_size = std::max(
-                pimpl->m_passInfo.inblock.maximal_ubo_size, 
-                1ULL * var.inblock_location.offset + var.inblock_location.size
-            );
-        }
-
-        vk::DescriptorSetLayoutCreateInfo dslci = reflected.set_layout.create_info;
-        pimpl->m_passInfo.desc_layout = m_system.getDevice().createDescriptorSetLayoutUnique(dslci);
-
-        vk::PipelineLayoutCreateInfo plci{
-            vk::PipelineLayoutCreateFlags{},
-            { pimpl->m_passInfo.desc_layout.get() },
-            {}
-        };
-        pimpl->m_passInfo.pipeline_layout = m_system.getDevice().createPipelineLayoutUnique(plci);
-
-        vk::ShaderModuleCreateInfo smci {
-            vk::ShaderModuleCreateFlags{},
-            code.size() * sizeof(uint32_t),
-            reinterpret_cast<const uint32_t *> (code.data())
-        };
-        pimpl->m_passInfo.shaders.resize(1);
-        pimpl->m_passInfo.shaders[0] = m_system.getDevice().createShaderModuleUnique(smci);
-
-        vk::PipelineShaderStageCreateInfo pssci{
-            vk::PipelineShaderStageCreateFlags{},
-            vk::ShaderStageFlagBits::eCompute,
-            pimpl->m_passInfo.shaders[0].get(),
-            "main"
-        };
-        vk::ComputePipelineCreateInfo cpci{
-            vk::PipelineCreateFlags{},
-            pssci,
-            pimpl->m_passInfo.pipeline_layout.get()
-        };
-        auto ret = m_system.getDevice().createComputePipelineUnique(nullptr, cpci);
-        pimpl->m_passInfo.pipeline = std::move(ret.value);
     }
 
-    ComputeStage::ComputeStage(
-        RenderSystem &system, 
-        std::shared_ptr<AssetRef> asset
-    ) : m_system(system), m_asset(asset), pimpl(std::make_unique<ComputeStage::impl>())
+    void ComputeStage::Instantiate(const ShaderAsset &asset)
     {
-        CreatePipeline();
+        pimpl->CreatePipeline(m_system, asset);
 
         // Allocate uniform buffer and descriptor set
         auto ubo_size = pimpl->m_passInfo.inblock.maximal_ubo_size;
         if (ubo_size == 0) {
-            SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Found zero-sized UBO when processing compute stage shader %s.", asset->cas<ShaderAsset>()->m_name.c_str());
+            SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Found zero-sized UBO when processing compute stage shader %s.", asset.m_name.c_str());
         } else {
-            pimpl->m_instancedPassInfo.ubo = std::make_unique<Buffer>(system);
+            pimpl->m_instancedPassInfo.ubo = std::make_unique<Buffer>(m_system);
             pimpl->m_instancedPassInfo.ubo->Create(Buffer::BufferType::Uniform, ubo_size);
         }
         // TODO: We obviously need a new pool for compute decriptors
         vk::DescriptorSetAllocateInfo dsai {
-            system.GetGlobalConstantDescriptorPool().get(),
+            m_system.GetGlobalConstantDescriptorPool().get(),
             { pimpl->m_passInfo.desc_layout.get() }
         };
-        pimpl->m_instancedPassInfo.desc_set = system.getDevice().allocateDescriptorSets(dsai)[0];
+        pimpl->m_instancedPassInfo.desc_set = m_system.getDevice().allocateDescriptorSets(dsai)[0];
     }
 
     ComputeStage::~ComputeStage() = default;

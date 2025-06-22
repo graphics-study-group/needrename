@@ -3,6 +3,10 @@
 
 #include "MaterialTemplate.h"
 #include "Render/Memory/Buffer.h"
+
+#include "Asset/InstantiatedFromAsset.h"
+#include "Asset/Material/MaterialAsset.h"
+
 #include <any>
 
 namespace Engine
@@ -11,12 +15,12 @@ namespace Engine
     class Buffer;
     /// @brief A light-weight instance of a given material,
     /// where all mutable data such as texture and uniforms are stored.
-    class MaterialInstance {
+    class MaterialInstance : public IInstantiatedFromAsset<MaterialAsset> {
     public:
         using PassInfo = PipelineInfo::InstancedPassInfo;
 
     protected:
-        std::weak_ptr <RenderSystem> m_system;
+        RenderSystem & m_system;
         std::weak_ptr <MaterialTemplate> m_parent_template;
         std::unordered_map <uint32_t, std::unordered_map<uint32_t, std::any>> m_desc_variables {};
         std::unordered_map <uint32_t, std::unordered_map<uint32_t, std::any>> m_inblock_variables {};
@@ -26,7 +30,7 @@ namespace Engine
         std::vector <std::byte> m_buffer {};
     
     public:
-        MaterialInstance(std::weak_ptr <RenderSystem> system, std::shared_ptr <MaterialTemplate> tpl);
+        MaterialInstance(RenderSystem & system, std::shared_ptr <MaterialTemplate> tpl);
         virtual ~MaterialInstance() = default;
 
         /**
@@ -119,11 +123,11 @@ namespace Engine
         vk::DescriptorSet GetDescriptor(uint32_t pass) const;
 
         /**
-         * @brief Covert a material asset to the material instance. Load properties to the uniforms.
+         * @brief Instantiate a material asset to the material instance. Load properties to the uniforms.
          * 
          * @param asset The MaterialAsset to convert.
          */
-        virtual void Convert(std::shared_ptr <AssetRef> asset);
+        void Instantiate(const MaterialAsset & asset) override;
     };
 } // namespace Engine
 

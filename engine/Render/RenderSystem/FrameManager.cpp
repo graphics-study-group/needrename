@@ -340,20 +340,20 @@ namespace Engine::RenderSystemState{
 
     GraphicsContext FrameManager::GetGraphicsContext()
     {
-        return GraphicsContext(GraphicsCommandBuffer(
+        return GraphicsContext(
             pimpl->m_system, 
             pimpl->command_buffers[GetFrameInFlight()].get(), 
             GetFrameInFlight()
-        ));
+        );
     }
 
     ComputeContext FrameManager::GetComputeContext()
     {
-        return ComputeContext(ComputeCommandBuffer(
+        return ComputeContext(
             pimpl->m_system, 
             pimpl->command_buffers[GetFrameInFlight()].get(), 
             GetFrameInFlight()
-        ));
+        );
     }
 
     uint32_t FrameManager::StartFrame(uint64_t timeout)

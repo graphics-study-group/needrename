@@ -78,6 +78,12 @@ target_link_libraries(compute_shader_test engine)
 add_test(NAME compute_shader_test COMMAND compute_shader_test 120)
 set_target_properties(compute_shader_test PROPERTIES FOLDER tests)
 
+add_executable(pbr_test pbr_test.cpp)
+add_dependencies(pbr_test shader)
+target_link_libraries(pbr_test engine)
+add_test(NAME pbr_test COMMAND pbr_test 120)
+set_target_properties(pbr_test PROPERTIES FOLDER tests)
+
 # Copy SDL dll
 add_custom_command(TARGET SDL_init_test POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different

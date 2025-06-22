@@ -2,10 +2,10 @@
     "%data": {
         "&0": {
             "%type": "Engine::ShaderAsset",
-            "Asset::m_guid": "2191CAAF586849B8B5565ED808897D7E",
-            "m_name": "shadowmap.vert.spv",
+            "Asset::m_guid": "6F507D1CAEE04798BBC61BB30BE818DF",
+            "m_name": "bloom.comp.spv",
             "m_entry_point": "main",
-            "shaderType": 1
+            "shaderType": 3
         }
     },
     "%main_id": "&0"

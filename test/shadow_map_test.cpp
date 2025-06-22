@@ -125,6 +125,7 @@ int main(int argc, char ** argv)
         glm::mat4 proj{1.0f};
     } camera_mats;
     ConstantData::PerSceneStruct scene {
+        1,
         glm::vec4{-5.0f, -5.0f, -5.0f, 0.0f},
         glm::vec4{1.0, 1.0, 1.0, 0.0},
     };
@@ -149,7 +150,7 @@ int main(int argc, char ** argv)
         .width = 1920,
         .height = 1080,
         .depth = 1,
-        .format = Engine::ImageUtils::ImageFormat::B8G8R8A8SRGB,
+        .format = Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB,
         .type = Engine::ImageUtils::ImageType::ColorAttachment,
         .mipmap_levels = 1,
         .array_layers = 1,
@@ -185,8 +186,9 @@ int main(int argc, char ** argv)
     cmc->GetAssetManager()->LoadBuiltinAssets();
     auto test_asset = ConstructMaterialTemplate();
     auto test_asset_ref = std::make_shared<AssetRef>(test_asset);
-    auto test_template = std::make_shared<MaterialTemplate>(rsys, test_asset_ref);
-    auto test_material_instance = std::make_shared<MaterialInstance>(rsys, test_template);
+    auto test_template = std::make_shared<MaterialTemplate>(*rsys);
+    test_template->InstantiateFromRef(test_asset_ref);
+    auto test_material_instance = std::make_shared<MaterialInstance>(*rsys, test_template);
     test_material_instance->WriteDescriptors(0);
     test_material_instance->WriteUBOUniform(1, test_template->GetVariableIndex("ambient_color", 1).value().first, glm::vec4(0.0, 0.0, 0.0, 0.0));
     test_material_instance->WriteUBOUniform(1, test_template->GetVariableIndex("specular_color", 1).value().first, glm::vec4(1.0, 1.0, 1.0, 64.0));

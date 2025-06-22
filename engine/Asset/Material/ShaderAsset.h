@@ -112,7 +112,10 @@ namespace Engine {
             Geometry
         } shaderType {ShaderType::None};
 
+        /// @brief Name of the shader.
         REFL_SER_ENABLE std::string m_name {};
+        /// @brief Entry point name for the shader, case-sensitive. Default to "main".
+        REFL_SER_ENABLE std::string m_entry_point {};
         std::vector <uint32_t> binary {};
 
         virtual void save_asset_to_archive(Serialization::Archive &archive) const override;

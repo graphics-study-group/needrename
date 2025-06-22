@@ -5,6 +5,7 @@
 #include <optional>
 #include "Render/AttachmentUtils.h"
 #include "Asset/Material/MaterialTemplateAsset.h"
+#include "Asset/InstantiatedFromAsset.h"
 #include "Render/Pipeline/PipelineInfo.h"
 
 namespace Engine {
@@ -22,7 +23,9 @@ namespace Engine {
     ///
     /// When using indices in its methods, all indices are assumed to be valid.
     /// In-valid indices will cause assertion failure.
-    class MaterialTemplate : protected std::enable_shared_from_this<MaterialTemplate> {
+    class MaterialTemplate 
+        : protected std::enable_shared_from_this<MaterialTemplate>, public IInstantiatedFromAsset<MaterialTemplateAsset> 
+    {
     public:
         using PassInfo = PipelineInfo::MaterialPassInfo;
         using PoolInfo = PipelineInfo::MaterialPoolInfo;
@@ -30,8 +33,7 @@ namespace Engine {
         using InblockVar = ShaderUtils::InBlockVariableData;
 
     protected:
-        std::weak_ptr <RenderSystem> m_system;
-        std::shared_ptr <AssetRef> m_asset;
+        RenderSystem & m_system;
 
         std::unordered_map <uint32_t, PassInfo> m_passes {};
         PoolInfo m_poolInfo {};
@@ -50,7 +52,9 @@ namespace Engine {
          * @param system The RenderSystem associated with this material template.
          * @param asset A shared pointer to the AssetRef representing the material template's properties.
          */
-        MaterialTemplate (std::weak_ptr <RenderSystem> system, std::shared_ptr <AssetRef> asset = nullptr);
+        MaterialTemplate (RenderSystem & system);
+
+        void Instantiate(const MaterialTemplateAsset & asset) override;
 
         virtual ~MaterialTemplate () = default;
 

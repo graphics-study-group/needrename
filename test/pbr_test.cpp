@@ -25,17 +25,45 @@
 using namespace Engine;
 namespace sch = std::chrono;
 
+std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate()
+{
+    auto test_asset = std::make_shared<MaterialTemplateAsset>();
+    auto vs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/pbr_base.vert.spv.asset");
+    auto fs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/lambertian_cook_torrance.frag.spv.asset");
+    assert(vs_ref && fs_ref);
+    MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(vs_ref);
+    MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(fs_ref);
+    
+    test_asset->name = "LambertianCookTorrancePBR";
+
+    MaterialTemplateSinglePassProperties mtspp{};
+    mtspp.attachments.color = {
+        ImageUtils::ImageFormat::R11G11B10UFloat
+    };
+    mtspp.attachments.color_ops = {
+        AttachmentUtils::AttachmentOp{}
+    };
+    mtspp.attachments.color_blending = {
+        PipelineProperties::ColorBlendingProperties{}
+    };
+    mtspp.attachments.depth = ImageUtils::ImageFormat::D32SFLOAT;
+    mtspp.shaders.shaders = std::vector<std::shared_ptr<AssetRef>>{vs_ref, fs_ref};
+
+    test_asset->properties.properties[0] = mtspp;
+
+    return test_asset;
+}
+
 class MeshComponentFromFile : public MeshComponent {
     Transform transform;
 
     struct UniformData {
-        glm::vec4 specular;
-        glm::vec4 ambient;
+        float metalness;
+        float roughness;
     };
 
     UniformData m_uniform_data {
-        glm::vec4{0.5, 0.5, 0.5, 4.0}, 
-        glm::vec4{0.1, 0.1, 0.1, 1.0}
+        1.0, 1.0
     };
 
     void LoadMesh(std::filesystem::path mesh) {
@@ -62,6 +90,8 @@ class MeshComponentFromFile : public MeshComponent {
         const auto &origin_shapes = reader.GetShapes();
         std::vector<tinyobj::shape_t> shapes;
         const auto &origin_materials = reader.GetMaterials();
+
+        // We dont need materials from the obj file.
         std::vector<tinyobj::material_t> materials;
 
         // Split the subshapes by material
@@ -90,9 +120,10 @@ class MeshComponentFromFile : public MeshComponent {
                     new_shape.mesh.indices.push_back(shape.mesh.indices[fc * 3 + vrtx]);
                 }
             }
+
             for (const auto & [_, new_shape] : material_id_map) {
                 shapes.push_back(new_shape);
-                materials.push_back(origin_materials[new_shape.mesh.material_ids[0]]);
+                materials.push_back(tinyobj::material_t{});
                 std::fill(
                     shapes.back().mesh.material_ids.begin(),
                     shapes.back().mesh.material_ids.end(),
@@ -105,12 +136,6 @@ class MeshComponentFromFile : public MeshComponent {
         ObjLoader loader;
         loader.LoadMeshAssetFromTinyObj(*(this->m_mesh_asset->as<MeshAsset>()), attrib, shapes);
 
-        // Read material assets
-        for (const auto & material : materials) {
-            this->m_material_assets.push_back(std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(std::make_shared<MaterialAsset>())));
-            loader.LoadMaterialAssetFromTinyObj(*(this->m_material_assets.back()->as<MaterialAsset>()), material, mesh.parent_path());
-        }
-
         assert(m_mesh_asset && m_mesh_asset->IsValid());
         m_submeshes.clear();
         size_t submesh_count = m_mesh_asset->as<MeshAsset>()->GetSubmeshCount();
@@ -122,8 +147,11 @@ class MeshComponentFromFile : public MeshComponent {
     }
 
 public: 
-    MeshComponentFromFile(std::filesystem::path mesh_file_name) 
-    : MeshComponent(std::weak_ptr<GameObject>()), transform() {
+    MeshComponentFromFile(
+        std::filesystem::path mesh_file_name, 
+        std::shared_ptr<MaterialTemplate> material_template,
+        std::shared_ptr<const SampledTexture> albedo
+    ) : MeshComponent(std::weak_ptr<GameObject>()), transform() {
         LoadMesh(mesh_file_name);
 
         auto system = m_system.lock();
@@ -134,14 +162,11 @@ public:
             helper.EnqueueVertexBufferSubmission(*submesh);
         }
 
-        for (size_t i = 0; i < m_material_assets.size(); i++) {
-            auto ptr = std::make_shared<Materials::BlinnPhongInstance>(
-                *system, 
-                system->GetMaterialRegistry().GetMaterial("Built-in Blinn-Phong")
-            );
-            auto mat_asset = m_material_assets[i]->cas<MaterialAsset>();
-            assert(mat_asset);
-            ptr->Instantiate(*mat_asset);
+        auto id_albedo = material_template->GetVariableIndex("albedoSampler", 0).value();
+        assert(id_albedo.second == false);
+        for (size_t i = 0; i < m_submeshes.size(); i++) {
+            auto ptr = std::make_shared<MaterialInstance>(*system, material_template);
+            ptr->WriteTextureUniform(0, 1, albedo);
             m_materials.push_back(ptr);
         }
     }
@@ -155,28 +180,29 @@ public:
         return transform;
     }
 
-    void UpdateUniformData(float spec_r, float spec_g, float spec_b, float spec_coef) {
+    void UpdateUniformData(float metalness, float roughness) {
         uint8_t identity = 
-            (fabs(spec_r - m_uniform_data.specular.r) < 1e-3) +
-            (fabs(spec_g - m_uniform_data.specular.g) < 1e-3) +
-            (fabs(spec_b - m_uniform_data.specular.b) < 1e-3) +
-            (fabs(spec_coef - m_uniform_data.specular.a) < 1e-3);
-        if (identity == 4)  return;
+            (fabs(metalness - m_uniform_data.metalness) < 1e-3) +
+            (fabs(roughness - m_uniform_data.roughness) < 1e-3);
+        if (identity == 2)  return;
+        m_uniform_data = {
+            .metalness = metalness, .roughness = roughness
+        };
 
-        m_uniform_data.specular = glm::vec4{spec_r, spec_g, spec_b, spec_coef};
+        auto id_metalness = m_materials[0]->GetTemplate().GetVariableIndex("metalness", 0).value();
+        auto id_roughness = m_materials[0]->GetTemplate().GetVariableIndex("roughness", 0).value();
+        assert(id_metalness.second == true && id_roughness.second == true);
         for (auto & material : m_materials) {
-            auto mat_ptr = std::dynamic_pointer_cast<Materials::BlinnPhongInstance>(material);
-            assert(mat_ptr);
-            mat_ptr->SetAmbient(m_uniform_data.ambient);
-            mat_ptr->SetSpecular(m_uniform_data.specular);
+            material->WriteUBOUniform(0, id_metalness.first, metalness);
+            material->WriteUBOUniform(0, id_roughness.first, roughness);
         }
     }
 };
 
 struct {
     float zenith, azimuth;
-    float r,g,b,coef;
-} g_SceneData {M_PI_2, M_PI_2, 0.5f, 0.5f, 0.5f, 4.0f};
+    float metalness, roughness;
+} g_SceneData {M_PI_2, M_PI_2, 0.5f, 0.5f};
 
 glm::vec3 GetCartesian(float zenith, float azimuth) {
     static constexpr float RADIUS = 2.0f;
@@ -200,19 +226,16 @@ void PrepareGui() {
 
     ImGui::Separator();
 
-    ImGui::ColorPicker3("Specular color", &g_SceneData.r);
-    ImGui::SliderFloat("Specular strength", &g_SceneData.coef, 0.0f, 64.0f);
+    ImGui::SliderFloat("Metalness", &g_SceneData.metalness, 0.0f, 1.0f);
+    ImGui::SliderFloat("Roughness", &g_SceneData.roughness, 0.0f, 1.0f);
     ImGui::End();
 }
 
 void SubmitSceneData(std::shared_ptr <RenderSystem> rsys, uint32_t id) {
     ConstantData::PerSceneStruct scene {
         1,
-        glm::vec4{
-            GetCartesian(g_SceneData.zenith, g_SceneData.azimuth),
-            0.0f
-        },
-        glm::vec4{1.0, 1.0, 1.0, 0.0},
+        {glm::vec4{GetCartesian(g_SceneData.zenith, g_SceneData.azimuth), 0.0f}},
+        {glm::vec4{2.0, 2.0, 2.0, 0.0}},
     };
     auto ptr = rsys->GetGlobalConstantDescriptorPool().GetPerSceneConstantMemory(id);
     memcpy(ptr, &scene, sizeof scene);
@@ -220,7 +243,7 @@ void SubmitSceneData(std::shared_ptr <RenderSystem> rsys, uint32_t id) {
 }
 
 void SubmitMaterialData(std::shared_ptr <MeshComponentFromFile> mesh) {
-    mesh->UpdateUniformData(g_SceneData.r, g_SceneData.g, g_SceneData.b, g_SceneData.coef);
+    mesh->UpdateUniformData(g_SceneData.metalness, g_SceneData.roughness);
 }
 
 int main(int argc, char ** argv)
@@ -233,7 +256,7 @@ int main(int argc, char ** argv)
         if (max_frame_count == 0) return -1;
     }
 
-    StartupOptions opt{.resol_x = 1280, .resol_y = 720, .title = "Vulkan Test"};
+    StartupOptions opt{.resol_x = 1920, .resol_y = 1080, .title = "PBR Test"};
 
     auto cmc = MainClass::GetInstance();
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
@@ -241,55 +264,90 @@ int main(int argc, char ** argv)
     auto asys = cmc->GetAssetManager();
     asys->SetBuiltinAssetPath(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
     asys->LoadBuiltinAssets();
-    
-    auto test_asset = asys->GetNewAssetRef(std::filesystem::path("~/material_templates/BlinnPhongTemplate.asset"));
-    asys->LoadAssetImmediately(test_asset);
     asys->LoadAssetsInQueue();
 
     auto rsys = cmc->GetRenderSystem();
-    rsys->GetMaterialRegistry().AddMaterial(test_asset);
+    auto pbr_material_template_asset = ConstructMaterialTemplate();
+    auto pbr_material_template_asset_ref = std::make_shared<AssetRef>(pbr_material_template_asset);
+    auto pbr_material_template = std::make_shared<MaterialTemplate>(*rsys);
+    pbr_material_template->InstantiateFromRef(pbr_material_template_asset_ref);
 
     auto gsys = cmc->GetGUISystem();
-    gsys->CreateVulkanBackend(ImageUtils::GetVkFormat(Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB));
+    gsys->CreateVulkanBackend(ImageUtils::GetVkFormat(Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm));
 
-    Engine::Texture color{*rsys}, depth{*rsys};
+    std::shared_ptr hdr_color{std::make_shared<Texture>(*rsys)};
+    std::shared_ptr color{std::make_shared<Texture>(*rsys)};
+    std::shared_ptr depth{std::make_shared<Texture>(*rsys)};
     Engine::Texture::TextureDesc desc {
         .dimensions = 2,
-        .width = 1280,
-        .height = 720,
+        .width = 1920,
+        .height = 1080,
         .depth = 1,
-        .format = Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB,
-        .type = Engine::ImageUtils::ImageType::ColorAttachment,
+        .format = Engine::ImageUtils::ImageFormat::R11G11B10UFloat,
+        .type = Engine::ImageUtils::ImageType::ColorGeneral,
         .mipmap_levels = 1,
         .array_layers = 1,
         .is_cube_map = false
     };
-    color.CreateTexture(desc, "Color Attachment");
+    hdr_color->CreateTexture(desc, "HDR Color Attachment");
+    
+    desc.format = Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm;
+    color->CreateTexture(desc, "Color Attachment");
+
+    desc.mipmap_levels = 1;
     desc.format = Engine::ImageUtils::ImageFormat::D32SFLOAT;
     desc.type = Engine::ImageUtils::ImageType::DepthImage;
-    depth.CreateTexture(desc, "Depth Attachment");
+    depth->CreateTexture(desc, "Depth Attachment");
+
+    auto red_texture = std::make_shared<SampledTexture>(*rsys);
+    desc = {
+        .dimensions = 2,
+        .width = 4,
+        .height = 4,
+        .depth = 1,
+        .format = Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB,
+        .type = Engine::ImageUtils::ImageType::TextureImage,
+        .mipmap_levels = 1,
+        .array_layers = 1,
+        .is_cube_map = false
+    };
+    red_texture->CreateTextureAndSampler(desc, {}, "Sampled Albedo");
+    rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*red_texture, {1.0, 0.0, 0.0, 1.0});
 
     Engine::AttachmentUtils::AttachmentDescription color_att, depth_att;
-    color_att.image = color.GetImage();
-    color_att.image_view = color.GetImageView();
+    color_att.image = hdr_color->GetImage();
+    color_att.image_view = hdr_color->GetImageView();
     color_att.load_op = vk::AttachmentLoadOp::eClear;
     color_att.store_op = vk::AttachmentStoreOp::eStore;
 
-    depth_att.image = depth.GetImage();
-    depth_att.image_view = depth.GetImageView();
+    depth_att.image = depth->GetImage();
+    depth_att.image_view = depth->GetImageView();
     depth_att.load_op = vk::AttachmentLoadOp::eClear;
     depth_att.store_op = vk::AttachmentStoreOp::eDontCare;
 
+    auto cs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/bloom.comp.spv.asset");
+    assert(cs_ref);
+    MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(cs_ref);
+    auto bloom_compute_stage = std::make_shared<ComputeStage>(*rsys);
+    bloom_compute_stage->InstantiateFromRef(cs_ref);
+    bloom_compute_stage->SetDescVariable(
+        bloom_compute_stage->GetVariableIndex("inputImage").value().first,
+        std::const_pointer_cast<const Texture>(hdr_color)
+    );
+    bloom_compute_stage->SetDescVariable(
+        bloom_compute_stage->GetVariableIndex("outputImage").value().first,
+        std::const_pointer_cast<const Texture>(color)
+    );
 
     // Setup mesh
-    std::filesystem::path mesh_path{std::string(ENGINE_ASSETS_DIR) + "/four_bunny/four_bunny.obj"};
-    std::shared_ptr tmc = std::make_shared<MeshComponentFromFile>(mesh_path);
+    std::filesystem::path mesh_path{std::string(ENGINE_ASSETS_DIR) + "/sphere/sphere.obj"};
+    std::shared_ptr tmc = std::make_shared<MeshComponentFromFile>(mesh_path, pbr_material_template, red_texture);
     rsys->RegisterComponent(tmc);
 
     // Setup camera
     auto camera_go = cmc->GetWorldSystem()->CreateGameObject<GameObject>();
     Transform transform{};
-    transform.SetPosition({0.0f, 1.0f, 0.0f});
+    transform.SetPosition({0.0f, 5.0f, 0.0f});
     transform.SetRotationEuler(glm::vec3{0.0, 0.0, 3.1415926});
     camera_go->SetTransform(transform);
     auto camera_comp = std::make_shared<CameraComponent>(camera_go);
@@ -327,35 +385,54 @@ int main(int argc, char ** argv)
         GraphicsCommandBuffer & cb = dynamic_cast<GraphicsCommandBuffer &>(context.GetCommandBuffer());
 
         cb.Begin();
-        context.UseImage(color, GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite, GraphicsContext::ImageAccessType::None);
-        context.UseImage(depth, GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite, GraphicsContext::ImageAccessType::None);
+        context.UseImage(*hdr_color, GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite, GraphicsContext::ImageAccessType::None);
+        context.UseImage(*depth, GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite, GraphicsContext::ImageAccessType::None);
         context.PrepareCommandBuffer();
         vk::Extent2D extent {rsys->GetSwapchain().GetExtent()};
-        cb.BeginRendering({
-                color.GetImage(),
-                color.GetImageView(),
-                vk::AttachmentLoadOp::eClear,
-                vk::AttachmentStoreOp::eStore
-            }, depth_att, extent);
+        cb.BeginRendering(color_att, depth_att, extent);
         rsys->DrawMeshes();
         cb.EndRendering();
 
-        context.UseImage(color, GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite, GraphicsContext::ImageAccessType::ColorAttachmentWrite);
+        auto cctx = rsys->GetFrameManager().GetComputeContext();
+        auto ccb = dynamic_cast<ComputeCommandBuffer &>(cctx.GetCommandBuffer());
+        cctx.UseImage(
+            *hdr_color, 
+            ComputeContext::ImageComputeAccessType::ShaderReadRandomWrite,
+            ComputeContext::ImageAccessType::ColorAttachmentWrite
+        );
+        cctx.UseImage(
+            *color,
+            ComputeContext::ImageComputeAccessType::ShaderRandomWrite,
+            ComputeContext::ImageAccessType::None
+        );
+        cctx.PrepareCommandBuffer();
+        ccb.BindComputeStage(*bloom_compute_stage);
+        ccb.DispatchCompute(color->GetTextureDescription().width / 16 + 1, color->GetTextureDescription().height / 16 + 1, 1);
+
+        context.UseImage(
+            *color, 
+            GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite, 
+            GraphicsContext::ImageAccessType::ShaderRandomWrite
+        );
         context.PrepareCommandBuffer();
-        gsys->DrawGUI({
-                color.GetImage(),
-                color.GetImageView(),
-                vk::AttachmentLoadOp::eLoad,
-                vk::AttachmentStoreOp::eStore
-            }, extent, cb);
-
+        gsys->DrawGUI(
+            {color->GetImage(), color->GetImageView(), vk::AttachmentLoadOp::eLoad, vk::AttachmentStoreOp::eStore},
+            extent, cb
+        );
         cb.End();
-        rsys->GetFrameManager().SubmitMainCommandBuffer();
-        rsys->GetFrameManager().StageCopyComposition(color.GetImage());
-        // rsys->GetFrameManager().CopyToFrameBuffer(color.GetImage(), rsys->GetSwapchain().GetExtent(), {0, 0}, {100, 100});
-        rsys->GetFrameManager().CompositeToFramebufferAndPresent();
 
-        SDL_Delay(5);
+        rsys->GetFrameManager().SubmitMainCommandBuffer();
+        rsys->GetFrameManager().StageBlitComposition(
+            color->GetImage(), 
+            vk::Extent2D{
+                color->GetTextureDescription().width,
+                color->GetTextureDescription().height
+            }, 
+            rsys->GetSwapchain().GetExtent()
+        );
+        rsys->CompleteFrame();
+
+        // SDL_Delay(5);
 
         if ((int64_t)frame_count >= max_frame_count) break;
     }
