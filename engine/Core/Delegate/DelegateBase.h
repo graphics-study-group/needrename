@@ -15,6 +15,7 @@ namespace Engine
         DelegateBase() = default;
         virtual ~DelegateBase() = default;
 
+        virtual bool IsValid() const = 0;
         virtual void Invoke(Args... args) const = 0;
     };
 }

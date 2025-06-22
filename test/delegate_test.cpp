@@ -3,7 +3,7 @@
 #include <memory>
 #include <cassert>
 #include <Core/Delegate/Delegate.h>
-#include <Core/Delegate/MulticastDelegate.h>
+#include <Core/Delegate/Event.h>
 
 int checked = 0;
 
@@ -63,11 +63,11 @@ int main()
     assert(delegate2.IsValid() == false); // Check if delegate2 is invalid after object reset
     assert(delegate3.IsValid() == false); // Check if delegate3 is invalid after object reset
 
-    MulticastDelegate<int, float> multicastDelegate;
+    Event<int, float> multicastDelegate;
     auto dog = std::make_shared<Dog>();
-    multicastDelegate.AddDelegate(dog, &Dog::Bark);
+    multicastDelegate.AddListener(dog, &Dog::Bark);
     auto cat = std::make_shared<Cat>();
-    multicastDelegate.AddDelegate(cat, &Cat::Meow);
+    auto handle = multicastDelegate.AddDelegate(std::make_unique<Delegate<int, float>>(cat, &Cat::Meow));
     multicastDelegate.Invoke(1, 2.0f); // Should call both Dog::Bark and Cat::Meow
     assert(checked == 5); // Check if both methods were called
     dog.reset();
@@ -75,7 +75,7 @@ int main()
     assert(checked == 6); // Check if only Cat::Meow was called
     multicastDelegate.ClearInvalidDelegates(); // Should remove invalid delegates
     assert(multicastDelegate.GetDelegateCount() == 1); // Should only have Cat delegate left
-    multicastDelegate.RemoveDelegate(Delegate<int, float>(cat, &Cat::Meow)); // Remove Cat delegate
+    multicastDelegate.RemoveDelegate(handle); // Remove Cat delegate
     assert(multicastDelegate.GetDelegateCount() == 0); // Should have no delegates left
 
     return 0;

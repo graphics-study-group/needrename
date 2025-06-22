@@ -3,7 +3,7 @@
 
 #include <vector>
 #include <memory>
-#include <Core/Delegate/MulticastDelegate.h>
+#include <Core/Delegate/Event.h>
 #include <Editor/Widget/Widget.h>
 
 namespace Editor
@@ -29,11 +29,11 @@ namespace Editor
         void AddWidget(std::shared_ptr<Widget> widget);
 
     public:
-        Engine::MulticastDelegate<> m_OnStart{};
-        Engine::MulticastDelegate<> m_OnStop{};
-        Engine::MulticastDelegate<> m_OnPause{};
-        Engine::MulticastDelegate<> m_OnResume{};
-        Engine::MulticastDelegate<> m_OnStep{};
+        Engine::Event<> m_OnStart{};
+        Engine::Event<> m_OnStop{};
+        Engine::Event<> m_OnPause{};
+        Engine::Event<> m_OnResume{};
+        Engine::Event<> m_OnStep{};
 
     protected:
         std::vector<std::shared_ptr<Widget>> m_widgets{};

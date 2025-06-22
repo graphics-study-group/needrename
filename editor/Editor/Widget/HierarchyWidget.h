@@ -3,7 +3,7 @@
 
 #include "Widget.h"
 #include <memory>
-#include <Core/Delegate/MulticastDelegate.h>
+#include <Core/Delegate/Event.h>
 
 namespace Engine
 {
@@ -21,7 +21,7 @@ namespace Editor
         virtual void Render() override;
     
     public:
-        Engine::MulticastDelegate<std::weak_ptr<Engine::GameObject>> m_OnGameObjectSelectedDelegate{};
+        Engine::Event<std::weak_ptr<Engine::GameObject>> m_OnGameObjectSelectedDelegate{};
 
     protected:
         std::weak_ptr<Engine::GameObject> m_selected_game_object{};
