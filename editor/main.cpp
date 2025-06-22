@@ -61,8 +61,6 @@ int main()
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Entering main loop");
 
     bool onQuit = false;
-    Uint64 FPS_TIMER = 0;
-    unsigned int frame_count = 0;
     while (!onQuit)
     {
         cmc->GetTimeSystem()->NextFrame();

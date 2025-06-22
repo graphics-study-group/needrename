@@ -34,8 +34,8 @@ namespace Editor
         m_depth_texture = std::make_shared<Engine::SampledTexture>(*render_system);
         Engine::Texture::TextureDesc desc{
             .dimensions = 2,
-            .width = m_texture_width,
-            .height = m_texture_height,
+            .width = (uint32_t)m_texture_width,
+            .height = (uint32_t)m_texture_height,
             .depth = 1,
             .format = Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB,
             .type = Engine::ImageUtils::ImageType::ColorGeneral,

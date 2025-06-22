@@ -30,8 +30,8 @@ namespace Engine
         m_depth_texture = std::make_shared<Texture>(*render_system);
         Engine::Texture::TextureDesc desc{
             .dimensions = 2,
-            .width = w,
-            .height = h,
+            .width = (uint32_t)w,
+            .height = (uint32_t)h,
             .depth = 1,
             .format = Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB,
             .type = Engine::ImageUtils::ImageType::ColorAttachment,
