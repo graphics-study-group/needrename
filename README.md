@@ -15,8 +15,7 @@ An unnamed game engine with advanced features including Vulkan-based rendering, 
 
 1. git clone this repository
 2. configure project (with Vulkan SDK installed) using cmake
-3. create a virtual python environment at `reflection_parser/parser_env` with `reflection_parser/requirements.txt`
-4. build project
+3. build project
 
 ## Project Structure
 
@@ -42,6 +41,13 @@ shader/                   # Shader codes
 test/                     # Some runable test
 thirdparty/               # External dependencies
 ```
+
+## Build Targets
+
+- **editor**: Executable (in `/editor`) that runs the engine editor interface
+- **engine**: Static library (in `/engine`) containing core engine functionality  
+- **tests**: Executable demos and test cases (runnable directly or via CTest)  
+- **third_party**: Static third party libraries linked to `engine` containing dependencies  
 
 ## Key Features
 

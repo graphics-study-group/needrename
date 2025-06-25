@@ -138,6 +138,7 @@ function(add_reflection_parser target_name reflection_search_files generated_cod
         APPEND
         PROPERTY ADDITIONAL_CLEAN_FILES ${generated_code_dir}
     )
+    set_target_properties(${target_name}_generation PROPERTIES FOLDER parser_generated)
 
     add_library(${target_name} INTERFACE)
     target_sources(${target_name} INTERFACE ${GENERATED_CPPS})
