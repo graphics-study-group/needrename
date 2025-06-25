@@ -46,6 +46,7 @@ int main()
     auto world = cmc->GetWorldSystem();
     auto gui = cmc->GetGUISystem();
     auto window = cmc->GetWindow();
+    gui->CreateVulkanBackend(ImageUtils::GetVkFormat(window->GetColorTexture().GetTextureDescription().format));
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading project");
     cmc->LoadProject(project_path);
@@ -112,7 +113,7 @@ int main()
 
         cb.End();
         rsys->GetFrameManager().SubmitMainCommandBuffer();
-        rsys->GetFrameManager().StageCopyComposition(window->GetColorTexture().GetImage());
+        rsys->GetFrameManager().StageBlitComposition(window->GetColorTexture().GetImage(), window->GetExtent(), window->GetExtent());
         rsys->GetFrameManager().CompositeToFramebufferAndPresent();
     }
     rsys->WaitForIdle();

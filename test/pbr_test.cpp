@@ -273,6 +273,7 @@ int main(int argc, char ** argv)
     pbr_material_template->InstantiateFromRef(pbr_material_template_asset_ref);
 
     auto gsys = cmc->GetGUISystem();
+    gsys->CreateVulkanBackend(ImageUtils::GetVkFormat(Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm));
 
     std::shared_ptr hdr_color{std::make_shared<Texture>(*rsys)};
     std::shared_ptr color{std::make_shared<Texture>(*rsys)};

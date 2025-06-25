@@ -37,6 +37,8 @@ namespace Engine
 
     protected:
         SDL_Window *m_window{nullptr};
+
+        // TODO: need better way to manage render target binding and textures
         RenderTargetBinding m_render_target_binding{};
         std::shared_ptr<Texture> m_color_texture{};
         std::shared_ptr<Texture> m_depth_texture{};
