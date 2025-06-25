@@ -79,7 +79,6 @@ namespace Engine
         this->renderer->Create();
         this->window->CreateRenderTargetBinding(this->renderer);
         this->gui->Create(this->window->GetWindow());
-        this->gui->CreateVulkanBackend(ImageUtils::GetVkFormat(Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB));
         Reflection::Initialize();
     }
 
@@ -159,18 +158,18 @@ namespace Engine
                 m_on_quit = true;
                 break;
             }
-            this->gui->ProcessEvent(&event);
-            if (this->gui->WantCaptureMouse() && SDL_EVENT_MOUSE_MOTION <= event.type && event.type < SDL_EVENT_JOYSTICK_AXIS_MOTION) // 0x600+
-                continue;
-            if (this->gui->WantCaptureKeyboard() && (event.type == SDL_EVENT_KEY_DOWN || event.type == SDL_EVENT_KEY_UP))
-                continue;
+            // this->gui->ProcessEvent(&event);
+            // if (this->gui->WantCaptureMouse() && SDL_EVENT_MOUSE_MOTION <= event.type && event.type < SDL_EVENT_JOYSTICK_AXIS_MOTION) // 0x600+
+            //     continue;
+            // if (this->gui->WantCaptureKeyboard() && (event.type == SDL_EVENT_KEY_DOWN || event.type == SDL_EVENT_KEY_UP))
+            //     continue;
             input->ProcessEvent(&event);
         }
 
         this->input->Update();
         this->world->LoadGameObjectInQueue();
         this->world->Tick();
-        this->gui->PrepareGUI();
+        // this->gui->PrepareGUI();
 
         auto index = this->renderer->StartFrame();
         auto context = this->renderer->GetFrameManager().GetGraphicsContext();
@@ -184,17 +183,17 @@ namespace Engine
         this->renderer->DrawMeshes();
         cb.EndRendering();
 
-        context.UseImage(this->window->GetColorTexture(), GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite, GraphicsContext::ImageAccessType::ColorAttachmentWrite);
-        context.PrepareCommandBuffer();
-        this->gui->DrawGUI({this->window->GetColorTexture().GetImage(),
-                            this->window->GetColorTexture().GetImageView(),
-                            vk::AttachmentLoadOp::eLoad,
-                            vk::AttachmentStoreOp::eStore},
-                           this->window->GetExtent(), cb);
+        // context.UseImage(this->window->GetColorTexture(), GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite, GraphicsContext::ImageAccessType::ColorAttachmentWrite);
+        // context.PrepareCommandBuffer();
+        // this->gui->DrawGUI({this->window->GetColorTexture().GetImage(),
+        //                     this->window->GetColorTexture().GetImageView(),
+        //                     vk::AttachmentLoadOp::eLoad,
+        //                     vk::AttachmentStoreOp::eStore},
+        //                    this->window->GetExtent(), cb);
 
         cb.End();
         this->renderer->GetFrameManager().SubmitMainCommandBuffer();
-        this->renderer->GetFrameManager().StageCopyComposition(this->window->GetColorTexture().GetImage());
+        this->renderer->GetFrameManager().StageBlitComposition(this->window->GetColorTexture().GetImage(), this->window->GetExtent(), this->window->GetExtent());
         this->renderer->GetFrameManager().CompositeToFramebufferAndPresent();
     }
 } // namespace Engine

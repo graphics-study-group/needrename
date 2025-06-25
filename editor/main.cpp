@@ -11,6 +11,7 @@
 #include <Render/AttachmentUtils.h>
 #include <Render/Memory/Buffer.h>
 #include <Render/Memory/Texture.h>
+#include <Render/Memory/SampledTexture.h>
 #include <Render/Pipeline/CommandBuffer/GraphicsContext.h>
 #include <Render/Pipeline/CommandBuffer.h>
 #include <Render/RenderSystem/Swapchain.h>
@@ -45,6 +46,7 @@ int main()
     auto world = cmc->GetWorldSystem();
     auto gui = cmc->GetGUISystem();
     auto window = cmc->GetWindow();
+    gui->CreateVulkanBackend(ImageUtils::GetVkFormat(window->GetColorTexture().GetTextureDescription().format));
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading project");
     cmc->LoadProject(project_path);
@@ -93,17 +95,16 @@ int main()
         GraphicsCommandBuffer &cb = dynamic_cast<GraphicsCommandBuffer &>(context.GetCommandBuffer());
 
         cb.Begin();
-        context.UseImage(window->GetColorTexture(), GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite, GraphicsContext::ImageAccessType::None);
-        context.UseImage(window->GetDepthTexture(), GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite, GraphicsContext::ImageAccessType::None);
-        context.PrepareCommandBuffer();
 
         scene_widget->PreRender();
         // game_widget->PreRender();
+
+        context.UseImage(*std::static_pointer_cast<Engine::Texture>(scene_widget->m_color_texture), GraphicsContext::ImageGraphicsAccessType::ShaderRead, GraphicsContext::ImageAccessType::ColorAttachmentWrite);
+        context.UseImage(window->GetColorTexture(), GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite, GraphicsContext::ImageAccessType::None);
+        context.UseImage(window->GetDepthTexture(), GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite, GraphicsContext::ImageAccessType::None);
+        context.PrepareCommandBuffer();
         gui->PrepareGUI();
         main_window.Render();
-
-        context.UseImage(window->GetColorTexture(), GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite, GraphicsContext::ImageAccessType::ColorAttachmentWrite);
-        context.PrepareCommandBuffer();
         gui->DrawGUI({window->GetColorTexture().GetImage(),
                       window->GetColorTexture().GetImageView(),
                       vk::AttachmentLoadOp::eLoad,
@@ -112,7 +113,7 @@ int main()
 
         cb.End();
         rsys->GetFrameManager().SubmitMainCommandBuffer();
-        rsys->GetFrameManager().StageCopyComposition(window->GetColorTexture().GetImage());
+        rsys->GetFrameManager().StageBlitComposition(window->GetColorTexture().GetImage(), window->GetExtent(), window->GetExtent());
         rsys->GetFrameManager().CompositeToFramebufferAndPresent();
     }
     rsys->WaitForIdle();

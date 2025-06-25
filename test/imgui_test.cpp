@@ -29,6 +29,7 @@ int main(int argc, char ** argv)
 
     auto rsys = cmc->GetRenderSystem();
     auto gsys = cmc->GetGUISystem();
+    gsys->CreateVulkanBackend(ImageUtils::GetVkFormat(Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB));
 
     Engine::Texture color{*rsys}, depth{*rsys};
     Engine::Texture::TextureDesc desc {

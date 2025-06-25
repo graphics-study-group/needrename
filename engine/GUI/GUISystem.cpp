@@ -68,6 +68,7 @@ namespace Engine {
         m_context = ImGui::CreateContext();
         assert(m_context && "Failed to create ImGui context.");
         ImGui_ImplSDL3_InitForVulkan(window);
+        ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     }
 
     void GUISystem::CreateVulkanBackend(vk::Format color_attachment_format)
@@ -101,7 +102,5 @@ namespace Engine {
         info.PipelineRenderingCreateInfo = pipeline;
 
         if(!ImGui_ImplVulkan_Init(&info)) SDL_LogCritical(0, "Failed to initialize Vulkan backend for ImGui.");
-
-        ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     }
 }
