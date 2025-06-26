@@ -74,7 +74,7 @@ namespace Engine::RenderSystemState{
         std::vector <vk::WriteDescriptorSet> writes {inflight_frame_count * 2};
         for (uint32_t i = 0; i < inflight_frame_count; i++) {
             buffers[i] = vk::DescriptorBufferInfo{
-                m_per_camera_buffers[i]->GetBuffer(), 0, vk::WholeSize 
+                m_per_camera_buffers[i]->GetBuffer(), 0, sizeof(ConstantData::PerCameraStruct) 
             };
             buffers[i + inflight_frame_count] = vk::DescriptorBufferInfo{
                 m_per_scene_buffers[i].GetBuffer(), 0, vk::WholeSize
