@@ -1,83 +1,83 @@
 #include "SDLWindow.h"
 #include "Exception/exception.h"
+#include <Render/Memory/Texture.h>
+#include <MainClass.h>
 
 namespace Engine
 {
-    SDLWindow::SDLWindow(const char *title, int w, int h,
-                         Uint32 flags) : width(w), height(h)
+    SDLWindow::SDLWindow(const char *title, int width, int height, Uint32 flags)
     {
-        this->window = SDL_CreateWindow(title, w, h, flags);
-        if (!this->window)
+        m_window = SDL_CreateWindow(title, width, height, flags);
+        if (!m_window)
             throw Exception::SDLExceptions::cant_create_window();
-    }
-
-    SDLWindow::SDLWindow(SDLWindow && other) 
-        : window(other.window), width(other.width), height(other.height), postProcs(std::move(other.postProcs)) {
-        other.window = nullptr;
     }
 
     SDLWindow::~SDLWindow()
     {
-        Release();
+        if (m_window)
+        {
+            SDL_DestroyWindow(m_window);
+            m_window = nullptr;
+        }
     }
 
-    void SDLWindow::Release() 
+    void SDLWindow::CreateRenderTargetBinding(std::shared_ptr<RenderSystem> render_system)
     {
-        if (this->window) {
-            SDL_DestroyWindow(this->window);
-            this->window = nullptr;
-        }
+        int w, h;
+        SDL_GetWindowSizeInPixels(m_window, &w, &h);
+
+        m_color_texture = std::make_shared<Texture>(*render_system);
+        m_depth_texture = std::make_shared<Texture>(*render_system);
+        Engine::Texture::TextureDesc desc{
+            .dimensions = 2,
+            .width = (uint32_t)w,
+            .height = (uint32_t)h,
+            .depth = 1,
+            .format = Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB,
+            .type = Engine::ImageUtils::ImageType::ColorAttachment,
+            .mipmap_levels = 1,
+            .array_layers = 1,
+            .is_cube_map = false};
+        m_color_texture->CreateTexture(desc, "Color attachment");
+        desc.format = Engine::ImageUtils::ImageFormat::D32SFLOAT;
+        desc.type = Engine::ImageUtils::ImageType::DepthImage;
+        m_depth_texture->CreateTexture(desc, "Depth attachment");
+
+        AttachmentUtils::AttachmentDescription color_att, depth_att;
+        color_att.image = m_color_texture->GetImage();
+        color_att.image_view = m_color_texture->GetImageView();
+        color_att.load_op = vk::AttachmentLoadOp::eClear;
+        color_att.store_op = vk::AttachmentStoreOp::eStore;
+        m_render_target_binding.SetColorAttachment(color_att);
+        depth_att.image = m_depth_texture->GetImage();
+        depth_att.image_view = m_depth_texture->GetImageView();
+        depth_att.load_op = vk::AttachmentLoadOp::eClear;
+        depth_att.store_op = vk::AttachmentStoreOp::eDontCare;
+        m_render_target_binding.SetDepthAttachment(depth_att);
+    }
+
+    const RenderTargetBinding &SDLWindow::GetRenderTargetBinding() const
+    {
+        return m_render_target_binding;
+    }
+
+    vk::Extent2D SDLWindow::GetExtent() const
+    {
+        return {m_color_texture->GetTextureDescription().width, m_color_texture->GetTextureDescription().height};
+    }
+
+    const Texture &SDLWindow::GetColorTexture() const noexcept
+    {
+        return *m_color_texture;
+    }
+
+    const Texture &SDLWindow::GetDepthTexture() const noexcept
+    {
+        return *m_depth_texture;
     }
 
     SDL_Window *SDLWindow::GetWindow()
     {
-        return this->window;
+        return m_window;
     }
-
-    void SDLWindow::SetIcon(SDL_Surface *surface, bool freeSurface)
-    {
-        SDL_SetWindowIcon(this->window, surface);
-        if (freeSurface)
-            SDL_DestroySurface(surface);
-    }
-
-    bool SDLWindow::DispatchEvents(SDL_Event &event)
-    {
-        // SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Dispatching an event : %u\n", event.type);
-        switch (event.type)
-        {
-        default:
-            break;
-        }
-        return true;
-    }
-
-    bool SDLWindow::BeforeEventLoop()
-    {
-        return true;
-    }
-
-    bool SDLWindow::AfterEventLoop()
-    {
-        bool ret = true;
-        for (auto item : this->postProcs)
-            if (item() == false)
-            {
-                ret = false;
-                break;
-            }
-
-        return ret;
-    }
-
-    int SDLWindow::GetHeight() const
-    {
-        return height;
-    }
-
-    int SDLWindow::GetWidth() const
-    {
-        return width;
-    }
-
 } // namespace Engine

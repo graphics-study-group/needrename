@@ -24,7 +24,7 @@ namespace Engine
 
         /// @brief Materialize a runtime mesh component from a mesh asset
         virtual void Init() override;
-        virtual void Tick(float dt) override;
+        virtual void Tick() override;
 
         REFL_SER_ENABLE std::shared_ptr<AssetRef> m_mesh_asset{};
     };

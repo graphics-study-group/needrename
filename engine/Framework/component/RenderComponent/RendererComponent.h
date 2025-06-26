@@ -31,7 +31,7 @@ namespace Engine
         virtual Transform GetWorldTransform() const;
 
         virtual void Init() override;
-        virtual void Tick(float dt) override;
+        virtual void Tick() override;
 
         std::shared_ptr<MaterialInstance> GetMaterial(uint32_t slot) const;
         auto GetMaterials() -> decltype(m_materials) &;

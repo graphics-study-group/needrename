@@ -2,8 +2,16 @@
 
 #include "Framework/world/WorldSystem.h"
 #include "Render/RenderSystem.h"
+#include <Render/Pipeline/CommandBuffer.h>
+#include <Render/RenderSystem/FrameManager.h>
+#include <Render/Memory/Buffer.h>
+#include <Render/Memory/Texture.h>
+#include <Render/Pipeline/CommandBuffer/GraphicsContext.h>
 #include "Asset/AssetManager/AssetManager.h"
 #include "GUI/GUISystem.h"
+#include <Input/Input.h>
+#include <Functional/SDLWindow.h>
+#include <Functional/Time.h>
 #include <Asset/Scene/LevelAsset.h>
 
 #include <nlohmann/json.hpp>
@@ -60,112 +68,56 @@ namespace Engine
             sdl_window_flags = SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
         if (opt->instantQuit)
             return;
-        this->window = std::make_shared<SDLWindow>(
-            opt->title.c_str(),
-            opt->resol_x,
-            opt->resol_y,
-            sdl_window_flags);
-
+        this->window = std::make_shared<SDLWindow>(opt->title.c_str(), opt->resol_x, opt->resol_y, sdl_window_flags);
+        this->time = std::make_shared<TimeSystem>();
         this->renderer = std::make_shared<RenderSystem>(this->window);
         this->world = std::make_shared<WorldSystem>();
         this->asset = std::make_shared<AssetManager>();
         this->gui = std::make_shared<GUISystem>(this->renderer);
+        this->input = std::make_shared<Input>();
 
         this->renderer->Create();
+        this->window->CreateRenderTargetBinding(this->renderer);
         this->gui->Create(this->window->GetWindow());
         Reflection::Initialize();
     }
 
     void MainClass::MainLoop()
     {
-        SDL_Event event;
-        bool onQuit = false;
-
-        unsigned int FPS_TIMER = 0;
-
-        while (!onQuit)
+        while (!m_on_quit)
         {
-            // TODO: asynchronous execution
-            this->asset->LoadAssetsInQueue();
-
-            float current_time = SDL_GetTicks();
-            float dt = (current_time - FPS_TIMER) / 1000.0f;
-
-            this->RunOneFrame(event, dt);
-            if (event.type == SDL_EVENT_QUIT)
-                onQuit = true;
-
-            current_time = SDL_GetTicks();
-            // if (current_time - FPS_TIMER < TPF_LIMIT)
-            //     SDL_Delay(TPF_LIMIT - current_time + FPS_TIMER);
-            FPS_TIMER = current_time;
+            this->time->NextFrame();
+            this->RunOneFrame();
         }
         SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "The main loop is ended.");
         renderer->WaitForIdle();
         renderer->ClearComponent();
     }
 
-    void MainClass::LoopFiniteFrame(int max_frame_count)
+    void MainClass::LoopFinite(uint64_t max_frame_count, float max_time_seconds)
     {
-        SDL_Event event;
-        bool onQuit = false;
-
-        unsigned int FPS_TIMER = 0;
-        int frame_count = 0;
-
-        while (!onQuit && frame_count < max_frame_count)
+        while (!m_on_quit)
         {
-            // TODO: asynchronous execution
-            this->asset->LoadAssetsInQueue();
-
-            float current_time = SDL_GetTicks();
-            float dt = (current_time - FPS_TIMER) / 1000.0f;
-
-            this->RunOneFrame(event, dt);
-            if (event.type == SDL_EVENT_QUIT)
-                onQuit = true;
-
-            current_time = SDL_GetTicks();
-            // if (current_time - FPS_TIMER < TPF_LIMIT)
-            //     SDL_Delay(TPF_LIMIT - current_time + FPS_TIMER);
-            FPS_TIMER = current_time;
-
-            frame_count++;
+            this->time->NextFrame();
+            this->RunOneFrame();
+            if (max_frame_count > 0 && this->time->GetFrameCount() >= max_frame_count)
+                break;
+            if (max_time_seconds > 0.0f && this->time->GetDeltaTimeInSeconds() >= max_time_seconds)
+                break;
         }
         SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "The main loop is ended.");
         renderer->WaitForIdle();
         renderer->ClearComponent();
     }
 
-    void MainClass::LoopFiniteTime(float max_time)
+    std::shared_ptr<SDLWindow> MainClass::GetWindow() const
     {
-        SDL_Event event;
-        bool onQuit = false;
+        return window;
+    }
 
-        unsigned int FPS_TIMER = 0;
-        float current_time = SDL_GetTicks();
-        float start_time = current_time;
-
-        while (!onQuit && current_time - start_time < max_time)
-        {
-            // TODO: asynchronous execution
-            this->asset->LoadAssetsInQueue();
-
-            float current_time = SDL_GetTicks();
-            float dt = (current_time - FPS_TIMER) / 1000.0f;
-
-            this->RunOneFrame(event, dt);
-            if (event.type == SDL_EVENT_QUIT)
-                onQuit = true;
-
-            current_time = SDL_GetTicks();
-            // if (current_time - FPS_TIMER < TPF_LIMIT)
-            //     SDL_Delay(TPF_LIMIT - current_time + FPS_TIMER);
-            FPS_TIMER = current_time;
-        }
-        SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "The main loop is ended.");
-        renderer->WaitForIdle();
-        renderer->ClearComponent();
+    std::shared_ptr<TimeSystem> MainClass::GetTimeSystem() const
+    {
+        return time;
     }
 
     std::shared_ptr<AssetManager> MainClass::GetAssetManager() const
@@ -188,20 +140,60 @@ namespace Engine
         return renderer;
     }
 
-    void MainClass::RunOneFrame(SDL_Event &event, float dt)
+    std::shared_ptr<Input> MainClass::GetInputSystem() const
     {
-        this->window->BeforeEventLoop();
-        this->world->Tick(dt);
+        return input;
+    }
 
-        // TODO: Set up viewport information
+    void MainClass::RunOneFrame()
+    {
+        // TODO: asynchronous execution
+        this->asset->LoadAssetsInQueue();
 
-        this->window->AfterEventLoop();
-
+        SDL_Event event;
         while (SDL_PollEvent(&event))
         {
-            this->gui->ProcessEvent(&event);
             if (event.type == SDL_EVENT_QUIT)
+            {
+                m_on_quit = true;
                 break;
+            }
+            // this->gui->ProcessEvent(&event);
+            // if (this->gui->WantCaptureMouse() && SDL_EVENT_MOUSE_MOTION <= event.type && event.type < SDL_EVENT_JOYSTICK_AXIS_MOTION) // 0x600+
+            //     continue;
+            // if (this->gui->WantCaptureKeyboard() && (event.type == SDL_EVENT_KEY_DOWN || event.type == SDL_EVENT_KEY_UP))
+            //     continue;
+            input->ProcessEvent(&event);
         }
+
+        this->input->Update();
+        this->world->LoadGameObjectInQueue();
+        this->world->Tick();
+        // this->gui->PrepareGUI();
+
+        auto index = this->renderer->StartFrame();
+        auto context = this->renderer->GetFrameManager().GetGraphicsContext();
+        GraphicsCommandBuffer &cb = dynamic_cast<GraphicsCommandBuffer &>(context.GetCommandBuffer());
+
+        cb.Begin();
+        context.UseImage(this->window->GetColorTexture(), GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite, GraphicsContext::ImageAccessType::None);
+        context.UseImage(this->window->GetDepthTexture(), GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite, GraphicsContext::ImageAccessType::None);
+        context.PrepareCommandBuffer();
+        cb.BeginRendering(this->window->GetRenderTargetBinding(), this->window->GetExtent(), "Main Pass");
+        this->renderer->DrawMeshes();
+        cb.EndRendering();
+
+        // context.UseImage(this->window->GetColorTexture(), GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite, GraphicsContext::ImageAccessType::ColorAttachmentWrite);
+        // context.PrepareCommandBuffer();
+        // this->gui->DrawGUI({this->window->GetColorTexture().GetImage(),
+        //                     this->window->GetColorTexture().GetImageView(),
+        //                     vk::AttachmentLoadOp::eLoad,
+        //                     vk::AttachmentStoreOp::eStore},
+        //                    this->window->GetExtent(), cb);
+
+        cb.End();
+        this->renderer->GetFrameManager().SubmitMainCommandBuffer();
+        this->renderer->GetFrameManager().StageBlitComposition(this->window->GetColorTexture().GetImage(), this->window->GetExtent(), this->window->GetExtent());
+        this->renderer->GetFrameManager().CompositeToFramebufferAndPresent();
     }
 } // namespace Engine

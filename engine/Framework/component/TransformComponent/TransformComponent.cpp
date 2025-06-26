@@ -14,7 +14,7 @@ namespace Engine
     {
     }
 
-    void TransformComponent::Tick(float)
+    void TransformComponent::Tick()
     {
     }
 

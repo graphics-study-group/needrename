@@ -31,10 +31,10 @@ namespace Engine
             std::weak_ptr<Type> m_classtype;
             std::shared_ptr<Type> m_fieldtype;
 
-            Var GetVar(Var &obj);
-            Var GetVar(void *obj);
-            ConstVar GetConstVar(ConstVar &obj);
-            ConstVar GetConstVar(const void *obj);
+            Var GetVar(Var &obj) const;
+            Var GetVar(void *obj) const;
+            ConstVar GetConstVar(ConstVar &obj) const;
+            ConstVar GetConstVar(const void *obj) const;
         };
     }
 }

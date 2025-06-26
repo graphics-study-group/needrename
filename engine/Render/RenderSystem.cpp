@@ -19,6 +19,7 @@
 #include "Render/RenderSystem/FrameManager.h"
 
 #include <MainClass.h>
+#include <Functional/SDLWindow.h>
 #include <GUI/GUISystem.h>
 
 #include <iostream>
@@ -116,10 +117,10 @@ namespace Engine
             view = pimpl->m_active_camera->GetViewMatrix();
             proj = pimpl->m_active_camera->GetProjectionMatrix();
         }
-        DrawMeshes(view, proj, pass);
+        DrawMeshes(view, proj, this->GetSwapchain().GetExtent(), pass);
     }
 
-    void RenderSystem::DrawMeshes(const glm::mat4 &view_matrix, const glm::mat4 &projection_matrix, uint32_t pass)
+    void RenderSystem::DrawMeshes(const glm::mat4 &view_matrix, const glm::mat4 &projection_matrix, vk::Extent2D extent, uint32_t pass)
     {
         GraphicsCommandBuffer cb = this->GetFrameManager().GetCommandBuffer();
 
@@ -130,7 +131,6 @@ namespace Engine
         };
         std::memcpy(camera_ptr, &camera_struct, sizeof camera_struct);
         
-        vk::Extent2D extent {this->GetSwapchain().GetExtent()};
         vk::Rect2D scissor{{0, 0}, extent};
         cb.SetupViewport(extent.width, extent.height, scissor);
         for (const auto & component : pimpl->m_components) {

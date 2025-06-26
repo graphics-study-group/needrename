@@ -31,6 +31,16 @@ namespace Engine {
         CleanUp();
     }
 
+    bool GUISystem::WantCaptureMouse() const
+    {
+        return ImGui::GetIO().WantCaptureMouse;
+    }
+
+    bool GUISystem::WantCaptureKeyboard() const
+    {
+        return ImGui::GetIO().WantCaptureKeyboard;
+    }
+
     void GUISystem::ProcessEvent(SDL_Event *event) const
     {
         ImGui_ImplSDL3_ProcessEvent(event);
@@ -58,6 +68,7 @@ namespace Engine {
         m_context = ImGui::CreateContext();
         assert(m_context && "Failed to create ImGui context.");
         ImGui_ImplSDL3_InitForVulkan(window);
+        ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     }
 
     void GUISystem::CreateVulkanBackend(vk::Format color_attachment_format)

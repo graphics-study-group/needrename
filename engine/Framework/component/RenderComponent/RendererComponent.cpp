@@ -49,7 +49,7 @@ namespace Engine
         }
     }
 
-    void RendererComponent::Tick(float)
+    void RendererComponent::Tick()
     {
     }
 

@@ -24,7 +24,7 @@ namespace Engine{
         MainClass::GetInstance()->GetRenderSystem()->SetActiveCamera(std::dynamic_pointer_cast<CameraComponent>(shared_from_this()));
     }
 
-    void CameraComponent::Tick(float)
+    void CameraComponent::Tick()
     {
         UpdateViewMatrix();
     }
@@ -79,10 +79,10 @@ namespace Engine{
 
         glm::vec4 origin{0.0f, 0.0f, 0.0f, 1.0f};
         origin = tmat * origin;
-
-        // Y axis points front, so we just transform (0,1,0) to get local front vector
-        glm::vec4 front{0.0f, 1.0f, 0.0f, 1.0f};
-        front = tmat * front;
-        m_view_matrix = glm::lookAtRH(glm::vec3{origin}, glm::vec3{front}, glm::vec3{0.0, 0.0, 1.0});
+        glm::vec4 center{0.0f, 1.0f, 0.0f, 1.0f};
+        center = tmat * center;
+        glm::vec4 up{0.0f, 0.0f, 1.0f, 1.0f};
+        up = transform.GetRotation() * up;
+        m_view_matrix = glm::lookAtRH(glm::vec3{origin}, glm::vec3{center}, glm::vec3{up});
     }
 };

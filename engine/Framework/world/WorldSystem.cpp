@@ -12,7 +12,20 @@ namespace Engine
     {
     }
 
-    void WorldSystem::Tick(float dt)
+    void WorldSystem::Tick()
+    {
+        for (auto &comp : m_all_components)
+        {
+            comp->Tick();
+        }
+    }
+
+    GUID WorldSystem::GenerateID()
+    {
+        return generateGUID(m_id_gen);
+    }
+
+    void WorldSystem::LoadGameObjectInQueue()
     {
         for (auto &go : m_go_loading_queue)
         {
@@ -22,16 +35,6 @@ namespace Engine
             m_game_objects.push_back(go);
         }
         m_go_loading_queue.clear();
-
-        for (auto &comp : m_all_components)
-        {
-            comp->Tick(dt);
-        }
-    }
-
-    GUID WorldSystem::GenerateID()
-    {
-        return generateGUID(m_id_gen);
     }
 
     void WorldSystem::LoadLevelAsset(std::shared_ptr<LevelAsset> levelAsset)
@@ -45,5 +48,10 @@ namespace Engine
     void WorldSystem::LoadGameObjectAsset(std::shared_ptr<GameObjectAsset> gameObjectAsset)
     {
         AddGameObjectToWorld(gameObjectAsset->m_MainObject);
+    }
+
+    const std::vector<std::shared_ptr<GameObject>> &WorldSystem::GetGameObjects() const
+    {
+        return m_game_objects;
     }
 }

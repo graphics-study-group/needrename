@@ -15,7 +15,7 @@ namespace Engine
         virtual ~CameraComponent() = default;
 
         virtual void Init() override;
-        virtual void Tick(float) override;
+        virtual void Tick() override;
 
         /// @brief Acquire view matrix that transforms world coordinate to eye coordinate
         /// @return view matrix

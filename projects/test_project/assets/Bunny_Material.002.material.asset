@@ -6,7 +6,8 @@
             "m_name": "Bunny_Material.002",
             "m_properties": {
                 "ambient_color": {
-                    "m_type": "Vec4",
+                    "m_type": "Undefined",
+                    "m_ubo_type": "Vec4",
                     "m_value": [
                         1.0,
                         1.0,
@@ -19,7 +20,8 @@
                     "m_value": "&2"
                 },
                 "specular_color": {
-                    "m_type": "Vec4",
+                    "m_type": "Undefined",
+                    "m_ubo_type": "Vec4",
                     "m_value": [
                         0.5,
                         0.5,

@@ -19,7 +19,7 @@ namespace Engine
         WorldSystem();
         ~WorldSystem();
 
-        void Tick(float dt);
+        void Tick();
 
         /// @brief Generate a GUID using the random generator in the WorldSystem.
         GUID GenerateID();
@@ -35,11 +35,16 @@ namespace Engine
         template <typename T>
         void AddGameObjectToWorld(std::shared_ptr<T> go);
 
+        /// @brief Load all GameObjects in the loading queue. This will call Init() on all components of the GameObjects.
+        void LoadGameObjectInQueue();
+
         /// @brief Load a level asset. Add all GameObjects in the level asset to the loading queue.
         void LoadLevelAsset(std::shared_ptr<LevelAsset> levelAsset);
 
         /// @brief Load a GameObject asset. Add the GameObject in the asset to the loading queue.
         void LoadGameObjectAsset(std::shared_ptr<GameObjectAsset> gameObjectAsset);
+
+        const std::vector<std::shared_ptr<GameObject>> &GetGameObjects() const;
 
     protected:
         std::mt19937_64 m_id_gen{std::random_device{}()};
