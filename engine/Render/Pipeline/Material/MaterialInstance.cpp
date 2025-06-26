@@ -117,7 +117,7 @@ namespace Engine {
     {
         assert(pimpl->m_pass_info.contains(pass) && "Cannot find pass.");
         auto & pass_info = pimpl->m_pass_info[pass];
-        auto fif = m_system.GetFrameManager().GetFrameInFlight() % pass_info.BACK_BUFFERS;
+        auto fif = m_system.GetFrameManager().GetTotalFrame() % pass_info.BACK_BUFFERS;
         if (!pass_info._is_ubo_dirty[fif])    return;
 
         auto tpl = pimpl->m_parent_template.lock();
@@ -125,7 +125,7 @@ namespace Engine {
         // write uniform buffer
         auto & ubo = *(pass_info.ubo.get());
         tpl->PlaceUBOVariables(*this, pimpl->m_buffer, pass);
-        std::memcpy(ubo.GetSlicePtr(fif), pimpl->m_buffer.data(), ubo.GetSize());
+        std::memcpy(ubo.GetSlicePtr(fif), pimpl->m_buffer.data(), ubo.GetSliceSize());
         ubo.FlushSlice(fif);
 
         pass_info._is_ubo_dirty.reset(fif);
@@ -135,7 +135,7 @@ namespace Engine {
     {
         assert(pimpl->m_pass_info.contains(pass) && "Cannot find pass.");
         auto & pass_info = pimpl->m_pass_info[pass];
-        auto fif = m_system.GetFrameManager().GetFrameInFlight() % pass_info.BACK_BUFFERS;
+        auto fif = m_system.GetFrameManager().GetTotalFrame() % pass_info.BACK_BUFFERS;
         if (!(pass_info.desc_set[fif]))    return;
         if (!pass_info._is_descriptor_set_dirty[fif])    return;
 
@@ -184,7 +184,7 @@ namespace Engine {
     }
     vk::DescriptorSet MaterialInstance::GetDescriptor(uint32_t pass) const
     {
-        return GetDescriptor(pass, m_system.GetFrameManager().GetFrameInFlight() % impl::PassInfo::BACK_BUFFERS);
+        return GetDescriptor(pass, m_system.GetFrameManager().GetTotalFrame() % impl::PassInfo::BACK_BUFFERS);
     }
     vk::DescriptorSet MaterialInstance::GetDescriptor(uint32_t pass, uint32_t backbuffer) const
     {

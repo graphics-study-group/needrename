@@ -322,6 +322,11 @@ namespace Engine::RenderSystemState{
         return this->pimpl->current_frame_in_flight;
     }
 
+    uint64_t FrameManager::GetTotalFrame() const noexcept
+    {
+        return pimpl->total_frame_count;
+    }
+
     uint32_t FrameManager::GetFramebuffer() const noexcept
     {
         assert(this->pimpl->current_framebuffer < std::numeric_limits<uint32_t>::max() && "Frame Manager is in invalid state.");
