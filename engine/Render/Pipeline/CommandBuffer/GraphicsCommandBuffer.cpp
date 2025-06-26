@@ -120,7 +120,7 @@ namespace Engine
         }
 
         const auto & global_pool = m_system.GetGlobalConstantDescriptorPool();
-        const auto & per_scenc_descriptor_set = global_pool.GetPerSceneConstantSet(m_inflight_frame_index);
+        const auto & per_scene_descriptor_set = global_pool.GetPerSceneConstantSet(m_inflight_frame_index);
         const auto & per_camera_descriptor_set = global_pool.GetPerCameraConstantSet(m_inflight_frame_index);
         auto material_descriptor_set = material.GetDescriptor(pass_index);
 
@@ -129,16 +129,16 @@ namespace Engine
                 vk::PipelineBindPoint::eGraphics, 
                 pipeline_layout, 
                 0,
-                {per_scenc_descriptor_set, per_camera_descriptor_set, material_descriptor_set},
-                {}
+                {per_scene_descriptor_set, per_camera_descriptor_set, material_descriptor_set},
+                { static_cast<uint32_t>(global_pool.GetPerCameraDynamicOffset(m_inflight_frame_index, m_system.GetActiveCameraId())) }
             );
         } else {
             cb.bindDescriptorSets(
                 vk::PipelineBindPoint::eGraphics, 
                 pipeline_layout, 
                 0,
-                {per_scenc_descriptor_set, per_camera_descriptor_set},
-                {}
+                {per_scene_descriptor_set, per_camera_descriptor_set},
+                { static_cast<uint32_t>(global_pool.GetPerCameraDynamicOffset(m_inflight_frame_index, m_system.GetActiveCameraId())) }
             );
         }
         

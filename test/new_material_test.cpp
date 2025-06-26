@@ -130,9 +130,9 @@ int main(int argc, char ** argv)
         auto ptr = global_pool.GetPerSceneConstantMemory(i);
         memcpy(ptr, &scene, sizeof scene);
         global_pool.FlushPerSceneConstantMemory(i); 
-        std::byte * camera_ptr = global_pool.GetPerCameraConstantMemory(i);
+        auto camera_ptr = global_pool.GetPerCameraConstantMemory(i, 0);
         std::memcpy(camera_ptr, &camera_mats, sizeof camera_mats);
-        global_pool.FlushPerCameraConstantMemory(i);
+        global_pool.FlushPerCameraConstantMemory(i, 0);
     }
 
     glm::mat4 eye4 = glm::mat4(1.0f);

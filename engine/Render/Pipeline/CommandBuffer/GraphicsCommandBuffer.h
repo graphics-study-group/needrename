@@ -50,9 +50,16 @@ namespace Engine {
             const std::string & name = ""
         );
 
-        /// @brief Bind a material for rendering, and write per-material descriptors.
-        /// @param material 
-        /// @param pass_index 
+        /**
+         * @brief Bind a material for rendering.
+         * 
+         * Bind new material pipeline to the GPU (if warranted), bind descriptors to the pipeline,
+         * and write pending uniform data updates of the given material instance.
+         * 
+         * @note Camera data is uploaded to the pipeline in this method call. If camera switch occurred,
+         * this method must be called again even if material is the same. This case should be handled
+         * by the render system.
+         */
         void BindMaterial(MaterialInstance & material, uint32_t pass_index);
 
         /// @brief Setup the viewport parameters

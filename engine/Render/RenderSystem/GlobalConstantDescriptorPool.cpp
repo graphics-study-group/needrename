@@ -12,15 +12,17 @@ namespace Engine::RenderSystemState{
     void GlobalConstantDescriptorPool::AllocateGlobalSets(std::shared_ptr <RenderSystem> system, uint32_t inflight_frame_count) {
         // Allocate buffers
         m_per_camera_buffers.clear();
-        m_per_camera_memories.clear();
+        auto ubo_alignment = system->GetPhysicalDevice().getProperties().limits.minUniformBufferOffsetAlignment;
         for (uint32_t i = 0; i < inflight_frame_count; i++) {
-            m_per_camera_buffers.emplace_back(system);
-            m_per_camera_buffers[i].Create(
-                Engine::Buffer::BufferType::Uniform, 
-                sizeof(Engine::ConstantData::PerCameraStruct),
+            m_per_camera_buffers.push_back(nullptr);
+            m_per_camera_buffers[i] = 
+                std::make_unique<Engine::TypedIndexedBuffer<ConstantData::PerCameraStruct>>(*system);
+            m_per_camera_buffers[i]->Create(
+                Engine::Buffer::BufferType::Uniform,
+                ubo_alignment,
+                MAX_CAMERAS,
                 std::format("Buffer - camera uniforms {}", i)
             );
-            m_per_camera_memories.push_back(m_per_camera_buffers[i].Map());
         }
 
         m_per_scene_buffers.clear();
@@ -72,10 +74,10 @@ namespace Engine::RenderSystemState{
         std::vector <vk::WriteDescriptorSet> writes {inflight_frame_count * 2};
         for (uint32_t i = 0; i < inflight_frame_count; i++) {
             buffers[i] = vk::DescriptorBufferInfo{
-                m_per_camera_buffers[i].GetBuffer(), 0, sizeof(Engine::ConstantData::PerCameraStruct) 
+                m_per_camera_buffers[i]->GetBuffer(), 0, vk::WholeSize 
             };
             buffers[i + inflight_frame_count] = vk::DescriptorBufferInfo{
-                m_per_scene_buffers[i].GetBuffer(), 0, sizeof(Engine::ConstantData::PerSceneStruct) 
+                m_per_scene_buffers[i].GetBuffer(), 0, vk::WholeSize
             };
         }
         for (uint32_t i = 0; i < inflight_frame_count; i++){
@@ -83,7 +85,7 @@ namespace Engine::RenderSystemState{
                 m_per_camera_descriptor_sets[i],
                 0,
                 0,
-                vk::DescriptorType::eUniformBuffer,
+                vk::DescriptorType::eUniformBufferDynamic,
                 {}
             };
             writes[i].descriptorCount = 1;
@@ -126,13 +128,18 @@ namespace Engine::RenderSystemState{
         assert(inflight < m_per_camera_descriptor_sets.size());
         return m_per_camera_descriptor_sets[inflight];
     }
-    std::byte* GlobalConstantDescriptorPool::GetPerCameraConstantMemory(uint32_t inflight) const {
-        assert(inflight < m_per_camera_memories.size());
-        return m_per_camera_memories[inflight];
+    ConstantData::PerCameraStruct* GlobalConstantDescriptorPool::GetPerCameraConstantMemory(uint32_t inflight, uint32_t camera_id) const {
+        assert(inflight < m_per_camera_buffers.size());
+        return m_per_camera_buffers[inflight]->GetSlicePtrTyped(camera_id);
     }
-    void GlobalConstantDescriptorPool::FlushPerCameraConstantMemory(uint32_t inflight) const {
-        assert(inflight < m_per_camera_memories.size());
-        m_per_camera_buffers[inflight].Flush();
+    std::ptrdiff_t GlobalConstantDescriptorPool::GetPerCameraDynamicOffset(uint32_t inflight, uint32_t camera_id) const
+    {
+        return m_per_camera_buffers[inflight]->GetSliceOffset(camera_id);
+    }
+    void GlobalConstantDescriptorPool::FlushPerCameraConstantMemory(uint32_t inflight, uint32_t camera_id) const
+    {
+        assert(inflight < m_per_camera_buffers.size());
+        m_per_camera_buffers[inflight]->FlushSlice(camera_id);
     }
     auto GlobalConstantDescriptorPool::GetPerSceneConstantLayout() const -> const decltype(m_per_scene_constant_layout) &
     {

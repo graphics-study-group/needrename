@@ -44,6 +44,9 @@ namespace Engine
         CameraComponent & set_clipping(float near, float far);
 
     public:
+        /// Internal id for the underlying rendering resource of the camera.
+        /// _Should_ be unique for each camera that needs to be rendered in _the same frame_.
+        REFL_SER_ENABLE uint8_t display_id {0};
         REFL_SER_ENABLE float m_fov_vertical{45};
         REFL_SER_ENABLE float m_aspect_ratio{1.0};
         REFL_SER_ENABLE float m_clipping_near{1e-3};

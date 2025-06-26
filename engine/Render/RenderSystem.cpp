@@ -125,7 +125,9 @@ namespace Engine
         GraphicsCommandBuffer cb = this->GetFrameManager().GetCommandBuffer();
 
         // Write camera transforms
-        std::byte * camera_ptr = this->GetGlobalConstantDescriptorPool().GetPerCameraConstantMemory(pimpl->m_frame_manager.GetFrameInFlight());
+        auto camera_ptr = this->GetGlobalConstantDescriptorPool().GetPerCameraConstantMemory(
+            pimpl->m_frame_manager.GetFrameInFlight(), GetActiveCameraId()
+        );
         ConstantData::PerCameraStruct camera_struct {
             view_matrix, projection_matrix
         };
@@ -164,6 +166,11 @@ namespace Engine
     void RenderSystem::SetActiveCamera(std::shared_ptr <CameraComponent> cameraComponent)
     {
         pimpl->m_active_camera = cameraComponent;
+    }
+
+    uint32_t RenderSystem::GetActiveCameraId() const
+    {
+        return pimpl->m_active_camera ? pimpl->m_active_camera->display_id : 0;
     }
 
     vk::Instance RenderSystem::getInstance() const 
@@ -221,9 +228,9 @@ namespace Engine
     }
 
     void RenderSystem::WritePerCameraConstants(const ConstantData::PerCameraStruct& data, uint32_t in_flight_index) {
-        std::byte * ptr = pimpl->m_descriptor_pool.GetPerCameraConstantMemory(in_flight_index);
+        auto * ptr = pimpl->m_descriptor_pool.GetPerCameraConstantMemory(in_flight_index, GetActiveCameraId());
         std::memcpy(ptr, &data, sizeof data);
-        pimpl->m_descriptor_pool.FlushPerCameraConstantMemory(in_flight_index);
+        pimpl->m_descriptor_pool.FlushPerCameraConstantMemory(in_flight_index, GetActiveCameraId());
     }
 
     void RenderSystem::WaitForIdle() const {

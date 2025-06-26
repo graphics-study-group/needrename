@@ -3,7 +3,7 @@
 
 #include <glm.hpp>
 #include "Render/VkWrapper.tcc"
-#include "Render/Memory/Buffer.h"
+#include "Render/Memory/IndexedBuffer.h"
 
 namespace Engine {
     class RenderSystem;
@@ -19,7 +19,7 @@ namespace Engine {
             static constexpr std::array <vk::DescriptorSetLayoutBinding, 1> BINDINGS = {
                 vk::DescriptorSetLayoutBinding{
                     0,
-                    vk::DescriptorType::eUniformBuffer,
+                    vk::DescriptorType::eUniformBufferDynamic,
                     1,
                     vk::ShaderStageFlagBits::eAllGraphics
                 }
