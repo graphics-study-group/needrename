@@ -16,22 +16,14 @@ namespace Engine
     /// @brief A light-weight instance of a given material,
     /// where all mutable data such as texture and uniforms are stored.
     class MaterialInstance : public IInstantiatedFromAsset<MaterialAsset> {
-    public:
-        using PassInfo = PipelineInfo::InstancedPassInfo;
-
     protected:
         RenderSystem & m_system;
-        std::weak_ptr <MaterialTemplate> m_parent_template;
-        std::unordered_map <uint32_t, std::unordered_map<uint32_t, std::any>> m_desc_variables {};
-        std::unordered_map <uint32_t, std::unordered_map<uint32_t, std::any>> m_inblock_variables {};
-        std::unordered_map <uint32_t, PassInfo> m_pass_info {};
-
-        // A small buffer for uniform buffer staging to avoid random write to UBO.
-        std::vector <std::byte> m_buffer {};
+        struct impl;
+        std::unique_ptr <impl> pimpl;
     
     public:
         MaterialInstance(RenderSystem & system, std::shared_ptr <MaterialTemplate> tpl);
-        virtual ~MaterialInstance() = default;
+        virtual ~MaterialInstance();
 
         /**
          * @brief Get the template associated with this material instance.
@@ -51,7 +43,8 @@ namespace Engine
          * @param pass_index The index of the pass
          * @return A reference to the variables map for the specified pass
          */
-        auto GetInBlockVariables(uint32_t pass_index) const -> const decltype(m_inblock_variables.at(0)) &;
+        const std::unordered_map<uint32_t, std::any> &
+        GetInBlockVariables(uint32_t pass_index) const;
 
         /**
          * @brief Get the variables of a specific pass
@@ -59,7 +52,8 @@ namespace Engine
          * @param pass_index The index of the pass
          * @return A reference to the variables map for the specified pass
          */
-        auto GetDescVariables(uint32_t pass_index) const -> const decltype(m_desc_variables.at(0)) &;
+        const std::unordered_map<uint32_t, std::any> &
+        GetDescVariables(uint32_t pass_index) const;
 
         /**
          * @brief Set the texture uniform descriptor to point to a given texture.
@@ -121,6 +115,18 @@ namespace Engine
          * @return A reference to the `vk::DescriptorSet` object associated with the specified pass
          */
         vk::DescriptorSet GetDescriptor(uint32_t pass) const;
+
+        /**
+         * @brief Get the descriptor set for a specific pass
+         *
+         * This method returns the descriptor set associated with the given pass index.
+         * The descriptor set contains the bindings for various resources such as textures and uniform buffers.
+         *
+         * @param pass_index The index of the pass
+         * @param backbuffer Which backbuffer
+         * @return A reference to the `vk::DescriptorSet` object associated with the specified pass
+         */
+        vk::DescriptorSet GetDescriptor(uint32_t pass, uint32_t backbuffer) const;
 
         /**
          * @brief Instantiate a material asset to the material instance. Load properties to the uniforms.

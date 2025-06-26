@@ -43,6 +43,16 @@ namespace Engine {
         using Buffer::GetSize;
 
         /**
+         * @brief Get actual slice size ignoring padding for alignments.
+         */
+        size_t GetSliceSize() const noexcept;
+
+        /**
+         * @brief Get slice size with alignment
+         */
+        size_t GetAlignedSliceSize() const noexcept;
+
+        /**
          * @brief Get the pointer to the slice.
          * 
          * The slice pointer is aligned to guarantee that

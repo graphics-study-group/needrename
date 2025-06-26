@@ -32,6 +32,16 @@ namespace Engine {
         assert(pimpl->base_ptr);
     }
 
+    size_t IndexedBuffer::GetSliceSize() const noexcept
+    {
+        return pimpl->slice_size;
+    }
+
+    size_t IndexedBuffer::GetAlignedSliceSize() const noexcept
+    {
+        return pimpl->aligned_slice_size;
+    }
+
     void *IndexedBuffer::GetSlicePtr(uint32_t slice) const noexcept
     {
         assert(slice < pimpl->slices);
