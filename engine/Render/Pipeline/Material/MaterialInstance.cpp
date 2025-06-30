@@ -7,58 +7,93 @@
 #include <Asset/Material/MaterialAsset.h>
 #include <Asset/Texture/Image2DTextureAsset.h>
 #include <SDL3/SDL.h>
+#include <Render/Memory/IndexedBuffer.h>
+#include <bitset>
 
 namespace Engine {
+
+    struct MaterialInstance::impl {
+        struct PassInfo {
+            static constexpr uint32_t BACK_BUFFERS = 2;
+
+            std::unique_ptr <IndexedBuffer> ubo {};
+            std::array <vk::DescriptorSet, BACK_BUFFERS> desc_set {};
+
+            std::bitset <BACK_BUFFERS> _is_descriptor_set_dirty{};
+            std::bitset <BACK_BUFFERS> _is_ubo_dirty{};
+        };
+
+        std::weak_ptr <MaterialTemplate> m_parent_template;
+        std::unordered_map <uint32_t, std::unordered_map<uint32_t, std::any>> m_desc_variables {};
+        std::unordered_map <uint32_t, std::unordered_map<uint32_t, std::any>> m_inblock_variables {};
+        std::unordered_map <uint32_t, PassInfo> m_pass_info {};
+
+        // A small buffer for uniform buffer staging to avoid random write to UBO.
+        std::vector <std::byte> m_buffer {};
+    };
+
     MaterialInstance::MaterialInstance(
         RenderSystem & system, 
         std::shared_ptr<MaterialTemplate> tpl
-        ) : m_system(system), m_parent_template(tpl)
+        ) : m_system(system), pimpl(std::make_unique<impl>(tpl))
     {
+        using PassInfo = impl::PassInfo;
         // Allocate uniform buffers and per-material descriptor sets
         for (const auto & [idx, info] : tpl->GetAllPassInfo()) {
             PassInfo pass{};
             auto ubo_size = tpl->GetMaximalUBOSize(idx);
-            pass.desc_set = tpl->AllocateDescriptorSet(idx);
+            pass.desc_set[0] = tpl->AllocateDescriptorSet(idx);
+            pass.desc_set[1] = tpl->AllocateDescriptorSet(idx);
             if (ubo_size == 0) {
                 SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Found zero-sized UBO when processing pass %llu of material", ubo_size);
             } else {
-                pass.ubo = std::make_unique<Buffer>(system);
-                pass.ubo->Create(Buffer::BufferType::Uniform, tpl->GetMaximalUBOSize(idx));
+                pass.ubo = std::make_unique<IndexedBuffer>(system);
+                pass.ubo->Create(
+                    Buffer::BufferType::Uniform,
+                    tpl->GetMaximalUBOSize(idx),
+                    system.GetPhysicalDevice().getProperties().limits.minUniformBufferOffsetAlignment,
+                    PassInfo::BACK_BUFFERS,
+                    "Indexed UBO for Material"
+                );
             }
-            m_pass_info[idx] = std::move(pass);
+            pimpl->m_pass_info[idx] = std::move(pass);
         }
     }
 
+    MaterialInstance::~MaterialInstance() = default;
+
     const MaterialTemplate &MaterialInstance::GetTemplate() const
     {
-        return *m_parent_template.lock();
+        return *(pimpl->m_parent_template.lock());
     }
 
-    auto MaterialInstance::GetInBlockVariables(uint32_t pass_index) const -> const decltype(m_inblock_variables.at(0)) &
+    const std::unordered_map<uint32_t, std::any> & 
+    MaterialInstance::GetInBlockVariables(uint32_t pass_index) const
     {
-        return m_inblock_variables.at(pass_index);
+        return pimpl->m_inblock_variables.at(pass_index);
     }
 
-    auto MaterialInstance::GetDescVariables(uint32_t pass_index) const -> const decltype(m_desc_variables.at(0)) &
+    const std::unordered_map<uint32_t, std::any> & 
+    MaterialInstance::GetDescVariables(uint32_t pass_index) const
     {
-        return m_desc_variables.at(pass_index);
+        return pimpl->m_desc_variables.at(pass_index);
     }
 
     void MaterialInstance::WriteTextureUniform(uint32_t pass, uint32_t index, std::shared_ptr <const SampledTexture> texture)
     {
-        assert(m_pass_info.contains(pass) && "Cannot find pass.");
+        assert(pimpl->m_pass_info.contains(pass) && "Cannot find pass.");
         assert(
-            m_parent_template.lock()->GetDescVariable(index, pass).set
+            pimpl->m_parent_template.lock()->GetDescVariable(index, pass).set
             && "Cannot find uniform in designated pass."
         );
 
-        m_desc_variables[pass][index] = std::any(texture);
-        m_pass_info[pass].is_descriptor_set_dirty = true;
+        pimpl->m_desc_variables[pass][index] = std::any(texture);
+        pimpl->m_pass_info[pass]._is_descriptor_set_dirty.set();
     }
 
     void MaterialInstance::WriteStorageBufferUniform(uint32_t pass, uint32_t index, std::shared_ptr <const Buffer> buffer)
     {
-        assert(false && "Unimplemented");
+        assert(!"Unimplemented");
     }
 
     void MaterialInstance::WriteUBOUniform(uint32_t pass, uint32_t index, std::any uniform)
@@ -68,42 +103,43 @@ namespace Engine {
             != PipelineUtils::REGISTERED_SHADER_UNIFORM_TYPES.end()
             && "Unsupported uniform type."
         );
-        assert(m_pass_info.find(pass) != m_pass_info.end() && "Cannot find pass.");
+        assert(pimpl->m_pass_info.find(pass) != pimpl->m_pass_info.end() && "Cannot find pass.");
         assert(
-            m_parent_template.lock()->GetInBlockVariable(index, pass).block_location.set
+            pimpl->m_parent_template.lock()->GetInBlockVariable(index, pass).block_location.set
             && "Cannot find uniform in designated pass."
         );
 
-        m_inblock_variables[pass][index] = uniform;
-        m_pass_info[pass].is_ubo_dirty = true;
+        pimpl->m_inblock_variables[pass][index] = uniform;
+        pimpl->m_pass_info[pass]._is_ubo_dirty.set();
     }
 
     void MaterialInstance::WriteUBO(uint32_t pass)
     {
-        assert(m_pass_info.contains(pass) && "Cannot find pass.");
-        auto & pass_info = m_pass_info[pass];
-        if (!pass_info.is_ubo_dirty)    return;
+        assert(pimpl->m_pass_info.contains(pass) && "Cannot find pass.");
+        auto & pass_info = pimpl->m_pass_info[pass];
+        auto fif = m_system.GetFrameManager().GetTotalFrame() % pass_info.BACK_BUFFERS;
+        if (!pass_info._is_ubo_dirty[fif])    return;
 
-        auto tpl = m_parent_template.lock();
+        auto tpl = pimpl->m_parent_template.lock();
 
         // write uniform buffer
         auto & ubo = *(pass_info.ubo.get());
-        tpl->PlaceUBOVariables(*this, m_buffer, pass);
-        std::memcpy(ubo.Map(), m_buffer.data(), ubo.GetSize());
-        ubo.Flush();
+        tpl->PlaceUBOVariables(*this, pimpl->m_buffer, pass);
+        std::memcpy(ubo.GetSlicePtr(fif), pimpl->m_buffer.data(), ubo.GetSliceSize());
+        ubo.FlushSlice(fif);
 
-        pass_info.is_ubo_dirty = false;
+        pass_info._is_ubo_dirty.reset(fif);
     }
 
     void MaterialInstance::WriteDescriptors(uint32_t pass)
     {
-        assert(m_pass_info.contains(pass) && "Cannot find pass.");
-        auto & pass_info = m_pass_info[pass];
+        assert(pimpl->m_pass_info.contains(pass) && "Cannot find pass.");
+        auto & pass_info = pimpl->m_pass_info[pass];
+        auto fif = m_system.GetFrameManager().GetTotalFrame() % pass_info.BACK_BUFFERS;
+        if (!(pass_info.desc_set[fif]))    return;
+        if (!pass_info._is_descriptor_set_dirty[fif])    return;
 
-        if (!pass_info.desc_set)    return;
-        if (!pass_info.is_descriptor_set_dirty)    return;
-
-        auto tpl = m_parent_template.lock();
+        auto tpl = pimpl->m_parent_template.lock();
         
         
         // Prepare descriptor writes
@@ -113,7 +149,7 @@ namespace Engine {
         writes.reserve(image_writes.size() + 1);
         for (const auto & [binding, image_info] : image_writes) {
             vk::WriteDescriptorSet write {
-                    pass_info.desc_set, binding, 0, 1,
+                    pass_info.desc_set[fif], binding, 0, 1,
                     // TODO: We need a better way to check if its storage image or texture image.
                     image_info.imageLayout == vk::ImageLayout::eGeneral ? 
                         vk::DescriptorType::eStorageImage : 
@@ -127,10 +163,14 @@ namespace Engine {
         if (pass_info.ubo) {
             auto & ubo = *(pass_info.ubo.get());
             std::array <vk::DescriptorBufferInfo, 1> ubo_buffer_info = {
-                vk::DescriptorBufferInfo{ubo.GetBuffer(), 0, vk::WholeSize}
+                vk::DescriptorBufferInfo{
+                    ubo.GetBuffer(),
+                    ubo.GetSliceOffset(fif),
+                    ubo.GetSliceSize()
+                }
             };
             vk::WriteDescriptorSet ubo_write {
-                pass_info.desc_set, 0, 0,
+                pass_info.desc_set[fif], 0, 0,
                 vk::DescriptorType::eUniformBuffer,
                 {},
                 ubo_buffer_info,
@@ -140,15 +180,20 @@ namespace Engine {
         }
 
         m_system.getDevice().updateDescriptorSets(writes, {});
-        pass_info.is_descriptor_set_dirty = false;
+        pass_info._is_descriptor_set_dirty.reset(fif);
     }
     vk::DescriptorSet MaterialInstance::GetDescriptor(uint32_t pass) const
     {
-        return m_pass_info.at(pass).desc_set;
+        return GetDescriptor(pass, m_system.GetFrameManager().GetTotalFrame() % impl::PassInfo::BACK_BUFFERS);
+    }
+    vk::DescriptorSet MaterialInstance::GetDescriptor(uint32_t pass, uint32_t backbuffer) const
+    {
+        assert(backbuffer < impl::PassInfo::BACK_BUFFERS);
+        return pimpl->m_pass_info.at(pass).desc_set[backbuffer];
     }
     void MaterialInstance::Instantiate(const MaterialAsset &asset)
     {
-        const auto & all_passes = m_parent_template.lock()->GetAllPassInfo();
+        const auto & all_passes = pimpl->m_parent_template.lock()->GetAllPassInfo();
         for(const auto & [pass_index, pass_info] : all_passes)
         {
             for(const auto & [uniform_name, uniform_idx] : pass_info.inblock.names) {

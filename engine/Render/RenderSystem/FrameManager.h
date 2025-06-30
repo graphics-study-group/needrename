@@ -24,6 +24,9 @@ namespace Engine {
             void Create ();
 
             uint32_t GetFrameInFlight() const noexcept;
+
+            uint64_t GetTotalFrame() const noexcept;
+
             uint32_t GetFramebuffer() const noexcept;
             
             /**

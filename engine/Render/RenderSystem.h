@@ -77,6 +77,7 @@ namespace Engine
         void ClearComponent();
 
         void SetActiveCamera(std::shared_ptr <CameraComponent>);
+        uint32_t GetActiveCameraId() const;
         void WaitForIdle() const;
 
         /// @brief Update the swapchain in response of a window resize etc.
