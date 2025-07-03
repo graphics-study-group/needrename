@@ -55,6 +55,7 @@ namespace Engine
         // TODO: data: mesh, texture, light
         std::vector <std::shared_ptr<RendererComponent>> m_components {};
         std::shared_ptr <CameraComponent> m_active_camera {};
+        uint32_t m_active_camera_id = -1;
 
         RenderSystemState::PhysicalDevice m_selected_physical_device {};
 
@@ -170,7 +171,12 @@ namespace Engine
 
     uint32_t RenderSystem::GetActiveCameraId() const
     {
-        return pimpl->m_active_camera ? pimpl->m_active_camera->display_id : 0;
+        return pimpl->m_active_camera_id == -1 ? (pimpl->m_active_camera ? pimpl->m_active_camera->display_id : 0) : pimpl->m_active_camera_id;
+    }
+
+    void RenderSystem::SetActiveCameraId(uint32_t id)
+    {
+        pimpl->m_active_camera_id = id;
     }
 
     vk::Instance RenderSystem::getInstance() const 

@@ -22,18 +22,21 @@ namespace Editor
         virtual ~GameWidget();
 
         virtual void Render() override;
+
+        void CreateRenderTargetBinding(std::shared_ptr<Engine::RenderSystem> render_system);
+        void PreRender();
         
-        // void CreateRenderTargetBinding(std::shared_ptr<Engine::RenderSystem> render_system);
-        // void PreRender(Engine::GraphicsCommandBuffer &cb);
+    protected:
+        Engine::RenderTargetBinding m_render_target_binding{};
+        ImVec2 m_viewport_size{1280, 720};
 
-        // Engine::RenderTargetBinding m_render_target_binding{};
-
-        // int m_game_width = 1280;
-        // int m_game_height = 720;
-
-        // std::shared_ptr<Engine::SampledTexture> m_color_texture{};
-        // std::shared_ptr<Engine::SampledTexture> m_depth_texture{};
-        // ImTextureID m_color_att_id{};
+    public:
+        // TODO: Need better way to allocate textures and set barriers.
+        int m_texture_width{1960};
+        int m_texture_height{1080};
+        std::shared_ptr<Engine::SampledTexture> m_color_texture{};
+        std::shared_ptr<Engine::SampledTexture> m_depth_texture{};
+        ImTextureID m_color_att_id{};
     };
 }
 

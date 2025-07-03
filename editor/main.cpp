@@ -56,9 +56,9 @@ int main()
     auto scene_widget = std::make_shared<Editor::SceneWidget>(Editor::MainWindow::k_scene_widget_name);
     scene_widget->CreateRenderTargetBinding(rsys);
     main_window.AddWidget(scene_widget);
-    // auto game_widget = std::make_shared<Editor::GameWidget>(Editor::MainWindow::k_game_widget_name);
-    // game_widget->CreateRenderTargetBinding(rsys);
-    // main_window.AddWidget(game_widget);
+    auto game_widget = std::make_shared<Editor::GameWidget>(Editor::MainWindow::k_game_widget_name);
+    game_widget->CreateRenderTargetBinding(rsys);
+    main_window.AddWidget(game_widget);
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Entering main loop");
 
@@ -97,9 +97,10 @@ int main()
         cb.Begin();
 
         scene_widget->PreRender();
-        // game_widget->PreRender();
+        game_widget->PreRender();
 
         context.UseImage(*std::static_pointer_cast<Engine::Texture>(scene_widget->m_color_texture), GraphicsContext::ImageGraphicsAccessType::ShaderRead, GraphicsContext::ImageAccessType::ColorAttachmentWrite);
+        context.UseImage(*std::static_pointer_cast<Engine::Texture>(game_widget->m_color_texture), GraphicsContext::ImageGraphicsAccessType::ShaderRead, GraphicsContext::ImageAccessType::ColorAttachmentWrite);
         context.UseImage(window->GetColorTexture(), GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite, GraphicsContext::ImageAccessType::None);
         context.UseImage(window->GetDepthTexture(), GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite, GraphicsContext::ImageAccessType::None);
         context.PrepareCommandBuffer();

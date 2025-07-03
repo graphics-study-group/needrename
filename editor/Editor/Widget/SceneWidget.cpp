@@ -73,6 +73,7 @@ namespace Editor
         context.UseImage(*m_depth_texture, Engine::GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite, Engine::GraphicsContext::ImageAccessType::None);
         context.PrepareCommandBuffer();
         cb.BeginRendering(m_render_target_binding, {(uint32_t)m_viewport_size.x, (uint32_t)m_viewport_size.y}, "Editor Scene Pass");
+        Engine::MainClass::GetInstance()->GetRenderSystem()->SetActiveCameraId(15u);
         Engine::MainClass::GetInstance()->GetRenderSystem()->DrawMeshes(m_camera.m_view_matrix, m_camera.m_projection_matrix, {(uint32_t)m_viewport_size.x, (uint32_t)m_viewport_size.y});
         cb.EndRendering();
     }
