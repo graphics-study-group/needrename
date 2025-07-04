@@ -32,9 +32,9 @@ namespace Engine
         VkWrapper(VkWrapper && other) : m_handle(std::move(other.m_handle)) {};
         VkWrapper & operator= (const VkWrapper &) = delete;
         VkWrapper & operator= (VkWrapper & other) {
-            if (this->handle != other.handle) {
-                this->Release();
-                std::swap(this->handle, other.handle);
+            if (this->m_handle != other.m_handle) {
+                this->release();
+                std::swap(this->m_handle, other.m_handle);
             }
         }
 
@@ -59,12 +59,12 @@ namespace Engine
         virtual ~VkWrapperIndependent () = default;
 
         VkWrapperIndependent(const VkWrapperIndependent &) = delete;
-        VkWrapperIndependent(VkWrapperIndependent && other) : m_handle(std::move(other.handle)) {};
+        VkWrapperIndependent(VkWrapperIndependent && other) : m_handle(std::move(other.m_handle)) {};
         VkWrapperIndependent & operator= (const VkWrapperIndependent &) = delete;
         VkWrapperIndependent & operator= (VkWrapperIndependent & other) {
-            if (this->handle != other.handle) {
-                this->Release();
-                std::swap(this->handle, other.handle);
+            if (this->m_handle != other.m_handle) {
+                this->release();
+                std::swap(this->m_handle, other.m_handle);
             }
         }
 

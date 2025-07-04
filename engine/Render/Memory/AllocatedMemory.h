@@ -2,6 +2,7 @@
 #define RENDER_MEMORY_ALLOCATEDMEMORY_INCLUDED
 
 #include <vk_mem_alloc.h>
+#include <variant>
 
 namespace Engine {
     class AllocatedMemory {
