@@ -35,6 +35,9 @@ namespace Editor
         bool m_camera_control_on{false};
 
     public:
+        float m_camera_fov{45.0f};
+
+    public:
         // TODO: Need better way to allocate textures and set barriers.
         int m_texture_width{1960};
         int m_texture_height{1080};

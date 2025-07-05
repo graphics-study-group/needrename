@@ -30,6 +30,11 @@ namespace Engine
         /// @return this for chainning
         Camera & set_fov_vertical(float fov);
 
+        /// @brief Set up vertical field of view angle of camera
+        /// @param fov angle in degrees
+        /// @return this for chainning
+        Camera & set_fov_horizontal(float fov);
+
         /// @brief Set up aspect ratio
         /// @param aspect width / height
         /// @return this for chainning

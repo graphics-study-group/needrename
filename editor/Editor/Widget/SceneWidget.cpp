@@ -3,6 +3,7 @@
 #include <MainClass.h>
 #include <Functional/SDLWindow.h>
 #include <Render/RenderSystem.h>
+#include <Render/Renderer/Camera.h>
 #include <Render/ImageUtils.h>
 #include <Render/Memory/SampledTexture.h>
 #include <Render/Pipeline/CommandBuffer/GraphicsCommandBuffer.h>
@@ -13,6 +14,7 @@ namespace Editor
 {
     SceneWidget::SceneWidget(const std::string &name) : Widget(name)
     {
+        m_camera.m_camera->m_display_id = 15u;
         // m_camera.m_transform.SetPosition({0.0f, 0.05f, -0.7f});
         // m_camera.m_transform.SetRotationEuler(glm::vec3{1.57, 0.0, 3.1415926});
         // m_camera.m_fov = 45.0f;
@@ -64,8 +66,16 @@ namespace Editor
 
     void SceneWidget::PreRender()
     {
-        m_camera.m_aspect_ratio = static_cast<float>(m_viewport_size.x) / static_cast<float>(m_viewport_size.y);
-        m_camera.UpdateProjectionMatrix();
+        float aspect_ratio = static_cast<float>(m_viewport_size.x) / static_cast<float>(m_viewport_size.y);
+        m_camera.m_camera->set_aspect_ratio(aspect_ratio);
+        if (aspect_ratio > 1.0f)
+        {
+            m_camera.m_camera->set_fov_vertical(m_camera_fov);
+        }
+        else
+        {
+            m_camera.m_camera->set_fov_horizontal(m_camera_fov);
+        }
 
         auto context = Engine::MainClass::GetInstance()->GetRenderSystem()->GetFrameManager().GetGraphicsContext();
         auto &cb = dynamic_cast<Engine::GraphicsCommandBuffer &>(context.GetCommandBuffer());
@@ -73,7 +83,8 @@ namespace Editor
         context.UseImage(*m_depth_texture, Engine::GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite, Engine::GraphicsContext::ImageAccessType::None);
         context.PrepareCommandBuffer();
         cb.BeginRendering(m_render_target_binding, {(uint32_t)m_viewport_size.x, (uint32_t)m_viewport_size.y}, "Editor Scene Pass");
-        Engine::MainClass::GetInstance()->GetRenderSystem()->DrawMeshes(m_camera.m_view_matrix, m_camera.m_projection_matrix, {(uint32_t)m_viewport_size.x, (uint32_t)m_viewport_size.y});
+        Engine::MainClass::GetInstance()->GetRenderSystem()->SetActiveCamera(m_camera.m_camera);
+        Engine::MainClass::GetInstance()->GetRenderSystem()->DrawMeshes(m_camera.m_camera->GetViewMatrix(), m_camera.m_camera->GetProjectionMatrix(), {(uint32_t)m_viewport_size.x, (uint32_t)m_viewport_size.y});
         cb.EndRendering();
     }
 
@@ -100,7 +111,7 @@ namespace Editor
                 float delta_forward = ImGui::IsKeyDown(ImGuiKey_W) * 1.0f - ImGui::IsKeyDown(ImGuiKey_S) * 1.0f;
                 float delta_right = ImGui::IsKeyDown(ImGuiKey_D) * 1.0f - ImGui::IsKeyDown(ImGuiKey_A) * 1.0f;
                 m_camera.MoveControl(delta_forward, delta_right);
-                m_camera.UpdateViewMatrix();
+                m_camera.m_camera->UpdateViewMatrix(m_camera.m_transform);
             }
         }
         ImGui::End();

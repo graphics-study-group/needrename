@@ -27,6 +27,14 @@ namespace Engine
         return *this;
     }
 
+    Camera &Camera::set_fov_horizontal(float fov)
+    {
+        // Convert horizontal FOV to vertical FOV based on aspect ratio
+        m_fov_vertical = glm::degrees(2.0f * atanf(tanf(glm::radians(fov) / 2.0f) * m_aspect_ratio));
+        UpdateProjectionMatrix();
+        return *this;
+    }
+
     Camera &Camera::set_aspect_ratio(float aspect)
     {
         m_aspect_ratio = aspect;
