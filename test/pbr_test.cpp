@@ -10,7 +10,6 @@
 #include "Functional/SDLWindow.h"
 #include <Framework/object/GameObject.h>
 #include <Framework/world/WorldSystem.h>
-#include "Framework/component/RenderComponent/CameraComponent.h"
 #include "Framework/component/RenderComponent/MeshComponent.h"
 #include "Render/FullRenderSystem.h"
 #include "GUI/GUISystem.h"
@@ -345,15 +344,12 @@ int main(int argc, char ** argv)
     rsys->RegisterComponent(tmc);
 
     // Setup camera
-    auto camera_go = cmc->GetWorldSystem()->CreateGameObject<GameObject>();
     Transform transform{};
     transform.SetPosition({0.0f, 5.0f, 0.0f});
     transform.SetRotationEuler(glm::vec3{0.0, 0.0, 3.1415926});
-    camera_go->SetTransform(transform);
-    auto camera_comp = std::make_shared<CameraComponent>(camera_go);
-    camera_comp->set_aspect_ratio(1920.0 / 1080.0);
-    camera_go->AddComponent(camera_comp);
-    rsys->SetActiveCamera(camera_comp);
+    auto camera = std::make_shared<Camera>();
+    camera->set_aspect_ratio(1920.0 / 1080.0);
+    rsys->SetActiveCamera(camera);
 
     uint64_t frame_count = 0;
     uint64_t start_timer = SDL_GetPerformanceCounter();

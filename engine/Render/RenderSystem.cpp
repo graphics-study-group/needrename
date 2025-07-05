@@ -6,8 +6,8 @@
 
 #include "Framework/component/RenderComponent/RendererComponent.h"
 #include "Framework/component/RenderComponent/MeshComponent.h"
-#include "Framework/component/RenderComponent/CameraComponent.h"
 #include "Render/Renderer/HomogeneousMesh.h"
+#include "Render/Renderer/Camera.h"
 #include "Render/Pipeline/CommandBuffer.h"
 #include "Render/RenderSystem/AllocatorState.h"
 #include "Render/RenderSystem/Instance.h"
@@ -54,8 +54,7 @@ namespace Engine
         std::weak_ptr <SDLWindow> m_window;
         // TODO: data: mesh, texture, light
         std::vector <std::shared_ptr<RendererComponent>> m_components {};
-        std::shared_ptr <CameraComponent> m_active_camera {};
-        uint32_t m_active_camera_id = -1;
+        std::weak_ptr <Camera> m_active_camera {};
 
         RenderSystemState::PhysicalDevice m_selected_physical_device {};
 
@@ -114,9 +113,10 @@ namespace Engine
     void RenderSystem::DrawMeshes(uint32_t pass)
     {
         glm::mat4 view{1.0f}, proj{1.0f};
-        if (pimpl->m_active_camera) {
-            view = pimpl->m_active_camera->GetViewMatrix();
-            proj = pimpl->m_active_camera->GetProjectionMatrix();
+        auto camera = pimpl->m_active_camera.lock();
+        if (camera) {
+            view = camera->GetViewMatrix();
+            proj = camera->GetProjectionMatrix();
         }
         DrawMeshes(view, proj, this->GetSwapchain().GetExtent(), pass);
     }
@@ -164,19 +164,15 @@ namespace Engine
         pimpl->m_components.clear();
     }
 
-    void RenderSystem::SetActiveCamera(std::shared_ptr <CameraComponent> cameraComponent)
+    void RenderSystem::SetActiveCamera(std::weak_ptr<Camera> camera)
     {
-        pimpl->m_active_camera = cameraComponent;
+        pimpl->m_active_camera = camera;
     }
 
     uint32_t RenderSystem::GetActiveCameraId() const
     {
-        return pimpl->m_active_camera_id == -1 ? (pimpl->m_active_camera ? pimpl->m_active_camera->display_id : 0) : pimpl->m_active_camera_id;
-    }
-
-    void RenderSystem::SetActiveCameraId(uint32_t id)
-    {
-        pimpl->m_active_camera_id = id;
+        auto camera = pimpl->m_active_camera.lock();
+        return camera ? camera->m_display_id : 0;
     }
 
     vk::Instance RenderSystem::getInstance() const 

@@ -111,10 +111,15 @@
         "&11": {
             "%type": "Engine::CameraComponent",
             "Component::m_parentGameObject": "&9",
+            "m_camera": "&12"
+        },
+        "&12": {
+            "%type": "Engine::Camera",
             "m_fov_vertical": 45.0,
             "m_aspect_ratio": 1.777778,
             "m_clipping_near": 0.001,
-            "m_clipping_far": 1000.0
+            "m_clipping_far": 1000.0,
+            "m_display_id": 0
         }
     }
 }

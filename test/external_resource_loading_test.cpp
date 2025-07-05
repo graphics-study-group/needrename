@@ -12,6 +12,7 @@
 #include <Asset/AssetManager/AssetManager.h>
 #include <Asset/Scene/GameObjectAsset.h>
 #include <Framework/component/RenderComponent/CameraComponent.h>
+#include <Render/Renderer/Camera.h>
 
 using namespace Engine;
 
@@ -60,8 +61,8 @@ int main()
     transform.SetRotationEuler(glm::vec3{0.0, 0.0, 3.1415926});
     camera_go->SetTransform(transform);
     auto camera_comp = camera_go->template AddComponent<CameraComponent>();
-    camera_comp->set_aspect_ratio(1.0 * opt.resol_x / opt.resol_y);
-    cmc->GetRenderSystem()->SetActiveCamera(camera_comp);
+    camera_comp->m_camera->set_aspect_ratio(1.0 * opt.resol_x / opt.resol_y);
+    cmc->GetRenderSystem()->SetActiveCamera(camera_comp->m_camera);
     cmc->GetWorldSystem()->AddGameObjectToWorld(camera_go);
     
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Entering main loop");

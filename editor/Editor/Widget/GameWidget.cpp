@@ -62,7 +62,6 @@ namespace Editor
         context.UseImage(*m_depth_texture, Engine::GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite, Engine::GraphicsContext::ImageAccessType::None);
         context.PrepareCommandBuffer();
         cb.BeginRendering(m_render_target_binding, {(uint32_t)m_viewport_size.x, (uint32_t)m_viewport_size.y}, "Editor Game Pass");
-        Engine::MainClass::GetInstance()->GetRenderSystem()->SetActiveCameraId(-1);
         Engine::MainClass::GetInstance()->GetRenderSystem()->DrawMeshes();
         cb.EndRendering();
     }

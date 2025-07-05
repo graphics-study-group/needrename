@@ -5,9 +5,8 @@
 
 #include <cmake_config.h>
 #include <MainClass.h>
-#include <Framework/world/WorldSystem.h>
-#include <Framework/object/GameObject.h>
-#include "Framework/component/RenderComponent/CameraComponent.h"
+#include <Core/Math/Transform.h>
+#include <Render/Renderer/Camera.h>
 
 using namespace Engine;
 
@@ -31,11 +30,12 @@ void print_vectors(glm::vec3 o, glm::vec3 x, glm::vec3 y, glm::vec3 z) {
 }
 
 void test_translation() {
-    auto go = MainClass::GetInstance()->GetWorldSystem()->CreateGameObject<GameObject>();   
+    Transform transform;
     // eye space +x axis and +z axis align up with NDC +x axis and +z axis
-    go->GetTransformRef().SetPosition(glm::vec3(0, -1, 0));
+    transform.SetPosition(glm::vec3(0, -1, 0));
 
-    auto cp = std::make_shared<CameraComponent>(go);
+    auto cp = std::make_shared<Camera>();
+    cp->UpdateViewMatrix(transform);
 
     glm::mat4 view{cp->GetViewMatrix()}, proj{cp->GetProjectionMatrix()};
 
@@ -57,10 +57,11 @@ void test_translation() {
 }
 
 void test_rotation() {
-    auto go = MainClass::GetInstance()->GetWorldSystem()->CreateGameObject<GameObject>();   
+    Transform transform;
     // eye space +x axis and +z axis align up with NDC -z axis and +y axis
-    go->GetTransformRef().SetRotationEuler(glm::vec3(0, 0, glm::radians(-90.0f)));
-    auto cp = std::make_shared<CameraComponent>(go);
+    transform.SetRotationEuler(glm::vec3(0, 0, glm::radians(-90.0f)));
+    auto cp = std::make_shared<Camera>();
+    cp->UpdateViewMatrix(transform);
     glm::mat4 view{cp->GetViewMatrix()}, proj{cp->GetProjectionMatrix()};
 
     glm::vec4 o, x, y, z;

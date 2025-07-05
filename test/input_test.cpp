@@ -12,6 +12,7 @@
 #include <Asset/AssetManager/AssetManager.h>
 #include <Asset/Scene/GameObjectAsset.h>
 #include <Framework/component/RenderComponent/CameraComponent.h>
+#include <Render/Renderer/Camera.h>
 #include <Input/Input.h>
 #include <Framework/component/Component.h>
 
@@ -90,10 +91,10 @@ int main(int argc, char **argv)
     transform.SetScale({1.0f, 1.0f, 1.0f});
     camera_go->SetTransform(transform);
     auto camera_comp = camera_go->template AddComponent<CameraComponent>();
-    camera_comp->set_aspect_ratio(1.0 * opt.resol_x / opt.resol_y);
+    camera_comp->m_camera->set_aspect_ratio(1.0 * opt.resol_x / opt.resol_y);
     auto control_comp = camera_go->template AddComponent<ControlComponent>();
     control_comp->m_camera = camera_comp;
-    cmc->GetRenderSystem()->SetActiveCamera(camera_comp);
+    cmc->GetRenderSystem()->SetActiveCamera(camera_comp->m_camera);
     cmc->GetWorldSystem()->AddGameObjectToWorld(camera_go);
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Entering main loop");

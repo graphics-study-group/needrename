@@ -28,6 +28,7 @@
 #include "Render/Pipeline/Material/Templates/BlinnPhong.h"
 
 #include "Render/Renderer/HomogeneousMesh.h"
+#include "Render/Renderer/Camera.h"
 
 #include "Render/Memory/Texture.h"
 #include "Render/Memory/SampledTexture.h"
