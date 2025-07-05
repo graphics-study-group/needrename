@@ -43,6 +43,7 @@ namespace Engine
         {
             AddGameObjectToWorld(go);
         }
+        m_active_camera = levelAsset->m_default_camera;
     }
 
     void WorldSystem::LoadGameObjectAsset(std::shared_ptr<GameObjectAsset> gameObjectAsset)

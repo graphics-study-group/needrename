@@ -2,6 +2,7 @@
 #include <backends/imgui_impl_vulkan.h>
 #include <MainClass.h>
 #include <Functional/SDLWindow.h>
+#include <Framework/world/WorldSystem.h>
 #include <Render/RenderSystem.h>
 #include <Render/ImageUtils.h>
 #include <Render/Memory/SampledTexture.h>
@@ -62,7 +63,7 @@ namespace Editor
         context.UseImage(*m_depth_texture, Engine::GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite, Engine::GraphicsContext::ImageAccessType::None);
         context.PrepareCommandBuffer();
         cb.BeginRendering(m_render_target_binding, {(uint32_t)m_viewport_size.x, (uint32_t)m_viewport_size.y}, "Editor Game Pass");
-        // Engine::MainClass::GetInstance()->GetRenderSystem()->SetActiveCamera(Engine::MainClass::GetInstance()->GetRenderSystem()->GetDefaultCamera());
+        Engine::MainClass::GetInstance()->GetRenderSystem()->SetActiveCamera(Engine::MainClass::GetInstance()->GetWorldSystem()->m_active_camera);
         Engine::MainClass::GetInstance()->GetRenderSystem()->DrawMeshes();
         cb.EndRendering();
     }

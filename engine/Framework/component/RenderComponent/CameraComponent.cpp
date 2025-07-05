@@ -21,9 +21,6 @@ namespace Engine{
     {
         UpdateViewMatrix();
         UpdateProjectionMatrix();
-        
-        // XXX: This is a hack. We should not set active camera here.
-        MainClass::GetInstance()->GetRenderSystem()->SetActiveCamera(this->m_camera);
     }
 
     void CameraComponent::Tick()
