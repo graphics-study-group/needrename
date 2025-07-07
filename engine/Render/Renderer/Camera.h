@@ -56,7 +56,7 @@ namespace Engine
         float m_clipping_far{1e3};
         /// Internal id for the underlying rendering resource of the camera.
         /// _Should_ be unique for each camera that needs to be rendered in _the same frame_.
-        unsigned int m_display_id{0};
+        uint8_t m_display_id{0};
 
     protected:
         glm::mat4 m_projection_matrix{1.0f}, m_view_matrix{1.0f};
