@@ -180,6 +180,7 @@ namespace Engine
         context.UseImage(this->window->GetDepthTexture(), GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite, GraphicsContext::ImageAccessType::None);
         context.PrepareCommandBuffer();
         cb.BeginRendering(this->window->GetRenderTargetBinding(), this->window->GetExtent(), "Main Pass");
+        this->renderer->SetActiveCamera(this->world->m_active_camera);
         this->renderer->DrawMeshes();
         cb.EndRendering();
 
