@@ -6,11 +6,15 @@
 #include <Core/Delegate/Event.h>
 
 int checked = 0;
+bool inherit_called = false;
 
 class TestClass
 {
 public:
-    void PrintInfo(int a, float b)
+    TestClass() = default;
+    virtual ~TestClass() = default;
+
+    virtual void PrintInfo(int a, float b)
     {
         std::cout << "TestClass::PrintInfo called with a: " << a << ", b: " << b << std::endl;
         checked++;
@@ -34,6 +38,19 @@ public:
     {
         std::cout << "Cat::Meow called with a: " << a << ", b: " << b << std::endl;
         checked++;
+    }
+};
+
+class InheritTest : public TestClass
+{
+public:
+    InheritTest() = default;
+    virtual ~InheritTest() = default;
+
+    virtual void PrintInfo(int a, float b) override
+    {
+        std::cout << "InheritTest::PrintInfo called with a: " << a << ", b: " << b << std::endl;
+        inherit_called = true;
     }
 };
 
@@ -77,6 +94,16 @@ int main()
     assert(multicastDelegate.GetDelegateCount() == 1); // Should only have Cat delegate left
     multicastDelegate.RemoveDelegate(handle); // Remove Cat delegate
     assert(multicastDelegate.GetDelegateCount() == 0); // Should have no delegates left
+
+    std::shared_ptr<TestClass> inheritTest = std::make_shared<InheritTest>();
+    Delegate<int, float> inheritDelegate(inheritTest, &TestClass::PrintInfo);
+    inheritDelegate.Invoke(10, 20.0f); // Should call InheritTest::PrintInfo
+    assert(inherit_called == true); // Check if InheritTest::PrintInfo was called
+    inheritTest.reset();
+    inherit_called = false; // Reset the flag
+    inheritDelegate.Invoke(30, 40.0f); // Should not call anything since
+    assert(inherit_called == false);
+    assert(inheritDelegate.IsValid() == false); // Check if delegate is invalid after object reset
 
     return 0;
 }

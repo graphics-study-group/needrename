@@ -94,7 +94,7 @@ int main(int argc, char **argv)
     camera_comp->m_camera->set_aspect_ratio(1.0 * opt.resol_x / opt.resol_y);
     auto control_comp = camera_go->template AddComponent<ControlComponent>();
     control_comp->m_camera = camera_comp;
-    cmc->GetRenderSystem()->SetActiveCamera(camera_comp->m_camera);
+    cmc->GetWorldSystem()->m_active_camera = camera_comp->m_camera;
     cmc->GetWorldSystem()->AddGameObjectToWorld(camera_go);
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Entering main loop");

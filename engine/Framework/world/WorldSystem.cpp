@@ -1,6 +1,9 @@
 #include "WorldSystem.h"
 #include <Asset/Scene/LevelAsset.h>
 #include <Asset/Scene/GameObjectAsset.h>
+#include <Core/Delegate/Delegate.h>
+#include <Functional/EventQueue.h>
+#include <MainClass.h>
 
 namespace Engine
 {
@@ -12,11 +15,12 @@ namespace Engine
     {
     }
 
-    void WorldSystem::Tick()
+    void WorldSystem::AddTickEvent()
     {
+        auto event_queue = MainClass::GetInstance()->GetEventQueue();
         for (auto &comp : m_all_components)
         {
-            comp->Tick();
+            event_queue->AddEvent(comp, &Component::Tick);
         }
     }
 
@@ -27,12 +31,13 @@ namespace Engine
 
     void WorldSystem::LoadGameObjectInQueue()
     {
+        auto event_queue = MainClass::GetInstance()->GetEventQueue();
         for (auto &go : m_go_loading_queue)
         {
-            for (auto &comp : go->m_components)
-                comp->Init();
             m_all_components.insert(m_all_components.end(), go->m_components.begin(), go->m_components.end());
             m_game_objects.push_back(go);
+            for (auto &comp : go->m_components)
+                event_queue->AddEvent(comp, &Component::Init);
         }
         m_go_loading_queue.clear();
     }

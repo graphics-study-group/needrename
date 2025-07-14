@@ -17,6 +17,7 @@ namespace Engine
     class Input;
     class SDLWindow;
     class TimeSystem;
+    class EventQueue;
 
     class MainClass
     {
@@ -38,6 +39,7 @@ namespace Engine
         std::shared_ptr<AssetManager> GetAssetManager() const;
         std::shared_ptr<GUISystem> GetGUISystem() const;
         std::shared_ptr<Input> GetInputSystem() const;
+        std::shared_ptr<EventQueue> GetEventQueue() const;
 
     protected:
         // XXX: window must destroyed before renderer. Because the window has some AllocatedImage2D. So the permutation of renderer and window can not be changed. 
@@ -48,6 +50,7 @@ namespace Engine
         std::shared_ptr<AssetManager> asset{};
         std::shared_ptr<GUISystem> gui{};
         std::shared_ptr<Input> input{};
+        std::shared_ptr<EventQueue> event_queue{};
 
         bool m_on_quit = false;
 

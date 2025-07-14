@@ -7,6 +7,7 @@
 #include <MainClass.h>
 #include <Functional/SDLWindow.h>
 #include <Functional/Time.h>
+#include <Functional/EventQueue.h>
 #include <Render/RenderSystem.h>
 #include <Render/AttachmentUtils.h>
 #include <Render/Memory/Buffer.h>
@@ -46,6 +47,7 @@ int main()
     auto world = cmc->GetWorldSystem();
     auto gui = cmc->GetGUISystem();
     auto window = cmc->GetWindow();
+    auto event_queue = cmc->GetEventQueue();
     gui->CreateVulkanBackend(ImageUtils::GetVkFormat(window->GetColorTexture().GetTextureDescription().format));
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading project");
@@ -90,7 +92,9 @@ int main()
         // Editor mode does not need to tick the world.
         // world->Tick();
 
-        auto index = rsys->StartFrame();
+        event_queue->ProcessEvents();
+
+        rsys->StartFrame();
         auto context = rsys->GetFrameManager().GetGraphicsContext();
         GraphicsCommandBuffer &cb = dynamic_cast<GraphicsCommandBuffer &>(context.GetCommandBuffer());
 
