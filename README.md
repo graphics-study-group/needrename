@@ -39,6 +39,8 @@ mingw32-make
 ```
 
 Or you can use your favorite IDE to do so.
+If you are using Visual Studio Code on Windows, after updating environment variables, the integrated terminal and CMake might not use updated values even after restarting VSCode.
+Ensure that you have killed all background VSCode processes before restarting, or simply [re-logging or restart your computer](https://github.com/microsoft/vscode/issues/69289#issuecomment-467595799) to solve this issue.
 
 ## Project Structure
 
