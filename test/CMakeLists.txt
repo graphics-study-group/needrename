@@ -98,7 +98,7 @@ set_target_properties(pbr_test PROPERTIES FOLDER tests)
 # Copy SDL dll
 add_custom_command(TARGET SDL_init_test POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    $<TARGET_FILE:SDL3::SDL3>
+    $<TARGET_FILE:SDL3::SDL3-shared>
     $<TARGET_FILE_DIR:SDL_init_test>
     COMMENT "Copying SDL DLLs"
 )

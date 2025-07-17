@@ -21,7 +21,6 @@ target_link_libraries(engine
     tinyobjloader
     stb
     json
-    cereal
     vma
     imgui
     spirv-reflect
