@@ -1,6 +1,7 @@
 #ifndef RENDER_MEMORY_ALLOCATEDMEMORY_INCLUDED
 #define RENDER_MEMORY_ALLOCATEDMEMORY_INCLUDED
 
+#include <variant>
 #include <vk_mem_alloc.h>
 
 namespace Engine {

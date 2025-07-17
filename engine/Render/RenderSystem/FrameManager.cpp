@@ -195,7 +195,8 @@ namespace Engine::RenderSystemState{
     struct FrameManager::impl {
         std::array <vk::UniqueSemaphore, FRAMES_IN_FLIGHT> image_acquired_semaphores {};
         std::array <vk::UniqueSemaphore, FRAMES_IN_FLIGHT> render_command_executed_semaphores {};
-        std::array <vk::UniqueSemaphore, FRAMES_IN_FLIGHT> copy_to_swapchain_completed_semaphores {};
+        // std::array <vk::UniqueSemaphore, FRAMES_IN_FLIGHT> copy_to_swapchain_completed_semaphores {};
+        std::vector <vk::UniqueSemaphore> copy_to_swapchain_completed_semaphores {};
         std::array <vk::UniqueSemaphore, FRAMES_IN_FLIGHT> next_frame_ready_semaphores {};
         std::array <vk::UniqueFence, FRAMES_IN_FLIGHT> command_executed_fences {};
         std::array <vk::UniqueCommandBuffer, FRAMES_IN_FLIGHT> command_buffers {};
@@ -253,13 +254,6 @@ namespace Engine::RenderSystemState{
                 std::format("Semaphore - render CB executed {}", i)
             );
 
-            copy_to_swapchain_completed_semaphores[i] = device.createSemaphoreUnique(sinfo);
-            DEBUG_SET_NAME_TEMPLATE(
-                device, 
-                copy_to_swapchain_completed_semaphores[i].get(), 
-                std::format("Semaphore - final copy completed {}", i)
-            );
-
             next_frame_ready_semaphores[i] = device.createSemaphoreUnique(sinfo);
             DEBUG_SET_NAME_TEMPLATE(
                 device, 
@@ -272,6 +266,16 @@ namespace Engine::RenderSystemState{
                 device, 
                 command_executed_fences[i].get(), 
                 std::format("Fence - all commands executed {}", i)
+            );
+        }
+
+        copy_to_swapchain_completed_semaphores.resize(m_system.GetSwapchain().GetFrameCount());
+        for (size_t i = 0; i < copy_to_swapchain_completed_semaphores.size(); i++) {
+            copy_to_swapchain_completed_semaphores[i] = device.createSemaphoreUnique(sinfo);
+            DEBUG_SET_NAME_TEMPLATE(
+                device, 
+                copy_to_swapchain_completed_semaphores[i].get(), 
+                std::format("Semaphore - final copy completed {}", i)
             );
         }
 
@@ -489,7 +493,7 @@ namespace Engine::RenderSystemState{
 
         // Signal ready for presenting and for next frame.
         std::array <vk::Semaphore, 2> ss = {
-            pimpl->copy_to_swapchain_completed_semaphores[fif].get(),
+            pimpl->copy_to_swapchain_completed_semaphores[GetFramebuffer()].get(),
             pimpl->next_frame_ready_semaphores[fif].get()
         };
 
@@ -506,7 +510,7 @@ namespace Engine::RenderSystemState{
         std::array<vk::SwapchainKHR, 1> swapchains { pimpl->m_system.GetSwapchain().GetSwapchain() };
         std::array<uint32_t, 1> frame_indices { GetFramebuffer() };
         // Wait for command buffer before presenting the frame
-        std::array<vk::Semaphore, 1> semaphores {pimpl->copy_to_swapchain_completed_semaphores[fif].get()};
+        std::array<vk::Semaphore, 1> semaphores {pimpl->copy_to_swapchain_completed_semaphores[GetFramebuffer()].get()};
 
         bool needs_recreating = false;
         try {
