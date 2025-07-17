@@ -1,16 +1,18 @@
-add_subdirectory(cereal)
-set_target_properties(cereal PROPERTIES FOLDER third_party)
 add_subdirectory(glad)
 set_target_properties(GLAD PROPERTIES FOLDER third_party)
+
 add_subdirectory(glm)
 set_target_properties(glm PROPERTIES FOLDER third_party)
+
 add_subdirectory(json)
 set_target_properties(json PROPERTIES FOLDER third_party)
-add_subdirectory(SDL3)
+
 add_subdirectory(stb)
 set_target_properties(stb PROPERTIES FOLDER third_party)
+
 add_subdirectory(tinyobjloader)
 set_target_properties(tinyobjloader PROPERTIES FOLDER third_party)
+
 add_subdirectory(vma)
 set_target_properties(vma PROPERTIES FOLDER third_party)
 
