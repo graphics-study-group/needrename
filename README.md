@@ -4,18 +4,38 @@ An unnamed game engine with advanced features including Vulkan-based rendering, 
 
 ## Building the Engine
 
-### Prerequisites
+### Dependencies
 
-- Vulkan SDK
-- Python
+- GCC 14 or greater
 - CMake
-- GCC
+- Python 3
+- Vulkan SDK 1.3 or greater (Tested on 1.4.313)
+- SDL3 (Tested on 3.2.18)
+
+Other vendored dependencies can be found in the `third_party` directory.
+
+When working on Windows, use of MSYS2 is suggested. You can set up the environment with
+```sh
+pacman -S mingw-w64-ucrt-x86_64-toolchain mingw-w64-ucrt-x86_64-cmake
+```
+which installs GCC and CMake for the UCRT64 subsystem.
+
+Vulkan SDK should be downloaded and installed from LunarG, but *not* from MSYS2 repo with `pacman`, which misses some components and is difficult to integrate with CMake.
+
+It is suggested that SDL3 should also be installed manually.
+You can fetch it from [its release page](https://github.com/libsdl-org/SDL/releases/).
+Pick `SDL3-devel-3.X.XX-mingw.tar.gz`, extract it somewhere, and add a `PATH` entry pointing to `SDL3-3.X.XX\x86_64-w64-mingw32\bin`.
+CMake should be able to detect it automatically.
 
 ### Build Steps
 
-1. git clone this repository
-2. configure project (with Vulkan SDK installed) using cmake
-3. build project
+1. `git clone` this repository (with `--recursive` flag)
+2. Configure and build project (with Vulkan SDK installed) using cmake. Out of directory build is preferred:
+```sh
+mkdir build
+cd build
+cmake .. -B build
+```
 
 ## Project Structure
 
