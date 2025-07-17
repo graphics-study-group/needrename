@@ -30,12 +30,15 @@ CMake should be able to detect it automatically.
 ### Build Steps
 
 1. `git clone` this repository (with `--recursive` flag)
-2. Configure and build project (with Vulkan SDK installed) using cmake. Out of directory build is preferred:
+2. Configure and build project (with Vulkan SDK installed) using cmake. Out-of-source build is preferred:
 ```sh
 mkdir build
 cd build
-cmake .. -B build
+cmake .. -DCMAKE_BUILD_TYPE=Debug -G "MinGW Makefiles"
+mingw32-make
 ```
+
+Or you can use your favorite IDE to do so.
 
 ## Project Structure
 
