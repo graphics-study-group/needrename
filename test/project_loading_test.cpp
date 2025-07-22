@@ -40,7 +40,7 @@ int main(int argc, char **argv)
     cmc->LoadProject(project_path);
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Entering main loop");
-    cmc->LoopFinite(10000);
+    cmc->LoopFinite(max_frame_count);
 
     return 0;
 }

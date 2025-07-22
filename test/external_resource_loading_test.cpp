@@ -16,8 +16,16 @@
 
 using namespace Engine;
 
-int main()
+int main(int argc, char **argv)
 {
+    int64_t max_frame_count = std::numeric_limits<int64_t>::max();
+    if (argc > 1)
+    {
+        max_frame_count = std::atoll(argv[1]);
+        if (max_frame_count == 0)
+            return -1;
+    }
+
     std::filesystem::path project_path(ENGINE_TESTS_DIR);
     project_path = project_path / "external_resource_loading_test_project";
     if (std::filesystem::exists(project_path))
@@ -66,7 +74,7 @@ int main()
     cmc->GetWorldSystem()->AddGameObjectToWorld(camera_go);
     
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Entering main loop");
-    cmc->LoopFinite(10000, 0.0f);
+    cmc->LoopFinite(max_frame_count, 0.0f);
 
     std::filesystem::remove_all(project_path);
 
