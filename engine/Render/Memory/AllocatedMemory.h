@@ -3,7 +3,6 @@
 
 #include <variant>
 #include <vk_mem_alloc.h>
-#include <variant>
 
 namespace Engine {
     class AllocatedMemory {
