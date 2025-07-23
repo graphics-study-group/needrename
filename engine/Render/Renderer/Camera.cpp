@@ -26,12 +26,14 @@ namespace Engine
 
     Camera &Camera::set_fov_vertical(float fov)
     {
+        m_is_proj_dirty = true;
         m_fov_vertical = fov;
         return *this;
     }
 
     Camera &Camera::set_fov_horizontal(float fov)
     {
+        m_is_proj_dirty = true;
         // Convert horizontal FOV to vertical FOV based on aspect ratio
         m_fov_vertical = glm::degrees(2.0f * atanf(tanf(glm::radians(fov) / 2.0f) * m_aspect_ratio));
         return *this;
@@ -39,12 +41,14 @@ namespace Engine
 
     Camera &Camera::set_aspect_ratio(float aspect)
     {
+        m_is_proj_dirty = true;
         m_aspect_ratio = aspect;
         return *this;
     }
 
     Camera &Camera::set_clipping(float near, float far)
     {
+        m_is_proj_dirty = true;
         m_clipping_near = near;
         m_clipping_far = far;
         return *this;

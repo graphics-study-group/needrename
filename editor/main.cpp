@@ -92,7 +92,7 @@ int main()
         // Editor mode does not need to tick the world.
         // world->Tick();
 
-        event_queue->ProcessEvents();
+        // event_queue->ProcessEvents();
 
         rsys->StartFrame();
         auto context = rsys->GetFrameManager().GetGraphicsContext();
