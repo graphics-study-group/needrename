@@ -23,9 +23,9 @@ namespace Engine
         return m_submeshes;
     }
 
-    void MeshComponent::Init()
+    void MeshComponent::RenderInit()
     {
-        RendererComponent::Init();
+        RendererComponent::RenderInit();
 
         // Create submeshes from mesh assets
         assert(m_mesh_asset && m_mesh_asset->IsValid());

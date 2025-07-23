@@ -2,6 +2,7 @@
 #include <Asset/Scene/LevelAsset.h>
 #include <Asset/Scene/GameObjectAsset.h>
 #include <Core/Delegate/Delegate.h>
+#include <Framework/component/RenderComponent/RendererComponent.h>
 #include <Functional/EventQueue.h>
 #include <MainClass.h>
 
@@ -37,7 +38,14 @@ namespace Engine
             m_all_components.insert(m_all_components.end(), go->m_components.begin(), go->m_components.end());
             m_game_objects.push_back(go);
             for (auto &comp : go->m_components)
+            {
+                auto render_comp = std::dynamic_pointer_cast<RendererComponent>(comp);
+                if (render_comp)
+                {
+                    render_comp->RenderInit();
+                }
                 event_queue->AddEvent(comp, &Component::Init);
+            }
         }
         m_go_loading_queue.clear();
     }

@@ -22,7 +22,7 @@ namespace Engine
         return parentGameObject->GetWorldTransform();
     }
 
-    void RendererComponent::Init()
+    void RendererComponent::RenderInit()
     {
         m_system = MainClass::GetInstance()->GetRenderSystem();
         auto system = m_system.lock();

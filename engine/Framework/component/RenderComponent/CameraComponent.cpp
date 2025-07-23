@@ -17,10 +17,6 @@ namespace Engine{
         UpdateProjectionMatrix();
     }
 
-    void CameraComponent::Init()
-    {
-    }
-
     void CameraComponent::Tick()
     {
         UpdateViewMatrix();

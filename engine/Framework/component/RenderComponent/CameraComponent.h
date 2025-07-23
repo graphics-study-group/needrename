@@ -15,7 +15,6 @@ namespace Engine
         REFL_ENABLE CameraComponent(std::weak_ptr<GameObject> gameObject);
         virtual ~CameraComponent() = default;
 
-        virtual void Init() override;
         virtual void Tick() override;
 
     public:
