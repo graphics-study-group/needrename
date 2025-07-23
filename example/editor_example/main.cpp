@@ -92,14 +92,14 @@ int main()
                 break;
             }
             gui->ProcessEvent(&event);
-            if (gui->WantCaptureMouse() && SDL_EVENT_MOUSE_MOTION <= event.type && event.type < SDL_EVENT_JOYSTICK_AXIS_MOTION) // 0x600+
-                continue;
-            if (gui->WantCaptureKeyboard() && (event.type == SDL_EVENT_KEY_DOWN || event.type == SDL_EVENT_KEY_UP))
-                continue;
-            cmc->GetInputSystem()->ProcessEvent(&event);
+            if (game_widget->m_accept_input)
+                cmc->GetInputSystem()->ProcessEvent(&event);
         }
 
-        cmc->GetInputSystem()->Update();
+        if (game_widget->m_accept_input)
+            cmc->GetInputSystem()->Update();
+        else
+            cmc->GetInputSystem()->ResetAxes();
         world->LoadGameObjectInQueue();
 
         if (main_window.m_is_playing)
@@ -107,7 +107,6 @@ int main()
             world->AddTickEvent();
             event_queue->ProcessEvents();
         }
-
         rsys->StartFrame();
         auto context = rsys->GetFrameManager().GetGraphicsContext();
         GraphicsCommandBuffer &cb = dynamic_cast<GraphicsCommandBuffer &>(context.GetCommandBuffer());

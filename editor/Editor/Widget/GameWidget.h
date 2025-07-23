@@ -37,6 +37,8 @@ namespace Editor
         std::shared_ptr<Engine::SampledTexture> m_color_texture{};
         std::shared_ptr<Engine::SampledTexture> m_depth_texture{};
         ImTextureID m_color_att_id{};
+
+        bool m_accept_input{false};
     };
 }
 

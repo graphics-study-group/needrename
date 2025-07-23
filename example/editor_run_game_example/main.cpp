@@ -9,17 +9,10 @@
 #include <Functional/SDLWindow.h>
 #include <Functional/Time.h>
 #include <Functional/EventQueue.h>
-#include <Render/RenderSystem.h>
-#include <Render/AttachmentUtils.h>
-#include <Render/Memory/Buffer.h>
-#include <Render/Memory/Texture.h>
-#include <Render/Memory/SampledTexture.h>
-#include <Render/Pipeline/CommandBuffer/GraphicsContext.h>
-#include <Render/Pipeline/CommandBuffer.h>
-#include <Render/RenderSystem/Swapchain.h>
-#include <Render/RenderSystem/FrameManager.h>
+#include <Render/FullRenderSystem.h>
 #include <Framework/world/WorldSystem.h>
 #include <Framework/component/Component.h>
+#include <Framework/component/RenderComponent/CameraComponent.h>
 #include <Asset/AssetManager/AssetManager.h>
 #include <Asset/Scene/GameObjectAsset.h>
 #include <Input/Input.h>
@@ -53,6 +46,33 @@ public:
             auto &transform = go->GetTransformRef();
             transform.SetRotation(transform.GetRotation() * glm::angleAxis(glm::radians(m_speed * dt), glm::vec3(0.0f, 1.0f, 0.0f)));
         }
+    }
+};
+
+class ControlComponent : public Component
+{
+public:
+    ControlComponent(std::weak_ptr<GameObject> gameObject) : Component(gameObject) {}
+
+    std::shared_ptr<CameraComponent> m_camera{};
+    float m_rotation_speed = 10.0f;
+    float m_move_speed = 1.0f;
+    float m_roll_speed = 1.0f;
+    
+    virtual void Tick() override
+    {
+        auto input = MainClass::GetInstance()->GetInputSystem();
+        auto move_forward = input->GetAxis("move forward");
+        auto move_backward = input->GetAxis("move backward");
+        auto move_right = input->GetAxis("move right");
+        auto move_up = input->GetAxis("move up");
+        auto roll_right = input->GetAxisRaw("roll right");
+        auto look_x = input->GetAxisRaw("look x");
+        auto look_y = input->GetAxisRaw("look y");
+        Transform &transform = m_parentGameObject.lock()->GetTransformRef();
+        float dt = MainClass::GetInstance()->GetTimeSystem()->GetDeltaTimeInSeconds();
+        transform.SetRotation(transform.GetRotation() * glm::quat(glm::vec3{look_y * m_rotation_speed * dt, roll_right * m_roll_speed * dt, look_x * m_rotation_speed * dt}));
+        transform.SetPosition(transform.GetPosition() + transform.GetRotation() * glm::vec3{move_right, move_forward + move_backward, move_up} * m_move_speed * dt);
     }
 };
 
@@ -105,6 +125,28 @@ int main()
     spinning_transform.SetPosition(spinning_transform.GetPosition() + glm::vec3(0.0f, 0.2f, 0.0f));
     world->LoadGameObjectAsset(prefab_asset);
 
+    auto input = MainClass::GetInstance()->GetInputSystem();
+    input->AddAxis(Input::ButtonAxis("move forward", Input::AxisType::TypeKey, "w", "s"));
+    input->AddAxis(Input::ButtonAxis("move right", Input::AxisType::TypeKey, "d", "a"));
+    input->AddAxis(Input::ButtonAxis("move up", Input::AxisType::TypeKey, "space", "left shift"));
+    input->AddAxis(Input::ButtonAxis("roll right", Input::AxisType::TypeKey, "e", "q"));
+    input->AddAxis(Input::MotionAxis("look x", Input::AxisType::TypeMouseMotion, "x", 0.3f, 3.0f, 0.001f, 3.0f, false, true));
+    input->AddAxis(Input::MotionAxis("look y", Input::AxisType::TypeMouseMotion, "y", 0.3f, 3.0f, 0.001f, 3.0f, false, true));
+
+    auto camera_go = cmc->GetWorldSystem()->CreateGameObject<GameObject>();
+    camera_go->m_name = "Main Camera";
+    Transform transform{};
+    transform.SetPosition({0.0f, 0.2f, -0.7f});
+    transform.SetRotationEuler(glm::vec3{1.57, 0.0, 3.1415926});
+    transform.SetScale({1.0f, 1.0f, 1.0f});
+    camera_go->SetTransform(transform);
+    auto camera_comp = camera_go->template AddComponent<CameraComponent>();
+    camera_comp->m_camera->set_aspect_ratio(1.0 * opt.resol_x / opt.resol_y);
+    auto control_comp = camera_go->template AddComponent<ControlComponent>();
+    control_comp->m_camera = camera_comp;
+    cmc->GetWorldSystem()->m_active_camera = camera_comp->m_camera;
+    cmc->GetWorldSystem()->AddGameObjectToWorld(camera_go);
+
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Create Editor Window");
     Editor::MainWindow main_window;
     auto scene_widget = std::make_shared<Editor::SceneWidget>(Editor::MainWindow::k_scene_widget_name);
@@ -134,14 +176,14 @@ int main()
                 break;
             }
             gui->ProcessEvent(&event);
-            if (gui->WantCaptureMouse() && SDL_EVENT_MOUSE_MOTION <= event.type && event.type < SDL_EVENT_JOYSTICK_AXIS_MOTION) // 0x600+
-                continue;
-            if (gui->WantCaptureKeyboard() && (event.type == SDL_EVENT_KEY_DOWN || event.type == SDL_EVENT_KEY_UP))
-                continue;
-            cmc->GetInputSystem()->ProcessEvent(&event);
+            if (game_widget->m_accept_input)
+                cmc->GetInputSystem()->ProcessEvent(&event);
         }
 
-        cmc->GetInputSystem()->Update();
+        if (game_widget->m_accept_input)
+            cmc->GetInputSystem()->Update();
+        else
+            cmc->GetInputSystem()->ResetAxes();
         world->LoadGameObjectInQueue();
 
         if (main_window.m_is_playing)

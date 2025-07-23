@@ -73,6 +73,7 @@ namespace Editor
         if (ImGui::Begin(m_name.c_str()))
         {
             ImGui::Image(m_color_att_id, m_viewport_size, ImVec2(0, 0), ImVec2(m_viewport_size.x / m_texture_width, m_viewport_size.y / m_texture_height));
+            m_accept_input = ImGui::IsWindowFocused(ImGuiFocusedFlags_None) && ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem);
         }
         ImGui::End();
     }
