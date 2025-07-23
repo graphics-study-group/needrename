@@ -24,6 +24,8 @@ namespace Editor
         virtual void Render() override;
         
         void CreateRenderTargetBinding(std::shared_ptr<Engine::RenderSystem> render_system);
+        /// @brief Draw the editor camera to the widget texture used for ImGui. Contain a synchronization operation for writting to the color and depth textures.
+        /// XXX: Should be rewritten after we have a better render pipline.
         void PreRender();
 
     protected:

@@ -20,8 +20,8 @@ namespace Engine
         glm::mat4 GetViewMatrix();
 
         /// @brief Acquire projection matrix that transforms eye coordinate to clip space coordinate.
-        /// Handness is not flipped by projection matrix.
-        /// It should be flipped in vertex shader by postmultipling vec4(1.0, 1.0, -1.0, 1.0).
+        /// OpenGL/Vulkan handness is ensured by the projection matrix,  
+        /// and should not be flipped again in vertex shaders.  
         /// @return projection matrix
         glm::mat4 GetProjectionMatrix();
 
