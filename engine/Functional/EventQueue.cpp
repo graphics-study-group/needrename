@@ -20,4 +20,12 @@ namespace Engine
             }
         }
     }
+
+    void EventQueue::Clear()
+    {
+        while (!m_events.empty())
+        {
+            m_events.pop();
+        }
+    }
 }

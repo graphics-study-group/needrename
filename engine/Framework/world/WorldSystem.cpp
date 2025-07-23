@@ -16,6 +16,15 @@ namespace Engine
     {
     }
 
+    void WorldSystem::AddInitEvent()
+    {
+        auto event_queue = MainClass::GetInstance()->GetEventQueue();
+        for (auto &comp : m_all_components)
+        {
+            event_queue->AddEvent(comp, &Component::Init);
+        }
+    }
+
     void WorldSystem::AddTickEvent()
     {
         auto event_queue = MainClass::GetInstance()->GetEventQueue();

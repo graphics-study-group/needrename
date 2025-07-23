@@ -22,6 +22,8 @@ namespace Engine
         }
         void ProcessEvents();
 
+        void Clear();
+
     protected:
         std::queue<DelegatePtr> m_events;
     };

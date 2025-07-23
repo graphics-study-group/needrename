@@ -5,6 +5,7 @@
 
 #include <cmake_config.h>
 #include <MainClass.h>
+#include <Core/Delegate/FuncDelegate.h>
 #include <Functional/SDLWindow.h>
 #include <Functional/Time.h>
 #include <Functional/EventQueue.h>
@@ -28,6 +29,15 @@
 #include <Editor/Widget/SceneWidget.h>
 
 using namespace Engine;
+
+void Start()
+{
+    auto cmc = MainClass::GetInstance();
+    auto world = cmc->GetWorldSystem();
+    auto event_queue = cmc->GetEventQueue();
+    event_queue->Clear();
+    world->AddInitEvent();
+}
 
 int main()
 {
@@ -62,6 +72,8 @@ int main()
     game_widget->CreateRenderTargetBinding(rsys);
     main_window.AddWidget(game_widget);
 
+    main_window.m_OnStart.AddDelegate(std::make_unique<FuncDelegate<>>(Start));
+
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Entering main loop");
 
     bool onQuit = false;
@@ -89,10 +101,12 @@ int main()
 
         cmc->GetInputSystem()->Update();
         world->LoadGameObjectInQueue();
-        // Editor mode does not need to tick the world.
-        // world->Tick();
 
-        // event_queue->ProcessEvents();
+        if (main_window.m_is_playing)
+        {
+            world->AddTickEvent();
+            event_queue->ProcessEvents();
+        }
 
         rsys->StartFrame();
         auto context = rsys->GetFrameManager().GetGraphicsContext();

@@ -20,6 +20,7 @@ namespace Engine
         WorldSystem();
         ~WorldSystem();
 
+        void AddInitEvent();
         void AddTickEvent();
 
         /// @brief Generate a GUID using the random generator in the WorldSystem.
