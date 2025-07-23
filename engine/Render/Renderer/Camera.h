@@ -17,13 +17,13 @@ namespace Engine
 
         /// @brief Acquire view matrix that transforms world coordinate to eye coordinate
         /// @return view matrix
-        glm::mat4 GetViewMatrix() const;
+        glm::mat4 GetViewMatrix();
 
         /// @brief Acquire projection matrix that transforms eye coordinate to clip space coordinate.
         /// Handness is not flipped by projection matrix.
         /// It should be flipped in vertex shader by postmultipling vec4(1.0, 1.0, -1.0, 1.0).
         /// @return projection matrix
-        glm::mat4 GetProjectionMatrix() const;
+        glm::mat4 GetProjectionMatrix();
 
         /// @brief Set up vertical field of view angle of camera
         /// @param fov angle in degrees
@@ -46,8 +46,8 @@ namespace Engine
         /// @return this for chainning
         Camera & set_clipping(float near, float far);
 
-        REFL_SER_DISABLE void UpdateProjectionMatrix();
-        REFL_SER_DISABLE void UpdateViewMatrix(const Transform &transform);
+        REFL_DISABLE void UpdateProjectionMatrix();
+        REFL_DISABLE void UpdateViewMatrix(const Transform &transform);
 
     public:
         float m_fov_vertical{45};
@@ -59,6 +59,7 @@ namespace Engine
         uint8_t m_display_id{0};
 
     protected:
+        bool m_is_proj_dirty{true};
         glm::mat4 m_projection_matrix{1.0f}, m_view_matrix{1.0f};
     };
 }

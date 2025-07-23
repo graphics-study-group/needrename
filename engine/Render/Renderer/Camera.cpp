@@ -10,20 +10,23 @@ namespace Engine
         UpdateProjectionMatrix();
     }
 
-    glm::mat4 Camera::GetViewMatrix() const
+    glm::mat4 Camera::GetViewMatrix()
     {
         return m_view_matrix;
     }
 
-    glm::mat4 Camera::GetProjectionMatrix() const
+    glm::mat4 Camera::GetProjectionMatrix()
     {
+        if (m_is_proj_dirty)
+        {
+            UpdateProjectionMatrix();
+        }
         return m_projection_matrix;
     }
 
     Camera &Camera::set_fov_vertical(float fov)
     {
         m_fov_vertical = fov;
-        UpdateProjectionMatrix();
         return *this;
     }
 
@@ -31,14 +34,12 @@ namespace Engine
     {
         // Convert horizontal FOV to vertical FOV based on aspect ratio
         m_fov_vertical = glm::degrees(2.0f * atanf(tanf(glm::radians(fov) / 2.0f) * m_aspect_ratio));
-        UpdateProjectionMatrix();
         return *this;
     }
 
     Camera &Camera::set_aspect_ratio(float aspect)
     {
         m_aspect_ratio = aspect;
-        UpdateProjectionMatrix();
         return *this;
     }
 
@@ -46,7 +47,6 @@ namespace Engine
     {
         m_clipping_near = near;
         m_clipping_far = far;
-        UpdateProjectionMatrix();
         return *this;
     }
 
@@ -56,6 +56,7 @@ namespace Engine
         assert(abs(m_aspect_ratio) > 1e-3);
         m_projection_matrix = glm::perspectiveRH(glm::radians(m_fov_vertical), m_aspect_ratio, m_clipping_near, m_clipping_far);
         m_projection_matrix[1][1] *= -1.0f;
+        m_is_proj_dirty = false;
     }
 
     void Camera::UpdateViewMatrix(const Transform &transform)
