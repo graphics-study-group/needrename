@@ -12,6 +12,7 @@
 #include <Input/Input.h>
 #include <Functional/SDLWindow.h>
 #include <Functional/Time.h>
+#include <Functional/EventQueue.h>
 #include <Asset/Scene/LevelAsset.h>
 
 #include <nlohmann/json.hpp>
@@ -75,6 +76,7 @@ namespace Engine
         this->asset = std::make_shared<AssetManager>();
         this->gui = std::make_shared<GUISystem>(this->renderer);
         this->input = std::make_shared<Input>();
+        this->event_queue = std::make_shared<EventQueue>();
 
         this->renderer->Create();
         this->window->CreateRenderTargetBinding(this->renderer);
@@ -145,6 +147,11 @@ namespace Engine
         return input;
     }
 
+    std::shared_ptr<EventQueue> MainClass::GetEventQueue() const
+    {
+        return event_queue;
+    }
+
     void MainClass::RunOneFrame()
     {
         // TODO: asynchronous execution
@@ -168,10 +175,13 @@ namespace Engine
 
         this->input->Update();
         this->world->LoadGameObjectInQueue();
-        this->world->Tick();
+        // TODO: add input event
+        this->world->AddTickEvent();
         // this->gui->PrepareGUI();
 
-        auto index = this->renderer->StartFrame();
+        this->event_queue->ProcessEvents();
+
+        this->renderer->StartFrame();
         auto context = this->renderer->GetFrameManager().GetGraphicsContext();
         GraphicsCommandBuffer &cb = dynamic_cast<GraphicsCommandBuffer &>(context.GetCommandBuffer());
 
@@ -180,6 +190,7 @@ namespace Engine
         context.UseImage(this->window->GetDepthTexture(), GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite, GraphicsContext::ImageAccessType::None);
         context.PrepareCommandBuffer();
         cb.BeginRendering(this->window->GetRenderTargetBinding(), this->window->GetExtent(), "Main Pass");
+        this->renderer->SetActiveCamera(this->world->m_active_camera);
         this->renderer->DrawMeshes();
         cb.EndRendering();
 

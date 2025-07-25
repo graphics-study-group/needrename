@@ -11,6 +11,7 @@
 namespace Engine
 {
     class GameObject;
+    class Camera;
 
     class REFL_SER_CLASS(REFL_WHITELIST) LevelAsset : public Asset
     {
@@ -20,6 +21,7 @@ namespace Engine
         ~LevelAsset() = default;
 
         REFL_SER_ENABLE std::vector<std::shared_ptr<GameObject>> m_gameobjects{};
+        REFL_SER_ENABLE std::shared_ptr<Camera> m_default_camera{};
     };
 }
 

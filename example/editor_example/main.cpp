@@ -5,8 +5,10 @@
 
 #include <cmake_config.h>
 #include <MainClass.h>
+#include <Core/Delegate/FuncDelegate.h>
 #include <Functional/SDLWindow.h>
 #include <Functional/Time.h>
+#include <Functional/EventQueue.h>
 #include <Render/RenderSystem.h>
 #include <Render/AttachmentUtils.h>
 #include <Render/Memory/Buffer.h>
@@ -28,6 +30,15 @@
 
 using namespace Engine;
 
+void Start()
+{
+    auto cmc = MainClass::GetInstance();
+    auto world = cmc->GetWorldSystem();
+    auto event_queue = cmc->GetEventQueue();
+    event_queue->Clear();
+    world->AddInitEvent();
+}
+
 int main()
 {
     std::filesystem::path project_path(ENGINE_PROJECTS_DIR);
@@ -46,6 +57,7 @@ int main()
     auto world = cmc->GetWorldSystem();
     auto gui = cmc->GetGUISystem();
     auto window = cmc->GetWindow();
+    auto event_queue = cmc->GetEventQueue();
     gui->CreateVulkanBackend(ImageUtils::GetVkFormat(window->GetColorTexture().GetTextureDescription().format));
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading project");
@@ -56,9 +68,11 @@ int main()
     auto scene_widget = std::make_shared<Editor::SceneWidget>(Editor::MainWindow::k_scene_widget_name);
     scene_widget->CreateRenderTargetBinding(rsys);
     main_window.AddWidget(scene_widget);
-    // auto game_widget = std::make_shared<Editor::GameWidget>(Editor::MainWindow::k_game_widget_name);
-    // game_widget->CreateRenderTargetBinding(rsys);
-    // main_window.AddWidget(game_widget);
+    auto game_widget = std::make_shared<Editor::GameWidget>(Editor::MainWindow::k_game_widget_name);
+    game_widget->CreateRenderTargetBinding(rsys);
+    main_window.AddWidget(game_widget);
+
+    main_window.m_OnStart.AddDelegate(std::make_unique<FuncDelegate<>>(Start));
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Entering main loop");
 
@@ -78,28 +92,32 @@ int main()
                 break;
             }
             gui->ProcessEvent(&event);
-            if (gui->WantCaptureMouse() && SDL_EVENT_MOUSE_MOTION <= event.type && event.type < SDL_EVENT_JOYSTICK_AXIS_MOTION) // 0x600+
-                continue;
-            if (gui->WantCaptureKeyboard() && (event.type == SDL_EVENT_KEY_DOWN || event.type == SDL_EVENT_KEY_UP))
-                continue;
-            cmc->GetInputSystem()->ProcessEvent(&event);
+            if (game_widget->m_accept_input)
+                cmc->GetInputSystem()->ProcessEvent(&event);
         }
 
-        cmc->GetInputSystem()->Update();
+        if (game_widget->m_accept_input)
+            cmc->GetInputSystem()->Update();
+        else
+            cmc->GetInputSystem()->ResetAxes();
         world->LoadGameObjectInQueue();
-        // Editor mode does not need to tick the world.
-        // world->Tick();
 
-        auto index = rsys->StartFrame();
+        if (main_window.m_is_playing)
+        {
+            world->AddTickEvent();
+            event_queue->ProcessEvents();
+        }
+        rsys->StartFrame();
         auto context = rsys->GetFrameManager().GetGraphicsContext();
         GraphicsCommandBuffer &cb = dynamic_cast<GraphicsCommandBuffer &>(context.GetCommandBuffer());
 
         cb.Begin();
 
         scene_widget->PreRender();
-        // game_widget->PreRender();
+        game_widget->PreRender();
 
         context.UseImage(*std::static_pointer_cast<Engine::Texture>(scene_widget->m_color_texture), GraphicsContext::ImageGraphicsAccessType::ShaderRead, GraphicsContext::ImageAccessType::ColorAttachmentWrite);
+        context.UseImage(*std::static_pointer_cast<Engine::Texture>(game_widget->m_color_texture), GraphicsContext::ImageGraphicsAccessType::ShaderRead, GraphicsContext::ImageAccessType::ColorAttachmentWrite);
         context.UseImage(window->GetColorTexture(), GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite, GraphicsContext::ImageAccessType::None);
         context.UseImage(window->GetDepthTexture(), GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite, GraphicsContext::ImageAccessType::None);
         context.PrepareCommandBuffer();

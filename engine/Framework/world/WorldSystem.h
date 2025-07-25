@@ -12,6 +12,7 @@ namespace Engine
 {
     class LevelAsset;
     class GameObjectAsset;
+    class Camera;
 
     class WorldSystem
     {
@@ -19,7 +20,8 @@ namespace Engine
         WorldSystem();
         ~WorldSystem();
 
-        void Tick();
+        void AddInitEvent();
+        void AddTickEvent();
 
         /// @brief Generate a GUID using the random generator in the WorldSystem.
         GUID GenerateID();
@@ -52,6 +54,9 @@ namespace Engine
         std::vector<std::shared_ptr<GameObject>> m_go_loading_queue{};
         std::vector<std::shared_ptr<GameObject>> m_game_objects{};
         std::vector<std::shared_ptr<Component>> m_all_components{};
+
+    public:
+        std::shared_ptr<Camera> m_active_camera{};
     };
 
     template <typename T, typename... Args>

@@ -12,11 +12,20 @@
 #include <Asset/AssetManager/AssetManager.h>
 #include <Asset/Scene/GameObjectAsset.h>
 #include <Framework/component/RenderComponent/CameraComponent.h>
+#include <Render/Renderer/Camera.h>
 
 using namespace Engine;
 
-int main()
+int main(int argc, char **argv)
 {
+    int64_t max_frame_count = std::numeric_limits<int64_t>::max();
+    if (argc > 1)
+    {
+        max_frame_count = std::atoll(argv[1]);
+        if (max_frame_count == 0)
+            return -1;
+    }
+
     std::filesystem::path project_path(ENGINE_TESTS_DIR);
     project_path = project_path / "external_resource_loading_test_project";
     if (std::filesystem::exists(project_path))
@@ -60,12 +69,12 @@ int main()
     transform.SetRotationEuler(glm::vec3{0.0, 0.0, 3.1415926});
     camera_go->SetTransform(transform);
     auto camera_comp = camera_go->template AddComponent<CameraComponent>();
-    camera_comp->set_aspect_ratio(1.0 * opt.resol_x / opt.resol_y);
-    cmc->GetRenderSystem()->SetActiveCamera(camera_comp);
+    camera_comp->m_camera->set_aspect_ratio(1.0 * opt.resol_x / opt.resol_y);
+    cmc->GetWorldSystem()->m_active_camera = camera_comp->m_camera;
     cmc->GetWorldSystem()->AddGameObjectToWorld(camera_go);
     
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Entering main loop");
-    cmc->LoopFinite(10000, 0.0f);
+    cmc->LoopFinite(max_frame_count, 0.0f);
 
     std::filesystem::remove_all(project_path);
 

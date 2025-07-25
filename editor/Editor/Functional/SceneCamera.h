@@ -4,6 +4,11 @@
 #include <glm.hpp>
 #include <Core/Math/Transform.h>
 
+namespace Engine
+{
+    class Camera;
+}
+
 namespace Editor
 {
     using Transform = Engine::Transform;
@@ -14,24 +19,16 @@ namespace Editor
         SceneCamera();
         ~SceneCamera() = default;
 
-        void UpdateProjectionMatrix();
-        void UpdateViewMatrix();
-
         void MoveControl(float delta_forward, float delta_right);
         void RotateControl(float delta_x, float delta_y);
-    
+
     public:
         float m_move_speed{1.0f};
         float m_rotate_speed{0.2f};
 
         Transform m_transform{};
 
-        float m_fov{45};
-        float m_aspect_ratio{1.0};
-        float m_clipping_near{1e-3};
-        float m_clipping_far{1e3};
-    
-        glm::mat4 m_projection_matrix{1.0f}, m_view_matrix{1.0f};
+        std::shared_ptr<Engine::Camera> m_camera{};
     };
 }
 

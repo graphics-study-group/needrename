@@ -24,6 +24,8 @@ namespace Editor
         virtual void Render() override;
         
         void CreateRenderTargetBinding(std::shared_ptr<Engine::RenderSystem> render_system);
+        /// @brief Draw the editor camera to the widget texture used for ImGui. Contain a synchronization operation for writting to the color and depth textures.
+        /// XXX: Should be rewritten after we have a better render pipline.
         void PreRender();
 
     protected:
@@ -33,6 +35,9 @@ namespace Editor
         ImVec2 m_viewport_size{1280, 720};
 
         bool m_camera_control_on{false};
+
+    public:
+        float m_camera_fov{45.0f};
 
     public:
         // TODO: Need better way to allocate textures and set barriers.

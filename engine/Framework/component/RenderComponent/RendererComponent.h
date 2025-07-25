@@ -30,7 +30,7 @@ namespace Engine
         /// @return Transform
         virtual Transform GetWorldTransform() const;
 
-        virtual void Init() override;
+        virtual void RenderInit();
         virtual void Tick() override;
 
         std::shared_ptr<MaterialInstance> GetMaterial(uint32_t slot) const;

@@ -7,6 +7,7 @@
 
 namespace Engine
 {
+    class Camera;
     /// @brief A perspective camera component
     class REFL_SER_CLASS(REFL_WHITELIST) CameraComponent : public Component {
         REFL_SER_BODY(CameraComponent)
@@ -14,49 +15,14 @@ namespace Engine
         REFL_ENABLE CameraComponent(std::weak_ptr<GameObject> gameObject);
         virtual ~CameraComponent() = default;
 
-        virtual void Init() override;
         virtual void Tick() override;
 
-        /// @brief Acquire view matrix that transforms world coordinate to eye coordinate
-        /// @return view matrix
-        glm::mat4 GetViewMatrix() const;
-
-        /// @brief Acquire projection matrix that transforms eye coordinate to clip space coordinate.
-        /// Handness is not flipped by projection matrix.
-        /// It should be flipped in vertex shader by postmultipling vec4(1.0, 1.0, -1.0, 1.0).
-        /// @return projection matrix
-        glm::mat4 GetProjectionMatrix() const;
-
-        /// @brief Set up vertical field of view angle of camera
-        /// @param fov angle in degrees
-        /// @return this for chainning
-        CameraComponent & set_fov_vertical(float fov);
-
-        /// @brief Set up aspect ratio
-        /// @param aspect width / height
-        /// @return this for chainning
-        CameraComponent & set_aspect_ratio(float aspect);
-
-        /// @brief Set up clipping plane coordinate
-        /// @param near near clipping coordinate
-        /// @param far far clipping coordinate
-        /// @return this for chainning
-        CameraComponent & set_clipping(float near, float far);
-
     public:
-        /// Internal id for the underlying rendering resource of the camera.
-        /// _Should_ be unique for each camera that needs to be rendered in _the same frame_.
-        REFL_SER_ENABLE uint8_t display_id {0};
-        REFL_SER_ENABLE float m_fov_vertical{45};
-        REFL_SER_ENABLE float m_aspect_ratio{1.0};
-        REFL_SER_ENABLE float m_clipping_near{1e-3};
-        REFL_SER_ENABLE float m_clipping_far{1e3};
-
+        REFL_SER_ENABLE std::shared_ptr<Camera> m_camera{};
+    
     protected:
-        glm::mat4 m_projection_matrix{1.0f}, m_view_matrix{1.0f};
-
-        void UpdateProjectionMatrix();
         void UpdateViewMatrix();
+        void UpdateProjectionMatrix();
     };
 } // namespace Engine
 

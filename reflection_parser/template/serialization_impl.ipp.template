@@ -27,7 +27,10 @@ import clang.cindex as CX
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 
 ## list of all basic types such as bool, int, long double
-<% basic_type_list = [CX.TypeKind.from_id(i) for i in range(3, 24)] %>
+<% 
+basic_type_list = [CX.TypeKind.from_id(i) for i in range(3, 24)]
+extra_basic_type_name_list = ["std::string", "int8_t", "int16_t", "int32_t", "int64_t", "uint8_t", "uint16_t", "uint32_t", "uint64_t", "int_least8_t", "int_least16_t", "int_least32_t", "int_least64_t", "uint_least8_t", "uint_least16_t", "uint_least32_t", "uint_least64_t", "int_fast8_t", "int_fast16_t", "int_fast32_t", "int_fast64_t", "uint_fast8_t", "uint_fast16_t", "uint_fast32_t", "uint_fast64_t", "intmax_t", "intptr_t", "uintmax_t", "uintptr_t"]
+%>
 
 <%def name="generate_type_save(class_type, prefix)">
     % for base_type in class_type.base_types:
@@ -39,7 +42,7 @@ import clang.cindex as CX
     % endfor
 
     % for field in class_type.serialized_fields:
-    % if field.type.cx_type.kind in basic_type_list or field.type.cx_type.spelling == "std::string":
+    % if field.type.cx_type.kind in basic_type_list or field.type.cx_type.spelling in extra_basic_type_name_list:
     {
         json["${prefix + field.name}"] = this->${field.name};
     }
@@ -62,7 +65,7 @@ import clang.cindex as CX
     % endfor
     
     % for field in class_type.serialized_fields:
-    % if field.type.cx_type.kind in basic_type_list or field.type.cx_type.spelling == "std::string":
+    % if field.type.cx_type.kind in basic_type_list or field.type.cx_type.spelling in extra_basic_type_name_list:
     {
         if (json.find("${prefix + field.name}") != json.end())
         {

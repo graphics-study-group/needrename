@@ -15,7 +15,7 @@ namespace Engine
 {
     class SDLWindow;
     class RendererComponent;
-    class CameraComponent;
+    class Camera;
     class GraphicsCommandBuffer;
 
     namespace ConstantData {
@@ -76,7 +76,7 @@ namespace Engine
         void RegisterComponent(std::shared_ptr <RendererComponent>);
         void ClearComponent();
 
-        void SetActiveCamera(std::shared_ptr <CameraComponent>);
+        void SetActiveCamera(std::weak_ptr <Camera>);
         uint32_t GetActiveCameraId() const;
         void WaitForIdle() const;
 

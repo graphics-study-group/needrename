@@ -5,7 +5,7 @@ file(GLOB_RECURSE HEADER "./*.h")
 list(FILTER SOURCE EXCLUDE REGEX "__generated__/.*")
 list(FILTER HEADER EXCLUDE REGEX "__generated__/.*")
 
-add_executable(editor ${SOURCE})
+add_library(editor STATIC ${SOURCE})
 target_include_directories(editor PUBLIC ${ENGINE_EDITOR_DIR})
 target_link_libraries(editor PUBLIC engine)
 

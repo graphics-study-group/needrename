@@ -51,76 +51,49 @@
                                 "uniforms": [
                                     {
                                         "%type": "Engine::ShaderVariableProperty",
-                                        "binding": {
-                                            "%type": "unsigned int",
-                                            "data": 0
-                                        },
+                                        "binding": 0,
                                         "frequency": 0,
                                         "name": "scene_ubo",
                                         "type": 1
                                     },
                                     {
                                         "%type": "Engine::ShaderVariableProperty",
-                                        "binding": {
-                                            "%type": "unsigned int",
-                                            "data": 0
-                                        },
+                                        "binding": 0,
                                         "frequency": 1,
                                         "name": "camera_ubo",
                                         "type": 1
                                     },
                                     {
                                         "%type": "Engine::ShaderVariableProperty",
-                                        "binding": {
-                                            "%type": "unsigned int",
-                                            "data": 0
-                                        },
+                                        "binding": 0,
                                         "frequency": 2,
                                         "name": "material_ubo",
                                         "type": 1
                                     },
                                     {
                                         "%type": "Engine::ShaderVariableProperty",
-                                        "binding": {
-                                            "%type": "unsigned int",
-                                            "data": 1
-                                        },
+                                        "binding": 1,
                                         "frequency": 2,
                                         "name": "base_tex",
-                                        "offset": {
-                                            "%type": "unsigned int",
-                                            "data": 0
-                                        },
+                                        "offset": 0,
                                         "type": 3
                                     }
                                 ],
                                 "ubo_variables": [
                                     {
                                         "%type": "Engine::ShaderUBOVariableProperty",
-                                        "binding": {
-                                            "%type": "unsigned int",
-                                            "data": 0
-                                        },
+                                        "binding": 0,
                                         "frequency": 2,
                                         "name": "specular_color",
-                                        "offset": {
-                                            "%type": "unsigned int",
-                                            "data": 0
-                                        },
+                                        "offset": 0,
                                         "type": 3
                                     },
                                     {
                                         "%type": "Engine::ShaderUBOVariableProperty",
-                                        "binding": {
-                                            "%type": "unsigned int",
-                                            "data": 0
-                                        },
+                                        "binding": 0,
                                         "frequency": 2,
                                         "name": "ambient_color",
-                                        "offset": {
-                                            "%type": "unsigned int",
-                                            "data": 16
-                                        },
+                                        "offset": 16,
                                         "type": 3
                                     }
                                 ]

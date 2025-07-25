@@ -77,44 +77,25 @@ namespace Editor
             if (offset_x > 0)
                 ImGui::SetCursorPosX(ImGui::GetCursorPosX() + offset_x);
 
-            if (ImGui::Button("Start", ImVec2(button_width, 0)))
+            if (m_is_playing)
             {
-                m_is_playing = true;
-                m_is_paused = false;
-                m_OnStart.Invoke();
-            }
-            ImGui::SameLine();
-            if (ImGui::Button("Stop", ImVec2(button_width, 0)))
-            {
-                m_is_playing = false;
-                m_is_paused = false;
-                m_OnStop.Invoke();
-            }
-            ImGui::SameLine();
-            if (ImGui::Button("Pause", ImVec2(button_width, 0)))
-            {
-                if (m_is_playing && !m_is_paused)
+                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.8f, 0.2f, 0.2f, 1.0f)); // Red color for Stop button
+                if (ImGui::Button("Stop", ImVec2(button_width, 0)))
                 {
-                    m_is_paused = true;
-                    m_OnPause.Invoke();
+                    m_is_playing = false;
+                    m_OnStop.Invoke();
                 }
+                ImGui::PopStyleColor();
             }
-            ImGui::SameLine();
-            if (ImGui::Button("Resume", ImVec2(button_width, 0)))
+            else
             {
-                if (m_is_playing && m_is_paused)
+                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.8f, 0.2f, 1.0f)); // Green color for Start button
+                if (ImGui::Button("Start", ImVec2(button_width, 0)))
                 {
-                    m_is_paused = false;
-                    m_OnResume.Invoke();
+                    m_is_playing = true;
+                    m_OnStart.Invoke();
                 }
-            }
-            ImGui::SameLine();
-            if (ImGui::Button("Step", ImVec2(button_width, 0)))
-            {
-                if (m_is_playing && m_is_paused)
-                {
-                    m_OnStep.Invoke();
-                }
+                ImGui::PopStyleColor();
             }
             current_height = ImGui::GetWindowSize().y;
             ImGui::End();

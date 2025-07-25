@@ -31,15 +31,11 @@ namespace Editor
     public:
         Engine::Event<> m_OnStart{};
         Engine::Event<> m_OnStop{};
-        Engine::Event<> m_OnPause{};
-        Engine::Event<> m_OnResume{};
-        Engine::Event<> m_OnStep{};
+
+        bool m_is_playing{false};
 
     protected:
         std::vector<std::shared_ptr<Widget>> m_widgets{};
-
-        bool m_is_playing{false};
-        bool m_is_paused{false};
     };
 }
 
