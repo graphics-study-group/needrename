@@ -15,9 +15,9 @@
 #include <glm.hpp>
 
 namespace Engine {
-    void MaterialTemplate::CreatePipeline(uint32_t pass_index,
-                                          const MaterialTemplateSinglePassProperties &prop,
-                                          vk::Device device) {
+    void MaterialTemplate::CreatePipeline(
+        uint32_t pass_index, const MaterialTemplateSinglePassProperties &prop, vk::Device device
+    ) {
         PassInfo pass_info;
 
         // Process and reflect on shaders.
@@ -33,17 +33,20 @@ namespace Engine {
             auto code = shader_asset->binary;
             reflected[i] = ShaderUtils::ReflectSpirvData(code);
             vk::ShaderModuleCreateInfo ci{
-                {}, code.size() * sizeof(uint32_t), reinterpret_cast<const uint32_t *>(code.data())};
+                {}, code.size() * sizeof(uint32_t), reinterpret_cast<const uint32_t *>(code.data())
+            };
 
             pass_info.shaders[i] = device.createShaderModuleUnique(ci);
             DEBUG_SET_NAME_TEMPLATE(
-                device, pass_info.shaders[i].get(), std::format("Shader Module - {}", shader_asset->m_name));
+                device, pass_info.shaders[i].get(), std::format("Shader Module - {}", shader_asset->m_name)
+            );
 
             psscis[i] = vk::PipelineShaderStageCreateInfo{
                 {},
                 PipelineUtils::ToVulkanShaderStageFlagBits(shader_asset->shaderType),
                 pass_info.shaders[i].get(),
-                shader_asset->m_entry_point.empty() ? "main" : shader_asset->m_entry_point.c_str()};
+                shader_asset->m_entry_point.empty() ? "main" : shader_asset->m_entry_point.c_str()
+            };
         }
 
 // Save uniform locations
@@ -70,7 +73,8 @@ namespace Engine {
             }
             pass_info.inblock.names.merge(ref.inblock.names);
             pass_info.inblock.vars.insert(
-                pass_info.inblock.vars.end(), ref.inblock.vars.begin(), ref.inblock.vars.end());
+                pass_info.inblock.vars.end(), ref.inblock.vars.begin(), ref.inblock.vars.end()
+            );
 
             for (auto &[_, idx] : ref.desc.names) {
                 idx += pass_info.desc.vars.size();
@@ -82,7 +86,8 @@ namespace Engine {
         pass_info.inblock.maximal_ubo_size = 0;
         for (const auto &var : pass_info.inblock.vars) {
             pass_info.inblock.maximal_ubo_size = std::max(
-                pass_info.inblock.maximal_ubo_size, 1ULL * var.inblock_location.offset + var.inblock_location.size);
+                pass_info.inblock.maximal_ubo_size, 1ULL * var.inblock_location.offset + var.inblock_location.size
+            );
         }
 
         // Create pipeline layout
@@ -104,23 +109,29 @@ namespace Engine {
                 pass_info.desc_layout = device.createDescriptorSetLayoutUnique(dslci);
 
                 std::array<vk::PushConstantRange, 1> push_constants{
-                    ConstantData::PerModelConstantPushConstant::GetPushConstantRange()};
-                std::array<vk::DescriptorSetLayout, 3> set_layouts{pool.GetPerSceneConstantLayout().get(),
-                                                                   pool.GetPerCameraConstantLayout().get(),
-                                                                   pass_info.desc_layout.get()};
+                    ConstantData::PerModelConstantPushConstant::GetPushConstantRange()
+                };
+                std::array<vk::DescriptorSetLayout, 3> set_layouts{
+                    pool.GetPerSceneConstantLayout().get(),
+                    pool.GetPerCameraConstantLayout().get(),
+                    pass_info.desc_layout.get()
+                };
                 vk::PipelineLayoutCreateInfo plci{{}, set_layouts, push_constants};
                 pass_info.pipeline_layout = device.createPipelineLayoutUnique(plci);
-            }
-            else {
-                SDL_LogWarn(SDL_LOG_CATEGORY_RENDER,
-                            "Material %s pipeline %u has no material descriptors.",
-                            this->m_name.c_str(),
-                            pass_index);
+            } else {
+                SDL_LogWarn(
+                    SDL_LOG_CATEGORY_RENDER,
+                    "Material %s pipeline %u has no material descriptors.",
+                    this->m_name.c_str(),
+                    pass_index
+                );
 
                 std::array<vk::PushConstantRange, 1> push_constants{
-                    ConstantData::PerModelConstantPushConstant::GetPushConstantRange()};
-                std::array<vk::DescriptorSetLayout, 2> set_layouts{pool.GetPerSceneConstantLayout().get(),
-                                                                   pool.GetPerCameraConstantLayout().get()};
+                    ConstantData::PerModelConstantPushConstant::GetPushConstantRange()
+                };
+                std::array<vk::DescriptorSetLayout, 2> set_layouts{
+                    pool.GetPerSceneConstantLayout().get(), pool.GetPerCameraConstantLayout().get()
+                };
                 vk::PipelineLayoutCreateInfo plci{{}, set_layouts, push_constants};
                 pass_info.pipeline_layout = device.createPipelineLayoutUnique(plci);
             }
@@ -143,55 +154,68 @@ namespace Engine {
 
         vk::Format default_color_format{ImageUtils::GetVkFormat(m_system.GetSwapchain().COLOR_FORMAT)};
         vk::Format default_depth_format{ImageUtils::GetVkFormat(m_system.GetSwapchain().DEPTH_FORMAT)};
-        AttachmentUtils::AttachmentOp default_color_op{vk::AttachmentLoadOp::eClear,
-                                                       vk::AttachmentStoreOp::eStore,
-                                                       vk::ClearValue{vk::ClearColorValue{0.0f, 0.0f, 0.0f, 1.0f}}};
-        AttachmentUtils::AttachmentOp default_depth_op{vk::AttachmentLoadOp::eClear,
-                                                       vk::AttachmentStoreOp::eDontCare,
-                                                       vk::ClearValue{vk::ClearDepthStencilValue{1.0f, 0u}}};
+        AttachmentUtils::AttachmentOp default_color_op{
+            vk::AttachmentLoadOp::eClear,
+            vk::AttachmentStoreOp::eStore,
+            vk::ClearValue{vk::ClearColorValue{0.0f, 0.0f, 0.0f, 1.0f}}
+        };
+        AttachmentUtils::AttachmentOp default_depth_op{
+            vk::AttachmentLoadOp::eClear,
+            vk::AttachmentStoreOp::eDontCare,
+            vk::ClearValue{vk::ClearDepthStencilValue{1.0f, 0u}}
+        };
 
         // Fill in attachment information
         if (use_swapchain_attachments) {
             prci = vk::PipelineRenderingCreateInfo{
-                0, {default_color_format}, default_depth_format, vk::Format::eUndefined};
-            cbass.push_back(vk::PipelineColorBlendAttachmentState{
-                vk::False,
-                vk::BlendFactor::eSrcAlpha,
-                vk::BlendFactor::eOneMinusSrcAlpha,
-                vk::BlendOp::eAdd,
-                vk::BlendFactor::eOne,
-                vk::BlendFactor::eZero,
-                vk::BlendOp::eAdd,
-                vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB
-                    | vk::ColorComponentFlagBits::eA});
+                0, {default_color_format}, default_depth_format, vk::Format::eUndefined
+            };
+            cbass.push_back(
+                vk::PipelineColorBlendAttachmentState{
+                    vk::False,
+                    vk::BlendFactor::eSrcAlpha,
+                    vk::BlendFactor::eOneMinusSrcAlpha,
+                    vk::BlendOp::eAdd,
+                    vk::BlendFactor::eOne,
+                    vk::BlendFactor::eZero,
+                    vk::BlendOp::eAdd,
+                    vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB
+                        | vk::ColorComponentFlagBits::eA
+                }
+            );
 
             pass_info.attachments.color_attachment_ops.push_back(
-                prop.attachments.color_ops.empty() ? default_color_op : prop.attachments.color_ops[0]);
+                prop.attachments.color_ops.empty() ? default_color_op : prop.attachments.color_ops[0]
+            );
             pass_info.attachments.ds_attachment_ops = default_depth_op;
-        }
-        else if (prop.attachments.color.empty() && prop.attachments.depth != ImageUtils::ImageFormat::UNDEFINED) {
+        } else if (prop.attachments.color.empty() && prop.attachments.depth != ImageUtils::ImageFormat::UNDEFINED) {
             // Has depth attachment with no color attachments => depth-only
             prci = vk::PipelineRenderingCreateInfo{
-                0, 0, nullptr, ImageUtils::GetVkFormat(prop.attachments.depth), vk::Format::eUndefined, nullptr};
+                0, 0, nullptr, ImageUtils::GetVkFormat(prop.attachments.depth), vk::Format::eUndefined, nullptr
+            };
             pass_info.attachments.ds_attachment_ops = prop.attachments.ds_ops;
-        }
-        else {
+        } else {
             // All custom attachments
             // XXX: This case is not thoroughly tested!
 
-            assert(prop.attachments.color.size() == prop.attachments.color_ops.size()
-                   && "Mismatched color attachment and operation size.");
-            assert(prop.attachments.color.size() == prop.attachments.color_blending.size()
-                   && "Mismatched color attachment and blending operation size.");
+            assert(
+                prop.attachments.color.size() == prop.attachments.color_ops.size()
+                && "Mismatched color attachment and operation size."
+            );
+            assert(
+                prop.attachments.color.size() == prop.attachments.color_blending.size()
+                && "Mismatched color attachment and blending operation size."
+            );
 
             std::vector<vk::Format> color_attachment_formats{prop.attachments.color.size(), vk::Format::eUndefined};
             pass_info.attachments.color_attachment_ops.resize(prop.attachments.color_ops.size());
             cbass.resize(prop.attachments.color_blending.size());
 
             for (size_t i = 0; i < prop.attachments.color.size(); i++) {
-                color_attachment_formats[i] = (prop.attachments.color[i] == ImageUtils::ImageFormat::UNDEFINED
-                                                   ? default_color_format
-                                                   : ImageUtils::GetVkFormat(prop.attachments.color[i]));
+                color_attachment_formats[i] =
+                    (prop.attachments.color[i] == ImageUtils::ImageFormat::UNDEFINED
+                         ? default_color_format
+                         : ImageUtils::GetVkFormat(prop.attachments.color[i]));
                 pass_info.attachments.color_attachment_ops[i] = prop.attachments.color_ops[i];
 
                 const auto &cb = prop.attachments.color_blending[i];
@@ -206,9 +230,9 @@ namespace Engine {
                         vk::BlendFactor::eZero,
                         vk::BlendOp::eAdd,
                         vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB
-                            | vk::ColorComponentFlagBits::eA};
-                }
-                else {
+                            | vk::ColorComponentFlagBits::eA
+                    };
+                } else {
                     cbass[i] = vk::PipelineColorBlendAttachmentState{
                         vk::True,
                         PipelineUtils::ToVkBlendFactor(cb.src_color),
@@ -217,17 +241,20 @@ namespace Engine {
                         PipelineUtils::ToVkBlendFactor(cb.src_alpha),
                         PipelineUtils::ToVkBlendFactor(cb.dst_alpha),
                         PipelineUtils::ToVkBlendOp(cb.alpha_op),
-                        static_cast<vk::ColorComponentFlags>(static_cast<int>(cb.color_write_mask))};
+                        static_cast<vk::ColorComponentFlags>(static_cast<int>(cb.color_write_mask))
+                    };
                 }
             }
             pass_info.attachments.ds_attachment_ops = prop.attachments.ds_ops;
 
-            prci = vk::PipelineRenderingCreateInfo{0,
-                                                   color_attachment_formats,
-                                                   prop.attachments.depth == ImageUtils::ImageFormat::UNDEFINED
-                                                       ? default_depth_format
-                                                       : ImageUtils::GetVkFormat(prop.attachments.depth),
-                                                   vk::Format::eUndefined};
+            prci = vk::PipelineRenderingCreateInfo{
+                0,
+                color_attachment_formats,
+                prop.attachments.depth == ImageUtils::ImageFormat::UNDEFINED
+                    ? default_depth_format
+                    : ImageUtils::GetVkFormat(prop.attachments.depth),
+                vk::Format::eUndefined
+            };
         }
         cbsi.logicOpEnable = vk::False;
         cbsi.setAttachments(cbass);
@@ -250,7 +277,8 @@ namespace Engine {
         auto ret = device.createGraphicsPipelineUnique(nullptr, gpci);
         pass_info.pipeline = std::move(ret.value);
         SDL_LogInfo(
-            SDL_LOG_CATEGORY_RENDER, "Successfully created pass %u for material %s.", pass_index, m_name.c_str());
+            SDL_LOG_CATEGORY_RENDER, "Successfully created pass %u for material %s.", pass_index, m_name.c_str()
+        );
 
         this->m_passes[pass_index] = std::move(pass_info);
     }
@@ -308,10 +336,12 @@ namespace Engine {
 
         auto layout = m_passes.at(pass_index).desc_layout.get();
         if (!layout) {
-            SDL_LogWarn(SDL_LOG_CATEGORY_RENDER,
-                        "Allocating empty descriptor for material %s pass %u",
-                        m_name.c_str(),
-                        pass_index);
+            SDL_LogWarn(
+                SDL_LOG_CATEGORY_RENDER,
+                "Allocating empty descriptor for material %s pass %u",
+                m_name.c_str(),
+                pass_index
+            );
             return nullptr;
         }
 
@@ -319,9 +349,10 @@ namespace Engine {
         auto sets = m_system.getDevice().allocateDescriptorSets(dsai);
         return sets[0];
     }
-    std::variant<std::monostate,
-                 std::reference_wrapper<const MaterialTemplate::DescVar>,
-                 std::reference_wrapper<const MaterialTemplate::InblockVar>>
+    std::variant<
+        std::monostate,
+        std::reference_wrapper<const MaterialTemplate::DescVar>,
+        std::reference_wrapper<const MaterialTemplate::InblockVar>>
     MaterialTemplate::GetVariable(const std::string &name, uint32_t pass_index) const {
         auto idx = this->GetVariableIndex(name, pass_index);
         if (!idx) return std::monostate{};
@@ -333,12 +364,14 @@ namespace Engine {
     const MaterialTemplate::DescVar &MaterialTemplate::GetDescVariable(uint32_t index, uint32_t pass_index) const {
         return this->m_passes.at(pass_index).desc.vars.at(index);
     }
-    const MaterialTemplate::InblockVar &MaterialTemplate::GetInBlockVariable(uint32_t index,
-                                                                             uint32_t pass_index) const {
+    const MaterialTemplate::InblockVar &MaterialTemplate::GetInBlockVariable(
+        uint32_t index, uint32_t pass_index
+    ) const {
         return this->m_passes.at(pass_index).inblock.vars.at(index);
     }
-    std::optional<std::pair<uint32_t, bool>> MaterialTemplate::GetVariableIndex(const std::string &name,
-                                                                                uint32_t pass_index) const noexcept {
+    std::optional<std::pair<uint32_t, bool>> MaterialTemplate::GetVariableIndex(
+        const std::string &name, uint32_t pass_index
+    ) const noexcept {
         auto pitr = m_passes.find(pass_index);
         assert(pitr != m_passes.end() && "Invaild pass index");
         auto itr = pitr->second.inblock.names.find(name);
@@ -354,8 +387,9 @@ namespace Engine {
         assert(m_passes.contains(pass_index) && "Invaild pass index");
         return m_passes.at(pass_index).attachments.ds_attachment_ops;
     }
-    AttachmentUtils::AttachmentOp MaterialTemplate::GetColorAttachmentOperation(uint32_t index,
-                                                                                uint32_t pass_index) const {
+    AttachmentUtils::AttachmentOp MaterialTemplate::GetColorAttachmentOperation(
+        uint32_t index, uint32_t pass_index
+    ) const {
         assert(m_passes.contains(pass_index) && "Invaild pass index");
         return m_passes.at(pass_index).attachments.color_attachment_ops.at(index);
     }
@@ -363,16 +397,17 @@ namespace Engine {
         assert(m_passes.contains(pass_index) && "Invaild pass index");
         return m_passes.at(pass_index).inblock.maximal_ubo_size;
     }
-    void MaterialTemplate::PlaceUBOVariables(const MaterialInstance &instance,
-                                             std::vector<std::byte> &memory,
-                                             uint32_t pass_index) const {
+    void MaterialTemplate::PlaceUBOVariables(
+        const MaterialInstance &instance, std::vector<std::byte> &memory, uint32_t pass_index
+    ) const {
         const auto &variables = instance.GetInBlockVariables(pass_index);
         const auto &pass_info = this->GetPassInfo(pass_index);
 
         PipelineInfo::PlaceUBOVariables(variables, pass_info, memory);
     }
     std::vector<std::pair<uint32_t, vk::DescriptorImageInfo>> MaterialTemplate::GetDescriptorImageInfo(
-        const MaterialInstance &instance, uint32_t pass_index) const {
+        const MaterialInstance &instance, uint32_t pass_index
+    ) const {
         const auto &pass_info = this->GetPassInfo(pass_index);
         const auto &instance_vars = instance.GetDescVariables(pass_index);
         return PipelineInfo::GetDescriptorImageInfo(instance_vars, pass_info, m_default_sampler.get());

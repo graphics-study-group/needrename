@@ -90,25 +90,21 @@ namespace Engine {
             if (ubo_type == "Float") {
                 m_ubo_type = InBlockVarType::Float;
                 m_value = json["m_value"].get<float>();
-            }
-            else if (ubo_type == "Int") {
+            } else if (ubo_type == "Int") {
                 m_ubo_type = InBlockVarType::Int;
                 m_value = json["m_value"].get<int>();
-            }
-            else if (ubo_type == "Mat4") {
+            } else if (ubo_type == "Mat4") {
                 m_ubo_type = InBlockVarType::Mat4;
                 m_value = glm::mat4{};
                 Serialization::Archive temp_archive(archive, &json["m_value"]);
                 Serialization::deserialize(std::any_cast<glm::mat4 &>(m_value), temp_archive);
-            }
-            else if (ubo_type == "Vec4") {
+            } else if (ubo_type == "Vec4") {
                 m_ubo_type = InBlockVarType::Vec4;
                 m_value = glm::vec4{};
                 Serialization::Archive temp_archive(archive, &json["m_value"]);
                 Serialization::deserialize(std::any_cast<glm::vec4 &>(m_value), temp_archive);
             }
-        }
-        else if (type == "Texture") {
+        } else if (type == "Texture") {
             m_type = Type::Texture;
             m_value = std::make_shared<AssetRef>();
             Serialization::Archive temp_archive(archive, &json["m_value"]);

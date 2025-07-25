@@ -12,14 +12,16 @@ namespace OptionDeclaration {
         --fontSize=SIZE
         --startup=SCRIPT)DIM";
     const char *short_options = "?x:y:v";
-    const option long_options[] = {{"help", no_argument, NULL, '?'},
-                                   {"resolutionX", required_argument, NULL, 'x'},
-                                   {"resolutionY", required_argument, NULL, 'y'},
-                                   {"verbose", no_argument, NULL, 'v'},
-                                   {"title", required_argument, NULL, OPT_SETTITLE},
-                                   {"fontFile", required_argument, NULL, OPT_SETFONT},
-                                   {"fontSize", required_argument, NULL, OPT_SETSIZE},
-                                   {"startup", required_argument, NULL, OPT_STARTUP}};
+    const option long_options[] = {
+        {"help", no_argument, NULL, '?'},
+        {"resolutionX", required_argument, NULL, 'x'},
+        {"resolutionY", required_argument, NULL, 'y'},
+        {"verbose", no_argument, NULL, 'v'},
+        {"title", required_argument, NULL, OPT_SETTITLE},
+        {"fontFile", required_argument, NULL, OPT_SETFONT},
+        {"fontSize", required_argument, NULL, OPT_SETSIZE},
+        {"startup", required_argument, NULL, OPT_STARTUP}
+    };
 } // namespace OptionDeclaration
 
 StartupOptions *ParseOptions(int argc, char **argv) {

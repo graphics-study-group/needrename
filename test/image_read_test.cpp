@@ -24,10 +24,12 @@ class TestHomoMesh : public HomogeneousMesh {
 public:
     TestHomoMesh(std::weak_ptr<RenderSystem> system) : HomogeneousMesh(system) {
         this->m_positions = {{-0.5f, -0.5f, 0.0f}, {-0.5f, 0.5f, 0.0f}, {0.5f, 0.5f, 0.0f}, {0.5f, -0.5f, 0.0f}};
-        this->m_attributes = {{.color = {1.0f, 0.0f, 0.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {0.0f, 0.0f}},
-                              {.color = {0.0f, 1.0f, 0.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {0.0f, 1.0f}},
-                              {.color = {0.0f, 0.0f, 1.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {1.0f, 1.0f}},
-                              {.color = {1.0f, 0.0f, 1.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {1.0f, 0.0f}}};
+        this->m_attributes = {
+            {.color = {1.0f, 0.0f, 0.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {0.0f, 0.0f}},
+            {.color = {0.0f, 1.0f, 0.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {0.0f, 1.0f}},
+            {.color = {0.0f, 0.0f, 1.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {1.0f, 1.0f}},
+            {.color = {1.0f, 0.0f, 1.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {1.0f, 0.0f}}
+        };
         this->m_indices = {2, 1, 0, 3, 2, 0};
     }
 };
@@ -47,8 +49,10 @@ int main(int, char *[]) {
     // Try render the mesh
     RenderTargetSetup rts{render_system};
     rts.CreateFromSwapchain();
-    rts.SetClearValues({vk::ClearValue{vk::ClearColorValue{0.0f, 0.0f, 0.0f, 1.0f}},
-                        vk::ClearValue{vk::ClearDepthStencilValue{1.0f, 0U}}});
+    rts.SetClearValues(
+        {vk::ClearValue{vk::ClearColorValue{0.0f, 0.0f, 0.0f, 1.0f}},
+         vk::ClearValue{vk::ClearDepthStencilValue{1.0f, 0U}}}
+    );
 
     uint32_t in_flight_frame_id = 0;
     uint32_t total_test_frame = 144;
@@ -76,7 +80,8 @@ int main(int, char *[]) {
 
         // Repeatly uploading these data to test synchronization.
         render_system.CommitTextureImage(
-            texture, reinterpret_cast<std::byte *>(image_data), tex_width * tex_height * 4);
+            texture, reinterpret_cast<std::byte *>(image_data), tex_width * tex_height * 4
+        );
 
         cb.Begin();
         vk::Extent2D extent{render_system->GetSwapchain().GetExtent()};

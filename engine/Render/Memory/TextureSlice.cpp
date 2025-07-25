@@ -12,11 +12,14 @@ namespace Engine {
             Texture::InferImageViewType(tex.GetTextureDescription()),
             ImageUtils::GetVkFormat(tex.GetTextureDescription().format),
             vk::ComponentMapping{},
-            vk::ImageSubresourceRange{ImageUtils::GetVkAspect(tex.GetTextureDescription().format),
-                                      m_slice.mipmap_base,
-                                      m_slice.mipmap_size,
-                                      m_slice.array_base,
-                                      m_slice.array_size}};
+            vk::ImageSubresourceRange{
+                ImageUtils::GetVkAspect(tex.GetTextureDescription().format),
+                m_slice.mipmap_base,
+                m_slice.mipmap_size,
+                m_slice.array_base,
+                m_slice.array_size
+            }
+        };
         m_view = m_system.getDevice().createImageViewUnique(ivci);
     }
 
@@ -31,8 +34,8 @@ namespace Engine {
     vk::ImageView SlicedTextureView::GetImageView() const noexcept {
         return m_view.get();
     }
-    SlicedSampledTextureView::SlicedSampledTextureView(RenderSystem &system,
-                                                       SampledTexture &texture,
-                                                       TextureSlice slice) : SlicedTextureView(system, texture, slice) {
+    SlicedSampledTextureView::SlicedSampledTextureView(
+        RenderSystem &system, SampledTexture &texture, TextureSlice slice
+    ) : SlicedTextureView(system, texture, slice) {
     }
 } // namespace Engine

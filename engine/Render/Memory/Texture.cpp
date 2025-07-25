@@ -12,27 +12,33 @@ namespace Engine {
 
     Texture::~Texture() = default;
 
-    void Texture::CreateTexture(uint32_t dimension,
-                                uint32_t width,
-                                uint32_t height,
-                                uint32_t depth,
-                                ImageUtils::ImageFormat format,
-                                ImageUtils::ImageType type,
-                                uint32_t mipLevels,
-                                uint32_t arrayLayers,
-                                bool isCubeMap,
-                                std::string name) {
+    void Texture::CreateTexture(
+        uint32_t dimension,
+        uint32_t width,
+        uint32_t height,
+        uint32_t depth,
+        ImageUtils::ImageFormat format,
+        ImageUtils::ImageType type,
+        uint32_t mipLevels,
+        uint32_t arrayLayers,
+        bool isCubeMap,
+        std::string name
+    ) {
 
-        this->CreateTexture(TextureDesc{.dimensions = dimension,
-                                        .width = width,
-                                        .height = height,
-                                        .depth = depth,
-                                        .format = format,
-                                        .type = type,
-                                        .mipmap_levels = mipLevels,
-                                        .array_layers = arrayLayers,
-                                        .is_cube_map = isCubeMap},
-                            name);
+        this->CreateTexture(
+            TextureDesc{
+                .dimensions = dimension,
+                .width = width,
+                .height = height,
+                .depth = depth,
+                .format = format,
+                .type = type,
+                .mipmap_levels = mipLevels,
+                .array_layers = arrayLayers,
+                .is_cube_map = isCubeMap
+            },
+            name
+        );
     }
 
     void Texture::CreateTexture(TextureDesc desc, std::string name) {
@@ -51,19 +57,22 @@ namespace Engine {
         assert(arrayLayers >= 1);
 
         auto dim = dimension == 1 ? vk::ImageType::e1D : (dimension == 2 ? vk::ImageType::e2D : vk::ImageType::e3D);
-        this->m_image = allocator.AllocateImageUniqueEx(desc.type,
-                                                        dim,
-                                                        vk::Extent3D{width, height, depth},
-                                                        ImageUtils::GetVkFormat(desc.format),
-                                                        mipLevels,
-                                                        arrayLayers,
-                                                        vk::SampleCountFlagBits::e1,
-                                                        name);
+        this->m_image = allocator.AllocateImageUniqueEx(
+            desc.type,
+            dim,
+            vk::Extent3D{width, height, depth},
+            ImageUtils::GetVkFormat(desc.format),
+            mipLevels,
+            arrayLayers,
+            vk::SampleCountFlagBits::e1,
+            name
+        );
         this->m_desc = desc;
         this->m_name = name;
 
         m_full_view = std::make_unique<SlicedTextureView>(
-            m_system, *this, TextureSlice{0, desc.mipmap_levels, 0, desc.array_layers});
+            m_system, *this, TextureSlice{0, desc.mipmap_levels, 0, desc.array_layers}
+        );
     }
 
     const Texture::TextureDesc &Texture::GetTextureDescription() const noexcept {
@@ -85,11 +94,13 @@ namespace Engine {
     }
 
     Buffer Engine::Texture::CreateStagingBuffer() const {
-        assert(((std::get<0>(ImageUtils::GetImageFlags(this->GetTextureDescription().type))
-                 & vk::ImageUsageFlagBits::eTransferDst)
-                || (std::get<0>(ImageUtils::GetImageFlags(this->GetTextureDescription().type))
-                    & vk::ImageUsageFlagBits::eTransferSrc))
-               && "A staging buffer is created, but the image does not support tranfer usage.");
+        assert(
+            ((std::get<0>(ImageUtils::GetImageFlags(this->GetTextureDescription().type))
+              & vk::ImageUsageFlagBits::eTransferDst)
+             || (std::get<0>(ImageUtils::GetImageFlags(this->GetTextureDescription().type))
+                 & vk::ImageUsageFlagBits::eTransferSrc))
+            && "A staging buffer is created, but the image does not support tranfer usage."
+        );
         uint64_t buffer_size = m_desc.height * m_desc.width * m_desc.depth * ImageUtils::GetPixelSize(m_desc.format);
         assert(buffer_size > 0);
 

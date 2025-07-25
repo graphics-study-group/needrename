@@ -8,12 +8,14 @@ namespace Engine::RenderSystemState {
         m_logical_device = system->getDevice();
 
         vk::DescriptorPoolCreateInfo info{
-            vk::DescriptorPoolCreateFlags{}, MAX_SET_SIZE, DESCRIPTOR_POOL_SIZES.size(), DESCRIPTOR_POOL_SIZES.data()};
+            vk::DescriptorPoolCreateFlags{}, MAX_SET_SIZE, DESCRIPTOR_POOL_SIZES.size(), DESCRIPTOR_POOL_SIZES.data()
+        };
         m_descriptor_pool = m_logical_device.createDescriptorPoolUnique(info);
     }
 
     vk::DescriptorSetLayout MaterialDescriptorManager::NewDescriptorSetLayout(
-        std::string name, const std::vector<vk::DescriptorSetLayoutBinding> &bindings) {
+        std::string name, const std::vector<vk::DescriptorSetLayoutBinding> &bindings
+    ) {
         auto found = m_layouts.find(name);
         if (found != m_layouts.end()) {
             return found->second.get();

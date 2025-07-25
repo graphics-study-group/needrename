@@ -7,7 +7,8 @@ namespace Engine {
     static void write_png_to_mem(void *context, void *data, int size) {
         auto &extra_data = *reinterpret_cast<std::vector<std::byte> *>(context);
         extra_data.insert(
-            extra_data.end(), reinterpret_cast<std::byte *>(data), reinterpret_cast<std::byte *>(data) + size);
+            extra_data.end(), reinterpret_cast<std::byte *>(data), reinterpret_cast<std::byte *>(data) + size
+        );
     }
 
     void Image2DTextureAsset::save_asset_to_archive(Serialization::Archive &archive) const {
@@ -26,7 +27,8 @@ namespace Engine {
         stbi_set_flip_vertically_on_load(false); // this is a static variable, so we need to reset it every time
         int width, height, channel;
         stbi_uc *raw_image_data = stbi_load_from_memory(
-            reinterpret_cast<const stbi_uc *>(data.data()), data.size(), &width, &height, &channel, 0);
+            reinterpret_cast<const stbi_uc *>(data.data()), data.size(), &width, &height, &channel, 0
+        );
         assert(raw_image_data);
 
         m_data.resize(width * height * channel);

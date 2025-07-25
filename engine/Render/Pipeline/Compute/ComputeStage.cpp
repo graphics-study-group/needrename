@@ -46,20 +46,22 @@ namespace Engine {
             }
             m_passInfo.inblock.names.merge(reflected.inblock.names);
             m_passInfo.inblock.vars.insert(
-                m_passInfo.inblock.vars.end(), reflected.inblock.vars.begin(), reflected.inblock.vars.end());
+                m_passInfo.inblock.vars.end(), reflected.inblock.vars.begin(), reflected.inblock.vars.end()
+            );
 
             for (auto &[_, idx] : reflected.desc.names) {
                 idx += m_passInfo.desc.vars.size();
             }
             m_passInfo.desc.names.merge(reflected.desc.names);
             m_passInfo.desc.vars.insert(
-                m_passInfo.desc.vars.end(), reflected.desc.vars.begin(), reflected.desc.vars.end());
+                m_passInfo.desc.vars.end(), reflected.desc.vars.begin(), reflected.desc.vars.end()
+            );
 
             m_passInfo.inblock.maximal_ubo_size = 0;
             for (const auto &var : m_passInfo.inblock.vars) {
-                m_passInfo.inblock.maximal_ubo_size =
-                    std::max(m_passInfo.inblock.maximal_ubo_size,
-                             1ULL * var.inblock_location.offset + var.inblock_location.size);
+                m_passInfo.inblock.maximal_ubo_size = std::max(
+                    m_passInfo.inblock.maximal_ubo_size, 1ULL * var.inblock_location.offset + var.inblock_location.size
+                );
             }
 
             vk::DescriptorSetLayoutCreateInfo dslci = reflected.set_layout.create_info;
@@ -68,16 +70,20 @@ namespace Engine {
             vk::PipelineLayoutCreateInfo plci{vk::PipelineLayoutCreateFlags{}, {m_passInfo.desc_layout.get()}, {}};
             m_passInfo.pipeline_layout = system.getDevice().createPipelineLayoutUnique(plci);
 
-            vk::ShaderModuleCreateInfo smci{vk::ShaderModuleCreateFlags{},
-                                            code.size() * sizeof(uint32_t),
-                                            reinterpret_cast<const uint32_t *>(code.data())};
+            vk::ShaderModuleCreateInfo smci{
+                vk::ShaderModuleCreateFlags{},
+                code.size() * sizeof(uint32_t),
+                reinterpret_cast<const uint32_t *>(code.data())
+            };
             m_passInfo.shaders.resize(1);
             m_passInfo.shaders[0] = system.getDevice().createShaderModuleUnique(smci);
 
-            vk::PipelineShaderStageCreateInfo pssci{vk::PipelineShaderStageCreateFlags{},
-                                                    vk::ShaderStageFlagBits::eCompute,
-                                                    m_passInfo.shaders[0].get(),
-                                                    "main"};
+            vk::PipelineShaderStageCreateInfo pssci{
+                vk::PipelineShaderStageCreateFlags{},
+                vk::ShaderStageFlagBits::eCompute,
+                m_passInfo.shaders[0].get(),
+                "main"
+            };
             vk::ComputePipelineCreateInfo cpci{vk::PipelineCreateFlags{}, pssci, m_passInfo.pipeline_layout.get()};
             auto ret = system.getDevice().createComputePipelineUnique(nullptr, cpci);
             m_passInfo.pipeline = std::move(ret.value);
@@ -93,17 +99,19 @@ namespace Engine {
         // Allocate uniform buffer and descriptor set
         auto ubo_size = pimpl->m_passInfo.inblock.maximal_ubo_size;
         if (ubo_size == 0) {
-            SDL_LogWarn(SDL_LOG_CATEGORY_RENDER,
-                        "Found zero-sized UBO when processing compute stage shader %s.",
-                        asset.m_name.c_str());
-        }
-        else {
+            SDL_LogWarn(
+                SDL_LOG_CATEGORY_RENDER,
+                "Found zero-sized UBO when processing compute stage shader %s.",
+                asset.m_name.c_str()
+            );
+        } else {
             pimpl->m_instancedPassInfo.ubo = std::make_unique<Buffer>(m_system);
             pimpl->m_instancedPassInfo.ubo->Create(Buffer::BufferType::Uniform, ubo_size);
         }
         // TODO: We obviously need a new pool for compute decriptors
-        vk::DescriptorSetAllocateInfo dsai{m_system.GetGlobalConstantDescriptorPool().get(),
-                                           {pimpl->m_passInfo.desc_layout.get()}};
+        vk::DescriptorSetAllocateInfo dsai{
+            m_system.GetGlobalConstantDescriptorPool().get(), {pimpl->m_passInfo.desc_layout.get()}
+        };
         pimpl->m_instancedPassInfo.desc_set = m_system.getDevice().allocateDescriptorSets(dsai)[0];
     }
 
@@ -142,17 +150,18 @@ namespace Engine {
         auto image_writes = PipelineInfo::GetDescriptorImageInfo(pimpl->m_desc_variables, pimpl->m_passInfo, nullptr);
         writes.reserve(image_writes.size() + 1);
         for (const auto &[binding, image_info] : image_writes) {
-            vk::WriteDescriptorSet write{pass_info.desc_set,
-                                         binding,
-                                         0,
-                                         1,
-                                         // TODO: We need a better way to check if its storage image or texture image.
-                                         image_info.imageLayout == vk::ImageLayout::eGeneral
-                                             ? vk::DescriptorType::eStorageImage
-                                             : vk::DescriptorType::eCombinedImageSampler,
-                                         &image_info,
-                                         nullptr,
-                                         nullptr};
+            vk::WriteDescriptorSet write{
+                pass_info.desc_set,
+                binding,
+                0,
+                1,
+                // TODO: We need a better way to check if its storage image or texture image.
+                image_info.imageLayout == vk::ImageLayout::eGeneral ? vk::DescriptorType::eStorageImage
+                                                                    : vk::DescriptorType::eCombinedImageSampler,
+                &image_info,
+                nullptr,
+                nullptr
+            };
             writes.push_back(write);
         }
 
@@ -160,9 +169,11 @@ namespace Engine {
         if (pass_info.ubo) {
             auto &ubo = *(pass_info.ubo.get());
             std::array<vk::DescriptorBufferInfo, 1> ubo_buffer_info = {
-                vk::DescriptorBufferInfo{ubo.GetBuffer(), 0, vk::WholeSize}};
+                vk::DescriptorBufferInfo{ubo.GetBuffer(), 0, vk::WholeSize}
+            };
             vk::WriteDescriptorSet ubo_write{
-                pass_info.desc_set, 0, 0, vk::DescriptorType::eUniformBuffer, {}, ubo_buffer_info, {}};
+                pass_info.desc_set, 0, 0, vk::DescriptorType::eUniformBuffer, {}, ubo_buffer_info, {}
+            };
             writes.push_back(ubo_write);
         }
 

@@ -5,7 +5,8 @@
 namespace Engine::RenderSystemState {
     void Instance::Create(const char *instance_name, const char *engine_name) {
         vk::ApplicationInfo appInfo{
-            instance_name, VK_MAKE_VERSION(0, 1, 0), engine_name, VK_MAKE_VERSION(0, 1, 0), VK_API_VERSION_1_3};
+            instance_name, VK_MAKE_VERSION(0, 1, 0), engine_name, VK_MAKE_VERSION(0, 1, 0), VK_API_VERSION_1_3
+        };
 
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating Vulkan instance.");
         const char *const *pExt;
@@ -30,8 +31,7 @@ namespace Engine::RenderSystemState {
         if (CheckValidationLayer()) {
             instInfo.enabledLayerCount = 1;
             instInfo.ppEnabledLayerNames = &(VALIDATION_LAYER_NAME);
-        }
-        else {
+        } else {
             instInfo.enabledLayerCount = 0;
         }
 #else

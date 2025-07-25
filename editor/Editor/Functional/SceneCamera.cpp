@@ -12,15 +12,18 @@ namespace Editor {
 
     void SceneCamera::MoveControl(float delta_forward, float delta_right) {
         float dt = Engine::MainClass::GetInstance()->GetTimeSystem()->GetDeltaTimeInSeconds();
-        m_transform.SetPosition(m_transform.GetPosition()
-                                + m_transform.GetRotation() * glm::vec3{delta_right, delta_forward, 0.0f} * m_move_speed
-                                      * dt);
+        m_transform.SetPosition(
+            m_transform.GetPosition()
+            + m_transform.GetRotation() * glm::vec3{delta_right, delta_forward, 0.0f} * m_move_speed * dt
+        );
     }
 
     void SceneCamera::RotateControl(float delta_x, float delta_y) {
         m_transform.SetRotation(
             m_transform.GetRotation()
             * glm::quat(
-                glm::vec3{-glm::radians(delta_y * m_rotate_speed), 0.0f, -glm::radians(delta_x * m_rotate_speed)}));
+                glm::vec3{-glm::radians(delta_y * m_rotate_speed), 0.0f, -glm::radians(delta_x * m_rotate_speed)}
+            )
+        );
     }
 } // namespace Editor

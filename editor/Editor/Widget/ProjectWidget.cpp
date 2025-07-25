@@ -24,8 +24,7 @@ namespace Editor {
                     if (ImGui::Button(entry.path().filename().string().c_str())) {
                         this->m_current_path /= entry.path().filename();
                     }
-                }
-                else if (entry.is_regular_file() && entry.path().extension() == ".asset")
+                } else if (entry.is_regular_file() && entry.path().extension() == ".asset")
                     ImGui::Button(entry.path().filename().string().c_str());
             }
         }

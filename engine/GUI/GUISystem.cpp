@@ -46,13 +46,14 @@ namespace Engine {
         ImGui::NewFrame();
     }
 
-    void GUISystem::DrawGUI(const AttachmentUtils::AttachmentDescription &att,
-                            vk::Extent2D extent,
-                            GraphicsCommandBuffer &cb) const {
+    void GUISystem::DrawGUI(
+        const AttachmentUtils::AttachmentDescription &att, vk::Extent2D extent, GraphicsCommandBuffer &cb
+    ) const {
         ImGui::Render();
         cb.BeginRendering(att, {nullptr}, extent, "GUI rendering pass");
         ImGui_ImplVulkan_RenderDrawData(
-            ImGui::GetDrawData(), static_cast<VkCommandBuffer>(cb.GetCommandBuffer()), nullptr);
+            ImGui::GetDrawData(), static_cast<VkCommandBuffer>(cb.GetCommandBuffer()), nullptr
+        );
         cb.EndRendering();
     }
 
@@ -79,11 +80,14 @@ namespace Engine {
         info.UseDynamicRendering = true;
         info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
 
-        std::array<vk::Format, 1> formats = {{color_attachment_format == vk::Format::eUndefined
-                                                  ? ImageUtils::GetVkFormat(system->GetSwapchain().COLOR_FORMAT)
-                                                  : color_attachment_format}};
+        std::array<vk::Format, 1> formats = {
+            {color_attachment_format == vk::Format::eUndefined
+                 ? ImageUtils::GetVkFormat(system->GetSwapchain().COLOR_FORMAT)
+                 : color_attachment_format}
+        };
         VkPipelineRenderingCreateInfoKHR pipeline{static_cast<VkPipelineRenderingCreateInfoKHR>(
-            vk::PipelineRenderingCreateInfo{0, formats, vk::Format::eUndefined, vk::Format::eUndefined})};
+            vk::PipelineRenderingCreateInfo{0, formats, vk::Format::eUndefined, vk::Format::eUndefined}
+        )};
         info.PipelineRenderingCreateInfo = pipeline;
 
         if (!ImGui_ImplVulkan_Init(&info)) SDL_LogCritical(0, "Failed to initialize Vulkan backend for ImGui.");

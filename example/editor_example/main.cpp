@@ -107,32 +107,43 @@ int main() {
         scene_widget->PreRender();
         game_widget->PreRender();
 
-        context.UseImage(*std::static_pointer_cast<Engine::Texture>(scene_widget->m_color_texture),
-                         GraphicsContext::ImageGraphicsAccessType::ShaderRead,
-                         GraphicsContext::ImageAccessType::ColorAttachmentWrite);
-        context.UseImage(*std::static_pointer_cast<Engine::Texture>(game_widget->m_color_texture),
-                         GraphicsContext::ImageGraphicsAccessType::ShaderRead,
-                         GraphicsContext::ImageAccessType::ColorAttachmentWrite);
-        context.UseImage(window->GetColorTexture(),
-                         GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite,
-                         GraphicsContext::ImageAccessType::None);
-        context.UseImage(window->GetDepthTexture(),
-                         GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite,
-                         GraphicsContext::ImageAccessType::None);
+        context.UseImage(
+            *std::static_pointer_cast<Engine::Texture>(scene_widget->m_color_texture),
+            GraphicsContext::ImageGraphicsAccessType::ShaderRead,
+            GraphicsContext::ImageAccessType::ColorAttachmentWrite
+        );
+        context.UseImage(
+            *std::static_pointer_cast<Engine::Texture>(game_widget->m_color_texture),
+            GraphicsContext::ImageGraphicsAccessType::ShaderRead,
+            GraphicsContext::ImageAccessType::ColorAttachmentWrite
+        );
+        context.UseImage(
+            window->GetColorTexture(),
+            GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite,
+            GraphicsContext::ImageAccessType::None
+        );
+        context.UseImage(
+            window->GetDepthTexture(),
+            GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite,
+            GraphicsContext::ImageAccessType::None
+        );
         context.PrepareCommandBuffer();
         gui->PrepareGUI();
         main_window.Render();
-        gui->DrawGUI({window->GetColorTexture().GetImage(),
-                      window->GetColorTexture().GetImageView(),
-                      vk::AttachmentLoadOp::eLoad,
-                      vk::AttachmentStoreOp::eStore},
-                     window->GetExtent(),
-                     cb);
+        gui->DrawGUI(
+            {window->GetColorTexture().GetImage(),
+             window->GetColorTexture().GetImageView(),
+             vk::AttachmentLoadOp::eLoad,
+             vk::AttachmentStoreOp::eStore},
+            window->GetExtent(),
+            cb
+        );
 
         cb.End();
         rsys->GetFrameManager().SubmitMainCommandBuffer();
         rsys->GetFrameManager().StageBlitComposition(
-            window->GetColorTexture().GetImage(), window->GetExtent(), window->GetExtent());
+            window->GetColorTexture().GetImage(), window->GetExtent(), window->GetExtent()
+        );
         rsys->GetFrameManager().CompositeToFramebufferAndPresent();
     }
     rsys->WaitForIdle();

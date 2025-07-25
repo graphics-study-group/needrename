@@ -31,26 +31,31 @@ int main(int argc, char *argv[]) {
     auto ret = ShaderUtils::ReflectSpirvDataCompute(cs->binary);
 
     assert(ret.desc.names.find("outputImage") != ret.desc.names.end() && ret.desc.names["outputImage"] == 0);
-    assert(ret.desc.vars[0].set == 0 && ret.desc.vars[0].binding == 1
-           && ret.desc.vars[0].type == ShaderVariableProperty::Type::StorageImage);
+    assert(
+        ret.desc.vars[0].set == 0 && ret.desc.vars[0].binding == 1
+        && ret.desc.vars[0].type == ShaderVariableProperty::Type::StorageImage
+    );
 
     auto rsys = cmc->GetRenderSystem();
 
     auto color = std::make_shared<Engine::Texture>(*rsys);
-    Engine::Texture::TextureDesc desc{.dimensions = 2,
-                                      .width = 1280,
-                                      .height = 720,
-                                      .depth = 1,
-                                      .format = Engine::ImageUtils::ImageFormat::R8G8B8A8SNorm,
-                                      .type = Engine::ImageUtils::ImageType::ColorGeneral,
-                                      .mipmap_levels = 1,
-                                      .array_layers = 1,
-                                      .is_cube_map = false};
+    Engine::Texture::TextureDesc desc{
+        .dimensions = 2,
+        .width = 1280,
+        .height = 720,
+        .depth = 1,
+        .format = Engine::ImageUtils::ImageFormat::R8G8B8A8SNorm,
+        .type = Engine::ImageUtils::ImageType::ColorGeneral,
+        .mipmap_levels = 1,
+        .array_layers = 1,
+        .is_cube_map = false
+    };
     color->CreateTexture(desc, "Color Compute Test");
     ComputeStage cstage{*rsys};
     cstage.InstantiateFromRef(cs_ref);
-    cstage.SetDescVariable(cstage.GetVariableIndex("outputImage").value().first,
-                           std::const_pointer_cast<const Texture>(color));
+    cstage.SetDescVariable(
+        cstage.GetVariableIndex("outputImage").value().first, std::const_pointer_cast<const Texture>(color)
+    );
 
     uint64_t frame_count = 0;
     while (++frame_count) {
@@ -69,7 +74,8 @@ int main(int argc, char *argv[]) {
         auto ccontext = rsys->GetFrameManager().GetComputeContext();
         ccontext.GetCommandBuffer().Begin();
         ccontext.UseImage(
-            *color, ComputeContext::ImageComputeAccessType::ShaderRandomWrite, ComputeContext::ImageAccessType::None);
+            *color, ComputeContext::ImageComputeAccessType::ShaderRandomWrite, ComputeContext::ImageAccessType::None
+        );
         auto ccb = dynamic_cast<ComputeCommandBuffer &>(ccontext.GetCommandBuffer());
 
         ccontext.PrepareCommandBuffer();
@@ -78,9 +84,11 @@ int main(int argc, char *argv[]) {
 
         // We need this barrier to transfer image to color attachment layout for presenting.
         auto gcontext = rsys->GetFrameManager().GetGraphicsContext();
-        gcontext.UseImage(*color,
-                          GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite,
-                          GraphicsContext::ImageAccessType::ShaderRandomWrite);
+        gcontext.UseImage(
+            *color,
+            GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite,
+            GraphicsContext::ImageAccessType::ShaderRandomWrite
+        );
         gcontext.PrepareCommandBuffer();
         ccontext.GetCommandBuffer().End();
 
@@ -88,7 +96,8 @@ int main(int argc, char *argv[]) {
         rsys->GetFrameManager().StageBlitComposition(
             color->GetImage(),
             vk::Extent2D{color->GetTextureDescription().width, color->GetTextureDescription().height},
-            rsys->GetSwapchain().GetExtent());
+            rsys->GetSwapchain().GetExtent()
+        );
         rsys->CompleteFrame();
 
         SDL_Delay(5);

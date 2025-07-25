@@ -5,11 +5,13 @@
 
 namespace Engine {
     namespace Reflection {
-        Field::Field(const std::string &name,
-                     std::weak_ptr<Type> classtype,
-                     std::shared_ptr<Type> fieldtype,
-                     const WrapperFieldFunc &getter_func,
-                     const WrapperConstFieldFunc &const_getter_func) :
+        Field::Field(
+            const std::string &name,
+            std::weak_ptr<Type> classtype,
+            std::shared_ptr<Type> fieldtype,
+            const WrapperFieldFunc &getter_func,
+            const WrapperConstFieldFunc &const_getter_func
+        ) :
             m_getter(getter_func), m_const_getter(const_getter_func), m_name(name), m_classtype(classtype),
             m_fieldtype(fieldtype) {
             assert(classtype.expired() == false);

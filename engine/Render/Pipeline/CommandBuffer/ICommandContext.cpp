@@ -4,17 +4,18 @@
 #include "Render/Pipeline/CommandBuffer/AccessHelperFuncs.h"
 
 namespace Engine {
-    vk::ImageMemoryBarrier2 ICommandContext::GetImageBarrier(const Texture &texture,
-                                                             ImageAccessType currentAccess,
-                                                             ImageAccessType previousAccess) noexcept {
+    vk::ImageMemoryBarrier2 ICommandContext::GetImageBarrier(
+        const Texture &texture, ImageAccessType currentAccess, ImageAccessType previousAccess
+    ) noexcept {
         vk::ImageMemoryBarrier2 barrier;
         barrier.image = texture.GetImage();
-        barrier.subresourceRange =
-            vk::ImageSubresourceRange{ImageUtils::GetVkAspect(texture.GetTextureDescription().format),
-                                      0,
-                                      vk::RemainingMipLevels,
-                                      0,
-                                      vk::RemainingArrayLayers};
+        barrier.subresourceRange = vk::ImageSubresourceRange{
+            ImageUtils::GetVkAspect(texture.GetTextureDescription().format),
+            0,
+            vk::RemainingMipLevels,
+            0,
+            vk::RemainingArrayLayers
+        };
 
         if (barrier.subresourceRange.aspectMask == vk::ImageAspectFlagBits::eNone) {
             SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Failed to infer aspect range when inserting an image barrier.");

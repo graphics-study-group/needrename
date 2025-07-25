@@ -64,16 +64,16 @@ namespace Engine {
         }
     }
 
-    void AssetManager::ImportExternalResource(std::filesystem::path resourcePath,
-                                              std::filesystem::path path_in_project) {
+    void AssetManager::ImportExternalResource(
+        std::filesystem::path resourcePath, std::filesystem::path path_in_project
+    ) {
         if (!std::filesystem::exists(GetAssetsDirectory() / path_in_project))
             std::filesystem::create_directory(GetAssetsDirectory() / path_in_project);
         std::string extension = resourcePath.extension().string();
         if (extension == ".obj") {
             ObjLoader loader;
             loader.LoadObjResource(resourcePath, path_in_project);
-        }
-        else {
+        } else {
             throw std::runtime_error("Unsupported file format");
         }
     }
@@ -84,8 +84,7 @@ namespace Engine {
             if (it->second.begin()->string() == "~")
                 return m_builtin_asset_path / it->second.relative_path().string().substr(2);
             else return GetAssetsDirectory() / it->second;
-        }
-        else throw std::runtime_error("Asset not found");
+        } else throw std::runtime_error("Asset not found");
     }
 
     std::filesystem::path AssetManager::GetAssetPath(const std::shared_ptr<Asset> &asset) const {

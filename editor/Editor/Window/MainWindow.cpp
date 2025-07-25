@@ -13,8 +13,9 @@ namespace Editor {
         auto project_widget = std::make_shared<ProjectWidget>(k_project_widget_name);
         AddWidget(project_widget);
         auto inspector_widget = std::make_shared<InspectorWidget>(k_inspector_widget_name);
-        hierachy_widget->m_OnGameObjectSelectedDelegate.AddListener(inspector_widget,
-                                                                    &InspectorWidget::SetSelectedGameObject);
+        hierachy_widget->m_OnGameObjectSelectedDelegate.AddListener(
+            inspector_widget, &InspectorWidget::SetSelectedGameObject
+        );
         AddWidget(inspector_widget);
     }
 
@@ -60,9 +61,11 @@ namespace Editor {
         ImGui::SetNextWindowSize(ImVec2(ImGui::GetWindowWidth(), 0.0f));
         ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
         ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
-        if (ImGui::Begin(k_control_widget_name,
-                         nullptr,
-                         ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize)) {
+        if (ImGui::Begin(
+                k_control_widget_name,
+                nullptr,
+                ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize
+            )) {
             // Center the buttons horizontally
             float button_width = 70.0f; // Approximate width of each button
             float spacing = ImGui::GetStyle().ItemSpacing.x;
@@ -79,8 +82,7 @@ namespace Editor {
                     m_OnStop.Invoke();
                 }
                 ImGui::PopStyleColor();
-            }
-            else {
+            } else {
                 ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.8f, 0.2f, 1.0f)); // Green color for Start button
                 if (ImGui::Button("Start", ImVec2(button_width, 0))) {
                     m_is_playing = true;

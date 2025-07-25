@@ -15,9 +15,11 @@ class TestHomoMesh : public HomogeneousMesh {
 public:
     TestHomoMesh(std::weak_ptr<RenderSystem> system) : HomogeneousMesh(system) {
         this->m_positions = {{0.0f, -0.5f, 0.0f}, {0.5f, 0.5f, 0.0f}, {-0.5f, 0.5f, 0.0f}};
-        this->m_attributes = {{.color = {1.0f, 0.0f, 0.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {0.0f, 0.0f}},
-                              {.color = {0.0f, 1.0f, 0.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {0.0f, 0.0f}},
-                              {.color = {0.0f, 0.0f, 1.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {0.0f, 0.0f}}};
+        this->m_attributes = {
+            {.color = {1.0f, 0.0f, 0.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {0.0f, 0.0f}},
+            {.color = {0.0f, 1.0f, 0.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {0.0f, 0.0f}},
+            {.color = {0.0f, 0.0f, 1.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {0.0f, 0.0f}}
+        };
         this->m_indices = {0, 1, 2};
     }
 };
@@ -59,8 +61,10 @@ int main(int, char **) {
 
     RenderTargetSetup rts{system};
     rts.CreateFromSwapchain();
-    rts.SetClearValues({vk::ClearValue{vk::ClearColorValue{0.0f, 0.0f, 0.0f, 1.0f}},
-                        vk::ClearValue{vk::ClearDepthStencilValue{1.0f, 0U}}});
+    rts.SetClearValues(
+        {vk::ClearValue{vk::ClearColorValue{0.0f, 0.0f, 0.0f, 1.0f}},
+         vk::ClearValue{vk::ClearDepthStencilValue{1.0f, 0U}}}
+    );
 
     std::shared_ptr material = std::make_shared<TestMaterial>(system);
 
@@ -95,11 +99,13 @@ int main(int, char **) {
 
         std::chrono::duration<double, std::milli> total;
         total = submission_end_timer - frame_start_timer;
-        SDL_LogVerbose(0,
-                       "Total: %lf milliseconds, or %lf fps for frame %u.",
-                       total.count(),
-                       1000.0 / total.count(),
-                       in_flight_frame_id);
+        SDL_LogVerbose(
+            0,
+            "Total: %lf milliseconds, or %lf fps for frame %u.",
+            total.count(),
+            1000.0 / total.count(),
+            in_flight_frame_id
+        );
 
         in_flight_frame_id = (in_flight_frame_id + 1) % 3;
     }

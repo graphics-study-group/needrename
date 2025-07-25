@@ -112,7 +112,8 @@ namespace Engine {
         }
 
         vk::PipelineRasterizationStateCreateInfo ToVulkanRasterizationStateCreateInfo(
-            const PipelineProperties::RasterizerProperties &prop) {
+            const PipelineProperties::RasterizerProperties &prop
+        ) {
             vk::PipelineRasterizationStateCreateInfo info{};
             info.depthClampEnable = vk::False;
             info.rasterizerDiscardEnable = vk::False;
@@ -125,34 +126,38 @@ namespace Engine {
         }
 
         vk::PipelineDepthStencilStateCreateInfo ToVulkanDepthStencilStateCreateInfo(
-            const PipelineProperties::DSProperties &p) {
-            vk::PipelineDepthStencilStateCreateInfo info{vk::PipelineDepthStencilStateCreateFlags{},
-                                                         p.depth_test_enable,
-                                                         p.depth_write_enable,
-                                                         ToVkCompareOp(p.depth_comparator), // Lower => closer
-                                                         p.depth_bound_test_enable,
-                                                         p.stencil_test_enable,
-                                                         {ToVkStencilOp(p.stencil_front.fail_op),
-                                                          ToVkStencilOp(p.stencil_front.pass_op),
-                                                          ToVkStencilOp(p.stencil_front.zfail_op),
-                                                          ToVkCompareOp(p.stencil_front.comparator),
-                                                          p.stencil_front.compare_mask,
-                                                          p.stencil_front.write_mask,
-                                                          p.stencil_front.reference},
-                                                         {ToVkStencilOp(p.stencil_back.fail_op),
-                                                          ToVkStencilOp(p.stencil_back.pass_op),
-                                                          ToVkStencilOp(p.stencil_back.zfail_op),
-                                                          ToVkCompareOp(p.stencil_back.comparator),
-                                                          p.stencil_back.compare_mask,
-                                                          p.stencil_back.write_mask,
-                                                          p.stencil_back.reference},
-                                                         p.min_depth,
-                                                         p.max_depth};
+            const PipelineProperties::DSProperties &p
+        ) {
+            vk::PipelineDepthStencilStateCreateInfo info{
+                vk::PipelineDepthStencilStateCreateFlags{},
+                p.depth_test_enable,
+                p.depth_write_enable,
+                ToVkCompareOp(p.depth_comparator), // Lower => closer
+                p.depth_bound_test_enable,
+                p.stencil_test_enable,
+                {ToVkStencilOp(p.stencil_front.fail_op),
+                 ToVkStencilOp(p.stencil_front.pass_op),
+                 ToVkStencilOp(p.stencil_front.zfail_op),
+                 ToVkCompareOp(p.stencil_front.comparator),
+                 p.stencil_front.compare_mask,
+                 p.stencil_front.write_mask,
+                 p.stencil_front.reference},
+                {ToVkStencilOp(p.stencil_back.fail_op),
+                 ToVkStencilOp(p.stencil_back.pass_op),
+                 ToVkStencilOp(p.stencil_back.zfail_op),
+                 ToVkCompareOp(p.stencil_back.comparator),
+                 p.stencil_back.compare_mask,
+                 p.stencil_back.write_mask,
+                 p.stencil_back.reference},
+                p.min_depth,
+                p.max_depth
+            };
             return info;
         }
 
         std::vector<vk::DescriptorSetLayoutBinding> ToVulkanDescriptorSetLayoutBindings(
-            const PipelineProperties::Shaders &p) {
+            const PipelineProperties::Shaders &p
+        ) {
 #ifndef NDEBUG
             // Test whether scene uniforms are compatible
             auto scene_uniforms_range =
@@ -160,8 +165,9 @@ namespace Engine {
                     return prop.frequency == ShaderVariableProperty::Frequency::PerScene;
                 });
             if (!scene_uniforms_range.empty())
-                SDL_LogWarn(SDL_LOG_CATEGORY_RENDER,
-                            "Found non-compatible scene uniforms. Scene uniform should be empty.");
+                SDL_LogWarn(
+                    SDL_LOG_CATEGORY_RENDER, "Found non-compatible scene uniforms. Scene uniform should be empty."
+                );
 
             // Test wheter camera uniforms are compatible
             size_t found_camera_uniform = false;
@@ -170,18 +176,22 @@ namespace Engine {
                     if (found_camera_uniform) {
                         SDL_LogWarn(
                             SDL_LOG_CATEGORY_RENDER,
-                            "Found too many camera uniforms. Camera uniform should contain exactly one UBO only.");
+                            "Found too many camera uniforms. Camera uniform should contain exactly one UBO only."
+                        );
                     }
                     found_camera_uniform = true;
                     if (p.uniforms[i].type != ShaderVariableProperty::Type::UBO) {
                         SDL_LogWarn(
                             SDL_LOG_CATEGORY_RENDER,
-                            "Found camera uniform of wrong type. Camera uniform should contain exactly one UBO only.");
+                            "Found camera uniform of wrong type. Camera uniform should contain exactly one UBO only."
+                        );
                     }
                     if (p.uniforms[i].binding != 0) {
-                        SDL_LogWarn(SDL_LOG_CATEGORY_RENDER,
-                                    "Found camera uniform of wrong binding. Camera uniform should "
-                                    "contain exactly one UBO bound to the zeroth binding.");
+                        SDL_LogWarn(
+                            SDL_LOG_CATEGORY_RENDER,
+                            "Found camera uniform of wrong binding. Camera uniform should "
+                            "contain exactly one UBO bound to the zeroth binding."
+                        );
                     }
                 }
             }
@@ -211,9 +221,11 @@ namespace Engine {
                         }
                         material_ubo_binding = u.binding;
                         if (material_ubo_binding != 0) {
-                            SDL_LogWarn(SDL_LOG_CATEGORY_RENDER,
-                                        "Material UBOs %s not bound to the zeroth binding.",
-                                        u.name.c_str());
+                            SDL_LogWarn(
+                                SDL_LOG_CATEGORY_RENDER,
+                                "Material UBOs %s not bound to the zeroth binding.",
+                                u.name.c_str()
+                            );
                         }
                     }
                 }
@@ -226,9 +238,11 @@ namespace Engine {
                     });
                 for (const auto &uv : material_uniforms_variable_range) {
                     if (uv.binding != material_ubo_binding) {
-                        SDL_LogWarn(SDL_LOG_CATEGORY_RENDER,
-                                    "Material UBO variable %s not bound to the correct binding.",
-                                    uv.name.c_str());
+                        SDL_LogWarn(
+                            SDL_LOG_CATEGORY_RENDER,
+                            "Material UBO variable %s not bound to the correct binding.",
+                            uv.name.c_str()
+                        );
                     }
                 }
             }
@@ -246,20 +260,36 @@ namespace Engine {
                 switch (prop.type) {
                     using Type = ShaderVariableProperty::Type;
                 case Type::UBO:
-                    bindings.push_back(vk::DescriptorSetLayoutBinding{
-                        prop.binding, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eAll, 0});
+                    bindings.push_back(
+                        vk::DescriptorSetLayoutBinding{
+                            prop.binding, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eAll, 0
+                        }
+                    );
                     break;
                 case Type::StorageBuffer:
-                    bindings.push_back(vk::DescriptorSetLayoutBinding{
-                        prop.binding, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eAll, 0});
+                    bindings.push_back(
+                        vk::DescriptorSetLayoutBinding{
+                            prop.binding, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eAll, 0
+                        }
+                    );
                     break;
                 case Type::Texture:
-                    bindings.push_back(vk::DescriptorSetLayoutBinding{
-                        prop.binding, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eAll, {}});
+                    bindings.push_back(
+                        vk::DescriptorSetLayoutBinding{
+                            prop.binding,
+                            vk::DescriptorType::eCombinedImageSampler,
+                            1,
+                            vk::ShaderStageFlagBits::eAll,
+                            {}
+                        }
+                    );
                     break;
                 case Type::StorageImage:
-                    bindings.push_back(vk::DescriptorSetLayoutBinding{
-                        prop.binding, vk::DescriptorType::eStorageImage, 1, vk::ShaderStageFlagBits::eAll, {}});
+                    bindings.push_back(
+                        vk::DescriptorSetLayoutBinding{
+                            prop.binding, vk::DescriptorType::eStorageImage, 1, vk::ShaderStageFlagBits::eAll, {}
+                        }
+                    );
                     break;
                 default:
                     SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Unsupported out-of-UBO property type.");
@@ -268,8 +298,9 @@ namespace Engine {
             return bindings;
         }
 
-        vk::PipelineShaderStageCreateInfo ToVulkanShaderStageCreateInfo(const PipelineProperties::Shaders &p,
-                                                                        std::vector<vk::UniqueShaderModule> &v) {
+        vk::PipelineShaderStageCreateInfo ToVulkanShaderStageCreateInfo(
+            const PipelineProperties::Shaders &p, std::vector<vk::UniqueShaderModule> &v
+        ) {
             v.clear();
         }
 

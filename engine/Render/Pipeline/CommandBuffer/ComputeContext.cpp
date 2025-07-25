@@ -20,9 +20,9 @@ namespace Engine {
         return pimpl->cb;
     }
 
-    void ComputeContext::UseImage(const Texture &texture,
-                                  ImageComputeAccessType currentAccess,
-                                  ImageAccessType previousAccess) noexcept {
+    void ComputeContext::UseImage(
+        const Texture &texture, ImageComputeAccessType currentAccess, ImageAccessType previousAccess
+    ) noexcept {
         vk::ImageMemoryBarrier2 barrier;
         switch (currentAccess) {
         case ImageComputeAccessType::ShaderRandomWrite:

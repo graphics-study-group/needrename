@@ -74,8 +74,9 @@ namespace Engine {
             return m_mapped_memory;
         }
         void *ptr{nullptr};
-        vk::detail::resultCheck(static_cast<vk::Result>(vmaMapMemory(m_allocator, m_allocation, &ptr)),
-                                "Cannot map memory.");
+        vk::detail::resultCheck(
+            static_cast<vk::Result>(vmaMapMemory(m_allocator, m_allocation, &ptr)), "Cannot map memory."
+        );
         m_mapped_memory = reinterpret_cast<std::byte *>(ptr);
         return m_mapped_memory;
     }
@@ -83,8 +84,10 @@ namespace Engine {
         if (size == 0) {
             size = VK_WHOLE_SIZE;
         }
-        vk::detail::resultCheck(static_cast<vk::Result>(vmaFlushAllocation(m_allocator, m_allocation, offset, size)),
-                                "Failed to flush mapped memory.");
+        vk::detail::resultCheck(
+            static_cast<vk::Result>(vmaFlushAllocation(m_allocator, m_allocation, offset, size)),
+            "Failed to flush mapped memory."
+        );
     }
     void AllocatedMemory::InvalidateMemory(size_t offset, size_t size) {
         if (size == 0) {
@@ -92,7 +95,8 @@ namespace Engine {
         }
         vk::detail::resultCheck(
             static_cast<vk::Result>(vmaInvalidateAllocation(m_allocator, m_allocation, offset, size)),
-            "Failed to invalidate mapped memory.");
+            "Failed to invalidate mapped memory."
+        );
     }
     void AllocatedMemory::UnmapMemory() {
         assert(m_allocator && m_allocation && "Invalild allocator or allocation.");

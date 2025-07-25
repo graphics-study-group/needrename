@@ -42,11 +42,12 @@ namespace Engine {
             for (size_t fc = 0; fc < shape_vertices_size; fc++) {
                 auto &material_id = shape.mesh.material_ids[fc];
                 if (material_id_map.find(material_id) == material_id_map.end()) {
-                    material_id_map[material_id] =
-                        tinyobj::shape_t{.name = shape.name + "_" + std::to_string(shape_id++),
-                                         .mesh = tinyobj::mesh_t{},
-                                         .lines = tinyobj::lines_t{},
-                                         .points = tinyobj::points_t{}};
+                    material_id_map[material_id] = tinyobj::shape_t{
+                        .name = shape.name + "_" + std::to_string(shape_id++),
+                        .mesh = tinyobj::mesh_t{},
+                        .lines = tinyobj::lines_t{},
+                        .points = tinyobj::points_t{}
+                    };
                 }
                 auto &new_shape = material_id_map[material_id];
                 unsigned int face_vertex_count = shape.mesh.num_face_vertices[fc];
@@ -61,9 +62,9 @@ namespace Engine {
             for (const auto &[_, new_shape] : material_id_map) {
                 shapes.push_back(new_shape);
                 materials.push_back(origin_materials[new_shape.mesh.material_ids[0]]);
-                std::fill(shapes.back().mesh.material_ids.begin(),
-                          shapes.back().mesh.material_ids.end(),
-                          materials.size() - 1);
+                std::fill(
+                    shapes.back().mesh.material_ids.begin(), shapes.back().mesh.material_ids.end(), materials.size() - 1
+                );
             }
         }
 
@@ -90,23 +91,26 @@ namespace Engine {
         Serialization::Archive archive;
         archive.prepare_save();
         m_mesh_asset->save_asset_to_archive(archive);
-        archive.save_to_file(m_manager.lock()->GetAssetsDirectory() / path_in_project
-                             / (m_mesh_asset->m_name + ".mesh.asset"));
+        archive.save_to_file(
+            m_manager.lock()->GetAssetsDirectory() / path_in_project / (m_mesh_asset->m_name + ".mesh.asset")
+        );
         m_manager.lock()->AddAsset(m_mesh_asset->GetGUID(), path_in_project / (m_mesh_asset->m_name + ".mesh.asset"));
         for (const auto &material : m_material_assets) {
             archive.clear();
             archive.prepare_save();
             material->save_asset_to_archive(archive);
-            archive.save_to_file(m_manager.lock()->GetAssetsDirectory() / path_in_project
-                                 / (material->m_name + ".material.asset"));
+            archive.save_to_file(
+                m_manager.lock()->GetAssetsDirectory() / path_in_project / (material->m_name + ".material.asset")
+            );
             m_manager.lock()->AddAsset(material->GetGUID(), path_in_project / (material->m_name + ".material.asset"));
         }
         for (const auto &texture : m_texture_assets) {
             archive.clear();
             archive.prepare_save();
             texture->save_asset_to_archive(archive);
-            archive.save_to_file(m_manager.lock()->GetAssetsDirectory() / path_in_project
-                                 / (texture->m_name + ".png.asset"));
+            archive.save_to_file(
+                m_manager.lock()->GetAssetsDirectory() / path_in_project / (texture->m_name + ".png.asset")
+            );
             m_manager.lock()->AddAsset(texture->GetGUID(), path_in_project / (texture->m_name + ".png.asset"));
         }
 
@@ -118,22 +122,25 @@ namespace Engine {
         m_mesh_component->m_mesh_asset = std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(m_mesh_asset));
         for (const auto &material : m_material_assets) {
             m_mesh_component->m_material_assets.push_back(
-                std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(material)));
+                std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(material))
+            );
         }
         m_game_object_asset->m_MainObject->AddComponent(m_mesh_component);
 
         archive.clear();
         archive.prepare_save();
         m_game_object_asset->save_asset_to_archive(archive);
-        archive.save_to_file(m_manager.lock()->GetAssetsDirectory() / path_in_project
-                             / (m_mesh_asset->m_name + ".gameobject.asset"));
-        m_manager.lock()->AddAsset(m_game_object_asset->GetGUID(),
-                                   path_in_project / (m_mesh_asset->m_name + ".gameobject.asset"));
+        archive.save_to_file(
+            m_manager.lock()->GetAssetsDirectory() / path_in_project / (m_mesh_asset->m_name + ".gameobject.asset")
+        );
+        m_manager.lock()->AddAsset(
+            m_game_object_asset->GetGUID(), path_in_project / (m_mesh_asset->m_name + ".gameobject.asset")
+        );
     }
 
-    void ObjLoader::LoadMeshAssetFromTinyObj(MeshAsset &mesh_asset,
-                                             const tinyobj::attrib_t &attrib,
-                                             const std::vector<tinyobj::shape_t> &shapes) {
+    void ObjLoader::LoadMeshAssetFromTinyObj(
+        MeshAsset &mesh_asset, const tinyobj::attrib_t &attrib, const std::vector<tinyobj::shape_t> &shapes
+    ) {
         mesh_asset.m_submeshes.clear();
 
         const auto &positions = attrib.vertices;
@@ -151,9 +158,14 @@ namespace Engine {
                 if (vertex_id_map.find(key) == vertex_id_map.end()) {
                     vertex_id_map[key] = vertex_id++;
                     submesh.m_positions.push_back(
-                        VertexStruct::VertexPosition{.position = {positions[index.vertex_index * 3],
-                                                                  positions[index.vertex_index * 3 + 1],
-                                                                  positions[index.vertex_index * 3 + 2]}});
+                        VertexStruct::VertexPosition{
+                            .position = {
+                                positions[index.vertex_index * 3],
+                                positions[index.vertex_index * 3 + 1],
+                                positions[index.vertex_index * 3 + 2]
+                            }
+                        }
+                    );
                     VertexStruct::VertexAttribute attr = {};
                     if (colors.size() > 0) {
                         attr.color[0] = colors[index.vertex_index * 3];
@@ -176,16 +188,17 @@ namespace Engine {
         }
     }
 
-    void ObjLoader::LoadMaterialAssetFromTinyObj(MaterialAsset &material_asset,
-                                                 const tinyobj::material_t &material,
-                                                 const std::filesystem::path &base_path) {
+    void ObjLoader::LoadMaterialAssetFromTinyObj(
+        MaterialAsset &material_asset, const tinyobj::material_t &material, const std::filesystem::path &base_path
+    ) {
         material_asset.m_name = material.name;
 
         switch (material.illum) {
         case 2: // Blinn-Phong
         {
             material_asset.m_template = m_manager.lock()->GetNewAssetRef(
-                std::filesystem::path("~/material_templates/BlinnPhongTemplate.asset"));
+                std::filesystem::path("~/material_templates/BlinnPhongTemplate.asset")
+            );
             material_asset.m_properties["ambient_color"] =
                 glm::vec4{material.ambient[0], material.ambient[1], material.ambient[2], 1.0f};
             material_asset.m_properties["specular_color"] =
@@ -201,7 +214,8 @@ namespace Engine {
         default: // unknown model, load every property
         {
             material_asset.m_template = m_manager.lock()->GetNewAssetRef(
-                std::filesystem::path("~/material_templates/BlinnPhongTemplate.asset"));
+                std::filesystem::path("~/material_templates/BlinnPhongTemplate.asset")
+            );
             material_asset.m_properties["ambient"] =
                 glm::vec4{material.ambient[0], material.ambient[1], material.ambient[2], 1.0f};
             material_asset.m_properties["diffuse"] =

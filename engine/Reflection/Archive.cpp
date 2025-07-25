@@ -51,19 +51,18 @@ namespace Engine {
             if (json_file.is_open()) {
                 json_file << m_context->json.dump(4) << std::endl;
                 json_file.close();
-            }
-            else {
+            } else {
                 throw std::runtime_error("Failed to open json file");
             }
 
             if (m_context->extra_data.size() > 0) {
                 std::ofstream extra_data_file(path, std::ios::binary);
                 if (extra_data_file.is_open()) {
-                    extra_data_file.write(reinterpret_cast<const char *>(m_context->extra_data.data()),
-                                          m_context->extra_data.size());
+                    extra_data_file.write(
+                        reinterpret_cast<const char *>(m_context->extra_data.data()), m_context->extra_data.size()
+                    );
                     extra_data_file.close();
-                }
-                else {
+                } else {
                     throw std::runtime_error("Failed to open extra data file");
                 }
             }
@@ -78,8 +77,7 @@ namespace Engine {
             if (json_file.is_open()) {
                 json_file >> m_context->json;
                 json_file.close();
-            }
-            else {
+            } else {
                 throw std::runtime_error("Failed to open .asset file");
             }
 

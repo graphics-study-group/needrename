@@ -22,15 +22,17 @@ namespace Engine {
 
         m_color_texture = std::make_shared<Texture>(*render_system);
         m_depth_texture = std::make_shared<Texture>(*render_system);
-        Engine::Texture::TextureDesc desc{.dimensions = 2,
-                                          .width = (uint32_t)w,
-                                          .height = (uint32_t)h,
-                                          .depth = 1,
-                                          .format = Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB,
-                                          .type = Engine::ImageUtils::ImageType::ColorAttachment,
-                                          .mipmap_levels = 1,
-                                          .array_layers = 1,
-                                          .is_cube_map = false};
+        Engine::Texture::TextureDesc desc{
+            .dimensions = 2,
+            .width = (uint32_t)w,
+            .height = (uint32_t)h,
+            .depth = 1,
+            .format = Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB,
+            .type = Engine::ImageUtils::ImageType::ColorAttachment,
+            .mipmap_levels = 1,
+            .array_layers = 1,
+            .is_cube_map = false
+        };
         m_color_texture->CreateTexture(desc, "Color attachment");
         desc.format = Engine::ImageUtils::ImageFormat::D32SFLOAT;
         desc.type = Engine::ImageUtils::ImageType::DepthImage;

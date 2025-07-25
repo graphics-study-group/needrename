@@ -24,9 +24,9 @@ namespace Engine {
     ICommandBuffer &GraphicsContext::GetCommandBuffer() const noexcept {
         return pimpl->cb;
     }
-    void GraphicsContext::UseImage(const Texture &texture,
-                                   ImageGraphicsAccessType currentAccess,
-                                   ImageAccessType previousAccess) noexcept {
+    void GraphicsContext::UseImage(
+        const Texture &texture, ImageGraphicsAccessType currentAccess, ImageAccessType previousAccess
+    ) noexcept {
         vk::ImageMemoryBarrier2 barrier;
         using type = ImageGraphicsAccessType;
         switch (currentAccess) {

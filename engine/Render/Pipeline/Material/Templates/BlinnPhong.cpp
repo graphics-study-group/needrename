@@ -35,7 +35,8 @@ namespace Engine::Materials {
         base_texture->Instantiate(*base_texture_asset);
         this->SetBaseTexture(base_texture);
         m_system.GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
-            *base_texture, base_texture_asset->GetPixelData(), base_texture_asset->GetPixelDataSize());
+            *base_texture, base_texture_asset->GetPixelData(), base_texture_asset->GetPixelDataSize()
+        );
 
         // Load specular and ambient vectors
         auto itr = asset.m_properties.find("specular_color");

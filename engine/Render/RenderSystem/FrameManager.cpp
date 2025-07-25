@@ -67,19 +67,21 @@ namespace Engine::RenderSystemState {
                     ignore_queue_families ? vk::QueueFamilyIgnored : operations[i].src_queue_family,
                     ignore_queue_families ? vk::QueueFamilyIgnored : operations[i].present_queue_family,
                     operations[i].image,
-                    vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}};
+                    vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}
+                };
             }
-            *(barriers.rbegin()) =
-                vk::ImageMemoryBarrier2{vk::PipelineStageFlagBits2::eTransfer,
-                                        vk::AccessFlagBits2::eNone, // > Set up execution dep instead of memory dep.
-                                        vk::PipelineStageFlagBits2::eTransfer,
-                                        vk::AccessFlagBits2::eTransferWrite,
-                                        vk::ImageLayout::eUndefined,
-                                        vk::ImageLayout::eTransferDstOptimal,
-                                        vk::QueueFamilyIgnored,
-                                        vk::QueueFamilyIgnored,
-                                        dst,
-                                        vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}};
+            *(barriers.rbegin()) = vk::ImageMemoryBarrier2{
+                vk::PipelineStageFlagBits2::eTransfer,
+                vk::AccessFlagBits2::eNone, // > Set up execution dep instead of memory dep.
+                vk::PipelineStageFlagBits2::eTransfer,
+                vk::AccessFlagBits2::eTransferWrite,
+                vk::ImageLayout::eUndefined,
+                vk::ImageLayout::eTransferDstOptimal,
+                vk::QueueFamilyIgnored,
+                vk::QueueFamilyIgnored,
+                dst,
+                vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}
+            };
             vk::DependencyInfo dep{{}, {}, {}, barriers};
             cb.pipelineBarrier2(dep);
 
@@ -94,26 +96,35 @@ namespace Engine::RenderSystemState {
                         {vk::ImageBlit{
                             vk::ImageSubresourceLayers{vk::ImageAspectFlagBits::eColor, 0, 0, 1},
                             {vk::Offset3D{op.parameters.blit.offset_src, 0},
-                             vk::Offset3D{op.parameters.blit.offset_src.x + op.parameters.blit.extent_src.width,
-                                          op.parameters.blit.offset_src.y + op.parameters.blit.extent_src.height,
-                                          1}},
+                             vk::Offset3D{
+                                 op.parameters.blit.offset_src.x + op.parameters.blit.extent_src.width,
+                                 op.parameters.blit.offset_src.y + op.parameters.blit.extent_src.height,
+                                 1
+                             }},
                             vk::ImageSubresourceLayers{vk::ImageAspectFlagBits::eColor, 0, 0, 1},
                             {vk::Offset3D{op.parameters.blit.offset_dst, 0},
-                             vk::Offset3D{op.parameters.blit.offset_dst.x + op.parameters.blit.extent_dst.width,
-                                          op.parameters.blit.offset_dst.y + op.parameters.blit.extent_dst.height,
-                                          1}}}},
-                        op.parameters.blit.filter);
-                }
-                else {
-                    cb.copyImage(op.image,
-                                 vk::ImageLayout::eTransferSrcOptimal,
-                                 dst,
-                                 vk::ImageLayout::eTransferDstOptimal,
-                                 {vk::ImageCopy{vk::ImageSubresourceLayers{vk::ImageAspectFlagBits::eColor, 0, 0, 1},
-                                                vk::Offset3D{op.parameters.copy.offset_src, 0},
-                                                vk::ImageSubresourceLayers{vk::ImageAspectFlagBits::eColor, 0, 0, 1},
-                                                vk::Offset3D{op.parameters.copy.offset_dst, 0},
-                                                vk::Extent3D{op.parameters.copy.extent, 1}}});
+                             vk::Offset3D{
+                                 op.parameters.blit.offset_dst.x + op.parameters.blit.extent_dst.width,
+                                 op.parameters.blit.offset_dst.y + op.parameters.blit.extent_dst.height,
+                                 1
+                             }}
+                        }},
+                        op.parameters.blit.filter
+                    );
+                } else {
+                    cb.copyImage(
+                        op.image,
+                        vk::ImageLayout::eTransferSrcOptimal,
+                        dst,
+                        vk::ImageLayout::eTransferDstOptimal,
+                        {vk::ImageCopy{
+                            vk::ImageSubresourceLayers{vk::ImageAspectFlagBits::eColor, 0, 0, 1},
+                            vk::Offset3D{op.parameters.copy.offset_src, 0},
+                            vk::ImageSubresourceLayers{vk::ImageAspectFlagBits::eColor, 0, 0, 1},
+                            vk::Offset3D{op.parameters.copy.offset_dst, 0},
+                            vk::Extent3D{op.parameters.copy.extent, 1}
+                        }}
+                    );
                 }
             }
 
@@ -130,7 +141,8 @@ namespace Engine::RenderSystemState {
                     ignore_queue_families ? vk::QueueFamilyIgnored : operations[i].present_queue_family,
                     ignore_queue_families ? vk::QueueFamilyIgnored : operations[i].src_queue_family,
                     operations[i].image,
-                    vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}};
+                    vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}
+                };
             }
             *(barriers.rbegin()) = vk::ImageMemoryBarrier2{
                 vk::PipelineStageFlagBits2::eTransfer,
@@ -142,7 +154,8 @@ namespace Engine::RenderSystemState {
                 vk::QueueFamilyIgnored,
                 vk::QueueFamilyIgnored,
                 dst,
-                vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}};
+                vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}
+            };
             cb.pipelineBarrier2(dep);
 
             DEBUG_CMD_END_LABEL(cb);
@@ -195,46 +208,59 @@ namespace Engine::RenderSystemState {
         for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; i++) {
             image_acquired_semaphores[i] = device.createSemaphoreUnique(sinfo);
             DEBUG_SET_NAME_TEMPLATE(
-                device, image_acquired_semaphores[i].get(), std::format("Semaphore - image acquired {}", i));
+                device, image_acquired_semaphores[i].get(), std::format("Semaphore - image acquired {}", i)
+            );
 
             render_command_executed_semaphores[i] = device.createSemaphoreUnique(sinfo);
-            DEBUG_SET_NAME_TEMPLATE(device,
-                                    render_command_executed_semaphores[i].get(),
-                                    std::format("Semaphore - render CB executed {}", i));
+            DEBUG_SET_NAME_TEMPLATE(
+                device, render_command_executed_semaphores[i].get(), std::format("Semaphore - render CB executed {}", i)
+            );
 
             next_frame_ready_semaphores[i] = device.createSemaphoreUnique(sinfo);
             DEBUG_SET_NAME_TEMPLATE(
-                device, next_frame_ready_semaphores[i].get(), std::format("Semaphore - next frame ready {}", i));
+                device, next_frame_ready_semaphores[i].get(), std::format("Semaphore - next frame ready {}", i)
+            );
 
             command_executed_fences[i] = device.createFenceUnique(finfo);
             DEBUG_SET_NAME_TEMPLATE(
-                device, command_executed_fences[i].get(), std::format("Fence - all commands executed {}", i));
+                device, command_executed_fences[i].get(), std::format("Fence - all commands executed {}", i)
+            );
         }
 
         copy_to_swapchain_completed_semaphores.resize(m_system.GetSwapchain().GetFrameCount());
         for (size_t i = 0; i < copy_to_swapchain_completed_semaphores.size(); i++) {
             copy_to_swapchain_completed_semaphores[i] = device.createSemaphoreUnique(sinfo);
-            DEBUG_SET_NAME_TEMPLATE(device,
-                                    copy_to_swapchain_completed_semaphores[i].get(),
-                                    std::format("Semaphore - final copy completed {}", i));
+            DEBUG_SET_NAME_TEMPLATE(
+                device,
+                copy_to_swapchain_completed_semaphores[i].get(),
+                std::format("Semaphore - final copy completed {}", i)
+            );
         }
 
         // Allocate main render command buffers
-        auto new_command_buffers = device.allocateCommandBuffersUnique(vk::CommandBufferAllocateInfo{
-            m_system.getQueueInfo().graphicsPool.get(), vk::CommandBufferLevel::ePrimary, FRAMES_IN_FLIGHT});
+        auto new_command_buffers = device.allocateCommandBuffersUnique(
+            vk::CommandBufferAllocateInfo{
+                m_system.getQueueInfo().graphicsPool.get(), vk::CommandBufferLevel::ePrimary, FRAMES_IN_FLIGHT
+            }
+        );
         for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; i++) {
             command_buffers[i] = std::move(new_command_buffers[i]);
             DEBUG_SET_NAME_TEMPLATE(
-                device, command_buffers[i].get(), std::format("Command buffer - main render {}", i));
+                device, command_buffers[i].get(), std::format("Command buffer - main render {}", i)
+            );
         }
 
         // Allocate copying and presenting command buffers
-        new_command_buffers = device.allocateCommandBuffersUnique(vk::CommandBufferAllocateInfo{
-            m_system.getQueueInfo().presentPool.get(), vk::CommandBufferLevel::ePrimary, FRAMES_IN_FLIGHT});
+        new_command_buffers = device.allocateCommandBuffersUnique(
+            vk::CommandBufferAllocateInfo{
+                m_system.getQueueInfo().presentPool.get(), vk::CommandBufferLevel::ePrimary, FRAMES_IN_FLIGHT
+            }
+        );
         for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; i++) {
             copy_to_swapchain_command_buffers[i] = std::move(new_command_buffers[i]);
             DEBUG_SET_NAME_TEMPLATE(
-                device, copy_to_swapchain_command_buffers[i].get(), std::format("Command buffer - composition {}", i));
+                device, copy_to_swapchain_command_buffers[i].get(), std::format("Command buffer - composition {}", i)
+            );
         }
 
         current_frame_in_flight = 0;
@@ -256,16 +282,21 @@ namespace Engine::RenderSystemState {
     }
 
     uint32_t FrameManager::GetFramebuffer() const noexcept {
-        assert(this->pimpl->current_framebuffer < std::numeric_limits<uint32_t>::max()
-               && "Frame Manager is in invalid state.");
+        assert(
+            this->pimpl->current_framebuffer < std::numeric_limits<uint32_t>::max()
+            && "Frame Manager is in invalid state."
+        );
         return this->pimpl->current_framebuffer;
     }
 
     GraphicsCommandBuffer FrameManager::GetCommandBuffer() {
-        assert(this->pimpl->current_framebuffer < std::numeric_limits<uint32_t>::max()
-               && "Frame Manager is in invalid state.");
+        assert(
+            this->pimpl->current_framebuffer < std::numeric_limits<uint32_t>::max()
+            && "Frame Manager is in invalid state."
+        );
         return GraphicsCommandBuffer(
-            pimpl->m_system, pimpl->command_buffers[GetFrameInFlight()].get(), GetFrameInFlight());
+            pimpl->m_system, pimpl->command_buffers[GetFrameInFlight()].get(), GetFrameInFlight()
+        );
     }
 
     GraphicsContext FrameManager::GetGraphicsContext() {
@@ -292,18 +323,18 @@ namespace Engine::RenderSystemState {
         device.resetFences({fence});
 
         // Acquire new image
-        auto acquire_result = device.acquireNextImageKHR(pimpl->m_system.GetSwapchain().GetSwapchain(),
-                                                         timeout,
-                                                         pimpl->image_acquired_semaphores[fif].get(),
-                                                         nullptr);
+        auto acquire_result = device.acquireNextImageKHR(
+            pimpl->m_system.GetSwapchain().GetSwapchain(), timeout, pimpl->image_acquired_semaphores[fif].get(), nullptr
+        );
         if (acquire_result.result == vk::Result::eTimeout) {
             SDL_LogError(0, "Timed out waiting for next frame.");
             return -1;
-        }
-        else if (acquire_result.result != vk::Result::eSuccess) {
-            SDL_LogWarn(SDL_LOG_CATEGORY_RENDER,
-                        "AcquireNextImage returned %s other than success.",
-                        vk::to_string(acquire_result.result).c_str());
+        } else if (acquire_result.result != vk::Result::eSuccess) {
+            SDL_LogWarn(
+                SDL_LOG_CATEGORY_RENDER,
+                "AcquireNextImage returned %s other than success.",
+                vk::to_string(acquire_result.result).c_str()
+            );
         }
         pimpl->current_framebuffer = acquire_result.value;
         return pimpl->current_framebuffer;
@@ -320,10 +351,10 @@ namespace Engine::RenderSystemState {
             // Stall the execution of this commandbuffer until previous one has finished.
             auto waitFlags = vk::PipelineStageFlags{vk::PipelineStageFlagBits::eTopOfPipe};
             info.setWaitSemaphores(
-                {this->pimpl->next_frame_ready_semaphores[(fif + FRAMES_IN_FLIGHT - 1) % FRAMES_IN_FLIGHT].get()});
+                {this->pimpl->next_frame_ready_semaphores[(fif + FRAMES_IN_FLIGHT - 1) % FRAMES_IN_FLIGHT].get()}
+            );
             info.pWaitDstStageMask = &waitFlags;
-        }
-        else {
+        } else {
             info.waitSemaphoreCount = 0;
         }
 
@@ -332,36 +363,44 @@ namespace Engine::RenderSystemState {
         this->pimpl->m_system.getQueueInfo().graphicsQueue.submit(infos, nullptr);
     }
 
-    void FrameManager::StageCopyComposition(vk::Image image,
-                                            vk::Extent2D extent,
-                                            vk::Offset2D offsetSrc,
-                                            vk::Offset2D offsetDst) {
+    void FrameManager::StageCopyComposition(
+        vk::Image image, vk::Extent2D extent, vk::Offset2D offsetSrc, vk::Offset2D offsetDst
+    ) {
         const auto &families = pimpl->m_system.GetQueueFamilies();
         PresentingHelper::PresentingOperation copy_op{
             .image = image,
             .src_queue_family = families.graphics.value(),
             .present_queue_family = families.present.value(),
             .is_blitting = false,
-            .parameters = {.copy = {.extent = extent, .offset_src = offsetSrc, .offset_dst = offsetDst}}};
+            .parameters = {.copy = {.extent = extent, .offset_src = offsetSrc, .offset_dst = offsetDst}}
+        };
         pimpl->m_presenting_helper->operations.push_back(std::move(copy_op));
     }
 
-    void FrameManager::StageBlitComposition(vk::Image image,
-                                            vk::Extent2D extentSrc,
-                                            vk::Extent2D extentDst,
-                                            vk::Offset2D offsetSrc,
-                                            vk::Offset2D offsetDst,
-                                            vk::Filter filter) {
+    void FrameManager::StageBlitComposition(
+        vk::Image image,
+        vk::Extent2D extentSrc,
+        vk::Extent2D extentDst,
+        vk::Offset2D offsetSrc,
+        vk::Offset2D offsetDst,
+        vk::Filter filter
+    ) {
         const auto &families = pimpl->m_system.GetQueueFamilies();
-        PresentingHelper::PresentingOperation blit_op{.image = image,
-                                                      .src_queue_family = families.graphics.value(),
-                                                      .present_queue_family = families.present.value(),
-                                                      .is_blitting = true,
-                                                      .parameters = {.blit = {.extent_src = extentSrc,
-                                                                              .extent_dst = extentDst,
-                                                                              .offset_src = offsetSrc,
-                                                                              .offset_dst = offsetDst,
-                                                                              .filter = filter}}};
+        PresentingHelper::PresentingOperation blit_op{
+            .image = image,
+            .src_queue_family = families.graphics.value(),
+            .present_queue_family = families.present.value(),
+            .is_blitting = true,
+            .parameters = {
+                .blit = {
+                    .extent_src = extentSrc,
+                    .extent_dst = extentDst,
+                    .offset_src = offsetSrc,
+                    .offset_dst = offsetDst,
+                    .filter = filter
+                }
+            }
+        };
         pimpl->m_presenting_helper->operations.push_back(std::move(blit_op));
     }
 
@@ -379,14 +418,18 @@ namespace Engine::RenderSystemState {
         pimpl->m_presenting_helper->operations.clear();
 
         // Wait for both command execution and image aquisition.
-        std::array<vk::Semaphore, 2> rces = {pimpl->render_command_executed_semaphores[fif].get(),
-                                             pimpl->image_acquired_semaphores[fif].get()};
-        std::array<vk::PipelineStageFlags, 2> psfb = {vk::PipelineStageFlagBits::eTransfer,
-                                                      vk::PipelineStageFlagBits::eTransfer};
+        std::array<vk::Semaphore, 2> rces = {
+            pimpl->render_command_executed_semaphores[fif].get(), pimpl->image_acquired_semaphores[fif].get()
+        };
+        std::array<vk::PipelineStageFlags, 2> psfb = {
+            vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eTransfer
+        };
 
         // Signal ready for presenting and for next frame.
-        std::array<vk::Semaphore, 2> ss = {pimpl->copy_to_swapchain_completed_semaphores[GetFramebuffer()].get(),
-                                           pimpl->next_frame_ready_semaphores[fif].get()};
+        std::array<vk::Semaphore, 2> ss = {
+            pimpl->copy_to_swapchain_completed_semaphores[GetFramebuffer()].get(),
+            pimpl->next_frame_ready_semaphores[fif].get()
+        };
 
         vk::SubmitInfo sinfo{rces, psfb, {copy_cb}, ss};
         const auto &queueInfo = pimpl->m_system.getQueueInfo();
@@ -403,12 +446,11 @@ namespace Engine::RenderSystemState {
             vk::PresentInfoKHR info{semaphores, swapchains, frame_indices};
             vk::Result result = queueInfo.presentQueue.presentKHR(info);
             if (result != vk::Result::eSuccess) {
-                SDL_LogWarn(SDL_LOG_CATEGORY_RENDER,
-                            "Presenting returned %s other than success.",
-                            vk::to_string(result).c_str());
+                SDL_LogWarn(
+                    SDL_LOG_CATEGORY_RENDER, "Presenting returned %s other than success.", vk::to_string(result).c_str()
+                );
             }
-        }
-        catch (vk::OutOfDateKHRError &e) {
+        } catch (vk::OutOfDateKHRError &e) {
             SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Swapchain out of date.");
             needs_recreating = true;
         }
@@ -431,8 +473,9 @@ namespace Engine::RenderSystemState {
             pimpl->image_acquired_semaphores[fif]
                 .get() // > Although the image is not needed, the semaphore must be cleared.
         };
-        std::array<vk::PipelineStageFlags, 2> psfb = {vk::PipelineStageFlagBits::eTransfer,
-                                                      vk::PipelineStageFlagBits::eTransfer};
+        std::array<vk::PipelineStageFlags, 2> psfb = {
+            vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eTransfer
+        };
 
         // Signal ready for next frame.
         std::array<vk::Semaphore, 1> ss = {
@@ -441,7 +484,8 @@ namespace Engine::RenderSystemState {
 
         vk::SubmitInfo sinfo{rces, psfb, {copy_cb}, ss};
         pimpl->m_system.getQueueInfo().presentQueue.submit(
-            sinfo, this->pimpl->command_executed_fences[this->GetFrameInFlight()].get());
+            sinfo, this->pimpl->command_executed_fences[this->GetFrameInFlight()].get()
+        );
 
         if (timeout) {
             auto device = pimpl->m_system.getDevice();

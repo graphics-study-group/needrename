@@ -39,31 +39,44 @@ namespace Engine {
         }
         data.reserve(reserved_size);
 
-        data.insert(data.end(),
-                    reinterpret_cast<const std::byte *>(&submesh_count),
-                    reinterpret_cast<const std::byte *>((&submesh_count) + 1));
+        data.insert(
+            data.end(),
+            reinterpret_cast<const std::byte *>(&submesh_count),
+            reinterpret_cast<const std::byte *>((&submesh_count) + 1)
+        );
         for (size_t i = 0; i < submesh_count; i++) {
             size_t m_indices_size = m_submeshes[i].m_indices.size();
-            data.insert(data.end(),
-                        reinterpret_cast<const std::byte *>(&m_indices_size),
-                        reinterpret_cast<const std::byte *>((&m_indices_size) + 1));
+            data.insert(
+                data.end(),
+                reinterpret_cast<const std::byte *>(&m_indices_size),
+                reinterpret_cast<const std::byte *>((&m_indices_size) + 1)
+            );
             data.insert(
                 data.end(),
                 reinterpret_cast<const std::byte *>(m_submeshes[i].m_indices.data()),
-                reinterpret_cast<const std::byte *>(m_submeshes[i].m_indices.data() + m_submeshes[i].m_indices.size()));
+                reinterpret_cast<const std::byte *>(m_submeshes[i].m_indices.data() + m_submeshes[i].m_indices.size())
+            );
 
             size_t m_vertex_size = m_submeshes[i].m_positions.size();
-            data.insert(data.end(),
-                        reinterpret_cast<const std::byte *>(&m_vertex_size),
-                        reinterpret_cast<const std::byte *>((&m_vertex_size) + 1));
-            data.insert(data.end(),
-                        reinterpret_cast<const std::byte *>(m_submeshes[i].m_positions.data()),
-                        reinterpret_cast<const std::byte *>(m_submeshes[i].m_positions.data()
-                                                            + m_submeshes[i].m_positions.size()));
-            data.insert(data.end(),
-                        reinterpret_cast<const std::byte *>(m_submeshes[i].m_attributes.data()),
-                        reinterpret_cast<const std::byte *>(m_submeshes[i].m_attributes.data()
-                                                            + m_submeshes[i].m_attributes.size()));
+            data.insert(
+                data.end(),
+                reinterpret_cast<const std::byte *>(&m_vertex_size),
+                reinterpret_cast<const std::byte *>((&m_vertex_size) + 1)
+            );
+            data.insert(
+                data.end(),
+                reinterpret_cast<const std::byte *>(m_submeshes[i].m_positions.data()),
+                reinterpret_cast<const std::byte *>(
+                    m_submeshes[i].m_positions.data() + m_submeshes[i].m_positions.size()
+                )
+            );
+            data.insert(
+                data.end(),
+                reinterpret_cast<const std::byte *>(m_submeshes[i].m_attributes.data()),
+                reinterpret_cast<const std::byte *>(
+                    m_submeshes[i].m_attributes.data() + m_submeshes[i].m_attributes.size()
+                )
+            );
         }
 
         // save base class (such as GUID)
@@ -81,22 +94,28 @@ namespace Engine {
             size_t m_indices_size = *reinterpret_cast<const size_t *>(&data[offset]);
             offset += sizeof(size_t);
             m_submeshes[i].m_indices.resize(m_indices_size);
-            std::memcpy(m_submeshes[i].m_indices.data(),
-                        &data[offset],
-                        m_indices_size * sizeof(decltype(m_submeshes[i].m_indices)::value_type));
+            std::memcpy(
+                m_submeshes[i].m_indices.data(),
+                &data[offset],
+                m_indices_size * sizeof(decltype(m_submeshes[i].m_indices)::value_type)
+            );
             offset += m_indices_size * sizeof(decltype(m_submeshes[i].m_indices)::value_type);
 
             size_t m_vertex_size = *reinterpret_cast<const size_t *>(&data[offset]);
             offset += sizeof(size_t);
             m_submeshes[i].m_positions.resize(m_vertex_size);
-            std::memcpy(m_submeshes[i].m_positions.data(),
-                        &data[offset],
-                        m_vertex_size * sizeof(decltype(m_submeshes[i].m_positions)::value_type));
+            std::memcpy(
+                m_submeshes[i].m_positions.data(),
+                &data[offset],
+                m_vertex_size * sizeof(decltype(m_submeshes[i].m_positions)::value_type)
+            );
             offset += m_vertex_size * sizeof(decltype(m_submeshes[i].m_positions)::value_type);
             m_submeshes[i].m_attributes.resize(m_vertex_size);
-            std::memcpy(m_submeshes[i].m_attributes.data(),
-                        &data[offset],
-                        m_vertex_size * sizeof(decltype(m_submeshes[i].m_attributes)::value_type));
+            std::memcpy(
+                m_submeshes[i].m_attributes.data(),
+                &data[offset],
+                m_vertex_size * sizeof(decltype(m_submeshes[i].m_attributes)::value_type)
+            );
             offset += m_vertex_size * sizeof(decltype(m_submeshes[i].m_attributes)::value_type);
         }
 

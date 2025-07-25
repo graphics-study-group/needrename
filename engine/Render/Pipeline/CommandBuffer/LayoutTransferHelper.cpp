@@ -45,17 +45,20 @@ namespace Engine {
     vk::ImageMemoryBarrier2 LayoutTransferHelper::GetTextureBarrier(TextureTransferType type, vk::Image image) {
         auto [scope1, scope2, layouts] = std::tuple{GetScope1(type), GetScope2(type), GetLayouts(type)};
         vk::ImageSubresourceRange subresource{
-            GetAspectFlags(type), 0, vk::RemainingMipLevels, 0, vk::RemainingArrayLayers};
-        vk::ImageMemoryBarrier2 barrier{scope1.first,
-                                        scope1.second,
-                                        scope2.first,
-                                        scope2.second,
-                                        layouts.first,
-                                        layouts.second,
-                                        vk::QueueFamilyIgnored,
-                                        vk::QueueFamilyIgnored,
-                                        image,
-                                        subresource};
+            GetAspectFlags(type), 0, vk::RemainingMipLevels, 0, vk::RemainingArrayLayers
+        };
+        vk::ImageMemoryBarrier2 barrier{
+            scope1.first,
+            scope1.second,
+            scope2.first,
+            scope2.second,
+            layouts.first,
+            layouts.second,
+            vk::QueueFamilyIgnored,
+            vk::QueueFamilyIgnored,
+            image,
+            subresource
+        };
         return barrier;
     }
 } // namespace Engine

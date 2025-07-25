@@ -17,9 +17,11 @@ class TestHomoMesh : public HomogeneousMesh {
 public:
     TestHomoMesh(std::weak_ptr<RenderSystem> system) : HomogeneousMesh(system) {
         this->m_positions = {{0.0f, -0.5f, 0.0f}, {0.5f, 0.5f, 0.0f}, {-0.5f, 0.5f, 0.0f}};
-        this->m_attributes = {{.color = {1.0f, 0.0f, 0.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {0.0f, 0.0f}},
-                              {.color = {0.0f, 1.0f, 0.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {0.0f, 0.0f}},
-                              {.color = {0.0f, 0.0f, 1.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {0.0f, 0.0f}}};
+        this->m_attributes = {
+            {.color = {1.0f, 0.0f, 0.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {0.0f, 0.0f}},
+            {.color = {0.0f, 1.0f, 0.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {0.0f, 0.0f}},
+            {.color = {0.0f, 0.0f, 1.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {0.0f, 0.0f}}
+        };
         this->m_indices = {0, 1, 2};
     }
 };
@@ -38,8 +40,10 @@ int main(int, char **) {
 
     RenderTargetSetup rts{system};
     rts.CreateFromSwapchain();
-    rts.SetClearValues({vk::ClearValue{vk::ClearColorValue{0.0f, 0.0f, 0.0f, 1.0f}},
-                        vk::ClearValue{vk::ClearDepthStencilValue{1.0f, 0U}}});
+    rts.SetClearValues(
+        {vk::ClearValue{vk::ClearColorValue{0.0f, 0.0f, 0.0f, 1.0f}},
+         vk::ClearValue{vk::ClearDepthStencilValue{1.0f, 0U}}}
+    );
 
     TestMaterialWithTransform material{system};
 
@@ -59,11 +63,9 @@ int main(int, char **) {
 
         if (total_test_frame > MAXIMUM_FRAME_COUNT / 3 * 2) {
             transform.proj_matrix = glm::rotate(transform.proj_matrix, 0.002f, glm::vec3{0.0f, 0.0f, 1.0f});
-        }
-        else if (total_test_frame > MAXIMUM_FRAME_COUNT / 3) {
+        } else if (total_test_frame > MAXIMUM_FRAME_COUNT / 3) {
             transform.view_matrix = glm::rotate(transform.view_matrix, -0.002f, glm::vec3{0.0f, 0.0f, 1.0f});
-        }
-        else {
+        } else {
             glm::mat4 old_transform = mesh.GetModelTransform();
             mesh.SetModelTransform(glm::rotate(old_transform, 0.002f, glm::vec3{0.0f, 0.0f, 1.0f}));
         }

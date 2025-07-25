@@ -29,10 +29,12 @@ struct LowerPlaneMeshAsset : public MeshAsset {
                     {-0.5f, 0.5f, 0.0f},
                     {-0.5f, -0.5f, 0.0f},
                 },
-            .m_attributes = {{.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {1.0f, 0.0f}},
-                             {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {1.0f, 1.0f}},
-                             {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {0.0f, 1.0f}},
-                             {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {0.0f, 0.0f}}},
+            .m_attributes = {
+                {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {1.0f, 0.0f}},
+                {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {1.0f, 1.0f}},
+                {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {0.0f, 1.0f}},
+                {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {0.0f, 0.0f}}
+            },
         };
     }
 };
@@ -131,15 +133,17 @@ int main(int argc, char **argv) {
     Engine::Texture depth{*rsys};
     auto color = std::make_shared<Texture>(*rsys);
     auto postproc = std::make_shared<Texture>(*rsys);
-    Engine::Texture::TextureDesc desc{.dimensions = 2,
-                                      .width = 1920,
-                                      .height = 1080,
-                                      .depth = 1,
-                                      .format = Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm,
-                                      .type = Engine::ImageUtils::ImageType::ColorGeneral,
-                                      .mipmap_levels = 1,
-                                      .array_layers = 1,
-                                      .is_cube_map = false};
+    Engine::Texture::TextureDesc desc{
+        .dimensions = 2,
+        .width = 1920,
+        .height = 1080,
+        .depth = 1,
+        .format = Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm,
+        .type = Engine::ImageUtils::ImageType::ColorGeneral,
+        .mipmap_levels = 1,
+        .array_layers = 1,
+        .is_cube_map = false
+    };
     color->CreateTexture(desc, "Color Attachment");
     postproc->CreateTexture(desc, "GaussianBlurred");
     desc.format = Engine::ImageUtils::ImageFormat::D32SFLOAT;
@@ -162,10 +166,12 @@ int main(int argc, char **argv) {
     asys->LoadAssetImmediately(cs_ref);
     ComputeStage cstage{*rsys};
     cstage.InstantiateFromRef(cs_ref);
-    cstage.SetDescVariable(cstage.GetVariableIndex("inputImage").value().first,
-                           std::const_pointer_cast<const Texture>(color));
-    cstage.SetDescVariable(cstage.GetVariableIndex("outputImage").value().first,
-                           std::const_pointer_cast<const Texture>(postproc));
+    cstage.SetDescVariable(
+        cstage.GetVariableIndex("inputImage").value().first, std::const_pointer_cast<const Texture>(color)
+    );
+    cstage.SetDescVariable(
+        cstage.GetVariableIndex("outputImage").value().first, std::const_pointer_cast<const Texture>(postproc)
+    );
 
     bool quited = false;
     bool has_gaussian_blur = true;
@@ -186,7 +192,8 @@ int main(int argc, char **argv) {
         // Repeat submission to test for synchronization problems
         rsys->GetFrameManager().GetSubmissionHelper().EnqueueVertexBufferSubmission(test_mesh);
         rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
-            *allocated_image_texture, test_texture_asset->GetPixelData(), test_texture_asset->GetPixelDataSize());
+            *allocated_image_texture, test_texture_asset->GetPixelData(), test_texture_asset->GetPixelDataSize()
+        );
 
         auto index = rsys->StartFrame();
         auto gcontext = rsys->GetFrameManager().GetGraphicsContext();
@@ -196,12 +203,16 @@ int main(int argc, char **argv) {
 
         cb.Begin();
 
-        gcontext.UseImage(*color,
-                          GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite,
-                          GraphicsContext::ImageAccessType::None);
-        gcontext.UseImage(depth,
-                          GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite,
-                          GraphicsContext::ImageAccessType::None);
+        gcontext.UseImage(
+            *color,
+            GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite,
+            GraphicsContext::ImageAccessType::None
+        );
+        gcontext.UseImage(
+            depth,
+            GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite,
+            GraphicsContext::ImageAccessType::None
+        );
         gcontext.PrepareCommandBuffer();
 
         vk::Extent2D extent{rsys->GetSwapchain().GetExtent()};
@@ -212,31 +223,40 @@ int main(int argc, char **argv) {
         cb.BindMaterial(*test_material_instance, 0);
         // Push model matrix...
         vk::CommandBuffer rcb = cb.GetCommandBuffer();
-        rcb.pushConstants(test_template->GetPipelineLayout(0),
-                          vk::ShaderStageFlagBits::eVertex,
-                          0,
-                          ConstantData::PerModelConstantPushConstant::PUSH_RANGE_SIZE,
-                          reinterpret_cast<const void *>(&eye4));
+        rcb.pushConstants(
+            test_template->GetPipelineLayout(0),
+            vk::ShaderStageFlagBits::eVertex,
+            0,
+            ConstantData::PerModelConstantPushConstant::PUSH_RANGE_SIZE,
+            reinterpret_cast<const void *>(&eye4)
+        );
         cb.DrawMesh(test_mesh);
 
         cb.EndRendering();
         if (has_gaussian_blur) {
             auto ccontext = rsys->GetFrameManager().GetComputeContext();
-            ccontext.UseImage(*color,
-                              Engine::ComputeContext::ImageComputeAccessType::ShaderReadRandomWrite,
-                              Engine::ComputeContext::ImageAccessType::ColorAttachmentWrite);
-            ccontext.UseImage(*postproc,
-                              Engine::ComputeContext::ImageComputeAccessType::ShaderRandomWrite,
-                              Engine::ComputeContext::ImageAccessType::None);
+            ccontext.UseImage(
+                *color,
+                Engine::ComputeContext::ImageComputeAccessType::ShaderReadRandomWrite,
+                Engine::ComputeContext::ImageAccessType::ColorAttachmentWrite
+            );
+            ccontext.UseImage(
+                *postproc,
+                Engine::ComputeContext::ImageComputeAccessType::ShaderRandomWrite,
+                Engine::ComputeContext::ImageAccessType::None
+            );
             ccontext.PrepareCommandBuffer();
             auto ccb = dynamic_cast<ComputeCommandBuffer &>(ccontext.GetCommandBuffer());
             ccb.BindComputeStage(cstage);
             ccb.DispatchCompute(
-                postproc->GetTextureDescription().width / 16 + 1, postproc->GetTextureDescription().height / 16 + 1, 1);
+                postproc->GetTextureDescription().width / 16 + 1, postproc->GetTextureDescription().height / 16 + 1, 1
+            );
 
-            gcontext.UseImage(*postproc,
-                              GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite,
-                              Engine::ComputeContext::ImageAccessType::ShaderRandomWrite);
+            gcontext.UseImage(
+                *postproc,
+                GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite,
+                Engine::ComputeContext::ImageAccessType::ShaderRandomWrite
+            );
             gcontext.PrepareCommandBuffer();
         }
 
@@ -245,7 +265,8 @@ int main(int argc, char **argv) {
         rsys->GetFrameManager().StageBlitComposition(
             has_gaussian_blur ? postproc->GetImage() : color->GetImage(),
             vk::Extent2D{postproc->GetTextureDescription().width, postproc->GetTextureDescription().height},
-            rsys->GetSwapchain().GetExtent());
+            rsys->GetSwapchain().GetExtent()
+        );
         rsys->CompleteFrame();
 
         SDL_Delay(10);

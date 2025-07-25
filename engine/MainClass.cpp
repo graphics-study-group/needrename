@@ -41,8 +41,7 @@ namespace Engine {
         if (file.is_open()) {
             project_config = nlohmann::json::parse(file);
             file.close();
-        }
-        else {
+        } else {
             throw std::runtime_error("Cannot open project.config");
         }
         assert(project_config.contains("default_level"));
@@ -51,10 +50,9 @@ namespace Engine {
         this->world->LoadLevelAsset(level_asset);
     }
 
-    void MainClass::Initialize(const StartupOptions *opt,
-                               Uint32 sdl_init_flags,
-                               SDL_LogPriority sdl_logPrior,
-                               Uint32 sdl_window_flags) {
+    void MainClass::Initialize(
+        const StartupOptions *opt, Uint32 sdl_init_flags, SDL_LogPriority sdl_logPrior, Uint32 sdl_window_flags
+    ) {
         if (!SDL_Init(sdl_init_flags)) throw Exception::SDLExceptions::cant_init();
         SDL_SetLogPriorities(sdl_logPrior);
         this->window = nullptr;
@@ -164,12 +162,16 @@ namespace Engine {
         GraphicsCommandBuffer &cb = dynamic_cast<GraphicsCommandBuffer &>(context.GetCommandBuffer());
 
         cb.Begin();
-        context.UseImage(this->window->GetColorTexture(),
-                         GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite,
-                         GraphicsContext::ImageAccessType::None);
-        context.UseImage(this->window->GetDepthTexture(),
-                         GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite,
-                         GraphicsContext::ImageAccessType::None);
+        context.UseImage(
+            this->window->GetColorTexture(),
+            GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite,
+            GraphicsContext::ImageAccessType::None
+        );
+        context.UseImage(
+            this->window->GetDepthTexture(),
+            GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite,
+            GraphicsContext::ImageAccessType::None
+        );
         context.PrepareCommandBuffer();
         cb.BeginRendering(this->window->GetRenderTargetBinding(), this->window->GetExtent(), "Main Pass");
         this->renderer->SetActiveCamera(this->world->m_active_camera);
@@ -188,7 +190,8 @@ namespace Engine {
         cb.End();
         this->renderer->GetFrameManager().SubmitMainCommandBuffer();
         this->renderer->GetFrameManager().StageBlitComposition(
-            this->window->GetColorTexture().GetImage(), this->window->GetExtent(), this->window->GetExtent());
+            this->window->GetColorTexture().GetImage(), this->window->GetExtent(), this->window->GetExtent()
+        );
         this->renderer->GetFrameManager().CompositeToFramebufferAndPresent();
     }
 } // namespace Engine

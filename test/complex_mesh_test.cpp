@@ -69,11 +69,12 @@ class MeshComponentFromFile : public MeshComponent {
             for (size_t fc = 0; fc < shape_vertices_size; fc++) {
                 auto &material_id = shape.mesh.material_ids[fc];
                 if (material_id_map.find(material_id) == material_id_map.end()) {
-                    material_id_map[material_id] =
-                        tinyobj::shape_t{.name = shape.name + "_" + std::to_string(shape_id++),
-                                         .mesh = tinyobj::mesh_t{},
-                                         .lines = tinyobj::lines_t{},
-                                         .points = tinyobj::points_t{}};
+                    material_id_map[material_id] = tinyobj::shape_t{
+                        .name = shape.name + "_" + std::to_string(shape_id++),
+                        .mesh = tinyobj::mesh_t{},
+                        .lines = tinyobj::lines_t{},
+                        .points = tinyobj::points_t{}
+                    };
                 }
                 auto &new_shape = material_id_map[material_id];
                 unsigned int face_vertex_count = shape.mesh.num_face_vertices[fc];
@@ -88,9 +89,9 @@ class MeshComponentFromFile : public MeshComponent {
             for (const auto &[_, new_shape] : material_id_map) {
                 shapes.push_back(new_shape);
                 materials.push_back(origin_materials[new_shape.mesh.material_ids[0]]);
-                std::fill(shapes.back().mesh.material_ids.begin(),
-                          shapes.back().mesh.material_ids.end(),
-                          materials.size() - 1);
+                std::fill(
+                    shapes.back().mesh.material_ids.begin(), shapes.back().mesh.material_ids.end(), materials.size() - 1
+                );
             }
         }
 
@@ -102,9 +103,11 @@ class MeshComponentFromFile : public MeshComponent {
         // Read material assets
         for (const auto &material : materials) {
             this->m_material_assets.push_back(
-                std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(std::make_shared<MaterialAsset>())));
+                std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(std::make_shared<MaterialAsset>()))
+            );
             loader.LoadMaterialAssetFromTinyObj(
-                *(this->m_material_assets.back()->as<MaterialAsset>()), material, mesh.parent_path());
+                *(this->m_material_assets.back()->as<MaterialAsset>()), material, mesh.parent_path()
+            );
         }
 
         assert(m_mesh_asset && m_mesh_asset->IsValid());
@@ -130,7 +133,8 @@ public:
 
         for (size_t i = 0; i < m_material_assets.size(); i++) {
             auto ptr = std::make_shared<Materials::BlinnPhongInstance>(
-                *system, system->GetMaterialRegistry().GetMaterial("Built-in Blinn-Phong"));
+                *system, system->GetMaterialRegistry().GetMaterial("Built-in Blinn-Phong")
+            );
             auto mat_asset = m_material_assets[i]->cas<MaterialAsset>();
             assert(mat_asset);
             ptr->Instantiate(*mat_asset);
@@ -235,15 +239,17 @@ int main(int argc, char **argv) {
     gsys->CreateVulkanBackend(ImageUtils::GetVkFormat(Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB));
 
     Engine::Texture color{*rsys}, depth{*rsys};
-    Engine::Texture::TextureDesc desc{.dimensions = 2,
-                                      .width = 1280,
-                                      .height = 720,
-                                      .depth = 1,
-                                      .format = Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB,
-                                      .type = Engine::ImageUtils::ImageType::ColorAttachment,
-                                      .mipmap_levels = 1,
-                                      .array_layers = 1,
-                                      .is_cube_map = false};
+    Engine::Texture::TextureDesc desc{
+        .dimensions = 2,
+        .width = 1280,
+        .height = 720,
+        .depth = 1,
+        .format = Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB,
+        .type = Engine::ImageUtils::ImageType::ColorAttachment,
+        .mipmap_levels = 1,
+        .array_layers = 1,
+        .is_cube_map = false
+    };
     color.CreateTexture(desc, "Color Attachment");
     desc.format = Engine::ImageUtils::ImageFormat::D32SFLOAT;
     desc.type = Engine::ImageUtils::ImageType::DepthImage;
@@ -304,29 +310,37 @@ int main(int argc, char **argv) {
         GraphicsCommandBuffer &cb = dynamic_cast<GraphicsCommandBuffer &>(context.GetCommandBuffer());
 
         cb.Begin();
-        context.UseImage(color,
-                         GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite,
-                         GraphicsContext::ImageAccessType::None);
-        context.UseImage(depth,
-                         GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite,
-                         GraphicsContext::ImageAccessType::None);
+        context.UseImage(
+            color,
+            GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite,
+            GraphicsContext::ImageAccessType::None
+        );
+        context.UseImage(
+            depth,
+            GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite,
+            GraphicsContext::ImageAccessType::None
+        );
         context.PrepareCommandBuffer();
         vk::Extent2D extent{rsys->GetSwapchain().GetExtent()};
         cb.BeginRendering(
             {color.GetImage(), color.GetImageView(), vk::AttachmentLoadOp::eClear, vk::AttachmentStoreOp::eStore},
             depth_att,
-            extent);
+            extent
+        );
         rsys->DrawMeshes();
         cb.EndRendering();
 
-        context.UseImage(color,
-                         GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite,
-                         GraphicsContext::ImageAccessType::ColorAttachmentWrite);
+        context.UseImage(
+            color,
+            GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite,
+            GraphicsContext::ImageAccessType::ColorAttachmentWrite
+        );
         context.PrepareCommandBuffer();
         gsys->DrawGUI(
             {color.GetImage(), color.GetImageView(), vk::AttachmentLoadOp::eLoad, vk::AttachmentStoreOp::eStore},
             extent,
-            cb);
+            cb
+        );
 
         cb.End();
         rsys->GetFrameManager().SubmitMainCommandBuffer();
@@ -342,11 +356,13 @@ int main(int argc, char **argv) {
     uint64_t end_timer = SDL_GetPerformanceCounter();
     uint64_t duration = end_timer - start_timer;
     double duration_time = 1.0 * duration / SDL_GetPerformanceFrequency();
-    SDL_LogInfo(0,
-                "Took %lf seconds for %llu frames (avg. %lf fps).",
-                duration_time,
-                frame_count,
-                frame_count * 1.0 / duration_time);
+    SDL_LogInfo(
+        0,
+        "Took %lf seconds for %llu frames (avg. %lf fps).",
+        duration_time,
+        frame_count,
+        frame_count * 1.0 / duration_time
+    );
     rsys->WaitForIdle();
     rsys->ClearComponent();
 

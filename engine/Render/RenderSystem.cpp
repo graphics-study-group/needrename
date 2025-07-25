@@ -79,7 +79,8 @@ namespace Engine {
     void RenderSystem::Create() {
         assert(!this->pimpl->m_instance.get() || "Recreating render system");
         VULKAN_HPP_DEFAULT_DISPATCHER.init(
-            reinterpret_cast<PFN_vkGetInstanceProcAddr>(SDL_Vulkan_GetVkGetInstanceProcAddr()));
+            reinterpret_cast<PFN_vkGetInstanceProcAddr>(SDL_Vulkan_GetVkGetInstanceProcAddr())
+        );
         pimpl->m_instance.Create("no name", "no name");
         VULKAN_HPP_DEFAULT_DISPATCHER.init(pimpl->m_instance.get());
         pimpl->CreateSurface();
@@ -115,15 +116,15 @@ namespace Engine {
         DrawMeshes(view, proj, this->GetSwapchain().GetExtent(), pass);
     }
 
-    void RenderSystem::DrawMeshes(const glm::mat4 &view_matrix,
-                                  const glm::mat4 &projection_matrix,
-                                  vk::Extent2D extent,
-                                  uint32_t pass) {
+    void RenderSystem::DrawMeshes(
+        const glm::mat4 &view_matrix, const glm::mat4 &projection_matrix, vk::Extent2D extent, uint32_t pass
+    ) {
         GraphicsCommandBuffer cb = this->GetFrameManager().GetCommandBuffer();
 
         // Write camera transforms
         auto camera_ptr = this->GetGlobalConstantDescriptorPool().GetPerCameraConstantMemory(
-            pimpl->m_frame_manager.GetFrameInFlight(), GetActiveCameraId());
+            pimpl->m_frame_manager.GetFrameInFlight(), GetActiveCameraId()
+        );
         ConstantData::PerCameraStruct camera_struct{view_matrix, projection_matrix};
         std::memcpy(camera_ptr, &camera_struct, sizeof camera_struct);
 

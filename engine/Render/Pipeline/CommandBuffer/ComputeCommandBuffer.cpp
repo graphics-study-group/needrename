@@ -18,7 +18,8 @@ namespace Engine {
         stage.get().WriteDescriptorSet();
 
         this->cb.bindDescriptorSets(
-            vk::PipelineBindPoint::eCompute, stage.get().GetPipelineLayout(), 0, {stage.get().GetDescriptorSet()}, {});
+            vk::PipelineBindPoint::eCompute, stage.get().GetPipelineLayout(), 0, {stage.get().GetDescriptorSet()}, {}
+        );
         this->cb.dispatch(groupCountX, groupCountY, groupCountZ);
     }
 } // namespace Engine

@@ -16,9 +16,9 @@ namespace Engine {
         return pimpl->cb;
     }
 
-    void TransferContext::UseImage(const Texture &texture,
-                                   ImageTransferAccessType currentAccess,
-                                   ImageAccessType previousAccess) noexcept {
+    void TransferContext::UseImage(
+        const Texture &texture, ImageTransferAccessType currentAccess, ImageAccessType previousAccess
+    ) noexcept {
         vk::ImageMemoryBarrier2 barrier;
         switch (currentAccess) {
         case ImageTransferAccessType::TransferRead:

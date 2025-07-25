@@ -18,7 +18,8 @@ namespace Engine {
     IndexedBuffer::~IndexedBuffer() = default;
 
     void IndexedBuffer::Create(
-        BufferType type, size_t slice_size, size_t slice_alignment, uint32_t slices, const std::string &name) {
+        BufferType type, size_t slice_size, size_t slice_alignment, uint32_t slices, const std::string &name
+    ) {
         assert(type == BufferType::Uniform && "Currently only uniform buffer can be indexed.");
         std::tie(pimpl->slice_size, pimpl->slice_alignment, pimpl->slices) = {slice_size, slice_alignment, slices};
 

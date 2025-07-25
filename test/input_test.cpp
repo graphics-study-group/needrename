@@ -39,13 +39,18 @@ public:
         auto look_y = input->GetAxisRaw("look y");
         Transform &transform = m_parentGameObject.lock()->GetTransformRef();
         float dt = MainClass::GetInstance()->GetTimeSystem()->GetDeltaTimeInSeconds();
-        transform.SetRotation(transform.GetRotation()
-                              * glm::quat(glm::vec3{look_y * m_rotation_speed * dt,
-                                                    roll_right * m_roll_speed * dt,
-                                                    look_x * m_rotation_speed * dt}));
-        transform.SetPosition(transform.GetPosition()
-                              + transform.GetRotation() * glm::vec3{move_right, move_forward + move_backward, move_up}
-                                    * m_move_speed * dt);
+        transform.SetRotation(
+            transform.GetRotation()
+            * glm::quat(
+                glm::vec3{
+                    look_y * m_rotation_speed * dt, roll_right * m_roll_speed * dt, look_x * m_rotation_speed * dt
+                }
+            )
+        );
+        transform.SetPosition(
+            transform.GetPosition()
+            + transform.GetRotation() * glm::vec3{move_right, move_forward + move_backward, move_up} * m_move_speed * dt
+        );
     }
 };
 
@@ -75,66 +80,95 @@ int main(int argc, char **argv) {
     input->AddAxis(Input::ButtonAxis("move up", Input::AxisType::TypeKey, "space", "left shift"));
     input->AddAxis(Input::ButtonAxis("roll right", Input::AxisType::TypeKey, "e", "q"));
     input->AddAxis(
-        Input::MotionAxis("look x", Input::AxisType::TypeMouseMotion, "x", 1.0f, 3.0f, 0.001f, 3.0f, false, true));
+        Input::MotionAxis("look x", Input::AxisType::TypeMouseMotion, "x", 1.0f, 3.0f, 0.001f, 3.0f, false, true)
+    );
     input->AddAxis(
-        Input::MotionAxis("look y", Input::AxisType::TypeMouseMotion, "y", 1.0f, 3.0f, 0.001f, 3.0f, false, true));
+        Input::MotionAxis("look y", Input::AxisType::TypeMouseMotion, "y", 1.0f, 3.0f, 0.001f, 3.0f, false, true)
+    );
 
-    input->AddAxis(Input::GamepadAxis("move up",
-                                      Input::AxisType::TypeGamepadAxis,
-                                      "gamepad axis left y",
-                                      1.0f / 32768.0f,
-                                      3.0f,
-                                      0.01f,
-                                      3.0f,
-                                      false,
-                                      true));
-    input->AddAxis(Input::GamepadAxis("move right",
-                                      Input::AxisType::TypeGamepadAxis,
-                                      "gamepad axis left x",
-                                      1.0f / 32768.0f,
-                                      3.0f,
-                                      0.01f,
-                                      3.0f,
-                                      false,
-                                      false));
-    input->AddAxis(Input::GamepadAxis("move forward",
-                                      Input::AxisType::TypeGamepadAxis,
-                                      "gamepad axis trigger right",
-                                      1.0f / 32768.0f,
-                                      3.0f,
-                                      0.01f,
-                                      3.0f,
-                                      false,
-                                      false));
-    input->AddAxis(Input::GamepadAxis("move backward",
-                                      Input::AxisType::TypeGamepadAxis,
-                                      "gamepad axis trigger left",
-                                      1.0f / 32768.0f,
-                                      3.0f,
-                                      0.01f,
-                                      3.0f,
-                                      false,
-                                      true));
-    input->AddAxis(Input::GamepadAxis("look x",
-                                      Input::AxisType::TypeGamepadAxis,
-                                      "gamepad axis right x",
-                                      1.0f / 32768.0f * 0.2f,
-                                      3.0f,
-                                      0.01f,
-                                      3.0f,
-                                      false,
-                                      true));
-    input->AddAxis(Input::GamepadAxis("look y",
-                                      Input::AxisType::TypeGamepadAxis,
-                                      "gamepad axis right y",
-                                      1.0f / 32768.0f * 0.2f,
-                                      3.0f,
-                                      0.01f,
-                                      3.0f,
-                                      false,
-                                      true));
-    input->AddAxis(Input::ButtonAxis(
-        "roll right", Input::AxisType::TypeGamepadButton, "gamepad right shoulder", "gamepad left shoulder"));
+    input->AddAxis(
+        Input::GamepadAxis(
+            "move up",
+            Input::AxisType::TypeGamepadAxis,
+            "gamepad axis left y",
+            1.0f / 32768.0f,
+            3.0f,
+            0.01f,
+            3.0f,
+            false,
+            true
+        )
+    );
+    input->AddAxis(
+        Input::GamepadAxis(
+            "move right",
+            Input::AxisType::TypeGamepadAxis,
+            "gamepad axis left x",
+            1.0f / 32768.0f,
+            3.0f,
+            0.01f,
+            3.0f,
+            false,
+            false
+        )
+    );
+    input->AddAxis(
+        Input::GamepadAxis(
+            "move forward",
+            Input::AxisType::TypeGamepadAxis,
+            "gamepad axis trigger right",
+            1.0f / 32768.0f,
+            3.0f,
+            0.01f,
+            3.0f,
+            false,
+            false
+        )
+    );
+    input->AddAxis(
+        Input::GamepadAxis(
+            "move backward",
+            Input::AxisType::TypeGamepadAxis,
+            "gamepad axis trigger left",
+            1.0f / 32768.0f,
+            3.0f,
+            0.01f,
+            3.0f,
+            false,
+            true
+        )
+    );
+    input->AddAxis(
+        Input::GamepadAxis(
+            "look x",
+            Input::AxisType::TypeGamepadAxis,
+            "gamepad axis right x",
+            1.0f / 32768.0f * 0.2f,
+            3.0f,
+            0.01f,
+            3.0f,
+            false,
+            true
+        )
+    );
+    input->AddAxis(
+        Input::GamepadAxis(
+            "look y",
+            Input::AxisType::TypeGamepadAxis,
+            "gamepad axis right y",
+            1.0f / 32768.0f * 0.2f,
+            3.0f,
+            0.01f,
+            3.0f,
+            false,
+            true
+        )
+    );
+    input->AddAxis(
+        Input::ButtonAxis(
+            "roll right", Input::AxisType::TypeGamepadButton, "gamepad right shoulder", "gamepad left shoulder"
+        )
+    );
 
     auto camera_go = cmc->GetWorldSystem()->CreateGameObject<GameObject>();
     Transform transform{};

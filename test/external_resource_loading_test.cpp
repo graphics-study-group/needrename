@@ -26,9 +26,11 @@ int main(int argc, char **argv) {
     std::filesystem::path project_path(ENGINE_TESTS_DIR);
     project_path = project_path / "external_resource_loading_test_project";
     if (std::filesystem::exists(project_path)) std::filesystem::remove_all(project_path);
-    std::filesystem::copy(std::filesystem::path(ENGINE_PROJECTS_DIR) / "empty_project",
-                          project_path,
-                          std::filesystem::copy_options::recursive);
+    std::filesystem::copy(
+        std::filesystem::path(ENGINE_PROJECTS_DIR) / "empty_project",
+        project_path,
+        std::filesystem::copy_options::recursive
+    );
 
     std::filesystem::path mesh_path(ENGINE_ASSETS_DIR);
     mesh_path = mesh_path / "four_bunny" / "four_bunny.obj";

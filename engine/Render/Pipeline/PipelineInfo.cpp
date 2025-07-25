@@ -15,8 +15,9 @@ static std::pair<vk::ImageView, vk::Sampler> ExtractImageViewAndSampler(std::any
     }
     if (var.type() == typeid(std::shared_ptr<const SlicedSampledTextureView>)) {
         auto ptr = std::any_cast<std::shared_ptr<const SlicedSampledTextureView>>(var);
-        return std::make_pair(ptr->GetImageView(),
-                              dynamic_cast<const SampledTexture &>(ptr->GetTexture()).GetSampler());
+        return std::make_pair(
+            ptr->GetImageView(), dynamic_cast<const SampledTexture &>(ptr->GetTexture()).GetSampler()
+        );
     }
 
     // Or maybe we should force everyone to use immutable samplers...
@@ -42,9 +43,9 @@ static vk::ImageView ExtractImageViewForStorageImage(std::any var) noexcept {
 }
 
 namespace Engine::PipelineInfo {
-    void PlaceUBOVariables(const std::unordered_map<uint32_t, std::any> &variables,
-                           const PassInfo &info,
-                           std::vector<std::byte> &memory) noexcept {
+    void PlaceUBOVariables(
+        const std::unordered_map<uint32_t, std::any> &variables, const PassInfo &info, std::vector<std::byte> &memory
+    ) noexcept {
         if (memory.size() < info.inblock.maximal_ubo_size) {
             SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Performing buffer allocation for UBO layout.");
             memory.resize(info.inblock.maximal_ubo_size);
@@ -80,7 +81,8 @@ namespace Engine::PipelineInfo {
         }
     }
     std::vector<std::pair<uint32_t, vk::DescriptorImageInfo>> GetDescriptorImageInfo(
-        const std::unordered_map<uint32_t, std::any> &variables, const PassInfo &info, vk::Sampler sampler) noexcept {
+        const std::unordered_map<uint32_t, std::any> &variables, const PassInfo &info, vk::Sampler sampler
+    ) noexcept {
         std::vector<std::pair<uint32_t, vk::DescriptorImageInfo>> ret;
 
         for (size_t idx = 0; idx < info.desc.vars.size(); idx++) {
@@ -100,8 +102,7 @@ namespace Engine::PipelineInfo {
                 image_info.imageLayout = vk::ImageLayout::eReadOnlyOptimal;
                 image_info.sampler = img_sampler ? img_sampler : sampler;
                 ret.push_back(std::make_pair(uniform.binding, image_info));
-            }
-            else if (uniform.type == ShaderVariable::Type::StorageImage) {
+            } else if (uniform.type == ShaderVariable::Type::StorageImage) {
                 if (instance_var == variables.end()) {
                     SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Storage image variable %llu not found in instance.", idx);
                     continue;
@@ -119,7 +120,8 @@ namespace Engine::PipelineInfo {
         return ret;
     }
     std::vector<std::pair<uint32_t, vk::DescriptorBufferInfo>> GetDescriptorBufferInfo(
-        const std::unordered_map<uint32_t, std::any> &variables, const PassInfo &info) noexcept {
+        const std::unordered_map<uint32_t, std::any> &variables, const PassInfo &info
+    ) noexcept {
         std::vector<std::pair<uint32_t, vk::DescriptorBufferInfo>> ret;
 
         for (size_t idx = 0; idx < info.desc.vars.size(); idx++) {

@@ -41,31 +41,36 @@ namespace Engine {
     }
 
     void SampledTexture::CreateTextureAndSampler(TextureDesc textureDesc, SamplerDesc samplerDesc, std::string name) {
-        assert((std::get<0>(ImageUtils::GetImageFlags(textureDesc.type)) & vk::ImageUsageFlagBits::eSampled)
-               && "Sampled texture does not have sampled image usage flag.");
+        assert(
+            (std::get<0>(ImageUtils::GetImageFlags(textureDesc.type)) & vk::ImageUsageFlagBits::eSampled)
+            && "Sampled texture does not have sampled image usage flag."
+        );
         Texture::CreateTexture(textureDesc, name);
         this->CreateSampler(samplerDesc);
     }
 
     void SampledTexture::CreateSampler(SamplerDesc samplerDesc) {
         this->m_sampler = m_system.getDevice().createSamplerUnique(
-            vk::SamplerCreateInfo{vk::SamplerCreateFlags{},
-                                  ToVkFilter(samplerDesc.min_filter),
-                                  ToVkFilter(samplerDesc.max_filter),
-                                  ToVkSamplerMipmapMode(samplerDesc.mipmap_filter),
-                                  ToVkSamplerAddressMode(samplerDesc.u_address),
-                                  ToVkSamplerAddressMode(samplerDesc.v_address),
-                                  ToVkSamplerAddressMode(samplerDesc.w_address),
-                                  samplerDesc.biasLod,
-                                  false,
-                                  0.0,
-                                  false,
-                                  vk::CompareOp::eNever,
-                                  samplerDesc.minLod,
-                                  samplerDesc.maxLod,
-                                  vk::BorderColor::eFloatTransparentBlack,
-                                  false,
-                                  nullptr});
+            vk::SamplerCreateInfo{
+                vk::SamplerCreateFlags{},
+                ToVkFilter(samplerDesc.min_filter),
+                ToVkFilter(samplerDesc.max_filter),
+                ToVkSamplerMipmapMode(samplerDesc.mipmap_filter),
+                ToVkSamplerAddressMode(samplerDesc.u_address),
+                ToVkSamplerAddressMode(samplerDesc.v_address),
+                ToVkSamplerAddressMode(samplerDesc.w_address),
+                samplerDesc.biasLod,
+                false,
+                0.0,
+                false,
+                vk::CompareOp::eNever,
+                samplerDesc.minLod,
+                samplerDesc.maxLod,
+                vk::BorderColor::eFloatTransparentBlack,
+                false,
+                nullptr
+            }
+        );
         DEBUG_SET_NAME_TEMPLATE(m_system.getDevice(), this->m_sampler.get(), "Temporary Sampler for SampledTexture");
         this->m_sampler_desc = samplerDesc;
     }

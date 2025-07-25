@@ -29,10 +29,12 @@ struct LowerPlaneMeshAsset : public MeshAsset {
                     {-1.0f, 1.0f, 0.5f},
                     {-1.0f, -1.0f, 0.5f},
                 },
-            .m_attributes = {{.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {1.0f, 0.0f}},
-                             {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {1.0f, 1.0f}},
-                             {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {0.0f, 1.0f}},
-                             {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {0.0f, 0.0f}}},
+            .m_attributes = {
+                {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {1.0f, 0.0f}},
+                {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {1.0f, 1.0f}},
+                {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {0.0f, 1.0f}},
+                {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {0.0f, 0.0f}}
+            },
         };
     }
 };
@@ -49,10 +51,12 @@ struct HighPlaneMeshAsset : public MeshAsset {
                     {-0.5f, 0.5f, 0.0f},
                     {-0.5f, -0.5f, 0.0f},
                 },
-            .m_attributes = {{.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {1.0f, 0.0f}},
-                             {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {1.0f, 1.0f}},
-                             {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {0.0f, 1.0f}},
-                             {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {0.0f, 0.0f}}},
+            .m_attributes = {
+                {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {1.0f, 0.0f}},
+                {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {1.0f, 1.0f}},
+                {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {0.0f, 1.0f}},
+                {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {0.0f, 0.0f}}
+            },
         };
     }
 };
@@ -141,15 +145,17 @@ int main(int argc, char **argv) {
     auto depth = std::make_shared<Engine::Texture>(*rsys);
     auto shadow = std::make_shared<Engine::SampledTexture>(*rsys);
     auto blank_color = std::make_shared<Engine::SampledTexture>(*rsys);
-    Engine::Texture::TextureDesc desc{.dimensions = 2,
-                                      .width = 1920,
-                                      .height = 1080,
-                                      .depth = 1,
-                                      .format = Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB,
-                                      .type = Engine::ImageUtils::ImageType::ColorAttachment,
-                                      .mipmap_levels = 1,
-                                      .array_layers = 1,
-                                      .is_cube_map = false};
+    Engine::Texture::TextureDesc desc{
+        .dimensions = 2,
+        .width = 1920,
+        .height = 1080,
+        .depth = 1,
+        .format = Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB,
+        .type = Engine::ImageUtils::ImageType::ColorAttachment,
+        .mipmap_levels = 1,
+        .array_layers = 1,
+        .is_cube_map = false
+    };
     color->CreateTexture(desc, "Color attachment");
     desc.format = Engine::ImageUtils::ImageFormat::D32SFLOAT;
     desc.type = Engine::ImageUtils::ImageType::DepthImage;
@@ -185,11 +191,14 @@ int main(int argc, char **argv) {
     auto test_material_instance = std::make_shared<MaterialInstance>(*rsys, test_template);
     test_material_instance->WriteDescriptors(0);
     test_material_instance->WriteUBOUniform(
-        1, test_template->GetVariableIndex("ambient_color", 1).value().first, glm::vec4(0.0, 0.0, 0.0, 0.0));
+        1, test_template->GetVariableIndex("ambient_color", 1).value().first, glm::vec4(0.0, 0.0, 0.0, 0.0)
+    );
     test_material_instance->WriteUBOUniform(
-        1, test_template->GetVariableIndex("specular_color", 1).value().first, glm::vec4(1.0, 1.0, 1.0, 64.0));
+        1, test_template->GetVariableIndex("specular_color", 1).value().first, glm::vec4(1.0, 1.0, 1.0, 64.0)
+    );
     test_material_instance->WriteTextureUniform(
-        1, test_template->GetVariableIndex("base_tex", 1).value().first, blank_color);
+        1, test_template->GetVariableIndex("base_tex", 1).value().first, blank_color
+    );
     // test_material_instance->WriteTextureUniform(1, test_template->GetVariableIndex("shadowmap_tex", 1).value().first,
     // shadow);
     test_material_instance->WriteDescriptors(1);
@@ -197,7 +206,8 @@ int main(int argc, char **argv) {
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueVertexBufferSubmission(test_mesh);
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueVertexBufferSubmission(test_mesh_2);
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
-        *allocated_image_texture, test_texture_asset->GetPixelData(), test_texture_asset->GetPixelDataSize());
+        *allocated_image_texture, test_texture_asset->GetPixelData(), test_texture_asset->GetPixelDataSize()
+    );
 
     RenderTargetBinding shadow_pass_binding, lit_pass_binding;
     shadow_pass_binding.SetDepthAttachment(shadow_att);
@@ -236,9 +246,11 @@ int main(int argc, char **argv) {
 
         cb.Begin("Main Render Loop");
         // Shadow map pass
-        context.UseImage(*shadow,
-                         GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite,
-                         GraphicsContext::ImageAccessType::None);
+        context.UseImage(
+            *shadow,
+            GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite,
+            GraphicsContext::ImageAccessType::None
+        );
         context.PrepareCommandBuffer();
         {
             vk::Extent2D shadow_map_extent{2048, 2048};
@@ -248,26 +260,34 @@ int main(int argc, char **argv) {
             cb.BindMaterial(*test_material_instance, 0);
 
             vk::CommandBuffer rcb = cb.GetCommandBuffer();
-            rcb.pushConstants(test_template->GetPipelineLayout(0),
-                              vk::ShaderStageFlagBits::eVertex,
-                              0,
-                              ConstantData::PerModelConstantPushConstant::PUSH_RANGE_SIZE,
-                              reinterpret_cast<const void *>(&eye4));
+            rcb.pushConstants(
+                test_template->GetPipelineLayout(0),
+                vk::ShaderStageFlagBits::eVertex,
+                0,
+                ConstantData::PerModelConstantPushConstant::PUSH_RANGE_SIZE,
+                reinterpret_cast<const void *>(&eye4)
+            );
             cb.DrawMesh(test_mesh);
             cb.DrawMesh(test_mesh_2);
             cb.EndRendering();
         }
 
         // Lit pass
-        context.UseImage(*shadow,
-                         GraphicsContext::ImageGraphicsAccessType::ShaderRead,
-                         GraphicsContext::ImageAccessType::DepthAttachmentWrite);
-        context.UseImage(*color,
-                         GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite,
-                         GraphicsContext::ImageAccessType::None);
-        context.UseImage(*depth,
-                         GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite,
-                         GraphicsContext::ImageAccessType::None);
+        context.UseImage(
+            *shadow,
+            GraphicsContext::ImageGraphicsAccessType::ShaderRead,
+            GraphicsContext::ImageAccessType::DepthAttachmentWrite
+        );
+        context.UseImage(
+            *color,
+            GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite,
+            GraphicsContext::ImageAccessType::None
+        );
+        context.UseImage(
+            *depth,
+            GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite,
+            GraphicsContext::ImageAccessType::None
+        );
         context.PrepareCommandBuffer();
         {
             vk::Extent2D extent{rsys->GetSwapchain().GetExtent()};
@@ -277,11 +297,13 @@ int main(int argc, char **argv) {
             cb.BindMaterial(*test_material_instance, 1);
             // Push model matrix...
             vk::CommandBuffer rcb = cb.GetCommandBuffer();
-            rcb.pushConstants(test_template->GetPipelineLayout(0),
-                              vk::ShaderStageFlagBits::eVertex,
-                              0,
-                              ConstantData::PerModelConstantPushConstant::PUSH_RANGE_SIZE,
-                              reinterpret_cast<const void *>(&eye4));
+            rcb.pushConstants(
+                test_template->GetPipelineLayout(0),
+                vk::ShaderStageFlagBits::eVertex,
+                0,
+                ConstantData::PerModelConstantPushConstant::PUSH_RANGE_SIZE,
+                reinterpret_cast<const void *>(&eye4)
+            );
             cb.DrawMesh(test_mesh);
             cb.DrawMesh(test_mesh_2);
             cb.EndRendering();

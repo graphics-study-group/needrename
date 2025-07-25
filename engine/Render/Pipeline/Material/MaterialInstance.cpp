@@ -43,15 +43,17 @@ namespace Engine {
             pass.desc_set[1] = tpl->AllocateDescriptorSet(idx);
             if (ubo_size == 0) {
                 SDL_LogWarn(
-                    SDL_LOG_CATEGORY_RENDER, "Found zero-sized UBO when processing pass %llu of material", ubo_size);
-            }
-            else {
+                    SDL_LOG_CATEGORY_RENDER, "Found zero-sized UBO when processing pass %llu of material", ubo_size
+                );
+            } else {
                 pass.ubo = std::make_unique<IndexedBuffer>(system);
-                pass.ubo->Create(Buffer::BufferType::Uniform,
-                                 tpl->GetMaximalUBOSize(idx),
-                                 system.GetPhysicalDevice().getProperties().limits.minUniformBufferOffsetAlignment,
-                                 PassInfo::BACK_BUFFERS,
-                                 "Indexed UBO for Material");
+                pass.ubo->Create(
+                    Buffer::BufferType::Uniform,
+                    tpl->GetMaximalUBOSize(idx),
+                    system.GetPhysicalDevice().getProperties().limits.minUniformBufferOffsetAlignment,
+                    PassInfo::BACK_BUFFERS,
+                    "Indexed UBO for Material"
+                );
             }
             pimpl->m_pass_info[idx] = std::move(pass);
         }
@@ -71,30 +73,36 @@ namespace Engine {
         return pimpl->m_desc_variables.at(pass_index);
     }
 
-    void MaterialInstance::WriteTextureUniform(uint32_t pass,
-                                               uint32_t index,
-                                               std::shared_ptr<const SampledTexture> texture) {
+    void MaterialInstance::WriteTextureUniform(
+        uint32_t pass, uint32_t index, std::shared_ptr<const SampledTexture> texture
+    ) {
         assert(pimpl->m_pass_info.contains(pass) && "Cannot find pass.");
-        assert(pimpl->m_parent_template.lock()->GetDescVariable(index, pass).set
-               && "Cannot find uniform in designated pass.");
+        assert(
+            pimpl->m_parent_template.lock()->GetDescVariable(index, pass).set
+            && "Cannot find uniform in designated pass."
+        );
 
         pimpl->m_desc_variables[pass][index] = std::any(texture);
         pimpl->m_pass_info[pass]._is_descriptor_set_dirty.set();
     }
 
-    void MaterialInstance::WriteStorageBufferUniform(uint32_t pass,
-                                                     uint32_t index,
-                                                     std::shared_ptr<const Buffer> buffer) {
+    void MaterialInstance::WriteStorageBufferUniform(
+        uint32_t pass, uint32_t index, std::shared_ptr<const Buffer> buffer
+    ) {
         assert(!"Unimplemented");
     }
 
     void MaterialInstance::WriteUBOUniform(uint32_t pass, uint32_t index, std::any uniform) {
-        assert(PipelineUtils::REGISTERED_SHADER_UNIFORM_TYPES.find(uniform.type())
-                   != PipelineUtils::REGISTERED_SHADER_UNIFORM_TYPES.end()
-               && "Unsupported uniform type.");
+        assert(
+            PipelineUtils::REGISTERED_SHADER_UNIFORM_TYPES.find(uniform.type())
+                != PipelineUtils::REGISTERED_SHADER_UNIFORM_TYPES.end()
+            && "Unsupported uniform type."
+        );
         assert(pimpl->m_pass_info.find(pass) != pimpl->m_pass_info.end() && "Cannot find pass.");
-        assert(pimpl->m_parent_template.lock()->GetInBlockVariable(index, pass).block_location.set
-               && "Cannot find uniform in designated pass.");
+        assert(
+            pimpl->m_parent_template.lock()->GetInBlockVariable(index, pass).block_location.set
+            && "Cannot find uniform in designated pass."
+        );
 
         pimpl->m_inblock_variables[pass][index] = uniform;
         pimpl->m_pass_info[pass]._is_ubo_dirty.set();
@@ -132,17 +140,18 @@ namespace Engine {
         auto image_writes = tpl->GetDescriptorImageInfo(*this, pass);
         writes.reserve(image_writes.size() + 1);
         for (const auto &[binding, image_info] : image_writes) {
-            vk::WriteDescriptorSet write{pass_info.desc_set[fif],
-                                         binding,
-                                         0,
-                                         1,
-                                         // TODO: We need a better way to check if its storage image or texture image.
-                                         image_info.imageLayout == vk::ImageLayout::eGeneral
-                                             ? vk::DescriptorType::eStorageImage
-                                             : vk::DescriptorType::eCombinedImageSampler,
-                                         &image_info,
-                                         nullptr,
-                                         nullptr};
+            vk::WriteDescriptorSet write{
+                pass_info.desc_set[fif],
+                binding,
+                0,
+                1,
+                // TODO: We need a better way to check if its storage image or texture image.
+                image_info.imageLayout == vk::ImageLayout::eGeneral ? vk::DescriptorType::eStorageImage
+                                                                    : vk::DescriptorType::eCombinedImageSampler,
+                &image_info,
+                nullptr,
+                nullptr
+            };
             writes.push_back(write);
         }
 
@@ -150,9 +159,11 @@ namespace Engine {
         if (pass_info.ubo) {
             auto &ubo = *(pass_info.ubo.get());
             std::array<vk::DescriptorBufferInfo, 1> ubo_buffer_info = {
-                vk::DescriptorBufferInfo{ubo.GetBuffer(), ubo.GetSliceOffset(fif), ubo.GetSliceSize()}};
+                vk::DescriptorBufferInfo{ubo.GetBuffer(), ubo.GetSliceOffset(fif), ubo.GetSliceSize()}
+            };
             vk::WriteDescriptorSet ubo_write{
-                pass_info.desc_set[fif], 0, 0, vk::DescriptorType::eUniformBuffer, {}, ubo_buffer_info, {}};
+                pass_info.desc_set[fif], 0, 0, vk::DescriptorType::eUniformBuffer, {}, ubo_buffer_info, {}
+            };
             writes.push_back(ubo_write);
         }
 
@@ -177,8 +188,10 @@ namespace Engine {
                 }
 
                 auto &uniform = pass_info.inblock.vars[uniform_idx];
-                assert(itr->second.m_type == MaterialProperty::Type::Undefined
-                       && "A in-block variable has wrong descriptor type.");
+                assert(
+                    itr->second.m_type == MaterialProperty::Type::Undefined
+                    && "A in-block variable has wrong descriptor type."
+                );
 
                 switch (uniform.type) {
                 case ShaderUtils::InBlockVariableData::Type::Int:
@@ -210,8 +223,10 @@ namespace Engine {
                 }
 
                 auto &descvar = pass_info.desc.vars[desc_idx];
-                assert(itr->second.m_ubo_type == MaterialProperty::InBlockVarType::Undefined
-                       && "A descriptor variable has wrong in-block type.");
+                assert(
+                    itr->second.m_ubo_type == MaterialProperty::InBlockVarType::Undefined
+                    && "A descriptor variable has wrong in-block type."
+                );
 
                 switch (descvar.type) {
                 case ShaderUtils::DesciptorVariableData::Type::UBO:
@@ -225,7 +240,8 @@ namespace Engine {
                     texture->Instantiate(*texture_asset);
                     this->WriteTextureUniform(pass_index, desc_idx, texture);
                     m_system.GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
-                        *texture, texture_asset->GetPixelData(), texture_asset->GetPixelDataSize());
+                        *texture, texture_asset->GetPixelData(), texture_asset->GetPixelDataSize()
+                    );
                     break;
                 }
                 default:

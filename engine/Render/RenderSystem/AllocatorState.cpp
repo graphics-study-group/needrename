@@ -6,21 +6,28 @@
 
 namespace Engine::RenderSystemState {
     std::tuple<vk::BufferUsageFlags, VmaAllocationCreateFlags, VmaMemoryUsage> constexpr AllocatorState::GetBufferFlags(
-        BufferType type) {
+        BufferType type
+    ) {
         switch (type) {
         case BufferType::Staging:
-            return std::make_tuple(vk::BufferUsageFlagBits::eTransferSrc,
-                                   VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT,
-                                   VMA_MEMORY_USAGE_AUTO_PREFER_HOST);
+            return std::make_tuple(
+                vk::BufferUsageFlagBits::eTransferSrc,
+                VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT,
+                VMA_MEMORY_USAGE_AUTO_PREFER_HOST
+            );
         case BufferType::Vertex:
-            return std::make_tuple(vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer
-                                       | vk::BufferUsageFlagBits::eVertexBuffer,
-                                   0,
-                                   VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE);
+            return std::make_tuple(
+                vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer
+                    | vk::BufferUsageFlagBits::eVertexBuffer,
+                0,
+                VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE
+            );
         case BufferType::Uniform:
-            return std::make_tuple(vk::BufferUsageFlagBits::eUniformBuffer,
-                                   VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT,
-                                   VMA_MEMORY_USAGE_AUTO_PREFER_HOST);
+            return std::make_tuple(
+                vk::BufferUsageFlagBits::eUniformBuffer,
+                VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT,
+                VMA_MEMORY_USAGE_AUTO_PREFER_HOST
+            );
         }
         return std::make_tuple(vk::BufferUsageFlags{}, 0, VMA_MEMORY_USAGE_AUTO);
     }
@@ -68,32 +75,32 @@ namespace Engine::RenderSystemState {
         return AllocatedMemory(static_cast<vk::Buffer>(buffer), allocation, m_allocator);
     }
 
-    std::unique_ptr<AllocatedMemory> AllocatorState::AllocateBufferUnique(BufferType type,
-                                                                          size_t size,
-                                                                          const std::string &name) const {
+    std::unique_ptr<AllocatedMemory> AllocatorState::AllocateBufferUnique(
+        BufferType type, size_t size, const std::string &name
+    ) const {
         return std::make_unique<AllocatedMemory>(AllocateBuffer(type, size, name));
     }
 
-    AllocatedMemory AllocatorState::AllocateImage(ImageUtils::ImageType type,
-                                                  VkExtent3D dimension,
-                                                  VkFormat format,
-                                                  const std::string &name) const {
+    AllocatedMemory AllocatorState::AllocateImage(
+        ImageUtils::ImageType type, VkExtent3D dimension, VkFormat format, const std::string &name
+    ) const {
         return AllocateImageEx(type, dimension, format, 1, 1, name);
     }
 
-    std::unique_ptr<AllocatedMemory> AllocatorState::AllocateImageUnique(ImageUtils::ImageType type,
-                                                                         VkExtent3D dimension,
-                                                                         VkFormat format,
-                                                                         const std::string &name) const {
+    std::unique_ptr<AllocatedMemory> AllocatorState::AllocateImageUnique(
+        ImageUtils::ImageType type, VkExtent3D dimension, VkFormat format, const std::string &name
+    ) const {
         return std::make_unique<AllocatedMemory>(AllocateImage(type, dimension, format, name));
     }
 
-    AllocatedMemory AllocatorState::AllocateImageEx(ImageUtils::ImageType type,
-                                                    VkExtent3D dimension,
-                                                    VkFormat format,
-                                                    uint32_t miplevel,
-                                                    uint32_t array_layers,
-                                                    const std::string &name) const {
+    AllocatedMemory AllocatorState::AllocateImageEx(
+        ImageUtils::ImageType type,
+        VkExtent3D dimension,
+        VkFormat format,
+        uint32_t miplevel,
+        uint32_t array_layers,
+        const std::string &name
+    ) const {
         const auto [iusage, musage] = ImageUtils::GetImageFlags(type);
         VkImageCreateInfo iinfo{};
         iinfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -119,29 +126,33 @@ namespace Engine::RenderSystemState {
         DEBUG_SET_NAME_TEMPLATE(m_system.getDevice(), static_cast<vk::Image>(image), name);
         return AllocatedMemory(static_cast<vk::Image>(image), allocation, m_allocator);
     }
-    std::unique_ptr<AllocatedMemory> AllocatorState::AllocateImageUniqueEx(ImageUtils::ImageType type,
-                                                                           vk::ImageType dimension,
-                                                                           vk::Extent3D extent,
-                                                                           vk::Format format,
-                                                                           uint32_t miplevel,
-                                                                           uint32_t array_layers,
-                                                                           vk::SampleCountFlagBits samples,
-                                                                           const std::string &name) const {
+    std::unique_ptr<AllocatedMemory> AllocatorState::AllocateImageUniqueEx(
+        ImageUtils::ImageType type,
+        vk::ImageType dimension,
+        vk::Extent3D extent,
+        vk::Format format,
+        uint32_t miplevel,
+        uint32_t array_layers,
+        vk::SampleCountFlagBits samples,
+        const std::string &name
+    ) const {
         const auto [iusage, musage] = ImageUtils::GetImageFlags(type);
         // VkImageCreateInfo iinfo {};
-        vk::ImageCreateInfo iinfo{vk::ImageCreateFlags{0U},
-                                  dimension,
-                                  format,
-                                  extent,
-                                  miplevel,
-                                  array_layers,
-                                  samples,
-                                  vk::ImageTiling::eOptimal,
-                                  iusage,
-                                  vk::SharingMode::eExclusive,
-                                  {},
-                                  vk::ImageLayout::eUndefined,
-                                  nullptr};
+        vk::ImageCreateInfo iinfo{
+            vk::ImageCreateFlags{0U},
+            dimension,
+            format,
+            extent,
+            miplevel,
+            array_layers,
+            samples,
+            vk::ImageTiling::eOptimal,
+            iusage,
+            vk::SharingMode::eExclusive,
+            {},
+            vk::ImageLayout::eUndefined,
+            nullptr
+        };
         VkImageCreateInfo iinfo2 = static_cast<VkImageCreateInfo>(iinfo);
 
         VmaAllocationCreateInfo ainfo{};
@@ -152,6 +163,7 @@ namespace Engine::RenderSystemState {
         vmaCreateImage(m_allocator, &iinfo2, &ainfo, &image, &allocation, nullptr);
         DEBUG_SET_NAME_TEMPLATE(m_system.getDevice(), static_cast<vk::Image>(image), name);
         return std::make_unique<AllocatedMemory>(
-            AllocatedMemory(static_cast<vk::Image>(image), allocation, m_allocator));
+            AllocatedMemory(static_cast<vk::Image>(image), allocation, m_allocator)
+        );
     }
 } // namespace Engine::RenderSystemState

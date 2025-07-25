@@ -31,15 +31,17 @@ int main(int argc, char **argv) {
     gsys->CreateVulkanBackend(ImageUtils::GetVkFormat(Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB));
 
     Engine::Texture color{*rsys}, depth{*rsys};
-    Engine::Texture::TextureDesc desc{.dimensions = 2,
-                                      .width = 1920,
-                                      .height = 1080,
-                                      .depth = 1,
-                                      .format = Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB,
-                                      .type = Engine::ImageUtils::ImageType::ColorAttachment,
-                                      .mipmap_levels = 1,
-                                      .array_layers = 1,
-                                      .is_cube_map = false};
+    Engine::Texture::TextureDesc desc{
+        .dimensions = 2,
+        .width = 1920,
+        .height = 1080,
+        .depth = 1,
+        .format = Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB,
+        .type = Engine::ImageUtils::ImageType::ColorAttachment,
+        .mipmap_levels = 1,
+        .array_layers = 1,
+        .is_cube_map = false
+    };
     color.CreateTexture(desc, "Color Attachment");
     desc.format = Engine::ImageUtils::ImageFormat::D32SFLOAT;
     desc.type = Engine::ImageUtils::ImageType::DepthImage;
@@ -78,12 +80,16 @@ int main(int argc, char **argv) {
         assert(index < 3);
 
         cb.Begin();
-        context.UseImage(color,
-                         GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite,
-                         GraphicsContext::ImageAccessType::None);
-        context.UseImage(depth,
-                         GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite,
-                         GraphicsContext::ImageAccessType::None);
+        context.UseImage(
+            color,
+            GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite,
+            GraphicsContext::ImageAccessType::None
+        );
+        context.UseImage(
+            depth,
+            GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite,
+            GraphicsContext::ImageAccessType::None
+        );
         context.PrepareCommandBuffer();
         vk::Extent2D extent{rsys->GetSwapchain().GetExtent()};
         gsys->DrawGUI(color_att, extent, cb);

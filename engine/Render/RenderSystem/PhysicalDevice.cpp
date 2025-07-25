@@ -18,14 +18,18 @@ namespace Engine::RenderSystemState {
                                         && (prop.queueFlags & vk::QueueFlagBits::eCompute);
             bool supportPresenting = device.getSurfaceSupportKHR(i, surface);
 
-            SDL_LogDebug(SDL_LOG_CATEGORY_RENDER,
-                         std::format("\t\tQueue family {} {}{}{}({} present)",
-                                     i,
-                                     prop.queueFlags & vk::QueueFlagBits::eGraphics ? "Graphics " : "",
-                                     prop.queueFlags & vk::QueueFlagBits::eTransfer ? "Transfer " : "",
-                                     prop.queueFlags & vk::QueueFlagBits::eCompute ? "Compute " : "",
-                                     supportPresenting ? "Can" : "Cannot")
-                             .c_str());
+            SDL_LogDebug(
+                SDL_LOG_CATEGORY_RENDER,
+                std::format(
+                    "\t\tQueue family {} {}{}{}({} present)",
+                    i,
+                    prop.queueFlags & vk::QueueFlagBits::eGraphics ? "Graphics " : "",
+                    prop.queueFlags & vk::QueueFlagBits::eTransfer ? "Transfer " : "",
+                    prop.queueFlags & vk::QueueFlagBits::eCompute ? "Compute " : "",
+                    supportPresenting ? "Can" : "Cannot"
+                )
+                    .c_str()
+            );
 
             if (isGeneralQueueFamily) {
                 if (!q.graphics.has_value()) q.graphics = i;
@@ -38,9 +42,11 @@ namespace Engine::RenderSystemState {
     }
 
     SwapchainSupport PhysicalDevice::FillSwapchainSupport(vk::PhysicalDevice device, vk::SurfaceKHR surface) {
-        SwapchainSupport support{device.getSurfaceCapabilitiesKHR(surface),
-                                 device.getSurfaceFormatsKHR(surface),
-                                 device.getSurfacePresentModesKHR(surface)};
+        SwapchainSupport support{
+            device.getSurfaceCapabilitiesKHR(surface),
+            device.getSurfaceFormatsKHR(surface),
+            device.getSurfacePresentModesKHR(surface)
+        };
         return support;
     }
 
@@ -127,9 +133,11 @@ namespace Engine::RenderSystemState {
         }
 
         if (!required_extensions.empty()) {
-            SDL_LogInfo(SDL_LOG_CATEGORY_RENDER,
-                        "Cannot find all extensions, %llu extensions not found.",
-                        required_extensions.size());
+            SDL_LogInfo(
+                SDL_LOG_CATEGORY_RENDER,
+                "Cannot find all extensions, %llu extensions not found.",
+                required_extensions.size()
+            );
             for (const auto &name : required_extensions) {
                 SDL_LogVerbose(SDL_LOG_CATEGORY_RENDER, "\t%s", name.data());
             }

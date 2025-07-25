@@ -155,7 +155,8 @@ namespace Engine {
     };
 
     Input::InputAxis::InputAxis(
-        const std::string &name, AxisType type, float gravity, float dead, float sensitivity, bool snap, bool invert) :
+        const std::string &name, AxisType type, float gravity, float dead, float sensitivity, bool snap, bool invert
+    ) :
         m_name(name), m_type(type), m_gravity(gravity), m_dead(dead), m_sensitivity(sensitivity), m_snap(snap),
         m_invert(invert) {
     }
@@ -187,16 +188,17 @@ namespace Engine {
             m_smoothed_value = m_value;
     }
 
-    Input::ButtonAxis::ButtonAxis(const std::string &name,
-                                  AxisType type,
-                                  const std::string &positive,
-                                  const std::string &negative,
-                                  float gravity,
-                                  float dead,
-                                  float sensitivity,
-                                  bool snap,
-                                  bool invert) :
-        InputAxis(name, type, gravity, dead, sensitivity, snap, invert), m_positive(positive), m_negative(negative) {
+    Input::ButtonAxis::ButtonAxis(
+        const std::string &name,
+        AxisType type,
+        const std::string &positive,
+        const std::string &negative,
+        float gravity,
+        float dead,
+        float sensitivity,
+        bool snap,
+        bool invert
+    ) : InputAxis(name, type, gravity, dead, sensitivity, snap, invert), m_positive(positive), m_negative(negative) {
         assert(type == AxisType::TypeKey || type == AxisType::TypeMouseButton || type == AxisType::TypeGamepadButton);
     }
 
@@ -209,8 +211,7 @@ namespace Engine {
                 && event->key.scancode == k_name_code_map.at(m_negative))
                 m_value += event->key.down ? -1.0f : 1.0f;
             m_value = std::clamp(m_value, -1.0f, 1.0f);
-        }
-        else if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN || event->type == SDL_EVENT_MOUSE_BUTTON_UP) {
+        } else if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN || event->type == SDL_EVENT_MOUSE_BUTTON_UP) {
             if (k_name_code_map.find(m_positive) != k_name_code_map.end()
                 && event->button.button == k_name_code_map.at(m_positive))
                 m_value += event->button.down ? 1.0f : -1.0f;
@@ -218,8 +219,7 @@ namespace Engine {
                 && event->button.button == k_name_code_map.at(m_negative))
                 m_value += event->button.down ? -1.0f : 1.0f;
             m_value = std::clamp(m_value, -1.0f, 1.0f);
-        }
-        else if (event->type == SDL_EVENT_GAMEPAD_BUTTON_DOWN || event->type == SDL_EVENT_GAMEPAD_BUTTON_UP) {
+        } else if (event->type == SDL_EVENT_GAMEPAD_BUTTON_DOWN || event->type == SDL_EVENT_GAMEPAD_BUTTON_UP) {
             if (k_name_code_map.find(m_positive) != k_name_code_map.end()
                 && event->gbutton.button == k_name_code_map.at(m_positive))
                 m_value += event->gbutton.down ? 1.0f : -1.0f;
@@ -230,15 +230,17 @@ namespace Engine {
         }
     }
 
-    Input::MotionAxis::MotionAxis(const std::string &name,
-                                  AxisType type,
-                                  const std::string &axis,
-                                  float motion_sensitivity,
-                                  float gravity,
-                                  float dead,
-                                  float sensitivity,
-                                  bool snap,
-                                  bool invert) :
+    Input::MotionAxis::MotionAxis(
+        const std::string &name,
+        AxisType type,
+        const std::string &axis,
+        float motion_sensitivity,
+        float gravity,
+        float dead,
+        float sensitivity,
+        bool snap,
+        bool invert
+    ) :
         InputAxis(name, type, gravity, dead, sensitivity, snap, invert), m_axis(axis),
         m_motion_sensitivity(motion_sensitivity) {
         assert(type == AxisType::TypeMouseMotion || type == AxisType::TypeMouseWheel);
@@ -261,16 +263,17 @@ namespace Engine {
         InputAxis::UpdateSmoothedValue();
     }
 
-    Input::GamepadAxis::GamepadAxis(const std::string &name,
-                                    AxisType type,
-                                    const std::string &axis,
-                                    float scale,
-                                    float gravity,
-                                    float dead,
-                                    float sensitivity,
-                                    bool snap,
-                                    bool invert) :
-        InputAxis(name, type, gravity, dead, sensitivity, snap, invert), m_axis(axis), m_scale(scale) {
+    Input::GamepadAxis::GamepadAxis(
+        const std::string &name,
+        AxisType type,
+        const std::string &axis,
+        float scale,
+        float gravity,
+        float dead,
+        float sensitivity,
+        bool snap,
+        bool invert
+    ) : InputAxis(name, type, gravity, dead, sensitivity, snap, invert), m_axis(axis), m_scale(scale) {
         assert(type == AxisType::TypeGamepadAxis);
     }
 

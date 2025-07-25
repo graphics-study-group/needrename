@@ -1,6 +1,7 @@
 ---
 BasedOnStyle: Microsoft
 AccessModifierOffset: -4
+AlignAfterOpenBracket: BlockIndent
 AllowShortIfStatementsOnASingleLine: AllIfsAndElse
 AllowShortLoopsOnASingleLine: true
 BinPackArguments: false
@@ -16,8 +17,8 @@ BraceWrapping:
   AfterStruct: false
   AfterUnion: false
   AfterExternBlock: true
-  BeforeCatch: true
-  BeforeElse: true
+  BeforeCatch: false
+  BeforeElse: false
   BeforeLambdaBody: false
   BeforeWhile: false
   IndentBraces: false

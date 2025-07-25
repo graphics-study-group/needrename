@@ -52,8 +52,9 @@ int main() {
     auto testObject = std::make_shared<TestClass>();
     Delegate<int, float> delegate1(
         testObject,
-        (Delegate<int, float>::FunctionType)std::bind(
-            &TestClass::PrintInfo, testObject.get(), std::placeholders::_1, std::placeholders::_2));
+        (Delegate<int, float>::FunctionType)
+            std::bind(&TestClass::PrintInfo, testObject.get(), std::placeholders::_1, std::placeholders::_2)
+    );
     delegate1.Invoke(42, 3.14f);
     assert(checked == 1); // Check if PrintInfo was called
     testObject.reset();
