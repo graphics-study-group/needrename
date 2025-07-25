@@ -1,6 +1,3 @@
 #include "GameObjectAsset.h"
 
-namespace Engine
-{
-    
-}
+namespace Engine {}

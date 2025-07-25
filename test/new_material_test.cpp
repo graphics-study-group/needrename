@@ -1,15 +1,15 @@
 #include <SDL3/SDL.h>
 #include <cassert>
-#include <fstream>
 #include <chrono>
+#include <fstream>
 
-#include "MainClass.h"
-#include "Functional/SDLWindow.h"
-#include "Framework/component/RenderComponent/MeshComponent.h"
-#include "GUI/GUISystem.h"
+#include "Asset/AssetManager/AssetManager.h"
 #include "Asset/Mesh/MeshAsset.h"
 #include "Asset/Texture/Image2DTextureAsset.h"
-#include "Asset/AssetManager/AssetManager.h"
+#include "Framework/component/RenderComponent/MeshComponent.h"
+#include "Functional/SDLWindow.h"
+#include "GUI/GUISystem.h"
+#include "MainClass.h"
 #include "Render/FullRenderSystem.h"
 
 #include "cmake_config.h"
@@ -17,21 +17,21 @@
 using namespace Engine;
 namespace sch = std::chrono;
 
-
 struct LowerPlaneMeshAsset : public MeshAsset {
     LowerPlaneMeshAsset() {
         this->m_submeshes.resize(1);
         this->m_submeshes[0] = {
             .m_indices = {0, 3, 2, 0, 2, 1},
-            .m_positions = {
-                {0.5f, -0.5f, 0.0f}, 
-                {0.5f, 0.5f, 0.0f}, 
-                {-0.5f, 0.5f, 0.0f},
-                {-0.5f, -0.5f, 0.0f},
-            },
+            .m_positions =
+                {
+                    {0.5f, -0.5f, 0.0f},
+                    {0.5f, 0.5f, 0.0f},
+                    {-0.5f, 0.5f, 0.0f},
+                    {-0.5f, -0.5f, 0.0f},
+                },
             .m_attributes = {
-                {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {1.0f, 0.0f}}, 
-                {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {1.0f, 1.0f}}, 
+                {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {1.0f, 0.0f}},
+                {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {1.0f, 1.0f}},
                 {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {0.0f, 1.0f}},
                 {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {0.0f, 0.0f}}
             },
@@ -39,23 +39,18 @@ struct LowerPlaneMeshAsset : public MeshAsset {
     }
 };
 
-std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate()
-{
+std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate() {
     auto test_asset = std::make_shared<MaterialTemplateAsset>();
     auto vs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/blinn_phong.vert.spv.asset");
     auto fs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/blinn_phong.frag.spv.asset");
     MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(vs_ref);
     MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(fs_ref);
-    
+
     test_asset->name = "Blinn-Phong";
 
     MaterialTemplateSinglePassProperties mtspp{};
-    mtspp.attachments.color = {
-        ImageUtils::ImageFormat::R8G8B8A8UNorm
-    };
-    mtspp.attachments.color_ops = {
-        AttachmentUtils::AttachmentOp{}
-    };
+    mtspp.attachments.color = {ImageUtils::ImageFormat::R8G8B8A8UNorm};
+    mtspp.attachments.color_ops = {AttachmentUtils::AttachmentOp{}};
     using CBP = PipelineProperties::ColorBlendingProperties;
     CBP cbp;
     cbp.color_op = cbp.alpha_op = CBP::BlendOperation::Add;
@@ -63,9 +58,7 @@ std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate()
     cbp.dst_color = CBP::BlendFactor::OneMinusSrcAlpha;
     cbp.src_alpha = CBP::BlendFactor::One;
     cbp.dst_alpha = CBP::BlendFactor::Zero;
-    mtspp.attachments.color_blending = {
-        cbp
-    };
+    mtspp.attachments.color_blending = {cbp};
     mtspp.attachments.depth = ImageUtils::ImageFormat::D32SFLOAT;
     mtspp.shaders.shaders = std::vector<std::shared_ptr<AssetRef>>{vs_ref, fs_ref};
 
@@ -74,8 +67,7 @@ std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate()
     return test_asset;
 }
 
-int main(int argc, char ** argv)
-{
+int main(int argc, char **argv) {
     int64_t max_frame_count = std::numeric_limits<int64_t>::max();
     if (argc > 1) {
         max_frame_count = std::atoll(argv[1]);
@@ -116,12 +108,12 @@ int main(int argc, char ** argv)
     test_mesh.Prepare();
 
     // Submit scene data
-    const auto & global_pool = rsys->GetGlobalConstantDescriptorPool();
+    const auto &global_pool = rsys->GetGlobalConstantDescriptorPool();
     struct {
         glm::mat4 view{1.0f};
         glm::mat4 proj{1.0f};
     } camera_mats;
-    ConstantData::PerSceneStruct scene {
+    ConstantData::PerSceneStruct scene{
         1,
         glm::vec4{-5.0f, -5.0f, -5.0f, 0.0f},
         glm::vec4{1.0, 1.0, 1.0, 0.0},
@@ -129,7 +121,7 @@ int main(int argc, char ** argv)
     for (uint32_t i = 0; i < 3; i++) {
         auto ptr = global_pool.GetPerSceneConstantMemory(i);
         memcpy(ptr, &scene, sizeof scene);
-        global_pool.FlushPerSceneConstantMemory(i); 
+        global_pool.FlushPerSceneConstantMemory(i);
         auto camera_ptr = global_pool.GetPerCameraConstantMemory(i, 0);
         std::memcpy(camera_ptr, &camera_mats, sizeof camera_mats);
         global_pool.FlushPerCameraConstantMemory(i, 0);
@@ -141,7 +133,7 @@ int main(int argc, char ** argv)
     Engine::Texture depth{*rsys};
     auto color = std::make_shared<Texture>(*rsys);
     auto postproc = std::make_shared<Texture>(*rsys);
-    Engine::Texture::TextureDesc desc {
+    Engine::Texture::TextureDesc desc{
         .dimensions = 2,
         .width = 1920,
         .height = 1080,
@@ -175,25 +167,23 @@ int main(int argc, char ** argv)
     ComputeStage cstage{*rsys};
     cstage.InstantiateFromRef(cs_ref);
     cstage.SetDescVariable(
-        cstage.GetVariableIndex("inputImage").value().first,
-        std::const_pointer_cast<const Texture>(color)
+        cstage.GetVariableIndex("inputImage").value().first, std::const_pointer_cast<const Texture>(color)
     );
     cstage.SetDescVariable(
-        cstage.GetVariableIndex("outputImage").value().first,
-        std::const_pointer_cast<const Texture>(postproc)
+        cstage.GetVariableIndex("outputImage").value().first, std::const_pointer_cast<const Texture>(postproc)
     );
 
     bool quited = false;
     bool has_gaussian_blur = true;
-    while(max_frame_count--) {
+    while (max_frame_count--) {
         SDL_Event event;
-        while(SDL_PollEvent(&event) != 0) {
-            switch(event.type) {
+        while (SDL_PollEvent(&event) != 0) {
+            switch (event.type) {
             case SDL_EVENT_QUIT:
                 quited = true;
                 break;
             case SDL_EVENT_KEY_UP:
-                if(event.key.key == SDLK_G) {
+                if (event.key.key == SDLK_G) {
                     has_gaussian_blur = !has_gaussian_blur;
                 }
             }
@@ -201,21 +191,31 @@ int main(int argc, char ** argv)
 
         // Repeat submission to test for synchronization problems
         rsys->GetFrameManager().GetSubmissionHelper().EnqueueVertexBufferSubmission(test_mesh);
-        rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(*allocated_image_texture, test_texture_asset->GetPixelData(), test_texture_asset->GetPixelDataSize());
+        rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
+            *allocated_image_texture, test_texture_asset->GetPixelData(), test_texture_asset->GetPixelDataSize()
+        );
 
         auto index = rsys->StartFrame();
         auto gcontext = rsys->GetFrameManager().GetGraphicsContext();
-        GraphicsCommandBuffer & cb = dynamic_cast<GraphicsCommandBuffer &>(gcontext.GetCommandBuffer());
+        GraphicsCommandBuffer &cb = dynamic_cast<GraphicsCommandBuffer &>(gcontext.GetCommandBuffer());
 
         assert(index < 3);
-    
+
         cb.Begin();
 
-        gcontext.UseImage(*color, GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite, GraphicsContext::ImageAccessType::None);
-        gcontext.UseImage(depth, GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite, GraphicsContext::ImageAccessType::None);
+        gcontext.UseImage(
+            *color,
+            GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite,
+            GraphicsContext::ImageAccessType::None
+        );
+        gcontext.UseImage(
+            depth,
+            GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite,
+            GraphicsContext::ImageAccessType::None
+        );
         gcontext.PrepareCommandBuffer();
 
-        vk::Extent2D extent {rsys->GetSwapchain().GetExtent()};
+        vk::Extent2D extent{rsys->GetSwapchain().GetExtent()};
         vk::Rect2D scissor{{0, 0}, extent};
         cb.BeginRendering(color_att, depth_att, extent);
 
@@ -224,9 +224,9 @@ int main(int argc, char ** argv)
         // Push model matrix...
         vk::CommandBuffer rcb = cb.GetCommandBuffer();
         rcb.pushConstants(
-            test_template->GetPipelineLayout(0), 
-            vk::ShaderStageFlagBits::eVertex, 
-            0, 
+            test_template->GetPipelineLayout(0),
+            vk::ShaderStageFlagBits::eVertex,
+            0,
             ConstantData::PerModelConstantPushConstant::PUSH_RANGE_SIZE,
             reinterpret_cast<const void *>(&eye4)
         );
@@ -237,39 +237,34 @@ int main(int argc, char ** argv)
             auto ccontext = rsys->GetFrameManager().GetComputeContext();
             ccontext.UseImage(
                 *color,
-                Engine::ComputeContext::ImageComputeAccessType::ShaderReadRandomWrite, 
+                Engine::ComputeContext::ImageComputeAccessType::ShaderReadRandomWrite,
                 Engine::ComputeContext::ImageAccessType::ColorAttachmentWrite
             );
             ccontext.UseImage(
                 *postproc,
-                Engine::ComputeContext::ImageComputeAccessType::ShaderRandomWrite, 
+                Engine::ComputeContext::ImageComputeAccessType::ShaderRandomWrite,
                 Engine::ComputeContext::ImageAccessType::None
             );
             ccontext.PrepareCommandBuffer();
             auto ccb = dynamic_cast<ComputeCommandBuffer &>(ccontext.GetCommandBuffer());
             ccb.BindComputeStage(cstage);
             ccb.DispatchCompute(
-                postproc->GetTextureDescription().width / 16 + 1, 
-                postproc->GetTextureDescription().height / 16 + 1, 
-                1
+                postproc->GetTextureDescription().width / 16 + 1, postproc->GetTextureDescription().height / 16 + 1, 1
             );
 
-            gcontext.UseImage(*postproc, 
-                GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite, 
+            gcontext.UseImage(
+                *postproc,
+                GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite,
                 Engine::ComputeContext::ImageAccessType::ShaderRandomWrite
             );
             gcontext.PrepareCommandBuffer();
         }
-        
 
         cb.End();
         rsys->GetFrameManager().SubmitMainCommandBuffer();
         rsys->GetFrameManager().StageBlitComposition(
-            has_gaussian_blur ? postproc->GetImage() : color->GetImage(), 
-            vk::Extent2D{
-                postproc->GetTextureDescription().width,
-                postproc->GetTextureDescription().height
-            }, 
+            has_gaussian_blur ? postproc->GetImage() : color->GetImage(),
+            vk::Extent2D{postproc->GetTextureDescription().width, postproc->GetTextureDescription().height},
             rsys->GetSwapchain().GetExtent()
         );
         rsys->CompleteFrame();

@@ -1,23 +1,23 @@
 #include <SDL3/SDL.h>
 #include <cassert>
-#include <fstream>
 #include <chrono>
 #include <filesystem>
-#include <tiny_obj_loader.h>
+#include <fstream>
 #include <stb_image.h>
+#include <tiny_obj_loader.h>
 
-#include "MainClass.h"
-#include "Functional/SDLWindow.h"
-#include <Framework/object/GameObject.h>
-#include <Framework/world/WorldSystem.h>
+#include "Asset/Material/MaterialAsset.h"
 #include "Framework/component/RenderComponent/MeshComponent.h"
-#include "Render/FullRenderSystem.h"
+#include "Functional/SDLWindow.h"
 #include "GUI/GUISystem.h"
+#include "MainClass.h"
+#include "Render/FullRenderSystem.h"
 #include <Asset/AssetManager/AssetManager.h>
 #include <Asset/AssetRef.h>
-#include "Asset/Material/MaterialAsset.h"
-#include <Asset/Mesh/MeshAsset.h>
 #include <Asset/Loader/ObjLoader.h>
+#include <Asset/Mesh/MeshAsset.h>
+#include <Framework/object/GameObject.h>
+#include <Framework/world/WorldSystem.h>
 
 #include "cmake_config.h"
 
@@ -32,10 +32,7 @@ class MeshComponentFromFile : public MeshComponent {
         glm::vec4 ambient;
     };
 
-    UniformData m_uniform_data {
-        glm::vec4{0.5, 0.5, 0.5, 4.0}, 
-        glm::vec4{0.1, 0.1, 0.1, 1.0}
-    };
+    UniformData m_uniform_data{glm::vec4{0.5, 0.5, 0.5, 4.0}, glm::vec4{0.1, 0.1, 0.1, 1.0}};
 
     void LoadMesh(std::filesystem::path mesh) {
         tinyobj::ObjReaderConfig reader_config{};
@@ -89,54 +86,54 @@ class MeshComponentFromFile : public MeshComponent {
                     new_shape.mesh.indices.push_back(shape.mesh.indices[fc * 3 + vrtx]);
                 }
             }
-            for (const auto & [_, new_shape] : material_id_map) {
+            for (const auto &[_, new_shape] : material_id_map) {
                 shapes.push_back(new_shape);
                 materials.push_back(origin_materials[new_shape.mesh.material_ids[0]]);
                 std::fill(
-                    shapes.back().mesh.material_ids.begin(),
-                    shapes.back().mesh.material_ids.end(),
-                    materials.size() - 1
+                    shapes.back().mesh.material_ids.begin(), shapes.back().mesh.material_ids.end(), materials.size() - 1
                 );
             }
         }
 
-        this->m_mesh_asset = std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(std::make_shared<MeshAsset>()));
+        this->m_mesh_asset =
+            std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(std::make_shared<MeshAsset>()));
         ObjLoader loader;
         loader.LoadMeshAssetFromTinyObj(*(this->m_mesh_asset->as<MeshAsset>()), attrib, shapes);
 
         // Read material assets
-        for (const auto & material : materials) {
-            this->m_material_assets.push_back(std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(std::make_shared<MaterialAsset>())));
-            loader.LoadMaterialAssetFromTinyObj(*(this->m_material_assets.back()->as<MaterialAsset>()), material, mesh.parent_path());
+        for (const auto &material : materials) {
+            this->m_material_assets.push_back(
+                std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(std::make_shared<MaterialAsset>()))
+            );
+            loader.LoadMaterialAssetFromTinyObj(
+                *(this->m_material_assets.back()->as<MaterialAsset>()), material, mesh.parent_path()
+            );
         }
 
         assert(m_mesh_asset && m_mesh_asset->IsValid());
         m_submeshes.clear();
         size_t submesh_count = m_mesh_asset->as<MeshAsset>()->GetSubmeshCount();
-        for (size_t i = 0; i < submesh_count; i++)
-        {
-            m_submeshes.push_back(std::make_shared<HomogeneousMesh>(
-                m_system, m_mesh_asset, i));
+        for (size_t i = 0; i < submesh_count; i++) {
+            m_submeshes.push_back(std::make_shared<HomogeneousMesh>(m_system, m_mesh_asset, i));
         }
     }
 
-public: 
-    MeshComponentFromFile(std::filesystem::path mesh_file_name) 
-    : MeshComponent(std::weak_ptr<GameObject>()), transform() {
+public:
+    MeshComponentFromFile(std::filesystem::path mesh_file_name) :
+        MeshComponent(std::weak_ptr<GameObject>()), transform() {
         LoadMesh(mesh_file_name);
 
         auto system = m_system.lock();
-        auto & helper = system->GetFrameManager().GetSubmissionHelper();
+        auto &helper = system->GetFrameManager().GetSubmissionHelper();
 
-        for (auto & submesh : m_submeshes) {
+        for (auto &submesh : m_submeshes) {
             submesh->Prepare();
             helper.EnqueueVertexBufferSubmission(*submesh);
         }
 
         for (size_t i = 0; i < m_material_assets.size(); i++) {
             auto ptr = std::make_shared<Materials::BlinnPhongInstance>(
-                *system, 
-                system->GetMaterialRegistry().GetMaterial("Built-in Blinn-Phong")
+                *system, system->GetMaterialRegistry().GetMaterial("Built-in Blinn-Phong")
             );
             auto mat_asset = m_material_assets[i]->cas<MaterialAsset>();
             assert(mat_asset);
@@ -155,15 +152,13 @@ public:
     }
 
     void UpdateUniformData(float spec_r, float spec_g, float spec_b, float spec_coef) {
-        uint8_t identity = 
-            (fabs(spec_r - m_uniform_data.specular.r) < 1e-3) +
-            (fabs(spec_g - m_uniform_data.specular.g) < 1e-3) +
-            (fabs(spec_b - m_uniform_data.specular.b) < 1e-3) +
-            (fabs(spec_coef - m_uniform_data.specular.a) < 1e-3);
-        if (identity == 4)  return;
+        uint8_t identity =
+            (fabs(spec_r - m_uniform_data.specular.r) < 1e-3) + (fabs(spec_g - m_uniform_data.specular.g) < 1e-3)
+            + (fabs(spec_b - m_uniform_data.specular.b) < 1e-3) + (fabs(spec_coef - m_uniform_data.specular.a) < 1e-3);
+        if (identity == 4) return;
 
         m_uniform_data.specular = glm::vec4{spec_r, spec_g, spec_b, spec_coef};
-        for (auto & material : m_materials) {
+        for (auto &material : m_materials) {
             auto mat_ptr = std::dynamic_pointer_cast<Materials::BlinnPhongInstance>(material);
             assert(mat_ptr);
             mat_ptr->SetAmbient(m_uniform_data.ambient);
@@ -174,16 +169,12 @@ public:
 
 struct {
     float zenith, azimuth;
-    float r,g,b,coef;
-} g_SceneData {M_PI_2, M_PI_2, 0.5f, 0.5f, 0.5f, 4.0f};
+    float r, g, b, coef;
+} g_SceneData{M_PI_2, M_PI_2, 0.5f, 0.5f, 0.5f, 4.0f};
 
 glm::vec3 GetCartesian(float zenith, float azimuth) {
     static constexpr float RADIUS = 2.0f;
-    return glm::vec3{
-        RADIUS * sin(zenith) * cos(azimuth),
-        RADIUS * sin(zenith) * sin(azimuth),
-        RADIUS * cos(zenith)
-    };
+    return glm::vec3{RADIUS * sin(zenith) * cos(azimuth), RADIUS * sin(zenith) * sin(azimuth), RADIUS * cos(zenith)};
 }
 
 void PrepareGui() {
@@ -193,7 +184,7 @@ void PrepareGui() {
     ImGui::Begin("Configuration", nullptr, flags);
     ImGui::SliderAngle("Zenith", &g_SceneData.zenith, -180.0f, 180.0f);
     ImGui::SliderAngle("Azimuth", &g_SceneData.azimuth, 0.0f, 360.0f);
-    
+
     glm::vec3 light_source = GetCartesian(g_SceneData.zenith, g_SceneData.azimuth);
     ImGui::Text("Coordinate: (%.3f, %.3f, %.3f).", light_source.x, light_source.y, light_source.z);
 
@@ -204,26 +195,22 @@ void PrepareGui() {
     ImGui::End();
 }
 
-void SubmitSceneData(std::shared_ptr <RenderSystem> rsys, uint32_t id) {
-    ConstantData::PerSceneStruct scene {
+void SubmitSceneData(std::shared_ptr<RenderSystem> rsys, uint32_t id) {
+    ConstantData::PerSceneStruct scene{
         1,
-        glm::vec4{
-            GetCartesian(g_SceneData.zenith, g_SceneData.azimuth),
-            0.0f
-        },
+        glm::vec4{GetCartesian(g_SceneData.zenith, g_SceneData.azimuth), 0.0f},
         glm::vec4{1.0, 1.0, 1.0, 0.0},
     };
     auto ptr = rsys->GetGlobalConstantDescriptorPool().GetPerSceneConstantMemory(id);
     memcpy(ptr, &scene, sizeof scene);
-    rsys->GetGlobalConstantDescriptorPool().FlushPerSceneConstantMemory(id);    
+    rsys->GetGlobalConstantDescriptorPool().FlushPerSceneConstantMemory(id);
 }
 
-void SubmitMaterialData(std::shared_ptr <MeshComponentFromFile> mesh) {
+void SubmitMaterialData(std::shared_ptr<MeshComponentFromFile> mesh) {
     mesh->UpdateUniformData(g_SceneData.r, g_SceneData.g, g_SceneData.b, g_SceneData.coef);
 }
 
-int main(int argc, char ** argv)
-{
+int main(int argc, char **argv) {
     SDL_Init(SDL_INIT_VIDEO);
 
     int64_t max_frame_count = std::numeric_limits<int64_t>::max();
@@ -240,7 +227,7 @@ int main(int argc, char ** argv)
     auto asys = cmc->GetAssetManager();
     asys->SetBuiltinAssetPath(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
     asys->LoadBuiltinAssets();
-    
+
     auto test_asset = asys->GetNewAssetRef(std::filesystem::path("~/material_templates/BlinnPhongTemplate.asset"));
     asys->LoadAssetImmediately(test_asset);
     asys->LoadAssetsInQueue();
@@ -252,7 +239,7 @@ int main(int argc, char ** argv)
     gsys->CreateVulkanBackend(ImageUtils::GetVkFormat(Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB));
 
     Engine::Texture color{*rsys}, depth{*rsys};
-    Engine::Texture::TextureDesc desc {
+    Engine::Texture::TextureDesc desc{
         .dimensions = 2,
         .width = 1280,
         .height = 720,
@@ -279,7 +266,6 @@ int main(int argc, char ** argv)
     depth_att.load_op = vk::AttachmentLoadOp::eClear;
     depth_att.store_op = vk::AttachmentStoreOp::eDontCare;
 
-
     // Setup mesh
     std::filesystem::path mesh_path{std::string(ENGINE_ASSETS_DIR) + "/four_bunny/four_bunny.obj"};
     std::shared_ptr tmc = std::make_shared<MeshComponentFromFile>(mesh_path);
@@ -296,11 +282,11 @@ int main(int argc, char ** argv)
 
     uint64_t frame_count = 0;
     uint64_t start_timer = SDL_GetPerformanceCounter();
-    while(++frame_count) {
+    while (++frame_count) {
         bool quited = false;
         SDL_Event event;
-        while(SDL_PollEvent(&event) != 0) {
-            switch(event.type) {
+        while (SDL_PollEvent(&event) != 0) {
+            switch (event.type) {
             case SDL_EVENT_QUIT:
                 quited = true;
                 break;
@@ -308,7 +294,7 @@ int main(int argc, char ** argv)
             gsys->ProcessEvent(&event);
         }
         if (quited) break;
-        
+
         gsys->PrepareGUI();
 
         // Draw GUI and gather data
@@ -321,35 +307,46 @@ int main(int argc, char ** argv)
         // Draw
         auto index = rsys->StartFrame();
         auto context = rsys->GetFrameManager().GetGraphicsContext();
-        GraphicsCommandBuffer & cb = dynamic_cast<GraphicsCommandBuffer &>(context.GetCommandBuffer());
+        GraphicsCommandBuffer &cb = dynamic_cast<GraphicsCommandBuffer &>(context.GetCommandBuffer());
 
         cb.Begin();
-        context.UseImage(color, GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite, GraphicsContext::ImageAccessType::None);
-        context.UseImage(depth, GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite, GraphicsContext::ImageAccessType::None);
+        context.UseImage(
+            color,
+            GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite,
+            GraphicsContext::ImageAccessType::None
+        );
+        context.UseImage(
+            depth,
+            GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite,
+            GraphicsContext::ImageAccessType::None
+        );
         context.PrepareCommandBuffer();
-        vk::Extent2D extent {rsys->GetSwapchain().GetExtent()};
-        cb.BeginRendering({
-                color.GetImage(),
-                color.GetImageView(),
-                vk::AttachmentLoadOp::eClear,
-                vk::AttachmentStoreOp::eStore
-            }, depth_att, extent);
+        vk::Extent2D extent{rsys->GetSwapchain().GetExtent()};
+        cb.BeginRendering(
+            {color.GetImage(), color.GetImageView(), vk::AttachmentLoadOp::eClear, vk::AttachmentStoreOp::eStore},
+            depth_att,
+            extent
+        );
         rsys->DrawMeshes();
         cb.EndRendering();
 
-        context.UseImage(color, GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite, GraphicsContext::ImageAccessType::ColorAttachmentWrite);
+        context.UseImage(
+            color,
+            GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite,
+            GraphicsContext::ImageAccessType::ColorAttachmentWrite
+        );
         context.PrepareCommandBuffer();
-        gsys->DrawGUI({
-                color.GetImage(),
-                color.GetImageView(),
-                vk::AttachmentLoadOp::eLoad,
-                vk::AttachmentStoreOp::eStore
-            }, extent, cb);
+        gsys->DrawGUI(
+            {color.GetImage(), color.GetImageView(), vk::AttachmentLoadOp::eLoad, vk::AttachmentStoreOp::eStore},
+            extent,
+            cb
+        );
 
         cb.End();
         rsys->GetFrameManager().SubmitMainCommandBuffer();
         rsys->GetFrameManager().StageCopyComposition(color.GetImage());
-        // rsys->GetFrameManager().CopyToFrameBuffer(color.GetImage(), rsys->GetSwapchain().GetExtent(), {0, 0}, {100, 100});
+        // rsys->GetFrameManager().CopyToFrameBuffer(color.GetImage(), rsys->GetSwapchain().GetExtent(), {0, 0}, {100,
+        // 100});
         rsys->GetFrameManager().CompositeToFramebufferAndPresent();
 
         SDL_Delay(5);
@@ -359,7 +356,13 @@ int main(int argc, char ** argv)
     uint64_t end_timer = SDL_GetPerformanceCounter();
     uint64_t duration = end_timer - start_timer;
     double duration_time = 1.0 * duration / SDL_GetPerformanceFrequency();
-    SDL_LogInfo(0, "Took %lf seconds for %llu frames (avg. %lf fps).", duration_time, frame_count, frame_count * 1.0 / duration_time);
+    SDL_LogInfo(
+        0,
+        "Took %lf seconds for %llu frames (avg. %lf fps).",
+        duration_time,
+        frame_count,
+        frame_count * 1.0 / duration_time
+    );
     rsys->WaitForIdle();
     rsys->ClearComponent();
 

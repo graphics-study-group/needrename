@@ -2,20 +2,16 @@
 #include <SDL3/SDL_main.h>
 #include <array>
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
     SDL_SetLogPriorities(SDL_LOG_PRIORITY_VERBOSE);
 
-    if (SDL_Init(SDL_INIT_VIDEO) < 0)
-    {
+    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         SDL_Log("SDL_Init failed: %s", SDL_GetError());
         return -1;
     }
 
-    SDL_Window *window =
-        SDL_CreateWindow("Hello, SDL3!", 800, 600, SDL_WINDOW_BORDERLESS);
-    if (!window)
-    {
+    SDL_Window *window = SDL_CreateWindow("Hello, SDL3!", 800, 600, SDL_WINDOW_BORDERLESS);
+    if (!window) {
         SDL_Log("Could not create a window: %s", SDL_GetError());
         return -1;
     }
@@ -24,13 +20,12 @@ int main(int argc, char *argv[])
 
     int count = SDL_GetNumRenderDrivers();
     for (int i = 0; i < count; ++i) {
-        const char* name = SDL_GetRenderDriver(i);
+        const char *name = SDL_GetRenderDriver(i);
         SDL_Log("Render driver[%d]: %s", i, name);
     }
 
     SDL_Renderer *renderer = SDL_CreateRenderer(window, "opengl");
-    if (!renderer)
-    {
+    if (!renderer) {
         SDL_Log("Create renderer failed: %s", SDL_GetError());
         return -1;
     }
@@ -44,19 +39,14 @@ int main(int argc, char *argv[])
     SDL_Event event{};
     bool keep_going = true;
 
-    while (keep_going)
-    {
-        while (SDL_PollEvent(&event))
-        {
-            switch (event.type)
-            {
-            case SDL_EVENT_QUIT:
-            {
+    while (keep_going) {
+        while (SDL_PollEvent(&event)) {
+            switch (event.type) {
+            case SDL_EVENT_QUIT: {
                 keep_going = false;
                 break;
             }
-            case SDL_EVENT_KEY_DOWN:
-            {
+            case SDL_EVENT_KEY_DOWN: {
                 keep_going = keep_going && (event.key.key != SDLK_ESCAPE);
                 break;
             }

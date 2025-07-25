@@ -13,8 +13,7 @@ namespace Engine {
         return cb;
     };
 
-    void ICommandBuffer::Begin(const std::string & name) const
-    {
+    void ICommandBuffer::Begin(const std::string &name) const {
         cb.begin(vk::CommandBufferBeginInfo{});
         DEBUG_CMD_START_LABEL(cb, name.c_str());
     }
@@ -27,4 +26,4 @@ namespace Engine {
     void ICommandBuffer::Reset() noexcept {
         cb.reset();
     }
-}
+} // namespace Engine

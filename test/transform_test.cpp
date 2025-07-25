@@ -1,5 +1,5 @@
-#include <iostream>
 #include <cassert>
+#include <iostream>
 #include <random>
 
 #include "Core/Math/Transform.h"
@@ -7,15 +7,15 @@
 using namespace Engine;
 
 std::mt19937 gen{};
-std::uniform_real_distribution <float> translation_dist {-100.0, 100.0};
-std::uniform_real_distribution <float> rotation_dist {-360.0, 360.0};
-std::uniform_real_distribution <float> scale_dist {0.1, 10.0};
+std::uniform_real_distribution<float> translation_dist{-100.0, 100.0};
+std::uniform_real_distribution<float> rotation_dist{-360.0, 360.0};
+std::uniform_real_distribution<float> scale_dist{0.1, 10.0};
 
 float QuaternionDistance(glm::quat q1, glm::quat q2) {
     return 1 - glm::dot(q1, q2) * glm::dot(q1, q2);
 }
 
-Transform RandomTransform () {
+Transform RandomTransform() {
     glm::vec3 translation{translation_dist(gen), translation_dist(gen), translation_dist(gen)};
     glm::vec3 rotation{rotation_dist(gen), rotation_dist(gen), rotation_dist(gen)};
     glm::vec3 scale{scale_dist(gen), scale_dist(gen), scale_dist(gen)};
@@ -38,7 +38,7 @@ void test_composition() {
         Transform t3 = t2 * t1;
         m3 = t3.GetTransformMatrix();
 
-        glm::vec4 origin {0.0, 0.0, 0.0, 1.0};
+        glm::vec4 origin{0.0, 0.0, 0.0, 1.0};
         glm::vec4 v1 = m2 * (m1 * origin);
         glm::vec4 v2 = m3 * origin;
 
@@ -84,8 +84,7 @@ void test_rotation() {
     puts("Rotation test passed.");
 }
 
-int main(int argc, char * argv[])
-{
+int main(int argc, char *argv[]) {
     test_composition();
     test_decompose();
     test_rotation();

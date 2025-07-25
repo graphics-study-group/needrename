@@ -1,18 +1,15 @@
 #include "Buffer.h"
 #include "Render/RenderSystem.h"
 
-namespace Engine
-{
+namespace Engine {
     Buffer::Buffer(std::shared_ptr<RenderSystem> system) : m_system(*system) {
     }
 
-    Buffer::Buffer(RenderSystem &system) : m_system(system)
-    {
+    Buffer::Buffer(RenderSystem &system) : m_system(system) {
     }
 
-    void Buffer::Create(BufferType type, size_t size, const std::string &name)
-    {
-        auto & allocator_state = m_system.GetAllocatorState();
+    void Buffer::Create(BufferType type, size_t size, const std::string &name) {
+        auto &allocator_state = m_system.GetAllocatorState();
         m_allocated_memory = std::make_unique<AllocatedMemory>(allocator_state.AllocateBuffer(type, size, name));
         m_size = size;
     }
@@ -25,7 +22,7 @@ namespace Engine
         return m_size;
     }
 
-    std::byte* Buffer::Map() const {
+    std::byte *Buffer::Map() const {
         return m_allocated_memory->MapMemory();
     }
 
@@ -41,4 +38,3 @@ namespace Engine
         m_allocated_memory->UnmapMemory();
     }
 } // namespace Engine
-

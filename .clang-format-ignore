@@ -1,0 +1,8 @@
+# Vendored dependencies
+third_party/*
+
+# Build artifacts
+[Bb]uild/*
+
+# Generated files by reflection
+engine/__generated__/*

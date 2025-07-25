@@ -1,0 +1,29 @@
+name: cpp-linter
+
+on:
+  pull_request:
+    branches: [main, master, develop]
+    paths: ['**.c', '**.cpp', '**.h', '**.hpp', '**.cxx', '**.hxx', '**.cc', '**.hh', '**CMakeLists.txt', 'meson.build', '**.cmake']
+
+jobs:
+  cpp-linter:
+    runs-on: ubuntu-latest
+    permissions: 
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cpp-linter/cpp-linter-action@main
+        id: linter
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          style: file
+          tidy-checks: '-*'
+          thread-comments: ${{ github.event_name == 'pull_request' && 'update' }}
+          # Many directories do not have cpp files nonetheless.
+          ignore: '.github | assets | builtin_assets | reflection_parser | shader | third_party'
+
+      - name: Failed
+        if: steps.linter.outputs.checks-failed != 0
+        run: exit 1
