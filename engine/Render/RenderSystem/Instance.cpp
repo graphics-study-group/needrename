@@ -2,23 +2,17 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_vulkan.h>
 
-namespace Engine::RenderSystemState
-{
-    void Instance::Create(const char* instance_name, const char* engine_name) {
+namespace Engine::RenderSystemState {
+    void Instance::Create(const char *instance_name, const char *engine_name) {
         vk::ApplicationInfo appInfo{
-            instance_name,
-            VK_MAKE_VERSION(0, 1, 0),
-            engine_name,
-            VK_MAKE_VERSION(0, 1, 0),
-            VK_API_VERSION_1_3
-        };
-        
+            instance_name, VK_MAKE_VERSION(0, 1, 0), engine_name, VK_MAKE_VERSION(0, 1, 0), VK_API_VERSION_1_3};
+
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating Vulkan instance.");
-        const char * const * pExt;
+        const char *const *pExt;
         uint32_t extCount;
         pExt = SDL_Vulkan_GetInstanceExtensions(&extCount);
 
-        std::vector <const char *> extensions;
+        std::vector<const char *> extensions;
         for (uint32_t i = 0; i < extCount; i++) {
             extensions.push_back(pExt[i]);
         }
@@ -31,17 +25,13 @@ namespace Engine::RenderSystemState
             SDL_LogVerbose(SDL_LOG_CATEGORY_RENDER, "\t%s", pExt[i]);
         }
 
-        vk::InstanceCreateInfo instInfo {
-            vk::InstanceCreateFlags{}, 
-            &appInfo,
-            {},
-            extensions
-        };
+        vk::InstanceCreateInfo instInfo{vk::InstanceCreateFlags{}, &appInfo, {}, extensions};
 #ifndef NDEBUG
         if (CheckValidationLayer()) {
             instInfo.enabledLayerCount = 1;
             instInfo.ppEnabledLayerNames = &(VALIDATION_LAYER_NAME);
-        } else {
+        }
+        else {
             instInfo.enabledLayerCount = 0;
         }
 #else
@@ -52,12 +42,10 @@ namespace Engine::RenderSystemState
 
     bool Instance::CheckValidationLayer() {
         auto layers = vk::enumerateInstanceLayerProperties();
-        for (const auto & layer : layers) {
-            if(strcmp(layer.layerName, VALIDATION_LAYER_NAME) == 0)
-                return true;
+        for (const auto &layer : layers) {
+            if (strcmp(layer.layerName, VALIDATION_LAYER_NAME) == 0) return true;
         }
         SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Validation layer %s not available.", VALIDATION_LAYER_NAME);
         return false;
     }
-} // namespace Engine::RenderSystem
-
+} // namespace Engine::RenderSystemState

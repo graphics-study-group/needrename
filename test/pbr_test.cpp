@@ -1,50 +1,44 @@
 #include <SDL3/SDL.h>
 #include <cassert>
-#include <fstream>
 #include <chrono>
 #include <filesystem>
-#include <tiny_obj_loader.h>
+#include <fstream>
 #include <stb_image.h>
+#include <tiny_obj_loader.h>
 
-#include "MainClass.h"
-#include "Functional/SDLWindow.h"
-#include <Framework/object/GameObject.h>
-#include <Framework/world/WorldSystem.h>
+#include "Asset/Material/MaterialAsset.h"
 #include "Framework/component/RenderComponent/MeshComponent.h"
-#include "Render/FullRenderSystem.h"
+#include "Functional/SDLWindow.h"
 #include "GUI/GUISystem.h"
+#include "MainClass.h"
+#include "Render/FullRenderSystem.h"
 #include <Asset/AssetManager/AssetManager.h>
 #include <Asset/AssetRef.h>
-#include "Asset/Material/MaterialAsset.h"
-#include <Asset/Mesh/MeshAsset.h>
 #include <Asset/Loader/ObjLoader.h>
+#include <Asset/Mesh/MeshAsset.h>
+#include <Framework/object/GameObject.h>
+#include <Framework/world/WorldSystem.h>
 
 #include "cmake_config.h"
 
 using namespace Engine;
 namespace sch = std::chrono;
 
-std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate()
-{
+std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate() {
     auto test_asset = std::make_shared<MaterialTemplateAsset>();
     auto vs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/pbr_base.vert.spv.asset");
-    auto fs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/lambertian_cook_torrance.frag.spv.asset");
+    auto fs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef(
+        "~/shaders/lambertian_cook_torrance.frag.spv.asset");
     assert(vs_ref && fs_ref);
     MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(vs_ref);
     MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(fs_ref);
-    
+
     test_asset->name = "LambertianCookTorrancePBR";
 
     MaterialTemplateSinglePassProperties mtspp{};
-    mtspp.attachments.color = {
-        ImageUtils::ImageFormat::R11G11B10UFloat
-    };
-    mtspp.attachments.color_ops = {
-        AttachmentUtils::AttachmentOp{}
-    };
-    mtspp.attachments.color_blending = {
-        PipelineProperties::ColorBlendingProperties{}
-    };
+    mtspp.attachments.color = {ImageUtils::ImageFormat::R11G11B10UFloat};
+    mtspp.attachments.color_ops = {AttachmentUtils::AttachmentOp{}};
+    mtspp.attachments.color_blending = {PipelineProperties::ColorBlendingProperties{}};
     mtspp.attachments.depth = ImageUtils::ImageFormat::D32SFLOAT;
     mtspp.shaders.shaders = std::vector<std::shared_ptr<AssetRef>>{vs_ref, fs_ref};
 
@@ -61,9 +55,7 @@ class MeshComponentFromFile : public MeshComponent {
         float roughness;
     };
 
-    UniformData m_uniform_data {
-        1.0, 1.0
-    };
+    UniformData m_uniform_data{1.0, 1.0};
 
     void LoadMesh(std::filesystem::path mesh) {
         tinyobj::ObjReaderConfig reader_config{};
@@ -102,12 +94,11 @@ class MeshComponentFromFile : public MeshComponent {
             for (size_t fc = 0; fc < shape_vertices_size; fc++) {
                 auto &material_id = shape.mesh.material_ids[fc];
                 if (material_id_map.find(material_id) == material_id_map.end()) {
-                    material_id_map[material_id] = tinyobj::shape_t{
-                        .name = shape.name + "_" + std::to_string(shape_id++),
-                        .mesh = tinyobj::mesh_t{},
-                        .lines = tinyobj::lines_t{},
-                        .points = tinyobj::points_t{}
-                    };
+                    material_id_map[material_id] =
+                        tinyobj::shape_t{.name = shape.name + "_" + std::to_string(shape_id++),
+                                         .mesh = tinyobj::mesh_t{},
+                                         .lines = tinyobj::lines_t{},
+                                         .points = tinyobj::points_t{}};
                 }
                 auto &new_shape = material_id_map[material_id];
                 unsigned int face_vertex_count = shape.mesh.num_face_vertices[fc];
@@ -120,43 +111,39 @@ class MeshComponentFromFile : public MeshComponent {
                 }
             }
 
-            for (const auto & [_, new_shape] : material_id_map) {
+            for (const auto &[_, new_shape] : material_id_map) {
                 shapes.push_back(new_shape);
                 materials.push_back(tinyobj::material_t{});
-                std::fill(
-                    shapes.back().mesh.material_ids.begin(),
-                    shapes.back().mesh.material_ids.end(),
-                    materials.size() - 1
-                );
+                std::fill(shapes.back().mesh.material_ids.begin(),
+                          shapes.back().mesh.material_ids.end(),
+                          materials.size() - 1);
             }
         }
 
-        this->m_mesh_asset = std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(std::make_shared<MeshAsset>()));
+        this->m_mesh_asset =
+            std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(std::make_shared<MeshAsset>()));
         ObjLoader loader;
         loader.LoadMeshAssetFromTinyObj(*(this->m_mesh_asset->as<MeshAsset>()), attrib, shapes);
 
         assert(m_mesh_asset && m_mesh_asset->IsValid());
         m_submeshes.clear();
         size_t submesh_count = m_mesh_asset->as<MeshAsset>()->GetSubmeshCount();
-        for (size_t i = 0; i < submesh_count; i++)
-        {
-            m_submeshes.push_back(std::make_shared<HomogeneousMesh>(
-                m_system, m_mesh_asset, i));
+        for (size_t i = 0; i < submesh_count; i++) {
+            m_submeshes.push_back(std::make_shared<HomogeneousMesh>(m_system, m_mesh_asset, i));
         }
     }
 
-public: 
-    MeshComponentFromFile(
-        std::filesystem::path mesh_file_name, 
-        std::shared_ptr<MaterialTemplate> material_template,
-        std::shared_ptr<const SampledTexture> albedo
-    ) : MeshComponent(std::weak_ptr<GameObject>()), transform() {
+public:
+    MeshComponentFromFile(std::filesystem::path mesh_file_name,
+                          std::shared_ptr<MaterialTemplate> material_template,
+                          std::shared_ptr<const SampledTexture> albedo) :
+        MeshComponent(std::weak_ptr<GameObject>()), transform() {
         LoadMesh(mesh_file_name);
 
         auto system = m_system.lock();
-        auto & helper = system->GetFrameManager().GetSubmissionHelper();
+        auto &helper = system->GetFrameManager().GetSubmissionHelper();
 
-        for (auto & submesh : m_submeshes) {
+        for (auto &submesh : m_submeshes) {
             submesh->Prepare();
             helper.EnqueueVertexBufferSubmission(*submesh);
         }
@@ -180,18 +167,15 @@ public:
     }
 
     void UpdateUniformData(float metalness, float roughness) {
-        uint8_t identity = 
-            (fabs(metalness - m_uniform_data.metalness) < 1e-3) +
-            (fabs(roughness - m_uniform_data.roughness) < 1e-3);
-        if (identity == 2)  return;
-        m_uniform_data = {
-            .metalness = metalness, .roughness = roughness
-        };
+        uint8_t identity =
+            (fabs(metalness - m_uniform_data.metalness) < 1e-3) + (fabs(roughness - m_uniform_data.roughness) < 1e-3);
+        if (identity == 2) return;
+        m_uniform_data = {.metalness = metalness, .roughness = roughness};
 
         auto id_metalness = m_materials[0]->GetTemplate().GetVariableIndex("metalness", 0).value();
         auto id_roughness = m_materials[0]->GetTemplate().GetVariableIndex("roughness", 0).value();
         assert(id_metalness.second == true && id_roughness.second == true);
-        for (auto & material : m_materials) {
+        for (auto &material : m_materials) {
             material->WriteUBOUniform(0, id_metalness.first, metalness);
             material->WriteUBOUniform(0, id_roughness.first, roughness);
         }
@@ -201,15 +185,11 @@ public:
 struct {
     float zenith, azimuth;
     float metalness, roughness;
-} g_SceneData {M_PI_2, M_PI_2, 0.5f, 0.5f};
+} g_SceneData{M_PI_2, M_PI_2, 0.5f, 0.5f};
 
 glm::vec3 GetCartesian(float zenith, float azimuth) {
     static constexpr float RADIUS = 2.0f;
-    return glm::vec3{
-        RADIUS * sin(zenith) * cos(azimuth),
-        RADIUS * sin(zenith) * sin(azimuth),
-        RADIUS * cos(zenith)
-    };
+    return glm::vec3{RADIUS * sin(zenith) * cos(azimuth), RADIUS * sin(zenith) * sin(azimuth), RADIUS * cos(zenith)};
 }
 
 void PrepareGui() {
@@ -219,7 +199,7 @@ void PrepareGui() {
     ImGui::Begin("Configuration", nullptr, flags);
     ImGui::SliderAngle("Zenith", &g_SceneData.zenith, -180.0f, 180.0f);
     ImGui::SliderAngle("Azimuth", &g_SceneData.azimuth, 0.0f, 360.0f);
-    
+
     glm::vec3 light_source = GetCartesian(g_SceneData.zenith, g_SceneData.azimuth);
     ImGui::Text("Coordinate: (%.3f, %.3f, %.3f).", light_source.x, light_source.y, light_source.z);
 
@@ -230,23 +210,22 @@ void PrepareGui() {
     ImGui::End();
 }
 
-void SubmitSceneData(std::shared_ptr <RenderSystem> rsys, uint32_t id) {
-    ConstantData::PerSceneStruct scene {
+void SubmitSceneData(std::shared_ptr<RenderSystem> rsys, uint32_t id) {
+    ConstantData::PerSceneStruct scene{
         1,
         {glm::vec4{GetCartesian(g_SceneData.zenith, g_SceneData.azimuth), 0.0f}},
         {glm::vec4{2.0, 2.0, 2.0, 0.0}},
     };
     auto ptr = rsys->GetGlobalConstantDescriptorPool().GetPerSceneConstantMemory(id);
     memcpy(ptr, &scene, sizeof scene);
-    rsys->GetGlobalConstantDescriptorPool().FlushPerSceneConstantMemory(id);    
+    rsys->GetGlobalConstantDescriptorPool().FlushPerSceneConstantMemory(id);
 }
 
-void SubmitMaterialData(std::shared_ptr <MeshComponentFromFile> mesh) {
+void SubmitMaterialData(std::shared_ptr<MeshComponentFromFile> mesh) {
     mesh->UpdateUniformData(g_SceneData.metalness, g_SceneData.roughness);
 }
 
-int main(int argc, char ** argv)
-{
+int main(int argc, char **argv) {
     SDL_Init(SDL_INIT_VIDEO);
 
     int64_t max_frame_count = std::numeric_limits<int64_t>::max();
@@ -277,19 +256,17 @@ int main(int argc, char ** argv)
     std::shared_ptr hdr_color{std::make_shared<Texture>(*rsys)};
     std::shared_ptr color{std::make_shared<Texture>(*rsys)};
     std::shared_ptr depth{std::make_shared<Texture>(*rsys)};
-    Engine::Texture::TextureDesc desc {
-        .dimensions = 2,
-        .width = 1920,
-        .height = 1080,
-        .depth = 1,
-        .format = Engine::ImageUtils::ImageFormat::R11G11B10UFloat,
-        .type = Engine::ImageUtils::ImageType::ColorGeneral,
-        .mipmap_levels = 1,
-        .array_layers = 1,
-        .is_cube_map = false
-    };
+    Engine::Texture::TextureDesc desc{.dimensions = 2,
+                                      .width = 1920,
+                                      .height = 1080,
+                                      .depth = 1,
+                                      .format = Engine::ImageUtils::ImageFormat::R11G11B10UFloat,
+                                      .type = Engine::ImageUtils::ImageType::ColorGeneral,
+                                      .mipmap_levels = 1,
+                                      .array_layers = 1,
+                                      .is_cube_map = false};
     hdr_color->CreateTexture(desc, "HDR Color Attachment");
-    
+
     desc.format = Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm;
     color->CreateTexture(desc, "Color Attachment");
 
@@ -299,17 +276,15 @@ int main(int argc, char ** argv)
     depth->CreateTexture(desc, "Depth Attachment");
 
     auto red_texture = std::make_shared<SampledTexture>(*rsys);
-    desc = {
-        .dimensions = 2,
-        .width = 4,
-        .height = 4,
-        .depth = 1,
-        .format = Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB,
-        .type = Engine::ImageUtils::ImageType::TextureImage,
-        .mipmap_levels = 1,
-        .array_layers = 1,
-        .is_cube_map = false
-    };
+    desc = {.dimensions = 2,
+            .width = 4,
+            .height = 4,
+            .depth = 1,
+            .format = Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB,
+            .type = Engine::ImageUtils::ImageType::TextureImage,
+            .mipmap_levels = 1,
+            .array_layers = 1,
+            .is_cube_map = false};
     red_texture->CreateTextureAndSampler(desc, {}, "Sampled Albedo");
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*red_texture, {1.0, 0.0, 0.0, 1.0});
 
@@ -329,14 +304,10 @@ int main(int argc, char ** argv)
     MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(cs_ref);
     auto bloom_compute_stage = std::make_shared<ComputeStage>(*rsys);
     bloom_compute_stage->InstantiateFromRef(cs_ref);
-    bloom_compute_stage->SetDescVariable(
-        bloom_compute_stage->GetVariableIndex("inputImage").value().first,
-        std::const_pointer_cast<const Texture>(hdr_color)
-    );
-    bloom_compute_stage->SetDescVariable(
-        bloom_compute_stage->GetVariableIndex("outputImage").value().first,
-        std::const_pointer_cast<const Texture>(color)
-    );
+    bloom_compute_stage->SetDescVariable(bloom_compute_stage->GetVariableIndex("inputImage").value().first,
+                                         std::const_pointer_cast<const Texture>(hdr_color));
+    bloom_compute_stage->SetDescVariable(bloom_compute_stage->GetVariableIndex("outputImage").value().first,
+                                         std::const_pointer_cast<const Texture>(color));
 
     // Setup mesh
     std::filesystem::path mesh_path{std::string(ENGINE_ASSETS_DIR) + "/sphere/sphere.obj"};
@@ -353,11 +324,11 @@ int main(int argc, char ** argv)
 
     uint64_t frame_count = 0;
     uint64_t start_timer = SDL_GetPerformanceCounter();
-    while(++frame_count) {
+    while (++frame_count) {
         bool quited = false;
         SDL_Event event;
-        while(SDL_PollEvent(&event) != 0) {
-            switch(event.type) {
+        while (SDL_PollEvent(&event) != 0) {
+            switch (event.type) {
             case SDL_EVENT_QUIT:
                 quited = true;
                 break;
@@ -365,7 +336,7 @@ int main(int argc, char ** argv)
             gsys->ProcessEvent(&event);
         }
         if (quited) break;
-        
+
         gsys->PrepareGUI();
 
         // Draw GUI and gather data
@@ -378,54 +349,48 @@ int main(int argc, char ** argv)
         // Draw
         auto index = rsys->StartFrame();
         auto context = rsys->GetFrameManager().GetGraphicsContext();
-        GraphicsCommandBuffer & cb = dynamic_cast<GraphicsCommandBuffer &>(context.GetCommandBuffer());
+        GraphicsCommandBuffer &cb = dynamic_cast<GraphicsCommandBuffer &>(context.GetCommandBuffer());
 
         cb.Begin();
-        context.UseImage(*hdr_color, GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite, GraphicsContext::ImageAccessType::None);
-        context.UseImage(*depth, GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite, GraphicsContext::ImageAccessType::None);
+        context.UseImage(*hdr_color,
+                         GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite,
+                         GraphicsContext::ImageAccessType::None);
+        context.UseImage(*depth,
+                         GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite,
+                         GraphicsContext::ImageAccessType::None);
         context.PrepareCommandBuffer();
-        vk::Extent2D extent {rsys->GetSwapchain().GetExtent()};
+        vk::Extent2D extent{rsys->GetSwapchain().GetExtent()};
         cb.BeginRendering(color_att, depth_att, extent);
         rsys->DrawMeshes();
         cb.EndRendering();
 
         auto cctx = rsys->GetFrameManager().GetComputeContext();
         auto ccb = dynamic_cast<ComputeCommandBuffer &>(cctx.GetCommandBuffer());
+        cctx.UseImage(*hdr_color,
+                      ComputeContext::ImageComputeAccessType::ShaderReadRandomWrite,
+                      ComputeContext::ImageAccessType::ColorAttachmentWrite);
         cctx.UseImage(
-            *hdr_color, 
-            ComputeContext::ImageComputeAccessType::ShaderReadRandomWrite,
-            ComputeContext::ImageAccessType::ColorAttachmentWrite
-        );
-        cctx.UseImage(
-            *color,
-            ComputeContext::ImageComputeAccessType::ShaderRandomWrite,
-            ComputeContext::ImageAccessType::None
-        );
+            *color, ComputeContext::ImageComputeAccessType::ShaderRandomWrite, ComputeContext::ImageAccessType::None);
         cctx.PrepareCommandBuffer();
         ccb.BindComputeStage(*bloom_compute_stage);
-        ccb.DispatchCompute(color->GetTextureDescription().width / 16 + 1, color->GetTextureDescription().height / 16 + 1, 1);
+        ccb.DispatchCompute(
+            color->GetTextureDescription().width / 16 + 1, color->GetTextureDescription().height / 16 + 1, 1);
 
-        context.UseImage(
-            *color, 
-            GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite, 
-            GraphicsContext::ImageAccessType::ShaderRandomWrite
-        );
+        context.UseImage(*color,
+                         GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite,
+                         GraphicsContext::ImageAccessType::ShaderRandomWrite);
         context.PrepareCommandBuffer();
         gsys->DrawGUI(
             {color->GetImage(), color->GetImageView(), vk::AttachmentLoadOp::eLoad, vk::AttachmentStoreOp::eStore},
-            extent, cb
-        );
+            extent,
+            cb);
         cb.End();
 
         rsys->GetFrameManager().SubmitMainCommandBuffer();
         rsys->GetFrameManager().StageBlitComposition(
-            color->GetImage(), 
-            vk::Extent2D{
-                color->GetTextureDescription().width,
-                color->GetTextureDescription().height
-            }, 
-            rsys->GetSwapchain().GetExtent()
-        );
+            color->GetImage(),
+            vk::Extent2D{color->GetTextureDescription().width, color->GetTextureDescription().height},
+            rsys->GetSwapchain().GetExtent());
         rsys->CompleteFrame();
 
         // SDL_Delay(5);
@@ -435,7 +400,11 @@ int main(int argc, char ** argv)
     uint64_t end_timer = SDL_GetPerformanceCounter();
     uint64_t duration = end_timer - start_timer;
     double duration_time = 1.0 * duration / SDL_GetPerformanceFrequency();
-    SDL_LogInfo(0, "Took %lf seconds for %llu frames (avg. %lf fps).", duration_time, frame_count, frame_count * 1.0 / duration_time);
+    SDL_LogInfo(0,
+                "Took %lf seconds for %llu frames (avg. %lf fps).",
+                duration_time,
+                frame_count,
+                frame_count * 1.0 / duration_time);
     rsys->WaitForIdle();
     rsys->ClearComponent();
 

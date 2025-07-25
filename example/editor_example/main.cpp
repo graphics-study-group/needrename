@@ -1,37 +1,36 @@
 #include <SDL3/SDL.h>
 #include <cassert>
-#include <iostream>
 #include <fstream>
+#include <iostream>
 
-#include <cmake_config.h>
-#include <MainClass.h>
+#include <Asset/AssetManager/AssetManager.h>
 #include <Core/Delegate/FuncDelegate.h>
+#include <Framework/world/WorldSystem.h>
+#include <Functional/EventQueue.h>
 #include <Functional/SDLWindow.h>
 #include <Functional/Time.h>
-#include <Functional/EventQueue.h>
-#include <Render/RenderSystem.h>
+#include <GUI/GUISystem.h>
+#include <Input/Input.h>
+#include <MainClass.h>
 #include <Render/AttachmentUtils.h>
 #include <Render/Memory/Buffer.h>
-#include <Render/Memory/Texture.h>
 #include <Render/Memory/SampledTexture.h>
-#include <Render/Pipeline/CommandBuffer/GraphicsContext.h>
+#include <Render/Memory/Texture.h>
 #include <Render/Pipeline/CommandBuffer.h>
-#include <Render/RenderSystem/Swapchain.h>
+#include <Render/Pipeline/CommandBuffer/GraphicsContext.h>
+#include <Render/RenderSystem.h>
 #include <Render/RenderSystem/FrameManager.h>
-#include <Framework/world/WorldSystem.h>
-#include <Asset/AssetManager/AssetManager.h>
-#include <Input/Input.h>
-#include <GUI/GUISystem.h>
+#include <Render/RenderSystem/Swapchain.h>
 #include <SDL3/SDL.h>
+#include <cmake_config.h>
 
-#include <Editor/Window/MainWindow.h>
 #include <Editor/Widget/GameWidget.h>
 #include <Editor/Widget/SceneWidget.h>
+#include <Editor/Window/MainWindow.h>
 
 using namespace Engine;
 
-void Start()
-{
+void Start() {
     auto cmc = MainClass::GetInstance();
     auto world = cmc->GetWorldSystem();
     auto event_queue = cmc->GetEventQueue();
@@ -39,8 +38,7 @@ void Start()
     world->AddInitEvent();
 }
 
-int main()
-{
+int main() {
     std::filesystem::path project_path(ENGINE_PROJECTS_DIR);
     project_path = project_path / "test_project";
 
@@ -77,33 +75,26 @@ int main()
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Entering main loop");
 
     bool onQuit = false;
-    while (!onQuit)
-    {
+    while (!onQuit) {
         cmc->GetTimeSystem()->NextFrame();
 
         asset_manager->LoadAssetsInQueue();
 
         SDL_Event event;
-        while (SDL_PollEvent(&event))
-        {
-            if (event.type == SDL_EVENT_QUIT)
-            {
+        while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_EVENT_QUIT) {
                 onQuit = true;
                 break;
             }
             gui->ProcessEvent(&event);
-            if (game_widget->m_accept_input)
-                cmc->GetInputSystem()->ProcessEvent(&event);
+            if (game_widget->m_accept_input) cmc->GetInputSystem()->ProcessEvent(&event);
         }
 
-        if (game_widget->m_accept_input)
-            cmc->GetInputSystem()->Update();
-        else
-            cmc->GetInputSystem()->ResetAxes();
+        if (game_widget->m_accept_input) cmc->GetInputSystem()->Update();
+        else cmc->GetInputSystem()->ResetAxes();
         world->LoadGameObjectInQueue();
 
-        if (main_window.m_is_playing)
-        {
+        if (main_window.m_is_playing) {
             world->AddTickEvent();
             event_queue->ProcessEvents();
         }
@@ -116,10 +107,18 @@ int main()
         scene_widget->PreRender();
         game_widget->PreRender();
 
-        context.UseImage(*std::static_pointer_cast<Engine::Texture>(scene_widget->m_color_texture), GraphicsContext::ImageGraphicsAccessType::ShaderRead, GraphicsContext::ImageAccessType::ColorAttachmentWrite);
-        context.UseImage(*std::static_pointer_cast<Engine::Texture>(game_widget->m_color_texture), GraphicsContext::ImageGraphicsAccessType::ShaderRead, GraphicsContext::ImageAccessType::ColorAttachmentWrite);
-        context.UseImage(window->GetColorTexture(), GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite, GraphicsContext::ImageAccessType::None);
-        context.UseImage(window->GetDepthTexture(), GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite, GraphicsContext::ImageAccessType::None);
+        context.UseImage(*std::static_pointer_cast<Engine::Texture>(scene_widget->m_color_texture),
+                         GraphicsContext::ImageGraphicsAccessType::ShaderRead,
+                         GraphicsContext::ImageAccessType::ColorAttachmentWrite);
+        context.UseImage(*std::static_pointer_cast<Engine::Texture>(game_widget->m_color_texture),
+                         GraphicsContext::ImageGraphicsAccessType::ShaderRead,
+                         GraphicsContext::ImageAccessType::ColorAttachmentWrite);
+        context.UseImage(window->GetColorTexture(),
+                         GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite,
+                         GraphicsContext::ImageAccessType::None);
+        context.UseImage(window->GetDepthTexture(),
+                         GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite,
+                         GraphicsContext::ImageAccessType::None);
         context.PrepareCommandBuffer();
         gui->PrepareGUI();
         main_window.Render();
@@ -127,11 +126,13 @@ int main()
                       window->GetColorTexture().GetImageView(),
                       vk::AttachmentLoadOp::eLoad,
                       vk::AttachmentStoreOp::eStore},
-                     window->GetExtent(), cb);
+                     window->GetExtent(),
+                     cb);
 
         cb.End();
         rsys->GetFrameManager().SubmitMainCommandBuffer();
-        rsys->GetFrameManager().StageBlitComposition(window->GetColorTexture().GetImage(), window->GetExtent(), window->GetExtent());
+        rsys->GetFrameManager().StageBlitComposition(
+            window->GetColorTexture().GetImage(), window->GetExtent(), window->GetExtent());
         rsys->GetFrameManager().CompositeToFramebufferAndPresent();
     }
     rsys->WaitForIdle();

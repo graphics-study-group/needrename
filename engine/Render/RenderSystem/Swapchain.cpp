@@ -2,37 +2,39 @@
 #include "Render/RenderSystem/PhysicalDevice.h"
 #include <SDL3/SDL.h>
 
-namespace Engine::RenderSystemState{
-    std::tuple<vk::Extent2D, vk::SurfaceFormatKHR, vk::PresentModeKHR> 
-    Swapchain::SelectSwapchainConfig(const SwapchainSupport& support, vk::Extent2D expected_extent) {
+namespace Engine::RenderSystemState {
+    std::tuple<vk::Extent2D, vk::SurfaceFormatKHR, vk::PresentModeKHR> Swapchain::SelectSwapchainConfig(
+        const SwapchainSupport &support, vk::Extent2D expected_extent) {
         assert(!support.formats.empty());
         assert(!support.modes.empty());
         // Select surface format
         vk::SurfaceFormatKHR pickedFormat{};
-        for (const auto & format : support.formats) {
+        for (const auto &format : support.formats) {
             if (format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear) {
                 // Select R8G8B8A8 SRGB first
-                 if (format.format == vk::Format::eR8G8B8A8Srgb) {
+                if (format.format == vk::Format::eR8G8B8A8Srgb) {
                     pickedFormat = format;
-                // Select B8G8R8A8 SRBG as backup
-                } else if (format.format == vk::Format::eB8G8R8A8Srgb) {
+                    // Select B8G8R8A8 SRBG as backup
+                }
+                else if (format.format == vk::Format::eB8G8R8A8Srgb) {
                     if (pickedFormat.format != vk::Format::eR8G8B8A8Srgb) {
                         pickedFormat = format;
                     }
                 }
             }
-            
         }
         if (pickedFormat.format == vk::Format::eUndefined) {
-            SDL_LogCritical(SDL_LOG_CATEGORY_RENDER, "This device support neither B8G8R8A8 nor R8G8B8A8 swapchain format.");
-        } else if (pickedFormat.format == vk::Format::eB8G8R8A8Srgb) {
-            SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, 
-                "This device does not support R8G8B8A8 swapchain format. Falling back to B8G8R8A8. Blue and red channels may appear swapped."
-            );
+            SDL_LogCritical(SDL_LOG_CATEGORY_RENDER,
+                            "This device support neither B8G8R8A8 nor R8G8B8A8 swapchain format.");
+        }
+        else if (pickedFormat.format == vk::Format::eB8G8R8A8Srgb) {
+            SDL_LogWarn(SDL_LOG_CATEGORY_RENDER,
+                        "This device does not support R8G8B8A8 swapchain format. Falling back to "
+                        "B8G8R8A8. Blue and red channels may appear swapped.");
         }
         // Select display mode
         vk::PresentModeKHR pickedMode = vk::PresentModeKHR::eFifo;
-        for (const auto & mode : support.modes) {
+        for (const auto &mode : support.modes) {
             if (mode == vk::PresentModeKHR::eMailbox) {
                 pickedMode = mode;
                 break;
@@ -46,49 +48,39 @@ namespace Engine::RenderSystemState{
         vk::Extent2D extent{};
         if (support.capabilities.currentExtent.height != std::numeric_limits<uint32_t>::max()) {
             extent = support.capabilities.currentExtent;
-        } else {
+        }
+        else {
             extent = expected_extent;
 
-            extent.width = std::clamp(extent.width, 
-                support.capabilities.minImageExtent.width,
-                support.capabilities.maxImageExtent.width);
-            extent.height = std::clamp(extent.height, 
-                support.capabilities.minImageExtent.height, 
-                support.capabilities.maxImageExtent.height);
+            extent.width = std::clamp(
+                extent.width, support.capabilities.minImageExtent.width, support.capabilities.maxImageExtent.width);
+            extent.height = std::clamp(
+                extent.height, support.capabilities.minImageExtent.height, support.capabilities.maxImageExtent.height);
 
             if (extent.width != expected_extent.width || extent.height != expected_extent.height) {
-                SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Swapchain extent clamped to (%u, %u).", extent.width, extent.height);
+                SDL_LogWarn(
+                    SDL_LOG_CATEGORY_RENDER, "Swapchain extent clamped to (%u, %u).", extent.width, extent.height);
             }
         }
         return std::make_tuple(extent, pickedFormat, pickedMode);
     }
 
     void Swapchain::RetrieveImageViews(vk::Device device) {
-        SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, 
-            "Retreiving image views for %llu swap chain images.", 
-            m_images.size()
-        );
+        SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Retreiving image views for %llu swap chain images.", m_images.size());
         m_image_views.clear();
         m_image_views.resize(m_images.size());
 
-        vk::ImageViewCreateInfo ivci{
-            vk::ImageViewCreateFlags{},
-            nullptr,
-            vk::ImageViewType::e2D,
-            vk::Format::eR8G8B8A8Srgb,
-            m_image_format.format == vk::Format::eR8G8B8A8Srgb ? 
-                vk::ComponentMapping{} :
-                vk::ComponentMapping{
-                    vk::ComponentSwizzle::eB,
-                    vk::ComponentSwizzle::eIdentity,
-                    vk::ComponentSwizzle::eR,
-                    vk::ComponentSwizzle::eIdentity
-                },
-            vk::ImageSubresourceRange{
-                vk::ImageAspectFlagBits::eColor,
-                0, 1, 0, 1
-            }
-        };
+        vk::ImageViewCreateInfo ivci{vk::ImageViewCreateFlags{},
+                                     nullptr,
+                                     vk::ImageViewType::e2D,
+                                     vk::Format::eR8G8B8A8Srgb,
+                                     m_image_format.format == vk::Format::eR8G8B8A8Srgb
+                                         ? vk::ComponentMapping{}
+                                         : vk::ComponentMapping{vk::ComponentSwizzle::eB,
+                                                                vk::ComponentSwizzle::eIdentity,
+                                                                vk::ComponentSwizzle::eR,
+                                                                vk::ComponentSwizzle::eIdentity},
+                                     vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}};
 
         for (size_t i = 0; i < m_images.size(); i++) {
             ivci.image = m_images[i];
@@ -96,19 +88,20 @@ namespace Engine::RenderSystemState{
         }
     }
 
-    void Swapchain::CreateSwapchain(const PhysicalDevice & physical_device, 
-        vk::Device logical_device, 
-        vk::SurfaceKHR surface, 
-        vk::Extent2D expected_extent
-    ) {
+    void Swapchain::CreateSwapchain(const PhysicalDevice &physical_device,
+                                    vk::Device logical_device,
+                                    vk::SurfaceKHR surface,
+                                    vk::Extent2D expected_extent) {
         const auto swapchain_support = physical_device.GetSwapchainSupport(surface);
         const auto [extent, format, mode] = SelectSwapchainConfig(swapchain_support, expected_extent);
 
         uint32_t image_count = swapchain_support.capabilities.minImageCount + 1;
-        if (swapchain_support.capabilities.maxImageCount > 0 && image_count > swapchain_support.capabilities.maxImageCount) {
-            SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, 
-                "Requested %u images in swap chain, but only %u are allowed.", 
-                image_count, swapchain_support.capabilities.maxImageCount);
+        if (swapchain_support.capabilities.maxImageCount > 0
+            && image_count > swapchain_support.capabilities.maxImageCount) {
+            SDL_LogWarn(SDL_LOG_CATEGORY_RENDER,
+                        "Requested %u images in swap chain, but only %u are allowed.",
+                        image_count,
+                        swapchain_support.capabilities.maxImageCount);
             image_count = swapchain_support.capabilities.maxImageCount;
         }
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating a swapchain with %u images.", image_count);
@@ -129,20 +122,22 @@ namespace Engine::RenderSystemState{
         if (m_swapchain) {
             SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Replacing old swap chain.");
             info.oldSwapchain = m_swapchain.get();
-        } else {
+        }
+        else {
             info.oldSwapchain = nullptr;
         }
 
         auto indices = physical_device.GetQueueFamilyIndices(surface);
-        std::vector <uint32_t> queues {indices.graphics.value(), indices.present.value()};
+        std::vector<uint32_t> queues{indices.graphics.value(), indices.present.value()};
         if (indices.graphics != indices.present) {
             info.imageSharingMode = vk::SharingMode::eConcurrent;
             info.queueFamilyIndexCount = 2;
             info.pQueueFamilyIndices = queues.data();
-        } else {
+        }
+        else {
             info.imageSharingMode = vk::SharingMode::eExclusive;
         }
-        
+
         m_swapchain = logical_device.createSwapchainKHRUnique(info);
         m_images = logical_device.getSwapchainImagesKHR(m_swapchain.get());
         m_image_format = format;
@@ -154,19 +149,22 @@ namespace Engine::RenderSystemState{
     vk::SwapchainKHR Swapchain::GetSwapchain() const {
         return m_swapchain.get();
     }
-    auto Swapchain::GetImages() const -> const decltype(m_images)& {
+    auto Swapchain::GetImages() const -> const decltype(m_images) & {
         return m_images;
     }
-    auto Swapchain::GetImageViews() const -> const decltype(m_image_views)& {
+    auto Swapchain::GetImageViews() const -> const decltype(m_image_views) & {
         return m_image_views;
     }
 
-    vk::SurfaceFormatKHR Swapchain::GetImageFormat() const { return m_image_format; }
-    vk::Extent2D Swapchain::GetExtent() const { return m_extent; }
+    vk::SurfaceFormatKHR Swapchain::GetImageFormat() const {
+        return m_image_format;
+    }
+    vk::Extent2D Swapchain::GetExtent() const {
+        return m_extent;
+    }
 
-    uint32_t Swapchain::GetFrameCount() const
-    {
+    uint32_t Swapchain::GetFrameCount() const {
         assert(m_images.size() == m_image_views.size());
         return m_images.size();
     }
-}
+} // namespace Engine::RenderSystemState

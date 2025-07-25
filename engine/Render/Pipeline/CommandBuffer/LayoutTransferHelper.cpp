@@ -2,8 +2,7 @@
 
 namespace Engine {
 
-    std::pair<vk::PipelineStageFlags2, vk::AccessFlags2> GetScope1(LayoutTransferHelper::TextureTransferType type)
-    {
+    std::pair<vk::PipelineStageFlags2, vk::AccessFlags2> GetScope1(LayoutTransferHelper::TextureTransferType type) {
         using enum LayoutTransferHelper::TextureTransferType;
         switch (type) {
         case TextureUploadBefore:
@@ -15,8 +14,7 @@ namespace Engine {
         }
         __builtin_unreachable();
     }
-    std::pair<vk::PipelineStageFlags2, vk::AccessFlags2> GetScope2(LayoutTransferHelper::TextureTransferType type)
-    {
+    std::pair<vk::PipelineStageFlags2, vk::AccessFlags2> GetScope2(LayoutTransferHelper::TextureTransferType type) {
         using enum LayoutTransferHelper::TextureTransferType;
         switch (type) {
         case TextureUploadBefore:
@@ -28,8 +26,7 @@ namespace Engine {
         }
         __builtin_unreachable();
     }
-    std::pair<vk::ImageLayout, vk::ImageLayout> GetLayouts(LayoutTransferHelper::TextureTransferType type)
-    {
+    std::pair<vk::ImageLayout, vk::ImageLayout> GetLayouts(LayoutTransferHelper::TextureTransferType type) {
         using enum LayoutTransferHelper::TextureTransferType;
         switch (type) {
         case TextureUploadBefore:
@@ -41,26 +38,24 @@ namespace Engine {
         }
         __builtin_unreachable();
     }
-    vk::ImageAspectFlags GetAspectFlags(LayoutTransferHelper::TextureTransferType type)
-    {
+    vk::ImageAspectFlags GetAspectFlags(LayoutTransferHelper::TextureTransferType type) {
         return vk::ImageAspectFlagBits::eColor;
     }
 
-    vk::ImageMemoryBarrier2 LayoutTransferHelper::GetTextureBarrier(TextureTransferType type, vk::Image image)
-    {
+    vk::ImageMemoryBarrier2 LayoutTransferHelper::GetTextureBarrier(TextureTransferType type, vk::Image image) {
         auto [scope1, scope2, layouts] = std::tuple{GetScope1(type), GetScope2(type), GetLayouts(type)};
         vk::ImageSubresourceRange subresource{
-            GetAspectFlags(type),
-            0, vk::RemainingMipLevels,
-            0, vk::RemainingArrayLayers
-        };
-        vk::ImageMemoryBarrier2 barrier {
-            scope1.first, scope1.second,
-            scope2.first, scope2.second,
-            layouts.first, layouts.second,
-            vk::QueueFamilyIgnored, vk::QueueFamilyIgnored, image,
-            subresource
-        };
+            GetAspectFlags(type), 0, vk::RemainingMipLevels, 0, vk::RemainingArrayLayers};
+        vk::ImageMemoryBarrier2 barrier{scope1.first,
+                                        scope1.second,
+                                        scope2.first,
+                                        scope2.second,
+                                        layouts.first,
+                                        layouts.second,
+                                        vk::QueueFamilyIgnored,
+                                        vk::QueueFamilyIgnored,
+                                        image,
+                                        subresource};
         return barrier;
     }
-}
+} // namespace Engine

@@ -1,17 +1,12 @@
 #include "Component.h"
 
-namespace Engine
-{
-    Component::Component(std::weak_ptr<GameObject> gameObject)
-        : m_parentGameObject(gameObject)
-    {
+namespace Engine {
+    Component::Component(std::weak_ptr<GameObject> gameObject) : m_parentGameObject(gameObject) {
     }
 
-    void Component::Init()
-    {
+    void Component::Init() {
     }
 
-    void Component::Tick()
-    {
+    void Component::Tick() {
     }
-}
+} // namespace Engine

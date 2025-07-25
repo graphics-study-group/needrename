@@ -1,38 +1,32 @@
 #include "PhysicalDevice.h"
 
+#include <SDL3/SDL.h>
 #include <string>
 #include <unordered_set>
-#include <SDL3/SDL.h>
 
 namespace Engine::RenderSystemState {
 
     QueueFamilyIndices PhysicalDevice::FillQueueFamilyIndices(vk::PhysicalDevice device, vk::SurfaceKHR surface) {
         QueueFamilyIndices q;
         auto queueFamilyProps = device.getQueueFamilyProperties();
-        SDL_LogDebug(
-            SDL_LOG_CATEGORY_RENDER, 
-            "\tInspecting queue families"
-        );
+        SDL_LogDebug(SDL_LOG_CATEGORY_RENDER, "\tInspecting queue families");
         for (size_t i = 0; i < queueFamilyProps.size(); i++) {
-            const auto & prop = queueFamilyProps[i];
+            const auto &prop = queueFamilyProps[i];
 
-            bool isGeneralQueueFamily = (prop.queueFlags & vk::QueueFlagBits::eGraphics) 
-                && (prop.queueFlags & vk::QueueFlagBits::eTransfer)
-                && (prop.queueFlags & vk::QueueFlagBits::eCompute);
+            bool isGeneralQueueFamily = (prop.queueFlags & vk::QueueFlagBits::eGraphics)
+                                        && (prop.queueFlags & vk::QueueFlagBits::eTransfer)
+                                        && (prop.queueFlags & vk::QueueFlagBits::eCompute);
             bool supportPresenting = device.getSurfaceSupportKHR(i, surface);
 
-            SDL_LogDebug(
-                SDL_LOG_CATEGORY_RENDER, 
-                std::format(
-                    "\t\tQueue family {} {}{}{}({} present)", 
-                    i,
-                    prop.queueFlags & vk::QueueFlagBits::eGraphics ? "Graphics " : "",
-                    prop.queueFlags & vk::QueueFlagBits::eTransfer ? "Transfer " : "",
-                    prop.queueFlags & vk::QueueFlagBits::eCompute ? "Compute ": "",
-                    supportPresenting ? "Can" : "Cannot"
-                ).c_str()
-            );
-            
+            SDL_LogDebug(SDL_LOG_CATEGORY_RENDER,
+                         std::format("\t\tQueue family {} {}{}{}({} present)",
+                                     i,
+                                     prop.queueFlags & vk::QueueFlagBits::eGraphics ? "Graphics " : "",
+                                     prop.queueFlags & vk::QueueFlagBits::eTransfer ? "Transfer " : "",
+                                     prop.queueFlags & vk::QueueFlagBits::eCompute ? "Compute " : "",
+                                     supportPresenting ? "Can" : "Cannot")
+                             .c_str());
+
             if (isGeneralQueueFamily) {
                 if (!q.graphics.has_value()) q.graphics = i;
             }
@@ -44,11 +38,9 @@ namespace Engine::RenderSystemState {
     }
 
     SwapchainSupport PhysicalDevice::FillSwapchainSupport(vk::PhysicalDevice device, vk::SurfaceKHR surface) {
-        SwapchainSupport support{
-            device.getSurfaceCapabilitiesKHR(surface), 
-            device.getSurfaceFormatsKHR(surface), 
-            device.getSurfacePresentModesKHR(surface)
-        };
+        SwapchainSupport support{device.getSurfaceCapabilitiesKHR(surface),
+                                 device.getSurfaceFormatsKHR(surface),
+                                 device.getSurfacePresentModesKHR(surface)};
         return support;
     }
 
@@ -58,13 +50,13 @@ namespace Engine::RenderSystemState {
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Found %llu Vulkan devices.", devices.size());
 
         vk::PhysicalDevice selected_device;
-        for (const auto & device : devices) {
+        for (const auto &device : devices) {
             if (IsDeviceSuitable(device, surface)) {
                 selected_device = device;
                 break;
             }
         }
-        
+
         if (!selected_device) {
             SDL_LogCritical(SDL_LOG_CATEGORY_RENDER, "Cannot select appropiate device.");
         }
@@ -89,10 +81,9 @@ namespace Engine::RenderSystemState {
         return FillQueueFamilyIndices(this->m_device, surface);
     }
 
-    const vk::PhysicalDeviceMemoryProperties& PhysicalDevice::GetMemoryProperties() const {
+    const vk::PhysicalDeviceMemoryProperties &PhysicalDevice::GetMemoryProperties() const {
         return m_memory_properties;
     }
-
 
     bool PhysicalDevice::IsDeviceSuitable(vk::PhysicalDevice device, vk::SurfaceKHR surface) {
         auto props = device.getProperties();
@@ -125,22 +116,21 @@ namespace Engine::RenderSystemState {
         }
 
         // Check if all extensions are available
-        std::unordered_set <std::string> required_extensions{};
-        for (const auto & extension_name : DEVICE_EXTENSION_NAMES) {
+        std::unordered_set<std::string> required_extensions{};
+        for (const auto &extension_name : DEVICE_EXTENSION_NAMES) {
             required_extensions.insert(extension_name);
         }
 
         auto extensions = device.enumerateDeviceExtensionProperties();
-        for (const auto & extension : extensions) {
+        for (const auto &extension : extensions) {
             required_extensions.erase(extension.extensionName);
         }
 
         if (!required_extensions.empty()) {
-            SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, 
-                "Cannot find all extensions, %llu extensions not found.",
-                required_extensions.size()
-                );
-            for (const auto & name : required_extensions) {
+            SDL_LogInfo(SDL_LOG_CATEGORY_RENDER,
+                        "Cannot find all extensions, %llu extensions not found.",
+                        required_extensions.size());
+            for (const auto &name : required_extensions) {
                 SDL_LogVerbose(SDL_LOG_CATEGORY_RENDER, "\t%s", name.data());
             }
             return false;
@@ -148,4 +138,4 @@ namespace Engine::RenderSystemState {
 
         return true;
     }
-}
+} // namespace Engine::RenderSystemState

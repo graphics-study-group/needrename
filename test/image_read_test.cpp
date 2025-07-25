@@ -1,20 +1,20 @@
 #include <SDL3/SDL.h>
-#include <nlohmann/json.hpp>
 #include <cassert>
-#include <iostream>
-#include <fstream>
 #include <filesystem>
+#include <fstream>
+#include <iostream>
+#include <nlohmann/json.hpp>
 
 #include "stb_image.h"
 
-#include "cmake_config.h"
-#include "MainClass.h"
 #include "Functional/SDLWindow.h"
+#include "MainClass.h"
+#include "cmake_config.h"
 
-#include "Asset/Mesh/MeshAsset.h"
 #include "Asset/AssetManager/AssetManager.h"
-#include <Framework/object/GameObject.h>
+#include "Asset/Mesh/MeshAsset.h"
 #include "Framework/component/RenderComponent/MeshComponent.h"
+#include <Framework/object/GameObject.h>
 
 #include "Render/FullRenderSystem.h"
 
@@ -24,18 +24,15 @@ class TestHomoMesh : public HomogeneousMesh {
 public:
     TestHomoMesh(std::weak_ptr<RenderSystem> system) : HomogeneousMesh(system) {
         this->m_positions = {{-0.5f, -0.5f, 0.0f}, {-0.5f, 0.5f, 0.0f}, {0.5f, 0.5f, 0.0f}, {0.5f, -0.5f, 0.0f}};
-        this->m_attributes = {
-            {.color = {1.0f, 0.0f, 0.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {0.0f, 0.0f}}, 
-            {.color = {0.0f, 1.0f, 0.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {0.0f, 1.0f}}, 
-            {.color = {0.0f, 0.0f, 1.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {1.0f, 1.0f}},
-            {.color = {1.0f, 0.0f, 1.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {1.0f, 0.0f}}
-        };
+        this->m_attributes = {{.color = {1.0f, 0.0f, 0.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {0.0f, 0.0f}},
+                              {.color = {0.0f, 1.0f, 0.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {0.0f, 1.0f}},
+                              {.color = {0.0f, 0.0f, 1.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {1.0f, 1.0f}},
+                              {.color = {1.0f, 0.0f, 1.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {1.0f, 0.0f}}};
         this->m_indices = {2, 1, 0, 3, 2, 0};
     }
 };
 
-int main(int, char *[])
-{
+int main(int, char *[]) {
     SDL_Init(SDL_INIT_VIDEO);
     SDL_LogInfo(0, "Loading mesh...");
 
@@ -50,21 +47,19 @@ int main(int, char *[])
     // Try render the mesh
     RenderTargetSetup rts{render_system};
     rts.CreateFromSwapchain();
-    rts.SetClearValues({
-        vk::ClearValue{vk::ClearColorValue{0.0f, 0.0f, 0.0f, 1.0f}},
-        vk::ClearValue{vk::ClearDepthStencilValue{1.0f, 0U}}
-    });
+    rts.SetClearValues({vk::ClearValue{vk::ClearColorValue{0.0f, 0.0f, 0.0f, 1.0f}},
+                        vk::ClearValue{vk::ClearDepthStencilValue{1.0f, 0U}}});
 
     uint32_t in_flight_frame_id = 0;
     uint32_t total_test_frame = 144;
 
-    TestHomoMesh mesh {render_system};
+    TestHomoMesh mesh{render_system};
     mesh.Prepare();
 
     int tex_width, tex_height, tex_channel;
-    std::filesystem::path image_path {ENGINE_ROOT_DIR};
+    std::filesystem::path image_path{ENGINE_ROOT_DIR};
     image_path /= "assets/bunny/bunny.png";
-    stbi_uc * image_data = stbi_load(image_path.string().c_str(), &tex_width, &tex_height, &tex_channel, 4);
+    stbi_uc *image_data = stbi_load(image_path.string().c_str(), &tex_width, &tex_height, &tex_channel, 4);
     assert(image_data);
     AllocatedImage2DTexture texture{render_system};
     texture.Create(tex_width, tex_height, ImageUtils::ImageFormat::R8G8B8A8SRGB);
@@ -74,16 +69,17 @@ int main(int, char *[])
     do {
 
         render_system->WaitForFrameBegin(in_flight_frame_id);
-        GraphicsCommandBuffer & cb = render_system->GetGraphicsCommandBuffer(in_flight_frame_id);
+        GraphicsCommandBuffer &cb = render_system->GetGraphicsCommandBuffer(in_flight_frame_id);
 
         uint32_t index = render_system->GetNextImage(in_flight_frame_id, 0x7FFFFFFF);
         assert(index < 3);
 
         // Repeatly uploading these data to test synchronization.
-        render_system.CommitTextureImage(texture, reinterpret_cast<std::byte *>(image_data), tex_width * tex_height * 4);
+        render_system.CommitTextureImage(
+            texture, reinterpret_cast<std::byte *>(image_data), tex_width * tex_height * 4);
 
         cb.Begin();
-        vk::Extent2D extent {render_system->GetSwapchain().GetExtent()};
+        vk::Extent2D extent{render_system->GetSwapchain().GetExtent()};
         cb.BeginRendering(rts, extent, index);
 
         cb.BindMaterial(material, 0);
@@ -98,7 +94,7 @@ int main(int, char *[])
         render_system->Present(index, in_flight_frame_id);
 
         in_flight_frame_id = (in_flight_frame_id + 1) % 3;
-    } while(total_test_frame--);
+    } while (total_test_frame--);
 
     stbi_image_free(image_data);
     render_system->WaitForIdle();

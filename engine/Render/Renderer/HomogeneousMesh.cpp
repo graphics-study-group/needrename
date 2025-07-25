@@ -1,18 +1,14 @@
 #include "HomogeneousMesh.h"
-#include <vulkan/vulkan.hpp>
 #include <Asset/AssetRef.h>
 #include <Asset/Mesh/MeshAsset.h>
 #include <SDL3/SDL.h>
+#include <vulkan/vulkan.hpp>
 
 namespace Engine {
-    HomogeneousMesh::HomogeneousMesh(
-        std::weak_ptr<RenderSystem> system,
-        std::shared_ptr<AssetRef> mesh_asset,
-        size_t submesh_idx
-    ) : m_system(system), 
-    m_buffer(system.lock()), 
-    m_mesh_asset(mesh_asset), 
-    m_submesh_idx(submesh_idx) {
+    HomogeneousMesh::HomogeneousMesh(std::weak_ptr<RenderSystem> system,
+                                     std::shared_ptr<AssetRef> mesh_asset,
+                                     size_t submesh_idx) :
+        m_system(system), m_buffer(system.lock()), m_mesh_asset(mesh_asset), m_submesh_idx(submesh_idx) {
     }
 
     HomogeneousMesh::~HomogeneousMesh() {
@@ -24,10 +20,10 @@ namespace Engine {
 
         if (m_allocated_buffer_size != buffer_size) {
             m_updated = true;
-            SDL_LogVerbose(SDL_LOG_CATEGORY_RENDER, 
-                "(Re-)Allocating buffer and memory for %u vertices (%llu bytes).", 
-                new_vertex_count, buffer_size
-            );
+            SDL_LogVerbose(SDL_LOG_CATEGORY_RENDER,
+                           "(Re-)Allocating buffer and memory for %u vertices (%llu bytes).",
+                           new_vertex_count,
+                           buffer_size);
             m_buffer.Create(Buffer::BufferType::Vertex, buffer_size, "Buffer - mesh vertices");
             m_allocated_buffer_size = buffer_size;
         }
@@ -45,7 +41,7 @@ namespace Engine {
         Buffer buffer{m_system.lock()};
         buffer.Create(Buffer::BufferType::Staging, buffer_size, "Buffer - mesh staging");
 
-        std::byte * data = buffer.Map();
+        std::byte *data = buffer.Map();
         WriteToMemory(data);
         buffer.Flush();
         buffer.Unmap();
@@ -53,7 +49,7 @@ namespace Engine {
         return buffer;
     }
 
-    void HomogeneousMesh::WriteToMemory(std::byte* pointer) const {
+    void HomogeneousMesh::WriteToMemory(std::byte *pointer) const {
         uint64_t offset = 0;
         auto &mesh_asset = *m_mesh_asset->as<MeshAsset>();
         const auto &positions = mesh_asset.m_submeshes[m_submesh_idx].m_positions;
@@ -72,9 +68,7 @@ namespace Engine {
     }
 
     vk::PipelineVertexInputStateCreateInfo HomogeneousMesh::GetVertexInputState() {
-        return vk::PipelineVertexInputStateCreateInfo{
-            vk::PipelineVertexInputStateCreateFlags{0}, bindings, attributes
-        };
+        return vk::PipelineVertexInputStateCreateInfo{vk::PipelineVertexInputStateCreateFlags{0}, bindings, attributes};
     }
 
     std::pair<vk::Buffer, vk::DeviceSize> HomogeneousMesh::GetIndexInfo() const {
@@ -95,15 +89,17 @@ namespace Engine {
         return m_mesh_asset->as<MeshAsset>()->GetSubmeshExpectedBufferSize(m_submesh_idx);
     }
 
-    const Buffer & HomogeneousMesh::GetBuffer() const {
+    const Buffer &HomogeneousMesh::GetBuffer() const {
         return m_buffer;
     }
 
-    std::pair <std::array<vk::Buffer, HomogeneousMesh::BINDING_COUNT>, std::array<vk::DeviceSize, HomogeneousMesh::BINDING_COUNT>> 
+    std::pair<std::array<vk::Buffer, HomogeneousMesh::BINDING_COUNT>,
+              std::array<vk::DeviceSize, HomogeneousMesh::BINDING_COUNT>>
     HomogeneousMesh::GetBindingInfo() const {
         assert(this->m_buffer.GetBuffer());
-        std::array<vk::Buffer, BINDING_COUNT> buffer {this->m_buffer.GetBuffer(), this->m_buffer.GetBuffer()};
-        std::array<vk::DeviceSize, BINDING_COUNT> binding_offset {0, GetVertexCount() * VertexStruct::VERTEX_POSITION_SIZE};
+        std::array<vk::Buffer, BINDING_COUNT> buffer{this->m_buffer.GetBuffer(), this->m_buffer.GetBuffer()};
+        std::array<vk::DeviceSize, BINDING_COUNT> binding_offset{0,
+                                                                 GetVertexCount() * VertexStruct::VERTEX_POSITION_SIZE};
         return std::make_pair(buffer, binding_offset);
     }
-}
+} // namespace Engine
