@@ -16,14 +16,14 @@ namespace Engine
         public:
             Var() = default;
             Var(const Var &var) = default;
-            Var(std::shared_ptr<Type> type, void *data);
+            Var(std::shared_ptr<const Type> type, void *data);
             ~Var() = default;
 
         protected:
             void *m_data = nullptr;
 
         public:
-            std::shared_ptr<Type> m_type = nullptr;
+            std::shared_ptr<const Type> m_type = nullptr;
 
             // Get the void pointer to the data
             void *GetDataPtr();
@@ -61,14 +61,14 @@ namespace Engine
         public:
             ConstVar() = default;
             ConstVar(const ConstVar &var) = default;
-            ConstVar(std::shared_ptr<Type> type, const void *data);
+            ConstVar(std::shared_ptr<const Type> type, const void *data);
             ~ConstVar() = default;
 
         protected:
             const void *m_data = nullptr;
 
         public:
-            std::shared_ptr<Type> m_type = nullptr;
+            std::shared_ptr<const Type> m_type = nullptr;
 
             // Get the const void pointer to the data
             const void *GetDataPtr() const;

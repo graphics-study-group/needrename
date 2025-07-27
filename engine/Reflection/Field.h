@@ -18,7 +18,7 @@ namespace Engine
         protected:
             friend class Type;
             Field() = delete;
-            Field(const std::string &name, std::weak_ptr<Type> classtype, std::shared_ptr<Type> fieldtype, const WrapperFieldFunc &getter_func, const WrapperConstFieldFunc &const_getter_func);
+            Field(const std::string &name, std::weak_ptr<Type> classtype, std::shared_ptr<const Type> fieldtype, const WrapperFieldFunc &getter_func, const WrapperConstFieldFunc &const_getter_func);
         public:
             ~Field() = default;
         
@@ -29,7 +29,7 @@ namespace Engine
         public:
             std::string m_name;
             std::weak_ptr<Type> m_classtype;
-            std::shared_ptr<Type> m_fieldtype;
+            std::shared_ptr<const Type> m_fieldtype;
 
             Var GetVar(Var &obj) const;
             Var GetVar(void *obj) const;

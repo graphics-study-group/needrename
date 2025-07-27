@@ -12,18 +12,18 @@ namespace Engine
         void Type::AddConstructor(const WrapperMemberFunc &func)
         {
             std::string mangled_name = k_constructor_name + GetMangledName<Args...>();
-            m_methods[mangled_name] = std::shared_ptr<Method>(new Method(mangled_name, func, nullptr, shared_from_this(), true));
+            m_methods[mangled_name] = std::shared_ptr<const Method>(new Method(mangled_name, func, nullptr, shared_from_this(), true));
         }
 
         template <typename... Args>
-        void Type::AddMethod(const std::string &name, const WrapperMemberFunc &func, const WrapperConstMemberFunc &const_func, std::shared_ptr<Type> return_type)
+        void Type::AddMethod(const std::string &name, const WrapperMemberFunc &func, const WrapperConstMemberFunc &const_func, std::shared_ptr<const Type> return_type)
         {
             std::string mangled_name = name + GetMangledName<Args...>();
-            m_methods[mangled_name] = std::shared_ptr<Method>(new Method(mangled_name, func, const_func, return_type, true));
+            m_methods[mangled_name] = std::shared_ptr<const Method>(new Method(mangled_name, func, const_func, return_type, true));
         }
 
         template <typename... Args>
-        Var Type::CreateInstance(Args&&... args)
+        Var Type::CreateInstance(Args&&... args) const
         {
             auto constructor = GetMethod(k_constructor_name, std::forward<Args>(args)...);
             if (!constructor)
@@ -32,7 +32,7 @@ namespace Engine
         }
 
         template <typename... Args>
-        std::shared_ptr<Method> Type::GetMethod(const std::string &name, Args&&... args)
+        std::shared_ptr<const Method> Type::GetMethod(const std::string &name, Args&&... args) const
         {
             auto mangled_name = name + GetMangledName(std::forward<Args>(args)...);
             return GetMethodFromMangledName(mangled_name);

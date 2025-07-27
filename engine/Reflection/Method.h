@@ -20,9 +20,9 @@ namespace Engine
         protected:
             friend class Type;
             Method() = delete;
-            Method(const std::string &final_name, const WrapperMemberFunc &func, const WrapperConstMemberFunc &const_func, std::shared_ptr<Type> return_type, bool is_final_name);
+            Method(const std::string &final_name, const WrapperMemberFunc &func, const WrapperConstMemberFunc &const_func, std::shared_ptr<const Type> return_type, bool is_final_name);
             template <typename... Args>
-            Method(const std::string &name, const WrapperMemberFunc &func, const WrapperConstMemberFunc &const_func, std::shared_ptr<Type> return_type);
+            Method(const std::string &name, const WrapperMemberFunc &func, const WrapperConstMemberFunc &const_func, std::shared_ptr<const Type> return_type);
         public:
             ~Method() = default;
 
@@ -31,17 +31,17 @@ namespace Engine
             WrapperConstMemberFunc m_const_func{};
 
         public:
-            std::shared_ptr<Type> m_return_type{};
+            std::shared_ptr<const Type> m_return_type{};
             std::string m_name{};
 
             template <typename... Args>
-            Var Invoke(Var &obj, Args&&...);
+            Var Invoke(Var &obj, Args&&...) const;
             template <typename... Args>
-            Var Invoke(void *obj, Args&&...);
+            Var Invoke(void *obj, Args&&...) const;
             template <typename... Args>
-            Var ConstInvoke(ConstVar &obj, Args&&...);
+            Var ConstInvoke(ConstVar &obj, Args&&...) const;
             template <typename... Args>
-            Var ConstInvoke(const void *obj, Args&&...);
+            Var ConstInvoke(const void *obj, Args&&...) const;
         };
     }
 }

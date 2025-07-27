@@ -35,7 +35,7 @@ namespace Engine
             // The name of the constructor method
             static constexpr const char *k_constructor_name = "$Constructor";
             // The map between std::type_index and type
-            static std::unordered_map<std::type_index, std::shared_ptr<Type>> s_index_type_map;
+            static std::unordered_map<std::type_index, std::shared_ptr<const Type>> s_index_type_map;
             // The map between type name and std::type_index
             static std::unordered_map<std::string, std::type_index> s_name_index_map;
 
@@ -53,12 +53,12 @@ namespace Engine
             virtual ~Type() = default;
         
         private:
-            std::shared_ptr<Method> GetMethodFromMangledName(const std::string &name);
+            std::shared_ptr<const Method> GetMethodFromMangledName(const std::string &name) const;
 
         protected:
-            std::vector<std::shared_ptr<Type>> m_base_type{};
-            std::unordered_map<std::string, std::shared_ptr<Field>> m_fields{};
-            std::unordered_map<std::string, std::shared_ptr<Method>> m_methods{};
+            std::vector<std::shared_ptr<const Type>> m_base_type{};
+            std::unordered_map<std::string, std::shared_ptr<const Field>> m_fields{};
+            std::unordered_map<std::string, std::shared_ptr<const Method>> m_methods{};
 
         public:
             // Add a constructor to the type
@@ -71,22 +71,22 @@ namespace Engine
             /// @param const_func the member function wrapper when the object is const
             /// @param return_type the return type of the function
             template <typename... Args>
-            void AddMethod(const std::string &name, const WrapperMemberFunc &func, const WrapperConstMemberFunc &const_func, std::shared_ptr<Type> return_type);
+            void AddMethod(const std::string &name, const WrapperMemberFunc &func, const WrapperConstMemberFunc &const_func, std::shared_ptr<const Type> return_type);
 
             /// @brief Add a member function to the type.
-            void AddMethod(std::shared_ptr<Method> method);
+            void AddMethod(std::shared_ptr<const Method> method);
             /// @brief Add a base type to the type.
             /// @param base_type 
-            void AddBaseType(std::shared_ptr<Type> base_type);
+            void AddBaseType(std::shared_ptr<const Type> base_type);
 
             /// @brief Add a field to the type.
             /// @param field_type the type of the field
             /// @param name 
             /// @param field_getter the wrapper function for getting the field
             /// @param const_field_getter the wrapper function for getting the field when the object is const
-            void AddField(const std::shared_ptr<Type> field_type, const std::string &name, const WrapperFieldFunc &field_getter, const WrapperConstFieldFunc &const_field_getter);
+            void AddField(const std::shared_ptr<const Type> field_type, const std::string &name, const WrapperFieldFunc &field_getter, const WrapperConstFieldFunc &const_field_getter);
             /// @brief Add a field to the type.
-            void AddField(const std::shared_ptr<Field> field);
+            void AddField(const std::shared_ptr<const Field> field);
 
         public:
             std::string m_name{};
@@ -108,35 +108,35 @@ namespace Engine
             /// @param ...args arguments for the constructor
             /// @return a Var object representing the instance
             template <typename... Args>
-            Var CreateInstance(Args&&... args);
+            Var CreateInstance(Args&&... args) const;
 
             /// @brief Get a method of the type.
             /// @param name the name of the method
             /// @param ...args the arguments to the method. We need arguments to deal with overloaded methods.
             /// @return the shared pointer to the Method object
             template <typename... Args>
-            std::shared_ptr<Method> GetMethod(const std::string &name, Args&&... args);
+            std::shared_ptr<const Method> GetMethod(const std::string &name, Args&&... args) const;
 
             /// @brief Get a field of the type.
             /// @param name the name of the field
             /// @return the shared pointer to the Field object
-            std::shared_ptr<Field> GetField(const std::string &name);
+            std::shared_ptr<const Field> GetField(const std::string &name) const;
 
             /// @brief Get the unordered map of fields of the type.
             /// @return 
-            const std::unordered_map<std::string, std::shared_ptr<Field>> &GetFields() const;
+            const std::unordered_map<std::string, std::shared_ptr<const Field>> &GetFields() const;
         };
 
         class VectorType : public Type
         {
         public:
-            VectorType(std::shared_ptr<Type> element_type);
+            VectorType(std::shared_ptr<const Type> element_type);
             virtual ~VectorType() = default;
 
-            std::shared_ptr<Type> GetElementType();
+            std::shared_ptr<const Type> GetElementType() const;
 
         protected:
-            std::shared_ptr<Type> m_element_type;
+            std::shared_ptr<const Type> m_element_type;
         };
     }
 }

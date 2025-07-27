@@ -7,7 +7,7 @@ namespace Engine
 {
     namespace Reflection
     {
-        Var::Var(std::shared_ptr<Type> type, void *data)
+        Var::Var(std::shared_ptr<const Type> type, void *data)
             :  m_data(data), m_type(type)
         {
         }
@@ -37,7 +37,7 @@ namespace Engine
             return ConstVar(m_type, m_data);
         }
 
-        ConstVar::ConstVar(std::shared_ptr<Type> type, const void *data)
+        ConstVar::ConstVar(std::shared_ptr<const Type> type, const void *data)
             : m_data(data), m_type(type)
         {
         }

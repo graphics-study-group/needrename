@@ -20,32 +20,32 @@ namespace Engine
         /// @brief Register basic types list in https://en.cppreference.com/w/cpp/language/type and some frequently used types.
         void Registrar::RegisterBasicTypes()
         {
-            Type::s_index_type_map[std::type_index(typeid(void))] = std::shared_ptr<Type>(new Type("void", false));
-            Type::s_index_type_map[std::type_index(typeid(std::nullptr_t))] = std::shared_ptr<Type>(new Type("std::nullptr_t", false));
-            Type::s_index_type_map[std::type_index(typeid(bool))] = std::shared_ptr<Type>(new Type("bool", false));
-            Type::s_index_type_map[std::type_index(typeid(char))] = std::shared_ptr<Type>(new Type("char", false));
-            Type::s_index_type_map[std::type_index(typeid(signed char))] = std::shared_ptr<Type>(new Type("signed char", false));
-            Type::s_index_type_map[std::type_index(typeid(unsigned char))] = std::shared_ptr<Type>(new Type("unsigned char", false));
-            Type::s_index_type_map[std::type_index(typeid(char8_t))] = std::shared_ptr<Type>(new Type("char8_t", false));
-            Type::s_index_type_map[std::type_index(typeid(char16_t))] = std::shared_ptr<Type>(new Type("char16_t", false));
-            Type::s_index_type_map[std::type_index(typeid(char32_t))] = std::shared_ptr<Type>(new Type("char32_t", false));
-            Type::s_index_type_map[std::type_index(typeid(wchar_t))] = std::shared_ptr<Type>(new Type("wchar_t", false));
-            Type::s_index_type_map[std::type_index(typeid(short))] = std::shared_ptr<Type>(new Type("short", false));
-            Type::s_index_type_map[std::type_index(typeid(unsigned short))] = std::shared_ptr<Type>(new Type("unsigned short", false));
-            Type::s_index_type_map[std::type_index(typeid(int))] = std::shared_ptr<Type>(new Type("int", false));
-            Type::s_index_type_map[std::type_index(typeid(unsigned int))] = std::shared_ptr<Type>(new Type("unsigned int", false));
-            Type::s_index_type_map[std::type_index(typeid(long))] = std::shared_ptr<Type>(new Type("long", false));
-            Type::s_index_type_map[std::type_index(typeid(unsigned long))] = std::shared_ptr<Type>(new Type("unsigned long", false));
-            Type::s_index_type_map[std::type_index(typeid(long long))] = std::shared_ptr<Type>(new Type("long long", false));
-            Type::s_index_type_map[std::type_index(typeid(unsigned long long))] = std::shared_ptr<Type>(new Type("unsigned long long", false));
-            Type::s_index_type_map[std::type_index(typeid(float))] = std::shared_ptr<Type>(new Type("float", false));
-            Type::s_index_type_map[std::type_index(typeid(double))] = std::shared_ptr<Type>(new Type("double", false));
-            Type::s_index_type_map[std::type_index(typeid(long double))] = std::shared_ptr<Type>(new Type("long double", false));
-            Type::s_index_type_map[std::type_index(typeid(std::string))] = std::shared_ptr<Type>(new Type("std::string", false));
-            Type::s_index_type_map[std::type_index(typeid(glm::vec2))] = std::shared_ptr<Type>(new Type("glm::vec2", false));
-            Type::s_index_type_map[std::type_index(typeid(glm::vec3))] = std::shared_ptr<Type>(new Type("glm::vec3", false));
-            Type::s_index_type_map[std::type_index(typeid(glm::vec4))] = std::shared_ptr<Type>(new Type("glm::vec4", false));
-            Type::s_index_type_map[std::type_index(typeid(glm::quat))] = std::shared_ptr<Type>(new Type("glm::quat", false));
+            Type::s_index_type_map[std::type_index(typeid(void))] = std::shared_ptr<const Type>(new Type("void", false));
+            Type::s_index_type_map[std::type_index(typeid(std::nullptr_t))] = std::shared_ptr<const Type>(new Type("std::nullptr_t", false));
+            Type::s_index_type_map[std::type_index(typeid(bool))] = std::shared_ptr<const Type>(new Type("bool", false));
+            Type::s_index_type_map[std::type_index(typeid(char))] = std::shared_ptr<const Type>(new Type("char", false));
+            Type::s_index_type_map[std::type_index(typeid(signed char))] = std::shared_ptr<const Type>(new Type("signed char", false));
+            Type::s_index_type_map[std::type_index(typeid(unsigned char))] = std::shared_ptr<const Type>(new Type("unsigned char", false));
+            Type::s_index_type_map[std::type_index(typeid(char8_t))] = std::shared_ptr<const Type>(new Type("char8_t", false));
+            Type::s_index_type_map[std::type_index(typeid(char16_t))] = std::shared_ptr<const Type>(new Type("char16_t", false));
+            Type::s_index_type_map[std::type_index(typeid(char32_t))] = std::shared_ptr<const Type>(new Type("char32_t", false));
+            Type::s_index_type_map[std::type_index(typeid(wchar_t))] = std::shared_ptr<const Type>(new Type("wchar_t", false));
+            Type::s_index_type_map[std::type_index(typeid(short))] = std::shared_ptr<const Type>(new Type("short", false));
+            Type::s_index_type_map[std::type_index(typeid(unsigned short))] = std::shared_ptr<const Type>(new Type("unsigned short", false));
+            Type::s_index_type_map[std::type_index(typeid(int))] = std::shared_ptr<const Type>(new Type("int", false));
+            Type::s_index_type_map[std::type_index(typeid(unsigned int))] = std::shared_ptr<const Type>(new Type("unsigned int", false));
+            Type::s_index_type_map[std::type_index(typeid(long))] = std::shared_ptr<const Type>(new Type("long", false));
+            Type::s_index_type_map[std::type_index(typeid(unsigned long))] = std::shared_ptr<const Type>(new Type("unsigned long", false));
+            Type::s_index_type_map[std::type_index(typeid(long long))] = std::shared_ptr<const Type>(new Type("long long", false));
+            Type::s_index_type_map[std::type_index(typeid(unsigned long long))] = std::shared_ptr<const Type>(new Type("unsigned long long", false));
+            Type::s_index_type_map[std::type_index(typeid(float))] = std::shared_ptr<const Type>(new Type("float", false));
+            Type::s_index_type_map[std::type_index(typeid(double))] = std::shared_ptr<const Type>(new Type("double", false));
+            Type::s_index_type_map[std::type_index(typeid(long double))] = std::shared_ptr<const Type>(new Type("long double", false));
+            Type::s_index_type_map[std::type_index(typeid(std::string))] = std::shared_ptr<const Type>(new Type("std::string", false));
+            Type::s_index_type_map[std::type_index(typeid(glm::vec2))] = std::shared_ptr<const Type>(new Type("glm::vec2", false));
+            Type::s_index_type_map[std::type_index(typeid(glm::vec3))] = std::shared_ptr<const Type>(new Type("glm::vec3", false));
+            Type::s_index_type_map[std::type_index(typeid(glm::vec4))] = std::shared_ptr<const Type>(new Type("glm::vec4", false));
+            Type::s_index_type_map[std::type_index(typeid(glm::quat))] = std::shared_ptr<const Type>(new Type("glm::quat", false));
 
             Type::s_name_index_map.emplace("void", std::type_index(typeid(void)));
             Type::s_name_index_map.emplace("std::nullptr_t", std::type_index(typeid(std::nullptr_t)));
@@ -108,18 +108,18 @@ namespace Engine
             }
             else
             {
-                Type::s_index_type_map[type_index] = std::shared_ptr<Type>(new Type(name, reflectable));
+                Type::s_index_type_map[type_index] = std::shared_ptr<const Type>(new Type(name, reflectable));
             }
             assert(Type::s_name_index_map.find(name) == Type::s_name_index_map.end());
             Type::s_name_index_map.emplace(name, type_index);
         }
 
-        std::shared_ptr<Type> GetType(const char *name)
+        std::shared_ptr<const Type> GetType(const char *name)
         {
             return GetType(std::string(name));
         }
 
-        std::shared_ptr<Type> GetType(const std::string &name)
+        std::shared_ptr<const Type> GetType(const std::string &name)
         {
             auto it = Type::s_name_index_map.find(name);
             if (it != Type::s_name_index_map.end())
