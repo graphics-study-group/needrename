@@ -61,9 +61,6 @@ namespace Engine
             std::unordered_map<std::string, std::shared_ptr<Method>> m_methods{};
 
         public:
-            // Set the name of the type
-            void SetName(const std::string &name);
-
             // Add a constructor to the type
             template <typename... Args>
             void AddConstructor(const WrapperMemberFunc &func);
@@ -96,6 +93,14 @@ namespace Engine
             // Whether the type is reflectable
             bool m_reflectable = false;
 
+            enum
+            {
+                None,
+                StdVector,
+                StdArray,
+                StdSmartPtr
+            } m_specialization{None};
+
             // Get the name of the type
             const std::string &GetName() const;
 
@@ -120,6 +125,18 @@ namespace Engine
             /// @brief Get the unordered map of fields of the type.
             /// @return 
             const std::unordered_map<std::string, std::shared_ptr<Field>> &GetFields() const;
+        };
+
+        class VectorType : public Type
+        {
+        public:
+            VectorType(std::shared_ptr<Type> element_type);
+            virtual ~VectorType() = default;
+
+            std::shared_ptr<Type> GetElementType();
+
+        protected:
+            std::shared_ptr<Type> m_element_type;
         };
     }
 }

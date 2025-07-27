@@ -31,11 +31,6 @@ namespace Engine
             return m_name;
         }
 
-        void Type::SetName(const std::string &name)
-        {
-            m_name = name;
-        }
-
         void Type::AddMethod(std::shared_ptr<Method> method)
         {
             if (m_methods.find(method->m_name) != m_methods.end())
@@ -76,6 +71,17 @@ namespace Engine
         const std::unordered_map<std::string, std::shared_ptr<Field>> &Type::GetFields() const
         {
             return m_fields;
+        }
+
+        VectorType::VectorType(std::shared_ptr<Type> element_type)
+            : Type(std::string("std::vector<") + element_type->m_name + ">"), m_element_type(element_type)
+        {
+            m_specialization = StdVector;
+        }
+
+        std::shared_ptr<Type> VectorType::GetElementType()
+        {
+            return m_element_type;
         }
     }
 }
