@@ -1,36 +1,36 @@
 #include <SDL3/SDL.h>
-#include <nlohmann/json.hpp>
 #include <cassert>
-#include <iostream>
 #include <fstream>
+#include <iostream>
+#include <nlohmann/json.hpp>
 
-#include <cmake_config.h>
-#include <MainClass.h>
-#include <Functional/SDLWindow.h>
-#include <Render/RenderSystem.h>
-#include <Framework/world/WorldSystem.h>
 #include <Asset/AssetManager/AssetManager.h>
 #include <Asset/Scene/GameObjectAsset.h>
 #include <Framework/component/RenderComponent/CameraComponent.h>
+#include <Framework/world/WorldSystem.h>
+#include <Functional/SDLWindow.h>
+#include <MainClass.h>
+#include <Render/RenderSystem.h>
 #include <Render/Renderer/Camera.h>
+#include <cmake_config.h>
 
 using namespace Engine;
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
     int64_t max_frame_count = std::numeric_limits<int64_t>::max();
-    if (argc > 1)
-    {
+    if (argc > 1) {
         max_frame_count = std::atoll(argv[1]);
-        if (max_frame_count == 0)
-            return -1;
+        if (max_frame_count == 0) return -1;
     }
 
     std::filesystem::path project_path(ENGINE_TESTS_DIR);
     project_path = project_path / "external_resource_loading_test_project";
-    if (std::filesystem::exists(project_path))
-        std::filesystem::remove_all(project_path);
-    std::filesystem::copy(std::filesystem::path(ENGINE_PROJECTS_DIR) / "empty_project", project_path, std::filesystem::copy_options::recursive);
+    if (std::filesystem::exists(project_path)) std::filesystem::remove_all(project_path);
+    std::filesystem::copy(
+        std::filesystem::path(ENGINE_PROJECTS_DIR) / "empty_project",
+        project_path,
+        std::filesystem::copy_options::recursive
+    );
 
     std::filesystem::path mesh_path(ENGINE_ASSETS_DIR);
     mesh_path = mesh_path / "four_bunny" / "four_bunny.obj";
@@ -58,7 +58,8 @@ int main(int argc, char **argv)
     prefab_file >> prefab_json;
     prefab_file.close();
     GUID prefab_guid(prefab_json["%data"]["&0"]["Asset::m_guid"].get<std::string>());
-    auto prefab_asset = dynamic_pointer_cast<GameObjectAsset>(cmc->GetAssetManager()->LoadAssetImmediately(prefab_guid));
+    auto prefab_asset =
+        dynamic_pointer_cast<GameObjectAsset>(cmc->GetAssetManager()->LoadAssetImmediately(prefab_guid));
 
     cmc->GetWorldSystem()->LoadGameObjectAsset(prefab_asset);
 
@@ -72,7 +73,7 @@ int main(int argc, char **argv)
     camera_comp->m_camera->set_aspect_ratio(1.0 * opt.resol_x / opt.resol_y);
     cmc->GetWorldSystem()->m_active_camera = camera_comp->m_camera;
     cmc->GetWorldSystem()->AddGameObjectToWorld(camera_go);
-    
+
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Entering main loop");
     cmc->LoopFinite(max_frame_count, 0.0f);
 

@@ -1,5 +1,3 @@
 #include "TextureAsset.h"
 
-namespace Engine
-{
-}
+namespace Engine {}
