@@ -15,27 +15,16 @@ const glm::vec4 X_UNITY{1.0f, 0.0f, 0.0f, 1.0f};
 const glm::vec4 Y_UNITY{0.0f, 1.0f, 0.0f, 1.0f};
 const glm::vec4 Z_UNITY{0.0f, 0.0f, 1.0f, 1.0f};
 
+// clang-format off
 void print_matrix(glm::mat4 m) {
-    printf(
-        "%+8.4f%+8.4f%+8.4f%+8.4f\n%+8.4f%+8.4f%+8.4f%+8.4f\n%+8.4f%+8.4f%+8.4f%+8.4f\n%+8.4f%+8.4f%+8.4f%+8.4f\n",
-        m[0][0],
-        m[1][0],
-        m[2][0],
-        m[3][0],
-        m[0][1],
-        m[1][1],
-        m[2][1],
-        m[3][1],
-        m[0][2],
-        m[1][2],
-        m[2][2],
-        m[3][2],
-        m[0][3],
-        m[1][3],
-        m[2][3],
-        m[3][3]
+    printf("%+8.4f%+8.4f%+8.4f%+8.4f\n%+8.4f%+8.4f%+8.4f%+8.4f\n%+8.4f%+8.4f%+8.4f%+8.4f\n%+8.4f%+8.4f%+8.4f%+8.4f\n",
+        m[0][0], m[1][0], m[2][0], m[3][0],
+        m[0][1], m[1][1], m[2][1], m[3][1],
+        m[0][2], m[1][2], m[2][2], m[3][2],
+        m[0][3], m[1][3], m[2][3], m[3][3]
     );
 }
+// clang-format on
 
 void print_vectors(glm::vec3 o, glm::vec3 x, glm::vec3 y, glm::vec3 z) {
     printf(
