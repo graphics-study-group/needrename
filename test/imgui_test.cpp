@@ -1,19 +1,18 @@
 #include <SDL3/SDL.h>
 #include <cassert>
-#include <fstream>
 #include <chrono>
+#include <fstream>
 
-#include "MainClass.h"
-#include "Functional/SDLWindow.h"
 #include "Framework/component/RenderComponent/MeshComponent.h"
-#include "Render/FullRenderSystem.h"
+#include "Functional/SDLWindow.h"
 #include "GUI/GUISystem.h"
+#include "MainClass.h"
+#include "Render/FullRenderSystem.h"
 
 using namespace Engine;
 namespace sch = std::chrono;
 
-int main(int argc, char ** argv)
-{
+int main(int argc, char **argv) {
     int64_t max_frame_count = std::numeric_limits<int64_t>::max();
     if (argc > 1) {
         max_frame_count = std::atoll(argv[1]);
@@ -32,7 +31,7 @@ int main(int argc, char ** argv)
     gsys->CreateVulkanBackend(ImageUtils::GetVkFormat(Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB));
 
     Engine::Texture color{*rsys}, depth{*rsys};
-    Engine::Texture::TextureDesc desc {
+    Engine::Texture::TextureDesc desc{
         .dimensions = 2,
         .width = 1920,
         .height = 1080,
@@ -60,31 +59,39 @@ int main(int argc, char ** argv)
     depth_att.store_op = vk::AttachmentStoreOp::eDontCare;
 
     bool quited = false;
-    while(max_frame_count--) {
+    while (max_frame_count--) {
         SDL_Event event;
-        while(SDL_PollEvent(&event) != 0) {
-            switch(event.type) {
+        while (SDL_PollEvent(&event) != 0) {
+            switch (event.type) {
             case SDL_EVENT_QUIT:
                 quited = true;
                 break;
             }
             gsys->ProcessEvent(&event);
         }
-        
+
         gsys->PrepareGUI();
         ImGui::ShowDemoWindow();
 
         auto index = rsys->StartFrame();
         auto context = rsys->GetFrameManager().GetGraphicsContext();
-        GraphicsCommandBuffer & cb = dynamic_cast<GraphicsCommandBuffer &>(context.GetCommandBuffer());
+        GraphicsCommandBuffer &cb = dynamic_cast<GraphicsCommandBuffer &>(context.GetCommandBuffer());
 
         assert(index < 3);
-    
+
         cb.Begin();
-        context.UseImage(color, GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite, GraphicsContext::ImageAccessType::None);
-        context.UseImage(depth, GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite, GraphicsContext::ImageAccessType::None);
+        context.UseImage(
+            color,
+            GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite,
+            GraphicsContext::ImageAccessType::None
+        );
+        context.UseImage(
+            depth,
+            GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite,
+            GraphicsContext::ImageAccessType::None
+        );
         context.PrepareCommandBuffer();
-        vk::Extent2D extent {rsys->GetSwapchain().GetExtent()};
+        vk::Extent2D extent{rsys->GetSwapchain().GetExtent()};
         gsys->DrawGUI(color_att, extent, cb);
         cb.End();
         rsys->GetFrameManager().SubmitMainCommandBuffer();

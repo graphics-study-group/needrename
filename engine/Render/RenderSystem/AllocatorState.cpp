@@ -5,44 +5,39 @@
 #include "Render/DebugUtils.h"
 
 namespace Engine::RenderSystemState {
-    std::tuple<vk::BufferUsageFlags, VmaAllocationCreateFlags, VmaMemoryUsage> constexpr AllocatorState::GetBufferFlags(BufferType type)
-    {
+    std::tuple<vk::BufferUsageFlags, VmaAllocationCreateFlags, VmaMemoryUsage> constexpr AllocatorState::GetBufferFlags(
+        BufferType type
+    ) {
         switch (type) {
-            case BufferType::Staging:
-                return std::make_tuple(
-                    vk::BufferUsageFlagBits::eTransferSrc,
-                    VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT,
-                    VMA_MEMORY_USAGE_AUTO_PREFER_HOST
-                    );
-            case BufferType::Vertex:
-                return std::make_tuple(
-                    vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eVertexBuffer,
-                    0,
-                    VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE
-                    );
-            case BufferType::Uniform:
-                return std::make_tuple(
-                    vk::BufferUsageFlagBits::eUniformBuffer,
-                    VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT,
-                    VMA_MEMORY_USAGE_AUTO_PREFER_HOST
-                    );
+        case BufferType::Staging:
+            return std::make_tuple(
+                vk::BufferUsageFlagBits::eTransferSrc,
+                VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT,
+                VMA_MEMORY_USAGE_AUTO_PREFER_HOST
+            );
+        case BufferType::Vertex:
+            return std::make_tuple(
+                vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer
+                    | vk::BufferUsageFlagBits::eVertexBuffer,
+                0,
+                VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE
+            );
+        case BufferType::Uniform:
+            return std::make_tuple(
+                vk::BufferUsageFlagBits::eUniformBuffer,
+                VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT,
+                VMA_MEMORY_USAGE_AUTO_PREFER_HOST
+            );
         }
-        return std::make_tuple(
-            vk::BufferUsageFlags{},
-            0,
-            VMA_MEMORY_USAGE_AUTO
-        );
+        return std::make_tuple(vk::BufferUsageFlags{}, 0, VMA_MEMORY_USAGE_AUTO);
     }
-    AllocatorState::AllocatorState(RenderSystem &system) : m_system(system)
-    {
+    AllocatorState::AllocatorState(RenderSystem &system) : m_system(system) {
     }
-    AllocatorState::~AllocatorState()
-    {
+    AllocatorState::~AllocatorState() {
         vmaDestroyAllocator(m_allocator);
     }
-    void AllocatorState::Create()
-    {
-        VmaAllocatorCreateInfo info {};
+    void AllocatorState::Create() {
+        VmaAllocatorCreateInfo info{};
         info.device = m_system.getDevice();
         info.physicalDevice = m_system.GetPhysicalDevice();
         info.instance = m_system.getInstance();
@@ -53,21 +48,15 @@ namespace Engine::RenderSystemState {
         assert(m_allocator && "Failed to create allocator.");
     }
 
-    VmaAllocator AllocatorState::GetAllocator() const
-    {
+    VmaAllocator AllocatorState::GetAllocator() const {
         return m_allocator;
     }
 
-    AllocatedMemory AllocatorState::AllocateBuffer(
-        BufferType type, 
-        size_t size,
-        const std::string & name
-    ) const
-    {
+    AllocatedMemory AllocatorState::AllocateBuffer(BufferType type, size_t size, const std::string &name) const {
         assert(m_allocator && "Allocated not initalized.");
         auto [busage, flags, musage] = GetBufferFlags(type);
 
-        VkBufferCreateInfo bcinfo {};
+        VkBufferCreateInfo bcinfo{};
         bcinfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
         bcinfo.size = size;
         bcinfo.usage = static_cast<VkBufferUsageFlags>(busage);
@@ -75,8 +64,8 @@ namespace Engine::RenderSystemState {
         VmaAllocationCreateInfo ainfo = {};
         ainfo.flags = flags;
         ainfo.usage = musage;
-        
-        VkBuffer buffer {};
+
+        VkBuffer buffer{};
         VmaAllocation allocation{};
 
         VkResult result = vmaCreateBuffer(m_allocator, &bcinfo, &ainfo, &buffer, &allocation, nullptr);
@@ -87,45 +76,33 @@ namespace Engine::RenderSystemState {
     }
 
     std::unique_ptr<AllocatedMemory> AllocatorState::AllocateBufferUnique(
-        BufferType type, 
-        size_t size,
-        const std::string & name
-    ) const
-    {
+        BufferType type, size_t size, const std::string &name
+    ) const {
         return std::make_unique<AllocatedMemory>(AllocateBuffer(type, size, name));
     }
 
     AllocatedMemory AllocatorState::AllocateImage(
-        ImageUtils::ImageType type, 
-        VkExtent3D dimension, 
-        VkFormat format,
-        const std::string & name
-    ) const
-    {
+        ImageUtils::ImageType type, VkExtent3D dimension, VkFormat format, const std::string &name
+    ) const {
         return AllocateImageEx(type, dimension, format, 1, 1, name);
     }
 
     std::unique_ptr<AllocatedMemory> AllocatorState::AllocateImageUnique(
-        ImageUtils::ImageType type, 
-        VkExtent3D dimension, 
-        VkFormat format,
-        const std::string & name
-    ) const
-    {
+        ImageUtils::ImageType type, VkExtent3D dimension, VkFormat format, const std::string &name
+    ) const {
         return std::make_unique<AllocatedMemory>(AllocateImage(type, dimension, format, name));
     }
 
     AllocatedMemory AllocatorState::AllocateImageEx(
-        ImageUtils::ImageType type, 
-        VkExtent3D dimension, 
-        VkFormat format, 
-        uint32_t miplevel, 
+        ImageUtils::ImageType type,
+        VkExtent3D dimension,
+        VkFormat format,
+        uint32_t miplevel,
         uint32_t array_layers,
-        const std::string & name
-    ) const
-    {
+        const std::string &name
+    ) const {
         const auto [iusage, musage] = ImageUtils::GetImageFlags(type);
-        VkImageCreateInfo iinfo {};
+        VkImageCreateInfo iinfo{};
         iinfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
         iinfo.imageType = static_cast<VkImageType>(ImageUtils::GetVkTypeFromExtent(dimension));
         iinfo.format = format;
@@ -140,7 +117,7 @@ namespace Engine::RenderSystemState {
         iinfo.pQueueFamilyIndices = nullptr;
         iinfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-        VmaAllocationCreateInfo ainfo {};
+        VmaAllocationCreateInfo ainfo{};
         ainfo.usage = musage;
 
         VkImage image;
@@ -150,16 +127,15 @@ namespace Engine::RenderSystemState {
         return AllocatedMemory(static_cast<vk::Image>(image), allocation, m_allocator);
     }
     std::unique_ptr<AllocatedMemory> AllocatorState::AllocateImageUniqueEx(
-        ImageUtils::ImageType type, 
+        ImageUtils::ImageType type,
         vk::ImageType dimension,
-        vk::Extent3D extent, 
-        vk::Format format, 
-        uint32_t miplevel, 
+        vk::Extent3D extent,
+        vk::Format format,
+        uint32_t miplevel,
         uint32_t array_layers,
         vk::SampleCountFlagBits samples,
         const std::string &name
-    ) const
-    {
+    ) const {
         const auto [iusage, musage] = ImageUtils::GetImageFlags(type);
         // VkImageCreateInfo iinfo {};
         vk::ImageCreateInfo iinfo{
@@ -179,13 +155,15 @@ namespace Engine::RenderSystemState {
         };
         VkImageCreateInfo iinfo2 = static_cast<VkImageCreateInfo>(iinfo);
 
-        VmaAllocationCreateInfo ainfo {};
+        VmaAllocationCreateInfo ainfo{};
         ainfo.usage = musage;
 
         VkImage image;
         VmaAllocation allocation;
         vmaCreateImage(m_allocator, &iinfo2, &ainfo, &image, &allocation, nullptr);
         DEBUG_SET_NAME_TEMPLATE(m_system.getDevice(), static_cast<vk::Image>(image), name);
-        return std::make_unique<AllocatedMemory>(AllocatedMemory(static_cast<vk::Image>(image), allocation, m_allocator));
+        return std::make_unique<AllocatedMemory>(
+            AllocatedMemory(static_cast<vk::Image>(image), allocation, m_allocator)
+        );
     }
-}
+} // namespace Engine::RenderSystemState

@@ -1,27 +1,24 @@
 #include <SDL3/SDL.h>
 #include <cassert>
-#include <iostream>
 #include <fstream>
+#include <iostream>
 
-#include <cmake_config.h>
-#include <MainClass.h>
-#include <Functional/SDLWindow.h>
-#include <Render/RenderSystem.h>
-#include <Framework/world/WorldSystem.h>
 #include <Asset/AssetManager/AssetManager.h>
 #include <Asset/Scene/GameObjectAsset.h>
 #include <Framework/component/RenderComponent/CameraComponent.h>
+#include <Framework/world/WorldSystem.h>
+#include <Functional/SDLWindow.h>
+#include <MainClass.h>
+#include <Render/RenderSystem.h>
+#include <cmake_config.h>
 
 using namespace Engine;
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
     int64_t max_frame_count = std::numeric_limits<int64_t>::max();
-    if (argc > 1)
-    {
+    if (argc > 1) {
         max_frame_count = std::atoll(argv[1]);
-        if (max_frame_count == 0)
-            return -1;
+        if (max_frame_count == 0) return -1;
     }
 
     std::filesystem::path project_path(ENGINE_PROJECTS_DIR);

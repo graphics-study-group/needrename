@@ -3,12 +3,10 @@
 #include "Asset/Texture/Image2DTextureAsset.h"
 
 namespace Engine {
-    SampledTextureInstantiated::SampledTextureInstantiated(RenderSystem &system) : SampledTexture(system)
-    {
+    SampledTextureInstantiated::SampledTextureInstantiated(RenderSystem &system) : SampledTexture(system) {
     }
-    void SampledTextureInstantiated::Instantiate(const Image2DTextureAsset &asset)
-    {
-        TextureDesc tDesc {
+    void SampledTextureInstantiated::Instantiate(const Image2DTextureAsset &asset) {
+        TextureDesc tDesc{
             .dimensions = 2,
             .width = asset.m_width,
             .height = asset.m_height,
@@ -19,9 +17,9 @@ namespace Engine {
             .array_layers = 1,
             .is_cube_map = false
         };
-        SamplerDesc sDesc {
+        SamplerDesc sDesc{
 
         };
         this->CreateTextureAndSampler(tDesc, sDesc, std::format("Image - asset {}", asset.m_name));
     }
-}
+} // namespace Engine

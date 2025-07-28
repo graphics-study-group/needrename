@@ -1,11 +1,11 @@
 #include <SDL3/SDL.h>
 #include <cassert>
-#include <fstream>
 #include <chrono>
+#include <fstream>
 
-#include "MainClass.h"
-#include "Functional/SDLWindow.h"
 #include "Framework/component/RenderComponent/MeshComponent.h"
+#include "Functional/SDLWindow.h"
+#include "MainClass.h"
 #include "Render/FullRenderSystem.h"
 
 using namespace Engine;
@@ -16,8 +16,8 @@ public:
     TestHomoMesh(std::weak_ptr<RenderSystem> system) : HomogeneousMesh(system) {
         this->m_positions = {{0.0f, -0.5f, 0.0f}, {0.5f, 0.5f, 0.0f}, {-0.5f, 0.5f, 0.0f}};
         this->m_attributes = {
-            {.color = {1.0f, 0.0f, 0.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {0.0f, 0.0f}}, 
-            {.color = {0.0f, 1.0f, 0.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {0.0f, 0.0f}}, 
+            {.color = {1.0f, 0.0f, 0.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {0.0f, 0.0f}},
+            {.color = {0.0f, 1.0f, 0.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {0.0f, 0.0f}},
             {.color = {0.0f, 0.0f, 1.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord1 = {0.0f, 0.0f}}
         };
         this->m_indices = {0, 1, 2};
@@ -26,9 +26,9 @@ public:
 
 class TestMeshComponent : public MeshComponent {
     Transform transform;
-public: 
-    TestMeshComponent(std::shared_ptr<Material> mat) 
-    : MeshComponent(std::weak_ptr<GameObject>()), transform() {
+
+public:
+    TestMeshComponent(std::shared_ptr<Material> mat) : MeshComponent(std::weak_ptr<GameObject>()), transform() {
         m_materials.push_back(mat);
         m_submeshes.push_back(std::make_shared<TestHomoMesh>(m_system));
         m_submeshes[0]->Prepare();
@@ -49,8 +49,7 @@ public:
     }
 };
 
-int main(int, char **)
-{
+int main(int, char **) {
     SDL_Init(SDL_INIT_VIDEO);
 
     StartupOptions opt{.resol_x = 1920, .resol_y = 1080, .title = "Vulkan Test"};
@@ -62,11 +61,10 @@ int main(int, char **)
 
     RenderTargetSetup rts{system};
     rts.CreateFromSwapchain();
-    rts.SetClearValues({
-        vk::ClearValue{vk::ClearColorValue{0.0f, 0.0f, 0.0f, 1.0f}},
-        vk::ClearValue{vk::ClearDepthStencilValue{1.0f, 0U}}
-    });
-    
+    rts.SetClearValues(
+        {vk::ClearValue{vk::ClearColorValue{0.0f, 0.0f, 0.0f, 1.0f}},
+         vk::ClearValue{vk::ClearDepthStencilValue{1.0f, 0U}}}
+    );
 
     std::shared_ptr material = std::make_shared<TestMaterial>(system);
 
@@ -75,20 +73,20 @@ int main(int, char **)
 
     std::shared_ptr tmc = std::make_shared<TestMeshComponent>(material);
     system->RegisterComponent(tmc);
-    
+
     uint64_t start_timer = SDL_GetPerformanceCounter();
-    while(total_test_frame--) {
-        
+    while (total_test_frame--) {
+
         auto frame_start_timer = sch::high_resolution_clock::now();
 
         system->WaitForFrameBegin(in_flight_frame_id);
-        GraphicsCommandBuffer & cb = system->GetGraphicsCommandBuffer(in_flight_frame_id);
+        GraphicsCommandBuffer &cb = system->GetGraphicsCommandBuffer(in_flight_frame_id);
         uint32_t index = system->GetNextImage(in_flight_frame_id, 0x7FFFFFFF);
 
         assert(index < 3);
-    
+
         cb.Begin();
-        vk::Extent2D extent {system->GetSwapchain().GetExtent()};
+        vk::Extent2D extent{system->GetSwapchain().GetExtent()};
         cb.BeginRendering(rts, extent, index);
         system->DrawMeshes(in_flight_frame_id);
         cb.EndRendering();
@@ -101,11 +99,13 @@ int main(int, char **)
 
         std::chrono::duration<double, std::milli> total;
         total = submission_end_timer - frame_start_timer;
-        SDL_LogVerbose(0, "Total: %lf milliseconds, or %lf fps for frame %u.", 
+        SDL_LogVerbose(
+            0,
+            "Total: %lf milliseconds, or %lf fps for frame %u.",
             total.count(),
             1000.0 / total.count(),
             in_flight_frame_id
-            );
+        );
 
         in_flight_frame_id = (in_flight_frame_id + 1) % 3;
     }
