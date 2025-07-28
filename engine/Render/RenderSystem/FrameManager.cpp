@@ -308,7 +308,6 @@ namespace Engine::RenderSystemState {
     }
 
     uint32_t FrameManager::StartFrame(uint64_t timeout) {
-        pimpl->m_submission_helper->StartFrame();
 
         auto device = pimpl->m_system.getDevice();
         uint32_t fif = GetFrameInFlight();
@@ -341,6 +340,8 @@ namespace Engine::RenderSystemState {
     }
 
     void FrameManager::SubmitMainCommandBuffer() {
+        pimpl->m_submission_helper->ExecuteSubmission();
+
         bool wait_for_semaphore = (pimpl->total_frame_count > 0);
         uint32_t fif = GetFrameInFlight();
         vk::SubmitInfo info{};

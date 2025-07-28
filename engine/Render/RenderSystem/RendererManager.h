@@ -48,7 +48,7 @@ namespace Engine {
          * Eagerly loaded renderers which are not currently loaded will be prepared 
          * to be submitted to GPU, and unregistered renderers are removed from GPU.
          * 
-         * Actual uploading is performed by `SubmissionHelper` on `StartFrame()` call.
+         * Actual uploading is performed by `FrameManager`.
          */
         void UpdateRendererStates();
 
@@ -63,7 +63,7 @@ namespace Engine {
          * All returned renderers that are not loaded to GPU (i.e. lazily loaded) will 
          * be prepared to be submitted.
          * 
-         * Actual uploading is performed by `SubmissionHelper` on `StartFrame()` call.
+         * Actual uploading is performed by `FrameManager`.
          */
         RendererList FilterAndSortRenderers(FilterCriteria fc, SortingCriterion sc = SortingCriterion::None);
     };

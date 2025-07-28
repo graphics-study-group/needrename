@@ -63,10 +63,11 @@ namespace Engine {
             void EnqueueTextureClear(const Texture & texture, std::tuple<float, float, float, float> color_rgba);
 
             /***
-             * @brief Start the frame. Allocated a new command buffer if needed, record all pending operations, and submit the
+             * @brief Execute staged submissions. 
+             * Allocated a new command buffer if needed, record all pending operations, and submit the
              * buffer to the graphics queue allocated by the render system.
              */
-            void StartFrame();
+            void ExecuteSubmission();
 
             /***
              * @brief Complete the frame. Wait for execution of the disposable command buffer, de-allocate staging buffers,

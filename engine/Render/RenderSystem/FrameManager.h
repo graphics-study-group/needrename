@@ -56,6 +56,7 @@ namespace Engine {
 
             /**
              * @brief Submit the main command buffer to the graphics queue for execution.
+             * Also performs staged resource submission.
              * 
              * @warning Must be called before either `CompositeToFramebufferAndPresent` or `CompositeToImage`, once each frame.
              * Non-standard call-sites are likely to result in deadlocks and vulkan device losses.

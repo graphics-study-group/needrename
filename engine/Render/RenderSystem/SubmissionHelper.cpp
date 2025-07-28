@@ -107,7 +107,7 @@ namespace Engine::RenderSystemState {
         m_pending_operations.push(enqueued);
     }
 
-    void SubmissionHelper::StartFrame() {
+    void SubmissionHelper::ExecuteSubmission() {
         if (m_pending_operations.empty()) return;
 
         // Allocate one-time command buffer
