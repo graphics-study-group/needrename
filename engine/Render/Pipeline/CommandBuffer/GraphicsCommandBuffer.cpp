@@ -7,7 +7,6 @@
 #include "Render/Pipeline/Material/MaterialInstance.h"
 #include "Render/Pipeline/RenderTargetBinding.h"
 #include "Render/RenderSystem/GlobalConstantDescriptorPool.h"
-#include "Render/RenderSystem/RendererManager.h"
 #include "Render/RenderSystem/FrameManager.h"
 #include "Render/RenderSystem/Swapchain.h"
 #include "Render/Renderer/HomogeneousMesh.h"

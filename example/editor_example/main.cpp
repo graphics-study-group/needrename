@@ -147,7 +147,6 @@ int main() {
         rsys->GetFrameManager().CompositeToFramebufferAndPresent();
     }
     rsys->WaitForIdle();
-    rsys->ClearComponent();
 
     SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "Unloading Main-class");
 

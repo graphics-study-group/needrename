@@ -13,6 +13,7 @@
 #include "Render/RenderSystem/SubmissionHelper.h"
 #include "Render/RenderSystem/GlobalConstantDescriptorPool.h"
 #include "Render/RenderSystem/MaterialRegistry.h"
+#include "Render/RenderSystem/RendererManager.h"
 
 #include "Render/Pipeline/CommandBuffer.h"
 #include "Render/Pipeline/CommandBuffer/GraphicsContext.h"

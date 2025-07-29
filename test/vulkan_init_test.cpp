@@ -114,7 +114,6 @@ int main(int, char **) {
     double duration_time = 1.0 * duration / SDL_GetPerformanceFrequency();
     SDL_LogInfo(0, "Took %lf seconds for 200 frames (avg. %lf fps).", duration_time, 200.0 / duration_time);
     system->WaitForIdle();
-    system->ClearComponent();
 
     SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "Unloading Main-class");
     return 0;

@@ -1,8 +1,9 @@
-#ifndef PIPELINE_COMMANDBUFFER_GraphicsCommandBuffer_INCLUDED
-#define PIPELINE_COMMANDBUFFER_GraphicsCommandBuffer_INCLUDED
+#ifndef PIPELINE_COMMANDBUFFER_GRAPHICSCOMMANDBUFFER_INCLUDED
+#define PIPELINE_COMMANDBUFFER_GRAPHICSCOMMANDBUFFER_INCLUDED
 
 #include "Render/VkWrapper.tcc"
 #include "Render/AttachmentUtils.h"
+#include "Render/RenderSystem/RendererManager.h"
 #include "Render/Pipeline/CommandBuffer/TransferCommandBuffer.h"
 #include <vulkan/vulkan.hpp>
 #include <glm.hpp>
@@ -13,7 +14,6 @@ namespace Engine {
     class HomogeneousMesh;
     class Buffer;
     class RenderTargetBinding;
-    class RendererList;
 
     /**
      * @brief A command buffer used for rendering.
@@ -88,4 +88,4 @@ namespace Engine {
     };
 }
 
-#endif // PIPELINE_COMMANDBUFFER_GraphicsCommandBuffer_INCLUDED
+#endif // PIPELINE_COMMANDBUFFER_GRAPHICSCOMMANDBUFFER_INCLUDED

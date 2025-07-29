@@ -76,7 +76,10 @@ namespace Editor {
         Engine::MainClass::GetInstance()->GetRenderSystem()->SetActiveCamera(
             Engine::MainClass::GetInstance()->GetWorldSystem()->m_active_camera
         );
-        Engine::MainClass::GetInstance()->GetRenderSystem()->DrawMeshes();
+        cb.DrawRenderers(
+            Engine::MainClass::GetInstance()->GetRenderSystem()->GetRendererManager().FilterAndSortRenderers({}),
+            0
+        );
         cb.EndRendering();
     }
 

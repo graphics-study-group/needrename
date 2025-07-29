@@ -269,7 +269,7 @@ int main(int argc, char **argv) {
     // Setup mesh
     std::filesystem::path mesh_path{std::string(ENGINE_ASSETS_DIR) + "/four_bunny/four_bunny.obj"};
     std::shared_ptr tmc = std::make_shared<MeshComponentFromFile>(mesh_path);
-    rsys->RegisterComponent(tmc);
+    rsys->GetRendererManager().RegisterRendererComponent(tmc);
 
     // Setup camera
     Transform transform{};
@@ -327,7 +327,7 @@ int main(int argc, char **argv) {
             depth_att,
             extent
         );
-        rsys->DrawMeshes();
+        cb.DrawRenderers(rsys->GetRendererManager().FilterAndSortRenderers({}), 0);
         cb.EndRendering();
 
         context.UseImage(
@@ -364,7 +364,6 @@ int main(int argc, char **argv) {
         frame_count * 1.0 / duration_time
     );
     rsys->WaitForIdle();
-    rsys->ClearComponent();
 
     SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "Unloading Main-class");
     return 0;

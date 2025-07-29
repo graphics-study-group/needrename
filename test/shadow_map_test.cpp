@@ -320,7 +320,6 @@ int main(int argc, char **argv) {
     }
 
     rsys->WaitForIdle();
-    rsys->ClearComponent();
 
     return 0;
 }
