@@ -30,10 +30,10 @@ namespace Engine {
         }
 
         // Commit vertex buffer to GPU
-        for (auto &submesh : m_submeshes) {
+        /* for (auto &submesh : m_submeshes) {
             submesh->Prepare();
             m_system.lock()->GetFrameManager().GetSubmissionHelper().EnqueueVertexBufferSubmission(*submesh);
-        }
+        } */
     }
 
     void MeshComponent::Tick() {

@@ -37,6 +37,14 @@ namespace Engine
         auto GetMaterials() -> decltype(m_materials) &;
 
         REFL_SER_ENABLE std::vector<std::shared_ptr<AssetRef>> m_material_assets{};
+        /// @brief Is this renderer eagerly loaded onto the GPU instead of loaded on use?
+        REFL_SER_ENABLE bool m_is_eagerly_loaded{false};
+        /// @brief Do this renderer cast shadow (viz. rendered onto shadowmaps)?
+        REFL_SER_ENABLE bool m_cast_shadow{false};
+        /// @brief Bits of the layers of the renderer (eg. opaque, transparent or HUD).
+        REFL_SER_ENABLE uint32_t m_layer{0xFFFFFFFF};
+        /// @brief Currently unused.
+        REFL_SER_ENABLE uint32_t m_priority{0};
     };
 }
 #endif // FRAMEWORK_COMPONENT_RENDERCOMPONENT_RENDERERCOMPONENT_INCLUDED

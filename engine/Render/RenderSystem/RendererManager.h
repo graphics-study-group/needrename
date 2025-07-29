@@ -16,7 +16,14 @@ namespace Engine {
     public:
 
         struct FilterCriteria {
-            uint32_t layer;
+            enum class BinaryCriterion : uint8_t {
+                No,
+                Yes,
+                DontCare
+            };
+
+            BinaryCriterion is_shadow_caster{BinaryCriterion::DontCare};
+            uint32_t layer{0xFFFFFFFF};
         };
 
         enum class SortingCriterion {
@@ -32,7 +39,7 @@ namespace Engine {
         RendererManager(RenderSystem & system);
         ~RendererManager();
 
-        void RegisterRendererComponent(MeshComponent & component);
+        RendererHandle RegisterRendererComponent(std::shared_ptr <MeshComponent> component);
 
         /**
          * @brief Unregister a component from the manager.
@@ -66,7 +73,15 @@ namespace Engine {
          * Actual uploading is performed by `FrameManager`.
          */
         RendererList FilterAndSortRenderers(FilterCriteria fc, SortingCriterion sc = SortingCriterion::None);
+
+        /**
+         * @brief Get the renderer data used for draw calls.
+         */
+        MeshComponent * GetRendererData (RendererHandle handle) const noexcept;
     };
+
+    using RendererHandle = RendererManager::RendererHandle;
+    using RendererList = RendererManager::RendererList;
 }
 
 #endif // RENDER_RENDERSYSTEM_RENDERERMANAGER
