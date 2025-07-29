@@ -5,13 +5,11 @@
 #include <initializer_list>
 
 namespace Engine {
-    template<class T>
-    concept IsEnum = std::is_enum<T>::value;
     /**
      * @brief Type-safe bit flag to be used with scoped or unscoped enums.
      * Maybe we can directly use vk::Flags and avoid re-inventing the wheels...
      */
-    template <class T> requires IsEnum<T>
+    template <class T> requires std::is_enum_v<T>
     class Flags {
         using UnderlyingType = std::underlying_type_t<T>;
         UnderlyingType m_flags;
@@ -41,62 +39,78 @@ namespace Engine {
             return m_flags;
         }
 
-        constexpr operator bool() const {
+        /// @brief Check whether any flag is set.
+        constexpr operator bool() const noexcept {
             return m_flags != static_cast<UnderlyingType>(0);
         }
 
-        friend constexpr Flags operator|(Flags lhs, T rhs) {
+        /// @brief Set a specific bit to be true.
+        constexpr void Set(T bit) noexcept {
+            m_flags |= static_cast<UnderlyingType>(bit);
+        }
+
+        /// @brief Test whether a bit (or any of the given bits) is set.
+        constexpr bool Test(T bit) const noexcept {
+            return static_cast<bool>(m_flags & static_cast<UnderlyingType>(bit));
+        }
+
+        /// @brief Mask the current flag with given bits.
+        constexpr void Mask(T bit) noexcept {
+            m_flags &= static_cast<UnderlyingType>(bit);
+        }
+
+        friend constexpr Flags operator|(Flags lhs, T rhs) noexcept {
             return Flags(lhs.m_flags | static_cast<UnderlyingType>(rhs));
         }
-        friend constexpr Flags operator|(Flags lhs, Flags rhs) {
+        friend constexpr Flags operator|(Flags lhs, Flags rhs) noexcept {
             return Flags(lhs.m_flags | rhs.m_flags);
         }
-        friend constexpr Flags operator&(Flags lhs, T rhs) {
+        friend constexpr Flags operator&(Flags lhs, T rhs) noexcept {
             return Flags(lhs.m_flags & static_cast<UnderlyingType>(rhs));
         }
-        friend constexpr Flags operator&(Flags lhs, Flags rhs) {
+        friend constexpr Flags operator&(Flags lhs, Flags rhs) noexcept {
             return Flags(lhs.m_flags & rhs.m_flags);
         }
-        friend constexpr Flags operator^(Flags lhs, T rhs) {
+        friend constexpr Flags operator^(Flags lhs, T rhs) noexcept {
             return Flags(lhs.m_flags ^ static_cast<UnderlyingType>(rhs));
         }
-        friend constexpr Flags operator^(Flags lhs, Flags rhs) {
+        friend constexpr Flags operator^(Flags lhs, Flags rhs) noexcept {
             return Flags(lhs.m_flags ^ rhs.m_flags);
         }
 
-        friend constexpr Flags& operator|=(Flags& lhs, T rhs) {
+        friend constexpr Flags& operator|=(Flags& lhs, T rhs) noexcept {
             lhs.m_flags |= static_cast<UnderlyingType>(rhs);
             return lhs;
         }
-        friend constexpr Flags& operator|=(Flags& lhs, Flags rhs) {
+        friend constexpr Flags& operator|=(Flags& lhs, Flags rhs) noexcept {
             lhs.m_flags |= rhs.m_flags;
             return lhs;
         }
-        friend constexpr Flags& operator&=(Flags& lhs, T rhs) {
+        friend constexpr Flags& operator&=(Flags& lhs, T rhs) noexcept {
             lhs.m_flags &= static_cast<UnderlyingType>(rhs);
             return lhs;
         }
-        friend constexpr Flags& operator&=(Flags& lhs, Flags rhs) {
+        friend constexpr Flags& operator&=(Flags& lhs, Flags rhs) noexcept {
             lhs.m_flags &= rhs.m_flags;
             return lhs;
         }
-        friend constexpr Flags& operator^=(Flags& lhs, T rhs) {
+        friend constexpr Flags& operator^=(Flags& lhs, T rhs) noexcept {
             lhs.m_flags ^= static_cast<UnderlyingType>(rhs);
             return lhs;
         }
-        friend constexpr Flags& operator^=(Flags& lhs, Flags rhs) {
+        friend constexpr Flags& operator^=(Flags& lhs, Flags rhs) noexcept {
             lhs.m_flags ^= rhs.m_flags;
             return lhs;
         }
 
-        friend constexpr Flags operator~(const Flags& bf) {
+        friend constexpr Flags operator~(const Flags& bf) noexcept {
             return Flags(~bf.m_flags);
         }
 
-        friend constexpr bool operator==(const Flags& lhs, const Flags& rhs) {
+        friend constexpr bool operator==(const Flags& lhs, const Flags& rhs) noexcept {
             return lhs.m_flags == rhs.m_flags;
         }
-        friend constexpr bool operator!=(const Flags& lhs, const Flags& rhs) {
+        friend constexpr bool operator!=(const Flags& lhs, const Flags& rhs) noexcept {
             return lhs.m_flags != rhs.m_flags;
         }
 

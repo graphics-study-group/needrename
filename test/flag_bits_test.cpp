@@ -47,4 +47,14 @@ int main () {
     flg = ~flg;
     assert(flg & Bits::d);
     assert(!(flg & Bits::a));
+
+    Flag f;
+    f.Set(Bits::a);
+    f.Set(Bits::b);
+    f.Mask(Bits::c);
+    assert(!f);
+
+    f.Set(Bits::a);
+    assert(f.Test(Bits::a));
+    assert(!f.Test(Bits::b));
 }
