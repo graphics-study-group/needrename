@@ -13,6 +13,7 @@ namespace Engine {
     class HomogeneousMesh;
     class Buffer;
     class RenderTargetBinding;
+    class RendererList;
 
     /**
      * @brief A command buffer used for rendering.
@@ -71,7 +72,10 @@ namespace Engine {
         /// @brief Write per-mesh descriptors, and send draw call to GPU.
         /// @param mesh 
         void DrawMesh(const HomogeneousMesh & mesh);
-        void DrawMesh(const HomogeneousMesh& mesh, const glm::mat4 & model_matrix);
+        void DrawMesh(const HomogeneousMesh & mesh, const glm::mat4 & model_matrix);
+
+        void DrawRenderers (const RendererList & renderers, uint32_t pass);
+        void DrawRenderers (const RendererList & renderers, const glm::mat4 &view_matrix, const glm::mat4 &projection_matrix, vk::Extent2D extent, uint32_t pass);
 
         /// @brief End the render pass
         void EndRendering();

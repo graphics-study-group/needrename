@@ -1,11 +1,17 @@
 #include "GraphicsCommandBuffer.h"
 
+#include "Framework/component/RenderComponent/MeshComponent.h"
+
 #include "Render/ConstantData/PerModelConstants.h"
 #include "Render/Memory/Buffer.h"
 #include "Render/Pipeline/Material/MaterialInstance.h"
 #include "Render/Pipeline/RenderTargetBinding.h"
 #include "Render/RenderSystem/GlobalConstantDescriptorPool.h"
+#include "Render/RenderSystem/RendererManager.h"
+#include "Render/RenderSystem/FrameManager.h"
+#include "Render/RenderSystem/Swapchain.h"
 #include "Render/Renderer/HomogeneousMesh.h"
+#include "Render/Renderer/Camera.h"
 
 #include "Render/DebugUtils.h"
 #include "Render/Pipeline/CommandBuffer/LayoutTransferHelper.h"
@@ -160,6 +166,49 @@ namespace Engine {
             reinterpret_cast<const void *>(&model_matrix)
         );
         cb.drawIndexed(mesh.GetVertexIndexCount(), 1, 0, 0, 0);
+    }
+
+    void GraphicsCommandBuffer::DrawRenderers(const RendererList &renderers, uint32_t pass) {
+        auto camera = m_system.GetActiveCamera().lock();
+        assert(camera);
+        this->DrawRenderers(
+            renderers, 
+            camera->GetViewMatrix(), 
+            camera->GetProjectionMatrix(), 
+            m_system.GetSwapchain().GetExtent(), 
+            pass
+        );
+    }
+
+    void GraphicsCommandBuffer::DrawRenderers(
+        const RendererList &renderers,
+        const glm::mat4 &view_matrix,
+        const glm::mat4 &projection_matrix,
+        vk::Extent2D extent,
+        uint32_t pass
+    ) {
+        // Write camera transforms
+        auto camera_ptr = m_system.GetGlobalConstantDescriptorPool().GetPerCameraConstantMemory(
+            m_system.GetFrameManager().GetFrameInFlight(), m_system.GetActiveCameraId()
+        );
+        ConstantData::PerCameraStruct camera_struct{view_matrix, projection_matrix};
+        std::memcpy(camera_ptr, &camera_struct, sizeof camera_struct);
+
+        vk::Rect2D scissor{{0, 0}, extent};
+        this->SetupViewport(extent.width, extent.height, scissor);
+        for (const auto & rid : renderers) {
+            const auto & component = m_system.GetRendererManager().GetRendererData(rid);
+            glm::mat4 model_matrix = component->GetWorldTransform().GetTransformMatrix();
+
+            const auto &materials = component->GetMaterials();
+            const auto &meshes = component->GetSubmeshes();
+
+            assert(materials.size() == meshes.size());
+            for (size_t id = 0; id < materials.size(); id++) {
+                this->BindMaterial(*materials[id], pass);
+                this->DrawMesh(*meshes[id], model_matrix);
+            }
+        }
     }
 
     void GraphicsCommandBuffer::EndRendering() {

@@ -5,7 +5,7 @@
 #include "Framework/component/RenderComponent/MeshComponent.h"
 #include "Core/flagbits.h"
 
-namespace Engine {
+namespace Engine::RenderSystemState {
     struct RendererManager::impl {
 
         enum class StatusBits : uint32_t {
