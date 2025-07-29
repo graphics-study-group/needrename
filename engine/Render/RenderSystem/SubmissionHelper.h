@@ -7,9 +7,8 @@
 #include <vulkan/vulkan.hpp>
 
 namespace Engine {
-    class Buffer;
-    class HomogeneousMesh;
     class Texture;
+    class HomogeneousMesh;
 
     namespace RenderSystemState {
         /// @brief A helper for submitting data to GPU.
@@ -19,13 +18,11 @@ namespace Engine {
         private:
             RenderSystem & m_system;
 
-            std::queue <CmdOperation> m_pending_operations {};
-            std::vector <Buffer> m_pending_dellocations {};
-
-            vk::UniqueCommandBuffer m_one_time_cb {};
-            vk::UniqueFence m_completion_fence {};
+            struct impl;
+            std::unique_ptr <impl> pimpl;
         public:
             SubmissionHelper (RenderSystem & system);
+            ~SubmissionHelper();
 
             /***
              * @brief Enqueue a vertex buffer uploading.
