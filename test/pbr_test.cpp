@@ -146,11 +146,6 @@ public:
         auto system = m_system.lock();
         auto &helper = system->GetFrameManager().GetSubmissionHelper();
 
-        for (auto &submesh : m_submeshes) {
-            submesh->Prepare();
-            helper.EnqueueVertexBufferSubmission(*submesh);
-        }
-
         auto id_albedo = material_template->GetVariableIndex("albedoSampler", 0).value();
         assert(id_albedo.second == false);
         for (size_t i = 0; i < m_submeshes.size(); i++) {

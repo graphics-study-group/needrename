@@ -2,6 +2,7 @@
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/FrameManager.h"
 #include "Render/RenderSystem/SubmissionHelper.h"
+#include "Render/Renderer/HomogeneousMesh.h"
 #include "Framework/component/RenderComponent/MeshComponent.h"
 #include "Core/flagbits.h"
 
@@ -59,12 +60,12 @@ namespace Engine::RenderSystemState {
 
     RendererHandle RendererManager::RegisterRendererComponent(std::shared_ptr<RendererComponent> component)
     {
-        SDL_LogDebug(SDL_LOG_CATEGORY_RENDER, "Registering component %p", component.get());
+        SDL_LogDebug(SDL_LOG_CATEGORY_RENDER, "Registering component 0x%p", static_cast<void *>(component.get()));
 
         impl::StatusFlags sflag{};
         if (component->m_cast_shadow) sflag.Set(impl::StatusBits::ShadowCaster);
         if (component->m_is_eagerly_loaded) sflag.Set(impl::StatusBits::Eager);
-        sflag.Set(impl::StatusBits::Loaded);
+        // sflag.Set(impl::StatusBits::Loaded);
 
         pimpl->m_status.push_back(impl::RendererControlBlock{.status = sflag, .layer = component->m_layer});
         pimpl->m_data.push_back(impl::RendererDataBlock{component});
@@ -89,9 +90,10 @@ namespace Engine::RenderSystemState {
 
             if (s.Test(impl::StatusBits::Eager) && !s.Test(impl::StatusBits::Loaded)) {
                 s.Set(impl::StatusBits::Loaded);
-                SDL_LogDebug(SDL_LOG_CATEGORY_RENDER, "Eagerly loading component %p", pimpl->m_data[i].m_component.get());
+                SDL_LogDebug(SDL_LOG_CATEGORY_RENDER, "Eagerly loading component 0x%p", static_cast<void *>(pimpl->m_data[i].m_component.get()));
                 if (auto mesh_ptr = std::dynamic_pointer_cast<MeshComponent>(pimpl->m_data[i].m_component)) {
                     for (auto mesh : mesh_ptr->GetSubmeshes()) {
+                        mesh->Prepare();
                         m_system.GetFrameManager().GetSubmissionHelper().EnqueueVertexBufferSubmission(*mesh);
                     }
                 }
@@ -118,10 +120,11 @@ namespace Engine::RenderSystemState {
             ret.push_back(i);
             if (!pimpl->m_status[i].status.Test(impl::StatusBits::Loaded)) {
                 pimpl->m_status[i].status.Set(impl::StatusBits::Loaded);
-                SDL_LogDebug(SDL_LOG_CATEGORY_RENDER, "Lazily loading component %p", pimpl->m_data[i].m_component.get());
+                SDL_LogDebug(SDL_LOG_CATEGORY_RENDER, "Lazily loading component 0x%p", static_cast<void *>(pimpl->m_data[i].m_component.get()));
 
                 if (auto mesh_ptr = std::dynamic_pointer_cast<MeshComponent>(pimpl->m_data[i].m_component)) {
                     for (auto mesh : mesh_ptr->GetSubmeshes()) {
+                        mesh->Prepare();
                         m_system.GetFrameManager().GetSubmissionHelper().EnqueueVertexBufferSubmission(*mesh);
                     }
                 }

@@ -32,12 +32,6 @@ namespace Engine {
         for (size_t i = 0; i < submesh_count; i++) {
             m_submeshes.push_back(std::make_shared<HomogeneousMesh>(m_system, m_mesh_asset, i));
         }
-
-        // Commit vertex buffer to GPU
-        /* for (auto &submesh : m_submeshes) {
-            submesh->Prepare();
-            m_system.lock()->GetFrameManager().GetSubmissionHelper().EnqueueVertexBufferSubmission(*submesh);
-        } */
     }
 
     void MeshComponent::Tick() {

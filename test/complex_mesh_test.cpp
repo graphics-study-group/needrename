@@ -126,11 +126,6 @@ public:
         auto system = m_system.lock();
         auto &helper = system->GetFrameManager().GetSubmissionHelper();
 
-        for (auto &submesh : m_submeshes) {
-            submesh->Prepare();
-            helper.EnqueueVertexBufferSubmission(*submesh);
-        }
-
         for (size_t i = 0; i < m_material_assets.size(); i++) {
             auto ptr = std::make_shared<Materials::BlinnPhongInstance>(
                 *system, system->GetMaterialRegistry().GetMaterial("Built-in Blinn-Phong")
