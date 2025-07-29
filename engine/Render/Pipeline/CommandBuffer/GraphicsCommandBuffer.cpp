@@ -200,12 +200,15 @@ namespace Engine {
             glm::mat4 model_matrix = component->GetWorldTransform().GetTransformMatrix();
 
             const auto &materials = component->GetMaterials();
-            const auto &meshes = component->GetSubmeshes();
 
-            assert(materials.size() == meshes.size());
-            for (size_t id = 0; id < materials.size(); id++) {
-                this->BindMaterial(*materials[id], pass);
-                this->DrawMesh(*meshes[id], model_matrix);
+            if (auto mesh_ptr = dynamic_cast<const MeshComponent *>(component)) {
+                const auto &meshes = mesh_ptr->GetSubmeshes();
+
+                assert(materials.size() == meshes.size());
+                for (size_t id = 0; id < materials.size(); id++) {
+                    this->BindMaterial(*materials[id], pass);
+                    this->DrawMesh(*meshes[id], model_matrix);
+                }
             }
         }
     }

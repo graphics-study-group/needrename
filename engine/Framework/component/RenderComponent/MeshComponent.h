@@ -21,6 +21,7 @@ namespace Engine
 
         std::shared_ptr<HomogeneousMesh> GetSubmesh(uint32_t slot) const;
         auto GetSubmeshes() -> decltype(m_submeshes) &;
+        auto GetSubmeshes() const -> const decltype(m_submeshes) &;
 
         /// @brief Materialize a runtime mesh component from a mesh asset
         virtual void RenderInit() override;

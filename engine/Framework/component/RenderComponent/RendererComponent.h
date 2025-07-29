@@ -35,6 +35,7 @@ namespace Engine
 
         std::shared_ptr<MaterialInstance> GetMaterial(uint32_t slot) const;
         auto GetMaterials() -> decltype(m_materials) &;
+        auto GetMaterials() const -> const decltype(m_materials) &;
 
         REFL_SER_ENABLE std::vector<std::shared_ptr<AssetRef>> m_material_assets{};
         /// @brief Is this renderer eagerly loaded onto the GPU instead of loaded on use?

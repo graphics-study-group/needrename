@@ -6,8 +6,8 @@
 
 namespace Engine {
     class RenderSystem;
+    class RendererComponent;
 
-    class MeshComponent;
     namespace RenderSystemState {
         class RendererManager {
             RenderSystem & m_system;
@@ -39,7 +39,7 @@ namespace Engine {
             RendererManager(RenderSystem & system);
             ~RendererManager();
 
-            RendererHandle RegisterRendererComponent(std::shared_ptr <MeshComponent> component);
+            RendererHandle RegisterRendererComponent(std::shared_ptr <RendererComponent> component);
 
             /**
              * @brief Unregister a component from the manager.
@@ -77,7 +77,7 @@ namespace Engine {
             /**
              * @brief Get the renderer data used for draw calls.
              */
-            MeshComponent * GetRendererData (RendererHandle handle) const noexcept;
+            const RendererComponent * GetRendererData (RendererHandle handle) const noexcept;
         };
     }
 

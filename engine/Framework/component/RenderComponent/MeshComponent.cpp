@@ -18,6 +18,10 @@ namespace Engine {
         return m_submeshes;
     }
 
+    auto MeshComponent::GetSubmeshes() const -> const decltype(m_submeshes) & {
+        return m_submeshes;
+    }
+
     void MeshComponent::RenderInit() {
         RendererComponent::RenderInit();
 

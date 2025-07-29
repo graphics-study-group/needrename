@@ -5,6 +5,8 @@
 #include "Framework/component/RenderComponent/MeshComponent.h"
 #include "Core/flagbits.h"
 
+#include <SDL3/SDL.h>
+
 namespace Engine::RenderSystemState {
     struct RendererManager::impl {
 
@@ -35,10 +37,10 @@ namespace Engine::RenderSystemState {
         };
 
         struct RendererDataBlock {
-            /// We will try to move data such as materials and buffers
-            /// from `MeshComponent` into this manager to form a ECS architecture.
+            /// We will try to move data such as materials and buffers from `RendererComponent`
+            /// into this manager to form a ECS architecture.
             /// For now we just save its pointer.
-            std::shared_ptr <MeshComponent> m_component;
+            std::shared_ptr <RendererComponent> m_component;
 
             // uint32_t renderer_idx;
             // uint32_t material_idx;
@@ -55,8 +57,10 @@ namespace Engine::RenderSystemState {
     }
     RendererManager::~RendererManager() = default;
 
-    RendererHandle RendererManager::RegisterRendererComponent(std::shared_ptr<MeshComponent> component)
-    {   
+    RendererHandle RendererManager::RegisterRendererComponent(std::shared_ptr<RendererComponent> component)
+    {
+        SDL_LogDebug(SDL_LOG_CATEGORY_RENDER, "Registering component %p", component.get());
+
         impl::StatusFlags sflag{};
         if (component->m_cast_shadow) sflag.Set(impl::StatusBits::ShadowCaster);
         if (component->m_is_eagerly_loaded) sflag.Set(impl::StatusBits::Eager);
@@ -85,9 +89,11 @@ namespace Engine::RenderSystemState {
 
             if (s.Test(impl::StatusBits::Eager) && !s.Test(impl::StatusBits::Loaded)) {
                 s.Set(impl::StatusBits::Loaded);
-
-                for (auto mesh : pimpl->m_data[i].m_component->GetSubmeshes()) {
-                    m_system.GetFrameManager().GetSubmissionHelper().EnqueueVertexBufferSubmission(*mesh);
+                SDL_LogDebug(SDL_LOG_CATEGORY_RENDER, "Eagerly loading component %p", pimpl->m_data[i].m_component.get());
+                if (auto mesh_ptr = std::dynamic_pointer_cast<MeshComponent>(pimpl->m_data[i].m_component)) {
+                    for (auto mesh : mesh_ptr->GetSubmeshes()) {
+                        m_system.GetFrameManager().GetSubmissionHelper().EnqueueVertexBufferSubmission(*mesh);
+                    }
                 }
             }
         }
@@ -112,9 +118,12 @@ namespace Engine::RenderSystemState {
             ret.push_back(i);
             if (!pimpl->m_status[i].status.Test(impl::StatusBits::Loaded)) {
                 pimpl->m_status[i].status.Set(impl::StatusBits::Loaded);
+                SDL_LogDebug(SDL_LOG_CATEGORY_RENDER, "Lazily loading component %p", pimpl->m_data[i].m_component.get());
 
-                for (auto mesh : pimpl->m_data[i].m_component->GetSubmeshes()) {
-                    m_system.GetFrameManager().GetSubmissionHelper().EnqueueVertexBufferSubmission(*mesh);
+                if (auto mesh_ptr = std::dynamic_pointer_cast<MeshComponent>(pimpl->m_data[i].m_component)) {
+                    for (auto mesh : mesh_ptr->GetSubmeshes()) {
+                        m_system.GetFrameManager().GetSubmissionHelper().EnqueueVertexBufferSubmission(*mesh);
+                    }
                 }
             }
         }
@@ -123,7 +132,7 @@ namespace Engine::RenderSystemState {
         return ret;
     }
 
-    MeshComponent *RendererManager::GetRendererData(RendererHandle handle) const noexcept {
+    const RendererComponent *RendererManager::GetRendererData(RendererHandle handle) const noexcept {
         assert(handle < pimpl->m_data.size());
         assert(pimpl->m_data[handle].m_component);
         return pimpl->m_data[handle].m_component.get();
