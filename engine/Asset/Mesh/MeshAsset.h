@@ -23,12 +23,16 @@ namespace Engine
         {
             std::vector<uint32_t> m_indices{};
             std::vector<VertexStruct::VertexPosition> m_positions{};
-            std::vector<VertexStruct::VertexAttribute> m_attributes{};
+            std::vector<VertexStruct::VertexAttributeBasic> m_attributes_basic{};
+            std::vector<VertexStruct::VertexAttributeExtended> m_attributes_extended{};
+            std::vector<VertexStruct::VertexAttributeSkinned> m_attributes_skinned{};
         };
 
         REFL_ENABLE size_t GetSubmeshCount() const;
         REFL_ENABLE uint32_t GetSubmeshVertexIndexCount(size_t submesh_idx) const;
         REFL_ENABLE uint32_t GetSubmeshVertexCount(size_t submesh_idx) const;
+
+        [[deprecated("Expected buffer size is calculated by HomogeneousMesh instead.")]]
         REFL_ENABLE uint64_t GetSubmeshExpectedBufferSize(size_t submesh_idx) const;
 
         virtual void save_asset_to_archive(Serialization::Archive &archive) const override;

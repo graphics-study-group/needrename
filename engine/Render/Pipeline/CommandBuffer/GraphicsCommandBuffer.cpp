@@ -152,9 +152,10 @@ namespace Engine {
     }
 
     void GraphicsCommandBuffer::DrawMesh(const HomogeneousMesh &mesh, const glm::mat4 &model_matrix) {
-        auto bindings = mesh.GetBindingInfo();
-        cb.bindVertexBuffers(0, bindings.first, bindings.second);
-        auto indices = mesh.GetIndexInfo();
+        auto bindings = mesh.GetVertexBufferInfo();
+        std::vector <vk::Buffer> vertex_buffers{bindings.second.size(), bindings.first};
+        cb.bindVertexBuffers(0, vertex_buffers, bindings.second);
+        auto indices = mesh.GetIndexBufferInfo();
         cb.bindIndexBuffer(indices.first, indices.second, vk::IndexType::eUint32);
 
         cb.pushConstants(
@@ -219,12 +220,7 @@ namespace Engine {
     }
 
     void GraphicsCommandBuffer::DrawMesh(const HomogeneousMesh &mesh) {
-        auto bindings = mesh.GetBindingInfo();
-        cb.bindVertexBuffers(0, bindings.first, bindings.second);
-        auto indices = mesh.GetIndexInfo();
-        cb.bindIndexBuffer(indices.first, indices.second, vk::IndexType::eUint32);
-
-        cb.drawIndexed(mesh.GetVertexIndexCount(), 1, 0, 0, 0);
+        this->DrawMesh(mesh, glm::mat4{1.0f});
     }
 
     void GraphicsCommandBuffer::Reset() noexcept {
