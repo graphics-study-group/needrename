@@ -29,7 +29,7 @@ struct LowerPlaneMeshAsset : public MeshAsset {
                     {-0.5f, 0.5f, 0.0f},
                     {-0.5f, -0.5f, 0.0f},
                 },
-            .m_attributes = {
+            .m_attributes_basic = {
                 {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {1.0f, 0.0f}},
                 {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {1.0f, 1.0f}},
                 {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {0.0f, 1.0f}},
