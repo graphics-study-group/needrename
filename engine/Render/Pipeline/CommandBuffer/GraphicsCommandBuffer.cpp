@@ -6,11 +6,11 @@
 #include "Render/Memory/Buffer.h"
 #include "Render/Pipeline/Material/MaterialInstance.h"
 #include "Render/Pipeline/RenderTargetBinding.h"
-#include "Render/RenderSystem/GlobalConstantDescriptorPool.h"
 #include "Render/RenderSystem/FrameManager.h"
+#include "Render/RenderSystem/GlobalConstantDescriptorPool.h"
 #include "Render/RenderSystem/Swapchain.h"
-#include "Render/Renderer/HomogeneousMesh.h"
 #include "Render/Renderer/Camera.h"
+#include "Render/Renderer/HomogeneousMesh.h"
 
 #include "Render/DebugUtils.h"
 #include "Render/Pipeline/CommandBuffer/LayoutTransferHelper.h"
@@ -153,7 +153,7 @@ namespace Engine {
 
     void GraphicsCommandBuffer::DrawMesh(const HomogeneousMesh &mesh, const glm::mat4 &model_matrix) {
         auto bindings = mesh.GetVertexBufferInfo();
-        std::vector <vk::Buffer> vertex_buffers{bindings.second.size(), bindings.first};
+        std::vector<vk::Buffer> vertex_buffers{bindings.second.size(), bindings.first};
         cb.bindVertexBuffers(0, vertex_buffers, bindings.second);
         auto indices = mesh.GetIndexBufferInfo();
         cb.bindIndexBuffer(indices.first, indices.second, vk::IndexType::eUint32);
@@ -172,11 +172,7 @@ namespace Engine {
         auto camera = m_system.GetActiveCamera().lock();
         assert(camera);
         this->DrawRenderers(
-            renderers, 
-            camera->GetViewMatrix(), 
-            camera->GetProjectionMatrix(), 
-            m_system.GetSwapchain().GetExtent(), 
-            pass
+            renderers, camera->GetViewMatrix(), camera->GetProjectionMatrix(), m_system.GetSwapchain().GetExtent(), pass
         );
     }
 
@@ -196,8 +192,8 @@ namespace Engine {
 
         vk::Rect2D scissor{{0, 0}, extent};
         this->SetupViewport(extent.width, extent.height, scissor);
-        for (const auto & rid : renderers) {
-            const auto & component = m_system.GetRendererManager().GetRendererData(rid);
+        for (const auto &rid : renderers) {
+            const auto &component = m_system.GetRendererManager().GetRendererData(rid);
             glm::mat4 model_matrix = component->GetWorldTransform().GetTransformMatrix();
 
             const auto &materials = component->GetMaterials();

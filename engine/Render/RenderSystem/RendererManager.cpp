@@ -1,10 +1,10 @@
 #include "RendererManager.h"
+#include "Core/flagbits.h"
+#include "Framework/component/RenderComponent/MeshComponent.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/FrameManager.h"
 #include "Render/RenderSystem/SubmissionHelper.h"
 #include "Render/Renderer/HomogeneousMesh.h"
-#include "Framework/component/RenderComponent/MeshComponent.h"
-#include "Core/flagbits.h"
 
 #include <SDL3/SDL.h>
 
@@ -41,25 +41,24 @@ namespace Engine::RenderSystemState {
             /// We will try to move data such as materials and buffers from `RendererComponent`
             /// into this manager to form a ECS architecture.
             /// For now we just save its pointer.
-            std::shared_ptr <RendererComponent> m_component;
+            std::shared_ptr<RendererComponent> m_component;
 
             // uint32_t renderer_idx;
             // uint32_t material_idx;
         };
 
-        std::vector <RendererControlBlock> m_status;
-        std::vector <RendererDataBlock> m_data;
+        std::vector<RendererControlBlock> m_status;
+        std::vector<RendererDataBlock> m_data;
 
         // std::vector <HomogeneousMesh *> m_meshes;
         // std::vector <MaterialInstance *> m_materials;
     };
 
-    RendererManager::RendererManager(RenderSystem & system) : m_system(system), pimpl(std::make_unique<impl>()) {
+    RendererManager::RendererManager(RenderSystem &system) : m_system(system), pimpl(std::make_unique<impl>()) {
     }
     RendererManager::~RendererManager() = default;
 
-    RendererHandle RendererManager::RegisterRendererComponent(std::shared_ptr<RendererComponent> component)
-    {
+    RendererHandle RendererManager::RegisterRendererComponent(std::shared_ptr<RendererComponent> component) {
         SDL_LogDebug(SDL_LOG_CATEGORY_RENDER, "Registering component 0x%p", static_cast<void *>(component.get()));
 
         impl::StatusFlags sflag{};
@@ -81,7 +80,7 @@ namespace Engine::RenderSystemState {
         assert(pimpl->m_status.size() == pimpl->m_data.size());
 
         for (size_t i = 0; i < pimpl->m_status.size(); i++) {
-            auto & s = pimpl->m_status[i].status;
+            auto &s = pimpl->m_status[i].status;
 
             if (s.Test(impl::StatusBits::Removal)) {
                 pimpl->m_data[i].m_component.reset();
@@ -90,7 +89,11 @@ namespace Engine::RenderSystemState {
 
             if (s.Test(impl::StatusBits::Eager) && !s.Test(impl::StatusBits::Loaded)) {
                 s.Set(impl::StatusBits::Loaded);
-                SDL_LogDebug(SDL_LOG_CATEGORY_RENDER, "Eagerly loading component 0x%p", static_cast<void *>(pimpl->m_data[i].m_component.get()));
+                SDL_LogDebug(
+                    SDL_LOG_CATEGORY_RENDER,
+                    "Eagerly loading component 0x%p",
+                    static_cast<void *>(pimpl->m_data[i].m_component.get())
+                );
                 if (auto mesh_ptr = std::dynamic_pointer_cast<MeshComponent>(pimpl->m_data[i].m_component)) {
                     for (auto mesh : mesh_ptr->GetSubmeshes()) {
                         m_system.GetFrameManager().GetSubmissionHelper().EnqueueVertexBufferSubmission(*mesh);
@@ -104,22 +107,26 @@ namespace Engine::RenderSystemState {
     }
     RendererList RendererManager::FilterAndSortRenderers(FilterCriteria fc, SortingCriterion sc) {
         assert(sc == SortingCriterion::None && "Unimplemented");
-        std::vector <uint32_t> ret{};
+        std::vector<uint32_t> ret{};
 
         for (uint32_t i = 0; i < pimpl->m_status.size(); i++) {
-            
+
             if ((fc.layer & pimpl->m_status[i].layer) == 0) continue;
             if (fc.is_shadow_caster != FilterCriteria::BinaryCriterion::DontCare) {
                 auto shadow_caster = pimpl->m_status[i].status.Test(impl::StatusBits::ShadowCaster);
                 if (shadow_caster != static_cast<int>(fc.is_shadow_caster)) continue;
             }
 
-            if (pimpl->m_status[i].status.Test(impl::StatusBits::Removal))  continue;
+            if (pimpl->m_status[i].status.Test(impl::StatusBits::Removal)) continue;
 
             ret.push_back(i);
             if (!pimpl->m_status[i].status.Test(impl::StatusBits::Loaded)) {
                 pimpl->m_status[i].status.Set(impl::StatusBits::Loaded);
-                SDL_LogDebug(SDL_LOG_CATEGORY_RENDER, "Lazily loading component 0x%p", static_cast<void *>(pimpl->m_data[i].m_component.get()));
+                SDL_LogDebug(
+                    SDL_LOG_CATEGORY_RENDER,
+                    "Lazily loading component 0x%p",
+                    static_cast<void *>(pimpl->m_data[i].m_component.get())
+                );
 
                 if (auto mesh_ptr = std::dynamic_pointer_cast<MeshComponent>(pimpl->m_data[i].m_component)) {
                     for (auto mesh : mesh_ptr->GetSubmeshes()) {
@@ -138,4 +145,4 @@ namespace Engine::RenderSystemState {
         assert(pimpl->m_data[handle].m_component);
         return pimpl->m_data[handle].m_component.get();
     }
-}; // namespace Engine
+}; // namespace Engine::RenderSystemState

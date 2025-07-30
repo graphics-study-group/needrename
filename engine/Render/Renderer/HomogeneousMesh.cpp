@@ -7,18 +7,18 @@
 namespace Engine {
 
     struct HomogeneousMesh::impl {
-        std::unique_ptr <Buffer> m_buffer {};
-        std::vector <vk::DeviceSize> m_buffer_offsets {};
+        std::unique_ptr<Buffer> m_buffer{};
+        std::vector<vk::DeviceSize> m_buffer_offsets{};
 
-        bool m_updated {false};
+        bool m_updated{false};
 
-        uint64_t m_total_allocated_buffer_size {0};
+        uint64_t m_total_allocated_buffer_size{0};
 
-        std::shared_ptr<AssetRef> m_mesh_asset {};
-        size_t m_submesh_idx {};
-        MeshVertexType m_type {};
+        std::shared_ptr<AssetRef> m_mesh_asset{};
+        size_t m_submesh_idx{};
+        MeshVertexType m_type{};
 
-        void WriteToMemory(std::byte * pointer) const;
+        void WriteToMemory(std::byte *pointer) const;
         /**
          * @brief Allocate buffer and update pre-calculated offsets.
          * Called before `CreateStagingBuffer()`.
@@ -70,21 +70,33 @@ namespace Engine {
             // Generate buffer offsets
             m_buffer_offsets.clear();
             m_buffer_offsets.push_back(0);
-            switch(m_type) {
+            switch (m_type) {
             case MeshVertexType::Skinned:
                 m_buffer_offsets.push_back(new_vertex_count * sizeof(VertexStruct::VertexPosition));
-                m_buffer_offsets.push_back(new_vertex_count * sizeof(VertexStruct::VertexAttributeBasic) + *m_buffer_offsets.rbegin());
-                m_buffer_offsets.push_back(new_vertex_count * sizeof(VertexStruct::VertexAttributeExtended) + *m_buffer_offsets.rbegin());
-                m_buffer_offsets.push_back(new_vertex_count * sizeof(VertexStruct::VertexAttributeSkinned) + *m_buffer_offsets.rbegin());
+                m_buffer_offsets.push_back(
+                    new_vertex_count * sizeof(VertexStruct::VertexAttributeBasic) + *m_buffer_offsets.rbegin()
+                );
+                m_buffer_offsets.push_back(
+                    new_vertex_count * sizeof(VertexStruct::VertexAttributeExtended) + *m_buffer_offsets.rbegin()
+                );
+                m_buffer_offsets.push_back(
+                    new_vertex_count * sizeof(VertexStruct::VertexAttributeSkinned) + *m_buffer_offsets.rbegin()
+                );
                 break;
             case MeshVertexType::Extended:
                 m_buffer_offsets.push_back(new_vertex_count * sizeof(VertexStruct::VertexPosition));
-                m_buffer_offsets.push_back(new_vertex_count * sizeof(VertexStruct::VertexAttributeBasic) + *m_buffer_offsets.rbegin());
-                m_buffer_offsets.push_back(new_vertex_count * sizeof(VertexStruct::VertexAttributeExtended) + *m_buffer_offsets.rbegin());
+                m_buffer_offsets.push_back(
+                    new_vertex_count * sizeof(VertexStruct::VertexAttributeBasic) + *m_buffer_offsets.rbegin()
+                );
+                m_buffer_offsets.push_back(
+                    new_vertex_count * sizeof(VertexStruct::VertexAttributeExtended) + *m_buffer_offsets.rbegin()
+                );
                 break;
             case MeshVertexType::Basic:
                 m_buffer_offsets.push_back(new_vertex_count * sizeof(VertexStruct::VertexPosition));
-                m_buffer_offsets.push_back(new_vertex_count * sizeof(VertexStruct::VertexAttributeBasic) + *m_buffer_offsets.rbegin());
+                m_buffer_offsets.push_back(
+                    new_vertex_count * sizeof(VertexStruct::VertexAttributeBasic) + *m_buffer_offsets.rbegin()
+                );
             }
 
             assert(*m_buffer_offsets.rbegin() == buffer_size - new_vertex_index_count * sizeof(uint32_t));
@@ -117,20 +129,19 @@ namespace Engine {
         std::memcpy(&pointer[offset], positions.data(), positions.size() * sizeof(VertexStruct::VertexPosition));
         offset += positions.size() * sizeof(VertexStruct::VertexPosition);
         // Attributes
-        std::memcpy(&pointer[offset], attributes.data(), attributes.size() * sizeof(VertexStruct::VertexAttributeBasic));
+        std::memcpy(
+            &pointer[offset], attributes.data(), attributes.size() * sizeof(VertexStruct::VertexAttributeBasic)
+        );
         offset += attributes.size() * sizeof(VertexStruct::VertexAttributeBasic);
         // Index
         std::memcpy(&pointer[offset], indices.data(), indices.size() * sizeof(uint32_t));
         offset += indices.size() * sizeof(uint32_t);
-
     }
 
     vk::PipelineVertexInputStateCreateInfo HomogeneousMesh::GetVertexInputState(MeshVertexType type) {
         assert(type == MeshVertexType::Basic && "Unimplemented");
         return vk::PipelineVertexInputStateCreateInfo{
-            vk::PipelineVertexInputStateCreateFlags{0}, 
-            VertexStruct::BINDINGS_BASIC,
-            VertexStruct::ATTRIBUTES_BASIC
+            vk::PipelineVertexInputStateCreateFlags{0}, VertexStruct::BINDINGS_BASIC, VertexStruct::ATTRIBUTES_BASIC
         };
     }
 
@@ -158,18 +169,18 @@ namespace Engine {
     uint64_t HomogeneousMesh::impl::GetExpectedBufferSize() const {
         auto vertex_cnt = GetVertexCount();
         uint64_t size = GetVertexIndexCount() * sizeof(uint32_t);
-        switch(m_type) {
-            case MeshVertexType::Skinned:
-                size += vertex_cnt * sizeof(VertexStruct::VertexAttributeSkinned);
-                [[fallthrough]];
-            case MeshVertexType::Extended:
-                size += vertex_cnt * sizeof(VertexStruct::VertexAttributeExtended);
-                [[fallthrough]];
-            case MeshVertexType::Basic:
-                size += vertex_cnt * sizeof(VertexStruct::VertexAttributeBasic);
-                [[fallthrough]];
-            case MeshVertexType::Position:
-                size += vertex_cnt * sizeof(VertexStruct::VertexPosition);
+        switch (m_type) {
+        case MeshVertexType::Skinned:
+            size += vertex_cnt * sizeof(VertexStruct::VertexAttributeSkinned);
+            [[fallthrough]];
+        case MeshVertexType::Extended:
+            size += vertex_cnt * sizeof(VertexStruct::VertexAttributeExtended);
+            [[fallthrough]];
+        case MeshVertexType::Basic:
+            size += vertex_cnt * sizeof(VertexStruct::VertexAttributeBasic);
+            [[fallthrough]];
+        case MeshVertexType::Position:
+            size += vertex_cnt * sizeof(VertexStruct::VertexPosition);
         }
         return size;
     }
@@ -181,8 +192,7 @@ namespace Engine {
         return *pimpl->m_buffer;
     }
 
-    std::pair<vk::Buffer, std::vector<vk::DeviceSize>>
-    HomogeneousMesh::GetVertexBufferInfo() const {
+    std::pair<vk::Buffer, std::vector<vk::DeviceSize>> HomogeneousMesh::GetVertexBufferInfo() const {
         assert(pimpl->m_buffer->GetBuffer());
         return std::make_pair(pimpl->m_buffer->GetBuffer(), pimpl->m_buffer_offsets);
     }

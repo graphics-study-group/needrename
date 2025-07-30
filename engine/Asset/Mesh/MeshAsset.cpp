@@ -27,11 +27,17 @@ namespace Engine {
             ret += GetSubmeshVertexCount(submesh_idx) * sizeof(VertexStruct::VertexAttributeBasic);
         }
         if (!m_submeshes[submesh_idx].m_attributes_extended.empty()) {
-            assert(m_submeshes[submesh_idx].m_attributes_extended.size() == m_submeshes[submesh_idx].m_attributes_basic.size());
+            assert(
+                m_submeshes[submesh_idx].m_attributes_extended.size()
+                == m_submeshes[submesh_idx].m_attributes_basic.size()
+            );
             ret += GetSubmeshVertexCount(submesh_idx) * sizeof(VertexStruct::VertexAttributeExtended);
         }
         if (!m_submeshes[submesh_idx].m_attributes_skinned.empty()) {
-            assert(m_submeshes[submesh_idx].m_attributes_skinned.size() == m_submeshes[submesh_idx].m_attributes_basic.size());
+            assert(
+                m_submeshes[submesh_idx].m_attributes_skinned.size()
+                == m_submeshes[submesh_idx].m_attributes_basic.size()
+            );
             ret += GetSubmeshVertexCount(submesh_idx) * sizeof(VertexStruct::VertexAttributeSkinned);
         }
         return ret;

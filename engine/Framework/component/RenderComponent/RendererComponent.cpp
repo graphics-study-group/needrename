@@ -24,7 +24,9 @@ namespace Engine {
         auto system = m_system.lock();
 
         // We should do some check maybe to avoid repetition.
-        system->GetRendererManager().RegisterRendererComponent(std::dynamic_pointer_cast<RendererComponent>(shared_from_this()));
+        system->GetRendererManager().RegisterRendererComponent(
+            std::dynamic_pointer_cast<RendererComponent>(shared_from_this())
+        );
 
         for (size_t i = 0; i < m_material_assets.size(); i++) {
             // XXX: This is a temporary solution: It simply check the m_name in material assets and add it to the

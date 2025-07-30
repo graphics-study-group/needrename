@@ -1,7 +1,7 @@
 #include "SubmissionHelper.h"
 
-#include "Render/Memory/Texture.h"
 #include "Render/Memory/Buffer.h"
+#include "Render/Memory/Texture.h"
 #include "Render/Pipeline/CommandBuffer/BufferTransferHelper.h"
 #include "Render/Pipeline/CommandBuffer/LayoutTransferHelper.h"
 #include "Render/Renderer/HomogeneousMesh.h"
@@ -12,11 +12,11 @@
 
 namespace Engine::RenderSystemState {
     struct SubmissionHelper::impl {
-        std::queue <CmdOperation> m_pending_operations {};
-        std::vector <Buffer> m_pending_dellocations {};
+        std::queue<CmdOperation> m_pending_operations{};
+        std::vector<Buffer> m_pending_dellocations{};
 
-        vk::UniqueCommandBuffer m_one_time_cb {};
-        vk::UniqueFence m_completion_fence {};
+        vk::UniqueCommandBuffer m_one_time_cb{};
+        vk::UniqueFence m_completion_fence{};
     };
 
     SubmissionHelper::SubmissionHelper(RenderSystem &system) : m_system(system), pimpl(std::make_unique<impl>()) {
@@ -152,8 +152,9 @@ namespace Engine::RenderSystemState {
     void SubmissionHelper::CompleteFrame() {
         if (!pimpl->m_one_time_cb) return;
 
-        auto wfresult =
-            m_system.getDevice().waitForFences({pimpl->m_completion_fence.get()}, true, std::numeric_limits<uint64_t>::max());
+        auto wfresult = m_system.getDevice().waitForFences(
+            {pimpl->m_completion_fence.get()}, true, std::numeric_limits<uint64_t>::max()
+        );
         if (wfresult != vk::Result::eSuccess) {
             SDL_LogError(SDL_LOG_CATEGORY_RENDER, "An error occured when waiting for submission fence.");
         }

@@ -1,5 +1,5 @@
-#include <cassert>
 #include "engine/Core/flagbits.h"
+#include <cassert>
 
 enum class Bits {
     a = 0b0001,
@@ -10,11 +10,11 @@ enum class Bits {
 
 using Flag = Engine::Flags<Bits>;
 
-int main () {
+int main() {
     Flag flagdefault{};
     Flag flaga{Bits::a}, flagb{Bits::b}, flagc{Bits::c}, flagd{Bits::d};
     Flag flagab{Bits::a, Bits::b};
-   
+
     assert(!flagdefault);
     assert(flagab & flaga);
     assert(flagab & Bits::b);
