@@ -93,7 +93,6 @@ namespace Engine::RenderSystemState {
                 SDL_LogDebug(SDL_LOG_CATEGORY_RENDER, "Eagerly loading component 0x%p", static_cast<void *>(pimpl->m_data[i].m_component.get()));
                 if (auto mesh_ptr = std::dynamic_pointer_cast<MeshComponent>(pimpl->m_data[i].m_component)) {
                     for (auto mesh : mesh_ptr->GetSubmeshes()) {
-                        mesh->Prepare();
                         m_system.GetFrameManager().GetSubmissionHelper().EnqueueVertexBufferSubmission(*mesh);
                     }
                 }
@@ -124,7 +123,6 @@ namespace Engine::RenderSystemState {
 
                 if (auto mesh_ptr = std::dynamic_pointer_cast<MeshComponent>(pimpl->m_data[i].m_component)) {
                     for (auto mesh : mesh_ptr->GetSubmeshes()) {
-                        mesh->Prepare();
                         m_system.GetFrameManager().GetSubmissionHelper().EnqueueVertexBufferSubmission(*mesh);
                     }
                 }

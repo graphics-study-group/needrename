@@ -105,7 +105,6 @@ int main(int argc, char **argv) {
     auto test_mesh_asset = std::make_shared<LowerPlaneMeshAsset>();
     auto test_mesh_asset_ref = std::make_shared<AssetRef>(test_mesh_asset);
     HomogeneousMesh test_mesh{rsys, test_mesh_asset_ref, 0};
-    test_mesh.Prepare();
 
     // Submit scene data
     const auto &global_pool = rsys->GetGlobalConstantDescriptorPool();

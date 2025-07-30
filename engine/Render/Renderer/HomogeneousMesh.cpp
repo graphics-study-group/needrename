@@ -7,18 +7,26 @@
 namespace Engine {
 
     struct HomogeneousMesh::impl {
-        std::unique_ptr <Buffer> m_buffer;
-        std::vector <vk::DeviceSize> m_buffer_offsets;
+        std::unique_ptr <Buffer> m_buffer {};
+        std::vector <vk::DeviceSize> m_buffer_offsets {};
 
         bool m_updated {false};
 
         uint64_t m_total_allocated_buffer_size {0};
 
-        std::shared_ptr<AssetRef> m_mesh_asset;
-        size_t m_submesh_idx;
-        MeshVertexType m_type;
+        std::shared_ptr<AssetRef> m_mesh_asset {};
+        size_t m_submesh_idx {};
+        MeshVertexType m_type {};
 
         void WriteToMemory(std::byte * pointer) const;
+        /**
+         * @brief Allocate buffer and update pre-calculated offsets.
+         * Called before `CreateStagingBuffer()`.
+         */
+        void FetchFromAsset();
+        uint32_t GetVertexIndexCount() const;
+        uint32_t GetVertexCount() const;
+        uint64_t GetExpectedBufferSize() const;
     };
 
     HomogeneousMesh::HomogeneousMesh(
@@ -33,17 +41,19 @@ namespace Engine {
         assert(type == MeshVertexType::Basic && "Unimplemented");
         pimpl->m_type = type;
         pimpl->m_buffer = std::make_unique<Buffer>(system.lock());
+
+        pimpl->FetchFromAsset();
     }
 
     HomogeneousMesh::~HomogeneousMesh() {
     }
 
-    void HomogeneousMesh::Prepare() {
+    void HomogeneousMesh::impl::FetchFromAsset() {
         const uint64_t buffer_size = GetExpectedBufferSize();
 
-        if (pimpl->m_total_allocated_buffer_size != buffer_size) {
-            pimpl->m_total_allocated_buffer_size = 0;
-            pimpl->m_updated = true;
+        if (m_total_allocated_buffer_size != buffer_size) {
+            m_total_allocated_buffer_size = 0;
+            m_updated = true;
 
             const uint32_t new_vertex_count = GetVertexCount();
             const uint32_t new_vertex_index_count = GetVertexIndexCount();
@@ -54,40 +64,36 @@ namespace Engine {
                 new_vertex_index_count,
                 buffer_size
             );
-            pimpl->m_buffer->Create(Buffer::BufferType::Vertex, buffer_size, "Buffer - mesh vertices");
-            pimpl->m_total_allocated_buffer_size = buffer_size;
+            m_buffer->Create(Buffer::BufferType::Vertex, buffer_size, "Buffer - mesh vertices");
+            m_total_allocated_buffer_size = buffer_size;
 
             // Generate buffer offsets
-            pimpl->m_buffer_offsets.clear();
-            pimpl->m_buffer_offsets.push_back(0);
-            switch(pimpl->m_type) {
+            m_buffer_offsets.clear();
+            m_buffer_offsets.push_back(0);
+            switch(m_type) {
             case MeshVertexType::Skinned:
-                pimpl->m_buffer_offsets.push_back(new_vertex_count * sizeof(VertexStruct::VertexPosition));
-                pimpl->m_buffer_offsets.push_back(new_vertex_count * sizeof(VertexStruct::VertexAttributeBasic) + *pimpl->m_buffer_offsets.rbegin());
-                pimpl->m_buffer_offsets.push_back(new_vertex_count * sizeof(VertexStruct::VertexAttributeExtended) + *pimpl->m_buffer_offsets.rbegin());
-                pimpl->m_buffer_offsets.push_back(new_vertex_count * sizeof(VertexStruct::VertexAttributeSkinned) + *pimpl->m_buffer_offsets.rbegin());
+                m_buffer_offsets.push_back(new_vertex_count * sizeof(VertexStruct::VertexPosition));
+                m_buffer_offsets.push_back(new_vertex_count * sizeof(VertexStruct::VertexAttributeBasic) + *m_buffer_offsets.rbegin());
+                m_buffer_offsets.push_back(new_vertex_count * sizeof(VertexStruct::VertexAttributeExtended) + *m_buffer_offsets.rbegin());
+                m_buffer_offsets.push_back(new_vertex_count * sizeof(VertexStruct::VertexAttributeSkinned) + *m_buffer_offsets.rbegin());
                 break;
             case MeshVertexType::Extended:
-                pimpl->m_buffer_offsets.push_back(new_vertex_count * sizeof(VertexStruct::VertexPosition));
-                pimpl->m_buffer_offsets.push_back(new_vertex_count * sizeof(VertexStruct::VertexAttributeBasic) + *pimpl->m_buffer_offsets.rbegin());
-                pimpl->m_buffer_offsets.push_back(new_vertex_count * sizeof(VertexStruct::VertexAttributeExtended) + *pimpl->m_buffer_offsets.rbegin());
+                m_buffer_offsets.push_back(new_vertex_count * sizeof(VertexStruct::VertexPosition));
+                m_buffer_offsets.push_back(new_vertex_count * sizeof(VertexStruct::VertexAttributeBasic) + *m_buffer_offsets.rbegin());
+                m_buffer_offsets.push_back(new_vertex_count * sizeof(VertexStruct::VertexAttributeExtended) + *m_buffer_offsets.rbegin());
                 break;
             case MeshVertexType::Basic:
-                pimpl->m_buffer_offsets.push_back(new_vertex_count * sizeof(VertexStruct::VertexPosition));
-                pimpl->m_buffer_offsets.push_back(new_vertex_count * sizeof(VertexStruct::VertexAttributeBasic) + *pimpl->m_buffer_offsets.rbegin());
+                m_buffer_offsets.push_back(new_vertex_count * sizeof(VertexStruct::VertexPosition));
+                m_buffer_offsets.push_back(new_vertex_count * sizeof(VertexStruct::VertexAttributeBasic) + *m_buffer_offsets.rbegin());
             }
 
-            assert(*pimpl->m_buffer_offsets.rbegin() == buffer_size - new_vertex_index_count * sizeof(uint32_t));
+            assert(*m_buffer_offsets.rbegin() == buffer_size - new_vertex_index_count * sizeof(uint32_t));
         }
     }
 
-    bool HomogeneousMesh::NeedCommitment() {
-        bool need = pimpl->m_updated;
-        pimpl->m_updated = false;
-        return need;
-    }
-
     Buffer HomogeneousMesh::CreateStagingBuffer() const {
+        pimpl->FetchFromAsset();
+
         const uint64_t buffer_size = GetExpectedBufferSize();
 
         Buffer buffer{m_system.lock()};
@@ -134,34 +140,41 @@ namespace Engine {
         return std::make_pair(pimpl->m_buffer->GetBuffer(), *(pimpl->m_buffer_offsets.rbegin()));
     }
 
+    uint32_t HomogeneousMesh::impl::GetVertexIndexCount() const {
+        return m_mesh_asset->as<MeshAsset>()->GetSubmeshVertexIndexCount(m_submesh_idx);
+    }
+
     uint32_t HomogeneousMesh::GetVertexIndexCount() const {
-        return pimpl->m_mesh_asset->as<MeshAsset>()->GetSubmeshVertexIndexCount(pimpl->m_submesh_idx);
+        return pimpl->GetVertexIndexCount();
     }
 
+    uint32_t HomogeneousMesh::impl::GetVertexCount() const {
+        return m_mesh_asset->as<MeshAsset>()->GetSubmeshVertexCount(m_submesh_idx);
+    }
     uint32_t HomogeneousMesh::GetVertexCount() const {
-        return pimpl->m_mesh_asset->as<MeshAsset>()->GetSubmeshVertexCount(pimpl->m_submesh_idx);
+        return pimpl->GetVertexCount();
     }
 
-    uint64_t HomogeneousMesh::GetExpectedBufferSize() const {
-        auto vertex_cnt = this->GetVertexCount();
-        uint64_t size = this->GetVertexIndexCount() * sizeof(uint32_t);
-        switch(pimpl->m_type) {
+    uint64_t HomogeneousMesh::impl::GetExpectedBufferSize() const {
+        auto vertex_cnt = GetVertexCount();
+        uint64_t size = GetVertexIndexCount() * sizeof(uint32_t);
+        switch(m_type) {
             case MeshVertexType::Skinned:
                 size += vertex_cnt * sizeof(VertexStruct::VertexAttributeSkinned);
-
-            [[fallthrough]]
+                [[fallthrough]];
             case MeshVertexType::Extended:
                 size += vertex_cnt * sizeof(VertexStruct::VertexAttributeExtended);
-
-            [[fallthrough]]
+                [[fallthrough]];
             case MeshVertexType::Basic:
                 size += vertex_cnt * sizeof(VertexStruct::VertexAttributeBasic);
-            
-            [[fallthrough]]
+                [[fallthrough]];
             case MeshVertexType::Position:
                 size += vertex_cnt * sizeof(VertexStruct::VertexPosition);
         }
         return size;
+    }
+    uint64_t HomogeneousMesh::GetExpectedBufferSize() const {
+        return pimpl->GetExpectedBufferSize();
     }
 
     const Buffer &HomogeneousMesh::GetBuffer() const {

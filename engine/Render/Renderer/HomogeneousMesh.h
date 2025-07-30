@@ -10,6 +10,7 @@ namespace Engine{
     
     /// @brief A homogeneous mesh of only one material at runtime, constructed from mesh asset.
     class HomogeneousMesh {
+        std::weak_ptr <RenderSystem> m_system;
         struct impl;
         std::unique_ptr <impl> pimpl;
     public:
@@ -28,18 +29,33 @@ namespace Engine{
         );
         ~HomogeneousMesh();
 
-        void Prepare();
-
-        /// @brief Check if the vertex buffer of the mesh needs to be commited to GPU.
-        /// The flag is always set to `false` after this check.
-        /// @return whether commitment is needed.
-        bool NeedCommitment();
-
+        /**
+         * @brief Create a staging buffer containing all vertices data.
+         * 
+         * This method is automatically called on mesh submission, and you typically do
+         * not need to call it manually.
+         */
         Buffer CreateStagingBuffer() const;
+
+        /**
+         * @brief Get vertex index count viz. how many vertices are drawn in the draw call.
+         */
         uint32_t GetVertexIndexCount() const;
+
+        /**
+         * @brief Get vertex count viz. how many distinct vertices data are there.
+         */
         uint32_t GetVertexCount() const;
+
+        /**
+         * @brief Get expected buffer size. The buffer contains all vertex attributes
+         * and indices used for draw calls.
+         */
         uint64_t GetExpectedBufferSize() const;
 
+        /**
+         * @brief Get the underlying buffer, which contains all vertex data.
+         */
         const Buffer & GetBuffer() const;
 
         /**
@@ -50,6 +66,7 @@ namespace Engine{
          * POSITION ... | BASICATTR ... | EXTENDEDATTR ... | SKINNEDATTR ... | INDEX ...
          * ^ Offset 0   | ^ Offset 1    | ^ Offset 2       | ^ Offset 3      | ^ Offset 4
          * ```
+         * Note that index buffer have a different element count of the rest of buffers.
          */
         std::pair <vk::Buffer, std::vector<vk::DeviceSize>>
         GetVertexBufferInfo() const;
@@ -62,14 +79,15 @@ namespace Engine{
          * POSITION ... | BASICATTR ... | EXTENDEDATTR ... | SKINNEDATTR ... | INDEX ...
          * ^ Offset 0   | ^ Offset 1    | ^ Offset 2       | ^ Offset 3      | ^ Offset 4
          * ```
+         * Note that index buffer have a different element count of the rest of buffers.
          */
         std::pair <vk::Buffer, vk::DeviceSize>
         GetIndexBufferInfo() const;
 
+        /**
+         * @brief Query `VkPipelineVertexInputStateCreateInfo` associated with the mesh type.
+         */
         static vk::PipelineVertexInputStateCreateInfo GetVertexInputState(MeshVertexType type = MeshVertexType::Basic);
-
-    protected:
-        std::weak_ptr <RenderSystem> m_system;
     };
 };
 
