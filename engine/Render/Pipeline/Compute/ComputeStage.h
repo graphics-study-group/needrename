@@ -7,7 +7,7 @@
 
 namespace Engine {
     class RenderSystem;
-    class AssetRef;
+    class ShaderAsset;
 
     class ComputeStage : public IInstantiatedFromAsset <ShaderAsset> {
         using PassInfo = PipelineInfo::PassInfo;

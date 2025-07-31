@@ -4,7 +4,7 @@
 #include <vulkan/vulkan.hpp>
 #include <optional>
 #include <variant>
-#include "Asset/Material/MaterialTemplateAsset.h"
+
 #include "Asset/InstantiatedFromAsset.h"
 #include "Render/Pipeline/PipelineInfo.h"
 
@@ -12,6 +12,9 @@ namespace Engine {
     class MaterialInstance;
     class Pipeline;
     class PipelineLayout;
+    class MaterialTemplateAsset;
+    class MaterialTemplateProperties;
+    class MaterialTemplateSinglePassProperties;
 
     /// @brief A factory class for instantiation of materials.
     /// Contains all public immutable data for a given type of materials, such as pipeline

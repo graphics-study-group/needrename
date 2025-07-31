@@ -7,6 +7,7 @@
 #include <tiny_obj_loader.h>
 
 #include "Asset/Material/MaterialAsset.h"
+#include "Asset/Material/MaterialTemplateAsset.h"
 #include "Framework/component/RenderComponent/MeshComponent.h"
 #include "Functional/SDLWindow.h"
 #include "GUI/GUISystem.h"
@@ -245,7 +246,7 @@ int main(int argc, char **argv) {
     auto pbr_material_template_asset = ConstructMaterialTemplate();
     auto pbr_material_template_asset_ref = std::make_shared<AssetRef>(pbr_material_template_asset);
     auto pbr_material_template = std::make_shared<MaterialTemplate>(*rsys);
-    pbr_material_template->InstantiateFromRef(pbr_material_template_asset_ref);
+    pbr_material_template->Instantiate(*pbr_material_template_asset_ref->cas<MaterialTemplateAsset>());
 
     auto gsys = cmc->GetGUISystem();
     gsys->CreateVulkanBackend(ImageUtils::GetVkFormat(Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm));
@@ -304,7 +305,7 @@ int main(int argc, char **argv) {
     assert(cs_ref);
     MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(cs_ref);
     auto bloom_compute_stage = std::make_shared<ComputeStage>(*rsys);
-    bloom_compute_stage->InstantiateFromRef(cs_ref);
+    bloom_compute_stage->Instantiate(*cs_ref->cas<ShaderAsset>());
     bloom_compute_stage->SetDescVariable(
         bloom_compute_stage->GetVariableIndex("inputImage").value().first,
         std::const_pointer_cast<const Texture>(hdr_color)

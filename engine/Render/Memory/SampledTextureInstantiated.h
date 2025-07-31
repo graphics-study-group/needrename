@@ -3,9 +3,9 @@
 
 #include "SampledTexture.h"
 #include "Asset/InstantiatedFromAsset.h"
-#include "Asset/Texture/Image2DTextureAsset.h"
 
 namespace Engine {
+    class Image2DTextureAsset;
     /**
      * @brief Sampled texture instantiated from `TextureAsset` asset.
      * Only texture and sampler descriptions are loaded, and actual pixel data must be

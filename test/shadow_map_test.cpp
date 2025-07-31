@@ -6,6 +6,7 @@
 #include "Asset/AssetManager/AssetManager.h"
 #include "Asset/Mesh/MeshAsset.h"
 #include "Asset/Texture/Image2DTextureAsset.h"
+#include "Asset/Material/MaterialTemplateAsset.h"
 #include "Framework/component/RenderComponent/MeshComponent.h"
 #include "Functional/SDLWindow.h"
 #include "GUI/GUISystem.h"
@@ -185,7 +186,7 @@ int main(int argc, char **argv) {
     auto test_asset = ConstructMaterialTemplate();
     auto test_asset_ref = std::make_shared<AssetRef>(test_asset);
     auto test_template = std::make_shared<MaterialTemplate>(*rsys);
-    test_template->InstantiateFromRef(test_asset_ref);
+    test_template->Instantiate(*test_asset_ref->cas<MaterialTemplateAsset>());
     auto test_material_instance = std::make_shared<MaterialInstance>(*rsys, test_template);
     test_material_instance->WriteDescriptors(0);
     test_material_instance->WriteUBOUniform(

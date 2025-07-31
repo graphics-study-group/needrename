@@ -1,5 +1,8 @@
 #include "MaterialTemplate.h"
+
 #include "Asset/AssetRef.h"
+#include "Asset/Material/MaterialTemplateAsset.h"
+
 #include "MaterialInstance.h"
 #include "Render/ConstantData/PerModelConstants.h"
 #include "Render/DebugUtils.h"

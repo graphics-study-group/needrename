@@ -5,13 +5,13 @@
 
 #include "Render/Pipeline/PipelineEnums.h"
 #include "Asset/Material/PipelineProperty.h"
-#include <Asset/Material/ShaderAsset.h>
 #include <unordered_set>
 #include <typeindex>
 #include <glm.hpp>
 
 
 namespace Engine{
+
     namespace PipelineProperties {
         struct RasterizerProperties;
         struct DSProperties;
