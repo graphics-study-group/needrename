@@ -1,8 +1,9 @@
-#ifndef PIPELINE_COMMANDBUFFER_GraphicsCommandBuffer_INCLUDED
-#define PIPELINE_COMMANDBUFFER_GraphicsCommandBuffer_INCLUDED
+#ifndef PIPELINE_COMMANDBUFFER_GRAPHICSCOMMANDBUFFER_INCLUDED
+#define PIPELINE_COMMANDBUFFER_GRAPHICSCOMMANDBUFFER_INCLUDED
 
 #include "Render/VkWrapper.tcc"
 #include "Render/AttachmentUtils.h"
+#include "Render/RenderSystem/RendererManager.h"
 #include "Render/Pipeline/CommandBuffer/TransferCommandBuffer.h"
 #include <vulkan/vulkan.hpp>
 #include <glm.hpp>
@@ -71,7 +72,10 @@ namespace Engine {
         /// @brief Write per-mesh descriptors, and send draw call to GPU.
         /// @param mesh 
         void DrawMesh(const HomogeneousMesh & mesh);
-        void DrawMesh(const HomogeneousMesh& mesh, const glm::mat4 & model_matrix);
+        void DrawMesh(const HomogeneousMesh & mesh, const glm::mat4 & model_matrix);
+
+        void DrawRenderers (const RendererList & renderers, uint32_t pass);
+        void DrawRenderers (const RendererList & renderers, const glm::mat4 &view_matrix, const glm::mat4 &projection_matrix, vk::Extent2D extent, uint32_t pass);
 
         /// @brief End the render pass
         void EndRendering();
@@ -84,4 +88,4 @@ namespace Engine {
     };
 }
 
-#endif // PIPELINE_COMMANDBUFFER_GraphicsCommandBuffer_INCLUDED
+#endif // PIPELINE_COMMANDBUFFER_GRAPHICSCOMMANDBUFFER_INCLUDED

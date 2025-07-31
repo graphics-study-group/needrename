@@ -166,7 +166,7 @@ namespace Engine {
                             }
                         }
                     );
-                    VertexStruct::VertexAttribute attr = {};
+                    VertexStruct::VertexAttributeBasic attr = {};
                     if (colors.size() > 0) {
                         attr.color[0] = colors[index.vertex_index * 3];
                         attr.color[1] = colors[index.vertex_index * 3 + 1];
@@ -181,7 +181,7 @@ namespace Engine {
                         attr.texcoord1[0] = uvs[index.texcoord_index * 2];
                         attr.texcoord1[1] = uvs[index.texcoord_index * 2 + 1];
                     }
-                    submesh.m_attributes.push_back(attr);
+                    submesh.m_attributes_basic.push_back(attr);
                 }
                 submesh.m_indices.push_back(vertex_id_map[key]);
             }

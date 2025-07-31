@@ -146,11 +146,6 @@ public:
         auto system = m_system.lock();
         auto &helper = system->GetFrameManager().GetSubmissionHelper();
 
-        for (auto &submesh : m_submeshes) {
-            submesh->Prepare();
-            helper.EnqueueVertexBufferSubmission(*submesh);
-        }
-
         auto id_albedo = material_template->GetVariableIndex("albedoSampler", 0).value();
         assert(id_albedo.second == false);
         for (size_t i = 0; i < m_submeshes.size(); i++) {
@@ -323,7 +318,7 @@ int main(int argc, char **argv) {
     // Setup mesh
     std::filesystem::path mesh_path{std::string(ENGINE_ASSETS_DIR) + "/sphere/sphere.obj"};
     std::shared_ptr tmc = std::make_shared<MeshComponentFromFile>(mesh_path, pbr_material_template, red_texture);
-    rsys->RegisterComponent(tmc);
+    rsys->GetRendererManager().RegisterRendererComponent(tmc);
 
     // Setup camera
     Transform transform{};
@@ -376,7 +371,7 @@ int main(int argc, char **argv) {
         context.PrepareCommandBuffer();
         vk::Extent2D extent{rsys->GetSwapchain().GetExtent()};
         cb.BeginRendering(color_att, depth_att, extent);
-        rsys->DrawMeshes();
+        cb.DrawRenderers(rsys->GetRendererManager().FilterAndSortRenderers({}), 0);
         cb.EndRendering();
 
         auto cctx = rsys->GetFrameManager().GetComputeContext();
@@ -431,7 +426,6 @@ int main(int argc, char **argv) {
         frame_count * 1.0 / duration_time
     );
     rsys->WaitForIdle();
-    rsys->ClearComponent();
 
     SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "Unloading Main-class");
     return 0;

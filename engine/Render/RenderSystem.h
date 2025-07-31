@@ -28,6 +28,7 @@ namespace Engine
         class GlobalConstantDescriptorPool;
         class MaterialRegistry;
         class FrameManager;
+        class RendererManager;
     };
 
     class RenderSystem : public std::enable_shared_from_this<RenderSystem>
@@ -60,23 +61,8 @@ namespace Engine
 
         ~RenderSystem();
 
-        /**
-         * @brief Draw meshes using the matrices of the active camera (identity matrices if default).
-         */
-        void DrawMeshes(uint32_t pass = 0);
-
-        /**
-         * @brief Draw meshes with the given view and projection matrices.
-         * 
-         * This method writes camera uniforms and viewport state.
-         * Then it binds materials and records draw calls on the current render command buffer.
-         */
-        void DrawMeshes(const glm::mat4 & view_matrix, const glm::mat4 & projection_matrix, vk::Extent2D extent, uint32_t pass = 0);
-        
-        void RegisterComponent(std::shared_ptr <RendererComponent>);
-        void ClearComponent();
-
         void SetActiveCamera(std::weak_ptr <Camera>);
+        std::weak_ptr <Camera> GetActiveCamera() const;
         uint32_t GetActiveCameraId() const;
         void WaitForIdle() const;
 
@@ -109,6 +95,8 @@ namespace Engine
         RenderSystemState::MaterialRegistry & GetMaterialRegistry();
 
         RenderSystemState::FrameManager & GetFrameManager ();
+
+        RenderSystemState::RendererManager & GetRendererManager ();
 
         void WritePerCameraConstants(const ConstantData::PerCameraStruct & data, uint32_t in_flight_index);
     };

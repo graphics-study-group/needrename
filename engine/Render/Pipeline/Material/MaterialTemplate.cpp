@@ -165,10 +165,12 @@ namespace Engine {
             vk::ClearValue{vk::ClearDepthStencilValue{1.0f, 0u}}
         };
 
+        std::vector<vk::Format> color_attachment_formats{prop.attachments.color.size(), vk::Format::eUndefined};
         // Fill in attachment information
         if (use_swapchain_attachments) {
+            color_attachment_formats = {default_color_format};
             prci = vk::PipelineRenderingCreateInfo{
-                0, {default_color_format}, default_depth_format, vk::Format::eUndefined
+                0, color_attachment_formats, default_depth_format, vk::Format::eUndefined
             };
             cbass.push_back(
                 vk::PipelineColorBlendAttachmentState{
@@ -207,7 +209,6 @@ namespace Engine {
                 && "Mismatched color attachment and blending operation size."
             );
 
-            std::vector<vk::Format> color_attachment_formats{prop.attachments.color.size(), vk::Format::eUndefined};
             pass_info.attachments.color_attachment_ops.resize(prop.attachments.color_ops.size());
             cbass.resize(prop.attachments.color_blending.size());
 

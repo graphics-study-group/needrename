@@ -1,5 +1,6 @@
 #include "SubmissionHelper.h"
 
+#include "Render/Memory/Buffer.h"
 #include "Render/Memory/Texture.h"
 #include "Render/Pipeline/CommandBuffer/BufferTransferHelper.h"
 #include "Render/Pipeline/CommandBuffer/LayoutTransferHelper.h"
@@ -10,11 +11,21 @@
 #include <SDL3/SDL.h>
 
 namespace Engine::RenderSystemState {
-    SubmissionHelper::SubmissionHelper(RenderSystem &system) : m_system(system) {
+    struct SubmissionHelper::impl {
+        std::queue<CmdOperation> m_pending_operations{};
+        std::vector<Buffer> m_pending_dellocations{};
+
+        vk::UniqueCommandBuffer m_one_time_cb{};
+        vk::UniqueFence m_completion_fence{};
+    };
+
+    SubmissionHelper::SubmissionHelper(RenderSystem &system) : m_system(system), pimpl(std::make_unique<impl>()) {
         // Pre-allocate a fence
         vk::FenceCreateInfo fcinfo{};
-        m_completion_fence = system.getDevice().createFenceUnique(fcinfo);
+        pimpl->m_completion_fence = system.getDevice().createFenceUnique(fcinfo);
     }
+
+    SubmissionHelper::~SubmissionHelper() = default;
 
     void SubmissionHelper::EnqueueVertexBufferSubmission(const HomogeneousMesh &mesh) {
         auto enqueued = [&mesh, this](vk::CommandBuffer cb) {
@@ -29,9 +40,9 @@ namespace Engine::RenderSystemState {
 
             barriers[0] = BufferTransferHelper::GetBufferBarrier(BufferTransferHelper::BufferTransferType::VertexAfter);
             cb.pipelineBarrier2(vk::DependencyInfo{{}, barriers, {}, {}});
-            m_pending_dellocations.push_back(std::move(buffer));
+            pimpl->m_pending_dellocations.push_back(std::move(buffer));
         };
-        m_pending_operations.push(enqueued);
+        pimpl->m_pending_operations.push(enqueued);
     }
 
     void SubmissionHelper::EnqueueTextureBufferSubmission(
@@ -74,9 +85,9 @@ namespace Engine::RenderSystemState {
             dinfo.setImageMemoryBarriers(barriers);
             cb.pipelineBarrier2(dinfo);
 
-            m_pending_dellocations.push_back(std::move(buffer));
+            pimpl->m_pending_dellocations.push_back(std::move(buffer));
         };
-        m_pending_operations.push(enqueued);
+        pimpl->m_pending_operations.push(enqueued);
     }
 
     void SubmissionHelper::EnqueueTextureClear(const Texture &texture, std::tuple<float, float, float, float> color) {
@@ -104,11 +115,11 @@ namespace Engine::RenderSystemState {
             dinfo.setImageMemoryBarriers(barriers);
             cb.pipelineBarrier2(dinfo);
         };
-        m_pending_operations.push(enqueued);
+        pimpl->m_pending_operations.push(enqueued);
     }
 
-    void SubmissionHelper::StartFrame() {
-        if (m_pending_operations.empty()) return;
+    void SubmissionHelper::ExecuteSubmission() {
+        if (pimpl->m_pending_operations.empty()) return;
 
         // Allocate one-time command buffer
         vk::CommandBufferAllocateInfo cbainfo{
@@ -116,40 +127,41 @@ namespace Engine::RenderSystemState {
         };
         auto cbs = m_system.getDevice().allocateCommandBuffersUnique(cbainfo);
         assert(cbs.size() == 1);
-        m_one_time_cb = std::move(cbs[0]);
-        DEBUG_SET_NAME_TEMPLATE(m_system.getDevice(), m_one_time_cb.get(), "One-time submission CB");
+        pimpl->m_one_time_cb = std::move(cbs[0]);
+        DEBUG_SET_NAME_TEMPLATE(m_system.getDevice(), pimpl->m_one_time_cb.get(), "One-time submission CB");
 
         // Record all operations
         vk::CommandBufferBeginInfo cbbinfo{vk::CommandBufferUsageFlagBits::eOneTimeSubmit};
-        m_one_time_cb->begin(cbbinfo);
-        DEBUG_CMD_START_LABEL(m_one_time_cb.get(), "Resource Submission");
+        pimpl->m_one_time_cb->begin(cbbinfo);
+        DEBUG_CMD_START_LABEL(pimpl->m_one_time_cb.get(), "Resource Submission");
 
-        while (!m_pending_operations.empty()) {
-            auto enqueued = m_pending_operations.front();
-            enqueued(m_one_time_cb.get());
-            m_pending_operations.pop();
+        while (!pimpl->m_pending_operations.empty()) {
+            auto enqueued = pimpl->m_pending_operations.front();
+            enqueued(pimpl->m_one_time_cb.get());
+            pimpl->m_pending_operations.pop();
         }
 
-        DEBUG_CMD_END_LABEL(m_one_time_cb.get());
-        m_one_time_cb->end();
+        DEBUG_CMD_END_LABEL(pimpl->m_one_time_cb.get());
+        pimpl->m_one_time_cb->end();
 
-        std::array<vk::CommandBuffer, 1> submitted_cb = {m_one_time_cb.get()};
+        std::array<vk::CommandBuffer, 1> submitted_cb = {pimpl->m_one_time_cb.get()};
         std::array<vk::SubmitInfo, 1> sinfos = {vk::SubmitInfo{{}, {}, submitted_cb, {}}};
-        m_system.getQueueInfo().graphicsQueue.submit(sinfos, {m_completion_fence.get()});
+        m_system.getQueueInfo().graphicsQueue.submit(sinfos, {pimpl->m_completion_fence.get()});
     }
 
     void SubmissionHelper::CompleteFrame() {
-        if (!m_one_time_cb) return;
+        if (!pimpl->m_one_time_cb) return;
 
-        auto wfresult =
-            m_system.getDevice().waitForFences({m_completion_fence.get()}, true, std::numeric_limits<uint64_t>::max());
+        auto wfresult = m_system.getDevice().waitForFences(
+            {pimpl->m_completion_fence.get()}, true, std::numeric_limits<uint64_t>::max()
+        );
         if (wfresult != vk::Result::eSuccess) {
             SDL_LogError(SDL_LOG_CATEGORY_RENDER, "An error occured when waiting for submission fence.");
         }
 
-        m_system.getDevice().resetFences({m_completion_fence.get()});
-        m_one_time_cb.reset();
-        m_pending_dellocations.clear();
+        m_system.getDevice().resetFences({pimpl->m_completion_fence.get()});
+        pimpl->m_one_time_cb.reset();
+        pimpl->m_pending_dellocations.clear();
     }
 
 } // namespace Engine::RenderSystemState

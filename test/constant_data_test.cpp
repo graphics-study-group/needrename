@@ -51,7 +51,6 @@ int main(int, char **) {
     uint32_t total_test_frame = MAXIMUM_FRAME_COUNT;
 
     TestHomoMesh mesh{system};
-    mesh.Prepare();
 
     ConstantData::PerCameraStruct transform{glm::mat4{1.0f}, glm::mat4{1.0f}};
 

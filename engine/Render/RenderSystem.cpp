@@ -14,6 +14,7 @@
 #include "Render/RenderSystem/MaterialDescriptorManager.h"
 #include "Render/RenderSystem/MaterialRegistry.h"
 #include "Render/RenderSystem/PhysicalDevice.h"
+#include "Render/RenderSystem/RendererManager.h"
 #include "Render/RenderSystem/Swapchain.h"
 #include "Render/Renderer/Camera.h"
 #include "Render/Renderer/HomogeneousMesh.h"
@@ -29,7 +30,7 @@ VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 namespace Engine {
     struct RenderSystem::impl {
         impl(RenderSystem &parent, std::weak_ptr<SDLWindow> parent_window) :
-            m_window(parent_window), m_allocator_state(parent), m_frame_manager(parent) {
+            m_window(parent_window), m_allocator_state(parent), m_frame_manager(parent), m_renderer_manager(parent) {
 
             };
 
@@ -51,8 +52,7 @@ namespace Engine {
         // uint32_t m_in_flight_frame_id = 0;
 
         std::weak_ptr<SDLWindow> m_window;
-        // TODO: data: mesh, texture, light
-        std::vector<std::shared_ptr<RendererComponent>> m_components{};
+
         std::weak_ptr<Camera> m_active_camera{};
 
         RenderSystemState::PhysicalDevice m_selected_physical_device{};
@@ -70,6 +70,7 @@ namespace Engine {
         RenderSystemState::FrameManager m_frame_manager;
         RenderSystemState::GlobalConstantDescriptorPool m_descriptor_pool{};
         RenderSystemState::MaterialRegistry m_material_registry{};
+        RenderSystemState::RendererManager m_renderer_manager;
     };
 
     RenderSystem::RenderSystem(std::weak_ptr<SDLWindow> parent_window) {
@@ -106,58 +107,12 @@ namespace Engine {
         std::cerr << "Render system deconstructed" << std::endl;
     }
 
-    void RenderSystem::DrawMeshes(uint32_t pass) {
-        glm::mat4 view{1.0f}, proj{1.0f};
-        auto camera = pimpl->m_active_camera.lock();
-        if (camera) {
-            view = camera->GetViewMatrix();
-            proj = camera->GetProjectionMatrix();
-        }
-        DrawMeshes(view, proj, this->GetSwapchain().GetExtent(), pass);
-    }
-
-    void RenderSystem::DrawMeshes(
-        const glm::mat4 &view_matrix, const glm::mat4 &projection_matrix, vk::Extent2D extent, uint32_t pass
-    ) {
-        GraphicsCommandBuffer cb = this->GetFrameManager().GetCommandBuffer();
-
-        // Write camera transforms
-        auto camera_ptr = this->GetGlobalConstantDescriptorPool().GetPerCameraConstantMemory(
-            pimpl->m_frame_manager.GetFrameInFlight(), GetActiveCameraId()
-        );
-        ConstantData::PerCameraStruct camera_struct{view_matrix, projection_matrix};
-        std::memcpy(camera_ptr, &camera_struct, sizeof camera_struct);
-
-        vk::Rect2D scissor{{0, 0}, extent};
-        cb.SetupViewport(extent.width, extent.height, scissor);
-        for (const auto &component : pimpl->m_components) {
-            glm::mat4 model_matrix = component->GetWorldTransform().GetTransformMatrix();
-            auto down_casted_ptr = std::dynamic_pointer_cast<MeshComponent>(component);
-            if (down_casted_ptr == nullptr) {
-                continue;
-            }
-
-            const auto &materials = down_casted_ptr->GetMaterials();
-            const auto &meshes = down_casted_ptr->GetSubmeshes();
-
-            assert(materials.size() == meshes.size());
-            for (size_t id = 0; id < materials.size(); id++) {
-                cb.BindMaterial(*materials[id], pass);
-                cb.DrawMesh(*meshes[id], model_matrix);
-            }
-        }
-    }
-
-    void RenderSystem::RegisterComponent(std::shared_ptr<RendererComponent> comp) {
-        pimpl->m_components.push_back(comp);
-    }
-
-    void RenderSystem::ClearComponent() {
-        pimpl->m_components.clear();
-    }
-
     void RenderSystem::SetActiveCamera(std::weak_ptr<Camera> camera) {
         pimpl->m_active_camera = camera;
+    }
+
+    std::weak_ptr<Camera> RenderSystem::GetActiveCamera() const {
+        return pimpl->m_active_camera;
     }
 
     uint32_t RenderSystem::GetActiveCameraId() const {
@@ -199,6 +154,10 @@ namespace Engine {
 
     RenderSystemState::FrameManager &RenderSystem::GetFrameManager() {
         return pimpl->m_frame_manager;
+    }
+
+    RenderSystemState::RendererManager &RenderSystem::GetRendererManager() {
+        return pimpl->m_renderer_manager;
     }
 
     void RenderSystem::CompleteFrame() {
