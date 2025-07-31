@@ -2,8 +2,6 @@
 #define ENGINE_RENDER_ATTACHMENTUTILS_INCLUDED
 
 #include <vulkan/vulkan.hpp>
-#include <Reflection/macros.h>
-#include <Reflection/serialization.h>
 
 namespace Engine {
     namespace AttachmentUtils {
@@ -22,52 +20,6 @@ namespace Engine {
             vk::AttachmentLoadOp load_op {};
             vk::AttachmentStoreOp store_op {};
             vk::ClearValue clear_value {};
-
-            inline void save_to_archive(Engine::Serialization::Archive &archive) const
-            {
-                Engine::Serialization::Json &json = *archive.m_cursor;
-                {
-                    json["load_op"] = Engine::Serialization::Json::object();
-                    Engine::Serialization::Archive temp_archive(archive, &json["load_op"]);
-                    serialize(this->load_op, temp_archive);
-                }
-                {
-                    json["store_op"] = Engine::Serialization::Json::object();
-                    Engine::Serialization::Archive temp_archive(archive, &json["store_op"]);
-                    serialize(this->store_op, temp_archive);
-                }
-                {
-                    json["clear_value"] = Engine::Serialization::Json::array();
-                    for (int i = 0; i < 4; ++i)
-                        json["clear_value"].push_back(clear_value.color.uint32[i]);
-                }
-            }
-
-            inline void load_from_archive(Engine::Serialization::Archive &archive)
-            {
-                Engine::Serialization::Json &json = *archive.m_cursor;
-                {
-                    if (json.find("load_op") != json.end())
-                    {
-                        Engine::Serialization::Archive temp_archive(archive, &json["load_op"]);
-                        deserialize(this->load_op, temp_archive);
-                    }
-                }
-                {
-                    if (json.find("store_op") != json.end())
-                    {
-                        Engine::Serialization::Archive temp_archive(archive, &json["store_op"]);
-                        deserialize(this->store_op, temp_archive);
-                    }
-                }
-                {
-                    if (json.find("clear_value") != json.end())
-                    {
-                        for (int i = 0; i < 4; ++i)
-                            clear_value.color.uint32[i] = json["clear_value"][i].get<uint32_t>();
-                    }
-                }
-            }
         };
 
         struct AttachmentDescription {

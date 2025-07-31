@@ -5,7 +5,9 @@
 #include "Render/Memory/Buffer.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/GlobalConstantDescriptorPool.h"
+#include <unordered_map>
 #include <unordered_set>
+#include <string>
 
 #include <SDL3/SDL.h>
 

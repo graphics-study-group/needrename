@@ -2,7 +2,6 @@
 #define PIPELINE_COMMANDBUFFER_GRAPHICSCOMMANDBUFFER_INCLUDED
 
 #include "Render/VkWrapper.tcc"
-#include "Render/AttachmentUtils.h"
 #include "Render/RenderSystem/RendererManager.h"
 #include "Render/Pipeline/CommandBuffer/TransferCommandBuffer.h"
 #include <vulkan/vulkan.hpp>
@@ -14,6 +13,9 @@ namespace Engine {
     class HomogeneousMesh;
     class Buffer;
     class RenderTargetBinding;
+    namespace AttachmentUtils {
+        class AttachmentDescription;
+    };
 
     /**
      * @brief A command buffer used for rendering.
