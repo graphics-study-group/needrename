@@ -5,6 +5,7 @@
 #include "Render/Pipeline/CommandBuffer/BufferTransferHelper.h"
 #include "Render/Pipeline/CommandBuffer/LayoutTransferHelper.h"
 #include "Render/Renderer/HomogeneousMesh.h"
+#include "Render/RenderSystem.h"
 
 #include "Render/DebugUtils.h"
 

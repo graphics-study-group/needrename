@@ -2,6 +2,7 @@
 
 #include "Framework/component/RenderComponent/MeshComponent.h"
 
+#include "Render/RenderSystem.h"
 #include "Render/ConstantData/PerModelConstants.h"
 #include "Render/Memory/Buffer.h"
 #include "Render/Pipeline/Material/MaterialInstance.h"

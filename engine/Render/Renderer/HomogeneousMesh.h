@@ -2,11 +2,11 @@
 #define RENDER_RENDERER_HOMOGENEOUSMESH_INCLUDED
 
 #include "Render/Renderer/VertexStruct.h"
-#include "Render/RenderSystem.h"
 #include "Render/Memory/Buffer.h"
 
 namespace Engine{
     class AssetRef;
+    class RenderSystem;
     
     /// @brief A homogeneous mesh of only one material at runtime, constructed from mesh asset.
     class HomogeneousMesh {
