@@ -153,23 +153,6 @@ namespace Engine {
          * and whether the variable is a in-block variable (floats, etc) or not.
          */
         std::optional<std::pair<uint32_t, bool>> GetVariableIndex(const std::string & name, uint32_t pass_index) const noexcept;
-    
-        /**
-         * @brief Get the depth stencil attachment operation for a specific pass index.
-         * 
-         * @param pass_index The index of the pass to retrieve the depth stencil attachment operation from.
-         * @return AttachmentUtils::AttachmentOp The depth stencil attachment operation associated with the specified pass index.
-         */
-        AttachmentUtils::AttachmentOp GetDSAttachmentOperation(uint32_t pass_index) const;
-
-        /**
-         * @brief Get the color attachment operation for a specific pass index and index.
-         * 
-         * @param attachment_index The index of the color attachment to retrieve the operation from.
-         * @param pass_index The index of the pass to retrieve the operation from.
-         * @return AttachmentUtils::AttachmentOp The color attachment operation associated with the specified index and pass index.
-         */
-        AttachmentUtils::AttachmentOp GetColorAttachmentOperation(uint32_t attachment_index, uint32_t pass_index) const;
 
         /// @brief Get the maximal UBO size of a given pass, estimated from offsets and types of uniforms.
         /// Can be used to allocate uniform or staging buffers.

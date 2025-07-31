@@ -49,11 +49,6 @@ namespace Engine {
                 vk::DynamicState::eViewport,
                 vk::DynamicState::eScissor
             };
-
-            struct Attachments {
-                std::vector <AttachmentUtils::AttachmentOp> color_attachment_ops {};
-                AttachmentUtils::AttachmentOp ds_attachment_ops {};
-            } attachments {};
         };
 
         struct PoolInfo {

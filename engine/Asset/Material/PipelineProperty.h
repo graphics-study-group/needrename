@@ -150,12 +150,7 @@ namespace Engine
             /// the pipeline will be configured to use the current swapchain as attachments.
             /// You can specify `UNDEFINED` format to use default image format determined at runtime.
             std::vector <ImageUtils::ImageFormat> color {};
-            /**
-             * @brief Color attachment operations.
-             * When specified, its size must be equal to the size of `color`.
-             * @deprecated It should be specified at runtime.
-             */
-            std::vector <AttachmentUtils::AttachmentOp> color_ops {};
+
             /**
              * @brief Color attachment blending operations.
              * When specified, its size must be equal to the size of `color`.
@@ -166,9 +161,6 @@ namespace Engine
             /// the pipeline will be configured to use the current swapchain as attachments.
             ImageUtils::ImageFormat depth {};
             ImageUtils::ImageFormat stencil {};
-
-            /// @deprecated It should be specified at runtime.
-            AttachmentUtils::AttachmentOp ds_ops {};
         };
     }
 }

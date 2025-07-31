@@ -38,7 +38,6 @@ std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate() {
 
     MaterialTemplateSinglePassProperties mtspp{};
     mtspp.attachments.color = {ImageUtils::ImageFormat::R11G11B10UFloat};
-    mtspp.attachments.color_ops = {AttachmentUtils::AttachmentOp{}};
     mtspp.attachments.color_blending = {PipelineProperties::ColorBlendingProperties{}};
     mtspp.attachments.depth = ImageUtils::ImageFormat::D32SFLOAT;
     mtspp.shaders.shaders = std::vector<std::shared_ptr<AssetRef>>{vs_ref, fs_ref};
