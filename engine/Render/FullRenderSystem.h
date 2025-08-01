@@ -3,6 +3,8 @@
 
 /** THIS FILE IS USED AS INTERFACE ONLY, DO NOT INCLUDE IT IN THE INTERNAL ENGINE LIBRARY. **/
 
+#include <vulkan/vulkan.hpp>
+
 #include "Render/ConstantData/PerCameraConstants.h"
 #include "Render/ConstantData/PerModelConstants.h"
 #include "Render/ConstantData/PerSceneConstants.h"
