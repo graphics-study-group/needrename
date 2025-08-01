@@ -1,7 +1,7 @@
 #ifndef PIPELINE_MATERIAL_MATERIALTEMPLATE_INCLUDED
 #define PIPELINE_MATERIAL_MATERIALTEMPLATE_INCLUDED
 
-#include <vulkan/vulkan.hpp>
+#include <vulkan/vulkan_handles.hpp>
 #include <optional>
 #include <variant>
 

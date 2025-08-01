@@ -1,13 +1,22 @@
 #ifndef RENDER_PIPELINE_PIPELINEUTILS_INCLUDED
 #define RENDER_PIPELINE_PIPELINEUTILS_INCLUDED
 
-#include <vulkan/vulkan.hpp>
+#include <vulkan/vulkan_enums.hpp>
 
 #include "Render/Pipeline/PipelineEnums.h"
 #include "Asset/Material/PipelineProperty.h"
 #include <unordered_set>
 #include <typeindex>
 #include <glm.hpp>
+
+namespace vk {
+    class PipelineRasterizationStateCreateInfo;
+    class PipelineDepthStencilStateCreateInfo;
+    class DescriptorSetLayoutBinding;
+    class PipelineShaderStageCreateInfo;
+    class PipelineLayoutCreateInfo;
+    class PipelineRenderingCreateInfo;
+}
 
 
 namespace Engine{

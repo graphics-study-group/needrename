@@ -3,6 +3,8 @@
 #include "Render/Memory/Texture.h"
 #include "Render/RenderSystem.h"
 
+#include <vulkan/vulkan.hpp>
+
 namespace Engine {
     SlicedTextureView::SlicedTextureView(RenderSystem &system, const Texture &tex, TextureSlice slice) :
         m_system(system), m_texture(tex), m_slice(slice), m_view(nullptr) {

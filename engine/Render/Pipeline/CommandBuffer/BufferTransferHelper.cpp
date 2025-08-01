@@ -1,5 +1,7 @@
 #include "BufferTransferHelper.h"
 
+#include <vulkan/vulkan.hpp>
+
 namespace Engine {
     vk::MemoryBarrier2 BufferTransferHelper::GetBufferBarrier(BufferTransferType type) {
         return vk::MemoryBarrier2{

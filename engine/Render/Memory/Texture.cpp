@@ -5,6 +5,8 @@
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/AllocatorState.h"
 
+#include <vulkan/vulkan.hpp>
+
 namespace Engine {
 
     Texture::Texture(RenderSystem &system) noexcept : m_system(system), m_full_view(nullptr) {

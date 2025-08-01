@@ -15,6 +15,7 @@
 
 #include <SDL3/SDL.h>
 #include <fstream>
+#include <vulkan/vulkan.hpp>
 #include <glm.hpp>
 
 namespace Engine {
