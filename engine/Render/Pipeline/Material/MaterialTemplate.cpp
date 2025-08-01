@@ -15,8 +15,8 @@
 
 #include <SDL3/SDL.h>
 #include <fstream>
-#include <vulkan/vulkan.hpp>
 #include <glm.hpp>
+#include <vulkan/vulkan.hpp>
 
 namespace Engine {
     void MaterialTemplate::CreatePipeline(

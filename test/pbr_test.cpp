@@ -6,10 +6,10 @@
 #include <tiny_obj_loader.h>
 
 #include "Asset/AssetManager/AssetManager.h"
+#include "Asset/Loader/ObjLoader.h"
+#include "Asset/Material/MaterialTemplateAsset.h"
 #include "Asset/Mesh/MeshAsset.h"
 #include "Asset/Texture/Image2DTextureAsset.h"
-#include "Asset/Material/MaterialTemplateAsset.h"
-#include "Asset/Loader/ObjLoader.h"
 #include "Framework/component/RenderComponent/MeshComponent.h"
 #include "Functional/SDLWindow.h"
 #include "GUI/GUISystem.h"

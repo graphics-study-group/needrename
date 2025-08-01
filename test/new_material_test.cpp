@@ -4,9 +4,9 @@
 #include <fstream>
 
 #include "Asset/AssetManager/AssetManager.h"
+#include "Asset/Material/MaterialTemplateAsset.h"
 #include "Asset/Mesh/MeshAsset.h"
 #include "Asset/Texture/Image2DTextureAsset.h"
-#include "Asset/Material/MaterialTemplateAsset.h"
 #include "Framework/component/RenderComponent/MeshComponent.h"
 #include "Functional/SDLWindow.h"
 #include "GUI/GUISystem.h"
