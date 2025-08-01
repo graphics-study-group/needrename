@@ -1,8 +1,11 @@
 #ifndef PIPELINE_COMMANDBUFFER_ICOMMANDCONTEXT_INCLUDED
 #define PIPELINE_COMMANDBUFFER_ICOMMANDCONTEXT_INCLUDED
 
-#include <vulkan/vulkan.hpp>
 #include "AccessHelperTypes.h"
+
+namespace vk {
+    class ImageMemoryBarrier2;
+}
 
 namespace Engine {
     class ICommandBuffer;

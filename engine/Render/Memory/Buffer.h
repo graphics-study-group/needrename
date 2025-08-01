@@ -1,7 +1,6 @@
 #ifndef RENDER_MEMORY_BUFFER_INCLUDED
 #define RENDER_MEMORY_BUFFER_INCLUDED
 
-#include <vulkan/vulkan.hpp>
 #include <memory>
 
 #include "Render/RenderSystem/AllocatorState.h"

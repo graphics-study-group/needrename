@@ -1,11 +1,19 @@
 #ifndef PIPELINE_COMMANDBUFFER_GRAPHICSCOMMANDBUFFER_INCLUDED
 #define PIPELINE_COMMANDBUFFER_GRAPHICSCOMMANDBUFFER_INCLUDED
 
-#include "Render/VkWrapper.tcc"
+
 #include "Render/RenderSystem/RendererManager.h"
 #include "Render/Pipeline/CommandBuffer/TransferCommandBuffer.h"
-#include <vulkan/vulkan.hpp>
-#include <glm.hpp>
+
+// GLM forward declaration.
+#include <fwd.hpp>
+
+namespace vk {
+    class CommandBuffer;
+    class Pipeline;
+    class PipelineLayout;
+    class Extent2D;
+}
 
 namespace Engine {
     class Material;
@@ -13,6 +21,7 @@ namespace Engine {
     class HomogeneousMesh;
     class Buffer;
     class RenderTargetBinding;
+
     namespace AttachmentUtils {
         class AttachmentDescription;
     };
@@ -77,7 +86,13 @@ namespace Engine {
         void DrawMesh(const HomogeneousMesh & mesh, const glm::mat4 & model_matrix);
 
         void DrawRenderers (const RendererList & renderers, uint32_t pass);
-        void DrawRenderers (const RendererList & renderers, const glm::mat4 &view_matrix, const glm::mat4 &projection_matrix, vk::Extent2D extent, uint32_t pass);
+        void DrawRenderers (
+            const RendererList & renderers, 
+            const glm::mat4 &view_matrix, 
+            const glm::mat4 &projection_matrix, 
+            vk::Extent2D extent, 
+            uint32_t pass
+        );
 
         /// @brief End the render pass
         void EndRendering();

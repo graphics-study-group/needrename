@@ -4,7 +4,11 @@
 #include <memory>
 #include <SDL3/SDL.h>
 #include <imgui.h>
-#include <vulkan/vulkan.hpp>
+
+namespace vk {
+    class Extent2D;
+    enum class Format;
+}
 
 namespace Engine {
     class RenderSystem;

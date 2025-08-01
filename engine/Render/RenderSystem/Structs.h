@@ -25,6 +25,14 @@ namespace Engine::RenderSystemState {
         std::vector <vk::SurfaceFormatKHR> formats;
         std::vector <vk::PresentModeKHR> modes;
     };
+
+    struct QueueInfo {
+        vk::Queue graphicsQueue;
+        vk::UniqueCommandPool graphicsPool;
+        vk::UniqueCommandPool graphicsOneTimePool;
+        vk::Queue presentQueue;
+        vk::UniqueCommandPool presentPool;
+    };
 }
 
 #endif // RENDER_RENDERSYSTEM_STRUCTS_INCLUDED
