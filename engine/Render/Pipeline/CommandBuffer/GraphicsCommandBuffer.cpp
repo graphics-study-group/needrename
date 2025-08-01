@@ -6,8 +6,10 @@
 #include "Render/Memory/Buffer.h"
 #include "Render/Pipeline/Material/MaterialInstance.h"
 #include "Render/Pipeline/RenderTargetBinding.h"
+#include "Render/RenderSystem.h"
 #include "Render/RenderSystem/FrameManager.h"
 #include "Render/RenderSystem/GlobalConstantDescriptorPool.h"
+#include "Render/RenderSystem/RendererManager.h"
 #include "Render/RenderSystem/Swapchain.h"
 #include "Render/Renderer/Camera.h"
 #include "Render/Renderer/HomogeneousMesh.h"
@@ -16,6 +18,8 @@
 #include "Render/Pipeline/CommandBuffer/LayoutTransferHelper.h"
 
 #include <SDL3/SDL.h>
+#include <glm.hpp>
+#include <vulkan/vulkan.hpp>
 
 namespace Engine {
     GraphicsCommandBuffer::GraphicsCommandBuffer(RenderSystem &system, vk::CommandBuffer cb, uint32_t frame_in_flight) :

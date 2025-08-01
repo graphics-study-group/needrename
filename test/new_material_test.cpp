@@ -4,6 +4,7 @@
 #include <fstream>
 
 #include "Asset/AssetManager/AssetManager.h"
+#include "Asset/Material/MaterialTemplateAsset.h"
 #include "Asset/Mesh/MeshAsset.h"
 #include "Asset/Texture/Image2DTextureAsset.h"
 #include "Framework/component/RenderComponent/MeshComponent.h"
@@ -50,7 +51,6 @@ std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate() {
 
     MaterialTemplateSinglePassProperties mtspp{};
     mtspp.attachments.color = {ImageUtils::ImageFormat::R8G8B8A8UNorm};
-    mtspp.attachments.color_ops = {AttachmentUtils::AttachmentOp{}};
     using CBP = PipelineProperties::ColorBlendingProperties;
     CBP cbp;
     cbp.color_op = cbp.alpha_op = CBP::BlendOperation::Add;
@@ -94,7 +94,7 @@ int main(int argc, char **argv) {
     auto test_asset = ConstructMaterialTemplate();
     auto test_asset_ref = std::make_shared<AssetRef>(test_asset);
     auto test_template = std::make_shared<Materials::BlinnPhongTemplate>(*rsys);
-    test_template->InstantiateFromRef(test_asset_ref);
+    test_template->Instantiate(*test_asset_ref->cas<MaterialTemplateAsset>());
     auto test_material_instance = std::make_shared<Materials::BlinnPhongInstance>(*rsys, test_template);
     test_material_instance->SetAmbient(glm::vec4(0.0, 0.0, 0.0, 0.0));
     test_material_instance->SetSpecular(glm::vec4(1.0, 1.0, 1.0, 64.0));
@@ -164,7 +164,7 @@ int main(int argc, char **argv) {
     auto cs_ref = asys->GetNewAssetRef("~/shaders/gaussian_blur.comp.spv.asset");
     asys->LoadAssetImmediately(cs_ref);
     ComputeStage cstage{*rsys};
-    cstage.InstantiateFromRef(cs_ref);
+    cstage.Instantiate(*cs_ref->cas<ShaderAsset>());
     cstage.SetDescVariable(
         cstage.GetVariableIndex("inputImage").value().first, std::const_pointer_cast<const Texture>(color)
     );

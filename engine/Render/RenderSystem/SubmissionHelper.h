@@ -4,7 +4,6 @@
 #include <queue>
 #include <vector>
 #include <functional>
-#include <vulkan/vulkan.hpp>
 
 namespace Engine {
     class Texture;

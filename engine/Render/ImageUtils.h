@@ -1,7 +1,7 @@
 #ifndef ENGINE_RENDER_IMAGEUTILS_INCLUDED
 #define ENGINE_RENDER_IMAGEUTILS_INCLUDED
 
-#include <vulkan/vulkan.hpp>
+#include <vulkan/vulkan_enums.hpp>
 #include <vk_mem_alloc.h>
 
 namespace Engine {

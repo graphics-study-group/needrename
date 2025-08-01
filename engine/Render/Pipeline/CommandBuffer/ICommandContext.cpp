@@ -3,6 +3,8 @@
 #include "Render/Memory/Texture.h"
 #include "Render/Pipeline/CommandBuffer/AccessHelperFuncs.h"
 
+#include <vulkan/vulkan.hpp>
+
 namespace Engine {
     vk::ImageMemoryBarrier2 ICommandContext::GetImageBarrier(
         const Texture &texture, ImageAccessType currentAccess, ImageAccessType previousAccess

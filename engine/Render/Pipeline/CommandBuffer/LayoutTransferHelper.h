@@ -1,7 +1,9 @@
 #ifndef PIPELINE_COMMANDBUFFER_LAYOUTTRANSFERHELPER_INCLUDED
 #define PIPELINE_COMMANDBUFFER_LAYOUTTRANSFERHELPER_INCLUDED
 
-#include <vulkan/vulkan.hpp>
+namespace vk {
+    class Image;
+}
 
 namespace Engine {
     class LayoutTransferHelper {

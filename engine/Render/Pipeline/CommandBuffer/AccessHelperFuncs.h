@@ -1,7 +1,16 @@
 #ifndef PIPELINE_COMMANDBUFFER_ACCESSHELPERFUNCS_INCLUDED
 #define PIPELINE_COMMANDBUFFER_ACCESSHELPERFUNCS_INCLUDED
 
+/**
+ * @file This header contains function implementation for AccessHelper classes. 
+ * Do not include it in other headers. 
+ */
+
 #include "AccessHelperTypes.h"
+
+#include <vulkan/vulkan.hpp>
+#include <SDL3/SDL.h>
+#include <tuple>
 
 namespace Engine {
     namespace AccessHelper {

@@ -3,11 +3,11 @@
 
 /** Structures holding information with regards to VkPipeline etc. */
 
+#include <any>
 #include <vector>
 #include <vulkan/vulkan.hpp>
 #include "Asset/Material/ShaderAsset.h"
 #include "Render/Pipeline/Material/ShaderUtils.h"
-#include "Render/AttachmentUtils.h"
 
 namespace Engine {
     class Buffer;
@@ -33,15 +33,15 @@ namespace Engine {
             std::vector <vk::UniqueShaderModule> shaders {};
 
             struct InblockVars{
-                std::unordered_map <std::string, uint32_t> names;
-                std::vector <ShaderUtils::InBlockVariableData> vars;
+                std::unordered_map <std::string, uint32_t> names {};
+                std::vector <ShaderUtils::InBlockVariableData> vars {};
                 uint64_t maximal_ubo_size {};
-            } inblock;
+            } inblock {};
             
             struct DescVars{
-                std::unordered_map <std::string, uint32_t> names;
-                std::vector <ShaderUtils::DesciptorVariableData> vars;
-            } desc;
+                std::unordered_map <std::string, uint32_t> names {};
+                std::vector <ShaderUtils::DesciptorVariableData> vars {};
+            } desc {};
         };
 
         struct MaterialPassInfo : PassInfo {
@@ -49,11 +49,6 @@ namespace Engine {
                 vk::DynamicState::eViewport,
                 vk::DynamicState::eScissor
             };
-
-            struct Attachments {
-                std::vector <AttachmentUtils::AttachmentOp> color_attachment_ops {};
-                AttachmentUtils::AttachmentOp ds_attachment_ops {};
-            } attachments {};
         };
 
         struct PoolInfo {

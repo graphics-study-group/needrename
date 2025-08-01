@@ -1,7 +1,7 @@
 #ifndef PIPELINE_COMMANDBUFFER_ICOMMANDBUFFER_INCLUDED
 #define PIPELINE_COMMANDBUFFER_ICOMMANDBUFFER_INCLUDED
 
-#include <vulkan/vulkan.hpp>
+#include <vulkan/vulkan_handles.hpp>
 
 namespace Engine {
     class ICommandBuffer {

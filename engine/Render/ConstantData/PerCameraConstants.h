@@ -2,8 +2,8 @@
 #define RENDER_CONSTANTDATA_PERCAMERACONSTANTS_INCLUDED
 
 #include <glm.hpp>
+#include <vulkan/vulkan.hpp>
 #include "Render/VkWrapper.tcc"
-#include "Render/Memory/IndexedBuffer.h"
 
 namespace Engine {
     class RenderSystem;

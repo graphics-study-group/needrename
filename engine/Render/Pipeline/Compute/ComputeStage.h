@@ -3,10 +3,11 @@
 
 #include "Asset/InstantiatedFromAsset.h"
 #include "Render/Pipeline/PipelineInfo.h"
+#include <any>
 
 namespace Engine {
     class RenderSystem;
-    class AssetRef;
+    class ShaderAsset;
 
     class ComputeStage : public IInstantiatedFromAsset <ShaderAsset> {
         using PassInfo = PipelineInfo::PassInfo;

@@ -3,7 +3,6 @@
 
 #include <glm.hpp>
 #include "Render/VkWrapper.tcc"
-#include "Render/Memory/Buffer.h"
 
 namespace Engine {
     class RenderSystem;
