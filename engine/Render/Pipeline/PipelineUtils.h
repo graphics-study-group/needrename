@@ -1,7 +1,7 @@
 #ifndef RENDER_PIPELINE_PIPELINEUTILS_INCLUDED
 #define RENDER_PIPELINE_PIPELINEUTILS_INCLUDED
 
-#include <vulkan/vulkan_enums.hpp>
+#include <vulkan/vulkan.hpp>
 
 #include "Render/Pipeline/PipelineEnums.h"
 #include "Asset/Material/PipelineProperty.h"

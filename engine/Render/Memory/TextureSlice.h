@@ -1,7 +1,7 @@
 #ifndef RENDER_MEMORY_TEXTURESLICE_INCLUDED
 #define RENDER_MEMORY_TEXTURESLICE_INCLUDED
 
-#include <vulkan/vulkan_handles.hpp>
+#include <vulkan/vulkan.hpp>
 
 namespace Engine {
     class Texture;

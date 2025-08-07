@@ -1,7 +1,7 @@
 #ifndef RENDER_MEMORY_TEXTURE_INCLUDED
 #define RENDER_MEMORY_TEXTURE_INCLUDED
 
-#include <vulkan/vulkan_enums.hpp>
+#include <vulkan/vulkan.hpp>
 #include "Render/ImageUtils.h"
 #include "Render/Memory/TextureSlice.h"
 

@@ -1,7 +1,7 @@
 #ifndef PIPELINE_COMMANDBUFFER_BUFFERTRANSFERHELPER_INCLUDED
 #define PIPELINE_COMMANDBUFFER_BUFFERTRANSFERHELPER_INCLUDED
 
-#include <vulkan/vulkan_enums.hpp>
+#include <vulkan/vulkan.hpp>
 
 namespace vk {
     class MemoryBarrier2;
