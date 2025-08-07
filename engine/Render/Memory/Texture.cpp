@@ -4,6 +4,7 @@
 #include "Render/Memory/Buffer.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/AllocatorState.h"
+#include "Render/ImageUtilsFunc.h"
 
 #include <vulkan/vulkan.hpp>
 

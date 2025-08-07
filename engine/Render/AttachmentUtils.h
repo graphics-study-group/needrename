@@ -1,9 +1,12 @@
 #ifndef ENGINE_RENDER_ATTACHMENTUTILS_INCLUDED
 #define ENGINE_RENDER_ATTACHMENTUTILS_INCLUDED
 
-#include <vulkan/vulkan.hpp>
+#include <variant>
 
 namespace Engine {
+    class Texture;
+    class SlicedTextureView;
+
     namespace AttachmentUtils {
         enum class LoadOperation {
             Load,
@@ -16,68 +19,30 @@ namespace Engine {
             DontCare
         };
 
+        struct ColorClearValue {
+            float r, g, b, a;
+        };
+
+        struct DepthClearValue {
+            float depth;
+            uint32_t stencil;
+        };
+
+        typedef std::variant<ColorClearValue, DepthClearValue> ClearValue;
+
         struct AttachmentOp {
-            vk::AttachmentLoadOp load_op {};
-            vk::AttachmentStoreOp store_op {};
-            vk::ClearValue clear_value {};
+            LoadOperation load_op {};
+            StoreOperation store_op {};
+            ClearValue clear_value {};
         };
 
         struct AttachmentDescription {
-            vk::Image image {};
-            vk::ImageView image_view {};
-            vk::AttachmentLoadOp load_op {};
-            vk::AttachmentStoreOp store_op {};
+            LoadOperation load_op {};
+            StoreOperation store_op {};
+
+            const Texture * texture {nullptr};
+            const SlicedTextureView * texture_view {nullptr};
         };
-
-        constexpr vk::AttachmentLoadOp GetVkLoadOp(LoadOperation op) {
-            switch(op) {
-                case LoadOperation::Load:
-                    return vk::AttachmentLoadOp::eLoad;
-                case LoadOperation::Clear:
-                    return vk::AttachmentLoadOp::eClear;
-                case LoadOperation::DontCare:
-                    return vk::AttachmentLoadOp::eDontCare;
-            }
-            return vk::AttachmentLoadOp{};
-        }
-
-        constexpr vk::AttachmentStoreOp GetVkStoreOp(StoreOperation op) {
-            switch(op) {
-                case StoreOperation::Store:
-                    return vk::AttachmentStoreOp::eStore;
-                case StoreOperation::DontCare:
-                    return vk::AttachmentStoreOp::eDontCare;
-            }
-            return vk::AttachmentStoreOp{};
-        }
-
-        constexpr vk::RenderingAttachmentInfo GetVkAttachmentInfo(const AttachmentDescription& desc, vk::ImageLayout layout, vk::ClearValue clear) {
-            vk::RenderingAttachmentInfo info {
-                desc.image_view,
-                layout,
-                vk::ResolveModeFlagBits::eNone,
-                nullptr,
-                vk::ImageLayout::eUndefined,
-                desc.load_op,
-                desc.store_op,
-                clear
-            };
-            return info;
-        }
-
-        constexpr vk::RenderingAttachmentInfo GetVkAttachmentInfo(vk::ImageView view, AttachmentOp op, vk::ImageLayout layout) {
-            vk::RenderingAttachmentInfo info {
-                view,
-                layout,
-                vk::ResolveModeFlagBits::eNone,
-                nullptr,
-                vk::ImageLayout::eUndefined,
-                op.load_op,
-                op.store_op,
-                op.clear_value
-            };
-            return info;
-        }
     }
 }
 
