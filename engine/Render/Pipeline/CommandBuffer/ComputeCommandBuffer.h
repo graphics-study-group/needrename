@@ -2,7 +2,6 @@
 #define PIPELINE_COMMANDBUFFER_COMPUTECOMMANDBUFFER_INCLUDED
 
 #include "Render/Pipeline/CommandBuffer/ICommandBuffer.h"
-#include <vulkan/vulkan.hpp>
 #include <any>
 
 namespace Engine {

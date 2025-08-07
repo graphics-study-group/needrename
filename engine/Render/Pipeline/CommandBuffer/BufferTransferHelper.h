@@ -3,6 +3,10 @@
 
 #include <vulkan/vulkan.hpp>
 
+namespace vk {
+    class MemoryBarrier2;
+}
+
 namespace Engine {
     class BufferTransferHelper {
     public:

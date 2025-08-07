@@ -1,5 +1,7 @@
 #include "LayoutTransferHelper.h"
 
+#include <vulkan/vulkan.hpp>
+
 namespace Engine {
 
     std::pair<vk::PipelineStageFlags2, vk::AccessFlags2> GetScope1(LayoutTransferHelper::TextureTransferType type) {

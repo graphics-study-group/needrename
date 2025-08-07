@@ -1,7 +1,10 @@
 #include "SampledTexture.h"
 
 #include "Render/DebugUtils.h"
+#include "Render/ImageUtilsFunc.h"
 #include "Render/RenderSystem.h"
+
+#include <vulkan/vulkan.hpp>
 
 vk::Filter ToVkFilter(Engine::SampledTexture::SamplerDesc::FilterMode filter) {
     using Mode = Engine::SampledTexture::SamplerDesc::FilterMode;
@@ -37,8 +40,16 @@ vk::SamplerAddressMode ToVkSamplerAddressMode(Engine::SampledTexture::SamplerDes
 
 namespace Engine {
 
-    SampledTexture::SampledTexture(RenderSystem &system) noexcept : Texture(system) {
+    struct SampledTexture::impl {
+        SamplerDesc m_sampler_desc{};
+        // TODO: We need to allocate the sampler from a pool instead of creating it each time.
+        vk::UniqueSampler m_sampler{};
+    };
+
+    SampledTexture::SampledTexture(RenderSystem &system) noexcept : Texture(system), pimpl(std::make_unique<impl>()) {
     }
+
+    SampledTexture::~SampledTexture() = default;
 
     void SampledTexture::CreateTextureAndSampler(TextureDesc textureDesc, SamplerDesc samplerDesc, std::string name) {
         assert(
@@ -50,7 +61,7 @@ namespace Engine {
     }
 
     void SampledTexture::CreateSampler(SamplerDesc samplerDesc) {
-        this->m_sampler = m_system.getDevice().createSamplerUnique(
+        pimpl->m_sampler = m_system.getDevice().createSamplerUnique(
             vk::SamplerCreateInfo{
                 vk::SamplerCreateFlags{},
                 ToVkFilter(samplerDesc.min_filter),
@@ -71,16 +82,16 @@ namespace Engine {
                 nullptr
             }
         );
-        DEBUG_SET_NAME_TEMPLATE(m_system.getDevice(), this->m_sampler.get(), "Temporary Sampler for SampledTexture");
-        this->m_sampler_desc = samplerDesc;
+        DEBUG_SET_NAME_TEMPLATE(m_system.getDevice(), pimpl->m_sampler.get(), "Temporary Sampler for SampledTexture");
+        pimpl->m_sampler_desc = samplerDesc;
     }
 
     const SampledTexture::SamplerDesc &SampledTexture::GetSamplerDesc() const noexcept {
-        return this->m_sampler_desc;
+        return pimpl->m_sampler_desc;
     }
 
     vk::Sampler SampledTexture::GetSampler() const noexcept {
-        assert(this->m_sampler);
-        return this->m_sampler.get();
+        assert(pimpl->m_sampler);
+        return pimpl->m_sampler.get();
     }
 } // namespace Engine

@@ -5,7 +5,6 @@
 #include "Render/Memory/Buffer.h"
 
 #include "Asset/InstantiatedFromAsset.h"
-#include "Asset/Material/MaterialAsset.h"
 
 #include <any>
 
@@ -13,6 +12,8 @@ namespace Engine
 {
     class SampledTexture;
     class Buffer;
+    class MaterialAsset;
+    
     /// @brief A light-weight instance of a given material,
     /// where all mutable data such as texture and uniforms are stored.
     class MaterialInstance : public IInstantiatedFromAsset<MaterialAsset> {

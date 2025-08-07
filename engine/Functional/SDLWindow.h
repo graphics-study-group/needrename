@@ -7,6 +7,10 @@
 #include "consts.h"
 #include <Render/Pipeline/RenderTargetBinding.h>
 
+namespace vk {
+    class Extent2D;
+}
+
 namespace Engine
 {
     class Texture;

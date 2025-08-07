@@ -1,6 +1,10 @@
 #include "HomogeneousMesh.h"
 #include <Asset/AssetRef.h>
 #include <Asset/Mesh/MeshAsset.h>
+
+#include "Render/RenderSystem.h"
+#include "Render/Renderer/VertexStruct.h"
+
 #include <SDL3/SDL.h>
 #include <vulkan/vulkan.hpp>
 
@@ -21,7 +25,8 @@ namespace Engine {
         void WriteToMemory(std::byte *pointer) const;
         /**
          * @brief Allocate buffer and update pre-calculated offsets.
-         * Called before `CreateStagingBuffer()`.
+         * Called before
+         * `CreateStagingBuffer()`.
          */
         void FetchFromAsset();
         uint32_t GetVertexIndexCount() const;

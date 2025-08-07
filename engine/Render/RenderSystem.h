@@ -2,7 +2,6 @@
 #define ENGINE_RENDER_RENDERSYSTEM_INCLUDED
 
 #include <memory>
-#include <vulkan/vulkan.hpp>
 #include <glm.hpp>
 
 #include "Render/RenderSystem/Structs.h"
@@ -41,14 +40,7 @@ namespace Engine
 
         using SwapchainSupport = Engine::RenderSystemState::SwapchainSupport;
         using QueueFamilyIndices = Engine::RenderSystemState::QueueFamilyIndices;
-
-        struct QueueInfo {
-            vk::Queue graphicsQueue;
-            vk::UniqueCommandPool graphicsPool;
-            vk::UniqueCommandPool graphicsOneTimePool;
-            vk::Queue presentQueue;
-            vk::UniqueCommandPool presentPool;
-        };
+        using QueueInfo = Engine::RenderSystemState::QueueInfo;
 
         RenderSystem(std::weak_ptr <SDLWindow> parent_window);
 

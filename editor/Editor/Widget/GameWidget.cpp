@@ -1,8 +1,11 @@
 #include "GameWidget.h"
+
+#include <Render/AttachmentUtils.h>
+#include <Render/ImageUtils.h>
+
 #include <Framework/world/WorldSystem.h>
 #include <Functional/SDLWindow.h>
 #include <MainClass.h>
-#include <Render/ImageUtils.h>
 #include <Render/Memory/SampledTexture.h>
 #include <Render/Pipeline/CommandBuffer/GraphicsCommandBuffer.h>
 #include <Render/Pipeline/CommandBuffer/GraphicsContext.h>
@@ -40,19 +43,19 @@ namespace Editor {
         m_depth_texture->CreateTextureAndSampler(desc, {}, "Game depth attachment");
 
         Engine::AttachmentUtils::AttachmentDescription color_att, depth_att;
-        color_att.image = m_color_texture->GetImage();
-        color_att.image_view = m_color_texture->GetImageView();
-        color_att.load_op = vk::AttachmentLoadOp::eClear;
-        color_att.store_op = vk::AttachmentStoreOp::eStore;
+        color_att.texture = m_color_texture.get();
+        color_att.texture_view = nullptr;
+        color_att.load_op = Engine::AttachmentUtils::LoadOperation::Clear;
+        color_att.store_op = Engine::AttachmentUtils::StoreOperation::Store;
         m_render_target_binding.SetColorAttachment(color_att);
-        depth_att.image = m_depth_texture->GetImage();
-        depth_att.image_view = m_depth_texture->GetImageView();
-        depth_att.load_op = vk::AttachmentLoadOp::eClear;
-        depth_att.store_op = vk::AttachmentStoreOp::eDontCare;
+        depth_att.texture = m_depth_texture.get();
+        depth_att.texture_view = nullptr;
+        depth_att.load_op = Engine::AttachmentUtils::LoadOperation::Clear;
+        depth_att.store_op = Engine::AttachmentUtils::StoreOperation::DontCare;
         m_render_target_binding.SetDepthAttachment(depth_att);
 
         m_color_att_id = reinterpret_cast<ImTextureID>(ImGui_ImplVulkan_AddTexture(
-            m_color_texture->GetSampler(), color_att.image_view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+            m_color_texture->GetSampler(), m_color_texture->GetImageView(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
         ));
     }
 

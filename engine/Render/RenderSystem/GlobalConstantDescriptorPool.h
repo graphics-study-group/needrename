@@ -3,6 +3,7 @@
 
 #include "Render/ConstantData/PerCameraConstants.h"
 #include "Render/ConstantData/PerSceneConstants.h"
+#include "Render/Memory/IndexedBuffer.h"
 
 namespace Engine {
     namespace RenderSystemState {
