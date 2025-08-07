@@ -1,8 +1,8 @@
 #include "SampledTexture.h"
 
 #include "Render/DebugUtils.h"
-#include "Render/RenderSystem.h"
 #include "Render/ImageUtilsFunc.h"
+#include "Render/RenderSystem.h"
 
 #include <vulkan/vulkan.hpp>
 
@@ -41,9 +41,9 @@ vk::SamplerAddressMode ToVkSamplerAddressMode(Engine::SampledTexture::SamplerDes
 namespace Engine {
 
     struct SampledTexture::impl {
-        SamplerDesc m_sampler_desc {};
+        SamplerDesc m_sampler_desc{};
         // TODO: We need to allocate the sampler from a pool instead of creating it each time.
-        vk::UniqueSampler m_sampler {};
+        vk::UniqueSampler m_sampler{};
     };
 
     SampledTexture::SampledTexture(RenderSystem &system) noexcept : Texture(system), pimpl(std::make_unique<impl>()) {

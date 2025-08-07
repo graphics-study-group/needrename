@@ -10,7 +10,7 @@
 namespace Engine {
 
     struct SlicedTextureView::impl {
-        const Texture & m_texture;
+        const Texture &m_texture;
         TextureSlice m_slice;
         vk::UniqueImageView m_view;
     };

@@ -329,9 +329,7 @@ int main(int argc, char **argv) {
         );
         context.PrepareCommandBuffer();
         gsys->DrawGUI(
-            {&color, nullptr, AttachmentUtils::LoadOperation::Load, AttachmentUtils::StoreOperation::Store},
-            extent,
-            cb
+            {&color, nullptr, AttachmentUtils::LoadOperation::Load, AttachmentUtils::StoreOperation::Store}, extent, cb
         );
 
         cb.End();

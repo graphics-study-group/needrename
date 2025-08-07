@@ -3,6 +3,7 @@
 #include <fstream>
 #include <iostream>
 
+#include "Render/FullRenderSystem.h"
 #include <Asset/AssetManager/AssetManager.h>
 #include <Core/Delegate/FuncDelegate.h>
 #include <Framework/world/WorldSystem.h>
@@ -12,7 +13,6 @@
 #include <GUI/GUISystem.h>
 #include <Input/Input.h>
 #include <MainClass.h>
-#include "Render/FullRenderSystem.h"
 #include <SDL3/SDL.h>
 #include <cmake_config.h>
 

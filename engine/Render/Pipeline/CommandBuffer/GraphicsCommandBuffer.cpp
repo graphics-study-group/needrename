@@ -38,23 +38,15 @@ namespace Engine {
 
         if (color.texture) {
             color_attachment.push_back(
-                GetVkAttachmentInfo(
-                    color, 
-                    vk::ImageLayout::eColorAttachmentOptimal, 
-                    vk::ClearColorValue{0, 0, 0, 0}
-                )
+                GetVkAttachmentInfo(color, vk::ImageLayout::eColorAttachmentOptimal, vk::ClearColorValue{0, 0, 0, 0})
             );
         }
 
         vk::RenderingAttachmentInfo depth_attachment;
         if (depth.texture) {
-            depth_attachment = vk::RenderingAttachmentInfo{
-                GetVkAttachmentInfo(
-                    depth, 
-                    vk::ImageLayout::eDepthStencilAttachmentOptimal, 
-                    vk::ClearDepthStencilValue{1.0f, 0U}
-                )
-            };
+            depth_attachment = vk::RenderingAttachmentInfo{GetVkAttachmentInfo(
+                depth, vk::ImageLayout::eDepthStencilAttachmentOptimal, vk::ClearDepthStencilValue{1.0f, 0U}
+            )};
         } else {
         }
 

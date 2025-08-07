@@ -5,10 +5,10 @@
 namespace Engine {
 
     struct AllocatedMemory::impl {
-        std::variant <vk::Image, vk::Buffer> m_vk_handle;
+        std::variant<vk::Image, vk::Buffer> m_vk_handle;
         VmaAllocation m_allocation;
         VmaAllocator m_allocator;
-        std::byte * m_mapped_memory {nullptr};
+        std::byte *m_mapped_memory{nullptr};
     };
 
     void AllocatedMemory::ClearAndInvalidate() {
@@ -42,11 +42,7 @@ namespace Engine {
     }
 
     AllocatedMemory::AllocatedMemory(AllocatedMemory &&other) {
-        pimpl = std::make_unique<impl>(
-            other.pimpl->m_vk_handle, 
-            other.pimpl->m_allocation, 
-            other.pimpl->m_allocator
-        );
+        pimpl = std::make_unique<impl>(other.pimpl->m_vk_handle, other.pimpl->m_allocation, other.pimpl->m_allocator);
 
         // Reset other
         other.pimpl->m_vk_handle = {};

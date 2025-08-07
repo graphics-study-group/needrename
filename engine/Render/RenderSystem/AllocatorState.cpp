@@ -1,8 +1,8 @@
 #include "AllocatorState.h"
 
-#include "Render/RenderSystem.h"
-#include "Render/ImageUtilsFunc.h"
 #include "Render/DebugUtils.h"
+#include "Render/ImageUtilsFunc.h"
+#include "Render/RenderSystem.h"
 
 namespace Engine::RenderSystemState {
     std::tuple<vk::BufferUsageFlags, VmaAllocationCreateFlags, VmaMemoryUsage> constexpr AllocatorState::GetBufferFlags(

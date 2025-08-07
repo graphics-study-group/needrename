@@ -96,7 +96,8 @@ namespace Engine::RenderSystemState {
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "\tInspecting %s.", props.deviceName.data());
 
         /* if (!(props.deviceType == vk::PhysicalDeviceType::eDiscreteGpu)) {
-            SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Not discrete GPU.");
+ SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Not
+         * discrete GPU.");
             return false;
         } */
 

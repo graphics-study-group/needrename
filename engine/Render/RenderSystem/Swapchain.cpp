@@ -4,7 +4,7 @@
 #include <vulkan/vulkan.hpp>
 
 std::tuple<vk::Extent2D, vk::SurfaceFormatKHR, vk::PresentModeKHR> SelectSwapchainConfig(
-        const Engine::RenderSystemState::SwapchainSupport &support, vk::Extent2D expected_extent
+    const Engine::RenderSystemState::SwapchainSupport &support, vk::Extent2D expected_extent
 ) {
     assert(!support.formats.empty());
     assert(!support.modes.empty());
@@ -24,9 +24,7 @@ std::tuple<vk::Extent2D, vk::SurfaceFormatKHR, vk::PresentModeKHR> SelectSwapcha
         }
     }
     if (pickedFormat.format == vk::Format::eUndefined) {
-        SDL_LogCritical(
-            SDL_LOG_CATEGORY_RENDER, "This device support neither B8G8R8A8 nor R8G8B8A8 swapchain format."
-        );
+        SDL_LogCritical(SDL_LOG_CATEGORY_RENDER, "This device support neither B8G8R8A8 nor R8G8B8A8 swapchain format.");
     } else if (pickedFormat.format == vk::Format::eB8G8R8A8Srgb) {
         SDL_LogWarn(
             SDL_LOG_CATEGORY_RENDER,
@@ -61,9 +59,7 @@ std::tuple<vk::Extent2D, vk::SurfaceFormatKHR, vk::PresentModeKHR> SelectSwapcha
         );
 
         if (extent.width != expected_extent.width || extent.height != expected_extent.height) {
-            SDL_LogWarn(
-                SDL_LOG_CATEGORY_RENDER, "Swapchain extent clamped to (%u, %u).", extent.width, extent.height
-            );
+            SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Swapchain extent clamped to (%u, %u).", extent.width, extent.height);
         }
     }
     return std::make_tuple(extent, pickedFormat, pickedMode);
