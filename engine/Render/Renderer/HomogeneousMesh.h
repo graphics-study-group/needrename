@@ -1,7 +1,6 @@
 #ifndef RENDER_RENDERER_HOMOGENEOUSMESH_INCLUDED
 #define RENDER_RENDERER_HOMOGENEOUSMESH_INCLUDED
 
-#include "Render/Renderer/VertexStruct.h"
 #include "Render/Memory/Buffer.h"
 
 namespace Engine{

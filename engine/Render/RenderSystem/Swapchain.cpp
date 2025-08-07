@@ -1,74 +1,75 @@
 #include "Swapchain.h"
 #include "Render/RenderSystem/PhysicalDevice.h"
 #include <SDL3/SDL.h>
+#include <vulkan/vulkan.hpp>
 
-namespace Engine::RenderSystemState {
-    std::tuple<vk::Extent2D, vk::SurfaceFormatKHR, vk::PresentModeKHR> Swapchain::SelectSwapchainConfig(
-        const SwapchainSupport &support, vk::Extent2D expected_extent
-    ) {
-        assert(!support.formats.empty());
-        assert(!support.modes.empty());
-        // Select surface format
-        vk::SurfaceFormatKHR pickedFormat{};
-        for (const auto &format : support.formats) {
-            if (format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear) {
-                // Select R8G8B8A8 SRGB first
-                if (format.format == vk::Format::eR8G8B8A8Srgb) {
+std::tuple<vk::Extent2D, vk::SurfaceFormatKHR, vk::PresentModeKHR> SelectSwapchainConfig(
+        const Engine::RenderSystemState::SwapchainSupport &support, vk::Extent2D expected_extent
+) {
+    assert(!support.formats.empty());
+    assert(!support.modes.empty());
+    // Select surface format
+    vk::SurfaceFormatKHR pickedFormat{};
+    for (const auto &format : support.formats) {
+        if (format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear) {
+            // Select R8G8B8A8 SRGB first
+            if (format.format == vk::Format::eR8G8B8A8Srgb) {
+                pickedFormat = format;
+                // Select B8G8R8A8 SRBG as backup
+            } else if (format.format == vk::Format::eB8G8R8A8Srgb) {
+                if (pickedFormat.format != vk::Format::eR8G8B8A8Srgb) {
                     pickedFormat = format;
-                    // Select B8G8R8A8 SRBG as backup
-                } else if (format.format == vk::Format::eB8G8R8A8Srgb) {
-                    if (pickedFormat.format != vk::Format::eR8G8B8A8Srgb) {
-                        pickedFormat = format;
-                    }
                 }
             }
         }
-        if (pickedFormat.format == vk::Format::eUndefined) {
-            SDL_LogCritical(
-                SDL_LOG_CATEGORY_RENDER, "This device support neither B8G8R8A8 nor R8G8B8A8 swapchain format."
-            );
-        } else if (pickedFormat.format == vk::Format::eB8G8R8A8Srgb) {
-            SDL_LogWarn(
-                SDL_LOG_CATEGORY_RENDER,
-                "This device does not support R8G8B8A8 swapchain format. Falling back to "
-                "B8G8R8A8. Blue and red channels may appear swapped."
-            );
+    }
+    if (pickedFormat.format == vk::Format::eUndefined) {
+        SDL_LogCritical(
+            SDL_LOG_CATEGORY_RENDER, "This device support neither B8G8R8A8 nor R8G8B8A8 swapchain format."
+        );
+    } else if (pickedFormat.format == vk::Format::eB8G8R8A8Srgb) {
+        SDL_LogWarn(
+            SDL_LOG_CATEGORY_RENDER,
+            "This device does not support R8G8B8A8 swapchain format. Falling back to "
+            "B8G8R8A8. Blue and red channels may appear swapped."
+        );
+    }
+    // Select display mode
+    vk::PresentModeKHR pickedMode = vk::PresentModeKHR::eFifo;
+    for (const auto &mode : support.modes) {
+        if (mode == vk::PresentModeKHR::eMailbox) {
+            pickedMode = mode;
+            break;
         }
-        // Select display mode
-        vk::PresentModeKHR pickedMode = vk::PresentModeKHR::eFifo;
-        for (const auto &mode : support.modes) {
-            if (mode == vk::PresentModeKHR::eMailbox) {
-                pickedMode = mode;
-                break;
-            }
-        }
-        if (pickedMode == vk::PresentModeKHR::eFifo) {
-            SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Mailbox mode not supported, fall back to FIFO.");
-        }
-
-        // Measure extent
-        vk::Extent2D extent{};
-        if (support.capabilities.currentExtent.height != std::numeric_limits<uint32_t>::max()) {
-            extent = support.capabilities.currentExtent;
-        } else {
-            extent = expected_extent;
-
-            extent.width = std::clamp(
-                extent.width, support.capabilities.minImageExtent.width, support.capabilities.maxImageExtent.width
-            );
-            extent.height = std::clamp(
-                extent.height, support.capabilities.minImageExtent.height, support.capabilities.maxImageExtent.height
-            );
-
-            if (extent.width != expected_extent.width || extent.height != expected_extent.height) {
-                SDL_LogWarn(
-                    SDL_LOG_CATEGORY_RENDER, "Swapchain extent clamped to (%u, %u).", extent.width, extent.height
-                );
-            }
-        }
-        return std::make_tuple(extent, pickedFormat, pickedMode);
+    }
+    if (pickedMode == vk::PresentModeKHR::eFifo) {
+        SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Mailbox mode not supported, fall back to FIFO.");
     }
 
+    // Measure extent
+    vk::Extent2D extent{};
+    if (support.capabilities.currentExtent.height != std::numeric_limits<uint32_t>::max()) {
+        extent = support.capabilities.currentExtent;
+    } else {
+        extent = expected_extent;
+
+        extent.width = std::clamp(
+            extent.width, support.capabilities.minImageExtent.width, support.capabilities.maxImageExtent.width
+        );
+        extent.height = std::clamp(
+            extent.height, support.capabilities.minImageExtent.height, support.capabilities.maxImageExtent.height
+        );
+
+        if (extent.width != expected_extent.width || extent.height != expected_extent.height) {
+            SDL_LogWarn(
+                SDL_LOG_CATEGORY_RENDER, "Swapchain extent clamped to (%u, %u).", extent.width, extent.height
+            );
+        }
+    }
+    return std::make_tuple(extent, pickedFormat, pickedMode);
+}
+
+namespace Engine::RenderSystemState {
     void Swapchain::RetrieveImageViews(vk::Device device) {
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Retreiving image views for %llu swap chain images.", m_images.size());
         m_image_views.clear();

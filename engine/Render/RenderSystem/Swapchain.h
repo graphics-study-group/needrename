@@ -3,7 +3,6 @@
 
 #include "Render/VkWrapper.tcc"
 #include "Render/ImageUtils.h"
-#include "Structs.h"
 #include <vector>
 
 namespace Engine {
@@ -22,13 +21,6 @@ namespace Engine {
 
             vk::SurfaceFormatKHR m_image_format {};
             vk::Extent2D m_extent {};
-
-            /// @brief Select a swap chain config from all supported ones
-            /// @param support 
-            /// @param expected_extent
-            /// @return std::tuple <vk::Extent2D, vk::SurfaceFormatKHR, vk::PresentModeKHR>
-            static std::tuple <vk::Extent2D, vk::SurfaceFormatKHR, vk::PresentModeKHR>
-            SelectSwapchainConfig(const SwapchainSupport & support, vk::Extent2D expected_extent);
 
             void RetrieveImageViews(vk::Device device);
         public:

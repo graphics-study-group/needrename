@@ -2,7 +2,9 @@
 #include <Asset/AssetRef.h>
 #include <Asset/Mesh/MeshAsset.h>
 
+#include "Render/Renderer/VertexStruct.h"
 #include "Render/RenderSystem.h"
+
 #include <SDL3/SDL.h>
 #include <vulkan/vulkan.hpp>
 
