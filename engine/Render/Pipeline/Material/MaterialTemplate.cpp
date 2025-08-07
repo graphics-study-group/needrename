@@ -12,6 +12,8 @@
 #include "Render/RenderSystem/GlobalConstantDescriptorPool.h"
 #include "Render/RenderSystem/Swapchain.h"
 #include "Render/Renderer/HomogeneousMesh.h"
+#include "Render/ImageUtilsFunc.h"
+#include "Render/AttachmentUtilsFunc.h"
 
 #include <SDL3/SDL.h>
 #include <fstream>
@@ -159,14 +161,14 @@ namespace Engine {
         vk::Format default_color_format{ImageUtils::GetVkFormat(m_system.GetSwapchain().COLOR_FORMAT)};
         vk::Format default_depth_format{ImageUtils::GetVkFormat(m_system.GetSwapchain().DEPTH_FORMAT)};
         AttachmentUtils::AttachmentOp default_color_op{
-            vk::AttachmentLoadOp::eClear,
-            vk::AttachmentStoreOp::eStore,
-            vk::ClearValue{vk::ClearColorValue{0.0f, 0.0f, 0.0f, 1.0f}}
+            AttachmentUtils::LoadOperation::Clear,
+            AttachmentUtils::StoreOperation::Store,
+            AttachmentUtils::ColorClearValue{0.0f, 0.0f, 0.0f, 1.0f}
         };
         AttachmentUtils::AttachmentOp default_depth_op{
-            vk::AttachmentLoadOp::eClear,
-            vk::AttachmentStoreOp::eDontCare,
-            vk::ClearValue{vk::ClearDepthStencilValue{1.0f, 0u}}
+            AttachmentUtils::LoadOperation::Clear,
+            AttachmentUtils::StoreOperation::DontCare,
+            AttachmentUtils::DepthClearValue{1.0f, 0u}
         };
 
         std::vector<vk::Format> color_attachment_formats{prop.attachments.color.size(), vk::Format::eUndefined};

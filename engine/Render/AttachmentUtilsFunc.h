@@ -30,22 +30,49 @@ namespace Engine {
             return vk::AttachmentStoreOp{};
         }
 
-        constexpr vk::RenderingAttachmentInfo GetVkAttachmentInfo(
+        constexpr vk::ClearValue GetVkClearValue(ClearValue cv) {
+            if (cv.index() == 0) {
+                const auto & v = std::get<ColorClearValue>(cv);
+                return vk::ClearValue{vk::ClearColorValue{v.r, v.g, v.b, v.a}};
+            } else {
+                const auto & v = std::get<DepthClearValue>(cv);
+                return vk::ClearValue{vk::ClearDepthStencilValue{v.depth, v.stencil}};
+            }
+        }
+
+        const inline vk::RenderingAttachmentInfo GetVkAttachmentInfo(
             const AttachmentDescription& desc, 
             vk::ImageLayout layout, 
             vk::ClearValue clear
-        ) {
-            vk::RenderingAttachmentInfo info {
-                desc.image_view,
-                layout,
-                vk::ResolveModeFlagBits::eNone,
-                nullptr,
-                vk::ImageLayout::eUndefined,
-                GetVkLoadOp(desc.load_op),
-                GetVkStoreOp(desc.store_op),
-                clear
-            };
-            return info;
+        ) noexcept {
+            assert(desc.texture || desc.texture_view);
+
+            if (desc.texture_view) {
+                return vk::RenderingAttachmentInfo{
+                    desc.texture_view->GetImageView(),
+                    layout,
+                    vk::ResolveModeFlagBits::eNone,
+                    nullptr,
+                    // XXX: Here we need to track the previous layout.
+                    vk::ImageLayout::eUndefined,
+                    GetVkLoadOp(desc.load_op),
+                    GetVkStoreOp(desc.store_op),
+                    clear
+                };
+            } else {
+                return vk::RenderingAttachmentInfo{
+                    desc.texture->GetImageView(),
+                    layout,
+                    vk::ResolveModeFlagBits::eNone,
+                    nullptr,
+                    // XXX: Here we need to track the previous layout.
+                    vk::ImageLayout::eUndefined,
+                    GetVkLoadOp(desc.load_op),
+                    GetVkStoreOp(desc.store_op),
+                    clear
+                };
+            }
+            
         }
 
         constexpr vk::RenderingAttachmentInfo GetVkAttachmentInfo(
@@ -58,10 +85,11 @@ namespace Engine {
                 layout,
                 vk::ResolveModeFlagBits::eNone,
                 nullptr,
+                // XXX: Here we need to track the previous layout.
                 vk::ImageLayout::eUndefined,
                 GetVkLoadOp(op.load_op),
                 GetVkStoreOp(op.store_op),
-                op.clear_value
+                GetVkClearValue(op.clear_value)
             };
             return info;
         }

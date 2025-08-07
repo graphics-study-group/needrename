@@ -1,6 +1,7 @@
 #include "GUISystem.h"
 
-#include "Render/AttachmentUtils.h"
+#include "Render/AttachmentUtilsFunc.h"
+#include "Render/ImageUtilsFunc.h"
 #include "Render/Pipeline/CommandBuffer/GraphicsCommandBuffer.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/GlobalConstantDescriptorPool.h"
@@ -51,7 +52,7 @@ namespace Engine {
         const AttachmentUtils::AttachmentDescription &att, vk::Extent2D extent, GraphicsCommandBuffer &cb
     ) const {
         ImGui::Render();
-        cb.BeginRendering(att, {nullptr}, extent, "GUI rendering pass");
+        cb.BeginRendering(att, {}, extent, "GUI rendering pass");
         ImGui_ImplVulkan_RenderDrawData(
             ImGui::GetDrawData(), static_cast<VkCommandBuffer>(cb.GetCommandBuffer()), nullptr
         );

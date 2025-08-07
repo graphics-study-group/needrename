@@ -1,8 +1,6 @@
 #ifndef RENDER_PIPELINE_PIPELINEUTILS_INCLUDED
 #define RENDER_PIPELINE_PIPELINEUTILS_INCLUDED
 
-#include <vulkan/vulkan.hpp>
-
 #include "Render/Pipeline/PipelineEnums.h"
 #include "Asset/Material/PipelineProperty.h"
 #include <unordered_set>
@@ -10,6 +8,13 @@
 #include <glm.hpp>
 
 namespace vk {
+    enum class PolygonMode;
+    // enum class CullModeFlags;
+    enum class FrontFace;
+    enum class CompareOp;
+    enum class StencilOp;
+    enum class BlendOp;
+    enum class BlendFactor;
     class PipelineRasterizationStateCreateInfo;
     class PipelineDepthStencilStateCreateInfo;
     class DescriptorSetLayoutBinding;
@@ -37,7 +42,6 @@ namespace Engine{
         };
 
         vk::PolygonMode ToVkPolygonMode(FillingMode mode);
-        vk::CullModeFlags ToVkCullMode(CullingMode mode);
         vk::FrontFace ToVkFrontFace(FrontFace face);
         vk::CompareOp ToVkCompareOp(DSComparator comp);
         vk::StencilOp ToVkStencilOp(StencilOperation op);

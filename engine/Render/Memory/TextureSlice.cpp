@@ -16,7 +16,7 @@ namespace Engine {
     };
 
     SlicedTextureView::SlicedTextureView(RenderSystem &system, const Texture &tex, TextureSlice slice) :
-        m_system(system), pimpl(std::make_unique<impl>(tex, slice, nullptr)) {
+        m_system(system), pimpl(std::make_unique<impl>(tex, slice, vk::UniqueImageView{nullptr})) {
         vk::ImageViewCreateInfo ivci{
             vk::ImageViewCreateFlags{},
             tex.GetImage(),

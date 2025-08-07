@@ -2,6 +2,7 @@
 #define ENGINE_RENDER_ATTACHMENTUTILS_INCLUDED
 
 #include <variant>
+#include <cstdint>
 
 namespace Engine {
     class Texture;
@@ -37,11 +38,13 @@ namespace Engine {
         };
 
         struct AttachmentDescription {
+            const Texture * texture {nullptr};
+
+            /// @brief Sliced view of the texture. If left null, use the full view.
+            const SlicedTextureView * texture_view {nullptr};
+
             LoadOperation load_op {};
             StoreOperation store_op {};
-
-            const Texture * texture {nullptr};
-            const SlicedTextureView * texture_view {nullptr};
         };
     }
 }

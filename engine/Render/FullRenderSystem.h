@@ -5,6 +5,9 @@
 
 #include <vulkan/vulkan.hpp>
 
+#include "Render/ImageUtilsFunc.h"
+#include "Render/AttachmentUtilsFunc.h"
+
 #include "Render/ConstantData/PerCameraConstants.h"
 #include "Render/ConstantData/PerModelConstants.h"
 #include "Render/ConstantData/PerSceneConstants.h"

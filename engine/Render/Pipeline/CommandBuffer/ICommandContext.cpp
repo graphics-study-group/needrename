@@ -2,6 +2,7 @@
 
 #include "Render/Memory/Texture.h"
 #include "Render/Pipeline/CommandBuffer/AccessHelperFuncs.h"
+#include "Render/ImageUtilsFunc.h"
 
 #include <vulkan/vulkan.hpp>
 

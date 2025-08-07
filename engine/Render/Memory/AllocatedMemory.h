@@ -4,13 +4,15 @@
 #include <variant>
 #include <vk_mem_alloc.h>
 
+namespace vk {
+    class Image;
+    class Buffer;
+}
+
 namespace Engine {
     class AllocatedMemory {
-        std::variant <vk::Image, vk::Buffer> m_vk_handle;
-        VmaAllocation m_allocation;
-        VmaAllocator m_allocator;
-
-        std::byte * m_mapped_memory {nullptr};
+        struct impl;
+        std::unique_ptr <impl> pimpl;
 
         void ClearAndInvalidate();
 

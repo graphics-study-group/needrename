@@ -1,7 +1,7 @@
 #include "AllocatorState.h"
 
 #include "Render/RenderSystem.h"
-
+#include "Render/ImageUtilsFunc.h"
 #include "Render/DebugUtils.h"
 
 namespace Engine::RenderSystemState {

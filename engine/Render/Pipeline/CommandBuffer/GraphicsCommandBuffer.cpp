@@ -2,6 +2,7 @@
 
 #include "Framework/component/RenderComponent/MeshComponent.h"
 
+#include "Render/AttachmentUtilsFunc.h"
 #include "Render/ConstantData/PerModelConstants.h"
 #include "Render/Memory/Buffer.h"
 #include "Render/Pipeline/Material/MaterialInstance.h"
@@ -35,17 +36,25 @@ namespace Engine {
         DEBUG_CMD_START_LABEL(cb, name.c_str());
         std::vector<vk::RenderingAttachmentInfo> color_attachment;
 
-        if (color.image && color.image_view) {
+        if (color.texture) {
             color_attachment.push_back(
-                GetVkAttachmentInfo(color, vk::ImageLayout::eColorAttachmentOptimal, vk::ClearColorValue{0, 0, 0, 0})
+                GetVkAttachmentInfo(
+                    color, 
+                    vk::ImageLayout::eColorAttachmentOptimal, 
+                    vk::ClearColorValue{0, 0, 0, 0}
+                )
             );
         }
 
         vk::RenderingAttachmentInfo depth_attachment;
-        if (depth.image && depth.image_view) {
-            depth_attachment = vk::RenderingAttachmentInfo{GetVkAttachmentInfo(
-                depth, vk::ImageLayout::eDepthStencilAttachmentOptimal, vk::ClearDepthStencilValue{1.0f, 0U}
-            )};
+        if (depth.texture) {
+            depth_attachment = vk::RenderingAttachmentInfo{
+                GetVkAttachmentInfo(
+                    depth, 
+                    vk::ImageLayout::eDepthStencilAttachmentOptimal, 
+                    vk::ClearDepthStencilValue{1.0f, 0U}
+                )
+            };
         } else {
         }
 
@@ -55,7 +64,7 @@ namespace Engine {
             1,
             0,
             color_attachment,
-            depth.image ? &depth_attachment : nullptr,
+            depth.texture ? &depth_attachment : nullptr,
             nullptr
         };
         // Begin rendering after transit

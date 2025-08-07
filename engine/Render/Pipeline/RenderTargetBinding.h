@@ -2,6 +2,7 @@
 #define RENDER_PIPELINE_RENDERTARGETBINDING_INCLUDED
 
 #include "Render/AttachmentUtils.h"
+#include <vector>
 
 namespace Engine {
     class RenderTargetBinding {

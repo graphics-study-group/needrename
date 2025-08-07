@@ -4,6 +4,11 @@
 #include "Render/ImageUtils.h"
 #include "Render/Memory/TextureSlice.h"
 
+namespace vk {
+    class Image;
+    class ImageView;
+}
+
 namespace Engine {
     class RenderSystem;
     class AllocatedMemory;
