@@ -150,15 +150,12 @@ int main(int argc, char **argv) {
     depth.CreateTexture(desc, "Depth Attachment");
 
     Engine::AttachmentUtils::AttachmentDescription color_att, depth_att;
-    color_att.image = color->GetImage();
-    color_att.image_view = color->GetImageView();
-    color_att.load_op = vk::AttachmentLoadOp::eClear;
-    color_att.store_op = vk::AttachmentStoreOp::eStore;
-
-    depth_att.image = depth.GetImage();
-    depth_att.image_view = depth.GetImageView();
-    depth_att.load_op = vk::AttachmentLoadOp::eClear;
-    depth_att.store_op = vk::AttachmentStoreOp::eDontCare;
+    color_att.texture = color.get();
+    color_att.load_op = AttachmentUtils::LoadOperation::Clear;
+    color_att.store_op = AttachmentUtils::StoreOperation::Store;
+    depth_att.texture = &depth;
+    depth_att.load_op = AttachmentUtils::LoadOperation::Clear;
+    depth_att.store_op = AttachmentUtils::StoreOperation::DontCare;
 
     auto asys = cmc->GetAssetManager();
     auto cs_ref = asys->GetNewAssetRef("~/shaders/gaussian_blur.comp.spv.asset");

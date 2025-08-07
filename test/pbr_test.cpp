@@ -287,15 +287,12 @@ int main(int argc, char **argv) {
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*red_texture, {1.0, 0.0, 0.0, 1.0});
 
     Engine::AttachmentUtils::AttachmentDescription color_att, depth_att;
-    color_att.image = hdr_color->GetImage();
-    color_att.image_view = hdr_color->GetImageView();
-    color_att.load_op = vk::AttachmentLoadOp::eClear;
-    color_att.store_op = vk::AttachmentStoreOp::eStore;
-
-    depth_att.image = depth->GetImage();
-    depth_att.image_view = depth->GetImageView();
-    depth_att.load_op = vk::AttachmentLoadOp::eClear;
-    depth_att.store_op = vk::AttachmentStoreOp::eDontCare;
+    color_att.texture = hdr_color.get();
+    color_att.load_op = AttachmentUtils::LoadOperation::Clear;
+    color_att.store_op = AttachmentUtils::StoreOperation::Store;
+    depth_att.texture = depth.get();
+    depth_att.load_op = AttachmentUtils::LoadOperation::Clear;
+    depth_att.store_op = AttachmentUtils::StoreOperation::DontCare;
 
     auto cs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/bloom.comp.spv.asset");
     assert(cs_ref);
@@ -393,7 +390,7 @@ int main(int argc, char **argv) {
         );
         context.PrepareCommandBuffer();
         gsys->DrawGUI(
-            {color->GetImage(), color->GetImageView(), vk::AttachmentLoadOp::eLoad, vk::AttachmentStoreOp::eStore},
+            {color.get(), nullptr, AttachmentUtils::LoadOperation::Load, AttachmentUtils::StoreOperation::Store},
             extent,
             cb
         );
