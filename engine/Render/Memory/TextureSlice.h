@@ -1,7 +1,9 @@
 #ifndef RENDER_MEMORY_TEXTURESLICE_INCLUDED
 #define RENDER_MEMORY_TEXTURESLICE_INCLUDED
 
-#include <vulkan/vulkan.hpp>
+namespace vk {
+    class ImageView;
+}
 
 namespace Engine {
     class Texture;
@@ -23,13 +25,13 @@ namespace Engine {
      */
     class SlicedTextureView {
         RenderSystem & m_system;
-        const Texture & m_texture;
 
-        TextureSlice m_slice;
-        vk::UniqueImageView m_view;
+        struct impl;
+        std::unique_ptr <impl> pimpl;
     
     public:
         SlicedTextureView(RenderSystem & system, const Texture & texture, TextureSlice slice);
+        ~SlicedTextureView();
 
         const TextureSlice & GetSlice() const noexcept;
 
