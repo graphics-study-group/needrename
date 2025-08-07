@@ -42,9 +42,11 @@ namespace Engine {
     }
 
     AllocatedMemory::AllocatedMemory(AllocatedMemory &&other) {
-        pimpl->m_vk_handle = other.pimpl->m_vk_handle;
-        pimpl->m_allocation = other.pimpl->m_allocation;
-        pimpl->m_allocator = other.pimpl->m_allocator;
+        pimpl = std::make_unique<impl>(
+            other.pimpl->m_vk_handle, 
+            other.pimpl->m_allocation, 
+            other.pimpl->m_allocator
+        );
 
         // Reset other
         other.pimpl->m_vk_handle = {};
@@ -53,6 +55,7 @@ namespace Engine {
     }
     AllocatedMemory &AllocatedMemory::operator=(AllocatedMemory &&other) {
         if (&other != this) {
+            assert(pimpl);
             this->ClearAndInvalidate();
 
             pimpl->m_vk_handle = other.pimpl->m_vk_handle;
