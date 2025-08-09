@@ -11,7 +11,6 @@ namespace Engine
     {
         class Type;
         class Var;
-        class ConstVar;
 
         class Field
         {
@@ -33,8 +32,6 @@ namespace Engine
 
             Var GetVar(Var &obj) const;
             Var GetVar(void *obj) const;
-            ConstVar GetConstVar(ConstVar &obj) const;
-            ConstVar GetConstVar(const void *obj) const;
         };
     }
 }

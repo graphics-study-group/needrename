@@ -32,25 +32,5 @@ namespace Engine
             m_func(obj, ret, arg_pointers);
             return Var(m_return_type, ret);
         }
-
-        template <typename... Args>
-        Var Method::ConstInvoke(ConstVar &obj, Args&&... args) const
-        {
-            std::vector<void *> arg_pointers;
-            (arg_pointers.push_back(const_cast<void *>(reinterpret_cast<const void *>(std::addressof(args)))), ...);
-            void *ret = nullptr;
-            m_const_func(obj.GetDataPtr(), ret, arg_pointers);
-            return Var(m_return_type, ret);
-        }
-
-        template <typename... Args>
-        Var Method::ConstInvoke(const void *obj, Args&&... args) const
-        {
-            std::vector<void *> arg_pointers;
-            (arg_pointers.push_back(const_cast<void *>(reinterpret_cast<const void *>(std::addressof(args)))), ...);
-            void *ret = nullptr;
-            m_const_func(obj, ret, arg_pointers);
-            return Var(m_return_type, ret);
-        }
     }
 }

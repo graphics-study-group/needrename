@@ -34,26 +34,5 @@ namespace Engine
                 throw std::runtime_error("Method not found");
             return method->Invoke(m_data, std::forward<Args>(args)...);
         }
-
-        template <typename T>
-        const T &ConstVar::Get() const
-        {
-            return *static_cast<const T *>(m_data);
-        }
-
-        template <typename T>
-        const T &ConstVar::Set(const T &value) const
-        {
-            return *static_cast<const T *>(m_data) = value;
-        }
-
-        template <typename... Args>
-        Var ConstVar::InvokeMethod(const std::string &name, Args&&... args)
-        {
-            std::shared_ptr<const Method> method = m_type->GetMethod(name, std::forward<Args>(args)...);
-            if(!method)
-                throw std::runtime_error("Method not found");
-            return method->ConstInvoke(m_data, std::forward<Args>(args)...);
-        }
     }
 }

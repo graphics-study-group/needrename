@@ -13,7 +13,6 @@ namespace Engine
     {
         class Type;
         class Var;
-        class ConstVar;
 
         class Method
         {
@@ -38,10 +37,6 @@ namespace Engine
             Var Invoke(Var &obj, Args&&...) const;
             template <typename... Args>
             Var Invoke(void *obj, Args&&...) const;
-            template <typename... Args>
-            Var ConstInvoke(ConstVar &obj, Args&&...) const;
-            template <typename... Args>
-            Var ConstInvoke(const void *obj, Args&&...) const;
         };
     }
 }

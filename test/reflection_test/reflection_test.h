@@ -75,6 +75,8 @@ namespace TestDataNamespace
         virtual ~TestData() = default;
 
         REFL_SER_ENABLE float data[100] = {0.0f};
+
+        REFL_ENABLE float GetData(int idx) const;
     };
 
     typedef TestData &TDR;
@@ -150,7 +152,7 @@ public:
     TestSpecialType() = default;
     virtual ~TestSpecialType() = default;
 
-    REFL_SER_ENABLE std::vector<int> m_vector_int{};
+    REFL_ENABLE std::vector<int> m_vector_int{};
 };
 
 #endif // CTEST_REFLECTION_TEST_H

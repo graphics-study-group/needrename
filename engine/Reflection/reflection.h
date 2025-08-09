@@ -56,12 +56,6 @@ namespace Engine
         template <typename T>
         Var GetVar(T &obj);
 
-        /// @brief Get the Reflection::ConstVar class from an object.
-        /// @param obj the object to get the ConstVar of
-        /// @return ConstVar
-        template <typename T>
-        ConstVar GetConstVar(const T &obj);
-
         template <typename T>
         std::shared_ptr<const Type> CreateType();
     }
@@ -100,13 +94,7 @@ namespace Engine
         template <typename T>
         Var GetVar(const T &obj)
         {
-            return Var(GetTypeFromObject(obj), &obj);
-        }
-
-        template <typename T>
-        ConstVar GetConstVar(const T &obj)
-        {
-            return ConstVar(GetTypeFromObject(obj), &obj);
+            return Var(GetTypeFromObject(obj), (void *)&obj);
         }
 
         template <typename T>

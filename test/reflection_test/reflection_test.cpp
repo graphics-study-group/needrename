@@ -45,6 +45,10 @@ void FooA::PrintHelloWorld() const {
     std::cout << "Hello World from FooA!" << std::endl;
 }
 
+float TestDataNamespace::TestData::GetData(int idx) const {
+    return data[idx];
+}
+
 using namespace TestDataNamespace;
 const void *ConstTest_GetConstDataPtr_Called = nullptr;
 const TestData *ConstTest::GetConstDataPtr() const {
@@ -230,8 +234,8 @@ int main() {
 
     std::cout << "[] Const Var (const ConstTest) const_ref_var:" << std::endl;
     const ConstTest &const_ref = crp_test.Get<ConstTest>();
-    Engine::Reflection::ConstVar const_ref_var = Engine::Reflection::GetConstVar(const_ref);
-    Engine::Reflection::ConstVar const_data_get = const_ref_var.InvokeMethod("GetConstDataPtr");
+    Engine::Reflection::Var const_ref_var = Engine::Reflection::GetVar(const_ref);
+    Engine::Reflection::Var const_data_get = const_ref_var.InvokeMethod("GetConstDataPtr");
     std::cout << "const_data_get: m_data[0] == " << const_data_get.Get<const TestData *>()->data[0] << std::endl;
     assert(const_data_get.Get<const TestData *>()->data[0] == 1000.0f);
     for (int i = 1; i < 100; i++) assert(const_data_get.Get<const TestData *>()->data[i] == 0.0f);
@@ -241,6 +245,8 @@ int main() {
     std::cout << "const_data_get: m_data[0] == " << const_data_get.Get<const TestData *>()->data[0] << std::endl;
     assert(const_data_get.Get<const TestData *>()->data[0] == 1001.0f);
     for (int i = 1; i < 100; i++) assert(const_data_get.Get<const TestData *>()->data[i] == 0.0f);
+    std::cout << "[] const function: const_data_get->GetData(7) == " << const_data_get.InvokeMethod("GetData", 7).Get<float>() << std::endl;
+    assert(const_data_get.Get<const TestData *>()->GetData(7) == 0.0f);
 
     std::cout << "----------------------------------- Test namespace of classes -----------------------------------"
               << std::endl;

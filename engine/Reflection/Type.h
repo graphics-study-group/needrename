@@ -24,7 +24,6 @@ namespace Engine
         class Field;
         class Method;
         class Var;
-        class ConstVar;
 
         /// @brief The Type class represents a type in the reflection system.
         /// It contains information about the type such as its name, base types, fields, and methods.
