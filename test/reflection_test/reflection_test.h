@@ -2,6 +2,7 @@
 #define CTEST_REFLECTION_TEST_H
 
 #include <cstdint>
+#include <vector>
 #include <Reflection/macros.h>
 
 class REFL_SER_CLASS(REFL_BLACKLIST) Test_stdint
@@ -141,5 +142,15 @@ namespace TestHelloWorld
         };
     }
 }
+
+class REFL_SER_CLASS(REFL_WHITELIST) TestSpecialType
+{
+    REFL_SER_BODY(TestSpecialType)
+public:
+    TestSpecialType() = default;
+    virtual ~TestSpecialType() = default;
+
+    REFL_SER_ENABLE std::vector<int> m_vector_int{};
+};
 
 #endif // CTEST_REFLECTION_TEST_H

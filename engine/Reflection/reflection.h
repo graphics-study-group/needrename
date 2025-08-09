@@ -63,7 +63,7 @@ namespace Engine
         ConstVar GetConstVar(const T &obj);
 
         template <typename T>
-        std::shared_ptr<const Type> CreateType(const std::string &name = "");
+        std::shared_ptr<const Type> CreateType();
     }
 }
 
@@ -110,14 +110,20 @@ namespace Engine
         }
 
         template <typename T>
-        std::shared_ptr<const Type> CreateType(const std::string &name)
+        concept is_std_vector = requires {
+            typename T::value_type;
+            requires std::is_same_v<T, std::vector<typename T::value_type>>;
+        };
+
+        template <typename T>
+        std::shared_ptr<const Type> CreateType()
         {
             // TODO: support special types like std::vector, std::string, etc.
-            if (name.empty())
+            if constexpr (is_std_vector<T>)
             {
-                return std::shared_ptr<const Type>(new Type(typeid(T).name(), false));
+                return std::shared_ptr<const VectorType>(new VectorType(CreateType<typename T::value_type>()));
             }
-            return std::shared_ptr<const Type>(new Type(name, false));
+            return std::shared_ptr<const Type>(new Type(typeid(T).name(), false));
         }
     }
 }
