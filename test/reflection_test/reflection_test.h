@@ -77,6 +77,7 @@ namespace TestDataNamespace
         REFL_SER_ENABLE float data[100] = {0.0f};
 
         REFL_ENABLE float GetData(int idx) const;
+        REFL_ENABLE void SetData(int idx, float value);
     };
 
     typedef TestData &TDR;

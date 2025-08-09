@@ -43,7 +43,7 @@ namespace Engine
             /// @brief Construct a new Type object.
             /// @param name Type name
             /// @param reflectable whether the type is reflectable
-            Type(const std::string &name, bool reflectable = false);
+            Type(const std::string &name, bool reflectable = false, bool is_const = false);
 
             // suppress the warning of -Weffc++
             Type(const Type &) = delete;
@@ -60,6 +60,19 @@ namespace Engine
             std::unordered_map<std::string, std::shared_ptr<const Method>> m_methods{};
 
         public:
+            std::string m_name{};
+            // Whether the type is reflectable
+            bool m_reflectable = false;
+            // Whether the type is const
+            bool m_is_const = false;
+
+            enum
+            {
+                None,
+                Pointer,
+                Array
+            } m_specialization{None};
+
             // Add a constructor to the type
             template <typename... Args>
             void AddConstructor(const WrapperMemberFunc &func);
@@ -87,19 +100,6 @@ namespace Engine
             /// @brief Add a field to the type.
             void AddField(const std::shared_ptr<const Field> field);
 
-        public:
-            std::string m_name{};
-            // Whether the type is reflectable
-            bool m_reflectable = false;
-
-            enum
-            {
-                None,
-                StdVector,
-                StdArray,
-                StdSmartPtr
-            } m_specialization{None};
-
             // Get the name of the type
             const std::string &GetName() const;
 
@@ -126,16 +126,36 @@ namespace Engine
             const std::unordered_map<std::string, std::shared_ptr<const Field>> &GetFields() const;
         };
 
-        class VectorType : public Type
+        class ArrayType : public Type
         {
         public:
-            VectorType(std::shared_ptr<const Type> element_type);
-            virtual ~VectorType() = default;
+            enum class ArrayTypeKind
+            {
+                Raw,
+                StdVector,
+            };
+            ArrayType(std::shared_ptr<const Type> element_type, bool is_const, ArrayTypeKind kind);
+            virtual ~ArrayType() = default;
 
-            std::shared_ptr<const Type> GetElementType() const;
-
-        protected:
             std::shared_ptr<const Type> m_element_type;
+            ArrayTypeKind m_array_kind;
+        };
+
+        class PointerType : public Type
+        {
+        public:
+            enum class PointerTypeKind
+            {
+                Raw,
+                Shared,
+                Weak,
+                Unique
+            };
+            PointerType(std::shared_ptr<const Type> pointed_type, bool is_const, PointerTypeKind kind);
+            virtual ~PointerType() = default;
+
+            std::shared_ptr<const Type> m_pointed_type;
+            PointerTypeKind m_pointer_kind;
         };
     }
 }

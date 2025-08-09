@@ -49,6 +49,10 @@ float TestDataNamespace::TestData::GetData(int idx) const {
     return data[idx];
 }
 
+void TestDataNamespace::TestData::SetData(int idx, float value) {
+    data[idx] = value;
+}
+
 using namespace TestDataNamespace;
 const void *ConstTest_GetConstDataPtr_Called = nullptr;
 const TestData *ConstTest::GetConstDataPtr() const {
@@ -245,7 +249,7 @@ int main() {
     std::cout << "const_data_get: m_data[0] == " << const_data_get.Get<const TestData *>()->data[0] << std::endl;
     assert(const_data_get.Get<const TestData *>()->data[0] == 1001.0f);
     for (int i = 1; i < 100; i++) assert(const_data_get.Get<const TestData *>()->data[i] == 0.0f);
-    std::cout << "[] const function: const_data_get->GetData(7) == " << const_data_get.InvokeMethod("GetData", 7).Get<float>() << std::endl;
+    std::cout << "[] const function: const_data_get->GetData(7) == " << const_data_get.GetPointedVar().InvokeMethod("GetData", 7).Get<float>() << std::endl;
     assert(const_data_get.Get<const TestData *>()->GetData(7) == 0.0f);
 
     std::cout << "----------------------------------- Test namespace of classes -----------------------------------"
