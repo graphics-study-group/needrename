@@ -4,6 +4,7 @@
 
 #include "Render/Memory/SampledTextureInstantiated.h"
 #include "Render/Pipeline/PipelineUtils.h"
+#include "Render/Pipeline/PipelineInfo.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/FrameManager.h"
 #include "Render/RenderSystem/SubmissionHelper.h"

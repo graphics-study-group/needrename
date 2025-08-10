@@ -1,12 +1,19 @@
-#ifndef PIPELINE_MATERIAL_MATERIALTEMPLATE_INCLUDED
-#define PIPELINE_MATERIAL_MATERIALTEMPLATE_INCLUDED
+#ifndef MATERIAL_MATERIALTEMPLATE
+#define MATERIAL_MATERIALTEMPLATE
 
-#include <vulkan/vulkan.hpp>
 #include <optional>
 #include <variant>
+#include <unordered_map>
 
 #include "Asset/InstantiatedFromAsset.h"
-#include "Render/Pipeline/PipelineInfo.h"
+
+namespace vk {
+    class Pipeline;
+    class PipelineLayout;
+    class DescriptorSetLayout;
+    class DescriptorSet;
+    class DescriptorImageInfo;
+}
 
 namespace Engine {
     class MaterialInstance;
@@ -15,6 +22,16 @@ namespace Engine {
     class MaterialTemplateAsset;
     class MaterialTemplateProperties;
     class MaterialTemplateSinglePassProperties;
+
+    namespace PipelineInfo {
+        class MaterialPassInfo;
+        class MaterialPoolInfo;
+    }
+
+    namespace ShaderUtils {
+        class DesciptorVariableData;
+        class InBlockVariableData;
+    }
 
     /// @brief A factory class for instantiation of materials.
     /// Contains all public immutable data for a given type of materials, such as pipeline
@@ -38,10 +55,8 @@ namespace Engine {
     protected:
         RenderSystem & m_system;
 
-        std::unordered_map <uint32_t, PassInfo> m_passes {};
-        PoolInfo m_poolInfo {};
-        vk::UniqueSampler m_default_sampler {};
-        std::string m_name {};
+        struct impl;
+        std::unique_ptr <impl> pimpl;
 
         void CreatePipeline(uint32_t pass_index, const MaterialTemplateSinglePassProperties & prop, vk::Device device);
 
@@ -59,7 +74,7 @@ namespace Engine {
 
         void Instantiate(const MaterialTemplateAsset & asset) override;
 
-        virtual ~MaterialTemplate () = default;
+        virtual ~MaterialTemplate ();
 
         /**
          * @brief Create a new instance of MaterialInstance based on this MaterialTemplate.
@@ -90,7 +105,8 @@ namespace Engine {
          * 
          * @return const decltype(m_passes) & A reference to a constant unordered_map containing all pass information.
          */
-        auto GetAllPassInfo() const noexcept -> const decltype(m_passes) &;
+        const std::unordered_map <uint32_t, PassInfo> &
+        GetAllPassInfo() const noexcept;
 
         /**
          * @brief Get the pass information for a specific pass index.
@@ -98,7 +114,7 @@ namespace Engine {
          * @param pass_index The index of the pass to retrieve the information from.
          * @return const PassInfo & A constant reference to the PassInfo struct associated with the specified pass index.
          */
-        auto GetPassInfo(uint32_t pass_index) const -> const PassInfo &;
+        const PassInfo & GetPassInfo(uint32_t pass_index) const;
 
         /**
          * @brief Get the descriptor set layout for a specific pass index.
@@ -186,4 +202,4 @@ namespace Engine {
     };
 }
 
-#endif // PIPELINE_MATERIAL_MATERIALTEMPLATE_INCLUDED
+#endif // MATERIAL_MATERIALTEMPLATE

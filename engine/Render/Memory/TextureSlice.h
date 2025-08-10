@@ -1,6 +1,8 @@
 #ifndef RENDER_MEMORY_TEXTURESLICE_INCLUDED
 #define RENDER_MEMORY_TEXTURESLICE_INCLUDED
 
+#include <memory>
+
 namespace vk {
     class ImageView;
 }

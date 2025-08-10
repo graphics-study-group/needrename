@@ -3,6 +3,7 @@
 
 #include "Render/ImageUtils.h"
 #include "Render/Memory/TextureSlice.h"
+#include <memory>
 
 namespace vk {
     class Image;
