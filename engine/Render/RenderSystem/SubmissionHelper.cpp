@@ -6,6 +6,7 @@
 #include "Render/Pipeline/CommandBuffer/LayoutTransferHelper.h"
 #include "Render/RenderSystem.h"
 #include "Render/Renderer/HomogeneousMesh.h"
+#include "Render/RenderSystem/Structs.h"
 
 #include "Render/DebugUtils.h"
 

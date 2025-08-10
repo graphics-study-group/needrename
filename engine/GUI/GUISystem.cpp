@@ -6,6 +6,7 @@
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/GlobalConstantDescriptorPool.h"
 #include "Render/RenderSystem/Swapchain.h"
+#include "Render/RenderSystem/Structs.h"
 #include <SDL3/SDL.h>
 #include <backends/imgui_impl_sdl3.h>
 #include <backends/imgui_impl_vulkan.h>

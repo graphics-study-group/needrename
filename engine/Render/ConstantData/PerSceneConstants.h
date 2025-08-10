@@ -4,6 +4,10 @@
 #include <glm.hpp>
 #include "Render/VkWrapper.tcc"
 
+namespace vk {
+    class Device;
+}
+
 namespace Engine {
     class RenderSystem;
 
@@ -28,15 +32,6 @@ layout(std140, set = 0, binding = 0) uniform PerSceneUniform {
         };
 
         class PerSceneConstantLayout : public VkWrapperIndependent<vk::UniqueDescriptorSetLayout> {
-        protected:
-            static constexpr std::array <vk::DescriptorSetLayoutBinding, 1> BINDINGS = {
-                vk::DescriptorSetLayoutBinding{
-                    0,
-                    vk::DescriptorType::eUniformBuffer,
-                    1,
-                    vk::ShaderStageFlagBits::eAllGraphics
-                }
-            };
         public:
             static constexpr uint32_t PER_SCENE_SET_NUMBER = 0;
             void Create(vk::Device device);

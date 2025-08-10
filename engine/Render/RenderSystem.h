@@ -4,11 +4,16 @@
 #include <memory>
 #include <glm.hpp>
 
-#include "Render/RenderSystem/Structs.h"
-
 // Suppress warning from std::enable_shared_from_this
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wnon-virtual-dtor"
+
+namespace vk {
+    class Instance;
+    class SurfaceKHR;
+    class Device;
+    class PhysicalDevice;
+}
 
 namespace Engine
 {
@@ -28,6 +33,9 @@ namespace Engine
         class MaterialRegistry;
         class FrameManager;
         class RendererManager;
+        class SwapchainSupport;
+        class QueueFamilyIndices;
+        class QueueInfo;
     };
 
     class RenderSystem : public std::enable_shared_from_this<RenderSystem>

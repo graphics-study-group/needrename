@@ -2,7 +2,10 @@
 #define RENDER_CONSTANTDATA_PERMODELCONSTANTS_INCLUDED
 
 #include <glm.hpp>
-#include <vulkan/vulkan.hpp>
+
+namespace vk {
+    class PushConstantRange;
+}
 
 namespace Engine {
     class RenderSystem;
