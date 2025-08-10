@@ -6,9 +6,9 @@
 #include "Render/Pipeline/CommandBuffer/ComputeContext.h"
 #include "Render/Pipeline/CommandBuffer/GraphicsContext.h"
 #include "Render/RenderSystem.h"
+#include "Render/RenderSystem/Structs.h"
 #include "Render/RenderSystem/SubmissionHelper.h"
 #include "Render/RenderSystem/Swapchain.h"
-#include "Render/RenderSystem/Structs.h"
 
 #include <SDL3/SDL.h>
 

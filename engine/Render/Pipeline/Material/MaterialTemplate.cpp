@@ -6,10 +6,10 @@
 #include "MaterialInstance.h"
 #include "Render/AttachmentUtilsFunc.h"
 #include "Render/ConstantData/PerModelConstants.h"
-#include "Render/Pipeline/PipelineInfo.h"
 #include "Render/DebugUtils.h"
 #include "Render/ImageUtilsFunc.h"
 #include "Render/Pipeline/Material/ShaderUtils.h"
+#include "Render/Pipeline/PipelineInfo.h"
 #include "Render/Pipeline/PipelineUtils.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/GlobalConstantDescriptorPool.h"
@@ -24,10 +24,10 @@
 namespace Engine {
 
     struct MaterialTemplate::impl {
-        std::unordered_map <uint32_t, PassInfo> m_passes {};
-        PoolInfo m_poolInfo {};
-        vk::UniqueSampler m_default_sampler {};
-        std::string m_name {};
+        std::unordered_map<uint32_t, PassInfo> m_passes{};
+        PoolInfo m_poolInfo{};
+        vk::UniqueSampler m_default_sampler{};
+        std::string m_name{};
     };
 
     void MaterialTemplate::CreatePipeline(
@@ -291,7 +291,9 @@ namespace Engine {
         vk::DescriptorPoolCreateInfo dpci{{}, PoolInfo::MAX_SET_SIZE, PoolInfo::DESCRIPTOR_POOL_SIZES, nullptr};
         vk::Device dvc = m_system.getDevice();
         pimpl->m_poolInfo.pool = dvc.createDescriptorPoolUnique(dpci);
-        DEBUG_SET_NAME_TEMPLATE(dvc, pimpl->m_poolInfo.pool.get(), std::format("Desc Pool - Material {}", pimpl->m_name));
+        DEBUG_SET_NAME_TEMPLATE(
+            dvc, pimpl->m_poolInfo.pool.get(), std::format("Desc Pool - Material {}", pimpl->m_name)
+        );
 
         // Create a fallback point-clamp sampler
         vk::SamplerCreateInfo sci{};
