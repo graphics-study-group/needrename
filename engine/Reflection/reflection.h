@@ -86,7 +86,7 @@ namespace Engine
             {
                 // Don't need support special types like std::vector, std::string, etc.
                 // because the object is polymorphic, and all the special types are not derived from any base type.
-                return std::shared_ptr<const Type>(new Type(type_index.name(), false));
+                return std::shared_ptr<const Type>(new Type(type_index.name(), sizeof(obj), false));
             }
             return Type::s_index_type_map[type_index];
         }
@@ -110,17 +110,17 @@ namespace Engine
             bool is_const = std::is_const_v<std::remove_reference_t<T>>;
             if constexpr (std::is_pointer_v<T>)
             {
-                return std::shared_ptr<const PointerType>(new PointerType(GetType<std::remove_pointer_t<T>>(), is_const, PointerType::PointerTypeKind::Raw));
+                return std::shared_ptr<const PointerType>(new PointerType(GetType<std::remove_pointer_t<T>>(), sizeof(T), is_const, PointerType::PointerTypeKind::Raw));
             }
             else if constexpr (std::is_array_v<T>)
             {
-                return std::shared_ptr<const ArrayType>(new ArrayType(GetType<std::remove_extent_t<T>>(), is_const, ArrayType::ArrayTypeKind::Raw));
+                return std::shared_ptr<const ArrayType>(new ArrayType(GetType<std::remove_extent_t<T>>(), sizeof(T), is_const, ArrayType::ArrayTypeKind::Raw));
             }
             else if constexpr (is_std_vector<T>)
             {
-                return std::shared_ptr<const ArrayType>(new ArrayType(GetType<typename T::value_type>(), is_const, ArrayType::ArrayTypeKind::StdVector));
+                return std::shared_ptr<const ArrayType>(new ArrayType(GetType<typename T::value_type>(), sizeof(T), is_const, ArrayType::ArrayTypeKind::StdVector));
             }
-            return std::shared_ptr<const Type>(new Type(typeid(std::remove_const_t<T>).name(), false, is_const));
+            return std::shared_ptr<const Type>(new Type(typeid(std::remove_const_t<T>).name(), sizeof(T), false, is_const));
         }
     }
 }

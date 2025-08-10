@@ -18,56 +18,57 @@ namespace Engine {
         /// types.
         void Registrar::RegisterBasicTypes() {
             Type::s_index_type_map[std::type_index(typeid(void))] =
-                std::shared_ptr<const Type>(new Type("void", false));
+                std::shared_ptr<const Type>(new Type("void", 0u, false));
             Type::s_index_type_map[std::type_index(typeid(std::nullptr_t))] =
-                std::shared_ptr<const Type>(new Type("std::nullptr_t", false));
+                std::shared_ptr<const Type>(new Type("std::nullptr_t", sizeof(std::nullptr_t), false));
             Type::s_index_type_map[std::type_index(typeid(bool))] =
-                std::shared_ptr<const Type>(new Type("bool", false));
+                std::shared_ptr<const Type>(new Type("bool", sizeof(bool), false));
             Type::s_index_type_map[std::type_index(typeid(char))] =
-                std::shared_ptr<const Type>(new Type("char", false));
+                std::shared_ptr<const Type>(new Type("char", sizeof(char), false));
             Type::s_index_type_map[std::type_index(typeid(signed char))] =
-                std::shared_ptr<const Type>(new Type("signed char", false));
+                std::shared_ptr<const Type>(new Type("signed char", sizeof(signed char), false));
             Type::s_index_type_map[std::type_index(typeid(unsigned char))] =
-                std::shared_ptr<const Type>(new Type("unsigned char", false));
+                std::shared_ptr<const Type>(new Type("unsigned char", sizeof(unsigned char), false));
             Type::s_index_type_map[std::type_index(typeid(char8_t))] =
-                std::shared_ptr<const Type>(new Type("char8_t", false));
+                std::shared_ptr<const Type>(new Type("char8_t", sizeof(char8_t), false));
             Type::s_index_type_map[std::type_index(typeid(char16_t))] =
-                std::shared_ptr<const Type>(new Type("char16_t", false));
+                std::shared_ptr<const Type>(new Type("char16_t", sizeof(char16_t), false));
             Type::s_index_type_map[std::type_index(typeid(char32_t))] =
-                std::shared_ptr<const Type>(new Type("char32_t", false));
+                std::shared_ptr<const Type>(new Type("char32_t", sizeof(char32_t), false));
             Type::s_index_type_map[std::type_index(typeid(wchar_t))] =
-                std::shared_ptr<const Type>(new Type("wchar_t", false));
+                std::shared_ptr<const Type>(new Type("wchar_t", sizeof(wchar_t), false));
             Type::s_index_type_map[std::type_index(typeid(short))] =
-                std::shared_ptr<const Type>(new Type("short", false));
+                std::shared_ptr<const Type>(new Type("short", sizeof(short), false));
             Type::s_index_type_map[std::type_index(typeid(unsigned short))] =
-                std::shared_ptr<const Type>(new Type("unsigned short", false));
-            Type::s_index_type_map[std::type_index(typeid(int))] = std::shared_ptr<const Type>(new Type("int", false));
+                std::shared_ptr<const Type>(new Type("unsigned short", sizeof(unsigned short), false));
+            Type::s_index_type_map[std::type_index(typeid(int))] =
+                std::shared_ptr<const Type>(new Type("int", sizeof(int), false));
             Type::s_index_type_map[std::type_index(typeid(unsigned int))] =
-                std::shared_ptr<const Type>(new Type("unsigned int", false));
+                std::shared_ptr<const Type>(new Type("unsigned int", sizeof(unsigned int), false));
             Type::s_index_type_map[std::type_index(typeid(long))] =
-                std::shared_ptr<const Type>(new Type("long", false));
+                std::shared_ptr<const Type>(new Type("long", sizeof(long), false));
             Type::s_index_type_map[std::type_index(typeid(unsigned long))] =
-                std::shared_ptr<const Type>(new Type("unsigned long", false));
+                std::shared_ptr<const Type>(new Type("unsigned long", sizeof(unsigned long), false));
             Type::s_index_type_map[std::type_index(typeid(long long))] =
-                std::shared_ptr<const Type>(new Type("long long", false));
+                std::shared_ptr<const Type>(new Type("long long", sizeof(long long), false));
             Type::s_index_type_map[std::type_index(typeid(unsigned long long))] =
-                std::shared_ptr<const Type>(new Type("unsigned long long", false));
+                std::shared_ptr<const Type>(new Type("unsigned long long", sizeof(unsigned long long), false));
             Type::s_index_type_map[std::type_index(typeid(float))] =
-                std::shared_ptr<const Type>(new Type("float", false));
+                std::shared_ptr<const Type>(new Type("float", sizeof(float), false));
             Type::s_index_type_map[std::type_index(typeid(double))] =
-                std::shared_ptr<const Type>(new Type("double", false));
+                std::shared_ptr<const Type>(new Type("double", sizeof(double), false));
             Type::s_index_type_map[std::type_index(typeid(long double))] =
-                std::shared_ptr<const Type>(new Type("long double", false));
+                std::shared_ptr<const Type>(new Type("long double", sizeof(long double), false));
             Type::s_index_type_map[std::type_index(typeid(std::string))] =
-                std::shared_ptr<const Type>(new Type("std::string", false));
+                std::shared_ptr<const Type>(new Type("std::string", sizeof(std::string), false));
             Type::s_index_type_map[std::type_index(typeid(glm::vec2))] =
-                std::shared_ptr<const Type>(new Type("glm::vec2", false));
+                std::shared_ptr<const Type>(new Type("glm::vec2", sizeof(glm::vec2), false));
             Type::s_index_type_map[std::type_index(typeid(glm::vec3))] =
-                std::shared_ptr<const Type>(new Type("glm::vec3", false));
+                std::shared_ptr<const Type>(new Type("glm::vec3", sizeof(glm::vec3), false));
             Type::s_index_type_map[std::type_index(typeid(glm::vec4))] =
-                std::shared_ptr<const Type>(new Type("glm::vec4", false));
+                std::shared_ptr<const Type>(new Type("glm::vec4", sizeof(glm::vec4), false));
             Type::s_index_type_map[std::type_index(typeid(glm::quat))] =
-                std::shared_ptr<const Type>(new Type("glm::quat", false));
+                std::shared_ptr<const Type>(new Type("glm::quat", sizeof(glm::quat), false));
 
             Type::s_name_index_map.emplace("void", std::type_index(typeid(void)));
             Type::s_name_index_map.emplace("std::nullptr_t", std::type_index(typeid(std::nullptr_t)));

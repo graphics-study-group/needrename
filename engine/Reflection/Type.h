@@ -42,8 +42,9 @@ namespace Engine
             Type() = delete;
             /// @brief Construct a new Type object.
             /// @param name Type name
+            /// @param size Type size
             /// @param reflectable whether the type is reflectable
-            Type(const std::string &name, bool reflectable = false, bool is_const = false);
+            Type(const std::string &name, size_t size, bool reflectable = false, bool is_const = false);
 
             // suppress the warning of -Weffc++
             Type(const Type &) = delete;
@@ -61,6 +62,8 @@ namespace Engine
 
         public:
             std::string m_name{};
+            // The size of the type in bytes
+            size_t m_size = 0;
             // Whether the type is reflectable
             bool m_reflectable = false;
             // Whether the type is const
@@ -134,7 +137,7 @@ namespace Engine
                 Raw,
                 StdVector,
             };
-            ArrayType(std::shared_ptr<const Type> element_type, bool is_const, ArrayTypeKind kind);
+            ArrayType(std::shared_ptr<const Type> element_type, size_t size, bool is_const, ArrayTypeKind kind);
             virtual ~ArrayType() = default;
 
             std::shared_ptr<const Type> m_element_type;
@@ -151,7 +154,7 @@ namespace Engine
                 Weak,
                 Unique
             };
-            PointerType(std::shared_ptr<const Type> pointed_type, bool is_const, PointerTypeKind kind);
+            PointerType(std::shared_ptr<const Type> pointed_type, size_t size, bool is_const, PointerTypeKind kind);
             virtual ~PointerType() = default;
 
             std::shared_ptr<const Type> m_pointed_type;
