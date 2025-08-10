@@ -25,8 +25,8 @@ target_link_libraries(engine
     imgui
     spirv-reflect
 )
-target_precompile_headers(engine PRIVATE <vulkan/vulkan.hpp>)
-target_precompile_headers(engine PRIVATE "Render/VkWrapper.tcc")
+
+target_precompile_headers(engine PUBLIC "Render/FullRenderSystem.h")
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h)
 
