@@ -3,6 +3,10 @@
 
 #include "Texture.h"
 
+namespace vk {
+    class Sampler;
+}
+
 namespace Engine {
     class SampledTexture : public Texture {
     public:
@@ -23,21 +27,21 @@ namespace Engine {
             AddressMode u_address{AddressMode::Repeat}, v_address{AddressMode::Repeat}, w_address{AddressMode::Repeat};
             float biasLod{0.0}, minLod{0.0}, maxLod{0.0};
         };
+
     protected:
-        SamplerDesc m_sampler_desc {};
-        // TODO: We need to allocate the sampler from a pool instead of creating it each time.
-        vk::UniqueSampler m_sampler {};
+        struct impl;
+        std::unique_ptr<impl> pimpl;
 
     public:
-        SampledTexture(RenderSystem & system) noexcept;
-        virtual ~SampledTexture() = default;
-        
+        SampledTexture(RenderSystem &system) noexcept;
+        virtual ~SampledTexture();
+
         void CreateTextureAndSampler(TextureDesc textureDesc, SamplerDesc samplerDesc, std::string name);
         void CreateSampler(SamplerDesc samplerDesc);
-        
-        const SamplerDesc & GetSamplerDesc() const noexcept;
+
+        const SamplerDesc &GetSamplerDesc() const noexcept;
         vk::Sampler GetSampler() const noexcept;
     };
-}
+} // namespace Engine
 
 #endif // RENDER_MEMORY_SAMPLEDTEXTURE_INCLUDED

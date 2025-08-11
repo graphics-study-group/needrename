@@ -1,27 +1,36 @@
 #ifndef REFLECTION_METHOD_INCLUDED
 #define REFLECTION_METHOD_INCLUDED
 
-#include <string>
-#include <functional>
-#include <vector>
-#include <memory>
 #include "utils.h"
+#include <functional>
+#include <memory>
+#include <string>
+#include <vector>
 
-namespace Engine
-{
-    namespace Reflection
-    {
+namespace Engine {
+    namespace Reflection {
         class Type;
         class Var;
 
-        class Method
-        {
+        class Method {
         protected:
             friend class Type;
             Method() = delete;
-            Method(const std::string &final_name, const WrapperMemberFunc &func, std::shared_ptr<const Type> return_type, bool is_const, bool is_final_name);
+            Method(
+                const std::string &final_name,
+                const WrapperMemberFunc &func,
+                std::shared_ptr<const Type> return_type,
+                bool is_const,
+                bool is_final_name
+            );
             template <typename... Args>
-            Method(const std::string &name, const WrapperMemberFunc &func, std::shared_ptr<const Type> return_type, bool is_const);
+            Method(
+                const std::string &name,
+                const WrapperMemberFunc &func,
+                std::shared_ptr<const Type> return_type,
+                bool is_const
+            );
+
         public:
             ~Method() = default;
 
@@ -34,12 +43,12 @@ namespace Engine
             std::string m_name{};
 
             template <typename... Args>
-            Var Invoke(Var &obj, Args&&...) const;
+            Var Invoke(Var &obj, Args &&...) const;
             template <typename... Args>
-            Var Invoke(void *obj, Args&&...) const;
+            Var Invoke(void *obj, Args &&...) const;
         };
-    }
-}
+    } // namespace Reflection
+} // namespace Engine
 
 #include "Method.tpp"
 

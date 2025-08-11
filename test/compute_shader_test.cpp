@@ -52,7 +52,7 @@ int main(int argc, char *argv[]) {
     };
     color->CreateTexture(desc, "Color Compute Test");
     ComputeStage cstage{*rsys};
-    cstage.InstantiateFromRef(cs_ref);
+    cstage.Instantiate(*cs_ref->cas<ShaderAsset>());
     cstage.SetDescVariable(
         cstage.GetVariableIndex("outputImage").value().first, std::const_pointer_cast<const Texture>(color)
     );

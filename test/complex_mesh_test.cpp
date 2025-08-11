@@ -126,11 +126,6 @@ public:
         auto system = m_system.lock();
         auto &helper = system->GetFrameManager().GetSubmissionHelper();
 
-        for (auto &submesh : m_submeshes) {
-            submesh->Prepare();
-            helper.EnqueueVertexBufferSubmission(*submesh);
-        }
-
         for (size_t i = 0; i < m_material_assets.size(); i++) {
             auto ptr = std::make_shared<Materials::BlinnPhongInstance>(
                 *system, system->GetMaterialRegistry().GetMaterial("Built-in Blinn-Phong")
@@ -256,20 +251,17 @@ int main(int argc, char **argv) {
     depth.CreateTexture(desc, "Depth Attachment");
 
     Engine::AttachmentUtils::AttachmentDescription color_att, depth_att;
-    color_att.image = color.GetImage();
-    color_att.image_view = color.GetImageView();
-    color_att.load_op = vk::AttachmentLoadOp::eClear;
-    color_att.store_op = vk::AttachmentStoreOp::eStore;
-
-    depth_att.image = depth.GetImage();
-    depth_att.image_view = depth.GetImageView();
-    depth_att.load_op = vk::AttachmentLoadOp::eClear;
-    depth_att.store_op = vk::AttachmentStoreOp::eDontCare;
+    color_att.texture = &color;
+    color_att.load_op = AttachmentUtils::LoadOperation::Clear;
+    color_att.store_op = AttachmentUtils::StoreOperation::Store;
+    depth_att.texture = &depth;
+    depth_att.load_op = AttachmentUtils::LoadOperation::Clear;
+    depth_att.store_op = AttachmentUtils::StoreOperation::DontCare;
 
     // Setup mesh
     std::filesystem::path mesh_path{std::string(ENGINE_ASSETS_DIR) + "/four_bunny/four_bunny.obj"};
     std::shared_ptr tmc = std::make_shared<MeshComponentFromFile>(mesh_path);
-    rsys->RegisterComponent(tmc);
+    rsys->GetRendererManager().RegisterRendererComponent(tmc);
 
     // Setup camera
     Transform transform{};
@@ -323,11 +315,11 @@ int main(int argc, char **argv) {
         context.PrepareCommandBuffer();
         vk::Extent2D extent{rsys->GetSwapchain().GetExtent()};
         cb.BeginRendering(
-            {color.GetImage(), color.GetImageView(), vk::AttachmentLoadOp::eClear, vk::AttachmentStoreOp::eStore},
+            {&color, nullptr, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store},
             depth_att,
             extent
         );
-        rsys->DrawMeshes();
+        cb.DrawRenderers(rsys->GetRendererManager().FilterAndSortRenderers({}), 0);
         cb.EndRendering();
 
         context.UseImage(
@@ -337,9 +329,7 @@ int main(int argc, char **argv) {
         );
         context.PrepareCommandBuffer();
         gsys->DrawGUI(
-            {color.GetImage(), color.GetImageView(), vk::AttachmentLoadOp::eLoad, vk::AttachmentStoreOp::eStore},
-            extent,
-            cb
+            {&color, nullptr, AttachmentUtils::LoadOperation::Load, AttachmentUtils::StoreOperation::Store}, extent, cb
         );
 
         cb.End();
@@ -364,7 +354,6 @@ int main(int argc, char **argv) {
         frame_count * 1.0 / duration_time
     );
     rsys->WaitForIdle();
-    rsys->ClearComponent();
 
     SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "Unloading Main-class");
     return 0;

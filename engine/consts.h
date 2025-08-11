@@ -16,8 +16,8 @@
 #define InRGBRange(x) (x >= 0 && x < 256)
 
 #define MAX_CMD_HISTORY (50)
-#define PROMOTE_SIZE (20)           // Size of the promote line, in pixels
-#define LINE_WIDTH (2)              // Width of a line, in pixels
+#define PROMOTE_SIZE (20) // Size of the promote line, in pixels
+#define LINE_WIDTH (2)    // Width of a line, in pixels
 #define MAX_CHAR_PER_CMD (50)
 
 #define FPS_LIMIT (30)
@@ -31,7 +31,7 @@ const int MAX_PATH_LENG = 512;
 const int MAX_MSGSTR_LEN = 512;
 
 const char STR_PY_STARTUP[] =
-		R"DIM(
+    R"DIM(
 import sys;
 import os;
 sys.path.append('./');
@@ -39,7 +39,7 @@ import redirectOutput as redirOut;
 redirOut.redirectStdoutStderr();
 )DIM";
 
-#define _T(x) L ## x
+#define _T(x) L##x
 
 #define ERRORMSG_PY_NOTINIT "Python is not initialized"
 #define LERRORMSG_PY_NOTINIT L"Python is not initialized"
@@ -47,8 +47,8 @@ redirOut.redirectStdoutStderr();
 #define ERRORMSG_PY_HEADLINE "\n **********Python Error Message**********\n"
 #define LERRORMSG_PY_HEADLINE L"\n **********Python Error Message**********\n"
 
-#define COLOR_FG_DEFAULT { 0x00, 0x00, 0xFF, SDL_ALPHA_OPAQUE }
-#define COLOR_BG_DEFAULT { 0xFF, 0xFF, 0xFF, SDL_ALPHA_TRANSPARENT}
+#define COLOR_FG_DEFAULT {0x00, 0x00, 0xFF, SDL_ALPHA_OPAQUE}
+#define COLOR_BG_DEFAULT {0xFF, 0xFF, 0xFF, SDL_ALPHA_TRANSPARENT}
 
 #define PYCMD_SWITCHDIR_STRING(x) "os.chdir(\".\\" + x + "\")"
 #define PYCMD_SWITCHDIR_CSTR(x) "os.chdir(\".\\" #x "\")"

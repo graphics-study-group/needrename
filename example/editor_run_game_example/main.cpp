@@ -229,10 +229,10 @@ int main() {
         gui->PrepareGUI();
         main_window.Render();
         gui->DrawGUI(
-            {window->GetColorTexture().GetImage(),
-             window->GetColorTexture().GetImageView(),
-             vk::AttachmentLoadOp::eLoad,
-             vk::AttachmentStoreOp::eStore},
+            {&window->GetColorTexture(),
+             nullptr,
+             Engine::AttachmentUtils::LoadOperation::Load,
+             Engine::AttachmentUtils::StoreOperation::Store},
             window->GetExtent(),
             cb
         );
@@ -245,7 +245,6 @@ int main() {
         rsys->GetFrameManager().CompositeToFramebufferAndPresent();
     }
     rsys->WaitForIdle();
-    rsys->ClearComponent();
 
     SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "Unloading Main-class");
 

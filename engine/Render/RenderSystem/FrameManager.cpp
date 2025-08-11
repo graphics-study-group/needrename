@@ -6,6 +6,7 @@
 #include "Render/Pipeline/CommandBuffer/ComputeContext.h"
 #include "Render/Pipeline/CommandBuffer/GraphicsContext.h"
 #include "Render/RenderSystem.h"
+#include "Render/RenderSystem/Structs.h"
 #include "Render/RenderSystem/SubmissionHelper.h"
 #include "Render/RenderSystem/Swapchain.h"
 
@@ -38,14 +39,20 @@ namespace Engine::RenderSystemState {
 
         /**
          * @brief Record the command buffer according to the saved operations.
-         * The operations saved in the struct are left untouched.
+         * The operations
+         * saved in the struct are left untouched.
          *
-         * `vkBeginCommandBuffer` and `vkEndCommandBuffer` are called on the buffer in this method, and therefore
-         * the buffer is expected to be in Pending state when called, and will be in Executable state after calling.
+         * `vkBeginCommandBuffer` and `vkEndCommandBuffer`
+         * are called on the buffer in this method, and therefore
+         * the buffer is expected to be in Pending
+         * state when called, and will be in Executable state after calling.
          *
-         * The method transits the image to Transfer Source Layout and the dst to Transfer Destination Layout,
-         * record a image copy command (not blitting command, so resizing is not possible), and transits the image
-         * back to Color Attachment Optimal layout.
+         * The method transits
+         * the image to Transfer Source Layout and the dst to Transfer Destination Layout,
+         * record a image
+         * copy command (not blitting command, so resizing is not possible), and transits the image
+         * back to
+         * Color Attachment Optimal layout.
          */
         void RecordCopyCommand(const vk::CommandBuffer &cb, const vk::Image &dst, bool is_framebuffer = true) const {
             // We can cache this vector to further speed up recording.
@@ -308,7 +315,6 @@ namespace Engine::RenderSystemState {
     }
 
     uint32_t FrameManager::StartFrame(uint64_t timeout) {
-        pimpl->m_submission_helper->StartFrame();
 
         auto device = pimpl->m_system.getDevice();
         uint32_t fif = GetFrameInFlight();
@@ -341,6 +347,8 @@ namespace Engine::RenderSystemState {
     }
 
     void FrameManager::SubmitMainCommandBuffer() {
+        pimpl->m_submission_helper->ExecuteSubmission();
+
         bool wait_for_semaphore = (pimpl->total_frame_count > 0);
         uint32_t fif = GetFrameInFlight();
         vk::SubmitInfo info{};

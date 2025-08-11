@@ -1,30 +1,27 @@
 #ifndef OPTIONHANDLER_H_INCLUDED
 #define OPTIONHANDLER_H_INCLUDED
 
-#include <getopt.h>
 #include <cstdlib>
+#include <getopt.h>
 #include <string>
 
-struct StartupOptions
-{
-    int resol_x {1024}, resol_y {768};
-    int fntSz {12};
-    bool enableVerbose {false};
+struct StartupOptions {
+    int resol_x{1024}, resol_y{768};
+    int fntSz{12};
+    bool enableVerbose{false};
 
     std::string title{};
     std::string fntName{};
     std::string graphics_api{};
     std::string startupScript{};
 
-    bool instantQuit {false};
+    bool instantQuit{false};
 };
 
-namespace OptionDeclaration
-{
+namespace OptionDeclaration {
 
     extern const char help_text[];
-    enum extra_options
-    {
+    enum extra_options {
         OPT_SETTITLE = 257,
         OPT_SETFONT,
         OPT_SETSIZE,
@@ -32,7 +29,7 @@ namespace OptionDeclaration
     };
     extern const char *short_options;
     extern const option long_options[];
-}
+} // namespace OptionDeclaration
 
 /// @note atoi() is used
 StartupOptions *ParseOptions(int argc, char **argv);

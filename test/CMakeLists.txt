@@ -12,6 +12,11 @@ target_link_libraries(camera_transform_test engine)
 add_test(NAME camera_transform_test COMMAND camera_transform_test)
 set_target_properties(camera_transform_test PROPERTIES FOLDER tests)
 
+add_executable(flag_bits_test flag_bits_test.cpp)
+target_link_libraries(flag_bits_test engine)
+add_test(NAME flag_bits_test COMMAND flag_bits_test)
+set_target_properties(flag_bits_test PROPERTIES FOLDER tests)
+
 add_executable(SDL_init_test SDL_init_test.cpp)
 target_link_libraries(SDL_init_test engine)
 add_test(NAME SDL_init_test COMMAND SDL_init_test)

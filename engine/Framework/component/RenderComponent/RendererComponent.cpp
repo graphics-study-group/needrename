@@ -1,6 +1,10 @@
 #include "RendererComponent.h"
+
+#include "Asset/Material/MaterialTemplateAsset.h"
+
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/MaterialRegistry.h"
+#include "Render/RenderSystem/RendererManager.h"
 #include <Asset/Material/MaterialAsset.h>
 #include <Framework/component/RenderComponent/CameraComponent.h>
 #include <Framework/object/GameObject.h>
@@ -21,7 +25,11 @@ namespace Engine {
     void RendererComponent::RenderInit() {
         m_system = MainClass::GetInstance()->GetRenderSystem();
         auto system = m_system.lock();
-        system->RegisterComponent(std::dynamic_pointer_cast<RendererComponent>(shared_from_this()));
+
+        // We should do some check maybe to avoid repetition.
+        system->GetRendererManager().RegisterRendererComponent(
+            std::dynamic_pointer_cast<RendererComponent>(shared_from_this())
+        );
 
         for (size_t i = 0; i < m_material_assets.size(); i++) {
             // XXX: This is a temporary solution: It simply check the m_name in material assets and add it to the
@@ -52,6 +60,10 @@ namespace Engine {
     }
 
     auto RendererComponent::GetMaterials() -> decltype(m_materials) & {
+        return m_materials;
+    }
+
+    auto RendererComponent::GetMaterials() const -> const decltype(m_materials) & {
         return m_materials;
     }
 } // namespace Engine

@@ -1,25 +1,23 @@
 #ifndef REFLECTION_TYPE_INCLUDED
 #define REFLECTION_TYPE_INCLUDED
 
-#include <cstdint>
+#include "utils.h"
 #include <cstddef>
-#include <string>
-#include <vector>
-#include <memory>
+#include <cstdint>
 #include <functional>
-#include <unordered_map>
+#include <memory>
+#include <string>
 #include <typeindex>
 #include <typeinfo>
-#include "utils.h"
+#include <unordered_map>
+#include <vector>
 
 // Suppress warning from std::enable_shared_from_this
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wnon-virtual-dtor"
 
-namespace Engine
-{
-    namespace Reflection
-    {
+namespace Engine {
+    namespace Reflection {
         class Registrar;
         class Field;
         class Method;
@@ -27,9 +25,9 @@ namespace Engine
 
         /// @brief The Type class represents a type in the reflection system.
         /// It contains information about the type such as its name, base types, fields, and methods.
-        /// Note that only reflected types and some basic types use their own name. The other types use their type_info name.
-        class Type : public std::enable_shared_from_this<Type>
-        {
+        /// Note that only reflected types and some basic types use their own name. The other types use their type_info
+        /// name.
+        class Type : public std::enable_shared_from_this<Type> {
         public:
             // The name of the constructor method
             static constexpr const char *k_constructor_name = "$Constructor";
@@ -49,9 +47,10 @@ namespace Engine
             // suppress the warning of -Weffc++
             Type(const Type &) = delete;
             void operator=(const Type &) = delete;
+
         public:
             virtual ~Type() = default;
-        
+
         private:
             std::shared_ptr<const Method> GetMethodFromMangledName(const std::string &name) const;
 
@@ -67,8 +66,7 @@ namespace Engine
             // Whether the type is reflectable
             bool m_reflectable = false;
 
-            enum
-            {
+            enum {
                 None,
                 Const,
                 Pointer
@@ -84,20 +82,30 @@ namespace Engine
             /// @param return_type the return type of the function
             /// @param is_const whether the function is const
             template <typename... Args>
-            void AddMethod(const std::string &name, const WrapperMemberFunc &func, std::shared_ptr<const Type> return_type, bool is_const);
+            void AddMethod(
+                const std::string &name,
+                const WrapperMemberFunc &func,
+                std::shared_ptr<const Type> return_type,
+                bool is_const
+            );
 
             /// @brief Add a member function to the type.
             void AddMethod(std::shared_ptr<const Method> method);
             /// @brief Add a base type to the type.
-            /// @param base_type 
+            /// @param base_type
             void AddBaseType(std::shared_ptr<const Type> base_type);
 
             /// @brief Add a field to the type.
             /// @param field_type the type of the field
-            /// @param name 
+            /// @param name
             /// @param field_getter the wrapper function for getting the field
             /// @param const_field_getter the wrapper function for getting the field when the object is const
-            void AddField(const std::shared_ptr<const Type> field_type, const std::string &name, const WrapperFieldFunc &field_getter, const WrapperConstFieldFunc &const_field_getter);
+            void AddField(
+                const std::shared_ptr<const Type> field_type,
+                const std::string &name,
+                const WrapperFieldFunc &field_getter,
+                const WrapperConstFieldFunc &const_field_getter
+            );
             /// @brief Add a field to the type.
             void AddField(const std::shared_ptr<const Field> field);
 
@@ -108,14 +116,14 @@ namespace Engine
             /// @param ...args arguments for the constructor
             /// @return a Var object representing the instance
             template <typename... Args>
-            Var CreateInstance(Args&&... args) const;
+            Var CreateInstance(Args &&...args) const;
 
             /// @brief Get a method of the type.
             /// @param name the name of the method
             /// @param ...args the arguments to the method. We need arguments to deal with overloaded methods.
             /// @return the shared pointer to the Method object
             template <typename... Args>
-            std::shared_ptr<const Method> GetMethod(const std::string &name, Args&&... args) const;
+            std::shared_ptr<const Method> GetMethod(const std::string &name, Args &&...args) const;
 
             /// @brief Get a field of the type.
             /// @param name the name of the field
@@ -123,12 +131,11 @@ namespace Engine
             std::shared_ptr<const Field> GetField(const std::string &name) const;
 
             /// @brief Get the unordered map of fields of the type.
-            /// @return 
+            /// @return
             const std::unordered_map<std::string, std::shared_ptr<const Field>> &GetFields() const;
         };
 
-        class ConstType : public Type
-        {
+        class ConstType : public Type {
         public:
             ConstType(std::shared_ptr<const Type> base_type);
             virtual ~ConstType() = default;
@@ -136,11 +143,9 @@ namespace Engine
             std::shared_ptr<const Type> m_base_type;
         };
 
-        class PointerType : public Type
-        {
+        class PointerType : public Type {
         public:
-            enum class PointerTypeKind
-            {
+            enum class PointerTypeKind {
                 Raw,
                 Shared,
                 Weak,
@@ -152,8 +157,8 @@ namespace Engine
             std::shared_ptr<const Type> m_pointed_type;
             PointerTypeKind m_pointer_kind;
         };
-    }
-}
+    } // namespace Reflection
+} // namespace Engine
 
 #pragma GCC diagnostic pop
 

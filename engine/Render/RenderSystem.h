@@ -1,18 +1,21 @@
 #ifndef ENGINE_RENDER_RENDERSYSTEM_INCLUDED
 #define ENGINE_RENDER_RENDERSYSTEM_INCLUDED
 
-#include <memory>
-#include <vulkan/vulkan.hpp>
 #include <glm.hpp>
-
-#include "Render/RenderSystem/Structs.h"
+#include <memory>
 
 // Suppress warning from std::enable_shared_from_this
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wnon-virtual-dtor"
 
-namespace Engine
-{
+namespace vk {
+    class Instance;
+    class SurfaceKHR;
+    class Device;
+    class PhysicalDevice;
+} // namespace vk
+
+namespace Engine {
     class SDLWindow;
     class RendererComponent;
     class Camera;
@@ -28,55 +31,35 @@ namespace Engine
         class GlobalConstantDescriptorPool;
         class MaterialRegistry;
         class FrameManager;
-    };
+        class RendererManager;
+        class SwapchainSupport;
+        class QueueFamilyIndices;
+        class QueueInfo;
+    }; // namespace RenderSystemState
 
-    class RenderSystem : public std::enable_shared_from_this<RenderSystem>
-    {
+    class RenderSystem : public std::enable_shared_from_this<RenderSystem> {
     private:
         class impl;
-        std::unique_ptr <impl> pimpl;
+        std::unique_ptr<impl> pimpl;
 
     public:
-
         using SwapchainSupport = Engine::RenderSystemState::SwapchainSupport;
         using QueueFamilyIndices = Engine::RenderSystemState::QueueFamilyIndices;
+        using QueueInfo = Engine::RenderSystemState::QueueInfo;
 
-        struct QueueInfo {
-            vk::Queue graphicsQueue;
-            vk::UniqueCommandPool graphicsPool;
-            vk::UniqueCommandPool graphicsOneTimePool;
-            vk::Queue presentQueue;
-            vk::UniqueCommandPool presentPool;
-        };
-
-        RenderSystem(std::weak_ptr <SDLWindow> parent_window);
+        RenderSystem(std::weak_ptr<SDLWindow> parent_window);
 
         RenderSystem(const RenderSystem &) = delete;
         RenderSystem(RenderSystem &&) = delete;
-        void operator= (const RenderSystem &) = delete;
-        void operator= (RenderSystem &&) = delete; 
+        void operator=(const RenderSystem &) = delete;
+        void operator=(RenderSystem &&) = delete;
 
         void Create();
 
         ~RenderSystem();
 
-        /**
-         * @brief Draw meshes using the matrices of the active camera (identity matrices if default).
-         */
-        void DrawMeshes(uint32_t pass = 0);
-
-        /**
-         * @brief Draw meshes with the given view and projection matrices.
-         * 
-         * This method writes camera uniforms and viewport state.
-         * Then it binds materials and records draw calls on the current render command buffer.
-         */
-        void DrawMeshes(const glm::mat4 & view_matrix, const glm::mat4 & projection_matrix, vk::Extent2D extent, uint32_t pass = 0);
-        
-        void RegisterComponent(std::shared_ptr <RendererComponent>);
-        void ClearComponent();
-
-        void SetActiveCamera(std::weak_ptr <Camera>);
+        void SetActiveCamera(std::weak_ptr<Camera>);
+        std::weak_ptr<Camera> GetActiveCamera() const;
         uint32_t GetActiveCameraId() const;
         void WaitForIdle() const;
 
@@ -96,23 +79,25 @@ namespace Engine
 
         vk::PhysicalDevice GetPhysicalDevice() const;
 
-        const RenderSystemState::AllocatorState & GetAllocatorState() const;
+        const RenderSystemState::AllocatorState &GetAllocatorState() const;
 
-        const QueueFamilyIndices & GetQueueFamilies() const;
+        const QueueFamilyIndices &GetQueueFamilies() const;
 
-        const QueueInfo & getQueueInfo () const;
+        const QueueInfo &getQueueInfo() const;
 
-        const RenderSystemState::Swapchain & GetSwapchain() const;
+        const RenderSystemState::Swapchain &GetSwapchain() const;
 
-        const RenderSystemState::GlobalConstantDescriptorPool & GetGlobalConstantDescriptorPool() const;
+        const RenderSystemState::GlobalConstantDescriptorPool &GetGlobalConstantDescriptorPool() const;
 
-        RenderSystemState::MaterialRegistry & GetMaterialRegistry();
+        RenderSystemState::MaterialRegistry &GetMaterialRegistry();
 
-        RenderSystemState::FrameManager & GetFrameManager ();
+        RenderSystemState::FrameManager &GetFrameManager();
 
-        void WritePerCameraConstants(const ConstantData::PerCameraStruct & data, uint32_t in_flight_index);
+        RenderSystemState::RendererManager &GetRendererManager();
+
+        void WritePerCameraConstants(const ConstantData::PerCameraStruct &data, uint32_t in_flight_index);
     };
-}
+} // namespace Engine
 
 #pragma GCC diagnostic pop
 

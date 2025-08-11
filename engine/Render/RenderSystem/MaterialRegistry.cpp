@@ -1,5 +1,7 @@
 #include "MaterialRegistry.h"
 
+#include "Asset/Material/MaterialTemplateAsset.h"
+
 #include "Render/Pipeline/Material/Templates/BlinnPhong.h"
 
 namespace Engine::RenderSystemState {
@@ -13,7 +15,7 @@ namespace Engine::RenderSystemState {
         if (this->find(asset->name) == this->end()) {
             auto ptr = std::make_shared<MaterialTemplate>(*(m_system.lock()));
             this->operator[](asset->name) = ptr;
-            ptr->InstantiateFromRef(ref);
+            ptr->Instantiate(*ref->cas<MaterialTemplateAsset>());
         }
     }
     auto MaterialRegistry::GetMaterial(const std::string &name) -> decltype(this->at(name)) {

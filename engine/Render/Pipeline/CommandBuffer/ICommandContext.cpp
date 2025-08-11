@@ -1,7 +1,10 @@
 #include "ICommandContext.h"
 
+#include "Render/ImageUtilsFunc.h"
 #include "Render/Memory/Texture.h"
 #include "Render/Pipeline/CommandBuffer/AccessHelperFuncs.h"
+
+#include <vulkan/vulkan.hpp>
 
 namespace Engine {
     vk::ImageMemoryBarrier2 ICommandContext::GetImageBarrier(

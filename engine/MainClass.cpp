@@ -3,17 +3,12 @@
 #include "Asset/AssetManager/AssetManager.h"
 #include "Framework/world/WorldSystem.h"
 #include "GUI/GUISystem.h"
-#include "Render/RenderSystem.h"
 #include <Asset/Scene/LevelAsset.h>
 #include <Functional/EventQueue.h>
 #include <Functional/SDLWindow.h>
 #include <Functional/Time.h>
 #include <Input/Input.h>
-#include <Render/Memory/Buffer.h>
-#include <Render/Memory/Texture.h>
-#include <Render/Pipeline/CommandBuffer.h>
-#include <Render/Pipeline/CommandBuffer/GraphicsContext.h>
-#include <Render/RenderSystem/FrameManager.h>
+#include <Render/FullRenderSystem.h>
 
 #include <exception>
 #include <fstream>
@@ -82,7 +77,6 @@ namespace Engine {
         }
         SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "The main loop is ended.");
         renderer->WaitForIdle();
-        renderer->ClearComponent();
     }
 
     void MainClass::LoopFinite(uint64_t max_frame_count, float max_time_seconds) {
@@ -94,7 +88,6 @@ namespace Engine {
         }
         SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "The main loop is ended.");
         renderer->WaitForIdle();
-        renderer->ClearComponent();
     }
 
     std::shared_ptr<SDLWindow> MainClass::GetWindow() const {
@@ -175,7 +168,7 @@ namespace Engine {
         context.PrepareCommandBuffer();
         cb.BeginRendering(this->window->GetRenderTargetBinding(), this->window->GetExtent(), "Main Pass");
         this->renderer->SetActiveCamera(this->world->m_active_camera);
-        this->renderer->DrawMeshes();
+        cb.DrawRenderers(renderer->GetRendererManager().FilterAndSortRenderers({}), 0);
         cb.EndRendering();
 
         // context.UseImage(this->window->GetColorTexture(),

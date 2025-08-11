@@ -1,9 +1,12 @@
 #ifndef RENDER_CONSTANTDATA_PERCAMERACONSTANTS_INCLUDED
 #define RENDER_CONSTANTDATA_PERCAMERACONSTANTS_INCLUDED
 
-#include <glm.hpp>
 #include "Render/VkWrapper.tcc"
-#include "Render/Memory/IndexedBuffer.h"
+#include <glm.hpp>
+
+namespace vk {
+    class Device;
+}
 
 namespace Engine {
     class RenderSystem;
@@ -15,20 +18,11 @@ namespace Engine {
         };
 
         class PerCameraConstantLayout : public VkWrapperIndependent<vk::UniqueDescriptorSetLayout> {
-        protected:
-            static constexpr std::array <vk::DescriptorSetLayoutBinding, 1> BINDINGS = {
-                vk::DescriptorSetLayoutBinding{
-                    0,
-                    vk::DescriptorType::eUniformBufferDynamic,
-                    1,
-                    vk::ShaderStageFlagBits::eAllGraphics
-                }
-            };
         public:
             static constexpr uint32_t PER_CAMERA_SET_NUMBER = 1;
             void Create(vk::Device device);
         };
-    }
-}
+    } // namespace ConstantData
+} // namespace Engine
 
 #endif // RENDER_CONSTANTDATA_PERCAMERACONSTANTS_INCLUDED

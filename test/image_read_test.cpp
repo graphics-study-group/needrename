@@ -58,7 +58,6 @@ int main(int, char *[]) {
     uint32_t total_test_frame = 144;
 
     TestHomoMesh mesh{render_system};
-    mesh.Prepare();
 
     int tex_width, tex_height, tex_channel;
     std::filesystem::path image_path{ENGINE_ROOT_DIR};

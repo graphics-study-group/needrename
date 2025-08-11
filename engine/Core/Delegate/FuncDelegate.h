@@ -1,36 +1,33 @@
 #ifndef CORE_DELEGATE_FUNCDELEGATE_H
 #define CORE_DELEGATE_FUNCDELEGATE_H
 
-#include <memory>
-#include <functional>
 #include "DelegateBase.h"
+#include <functional>
+#include <memory>
 
-namespace Engine
-{
+namespace Engine {
     template <typename... Args>
-    class FuncDelegate : public DelegateBase<Args...>
-    {
+    class FuncDelegate : public DelegateBase<Args...> {
     public:
         using FunctionType = std::function<void(Args...)>;
 
         FuncDelegate(const FuncDelegate &) = default;
-        FuncDelegate(FunctionType function) : m_function(function) {}
+        FuncDelegate(FunctionType function) : m_function(function) {
+        }
 
-        virtual bool IsValid() const override
-        {
+        virtual bool IsValid() const override {
             return m_function != nullptr;
         }
 
-        virtual void Invoke(Args... args) const override
-        {
-            if (m_function)
-            {
+        virtual void Invoke(Args... args) const override {
+            if (m_function) {
                 m_function(args...);
             }
         }
+
     protected:
         FunctionType m_function{};
     };
-};
+}; // namespace Engine
 
 #endif // CORE_DELEGATE_FUNCDELEGATE_H

@@ -1,13 +1,16 @@
 #include "GUISystem.h"
 
-#include "Render/AttachmentUtils.h"
+#include "Render/AttachmentUtilsFunc.h"
+#include "Render/ImageUtilsFunc.h"
 #include "Render/Pipeline/CommandBuffer/GraphicsCommandBuffer.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/GlobalConstantDescriptorPool.h"
+#include "Render/RenderSystem/Structs.h"
 #include "Render/RenderSystem/Swapchain.h"
 #include <SDL3/SDL.h>
 #include <backends/imgui_impl_sdl3.h>
 #include <backends/imgui_impl_vulkan.h>
+#include <vulkan/vulkan.hpp>
 
 namespace Engine {
     void GUISystem::CleanUp() {
@@ -50,7 +53,7 @@ namespace Engine {
         const AttachmentUtils::AttachmentDescription &att, vk::Extent2D extent, GraphicsCommandBuffer &cb
     ) const {
         ImGui::Render();
-        cb.BeginRendering(att, {nullptr}, extent, "GUI rendering pass");
+        cb.BeginRendering(att, {}, extent, "GUI rendering pass");
         ImGui_ImplVulkan_RenderDrawData(
             ImGui::GetDrawData(), static_cast<VkCommandBuffer>(cb.GetCommandBuffer()), nullptr
         );

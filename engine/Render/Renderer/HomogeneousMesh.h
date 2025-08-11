@@ -1,93 +1,102 @@
 #ifndef RENDER_RENDERER_HOMOGENEOUSMESH_INCLUDED
 #define RENDER_RENDERER_HOMOGENEOUSMESH_INCLUDED
 
-#include "Render/Renderer/VertexStruct.h"
-#include "Render/RenderSystem.h"
 #include "Render/Memory/Buffer.h"
 
-namespace Engine{
+namespace Engine {
     class AssetRef;
-    
+    class RenderSystem;
+
     /// @brief A homogeneous mesh of only one material at runtime, constructed from mesh asset.
     class HomogeneousMesh {
+        std::weak_ptr<RenderSystem> m_system;
+        struct impl;
+        std::unique_ptr<impl> pimpl;
+
     public:
+        enum class MeshVertexType {
+            Position,
+            Basic,
+            Extended,
+            Skinned
+        };
 
-        static constexpr const uint32_t BINDING_COUNT = 2;
-
-        HomogeneousMesh(std::weak_ptr <RenderSystem> system, std::shared_ptr<AssetRef> mesh_asset, size_t submesh_idx);
+        HomogeneousMesh(
+            std::weak_ptr<RenderSystem> system,
+            std::shared_ptr<AssetRef> mesh_asset,
+            size_t submesh_idx,
+            MeshVertexType type = MeshVertexType::Basic
+        );
         ~HomogeneousMesh();
 
-        void Prepare();
-
-        /// @brief Check if the vertex buffer of the mesh needs to be commited to GPU.
-        /// The flag is always set to `false` after this check.
-        /// @return whether commitment is needed.
-        bool NeedCommitment();
-
+        /**
+         * @brief Create a staging buffer containing all vertices data.
+         * 
+         * This method
+         * is automatically called on mesh submission, and you typically do
+         * not need to call it manually.
+ */
         Buffer CreateStagingBuffer() const;
+
+        /**
+         * @brief Get vertex index count viz. how many vertices are drawn in the draw call.
+         */
         uint32_t GetVertexIndexCount() const;
+
+        /**
+         * @brief Get vertex count viz. how many distinct vertices data are there.
+         */
         uint32_t GetVertexCount() const;
+
+        /**
+         * @brief Get expected buffer size. The buffer contains all vertex attributes
+         * and indices
+         * used for draw calls.
+         */
         uint64_t GetExpectedBufferSize() const;
-        const Buffer & GetBuffer() const;
 
-        std::pair <
-            std::array<vk::Buffer, HomogeneousMesh::BINDING_COUNT>, 
-            std::array<vk::DeviceSize, HomogeneousMesh::BINDING_COUNT>
-        >
-        GetBindingInfo() const;
+        /**
+         * @brief Get the underlying buffer, which contains all vertex data.
+         */
+        const Buffer &GetBuffer() const;
 
-        std::pair <vk::Buffer, vk::DeviceSize>
-        GetIndexInfo() const;
+        /**
+         * @brief Get vertex attribute buffers, along with their offsets in the buffer.
+         * 
+ * Our
+         * vertex attributes are allocated in the same buffer with different offsets:
+         * ```
+         * POSITION
+         * ... | BASICATTR ... | EXTENDEDATTR ... | SKINNEDATTR ... | INDEX ...
+         * ^ Offset 0   | ^ Offset 1 | ^
+         * Offset 2       | ^ Offset 3      | ^ Offset 4
+         * ```
+         * Note that index buffer have a
+         * different element count of the rest of buffers.
+         */
+        std::pair<vk::Buffer, std::vector<vk::DeviceSize>> GetVertexBufferInfo() const;
 
-        static vk::PipelineVertexInputStateCreateInfo GetVertexInputState();
+        /**
+         * @brief Get vertex index buffer, along with its offset in the buffer.
+         * 
+         * Our
+         * vertex attributes along with indices are allocated in the same buffer with different offsets:
+         * ```
 
-    protected:
-        std::weak_ptr <RenderSystem> m_system;
+         * * POSITION ... | BASICATTR ... | EXTENDEDATTR ... | SKINNEDATTR ... | INDEX ...
+         * ^ Offset 0   | ^
+         * Offset 1    | ^ Offset 2       | ^ Offset 3      | ^ Offset 4
+         * ```
+         * Note that index
+         * buffer have a different element count of the rest of buffers.
+         */
+        std::pair<vk::Buffer, vk::DeviceSize> GetIndexBufferInfo() const;
 
-        static constexpr const std::array<vk::VertexInputBindingDescription, BINDING_COUNT> bindings = {
-            // Position
-            vk::VertexInputBindingDescription{0, VertexStruct::VERTEX_POSITION_SIZE, vk::VertexInputRate::eVertex},
-            // Other attributes
-            vk::VertexInputBindingDescription{1, VertexStruct::VERTEX_ATTRIBUTE_SIZE, vk::VertexInputRate::eVertex}
-        };
-
-        static constexpr const std::array<vk::VertexInputAttributeDescription, VertexStruct::VERTEX_ATTRIBUTE_COUNT + 1> attributes = {
-            // Position
-            vk::VertexInputAttributeDescription{0, bindings[0].binding, vk::Format::eR32G32B32Sfloat, 0},
-            // Vertex color
-            vk::VertexInputAttributeDescription{
-                1, 
-                bindings[1].binding, 
-                vk::Format::eR32G32B32Sfloat, 
-                VertexStruct::OFFSET_COLOR
-            },
-            // Vertex normal
-            vk::VertexInputAttributeDescription{
-                2, 
-                bindings[1].binding, 
-                vk::Format::eR32G32B32Sfloat, 
-                VertexStruct::OFFSET_NORMAL
-            },
-            // Texcoord 1
-            vk::VertexInputAttributeDescription{
-                3,
-                bindings[1].binding,
-                vk::Format::eR32G32Sfloat,
-                VertexStruct::OFFSET_TEXCOORD1
-            }
-        };
-
-        Buffer m_buffer;
-
-        bool m_updated {false};
-
-        uint64_t m_allocated_buffer_size {0};
-
-        std::shared_ptr<AssetRef> m_mesh_asset;
-        size_t m_submesh_idx;
-
-        void WriteToMemory(std::byte * pointer) const;
+        /**
+         * @brief Query `VkPipelineVertexInputStateCreateInfo` associated with the mesh type.
+         */
+        static vk::PipelineVertexInputStateCreateInfo GetVertexInputState(MeshVertexType type = MeshVertexType::Basic);
     };
-};
+}; // namespace Engine
 
 #endif // RENDER_RENDERER_HOMOGENEOUSMESH_INCLUDED

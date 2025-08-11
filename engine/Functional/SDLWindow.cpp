@@ -2,6 +2,7 @@
 #include "Exception/exception.h"
 #include <MainClass.h>
 #include <Render/Memory/Texture.h>
+#include <vulkan/vulkan.hpp>
 
 namespace Engine {
     SDLWindow::SDLWindow(const char *title, int width, int height, Uint32 flags) {
@@ -39,15 +40,15 @@ namespace Engine {
         m_depth_texture->CreateTexture(desc, "Depth attachment");
 
         AttachmentUtils::AttachmentDescription color_att, depth_att;
-        color_att.image = m_color_texture->GetImage();
-        color_att.image_view = m_color_texture->GetImageView();
-        color_att.load_op = vk::AttachmentLoadOp::eClear;
-        color_att.store_op = vk::AttachmentStoreOp::eStore;
+        color_att.texture = m_color_texture.get();
+        color_att.texture_view = nullptr;
+        color_att.load_op = AttachmentUtils::LoadOperation::Clear;
+        color_att.store_op = AttachmentUtils::StoreOperation::Store;
         m_render_target_binding.SetColorAttachment(color_att);
-        depth_att.image = m_depth_texture->GetImage();
-        depth_att.image_view = m_depth_texture->GetImageView();
-        depth_att.load_op = vk::AttachmentLoadOp::eClear;
-        depth_att.store_op = vk::AttachmentStoreOp::eDontCare;
+        depth_att.texture = m_depth_texture.get();
+        depth_att.texture_view = nullptr;
+        depth_att.load_op = AttachmentUtils::LoadOperation::Clear;
+        depth_att.store_op = AttachmentUtils::StoreOperation::DontCare;
         m_render_target_binding.SetDepthAttachment(depth_att);
     }
 

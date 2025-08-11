@@ -4,6 +4,7 @@
 
 #include <SDL3/SDL.h>
 #include <ranges>
+#include <vulkan/vulkan.hpp>
 
 namespace Engine {
     namespace PipelineUtils {

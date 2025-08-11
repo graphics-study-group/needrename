@@ -26,18 +26,17 @@ namespace Engine {
             }
             return ret;
         }
-        
+
         Var Var::GetPointedVar() {
             if (m_type->m_specialization != Type::Pointer) {
                 throw std::runtime_error("Var is not a pointer type");
             }
             auto type = std::static_pointer_cast<const PointerType>(m_type);
-            switch(type->m_pointer_kind)
-            {
-                case PointerType::PointerTypeKind::Raw:
-                    return Var(type->m_pointed_type, *static_cast<void **>(m_data));
-                default:
-                    throw std::runtime_error("Not Implemented");
+            switch (type->m_pointer_kind) {
+            case PointerType::PointerTypeKind::Raw:
+                return Var(type->m_pointed_type, *static_cast<void **>(m_data));
+            default:
+                throw std::runtime_error("Not Implemented");
             }
         }
 

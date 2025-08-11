@@ -1,31 +1,30 @@
 #ifndef FRAMEWORK_OBJECT_GAMEOBJECT_INCLUDED
 #define FRAMEWORK_OBJECT_GAMEOBJECT_INCLUDED
 
-#include <vector>
-#include <string>
-#include <memory>
 #include <Core/Math/Transform.h>
 #include <Reflection/macros.h>
 #include <Reflection/serialization_smart_pointer.h>
 #include <Reflection/serialization_vector.h>
+#include <memory>
+#include <string>
+#include <vector>
 
 // Suppress warning from std::enable_shared_from_this
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wnon-virtual-dtor"
 
-namespace Engine
-{
+namespace Engine {
     class Component;
     class TransformComponent;
     class WorldSystem;
 
-    class REFL_SER_CLASS(REFL_BLACKLIST) GameObject : public std::enable_shared_from_this<GameObject>
-    {
+    class REFL_SER_CLASS(REFL_BLACKLIST) GameObject : public std::enable_shared_from_this<GameObject> {
         REFL_SER_BODY(GameObject)
     private:
         friend class WorldSystem;
         // GameObject must be created by WorldSystem's factory function
         GameObject() = default;
+
     public:
         virtual ~GameObject() = default;
 
@@ -57,14 +56,13 @@ namespace Engine
     };
 
     template <typename T, typename... Args>
-    std::shared_ptr<T> GameObject::AddComponent(Args &&...args)
-    {
+    std::shared_ptr<T> GameObject::AddComponent(Args &&...args) {
         static_assert(std::is_base_of<Component, T>::value, "T must be derived from Component");
         auto component = std::make_shared<T>(weak_from_this(), std::forward<Args>(args)...);
         AddComponent(component);
         return component;
     }
-}
+} // namespace Engine
 
 #pragma GCC diagnostic pop
 
