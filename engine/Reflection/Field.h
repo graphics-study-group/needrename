@@ -18,8 +18,7 @@ namespace Engine {
                 const std::string &name,
                 std::weak_ptr<Type> classtype,
                 std::shared_ptr<const Type> fieldtype,
-                const WrapperFieldFunc &getter_func,
-                const WrapperConstFieldFunc &const_getter_func
+                const WrapperFieldFunc &getter_func
             );
 
         public:
@@ -27,7 +26,6 @@ namespace Engine {
 
         protected:
             WrapperFieldFunc m_getter;
-            WrapperConstFieldFunc m_const_getter;
 
         public:
             std::string m_name;

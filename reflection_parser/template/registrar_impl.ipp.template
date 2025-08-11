@@ -86,9 +86,7 @@ std::add_pointer<${method.return_type.full_name}>::type ret_ptr = reinterpret_ca
                 GetType<${field.type.full_name}>(),
                 "${field.name}",
                 [](void *obj, void *&ret)
-                { ret = static_cast<void *>(&static_cast<${class_type.full_name} *>(obj)->${field.name}); },
-                [](const void *obj, const void *&ret)
-                { ret = static_cast<const void *>(&static_cast<const ${class_type.full_name} *>(obj)->${field.name}); });
+                { ret = static_cast<void *>(&static_cast<${class_type.full_name} *>(obj)->${field.name}); });
             % endfor
 
             Type::s_index_type_map[std::type_index(typeid(${class_type.full_name}))] = type;

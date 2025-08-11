@@ -103,8 +103,7 @@ namespace Engine {
             void AddField(
                 const std::shared_ptr<const Type> field_type,
                 const std::string &name,
-                const WrapperFieldFunc &field_getter,
-                const WrapperConstFieldFunc &const_field_getter
+                const WrapperFieldFunc &field_getter
             );
             /// @brief Add a field to the type.
             void AddField(const std::shared_ptr<const Field> field);
