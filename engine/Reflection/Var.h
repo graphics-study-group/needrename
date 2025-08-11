@@ -54,11 +54,6 @@ namespace Engine
             /// @return the Var it points to
             Var GetPointedVar();
 
-            /// @brief If the type of the Var is an array, get the element at the specified index.
-            /// @param index the index of the element
-            /// @return a Var object representing the element
-            Var GetArrayElement(size_t index);
-
             Var &operator=(const Var &var);
         };
     }

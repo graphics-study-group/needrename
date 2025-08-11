@@ -41,20 +41,6 @@ namespace Engine {
             }
         }
 
-        Var Var::GetArrayElement(size_t index) {
-            if (m_type->m_specialization != Type::Array) {
-                throw std::runtime_error("Var is not an array type");
-            }
-            auto type = std::static_pointer_cast<const ArrayType>(m_type);
-            switch(type->m_array_kind)
-            {
-                case ArrayType::ArrayTypeKind::Raw:
-                    return Var(type->m_element_type, static_cast<void *>(*static_cast<uint8_t **>(m_data) + index * type->m_element_type->m_size));
-                default:
-                    throw std::runtime_error("Not Implemented");
-            }
-        }
-
         Var &Var::operator=(const Var &var) {
             m_type = var.m_type;
             m_data = var.m_data;

@@ -127,14 +127,6 @@ namespace Engine
             {
                 return std::shared_ptr<const PointerType>(new PointerType(GetType<std::remove_pointer_t<T>>(), sizeof(T), PointerType::PointerTypeKind::Raw));
             }
-            else if constexpr (std::is_array_v<T>)
-            {
-                return std::shared_ptr<const ArrayType>(new ArrayType(GetType<std::remove_extent_t<T>>(), sizeof(T), ArrayType::ArrayTypeKind::Raw));
-            }
-            else if constexpr (is_std_vector<T>)
-            {
-                return std::shared_ptr<const ArrayType>(new ArrayType(GetType<typename T::value_type>(), sizeof(T), ArrayType::ArrayTypeKind::StdVector));
-            }
             else if constexpr (std::is_void_v<T>)
             {
                 throw std::runtime_error("The void type should be created in initialization");

@@ -67,11 +67,6 @@ namespace Engine {
             m_specialization = Const;
         }
 
-        ArrayType::ArrayType(std::shared_ptr<const Type> element_type, size_t size, ArrayTypeKind kind) :
-            Type(element_type->m_name + "[]", size, false), m_element_type(element_type), m_array_kind(kind) {
-            m_specialization = Array;
-        }
-
         PointerType::PointerType(std::shared_ptr<const Type> pointed_type, size_t size, PointerTypeKind kind) :
             Type(pointed_type->m_name + "*", size, false), m_pointed_type(pointed_type), m_pointer_kind(kind) {
             m_specialization = Pointer;

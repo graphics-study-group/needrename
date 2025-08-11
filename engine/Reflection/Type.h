@@ -71,8 +71,7 @@ namespace Engine
             {
                 None,
                 Const,
-                Pointer,
-                Array
+                Pointer
             } m_specialization{None};
 
             // Add a constructor to the type
@@ -135,21 +134,6 @@ namespace Engine
             virtual ~ConstType() = default;
 
             std::shared_ptr<const Type> m_base_type;
-        };
-
-        class ArrayType : public Type
-        {
-        public:
-            enum class ArrayTypeKind
-            {
-                Raw,
-                StdVector,
-            };
-            ArrayType(std::shared_ptr<const Type> element_type, size_t size, ArrayTypeKind kind);
-            virtual ~ArrayType() = default;
-
-            std::shared_ptr<const Type> m_element_type;
-            ArrayTypeKind m_array_kind;
         };
 
         class PointerType : public Type
