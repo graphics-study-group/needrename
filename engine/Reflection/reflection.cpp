@@ -92,6 +92,10 @@ namespace Engine {
             Type::s_name_index_map.emplace("double", std::type_index(typeid(double)));
             Type::s_name_index_map.emplace("long double", std::type_index(typeid(long double)));
             Type::s_name_index_map.emplace("std::string", std::type_index(typeid(std::string)));
+            Type::s_name_index_map.emplace("glm::vec2", std::type_index(typeid(glm::vec2)));
+            Type::s_name_index_map.emplace("glm::vec3", std::type_index(typeid(glm::vec3)));
+            Type::s_name_index_map.emplace("glm::vec4", std::type_index(typeid(glm::vec4)));
+            Type::s_name_index_map.emplace("glm::quat", std::type_index(typeid(glm::quat)));
 
             Type::s_name_index_map.emplace("int8_t", std::type_index(typeid(int8_t)));
             Type::s_name_index_map.emplace("int16_t", std::type_index(typeid(int16_t)));
