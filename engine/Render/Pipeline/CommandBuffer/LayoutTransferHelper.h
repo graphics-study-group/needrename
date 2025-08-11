@@ -16,6 +16,6 @@ namespace Engine {
         };
         static vk::ImageMemoryBarrier2 GetTextureBarrier(TextureTransferType type, vk::Image image);
     };
-}
+} // namespace Engine
 
 #endif // PIPELINE_COMMANDBUFFER_LAYOUTTRANSFERHELPER_INCLUDED

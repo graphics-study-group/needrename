@@ -9,7 +9,6 @@ namespace Engine::RenderSystemState {
 
     class PhysicalDevice {
     public:
-
         /// @brief Select a suitable physical device.
         /// Should be called after surface creation, before logical device creation.
         /// @return vk::PhysicalDevice
@@ -17,31 +16,28 @@ namespace Engine::RenderSystemState {
 
         vk::PhysicalDevice get() const;
 
-        SwapchainSupport GetSwapchainSupport (vk::SurfaceKHR surface) const;
+        SwapchainSupport GetSwapchainSupport(vk::SurfaceKHR surface) const;
 
-        QueueFamilyIndices GetQueueFamilyIndices (vk::SurfaceKHR surface) const;
+        QueueFamilyIndices GetQueueFamilyIndices(vk::SurfaceKHR surface) const;
 
-        const vk::PhysicalDeviceMemoryProperties & GetMemoryProperties () const;
+        const vk::PhysicalDeviceMemoryProperties &GetMemoryProperties() const;
 
     protected:
-        
         /// @brief Check if a device is suitable
         /// @param device vk::PhysicalDevice
         /// @param surface vk::SurfaceKHR
         /// @return true if it is.
-        static bool IsDeviceSuitable (vk::PhysicalDevice device, vk::SurfaceKHR surface);
-        static QueueFamilyIndices FillQueueFamilyIndices (vk::PhysicalDevice device, vk::SurfaceKHR surface);
-        static SwapchainSupport FillSwapchainSupport (vk::PhysicalDevice device, vk::SurfaceKHR surface);
+        static bool IsDeviceSuitable(vk::PhysicalDevice device, vk::SurfaceKHR surface);
+        static QueueFamilyIndices FillQueueFamilyIndices(vk::PhysicalDevice device, vk::SurfaceKHR surface);
+        static SwapchainSupport FillSwapchainSupport(vk::PhysicalDevice device, vk::SurfaceKHR surface);
 
-        static constexpr std::array <const char *, 1> DEVICE_EXTENSION_NAMES = {
-            VK_KHR_SWAPCHAIN_EXTENSION_NAME
-        };
+        static constexpr std::array<const char *, 1> DEVICE_EXTENSION_NAMES = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
-        SwapchainSupport m_support {};
-        QueueFamilyIndices m_indices {};
-        vk::PhysicalDeviceMemoryProperties m_memory_properties {};
-        vk::PhysicalDevice m_device {};
+        SwapchainSupport m_support{};
+        QueueFamilyIndices m_indices{};
+        vk::PhysicalDeviceMemoryProperties m_memory_properties{};
+        vk::PhysicalDevice m_device{};
     };
-}
+} // namespace Engine::RenderSystemState
 
 #endif // RENDER_RENDERSYSTEM_PHYSICALDEVICE_INCLUDED

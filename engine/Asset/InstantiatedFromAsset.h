@@ -8,8 +8,8 @@ namespace Engine {
     class IInstantiatedFromAsset {
     public:
         virtual ~IInstantiatedFromAsset() = default;
-        virtual void Instantiate(const T & asset) = 0;
+        virtual void Instantiate(const T &asset) = 0;
     };
-}
+} // namespace Engine
 
 #endif // ENGINE_ASSET_INSTANTIATEDFROMASSET_INCLUDED

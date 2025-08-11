@@ -2,9 +2,9 @@
 #define ASSET_MATERIAL_PIPELINEPROPERTY_INCLUDED
 
 #include <Reflection/macros.h>
+#include <Reflection/serialization_smart_pointer.h>
 #include <Reflection/serialization_unordered_map.h>
 #include <Reflection/serialization_vector.h>
-#include <Reflection/serialization_smart_pointer.h>
 
 #include <Render/ImageUtils.h>
 #include <Render/Pipeline/PipelineEnums.h>
@@ -12,8 +12,7 @@
 #include <Asset/AssetRef.h>
 #include <Asset/Material/ShaderAsset.h>
 
-namespace Engine
-{
+namespace Engine {
     namespace PipelineProperties {
         /// @brief C.f. `vkPipelineRasterizationStateCreateInfo`
         struct REFL_SER_CLASS(REFL_BLACKLIST) RasterizerProperties {
@@ -36,22 +35,22 @@ namespace Engine
             using DSComparator = PipelineUtils::DSComparator;
 
             /// @brief Operation used if stencil test is failed.
-            StencilOperation fail_op {StencilOperation::Keep};
+            StencilOperation fail_op{StencilOperation::Keep};
             /// @brief Operation used if both stencil and depth tests are passed.
-            StencilOperation pass_op {StencilOperation::Keep};
+            StencilOperation pass_op{StencilOperation::Keep};
             /// @brief Operation used if stencil test is passed but depth test is failed.
-            StencilOperation zfail_op {StencilOperation::Keep};
+            StencilOperation zfail_op{StencilOperation::Keep};
 
             /// @brief Comparator used for stencil test.
-            DSComparator comparator {DSComparator::Never};
+            DSComparator comparator{DSComparator::Never};
 
             /// @brief 8-bits mask applied before stencil comparing.
-            uint8_t compare_mask {0xFF};
+            uint8_t compare_mask{0xFF};
             /// @brief 8-bits mask applied before stencil writing.
-            uint8_t write_mask {0xFF};
+            uint8_t write_mask{0xFF};
             /// @brief Reference value used for stencil comparator.
             /// It is possible to set the reference value in runtime.
-            uint8_t reference {0x00};
+            uint8_t reference{0x00};
         };
 
         /// @brief C.f. `vkPipelineDepthStencilStateCreateInfo`
@@ -76,26 +75,27 @@ namespace Engine
             float min_depth{0.0f};
             float max_depth{1.0f};
         };
-        
+
         /// @brief C.f. `vkPipelineShaderStageCreateInfo`
         struct REFL_SER_CLASS(REFL_BLACKLIST) Shaders {
             REFL_SER_SIMPLE_STRUCT(Shaders)
 
             /// @brief A vector of all shader programs used in the pipeline
-            std::vector <std::shared_ptr<AssetRef>> shaders {};
+            std::vector<std::shared_ptr<AssetRef>> shaders{};
             // TODO: Support shader specialization
             // std::vector <...> specialization;
 
             /// @brief stores information regarding layout info, aka descriptors, shared across all stages.
             /// @deprecated Automatically reflected from shader SPIR-V source code.
-            std::vector <ShaderVariableProperty> uniforms {};
+            std::vector<ShaderVariableProperty> uniforms{};
 
             /// @brief stores information of variables stored in the UBO.
             /// @deprecated Automatically reflected from shader SPIR-V source code.
-            std::vector <ShaderInBlockVariableProperty> ubo_variables {};
+            std::vector<ShaderInBlockVariableProperty> ubo_variables{};
         };
 
-        /// @brief C.f. https://registry.khronos.org/vulkan/specs/latest/man/html/VkPipelineColorBlendAttachmentState.html
+        /// @brief C.f.
+        /// https://registry.khronos.org/vulkan/specs/latest/man/html/VkPipelineColorBlendAttachmentState.html
         struct REFL_SER_CLASS(REFL_BLACKLIST) ColorBlendingProperties {
             REFL_SER_SIMPLE_STRUCT(ColorBlendingProperties)
 
@@ -105,39 +105,47 @@ namespace Engine
 
             /**
              * @brief Blending operation of color components.
-             * If either `color_op` or `alpha_op` is set to `None`, blending will be disabled,
-             * and all other settings specified in the struct is ignored, including `color_write_mask`.
+             * If either `color_op` or
+             * `alpha_op` is set to `None`, blending will be disabled,
+             * and all other settings specified
+             * in the struct is ignored, including `color_write_mask`.
              */
-            BlendOperation color_op {BlendOperation::None};
+            BlendOperation color_op{BlendOperation::None};
             /**
              * @brief Blending operation of alpha components.
-             * If either `color_op` or `alpha_op` is set to `None`, blending will be disabled,
-             * and all other settings specified in the struct is ignored, including `color_write_mask`.
+             * If either `color_op` or
+             * `alpha_op` is set to `None`, blending will be disabled,
+             * and all other settings specified
+             * in the struct is ignored, including `color_write_mask`.
              */
-            BlendOperation alpha_op {BlendOperation::None};
+            BlendOperation alpha_op{BlendOperation::None};
 
             /**
              * @brief Factor multiplied to color to be drawn when blending.
-             * Common values are `One` and `SrcAlpha`.
+             * Common values
+             * are `One` and `SrcAlpha`.
              */
-            BlendFactor src_color {BlendFactor::One};
+            BlendFactor src_color{BlendFactor::One};
             /**
              * @brief Factor multiplied to color in the color attachment when blending.
+             *
              * Common values are `Zero` and `OneMinusSrcAlpha`.
              */
-            BlendFactor dst_color {BlendFactor::Zero};
+            BlendFactor dst_color{BlendFactor::Zero};
             /**
              * @brief Factor multiplied to alpha to be drawn when blending.
-             * The most common value is `One`.
+             * The most
+             * common value is `One`.
              */
-            BlendFactor src_alpha {BlendFactor::One};
+            BlendFactor src_alpha{BlendFactor::One};
             /**
              * @brief Factor multiplied to alpha in the color attachment when blending.
+             *
              * The most common value is `Zero`.
              */
-            BlendFactor dst_alpha {BlendFactor::Zero};
+            BlendFactor dst_alpha{BlendFactor::Zero};
 
-            ColorChannelMask color_write_mask {ColorChannelMask::All};
+            ColorChannelMask color_write_mask{ColorChannelMask::All};
         };
 
         /// @brief C.f. `vkPipelineRenderingCreateInfo`
@@ -148,20 +156,21 @@ namespace Engine
             /// @brief Color attachments. If they and depth attachment are all left empty,
             /// the pipeline will be configured to use the current swapchain as attachments.
             /// You can specify `UNDEFINED` format to use default image format determined at runtime.
-            std::vector <ImageUtils::ImageFormat> color {};
+            std::vector<ImageUtils::ImageFormat> color{};
 
             /**
              * @brief Color attachment blending operations.
-             * When specified, its size must be equal to the size of `color`.
+             * When specified, its size must
+             * be equal to the size of `color`.
              */
-            std::vector <ColorBlendingProperties> color_blending {};
+            std::vector<ColorBlendingProperties> color_blending{};
 
             /// @brief Depth attachment format. If color attachments and it are all left empty,
             /// the pipeline will be configured to use the current swapchain as attachments.
-            ImageUtils::ImageFormat depth {};
-            ImageUtils::ImageFormat stencil {};
+            ImageUtils::ImageFormat depth{};
+            ImageUtils::ImageFormat stencil{};
         };
-    }
-}
+    } // namespace PipelineProperties
+} // namespace Engine
 
 #endif // ASSET_MATERIAL_PIPELINEPROPERTY_INCLUDED

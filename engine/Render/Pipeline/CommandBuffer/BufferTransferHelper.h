@@ -22,12 +22,13 @@ namespace Engine {
             // Barrier between clear (e.g. `vkCmdFillBuffer`) and copy (e.g. `vkCmdCopyBufferToImage`) commands.
             ClearAfter
         };
-        
+
         static vk::MemoryBarrier2 GetBufferBarrier(BufferTransferType type);
+
     protected:
         static std::pair<vk::PipelineStageFlagBits2, vk::AccessFlags2> GetScope1(BufferTransferType type);
         static std::pair<vk::PipelineStageFlagBits2, vk::AccessFlags2> GetScope2(BufferTransferType type);
     };
-}
+} // namespace Engine
 
 #endif // PIPELINE_COMMANDBUFFER_BUFFERTRANSFERHELPER_INCLUDED

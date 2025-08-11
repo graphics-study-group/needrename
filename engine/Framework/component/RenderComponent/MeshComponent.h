@@ -4,13 +4,11 @@
 #include <Framework/component/RenderComponent/RendererComponent.h>
 #include <Reflection/macros.h>
 
-namespace Engine
-{
+namespace Engine {
     class AssetRef;
     class HomogeneousMesh;
 
-    class REFL_SER_CLASS(REFL_WHITELIST) MeshComponent : public RendererComponent
-    {
+    class REFL_SER_CLASS(REFL_WHITELIST) MeshComponent : public RendererComponent {
         REFL_SER_BODY(MeshComponent)
     protected:
         std::vector<std::shared_ptr<HomogeneousMesh>> m_submeshes{};
@@ -29,6 +27,6 @@ namespace Engine
 
         REFL_SER_ENABLE std::shared_ptr<AssetRef> m_mesh_asset{};
     };
-}
+} // namespace Engine
 
 #endif // FRAMEWORK_COMPONENT_RENDERCOMPONENT_MESHCOMPONENT_INCLUDED

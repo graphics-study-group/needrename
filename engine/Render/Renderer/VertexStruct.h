@@ -46,18 +46,19 @@ namespace Engine {
         constexpr uint32_t VERTEX_ATTRIBUTE_EXTENDED_COUNT = 4;
         constexpr uint32_t VERTEX_ATTRIBUTE_SKINNED_COUNT = 2;
 
-        constexpr const std::array <size_t, 4> PER_VERTEX_SIZE_DELTA = {
-            sizeof (VertexPosition),
-            sizeof (VertexAttributeBasic),
-            sizeof (VertexAttributeExtended),
-            sizeof (VertexAttributeSkinned)
+        constexpr const std::array<size_t, 4> PER_VERTEX_SIZE_DELTA = {
+            sizeof(VertexPosition),
+            sizeof(VertexAttributeBasic),
+            sizeof(VertexAttributeExtended),
+            sizeof(VertexAttributeSkinned)
         };
 
-        constexpr const std::array <size_t, 4> PER_VERTEX_SIZE = {
-            sizeof (VertexPosition),
-            sizeof (VertexPosition) + sizeof (VertexAttributeBasic),
-            sizeof (VertexPosition) + sizeof (VertexAttributeBasic) + sizeof (VertexAttributeExtended),
-            sizeof (VertexPosition) + sizeof (VertexAttributeBasic) + sizeof (VertexAttributeExtended) + sizeof (VertexAttributeSkinned)
+        constexpr const std::array<size_t, 4> PER_VERTEX_SIZE = {
+            sizeof(VertexPosition),
+            sizeof(VertexPosition) + sizeof(VertexAttributeBasic),
+            sizeof(VertexPosition) + sizeof(VertexAttributeBasic) + sizeof(VertexAttributeExtended),
+            sizeof(VertexPosition) + sizeof(VertexAttributeBasic) + sizeof(VertexAttributeExtended)
+                + sizeof(VertexAttributeSkinned)
         };
 
         constexpr const std::array<vk::VertexInputBindingDescription, 2> BINDINGS_BASIC = {
@@ -66,33 +67,25 @@ namespace Engine {
             // Other attributes
             vk::VertexInputBindingDescription{1, sizeof(VertexAttributeBasic), vk::VertexInputRate::eVertex}
         };
-        constexpr const std::array<vk::VertexInputAttributeDescription, VertexStruct::VERTEX_ATTRIBUTE_BASIC_COUNT + 1> ATTRIBUTES_BASIC = {
-            // Position
-            vk::VertexInputAttributeDescription{0, BINDINGS_BASIC[0].binding, vk::Format::eR32G32B32Sfloat, 0},
-            // Vertex color
-            vk::VertexInputAttributeDescription{
-                1, 
-                BINDINGS_BASIC[1].binding, 
-                vk::Format::eR32G32B32Sfloat, 
-                VertexStruct::OFFSET_COLOR
-            },
-            // Vertex normal
-            vk::VertexInputAttributeDescription{
-                2, 
-                BINDINGS_BASIC[1].binding, 
-                vk::Format::eR32G32B32Sfloat, 
-                VertexStruct::OFFSET_NORMAL
-            },
-            // Texcoord 1
-            vk::VertexInputAttributeDescription{
-                3,
-                BINDINGS_BASIC[1].binding,
-                vk::Format::eR32G32Sfloat,
-                VertexStruct::OFFSET_TEXCOORD1
-            }
+        constexpr const std::array<vk::VertexInputAttributeDescription, VertexStruct::VERTEX_ATTRIBUTE_BASIC_COUNT + 1>
+            ATTRIBUTES_BASIC = {
+                // Position
+                vk::VertexInputAttributeDescription{0, BINDINGS_BASIC[0].binding, vk::Format::eR32G32B32Sfloat, 0},
+                // Vertex color
+                vk::VertexInputAttributeDescription{
+                    1, BINDINGS_BASIC[1].binding, vk::Format::eR32G32B32Sfloat, VertexStruct::OFFSET_COLOR
+                },
+                // Vertex normal
+                vk::VertexInputAttributeDescription{
+                    2, BINDINGS_BASIC[1].binding, vk::Format::eR32G32B32Sfloat, VertexStruct::OFFSET_NORMAL
+                },
+                // Texcoord 1
+                vk::VertexInputAttributeDescription{
+                    3, BINDINGS_BASIC[1].binding, vk::Format::eR32G32Sfloat, VertexStruct::OFFSET_TEXCOORD1
+                }
         };
 
-    };
-};
+    }; // namespace VertexStruct
+}; // namespace Engine
 
 #endif // RENDER_RENDERER_VERTEXSTRUCT_INCLUDED

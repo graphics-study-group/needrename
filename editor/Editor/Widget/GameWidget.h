@@ -3,20 +3,17 @@
 
 #include "Widget.h"
 #include <Render/Pipeline/RenderTargetBinding.h>
-#include <memory>
 #include <imgui.h>
+#include <memory>
 
-namespace Engine
-{
+namespace Engine {
     class RenderSystem;
     class SampledTexture;
     class GraphicsCommandBuffer;
-}
+} // namespace Engine
 
-namespace Editor
-{
-    class GameWidget : public Widget
-    {
+namespace Editor {
+    class GameWidget : public Widget {
     public:
         GameWidget(const std::string &name);
         virtual ~GameWidget();
@@ -24,10 +21,11 @@ namespace Editor
         virtual void Render() override;
 
         void CreateRenderTargetBinding(std::shared_ptr<Engine::RenderSystem> render_system);
-        /// @brief Draw the active camera to the widget texture used for ImGui. Contain a synchronization operation for writting to the color and depth textures.
+        /// @brief Draw the active camera to the widget texture used for ImGui. Contain a synchronization operation for
+        /// writting to the color and depth textures.
         /// XXX: Should be rewritten after we have a better render pipline.
         void PreRender();
-        
+
     protected:
         Engine::RenderTargetBinding m_render_target_binding{};
         ImVec2 m_viewport_size{1280, 720};
@@ -42,6 +40,6 @@ namespace Editor
 
         bool m_accept_input{false};
     };
-}
+} // namespace Editor
 
 #endif // EDITOR_WIDGET_GAMEWIDGET_INCLUDED

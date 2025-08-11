@@ -2,31 +2,27 @@
 #define EDITOR_WIDGET_INSPECTORWIDGET_INCLUDED
 
 #include "Widget.h"
-#include <memory>
-#include <any>
-#include <string>
 #include <Reflection/Var.h>
+#include <any>
+#include <memory>
+#include <string>
 
-namespace Engine
-{
+namespace Engine {
     class GameObject;
 }
 
-namespace Editor
-{
-    class InspectorWidget : public Widget
-    {
+namespace Editor {
+    class InspectorWidget : public Widget {
     public:
         InspectorWidget(const std::string &name);
         virtual ~InspectorWidget();
 
         virtual void Render() override;
-    
+
         virtual void SetSelectedGameObject(std::weak_ptr<Engine::GameObject> game_object);
 
     protected:
-        enum class InspectorMode
-        {
+        enum class InspectorMode {
             kInspectorModeGameObject,
             kInspectorModeAsset,
             kInspectorModeNone
@@ -37,6 +33,6 @@ namespace Editor
 
         void InspectVar(const std::string &name, Engine::Reflection::Var var);
     };
-}
+} // namespace Editor
 
 #endif // EDITOR_WIDGET_INSPECTORWIDGET_INCLUDED

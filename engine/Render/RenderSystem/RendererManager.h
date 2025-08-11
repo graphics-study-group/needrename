@@ -10,11 +10,11 @@ namespace Engine {
 
     namespace RenderSystemState {
         class RendererManager {
-            RenderSystem & m_system;
+            RenderSystem &m_system;
             struct impl;
-            std::unique_ptr <impl> pimpl;
-        public:
+            std::unique_ptr<impl> pimpl;
 
+        public:
             struct FilterCriteria {
                 enum class BinaryCriterion : uint8_t {
                     No,
@@ -34,27 +34,27 @@ namespace Engine {
             };
 
             using RendererHandle = uint32_t;
-            using RendererList = std::vector <RendererHandle>;
+            using RendererList = std::vector<RendererHandle>;
 
-            RendererManager(RenderSystem & system);
+            RendererManager(RenderSystem &system);
             ~RendererManager();
 
-            RendererHandle RegisterRendererComponent(std::shared_ptr <RendererComponent> component);
+            RendererHandle RegisterRendererComponent(std::shared_ptr<RendererComponent> component);
 
             /**
              * @brief Unregister a component from the manager.
              * It will no longer be present in the `RendererList` returned by the manager.
              * Its underlying resources are not deallocated until a `UpdateRendererStates()` call,
-             * and its auxillary data will remain in the manager until a 
+             * and its auxillary data will remain in the manager until a
              * `ClearUnregisteredRendererComponent()` call.
              */
             void UnregisterRendererComponent(RendererHandle handle);
 
             /**
              * @brief Update renderer component states.
-             * Eagerly loaded renderers which are not currently loaded will be prepared 
+             * Eagerly loaded renderers which are not currently loaded will be prepared
              * to be submitted to GPU, and unregistered renderers are removed from GPU.
-             * 
+             *
              * Actual uploading is performed by `FrameManager`.
              */
             void UpdateRendererStates();
@@ -67,9 +67,9 @@ namespace Engine {
 
             /**
              * @brief Filter and sort renderers based on given criteria.
-             * All returned renderers that are not loaded to GPU (i.e. lazily loaded) will 
+             * All returned renderers that are not loaded to GPU (i.e. lazily loaded) will
              * be prepared to be submitted.
-             * 
+             *
              * Actual uploading is performed by `FrameManager`.
              */
             RendererList FilterAndSortRenderers(FilterCriteria fc, SortingCriterion sc = SortingCriterion::None);
@@ -77,12 +77,12 @@ namespace Engine {
             /**
              * @brief Get the renderer data used for draw calls.
              */
-            const RendererComponent * GetRendererData (RendererHandle handle) const noexcept;
+            const RendererComponent *GetRendererData(RendererHandle handle) const noexcept;
         };
-    }
+    } // namespace RenderSystemState
 
     using RendererHandle = RenderSystemState::RendererManager::RendererHandle;
     using RendererList = RenderSystemState::RendererManager::RendererList;
-}
+} // namespace Engine
 
 #endif // RENDER_RENDERSYSTEM_RENDERERMANAGER

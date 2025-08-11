@@ -8,7 +8,7 @@
 namespace vk {
     class Image;
     class ImageView;
-}
+} // namespace vk
 
 namespace Engine {
     class RenderSystem;
@@ -18,21 +18,22 @@ namespace Engine {
     class Texture {
     public:
         using TextureDesc = ImageUtils::TextureDesc;
+
     protected:
-        RenderSystem & m_system;
+        RenderSystem &m_system;
         TextureDesc m_desc;
-        std::unique_ptr <AllocatedMemory> m_image;
-        std::unique_ptr <SlicedTextureView> m_full_view;
+        std::unique_ptr<AllocatedMemory> m_image;
+        std::unique_ptr<SlicedTextureView> m_full_view;
         std::string m_name;
 
     public:
         Texture(RenderSystem &) noexcept;
         virtual ~Texture();
-        
+
         void CreateTexture(
             uint32_t dimensions,
-            uint32_t width, 
-            uint32_t height, 
+            uint32_t width,
+            uint32_t height,
             uint32_t depth,
             ImageUtils::ImageFormat format,
             ImageUtils::ImageType type,
@@ -44,16 +45,16 @@ namespace Engine {
 
         void CreateTexture(TextureDesc desc, std::string name = "");
 
-        const TextureDesc & GetTextureDescription() const noexcept;
+        const TextureDesc &GetTextureDescription() const noexcept;
 
         vk::Image GetImage() const noexcept;
 
-        const SlicedTextureView & GetFullSlice() const noexcept;
+        const SlicedTextureView &GetFullSlice() const noexcept;
 
         vk::ImageView GetImageView() const noexcept;
 
         Buffer CreateStagingBuffer() const;
     };
-}
+} // namespace Engine
 
 #endif // RENDER_MEMORY_TEXTURE_INCLUDED

@@ -1,20 +1,17 @@
 #ifndef EDITOR_FUNCTIONAL_SCENECAMERA_INCLUDED
 #define EDITOR_FUNCTIONAL_SCENECAMERA_INCLUDED
 
-#include <glm.hpp>
 #include <Core/Math/Transform.h>
+#include <glm.hpp>
 
-namespace Engine
-{
+namespace Engine {
     class Camera;
 }
 
-namespace Editor
-{
+namespace Editor {
     using Transform = Engine::Transform;
 
-    class SceneCamera
-    {
+    class SceneCamera {
     public:
         SceneCamera();
         ~SceneCamera() = default;
@@ -30,6 +27,6 @@ namespace Editor
 
         std::shared_ptr<Engine::Camera> m_camera{};
     };
-}
+} // namespace Editor
 
 #endif // EDITOR_FUNCTIONAL_SCENECAMERA_INCLUDED

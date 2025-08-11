@@ -1,8 +1,8 @@
 #ifndef ENGINE_RENDER_ATTACHMENTUTILS_INCLUDED
 #define ENGINE_RENDER_ATTACHMENTUTILS_INCLUDED
 
-#include <variant>
 #include <cstdint>
+#include <variant>
 
 namespace Engine {
     class Texture;
@@ -32,21 +32,21 @@ namespace Engine {
         typedef std::variant<ColorClearValue, DepthClearValue> ClearValue;
 
         struct AttachmentOp {
-            LoadOperation load_op {};
-            StoreOperation store_op {};
-            ClearValue clear_value {};
+            LoadOperation load_op{};
+            StoreOperation store_op{};
+            ClearValue clear_value{};
         };
 
         struct AttachmentDescription {
-            const Texture * texture {nullptr};
+            const Texture *texture{nullptr};
 
             /// @brief Sliced view of the texture. If left null, use the full view.
-            const SlicedTextureView * texture_view {nullptr};
+            const SlicedTextureView *texture_view{nullptr};
 
-            LoadOperation load_op {};
-            StoreOperation store_op {};
+            LoadOperation load_op{};
+            StoreOperation store_op{};
         };
-    }
-}
+    } // namespace AttachmentUtils
+} // namespace Engine
 
 #endif // ENGINE_RENDER_ATTACHMENTUTILS_INCLUDED

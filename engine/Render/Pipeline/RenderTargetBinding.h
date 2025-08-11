@@ -13,16 +13,16 @@ namespace Engine {
         bool HasDepthAttachment() const noexcept;
 
         AttachmentDescription GetDepthAttachment() const noexcept;
-        const std::vector <AttachmentDescription> & GetColorAttachments() const noexcept;
+        const std::vector<AttachmentDescription> &GetColorAttachments() const noexcept;
 
         void SetDepthAttachment(AttachmentDescription attachment);
         void SetColorAttachment(AttachmentDescription attachment);
-        void SetColorAttachments(std::initializer_list <AttachmentDescription> attachments);
-    
+        void SetColorAttachments(std::initializer_list<AttachmentDescription> attachments);
+
     private:
-        std::vector <AttachmentDescription> m_color_attachments {};
-        AttachmentDescription m_depth_attachment {};
+        std::vector<AttachmentDescription> m_color_attachments{};
+        AttachmentDescription m_depth_attachment{};
     };
-}
+} // namespace Engine
 
 #endif // RENDER_PIPELINE_RENDERTARGETBINDING_INCLUDED

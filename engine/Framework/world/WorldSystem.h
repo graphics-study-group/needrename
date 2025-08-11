@@ -1,21 +1,19 @@
 #ifndef FRAMEWORK_WORLD_WORLDSYSTEM_H
 #define FRAMEWORK_WORLD_WORLDSYSTEM_H
 
+#include <Core/guid.h>
+#include <Framework/component/TransformComponent/TransformComponent.h>
+#include <Framework/object/GameObject.h>
+#include <memory>
 #include <random>
 #include <vector>
-#include <memory>
-#include <Core/guid.h>
-#include <Framework/object/GameObject.h>
-#include <Framework/component/TransformComponent/TransformComponent.h>
 
-namespace Engine
-{
+namespace Engine {
     class LevelAsset;
     class GameObjectAsset;
     class Camera;
 
-    class WorldSystem
-    {
+    class WorldSystem {
     public:
         WorldSystem();
         ~WorldSystem();
@@ -37,7 +35,8 @@ namespace Engine
         template <typename T>
         void AddGameObjectToWorld(std::shared_ptr<T> go);
 
-        /// @brief Load all GameObjects in the loading queue. This will call Init() on all components of the GameObjects.
+        /// @brief Load all GameObjects in the loading queue. This will call Init() on all components of the
+        /// GameObjects.
         void LoadGameObjectInQueue();
 
         /// @brief Load a level asset. Add all GameObjects in the level asset to the loading queue.
@@ -60,8 +59,7 @@ namespace Engine
     };
 
     template <typename T, typename... Args>
-    std::shared_ptr<T> WorldSystem::CreateGameObject(Args... args)
-    {
+    std::shared_ptr<T> WorldSystem::CreateGameObject(Args... args) {
         static_assert(std::is_base_of<GameObject, T>::value, "T must be derived from GameObject");
         GameObject *go_ptr = new T(std::forward<Args>(args)...);
         auto game_object = std::shared_ptr<T>(go_ptr);
@@ -71,10 +69,9 @@ namespace Engine
     }
 
     template <typename T>
-    void WorldSystem::AddGameObjectToWorld(std::shared_ptr<T> go)
-    {
+    void WorldSystem::AddGameObjectToWorld(std::shared_ptr<T> go) {
         static_assert(std::is_base_of<GameObject, T>::value, "T must be derived from GameObject");
         m_go_loading_queue.push_back(go);
     }
-}
+} // namespace Engine
 #endif // FRAMEWORK_WORLD_WORLDSYSTEM_H

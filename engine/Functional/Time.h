@@ -3,10 +3,8 @@
 
 #include <cstdint>
 
-namespace Engine
-{
-    class TimeSystem
-    {
+namespace Engine {
+    class TimeSystem {
     public:
         TimeSystem() = default;
         ~TimeSystem() = default;
@@ -24,6 +22,6 @@ namespace Engine
         uint64_t m_delta_time = 0;
         uint64_t m_frame_count = 0;
     };
-}
+} // namespace Engine
 
 #endif // ENGINE_FUNCTIONAL_TIME_H

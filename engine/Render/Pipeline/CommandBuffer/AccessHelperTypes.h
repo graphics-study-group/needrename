@@ -59,7 +59,7 @@ namespace Engine {
             /// Random read and write in compute shaders as storage image, in general layout.
             ShaderReadRandomWrite
         };
-    }
-}
+    } // namespace AccessHelper
+} // namespace Engine
 
 #endif // PIPELINE_COMMANDBUFFER_ACCESSHELPER_INCLUDED

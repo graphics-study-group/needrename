@@ -5,8 +5,7 @@
 #include <unordered_map>
 #include <vulkan/vulkan.hpp>
 
-namespace Engine
-{
+namespace Engine {
     namespace ShaderUtils {
         struct DescriptorSetLayoutData {
             uint32_t set_number;
@@ -25,7 +24,7 @@ namespace Engine
                 uint32_t abs_offset;
                 uint32_t size;
             } inblock_location;
-            
+
             using Type = ShaderInBlockVariableProperty::InBlockVarType;
             Type type;
         };
@@ -43,13 +42,13 @@ namespace Engine
             DescriptorSetLayoutData per_material_descriptor_set_layout;
 
             struct {
-                std::unordered_map <std::string, uint32_t> names;
-                std::vector <InBlockVariableData> vars;
+                std::unordered_map<std::string, uint32_t> names;
+                std::vector<InBlockVariableData> vars;
             } inblock;
-            
+
             struct {
-                std::unordered_map <std::string, uint32_t> names;
-                std::vector <DesciptorVariableData> vars;
+                std::unordered_map<std::string, uint32_t> names;
+                std::vector<DesciptorVariableData> vars;
             } desc;
         };
 
@@ -57,20 +56,19 @@ namespace Engine
             DescriptorSetLayoutData set_layout;
 
             struct {
-                std::unordered_map <std::string, uint32_t> names;
-                std::vector <InBlockVariableData> vars;
+                std::unordered_map<std::string, uint32_t> names;
+                std::vector<InBlockVariableData> vars;
             } inblock;
-            
+
             struct {
-                std::unordered_map <std::string, uint32_t> names;
-                std::vector <DesciptorVariableData> vars;
+                std::unordered_map<std::string, uint32_t> names;
+                std::vector<DesciptorVariableData> vars;
             } desc;
         };
 
-        ReflectedDataCollection ReflectSpirvData(const std::vector<uint32_t> & spirv_code);
-        ReflectedDataCollectionCompute ReflectSpirvDataCompute(const std::vector <uint32_t> & spirv_code);
-    }
+        ReflectedDataCollection ReflectSpirvData(const std::vector<uint32_t> &spirv_code);
+        ReflectedDataCollectionCompute ReflectSpirvDataCompute(const std::vector<uint32_t> &spirv_code);
+    } // namespace ShaderUtils
 } // namespace Engine
-
 
 #endif // PIPELINE_MATERIAL_SHADERUTILS_INCLUDED

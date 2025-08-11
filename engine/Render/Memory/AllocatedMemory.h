@@ -7,12 +7,12 @@
 namespace vk {
     class Image;
     class Buffer;
-}
+} // namespace vk
 
 namespace Engine {
     class AllocatedMemory {
         struct impl;
-        std::unique_ptr <impl> pimpl;
+        std::unique_ptr<impl> pimpl;
 
         void ClearAndInvalidate();
 
@@ -21,11 +21,11 @@ namespace Engine {
         AllocatedMemory(vk::Buffer buffer, VmaAllocation allocation, VmaAllocator allocator);
         ~AllocatedMemory();
 
-        AllocatedMemory (const AllocatedMemory &) = delete;
-        void operator = (const AllocatedMemory &) = delete;
+        AllocatedMemory(const AllocatedMemory &) = delete;
+        void operator=(const AllocatedMemory &) = delete;
 
-        AllocatedMemory (AllocatedMemory && other);
-        AllocatedMemory & operator = (AllocatedMemory && other);
+        AllocatedMemory(AllocatedMemory &&other);
+        AllocatedMemory &operator=(AllocatedMemory &&other);
 
         vk::Buffer GetBuffer() const;
         vk::Image GetImage() const;
@@ -33,36 +33,43 @@ namespace Engine {
         /**
          * @brief Map the memory to a host pointer.
          * 
-         * The pointer is cached in the class and automatically unmapped
-         * on deconstruction. You don't need to match `UnmapMemory()` manually
+         * The pointer is cached in the
+         * class and automatically unmapped
+         * on deconstruction. You don't need to match `UnmapMemory()`
+         * manually
          * before cleaning up.
          */
-        std::byte * MapMemory();
+        std::byte *MapMemory();
 
         /**
          * @brief Flush the memory write to be visible on device.
          * 
-         * Generally you don't need to manually call this member, as memories that
+         * Generally you don't
+         * need to manually call this member, as memories that
          * need to be flushed are usually coherent.
-         */
-        void FlushMemory (size_t offset = 0, size_t size = 0);
-    
+ */
+        void FlushMemory(size_t offset = 0, size_t size = 0);
+
         /**
          * @brief Invalidate the memory so that device write are visible on host.
          * 
+         *
          * Generally you don't need to manually call this member, as memories that
-         * need to be invalidated are usually coherent.
+         * need to be invalidated are
+         * usually coherent.
          */
-        void InvalidateMemory (size_t offset = 0, size_t size = 0);
+        void InvalidateMemory(size_t offset = 0, size_t size = 0);
 
         /**
          * @brief Unmap the host pointer and reset the cached pointer.
          * 
-         * Generally you don't need to manually call this member, as clean up is
+         * Generally you
+         * don't need to manually call this member, as clean up is
          * automatically done with RAII mechanism.
+
          */
         void UnmapMemory();
     };
-}
+} // namespace Engine
 
 #endif // RENDER_MEMORY_ALLOCATEDMEMORY_INCLUDED

@@ -1,18 +1,15 @@
 #ifndef REFLECTION_VAR_INCLUDED
 #define REFLECTION_VAR_INCLUDED
 
-#include <string>
 #include <memory>
+#include <string>
 
-namespace Engine
-{
-    namespace Reflection
-    {
+namespace Engine {
+    namespace Reflection {
         class Type;
         class ConstVar;
 
-        class Var
-        {
+        class Var {
         public:
             Var() = default;
             Var(const Var &var) = default;
@@ -44,7 +41,7 @@ namespace Engine
             /// @param ... the arguments to the method
             /// @return a Var object representing the return value of the method
             template <typename... Args>
-            Var InvokeMethod(const std::string &name, Args&&...);
+            Var InvokeMethod(const std::string &name, Args &&...);
 
             /// @brief Get a member field of the object.
             /// @param name the name of the field
@@ -56,8 +53,7 @@ namespace Engine
             operator ConstVar() const;
         };
 
-        class ConstVar
-        {
+        class ConstVar {
         public:
             ConstVar() = default;
             ConstVar(const ConstVar &var) = default;
@@ -89,7 +85,7 @@ namespace Engine
             /// @param ... the arguments to the method
             /// @return a Var object representing the return value of the method
             template <typename... Args>
-            Var InvokeMethod(const std::string &name, Args&&...);
+            Var InvokeMethod(const std::string &name, Args &&...);
 
             /// @brief Get a member field of the object.
             /// @param name the name of the field
@@ -98,8 +94,8 @@ namespace Engine
 
             ConstVar &operator=(const ConstVar &var);
         };
-    }
-}
+    } // namespace Reflection
+} // namespace Engine
 
 #include "Var.tpp"
 

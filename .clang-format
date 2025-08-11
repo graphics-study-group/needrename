@@ -30,4 +30,3 @@ BreakConstructorInitializers: AfterColon
 BreakTemplateDeclarations: Yes
 LineEnding: CRLF
 NamespaceIndentation: All
-Language: Cpp

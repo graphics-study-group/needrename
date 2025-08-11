@@ -2,28 +2,27 @@
 #define REFLECTION_ARCHIVE_INCLUDED
 
 #include <memory>
-#include <string>
-#include <vector>
-#include <unordered_map>
 #include <nlohmann/json.hpp>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
-namespace Engine
-{
-    namespace Serialization
-    {
+namespace Engine {
+    namespace Serialization {
         using Json = nlohmann::json;
         using Buffer = std::vector<std::byte>;
         using AddressID = unsigned long long;
         using IDMap = std::unordered_map<AddressID, int>;
         using PointerMap = std::unordered_map<int, std::shared_ptr<void>>;
 
-        /// @brief An Archive is used to store serialized data. It can be used to save data to a file or load data from a file.
-        /// @details An Archive holds a global context and the current state. The global context stores major data during serialization and deserialization, while the current state tracks the position in the data for reading or writing.
-        class Archive
-        {
+        /// @brief An Archive is used to store serialized data. It can be used to save data to a file or load data from
+        /// a file.
+        /// @details An Archive holds a global context and the current state. The global context stores major data
+        /// during serialization and deserialization, while the current state tracks the position in the data for
+        /// reading or writing.
+        class Archive {
         public:
-            struct GlobalContext
-            {
+            struct GlobalContext {
                 // The json object stores the data in a json format.
                 Json json{};
                 // The extra data is used to store additional data. Usually binary data.
@@ -70,8 +69,7 @@ namespace Engine
             /// @param property the property name
             /// @return the json object
             template <typename T>
-            const Json &GetMainDataProperty(const T &property) const
-            {
+            const Json &GetMainDataProperty(const T &property) const {
                 auto &json = m_context->json;
                 assert(json.contains("%main_id"));
                 std::string str_id = json["%main_id"].get<std::string>();
@@ -80,7 +78,7 @@ namespace Engine
                 return json["%data"][str_id][property];
             }
         };
-    }
-}
+    } // namespace Serialization
+} // namespace Engine
 
 #endif // REFLECTION_ARCHIVE_INCLUDED

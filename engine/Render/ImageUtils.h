@@ -39,7 +39,7 @@ namespace Engine {
             uint32_t array_layers;
             bool is_cube_map;
         };
-    }
-}
+    } // namespace ImageUtils
+} // namespace Engine
 
 #endif // ENGINE_RENDER_IMAGEUTILS_INCLUDED

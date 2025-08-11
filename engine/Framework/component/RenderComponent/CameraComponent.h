@@ -1,12 +1,11 @@
 #ifndef FRAMEWORK_COMPONENT_RENDERCOMPONENT_CAMERACOMPONENT_INCLUDED
 #define FRAMEWORK_COMPONENT_RENDERCOMPONENT_CAMERACOMPONENT_INCLUDED
 
-#include <glm.hpp>
 #include <Framework/component/Component.h>
 #include <Reflection/macros.h>
+#include <glm.hpp>
 
-namespace Engine
-{
+namespace Engine {
     class Camera;
     /// @brief A perspective camera component
     class REFL_SER_CLASS(REFL_WHITELIST) CameraComponent : public Component {
@@ -19,12 +18,11 @@ namespace Engine
 
     public:
         REFL_SER_ENABLE std::shared_ptr<Camera> m_camera{};
-    
+
     protected:
         void UpdateViewMatrix();
         void UpdateProjectionMatrix();
     };
 } // namespace Engine
-
 
 #endif // FRAMEWORK_COMPONENT_RENDERCOMPONENT_CAMERACOMPONENT_INCLUDED

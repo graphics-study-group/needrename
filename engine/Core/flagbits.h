@@ -1,15 +1,16 @@
 #ifndef CORE_FLAGBITS
 #define CORE_FLAGBITS
 
-#include <type_traits>
 #include <initializer_list>
+#include <type_traits>
 
 namespace Engine {
     /**
      * @brief Type-safe bit flag to be used with scoped or unscoped enums.
      * Maybe we can directly use vk::Flags and avoid re-inventing the wheels...
      */
-    template <class T> requires std::is_enum_v<T>
+    template <class T>
+        requires std::is_enum_v<T>
     class Flags {
         using UnderlyingType = std::underlying_type_t<T>;
         UnderlyingType m_flags;
@@ -35,7 +36,7 @@ namespace Engine {
         }
 
         /// @brief Convert to the underlying integer type.
-        constexpr explicit operator UnderlyingType () {
+        constexpr explicit operator UnderlyingType() {
             return m_flags;
         }
 
@@ -78,43 +79,42 @@ namespace Engine {
             return Flags(lhs.m_flags ^ rhs.m_flags);
         }
 
-        friend constexpr Flags& operator|=(Flags& lhs, T rhs) noexcept {
+        friend constexpr Flags &operator|=(Flags &lhs, T rhs) noexcept {
             lhs.m_flags |= static_cast<UnderlyingType>(rhs);
             return lhs;
         }
-        friend constexpr Flags& operator|=(Flags& lhs, Flags rhs) noexcept {
+        friend constexpr Flags &operator|=(Flags &lhs, Flags rhs) noexcept {
             lhs.m_flags |= rhs.m_flags;
             return lhs;
         }
-        friend constexpr Flags& operator&=(Flags& lhs, T rhs) noexcept {
+        friend constexpr Flags &operator&=(Flags &lhs, T rhs) noexcept {
             lhs.m_flags &= static_cast<UnderlyingType>(rhs);
             return lhs;
         }
-        friend constexpr Flags& operator&=(Flags& lhs, Flags rhs) noexcept {
+        friend constexpr Flags &operator&=(Flags &lhs, Flags rhs) noexcept {
             lhs.m_flags &= rhs.m_flags;
             return lhs;
         }
-        friend constexpr Flags& operator^=(Flags& lhs, T rhs) noexcept {
+        friend constexpr Flags &operator^=(Flags &lhs, T rhs) noexcept {
             lhs.m_flags ^= static_cast<UnderlyingType>(rhs);
             return lhs;
         }
-        friend constexpr Flags& operator^=(Flags& lhs, Flags rhs) noexcept {
+        friend constexpr Flags &operator^=(Flags &lhs, Flags rhs) noexcept {
             lhs.m_flags ^= rhs.m_flags;
             return lhs;
         }
 
-        friend constexpr Flags operator~(const Flags& bf) noexcept {
+        friend constexpr Flags operator~(const Flags &bf) noexcept {
             return Flags(~bf.m_flags);
         }
 
-        friend constexpr bool operator==(const Flags& lhs, const Flags& rhs) noexcept {
+        friend constexpr bool operator==(const Flags &lhs, const Flags &rhs) noexcept {
             return lhs.m_flags == rhs.m_flags;
         }
-        friend constexpr bool operator!=(const Flags& lhs, const Flags& rhs) noexcept {
+        friend constexpr bool operator!=(const Flags &lhs, const Flags &rhs) noexcept {
             return lhs.m_flags != rhs.m_flags;
         }
-
     };
-}
+} // namespace Engine
 
 #endif // CORE_FLAGBITS

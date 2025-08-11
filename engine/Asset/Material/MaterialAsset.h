@@ -1,24 +1,22 @@
 #ifndef ASSET_MATERIAL_MATERIALASSET_INCLUDED
 #define ASSET_MATERIAL_MATERIALASSET_INCLUDED
 
-#include <memory>
-#include <string>
-#include <any>
-#include <glm.hpp>
-#include <unordered_map>
 #include <Asset/Asset.h>
 #include <Asset/Material/ShaderAsset.h>
 #include <Reflection/macros.h>
 #include <Reflection/serialization_smart_pointer.h>
 #include <Reflection/serialization_unordered_map.h>
+#include <any>
+#include <glm.hpp>
+#include <memory>
+#include <string>
+#include <unordered_map>
 
-namespace Engine
-{
+namespace Engine {
     class ObjLoader;
     class AssetRef;
 
-    struct REFL_SER_CLASS(REFL_WHITELIST) MaterialProperty
-    {
+    struct REFL_SER_CLASS(REFL_WHITELIST) MaterialProperty {
         REFL_SER_BODY(MaterialProperty)
 
         using Type = ShaderVariableProperty::Type;
@@ -40,8 +38,7 @@ namespace Engine
         virtual ~MaterialProperty() = default;
     };
 
-    class REFL_SER_CLASS(REFL_WHITELIST) MaterialAsset : public Asset
-    {
+    class REFL_SER_CLASS(REFL_WHITELIST) MaterialAsset : public Asset {
         REFL_SER_BODY(MaterialAsset)
     public:
         REFL_ENABLE MaterialAsset() = default;
@@ -53,6 +50,6 @@ namespace Engine
 
         friend class ObjLoader;
     };
-}
+} // namespace Engine
 
 #endif // ASSET_MATERIAL_MATERIALASSET_INCLUDED

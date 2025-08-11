@@ -1,8 +1,8 @@
 #ifndef ENGINE_RENDER_RENDERSYSTEM_INCLUDED
 #define ENGINE_RENDER_RENDERSYSTEM_INCLUDED
 
-#include <memory>
 #include <glm.hpp>
+#include <memory>
 
 // Suppress warning from std::enable_shared_from_this
 #pragma GCC diagnostic push
@@ -13,10 +13,9 @@ namespace vk {
     class SurfaceKHR;
     class Device;
     class PhysicalDevice;
-}
+} // namespace vk
 
-namespace Engine
-{
+namespace Engine {
     class SDLWindow;
     class RendererComponent;
     class Camera;
@@ -36,33 +35,31 @@ namespace Engine
         class SwapchainSupport;
         class QueueFamilyIndices;
         class QueueInfo;
-    };
+    }; // namespace RenderSystemState
 
-    class RenderSystem : public std::enable_shared_from_this<RenderSystem>
-    {
+    class RenderSystem : public std::enable_shared_from_this<RenderSystem> {
     private:
         class impl;
-        std::unique_ptr <impl> pimpl;
+        std::unique_ptr<impl> pimpl;
 
     public:
-
         using SwapchainSupport = Engine::RenderSystemState::SwapchainSupport;
         using QueueFamilyIndices = Engine::RenderSystemState::QueueFamilyIndices;
         using QueueInfo = Engine::RenderSystemState::QueueInfo;
 
-        RenderSystem(std::weak_ptr <SDLWindow> parent_window);
+        RenderSystem(std::weak_ptr<SDLWindow> parent_window);
 
         RenderSystem(const RenderSystem &) = delete;
         RenderSystem(RenderSystem &&) = delete;
-        void operator= (const RenderSystem &) = delete;
-        void operator= (RenderSystem &&) = delete; 
+        void operator=(const RenderSystem &) = delete;
+        void operator=(RenderSystem &&) = delete;
 
         void Create();
 
         ~RenderSystem();
 
-        void SetActiveCamera(std::weak_ptr <Camera>);
-        std::weak_ptr <Camera> GetActiveCamera() const;
+        void SetActiveCamera(std::weak_ptr<Camera>);
+        std::weak_ptr<Camera> GetActiveCamera() const;
         uint32_t GetActiveCameraId() const;
         void WaitForIdle() const;
 
@@ -82,25 +79,25 @@ namespace Engine
 
         vk::PhysicalDevice GetPhysicalDevice() const;
 
-        const RenderSystemState::AllocatorState & GetAllocatorState() const;
+        const RenderSystemState::AllocatorState &GetAllocatorState() const;
 
-        const QueueFamilyIndices & GetQueueFamilies() const;
+        const QueueFamilyIndices &GetQueueFamilies() const;
 
-        const QueueInfo & getQueueInfo () const;
+        const QueueInfo &getQueueInfo() const;
 
-        const RenderSystemState::Swapchain & GetSwapchain() const;
+        const RenderSystemState::Swapchain &GetSwapchain() const;
 
-        const RenderSystemState::GlobalConstantDescriptorPool & GetGlobalConstantDescriptorPool() const;
+        const RenderSystemState::GlobalConstantDescriptorPool &GetGlobalConstantDescriptorPool() const;
 
-        RenderSystemState::MaterialRegistry & GetMaterialRegistry();
+        RenderSystemState::MaterialRegistry &GetMaterialRegistry();
 
-        RenderSystemState::FrameManager & GetFrameManager ();
+        RenderSystemState::FrameManager &GetFrameManager();
 
-        RenderSystemState::RendererManager & GetRendererManager ();
+        RenderSystemState::RendererManager &GetRendererManager();
 
-        void WritePerCameraConstants(const ConstantData::PerCameraStruct & data, uint32_t in_flight_index);
+        void WritePerCameraConstants(const ConstantData::PerCameraStruct &data, uint32_t in_flight_index);
     };
-}
+} // namespace Engine
 
 #pragma GCC diagnostic pop
 

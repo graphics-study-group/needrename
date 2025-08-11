@@ -9,41 +9,39 @@
 namespace Engine {
     namespace AttachmentUtils {
         constexpr vk::AttachmentLoadOp GetVkLoadOp(LoadOperation op) {
-            switch(op) {
-                case LoadOperation::Load:
-                    return vk::AttachmentLoadOp::eLoad;
-                case LoadOperation::Clear:
-                    return vk::AttachmentLoadOp::eClear;
-                case LoadOperation::DontCare:
-                    return vk::AttachmentLoadOp::eDontCare;
+            switch (op) {
+            case LoadOperation::Load:
+                return vk::AttachmentLoadOp::eLoad;
+            case LoadOperation::Clear:
+                return vk::AttachmentLoadOp::eClear;
+            case LoadOperation::DontCare:
+                return vk::AttachmentLoadOp::eDontCare;
             }
             return vk::AttachmentLoadOp{};
         }
 
         constexpr vk::AttachmentStoreOp GetVkStoreOp(StoreOperation op) {
-            switch(op) {
-                case StoreOperation::Store:
-                    return vk::AttachmentStoreOp::eStore;
-                case StoreOperation::DontCare:
-                    return vk::AttachmentStoreOp::eDontCare;
+            switch (op) {
+            case StoreOperation::Store:
+                return vk::AttachmentStoreOp::eStore;
+            case StoreOperation::DontCare:
+                return vk::AttachmentStoreOp::eDontCare;
             }
             return vk::AttachmentStoreOp{};
         }
 
         constexpr vk::ClearValue GetVkClearValue(ClearValue cv) {
             if (cv.index() == 0) {
-                const auto & v = std::get<ColorClearValue>(cv);
+                const auto &v = std::get<ColorClearValue>(cv);
                 return vk::ClearValue{vk::ClearColorValue{v.r, v.g, v.b, v.a}};
             } else {
-                const auto & v = std::get<DepthClearValue>(cv);
+                const auto &v = std::get<DepthClearValue>(cv);
                 return vk::ClearValue{vk::ClearDepthStencilValue{v.depth, v.stencil}};
             }
         }
 
         const inline vk::RenderingAttachmentInfo GetVkAttachmentInfo(
-            const AttachmentDescription& desc, 
-            vk::ImageLayout layout, 
-            vk::ClearValue clear
+            const AttachmentDescription &desc, vk::ImageLayout layout, vk::ClearValue clear
         ) noexcept {
             assert(desc.texture || desc.texture_view);
 
@@ -72,15 +70,12 @@ namespace Engine {
                     clear
                 };
             }
-            
         }
 
         constexpr vk::RenderingAttachmentInfo GetVkAttachmentInfo(
-            vk::ImageView view, 
-            AttachmentOp op,
-            vk::ImageLayout layout
+            vk::ImageView view, AttachmentOp op, vk::ImageLayout layout
         ) {
-            vk::RenderingAttachmentInfo info {
+            vk::RenderingAttachmentInfo info{
                 view,
                 layout,
                 vk::ResolveModeFlagBits::eNone,
@@ -93,7 +88,7 @@ namespace Engine {
             };
             return info;
         }
-    }
-}
+    } // namespace AttachmentUtils
+} // namespace Engine
 
 #endif // RENDER_ATTACHMENTUTILSFUNC

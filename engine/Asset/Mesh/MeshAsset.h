@@ -2,16 +2,14 @@
 #define ASSET_MESH_MESHASSET_INCLUDED
 
 #include <Asset/Asset.h>
-#include <Render/Renderer/VertexStruct.h>
 #include <Reflection/macros.h>
+#include <Render/Renderer/VertexStruct.h>
 #include <vector>
 
-namespace Engine
-{
+namespace Engine {
     class ObjLoader;
 
-    class REFL_SER_CLASS(REFL_WHITELIST) MeshAsset : public Asset
-    {
+    class REFL_SER_CLASS(REFL_WHITELIST) MeshAsset : public Asset {
         REFL_SER_BODY(MeshAsset)
     public:
         REFL_ENABLE MeshAsset();
@@ -19,8 +17,7 @@ namespace Engine
 
         friend class ObjLoader;
 
-        struct Submesh
-        {
+        struct Submesh {
             std::vector<uint32_t> m_indices{};
             std::vector<VertexStruct::VertexPosition> m_positions{};
             std::vector<VertexStruct::VertexAttributeBasic> m_attributes_basic{};
@@ -41,6 +38,6 @@ namespace Engine
         std::string m_name{};
         std::vector<Submesh> m_submeshes{};
     };
-}
+} // namespace Engine
 
 #endif // ASSET_MESH_MESHASSET_INCLUDED
