@@ -23,7 +23,7 @@ namespace Engine {
         void Clear();
 
     protected:
-        std::queue<DelegatePtr> m_events;
+        std::queue<DelegatePtr> m_events{};
     };
 } // namespace Engine
 

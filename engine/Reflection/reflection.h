@@ -111,10 +111,13 @@ namespace Engine {
                 return std::shared_ptr<const PointerType>(
                     new PointerType(GetType<std::remove_pointer_t<T>>(), sizeof(T), PointerType::PointerTypeKind::Raw)
                 );
-            } else if constexpr (std::is_void_v<T>) {
+            }
+            if constexpr (std::is_void_v<T>) {
                 throw std::runtime_error("The void type should be created in initialization");
             }
-            return std::shared_ptr<const Type>(new Type(typeid(std::remove_const_t<T>).name(), sizeof(T), false));
+            else {
+                return std::shared_ptr<const Type>(new Type(typeid(std::remove_const_t<T>).name(), sizeof(T), false));
+            }
         }
     } // namespace Reflection
 } // namespace Engine
