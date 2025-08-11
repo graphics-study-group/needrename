@@ -6,7 +6,8 @@ namespace Engine {
         std::unordered_map<std::type_index, std::shared_ptr<const Type>> Type::s_index_type_map;
         std::unordered_map<std::string, std::type_index> Type::s_name_index_map;
 
-        Type::Type(const std::string &name, size_t size, bool reflectable, bool is_const) : m_name(name), m_size(size), m_reflectable(reflectable), m_is_const(is_const) {
+        Type::Type(const std::string &name, size_t size, bool reflectable) :
+            m_name(name), m_size(size), m_reflectable(reflectable) {
         }
 
         std::shared_ptr<const Method> Type::GetMethodFromMangledName(const std::string &name) const {
@@ -61,13 +62,13 @@ namespace Engine {
             return m_fields;
         }
 
-        ArrayType::ArrayType(std::shared_ptr<const Type> element_type, size_t size, bool is_const, ArrayTypeKind kind) :
-            Type(std::string("std::vector<") + element_type->m_name + ">", size, false, is_const), m_element_type(element_type), m_array_kind(kind) {
+        ArrayType::ArrayType(std::shared_ptr<const Type> element_type, size_t size, ArrayTypeKind kind) :
+            Type(element_type->m_name + "[]", size, false), m_element_type(element_type), m_array_kind(kind) {
             m_specialization = Array;
         }
 
-        PointerType::PointerType(std::shared_ptr<const Type> pointed_type, size_t size, bool is_const, PointerTypeKind kind) :
-            Type(pointed_type->m_name + "*", size, false, is_const), m_pointed_type(pointed_type), m_pointer_kind(kind) {
+        PointerType::PointerType(std::shared_ptr<const Type> pointed_type, size_t size, PointerTypeKind kind) :
+            Type(pointed_type->m_name + "*", size, false), m_pointed_type(pointed_type), m_pointer_kind(kind) {
             m_specialization = Pointer;
         }
     } // namespace Reflection
