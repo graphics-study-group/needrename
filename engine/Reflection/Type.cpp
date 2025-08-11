@@ -63,12 +63,12 @@ namespace Engine {
         }
 
         ConstType::ConstType(std::shared_ptr<const Type> base_type) :
-            Type(base_type->m_name + " const", base_type->m_size, base_type->m_reflectable), m_base_type(base_type) {
+            Type(base_type->m_name, base_type->m_size, base_type->m_reflectable), m_base_type(base_type) {
             m_specialization = Const;
         }
 
         PointerType::PointerType(std::shared_ptr<const Type> pointed_type, size_t size, PointerTypeKind kind) :
-            Type(pointed_type->m_name + "*", size, false), m_pointed_type(pointed_type), m_pointer_kind(kind) {
+            Type(pointed_type->m_name, size, false), m_pointed_type(pointed_type), m_pointer_kind(kind) {
             m_specialization = Pointer;
         }
     } // namespace Reflection
