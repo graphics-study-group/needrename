@@ -2,7 +2,6 @@
 #define PIPELINE_COMMANDBUFFER_COMPUTECOMMANDBUFFER_INCLUDED
 
 #include "Render/Pipeline/CommandBuffer/ICommandBuffer.h"
-#include <vulkan/vulkan.hpp>
 #include <any>
 
 namespace Engine {
@@ -10,19 +9,17 @@ namespace Engine {
     class ComputeStage;
     class ComputeCommandBuffer : public ICommandBuffer {
     public:
-        ComputeCommandBuffer(RenderSystem & system,
-            vk::CommandBuffer cb,
-            uint32_t frame_in_flight);
+        ComputeCommandBuffer(RenderSystem &system, vk::CommandBuffer cb, uint32_t frame_in_flight);
 
-        void BindComputeStage(ComputeStage & stage);
+        void BindComputeStage(ComputeStage &stage);
 
         void DispatchCompute(uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ);
 
     private:
-        RenderSystem & system;
+        RenderSystem &system;
         uint32_t inflight_frame_index;
         std::optional<std::reference_wrapper<ComputeStage>> m_bound_pipeline;
     };
-}
+} // namespace Engine
 
 #endif // PIPELINE_COMMANDBUFFER_COMPUTECOMMANDBUFFER_INCLUDED

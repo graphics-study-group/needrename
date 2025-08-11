@@ -1,21 +1,23 @@
 #ifndef FUNCTIONAL_SDLWINDOW_INCLUDED
 #define FUNCTIONAL_SDLWINDOW_INCLUDED
 
-#include <SDL3/SDL.h>
-#include <string>
-#include <memory>
 #include "consts.h"
 #include <Render/Pipeline/RenderTargetBinding.h>
+#include <SDL3/SDL.h>
+#include <memory>
+#include <string>
 
-namespace Engine
-{
+namespace vk {
+    class Extent2D;
+}
+
+namespace Engine {
     class Texture;
     class RenderSystem;
 
     /// A wrapper of SDL_Window
     /// Note that memory is managed manually
-    class SDLWindow
-    {
+    class SDLWindow {
     public:
         SDLWindow(const char *, int, int, Uint32);
 
@@ -43,5 +45,5 @@ namespace Engine
         std::shared_ptr<Texture> m_color_texture{};
         std::shared_ptr<Texture> m_depth_texture{};
     };
-}
+} // namespace Engine
 #endif // FUNCTIONAL_SDLWINDOW_INCLUDED

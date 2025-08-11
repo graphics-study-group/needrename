@@ -1,4 +1,7 @@
 #include "RendererComponent.h"
+
+#include "Asset/Material/MaterialTemplateAsset.h"
+
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/MaterialRegistry.h"
 #include "Render/RenderSystem/RendererManager.h"

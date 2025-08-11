@@ -2,13 +2,11 @@
 #define ASSET_TEXTURE_IMAGE2DTEXTUREASSET_INCLUDED
 
 #include "TextureAsset.h"
-#include <Render/ImageUtils.h>
 #include <Reflection/macros.h>
+#include <Render/ImageUtils.h>
 
-namespace Engine
-{
-    class REFL_SER_CLASS(REFL_WHITELIST) Image2DTextureAsset : public TextureAsset
-    {
+namespace Engine {
+    class REFL_SER_CLASS(REFL_WHITELIST) Image2DTextureAsset : public TextureAsset {
         REFL_SER_BODY(Image2DTextureAsset)
     public:
         REFL_ENABLE Image2DTextureAsset() = default;
@@ -30,6 +28,6 @@ namespace Engine
     protected:
         std::vector<std::byte> m_data{};
     };
-}
+} // namespace Engine
 
 #endif // ASSET_TEXTURE_IMAGE2DTEXTUREASSET_INCLUDED

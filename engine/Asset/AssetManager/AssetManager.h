@@ -1,30 +1,28 @@
 #ifndef ASSET_ASSETMANAGER_ASSETMANAGER_INCLUDED
 #define ASSET_ASSETMANAGER_ASSETMANAGER_INCLUDED
 
-#include <string>
-#include <memory>
-#include <random>
-#include <unordered_map>
-#include <queue>
-#include <filesystem>
-#include <tiny_obj_loader.h>
 #include <Core/guid.h>
+#include <filesystem>
+#include <memory>
+#include <queue>
+#include <random>
+#include <string>
+#include <tiny_obj_loader.h>
+#include <unordered_map>
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wnon-virtual-dtor"
 
-namespace Engine
-{
+namespace Engine {
     class Asset;
     class AssetRef;
 
-    class AssetManager : public std::enable_shared_from_this<AssetManager>
-    {
+    class AssetManager : public std::enable_shared_from_this<AssetManager> {
     public:
         AssetManager() = default;
         virtual ~AssetManager() = default;
 
-        /***************** Initialization Functions ****************/ 
+        /***************** Initialization Functions ****************/
 
         /// @brief Set the path to the built-in assets
         void SetBuiltinAssetPath(const std::filesystem::path &path);
@@ -36,14 +34,20 @@ namespace Engine
         /// @param path Path to the project directory
         void LoadProject(std::filesystem::path path);
 
-        /***************** Query Global Informations ****************/ 
+        /***************** Query Global Informations ****************/
 
         /// @brief Generate a GUID
         /// @return GUID
-        inline GUID GenerateGUID() { return generateGUID(m_guid_gen); }
+        inline GUID GenerateGUID() {
+            return generateGUID(m_guid_gen);
+        }
 
-        inline std::filesystem::path GetProjectPath() const { return m_project_path; }
-        inline std::filesystem::path GetAssetsDirectory() const { return m_project_path / "assets"; }
+        inline std::filesystem::path GetProjectPath() const {
+            return m_project_path;
+        }
+        inline std::filesystem::path GetAssetsDirectory() const {
+            return m_project_path / "assets";
+        }
 
         /***************** Asset Data Base Query And Modification ****************/
         // TODO: Implement AssetDataBase to support multiple retrieval methods

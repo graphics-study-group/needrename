@@ -2,7 +2,7 @@
 #define RENDER_PIPELINE_PIPELINEENUMS_INCLUDED
 
 namespace Engine {
-    namespace PipelineUtils{
+    namespace PipelineUtils {
 
         enum class FillingMode {
             Fill,
@@ -31,7 +31,7 @@ namespace Engine {
             GEqual,
             Always
         };
-        
+
         /// @brief C.f. https://registry.khronos.org/vulkan/specs/latest/man/html/VkStencilOp.html
         enum class StencilOperation {
             Keep,
@@ -90,7 +90,7 @@ namespace Engine {
             DstAlpha,
             OneMinusDstAlpha
         };
-    }
-}
+    } // namespace PipelineUtils
+} // namespace Engine
 
 #endif // RENDER_PIPELINE_PIPELINEENUMS_INCLUDED

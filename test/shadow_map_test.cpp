@@ -4,6 +4,7 @@
 #include <fstream>
 
 #include "Asset/AssetManager/AssetManager.h"
+#include "Asset/Material/MaterialTemplateAsset.h"
 #include "Asset/Mesh/MeshAsset.h"
 #include "Asset/Texture/Image2DTextureAsset.h"
 #include "Framework/component/RenderComponent/MeshComponent.h"
@@ -167,25 +168,22 @@ int main(int argc, char **argv) {
     blank_color->CreateTextureAndSampler(desc, {}, "Blank color");
 
     Engine::AttachmentUtils::AttachmentDescription color_att, depth_att, shadow_att;
-    color_att.image = color->GetImage();
-    color_att.image_view = color->GetImageView();
-    color_att.load_op = vk::AttachmentLoadOp::eClear;
-    color_att.store_op = vk::AttachmentStoreOp::eStore;
-    depth_att.image = depth->GetImage();
-    depth_att.image_view = depth->GetImageView();
-    depth_att.load_op = vk::AttachmentLoadOp::eClear;
-    depth_att.store_op = vk::AttachmentStoreOp::eDontCare;
-    shadow_att.image = shadow->GetImage();
-    shadow_att.image_view = shadow->GetImageView();
-    shadow_att.load_op = vk::AttachmentLoadOp::eClear;
-    shadow_att.store_op = vk::AttachmentStoreOp::eStore;
+    color_att.texture = color.get();
+    color_att.load_op = AttachmentUtils::LoadOperation::Clear;
+    color_att.store_op = AttachmentUtils::StoreOperation::Store;
+    depth_att.texture = depth.get();
+    depth_att.load_op = AttachmentUtils::LoadOperation::Clear;
+    depth_att.store_op = AttachmentUtils::StoreOperation::DontCare;
+    shadow_att.texture = shadow.get();
+    shadow_att.load_op = AttachmentUtils::LoadOperation::Clear;
+    shadow_att.store_op = AttachmentUtils::StoreOperation::Store;
 
     // Prepare material
     cmc->GetAssetManager()->LoadBuiltinAssets();
     auto test_asset = ConstructMaterialTemplate();
     auto test_asset_ref = std::make_shared<AssetRef>(test_asset);
     auto test_template = std::make_shared<MaterialTemplate>(*rsys);
-    test_template->InstantiateFromRef(test_asset_ref);
+    test_template->Instantiate(*test_asset_ref->cas<MaterialTemplateAsset>());
     auto test_material_instance = std::make_shared<MaterialInstance>(*rsys, test_template);
     test_material_instance->WriteDescriptors(0);
     test_material_instance->WriteUBOUniform(

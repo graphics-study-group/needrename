@@ -2,29 +2,27 @@
 #define EDITOR_WIDGET_SCENEWIDGET_INCLUDED
 
 #include "Widget.h"
-#include <Render/Pipeline/RenderTargetBinding.h>
-#include <memory>
-#include <imgui.h>
 #include <Editor/Functional/SceneCamera.h>
+#include <Render/Pipeline/RenderTargetBinding.h>
+#include <imgui.h>
+#include <memory>
 
-namespace Engine
-{
+namespace Engine {
     class RenderSystem;
     class SampledTexture;
-}
+} // namespace Engine
 
-namespace Editor
-{
-    class SceneWidget : public Widget
-    {
+namespace Editor {
+    class SceneWidget : public Widget {
     public:
         SceneWidget(const std::string &name);
         virtual ~SceneWidget();
 
         virtual void Render() override;
-        
+
         void CreateRenderTargetBinding(std::shared_ptr<Engine::RenderSystem> render_system);
-        /// @brief Draw the editor camera to the widget texture used for ImGui. Contain a synchronization operation for writting to the color and depth textures.
+        /// @brief Draw the editor camera to the widget texture used for ImGui. Contain a synchronization operation for
+        /// writting to the color and depth textures.
         /// XXX: Should be rewritten after we have a better render pipline.
         void PreRender();
 
@@ -47,6 +45,6 @@ namespace Editor
         std::shared_ptr<Engine::SampledTexture> m_depth_texture{};
         ImTextureID m_color_att_id{};
     };
-}
+} // namespace Editor
 
 #endif // EDITOR_WIDGET_SCENEWIDGET_INCLUDED

@@ -3,10 +3,8 @@
 
 #include <string>
 
-namespace Editor
-{
-    class Widget
-    {
+namespace Editor {
+    class Widget {
     public:
         Widget(const std::string &name);
         virtual ~Widget() = default;
@@ -15,6 +13,6 @@ namespace Editor
 
         const std::string m_name;
     };
-}
+} // namespace Editor
 
 #endif // EDITOR_WIDGET_WIDGET_INCLUDED

@@ -2,11 +2,14 @@
 #define RENDER_CONSTANTDATA_PERMODELCONSTANTS_INCLUDED
 
 #include <glm.hpp>
-#include <vulkan/vulkan.hpp>
+
+namespace vk {
+    class PushConstantRange;
+}
 
 namespace Engine {
     class RenderSystem;
-    
+
     namespace ConstantData {
         struct PerModelPushStruct {
             glm::mat4 model_matrix;
@@ -18,7 +21,7 @@ namespace Engine {
             static constexpr uint32_t PUSH_RANGE_SIZE = sizeof(PerModelPushStruct);
             static vk::PushConstantRange GetPushConstantRange();
         };
-    }
-}
+    } // namespace ConstantData
+} // namespace Engine
 
 #endif // RENDER_CONSTANTDATA_PERMODELCONSTANTS_INCLUDED

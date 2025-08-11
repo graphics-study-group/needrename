@@ -1,15 +1,13 @@
 #ifndef EDITOR_WINDOW_MAINWINDOW_INCLUDED
 #define EDITOR_WINDOW_MAINWINDOW_INCLUDED
 
-#include <vector>
-#include <memory>
 #include <Core/Delegate/Event.h>
 #include <Editor/Widget/Widget.h>
+#include <memory>
+#include <vector>
 
-namespace Editor
-{
-    class MainWindow
-    {
+namespace Editor {
+    class MainWindow {
     public:
         static constexpr const char *k_main_window_widget_name = "##editor.main_window_widget";
         static constexpr const char *k_main_dockspace_name = "MainDockSpace##editor.main_dockspace";
@@ -19,7 +17,7 @@ namespace Editor
         static constexpr const char *k_project_widget_name = "Project##editor.project";
         static constexpr const char *k_inspector_widget_name = "Inspector##editor.inspector";
         static constexpr const char *k_control_widget_name = "Control##editor.control";
-        
+
     public:
         MainWindow();
         virtual ~MainWindow() = default;
@@ -37,6 +35,6 @@ namespace Editor
     protected:
         std::vector<std::shared_ptr<Widget>> m_widgets{};
     };
-}
+} // namespace Editor
 
 #endif // EDITOR_WINDOW_MAINWINDOW_INCLUDED

@@ -1,9 +1,12 @@
 #ifndef RENDER_CONSTANTDATA_PERSCENECONSTANTS_INCLUDED
 #define RENDER_CONSTANTDATA_PERSCENECONSTANTS_INCLUDED
 
-#include <glm.hpp>
 #include "Render/VkWrapper.tcc"
-#include "Render/Memory/Buffer.h"
+#include <glm.hpp>
+
+namespace vk {
+    class Device;
+}
 
 namespace Engine {
     class RenderSystem;
@@ -12,13 +15,14 @@ namespace Engine {
         /**
          * Access this uniform struct in shader like this:
 ```glsl
-layout(std140, set = 0, binding = 0) uniform PerSceneUniform {
+layout(std140, set = 0, binding = 0)
+         * uniform PerSceneUniform {
     uint light_count;
     vec4 light_source[8];
     vec4 light_color[8];
 };
 ```
-         */
+ */
         struct PerSceneStruct {
             static constexpr size_t MAX_LIGHT_SOURCES_PER_SCENE = 8;
             uint32_t light_count;
@@ -29,20 +33,11 @@ layout(std140, set = 0, binding = 0) uniform PerSceneUniform {
         };
 
         class PerSceneConstantLayout : public VkWrapperIndependent<vk::UniqueDescriptorSetLayout> {
-        protected:
-            static constexpr std::array <vk::DescriptorSetLayoutBinding, 1> BINDINGS = {
-                vk::DescriptorSetLayoutBinding{
-                    0,
-                    vk::DescriptorType::eUniformBuffer,
-                    1,
-                    vk::ShaderStageFlagBits::eAllGraphics
-                }
-            };
         public:
             static constexpr uint32_t PER_SCENE_SET_NUMBER = 0;
             void Create(vk::Device device);
         };
-    }
-}
+    } // namespace ConstantData
+} // namespace Engine
 
 #endif // RENDER_CONSTANTDATA_PERSCENECONSTANTS_INCLUDED

@@ -1,22 +1,19 @@
 #ifndef REFLECTION_REFLECTION_INCLUDED
 #define REFLECTION_REFLECTION_INCLUDED
 
-#include <vector>
-#include <memory>
 #include <cassert>
+#include <memory>
+#include <vector>
 
-#include "Type.h"
 #include "Field.h"
 #include "Method.h"
-#include "utils.h"
+#include "Type.h"
 #include "macros.h"
+#include "utils.h"
 
-namespace Engine
-{
-    namespace Reflection
-    {
-        class Registrar
-        {
+namespace Engine {
+    namespace Reflection {
+        class Registrar {
         public:
             /// @brief Register a new type.
             static void RegisterNewType(const std::string &name, std::type_index type_index, bool reflectable = false);
@@ -27,13 +24,15 @@ namespace Engine
         /// @brief Initialize the reflection system. Must be called before using any reflection features.
         void Initialize();
 
-        /// @brief Get the Reflection::Type class of a template type T. If the type is not registered, it will create a new Type without registering it.
+        /// @brief Get the Reflection::Type class of a template type T. If the type is not registered, it will create a
+        /// new Type without registering it.
         /// @tparam T the type to get the Type of
         /// @return the shared pointer to the Type class of the type
         template <typename T>
         std::shared_ptr<Type> GetType();
 
-        /// @brief Get the Reflection::Type class of an object. If the object is polymorphic, it will return the most derived type. If the type is not registered, it will create a new Type without registering it.
+        /// @brief Get the Reflection::Type class of an object. If the object is polymorphic, it will return the most
+        /// derived type. If the type is not registered, it will create a new Type without registering it.
         /// @tparam T the type of the object
         /// @param obj the object to get the type of
         /// @return the shared pointer to the Type class of the object
@@ -64,32 +63,25 @@ namespace Engine
 
         template <typename T>
         std::shared_ptr<Type> CreateType(const std::string &name = "");
-    }
-}
+    } // namespace Reflection
+} // namespace Engine
 
-namespace Engine
-{
-    namespace Reflection
-    {
+namespace Engine {
+    namespace Reflection {
         template <typename T>
-        std::shared_ptr<Type> GetType()
-        {
+        std::shared_ptr<Type> GetType() {
             std::type_index type_index = std::type_index(typeid(T));
-            if (Type::s_index_type_map.find(type_index) == Type::s_index_type_map.end())
-            {
+            if (Type::s_index_type_map.find(type_index) == Type::s_index_type_map.end()) {
                 return CreateType<T>();
             }
             return Type::s_index_type_map[type_index];
         }
 
         template <typename T>
-        std::shared_ptr<Type> GetTypeFromObject(const T &obj)
-        {
-            if (typeid(T) == typeid(obj))
-                return GetType<T>();
+        std::shared_ptr<Type> GetTypeFromObject(const T &obj) {
+            if (typeid(T) == typeid(obj)) return GetType<T>();
             std::type_index type_index = std::type_index(typeid(obj));
-            if (Type::s_index_type_map.find(type_index) == Type::s_index_type_map.end())
-            {
+            if (Type::s_index_type_map.find(type_index) == Type::s_index_type_map.end()) {
                 // Don't need support special types like std::vector, std::string, etc.
                 // because the object is polymorphic, and all the special types are not derived from any base type.
                 return std::shared_ptr<Type>(new Type(type_index.name(), false));
@@ -98,28 +90,24 @@ namespace Engine
         }
 
         template <typename T>
-        Var GetVar(const T &obj)
-        {
+        Var GetVar(const T &obj) {
             return Var(GetTypeFromObject(obj), &obj);
         }
 
         template <typename T>
-        ConstVar GetConstVar(const T &obj)
-        {
+        ConstVar GetConstVar(const T &obj) {
             return ConstVar(GetTypeFromObject(obj), &obj);
         }
 
         template <typename T>
-        std::shared_ptr<Type> CreateType(const std::string &name)
-        {
+        std::shared_ptr<Type> CreateType(const std::string &name) {
             // TODO: support special types like std::vector, std::string, etc.
-            if (name.empty())
-            {
+            if (name.empty()) {
                 return std::shared_ptr<Type>(new Type(typeid(T).name(), false));
             }
             return std::shared_ptr<Type>(new Type(name, false));
         }
-    }
-}
+    } // namespace Reflection
+} // namespace Engine
 
 #endif // REFLECTION_REFLECTION_INCLUDED

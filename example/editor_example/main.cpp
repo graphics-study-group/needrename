@@ -3,6 +3,7 @@
 #include <fstream>
 #include <iostream>
 
+#include "Render/FullRenderSystem.h"
 #include <Asset/AssetManager/AssetManager.h>
 #include <Core/Delegate/FuncDelegate.h>
 #include <Framework/world/WorldSystem.h>
@@ -12,15 +13,6 @@
 #include <GUI/GUISystem.h>
 #include <Input/Input.h>
 #include <MainClass.h>
-#include <Render/AttachmentUtils.h>
-#include <Render/Memory/Buffer.h>
-#include <Render/Memory/SampledTexture.h>
-#include <Render/Memory/Texture.h>
-#include <Render/Pipeline/CommandBuffer.h>
-#include <Render/Pipeline/CommandBuffer/GraphicsContext.h>
-#include <Render/RenderSystem.h>
-#include <Render/RenderSystem/FrameManager.h>
-#include <Render/RenderSystem/Swapchain.h>
 #include <SDL3/SDL.h>
 #include <cmake_config.h>
 
@@ -131,10 +123,10 @@ int main() {
         gui->PrepareGUI();
         main_window.Render();
         gui->DrawGUI(
-            {window->GetColorTexture().GetImage(),
-             window->GetColorTexture().GetImageView(),
-             vk::AttachmentLoadOp::eLoad,
-             vk::AttachmentStoreOp::eStore},
+            {&window->GetColorTexture(),
+             nullptr,
+             Engine::AttachmentUtils::LoadOperation::Load,
+             Engine::AttachmentUtils::StoreOperation::Store},
             window->GetExtent(),
             cb
         );

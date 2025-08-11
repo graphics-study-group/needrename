@@ -2,27 +2,24 @@
 #define EDITOR_WIDGET_PROJECTWIDGET_INCLUDED
 
 #include "Widget.h"
-#include <memory>
 #include <filesystem>
+#include <memory>
 
-namespace Engine
-{
+namespace Engine {
     class GameObject;
 }
 
-namespace Editor
-{
-    class ProjectWidget : public Widget
-    {
+namespace Editor {
+    class ProjectWidget : public Widget {
     public:
         ProjectWidget(const std::string &name);
         virtual ~ProjectWidget();
 
         virtual void Render() override;
-    
+
     protected:
         std::filesystem::path m_current_path{};
     };
-}
+} // namespace Editor
 
 #endif // EDITOR_WIDGET_PROJECTWIDGET_INCLUDED

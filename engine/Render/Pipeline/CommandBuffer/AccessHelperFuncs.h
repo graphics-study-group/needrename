@@ -1,22 +1,29 @@
 #ifndef PIPELINE_COMMANDBUFFER_ACCESSHELPERFUNCS_INCLUDED
 #define PIPELINE_COMMANDBUFFER_ACCESSHELPERFUNCS_INCLUDED
 
+/**
+ * @file This header contains function implementation for AccessHelper classes. 
+ * Do not include it in other
+ * headers. 
+ */
+
 #include "AccessHelperTypes.h"
+
+#include <SDL3/SDL.h>
+#include <tuple>
+#include <vulkan/vulkan.hpp>
 
 namespace Engine {
     namespace AccessHelper {
         /**
          * @brief Obtain access scope from access type.
          */
-        constexpr inline std::tuple<vk::PipelineStageFlags2, vk::AccessFlags2, vk::ImageLayout> GetAccessScope(ImageAccessType access)
-        {
-            switch(access) {
+        constexpr inline std::tuple<vk::PipelineStageFlags2, vk::AccessFlags2, vk::ImageLayout> GetAccessScope(
+            ImageAccessType access
+        ) {
+            switch (access) {
             case ImageAccessType::None:
-                return {
-                    vk::PipelineStageFlagBits2::eNone, 
-                    vk::AccessFlagBits2::eNone, 
-                    vk::ImageLayout::eUndefined
-                };
+                return {vk::PipelineStageFlagBits2::eNone, vk::AccessFlagBits2::eNone, vk::ImageLayout::eUndefined};
             case ImageAccessType::TransferRead:
                 return {
                     vk::PipelineStageFlagBits2::eAllTransfer,
@@ -50,7 +57,8 @@ namespace Engine {
             case ImageAccessType::DepthAttachmentWrite:
                 return {
                     vk::PipelineStageFlagBits2::eEarlyFragmentTests | vk::PipelineStageFlagBits2::eLateFragmentTests,
-                    vk::AccessFlagBits2::eDepthStencilAttachmentRead | vk::AccessFlagBits2::eDepthStencilAttachmentWrite,
+                    vk::AccessFlagBits2::eDepthStencilAttachmentRead
+                        | vk::AccessFlagBits2::eDepthStencilAttachmentWrite,
                     vk::ImageLayout::eDepthStencilAttachmentOptimal
                 };
             case ImageAccessType::TransferWrite:
@@ -80,9 +88,10 @@ namespace Engine {
          * @brief Infer the related aspect of an image from usages.
          */
         [[deprecated]]
-        constexpr inline vk::ImageAspectFlags InferImageAspectFromUsage(ImageAccessType currentAccess, ImageAccessType previousAccess)
-        {
-            switch(previousAccess) {
+        constexpr inline vk::ImageAspectFlags InferImageAspectFromUsage(
+            ImageAccessType currentAccess, ImageAccessType previousAccess
+        ) {
+            switch (previousAccess) {
             case ImageAccessType::ColorAttachmentRead:
             case ImageAccessType::ColorAttachmentWrite:
             case ImageAccessType::ShaderRead:
@@ -91,11 +100,11 @@ namespace Engine {
             case ImageAccessType::DepthAttachmentWrite:
                 return vk::ImageAspectFlagBits::eDepth;
             default:
-                switch(currentAccess) {
+                switch (currentAccess) {
                 case ImageAccessType::ColorAttachmentRead:
                 case ImageAccessType::ColorAttachmentWrite:
                 case ImageAccessType::ShaderRead:
-                        return vk::ImageAspectFlagBits::eColor;
+                    return vk::ImageAspectFlagBits::eColor;
                 case ImageAccessType::DepthAttachmentRead:
                 case ImageAccessType::DepthAttachmentWrite:
                     return vk::ImageAspectFlagBits::eDepth;
@@ -104,7 +113,7 @@ namespace Engine {
                 }
             }
         }
-    }
-}
+    } // namespace AccessHelper
+} // namespace Engine
 
 #endif // PIPELINE_COMMANDBUFFER_ACCESSHELPERFUNCS_INCLUDED

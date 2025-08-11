@@ -6,28 +6,23 @@
 namespace Engine {
     class GraphicsCommandBuffer;
 
-    class GraphicsContext : public TransferContext
-    {
+    class GraphicsContext : public TransferContext {
         struct impl;
-        std::unique_ptr <impl> pimpl;
+        std::unique_ptr<impl> pimpl;
 
     public:
         using ImageGraphicsAccessType = AccessHelper::ImageGraphicsAccessType;
 
-        GraphicsContext(RenderSystem & system,
-            vk::CommandBuffer cb,
-            uint32_t frame_in_flight);
+        GraphicsContext(RenderSystem &system, vk::CommandBuffer cb, uint32_t frame_in_flight);
         virtual ~GraphicsContext();
 
-        ICommandBuffer & GetCommandBuffer() const noexcept override;
+        ICommandBuffer &GetCommandBuffer() const noexcept override;
 
         /**
          * @brief Mark an image for use for the following graphics context.
          */
         void UseImage(
-            const Texture & texture,
-            ImageGraphicsAccessType currentAccess,
-            ImageAccessType previousAccess
+            const Texture &texture, ImageGraphicsAccessType currentAccess, ImageAccessType previousAccess
         ) noexcept;
 
         /**
@@ -35,6 +30,6 @@ namespace Engine {
          */
         void PrepareCommandBuffer() override;
     };
-}
+} // namespace Engine
 
 #endif // PIPELINE_COMMANDBUFFER_GRAPHICSCONTEXT_INCLUDED

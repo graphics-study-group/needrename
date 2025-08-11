@@ -5,7 +5,8 @@
 #pragma GCC diagnostic ignored "-Wattributes"
 
 // reflection mode: 'WhiteList', 'BlackList'. Default is 'WhiteList'
-// serialization mode: 'DefaultSerialization' for automatic generating function, 'CustomSerializaion' for custom serialization. Default is 'DefaultSerialize'
+// serialization mode: 'DefaultSerialization' for automatic generating function, 'CustomSerializaion' for custom
+// serialization. Default is 'DefaultSerialize'
 #define REFL_WHITELIST "WhiteList"
 #define REFL_BLACKLIST "BlackList"
 #define SER_DEFAULT "DefaultSerialization"
@@ -21,34 +22,32 @@
 #define REFL_SER_DISABLE [[clang::annotate("%REFLECTION DISABLE"), clang::annotate("%SERIALIZATION DISABLE")]]
 
 /// Serialization body for regular class. Declare some virtual serialization functions and backdoor constructor.
-#define REFL_SER_BODY(class_name, ...) \
-    public: \
-    friend class Engine::Reflection::Registrar; \
-    REFL_DISABLE virtual void _SERIALIZATION_SAVE_(Engine::Serialization::Archive& buffer) const; \
-    REFL_DISABLE virtual void _SERIALIZATION_LOAD_(Engine::Serialization::Archive& buffer); \
+#define REFL_SER_BODY(class_name, ...)                                                                                 \
+public:                                                                                                                \
+    friend class Engine::Reflection::Registrar;                                                                        \
+    REFL_DISABLE virtual void _SERIALIZATION_SAVE_(Engine::Serialization::Archive &buffer) const;                      \
+    REFL_DISABLE virtual void _SERIALIZATION_LOAD_(Engine::Serialization::Archive &buffer);                            \
     REFL_ENABLE class_name(Engine::Serialization::SerializationMarker marker);
 
-/// Serialization body for simple struct. Declare non-virtual serialization functions, backdoor constructor and default constructor.
-#define REFL_SER_SIMPLE_STRUCT(class_name, ...) \
-    public: \
-    friend class Engine::Reflection::Registrar; \
-    REFL_DISABLE void _SERIALIZATION_SAVE_(Engine::Serialization::Archive& buffer) const; \
-    REFL_DISABLE void _SERIALIZATION_LOAD_(Engine::Serialization::Archive& buffer); \
-    REFL_ENABLE class_name(Engine::Serialization::SerializationMarker marker); \
+/// Serialization body for simple struct. Declare non-virtual serialization functions, backdoor constructor and default
+/// constructor.
+#define REFL_SER_SIMPLE_STRUCT(class_name, ...)                                                                        \
+public:                                                                                                                \
+    friend class Engine::Reflection::Registrar;                                                                        \
+    REFL_DISABLE void _SERIALIZATION_SAVE_(Engine::Serialization::Archive &buffer) const;                              \
+    REFL_DISABLE void _SERIALIZATION_LOAD_(Engine::Serialization::Archive &buffer);                                    \
+    REFL_ENABLE class_name(Engine::Serialization::SerializationMarker marker);                                         \
     REFL_ENABLE class_name() = default;
 
-namespace Engine
-{
-    namespace Reflection
-    {
+namespace Engine {
+    namespace Reflection {
         class Registrar;
     }
 
-    namespace Serialization
-    {
+    namespace Serialization {
         class Archive;
         struct SerializationMarker;
-    }
-}
+    } // namespace Serialization
+} // namespace Engine
 
 #endif // REFLECTION_MACROS_INCLUDED

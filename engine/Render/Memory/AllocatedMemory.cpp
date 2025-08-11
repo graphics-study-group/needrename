@@ -3,30 +3,38 @@
 #include <vulkan/vulkan.hpp>
 
 namespace Engine {
+
+    struct AllocatedMemory::impl {
+        std::variant<vk::Image, vk::Buffer> m_vk_handle;
+        VmaAllocation m_allocation;
+        VmaAllocator m_allocator;
+        std::byte *m_mapped_memory{nullptr};
+    };
+
     void AllocatedMemory::ClearAndInvalidate() {
-        if (m_allocator == nullptr) return;
+        if (pimpl->m_allocator == nullptr) return;
 
-        assert(m_allocation);
+        assert(pimpl->m_allocation);
 
-        if (m_mapped_memory) {
+        if (pimpl->m_mapped_memory) {
             this->UnmapMemory();
         }
 
-        switch (this->m_vk_handle.index()) {
+        switch (pimpl->m_vk_handle.index()) {
         case 0:
-            vmaDestroyImage(m_allocator, std::get<0>(m_vk_handle), m_allocation);
+            vmaDestroyImage(pimpl->m_allocator, std::get<0>(pimpl->m_vk_handle), pimpl->m_allocation);
             break;
         case 1:
-            vmaDestroyBuffer(m_allocator, std::get<1>(m_vk_handle), m_allocation);
+            vmaDestroyBuffer(pimpl->m_allocator, std::get<1>(pimpl->m_vk_handle), pimpl->m_allocation);
             break;
         }
     }
 
     AllocatedMemory::AllocatedMemory(vk::Image image, VmaAllocation allocation, VmaAllocator allocator) :
-        m_vk_handle{image}, m_allocation{allocation}, m_allocator{allocator} {
+        pimpl(std::make_unique<impl>(image, allocation, allocator)) {
     }
     AllocatedMemory::AllocatedMemory(vk::Buffer buffer, VmaAllocation allocation, VmaAllocator allocator) :
-        m_vk_handle{buffer}, m_allocation{allocation}, m_allocator{allocator} {
+        pimpl(std::make_unique<impl>(buffer, allocation, allocator)) {
     }
 
     AllocatedMemory::~AllocatedMemory() {
@@ -34,58 +42,57 @@ namespace Engine {
     }
 
     AllocatedMemory::AllocatedMemory(AllocatedMemory &&other) {
-        this->m_vk_handle = other.m_vk_handle;
-        this->m_allocation = other.m_allocation;
-        this->m_allocator = other.m_allocator;
+        pimpl = std::make_unique<impl>(other.pimpl->m_vk_handle, other.pimpl->m_allocation, other.pimpl->m_allocator);
 
         // Reset other
-        other.m_vk_handle = {};
-        other.m_allocation = nullptr;
-        other.m_allocator = nullptr;
+        other.pimpl->m_vk_handle = {};
+        other.pimpl->m_allocation = nullptr;
+        other.pimpl->m_allocator = nullptr;
     }
     AllocatedMemory &AllocatedMemory::operator=(AllocatedMemory &&other) {
         if (&other != this) {
+            assert(pimpl);
             this->ClearAndInvalidate();
 
-            this->m_vk_handle = other.m_vk_handle;
-            this->m_allocation = other.m_allocation;
-            this->m_allocator = other.m_allocator;
+            pimpl->m_vk_handle = other.pimpl->m_vk_handle;
+            pimpl->m_allocation = other.pimpl->m_allocation;
+            pimpl->m_allocator = other.pimpl->m_allocator;
 
             // Reset other
-            other.m_vk_handle = {};
-            other.m_allocation = nullptr;
-            other.m_allocator = nullptr;
+            other.pimpl->m_vk_handle = {};
+            other.pimpl->m_allocation = nullptr;
+            other.pimpl->m_allocator = nullptr;
         }
         return *this;
     }
     vk::Buffer AllocatedMemory::GetBuffer() const {
-        assert(m_vk_handle.index() == 1 && "Getting buffer handle from other memory handle type.");
-        return static_cast<vk::Buffer>(std::get<1>(m_vk_handle));
+        assert(pimpl->m_vk_handle.index() == 1 && "Getting buffer handle from other memory handle type.");
+        return static_cast<vk::Buffer>(std::get<1>(pimpl->m_vk_handle));
     }
     vk::Image AllocatedMemory::GetImage() const {
-        assert(m_vk_handle.index() == 0 && "Getting image handle from other memory handle type.");
-        return static_cast<vk::Image>(std::get<0>(m_vk_handle));
+        assert(pimpl->m_vk_handle.index() == 0 && "Getting image handle from other memory handle type.");
+        return static_cast<vk::Image>(std::get<0>(pimpl->m_vk_handle));
     }
     std::byte *AllocatedMemory::MapMemory() {
-        assert(m_allocator && m_allocation && "Invalild allocator or allocation.");
-        assert(m_vk_handle.index() == 1 && "Invaild mapping of non-buffer data to host memory.");
-        if (m_mapped_memory) {
+        assert(pimpl->m_allocator && pimpl->m_allocation && "Invalild allocator or allocation.");
+        assert(pimpl->m_vk_handle.index() == 1 && "Invaild mapping of non-buffer data to host memory.");
+        if (pimpl->m_mapped_memory) {
             // assert(m_allocation->GetMappedData() == m_mapped_memory && "Inconsistent mapped memory pointer.");
-            return m_mapped_memory;
+            return pimpl->m_mapped_memory;
         }
         void *ptr{nullptr};
         vk::detail::resultCheck(
-            static_cast<vk::Result>(vmaMapMemory(m_allocator, m_allocation, &ptr)), "Cannot map memory."
+            static_cast<vk::Result>(vmaMapMemory(pimpl->m_allocator, pimpl->m_allocation, &ptr)), "Cannot map memory."
         );
-        m_mapped_memory = reinterpret_cast<std::byte *>(ptr);
-        return m_mapped_memory;
+        pimpl->m_mapped_memory = reinterpret_cast<std::byte *>(ptr);
+        return pimpl->m_mapped_memory;
     }
     void AllocatedMemory::FlushMemory(size_t offset, size_t size) {
         if (size == 0) {
             size = VK_WHOLE_SIZE;
         }
         vk::detail::resultCheck(
-            static_cast<vk::Result>(vmaFlushAllocation(m_allocator, m_allocation, offset, size)),
+            static_cast<vk::Result>(vmaFlushAllocation(pimpl->m_allocator, pimpl->m_allocation, offset, size)),
             "Failed to flush mapped memory."
         );
     }
@@ -94,13 +101,13 @@ namespace Engine {
             size = VK_WHOLE_SIZE;
         }
         vk::detail::resultCheck(
-            static_cast<vk::Result>(vmaInvalidateAllocation(m_allocator, m_allocation, offset, size)),
+            static_cast<vk::Result>(vmaInvalidateAllocation(pimpl->m_allocator, pimpl->m_allocation, offset, size)),
             "Failed to invalidate mapped memory."
         );
     }
     void AllocatedMemory::UnmapMemory() {
-        assert(m_allocator && m_allocation && "Invalild allocator or allocation.");
-        vmaUnmapMemory(m_allocator, m_allocation);
-        m_mapped_memory = nullptr;
+        assert(pimpl->m_allocator && pimpl->m_allocation && "Invalild allocator or allocation.");
+        vmaUnmapMemory(pimpl->m_allocator, pimpl->m_allocation);
+        pimpl->m_mapped_memory = nullptr;
     }
 } // namespace Engine

@@ -1,23 +1,20 @@
 #include <SDL3/SDL.h>
 #include <cassert>
 #include <chrono>
-#include <filesystem>
 #include <fstream>
-#include <stb_image.h>
+
 #include <tiny_obj_loader.h>
 
-#include "Asset/Material/MaterialAsset.h"
+#include "Asset/AssetManager/AssetManager.h"
+#include "Asset/Loader/ObjLoader.h"
+#include "Asset/Material/MaterialTemplateAsset.h"
+#include "Asset/Mesh/MeshAsset.h"
+#include "Asset/Texture/Image2DTextureAsset.h"
 #include "Framework/component/RenderComponent/MeshComponent.h"
 #include "Functional/SDLWindow.h"
 #include "GUI/GUISystem.h"
 #include "MainClass.h"
 #include "Render/FullRenderSystem.h"
-#include <Asset/AssetManager/AssetManager.h>
-#include <Asset/AssetRef.h>
-#include <Asset/Loader/ObjLoader.h>
-#include <Asset/Mesh/MeshAsset.h>
-#include <Framework/object/GameObject.h>
-#include <Framework/world/WorldSystem.h>
 
 #include "cmake_config.h"
 
@@ -38,7 +35,6 @@ std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate() {
 
     MaterialTemplateSinglePassProperties mtspp{};
     mtspp.attachments.color = {ImageUtils::ImageFormat::R11G11B10UFloat};
-    mtspp.attachments.color_ops = {AttachmentUtils::AttachmentOp{}};
     mtspp.attachments.color_blending = {PipelineProperties::ColorBlendingProperties{}};
     mtspp.attachments.depth = ImageUtils::ImageFormat::D32SFLOAT;
     mtspp.shaders.shaders = std::vector<std::shared_ptr<AssetRef>>{vs_ref, fs_ref};
@@ -246,7 +242,7 @@ int main(int argc, char **argv) {
     auto pbr_material_template_asset = ConstructMaterialTemplate();
     auto pbr_material_template_asset_ref = std::make_shared<AssetRef>(pbr_material_template_asset);
     auto pbr_material_template = std::make_shared<MaterialTemplate>(*rsys);
-    pbr_material_template->InstantiateFromRef(pbr_material_template_asset_ref);
+    pbr_material_template->Instantiate(*pbr_material_template_asset_ref->cas<MaterialTemplateAsset>());
 
     auto gsys = cmc->GetGUISystem();
     gsys->CreateVulkanBackend(ImageUtils::GetVkFormat(Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm));
@@ -291,21 +287,18 @@ int main(int argc, char **argv) {
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*red_texture, {1.0, 0.0, 0.0, 1.0});
 
     Engine::AttachmentUtils::AttachmentDescription color_att, depth_att;
-    color_att.image = hdr_color->GetImage();
-    color_att.image_view = hdr_color->GetImageView();
-    color_att.load_op = vk::AttachmentLoadOp::eClear;
-    color_att.store_op = vk::AttachmentStoreOp::eStore;
-
-    depth_att.image = depth->GetImage();
-    depth_att.image_view = depth->GetImageView();
-    depth_att.load_op = vk::AttachmentLoadOp::eClear;
-    depth_att.store_op = vk::AttachmentStoreOp::eDontCare;
+    color_att.texture = hdr_color.get();
+    color_att.load_op = AttachmentUtils::LoadOperation::Clear;
+    color_att.store_op = AttachmentUtils::StoreOperation::Store;
+    depth_att.texture = depth.get();
+    depth_att.load_op = AttachmentUtils::LoadOperation::Clear;
+    depth_att.store_op = AttachmentUtils::StoreOperation::DontCare;
 
     auto cs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/bloom.comp.spv.asset");
     assert(cs_ref);
     MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(cs_ref);
     auto bloom_compute_stage = std::make_shared<ComputeStage>(*rsys);
-    bloom_compute_stage->InstantiateFromRef(cs_ref);
+    bloom_compute_stage->Instantiate(*cs_ref->cas<ShaderAsset>());
     bloom_compute_stage->SetDescVariable(
         bloom_compute_stage->GetVariableIndex("inputImage").value().first,
         std::const_pointer_cast<const Texture>(hdr_color)
@@ -397,7 +390,7 @@ int main(int argc, char **argv) {
         );
         context.PrepareCommandBuffer();
         gsys->DrawGUI(
-            {color->GetImage(), color->GetImageView(), vk::AttachmentLoadOp::eLoad, vk::AttachmentStoreOp::eStore},
+            {color.get(), nullptr, AttachmentUtils::LoadOperation::Load, AttachmentUtils::StoreOperation::Store},
             extent,
             cb
         );

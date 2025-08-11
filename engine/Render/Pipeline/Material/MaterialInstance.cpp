@@ -1,5 +1,9 @@
 #include "MaterialInstance.h"
+
+#include "Asset/Material/MaterialAsset.h"
+
 #include "Render/Memory/SampledTextureInstantiated.h"
+#include "Render/Pipeline/PipelineInfo.h"
 #include "Render/Pipeline/PipelineUtils.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/FrameManager.h"

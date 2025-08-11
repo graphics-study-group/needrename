@@ -1,28 +1,37 @@
 #ifndef REFLECTION_METHOD_INCLUDED
 #define REFLECTION_METHOD_INCLUDED
 
-#include <string>
-#include <functional>
-#include <vector>
-#include <memory>
 #include "utils.h"
+#include <functional>
+#include <memory>
+#include <string>
+#include <vector>
 
-namespace Engine
-{
-    namespace Reflection
-    {
+namespace Engine {
+    namespace Reflection {
         class Type;
         class Var;
         class ConstVar;
 
-        class Method
-        {
+        class Method {
         protected:
             friend class Type;
             Method() = delete;
-            Method(const std::string &final_name, const WrapperMemberFunc &func, const WrapperConstMemberFunc &const_func, std::shared_ptr<Type> return_type, bool is_final_name);
+            Method(
+                const std::string &final_name,
+                const WrapperMemberFunc &func,
+                const WrapperConstMemberFunc &const_func,
+                std::shared_ptr<Type> return_type,
+                bool is_final_name
+            );
             template <typename... Args>
-            Method(const std::string &name, const WrapperMemberFunc &func, const WrapperConstMemberFunc &const_func, std::shared_ptr<Type> return_type);
+            Method(
+                const std::string &name,
+                const WrapperMemberFunc &func,
+                const WrapperConstMemberFunc &const_func,
+                std::shared_ptr<Type> return_type
+            );
+
         public:
             ~Method() = default;
 
@@ -35,16 +44,16 @@ namespace Engine
             std::string m_name{};
 
             template <typename... Args>
-            Var Invoke(Var &obj, Args&&...);
+            Var Invoke(Var &obj, Args &&...);
             template <typename... Args>
-            Var Invoke(void *obj, Args&&...);
+            Var Invoke(void *obj, Args &&...);
             template <typename... Args>
-            Var ConstInvoke(ConstVar &obj, Args&&...);
+            Var ConstInvoke(ConstVar &obj, Args &&...);
             template <typename... Args>
-            Var ConstInvoke(const void *obj, Args&&...);
+            Var ConstInvoke(const void *obj, Args &&...);
         };
-    }
-}
+    } // namespace Reflection
+} // namespace Engine
 
 #include "Method.tpp"
 
