@@ -73,6 +73,10 @@ namespace Engine
             {
                 return CreateType<T>();
             }
+            if constexpr (std::is_const_v<std::remove_reference_t<T>>)
+            {
+                return std::shared_ptr<const Type>(new ConstType(Type::s_index_type_map[type_index]));
+            }
             return Type::s_index_type_map[type_index];
         }
 
@@ -82,13 +86,22 @@ namespace Engine
             if (typeid(T) == typeid(obj))
                 return GetType<T>();
             std::type_index type_index = std::type_index(typeid(obj));
+            std::shared_ptr<const Type> ret;
             if (Type::s_index_type_map.find(type_index) == Type::s_index_type_map.end())
             {
                 // Don't need support special types like std::vector, std::string, etc.
                 // because the object is polymorphic, and all the special types are not derived from any base type.
-                return std::shared_ptr<const Type>(new Type(type_index.name(), sizeof(obj), false));
+                ret = std::shared_ptr<const Type>(new Type(type_index.name(), sizeof(obj), false));
             }
-            return Type::s_index_type_map[type_index];
+            else
+            {
+                ret = Type::s_index_type_map[type_index];
+            }
+            if constexpr (std::is_const_v<std::remove_reference_t<T>>)
+            {
+                return std::shared_ptr<const Type>(new ConstType(ret));
+            }
+            return ret;
         }
 
         template <typename T>
@@ -106,7 +119,11 @@ namespace Engine
         template <typename T>
         std::shared_ptr<const Type> CreateType()
         {
-            if constexpr (std::is_pointer_v<T>)
+            if constexpr (std::is_const_v<std::remove_reference_t<T>>)
+            {
+                return std::shared_ptr<const Type>(new ConstType(GetType<std::remove_const_t<T>>()));
+            }
+            else if constexpr (std::is_pointer_v<T>)
             {
                 return std::shared_ptr<const PointerType>(new PointerType(GetType<std::remove_pointer_t<T>>(), sizeof(T), PointerType::PointerTypeKind::Raw));
             }

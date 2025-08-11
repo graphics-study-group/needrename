@@ -62,6 +62,11 @@ namespace Engine {
             return m_fields;
         }
 
+        ConstType::ConstType(std::shared_ptr<const Type> base_type) :
+            Type(base_type->m_name + " const", base_type->m_size, base_type->m_reflectable), m_base_type(base_type) {
+            m_specialization = Const;
+        }
+
         ArrayType::ArrayType(std::shared_ptr<const Type> element_type, size_t size, ArrayTypeKind kind) :
             Type(element_type->m_name + "[]", size, false), m_element_type(element_type), m_array_kind(kind) {
             m_specialization = Array;

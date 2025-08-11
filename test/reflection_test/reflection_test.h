@@ -146,14 +146,4 @@ namespace TestHelloWorld
     }
 }
 
-class REFL_SER_CLASS(REFL_WHITELIST) TestSpecialType
-{
-    REFL_SER_BODY(TestSpecialType)
-public:
-    TestSpecialType() = default;
-    virtual ~TestSpecialType() = default;
-
-    REFL_ENABLE std::vector<int> m_vector_int{};
-};
-
 #endif // CTEST_REFLECTION_TEST_H

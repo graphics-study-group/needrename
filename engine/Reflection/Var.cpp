@@ -13,9 +13,18 @@ namespace Engine {
         }
 
         Var Var::GetMember(const std::string &name) {
-            auto field = m_type->GetField(name);
+            std::shared_ptr<const Field> field;
+            if (m_type->m_specialization == Type::Const) {
+                field = std::dynamic_pointer_cast<const ConstType>(m_type)->m_base_type->GetField(name);
+            } else {
+                field = m_type->GetField(name);
+            }
             if (!field) throw std::runtime_error("Field not found");
-            return field->GetVar(m_data);
+            auto ret = field->GetVar(m_data);
+            if (m_type->m_specialization == Type::Const) {
+                ret.m_type = std::shared_ptr<const Type>(new ConstType(ret.m_type));
+            }
+            return ret;
         }
         
         Var Var::GetPointedVar() {
@@ -39,6 +48,8 @@ namespace Engine {
             auto type = std::static_pointer_cast<const ArrayType>(m_type);
             switch(type->m_array_kind)
             {
+                case ArrayType::ArrayTypeKind::Raw:
+                    return Var(type->m_element_type, static_cast<void *>(*static_cast<uint8_t **>(m_data) + index * type->m_element_type->m_size));
                 default:
                     throw std::runtime_error("Not Implemented");
             }

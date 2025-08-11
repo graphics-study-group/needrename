@@ -249,8 +249,19 @@ int main() {
     std::cout << "const_data_get: m_data[0] == " << const_data_get.Get<const TestData *>()->data[0] << std::endl;
     assert(const_data_get.Get<const TestData *>()->data[0] == 1001.0f);
     for (int i = 1; i < 100; i++) assert(const_data_get.Get<const TestData *>()->data[i] == 0.0f);
+    data3.data[7] = 132.0f;
     std::cout << "[] const function: const_data_get->GetData(7) == " << const_data_get.GetPointedVar().InvokeMethod("GetData", 7).Get<float>() << std::endl;
-    assert(const_data_get.Get<const TestData *>()->GetData(7) == 0.0f);
+    assert(const_data_get.GetPointedVar().InvokeMethod("GetData", 7).Get<float>() == 132.0f);
+
+    bool const_check = false;
+    try {
+        const_data_get.GetPointedVar().InvokeMethod("SetData", 7, 123.0f);
+    }
+    catch (const std::runtime_error &e) {
+        std::cout << "Caught expected exception: " << e.what() << std::endl;
+        const_check = (std::string(e.what()) == "Method SetData is not const, but the Var is const");
+    }
+    assert(const_check);
 
     std::cout << "----------------------------------- Test namespace of classes -----------------------------------"
               << std::endl;

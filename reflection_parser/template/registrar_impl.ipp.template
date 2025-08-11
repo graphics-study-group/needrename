@@ -72,34 +72,13 @@ std::add_pointer<${method.return_type.full_name}>::type ret_ptr = reinterpret_ca
 ); ret = reinterpret_cast<void *>(ret_ptr);\
                     % endif
 }, 
+                GetType<${method.return_type.full_name}>(),
                 % if method.is_const:
-                [](const void *obj, void *&ret, const std::vector<void *> &args)
-                { \
-                    % if method.return_type_is_reference:
-ret = const_cast<void*>(reinterpret_cast<const void *>(&static_cast<std::add_const<std::remove_reference<${class_type.full_name}>::type>::type *>(obj)->${method.name}(\
-                    % elif method.return_type.name == "void":
-static_cast<std::add_pointer<std::add_const<${class_type.full_name}>::type>::type>(obj)->${method.name}(\
-                    % else:
-std::add_pointer<${method.return_type.full_name}>::type ret_ptr = reinterpret_cast<std::remove_reference<${method.return_type.full_name}>::type *>(malloc(sizeof(${method.return_type.full_name}))); *ret_ptr = static_cast<std::add_pointer<std::add_const<${class_type.full_name}>::type>::type>(obj)->${method.name}(\
-                    % endif
-                    % for i in range(len(method.arg_types)):
-*reinterpret_cast<std::remove_reference<${method.arg_types[i].full_name}>::type *>(args[${i}])\
-                        % if i < len(method.arg_types) - 1:
-, \
-                        % endif
-                    % endfor
-                    % if method.return_type_is_reference:
-))); \
-                    % elif method.return_type.name == "void":
-); \
-                    % else:
-); ret = reinterpret_cast<void *>(ret_ptr);\
-                    % endif
-}, 
+                true
                 % else:
-                nullptr,
+                false
                 % endif
-                GetType<${method.return_type.full_name}>());
+            );
             % endfor
             
             % for field in class_type.fields:

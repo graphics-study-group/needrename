@@ -19,18 +19,18 @@ namespace Engine
         protected:
             friend class Type;
             Method() = delete;
-            Method(const std::string &final_name, const WrapperMemberFunc &func, const WrapperConstMemberFunc &const_func, std::shared_ptr<const Type> return_type, bool is_final_name);
+            Method(const std::string &final_name, const WrapperMemberFunc &func, std::shared_ptr<const Type> return_type, bool is_const, bool is_final_name);
             template <typename... Args>
-            Method(const std::string &name, const WrapperMemberFunc &func, const WrapperConstMemberFunc &const_func, std::shared_ptr<const Type> return_type);
+            Method(const std::string &name, const WrapperMemberFunc &func, std::shared_ptr<const Type> return_type, bool is_const);
         public:
             ~Method() = default;
 
         protected:
             WrapperMemberFunc m_func{};
-            WrapperConstMemberFunc m_const_func{};
 
         public:
             std::shared_ptr<const Type> m_return_type{};
+            bool m_is_const = false;
             std::string m_name{};
 
             template <typename... Args>

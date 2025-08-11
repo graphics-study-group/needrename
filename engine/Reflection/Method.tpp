@@ -7,8 +7,8 @@ namespace Engine
     namespace Reflection
     {
         template <typename... Args>
-        Method::Method(const std::string &name_no_mangled, const WrapperMemberFunc &func, const WrapperConstMemberFunc &const_func, std::shared_ptr<const Type> return_type)
-            : m_name(name_no_mangled), m_func(func), m_const_func(const_func), m_return_type(return_type)
+        Method::Method(const std::string &name_no_mangled, const WrapperMemberFunc &func, std::shared_ptr<const Type> return_type, bool is_const)
+            : m_func(func), m_return_type(return_type), m_is_const(is_const), m_name(name_no_mangled)
         {
             m_name += GetMangledName<Args...>();
         }

@@ -70,6 +70,7 @@ namespace Engine
             enum
             {
                 None,
+                Const,
                 Pointer,
                 Array
             } m_specialization{None};
@@ -81,10 +82,10 @@ namespace Engine
             /// @brief Add a member function to the type.
             /// @param name the name of the function
             /// @param func the member function wrapper
-            /// @param const_func the member function wrapper when the object is const
             /// @param return_type the return type of the function
+            /// @param is_const whether the function is const
             template <typename... Args>
-            void AddMethod(const std::string &name, const WrapperMemberFunc &func, const WrapperConstMemberFunc &const_func, std::shared_ptr<const Type> return_type);
+            void AddMethod(const std::string &name, const WrapperMemberFunc &func, std::shared_ptr<const Type> return_type, bool is_const);
 
             /// @brief Add a member function to the type.
             void AddMethod(std::shared_ptr<const Method> method);
@@ -125,6 +126,15 @@ namespace Engine
             /// @brief Get the unordered map of fields of the type.
             /// @return 
             const std::unordered_map<std::string, std::shared_ptr<const Field>> &GetFields() const;
+        };
+
+        class ConstType : public Type
+        {
+        public:
+            ConstType(std::shared_ptr<const Type> base_type);
+            virtual ~ConstType() = default;
+
+            std::shared_ptr<const Type> m_base_type;
         };
 
         class ArrayType : public Type
