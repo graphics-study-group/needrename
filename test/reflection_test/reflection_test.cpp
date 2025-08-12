@@ -278,28 +278,28 @@ int main() {
 
     std::cout << "----------------------------------- Test Array -----------------------------------" << std::endl;
     Engine::Reflection::Var array_test = Engine::Reflection::GetType("ArrayTest")->CreateInstance();
-    array_test.GetElementOfArrayMember("m_array_int", 1).Set<int>(1);
-    int *array_int2 = static_cast<int *>(array_test.GetElementOfArrayMember("m_array_int2", 2).GetDataPtr());
+    array_test.GetArrayMember("m_array_int").GetElement(1).Set<int>(1);
+    int *array_int2 = static_cast<int *>(array_test.GetArrayMember("m_array_int2").GetElement(2).GetDataPtr());
     array_int2[2] = 2;
-    // array_test.GetElementOfArrayMember("m_vector_float", 0).Set<float>(1.0f);
-    array_test.GetElementOfArrayMember("m_array_double", 4).Set<double>(4.0);
-    std::cout << "array_test: m_array_int[1] == " << array_test.GetElementOfArrayMember("m_array_int", 1).Get<int>()
+    // array_test.GetArrayMember("m_vector_float").GetElement(0).Set<float>(1.0f);
+    array_test.GetArrayMember("m_array_double").GetElement(4).Set<double>(4.0);
+    std::cout << "array_test: m_array_int[1] == " << array_test.GetArrayMember("m_array_int").GetElement(1).Get<int>()
               << std::endl;
-    assert(array_test.GetElementOfArrayMember("m_array_int", 1).Get<int>() == 1);
+    assert(array_test.GetArrayMember("m_array_int").GetElement(1).Get<int>() == 1);
     std::cout << "array_test: m_array_int2[2] == " << array_test.Get<ArrayTest>().m_array_int2[2][2] << std::endl;
     assert(array_test.Get<ArrayTest>().m_array_int2[2][2] == 2);
     std::cout << "array_test: m_array_double[4] == "
-              << array_test.GetElementOfArrayMember("m_array_double", 4).Get<double>() << std::endl;
-    assert(array_test.GetElementOfArrayMember("m_array_double", 4).Get<double>() == 4.0);
+              << array_test.GetArrayMember("m_array_double").GetElement(4).Get<double>() << std::endl;
+    assert(array_test.GetArrayMember("m_array_double").GetElement(4).Get<double>() == 4.0);
     std::cout << "array_test: size of m_array_int == "
-              << array_test.GetArrayMemberSize("m_array_int") << std::endl;
-    assert(array_test.GetArrayMemberSize("m_array_int") == 5);
+              << array_test.GetArrayMember("m_array_int").GetSize() << std::endl;
+    assert(array_test.GetArrayMember("m_array_int").GetSize() == 5);
     std::cout << "array_test: size of m_array_int2 == "
-              << array_test.GetArrayMemberSize("m_array_int2") << std::endl;
-    assert(array_test.GetArrayMemberSize("m_array_int2") == 9);
+              << array_test.GetArrayMember("m_array_int2").GetSize() << std::endl;
+    assert(array_test.GetArrayMember("m_array_int2").GetSize() == 9);
     std::cout << "array_test: size of m_array_double == "
-              << array_test.GetArrayMemberSize("m_array_double") << std::endl;
-    assert(array_test.GetArrayMemberSize("m_array_double") == 12);
+              << array_test.GetArrayMember("m_array_double").GetSize() << std::endl;
+    assert(array_test.GetArrayMember("m_array_double").GetSize() == 12);
 
     return 0;
 }

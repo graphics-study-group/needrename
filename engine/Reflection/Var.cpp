@@ -27,31 +27,17 @@ namespace Engine {
             return ret;
         }
 
-        Var Var::GetElementOfArrayMember(const std::string &name, size_t index) {
+        ArrayVar Var::GetArrayMember(const std::string &name) {
             std::shared_ptr<const ArrayField> array_field;
+            bool is_const = false;
             if (m_type->m_specialization == Type::Const) {
                 array_field = std::dynamic_pointer_cast<const ConstType>(m_type)->m_base_type->GetArrayField(name);
+                is_const = true;
             } else {
                 array_field = m_type->GetArrayField(name);
             }
             if (!array_field) throw std::runtime_error("Array field not found");
-            auto ret = array_field->GetElementVar(m_data, index);
-            if (m_type->m_specialization == Type::Const) {
-                ret.m_type = std::shared_ptr<const Type>(new ConstType(ret.m_type));
-            }
-            return ret;
-        }
-
-        size_t Var::GetArrayMemberSize(const std::string &name) const
-        {
-            std::shared_ptr<const ArrayField> array_field;
-            if (m_type->m_specialization == Type::Const) {
-                array_field = std::dynamic_pointer_cast<const ConstType>(m_type)->m_base_type->GetArrayField(name);
-            } else {
-                array_field = m_type->GetArrayField(name);
-            }
-            if (!array_field) throw std::runtime_error("Array field not found");
-            return array_field->GetArraySize(m_data);
+            return ArrayVar(array_field, m_data, is_const);
         }
 
         Var Var::GetPointedVar() {
@@ -71,6 +57,22 @@ namespace Engine {
             m_type = var.m_type;
             m_data = var.m_data;
             return *this;
+        }
+
+        ArrayVar::ArrayVar(std::shared_ptr<const ArrayField> field, void *data, bool is_const) :
+            m_field(field), m_data(data), m_is_const(is_const) {
+        }
+
+        Var ArrayVar::GetElement(size_t index) {
+            auto ret = m_field->GetElementVar(m_data, index);
+            if (m_is_const) {
+                ret.m_type = std::shared_ptr<const Type>(new ConstType(ret.m_type));
+            }
+            return ret;
+        }
+
+        size_t ArrayVar::GetSize() const {
+            return m_field->GetArraySize(m_data);
         }
     } // namespace Reflection
 } // namespace Engine

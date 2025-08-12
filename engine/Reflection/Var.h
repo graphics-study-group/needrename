@@ -7,6 +7,7 @@
 namespace Engine {
     namespace Reflection {
         class Type;
+        class ArrayVar;
 
         class Var {
         public:
@@ -47,22 +48,38 @@ namespace Engine {
             /// @return a Var object representing the field
             Var GetMember(const std::string &name);
 
-            /// @brief Get an element of an array field of the object.
+            /// @brief Get an array member field of the object.
+            /// The member should be an array, std::vector or std::array.
             /// @param name the name of the array field
-            /// @param index the index of the element
-            /// @return a Var object representing the element
-            Var GetElementOfArrayMember(const std::string &name, size_t index);
-
-            /// @brief Get the size of an array member field of the object.
-            /// @param name the name of the array field
-            /// @return the size of the array
-            size_t GetArrayMemberSize(const std::string &name) const;
+            /// @return an ArrayVar object representing the array field
+            ArrayVar GetArrayMember(const std::string &name);
 
             /// @brief If the type of the Var is a pointer, get the Var it points to.
             /// @return the Var it points to
             Var GetPointedVar();
 
             Var &operator=(const Var &var);
+        };
+
+        class ArrayField;
+
+        class ArrayVar {
+        protected:
+            friend class Var;
+            ArrayVar() = delete;
+            ArrayVar(std::shared_ptr<const ArrayField> field, void *data, bool is_const);
+
+        public:
+            ~ArrayVar() = default;
+
+        protected:
+            std::shared_ptr<const ArrayField> m_field;
+            void *m_data;
+            bool m_is_const;
+
+        public:
+            Var GetElement(size_t index);
+            size_t GetSize() const;
         };
     } // namespace Reflection
 } // namespace Engine
