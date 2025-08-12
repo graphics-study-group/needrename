@@ -70,7 +70,9 @@ namespace Engine {
             ArrayVar(std::shared_ptr<const ArrayField> field, void *data, bool is_const);
 
         public:
+            ArrayVar(const ArrayVar &var) = default;
             ~ArrayVar() = default;
+            ArrayVar &operator=(const ArrayVar &var);
 
         protected:
             std::shared_ptr<const ArrayField> m_field;

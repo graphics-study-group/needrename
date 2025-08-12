@@ -63,6 +63,13 @@ namespace Engine {
             m_field(field), m_data(data), m_is_const(is_const) {
         }
 
+        ArrayVar &ArrayVar::operator=(const ArrayVar &var) {
+            m_field = var.m_field;
+            m_data = var.m_data;
+            m_is_const = var.m_is_const;
+            return *this;
+        }
+
         Var ArrayVar::GetElement(size_t index) {
             auto ret = m_field->GetElementVar(m_data, index);
             if (m_is_const) {
