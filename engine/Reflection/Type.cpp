@@ -80,7 +80,7 @@ namespace Engine {
         }
 
         ConstType::ConstType(std::shared_ptr<const Type> base_type) :
-            Type(base_type->m_name, base_type->m_size, base_type->m_reflectable), m_base_type(base_type) {
+            Type(base_type->m_name, base_type->m_size, false), m_base_type(base_type) {
             m_specialization = Const;
         }
 

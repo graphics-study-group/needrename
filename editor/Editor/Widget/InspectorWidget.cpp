@@ -104,6 +104,12 @@ namespace Editor {
             glm::quat value = var.Get<glm::quat>();
             ImGui::InputFloat4(name.c_str(), &value[0]);
             var.Set(value);
+        } else if (var.m_type->m_specialization == Engine::Reflection::Type::Pointer) {
+            auto pointer_type = std::dynamic_pointer_cast<const Engine::Reflection::PointerType>(var.m_type);
+            if (pointer_type && pointer_type->m_pointed_type->GetName() == "Engine::AssetRef") {
+                Engine::GUID asset_guid = var.GetPointedVar().InvokeMethod("GetGUID").Get<Engine::GUID>();
+                ImGui::Text("%s: Asset GUID: %s", name.c_str(), asset_guid.toString().c_str());
+            }
         } else if (var.m_type->GetName().starts_with("std::vector<")) {
             if (ImGui::TreeNodeEx(name.c_str(), ImGuiTreeNodeFlags_None)) {
                 // auto &vec = var.Get<std::vector<std::any>>();
