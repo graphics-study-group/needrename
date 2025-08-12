@@ -34,12 +34,9 @@ namespace Engine {
         }
 
         void Type::AddField(
-            const std::shared_ptr<const Type> field_type,
-            const std::string &name,
-            const WrapperFieldFunc &field
+            const std::shared_ptr<const Type> field_type, const std::string &name, const WrapperFieldFunc &field
         ) {
-            m_fields[name] =
-                std::shared_ptr<const Field>(new Field(name, shared_from_this(), field_type, field));
+            m_fields[name] = std::shared_ptr<const Field>(new Field(name, shared_from_this(), field_type, field));
         }
 
         void Type::AddField(const std::shared_ptr<const Field> field) {
@@ -48,10 +45,30 @@ namespace Engine {
             m_fields[field->m_name] = field;
         }
 
+        void Type::AddArrayField(
+            const std::shared_ptr<const Type> element_type,
+            const std::string &name,
+            const WrapperArrayFieldFunc &array_getter_func,
+            const WrapperArrayFieldSize &array_size_getter_func
+        ) {
+            m_array_fields[name] = std::shared_ptr<const ArrayField>(
+                new ArrayField(name, shared_from_this(), element_type, array_getter_func, array_size_getter_func)
+            );
+        }
+
         std::shared_ptr<const Field> Type::GetField(const std::string &name) const {
             if (m_fields.find(name) != m_fields.end()) return m_fields.at(name);
             for (auto &base_type : m_base_type) {
                 auto field = base_type->GetField(name);
+                if (field) return field;
+            }
+            return nullptr;
+        }
+
+        std::shared_ptr<const ArrayField> Type::GetArrayField(const std::string &name) const {
+            if (m_array_fields.find(name) != m_array_fields.end()) return m_array_fields.at(name);
+            for (auto &base_type : m_base_type) {
+                auto field = base_type->GetArrayField(name);
                 if (field) return field;
             }
             return nullptr;

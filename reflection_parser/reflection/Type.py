@@ -34,3 +34,15 @@ class Field:
         self.cx_field = cx_field
         self.name = cx_field.spelling
         self.type = Type(cx_field.type)
+        
+        self.array_type = None
+        self.element_type_full_name = None
+        if self.type.cx_type.kind == CX.TypeKind.CONSTANTARRAY:
+            self.array_type = "ConstArray"
+            self.element_type_full_name =  get_type_full_name(self.type.cx_type.get_array_element_type())
+        elif self.type.cx_type.kind == CX.TypeKind.ELABORATED and self.type.full_name.startswith("std::vector<"):
+            self.array_type = "StdVector"
+            self.element_type_full_name = get_type_full_name(self.type.cx_type.get_template_argument_type(0))
+        elif self.type.cx_type.kind == CX.TypeKind.ELABORATED and self.type.full_name.startswith("std::array<"):
+            self.array_type = "StdArray"
+            self.element_type_full_name = get_type_full_name(self.type.cx_type.get_template_argument_type(0))

@@ -20,6 +20,7 @@ namespace Engine {
     namespace Reflection {
         class Registrar;
         class Field;
+        class ArrayField;
         class Method;
         class Var;
 
@@ -57,6 +58,7 @@ namespace Engine {
         protected:
             std::vector<std::shared_ptr<const Type>> m_base_type{};
             std::unordered_map<std::string, std::shared_ptr<const Field>> m_fields{};
+            std::unordered_map<std::string, std::shared_ptr<const ArrayField>> m_array_fields{};
             std::unordered_map<std::string, std::shared_ptr<const Method>> m_methods{};
 
         public:
@@ -108,6 +110,17 @@ namespace Engine {
             /// @brief Add a field to the type.
             void AddField(const std::shared_ptr<const Field> field);
 
+            /// @brief Add an array field to the type.
+            /// @param element_type the type of the elements in the array
+            /// @param name the name of the array field
+            /// @param array_getter_func the wrapper function for getting the array field
+            void AddArrayField(
+                const std::shared_ptr<const Type> element_type,
+                const std::string &name,
+                const WrapperArrayFieldFunc &array_getter_func,
+                const WrapperArrayFieldSize &array_size_getter_func
+            );
+
             // Get the name of the type
             const std::string &GetName() const;
 
@@ -128,6 +141,11 @@ namespace Engine {
             /// @param name the name of the field
             /// @return the shared pointer to the Field object
             std::shared_ptr<const Field> GetField(const std::string &name) const;
+
+            /// @brief Get an array field of the type.
+            /// @param name the name of the array field
+            /// @return the shared pointer to the ArrayField object
+            std::shared_ptr<const ArrayField> GetArrayField(const std::string &name) const;
 
             /// @brief Get the unordered map of fields of the type.
             /// @return

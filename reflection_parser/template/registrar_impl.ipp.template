@@ -87,6 +87,34 @@ std::add_pointer<${method.return_type.full_name}>::type ret_ptr = reinterpret_ca
                 "${field.name}",
                 [](void *obj, void *&ret)
                 { ret = static_cast<void *>(&static_cast<${class_type.full_name} *>(obj)->${field.name}); });
+            % if field.array_type == "ConstArray":
+            type->AddArrayField(
+                GetType<${field.element_type_full_name}>(),
+                "${field.name}",
+                [](void *obj, size_t index, void *&ret)
+                { ret = static_cast<void *>(&static_cast<${class_type.full_name} *>(obj)->${field.name}[index]); },
+                [](void *obj, size_t &size)
+                { size = ${field.type.cx_type.get_array_size()}u; }
+            );
+            % elif field.array_type == "StdVector":
+            type->AddArrayField(
+                GetType<${field.element_type_full_name}>(),
+                "${field.name}",
+                [](void *obj, size_t index, void *&ret)
+                { ret = static_cast<void *>(&static_cast<${class_type.full_name} *>(obj)->${field.name}[index]); },
+                [](void *obj, size_t &size)
+                { size = static_cast<${class_type.full_name} *>(obj)->${field.name}.size(); }
+            );
+            % elif field.array_type == "StdArray":
+            type->AddArrayField(
+                GetType<${field.element_type_full_name}>(),
+                "${field.name}",
+                [](void *obj, size_t index, void *&ret)
+                { ret = static_cast<void *>(&static_cast<${class_type.full_name} *>(obj)->${field.name}[index]); },
+                [](void *obj, size_t &size)
+                { size = static_cast<${class_type.full_name} *>(obj)->${field.name}.size(); }
+            );
+            % endif
             % endfor
 
             Type::s_index_type_map[std::type_index(typeid(${class_type.full_name}))] = type;

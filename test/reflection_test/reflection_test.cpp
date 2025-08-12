@@ -276,5 +276,30 @@ int main() {
     ns_test3.InvokeMethod("PrintInfo");
     assert(ns_test3.GetDataPtr() == TestHelloWorld_TestHelloWorld2_NamespaceTest_PrintInfo_Called);
 
+    std::cout << "----------------------------------- Test Array -----------------------------------" << std::endl;
+    Engine::Reflection::Var array_test = Engine::Reflection::GetType("ArrayTest")->CreateInstance();
+    array_test.GetElementOfArrayMember("m_array_int", 1).Set<int>(1);
+    int *array_int2 = static_cast<int *>(array_test.GetElementOfArrayMember("m_array_int2", 2).GetDataPtr());
+    array_int2[2] = 2;
+    // array_test.GetElementOfArrayMember("m_vector_float", 0).Set<float>(1.0f);
+    array_test.GetElementOfArrayMember("m_array_double", 4).Set<double>(4.0);
+    std::cout << "array_test: m_array_int[1] == " << array_test.GetElementOfArrayMember("m_array_int", 1).Get<int>()
+              << std::endl;
+    assert(array_test.GetElementOfArrayMember("m_array_int", 1).Get<int>() == 1);
+    std::cout << "array_test: m_array_int2[2] == " << array_test.Get<ArrayTest>().m_array_int2[2][2] << std::endl;
+    assert(array_test.Get<ArrayTest>().m_array_int2[2][2] == 2);
+    std::cout << "array_test: m_array_double[4] == "
+              << array_test.GetElementOfArrayMember("m_array_double", 4).Get<double>() << std::endl;
+    assert(array_test.GetElementOfArrayMember("m_array_double", 4).Get<double>() == 4.0);
+    std::cout << "array_test: size of m_array_int == "
+              << array_test.GetArrayMemberSize("m_array_int") << std::endl;
+    assert(array_test.GetArrayMemberSize("m_array_int") == 5);
+    std::cout << "array_test: size of m_array_int2 == "
+              << array_test.GetArrayMemberSize("m_array_int2") << std::endl;
+    assert(array_test.GetArrayMemberSize("m_array_int2") == 9);
+    std::cout << "array_test: size of m_array_double == "
+              << array_test.GetArrayMemberSize("m_array_double") << std::endl;
+    assert(array_test.GetArrayMemberSize("m_array_double") == 12);
+
     return 0;
 }
