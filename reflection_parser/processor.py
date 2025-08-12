@@ -102,7 +102,10 @@ class ReflectionParser:
             # if the node is not a forward declaration, it must have one of the following kinds
             # because every reflected class has a backdoor constructor in REFL_SER_BODY() macro
             if child.kind == CX.CursorKind.FIELD_DECL:
-                current_type.fields.append(Field(child))
+                field = Field(child)
+                current_type.fields.append(field)
+                # reflection for smart pointer requires extra headers
+                find_smart_pointer_type_from_template(field.type.cx_type, current_type.reflection_smart_pointer_typenames)
                 flag = True
             elif child.kind == CX.CursorKind.CONSTRUCTOR:
                 current_type.constructors.append(Method(child))

@@ -69,6 +69,33 @@ namespace Engine {
                 std::shared_ptr<const Type>(new Type("glm::vec4", sizeof(glm::vec4), false));
             Type::s_index_type_map[std::type_index(typeid(glm::quat))] =
                 std::shared_ptr<const Type>(new Type("glm::quat", sizeof(glm::quat), false));
+            
+            PointerType::RegisterSmartPointerGetFunc<void>();
+            PointerType::RegisterSmartPointerGetFunc<std::nullptr_t>();
+            PointerType::RegisterSmartPointerGetFunc<bool>();
+            PointerType::RegisterSmartPointerGetFunc<char>();
+            PointerType::RegisterSmartPointerGetFunc<signed char>();
+            PointerType::RegisterSmartPointerGetFunc<unsigned char>();
+            PointerType::RegisterSmartPointerGetFunc<char8_t>();
+            PointerType::RegisterSmartPointerGetFunc<char16_t>();
+            PointerType::RegisterSmartPointerGetFunc<char32_t>();
+            PointerType::RegisterSmartPointerGetFunc<wchar_t>();
+            PointerType::RegisterSmartPointerGetFunc<short>();
+            PointerType::RegisterSmartPointerGetFunc<unsigned short>();
+            PointerType::RegisterSmartPointerGetFunc<int>();
+            PointerType::RegisterSmartPointerGetFunc<unsigned int>();
+            PointerType::RegisterSmartPointerGetFunc<long>();
+            PointerType::RegisterSmartPointerGetFunc<unsigned long>();
+            PointerType::RegisterSmartPointerGetFunc<long long>();
+            PointerType::RegisterSmartPointerGetFunc<unsigned long long>();
+            PointerType::RegisterSmartPointerGetFunc<float>();
+            PointerType::RegisterSmartPointerGetFunc<double>();
+            PointerType::RegisterSmartPointerGetFunc<long double>();
+            PointerType::RegisterSmartPointerGetFunc<std::string>();
+            PointerType::RegisterSmartPointerGetFunc<glm::vec2>();
+            PointerType::RegisterSmartPointerGetFunc<glm::vec3>();
+            PointerType::RegisterSmartPointerGetFunc<glm::vec4>();
+            PointerType::RegisterSmartPointerGetFunc<glm::quat>();
 
             Type::s_name_index_map.emplace("void", std::type_index(typeid(void)));
             Type::s_name_index_map.emplace("std::nullptr_t", std::type_index(typeid(std::nullptr_t)));

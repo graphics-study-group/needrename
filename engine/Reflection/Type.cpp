@@ -84,8 +84,12 @@ namespace Engine {
             m_specialization = Const;
         }
 
+        std::unordered_map<std::type_index, WrapperSmartPointerGet> PointerType::s_shared_pointer_getter_map;
+        std::unordered_map<std::type_index, WrapperSmartPointerGet> PointerType::s_weak_pointer_getter_map;
+        std::unordered_map<std::type_index, WrapperSmartPointerGet> PointerType::s_unique_pointer_getter_map;
+
         PointerType::PointerType(std::shared_ptr<const Type> pointed_type, size_t size, PointerTypeKind kind) :
-            Type(pointed_type->m_name, size, false), m_pointed_type(pointed_type), m_pointer_kind(kind) {
+            Type(pointed_type->m_name, size, pointed_type->m_reflectable), m_pointed_type(pointed_type), m_pointer_kind(kind) {
             m_specialization = Pointer;
         }
     } // namespace Reflection

@@ -11,6 +11,7 @@ class Type:
         self.fields = []
         self.serialized_fields = []
         self.serialization_smart_pointer_typenames = []
+        self.reflection_smart_pointer_typenames = []
         self.constructors = []
         self.methods = []
 

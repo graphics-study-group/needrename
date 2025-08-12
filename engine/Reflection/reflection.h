@@ -104,6 +104,24 @@ namespace Engine {
         };
 
         template <typename T>
+        concept is_std_shared_ptr = requires {
+            typename T::element_type;
+            requires std::is_same_v<T, std::shared_ptr<typename T::element_type>>;
+        };
+
+        template <typename T>
+        concept is_std_weak_ptr = requires {
+            typename T::element_type;
+            requires std::is_same_v<T, std::weak_ptr<typename T::element_type>>;
+        };
+
+        template <typename T>
+        concept is_std_unique_ptr = requires {
+            typename T::element_type;
+            requires std::is_same_v<T, std::unique_ptr<typename T::element_type>>;
+        };
+
+        template <typename T>
         std::shared_ptr<const Type> CreateType() {
             if constexpr (std::is_const_v<std::remove_reference_t<T>>) {
                 return std::shared_ptr<const Type>(new ConstType(GetType<std::remove_const_t<T>>()));
@@ -111,11 +129,22 @@ namespace Engine {
                 return std::shared_ptr<const PointerType>(
                     new PointerType(GetType<std::remove_pointer_t<T>>(), sizeof(T), PointerType::PointerTypeKind::Raw)
                 );
+            } else if constexpr (is_std_shared_ptr<T>) {
+                return std::shared_ptr<const PointerType>(
+                    new PointerType(GetType<typename T::element_type>(), sizeof(T), PointerType::PointerTypeKind::Shared)
+                );
+            } else if constexpr (is_std_weak_ptr<T>) {
+                return std::shared_ptr<const PointerType>(
+                    new PointerType(GetType<typename T::element_type>(), sizeof(T), PointerType::PointerTypeKind::Weak)
+                );
+            } else if constexpr (is_std_unique_ptr<T>) {
+                return std::shared_ptr<const PointerType>(
+                    new PointerType(GetType<typename T::element_type>(), sizeof(T), PointerType::PointerTypeKind::Unique)
+                );
             }
             if constexpr (std::is_void_v<T>) {
                 throw std::runtime_error("The void type should be created in initialization");
-            }
-            else {
+            } else {
                 return std::shared_ptr<const Type>(new Type(typeid(std::remove_const_t<T>).name(), sizeof(T), false));
             }
         }

@@ -5,6 +5,18 @@
 #include "registrar_declare.hpp"
 #include "${file_path}"
 
+<%def name="generate_headers(class_type)">
+% for smart_pointer_typename in class_type.reflection_smart_pointer_typenames:
+% if smart_pointer_typename in parser.type_file_map.keys():
+#include "${parser.type_file_map[smart_pointer_typename]}"
+% endif
+% endfor
+</%def>
+
+% for class_type in parser.file_type_map[file_path]:
+${generate_headers(class_type)}
+% endfor
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 
@@ -123,6 +135,7 @@ std::add_pointer<${method.return_type.full_name}>::type ret_ptr = reinterpret_ca
 
             Type::s_index_type_map[std::type_index(typeid(${class_type.full_name}))] = type;
             Type::s_name_index_map.emplace("${class_type.full_name}", std::type_index(typeid(${class_type.full_name})));
+            PointerType::RegisterSmartPointerGetFunc<${class_type.full_name}>();
             return type;
         }
         % endfor

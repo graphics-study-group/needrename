@@ -50,11 +50,32 @@ namespace Engine {
                 throw std::runtime_error("Var is not a pointer type");
             }
             auto type = std::static_pointer_cast<const PointerType>(m_type);
-            switch (type->m_pointer_kind) {
-            case PointerType::PointerTypeKind::Raw:
+            if (type->m_pointer_kind == PointerType::PointerTypeKind::Raw) {
                 return Var(type->m_pointed_type, *static_cast<void **>(m_data));
-            default:
-                throw std::runtime_error("Not Implemented");
+            } else {
+                auto type_index_it = Type::s_name_index_map.find(type->m_pointed_type->GetName());
+                if (type_index_it == Type::s_name_index_map.end()) {
+                    throw std::runtime_error("Type not found");
+                }
+                switch (type->m_pointer_kind) {
+                case PointerType::PointerTypeKind::Shared: {
+                    return Var(
+                        type->m_pointed_type, PointerType::s_shared_pointer_getter_map.at(type_index_it->second)(m_data)
+                    );
+                }
+                case PointerType::PointerTypeKind::Weak: {
+                    return Var(
+                        type->m_pointed_type, PointerType::s_weak_pointer_getter_map.at(type_index_it->second)(m_data)
+                    );
+                }
+                case PointerType::PointerTypeKind::Unique: {
+                    return Var(
+                        type->m_pointed_type, PointerType::s_unique_pointer_getter_map.at(type_index_it->second)(m_data)
+                    );
+                }
+                default:
+                    throw std::runtime_error("Not Implemented");
+                }
             }
         }
 

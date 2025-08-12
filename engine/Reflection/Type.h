@@ -163,6 +163,24 @@ namespace Engine {
 
         class PointerType : public Type {
         public:
+            static std::unordered_map<std::type_index, WrapperSmartPointerGet> s_shared_pointer_getter_map;
+            static std::unordered_map<std::type_index, WrapperSmartPointerGet> s_weak_pointer_getter_map;
+            static std::unordered_map<std::type_index, WrapperSmartPointerGet> s_unique_pointer_getter_map;
+
+            template <typename T>
+            static void RegisterSmartPointerGetFunc() {
+                s_shared_pointer_getter_map[std::type_index(typeid(T))] = [](void *ptr) -> void * {
+                    return static_cast<void *>(static_cast<std::shared_ptr<T> *>(ptr)->get());
+                };
+                s_weak_pointer_getter_map[std::type_index(typeid(T))] = [](void *ptr) -> void * {
+                    return static_cast<void *>(static_cast<std::weak_ptr<T> *>(ptr)->lock().get());
+                };
+                s_unique_pointer_getter_map[std::type_index(typeid(T))] = [](void *ptr) -> void * {
+                    return static_cast<void *>(static_cast<std::unique_ptr<T> *>(ptr)->get());
+                };
+            }
+
+        public:
             enum class PointerTypeKind {
                 Raw,
                 Shared,

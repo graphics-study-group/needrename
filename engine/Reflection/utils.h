@@ -11,10 +11,10 @@
 
 namespace Engine {
     namespace Reflection {
-        /// @brief Wrapper function for member function. 
+        /// @brief Wrapper function for member function.
         /// Format: <void func(the owner object of the member function, return value, arguments)>
         using WrapperMemberFunc = std::function<void(void *, void *&, std::vector<void *>)>;
-        /// @brief Wrapper function for getting a field of an object. 
+        /// @brief Wrapper function for getting a field of an object.
         /// Format: <void func(the owner object of the field, return value)>
         using WrapperFieldFunc = std::function<void(void *, void *&)>;
         /// @brief Wrapper function for getting an element of an array field in an object.
@@ -26,6 +26,9 @@ namespace Engine {
         /// @brief Wrapper function for resizing an array field in an object.
         /// Format: <void func(the owner object of the array field, new size)>
         using WrapperArrayResizeFunc = std::function<void(void *, size_t)>;
+        /// @brief Wrapper function for getting a smart pointer's raw pointer.
+        /// Format: <void *func(the void pointer to the smart pointer)>
+        using WrapperSmartPointerGet = std::function<void *(void *)>;
 
         /// @brief Get the mangled name of some arguments.
         template <typename... Args>
