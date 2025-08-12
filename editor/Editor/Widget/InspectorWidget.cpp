@@ -43,7 +43,7 @@ namespace Editor {
                         unsigned int field_idx = 0;
                         for (auto &[name, field] : component_type->GetFields()) {
                             ImGui::PushID(field_idx++);
-                            this->InspectVar(name, field->GetVar(component_var));
+                            this->InspectVar(name, field->GetVar(component_var.GetDataPtr()));
                             ImGui::PopID();
                         }
                         // for (ExampleTreeNode* child : node->Childs)
@@ -121,7 +121,7 @@ namespace Editor {
                 unsigned int field_idx = 0;
                 for (auto &[name, field] : var.m_type->GetFields()) {
                     ImGui::PushID(field_idx++);
-                    this->InspectVar(name, field->GetVar(var));
+                    this->InspectVar(name, field->GetVar(var.GetDataPtr()));
                     ImGui::PopID();
                 }
                 ImGui::TreePop();

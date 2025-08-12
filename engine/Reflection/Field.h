@@ -32,7 +32,6 @@ namespace Engine {
             std::weak_ptr<Type> m_classtype;
             std::shared_ptr<const Type> m_fieldtype;
 
-            Var GetVar(Var &obj) const;
             Var GetVar(void *obj) const;
         };
 
@@ -45,7 +44,8 @@ namespace Engine {
                 std::weak_ptr<Type> classtype,
                 std::shared_ptr<const Type> fieldtype,
                 const WrapperArrayFieldFunc &getter_func,
-                const WrapperArrayFieldSize &size_getter_func
+                const WrapperArrayFieldSize &size_getter_func,
+                const WrapperArrayResizeFunc &resize_func
             );
 
         public:
@@ -54,16 +54,16 @@ namespace Engine {
         protected:
             WrapperArrayFieldFunc m_getter;
             WrapperArrayFieldSize m_size_getter;
+            WrapperArrayResizeFunc m_resize_func;
 
         public:
             std::string m_name;
             std::weak_ptr<Type> m_classtype;
             std::shared_ptr<const Type> m_element_type;
 
-            Var GetElementVar(Var &obj, size_t index) const;
             Var GetElementVar(void *obj, size_t index) const;
-            size_t GetArraySize(Var &obj) const;
             size_t GetArraySize(void *obj) const;
+            void ResizeArray(void *obj, size_t new_size) const;
         };
     } // namespace Reflection
 } // namespace Engine

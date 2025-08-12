@@ -6,18 +6,6 @@
 #include <vector>
 #include <array>
 
-class REFL_SER_CLASS(REFL_WHITELIST) ArrayTest {
-    REFL_SER_BODY(ArrayTest)
-public:
-    REFL_ENABLE ArrayTest() = default;
-    virtual ~ArrayTest() = default;
-
-    REFL_SER_ENABLE int m_array_int[5] = {0};
-    REFL_SER_ENABLE int m_array_int2[9][10] = {0};
-    REFL_ENABLE std::vector<float> m_vector_float{};
-    REFL_ENABLE std::array<double, 12> m_array_double{};
-};
-
 class REFL_SER_CLASS(REFL_BLACKLIST) Test_stdint {
     REFL_SER_BODY(Test_stdint)
 public:
@@ -146,5 +134,17 @@ namespace TestHelloWorld {
         };
     } // namespace TestHelloWorld2
 } // namespace TestHelloWorld
+
+class REFL_SER_CLASS(REFL_WHITELIST) ArrayTest {
+    REFL_SER_BODY(ArrayTest)
+public:
+    REFL_ENABLE ArrayTest() = default;
+    virtual ~ArrayTest() = default;
+
+    REFL_SER_ENABLE int m_array_int[5] = {0};
+    REFL_SER_ENABLE int m_array_int2[9][10] = {0};
+    REFL_ENABLE std::vector<float> m_vector_float{};
+    REFL_ENABLE std::array<double, 12> m_array_double{};
+};
 
 #endif // CTEST_REFLECTION_TEST_H

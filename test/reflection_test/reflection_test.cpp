@@ -301,5 +301,25 @@ int main() {
               << array_test.GetArrayMember("m_array_double").GetSize() << std::endl;
     assert(array_test.GetArrayMember("m_array_double").GetSize() == 12);
 
+    std::cout << std::endl << "array_test: size of m_vector_float == "
+              << array_test.GetArrayMember("m_vector_float").GetSize() << std::endl;
+    assert(array_test.GetArrayMember("m_vector_float").GetSize() == 0);
+    array_test.GetArrayMember("m_vector_float").Resize(3);
+    array_test.GetArrayMember("m_vector_float").GetElement(0).Set<float>(1.0f);
+    array_test.GetArrayMember("m_vector_float").GetElement(1).Set<float>(2.0f);
+    array_test.GetArrayMember("m_vector_float").GetElement(2).Set<float>(3.0f);
+    std::cout << "array_test: m_vector_float[0] == "
+                << array_test.GetArrayMember("m_vector_float").GetElement(0).Get<float>() << std::endl;
+    assert(array_test.GetArrayMember("m_vector_float").GetElement(0).Get<float>() == 1.0f);
+    std::cout << "array_test: m_vector_float[1] == "
+                << array_test.GetArrayMember("m_vector_float").GetElement(1).Get<float>() << std::endl;
+    assert(array_test.GetArrayMember("m_vector_float").GetElement(1).Get<float>() == 2.0f);
+    std::cout << "array_test: m_vector_float[2] == "
+                << array_test.GetArrayMember("m_vector_float").GetElement(2).Get<float>() << std::endl;
+    assert(array_test.GetArrayMember("m_vector_float").GetElement(2).Get<float>() == 3.0f);
+    std::cout << "array_test: size of m_vector_float == "
+              << array_test.GetArrayMember("m_vector_float").GetSize() << std::endl;
+    assert(array_test.GetArrayMember("m_vector_float").GetSize() == 3);
+
     return 0;
 }

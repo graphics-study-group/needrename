@@ -94,7 +94,8 @@ std::add_pointer<${method.return_type.full_name}>::type ret_ptr = reinterpret_ca
                 [](void *obj, size_t index, void *&ret)
                 { ret = static_cast<void *>(&static_cast<${class_type.full_name} *>(obj)->${field.name}[index]); },
                 [](void *obj, size_t &size)
-                { size = ${field.type.cx_type.get_array_size()}u; }
+                { size = ${field.type.cx_type.get_array_size()}u; },
+                nullptr
             );
             % elif field.array_type == "StdVector":
             type->AddArrayField(
@@ -103,7 +104,9 @@ std::add_pointer<${method.return_type.full_name}>::type ret_ptr = reinterpret_ca
                 [](void *obj, size_t index, void *&ret)
                 { ret = static_cast<void *>(&static_cast<${class_type.full_name} *>(obj)->${field.name}[index]); },
                 [](void *obj, size_t &size)
-                { size = static_cast<${class_type.full_name} *>(obj)->${field.name}.size(); }
+                { size = static_cast<${class_type.full_name} *>(obj)->${field.name}.size(); },
+                [](void *obj, size_t new_size)
+                { static_cast<${class_type.full_name} *>(obj)->${field.name}.resize(new_size); }
             );
             % elif field.array_type == "StdArray":
             type->AddArrayField(
@@ -112,7 +115,8 @@ std::add_pointer<${method.return_type.full_name}>::type ret_ptr = reinterpret_ca
                 [](void *obj, size_t index, void *&ret)
                 { ret = static_cast<void *>(&static_cast<${class_type.full_name} *>(obj)->${field.name}[index]); },
                 [](void *obj, size_t &size)
-                { size = static_cast<${class_type.full_name} *>(obj)->${field.name}.size(); }
+                { size = static_cast<${class_type.full_name} *>(obj)->${field.name}.size(); },
+                nullptr
             );
             % endif
             % endfor

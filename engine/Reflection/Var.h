@@ -82,6 +82,7 @@ namespace Engine {
         public:
             Var GetElement(size_t index);
             size_t GetSize() const;
+            void Resize(size_t new_size) const;
         };
     } // namespace Reflection
 } // namespace Engine

@@ -23,6 +23,9 @@ namespace Engine {
         /// @brief Wrapper function for getting the size of an array field in an object.
         /// Format: <void func(the owner object of the array field, return value)>
         using WrapperArrayFieldSize = std::function<void(void *, size_t &)>;
+        /// @brief Wrapper function for resizing an array field in an object.
+        /// Format: <void func(the owner object of the array field, new size)>
+        using WrapperArrayResizeFunc = std::function<void(void *, size_t)>;
 
         /// @brief Get the mangled name of some arguments.
         template <typename... Args>

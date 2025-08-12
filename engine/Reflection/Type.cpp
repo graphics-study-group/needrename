@@ -49,10 +49,11 @@ namespace Engine {
             const std::shared_ptr<const Type> element_type,
             const std::string &name,
             const WrapperArrayFieldFunc &array_getter_func,
-            const WrapperArrayFieldSize &array_size_getter_func
+            const WrapperArrayFieldSize &array_size_getter_func,
+            const WrapperArrayResizeFunc &array_resize_func
         ) {
             m_array_fields[name] = std::shared_ptr<const ArrayField>(
-                new ArrayField(name, shared_from_this(), element_type, array_getter_func, array_size_getter_func)
+                new ArrayField(name, shared_from_this(), element_type, array_getter_func, array_size_getter_func, array_resize_func)
             );
         }
 

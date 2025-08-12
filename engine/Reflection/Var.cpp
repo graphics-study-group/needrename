@@ -81,5 +81,9 @@ namespace Engine {
         size_t ArrayVar::GetSize() const {
             return m_field->GetArraySize(m_data);
         }
+
+        void ArrayVar::Resize(size_t new_size) const {
+            m_field->ResizeArray(m_data, new_size);
+        }
     } // namespace Reflection
 } // namespace Engine

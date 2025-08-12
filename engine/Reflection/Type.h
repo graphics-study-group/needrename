@@ -118,7 +118,8 @@ namespace Engine {
                 const std::shared_ptr<const Type> element_type,
                 const std::string &name,
                 const WrapperArrayFieldFunc &array_getter_func,
-                const WrapperArrayFieldSize &array_size_getter_func
+                const WrapperArrayFieldSize &array_size_getter_func,
+                const WrapperArrayResizeFunc &array_resize_func
             );
 
             // Get the name of the type
