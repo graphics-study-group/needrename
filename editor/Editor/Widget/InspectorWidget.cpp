@@ -78,39 +78,39 @@ namespace Editor {
     }
 
     void InspectorWidget::InspectVar(const std::string &name, Engine::Reflection::Var var) {
-        if (var.m_type->GetName() == "int") {
+        if (var.GetType()->GetName() == "int") {
             int value = var.Get<int>();
             ImGui::InputInt(name.c_str(), &value);
             var.Set(value);
-        } else if (var.m_type->GetName() == "float") {
+        } else if (var.GetType()->GetName() == "float") {
             float value = var.Get<float>();
             ImGui::InputFloat(name.c_str(), &value);
             var.Set(value);
-        } else if (var.m_type->GetName() == "std::string") {
+        } else if (var.GetType()->GetName() == "std::string") {
             std::string value = var.Get<std::string>();
             char buffer[256];
             strncpy(buffer, value.c_str(), sizeof(buffer));
             ImGui::InputText(name.c_str(), buffer, sizeof(buffer));
             var.Set(std::string(buffer));
-        } else if (var.m_type->GetName() == "bool") {
+        } else if (var.GetType()->GetName() == "bool") {
             bool value = var.Get<bool>();
             ImGui::Checkbox(name.c_str(), &value);
             var.Set(value);
-        } else if (var.m_type->GetName() == "glm::vec3") {
+        } else if (var.GetType()->GetName() == "glm::vec3") {
             glm::vec3 value = var.Get<glm::vec3>();
             ImGui::InputFloat3(name.c_str(), &value[0]);
             var.Set(value);
-        } else if (var.m_type->GetName() == "glm::quat") {
+        } else if (var.GetType()->GetName() == "glm::quat") {
             glm::quat value = var.Get<glm::quat>();
             ImGui::InputFloat4(name.c_str(), &value[0]);
             var.Set(value);
-        } else if (var.m_type->m_specialization == Engine::Reflection::Type::Pointer) {
-            auto pointer_type = std::dynamic_pointer_cast<const Engine::Reflection::PointerType>(var.m_type);
-            if (pointer_type && pointer_type->m_pointed_type->GetName() == "Engine::AssetRef") {
+        } else if (var.GetType()->GetTypeKind() == Engine::Reflection::Type::TypeKind::Pointer) {
+            auto pointer_type = std::dynamic_pointer_cast<const Engine::Reflection::PointerType>(var.GetType());
+            if (pointer_type && pointer_type->GetPointedType()->GetName() == "Engine::AssetRef") {
                 Engine::GUID asset_guid = var.GetPointedVar().InvokeMethod("GetGUID").Get<Engine::GUID>();
                 ImGui::Text("%s: Asset GUID: %s", name.c_str(), asset_guid.toString().c_str());
             }
-        } else if (var.m_type->GetName().starts_with("std::vector<")) {
+        } else if (var.GetType()->GetName().starts_with("std::vector<")) {
             if (ImGui::TreeNodeEx(name.c_str(), ImGuiTreeNodeFlags_None)) {
                 // auto &vec = var.Get<std::vector<std::any>>();
                 // for (size_t i = 0; i < vec.size(); ++i)
@@ -122,10 +122,10 @@ namespace Editor {
                 // }
                 ImGui::TreePop();
             }
-        } else if (var.m_type->m_reflectable) {
+        } else if (var.GetType()->IsReflectable()) {
             if (ImGui::TreeNodeEx("", ImGuiTreeNodeFlags_None, name.c_str())) {
                 unsigned int field_idx = 0;
-                for (auto &[name, field] : var.m_type->GetFields()) {
+                for (auto &[name, field] : var.GetType()->GetFields()) {
                     ImGui::PushID(field_idx++);
                     this->InspectVar(name, field->GetVar(var.GetDataPtr()));
                     ImGui::PopID();

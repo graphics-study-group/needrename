@@ -23,6 +23,18 @@ namespace Engine {
             return m_name;
         }
 
+        size_t Type::GetTypeSize() const {
+            return m_size;
+        }
+
+        bool Type::IsReflectable() const {
+            return m_reflectable;
+        }
+
+        Type::TypeKind Type::GetTypeKind() const {
+            return m_kind;
+        }
+
         void Type::AddMethod(std::shared_ptr<const Method> method) {
             if (m_methods.find(method->m_name) != m_methods.end())
                 throw std::runtime_error("Method " + method->m_name + " already exists");
@@ -80,8 +92,8 @@ namespace Engine {
         }
 
         ConstType::ConstType(std::shared_ptr<const Type> base_type) :
-            Type(base_type->m_name, base_type->m_size, false), m_base_type(base_type) {
-            m_specialization = Const;
+            Type(base_type->GetName(), base_type->GetTypeSize(), false), m_base_type(base_type) {
+            m_kind = TypeKind::Const;
         }
 
         std::unordered_map<std::type_index, WrapperSmartPointerGet> PointerType::s_shared_pointer_getter_map;
@@ -89,9 +101,9 @@ namespace Engine {
         std::unordered_map<std::type_index, WrapperSmartPointerGet> PointerType::s_unique_pointer_getter_map;
 
         PointerType::PointerType(std::shared_ptr<const Type> pointed_type, size_t size, PointerTypeKind kind) :
-            Type(pointed_type->m_name, size, pointed_type->m_reflectable), m_pointed_type(pointed_type),
+            Type(pointed_type->GetName(), size, pointed_type->IsReflectable()), m_pointed_type(pointed_type),
             m_pointer_kind(kind) {
-            m_specialization = Pointer;
+            m_kind = TypeKind::Pointer;
             switch (kind) {
             case PointerTypeKind::Raw:
                 m_name = m_pointed_type->GetName() + "*";
@@ -106,6 +118,14 @@ namespace Engine {
                 m_name = "std::unique_ptr<" + m_pointed_type->GetName() + ">";
                 break;
             }
+        }
+
+        std::shared_ptr<const Type> PointerType::GetPointedType() const {
+            return m_pointed_type;
+        }
+
+        PointerType::PointerTypeKind PointerType::GetPointerTypeKind() const {
+            return m_pointer_kind;
         }
     } // namespace Reflection
 } // namespace Engine

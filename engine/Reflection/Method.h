@@ -36,11 +36,14 @@ namespace Engine {
 
         protected:
             WrapperMemberFunc m_func{};
-
-        public:
             std::shared_ptr<const Type> m_return_type{};
             bool m_is_const = false;
             std::string m_name{};
+
+        public:
+            std::shared_ptr<const Type> GetReturnType() const;
+            bool IsConst() const;
+            const std::string &GetName() const;
 
             template <typename... Args>
             Var Invoke(Var &obj, Args &&...) const;

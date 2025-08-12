@@ -165,8 +165,8 @@ int main() {
     std::cout << "Sum 3 args: " << sum << std::endl;
     assert(foo_data == FooA_Add3_Called);
     assert(sum == 123 + 456 + 1 + 2 + 3);
-    std::cout << "Type of foo: " << foo.m_type->GetName() << std::endl;
-    assert(foo.m_type->GetName() == "FooA");
+    std::cout << "Type of foo: " << foo.GetType()->GetName() << std::endl;
+    assert(foo.GetType()->GetName() == "FooA");
     std::cout << "foo.m_a == " << foo.GetMember("m_a").Get<int>() << std::endl;
     assert(foo.GetMember("m_a").Get<int>() == 123);
     std::cout << "[] Set foo.m_a = 100" << std::endl;

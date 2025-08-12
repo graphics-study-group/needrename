@@ -14,19 +14,19 @@ namespace Engine {
         }
 
         void Var::Copy(const Var &var) {
-            memcpy(m_data, var.m_data, m_type->m_size);
+            memcpy(m_data, var.m_data, m_type->GetTypeSize());
         }
 
         Var Var::GetMember(const std::string &name) {
             std::shared_ptr<const Field> field;
-            if (m_type->m_specialization == Type::Const) {
+            if (m_type->GetTypeKind() == Type::TypeKind::Const) {
                 field = std::dynamic_pointer_cast<const ConstType>(m_type)->m_base_type->GetField(name);
             } else {
                 field = m_type->GetField(name);
             }
             if (!field) throw std::runtime_error("Field not found");
             auto ret = field->GetVar(m_data);
-            if (m_type->m_specialization == Type::Const) {
+            if (m_type->GetTypeKind() == Type::TypeKind::Const) {
                 ret.m_type = std::shared_ptr<const Type>(new ConstType(ret.m_type));
             }
             return ret;
@@ -35,7 +35,7 @@ namespace Engine {
         ArrayVar Var::GetArrayMember(const std::string &name) {
             std::shared_ptr<const ArrayField> array_field;
             bool is_const = false;
-            if (m_type->m_specialization == Type::Const) {
+            if (m_type->GetTypeKind() == Type::TypeKind::Const) {
                 array_field = std::dynamic_pointer_cast<const ConstType>(m_type)->m_base_type->GetArrayField(name);
                 is_const = true;
             } else {
@@ -46,37 +46,45 @@ namespace Engine {
         }
 
         Var Var::GetPointedVar() {
-            if (m_type->m_specialization != Type::Pointer) {
+            if (m_type->GetTypeKind() != Type::TypeKind::Pointer) {
                 throw std::runtime_error("Var is not a pointer type");
             }
             auto type = std::static_pointer_cast<const PointerType>(m_type);
-            if (type->m_pointer_kind == PointerType::PointerTypeKind::Raw) {
-                return Var(type->m_pointed_type, *static_cast<void **>(m_data));
+            if (type->GetPointerTypeKind() == PointerType::PointerTypeKind::Raw) {
+                return Var(type->GetPointedType(), *static_cast<void **>(m_data));
             } else {
-                auto type_index_it = Type::s_name_index_map.find(type->m_pointed_type->GetName());
+                auto type_index_it = Type::s_name_index_map.find(type->GetPointedType()->GetName());
                 if (type_index_it == Type::s_name_index_map.end()) {
                     throw std::runtime_error("Type not found");
                 }
-                switch (type->m_pointer_kind) {
+                switch (type->GetPointerTypeKind()) {
                 case PointerType::PointerTypeKind::Shared: {
                     return Var(
-                        type->m_pointed_type, PointerType::s_shared_pointer_getter_map.at(type_index_it->second)(m_data)
+                        type->GetPointedType(), PointerType::s_shared_pointer_getter_map.at(type_index_it->second)(m_data)
                     );
                 }
                 case PointerType::PointerTypeKind::Weak: {
                     return Var(
-                        type->m_pointed_type, PointerType::s_weak_pointer_getter_map.at(type_index_it->second)(m_data)
+                        type->GetPointedType(), PointerType::s_weak_pointer_getter_map.at(type_index_it->second)(m_data)
                     );
                 }
                 case PointerType::PointerTypeKind::Unique: {
                     return Var(
-                        type->m_pointed_type, PointerType::s_unique_pointer_getter_map.at(type_index_it->second)(m_data)
+                        type->GetPointedType(), PointerType::s_unique_pointer_getter_map.at(type_index_it->second)(m_data)
                     );
                 }
                 default:
                     throw std::runtime_error("Not Implemented");
                 }
             }
+        }
+
+        Var Var::GetConstVar() {
+            return Var(std::shared_ptr<const Type>(new ConstType(m_type)), m_data);
+        }
+
+        std::shared_ptr<const Type> Var::GetType() const {
+            return m_type;
         }
 
         Var &Var::operator=(const Var &var) {
@@ -100,7 +108,7 @@ namespace Engine {
             if (index >= GetSize()) throw std::runtime_error("Index out of range");
             auto ret = m_field->GetElementVar(m_data, index);
             if (m_is_const) {
-                ret.m_type = std::shared_ptr<const Type>(new ConstType(ret.m_type));
+                ret = ret.GetConstVar();
             }
             return ret;
         }

@@ -37,6 +37,12 @@ namespace Engine {
             // The map between type name and std::type_index
             static std::unordered_map<std::string, std::type_index> s_name_index_map;
 
+            enum class TypeKind {
+                None,
+                Const,
+                Pointer
+            };
+
         public:
             Type() = delete;
             /// @brief Construct a new Type object.
@@ -61,19 +67,14 @@ namespace Engine {
             std::unordered_map<std::string, std::shared_ptr<const ArrayField>> m_array_fields{};
             std::unordered_map<std::string, std::shared_ptr<const Method>> m_methods{};
 
-        public:
             std::string m_name{};
             // The size of the type in bytes
             size_t m_size = 0;
             // Whether the type is reflectable
             bool m_reflectable = false;
+            TypeKind m_kind = TypeKind::None;
 
-            enum {
-                None,
-                Const,
-                Pointer
-            } m_specialization{None};
-
+        public:
             // Add a constructor to the type
             template <typename... Args>
             void AddConstructor(const WrapperMemberFunc &func);
@@ -124,6 +125,9 @@ namespace Engine {
 
             // Get the name of the type
             const std::string &GetName() const;
+            size_t GetTypeSize() const;
+            bool IsReflectable() const;
+            TypeKind GetTypeKind() const;
 
             /// @brief Create an instance of the type.
             /// @param ...args arguments for the constructor
@@ -190,8 +194,13 @@ namespace Engine {
             PointerType(std::shared_ptr<const Type> pointed_type, size_t size, PointerTypeKind kind);
             virtual ~PointerType() = default;
 
+        protected:
             std::shared_ptr<const Type> m_pointed_type;
             PointerTypeKind m_pointer_kind;
+
+        public:
+            std::shared_ptr<const Type> GetPointedType() const;
+            PointerTypeKind GetPointerTypeKind() const;
         };
     } // namespace Reflection
 } // namespace Engine

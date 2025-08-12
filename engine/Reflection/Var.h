@@ -18,10 +18,9 @@ namespace Engine {
 
         protected:
             void *m_data = nullptr;
-
-        public:
             std::shared_ptr<const Type> m_type = nullptr;
 
+        public:
             // Get the void pointer to the data
             void *GetDataPtr();
 
@@ -61,6 +60,12 @@ namespace Engine {
             /// @brief If the type of the Var is a pointer, get the Var it points to.
             /// @return the Var it points to
             Var GetPointedVar();
+
+            /// @brief Get a const version of the Var.
+            /// @return a Var object representing the const version
+            Var GetConstVar();
+
+            std::shared_ptr<const Type> GetType() const;
 
             Var &operator=(const Var &var);
         };

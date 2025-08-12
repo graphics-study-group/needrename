@@ -156,7 +156,7 @@ namespace Engine {
 
         void Registrar::RegisterNewType(const std::string &name, std::type_index type_index, bool reflectable) {
             if (Type::s_index_type_map.find(type_index) != Type::s_index_type_map.end()) {
-                assert(Type::s_index_type_map[type_index]->m_reflectable == reflectable);
+                assert(Type::s_index_type_map[type_index]->IsReflectable() == reflectable);
             } else {
                 Type::s_index_type_map[type_index] = std::shared_ptr<const Type>(new Type(name, reflectable));
             }

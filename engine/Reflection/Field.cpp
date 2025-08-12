@@ -15,6 +15,14 @@ namespace Engine {
             assert(fieldtype);
         }
 
+        const std::string &Field::GetName() const {
+            return m_name;
+        }
+
+        const std::shared_ptr<const Type> &Field::GetFieldType() const {
+            return m_fieldtype;
+        }
+
         Var Field::GetVar(void *obj) const {
             void *data = nullptr;
             m_getter(obj, data);
@@ -33,6 +41,14 @@ namespace Engine {
             m_classtype(classtype), m_element_type(element_type) {
             assert(classtype.expired() == false);
             assert(element_type);
+        }
+
+        const std::string &ArrayField::GetName() const {
+            return m_name;
+        }
+
+        const std::shared_ptr<const Type> &ArrayField::GetElementType() const {
+            return m_element_type;
         }
 
         Var ArrayField::GetElementVar(void *obj, size_t index) const {

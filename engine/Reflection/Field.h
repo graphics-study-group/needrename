@@ -26,12 +26,13 @@ namespace Engine {
 
         protected:
             WrapperFieldFunc m_getter;
-
-        public:
             std::string m_name;
             std::weak_ptr<Type> m_classtype;
             std::shared_ptr<const Type> m_fieldtype;
 
+        public:
+            const std::string &GetName() const;
+            const std::shared_ptr<const Type> &GetFieldType() const;
             Var GetVar(void *obj) const;
         };
 
@@ -55,12 +56,13 @@ namespace Engine {
             WrapperArrayFieldFunc m_getter;
             WrapperArrayFieldSize m_size_getter;
             WrapperArrayResizeFunc m_resize_func;
-
-        public:
             std::string m_name;
             std::weak_ptr<Type> m_classtype;
             std::shared_ptr<const Type> m_element_type;
 
+        public:
+            const std::string &GetName() const;
+            const std::shared_ptr<const Type> &GetElementType() const;
             Var GetElementVar(void *obj, size_t index) const;
             size_t GetArraySize(void *obj) const;
             void ResizeArray(void *obj, size_t new_size) const;
