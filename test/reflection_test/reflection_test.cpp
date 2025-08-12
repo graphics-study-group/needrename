@@ -320,6 +320,17 @@ int main() {
     std::cout << "array_test: size of m_vector_float == "
               << array_test.GetArrayMember("m_vector_float").GetSize() << std::endl;
     assert(array_test.GetArrayMember("m_vector_float").GetSize() == 3);
+    array_test.GetArrayMember("m_vector_float").Append(40.0f);
+    std::cout << "array_test: m_vector_float[3] == "
+              << array_test.GetArrayMember("m_vector_float").GetElement(3).Get<float>() << std::endl;
+    assert(array_test.GetArrayMember("m_vector_float").GetElement(3).Get<float>() == 40.0f);
+    array_test.GetArrayMember("m_vector_float").Remove(1);
+    std::cout << "array_test: m_vector_float[1] == "
+              << array_test.GetArrayMember("m_vector_float").GetElement(1).Get<float>() << std::endl;
+    assert(array_test.GetArrayMember("m_vector_float").GetElement(1).Get<float>() == 3.0f);
+    std::cout << "array_test: size of m_vector_float == "
+              << array_test.GetArrayMember("m_vector_float").GetSize() << std::endl;
+    assert(array_test.GetArrayMember("m_vector_float").GetSize() == 3);
 
     return 0;
 }

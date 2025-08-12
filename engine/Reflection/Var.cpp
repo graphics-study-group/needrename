@@ -1,6 +1,7 @@
 #include "Var.h"
 #include "Field.h"
 #include "Type.h"
+#include <cstring>
 #include <stdexcept>
 
 namespace Engine {
@@ -10,6 +11,10 @@ namespace Engine {
 
         void *Var::GetDataPtr() {
             return m_data;
+        }
+
+        void Var::Copy(const Var &var) {
+            memcpy(m_data, var.m_data, m_type->m_size);
         }
 
         Var Var::GetMember(const std::string &name) {
@@ -71,6 +76,7 @@ namespace Engine {
         }
 
         Var ArrayVar::GetElement(size_t index) {
+            if (index >= GetSize()) throw std::runtime_error("Index out of range");
             auto ret = m_field->GetElementVar(m_data, index);
             if (m_is_const) {
                 ret.m_type = std::shared_ptr<const Type>(new ConstType(ret.m_type));
@@ -83,7 +89,25 @@ namespace Engine {
         }
 
         void ArrayVar::Resize(size_t new_size) const {
+            if (m_is_const) throw std::runtime_error("Cannot resize a const ArrayVar");
             m_field->ResizeArray(m_data, new_size);
+        }
+
+        void ArrayVar::Append(const Var &var) {
+            if (m_is_const) throw std::runtime_error("Cannot append to a const ArrayVar");
+            size_t new_size = GetSize() + 1;
+            m_field->ResizeArray(m_data, new_size);
+            GetElement(new_size - 1).Copy(var);
+        }
+
+        void ArrayVar::Remove(size_t index) {
+            if (m_is_const) throw std::runtime_error("Cannot remove from a const ArrayVar");
+            size_t old_size = GetSize();
+            if (index >= old_size) throw std::runtime_error("Index out of range");
+            for (size_t i = index; i < old_size - 1; ++i) {
+                GetElement(i).Copy(GetElement(i + 1));
+            }
+            m_field->ResizeArray(m_data, old_size - 1);
         }
     } // namespace Reflection
 } // namespace Engine

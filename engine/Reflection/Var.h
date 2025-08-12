@@ -36,6 +36,10 @@ namespace Engine {
             template <typename T>
             T &Set(const T &value);
 
+            /// @brief Copy the data from another Var.
+            /// @param var the Var to copy from
+            void Copy(const Var &var);
+
             /// @brief Invoke a method of the object.
             /// @param name The name of the method
             /// @param ... the arguments to the method
@@ -83,6 +87,10 @@ namespace Engine {
             Var GetElement(size_t index);
             size_t GetSize() const;
             void Resize(size_t new_size) const;
+            void Append(const Var &var);
+            template <typename T>
+            void Append(const T &value);
+            void Remove(size_t index);
         };
     } // namespace Reflection
 } // namespace Engine
