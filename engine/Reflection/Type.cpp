@@ -52,9 +52,9 @@ namespace Engine {
             const WrapperArrayFieldSize &array_size_getter_func,
             const WrapperArrayResizeFunc &array_resize_func
         ) {
-            m_array_fields[name] = std::shared_ptr<const ArrayField>(
-                new ArrayField(name, shared_from_this(), element_type, array_getter_func, array_size_getter_func, array_resize_func)
-            );
+            m_array_fields[name] = std::shared_ptr<const ArrayField>(new ArrayField(
+                name, shared_from_this(), element_type, array_getter_func, array_size_getter_func, array_resize_func
+            ));
         }
 
         std::shared_ptr<const Field> Type::GetField(const std::string &name) const {
@@ -89,8 +89,23 @@ namespace Engine {
         std::unordered_map<std::type_index, WrapperSmartPointerGet> PointerType::s_unique_pointer_getter_map;
 
         PointerType::PointerType(std::shared_ptr<const Type> pointed_type, size_t size, PointerTypeKind kind) :
-            Type(pointed_type->m_name, size, pointed_type->m_reflectable), m_pointed_type(pointed_type), m_pointer_kind(kind) {
+            Type(pointed_type->m_name, size, pointed_type->m_reflectable), m_pointed_type(pointed_type),
+            m_pointer_kind(kind) {
             m_specialization = Pointer;
+            switch (kind) {
+            case PointerTypeKind::Raw:
+                m_name = m_pointed_type->GetName() + "*";
+                break;
+            case PointerTypeKind::Shared:
+                m_name = "std::shared_ptr<" + m_pointed_type->GetName() + ">";
+                break;
+            case PointerTypeKind::Weak:
+                m_name = "std::weak_ptr<" + m_pointed_type->GetName() + ">";
+                break;
+            case PointerTypeKind::Unique:
+                m_name = "std::unique_ptr<" + m_pointed_type->GetName() + ">";
+                break;
+            }
         }
     } // namespace Reflection
 } // namespace Engine

@@ -332,5 +332,25 @@ int main() {
               << array_test.GetArrayMember("m_vector_float").GetSize() << std::endl;
     assert(array_test.GetArrayMember("m_vector_float").GetSize() == 3);
 
+    std::cout << "------------------------------- Test Smart Pointer ------------------------------" << std::endl;
+    Engine::Reflection::Var smart_ptr_test = Engine::Reflection::GetType("SmartPointerTest")->CreateInstance();
+    std::cout << "smart_ptr_test: m_shared_ptr == "
+              << smart_ptr_test.GetMember("m_shared_ptr").GetPointedVar().Get<int>() << std::endl;
+    assert(smart_ptr_test.GetMember("m_shared_ptr").GetPointedVar().Get<int>() == 42);
+    std::cout << "smart_ptr_test: m_weak_ptr == "
+              << smart_ptr_test.GetMember("m_weak_ptr").GetPointedVar().Get<int>() << std::endl;
+    assert(smart_ptr_test.GetMember("m_weak_ptr").GetPointedVar().Get<int>() == 42);
+    std::cout << "smart_ptr_test: m_unique_ptr == "
+              << smart_ptr_test.GetMember("m_unique_ptr").GetPointedVar().Get<float>() << std::endl;
+    assert(smart_ptr_test.GetMember("m_unique_ptr").GetPointedVar().Get<float>() == 84.0f);
+    std::cout << "Modify *m_shared_ptr = 2" << std::endl;
+    smart_ptr_test.GetMember("m_shared_ptr").GetPointedVar().Set<int>(2);
+    std::cout << "smart_ptr_test: m_shared_ptr == "
+              << smart_ptr_test.GetMember("m_shared_ptr").GetPointedVar().Get<int>() << std::endl;
+    assert(smart_ptr_test.GetMember("m_shared_ptr").GetPointedVar().Get<int>() == 2);
+    std::cout << "smart_ptr_test: m_weak_ptr == "
+              << smart_ptr_test.GetMember("m_weak_ptr").GetPointedVar().Get<int>() << std::endl;
+    assert(smart_ptr_test.GetMember("m_weak_ptr").GetPointedVar().Get<int>() == 2);
+
     return 0;
 }
