@@ -153,8 +153,10 @@ namespace Engine {
             std::shared_ptr<const ArrayField> GetArrayField(const std::string &name) const;
 
             /// @brief Get the unordered map of fields of the type.
-            /// @return
             const std::unordered_map<std::string, std::shared_ptr<const Field>> &GetFields() const;
+
+            /// @brief Get the unordered map of array fields of the type.
+            const std::unordered_map<std::string, std::shared_ptr<const ArrayField>> &GetArrayFields() const;
         };
 
         class ConstType : public Type {

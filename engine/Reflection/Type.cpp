@@ -91,6 +91,10 @@ namespace Engine {
             return m_fields;
         }
 
+        const std::unordered_map<std::string, std::shared_ptr<const ArrayField>> &Type::GetArrayFields() const {
+            return m_array_fields;
+        }
+
         ConstType::ConstType(std::shared_ptr<const Type> base_type) :
             Type(base_type->GetName(), base_type->GetTypeSize(), false), m_base_type(base_type) {
             m_kind = TypeKind::Const;

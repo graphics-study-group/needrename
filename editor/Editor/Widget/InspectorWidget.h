@@ -32,7 +32,6 @@ namespace Editor {
         std::any m_inspected_object{};
 
     private:
-        void InspectField(std::shared_ptr<const Engine::Reflection::Field> field, Engine::Reflection::Var obj);
         void InspectVar(const std::string &name, Engine::Reflection::Var var);
     };
 } // namespace Editor

@@ -24,6 +24,7 @@
 #include <Editor/Window/MainWindow.h>
 
 #include "CustomComponent.h"
+#include <meta_editor_run_game_example/reflection_init.ipp>
 
 using namespace Engine;
 
@@ -89,6 +90,7 @@ int main() {
 
     auto cmc = MainClass::GetInstance();
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
+    RegisterAllTypes();
     cmc->GetAssetManager()->SetBuiltinAssetPath(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
     cmc->GetAssetManager()->LoadBuiltinAssets();
     auto rsys = cmc->GetRenderSystem();

@@ -4,6 +4,7 @@
 #include <MainClass.h>
 #include <Reflection/reflection.h>
 #include <imgui.h>
+#include <iostream>
 #include <unordered_map>
 
 namespace Editor {
@@ -34,7 +35,21 @@ namespace Editor {
                         unsigned int field_idx = 0;
                         for (auto &[name, field] : component_type->GetFields()) {
                             ImGui::PushID(field_idx++);
-                            this->InspectField(field, component_var);
+                            this->InspectVar(name, field->GetVar(component_var.GetDataPtr()));
+                            ImGui::PopID();
+                        }
+                        for (auto &[name, array_field] : component_type->GetArrayFields()) {
+                            ImGui::PushID(field_idx++);
+                            auto array_var = component_var.GetArrayMember(name);
+                            if (ImGui::TreeNodeEx(name.c_str(), ImGuiTreeNodeFlags_None)) {
+                                size_t array_size = array_var.GetSize();
+                                for (unsigned int i = 0; i < array_size; ++i) {
+                                    ImGui::PushID(i);
+                                    this->InspectVar("[" + std::to_string(i) + "]", array_var.GetElement(i));
+                                    ImGui::PopID();
+                                }
+                                ImGui::TreePop();
+                            }
                             ImGui::PopID();
                         }
                         ImGui::TreePop();
@@ -63,23 +78,6 @@ namespace Editor {
         } else {
             m_inspector_mode = InspectorMode::kInspectorModeNone;
             m_inspected_object = {};
-        }
-    }
-
-    void InspectorWidget::InspectField(std::shared_ptr<const Engine::Reflection::Field> field, Engine::Reflection::Var var) {
-        if (field->GetFieldType()->GetName().starts_with("std::vector<")) {
-            auto array_var = var.GetArrayMember(field->GetName());
-            size_t array_size = array_var.GetSize();
-            if (ImGui::TreeNodeEx("", ImGuiTreeNodeFlags_None, "Vector %s", field->GetName().c_str())) {
-                for (size_t i = 0; i < array_size; ++i) {
-                    ImGui::PushID(i);
-                    this->InspectVar(field->GetName() + "[" + std::to_string(i) + "]", array_var.GetElement(i));
-                    ImGui::PopID();
-                }
-                ImGui::TreePop();
-            }
-        } else {
-            this->InspectVar(field->GetName(), field->GetVar(var.GetDataPtr()));
         }
     }
 
@@ -121,7 +119,21 @@ namespace Editor {
                 unsigned int field_idx = 0;
                 for (auto &[name, field] : var.GetType()->GetFields()) {
                     ImGui::PushID(field_idx++);
-                    this->InspectField(field, var);
+                    this->InspectVar(name, field->GetVar(var.GetDataPtr()));
+                    ImGui::PopID();
+                }
+                for (auto &[name, array_field] : var.GetType()->GetArrayFields()) {
+                    ImGui::PushID(field_idx++);
+                    auto array_var = var.GetArrayMember(name);
+                    if (ImGui::TreeNodeEx(name.c_str(), ImGuiTreeNodeFlags_None)) {
+                        size_t array_size = array_var.GetSize();
+                        for (unsigned int i = 0; i < array_size; ++i) {
+                            ImGui::PushID(i);
+                            this->InspectVar("[" + std::to_string(i) + "]", array_var.GetElement(i));
+                            ImGui::PopID();
+                        }
+                        ImGui::TreePop();
+                    }
                     ImGui::PopID();
                 }
                 ImGui::TreePop();
