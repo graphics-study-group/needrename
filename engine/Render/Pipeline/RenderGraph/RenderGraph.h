@@ -1,7 +1,7 @@
 #ifndef RENDERGRAPH_RENDERGRAPH
 #define RENDERGRAPH_RENDERGRAPH
 
-#include <deque>
+#include <vector>
 #include <functional>
 
 namespace vk {
@@ -9,7 +9,9 @@ namespace vk {
 }
 
 namespace Engine {
-    class FrameManager;
+    namespace RenderSystemState {
+        class FrameManager;
+    }
 
     /**
      * @brief Resolved render graph ready to be executed.
@@ -21,9 +23,10 @@ namespace Engine {
         struct impl;
         std::unique_ptr <impl> pimpl;
     public:
-        RenderGraph(std::deque <std::function<void(vk::CommandBuffer)>> commands);
+        RenderGraph(std::vector <std::function<void(vk::CommandBuffer)>> commands);
+        ~RenderGraph();
 
-        void Execute(FrameManager & system);
+        void Execute(RenderSystemState::FrameManager & system);
     };
 }
 

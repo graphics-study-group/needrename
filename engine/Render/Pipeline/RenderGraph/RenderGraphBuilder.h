@@ -9,6 +9,7 @@
 namespace Engine {
 
     class RenderSystem;
+    class GUISystem;
     class Texture;
     class Buffer;
     class RenderGraph;
@@ -51,17 +52,17 @@ namespace Engine {
         /**
          * @brief Record a pass which includes exactly one draw call.
          */
-        void RecordRasterizerPass (std::function<void(GraphicsCommandBuffer)> pass);
+        void RecordRasterizerPass (std::function<void(GraphicsCommandBuffer &)> pass);
 
         /**
          * @brief Record a pass with transfer commands.
          */
-        void RecordTransferPass (std::function<void(TransferCommandBuffer)> pass);
+        void RecordTransferPass (std::function<void(TransferCommandBuffer &)> pass);
 
         /**
          * @brief Record a pass with exactly one compute shader dispatch.
          */
-        void RecordComputePass (std::function<void(ComputeCommandBuffer)> pass);
+        void RecordComputePass (std::function<void(ComputeCommandBuffer &)> pass);
 
         /**
          * @brief Create a RenderGraph and reset internal states to default.
@@ -71,7 +72,11 @@ namespace Engine {
         /**
          * @brief Build a default render graph.
          */
-        RenderGraph BuildDefaultRenderGraph(Texture & color_attachment, Texture & depth_attachment);
+        RenderGraph BuildDefaultRenderGraph(
+            Texture & color_attachment, 
+            Texture & depth_attachment,
+            GUISystem * gui_system = nullptr
+        );
     };
 }
 
