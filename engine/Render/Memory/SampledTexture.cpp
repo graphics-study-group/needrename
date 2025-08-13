@@ -6,7 +6,9 @@
 
 #include <vulkan/vulkan.hpp>
 
-vk::Filter ToVkFilter(Engine::SampledTexture::SamplerDesc::FilterMode filter) {
+static constexpr vk::Filter ToVkFilter(
+    Engine::SampledTexture::SamplerDesc::FilterMode filter
+) {
     using Mode = Engine::SampledTexture::SamplerDesc::FilterMode;
     switch (filter) {
     case Mode::Linear:
@@ -14,9 +16,13 @@ vk::Filter ToVkFilter(Engine::SampledTexture::SamplerDesc::FilterMode filter) {
     case Mode::Point:
         return vk::Filter::eNearest;
     }
+    assert(false);
+    return {};
 }
 
-vk::SamplerMipmapMode ToVkSamplerMipmapMode(Engine::SampledTexture::SamplerDesc::FilterMode filter) {
+static constexpr vk::SamplerMipmapMode ToVkSamplerMipmapMode(
+    Engine::SampledTexture::SamplerDesc::FilterMode filter
+) {
     using Mode = Engine::SampledTexture::SamplerDesc::FilterMode;
     switch (filter) {
     case Mode::Linear:
@@ -24,9 +30,13 @@ vk::SamplerMipmapMode ToVkSamplerMipmapMode(Engine::SampledTexture::SamplerDesc:
     case Mode::Point:
         return vk::SamplerMipmapMode::eNearest;
     }
+    assert(false);
+    return {};
 }
 
-vk::SamplerAddressMode ToVkSamplerAddressMode(Engine::SampledTexture::SamplerDesc::AddressMode addr) {
+static constexpr vk::SamplerAddressMode ToVkSamplerAddressMode(
+    Engine::SampledTexture::SamplerDesc::AddressMode addr
+) {
     using Mode = Engine::SampledTexture::SamplerDesc::AddressMode;
     switch (addr) {
     case Mode::Repeat:
@@ -36,6 +46,8 @@ vk::SamplerAddressMode ToVkSamplerAddressMode(Engine::SampledTexture::SamplerDes
     case Mode::ClampToEdge:
         return vk::SamplerAddressMode::eClampToEdge;
     }
+    assert(false);
+    return {};
 }
 
 namespace Engine {
