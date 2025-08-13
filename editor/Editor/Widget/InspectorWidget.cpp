@@ -29,25 +29,14 @@ namespace Editor {
                 for (const auto &component : game_object->m_components) {
                     ImGui::PushID(component_idx++);
                     auto component_type = Engine::Reflection::GetTypeFromObject(*component);
-                    // ImGui::Text("<%s>", component_type->GetName().c_str());
-                    // ImGui::TableNextRow();
-                    // ImGui::TableNextColumn();
-                    ImGuiTreeNodeFlags tree_flags = ImGuiTreeNodeFlags_None;
-                    // tree_flags |= ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick;// Standard
-                    // opening mode as we are likely to want to add selection afterwards tree_flags |=
-                    // ImGuiTreeNodeFlags_NavLeftJumpsBackHere;  // Left arrow support tree_flags |=
-                    // ImGuiTreeNodeFlags_SpanFullWidth;         // Span full width for easier mouse reach tree_flags |=
-                    // ImGuiTreeNodeFlags_DrawLinesToNodes;      // Always draw hierarchy outlines
-                    if (ImGui::TreeNodeEx("", tree_flags, "<%s>", component_type->GetName().c_str())) {
+                    if (ImGui::TreeNodeEx("", ImGuiTreeNodeFlags_None, "<%s>", component_type->GetName().c_str())) {
                         Engine::Reflection::Var component_var(component_type, component.get());
                         unsigned int field_idx = 0;
                         for (auto &[name, field] : component_type->GetFields()) {
                             ImGui::PushID(field_idx++);
-                            this->InspectVar(name, field->GetVar(component_var.GetDataPtr()));
+                            this->InspectField(field, component_var);
                             ImGui::PopID();
                         }
-                        // for (ExampleTreeNode* child : node->Childs)
-                        //     DrawTreeNode(child);
                         ImGui::TreePop();
                     }
                     ImGui::Separator();
@@ -74,6 +63,23 @@ namespace Editor {
         } else {
             m_inspector_mode = InspectorMode::kInspectorModeNone;
             m_inspected_object = {};
+        }
+    }
+
+    void InspectorWidget::InspectField(std::shared_ptr<const Engine::Reflection::Field> field, Engine::Reflection::Var var) {
+        if (field->GetFieldType()->GetName().starts_with("std::vector<")) {
+            auto array_var = var.GetArrayMember(field->GetName());
+            size_t array_size = array_var.GetSize();
+            if (ImGui::TreeNodeEx("", ImGuiTreeNodeFlags_None, "Vector %s", field->GetName().c_str())) {
+                for (size_t i = 0; i < array_size; ++i) {
+                    ImGui::PushID(i);
+                    this->InspectVar(field->GetName() + "[" + std::to_string(i) + "]", array_var.GetElement(i));
+                    ImGui::PopID();
+                }
+                ImGui::TreePop();
+            }
+        } else {
+            this->InspectVar(field->GetName(), field->GetVar(var.GetDataPtr()));
         }
     }
 
@@ -110,24 +116,12 @@ namespace Editor {
                 Engine::GUID asset_guid = var.GetPointedVar().InvokeMethod("GetGUID").Get<Engine::GUID>();
                 ImGui::Text("%s: Asset GUID: %s", name.c_str(), asset_guid.toString().c_str());
             }
-        } else if (var.GetType()->GetName().starts_with("std::vector<")) {
-            if (ImGui::TreeNodeEx(name.c_str(), ImGuiTreeNodeFlags_None)) {
-                // auto &vec = var.Get<std::vector<std::any>>();
-                // for (size_t i = 0; i < vec.size(); ++i)
-                // {
-                //     ImGui::PushID(i);
-                //     std::string element_name = name + "[" + std::to_string(i) + "]";
-                //     this->InspectVar(element_name, Engine::Reflection::Var(element_type, &vec[i]));
-                //     ImGui::PopID();
-                // }
-                ImGui::TreePop();
-            }
         } else if (var.GetType()->IsReflectable()) {
             if (ImGui::TreeNodeEx("", ImGuiTreeNodeFlags_None, name.c_str())) {
                 unsigned int field_idx = 0;
                 for (auto &[name, field] : var.GetType()->GetFields()) {
                     ImGui::PushID(field_idx++);
-                    this->InspectVar(name, field->GetVar(var.GetDataPtr()));
+                    this->InspectField(field, var);
                     ImGui::PopID();
                 }
                 ImGui::TreePop();

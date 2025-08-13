@@ -23,66 +23,53 @@
 #include <Editor/Widget/SceneWidget.h>
 #include <Editor/Window/MainWindow.h>
 
+#include "CustomComponent.h"
+
 using namespace Engine;
 
-class SpinningComponent : public Component {
-public:
-    SpinningComponent(std::weak_ptr<GameObject> gameObject) : Component(gameObject) {
-    }
+SpinningComponent::SpinningComponent(std::weak_ptr<GameObject> gameObject) : Component(gameObject) {
+}
 
-    float m_speed = 30.0f;
+void SpinningComponent::Init() {
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "SpinningComponent Init");
+}
 
-    void Init() override {
-        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "SpinningComponent Init");
-    }
-
-    void Tick() override {
-        float dt = MainClass::GetInstance()->GetTimeSystem()->GetDeltaTimeInSeconds();
-        auto go = m_parentGameObject.lock();
-        if (go) {
-            auto &transform = go->GetTransformRef();
-            transform.SetRotation(
-                transform.GetRotation() * glm::angleAxis(glm::radians(m_speed * dt), glm::vec3(0.0f, 1.0f, 0.0f))
-            );
-        }
-    }
-};
-
-class ControlComponent : public Component {
-public:
-    ControlComponent(std::weak_ptr<GameObject> gameObject) : Component(gameObject) {
-    }
-
-    std::shared_ptr<CameraComponent> m_camera{};
-    float m_rotation_speed = 10.0f;
-    float m_move_speed = 1.0f;
-    float m_roll_speed = 1.0f;
-
-    virtual void Tick() override {
-        auto input = MainClass::GetInstance()->GetInputSystem();
-        auto move_forward = input->GetAxis("move forward");
-        auto move_backward = input->GetAxis("move backward");
-        auto move_right = input->GetAxis("move right");
-        auto move_up = input->GetAxis("move up");
-        auto roll_right = input->GetAxisRaw("roll right");
-        auto look_x = input->GetAxisRaw("look x");
-        auto look_y = input->GetAxisRaw("look y");
-        Transform &transform = m_parentGameObject.lock()->GetTransformRef();
-        float dt = MainClass::GetInstance()->GetTimeSystem()->GetDeltaTimeInSeconds();
+void SpinningComponent::Tick() {
+    float dt = MainClass::GetInstance()->GetTimeSystem()->GetDeltaTimeInSeconds();
+    auto go = m_parentGameObject.lock();
+    if (go) {
+        auto &transform = go->GetTransformRef();
         transform.SetRotation(
-            transform.GetRotation()
-            * glm::quat(
-                glm::vec3{
-                    look_y * m_rotation_speed * dt, roll_right * m_roll_speed * dt, look_x * m_rotation_speed * dt
-                }
-            )
-        );
-        transform.SetPosition(
-            transform.GetPosition()
-            + transform.GetRotation() * glm::vec3{move_right, move_forward + move_backward, move_up} * m_move_speed * dt
+            transform.GetRotation() * glm::angleAxis(glm::radians(m_speed * dt), glm::vec3(0.0f, 1.0f, 0.0f))
         );
     }
-};
+}
+
+ControlComponent::ControlComponent(std::weak_ptr<GameObject> gameObject) : Component(gameObject) {
+}
+
+void ControlComponent::Tick() {
+    auto input = MainClass::GetInstance()->GetInputSystem();
+    auto move_forward = input->GetAxis("move forward");
+    auto move_backward = input->GetAxis("move backward");
+    auto move_right = input->GetAxis("move right");
+    auto move_up = input->GetAxis("move up");
+    auto roll_right = input->GetAxisRaw("roll right");
+    auto look_x = input->GetAxisRaw("look x");
+    auto look_y = input->GetAxisRaw("look y");
+    Transform &transform = m_parentGameObject.lock()->GetTransformRef();
+    float dt = MainClass::GetInstance()->GetTimeSystem()->GetDeltaTimeInSeconds();
+    transform.SetRotation(
+        transform.GetRotation()
+        * glm::quat(
+            glm::vec3{look_y * m_rotation_speed * dt, roll_right * m_roll_speed * dt, look_x * m_rotation_speed * dt}
+        )
+    );
+    transform.SetPosition(
+        transform.GetPosition()
+        + transform.GetRotation() * glm::vec3{move_right, move_forward + move_backward, move_up} * m_move_speed * dt
+    );
+}
 
 void Start() {
     auto cmc = MainClass::GetInstance();
