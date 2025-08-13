@@ -29,6 +29,9 @@
 
 #include "Render/Pipeline/Compute/ComputeStage.h"
 
+#include "Render/Pipeline/RenderGraph/RenderGraph.h"
+#include "Render/Pipeline/RenderGraph/RenderGraphBuilder.h"
+
 #include "Render/Pipeline/Material/MaterialInstance.h"
 #include "Render/Pipeline/Material/MaterialTemplate.h"
 #include "Render/Pipeline/Material/Templates/BlinnPhong.h"

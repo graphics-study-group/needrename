@@ -250,13 +250,10 @@ int main(int argc, char **argv) {
     desc.type = Engine::ImageUtils::ImageType::DepthImage;
     depth.CreateTexture(desc, "Depth Attachment");
 
-    Engine::AttachmentUtils::AttachmentDescription color_att, depth_att;
-    color_att.texture = &color;
-    color_att.load_op = AttachmentUtils::LoadOperation::Clear;
-    color_att.store_op = AttachmentUtils::StoreOperation::Store;
-    depth_att.texture = &depth;
-    depth_att.load_op = AttachmentUtils::LoadOperation::Clear;
-    depth_att.store_op = AttachmentUtils::StoreOperation::DontCare;
+    RenderGraphBuilder rgb{*rsys};
+    RenderGraph rg{rgb.BuildDefaultRenderGraph(
+        color, depth, gsys.get()
+    )};
 
     // Setup mesh
     std::filesystem::path mesh_path{std::string(ENGINE_ASSETS_DIR) + "/four_bunny/four_bunny.obj"};
@@ -298,42 +295,7 @@ int main(int argc, char **argv) {
 
         // Draw
         auto index = rsys->StartFrame();
-        auto context = rsys->GetFrameManager().GetGraphicsContext();
-        GraphicsCommandBuffer &cb = dynamic_cast<GraphicsCommandBuffer &>(context.GetCommandBuffer());
-
-        cb.Begin();
-        context.UseImage(
-            color,
-            GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite,
-            GraphicsContext::ImageAccessType::None
-        );
-        context.UseImage(
-            depth,
-            GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite,
-            GraphicsContext::ImageAccessType::None
-        );
-        context.PrepareCommandBuffer();
-        vk::Extent2D extent{rsys->GetSwapchain().GetExtent()};
-        cb.BeginRendering(
-            {&color, nullptr, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store},
-            depth_att,
-            extent
-        );
-        cb.DrawRenderers(rsys->GetRendererManager().FilterAndSortRenderers({}), 0);
-        cb.EndRendering();
-
-        context.UseImage(
-            color,
-            GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite,
-            GraphicsContext::ImageAccessType::ColorAttachmentWrite
-        );
-        context.PrepareCommandBuffer();
-        gsys->DrawGUI(
-            {&color, nullptr, AttachmentUtils::LoadOperation::Load, AttachmentUtils::StoreOperation::Store}, extent, cb
-        );
-
-        cb.End();
-        rsys->GetFrameManager().SubmitMainCommandBuffer();
+        rg.Execute(rsys->GetFrameManager());
         rsys->GetFrameManager().StageCopyComposition(color.GetImage());
         // rsys->GetFrameManager().CopyToFrameBuffer(color.GetImage(), rsys->GetSwapchain().GetExtent(), {0, 0}, {100,
         // 100});

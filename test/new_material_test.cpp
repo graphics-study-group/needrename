@@ -18,6 +18,8 @@
 using namespace Engine;
 namespace sch = std::chrono;
 
+constexpr glm::mat4 EYE4 = glm::mat4(1.0f);
+
 struct LowerPlaneMeshAsset : public MeshAsset {
     LowerPlaneMeshAsset() {
         this->m_submeshes.resize(1);
@@ -65,6 +67,70 @@ std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate() {
     test_asset->properties.properties[0] = mtspp;
 
     return test_asset;
+}
+
+RenderGraph BuildRenderGraph(
+    RenderSystem * rsys, 
+    Texture * color, 
+    Texture * depth,
+    MaterialInstance * material,
+    HomogeneousMesh * mesh,
+    Texture * blurred = nullptr,
+    ComputeStage * kernel = nullptr
+) {
+    using IAT = Engine::AccessHelper::ImageAccessType;
+    RenderGraphBuilder rgb{*rsys};
+    rgb.UseImage(*color, IAT::ColorAttachmentWrite, IAT::None);
+    rgb.UseImage(*depth, IAT::DepthAttachmentWrite, IAT::None);
+    rgb.RecordRasterizerPass([rsys, color, depth, material, mesh](GraphicsCommandBuffer & gcb) {
+        auto extent = rsys->GetSwapchain().GetExtent();
+        gcb.BeginRendering(
+            {
+                color, 
+                nullptr, 
+                AttachmentUtils::LoadOperation::Clear, 
+                AttachmentUtils::StoreOperation::Store
+            },
+            {
+                depth, 
+                nullptr, 
+                AttachmentUtils::LoadOperation::Clear, 
+                AttachmentUtils::StoreOperation::DontCare
+            },
+            extent
+        );
+
+        gcb.SetupViewport(extent.width, extent.height, {{0, 0}, extent});
+        gcb.BindMaterial(*material, 0);
+        // Push model matrix...
+        vk::CommandBuffer rcb = gcb.GetCommandBuffer();
+        rcb.pushConstants(
+            material->GetTemplate().GetPipelineLayout(0),
+            vk::ShaderStageFlagBits::eVertex,
+            0,
+            ConstantData::PerModelConstantPushConstant::PUSH_RANGE_SIZE,
+            reinterpret_cast<const void *>(&EYE4)
+        );
+        gcb.DrawMesh(*mesh);
+
+        gcb.EndRendering();
+    });
+
+    if (blurred && kernel) {
+        rgb.UseImage(*color, IAT::ShaderReadRandomWrite, IAT::ColorAttachmentWrite);
+        rgb.UseImage(*blurred, IAT::ShaderRandomWrite, IAT::None);
+
+        rgb.RecordComputePass([blurred, kernel](ComputeCommandBuffer & ccb) {
+            ccb.BindComputeStage(*kernel);
+            ccb.DispatchCompute(
+                blurred->GetTextureDescription().width / 16 + 1, blurred->GetTextureDescription().height / 16 + 1, 1
+            );
+        });
+        
+        rgb.UseImage(*blurred, IAT::ColorAttachmentWrite, IAT::ShaderRandomWrite);
+        rgb.RecordSynchronization();
+    }
+    return rgb.BuildRenderGraph();
 }
 
 int main(int argc, char **argv) {
@@ -126,8 +192,6 @@ int main(int argc, char **argv) {
         global_pool.FlushPerCameraConstantMemory(i, 0);
     }
 
-    glm::mat4 eye4 = glm::mat4(1.0f);
-
     // Prepare attachments
     Engine::Texture depth{*rsys};
     auto color = std::make_shared<Texture>(*rsys);
@@ -149,14 +213,6 @@ int main(int argc, char **argv) {
     desc.type = Engine::ImageUtils::ImageType::DepthImage;
     depth.CreateTexture(desc, "Depth Attachment");
 
-    Engine::AttachmentUtils::AttachmentDescription color_att, depth_att;
-    color_att.texture = color.get();
-    color_att.load_op = AttachmentUtils::LoadOperation::Clear;
-    color_att.store_op = AttachmentUtils::StoreOperation::Store;
-    depth_att.texture = &depth;
-    depth_att.load_op = AttachmentUtils::LoadOperation::Clear;
-    depth_att.store_op = AttachmentUtils::StoreOperation::DontCare;
-
     auto asys = cmc->GetAssetManager();
     auto cs_ref = asys->GetNewAssetRef("~/shaders/gaussian_blur.comp.spv.asset");
     asys->LoadAssetImmediately(cs_ref);
@@ -168,6 +224,23 @@ int main(int argc, char **argv) {
     cstage.SetDescVariable(
         cstage.GetVariableIndex("outputImage").value().first, std::const_pointer_cast<const Texture>(postproc)
     );
+
+    RenderGraph nonblur{BuildRenderGraph(
+        rsys.get(), 
+        color.get(), 
+        &depth, 
+        test_material_instance.get(), 
+        &test_mesh
+    )};
+    RenderGraph blur{BuildRenderGraph(
+        rsys.get(), 
+        color.get(), 
+        &depth, 
+        test_material_instance.get(), 
+        &test_mesh,
+        postproc.get(),
+        &cstage
+    )};
 
     bool quited = false;
     bool has_gaussian_blur = true;
@@ -192,72 +265,11 @@ int main(int argc, char **argv) {
         );
 
         auto index = rsys->StartFrame();
-        auto gcontext = rsys->GetFrameManager().GetGraphicsContext();
-        GraphicsCommandBuffer &cb = dynamic_cast<GraphicsCommandBuffer &>(gcontext.GetCommandBuffer());
-
-        assert(index < 3);
-
-        cb.Begin();
-
-        gcontext.UseImage(
-            *color,
-            GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite,
-            GraphicsContext::ImageAccessType::None
-        );
-        gcontext.UseImage(
-            depth,
-            GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite,
-            GraphicsContext::ImageAccessType::None
-        );
-        gcontext.PrepareCommandBuffer();
-
-        vk::Extent2D extent{rsys->GetSwapchain().GetExtent()};
-        vk::Rect2D scissor{{0, 0}, extent};
-        cb.BeginRendering(color_att, depth_att, extent);
-
-        cb.SetupViewport(extent.width, extent.height, scissor);
-        cb.BindMaterial(*test_material_instance, 0);
-        // Push model matrix...
-        vk::CommandBuffer rcb = cb.GetCommandBuffer();
-        rcb.pushConstants(
-            test_template->GetPipelineLayout(0),
-            vk::ShaderStageFlagBits::eVertex,
-            0,
-            ConstantData::PerModelConstantPushConstant::PUSH_RANGE_SIZE,
-            reinterpret_cast<const void *>(&eye4)
-        );
-        cb.DrawMesh(test_mesh);
-
-        cb.EndRendering();
         if (has_gaussian_blur) {
-            auto ccontext = rsys->GetFrameManager().GetComputeContext();
-            ccontext.UseImage(
-                *color,
-                Engine::ComputeContext::ImageComputeAccessType::ShaderReadRandomWrite,
-                Engine::ComputeContext::ImageAccessType::ColorAttachmentWrite
-            );
-            ccontext.UseImage(
-                *postproc,
-                Engine::ComputeContext::ImageComputeAccessType::ShaderRandomWrite,
-                Engine::ComputeContext::ImageAccessType::None
-            );
-            ccontext.PrepareCommandBuffer();
-            auto ccb = dynamic_cast<ComputeCommandBuffer &>(ccontext.GetCommandBuffer());
-            ccb.BindComputeStage(cstage);
-            ccb.DispatchCompute(
-                postproc->GetTextureDescription().width / 16 + 1, postproc->GetTextureDescription().height / 16 + 1, 1
-            );
-
-            gcontext.UseImage(
-                *postproc,
-                GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite,
-                Engine::ComputeContext::ImageAccessType::ShaderRandomWrite
-            );
-            gcontext.PrepareCommandBuffer();
+            blur.Execute(rsys->GetFrameManager());
+        } else {
+            nonblur.Execute(rsys->GetFrameManager());
         }
-
-        cb.End();
-        rsys->GetFrameManager().SubmitMainCommandBuffer();
         rsys->GetFrameManager().StageBlitComposition(
             has_gaussian_blur ? postproc->GetImage() : color->GetImage(),
             vk::Extent2D{postproc->GetTextureDescription().width, postproc->GetTextureDescription().height},
