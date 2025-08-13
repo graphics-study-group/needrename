@@ -69,7 +69,7 @@ namespace Engine {
                 std::shared_ptr<const Type>(new Type("glm::vec4", sizeof(glm::vec4), false));
             Type::s_index_type_map[std::type_index(typeid(glm::quat))] =
                 std::shared_ptr<const Type>(new Type("glm::quat", sizeof(glm::quat), false));
-            
+
             PointerType::RegisterSmartPointerGetFunc<void>();
             PointerType::RegisterSmartPointerGetFunc<std::nullptr_t>();
             PointerType::RegisterSmartPointerGetFunc<bool>();

@@ -10,21 +10,21 @@
 #define SER_CUSTOM "CustomSerialization"
 
 #if defined(__clang__)
-    #define REFL_SER_CLASS(...) [[clang::annotate("%REFL_SER_CLASS " __VA_ARGS__)]]
-    #define REFL_ENABLE [[clang::annotate("%REFLECTION ENABLE")]]
-    #define REFL_DISABLE [[clang::annotate("%REFLECTION DISABLE")]]
-    #define SER_ENABLE [[clang::annotate("%SERIALIZATION ENABLE")]]
-    #define SER_DISABLE [[clang::annotate("%SERIALIZATION DISABLE")]]
-    #define REFL_SER_ENABLE [[clang::annotate("%REFLECTION ENABLE"), clang::annotate("%SERIALIZATION ENABLE")]]
-    #define REFL_SER_DISABLE [[clang::annotate("%REFLECTION DISABLE"), clang::annotate("%SERIALIZATION DISABLE")]]
+#define REFL_SER_CLASS(...) [[clang::annotate("%REFL_SER_CLASS " __VA_ARGS__)]]
+#define REFL_ENABLE [[clang::annotate("%REFLECTION ENABLE")]]
+#define REFL_DISABLE [[clang::annotate("%REFLECTION DISABLE")]]
+#define SER_ENABLE [[clang::annotate("%SERIALIZATION ENABLE")]]
+#define SER_DISABLE [[clang::annotate("%SERIALIZATION DISABLE")]]
+#define REFL_SER_ENABLE [[clang::annotate("%REFLECTION ENABLE"), clang::annotate("%SERIALIZATION ENABLE")]]
+#define REFL_SER_DISABLE [[clang::annotate("%REFLECTION DISABLE"), clang::annotate("%SERIALIZATION DISABLE")]]
 #else
-    #define REFL_SER_CLASS(...)
-    #define REFL_ENABLE
-    #define REFL_DISABLE
-    #define SER_ENABLE
-    #define SER_DISABLE
-    #define REFL_SER_ENABLE
-    #define REFL_SER_DISABLE
+#define REFL_SER_CLASS(...)
+#define REFL_ENABLE
+#define REFL_DISABLE
+#define SER_ENABLE
+#define SER_DISABLE
+#define REFL_SER_ENABLE
+#define REFL_SER_DISABLE
 #endif
 
 /// Serialization body for regular class. Declare some virtual serialization functions and backdoor constructor.

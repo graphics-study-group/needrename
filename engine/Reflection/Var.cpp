@@ -60,7 +60,8 @@ namespace Engine {
                 switch (type->GetPointerTypeKind()) {
                 case PointerType::PointerTypeKind::Shared: {
                     return Var(
-                        type->GetPointedType(), PointerType::s_shared_pointer_getter_map.at(type_index_it->second)(m_data)
+                        type->GetPointedType(),
+                        PointerType::s_shared_pointer_getter_map.at(type_index_it->second)(m_data)
                     );
                 }
                 case PointerType::PointerTypeKind::Weak: {
@@ -70,7 +71,8 @@ namespace Engine {
                 }
                 case PointerType::PointerTypeKind::Unique: {
                     return Var(
-                        type->GetPointedType(), PointerType::s_unique_pointer_getter_map.at(type_index_it->second)(m_data)
+                        type->GetPointedType(),
+                        PointerType::s_unique_pointer_getter_map.at(type_index_it->second)(m_data)
                     );
                 }
                 default:

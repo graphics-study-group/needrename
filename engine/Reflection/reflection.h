@@ -130,17 +130,17 @@ namespace Engine {
                     new PointerType(GetType<std::remove_pointer_t<T>>(), sizeof(T), PointerType::PointerTypeKind::Raw)
                 );
             } else if constexpr (is_std_shared_ptr<T>) {
-                return std::shared_ptr<const PointerType>(
-                    new PointerType(GetType<typename T::element_type>(), sizeof(T), PointerType::PointerTypeKind::Shared)
-                );
+                return std::shared_ptr<const PointerType>(new PointerType(
+                    GetType<typename T::element_type>(), sizeof(T), PointerType::PointerTypeKind::Shared
+                ));
             } else if constexpr (is_std_weak_ptr<T>) {
                 return std::shared_ptr<const PointerType>(
                     new PointerType(GetType<typename T::element_type>(), sizeof(T), PointerType::PointerTypeKind::Weak)
                 );
             } else if constexpr (is_std_unique_ptr<T>) {
-                return std::shared_ptr<const PointerType>(
-                    new PointerType(GetType<typename T::element_type>(), sizeof(T), PointerType::PointerTypeKind::Unique)
-                );
+                return std::shared_ptr<const PointerType>(new PointerType(
+                    GetType<typename T::element_type>(), sizeof(T), PointerType::PointerTypeKind::Unique
+                ));
             }
             if constexpr (std::is_void_v<T>) {
                 throw std::runtime_error("The void type should be created in initialization");

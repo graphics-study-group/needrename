@@ -13,7 +13,8 @@ namespace Engine {
 
         template <typename T>
         T &Var::Set(const T &value) {
-            if (m_type->GetTypeKind() == Type::TypeKind::Const) throw std::runtime_error("Cannot set value of a const Var");
+            if (m_type->GetTypeKind() == Type::TypeKind::Const)
+                throw std::runtime_error("Cannot set value of a const Var");
             if constexpr (std::is_reference_v<T>) return *static_cast<std::remove_reference_t<T> *>(m_data) = value;
             else return *static_cast<T *>(m_data) = value;
         }
