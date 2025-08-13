@@ -74,7 +74,8 @@ namespace Engine {
     void RenderGraphBuilder::RecordRasterizerPass(std::function<void(GraphicsCommandBuffer &)> pass) {
 
         std::function <void(vk::CommandBuffer)> f = [
-            this, pass,
+            system = &this->m_system,
+            pass,
             bb = std::move(pimpl->m_buffer_barriers), 
             ib = std::move(pimpl->m_image_barriers)
         ] (vk::CommandBuffer cb) {
@@ -85,7 +86,7 @@ namespace Engine {
                 ib
             };
             cb.pipelineBarrier2(dep);
-            GraphicsContext gc = this->m_system.GetFrameManager().GetGraphicsContext();
+            GraphicsContext gc = system->GetFrameManager().GetGraphicsContext();
             GraphicsCommandBuffer & gcb = dynamic_cast<GraphicsCommandBuffer &>(
                 gc.GetCommandBuffer()
             );
@@ -103,7 +104,8 @@ namespace Engine {
     }
     void RenderGraphBuilder::RecordComputePass(std::function<void(ComputeCommandBuffer &)> pass) {
         std::function <void(vk::CommandBuffer)> f = [
-            this, pass,
+            system = &this->m_system, 
+            pass,
             bb = std::move(pimpl->m_buffer_barriers), 
             ib = std::move(pimpl->m_image_barriers)
         ] (vk::CommandBuffer cb) {
@@ -114,11 +116,31 @@ namespace Engine {
                 ib
             };
             cb.pipelineBarrier2(dep);
-            ComputeContext cc = this->m_system.GetFrameManager().GetComputeContext();
+            ComputeContext cc = system->GetFrameManager().GetComputeContext();
             ComputeCommandBuffer & ccb = dynamic_cast<ComputeCommandBuffer &>(
                 cc.GetCommandBuffer()
             );
             std::invoke(pass, std::ref(ccb));
+        };
+
+        pimpl->m_commands.push_back(f);
+
+        // Get STL containers out of ``valid but unspecified'' states.
+        pimpl->m_buffer_barriers.clear();
+        pimpl->m_image_barriers.clear();
+    }
+    void RenderGraphBuilder::RecordSynchronization() {
+        std::function <void(vk::CommandBuffer)> f = [
+            bb = std::move(pimpl->m_buffer_barriers), 
+            ib = std::move(pimpl->m_image_barriers)
+        ] (vk::CommandBuffer cb) {
+            vk::DependencyInfo dep{
+                vk::DependencyFlags{},
+                {},
+                bb,
+                ib
+            };
+            cb.pipelineBarrier2(dep);
         };
 
         pimpl->m_commands.push_back(f);
