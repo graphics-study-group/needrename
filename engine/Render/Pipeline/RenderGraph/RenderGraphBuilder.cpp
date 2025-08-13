@@ -85,10 +85,11 @@ namespace Engine {
                 ib
             };
             cb.pipelineBarrier2(dep);
-            GraphicsCommandBuffer & pcb = dynamic_cast<GraphicsCommandBuffer &>(
-                this->m_system.GetFrameManager().GetGraphicsContext().GetCommandBuffer()
+            GraphicsContext gc = this->m_system.GetFrameManager().GetGraphicsContext();
+            GraphicsCommandBuffer & gcb = dynamic_cast<GraphicsCommandBuffer &>(
+                gc.GetCommandBuffer()
             );
-            std::invoke(pass, std::ref(pcb));
+            std::invoke(pass, std::ref(gcb));
         };
 
         pimpl->m_commands.push_back(f);
@@ -113,8 +114,9 @@ namespace Engine {
                 ib
             };
             cb.pipelineBarrier2(dep);
+            ComputeContext cc = this->m_system.GetFrameManager().GetComputeContext();
             ComputeCommandBuffer & ccb = dynamic_cast<ComputeCommandBuffer &>(
-                this->m_system.GetFrameManager().GetComputeContext().GetCommandBuffer()
+                cc.GetCommandBuffer()
             );
             std::invoke(pass, std::ref(ccb));
         };
