@@ -2,18 +2,18 @@
 #define EXAMPLE_EDITOR_RUN_GAME_EXAMPLE_CUSTOMCOMPONENT_H
 
 #include <Framework/component/Component.h>
-#include <Framework/component/RenderComponent/CameraComponent.h>
 #include <Reflection/macros.h>
 #include <Reflection/serialization_smart_pointer.h>
 #include <memory>
 
 namespace Engine {
     class Component;
+    class CameraComponent;
     class GameObject;
 } // namespace Engine
 
 class REFL_SER_CLASS(REFL_WHITELIST) SpinningComponent : public Engine::Component {
-    // REFL_SER_BODY(SpinningComponent)
+    REFL_SER_BODY(SpinningComponent)
 public:
     SpinningComponent(std::weak_ptr<Engine::GameObject> gameObject);
 
@@ -24,7 +24,7 @@ public:
 };
 
 class REFL_SER_CLASS(REFL_WHITELIST) ControlComponent : public Engine::Component {
-    // REFL_SER_BODY(ControlComponent)
+    REFL_SER_BODY(ControlComponent)
 public:
     ControlComponent(std::weak_ptr<Engine::GameObject> gameObject);
 

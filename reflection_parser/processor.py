@@ -1,5 +1,5 @@
 import os
-import re
+import pickle
 import clang.cindex as CX
 from pathlib import Path
 from mako.template import Template
@@ -12,7 +12,10 @@ class ReflectionParser:
         self.types = {} # a map from type name to Type object
         self.files = [] # a list of files to be parsed
         self.file_type_map = {} # a map from file path to types in the file
-        self.type_file_map = {} # a map from type name to file path
+        self.type_file_map = {} # a map from type name to file path, may contain parent projects' types
+
+    def in_record_type(self, name: str):
+        return name in self.type_file_map.keys()
     
     def get_reflection_class_args(self, node: CX.Cursor):
         for child in node.get_children():
@@ -257,5 +260,10 @@ def process(config, verbose: bool = False):
     
     Parser = ReflectionParser()
     Parser.files = [all_reflection_file_header_path] + target_files
+    for cache_file_path in config["parent_project_cache"]:
+        with open(cache_file_path, "rb") as f:
+            Parser.type_file_map.update(pickle.load(f))
     Parser.traverse(tu.cursor)
     Parser.generate_code(config["generated_code_dir"], config["target_files"])
+    with open(os.path.join(config["generated_code_dir"], "reflection_data.pkl"), "wb") as f:
+        pickle.dump(Parser.type_file_map, f, protocol=pickle.HIGHEST_PROTOCOL)

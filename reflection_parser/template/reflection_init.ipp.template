@@ -8,8 +8,8 @@ static void RegisterAllTypes()
 
     % for class_type in parser.types.values():
     % for base_type in class_type.base_types:
-    % if base_type.full_name in parser.types:
-    Type_${class_type.mangled_name}->AddBaseType(Type_${parser.types[base_type.full_name].mangled_name});
+    % if parser.in_record_type(base_type.full_name):
+    Type_${class_type.mangled_name}->AddBaseType(Engine::Reflection::Type::s_index_type_map[Engine::Reflection::Type::s_name_index_map.find("${base_type.full_name}")->second]);
     % endif
     % endfor
     % endfor
