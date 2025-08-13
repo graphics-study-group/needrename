@@ -3,9 +3,9 @@
         "&0": {
             "%type": "Engine::ShaderAsset",
             "Asset::m_guid": "93A5902ADBF049AD90A65CA5C56F03BA",
-            "m_name": "test_compute.comp.spv",
-            "m_entry_point": "main",
-            "shaderType": 3
+            "ShaderAsset::m_name": "test_compute.comp.spv",
+            "ShaderAsset::m_entry_point": "main",
+            "ShaderAsset::shaderType": 3
         }
     },
     "%main_id": "&0"

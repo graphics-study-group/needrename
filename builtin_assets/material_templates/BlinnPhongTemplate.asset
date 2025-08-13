@@ -3,10 +3,10 @@
         "&0": {
             "%type": "Engine::MaterialTemplateAsset",
             "Asset::m_guid": "4C666B72830204D5D08AD8B29D4C3CBB",
-            "name": "Built-in Blinn-Phong",
-            "properties": {
+            "MaterialTemplateAsset::name": "Built-in Blinn-Phong",
+            "MaterialTemplateAsset::properties": {
                 "%type": "Engine::MaterialTemplateProperties",
-                "properties": [
+                "MaterialTemplateProperties::properties": [
                     {
                         "key": 0,
                         "value": {
