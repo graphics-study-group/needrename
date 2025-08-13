@@ -59,6 +59,10 @@ namespace Engine {
             /// Random read and write in compute shaders as storage image, in general layout.
             ShaderReadRandomWrite
         };
+
+        enum class BufferAccessType {
+            None
+        };
     } // namespace AccessHelper
 } // namespace Engine
 
