@@ -17,13 +17,13 @@ namespace Engine {
 
     void AssetRef::save_to_archive(Serialization::Archive &archive) const {
         Serialization::Json &json = *archive.m_cursor;
-        json["m_guid"] = m_guid.toString();
+        json["AssetRef::m_guid"] = m_guid.toString();
         json["%type"] = Reflection::GetTypeFromObject(*this)->GetName();
     }
 
     void AssetRef::load_from_archive(Serialization::Archive &archive) {
         Serialization::Json &json = *archive.m_cursor;
-        m_guid.fromString(json["m_guid"].get<std::string>());
+        m_guid.fromString(json["AssetRef::m_guid"].get<std::string>());
         MainClass::GetInstance()->GetAssetManager()->AddToLoadingQueue(shared_from_this());
     }
 
