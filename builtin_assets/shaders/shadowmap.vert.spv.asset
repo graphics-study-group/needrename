@@ -3,9 +3,9 @@
         "&0": {
             "%type": "Engine::ShaderAsset",
             "Asset::m_guid": "2191CAAF586849B8B5565ED808897D7E",
-            "m_name": "shadowmap.vert.spv",
-            "m_entry_point": "main",
-            "shaderType": 1
+            "ShaderAsset::m_name": "shadowmap.vert.spv",
+            "ShaderAsset::m_entry_point": "main",
+            "ShaderAsset::shaderType": 1
         }
     },
     "%main_id": "&0"

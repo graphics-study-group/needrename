@@ -52,7 +52,7 @@ std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate() {
     test_asset->name = "Blinn-Phong";
 
     MaterialTemplateSinglePassProperties mtspp{};
-    mtspp.attachments.color = {ImageUtils::ImageFormat::R8G8B8A8UNorm};
+    mtspp.attachments.color = {ImageUtils::ImageFormat::R8G8B8A8SRGB};
     using CBP = PipelineProperties::ColorBlendingProperties;
     CBP cbp;
     cbp.color_op = cbp.alpha_op = CBP::BlendOperation::Add;
@@ -158,6 +158,13 @@ int main(int argc, char **argv) {
     // Prepare material
     cmc->GetAssetManager()->LoadBuiltinAssets();
     auto test_asset = ConstructMaterialTemplate();
+
+    // Engine::Serialization::Archive archive;
+    // archive.prepare_save();
+    // test_asset->save_asset_to_archive(archive);
+    // archive.save_to_file(std::string(ENGINE_ASSETS_DIR) + "/test_asset.asset");
+    // SDL_Log("Saved asset to %s", (std::string(ENGINE_ASSETS_DIR) + "/test_asset.asset").c_str());
+
     auto test_asset_ref = std::make_shared<AssetRef>(test_asset);
     auto test_template = std::make_shared<Materials::BlinnPhongTemplate>(*rsys);
     test_template->Instantiate(*test_asset_ref->cas<MaterialTemplateAsset>());
@@ -201,7 +208,7 @@ int main(int argc, char **argv) {
         .width = 1920,
         .height = 1080,
         .depth = 1,
-        .format = Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm,
+        .format = Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB, // The Blinn-Phong material uses sRGB image textures
         .type = Engine::ImageUtils::ImageType::ColorGeneral,
         .mipmap_levels = 1,
         .array_layers = 1,

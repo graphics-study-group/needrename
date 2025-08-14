@@ -16,67 +16,67 @@ namespace Engine {
             if (value.has_value()) {
                 auto &type_info = value.type();
                 if (type_info == typeid(std::nullptr_t)) {
-                    json["%type"] = Engine::Reflection::GetType("std::nullptr_t")->m_name;
+                    json["%type"] = Engine::Reflection::GetType("std::nullptr_t")->GetName();
                     json["data"] = nullptr;
                 } else if (type_info == typeid(bool)) {
-                    json["%type"] = Engine::Reflection::GetType("bool")->m_name;
+                    json["%type"] = Engine::Reflection::GetType("bool")->GetName();
                     json["data"] = std::any_cast<bool>(value);
                 } else if (type_info == typeid(char)) {
-                    json["%type"] = Engine::Reflection::GetType("char")->m_name;
+                    json["%type"] = Engine::Reflection::GetType("char")->GetName();
                     json["data"] = std::any_cast<char>(value);
                 } else if (type_info == typeid(signed char)) {
-                    json["%type"] = Engine::Reflection::GetType("signed char")->m_name;
+                    json["%type"] = Engine::Reflection::GetType("signed char")->GetName();
                     json["data"] = std::any_cast<signed char>(value);
                 } else if (type_info == typeid(unsigned char)) {
-                    json["%type"] = Engine::Reflection::GetType("unsigned char")->m_name;
+                    json["%type"] = Engine::Reflection::GetType("unsigned char")->GetName();
                     json["data"] = std::any_cast<unsigned char>(value);
                 } else if (type_info == typeid(char8_t)) {
-                    json["%type"] = Engine::Reflection::GetType("char8_t")->m_name;
+                    json["%type"] = Engine::Reflection::GetType("char8_t")->GetName();
                     json["data"] = std::any_cast<char8_t>(value);
                 } else if (type_info == typeid(char16_t)) {
-                    json["%type"] = Engine::Reflection::GetType("char16_t")->m_name;
+                    json["%type"] = Engine::Reflection::GetType("char16_t")->GetName();
                     json["data"] = std::any_cast<char16_t>(value);
                 } else if (type_info == typeid(char32_t)) {
-                    json["%type"] = Engine::Reflection::GetType("char32_t")->m_name;
+                    json["%type"] = Engine::Reflection::GetType("char32_t")->GetName();
                     json["data"] = std::any_cast<char32_t>(value);
                 } else if (type_info == typeid(wchar_t)) {
-                    json["%type"] = Engine::Reflection::GetType("wchar_t")->m_name;
+                    json["%type"] = Engine::Reflection::GetType("wchar_t")->GetName();
                     json["data"] = std::any_cast<wchar_t>(value);
                 } else if (type_info == typeid(short)) {
-                    json["%type"] = Engine::Reflection::GetType("short")->m_name;
+                    json["%type"] = Engine::Reflection::GetType("short")->GetName();
                     json["data"] = std::any_cast<short>(value);
                 } else if (type_info == typeid(unsigned short)) {
-                    json["%type"] = Engine::Reflection::GetType("unsigned short")->m_name;
+                    json["%type"] = Engine::Reflection::GetType("unsigned short")->GetName();
                     json["data"] = std::any_cast<unsigned short>(value);
                 } else if (type_info == typeid(int)) {
-                    json["%type"] = Engine::Reflection::GetType("int")->m_name;
+                    json["%type"] = Engine::Reflection::GetType("int")->GetName();
                     json["data"] = std::any_cast<int>(value);
                 } else if (type_info == typeid(unsigned int)) {
-                    json["%type"] = Engine::Reflection::GetType("unsigned int")->m_name;
+                    json["%type"] = Engine::Reflection::GetType("unsigned int")->GetName();
                     json["data"] = std::any_cast<unsigned int>(value);
                 } else if (type_info == typeid(long)) {
-                    json["%type"] = Engine::Reflection::GetType("long")->m_name;
+                    json["%type"] = Engine::Reflection::GetType("long")->GetName();
                     json["data"] = std::any_cast<long>(value);
                 } else if (type_info == typeid(unsigned long)) {
-                    json["%type"] = Engine::Reflection::GetType("unsigned long")->m_name;
+                    json["%type"] = Engine::Reflection::GetType("unsigned long")->GetName();
                     json["data"] = std::any_cast<unsigned long>(value);
                 } else if (type_info == typeid(long long)) {
-                    json["%type"] = Engine::Reflection::GetType("long long")->m_name;
+                    json["%type"] = Engine::Reflection::GetType("long long")->GetName();
                     json["data"] = std::any_cast<long long>(value);
                 } else if (type_info == typeid(unsigned long long)) {
-                    json["%type"] = Engine::Reflection::GetType("unsigned long long")->m_name;
+                    json["%type"] = Engine::Reflection::GetType("unsigned long long")->GetName();
                     json["data"] = std::any_cast<unsigned long long>(value);
                 } else if (type_info == typeid(float)) {
-                    json["%type"] = Engine::Reflection::GetType("float")->m_name;
+                    json["%type"] = Engine::Reflection::GetType("float")->GetName();
                     json["data"] = std::any_cast<float>(value);
                 } else if (type_info == typeid(double)) {
-                    json["%type"] = Engine::Reflection::GetType("double")->m_name;
+                    json["%type"] = Engine::Reflection::GetType("double")->GetName();
                     json["data"] = std::any_cast<double>(value);
                 } else if (type_info == typeid(long double)) {
-                    json["%type"] = Engine::Reflection::GetType("long double")->m_name;
+                    json["%type"] = Engine::Reflection::GetType("long double")->GetName();
                     json["data"] = std::any_cast<long double>(value);
                 } else if (type_info == typeid(std::string)) {
-                    json["%type"] = Engine::Reflection::GetType("std::string")->m_name;
+                    json["%type"] = Engine::Reflection::GetType("std::string")->GetName();
                     json["data"] = std::any_cast<std::string>(value);
                 } else {
                     throw std::runtime_error(
