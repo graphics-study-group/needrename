@@ -106,6 +106,9 @@ class ReflectionParser:
             # because every reflected class has a backdoor constructor in REFL_SER_BODY() macro
             if child.kind == CX.CursorKind.FIELD_DECL:
                 field = Field(child)
+                if field.type.cx_type.is_const_qualified():
+                    print(f"[parser] Warning: detect const qualified field: {current_type.name}.{field.name}, which is not supported.")
+                    continue
                 current_type.fields.append(field)
                 # reflection for smart pointer requires extra headers
                 find_smart_pointer_type_from_template(field.type.cx_type, current_type.reflection_smart_pointer_typenames)
