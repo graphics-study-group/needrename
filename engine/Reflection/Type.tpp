@@ -10,7 +10,7 @@ namespace Engine {
         void Type::AddConstructor(const WrapperMemberFunc &func) {
             std::string mangled_name = k_constructor_name + GetMangledName<Args...>();
             m_methods[mangled_name] =
-                std::shared_ptr<const Method>(new Method(mangled_name, func, shared_from_this(), true));
+                std::shared_ptr<const Method>(new Method(mangled_name, func, shared_from_this(), false, false));
         }
 
         template <typename... Args>
@@ -18,11 +18,12 @@ namespace Engine {
             const std::string &name,
             const WrapperMemberFunc &func,
             std::shared_ptr<const Type> return_type,
-            bool is_const
+            bool is_const,
+            bool return_value_needs_free
         ) {
             std::string mangled_name = name + GetMangledName<Args...>();
             m_methods[mangled_name] =
-                std::shared_ptr<const Method>(new Method(mangled_name, func, return_type, is_const, true));
+                std::shared_ptr<const Method>(new Method(mangled_name, func, return_type, is_const, return_value_needs_free));
         }
 
         template <typename... Args>

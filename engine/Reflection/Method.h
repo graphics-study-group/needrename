@@ -21,14 +21,7 @@ namespace Engine {
                 const WrapperMemberFunc &func,
                 std::shared_ptr<const Type> return_type,
                 bool is_const,
-                bool is_final_name
-            );
-            template <typename... Args>
-            Method(
-                const std::string &name,
-                const WrapperMemberFunc &func,
-                std::shared_ptr<const Type> return_type,
-                bool is_const
+                bool return_value_needs_free
             );
 
         public:
@@ -38,11 +31,13 @@ namespace Engine {
             WrapperMemberFunc m_func{};
             std::shared_ptr<const Type> m_return_type{};
             bool m_is_const = false;
+            bool m_return_value_needs_free = false;
             std::string m_name{};
 
         public:
             std::shared_ptr<const Type> GetReturnType() const;
             bool IsConst() const;
+            bool ReturnValueNeedsFree() const;
             const std::string &GetName() const;
 
             template <typename... Args>

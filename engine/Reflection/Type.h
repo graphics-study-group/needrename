@@ -89,7 +89,8 @@ namespace Engine {
                 const std::string &name,
                 const WrapperMemberFunc &func,
                 std::shared_ptr<const Type> return_type,
-                bool is_const
+                bool is_const,
+                bool return_value_needs_free
             );
 
             /// @brief Add a member function to the type.

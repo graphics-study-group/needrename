@@ -86,9 +86,16 @@ std::add_pointer<${method.return_type.full_name}>::type ret_ptr = reinterpret_ca
 }, 
                 GetType<${method.return_type.full_name}>(),
                 % if method.is_const:
-                true
+                true,
                 % else:
+                false,
+                % endif
+                % if method.return_type_is_reference:
                 false
+                % elif method.return_type.name == "void":
+                false
+                % else:
+                true
                 % endif
             );
             % endfor

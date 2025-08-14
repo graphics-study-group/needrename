@@ -9,12 +9,48 @@ namespace Engine {
         Var::Var(std::shared_ptr<const Type> type, void *data) : m_data(data), m_type(type) {
         }
 
+        Var::Var(Var &&var) {
+            m_data = var.m_data;
+            m_type = var.m_type;
+            m_need_free = var.m_need_free;
+            var.Reset();
+        }
+
+        Var &Var::operator=(Var &&var) {
+            if (this != &var) {
+                Reset();
+                m_data = var.m_data;
+                m_type = var.m_type;
+                m_need_free = var.m_need_free;
+                var.Reset();
+            }
+            return *this;
+        }
+
+        Var::~Var() {
+            Reset();
+        }
+
         void *Var::GetDataPtr() {
             return m_data;
         }
 
         void Var::Copy(const Var &var) {
             memcpy(m_data, var.m_data, m_type->GetTypeSize());
+        }
+
+        void Var::Reset() {
+            /// XXX: Don't know how to call destructor of the type
+            if (m_need_free && m_data) {
+                free(m_data);
+            }
+            m_data = nullptr;
+            m_need_free = false;
+            m_type = nullptr;
+        }
+
+        void Var::MarkNeedFree() {
+            m_need_free = true;
         }
 
         Var Var::GetMember(const std::string &name) {
@@ -89,12 +125,6 @@ namespace Engine {
             return m_type;
         }
 
-        Var &Var::operator=(const Var &var) {
-            m_type = var.m_type;
-            m_data = var.m_data;
-            return *this;
-        }
-
         ArrayVar::ArrayVar(std::shared_ptr<const ArrayField> field, void *data, bool is_const) :
             m_field(field), m_data(data), m_is_const(is_const) {
         }
@@ -110,7 +140,7 @@ namespace Engine {
             if (index >= GetSize()) throw std::runtime_error("Index out of range");
             auto ret = m_field->GetElementVar(m_data, index);
             if (m_is_const) {
-                ret = ret.GetConstVar();
+                ret = std::move(ret.GetConstVar());
             }
             return ret;
         }

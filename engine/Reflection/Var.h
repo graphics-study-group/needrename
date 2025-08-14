@@ -12,12 +12,16 @@ namespace Engine {
         class Var {
         public:
             Var() = default;
-            Var(const Var &var) = default;
+            Var(Var &&var);
+            Var &operator=(Var &&var);
+            Var(const Var &var) = delete;
+            Var &operator=(const Var &var) = delete;
             Var(std::shared_ptr<const Type> type, void *data);
-            ~Var() = default;
+            ~Var();
 
         protected:
             void *m_data = nullptr;
+            bool m_need_free = false;
             std::shared_ptr<const Type> m_type = nullptr;
 
         public:
@@ -38,6 +42,12 @@ namespace Engine {
             /// @brief Copy the data from another Var.
             /// @param var the Var to copy from
             void Copy(const Var &var);
+
+            /// @brief Reset the Var to its default state. May free the data.
+            void Reset();
+
+            /// @brief Mark the Var as needing to be freed.
+            void MarkNeedFree();
 
             /// @brief Invoke a method of the object.
             /// @param name The name of the method
@@ -66,8 +76,6 @@ namespace Engine {
             Var GetConstVar();
 
             std::shared_ptr<const Type> GetType() const;
-
-            Var &operator=(const Var &var);
         };
 
         class ArrayField;
