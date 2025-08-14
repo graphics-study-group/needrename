@@ -100,7 +100,7 @@ namespace Engine {
         template <typename T>
         concept is_std_vector = requires {
             typename T::value_type;
-            requires std::is_same_v<T, std::vector<typename T::value_type>>;
+            requires std::is_same_v<T, std::vector<typename T::value_type, typename T::allocator_type>>;
         };
 
         template <typename T>
