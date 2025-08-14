@@ -14,12 +14,20 @@ This document describes how the engine uses the Python version of **libclang** t
       set(all_include_dirs)
       get_include_directories_for_target(my_target all_include_dirs)
       
-      add_reflection_parser(meta_my_target "${CMAKE_CURRENT_SOURCE_DIR}/my_header.h" "${CMAKE_CURRENT_SOURCE_DIR}/__generated__" "${all_include_dirs}")
+      add_reflection_parser(
+          target_name meta_my_target
+          reflection_search_files "${CMAKE_CURRENT_SOURCE_DIR}/my_header.h"
+          generated_code_dir "${CMAKE_CURRENT_LIST_DIR}/__generated__"
+          reflection_search_include_dirs "${all_include_dirs}"
+          parent_projects meta_parent_generation
+      )
       add_dependencies(my_target meta_my_target)
       target_link_libraries(my_target PRIVATE meta_my_target)
       ```
-
+      
       The code above call the function `add_reflection_parser`， generate an INTERFACE target "meta_my_target". Make sure to use **PRIVATE** link to generated meta target.
+      
+    - You can set parent projects for reflection parser. The parser will read the cached information about reflected types in the parent projects. Then the current target can parse the types in the parent projects as base types or member variables.
 
 2. **Source Code Scanning**
 
@@ -63,7 +71,7 @@ The parser generates reflection for several key classes:
       - A static hash table, **`s_index_type_map`**, stores shared pointers to **`Type`** instances, indexed by **`std::type_index`**.
       - Another static hash table, **`s_name_index_map`**, maps type names to their corresponding **`std::type_index`**.
       - During initialization, these tables are pre-registered with basic types like **`int`**, **`float`**, etc. Once the reflection system is initialized via the parser, all **`Type`** of reflected classes are registered into these tables.
-    - **Type Retrieval and Registration**
+    - **Type Retrieval**
       - The following functions are used to retrieve types:
         1. `GetType(const std::string &name)`:
            - The function searches the hash tables for the corresponding **`Type`** instance.
@@ -75,9 +83,18 @@ The parser generates reflection for several key classes:
         3. `GetTypeFromObject(const T &obj)`:
            - Similar to `GetType<T>()`. 
            - If the obj is a polymorphic type, we will consider it as `typeid(obj)` instead of `T`.
+    - **Type kinds**
+        - A `Type` 's kind can be `None`, `Const`, `Pointer` . 
+        - If the `Type` 's kind is `Const`, it can be dynamic casted to `ConstType`. A `Var` with const type can't invoke non-const method and will always get const `Var` members. 
+        - If the `Type` 's kind is `Pointer`, it can be dynamic casted to `PointerType`. A `PointerType` can be a raw pointer or a shared, weak, unique pointer. Use `GetPointedType` to get the pointed type. A `Var` with pointer type can use `GetPointedVar` to a `Var` represents pointed data by the pointer.
 2. **Var**
     - A container that holds a type and a pointer to an instance of that type (as a `void*`). You can cast the `void*` pointer to obtain the desired class type. The **`Var`** class also provides functions like **`Var::InvokeMethod`** and **`Var::GetMember`** to invoke member functions and access member variables. 
+    - **Warning:** If the return value of the function called by `Var::InvokeMethod` is not void or reference, the system will `malloc` memory for it. The system won't call the returned type's constructor! And the returned `Var` will free the malloced memory when the `Var` is destructed. The `Var` won't call the object's destructor! **Make sure the type of returned value is simple basic type.**
     - **`Var`** supports polymorphism, meaning that if a **`Var`** holds an instance of type A but points to an object of type B (a derived class), **`InvokeMethod`** will invoke methods from type B.
+3. **ArrayVar**
+    - The reflection system only support array like types (raw array, std::vector, std::array) as member variables. Use `Var::GetArrayMember` to get an `ArrayVar`.
+    - Use `Var ArrayVar::GetElement(size_t index)` to get the element `Var` at the given index.
+    - `ArrayVar` can be `Resize`, `Append`, `Remove` if it's a `std::vector`
 
 ## Serialization System
 
