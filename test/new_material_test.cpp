@@ -144,7 +144,7 @@ int main(int argc, char **argv) {
         .width = 1920,
         .height = 1080,
         .depth = 1,
-        .format = Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm,
+        .format = Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB, // The Blinn-Phong material uses sRGB image textures
         .type = Engine::ImageUtils::ImageType::ColorGeneral,
         .mipmap_levels = 1,
         .array_layers = 1,
