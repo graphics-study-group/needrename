@@ -28,7 +28,7 @@ namespace Engine {
             .width = (uint32_t)w,
             .height = (uint32_t)h,
             .depth = 1,
-            .format = Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB,
+            .format = Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm,
             .type = Engine::ImageUtils::ImageType::ColorAttachment,
             .mipmap_levels = 1,
             .array_layers = 1,
