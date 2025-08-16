@@ -92,8 +92,8 @@ namespace TestDataNamespace {
 
         REFL_ENABLE const TestData *m_const_data = nullptr;
         REFL_ENABLE TestData *m_data = nullptr;
-        REFL_ENABLE TestData * const m_data_const = nullptr;
-        REFL_ENABLE const int m_const_int = 182376;
+        // REFL_ENABLE TestData * const m_data_const = nullptr;
+        // REFL_ENABLE const int m_const_int = 182376;
 
         REFL_ENABLE const TestData *GetConstDataPtr() const;
         REFL_ENABLE void SetConstDataPtr(const TestData *data);
