@@ -3,9 +3,9 @@
         "&0": {
             "%type": "Engine::ShaderAsset",
             "Asset::m_guid": "A9BE0A978CB44D7D96C9FC525E4EC6A1",
-            "m_name": "lambertian_cook_torrance.frag.spv",
-            "m_entry_point": "main",
-            "shaderType": 2
+            "ShaderAsset::m_name": "lambertian_cook_torrance.frag.spv",
+            "ShaderAsset::m_entry_point": "main",
+            "ShaderAsset::shaderType": 2
         }
     },
     "%main_id": "&0"

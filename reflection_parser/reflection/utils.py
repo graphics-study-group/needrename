@@ -53,8 +53,8 @@ def get_simple_name(cx_type: CX.Type):
 def get_mangled_qualified_name(node: CX.Cursor):
     if node.kind in [CX.CursorKind.TRANSLATION_UNIT, CX.CursorKind.LINKAGE_SPEC]:
         return ""
-    return get_mangled_qualified_name(node.semantic_parent) + node.spelling + str(len(node.spelling))
-    
+    name = node.displayname.replace("<", "_").replace(">", "_")
+    return get_mangled_qualified_name(node.semantic_parent) + name + str(len(name))
 
 def get_type_mangled_name(cx_type: CX.Type):
     result = ""

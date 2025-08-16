@@ -45,6 +45,14 @@ void FooA::PrintHelloWorld() const {
     std::cout << "Hello World from FooA!" << std::endl;
 }
 
+float TestDataNamespace::TestData::GetData(int idx) const {
+    return data[idx];
+}
+
+void TestDataNamespace::TestData::SetData(int idx, float value) {
+    data[idx] = value;
+}
+
 using namespace TestDataNamespace;
 const void *ConstTest_GetConstDataPtr_Called = nullptr;
 const TestData *ConstTest::GetConstDataPtr() const {
@@ -157,8 +165,8 @@ int main() {
     std::cout << "Sum 3 args: " << sum << std::endl;
     assert(foo_data == FooA_Add3_Called);
     assert(sum == 123 + 456 + 1 + 2 + 3);
-    std::cout << "Type of foo: " << foo.m_type->GetName() << std::endl;
-    assert(foo.m_type->GetName() == "FooA");
+    std::cout << "Type of foo: " << foo.GetType()->GetName() << std::endl;
+    assert(foo.GetType()->GetName() == "FooA");
     std::cout << "foo.m_a == " << foo.GetMember("m_a").Get<int>() << std::endl;
     assert(foo.GetMember("m_a").Get<int>() == 123);
     std::cout << "[] Set foo.m_a = 100" << std::endl;
@@ -230,8 +238,8 @@ int main() {
 
     std::cout << "[] Const Var (const ConstTest) const_ref_var:" << std::endl;
     const ConstTest &const_ref = crp_test.Get<ConstTest>();
-    Engine::Reflection::ConstVar const_ref_var = Engine::Reflection::GetConstVar(const_ref);
-    Engine::Reflection::ConstVar const_data_get = const_ref_var.InvokeMethod("GetConstDataPtr");
+    Engine::Reflection::Var const_ref_var = Engine::Reflection::GetVar(const_ref);
+    Engine::Reflection::Var const_data_get = const_ref_var.InvokeMethod("GetConstDataPtr");
     std::cout << "const_data_get: m_data[0] == " << const_data_get.Get<const TestData *>()->data[0] << std::endl;
     assert(const_data_get.Get<const TestData *>()->data[0] == 1000.0f);
     for (int i = 1; i < 100; i++) assert(const_data_get.Get<const TestData *>()->data[i] == 0.0f);
@@ -241,6 +249,19 @@ int main() {
     std::cout << "const_data_get: m_data[0] == " << const_data_get.Get<const TestData *>()->data[0] << std::endl;
     assert(const_data_get.Get<const TestData *>()->data[0] == 1001.0f);
     for (int i = 1; i < 100; i++) assert(const_data_get.Get<const TestData *>()->data[i] == 0.0f);
+    data3.data[7] = 132.0f;
+    std::cout << "[] const function: const_data_get->GetData(7) == "
+              << const_data_get.GetPointedVar().InvokeMethod("GetData", 7).Get<float>() << std::endl;
+    assert(const_data_get.GetPointedVar().InvokeMethod("GetData", 7).Get<float>() == 132.0f);
+
+    bool const_check = false;
+    try {
+        const_data_get.GetPointedVar().InvokeMethod("SetData", 7, 123.0f);
+    } catch (const std::runtime_error &e) {
+        std::cout << "Caught expected exception: " << e.what() << std::endl;
+        const_check = (std::string(e.what()) == "Method SetData is not const, but the Var is const");
+    }
+    assert(const_check);
 
     std::cout << "----------------------------------- Test namespace of classes -----------------------------------"
               << std::endl;
@@ -254,6 +275,82 @@ int main() {
         Engine::Reflection::GetType("TestHelloWorld::TestHelloWorld2::NamespaceTest")->CreateInstance();
     ns_test3.InvokeMethod("PrintInfo");
     assert(ns_test3.GetDataPtr() == TestHelloWorld_TestHelloWorld2_NamespaceTest_PrintInfo_Called);
+
+    std::cout << "----------------------------------- Test Array -----------------------------------" << std::endl;
+    Engine::Reflection::Var array_test = Engine::Reflection::GetType("ArrayTest")->CreateInstance();
+    array_test.GetArrayMember("m_array_int").GetElement(1).Set<int>(1);
+    int *array_int2 = static_cast<int *>(array_test.GetArrayMember("m_array_int2").GetElement(2).GetDataPtr());
+    array_int2[2] = 2;
+    // array_test.GetArrayMember("m_vector_float").GetElement(0).Set<float>(1.0f);
+    array_test.GetArrayMember("m_array_double").GetElement(4).Set<double>(4.0);
+    std::cout << "array_test: m_array_int[1] == " << array_test.GetArrayMember("m_array_int").GetElement(1).Get<int>()
+              << std::endl;
+    assert(array_test.GetArrayMember("m_array_int").GetElement(1).Get<int>() == 1);
+    std::cout << "array_test: m_array_int2[2] == " << array_test.Get<ArrayTest>().m_array_int2[2][2] << std::endl;
+    assert(array_test.Get<ArrayTest>().m_array_int2[2][2] == 2);
+    std::cout << "array_test: m_array_double[4] == "
+              << array_test.GetArrayMember("m_array_double").GetElement(4).Get<double>() << std::endl;
+    assert(array_test.GetArrayMember("m_array_double").GetElement(4).Get<double>() == 4.0);
+    std::cout << "array_test: size of m_array_int == "
+              << array_test.GetArrayMember("m_array_int").GetSize() << std::endl;
+    assert(array_test.GetArrayMember("m_array_int").GetSize() == 5);
+    std::cout << "array_test: size of m_array_int2 == "
+              << array_test.GetArrayMember("m_array_int2").GetSize() << std::endl;
+    assert(array_test.GetArrayMember("m_array_int2").GetSize() == 9);
+    std::cout << "array_test: size of m_array_double == "
+              << array_test.GetArrayMember("m_array_double").GetSize() << std::endl;
+    assert(array_test.GetArrayMember("m_array_double").GetSize() == 12);
+
+    std::cout << std::endl << "array_test: size of m_vector_float == "
+              << array_test.GetArrayMember("m_vector_float").GetSize() << std::endl;
+    assert(array_test.GetArrayMember("m_vector_float").GetSize() == 0);
+    array_test.GetArrayMember("m_vector_float").Resize(3);
+    array_test.GetArrayMember("m_vector_float").GetElement(0).Set<float>(1.0f);
+    array_test.GetArrayMember("m_vector_float").GetElement(1).Set<float>(2.0f);
+    array_test.GetArrayMember("m_vector_float").GetElement(2).Set<float>(3.0f);
+    std::cout << "array_test: m_vector_float[0] == "
+                << array_test.GetArrayMember("m_vector_float").GetElement(0).Get<float>() << std::endl;
+    assert(array_test.GetArrayMember("m_vector_float").GetElement(0).Get<float>() == 1.0f);
+    std::cout << "array_test: m_vector_float[1] == "
+                << array_test.GetArrayMember("m_vector_float").GetElement(1).Get<float>() << std::endl;
+    assert(array_test.GetArrayMember("m_vector_float").GetElement(1).Get<float>() == 2.0f);
+    std::cout << "array_test: m_vector_float[2] == "
+                << array_test.GetArrayMember("m_vector_float").GetElement(2).Get<float>() << std::endl;
+    assert(array_test.GetArrayMember("m_vector_float").GetElement(2).Get<float>() == 3.0f);
+    std::cout << "array_test: size of m_vector_float == "
+              << array_test.GetArrayMember("m_vector_float").GetSize() << std::endl;
+    assert(array_test.GetArrayMember("m_vector_float").GetSize() == 3);
+    array_test.GetArrayMember("m_vector_float").Append(40.0f);
+    std::cout << "array_test: m_vector_float[3] == "
+              << array_test.GetArrayMember("m_vector_float").GetElement(3).Get<float>() << std::endl;
+    assert(array_test.GetArrayMember("m_vector_float").GetElement(3).Get<float>() == 40.0f);
+    array_test.GetArrayMember("m_vector_float").Remove(1);
+    std::cout << "array_test: m_vector_float[1] == "
+              << array_test.GetArrayMember("m_vector_float").GetElement(1).Get<float>() << std::endl;
+    assert(array_test.GetArrayMember("m_vector_float").GetElement(1).Get<float>() == 3.0f);
+    std::cout << "array_test: size of m_vector_float == "
+              << array_test.GetArrayMember("m_vector_float").GetSize() << std::endl;
+    assert(array_test.GetArrayMember("m_vector_float").GetSize() == 3);
+
+    std::cout << "------------------------------- Test Smart Pointer ------------------------------" << std::endl;
+    Engine::Reflection::Var smart_ptr_test = Engine::Reflection::GetType("SmartPointerTest")->CreateInstance();
+    std::cout << "smart_ptr_test: m_shared_ptr == "
+              << smart_ptr_test.GetMember("m_shared_ptr").GetPointedVar().Get<int>() << std::endl;
+    assert(smart_ptr_test.GetMember("m_shared_ptr").GetPointedVar().Get<int>() == 42);
+    std::cout << "smart_ptr_test: m_weak_ptr == "
+              << smart_ptr_test.GetMember("m_weak_ptr").GetPointedVar().Get<int>() << std::endl;
+    assert(smart_ptr_test.GetMember("m_weak_ptr").GetPointedVar().Get<int>() == 42);
+    std::cout << "smart_ptr_test: m_unique_ptr == "
+              << smart_ptr_test.GetMember("m_unique_ptr").GetPointedVar().Get<float>() << std::endl;
+    assert(smart_ptr_test.GetMember("m_unique_ptr").GetPointedVar().Get<float>() == 84.0f);
+    std::cout << "Modify *m_shared_ptr = 2" << std::endl;
+    smart_ptr_test.GetMember("m_shared_ptr").GetPointedVar().Set<int>(2);
+    std::cout << "smart_ptr_test: m_shared_ptr == "
+              << smart_ptr_test.GetMember("m_shared_ptr").GetPointedVar().Get<int>() << std::endl;
+    assert(smart_ptr_test.GetMember("m_shared_ptr").GetPointedVar().Get<int>() == 2);
+    std::cout << "smart_ptr_test: m_weak_ptr == "
+              << smart_ptr_test.GetMember("m_weak_ptr").GetPointedVar().Get<int>() << std::endl;
+    assert(smart_ptr_test.GetMember("m_weak_ptr").GetPointedVar().Get<int>() == 2);
 
     return 0;
 }

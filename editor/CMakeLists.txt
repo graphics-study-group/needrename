@@ -12,8 +12,14 @@ target_link_libraries(editor PUBLIC engine)
 include(${REFLECTION_PARSER_DIR}/parser.cmake)
 set(all_include_dirs)
 get_include_directories_for_target(editor all_include_dirs)
+filter_files_with_reflection_macros(HEADER REFLECTION_SEARCH_HEADERS)
 
-add_reflection_parser(meta_editor "${HEADER}" "${ENGINE_EDITOR_DIR}/__generated__" "${all_include_dirs}")
+add_reflection_parser(
+    target_name meta_editor
+    reflection_search_files "${REFLECTION_SEARCH_HEADERS}"
+    generated_code_dir "${ENGINE_EDITOR_DIR}/__generated__"
+    reflection_search_include_dirs "${all_include_dirs}"
+)
 add_dependencies(editor meta_editor)
 target_link_libraries(editor PRIVATE meta_editor)
 

@@ -7,21 +7,24 @@
 namespace Engine {
     namespace Reflection {
         class Type;
-        class ConstVar;
+        class ArrayVar;
 
         class Var {
         public:
             Var() = default;
-            Var(const Var &var) = default;
-            Var(std::shared_ptr<Type> type, void *data);
-            ~Var() = default;
+            Var(Var &&var);
+            Var &operator=(Var &&var);
+            Var(const Var &var) = delete;
+            Var &operator=(const Var &var) = delete;
+            Var(std::shared_ptr<const Type> type, void *data);
+            ~Var();
 
         protected:
             void *m_data = nullptr;
+            bool m_need_free = false;
+            std::shared_ptr<const Type> m_type = nullptr;
 
         public:
-            std::shared_ptr<Type> m_type = nullptr;
-
             // Get the void pointer to the data
             void *GetDataPtr();
 
@@ -36,6 +39,16 @@ namespace Engine {
             template <typename T>
             T &Set(const T &value);
 
+            /// @brief Copy the data from another Var.
+            /// @param var the Var to copy from
+            void Copy(const Var &var);
+
+            /// @brief Reset the Var to its default state. May free the data.
+            void Reset();
+
+            /// @brief Mark the Var as needing to be freed.
+            void MarkNeedFree();
+
             /// @brief Invoke a method of the object.
             /// @param name The name of the method
             /// @param ... the arguments to the method
@@ -48,51 +61,49 @@ namespace Engine {
             /// @return a Var object representing the field
             Var GetMember(const std::string &name);
 
-            Var &operator=(const Var &var);
+            /// @brief Get an array member field of the object.
+            /// The member should be an array, std::vector or std::array.
+            /// @param name the name of the array field
+            /// @return an ArrayVar object representing the array field
+            ArrayVar GetArrayMember(const std::string &name);
 
-            operator ConstVar() const;
+            /// @brief If the type of the Var is a pointer, get the Var it points to.
+            /// @return the Var it points to
+            Var GetPointedVar();
+
+            /// @brief Get a const version of the Var.
+            /// @return a Var object representing the const version
+            Var GetConstVar();
+
+            std::shared_ptr<const Type> GetType() const;
         };
 
-        class ConstVar {
+        class ArrayField;
+
+        class ArrayVar {
+        protected:
+            friend class Var;
+            ArrayVar() = delete;
+            ArrayVar(std::shared_ptr<const ArrayField> field, void *data, bool is_const);
+
         public:
-            ConstVar() = default;
-            ConstVar(const ConstVar &var) = default;
-            ConstVar(std::shared_ptr<Type> type, const void *data);
-            ~ConstVar() = default;
+            ArrayVar(const ArrayVar &var) = default;
+            ~ArrayVar() = default;
+            ArrayVar &operator=(const ArrayVar &var);
 
         protected:
-            const void *m_data = nullptr;
+            std::shared_ptr<const ArrayField> m_field;
+            void *m_data;
+            bool m_is_const;
 
         public:
-            std::shared_ptr<Type> m_type = nullptr;
-
-            // Get the const void pointer to the data
-            const void *GetDataPtr() const;
-
-            /// @brief Get the data of the ConstVar as type T.
-            /// @return a const reference to the data of type T
+            Var GetElement(size_t index);
+            size_t GetSize() const;
+            void Resize(size_t new_size) const;
+            void Append(const Var &var);
             template <typename T>
-            const T &Get() const;
-
-            /// @brief Set the data of the ConstVar as type T.
-            /// @param value the value to set
-            /// @return a const reference to the data of type T
-            template <typename T>
-            const T &Set(const T &value) const;
-
-            /// @brief Invoke a method of the object. Only const methods can be invoked.
-            /// @param name The name of the method
-            /// @param ... the arguments to the method
-            /// @return a Var object representing the return value of the method
-            template <typename... Args>
-            Var InvokeMethod(const std::string &name, Args &&...);
-
-            /// @brief Get a member field of the object.
-            /// @param name the name of the field
-            /// @return a ConstVar object representing the field
-            ConstVar GetMember(const std::string &name);
-
-            ConstVar &operator=(const ConstVar &var);
+            void Append(const T &value);
+            void Remove(size_t index);
         };
     } // namespace Reflection
 } // namespace Engine

@@ -3,9 +3,9 @@
         "&0": {
             "%type": "Engine::ShaderAsset",
             "Asset::m_guid": "9B381210B6EF92D084CBEB4E09F3D652",
-            "m_name": "blinn_phong.frag.spv",
-            "m_entry_point": "main",
-            "shaderType": 2
+            "ShaderAsset::m_name": "blinn_phong.frag.spv",
+            "ShaderAsset::m_entry_point": "main",
+            "ShaderAsset::shaderType": 2
         }
     },
     "%main_id": "&0"

@@ -2,9 +2,9 @@
     "%data": {
         "&0": {
             "%type": "Engine::MaterialAsset",
-            "Asset::m_guid": "6F3CCB482A18788734B10EB911613960",
-            "m_name": "Bunny_Material.002",
-            "m_properties": {
+            "Asset::m_guid": "4D4D8B15B9DCBFD5FF5E9D113EFE626C",
+            "MaterialAsset::m_name": "Bunny_Material.002",
+            "MaterialAsset::m_properties": {
                 "ambient_color": {
                     "m_type": "Undefined",
                     "m_ubo_type": "Vec4",
@@ -30,15 +30,15 @@
                     ]
                 }
             },
-            "m_template": "&1"
+            "MaterialAsset::m_template": "&1"
         },
         "&1": {
             "%type": "Engine::AssetRef",
-            "m_guid": "4C666B72830204D5D08AD8B29D4C3CBB"
+            "AssetRef::m_guid": "4C666B72830204D5D08AD8B29D4C3CBB"
         },
         "&2": {
             "%type": "Engine::AssetRef",
-            "m_guid": "770563372C2A6D85EF12771BD333C774"
+            "AssetRef::m_guid": "FAC19552B55B46B6ACE64D643C6D34B9"
         }
     },
     "%main_id": "&0"
