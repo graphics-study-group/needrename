@@ -2,37 +2,37 @@
     "%data": {
         "&0": {
             "%type": "Engine::GameObjectAsset",
-            "Asset::m_guid": "64B50FDB8FA5628D605BB3906098F791",
-            "m_MainObject": "&1"
+            "Asset::m_guid": "C052739654DA3905A0E7187B4DCDA668",
+            "GameObjectAsset::m_MainObject": "&1"
         },
         "&1": {
             "%type": "Engine::GameObject",
-            "m_childGameObject": [],
-            "m_components": [
+            "GameObject::m_childGameObject": [],
+            "GameObject::m_components": [
                 "&2",
                 "&3"
             ],
-            "m_name": "four_bunny",
-            "m_parentGameObject": null,
-            "m_transformComponent": "&2"
+            "GameObject::m_name": "four_bunny",
+            "GameObject::m_parentGameObject": null,
+            "GameObject::m_transformComponent": "&2"
         },
         "&2": {
             "%type": "Engine::TransformComponent",
             "Component::m_parentGameObject": "&1",
-            "m_transform": {
+            "TransformComponent::m_transform": {
                 "%type": "Engine::Transform",
-                "m_position": [
+                "Transform::m_position": [
                     0.0,
                     0.0,
                     0.0
                 ],
-                "m_rotation": [
+                "Transform::m_rotation": [
                     0.0,
                     0.0,
                     0.0,
                     1.0
                 ],
-                "m_scale": [
+                "Transform::m_scale": [
                     1.0,
                     1.0,
                     1.0
@@ -42,33 +42,37 @@
         "&3": {
             "%type": "Engine::MeshComponent",
             "Component::m_parentGameObject": "&1",
+            "MeshComponent::m_mesh_asset": "&8",
+            "RendererComponent::m_cast_shadow": false,
+            "RendererComponent::m_is_eagerly_loaded": false,
+            "RendererComponent::m_layer": 4294967295,
             "RendererComponent::m_material_assets": [
                 "&4",
                 "&5",
                 "&6",
                 "&7"
             ],
-            "m_mesh_asset": "&8"
+            "RendererComponent::m_priority": 0
         },
         "&4": {
             "%type": "Engine::AssetRef",
-            "m_guid": "7F978EE240081E5AF7B01401B58B69C7"
+            "AssetRef::m_guid": "09CDF049F5138FFA763A5D892A455966"
         },
         "&5": {
             "%type": "Engine::AssetRef",
-            "m_guid": "6F3CCB482A18788734B10EB911613960"
+            "AssetRef::m_guid": "4D4D8B15B9DCBFD5FF5E9D113EFE626C"
         },
         "&6": {
             "%type": "Engine::AssetRef",
-            "m_guid": "80EF3C3569A820560F1AB724E8F099A0"
+            "AssetRef::m_guid": "946CF686B270AE5EE5762EA69BCBE71D"
         },
         "&7": {
             "%type": "Engine::AssetRef",
-            "m_guid": "974ECA3CEE4E33F565E07976BDAB15F6"
+            "AssetRef::m_guid": "0CFCEEB7A064BCA25BC52D6AD6F6B140"
         },
         "&8": {
             "%type": "Engine::AssetRef",
-            "m_guid": "E52A9FD7CA5EE8E5E4D247F496A388F6"
+            "AssetRef::m_guid": "D8676A9BA404F7A084DC7E30A9E5245D"
         }
     },
     "%main_id": "&0"

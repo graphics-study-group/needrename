@@ -319,6 +319,7 @@ int main(int argc, char **argv) {
     transform.SetRotationEuler(glm::vec3{0.0, 0.0, 3.1415926});
     auto camera = std::make_shared<Camera>();
     camera->set_aspect_ratio(1920.0 / 1080.0);
+    camera->UpdateViewMatrix(transform);
     rsys->SetActiveCamera(camera);
 
     uint64_t frame_count = 0;

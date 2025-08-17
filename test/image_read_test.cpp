@@ -65,7 +65,7 @@ int main(int, char *[]) {
     stbi_uc *image_data = stbi_load(image_path.string().c_str(), &tex_width, &tex_height, &tex_channel, 4);
     assert(image_data);
     AllocatedImage2DTexture texture{render_system};
-    texture.Create(tex_width, tex_height, ImageUtils::ImageFormat::R8G8B8A8SRGB);
+    texture.Create(tex_width, tex_height, ImageUtils::ImageFormat::R8G8B8A8UNorm);
 
     TestMaterialWithSampler material{render_system, texture};
 

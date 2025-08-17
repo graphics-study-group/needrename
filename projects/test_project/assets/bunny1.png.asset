@@ -2,13 +2,13 @@
     "%data": {
         "&0": {
             "%type": "Engine::Image2DTextureAsset",
-            "Asset::m_guid": "9556F2CD1416496196DC5D47D5BD745E",
-            "TextureAsset::m_name": "bunny1",
-            "m_channel": 4,
-            "m_format": 2,
-            "m_height": 3072,
-            "m_mip_level": 1,
-            "m_width": 3072
+            "Asset::m_guid": "F21DB2ED9C717E8BFF30A6F32780E4EC",
+            "Image2DTextureAsset::m_channel": 4,
+            "Image2DTextureAsset::m_format": 2,
+            "Image2DTextureAsset::m_height": 3072,
+            "Image2DTextureAsset::m_mip_level": 1,
+            "Image2DTextureAsset::m_width": 3072,
+            "TextureAsset::m_name": "bunny1"
         }
     },
     "%main_id": "&0"

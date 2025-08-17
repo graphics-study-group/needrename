@@ -38,7 +38,7 @@ namespace Editor {
             .width = (uint32_t)m_texture_width,
             .height = (uint32_t)m_texture_height,
             .depth = 1,
-            .format = Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB,
+            .format = Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm,
             .type = Engine::ImageUtils::ImageType::ColorGeneral,
             .mipmap_levels = 1,
             .array_layers = 1,
