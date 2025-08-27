@@ -116,7 +116,7 @@ namespace Engine {
             archive.prepare_load();
 
             auto asset_type = Reflection::GetType(archive.GetMainDataProperty("%type").get<std::string>());
-            assert(asset_type->m_reflectable);
+            assert(asset_type->IsReflectable());
             // TODO: asset memory management
             auto var = asset_type->CreateInstance(Serialization::SerializationMarker{});
             auto asset_ptr = std::shared_ptr<Asset>(static_cast<Asset *>(var.GetDataPtr()));
@@ -132,7 +132,7 @@ namespace Engine {
         Serialization::Archive archive;
         archive.load_from_file(path);
         auto type = Reflection::GetType(archive.GetMainDataProperty("%type").get<std::string>());
-        assert(type->m_reflectable);
+        assert(type->IsReflectable());
         auto var = type->CreateInstance(Serialization::SerializationMarker{});
         std::shared_ptr<Asset> ret = std::shared_ptr<Asset>(static_cast<Asset *>(var.GetDataPtr()));
         archive.prepare_load();

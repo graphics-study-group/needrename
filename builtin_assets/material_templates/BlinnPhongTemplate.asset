@@ -3,100 +3,79 @@
         "&0": {
             "%type": "Engine::MaterialTemplateAsset",
             "Asset::m_guid": "4C666B72830204D5D08AD8B29D4C3CBB",
-            "name": "Built-in Blinn-Phong",
-            "properties": {
+            "MaterialTemplateAsset::name": "Built-in Blinn-Phong",
+            "MaterialTemplateAsset::properties": {
                 "%type": "Engine::MaterialTemplateProperties",
-                "properties": [
+                "MaterialTemplateProperties::properties": [
                     {
                         "key": 0,
                         "value": {
                             "%type": "Engine::MaterialTemplateSinglePassProperties",
-                            "attachments": {
-                                "%type": "Engine::MaterialTemplateSinglePassProperties::Attachments",
-                                "color": [],
-                                "color_ops": [],
-                                "depth": 0,
-                                "ds_ops": {
-                                    "clear_value": [
-                                        0,
-                                        0,
-                                        0,
-                                        0
-                                    ],
-                                    "load_op": 0,
-                                    "store_op": 0
+                            "MaterialTemplateSinglePassProperties::attachments": {
+                                "%type": "Engine::PipelineProperties::Attachments",
+                                "Attachments::color": [
+                                    4
+                                ],
+                                "Attachments::color_blending": [
+                                    {
+                                        "%type": "Engine::PipelineProperties::ColorBlendingProperties",
+                                        "ColorBlendingProperties::alpha_op": 1,
+                                        "ColorBlendingProperties::color_op": 1,
+                                        "ColorBlendingProperties::color_write_mask": 15,
+                                        "ColorBlendingProperties::dst_alpha": 0,
+                                        "ColorBlendingProperties::dst_color": 7,
+                                        "ColorBlendingProperties::src_alpha": 1,
+                                        "ColorBlendingProperties::src_color": 6
+                                    }
+                                ],
+                                "Attachments::depth": 7,
+                                "Attachments::stencil": 0
+                            },
+                            "MaterialTemplateSinglePassProperties::depth_stencil": {
+                                "%type": "Engine::PipelineProperties::DSProperties",
+                                "DSProperties::depth_bound_test_enable": false,
+                                "DSProperties::depth_comparator": 1,
+                                "DSProperties::depth_test_enable": true,
+                                "DSProperties::depth_write_enable": true,
+                                "DSProperties::max_depth": 1.0,
+                                "DSProperties::min_depth": 0.0,
+                                "DSProperties::stencil_back": {
+                                    "%type": "Engine::PipelineProperties::StencilState",
+                                    "StencilState::comparator": 0,
+                                    "StencilState::compare_mask": 255,
+                                    "StencilState::fail_op": 0,
+                                    "StencilState::pass_op": 0,
+                                    "StencilState::reference": 0,
+                                    "StencilState::write_mask": 255,
+                                    "StencilState::zfail_op": 0
                                 },
-                                "stencil": 0
+                                "DSProperties::stencil_front": {
+                                    "%type": "Engine::PipelineProperties::StencilState",
+                                    "StencilState::comparator": 0,
+                                    "StencilState::compare_mask": 255,
+                                    "StencilState::fail_op": 0,
+                                    "StencilState::pass_op": 0,
+                                    "StencilState::reference": 0,
+                                    "StencilState::write_mask": 255,
+                                    "StencilState::zfail_op": 0
+                                },
+                                "DSProperties::stencil_test_enable": false
                             },
-                            "depth_stencil": {
-                                "%type": "Engine::MaterialTemplateSinglePassProperties::DSProperties",
-                                "ds_test_enabled": true,
-                                "ds_write_enabled": true,
-                                "max_depth": 1.0,
-                                "min_depth": 0.0
+                            "MaterialTemplateSinglePassProperties::rasterizer": {
+                                "%type": "Engine::PipelineProperties::RasterizerProperties",
+                                "RasterizerProperties::culling": 0,
+                                "RasterizerProperties::filling": 0,
+                                "RasterizerProperties::front": 0,
+                                "RasterizerProperties::line_width": 1.0
                             },
-                            "rasterizer": {
-                                "%type": "Engine::MaterialTemplateSinglePassProperties::RasterizerProperties",
-                                "culling": 0,
-                                "filling": 0,
-                                "front": 0,
-                                "line_width": 1.0
-                            },
-                            "shaders": {
-                                "%type": "Engine::MaterialTemplateSinglePassProperties::Shaders",
-                                "shaders": [
+                            "MaterialTemplateSinglePassProperties::shaders": {
+                                "%type": "Engine::PipelineProperties::Shaders",
+                                "Shaders::shaders": [
                                     "&1",
                                     "&2"
                                 ],
-                                "uniforms": [
-                                    {
-                                        "%type": "Engine::ShaderVariableProperty",
-                                        "binding": 0,
-                                        "frequency": 0,
-                                        "name": "scene_ubo",
-                                        "type": 1
-                                    },
-                                    {
-                                        "%type": "Engine::ShaderVariableProperty",
-                                        "binding": 0,
-                                        "frequency": 1,
-                                        "name": "camera_ubo",
-                                        "type": 1
-                                    },
-                                    {
-                                        "%type": "Engine::ShaderVariableProperty",
-                                        "binding": 0,
-                                        "frequency": 2,
-                                        "name": "material_ubo",
-                                        "type": 1
-                                    },
-                                    {
-                                        "%type": "Engine::ShaderVariableProperty",
-                                        "binding": 1,
-                                        "frequency": 2,
-                                        "name": "base_tex",
-                                        "offset": 0,
-                                        "type": 3
-                                    }
-                                ],
-                                "ubo_variables": [
-                                    {
-                                        "%type": "Engine::ShaderUBOVariableProperty",
-                                        "binding": 0,
-                                        "frequency": 2,
-                                        "name": "specular_color",
-                                        "offset": 0,
-                                        "type": 3
-                                    },
-                                    {
-                                        "%type": "Engine::ShaderUBOVariableProperty",
-                                        "binding": 0,
-                                        "frequency": 2,
-                                        "name": "ambient_color",
-                                        "offset": 16,
-                                        "type": 3
-                                    }
-                                ]
+                                "Shaders::ubo_variables": [],
+                                "Shaders::uniforms": []
                             }
                         }
                     }
@@ -105,11 +84,11 @@
         },
         "&1": {
             "%type": "Engine::AssetRef",
-            "m_guid": "5ACA54938E17F42BC293F502932155A2"
+            "AssetRef::m_guid": "5ACA54938E17F42BC293F502932155A2"
         },
         "&2": {
             "%type": "Engine::AssetRef",
-            "m_guid": "9B381210B6EF92D084CBEB4E09F3D652"
+            "AssetRef::m_guid": "9B381210B6EF92D084CBEB4E09F3D652"
         }
     },
     "%main_id": "&0"

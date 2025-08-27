@@ -6,7 +6,12 @@ target_link_libraries(reflection_test PUBLIC engine)
 set(all_include_dirs)
 get_include_directories_for_target(reflection_test all_include_dirs)
 
-add_reflection_parser(meta_reflection_test "${CMAKE_CURRENT_SOURCE_DIR}/reflection_test.h" "${CMAKE_CURRENT_SOURCE_DIR}/__generated__" "${all_include_dirs}")
+add_reflection_parser(
+    target_name meta_reflection_test
+    reflection_search_files "${CMAKE_CURRENT_SOURCE_DIR}/reflection_test.h"
+    generated_code_dir "${CMAKE_CURRENT_SOURCE_DIR}/__generated__"
+    reflection_search_include_dirs "${all_include_dirs}"
+)
 add_dependencies(reflection_test meta_reflection_test)
 target_link_libraries(reflection_test PRIVATE meta_reflection_test)
 

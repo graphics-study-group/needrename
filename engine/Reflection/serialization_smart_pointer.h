@@ -35,7 +35,7 @@ namespace Engine {
                     auto type = Engine::Reflection::GetType(
                         archive.m_context->json["%data"][str_id]["%type"].get<std::string>()
                     );
-                    if (type->m_reflectable) {
+                    if (type->IsReflectable()) {
                         auto var = type->CreateInstance(SerializationMarker{});
                         archive.m_context->pointer_map[id] = std::shared_ptr<void>(static_cast<T *>(var.GetDataPtr()));
                         value = static_pointer_cast<T>(archive.m_context->pointer_map[id]);
@@ -82,7 +82,7 @@ namespace Engine {
                     auto type = Engine::Reflection::GetType(
                         archive.m_context->json["%data"][str_id]["%type"].get<std::string>()
                     );
-                    if (type->m_reflectable) {
+                    if (type->IsReflectable()) {
                         auto var = type->CreateInstance(Serialization::SerializationMarker{});
                         archive.m_context->pointer_map[id] = std::shared_ptr<void>(static_cast<T *>(var.GetDataPtr()));
                         value = static_pointer_cast<T>(archive.m_context->pointer_map[id]);
@@ -128,7 +128,7 @@ namespace Engine {
                 Archive temp_archive(archive, &archive.m_context->json["%data"][str_id]);
                 auto type =
                     Engine::Reflection::GetType(archive.m_context->json["%data"][str_id]["%type"].get<std::string>());
-                if (type->m_reflectable) {
+                if (type->IsReflectable()) {
                     auto var = type->CreateInstance(Serialization::SerializationMarker{});
                     value = std::unique_ptr<T>(static_cast<T *>(var.GetDataPtr()));
                     deserialize(*value, temp_archive);

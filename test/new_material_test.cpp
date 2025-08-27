@@ -92,6 +92,13 @@ int main(int argc, char **argv) {
     // Prepare material
     cmc->GetAssetManager()->LoadBuiltinAssets();
     auto test_asset = ConstructMaterialTemplate();
+
+    // Engine::Serialization::Archive archive;
+    // archive.prepare_save();
+    // test_asset->save_asset_to_archive(archive);
+    // archive.save_to_file(std::string(ENGINE_ASSETS_DIR) + "/test_asset.asset");
+    // SDL_Log("Saved asset to %s", (std::string(ENGINE_ASSETS_DIR) + "/test_asset.asset").c_str());
+
     auto test_asset_ref = std::make_shared<AssetRef>(test_asset);
     auto test_template = std::make_shared<Materials::BlinnPhongTemplate>(*rsys);
     test_template->Instantiate(*test_asset_ref->cas<MaterialTemplateAsset>());

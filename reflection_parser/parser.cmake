@@ -67,7 +67,40 @@ function(generate_cpp_names reflection_search_files)
     set(CONFIG_TARGET_FILES ${config_json} PARENT_SCOPE)
 endfunction()
 
-function(add_reflection_parser target_name reflection_search_files generated_code_dir reflection_search_include_dirs)
+function(generate_pkl_file_list parent_projects)
+    set(pkl_file_list "")
+    foreach(parent_project ${parent_projects})
+        get_property(pkl_file TARGET ${parent_project} PROPERTY PKL_CACHE)
+        set(pkl_file_list "${pkl_file_list}\"${pkl_file}\",")
+    endforeach()
+    string(LENGTH "${pkl_file_list}" str_length)
+    math(EXPR new_length "${str_length} - 1") # strip the last comma
+    string(SUBSTRING "${pkl_file_list}" 0 ${new_length} pkl_file_list)
+    set(PARENT_PROJECT_CACHE "${pkl_file_list}" PARENT_SCOPE)
+endfunction()
+
+function(add_reflection_parser)
+    set(optionArgs)
+    set(oneValueArgs target_name generated_code_dir)
+    set(multiValueArgs reflection_search_files reflection_search_include_dirs parent_projects)
+
+    cmake_parse_arguments(
+        PARSER_ARGS
+        "${optionArgs}"
+        "${oneValueArgs}"
+        "${multiValueArgs}"
+        ${ARGN}
+    )
+    set(target_name ${PARSER_ARGS_target_name})
+    set(reflection_search_files ${PARSER_ARGS_reflection_search_files})
+    set(generated_code_dir ${PARSER_ARGS_generated_code_dir})
+    set(reflection_search_include_dirs ${PARSER_ARGS_reflection_search_include_dirs})
+    if(NOT PARSER_ARGS_parent_projects)
+        set(parent_projects "")
+    else()
+        set(parent_projects ${PARSER_ARGS_parent_projects})
+    endif()
+
     if (NOT PYTHON_ENV_SETUP_DONE)
         setup_python_environment()
     endif()
@@ -109,6 +142,10 @@ function(add_reflection_parser target_name reflection_search_files generated_cod
         endif()
     endforeach()
 
+    if (parent_projects)
+        generate_pkl_file_list(${parent_projects})
+    endif()
+
     # generate config.json
     configure_file(${REFLECTION_PARSER_DIR}/template/config.json.template ${generated_code_dir}/config.json)
 
@@ -132,11 +169,16 @@ function(add_reflection_parser target_name reflection_search_files generated_cod
 
     add_custom_target(${target_name}_generation ALL
         DEPENDS ${TASK_STAMPED_FILE}
+        DEPENDS ${parent_projects} # ensure parent projects are built before this target
     )
     set_property(
         TARGET ${target_name}_generation
         APPEND
         PROPERTY ADDITIONAL_CLEAN_FILES ${generated_code_dir}
+    )
+    set_property(
+        TARGET ${target_name}_generation
+        PROPERTY PKL_CACHE ${generated_code_dir}/${target_name}/reflection_data.pkl
     )
     set_target_properties(${target_name}_generation PROPERTIES FOLDER parser_generated)
 

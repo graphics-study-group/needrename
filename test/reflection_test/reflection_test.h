@@ -3,6 +3,9 @@
 
 #include <Reflection/macros.h>
 #include <cstdint>
+#include <vector>
+#include <array>
+#include <memory>
 
 class REFL_SER_CLASS(REFL_BLACKLIST) Test_stdint {
     REFL_SER_BODY(Test_stdint)
@@ -69,6 +72,9 @@ namespace TestDataNamespace {
         virtual ~TestData() = default;
 
         REFL_SER_ENABLE float data[100] = {0.0f};
+
+        REFL_ENABLE float GetData(int idx) const;
+        REFL_ENABLE void SetData(int idx, float value);
     };
 
     typedef TestData &TDR;
@@ -86,6 +92,8 @@ namespace TestDataNamespace {
 
         REFL_ENABLE const TestData *m_const_data = nullptr;
         REFL_ENABLE TestData *m_data = nullptr;
+        // REFL_ENABLE TestData * const m_data_const = nullptr;
+        // REFL_ENABLE const int m_const_int = 182376;
 
         REFL_ENABLE const TestData *GetConstDataPtr() const;
         REFL_ENABLE void SetConstDataPtr(const TestData *data);
@@ -129,5 +137,28 @@ namespace TestHelloWorld {
         };
     } // namespace TestHelloWorld2
 } // namespace TestHelloWorld
+
+class REFL_SER_CLASS(REFL_WHITELIST) ArrayTest {
+    REFL_SER_BODY(ArrayTest)
+public:
+    REFL_ENABLE ArrayTest() = default;
+    virtual ~ArrayTest() = default;
+
+    REFL_SER_ENABLE int m_array_int[5] = {0};
+    REFL_SER_ENABLE int m_array_int2[9][10] = {0};
+    REFL_ENABLE std::vector<float> m_vector_float{};
+    REFL_ENABLE std::array<double, 12> m_array_double{};
+};
+
+class REFL_SER_CLASS(REFL_WHITELIST) SmartPointerTest {
+    REFL_SER_BODY(SmartPointerTest)
+public:
+    REFL_ENABLE SmartPointerTest() = default;
+    virtual ~SmartPointerTest() = default;
+
+    REFL_ENABLE std::shared_ptr<int> m_shared_ptr = std::make_shared<int>(42);
+    REFL_ENABLE std::weak_ptr<int> m_weak_ptr = m_shared_ptr;
+    REFL_ENABLE std::unique_ptr<float> m_unique_ptr = std::make_unique<float>(84.0f);
+};
 
 #endif // CTEST_REFLECTION_TEST_H

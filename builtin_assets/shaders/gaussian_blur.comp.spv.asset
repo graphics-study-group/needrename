@@ -3,9 +3,9 @@
         "&0": {
             "%type": "Engine::ShaderAsset",
             "Asset::m_guid": "5A6BAC1050004EB19BE406A9FA40A8CC",
-            "m_name": "gaussain_blur.comp.spv",
-            "m_entry_point": "main",
-            "shaderType": 3
+            "ShaderAsset::m_name": "gaussain_blur.comp.spv",
+            "ShaderAsset::m_entry_point": "main",
+            "ShaderAsset::shaderType": 3
         }
     },
     "%main_id": "&0"
