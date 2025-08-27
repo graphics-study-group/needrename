@@ -136,31 +136,76 @@ The parser generates reflection for several key classes:
         "%data": {
             "&0": {
                 "%type": "Engine::GameObjectAsset",
-                "Asset::m_guid": "01F4F0E99D638E56EDB9056558E15A68",
-                "m_MainObject": "&1"
+                "Asset::m_guid": "C052739654DA3905A0E7187B4DCDA668",
+                "GameObjectAsset::m_MainObject": "&1"
             },
             "&1": {
                 "%type": "Engine::GameObject",
-                "m_childGameObject": [],
-                "m_components": [
+                "GameObject::m_childGameObject": [],
+                "GameObject::m_components": [
                     "&2",
                     "&3"
                 ],
-                "m_parentGameObject": null,
-                "m_transformComponent": "&2"
+                "GameObject::m_name": "four_bunny",
+                "GameObject::m_parentGameObject": null,
+                "GameObject::m_transformComponent": "&2"
             },
             "&2": {
                 "%type": "Engine::TransformComponent",
-                "Component::m_parentGameObject": "&1"
+                "Component::m_parentGameObject": "&1",
+                "TransformComponent::m_transform": {
+                    "%type": "Engine::Transform",
+                    "Transform::m_position": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ],
+                    "Transform::m_rotation": [
+                        0.0,
+                        0.0,
+                        0.0,
+                        1.0
+                    ],
+                    "Transform::m_scale": [
+                        1.0,
+                        1.0,
+                        1.0
+                    ]
+                }
             },
-            ....
+            "&3": {
+                "%type": "Engine::MeshComponent",
+                "Component::m_parentGameObject": "&1",
+                "MeshComponent::m_mesh_asset": "&8",
+                "RendererComponent::m_cast_shadow": false,
+                "RendererComponent::m_is_eagerly_loaded": false,
+                "RendererComponent::m_layer": 4294967295,
+                "RendererComponent::m_material_assets": [
+                    "&4",
+                    "&5",
+                    "&6",
+                    "&7"
+                ],
+                "RendererComponent::m_priority": 0
+            },
+            "&4": {
+                "%type": "Engine::AssetRef",
+                "AssetRef::m_guid": "09CDF049F5138FFA763A5D892A455966"
+            },
+            ......
+            "&8": {
+                "%type": "Engine::AssetRef",
+                "AssetRef::m_guid": "D8676A9BA404F7A084DC7E30A9E5245D"
+            }
         },
         "%main_id": "&0"
     }
+    
     ```
 
     - The **`%data`** section stores all encountered objects, and the **`%main_id`** points to the main object being serialized.
     - Each object contains a **`%type`** field, which indicates the type of the object. During deserialization, this type information is used by the reflection system to properly reconstruct objects, ensuring correct polymorphic behavior.
+    - Note that we use `class_name::member_name` to store the key of a member instead of full name including its parent namespace. Please make sure do not inherit different base classes with the same name (even if they are in different namespace).
 
 3. **Additional Data in Archive**
 

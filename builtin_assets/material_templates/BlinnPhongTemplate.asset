@@ -14,7 +14,7 @@
                             "MaterialTemplateSinglePassProperties::attachments": {
                                 "%type": "Engine::PipelineProperties::Attachments",
                                 "Attachments::color": [
-                                    2
+                                    4
                                 ],
                                 "Attachments::color_blending": [
                                     {

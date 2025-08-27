@@ -52,7 +52,7 @@ std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate() {
     test_asset->name = "Blinn-Phong";
 
     MaterialTemplateSinglePassProperties mtspp{};
-    mtspp.attachments.color = {ImageUtils::ImageFormat::R8G8B8A8SRGB};
+    mtspp.attachments.color = {ImageUtils::ImageFormat::R8G8B8A8UNorm};
     using CBP = PipelineProperties::ColorBlendingProperties;
     CBP cbp;
     cbp.color_op = cbp.alpha_op = CBP::BlendOperation::Add;
@@ -208,7 +208,7 @@ int main(int argc, char **argv) {
         .width = 1920,
         .height = 1080,
         .depth = 1,
-        .format = Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB, // The Blinn-Phong material uses sRGB image textures
+        .format = Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm,
         .type = Engine::ImageUtils::ImageType::ColorGeneral,
         .mipmap_levels = 1,
         .array_layers = 1,
