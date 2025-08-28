@@ -62,12 +62,6 @@ namespace Engine {
          * GPU (if warranted), bind descriptors to the pipeline,
          * and write pending uniform data updates of
          * the given material instance.
-         * 
-         * @note Camera data is uploaded to the pipeline in this
-         * method call. If camera switch occurred,
-         * this method must be called again even if material is the
-         * same. This case should be handled
-         * by the render system.
          */
         void BindMaterial(MaterialInstance &material, uint32_t pass_index);
 
@@ -77,12 +71,34 @@ namespace Engine {
         /// @param scissor scissor rectangle
         void SetupViewport(float vpWidth, float vpHeight, vk::Rect2D scissor);
 
-        /// @brief Write per-mesh descriptors, and send draw call to GPU.
-        /// @param mesh
+        /**
+         * @brief Minimalistic interface for drawing a mesh.
+         * 
+         * Write per-mesh data, and send draw call to GPU.
+         * Does not do any extra stuff such as setting up viewports.
+         */
         void DrawMesh(const HomogeneousMesh &mesh);
         void DrawMesh(const HomogeneousMesh &mesh, const glm::mat4 &model_matrix);
 
+        /**
+         * @brief Draw renderers in the RendererList with specified pass index.
+         * 
+         * Sets up camera data with the currently active camera and 
+         * viewport and draw each renderer with its material.
+         */
         void DrawRenderers(const RendererList &renderers, uint32_t pass);
+
+        /**
+         * @brief Draw renderers in the RendererList with specified pass index.
+         * 
+         * Sets up camera data and viewport and draw each renderer with its material.
+         * 
+         * Camera data are submitted to the buffer of the currently active camera
+         * obtained from `GetActiveCameraId()` method. This might interfere with
+         * other camera's matrices if not used properly. Therefore it is
+         * suggested to use the simpler overload which handles camera data
+         * internally.
+         */
         void DrawRenderers(
             const RendererList &renderers,
             const glm::mat4 &view_matrix,
