@@ -95,7 +95,8 @@ RenderGraph BuildRenderGraph(
                 depth, 
                 nullptr, 
                 AttachmentUtils::LoadOperation::Clear, 
-                AttachmentUtils::StoreOperation::DontCare
+                AttachmentUtils::StoreOperation::DontCare,
+                AttachmentUtils::DepthClearValue{1.0f, 0U}
             },
             extent
         );

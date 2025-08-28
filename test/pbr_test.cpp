@@ -335,7 +335,8 @@ int main(int argc, char **argv) {
             depth.get(), 
             nullptr, 
             AttachmentUtils::LoadOperation::Clear, 
-            AttachmentUtils::StoreOperation::DontCare
+            AttachmentUtils::StoreOperation::DontCare,
+            AttachmentUtils::DepthClearValue{1.0f, 0U}
         },
         [rsys](GraphicsCommandBuffer & gcb) {
             gcb.DrawRenderers(rsys->GetRendererManager().FilterAndSortRenderers({}), 0);

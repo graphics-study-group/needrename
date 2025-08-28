@@ -41,7 +41,7 @@ namespace Engine {
         }
 
         const inline vk::RenderingAttachmentInfo GetVkAttachmentInfo(
-            const AttachmentDescription &desc, vk::ImageLayout layout, vk::ClearValue clear
+            const AttachmentDescription &desc, vk::ImageLayout layout
         ) noexcept {
             assert(desc.texture || desc.texture_view);
 
@@ -49,44 +49,27 @@ namespace Engine {
                 return vk::RenderingAttachmentInfo{
                     desc.texture_view->GetImageView(),
                     layout,
+                    // We are not going to support MSAA...
                     vk::ResolveModeFlagBits::eNone,
                     nullptr,
-                    // XXX: Here we need to track the previous layout.
                     vk::ImageLayout::eUndefined,
                     GetVkLoadOp(desc.load_op),
                     GetVkStoreOp(desc.store_op),
-                    clear
+                    GetVkClearValue(desc.clear_value)
                 };
             } else {
                 return vk::RenderingAttachmentInfo{
                     desc.texture->GetImageView(),
                     layout,
+                    // We are not going to support MSAA...
                     vk::ResolveModeFlagBits::eNone,
                     nullptr,
-                    // XXX: Here we need to track the previous layout.
                     vk::ImageLayout::eUndefined,
                     GetVkLoadOp(desc.load_op),
                     GetVkStoreOp(desc.store_op),
-                    clear
+                    GetVkClearValue(desc.clear_value)
                 };
             }
-        }
-
-        constexpr vk::RenderingAttachmentInfo GetVkAttachmentInfo(
-            vk::ImageView view, AttachmentOp op, vk::ImageLayout layout
-        ) {
-            vk::RenderingAttachmentInfo info{
-                view,
-                layout,
-                vk::ResolveModeFlagBits::eNone,
-                nullptr,
-                // XXX: Here we need to track the previous layout.
-                vk::ImageLayout::eUndefined,
-                GetVkLoadOp(op.load_op),
-                GetVkStoreOp(op.store_op),
-                GetVkClearValue(op.clear_value)
-            };
-            return info;
         }
     } // namespace AttachmentUtils
 } // namespace Engine

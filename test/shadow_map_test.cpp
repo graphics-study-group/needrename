@@ -240,10 +240,17 @@ int main(int argc, char **argv) {
     rgb.UseImage(*depth, IAT::DepthAttachmentWrite);
     rgb.RecordRasterizerPass(
         {
-            color.get(), nullptr, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store
+            color.get(),
+            nullptr, 
+            AttachmentUtils::LoadOperation::Clear, 
+            AttachmentUtils::StoreOperation::Store
         },
         {
-            depth.get(), nullptr, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::DontCare
+            depth.get(),
+            nullptr,
+            AttachmentUtils::LoadOperation::Clear,
+            AttachmentUtils::StoreOperation::DontCare,
+            AttachmentUtils::DepthClearValue{1.0f, 0U}
         },
         [rsys, test_material_instance, test_template, &test_mesh, &test_mesh_2] (GraphicsCommandBuffer & gcb) {
             vk::Extent2D extent{rsys->GetSwapchain().GetExtent()};

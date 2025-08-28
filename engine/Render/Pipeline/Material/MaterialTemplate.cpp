@@ -169,16 +169,6 @@ namespace Engine {
 
         vk::Format default_color_format{m_system.GetSwapchain().COLOR_FORMAT_VK};
         vk::Format default_depth_format{m_system.GetSwapchain().DEPTH_FORMAT_VK};
-        AttachmentUtils::AttachmentOp default_color_op{
-            AttachmentUtils::LoadOperation::Clear,
-            AttachmentUtils::StoreOperation::Store,
-            AttachmentUtils::ColorClearValue{0.0f, 0.0f, 0.0f, 1.0f}
-        };
-        AttachmentUtils::AttachmentOp default_depth_op{
-            AttachmentUtils::LoadOperation::Clear,
-            AttachmentUtils::StoreOperation::DontCare,
-            AttachmentUtils::DepthClearValue{1.0f, 0u}
-        };
 
         std::vector<vk::Format> color_attachment_formats{prop.attachments.color.size(), vk::Format::eUndefined};
         // Fill in attachment information

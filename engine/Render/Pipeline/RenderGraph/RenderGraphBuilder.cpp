@@ -297,7 +297,8 @@ namespace Engine {
                 &depth_attachment,
                 nullptr,
                 AttachmentUtils::LoadOperation::Clear, 
-                AttachmentUtils::StoreOperation::DontCare
+                AttachmentUtils::StoreOperation::DontCare,
+                AttachmentUtils::DepthClearValue{1.0f, 0U}
             },
             [this, &color_attachment, &depth_attachment](Engine::GraphicsCommandBuffer & gcb) {
                 gcb.DrawRenderers(this->m_system.GetRendererManager().FilterAndSortRenderers({}), 0);
