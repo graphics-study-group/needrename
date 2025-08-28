@@ -14,7 +14,7 @@
                             "MaterialTemplateSinglePassProperties::attachments": {
                                 "%type": "Engine::PipelineProperties::Attachments",
                                 "Attachments::color": [
-                                    4
+                                    2
                                 ],
                                 "Attachments::color_blending": [
                                     {
@@ -28,7 +28,7 @@
                                         "ColorBlendingProperties::src_color": 6
                                     }
                                 ],
-                                "Attachments::depth": 7,
+                                "Attachments::depth": 4,
                                 "Attachments::stencil": 0
                             },
                             "MaterialTemplateSinglePassProperties::depth_stencil": {

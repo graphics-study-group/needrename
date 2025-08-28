@@ -149,7 +149,7 @@ int main(int argc, char **argv) {
         .width = 1920,
         .height = 1080,
         .depth = 1,
-        .format = Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB,
+        .format = Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm,
         .type = Engine::ImageUtils::ImageType::ColorAttachment,
         .mipmap_levels = 1,
         .array_layers = 1,
@@ -163,7 +163,7 @@ int main(int argc, char **argv) {
     desc.type = Engine::ImageUtils::ImageType::SampledDepthImage;
     shadow->CreateTextureAndSampler(desc, {}, "Shadow map");
     desc.width = desc.height = 16;
-    desc.format = Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB;
+    desc.format = Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm;
     desc.type = Engine::ImageUtils::ImageType::TextureImage;
     blank_color->CreateTextureAndSampler(desc, {}, "Blank color");
 

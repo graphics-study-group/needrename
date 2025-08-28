@@ -39,15 +39,36 @@ namespace Engine {
         assert(width == m_width && height == m_height && channel == m_channel);
     }
 
-    void Image2DTextureAsset::LoadFromFile(const std::filesystem::path &path) {
+    void Image2DTextureAsset::LoadFromFile(const std::filesystem::path &path, bool gamma_to_linear) {
         m_name = path.stem().string();
         stbi_set_flip_vertically_on_load(true); // this is a static variable, so we need to reset it every time
         stbi_uc *raw_image_data = stbi_load(path.string().c_str(), &m_width, &m_height, &m_channel, 4);
         assert(raw_image_data);
         m_data.resize(m_width * m_height * m_channel);
         std::memcpy(m_data.data(), raw_image_data, m_width * m_height * m_channel);
+
+        if (gamma_to_linear) {
+            // XXX: This is soooo slow, we need some vectorization or better support for Vulkan SRGB formats.
+            // No alpha channel...
+            if (m_channel <= 3) {
+                std::for_each(m_data.begin(), m_data.end(), [](std::byte & b) {
+                    float f = static_cast<uint8_t>(b) / 255.0f;
+                    b = static_cast<std::byte>(static_cast<uint8_t>(std::round(std::pow(f, 2.2f) * 255.0f)));
+                });
+            } else {
+                for (size_t i = 0; i < m_data.size(); i += m_channel) {
+                    float f1 = static_cast<uint8_t>(m_data[i+0]) / 255.0f;
+                    m_data[i+0] = static_cast<std::byte>(static_cast<uint8_t>(std::round(std::pow(f1, 2.2f) * 255.0f)));
+                    float f2 = static_cast<uint8_t>(m_data[i+1]) / 255.0f;
+                    m_data[i+1] = static_cast<std::byte>(static_cast<uint8_t>(std::round(std::pow(f2, 2.2f) * 255.0f)));
+                    float f3 = static_cast<uint8_t>(m_data[i+2]) / 255.0f;
+                    m_data[i+2] = static_cast<std::byte>(static_cast<uint8_t>(std::round(std::pow(f3, 2.2f) * 255.0f)));
+                }
+            }
+        }
+
         stbi_image_free(raw_image_data);
-        m_format = ImageUtils::ImageFormat::R8G8B8A8SRGB;
+        m_format = ImageUtils::ImageFormat::R8G8B8A8UNorm;
         m_mip_level = 1;
     }
 
