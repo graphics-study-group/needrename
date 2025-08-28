@@ -140,6 +140,71 @@ namespace Engine {
         pimpl->m_buffer_barriers.clear();
         pimpl->m_image_barriers.clear();
     }
+    void RenderGraphBuilder::RecordRasterizerPass(
+        AttachmentUtils::AttachmentDescription color, std::function<void(GraphicsCommandBuffer &)> pass
+    ) {
+        this->RecordRasterizerPass(
+            color, 
+            AttachmentUtils::AttachmentDescription{
+                nullptr, 
+                nullptr,
+                AttachmentUtils::LoadOperation::Clear, 
+                AttachmentUtils::StoreOperation::DontCare
+            },
+            pass
+        );
+    }
+    void RenderGraphBuilder::RecordRasterizerPass(
+        AttachmentUtils::AttachmentDescription color,
+        AttachmentUtils::AttachmentDescription depth,
+        std::function<void(GraphicsCommandBuffer &)> pass
+    ) {
+
+        if (!pimpl->m_memo.m_memo.contains(color.texture) || std::get<2>(pimpl->m_memo.m_memo[color.texture]) != vk::ImageLayout::eColorAttachmentOptimal) {
+            SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Color attachment texture %p is not sychronized properly.", static_cast<const void *>(color.texture));
+        }
+        if (depth.texture) {
+            if (!pimpl->m_memo.m_memo.contains(depth.texture) || std::get<2>(pimpl->m_memo.m_memo[depth.texture]) != vk::ImageLayout::eDepthStencilAttachmentOptimal) {
+                SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Depth attachment texture %p is not sychronized properly.", static_cast<const void *>(color.texture));
+            }
+        }
+
+        std::function <void(vk::CommandBuffer)> f = [
+            system = &this->m_system,
+            pass, color, depth,
+            bb = std::move(pimpl->m_buffer_barriers), 
+            ib = std::move(pimpl->m_image_barriers)
+        ] (vk::CommandBuffer cb) {
+            vk::DependencyInfo dep{
+                vk::DependencyFlags{},
+                {},
+                bb,
+                ib
+            };
+            cb.pipelineBarrier2(dep);
+            GraphicsContext gc = system->GetFrameManager().GetGraphicsContext();
+            GraphicsCommandBuffer & gcb = dynamic_cast<GraphicsCommandBuffer &>(
+                gc.GetCommandBuffer()
+            );
+            gcb.BeginRendering(color, depth, system->GetSwapchain().GetExtent());
+            std::invoke(pass, std::ref(gcb));
+            gcb.EndRendering();
+        };
+
+        pimpl->m_commands.push_back(f);
+
+        // Get STL containers out of ``valid but unspecified'' states.
+        pimpl->m_buffer_barriers.clear();
+        pimpl->m_image_barriers.clear();
+    }
+
+    void RenderGraphBuilder::RecordRasterizerPass(
+        std::initializer_list<AttachmentUtils::AttachmentDescription> colors,
+        AttachmentUtils::AttachmentDescription depth,
+        std::function<void(GraphicsCommandBuffer &)> pass
+    ) {
+        assert(!"Unimplmented");
+    }
     void RenderGraphBuilder::RecordTransferPass(std::function<void(TransferCommandBuffer &)> pass) {
         assert(!"Unimplmented");
     }
@@ -211,24 +276,20 @@ namespace Engine {
         this->UseImage(color_attachment, IAT::ColorAttachmentWrite);
         this->UseImage(depth_attachment, IAT::DepthAttachmentWrite);
         this->RecordRasterizerPass(
+            {
+                &color_attachment, 
+                nullptr, 
+                AttachmentUtils::LoadOperation::Clear, 
+                AttachmentUtils::StoreOperation::Store
+            },
+            {
+                &depth_attachment,
+                nullptr,
+                AttachmentUtils::LoadOperation::Clear, 
+                AttachmentUtils::StoreOperation::DontCare
+            },
             [this, &color_attachment, &depth_attachment](Engine::GraphicsCommandBuffer & gcb) {
-                gcb.BeginRendering(
-                    {
-                        &color_attachment, 
-                        nullptr, 
-                        AttachmentUtils::LoadOperation::Clear, 
-                        AttachmentUtils::StoreOperation::Store
-                    },
-                    {
-                        &depth_attachment,
-                        nullptr,
-                        AttachmentUtils::LoadOperation::Clear, 
-                        AttachmentUtils::StoreOperation::DontCare
-                    },
-                    this->m_system.GetSwapchain().GetExtent()
-                );
                 gcb.DrawRenderers(this->m_system.GetRendererManager().FilterAndSortRenderers({}), 0);
-                gcb.EndRendering();
             }
         );
 

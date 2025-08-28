@@ -1,5 +1,5 @@
-#ifndef RENDERGRAPH_RENDERGRAPHBUILDER
-#define RENDERGRAPH_RENDERGRAPHBUILDER
+#ifndef PIPELINE_RENDERGRAPH_RENDERGRAPHBUILDER_INCLUDED
+#define PIPELINE_RENDERGRAPH_RENDERGRAPHBUILDER_INCLUDED
 
 #include <memory>
 #include <functional>
@@ -16,6 +16,10 @@ namespace Engine {
     class GraphicsCommandBuffer;
     class TransferCommandBuffer;
     class ComputeCommandBuffer;
+
+    namespace AttachmentUtils {
+        class AttachmentDescription;
+    };
 
     /**
      * @brief Helper class for building a `RenderGraph`.
@@ -58,8 +62,43 @@ namespace Engine {
 
         /**
          * @brief Record a pass which includes draw calls.
+         * 
+         * To use this method, you have to manually set up render targets within the `pass` function.
          */
         void RecordRasterizerPass (std::function<void(GraphicsCommandBuffer &)> pass);
+
+        /**
+         * @brief Record a pass which includes draw calls.
+         * 
+         * Depth attachment is defaulted to null.
+         * This method automatically begins and terminates rendering.
+         */
+        void RecordRasterizerPass (
+            AttachmentUtils::AttachmentDescription color,
+            std::function<void(GraphicsCommandBuffer &)> pass
+        );
+
+        /**
+         * @brief Record a pass which includes draw calls.
+         * 
+         * This method automatically begins and terminates rendering.
+         */
+        void RecordRasterizerPass (
+            AttachmentUtils::AttachmentDescription color,
+            AttachmentUtils::AttachmentDescription depth,
+            std::function<void(GraphicsCommandBuffer &)> pass
+        );
+
+        /**
+         * @brief Record a pass which includes draw calls.
+         * 
+         * This method automatically begins and terminates rendering.
+         */
+        void RecordRasterizerPass (
+            std::initializer_list <AttachmentUtils::AttachmentDescription> colors,
+            AttachmentUtils::AttachmentDescription depth,
+            std::function<void(GraphicsCommandBuffer &)> pass
+        );
 
         /**
          * @brief Record a pass with transfer commands.
@@ -92,4 +131,4 @@ namespace Engine {
     };
 }
 
-#endif // RENDERGRAPH_RENDERGRAPHBUILDER
+#endif // PIPELINE_RENDERGRAPH_RENDERGRAPHBUILDER_INCLUDED
