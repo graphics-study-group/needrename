@@ -191,10 +191,8 @@ namespace Engine {
             GraphicsCommandBuffer & gcb = dynamic_cast<GraphicsCommandBuffer &>(
                 gc.GetCommandBuffer()
             );
-            gcb.BeginRendering(color, depth, system->GetSwapchain().GetExtent());
-            gcb.GetCommandBuffer().beginDebugUtilsLabelEXT(vk::DebugUtilsLabelEXT{name.c_str()});
+            gcb.BeginRendering(color, depth, system->GetSwapchain().GetExtent(), name);
             std::invoke(pass, std::ref(gcb));
-            gcb.GetCommandBuffer().endDebugUtilsLabelEXT();
             gcb.EndRendering();
         };
 
