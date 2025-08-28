@@ -5,6 +5,7 @@
 #include "GUI/GUISystem.h"
 #include <SDL3/SDL.h>
 #include <vulkan/vulkan.hpp>
+#include <unordered_map>
 
 namespace Engine {
     struct RenderGraphBuilder::impl {
@@ -12,10 +13,44 @@ namespace Engine {
         std::vector <vk::BufferMemoryBarrier2> m_buffer_barriers {};
         std::vector <std::function<void(vk::CommandBuffer)>> m_commands {};
 
-        static vk::ImageMemoryBarrier2 GetImageBarrier(
+        struct TextureAccessMemo {
+            using AccessTuple = std::tuple<vk::PipelineStageFlags2, vk::AccessFlags2, vk::ImageLayout>;
+            std::unordered_map <const Texture *, AccessTuple> m_memo;
+
+            void RegisterTexture (const Texture * texture, AccessTuple previous_access) {
+                if (m_memo.contains(texture)) {
+                    SDL_LogWarn(
+                        SDL_LOG_CATEGORY_RENDER, 
+                        "Texture %p is already registered.", 
+                        static_cast <const void *>(texture)
+                    );
+                }
+                m_memo[texture] = previous_access;
+            }
+
+            AccessTuple UpdateAccessTuple(const Texture * texture, AccessTuple new_access_tuple) {
+                if (!m_memo.contains(texture)) {
+                    SDL_LogWarn(
+                        SDL_LOG_CATEGORY_RENDER, 
+                        "Texture %p is not registered, defaulting to none.", 
+                        static_cast <const void *>(texture)
+                    );
+
+                    m_memo[texture] = std::make_tuple(
+                        vk::PipelineStageFlagBits2::eNone,
+                        vk::AccessFlagBits2::eNone, 
+                        vk::ImageLayout::eUndefined
+                    );
+                }
+
+                std::swap(m_memo[texture], new_access_tuple);
+                return new_access_tuple;
+            };
+        } m_memo;
+
+        vk::ImageMemoryBarrier2 GetImageBarrier(
             Texture & texture, 
-            AccessHelper::ImageAccessType new_access, 
-            AccessHelper::ImageAccessType prev_access
+            AccessHelper::ImageAccessType new_access
         ) noexcept {
             vk::ImageMemoryBarrier2 barrier{};
             barrier.image = texture.GetImage();
@@ -33,10 +68,11 @@ namespace Engine {
                     vk::ImageAspectFlagBits::eColor | vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
             }
 
-            std::tie(barrier.dstStageMask, barrier.dstAccessMask, barrier.newLayout) =
-                AccessHelper::GetAccessScope(new_access);
-            std::tie(barrier.srcStageMask, barrier.srcAccessMask, barrier.oldLayout) =
-                AccessHelper::GetAccessScope(prev_access);
+            TextureAccessMemo::AccessTuple dst_tuple{AccessHelper::GetAccessScope(new_access)};
+
+            std::tie(barrier.dstStageMask, barrier.dstAccessMask, barrier.newLayout) = dst_tuple;
+            std::tie(barrier.srcStageMask, barrier.srcAccessMask, barrier.oldLayout) = m_memo.UpdateAccessTuple(&texture, dst_tuple);
+
             barrier.dstQueueFamilyIndex = barrier.srcQueueFamilyIndex = vk::QueueFamilyIgnored;
             return barrier;
         }
@@ -61,10 +97,15 @@ namespace Engine {
 
     RenderGraphBuilder::~RenderGraphBuilder() = default;
 
+    void RenderGraphBuilder::RegisterImageAccess(Texture & texture, AccessHelper::ImageAccessType prev_access)
+    {
+        pimpl->m_memo.RegisterTexture(&texture, AccessHelper::GetAccessScope(prev_access));
+    }
+
     void RenderGraphBuilder::UseImage(
-        Texture &texture, AccessHelper::ImageAccessType new_access, AccessHelper::ImageAccessType prev_access
+        Texture &texture, AccessHelper::ImageAccessType new_access
     ) {
-        pimpl->m_image_barriers.push_back(pimpl->GetImageBarrier(texture, new_access, prev_access));
+        pimpl->m_image_barriers.push_back(pimpl->GetImageBarrier(texture, new_access));
     }
     void RenderGraphBuilder::UseBuffer(
         Buffer &buffer, AccessHelper::BufferAccessType new_access, AccessHelper::BufferAccessType prev_access
@@ -165,9 +206,10 @@ namespace Engine {
         GUISystem * gui_system
     ) {
         using IAT = AccessHelper::ImageAccessType;
-
-        this->UseImage(color_attachment, IAT::ColorAttachmentWrite, IAT::None);
-        this->UseImage(depth_attachment, IAT::DepthAttachmentWrite, IAT::None);
+        this->RegisterImageAccess(color_attachment, IAT::None);
+        this->RegisterImageAccess(depth_attachment, IAT::None);
+        this->UseImage(color_attachment, IAT::ColorAttachmentWrite);
+        this->UseImage(depth_attachment, IAT::DepthAttachmentWrite);
         this->RecordRasterizerPass(
             [this, &color_attachment, &depth_attachment](Engine::GraphicsCommandBuffer & gcb) {
                 gcb.BeginRendering(
@@ -191,7 +233,7 @@ namespace Engine {
         );
 
         if (gui_system) {
-            this->UseImage(color_attachment, IAT::ColorAttachmentWrite, IAT::ColorAttachmentWrite);
+            this->UseImage(color_attachment, IAT::ColorAttachmentWrite);
             this->RecordRasterizerPass(
                 [this, gui_system, &color_attachment](Engine::GraphicsCommandBuffer & gcb) {
                     gui_system->DrawGUI(

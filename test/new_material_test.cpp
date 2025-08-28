@@ -80,8 +80,8 @@ RenderGraph BuildRenderGraph(
 ) {
     using IAT = Engine::AccessHelper::ImageAccessType;
     RenderGraphBuilder rgb{*rsys};
-    rgb.UseImage(*color, IAT::ColorAttachmentWrite, IAT::None);
-    rgb.UseImage(*depth, IAT::DepthAttachmentWrite, IAT::None);
+    rgb.UseImage(*color, IAT::ColorAttachmentWrite);
+    rgb.UseImage(*depth, IAT::DepthAttachmentWrite);
     rgb.RecordRasterizerPass([rsys, color, depth, material, mesh](GraphicsCommandBuffer & gcb) {
         auto extent = rsys->GetSwapchain().GetExtent();
         gcb.BeginRendering(
@@ -117,8 +117,9 @@ RenderGraph BuildRenderGraph(
     });
 
     if (blurred && kernel) {
-        rgb.UseImage(*color, IAT::ShaderReadRandomWrite, IAT::ColorAttachmentWrite);
-        rgb.UseImage(*blurred, IAT::ShaderRandomWrite, IAT::None);
+        rgb.RegisterImageAccess(*blurred);
+        rgb.UseImage(*color, IAT::ShaderReadRandomWrite);
+        rgb.UseImage(*blurred, IAT::ShaderRandomWrite);
 
         rgb.RecordComputePass([blurred, kernel](ComputeCommandBuffer & ccb) {
             ccb.BindComputeStage(*kernel);
@@ -127,7 +128,7 @@ RenderGraph BuildRenderGraph(
             );
         });
         
-        rgb.UseImage(*blurred, IAT::ColorAttachmentWrite, IAT::ShaderRandomWrite);
+        rgb.UseImage(*blurred, IAT::ColorAttachmentWrite);
         rgb.RecordSynchronization();
     }
     return rgb.BuildRenderGraph();

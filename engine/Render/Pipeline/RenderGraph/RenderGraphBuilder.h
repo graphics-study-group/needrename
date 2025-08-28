@@ -30,14 +30,21 @@ namespace Engine {
 
         RenderGraphBuilder(RenderSystem & system);
         ~RenderGraphBuilder();
+
+        /**
+         * @brief Register a new image texture to manage its access by the internal memo system.
+         */
+        void RegisterImageAccess (
+            Texture & texture,
+            AccessHelper::ImageAccessType prev_access = AccessHelper::ImageAccessType::None
+        );
         
         /**
          * @brief Mark an image to be used in the following pass.
          */
         void UseImage (
             Texture & texture,
-            AccessHelper::ImageAccessType new_access, 
-            AccessHelper::ImageAccessType prev_access
+            AccessHelper::ImageAccessType new_access
         );
 
         /**
@@ -50,7 +57,7 @@ namespace Engine {
         );
 
         /**
-         * @brief Record a pass which includes exactly one draw call.
+         * @brief Record a pass which includes draw calls.
          */
         void RecordRasterizerPass (std::function<void(GraphicsCommandBuffer &)> pass);
 
@@ -60,7 +67,7 @@ namespace Engine {
         void RecordTransferPass (std::function<void(TransferCommandBuffer &)> pass);
 
         /**
-         * @brief Record a pass with exactly one compute shader dispatch.
+         * @brief Record a pass with compute shader dispatches.
          */
         void RecordComputePass (std::function<void(ComputeCommandBuffer &)> pass);
 
