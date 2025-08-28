@@ -197,6 +197,6 @@ namespace Engine {
         this->renderer->GetFrameManager().StageBlitComposition(
             this->window->GetColorTexture().GetImage(), this->window->GetExtent(), this->window->GetExtent()
         );
-        this->renderer->GetFrameManager().CompositeToFramebufferAndPresent();
+        this->renderer->CompleteFrame();
     }
 } // namespace Engine

@@ -299,7 +299,7 @@ int main(int argc, char **argv) {
             vk::Extent2D{color.GetTextureDescription().width, color.GetTextureDescription().height},
             rsys->GetSwapchain().GetExtent()
         );
-        rsys->GetFrameManager().CompositeToFramebufferAndPresent();
+        rsys->CompleteFrame();
 
         SDL_Delay(5);
 

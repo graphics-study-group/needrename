@@ -136,7 +136,7 @@ int main() {
         rsys->GetFrameManager().StageBlitComposition(
             window->GetColorTexture().GetImage(), window->GetExtent(), window->GetExtent()
         );
-        rsys->GetFrameManager().CompositeToFramebufferAndPresent();
+        rsys->CompleteFrame();
     }
     rsys->WaitForIdle();
 
