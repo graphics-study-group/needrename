@@ -65,7 +65,9 @@ namespace Engine {
          * 
          * To use this method, you have to manually set up render targets within the `pass` function.
          */
-        void RecordRasterizerPass (std::function<void(GraphicsCommandBuffer &)> pass);
+        void RecordRasterizerPass (
+            std::function<void(GraphicsCommandBuffer &)> pass
+        );
 
         /**
          * @brief Record a pass which includes draw calls.
@@ -75,7 +77,8 @@ namespace Engine {
          */
         void RecordRasterizerPass (
             AttachmentUtils::AttachmentDescription color,
-            std::function<void(GraphicsCommandBuffer &)> pass
+            std::function<void(GraphicsCommandBuffer &)> pass,
+            const std::string & name = ""
         );
 
         /**
@@ -86,7 +89,8 @@ namespace Engine {
         void RecordRasterizerPass (
             AttachmentUtils::AttachmentDescription color,
             AttachmentUtils::AttachmentDescription depth,
-            std::function<void(GraphicsCommandBuffer &)> pass
+            std::function<void(GraphicsCommandBuffer &)> pass,
+            const std::string & name = ""
         );
 
         /**
@@ -97,7 +101,8 @@ namespace Engine {
         void RecordRasterizerPass (
             std::initializer_list <AttachmentUtils::AttachmentDescription> colors,
             AttachmentUtils::AttachmentDescription depth,
-            std::function<void(GraphicsCommandBuffer &)> pass
+            std::function<void(GraphicsCommandBuffer &)> pass,
+            const std::string & name = ""
         );
 
         /**
@@ -108,7 +113,10 @@ namespace Engine {
         /**
          * @brief Record a pass with compute shader dispatches.
          */
-        void RecordComputePass (std::function<void(ComputeCommandBuffer &)> pass);
+        void RecordComputePass (
+            std::function<void(ComputeCommandBuffer &)> pass,
+            const std::string & name = ""
+        );
 
         /**
          * @brief Explicitly record a synchronization operation.

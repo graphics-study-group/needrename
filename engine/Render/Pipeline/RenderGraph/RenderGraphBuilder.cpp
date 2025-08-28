@@ -112,8 +112,9 @@ namespace Engine {
     ) {
         pimpl->m_buffer_barriers.push_back(pimpl->GetBufferBarrier(buffer, new_access, prev_access));
     }
-    void RenderGraphBuilder::RecordRasterizerPass(std::function<void(GraphicsCommandBuffer &)> pass) {
-
+    void RenderGraphBuilder::RecordRasterizerPass(
+        std::function<void(GraphicsCommandBuffer &)> pass
+    ) {
         std::function <void(vk::CommandBuffer)> f = [
             system = &this->m_system,
             pass,
@@ -141,7 +142,9 @@ namespace Engine {
         pimpl->m_image_barriers.clear();
     }
     void RenderGraphBuilder::RecordRasterizerPass(
-        AttachmentUtils::AttachmentDescription color, std::function<void(GraphicsCommandBuffer &)> pass
+        AttachmentUtils::AttachmentDescription color,
+        std::function<void(GraphicsCommandBuffer &)> pass,
+        const std::string & name
     ) {
         this->RecordRasterizerPass(
             color, 
@@ -151,13 +154,15 @@ namespace Engine {
                 AttachmentUtils::LoadOperation::Clear, 
                 AttachmentUtils::StoreOperation::DontCare
             },
-            pass
+            pass,
+            name
         );
     }
     void RenderGraphBuilder::RecordRasterizerPass(
         AttachmentUtils::AttachmentDescription color,
         AttachmentUtils::AttachmentDescription depth,
-        std::function<void(GraphicsCommandBuffer &)> pass
+        std::function<void(GraphicsCommandBuffer &)> pass,
+        const std::string & name
     ) {
 
         if (!pimpl->m_memo.m_memo.contains(color.texture) || std::get<2>(pimpl->m_memo.m_memo[color.texture]) != vk::ImageLayout::eColorAttachmentOptimal) {
@@ -171,7 +176,7 @@ namespace Engine {
 
         std::function <void(vk::CommandBuffer)> f = [
             system = &this->m_system,
-            pass, color, depth,
+            pass, color, depth, name,
             bb = std::move(pimpl->m_buffer_barriers), 
             ib = std::move(pimpl->m_image_barriers)
         ] (vk::CommandBuffer cb) {
@@ -187,7 +192,9 @@ namespace Engine {
                 gc.GetCommandBuffer()
             );
             gcb.BeginRendering(color, depth, system->GetSwapchain().GetExtent());
+            gcb.GetCommandBuffer().beginDebugUtilsLabelEXT(vk::DebugUtilsLabelEXT{name.c_str()});
             std::invoke(pass, std::ref(gcb));
+            gcb.GetCommandBuffer().endDebugUtilsLabelEXT();
             gcb.EndRendering();
         };
 
@@ -201,17 +208,21 @@ namespace Engine {
     void RenderGraphBuilder::RecordRasterizerPass(
         std::initializer_list<AttachmentUtils::AttachmentDescription> colors,
         AttachmentUtils::AttachmentDescription depth,
-        std::function<void(GraphicsCommandBuffer &)> pass
+        std::function<void(GraphicsCommandBuffer &)> pass,
+        const std::string & name
     ) {
         assert(!"Unimplmented");
     }
     void RenderGraphBuilder::RecordTransferPass(std::function<void(TransferCommandBuffer &)> pass) {
         assert(!"Unimplmented");
     }
-    void RenderGraphBuilder::RecordComputePass(std::function<void(ComputeCommandBuffer &)> pass) {
+    void RenderGraphBuilder::RecordComputePass(
+        std::function<void(ComputeCommandBuffer &)> pass,
+        const std::string & name
+    ) {
         std::function <void(vk::CommandBuffer)> f = [
             system = &this->m_system, 
-            pass,
+            pass, name,
             bb = std::move(pimpl->m_buffer_barriers), 
             ib = std::move(pimpl->m_image_barriers)
         ] (vk::CommandBuffer cb) {
@@ -226,7 +237,9 @@ namespace Engine {
             ComputeCommandBuffer & ccb = dynamic_cast<ComputeCommandBuffer &>(
                 cc.GetCommandBuffer()
             );
+            ccb.GetCommandBuffer().beginDebugUtilsLabelEXT({name.c_str()});
             std::invoke(pass, std::ref(ccb));
+            ccb.GetCommandBuffer().endDebugUtilsLabelEXT();
         };
 
         pimpl->m_commands.push_back(f);
