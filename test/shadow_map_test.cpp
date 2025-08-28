@@ -18,6 +18,8 @@
 using namespace Engine;
 namespace sch = std::chrono;
 
+constexpr glm::mat4 EYE4{glm::mat4(1.0)};
+
 struct LowerPlaneMeshAsset : public MeshAsset {
     LowerPlaneMeshAsset() {
         this->m_submeshes.resize(1);
@@ -78,6 +80,8 @@ std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate() {
     shadow_map_pass.shaders.shaders = std::vector{shadow_map_vs_ref};
     shadow_map_pass.attachments.depth = ImageUtils::ImageFormat::D32SFLOAT;
     lit_pass.shaders.shaders = std::vector{vs_ref, fs_ref};
+    lit_pass.attachments.color = std::vector{ImageUtils::ImageFormat::R8G8B8A8UNorm};
+    lit_pass.attachments.color_blending = std::vector{PipelineProperties::ColorBlendingProperties{}};
 
     test_asset->properties.properties[0] = shadow_map_pass;
     test_asset->properties.properties[1] = lit_pass;
@@ -137,8 +141,6 @@ int main(int argc, char **argv) {
         global_pool.FlushPerCameraConstantMemory(i, 0);
     }
 
-    glm::mat4 eye4 = glm::mat4(1.0f);
-
     // Prepare attachments
     auto color = std::make_shared<Engine::Texture>(*rsys);
     auto depth = std::make_shared<Engine::Texture>(*rsys);
@@ -167,17 +169,6 @@ int main(int argc, char **argv) {
     desc.type = Engine::ImageUtils::ImageType::TextureImage;
     blank_color->CreateTextureAndSampler(desc, {}, "Blank color");
 
-    Engine::AttachmentUtils::AttachmentDescription color_att, depth_att, shadow_att;
-    color_att.texture = color.get();
-    color_att.load_op = AttachmentUtils::LoadOperation::Clear;
-    color_att.store_op = AttachmentUtils::StoreOperation::Store;
-    depth_att.texture = depth.get();
-    depth_att.load_op = AttachmentUtils::LoadOperation::Clear;
-    depth_att.store_op = AttachmentUtils::StoreOperation::DontCare;
-    shadow_att.texture = shadow.get();
-    shadow_att.load_op = AttachmentUtils::LoadOperation::Clear;
-    shadow_att.store_op = AttachmentUtils::StoreOperation::Store;
-
     // Prepare material
     cmc->GetAssetManager()->LoadBuiltinAssets();
     auto test_asset = ConstructMaterialTemplate();
@@ -205,10 +196,75 @@ int main(int argc, char **argv) {
         *allocated_image_texture, test_texture_asset->GetPixelData(), test_texture_asset->GetPixelDataSize()
     );
 
-    RenderTargetBinding shadow_pass_binding, lit_pass_binding;
-    shadow_pass_binding.SetDepthAttachment(shadow_att);
-    lit_pass_binding.SetColorAttachment(color_att);
-    lit_pass_binding.SetDepthAttachment(depth_att);
+    RenderGraphBuilder rgb{*rsys};
+    rgb.RegisterImageAccess(*color);
+    rgb.RegisterImageAccess(*depth);
+    rgb.RegisterImageAccess(*shadow);
+
+    using IAT = AccessHelper::ImageAccessType;
+    rgb.UseImage(*shadow, IAT::DepthAttachmentWrite);
+    rgb.RecordRasterizerPass(
+        [rsys, shadow, test_template, test_material_instance, &test_mesh, &test_mesh_2] (GraphicsCommandBuffer & gcb) {
+            vk::Extent2D shadow_map_extent{2048, 2048};
+            vk::Rect2D shadow_map_scissor{{0, 0}, shadow_map_extent};
+            gcb.BeginRendering(
+                {nullptr}, 
+                {
+                    shadow.get(), 
+                    nullptr, 
+                    AttachmentUtils::LoadOperation::Clear, 
+                    AttachmentUtils::StoreOperation::Store
+                }, 
+                shadow_map_extent, 
+                "Shadowmap Pass"
+            );
+            gcb.SetupViewport(shadow_map_extent.width, shadow_map_extent.height, shadow_map_scissor);
+            gcb.BindMaterial(*test_material_instance, 0);
+
+            vk::CommandBuffer rcb = gcb.GetCommandBuffer();
+            rcb.pushConstants(
+                test_template->GetPipelineLayout(0),
+                vk::ShaderStageFlagBits::eVertex,
+                0,
+                ConstantData::PerModelConstantPushConstant::PUSH_RANGE_SIZE,
+                reinterpret_cast<const void *>(&EYE4)
+            );
+            gcb.DrawMesh(test_mesh);
+            gcb.DrawMesh(test_mesh_2);
+            gcb.EndRendering();
+        }
+    );
+
+    rgb.UseImage(*shadow, IAT::ShaderRead);
+    rgb.UseImage(*color, IAT::ColorAttachmentWrite);
+    rgb.UseImage(*depth, IAT::DepthAttachmentWrite);
+    rgb.RecordRasterizerPass(
+        {
+            color.get(), nullptr, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store
+        },
+        {
+            depth.get(), nullptr, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::DontCare
+        },
+        [rsys, test_material_instance, test_template, &test_mesh, &test_mesh_2] (GraphicsCommandBuffer & gcb) {
+            vk::Extent2D extent{rsys->GetSwapchain().GetExtent()};
+            vk::Rect2D scissor{{0, 0}, extent};
+            gcb.SetupViewport(extent.width, extent.height, scissor);
+            gcb.BindMaterial(*test_material_instance, 1);
+            // Push model matrix...
+            vk::CommandBuffer rcb = gcb.GetCommandBuffer();
+            rcb.pushConstants(
+                test_template->GetPipelineLayout(0),
+                vk::ShaderStageFlagBits::eVertex,
+                0,
+                ConstantData::PerModelConstantPushConstant::PUSH_RANGE_SIZE,
+                reinterpret_cast<const void *>(&EYE4)
+            );
+            gcb.DrawMesh(test_mesh);
+            gcb.DrawMesh(test_mesh_2);
+        },
+        "Lit pass"
+    );
+    auto rg{rgb.BuildRenderGraph()};
 
     bool quited = false;
 
@@ -236,77 +292,9 @@ int main(int argc, char **argv) {
         }
 
         auto index = rsys->StartFrame();
-        auto context = rsys->GetFrameManager().GetGraphicsContext();
-        GraphicsCommandBuffer &cb = dynamic_cast<GraphicsCommandBuffer &>(context.GetCommandBuffer());
         assert(index < 3);
 
-        cb.Begin("Main Render Loop");
-        // Shadow map pass
-        context.UseImage(
-            *shadow,
-            GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite,
-            GraphicsContext::ImageAccessType::None
-        );
-        context.PrepareCommandBuffer();
-        {
-            vk::Extent2D shadow_map_extent{2048, 2048};
-            vk::Rect2D shadow_map_scissor{{0, 0}, shadow_map_extent};
-            cb.BeginRendering(shadow_pass_binding, shadow_map_extent, "Shadowmap Pass");
-            cb.SetupViewport(shadow_map_extent.width, shadow_map_extent.height, shadow_map_scissor);
-            cb.BindMaterial(*test_material_instance, 0);
-
-            vk::CommandBuffer rcb = cb.GetCommandBuffer();
-            rcb.pushConstants(
-                test_template->GetPipelineLayout(0),
-                vk::ShaderStageFlagBits::eVertex,
-                0,
-                ConstantData::PerModelConstantPushConstant::PUSH_RANGE_SIZE,
-                reinterpret_cast<const void *>(&eye4)
-            );
-            cb.DrawMesh(test_mesh);
-            cb.DrawMesh(test_mesh_2);
-            cb.EndRendering();
-        }
-
-        // Lit pass
-        context.UseImage(
-            *shadow,
-            GraphicsContext::ImageGraphicsAccessType::ShaderRead,
-            GraphicsContext::ImageAccessType::DepthAttachmentWrite
-        );
-        context.UseImage(
-            *color,
-            GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite,
-            GraphicsContext::ImageAccessType::None
-        );
-        context.UseImage(
-            *depth,
-            GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite,
-            GraphicsContext::ImageAccessType::None
-        );
-        context.PrepareCommandBuffer();
-        {
-            vk::Extent2D extent{rsys->GetSwapchain().GetExtent()};
-            vk::Rect2D scissor{{0, 0}, extent};
-            cb.BeginRendering(lit_pass_binding, extent, "Lit Pass");
-            cb.SetupViewport(extent.width, extent.height, scissor);
-            cb.BindMaterial(*test_material_instance, 1);
-            // Push model matrix...
-            vk::CommandBuffer rcb = cb.GetCommandBuffer();
-            rcb.pushConstants(
-                test_template->GetPipelineLayout(0),
-                vk::ShaderStageFlagBits::eVertex,
-                0,
-                ConstantData::PerModelConstantPushConstant::PUSH_RANGE_SIZE,
-                reinterpret_cast<const void *>(&eye4)
-            );
-            cb.DrawMesh(test_mesh);
-            cb.DrawMesh(test_mesh_2);
-            cb.EndRendering();
-        }
-
-        cb.End();
-        rsys->GetFrameManager().SubmitMainCommandBuffer();
+        rg.Execute(rsys->GetFrameManager());
         rsys->GetFrameManager().StageCopyComposition(color->GetImage());
         rsys->CompleteFrame();
 

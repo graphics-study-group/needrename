@@ -74,6 +74,7 @@ namespace Engine {
          * 
          * Depth attachment is defaulted to null.
          * This method automatically begins and terminates rendering.
+         * Its extent is set to swapchain extent.
          */
         void RecordRasterizerPass (
             AttachmentUtils::AttachmentDescription color,
@@ -85,6 +86,7 @@ namespace Engine {
          * @brief Record a pass which includes draw calls.
          * 
          * This method automatically begins and terminates rendering.
+         * Its extent is set to swapchain extent.
          */
         void RecordRasterizerPass (
             AttachmentUtils::AttachmentDescription color,
@@ -97,6 +99,7 @@ namespace Engine {
          * @brief Record a pass which includes draw calls.
          * 
          * This method automatically begins and terminates rendering.
+         * Its extent is set to swapchain extent.
          */
         void RecordRasterizerPass (
             std::initializer_list <AttachmentUtils::AttachmentDescription> colors,
