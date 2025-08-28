@@ -296,9 +296,11 @@ int main(int argc, char **argv) {
         // Draw
         auto index = rsys->StartFrame();
         rg.Execute(rsys->GetFrameManager());
-        rsys->GetFrameManager().StageCopyComposition(color.GetImage());
-        // rsys->GetFrameManager().CopyToFrameBuffer(color.GetImage(), rsys->GetSwapchain().GetExtent(), {0, 0}, {100,
-        // 100});
+        rsys->GetFrameManager().StageBlitComposition(
+            color.GetImage(),
+            vk::Extent2D{color.GetTextureDescription().width, color.GetTextureDescription().height},
+            rsys->GetSwapchain().GetExtent()
+        );
         rsys->GetFrameManager().CompositeToFramebufferAndPresent();
 
         SDL_Delay(5);
