@@ -326,19 +326,16 @@ int main(int argc, char **argv) {
     rgb.UseImage(*depth, IAT::DepthAttachmentWrite);
     rgb.RecordRasterizerPass(
         AttachmentUtils::AttachmentDescription{
-            hdr_color.get(), 
-            nullptr, 
-            AttachmentUtils::LoadOperation::Clear, 
-            AttachmentUtils::StoreOperation::Store
+            hdr_color.get(), nullptr, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store
         },
         AttachmentUtils::AttachmentDescription{
-            depth.get(), 
-            nullptr, 
-            AttachmentUtils::LoadOperation::Clear, 
+            depth.get(),
+            nullptr,
+            AttachmentUtils::LoadOperation::Clear,
             AttachmentUtils::StoreOperation::DontCare,
             AttachmentUtils::DepthClearValue{1.0f, 0U}
         },
-        [rsys](GraphicsCommandBuffer & gcb) {
+        [rsys](GraphicsCommandBuffer &gcb) {
             gcb.DrawRenderers(rsys->GetRendererManager().FilterAndSortRenderers({}), 0);
         },
         "Color pass"
@@ -347,18 +344,19 @@ int main(int argc, char **argv) {
     // Bloom pass
     rgb.UseImage(*hdr_color, IAT::ShaderReadRandomWrite);
     rgb.UseImage(*color, IAT::ShaderRandomWrite);
-    rgb.RecordComputePass([bloom_compute_stage, color](ComputeCommandBuffer & ccb) {
-        ccb.BindComputeStage(*bloom_compute_stage);
-        ccb.DispatchCompute(
-            color->GetTextureDescription().width / 16 + 1, color->GetTextureDescription().height / 16 + 1, 1
-        );
+    rgb.RecordComputePass(
+        [bloom_compute_stage, color](ComputeCommandBuffer &ccb) {
+            ccb.BindComputeStage(*bloom_compute_stage);
+            ccb.DispatchCompute(
+                color->GetTextureDescription().width / 16 + 1, color->GetTextureDescription().height / 16 + 1, 1
+            );
         },
         "Bloom FX pass"
     );
 
     // GUI pass
     rgb.UseImage(*color, IAT::ColorAttachmentWrite);
-    rgb.RecordRasterizerPass([rsys, gsys, color](GraphicsCommandBuffer & gcb){
+    rgb.RecordRasterizerPass([rsys, gsys, color](GraphicsCommandBuffer &gcb) {
         gsys->DrawGUI(
             {color.get(), nullptr, AttachmentUtils::LoadOperation::Load, AttachmentUtils::StoreOperation::Store},
             rsys->GetSwapchain().GetExtent(),
@@ -394,7 +392,7 @@ int main(int argc, char **argv) {
 
         // Draw
         auto index = rsys->StartFrame();
-        
+
         rg.Execute(rsys->GetFrameManager());
         rsys->GetFrameManager().StageBlitComposition(
             color->GetImage(),

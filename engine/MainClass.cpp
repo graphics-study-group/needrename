@@ -167,20 +167,16 @@ namespace Engine {
         );
         context.PrepareCommandBuffer();
         cb.BeginRendering(
-            {
-                &this->window->GetColorTexture(),
-                nullptr,
-                AttachmentUtils::LoadOperation::Clear,
-                AttachmentUtils::StoreOperation::Store
-            }, 
-            {
-                &this->window->GetDepthTexture(),
-                nullptr,
-                AttachmentUtils::LoadOperation::Clear,
-                AttachmentUtils::StoreOperation::DontCare,
-                AttachmentUtils::DepthClearValue{1.0f, 0U}
-            }, 
-            this->window->GetExtent(), 
+            {&this->window->GetColorTexture(),
+             nullptr,
+             AttachmentUtils::LoadOperation::Clear,
+             AttachmentUtils::StoreOperation::Store},
+            {&this->window->GetDepthTexture(),
+             nullptr,
+             AttachmentUtils::LoadOperation::Clear,
+             AttachmentUtils::StoreOperation::DontCare,
+             AttachmentUtils::DepthClearValue{1.0f, 0U}},
+            this->window->GetExtent(),
             "Main Pass"
         );
         this->renderer->SetActiveCamera(this->world->m_active_camera);

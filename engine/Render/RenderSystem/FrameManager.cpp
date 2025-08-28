@@ -301,9 +301,7 @@ namespace Engine::RenderSystemState {
             this->pimpl->current_framebuffer < std::numeric_limits<uint32_t>::max()
             && "Frame Manager is in invalid state."
         );
-        return GraphicsCommandBuffer(
-            pimpl->m_system, GetRawMainCommandBuffer(), GetFrameInFlight()
-        );
+        return GraphicsCommandBuffer(pimpl->m_system, GetRawMainCommandBuffer(), GetFrameInFlight());
     }
 
     GraphicsContext FrameManager::GetGraphicsContext() {

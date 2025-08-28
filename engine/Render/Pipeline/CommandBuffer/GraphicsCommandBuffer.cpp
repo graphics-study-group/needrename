@@ -36,16 +36,14 @@ namespace Engine {
         std::vector<vk::RenderingAttachmentInfo> color_attachment;
 
         if (color.texture) {
-            color_attachment.push_back(
-                GetVkAttachmentInfo(color, vk::ImageLayout::eColorAttachmentOptimal)
-            );
+            color_attachment.push_back(GetVkAttachmentInfo(color, vk::ImageLayout::eColorAttachmentOptimal));
         }
 
         vk::RenderingAttachmentInfo depth_attachment;
         if (depth.texture) {
-            depth_attachment = vk::RenderingAttachmentInfo{GetVkAttachmentInfo(
-                depth, vk::ImageLayout::eDepthStencilAttachmentOptimal
-            )};
+            depth_attachment = vk::RenderingAttachmentInfo{
+                GetVkAttachmentInfo(depth, vk::ImageLayout::eDepthStencilAttachmentOptimal)
+            };
         } else {
         }
 
@@ -70,20 +68,14 @@ namespace Engine {
     ) {
         DEBUG_CMD_START_LABEL(cb, name.c_str());
 
-        std::vector<vk::RenderingAttachmentInfo> color_attachment_info(
-            colors.size(), vk::RenderingAttachmentInfo{}
-        );
+        std::vector<vk::RenderingAttachmentInfo> color_attachment_info(colors.size(), vk::RenderingAttachmentInfo{});
         for (size_t i = 0; i < colors.size(); i++) {
-            color_attachment_info[i] = GetVkAttachmentInfo(
-                colors[i], vk::ImageLayout::eColorAttachmentOptimal
-            );
+            color_attachment_info[i] = GetVkAttachmentInfo(colors[i], vk::ImageLayout::eColorAttachmentOptimal);
         }
 
         vk::RenderingAttachmentInfo depth_attachment_info{};
         if (depth.texture) {
-            depth_attachment_info = GetVkAttachmentInfo(
-                depth, vk::ImageLayout::eDepthStencilAttachmentOptimal
-            );
+            depth_attachment_info = GetVkAttachmentInfo(depth, vk::ImageLayout::eDepthStencilAttachmentOptimal);
         }
 
         vk::RenderingInfo info{

@@ -51,18 +51,21 @@ namespace Engine {
             // XXX: This is soooo slow, we need some vectorization or better support for Vulkan SRGB formats.
             // No alpha channel...
             if (m_channel <= 3) {
-                std::for_each(m_data.begin(), m_data.end(), [](std::byte & b) {
+                std::for_each(m_data.begin(), m_data.end(), [](std::byte &b) {
                     float f = static_cast<uint8_t>(b) / 255.0f;
                     b = static_cast<std::byte>(static_cast<uint8_t>(std::round(std::pow(f, 2.2f) * 255.0f)));
                 });
             } else {
                 for (size_t i = 0; i < m_data.size(); i += m_channel) {
-                    float f1 = static_cast<uint8_t>(m_data[i+0]) / 255.0f;
-                    m_data[i+0] = static_cast<std::byte>(static_cast<uint8_t>(std::round(std::pow(f1, 2.2f) * 255.0f)));
-                    float f2 = static_cast<uint8_t>(m_data[i+1]) / 255.0f;
-                    m_data[i+1] = static_cast<std::byte>(static_cast<uint8_t>(std::round(std::pow(f2, 2.2f) * 255.0f)));
-                    float f3 = static_cast<uint8_t>(m_data[i+2]) / 255.0f;
-                    m_data[i+2] = static_cast<std::byte>(static_cast<uint8_t>(std::round(std::pow(f3, 2.2f) * 255.0f)));
+                    float f1 = static_cast<uint8_t>(m_data[i + 0]) / 255.0f;
+                    m_data[i + 0] =
+                        static_cast<std::byte>(static_cast<uint8_t>(std::round(std::pow(f1, 2.2f) * 255.0f)));
+                    float f2 = static_cast<uint8_t>(m_data[i + 1]) / 255.0f;
+                    m_data[i + 1] =
+                        static_cast<std::byte>(static_cast<uint8_t>(std::round(std::pow(f2, 2.2f) * 255.0f)));
+                    float f3 = static_cast<uint8_t>(m_data[i + 2]) / 255.0f;
+                    m_data[i + 2] =
+                        static_cast<std::byte>(static_cast<uint8_t>(std::round(std::pow(f3, 2.2f) * 255.0f)));
                 }
             }
         }

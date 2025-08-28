@@ -40,7 +40,6 @@ namespace Engine {
         m_depth_texture->CreateTexture(desc, "Depth attachment");
     }
 
-
     vk::Extent2D SDLWindow::GetExtent() const {
         return {m_color_texture->GetTextureDescription().width, m_color_texture->GetTextureDescription().height};
     }

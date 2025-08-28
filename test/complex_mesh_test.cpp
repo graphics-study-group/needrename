@@ -251,9 +251,7 @@ int main(int argc, char **argv) {
     depth.CreateTexture(desc, "Depth Attachment");
 
     RenderGraphBuilder rgb{*rsys};
-    RenderGraph rg{rgb.BuildDefaultRenderGraph(
-        color, depth, gsys.get()
-    )};
+    RenderGraph rg{rgb.BuildDefaultRenderGraph(color, depth, gsys.get())};
 
     // Setup mesh
     std::filesystem::path mesh_path{std::string(ENGINE_ASSETS_DIR) + "/four_bunny/four_bunny.obj"};

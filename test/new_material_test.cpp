@@ -70,34 +70,27 @@ std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate() {
 }
 
 RenderGraph BuildRenderGraph(
-    RenderSystem * rsys, 
-    Texture * color, 
-    Texture * depth,
-    MaterialInstance * material,
-    HomogeneousMesh * mesh,
-    Texture * blurred = nullptr,
-    ComputeStage * kernel = nullptr
+    RenderSystem *rsys,
+    Texture *color,
+    Texture *depth,
+    MaterialInstance *material,
+    HomogeneousMesh *mesh,
+    Texture *blurred = nullptr,
+    ComputeStage *kernel = nullptr
 ) {
     using IAT = Engine::AccessHelper::ImageAccessType;
     RenderGraphBuilder rgb{*rsys};
     rgb.UseImage(*color, IAT::ColorAttachmentWrite);
     rgb.UseImage(*depth, IAT::DepthAttachmentWrite);
-    rgb.RecordRasterizerPass([rsys, color, depth, material, mesh](GraphicsCommandBuffer & gcb) {
+    rgb.RecordRasterizerPass([rsys, color, depth, material, mesh](GraphicsCommandBuffer &gcb) {
         auto extent = rsys->GetSwapchain().GetExtent();
         gcb.BeginRendering(
-            {
-                color, 
-                nullptr, 
-                AttachmentUtils::LoadOperation::Clear, 
-                AttachmentUtils::StoreOperation::Store
-            },
-            {
-                depth, 
-                nullptr, 
-                AttachmentUtils::LoadOperation::Clear, 
-                AttachmentUtils::StoreOperation::DontCare,
-                AttachmentUtils::DepthClearValue{1.0f, 0U}
-            },
+            {color, nullptr, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store},
+            {depth,
+             nullptr,
+             AttachmentUtils::LoadOperation::Clear,
+             AttachmentUtils::StoreOperation::DontCare,
+             AttachmentUtils::DepthClearValue{1.0f, 0U}},
             extent
         );
 
@@ -122,13 +115,13 @@ RenderGraph BuildRenderGraph(
         rgb.UseImage(*color, IAT::ShaderReadRandomWrite);
         rgb.UseImage(*blurred, IAT::ShaderRandomWrite);
 
-        rgb.RecordComputePass([blurred, kernel](ComputeCommandBuffer & ccb) {
+        rgb.RecordComputePass([blurred, kernel](ComputeCommandBuffer &ccb) {
             ccb.BindComputeStage(*kernel);
             ccb.DispatchCompute(
                 blurred->GetTextureDescription().width / 16 + 1, blurred->GetTextureDescription().height / 16 + 1, 1
             );
         });
-        
+
         rgb.UseImage(*blurred, IAT::ColorAttachmentWrite);
         rgb.RecordSynchronization();
     }
@@ -234,21 +227,9 @@ int main(int argc, char **argv) {
         cstage.GetVariableIndex("outputImage").value().first, std::const_pointer_cast<const Texture>(postproc)
     );
 
-    RenderGraph nonblur{BuildRenderGraph(
-        rsys.get(), 
-        color.get(), 
-        &depth, 
-        test_material_instance.get(), 
-        &test_mesh
-    )};
+    RenderGraph nonblur{BuildRenderGraph(rsys.get(), color.get(), &depth, test_material_instance.get(), &test_mesh)};
     RenderGraph blur{BuildRenderGraph(
-        rsys.get(), 
-        color.get(), 
-        &depth, 
-        test_material_instance.get(), 
-        &test_mesh,
-        postproc.get(),
-        &cstage
+        rsys.get(), color.get(), &depth, test_material_instance.get(), &test_mesh, postproc.get(), &cstage
     )};
 
     bool quited = false;

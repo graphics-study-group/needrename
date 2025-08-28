@@ -6,9 +6,7 @@
 
 #include <vulkan/vulkan.hpp>
 
-static constexpr vk::Filter ToVkFilter(
-    Engine::SampledTexture::SamplerDesc::FilterMode filter
-) {
+static constexpr vk::Filter ToVkFilter(Engine::SampledTexture::SamplerDesc::FilterMode filter) {
     using Mode = Engine::SampledTexture::SamplerDesc::FilterMode;
     switch (filter) {
     case Mode::Linear:
@@ -20,9 +18,7 @@ static constexpr vk::Filter ToVkFilter(
     return {};
 }
 
-static constexpr vk::SamplerMipmapMode ToVkSamplerMipmapMode(
-    Engine::SampledTexture::SamplerDesc::FilterMode filter
-) {
+static constexpr vk::SamplerMipmapMode ToVkSamplerMipmapMode(Engine::SampledTexture::SamplerDesc::FilterMode filter) {
     using Mode = Engine::SampledTexture::SamplerDesc::FilterMode;
     switch (filter) {
     case Mode::Linear:
@@ -34,9 +30,7 @@ static constexpr vk::SamplerMipmapMode ToVkSamplerMipmapMode(
     return {};
 }
 
-static constexpr vk::SamplerAddressMode ToVkSamplerAddressMode(
-    Engine::SampledTexture::SamplerDesc::AddressMode addr
-) {
+static constexpr vk::SamplerAddressMode ToVkSamplerAddressMode(Engine::SampledTexture::SamplerDesc::AddressMode addr) {
     using Mode = Engine::SampledTexture::SamplerDesc::AddressMode;
     switch (addr) {
     case Mode::Repeat:

@@ -204,18 +204,13 @@ int main(int argc, char **argv) {
     using IAT = AccessHelper::ImageAccessType;
     rgb.UseImage(*shadow, IAT::DepthAttachmentWrite);
     rgb.RecordRasterizerPass(
-        [rsys, shadow, test_template, test_material_instance, &test_mesh, &test_mesh_2] (GraphicsCommandBuffer & gcb) {
+        [rsys, shadow, test_template, test_material_instance, &test_mesh, &test_mesh_2](GraphicsCommandBuffer &gcb) {
             vk::Extent2D shadow_map_extent{2048, 2048};
             vk::Rect2D shadow_map_scissor{{0, 0}, shadow_map_extent};
             gcb.BeginRendering(
-                {nullptr}, 
-                {
-                    shadow.get(), 
-                    nullptr, 
-                    AttachmentUtils::LoadOperation::Clear, 
-                    AttachmentUtils::StoreOperation::Store
-                }, 
-                shadow_map_extent, 
+                {nullptr},
+                {shadow.get(), nullptr, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store},
+                shadow_map_extent,
                 "Shadowmap Pass"
             );
             gcb.SetupViewport(shadow_map_extent.width, shadow_map_extent.height, shadow_map_scissor);
@@ -239,20 +234,13 @@ int main(int argc, char **argv) {
     rgb.UseImage(*color, IAT::ColorAttachmentWrite);
     rgb.UseImage(*depth, IAT::DepthAttachmentWrite);
     rgb.RecordRasterizerPass(
-        {
-            color.get(),
-            nullptr, 
-            AttachmentUtils::LoadOperation::Clear, 
-            AttachmentUtils::StoreOperation::Store
-        },
-        {
-            depth.get(),
-            nullptr,
-            AttachmentUtils::LoadOperation::Clear,
-            AttachmentUtils::StoreOperation::DontCare,
-            AttachmentUtils::DepthClearValue{1.0f, 0U}
-        },
-        [rsys, test_material_instance, test_template, &test_mesh, &test_mesh_2] (GraphicsCommandBuffer & gcb) {
+        {color.get(), nullptr, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store},
+        {depth.get(),
+         nullptr,
+         AttachmentUtils::LoadOperation::Clear,
+         AttachmentUtils::StoreOperation::DontCare,
+         AttachmentUtils::DepthClearValue{1.0f, 0U}},
+        [rsys, test_material_instance, test_template, &test_mesh, &test_mesh_2](GraphicsCommandBuffer &gcb) {
             vk::Extent2D extent{rsys->GetSwapchain().GetExtent()};
             vk::Rect2D scissor{{0, 0}, extent};
             gcb.SetupViewport(extent.width, extent.height, scissor);

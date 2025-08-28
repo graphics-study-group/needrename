@@ -77,20 +77,17 @@ namespace Editor {
         );
         context.PrepareCommandBuffer();
         cb.BeginRendering(
-            {
-                m_color_texture.get(), 
-                nullptr,
-                Engine::AttachmentUtils::LoadOperation::Clear,
-                Engine::AttachmentUtils::StoreOperation::Store
-            },
-            {
-                m_depth_texture.get(),
-                nullptr,
-                Engine::AttachmentUtils::LoadOperation::Clear,
-                Engine::AttachmentUtils::StoreOperation::DontCare,
-                Engine::AttachmentUtils::DepthClearValue{1.0f, 0U}
-            },
-            {(uint32_t)m_viewport_size.x, (uint32_t)m_viewport_size.y}, "Editor Scene Pass"
+            {m_color_texture.get(),
+             nullptr,
+             Engine::AttachmentUtils::LoadOperation::Clear,
+             Engine::AttachmentUtils::StoreOperation::Store},
+            {m_depth_texture.get(),
+             nullptr,
+             Engine::AttachmentUtils::LoadOperation::Clear,
+             Engine::AttachmentUtils::StoreOperation::DontCare,
+             Engine::AttachmentUtils::DepthClearValue{1.0f, 0U}},
+            {(uint32_t)m_viewport_size.x, (uint32_t)m_viewport_size.y},
+            "Editor Scene Pass"
         );
         Engine::MainClass::GetInstance()->GetRenderSystem()->SetActiveCamera(m_camera.m_camera);
         cb.DrawRenderers(
