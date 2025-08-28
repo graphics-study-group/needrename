@@ -6,7 +6,6 @@
 #include "Render/ConstantData/PerModelConstants.h"
 #include "Render/Memory/Buffer.h"
 #include "Render/Pipeline/Material/MaterialInstance.h"
-#include "Render/Pipeline/RenderTargetBinding.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/FrameManager.h"
 #include "Render/RenderSystem/GlobalConstantDescriptorPool.h"
@@ -64,25 +63,26 @@ namespace Engine {
     }
 
     void GraphicsCommandBuffer::BeginRendering(
-        const RenderTargetBinding &binding, vk::Extent2D extent, const std::string &name
+        const std::vector<AttachmentUtils::AttachmentDescription> &colors,
+        const AttachmentUtils::AttachmentDescription depth,
+        vk::Extent2D extent,
+        const std::string &name
     ) {
         DEBUG_CMD_START_LABEL(cb, name.c_str());
-        std::vector<vk::RenderingAttachmentInfo> color_attachment_info(
-            binding.GetColorAttachmentCount(), vk::RenderingAttachmentInfo{}
-        );
 
-        const auto &color_attachments = binding.GetColorAttachments();
-        for (size_t i = 0; i < color_attachments.size(); i++) {
+        std::vector<vk::RenderingAttachmentInfo> color_attachment_info(
+            colors.size(), vk::RenderingAttachmentInfo{}
+        );
+        for (size_t i = 0; i < colors.size(); i++) {
             color_attachment_info[i] = GetVkAttachmentInfo(
-                color_attachments[i], vk::ImageLayout::eColorAttachmentOptimal
+                colors[i], vk::ImageLayout::eColorAttachmentOptimal
             );
         }
 
         vk::RenderingAttachmentInfo depth_attachment_info{};
-        if (binding.HasDepthAttachment()) {
-            const auto &depth_attachment = binding.GetDepthAttachment();
+        if (depth.texture) {
             depth_attachment_info = GetVkAttachmentInfo(
-                depth_attachment, vk::ImageLayout::eDepthStencilAttachmentOptimal
+                depth, vk::ImageLayout::eDepthStencilAttachmentOptimal
             );
         }
 
@@ -92,10 +92,9 @@ namespace Engine {
             1,
             0,
             color_attachment_info,
-            binding.HasDepthAttachment() ? &depth_attachment_info : nullptr,
+            depth.texture ? &depth_attachment_info : nullptr,
             nullptr
         };
-        // Begin rendering after transit
         cb.beginRendering(info);
     }
 

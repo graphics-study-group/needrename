@@ -19,7 +19,6 @@ namespace Engine {
     class MaterialInstance;
     class HomogeneousMesh;
     class Buffer;
-    class RenderTargetBinding;
 
     namespace AttachmentUtils {
         class AttachmentDescription;
@@ -53,7 +52,15 @@ namespace Engine {
             const std::string &name = ""
         );
 
-        void BeginRendering(const RenderTargetBinding &binding, vk::Extent2D extent, const std::string &name = "");
+        /**
+         * @brief Begin a Vulkan rendering pass with Multiple Render Targets (MRT)
+         */
+        void BeginRendering(
+            const std::vector <AttachmentUtils::AttachmentDescription> & colors,
+            const AttachmentUtils::AttachmentDescription depth,
+            vk::Extent2D extent,
+            const std::string & name = ""
+        );
 
         /**
          * @brief Bind a material for rendering.

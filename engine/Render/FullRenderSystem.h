@@ -25,7 +25,6 @@
 #include "Render/Pipeline/CommandBuffer/ComputeContext.h"
 #include "Render/Pipeline/CommandBuffer/GraphicsCommandBuffer.h"
 #include "Render/Pipeline/CommandBuffer/GraphicsContext.h"
-#include "Render/Pipeline/RenderTargetBinding.h"
 
 #include "Render/Pipeline/Compute/ComputeStage.h"
 

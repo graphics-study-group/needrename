@@ -2,7 +2,6 @@
 #define EDITOR_WIDGET_GAMEWIDGET_INCLUDED
 
 #include "Widget.h"
-#include <Render/Pipeline/RenderTargetBinding.h>
 #include <imgui.h>
 #include <memory>
 
@@ -20,14 +19,13 @@ namespace Editor {
 
         virtual void Render() override;
 
-        void CreateRenderTargetBinding(std::shared_ptr<Engine::RenderSystem> render_system);
+        void CreateRenderTargets(std::shared_ptr<Engine::RenderSystem> render_system);
         /// @brief Draw the active camera to the widget texture used for ImGui. Contain a synchronization operation for
         /// writting to the color and depth textures.
         /// XXX: Should be rewritten after we have a better render pipline.
         void PreRender();
 
     protected:
-        Engine::RenderTargetBinding m_render_target_binding{};
         ImVec2 m_viewport_size{1280, 720};
 
     public:

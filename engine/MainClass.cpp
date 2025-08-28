@@ -65,7 +65,7 @@ namespace Engine {
         this->event_queue = std::make_shared<EventQueue>();
 
         this->renderer->Create();
-        this->window->CreateRenderTargetBinding(this->renderer);
+        this->window->CreateRenderTargets(this->renderer);
         this->gui->Create(this->window->GetWindow());
         Reflection::Initialize();
     }
@@ -166,7 +166,23 @@ namespace Engine {
             GraphicsContext::ImageAccessType::None
         );
         context.PrepareCommandBuffer();
-        cb.BeginRendering(this->window->GetRenderTargetBinding(), this->window->GetExtent(), "Main Pass");
+        cb.BeginRendering(
+            {
+                &this->window->GetColorTexture(),
+                nullptr,
+                AttachmentUtils::LoadOperation::Clear,
+                AttachmentUtils::StoreOperation::Store
+            }, 
+            {
+                &this->window->GetDepthTexture(),
+                nullptr,
+                AttachmentUtils::LoadOperation::Clear,
+                AttachmentUtils::StoreOperation::DontCare,
+                AttachmentUtils::DepthClearValue{1.0f, 0U}
+            }, 
+            this->window->GetExtent(), 
+            "Main Pass"
+        );
         this->renderer->SetActiveCamera(this->world->m_active_camera);
         cb.DrawRenderers(renderer->GetRendererManager().FilterAndSortRenderers({}), 0);
         cb.EndRendering();

@@ -27,7 +27,7 @@ namespace Editor {
     SceneWidget::~SceneWidget() {
     }
 
-    void SceneWidget::CreateRenderTargetBinding(std::shared_ptr<Engine::RenderSystem> render_system) {
+    void SceneWidget::CreateRenderTargets(std::shared_ptr<Engine::RenderSystem> render_system) {
         SDL_GetWindowSizeInPixels(
             Engine::MainClass::GetInstance()->GetWindow()->GetWindow(), &m_texture_width, &m_texture_height
         );
@@ -48,18 +48,6 @@ namespace Editor {
         desc.format = Engine::ImageUtils::ImageFormat::D32SFLOAT;
         desc.type = Engine::ImageUtils::ImageType::SampledDepthImage;
         m_depth_texture->CreateTextureAndSampler(desc, {}, "Scene depth attachment");
-
-        Engine::AttachmentUtils::AttachmentDescription color_att, depth_att;
-        color_att.texture = m_color_texture.get();
-        color_att.texture_view = nullptr;
-        color_att.load_op = Engine::AttachmentUtils::LoadOperation::Clear;
-        color_att.store_op = Engine::AttachmentUtils::StoreOperation::Store;
-        m_render_target_binding.SetColorAttachment(color_att);
-        depth_att.texture = m_depth_texture.get();
-        depth_att.texture_view = nullptr;
-        depth_att.load_op = Engine::AttachmentUtils::LoadOperation::Clear;
-        depth_att.store_op = Engine::AttachmentUtils::StoreOperation::DontCare;
-        m_render_target_binding.SetDepthAttachment(depth_att);
 
         m_color_att_id = reinterpret_cast<ImTextureID>(ImGui_ImplVulkan_AddTexture(
             m_color_texture->GetSampler(), m_color_texture->GetImageView(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
@@ -89,7 +77,20 @@ namespace Editor {
         );
         context.PrepareCommandBuffer();
         cb.BeginRendering(
-            m_render_target_binding, {(uint32_t)m_viewport_size.x, (uint32_t)m_viewport_size.y}, "Editor Scene Pass"
+            {
+                m_color_texture.get(), 
+                nullptr,
+                Engine::AttachmentUtils::LoadOperation::Clear,
+                Engine::AttachmentUtils::StoreOperation::Store
+            },
+            {
+                m_depth_texture.get(),
+                nullptr,
+                Engine::AttachmentUtils::LoadOperation::Clear,
+                Engine::AttachmentUtils::StoreOperation::DontCare,
+                Engine::AttachmentUtils::DepthClearValue{1.0f, 0U}
+            },
+            {(uint32_t)m_viewport_size.x, (uint32_t)m_viewport_size.y}, "Editor Scene Pass"
         );
         Engine::MainClass::GetInstance()->GetRenderSystem()->SetActiveCamera(m_camera.m_camera);
         cb.DrawRenderers(

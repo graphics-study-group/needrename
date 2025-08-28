@@ -2,7 +2,6 @@
 #define FUNCTIONAL_SDLWINDOW_INCLUDED
 
 #include "consts.h"
-#include <Render/Pipeline/RenderTargetBinding.h>
 #include <SDL3/SDL.h>
 #include <memory>
 #include <string>
@@ -28,8 +27,8 @@ namespace Engine {
 
         virtual ~SDLWindow();
 
-        void CreateRenderTargetBinding(std::shared_ptr<RenderSystem> render_system);
-        const RenderTargetBinding &GetRenderTargetBinding() const;
+        void CreateRenderTargets(std::shared_ptr<RenderSystem> render_system);
+
         vk::Extent2D GetExtent() const;
         const Texture &GetColorTexture() const noexcept;
         const Texture &GetDepthTexture() const noexcept;
@@ -41,7 +40,6 @@ namespace Engine {
         SDL_Window *m_window{nullptr};
 
         // TODO: need better way to manage render target binding and textures
-        RenderTargetBinding m_render_target_binding{};
         std::shared_ptr<Texture> m_color_texture{};
         std::shared_ptr<Texture> m_depth_texture{};
     };
