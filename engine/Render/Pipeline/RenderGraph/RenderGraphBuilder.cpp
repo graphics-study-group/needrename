@@ -153,7 +153,7 @@ namespace Engine {
                 SDL_LogWarn(
                     SDL_LOG_CATEGORY_RENDER,
                     "Depth attachment texture %p is not sychronized properly.",
-                    static_cast<const void *>(color.texture)
+                    static_cast<const void *>(depth.texture)
                 );
             }
         }
@@ -187,7 +187,49 @@ namespace Engine {
         std::function<void(GraphicsCommandBuffer &)> pass,
         const std::string &name
     ) {
-        assert(!"Unimplmented");
+        for (const auto & color : colors) {
+            if (!pimpl->m_memo.m_memo.contains(color.texture)
+                || std::get<2>(pimpl->m_memo.m_memo[color.texture]) != vk::ImageLayout::eColorAttachmentOptimal) {
+                SDL_LogWarn(
+                    SDL_LOG_CATEGORY_RENDER,
+                    "Color attachment texture %p is not sychronized properly.",
+                    static_cast<const void *>(color.texture)
+                );
+            }
+        }
+        if (depth.texture) {
+            if (!pimpl->m_memo.m_memo.contains(depth.texture)
+                || std::get<2>(pimpl->m_memo.m_memo[depth.texture])
+                       != vk::ImageLayout::eDepthStencilAttachmentOptimal) {
+                SDL_LogWarn(
+                    SDL_LOG_CATEGORY_RENDER,
+                    "Depth attachment texture %p is not sychronized properly.",
+                    static_cast<const void *>(depth.texture)
+                );
+            }
+        }
+
+        std::function<void(vk::CommandBuffer)> f = [system = &this->m_system,
+                                                    pass,
+                                                    &colors,
+                                                    depth,
+                                                    name,
+                                                    bb = std::move(pimpl->m_buffer_barriers),
+                                                    ib = std::move(pimpl->m_image_barriers)](vk::CommandBuffer cb) {
+            vk::DependencyInfo dep{vk::DependencyFlags{}, {}, bb, ib};
+            cb.pipelineBarrier2(dep);
+            GraphicsContext gc = system->GetFrameManager().GetGraphicsContext();
+            GraphicsCommandBuffer &gcb = dynamic_cast<GraphicsCommandBuffer &>(gc.GetCommandBuffer());
+            gcb.BeginRendering(colors, depth, system->GetSwapchain().GetExtent(), name);
+            std::invoke(pass, std::ref(gcb));
+            gcb.EndRendering();
+        };
+
+        pimpl->m_commands.push_back(f);
+
+        // Get STL containers out of ``valid but unspecified'' states.
+        pimpl->m_buffer_barriers.clear();
+        pimpl->m_image_barriers.clear();
     }
     void RenderGraphBuilder::RecordTransferPass(std::function<void(TransferCommandBuffer &)> pass) {
         assert(!"Unimplmented");
