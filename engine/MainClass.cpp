@@ -2,12 +2,12 @@
 
 #include "Asset/AssetManager/AssetManager.h"
 #include "Framework/world/WorldSystem.h"
-#include "GUI/GUISystem.h"
+#include "UserInterface/GUISystem.h"
 #include <Asset/Scene/LevelAsset.h>
-#include <Functional/EventQueue.h>
-#include <Functional/SDLWindow.h>
-#include <Functional/Time.h>
-#include <Input/Input.h>
+#include <Core/Functional/EventQueue.h>
+#include <Core/Functional/SDLWindow.h>
+#include <Core/Functional/Time.h>
+#include <UserInterface/Input.h>
 #include <Render/FullRenderSystem.h>
 
 #include <exception>

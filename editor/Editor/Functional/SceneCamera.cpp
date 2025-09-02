@@ -1,5 +1,5 @@
 #include "SceneCamera.h"
-#include <Functional/Time.h>
+#include <Core/Functional/Time.h>
 #include <MainClass.h>
 #include <Render/Renderer/Camera.h>
 

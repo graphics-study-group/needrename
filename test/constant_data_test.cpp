@@ -6,7 +6,7 @@
 #include <glm.hpp>
 #include <gtc/matrix_transform.hpp>
 
-#include "Functional/SDLWindow.h"
+#include "Core/Functional/SDLWindow.h"
 #include "MainClass.h"
 #include "Render/FullRenderSystem.h"
 

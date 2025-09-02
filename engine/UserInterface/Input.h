@@ -1,5 +1,5 @@
-#ifndef ENGINE_INPUT_INPUT_H
-#define ENGINE_INPUT_INPUT_H
+#ifndef ENGINE_USERINTERFACE_INPUT_INCLUDED
+#define ENGINE_USERINTERFACE_INPUT_INCLUDED
 
 #include <Reflection/macros.h>
 #include <Reflection/serialization_smart_pointer.h>
@@ -159,4 +159,4 @@ namespace Engine {
     };
 } // namespace Engine
 
-#endif // ENGINE_INPUT_INPUT_H
+#endif // ENGINE_USERINTERFACE_INPUT_INCLUDED

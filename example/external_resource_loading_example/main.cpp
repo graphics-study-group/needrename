@@ -8,7 +8,7 @@
 #include <Asset/Scene/GameObjectAsset.h>
 #include <Framework/component/RenderComponent/CameraComponent.h>
 #include <Framework/world/WorldSystem.h>
-#include <Functional/SDLWindow.h>
+#include <Core/Functional/SDLWindow.h>
 #include <MainClass.h>
 #include <Render/RenderSystem.h>
 #include <Render/Renderer/Camera.h>

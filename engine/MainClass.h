@@ -2,7 +2,7 @@
 #define MAINCLASS_H
 
 #include "Exception/exception.h"
-#include "Functional/OptionHandler.h"
+#include "Core/Functional/OptionHandler.h"
 #include "consts.h"
 #include <filesystem>
 #include <memory>

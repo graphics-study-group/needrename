@@ -1,5 +1,5 @@
 #include "Input.h"
-#include <Functional/Time.h>
+#include <Core/Functional/Time.h>
 #include <MainClass.h>
 #include <SDL3/SDL.h>
 #include <cassert>

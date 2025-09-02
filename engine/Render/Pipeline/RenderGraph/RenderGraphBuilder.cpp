@@ -1,6 +1,6 @@
 #include "RenderGraphBuilder.h"
 
-#include "GUI/GUISystem.h"
+#include "UserInterface/GUISystem.h"
 #include "Render/Pipeline/CommandBuffer/AccessHelperFuncs.h"
 #include "Render/Pipeline/RenderGraph/RenderGraph.h"
 #include <SDL3/SDL.h>
