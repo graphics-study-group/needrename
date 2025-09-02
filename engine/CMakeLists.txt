@@ -15,6 +15,7 @@ target_link_libraries(EngineLibExternalDependency
     glm
     json
     imgui
+    vma
 )
 
 add_subdirectory(Asset)
