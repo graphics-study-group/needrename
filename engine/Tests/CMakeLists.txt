@@ -21,6 +21,8 @@ set_target_properties(delegate_test PROPERTIES FOLDER engine_tests)
 
 add_subdirectory(reflection_test)
 add_subdirectory(serialization_test)
+set_target_properties(reflection_test PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/engine/Tests")
+set_target_properties(serialization_test PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/engine/Tests")
 
 add_custom_command(TARGET transform_test POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different

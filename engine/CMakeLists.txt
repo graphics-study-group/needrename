@@ -56,4 +56,5 @@ target_link_libraries(engine
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h)
 
+include(CTest)
 add_subdirectory(Tests)

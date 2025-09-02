@@ -16,11 +16,4 @@ add_dependencies(serialization_test meta_serialization_test)
 target_link_libraries(serialization_test PRIVATE meta_serialization_test)
 
 add_test(NAME serialization_test COMMAND serialization_test)
-set_target_properties(serialization_test PROPERTIES FOLDER tests)
-
-add_custom_command(TARGET serialization_test POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    $<TARGET_FILE:SDL3::SDL3>
-    $<TARGET_FILE_DIR:serialization_test>
-    COMMENT "Copying SDL DLLs"
-)
+set_target_properties(serialization_test PROPERTIES FOLDER engine_tests)
