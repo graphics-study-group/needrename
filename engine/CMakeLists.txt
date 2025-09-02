@@ -7,7 +7,8 @@ list(FILTER HEADER EXCLUDE REGEX "Tests/.*")
 # Header files and some deps are shared across these modules, so we use an interface to manage them
 add_library(EngineLibHeaderInterface INTERFACE)
 target_include_directories(EngineLibHeaderInterface INTERFACE ${ENGINE_SOURCE_DIR})
-target_link_libraries(EngineLibHeaderInterface 
+add_library(EngineLibExternalDependency INTERFACE)
+target_link_libraries(EngineLibExternalDependency
     INTERFACE
     SDL3::SDL3
     Vulkan::Vulkan
@@ -26,6 +27,7 @@ add_subdirectory(UserInterface)
 
 add_library(engine SHARED 
     "MainClass.cpp"
+    $<TARGET_OBJECTS:imgui>
     $<TARGET_OBJECTS:EngineLibAsset>
     $<TARGET_OBJECTS:EngineLibCore>
     $<TARGET_OBJECTS:EngineLibFramework>
@@ -33,12 +35,14 @@ add_library(engine SHARED
     $<TARGET_OBJECTS:EngineLibRender>
     $<TARGET_OBJECTS:EngineLibUserInterface>
 )
+
 target_link_libraries(engine
     PUBLIC
     EngineLibHeaderInterface
+    EngineLibExternalDependency
 )
 target_link_libraries(engine 
-    PUBLIC
+    PRIVATE
     EngineLibAsset
     EngineLibCore
     EngineLibFramework

@@ -4,7 +4,11 @@ add_library(EngineLibReflection
     OBJECT
     ${SOURCE}
 )
-target_link_libraries(EngineLibReflection PRIVATE EngineLibHeaderInterface)
+target_link_libraries(EngineLibReflection 
+    PRIVATE 
+    EngineLibHeaderInterface
+    EngineLibExternalDependency
+)
 
 include(${REFLECTION_PARSER_DIR}/parser.cmake)
 set(all_include_dirs)

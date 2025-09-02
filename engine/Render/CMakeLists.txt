@@ -7,6 +7,7 @@ add_library(EngineLibRender
 target_link_libraries(EngineLibRender 
     PRIVATE 
     EngineLibHeaderInterface
+    EngineLibExternalDependency
 )
 target_link_libraries(EngineLibRender
     PUBLIC

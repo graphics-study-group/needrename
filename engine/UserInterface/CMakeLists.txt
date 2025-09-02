@@ -7,4 +7,5 @@ add_library(EngineLibUserInterface
 target_link_libraries(EngineLibUserInterface 
     PRIVATE 
     EngineLibHeaderInterface
+    EngineLibExternalDependency
 )
