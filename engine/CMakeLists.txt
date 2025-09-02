@@ -28,14 +28,16 @@ target_link_libraries(EngineLibHeaderInterface
 
 add_subdirectory(Asset)
 add_subdirectory(Core)
+add_subdirectory(Framework)
 add_subdirectory(Reflection)
 add_subdirectory(Render)
 add_subdirectory(UserInterface)
 
 add_library(engine SHARED 
-    ${SOURCE}
+    "MainClass.cpp"
     $<TARGET_OBJECTS:EngineLibAsset>
     $<TARGET_OBJECTS:EngineLibCore>
+    $<TARGET_OBJECTS:EngineLibFramework>
     $<TARGET_OBJECTS:EngineLibReflection>
     $<TARGET_OBJECTS:EngineLibRender>
     $<TARGET_OBJECTS:EngineLibUserInterface>
@@ -48,6 +50,7 @@ target_link_libraries(engine
     PUBLIC
     EngineLibAsset
     EngineLibCore
+    EngineLibFramework
     EngineLibReflection
     EngineLibRender
     EngineLibUserInterface
