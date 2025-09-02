@@ -12,19 +12,6 @@
 namespace Engine {
     class Buffer;
     namespace PipelineInfo {
-        [[deprecated]] struct ShaderVariable {
-            using Type = ShaderVariableProperty::Type;
-            using InBlockVarType = ShaderInBlockVariableProperty::InBlockVarType;
-
-            Type type{};
-            InBlockVarType ubo_type{};
-            struct Location {
-                uint32_t set{};
-                uint32_t binding{};
-                uint32_t offset{};
-            } location{};
-        };
-
         struct PassInfo {
             vk::UniquePipeline pipeline{};
             vk::UniquePipelineLayout pipeline_layout{};

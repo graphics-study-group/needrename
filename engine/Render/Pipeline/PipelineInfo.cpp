@@ -55,7 +55,7 @@ namespace Engine::PipelineInfo {
             assert(idx < info.inblock.vars.size() && "Uniform variable index is too large.");
             const auto offset = info.inblock.vars[idx].inblock_location.offset;
 
-            using Type = ShaderVariable::Type;
+            using Type = ShaderVariableProperty::Type;
             using UBOType = ShaderInBlockVariableProperty::InBlockVarType;
             switch (info.inblock.vars[idx].type) {
             case UBOType::Int:
@@ -88,7 +88,7 @@ namespace Engine::PipelineInfo {
         for (size_t idx = 0; idx < info.desc.vars.size(); idx++) {
             const auto &uniform = info.desc.vars[idx];
             const auto &instance_var = variables.find(idx);
-            if (uniform.type == ShaderVariable::Type::Texture) {
+            if (uniform.type == ShaderVariableProperty::Type::Texture) {
                 if (instance_var == variables.end()) {
                     SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Texture variable %llu not found in instance.", idx);
                     continue;
@@ -102,7 +102,7 @@ namespace Engine::PipelineInfo {
                 image_info.imageLayout = vk::ImageLayout::eReadOnlyOptimal;
                 image_info.sampler = img_sampler ? img_sampler : sampler;
                 ret.push_back(std::make_pair(uniform.binding, image_info));
-            } else if (uniform.type == ShaderVariable::Type::StorageImage) {
+            } else if (uniform.type == ShaderVariableProperty::Type::StorageImage) {
                 if (instance_var == variables.end()) {
                     SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Storage image variable %llu not found in instance.", idx);
                     continue;
