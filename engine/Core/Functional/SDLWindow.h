@@ -1,7 +1,6 @@
 #ifndef FUNCTIONAL_SDLWINDOW_INCLUDED
 #define FUNCTIONAL_SDLWINDOW_INCLUDED
 
-#include "consts.h"
 #include <SDL3/SDL.h>
 #include <memory>
 #include <string>
