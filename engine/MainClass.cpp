@@ -12,16 +12,24 @@
 
 #include <exception>
 #include <fstream>
-#include <mutex>
 #include <nlohmann/json.hpp>
 
 namespace Engine {
-    static std::shared_ptr<MainClass> g_main_class_ptr = nullptr;
-    static std::once_flag g_main_class_flag;
+    std::weak_ptr<MainClass> MainClass::m_instance;
+    std::once_flag MainClass::m_instance_ready{};
 
     std::shared_ptr<MainClass> MainClass::GetInstance() {
-        std::call_once(g_main_class_flag, [&] { g_main_class_ptr = std::shared_ptr<MainClass>(new MainClass()); });
-        return g_main_class_ptr;
+        // XXX: Check thread safety!
+        if (!m_instance.expired()) {
+            return m_instance.lock();
+        }
+
+        std::shared_ptr <MainClass> sptr{nullptr};
+        std::call_once(MainClass::m_instance_ready, [&] {
+            sptr = std::make_shared<MainClass>();
+            MainClass::m_instance = sptr;
+        });
+        return sptr;
     }
 
     MainClass::~MainClass() {
