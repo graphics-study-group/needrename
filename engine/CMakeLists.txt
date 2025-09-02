@@ -7,43 +7,43 @@ list(FILTER HEADER EXCLUDE REGEX "__generated__/.*")
 list(FILTER SOURCE EXCLUDE REGEX "Tests/.*")
 list(FILTER HEADER EXCLUDE REGEX "Tests/.*")
 
-add_library(engine SHARED ${SOURCE})
-target_compile_definitions(engine PUBLIC VULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1)
-target_include_directories(
-    engine
-    PUBLIC
-    ${ENGINE_SOURCE_DIR}
-)
+list(FILTER SOURCE EXCLUDE REGEX "Asset/.*")
+list(FILTER SOURCE EXCLUDE REGEX "Reflection/.*")
+list(FILTER SOURCE EXCLUDE REGEX "Render/.*")
 
-target_link_libraries(engine 
-    PUBLIC
+# Header files and some deps are shared across these modules, so we use an interface to manage them
+add_library(EngineLibHeaderInterface INTERFACE)
+target_include_directories(EngineLibHeaderInterface INTERFACE ${ENGINE_SOURCE_DIR})
+target_link_libraries(EngineLibHeaderInterface 
+    INTERFACE
     SDL3::SDL3
     Vulkan::Vulkan
     glm
-    tinyobjloader
-    stb
     json
-    vma
     imgui
-    spirv-reflect
 )
 
-target_precompile_headers(engine PRIVATE "Render/FullRenderSystem.h")
+add_subdirectory(Asset)
+add_subdirectory(Reflection)
+add_subdirectory(Render)
+
+add_library(engine SHARED 
+    ${SOURCE}
+    $<TARGET_OBJECTS:EngineLibReflection>
+    $<TARGET_OBJECTS:EngineLibRender>
+    $<TARGET_OBJECTS:EngineLibAsset>
+)
+target_link_libraries(engine
+    PUBLIC
+    EngineLibHeaderInterface
+)
+target_link_libraries(engine 
+    PUBLIC
+    EngineLibReflection
+    EngineLibRender
+    EngineLibAsset
+)
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h)
-
-include(${REFLECTION_PARSER_DIR}/parser.cmake)
-set(all_include_dirs)
-get_include_directories_for_target(engine all_include_dirs)
-filter_files_with_reflection_macros(HEADER REFLECTION_SEARCH_HEADERS)
-
-add_reflection_parser(
-    target_name meta_engine
-    reflection_search_files "${REFLECTION_SEARCH_HEADERS}"
-    generated_code_dir "${ENGINE_SOURCE_DIR}/__generated__"
-    reflection_search_include_dirs "${all_include_dirs}"
-)
-add_dependencies(engine meta_engine)
-target_link_libraries(engine PRIVATE meta_engine)
 
 add_subdirectory(Tests)
