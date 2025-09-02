@@ -2,11 +2,22 @@
 #define RENDER_RENDERSYSTEM_ALLOCATORSTATE_INCLUDED
 
 #include <memory>
-#include <vulkan/vulkan.hpp>
-#include <vk_mem_alloc.h>
-
+#include <vulkan/vulkan.h>
 #include "Render/ImageUtils.h"
 #include "Render/Memory/AllocatedMemory.h"
+
+class VkExtent3D;
+class VmaAllocator_T;
+typedef VmaAllocator_T* VmaAllocator;
+
+
+namespace vk {
+    enum class Format;
+    enum class ImageType;
+    enum class SampleCountFlagBits : uint32_t;
+
+    class Extent3D;
+}
 
 namespace Engine {
     class RenderSystem;
@@ -23,12 +34,10 @@ namespace Engine {
             };
 
         private:
-            RenderSystem &m_system;
-            VmaAllocator m_allocator{};
+            struct impl;
+            std::unique_ptr <impl> pimpl;
 
-            static const std::tuple<vk::BufferUsageFlags, VmaAllocationCreateFlags, VmaMemoryUsage> GetBufferFlags(
-                BufferType type
-            );
+            RenderSystem &m_system;
 
         public:
             AllocatorState(RenderSystem &system);

@@ -15,7 +15,6 @@ target_link_libraries(EngineLibExternalDependency
     glm
     json
     imgui
-    vma
 )
 
 add_subdirectory(Asset)
@@ -36,11 +35,14 @@ add_library(engine SHARED
     $<TARGET_OBJECTS:EngineLibUserInterface>
 )
 
+# Widely used dependencies such as SDL and Vulkan are marked as public
 target_link_libraries(engine
     PUBLIC
     EngineLibHeaderInterface
     EngineLibExternalDependency
 )
+
+# Dependencies only used in a small module are marked as private to avoid pollution
 target_link_libraries(engine 
     PRIVATE
     EngineLibAsset
