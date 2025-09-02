@@ -1,6 +1,3 @@
-add_subdirectory(glad EXCLUDE_FROM_ALL)
-set_target_properties(GLAD PROPERTIES FOLDER third_party)
-
 add_subdirectory(glm EXCLUDE_FROM_ALL)
 set_target_properties(glm PROPERTIES FOLDER third_party)
 
