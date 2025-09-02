@@ -1,4 +1,5 @@
 #include "PerModelConstants.h"
+#include <vulkan/vulkan.hpp>
 
 namespace Engine::ConstantData {
     vk::PushConstantRange PerModelConstantPushConstant::GetPushConstantRange() {

@@ -2,6 +2,7 @@
 #define RENDER_RENDERSYSTEM_ALLOCATORSTATE_INCLUDED
 
 #include <memory>
+#include <vulkan/vulkan.hpp>
 #include <vk_mem_alloc.h>
 
 #include "Render/ImageUtils.h"
@@ -25,7 +26,7 @@ namespace Engine {
             RenderSystem &m_system;
             VmaAllocator m_allocator{};
 
-            static constexpr std::tuple<vk::BufferUsageFlags, VmaAllocationCreateFlags, VmaMemoryUsage> GetBufferFlags(
+            static const std::tuple<vk::BufferUsageFlags, VmaAllocationCreateFlags, VmaMemoryUsage> GetBufferFlags(
                 BufferType type
             );
 

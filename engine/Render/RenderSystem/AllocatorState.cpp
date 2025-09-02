@@ -5,7 +5,7 @@
 #include "Render/RenderSystem.h"
 
 namespace Engine::RenderSystemState {
-    std::tuple<vk::BufferUsageFlags, VmaAllocationCreateFlags, VmaMemoryUsage> constexpr AllocatorState::GetBufferFlags(
+    std::tuple<vk::BufferUsageFlags, VmaAllocationCreateFlags, VmaMemoryUsage> const AllocatorState::GetBufferFlags(
         BufferType type
     ) {
         switch (type) {
