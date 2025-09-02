@@ -1,0 +1,37 @@
+
+add_executable(transform_test transform_test.cpp)
+target_link_libraries(transform_test engine)
+add_test(NAME transform_test COMMAND transform_test)
+set_target_properties(transform_test PROPERTIES FOLDER engine_tests)
+
+add_executable(camera_transform_test camera_transform_test.cpp)
+target_link_libraries(camera_transform_test engine)
+add_test(NAME camera_transform_test COMMAND camera_transform_test)
+set_target_properties(camera_transform_test PROPERTIES FOLDER engine_tests)
+
+add_executable(flag_bits_test flag_bits_test.cpp)
+target_link_libraries(flag_bits_test engine)
+add_test(NAME flag_bits_test COMMAND flag_bits_test)
+set_target_properties(flag_bits_test PROPERTIES FOLDER engine_tests)
+
+add_executable(delegate_test delegate_test.cpp)
+target_link_libraries(delegate_test engine)
+add_test(NAME delegate_test COMMAND delegate_test)
+set_target_properties(delegate_test PROPERTIES FOLDER engine_tests)
+
+add_subdirectory(reflection_test)
+add_subdirectory(serialization_test)
+
+add_custom_command(TARGET transform_test POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    $<TARGET_FILE:SDL3::SDL3-shared>
+    $<TARGET_FILE_DIR:transform_test>
+    COMMENT "Copying SDL DLLs"
+)
+
+add_custom_command(TARGET transform_test POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    $<TARGET_FILE:engine>
+    $<TARGET_FILE_DIR:transform_test>
+    COMMENT "Copying Engine DLLs"
+)

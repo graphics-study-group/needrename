@@ -2,21 +2,6 @@
 # Do not rewrite the following commands into a single macro,
 # which will disrupt VS Code integration with CTest.
 
-add_executable(transform_test transform_test.cpp)
-target_link_libraries(transform_test engine)
-add_test(NAME transform_test COMMAND transform_test)
-set_target_properties(transform_test PROPERTIES FOLDER tests)
-
-add_executable(camera_transform_test camera_transform_test.cpp)
-target_link_libraries(camera_transform_test engine)
-add_test(NAME camera_transform_test COMMAND camera_transform_test)
-set_target_properties(camera_transform_test PROPERTIES FOLDER tests)
-
-add_executable(flag_bits_test flag_bits_test.cpp)
-target_link_libraries(flag_bits_test engine)
-add_test(NAME flag_bits_test COMMAND flag_bits_test)
-set_target_properties(flag_bits_test PROPERTIES FOLDER tests)
-
 add_executable(SDL_init_test SDL_init_test.cpp)
 target_link_libraries(SDL_init_test engine)
 add_test(NAME SDL_init_test COMMAND SDL_init_test)
@@ -58,9 +43,6 @@ target_link_libraries(shadow_map_test engine)
 add_test(NAME shadow_map_test COMMAND shadow_map_test 120)
 set_target_properties(shadow_map_test PROPERTIES FOLDER tests)
 
-add_subdirectory(reflection_test)
-add_subdirectory(serialization_test)
-
 add_executable(imgui_test imgui_test.cpp)
 target_link_libraries(imgui_test engine)
 add_test(NAME imgui_test COMMAND imgui_test 120)
@@ -77,11 +59,6 @@ add_dependencies(input_test shader)
 target_link_libraries(input_test engine)
 add_test(NAME input_test COMMAND input_test 120)
 set_target_properties(input_test PROPERTIES FOLDER tests)
-
-add_executable(delegate_test delegate_test.cpp)
-target_link_libraries(delegate_test engine)
-add_test(NAME delegate_test COMMAND delegate_test)
-set_target_properties(delegate_test PROPERTIES FOLDER tests)
 
 add_executable(compute_shader_test compute_shader_test.cpp)
 add_dependencies(compute_shader_test shader)

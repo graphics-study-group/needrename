@@ -4,6 +4,8 @@ file(GLOB_RECURSE HEADER "./*.h")
 
 list(FILTER SOURCE EXCLUDE REGEX "__generated__/.*")
 list(FILTER HEADER EXCLUDE REGEX "__generated__/.*")
+list(FILTER SOURCE EXCLUDE REGEX "Tests/.*")
+list(FILTER HEADER EXCLUDE REGEX "Tests/.*")
 
 add_library(engine SHARED ${SOURCE})
 target_compile_definitions(engine PUBLIC VULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1)
@@ -26,7 +28,7 @@ target_link_libraries(engine
     spirv-reflect
 )
 
-target_precompile_headers(engine PUBLIC "Render/FullRenderSystem.h")
+target_precompile_headers(engine PRIVATE "Render/FullRenderSystem.h")
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h)
 
@@ -43,3 +45,5 @@ add_reflection_parser(
 )
 add_dependencies(engine meta_engine)
 target_link_libraries(engine PRIVATE meta_engine)
+
+add_subdirectory(Tests)
