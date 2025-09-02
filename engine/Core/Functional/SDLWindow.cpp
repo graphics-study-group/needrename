@@ -1,5 +1,5 @@
 #include "SDLWindow.h"
-#include "Exception/exception.h"
+
 #include <MainClass.h>
 #include <Render/Memory/Texture.h>
 #include <vulkan/vulkan.hpp>
@@ -7,7 +7,7 @@
 namespace Engine {
     SDLWindow::SDLWindow(const char *title, int width, int height, Uint32 flags) {
         m_window = SDL_CreateWindow(title, width, height, flags);
-        if (!m_window) throw Exception::SDLExceptions::cant_create_window();
+        if (!m_window) throw std::runtime_error("Cannot create SDL window.");
     }
 
     SDLWindow::~SDLWindow() {

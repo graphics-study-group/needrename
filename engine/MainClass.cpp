@@ -48,7 +48,7 @@ namespace Engine {
     void MainClass::Initialize(
         const StartupOptions *opt, Uint32 sdl_init_flags, SDL_LogPriority sdl_logPrior, Uint32 sdl_window_flags
     ) {
-        if (!SDL_Init(sdl_init_flags)) throw Exception::SDLExceptions::cant_init();
+        if (!SDL_Init(sdl_init_flags)) throw std::runtime_error("Cannot initialize SDL systems.");
         SDL_SetLogPriorities(sdl_logPrior);
         this->window = nullptr;
 

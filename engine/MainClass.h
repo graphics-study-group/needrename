@@ -1,9 +1,9 @@
 #ifndef MAINCLASS_H
 #define MAINCLASS_H
 
-#include "Exception/exception.h"
 #include "Core/Functional/OptionHandler.h"
-#include "consts.h"
+
+#include <SDL3/SDL.h>
 #include <filesystem>
 #include <memory>
 #include <vector>
