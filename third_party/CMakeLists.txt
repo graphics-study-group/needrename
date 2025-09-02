@@ -20,7 +20,7 @@ file(GLOB IMGUI_SOURCE
     "${THIRD_PARTY_DIR}/imgui/backends/*_sdl3.cpp"
 )
 message(DEBUG "Found ImGUI files: ${IMGUI_SOURCE}")
-add_library(imgui EXCLUDE_FROM_ALL ${IMGUI_SOURCE})
+add_library(imgui OBJECT EXCLUDE_FROM_ALL ${IMGUI_SOURCE})
 set_target_properties(imgui PROPERTIES FOLDER third_party)
 target_link_libraries(imgui PUBLIC SDL3::SDL3 Vulkan::Vulkan)
 target_include_directories(
