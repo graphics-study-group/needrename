@@ -96,8 +96,6 @@ void test_rotation() {
 }
 
 int main() {
-    SDL_Init(SDL_INIT_VIDEO);
-
     StartupOptions opt{.resol_x = 1280, .resol_y = 720, .title = "External Resource Loading Test"};
 
     auto cmc = MainClass::GetInstance();
