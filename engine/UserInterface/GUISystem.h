@@ -73,6 +73,15 @@ namespace Engine {
          * If UNDEFINED will use swapchain format.
          */
         void CreateVulkanBackend(vk::Format color_attachment_format);
+
+        /**
+         * @brief Get current ImGui context for drawing.
+         * 
+         * As the context is not shared across DLL boundaries, you might
+         * have to manually call `ImGui::SetCurrentContext()` before
+         * building a GUI.
+         */
+        ImGuiContext * GetCurrentContext() const;
     };
 } // namespace Engine
 

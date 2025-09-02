@@ -94,4 +94,8 @@ namespace Engine {
 
         if (!ImGui_ImplVulkan_Init(&info)) SDL_LogCritical(0, "Failed to initialize Vulkan backend for ImGui.");
     }
+    ImGuiContext *GUISystem::GetCurrentContext() const {
+        assert(this->m_context);
+        return this->m_context;
+    }
 } // namespace Engine

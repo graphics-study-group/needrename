@@ -68,6 +68,7 @@ int main(int argc, char **argv) {
         }
 
         gsys->PrepareGUI();
+        ImGui::SetCurrentContext(gsys->GetCurrentContext());
         ImGui::ShowDemoWindow();
 
         auto index = rsys->StartFrame();
