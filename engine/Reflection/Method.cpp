@@ -8,7 +8,9 @@ namespace Engine {
             std::shared_ptr<const Type> return_type,
             bool is_const,
             bool return_value_needs_free
-        ) : m_func(func), m_return_type(return_type), m_is_const(is_const), m_return_value_needs_free(return_value_needs_free), m_name(final_name) {
+        ) :
+            m_func(func), m_return_type(return_type), m_is_const(is_const),
+            m_return_value_needs_free(return_value_needs_free), m_name(final_name) {
         }
 
         std::shared_ptr<const Type> Method::GetReturnType() const {

@@ -291,34 +291,35 @@ int main() {
     std::cout << "array_test: m_array_double[4] == "
               << array_test.GetArrayMember("m_array_double").GetElement(4).Get<double>() << std::endl;
     assert(array_test.GetArrayMember("m_array_double").GetElement(4).Get<double>() == 4.0);
-    std::cout << "array_test: size of m_array_int == "
-              << array_test.GetArrayMember("m_array_int").GetSize() << std::endl;
+    std::cout << "array_test: size of m_array_int == " << array_test.GetArrayMember("m_array_int").GetSize()
+              << std::endl;
     assert(array_test.GetArrayMember("m_array_int").GetSize() == 5);
-    std::cout << "array_test: size of m_array_int2 == "
-              << array_test.GetArrayMember("m_array_int2").GetSize() << std::endl;
+    std::cout << "array_test: size of m_array_int2 == " << array_test.GetArrayMember("m_array_int2").GetSize()
+              << std::endl;
     assert(array_test.GetArrayMember("m_array_int2").GetSize() == 9);
-    std::cout << "array_test: size of m_array_double == "
-              << array_test.GetArrayMember("m_array_double").GetSize() << std::endl;
+    std::cout << "array_test: size of m_array_double == " << array_test.GetArrayMember("m_array_double").GetSize()
+              << std::endl;
     assert(array_test.GetArrayMember("m_array_double").GetSize() == 12);
 
-    std::cout << std::endl << "array_test: size of m_vector_float == "
-              << array_test.GetArrayMember("m_vector_float").GetSize() << std::endl;
+    std::cout << std::endl
+              << "array_test: size of m_vector_float == " << array_test.GetArrayMember("m_vector_float").GetSize()
+              << std::endl;
     assert(array_test.GetArrayMember("m_vector_float").GetSize() == 0);
     array_test.GetArrayMember("m_vector_float").Resize(3);
     array_test.GetArrayMember("m_vector_float").GetElement(0).Set<float>(1.0f);
     array_test.GetArrayMember("m_vector_float").GetElement(1).Set<float>(2.0f);
     array_test.GetArrayMember("m_vector_float").GetElement(2).Set<float>(3.0f);
     std::cout << "array_test: m_vector_float[0] == "
-                << array_test.GetArrayMember("m_vector_float").GetElement(0).Get<float>() << std::endl;
+              << array_test.GetArrayMember("m_vector_float").GetElement(0).Get<float>() << std::endl;
     assert(array_test.GetArrayMember("m_vector_float").GetElement(0).Get<float>() == 1.0f);
     std::cout << "array_test: m_vector_float[1] == "
-                << array_test.GetArrayMember("m_vector_float").GetElement(1).Get<float>() << std::endl;
+              << array_test.GetArrayMember("m_vector_float").GetElement(1).Get<float>() << std::endl;
     assert(array_test.GetArrayMember("m_vector_float").GetElement(1).Get<float>() == 2.0f);
     std::cout << "array_test: m_vector_float[2] == "
-                << array_test.GetArrayMember("m_vector_float").GetElement(2).Get<float>() << std::endl;
+              << array_test.GetArrayMember("m_vector_float").GetElement(2).Get<float>() << std::endl;
     assert(array_test.GetArrayMember("m_vector_float").GetElement(2).Get<float>() == 3.0f);
-    std::cout << "array_test: size of m_vector_float == "
-              << array_test.GetArrayMember("m_vector_float").GetSize() << std::endl;
+    std::cout << "array_test: size of m_vector_float == " << array_test.GetArrayMember("m_vector_float").GetSize()
+              << std::endl;
     assert(array_test.GetArrayMember("m_vector_float").GetSize() == 3);
     array_test.GetArrayMember("m_vector_float").Append(40.0f);
     std::cout << "array_test: m_vector_float[3] == "
@@ -328,8 +329,8 @@ int main() {
     std::cout << "array_test: m_vector_float[1] == "
               << array_test.GetArrayMember("m_vector_float").GetElement(1).Get<float>() << std::endl;
     assert(array_test.GetArrayMember("m_vector_float").GetElement(1).Get<float>() == 3.0f);
-    std::cout << "array_test: size of m_vector_float == "
-              << array_test.GetArrayMember("m_vector_float").GetSize() << std::endl;
+    std::cout << "array_test: size of m_vector_float == " << array_test.GetArrayMember("m_vector_float").GetSize()
+              << std::endl;
     assert(array_test.GetArrayMember("m_vector_float").GetSize() == 3);
 
     std::cout << "------------------------------- Test Smart Pointer ------------------------------" << std::endl;
@@ -337,8 +338,8 @@ int main() {
     std::cout << "smart_ptr_test: m_shared_ptr == "
               << smart_ptr_test.GetMember("m_shared_ptr").GetPointedVar().Get<int>() << std::endl;
     assert(smart_ptr_test.GetMember("m_shared_ptr").GetPointedVar().Get<int>() == 42);
-    std::cout << "smart_ptr_test: m_weak_ptr == "
-              << smart_ptr_test.GetMember("m_weak_ptr").GetPointedVar().Get<int>() << std::endl;
+    std::cout << "smart_ptr_test: m_weak_ptr == " << smart_ptr_test.GetMember("m_weak_ptr").GetPointedVar().Get<int>()
+              << std::endl;
     assert(smart_ptr_test.GetMember("m_weak_ptr").GetPointedVar().Get<int>() == 42);
     std::cout << "smart_ptr_test: m_unique_ptr == "
               << smart_ptr_test.GetMember("m_unique_ptr").GetPointedVar().Get<float>() << std::endl;
@@ -348,8 +349,8 @@ int main() {
     std::cout << "smart_ptr_test: m_shared_ptr == "
               << smart_ptr_test.GetMember("m_shared_ptr").GetPointedVar().Get<int>() << std::endl;
     assert(smart_ptr_test.GetMember("m_shared_ptr").GetPointedVar().Get<int>() == 2);
-    std::cout << "smart_ptr_test: m_weak_ptr == "
-              << smart_ptr_test.GetMember("m_weak_ptr").GetPointedVar().Get<int>() << std::endl;
+    std::cout << "smart_ptr_test: m_weak_ptr == " << smart_ptr_test.GetMember("m_weak_ptr").GetPointedVar().Get<int>()
+              << std::endl;
     assert(smart_ptr_test.GetMember("m_weak_ptr").GetPointedVar().Get<int>() == 2);
 
     return 0;

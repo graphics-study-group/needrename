@@ -68,9 +68,6 @@ namespace Engine {
 
         constexpr vk::ImageAspectFlags GetVkAspect(ImageFormat format) {
             switch (format) {
-            case ImageFormat::R8G8B8SRGB:
-            case ImageFormat::B8G8R8A8SRGB:
-            case ImageFormat::R8G8B8A8SRGB:
             case ImageFormat::R8G8B8A8SNorm:
             case ImageFormat::R8G8B8A8UNorm:
             case ImageFormat::R11G11B10UFloat:
@@ -97,18 +94,12 @@ namespace Engine {
             switch (format) {
             case ImageFormat::UNDEFINED:
                 return vk::Format::eUndefined;
-            case ImageFormat::B8G8R8A8SRGB:
-                return vk::Format::eB8G8R8A8Srgb;
-            case ImageFormat::R8G8B8A8SRGB:
-                return vk::Format::eR8G8B8A8Srgb;
             case ImageFormat::R8G8B8A8SNorm:
                 return vk::Format::eR8G8B8A8Snorm;
             case ImageFormat::R8G8B8A8UNorm:
                 return vk::Format::eR8G8B8A8Unorm;
             case ImageFormat::R11G11B10UFloat:
                 return vk::Format::eB10G11R11UfloatPack32;
-            case ImageFormat::R8G8B8SRGB:
-                return vk::Format::eR8G8B8Srgb;
             case ImageFormat::D32SFLOAT:
                 return vk::Format::eD32Sfloat;
             }
@@ -117,10 +108,6 @@ namespace Engine {
 
         constexpr uint16_t GetPixelSize(ImageFormat format) {
             switch (format) {
-            case ImageFormat::R8G8B8SRGB:
-                return 3;
-            case ImageFormat::B8G8R8A8SRGB:
-            case ImageFormat::R8G8B8A8SRGB:
             case ImageFormat::R8G8B8A8SNorm:
             case ImageFormat::R8G8B8A8UNorm:
             case ImageFormat::R11G11B10UFloat:

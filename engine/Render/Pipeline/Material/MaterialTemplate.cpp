@@ -167,23 +167,22 @@ namespace Engine {
         vk::PipelineRenderingCreateInfo prci{};
         std::vector<vk::PipelineColorBlendAttachmentState> cbass;
 
-        vk::Format default_color_format{ImageUtils::GetVkFormat(m_system.GetSwapchain().COLOR_FORMAT)};
-        vk::Format default_depth_format{ImageUtils::GetVkFormat(m_system.GetSwapchain().DEPTH_FORMAT)};
-        AttachmentUtils::AttachmentOp default_color_op{
-            AttachmentUtils::LoadOperation::Clear,
-            AttachmentUtils::StoreOperation::Store,
-            AttachmentUtils::ColorClearValue{0.0f, 0.0f, 0.0f, 1.0f}
-        };
-        AttachmentUtils::AttachmentOp default_depth_op{
-            AttachmentUtils::LoadOperation::Clear,
-            AttachmentUtils::StoreOperation::DontCare,
-            AttachmentUtils::DepthClearValue{1.0f, 0u}
-        };
+        vk::Format default_color_format{m_system.GetSwapchain().COLOR_FORMAT_VK};
+        vk::Format default_depth_format{m_system.GetSwapchain().DEPTH_FORMAT_VK};
 
         std::vector<vk::Format> color_attachment_formats{prop.attachments.color.size(), vk::Format::eUndefined};
         // Fill in attachment information
         if (use_swapchain_attachments) {
+            SDL_LogWarn(
+                SDL_LOG_CATEGORY_RENDER,
+                "Material template \"%s\" (pass %u) does not specify its color attachment format. "
+                "Falling back to Swapchain default format. Gamma correction and color space may be incorrect.",
+                this->pimpl->m_name.c_str(),
+                pass_index
+            );
+
             color_attachment_formats = {default_color_format};
+
             prci = vk::PipelineRenderingCreateInfo{
                 0, color_attachment_formats, default_depth_format, vk::Format::eUndefined
             };
@@ -216,10 +215,19 @@ namespace Engine {
             cbass.resize(prop.attachments.color_blending.size());
 
             for (size_t i = 0; i < prop.attachments.color.size(); i++) {
-                color_attachment_formats[i] =
-                    (prop.attachments.color[i] == ImageUtils::ImageFormat::UNDEFINED
-                         ? default_color_format
-                         : ImageUtils::GetVkFormat(prop.attachments.color[i]));
+                if (prop.attachments.color[i] == ImageUtils::ImageFormat::UNDEFINED) {
+                    SDL_LogWarn(
+                        SDL_LOG_CATEGORY_RENDER,
+                        "Material template \"%s\" (pass %u, color attachment %llu) does not specify its format. "
+                        "Falling back to Swapchain default format. Gamma correction and color space may be incorrect.",
+                        this->pimpl->m_name.c_str(),
+                        pass_index,
+                        i
+                    );
+                    color_attachment_formats[i] = default_color_format;
+                } else {
+                    color_attachment_formats[i] = ImageUtils::GetVkFormat(prop.attachments.color[i]);
+                }
 
                 const auto &cb = prop.attachments.color_blending[i];
                 if (cb.color_op == PipelineUtils::BlendOperation::None

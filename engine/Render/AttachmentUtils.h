@@ -21,21 +21,15 @@ namespace Engine {
         };
 
         struct ColorClearValue {
-            float r, g, b, a;
+            float r{0.0f}, g{0.0f}, b{0.0f}, a{1.0f};
         };
 
         struct DepthClearValue {
-            float depth;
-            uint32_t stencil;
+            float depth{1.0f};
+            uint32_t stencil{0U};
         };
 
         typedef std::variant<ColorClearValue, DepthClearValue> ClearValue;
-
-        struct AttachmentOp {
-            LoadOperation load_op{};
-            StoreOperation store_op{};
-            ClearValue clear_value{};
-        };
 
         struct AttachmentDescription {
             const Texture *texture{nullptr};
@@ -45,6 +39,8 @@ namespace Engine {
 
             LoadOperation load_op{};
             StoreOperation store_op{};
+
+            ClearValue clear_value{};
         };
     } // namespace AttachmentUtils
 } // namespace Engine

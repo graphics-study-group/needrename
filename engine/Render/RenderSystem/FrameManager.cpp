@@ -301,17 +301,19 @@ namespace Engine::RenderSystemState {
             this->pimpl->current_framebuffer < std::numeric_limits<uint32_t>::max()
             && "Frame Manager is in invalid state."
         );
-        return GraphicsCommandBuffer(
-            pimpl->m_system, pimpl->command_buffers[GetFrameInFlight()].get(), GetFrameInFlight()
-        );
+        return GraphicsCommandBuffer(pimpl->m_system, GetRawMainCommandBuffer(), GetFrameInFlight());
     }
 
     GraphicsContext FrameManager::GetGraphicsContext() {
-        return GraphicsContext(pimpl->m_system, pimpl->command_buffers[GetFrameInFlight()].get(), GetFrameInFlight());
+        return GraphicsContext(pimpl->m_system, GetRawMainCommandBuffer(), GetFrameInFlight());
     }
 
     ComputeContext FrameManager::GetComputeContext() {
-        return ComputeContext(pimpl->m_system, pimpl->command_buffers[GetFrameInFlight()].get(), GetFrameInFlight());
+        return ComputeContext(pimpl->m_system, GetRawMainCommandBuffer(), GetFrameInFlight());
+    }
+
+    vk::CommandBuffer FrameManager::GetRawMainCommandBuffer() {
+        return pimpl->command_buffers[GetFrameInFlight()].get();
     }
 
     uint32_t FrameManager::StartFrame(uint64_t timeout) {

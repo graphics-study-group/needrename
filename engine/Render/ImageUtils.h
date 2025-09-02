@@ -20,13 +20,10 @@ namespace Engine {
 
         enum class ImageFormat {
             UNDEFINED,
-            B8G8R8A8SRGB,
-            R8G8B8A8SRGB,
             R8G8B8A8SNorm,
             R8G8B8A8UNorm,
             // 32-bit packed float for HDR rendering. In Vulkan, it is actually B10-G11-R11.
             R11G11B10UFloat,
-            R8G8B8SRGB,
             D32SFLOAT,
         };
 

@@ -84,9 +84,8 @@ namespace Engine {
         info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
 
         std::array<vk::Format, 1> formats = {
-            {color_attachment_format == vk::Format::eUndefined
-                 ? ImageUtils::GetVkFormat(system->GetSwapchain().COLOR_FORMAT)
-                 : color_attachment_format}
+            {color_attachment_format == vk::Format::eUndefined ? system->GetSwapchain().COLOR_FORMAT_VK
+                                                               : color_attachment_format}
         };
         VkPipelineRenderingCreateInfoKHR pipeline{static_cast<VkPipelineRenderingCreateInfoKHR>(
             vk::PipelineRenderingCreateInfo{0, formats, vk::Format::eUndefined, vk::Format::eUndefined}

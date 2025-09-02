@@ -17,7 +17,7 @@ namespace Engine {
         }
     }
 
-    void SDLWindow::CreateRenderTargetBinding(std::shared_ptr<RenderSystem> render_system) {
+    void SDLWindow::CreateRenderTargets(std::shared_ptr<RenderSystem> render_system) {
         int w, h;
         SDL_GetWindowSizeInPixels(m_window, &w, &h);
 
@@ -38,22 +38,6 @@ namespace Engine {
         desc.format = Engine::ImageUtils::ImageFormat::D32SFLOAT;
         desc.type = Engine::ImageUtils::ImageType::DepthImage;
         m_depth_texture->CreateTexture(desc, "Depth attachment");
-
-        AttachmentUtils::AttachmentDescription color_att, depth_att;
-        color_att.texture = m_color_texture.get();
-        color_att.texture_view = nullptr;
-        color_att.load_op = AttachmentUtils::LoadOperation::Clear;
-        color_att.store_op = AttachmentUtils::StoreOperation::Store;
-        m_render_target_binding.SetColorAttachment(color_att);
-        depth_att.texture = m_depth_texture.get();
-        depth_att.texture_view = nullptr;
-        depth_att.load_op = AttachmentUtils::LoadOperation::Clear;
-        depth_att.store_op = AttachmentUtils::StoreOperation::DontCare;
-        m_render_target_binding.SetDepthAttachment(depth_att);
-    }
-
-    const RenderTargetBinding &SDLWindow::GetRenderTargetBinding() const {
-        return m_render_target_binding;
     }
 
     vk::Extent2D SDLWindow::GetExtent() const {

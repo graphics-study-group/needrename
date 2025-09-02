@@ -277,7 +277,7 @@ int main(int argc, char **argv) {
         .width = 4,
         .height = 4,
         .depth = 1,
-        .format = Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB,
+        .format = Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm,
         .type = Engine::ImageUtils::ImageType::TextureImage,
         .mipmap_levels = 1,
         .array_layers = 1,
@@ -285,14 +285,6 @@ int main(int argc, char **argv) {
     };
     red_texture->CreateTextureAndSampler(desc, {}, "Sampled Albedo");
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*red_texture, {1.0, 0.0, 0.0, 1.0});
-
-    Engine::AttachmentUtils::AttachmentDescription color_att, depth_att;
-    color_att.texture = hdr_color.get();
-    color_att.load_op = AttachmentUtils::LoadOperation::Clear;
-    color_att.store_op = AttachmentUtils::StoreOperation::Store;
-    depth_att.texture = depth.get();
-    depth_att.load_op = AttachmentUtils::LoadOperation::Clear;
-    depth_att.store_op = AttachmentUtils::StoreOperation::DontCare;
 
     auto cs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/bloom.comp.spv.asset");
     assert(cs_ref);
@@ -322,6 +314,58 @@ int main(int argc, char **argv) {
     camera->UpdateViewMatrix(transform);
     rsys->SetActiveCamera(camera);
 
+    // Build render graph.
+    RenderGraphBuilder rgb{*rsys};
+    rgb.RegisterImageAccess(*hdr_color);
+    rgb.RegisterImageAccess(*depth);
+    rgb.RegisterImageAccess(*color);
+
+    // Color pass
+    using IAT = AccessHelper::ImageAccessType;
+    rgb.UseImage(*hdr_color, IAT::ColorAttachmentWrite);
+    rgb.UseImage(*depth, IAT::DepthAttachmentWrite);
+    rgb.RecordRasterizerPass(
+        AttachmentUtils::AttachmentDescription{
+            hdr_color.get(), nullptr, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store
+        },
+        AttachmentUtils::AttachmentDescription{
+            depth.get(),
+            nullptr,
+            AttachmentUtils::LoadOperation::Clear,
+            AttachmentUtils::StoreOperation::DontCare,
+            AttachmentUtils::DepthClearValue{1.0f, 0U}
+        },
+        [rsys](GraphicsCommandBuffer &gcb) {
+            gcb.DrawRenderers(rsys->GetRendererManager().FilterAndSortRenderers({}), 0);
+        },
+        "Color pass"
+    );
+
+    // Bloom pass
+    rgb.UseImage(*hdr_color, IAT::ShaderReadRandomWrite);
+    rgb.UseImage(*color, IAT::ShaderRandomWrite);
+    rgb.RecordComputePass(
+        [bloom_compute_stage, color](ComputeCommandBuffer &ccb) {
+            ccb.BindComputeStage(*bloom_compute_stage);
+            ccb.DispatchCompute(
+                color->GetTextureDescription().width / 16 + 1, color->GetTextureDescription().height / 16 + 1, 1
+            );
+        },
+        "Bloom FX pass"
+    );
+
+    // GUI pass
+    rgb.UseImage(*color, IAT::ColorAttachmentWrite);
+    rgb.RecordRasterizerPass([rsys, gsys, color](GraphicsCommandBuffer &gcb) {
+        gsys->DrawGUI(
+            {color.get(), nullptr, AttachmentUtils::LoadOperation::Load, AttachmentUtils::StoreOperation::Store},
+            rsys->GetSwapchain().GetExtent(),
+            gcb
+        );
+    });
+
+    auto rg{rgb.BuildRenderGraph()};
+
     uint64_t frame_count = 0;
     uint64_t start_timer = SDL_GetPerformanceCounter();
     while (++frame_count) {
@@ -348,56 +392,8 @@ int main(int argc, char **argv) {
 
         // Draw
         auto index = rsys->StartFrame();
-        auto context = rsys->GetFrameManager().GetGraphicsContext();
-        GraphicsCommandBuffer &cb = dynamic_cast<GraphicsCommandBuffer &>(context.GetCommandBuffer());
 
-        cb.Begin();
-        context.UseImage(
-            *hdr_color,
-            GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite,
-            GraphicsContext::ImageAccessType::None
-        );
-        context.UseImage(
-            *depth,
-            GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite,
-            GraphicsContext::ImageAccessType::None
-        );
-        context.PrepareCommandBuffer();
-        vk::Extent2D extent{rsys->GetSwapchain().GetExtent()};
-        cb.BeginRendering(color_att, depth_att, extent);
-        cb.DrawRenderers(rsys->GetRendererManager().FilterAndSortRenderers({}), 0);
-        cb.EndRendering();
-
-        auto cctx = rsys->GetFrameManager().GetComputeContext();
-        auto ccb = dynamic_cast<ComputeCommandBuffer &>(cctx.GetCommandBuffer());
-        cctx.UseImage(
-            *hdr_color,
-            ComputeContext::ImageComputeAccessType::ShaderReadRandomWrite,
-            ComputeContext::ImageAccessType::ColorAttachmentWrite
-        );
-        cctx.UseImage(
-            *color, ComputeContext::ImageComputeAccessType::ShaderRandomWrite, ComputeContext::ImageAccessType::None
-        );
-        cctx.PrepareCommandBuffer();
-        ccb.BindComputeStage(*bloom_compute_stage);
-        ccb.DispatchCompute(
-            color->GetTextureDescription().width / 16 + 1, color->GetTextureDescription().height / 16 + 1, 1
-        );
-
-        context.UseImage(
-            *color,
-            GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite,
-            GraphicsContext::ImageAccessType::ShaderRandomWrite
-        );
-        context.PrepareCommandBuffer();
-        gsys->DrawGUI(
-            {color.get(), nullptr, AttachmentUtils::LoadOperation::Load, AttachmentUtils::StoreOperation::Store},
-            extent,
-            cb
-        );
-        cb.End();
-
-        rsys->GetFrameManager().SubmitMainCommandBuffer();
+        rg.Execute(rsys->GetFrameManager());
         rsys->GetFrameManager().StageBlitComposition(
             color->GetImage(),
             vk::Extent2D{color->GetTextureDescription().width, color->GetTextureDescription().height},

@@ -1,6 +1,9 @@
 #ifndef RENDER_RENDERSYSTEM_FRAMEMANAGER_INCLUDED
 #define RENDER_RENDERSYSTEM_FRAMEMANAGER_INCLUDED
 
+// May be safe to include here as this header is not included in other headers.
+#include <vulkan/vulkan.hpp>
+
 namespace Engine {
     class RenderSystem;
     class GraphicsCommandBuffer;
@@ -41,6 +44,8 @@ namespace Engine {
             GraphicsContext GetGraphicsContext();
 
             ComputeContext GetComputeContext();
+
+            vk::CommandBuffer GetRawMainCommandBuffer();
 
             /**
              * @brief Start the rendering of a new frame.

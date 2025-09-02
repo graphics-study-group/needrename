@@ -95,6 +95,12 @@ target_link_libraries(pbr_test engine)
 add_test(NAME pbr_test COMMAND pbr_test 120)
 set_target_properties(pbr_test PROPERTIES FOLDER tests)
 
+add_executable(mrt_test mrt_test.cpp)
+add_dependencies(mrt_test shader)
+target_link_libraries(mrt_test engine)
+add_test(NAME mrt_test COMMAND mrt_test 120)
+set_target_properties(mrt_test PROPERTIES FOLDER tests)
+
 # Copy SDL dll
 add_custom_command(TARGET SDL_init_test POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
