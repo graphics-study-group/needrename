@@ -8,8 +8,10 @@ list(FILTER SOURCE EXCLUDE REGEX "Tests/.*")
 list(FILTER HEADER EXCLUDE REGEX "Tests/.*")
 
 list(FILTER SOURCE EXCLUDE REGEX "Asset/.*")
+list(FILTER SOURCE EXCLUDE REGEX "Core/.*")
 list(FILTER SOURCE EXCLUDE REGEX "Reflection/.*")
 list(FILTER SOURCE EXCLUDE REGEX "Render/.*")
+list(FILTER SOURCE EXCLUDE REGEX "UserInterface/.*")
 
 # Header files and some deps are shared across these modules, so we use an interface to manage them
 add_library(EngineLibHeaderInterface INTERFACE)
@@ -21,17 +23,22 @@ target_link_libraries(EngineLibHeaderInterface
     glm
     json
     imgui
+    vma
 )
 
 add_subdirectory(Asset)
+add_subdirectory(Core)
 add_subdirectory(Reflection)
 add_subdirectory(Render)
+add_subdirectory(UserInterface)
 
 add_library(engine SHARED 
     ${SOURCE}
+    $<TARGET_OBJECTS:EngineLibAsset>
+    $<TARGET_OBJECTS:EngineLibCore>
     $<TARGET_OBJECTS:EngineLibReflection>
     $<TARGET_OBJECTS:EngineLibRender>
-    $<TARGET_OBJECTS:EngineLibAsset>
+    $<TARGET_OBJECTS:EngineLibUserInterface>
 )
 target_link_libraries(engine
     PUBLIC
@@ -39,9 +46,11 @@ target_link_libraries(engine
 )
 target_link_libraries(engine 
     PUBLIC
+    EngineLibAsset
+    EngineLibCore
     EngineLibReflection
     EngineLibRender
-    EngineLibAsset
+    EngineLibUserInterface
 )
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h)
