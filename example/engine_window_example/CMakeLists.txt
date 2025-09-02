@@ -8,5 +8,6 @@ set_target_properties(${ProjectId} PROPERTIES FOLDER engine_examples)
 add_custom_command(TARGET ${ProjectId} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
     $<TARGET_FILE:SDL3::SDL3>
+    $<TARGET_FILE:engine>
     $<TARGET_FILE_DIR:${ProjectId}>
 )

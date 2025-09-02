@@ -108,3 +108,10 @@ add_custom_command(TARGET SDL_init_test POST_BUILD
     $<TARGET_FILE_DIR:SDL_init_test>
     COMMENT "Copying SDL DLLs"
 )
+
+add_custom_command(TARGET complex_mesh_test POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    $<TARGET_FILE:engine>
+    $<TARGET_FILE_DIR:complex_mesh_test>
+    COMMENT "Copying Engine DLLs"
+)

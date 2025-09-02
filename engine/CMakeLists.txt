@@ -5,7 +5,7 @@ file(GLOB_RECURSE HEADER "./*.h")
 list(FILTER SOURCE EXCLUDE REGEX "__generated__/.*")
 list(FILTER HEADER EXCLUDE REGEX "__generated__/.*")
 
-add_library(engine STATIC ${SOURCE})
+add_library(engine SHARED ${SOURCE})
 target_compile_definitions(engine PUBLIC VULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1)
 target_include_directories(
     engine
