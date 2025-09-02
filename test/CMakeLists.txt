@@ -33,7 +33,7 @@ set_target_properties(project_loading_test PROPERTIES FOLDER tests)
 
 add_executable(complex_mesh_test complex_mesh_test.cpp)
 add_dependencies(complex_mesh_test shader)
-target_link_libraries(complex_mesh_test engine)
+target_link_libraries(complex_mesh_test engine stb tinyobjloader)
 add_test(NAME complex_mesh_test COMMAND complex_mesh_test 120)
 set_target_properties(complex_mesh_test PROPERTIES FOLDER tests)
 
@@ -68,7 +68,7 @@ set_target_properties(compute_shader_test PROPERTIES FOLDER tests)
 
 add_executable(pbr_test pbr_test.cpp)
 add_dependencies(pbr_test shader)
-target_link_libraries(pbr_test engine)
+target_link_libraries(pbr_test engine tinyobjloader)
 add_test(NAME pbr_test COMMAND pbr_test 120)
 set_target_properties(pbr_test PROPERTIES FOLDER tests)
 
