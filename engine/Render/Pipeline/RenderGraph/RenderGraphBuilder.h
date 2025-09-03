@@ -65,7 +65,7 @@ namespace Engine {
          * 
          * To use this method, you have to manually set up render targets within the `pass` function.
          */
-        void RecordRasterizerPass (
+        void RecordRasterizerPassWithoutRT (
             std::function<void(GraphicsCommandBuffer &)> pass
         );
 

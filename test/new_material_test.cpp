@@ -82,7 +82,7 @@ RenderGraph BuildRenderGraph(
     RenderGraphBuilder rgb{*rsys};
     rgb.UseImage(*color, IAT::ColorAttachmentWrite);
     rgb.UseImage(*depth, IAT::DepthAttachmentWrite);
-    rgb.RecordRasterizerPass([rsys, color, depth, material, mesh](GraphicsCommandBuffer &gcb) {
+    rgb.RecordRasterizerPassWithoutRT([rsys, color, depth, material, mesh](GraphicsCommandBuffer &gcb) {
         auto extent = rsys->GetSwapchain().GetExtent();
         gcb.BeginRendering(
             {color, nullptr, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store},
@@ -256,9 +256,9 @@ int main(int argc, char **argv) {
 
         auto index = rsys->StartFrame();
         if (has_gaussian_blur) {
-            blur.Execute(rsys->GetFrameManager());
+            blur.Execute();
         } else {
-            nonblur.Execute(rsys->GetFrameManager());
+            nonblur.Execute();
         }
         rsys->GetFrameManager().StageBlitComposition(
             has_gaussian_blur ? postproc->GetImage() : color->GetImage(),

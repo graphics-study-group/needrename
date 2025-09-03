@@ -356,7 +356,7 @@ int main(int argc, char **argv) {
 
     // GUI pass
     rgb.UseImage(*color, IAT::ColorAttachmentWrite);
-    rgb.RecordRasterizerPass([rsys, gsys, color](GraphicsCommandBuffer &gcb) {
+    rgb.RecordRasterizerPassWithoutRT([rsys, gsys, color](GraphicsCommandBuffer &gcb) {
         gsys->DrawGUI(
             {color.get(), nullptr, AttachmentUtils::LoadOperation::Load, AttachmentUtils::StoreOperation::Store},
             rsys->GetSwapchain().GetExtent(),
@@ -393,7 +393,7 @@ int main(int argc, char **argv) {
         // Draw
         auto index = rsys->StartFrame();
 
-        rg.Execute(rsys->GetFrameManager());
+        rg.Execute();
         rsys->GetFrameManager().StageBlitComposition(
             color->GetImage(),
             vk::Extent2D{color->GetTextureDescription().width, color->GetTextureDescription().height},

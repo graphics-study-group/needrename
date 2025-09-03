@@ -87,7 +87,7 @@ RenderGraph BuildRenderGraph(
     rgb.UseImage(*color_3, IAT::ColorAttachmentWrite);
     rgb.UseImage(*color_4, IAT::ColorAttachmentWrite);
     rgb.UseImage(*depth, IAT::DepthAttachmentWrite);
-    rgb.RecordRasterizerPass([rsys, color_1, color_2, color_3, color_4, depth, material, mesh](GraphicsCommandBuffer &gcb) {
+    rgb.RecordRasterizerPassWithoutRT([rsys, color_1, color_2, color_3, color_4, depth, material, mesh](GraphicsCommandBuffer &gcb) {
         auto extent = rsys->GetSwapchain().GetExtent();
         gcb.BeginRendering(
             {
@@ -226,7 +226,7 @@ int main(int argc, char **argv) {
         rsys->GetFrameManager().GetSubmissionHelper().EnqueueVertexBufferSubmission(test_mesh);
 
         auto index = rsys->StartFrame();
-        rg.Execute(rsys->GetFrameManager());
+        rg.Execute();
 
         vk::Image to_be_present;
         switch(color) {

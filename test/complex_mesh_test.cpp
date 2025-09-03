@@ -293,7 +293,7 @@ int main(int argc, char **argv) {
 
         // Draw
         auto index = rsys->StartFrame();
-        rg.Execute(rsys->GetFrameManager());
+        rg.Execute();
         rsys->GetFrameManager().StageBlitComposition(
             color.GetImage(),
             vk::Extent2D{color.GetTextureDescription().width, color.GetTextureDescription().height},

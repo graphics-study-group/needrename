@@ -7,13 +7,14 @@ namespace Engine {
         std::vector<std::function<void(vk::CommandBuffer)>> m_commands;
     };
 
-    RenderGraph::RenderGraph(std::vector<std::function<void(vk::CommandBuffer)>> commands) :
+    RenderGraph::RenderGraph(RenderSystem & system, std::vector<std::function<void(vk::CommandBuffer)>> commands) :
+        m_system(system),
         pimpl(std::make_unique<impl>(commands)) {
     }
     RenderGraph::~RenderGraph() = default;
 
-    void RenderGraph::Execute(RenderSystemState::FrameManager &mgr) {
-        auto cb = mgr.GetRawMainCommandBuffer();
+    void RenderGraph::Execute() {
+        auto cb = m_system.GetFrameManager().GetRawMainCommandBuffer();
         vk::CommandBufferBeginInfo cbbi{};
         cb.begin(cbbi);
 
@@ -22,7 +23,7 @@ namespace Engine {
         }
 
         cb.end();
-        mgr.SubmitMainCommandBuffer();
+        m_system.GetFrameManager().SubmitMainCommandBuffer();
     }
 
 } // namespace Engine

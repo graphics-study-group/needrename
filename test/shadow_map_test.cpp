@@ -203,7 +203,7 @@ int main(int argc, char **argv) {
 
     using IAT = AccessHelper::ImageAccessType;
     rgb.UseImage(*shadow, IAT::DepthAttachmentWrite);
-    rgb.RecordRasterizerPass(
+    rgb.RecordRasterizerPassWithoutRT(
         [rsys, shadow, test_template, test_material_instance, &test_mesh, &test_mesh_2](GraphicsCommandBuffer &gcb) {
             vk::Extent2D shadow_map_extent{2048, 2048};
             vk::Rect2D shadow_map_scissor{{0, 0}, shadow_map_extent};
@@ -289,7 +289,7 @@ int main(int argc, char **argv) {
         auto index = rsys->StartFrame();
         assert(index < 3);
 
-        rg.Execute(rsys->GetFrameManager());
+        rg.Execute();
         rsys->GetFrameManager().StageCopyComposition(color->GetImage());
         rsys->CompleteFrame();
 

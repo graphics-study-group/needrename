@@ -1,5 +1,5 @@
-#ifndef RENDERGRAPH_RENDERGRAPH
-#define RENDERGRAPH_RENDERGRAPH
+#ifndef PIPELINE_RENDERGRAPH_RENDERGRAPH_INCLUDED
+#define PIPELINE_RENDERGRAPH_RENDERGRAPH_INCLUDED
 
 #include <vector>
 #include <functional>
@@ -20,14 +20,16 @@ namespace Engine {
      * Dependencies should be resolved when building the render graph.
      */
     class RenderGraph {
+        RenderSystem & m_system;
+        
         struct impl;
         std::unique_ptr <impl> pimpl;
     public:
-        RenderGraph(std::vector <std::function<void(vk::CommandBuffer)>> commands);
+        RenderGraph(RenderSystem & system, std::vector <std::function<void(vk::CommandBuffer)>> commands);
         ~RenderGraph();
 
-        void Execute(RenderSystemState::FrameManager & system);
+        void Execute();
     };
 }
 
-#endif // RENDERGRAPH_RENDERGRAPH
+#endif // PIPELINE_RENDERGRAPH_RENDERGRAPH_INCLUDED

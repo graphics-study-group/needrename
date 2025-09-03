@@ -99,15 +99,14 @@ namespace Engine {
     ) {
         pimpl->m_buffer_barriers.push_back(pimpl->GetBufferBarrier(buffer, new_access, prev_access));
     }
-    void RenderGraphBuilder::RecordRasterizerPass(std::function<void(GraphicsCommandBuffer &)> pass) {
+    void RenderGraphBuilder::RecordRasterizerPassWithoutRT(std::function<void(GraphicsCommandBuffer &)> pass) {
         std::function<void(vk::CommandBuffer)> f = [system = &this->m_system,
                                                     pass,
                                                     bb = std::move(pimpl->m_buffer_barriers),
                                                     ib = std::move(pimpl->m_image_barriers)](vk::CommandBuffer cb) {
             vk::DependencyInfo dep{vk::DependencyFlags{}, {}, bb, ib};
             cb.pipelineBarrier2(dep);
-            GraphicsContext gc = system->GetFrameManager().GetGraphicsContext();
-            GraphicsCommandBuffer &gcb = dynamic_cast<GraphicsCommandBuffer &>(gc.GetCommandBuffer());
+            GraphicsCommandBuffer gcb{*system, cb, system->GetFrameManager().GetFrameInFlight()};
             std::invoke(pass, std::ref(gcb));
         };
 
@@ -167,8 +166,7 @@ namespace Engine {
                                                     ib = std::move(pimpl->m_image_barriers)](vk::CommandBuffer cb) {
             vk::DependencyInfo dep{vk::DependencyFlags{}, {}, bb, ib};
             cb.pipelineBarrier2(dep);
-            GraphicsContext gc = system->GetFrameManager().GetGraphicsContext();
-            GraphicsCommandBuffer &gcb = dynamic_cast<GraphicsCommandBuffer &>(gc.GetCommandBuffer());
+            GraphicsCommandBuffer gcb{*system, cb, system->GetFrameManager().GetFrameInFlight()};
             gcb.BeginRendering(color, depth, system->GetSwapchain().GetExtent(), name);
             std::invoke(pass, std::ref(gcb));
             gcb.EndRendering();
@@ -218,8 +216,7 @@ namespace Engine {
                                                     ib = std::move(pimpl->m_image_barriers)](vk::CommandBuffer cb) {
             vk::DependencyInfo dep{vk::DependencyFlags{}, {}, bb, ib};
             cb.pipelineBarrier2(dep);
-            GraphicsContext gc = system->GetFrameManager().GetGraphicsContext();
-            GraphicsCommandBuffer &gcb = dynamic_cast<GraphicsCommandBuffer &>(gc.GetCommandBuffer());
+            GraphicsCommandBuffer gcb{*system, cb, system->GetFrameManager().GetFrameInFlight()};
             gcb.BeginRendering(colors, depth, system->GetSwapchain().GetExtent(), name);
             std::invoke(pass, std::ref(gcb));
             gcb.EndRendering();
@@ -244,8 +241,7 @@ namespace Engine {
                                                     ib = std::move(pimpl->m_image_barriers)](vk::CommandBuffer cb) {
             vk::DependencyInfo dep{vk::DependencyFlags{}, {}, bb, ib};
             cb.pipelineBarrier2(dep);
-            ComputeContext cc = system->GetFrameManager().GetComputeContext();
-            ComputeCommandBuffer &ccb = dynamic_cast<ComputeCommandBuffer &>(cc.GetCommandBuffer());
+            ComputeCommandBuffer ccb{*system, cb, system->GetFrameManager().GetFrameInFlight()};
             ccb.GetCommandBuffer().beginDebugUtilsLabelEXT({name.c_str()});
             std::invoke(pass, std::ref(ccb));
             ccb.GetCommandBuffer().endDebugUtilsLabelEXT();
@@ -278,7 +274,7 @@ namespace Engine {
             pimpl->m_buffer_barriers.clear();
             pimpl->m_image_barriers.clear();
         }
-        return RenderGraph(cmd);
+        return RenderGraph(m_system, cmd);
     }
     RenderGraph RenderGraphBuilder::BuildDefaultRenderGraph(
         Texture &color_attachment, Texture &depth_attachment, GUISystem *gui_system
@@ -302,7 +298,7 @@ namespace Engine {
 
         if (gui_system) {
             this->UseImage(color_attachment, IAT::ColorAttachmentWrite);
-            this->RecordRasterizerPass([this, gui_system, &color_attachment](Engine::GraphicsCommandBuffer &gcb) {
+            this->RecordRasterizerPassWithoutRT([this, gui_system, &color_attachment](Engine::GraphicsCommandBuffer &gcb) {
                 gui_system->DrawGUI(
                     {&color_attachment,
                      nullptr,
