@@ -1,7 +1,7 @@
 #include <SDL3/SDL.h>
 #include <cassert>
 
-#include "Functional/SDLWindow.h"
+#include "Core/Functional/SDLWindow.h"
 #include "MainClass.h"
 
 using namespace Engine;

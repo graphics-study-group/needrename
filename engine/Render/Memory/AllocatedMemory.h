@@ -2,7 +2,11 @@
 #define RENDER_MEMORY_ALLOCATEDMEMORY_INCLUDED
 
 #include <variant>
-#include <vk_mem_alloc.h>
+
+class VmaAllocation_T;
+class VmaAllocator_T;
+typedef VmaAllocation_T* VmaAllocation;
+typedef VmaAllocator_T* VmaAllocator;
 
 namespace vk {
     class Image;

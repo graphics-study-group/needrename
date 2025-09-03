@@ -7,7 +7,6 @@
 #include <queue>
 #include <random>
 #include <string>
-#include <tiny_obj_loader.h>
 #include <unordered_map>
 
 #pragma GCC diagnostic push

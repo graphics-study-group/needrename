@@ -1,45 +1,60 @@
 message("COMPILE engine library")
-file(GLOB_RECURSE SOURCE "./*.cpp")
 file(GLOB_RECURSE HEADER "./*.h")
 
-list(FILTER SOURCE EXCLUDE REGEX "__generated__/.*")
 list(FILTER HEADER EXCLUDE REGEX "__generated__/.*")
+list(FILTER HEADER EXCLUDE REGEX "Tests/.*")
 
-add_library(engine STATIC ${SOURCE})
-target_compile_definitions(engine PUBLIC VULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1)
-target_include_directories(
-    engine
-    PUBLIC
-    ${ENGINE_SOURCE_DIR}
-)
-
-target_link_libraries(engine 
-    PUBLIC
+# Header files and some deps are shared across these modules, so we use an interface to manage them
+add_library(EngineLibHeaderInterface INTERFACE)
+target_include_directories(EngineLibHeaderInterface INTERFACE ${ENGINE_SOURCE_DIR})
+add_library(EngineLibExternalDependency INTERFACE)
+target_link_libraries(EngineLibExternalDependency
+    INTERFACE
     SDL3::SDL3
     Vulkan::Vulkan
     glm
-    tinyobjloader
-    stb
     json
-    vma
     imgui
-    spirv-reflect
+    vma
 )
 
-target_precompile_headers(engine PUBLIC "Render/FullRenderSystem.h")
+add_subdirectory(Asset)
+add_subdirectory(Core)
+add_subdirectory(Framework)
+add_subdirectory(Reflection)
+add_subdirectory(Render)
+add_subdirectory(UserInterface)
+
+add_library(engine SHARED 
+    "MainClass.cpp"
+    $<TARGET_OBJECTS:imgui>
+    $<TARGET_OBJECTS:EngineLibAsset>
+    $<TARGET_OBJECTS:EngineLibCore>
+    $<TARGET_OBJECTS:EngineLibFramework>
+    $<TARGET_OBJECTS:EngineLibReflection>
+    $<TARGET_OBJECTS:EngineLibRender>
+    $<TARGET_OBJECTS:EngineLibUserInterface>
+)
+
+# Widely used dependencies such as SDL and Vulkan are marked as public
+target_link_libraries(engine
+    PUBLIC
+    EngineLibHeaderInterface
+    EngineLibExternalDependency
+)
+
+# Dependencies only used in a small module are marked as private to avoid pollution
+target_link_libraries(engine 
+    PRIVATE
+    EngineLibAsset
+    EngineLibCore
+    EngineLibFramework
+    EngineLibReflection
+    EngineLibRender
+    EngineLibUserInterface
+)
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h)
 
-include(${REFLECTION_PARSER_DIR}/parser.cmake)
-set(all_include_dirs)
-get_include_directories_for_target(engine all_include_dirs)
-filter_files_with_reflection_macros(HEADER REFLECTION_SEARCH_HEADERS)
-
-add_reflection_parser(
-    target_name meta_engine
-    reflection_search_files "${REFLECTION_SEARCH_HEADERS}"
-    generated_code_dir "${ENGINE_SOURCE_DIR}/__generated__"
-    reflection_search_include_dirs "${all_include_dirs}"
-)
-add_dependencies(engine meta_engine)
-target_link_libraries(engine PRIVATE meta_engine)
+include(CTest)
+add_subdirectory(Tests)

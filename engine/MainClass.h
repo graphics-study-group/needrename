@@ -1,12 +1,13 @@
-#ifndef MAINCLASS_H
-#define MAINCLASS_H
+#ifndef ENGINE_MAINCLASS_INCLUDED
+#define ENGINE_MAINCLASS_INCLUDED
 
-#include "Exception/exception.h"
-#include "Functional/OptionHandler.h"
-#include "consts.h"
+#include "Core/Functional/OptionHandler.h"
+
+#include <SDL3/SDL.h>
 #include <filesystem>
 #include <memory>
 #include <vector>
+#include <mutex>
 
 namespace Engine {
     class RenderSystem;
@@ -20,6 +21,14 @@ namespace Engine {
 
     class MainClass {
     public:
+        /**
+         * @brief Obtain a shared pointer to the main class singleton.
+         * 
+         * @note Due to shared library unloading problems, the application
+         * that calls this member must hold the returned shared pointer
+         * until exit of main function.
+         */
+        [[nodiscard]]
         static std::shared_ptr<MainClass> GetInstance();
 
         MainClass() = default;
@@ -31,6 +40,7 @@ namespace Engine {
             SDL_LogPriority = SDL_LOG_PRIORITY_INFO,
             Uint32 sdl_window_flags = 0
         );
+
         void LoadProject(const std::filesystem::path &path);
         void MainLoop();
         void LoopFinite(uint64_t max_frame_count = 0u, float max_time_seconds = 0.0f);
@@ -56,10 +66,13 @@ namespace Engine {
         std::shared_ptr<Input> input{};
         std::shared_ptr<EventQueue> event_queue{};
 
+        static std::weak_ptr <MainClass> m_instance;
+        static std::once_flag m_instance_ready;
+
         bool m_on_quit = false;
 
         void RunOneFrame();
     };
 } // namespace Engine
 
-#endif // MAINCLASS_H
+#endif // ENGINE_MAINCLASS_INCLUDED

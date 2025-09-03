@@ -6,6 +6,7 @@
 #include <imgui.h>
 #include <iostream>
 #include <unordered_map>
+#include <Core/guid.h>
 
 namespace Editor {
     InspectorWidget::InspectorWidget(const std::string &name) : Widget(name) {

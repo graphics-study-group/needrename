@@ -3,7 +3,7 @@
 #include <Asset/Scene/LevelAsset.h>
 #include <Core/Delegate/Delegate.h>
 #include <Framework/component/RenderComponent/RendererComponent.h>
-#include <Functional/EventQueue.h>
+#include <Core/Functional/EventQueue.h>
 #include <MainClass.h>
 
 namespace Engine {

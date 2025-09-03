@@ -2,26 +2,34 @@
 
 #include "Asset/AssetManager/AssetManager.h"
 #include "Framework/world/WorldSystem.h"
-#include "GUI/GUISystem.h"
+#include "UserInterface/GUISystem.h"
 #include <Asset/Scene/LevelAsset.h>
-#include <Functional/EventQueue.h>
-#include <Functional/SDLWindow.h>
-#include <Functional/Time.h>
-#include <Input/Input.h>
+#include <Core/Functional/EventQueue.h>
+#include <Core/Functional/SDLWindow.h>
+#include <Core/Functional/Time.h>
+#include <UserInterface/Input.h>
 #include <Render/FullRenderSystem.h>
 
 #include <exception>
 #include <fstream>
-#include <mutex>
 #include <nlohmann/json.hpp>
 
 namespace Engine {
-    static std::shared_ptr<MainClass> g_main_class_ptr = nullptr;
-    static std::once_flag g_main_class_flag;
+    std::weak_ptr<MainClass> MainClass::m_instance;
+    std::once_flag MainClass::m_instance_ready{};
 
     std::shared_ptr<MainClass> MainClass::GetInstance() {
-        std::call_once(g_main_class_flag, [&] { g_main_class_ptr = std::shared_ptr<MainClass>(new MainClass()); });
-        return g_main_class_ptr;
+        // XXX: Check thread safety!
+        if (!m_instance.expired()) {
+            return m_instance.lock();
+        }
+
+        std::shared_ptr <MainClass> sptr{nullptr};
+        std::call_once(MainClass::m_instance_ready, [&] {
+            sptr = std::make_shared<MainClass>();
+            MainClass::m_instance = sptr;
+        });
+        return sptr;
     }
 
     MainClass::~MainClass() {
@@ -48,7 +56,7 @@ namespace Engine {
     void MainClass::Initialize(
         const StartupOptions *opt, Uint32 sdl_init_flags, SDL_LogPriority sdl_logPrior, Uint32 sdl_window_flags
     ) {
-        if (!SDL_Init(sdl_init_flags)) throw Exception::SDLExceptions::cant_init();
+        if (!SDL_Init(sdl_init_flags)) throw std::runtime_error("Cannot initialize SDL systems.");
         SDL_SetLogPriorities(sdl_logPrior);
         this->window = nullptr;
 

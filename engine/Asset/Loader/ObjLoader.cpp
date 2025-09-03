@@ -1,4 +1,5 @@
 #include "ObjLoader.h"
+#include <SDL3/SDL.h>
 #include <Asset/AssetManager/AssetManager.h>
 #include <Asset/AssetRef.h>
 #include <Asset/Material/MaterialAsset.h>

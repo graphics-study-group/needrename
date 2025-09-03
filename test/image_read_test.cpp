@@ -7,7 +7,7 @@
 
 #include "stb_image.h"
 
-#include "Functional/SDLWindow.h"
+#include "Core/Functional/SDLWindow.h"
 #include "MainClass.h"
 #include "cmake_config.h"
 

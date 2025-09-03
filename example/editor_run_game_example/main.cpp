@@ -9,11 +9,11 @@
 #include <Framework/component/Component.h>
 #include <Framework/component/RenderComponent/CameraComponent.h>
 #include <Framework/world/WorldSystem.h>
-#include <Functional/EventQueue.h>
-#include <Functional/SDLWindow.h>
-#include <Functional/Time.h>
-#include <GUI/GUISystem.h>
-#include <Input/Input.h>
+#include <Core/Functional/EventQueue.h>
+#include <Core/Functional/SDLWindow.h>
+#include <Core/Functional/Time.h>
+#include <UserInterface/GUISystem.h>
+#include <UserInterface/Input.h>
 #include <MainClass.h>
 #include <Render/FullRenderSystem.h>
 #include <SDL3/SDL.h>

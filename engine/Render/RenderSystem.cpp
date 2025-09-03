@@ -20,8 +20,8 @@
 #include "Render/Renderer/Camera.h"
 #include "Render/Renderer/HomogeneousMesh.h"
 
-#include <Functional/SDLWindow.h>
-#include <GUI/GUISystem.h>
+#include <Core/Functional/SDLWindow.h>
+#include <UserInterface/GUISystem.h>
 #include <MainClass.h>
 
 #include <iostream>

@@ -38,9 +38,6 @@ add_compile_options($<$<CONFIG:Debug>:-Weffc++>)
 add_compile_options($<$<CONFIG:Release>:-O3>)
 add_compile_definitions($<$<CONFIG:Release>:NDEBUG>)
 
-# Link libstdc++, etc. statically
-add_link_options(-static-libstdc++ -static-libgcc)
-
 add_subdirectory(engine)
 add_subdirectory(editor)
 add_subdirectory(example)

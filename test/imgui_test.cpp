@@ -4,8 +4,8 @@
 #include <fstream>
 
 #include "Framework/component/RenderComponent/MeshComponent.h"
-#include "Functional/SDLWindow.h"
-#include "GUI/GUISystem.h"
+#include "Core/Functional/SDLWindow.h"
+#include "UserInterface/GUISystem.h"
 #include "MainClass.h"
 #include "Render/FullRenderSystem.h"
 
@@ -68,6 +68,7 @@ int main(int argc, char **argv) {
         }
 
         gsys->PrepareGUI();
+        ImGui::SetCurrentContext(gsys->GetCurrentContext());
         ImGui::ShowDemoWindow();
 
         auto index = rsys->StartFrame();
