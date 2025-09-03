@@ -228,8 +228,28 @@ namespace Engine {
         pimpl->m_buffer_barriers.clear();
         pimpl->m_image_barriers.clear();
     }
-    void RenderGraphBuilder::RecordTransferPass(std::function<void(TransferCommandBuffer &)> pass) {
-        assert(!"Unimplmented");
+    void RenderGraphBuilder::RecordTransferPass(
+        std::function<void(TransferCommandBuffer &)> pass, 
+        const std::string & name
+    ) {
+        std::function<void(vk::CommandBuffer)> f = [system = &this->m_system,
+                                                    pass,
+                                                    name,
+                                                    bb = std::move(pimpl->m_buffer_barriers),
+                                                    ib = std::move(pimpl->m_image_barriers)](vk::CommandBuffer cb) {
+            vk::DependencyInfo dep{vk::DependencyFlags{}, {}, bb, ib};
+            cb.pipelineBarrier2(dep);
+            TransferCommandBuffer tcb{*system, cb};
+            tcb.GetCommandBuffer().beginDebugUtilsLabelEXT({(name + " (Transfer)").c_str()});
+            std::invoke(pass, std::ref(tcb));
+            tcb.GetCommandBuffer().endDebugUtilsLabelEXT();
+        };
+
+        pimpl->m_commands.push_back(f);
+
+        // Get STL containers out of ``valid but unspecified'' states.
+        pimpl->m_buffer_barriers.clear();
+        pimpl->m_image_barriers.clear();
     }
     void RenderGraphBuilder::RecordComputePass(
         std::function<void(ComputeCommandBuffer &)> pass, const std::string &name
@@ -242,7 +262,7 @@ namespace Engine {
             vk::DependencyInfo dep{vk::DependencyFlags{}, {}, bb, ib};
             cb.pipelineBarrier2(dep);
             ComputeCommandBuffer ccb{*system, cb, system->GetFrameManager().GetFrameInFlight()};
-            ccb.GetCommandBuffer().beginDebugUtilsLabelEXT({name.c_str()});
+            ccb.GetCommandBuffer().beginDebugUtilsLabelEXT({(name + " (Compute)").c_str()});
             std::invoke(pass, std::ref(ccb));
             ccb.GetCommandBuffer().endDebugUtilsLabelEXT();
         };

@@ -111,7 +111,10 @@ namespace Engine {
         /**
          * @brief Record a pass with transfer commands.
          */
-        void RecordTransferPass (std::function<void(TransferCommandBuffer &)> pass);
+        void RecordTransferPass (
+            std::function<void(TransferCommandBuffer &)> pass,
+            const std::string & name = ""
+        );
 
         /**
          * @brief Record a pass with compute shader dispatches.
