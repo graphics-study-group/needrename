@@ -121,7 +121,7 @@ namespace Engine {
 
     void ComputeStage::SetInBlockVariable(uint32_t index, std::any var) {
         pimpl->m_inblock_variables[index] = var;
-        pimpl->m_instancedPassInfo.is_descriptor_set_dirty = true;
+        pimpl->m_instancedPassInfo.is_ubo_dirty = true;
     }
 
     void ComputeStage::SetDescVariable(uint32_t index, std::any var) {
