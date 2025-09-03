@@ -24,21 +24,41 @@ int main(int argc, char *argv[]) {
     auto asys = cmc->GetAssetManager();
     asys->SetBuiltinAssetPath(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
     asys->LoadBuiltinAssets();
-    auto cs_ref = asys->GetNewAssetRef("~/shaders/test_compute.comp.spv.asset");
+    auto cs_ref = asys->GetNewAssetRef("~/shaders/fluid.comp.spv.asset");
     asys->LoadAssetImmediately(cs_ref);
 
     auto cs = cs_ref->cas<ShaderAsset>();
     auto ret = ShaderUtils::ReflectSpirvDataCompute(cs->binary);
-
-    assert(ret.desc.names.find("outputImage") != ret.desc.names.end() && ret.desc.names["outputImage"] == 0);
+    assert(ret.inblock.names.find("frame_count") != ret.inblock.names.end() && ret.inblock.names["frame_count"] == 0);
     assert(
-        ret.desc.vars[0].set == 0 && ret.desc.vars[0].binding == 1
-        && ret.desc.vars[0].type == ShaderVariableProperty::Type::StorageImage
+        ret.inblock.vars[0].block_location.set == 0 && ret.inblock.vars[0].block_location.binding == 0
+        && ret.inblock.vars[0].type == ShaderUtils::InBlockVariableData::Type::Int
+        && ret.inblock.vars[0].inblock_location.abs_offset == 0
+        && ret.inblock.vars[0].inblock_location.size == 4
     );
+
+    assert(ret.desc.names.find("inputImage") != ret.desc.names.end() && ret.desc.names["inputImage"] == 1);
+    assert(
+        ret.desc.vars[1].set == 0 && ret.desc.vars[1].binding == 1
+        && ret.desc.vars[1].type == ShaderVariableProperty::Type::StorageImage
+    );
+    assert(ret.desc.names.find("outputImage") != ret.desc.names.end() && ret.desc.names["outputImage"] == 2);
+    assert(
+        ret.desc.vars[2].set == 0 && ret.desc.vars[2].binding == 2
+        && ret.desc.vars[2].type == ShaderVariableProperty::Type::StorageImage
+    );
+    assert(ret.desc.names.find("outputColorImage") != ret.desc.names.end() && ret.desc.names["outputColorImage"] == 3);
+    assert(
+        ret.desc.vars[3].set == 0 && ret.desc.vars[3].binding == 3
+        && ret.desc.vars[3].type == ShaderVariableProperty::Type::StorageImage
+    );
+    
 
     auto rsys = cmc->GetRenderSystem();
 
-    auto color = std::make_shared<Engine::Texture>(*rsys);
+    auto color_input = std::make_shared<Engine::Texture>(*rsys);
+    auto color_output = std::make_shared<Engine::Texture>(*rsys);
+    auto color_present = std::make_shared<Engine::Texture>(*rsys);
     Engine::Texture::TextureDesc desc{
         .dimensions = 2,
         .width = 1280,
@@ -50,11 +70,20 @@ int main(int argc, char *argv[]) {
         .array_layers = 1,
         .is_cube_map = false
     };
-    color->CreateTexture(desc, "Color Compute Test");
+    color_input->CreateTexture(desc, "Color Compute Input");
+    color_output->CreateTexture(desc, "Color Compute Output");
+    desc.format = Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm;
+    color_present->CreateTexture(desc, "Color Present");
     ComputeStage cstage{*rsys};
     cstage.Instantiate(*cs_ref->cas<ShaderAsset>());
     cstage.SetDescVariable(
-        cstage.GetVariableIndex("outputImage").value().first, std::const_pointer_cast<const Texture>(color)
+        cstage.GetVariableIndex("outputImage").value().first, std::const_pointer_cast<const Texture>(color_output)
+    );
+    cstage.SetDescVariable(
+        cstage.GetVariableIndex("inputImage").value().first, std::const_pointer_cast<const Texture>(color_input)
+    );
+    cstage.SetDescVariable(
+        cstage.GetVariableIndex("outputColorImage").value().first, std::const_pointer_cast<const Texture>(color_present)
     );
 
     uint64_t frame_count = 0;
@@ -74,18 +103,44 @@ int main(int argc, char *argv[]) {
         auto ccontext = rsys->GetFrameManager().GetComputeContext();
         ccontext.GetCommandBuffer().Begin();
         ccontext.UseImage(
-            *color, ComputeContext::ImageComputeAccessType::ShaderRandomWrite, ComputeContext::ImageAccessType::None
+            *color_input, ComputeContext::ImageComputeAccessType::ShaderReadRandomWrite, ComputeContext::ImageAccessType::TransferWrite
+        );
+        ccontext.UseImage(
+            *color_output, ComputeContext::ImageComputeAccessType::ShaderRandomWrite, ComputeContext::ImageAccessType::None
+        );
+        ccontext.UseImage(
+            *color_present, ComputeContext::ImageComputeAccessType::ShaderRandomWrite, ComputeContext::ImageAccessType::None
         );
         auto ccb = dynamic_cast<ComputeCommandBuffer &>(ccontext.GetCommandBuffer());
 
         ccontext.PrepareCommandBuffer();
+        cstage.SetInBlockVariable(
+            cstage.GetVariableIndex("frame_count").value().first, 
+            static_cast<int>(frame_count)
+        );
         ccb.BindComputeStage(cstage);
         ccb.DispatchCompute(1280 / 16 + 1, 720 / 16 + 1, 1);
 
-        // We need this barrier to transfer image to color attachment layout for presenting.
+        // Blit back history info
         auto gcontext = rsys->GetFrameManager().GetGraphicsContext();
+        auto & tcontext = static_cast<TransferContext &>(gcontext);
+        tcontext.UseImage(
+            *color_output,
+            GraphicsContext::ImageTransferAccessType::TransferRead,
+            GraphicsContext::ImageAccessType::ShaderRandomWrite
+        );
+        tcontext.UseImage(
+            *color_input,
+            GraphicsContext::ImageTransferAccessType::TransferWrite,
+            GraphicsContext::ImageAccessType::ShaderReadRandomWrite
+        );
+        tcontext.PrepareCommandBuffer();
+        auto & tcb = dynamic_cast<TransferCommandBuffer &>(tcontext.GetCommandBuffer());
+        tcb.BlitColorImage(*color_output, *color_input);
+
+        // We need this barrier to transfer image to color attachment layout for presenting.
         gcontext.UseImage(
-            *color,
+            *color_present,
             GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite,
             GraphicsContext::ImageAccessType::ShaderRandomWrite
         );
@@ -94,13 +149,16 @@ int main(int argc, char *argv[]) {
 
         rsys->GetFrameManager().SubmitMainCommandBuffer();
         rsys->GetFrameManager().StageBlitComposition(
-            color->GetImage(),
-            vk::Extent2D{color->GetTextureDescription().width, color->GetTextureDescription().height},
+            color_present->GetImage(),
+            vk::Extent2D{
+                color_present->GetTextureDescription().width, 
+                color_present->GetTextureDescription().height
+            },
             rsys->GetSwapchain().GetExtent()
         );
         rsys->CompleteFrame();
 
-        SDL_Delay(5);
+        SDL_Delay(15);
     }
 
     rsys->WaitForIdle();
