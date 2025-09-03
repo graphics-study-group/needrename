@@ -71,6 +71,7 @@ namespace Engine {
             case ImageFormat::R8G8B8A8SNorm:
             case ImageFormat::R8G8B8A8UNorm:
             case ImageFormat::R11G11B10UFloat:
+            case ImageFormat::R32G32B32A32SFloat:
                 return vk::ImageAspectFlagBits::eColor;
             case ImageFormat::D32SFLOAT:
                 return vk::ImageAspectFlagBits::eDepth;
@@ -100,6 +101,8 @@ namespace Engine {
                 return vk::Format::eR8G8B8A8Unorm;
             case ImageFormat::R11G11B10UFloat:
                 return vk::Format::eB10G11R11UfloatPack32;
+            case ImageFormat::R32G32B32A32SFloat:
+                return vk::Format::eR32G32B32A32Sfloat;
             case ImageFormat::D32SFLOAT:
                 return vk::Format::eD32Sfloat;
             }
@@ -113,6 +116,8 @@ namespace Engine {
             case ImageFormat::R11G11B10UFloat:
             case ImageFormat::D32SFLOAT:
                 return 4;
+            case ImageFormat::R32G32B32A32SFloat:
+                return 16;
             default:
                 return 0;
             }

@@ -24,6 +24,7 @@ namespace Engine {
             R8G8B8A8UNorm,
             // 32-bit packed float for HDR rendering. In Vulkan, it is actually B10-G11-R11.
             R11G11B10UFloat,
+            R32G32B32A32SFloat,
             D32SFLOAT,
         };
 

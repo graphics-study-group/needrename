@@ -64,7 +64,7 @@ int main(int argc, char *argv[]) {
         .width = 1280,
         .height = 720,
         .depth = 1,
-        .format = Engine::ImageUtils::ImageFormat::R8G8B8A8SNorm,
+        .format = Engine::ImageUtils::ImageFormat::R32G32B32A32SFloat,
         .type = Engine::ImageUtils::ImageType::ColorGeneral,
         .mipmap_levels = 1,
         .array_layers = 1,
