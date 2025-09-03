@@ -93,6 +93,9 @@ namespace Engine {
                         inblock_names[name] = inblock_vars.size();
                         inblock_vars.push_back(std::move(type));
                     }
+                    if (refl_binding.binding != 0) {
+                        SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "UBO located at binding %u instead of 0.", refl_binding.binding);
+                    }
                     break;
                 case vk::DescriptorType::eStorageBuffer:
                     names[refl_binding.name] = vars.size();
@@ -188,7 +191,9 @@ namespace Engine {
             uint32_t descriptor_set_count;
             auto result = shaderModule.EnumerateDescriptorSets(&descriptor_set_count, nullptr);
             assert(result == SPV_REFLECT_RESULT_SUCCESS);
-            assert(descriptor_set_count == 1 && "Only exactly one descriptor set is supported for compute shader.");
+            assert(
+                descriptor_set_count == 1 && "Only exactly one descriptor set is supported for compute shader."
+            );
             std::vector<SpvReflectDescriptorSet *> descriptor_sets{descriptor_set_count, nullptr};
             result = shaderModule.EnumerateDescriptorSets(&descriptor_set_count, descriptor_sets.data());
             assert(result == SPV_REFLECT_RESULT_SUCCESS);
