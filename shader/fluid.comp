@@ -1,21 +1,28 @@
-#version 450 core
 /** Single-pass Navier-Stokes solver, from Simple and Fast Fluids **/
 /** Modified from https://www.shadertoy.com/view/XlsBDf **/
-
+#version 450 core
 #define PI 3.141592653589793
 
-layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+// Dynamic viscosity
+layout(constant_id = 0) const float NU = 0.7;
+// Volume viscosity
+layout(constant_id = 1) const float KAPPA = 0.2;
+// Coefficient for corrective density field
+layout(constant_id = 2) const float K = 0.2;
+// Time step
+layout(constant_id = 3) const float dt = 0.15;
 
+layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
 layout(set = 0, binding = 0) uniform UBO {
     int frame_count;
 } ubo;
-
 layout(set = 0, binding = 1, rgba32f) uniform restrict readonly image2D inputImage;
 layout(set = 0, binding = 2, rgba32f) uniform restrict writeonly image2D outputImage;
 layout(set = 0, binding = 3, rgba8) uniform restrict writeonly image2D outputColorImage;
 
 // We have to do a manual bilinear filter as GLSL does not allow sampling for imageXD data
 // It is very inefficient, but I'm to lazy to do a different binding on the C++ side.
+// We are also ignoring OOB accesses, which might cause a small error on boundaries.
 vec4 sample_input_image(vec2 pixel) {
     ivec2 pixel_int = ivec2(floor(pixel));
     vec2 pixel_frac = fract(pixel);
@@ -92,11 +99,6 @@ vec2 pen(float t, ivec2 image_size) {
 #define Load(p) imageLoad(inputImage, p)
 #define length2(p) dot(p,p)
 
-#define dt 0.15
-#define K 0.2
-#define nu 0.5
-#define kappa 0.1
-
 void main() {
     vec4 c;
     const ivec2 p = ivec2(gl_GlobalInvocationID.xy);
@@ -126,13 +128,13 @@ void main() {
         c.xyw = sample_input_image(p - dt*c.xy).xyw;
         
         // viscosity/diffusion
-        c.xyw += dt * vec3(nu,nu,kappa) * laplacian.xyw;
+        c.xyw += dt * vec3(NU, NU, KAPPA) * laplacian.xyw;
         
         // nullify divergence with pressure field gradient
         c.xy -= K * vec2(dx.z,dy.z);
         
         // external source
-        const float time = ubo.frame_count * 0.15;
+        const float time = ubo.frame_count * dt;
         vec2 m = pen(time, texsize);
         c.xyw += dt * exp(-length2(p - m)/50.) * vec3(m - pen(time-0.1, texsize), 1);
         
