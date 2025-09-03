@@ -2,15 +2,34 @@
 /** Single-pass Navier-Stokes solver, from Simple and Fast Fluids **/
 /** Modified from https://www.shadertoy.com/view/XlsBDf **/
 
+#define PI 3.141592653589793
+
 layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
 
 layout(set = 0, binding = 0) uniform UBO {
     int frame_count;
 } ubo;
 
-layout(set = 0, binding = 1, rgba8) uniform restrict readonly image2D inputImage;
-layout(set = 0, binding = 2, rgba8) uniform restrict writeonly image2D outputImage;
+layout(set = 0, binding = 1, rgba32f) uniform restrict readonly image2D inputImage;
+layout(set = 0, binding = 2, rgba32f) uniform restrict writeonly image2D outputImage;
 layout(set = 0, binding = 3, rgba8) uniform restrict writeonly image2D outputColorImage;
+
+// We have to do a manual bilinear filter as GLSL does not allow sampling for imageXD data
+// It is very inefficient, but I'm to lazy to do a different binding on the C++ side.
+vec4 sample_input_image(vec2 pixel) {
+    ivec2 pixel_int = ivec2(floor(pixel));
+    vec2 pixel_frac = fract(pixel);
+
+    vec4 x_1 = imageLoad(inputImage, pixel_int);
+    vec4 x_2 = imageLoad(inputImage, pixel_int + ivec2(1, 0));
+    vec4 x_3 = imageLoad(inputImage, pixel_int + ivec2(0, 1));
+    vec4 x_4 = imageLoad(inputImage, pixel_int + ivec2(1, 1));
+
+    vec4 top = mix(x_1, x_2, pixel_frac.x);
+    vec4 bottom = mix(x_3, x_4, pixel_frac.x);
+
+    return mix(top, bottom, pixel_frac.y);
+}
 
 vec3 random3(vec3 c) {
     float j = 4096.0*sin(dot(c,vec3(17.0, 59.4, 15.0)));
@@ -104,7 +123,7 @@ void main() {
         c.z -= dt*(dx.z * c.x + dy.z * c.y + div * c.z);
         
         // semi-Langrangian advection
-        c.xyw = Load(ivec2(p - dt*c.xy)).xyw;
+        c.xyw = sample_input_image(p - dt*c.xy).xyw;
         
         // viscosity/diffusion
         c.xyw += dt * vec3(nu,nu,kappa) * laplacian.xyw;
@@ -125,7 +144,7 @@ void main() {
     imageStore(outputImage, p, c);
 
     vec4 o;
-    o.rgb = .6 + .6 * cos(6.3 * atan(c.y,c.x)/(6.283185307179586476925286766559) + vec3(0,23,21)); // velocity
+    o.rgb = .6 + .6 * cos(6.3 * atan(c.y,c.x)/(2.0 * PI) + vec3(0,23,21)); // velocity
     o.rgb *= c.w/5.; // ink
     o.rgb += clamp(c.z - 1., 0., 1.)/10.; // local fluid density
     o.a = 1.;
