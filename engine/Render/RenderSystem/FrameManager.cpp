@@ -345,11 +345,14 @@ namespace Engine::RenderSystemState {
             );
         }
         pimpl->current_framebuffer = acquire_result.value;
+
+        pimpl->m_submission_helper->OnFrameStart();
+
         return pimpl->current_framebuffer;
     }
 
     void FrameManager::SubmitMainCommandBuffer() {
-        pimpl->m_submission_helper->ExecuteSubmission();
+        pimpl->m_submission_helper->OnPreMainCbSubmission();
 
         bool wait_for_semaphore = (pimpl->total_frame_count > 0);
         uint32_t fif = GetFrameInFlight();
@@ -371,6 +374,8 @@ namespace Engine::RenderSystemState {
         info.setSignalSemaphores({this->pimpl->render_command_executed_semaphores[fif].get()});
         std::array<vk::SubmitInfo, 1> infos{info};
         this->pimpl->m_system.getQueueInfo().graphicsQueue.submit(infos, nullptr);
+
+        pimpl->m_submission_helper->OnPostMainCbSubmission();
     }
 
     void FrameManager::StageCopyComposition(
@@ -517,7 +522,7 @@ namespace Engine::RenderSystemState {
         total_frame_count++;
 
         // Handle submissions
-        m_submission_helper->CompleteFrame();
+        m_submission_helper->OnFrameComplete();
     }
 
     SubmissionHelper &FrameManager::GetSubmissionHelper() {

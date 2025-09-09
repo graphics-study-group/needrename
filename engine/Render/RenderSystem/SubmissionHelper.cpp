@@ -21,7 +21,7 @@ namespace Engine::RenderSystemState {
         vk::UniqueFence m_completion_fence{};
     };
 
-    SubmissionHelper::SubmissionHelper(RenderSystem &system) : m_system(system), pimpl(std::make_unique<impl>()) {
+    SubmissionHelper::SubmissionHelper(RenderSystem &system) : IFrameManagerComponent(system), pimpl(std::make_unique<impl>()) {
         // Pre-allocate a fence
         vk::FenceCreateInfo fcinfo{};
         pimpl->m_completion_fence = system.getDevice().createFenceUnique(fcinfo);
@@ -151,7 +151,12 @@ namespace Engine::RenderSystemState {
         m_system.getQueueInfo().graphicsQueue.submit(sinfos, {pimpl->m_completion_fence.get()});
     }
 
-    void SubmissionHelper::CompleteFrame() {
+    void SubmissionHelper::OnPreMainCbSubmission()
+    {
+        this->ExecuteSubmission();
+    }
+
+    void SubmissionHelper::OnFrameComplete() {
         if (!pimpl->m_one_time_cb) return;
 
         auto wfresult = m_system.getDevice().waitForFences(
