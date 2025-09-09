@@ -15,6 +15,7 @@ namespace Engine {
             UNDEFINED,
             R8G8B8A8SNorm,
             R8G8B8A8UNorm,
+            R8G8B8A8SRGB,
             // 32-bit packed float for HDR rendering. In Vulkan, it is actually B10-G11-R11.
             R11G11B10UFloat,
             R32G32B32A32SFloat,
@@ -22,10 +23,14 @@ namespace Engine {
         };
 
         struct TextureDesc {
+            // An integer between 1 and 3 for dimension.
             uint32_t dimensions;
+            // Integers at least 1 for sizes.
             uint32_t width, height, depth;
             ImageUtils::ImageFormat format;
             ImageUtils::ImageType type;
+            // Use zero to automatically determine mipmap levels
+            // by `max(log(width), log(height), log(depth))`
             uint32_t mipmap_levels;
             uint32_t array_layers;
             bool is_cube_map;
