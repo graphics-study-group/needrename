@@ -60,7 +60,7 @@ namespace Engine {
         assert(arrayLayers >= 1);
 
         auto dim = dimension == 1 ? vk::ImageType::e1D : (dimension == 2 ? vk::ImageType::e2D : vk::ImageType::e3D);
-        this->m_image = allocator.AllocateImageUniqueEx(
+        this->m_image = allocator.AllocateImageUnique(
             desc.type,
             dim,
             vk::Extent3D{width, height, depth},

@@ -58,27 +58,7 @@ namespace Engine {
                 BufferType type, size_t size, const std::string &name = ""
             ) const;
 
-            [[deprecated]]
-            AllocatedMemory AllocateImage(
-                ImageUtils::ImageType type, VkExtent3D dimension, VkFormat format, const std::string &name = ""
-            ) const;
-
-            [[deprecated]]
             std::unique_ptr<AllocatedMemory> AllocateImageUnique(
-                ImageUtils::ImageType type, VkExtent3D dimension, VkFormat format, const std::string &name = ""
-            ) const;
-
-            [[deprecated]]
-            AllocatedMemory AllocateImageEx(
-                ImageUtils::ImageType type,
-                VkExtent3D dimension,
-                VkFormat format,
-                uint32_t miplevel,
-                uint32_t array_layers,
-                const std::string &name = ""
-            ) const;
-
-            std::unique_ptr<AllocatedMemory> AllocateImageUniqueEx(
                 ImageUtils::ImageType type,
                 vk::ImageType dimension,
                 vk::Extent3D extent,

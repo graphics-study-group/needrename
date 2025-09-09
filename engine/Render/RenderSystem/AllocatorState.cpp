@@ -86,52 +86,7 @@ namespace Engine::RenderSystemState {
         return std::make_unique<AllocatedMemory>(AllocateBuffer(type, size, name));
     }
 
-    AllocatedMemory AllocatorState::AllocateImage(
-        ImageUtils::ImageType type, VkExtent3D dimension, VkFormat format, const std::string &name
-    ) const {
-        return AllocateImageEx(type, dimension, format, 1, 1, name);
-    }
-
     std::unique_ptr<AllocatedMemory> AllocatorState::AllocateImageUnique(
-        ImageUtils::ImageType type, VkExtent3D dimension, VkFormat format, const std::string &name
-    ) const {
-        return std::make_unique<AllocatedMemory>(AllocateImage(type, dimension, format, name));
-    }
-
-    AllocatedMemory AllocatorState::AllocateImageEx(
-        ImageUtils::ImageType type,
-        VkExtent3D dimension,
-        VkFormat format,
-        uint32_t miplevel,
-        uint32_t array_layers,
-        const std::string &name
-    ) const {
-        const auto [iusage, musage] = ImageUtils::GetImageFlags(type);
-        VkImageCreateInfo iinfo{};
-        iinfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-        iinfo.imageType = static_cast<VkImageType>(ImageUtils::GetVkTypeFromExtent(dimension));
-        iinfo.format = format;
-        iinfo.extent = dimension;
-        iinfo.mipLevels = miplevel;
-        iinfo.arrayLayers = array_layers;
-        iinfo.samples = VK_SAMPLE_COUNT_1_BIT;
-        iinfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-        iinfo.usage = static_cast<VkImageUsageFlags>(iusage);
-        iinfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-        iinfo.queueFamilyIndexCount = 0;
-        iinfo.pQueueFamilyIndices = nullptr;
-        iinfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-
-        VmaAllocationCreateInfo ainfo{};
-        ainfo.usage = musage;
-
-        VkImage image;
-        VmaAllocation allocation;
-        vmaCreateImage(pimpl->m_allocator, &iinfo, &ainfo, &image, &allocation, nullptr);
-        DEBUG_SET_NAME_TEMPLATE(m_system.getDevice(), static_cast<vk::Image>(image), name);
-        return AllocatedMemory(static_cast<vk::Image>(image), allocation, pimpl->m_allocator);
-    }
-    std::unique_ptr<AllocatedMemory> AllocatorState::AllocateImageUniqueEx(
         ImageUtils::ImageType type,
         vk::ImageType dimension,
         vk::Extent3D extent,
