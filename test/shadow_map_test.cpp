@@ -159,10 +159,10 @@ int main(int argc, char **argv) {
     };
     color->CreateTexture(desc, "Color attachment");
     desc.format = Engine::ImageUtils::ImageFormat::D32SFLOAT;
-    desc.type = Engine::ImageUtils::ImageType::DepthImage;
+    desc.type = Engine::ImageUtils::ImageType::DepthAttachment;
     depth->CreateTexture(desc, "Depth attachment");
     desc.width = desc.height = 2048;
-    desc.type = Engine::ImageUtils::ImageType::SampledDepthImage;
+    desc.type = Engine::ImageUtils::ImageType::DepthAttachment;
     shadow->CreateTextureAndSampler(desc, {}, "Shadow map");
     desc.width = desc.height = 16;
     desc.format = Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm;

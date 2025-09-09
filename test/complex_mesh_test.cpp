@@ -247,7 +247,7 @@ int main(int argc, char **argv) {
     };
     color.CreateTexture(desc, "Color Attachment");
     desc.format = Engine::ImageUtils::ImageFormat::D32SFLOAT;
-    desc.type = Engine::ImageUtils::ImageType::DepthImage;
+    desc.type = Engine::ImageUtils::ImageType::DepthAttachment;
     depth.CreateTexture(desc, "Depth Attachment");
 
     RenderGraphBuilder rgb{*rsys};

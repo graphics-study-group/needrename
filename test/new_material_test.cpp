@@ -204,7 +204,7 @@ int main(int argc, char **argv) {
         .height = 1080,
         .depth = 1,
         .format = Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm,
-        .type = Engine::ImageUtils::ImageType::ColorGeneral,
+        .type = Engine::ImageUtils::ImageType::ColorAttachment,
         .mipmap_levels = 1,
         .array_layers = 1,
         .is_cube_map = false
@@ -212,7 +212,7 @@ int main(int argc, char **argv) {
     color->CreateTexture(desc, "Color Attachment");
     postproc->CreateTexture(desc, "GaussianBlurred");
     desc.format = Engine::ImageUtils::ImageFormat::D32SFLOAT;
-    desc.type = Engine::ImageUtils::ImageType::DepthImage;
+    desc.type = Engine::ImageUtils::ImageType::DepthAttachment;
     depth.CreateTexture(desc, "Depth Attachment");
 
     auto asys = cmc->GetAssetManager();

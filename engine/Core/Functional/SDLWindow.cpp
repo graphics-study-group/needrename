@@ -36,7 +36,7 @@ namespace Engine {
         };
         m_color_texture->CreateTexture(desc, "Color attachment");
         desc.format = Engine::ImageUtils::ImageFormat::D32SFLOAT;
-        desc.type = Engine::ImageUtils::ImageType::DepthImage;
+        desc.type = Engine::ImageUtils::ImageType::DepthAttachment;
         m_depth_texture->CreateTexture(desc, "Depth attachment");
     }
 

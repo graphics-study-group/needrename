@@ -65,7 +65,7 @@ int main(int argc, char *argv[]) {
         .height = 720,
         .depth = 1,
         .format = Engine::ImageUtils::ImageFormat::R32G32B32A32SFloat,
-        .type = Engine::ImageUtils::ImageType::ColorGeneral,
+        .type = Engine::ImageUtils::ImageType::ColorAttachment,
         .mipmap_levels = 1,
         .array_layers = 1,
         .is_cube_map = false
@@ -103,7 +103,9 @@ int main(int argc, char *argv[]) {
         auto ccontext = rsys->GetFrameManager().GetComputeContext();
         ccontext.GetCommandBuffer().Begin();
         ccontext.UseImage(
-            *color_input, ComputeContext::ImageComputeAccessType::ShaderReadRandomWrite, ComputeContext::ImageAccessType::TransferWrite
+            *color_input, 
+            ComputeContext::ImageComputeAccessType::ShaderReadRandomWrite, 
+            frame_count == 1 ? ComputeContext::ImageAccessType::None : ComputeContext::ImageAccessType::TransferWrite
         );
         ccontext.UseImage(
             *color_output, ComputeContext::ImageComputeAccessType::ShaderRandomWrite, ComputeContext::ImageAccessType::None

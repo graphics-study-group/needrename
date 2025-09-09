@@ -4,18 +4,11 @@
 namespace Engine {
     namespace ImageUtils {
         enum class ImageType {
-            DepthImage,
-            DepthStencilImage,
-            SampledDepthImage,
-            // Color image used for sampling. Can be transferred from/to.
-            TextureImage,
-            // Color attachment image used for rendering. Can be transferred from/to.
+            DepthAttachment,
+            DepthStencilAttachment,
             ColorAttachment,
-            // Color storage image used for compute shader. Can be transferred from/to.
-            ColorCompute,
-            // General color texture image, suitable for transfering from/to, rendering and sampling.
-            // Seems vk::ImageUsageFlags has no performance impact for desktop GPUs.
-            ColorGeneral
+            // Color image used for sampling. Can be transferred from/to.
+            TextureImage
         };
 
         enum class ImageFormat {

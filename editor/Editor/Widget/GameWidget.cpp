@@ -32,14 +32,14 @@ namespace Editor {
             .height = (uint32_t)m_texture_height,
             .depth = 1,
             .format = Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm,
-            .type = Engine::ImageUtils::ImageType::ColorGeneral,
+            .type = Engine::ImageUtils::ImageType::ColorAttachment,
             .mipmap_levels = 1,
             .array_layers = 1,
             .is_cube_map = false
         };
         m_color_texture->CreateTextureAndSampler(desc, {}, "Game color attachment");
         desc.format = Engine::ImageUtils::ImageFormat::D32SFLOAT;
-        desc.type = Engine::ImageUtils::ImageType::SampledDepthImage;
+        desc.type = Engine::ImageUtils::ImageType::DepthAttachment;
         m_depth_texture->CreateTextureAndSampler(desc, {}, "Game depth attachment");
 
         m_color_att_id = reinterpret_cast<ImTextureID>(ImGui_ImplVulkan_AddTexture(

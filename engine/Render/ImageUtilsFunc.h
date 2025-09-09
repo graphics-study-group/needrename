@@ -1,5 +1,5 @@
-#ifndef RENDER_IMAGEUTILSFUNC
-#define RENDER_IMAGEUTILSFUNC
+#ifndef ENGINE_RENDER_IMAGEUTILSFUNC_INCLUDED
+#define ENGINE_RENDER_IMAGEUTILSFUNC_INCLUDED
 
 #include "ImageUtils.h"
 #include <vk_mem_alloc.h>
@@ -9,58 +9,41 @@ namespace Engine {
     namespace ImageUtils {
         constexpr std::tuple<vk::ImageUsageFlags, VmaMemoryUsage> GetImageFlags(ImageType type) {
             switch (type) {
-            case ImageType::DepthImage:
-            case ImageType::DepthStencilImage:
-                return std::make_tuple(
-                    vk::ImageUsageFlagBits::eDepthStencilAttachment, VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE
-                );
-            case ImageType::SampledDepthImage:
+            case ImageType::DepthAttachment:
+            case ImageType::DepthStencilAttachment:
                 return std::make_tuple(
                     vk::ImageUsageFlags{
-                        vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eSampled
+                        vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst
+                            | vk::ImageUsageFlagBits::eDepthStencilAttachment
+                            | vk::ImageUsageFlagBits::eSampled
                     },
                     VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE
                 );
-            case ImageType::TextureImage:
-                return std::make_tuple(
-                    vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst
-                        | vk::ImageUsageFlagBits::eSampled,
-                    VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE
-                );
             case ImageType::ColorAttachment:
-                return std::make_tuple(
-                    vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst
-                        | vk::ImageUsageFlagBits::eColorAttachment,
-                    VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE
-                );
-            case ImageType::ColorCompute:
-                return std::make_tuple(
-                    vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst
-                        | vk::ImageUsageFlagBits::eStorage,
-                    VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE
-                );
-            case ImageType::ColorGeneral:
                 return std::make_tuple(
                     vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst
                         | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage
                         | vk::ImageUsageFlagBits::eColorAttachment,
                     VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE
                 );
+            case ImageType::TextureImage:
+                return std::make_tuple(
+                    vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled,
+                    VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE
+                );
             }
             return std::make_tuple(vk::ImageUsageFlags{}, VMA_MEMORY_USAGE_AUTO);
         }
 
+        [[deprecated("Use GetVkAspect() to infer aspect from format instead.")]]
         constexpr vk::ImageAspectFlags GetVkImageAspect(ImageType type) {
             switch (type) {
-            case ImageType::DepthImage:
-            case ImageType::SampledDepthImage:
+            case ImageType::DepthAttachment:
                 return vk::ImageAspectFlagBits::eDepth;
-            case ImageType::DepthStencilImage:
+            case ImageType::DepthStencilAttachment:
                 return vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
             case ImageType::TextureImage:
             case ImageType::ColorAttachment:
-            case ImageType::ColorCompute:
-            case ImageType::ColorGeneral:
                 return vk::ImageAspectFlagBits::eColor;
             }
             return vk::ImageAspectFlags{};
@@ -150,4 +133,4 @@ namespace Engine {
     } // namespace ImageUtils
 } // namespace Engine
 
-#endif // RENDER_IMAGEUTILSFUNC
+#endif // ENGINE_RENDER_IMAGEUTILSFUNC_INCLUDED
