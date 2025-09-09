@@ -1,7 +1,6 @@
 #include "TextureSlice.h"
 
 #include "Render/ImageUtilsFunc.h"
-#include "Render/Memory/SampledTexture.h"
 #include "Render/Memory/Texture.h"
 #include "Render/RenderSystem.h"
 

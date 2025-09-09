@@ -4,25 +4,25 @@
 #include <cassert>
 #include <glm.hpp>
 
-#include "Render/Memory/SampledTexture.h"
+#include "Render/Memory/Texture.h"
 #include "Render/Memory/TextureSlice.h"
 
 static std::pair<vk::ImageView, vk::Sampler> ExtractImageViewAndSampler(std::any var) noexcept {
     using namespace Engine;
-    if (var.type() == typeid(std::shared_ptr<const SampledTexture>)) {
-        auto ptr = std::any_cast<std::shared_ptr<const SampledTexture>>(var);
+    if (var.type() == typeid(std::shared_ptr<const Texture>)) {
+        auto ptr = std::any_cast<std::shared_ptr<const Texture>>(var);
         return std::make_pair(ptr->GetImageView(), ptr->GetSampler());
     }
-    if (var.type() == typeid(std::shared_ptr<const SlicedSampledTextureView>)) {
-        auto ptr = std::any_cast<std::shared_ptr<const SlicedSampledTextureView>>(var);
+    if (var.type() == typeid(std::shared_ptr<const SlicedTextureView>)) {
+        auto ptr = std::any_cast<std::shared_ptr<const SlicedTextureView>>(var);
         return std::make_pair(
-            ptr->GetImageView(), dynamic_cast<const SampledTexture &>(ptr->GetTexture()).GetSampler()
+            ptr->GetImageView(), ptr->GetTexture().GetSampler()
         );
     }
 
     // Or maybe we should force everyone to use immutable samplers...
-    assert(!"A sampled image variable must be typed std::shared_ptr<const SampledTexture> or std::shared_ptr<const "
-            "SlicedSampledTextureView>.");
+    assert(!"A sampled image variable must be typed std::shared_ptr<const Texture> or std::shared_ptr<const "
+            "SlicedTextureView>.");
     return std::make_pair(nullptr, nullptr);
 }
 

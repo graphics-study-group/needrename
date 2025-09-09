@@ -39,9 +39,9 @@
 #include "Render/Renderer/Camera.h"
 #include "Render/Renderer/HomogeneousMesh.h"
 
-#include "Render/Memory/SampledTexture.h"
-#include "Render/Memory/SampledTextureInstantiated.h"
 #include "Render/Memory/Texture.h"
+#include "Render/Memory/RenderTargetTexture.h"
+#include "Render/Memory/ImageTexture.h"
 
 #include "Render/RenderSystem.h"
 

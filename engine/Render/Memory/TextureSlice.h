@@ -41,11 +41,6 @@ namespace Engine {
 
         vk::ImageView GetImageView() const noexcept;
     };
-
-    class SlicedSampledTextureView : public SlicedTextureView {
-    public:
-        SlicedSampledTextureView(RenderSystem &system, SampledTexture &texture, TextureSlice slice);
-    };
 } // namespace Engine
 
 #endif // RENDER_MEMORY_TEXTURESLICE_INCLUDED
