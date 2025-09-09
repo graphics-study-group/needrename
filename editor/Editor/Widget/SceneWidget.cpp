@@ -3,7 +3,7 @@
 #include <MainClass.h>
 #include <Render/AttachmentUtils.h>
 #include <Render/ImageUtils.h>
-#include <Render/Memory/SampledTexture.h>
+#include <Render/Memory/Texture.h>
 #include <Render/Pipeline/CommandBuffer/GraphicsCommandBuffer.h>
 #include <Render/Pipeline/CommandBuffer/GraphicsContext.h>
 #include <Render/RenderSystem.h>
@@ -32,9 +32,7 @@ namespace Editor {
         SDL_GetWindowSizeInPixels(
             Engine::MainClass::GetInstance()->GetWindow()->GetWindow(), &m_texture_width, &m_texture_height
         );
-        m_color_texture = std::make_shared<Engine::SampledTexture>(*render_system);
-        m_depth_texture = std::make_shared<Engine::SampledTexture>(*render_system);
-        Engine::Texture::TextureDesc desc{
+        Engine::Texture::TextureDesc tdesc{
             .dimensions = 2,
             .width = (uint32_t)m_texture_width,
             .height = (uint32_t)m_texture_height,
@@ -45,10 +43,12 @@ namespace Editor {
             .array_layers = 1,
             .is_cube_map = false
         };
-        m_color_texture->CreateTextureAndSampler(desc, {}, "Scene color attachment");
-        desc.format = Engine::ImageUtils::ImageFormat::D32SFLOAT;
-        desc.type = Engine::ImageUtils::ImageType::DepthAttachment;
-        m_depth_texture->CreateTextureAndSampler(desc, {}, "Scene depth attachment");
+        Engine::Texture::SamplerDesc sdesc{};
+
+        m_color_texture = std::make_shared<Engine::Texture>(*render_system, tdesc, sdesc, "scene color attachment");
+        tdesc.format = Engine::ImageUtils::ImageFormat::D32SFLOAT;
+        tdesc.type = Engine::ImageUtils::ImageType::DepthAttachment;
+        m_depth_texture = std::make_shared<Engine::Texture>(*render_system, tdesc, sdesc, "scene depth attachment");
 
         m_color_att_id = reinterpret_cast<ImTextureID>(ImGui_ImplVulkan_AddTexture(
             m_color_texture->GetSampler(), m_color_texture->GetImageView(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL

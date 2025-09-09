@@ -13,12 +13,12 @@ namespace Engine {
      * uploaded to device memory with
      * `EnqueueTextureBufferSubmission()`.
      */
-    class SampledTextureInstantiated : public SampledTexture, public IInstantiatedFromAsset<Image2DTextureAsset> {
+    /* class SampledTextureInstantiated : public SampledTexture, public IInstantiatedFromAsset<Image2DTextureAsset> {
     public:
         SampledTextureInstantiated(RenderSystem &system);
 
         void Instantiate(const Image2DTextureAsset &asset) override;
-    };
+    }; */
 } // namespace Engine
 
 #endif // RENDER_MEMORY_SAMPLEDTEXTUREINSTANTIATED_INCLUDED

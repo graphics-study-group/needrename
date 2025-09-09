@@ -21,8 +21,6 @@ namespace Engine {
         int w, h;
         SDL_GetWindowSizeInPixels(m_window, &w, &h);
 
-        m_color_texture = std::make_shared<Texture>(*render_system);
-        m_depth_texture = std::make_shared<Texture>(*render_system);
         Engine::Texture::TextureDesc desc{
             .dimensions = 2,
             .width = (uint32_t)w,
@@ -34,10 +32,11 @@ namespace Engine {
             .array_layers = 1,
             .is_cube_map = false
         };
-        m_color_texture->CreateTexture(desc, "Color attachment");
+
+        m_color_texture = std::make_shared<Texture>(*render_system, desc, ImageUtils::SamplerDesc{}, "Color attachment");
         desc.format = Engine::ImageUtils::ImageFormat::D32SFLOAT;
         desc.type = Engine::ImageUtils::ImageType::DepthAttachment;
-        m_depth_texture->CreateTexture(desc, "Depth attachment");
+        m_depth_texture = std::make_shared<Texture>(*render_system, desc, ImageUtils::SamplerDesc{}, "Depth attachment");
     }
 
     vk::Extent2D SDLWindow::GetExtent() const {

@@ -8,6 +8,7 @@
 namespace vk {
     class Image;
     class ImageView;
+    class Sampler;
 } // namespace vk
 
 namespace Engine {
@@ -18,36 +19,31 @@ namespace Engine {
     class Texture {
     public:
         using TextureDesc = ImageUtils::TextureDesc;
+        using SamplerDesc = ImageUtils::SamplerDesc;
 
     protected:
         RenderSystem &m_system;
-        TextureDesc m_desc;
-        std::unique_ptr<AllocatedMemory> m_image;
-        std::unique_ptr<SlicedTextureView> m_full_view;
-        std::string m_name;
+
+        struct impl;
+        std::unique_ptr <impl> pimpl;
 
     public:
-        Texture(RenderSystem &) noexcept;
+        Texture(
+            RenderSystem & system,
+            TextureDesc texture,
+            SamplerDesc sampler,
+            const std::string & name = ""
+        );
         virtual ~Texture();
 
-        void CreateTexture(
-            uint32_t dimensions,
-            uint32_t width,
-            uint32_t height,
-            uint32_t depth,
-            ImageUtils::ImageFormat format,
-            ImageUtils::ImageType type,
-            uint32_t mipLevels,
-            uint32_t arrayLayers = 1,
-            bool isCubeMap = false,
-            std::string name = ""
-        );
 
-        void CreateTexture(TextureDesc desc, std::string name = "");
+        const TextureDesc & GetTextureDescription() const noexcept;
 
-        const TextureDesc &GetTextureDescription() const noexcept;
+        const SamplerDesc & GetSamplerDescription() const noexcept;
 
         vk::Image GetImage() const noexcept;
+
+        vk::Sampler GetSampler() const noexcept;
 
         const SlicedTextureView &GetFullSlice() const noexcept;
 
