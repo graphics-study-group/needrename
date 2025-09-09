@@ -130,6 +130,44 @@ namespace Engine {
             }
             return view_type;
         }
+
+        constexpr vk::Filter ToVkFilter(SamplerDesc::FilterMode filter) {
+            using Mode = SamplerDesc::FilterMode;
+            switch (filter) {
+            case Mode::Linear:
+                return vk::Filter::eLinear;
+            case Mode::Point:
+                return vk::Filter::eNearest;
+            }
+            assert(false);
+            return {};
+        }
+
+        constexpr vk::SamplerMipmapMode ToVkSamplerMipmapMode(SamplerDesc::FilterMode filter) {
+            using Mode = SamplerDesc::FilterMode;
+            switch (filter) {
+            case Mode::Linear:
+                return vk::SamplerMipmapMode::eLinear;
+            case Mode::Point:
+                return vk::SamplerMipmapMode::eNearest;
+            }
+            assert(false);
+            return {};
+        }
+
+        constexpr vk::SamplerAddressMode ToVkSamplerAddressMode(SamplerDesc::AddressMode addr) {
+            using Mode = SamplerDesc::AddressMode;
+            switch (addr) {
+            case Mode::Repeat:
+                return vk::SamplerAddressMode::eRepeat;
+            case Mode::MirroredRepeat:
+                return vk::SamplerAddressMode::eMirroredRepeat;
+            case Mode::ClampToEdge:
+                return vk::SamplerAddressMode::eClampToEdge;
+            }
+            assert(false);
+            return {};
+        }
     } // namespace ImageUtils
 } // namespace Engine
 

@@ -8,11 +8,11 @@ namespace vk {
 }
 
 namespace Engine {
-    class SamplerDesc;
 
     class SampledTexture : public Texture {
     public:
         using Texture::TextureDesc;
+        using SamplerDesc = ImageUtils::SamplerDesc;
 
     protected:
         struct impl;

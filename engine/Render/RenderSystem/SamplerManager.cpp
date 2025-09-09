@@ -2,48 +2,11 @@
 
 #include <vulkan/vulkan.hpp>
 #include "Render/DebugUtils.h"
-
-static constexpr vk::Filter ToVkFilter(Engine::SamplerDesc::FilterMode filter) {
-    using Mode =Engine::SamplerDesc::FilterMode;
-    switch (filter) {
-    case Mode::Linear:
-        return vk::Filter::eLinear;
-    case Mode::Point:
-        return vk::Filter::eNearest;
-    }
-    assert(false);
-    return {};
-}
-
-static constexpr vk::SamplerMipmapMode ToVkSamplerMipmapMode(Engine::SamplerDesc::FilterMode filter) {
-    using Mode = Engine::SamplerDesc::FilterMode;
-    switch (filter) {
-    case Mode::Linear:
-        return vk::SamplerMipmapMode::eLinear;
-    case Mode::Point:
-        return vk::SamplerMipmapMode::eNearest;
-    }
-    assert(false);
-    return {};
-}
-
-static constexpr vk::SamplerAddressMode ToVkSamplerAddressMode(Engine::SamplerDesc::AddressMode addr) {
-    using Mode = Engine::SamplerDesc::AddressMode;
-    switch (addr) {
-    case Mode::Repeat:
-        return vk::SamplerAddressMode::eRepeat;
-    case Mode::MirroredRepeat:
-        return vk::SamplerAddressMode::eMirroredRepeat;
-    case Mode::ClampToEdge:
-        return vk::SamplerAddressMode::eClampToEdge;
-    }
-    assert(false);
-    return {};
-}
+#include "Render/ImageUtilsFunc.h"
 
 namespace Engine::RenderSystemState {
     struct SamplerManager::impl {
-        std::unordered_map <SamplerDesc, vk::UniqueSampler, SamplerDesc::Hasher<false>> m_samplers;
+        std::unordered_map <ImageUtils::SamplerDesc, vk::UniqueSampler, ImageUtils::SamplerDesc::Hasher<false>> m_samplers;
     };
 
     SamplerManager::SamplerManager(RenderSystem &system) : 
@@ -52,7 +15,7 @@ namespace Engine::RenderSystemState {
     SamplerManager::~SamplerManager() {
     }
 
-    vk::Sampler SamplerManager::GetSampler(SamplerDesc desc) {
+    vk::Sampler SamplerManager::GetSampler(ImageUtils::SamplerDesc desc) {
         auto itr = pimpl->m_samplers.find(desc);
         if (itr == pimpl->m_samplers.end()) {
             vk::UniqueSampler s = m_system.getDevice().createSamplerUnique(

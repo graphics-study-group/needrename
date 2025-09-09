@@ -33,7 +33,7 @@ namespace Engine {
         pimpl->m_sampler_desc = samplerDesc;
     }
 
-    const SamplerDesc &SampledTexture::GetSamplerDesc() const noexcept {
+    const SampledTexture::SamplerDesc &SampledTexture::GetSamplerDesc() const noexcept {
         return pimpl->m_sampler_desc;
     }
 
