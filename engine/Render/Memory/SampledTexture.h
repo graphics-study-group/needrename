@@ -8,25 +8,11 @@ namespace vk {
 }
 
 namespace Engine {
+    class SamplerDesc;
+
     class SampledTexture : public Texture {
     public:
         using Texture::TextureDesc;
-        struct SamplerDesc {
-            enum class AddressMode {
-                Repeat,
-                MirroredRepeat,
-                ClampToEdge
-            };
-
-            enum class FilterMode {
-                Point,
-                Linear
-            };
-
-            FilterMode min_filter{FilterMode::Point}, max_filter{FilterMode::Point}, mipmap_filter{FilterMode::Point};
-            AddressMode u_address{AddressMode::Repeat}, v_address{AddressMode::Repeat}, w_address{AddressMode::Repeat};
-            float biasLod{0.0}, minLod{0.0}, maxLod{0.0};
-        };
 
     protected:
         struct impl;

@@ -11,6 +11,7 @@
 #include <Render/Pipeline/CommandBuffer/GraphicsContext.h>
 #include <Render/RenderSystem.h>
 #include <Render/RenderSystem/FrameManager.h>
+#include <Render/RenderSystem/SamplerManager.h>
 #include <backends/imgui_impl_vulkan.h>
 
 namespace Editor {
