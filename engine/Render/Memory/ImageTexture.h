@@ -4,6 +4,7 @@
 #include "Texture.h"
 
 namespace Engine {
+    class Image2DTextureAsset;
     /**
      * @brief A read-only image texture.
      * Its content must be transferred from the CPU side, and
@@ -12,7 +13,7 @@ namespace Engine {
     class ImageTexture : public Texture {
     public:
         struct ImageTextureDesc {
-#define COPY_ENUM_VALUE(x) x ## = (int)ImageUtils::ImageFormat:: ## x
+#define COPY_ENUM_VALUE(x) x = (int)ImageUtils::ImageFormat::x
             enum class ImageTextureFormat {
                 COPY_ENUM_VALUE(R8G8B8A8SNorm),
                 COPY_ENUM_VALUE(R8G8B8A8UNorm),
@@ -24,11 +25,17 @@ namespace Engine {
             uint32_t width, height, depth;
             uint32_t mipmap_levels;
             uint32_t array_layers;
-            ImageTextureFormat format{};
+            ImageTextureFormat format;
 
-            SamplerDesc sampler;
             bool is_cube_map;
         };
+
+        ImageTexture(RenderSystem & system,
+            ImageTextureDesc texture,
+            SamplerDesc sampler,
+            const std::string & name = ""
+        );
+        ImageTexture(RenderSystem & system, const Image2DTextureAsset &asset);
     };
 }
 

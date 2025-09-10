@@ -12,7 +12,7 @@ namespace Engine {
     public:
         struct RenderTargetTextureDesc {
 
-#define COPY_ENUM_VALUE(x) x ## = (int)ImageUtils::ImageFormat:: ## x
+#define COPY_ENUM_VALUE(x) x = (int)ImageUtils::ImageFormat::x
             enum class RTTFormat {
                 COPY_ENUM_VALUE(R8G8B8A8SNorm),
                 COPY_ENUM_VALUE(R8G8B8A8UNorm),
@@ -27,7 +27,6 @@ namespace Engine {
             uint32_t mipmap_levels;
             uint32_t array_layers;
             RTTFormat format;
-            SamplerDesc sampler;
 
             // Multisample level. If set to a value higher than One,
             // an additional texture containing multisamples will be
@@ -36,6 +35,13 @@ namespace Engine {
             uint8_t multisample;
             bool is_cube_map;
         };
+
+        RenderTargetTexture(
+            RenderSystem & system, 
+            RenderTargetTextureDesc texture, 
+            SamplerDesc sampler,
+            const std::string & name = ""
+        );
     };
 }
 
