@@ -1,7 +1,7 @@
 #include "BlinnPhong.h"
 #include "Asset/Material/MaterialAsset.h"
 #include "Asset/Texture/Image2DTextureAsset.h"
-#include "Render/Memory/SampledTextureInstantiated.h"
+#include "Render/Memory/ImageTexture.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/FrameManager.h"
 #include "Render/RenderSystem/SubmissionHelper.h"
@@ -14,7 +14,7 @@ namespace Engine::Materials {
         specular_id = tpl->GetVariableIndex("specular_color", 0).value().first;
         ambient_id = tpl->GetVariableIndex("ambient_color", 0).value().first;
     }
-    void BlinnPhongInstance::SetBaseTexture(std::shared_ptr<const SampledTexture> image) {
+    void BlinnPhongInstance::SetBaseTexture(std::shared_ptr<const Texture> image) {
         this->WriteTextureUniform(0, texture_id, image);
     }
     void BlinnPhongInstance::SetSpecular(glm::vec4 spec) {
@@ -31,8 +31,7 @@ namespace Engine::Materials {
         assert(base_texture_prop.m_type == MaterialProperty::Type::Texture);
         auto base_texture_asset =
             (std::any_cast<std::shared_ptr<AssetRef>>(base_texture_prop.m_value))->as<Image2DTextureAsset>();
-        auto base_texture = std::make_shared<SampledTextureInstantiated>(m_system);
-        base_texture->Instantiate(*base_texture_asset);
+        auto base_texture = std::make_shared<ImageTexture>(m_system, *base_texture_asset);
         this->SetBaseTexture(base_texture);
         m_system.GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
             *base_texture, base_texture_asset->GetPixelData(), base_texture_asset->GetPixelDataSize()

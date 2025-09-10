@@ -7,7 +7,7 @@
 
 namespace Engine {
     class RenderSystem;
-    class SampledTexture;
+    class Texture;
 
     namespace Materials {
         class BlinnPhongInstance : public MaterialInstance {
@@ -15,7 +15,7 @@ namespace Engine {
 
         public:
             BlinnPhongInstance(RenderSystem &system, std::shared_ptr<MaterialTemplate> tpl);
-            void SetBaseTexture(std::shared_ptr<const SampledTexture> image);
+            void SetBaseTexture(std::shared_ptr<const Texture> image);
             void SetSpecular(glm::vec4 spec);
             void SetAmbient(glm::vec4 spec);
             void Instantiate(const MaterialAsset &asset) override;

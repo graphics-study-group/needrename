@@ -46,8 +46,4 @@ namespace Engine {
     vk::ImageView SlicedTextureView::GetImageView() const noexcept {
         return pimpl->m_view.get();
     }
-    SlicedSampledTextureView::SlicedSampledTextureView(
-        RenderSystem &system, SampledTexture &texture, TextureSlice slice
-    ) : SlicedTextureView(system, texture, slice) {
-    }
 } // namespace Engine

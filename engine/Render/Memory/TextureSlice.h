@@ -9,7 +9,6 @@ namespace vk {
 
 namespace Engine {
     class Texture;
-    class SampledTexture;
     class RenderSystem;
 
     struct TextureSlice {

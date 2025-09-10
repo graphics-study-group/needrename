@@ -1,8 +1,7 @@
 #include "MaterialInstance.h"
 
 #include "Asset/Material/MaterialAsset.h"
-
-#include "Render/Memory/SampledTextureInstantiated.h"
+#include "Render/Memory/ImageTexture.h"
 #include "Render/Pipeline/PipelineInfo.h"
 #include "Render/Pipeline/PipelineUtils.h"
 #include "Render/RenderSystem.h"
@@ -78,7 +77,7 @@ namespace Engine {
     }
 
     void MaterialInstance::WriteTextureUniform(
-        uint32_t pass, uint32_t index, std::shared_ptr<const SampledTexture> texture
+        uint32_t pass, uint32_t index, std::shared_ptr<const Texture> texture
     ) {
         assert(pimpl->m_pass_info.contains(pass) && "Cannot find pass.");
         assert(
@@ -240,8 +239,8 @@ namespace Engine {
                     auto texture_asset =
                         std::any_cast<std::shared_ptr<AssetRef>>(itr->second.m_value)->as<Image2DTextureAsset>();
                     // TODO: We should allocate texture from assets in a pool.
-                    auto texture = std::make_shared<SampledTextureInstantiated>(m_system);
-                    texture->Instantiate(*texture_asset);
+                    auto texture = std::make_shared<ImageTexture>(m_system, *texture_asset);
+
                     this->WriteTextureUniform(pass_index, desc_idx, texture);
                     m_system.GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
                         *texture, texture_asset->GetPixelData(), texture_asset->GetPixelDataSize()

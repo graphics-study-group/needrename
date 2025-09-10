@@ -1,5 +1,5 @@
-#ifndef RENDER_MATERIAL_MATERIALINSTANCE_INCLUDED
-#define RENDER_MATERIAL_MATERIALINSTANCE_INCLUDED
+#ifndef PIPELINE_MATERIAL_MATERIALINSTANCE_INCLUDED
+#define PIPELINE_MATERIAL_MATERIALINSTANCE_INCLUDED
 
 #include "MaterialTemplate.h"
 #include "Render/Memory/Buffer.h"
@@ -9,7 +9,7 @@
 #include <any>
 
 namespace Engine {
-    class SampledTexture;
+    class Texture;
     class Buffer;
     class MaterialAsset;
 
@@ -67,7 +67,7 @@ namespace Engine {
          * 
          * TODO: Figure out a way to connect samplers with textures
          */
-        void WriteTextureUniform(uint32_t pass, uint32_t index, std::shared_ptr<const SampledTexture> texture);
+        void WriteTextureUniform(uint32_t pass, uint32_t index, std::shared_ptr<const Texture> texture);
 
         /**
          * @brief Set the storage buffer uniform descriptor to point to a given texture.
@@ -161,4 +161,4 @@ namespace Engine {
     };
 } // namespace Engine
 
-#endif // RENDER_MATERIAL_MATERIALINSTANCE_INCLUDED
+#endif // PIPELINE_MATERIAL_MATERIALINSTANCE_INCLUDED
