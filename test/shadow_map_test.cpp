@@ -109,7 +109,7 @@ int main(int argc, char **argv) {
     // Prepare texture
     auto test_texture_asset = std::make_shared<Image2DTextureAsset>();
     test_texture_asset->LoadFromFile(std::string(ENGINE_ASSETS_DIR) + "/bunny/bunny.png");
-    auto allocated_image_texture = std::make_shared<ImageTexture>(*rsys, *test_texture_asset);
+    auto allocated_image_texture = ImageTexture::Create(*rsys, *test_texture_asset);
 
     // Prepare mesh
     auto test_mesh_asset = std::make_shared<LowerPlaneMeshAsset>();
@@ -152,12 +152,12 @@ int main(int argc, char **argv) {
         .multisample = 1,
         .is_cube_map = false
     };
-    auto color = std::make_shared<Engine::RenderTargetTexture>(*rsys, desc, Texture::SamplerDesc{}, "Color attachment");
+    std::shared_ptr color = Engine::RenderTargetTexture::Create(*rsys, desc, Texture::SamplerDesc{}, "Color attachment");
     desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::D32SFLOAT;
-    auto depth = std::make_shared<Engine::RenderTargetTexture>(*rsys, desc, Texture::SamplerDesc{}, "Depth attachment");
+    std::shared_ptr depth = Engine::RenderTargetTexture::Create(*rsys, desc, Texture::SamplerDesc{}, "Depth attachment");
     desc.width = desc.height = 2048;
-    auto shadow = std::make_shared<Engine::RenderTargetTexture>(*rsys, desc, Texture::SamplerDesc{}, "Depth attachment");
-    auto blank_color = std::make_shared<Engine::ImageTexture>(
+    std::shared_ptr shadow = Engine::RenderTargetTexture::Create(*rsys, desc, Texture::SamplerDesc{}, "Depth attachment");
+    std::shared_ptr blank_color = Engine::ImageTexture::Create(
         *rsys, 
         ImageTexture::ImageTextureDesc{
             .dimensions = 2,

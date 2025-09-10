@@ -185,17 +185,17 @@ int main(int argc, char **argv) {
         .multisample = 1,
         .is_cube_map = false
     };
-    Engine::RenderTargetTexture depth{*rsys, desc, Texture::SamplerDesc{}, "Depth Attachment"};
+    auto depth = RenderTargetTexture::Create(*rsys, desc, Texture::SamplerDesc{}, "Depth Attachment");
     desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R8G8B8A8UNorm;
-    auto color_1 = std::make_shared<RenderTargetTexture>(*rsys, desc, Texture::SamplerDesc{}, "Color Attachment (Position)");
-    auto color_2 = std::make_shared<RenderTargetTexture>(*rsys, desc, Texture::SamplerDesc{}, "Color Attachment (Vertex color)");
-    auto color_3 = std::make_shared<RenderTargetTexture>(*rsys, desc, Texture::SamplerDesc{}, "Color Attachment (Normal)");
-    auto color_4 = std::make_shared<RenderTargetTexture>(*rsys, desc, Texture::SamplerDesc{}, "Color Attachment (Texcoord)");
+    auto color_1 = RenderTargetTexture::Create(*rsys, desc, Texture::SamplerDesc{}, "Color Attachment (Position)");
+    auto color_2 = RenderTargetTexture::Create(*rsys, desc, Texture::SamplerDesc{}, "Color Attachment (Vertex color)");
+    auto color_3 = RenderTargetTexture::Create(*rsys, desc, Texture::SamplerDesc{}, "Color Attachment (Normal)");
+    auto color_4 = RenderTargetTexture::Create(*rsys, desc, Texture::SamplerDesc{}, "Color Attachment (Texcoord)");
 
     auto asys = cmc->GetAssetManager();
 
     RenderGraph rg{BuildRenderGraph(
-        rsys.get(), color_1.get(), color_2.get(), color_3.get(), color_4.get(), &depth, test_material_instance.get(), &test_mesh)
+        rsys.get(), color_1.get(), color_2.get(), color_3.get(), color_4.get(), depth.get(), test_material_instance.get(), &test_mesh)
     };
 
     bool quited = false;

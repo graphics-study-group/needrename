@@ -154,7 +154,7 @@ int main(int argc, char **argv) {
     // Prepare texture
     auto test_texture_asset = std::make_shared<Image2DTextureAsset>();
     test_texture_asset->LoadFromFile(std::string(ENGINE_ASSETS_DIR) + "/bunny/bunny.png");
-    auto allocated_image_texture = std::make_shared<ImageTexture>(*rsys, *test_texture_asset);
+    std::shared_ptr allocated_image_texture = ImageTexture::Create(*rsys, *test_texture_asset);
 
     // Prepare material
     cmc->GetAssetManager()->LoadBuiltinAssets();
@@ -213,10 +213,10 @@ int main(int argc, char **argv) {
         .multisample = 1,
         .is_cube_map = false
     };
-    auto color = std::make_shared<RenderTargetTexture>(*rsys, desc, Texture::SamplerDesc{}, "Color Attachment");
-    auto postproc = std::make_shared<RenderTargetTexture>(*rsys, desc, Texture::SamplerDesc{}, "Gaussian Blurred");
+    std::shared_ptr color = RenderTargetTexture::Create(*rsys, desc, Texture::SamplerDesc{}, "Color Attachment");
+    std::shared_ptr postproc = RenderTargetTexture::Create(*rsys, desc, Texture::SamplerDesc{}, "Gaussian Blurred");
     desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::D32SFLOAT;
-    Engine::RenderTargetTexture depth{*rsys, desc, Texture::SamplerDesc{}, "Depth Attachment"};
+    std::shared_ptr depth = RenderTargetTexture::Create(*rsys, desc, Texture::SamplerDesc{}, "Depth Attachment");
 
     auto asys = cmc->GetAssetManager();
     auto cs_ref = asys->GetNewAssetRef("~/shaders/gaussian_blur.comp.spv.asset");
@@ -232,9 +232,9 @@ int main(int argc, char **argv) {
         std::const_pointer_cast<const Texture>(std::static_pointer_cast<Texture>(postproc))
     );
 
-    RenderGraph nonblur{BuildRenderGraph(rsys.get(), color.get(), &depth, test_material_instance.get(), &test_mesh)};
+    RenderGraph nonblur{BuildRenderGraph(rsys.get(), color.get(), depth.get(), test_material_instance.get(), &test_mesh)};
     RenderGraph blur{BuildRenderGraph(
-        rsys.get(), color.get(), &depth, test_material_instance.get(), &test_mesh, postproc.get(), &cstage
+        rsys.get(), color.get(), depth.get(), test_material_instance.get(), &test_mesh, postproc.get(), &cstage
     )};
 
     bool quited = false;

@@ -31,7 +31,7 @@ namespace Engine::Materials {
         assert(base_texture_prop.m_type == MaterialProperty::Type::Texture);
         auto base_texture_asset =
             (std::any_cast<std::shared_ptr<AssetRef>>(base_texture_prop.m_value))->as<Image2DTextureAsset>();
-        auto base_texture = std::make_shared<ImageTexture>(m_system, *base_texture_asset);
+        std::shared_ptr base_texture = ImageTexture::Create(m_system, *base_texture_asset);
         this->SetBaseTexture(base_texture);
         m_system.GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
             *base_texture, base_texture_asset->GetPixelData(), base_texture_asset->GetPixelDataSize()

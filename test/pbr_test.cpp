@@ -258,14 +258,14 @@ int main(int argc, char **argv) {
         .multisample = 1,
         .is_cube_map = false
     };
-    std::shared_ptr hdr_color{std::make_shared<RenderTargetTexture>(*rsys, desc, Texture::SamplerDesc{}, "HDR Color Attachment")};
+    std::shared_ptr hdr_color{RenderTargetTexture::Create(*rsys, desc, Texture::SamplerDesc{}, "HDR Color Attachment")};
     desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R8G8B8A8UNorm;
-    std::shared_ptr color{std::make_shared<RenderTargetTexture>(*rsys, desc, Texture::SamplerDesc{}, "Color Attachment")};
+    std::shared_ptr color{RenderTargetTexture::Create(*rsys, desc, Texture::SamplerDesc{}, "Color Attachment")};
     desc.mipmap_levels = 1;
     desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::D32SFLOAT;
-    std::shared_ptr depth{std::make_shared<RenderTargetTexture>(*rsys, desc, Texture::SamplerDesc{}, "Depth Attachment")};
+    std::shared_ptr depth{RenderTargetTexture::Create(*rsys, desc, Texture::SamplerDesc{}, "Depth Attachment")};
 
-    auto red_texture = std::make_shared<ImageTexture>(
+    std::shared_ptr red_texture = ImageTexture::Create(
         *rsys, 
         ImageTexture::ImageTextureDesc{
             .dimensions = 2,

@@ -38,9 +38,9 @@ namespace Editor {
         };
         Engine::Texture::SamplerDesc sdesc{};
 
-        m_color_texture = std::make_shared<Engine::RenderTargetTexture>(*render_system, tdesc, sdesc, "Game color attachment");
+        m_color_texture = Engine::RenderTargetTexture::Create(*render_system, tdesc, sdesc, "Game color attachment");
         tdesc.format = Engine::RenderTargetTexture::RTTFormat::D32SFLOAT;
-        m_depth_texture = std::make_shared<Engine::RenderTargetTexture>(*render_system, tdesc, sdesc, "Game depth attachment");
+        m_depth_texture = Engine::RenderTargetTexture::Create(*render_system, tdesc, sdesc, "Game depth attachment");
 
         m_color_att_id = reinterpret_cast<ImTextureID>(ImGui_ImplVulkan_AddTexture(
             m_color_texture->GetSampler(), m_color_texture->GetImageView(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL

@@ -36,8 +36,17 @@ namespace Engine {
             bool is_cube_map {false};
         };
         using RTTFormat = RenderTargetTextureDesc::RTTFormat;
-
+    
+    protected:
         RenderTargetTexture(
+            RenderSystem & system,
+            TextureDesc texture,
+            SamplerDesc sampler,
+            const std::string & name = ""
+        );
+    
+    public:
+        static std::unique_ptr <RenderTargetTexture> Create(
             RenderSystem & system, 
             RenderTargetTextureDesc texture, 
             SamplerDesc sampler,

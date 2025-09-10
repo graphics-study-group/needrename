@@ -68,10 +68,10 @@ int main(int argc, char *argv[]) {
         .is_cube_map = false
     };
 
-    auto color_input = std::make_shared<Engine::RenderTargetTexture>(*rsys, desc, Texture::SamplerDesc{}, "Color Compute Input");
-    auto color_output = std::make_shared<Engine::RenderTargetTexture>(*rsys, desc, Texture::SamplerDesc{}, "Color Compute Output");
+    std::shared_ptr color_input = Engine::RenderTargetTexture::Create(*rsys, desc, Texture::SamplerDesc{}, "Color Compute Input");
+    std::shared_ptr color_output = Engine::RenderTargetTexture::Create(*rsys, desc, Texture::SamplerDesc{}, "Color Compute Output");
     desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R8G8B8A8UNorm;
-    auto color_present = std::make_shared<Engine::RenderTargetTexture>(*rsys, desc, Texture::SamplerDesc{}, "Color Present");
+    std::shared_ptr color_present = Engine::RenderTargetTexture::Create(*rsys, desc, Texture::SamplerDesc{}, "Color Present");
     
     ComputeStage cstage{*rsys};
     cstage.Instantiate(*cs_ref->cas<ShaderAsset>());

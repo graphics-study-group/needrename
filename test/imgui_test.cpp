@@ -41,15 +41,15 @@ int main(int argc, char **argv) {
         .multisample = 1,
         .is_cube_map = false
     };
-    Engine::RenderTargetTexture color{*rsys, desc, Texture::SamplerDesc{}, "Color attachment"};
+    auto color = RenderTargetTexture::Create(*rsys, desc, Texture::SamplerDesc{}, "Color attachment");
     desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::D32SFLOAT;
-    Engine::RenderTargetTexture depth{*rsys, desc, Texture::SamplerDesc{}, "Depth attachment"};
+    auto depth = RenderTargetTexture::Create(*rsys, desc, Texture::SamplerDesc{}, "Depth attachment");
 
     Engine::AttachmentUtils::AttachmentDescription color_att, depth_att;
-    color_att.texture = &color;
+    color_att.texture = color.get();
     color_att.load_op = AttachmentUtils::LoadOperation::Clear;
     color_att.store_op = AttachmentUtils::StoreOperation::Store;
-    depth_att.texture = &depth;
+    depth_att.texture = depth.get();
     depth_att.load_op = AttachmentUtils::LoadOperation::Clear;
     depth_att.store_op = AttachmentUtils::StoreOperation::DontCare;
 
@@ -77,12 +77,12 @@ int main(int argc, char **argv) {
 
         cb.Begin();
         context.UseImage(
-            color,
+            *color,
             GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite,
             GraphicsContext::ImageAccessType::None
         );
         context.UseImage(
-            depth,
+            *depth,
             GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite,
             GraphicsContext::ImageAccessType::None
         );
@@ -91,7 +91,7 @@ int main(int argc, char **argv) {
         gsys->DrawGUI(color_att, extent, cb);
         cb.End();
         rsys->GetFrameManager().SubmitMainCommandBuffer();
-        rsys->GetFrameManager().StageCopyComposition(color.GetImage());
+        rsys->GetFrameManager().StageCopyComposition(color->GetImage());
         rsys->CompleteFrame();
 
         SDL_Delay(10);

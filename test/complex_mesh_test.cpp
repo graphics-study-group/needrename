@@ -244,12 +244,12 @@ int main(int argc, char **argv) {
         .multisample = 1,
         .is_cube_map = false
     };
-    Engine::RenderTargetTexture color{*rsys, desc, Texture::SamplerDesc{}, "Color attachment"};
+    auto color = RenderTargetTexture::Create(*rsys, desc, Texture::SamplerDesc{}, "Color attachment");
     desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::D32SFLOAT;
-    Engine::RenderTargetTexture depth{*rsys, desc, Texture::SamplerDesc{}, "Depth attachment"};
+    auto depth = RenderTargetTexture::Create(*rsys, desc, Texture::SamplerDesc{}, "Depth attachment");
 
     RenderGraphBuilder rgb{*rsys};
-    RenderGraph rg{rgb.BuildDefaultRenderGraph(color, depth, gsys.get())};
+    RenderGraph rg{rgb.BuildDefaultRenderGraph(*color, *depth, gsys.get())};
 
     // Setup mesh
     std::filesystem::path mesh_path{std::string(ENGINE_ASSETS_DIR) + "/four_bunny/four_bunny.obj"};
@@ -293,8 +293,8 @@ int main(int argc, char **argv) {
         auto index = rsys->StartFrame();
         rg.Execute();
         rsys->GetFrameManager().StageBlitComposition(
-            color.GetImage(),
-            vk::Extent2D{color.GetTextureDescription().width, color.GetTextureDescription().height},
+            color->GetImage(),
+            vk::Extent2D{color->GetTextureDescription().width, color->GetTextureDescription().height},
             rsys->GetSwapchain().GetExtent()
         );
         rsys->CompleteFrame();
