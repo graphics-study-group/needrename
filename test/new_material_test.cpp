@@ -147,8 +147,7 @@ int main(int argc, char **argv) {
     // Prepare texture
     auto test_texture_asset = std::make_shared<Image2DTextureAsset>();
     test_texture_asset->LoadFromFile(std::string(ENGINE_ASSETS_DIR) + "/bunny/bunny.png");
-    auto allocated_image_texture = std::make_shared<SampledTextureInstantiated>(*rsys);
-    allocated_image_texture->Instantiate(*test_texture_asset);
+    auto allocated_image_texture = std::make_shared<ImageTexture>(*rsys, *test_texture_asset);
 
     // Prepare material
     cmc->GetAssetManager()->LoadBuiltinAssets();
@@ -195,25 +194,22 @@ int main(int argc, char **argv) {
     }
 
     // Prepare attachments
-    Engine::Texture depth{*rsys};
-    auto color = std::make_shared<Texture>(*rsys);
-    auto postproc = std::make_shared<Texture>(*rsys);
-    Engine::Texture::TextureDesc desc{
+    
+    RenderTargetTexture::RenderTargetTextureDesc desc{
         .dimensions = 2,
         .width = 1920,
         .height = 1080,
         .depth = 1,
-        .format = Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm,
-        .type = Engine::ImageUtils::ImageType::ColorAttachment,
         .mipmap_levels = 1,
         .array_layers = 1,
+        .format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R8G8B8A8UNorm,
+        .multisample = 1,
         .is_cube_map = false
     };
-    color->CreateTexture(desc, "Color Attachment");
-    postproc->CreateTexture(desc, "GaussianBlurred");
-    desc.format = Engine::ImageUtils::ImageFormat::D32SFLOAT;
-    desc.type = Engine::ImageUtils::ImageType::DepthAttachment;
-    depth.CreateTexture(desc, "Depth Attachment");
+    auto color = std::make_shared<RenderTargetTexture>(*rsys, desc, Texture::SamplerDesc{}, "Color Attachment");
+    auto postproc = std::make_shared<RenderTargetTexture>(*rsys, desc, Texture::SamplerDesc{}, "Gaussian Blurred");
+    desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::D32SFLOAT;
+    Engine::RenderTargetTexture depth{*rsys, desc, Texture::SamplerDesc{}, "Depth Attachment"};
 
     auto asys = cmc->GetAssetManager();
     auto cs_ref = asys->GetNewAssetRef("~/shaders/gaussian_blur.comp.spv.asset");
@@ -221,10 +217,12 @@ int main(int argc, char **argv) {
     ComputeStage cstage{*rsys};
     cstage.Instantiate(*cs_ref->cas<ShaderAsset>());
     cstage.SetDescVariable(
-        cstage.GetVariableIndex("inputImage").value().first, std::const_pointer_cast<const Texture>(color)
+        cstage.GetVariableIndex("inputImage").value().first, 
+        std::const_pointer_cast<const Texture>(std::static_pointer_cast<Texture>(color))
     );
     cstage.SetDescVariable(
-        cstage.GetVariableIndex("outputImage").value().first, std::const_pointer_cast<const Texture>(postproc)
+        cstage.GetVariableIndex("outputImage").value().first, 
+        std::const_pointer_cast<const Texture>(std::static_pointer_cast<Texture>(postproc))
     );
 
     RenderGraph nonblur{BuildRenderGraph(rsys.get(), color.get(), &depth, test_material_instance.get(), &test_mesh)};

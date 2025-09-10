@@ -174,31 +174,23 @@ int main(int argc, char **argv) {
     }
 
     // Prepare attachments
-    Engine::Texture depth{*rsys};
-    auto color_1 = std::make_shared<Texture>(*rsys);
-    auto color_2 = std::make_shared<Texture>(*rsys);
-    auto color_3 = std::make_shared<Texture>(*rsys);
-    auto color_4 = std::make_shared<Texture>(*rsys);
-
-    Engine::Texture::TextureDesc desc{
+    RenderTargetTexture::RenderTargetTextureDesc desc{
         .dimensions = 2,
         .width = 1920,
         .height = 1080,
         .depth = 1,
-        .format = Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm,
-        .type = Engine::ImageUtils::ImageType::ColorAttachment,
         .mipmap_levels = 1,
         .array_layers = 1,
+        .format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::D32SFLOAT,
+        .multisample = 1,
         .is_cube_map = false
     };
-    color_1->CreateTexture(desc, "Color Attachment (Position)");
-    color_2->CreateTexture(desc, "Color Attachment (Vertex color)");
-    color_3->CreateTexture(desc, "Color Attachment (Normal)");
-    color_4->CreateTexture(desc, "Color Attachment (Texcoord)");
-
-    desc.format = Engine::ImageUtils::ImageFormat::D32SFLOAT;
-    desc.type = Engine::ImageUtils::ImageType::DepthAttachment;
-    depth.CreateTexture(desc, "Depth Attachment");
+    Engine::RenderTargetTexture depth{*rsys, desc, Texture::SamplerDesc{}, "Depth Attachment"};
+    desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R8G8B8A8UNorm;
+    auto color_1 = std::make_shared<RenderTargetTexture>(*rsys, desc, Texture::SamplerDesc{}, "Color Attachment (Position)");
+    auto color_2 = std::make_shared<RenderTargetTexture>(*rsys, desc, Texture::SamplerDesc{}, "Color Attachment (Vertex color)");
+    auto color_3 = std::make_shared<RenderTargetTexture>(*rsys, desc, Texture::SamplerDesc{}, "Color Attachment (Normal)");
+    auto color_4 = std::make_shared<RenderTargetTexture>(*rsys, desc, Texture::SamplerDesc{}, "Color Attachment (Texcoord)");
 
     auto asys = cmc->GetAssetManager();
 

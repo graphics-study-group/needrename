@@ -56,34 +56,36 @@ int main(int argc, char *argv[]) {
 
     auto rsys = cmc->GetRenderSystem();
 
-    auto color_input = std::make_shared<Engine::Texture>(*rsys);
-    auto color_output = std::make_shared<Engine::Texture>(*rsys);
-    auto color_present = std::make_shared<Engine::Texture>(*rsys);
-    Engine::Texture::TextureDesc desc{
+    Engine::RenderTargetTexture::RenderTargetTextureDesc desc{
         .dimensions = 2,
         .width = 1280,
         .height = 720,
         .depth = 1,
-        .format = Engine::ImageUtils::ImageFormat::R32G32B32A32SFloat,
-        .type = Engine::ImageUtils::ImageType::ColorAttachment,
         .mipmap_levels = 1,
         .array_layers = 1,
+        .format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R32G32B32A32SFloat,
+        .multisample = 1,
         .is_cube_map = false
     };
-    color_input->CreateTexture(desc, "Color Compute Input");
-    color_output->CreateTexture(desc, "Color Compute Output");
-    desc.format = Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm;
-    color_present->CreateTexture(desc, "Color Present");
+
+    auto color_input = std::make_shared<Engine::RenderTargetTexture>(*rsys, desc, Texture::SamplerDesc{}, "Color Compute Input");
+    auto color_output = std::make_shared<Engine::RenderTargetTexture>(*rsys, desc, Texture::SamplerDesc{}, "Color Compute Output");
+    desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R8G8B8A8UNorm;
+    auto color_present = std::make_shared<Engine::RenderTargetTexture>(*rsys, desc, Texture::SamplerDesc{}, "Color Present");
+    
     ComputeStage cstage{*rsys};
     cstage.Instantiate(*cs_ref->cas<ShaderAsset>());
     cstage.SetDescVariable(
-        cstage.GetVariableIndex("outputImage").value().first, std::const_pointer_cast<const Texture>(color_output)
+        cstage.GetVariableIndex("outputImage").value().first,
+        std::const_pointer_cast<const Texture>(std::static_pointer_cast<Texture>(color_output))
     );
     cstage.SetDescVariable(
-        cstage.GetVariableIndex("inputImage").value().first, std::const_pointer_cast<const Texture>(color_input)
+        cstage.GetVariableIndex("inputImage").value().first,
+        std::const_pointer_cast<const Texture>(std::static_pointer_cast<Texture>(color_input))
     );
     cstage.SetDescVariable(
-        cstage.GetVariableIndex("outputColorImage").value().first, std::const_pointer_cast<const Texture>(color_present)
+        cstage.GetVariableIndex("outputColorImage").value().first,
+        std::const_pointer_cast<const Texture>(std::static_pointer_cast<Texture>(color_present))
     );
 
     uint64_t frame_count = 0;

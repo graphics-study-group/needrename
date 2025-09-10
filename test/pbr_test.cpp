@@ -135,7 +135,7 @@ public:
     MeshComponentFromFile(
         std::filesystem::path mesh_file_name,
         std::shared_ptr<MaterialTemplate> material_template,
-        std::shared_ptr<const SampledTexture> albedo
+        std::shared_ptr<const Texture> albedo
     ) : MeshComponent(std::weak_ptr<GameObject>()), transform() {
         LoadMesh(mesh_file_name);
 
@@ -247,43 +247,39 @@ int main(int argc, char **argv) {
     auto gsys = cmc->GetGUISystem();
     gsys->CreateVulkanBackend(ImageUtils::GetVkFormat(Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm));
 
-    std::shared_ptr hdr_color{std::make_shared<Texture>(*rsys)};
-    std::shared_ptr color{std::make_shared<Texture>(*rsys)};
-    std::shared_ptr depth{std::make_shared<Texture>(*rsys)};
-    Engine::Texture::TextureDesc desc{
+    RenderTargetTexture::RenderTargetTextureDesc desc{
         .dimensions = 2,
         .width = 1920,
         .height = 1080,
         .depth = 1,
-        .format = Engine::ImageUtils::ImageFormat::R11G11B10UFloat,
-        .type = Engine::ImageUtils::ImageType::ColorAttachment,
         .mipmap_levels = 1,
         .array_layers = 1,
+        .format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R11G11B10UFloat,
+        .multisample = 1,
         .is_cube_map = false
     };
-    hdr_color->CreateTexture(desc, "HDR Color Attachment");
-
-    desc.format = Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm;
-    color->CreateTexture(desc, "Color Attachment");
-
+    std::shared_ptr hdr_color{std::make_shared<RenderTargetTexture>(*rsys, desc, Texture::SamplerDesc{}, "HDR Color Attachment")};
+    desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R8G8B8A8UNorm;
+    std::shared_ptr color{std::make_shared<RenderTargetTexture>(*rsys, desc, Texture::SamplerDesc{}, "Color Attachment")};
     desc.mipmap_levels = 1;
-    desc.format = Engine::ImageUtils::ImageFormat::D32SFLOAT;
-    desc.type = Engine::ImageUtils::ImageType::DepthAttachment;
-    depth->CreateTexture(desc, "Depth Attachment");
+    desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::D32SFLOAT;
+    std::shared_ptr depth{std::make_shared<RenderTargetTexture>(*rsys, desc, Texture::SamplerDesc{}, "Depth Attachment")};
 
-    auto red_texture = std::make_shared<SampledTexture>(*rsys);
-    desc = {
-        .dimensions = 2,
-        .width = 4,
-        .height = 4,
-        .depth = 1,
-        .format = Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm,
-        .type = Engine::ImageUtils::ImageType::TextureImage,
-        .mipmap_levels = 1,
-        .array_layers = 1,
-        .is_cube_map = false
-    };
-    red_texture->CreateTextureAndSampler(desc, {}, "Sampled Albedo");
+    auto red_texture = std::make_shared<ImageTexture>(
+        *rsys, 
+        ImageTexture::ImageTextureDesc{
+            .dimensions = 2,
+            .width = 4,
+            .height = 4,
+            .depth = 1,
+            .mipmap_levels = 1,
+            .array_layers = 1,
+            .format = ImageTexture::ImageTextureDesc::ImageTextureFormat::R8G8B8A8UNorm,
+            .is_cube_map = false
+        }, 
+        Texture::SamplerDesc{}, 
+        "Sampled Albedo"
+    );
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*red_texture, {1.0, 0.0, 0.0, 1.0});
 
     auto cs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/bloom.comp.spv.asset");
@@ -293,11 +289,11 @@ int main(int argc, char **argv) {
     bloom_compute_stage->Instantiate(*cs_ref->cas<ShaderAsset>());
     bloom_compute_stage->SetDescVariable(
         bloom_compute_stage->GetVariableIndex("inputImage").value().first,
-        std::const_pointer_cast<const Texture>(hdr_color)
+        std::const_pointer_cast<const Texture>(std::static_pointer_cast<Texture>(hdr_color))
     );
     bloom_compute_stage->SetDescVariable(
         bloom_compute_stage->GetVariableIndex("outputImage").value().first,
-        std::const_pointer_cast<const Texture>(color)
+        std::const_pointer_cast<const Texture>(std::static_pointer_cast<Texture>(color))
     );
 
     // Setup mesh
