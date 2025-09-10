@@ -29,6 +29,7 @@ namespace Engine {
 
             bool is_cube_map;
         };
+        using ITFormat = ImageTextureDesc::ImageTextureFormat;
 
         ImageTexture(RenderSystem & system,
             ImageTextureDesc texture,

@@ -3,7 +3,7 @@
 #include <MainClass.h>
 #include <Render/AttachmentUtils.h>
 #include <Render/ImageUtils.h>
-#include <Render/Memory/Texture.h>
+#include <Render/Memory/RenderTargetTexture.h>
 #include <Render/Pipeline/CommandBuffer/GraphicsCommandBuffer.h>
 #include <Render/Pipeline/CommandBuffer/GraphicsContext.h>
 #include <Render/RenderSystem.h>
@@ -32,23 +32,21 @@ namespace Editor {
         SDL_GetWindowSizeInPixels(
             Engine::MainClass::GetInstance()->GetWindow()->GetWindow(), &m_texture_width, &m_texture_height
         );
-        Engine::Texture::TextureDesc tdesc{
+        Engine::RenderTargetTexture::RenderTargetTextureDesc tdesc{
             .dimensions = 2,
             .width = (uint32_t)m_texture_width,
             .height = (uint32_t)m_texture_height,
             .depth = 1,
-            .format = Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm,
-            .type = Engine::ImageUtils::ImageType::ColorAttachment,
             .mipmap_levels = 1,
             .array_layers = 1,
+            .format = Engine::RenderTargetTexture::RTTFormat::R8G8B8A8UNorm,
             .is_cube_map = false
         };
         Engine::Texture::SamplerDesc sdesc{};
 
-        m_color_texture = std::make_shared<Engine::Texture>(*render_system, tdesc, sdesc, "scene color attachment");
-        tdesc.format = Engine::ImageUtils::ImageFormat::D32SFLOAT;
-        tdesc.type = Engine::ImageUtils::ImageType::DepthAttachment;
-        m_depth_texture = std::make_shared<Engine::Texture>(*render_system, tdesc, sdesc, "scene depth attachment");
+        m_color_texture = std::make_shared<Engine::RenderTargetTexture>(*render_system, tdesc, sdesc, "scene color attachment");
+        tdesc.format = Engine::RenderTargetTexture::RTTFormat::D32SFLOAT;
+        m_depth_texture = std::make_shared<Engine::RenderTargetTexture>(*render_system, tdesc, sdesc, "scene depth attachment");
 
         m_color_att_id = reinterpret_cast<ImTextureID>(ImGui_ImplVulkan_AddTexture(
             m_color_texture->GetSampler(), m_color_texture->GetImageView(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL

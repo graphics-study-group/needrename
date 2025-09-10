@@ -1,7 +1,7 @@
 #include "SDLWindow.h"
 
 #include <MainClass.h>
-#include <Render/Memory/Texture.h>
+#include <Render/Memory/RenderTargetTexture.h>
 #include <vulkan/vulkan.hpp>
 
 namespace Engine {
@@ -21,33 +21,32 @@ namespace Engine {
         int w, h;
         SDL_GetWindowSizeInPixels(m_window, &w, &h);
 
-        Engine::Texture::TextureDesc desc{
+        RenderTargetTexture::RenderTargetTextureDesc desc{
             .dimensions = 2,
             .width = (uint32_t)w,
             .height = (uint32_t)h,
             .depth = 1,
-            .format = Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm,
-            .type = Engine::ImageUtils::ImageType::ColorAttachment,
             .mipmap_levels = 1,
             .array_layers = 1,
+            .format = RenderTargetTexture::RTTFormat::R8G8B8A8UNorm,
+            .multisample = 1,
             .is_cube_map = false
         };
 
-        m_color_texture = std::make_shared<Texture>(*render_system, desc, ImageUtils::SamplerDesc{}, "Color attachment");
-        desc.format = Engine::ImageUtils::ImageFormat::D32SFLOAT;
-        desc.type = Engine::ImageUtils::ImageType::DepthAttachment;
-        m_depth_texture = std::make_shared<Texture>(*render_system, desc, ImageUtils::SamplerDesc{}, "Depth attachment");
+        m_color_texture = std::make_shared<RenderTargetTexture>(*render_system, desc, ImageUtils::SamplerDesc{}, "Color attachment");
+        desc.format = RenderTargetTexture::RTTFormat::D32SFLOAT;
+        m_depth_texture = std::make_shared<RenderTargetTexture>(*render_system, desc, ImageUtils::SamplerDesc{}, "Depth attachment");
     }
 
     vk::Extent2D SDLWindow::GetExtent() const {
         return {m_color_texture->GetTextureDescription().width, m_color_texture->GetTextureDescription().height};
     }
 
-    const Texture &SDLWindow::GetColorTexture() const noexcept {
+    const RenderTargetTexture &SDLWindow::GetColorTexture() const noexcept {
         return *m_color_texture;
     }
 
-    const Texture &SDLWindow::GetDepthTexture() const noexcept {
+    const RenderTargetTexture &SDLWindow::GetDepthTexture() const noexcept {
         return *m_depth_texture;
     }
 

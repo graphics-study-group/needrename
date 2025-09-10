@@ -138,8 +138,8 @@ namespace Engine {
          * @brief Build a default render graph.
          */
         RenderGraph BuildDefaultRenderGraph(
-            Texture & color_attachment, 
-            Texture & depth_attachment,
+            RenderTargetTexture & color_attachment, 
+            RenderTargetTexture & depth_attachment,
             GUISystem * gui_system = nullptr
         );
     };

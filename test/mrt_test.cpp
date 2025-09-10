@@ -72,11 +72,11 @@ std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate() {
 
 RenderGraph BuildRenderGraph(
     RenderSystem *rsys,
-    Texture *color_1,
-    Texture *color_2,
-    Texture *color_3,
-    Texture *color_4,
-    Texture *depth,
+    RenderTargetTexture *color_1,
+    RenderTargetTexture *color_2,
+    RenderTargetTexture *color_3,
+    RenderTargetTexture *color_4,
+    RenderTargetTexture *depth,
     MaterialInstance *material,
     HomogeneousMesh *mesh
 ) {

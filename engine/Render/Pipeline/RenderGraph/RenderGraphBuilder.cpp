@@ -297,7 +297,7 @@ namespace Engine {
         return RenderGraph(m_system, cmd);
     }
     RenderGraph RenderGraphBuilder::BuildDefaultRenderGraph(
-        Texture &color_attachment, Texture &depth_attachment, GUISystem *gui_system
+        RenderTargetTexture &color_attachment, RenderTargetTexture &depth_attachment, GUISystem *gui_system
     ) {
         using IAT = AccessHelper::ImageAccessType;
         this->RegisterImageAccess(color_attachment, IAT::None);

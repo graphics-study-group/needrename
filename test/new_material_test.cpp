@@ -71,11 +71,11 @@ std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate() {
 
 RenderGraph BuildRenderGraph(
     RenderSystem *rsys,
-    Texture *color,
-    Texture *depth,
+    RenderTargetTexture *color,
+    RenderTargetTexture *depth,
     MaterialInstance *material,
     HomogeneousMesh *mesh,
-    Texture *blurred = nullptr,
+    RenderTargetTexture *blurred = nullptr,
     ComputeStage *kernel = nullptr
 ) {
     using IAT = Engine::AccessHelper::ImageAccessType;
@@ -85,12 +85,19 @@ RenderGraph BuildRenderGraph(
     rgb.RecordRasterizerPassWithoutRT([rsys, color, depth, material, mesh](GraphicsCommandBuffer &gcb) {
         auto extent = rsys->GetSwapchain().GetExtent();
         gcb.BeginRendering(
-            {color, nullptr, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store},
-            {depth,
-             nullptr,
-             AttachmentUtils::LoadOperation::Clear,
-             AttachmentUtils::StoreOperation::DontCare,
-             AttachmentUtils::DepthClearValue{1.0f, 0U}},
+            AttachmentUtils::AttachmentDescription{
+                color, 
+                nullptr, 
+                AttachmentUtils::LoadOperation::Clear, 
+                AttachmentUtils::StoreOperation::Store
+            },
+            AttachmentUtils::AttachmentDescription{
+                depth,
+                nullptr,
+                AttachmentUtils::LoadOperation::Clear,
+                AttachmentUtils::StoreOperation::DontCare,
+                AttachmentUtils::DepthClearValue{1.0f, 0U}
+            },
             extent
         );
 

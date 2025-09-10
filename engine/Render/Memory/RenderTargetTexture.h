@@ -32,9 +32,10 @@ namespace Engine {
             // an additional texture containing multisamples will be
             // created.
             // XXX: Not tested.
-            uint8_t multisample;
-            bool is_cube_map;
+            uint8_t multisample {1};
+            bool is_cube_map {false};
         };
+        using RTTFormat = RenderTargetTextureDesc::RTTFormat;
 
         RenderTargetTexture(
             RenderSystem & system, 

@@ -1,5 +1,5 @@
-#ifndef FUNCTIONAL_SDLWINDOW_INCLUDED
-#define FUNCTIONAL_SDLWINDOW_INCLUDED
+#ifndef CORE_FUNCTIONAL_SDLWINDOW_INCLUDED
+#define CORE_FUNCTIONAL_SDLWINDOW_INCLUDED
 
 #include <SDL3/SDL.h>
 #include <memory>
@@ -10,7 +10,7 @@ namespace vk {
 }
 
 namespace Engine {
-    class Texture;
+    class RenderTargetTexture;
     class RenderSystem;
 
     /// A wrapper of SDL_Window
@@ -29,8 +29,8 @@ namespace Engine {
         void CreateRenderTargets(std::shared_ptr<RenderSystem> render_system);
 
         vk::Extent2D GetExtent() const;
-        const Texture &GetColorTexture() const noexcept;
-        const Texture &GetDepthTexture() const noexcept;
+        const RenderTargetTexture &GetColorTexture() const noexcept;
+        const RenderTargetTexture &GetDepthTexture() const noexcept;
 
         /// Get the underlying pointer of this window
         SDL_Window *GetWindow();
@@ -39,8 +39,8 @@ namespace Engine {
         SDL_Window *m_window{nullptr};
 
         // TODO: need better way to manage render target binding and textures
-        std::shared_ptr<Texture> m_color_texture{};
-        std::shared_ptr<Texture> m_depth_texture{};
+        std::shared_ptr<RenderTargetTexture> m_color_texture{};
+        std::shared_ptr<RenderTargetTexture> m_depth_texture{};
     };
 } // namespace Engine
-#endif // FUNCTIONAL_SDLWINDOW_INCLUDED
+#endif // CORE_FUNCTIONAL_SDLWINDOW_INCLUDED
