@@ -35,6 +35,43 @@ namespace Engine {
             return std::make_tuple(vk::ImageUsageFlags{}, VMA_MEMORY_USAGE_AUTO);
         }
 
+        constexpr vk::FormatFeatureFlags GetFormatFeatures(ImageType type) {
+            switch(type) {
+            case ImageType::DepthAttachment:
+            case ImageType::DepthStencilAttachment:
+                return {
+                    vk::FormatFeatureFlagBits::eBlitSrc |
+                    vk::FormatFeatureFlagBits::eBlitDst |
+                    vk::FormatFeatureFlagBits::eTransferSrc |
+                    vk::FormatFeatureFlagBits::eTransferDst |
+                    vk::FormatFeatureFlagBits::eSampledImage |
+                    vk::FormatFeatureFlagBits::eSampledImageFilterLinear |
+                    vk::FormatFeatureFlagBits::eDepthStencilAttachment
+                };
+            case ImageType::ColorAttachment:
+                return {
+                        vk::FormatFeatureFlagBits::eBlitSrc |
+                        vk::FormatFeatureFlagBits::eBlitDst |
+                        vk::FormatFeatureFlagBits::eTransferSrc |
+                        vk::FormatFeatureFlagBits::eTransferDst |
+                        vk::FormatFeatureFlagBits::eSampledImage |
+                        vk::FormatFeatureFlagBits::eSampledImageFilterLinear |
+                        vk::FormatFeatureFlagBits::eStorageImage |
+                        vk::FormatFeatureFlagBits::eColorAttachment |
+                        vk::FormatFeatureFlagBits::eColorAttachmentBlend
+                    };
+            case ImageType::TextureImage:
+                return {
+                    vk::FormatFeatureFlagBits::eBlitSrc |
+                    vk::FormatFeatureFlagBits::eTransferSrc |
+                    vk::FormatFeatureFlagBits::eTransferDst |
+                    vk::FormatFeatureFlagBits::eSampledImage |
+                    vk::FormatFeatureFlagBits::eSampledImageFilterLinear
+                };
+            }
+            return {};
+        }
+
         [[deprecated("Use GetVkAspect() to infer aspect from format instead.")]]
         constexpr vk::ImageAspectFlags GetVkImageAspect(ImageType type) {
             switch (type) {

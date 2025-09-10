@@ -4,9 +4,15 @@
 #include "Render/ImageUtilsFunc.h"
 #include "Render/RenderSystem.h"
 
+#include <SDL3/SDL.h>
+#include <vulkan/vulkan_hash.hpp>
+
 namespace Engine::RenderSystemState {
     struct AllocatorState::impl {
         VmaAllocator m_allocator{};
+
+        std::unordered_map <vk::Format, vk::FormatProperties2> m_format_properties {};
+        std::unordered_map <vk::PhysicalDeviceImageFormatInfo2, vk::ImageFormatProperties2> m_image_format_properties {};
 
         static const std::tuple<vk::BufferUsageFlags, VmaAllocationCreateFlags, VmaMemoryUsage> GetBufferFlags(
             BufferType type
@@ -33,6 +39,83 @@ namespace Engine::RenderSystemState {
                 );
             }
             return std::make_tuple(vk::BufferUsageFlags{}, 0, VMA_MEMORY_USAGE_AUTO);
+        }
+
+        const auto & UpdateFormatSupportInfo(vk::PhysicalDevice dev, vk::Format format) {
+            auto image_prop_itr = m_format_properties.find(format);
+            if (image_prop_itr == m_format_properties.end()) {
+                auto fp = dev.getFormatProperties2(format);
+                image_prop_itr = m_format_properties.insert(std::make_pair(format, fp)).first;
+                SDL_LogDebug(SDL_LOG_CATEGORY_RENDER, 
+                    std::format(
+                        R"(Querying format capability for {}:
+    Linear tiling:  {}
+    Optimal tiling: {}
+    Buffer:         {}
+)", 
+                        to_string(format),
+                        to_string(image_prop_itr->second.formatProperties.linearTilingFeatures),
+                        to_string(image_prop_itr->second.formatProperties.optimalTilingFeatures),
+                        to_string(image_prop_itr->second.formatProperties.bufferFeatures)
+                    ).c_str()
+                );
+            }
+            return image_prop_itr->second;
+        }
+
+        const auto & UpdateImageFormatSupportInfo(
+            vk::PhysicalDevice dev,
+            vk::Format format, 
+            vk::ImageType dimension, 
+            vk::ImageTiling tiling, 
+            vk::ImageUsageFlags iusage) {
+            auto pdifi = vk::PhysicalDeviceImageFormatInfo2{
+                format, dimension, vk::ImageTiling::eOptimal, iusage, {}
+            };
+            auto image_format_prop_itr = m_image_format_properties.find(pdifi);
+            if (image_format_prop_itr == m_image_format_properties.end()) {
+                auto ifp = dev.getImageFormatProperties2(pdifi);
+                image_format_prop_itr = m_image_format_properties.insert(std::make_pair(pdifi, ifp)).first;
+                SDL_LogDebug(SDL_LOG_CATEGORY_RENDER, 
+                    std::format(
+                        R"(Querying image capability for {}:
+    Max extent:         {}x{}x{}
+    Max mipmap:         {}
+    Max array layers:   {}
+    Samples:            {}
+)",
+                        to_string(format),
+                        image_format_prop_itr->second.imageFormatProperties.maxExtent.width,
+                        image_format_prop_itr->second.imageFormatProperties.maxExtent.height,
+                        image_format_prop_itr->second.imageFormatProperties.maxExtent.depth,
+                        image_format_prop_itr->second.imageFormatProperties.maxMipLevels,
+                        image_format_prop_itr->second.imageFormatProperties.maxArrayLayers,
+                        to_string(image_format_prop_itr->second.imageFormatProperties.sampleCounts)
+                    ).c_str()
+                );
+            }
+
+            return image_format_prop_itr->second;
+        }
+
+        /**
+         * @brief Query whether an image format supports given use cases.
+         * 
+         * @return The first term is an integer indicating support:
+         * negative if fully supported only in linear tiling,
+         * zero if not supported at all, or only partially supported in all tilings,
+         * positive if fully supported in optimal tiling.
+         * The second item of the pair returns supported features.
+         */
+        std::pair<int, vk::FormatFeatureFlags> QueryFormatSupport(vk::PhysicalDevice dev, vk::Format format, ImageUtils::ImageType type) {
+            const auto & s = UpdateFormatSupportInfo(dev, format);
+            if (!(~s.formatProperties.optimalTilingFeatures & ImageUtils::GetFormatFeatures(type))) {
+                return std::make_pair(1, s.formatProperties.optimalTilingFeatures);
+            }
+            if (!(~s.formatProperties.linearTilingFeatures & ImageUtils::GetFormatFeatures(type))) {
+                return std::make_pair(-1, s.formatProperties.optimalTilingFeatures);
+            }
+            return std::make_pair(0, s.formatProperties.optimalTilingFeatures);
         }
     };
 
@@ -97,6 +180,80 @@ namespace Engine::RenderSystemState {
         const std::string &name
     ) const {
         const auto [iusage, musage] = ImageUtils::GetImageFlags(type);
+        auto fsupport = pimpl->QueryFormatSupport(m_system.GetPhysicalDevice(), format, type);
+        if (fsupport.first == 0) {
+            SDL_LogError(
+                SDL_LOG_CATEGORY_RENDER,
+                std::format(
+                    "Format {} does not support requested features. We requested: {} but only {} are supported.",
+                    to_string(format),
+                    to_string(ImageUtils::GetFormatFeatures(type)),
+                    to_string(fsupport.second)
+                ).c_str()
+            );
+            return nullptr;
+        }
+        if (fsupport.first < 0) {
+            SDL_LogWarn(
+                SDL_LOG_CATEGORY_RENDER,
+                std::format(
+                    "Format {} does not support requested features in optimal tiling. "
+                    "We requested: {} but only {} are supported. Performance may degrade.",
+                    to_string(format),
+                    to_string(ImageUtils::GetFormatFeatures(type)),
+                    to_string(fsupport.second)
+                ).c_str()
+            );
+        }
+
+        auto ifsupport = pimpl->UpdateImageFormatSupportInfo(
+            m_system.GetPhysicalDevice(), 
+            format, 
+            dimension, 
+            fsupport.first > 0 ? vk::ImageTiling::eOptimal : vk::ImageTiling::eLinear, 
+            iusage
+        );
+        const auto & max_extent = ifsupport.imageFormatProperties.maxExtent;
+        if (extent.width > max_extent.width || extent.height > max_extent.height || extent.depth > max_extent.depth) {
+            SDL_LogError(SDL_LOG_CATEGORY_RENDER, 
+                std::format(
+                    "Image extent exceeded capability: {}x{}x{} > {}x{}x{}",
+                    extent.width, extent.height, extent.depth,
+                    max_extent.width, max_extent.height, max_extent.depth
+                ).c_str()
+            );
+            return nullptr;
+        }
+        if (miplevel > ifsupport.imageFormatProperties.maxMipLevels) {
+            SDL_LogError(SDL_LOG_CATEGORY_RENDER, 
+                std::format(
+                    "Image miplevel exceeded capability: {} > {}",
+                    miplevel,
+                    ifsupport.imageFormatProperties.maxMipLevels
+                ).c_str()
+            );
+            return nullptr;
+        }
+        if (array_layers > ifsupport.imageFormatProperties.maxArrayLayers) {
+            SDL_LogError(SDL_LOG_CATEGORY_RENDER, 
+                std::format(
+                    "Image array layer exceeded capability: {} > {}",
+                    array_layers,
+                    ifsupport.imageFormatProperties.maxArrayLayers
+                ).c_str()
+            );
+            return nullptr;
+        }
+        if (!(samples & ifsupport.imageFormatProperties.sampleCounts)) {
+            SDL_LogError(SDL_LOG_CATEGORY_RENDER, 
+                std::format(
+                    "Requested multisample not supported: {}",
+                    to_string(samples)
+                ).c_str()
+            );
+            return nullptr;
+        }
+        
         // VkImageCreateInfo iinfo {};
         vk::ImageCreateInfo iinfo{
             vk::ImageCreateFlags{0U},
@@ -106,13 +263,14 @@ namespace Engine::RenderSystemState {
             miplevel,
             array_layers,
             samples,
-            vk::ImageTiling::eOptimal,
+            fsupport.first > 0 ? vk::ImageTiling::eOptimal : vk::ImageTiling::eLinear,
             iusage,
             vk::SharingMode::eExclusive,
             {},
             vk::ImageLayout::eUndefined,
             nullptr
         };
+
         VkImageCreateInfo iinfo2 = static_cast<VkImageCreateInfo>(iinfo);
 
         VmaAllocationCreateInfo ainfo{};
