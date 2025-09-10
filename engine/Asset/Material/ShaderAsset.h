@@ -118,6 +118,12 @@ namespace Engine {
 
         virtual void save_asset_to_archive(Serialization::Archive &archive) const override;
         virtual void load_asset_from_archive(Serialization::Archive &archive) override;
+        void LoadFromFile(
+            const std::filesystem::path &path,
+            ShaderType type,
+            const std::string &name = "",
+            const std::string &entry_point = "main"
+        );
     };
 } // namespace Engine
 

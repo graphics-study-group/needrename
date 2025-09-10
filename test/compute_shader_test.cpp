@@ -24,10 +24,9 @@ int main(int argc, char *argv[]) {
     auto asys = cmc->GetAssetManager();
     asys->SetBuiltinAssetPath(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
     asys->LoadBuiltinAssets();
-    auto cs_ref = asys->GetNewAssetRef("~/shaders/fluid.comp.spv.asset");
-    asys->LoadAssetImmediately(cs_ref);
 
-    auto cs = cs_ref->cas<ShaderAsset>();
+    auto cs = std::make_shared<ShaderAsset>();
+    cs->LoadFromFile(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "shaders/fluid.comp.spv", ShaderAsset::ShaderType::Compute);
     auto ret = ShaderUtils::ReflectSpirvDataCompute(cs->binary);
     assert(ret.inblock.names.find("frame_count") != ret.inblock.names.end() && ret.inblock.names["frame_count"] == 0);
     assert(
@@ -74,7 +73,7 @@ int main(int argc, char *argv[]) {
     std::shared_ptr color_present = Engine::RenderTargetTexture::Create(*rsys, desc, Texture::SamplerDesc{}, "Color Present");
     
     ComputeStage cstage{*rsys};
-    cstage.Instantiate(*cs_ref->cas<ShaderAsset>());
+    cstage.Instantiate(*cs);
     cstage.SetDescVariable(
         cstage.GetVariableIndex("outputImage").value().first,
         std::const_pointer_cast<const Texture>(std::static_pointer_cast<Texture>(color_output))
