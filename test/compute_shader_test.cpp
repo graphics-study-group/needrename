@@ -24,10 +24,9 @@ int main(int argc, char *argv[]) {
     auto asys = cmc->GetAssetManager();
     asys->SetBuiltinAssetPath(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
     asys->LoadBuiltinAssets();
-    auto cs_ref = asys->GetNewAssetRef("~/shaders/test_compute.comp.spv.asset");
-    asys->LoadAssetImmediately(cs_ref);
 
-    auto cs = cs_ref->cas<ShaderAsset>();
+    auto cs = std::make_shared<ShaderAsset>();
+    cs->LoadFromFile(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "shaders/test_compute.comp.spv", ShaderAsset::ShaderType::Compute);
     auto ret = ShaderUtils::ReflectSpirvDataCompute(cs->binary);
 
     assert(ret.desc.names.find("outputImage") != ret.desc.names.end() && ret.desc.names["outputImage"] == 0);
@@ -52,7 +51,7 @@ int main(int argc, char *argv[]) {
     };
     color->CreateTexture(desc, "Color Compute Test");
     ComputeStage cstage{*rsys};
-    cstage.Instantiate(*cs_ref->cas<ShaderAsset>());
+    cstage.Instantiate(*cs);
     cstage.SetDescVariable(
         cstage.GetVariableIndex("outputImage").value().first, std::const_pointer_cast<const Texture>(color)
     );
