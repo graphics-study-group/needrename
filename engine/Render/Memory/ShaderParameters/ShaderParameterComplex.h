@@ -8,7 +8,9 @@
 
 namespace Engine {
     namespace ShdrRfl {
-        struct SPType {};
+        struct SPType {
+            virtual ~SPType(){};
+        };
         /**
          * @brief A shader variable of struct.
          * 

@@ -1,7 +1,10 @@
 #include "ShaderParameterLayout.h"
 
 // CMake is messing with the SPIRV-Cross in Vulkan SDK
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Weffc++"
 #include "../../../../third_party/SPIRV-Cross/spirv_cross.hpp"
+#pragma GCC diagnostic pop
 #include <SDL3/SDL.h>
 
 namespace {
@@ -116,14 +119,11 @@ namespace Engine::ShdrRfl {
 
         // Combined image samplers
         for (auto image : shader_resources.sampled_images) {
-            auto ptr = std::unique_ptr<SPInterface>(
-                    new SPInterface{
-                        .layout_set = compiler.get_decoration(image.id, spv::DecorationDescriptorSet),
-                        .layout_binding = compiler.get_decoration(image.id, spv::DecorationBinding),
-                        .type = SPInterface::Type::TextureCombinedSampler,
-                        .underlying_type = nullptr
-                    }
-                );
+            auto ptr = std::unique_ptr<SPInterface>(new SPInterface());
+            ptr->layout_set = compiler.get_decoration(image.id, spv::DecorationDescriptorSet);
+            ptr->layout_binding = compiler.get_decoration(image.id, spv::DecorationBinding);
+            ptr->type = SPInterface::Type::TextureCombinedSampler;
+            ptr->underlying_type = nullptr;
             layout.interfaces.push_back(ptr.get());
             if (layout.assignable_mapping.contains(image.name)) {
                 SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Duplicated resource name: %s", image.name.c_str());
@@ -134,14 +134,11 @@ namespace Engine::ShdrRfl {
 
         // Storage images
         for (auto image : shader_resources.storage_images) {
-            auto ptr = std::unique_ptr<SPInterface>(
-                    new SPInterface{
-                        .layout_set = compiler.get_decoration(image.id, spv::DecorationDescriptorSet),
-                        .layout_binding = compiler.get_decoration(image.id, spv::DecorationBinding),
-                        .type = SPInterface::Type::Image,
-                        .underlying_type = nullptr
-                    }
-                );
+            auto ptr = std::unique_ptr<SPInterface>(new SPInterface());
+            ptr->layout_set = compiler.get_decoration(image.id, spv::DecorationDescriptorSet);
+            ptr->layout_binding = compiler.get_decoration(image.id, spv::DecorationBinding);
+            ptr->type = SPInterface::Type::TextureCombinedSampler;
+            ptr->underlying_type = nullptr;
             layout.interfaces.push_back(ptr.get());
             if (layout.assignable_mapping.contains(image.name)) {
                 SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Duplicated resource name: %s", image.name.c_str());
@@ -152,26 +149,28 @@ namespace Engine::ShdrRfl {
 
         // UBOs
         for (auto ubo : shader_resources.uniform_buffers) {
-            auto buffer_type_ptr = std::unique_ptr<SPInterface>(new SPInterface{});
-            buffer_type_ptr->type = SPInterface::UniformBuffer;
+            auto buffer_interface_ptr = std::unique_ptr<SPInterface>(new SPInterface{});
+            buffer_interface_ptr->type = SPInterface::UniformBuffer;
 
-            ReflectSimpleStruct(layout, *buffer_type_ptr, ubo, compiler);
+            ReflectSimpleStruct(layout, *buffer_interface_ptr, ubo, compiler);
 
-            buffer_type_ptr->layout_set = compiler.get_decoration(ubo.id, spv::DecorationDescriptorSet);
-            buffer_type_ptr->layout_binding = compiler.get_decoration(ubo.id, spv::DecorationBinding);
-            layout.variables.emplace_back(std::move(buffer_type_ptr));
+            buffer_interface_ptr->layout_set = compiler.get_decoration(ubo.id, spv::DecorationDescriptorSet);
+            buffer_interface_ptr->layout_binding = compiler.get_decoration(ubo.id, spv::DecorationBinding);
+            layout.interfaces.push_back(buffer_interface_ptr.get());
+            layout.variables.emplace_back(std::move(buffer_interface_ptr));
         }
 
         // SSBOs
         for (auto ssbo : shader_resources.storage_buffers) {
-            auto buffer_type_ptr = std::unique_ptr<SPInterface>(new SPInterface{});
-            buffer_type_ptr->type = SPInterface::StorageBuffer;
+            auto buffer_interface_ptr = std::unique_ptr<SPInterface>(new SPInterface{});
+            buffer_interface_ptr->type = SPInterface::StorageBuffer;
 
-            ReflectSimpleStruct(layout, *buffer_type_ptr, ssbo, compiler);
+            ReflectSimpleStruct(layout, *buffer_interface_ptr, ssbo, compiler);
 
-            buffer_type_ptr->layout_set = compiler.get_decoration(ssbo.id, spv::DecorationDescriptorSet);
-            buffer_type_ptr->layout_binding = compiler.get_decoration(ssbo.id, spv::DecorationBinding);
-            layout.variables.emplace_back(std::move(buffer_type_ptr));
+            buffer_interface_ptr->layout_set = compiler.get_decoration(ssbo.id, spv::DecorationDescriptorSet);
+            buffer_interface_ptr->layout_binding = compiler.get_decoration(ssbo.id, spv::DecorationBinding);
+            layout.interfaces.push_back(buffer_interface_ptr.get());
+            layout.variables.emplace_back(std::move(buffer_interface_ptr));
         }
 
         return layout;

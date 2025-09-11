@@ -8,7 +8,11 @@
 
 namespace Engine {
     namespace ShdrRfl {
-        struct SPVariable {};
+        class SPInterface;
+
+        struct SPVariable {
+            virtual ~SPVariable(){};
+        };
         struct SPAssignable : SPVariable {};
 
         /**
@@ -19,7 +23,7 @@ namespace Engine {
          */
         struct SPSimpleAssignable : SPAssignable {
             uint32_t absolute_offset;
-            SPVariable * parent_interface;
+            SPInterface * parent_interface;
         };
         struct SPScalar : SPSimpleAssignable {
             enum class Type {

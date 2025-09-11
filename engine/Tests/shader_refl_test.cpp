@@ -25,7 +25,7 @@ inline std::vector <uint32_t> ReadSpirvBinary(std::filesystem::path p) {
 int main(int argc, char *argv[]) {
 
     auto p = argc == 1 ? 
-        std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "shaders/pbr_base.vert.spv" 
+        std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "shaders/lambertian_cook_torrance.frag.spv" 
         : std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "shaders" / argv[1];
     auto binary = ReadSpirvBinary(p);
     auto layout = Engine::ShdrRfl::SPLayout::Reflect(binary);
@@ -37,7 +37,16 @@ int main(int argc, char *argv[]) {
 
     std::cout << "Assignables:" << std::endl;
     for (const auto & p : layout.assignable_mapping) {
-        auto ptr = static_cast<const Engine::ShdrRfl::SPSimpleAssignable *>(p.second);
-        std::cout << "\t" << p.first << " offset: " << ptr->absolute_offset << std::endl ;
+        auto ptr_simple = dynamic_cast<const Engine::ShdrRfl::SPSimpleAssignable *>(p.second);
+        if (ptr_simple) {
+            std::cout << "\t" << p.first << "(offset: " << ptr_simple->absolute_offset << ")" << std::endl ;
+            std::cout << "\t\t" << std::format(
+                "Set: {}, Binding: {}", 
+                ptr_simple->parent_interface->layout_set,
+                ptr_simple->parent_interface->layout_binding
+            ) << std::endl;
+        }
+        else
+            std::cout << "\t" << p.first << std::endl ;
     }
 }
