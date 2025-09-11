@@ -26,7 +26,6 @@ namespace Engine {
             uint32_t mipmap_levels;
             uint32_t array_layers;
             ImageTextureFormat format;
-
             bool is_cube_map;
         };
         using ITFormat = ImageTextureDesc::ImageTextureFormat;
@@ -38,12 +37,12 @@ namespace Engine {
         );
     public:
 
-        static std::unique_ptr <ImageTexture> Create(RenderSystem & system,
+        static std::unique_ptr <ImageTexture> CreateUnique(RenderSystem & system,
             ImageTextureDesc texture,
             SamplerDesc sampler,
             const std::string & name = ""
         );
-        static std::unique_ptr <ImageTexture> Create(RenderSystem & system, const Image2DTextureAsset &asset);
+        static std::unique_ptr <ImageTexture> CreateUnique(RenderSystem & system, const Image2DTextureAsset &asset);
     };
 }
 

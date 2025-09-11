@@ -9,7 +9,12 @@ namespace Engine {
 
     class RenderSystem;
 
-    /// @brief A buffer with allocated memory, which could be on device or host.
+    /**
+     *  @brief A buffer with allocated memory, which could be on device or host.
+     * Call named constructors to get an instance.
+     * 
+     * @note Movable but non-copyable.
+     */
     class Buffer {
     protected:
         Buffer(BufferAllocation && alloc, size_t size);
@@ -21,11 +26,18 @@ namespace Engine {
         void operator= (const Buffer &) = delete;
 
         Buffer (Buffer &&) noexcept = default;
+        Buffer & operator= (Buffer &&) noexcept = default;
 
-        /// @brief Create a buffer, and perform allocation if needed.
-        /// @param type
-        /// @param size
+        /**
+         * @brief Create a buffer.
+         */
         static Buffer Create(RenderSystem & system, BufferType type, size_t size, const std::string &name = "");
+        /**
+         * @brief Create a buffer with host side details on heap,
+         * and return a uniquely owning pointer to the buffer.
+         * 
+         * Cast the `unique_ptr` to `shared_ptr` if necessary.
+         */
         static std::unique_ptr<Buffer> CreateUnique(RenderSystem & system, BufferType type, size_t size, const std::string &name = "");
 
         vk::Buffer GetBuffer() const;

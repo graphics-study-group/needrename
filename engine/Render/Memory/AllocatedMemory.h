@@ -5,6 +5,7 @@
 
 class VmaAllocation_T;
 class VmaAllocator_T;
+class VmaAllocationInfo;
 typedef VmaAllocation_T* VmaAllocation;
 typedef VmaAllocator_T* VmaAllocator;
 
@@ -33,6 +34,7 @@ namespace Engine {
 
         const VmaAllocation & GetAllocation() const noexcept;
         const VmaAllocator & GetAllocator() const noexcept;
+        VmaAllocationInfo QueryAllocationInfo() const noexcept;
     };
 
     class ImageAllocation : private AllocatedMemory {
@@ -44,6 +46,9 @@ namespace Engine {
 
         ImageAllocation(const ImageAllocation &) = delete;
         void operator=(const ImageAllocation &) = delete;
+
+        ImageAllocation(ImageAllocation && other) noexcept;
+        ImageAllocation & operator= (ImageAllocation && other) noexcept;
 
         const vk::Image & GetImage() const noexcept;
     };
@@ -58,7 +63,8 @@ namespace Engine {
         BufferAllocation(const BufferAllocation &) = delete;
         void operator=(const BufferAllocation &) = delete;
 
-        BufferAllocation(BufferAllocation && other);
+        BufferAllocation(BufferAllocation && other) noexcept;
+        BufferAllocation & operator= (BufferAllocation && other) noexcept;
 
         const vk::Buffer & GetBuffer() const noexcept;
 

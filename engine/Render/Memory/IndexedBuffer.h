@@ -35,6 +35,7 @@ namespace Engine {
         void operator= (const IndexedBuffer &) = delete;
 
         IndexedBuffer(IndexedBuffer &&) noexcept;
+        IndexedBuffer & operator= (IndexedBuffer &&) noexcept;
 
         virtual ~IndexedBuffer();
 

@@ -5,7 +5,7 @@ namespace Engine {
     Buffer::Buffer(
         BufferAllocation && alloc,
         size_t size
-    ) : allocation(std::move(alloc)), m_size(size){
+    ) : m_size(size), allocation(std::move(alloc)){
     }
 
     Buffer Buffer::Create(RenderSystem & system, BufferType type, size_t size, const std::string &name) {

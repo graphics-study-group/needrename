@@ -265,7 +265,7 @@ int main(int argc, char **argv) {
     desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::D32SFLOAT;
     std::shared_ptr depth{RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Depth Attachment")};
 
-    std::shared_ptr red_texture = ImageTexture::Create(
+    std::shared_ptr red_texture = ImageTexture::CreateUnique(
         *rsys, 
         ImageTexture::ImageTextureDesc{
             .dimensions = 2,

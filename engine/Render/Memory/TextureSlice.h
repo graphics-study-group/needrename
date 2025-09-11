@@ -21,8 +21,6 @@ namespace Engine {
     /**
      * @brief A slice (mipmap levels and array layers) of a given texture.
      * Wrapper around vk::ImageView.
-     *
-     * XXX: We need to think of a better way of distinguishing sampled and non-sampled textures.
      */
     class SlicedTextureView {
         RenderSystem &m_system;

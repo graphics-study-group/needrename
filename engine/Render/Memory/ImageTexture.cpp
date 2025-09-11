@@ -13,7 +13,7 @@ namespace Engine {
         ) {
     }
 
-    std::unique_ptr<ImageTexture> ImageTexture::Create(
+    std::unique_ptr<ImageTexture> ImageTexture::CreateUnique(
         RenderSystem &system, ImageTextureDesc texture, SamplerDesc sampler, const std::string &name
     ) {
         return std::unique_ptr<ImageTexture>(new ImageTexture(
@@ -32,7 +32,7 @@ namespace Engine {
             )
         );
     }
-    std::unique_ptr<ImageTexture> ImageTexture::Create(RenderSystem &system, const Image2DTextureAsset &asset) {
+    std::unique_ptr<ImageTexture> ImageTexture::CreateUnique(RenderSystem &system, const Image2DTextureAsset &asset) {
         return std::unique_ptr<ImageTexture>(new ImageTexture(
                 system, 
                 TextureDesc{

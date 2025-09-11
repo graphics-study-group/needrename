@@ -31,6 +31,8 @@ namespace Engine {
 
     IndexedBuffer::IndexedBuffer(IndexedBuffer &&) noexcept = default;
 
+    IndexedBuffer &IndexedBuffer::operator=(IndexedBuffer &&) noexcept = default;
+
     IndexedBuffer::~IndexedBuffer() = default;
 
     IndexedBuffer IndexedBuffer::Create(

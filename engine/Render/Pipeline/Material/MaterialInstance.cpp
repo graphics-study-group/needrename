@@ -239,7 +239,7 @@ namespace Engine {
                     auto texture_asset =
                         std::any_cast<std::shared_ptr<AssetRef>>(itr->second.m_value)->as<Image2DTextureAsset>();
                     // TODO: We should allocate texture from assets in a pool.
-                    std::shared_ptr texture = ImageTexture::Create(m_system, *texture_asset);
+                    std::shared_ptr texture = ImageTexture::CreateUnique(m_system, *texture_asset);
 
                     this->WriteTextureUniform(pass_index, desc_idx, texture);
                     m_system.GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(

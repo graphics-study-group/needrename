@@ -44,6 +44,12 @@ namespace Engine {
         return pimpl->m_allocator;
     }
 
+    VmaAllocationInfo AllocatedMemory::QueryAllocationInfo() const noexcept {
+        VmaAllocationInfo vai;
+        vmaGetAllocationInfo(GetAllocator(), GetAllocation(), &vai);
+        return vai;
+    }
+
     struct ImageAllocation::impl {
         vk::Image image;
     };
@@ -57,8 +63,25 @@ namespace Engine {
     ImageAllocation::~ImageAllocation() {
         if (pimpl->image) vmaDestroyImage(GetAllocator(), pimpl->image, GetAllocation());
     }
-    
-    const vk::Image & ImageAllocation::GetImage() const noexcept {
+
+    ImageAllocation::ImageAllocation(
+        ImageAllocation &&other
+    ) noexcept : AllocatedMemory(std::move(other)), pimpl(std::make_unique<impl>(other.pimpl->image)) {
+        other.pimpl->image = nullptr;
+    }
+
+    ImageAllocation &ImageAllocation::operator=(ImageAllocation &&other) noexcept {
+        if (&other != this) {
+            // XXX: Ugly, try copy-and-swap idiom.
+            if (pimpl->image) vmaDestroyImage(GetAllocator(), pimpl->image, GetAllocation());
+            this->AllocatedMemory::operator=(std::move(other));
+            this->pimpl->image = other.pimpl->image;
+            other.pimpl->image = nullptr;
+        }
+        return *this;
+    }
+
+    const vk::Image &ImageAllocation::GetImage() const noexcept {
         return pimpl->image;
     }
     struct BufferAllocation::impl {
@@ -80,9 +103,26 @@ namespace Engine {
     }
     BufferAllocation::BufferAllocation(
         BufferAllocation &&other
-    ) : AllocatedMemory(std::move(other)), pimpl(std::make_unique<impl>(other.pimpl->buffer, other.pimpl->mapped_ptr)) {
+    ) noexcept : AllocatedMemory(std::move(other)), pimpl(std::make_unique<impl>(other.pimpl->buffer, other.pimpl->mapped_ptr)) {
         other.pimpl->buffer = nullptr;
         other.pimpl->mapped_ptr = nullptr;
+    }
+    BufferAllocation &BufferAllocation::operator=(BufferAllocation &&other) noexcept {
+        if (&other != this) {
+            // XXX: Ugly, try copy-and-swap idiom.
+            if(pimpl->buffer) {
+                if (pimpl->mapped_ptr) {
+                    vmaUnmapMemory(GetAllocator(), GetAllocation());
+                }
+                vmaDestroyBuffer(GetAllocator(), pimpl->buffer, GetAllocation());
+            }
+            this->AllocatedMemory::operator=(std::move(other));
+            this->pimpl->buffer = other.pimpl->buffer;
+            this->pimpl->mapped_ptr = other.pimpl->mapped_ptr;
+            other.pimpl->buffer = nullptr;
+            other.pimpl->mapped_ptr = nullptr;
+        }
+        return *this;
     }
     const vk::Buffer &BufferAllocation::GetBuffer() const noexcept {
         return pimpl->buffer;
