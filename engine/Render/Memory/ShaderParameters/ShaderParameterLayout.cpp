@@ -1,6 +1,7 @@
 #include "ShaderParameterLayout.h"
 
-#include <spirv_cross/spirv_cross.hpp>
+// CMake is messing with the SPIRV-Cross in Vulkan SDK
+#include "../../../../third_party/SPIRV-Cross/spirv_cross.hpp"
 #include <SDL3/SDL.h>
 
 namespace {
