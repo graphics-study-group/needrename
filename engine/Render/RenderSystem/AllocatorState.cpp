@@ -140,7 +140,7 @@ namespace Engine::RenderSystemState {
         return pimpl->m_allocator;
     }
 
-    AllocatedMemory AllocatorState::AllocateBuffer(BufferType type, size_t size, const std::string &name) const {
+    BufferAllocation AllocatorState::AllocateBuffer(BufferType type, size_t size, const std::string &name) const {
         assert(pimpl->m_allocator && "Allocated not initalized.");
         auto [busage, flags, musage] = pimpl->GetBufferFlags(type);
 
@@ -160,16 +160,19 @@ namespace Engine::RenderSystemState {
         vk::detail::resultCheck(vk::Result{result}, "Failed to create buffer.");
         assert(buffer != nullptr && allocation != nullptr);
         DEBUG_SET_NAME_TEMPLATE(m_system.getDevice(), static_cast<vk::Buffer>(buffer), name);
-        return AllocatedMemory(static_cast<vk::Buffer>(buffer), allocation, pimpl->m_allocator);
+        return BufferAllocation(static_cast<vk::Buffer>(buffer), allocation, pimpl->m_allocator);
     }
 
-    std::unique_ptr<AllocatedMemory> AllocatorState::AllocateBufferUnique(
+    std::unique_ptr<BufferAllocation> AllocatorState::AllocateBufferUnique(
         BufferType type, size_t size, const std::string &name
-    ) const {
-        return std::make_unique<AllocatedMemory>(AllocateBuffer(type, size, name));
+    ) const noexcept try {
+        return std::make_unique<BufferAllocation>(AllocateBuffer(type, size, name));
+    } catch (std::exception & e) {
+        SDL_LogError(SDL_LOG_CATEGORY_RENDER, e.what());
+        return nullptr;
     }
 
-    std::unique_ptr<AllocatedMemory> AllocatorState::AllocateImageUnique(
+    std::unique_ptr<ImageAllocation> AllocatorState::AllocateImageUnique(
         ImageUtils::ImageType type,
         vk::ImageType dimension,
         vk::Extent3D extent,
@@ -178,7 +181,7 @@ namespace Engine::RenderSystemState {
         uint32_t array_layers,
         vk::SampleCountFlagBits samples,
         const std::string &name
-    ) const {
+    ) const noexcept try {
         const auto [iusage, musage] = ImageUtils::GetImageFlags(type);
         auto fsupport = pimpl->QueryFormatSupport(m_system.GetPhysicalDevice(), format, type);
         if (fsupport.first == 0) {
@@ -191,7 +194,7 @@ namespace Engine::RenderSystemState {
                     to_string(fsupport.second)
                 ).c_str()
             );
-            return nullptr;
+            throw std::bad_alloc();
         }
         if (fsupport.first < 0) {
             SDL_LogWarn(
@@ -222,7 +225,7 @@ namespace Engine::RenderSystemState {
                     max_extent.width, max_extent.height, max_extent.depth
                 ).c_str()
             );
-            return nullptr;
+            throw std::bad_alloc();
         }
         if (miplevel > ifsupport.imageFormatProperties.maxMipLevels) {
             SDL_LogError(SDL_LOG_CATEGORY_RENDER, 
@@ -232,7 +235,7 @@ namespace Engine::RenderSystemState {
                     ifsupport.imageFormatProperties.maxMipLevels
                 ).c_str()
             );
-            return nullptr;
+            throw std::bad_alloc();
         }
         if (array_layers > ifsupport.imageFormatProperties.maxArrayLayers) {
             SDL_LogError(SDL_LOG_CATEGORY_RENDER, 
@@ -242,7 +245,7 @@ namespace Engine::RenderSystemState {
                     ifsupport.imageFormatProperties.maxArrayLayers
                 ).c_str()
             );
-            return nullptr;
+            throw std::bad_alloc();
         }
         if (!(samples & ifsupport.imageFormatProperties.sampleCounts)) {
             SDL_LogError(SDL_LOG_CATEGORY_RENDER, 
@@ -251,7 +254,7 @@ namespace Engine::RenderSystemState {
                     to_string(samples)
                 ).c_str()
             );
-            return nullptr;
+            throw std::bad_alloc();
         }
         
         // VkImageCreateInfo iinfo {};
@@ -280,8 +283,22 @@ namespace Engine::RenderSystemState {
         VmaAllocation allocation;
         vmaCreateImage(pimpl->m_allocator, &iinfo2, &ainfo, &image, &allocation, nullptr);
         DEBUG_SET_NAME_TEMPLATE(m_system.getDevice(), static_cast<vk::Image>(image), name);
-        return std::make_unique<AllocatedMemory>(
-            AllocatedMemory(static_cast<vk::Image>(image), allocation, pimpl->m_allocator)
-        );
+        return std::unique_ptr<ImageAllocation>(new ImageAllocation(static_cast<vk::Image>(image), allocation, pimpl->m_allocator));
+    } catch(std::exception & e) {
+        SDL_LogError(SDL_LOG_CATEGORY_RENDER, e.what());
+        return nullptr;
+    }
+
+    ImageAllocation AllocatorState::AllocateImage(
+        ImageUtils::ImageType type,
+        vk::ImageType dimension,
+        vk::Extent3D extent,
+        vk::Format format,
+        uint32_t miplevel,
+        uint32_t array_layers,
+        vk::SampleCountFlagBits samples,
+        const std::string &name
+    ) const {
+        assert(!"Unimplemented");
     }
 } // namespace Engine::RenderSystemState

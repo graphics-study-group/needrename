@@ -244,9 +244,9 @@ int main(int argc, char **argv) {
         .multisample = 1,
         .is_cube_map = false
     };
-    auto color = RenderTargetTexture::Create(*rsys, desc, Texture::SamplerDesc{}, "Color attachment");
+    auto color = RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Color attachment");
     desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::D32SFLOAT;
-    auto depth = RenderTargetTexture::Create(*rsys, desc, Texture::SamplerDesc{}, "Depth attachment");
+    auto depth = RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Depth attachment");
 
     RenderGraphBuilder rgb{*rsys};
     RenderGraph rg{rgb.BuildDefaultRenderGraph(*color, *depth, gsys.get())};

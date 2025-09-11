@@ -49,14 +49,14 @@ namespace Engine {
                     SDL_LOG_CATEGORY_RENDER, "Found zero-sized UBO when processing pass %llu of material", ubo_size
                 );
             } else {
-                pass.ubo = std::make_unique<IndexedBuffer>(system);
-                pass.ubo->Create(
-                    Buffer::BufferType::Uniform,
-                    tpl->GetMaximalUBOSize(idx),
-                    system.GetPhysicalDevice().getProperties().limits.minUniformBufferOffsetAlignment,
-                    PassInfo::BACK_BUFFERS,
-                    "Indexed UBO for Material"
-                );
+                pass.ubo = 
+                    IndexedBuffer::CreateUnique(
+                        system, Buffer::BufferType::Uniform,
+                        tpl->GetMaximalUBOSize(idx),
+                        system.GetPhysicalDevice().getProperties().limits.minUniformBufferOffsetAlignment,
+                        PassInfo::BACK_BUFFERS,
+                        "Indexed UBO for Material"
+                    );
             }
             pimpl->m_pass_info[idx] = std::move(pass);
         }

@@ -19,10 +19,23 @@ namespace Engine {
         struct impl;
         std::unique_ptr<impl> pimpl;
 
+        IndexedBuffer(
+            BufferAllocation && alloc, 
+            size_t size,
+            size_t slice_size,
+            size_t slice_alignment,
+            uint32_t slices,
+            size_t aligned_slice_size
+        );
+
     public:
         using Buffer::BufferType;
 
-        IndexedBuffer(RenderSystem &system);
+        IndexedBuffer (const IndexedBuffer &) = delete;
+        void operator= (const IndexedBuffer &) = delete;
+
+        IndexedBuffer(IndexedBuffer &&) noexcept;
+
         virtual ~IndexedBuffer();
 
         /**
@@ -36,8 +49,21 @@ namespace Engine {
          * slice.
          * @param name Name of the buffer.
          */
-        void Create(
-            BufferType type, size_t slice_size, size_t slice_alignment, uint32_t slices, const std::string &name = ""
+        static IndexedBuffer Create(
+            RenderSystem & system,
+            BufferType type,
+            size_t slice_size,
+            size_t slice_alignment,
+            uint32_t slices,
+            const std::string &name = ""
+        );
+        static std::unique_ptr <IndexedBuffer> CreateUnique(
+            RenderSystem & system,
+            BufferType type,
+            size_t slice_size,
+            size_t slice_alignment,
+            uint32_t slices,
+            const std::string &name = ""
         );
 
         using Buffer::GetBuffer;
@@ -80,7 +106,7 @@ namespace Engine {
          * Generally you don't
          * need to manually call this member, as memories that
          * need to be flushed are usually coherent.
- */
+         */
         void FlushSlice(uint32_t slice) const;
 
         /**
@@ -92,33 +118,6 @@ namespace Engine {
          * usually coherent.
          */
         void InvalidateSlice(uint32_t slice);
-    };
-
-    /**
-     * @brief A typed adaptor of `IndexedBuffer`.
-     */
-    template <class T>
-        requires std::is_standard_layout_v<T>
-    class TypedIndexedBuffer : public IndexedBuffer {
-    public:
-        TypedIndexedBuffer(RenderSystem &sys) : IndexedBuffer(sys) {};
-
-        /**
-         * @brief Create the buffer object and perform allocation accordingly.
-         * 
-         *
-         * Effectively calls `IndexedBuffer::Create(type, sizeof(T), slice_alignment, slices, name)`.
-         */
-        void Create(BufferType type, size_t slice_alignment, uint32_t slices, const std::string &name = "") {
-            IndexedBuffer::Create(type, sizeof(T), slice_alignment, slices, name);
-        }
-
-        /**
-         * @brief Get a typed pointer to the slice.
-         */
-        T *GetSlicePtrTyped(uint32_t slice) const noexcept {
-            return reinterpret_cast<T *>(GetSlicePtr(slice));
-        }
     };
 } // namespace Engine
 

@@ -37,7 +37,7 @@ namespace Engine {
             // Per camera constant descriptor set layout
             Engine::ConstantData::PerCameraConstantLayout m_per_camera_constant_layout{};
             // Per camera constant uniform buffers. Per camera constants contain only uniform buffers.
-            std::vector<std::unique_ptr<Engine::TypedIndexedBuffer<ConstantData::PerCameraStruct>>>
+            std::vector<Engine::IndexedBuffer>
                 m_per_camera_buffers{};
             // Per camera constant descriptor sets. These sets don't need explicit freeing.
             std::vector<vk::DescriptorSet> m_per_camera_descriptor_sets{};

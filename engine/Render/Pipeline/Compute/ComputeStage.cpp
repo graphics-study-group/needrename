@@ -107,8 +107,7 @@ namespace Engine {
                 asset.m_name.c_str()
             );
         } else {
-            pimpl->m_instancedPassInfo.ubo = std::make_unique<Buffer>(m_system);
-            pimpl->m_instancedPassInfo.ubo->Create(Buffer::BufferType::Uniform, ubo_size);
+            pimpl->m_instancedPassInfo.ubo = Buffer::CreateUnique(m_system, Buffer::BufferType::Uniform, ubo_size);
         }
         // TODO: We obviously need a new pool for compute decriptors
         vk::DescriptorSetAllocateInfo dsai{
@@ -190,7 +189,7 @@ namespace Engine {
         // write uniform buffer
         auto &ubo = *(pimpl->m_instancedPassInfo.ubo.get());
         PipelineInfo::PlaceUBOVariables(pimpl->m_inblock_variables, pimpl->m_passInfo, pimpl->m_ubo_staging_buffer);
-        std::memcpy(ubo.Map(), pimpl->m_ubo_staging_buffer.data(), ubo.GetSize());
+        std::memcpy(ubo.GetVMAddress(), pimpl->m_ubo_staging_buffer.data(), ubo.GetSize());
         ubo.Flush();
 
         pimpl->m_instancedPassInfo.is_ubo_dirty = false;

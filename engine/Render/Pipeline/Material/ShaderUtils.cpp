@@ -184,7 +184,7 @@ namespace Engine {
         ReflectedDataCollectionCompute ReflectSpirvDataCompute(const std::vector<uint32_t> &spirv_code) {
             spv_reflect::ShaderModule shaderModule{spirv_code};
             assert(
-                (shaderModule.GetShaderStage() & VK_SHADER_STAGE_COMPUTE_BIT)
+                (shaderModule.GetShaderStage() & SpvReflectShaderStageFlagBits::SPV_REFLECT_SHADER_STAGE_COMPUTE_BIT)
                 && "The shader provided is not a compute shader."
             );
 

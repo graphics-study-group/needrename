@@ -33,9 +33,9 @@ namespace Engine {
             .is_cube_map = false
         };
 
-        m_color_texture = RenderTargetTexture::Create(*render_system, desc, ImageUtils::SamplerDesc{}, "Color attachment");
+        m_color_texture = RenderTargetTexture::CreateUnique(*render_system, desc, ImageUtils::SamplerDesc{}, "Color attachment");
         desc.format = RenderTargetTexture::RTTFormat::D32SFLOAT;
-        m_depth_texture = RenderTargetTexture::Create(*render_system, desc, ImageUtils::SamplerDesc{}, "Depth attachment");
+        m_depth_texture = RenderTargetTexture::CreateUnique(*render_system, desc, ImageUtils::SamplerDesc{}, "Depth attachment");
     }
 
     vk::Extent2D SDLWindow::GetExtent() const {

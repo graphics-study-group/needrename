@@ -53,10 +53,9 @@ namespace Engine::RenderSystemState {
         auto enqueued = [&texture, data, length, this](vk::CommandBuffer cb) {
             Buffer buffer{texture.CreateStagingBuffer()};
             assert(length <= buffer.GetSize());
-            std::byte *mapped_ptr = buffer.Map();
+            std::byte *mapped_ptr = buffer.GetVMAddress();
             std::memcpy(mapped_ptr, data, length);
             buffer.Flush();
-            buffer.Unmap();
 
             // Transit layout to TransferDstOptimal
             std::array<vk::ImageMemoryBarrier2, 1> barriers = {LayoutTransferHelper::GetTextureBarrier(

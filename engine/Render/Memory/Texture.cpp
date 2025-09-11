@@ -13,7 +13,7 @@ namespace Engine {
     struct Texture::impl {
         TextureDesc m_tdesc {};
         SamplerDesc m_sdesc {};
-        std::unique_ptr <AllocatedMemory> m_image {};
+        std::unique_ptr <ImageAllocation> m_image {};
         std::unique_ptr <SlicedTextureView> m_full_view {};
         vk::Sampler m_sampler {};
         std::string m_name {};
@@ -102,12 +102,11 @@ namespace Engine {
             * ImageUtils::GetPixelSize(pimpl->m_tdesc.format);
         assert(buffer_size > 0);
 
-        Buffer buffer{m_system};
-        buffer.Create(
-            Buffer::BufferType::Staging, 
-            buffer_size, 
+        return Buffer::Create(
+            m_system,
+            Buffer::BufferType::Staging,
+            buffer_size,
             std::format("Buffer - texture ({}) staging", pimpl->m_name)
         );
-        return buffer;
     }
 } // namespace Engine

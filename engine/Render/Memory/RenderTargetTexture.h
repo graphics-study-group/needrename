@@ -46,7 +46,13 @@ namespace Engine {
         );
     
     public:
-        static std::unique_ptr <RenderTargetTexture> Create(
+        static RenderTargetTexture Create(
+            RenderSystem & system, 
+            RenderTargetTextureDesc texture, 
+            SamplerDesc sampler,
+            const std::string & name = ""
+        );
+        static std::unique_ptr <RenderTargetTexture> CreateUnique(
             RenderSystem & system, 
             RenderTargetTextureDesc texture, 
             SamplerDesc sampler,

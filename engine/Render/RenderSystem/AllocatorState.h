@@ -52,13 +52,16 @@ namespace Engine {
             void Create();
             VmaAllocator GetAllocator() const;
 
-            AllocatedMemory AllocateBuffer(BufferType type, size_t size, const std::string &name = "") const;
-
-            std::unique_ptr<AllocatedMemory> AllocateBufferUnique(
-                BufferType type, size_t size, const std::string &name = ""
+            BufferAllocation AllocateBuffer(
+                BufferType type,
+                size_t size,
+                const std::string &name = ""
             ) const;
+            std::unique_ptr<BufferAllocation> AllocateBufferUnique(
+                BufferType type, size_t size, const std::string &name = ""
+            ) const noexcept;
 
-            std::unique_ptr<AllocatedMemory> AllocateImageUnique(
+            ImageAllocation AllocateImage(
                 ImageUtils::ImageType type,
                 vk::ImageType dimension,
                 vk::Extent3D extent,
@@ -68,6 +71,16 @@ namespace Engine {
                 vk::SampleCountFlagBits samples,
                 const std::string &name = ""
             ) const;
+            std::unique_ptr<ImageAllocation> AllocateImageUnique(
+                ImageUtils::ImageType type,
+                vk::ImageType dimension,
+                vk::Extent3D extent,
+                vk::Format format,
+                uint32_t miplevel,
+                uint32_t array_layers,
+                vk::SampleCountFlagBits samples,
+                const std::string &name = ""
+            ) const noexcept;
         };
     } // namespace RenderSystemState
 } // namespace Engine

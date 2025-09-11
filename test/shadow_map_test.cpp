@@ -152,11 +152,11 @@ int main(int argc, char **argv) {
         .multisample = 1,
         .is_cube_map = false
     };
-    std::shared_ptr color = Engine::RenderTargetTexture::Create(*rsys, desc, Texture::SamplerDesc{}, "Color attachment");
+    std::shared_ptr color = Engine::RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Color attachment");
     desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::D32SFLOAT;
-    std::shared_ptr depth = Engine::RenderTargetTexture::Create(*rsys, desc, Texture::SamplerDesc{}, "Depth attachment");
+    std::shared_ptr depth = Engine::RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Depth attachment");
     desc.width = desc.height = 2048;
-    std::shared_ptr shadow = Engine::RenderTargetTexture::Create(*rsys, desc, Texture::SamplerDesc{}, "Depth attachment");
+    std::shared_ptr shadow = Engine::RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Depth attachment");
     std::shared_ptr blank_color = Engine::ImageTexture::Create(
         *rsys, 
         ImageTexture::ImageTextureDesc{
