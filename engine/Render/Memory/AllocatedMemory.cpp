@@ -55,7 +55,7 @@ namespace Engine {
     ) : AllocatedMemory(allocation, allocator), pimpl(std::make_unique<impl>(image)) {
     }
     ImageAllocation::~ImageAllocation() {
-        vmaDestroyImage(GetAllocator(), pimpl->image, GetAllocation());
+        if (pimpl->image) vmaDestroyImage(GetAllocator(), pimpl->image, GetAllocation());
     }
     
     const vk::Image & ImageAllocation::GetImage() const noexcept {
@@ -71,8 +71,12 @@ namespace Engine {
         VmaAllocator allocator) : AllocatedMemory(allocation, allocator), pimpl(std::make_unique<impl>(buffer, nullptr)) {
     }
     BufferAllocation::~BufferAllocation() {
-        assert(pimpl->buffer);
-        vmaDestroyBuffer(GetAllocator(), pimpl->buffer, GetAllocation());
+        if(pimpl->buffer) {
+            if (pimpl->mapped_ptr) {
+                vmaUnmapMemory(GetAllocator(), GetAllocation());
+            }
+            vmaDestroyBuffer(GetAllocator(), pimpl->buffer, GetAllocation());
+        }
     }
     BufferAllocation::BufferAllocation(
         BufferAllocation &&other
