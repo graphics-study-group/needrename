@@ -12,6 +12,7 @@ target_link_libraries(EngineLibRender
 target_link_libraries(EngineLibRender
     PUBLIC
     spirv-reflect
+    spirv-cross-cpp
     vma
 )
 target_precompile_headers(EngineLibRender PRIVATE "FullRenderSystem.h")
