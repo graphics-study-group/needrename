@@ -45,7 +45,7 @@ namespace Engine {
         };
 
         struct SPInterfaceOpaqueImage : SPInterfaceOpaque {
-            enum class ImageFlagBits {
+            enum class ImageFlagBits : uint32_t {
                 HasSampler = 1 << 0,
                 Arrayed = 1 << 1,
                 Multisampled = 1 << 2,
