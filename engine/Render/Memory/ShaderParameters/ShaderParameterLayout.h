@@ -5,6 +5,10 @@
 #include <memory>
 #include <unordered_map>
 
+namespace vk {
+    class DescriptorSetLayoutBinding;
+}
+
 namespace Engine {
     namespace ShdrRfl {
         struct SPLayout {
@@ -44,6 +48,9 @@ namespace Engine {
 
             /**
              * @brief Acquire a SPLayout by reflecting SPIR-V code.
+             * 
+             * @param filter_out_low_descriptors Ignore descriptors whose set
+             * is lower than 3. Useful when processing material shaders.
              */
             static SPLayout Reflect(
                 const std::vector <uint32_t> & spirv_code,

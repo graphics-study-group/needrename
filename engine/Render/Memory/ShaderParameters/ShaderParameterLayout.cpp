@@ -48,7 +48,7 @@ namespace {
 
     void ReflectSimpleStruct(
         Engine::ShdrRfl::SPLayout & layout,
-        Engine::ShdrRfl::SPInterface & root,
+        Engine::ShdrRfl::SPInterfaceBuffer & root,
         const spirv_cross::Resource & buffer,
         const spirv_cross::Compiler & compiler
     ) {
@@ -123,6 +123,41 @@ namespace {
         layout.types.emplace_back(std::move(struct_type_ptr));
         root.underlying_type = struct_type_ptr.get();
     }
+
+    void FillImageInfo(
+        Engine::ShdrRfl::SPInterfaceOpaqueImage & image, 
+        const spirv_cross::SPIRType & type
+    ) {
+        if (!type.array.empty()) {
+            assert(type.array.size() == 1);
+            image.array_size = type.array[0];
+        } else {
+            image.array_size = 0;
+        }
+
+        using enum Engine::ShdrRfl::SPInterfaceOpaqueImage::ImageFlagBits;
+        if (type.image.arrayed) image.flags.Set(Arrayed);
+        if (type.image.ms) image.flags.Set(Multisampled);
+        switch (type.image.dim) {
+        case spv::Dim1D:
+            image.flags.Set(d1D);
+            break;
+        case spv::Dim2D:
+            image.flags.Set(d2D);
+            break;
+        case spv::Dim3D:
+            image.flags.Set(d3D);
+            break;
+        case spv::DimCube:
+            // In Vulkan Cubemap is simply arrayed 2D texture
+            image.flags.Set(d2D);
+            image.flags.Set(Arrayed);
+            image.flags.Set(CubeMap);
+            break;
+        default:
+            SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Unidentified image dimension.");
+        }
+    }
 }
 
 namespace Engine::ShdrRfl {
@@ -194,11 +229,14 @@ namespace Engine::ShdrRfl {
             auto desc_set = compiler.get_decoration(image.id, spv::DecorationDescriptorSet);
             if (filter_out_low_descriptors && desc_set < 2) continue;
 
-            auto ptr = std::unique_ptr<SPInterface>(new SPInterface());
+            auto ptr = std::unique_ptr<SPInterfaceOpaqueImage>(new SPInterfaceOpaqueImage());
             ptr->layout_set = desc_set;
             ptr->layout_binding = compiler.get_decoration(image.id, spv::DecorationBinding);
-            ptr->type = SPInterface::Type::TextureCombinedSampler;
-            ptr->underlying_type = nullptr;
+            ptr->flags.Set(SPInterfaceOpaqueImage::ImageFlagBits::HasSampler);
+
+            const auto &type = compiler.get_type(image.type_id);
+            FillImageInfo(*ptr, type);
+
             layout.interfaces.push_back(ptr.get());
             if (layout.name_mapping.contains(image.name)) {
                 SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Duplicated resource name: %s", image.name.c_str());
@@ -212,11 +250,10 @@ namespace Engine::ShdrRfl {
             auto desc_set = compiler.get_decoration(image.id, spv::DecorationDescriptorSet);
             if (filter_out_low_descriptors && desc_set < 2) continue;
 
-            auto ptr = std::unique_ptr<SPInterface>(new SPInterface());
+            auto ptr = std::unique_ptr<SPInterfaceOpaqueStorageImage>(new SPInterfaceOpaqueStorageImage());
             ptr->layout_set = desc_set;
             ptr->layout_binding = compiler.get_decoration(image.id, spv::DecorationBinding);
-            ptr->type = SPInterface::Type::TextureCombinedSampler;
-            ptr->underlying_type = nullptr;
+
             layout.interfaces.push_back(ptr.get());
             if (layout.name_mapping.contains(image.name)) {
                 SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Duplicated resource name: %s", image.name.c_str());
@@ -225,13 +262,24 @@ namespace Engine::ShdrRfl {
             layout.variables.emplace_back(std::move(ptr));
         }
 
+        // Other opaque types are currently unsupported
+        if (!shader_resources.separate_images.empty()) {
+            SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Separate images are unsupported.");
+        }
+        if (!shader_resources.separate_samplers.empty()) {
+            SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Separate samplers are unsupported.");
+        }
+        if (!shader_resources.atomic_counters.empty()) {
+            SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Vulkan SPIR-V does not support atomic counters.");
+        }
+
         // UBOs
         for (auto ubo : shader_resources.uniform_buffers) {
             auto desc_set = compiler.get_decoration(ubo.id, spv::DecorationDescriptorSet);
             if (filter_out_low_descriptors && desc_set < 2) continue;
 
-            auto buffer_interface_ptr = std::unique_ptr<SPInterface>(new SPInterface{});
-            buffer_interface_ptr->type = SPInterface::UniformBuffer;
+            auto buffer_interface_ptr = std::unique_ptr<SPInterfaceBuffer>(new SPInterfaceBuffer{});
+            buffer_interface_ptr->type = SPInterfaceBuffer::Type::UniformBuffer;
 
             ReflectSimpleStruct(layout, *buffer_interface_ptr, ubo, compiler);
 
@@ -250,8 +298,8 @@ namespace Engine::ShdrRfl {
             auto desc_set = compiler.get_decoration(ssbo.id, spv::DecorationDescriptorSet);
             if (filter_out_low_descriptors && desc_set < 2) continue;
 
-            auto buffer_interface_ptr = std::unique_ptr<SPInterface>(new SPInterface{});
-            buffer_interface_ptr->type = SPInterface::StorageBuffer;
+            auto buffer_interface_ptr = std::unique_ptr<SPInterfaceBuffer>(new SPInterfaceBuffer{});
+            buffer_interface_ptr->type = SPInterfaceBuffer::Type::StorageBuffer;
 
             ReflectSimpleStruct(layout, *buffer_interface_ptr, ssbo, compiler);
 

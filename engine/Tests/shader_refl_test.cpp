@@ -26,12 +26,36 @@ inline std::vector <uint32_t> ReadSpirvBinary(std::filesystem::path p) {
 inline void PrintLayout(const Engine::ShdrRfl::SPLayout & layout) {
     std::cout << "Interfaces: " << std::endl;
     for (const auto & i : layout.interfaces) {
-        std::cout << "\t" << std::format(
-            "Set: {}, Binding: {}, Type: {}", 
-            i->layout_set, 
-            i->layout_binding, 
-            static_cast<int>(i->type)
-        ) << std::endl;
+        if (auto ptr = dynamic_cast<const Engine::ShdrRfl::SPInterfaceOpaqueImage *>(i)) {
+            std::cout << "\t" << std::format(
+                "Set: {}, Binding: {}, Type: Image (size {}, flags {})", 
+                i->layout_set, 
+                i->layout_binding, 
+                ptr->array_size,
+                static_cast<uint32_t>(ptr->flags)
+            ) << std::endl;
+        } else if (auto ptr = dynamic_cast<const Engine::ShdrRfl::SPInterfaceOpaqueStorageImage *>(i)) {
+            std::cout << "\t" << std::format(
+                "Set: {}, Binding: {}, Type: Storage Image (size {})", 
+                i->layout_set, 
+                i->layout_binding, 
+                ptr->array_size
+            ) << std::endl;
+        } else if (auto ptr = dynamic_cast<const Engine::ShdrRfl::SPInterfaceBuffer *>(i)) {
+            std::cout << "\t" << std::format(
+                "Set: {}, Binding: {}, Type: {}", 
+                i->layout_set, 
+                i->layout_binding, 
+                ptr->type == Engine::ShdrRfl::SPInterfaceBuffer::Type::StorageBuffer ? "SSBO" : "UBO"
+            ) << std::endl;
+        } else {
+            std::cout << "\t" << std::format(
+                "Set: {}, Binding: {}, Type: {}", 
+                i->layout_set, 
+                i->layout_binding, 
+                "Unknown"
+            ) << std::endl;
+        }
     }
 
     std::cout << "Assignables:" << std::endl;
@@ -61,7 +85,7 @@ inline void PrintLayout(const Engine::ShdrRfl::SPLayout & layout) {
 int main(int argc, char *argv[]) {
 
     auto p = argc == 1 ? 
-        std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "shaders/lambertian_cook_torrance.frag.spv" 
+        std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "shaders/pbr_base.vert.spv" 
         : std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "shaders" / argv[1];
 
     // Get SDL logging working.
@@ -71,7 +95,10 @@ int main(int argc, char *argv[]) {
     auto layout = Engine::ShdrRfl::SPLayout::Reflect(binary, false);
     PrintLayout(layout);
 
-    binary = ReadSpirvBinary(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "shaders/pbr_base.vert.spv");
+    binary = ReadSpirvBinary(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "shaders/lambertian_cook_torrance.frag.spv");
     layout.Merge(Engine::ShdrRfl::SPLayout::Reflect(binary, false));
     PrintLayout(layout);
+
+    binary = ReadSpirvBinary(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "shaders/fluid.comp.spv");
+    PrintLayout(Engine::ShdrRfl::SPLayout::Reflect(binary, false));
 }

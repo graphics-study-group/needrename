@@ -4,6 +4,7 @@
 #include <variant>
 #include <cstdint>
 #include <vector>
+#include "Core/flagbits.h"
 #include "ShaderParameterSimple.h"
 
 namespace Engine {
@@ -37,18 +38,41 @@ namespace Engine {
         struct SPInterface : SPAssignable {
             uint32_t layout_set {~0U};
             uint32_t layout_binding {~0U};
-            enum Type {
+        };
+
+        struct SPInterfaceOpaque : SPInterface {
+            size_t array_size {0};
+        };
+
+        struct SPInterfaceOpaqueImage : SPInterfaceOpaque {
+            enum class ImageFlagBits {
+                HasSampler = 1 << 0,
+                Arrayed = 1 << 1,
+                Multisampled = 1 << 2,
+                d1D = 1 << 3,
+                d2D = 1 << 4,
+                d3D = 1 << 5,
+                CubeMap = 1 << 6
+            };
+            using ImageFlags = Flags <ImageFlagBits>;
+            ImageFlags flags{};
+        };
+
+        struct SPInterfaceOpaqueStorageImage : SPInterfaceOpaque {
+            // vk::Format format;
+        };
+
+        struct SPInterfaceOpaqueOther : SPInterfaceOpaque {
+            enum class Type {
                 Unknown,
-                // Combined image and sampler (`samplerX`)
-                TextureCombinedSampler,
-                // Storage image (`imageX`)
-                Image,
-                // Atomic counter (`atomic_X`), not available for Vulkan
-                // AtomicCounter,
-                // Seperate texture image (`textureX`)
-                Texture,
-                // Seperate sampler (`sampler`)
-                Sampler,
+                // Separate sampler (`sampler`)
+                Sampler
+            } type {Type::Unknown};
+        };
+
+        struct SPInterfaceBuffer : SPInterface {
+            enum class Type {
+                Unknown,
                 // UBOs (`uniform StructName`)
                 UniformBuffer,
                 // SSBOs (`buffer StructName`)
