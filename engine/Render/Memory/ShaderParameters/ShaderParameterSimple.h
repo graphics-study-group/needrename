@@ -8,12 +8,21 @@
 
 namespace Engine {
     namespace ShdrRfl {
+        class SPType;
         class SPInterface;
 
         struct SPVariable {
             virtual ~SPVariable(){};
         };
         struct SPAssignable : SPVariable {};
+        /**
+         * @brief An assignable variable that is located in
+         * an interface (i.e. UBO or SSBO)
+         */
+        struct SPAssignableInterface : SPAssignable {
+            uint32_t absolute_offset {};
+            SPInterface * parent_interface {nullptr};
+        };
 
         /**
          * @brief Shader variables that can be directly assigned
@@ -21,29 +30,19 @@ namespace Engine {
          * 
          * These variables won't need type information.
          */
-        struct SPSimpleAssignable : SPAssignable {
-            uint32_t absolute_offset;
-            SPInterface * parent_interface;
-        };
-        struct SPScalar : SPSimpleAssignable {
+        struct SPAssignableSimple : SPAssignableInterface {
             enum class Type {
+                Unknown,
                 Uint,
                 Sint,
-                Float
-            } type;
+                Float,
+                FVec4,
+                FMat4
+            } type {Type::Unknown};
         };
 
-        /* struct SPArray : SPTransparentAssignable {
-            std::variant<SPArray, SPSimple> underlying_type;
-            uint32_t stride;
-            uint32_t offset;
-        }; */
-
-        struct SPVec4 : SPSimpleAssignable {
-
-        };
-        struct SPMat4 : SPSimpleAssignable {
-
+        struct SPAssignableArray : SPAssignableInterface {
+            const SPType * underlying_type {nullptr};
         };
     }
 }

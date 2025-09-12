@@ -14,32 +14,49 @@ namespace Engine {
         /**
          * @brief A shader variable of struct.
          * 
-         * This type of struct contains only simple members. No
-         * arrays or recursive struct is allowed.
+         * This type of struct contains only assignable members.
+         * No recursive struct is allowed.
          */
         struct SPTypeSimpleStruct : SPType {
-            size_t expected_size;
-            std::vector <const SPSimpleAssignable *> members;
+            size_t expected_size {};
+            std::vector <const SPAssignable *> members {};
         };
+
+        /**
+         * @brief One-dimensional array of an assignable type.
+         */
+        struct SPTypeSimpleArray : SPType {
+            size_t array_length {~0ULL};
+            SPAssignableSimple::Type type {SPAssignableSimple::Type::Unknown};
+        };
+
         /**
          * @brief A shader parameter that occupies a descriptor slot.
          * Including opaque types and uniform or storage buffers.
          */
         struct SPInterface : SPAssignable {
-            uint32_t layout_set;
-            uint32_t layout_binding;
+            uint32_t layout_set {~0U};
+            uint32_t layout_binding {~0U};
             enum Type {
+                Unknown,
+                // Combined image and sampler (`samplerX`)
                 TextureCombinedSampler,
+                // Storage image (`imageX`)
                 Image,
-                AtomicCounter,
+                // Atomic counter (`atomic_X`), not available for Vulkan
+                // AtomicCounter,
+                // Seperate texture image (`textureX`)
                 Texture,
+                // Seperate sampler (`sampler`)
                 Sampler,
+                // UBOs (`uniform StructName`)
                 UniformBuffer,
+                // SSBOs (`buffer StructName`)
                 StorageBuffer
-            } type;
+            } type {Type::Unknown};
 
             // Underlying type for buffers.
-            const SPType * underlying_type;
+            const SPType * underlying_type {nullptr};
         };
     }
 }

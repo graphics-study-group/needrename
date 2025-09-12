@@ -8,11 +8,14 @@
 namespace Engine {
     namespace ShdrRfl {
         struct SPLayout {
-            std::vector <std::unique_ptr<SPType>> types;
+            // Types are only added and never removed.
+            // We will have no more than ~100 shaders, so this
+            // might be Ok anyway.
+            static std::vector <std::unique_ptr<SPType>> types;
             std::vector <std::unique_ptr<SPVariable>> variables;
 
             std::vector <const SPInterface *> interfaces;
-            std::unordered_map <std::string, const SPAssignable *> assignable_mapping;
+            std::unordered_map <std::string, const SPVariable *> name_mapping;
 
             /**
              * @brief Generate `vk::DescriptorWrite` according to
@@ -30,7 +33,22 @@ namespace Engine {
                 const void * variables
             ) const noexcept;
 
-            static SPLayout Reflect(const std::vector <uint32_t> & spirv_code);
+            /**
+             * @brief Merge a SPLayout from another shader.
+             * 
+             * Merging is done by considering only names. If a variable
+             * corresponding to a name is found out to be an interface,
+             * then the interface is also merged.
+             */
+            void Merge(SPLayout && other);
+
+            /**
+             * @brief Acquire a SPLayout by reflecting SPIR-V code.
+             */
+            static SPLayout Reflect(
+                const std::vector <uint32_t> & spirv_code,
+                bool filter_out_low_descriptors = true
+            );
         };
     }
 }
