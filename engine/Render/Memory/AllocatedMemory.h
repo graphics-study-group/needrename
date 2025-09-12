@@ -29,8 +29,8 @@ namespace Engine {
         AllocatedMemory(const AllocatedMemory &) = delete;
         void operator=(const AllocatedMemory &) = delete;
 
-        AllocatedMemory(AllocatedMemory &&other);
-        AllocatedMemory &operator=(AllocatedMemory &&other);
+        AllocatedMemory(AllocatedMemory &&other) noexcept;
+        AllocatedMemory &operator=(AllocatedMemory &&other) noexcept;
 
         const VmaAllocation & GetAllocation() const noexcept;
         const VmaAllocator & GetAllocator() const noexcept;

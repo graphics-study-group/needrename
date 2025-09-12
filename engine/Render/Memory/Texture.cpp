@@ -19,11 +19,11 @@ namespace Engine {
         std::string m_name {};
     };
 
-    Texture::Texture(RenderSystem & system,
-            TextureDesc texture,
-            SamplerDesc sampler,
-            const std::string & name
-        ) : m_system(system), pimpl(std::make_unique<impl>()) {
+    Texture::Texture(RenderSystem & system) : m_system(system), pimpl(nullptr) {
+    }
+
+    Texture::Texture(RenderSystem &system, TextureDesc texture, SamplerDesc sampler, const std::string &name) :
+        m_system(system), pimpl(std::make_unique<impl>()) {
 
         auto &allocator = m_system.GetAllocatorState();
         auto dimension = texture.dimensions;
@@ -59,6 +59,10 @@ namespace Engine {
         pimpl->m_full_view = std::make_unique<SlicedTextureView>(
             m_system, *this, TextureSlice{0, texture.mipmap_levels, 0, texture.array_layers}
         );
+    }
+
+    Texture::Texture(Texture && o) noexcept : Texture(o.m_system) {
+        std::swap(this->pimpl, o.pimpl);
     }
 
     Texture::~Texture() = default;

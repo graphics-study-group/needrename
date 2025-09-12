@@ -33,6 +33,9 @@ namespace Engine {
 
         struct impl;
         std::unique_ptr <impl> pimpl;
+        
+        // Used in move operator for copy-and-swap
+        Texture (RenderSystem &);
 
         Texture(
             RenderSystem & system,
@@ -42,6 +45,13 @@ namespace Engine {
         );
 
     public:
+
+        Texture (const Texture &) = delete;
+        void operator= (const Texture &) = delete;
+
+        Texture (Texture &&) noexcept;
+        // I don't want to rewrite the whole reference mess, so just delete it.
+        Texture & operator = (Texture &&) noexcept = delete;
         
         virtual ~Texture();
         /**
