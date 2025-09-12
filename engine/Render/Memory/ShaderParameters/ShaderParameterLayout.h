@@ -38,6 +38,21 @@ namespace Engine {
             ) const noexcept;
 
             /**
+             * @brief Generate all descriptor set layout bindings.
+             * 
+             * @return an unordered map from descriptor set index to its
+             * corresponding binding.
+             */
+            std::unordered_map <uint32_t, std::vector <vk::DescriptorSetLayoutBinding>>
+            GenerateAllLayoutBindings() const;
+
+            /**
+             * @brief Generate descriptor set layout binding for a given set.
+             */
+            std::vector <vk::DescriptorSetLayoutBinding>
+            GenerateLayoutBindings(uint32_t set) const;
+
+            /**
              * @brief Merge a SPLayout from another shader.
              * 
              * Merging is done by considering only names. If a variable

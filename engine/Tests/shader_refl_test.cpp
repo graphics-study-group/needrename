@@ -4,6 +4,7 @@
 #include <cassert>
 #include <format>
 #include <SDL3/SDL.h>
+#include <vulkan/vulkan.hpp>
 
 #include "Render/Memory/ShaderParameters/ShaderParameterLayout.h"
 #include "Render/Memory/ShaderParameters/ShaderParameterSimple.h"
@@ -48,6 +49,9 @@ inline void PrintLayout(const Engine::ShdrRfl::SPLayout & layout) {
                 i->layout_binding, 
                 ptr->type == Engine::ShdrRfl::SPInterfaceBuffer::Type::StorageBuffer ? "SSBO" : "UBO"
             ) << std::endl;
+            if (auto tptr = dynamic_cast<const Engine::ShdrRfl::SPTypeSimpleStruct *>(ptr->underlying_type)) {
+                std::cout << "\t\tTakes up " << tptr->expected_size << " bytes" << std::endl ;
+            }
         } else {
             std::cout << "\t" << std::format(
                 "Set: {}, Binding: {}, Type: {}", 
@@ -82,6 +86,21 @@ inline void PrintLayout(const Engine::ShdrRfl::SPLayout & layout) {
     }
 }
 
+inline void PrintDescriptorSetLayoutBindings (const std::unordered_map<uint32_t, std::vector<vk::DescriptorSetLayoutBinding>> & sets)
+{
+    for (const auto & kv : sets) {
+        std::cout << "Set: " << kv.first << std::endl;
+        for (const auto & bd : kv.second) {
+            std::cout << std::format(
+                "\tBinding {}: {} {}(s)",
+                bd.binding,
+                bd.descriptorCount,
+                to_string(bd.descriptorType)
+            ) << std::endl;
+        }
+    }
+}
+
 int main(int argc, char *argv[]) {
 
     auto p = argc == 1 ? 
@@ -98,7 +117,10 @@ int main(int argc, char *argv[]) {
     binary = ReadSpirvBinary(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "shaders/lambertian_cook_torrance.frag.spv");
     layout.Merge(Engine::ShdrRfl::SPLayout::Reflect(binary, false));
     PrintLayout(layout);
+    PrintDescriptorSetLayoutBindings(layout.GenerateAllLayoutBindings());
 
     binary = ReadSpirvBinary(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "shaders/fluid.comp.spv");
-    PrintLayout(Engine::ShdrRfl::SPLayout::Reflect(binary, false));
+    layout = Engine::ShdrRfl::SPLayout::Reflect(binary, false);
+    PrintLayout(layout);
+    PrintDescriptorSetLayoutBindings(layout.GenerateAllLayoutBindings());
 }

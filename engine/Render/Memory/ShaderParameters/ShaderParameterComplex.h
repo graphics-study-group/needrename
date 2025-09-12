@@ -41,7 +41,7 @@ namespace Engine {
         };
 
         struct SPInterfaceOpaque : SPInterface {
-            size_t array_size {0};
+            uint32_t array_size {0};
         };
 
         struct SPInterfaceOpaqueImage : SPInterfaceOpaque {

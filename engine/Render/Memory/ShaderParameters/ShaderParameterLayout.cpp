@@ -5,6 +5,7 @@
 #pragma GCC diagnostic ignored "-Weffc++"
 #include "../../../../third_party/SPIRV-Cross/spirv_cross.hpp"
 #pragma GCC diagnostic pop
+#include <vulkan/vulkan.hpp>
 #include <SDL3/SDL.h>
 
 namespace {
@@ -80,7 +81,7 @@ namespace {
                 SPTypeSimpleArray array_type;
                 array_type.array_length = member_type.array.size();
                 array_type.type = GetSimpleAssignableType(member_type);
-                for (const auto & type : layout.types) {
+                for (const auto & type : SPLayout::types) {
                     auto found_array_type_ptr = dynamic_cast<SPTypeSimpleArray *>(type.get()); 
                     if (found_array_type_ptr) {
                         if (found_array_type_ptr->array_length == array_type.array_length 
@@ -92,7 +93,7 @@ namespace {
                 if (array_type_ptr == nullptr) {
                     auto new_unique_type_ptr = std::unique_ptr<SPTypeSimpleArray>(new SPTypeSimpleArray(array_type));
                     array_type_ptr = new_unique_type_ptr.get();
-                    layout.types.emplace_back(std::move(new_unique_type_ptr));
+                    SPLayout::types.emplace_back(std::move(new_unique_type_ptr));
                 }
 
                 auto mem_ptr = std::unique_ptr <SPAssignableArray>(new SPAssignableArray{});
@@ -120,8 +121,8 @@ namespace {
             }
             
         }
-        layout.types.emplace_back(std::move(struct_type_ptr));
         root.underlying_type = struct_type_ptr.get();
+        SPLayout::types.emplace_back(std::move(struct_type_ptr));
     }
 
     void FillImageInfo(
@@ -162,6 +163,117 @@ namespace {
 
 namespace Engine::ShdrRfl {
     std::vector <std::unique_ptr<SPType>> Engine::ShdrRfl::SPLayout::types{};
+
+    std::unordered_map <uint32_t, std::vector <vk::DescriptorSetLayoutBinding>>
+    SPLayout::GenerateAllLayoutBindings() const {
+        std::unordered_map <uint32_t, std::vector <vk::DescriptorSetLayoutBinding>> sets;
+
+        for (auto interface : this->interfaces) {
+            if (auto ptr = dynamic_cast<const SPInterfaceBuffer *>(interface)) {
+                if (ptr->type == SPInterfaceBuffer::Type::UniformBuffer) {
+                    sets[ptr->layout_set].emplace_back(vk::DescriptorSetLayoutBinding{
+                        ptr->layout_binding,
+                        vk::DescriptorType::eUniformBuffer,
+                        1,
+                        vk::ShaderStageFlagBits::eAll,
+                        {}
+                    });
+                } else if (ptr->type == SPInterfaceBuffer::Type::StorageBuffer) {
+                    sets[ptr->layout_set].emplace_back(vk::DescriptorSetLayoutBinding{
+                        ptr->layout_binding,
+                        vk::DescriptorType::eStorageBuffer,
+                        1,
+                        vk::ShaderStageFlagBits::eAll,
+                        {}
+                    });
+                } else {
+                    SDL_LogWarn(
+                        SDL_LOG_CATEGORY_RENDER,
+                        "Ignoring buffer with unknown type."
+                    );
+                }
+            } else if (auto ptr = dynamic_cast<const SPInterfaceOpaqueImage *>(interface)) {
+                sets[ptr->layout_set].emplace_back(vk::DescriptorSetLayoutBinding{
+                    ptr->layout_binding,
+                    vk::DescriptorType::eCombinedImageSampler,
+                    std::max(ptr->array_size, 1u),
+                    vk::ShaderStageFlagBits::eAll,
+                    {}
+                });
+            } else if (auto ptr = dynamic_cast<const SPInterfaceOpaqueStorageImage *>(interface)) {
+                sets[ptr->layout_set].emplace_back(vk::DescriptorSetLayoutBinding{
+                    ptr->layout_binding,
+                    vk::DescriptorType::eStorageImage,
+                    std::max(ptr->array_size, 1u),
+                    vk::ShaderStageFlagBits::eAll,
+                    {}
+                });
+            } else {
+                SDL_LogWarn(
+                    SDL_LOG_CATEGORY_RENDER,
+                    "Ignoring interface with unknown type."
+                );
+            }
+        }
+
+        return sets;
+    }
+
+    std::vector<vk::DescriptorSetLayoutBinding> SPLayout::GenerateLayoutBindings(uint32_t set) const {
+        std::vector <vk::DescriptorSetLayoutBinding> bindings;
+
+        for (auto interface : this->interfaces) {
+            if (auto ptr = dynamic_cast<const SPInterfaceBuffer *>(interface)) {
+                if (ptr->layout_set != set) continue;
+
+                if (ptr->type == SPInterfaceBuffer::Type::UniformBuffer) {
+                    bindings.emplace_back(vk::DescriptorSetLayoutBinding{
+                        ptr->layout_binding,
+                        vk::DescriptorType::eUniformBuffer,
+                        1,
+                        vk::ShaderStageFlagBits::eAll,
+                        {}
+                    });
+                } else if (ptr->type == SPInterfaceBuffer::Type::StorageBuffer) {
+                    bindings.emplace_back(vk::DescriptorSetLayoutBinding{
+                        ptr->layout_binding,
+                        vk::DescriptorType::eStorageBuffer,
+                        1,
+                        vk::ShaderStageFlagBits::eAll,
+                        {}
+                    });
+                } else {
+                    SDL_LogWarn(
+                        SDL_LOG_CATEGORY_RENDER,
+                        "Ignoring buffer with unknown type."
+                    );
+                }
+            } else if (auto ptr = dynamic_cast<const SPInterfaceOpaqueImage *>(interface)) {
+                bindings.emplace_back(vk::DescriptorSetLayoutBinding{
+                    ptr->layout_binding,
+                    vk::DescriptorType::eCombinedImageSampler,
+                    std::max(ptr->array_size, 1u),
+                    vk::ShaderStageFlagBits::eAll,
+                    {}
+                });
+            } else if (auto ptr = dynamic_cast<const SPInterfaceOpaqueStorageImage *>(interface)) {
+                bindings.emplace_back(vk::DescriptorSetLayoutBinding{
+                    ptr->layout_binding,
+                    vk::DescriptorType::eStorageImage,
+                    std::max(ptr->array_size, 1u),
+                    vk::ShaderStageFlagBits::eAll,
+                    {}
+                });
+            } else {
+                SDL_LogWarn(
+                    SDL_LOG_CATEGORY_RENDER,
+                    "Ignoring interface with unknown type."
+                );
+            }
+        }
+
+        return bindings;
+    }
 
     void SPLayout::Merge(SPLayout &&other) {
         for (auto & kv : other.name_mapping) {
