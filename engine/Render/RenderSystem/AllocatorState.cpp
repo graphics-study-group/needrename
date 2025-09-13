@@ -184,7 +184,7 @@ namespace Engine::RenderSystemState {
     ) const noexcept try {
         const auto [iusage, musage] = ImageUtils::GetImageFlags(type);
         auto fsupport = pimpl->QueryFormatSupport(m_system.GetPhysicalDevice(), format, type);
-        if (fsupport.first == 0) {
+        if (fsupport.first <= 0) {
             SDL_LogError(
                 SDL_LOG_CATEGORY_RENDER,
                 std::format(
@@ -194,26 +194,14 @@ namespace Engine::RenderSystemState {
                     to_string(fsupport.second)
                 ).c_str()
             );
-            throw std::bad_alloc();
-        }
-        if (fsupport.first < 0) {
-            SDL_LogWarn(
-                SDL_LOG_CATEGORY_RENDER,
-                std::format(
-                    "Format {} does not support requested features in optimal tiling. "
-                    "We requested: {} but only {} are supported. Performance may degrade.",
-                    to_string(format),
-                    to_string(ImageUtils::GetFormatFeatures(type)),
-                    to_string(fsupport.second)
-                ).c_str()
-            );
+            return nullptr;
         }
 
         auto ifsupport = pimpl->UpdateImageFormatSupportInfo(
             m_system.GetPhysicalDevice(), 
             format, 
             dimension, 
-            fsupport.first > 0 ? vk::ImageTiling::eOptimal : vk::ImageTiling::eLinear, 
+            vk::ImageTiling::eOptimal, 
             iusage
         );
         const auto & max_extent = ifsupport.imageFormatProperties.maxExtent;
@@ -225,7 +213,7 @@ namespace Engine::RenderSystemState {
                     max_extent.width, max_extent.height, max_extent.depth
                 ).c_str()
             );
-            throw std::bad_alloc();
+            return nullptr;
         }
         if (miplevel > ifsupport.imageFormatProperties.maxMipLevels) {
             SDL_LogError(SDL_LOG_CATEGORY_RENDER, 
@@ -235,7 +223,7 @@ namespace Engine::RenderSystemState {
                     ifsupport.imageFormatProperties.maxMipLevels
                 ).c_str()
             );
-            throw std::bad_alloc();
+            return nullptr;
         }
         if (array_layers > ifsupport.imageFormatProperties.maxArrayLayers) {
             SDL_LogError(SDL_LOG_CATEGORY_RENDER, 
@@ -245,7 +233,7 @@ namespace Engine::RenderSystemState {
                     ifsupport.imageFormatProperties.maxArrayLayers
                 ).c_str()
             );
-            throw std::bad_alloc();
+            return nullptr;
         }
         if (!(samples & ifsupport.imageFormatProperties.sampleCounts)) {
             SDL_LogError(SDL_LOG_CATEGORY_RENDER, 
@@ -254,7 +242,7 @@ namespace Engine::RenderSystemState {
                     to_string(samples)
                 ).c_str()
             );
-            throw std::bad_alloc();
+            return nullptr;
         }
         
         // VkImageCreateInfo iinfo {};
@@ -266,7 +254,7 @@ namespace Engine::RenderSystemState {
             miplevel,
             array_layers,
             samples,
-            fsupport.first > 0 ? vk::ImageTiling::eOptimal : vk::ImageTiling::eLinear,
+            vk::ImageTiling::eOptimal,
             iusage,
             vk::SharingMode::eExclusive,
             {},
