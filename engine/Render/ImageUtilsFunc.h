@@ -56,7 +56,6 @@ namespace Engine {
                         vk::FormatFeatureFlagBits::eTransferDst |
                         vk::FormatFeatureFlagBits::eSampledImage |
                         vk::FormatFeatureFlagBits::eSampledImageFilterLinear |
-                        vk::FormatFeatureFlagBits::eStorageImage |
                         vk::FormatFeatureFlagBits::eColorAttachment |
                         vk::FormatFeatureFlagBits::eColorAttachmentBlend
                     };
