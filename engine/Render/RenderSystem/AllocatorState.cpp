@@ -284,9 +284,18 @@ namespace Engine::RenderSystemState {
         vmaCreateImage(pimpl->m_allocator, &iinfo2, &ainfo, &image, &allocation, nullptr);
         DEBUG_SET_NAME_TEMPLATE(m_system.getDevice(), static_cast<vk::Image>(image), name);
         return std::unique_ptr<ImageAllocation>(new ImageAllocation(static_cast<vk::Image>(image), allocation, pimpl->m_allocator));
-    } catch(std::exception & e) {
+    }
+    catch (std::exception &e) {
         SDL_LogError(SDL_LOG_CATEGORY_RENDER, e.what());
         return nullptr;
+    }
+
+    bool AllocatorState::QueryFormatFeatures(
+        vk::Format format, 
+        vk::FormatFeatureFlagBits feature
+    ) const noexcept {
+        auto ret = pimpl->UpdateFormatSupportInfo(m_system.GetPhysicalDevice(), format);
+        return static_cast<bool>(vk::FormatFeatureFlags{ret.formatProperties.optimalTilingFeatures & feature});
     }
 
     ImageAllocation AllocatorState::AllocateImage(

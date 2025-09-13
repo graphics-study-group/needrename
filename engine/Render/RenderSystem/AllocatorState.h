@@ -15,6 +15,7 @@ namespace vk {
     enum class Format;
     enum class ImageType;
     enum class SampleCountFlagBits : uint32_t;
+    enum class FormatFeatureFlagBits : uint32_t;
 
     class Extent3D;
 }
@@ -57,6 +58,7 @@ namespace Engine {
                 size_t size,
                 const std::string &name = ""
             ) const;
+
             std::unique_ptr<BufferAllocation> AllocateBufferUnique(
                 BufferType type, size_t size, const std::string &name = ""
             ) const noexcept;
@@ -71,6 +73,7 @@ namespace Engine {
                 vk::SampleCountFlagBits samples,
                 const std::string &name = ""
             ) const;
+
             std::unique_ptr<ImageAllocation> AllocateImageUnique(
                 ImageUtils::ImageType type,
                 vk::ImageType dimension,
@@ -80,6 +83,11 @@ namespace Engine {
                 uint32_t array_layers,
                 vk::SampleCountFlagBits samples,
                 const std::string &name = ""
+            ) const noexcept;
+
+            bool QueryFormatFeatures(
+                vk::Format format,
+                vk::FormatFeatureFlagBits feature
             ) const noexcept;
         };
     } // namespace RenderSystemState

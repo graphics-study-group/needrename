@@ -52,4 +52,16 @@ namespace Engine {
             )
         );
     }
+    bool RenderTargetTexture::SupportRandomAccess() const noexcept {
+        return m_system.GetAllocatorState().QueryFormatFeatures(
+            ImageUtils::GetVkFormat(this->GetTextureDescription().format),
+            vk::FormatFeatureFlagBits::eStorageImage
+        );
+    }
+    bool RenderTargetTexture::SupportAtomicOperation() const noexcept {
+        return m_system.GetAllocatorState().QueryFormatFeatures(
+            ImageUtils::GetVkFormat(this->GetTextureDescription().format),
+            vk::FormatFeatureFlagBits::eStorageImageAtomic
+        );
+    }
 } // namespace Engine

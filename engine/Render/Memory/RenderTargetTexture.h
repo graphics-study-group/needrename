@@ -58,6 +58,9 @@ namespace Engine {
             SamplerDesc sampler,
             const std::string & name = ""
         );
+
+        bool SupportRandomAccess() const noexcept override;
+        bool SupportAtomicOperation() const noexcept override;
     };
 }
 

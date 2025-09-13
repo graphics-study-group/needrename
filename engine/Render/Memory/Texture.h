@@ -89,6 +89,17 @@ namespace Engine {
          * @brief Acquire a buffer large enough to hold the whole texture.
          */
         Buffer CreateStagingBuffer() const;
+
+        /**
+         * @brief Whether this texture supports random access (UAV
+         * for HLSL, storage image for GLSL).
+         */
+        virtual bool SupportRandomAccess() const noexcept;
+
+        /**
+         * @brief Whether this texture supports atomic ops.
+         */
+        virtual bool SupportAtomicOperation() const noexcept;
     };
 } // namespace Engine
 

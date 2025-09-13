@@ -113,4 +113,10 @@ namespace Engine {
             std::format("Buffer - texture ({}) staging", pimpl->m_name)
         );
     }
+    bool Texture::SupportRandomAccess() const noexcept {
+        return false;
+    }
+    bool Texture::SupportAtomicOperation() const noexcept {
+        return false;
+    }
 } // namespace Engine
