@@ -16,6 +16,8 @@
 #include "Render/RenderSystem/Swapchain.h"
 #include "Render/Renderer/HomogeneousMesh.h"
 
+#include "Render/Memory/ShaderParameters/ShaderParameterLayout.h"
+
 #include <SDL3/SDL.h>
 #include <fstream>
 #include <glm.hpp>
@@ -24,29 +26,32 @@
 namespace Engine {
 
     struct MaterialTemplate::impl {
-        std::unordered_map<uint32_t, PassInfo> m_passes{};
+        PassInfo m_passes{};
+        ShdrRfl::SPLayout m_layout{};
+
         PoolInfo m_poolInfo{};
-        vk::UniqueSampler m_default_sampler{};
         std::string m_name{};
     };
 
     void MaterialTemplate::CreatePipeline(
-        uint32_t pass_index, const MaterialTemplateSinglePassProperties &prop, vk::Device device
+        const MaterialTemplateSinglePassProperties &prop,
+        vk::Device device
     ) {
         PassInfo pass_info;
+        pimpl->m_layout.variables.clear();
+        pimpl->m_layout.interfaces.clear();
+        pimpl->m_layout.name_mapping.clear();
 
         // Process and reflect on shaders.
-        std::vector<ShaderUtils::ReflectedDataCollection> reflected;
         std::vector<vk::PipelineShaderStageCreateInfo> psscis;
         pass_info.shaders.resize(prop.shaders.shaders.size());
         psscis.resize(prop.shaders.shaders.size());
-        reflected.resize(prop.shaders.shaders.size());
         for (size_t i = 0; i < prop.shaders.shaders.size(); i++) {
             assert(prop.shaders.shaders[i] && "Invalid shader asset.");
 
             auto shader_asset = prop.shaders.shaders[i]->cas<ShaderAsset>();
             auto code = shader_asset->binary;
-            reflected[i] = ShaderUtils::ReflectSpirvData(code);
+            pimpl->m_layout.Merge(Engine::ShdrRfl::SPLayout::Reflect(code, true));
             vk::ShaderModuleCreateInfo ci{
                 {}, code.size() * sizeof(uint32_t), reinterpret_cast<const uint32_t *>(code.data())
             };
@@ -64,63 +69,27 @@ namespace Engine {
             };
         }
 
-// Save uniform locations
-#ifndef NDEBUG
-        std::unordered_set<std::string> names;
-        for (auto &ref : reflected) {
-            for (auto &[name, _] : ref.inblock.names) {
-                if (names.find(name) != names.end()) {
-                    SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Duplicated variable name %s", name.c_str());
-                }
-                names.insert(name);
-            }
-            for (auto &[name, _] : ref.desc.names) {
-                if (names.find(name) != names.end()) {
-                    SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Duplicated variable name %s", name.c_str());
-                }
-                names.insert(name);
-            }
-        }
-#endif
-        for (auto &ref : reflected) {
-            for (auto &[_, idx] : ref.inblock.names) {
-                idx += pass_info.inblock.vars.size();
-            }
-            pass_info.inblock.names.merge(ref.inblock.names);
-            pass_info.inblock.vars.insert(
-                pass_info.inblock.vars.end(), ref.inblock.vars.begin(), ref.inblock.vars.end()
-            );
-
-            for (auto &[_, idx] : ref.desc.names) {
-                idx += pass_info.desc.vars.size();
-            }
-            pass_info.desc.names.merge(ref.desc.names);
-            pass_info.desc.vars.insert(pass_info.desc.vars.end(), ref.desc.vars.begin(), ref.desc.vars.end());
-        }
-
-        pass_info.inblock.maximal_ubo_size = 0;
-        for (const auto &var : pass_info.inblock.vars) {
-            pass_info.inblock.maximal_ubo_size = std::max(
-                pass_info.inblock.maximal_ubo_size, 1ULL * var.inblock_location.offset + var.inblock_location.size
-            );
-        }
-
         // Create pipeline layout
         {
             const auto &pool = m_system.GetGlobalConstantDescriptorPool();
-
-            const std::vector<vk::DescriptorSetLayoutBinding> *desc_bindings{nullptr};
-            // auto desc_bindings = PipelineUtils::ToVulkanDescriptorSetLayoutBindings(prop.shaders);
-            for (const auto &ref : reflected) {
-                if (ref.has_material_descriptor_set) {
-                    if (desc_bindings != nullptr) {
-                        SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Multiple material descriptors found. Only one is used.");
+            auto desc_bindings = pimpl->m_layout.GenerateLayoutBindings(3);
+            if (!desc_bindings.empty()) {
+                unsigned ubo_count{0};
+                for (auto & db : desc_bindings) {
+                    if (db.descriptorType == vk::DescriptorType::eUniformBuffer) {
+                        ubo_count ++;
+                        db.descriptorType = vk::DescriptorType::eUniformBufferDynamic;
                     }
-                    desc_bindings = &ref.per_material_descriptor_set_layout.bindings;
                 }
-            }
-            if (desc_bindings) {
-                vk::DescriptorSetLayoutCreateInfo dslci{{}, *desc_bindings};
+                if (ubo_count != 1) {
+                    SDL_LogWarn(
+                        SDL_LOG_CATEGORY_RENDER,
+                        "Found %u uniform buffer binding points instead of one.",
+                        ubo_count
+                    );
+                }
+
+                vk::DescriptorSetLayoutCreateInfo dslci{{}, desc_bindings};
                 pass_info.desc_layout = device.createDescriptorSetLayoutUnique(dslci);
 
                 std::array<vk::PushConstantRange, 1> push_constants{
@@ -136,9 +105,8 @@ namespace Engine {
             } else {
                 SDL_LogWarn(
                     SDL_LOG_CATEGORY_RENDER,
-                    "Material %s pipeline %u has no material descriptors.",
-                    pimpl->m_name.c_str(),
-                    pass_index
+                    "Material %s pipeline has no material descriptors.",
+                    pimpl->m_name.c_str()
                 );
 
                 std::array<vk::PushConstantRange, 1> push_constants{
@@ -175,10 +143,9 @@ namespace Engine {
         if (use_swapchain_attachments) {
             SDL_LogWarn(
                 SDL_LOG_CATEGORY_RENDER,
-                "Material template \"%s\" (pass %u) does not specify its color attachment format. "
+                "Material template \"%s\" does not specify its color attachment format. "
                 "Falling back to Swapchain default format. Gamma correction and color space may be incorrect.",
-                this->pimpl->m_name.c_str(),
-                pass_index
+                this->pimpl->m_name.c_str()
             );
 
             color_attachment_formats = {default_color_format};
@@ -206,7 +173,6 @@ namespace Engine {
             };
         } else {
             // All custom attachments
-            // XXX: This case is not thoroughly tested!
             assert(
                 prop.attachments.color.size() == prop.attachments.color_blending.size()
                 && "Mismatched color attachment and blending operation size."
@@ -218,10 +184,9 @@ namespace Engine {
                 if (prop.attachments.color[i] == ImageUtils::ImageFormat::UNDEFINED) {
                     SDL_LogWarn(
                         SDL_LOG_CATEGORY_RENDER,
-                        "Material template \"%s\" (pass %u, color attachment %llu) does not specify its format. "
+                        "Material template \"%s\" (color attachment %llu) does not specify its format. "
                         "Falling back to Swapchain default format. Gamma correction and color space may be incorrect.",
                         this->pimpl->m_name.c_str(),
-                        pass_index,
                         i
                     );
                     color_attachment_formats[i] = default_color_format;
@@ -287,39 +252,29 @@ namespace Engine {
         auto ret = device.createGraphicsPipelineUnique(nullptr, gpci);
         pass_info.pipeline = std::move(ret.value);
         SDL_LogInfo(
-            SDL_LOG_CATEGORY_RENDER, "Successfully created pass %u for material %s.", pass_index, pimpl->m_name.c_str()
+            SDL_LOG_CATEGORY_RENDER, "Successfully created material %s.", pimpl->m_name.c_str()
         );
 
-        pimpl->m_passes[pass_index] = std::move(pass_info);
+        pimpl->m_passes = std::move(pass_info);
     }
 
-    void MaterialTemplate::CreatePipelines(const MaterialTemplateProperties &props) {
+    MaterialTemplate::MaterialTemplate(RenderSystem &system) : m_system(system), pimpl(std::make_unique<impl>()) {
+    }
+
+    void MaterialTemplate::Instantiate(const MaterialTemplateAsset &asset) {
+        pimpl->m_name = asset.name;
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Createing pipelines for material %s.", pimpl->m_name.c_str());
         // Prepare descriptor pool
         vk::DescriptorPoolCreateInfo dpci{{}, PoolInfo::MAX_SET_SIZE, PoolInfo::DESCRIPTOR_POOL_SIZES, nullptr};
         vk::Device dvc = m_system.getDevice();
         pimpl->m_poolInfo.pool = dvc.createDescriptorPoolUnique(dpci);
         DEBUG_SET_NAME_TEMPLATE(
-            dvc, pimpl->m_poolInfo.pool.get(), std::format("Desc Pool - Material {}", pimpl->m_name)
+            dvc, pimpl->m_poolInfo.pool.get(), std::format("Descriptor Pool - Material {}", pimpl->m_name)
         );
 
-        // Create a fallback point-clamp sampler
-        vk::SamplerCreateInfo sci{};
-        sci.magFilter = sci.minFilter = vk::Filter::eNearest;
-        sci.addressModeU = sci.addressModeV = sci.addressModeW = vk::SamplerAddressMode::eRepeat;
-        pimpl->m_default_sampler = dvc.createSamplerUnique(sci);
-
         // Create pipelines
-        for (const auto &[key, val] : props.properties) {
-            this->CreatePipeline(key, val, dvc);
-        }
-    }
-    MaterialTemplate::MaterialTemplate(RenderSystem &system) : m_system(system), pimpl(std::make_unique<impl>()) {
-    }
-
-    void MaterialTemplate::Instantiate(const MaterialTemplateAsset &asset) {
-        pimpl->m_name = asset.name;
-        CreatePipelines(asset.properties);
+        assert(asset.properties.properties.size() == 1);
+        this->CreatePipeline(asset.properties.properties.begin()->second, dvc);
     }
 
     MaterialTemplate::~MaterialTemplate() = default;
@@ -327,34 +282,26 @@ namespace Engine {
     std::shared_ptr<MaterialInstance> MaterialTemplate::CreateInstance() {
         return std::make_shared<MaterialInstance>(m_system, shared_from_this());
     }
-    vk::Pipeline MaterialTemplate::GetPipeline(uint32_t pass_index) const noexcept {
-        assert(pimpl->m_passes.contains(pass_index) && "Invaild pass index");
-        return pimpl->m_passes.at(pass_index).pipeline.get();
+    vk::Pipeline MaterialTemplate::GetPipeline() const noexcept {
+        return pimpl->m_passes.pipeline.get();
     }
-    vk::PipelineLayout MaterialTemplate::GetPipelineLayout(uint32_t pass_index) const noexcept {
-        assert(pimpl->m_passes.contains(pass_index) && "Invaild pass index");
-        return pimpl->m_passes.at(pass_index).pipeline_layout.get();
+    vk::PipelineLayout MaterialTemplate::GetPipelineLayout() const noexcept {
+        return pimpl->m_passes.pipeline_layout.get();
     }
-    auto MaterialTemplate::GetAllPassInfo() const noexcept -> const decltype(pimpl->m_passes) & {
+    auto MaterialTemplate::GetPassInfo() const -> const PassInfo & {
         return pimpl->m_passes;
     }
-    auto MaterialTemplate::GetPassInfo(uint32_t pass_index) const -> const PassInfo & {
-        return pimpl->m_passes.at(pass_index);
+    vk::DescriptorSetLayout MaterialTemplate::GetDescriptorSetLayout() const {
+        return pimpl->m_passes.desc_layout.get();
     }
-    vk::DescriptorSetLayout MaterialTemplate::GetDescriptorSetLayout(uint32_t pass_index) const {
-        assert(pimpl->m_passes.contains(pass_index) && "Invaild pass index");
-        return pimpl->m_passes.at(pass_index).desc_layout.get();
-    }
-    vk::DescriptorSet MaterialTemplate::AllocateDescriptorSet(uint32_t pass_index) {
-        assert(pimpl->m_passes.contains(pass_index) && "Invaild pass index");
+    vk::DescriptorSet MaterialTemplate::AllocateDescriptorSet() {
 
-        auto layout = pimpl->m_passes.at(pass_index).desc_layout.get();
+        auto layout = pimpl->m_passes.desc_layout.get();
         if (!layout) {
             SDL_LogWarn(
                 SDL_LOG_CATEGORY_RENDER,
-                "Allocating empty descriptor for material %s pass %u",
-                pimpl->m_name.c_str(),
-                pass_index
+                "Allocating empty descriptor for material %s",
+                pimpl->m_name.c_str()
             );
             return nullptr;
         }
@@ -363,57 +310,28 @@ namespace Engine {
         auto sets = m_system.getDevice().allocateDescriptorSets(dsai);
         return sets[0];
     }
-    std::variant<
-        std::monostate,
-        std::reference_wrapper<const MaterialTemplate::DescVar>,
-        std::reference_wrapper<const MaterialTemplate::InblockVar>>
-    MaterialTemplate::GetVariable(const std::string &name, uint32_t pass_index) const {
-        auto idx = this->GetVariableIndex(name, pass_index);
-        if (!idx) return std::monostate{};
-        if (idx.value().second) {
-            return this->GetInBlockVariable(idx.value().first, pass_index);
+    const ShdrRfl::SPVariable * MaterialTemplate::GetVariable(const std::string & name) const noexcept
+    {
+        if (auto itr{pimpl->m_layout.name_mapping.find(name)}; 
+            itr != pimpl->m_layout.name_mapping.end()) {
+            return itr->second;
         }
-        return this->GetDescVariable(idx.value().first, pass_index);
+        return nullptr;
     }
-    const MaterialTemplate::DescVar &MaterialTemplate::GetDescVariable(uint32_t index, uint32_t pass_index) const {
-        return pimpl->m_passes.at(pass_index).desc.vars.at(index);
+    const ShdrRfl::SPLayout &MaterialTemplate::GetReflectedShaderInfo() const noexcept {
+        return pimpl->m_layout;
     }
-    const MaterialTemplate::InblockVar &MaterialTemplate::GetInBlockVariable(
-        uint32_t index, uint32_t pass_index
-    ) const {
-        return pimpl->m_passes.at(pass_index).inblock.vars.at(index);
-    }
-    std::optional<std::pair<uint32_t, bool>> MaterialTemplate::GetVariableIndex(
-        const std::string &name, uint32_t pass_index
-    ) const noexcept {
-        auto pitr = pimpl->m_passes.find(pass_index);
-        assert(pitr != pimpl->m_passes.end() && "Invaild pass index");
-        auto itr = pitr->second.inblock.names.find(name);
-        if (itr == pitr->second.inblock.names.end()) {
-            auto nitr = pitr->second.desc.names.find(name);
-            return nitr == pitr->second.desc.names.end()
-                       ? std::nullopt
-                       : std::optional<std::pair<uint32_t, bool>>{std::make_pair(nitr->second, false)};
+    size_t MaterialTemplate::GetExpectedUniformBufferSize() const noexcept {
+        size_t size = 0;
+        for (auto pinterface : pimpl->m_layout.interfaces) {
+            if (auto pbuf = dynamic_cast<const ShdrRfl::SPInterfaceBuffer *>(pinterface)) {
+                if (pbuf->type == ShdrRfl::SPInterfaceBuffer::Type::UniformBuffer) {
+                    if (auto ptype = dynamic_cast<const ShdrRfl::SPTypeSimpleStruct *>(pbuf->underlying_type)) {
+                        size = std::max(size, ptype->expected_size);
+                    } 
+                }
+            }
         }
-        return std::make_pair(itr->second, true);
-    }
-    uint64_t MaterialTemplate::GetMaximalUBOSize(uint32_t pass_index) const {
-        assert(pimpl->m_passes.contains(pass_index) && "Invaild pass index");
-        return pimpl->m_passes.at(pass_index).inblock.maximal_ubo_size;
-    }
-    void MaterialTemplate::PlaceUBOVariables(
-        const MaterialInstance &instance, std::vector<std::byte> &memory, uint32_t pass_index
-    ) const {
-        const auto &variables = instance.GetInBlockVariables(pass_index);
-        const auto &pass_info = this->GetPassInfo(pass_index);
-
-        PipelineInfo::PlaceUBOVariables(variables, pass_info, memory);
-    }
-    std::vector<std::pair<uint32_t, vk::DescriptorImageInfo>> MaterialTemplate::GetDescriptorImageInfo(
-        const MaterialInstance &instance, uint32_t pass_index
-    ) const {
-        const auto &pass_info = this->GetPassInfo(pass_index);
-        const auto &instance_vars = instance.GetDescVariables(pass_index);
-        return PipelineInfo::GetDescriptorImageInfo(instance_vars, pass_info, pimpl->m_default_sampler.get());
+        return size;
     }
 } // namespace Engine
