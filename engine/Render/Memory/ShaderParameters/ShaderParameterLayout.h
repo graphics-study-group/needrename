@@ -7,10 +7,14 @@
 
 namespace vk {
     class DescriptorSetLayoutBinding;
+    class DescriptorImageInfo;
+    class DescriptorBufferInfo;
 }
 
 namespace Engine {
     namespace ShdrRfl {
+        struct ShaderParameters;
+
         struct SPLayout {
             // Types are only added and never removed.
             // We will have no more than ~100 shaders, so this
@@ -21,12 +25,18 @@ namespace Engine {
             std::vector <const SPInterface *> interfaces;
             std::unordered_map <std::string, const SPVariable *> name_mapping;
 
+            struct DescriptorSetWrite {
+                std::vector <std::pair<uint32_t, vk::DescriptorImageInfo>> image {};
+                std::vector <std::pair<uint32_t, vk::DescriptorBufferInfo>> buffer {};
+            };
+
             /**
              * @brief Generate `vk::DescriptorWrite` according to
              * variables supplied.
              */
-            void GenerateDescriptorWrite(
-                const void * variables
+            DescriptorSetWrite GenerateDescriptorSetWrite(
+                uint32_t set,
+                const ShaderParameters & interfaces
             ) const noexcept;
 
             /**
@@ -34,7 +44,9 @@ namespace Engine {
              * vectors and matrices) into their corresponding buffers.
              */
             void PlaceBufferVariable(
-                const void * variables
+                std::vector <std::byte> & buffer,
+                const SPInterfaceBuffer * interface,
+                const ShaderParameters & arguments
             ) const noexcept;
 
             /**

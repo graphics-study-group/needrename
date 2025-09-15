@@ -1,4 +1,5 @@
 #include "ShaderParameterLayout.h"
+#include "ShaderParameter.h"
 
 // CMake is messing with the SPIRV-Cross in Vulkan SDK
 #pragma GCC diagnostic push
@@ -97,6 +98,7 @@ namespace {
                 }
 
                 auto mem_ptr = std::unique_ptr <SPAssignableArray>(new SPAssignableArray{});
+                mem_ptr->name = root.name + "::" + name;
                 mem_ptr->absolute_offset = offset;
                 mem_ptr->parent_interface = &root;
                 mem_ptr->underlying_type = array_type_ptr;
@@ -109,6 +111,7 @@ namespace {
                 layout.variables.emplace_back(std::move(mem_ptr));
             } else {
                 auto mem_ptr = std::unique_ptr <SPAssignableSimple>(new SPAssignableSimple{});
+                mem_ptr->name = root.name + "::" + name;
                 mem_ptr->absolute_offset = offset;
                 mem_ptr->parent_interface = &root;
                 mem_ptr->type = GetSimpleAssignableType(member_type);
@@ -159,13 +162,187 @@ namespace {
             SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Unidentified image dimension.");
         }
     }
+
+    template <typename T> requires std::is_trivially_copyable_v<T>
+    bool CopyToBuffer (
+        std::byte * pbuf,
+        const Engine::ShdrRfl::SPAssignable * assignable,
+        const Engine::ShdrRfl::ShaderParameters::ParameterVariant & v
+    ) {
+        auto pv = std::get_if<T>(&v);
+        if (!pv) {
+            SDL_LogWarn(
+                SDL_LOG_CATEGORY_RENDER,
+                "Skipping mistyped variable %s.",
+                assignable->name.c_str()
+            );
+            return false;
+        }
+        std::memcpy(
+            pbuf,
+            pv,
+            sizeof(T)
+        );
+        return true;
+    };
 }
 
 namespace Engine::ShdrRfl {
     std::vector <std::unique_ptr<SPType>> Engine::ShdrRfl::SPLayout::types{};
 
-    std::unordered_map <uint32_t, std::vector <vk::DescriptorSetLayoutBinding>>
-    SPLayout::GenerateAllLayoutBindings() const {
+    SPLayout::DescriptorSetWrite SPLayout::GenerateDescriptorSetWrite(
+        uint32_t set, const ShaderParameters &interfaces
+    ) const noexcept {
+        DescriptorSetWrite write;
+
+        for (auto pinterface : this->interfaces) {
+            if (pinterface->layout_set != set) continue;
+
+            auto itr = interfaces.interfaces.find(pinterface->name);
+            if (itr == interfaces.interfaces.end()) {
+                SDL_LogWarn(
+                    SDL_LOG_CATEGORY_RENDER,
+                    "Skipping unassigned interface %s.",
+                    pinterface->name.c_str()
+                );
+                continue;
+            }
+
+            if (auto popaque = dynamic_cast<const SPInterfaceOpaqueImage *>(pinterface)) {
+                auto pimg = std::get_if<std::reference_wrapper<const Texture>>(&itr->second);
+                if (pimg) {
+                    assert(popaque->array_size == 0);
+                    write.image.push_back(
+                        std::make_pair(
+                            popaque->layout_binding,
+                            vk::DescriptorImageInfo {
+                                pimg->get().GetSampler(),
+                                pimg->get().GetImageView(),
+                                vk::ImageLayout::eShaderReadOnlyOptimal
+                            }
+                        )
+                    );
+                } else {
+                    SDL_LogWarn(
+                        SDL_LOG_CATEGORY_RENDER,
+                        "Interface %s is not assigned to an image.",
+                        pinterface->name.c_str()
+                    );
+                }
+            } else if (auto pstorage = dynamic_cast<const SPInterfaceOpaqueStorageImage *>(pinterface)) {
+                auto pimg = std::get_if<std::reference_wrapper<const Texture>>(&itr->second);
+                if (pimg) {
+                    assert(pstorage->array_size == 0);
+                    assert(pimg->get().SupportRandomAccess());
+
+                    write.image.push_back(
+                        std::make_pair(
+                            pstorage->layout_binding,
+                            vk::DescriptorImageInfo {
+                                pimg->get().GetSampler(),
+                                pimg->get().GetImageView(),
+                                vk::ImageLayout::eGeneral
+                            }
+                        )
+                    );
+                } else {
+                    SDL_LogWarn(
+                        SDL_LOG_CATEGORY_RENDER,
+                        "Interface %s is not assigned to an image.",
+                        pinterface->name.c_str()
+                    );
+                }
+            } else if (auto pbuffer = dynamic_cast<const SPInterfaceBuffer *>(pinterface)) {
+                auto pbuf = std::get_if<std::tuple<std::reference_wrapper<const Buffer>, size_t, size_t>>(&itr->second);
+                if (pbuf) {
+                    auto offset = std::get<1>(*pbuf);
+                    auto range = std::get<2>(*pbuf) > 0 ? std::get<2>(*pbuf) : vk::WholeSize;
+                    write.buffer.push_back(
+                        std::make_pair(
+                            pbuffer->layout_binding,
+                            vk::DescriptorBufferInfo {
+                                std::get<0>(*pbuf).get().GetBuffer(),
+                                offset,
+                                range
+                            }
+                        )
+                    );
+                } else {
+                    SDL_LogWarn(
+                        SDL_LOG_CATEGORY_RENDER,
+                        "Interface %s is not assigned to an image.",
+                        pinterface->name.c_str()
+                    );
+                }
+            }
+        }
+
+        return write;
+    }
+
+    void SPLayout::PlaceBufferVariable(
+        std::vector<std::byte> &buffer, const SPInterfaceBuffer *interface, const ShaderParameters &arguments
+    ) const noexcept {
+        assert(interface);
+        auto ptype = dynamic_cast<const SPTypeSimpleStruct *>(interface->underlying_type);
+        assert(ptype);
+        buffer.resize(ptype->expected_size);
+
+        for (auto pmember : ptype->members) {
+            auto itr = arguments.arguments.find(pmember->name);
+            if (itr == arguments.arguments.end()) {
+                SDL_LogWarn(
+                    SDL_LOG_CATEGORY_RENDER,
+                    "Skipping unassigned variable %s.",
+                    pmember->name.c_str()
+                );
+                continue;
+            }
+            if (auto ps = dynamic_cast<const SPAssignableSimple *>(pmember)) {
+                switch(ps->type) {
+                case SPAssignableSimple::Type::Uint:
+                    CopyToBuffer<uint32_t>(&buffer[ps->absolute_offset], ps, itr->second);
+                    break;
+                case SPAssignableSimple::Type::Sint:
+                    CopyToBuffer<int32_t>(&buffer[ps->absolute_offset], ps, itr->second);
+                    break;
+                case SPAssignableSimple::Type::Float:
+                    CopyToBuffer<float>(&buffer[ps->absolute_offset], ps, itr->second);
+                    break;
+                case SPAssignableSimple::Type::FVec4:
+                    CopyToBuffer<glm::vec4>(&buffer[ps->absolute_offset], ps, itr->second);
+                    break;
+                case SPAssignableSimple::Type::FMat4:
+                    CopyToBuffer<glm::mat4>(&buffer[ps->absolute_offset], ps, itr->second);
+                    break;
+                default:
+                    SDL_LogWarn(
+                        SDL_LOG_CATEGORY_RENDER,
+                        "Unknown type for variable %s",
+                        ps->name.c_str()
+                    );
+                }
+            } else if (auto pa = dynamic_cast<const SPAssignableArray *>(pmember)) {
+                auto ptype = dynamic_cast<const SPTypeSimpleArray *>(pa->underlying_type);
+                assert(ptype);
+
+                SDL_LogWarn(
+                    SDL_LOG_CATEGORY_RENDER,
+                    "Ignoring array typed assignable %s.",
+                    pmember->name.c_str()
+                );
+            } else {
+                SDL_LogWarn(
+                    SDL_LOG_CATEGORY_RENDER,
+                    "Unknown shader assignable %s.",
+                    pmember->name.c_str()
+                );
+            }
+        }
+    }
+
+    std::unordered_map<uint32_t, std::vector<vk::DescriptorSetLayoutBinding>> SPLayout::
+        GenerateAllLayoutBindings() const {
         std::unordered_map <uint32_t, std::vector <vk::DescriptorSetLayoutBinding>> sets;
 
         for (auto interface : this->interfaces) {
@@ -342,6 +519,7 @@ namespace Engine::ShdrRfl {
             if (filter_out_low_descriptors && desc_set < 2) continue;
 
             auto ptr = std::unique_ptr<SPInterfaceOpaqueImage>(new SPInterfaceOpaqueImage());
+            ptr->name = image.name;
             ptr->layout_set = desc_set;
             ptr->layout_binding = compiler.get_decoration(image.id, spv::DecorationBinding);
             ptr->flags.Set(SPInterfaceOpaqueImage::ImageFlagBits::HasSampler);
@@ -363,6 +541,7 @@ namespace Engine::ShdrRfl {
             if (filter_out_low_descriptors && desc_set < 2) continue;
 
             auto ptr = std::unique_ptr<SPInterfaceOpaqueStorageImage>(new SPInterfaceOpaqueStorageImage());
+            ptr->name = image.name;
             ptr->layout_set = desc_set;
             ptr->layout_binding = compiler.get_decoration(image.id, spv::DecorationBinding);
 
@@ -392,6 +571,7 @@ namespace Engine::ShdrRfl {
 
             auto buffer_interface_ptr = std::unique_ptr<SPInterfaceBuffer>(new SPInterfaceBuffer{});
             buffer_interface_ptr->type = SPInterfaceBuffer::Type::UniformBuffer;
+            buffer_interface_ptr->name = ubo.name;
 
             ReflectSimpleStruct(layout, *buffer_interface_ptr, ubo, compiler);
 
@@ -412,6 +592,7 @@ namespace Engine::ShdrRfl {
 
             auto buffer_interface_ptr = std::unique_ptr<SPInterfaceBuffer>(new SPInterfaceBuffer{});
             buffer_interface_ptr->type = SPInterfaceBuffer::Type::StorageBuffer;
+            buffer_interface_ptr->name = ssbo.name;
 
             ReflectSimpleStruct(layout, *buffer_interface_ptr, ssbo, compiler);
 

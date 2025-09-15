@@ -12,6 +12,7 @@ namespace Engine {
         class SPInterface;
 
         struct SPVariable {
+            std::string name {};
             virtual ~SPVariable(){};
         };
         struct SPAssignable : SPVariable {};
