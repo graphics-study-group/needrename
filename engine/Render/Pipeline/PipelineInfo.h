@@ -17,17 +17,6 @@ namespace Engine {
             vk::UniquePipelineLayout pipeline_layout{};
             vk::UniqueDescriptorSetLayout desc_layout{};
             std::vector<vk::UniqueShaderModule> shaders{};
-
-            struct InblockVars {
-                std::unordered_map<std::string, uint32_t> names{};
-                std::vector<ShaderUtils::InBlockVariableData> vars{};
-                uint64_t maximal_ubo_size{};
-            } inblock{};
-
-            struct DescVars {
-                std::unordered_map<std::string, uint32_t> names{};
-                std::vector<ShaderUtils::DesciptorVariableData> vars{};
-            } desc{};
         };
 
         struct MaterialPassInfo : PassInfo {
