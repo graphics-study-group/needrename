@@ -29,7 +29,8 @@ inline void PrintLayout(const Engine::ShdrRfl::SPLayout & layout) {
     for (const auto & i : layout.interfaces) {
         if (auto ptr = dynamic_cast<const Engine::ShdrRfl::SPInterfaceOpaqueImage *>(i)) {
             std::cout << "\t" << std::format(
-                "Set: {}, Binding: {}, Type: Image (size {}, flags {})", 
+                "{}: Set: {}, Binding: {}, Type: Image (size {}, flags {})",
+                i->name,
                 i->layout_set, 
                 i->layout_binding, 
                 ptr->array_size,
@@ -37,14 +38,16 @@ inline void PrintLayout(const Engine::ShdrRfl::SPLayout & layout) {
             ) << std::endl;
         } else if (auto ptr = dynamic_cast<const Engine::ShdrRfl::SPInterfaceOpaqueStorageImage *>(i)) {
             std::cout << "\t" << std::format(
-                "Set: {}, Binding: {}, Type: Storage Image (size {})", 
+                "{}: Set: {}, Binding: {}, Type: Storage Image (size {})", 
+                i->name,
                 i->layout_set, 
                 i->layout_binding, 
                 ptr->array_size
             ) << std::endl;
         } else if (auto ptr = dynamic_cast<const Engine::ShdrRfl::SPInterfaceBuffer *>(i)) {
             std::cout << "\t" << std::format(
-                "Set: {}, Binding: {}, Type: {}", 
+                "{}: Set: {}, Binding: {}, Type: {}",
+                i->name,
                 i->layout_set, 
                 i->layout_binding, 
                 ptr->type == Engine::ShdrRfl::SPInterfaceBuffer::Type::StorageBuffer ? "SSBO" : "UBO"
@@ -54,7 +57,8 @@ inline void PrintLayout(const Engine::ShdrRfl::SPLayout & layout) {
             }
         } else {
             std::cout << "\t" << std::format(
-                "Set: {}, Binding: {}, Type: {}", 
+                "{}: Set: {}, Binding: {}, Type: {}",
+                i->name,
                 i->layout_set, 
                 i->layout_binding, 
                 "Unknown"
@@ -64,7 +68,7 @@ inline void PrintLayout(const Engine::ShdrRfl::SPLayout & layout) {
 
     std::cout << "Assignables:" << std::endl;
     for (const auto & p : layout.name_mapping) {
-        std::cout << "\t" << p.first << std::endl;
+        std::cout << "\t" << p.first << " (" << p.second->name << ")" << std::endl;
         auto ptr_simple = dynamic_cast<const Engine::ShdrRfl::SPAssignableInterface *>(p.second);
         if (ptr_simple) {
             std::cout << "\t\t" << std::format(
