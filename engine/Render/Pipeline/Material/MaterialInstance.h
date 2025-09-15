@@ -13,6 +13,10 @@ namespace Engine {
     class Buffer;
     class MaterialAsset;
 
+    namespace ShdrRfl {
+        class ShaderParameters;
+    }
+
     /// @brief A light-weight instance of a given material,
     /// where all mutable data such as texture and uniforms are stored.
     class MaterialInstance : public IInstantiatedFromAsset<MaterialAsset> {
@@ -42,59 +46,10 @@ namespace Engine {
         const MaterialTemplate &GetTemplate() const;
 
         /**
-         * @brief Get the variables of a specific pass
-         *
-         * @param pass_index The index of
-         * the pass
-         * @return A reference to the variables map for the specified pass
+         * @brief Acquire a reference to the underlying shader parameters.
+         * Use this member to modify underlying shader parameters.
          */
-        const std::unordered_map<uint32_t, std::any> &GetInBlockVariables(uint32_t pass_index) const;
-
-        /**
-         * @brief Get the variables of a specific pass
-         *
-         * @param pass_index The index of
-         * the pass
-         * @return A reference to the variables map for the specified pass
-         */
-        const std::unordered_map<uint32_t, std::any> &GetDescVariables(uint32_t pass_index) const;
-
-        /**
-         * @brief Set the texture uniform descriptor to point to a given texture.
-         * @param name 
-
-         * * @param texture 
-         * 
-         * TODO: Figure out a way to connect samplers with textures
-         */
-        void WriteTextureUniform(uint32_t pass, uint32_t index, std::shared_ptr<const Texture> texture);
-
-        /**
-         * @brief Set the storage buffer uniform descriptor to point to a given texture.
-         * @param
-         * name 
-         * @param buffer 
-         * 
-         * TODO: Figure out a way to connect samplers with
-         * textures
-         */
-        void WriteStorageBufferUniform(uint32_t pass, uint32_t index, std::shared_ptr<const Buffer> buffer);
-
-        /**
-         * @brief Set the uniform variable descriptor to point to a given value.
-         *
-         * This
-         * function sets the uniform variable descriptor for a specific pass and index.
-         * The provided uniform
-         * value is stored in the material instance's variables map.
-         *
-         * @param pass  The index of the
-         * pass to which the uniform belongs.
-         * @param index The index of the uniform within the pass.
-
-         * * @param uniform The uniform value to set, wrapped in a std::any object.
-         */
-        void WriteUBOUniform(uint32_t pass, uint32_t index, std::any uniform);
+        ShdrRfl::ShaderParameters & GetShaderParameters() noexcept;
 
         /**
          * @brief Write out UBO changes if it is dirty.
@@ -104,7 +59,7 @@ namespace Engine {
          * when a direct draw call is issued on a command
          * buffer.
          */
-        void WriteUBO(uint32_t pass);
+        void WriteUBO();
 
         /**
          * @brief Write out pending descriptor changes to the descriptor set.
@@ -114,11 +69,8 @@ namespace Engine {
          * You in general does not need to call this function.
          * It is automatically called
          * when a direct draw call is issued on a command buffer.
-         * 
-
-         * * @param pass The index of the pass.
          */
-        void WriteDescriptors(uint32_t pass);
+        void WriteDescriptors();
 
         /**
          * @brief Get the descriptor set for a specific pass
@@ -128,28 +80,10 @@ namespace Engine {
          * The descriptor set contains the bindings for
          * various resources such as textures and uniform buffers.
          *
-         * @param pass_index The index of
-         * the pass
-         * @return A reference to the `vk::DescriptorSet` object associated with the specified pass
+         * @return A handle to the Descriptor Set object
 
          */
-        vk::DescriptorSet GetDescriptor(uint32_t pass) const;
-
-        /**
-         * @brief Get the descriptor set for a specific pass
-         *
-         * This method returns the
-         * descriptor set associated with the given pass index.
-         * The descriptor set contains the bindings for
-         * various resources such as textures and uniform buffers.
-         *
-         * @param pass_index The index of
-         * the pass
-         * @param backbuffer Which backbuffer
-         * @return A reference to the
-         * `vk::DescriptorSet` object associated with the specified pass
-         */
-        vk::DescriptorSet GetDescriptor(uint32_t pass, uint32_t backbuffer) const;
+        vk::DescriptorSet GetDescriptor() const noexcept;
 
         /**
          * @brief Instantiate a material asset to the material instance. Load properties to the uniforms.
