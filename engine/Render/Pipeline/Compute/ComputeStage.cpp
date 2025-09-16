@@ -203,21 +203,25 @@ namespace Engine {
         const std::string & name,
         std::variant<uint32_t, int32_t, float> value) noexcept {
         pimpl->parameters.Assign(name, value);
+        pimpl->m_ipi._is_ubo_dirty.set();
     }
     void ComputeStage::AssignVectorVariable(
         const std::string & name,
         std::variant<glm::vec4, glm::mat4> value) noexcept {
         pimpl->parameters.Assign(name, value);
+        pimpl->m_ipi._is_ubo_dirty.set();
     }
     void ComputeStage::AssignTexture(
         const std::string & name, 
         const Texture & texture) noexcept {
         pimpl->parameters.Assign(name, texture);
+        pimpl->m_ipi._is_descriptor_dirty.set();
     }
     void ComputeStage::AssignBuffer(
         const std::string & name,
         const Buffer & buffer) noexcept {
         pimpl->parameters.Assign(name, buffer);
+        pimpl->m_ipi._is_descriptor_dirty.set();
     }
 
     vk::Pipeline ComputeStage::GetPipeline() const noexcept {
