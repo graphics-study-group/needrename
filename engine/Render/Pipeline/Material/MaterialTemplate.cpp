@@ -72,13 +72,12 @@ namespace Engine {
         // Create pipeline layout
         {
             const auto &pool = m_system.GetGlobalConstantDescriptorPool();
-            auto desc_bindings = pimpl->m_layout.GenerateLayoutBindings(3);
+            auto desc_bindings = pimpl->m_layout.GenerateLayoutBindings(2);
             if (!desc_bindings.empty()) {
                 unsigned ubo_count{0};
                 for (auto & db : desc_bindings) {
                     if (db.descriptorType == vk::DescriptorType::eUniformBuffer) {
                         ubo_count ++;
-                        db.descriptorType = vk::DescriptorType::eUniformBufferDynamic;
                     }
                 }
                 if (ubo_count != 1) {

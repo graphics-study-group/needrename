@@ -11,7 +11,7 @@ namespace Engine {
 
     namespace Materials {
         class BlinnPhongInstance : public MaterialInstance {
-            uint32_t texture_id{}, specular_id{}, ambient_id{};
+            std::shared_ptr <Texture> base_texture{};
 
         public:
             BlinnPhongInstance(RenderSystem &system, std::shared_ptr<MaterialTemplate> tpl);

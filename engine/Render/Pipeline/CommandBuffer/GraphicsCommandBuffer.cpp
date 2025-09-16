@@ -109,22 +109,17 @@ namespace Engine {
         const auto &global_pool = m_system.GetGlobalConstantDescriptorPool();
         const auto &per_scene_descriptor_set = global_pool.GetPerSceneConstantSet(m_inflight_frame_index);
         const auto &per_camera_descriptor_set = global_pool.GetPerCameraConstantSet(m_inflight_frame_index);
-        auto material_descriptor_set = material.GetDescriptor();
+        auto material_descriptor_set = material.GetDescriptor(m_inflight_frame_index);
 
         if (material_descriptor_set) {
-            std::vector <uint32_t> dynamic_offsets {
-                static_cast<uint32_t>(
-                    global_pool.GetPerCameraDynamicOffset(m_inflight_frame_index, m_system.GetActiveCameraId())
-                )
-            };
-            std::vector <uint32_t> ret_dyn_offsets {material.GetDynamicUBOOffset(m_inflight_frame_index)};
-            dynamic_offsets.insert(dynamic_offsets.end(), ret_dyn_offsets.begin(), ret_dyn_offsets.end());
             cb.bindDescriptorSets(
                 vk::PipelineBindPoint::eGraphics,
                 pipeline_layout,
                 0,
                 {per_scene_descriptor_set, per_camera_descriptor_set, material_descriptor_set},
-                dynamic_offsets
+                {static_cast<uint32_t>(
+                    global_pool.GetPerCameraDynamicOffset(m_inflight_frame_index, m_system.GetActiveCameraId())
+                )}
             );
         } else {
             cb.bindDescriptorSets(
@@ -138,7 +133,7 @@ namespace Engine {
             );
         }
 
-        material.UpdateGPUInfo();
+        material.UpdateGPUInfo(m_inflight_frame_index);
     }
 
     void GraphicsCommandBuffer::SetupViewport(float vpWidth, float vpHeight, vk::Rect2D scissor) {

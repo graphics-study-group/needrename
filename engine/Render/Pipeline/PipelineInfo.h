@@ -31,9 +31,11 @@ namespace Engine {
         };
 
         struct MaterialPoolInfo : PoolInfo {
-            static constexpr std::array<vk::DescriptorPoolSize, 2> DESCRIPTOR_POOL_SIZES = {
-                vk::DescriptorPoolSize{vk::DescriptorType::eUniformBuffer, 64},
-                vk::DescriptorPoolSize{vk::DescriptorType::eCombinedImageSampler, 64}
+            static constexpr std::array<vk::DescriptorPoolSize, 4> DESCRIPTOR_POOL_SIZES = {
+                vk::DescriptorPoolSize{vk::DescriptorType::eUniformBuffer, 128},
+                vk::DescriptorPoolSize{vk::DescriptorType::eStorageBuffer, 128},
+                vk::DescriptorPoolSize{vk::DescriptorType::eStorageBufferDynamic, 128},
+                vk::DescriptorPoolSize{vk::DescriptorType::eCombinedImageSampler, 128}
             };
         };
     } // namespace PipelineInfo

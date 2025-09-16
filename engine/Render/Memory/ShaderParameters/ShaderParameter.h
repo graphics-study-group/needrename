@@ -34,8 +34,20 @@ namespace Engine {
 
             void Assign(const std::string & name, std::variant<glm::vec4, glm::mat4> value) noexcept;
 
+            /**
+             * @brief Assign a texture by its name.
+             * @note As the texture is passed by reference, the caller
+             * must ensure its lifetime is long enough to be used in
+             * the draw calls.
+             */
             void Assign(const std::string & name, const Texture & value) noexcept;
 
+            /**
+             * @brief Assign a buffer by its name.
+             * @note As the buffer is passed by reference, the caller
+             * must ensure its lifetime is long enough to be used in
+             * the draw calls.
+             */
             void Assign(
                 const std::string & name, 
                 const Buffer & buf, 

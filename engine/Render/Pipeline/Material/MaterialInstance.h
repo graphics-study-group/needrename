@@ -59,14 +59,14 @@ namespace Engine {
          * @brief Upload current state of this instance to GPU:
          * Performs descriptor writes and UBO buffer writes.
          */
-        void UpdateGPUInfo(uint32_t backbuffer = std::numeric_limits<uint32_t>::max());
+        void UpdateGPUInfo(uint32_t backbuffer);
 
         /**
          * @brief Get a list of dynamic uniform buffer offsets
          * used in `vkCmdBindDescriptorSets`. These dynamic offsets
          * are returned in the order of binding numbers.
          */
-        std::vector<uint32_t> GetDynamicUBOOffset(uint32_t backbuffer = std::numeric_limits<uint32_t>::max());
+        std::vector<uint32_t> GetDynamicUBOOffset(uint32_t backbuffer);
 
         /**
          * @brief Get the descriptor set for a specific pass
@@ -79,7 +79,7 @@ namespace Engine {
          * @return A handle to the Descriptor Set object
 
          */
-        vk::DescriptorSet GetDescriptor() const noexcept;
+        vk::DescriptorSet GetDescriptor(uint32_t backbuffer) const noexcept;
 
         /**
          * @brief Instantiate a material asset to the material instance. Load properties to the uniforms.

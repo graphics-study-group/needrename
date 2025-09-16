@@ -15,10 +15,10 @@ namespace Engine::Materials {
         this->AssignTexture("base_tex", *image);
     }
     void BlinnPhongInstance::SetSpecular(glm::vec4 spec) {
-        this->AssignSimpleVariables("specular_color", spec);
+        this->AssignSimpleVariables("Material::specular_color", spec);
     }
     void BlinnPhongInstance::SetAmbient(glm::vec4 ambi) {
-        this->AssignSimpleVariables("ambient_color", ambi);
+        this->AssignSimpleVariables("Material::ambient_color", ambi);
     }
 
     void BlinnPhongInstance::Instantiate(const MaterialAsset &asset) {
@@ -28,7 +28,7 @@ namespace Engine::Materials {
         assert(base_texture_prop.m_type == MaterialProperty::Type::Texture);
         auto base_texture_asset =
             (std::any_cast<std::shared_ptr<AssetRef>>(base_texture_prop.m_value))->as<Image2DTextureAsset>();
-        std::shared_ptr base_texture = ImageTexture::CreateUnique(m_system, *base_texture_asset);
+        this->base_texture = ImageTexture::CreateUnique(m_system, *base_texture_asset);
         this->SetBaseTexture(base_texture);
         m_system.GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
             *base_texture, base_texture_asset->GetPixelData(), base_texture_asset->GetPixelDataSize()
