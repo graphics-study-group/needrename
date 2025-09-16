@@ -70,7 +70,7 @@ namespace Engine {
          * and write pending uniform data updates of
          * the given material instance.
          */
-        void BindMaterial(MaterialInstance &material, uint32_t pass_index);
+        void BindMaterial(MaterialInstance &material);
 
         /// @brief Setup the viewport parameters
         /// @param vpWidth width of the viewport
@@ -93,7 +93,7 @@ namespace Engine {
          * Sets up camera data with the currently active camera and 
          * viewport and draw each renderer with its material.
          */
-        void DrawRenderers(const RendererList &renderers, uint32_t pass);
+        void DrawRenderers(const RendererList &renderers);
 
         /**
          * @brief Draw renderers in the RendererList with specified pass index.
@@ -110,8 +110,7 @@ namespace Engine {
             const RendererList &renderers,
             const glm::mat4 &view_matrix,
             const glm::mat4 &projection_matrix,
-            vk::Extent2D extent,
-            uint32_t pass
+            vk::Extent2D extent
         );
 
         /// @brief End the render pass

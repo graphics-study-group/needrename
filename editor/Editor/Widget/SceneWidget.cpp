@@ -93,8 +93,7 @@ namespace Editor {
             Engine::MainClass::GetInstance()->GetRenderSystem()->GetRendererManager().FilterAndSortRenderers({}),
             m_camera.m_camera->GetViewMatrix(),
             m_camera.m_camera->GetProjectionMatrix(),
-            {(uint32_t)m_viewport_size.x, (uint32_t)m_viewport_size.y},
-            0
+            {(uint32_t)m_viewport_size.x, (uint32_t)m_viewport_size.y}
         );
         cb.EndRendering();
     }

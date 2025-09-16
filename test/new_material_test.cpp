@@ -102,7 +102,7 @@ RenderGraph BuildRenderGraph(
         );
 
         gcb.SetupViewport(extent.width, extent.height, {{0, 0}, extent});
-        gcb.BindMaterial(*material, 0);
+        gcb.BindMaterial(*material);
         // Push model matrix...
         vk::CommandBuffer rcb = gcb.GetCommandBuffer();
         rcb.pushConstants(

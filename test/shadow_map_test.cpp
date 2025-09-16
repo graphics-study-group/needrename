@@ -64,8 +64,12 @@ struct HighPlaneMeshAsset : public MeshAsset {
     }
 };
 
-std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate() {
-    auto test_asset = std::make_shared<MaterialTemplateAsset>();
+std::array<std::shared_ptr<MaterialTemplateAsset>, 2> ConstructMaterialTemplate() {
+    std::array<std::shared_ptr<MaterialTemplateAsset>, 2> templates {
+        std::make_shared<MaterialTemplateAsset>(),
+        std::make_shared<MaterialTemplateAsset>()
+    };
+    
     auto shadow_map_vs_ref =
         MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/shadowmap.vert.spv.asset");
     auto vs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/blinn_phong.vert.spv.asset");
@@ -74,7 +78,8 @@ std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate() {
     MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(vs_ref);
     MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(fs_ref);
 
-    test_asset->name = "Blinn-Phong Lit";
+    templates[0]->name = "Blinn-Phong Lit";
+    templates[1]->name = "Shadow map pass";
 
     MaterialTemplateSinglePassProperties shadow_map_pass{}, lit_pass{};
     shadow_map_pass.shaders.shaders = std::vector{shadow_map_vs_ref};
@@ -83,10 +88,10 @@ std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate() {
     lit_pass.attachments.color = std::vector{ImageUtils::ImageFormat::R8G8B8A8UNorm};
     lit_pass.attachments.color_blending = std::vector{PipelineProperties::ColorBlendingProperties{}};
 
-    test_asset->properties.properties[0] = shadow_map_pass;
-    test_asset->properties.properties[1] = lit_pass;
+    templates[0]->properties.properties[0] = lit_pass;
+    templates[1]->properties.properties[0] = shadow_map_pass;
 
-    return test_asset;
+    return templates;
 }
 
 int main(int argc, char **argv) {
@@ -176,7 +181,7 @@ int main(int argc, char **argv) {
     // Prepare material
     cmc->GetAssetManager()->LoadBuiltinAssets();
     auto test_asset = ConstructMaterialTemplate();
-    auto test_asset_ref = std::make_shared<AssetRef>(test_asset);
+    auto test_asset_ref = std::make_shared<AssetRef>(test_asset[0]);
     auto test_template = std::make_shared<MaterialTemplate>(*rsys);
     test_template->Instantiate(*test_asset_ref->cas<MaterialTemplateAsset>());
     auto test_material_instance = std::make_shared<MaterialInstance>(*rsys, test_template);
@@ -214,7 +219,7 @@ int main(int argc, char **argv) {
                 "Shadowmap Pass"
             );
             gcb.SetupViewport(shadow_map_extent.width, shadow_map_extent.height, shadow_map_scissor);
-            gcb.BindMaterial(*test_material_instance, 0);
+            gcb.BindMaterial(*test_material_instance);
 
             vk::CommandBuffer rcb = gcb.GetCommandBuffer();
             rcb.pushConstants(
@@ -244,7 +249,7 @@ int main(int argc, char **argv) {
             vk::Extent2D extent{rsys->GetSwapchain().GetExtent()};
             vk::Rect2D scissor{{0, 0}, extent};
             gcb.SetupViewport(extent.width, extent.height, scissor);
-            gcb.BindMaterial(*test_material_instance, 1);
+            gcb.BindMaterial(*test_material_instance);
             // Push model matrix...
             vk::CommandBuffer rcb = gcb.GetCommandBuffer();
             rcb.pushConstants(

@@ -327,7 +327,7 @@ int main(int argc, char **argv) {
             AttachmentUtils::DepthClearValue{1.0f, 0U}
         },
         [rsys](GraphicsCommandBuffer &gcb) {
-            gcb.DrawRenderers(rsys->GetRendererManager().FilterAndSortRenderers({}), 0);
+            gcb.DrawRenderers(rsys->GetRendererManager().FilterAndSortRenderers({}));
         },
         "Color pass"
     );

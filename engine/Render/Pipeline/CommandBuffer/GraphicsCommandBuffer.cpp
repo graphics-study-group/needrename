@@ -90,7 +90,7 @@ namespace Engine {
         cb.beginRendering(info);
     }
 
-    void GraphicsCommandBuffer::BindMaterial(MaterialInstance &material, uint32_t pass_index) {
+    void GraphicsCommandBuffer::BindMaterial(MaterialInstance &material) {
         const auto &pipeline = material.GetTemplate().GetPipeline();
         const auto &pipeline_layout = material.GetTemplate().GetPipelineLayout();
 
@@ -163,11 +163,11 @@ namespace Engine {
         cb.drawIndexed(mesh.GetVertexIndexCount(), 1, 0, 0, 0);
     }
 
-    void GraphicsCommandBuffer::DrawRenderers(const RendererList &renderers, uint32_t pass) {
+    void GraphicsCommandBuffer::DrawRenderers(const RendererList &renderers) {
         auto camera = m_system.GetActiveCamera().lock();
         assert(camera);
         this->DrawRenderers(
-            renderers, camera->GetViewMatrix(), camera->GetProjectionMatrix(), m_system.GetSwapchain().GetExtent(), pass
+            renderers, camera->GetViewMatrix(), camera->GetProjectionMatrix(), m_system.GetSwapchain().GetExtent()
         );
     }
 
@@ -175,8 +175,7 @@ namespace Engine {
         const RendererList &renderers,
         const glm::mat4 &view_matrix,
         const glm::mat4 &projection_matrix,
-        vk::Extent2D extent,
-        uint32_t pass
+        vk::Extent2D extent
     ) {
         // Write camera transforms
         auto camera_ptr = m_system.GetGlobalConstantDescriptorPool().GetPerCameraConstantMemory(
@@ -198,7 +197,7 @@ namespace Engine {
 
                 assert(materials.size() == meshes.size());
                 for (size_t id = 0; id < materials.size(); id++) {
-                    this->BindMaterial(*materials[id], pass);
+                    this->BindMaterial(*materials[id]);
                     this->DrawMesh(*meshes[id], model_matrix);
                 }
             }
