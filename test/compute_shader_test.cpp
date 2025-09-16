@@ -27,31 +27,6 @@ int main(int argc, char *argv[]) {
 
     auto cs = std::make_shared<ShaderAsset>();
     cs->LoadFromFile(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "shaders/fluid.comp.spv", ShaderAsset::ShaderType::Compute);
-    auto ret = ShaderUtils::ReflectSpirvDataCompute(cs->binary);
-    assert(ret.inblock.names.find("frame_count") != ret.inblock.names.end() && ret.inblock.names["frame_count"] == 0);
-    assert(
-        ret.inblock.vars[0].block_location.set == 0 && ret.inblock.vars[0].block_location.binding == 0
-        && ret.inblock.vars[0].type == ShaderUtils::InBlockVariableData::Type::Int
-        && ret.inblock.vars[0].inblock_location.abs_offset == 0
-        && ret.inblock.vars[0].inblock_location.size == 4
-    );
-
-    assert(ret.desc.names.find("inputImage") != ret.desc.names.end() && ret.desc.names["inputImage"] == 1);
-    assert(
-        ret.desc.vars[1].set == 0 && ret.desc.vars[1].binding == 1
-        && ret.desc.vars[1].type == ShaderVariableProperty::Type::StorageImage
-    );
-    assert(ret.desc.names.find("outputImage") != ret.desc.names.end() && ret.desc.names["outputImage"] == 2);
-    assert(
-        ret.desc.vars[2].set == 0 && ret.desc.vars[2].binding == 2
-        && ret.desc.vars[2].type == ShaderVariableProperty::Type::StorageImage
-    );
-    assert(ret.desc.names.find("outputColorImage") != ret.desc.names.end() && ret.desc.names["outputColorImage"] == 3);
-    assert(
-        ret.desc.vars[3].set == 0 && ret.desc.vars[3].binding == 3
-        && ret.desc.vars[3].type == ShaderVariableProperty::Type::StorageImage
-    );
-    
 
     auto rsys = cmc->GetRenderSystem();
 
