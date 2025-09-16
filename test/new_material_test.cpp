@@ -222,14 +222,8 @@ int main(int argc, char **argv) {
     asys->LoadAssetImmediately(cs_ref);
     ComputeStage cstage{*rsys};
     cstage.Instantiate(*cs_ref->cas<ShaderAsset>());
-    cstage.SetDescVariable(
-        cstage.GetVariableIndex("inputImage").value().first, 
-        std::const_pointer_cast<const Texture>(std::static_pointer_cast<Texture>(color))
-    );
-    cstage.SetDescVariable(
-        cstage.GetVariableIndex("outputImage").value().first, 
-        std::const_pointer_cast<const Texture>(std::static_pointer_cast<Texture>(postproc))
-    );
+    cstage.AssignTexture("inputImage", *color);
+    cstage.AssignTexture("outputImage", *postproc);
 
     RenderGraph nonblur{BuildRenderGraph(rsys.get(), color.get(), depth.get(), test_material_instance.get(), &test_mesh)};
     RenderGraph blur{BuildRenderGraph(

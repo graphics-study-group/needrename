@@ -17,8 +17,9 @@ namespace Engine {
 
     private:
         RenderSystem &system;
+
         uint32_t inflight_frame_index;
-        std::optional<std::reference_wrapper<ComputeStage>> m_bound_pipeline;
+        std::optional<std::reference_wrapper<ComputeStage>> bound_pipeline{std::nullopt};
     };
 } // namespace Engine
 

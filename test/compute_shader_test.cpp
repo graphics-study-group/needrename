@@ -74,18 +74,9 @@ int main(int argc, char *argv[]) {
     
     ComputeStage cstage{*rsys};
     cstage.Instantiate(*cs);
-    cstage.SetDescVariable(
-        cstage.GetVariableIndex("outputImage").value().first,
-        std::const_pointer_cast<const Texture>(std::static_pointer_cast<Texture>(color_output))
-    );
-    cstage.SetDescVariable(
-        cstage.GetVariableIndex("inputImage").value().first,
-        std::const_pointer_cast<const Texture>(std::static_pointer_cast<Texture>(color_input))
-    );
-    cstage.SetDescVariable(
-        cstage.GetVariableIndex("outputColorImage").value().first,
-        std::const_pointer_cast<const Texture>(std::static_pointer_cast<Texture>(color_present))
-    );
+    cstage.AssignTexture("outputImage", *color_output);
+    cstage.AssignTexture("inputImage", *color_input);
+    cstage.AssignTexture("outputColorImage", *color_present);
 
     uint64_t frame_count = 0;
     while (++frame_count) {
@@ -117,10 +108,7 @@ int main(int argc, char *argv[]) {
         auto ccb = dynamic_cast<ComputeCommandBuffer &>(ccontext.GetCommandBuffer());
 
         ccontext.PrepareCommandBuffer();
-        cstage.SetInBlockVariable(
-            cstage.GetVariableIndex("frame_count").value().first, 
-            static_cast<int>(frame_count)
-        );
+        cstage.AssignScalarVariable("UBO::frame_count", static_cast<int>(frame_count));
         ccb.BindComputeStage(cstage);
         ccb.DispatchCompute(1280 / 16 + 1, 720 / 16 + 1, 1);
 

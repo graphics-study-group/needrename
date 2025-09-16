@@ -9,6 +9,10 @@ namespace Engine {
     class RenderSystem;
     class ShaderAsset;
 
+    namespace ShdrRfl {
+        class ShaderParameters;
+    }
+
     class ComputeStage : public IInstantiatedFromAsset<ShaderAsset> {
         using PassInfo = PipelineInfo::PassInfo;
 
@@ -24,17 +28,18 @@ namespace Engine {
 
         ~ComputeStage();
 
-        void SetInBlockVariable(uint32_t index, std::any var);
-        void SetDescVariable(uint32_t index, std::any var);
-        std::optional<std::pair<uint32_t, bool>> GetVariableIndex(const std::string &name) const noexcept;
+        void UpdateGPUInfo(uint32_t backbuffer);
 
-        void WriteDescriptorSet();
-        void WriteUBO();
+        void AssignScalarVariable(const std::string & name, std::variant<uint32_t, int32_t, float> value) noexcept;
+        void AssignVectorVariable(const std::string & name, std::variant<glm::vec4, glm::mat4> value) noexcept;
+        void AssignTexture(const std::string & name, const Texture & texture) noexcept;
+        void AssignBuffer(const std::string & name, const Buffer & buffer) noexcept;
 
         vk::Pipeline GetPipeline() const noexcept;
         vk::PipelineLayout GetPipelineLayout() const noexcept;
         vk::DescriptorSetLayout GetDescriptorSetLayout() const noexcept;
-        vk::DescriptorSet GetDescriptorSet() const noexcept;
+
+        vk::DescriptorSet GetDescriptorSet(uint32_t backbuffer) const noexcept;
     };
 } // namespace Engine
 

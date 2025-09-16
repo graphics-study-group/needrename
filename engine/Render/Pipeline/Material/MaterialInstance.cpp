@@ -68,7 +68,7 @@ namespace Engine {
                 }
             }
         }
-
+        
         pimpl->m_pass_info = std::move(pass);
     }
 
@@ -239,5 +239,9 @@ namespace Engine {
                 }
             }
         }
+
+        // Force update
+        pimpl->m_pass_info._is_descriptor_dirty.set();
+        pimpl->m_pass_info._is_ubo_dirty.set();
     }
 } // namespace Engine
