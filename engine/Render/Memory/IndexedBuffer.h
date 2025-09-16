@@ -15,7 +15,7 @@ namespace Engine {
      * be aligned accordingly, making the
      * buffer suitable to use for dynamic buffer descriptors.
      */
-    class IndexedBuffer : private Buffer {
+    class IndexedBuffer : public Buffer {
         struct impl;
         std::unique_ptr<impl> pimpl;
 
@@ -66,9 +66,6 @@ namespace Engine {
             uint32_t slices,
             const std::string &name = ""
         );
-
-        using Buffer::GetBuffer;
-        using Buffer::GetSize;
 
         /**
          * @brief Get actual slice size ignoring padding for alignments.

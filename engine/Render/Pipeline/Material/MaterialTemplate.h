@@ -97,8 +97,6 @@ namespace Engine {
         /**
          * @brief Get the pass information for a specific pass index.
          * 
-         * @param
-         * pass_index The index of the pass to retrieve the information from.
          * @return const PassInfo & A
          * constant reference to the PassInfo struct associated with the specified pass index.
          */
@@ -106,9 +104,7 @@ namespace Engine {
 
         /**
          * @brief Get the descriptor set layout for a specific pass index.
-         * 
-         * @param
-         * pass_index The index of the pass to retrieve the descriptor set layout from.
+         *
          * @return
          * vk::DescriptorSetLayout The descriptor set layout associated with the specified pass index.
          */
@@ -117,7 +113,6 @@ namespace Engine {
         /// @brief Allocate a descriptor set with the layout of a given pass index.
         /// As per Vulkan recommendation, allocated descriptors are generally not required to be cleaned up to speed up
         /// allocation. When its descriptor pool is de-allocated, all descriptors attached are automatically destroyed.
-        /// @param pass_index
         /// @return Allocated descriptor set
         vk::DescriptorSet AllocateDescriptorSet();
 

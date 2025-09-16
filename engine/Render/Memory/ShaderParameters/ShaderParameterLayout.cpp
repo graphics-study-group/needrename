@@ -213,13 +213,14 @@ namespace Engine::ShdrRfl {
                 if (pimg) {
                     assert(popaque->array_size == 0);
                     write.image.push_back(
-                        std::make_pair(
+                        std::make_tuple(
                             popaque->layout_binding,
                             vk::DescriptorImageInfo {
                                 pimg->get().GetSampler(),
                                 pimg->get().GetImageView(),
                                 vk::ImageLayout::eShaderReadOnlyOptimal
-                            }
+                            },
+                            vk::DescriptorType::eCombinedImageSampler
                         )
                     );
                 } else {
@@ -236,13 +237,14 @@ namespace Engine::ShdrRfl {
                     assert(pimg->get().SupportRandomAccess());
 
                     write.image.push_back(
-                        std::make_pair(
+                        std::make_tuple(
                             pstorage->layout_binding,
                             vk::DescriptorImageInfo {
                                 pimg->get().GetSampler(),
                                 pimg->get().GetImageView(),
                                 vk::ImageLayout::eGeneral
-                            }
+                            },
+                            vk::DescriptorType::eStorageImage
                         )
                     );
                 } else {
@@ -257,20 +259,29 @@ namespace Engine::ShdrRfl {
                 if (pbuf) {
                     auto offset = std::get<1>(*pbuf);
                     auto range = std::get<2>(*pbuf) > 0 ? std::get<2>(*pbuf) : vk::WholeSize;
+
+                    vk::DescriptorType type;
+                    if (pbuffer->type == SPInterfaceBuffer::Type::StorageBuffer) {
+                        type = vk::DescriptorType::eStorageBuffer;
+                    } else if (pbuffer->type == SPInterfaceBuffer::Type::UniformBuffer) {
+                        type = vk::DescriptorType::eUniformBuffer;
+                    } 
+
                     write.buffer.push_back(
-                        std::make_pair(
+                        std::make_tuple(
                             pbuffer->layout_binding,
                             vk::DescriptorBufferInfo {
                                 std::get<0>(*pbuf).get().GetBuffer(),
                                 offset,
                                 range
-                            }
+                            },
+                            type
                         )
                     );
                 } else {
                     SDL_LogWarn(
                         SDL_LOG_CATEGORY_RENDER,
-                        "Interface %s is not assigned to an image.",
+                        "Interface %s is not assigned to a buffer nor image.",
                         pinterface->name.c_str()
                     );
                 }
@@ -605,6 +616,18 @@ namespace Engine::ShdrRfl {
             layout.name_mapping[ssbo.name] = buffer_interface_ptr.get();
             layout.variables.emplace_back(std::move(buffer_interface_ptr));
         }
+
+        std::sort(
+            layout.interfaces.begin(),
+            layout.interfaces.end(),
+            [](const SPInterface * lhs, const SPInterface * rhs) -> bool {
+                if (lhs->layout_set != rhs->layout_set) {
+                    return lhs->layout_set < rhs->layout_set;
+                }
+                return lhs->layout_binding < rhs->layout_binding;
+            }
+        );
+        
 
         return layout;
     }

@@ -47,30 +47,26 @@ namespace Engine {
 
         /**
          * @brief Acquire a reference to the underlying shader parameters.
-         * Use this member to modify underlying shader parameters.
          */
-        ShdrRfl::ShaderParameters & GetShaderParameters() noexcept;
+        const ShdrRfl::ShaderParameters & GetShaderParameters() const noexcept;
+
+        void AssignSimpleVariables(const std::string & name, std::variant<uint32_t, int32_t, float> value);
+        void AssignSimpleVariables(const std::string & name, std::variant<glm::vec4, glm::mat4> value);
+        void AssignTexture(const std::string & name, const Texture & texture);
+        void AssignBuffer(const std::string & name, const Buffer & buffer);
 
         /**
-         * @brief Write out UBO changes if it is dirty.
-         * 
-         * You in general does not need
-         * to call this function. It is automatically called
-         * when a direct draw call is issued on a command
-         * buffer.
+         * @brief Upload current state of this instance to GPU:
+         * Performs descriptor writes and UBO buffer writes.
          */
-        void WriteUBO();
+        void UpdateGPUInfo(uint32_t backbuffer = std::numeric_limits<uint32_t>::max());
 
         /**
-         * @brief Write out pending descriptor changes to the descriptor set.
-         * Calls
-         * vk::WriteDescriptorSet to upload.
-         * 
-         * You in general does not need to call this function.
-         * It is automatically called
-         * when a direct draw call is issued on a command buffer.
+         * @brief Get a list of dynamic uniform buffer offsets
+         * used in `vkCmdBindDescriptorSets`. These dynamic offsets
+         * are returned in the order of binding numbers.
          */
-        void WriteDescriptors();
+        std::vector<uint32_t> GetDynamicUBOOffset(uint32_t backbuffer = std::numeric_limits<uint32_t>::max());
 
         /**
          * @brief Get the descriptor set for a specific pass

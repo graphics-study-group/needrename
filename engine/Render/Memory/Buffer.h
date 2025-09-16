@@ -22,6 +22,8 @@ namespace Engine {
     public:
         using BufferType = RenderSystemState::AllocatorState::BufferType;
 
+        virtual ~Buffer() = default;
+
         Buffer (const Buffer &) = delete;
         void operator= (const Buffer &) = delete;
 

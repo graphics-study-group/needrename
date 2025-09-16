@@ -9,6 +9,8 @@ namespace vk {
     class DescriptorSetLayoutBinding;
     class DescriptorImageInfo;
     class DescriptorBufferInfo;
+
+    enum class DescriptorType;
 }
 
 namespace Engine {
@@ -22,12 +24,13 @@ namespace Engine {
             static std::vector <std::unique_ptr<SPType>> types;
             std::vector <std::unique_ptr<SPVariable>> variables;
 
+            // Interfaces are guaranteed to be sorted by set and binding numbers
             std::vector <const SPInterface *> interfaces;
             std::unordered_map <std::string, const SPVariable *> name_mapping;
 
             struct DescriptorSetWrite {
-                std::vector <std::pair<uint32_t, vk::DescriptorImageInfo>> image {};
-                std::vector <std::pair<uint32_t, vk::DescriptorBufferInfo>> buffer {};
+                std::vector <std::tuple<uint32_t, vk::DescriptorImageInfo, vk::DescriptorType>> image {};
+                std::vector <std::tuple<uint32_t, vk::DescriptorBufferInfo, vk::DescriptorType>> buffer {};
             };
 
             /**
@@ -42,6 +45,9 @@ namespace Engine {
             /**
              * @brief Place all simple variables (i.e. scalars, arrays,
              * vectors and matrices) into their corresponding buffers.
+             * 
+             * @param buffer a CPU buffer to be copied to GPU.
+             * Will be resized if necessary.
              */
             void PlaceBufferVariable(
                 std::vector <std::byte> & buffer,
