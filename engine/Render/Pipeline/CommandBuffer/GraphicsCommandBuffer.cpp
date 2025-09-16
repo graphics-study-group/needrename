@@ -91,8 +91,8 @@ namespace Engine {
     }
 
     void GraphicsCommandBuffer::BindMaterial(MaterialInstance &material, uint32_t pass_index) {
-        const auto &pipeline = material.GetTemplate().GetPipeline(pass_index);
-        const auto &pipeline_layout = material.GetTemplate().GetPipelineLayout(pass_index);
+        const auto &pipeline = material.GetTemplate().GetPipeline();
+        const auto &pipeline_layout = material.GetTemplate().GetPipelineLayout();
 
         bool bind_new_pipeline = false;
         if (!m_bound_material_pipeline.has_value()) {
@@ -109,17 +109,22 @@ namespace Engine {
         const auto &global_pool = m_system.GetGlobalConstantDescriptorPool();
         const auto &per_scene_descriptor_set = global_pool.GetPerSceneConstantSet(m_inflight_frame_index);
         const auto &per_camera_descriptor_set = global_pool.GetPerCameraConstantSet(m_inflight_frame_index);
-        auto material_descriptor_set = material.GetDescriptor(pass_index);
+        auto material_descriptor_set = material.GetDescriptor();
 
         if (material_descriptor_set) {
+            std::vector <uint32_t> dynamic_offsets {
+                static_cast<uint32_t>(
+                    global_pool.GetPerCameraDynamicOffset(m_inflight_frame_index, m_system.GetActiveCameraId())
+                )
+            };
+            std::vector <uint32_t> ret_dyn_offsets {material.GetDynamicUBOOffset(m_inflight_frame_index)};
+            dynamic_offsets.insert(dynamic_offsets.end(), ret_dyn_offsets.begin(), ret_dyn_offsets.end());
             cb.bindDescriptorSets(
                 vk::PipelineBindPoint::eGraphics,
                 pipeline_layout,
                 0,
                 {per_scene_descriptor_set, per_camera_descriptor_set, material_descriptor_set},
-                {static_cast<uint32_t>(
-                    global_pool.GetPerCameraDynamicOffset(m_inflight_frame_index, m_system.GetActiveCameraId())
-                )}
+                dynamic_offsets
             );
         } else {
             cb.bindDescriptorSets(
@@ -133,8 +138,7 @@ namespace Engine {
             );
         }
 
-        material.WriteUBO(pass_index);
-        material.WriteDescriptors(pass_index);
+        material.UpdateGPUInfo();
     }
 
     void GraphicsCommandBuffer::SetupViewport(float vpWidth, float vpHeight, vk::Rect2D scissor) {

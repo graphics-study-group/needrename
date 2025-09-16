@@ -18,12 +18,12 @@ namespace Engine {
 
     struct MaterialInstance::impl {
         struct PassInfo {
-            static constexpr uint32_t BACK_BUFFERS = 2;
+            static constexpr uint32_t BACK_BUFFERS = 3;
 
             std::unordered_map <std::string, std::unique_ptr<IndexedBuffer>> ubos{};
 
-            std::bitset<BACK_BUFFERS> _is_ubo_dirty{};
-            std::bitset<BACK_BUFFERS> _is_descriptor_dirty{};
+            std::bitset<8> _is_ubo_dirty{};
+            std::bitset<8> _is_descriptor_dirty{};
 
             vk::DescriptorSet desc_set{};
             ShdrRfl::ShaderParameters parameters{};
@@ -105,7 +105,7 @@ namespace Engine {
 
     void MaterialInstance::UpdateGPUInfo(uint32_t backbuffer) {
             if (backbuffer > pimpl->m_pass_info.BACK_BUFFERS) {
-                backbuffer = m_system.GetFrameManager().GetTotalFrame() % pimpl->m_pass_info.BACK_BUFFERS;
+                backbuffer = m_system.GetFrameManager().GetFrameInFlight();
             }
             
             auto tpl = pimpl->m_parent_template.lock();
@@ -176,6 +176,30 @@ namespace Engine {
                 
                 pimpl->m_pass_info._is_ubo_dirty[backbuffer] = false;
             }
+    }
+
+    std::vector<uint32_t> MaterialInstance::GetDynamicUBOOffset(uint32_t backbuffer) {
+        if (backbuffer > pimpl->m_pass_info.BACK_BUFFERS) {
+            backbuffer = m_system.GetFrameManager().GetFrameInFlight();
+        }
+        auto tpl = pimpl->m_parent_template.lock();
+        const auto & splayout = tpl->GetReflectedShaderInfo();
+
+        std::vector <uint32_t> ret;
+        ret.reserve(pimpl->m_pass_info.ubos.size());
+
+        // This vector is already sorted by bindings, so we don't need to sort again.
+        for (const auto & pint : splayout.interfaces) {
+            if (auto pbuf = dynamic_cast<const ShdrRfl::SPInterfaceBuffer *>(pint)) {
+                if (pbuf->type == ShdrRfl::SPInterfaceBuffer::Type::UniformBuffer) {
+                    assert(pbuf->layout_set == 3);
+                    auto itr = pimpl->m_pass_info.ubos.find(pbuf->name);
+                    assert(itr != pimpl->m_pass_info.ubos.end());
+                    ret.push_back(itr->second->GetSliceOffset(backbuffer));
+                }
+            }
+        }
+        return ret;
     }
 
     vk::DescriptorSet MaterialInstance::GetDescriptor() const {
