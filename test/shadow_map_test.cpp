@@ -180,10 +180,10 @@ int main(int argc, char **argv) {
     auto test_template = std::make_shared<MaterialTemplate>(*rsys);
     test_template->Instantiate(*test_asset_ref->cas<MaterialTemplateAsset>());
     auto test_material_instance = std::make_shared<MaterialInstance>(*rsys, test_template);
-    test_material_instance->AssignSimpleVariables(
+    test_material_instance->AssignVectorVariable(
         "ambient_color", glm::vec4(0.0, 0.0, 0.0, 0.0)
     );
-    test_material_instance->AssignSimpleVariables(
+    test_material_instance->AssignVectorVariable(
         "specular_color", glm::vec4(1.0, 1.0, 1.0, 64.0)
     );
     test_material_instance->AssignTexture(

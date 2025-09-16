@@ -78,7 +78,7 @@ namespace Engine {
         return *(pimpl->m_parent_template.lock());
     }
 
-    void MaterialInstance::AssignSimpleVariables(
+    void MaterialInstance::AssignScalarVariable(
         const std::string &name,
         std::variant<uint32_t, int32_t, float> value
     ) {
@@ -86,7 +86,7 @@ namespace Engine {
         this->pimpl->m_pass_info.parameters.Assign(name, value);
     }
 
-    void MaterialInstance::AssignSimpleVariables(const std::string &name, std::variant<glm::vec4, glm::mat4> value) {
+    void MaterialInstance::AssignVectorVariable(const std::string &name, std::variant<glm::vec4, glm::mat4> value) {
         this->pimpl->m_pass_info._is_ubo_dirty.set();
         this->pimpl->m_pass_info.parameters.Assign(name, value);
     }

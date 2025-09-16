@@ -165,8 +165,8 @@ public:
         m_uniform_data = {.metalness = metalness, .roughness = roughness};
 
         for (auto &material : m_materials) {
-            material->AssignSimpleVariables("metalness", std::variant<uint32_t, int32_t, float>(metalness));
-            material->AssignSimpleVariables("roughness", std::variant<uint32_t, int32_t, float>(roughness));
+            material->AssignScalarVariable("Material::metalness", metalness);
+            material->AssignScalarVariable("Material::roughness", roughness);
         }
     }
 };
@@ -277,7 +277,7 @@ int main(int argc, char **argv) {
     );
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*red_texture, {1.0, 0.0, 0.0, 1.0});
 
-    auto cs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/bloom.comp.spv.asset");
+    /* auto cs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/bloom.comp.spv.asset");
     assert(cs_ref);
     MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(cs_ref);
     auto bloom_compute_stage = std::make_shared<ComputeStage>(*rsys);
@@ -289,7 +289,7 @@ int main(int argc, char **argv) {
     bloom_compute_stage->SetDescVariable(
         bloom_compute_stage->GetVariableIndex("outputImage").value().first,
         std::const_pointer_cast<const Texture>(std::static_pointer_cast<Texture>(color))
-    );
+    ); */
 
     // Setup mesh
     std::filesystem::path mesh_path{std::string(ENGINE_ASSETS_DIR) + "/sphere/sphere.obj"};
@@ -333,7 +333,7 @@ int main(int argc, char **argv) {
     );
 
     // Bloom pass
-    rgb.UseImage(*hdr_color, IAT::ShaderReadRandomWrite);
+    /* rgb.UseImage(*hdr_color, IAT::ShaderReadRandomWrite);
     rgb.UseImage(*color, IAT::ShaderRandomWrite);
     rgb.RecordComputePass(
         [bloom_compute_stage, color](ComputeCommandBuffer &ccb) {
@@ -343,13 +343,13 @@ int main(int argc, char **argv) {
             );
         },
         "Bloom FX pass"
-    );
+    ); */
 
     // GUI pass
-    rgb.UseImage(*color, IAT::ColorAttachmentWrite);
-    rgb.RecordRasterizerPassWithoutRT([rsys, gsys, color](GraphicsCommandBuffer &gcb) {
+    rgb.UseImage(*hdr_color, IAT::ColorAttachmentWrite);
+    rgb.RecordRasterizerPassWithoutRT([rsys, gsys, hdr_color](GraphicsCommandBuffer &gcb) {
         gsys->DrawGUI(
-            {color.get(), nullptr, AttachmentUtils::LoadOperation::Load, AttachmentUtils::StoreOperation::Store},
+            {hdr_color.get(), nullptr, AttachmentUtils::LoadOperation::Load, AttachmentUtils::StoreOperation::Store},
             rsys->GetSwapchain().GetExtent(),
             gcb
         );
@@ -386,7 +386,7 @@ int main(int argc, char **argv) {
 
         rg.Execute();
         rsys->GetFrameManager().StageBlitComposition(
-            color->GetImage(),
+            hdr_color->GetImage(),
             vk::Extent2D{color->GetTextureDescription().width, color->GetTextureDescription().height},
             rsys->GetSwapchain().GetExtent()
         );

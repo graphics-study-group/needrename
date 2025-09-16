@@ -15,10 +15,10 @@ namespace Engine::Materials {
         this->AssignTexture("base_tex", *image);
     }
     void BlinnPhongInstance::SetSpecular(glm::vec4 spec) {
-        this->AssignSimpleVariables("Material::specular_color", spec);
+        this->AssignVectorVariable("Material::specular_color", spec);
     }
     void BlinnPhongInstance::SetAmbient(glm::vec4 ambi) {
-        this->AssignSimpleVariables("Material::ambient_color", ambi);
+        this->AssignVectorVariable("Material::ambient_color", ambi);
     }
 
     void BlinnPhongInstance::Instantiate(const MaterialAsset &asset) {
