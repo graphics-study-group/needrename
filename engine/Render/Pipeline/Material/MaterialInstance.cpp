@@ -41,7 +41,6 @@ namespace Engine {
         m_system(system), pimpl(std::make_unique<impl>(tpl)) {
         using PassInfo = impl::PassInfo;
         // Allocate uniform buffers and per-material descriptor sets
-        const auto & info = tpl->GetPassInfo();
         PassInfo pass{};
         const auto & splayout = tpl->GetReflectedShaderInfo();
         pass.desc_set = tpl->AllocateDescriptorSet();
@@ -202,13 +201,13 @@ namespace Engine {
         return ret;
     }
 
-    vk::DescriptorSet MaterialInstance::GetDescriptor() const {
+    vk::DescriptorSet MaterialInstance::GetDescriptor() const noexcept {
         return pimpl->m_pass_info.desc_set;
     }
     void MaterialInstance::Instantiate(const MaterialAsset &asset) {
         const auto &pass = pimpl->m_parent_template.lock()->GetPassInfo();
 
-        for (const auto prop : asset.m_properties) {
+        for (const auto & prop : asset.m_properties) {
             auto p = prop.second;
             switch(p.m_type) {
             case MaterialProperty::Type::StorageBuffer:
@@ -230,6 +229,7 @@ namespace Engine {
                 case MaterialProperty::InBlockVarType::Mat4:
                     break;
                 default:
+                    ;
                 }
             }
         }

@@ -10,18 +10,15 @@
 namespace Engine::Materials {
     BlinnPhongInstance::BlinnPhongInstance(RenderSystem &system, std::shared_ptr<MaterialTemplate> tpl) :
         MaterialInstance(system, tpl) {
-        texture_id = tpl->GetVariableIndex("base_tex", 0).value().first;
-        specular_id = tpl->GetVariableIndex("specular_color", 0).value().first;
-        ambient_id = tpl->GetVariableIndex("ambient_color", 0).value().first;
     }
     void BlinnPhongInstance::SetBaseTexture(std::shared_ptr<const Texture> image) {
-        this->WriteTextureUniform(0, texture_id, image);
+        this->AssignTexture("base_tex", *image);
     }
     void BlinnPhongInstance::SetSpecular(glm::vec4 spec) {
-        this->WriteUBOUniform(0, specular_id, spec);
+        this->AssignSimpleVariables("specular_color", spec);
     }
     void BlinnPhongInstance::SetAmbient(glm::vec4 ambi) {
-        this->WriteUBOUniform(0, ambient_id, ambi);
+        this->AssignSimpleVariables("ambient_color", ambi);
     }
 
     void BlinnPhongInstance::Instantiate(const MaterialAsset &asset) {

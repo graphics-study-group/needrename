@@ -53,6 +53,10 @@ namespace Engine {
     void ComputeStage::SetDescVariable(uint32_t index, std::any var) {
     }
 
+    std::optional<std::pair<uint32_t, bool>> ComputeStage::GetVariableIndex(const std::string &name) const noexcept {
+        return std::nullopt;
+    }
+
     void ComputeStage::WriteDescriptorSet() {
     }
 

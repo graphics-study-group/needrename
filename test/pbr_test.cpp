@@ -142,11 +142,9 @@ public:
         auto system = m_system.lock();
         auto &helper = system->GetFrameManager().GetSubmissionHelper();
 
-        auto id_albedo = material_template->GetVariableIndex("albedoSampler", 0).value();
-        assert(id_albedo.second == false);
         for (size_t i = 0; i < m_submeshes.size(); i++) {
             auto ptr = std::make_shared<MaterialInstance>(*system, material_template);
-            ptr->WriteTextureUniform(0, 1, albedo);
+            ptr->AssignTexture("albedoSampler", *albedo);
             m_materials.push_back(ptr);
         }
     }
@@ -166,12 +164,9 @@ public:
         if (identity == 2) return;
         m_uniform_data = {.metalness = metalness, .roughness = roughness};
 
-        auto id_metalness = m_materials[0]->GetTemplate().GetVariableIndex("metalness", 0).value();
-        auto id_roughness = m_materials[0]->GetTemplate().GetVariableIndex("roughness", 0).value();
-        assert(id_metalness.second == true && id_roughness.second == true);
         for (auto &material : m_materials) {
-            material->WriteUBOUniform(0, id_metalness.first, metalness);
-            material->WriteUBOUniform(0, id_roughness.first, roughness);
+            material->AssignSimpleVariables("metalness", std::variant<uint32_t, int32_t, float>(metalness));
+            material->AssignSimpleVariables("roughness", std::variant<uint32_t, int32_t, float>(roughness));
         }
     }
 };

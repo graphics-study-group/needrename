@@ -180,19 +180,15 @@ int main(int argc, char **argv) {
     auto test_template = std::make_shared<MaterialTemplate>(*rsys);
     test_template->Instantiate(*test_asset_ref->cas<MaterialTemplateAsset>());
     auto test_material_instance = std::make_shared<MaterialInstance>(*rsys, test_template);
-    test_material_instance->WriteDescriptors(0);
-    test_material_instance->WriteUBOUniform(
-        1, test_template->GetVariableIndex("ambient_color", 1).value().first, glm::vec4(0.0, 0.0, 0.0, 0.0)
+    test_material_instance->AssignSimpleVariables(
+        "ambient_color", glm::vec4(0.0, 0.0, 0.0, 0.0)
     );
-    test_material_instance->WriteUBOUniform(
-        1, test_template->GetVariableIndex("specular_color", 1).value().first, glm::vec4(1.0, 1.0, 1.0, 64.0)
+    test_material_instance->AssignSimpleVariables(
+        "specular_color", glm::vec4(1.0, 1.0, 1.0, 64.0)
     );
-    test_material_instance->WriteTextureUniform(
-        1, test_template->GetVariableIndex("base_tex", 1).value().first, blank_color
+    test_material_instance->AssignTexture(
+        "base_tex", *blank_color
     );
-    // test_material_instance->WriteTextureUniform(1, test_template->GetVariableIndex("shadowmap_tex", 1).value().first,
-    // shadow);
-    test_material_instance->WriteDescriptors(1);
 
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueVertexBufferSubmission(test_mesh);
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueVertexBufferSubmission(test_mesh_2);
@@ -222,7 +218,7 @@ int main(int argc, char **argv) {
 
             vk::CommandBuffer rcb = gcb.GetCommandBuffer();
             rcb.pushConstants(
-                test_template->GetPipelineLayout(0),
+                test_template->GetPipelineLayout(),
                 vk::ShaderStageFlagBits::eVertex,
                 0,
                 ConstantData::PerModelConstantPushConstant::PUSH_RANGE_SIZE,
@@ -252,7 +248,7 @@ int main(int argc, char **argv) {
             // Push model matrix...
             vk::CommandBuffer rcb = gcb.GetCommandBuffer();
             rcb.pushConstants(
-                test_template->GetPipelineLayout(0),
+                test_template->GetPipelineLayout(),
                 vk::ShaderStageFlagBits::eVertex,
                 0,
                 ConstantData::PerModelConstantPushConstant::PUSH_RANGE_SIZE,
