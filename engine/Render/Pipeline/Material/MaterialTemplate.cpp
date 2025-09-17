@@ -271,8 +271,7 @@ namespace Engine {
         );
 
         // Create pipelines
-        assert(asset.properties.properties.size() == 1);
-        this->CreatePipeline(asset.properties.properties.begin()->second, dvc);
+        this->CreatePipeline(asset.properties, dvc);
     }
 
     MaterialTemplate::~MaterialTemplate() = default;

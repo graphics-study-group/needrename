@@ -39,7 +39,7 @@ std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate() {
     mtspp.attachments.depth = ImageUtils::ImageFormat::D32SFLOAT;
     mtspp.shaders.shaders = std::vector<std::shared_ptr<AssetRef>>{vs_ref, fs_ref};
 
-    test_asset->properties.properties[0] = mtspp;
+    test_asset->properties = mtspp;
 
     return test_asset;
 }

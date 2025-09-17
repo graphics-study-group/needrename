@@ -62,22 +62,13 @@ namespace Engine {
         // void * pipeline_cache.
     };
 
-    struct REFL_SER_CLASS(REFL_WHITELIST) MaterialTemplateProperties {
-        REFL_SER_BODY(MaterialTemplateProperties)
-
-        REFL_ENABLE MaterialTemplateProperties() = default;
-        virtual ~MaterialTemplateProperties() = default;
-
-        REFL_SER_ENABLE std::unordered_map<uint32_t, MaterialTemplateSinglePassProperties> properties{};
-    };
-
     class REFL_SER_CLASS(REFL_WHITELIST) MaterialTemplateAsset : public Asset {
         REFL_SER_BODY(MaterialTemplateAsset)
     public:
         REFL_ENABLE MaterialTemplateAsset() = default;
         virtual ~MaterialTemplateAsset() = default;
 
-        REFL_SER_ENABLE MaterialTemplateProperties properties{};
+        REFL_SER_ENABLE MaterialTemplateSinglePassProperties properties{};
         REFL_SER_ENABLE std::string name{};
     };
 } // namespace Engine
