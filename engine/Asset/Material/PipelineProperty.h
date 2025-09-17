@@ -26,6 +26,26 @@ namespace Engine {
             float line_width{1.0f};
             CullingMode culling{CullingMode::None};
             FrontFace front{FrontFace::Counterclockwise};
+
+            /**
+             * @brief Depth bias slope factor.
+             * Mostly used for shadow maps.
+             * 
+             * If any of `depth_bias_slope` and `depth_bias_constant` is
+             * not applicable (e.g. NaNs or Infs) or they are both zero,
+             * depth bias will be disabled for the created pipeline.
+             */
+            float depth_bias_slope{0.0f};
+
+            /**
+             * @brief Depth bias constant factor.
+             * Mostly used for shadow maps.
+             * 
+             * If any of `depth_bias_slope` and `depth_bias_constant` is
+             * not applicable (e.g. NaNs or Infs) or they are both zero,
+             * depth bias will be disabled for the created pipeline.
+             */
+            float depth_bias_constant{0.0f};
         };
 
         struct REFL_SER_CLASS(REFL_BLACKLIST) StencilState {

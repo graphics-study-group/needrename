@@ -18,6 +18,10 @@ namespace Engine {
 
     struct MaterialInstance::impl {
         struct PassInfo {
+            // As UBOs and descriptor sets are GPU stuff, they only require two copies
+            // (i.e. one for the frame being drawn, another to be updated by CPU). However
+            // directly using the frame-in-flight index saves a lot of headache so we will
+            // directly use this index.
             static constexpr uint32_t BACK_BUFFERS = 3;
 
             std::unordered_map <std::string, std::unique_ptr<IndexedBuffer>> ubos{};

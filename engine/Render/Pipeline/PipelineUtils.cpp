@@ -122,7 +122,18 @@ namespace Engine {
             info.lineWidth = prop.line_width;
             info.cullMode = ToVkCullMode(prop.culling);
             info.frontFace = ToVkFrontFace(prop.front);
-            info.depthBiasEnable = vk::False;
+
+            bool is_depth_bias_enabled = std::isfinite(prop.depth_bias_constant) && std::isfinite(prop.depth_bias_slope);
+            is_depth_bias_enabled = is_depth_bias_enabled && (prop.depth_bias_constant != 0.0f && prop.depth_bias_constant != -0.0f);
+            is_depth_bias_enabled = is_depth_bias_enabled && (prop.depth_bias_slope != 0.0f && prop.depth_bias_slope != -0.0f);
+            if (is_depth_bias_enabled) {
+                info.depthBiasEnable = vk::True;
+                info.depthBiasConstantFactor = prop.depth_bias_constant;
+                info.depthBiasSlopeFactor = prop.depth_bias_slope;
+            } else {
+                info.depthBiasEnable = vk::False;
+            }
+
             return info;
         }
 
