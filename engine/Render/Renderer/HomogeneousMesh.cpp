@@ -3,6 +3,7 @@
 #include <Asset/Mesh/MeshAsset.h>
 
 #include "Render/RenderSystem.h"
+#include "Render/Memory/Buffer.h"
 #include "Render/Renderer/VertexStruct.h"
 
 #include <SDL3/SDL.h>
