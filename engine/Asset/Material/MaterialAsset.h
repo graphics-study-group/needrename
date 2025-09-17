@@ -19,8 +19,25 @@ namespace Engine {
     struct REFL_SER_CLASS(REFL_WHITELIST) MaterialProperty {
         REFL_SER_BODY(MaterialProperty)
 
-        using Type = ShaderVariableProperty::Type;
-        using InBlockVarType = ShaderInBlockVariableProperty::InBlockVarType;
+        enum class InBlockVarType {
+            Undefined,
+            Float,
+            Int,
+            Vec4,
+            Mat4
+        };
+
+        enum class Type {
+            Undefined,
+            // Uniform buffer object, i.e. a buffer for bulk uniform variables.
+            UBO,
+            // Shader storage buffer object.
+            StorageBuffer,
+            // Texture to be sampled (or combined image sampler).
+            Texture,
+            // Storage image. Generally used in compute shaders.
+            StorageImage,
+        } type{};
 
         Type m_type{};
         InBlockVarType m_ubo_type{};

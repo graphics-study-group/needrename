@@ -104,14 +104,6 @@ namespace Engine {
             std::vector<std::shared_ptr<AssetRef>> shaders{};
             // TODO: Support shader specialization
             // std::vector <...> specialization;
-
-            /// @brief stores information regarding layout info, aka descriptors, shared across all stages.
-            /// @deprecated Automatically reflected from shader SPIR-V source code.
-            std::vector<ShaderVariableProperty> uniforms{};
-
-            /// @brief stores information of variables stored in the UBO.
-            /// @deprecated Automatically reflected from shader SPIR-V source code.
-            std::vector<ShaderInBlockVariableProperty> ubo_variables{};
         };
 
         /// @brief C.f.
