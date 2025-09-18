@@ -296,6 +296,15 @@ int main(int argc, char **argv) {
     camera->UpdateViewMatrix(transform);
     rsys->SetActiveCamera(camera);
 
+    // Setup compute shader
+    auto cs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/bloom.comp.spv.asset");
+    assert(cs_ref);
+    MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(cs_ref);
+    auto bloom_compute_stage = std::make_shared<ComputeStage>(*rsys);
+    bloom_compute_stage->Instantiate(*cs_ref->cas<ShaderAsset>());
+    bloom_compute_stage->AssignTexture("inputImage", *hdr_color);
+    bloom_compute_stage->AssignTexture("outputImage", *color);
+
     // Build render graph.
     RenderGraphBuilder rgb{*rsys};
     rgb.RegisterImageAccess(*hdr_color);
@@ -324,7 +333,7 @@ int main(int argc, char **argv) {
     );
 
     // Bloom pass
-    /* rgb.UseImage(*hdr_color, IAT::ShaderReadRandomWrite);
+    rgb.UseImage(*hdr_color, IAT::ShaderReadRandomWrite);
     rgb.UseImage(*color, IAT::ShaderRandomWrite);
     rgb.RecordComputePass(
         [bloom_compute_stage, color](ComputeCommandBuffer &ccb) {
@@ -334,13 +343,13 @@ int main(int argc, char **argv) {
             );
         },
         "Bloom FX pass"
-    ); */
+    );
 
     // GUI pass
-    rgb.UseImage(*hdr_color, IAT::ColorAttachmentWrite);
-    rgb.RecordRasterizerPassWithoutRT([rsys, gsys, hdr_color](GraphicsCommandBuffer &gcb) {
+    rgb.UseImage(*color, IAT::ColorAttachmentWrite);
+    rgb.RecordRasterizerPassWithoutRT([rsys, gsys, color](GraphicsCommandBuffer &gcb) {
         gsys->DrawGUI(
-            {hdr_color.get(), nullptr, AttachmentUtils::LoadOperation::Load, AttachmentUtils::StoreOperation::Store},
+            {color.get(), nullptr, AttachmentUtils::LoadOperation::Load, AttachmentUtils::StoreOperation::Store},
             rsys->GetSwapchain().GetExtent(),
             gcb
         );
@@ -377,7 +386,7 @@ int main(int argc, char **argv) {
 
         rg.Execute();
         rsys->GetFrameManager().StageBlitComposition(
-            hdr_color->GetImage(),
+            color->GetImage(),
             vk::Extent2D{color->GetTextureDescription().width, color->GetTextureDescription().height},
             rsys->GetSwapchain().GetExtent()
         );

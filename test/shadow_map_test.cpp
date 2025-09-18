@@ -232,11 +232,11 @@ int main(int argc, char **argv) {
                 "Shadowmap Pass"
             );
             gcb.SetupViewport(shadow_map_extent.width, shadow_map_extent.height, shadow_map_scissor);
-            gcb.BindMaterial(*test_material_instance, "Shadowmap", HomogeneousMesh::MeshVertexType::Position);
+            gcb.BindMaterial(*test_material_instance, "Shadowmap", HomogeneousMesh::MeshVertexType::Basic);
 
             vk::CommandBuffer rcb = gcb.GetCommandBuffer();
             rcb.pushConstants(
-                test_library->FindMaterialTemplate("Shadowmap", HomogeneousMesh::MeshVertexType::Position)->GetPipelineLayout(),
+                test_library->FindMaterialTemplate("Shadowmap", HomogeneousMesh::MeshVertexType::Basic)->GetPipelineLayout(),
                 vk::ShaderStageFlagBits::eVertex,
                 0,
                 ConstantData::PerModelConstantPushConstant::PUSH_RANGE_SIZE,
