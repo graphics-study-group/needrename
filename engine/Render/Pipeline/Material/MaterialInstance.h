@@ -26,24 +26,8 @@ namespace Engine {
         std::unique_ptr<impl> pimpl;
 
     public:
-        MaterialInstance(RenderSystem &system, std::shared_ptr<MaterialTemplate> tpl);
+        MaterialInstance(RenderSystem &system);
         virtual ~MaterialInstance();
-
-        /**
-         * @brief Get the template associated with this material instance.
-         * 
-         * This
-         * method returns a constant reference to the `MaterialTemplate` object
-         * that was used to create this
-         * material instance. The template provides information
-         * about the material's structure and
-         * configuration, including its passes,
-         * bindings, and other properties.
-         * 
-         *
-         * @return A constant reference to the `MaterialTemplate` associated with this material instance.
-         */
-        const MaterialTemplate &GetTemplate() const;
 
         /**
          * @brief Acquire a reference to the underlying shader parameters.
@@ -58,15 +42,20 @@ namespace Engine {
         /**
          * @brief Upload current state of this instance to GPU:
          * Performs descriptor writes and UBO buffer writes.
+         * 
+         * May perform lazy buffer or descriptor allocations.
          */
-        void UpdateGPUInfo(uint32_t backbuffer);
+        void UpdateGPUInfo(uint32_t backbuffer, MaterialTemplate & tpl);
 
         /**
          * @brief Get a list of dynamic uniform buffer offsets
          * used in `vkCmdBindDescriptorSets`. These dynamic offsets
          * are returned in the order of binding numbers.
+         * 
+         * If uniform buffer objects of the given template is not yet allocated,
+         * an exception will be thrown.
          */
-        std::vector<uint32_t> GetDynamicUBOOffset(uint32_t backbuffer);
+        std::vector<uint32_t> GetDynamicUBOOffset(uint32_t backbuffer, const MaterialTemplate & tpl);
 
         /**
          * @brief Get the descriptor set for a specific pass
@@ -75,11 +64,14 @@ namespace Engine {
          * descriptor set associated with the given pass index.
          * The descriptor set contains the bindings for
          * various resources such as textures and uniform buffers.
+         * 
+         * If the descriptor is not yet allocated, a null handle
+         * will be returned.
          *
          * @return A handle to the Descriptor Set object
 
          */
-        vk::DescriptorSet GetDescriptor(uint32_t backbuffer) const noexcept;
+        vk::DescriptorSet GetDescriptor(uint32_t backbuffer, const MaterialTemplate & tpl) const noexcept;
 
         /**
          * @brief Instantiate a material asset to the material instance. Load properties to the uniforms.

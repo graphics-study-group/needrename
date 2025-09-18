@@ -30,102 +30,133 @@ namespace Engine {
             std::bitset<8> _is_descriptor_dirty{};
 
             std::array <vk::DescriptorSet, BACK_BUFFERS> desc_sets{};
-            ShdrRfl::ShaderParameters parameters{};
+            
         };
 
-        std::weak_ptr<MaterialTemplate> m_parent_template;
-
-        PassInfo m_pass_info{};
+        ShdrRfl::ShaderParameters parameters{};
+        std::unordered_map <const MaterialTemplate *, PassInfo> m_pass_infos{};
 
         // A small buffer for uniform buffer staging to avoid random write to UBO.
         std::vector<std::byte> m_buffer{};
-    };
 
-    MaterialInstance::MaterialInstance(RenderSystem &system, std::shared_ptr<MaterialTemplate> tpl) :
-        m_system(system), pimpl(std::make_unique<impl>(tpl)) {
-        using PassInfo = impl::PassInfo;
-        // Allocate uniform buffers and per-material descriptor sets
-        PassInfo pass{};
-        const auto & splayout = tpl->GetReflectedShaderInfo();
-
-        for (auto & desc_set : pass.desc_sets) {
-            desc_set = tpl->AllocateDescriptorSet();
-        }
-
-        for (auto pinterface : splayout.interfaces) {
-            if (auto pbuffer = dynamic_cast <const ShdrRfl::SPInterfaceBuffer *>(pinterface)) {
-                if (pbuffer->type == ShdrRfl::SPInterfaceBuffer::Type::UniformBuffer) {
-                    auto ptype = dynamic_cast <const ShdrRfl::SPTypeSimpleStruct *>(pbuffer->underlying_type);
-                    assert(ptype);
-
-                    pass.ubos[pbuffer->name] = IndexedBuffer::CreateUnique(
-                        system,
-                        Buffer::BufferType::Uniform,
-                        ptype->expected_size,
-                        system.GetPhysicalDevice().getProperties().limits.minUniformBufferOffsetAlignment,
-                        PassInfo::BACK_BUFFERS,
-                        std::format(
-                            "Indexed UBO {} for Material",
-                            pbuffer->name
-                        )
-                    );
-                }
+        void SetUboDirtyFlags() noexcept {
+            for (auto & [k, v] : m_pass_infos) {
+                v._is_ubo_dirty.set();
             }
         }
-        
-        pimpl->m_pass_info = std::move(pass);
+
+        void SetDescriptorDirtyFlags() noexcept {
+            for (auto & [k, v] : m_pass_infos) {
+                v._is_descriptor_dirty.set();
+            }
+        }
+
+        auto CreatePassInfo (RenderSystem & system, MaterialTemplate & tpl) 
+            -> std::unordered_map <const MaterialTemplate *, PassInfo>::iterator {
+            assert(!m_pass_infos.contains(&tpl));
+
+            using PassInfo = impl::PassInfo;
+            // Allocate uniform buffers and per-material descriptor sets
+            PassInfo pass{};
+            const auto & splayout = tpl.GetReflectedShaderInfo();
+
+            for (auto & desc_set : pass.desc_sets) {
+                desc_set = tpl.AllocateDescriptorSet();
+            }
+
+            for (auto pinterface : splayout.interfaces) {
+                if (auto pbuffer = dynamic_cast <const ShdrRfl::SPInterfaceBuffer *>(pinterface)) {
+                    if (pbuffer->type == ShdrRfl::SPInterfaceBuffer::Type::UniformBuffer) {
+                        auto ptype = dynamic_cast <const ShdrRfl::SPTypeSimpleStruct *>(pbuffer->underlying_type);
+                        assert(ptype);
+
+                        pass.ubos[pbuffer->name] = IndexedBuffer::CreateUnique(
+                            system,
+                            Buffer::BufferType::Uniform,
+                            ptype->expected_size,
+                            system.GetPhysicalDevice().getProperties().limits.minUniformBufferOffsetAlignment,
+                            PassInfo::BACK_BUFFERS,
+                            std::format(
+                                "Indexed UBO {} for Material",
+                                pbuffer->name
+                            )
+                        );
+                    }
+                }
+            }
+
+            pass._is_descriptor_dirty.set();
+            pass._is_ubo_dirty.set();
+            
+            auto [itr, succ] = m_pass_infos.emplace(
+                std::piecewise_construct,
+                &tpl,
+                std::move(pass)
+            );
+            assert(succ);
+            return itr;
+        }
+    };
+
+    MaterialInstance::MaterialInstance(RenderSystem &system) :
+        m_system(system), pimpl(std::make_unique<impl>()) {
     }
 
     MaterialInstance::~MaterialInstance() = default;
-
-    const MaterialTemplate &MaterialInstance::GetTemplate() const {
-        return *(pimpl->m_parent_template.lock());
-    }
 
     void MaterialInstance::AssignScalarVariable(
         const std::string &name,
         std::variant<uint32_t, int32_t, float> value
     ) {
-        this->pimpl->m_pass_info._is_ubo_dirty.set();
-        this->pimpl->m_pass_info.parameters.Assign(name, value);
+        this->pimpl->SetUboDirtyFlags();
+        this->pimpl->parameters.Assign(name, value);
     }
 
     void MaterialInstance::AssignVectorVariable(const std::string &name, std::variant<glm::vec4, glm::mat4> value) {
-        this->pimpl->m_pass_info._is_ubo_dirty.set();
-        this->pimpl->m_pass_info.parameters.Assign(name, value);
+        this->pimpl->SetUboDirtyFlags();
+        this->pimpl->parameters.Assign(name, value);
     }
 
     void MaterialInstance::AssignTexture(const std::string &name, const Texture &texture) {
-        this->pimpl->m_pass_info._is_descriptor_dirty.set();
-        this->pimpl->m_pass_info.parameters.Assign(name, texture);
+        this->pimpl->SetDescriptorDirtyFlags();
+        this->pimpl->parameters.Assign(name, texture);
     }
 
     void MaterialInstance::AssignBuffer(const std::string &name, const Buffer &buffer) {
-        this->pimpl->m_pass_info._is_descriptor_dirty.set();
-        this->pimpl->m_pass_info.parameters.Assign(name, buffer);
+        this->pimpl->SetDescriptorDirtyFlags();
+        this->pimpl->parameters.Assign(name, buffer);
     }
 
     const ShdrRfl::ShaderParameters &MaterialInstance::GetShaderParameters() const noexcept {
-        return pimpl->m_pass_info.parameters;
+        return pimpl->parameters;
     }
 
-    void MaterialInstance::UpdateGPUInfo(uint32_t backbuffer) {
-        assert(backbuffer < pimpl->m_pass_info.BACK_BUFFERS);
-        
-        auto tpl = pimpl->m_parent_template.lock();
+    void MaterialInstance::UpdateGPUInfo(uint32_t backbuffer, MaterialTemplate & tpl) {
+        assert(backbuffer < impl::PassInfo::BACK_BUFFERS);
+
+        auto itr = pimpl->m_pass_infos.find(&tpl);
+        if (itr == pimpl->m_pass_infos.end()) {
+            SDL_LogVerbose(
+                SDL_LOG_CATEGORY_RENDER,
+                "Lazily allocating descriptor and UBOs for material template %p.",
+                (const void *)&tpl
+            );
+            itr = pimpl->CreatePassInfo(m_system, tpl);
+        }
+        auto & pass_info = itr->second;
 
         // First prepare descriptor writes
-        if (pimpl->m_pass_info._is_descriptor_dirty[backbuffer]) {
+        if (pass_info._is_descriptor_dirty[backbuffer]) {
             // Point UBOs to internal buffers
-            for (const auto & kv : pimpl->m_pass_info.ubos) {
-                this->pimpl->m_pass_info.parameters.Assign(
+            for (const auto & kv : pass_info.ubos) {
+                this->pimpl->parameters.Assign(
                     kv.first, 
                     *(kv.second.get()),
                     kv.second->GetSliceOffset(backbuffer),
                     kv.second->GetSliceSize()
                 );
             }
-            auto writes_from_layout = tpl->GetReflectedShaderInfo().GenerateDescriptorSetWrite(2, this->pimpl->m_pass_info.parameters);
+            auto writes_from_layout = tpl.GetReflectedShaderInfo().GenerateDescriptorSetWrite(2, pimpl->parameters);
 
             std::vector <vk::WriteDescriptorSet> vk_writes {writes_from_layout.buffer.size() + writes_from_layout.image.size()};
             std::vector <std::array<vk::DescriptorBufferInfo, 1>> vk_buffer_writes {writes_from_layout.buffer.size()};
@@ -138,7 +169,7 @@ namespace Engine {
                         std::get<1>(w).range
                     };
                 vk_writes[write_count] = vk::WriteDescriptorSet{
-                    pimpl->m_pass_info.desc_sets[backbuffer],
+                    pass_info.desc_sets[backbuffer],
                     std::get<0>(w),
                     0,
                     std::get<2>(w),
@@ -151,7 +182,7 @@ namespace Engine {
 
             for (const auto & w : writes_from_layout.image) {
                 vk_writes[write_count] = vk::WriteDescriptorSet {
-                    pimpl->m_pass_info.desc_sets[backbuffer],
+                    pass_info.desc_sets[backbuffer],
                     std::get<0>(w),
                     0,
                     std::get<2>(w),
@@ -160,14 +191,14 @@ namespace Engine {
                 write_count ++;
             }
             m_system.getDevice().updateDescriptorSets(vk_writes, {});
-            pimpl->m_pass_info._is_descriptor_dirty[backbuffer] = false;
+            pass_info._is_descriptor_dirty[backbuffer] = false;
         }
 
         // Then do UBO buffer writes
-        if (pimpl->m_pass_info._is_ubo_dirty[backbuffer]) {
-            const auto & splayout = tpl->GetReflectedShaderInfo();
+        if (pass_info._is_ubo_dirty[backbuffer]) {
+            const auto & splayout = tpl.GetReflectedShaderInfo();
 
-            for (const auto & kv : this->pimpl->m_pass_info.ubos) {
+            for (const auto & kv : pass_info.ubos) {
                 auto itr = splayout.name_mapping.find(kv.first);
                 assert(itr != splayout.name_mapping.end());
                 auto pbuf = dynamic_cast<const ShdrRfl::SPInterfaceBuffer *>(itr->second);
@@ -176,31 +207,33 @@ namespace Engine {
                 splayout.PlaceBufferVariable(
                     this->pimpl->m_buffer,
                     pbuf,
-                    this->pimpl->m_pass_info.parameters
+                    this->pimpl->parameters
                 );
 
                 std::memcpy(kv.second->GetSlicePtr(backbuffer), this->pimpl->m_buffer.data(), this->pimpl->m_buffer.size());
             }
             
-            pimpl->m_pass_info._is_ubo_dirty[backbuffer] = false;
+            pass_info._is_ubo_dirty[backbuffer] = false;
         }
     }
 
-    std::vector<uint32_t> MaterialInstance::GetDynamicUBOOffset(uint32_t backbuffer) {
-        assert(backbuffer < pimpl->m_pass_info.BACK_BUFFERS);
-        auto tpl = pimpl->m_parent_template.lock();
-        const auto & splayout = tpl->GetReflectedShaderInfo();
+    std::vector<uint32_t> MaterialInstance::GetDynamicUBOOffset(uint32_t backbuffer, const MaterialTemplate & tpl) {
+        assert(backbuffer < impl::PassInfo::BACK_BUFFERS);
+        const auto & splayout = tpl.GetReflectedShaderInfo();
+
+        auto & pass_info = pimpl->m_pass_infos.at(&tpl);
+        
 
         std::vector <uint32_t> ret;
-        ret.reserve(pimpl->m_pass_info.ubos.size());
+        ret.reserve(pass_info.ubos.size());
 
         // This vector is already sorted by bindings, so we don't need to sort again.
         for (const auto & pint : splayout.interfaces) {
             if (auto pbuf = dynamic_cast<const ShdrRfl::SPInterfaceBuffer *>(pint)) {
                 if (pbuf->type == ShdrRfl::SPInterfaceBuffer::Type::UniformBuffer) {
                     assert(pbuf->layout_set == 2);
-                    auto itr = pimpl->m_pass_info.ubos.find(pbuf->name);
-                    assert(itr != pimpl->m_pass_info.ubos.end());
+                    auto itr = pass_info.ubos.find(pbuf->name);
+                    assert(itr != pass_info.ubos.end());
                     ret.push_back(itr->second->GetSliceOffset(backbuffer));
                 }
             }
@@ -208,15 +241,13 @@ namespace Engine {
         return ret;
     }
 
-    vk::DescriptorSet MaterialInstance::GetDescriptor(uint32_t backbuffer) const noexcept {
-        if (backbuffer > pimpl->m_pass_info.BACK_BUFFERS) {
-            backbuffer = m_system.GetFrameManager().GetFrameInFlight();
-        }
-        return pimpl->m_pass_info.desc_sets[backbuffer];
+    vk::DescriptorSet MaterialInstance::GetDescriptor(uint32_t backbuffer, const MaterialTemplate & tpl) const noexcept {
+        assert(backbuffer < impl::PassInfo::BACK_BUFFERS);
+        auto itr = pimpl->m_pass_infos.find(&tpl);
+        if (itr == pimpl->m_pass_infos.end())   return nullptr;
+        return itr->second.desc_sets[backbuffer];
     }
     void MaterialInstance::Instantiate(const MaterialAsset &asset) {
-        const auto &pass = pimpl->m_parent_template.lock()->GetPassInfo();
-
         for (const auto & prop : asset.m_properties) {
             auto p = prop.second;
             switch(p.m_type) {
@@ -243,9 +274,5 @@ namespace Engine {
                 }
             }
         }
-
-        // Force update
-        pimpl->m_pass_info._is_descriptor_dirty.set();
-        pimpl->m_pass_info._is_ubo_dirty.set();
     }
 } // namespace Engine
