@@ -276,9 +276,6 @@ namespace Engine {
 
     MaterialTemplate::~MaterialTemplate() = default;
 
-    std::shared_ptr<MaterialInstance> MaterialTemplate::CreateInstance() {
-        return std::make_shared<MaterialInstance>(m_system, shared_from_this());
-    }
     vk::Pipeline MaterialTemplate::GetPipeline() const noexcept {
         return pimpl->m_passes.pipeline.get();
     }

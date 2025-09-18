@@ -1,14 +1,14 @@
 #ifndef RENDER_RENDERSYSTEM_MATERIALREGISTRY_INCLUDED
 #define RENDER_RENDERSYSTEM_MATERIALREGISTRY_INCLUDED
 
-#include "Render/Pipeline/Material/MaterialTemplate.h"
+#include "Render/Pipeline/Material/MaterialLibrary.h"
 #include <memory>
 #include <string>
 #include <unordered_map>
 
 namespace Engine {
     namespace RenderSystemState {
-        class MaterialRegistry final : protected std::unordered_map<std::string, std::shared_ptr<MaterialTemplate>> {
+        class MaterialRegistry final : protected std::unordered_map<std::string, std::shared_ptr<MaterialLibrary>> {
             std::weak_ptr<RenderSystem> m_system{};
 
         public:

@@ -9,14 +9,16 @@
 
 namespace Engine {
 
+    class RenderSystem;
     class MaterialTemplate;
 
     class MaterialLibrary : public IInstantiatedFromAsset<MaterialLibraryAsset> {
+        RenderSystem & m_system;
         struct impl;
         std::unique_ptr <impl> pimpl;
 
     public:
-        MaterialLibrary();
+        MaterialLibrary(RenderSystem & system);
         ~MaterialLibrary();
 
         /**

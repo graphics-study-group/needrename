@@ -197,7 +197,8 @@ namespace Engine {
         switch (material.illum) {
         case 2: // Blinn-Phong
         {
-            material_asset.m_template = m_manager.lock()->GetNewAssetRef(
+            // FIXME: We need a new asset file for material library
+            material_asset.m_library = m_manager.lock()->GetNewAssetRef(
                 std::filesystem::path("~/material_templates/BlinnPhongTemplate.asset")
             );
             material_asset.m_properties["ambient_color"] =
@@ -214,7 +215,8 @@ namespace Engine {
         }
         default: // unknown model, load every property
         {
-            material_asset.m_template = m_manager.lock()->GetNewAssetRef(
+            // FIXME: We need a new asset file for material library
+            material_asset.m_library = m_manager.lock()->GetNewAssetRef(
                 std::filesystem::path("~/material_templates/BlinnPhongTemplate.asset")
             );
             material_asset.m_properties["ambient"] =

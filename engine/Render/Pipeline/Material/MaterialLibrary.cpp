@@ -1,14 +1,16 @@
 #include "MaterialLibrary.h"
+
+#include "Asset/Material/MaterialTemplateAsset.h"
 #include <cassert>
 
 namespace Engine {
     struct MaterialLibrary::impl {
         constexpr static uint32_t MAX_MESH_TYPE_COUNT = 5;
-        using PipelineBundles = std::array <std::shared_ptr<MaterialTemplate>, MAX_MESH_TYPE_COUNT>;
-        std::unordered_map <std::string, PipelineBundles> pipeline_table {};
+        using PipelineBundle = std::array <std::shared_ptr<MaterialTemplate>, MAX_MESH_TYPE_COUNT>;
+        std::unordered_map <std::string, PipelineBundle> pipeline_table {};
     };
 
-    MaterialLibrary::MaterialLibrary() : pimpl(std::make_unique<impl>()){
+    MaterialLibrary::MaterialLibrary(RenderSystem & s) : m_system(s), pimpl(std::make_unique<impl>()){
     }
     MaterialLibrary::~MaterialLibrary() {
     }
@@ -44,6 +46,17 @@ namespace Engine {
         }
         return nullptr;
     }
-    void MaterialLibrary::Instantiate(const MaterialLibraryAsset &) {
+    void MaterialLibrary::Instantiate(const MaterialLibraryAsset & asset) {
+        pimpl->pipeline_table.clear();
+        for (auto & [tag, bundle] : asset.material_bundle) {
+
+            impl::PipelineBundle p;
+            for (auto & [type, tpl] : bundle) {
+                assert(type < impl::MAX_MESH_TYPE_COUNT);
+                p[type] = std::make_shared<MaterialTemplate>(m_system);
+                p[type]->Instantiate(*tpl->cas<const MaterialTemplateAsset>());
+            }
+            pimpl->pipeline_table[tag] = std::move(p);
+        }
     }
 } // namespace Engine

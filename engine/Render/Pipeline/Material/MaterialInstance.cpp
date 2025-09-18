@@ -91,13 +91,8 @@ namespace Engine {
             pass._is_descriptor_dirty.set();
             pass._is_ubo_dirty.set();
             
-            auto [itr, succ] = m_pass_infos.emplace(
-                std::piecewise_construct,
-                &tpl,
-                std::move(pass)
-            );
-            assert(succ);
-            return itr;
+            m_pass_infos[&tpl] = std::move(pass);
+            return m_pass_infos.find(&tpl);
         }
     };
 
@@ -242,7 +237,7 @@ namespace Engine {
 
         auto tpl = GetLibrary()->FindMaterialTemplate(tag, type);
         assert(tpl);
-        this->GetDescriptor(tpl, backbuffer);
+        return this->GetDescriptor(tpl, backbuffer);
     }
     void MaterialInstance::Instantiate(const MaterialAsset &asset) {
         for (const auto & prop : asset.m_properties) {
