@@ -5,6 +5,7 @@
 #include "Render/Memory/ShaderParameters/ShaderParameterLayout.h"
 #include "Render/Pipeline/PipelineInfo.h"
 #include "Render/Pipeline/PipelineUtils.h"
+#include "Render/Pipeline/Material/MaterialLibrary.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/FrameManager.h"
 #include "Render/RenderSystem/SubmissionHelper.h"
@@ -32,6 +33,8 @@ namespace Engine {
             std::array <vk::DescriptorSet, BACK_BUFFERS> desc_sets{};
             
         };
+
+        std::weak_ptr <MaterialLibrary> m_library;
 
         ShdrRfl::ShaderParameters parameters{};
         std::unordered_map <const MaterialTemplate *, PassInfo> m_pass_infos{};
@@ -98,8 +101,9 @@ namespace Engine {
         }
     };
 
-    MaterialInstance::MaterialInstance(RenderSystem &system) :
-        m_system(system), pimpl(std::make_unique<impl>()) {
+    MaterialInstance::MaterialInstance(RenderSystem &system,
+            std::shared_ptr <MaterialLibrary> library) :
+        m_system(system), pimpl(std::make_unique<impl>(impl{library})) {
     }
 
     MaterialInstance::~MaterialInstance() = default;
@@ -131,17 +135,18 @@ namespace Engine {
         return pimpl->parameters;
     }
 
-    void MaterialInstance::UpdateGPUInfo(uint32_t backbuffer, MaterialTemplate & tpl) {
+    void MaterialInstance::UpdateGPUInfo(MaterialTemplate * tpl, uint32_t backbuffer) {
         assert(backbuffer < impl::PassInfo::BACK_BUFFERS);
+        assert(tpl);
 
-        auto itr = pimpl->m_pass_infos.find(&tpl);
+        auto itr = pimpl->m_pass_infos.find(tpl);
         if (itr == pimpl->m_pass_infos.end()) {
             SDL_LogVerbose(
                 SDL_LOG_CATEGORY_RENDER,
                 "Lazily allocating descriptor and UBOs for material template %p.",
                 (const void *)&tpl
             );
-            itr = pimpl->CreatePassInfo(m_system, tpl);
+            itr = pimpl->CreatePassInfo(m_system, *tpl);
         }
         auto & pass_info = itr->second;
 
@@ -156,7 +161,7 @@ namespace Engine {
                     kv.second->GetSliceSize()
                 );
             }
-            auto writes_from_layout = tpl.GetReflectedShaderInfo().GenerateDescriptorSetWrite(2, pimpl->parameters);
+            auto writes_from_layout = tpl->GetReflectedShaderInfo().GenerateDescriptorSetWrite(2, pimpl->parameters);
 
             std::vector <vk::WriteDescriptorSet> vk_writes {writes_from_layout.buffer.size() + writes_from_layout.image.size()};
             std::vector <std::array<vk::DescriptorBufferInfo, 1>> vk_buffer_writes {writes_from_layout.buffer.size()};
@@ -196,7 +201,7 @@ namespace Engine {
 
         // Then do UBO buffer writes
         if (pass_info._is_ubo_dirty[backbuffer]) {
-            const auto & splayout = tpl.GetReflectedShaderInfo();
+            const auto & splayout = tpl->GetReflectedShaderInfo();
 
             for (const auto & kv : pass_info.ubos) {
                 auto itr = splayout.name_mapping.find(kv.first);
@@ -217,35 +222,27 @@ namespace Engine {
         }
     }
 
-    std::vector<uint32_t> MaterialInstance::GetDynamicUBOOffset(uint32_t backbuffer, const MaterialTemplate & tpl) {
-        assert(backbuffer < impl::PassInfo::BACK_BUFFERS);
-        const auto & splayout = tpl.GetReflectedShaderInfo();
-
-        auto & pass_info = pimpl->m_pass_infos.at(&tpl);
-        
-
-        std::vector <uint32_t> ret;
-        ret.reserve(pass_info.ubos.size());
-
-        // This vector is already sorted by bindings, so we don't need to sort again.
-        for (const auto & pint : splayout.interfaces) {
-            if (auto pbuf = dynamic_cast<const ShdrRfl::SPInterfaceBuffer *>(pint)) {
-                if (pbuf->type == ShdrRfl::SPInterfaceBuffer::Type::UniformBuffer) {
-                    assert(pbuf->layout_set == 2);
-                    auto itr = pass_info.ubos.find(pbuf->name);
-                    assert(itr != pass_info.ubos.end());
-                    ret.push_back(itr->second->GetSliceOffset(backbuffer));
-                }
-            }
-        }
-        return ret;
+    void MaterialInstance::UpdateGPUInfo(
+        const std::string &tag, HomogeneousMesh::MeshVertexType type, uint32_t backbuffer
+    ) {
+        auto tpl = GetLibrary()->FindMaterialTemplate(tag, type);
+        this->UpdateGPUInfo(tpl, backbuffer);
     }
 
-    vk::DescriptorSet MaterialInstance::GetDescriptor(uint32_t backbuffer, const MaterialTemplate & tpl) const noexcept {
-        assert(backbuffer < impl::PassInfo::BACK_BUFFERS);
-        auto itr = pimpl->m_pass_infos.find(&tpl);
+    vk::DescriptorSet MaterialInstance::GetDescriptor(MaterialTemplate *tpl, uint32_t backbuffer) const noexcept {
+        auto itr = pimpl->m_pass_infos.find(tpl);
         if (itr == pimpl->m_pass_infos.end())   return nullptr;
         return itr->second.desc_sets[backbuffer];
+    }
+
+    vk::DescriptorSet MaterialInstance::GetDescriptor(
+        const std::string &tag, HomogeneousMesh::MeshVertexType type, uint32_t backbuffer
+    ) const noexcept {
+        assert(backbuffer < impl::PassInfo::BACK_BUFFERS);
+
+        auto tpl = GetLibrary()->FindMaterialTemplate(tag, type);
+        assert(tpl);
+        this->GetDescriptor(tpl, backbuffer);
     }
     void MaterialInstance::Instantiate(const MaterialAsset &asset) {
         for (const auto & prop : asset.m_properties) {
@@ -274,5 +271,8 @@ namespace Engine {
                 }
             }
         }
+    }
+    std::shared_ptr<MaterialLibrary> MaterialInstance::GetLibrary() const {
+        return pimpl->m_library.lock();
     }
 } // namespace Engine

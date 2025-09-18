@@ -1,6 +1,11 @@
 #ifndef RENDER_RENDERER_HOMOGENEOUSMESH_INCLUDED
 #define RENDER_RENDERER_HOMOGENEOUSMESH_INCLUDED
 
+namespace vk {
+    class Buffer;
+    class PipelineVertexInputStateCreateInfo;
+}
+
 namespace Engine {
     class AssetRef;
     class Buffer;
@@ -71,7 +76,7 @@ namespace Engine {
          * Note that index buffer have a
          * different element count of the rest of buffers.
          */
-        std::pair<vk::Buffer, std::vector<vk::DeviceSize>> GetVertexBufferInfo() const;
+        std::pair<vk::Buffer, std::vector<uint64_t>> GetVertexBufferInfo() const;
 
         /**
          * @brief Get vertex index buffer, along with its offset in the buffer.
@@ -85,7 +90,7 @@ namespace Engine {
          * Note that index
          * buffer have a different element count of the rest of buffers.
          */
-        std::pair<vk::Buffer, vk::DeviceSize> GetIndexBufferInfo() const;
+        std::pair<vk::Buffer, uint64_t> GetIndexBufferInfo() const;
 
         /**
          * @brief Query `VkPipelineVertexInputStateCreateInfo` associated with the mesh type.

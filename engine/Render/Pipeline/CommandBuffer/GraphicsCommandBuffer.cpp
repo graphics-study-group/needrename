@@ -6,6 +6,7 @@
 #include "Render/ConstantData/PerModelConstants.h"
 #include "Render/Memory/Buffer.h"
 #include "Render/Pipeline/Material/MaterialInstance.h"
+#include "Render/Pipeline/Material/MaterialLibrary.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/FrameManager.h"
 #include "Render/RenderSystem/GlobalConstantDescriptorPool.h"
@@ -90,9 +91,14 @@ namespace Engine {
         cb.beginRendering(info);
     }
 
-    void GraphicsCommandBuffer::BindMaterial(MaterialInstance &material) {
-        const auto &pipeline = material.GetTemplate().GetPipeline();
-        const auto &pipeline_layout = material.GetTemplate().GetPipelineLayout();
+    void GraphicsCommandBuffer::BindMaterial(
+        MaterialInstance &material,
+        const std::string & tag,
+        HomogeneousMesh::MeshVertexType type
+    ) {
+        auto tpl = material.GetLibrary()->FindMaterialTemplate(tag, type);
+        const auto &pipeline = tpl->GetPipeline();
+        const auto &pipeline_layout = tpl->GetPipelineLayout();
 
         bool bind_new_pipeline = false;
         if (!m_bound_material_pipeline.has_value()) {
@@ -106,10 +112,12 @@ namespace Engine {
             m_bound_material_pipeline = std::make_pair(pipeline, pipeline_layout);
         }
 
+        material.UpdateGPUInfo(tpl, m_inflight_frame_index);
+
         const auto &global_pool = m_system.GetGlobalConstantDescriptorPool();
         const auto &per_scene_descriptor_set = global_pool.GetPerSceneConstantSet(m_inflight_frame_index);
         const auto &per_camera_descriptor_set = global_pool.GetPerCameraConstantSet(m_inflight_frame_index);
-        auto material_descriptor_set = material.GetDescriptor(m_inflight_frame_index);
+        auto material_descriptor_set = material.GetDescriptor(tpl, m_inflight_frame_index);
 
         if (material_descriptor_set) {
             cb.bindDescriptorSets(
@@ -132,8 +140,6 @@ namespace Engine {
                 )}
             );
         }
-
-        material.UpdateGPUInfo(m_inflight_frame_index);
     }
 
     void GraphicsCommandBuffer::SetupViewport(float vpWidth, float vpHeight, vk::Rect2D scissor) {
@@ -163,15 +169,16 @@ namespace Engine {
         cb.drawIndexed(mesh.GetVertexIndexCount(), 1, 0, 0, 0);
     }
 
-    void GraphicsCommandBuffer::DrawRenderers(const RendererList &renderers) {
+    void GraphicsCommandBuffer::DrawRenderers(const std::string & tag, const RendererList &renderers) {
         auto camera = m_system.GetActiveCamera().lock();
         assert(camera);
-        this->DrawRenderers(
+        this->DrawRenderers(tag,
             renderers, camera->GetViewMatrix(), camera->GetProjectionMatrix(), m_system.GetSwapchain().GetExtent()
         );
     }
 
     void GraphicsCommandBuffer::DrawRenderers(
+        const std::string & tag,
         const RendererList &renderers,
         const glm::mat4 &view_matrix,
         const glm::mat4 &projection_matrix,
@@ -197,7 +204,7 @@ namespace Engine {
 
                 assert(materials.size() == meshes.size());
                 for (size_t id = 0; id < materials.size(); id++) {
-                    this->BindMaterial(*materials[id]);
+                    this->BindMaterial(*materials[id], tag, HomogeneousMesh::MeshVertexType::Basic);
                     this->DrawMesh(*meshes[id], model_matrix);
                 }
             }

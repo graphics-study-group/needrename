@@ -149,7 +149,7 @@ namespace Engine {
         };
     }
 
-    std::pair<vk::Buffer, vk::DeviceSize> HomogeneousMesh::GetIndexBufferInfo() const {
+    std::pair<vk::Buffer, uint64_t> HomogeneousMesh::GetIndexBufferInfo() const {
         assert(pimpl->m_buffer->GetBuffer());
         // Last offset is the offset of index buffer.
         return std::make_pair(pimpl->m_buffer->GetBuffer(), *(pimpl->m_buffer_offsets.rbegin()));
@@ -196,7 +196,7 @@ namespace Engine {
         return *pimpl->m_buffer;
     }
 
-    std::pair<vk::Buffer, std::vector<vk::DeviceSize>> HomogeneousMesh::GetVertexBufferInfo() const {
+    std::pair<vk::Buffer, std::vector<uint64_t>> HomogeneousMesh::GetVertexBufferInfo() const {
         assert(pimpl->m_buffer->GetBuffer());
         return std::make_pair(pimpl->m_buffer->GetBuffer(), pimpl->m_buffer_offsets);
     }

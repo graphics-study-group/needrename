@@ -31,6 +31,11 @@ namespace Engine {
             HomogeneousMesh::MeshVertexType mesh_type
         ) const noexcept;
 
+        MaterialTemplate * FindMaterialTemplate(
+            const std::string & tag,
+            HomogeneousMesh::MeshVertexType mesh_type
+        ) noexcept;
+
         void Instantiate (const MaterialLibraryAsset &) override;
     };
 }

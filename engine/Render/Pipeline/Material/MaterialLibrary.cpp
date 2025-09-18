@@ -28,6 +28,22 @@ namespace Engine {
         }
         return nullptr;
     }
+    MaterialTemplate *MaterialLibrary::FindMaterialTemplate(
+        const std::string &tag, HomogeneousMesh::MeshVertexType mesh_type
+    ) noexcept {
+        auto idx = static_cast<std::underlying_type<HomogeneousMesh::MeshVertexType>::type>(mesh_type);
+        assert(idx < impl::MAX_MESH_TYPE_COUNT);
+
+        auto itr = pimpl->pipeline_table.find(tag);
+        if (itr == pimpl->pipeline_table.end()) return nullptr;
+
+        for (int i = idx; i >= 0; i--) {
+            if (itr->second[i]) {
+                return itr->second[i].get();
+            }
+        }
+        return nullptr;
+    }
     void MaterialLibrary::Instantiate(const MaterialLibraryAsset &) {
     }
 } // namespace Engine

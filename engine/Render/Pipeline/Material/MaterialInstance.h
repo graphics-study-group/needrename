@@ -3,7 +3,7 @@
 
 #include "MaterialTemplate.h"
 #include "Render/Memory/Buffer.h"
-
+#include "Render/Renderer/HomogeneousMesh.h"
 #include "Asset/InstantiatedFromAsset.h"
 
 #include <any>
@@ -12,6 +12,7 @@ namespace Engine {
     class Texture;
     class Buffer;
     class MaterialAsset;
+    class MaterialLibrary;
 
     namespace ShdrRfl {
         class ShaderParameters;
@@ -26,7 +27,10 @@ namespace Engine {
         std::unique_ptr<impl> pimpl;
 
     public:
-        MaterialInstance(RenderSystem &system);
+        MaterialInstance(
+            RenderSystem &system,
+            std::shared_ptr <MaterialLibrary> library
+        );
         virtual ~MaterialInstance();
 
         /**
@@ -45,17 +49,15 @@ namespace Engine {
          * 
          * May perform lazy buffer or descriptor allocations.
          */
-        void UpdateGPUInfo(uint32_t backbuffer, MaterialTemplate & tpl);
-
-        /**
-         * @brief Get a list of dynamic uniform buffer offsets
-         * used in `vkCmdBindDescriptorSets`. These dynamic offsets
-         * are returned in the order of binding numbers.
-         * 
-         * If uniform buffer objects of the given template is not yet allocated,
-         * an exception will be thrown.
-         */
-        std::vector<uint32_t> GetDynamicUBOOffset(uint32_t backbuffer, const MaterialTemplate & tpl);
+        void UpdateGPUInfo(
+            MaterialTemplate * tpl,
+            uint32_t backbuffer
+        );
+        void UpdateGPUInfo(
+            const std::string & tag,
+            HomogeneousMesh::MeshVertexType type,
+            uint32_t backbuffer
+        );
 
         /**
          * @brief Get the descriptor set for a specific pass
@@ -71,7 +73,15 @@ namespace Engine {
          * @return A handle to the Descriptor Set object
 
          */
-        vk::DescriptorSet GetDescriptor(uint32_t backbuffer, const MaterialTemplate & tpl) const noexcept;
+        vk::DescriptorSet GetDescriptor(
+            MaterialTemplate * tpl,
+            uint32_t backbuffer
+        ) const noexcept;
+        vk::DescriptorSet GetDescriptor(
+            const std::string & tag,
+            HomogeneousMesh::MeshVertexType type,
+            uint32_t backbuffer
+        ) const noexcept;
 
         /**
          * @brief Instantiate a material asset to the material instance. Load properties to the uniforms.
@@ -80,6 +90,11 @@ namespace Engine {
          * @param asset The MaterialAsset to convert.
          */
         void Instantiate(const MaterialAsset &asset) override;
+
+        /**
+         * @brief Get the material library assigned to this instance.
+         */
+        std::shared_ptr <MaterialLibrary> GetLibrary() const;
     };
 } // namespace Engine
 
