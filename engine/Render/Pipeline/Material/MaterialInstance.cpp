@@ -62,10 +62,10 @@ namespace Engine {
             // Allocate uniform buffers and per-material descriptor sets
             PassInfo pass{};
             const auto & splayout = tpl.GetReflectedShaderInfo();
-
-            for (auto & desc_set : pass.desc_sets) {
-                desc_set = tpl.AllocateDescriptorSet();
-            }
+            
+            auto allocated_sets = tpl.AllocateDescriptorSets(impl::PassInfo::BACK_BUFFERS);
+            assert(allocated_sets.size() == pass.desc_sets.size());
+            std::copy(allocated_sets.begin(), allocated_sets.end(), pass.desc_sets.begin());
 
             for (auto pinterface : splayout.interfaces) {
                 if (auto pbuffer = dynamic_cast <const ShdrRfl::SPInterfaceBuffer *>(pinterface)) {

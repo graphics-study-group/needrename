@@ -18,8 +18,21 @@ namespace Engine {
         class ShaderParameters;
     }
 
-    /// @brief A light-weight instance of a given material,
-    /// where all mutable data such as texture and uniforms are stored.
+    /**
+     * @brief A light-weight instance of a given material library.
+     * 
+     * It contains all mutable data (e.g. texture references, uniform variables)
+     * needed to draw a renderer.
+     * 
+     * Implementation-wise, it contains an unordered mapping from a specific
+     * pipeline (i.e. `MaterialTemplate`) to its underlying mutable data such
+     * as UBOs and descriptor sets, and an unordered mapping from names of
+     * variables to their values. When draw calls are initiated by a command
+     * buffer, after the pipeline to draw is determined, it updates these
+     * mutable data accordingly, and possibly perform lazy allocation.
+     * 
+     * It holds a pointer to the material library to facilitate draw calls.
+     */
     class MaterialInstance : public IInstantiatedFromAsset<MaterialAsset> {
     protected:
         RenderSystem &m_system;

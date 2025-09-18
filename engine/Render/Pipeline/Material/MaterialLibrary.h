@@ -11,7 +11,18 @@ namespace Engine {
 
     class RenderSystem;
     class MaterialTemplate;
-
+    
+    /**
+     * @brief A bundle of materials organized by dispatcher.
+     * 
+     * `MaterialLibrary` acts as a bundle of different materials
+     * (i.e. pipelines) that can be dispatched by tags and the type
+     * of the mesh to be drawn.
+     * 
+     * This class acts as a dispatcher that dispatches draw calls
+     * of renders to their corresponding pipeline based on the tag
+     * and the type of the mesh.
+     */
     class MaterialLibrary : public IInstantiatedFromAsset<MaterialLibraryAsset> {
         RenderSystem & m_system;
         struct impl;

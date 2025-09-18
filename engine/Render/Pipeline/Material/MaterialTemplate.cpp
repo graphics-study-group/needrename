@@ -288,7 +288,7 @@ namespace Engine {
     vk::DescriptorSetLayout MaterialTemplate::GetDescriptorSetLayout() const {
         return pimpl->m_passes.desc_layout.get();
     }
-    vk::DescriptorSet MaterialTemplate::AllocateDescriptorSet() {
+    std::vector<vk::DescriptorSet> MaterialTemplate::AllocateDescriptorSets(uint32_t size) {
 
         auto layout = pimpl->m_passes.desc_layout.get();
         if (!layout) {
@@ -297,12 +297,14 @@ namespace Engine {
                 "Allocating empty descriptor for material %s",
                 pimpl->m_name.c_str()
             );
-            return nullptr;
+            return std::vector<vk::DescriptorSet>(size, nullptr);
         }
 
-        vk::DescriptorSetAllocateInfo dsai{pimpl->m_poolInfo.pool.get(), {layout}};
+        std::vector layouts(size, layout);
+        vk::DescriptorSetAllocateInfo dsai{pimpl->m_poolInfo.pool.get(), layouts};
         auto sets = m_system.getDevice().allocateDescriptorSets(dsai);
-        return sets[0];
+        assert(sets.size() == size);
+        return sets;
     }
     const ShdrRfl::SPVariable * MaterialTemplate::GetVariable(const std::string & name) const noexcept
     {

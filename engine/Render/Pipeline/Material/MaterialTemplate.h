@@ -33,9 +33,13 @@ namespace Engine {
         class SPLayout;
     }
 
-    /// @brief A factory class for instantiation of materials.
-    /// Contains all public immutable data for a given type of materials, such as pipeline
-    /// and its configurations, descriptor set layout and attachment operations.
+    /**
+     * @brief `MaterialTemplate` class holds a pipeline object for draw calls.
+     * 
+     * They are generally stored and owned by a `MaterialLibrary` class.
+     * It contains all public immutable data for a given pipeline, mainly
+     * the layout configuration and a handle to the binary object.
+     */
     class MaterialTemplate : protected std::enable_shared_from_this<MaterialTemplate>,
                              public IInstantiatedFromAsset<MaterialTemplateAsset> {
     public:
@@ -77,8 +81,6 @@ namespace Engine {
         /**
          * @brief Get the pipeline layout for a specific pass index.
          * 
-         * @param
-         * pass_index The index of the pass to retrieve the pipeline layout from.
          * @return vk::PipelineLayout
          * The pipeline layout associated with the specified pass index.
          */
@@ -104,7 +106,7 @@ namespace Engine {
         /// As per Vulkan recommendation, allocated descriptors are generally not required to be cleaned up to speed up
         /// allocation. When its descriptor pool is de-allocated, all descriptors attached are automatically destroyed.
         /// @return Allocated descriptor set
-        vk::DescriptorSet AllocateDescriptorSet();
+        std::vector<vk::DescriptorSet> AllocateDescriptorSets(uint32_t sz = 1);
 
         /**
          * @brief Query a reflected variable data by its name.

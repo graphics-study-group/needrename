@@ -10,6 +10,13 @@
 #include <unordered_map>
 
 namespace Engine {
+    /**
+     * @brief Asset class for `MaterialLibrary`.
+     * 
+     * `MaterialLibrary` acts as a bundle of different materials
+     * (i.e. pipelines) that can be dispatched by tags and the type
+     * of the mesh to be drawn.
+     */
     class REFL_SER_CLASS(REFL_WHITELIST) MaterialLibraryAsset : public Asset {
         REFL_SER_BODY(MaterialLibraryAsset)
     public:
