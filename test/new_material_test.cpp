@@ -42,8 +42,9 @@ struct LowerPlaneMeshAsset : public MeshAsset {
     }
 };
 
-std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate() {
+std::pair<std::shared_ptr<MaterialLibraryAsset>, std::shared_ptr<MaterialTemplateAsset>> ConstructMaterial() {
     auto test_asset = std::make_shared<MaterialTemplateAsset>();
+    auto lib_asset = std::make_shared<MaterialLibraryAsset>();
     auto vs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/blinn_phong.vert.spv.asset");
     auto fs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/blinn_phong.frag.spv.asset");
     MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(vs_ref);
@@ -66,7 +67,12 @@ std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate() {
 
     test_asset->properties = mtspp;
 
-    return test_asset;
+    lib_asset->m_name = "Blinn-Phong";
+    lib_asset->material_bundle[""] = {
+        {(uint32_t)HomogeneousMesh::MeshVertexType::Basic, std::make_shared<AssetRef>(test_asset)}
+    };
+
+    return std::make_pair(lib_asset, test_asset);
 }
 
 RenderGraph BuildRenderGraph(
@@ -102,11 +108,11 @@ RenderGraph BuildRenderGraph(
         );
 
         gcb.SetupViewport(extent.width, extent.height, {{0, 0}, extent});
-        gcb.BindMaterial(*material);
+        gcb.BindMaterial(*material, "", HomogeneousMesh::MeshVertexType::Basic);
         // Push model matrix...
         vk::CommandBuffer rcb = gcb.GetCommandBuffer();
         rcb.pushConstants(
-            material->GetTemplate().GetPipelineLayout(),
+            material->GetLibrary()->FindMaterialTemplate("", HomogeneousMesh::MeshVertexType::Basic)->GetPipelineLayout(),
             vk::ShaderStageFlagBits::eVertex,
             0,
             ConstantData::PerModelConstantPushConstant::PUSH_RANGE_SIZE,
@@ -158,18 +164,11 @@ int main(int argc, char **argv) {
 
     // Prepare material
     cmc->GetAssetManager()->LoadBuiltinAssets();
-    auto test_asset = ConstructMaterialTemplate();
+    auto test_asset = ConstructMaterial();
 
-    // Engine::Serialization::Archive archive;
-    // archive.prepare_save();
-    // test_asset->save_asset_to_archive(archive);
-    // archive.save_to_file(std::string(ENGINE_ASSETS_DIR) + "/test_asset.asset");
-    // SDL_Log("Saved asset to %s", (std::string(ENGINE_ASSETS_DIR) + "/test_asset.asset").c_str());
-
-    auto test_asset_ref = std::make_shared<AssetRef>(test_asset);
-    auto test_template = std::make_shared<Materials::BlinnPhongTemplate>(*rsys);
-    test_template->Instantiate(*test_asset_ref->cas<MaterialTemplateAsset>());
-    auto test_material_instance = std::make_shared<Materials::BlinnPhongInstance>(*rsys, test_template);
+    auto test_library = std::make_shared<Materials::BlinnPhongLibrary>(*rsys);
+    test_library->Instantiate(*test_asset.first);
+    auto test_material_instance = std::make_shared<Materials::BlinnPhongInstance>(*rsys, test_library);
     test_material_instance->SetAmbient(glm::vec4(0.0, 0.0, 0.0, 0.0));
     test_material_instance->SetSpecular(glm::vec4(1.0, 1.0, 1.0, 64.0));
     test_material_instance->SetBaseTexture(allocated_image_texture);

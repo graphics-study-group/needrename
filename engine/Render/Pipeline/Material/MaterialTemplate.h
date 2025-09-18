@@ -65,16 +65,6 @@ namespace Engine {
         virtual ~MaterialTemplate();
 
         /**
-         * @brief Create a new instance of MaterialInstance based on this MaterialTemplate.
-         * 
-
-         * * @return A shared pointer to the newly created MaterialInstance object.
-         * @note It is expected that
-         * derived material templates override this method with own derivation of MaterialInstance.
-         */
-        virtual std::shared_ptr<MaterialInstance> CreateInstance();
-
-        /**
          * @brief Get the pipeline for a specific pass index.
          * 
          * @param pass_index The

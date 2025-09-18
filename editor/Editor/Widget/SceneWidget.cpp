@@ -89,7 +89,7 @@ namespace Editor {
             "Editor Scene Pass"
         );
         Engine::MainClass::GetInstance()->GetRenderSystem()->SetActiveCamera(m_camera.m_camera);
-        cb.DrawRenderers(
+        cb.DrawRenderers("",
             Engine::MainClass::GetInstance()->GetRenderSystem()->GetRendererManager().FilterAndSortRenderers({}),
             m_camera.m_camera->GetViewMatrix(),
             m_camera.m_camera->GetProjectionMatrix(),

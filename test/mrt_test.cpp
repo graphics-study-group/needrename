@@ -42,8 +42,9 @@ struct LowerPlaneMeshAsset : public MeshAsset {
     }
 };
 
-std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate() {
+std::pair<std::shared_ptr<MaterialLibraryAsset>, std::shared_ptr<MaterialTemplateAsset>> ConstructMaterial() {
     auto test_asset = std::make_shared<MaterialTemplateAsset>();
+    auto test_lib_asset = std::make_shared<MaterialLibraryAsset>();
     auto vs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/debug_writethrough.vert.spv.asset");
     auto fs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/debug_writethrough_mrt.frag.spv.asset");
     MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(vs_ref);
@@ -67,7 +68,12 @@ std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate() {
 
     test_asset->properties = mtspp;
 
-    return test_asset;
+    test_lib_asset->m_name = "MRT Writethrough";
+    test_lib_asset->material_bundle[""] = {
+        {(uint32_t)HomogeneousMesh::MeshVertexType::Basic, std::make_shared<AssetRef>(test_asset)}
+    };
+
+    return std::make_pair(test_lib_asset, test_asset);
 }
 
 RenderGraph BuildRenderGraph(
@@ -105,11 +111,11 @@ RenderGraph BuildRenderGraph(
         );
 
         gcb.SetupViewport(extent.width, extent.height, {{0, 0}, extent});
-        gcb.BindMaterial(*material);
+        gcb.BindMaterial(*material, "", Engine::HomogeneousMesh::MeshVertexType::Position);
         // Push model matrix...
         vk::CommandBuffer rcb = gcb.GetCommandBuffer();
         rcb.pushConstants(
-            material->GetTemplate().GetPipelineLayout(),
+            material->GetLibrary()->FindMaterialTemplate("", Engine::HomogeneousMesh::MeshVertexType::Position)->GetPipelineLayout(),
             vk::ShaderStageFlagBits::eVertex,
             0,
             ConstantData::PerModelConstantPushConstant::PUSH_RANGE_SIZE,
@@ -141,12 +147,11 @@ int main(int argc, char **argv) {
 
     // Prepare material
     cmc->GetAssetManager()->LoadBuiltinAssets();
-    auto test_asset = ConstructMaterialTemplate();
-
-    auto test_asset_ref = std::make_shared<AssetRef>(test_asset);
-    auto test_template = std::make_shared<MaterialTemplate>(*rsys);
-    test_template->Instantiate(*test_asset_ref->cas<MaterialTemplateAsset>());
-    auto test_material_instance = std::make_shared<MaterialInstance>(*rsys, test_template);
+    auto test_asset = ConstructMaterial();
+    auto test_asset_ref = std::make_shared<AssetRef>(test_asset.first);
+    auto test_library = std::make_shared<MaterialLibrary>(*rsys);
+    test_library->Instantiate(*test_asset_ref->cas<MaterialLibraryAsset>());
+    auto test_material_instance = std::make_shared<MaterialInstance>(*rsys, test_library);
 
     // Prepare mesh
     auto test_mesh_asset = std::make_shared<LowerPlaneMeshAsset>();

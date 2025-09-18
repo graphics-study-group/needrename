@@ -8,8 +8,8 @@
 #include <SDL3/SDL.h>
 
 namespace Engine::Materials {
-    BlinnPhongInstance::BlinnPhongInstance(RenderSystem &system, std::shared_ptr<MaterialTemplate> tpl) :
-        MaterialInstance(system, tpl) {
+    BlinnPhongInstance::BlinnPhongInstance(RenderSystem &system, std::shared_ptr<MaterialLibrary> lib) :
+        MaterialInstance(system, lib) {
     }
     void BlinnPhongInstance::SetBaseTexture(std::shared_ptr<const Texture> image) {
         this->AssignTexture("base_tex", *image);
@@ -48,7 +48,6 @@ namespace Engine::Materials {
 
     BlinnPhongTemplate::BlinnPhongTemplate(RenderSystem &system) : MaterialTemplate(system) {
     }
-    std::shared_ptr<MaterialInstance> BlinnPhongTemplate::CreateInstance() {
-        return std::make_shared<BlinnPhongInstance>(this->m_system, this->shared_from_this());
+    BlinnPhongLibrary::BlinnPhongLibrary(RenderSystem &system) : MaterialLibrary(system) {
     }
 } // namespace Engine::Materials

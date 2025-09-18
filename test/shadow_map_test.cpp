@@ -94,6 +94,18 @@ std::array<std::shared_ptr<MaterialTemplateAsset>, 2> ConstructMaterialTemplate(
     return templates;
 }
 
+std::shared_ptr <MaterialLibraryAsset> ConstructMaterialLibrary(std::array<std::shared_ptr<MaterialTemplateAsset>, 2> & templates) {
+    std::shared_ptr <MaterialLibraryAsset> lib = std::make_shared<MaterialLibraryAsset>();
+    lib->m_name = "Blinn-Phong w. Shadowmap";
+    lib->material_bundle["Lit"] = std::unordered_map<uint32_t, std::shared_ptr<AssetRef>> {
+        {static_cast<uint32_t>(HomogeneousMesh::MeshVertexType::Basic), std::make_shared<AssetRef>(templates[0])}
+    };
+    lib->material_bundle["Shadowmap"] = std::unordered_map<uint32_t, std::shared_ptr<AssetRef>> {
+        {static_cast<uint32_t>(HomogeneousMesh::MeshVertexType::Position), std::make_shared<AssetRef>(templates[1])}
+    };
+    return lib;
+}
+
 int main(int argc, char **argv) {
     int64_t max_frame_count = std::numeric_limits<int64_t>::max();
     if (argc > 1) {
@@ -180,11 +192,12 @@ int main(int argc, char **argv) {
 
     // Prepare material
     cmc->GetAssetManager()->LoadBuiltinAssets();
-    auto test_asset = ConstructMaterialTemplate();
-    auto test_asset_ref = std::make_shared<AssetRef>(test_asset[0]);
-    auto test_template = std::make_shared<MaterialTemplate>(*rsys);
-    test_template->Instantiate(*test_asset_ref->cas<MaterialTemplateAsset>());
-    auto test_material_instance = std::make_shared<MaterialInstance>(*rsys, test_template);
+    auto test_template_assets = ConstructMaterialTemplate();
+    auto test_library_asset = ConstructMaterialLibrary(test_template_assets);
+    auto test_library_asset_ref = std::make_shared<AssetRef>(test_library_asset);
+    auto test_library = std::make_shared<MaterialLibrary>(*rsys);
+    test_library->Instantiate(*test_library_asset_ref->cas<MaterialLibraryAsset>());
+    auto test_material_instance = std::make_shared<MaterialInstance>(*rsys, test_library);
     test_material_instance->AssignVectorVariable(
         "ambient_color", glm::vec4(0.0, 0.0, 0.0, 0.0)
     );
@@ -209,7 +222,7 @@ int main(int argc, char **argv) {
     using IAT = AccessHelper::ImageAccessType;
     rgb.UseImage(*shadow, IAT::DepthAttachmentWrite);
     rgb.RecordRasterizerPassWithoutRT(
-        [rsys, shadow, test_template, test_material_instance, &test_mesh, &test_mesh_2](GraphicsCommandBuffer &gcb) {
+        [rsys, shadow, test_library, test_material_instance, &test_mesh, &test_mesh_2](GraphicsCommandBuffer &gcb) {
             vk::Extent2D shadow_map_extent{2048, 2048};
             vk::Rect2D shadow_map_scissor{{0, 0}, shadow_map_extent};
             gcb.BeginRendering(
@@ -219,11 +232,11 @@ int main(int argc, char **argv) {
                 "Shadowmap Pass"
             );
             gcb.SetupViewport(shadow_map_extent.width, shadow_map_extent.height, shadow_map_scissor);
-            gcb.BindMaterial(*test_material_instance);
+            gcb.BindMaterial(*test_material_instance, "Shadowmap", HomogeneousMesh::MeshVertexType::Position);
 
             vk::CommandBuffer rcb = gcb.GetCommandBuffer();
             rcb.pushConstants(
-                test_template->GetPipelineLayout(),
+                test_library->FindMaterialTemplate("Shadowmap", HomogeneousMesh::MeshVertexType::Position)->GetPipelineLayout(),
                 vk::ShaderStageFlagBits::eVertex,
                 0,
                 ConstantData::PerModelConstantPushConstant::PUSH_RANGE_SIZE,
@@ -245,15 +258,15 @@ int main(int argc, char **argv) {
          AttachmentUtils::LoadOperation::Clear,
          AttachmentUtils::StoreOperation::DontCare,
          AttachmentUtils::DepthClearValue{1.0f, 0U}},
-        [rsys, test_material_instance, test_template, &test_mesh, &test_mesh_2](GraphicsCommandBuffer &gcb) {
+        [rsys, test_material_instance, test_library, &test_mesh, &test_mesh_2](GraphicsCommandBuffer &gcb) {
             vk::Extent2D extent{rsys->GetSwapchain().GetExtent()};
             vk::Rect2D scissor{{0, 0}, extent};
             gcb.SetupViewport(extent.width, extent.height, scissor);
-            gcb.BindMaterial(*test_material_instance);
+            gcb.BindMaterial(*test_material_instance, "Lit", HomogeneousMesh::MeshVertexType::Basic);
             // Push model matrix...
             vk::CommandBuffer rcb = gcb.GetCommandBuffer();
             rcb.pushConstants(
-                test_template->GetPipelineLayout(),
+                test_library->FindMaterialTemplate("Lit", HomogeneousMesh::MeshVertexType::Basic)->GetPipelineLayout(),
                 vk::ShaderStageFlagBits::eVertex,
                 0,
                 ConstantData::PerModelConstantPushConstant::PUSH_RANGE_SIZE,

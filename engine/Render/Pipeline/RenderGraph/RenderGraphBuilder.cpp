@@ -312,7 +312,7 @@ namespace Engine {
              AttachmentUtils::StoreOperation::DontCare,
              AttachmentUtils::DepthClearValue{1.0f, 0U}},
             [this, &color_attachment, &depth_attachment](Engine::GraphicsCommandBuffer &gcb) {
-                gcb.DrawRenderers(this->m_system.GetRendererManager().FilterAndSortRenderers({}));
+                gcb.DrawRenderers("", this->m_system.GetRendererManager().FilterAndSortRenderers({}));
             }
         );
 

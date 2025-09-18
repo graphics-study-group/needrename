@@ -21,8 +21,9 @@
 using namespace Engine;
 namespace sch = std::chrono;
 
-std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate() {
+std::pair<std::shared_ptr<MaterialLibraryAsset>, std::shared_ptr<MaterialTemplateAsset>> ConstructMaterial() {
     auto test_asset = std::make_shared<MaterialTemplateAsset>();
+    auto lib_asset = std::make_shared<MaterialLibraryAsset>();
     auto vs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/pbr_base.vert.spv.asset");
     auto fs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef(
         "~/shaders/lambertian_cook_torrance.frag.spv.asset"
@@ -38,10 +39,14 @@ std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate() {
     mtspp.attachments.color_blending = {PipelineProperties::ColorBlendingProperties{}};
     mtspp.attachments.depth = ImageUtils::ImageFormat::D32SFLOAT;
     mtspp.shaders.shaders = std::vector<std::shared_ptr<AssetRef>>{vs_ref, fs_ref};
-
     test_asset->properties = mtspp;
 
-    return test_asset;
+    lib_asset->m_name = "LambertianCookTorrancePBR";
+    lib_asset->material_bundle[""] = {
+        {(uint32_t)HomogeneousMesh::MeshVertexType::Basic, std::make_shared<AssetRef>(test_asset)}
+    };
+
+    return std::make_pair(lib_asset, test_asset);
 }
 
 class MeshComponentFromFile : public MeshComponent {
@@ -134,7 +139,7 @@ class MeshComponentFromFile : public MeshComponent {
 public:
     MeshComponentFromFile(
         std::filesystem::path mesh_file_name,
-        std::shared_ptr<MaterialTemplate> material_template,
+        std::shared_ptr<MaterialLibrary> library,
         std::shared_ptr<const Texture> albedo
     ) : MeshComponent(std::weak_ptr<GameObject>()), transform() {
         LoadMesh(mesh_file_name);
@@ -143,7 +148,7 @@ public:
         auto &helper = system->GetFrameManager().GetSubmissionHelper();
 
         for (size_t i = 0; i < m_submeshes.size(); i++) {
-            auto ptr = std::make_shared<MaterialInstance>(*system, material_template);
+            auto ptr = std::make_shared<MaterialInstance>(*system, library);
             ptr->AssignTexture("albedoSampler", *albedo);
             m_materials.push_back(ptr);
         }
@@ -234,10 +239,10 @@ int main(int argc, char **argv) {
     asys->LoadAssetsInQueue();
 
     auto rsys = cmc->GetRenderSystem();
-    auto pbr_material_template_asset = ConstructMaterialTemplate();
-    auto pbr_material_template_asset_ref = std::make_shared<AssetRef>(pbr_material_template_asset);
-    auto pbr_material_template = std::make_shared<MaterialTemplate>(*rsys);
-    pbr_material_template->Instantiate(*pbr_material_template_asset_ref->cas<MaterialTemplateAsset>());
+    auto pbr_material_assets = ConstructMaterial();
+    auto pbr_material_asset_ref = std::make_shared<AssetRef>(pbr_material_assets.first);
+    auto pbr_material = std::make_shared<MaterialLibrary>(*rsys);
+    pbr_material->Instantiate(*pbr_material_assets.first);
 
     auto gsys = cmc->GetGUISystem();
     gsys->CreateVulkanBackend(ImageUtils::GetVkFormat(Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm));
@@ -277,23 +282,9 @@ int main(int argc, char **argv) {
     );
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*red_texture, {1.0, 0.0, 0.0, 1.0});
 
-    /* auto cs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/bloom.comp.spv.asset");
-    assert(cs_ref);
-    MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(cs_ref);
-    auto bloom_compute_stage = std::make_shared<ComputeStage>(*rsys);
-    bloom_compute_stage->Instantiate(*cs_ref->cas<ShaderAsset>());
-    bloom_compute_stage->SetDescVariable(
-        bloom_compute_stage->GetVariableIndex("inputImage").value().first,
-        std::const_pointer_cast<const Texture>(std::static_pointer_cast<Texture>(hdr_color))
-    );
-    bloom_compute_stage->SetDescVariable(
-        bloom_compute_stage->GetVariableIndex("outputImage").value().first,
-        std::const_pointer_cast<const Texture>(std::static_pointer_cast<Texture>(color))
-    ); */
-
     // Setup mesh
     std::filesystem::path mesh_path{std::string(ENGINE_ASSETS_DIR) + "/sphere/sphere.obj"};
-    std::shared_ptr tmc = std::make_shared<MeshComponentFromFile>(mesh_path, pbr_material_template, red_texture);
+    std::shared_ptr tmc = std::make_shared<MeshComponentFromFile>(mesh_path, pbr_material, red_texture);
     rsys->GetRendererManager().RegisterRendererComponent(tmc);
 
     // Setup camera
@@ -327,7 +318,7 @@ int main(int argc, char **argv) {
             AttachmentUtils::DepthClearValue{1.0f, 0U}
         },
         [rsys](GraphicsCommandBuffer &gcb) {
-            gcb.DrawRenderers(rsys->GetRendererManager().FilterAndSortRenderers({}));
+            gcb.DrawRenderers("", rsys->GetRendererManager().FilterAndSortRenderers({}));
         },
         "Color pass"
     );
