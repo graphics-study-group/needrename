@@ -128,7 +128,7 @@ public:
 
         for (size_t i = 0; i < m_material_assets.size(); i++) {
             auto ptr = std::make_shared<Materials::BlinnPhongInstance>(
-                *system, system->GetMaterialRegistry().GetMaterial("Built-in Blinn-Phong")
+                *system, system->GetMaterialRegistry().GetMaterial("Blinn-Phong")
             );
             auto mat_asset = m_material_assets[i]->cas<MaterialAsset>();
             assert(mat_asset);
@@ -223,7 +223,7 @@ int main(int argc, char **argv) {
     asys->SetBuiltinAssetPath(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
     asys->LoadBuiltinAssets();
 
-    auto test_asset = asys->GetNewAssetRef(std::filesystem::path("~/material_templates/BlinnPhongTemplate.asset"));
+    auto test_asset = asys->GetNewAssetRef(std::filesystem::path("~/material_libraries/BlinnPhongLibrary.asset"));
     asys->LoadAssetImmediately(test_asset);
     asys->LoadAssetsInQueue();
 
