@@ -2,8 +2,8 @@
     "%data": {
         "&0": {
             "%type": "Engine::MaterialTemplateAsset",
-            "Asset::m_guid": "4C666B72830204D5D08AD8B29D4C3CBB",
-            "MaterialTemplateAsset::name": "Built-in Blinn-Phong",
+            "Asset::m_guid": "8343954977BA6A7CF658BFEE421AD515",
+            "MaterialTemplateAsset::name": "Blinn-Phong",
             "MaterialTemplateAsset::properties": {
                 "%type": "Engine::MaterialTemplateSinglePassProperties",
                 "MaterialTemplateSinglePassProperties::attachments": {
@@ -59,6 +59,8 @@
                 "MaterialTemplateSinglePassProperties::rasterizer": {
                     "%type": "Engine::PipelineProperties::RasterizerProperties",
                     "RasterizerProperties::culling": 0,
+                    "RasterizerProperties::depth_bias_constant": 0.0,
+                    "RasterizerProperties::depth_bias_slope": 0.0,
                     "RasterizerProperties::filling": 0,
                     "RasterizerProperties::front": 0,
                     "RasterizerProperties::line_width": 1.0
@@ -68,9 +70,7 @@
                     "Shaders::shaders": [
                         "&1",
                         "&2"
-                    ],
-                    "Shaders::ubo_variables": [],
-                    "Shaders::uniforms": []
+                    ]
                 }
             }
         },

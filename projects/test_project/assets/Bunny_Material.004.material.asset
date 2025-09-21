@@ -3,6 +3,7 @@
         "&0": {
             "%type": "Engine::MaterialAsset",
             "Asset::m_guid": "0CFCEEB7A064BCA25BC52D6AD6F6B140",
+            "MaterialAsset::m_library": "&1",
             "MaterialAsset::m_name": "Bunny_Material.004",
             "MaterialAsset::m_properties": {
                 "ambient_color": {
@@ -29,12 +30,11 @@
                         96.07845306396484
                     ]
                 }
-            },
-            "MaterialAsset::m_template": "&1"
+            }
         },
         "&1": {
             "%type": "Engine::AssetRef",
-            "AssetRef::m_guid": "4C666B72830204D5D08AD8B29D4C3CBB"
+            "AssetRef::m_guid": "CC90BD98BB3190F9AACD4CC3D6162782"
         },
         "&2": {
             "%type": "Engine::AssetRef",

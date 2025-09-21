@@ -166,6 +166,18 @@ int main(int argc, char **argv) {
     cmc->GetAssetManager()->LoadBuiltinAssets();
     auto test_asset = ConstructMaterial();
 
+    // // Do not delete this code, it is a useful tool for generating asset files.
+    // Engine::Serialization::Archive archive;
+    // archive.prepare_save();
+    // test_asset.first->save_asset_to_archive(archive);
+    // archive.save_to_file(std::string(ENGINE_ASSETS_DIR) + "/mla.asset");
+    // SDL_Log("Saved MaterialLibraryAsset to %s", (std::string(ENGINE_ASSETS_DIR) + "/mla.asset").c_str());
+    // archive.clear();
+    // archive.prepare_save();
+    // test_asset.second->save_asset_to_archive(archive);
+    // archive.save_to_file(std::string(ENGINE_ASSETS_DIR) + "/mta.asset");
+    // SDL_Log("Saved MaterialTemplateAsset to %s", (std::string(ENGINE_ASSETS_DIR) + "/mta.asset").c_str());
+
     auto test_library = std::make_shared<Materials::BlinnPhongLibrary>(*rsys);
     test_library->Instantiate(*test_asset.first);
     auto test_material_instance = std::make_shared<Materials::BlinnPhongInstance>(*rsys, test_library);

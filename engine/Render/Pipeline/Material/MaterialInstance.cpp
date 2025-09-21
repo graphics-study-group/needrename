@@ -250,16 +250,26 @@ namespace Engine {
             case MaterialProperty::Type::StorageImage:
                 break;
             case MaterialProperty::Type::Texture:
+            {
+                auto texture_asset =
+                    std::any_cast<std::shared_ptr<AssetRef>>(p.m_value)->as<Image2DTextureAsset>();
+                // TODO: We should allocate texture from assets in a pool.
+                // AssignTexture(prop.first, *ImageTexture::CreateUnique(this->m_system, *texture_asset));
                 break;
+            }
             default:
                 switch(p.m_ubo_type) {
                 case MaterialProperty::InBlockVarType::Float:
+                    AssignScalarVariable("Material::" + prop.first, std::any_cast<float>(p.m_value));
                     break;
                 case MaterialProperty::InBlockVarType::Int:
+                    AssignScalarVariable("Material::" + prop.first, std::any_cast<int>(p.m_value));
                     break;
                 case MaterialProperty::InBlockVarType::Vec4:
+                    AssignVectorVariable("Material::" + prop.first, std::any_cast<glm::vec4>(p.m_value));
                     break;
                 case MaterialProperty::InBlockVarType::Mat4:
+                    AssignVectorVariable("Material::" + prop.first, std::any_cast<glm::mat4>(p.m_value));
                     break;
                 default:
                     ;
