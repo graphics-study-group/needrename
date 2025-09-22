@@ -30,13 +30,17 @@ namespace Engine {
         enum class Type {
             Undefined,
             // Uniform buffer object, i.e. a buffer for bulk uniform variables.
+            // This type of variable is automatically managed by the material system
+            // and should not appear in assets.
             UBO,
             // Shader storage buffer object.
-            StorageBuffer,
+            SSBO,
             // Texture to be sampled (or combined image sampler).
             Texture,
             // Storage image. Generally used in compute shaders.
             StorageImage,
+            // Simple variable that does not occupy a descriptor slot.
+            Simple,
         } type{};
 
         Type m_type{};

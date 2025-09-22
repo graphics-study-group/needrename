@@ -243,9 +243,9 @@ namespace Engine {
         for (const auto & prop : asset.m_properties) {
             auto p = prop.second;
             switch(p.m_type) {
-            case MaterialProperty::Type::StorageBuffer:
-                break;
             case MaterialProperty::Type::UBO:
+                break;
+            case MaterialProperty::Type::SSBO:
                 break;
             case MaterialProperty::Type::StorageImage:
                 break;
@@ -257,7 +257,7 @@ namespace Engine {
                 // AssignTexture(prop.first, *ImageTexture::CreateUnique(this->m_system, *texture_asset));
                 break;
             }
-            default:
+            case MaterialProperty::Type::Simple:
                 switch(p.m_ubo_type) {
                 case MaterialProperty::InBlockVarType::Float:
                     AssignScalarVariable("Material::" + prop.first, std::any_cast<float>(p.m_value));
@@ -274,6 +274,13 @@ namespace Engine {
                 default:
                     ;
                 }
+                break;
+            default:
+                SDL_LogError(
+                    SDL_LOG_CATEGORY_RENDER,
+                    "Unidentified material property %s.",
+                    prop.first.c_str()
+                );
             }
         }
     }
