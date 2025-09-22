@@ -209,15 +209,15 @@ namespace Engine::ShdrRfl {
             }
 
             if (auto popaque = dynamic_cast<const SPInterfaceOpaqueImage *>(pinterface)) {
-                auto pimg = std::get_if<std::reference_wrapper<const Texture>>(&itr->second);
+                auto pimg = std::get_if<std::shared_ptr<const Texture>>(&itr->second);
                 if (pimg) {
                     assert(popaque->array_size == 0);
                     write.image.push_back(
                         std::make_tuple(
                             popaque->layout_binding,
                             vk::DescriptorImageInfo {
-                                pimg->get().GetSampler(),
-                                pimg->get().GetImageView(),
+                                (*pimg)->GetSampler(),
+                                (*pimg)->GetImageView(),
                                 vk::ImageLayout::eShaderReadOnlyOptimal
                             },
                             vk::DescriptorType::eCombinedImageSampler
@@ -231,17 +231,17 @@ namespace Engine::ShdrRfl {
                     );
                 }
             } else if (auto pstorage = dynamic_cast<const SPInterfaceOpaqueStorageImage *>(pinterface)) {
-                auto pimg = std::get_if<std::reference_wrapper<const Texture>>(&itr->second);
+                auto pimg = std::get_if<std::shared_ptr<const Texture>>(&itr->second);
                 if (pimg) {
                     assert(pstorage->array_size == 0);
-                    assert(pimg->get().SupportRandomAccess());
+                    assert((*pimg)->SupportRandomAccess());
 
                     write.image.push_back(
                         std::make_tuple(
                             pstorage->layout_binding,
                             vk::DescriptorImageInfo {
-                                pimg->get().GetSampler(),
-                                pimg->get().GetImageView(),
+                                (*pimg)->GetSampler(),
+                                (*pimg)->GetImageView(),
                                 vk::ImageLayout::eGeneral
                             },
                             vk::DescriptorType::eStorageImage
@@ -255,8 +255,7 @@ namespace Engine::ShdrRfl {
                     );
                 }
             } else if (auto pbuffer = dynamic_cast<const SPInterfaceBuffer *>(pinterface)) {
-                auto pbuf = std::get_if<std::tuple<std::reference_wrapper<const Buffer>, size_t, size_t>>(&itr->second);
-                if (pbuf) {
+                if (auto pbuf = std::get_if<std::tuple<std::reference_wrapper<const Buffer>, size_t, size_t>>(&itr->second)) {
                     auto offset = std::get<1>(*pbuf);
                     auto range = std::get<2>(*pbuf) > 0 ? std::get<2>(*pbuf) : vk::WholeSize;
 
@@ -272,6 +271,28 @@ namespace Engine::ShdrRfl {
                             pbuffer->layout_binding,
                             vk::DescriptorBufferInfo {
                                 std::get<0>(*pbuf).get().GetBuffer(),
+                                offset,
+                                range
+                            },
+                            type
+                        )
+                    );
+                } else if (auto pbuf = std::get_if<std::tuple<std::shared_ptr<const Buffer>, size_t, size_t>>(&itr->second)) {
+                    auto offset = std::get<1>(*pbuf);
+                    auto range = std::get<2>(*pbuf) > 0 ? std::get<2>(*pbuf) : vk::WholeSize;
+
+                    vk::DescriptorType type;
+                    if (pbuffer->type == SPInterfaceBuffer::Type::StorageBuffer) {
+                        type = vk::DescriptorType::eStorageBuffer;
+                    } else if (pbuffer->type == SPInterfaceBuffer::Type::UniformBuffer) {
+                        type = vk::DescriptorType::eUniformBuffer;
+                    } 
+
+                    write.buffer.push_back(
+                        std::make_tuple(
+                            pbuffer->layout_binding,
+                            vk::DescriptorBufferInfo {
+                                std::get<0>(*pbuf)->GetBuffer(),
                                 offset,
                                 range
                             },

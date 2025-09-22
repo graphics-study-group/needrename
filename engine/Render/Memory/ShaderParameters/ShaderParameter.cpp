@@ -19,8 +19,11 @@ namespace Engine::ShdrRfl {
         } else {
         }
     }
-    void ShaderParameters::Assign(const std::string &name, const Texture &value) noexcept {
-        this->interfaces[name] = std::cref(value);
+    void ShaderParameters::Assign(const std::string &name, std::shared_ptr <const Texture> tex) noexcept {
+        this->interfaces[name] = tex;
+    }
+    void ShaderParameters::Assign(const std::string &name, std::shared_ptr <const Buffer> buf, size_t offset, size_t size) noexcept {
+        this->interfaces[name] = std::make_tuple(buf, offset, size);
     }
     void ShaderParameters::Assign(const std::string &name, const Buffer &buf, size_t offset, size_t size) noexcept {
         this->interfaces[name] = std::make_tuple(std::cref(buf), offset, size);

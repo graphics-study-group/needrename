@@ -32,8 +32,8 @@ namespace Engine {
 
         void AssignScalarVariable(const std::string & name, std::variant<uint32_t, int32_t, float> value) noexcept;
         void AssignVectorVariable(const std::string & name, std::variant<glm::vec4, glm::mat4> value) noexcept;
-        void AssignTexture(const std::string & name, const Texture & texture) noexcept;
-        void AssignBuffer(const std::string & name, const Buffer & buffer) noexcept;
+        void AssignTexture(const std::string & name, std::shared_ptr <const Texture> texture) noexcept;
+        void AssignBuffer(const std::string & name, std::shared_ptr <const Buffer> buffer) noexcept;
 
         vk::Pipeline GetPipeline() const noexcept;
         vk::PipelineLayout GetPipelineLayout() const noexcept;

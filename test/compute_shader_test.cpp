@@ -49,9 +49,9 @@ int main(int argc, char *argv[]) {
     
     ComputeStage cstage{*rsys};
     cstage.Instantiate(*cs);
-    cstage.AssignTexture("outputImage", *color_output);
-    cstage.AssignTexture("inputImage", *color_input);
-    cstage.AssignTexture("outputColorImage", *color_present);
+    cstage.AssignTexture("outputImage", color_output);
+    cstage.AssignTexture("inputImage", color_input);
+    cstage.AssignTexture("outputColorImage", color_present);
 
     uint64_t frame_count = 0;
     while (++frame_count) {

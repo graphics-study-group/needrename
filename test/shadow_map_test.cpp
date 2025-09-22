@@ -205,7 +205,7 @@ int main(int argc, char **argv) {
         "specular_color", glm::vec4(1.0, 1.0, 1.0, 64.0)
     );
     test_material_instance->AssignTexture(
-        "base_tex", *blank_color
+        "base_tex", blank_color
     );
 
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueVertexBufferSubmission(test_mesh);

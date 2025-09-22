@@ -116,12 +116,12 @@ namespace Engine {
         this->pimpl->parameters.Assign(name, value);
     }
 
-    void MaterialInstance::AssignTexture(const std::string &name, const Texture &texture) {
+    void MaterialInstance::AssignTexture(const std::string &name, std::shared_ptr <const Texture> texture) {
         this->pimpl->SetDescriptorDirtyFlags();
         this->pimpl->parameters.Assign(name, texture);
     }
 
-    void MaterialInstance::AssignBuffer(const std::string &name, const Buffer &buffer) {
+    void MaterialInstance::AssignBuffer(const std::string &name, std::shared_ptr <const Buffer> buffer) {
         this->pimpl->SetDescriptorDirtyFlags();
         this->pimpl->parameters.Assign(name, buffer);
     }
@@ -151,7 +151,7 @@ namespace Engine {
             for (const auto & kv : pass_info.ubos) {
                 this->pimpl->parameters.Assign(
                     kv.first, 
-                    *(kv.second.get()),
+                    *(static_cast<const Buffer *>(kv.second.get())),
                     kv.second->GetSliceOffset(backbuffer),
                     kv.second->GetSliceSize()
                 );

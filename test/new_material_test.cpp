@@ -233,8 +233,8 @@ int main(int argc, char **argv) {
     asys->LoadAssetImmediately(cs_ref);
     ComputeStage cstage{*rsys};
     cstage.Instantiate(*cs_ref->cas<ShaderAsset>());
-    cstage.AssignTexture("inputImage", *color);
-    cstage.AssignTexture("outputImage", *postproc);
+    cstage.AssignTexture("inputImage", color);
+    cstage.AssignTexture("outputImage", postproc);
 
     RenderGraph nonblur{BuildRenderGraph(rsys.get(), color.get(), depth.get(), test_material_instance.get(), &test_mesh)};
     RenderGraph blur{BuildRenderGraph(

@@ -22,9 +22,10 @@ namespace Engine {
                 >;
             using InterfaceVariant = std::variant<
                     std::monostate,
-                    std::reference_wrapper<const Texture>,
-                    std::vector <std::reference_wrapper<const Texture>>,
+                    std::shared_ptr<const Texture>,
+                    std::vector <std::shared_ptr<const Texture>>,
                     // Buffer, offset and size
+                    std::tuple<std::shared_ptr<const Buffer>, size_t, size_t>,
                     std::tuple<std::reference_wrapper<const Buffer>, size_t, size_t>
                 >;
             std::unordered_map <std::string, ParameterVariant> arguments;
@@ -36,17 +37,24 @@ namespace Engine {
 
             /**
              * @brief Assign a texture by its name.
-             * @note As the texture is passed by reference, the caller
-             * must ensure its lifetime is long enough to be used in
-             * the draw calls.
+             * Gives shared ownership of the buffer object.
              */
-            void Assign(const std::string & name, const Texture & value) noexcept;
+            void Assign(const std::string & name, std::shared_ptr <const Texture> value) noexcept;
 
             /**
              * @brief Assign a buffer by its name.
-             * @note As the buffer is passed by reference, the caller
-             * must ensure its lifetime is long enough to be used in
-             * the draw calls.
+             * Gives shared ownership of the buffer object.
+             */
+            void Assign(
+                const std::string & name, 
+                std::shared_ptr <const Buffer> buf, 
+                size_t offset = 0ULL, 
+                size_t size = 0ULL
+            ) noexcept;
+
+            /**
+             * @brief Assign a buffer by its name.
+             * Does not transfer ownership of the buffer object.
              */
             void Assign(
                 const std::string & name, 

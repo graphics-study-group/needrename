@@ -213,13 +213,13 @@ namespace Engine {
     }
     void ComputeStage::AssignTexture(
         const std::string & name, 
-        const Texture & texture) noexcept {
+        std::shared_ptr <const Texture> texture) noexcept {
         pimpl->parameters.Assign(name, texture);
         pimpl->m_ipi._is_descriptor_dirty.set();
     }
     void ComputeStage::AssignBuffer(
         const std::string & name,
-        const Buffer & buffer) noexcept {
+        std::shared_ptr <const Buffer> buffer) noexcept {
         pimpl->parameters.Assign(name, buffer);
         pimpl->m_ipi._is_descriptor_dirty.set();
     }

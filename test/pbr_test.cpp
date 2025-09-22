@@ -149,7 +149,7 @@ public:
 
         for (size_t i = 0; i < m_submeshes.size(); i++) {
             auto ptr = std::make_shared<MaterialInstance>(*system, library);
-            ptr->AssignTexture("albedoSampler", *albedo);
+            ptr->AssignTexture("albedoSampler", albedo);
             m_materials.push_back(ptr);
         }
     }
@@ -302,8 +302,8 @@ int main(int argc, char **argv) {
     MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(cs_ref);
     auto bloom_compute_stage = std::make_shared<ComputeStage>(*rsys);
     bloom_compute_stage->Instantiate(*cs_ref->cas<ShaderAsset>());
-    bloom_compute_stage->AssignTexture("inputImage", *hdr_color);
-    bloom_compute_stage->AssignTexture("outputImage", *color);
+    bloom_compute_stage->AssignTexture("inputImage", hdr_color);
+    bloom_compute_stage->AssignTexture("outputImage", color);
 
     // Build render graph.
     RenderGraphBuilder rgb{*rsys};
