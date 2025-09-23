@@ -1,6 +1,6 @@
 project(VulkanMemoryAllocator)
 
-find_package(vulkan REQUIRED)
+find_package(Vulkan REQUIRED)
 
 add_library(vma STATIC vk_mem_alloc.cpp)
 target_link_libraries(vma Vulkan::Vulkan)
