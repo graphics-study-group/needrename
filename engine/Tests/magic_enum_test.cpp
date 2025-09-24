@@ -1,6 +1,7 @@
 #include <Render/Enums/enum_def.h>
 #include <Render/Enums/enum_from_string.h>
 #include <Render/Enums/enum_to_string.h>
+#include <cassert>
 
 using namespace Engine::_enums;
 

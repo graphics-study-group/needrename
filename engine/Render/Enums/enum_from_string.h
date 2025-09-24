@@ -3,7 +3,8 @@
 
 #include "enum_def.h"
 #include <string_view>
-#include <cassert>
+#include <stdexcept>
+#include <format>
 
 #ifndef DEFINE_ENUM_ITEM
 #define DEFINE_ENUM_ITEM(e, x) case _details::hash_string_view(#x): return e::x;
@@ -36,70 +37,70 @@ namespace Engine {
             switch(_details::hash_string_view(s)) {
                 #include "defs/ImageFormat.def"
             }
-            assert(!"Undefined enum value.");
+            throw std::invalid_argument(std::format("Invalid enum value: {}", s));
         }
 
         constexpr FillingMode FillingMode_from_string(std::string_view s) {
             switch(_details::hash_string_view(s)) {
                 #include "defs/FillingMode.def"
             }
-            assert(!"Undefined enum value.");
+            throw std::invalid_argument(std::format("Invalid enum value: {}", s));
         }
 
         constexpr CullingMode CullingMode_from_string(std::string_view s) {
             switch(_details::hash_string_view(s)) {
                 #include "defs/CullingMode.def"
             }
-            assert(!"Undefined enum value.");
+            throw std::invalid_argument(std::format("Invalid enum value: {}", s));
         }
 
         constexpr FrontFace FrontFace_from_string(std::string_view s) {
             switch(_details::hash_string_view(s)) {
                 #include "defs/FrontFace.def"
             }
-            assert(!"Undefined enum value.");
+            throw std::invalid_argument(std::format("Invalid enum value: {}", s));
         }
 
         constexpr Comparator Comparator_from_string(std::string_view s) {
             switch(_details::hash_string_view(s)) {
                 #include "defs/Comparator.def"
             }
-            assert(!"Undefined enum value.");
+            throw std::invalid_argument(std::format("Invalid enum value: {}", s));
         }
 
         constexpr StencilOperation StencilOperation_from_string(std::string_view s) {
             switch(_details::hash_string_view(s)) {
                 #include "defs/StencilOperation.def"
             }
-            assert(!"Undefined enum value.");
+            throw std::invalid_argument(std::format("Invalid enum value: {}", s));
         }
 
         constexpr BlendFactor BlendFactor_from_string(std::string_view s) {
             switch(_details::hash_string_view(s)) {
                 #include "defs/BlendFactor.def"
             }
-            assert(!"Undefined enum value.");
+            throw std::invalid_argument(std::format("Invalid enum value: {}", s));
         }
 
         constexpr BlendOperation BlendOperation_from_string(std::string_view s) {
             switch(_details::hash_string_view(s)) {
                 #include "defs/BlendOperation.def"
             }
-            assert(!"Undefined enum value.");
+            throw std::invalid_argument(std::format("Invalid enum value: {}", s));
         }
 
         constexpr AddressMode AddressMode_from_string(std::string_view s) {
             switch(_details::hash_string_view(s)) {
                 #include "defs/AddressMode.def"
             }
-            assert(!"Undefined enum value.");
+            throw std::invalid_argument(std::format("Invalid enum value: {}", s));
         }
 
         constexpr FilterMode FilterMode_from_string(std::string_view s) {
             switch(_details::hash_string_view(s)) {
                 #include "defs/FilterMode.def"
             }
-            assert(!"Undefined enum value.");
+            throw std::invalid_argument(std::format("Invalid enum value: {}", s));
         }
     }
 }
