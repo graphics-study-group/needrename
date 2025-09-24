@@ -128,7 +128,7 @@ public:
 
         for (size_t i = 0; i < m_material_assets.size(); i++) {
             auto ptr = std::make_shared<Materials::BlinnPhongInstance>(
-                *system, system->GetMaterialRegistry().GetMaterial("Built-in Blinn-Phong")
+                *system, system->GetMaterialRegistry().GetMaterial("Blinn-Phong")
             );
             auto mat_asset = m_material_assets[i]->cas<MaterialAsset>();
             assert(mat_asset);
@@ -223,7 +223,7 @@ int main(int argc, char **argv) {
     asys->SetBuiltinAssetPath(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
     asys->LoadBuiltinAssets();
 
-    auto test_asset = asys->GetNewAssetRef(std::filesystem::path("~/material_templates/BlinnPhongTemplate.asset"));
+    auto test_asset = asys->GetNewAssetRef(std::filesystem::path("~/material_libraries/BlinnPhongLibrary.asset"));
     asys->LoadAssetImmediately(test_asset);
     asys->LoadAssetsInQueue();
 
@@ -233,25 +233,23 @@ int main(int argc, char **argv) {
     auto gsys = cmc->GetGUISystem();
     gsys->CreateVulkanBackend(ImageUtils::GetVkFormat(Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm));
 
-    Engine::Texture color{*rsys}, depth{*rsys};
-    Engine::Texture::TextureDesc desc{
+    Engine::RenderTargetTexture::RenderTargetTextureDesc desc{
         .dimensions = 2,
         .width = 1280,
         .height = 720,
         .depth = 1,
-        .format = Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm,
-        .type = Engine::ImageUtils::ImageType::ColorAttachment,
         .mipmap_levels = 1,
         .array_layers = 1,
+        .format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R8G8B8A8UNorm,
+        .multisample = 1,
         .is_cube_map = false
     };
-    color.CreateTexture(desc, "Color Attachment");
-    desc.format = Engine::ImageUtils::ImageFormat::D32SFLOAT;
-    desc.type = Engine::ImageUtils::ImageType::DepthImage;
-    depth.CreateTexture(desc, "Depth Attachment");
+    auto color = RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Color attachment");
+    desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::D32SFLOAT;
+    auto depth = RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Depth attachment");
 
     RenderGraphBuilder rgb{*rsys};
-    RenderGraph rg{rgb.BuildDefaultRenderGraph(color, depth, gsys.get())};
+    RenderGraph rg{rgb.BuildDefaultRenderGraph(*color, *depth, gsys.get())};
 
     // Setup mesh
     std::filesystem::path mesh_path{std::string(ENGINE_ASSETS_DIR) + "/four_bunny/four_bunny.obj"};
@@ -293,10 +291,10 @@ int main(int argc, char **argv) {
 
         // Draw
         auto index = rsys->StartFrame();
-        rg.Execute(rsys->GetFrameManager());
+        rg.Execute();
         rsys->GetFrameManager().StageBlitComposition(
-            color.GetImage(),
-            vk::Extent2D{color.GetTextureDescription().width, color.GetTextureDescription().height},
+            color->GetImage(),
+            vk::Extent2D{color->GetTextureDescription().width, color->GetTextureDescription().height},
             rsys->GetSwapchain().GetExtent()
         );
         rsys->CompleteFrame();

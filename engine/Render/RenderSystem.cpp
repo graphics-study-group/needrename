@@ -17,6 +17,7 @@
 #include "Render/RenderSystem/RendererManager.h"
 #include "Render/RenderSystem/Structs.h"
 #include "Render/RenderSystem/Swapchain.h"
+#include "Render/RenderSystem/SamplerManager.h"
 #include "Render/Renderer/Camera.h"
 #include "Render/Renderer/HomogeneousMesh.h"
 
@@ -31,7 +32,7 @@ VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 namespace Engine {
     struct RenderSystem::impl {
         impl(RenderSystem &parent, std::weak_ptr<SDLWindow> parent_window) :
-            m_window(parent_window), m_allocator_state(parent), m_frame_manager(parent), m_renderer_manager(parent) {
+            m_window(parent_window), m_allocator_state(parent), m_frame_manager(parent), m_renderer_manager(parent), m_sampler_manager(parent) {
 
             };
 
@@ -72,6 +73,7 @@ namespace Engine {
         RenderSystemState::GlobalConstantDescriptorPool m_descriptor_pool{};
         RenderSystemState::MaterialRegistry m_material_registry{};
         RenderSystemState::RendererManager m_renderer_manager;
+        RenderSystemState::SamplerManager m_sampler_manager;
     };
 
     RenderSystem::RenderSystem(std::weak_ptr<SDLWindow> parent_window) {
@@ -159,6 +161,10 @@ namespace Engine {
 
     RenderSystemState::RendererManager &RenderSystem::GetRendererManager() {
         return pimpl->m_renderer_manager;
+    }
+
+    RenderSystemState::SamplerManager &RenderSystem::GetSamplerManager() {
+        return pimpl->m_sampler_manager;
     }
 
     void RenderSystem::CompleteFrame() {

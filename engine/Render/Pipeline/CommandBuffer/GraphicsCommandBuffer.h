@@ -2,6 +2,7 @@
 #define PIPELINE_COMMANDBUFFER_GRAPHICSCOMMANDBUFFER_INCLUDED
 
 #include "Render/Pipeline/CommandBuffer/TransferCommandBuffer.h"
+#include "Render/Renderer/HomogeneousMesh.h"
 #include "Render/RenderSystem/RendererManager.h"
 
 // GLM forward declaration.
@@ -15,9 +16,8 @@ namespace vk {
 } // namespace vk
 
 namespace Engine {
-    class Material;
+    class MaterialTemplate;
     class MaterialInstance;
-    class HomogeneousMesh;
     class Buffer;
 
     namespace AttachmentUtils {
@@ -69,8 +69,14 @@ namespace Engine {
          * GPU (if warranted), bind descriptors to the pipeline,
          * and write pending uniform data updates of
          * the given material instance.
+         * 
+         * May perform lazy allocation of buffers, etc.
          */
-        void BindMaterial(MaterialInstance &material, uint32_t pass_index);
+        void BindMaterial(
+            MaterialInstance &inst,
+            const std::string & tag,
+            HomogeneousMesh::MeshVertexType type
+        );
 
         /// @brief Setup the viewport parameters
         /// @param vpWidth width of the viewport
@@ -93,7 +99,7 @@ namespace Engine {
          * Sets up camera data with the currently active camera and 
          * viewport and draw each renderer with its material.
          */
-        void DrawRenderers(const RendererList &renderers, uint32_t pass);
+        void DrawRenderers(const std::string & tag, const RendererList &renderers);
 
         /**
          * @brief Draw renderers in the RendererList with specified pass index.
@@ -107,11 +113,11 @@ namespace Engine {
          * internally.
          */
         void DrawRenderers(
+            const std::string & tag,
             const RendererList &renderers,
             const glm::mat4 &view_matrix,
             const glm::mat4 &projection_matrix,
-            vk::Extent2D extent,
-            uint32_t pass
+            vk::Extent2D extent
         );
 
         /// @brief End the render pass

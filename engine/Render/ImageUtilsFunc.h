@@ -1,5 +1,5 @@
-#ifndef RENDER_IMAGEUTILSFUNC
-#define RENDER_IMAGEUTILSFUNC
+#ifndef ENGINE_RENDER_IMAGEUTILSFUNC_INCLUDED
+#define ENGINE_RENDER_IMAGEUTILSFUNC_INCLUDED
 
 #include "ImageUtils.h"
 #include <vk_mem_alloc.h>
@@ -9,58 +9,77 @@ namespace Engine {
     namespace ImageUtils {
         constexpr std::tuple<vk::ImageUsageFlags, VmaMemoryUsage> GetImageFlags(ImageType type) {
             switch (type) {
-            case ImageType::DepthImage:
-            case ImageType::DepthStencilImage:
-                return std::make_tuple(
-                    vk::ImageUsageFlagBits::eDepthStencilAttachment, VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE
-                );
-            case ImageType::SampledDepthImage:
+            case ImageType::DepthAttachment:
+            case ImageType::DepthStencilAttachment:
                 return std::make_tuple(
                     vk::ImageUsageFlags{
-                        vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eSampled
+                        vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst
+                            | vk::ImageUsageFlagBits::eDepthStencilAttachment
+                            | vk::ImageUsageFlagBits::eSampled
                     },
                     VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE
                 );
-            case ImageType::TextureImage:
-                return std::make_tuple(
-                    vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst
-                        | vk::ImageUsageFlagBits::eSampled,
-                    VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE
-                );
             case ImageType::ColorAttachment:
-                return std::make_tuple(
-                    vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst
-                        | vk::ImageUsageFlagBits::eColorAttachment,
-                    VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE
-                );
-            case ImageType::ColorCompute:
-                return std::make_tuple(
-                    vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst
-                        | vk::ImageUsageFlagBits::eStorage,
-                    VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE
-                );
-            case ImageType::ColorGeneral:
                 return std::make_tuple(
                     vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst
                         | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage
                         | vk::ImageUsageFlagBits::eColorAttachment,
                     VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE
                 );
+            case ImageType::TextureImage:
+                return std::make_tuple(
+                    vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled,
+                    VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE
+                );
             }
             return std::make_tuple(vk::ImageUsageFlags{}, VMA_MEMORY_USAGE_AUTO);
         }
 
+        constexpr vk::FormatFeatureFlags GetFormatFeatures(ImageType type) {
+            switch(type) {
+            case ImageType::DepthAttachment:
+            case ImageType::DepthStencilAttachment:
+                return {
+                    vk::FormatFeatureFlagBits::eBlitSrc |
+                    vk::FormatFeatureFlagBits::eBlitDst |
+                    vk::FormatFeatureFlagBits::eTransferSrc |
+                    vk::FormatFeatureFlagBits::eTransferDst |
+                    vk::FormatFeatureFlagBits::eSampledImage |
+                    vk::FormatFeatureFlagBits::eSampledImageFilterLinear |
+                    vk::FormatFeatureFlagBits::eDepthStencilAttachment
+                };
+            case ImageType::ColorAttachment:
+                return {
+                        vk::FormatFeatureFlagBits::eBlitSrc |
+                        vk::FormatFeatureFlagBits::eBlitDst |
+                        vk::FormatFeatureFlagBits::eTransferSrc |
+                        vk::FormatFeatureFlagBits::eTransferDst |
+                        vk::FormatFeatureFlagBits::eSampledImage |
+                        vk::FormatFeatureFlagBits::eSampledImageFilterLinear |
+                        vk::FormatFeatureFlagBits::eColorAttachment |
+                        vk::FormatFeatureFlagBits::eColorAttachmentBlend
+                    };
+            case ImageType::TextureImage:
+                return {
+                    vk::FormatFeatureFlagBits::eBlitSrc |
+                    vk::FormatFeatureFlagBits::eTransferSrc |
+                    vk::FormatFeatureFlagBits::eTransferDst |
+                    vk::FormatFeatureFlagBits::eSampledImage |
+                    vk::FormatFeatureFlagBits::eSampledImageFilterLinear
+                };
+            }
+            return {};
+        }
+
+        [[deprecated("Use GetVkAspect() to infer aspect from format instead.")]]
         constexpr vk::ImageAspectFlags GetVkImageAspect(ImageType type) {
             switch (type) {
-            case ImageType::DepthImage:
-            case ImageType::SampledDepthImage:
+            case ImageType::DepthAttachment:
                 return vk::ImageAspectFlagBits::eDepth;
-            case ImageType::DepthStencilImage:
+            case ImageType::DepthStencilAttachment:
                 return vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
             case ImageType::TextureImage:
             case ImageType::ColorAttachment:
-            case ImageType::ColorCompute:
-            case ImageType::ColorGeneral:
                 return vk::ImageAspectFlagBits::eColor;
             }
             return vk::ImageAspectFlags{};
@@ -70,7 +89,9 @@ namespace Engine {
             switch (format) {
             case ImageFormat::R8G8B8A8SNorm:
             case ImageFormat::R8G8B8A8UNorm:
+            case ImageFormat::R8G8B8A8SRGB:
             case ImageFormat::R11G11B10UFloat:
+            case ImageFormat::R32G32B32A32SFloat:
                 return vk::ImageAspectFlagBits::eColor;
             case ImageFormat::D32SFLOAT:
                 return vk::ImageAspectFlagBits::eDepth;
@@ -98,8 +119,12 @@ namespace Engine {
                 return vk::Format::eR8G8B8A8Snorm;
             case ImageFormat::R8G8B8A8UNorm:
                 return vk::Format::eR8G8B8A8Unorm;
+            case ImageFormat::R8G8B8A8SRGB:
+                return vk::Format::eR8G8B8A8Srgb;
             case ImageFormat::R11G11B10UFloat:
                 return vk::Format::eB10G11R11UfloatPack32;
+            case ImageFormat::R32G32B32A32SFloat:
+                return vk::Format::eR32G32B32A32Sfloat;
             case ImageFormat::D32SFLOAT:
                 return vk::Format::eD32Sfloat;
             }
@@ -110,9 +135,12 @@ namespace Engine {
             switch (format) {
             case ImageFormat::R8G8B8A8SNorm:
             case ImageFormat::R8G8B8A8UNorm:
+            case ImageFormat::R8G8B8A8SRGB:
             case ImageFormat::R11G11B10UFloat:
             case ImageFormat::D32SFLOAT:
                 return 4;
+            case ImageFormat::R32G32B32A32SFloat:
+                return 16;
             default:
                 return 0;
             }
@@ -142,7 +170,45 @@ namespace Engine {
             }
             return view_type;
         }
+
+        constexpr vk::Filter ToVkFilter(SamplerDesc::FilterMode filter) {
+            using Mode = SamplerDesc::FilterMode;
+            switch (filter) {
+            case Mode::Linear:
+                return vk::Filter::eLinear;
+            case Mode::Point:
+                return vk::Filter::eNearest;
+            }
+            assert(false);
+            return {};
+        }
+
+        constexpr vk::SamplerMipmapMode ToVkSamplerMipmapMode(SamplerDesc::FilterMode filter) {
+            using Mode = SamplerDesc::FilterMode;
+            switch (filter) {
+            case Mode::Linear:
+                return vk::SamplerMipmapMode::eLinear;
+            case Mode::Point:
+                return vk::SamplerMipmapMode::eNearest;
+            }
+            assert(false);
+            return {};
+        }
+
+        constexpr vk::SamplerAddressMode ToVkSamplerAddressMode(SamplerDesc::AddressMode addr) {
+            using Mode = SamplerDesc::AddressMode;
+            switch (addr) {
+            case Mode::Repeat:
+                return vk::SamplerAddressMode::eRepeat;
+            case Mode::MirroredRepeat:
+                return vk::SamplerAddressMode::eMirroredRepeat;
+            case Mode::ClampToEdge:
+                return vk::SamplerAddressMode::eClampToEdge;
+            }
+            assert(false);
+            return {};
+        }
     } // namespace ImageUtils
 } // namespace Engine
 
-#endif // RENDER_IMAGEUTILSFUNC
+#endif // ENGINE_RENDER_IMAGEUTILSFUNC_INCLUDED

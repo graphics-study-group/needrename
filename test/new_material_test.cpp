@@ -42,8 +42,9 @@ struct LowerPlaneMeshAsset : public MeshAsset {
     }
 };
 
-std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate() {
+std::pair<std::shared_ptr<MaterialLibraryAsset>, std::shared_ptr<MaterialTemplateAsset>> ConstructMaterial() {
     auto test_asset = std::make_shared<MaterialTemplateAsset>();
+    auto lib_asset = std::make_shared<MaterialLibraryAsset>();
     auto vs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/blinn_phong.vert.spv.asset");
     auto fs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/blinn_phong.frag.spv.asset");
     MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(vs_ref);
@@ -64,42 +65,54 @@ std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate() {
     mtspp.attachments.depth = ImageUtils::ImageFormat::D32SFLOAT;
     mtspp.shaders.shaders = std::vector<std::shared_ptr<AssetRef>>{vs_ref, fs_ref};
 
-    test_asset->properties.properties[0] = mtspp;
+    test_asset->properties = mtspp;
 
-    return test_asset;
+    lib_asset->m_name = "Blinn-Phong";
+    lib_asset->material_bundle[""] = {
+        {(uint32_t)HomogeneousMesh::MeshVertexType::Basic, std::make_shared<AssetRef>(test_asset)}
+    };
+
+    return std::make_pair(lib_asset, test_asset);
 }
 
 RenderGraph BuildRenderGraph(
     RenderSystem *rsys,
-    Texture *color,
-    Texture *depth,
+    RenderTargetTexture *color,
+    RenderTargetTexture *depth,
     MaterialInstance *material,
     HomogeneousMesh *mesh,
-    Texture *blurred = nullptr,
+    RenderTargetTexture *blurred = nullptr,
     ComputeStage *kernel = nullptr
 ) {
     using IAT = Engine::AccessHelper::ImageAccessType;
     RenderGraphBuilder rgb{*rsys};
     rgb.UseImage(*color, IAT::ColorAttachmentWrite);
     rgb.UseImage(*depth, IAT::DepthAttachmentWrite);
-    rgb.RecordRasterizerPass([rsys, color, depth, material, mesh](GraphicsCommandBuffer &gcb) {
+    rgb.RecordRasterizerPassWithoutRT([rsys, color, depth, material, mesh](GraphicsCommandBuffer &gcb) {
         auto extent = rsys->GetSwapchain().GetExtent();
         gcb.BeginRendering(
-            {color, nullptr, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store},
-            {depth,
-             nullptr,
-             AttachmentUtils::LoadOperation::Clear,
-             AttachmentUtils::StoreOperation::DontCare,
-             AttachmentUtils::DepthClearValue{1.0f, 0U}},
+            AttachmentUtils::AttachmentDescription{
+                color, 
+                nullptr, 
+                AttachmentUtils::LoadOperation::Clear, 
+                AttachmentUtils::StoreOperation::Store
+            },
+            AttachmentUtils::AttachmentDescription{
+                depth,
+                nullptr,
+                AttachmentUtils::LoadOperation::Clear,
+                AttachmentUtils::StoreOperation::DontCare,
+                AttachmentUtils::DepthClearValue{1.0f, 0U}
+            },
             extent
         );
 
         gcb.SetupViewport(extent.width, extent.height, {{0, 0}, extent});
-        gcb.BindMaterial(*material, 0);
+        gcb.BindMaterial(*material, "", HomogeneousMesh::MeshVertexType::Basic);
         // Push model matrix...
         vk::CommandBuffer rcb = gcb.GetCommandBuffer();
         rcb.pushConstants(
-            material->GetTemplate().GetPipelineLayout(0),
+            material->GetLibrary()->FindMaterialTemplate("", HomogeneousMesh::MeshVertexType::Basic)->GetPipelineLayout(),
             vk::ShaderStageFlagBits::eVertex,
             0,
             ConstantData::PerModelConstantPushConstant::PUSH_RANGE_SIZE,
@@ -147,27 +160,30 @@ int main(int argc, char **argv) {
     // Prepare texture
     auto test_texture_asset = std::make_shared<Image2DTextureAsset>();
     test_texture_asset->LoadFromFile(std::string(ENGINE_ASSETS_DIR) + "/bunny/bunny.png");
-    auto allocated_image_texture = std::make_shared<SampledTextureInstantiated>(*rsys);
-    allocated_image_texture->Instantiate(*test_texture_asset);
+    std::shared_ptr allocated_image_texture = ImageTexture::CreateUnique(*rsys, *test_texture_asset);
 
     // Prepare material
     cmc->GetAssetManager()->LoadBuiltinAssets();
-    auto test_asset = ConstructMaterialTemplate();
+    auto test_asset = ConstructMaterial();
 
+    // // Do not delete this code, it is a useful tool for generating asset files.
     // Engine::Serialization::Archive archive;
     // archive.prepare_save();
-    // test_asset->save_asset_to_archive(archive);
-    // archive.save_to_file(std::string(ENGINE_ASSETS_DIR) + "/test_asset.asset");
-    // SDL_Log("Saved asset to %s", (std::string(ENGINE_ASSETS_DIR) + "/test_asset.asset").c_str());
+    // test_asset.first->save_asset_to_archive(archive);
+    // archive.save_to_file(std::string(ENGINE_ASSETS_DIR) + "/mla.asset");
+    // SDL_Log("Saved MaterialLibraryAsset to %s", (std::string(ENGINE_ASSETS_DIR) + "/mla.asset").c_str());
+    // archive.clear();
+    // archive.prepare_save();
+    // test_asset.second->save_asset_to_archive(archive);
+    // archive.save_to_file(std::string(ENGINE_ASSETS_DIR) + "/mta.asset");
+    // SDL_Log("Saved MaterialTemplateAsset to %s", (std::string(ENGINE_ASSETS_DIR) + "/mta.asset").c_str());
 
-    auto test_asset_ref = std::make_shared<AssetRef>(test_asset);
-    auto test_template = std::make_shared<Materials::BlinnPhongTemplate>(*rsys);
-    test_template->Instantiate(*test_asset_ref->cas<MaterialTemplateAsset>());
-    auto test_material_instance = std::make_shared<Materials::BlinnPhongInstance>(*rsys, test_template);
+    auto test_library = std::make_shared<Materials::BlinnPhongLibrary>(*rsys);
+    test_library->Instantiate(*test_asset.first);
+    auto test_material_instance = std::make_shared<Materials::BlinnPhongInstance>(*rsys, test_library);
     test_material_instance->SetAmbient(glm::vec4(0.0, 0.0, 0.0, 0.0));
     test_material_instance->SetSpecular(glm::vec4(1.0, 1.0, 1.0, 64.0));
     test_material_instance->SetBaseTexture(allocated_image_texture);
-    test_material_instance->WriteDescriptors(0);
 
     // Prepare mesh
     auto test_mesh_asset = std::make_shared<LowerPlaneMeshAsset>();
@@ -195,41 +211,34 @@ int main(int argc, char **argv) {
     }
 
     // Prepare attachments
-    Engine::Texture depth{*rsys};
-    auto color = std::make_shared<Texture>(*rsys);
-    auto postproc = std::make_shared<Texture>(*rsys);
-    Engine::Texture::TextureDesc desc{
+    
+    RenderTargetTexture::RenderTargetTextureDesc desc{
         .dimensions = 2,
         .width = 1920,
         .height = 1080,
         .depth = 1,
-        .format = Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm,
-        .type = Engine::ImageUtils::ImageType::ColorGeneral,
         .mipmap_levels = 1,
         .array_layers = 1,
+        .format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R8G8B8A8UNorm,
+        .multisample = 1,
         .is_cube_map = false
     };
-    color->CreateTexture(desc, "Color Attachment");
-    postproc->CreateTexture(desc, "GaussianBlurred");
-    desc.format = Engine::ImageUtils::ImageFormat::D32SFLOAT;
-    desc.type = Engine::ImageUtils::ImageType::DepthImage;
-    depth.CreateTexture(desc, "Depth Attachment");
+    std::shared_ptr color = RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Color Attachment");
+    std::shared_ptr postproc = RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Gaussian Blurred");
+    desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::D32SFLOAT;
+    std::shared_ptr depth = RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Depth Attachment");
 
     auto asys = cmc->GetAssetManager();
     auto cs_ref = asys->GetNewAssetRef("~/shaders/gaussian_blur.comp.spv.asset");
     asys->LoadAssetImmediately(cs_ref);
     ComputeStage cstage{*rsys};
     cstage.Instantiate(*cs_ref->cas<ShaderAsset>());
-    cstage.SetDescVariable(
-        cstage.GetVariableIndex("inputImage").value().first, std::const_pointer_cast<const Texture>(color)
-    );
-    cstage.SetDescVariable(
-        cstage.GetVariableIndex("outputImage").value().first, std::const_pointer_cast<const Texture>(postproc)
-    );
+    cstage.AssignTexture("inputImage", color);
+    cstage.AssignTexture("outputImage", postproc);
 
-    RenderGraph nonblur{BuildRenderGraph(rsys.get(), color.get(), &depth, test_material_instance.get(), &test_mesh)};
+    RenderGraph nonblur{BuildRenderGraph(rsys.get(), color.get(), depth.get(), test_material_instance.get(), &test_mesh)};
     RenderGraph blur{BuildRenderGraph(
-        rsys.get(), color.get(), &depth, test_material_instance.get(), &test_mesh, postproc.get(), &cstage
+        rsys.get(), color.get(), depth.get(), test_material_instance.get(), &test_mesh, postproc.get(), &cstage
     )};
 
     bool quited = false;
@@ -256,9 +265,9 @@ int main(int argc, char **argv) {
 
         auto index = rsys->StartFrame();
         if (has_gaussian_blur) {
-            blur.Execute(rsys->GetFrameManager());
+            blur.Execute();
         } else {
-            nonblur.Execute(rsys->GetFrameManager());
+            nonblur.Execute();
         }
         rsys->GetFrameManager().StageBlitComposition(
             has_gaussian_blur ? postproc->GetImage() : color->GetImage(),

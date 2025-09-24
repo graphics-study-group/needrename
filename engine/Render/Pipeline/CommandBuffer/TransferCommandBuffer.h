@@ -23,6 +23,17 @@ namespace Engine {
      */
     class TransferCommandBuffer : public ICommandBuffer {
     public:
+
+        /**
+         * @brief An area of a texture, used for operations such as blitting
+         */
+        struct TextureArea {
+            uint32_t mip_level;
+            uint32_t array_layer_base;
+            uint32_t array_layer_count;
+            int32_t x0, y0, z0, x1, y1, z1;
+        };
+
         TransferCommandBuffer(RenderSystem &system, vk::CommandBuffer cb);
         virtual ~TransferCommandBuffer() = default;
 
@@ -31,7 +42,15 @@ namespace Engine {
         TransferCommandBuffer &operator=(const TransferCommandBuffer &) = delete;
         TransferCommandBuffer &operator=(TransferCommandBuffer &&) = default;
 
-        // void BlitImage(const Texture & src, const Texture & dst);
+        /**
+         * @brief Blit a color texture to another color texture.
+         * Whole texture of the zeroth mip level is blitted.
+         */
+        void BlitColorImage(const Texture & src, const Texture & dst);
+        /**
+         * @brief Blit a color texture to another color texture.
+         */
+        void BlitColorImage(const Texture & src, const Texture & dst, TextureArea src_area, TextureArea dst_area);
 
         // void ClearColorImage(const Texture & img, std::tuple<float, float, float, float> rgba_value);
 

@@ -65,7 +65,7 @@ namespace Engine {
          * 
          * To use this method, you have to manually set up render targets within the `pass` function.
          */
-        void RecordRasterizerPass (
+        void RecordRasterizerPassWithoutRT (
             std::function<void(GraphicsCommandBuffer &)> pass
         );
 
@@ -111,7 +111,10 @@ namespace Engine {
         /**
          * @brief Record a pass with transfer commands.
          */
-        void RecordTransferPass (std::function<void(TransferCommandBuffer &)> pass);
+        void RecordTransferPass (
+            std::function<void(TransferCommandBuffer &)> pass,
+            const std::string & name = ""
+        );
 
         /**
          * @brief Record a pass with compute shader dispatches.
@@ -135,8 +138,8 @@ namespace Engine {
          * @brief Build a default render graph.
          */
         RenderGraph BuildDefaultRenderGraph(
-            Texture & color_attachment, 
-            Texture & depth_attachment,
+            RenderTargetTexture & color_attachment, 
+            RenderTargetTexture & depth_attachment,
             GUISystem * gui_system = nullptr
         );
     };

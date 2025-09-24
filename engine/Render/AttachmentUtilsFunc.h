@@ -2,7 +2,7 @@
 #define RENDER_ATTACHMENTUTILSFUNC
 
 #include "AttachmentUtils.h"
-#include "Render/Memory/Texture.h"
+#include "Render/Memory/RenderTargetTexture.h"
 #include "Render/Memory/TextureSlice.h"
 #include <vulkan/vulkan.hpp>
 

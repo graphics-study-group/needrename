@@ -1,10 +1,11 @@
 #include "MaterialInstance.h"
 
 #include "Asset/Material/MaterialAsset.h"
-
-#include "Render/Memory/SampledTextureInstantiated.h"
+#include "Render/Memory/ShaderParameters/ShaderParameter.h"
+#include "Render/Memory/ShaderParameters/ShaderParameterLayout.h"
 #include "Render/Pipeline/PipelineInfo.h"
 #include "Render/Pipeline/PipelineUtils.h"
+#include "Render/Pipeline/Material/MaterialLibrary.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/FrameManager.h"
 #include "Render/RenderSystem/SubmissionHelper.h"
@@ -18,240 +19,276 @@ namespace Engine {
 
     struct MaterialInstance::impl {
         struct PassInfo {
-            static constexpr uint32_t BACK_BUFFERS = 2;
+            // As UBOs and descriptor sets are GPU stuff, they only require two copies
+            // (i.e. one for the frame being drawn, another to be updated by CPU). However
+            // directly using the frame-in-flight index saves a lot of headache so we will
+            // directly use this index.
+            static constexpr uint32_t BACK_BUFFERS = 3;
 
-            std::unique_ptr<IndexedBuffer> ubo{};
-            std::array<vk::DescriptorSet, BACK_BUFFERS> desc_set{};
+            std::unordered_map <std::string, std::unique_ptr<IndexedBuffer>> ubos{};
 
-            std::bitset<BACK_BUFFERS> _is_descriptor_set_dirty{};
-            std::bitset<BACK_BUFFERS> _is_ubo_dirty{};
+            std::bitset<8> _is_ubo_dirty{};
+            std::bitset<8> _is_descriptor_dirty{};
+
+            std::array <vk::DescriptorSet, BACK_BUFFERS> desc_sets{};
+            
         };
 
-        std::weak_ptr<MaterialTemplate> m_parent_template;
-        std::unordered_map<uint32_t, std::unordered_map<uint32_t, std::any>> m_desc_variables{};
-        std::unordered_map<uint32_t, std::unordered_map<uint32_t, std::any>> m_inblock_variables{};
-        std::unordered_map<uint32_t, PassInfo> m_pass_info{};
+        std::weak_ptr <MaterialLibrary> m_library;
+
+        ShdrRfl::ShaderParameters parameters{};
+        std::unordered_map <const MaterialTemplate *, PassInfo> m_pass_infos{};
 
         // A small buffer for uniform buffer staging to avoid random write to UBO.
         std::vector<std::byte> m_buffer{};
+
+        void SetUboDirtyFlags() noexcept {
+            for (auto & [k, v] : m_pass_infos) {
+                v._is_ubo_dirty.set();
+            }
+        }
+
+        void SetDescriptorDirtyFlags() noexcept {
+            for (auto & [k, v] : m_pass_infos) {
+                v._is_descriptor_dirty.set();
+            }
+        }
+
+        auto CreatePassInfo (RenderSystem & system, MaterialTemplate & tpl) 
+            -> std::unordered_map <const MaterialTemplate *, PassInfo>::iterator {
+            assert(!m_pass_infos.contains(&tpl));
+
+            using PassInfo = impl::PassInfo;
+            // Allocate uniform buffers and per-material descriptor sets
+            PassInfo pass{};
+            const auto & splayout = tpl.GetReflectedShaderInfo();
+            
+            auto allocated_sets = tpl.AllocateDescriptorSets(impl::PassInfo::BACK_BUFFERS);
+            assert(allocated_sets.size() == pass.desc_sets.size());
+            std::copy(allocated_sets.begin(), allocated_sets.end(), pass.desc_sets.begin());
+
+            for (auto pinterface : splayout.interfaces) {
+                if (auto pbuffer = dynamic_cast <const ShdrRfl::SPInterfaceBuffer *>(pinterface)) {
+                    if (pbuffer->type == ShdrRfl::SPInterfaceBuffer::Type::UniformBuffer) {
+                        auto ptype = dynamic_cast <const ShdrRfl::SPTypeSimpleStruct *>(pbuffer->underlying_type);
+                        assert(ptype);
+
+                        pass.ubos[pbuffer->name] = IndexedBuffer::CreateUnique(
+                            system,
+                            Buffer::BufferType::Uniform,
+                            ptype->expected_size,
+                            system.GetPhysicalDevice().getProperties().limits.minUniformBufferOffsetAlignment,
+                            PassInfo::BACK_BUFFERS,
+                            std::format(
+                                "Indexed UBO {} for Material",
+                                pbuffer->name
+                            )
+                        );
+                    }
+                }
+            }
+
+            pass._is_descriptor_dirty.set();
+            pass._is_ubo_dirty.set();
+            
+            m_pass_infos[&tpl] = std::move(pass);
+            return m_pass_infos.find(&tpl);
+        }
     };
 
-    MaterialInstance::MaterialInstance(RenderSystem &system, std::shared_ptr<MaterialTemplate> tpl) :
-        m_system(system), pimpl(std::make_unique<impl>(tpl)) {
-        using PassInfo = impl::PassInfo;
-        // Allocate uniform buffers and per-material descriptor sets
-        for (const auto &[idx, info] : tpl->GetAllPassInfo()) {
-            PassInfo pass{};
-            auto ubo_size = tpl->GetMaximalUBOSize(idx);
-            pass.desc_set[0] = tpl->AllocateDescriptorSet(idx);
-            pass.desc_set[1] = tpl->AllocateDescriptorSet(idx);
-            if (ubo_size == 0) {
-                SDL_LogWarn(
-                    SDL_LOG_CATEGORY_RENDER, "Found zero-sized UBO when processing pass %llu of material", ubo_size
-                );
-            } else {
-                pass.ubo = std::make_unique<IndexedBuffer>(system);
-                pass.ubo->Create(
-                    Buffer::BufferType::Uniform,
-                    tpl->GetMaximalUBOSize(idx),
-                    system.GetPhysicalDevice().getProperties().limits.minUniformBufferOffsetAlignment,
-                    PassInfo::BACK_BUFFERS,
-                    "Indexed UBO for Material"
-                );
-            }
-            pimpl->m_pass_info[idx] = std::move(pass);
-        }
+    MaterialInstance::MaterialInstance(RenderSystem &system,
+            std::shared_ptr <MaterialLibrary> library) :
+        m_system(system), pimpl(std::make_unique<impl>(impl{library})) {
     }
 
     MaterialInstance::~MaterialInstance() = default;
 
-    const MaterialTemplate &MaterialInstance::GetTemplate() const {
-        return *(pimpl->m_parent_template.lock());
-    }
-
-    const std::unordered_map<uint32_t, std::any> &MaterialInstance::GetInBlockVariables(uint32_t pass_index) const {
-        return pimpl->m_inblock_variables.at(pass_index);
-    }
-
-    const std::unordered_map<uint32_t, std::any> &MaterialInstance::GetDescVariables(uint32_t pass_index) const {
-        return pimpl->m_desc_variables.at(pass_index);
-    }
-
-    void MaterialInstance::WriteTextureUniform(
-        uint32_t pass, uint32_t index, std::shared_ptr<const SampledTexture> texture
+    void MaterialInstance::AssignScalarVariable(
+        const std::string &name,
+        std::variant<uint32_t, int32_t, float> value
     ) {
-        assert(pimpl->m_pass_info.contains(pass) && "Cannot find pass.");
-        assert(
-            pimpl->m_parent_template.lock()->GetDescVariable(index, pass).set
-            && "Cannot find uniform in designated pass."
-        );
-
-        pimpl->m_desc_variables[pass][index] = std::any(texture);
-        pimpl->m_pass_info[pass]._is_descriptor_set_dirty.set();
+        this->pimpl->SetUboDirtyFlags();
+        this->pimpl->parameters.Assign(name, value);
     }
 
-    void MaterialInstance::WriteStorageBufferUniform(
-        uint32_t pass, uint32_t index, std::shared_ptr<const Buffer> buffer
-    ) {
-        assert(!"Unimplemented");
+    void MaterialInstance::AssignVectorVariable(const std::string &name, std::variant<glm::vec4, glm::mat4> value) {
+        this->pimpl->SetUboDirtyFlags();
+        this->pimpl->parameters.Assign(name, value);
     }
 
-    void MaterialInstance::WriteUBOUniform(uint32_t pass, uint32_t index, std::any uniform) {
-        assert(
-            PipelineUtils::REGISTERED_SHADER_UNIFORM_TYPES.find(uniform.type())
-                != PipelineUtils::REGISTERED_SHADER_UNIFORM_TYPES.end()
-            && "Unsupported uniform type."
-        );
-        assert(pimpl->m_pass_info.find(pass) != pimpl->m_pass_info.end() && "Cannot find pass.");
-        assert(
-            pimpl->m_parent_template.lock()->GetInBlockVariable(index, pass).block_location.set
-            && "Cannot find uniform in designated pass."
-        );
-
-        pimpl->m_inblock_variables[pass][index] = uniform;
-        pimpl->m_pass_info[pass]._is_ubo_dirty.set();
+    void MaterialInstance::AssignTexture(const std::string &name, std::shared_ptr <const Texture> texture) {
+        this->pimpl->SetDescriptorDirtyFlags();
+        this->pimpl->parameters.Assign(name, texture);
     }
 
-    void MaterialInstance::WriteUBO(uint32_t pass) {
-        assert(pimpl->m_pass_info.contains(pass) && "Cannot find pass.");
-        auto &pass_info = pimpl->m_pass_info[pass];
-        auto fif = m_system.GetFrameManager().GetTotalFrame() % pass_info.BACK_BUFFERS;
-        if (!pass_info._is_ubo_dirty[fif]) return;
-
-        auto tpl = pimpl->m_parent_template.lock();
-
-        // write uniform buffer
-        auto &ubo = *(pass_info.ubo.get());
-        tpl->PlaceUBOVariables(*this, pimpl->m_buffer, pass);
-        std::memcpy(ubo.GetSlicePtr(fif), pimpl->m_buffer.data(), ubo.GetSliceSize());
-        ubo.FlushSlice(fif);
-
-        pass_info._is_ubo_dirty.reset(fif);
+    void MaterialInstance::AssignBuffer(const std::string &name, std::shared_ptr <const Buffer> buffer) {
+        this->pimpl->SetDescriptorDirtyFlags();
+        this->pimpl->parameters.Assign(name, buffer);
     }
 
-    void MaterialInstance::WriteDescriptors(uint32_t pass) {
-        assert(pimpl->m_pass_info.contains(pass) && "Cannot find pass.");
-        auto &pass_info = pimpl->m_pass_info[pass];
-        auto fif = m_system.GetFrameManager().GetTotalFrame() % pass_info.BACK_BUFFERS;
-        if (!(pass_info.desc_set[fif])) return;
-        if (!pass_info._is_descriptor_set_dirty[fif]) return;
-
-        auto tpl = pimpl->m_parent_template.lock();
-
-        // Prepare descriptor writes
-        std::vector<vk::WriteDescriptorSet> writes;
-
-        auto image_writes = tpl->GetDescriptorImageInfo(*this, pass);
-        writes.reserve(image_writes.size() + 1);
-        for (const auto &[binding, image_info] : image_writes) {
-            vk::WriteDescriptorSet write{
-                pass_info.desc_set[fif],
-                binding,
-                0,
-                1,
-                // TODO: We need a better way to check if its storage image or texture image.
-                image_info.imageLayout == vk::ImageLayout::eGeneral ? vk::DescriptorType::eStorageImage
-                                                                    : vk::DescriptorType::eCombinedImageSampler,
-                &image_info,
-                nullptr,
-                nullptr
-            };
-            writes.push_back(write);
-        }
-
-        // write ubo descriptors
-        if (pass_info.ubo) {
-            auto &ubo = *(pass_info.ubo.get());
-            std::array<vk::DescriptorBufferInfo, 1> ubo_buffer_info = {
-                vk::DescriptorBufferInfo{ubo.GetBuffer(), ubo.GetSliceOffset(fif), ubo.GetSliceSize()}
-            };
-            vk::WriteDescriptorSet ubo_write{
-                pass_info.desc_set[fif], 0, 0, vk::DescriptorType::eUniformBuffer, {}, ubo_buffer_info, {}
-            };
-            writes.push_back(ubo_write);
-        }
-
-        m_system.getDevice().updateDescriptorSets(writes, {});
-        pass_info._is_descriptor_set_dirty.reset(fif);
+    const ShdrRfl::ShaderParameters &MaterialInstance::GetShaderParameters() const noexcept {
+        return pimpl->parameters;
     }
-    vk::DescriptorSet MaterialInstance::GetDescriptor(uint32_t pass) const {
-        return GetDescriptor(pass, m_system.GetFrameManager().GetTotalFrame() % impl::PassInfo::BACK_BUFFERS);
-    }
-    vk::DescriptorSet MaterialInstance::GetDescriptor(uint32_t pass, uint32_t backbuffer) const {
+
+    void MaterialInstance::UpdateGPUInfo(MaterialTemplate * tpl, uint32_t backbuffer) {
         assert(backbuffer < impl::PassInfo::BACK_BUFFERS);
-        return pimpl->m_pass_info.at(pass).desc_set[backbuffer];
+        assert(tpl);
+
+        auto itr = pimpl->m_pass_infos.find(tpl);
+        if (itr == pimpl->m_pass_infos.end()) {
+            SDL_LogVerbose(
+                SDL_LOG_CATEGORY_RENDER,
+                "Lazily allocating descriptor and UBOs for material template %p.",
+                (const void *)&tpl
+            );
+            itr = pimpl->CreatePassInfo(m_system, *tpl);
+        }
+        auto & pass_info = itr->second;
+
+        // First prepare descriptor writes
+        if (pass_info._is_descriptor_dirty[backbuffer]) {
+            // Point UBOs to internal buffers
+            for (const auto & kv : pass_info.ubos) {
+                this->pimpl->parameters.Assign(
+                    kv.first, 
+                    *(static_cast<const Buffer *>(kv.second.get())),
+                    kv.second->GetSliceOffset(backbuffer),
+                    kv.second->GetSliceSize()
+                );
+            }
+            auto writes_from_layout = tpl->GetReflectedShaderInfo().GenerateDescriptorSetWrite(2, pimpl->parameters);
+
+            std::vector <vk::WriteDescriptorSet> vk_writes {writes_from_layout.buffer.size() + writes_from_layout.image.size()};
+            std::vector <std::array<vk::DescriptorBufferInfo, 1>> vk_buffer_writes {writes_from_layout.buffer.size()};
+
+            size_t write_count = 0;
+            for (const auto & w : writes_from_layout.buffer) {
+                vk_buffer_writes[write_count][0] = vk::DescriptorBufferInfo{
+                        std::get<1>(w).buffer,
+                        std::get<1>(w).offset,
+                        std::get<1>(w).range
+                    };
+                vk_writes[write_count] = vk::WriteDescriptorSet{
+                    pass_info.desc_sets[backbuffer],
+                    std::get<0>(w),
+                    0,
+                    std::get<2>(w),
+                    {},
+                    vk_buffer_writes[write_count],
+                    {}
+                };
+                write_count ++;
+            }
+
+            for (const auto & w : writes_from_layout.image) {
+                vk_writes[write_count] = vk::WriteDescriptorSet {
+                    pass_info.desc_sets[backbuffer],
+                    std::get<0>(w),
+                    0,
+                    std::get<2>(w),
+                    { std::get<1>(w) }
+                };
+                write_count ++;
+            }
+            m_system.getDevice().updateDescriptorSets(vk_writes, {});
+            pass_info._is_descriptor_dirty[backbuffer] = false;
+        }
+
+        // Then do UBO buffer writes
+        if (pass_info._is_ubo_dirty[backbuffer]) {
+            const auto & splayout = tpl->GetReflectedShaderInfo();
+
+            for (const auto & kv : pass_info.ubos) {
+                auto itr = splayout.name_mapping.find(kv.first);
+                assert(itr != splayout.name_mapping.end());
+                auto pbuf = dynamic_cast<const ShdrRfl::SPInterfaceBuffer *>(itr->second);
+                assert(pbuf && pbuf->type == ShdrRfl::SPInterfaceBuffer::Type::UniformBuffer);
+
+                splayout.PlaceBufferVariable(
+                    this->pimpl->m_buffer,
+                    pbuf,
+                    this->pimpl->parameters
+                );
+
+                std::memcpy(kv.second->GetSlicePtr(backbuffer), this->pimpl->m_buffer.data(), this->pimpl->m_buffer.size());
+            }
+            
+            pass_info._is_ubo_dirty[backbuffer] = false;
+        }
+    }
+
+    void MaterialInstance::UpdateGPUInfo(
+        const std::string &tag, HomogeneousMesh::MeshVertexType type, uint32_t backbuffer
+    ) {
+        auto tpl = GetLibrary()->FindMaterialTemplate(tag, type);
+        this->UpdateGPUInfo(tpl, backbuffer);
+    }
+
+    vk::DescriptorSet MaterialInstance::GetDescriptor(MaterialTemplate *tpl, uint32_t backbuffer) const noexcept {
+        auto itr = pimpl->m_pass_infos.find(tpl);
+        if (itr == pimpl->m_pass_infos.end())   return nullptr;
+        return itr->second.desc_sets[backbuffer];
+    }
+
+    vk::DescriptorSet MaterialInstance::GetDescriptor(
+        const std::string &tag, HomogeneousMesh::MeshVertexType type, uint32_t backbuffer
+    ) const noexcept {
+        assert(backbuffer < impl::PassInfo::BACK_BUFFERS);
+
+        auto tpl = GetLibrary()->FindMaterialTemplate(tag, type);
+        assert(tpl);
+        return this->GetDescriptor(tpl, backbuffer);
     }
     void MaterialInstance::Instantiate(const MaterialAsset &asset) {
-        const auto &all_passes = pimpl->m_parent_template.lock()->GetAllPassInfo();
-        for (const auto &[pass_index, pass_info] : all_passes) {
-            for (const auto &[uniform_name, uniform_idx] : pass_info.inblock.names) {
-                auto itr = asset.m_properties.find(uniform_name);
-                if (itr == asset.m_properties.end()) {
-                    SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "In-block variable %s has no value.", uniform_name.c_str());
-                    continue;
-                }
-
-                auto &uniform = pass_info.inblock.vars[uniform_idx];
-                assert(
-                    itr->second.m_type == MaterialProperty::Type::Undefined
-                    && "A in-block variable has wrong descriptor type."
+        for (const auto & prop : asset.m_properties) {
+            auto p = prop.second;
+            switch(p.m_type) {
+            case MaterialProperty::Type::UBO:
+                break;
+            case MaterialProperty::Type::SSBO:
+                break;
+            case MaterialProperty::Type::StorageImage:
+                break;
+            case MaterialProperty::Type::Texture:
+            {
+                auto texture_asset =
+                    std::any_cast<std::shared_ptr<AssetRef>>(p.m_value)->as<Image2DTextureAsset>();
+                // TODO: We should allocate texture from assets in a pool.
+                auto texture = std::shared_ptr<ImageTexture>(std::move(ImageTexture::CreateUnique(this->m_system, *texture_asset)));
+                AssignTexture(prop.first, texture);
+                m_system.GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
+                    *texture, texture_asset->GetPixelData(), texture_asset->GetPixelDataSize()
                 );
-
-                switch (uniform.type) {
-                case ShaderUtils::InBlockVariableData::Type::Int:
-                    assert(itr->second.m_ubo_type == ShaderUtils::InBlockVariableData::Type::Int);
-                    this->WriteUBOUniform(pass_index, uniform_idx, std::any_cast<int>(itr->second.m_value));
-                    break;
-                case ShaderUtils::InBlockVariableData::Type::Float:
-                    assert(itr->second.m_ubo_type == ShaderUtils::InBlockVariableData::Type::Float);
-                    this->WriteUBOUniform(pass_index, uniform_idx, std::any_cast<float>(itr->second.m_value));
-                    break;
-                case ShaderUtils::InBlockVariableData::Type::Vec4:
-                    assert(itr->second.m_ubo_type == ShaderUtils::InBlockVariableData::Type::Vec4);
-                    this->WriteUBOUniform(pass_index, uniform_idx, std::any_cast<glm::vec4>(itr->second.m_value));
-                    break;
-                case ShaderUtils::InBlockVariableData::Type::Mat4:
-                    assert(itr->second.m_ubo_type == ShaderUtils::InBlockVariableData::Type::Mat4);
-                    this->WriteUBOUniform(pass_index, uniform_idx, std::any_cast<glm::vec4>(itr->second.m_value));
-                    break;
-                default:
-                    SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Unidentified in-block variable type.");
-                }
+                break;
             }
-
-            for (const auto &[desc_name, desc_idx] : pass_info.desc.names) {
-                auto itr = asset.m_properties.find(desc_name);
-                if (itr == asset.m_properties.end()) {
-                    SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Descriptor variable %s has no value.", desc_name.c_str());
-                    continue;
-                }
-
-                auto &descvar = pass_info.desc.vars[desc_idx];
-                assert(
-                    itr->second.m_ubo_type == MaterialProperty::InBlockVarType::Undefined
-                    && "A descriptor variable has wrong in-block type."
-                );
-
-                switch (descvar.type) {
-                case ShaderUtils::DesciptorVariableData::Type::UBO:
+            case MaterialProperty::Type::Simple:
+                switch(p.m_ubo_type) {
+                case MaterialProperty::InBlockVarType::Float:
+                    AssignScalarVariable("Material::" + prop.first, std::any_cast<float>(p.m_value));
                     break;
-                case ShaderUtils::DesciptorVariableData::Type::Texture: {
-                    assert(itr->second.m_type == MaterialProperty::Type::Texture);
-                    auto texture_asset =
-                        std::any_cast<std::shared_ptr<AssetRef>>(itr->second.m_value)->as<Image2DTextureAsset>();
-                    // TODO: We should allocate texture from assets in a pool.
-                    auto texture = std::make_shared<SampledTextureInstantiated>(m_system);
-                    texture->Instantiate(*texture_asset);
-                    this->WriteTextureUniform(pass_index, desc_idx, texture);
-                    m_system.GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
-                        *texture, texture_asset->GetPixelData(), texture_asset->GetPixelDataSize()
-                    );
+                case MaterialProperty::InBlockVarType::Int:
+                    AssignScalarVariable("Material::" + prop.first, std::any_cast<int>(p.m_value));
                     break;
-                }
+                case MaterialProperty::InBlockVarType::Vec4:
+                    AssignVectorVariable("Material::" + prop.first, std::any_cast<glm::vec4>(p.m_value));
+                    break;
+                case MaterialProperty::InBlockVarType::Mat4:
+                    AssignVectorVariable("Material::" + prop.first, std::any_cast<glm::mat4>(p.m_value));
+                    break;
                 default:
-                    SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Unidentified descriptor variable type.");
+                    ;
                 }
+                break;
+            default:
+                SDL_LogError(
+                    SDL_LOG_CATEGORY_RENDER,
+                    "Unidentified material property %s.",
+                    prop.first.c_str()
+                );
             }
         }
+    }
+    std::shared_ptr<MaterialLibrary> MaterialInstance::GetLibrary() const {
+        return pimpl->m_library.lock();
     }
 } // namespace Engine

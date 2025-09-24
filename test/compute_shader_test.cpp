@@ -24,38 +24,34 @@ int main(int argc, char *argv[]) {
     auto asys = cmc->GetAssetManager();
     asys->SetBuiltinAssetPath(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
     asys->LoadBuiltinAssets();
-    auto cs_ref = asys->GetNewAssetRef("~/shaders/test_compute.comp.spv.asset");
-    asys->LoadAssetImmediately(cs_ref);
 
-    auto cs = cs_ref->cas<ShaderAsset>();
-    auto ret = ShaderUtils::ReflectSpirvDataCompute(cs->binary);
-
-    assert(ret.desc.names.find("outputImage") != ret.desc.names.end() && ret.desc.names["outputImage"] == 0);
-    assert(
-        ret.desc.vars[0].set == 0 && ret.desc.vars[0].binding == 1
-        && ret.desc.vars[0].type == ShaderVariableProperty::Type::StorageImage
-    );
+    auto cs = std::make_shared<ShaderAsset>();
+    cs->LoadFromFile(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "shaders/fluid.comp.spv", ShaderAsset::ShaderType::Compute);
 
     auto rsys = cmc->GetRenderSystem();
 
-    auto color = std::make_shared<Engine::Texture>(*rsys);
-    Engine::Texture::TextureDesc desc{
+    Engine::RenderTargetTexture::RenderTargetTextureDesc desc{
         .dimensions = 2,
         .width = 1280,
         .height = 720,
         .depth = 1,
-        .format = Engine::ImageUtils::ImageFormat::R8G8B8A8SNorm,
-        .type = Engine::ImageUtils::ImageType::ColorGeneral,
         .mipmap_levels = 1,
         .array_layers = 1,
+        .format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R32G32B32A32SFloat,
+        .multisample = 1,
         .is_cube_map = false
     };
-    color->CreateTexture(desc, "Color Compute Test");
+
+    std::shared_ptr color_input = Engine::RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Color Compute Input");
+    std::shared_ptr color_output = Engine::RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Color Compute Output");
+    desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R8G8B8A8UNorm;
+    std::shared_ptr color_present = Engine::RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Color Present");
+    
     ComputeStage cstage{*rsys};
-    cstage.Instantiate(*cs_ref->cas<ShaderAsset>());
-    cstage.SetDescVariable(
-        cstage.GetVariableIndex("outputImage").value().first, std::const_pointer_cast<const Texture>(color)
-    );
+    cstage.Instantiate(*cs);
+    cstage.AssignTexture("outputImage", color_output);
+    cstage.AssignTexture("inputImage", color_input);
+    cstage.AssignTexture("outputColorImage", color_present);
 
     uint64_t frame_count = 0;
     while (++frame_count) {
@@ -74,18 +70,43 @@ int main(int argc, char *argv[]) {
         auto ccontext = rsys->GetFrameManager().GetComputeContext();
         ccontext.GetCommandBuffer().Begin();
         ccontext.UseImage(
-            *color, ComputeContext::ImageComputeAccessType::ShaderRandomWrite, ComputeContext::ImageAccessType::None
+            *color_input, 
+            ComputeContext::ImageComputeAccessType::ShaderReadRandomWrite, 
+            frame_count == 1 ? ComputeContext::ImageAccessType::None : ComputeContext::ImageAccessType::TransferWrite
+        );
+        ccontext.UseImage(
+            *color_output, ComputeContext::ImageComputeAccessType::ShaderRandomWrite, ComputeContext::ImageAccessType::None
+        );
+        ccontext.UseImage(
+            *color_present, ComputeContext::ImageComputeAccessType::ShaderRandomWrite, ComputeContext::ImageAccessType::None
         );
         auto ccb = dynamic_cast<ComputeCommandBuffer &>(ccontext.GetCommandBuffer());
 
         ccontext.PrepareCommandBuffer();
+        cstage.AssignScalarVariable("UBO::frame_count", static_cast<int>(frame_count));
         ccb.BindComputeStage(cstage);
         ccb.DispatchCompute(1280 / 16 + 1, 720 / 16 + 1, 1);
 
-        // We need this barrier to transfer image to color attachment layout for presenting.
+        // Blit back history info
         auto gcontext = rsys->GetFrameManager().GetGraphicsContext();
+        auto & tcontext = static_cast<TransferContext &>(gcontext);
+        tcontext.UseImage(
+            *color_output,
+            GraphicsContext::ImageTransferAccessType::TransferRead,
+            GraphicsContext::ImageAccessType::ShaderRandomWrite
+        );
+        tcontext.UseImage(
+            *color_input,
+            GraphicsContext::ImageTransferAccessType::TransferWrite,
+            GraphicsContext::ImageAccessType::ShaderReadRandomWrite
+        );
+        tcontext.PrepareCommandBuffer();
+        auto & tcb = dynamic_cast<TransferCommandBuffer &>(tcontext.GetCommandBuffer());
+        tcb.BlitColorImage(*color_output, *color_input);
+
+        // We need this barrier to transfer image to color attachment layout for presenting.
         gcontext.UseImage(
-            *color,
+            *color_present,
             GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite,
             GraphicsContext::ImageAccessType::ShaderRandomWrite
         );
@@ -94,13 +115,16 @@ int main(int argc, char *argv[]) {
 
         rsys->GetFrameManager().SubmitMainCommandBuffer();
         rsys->GetFrameManager().StageBlitComposition(
-            color->GetImage(),
-            vk::Extent2D{color->GetTextureDescription().width, color->GetTextureDescription().height},
+            color_present->GetImage(),
+            vk::Extent2D{
+                color_present->GetTextureDescription().width, 
+                color_present->GetTextureDescription().height
+            },
             rsys->GetSwapchain().GetExtent()
         );
         rsys->CompleteFrame();
 
-        SDL_Delay(5);
+        SDL_Delay(15);
     }
 
     rsys->WaitForIdle();

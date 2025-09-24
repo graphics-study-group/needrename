@@ -5,6 +5,8 @@
 #include <queue>
 #include <vector>
 
+#include "Render/RenderSystem/FrameManagerComponent.h"
+
 namespace Engine {
     class Texture;
     class HomogeneousMesh;
@@ -12,18 +14,16 @@ namespace Engine {
     namespace RenderSystemState {
         /// @brief A helper for submitting data to GPU.
         /// Used in `FrameManager`.
-        class SubmissionHelper final {
+        class SubmissionHelper final : public IFrameManagerComponent {
             using CmdOperation = std::function<void(vk::CommandBuffer)>;
 
         private:
-            RenderSystem &m_system;
-
             struct impl;
             std::unique_ptr<impl> pimpl;
 
         public:
             SubmissionHelper(RenderSystem &system);
-            ~SubmissionHelper();
+            virtual ~SubmissionHelper();
 
             /***
              * @brief Enqueue a vertex buffer uploading.
@@ -32,7 +32,7 @@ namespace Engine {
              * A
              * staging buffer is created, and will be de-allocated at the end of the frame.
              * 
- * @param
+             * @param
              * mesh A homogeneous mesh whose vertex buffer is to be updated.
              */
             void EnqueueVertexBufferSubmission(const HomogeneousMesh &mesh);
@@ -40,7 +40,7 @@ namespace Engine {
             /***
              * @brief Enqueue a texture buffer submission.
              * Record corresponding image
-             * barriers and buffer writes to a disposable command buffer at the beginning of a frame.
+             * barriers and buffer writes to a disposable command buffer.
              * A
              * staging buffer is created, and will be de-allocated at the end of the frame.
              * The layout of
@@ -62,7 +62,7 @@ namespace Engine {
             /**
              * @brief Enqueue a texture clear operation.
              * Record corresponding image
-             * barriers to a disposable command buffer at the beginning of a frame, and issue a clear operation.
+             * barriers to a disposable command buffer, and issue a clear operation.
  * The
              * layout of the image will be transferred to optimal for shader read after clear operation.
              *
@@ -85,12 +85,14 @@ namespace Engine {
              */
             void ExecuteSubmission();
 
+            void OnPreMainCbSubmission() override;
+
             /***
              * @brief Complete the frame. Wait for execution of the disposable command buffer,
              * de-allocate staging buffers,
              * reset the fence, and remove the command buffer.
- */
-            void CompleteFrame();
+             */
+            void OnFrameComplete() override;
         };
     } // namespace RenderSystemState
 } // namespace Engine

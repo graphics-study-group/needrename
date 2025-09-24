@@ -1,20 +1,38 @@
-#ifndef RENDER_MATERIAL_MATERIALINSTANCE_INCLUDED
-#define RENDER_MATERIAL_MATERIALINSTANCE_INCLUDED
+#ifndef PIPELINE_MATERIAL_MATERIALINSTANCE_INCLUDED
+#define PIPELINE_MATERIAL_MATERIALINSTANCE_INCLUDED
 
 #include "MaterialTemplate.h"
 #include "Render/Memory/Buffer.h"
-
+#include "Render/Renderer/HomogeneousMesh.h"
 #include "Asset/InstantiatedFromAsset.h"
 
 #include <any>
 
 namespace Engine {
-    class SampledTexture;
+    class Texture;
     class Buffer;
     class MaterialAsset;
+    class MaterialLibrary;
 
-    /// @brief A light-weight instance of a given material,
-    /// where all mutable data such as texture and uniforms are stored.
+    namespace ShdrRfl {
+        class ShaderParameters;
+    }
+
+    /**
+     * @brief A light-weight instance of a given material library.
+     * 
+     * It contains all mutable data (e.g. texture references, uniform variables)
+     * needed to draw a renderer.
+     * 
+     * Implementation-wise, it contains an unordered mapping from a specific
+     * pipeline (i.e. `MaterialTemplate`) to its underlying mutable data such
+     * as UBOs and descriptor sets, and an unordered mapping from names of
+     * variables to their values. When draw calls are initiated by a command
+     * buffer, after the pipeline to draw is determined, it updates these
+     * mutable data accordingly, and possibly perform lazy allocation.
+     * 
+     * It holds a pointer to the material library to facilitate draw calls.
+     */
     class MaterialInstance : public IInstantiatedFromAsset<MaterialAsset> {
     protected:
         RenderSystem &m_system;
@@ -22,103 +40,37 @@ namespace Engine {
         std::unique_ptr<impl> pimpl;
 
     public:
-        MaterialInstance(RenderSystem &system, std::shared_ptr<MaterialTemplate> tpl);
+        MaterialInstance(
+            RenderSystem &system,
+            std::shared_ptr <MaterialLibrary> library
+        );
         virtual ~MaterialInstance();
 
         /**
-         * @brief Get the template associated with this material instance.
-         * 
-         * This
-         * method returns a constant reference to the `MaterialTemplate` object
-         * that was used to create this
-         * material instance. The template provides information
-         * about the material's structure and
-         * configuration, including its passes,
-         * bindings, and other properties.
-         * 
-         *
-         * @return A constant reference to the `MaterialTemplate` associated with this material instance.
+         * @brief Acquire a reference to the underlying shader parameters.
          */
-        const MaterialTemplate &GetTemplate() const;
+        const ShdrRfl::ShaderParameters & GetShaderParameters() const noexcept;
+
+        void AssignScalarVariable(const std::string & name, std::variant<uint32_t, int32_t, float> value);
+        void AssignVectorVariable(const std::string & name, std::variant<glm::vec4, glm::mat4> value);
+        void AssignTexture(const std::string & name, std::shared_ptr <const Texture> texture);
+        void AssignBuffer(const std::string & name, std::shared_ptr <const Buffer> buffer);
 
         /**
-         * @brief Get the variables of a specific pass
-         *
-         * @param pass_index The index of
-         * the pass
-         * @return A reference to the variables map for the specified pass
-         */
-        const std::unordered_map<uint32_t, std::any> &GetInBlockVariables(uint32_t pass_index) const;
-
-        /**
-         * @brief Get the variables of a specific pass
-         *
-         * @param pass_index The index of
-         * the pass
-         * @return A reference to the variables map for the specified pass
-         */
-        const std::unordered_map<uint32_t, std::any> &GetDescVariables(uint32_t pass_index) const;
-
-        /**
-         * @brief Set the texture uniform descriptor to point to a given texture.
-         * @param name 
-
-         * * @param texture 
+         * @brief Upload current state of this instance to GPU:
+         * Performs descriptor writes and UBO buffer writes.
          * 
-         * TODO: Figure out a way to connect samplers with textures
+         * May perform lazy buffer or descriptor allocations.
          */
-        void WriteTextureUniform(uint32_t pass, uint32_t index, std::shared_ptr<const SampledTexture> texture);
-
-        /**
-         * @brief Set the storage buffer uniform descriptor to point to a given texture.
-         * @param
-         * name 
-         * @param buffer 
-         * 
-         * TODO: Figure out a way to connect samplers with
-         * textures
-         */
-        void WriteStorageBufferUniform(uint32_t pass, uint32_t index, std::shared_ptr<const Buffer> buffer);
-
-        /**
-         * @brief Set the uniform variable descriptor to point to a given value.
-         *
-         * This
-         * function sets the uniform variable descriptor for a specific pass and index.
-         * The provided uniform
-         * value is stored in the material instance's variables map.
-         *
-         * @param pass  The index of the
-         * pass to which the uniform belongs.
-         * @param index The index of the uniform within the pass.
-
-         * * @param uniform The uniform value to set, wrapped in a std::any object.
-         */
-        void WriteUBOUniform(uint32_t pass, uint32_t index, std::any uniform);
-
-        /**
-         * @brief Write out UBO changes if it is dirty.
-         * 
-         * You in general does not need
-         * to call this function. It is automatically called
-         * when a direct draw call is issued on a command
-         * buffer.
-         */
-        void WriteUBO(uint32_t pass);
-
-        /**
-         * @brief Write out pending descriptor changes to the descriptor set.
-         * Calls
-         * vk::WriteDescriptorSet to upload.
-         * 
-         * You in general does not need to call this function.
-         * It is automatically called
-         * when a direct draw call is issued on a command buffer.
-         * 
-
-         * * @param pass The index of the pass.
-         */
-        void WriteDescriptors(uint32_t pass);
+        void UpdateGPUInfo(
+            MaterialTemplate * tpl,
+            uint32_t backbuffer
+        );
+        void UpdateGPUInfo(
+            const std::string & tag,
+            HomogeneousMesh::MeshVertexType type,
+            uint32_t backbuffer
+        );
 
         /**
          * @brief Get the descriptor set for a specific pass
@@ -127,29 +79,22 @@ namespace Engine {
          * descriptor set associated with the given pass index.
          * The descriptor set contains the bindings for
          * various resources such as textures and uniform buffers.
+         * 
+         * If the descriptor is not yet allocated, a null handle
+         * will be returned.
          *
-         * @param pass_index The index of
-         * the pass
-         * @return A reference to the `vk::DescriptorSet` object associated with the specified pass
+         * @return A handle to the Descriptor Set object
 
          */
-        vk::DescriptorSet GetDescriptor(uint32_t pass) const;
-
-        /**
-         * @brief Get the descriptor set for a specific pass
-         *
-         * This method returns the
-         * descriptor set associated with the given pass index.
-         * The descriptor set contains the bindings for
-         * various resources such as textures and uniform buffers.
-         *
-         * @param pass_index The index of
-         * the pass
-         * @param backbuffer Which backbuffer
-         * @return A reference to the
-         * `vk::DescriptorSet` object associated with the specified pass
-         */
-        vk::DescriptorSet GetDescriptor(uint32_t pass, uint32_t backbuffer) const;
+        vk::DescriptorSet GetDescriptor(
+            MaterialTemplate * tpl,
+            uint32_t backbuffer
+        ) const noexcept;
+        vk::DescriptorSet GetDescriptor(
+            const std::string & tag,
+            HomogeneousMesh::MeshVertexType type,
+            uint32_t backbuffer
+        ) const noexcept;
 
         /**
          * @brief Instantiate a material asset to the material instance. Load properties to the uniforms.
@@ -158,7 +103,12 @@ namespace Engine {
          * @param asset The MaterialAsset to convert.
          */
         void Instantiate(const MaterialAsset &asset) override;
+
+        /**
+         * @brief Get the material library assigned to this instance.
+         */
+        std::shared_ptr <MaterialLibrary> GetLibrary() const;
     };
 } // namespace Engine
 
-#endif // RENDER_MATERIAL_MATERIALINSTANCE_INCLUDED
+#endif // PIPELINE_MATERIAL_MATERIALINSTANCE_INCLUDED

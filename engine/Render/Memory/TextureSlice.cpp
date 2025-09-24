@@ -1,7 +1,6 @@
 #include "TextureSlice.h"
 
 #include "Render/ImageUtilsFunc.h"
-#include "Render/Memory/SampledTexture.h"
 #include "Render/Memory/Texture.h"
 #include "Render/RenderSystem.h"
 
@@ -46,9 +45,5 @@ namespace Engine {
 
     vk::ImageView SlicedTextureView::GetImageView() const noexcept {
         return pimpl->m_view.get();
-    }
-    SlicedSampledTextureView::SlicedSampledTextureView(
-        RenderSystem &system, SampledTexture &texture, TextureSlice slice
-    ) : SlicedTextureView(system, texture, slice) {
     }
 } // namespace Engine

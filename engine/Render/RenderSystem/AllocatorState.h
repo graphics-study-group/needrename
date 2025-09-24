@@ -15,6 +15,7 @@ namespace vk {
     enum class Format;
     enum class ImageType;
     enum class SampleCountFlagBits : uint32_t;
+    enum class FormatFeatureFlagBits : uint32_t;
 
     class Extent3D;
 }
@@ -52,33 +53,17 @@ namespace Engine {
             void Create();
             VmaAllocator GetAllocator() const;
 
-            AllocatedMemory AllocateBuffer(BufferType type, size_t size, const std::string &name = "") const;
-
-            std::unique_ptr<AllocatedMemory> AllocateBufferUnique(
-                BufferType type, size_t size, const std::string &name = ""
-            ) const;
-
-            [[deprecated]]
-            AllocatedMemory AllocateImage(
-                ImageUtils::ImageType type, VkExtent3D dimension, VkFormat format, const std::string &name = ""
-            ) const;
-
-            [[deprecated]]
-            std::unique_ptr<AllocatedMemory> AllocateImageUnique(
-                ImageUtils::ImageType type, VkExtent3D dimension, VkFormat format, const std::string &name = ""
-            ) const;
-
-            [[deprecated]]
-            AllocatedMemory AllocateImageEx(
-                ImageUtils::ImageType type,
-                VkExtent3D dimension,
-                VkFormat format,
-                uint32_t miplevel,
-                uint32_t array_layers,
+            BufferAllocation AllocateBuffer(
+                BufferType type,
+                size_t size,
                 const std::string &name = ""
             ) const;
 
-            std::unique_ptr<AllocatedMemory> AllocateImageUniqueEx(
+            std::unique_ptr<BufferAllocation> AllocateBufferUnique(
+                BufferType type, size_t size, const std::string &name = ""
+            ) const noexcept;
+
+            ImageAllocation AllocateImage(
                 ImageUtils::ImageType type,
                 vk::ImageType dimension,
                 vk::Extent3D extent,
@@ -88,6 +73,22 @@ namespace Engine {
                 vk::SampleCountFlagBits samples,
                 const std::string &name = ""
             ) const;
+
+            std::unique_ptr<ImageAllocation> AllocateImageUnique(
+                ImageUtils::ImageType type,
+                vk::ImageType dimension,
+                vk::Extent3D extent,
+                vk::Format format,
+                uint32_t miplevel,
+                uint32_t array_layers,
+                vk::SampleCountFlagBits samples,
+                const std::string &name = ""
+            ) const noexcept;
+
+            bool QueryFormatFeatures(
+                vk::Format format,
+                vk::FormatFeatureFlagBits feature
+            ) const noexcept;
         };
     } // namespace RenderSystemState
 } // namespace Engine

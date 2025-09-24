@@ -2,39 +2,41 @@
 #include "Render/RenderSystem.h"
 
 namespace Engine {
-    Buffer::Buffer(std::shared_ptr<RenderSystem> system) : m_system(*system) {
+    Buffer::Buffer(
+        BufferAllocation && alloc,
+        size_t size
+    ) : m_size(size), allocation(std::move(alloc)){
     }
 
-    Buffer::Buffer(RenderSystem &system) : m_system(system) {
+    Buffer Buffer::Create(RenderSystem & system, BufferType type, size_t size, const std::string &name) {
+        auto &allocator_state = system.GetAllocatorState();
+        return Buffer(allocator_state.AllocateBuffer(type, size, name), size);
     }
 
-    void Buffer::Create(BufferType type, size_t size, const std::string &name) {
-        auto &allocator_state = m_system.GetAllocatorState();
-        m_allocated_memory = std::make_unique<AllocatedMemory>(allocator_state.AllocateBuffer(type, size, name));
-        m_size = size;
+    std::unique_ptr<Buffer> Buffer::CreateUnique(
+        RenderSystem &system, BufferType type, size_t size, const std::string &name
+    ) {
+        auto &allocator_state = system.GetAllocatorState();
+        return std::unique_ptr<Buffer>(new Buffer(allocator_state.AllocateBuffer(type, size, name), size));
     }
 
     vk::Buffer Buffer::GetBuffer() const {
-        return m_allocated_memory->GetBuffer();
+        return allocation.GetBuffer();
     }
 
     size_t Buffer::GetSize() const {
         return m_size;
     }
 
-    std::byte *Buffer::Map() const {
-        return m_allocated_memory->MapMemory();
+    std::byte *Buffer::GetVMAddress() {
+        return allocation.GetVMAddress();
     }
 
     void Buffer::Flush(size_t offset, size_t size) const {
-        m_allocated_memory->FlushMemory(offset, size);
+        allocation.FlushMemory(offset, size);
     }
 
     void Buffer::Invalidate(size_t offset, size_t size) const {
-        m_allocated_memory->InvalidateMemory(offset, size);
-    }
-
-    void Buffer::Unmap() const {
-        m_allocated_memory->UnmapMemory();
+        allocation.InvalidateMemory(offset, size);
     }
 } // namespace Engine

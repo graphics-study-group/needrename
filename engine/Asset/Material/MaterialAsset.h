@@ -19,8 +19,29 @@ namespace Engine {
     struct REFL_SER_CLASS(REFL_WHITELIST) MaterialProperty {
         REFL_SER_BODY(MaterialProperty)
 
-        using Type = ShaderVariableProperty::Type;
-        using InBlockVarType = ShaderInBlockVariableProperty::InBlockVarType;
+        enum class InBlockVarType {
+            Undefined,
+            Float,
+            Int,
+            Vec4,
+            Mat4
+        };
+
+        enum class Type {
+            Undefined,
+            // Uniform buffer object, i.e. a buffer for bulk uniform variables.
+            // This type of variable is automatically managed by the material system
+            // and should not appear in assets.
+            UBO,
+            // Shader storage buffer object.
+            SSBO,
+            // Texture to be sampled (or combined image sampler).
+            Texture,
+            // Storage image. Generally used in compute shaders.
+            StorageImage,
+            // Simple variable that does not occupy a descriptor slot.
+            Simple,
+        } type{};
 
         Type m_type{};
         InBlockVarType m_ubo_type{};
@@ -45,7 +66,7 @@ namespace Engine {
         virtual ~MaterialAsset() = default;
 
         REFL_SER_ENABLE std::string m_name{};
-        REFL_SER_ENABLE std::shared_ptr<AssetRef> m_template{};
+        REFL_SER_ENABLE std::shared_ptr<AssetRef> m_library{};
         REFL_SER_ENABLE std::unordered_map<std::string, MaterialProperty> m_properties{};
 
         friend class ObjLoader;

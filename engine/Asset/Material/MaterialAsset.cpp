@@ -5,19 +5,19 @@
 
 namespace Engine {
     MaterialProperty::MaterialProperty(float value) :
-        m_type(Type::Undefined), m_ubo_type(InBlockVarType::Float), m_value(value) {
+        m_type(Type::Simple), m_ubo_type(InBlockVarType::Float), m_value(value) {
     }
 
     MaterialProperty::MaterialProperty(int value) :
-        m_type(Type::Undefined), m_ubo_type(InBlockVarType::Int), m_value(value) {
+        m_type(Type::Simple), m_ubo_type(InBlockVarType::Int), m_value(value) {
     }
 
     MaterialProperty::MaterialProperty(const glm::vec4 &value) :
-        m_type(Type::Undefined), m_ubo_type(InBlockVarType::Vec4), m_value(value) {
+        m_type(Type::Simple), m_ubo_type(InBlockVarType::Vec4), m_value(value) {
     }
 
     MaterialProperty::MaterialProperty(const glm::mat4 &value) :
-        m_type(Type::Undefined), m_ubo_type(InBlockVarType::Mat4), m_value(value) {
+        m_type(Type::Simple), m_ubo_type(InBlockVarType::Mat4), m_value(value) {
     }
 
     MaterialProperty::MaterialProperty(const std::shared_ptr<AssetRef> &value) :
@@ -27,8 +27,28 @@ namespace Engine {
     void MaterialProperty::save_to_archive(Serialization::Archive &archive) const {
         Serialization::Json &json = *archive.m_cursor;
         switch (m_type) {
-        case Type::Undefined:
-            json["m_type"] = "Undefined";
+        case Type::UBO:
+            // Ignore UBO
+            break;
+        case Type::SSBO:
+            assert(!"Unimplemented");
+            break;
+        case Type::Texture: {
+            json["m_type"] = "Texture";
+            json["m_value"] = Serialization::Json::object();
+            Serialization::Archive temp_archive(archive, &json["m_value"]);
+            Serialization::serialize(std::any_cast<std::shared_ptr<AssetRef>>(m_value), temp_archive);
+            break;
+        }
+        case Type::StorageImage: {
+            json["m_type"] = "StorageImage";
+            json["m_value"] = Serialization::Json::object();
+            Serialization::Archive temp_archive(archive, &json["m_value"]);
+            Serialization::serialize(std::any_cast<std::shared_ptr<AssetRef>>(m_value), temp_archive);
+            break;
+        }
+        case Type::Simple:
+            json["m_type"] = "Simple";
             switch (m_ubo_type) {
             case InBlockVarType::Float: {
                 json["m_ubo_type"] = "Float";
@@ -56,37 +76,19 @@ namespace Engine {
             }
             case InBlockVarType::Undefined:
             default:
+                assert(!"Unidentified variable type.");
                 break;
             }
             break;
-        case Type::Texture: {
-            json["m_type"] = "Texture";
-            json["m_value"] = Serialization::Json::object();
-            Serialization::Archive temp_archive(archive, &json["m_value"]);
-            Serialization::serialize(std::any_cast<std::shared_ptr<AssetRef>>(m_value), temp_archive);
-            break;
-        }
-        case Type::StorageImage: {
-            json["m_type"] = "StorageImage";
-            json["m_value"] = Serialization::Json::object();
-            Serialization::Archive temp_archive(archive, &json["m_value"]);
-            Serialization::serialize(std::any_cast<std::shared_ptr<AssetRef>>(m_value), temp_archive);
-            break;
-        }
-        case Type::UBO:
-            // Ignore UBO
-            break;
-        case Type::StorageBuffer:
-            assert(false && "Unimplemented");
         }
     }
 
     void MaterialProperty::load_from_archive(Serialization::Archive &archive) {
         Serialization::Json &json = *archive.m_cursor;
         std::string type = json["m_type"];
-        if (type == "Undefined") {
+        if (type == "Simple") {
             std::string ubo_type = json["m_ubo_type"];
-            m_type = Type::Undefined;
+            m_type = Type::Simple;
             if (ubo_type == "Float") {
                 m_ubo_type = InBlockVarType::Float;
                 m_value = json["m_value"].get<float>();

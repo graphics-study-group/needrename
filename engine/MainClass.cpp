@@ -188,7 +188,7 @@ namespace Engine {
             "Main Pass"
         );
         this->renderer->SetActiveCamera(this->world->m_active_camera);
-        cb.DrawRenderers(renderer->GetRendererManager().FilterAndSortRenderers({}), 0);
+        cb.DrawRenderers("", renderer->GetRendererManager().FilterAndSortRenderers({}));
         cb.EndRendering();
 
         // context.UseImage(this->window->GetColorTexture(),

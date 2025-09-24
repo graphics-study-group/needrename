@@ -1,10 +1,14 @@
 #ifndef RENDER_RENDERER_HOMOGENEOUSMESH_INCLUDED
 #define RENDER_RENDERER_HOMOGENEOUSMESH_INCLUDED
 
-#include "Render/Memory/Buffer.h"
+namespace vk {
+    class Buffer;
+    class PipelineVertexInputStateCreateInfo;
+}
 
 namespace Engine {
     class AssetRef;
+    class Buffer;
     class RenderSystem;
 
     /// @brief A homogeneous mesh of only one material at runtime, constructed from mesh asset.
@@ -35,7 +39,7 @@ namespace Engine {
          * This method
          * is automatically called on mesh submission, and you typically do
          * not need to call it manually.
- */
+         */
         Buffer CreateStagingBuffer() const;
 
         /**
@@ -63,18 +67,16 @@ namespace Engine {
         /**
          * @brief Get vertex attribute buffers, along with their offsets in the buffer.
          * 
- * Our
+         * Our
          * vertex attributes are allocated in the same buffer with different offsets:
          * ```
-         * POSITION
-         * ... | BASICATTR ... | EXTENDEDATTR ... | SKINNEDATTR ... | INDEX ...
-         * ^ Offset 0   | ^ Offset 1 | ^
-         * Offset 2       | ^ Offset 3      | ^ Offset 4
+         * POSITION ... | BASICATTR ... | EXTENDEDATTR ... | SKINNEDATTR ... | INDEX ...
+         * ^ Offset 0   | ^ Offset 1    | ^ Offset 2       | ^ Offset 3      | ^ Offset 4
          * ```
          * Note that index buffer have a
          * different element count of the rest of buffers.
          */
-        std::pair<vk::Buffer, std::vector<vk::DeviceSize>> GetVertexBufferInfo() const;
+        std::pair<vk::Buffer, std::vector<uint64_t>> GetVertexBufferInfo() const;
 
         /**
          * @brief Get vertex index buffer, along with its offset in the buffer.
@@ -82,15 +84,13 @@ namespace Engine {
          * Our
          * vertex attributes along with indices are allocated in the same buffer with different offsets:
          * ```
-
-         * * POSITION ... | BASICATTR ... | EXTENDEDATTR ... | SKINNEDATTR ... | INDEX ...
-         * ^ Offset 0   | ^
-         * Offset 1    | ^ Offset 2       | ^ Offset 3      | ^ Offset 4
+         * POSITION ... | BASICATTR ... | EXTENDEDATTR ... | SKINNEDATTR ... | INDEX ...
+         * ^ Offset 0   | ^ Offset 1    | ^ Offset 2       | ^ Offset 3      | ^ Offset 4
          * ```
          * Note that index
          * buffer have a different element count of the rest of buffers.
          */
-        std::pair<vk::Buffer, vk::DeviceSize> GetIndexBufferInfo() const;
+        std::pair<vk::Buffer, uint64_t> GetIndexBufferInfo() const;
 
         /**
          * @brief Query `VkPipelineVertexInputStateCreateInfo` associated with the mesh type.

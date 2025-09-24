@@ -42,8 +42,9 @@ struct LowerPlaneMeshAsset : public MeshAsset {
     }
 };
 
-std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate() {
+std::pair<std::shared_ptr<MaterialLibraryAsset>, std::shared_ptr<MaterialTemplateAsset>> ConstructMaterial() {
     auto test_asset = std::make_shared<MaterialTemplateAsset>();
+    auto test_lib_asset = std::make_shared<MaterialLibraryAsset>();
     auto vs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/debug_writethrough.vert.spv.asset");
     auto fs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/debug_writethrough_mrt.frag.spv.asset");
     MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(vs_ref);
@@ -65,18 +66,23 @@ std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate() {
     mtspp.attachments.depth = ImageUtils::ImageFormat::D32SFLOAT;
     mtspp.shaders.shaders = std::vector<std::shared_ptr<AssetRef>>{vs_ref, fs_ref};
 
-    test_asset->properties.properties[0] = mtspp;
+    test_asset->properties = mtspp;
 
-    return test_asset;
+    test_lib_asset->m_name = "MRT Writethrough";
+    test_lib_asset->material_bundle[""] = {
+        {(uint32_t)HomogeneousMesh::MeshVertexType::Position, std::make_shared<AssetRef>(test_asset)}
+    };
+
+    return std::make_pair(test_lib_asset, test_asset);
 }
 
 RenderGraph BuildRenderGraph(
     RenderSystem *rsys,
-    Texture *color_1,
-    Texture *color_2,
-    Texture *color_3,
-    Texture *color_4,
-    Texture *depth,
+    RenderTargetTexture *color_1,
+    RenderTargetTexture *color_2,
+    RenderTargetTexture *color_3,
+    RenderTargetTexture *color_4,
+    RenderTargetTexture *depth,
     MaterialInstance *material,
     HomogeneousMesh *mesh
 ) {
@@ -87,7 +93,7 @@ RenderGraph BuildRenderGraph(
     rgb.UseImage(*color_3, IAT::ColorAttachmentWrite);
     rgb.UseImage(*color_4, IAT::ColorAttachmentWrite);
     rgb.UseImage(*depth, IAT::DepthAttachmentWrite);
-    rgb.RecordRasterizerPass([rsys, color_1, color_2, color_3, color_4, depth, material, mesh](GraphicsCommandBuffer &gcb) {
+    rgb.RecordRasterizerPassWithoutRT([rsys, color_1, color_2, color_3, color_4, depth, material, mesh](GraphicsCommandBuffer &gcb) {
         auto extent = rsys->GetSwapchain().GetExtent();
         gcb.BeginRendering(
             {
@@ -105,11 +111,11 @@ RenderGraph BuildRenderGraph(
         );
 
         gcb.SetupViewport(extent.width, extent.height, {{0, 0}, extent});
-        gcb.BindMaterial(*material, 0);
+        gcb.BindMaterial(*material, "", Engine::HomogeneousMesh::MeshVertexType::Position);
         // Push model matrix...
         vk::CommandBuffer rcb = gcb.GetCommandBuffer();
         rcb.pushConstants(
-            material->GetTemplate().GetPipelineLayout(0),
+            material->GetLibrary()->FindMaterialTemplate("", Engine::HomogeneousMesh::MeshVertexType::Position)->GetPipelineLayout(),
             vk::ShaderStageFlagBits::eVertex,
             0,
             ConstantData::PerModelConstantPushConstant::PUSH_RANGE_SIZE,
@@ -141,12 +147,11 @@ int main(int argc, char **argv) {
 
     // Prepare material
     cmc->GetAssetManager()->LoadBuiltinAssets();
-    auto test_asset = ConstructMaterialTemplate();
-
-    auto test_asset_ref = std::make_shared<AssetRef>(test_asset);
-    auto test_template = std::make_shared<MaterialTemplate>(*rsys);
-    test_template->Instantiate(*test_asset_ref->cas<MaterialTemplateAsset>());
-    auto test_material_instance = std::make_shared<MaterialInstance>(*rsys, test_template);
+    auto test_asset = ConstructMaterial();
+    auto test_asset_ref = std::make_shared<AssetRef>(test_asset.first);
+    auto test_library = std::make_shared<MaterialLibrary>(*rsys);
+    test_library->Instantiate(*test_asset_ref->cas<MaterialLibraryAsset>());
+    auto test_material_instance = std::make_shared<MaterialInstance>(*rsys, test_library);
 
     // Prepare mesh
     auto test_mesh_asset = std::make_shared<LowerPlaneMeshAsset>();
@@ -174,36 +179,28 @@ int main(int argc, char **argv) {
     }
 
     // Prepare attachments
-    Engine::Texture depth{*rsys};
-    auto color_1 = std::make_shared<Texture>(*rsys);
-    auto color_2 = std::make_shared<Texture>(*rsys);
-    auto color_3 = std::make_shared<Texture>(*rsys);
-    auto color_4 = std::make_shared<Texture>(*rsys);
-
-    Engine::Texture::TextureDesc desc{
+    RenderTargetTexture::RenderTargetTextureDesc desc{
         .dimensions = 2,
         .width = 1920,
         .height = 1080,
         .depth = 1,
-        .format = Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm,
-        .type = Engine::ImageUtils::ImageType::ColorGeneral,
         .mipmap_levels = 1,
         .array_layers = 1,
+        .format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::D32SFLOAT,
+        .multisample = 1,
         .is_cube_map = false
     };
-    color_1->CreateTexture(desc, "Color Attachment (Position)");
-    color_2->CreateTexture(desc, "Color Attachment (Vertex color)");
-    color_3->CreateTexture(desc, "Color Attachment (Normal)");
-    color_4->CreateTexture(desc, "Color Attachment (Texcoord)");
-
-    desc.format = Engine::ImageUtils::ImageFormat::D32SFLOAT;
-    desc.type = Engine::ImageUtils::ImageType::DepthImage;
-    depth.CreateTexture(desc, "Depth Attachment");
+    auto depth = RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Depth Attachment");
+    desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R8G8B8A8UNorm;
+    auto color_1 = RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Color Attachment (Position)");
+    auto color_2 = RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Color Attachment (Vertex color)");
+    auto color_3 = RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Color Attachment (Normal)");
+    auto color_4 = RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Color Attachment (Texcoord)");
 
     auto asys = cmc->GetAssetManager();
 
     RenderGraph rg{BuildRenderGraph(
-        rsys.get(), color_1.get(), color_2.get(), color_3.get(), color_4.get(), &depth, test_material_instance.get(), &test_mesh)
+        rsys.get(), color_1.get(), color_2.get(), color_3.get(), color_4.get(), depth.get(), test_material_instance.get(), &test_mesh)
     };
 
     bool quited = false;
@@ -226,7 +223,7 @@ int main(int argc, char **argv) {
         rsys->GetFrameManager().GetSubmissionHelper().EnqueueVertexBufferSubmission(test_mesh);
 
         auto index = rsys->StartFrame();
-        rg.Execute(rsys->GetFrameManager());
+        rg.Execute();
 
         vk::Image to_be_present;
         switch(color) {

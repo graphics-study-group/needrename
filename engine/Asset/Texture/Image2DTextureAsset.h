@@ -21,7 +21,7 @@ namespace Engine {
         REFL_SER_ENABLE ImageUtils::ImageFormat m_format{};
         REFL_SER_ENABLE unsigned m_mip_level{};
 
-        void LoadFromFile(const std::filesystem::path &path, bool gamma_to_linear = true);
+        void LoadFromFile(const std::filesystem::path &path, bool gamma_to_linear = false);
         const std::byte *GetPixelData() const;
         size_t GetPixelDataSize() const;
 

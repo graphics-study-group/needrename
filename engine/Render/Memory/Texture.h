@@ -8,6 +8,7 @@
 namespace vk {
     class Image;
     class ImageView;
+    class Sampler;
 } // namespace vk
 
 namespace Engine {
@@ -15,45 +16,90 @@ namespace Engine {
     class AllocatedMemory;
     class Buffer;
 
+    /**
+     *  @brief A base class for textures with handles to 
+     * allocated GPU resources. You should call named constructors
+     * of its derived classes to obtain an instance.
+     * 
+     * @note Movable but non-copyable.
+     */
     class Texture {
     public:
         using TextureDesc = ImageUtils::TextureDesc;
+        using SamplerDesc = ImageUtils::SamplerDesc;
 
     protected:
         RenderSystem &m_system;
-        TextureDesc m_desc;
-        std::unique_ptr<AllocatedMemory> m_image;
-        std::unique_ptr<SlicedTextureView> m_full_view;
-        std::string m_name;
 
-    public:
-        Texture(RenderSystem &) noexcept;
-        virtual ~Texture();
+        struct impl;
+        std::unique_ptr <impl> pimpl;
+        
+        // Used in move operator for copy-and-swap
+        Texture (RenderSystem &);
 
-        void CreateTexture(
-            uint32_t dimensions,
-            uint32_t width,
-            uint32_t height,
-            uint32_t depth,
-            ImageUtils::ImageFormat format,
-            ImageUtils::ImageType type,
-            uint32_t mipLevels,
-            uint32_t arrayLayers = 1,
-            bool isCubeMap = false,
-            std::string name = ""
+        Texture(
+            RenderSystem & system,
+            TextureDesc texture,
+            SamplerDesc sampler,
+            const std::string & name = ""
         );
 
-        void CreateTexture(TextureDesc desc, std::string name = "");
+    public:
 
-        const TextureDesc &GetTextureDescription() const noexcept;
+        Texture (const Texture &) = delete;
+        void operator= (const Texture &) = delete;
 
+        Texture (Texture &&) noexcept;
+        // I don't want to rewrite the whole reference mess, so just delete it.
+        Texture & operator = (Texture &&) noexcept = delete;
+        
+        virtual ~Texture();
+        /**
+         * @brief Get the description struct of this texture.
+         */
+        const TextureDesc & GetTextureDescription() const noexcept;
+
+        /**
+         * @brief Get the description struct of the sampler of this texture.
+         */
+        const SamplerDesc & GetSamplerDescription() const noexcept;
+
+        /**
+         * @brief Get the underlying handle of this texture.
+         */
         vk::Image GetImage() const noexcept;
 
+        /**
+         * @brief Get the underlying handle of the sampler.
+         */
+        vk::Sampler GetSampler() const noexcept;
+
+        /**
+         * @brief Get a slice referring to the whole range
+         * of its subresources (i.e. mipmaps and array layers)
+         */
         const SlicedTextureView &GetFullSlice() const noexcept;
 
+        /**
+         * @brief Get the underlying handle of the full texture slice.
+         */
         vk::ImageView GetImageView() const noexcept;
 
+        /**
+         * @brief Acquire a buffer large enough to hold the whole texture.
+         */
         Buffer CreateStagingBuffer() const;
+
+        /**
+         * @brief Whether this texture supports random access (UAV
+         * for HLSL, storage image for GLSL).
+         */
+        virtual bool SupportRandomAccess() const noexcept;
+
+        /**
+         * @brief Whether this texture supports atomic ops.
+         */
+        virtual bool SupportAtomicOperation() const noexcept;
     };
 } // namespace Engine
 

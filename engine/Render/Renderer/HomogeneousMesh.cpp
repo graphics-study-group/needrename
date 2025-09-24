@@ -3,6 +3,7 @@
 #include <Asset/Mesh/MeshAsset.h>
 
 #include "Render/RenderSystem.h"
+#include "Render/Memory/Buffer.h"
 #include "Render/Renderer/VertexStruct.h"
 
 #include <SDL3/SDL.h>
@@ -28,7 +29,7 @@ namespace Engine {
          * Called before
          * `CreateStagingBuffer()`.
          */
-        void FetchFromAsset();
+        void FetchFromAsset(RenderSystem & system);
         uint32_t GetVertexIndexCount() const;
         uint32_t GetVertexCount() const;
         uint64_t GetExpectedBufferSize() const;
@@ -45,15 +46,15 @@ namespace Engine {
 
         assert(type == MeshVertexType::Basic && "Unimplemented");
         pimpl->m_type = type;
-        pimpl->m_buffer = std::make_unique<Buffer>(system.lock());
+        pimpl->m_buffer = nullptr;
 
-        pimpl->FetchFromAsset();
+        pimpl->FetchFromAsset(*system.lock());
     }
 
     HomogeneousMesh::~HomogeneousMesh() {
     }
 
-    void HomogeneousMesh::impl::FetchFromAsset() {
+    void HomogeneousMesh::impl::FetchFromAsset(RenderSystem & system) {
         const uint64_t buffer_size = GetExpectedBufferSize();
 
         if (m_total_allocated_buffer_size != buffer_size) {
@@ -69,7 +70,7 @@ namespace Engine {
                 new_vertex_index_count,
                 buffer_size
             );
-            m_buffer->Create(Buffer::BufferType::Vertex, buffer_size, "Buffer - mesh vertices");
+            m_buffer = Buffer::CreateUnique(system, Buffer::BufferType::Vertex, buffer_size, "Buffer - mesh vertices");
             m_total_allocated_buffer_size = buffer_size;
 
             // Generate buffer offsets
@@ -109,17 +110,15 @@ namespace Engine {
     }
 
     Buffer HomogeneousMesh::CreateStagingBuffer() const {
-        pimpl->FetchFromAsset();
+        pimpl->FetchFromAsset(*m_system.lock());
 
         const uint64_t buffer_size = GetExpectedBufferSize();
 
-        Buffer buffer{m_system.lock()};
-        buffer.Create(Buffer::BufferType::Staging, buffer_size, "Buffer - mesh staging");
+        Buffer buffer = Buffer::Create(*m_system.lock(), Buffer::BufferType::Staging, buffer_size, "Buffer - mesh staging");
 
-        std::byte *data = buffer.Map();
+        std::byte *data = buffer.GetVMAddress();
         pimpl->WriteToMemory(data);
         buffer.Flush();
-        buffer.Unmap();
 
         return buffer;
     }
@@ -150,7 +149,7 @@ namespace Engine {
         };
     }
 
-    std::pair<vk::Buffer, vk::DeviceSize> HomogeneousMesh::GetIndexBufferInfo() const {
+    std::pair<vk::Buffer, uint64_t> HomogeneousMesh::GetIndexBufferInfo() const {
         assert(pimpl->m_buffer->GetBuffer());
         // Last offset is the offset of index buffer.
         return std::make_pair(pimpl->m_buffer->GetBuffer(), *(pimpl->m_buffer_offsets.rbegin()));
@@ -197,7 +196,7 @@ namespace Engine {
         return *pimpl->m_buffer;
     }
 
-    std::pair<vk::Buffer, std::vector<vk::DeviceSize>> HomogeneousMesh::GetVertexBufferInfo() const {
+    std::pair<vk::Buffer, std::vector<uint64_t>> HomogeneousMesh::GetVertexBufferInfo() const {
         assert(pimpl->m_buffer->GetBuffer());
         return std::make_pair(pimpl->m_buffer->GetBuffer(), pimpl->m_buffer_offsets);
     }

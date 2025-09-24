@@ -8,28 +8,79 @@ namespace Engine {
         uint32_t slices;
 
         size_t aligned_slice_size;
-        void *base_ptr;
+        std::byte * base_ptr;
     };
 
-    IndexedBuffer::IndexedBuffer(RenderSystem &system) :
-        Buffer(system), pimpl(std::make_unique<IndexedBuffer::impl>()) {
+    IndexedBuffer::IndexedBuffer(
+        BufferAllocation && alloc, 
+        size_t size,
+        size_t slice_size,
+        size_t slice_alignment,
+        uint32_t slices,
+        size_t aligned_slice_size
+    ) : Buffer(std::move(alloc), size), 
+        pimpl(std::make_unique<IndexedBuffer::impl>(
+            slice_size, 
+            slice_alignment, 
+            slices, 
+            aligned_slice_size, 
+            nullptr
+        )) {
+        pimpl->base_ptr = Buffer::GetVMAddress();
     }
+
+    IndexedBuffer::IndexedBuffer(IndexedBuffer &&) noexcept = default;
+
+    IndexedBuffer &IndexedBuffer::operator=(IndexedBuffer &&) noexcept = default;
 
     IndexedBuffer::~IndexedBuffer() = default;
 
-    void IndexedBuffer::Create(
-        BufferType type, size_t slice_size, size_t slice_alignment, uint32_t slices, const std::string &name
+    IndexedBuffer IndexedBuffer::Create(
+        RenderSystem & system,
+        BufferType type,
+        size_t slice_size,
+        size_t slice_alignment,
+        uint32_t slices,
+        const std::string &name
     ) {
         assert(type == BufferType::Uniform && "Currently only uniform buffer can be indexed.");
-        std::tie(pimpl->slice_size, pimpl->slice_alignment, pimpl->slices) = {slice_size, slice_alignment, slices};
 
         size_t aligned_size =
             slice_alignment ? ((slice_size + slice_alignment - 1) & ~(slice_alignment - 1)) : slice_size;
-        pimpl->aligned_slice_size = aligned_size;
 
-        Buffer::Create(type, aligned_size * slices, name);
-        pimpl->base_ptr = Buffer::Map();
-        assert(pimpl->base_ptr);
+        auto &allocator_state = system.GetAllocatorState();
+        return IndexedBuffer(
+            allocator_state.AllocateBuffer(type, aligned_size * slices, name), 
+            aligned_size * slices,
+            slice_size,
+            slice_alignment,
+            slices,
+            aligned_size
+        );
+    }
+
+    std::unique_ptr<IndexedBuffer> IndexedBuffer::CreateUnique(
+        RenderSystem &system,
+        BufferType type,
+        size_t slice_size,
+        size_t slice_alignment,
+        uint32_t slices,
+        const std::string &name
+    ) {
+        assert(type == BufferType::Uniform && "Currently only uniform buffer can be indexed.");
+
+        size_t aligned_size =
+            slice_alignment ? ((slice_size + slice_alignment - 1) & ~(slice_alignment - 1)) : slice_size;
+
+        auto &allocator_state = system.GetAllocatorState();
+        return std::unique_ptr<IndexedBuffer>(new IndexedBuffer(
+                allocator_state.AllocateBuffer(type, aligned_size * slices, name), 
+                aligned_size * slices,
+                slice_size,
+                slice_alignment,
+                slices,
+                aligned_size
+            ));
     }
 
     size_t IndexedBuffer::GetSliceSize() const noexcept {

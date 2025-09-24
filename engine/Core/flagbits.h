@@ -36,7 +36,7 @@ namespace Engine {
         }
 
         /// @brief Convert to the underlying integer type.
-        constexpr explicit operator UnderlyingType() {
+        constexpr explicit operator UnderlyingType() const noexcept {
             return m_flags;
         }
 

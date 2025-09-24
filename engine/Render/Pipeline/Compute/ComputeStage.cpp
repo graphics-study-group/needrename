@@ -5,7 +5,10 @@
 #include "Render/Memory/Buffer.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/GlobalConstantDescriptorPool.h"
+#include "Render/Memory/ShaderParameters/ShaderParameter.h"
+#include "Render/Memory/ShaderParameters/ShaderParameterLayout.h"
 #include <string>
+#include <bitset>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -14,59 +17,40 @@
 namespace Engine {
 
     struct ComputeStage::impl {
-        std::unordered_map<uint32_t, std::any> m_desc_variables{};
-        std::unordered_map<uint32_t, std::any> m_inblock_variables{};
+        struct InstancedPassInfo {
+            static constexpr uint32_t BACK_BUFFERS = 3;
 
-        std::vector<std::byte> m_ubo_staging_buffer{};
+            std::unordered_map <std::string, std::unique_ptr<IndexedBuffer>> ubos{};
+
+            std::bitset<8> _is_ubo_dirty{};
+            std::bitset<8> _is_descriptor_dirty{};
+
+            std::array<vk::DescriptorSet, BACK_BUFFERS> desc_sets{};
+        } m_ipi;
+        
+        std::vector <std::byte> m_ubo_staging_buffer{};
 
         PassInfo m_passInfo{};
-        InstancedPassInfo m_instancedPassInfo{};
+        ShdrRfl::SPLayout layout{};
+        ShdrRfl::ShaderParameters parameters{};
 
         void CreatePipeline(RenderSystem &system, const ShaderAsset &asset) {
             assert(asset.shaderType == ShaderAsset::ShaderType::Compute);
             auto code = asset.binary;
 
-            auto reflected = ShaderUtils::ReflectSpirvDataCompute(code);
-// Save uniform locations (Reused from MaterialTemplate)
-#ifndef NDEBUG
-            std::unordered_set<std::string> names;
-            for (auto &[name, _] : reflected.inblock.names) {
-                if (names.find(name) != names.end()) {
-                    SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Duplicated variable name %s", name.c_str());
-                }
-                names.insert(name);
-            }
-            for (auto &[name, _] : reflected.desc.names) {
-                if (names.find(name) != names.end()) {
-                    SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Duplicated variable name %s", name.c_str());
-                }
-                names.insert(name);
-            }
-#endif
-            for (auto &[_, idx] : reflected.inblock.names) {
-                idx += m_passInfo.inblock.vars.size();
-            }
-            m_passInfo.inblock.names.merge(reflected.inblock.names);
-            m_passInfo.inblock.vars.insert(
-                m_passInfo.inblock.vars.end(), reflected.inblock.vars.begin(), reflected.inblock.vars.end()
-            );
-
-            for (auto &[_, idx] : reflected.desc.names) {
-                idx += m_passInfo.desc.vars.size();
-            }
-            m_passInfo.desc.names.merge(reflected.desc.names);
-            m_passInfo.desc.vars.insert(
-                m_passInfo.desc.vars.end(), reflected.desc.vars.begin(), reflected.desc.vars.end()
-            );
-
-            m_passInfo.inblock.maximal_ubo_size = 0;
-            for (const auto &var : m_passInfo.inblock.vars) {
-                m_passInfo.inblock.maximal_ubo_size = std::max(
-                    m_passInfo.inblock.maximal_ubo_size, 1ULL * var.inblock_location.offset + var.inblock_location.size
+            layout = ShdrRfl::SPLayout::Reflect(code, false);
+            auto desc_bindings = layout.GenerateAllLayoutBindings();
+            if (desc_bindings.size() > 1) {
+                SDL_LogWarn(
+                    SDL_LOG_CATEGORY_RENDER,
+                    "Found multiple descriptor sets. Only zeroth set is currently utilized."
                 );
             }
-
-            vk::DescriptorSetLayoutCreateInfo dslci = reflected.set_layout.create_info;
+            assert(desc_bindings.contains(0) && "Descriptor set zero is empty.");
+            vk::DescriptorSetLayoutCreateInfo dslci{
+                vk::DescriptorSetLayoutCreateFlags{},
+                desc_bindings[0]
+            };
             m_passInfo.desc_layout = system.getDevice().createDescriptorSetLayoutUnique(dslci);
 
             vk::PipelineLayoutCreateInfo plci{vk::PipelineLayoutCreateFlags{}, {m_passInfo.desc_layout.get()}, {}};
@@ -98,102 +82,146 @@ namespace Engine {
     void ComputeStage::Instantiate(const ShaderAsset &asset) {
         pimpl->CreatePipeline(m_system, asset);
 
-        // Allocate uniform buffer and descriptor set
-        auto ubo_size = pimpl->m_passInfo.inblock.maximal_ubo_size;
-        if (ubo_size == 0) {
-            SDL_LogWarn(
-                SDL_LOG_CATEGORY_RENDER,
-                "Found zero-sized UBO when processing compute stage shader %s.",
-                asset.m_name.c_str()
-            );
-        } else {
-            pimpl->m_instancedPassInfo.ubo = std::make_unique<Buffer>(m_system);
-            pimpl->m_instancedPassInfo.ubo->Create(Buffer::BufferType::Uniform, ubo_size);
+        for (auto pinterface : pimpl->layout.interfaces) {
+            if (auto pbuffer = dynamic_cast <const ShdrRfl::SPInterfaceBuffer *>(pinterface)) {
+                if (pbuffer->type == ShdrRfl::SPInterfaceBuffer::Type::UniformBuffer) {
+                    auto ptype = dynamic_cast <const ShdrRfl::SPTypeSimpleStruct *>(pbuffer->underlying_type);
+                    assert(ptype);
+
+                    pimpl->m_ipi.ubos[pbuffer->name] = IndexedBuffer::CreateUnique(
+                        m_system,
+                        Buffer::BufferType::Uniform,
+                        ptype->expected_size,
+                        m_system.GetPhysicalDevice().getProperties().limits.minUniformBufferOffsetAlignment,
+                        impl::InstancedPassInfo::BACK_BUFFERS,
+                        std::format(
+                            "Indexed UBO {} for Material",
+                            pbuffer->name
+                        )
+                    );
+                }
+            }
         }
-        // TODO: We obviously need a new pool for compute decriptors
+
+        std::array <vk::DescriptorSetLayout, impl::InstancedPassInfo::BACK_BUFFERS> layouts{};
+        std::fill(layouts.begin(), layouts.end(), pimpl->m_passInfo.desc_layout.get());
         vk::DescriptorSetAllocateInfo dsai{
-            m_system.GetGlobalConstantDescriptorPool().get(), {pimpl->m_passInfo.desc_layout.get()}
+            m_system.GetGlobalConstantDescriptorPool().get(), layouts
         };
-        pimpl->m_instancedPassInfo.desc_set = m_system.getDevice().allocateDescriptorSets(dsai)[0];
+        auto desc_sets = m_system.getDevice().allocateDescriptorSets(dsai);
+
+        assert(desc_sets.size() == impl::InstancedPassInfo::BACK_BUFFERS);
+        for (int i = 0; i < impl::InstancedPassInfo::BACK_BUFFERS; i++) {
+            pimpl->m_ipi.desc_sets[i] = desc_sets[i];
+        }
+
+        pimpl->m_ipi._is_descriptor_dirty.set();
+        pimpl->m_ipi._is_ubo_dirty.set();
     }
 
     ComputeStage::~ComputeStage() = default;
 
-    void ComputeStage::SetInBlockVariable(uint32_t index, std::any var) {
-        pimpl->m_inblock_variables[index] = var;
-        pimpl->m_instancedPassInfo.is_descriptor_set_dirty = true;
-    }
+    void ComputeStage::UpdateGPUInfo(uint32_t backbuffer) {
+        assert(backbuffer < impl::InstancedPassInfo::BACK_BUFFERS);
+        // Maybe we should reorganize and reuse these loc.
+        // First prepare descriptor writes
+        if (pimpl->m_ipi._is_descriptor_dirty[backbuffer]) {
+            // Point UBOs to internal buffers
+            for (const auto & kv : pimpl->m_ipi.ubos) {
+                this->pimpl->parameters.Assign(
+                    kv.first, 
+                    *(kv.second.get()),
+                    kv.second->GetSliceOffset(backbuffer),
+                    kv.second->GetSliceSize()
+                );
+            }
+            auto writes_from_layout = pimpl->layout.GenerateDescriptorSetWrite(0, pimpl->parameters);
 
-    void ComputeStage::SetDescVariable(uint32_t index, std::any var) {
-        pimpl->m_desc_variables[index] = var;
-        pimpl->m_instancedPassInfo.is_descriptor_set_dirty = true;
-    }
+            std::vector <vk::WriteDescriptorSet> vk_writes {writes_from_layout.buffer.size() + writes_from_layout.image.size()};
+            std::vector <std::array<vk::DescriptorBufferInfo, 1>> vk_buffer_writes {writes_from_layout.buffer.size()};
 
-    std::optional<std::pair<uint32_t, bool>> ComputeStage::GetVariableIndex(const std::string &name) const noexcept {
-        auto itr = pimpl->m_passInfo.inblock.names.find(name);
-        if (itr == pimpl->m_passInfo.inblock.names.end()) {
-            auto nitr = pimpl->m_passInfo.desc.names.find(name);
-            return nitr == pimpl->m_passInfo.desc.names.end()
-                       ? std::nullopt
-                       : std::optional<std::pair<uint32_t, bool>>{std::make_pair(nitr->second, false)};
-        }
-        return std::make_pair(itr->second, true);
-    }
+            size_t write_count = 0;
+            for (const auto & w : writes_from_layout.buffer) {
+                vk_buffer_writes[write_count][0] = vk::DescriptorBufferInfo{
+                        std::get<1>(w).buffer,
+                        std::get<1>(w).offset,
+                        std::get<1>(w).range
+                    };
+                vk_writes[write_count] = vk::WriteDescriptorSet{
+                    pimpl->m_ipi.desc_sets[backbuffer],
+                    std::get<0>(w),
+                    0,
+                    std::get<2>(w),
+                    {},
+                    vk_buffer_writes[write_count],
+                    {}
+                };
+                write_count ++;
+            }
 
-    void ComputeStage::WriteDescriptorSet() {
-        auto &pass_info = pimpl->m_instancedPassInfo;
-
-        if (!pass_info.desc_set) return;
-        if (!pass_info.is_descriptor_set_dirty) return;
-
-        // Prepare descriptor writes
-        std::vector<vk::WriteDescriptorSet> writes;
-
-        auto image_writes = PipelineInfo::GetDescriptorImageInfo(pimpl->m_desc_variables, pimpl->m_passInfo, nullptr);
-        writes.reserve(image_writes.size() + 1);
-        for (const auto &[binding, image_info] : image_writes) {
-            vk::WriteDescriptorSet write{
-                pass_info.desc_set,
-                binding,
-                0,
-                1,
-                // TODO: We need a better way to check if its storage image or texture image.
-                image_info.imageLayout == vk::ImageLayout::eGeneral ? vk::DescriptorType::eStorageImage
-                                                                    : vk::DescriptorType::eCombinedImageSampler,
-                &image_info,
-                nullptr,
-                nullptr
-            };
-            writes.push_back(write);
-        }
-
-        // write ubo descriptors
-        if (pass_info.ubo) {
-            auto &ubo = *(pass_info.ubo.get());
-            std::array<vk::DescriptorBufferInfo, 1> ubo_buffer_info = {
-                vk::DescriptorBufferInfo{ubo.GetBuffer(), 0, vk::WholeSize}
-            };
-            vk::WriteDescriptorSet ubo_write{
-                pass_info.desc_set, 0, 0, vk::DescriptorType::eUniformBuffer, {}, ubo_buffer_info, {}
-            };
-            writes.push_back(ubo_write);
+            for (const auto & w : writes_from_layout.image) {
+                vk_writes[write_count] = vk::WriteDescriptorSet {
+                    pimpl->m_ipi.desc_sets[backbuffer],
+                    std::get<0>(w),
+                    0,
+                    std::get<2>(w),
+                    { std::get<1>(w) }
+                };
+                write_count ++;
+            }
+            m_system.getDevice().updateDescriptorSets(vk_writes, {});
+            pimpl->m_ipi._is_descriptor_dirty[backbuffer] = false;
         }
 
-        m_system.getDevice().updateDescriptorSets(writes, {});
-        pass_info.is_descriptor_set_dirty = false;
+        // Then do UBO buffer writes
+        if (pimpl->m_ipi._is_ubo_dirty[backbuffer]) {
+
+            for (const auto & kv : this->pimpl->m_ipi.ubos) {
+                auto itr = pimpl->layout.name_mapping.find(kv.first);
+                assert(itr != pimpl->layout.name_mapping.end());
+                auto pbuf = dynamic_cast<const ShdrRfl::SPInterfaceBuffer *>(itr->second);
+                assert(pbuf && pbuf->type == ShdrRfl::SPInterfaceBuffer::Type::UniformBuffer);
+
+                pimpl->layout.PlaceBufferVariable(
+                    this->pimpl->m_ubo_staging_buffer,
+                    pbuf,
+                    this->pimpl->parameters
+                );
+
+                std::memcpy(
+                    kv.second->GetSlicePtr(backbuffer),
+                    this->pimpl->m_ubo_staging_buffer.data(),
+                    this->pimpl->m_ubo_staging_buffer.size()
+                );
+            }
+            
+            pimpl->m_ipi._is_ubo_dirty[backbuffer] = false;
+        }
     }
 
-    void ComputeStage::WriteUBO() {
-        if (!pimpl->m_instancedPassInfo.ubo) return;
-        if (!pimpl->m_instancedPassInfo.is_ubo_dirty) return;
-
-        // write uniform buffer
-        auto &ubo = *(pimpl->m_instancedPassInfo.ubo.get());
-        PipelineInfo::PlaceUBOVariables(pimpl->m_inblock_variables, pimpl->m_passInfo, pimpl->m_ubo_staging_buffer);
-        std::memcpy(ubo.Map(), pimpl->m_ubo_staging_buffer.data(), ubo.GetSize());
-        ubo.Flush();
-
-        pimpl->m_instancedPassInfo.is_ubo_dirty = false;
+    void ComputeStage::AssignScalarVariable(
+        const std::string & name,
+        std::variant<uint32_t, int32_t, float> value) noexcept {
+        pimpl->parameters.Assign(name, value);
+        pimpl->m_ipi._is_ubo_dirty.set();
+    }
+    void ComputeStage::AssignVectorVariable(
+        const std::string & name,
+        std::variant<glm::vec4, glm::mat4> value) noexcept {
+        pimpl->parameters.Assign(name, value);
+        pimpl->m_ipi._is_ubo_dirty.set();
+    }
+    void ComputeStage::AssignTexture(
+        const std::string & name, 
+        std::shared_ptr <const Texture> texture) noexcept {
+        pimpl->parameters.Assign(name, texture);
+        pimpl->m_ipi._is_descriptor_dirty.set();
+    }
+    void ComputeStage::AssignBuffer(
+        const std::string & name,
+        std::shared_ptr <const Buffer> buffer) noexcept {
+        pimpl->parameters.Assign(name, buffer);
+        pimpl->m_ipi._is_descriptor_dirty.set();
     }
 
     vk::Pipeline ComputeStage::GetPipeline() const noexcept {
@@ -205,7 +233,8 @@ namespace Engine {
     vk::DescriptorSetLayout ComputeStage::GetDescriptorSetLayout() const noexcept {
         return pimpl->m_passInfo.desc_layout.get();
     }
-    vk::DescriptorSet ComputeStage::GetDescriptorSet() const noexcept {
-        return pimpl->m_instancedPassInfo.desc_set;
+    vk::DescriptorSet ComputeStage::GetDescriptorSet(uint32_t backbuffer) const noexcept {
+        assert(backbuffer < impl::InstancedPassInfo::BACK_BUFFERS);
+        return pimpl->m_ipi.desc_sets[backbuffer];
     }
 } // namespace Engine

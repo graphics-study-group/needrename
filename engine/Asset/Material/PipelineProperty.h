@@ -26,6 +26,26 @@ namespace Engine {
             float line_width{1.0f};
             CullingMode culling{CullingMode::None};
             FrontFace front{FrontFace::Counterclockwise};
+
+            /**
+             * @brief Depth bias slope factor.
+             * Mostly used for shadow maps.
+             * 
+             * If any of `depth_bias_slope` and `depth_bias_constant` is
+             * not applicable (e.g. NaNs or Infs) or they are both zero,
+             * depth bias will be disabled for the created pipeline.
+             */
+            float depth_bias_slope{0.0f};
+
+            /**
+             * @brief Depth bias constant factor.
+             * Mostly used for shadow maps.
+             * 
+             * If any of `depth_bias_slope` and `depth_bias_constant` is
+             * not applicable (e.g. NaNs or Infs) or they are both zero,
+             * depth bias will be disabled for the created pipeline.
+             */
+            float depth_bias_constant{0.0f};
         };
 
         struct REFL_SER_CLASS(REFL_BLACKLIST) StencilState {
@@ -84,14 +104,6 @@ namespace Engine {
             std::vector<std::shared_ptr<AssetRef>> shaders{};
             // TODO: Support shader specialization
             // std::vector <...> specialization;
-
-            /// @brief stores information regarding layout info, aka descriptors, shared across all stages.
-            /// @deprecated Automatically reflected from shader SPIR-V source code.
-            std::vector<ShaderVariableProperty> uniforms{};
-
-            /// @brief stores information of variables stored in the UBO.
-            /// @deprecated Automatically reflected from shader SPIR-V source code.
-            std::vector<ShaderInBlockVariableProperty> ubo_variables{};
         };
 
         /// @brief C.f.

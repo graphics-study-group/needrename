@@ -5,7 +5,7 @@
 #include <variant>
 
 namespace Engine {
-    class Texture;
+    class RenderTargetTexture;
     class SlicedTextureView;
 
     namespace AttachmentUtils {
@@ -32,7 +32,7 @@ namespace Engine {
         typedef std::variant<ColorClearValue, DepthClearValue> ClearValue;
 
         struct AttachmentDescription {
-            const Texture *texture{nullptr};
+            const RenderTargetTexture *texture{nullptr};
 
             /// @brief Sliced view of the texture. If left null, use the full view.
             const SlicedTextureView *texture_view{nullptr};

@@ -2,8 +2,8 @@
     "%data": {
         "&0": {
             "%type": "Engine::ShaderAsset",
-            "Asset::m_guid": "93A5902ADBF049AD90A65CA5C56F03BA",
-            "ShaderAsset::m_name": "test_compute.comp.spv",
+            "Asset::m_guid": "EC591BB43CF6474D8FFECFD9F61D71CB",
+            "ShaderAsset::m_name": "fluid.comp.spv",
             "ShaderAsset::m_entry_point": "main",
             "ShaderAsset::shaderType": 3
         }

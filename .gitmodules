@@ -2,3 +2,6 @@
 	path = third_party/imgui
 	url = https://github.com/ocornut/imgui.git
 	branch = docking
+[submodule "third_party/SPIRV-Cross"]
+	path = third_party/SPIRV-Cross
+	url = https://github.com/KhronosGroup/SPIRV-Cross.git

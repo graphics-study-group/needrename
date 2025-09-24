@@ -21,8 +21,9 @@
 using namespace Engine;
 namespace sch = std::chrono;
 
-std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate() {
+std::pair<std::shared_ptr<MaterialLibraryAsset>, std::shared_ptr<MaterialTemplateAsset>> ConstructMaterial() {
     auto test_asset = std::make_shared<MaterialTemplateAsset>();
+    auto lib_asset = std::make_shared<MaterialLibraryAsset>();
     auto vs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/pbr_base.vert.spv.asset");
     auto fs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef(
         "~/shaders/lambertian_cook_torrance.frag.spv.asset"
@@ -38,10 +39,14 @@ std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate() {
     mtspp.attachments.color_blending = {PipelineProperties::ColorBlendingProperties{}};
     mtspp.attachments.depth = ImageUtils::ImageFormat::D32SFLOAT;
     mtspp.shaders.shaders = std::vector<std::shared_ptr<AssetRef>>{vs_ref, fs_ref};
+    test_asset->properties = mtspp;
 
-    test_asset->properties.properties[0] = mtspp;
+    lib_asset->m_name = "LambertianCookTorrancePBR";
+    lib_asset->material_bundle[""] = {
+        {(uint32_t)HomogeneousMesh::MeshVertexType::Basic, std::make_shared<AssetRef>(test_asset)}
+    };
 
-    return test_asset;
+    return std::make_pair(lib_asset, test_asset);
 }
 
 class MeshComponentFromFile : public MeshComponent {
@@ -134,19 +139,17 @@ class MeshComponentFromFile : public MeshComponent {
 public:
     MeshComponentFromFile(
         std::filesystem::path mesh_file_name,
-        std::shared_ptr<MaterialTemplate> material_template,
-        std::shared_ptr<const SampledTexture> albedo
+        std::shared_ptr<MaterialLibrary> library,
+        std::shared_ptr<const Texture> albedo
     ) : MeshComponent(std::weak_ptr<GameObject>()), transform() {
         LoadMesh(mesh_file_name);
 
         auto system = m_system.lock();
         auto &helper = system->GetFrameManager().GetSubmissionHelper();
 
-        auto id_albedo = material_template->GetVariableIndex("albedoSampler", 0).value();
-        assert(id_albedo.second == false);
         for (size_t i = 0; i < m_submeshes.size(); i++) {
-            auto ptr = std::make_shared<MaterialInstance>(*system, material_template);
-            ptr->WriteTextureUniform(0, 1, albedo);
+            auto ptr = std::make_shared<MaterialInstance>(*system, library);
+            ptr->AssignTexture("albedoSampler", albedo);
             m_materials.push_back(ptr);
         }
     }
@@ -166,12 +169,9 @@ public:
         if (identity == 2) return;
         m_uniform_data = {.metalness = metalness, .roughness = roughness};
 
-        auto id_metalness = m_materials[0]->GetTemplate().GetVariableIndex("metalness", 0).value();
-        auto id_roughness = m_materials[0]->GetTemplate().GetVariableIndex("roughness", 0).value();
-        assert(id_metalness.second == true && id_roughness.second == true);
         for (auto &material : m_materials) {
-            material->WriteUBOUniform(0, id_metalness.first, metalness);
-            material->WriteUBOUniform(0, id_roughness.first, roughness);
+            material->AssignScalarVariable("Material::metalness", metalness);
+            material->AssignScalarVariable("Material::roughness", roughness);
         }
     }
 };
@@ -239,70 +239,52 @@ int main(int argc, char **argv) {
     asys->LoadAssetsInQueue();
 
     auto rsys = cmc->GetRenderSystem();
-    auto pbr_material_template_asset = ConstructMaterialTemplate();
-    auto pbr_material_template_asset_ref = std::make_shared<AssetRef>(pbr_material_template_asset);
-    auto pbr_material_template = std::make_shared<MaterialTemplate>(*rsys);
-    pbr_material_template->Instantiate(*pbr_material_template_asset_ref->cas<MaterialTemplateAsset>());
+    auto pbr_material_assets = ConstructMaterial();
+    auto pbr_material_asset_ref = std::make_shared<AssetRef>(pbr_material_assets.first);
+    auto pbr_material = std::make_shared<MaterialLibrary>(*rsys);
+    pbr_material->Instantiate(*pbr_material_assets.first);
 
     auto gsys = cmc->GetGUISystem();
     gsys->CreateVulkanBackend(ImageUtils::GetVkFormat(Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm));
 
-    std::shared_ptr hdr_color{std::make_shared<Texture>(*rsys)};
-    std::shared_ptr color{std::make_shared<Texture>(*rsys)};
-    std::shared_ptr depth{std::make_shared<Texture>(*rsys)};
-    Engine::Texture::TextureDesc desc{
+    RenderTargetTexture::RenderTargetTextureDesc desc{
         .dimensions = 2,
         .width = 1920,
         .height = 1080,
         .depth = 1,
-        .format = Engine::ImageUtils::ImageFormat::R11G11B10UFloat,
-        .type = Engine::ImageUtils::ImageType::ColorGeneral,
         .mipmap_levels = 1,
         .array_layers = 1,
+        .format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R11G11B10UFloat,
+        .multisample = 1,
         .is_cube_map = false
     };
-    hdr_color->CreateTexture(desc, "HDR Color Attachment");
-
-    desc.format = Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm;
-    color->CreateTexture(desc, "Color Attachment");
-
+    std::shared_ptr hdr_color{RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "HDR Color Attachment")};
+    desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R8G8B8A8UNorm;
+    std::shared_ptr color{RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Color Attachment")};
     desc.mipmap_levels = 1;
-    desc.format = Engine::ImageUtils::ImageFormat::D32SFLOAT;
-    desc.type = Engine::ImageUtils::ImageType::DepthImage;
-    depth->CreateTexture(desc, "Depth Attachment");
+    desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::D32SFLOAT;
+    std::shared_ptr depth{RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Depth Attachment")};
 
-    auto red_texture = std::make_shared<SampledTexture>(*rsys);
-    desc = {
-        .dimensions = 2,
-        .width = 4,
-        .height = 4,
-        .depth = 1,
-        .format = Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm,
-        .type = Engine::ImageUtils::ImageType::TextureImage,
-        .mipmap_levels = 1,
-        .array_layers = 1,
-        .is_cube_map = false
-    };
-    red_texture->CreateTextureAndSampler(desc, {}, "Sampled Albedo");
+    std::shared_ptr red_texture = ImageTexture::CreateUnique(
+        *rsys, 
+        ImageTexture::ImageTextureDesc{
+            .dimensions = 2,
+            .width = 4,
+            .height = 4,
+            .depth = 1,
+            .mipmap_levels = 1,
+            .array_layers = 1,
+            .format = ImageTexture::ImageTextureDesc::ImageTextureFormat::R8G8B8A8UNorm,
+            .is_cube_map = false
+        }, 
+        Texture::SamplerDesc{}, 
+        "Sampled Albedo"
+    );
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*red_texture, {1.0, 0.0, 0.0, 1.0});
-
-    auto cs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/bloom.comp.spv.asset");
-    assert(cs_ref);
-    MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(cs_ref);
-    auto bloom_compute_stage = std::make_shared<ComputeStage>(*rsys);
-    bloom_compute_stage->Instantiate(*cs_ref->cas<ShaderAsset>());
-    bloom_compute_stage->SetDescVariable(
-        bloom_compute_stage->GetVariableIndex("inputImage").value().first,
-        std::const_pointer_cast<const Texture>(hdr_color)
-    );
-    bloom_compute_stage->SetDescVariable(
-        bloom_compute_stage->GetVariableIndex("outputImage").value().first,
-        std::const_pointer_cast<const Texture>(color)
-    );
 
     // Setup mesh
     std::filesystem::path mesh_path{std::string(ENGINE_ASSETS_DIR) + "/sphere/sphere.obj"};
-    std::shared_ptr tmc = std::make_shared<MeshComponentFromFile>(mesh_path, pbr_material_template, red_texture);
+    std::shared_ptr tmc = std::make_shared<MeshComponentFromFile>(mesh_path, pbr_material, red_texture);
     rsys->GetRendererManager().RegisterRendererComponent(tmc);
 
     // Setup camera
@@ -313,6 +295,15 @@ int main(int argc, char **argv) {
     camera->set_aspect_ratio(1920.0 / 1080.0);
     camera->UpdateViewMatrix(transform);
     rsys->SetActiveCamera(camera);
+
+    // Setup compute shader
+    auto cs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/bloom.comp.spv.asset");
+    assert(cs_ref);
+    MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(cs_ref);
+    auto bloom_compute_stage = std::make_shared<ComputeStage>(*rsys);
+    bloom_compute_stage->Instantiate(*cs_ref->cas<ShaderAsset>());
+    bloom_compute_stage->AssignTexture("inputImage", hdr_color);
+    bloom_compute_stage->AssignTexture("outputImage", color);
 
     // Build render graph.
     RenderGraphBuilder rgb{*rsys};
@@ -336,7 +327,7 @@ int main(int argc, char **argv) {
             AttachmentUtils::DepthClearValue{1.0f, 0U}
         },
         [rsys](GraphicsCommandBuffer &gcb) {
-            gcb.DrawRenderers(rsys->GetRendererManager().FilterAndSortRenderers({}), 0);
+            gcb.DrawRenderers("", rsys->GetRendererManager().FilterAndSortRenderers({}));
         },
         "Color pass"
     );
@@ -356,7 +347,7 @@ int main(int argc, char **argv) {
 
     // GUI pass
     rgb.UseImage(*color, IAT::ColorAttachmentWrite);
-    rgb.RecordRasterizerPass([rsys, gsys, color](GraphicsCommandBuffer &gcb) {
+    rgb.RecordRasterizerPassWithoutRT([rsys, gsys, color](GraphicsCommandBuffer &gcb) {
         gsys->DrawGUI(
             {color.get(), nullptr, AttachmentUtils::LoadOperation::Load, AttachmentUtils::StoreOperation::Store},
             rsys->GetSwapchain().GetExtent(),
@@ -393,7 +384,7 @@ int main(int argc, char **argv) {
         // Draw
         auto index = rsys->StartFrame();
 
-        rg.Execute(rsys->GetFrameManager());
+        rg.Execute();
         rsys->GetFrameManager().StageBlitComposition(
             color->GetImage(),
             vk::Extent2D{color->GetTextureDescription().width, color->GetTextureDescription().height},

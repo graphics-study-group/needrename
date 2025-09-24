@@ -6,11 +6,12 @@
 #include <Framework/world/WorldSystem.h>
 #include <Core/Functional/SDLWindow.h>
 #include <MainClass.h>
-#include <Render/Memory/SampledTexture.h>
+#include <Render/Memory/RenderTargetTexture.h>
 #include <Render/Pipeline/CommandBuffer/GraphicsCommandBuffer.h>
 #include <Render/Pipeline/CommandBuffer/GraphicsContext.h>
 #include <Render/RenderSystem.h>
 #include <Render/RenderSystem/FrameManager.h>
+#include <Render/RenderSystem/SamplerManager.h>
 #include <backends/imgui_impl_vulkan.h>
 
 namespace Editor {
@@ -24,23 +25,22 @@ namespace Editor {
         SDL_GetWindowSizeInPixels(
             Engine::MainClass::GetInstance()->GetWindow()->GetWindow(), &m_texture_width, &m_texture_height
         );
-        m_color_texture = std::make_shared<Engine::SampledTexture>(*render_system);
-        m_depth_texture = std::make_shared<Engine::SampledTexture>(*render_system);
-        Engine::Texture::TextureDesc desc{
+
+        Engine::RenderTargetTexture::RenderTargetTextureDesc tdesc{
             .dimensions = 2,
             .width = (uint32_t)m_texture_width,
             .height = (uint32_t)m_texture_height,
             .depth = 1,
-            .format = Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm,
-            .type = Engine::ImageUtils::ImageType::ColorGeneral,
             .mipmap_levels = 1,
             .array_layers = 1,
+            .format = Engine::RenderTargetTexture::RTTFormat::R8G8B8A8UNorm,
             .is_cube_map = false
         };
-        m_color_texture->CreateTextureAndSampler(desc, {}, "Game color attachment");
-        desc.format = Engine::ImageUtils::ImageFormat::D32SFLOAT;
-        desc.type = Engine::ImageUtils::ImageType::SampledDepthImage;
-        m_depth_texture->CreateTextureAndSampler(desc, {}, "Game depth attachment");
+        Engine::Texture::SamplerDesc sdesc{};
+
+        m_color_texture = Engine::RenderTargetTexture::CreateUnique(*render_system, tdesc, sdesc, "Game color attachment");
+        tdesc.format = Engine::RenderTargetTexture::RTTFormat::D32SFLOAT;
+        m_depth_texture = Engine::RenderTargetTexture::CreateUnique(*render_system, tdesc, sdesc, "Game depth attachment");
 
         m_color_att_id = reinterpret_cast<ImTextureID>(ImGui_ImplVulkan_AddTexture(
             m_color_texture->GetSampler(), m_color_texture->GetImageView(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
@@ -77,8 +77,8 @@ namespace Editor {
         Engine::MainClass::GetInstance()->GetRenderSystem()->SetActiveCamera(
             Engine::MainClass::GetInstance()->GetWorldSystem()->m_active_camera
         );
-        cb.DrawRenderers(
-            Engine::MainClass::GetInstance()->GetRenderSystem()->GetRendererManager().FilterAndSortRenderers({}), 0
+        cb.DrawRenderers("",
+            Engine::MainClass::GetInstance()->GetRenderSystem()->GetRendererManager().FilterAndSortRenderers({})
         );
         cb.EndRendering();
     }

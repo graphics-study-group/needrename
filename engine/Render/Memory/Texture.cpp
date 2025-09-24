@@ -10,46 +10,26 @@
 
 namespace Engine {
 
-    Texture::Texture(RenderSystem &system) noexcept : m_system(system), m_full_view(nullptr) {
+    struct Texture::impl {
+        TextureDesc m_tdesc {};
+        SamplerDesc m_sdesc {};
+        std::unique_ptr <ImageAllocation> m_image {};
+        std::unique_ptr <SlicedTextureView> m_full_view {};
+        vk::Sampler m_sampler {};
+        std::string m_name {};
+    };
+
+    Texture::Texture(RenderSystem & system) : m_system(system), pimpl(nullptr) {
     }
 
-    Texture::~Texture() = default;
+    Texture::Texture(RenderSystem &system, TextureDesc texture, SamplerDesc sampler, const std::string &name) :
+        m_system(system), pimpl(std::make_unique<impl>()) {
 
-    void Texture::CreateTexture(
-        uint32_t dimension,
-        uint32_t width,
-        uint32_t height,
-        uint32_t depth,
-        ImageUtils::ImageFormat format,
-        ImageUtils::ImageType type,
-        uint32_t mipLevels,
-        uint32_t arrayLayers,
-        bool isCubeMap,
-        std::string name
-    ) {
-
-        this->CreateTexture(
-            TextureDesc{
-                .dimensions = dimension,
-                .width = width,
-                .height = height,
-                .depth = depth,
-                .format = format,
-                .type = type,
-                .mipmap_levels = mipLevels,
-                .array_layers = arrayLayers,
-                .is_cube_map = isCubeMap
-            },
-            name
-        );
-    }
-
-    void Texture::CreateTexture(TextureDesc desc, std::string name) {
         auto &allocator = m_system.GetAllocatorState();
-        auto dimension = desc.dimensions;
-        auto [width, height, depth] = std::tie(desc.width, desc.height, desc.depth);
-        auto mipLevels = desc.mipmap_levels;
-        auto arrayLayers = desc.array_layers;
+        auto dimension = texture.dimensions;
+        auto [width, height, depth] = std::tie(texture.width, texture.height, texture.depth);
+        auto mipLevels = texture.mipmap_levels;
+        auto arrayLayers = texture.array_layers;
 
         // Some prelimary checks
         assert(1 <= dimension && dimension <= 3);
@@ -60,40 +40,57 @@ namespace Engine {
         assert(arrayLayers >= 1);
 
         auto dim = dimension == 1 ? vk::ImageType::e1D : (dimension == 2 ? vk::ImageType::e2D : vk::ImageType::e3D);
-        this->m_image = allocator.AllocateImageUniqueEx(
-            desc.type,
+        pimpl->m_image = allocator.AllocateImageUnique(
+            texture.type,
             dim,
             vk::Extent3D{width, height, depth},
-            ImageUtils::GetVkFormat(desc.format),
+            ImageUtils::GetVkFormat(texture.format),
             mipLevels,
             arrayLayers,
             vk::SampleCountFlagBits::e1,
             name
         );
-        this->m_desc = desc;
-        this->m_name = name;
+        pimpl->m_tdesc = texture;
+        pimpl->m_name = name;
 
-        m_full_view = std::make_unique<SlicedTextureView>(
-            m_system, *this, TextureSlice{0, desc.mipmap_levels, 0, desc.array_layers}
+        pimpl->m_sampler = m_system.GetSamplerManager().GetSampler(sampler);
+        pimpl->m_sdesc = sampler;
+
+        pimpl->m_full_view = std::make_unique<SlicedTextureView>(
+            m_system, *this, TextureSlice{0, texture.mipmap_levels, 0, texture.array_layers}
         );
     }
 
+    Texture::Texture(Texture && o) noexcept : Texture(o.m_system) {
+        std::swap(this->pimpl, o.pimpl);
+    }
+
+    Texture::~Texture() = default;
+
     const Texture::TextureDesc &Texture::GetTextureDescription() const noexcept {
-        return this->m_desc;
+        return pimpl->m_tdesc;
+    }
+
+    const Texture::SamplerDesc &Texture::GetSamplerDescription() const noexcept {
+        return pimpl->m_sdesc;
     }
 
     vk::Image Engine::Texture::GetImage() const noexcept {
-        assert(this->m_image && this->m_image->GetImage());
-        return this->m_image->GetImage();
+        assert(pimpl->m_image && pimpl->m_image->GetImage());
+        return pimpl->m_image->GetImage();
     }
 
     const SlicedTextureView &Texture::GetFullSlice() const noexcept {
-        assert(m_full_view);
-        return *m_full_view;
+        assert(pimpl->m_full_view);
+        return *(pimpl->m_full_view);
     }
 
     vk::ImageView Engine::Texture::GetImageView() const noexcept {
         return this->GetFullSlice().GetImageView();
+    }
+
+    vk::Sampler Texture::GetSampler() const noexcept {
+        return pimpl->m_sampler;
     }
 
     Buffer Engine::Texture::CreateStagingBuffer() const {
@@ -104,11 +101,22 @@ namespace Engine {
                  & vk::ImageUsageFlagBits::eTransferSrc))
             && "A staging buffer is created, but the image does not support tranfer usage."
         );
-        uint64_t buffer_size = m_desc.height * m_desc.width * m_desc.depth * ImageUtils::GetPixelSize(m_desc.format);
+        uint64_t buffer_size = pimpl->m_tdesc.height 
+            * pimpl->m_tdesc.width * pimpl->m_tdesc.depth 
+            * ImageUtils::GetPixelSize(pimpl->m_tdesc.format);
         assert(buffer_size > 0);
 
-        Buffer buffer{m_system};
-        buffer.Create(Buffer::BufferType::Staging, buffer_size, "Buffer - texture staging");
-        return buffer;
+        return Buffer::Create(
+            m_system,
+            Buffer::BufferType::Staging,
+            buffer_size,
+            std::format("Buffer - texture ({}) staging", pimpl->m_name)
+        );
+    }
+    bool Texture::SupportRandomAccess() const noexcept {
+        return false;
+    }
+    bool Texture::SupportAtomicOperation() const noexcept {
+        return false;
     }
 } // namespace Engine

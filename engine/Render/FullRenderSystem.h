@@ -16,6 +16,7 @@
 #include "Render/RenderSystem/GlobalConstantDescriptorPool.h"
 #include "Render/RenderSystem/MaterialRegistry.h"
 #include "Render/RenderSystem/RendererManager.h"
+#include "Render/RenderSystem/SamplerManager.h"
 #include "Render/RenderSystem/Structs.h"
 #include "Render/RenderSystem/SubmissionHelper.h"
 #include "Render/RenderSystem/Swapchain.h"
@@ -38,9 +39,9 @@
 #include "Render/Renderer/Camera.h"
 #include "Render/Renderer/HomogeneousMesh.h"
 
-#include "Render/Memory/SampledTexture.h"
-#include "Render/Memory/SampledTextureInstantiated.h"
 #include "Render/Memory/Texture.h"
+#include "Render/Memory/RenderTargetTexture.h"
+#include "Render/Memory/ImageTexture.h"
 
 #include "Render/RenderSystem.h"
 

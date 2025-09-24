@@ -9,7 +9,6 @@ namespace vk {
 
 namespace Engine {
     class Texture;
-    class SampledTexture;
     class RenderSystem;
 
     struct TextureSlice {
@@ -22,8 +21,6 @@ namespace Engine {
     /**
      * @brief A slice (mipmap levels and array layers) of a given texture.
      * Wrapper around vk::ImageView.
-     *
-     * XXX: We need to think of a better way of distinguishing sampled and non-sampled textures.
      */
     class SlicedTextureView {
         RenderSystem &m_system;
@@ -40,11 +37,6 @@ namespace Engine {
         const Texture &GetTexture() const noexcept;
 
         vk::ImageView GetImageView() const noexcept;
-    };
-
-    class SlicedSampledTextureView : public SlicedTextureView {
-    public:
-        SlicedSampledTextureView(RenderSystem &system, SampledTexture &texture, TextureSlice slice);
     };
 } // namespace Engine
 

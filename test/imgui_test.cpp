@@ -30,28 +30,26 @@ int main(int argc, char **argv) {
     auto gsys = cmc->GetGUISystem();
     gsys->CreateVulkanBackend(ImageUtils::GetVkFormat(Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm));
 
-    Engine::Texture color{*rsys}, depth{*rsys};
-    Engine::Texture::TextureDesc desc{
+    Engine::RenderTargetTexture::RenderTargetTextureDesc desc{
         .dimensions = 2,
         .width = 1920,
         .height = 1080,
         .depth = 1,
-        .format = Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm,
-        .type = Engine::ImageUtils::ImageType::ColorAttachment,
         .mipmap_levels = 1,
         .array_layers = 1,
+        .format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R8G8B8A8UNorm,
+        .multisample = 1,
         .is_cube_map = false
     };
-    color.CreateTexture(desc, "Color Attachment");
-    desc.format = Engine::ImageUtils::ImageFormat::D32SFLOAT;
-    desc.type = Engine::ImageUtils::ImageType::DepthImage;
-    depth.CreateTexture(desc, "Depth Attachment");
+    auto color = RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Color attachment");
+    desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::D32SFLOAT;
+    auto depth = RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Depth attachment");
 
     Engine::AttachmentUtils::AttachmentDescription color_att, depth_att;
-    color_att.texture = &color;
+    color_att.texture = color.get();
     color_att.load_op = AttachmentUtils::LoadOperation::Clear;
     color_att.store_op = AttachmentUtils::StoreOperation::Store;
-    depth_att.texture = &depth;
+    depth_att.texture = depth.get();
     depth_att.load_op = AttachmentUtils::LoadOperation::Clear;
     depth_att.store_op = AttachmentUtils::StoreOperation::DontCare;
 
@@ -79,12 +77,12 @@ int main(int argc, char **argv) {
 
         cb.Begin();
         context.UseImage(
-            color,
+            *color,
             GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite,
             GraphicsContext::ImageAccessType::None
         );
         context.UseImage(
-            depth,
+            *depth,
             GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite,
             GraphicsContext::ImageAccessType::None
         );
@@ -93,7 +91,7 @@ int main(int argc, char **argv) {
         gsys->DrawGUI(color_att, extent, cb);
         cb.End();
         rsys->GetFrameManager().SubmitMainCommandBuffer();
-        rsys->GetFrameManager().StageCopyComposition(color.GetImage());
+        rsys->GetFrameManager().StageCopyComposition(color->GetImage());
         rsys->CompleteFrame();
 
         SDL_Delay(10);

@@ -197,8 +197,8 @@ namespace Engine {
         switch (material.illum) {
         case 2: // Blinn-Phong
         {
-            material_asset.m_template = m_manager.lock()->GetNewAssetRef(
-                std::filesystem::path("~/material_templates/BlinnPhongTemplate.asset")
+            material_asset.m_library = m_manager.lock()->GetNewAssetRef(
+                std::filesystem::path("~/material_libraries/BlinnPhongLibrary.asset")
             );
             material_asset.m_properties["ambient_color"] =
                 glm::vec4{material.ambient[0], material.ambient[1], material.ambient[2], 1.0f};
@@ -214,8 +214,8 @@ namespace Engine {
         }
         default: // unknown model, load every property
         {
-            material_asset.m_template = m_manager.lock()->GetNewAssetRef(
-                std::filesystem::path("~/material_templates/BlinnPhongTemplate.asset")
+            material_asset.m_library = m_manager.lock()->GetNewAssetRef(
+                std::filesystem::path("~/material_libraries/BlinnPhongLibrary.asset")
             );
             material_asset.m_properties["ambient"] =
                 glm::vec4{material.ambient[0], material.ambient[1], material.ambient[2], 1.0f};

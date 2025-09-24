@@ -64,8 +64,12 @@ struct HighPlaneMeshAsset : public MeshAsset {
     }
 };
 
-std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate() {
-    auto test_asset = std::make_shared<MaterialTemplateAsset>();
+std::array<std::shared_ptr<MaterialTemplateAsset>, 2> ConstructMaterialTemplate() {
+    std::array<std::shared_ptr<MaterialTemplateAsset>, 2> templates {
+        std::make_shared<MaterialTemplateAsset>(),
+        std::make_shared<MaterialTemplateAsset>()
+    };
+    
     auto shadow_map_vs_ref =
         MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/shadowmap.vert.spv.asset");
     auto vs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/blinn_phong.vert.spv.asset");
@@ -74,7 +78,8 @@ std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate() {
     MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(vs_ref);
     MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(fs_ref);
 
-    test_asset->name = "Blinn-Phong Lit";
+    templates[0]->name = "Blinn-Phong Lit";
+    templates[1]->name = "Shadow map pass";
 
     MaterialTemplateSinglePassProperties shadow_map_pass{}, lit_pass{};
     shadow_map_pass.shaders.shaders = std::vector{shadow_map_vs_ref};
@@ -83,10 +88,22 @@ std::shared_ptr<MaterialTemplateAsset> ConstructMaterialTemplate() {
     lit_pass.attachments.color = std::vector{ImageUtils::ImageFormat::R8G8B8A8UNorm};
     lit_pass.attachments.color_blending = std::vector{PipelineProperties::ColorBlendingProperties{}};
 
-    test_asset->properties.properties[0] = shadow_map_pass;
-    test_asset->properties.properties[1] = lit_pass;
+    templates[0]->properties = lit_pass;
+    templates[1]->properties = shadow_map_pass;
 
-    return test_asset;
+    return templates;
+}
+
+std::shared_ptr <MaterialLibraryAsset> ConstructMaterialLibrary(std::array<std::shared_ptr<MaterialTemplateAsset>, 2> & templates) {
+    std::shared_ptr <MaterialLibraryAsset> lib = std::make_shared<MaterialLibraryAsset>();
+    lib->m_name = "Blinn-Phong w. Shadowmap";
+    lib->material_bundle["Lit"] = std::unordered_map<uint32_t, std::shared_ptr<AssetRef>> {
+        {static_cast<uint32_t>(HomogeneousMesh::MeshVertexType::Basic), std::make_shared<AssetRef>(templates[0])}
+    };
+    lib->material_bundle["Shadowmap"] = std::unordered_map<uint32_t, std::shared_ptr<AssetRef>> {
+        {static_cast<uint32_t>(HomogeneousMesh::MeshVertexType::Position), std::make_shared<AssetRef>(templates[1])}
+    };
+    return lib;
 }
 
 int main(int argc, char **argv) {
@@ -109,8 +126,7 @@ int main(int argc, char **argv) {
     // Prepare texture
     auto test_texture_asset = std::make_shared<Image2DTextureAsset>();
     test_texture_asset->LoadFromFile(std::string(ENGINE_ASSETS_DIR) + "/bunny/bunny.png");
-    auto allocated_image_texture = std::make_shared<SampledTextureInstantiated>(*rsys);
-    allocated_image_texture->Instantiate(*test_texture_asset);
+    auto allocated_image_texture = ImageTexture::CreateUnique(*rsys, *test_texture_asset);
 
     // Prepare mesh
     auto test_mesh_asset = std::make_shared<LowerPlaneMeshAsset>();
@@ -142,53 +158,55 @@ int main(int argc, char **argv) {
     }
 
     // Prepare attachments
-    auto color = std::make_shared<Engine::Texture>(*rsys);
-    auto depth = std::make_shared<Engine::Texture>(*rsys);
-    auto shadow = std::make_shared<Engine::SampledTexture>(*rsys);
-    auto blank_color = std::make_shared<Engine::SampledTexture>(*rsys);
-    Engine::Texture::TextureDesc desc{
+    Engine::RenderTargetTexture::RenderTargetTextureDesc desc{
         .dimensions = 2,
         .width = 1920,
         .height = 1080,
         .depth = 1,
-        .format = Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm,
-        .type = Engine::ImageUtils::ImageType::ColorAttachment,
         .mipmap_levels = 1,
         .array_layers = 1,
+        .format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R8G8B8A8UNorm,
+        .multisample = 1,
         .is_cube_map = false
     };
-    color->CreateTexture(desc, "Color attachment");
-    desc.format = Engine::ImageUtils::ImageFormat::D32SFLOAT;
-    desc.type = Engine::ImageUtils::ImageType::DepthImage;
-    depth->CreateTexture(desc, "Depth attachment");
+    std::shared_ptr color = Engine::RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Color attachment");
+    desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::D32SFLOAT;
+    std::shared_ptr depth = Engine::RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Depth attachment");
     desc.width = desc.height = 2048;
-    desc.type = Engine::ImageUtils::ImageType::SampledDepthImage;
-    shadow->CreateTextureAndSampler(desc, {}, "Shadow map");
-    desc.width = desc.height = 16;
-    desc.format = Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm;
-    desc.type = Engine::ImageUtils::ImageType::TextureImage;
-    blank_color->CreateTextureAndSampler(desc, {}, "Blank color");
+    std::shared_ptr shadow = Engine::RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Depth attachment");
+    std::shared_ptr blank_color = Engine::ImageTexture::CreateUnique(
+        *rsys, 
+        ImageTexture::ImageTextureDesc{
+            .dimensions = 2,
+            .width = 16,
+            .height = 16,
+            .depth = 1,
+            .mipmap_levels = 1,
+            .array_layers = 1,
+            .format = ImageTexture::ImageTextureDesc::ImageTextureFormat::R8G8B8A8UNorm,
+            .is_cube_map = false
+        }, 
+        Texture::SamplerDesc{}, 
+        "Blank color"
+    );
 
     // Prepare material
     cmc->GetAssetManager()->LoadBuiltinAssets();
-    auto test_asset = ConstructMaterialTemplate();
-    auto test_asset_ref = std::make_shared<AssetRef>(test_asset);
-    auto test_template = std::make_shared<MaterialTemplate>(*rsys);
-    test_template->Instantiate(*test_asset_ref->cas<MaterialTemplateAsset>());
-    auto test_material_instance = std::make_shared<MaterialInstance>(*rsys, test_template);
-    test_material_instance->WriteDescriptors(0);
-    test_material_instance->WriteUBOUniform(
-        1, test_template->GetVariableIndex("ambient_color", 1).value().first, glm::vec4(0.0, 0.0, 0.0, 0.0)
+    auto test_template_assets = ConstructMaterialTemplate();
+    auto test_library_asset = ConstructMaterialLibrary(test_template_assets);
+    auto test_library_asset_ref = std::make_shared<AssetRef>(test_library_asset);
+    auto test_library = std::make_shared<MaterialLibrary>(*rsys);
+    test_library->Instantiate(*test_library_asset_ref->cas<MaterialLibraryAsset>());
+    auto test_material_instance = std::make_shared<MaterialInstance>(*rsys, test_library);
+    test_material_instance->AssignVectorVariable(
+        "ambient_color", glm::vec4(0.0, 0.0, 0.0, 0.0)
     );
-    test_material_instance->WriteUBOUniform(
-        1, test_template->GetVariableIndex("specular_color", 1).value().first, glm::vec4(1.0, 1.0, 1.0, 64.0)
+    test_material_instance->AssignVectorVariable(
+        "specular_color", glm::vec4(1.0, 1.0, 1.0, 64.0)
     );
-    test_material_instance->WriteTextureUniform(
-        1, test_template->GetVariableIndex("base_tex", 1).value().first, blank_color
+    test_material_instance->AssignTexture(
+        "base_tex", blank_color
     );
-    // test_material_instance->WriteTextureUniform(1, test_template->GetVariableIndex("shadowmap_tex", 1).value().first,
-    // shadow);
-    test_material_instance->WriteDescriptors(1);
 
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueVertexBufferSubmission(test_mesh);
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueVertexBufferSubmission(test_mesh_2);
@@ -203,8 +221,8 @@ int main(int argc, char **argv) {
 
     using IAT = AccessHelper::ImageAccessType;
     rgb.UseImage(*shadow, IAT::DepthAttachmentWrite);
-    rgb.RecordRasterizerPass(
-        [rsys, shadow, test_template, test_material_instance, &test_mesh, &test_mesh_2](GraphicsCommandBuffer &gcb) {
+    rgb.RecordRasterizerPassWithoutRT(
+        [rsys, shadow, test_library, test_material_instance, &test_mesh, &test_mesh_2](GraphicsCommandBuffer &gcb) {
             vk::Extent2D shadow_map_extent{2048, 2048};
             vk::Rect2D shadow_map_scissor{{0, 0}, shadow_map_extent};
             gcb.BeginRendering(
@@ -214,11 +232,11 @@ int main(int argc, char **argv) {
                 "Shadowmap Pass"
             );
             gcb.SetupViewport(shadow_map_extent.width, shadow_map_extent.height, shadow_map_scissor);
-            gcb.BindMaterial(*test_material_instance, 0);
+            gcb.BindMaterial(*test_material_instance, "Shadowmap", HomogeneousMesh::MeshVertexType::Basic);
 
             vk::CommandBuffer rcb = gcb.GetCommandBuffer();
             rcb.pushConstants(
-                test_template->GetPipelineLayout(0),
+                test_library->FindMaterialTemplate("Shadowmap", HomogeneousMesh::MeshVertexType::Basic)->GetPipelineLayout(),
                 vk::ShaderStageFlagBits::eVertex,
                 0,
                 ConstantData::PerModelConstantPushConstant::PUSH_RANGE_SIZE,
@@ -240,15 +258,15 @@ int main(int argc, char **argv) {
          AttachmentUtils::LoadOperation::Clear,
          AttachmentUtils::StoreOperation::DontCare,
          AttachmentUtils::DepthClearValue{1.0f, 0U}},
-        [rsys, test_material_instance, test_template, &test_mesh, &test_mesh_2](GraphicsCommandBuffer &gcb) {
+        [rsys, test_material_instance, test_library, &test_mesh, &test_mesh_2](GraphicsCommandBuffer &gcb) {
             vk::Extent2D extent{rsys->GetSwapchain().GetExtent()};
             vk::Rect2D scissor{{0, 0}, extent};
             gcb.SetupViewport(extent.width, extent.height, scissor);
-            gcb.BindMaterial(*test_material_instance, 1);
+            gcb.BindMaterial(*test_material_instance, "Lit", HomogeneousMesh::MeshVertexType::Basic);
             // Push model matrix...
             vk::CommandBuffer rcb = gcb.GetCommandBuffer();
             rcb.pushConstants(
-                test_template->GetPipelineLayout(0),
+                test_library->FindMaterialTemplate("Lit", HomogeneousMesh::MeshVertexType::Basic)->GetPipelineLayout(),
                 vk::ShaderStageFlagBits::eVertex,
                 0,
                 ConstantData::PerModelConstantPushConstant::PUSH_RANGE_SIZE,
@@ -289,7 +307,7 @@ int main(int argc, char **argv) {
         auto index = rsys->StartFrame();
         assert(index < 3);
 
-        rg.Execute(rsys->GetFrameManager());
+        rg.Execute();
         rsys->GetFrameManager().StageCopyComposition(color->GetImage());
         rsys->CompleteFrame();
 

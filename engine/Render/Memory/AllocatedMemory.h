@@ -5,6 +5,7 @@
 
 class VmaAllocation_T;
 class VmaAllocator_T;
+class VmaAllocationInfo;
 typedef VmaAllocation_T* VmaAllocation;
 typedef VmaAllocator_T* VmaAllocator;
 
@@ -14,65 +15,63 @@ namespace vk {
 } // namespace vk
 
 namespace Engine {
+    /**
+     * @brief A piece of contiguous memory allocated by Vulkan.
+     */
     class AllocatedMemory {
         struct impl;
         std::unique_ptr<impl> pimpl;
 
-        void ClearAndInvalidate();
-
     public:
-        AllocatedMemory(vk::Image image, VmaAllocation allocation, VmaAllocator allocator);
-        AllocatedMemory(vk::Buffer buffer, VmaAllocation allocation, VmaAllocator allocator);
-        ~AllocatedMemory();
+        AllocatedMemory(VmaAllocation allocation, VmaAllocator allocator);
+        virtual ~AllocatedMemory();
 
         AllocatedMemory(const AllocatedMemory &) = delete;
         void operator=(const AllocatedMemory &) = delete;
 
-        AllocatedMemory(AllocatedMemory &&other);
-        AllocatedMemory &operator=(AllocatedMemory &&other);
+        AllocatedMemory(AllocatedMemory &&other) noexcept;
+        AllocatedMemory &operator=(AllocatedMemory &&other) noexcept;
 
-        vk::Buffer GetBuffer() const;
-        vk::Image GetImage() const;
+        const VmaAllocation & GetAllocation() const noexcept;
+        const VmaAllocator & GetAllocator() const noexcept;
+        VmaAllocationInfo QueryAllocationInfo() const noexcept;
+    };
 
-        /**
-         * @brief Map the memory to a host pointer.
-         * 
-         * The pointer is cached in the
-         * class and automatically unmapped
-         * on deconstruction. You don't need to match `UnmapMemory()`
-         * manually
-         * before cleaning up.
-         */
-        std::byte *MapMemory();
+    class ImageAllocation : private AllocatedMemory {
+        struct impl;
+        std::unique_ptr <impl> pimpl;
+    public:
+        ImageAllocation(vk::Image image, VmaAllocation allocation, VmaAllocator allocator);
+        ~ImageAllocation();
 
-        /**
-         * @brief Flush the memory write to be visible on device.
-         * 
-         * Generally you don't
-         * need to manually call this member, as memories that
-         * need to be flushed are usually coherent.
- */
-        void FlushMemory(size_t offset = 0, size_t size = 0);
+        ImageAllocation(const ImageAllocation &) = delete;
+        void operator=(const ImageAllocation &) = delete;
 
-        /**
-         * @brief Invalidate the memory so that device write are visible on host.
-         * 
-         *
-         * Generally you don't need to manually call this member, as memories that
-         * need to be invalidated are
-         * usually coherent.
-         */
-        void InvalidateMemory(size_t offset = 0, size_t size = 0);
+        ImageAllocation(ImageAllocation && other) noexcept;
+        ImageAllocation & operator= (ImageAllocation && other) noexcept;
 
-        /**
-         * @brief Unmap the host pointer and reset the cached pointer.
-         * 
-         * Generally you
-         * don't need to manually call this member, as clean up is
-         * automatically done with RAII mechanism.
+        const vk::Image & GetImage() const noexcept;
+    };
 
-         */
-        void UnmapMemory();
+    class BufferAllocation : private AllocatedMemory {
+        struct impl;
+        std::unique_ptr <impl> pimpl;
+    public:
+        BufferAllocation(vk::Buffer buffer, VmaAllocation allocation, VmaAllocator allocator);
+        ~BufferAllocation();
+
+        BufferAllocation(const BufferAllocation &) = delete;
+        void operator=(const BufferAllocation &) = delete;
+
+        BufferAllocation(BufferAllocation && other) noexcept;
+        BufferAllocation & operator= (BufferAllocation && other) noexcept;
+
+        const vk::Buffer & GetBuffer() const noexcept;
+
+        std::byte * GetVMAddress();
+
+        void FlushMemory(size_t offset = 0, size_t size = 0) const;
+        void InvalidateMemory(size_t offset = 0, size_t size = 0) const;
     };
 } // namespace Engine
 

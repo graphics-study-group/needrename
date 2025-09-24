@@ -2,84 +2,76 @@
     "%data": {
         "&0": {
             "%type": "Engine::MaterialTemplateAsset",
-            "Asset::m_guid": "4C666B72830204D5D08AD8B29D4C3CBB",
-            "MaterialTemplateAsset::name": "Built-in Blinn-Phong",
+            "Asset::m_guid": "8343954977BA6A7CF658BFEE421AD515",
+            "MaterialTemplateAsset::name": "Blinn-Phong",
             "MaterialTemplateAsset::properties": {
-                "%type": "Engine::MaterialTemplateProperties",
-                "MaterialTemplateProperties::properties": [
-                    {
-                        "key": 0,
-                        "value": {
-                            "%type": "Engine::MaterialTemplateSinglePassProperties",
-                            "MaterialTemplateSinglePassProperties::attachments": {
-                                "%type": "Engine::PipelineProperties::Attachments",
-                                "Attachments::color": [
-                                    2
-                                ],
-                                "Attachments::color_blending": [
-                                    {
-                                        "%type": "Engine::PipelineProperties::ColorBlendingProperties",
-                                        "ColorBlendingProperties::alpha_op": 1,
-                                        "ColorBlendingProperties::color_op": 1,
-                                        "ColorBlendingProperties::color_write_mask": 15,
-                                        "ColorBlendingProperties::dst_alpha": 0,
-                                        "ColorBlendingProperties::dst_color": 7,
-                                        "ColorBlendingProperties::src_alpha": 1,
-                                        "ColorBlendingProperties::src_color": 6
-                                    }
-                                ],
-                                "Attachments::depth": 4,
-                                "Attachments::stencil": 0
-                            },
-                            "MaterialTemplateSinglePassProperties::depth_stencil": {
-                                "%type": "Engine::PipelineProperties::DSProperties",
-                                "DSProperties::depth_bound_test_enable": false,
-                                "DSProperties::depth_comparator": 1,
-                                "DSProperties::depth_test_enable": true,
-                                "DSProperties::depth_write_enable": true,
-                                "DSProperties::max_depth": 1.0,
-                                "DSProperties::min_depth": 0.0,
-                                "DSProperties::stencil_back": {
-                                    "%type": "Engine::PipelineProperties::StencilState",
-                                    "StencilState::comparator": 0,
-                                    "StencilState::compare_mask": 255,
-                                    "StencilState::fail_op": 0,
-                                    "StencilState::pass_op": 0,
-                                    "StencilState::reference": 0,
-                                    "StencilState::write_mask": 255,
-                                    "StencilState::zfail_op": 0
-                                },
-                                "DSProperties::stencil_front": {
-                                    "%type": "Engine::PipelineProperties::StencilState",
-                                    "StencilState::comparator": 0,
-                                    "StencilState::compare_mask": 255,
-                                    "StencilState::fail_op": 0,
-                                    "StencilState::pass_op": 0,
-                                    "StencilState::reference": 0,
-                                    "StencilState::write_mask": 255,
-                                    "StencilState::zfail_op": 0
-                                },
-                                "DSProperties::stencil_test_enable": false
-                            },
-                            "MaterialTemplateSinglePassProperties::rasterizer": {
-                                "%type": "Engine::PipelineProperties::RasterizerProperties",
-                                "RasterizerProperties::culling": 0,
-                                "RasterizerProperties::filling": 0,
-                                "RasterizerProperties::front": 0,
-                                "RasterizerProperties::line_width": 1.0
-                            },
-                            "MaterialTemplateSinglePassProperties::shaders": {
-                                "%type": "Engine::PipelineProperties::Shaders",
-                                "Shaders::shaders": [
-                                    "&1",
-                                    "&2"
-                                ],
-                                "Shaders::ubo_variables": [],
-                                "Shaders::uniforms": []
-                            }
+                "%type": "Engine::MaterialTemplateSinglePassProperties",
+                "MaterialTemplateSinglePassProperties::attachments": {
+                    "%type": "Engine::PipelineProperties::Attachments",
+                    "Attachments::color": [
+                        2
+                    ],
+                    "Attachments::color_blending": [
+                        {
+                            "%type": "Engine::PipelineProperties::ColorBlendingProperties",
+                            "ColorBlendingProperties::alpha_op": 1,
+                            "ColorBlendingProperties::color_op": 1,
+                            "ColorBlendingProperties::color_write_mask": 15,
+                            "ColorBlendingProperties::dst_alpha": 0,
+                            "ColorBlendingProperties::dst_color": 7,
+                            "ColorBlendingProperties::src_alpha": 1,
+                            "ColorBlendingProperties::src_color": 6
                         }
-                    }
-                ]
+                    ],
+                    "Attachments::depth": 6,
+                    "Attachments::stencil": 0
+                },
+                "MaterialTemplateSinglePassProperties::depth_stencil": {
+                    "%type": "Engine::PipelineProperties::DSProperties",
+                    "DSProperties::depth_bound_test_enable": false,
+                    "DSProperties::depth_comparator": 1,
+                    "DSProperties::depth_test_enable": true,
+                    "DSProperties::depth_write_enable": true,
+                    "DSProperties::max_depth": 1.0,
+                    "DSProperties::min_depth": 0.0,
+                    "DSProperties::stencil_back": {
+                        "%type": "Engine::PipelineProperties::StencilState",
+                        "StencilState::comparator": 0,
+                        "StencilState::compare_mask": 255,
+                        "StencilState::fail_op": 0,
+                        "StencilState::pass_op": 0,
+                        "StencilState::reference": 0,
+                        "StencilState::write_mask": 255,
+                        "StencilState::zfail_op": 0
+                    },
+                    "DSProperties::stencil_front": {
+                        "%type": "Engine::PipelineProperties::StencilState",
+                        "StencilState::comparator": 0,
+                        "StencilState::compare_mask": 255,
+                        "StencilState::fail_op": 0,
+                        "StencilState::pass_op": 0,
+                        "StencilState::reference": 0,
+                        "StencilState::write_mask": 255,
+                        "StencilState::zfail_op": 0
+                    },
+                    "DSProperties::stencil_test_enable": false
+                },
+                "MaterialTemplateSinglePassProperties::rasterizer": {
+                    "%type": "Engine::PipelineProperties::RasterizerProperties",
+                    "RasterizerProperties::culling": 0,
+                    "RasterizerProperties::depth_bias_constant": 0.0,
+                    "RasterizerProperties::depth_bias_slope": 0.0,
+                    "RasterizerProperties::filling": 0,
+                    "RasterizerProperties::front": 0,
+                    "RasterizerProperties::line_width": 1.0
+                },
+                "MaterialTemplateSinglePassProperties::shaders": {
+                    "%type": "Engine::PipelineProperties::Shaders",
+                    "Shaders::shaders": [
+                        "&1",
+                        "&2"
+                    ]
+                }
             }
         },
         "&1": {
