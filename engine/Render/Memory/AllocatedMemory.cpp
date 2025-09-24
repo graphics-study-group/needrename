@@ -17,14 +17,14 @@ namespace Engine {
         // vmaFreeMemory(GetAllocator(), GetAllocation());
     }
 
-    AllocatedMemory::AllocatedMemory(AllocatedMemory &&other) {
+    AllocatedMemory::AllocatedMemory(AllocatedMemory &&other) noexcept {
         pimpl = std::make_unique<impl>(other.pimpl->m_allocation, other.pimpl->m_allocator);
 
         // Reset other
         other.pimpl->m_allocation = nullptr;
         other.pimpl->m_allocator = nullptr;
     }
-    AllocatedMemory &AllocatedMemory::operator=(AllocatedMemory &&other) {
+    AllocatedMemory &AllocatedMemory::operator=(AllocatedMemory &&other) noexcept {
         if (&other != this) {
             assert(pimpl);
 
