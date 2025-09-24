@@ -12,9 +12,17 @@
 namespace Engine {
     namespace _enums {
         namespace _details {
+            /**
+             * @brief constexpr version of a string view hasher (FNV-1a)
+             * 
+             * Note that the `string_view` does not contain the trailing
+             * null character when directly coerced from a `string` or 
+             * `const char []`. This will result in a different hash value
+             * if a `string_view` explicitly contains a trailing null.
+             */
             constexpr size_t hash_string_view (std::string_view v) {
-                size_t hash = 0xcbf29ce484222325;
-                constexpr size_t prime = 0x100000001b3;
+                size_t hash = 0xcbf29ce484222325ull;
+                constexpr size_t prime = 0x100000001b3ull;
 
                 for (char c : v) {
                     hash ^= static_cast<size_t>(c);
