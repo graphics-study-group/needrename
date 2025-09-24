@@ -79,6 +79,20 @@ namespace Engine {
             }
             assert(!"Undefined enum value.");
         }
+
+        constexpr AddressMode AddressMode_from_string(std::string_view s) {
+            switch(_details::hash_string_view(s)) {
+                #include "defs/AddressMode.def"
+            }
+            assert(!"Undefined enum value.");
+        }
+
+        constexpr FilterMode FilterMode_from_string(std::string_view s) {
+            switch(_details::hash_string_view(s)) {
+                #include "defs/FilterMode.def"
+            }
+            assert(!"Undefined enum value.");
+        }
     }
 }
 

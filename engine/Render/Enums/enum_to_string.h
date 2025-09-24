@@ -77,6 +77,22 @@ namespace Engine {
             }
             return ""sv;
         }
+
+        constexpr std::string_view to_string (AddressMode e) noexcept {
+            using namespace std::literals;
+            switch(e) {
+                #include "defs/AddressMode.def"
+            }
+            return ""sv;
+        }
+
+        constexpr std::string_view to_string (FilterMode e) noexcept {
+            using namespace std::literals;
+            switch(e) {
+                #include "defs/FilterMode.def"
+            }
+            return ""sv;
+        }
     }
 }
 
