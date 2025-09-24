@@ -17,10 +17,7 @@ namespace Engine {
         /// @brief C.f. https://registry.khronos.org/vulkan/specs/latest/man/html/VkBlendFactor.html
         using BlendFactor = _enums::BlendFactor;
 
-        enum class FrontFace {
-            Counterclockwise,
-            Clockwise
-        };
+        using FrontFace = _enums::FrontFace;
 
         enum class ColorChannelMask : int {
             None = 0x0,
