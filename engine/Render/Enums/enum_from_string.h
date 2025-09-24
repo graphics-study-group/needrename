@@ -6,7 +6,7 @@
 #include <cassert>
 
 #ifndef DEFINE_ENUM_ITEM
-#define DEFINE_ENUM_ITEM(e, x) case details::hash_string_view(#x): return e::x;
+#define DEFINE_ENUM_ITEM(e, x) case _details::hash_string_view(#x): return e::x;
 #endif
 
 namespace Engine {

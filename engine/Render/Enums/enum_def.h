@@ -7,6 +7,8 @@
 #ifndef RENDER_ENUMS_ENUM_DEF_INCLUDED
 #define RENDER_ENUMS_ENUM_DEF_INCLUDED
 
+#include <cstdint>
+
 #ifndef DEFINE_ENUM_ITEM
 #define DEFINE_ENUM_ITEM(e, x) x,
 #endif
