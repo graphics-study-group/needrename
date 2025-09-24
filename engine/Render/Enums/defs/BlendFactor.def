@@ -1,0 +1,17 @@
+// Blending factor for color attachment blending
+
+#ifndef DEFINE_ENUM_ITEM
+#warning "A stray enum definition file is included."
+#define DEFINE_ENUM_ITEM(...)
+#endif
+
+DEFINE_ENUM_ITEM(BlendFactor, Zero)
+DEFINE_ENUM_ITEM(BlendFactor, One)
+DEFINE_ENUM_ITEM(BlendFactor, SrcColor)
+DEFINE_ENUM_ITEM(BlendFactor, OneMinusSrcColor)
+DEFINE_ENUM_ITEM(BlendFactor, DstColor)
+DEFINE_ENUM_ITEM(BlendFactor, OneMinusDstColor)
+DEFINE_ENUM_ITEM(BlendFactor, SrcAlpha)
+DEFINE_ENUM_ITEM(BlendFactor, OneMinusSrcAlpha)
+DEFINE_ENUM_ITEM(BlendFactor, DstAlpha)
+DEFINE_ENUM_ITEM(BlendFactor, OneMinusDstAlpha)

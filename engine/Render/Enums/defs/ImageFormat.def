@@ -1,0 +1,14 @@
+// Supported image formats, for both render target texture and image texture
+
+#ifndef DEFINE_ENUM_ITEM
+#warning "A stray enum definition file is included."
+#define DEFINE_ENUM_ITEM(...)
+#endif
+
+DEFINE_ENUM_ITEM(ImageFormat, UNDEFINED)
+DEFINE_ENUM_ITEM(ImageFormat, R8G8B8A8SNorm)
+DEFINE_ENUM_ITEM(ImageFormat, R8G8B8A8UNorm)
+DEFINE_ENUM_ITEM(ImageFormat, R8G8B8A8SRGB)
+DEFINE_ENUM_ITEM(ImageFormat, R11G11B10UFloat)
+DEFINE_ENUM_ITEM(ImageFormat, R32G32B32A32SFloat)
+DEFINE_ENUM_ITEM(ImageFormat, D32SFLOAT)

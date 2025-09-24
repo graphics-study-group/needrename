@@ -1,47 +1,25 @@
 #ifndef RENDER_PIPELINE_PIPELINEENUMS_INCLUDED
 #define RENDER_PIPELINE_PIPELINEENUMS_INCLUDED
 
+#include <Render/Enums/enum_def.h>
+
 namespace Engine {
     namespace PipelineUtils {
 
-        enum class FillingMode {
-            Fill,
-            Line,
-            Point
-        };
-        enum class CullingMode {
-            None,
-            Front,
-            Back,
-            All
-        };
+        using FillingMode = _enums::FillingMode;
+        using CullingMode = _enums::CullingMode;
+        /// @brief C.f. https://registry.khronos.org/vulkan/specs/latest/man/html/VkCompareOp.html
+        using DSComparator = _enums::Comparator;
+        /// @brief C.f. https://registry.khronos.org/vulkan/specs/latest/man/html/VkStencilOp.html
+        using StencilOperation = _enums::StencilOperation;
+        /// @brief C.f. https://registry.khronos.org/vulkan/specs/latest/man/html/VkBlendOp.html
+        using BlendOperation = _enums::BlendOperation;
+        /// @brief C.f. https://registry.khronos.org/vulkan/specs/latest/man/html/VkBlendFactor.html
+        using BlendFactor = _enums::BlendFactor;
+
         enum class FrontFace {
             Counterclockwise,
             Clockwise
-        };
-
-        /// @brief C.f. https://registry.khronos.org/vulkan/specs/latest/man/html/VkCompareOp.html
-        enum class DSComparator {
-            Never,
-            Less,
-            Equal,
-            LEqual,
-            Greater,
-            NEqual,
-            GEqual,
-            Always
-        };
-
-        /// @brief C.f. https://registry.khronos.org/vulkan/specs/latest/man/html/VkStencilOp.html
-        enum class StencilOperation {
-            Keep,
-            Zero,
-            Replace,
-            IncrClamp,
-            DecrClamp,
-            Invert,
-            IncrWrap,
-            DecrWrap
         };
 
         enum class ColorChannelMask : int {
@@ -65,30 +43,6 @@ namespace Engine {
             RGBA = R | G | B | A,
 
             All = RGBA
-        };
-
-        /// @brief C.f. https://registry.khronos.org/vulkan/specs/latest/man/html/VkBlendOp.html
-        enum class BlendOperation {
-            None,
-            Add,
-            Substract,
-            ReverseSubstract,
-            Min,
-            Max
-        };
-
-        /// @brief C.f. https://registry.khronos.org/vulkan/specs/latest/man/html/VkBlendFactor.html
-        enum class BlendFactor {
-            Zero,
-            One,
-            SrcColor,
-            OneMinusSrcColor,
-            DstColor,
-            OneMinusDstColor,
-            SrcAlpha,
-            OneMinusSrcAlpha,
-            DstAlpha,
-            OneMinusDstAlpha
         };
     } // namespace PipelineUtils
 } // namespace Engine
