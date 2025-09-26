@@ -1,26 +1,35 @@
+
 #include <Render/Enums/enum_def.h>
-#include <Render/Enums/enum_from_string.h>
-#include <Render/Enums/enum_to_string.h>
 #include <cassert>
+#include <iostream>
 
-using namespace Engine::_enums;
+using namespace Engine::_enum;
 
-#define DEFINE_ENUM_ITEM(e, n) assert(e::n == e ## _from_string(to_string(e::n))); \
-assert(#n == to_string(e::n)); \
-assert(e::n == e ## _from_string(#n));
+#define MAGIC_ENUM_TEST_MACRO(enum_type, item) \
+    assert(to_##enum_type(#item) == enum_type::item); \
+    assert(to_string(enum_type::item) == #item); \
+
 
 int main() {
+    COMPARATOR_ENUM_DEF(MAGIC_ENUM_TEST_MACRO)
+    BLEND_FACTOR_ENUM_DEF(MAGIC_ENUM_TEST_MACRO)
+    BLEND_OPERATION_ENUM_DEF(MAGIC_ENUM_TEST_MACRO)
+    STENCIL_OPERATION_ENUM_DEF(MAGIC_ENUM_TEST_MACRO)
+    IMAGE_FORMAT_ENUM_DEF(MAGIC_ENUM_TEST_MACRO)
+    CULLING_MODE_ENUM_DEF(MAGIC_ENUM_TEST_MACRO)
+    FILLING_MODE_ENUM_DEF(MAGIC_ENUM_TEST_MACRO)
+    FRONT_FACE_ENUM_DEF(MAGIC_ENUM_TEST_MACRO)
+    ADDRESS_MODE_ENUM_DEF(MAGIC_ENUM_TEST_MACRO)
+    FILTER_MODE_ENUM_DEF(MAGIC_ENUM_TEST_MACRO)
 
-    #include <Render/Enums/defs/AddressMode.def>
-    #include <Render/Enums/defs/BlendFactor.def>
-    #include <Render/Enums/defs/BlendOperation.def>
-    #include <Render/Enums/defs/Comparator.def>
-    #include <Render/Enums/defs/CullingMode.def>
-    #include <Render/Enums/defs/FillingMode.def>
-    #include <Render/Enums/defs/FilterMode.def>
-    #include <Render/Enums/defs/FrontFace.def>
-    #include <Render/Enums/defs/ImageFormat.def>
-    #include <Render/Enums/defs/StencilOperation.def>
+    // Test abnormal cases
+    try {
+        to_AddressMode("whatever this is");
+    } catch (std::exception & e) {
+        std::cout << e.what() << std::endl ;
+    }
+
+    assert(to_string(static_cast<AddressMode>(-1)) == "");
 
     return 0;
 }
