@@ -1,9 +1,0 @@
-// Filter mode for sampler
-
-#ifndef DEFINE_ENUM_ITEM
-#warning "A stray enum definition file is included."
-#define DEFINE_ENUM_ITEM(...)
-#endif
-
-DEFINE_ENUM_ITEM(FilterMode, Point)
-DEFINE_ENUM_ITEM(FilterMode, Linear)

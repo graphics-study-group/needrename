@@ -1,7 +1,0 @@
-#ifndef DEFINE_ENUM_ITEM
-#warning "A stray enum definition file is included."
-#define DEFINE_ENUM_ITEM(...)
-#endif
-
-DEFINE_ENUM_ITEM(FrontFace, Counterclockwise)
-DEFINE_ENUM_ITEM(FrontFace, Clockwise)

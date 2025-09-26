@@ -13,7 +13,7 @@ namespace Engine {
             TextureImage
         };
 
-        using ImageFormat = _enums::ImageFormat;
+        using ImageFormat = _enum::ImageFormat;
 
         struct TextureDesc {
             // An integer between 1 and 3 for dimension.
@@ -30,8 +30,8 @@ namespace Engine {
         };
 
         struct SamplerDesc {
-            using AddressMode = _enums::AddressMode;
-            using FilterMode = _enums::FilterMode;
+            using AddressMode = _enum::AddressMode;
+            using FilterMode = _enum::FilterMode;
 
             // Filter mode.
             FilterMode min_filter{FilterMode::Point}, max_filter{FilterMode::Point}, mipmap_filter{FilterMode::Point};

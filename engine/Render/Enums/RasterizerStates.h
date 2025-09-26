@@ -1,0 +1,30 @@
+#ifndef RENDER_ENUMS_RASTERIZERSTATES_INCLUDED
+#define RENDER_ENUMS_RASTERIZERSTATES_INCLUDED
+
+#include "enum_factory.h"
+
+#define CULLING_MODE_ENUM_DEF(XMACRO) \
+    XMACRO(CullingMode, None) \
+    XMACRO(CullingMode, Front) \
+    XMACRO(CullingMode, Back) \
+    XMACRO(CullingMode, All) \
+
+#define FILLING_MODE_ENUM_DEF(XMACRO) \
+    XMACRO(FillingMode, Fill) \
+    XMACRO(FillingMode, Line) \
+    XMACRO(FillingMode, Point) \
+
+
+#define FRONT_FACE_ENUM_DEF(XMACRO) \
+    XMACRO(FrontFace, Counterclockwise) \
+    XMACRO(FrontFace, Clockwise) \
+
+
+DECLARE_ENUM(CullingMode, CULLING_MODE_ENUM_DEF)
+DECLARE_REFLECTIVE_FUNCTIONS(CullingMode, CULLING_MODE_ENUM_DEF)
+DECLARE_ENUM(FillingMode, FILLING_MODE_ENUM_DEF)
+DECLARE_REFLECTIVE_FUNCTIONS(FillingMode, FILLING_MODE_ENUM_DEF)
+DECLARE_ENUM(FrontFace, FRONT_FACE_ENUM_DEF)
+DECLARE_REFLECTIVE_FUNCTIONS(FrontFace, FRONT_FACE_ENUM_DEF)
+
+#endif // RENDER_ENUMS_RASTERIZERSTATES_INCLUDED

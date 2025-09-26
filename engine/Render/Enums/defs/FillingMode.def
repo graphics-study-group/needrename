@@ -1,8 +1,0 @@
-#ifndef DEFINE_ENUM_ITEM
-#warning "A stray enum definition file is included."
-#define DEFINE_ENUM_ITEM(...)
-#endif
-
-DEFINE_ENUM_ITEM(FillingMode, Fill)
-DEFINE_ENUM_ITEM(FillingMode, Line)
-DEFINE_ENUM_ITEM(FillingMode, Point)

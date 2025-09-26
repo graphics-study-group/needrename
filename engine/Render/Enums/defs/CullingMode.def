@@ -1,9 +1,0 @@
-#ifndef DEFINE_ENUM_ITEM
-#warning "A stray enum definition file is included."
-#define DEFINE_ENUM_ITEM(...)
-#endif
-
-DEFINE_ENUM_ITEM(CullingMode, None)
-DEFINE_ENUM_ITEM(CullingMode, Front)
-DEFINE_ENUM_ITEM(CullingMode, Back)
-DEFINE_ENUM_ITEM(CullingMode, All)
