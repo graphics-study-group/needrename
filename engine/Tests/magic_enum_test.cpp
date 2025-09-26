@@ -6,7 +6,7 @@
 using namespace Engine::_enum;
 
 #define MAGIC_ENUM_TEST_MACRO(enum_type, item) \
-    assert(to_##enum_type(#item) == enum_type::item); \
+    assert(*to_##enum_type(#item) == enum_type::item); \
     assert(to_string(enum_type::item) == #item); \
 
 
@@ -23,12 +23,7 @@ int main() {
     FILTER_MODE_ENUM_DEF(MAGIC_ENUM_TEST_MACRO)
 
     // Test abnormal cases
-    try {
-        to_AddressMode("whatever this is");
-    } catch (std::exception & e) {
-        std::cout << e.what() << std::endl ;
-    }
-
+    assert(!to_AddressMode("whatever this is"));
     assert(to_string(static_cast<AddressMode>(-1)) == "");
 
     return 0;

@@ -33,11 +33,11 @@ namespace Engine::_enum { \
       default: return ""; \
     } \
   } \
-  constexpr EnumType to_##EnumType(std::string_view sv) \
+  constexpr std::optional<EnumType> to_##EnumType(std::string_view sv) noexcept \
   { \
     switch(_detail::hash_string_view(sv)) {\
         ENUM_DEF_MACRO(ENUM_FROM_STR_CASE) \
-        default: throw std::invalid_argument(std::format("Invalid enum string: {} for enum {}", sv, #EnumType)); \
+        default: return std::nullopt; \
     } \
   } \
 } \
@@ -53,8 +53,7 @@ XMACRO(some_enum, e2) \
  */
 
 #include <string_view>
-#include <stdexcept>
-#include <format>
+#include <optional>
 
 namespace Engine::_enum::_detail {
     /**
