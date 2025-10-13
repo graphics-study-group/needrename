@@ -1,61 +1,11 @@
 #ifndef RENDER_ENUMS_ENUM_FACTORY_INCLUDED
 #define RENDER_ENUMS_ENUM_FACTORY_INCLUDED
 
-#define ENUM_ITEM(enum_name, name) name,
-
-#define ENUM_TO_STR_CASE(enum_name, name) case enum_name::name: return #name;
-
-#define ENUM_FROM_STR_CASE(enum_name, name) case _detail::hash_string_view(#name): return enum_name::name;
-
-#define DECLARE_ENUM(enum_name, ENUM_DEF_MACRO) \
-namespace Engine::_enum { \
-  enum class enum_name { \
-    ENUM_DEF_MACRO(ENUM_ITEM) \
-  }; \
-} \
-
-
-#define DECLARE_ENUM_WITH_UTYPE(enum_name, underlying_type, ENUM_DEF_MACRO) \
-namespace Engine::_enum { \
-  enum class enum_name : underlying_type { \
-    ENUM_DEF_MACRO(ENUM_ITEM) \
-  }; \
-} \
-
-
-#define DECLARE_REFLECTIVE_FUNCTIONS(EnumType,ENUM_DEF_MACRO) \
-namespace Engine::_enum { \
-  constexpr std::string_view to_string(EnumType value) noexcept \
-  { \
-    switch(value) \
-    { \
-      ENUM_DEF_MACRO(ENUM_TO_STR_CASE) \
-      default: return ""; \
-    } \
-  } \
-  constexpr std::optional<EnumType> to_##EnumType(std::string_view sv) noexcept \
-  { \
-    switch(_detail::hash_string_view(sv)) {\
-        ENUM_DEF_MACRO(ENUM_FROM_STR_CASE) \
-        default: return std::nullopt; \
-    } \
-  } \
-} \
-
-
-/**
- * Define a new enum as such:
-```cpp
-#define SOME_ENUM_MACRO(XMACRO) \
-XMACRO(some_enum, e1) \
-XMACRO(some_enum, e2) \
-```
- */
-
+#include <Reflection/reflection.h>
 #include <string_view>
 #include <optional>
 
-namespace Engine::_enum::_detail {
+namespace Engine::Reflection::enum_detail {
     /**
      * @brief constexpr version of a string view hasher (FNV-1a)
      * 
@@ -75,5 +25,52 @@ namespace Engine::_enum::_detail {
         return hash;
     }
 }
+
+#define ENUM_ITEM(enum_name, name) name,
+
+#define ENUM_TO_STR_CASE(enum_name, name) case enum_name::name: return #name;
+
+#define ENUM_FROM_STR_CASE(enum_name, name) case enum_detail::hash_string_view(#name): return enum_name::name;
+
+#define DECLARE_ENUM(enum_name, ENUM_DEF_MACRO) \
+  enum class enum_name { \
+    ENUM_DEF_MACRO(ENUM_ITEM, enum_name) \
+  }; \
+
+
+#define DECLARE_ENUM_WITH_UTYPE(enum_name, underlying_type, ENUM_DEF_MACRO) \
+  enum class enum_name : underlying_type { \
+    ENUM_DEF_MACRO(ENUM_ITEM, enum_name) \
+  }; \
+
+
+#define DECLARE_REFLECTIVE_FUNCTIONS(EnumType,ENUM_DEF_MACRO) \
+namespace Engine::Reflection { \
+  constexpr std::string_view to_string(EnumType value) noexcept \
+  { \
+    switch(value) \
+    { \
+      ENUM_DEF_MACRO(ENUM_TO_STR_CASE, EnumType) \
+      default: return ""; \
+    } \
+  } \
+  template <> \
+  constexpr std::optional<EnumType> from_string<EnumType>(std::string_view sv) noexcept \
+  { \
+    switch(enum_detail::hash_string_view(sv)) {\
+        ENUM_DEF_MACRO(ENUM_FROM_STR_CASE, EnumType) \
+        default: return std::nullopt; \
+    } \
+  } \
+} \
+
+/**
+ * Define a new enum as such:
+```cpp
+#define SOME_ENUM_MACRO(XMACRO) \
+XMACRO(some_enum, e1) \
+XMACRO(some_enum, e2) \
+```
+ */
 
 #endif // RENDER_ENUMS_ENUM_FACTORY_INCLUDED

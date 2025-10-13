@@ -4,6 +4,7 @@
 #include <cassert>
 #include <memory>
 #include <vector>
+#include <optional>
 
 #include "Field.h"
 #include "Method.h"
@@ -57,6 +58,9 @@ namespace Engine {
 
         template <typename T>
         std::shared_ptr<const Type> CreateType();
+
+        template <typename T>
+        constexpr std::optional<T> from_string(std::string_view sv) noexcept;
     } // namespace Reflection
 } // namespace Engine
 

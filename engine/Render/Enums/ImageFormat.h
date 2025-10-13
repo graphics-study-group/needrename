@@ -3,17 +3,18 @@
 
 #include "enum_factory.h"
 
-#define IMAGE_FORMAT_ENUM_DEF(XMACRO) \
-    XMACRO(ImageFormat, UNDEFINED) \
-    XMACRO(ImageFormat, R8G8B8A8SNorm) \
-    XMACRO(ImageFormat, R8G8B8A8UNorm) \
-    XMACRO(ImageFormat, R8G8B8A8SRGB) \
-    XMACRO(ImageFormat, R11G11B10UFloat) \
-    XMACRO(ImageFormat, R32G32B32A32SFloat) \
-    XMACRO(ImageFormat, D32SFLOAT) \
+#define IMAGE_FORMAT_ENUM_DEF(XMACRO, enum_name) \
+    XMACRO(enum_name, UNDEFINED) \
+    XMACRO(enum_name, R8G8B8A8SNorm) \
+    XMACRO(enum_name, R8G8B8A8UNorm) \
+    XMACRO(enum_name, R8G8B8A8SRGB) \
+    XMACRO(enum_name, R11G11B10UFloat) \
+    XMACRO(enum_name, R32G32B32A32SFloat) \
+    XMACRO(enum_name, D32SFLOAT) \
 
-
-DECLARE_ENUM(ImageFormat, IMAGE_FORMAT_ENUM_DEF)
-DECLARE_REFLECTIVE_FUNCTIONS(ImageFormat, IMAGE_FORMAT_ENUM_DEF)
+namespace Engine::_enum {
+    DECLARE_ENUM(ImageFormat, IMAGE_FORMAT_ENUM_DEF)
+}
+DECLARE_REFLECTIVE_FUNCTIONS(Engine::_enum::ImageFormat, IMAGE_FORMAT_ENUM_DEF)
 
 #endif // RENDER_ENUMS_IMAGEFORMAT_INCLUDED

@@ -6,25 +6,25 @@
 using namespace Engine::_enum;
 
 #define MAGIC_ENUM_TEST_MACRO(enum_type, item) \
-    assert(*to_##enum_type(#item) == enum_type::item); \
-    assert(to_string(enum_type::item) == #item); \
+    assert(*Engine::Reflection::from_string<enum_type>(#item) == enum_type::item); \
+    assert(Engine::Reflection::to_string(enum_type::item) == #item); \
 
 
 int main() {
-    COMPARATOR_ENUM_DEF(MAGIC_ENUM_TEST_MACRO)
-    BLEND_FACTOR_ENUM_DEF(MAGIC_ENUM_TEST_MACRO)
-    BLEND_OPERATION_ENUM_DEF(MAGIC_ENUM_TEST_MACRO)
-    STENCIL_OPERATION_ENUM_DEF(MAGIC_ENUM_TEST_MACRO)
-    IMAGE_FORMAT_ENUM_DEF(MAGIC_ENUM_TEST_MACRO)
-    CULLING_MODE_ENUM_DEF(MAGIC_ENUM_TEST_MACRO)
-    FILLING_MODE_ENUM_DEF(MAGIC_ENUM_TEST_MACRO)
-    FRONT_FACE_ENUM_DEF(MAGIC_ENUM_TEST_MACRO)
-    ADDRESS_MODE_ENUM_DEF(MAGIC_ENUM_TEST_MACRO)
-    FILTER_MODE_ENUM_DEF(MAGIC_ENUM_TEST_MACRO)
-
+    COMPARATOR_ENUM_DEF(MAGIC_ENUM_TEST_MACRO, Comparator)
+    BLEND_FACTOR_ENUM_DEF(MAGIC_ENUM_TEST_MACRO, BlendFactor)
+    BLEND_OPERATION_ENUM_DEF(MAGIC_ENUM_TEST_MACRO, BlendOperation)
+    STENCIL_OPERATION_ENUM_DEF(MAGIC_ENUM_TEST_MACRO, StencilOperation)
+    IMAGE_FORMAT_ENUM_DEF(MAGIC_ENUM_TEST_MACRO, ImageFormat)
+    CULLING_MODE_ENUM_DEF(MAGIC_ENUM_TEST_MACRO, CullingMode)
+    FILLING_MODE_ENUM_DEF(MAGIC_ENUM_TEST_MACRO, FillingMode)
+    FRONT_FACE_ENUM_DEF(MAGIC_ENUM_TEST_MACRO, FrontFace)
+    ADDRESS_MODE_ENUM_DEF(MAGIC_ENUM_TEST_MACRO, AddressMode)
+    FILTER_MODE_ENUM_DEF(MAGIC_ENUM_TEST_MACRO, FilterMode)
+    
     // Test abnormal cases
-    assert(!to_AddressMode("whatever this is"));
-    assert(to_string(static_cast<AddressMode>(-1)) == "");
+    assert(!Engine::Reflection::from_string<AddressMode>("whatever this is"));
+    assert(Engine::Reflection::to_string(static_cast<AddressMode>(-1)) == "");
 
     return 0;
 }
