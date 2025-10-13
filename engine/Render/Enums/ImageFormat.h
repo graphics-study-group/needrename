@@ -1,7 +1,7 @@
 #ifndef RENDER_ENUMS_IMAGEFORMAT_INCLUDED
 #define RENDER_ENUMS_IMAGEFORMAT_INCLUDED
 
-#include "enum_factory.h"
+#include <Reflection/enum_factory.h>
 
 #define IMAGE_FORMAT_ENUM_DEF(XMACRO, enum_name) \
     XMACRO(enum_name, UNDEFINED) \

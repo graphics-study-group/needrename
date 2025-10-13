@@ -1,7 +1,7 @@
 #ifndef RENDER_ENUMS_SAMPLERSTATES_INCLUDED
 #define RENDER_ENUMS_SAMPLERSTATES_INCLUDED
 
-#include "enum_factory.h"
+#include <Reflection/enum_factory.h>
 #include <cstdint>
 
 #define ADDRESS_MODE_ENUM_DEF(XMACRO, enum_name) \

@@ -1,7 +1,7 @@
 #ifndef RENDER_ENUMS_FRAGMENTSTATES_INCLUDED
 #define RENDER_ENUMS_FRAGMENTSTATES_INCLUDED
 
-#include "enum_factory.h"
+#include <Reflection/enum_factory.h>
 
 #define BLEND_FACTOR_ENUM_DEF(XMACRO, enum_name) \
     XMACRO(enum_name, Zero) \

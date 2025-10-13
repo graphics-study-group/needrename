@@ -1,7 +1,7 @@
 #ifndef ENUMS_DEFS_COMPARATOR_INCLUDED
 #define ENUMS_DEFS_COMPARATOR_INCLUDED
 
-#include "enum_factory.h"
+#include <Reflection/enum_factory.h>
 
 #define COMPARATOR_ENUM_DEF(XMACRO, enum_name) \
     XMACRO(enum_name, Never) \
