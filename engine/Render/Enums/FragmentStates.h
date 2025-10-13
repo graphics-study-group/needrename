@@ -3,7 +3,7 @@
 
 #include <Reflection/enum_factory.h>
 
-#define BLEND_FACTOR_ENUM_DEF(XMACRO, enum_name) \
+#define COLOR_BLEND_FACTOR_ENUM_DEF(XMACRO, enum_name) \
     XMACRO(enum_name, Zero) \
     XMACRO(enum_name, One) \
     XMACRO(enum_name, SrcColor) \
@@ -16,7 +16,7 @@
     XMACRO(enum_name, OneMinusDstAlpha) \
 
 
-#define BLEND_OPERATION_ENUM_DEF(XMACRO, enum_name) \
+#define COLOR_BLEND_OPERATION_ENUM_DEF(XMACRO, enum_name) \
     XMACRO(enum_name, None) \
     XMACRO(enum_name, Add) \
     XMACRO(enum_name, Substract) \
@@ -36,12 +36,12 @@
     XMACRO(enum_name, DecrWrap) \
 
 namespace Engine::_enum {
-    DECLARE_ENUM(BlendFactor, BLEND_FACTOR_ENUM_DEF)
-    DECLARE_ENUM(BlendOperation, BLEND_OPERATION_ENUM_DEF)
+    DECLARE_ENUM(ColorBlendFactor, COLOR_BLEND_FACTOR_ENUM_DEF)
+    DECLARE_ENUM(ColorBlendOperation, COLOR_BLEND_OPERATION_ENUM_DEF)
     DECLARE_ENUM(StencilOperation, STENCIL_OPERATION_ENUM_DEF)
 }
-DECLARE_REFLECTIVE_FUNCTIONS(Engine::_enum::BlendFactor, BLEND_FACTOR_ENUM_DEF)
-DECLARE_REFLECTIVE_FUNCTIONS(Engine::_enum::BlendOperation, BLEND_OPERATION_ENUM_DEF)
+DECLARE_REFLECTIVE_FUNCTIONS(Engine::_enum::ColorBlendFactor, COLOR_BLEND_FACTOR_ENUM_DEF)
+DECLARE_REFLECTIVE_FUNCTIONS(Engine::_enum::ColorBlendOperation, COLOR_BLEND_OPERATION_ENUM_DEF)
 DECLARE_REFLECTIVE_FUNCTIONS(Engine::_enum::StencilOperation, STENCIL_OPERATION_ENUM_DEF)
 
 #endif // RENDER_ENUMS_FRAGMENTSTATES_INCLUDED

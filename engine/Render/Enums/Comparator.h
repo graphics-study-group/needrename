@@ -7,10 +7,10 @@
     XMACRO(enum_name, Never) \
     XMACRO(enum_name, Less) \
     XMACRO(enum_name, Equal) \
-    XMACRO(enum_name, LEqual) \
+    XMACRO(enum_name, LessOrEqual) \
     XMACRO(enum_name, Greater) \
-    XMACRO(enum_name, NEqual) \
-    XMACRO(enum_name, GEqual) \
+    XMACRO(enum_name, NotEqual) \
+    XMACRO(enum_name, GreaterOrEqual) \
     XMACRO(enum_name, Always) \
 
 namespace Engine::_enum {

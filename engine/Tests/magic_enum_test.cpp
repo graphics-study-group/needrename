@@ -12,19 +12,19 @@ using namespace Engine::_enum;
 
 int main() {
     COMPARATOR_ENUM_DEF(MAGIC_ENUM_TEST_MACRO, Comparator)
-    BLEND_FACTOR_ENUM_DEF(MAGIC_ENUM_TEST_MACRO, BlendFactor)
-    BLEND_OPERATION_ENUM_DEF(MAGIC_ENUM_TEST_MACRO, BlendOperation)
+    COLOR_BLEND_FACTOR_ENUM_DEF(MAGIC_ENUM_TEST_MACRO, ColorBlendFactor)
+    COLOR_BLEND_OPERATION_ENUM_DEF(MAGIC_ENUM_TEST_MACRO, ColorBlendOperation)
     STENCIL_OPERATION_ENUM_DEF(MAGIC_ENUM_TEST_MACRO, StencilOperation)
     IMAGE_FORMAT_ENUM_DEF(MAGIC_ENUM_TEST_MACRO, ImageFormat)
-    CULLING_MODE_ENUM_DEF(MAGIC_ENUM_TEST_MACRO, CullingMode)
-    FILLING_MODE_ENUM_DEF(MAGIC_ENUM_TEST_MACRO, FillingMode)
-    FRONT_FACE_ENUM_DEF(MAGIC_ENUM_TEST_MACRO, FrontFace)
-    ADDRESS_MODE_ENUM_DEF(MAGIC_ENUM_TEST_MACRO, AddressMode)
-    FILTER_MODE_ENUM_DEF(MAGIC_ENUM_TEST_MACRO, FilterMode)
+    RASTERIZER_CULLING_MODE_ENUM_DEF(MAGIC_ENUM_TEST_MACRO, RasterizerCullingMode)
+    RASTERIZER_FILLING_MODE_ENUM_DEF(MAGIC_ENUM_TEST_MACRO, RasterizerFillingMode)
+    RASTERIZER_FRONT_FACE_ENUM_DEF(MAGIC_ENUM_TEST_MACRO, RasterizerFrontFace)
+    SAMPLER_ADDRESS_MODE_ENUM_DEF(MAGIC_ENUM_TEST_MACRO, SamplerAddressMode)
+    SAMPLER_FILTER_MODE_ENUM_DEF(MAGIC_ENUM_TEST_MACRO, SamplerFilterMode)
     
     // Test abnormal cases
-    assert(!Engine::Reflection::from_string<AddressMode>("whatever this is"));
-    assert(Engine::Reflection::to_string(static_cast<AddressMode>(-1)) == "");
+    assert(!Engine::Reflection::from_string<SamplerAddressMode>("whatever this is"));
+    assert(Engine::Reflection::to_string(static_cast<SamplerAddressMode>(-1)) == "");
 
     return 0;
 }

@@ -30,8 +30,8 @@ namespace Engine {
         };
 
         struct SamplerDesc {
-            using AddressMode = _enum::AddressMode;
-            using FilterMode = _enum::FilterMode;
+            using AddressMode = _enum::SamplerAddressMode;
+            using FilterMode = _enum::SamplerFilterMode;
 
             // Filter mode.
             FilterMode min_filter{FilterMode::Point}, max_filter{FilterMode::Point}, mipmap_filter{FilterMode::Point};
