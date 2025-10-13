@@ -3,28 +3,28 @@
 
 #include "enum_factory.h"
 
-#define CULLING_MODE_ENUM_DEF(XMACRO) \
-    XMACRO(CullingMode, None) \
-    XMACRO(CullingMode, Front) \
-    XMACRO(CullingMode, Back) \
-    XMACRO(CullingMode, All) \
+#define RASTERIZER_CULLING_MODE_ENUM_DEF(XMACRO) \
+    XMACRO(RasterizerCullingMode, None) \
+    XMACRO(RasterizerCullingMode, Front) \
+    XMACRO(RasterizerCullingMode, Back) \
+    XMACRO(RasterizerCullingMode, All) \
 
-#define FILLING_MODE_ENUM_DEF(XMACRO) \
-    XMACRO(FillingMode, Fill) \
-    XMACRO(FillingMode, Line) \
-    XMACRO(FillingMode, Point) \
-
-
-#define FRONT_FACE_ENUM_DEF(XMACRO) \
-    XMACRO(FrontFace, Counterclockwise) \
-    XMACRO(FrontFace, Clockwise) \
+#define RASTERIZER_FILLING_MODE_ENUM_DEF(XMACRO) \
+    XMACRO(RasterizerFillingMode, Fill) \
+    XMACRO(RasterizerFillingMode, Line) \
+    XMACRO(RasterizerFillingMode, Point) \
 
 
-DECLARE_ENUM(CullingMode, CULLING_MODE_ENUM_DEF)
-DECLARE_REFLECTIVE_FUNCTIONS(CullingMode, CULLING_MODE_ENUM_DEF)
-DECLARE_ENUM(FillingMode, FILLING_MODE_ENUM_DEF)
-DECLARE_REFLECTIVE_FUNCTIONS(FillingMode, FILLING_MODE_ENUM_DEF)
-DECLARE_ENUM(FrontFace, FRONT_FACE_ENUM_DEF)
-DECLARE_REFLECTIVE_FUNCTIONS(FrontFace, FRONT_FACE_ENUM_DEF)
+#define RASTERIZER_FRONT_FACE_ENUM_DEF(XMACRO) \
+    XMACRO(RasterizerFrontFace, Counterclockwise) \
+    XMACRO(RasterizerFrontFace, Clockwise) \
+
+
+DECLARE_ENUM(RasterizerCullingMode, RASTERIZER_CULLING_MODE_ENUM_DEF)
+DECLARE_REFLECTIVE_FUNCTIONS(RasterizerCullingMode, RASTERIZER_CULLING_MODE_ENUM_DEF)
+DECLARE_ENUM(RasterizerFillingMode, RASTERIZER_FILLING_MODE_ENUM_DEF)
+DECLARE_REFLECTIVE_FUNCTIONS(RasterizerFillingMode, RASTERIZER_FILLING_MODE_ENUM_DEF)
+DECLARE_ENUM(RasterizerFrontFace, RASTERIZER_FRONT_FACE_ENUM_DEF)
+DECLARE_REFLECTIVE_FUNCTIONS(RasterizerFrontFace, RASTERIZER_FRONT_FACE_ENUM_DEF)
 
 #endif // RENDER_ENUMS_RASTERIZERSTATES_INCLUDED

@@ -7,10 +7,10 @@
     XMACRO(Comparator, Never) \
     XMACRO(Comparator, Less) \
     XMACRO(Comparator, Equal) \
-    XMACRO(Comparator, LEqual) \
+    XMACRO(Comparator, LessOrEqual) \
     XMACRO(Comparator, Greater) \
-    XMACRO(Comparator, NEqual) \
-    XMACRO(Comparator, GEqual) \
+    XMACRO(Comparator, NotEqual) \
+    XMACRO(Comparator, GreaterOrEqual) \
     XMACRO(Comparator, Always) \
 
 

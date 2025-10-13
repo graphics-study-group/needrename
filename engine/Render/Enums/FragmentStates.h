@@ -3,43 +3,43 @@
 
 #include "enum_factory.h"
 
-#define BLEND_FACTOR_ENUM_DEF(XMACRO) \
-    XMACRO(BlendFactor, Zero) \
-    XMACRO(BlendFactor, One) \
-    XMACRO(BlendFactor, SrcColor) \
-    XMACRO(BlendFactor, OneMinusSrcColor) \
-    XMACRO(BlendFactor, DstColor) \
-    XMACRO(BlendFactor, OneMinusDstColor) \
-    XMACRO(BlendFactor, SrcAlpha) \
-    XMACRO(BlendFactor, OneMinusSrcAlpha) \
-    XMACRO(BlendFactor, DstAlpha) \
-    XMACRO(BlendFactor, OneMinusDstAlpha) \
+#define COLOR_BLEND_FACTOR_ENUM_DEF(XMACRO) \
+    XMACRO(ColorBlendFactor, Zero) \
+    XMACRO(ColorBlendFactor, One) \
+    XMACRO(ColorBlendFactor, SrcColor) \
+    XMACRO(ColorBlendFactor, OneMinusSrcColor) \
+    XMACRO(ColorBlendFactor, DstColor) \
+    XMACRO(ColorBlendFactor, OneMinusDstColor) \
+    XMACRO(ColorBlendFactor, SrcAlpha) \
+    XMACRO(ColorBlendFactor, OneMinusSrcAlpha) \
+    XMACRO(ColorBlendFactor, DstAlpha) \
+    XMACRO(ColorBlendFactor, OneMinusDstAlpha) \
 
 
-#define BLEND_OPERATION_ENUM_DEF(XMACRO) \
-    XMACRO(BlendOperation, None) \
-    XMACRO(BlendOperation, Add) \
-    XMACRO(BlendOperation, Substract) \
-    XMACRO(BlendOperation, ReverseSubstract) \
-    XMACRO(BlendOperation, Min) \
-    XMACRO(BlendOperation, Max) \
+#define COLOR_BLEND_OPERATION_ENUM_DEF(XMACRO) \
+    XMACRO(ColorBlendOperation, None) \
+    XMACRO(ColorBlendOperation, Add) \
+    XMACRO(ColorBlendOperation, Substract) \
+    XMACRO(ColorBlendOperation, ReverseSubstract) \
+    XMACRO(ColorBlendOperation, Min) \
+    XMACRO(ColorBlendOperation, Max) \
 
 
-#define STENCIL_OPERATION_ENUM_DEF(XMARCO) \
-    XMARCO(StencilOperation, Keep) \
-    XMARCO(StencilOperation, Zero) \
-    XMARCO(StencilOperation, Replace) \
-    XMARCO(StencilOperation, IncrClamp) \
-    XMARCO(StencilOperation, DecrClamp) \
-    XMARCO(StencilOperation, Invert) \
-    XMARCO(StencilOperation, IncrWrap) \
-    XMARCO(StencilOperation, DecrWrap) \
+#define STENCIL_OPERATION_ENUM_DEF(XMACRO) \
+    XMACRO(StencilOperation, Keep) \
+    XMACRO(StencilOperation, Zero) \
+    XMACRO(StencilOperation, Replace) \
+    XMACRO(StencilOperation, IncrClamp) \
+    XMACRO(StencilOperation, DecrClamp) \
+    XMACRO(StencilOperation, Invert) \
+    XMACRO(StencilOperation, IncrWrap) \
+    XMACRO(StencilOperation, DecrWrap) \
 
 
-DECLARE_ENUM(BlendFactor, BLEND_FACTOR_ENUM_DEF)
-DECLARE_REFLECTIVE_FUNCTIONS(BlendFactor, BLEND_FACTOR_ENUM_DEF)
-DECLARE_ENUM(BlendOperation, BLEND_OPERATION_ENUM_DEF)
-DECLARE_REFLECTIVE_FUNCTIONS(BlendOperation, BLEND_OPERATION_ENUM_DEF)
+DECLARE_ENUM(ColorBlendFactor, COLOR_BLEND_FACTOR_ENUM_DEF)
+DECLARE_REFLECTIVE_FUNCTIONS(ColorBlendFactor, COLOR_BLEND_FACTOR_ENUM_DEF)
+DECLARE_ENUM(ColorBlendOperation, COLOR_BLEND_OPERATION_ENUM_DEF)
+DECLARE_REFLECTIVE_FUNCTIONS(ColorBlendOperation, COLOR_BLEND_OPERATION_ENUM_DEF)
 DECLARE_ENUM(StencilOperation, STENCIL_OPERATION_ENUM_DEF)
 DECLARE_REFLECTIVE_FUNCTIONS(StencilOperation, STENCIL_OPERATION_ENUM_DEF)
 

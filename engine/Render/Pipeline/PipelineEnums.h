@@ -6,18 +6,17 @@
 namespace Engine {
     namespace PipelineUtils {
 
-        using FillingMode = _enum::FillingMode;
-        using CullingMode = _enum::CullingMode;
+        using FillingMode = _enum::RasterizerFillingMode;
+        using CullingMode = _enum::RasterizerCullingMode;
+        using FrontFace = _enum::RasterizerFrontFace;
         /// @brief C.f. https://registry.khronos.org/vulkan/specs/latest/man/html/VkCompareOp.html
         using DSComparator = _enum::Comparator;
         /// @brief C.f. https://registry.khronos.org/vulkan/specs/latest/man/html/VkStencilOp.html
         using StencilOperation = _enum::StencilOperation;
         /// @brief C.f. https://registry.khronos.org/vulkan/specs/latest/man/html/VkBlendOp.html
-        using BlendOperation = _enum::BlendOperation;
+        using BlendOperation = _enum::ColorBlendOperation;
         /// @brief C.f. https://registry.khronos.org/vulkan/specs/latest/man/html/VkBlendFactor.html
-        using BlendFactor = _enum::BlendFactor;
-
-        using FrontFace = _enum::FrontFace;
+        using BlendFactor = _enum::ColorBlendFactor;
 
         enum class ColorChannelMask : int {
             None = 0x0,
