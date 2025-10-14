@@ -66,13 +66,18 @@ namespace Engine {
         template <is_enum_type T>
         void save_to_archive(const T &value, Archive &archive) {
             Json &json = *archive.m_cursor;
-            json = static_cast<int>(value);
+            json = Engine::Reflection::enum_to_string(value);
         }
 
         template <is_enum_type T>
         void load_from_archive(T &value, Archive &archive) {
             Json &json = *archive.m_cursor;
-            value = static_cast<T>(json.get<int>());
+            auto opt = Engine::Reflection::enum_from_string<T>(json.get<std::string>());
+            if (opt) {
+                value = *opt;
+            } else {
+                throw std::runtime_error("Failed to load enum from string: " + json.get<std::string>());
+            }
         }
     } // namespace Serialization
 } // namespace Engine

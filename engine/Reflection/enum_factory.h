@@ -46,7 +46,8 @@ namespace Engine::Reflection::enum_detail {
 
 #define DECLARE_REFLECTIVE_FUNCTIONS(EnumType,ENUM_DEF_MACRO) \
 namespace Engine::Reflection { \
-  constexpr std::string_view to_string(EnumType value) noexcept \
+  template <> \
+  constexpr std::string_view enum_to_string<EnumType>(EnumType value) noexcept \
   { \
     switch(value) \
     { \
@@ -55,7 +56,7 @@ namespace Engine::Reflection { \
     } \
   } \
   template <> \
-  constexpr std::optional<EnumType> from_string<EnumType>(std::string_view sv) noexcept \
+  constexpr std::optional<EnumType> enum_from_string<EnumType>(std::string_view sv) noexcept \
   { \
     switch(enum_detail::hash_string_view(sv)) {\
         ENUM_DEF_MACRO(ENUM_FROM_STR_CASE, EnumType) \
@@ -67,9 +68,13 @@ namespace Engine::Reflection { \
 /**
  * Define a new enum as such:
 ```cpp
-#define SOME_ENUM_MACRO(XMACRO) \
-XMACRO(some_enum, e1) \
-XMACRO(some_enum, e2) \
+#define SOME_ENUM_MACRO(XMACRO, enum_name) \
+XMACRO(enum_name, e1) \
+XMACRO(enum_name, e2) \
+...
+
+DECLARE_ENUM(SomeEnum, SOME_ENUM_MACRO)
+DECLARE_REFLECTIVE_FUNCTIONS(EnumNameWithNamespace, SOME_ENUM_MACRO)
 ```
  */
 

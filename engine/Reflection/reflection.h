@@ -60,7 +60,10 @@ namespace Engine {
         std::shared_ptr<const Type> CreateType();
 
         template <typename T>
-        constexpr std::optional<T> from_string(std::string_view sv) noexcept;
+        constexpr std::string_view enum_to_string(T value) noexcept;
+
+        template <typename T>
+        constexpr std::optional<T> enum_from_string(std::string_view sv) noexcept;
     } // namespace Reflection
 } // namespace Engine
 
@@ -150,6 +153,23 @@ namespace Engine {
                 throw std::runtime_error("The void type should be created in initialization");
             } else {
                 return std::shared_ptr<const Type>(new Type(typeid(std::remove_const_t<T>).name(), sizeof(T), false));
+            }
+        }
+
+        template <typename T>
+        constexpr std::string_view enum_to_string(T value) noexcept {
+            static_assert(std::is_enum_v<T>, "enum_to_string can only be used with enum types");
+            return std::to_string(static_cast<int>(value));
+        }
+
+        template <typename T>
+        constexpr std::optional<T> enum_from_string(std::string_view sv) noexcept {
+            static_assert(std::is_enum_v<T>, "enum_from_string can only be used with enum types");
+            try {
+                int int_value = std::stoi(std::string(sv));
+                return static_cast<T>(int_value);
+            } catch (...) {
+                return std::nullopt;
             }
         }
     } // namespace Reflection

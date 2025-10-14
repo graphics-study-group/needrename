@@ -1,6 +1,7 @@
 #ifndef CTEST_SERIALIZATION_TEST_H
 #define CTEST_SERIALIZATION_TEST_H
 
+#include <Reflection/enum_factory.h>
 #include <Reflection/macros.h>
 #include <Reflection/serialization_any.h>
 #include <Reflection/serialization_smart_pointer.h>
@@ -160,6 +161,24 @@ namespace SerializationTest {
         InnerClass m_inner_class{};
         double m_double = 0.0;
     };
+
+    #define TestMagicEnumDefine(XMACRO, enum_name) \
+    XMACRO(enum_name, E1) \
+    XMACRO(enum_name, E2) \
+    XMACRO(enum_name, E3)
+
+    class REFL_SER_CLASS(REFL_WHITELIST) EnumTest {
+        REFL_SER_BODY(EnumTest)
+    public:
+        EnumTest() = default;
+        virtual ~EnumTest() = default;
+
+        DECLARE_ENUM(TestMagicEnum, TestMagicEnumDefine)
+        REFL_SER_ENABLE TestMagicEnum m_magic_enum = TestMagicEnum::E1;
+        REFL_SER_ENABLE enum class TestNormalEnum { NE1, NE2, NE3 } m_normal_enum = TestNormalEnum::NE1;
+    };
 } // namespace SerializationTest
+
+DECLARE_REFLECTIVE_FUNCTIONS(SerializationTest::EnumTest::TestMagicEnum, TestMagicEnumDefine)
 
 #endif // CTEST_SERIALIZATION_TEST_H

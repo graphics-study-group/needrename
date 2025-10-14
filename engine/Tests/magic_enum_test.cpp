@@ -6,8 +6,8 @@
 using namespace Engine::_enum;
 
 #define MAGIC_ENUM_TEST_MACRO(enum_type, item) \
-    assert(*Engine::Reflection::from_string<enum_type>(#item) == enum_type::item); \
-    assert(Engine::Reflection::to_string(enum_type::item) == #item); \
+    assert(*Engine::Reflection::enum_from_string<enum_type>(#item) == enum_type::item); \
+    assert(Engine::Reflection::enum_to_string(enum_type::item) == #item); \
 
 
 int main() {
@@ -23,8 +23,8 @@ int main() {
     SAMPLER_FILTER_MODE_ENUM_DEF(MAGIC_ENUM_TEST_MACRO, SamplerFilterMode)
     
     // Test abnormal cases
-    assert(!Engine::Reflection::from_string<SamplerAddressMode>("whatever this is"));
-    assert(Engine::Reflection::to_string(static_cast<SamplerAddressMode>(-1)) == "");
+    assert(!Engine::Reflection::enum_from_string<SamplerAddressMode>("whatever this is"));
+    assert(Engine::Reflection::enum_to_string(static_cast<SamplerAddressMode>(-1)) == "");
 
     return 0;
 }
