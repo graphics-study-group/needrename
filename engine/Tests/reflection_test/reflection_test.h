@@ -2,10 +2,10 @@
 #define CTEST_REFLECTION_TEST_H
 
 #include <Reflection/macros.h>
-#include <cstdint>
-#include <vector>
 #include <array>
+#include <cstdint>
 #include <memory>
+#include <vector>
 
 class REFL_SER_CLASS(REFL_BLACKLIST) Test_stdint {
     REFL_SER_BODY(Test_stdint)
@@ -159,6 +159,21 @@ public:
     REFL_ENABLE std::shared_ptr<int> m_shared_ptr = std::make_shared<int>(42);
     REFL_ENABLE std::weak_ptr<int> m_weak_ptr = m_shared_ptr;
     REFL_ENABLE std::unique_ptr<float> m_unique_ptr = std::make_unique<float>(84.0f);
+};
+
+class REFL_SER_CLASS(REFL_WHITELIST) EnumClassTest {
+    REFL_SER_BODY(EnumClassTest)
+public:
+    enum class /*REFL_SER_CLASS()*/ Color {
+        Red,
+        Green,
+        Blue
+    };
+
+    REFL_ENABLE EnumClassTest() = default;
+    virtual ~EnumClassTest() = default;
+
+    REFL_SER_ENABLE Color m_color = Color::Red;
 };
 
 #endif // CTEST_REFLECTION_TEST_H

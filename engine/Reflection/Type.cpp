@@ -131,5 +131,27 @@ namespace Engine {
         PointerType::PointerTypeKind PointerType::GetPointerTypeKind() const {
             return m_pointer_kind;
         }
+
+        EnumType::EnumType(
+            const std::string &name,
+            size_t size,
+            bool reflectable,
+            const std::vector<uint64_t> &enum_values,
+            WrapperEnumToString to_string,
+            WrapperEnumFromString from_string
+        ) : Type(name, size, reflectable), m_enum_values(enum_values), m_to_string(to_string), m_from_string(from_string) {
+        }
+
+        std::string_view EnumType::to_string(uint64_t value) const {
+            return m_to_string(value);
+        }
+
+        uint64_t EnumType::from_string(std::string_view name) const {
+            return m_from_string(std::string(name));
+        }
+
+        const std::vector<uint64_t> &EnumType::GetEnumValues() const {
+            return m_enum_values;
+        }
     } // namespace Reflection
 } // namespace Engine

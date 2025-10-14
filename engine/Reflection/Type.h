@@ -40,7 +40,8 @@ namespace Engine {
             enum class TypeKind {
                 None,
                 Const,
-                Pointer
+                Pointer,
+                Enum
             };
 
         public:
@@ -204,6 +205,29 @@ namespace Engine {
         public:
             std::shared_ptr<const Type> GetPointedType() const;
             PointerTypeKind GetPointerTypeKind() const;
+        };
+
+        class EnumType : public Type {
+        public:
+            EnumType(
+                const std::string &name,
+                size_t size,
+                bool reflectable = false,
+                const std::vector<uint64_t> &enum_values = {},
+                WrapperEnumToString to_string = nullptr,
+                WrapperEnumFromString from_string = nullptr
+            );
+            virtual ~EnumType() = default;
+
+        protected:
+            std::vector<uint64_t> m_enum_values;
+            WrapperEnumToString m_to_string;
+            WrapperEnumFromString m_from_string;
+            
+        public:
+            std::string_view to_string(uint64_t value) const;
+            uint64_t from_string(std::string_view name) const;
+            const std::vector<uint64_t> &GetEnumValues() const;
         };
     } // namespace Reflection
 } // namespace Engine

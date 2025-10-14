@@ -353,5 +353,10 @@ int main() {
               << std::endl;
     assert(smart_ptr_test.GetMember("m_weak_ptr").GetPointedVar().Get<int>() == 2);
 
+    std::cout << "------------------------------- Test Enum Class ------------------------------" << std::endl;
+    Engine::Reflection::Var enum_class_test = Engine::Reflection::GetType("EnumClassTest")->CreateInstance();
+    auto color_var = enum_class_test.GetMember("m_color");
+    assert(color_var.GetType()->GetTypeKind() == Engine::Reflection::Type::TypeKind::Enum);
+
     return 0;
 }
