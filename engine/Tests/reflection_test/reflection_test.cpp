@@ -357,6 +357,12 @@ int main() {
     Engine::Reflection::Var enum_class_test = Engine::Reflection::GetType("EnumClassTest")->CreateInstance();
     auto color_var = enum_class_test.GetMember("m_color");
     assert(color_var.GetType()->GetTypeKind() == Engine::Reflection::Type::TypeKind::Enum);
+    std::cout << "enum_class_test: m_color == " << color_var.GetEnumString() << std::endl;
+    assert(color_var.GetEnumString() == "Red");
+    std::cout << "Set enum_class_test: m_color = Green" << std::endl;
+    color_var.SetEnumFromString("Green");
+    std::cout << "enum_class_test: m_color == " << color_var.GetEnumString() << std::endl;
+    assert(color_var.GetEnumString() == "Green");
 
     return 0;
 }

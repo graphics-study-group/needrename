@@ -185,7 +185,7 @@ std::add_pointer<${method.return_type.full_name}>::type ret_ptr = reinterpret_ca
                             % endif
                         % endfor
                     },
-                    [](uint64_t value) -> std::string {
+                    [](uint64_t value) -> std::string_view {
                         switch(static_cast<${enum_type.full_name}>(value))
                         {
                             % for value in enum_type.values:
@@ -194,7 +194,7 @@ std::add_pointer<${method.return_type.full_name}>::type ret_ptr = reinterpret_ca
                             default: return "";
                         }
                     },
-                    [](const std::string &name) -> std::optional<uint64_t> {
+                    [](const std::string_view &name) -> std::optional<uint64_t> {
                         auto hash = hash_string_view(name);
                         switch(hash)
                         {

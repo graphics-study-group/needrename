@@ -75,6 +75,14 @@ namespace Engine {
             /// @return a Var object representing the const version
             Var GetConstVar();
 
+            /// @brief If the type of the Var is an enum, get the enum value as a string.
+            /// @return the enum value as a string
+            std::string_view GetEnumString() const;
+
+            /// @brief If the type of the Var is an enum, set the enum value from a string.
+            /// @param sv the string to set the enum value from
+            void SetEnumFromString(std::string_view sv);
+
             std::shared_ptr<const Type> GetType() const;
         };
 
