@@ -69,7 +69,7 @@ namespace Engine {
             auto type = Reflection::GetType<T>();
             if (type->IsReflectable()) {
                 assert(type->GetTypeKind() == Reflection::Type::TypeKind::Enum);
-                json = std::static_pointer_cast<const Reflection::EnumType>(type)->to_string(static_cast<uint64_t>(value));
+                json = std::dynamic_pointer_cast<const Reflection::EnumType>(type)->to_string(static_cast<uint64_t>(value));
             } else {
                 json = Engine::Reflection::enum_to_string(value);
             }
@@ -82,7 +82,7 @@ namespace Engine {
             if (type->IsReflectable()) {
                 assert(type->GetTypeKind() == Reflection::Type::TypeKind::Enum);
                 std::string str = json.get<std::string>();
-                value = static_cast<T>(*(std::static_pointer_cast<const Reflection::EnumType>(type)->from_string(str)));
+                value = static_cast<T>(*(std::dynamic_pointer_cast<const Reflection::EnumType>(type)->from_string(str)));
                 return;
             }
             auto opt = Engine::Reflection::enum_from_string<T>(json.get<std::string>());
