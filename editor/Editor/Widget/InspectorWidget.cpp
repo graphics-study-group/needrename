@@ -115,6 +115,27 @@ namespace Editor {
                 Engine::GUID asset_guid = var.GetPointedVar().InvokeMethod("GetGUID").Get<Engine::GUID>();
                 ImGui::Text("%s: Asset GUID: %s", name.c_str(), asset_guid.toString().c_str());
             }
+        } else if (var.GetType()->GetTypeKind() == Engine::Reflection::Type::TypeKind::Enum) {
+            auto enum_type = std::dynamic_pointer_cast<const Engine::Reflection::EnumType>(var.GetType());
+            if (enum_type) {
+                std::string current_value = std::string(var.GetEnumString());
+                if (ImGui::BeginCombo(name.c_str(), current_value.c_str())) {
+                    for (auto value : enum_type->GetEnumValues()) {
+                        std::string item_text = std::string(enum_type->to_string(value));
+                        bool is_selected = (item_text == current_value);
+                        if (ImGui::Selectable(item_text.c_str(), is_selected)) {
+                            var.SetEnumFromString(item_text);
+                            current_value = item_text;
+                        }
+                        if (is_selected) {
+                            ImGui::SetItemDefaultFocus();
+                        }
+                    }
+                    ImGui::EndCombo();
+                }
+            } else {
+                ImGui::Text("%s: <Invalid Enum Type>", name.c_str());
+            }
         } else if (var.GetType()->IsReflectable()) {
             if (ImGui::TreeNodeEx("", ImGuiTreeNodeFlags_None, name.c_str())) {
                 unsigned int field_idx = 0;
