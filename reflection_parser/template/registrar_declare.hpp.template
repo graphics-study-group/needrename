@@ -5,11 +5,16 @@ namespace Engine
     namespace Reflection
     {
         class Type;
+        class EnumType;
 
         namespace TypeRegistrar
         {
-            % for mangled_name in mangled_names:
-            std::shared_ptr<Type> Register_${mangled_name}();
+            % for class_type in parser.types.values():
+            std::shared_ptr<Type> Register_${class_type.mangled_name}();
+            % endfor
+
+            % for enum_type in parser.enums.values():
+            std::shared_ptr<EnumType> Register_${enum_type.mangled_name}();
             % endfor
         };
     }

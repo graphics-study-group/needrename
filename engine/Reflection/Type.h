@@ -226,7 +226,7 @@ namespace Engine {
             
         public:
             std::string_view to_string(uint64_t value) const;
-            uint64_t from_string(std::string_view name) const;
+            std::optional<uint64_t> from_string(std::string_view name) const;
             const std::vector<uint64_t> &GetEnumValues() const;
         };
     } // namespace Reflection

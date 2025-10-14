@@ -140,13 +140,14 @@ namespace Engine {
             WrapperEnumToString to_string,
             WrapperEnumFromString from_string
         ) : Type(name, size, reflectable), m_enum_values(enum_values), m_to_string(to_string), m_from_string(from_string) {
+            m_kind = TypeKind::Enum;
         }
 
         std::string_view EnumType::to_string(uint64_t value) const {
             return m_to_string(value);
         }
 
-        uint64_t EnumType::from_string(std::string_view name) const {
+        std::optional<uint64_t> EnumType::from_string(std::string_view name) const {
             return m_from_string(std::string(name));
         }
 

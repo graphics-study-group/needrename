@@ -6,6 +6,10 @@ static void RegisterAllTypes()
     auto Type_${class_type.mangled_name} = Engine::Reflection::TypeRegistrar::Register_${class_type.mangled_name}();
     % endfor
 
+    % for enum_type in parser.enums.values():
+    Engine::Reflection::TypeRegistrar::Register_${enum_type.mangled_name}();
+    % endfor
+
     % for class_type in parser.types.values():
     % for base_type in class_type.base_types:
     % if parser.in_record_type(base_type.full_name):

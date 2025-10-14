@@ -16,6 +16,15 @@ class Type:
         self.methods = []
 
 
+class Enum:
+    def __init__(self, cx_type: CX.Type):
+        self.cx_type = cx_type
+        self.name = get_simple_name(cx_type)
+        self.full_name = get_type_full_name(cx_type)
+        self.mangled_name = get_type_mangled_name(cx_type)
+        self.values = []  # list of (name, value)
+
+
 class Method:
     def __init__(self, cx_method: CX.Cursor):
         self.cx_method = cx_method

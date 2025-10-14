@@ -1,10 +1,11 @@
 #ifndef REFLECTION_UTILS_INCLUDED
 #define REFLECTION_UTILS_INCLUDED
 
+#include <cstdint>
 #include <functional>
+#include <optional>
 #include <string>
 #include <vector>
-#include <cstdint>
 
 // use type of parameters only
 #pragma GCC diagnostic push
@@ -33,7 +34,7 @@ namespace Engine {
         /// @brief Wrapper function for enum from string.
         using WrapperEnumToString = std::function<std::string(uint64_t)>;
         /// @brief Wrapper function for enum to string.
-        using WrapperEnumFromString = std::function<uint64_t(std::string)>;
+        using WrapperEnumFromString = std::function<std::optional<uint64_t>(std::string)>;
 
         /// @brief Get the mangled name of some arguments.
         template <typename... Args>

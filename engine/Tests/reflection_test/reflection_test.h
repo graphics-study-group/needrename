@@ -164,7 +164,7 @@ public:
 class REFL_SER_CLASS(REFL_WHITELIST) EnumClassTest {
     REFL_SER_BODY(EnumClassTest)
 public:
-    enum class /*REFL_SER_CLASS()*/ Color {
+    enum class REFL_SER_CLASS() Color {
         Red,
         Green,
         Blue
