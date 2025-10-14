@@ -10,7 +10,7 @@ namespace Engine {
     public:
         REFL_ENABLE ShaderAsset() = default;
 
-        REFL_SER_ENABLE enum class ShaderType {
+        REFL_SER_ENABLE enum class REFL_SER_CLASS() ShaderType {
             None,
             Vertex,
             Fragment,

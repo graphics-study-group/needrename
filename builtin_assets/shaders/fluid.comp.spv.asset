@@ -5,7 +5,7 @@
             "Asset::m_guid": "EC591BB43CF6474D8FFECFD9F61D71CB",
             "ShaderAsset::m_name": "fluid.comp.spv",
             "ShaderAsset::m_entry_point": "main",
-            "ShaderAsset::shaderType": 3
+            "ShaderAsset::shaderType": "Compute"
         }
     },
     "%main_id": "&0"

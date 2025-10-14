@@ -5,7 +5,7 @@
             "Asset::m_guid": "79EB56B0162F4664B56B2D4C1C983033",
             "ShaderAsset::m_name": "debug_writethrough_mrt.frag.spv",
             "ShaderAsset::m_entry_point": "main",
-            "ShaderAsset::shaderType": 2
+            "ShaderAsset::shaderType": "Fragment"
         }
     },
     "%main_id": "&0"

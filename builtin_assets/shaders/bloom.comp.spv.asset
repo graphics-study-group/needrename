@@ -5,7 +5,7 @@
             "Asset::m_guid": "6F507D1CAEE04798BBC61BB30BE818DF",
             "ShaderAsset::m_name": "bloom.comp.spv",
             "ShaderAsset::m_entry_point": "main",
-            "ShaderAsset::shaderType": 3
+            "ShaderAsset::shaderType": "Compute"
         }
     },
     "%main_id": "&0"
