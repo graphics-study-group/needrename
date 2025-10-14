@@ -176,6 +176,13 @@ namespace SerializationTest {
         DECLARE_ENUM(TestMagicEnum, TestMagicEnumDefine)
         REFL_SER_ENABLE TestMagicEnum m_magic_enum = TestMagicEnum::E1;
         REFL_SER_ENABLE enum class TestNormalEnum { NE1, NE2, NE3 } m_normal_enum = TestNormalEnum::NE1;
+
+        enum class REFL_SER_CLASS() Color {
+            Red,
+            Green,
+            Blue
+        };
+        REFL_SER_ENABLE Color m_color = Color::Red;
     };
 } // namespace SerializationTest
 
