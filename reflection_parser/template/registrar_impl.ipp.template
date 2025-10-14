@@ -45,6 +45,16 @@ namespace Engine
         {
             std::shared_ptr<Type> type = std::shared_ptr<Type>(new Type("${class_type.full_name}", sizeof(${class_type.full_name}), true));
 
+            Type::s_index_type_map[std::type_index(typeid(${class_type.full_name}))] = type;
+            Type::s_name_index_map.emplace("${class_type.full_name}", std::type_index(typeid(${class_type.full_name})));
+            PointerType::RegisterSmartPointerGetFunc<${class_type.full_name}>();
+            return type;
+        }
+        % endfor
+
+        % for class_type in parser.file_type_map[file_path]:
+        void TypeRegistrar::RegisterMethodField_${class_type.mangled_name}(std::shared_ptr<Type> type)
+        {
             % for constructor in class_type.constructors:
             type->AddConstructor<\
                 % for i in range(len(constructor.arg_types)):
@@ -153,11 +163,6 @@ std::add_pointer<${method.return_type.full_name}>::type ret_ptr = reinterpret_ca
             );
             % endif
             % endfor
-
-            Type::s_index_type_map[std::type_index(typeid(${class_type.full_name}))] = type;
-            Type::s_name_index_map.emplace("${class_type.full_name}", std::type_index(typeid(${class_type.full_name})));
-            PointerType::RegisterSmartPointerGetFunc<${class_type.full_name}>();
-            return type;
         }
         % endfor
 
