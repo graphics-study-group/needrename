@@ -59,9 +59,14 @@ namespace Engine {
         template <typename T>
         std::shared_ptr<const Type> CreateType();
 
+        /// @brief Translate an enum value to a string with reflection. If it is not a reflectable enum, it will return the
+        /// underlying integer value as a string.
         template <typename T>
         constexpr std::string_view enum_to_string(T value) noexcept;
 
+        /// @brief Translate a string to an enum value with reflection. If it is not a reflectable enum, it will try to parse
+        /// the string as an integer and cast it to the enum type. If the string is not a valid integer, it will return
+        /// std::nullopt. @b Warning: If the integer is out of range, the behavior is undefined.
         template <typename T>
         constexpr std::optional<T> enum_from_string(std::string_view sv) noexcept;
     } // namespace Reflection
@@ -131,7 +136,7 @@ namespace Engine {
         template <typename T>
         std::shared_ptr<const Type> CreateType() {
             if constexpr (std::is_const_v<std::remove_reference_t<T>>) {
-                return std::shared_ptr<const Type>(new ConstType(GetType<std::remove_const_t<std::remove_reference_t<T>>>()));
+                return std::shared_ptr<const Type>(new ConstType(GetType<std::remove_cvref_t<T>>>()));
             } else if constexpr (std::is_pointer_v<T>) {
                 return std::shared_ptr<const PointerType>(
                     new PointerType(GetType<std::remove_pointer_t<T>>(), sizeof(T), PointerType::PointerTypeKind::Raw)
@@ -159,7 +164,7 @@ namespace Engine {
         template <typename T>
         constexpr std::string_view enum_to_string(T value) noexcept {
             static_assert(std::is_enum_v<T>, "enum_to_string can only be used with enum types");
-            return std::to_string(static_cast<int>(value));
+            return std::to_string(static_cast<std::underlying_type_t<T>>(value));
         }
 
         template <typename T>

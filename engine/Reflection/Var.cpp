@@ -128,13 +128,13 @@ namespace Engine {
             auto type = std::static_pointer_cast<const EnumType>(m_type);
             switch (m_type->GetTypeSize()) {
             case 1:
-                return type->to_string(*(static_cast<uint8_t *>(m_data)));
+                return type->to_string(*(reinterpret_cast<uint8_t *>(m_data)));
             case 2:
-                return type->to_string(*(static_cast<uint16_t *>(m_data)));
+                return type->to_string(*(reinterpret_cast<uint16_t *>(m_data)));
             case 4:
-                return type->to_string(*(static_cast<uint32_t *>(m_data)));
+                return type->to_string(*(reinterpret_cast<uint32_t *>(m_data)));
             case 8:
-                return type->to_string(*(static_cast<uint64_t *>(m_data)));
+                return type->to_string(*(reinterpret_cast<uint64_t *>(m_data)));
             default:
                 throw std::runtime_error("Unsupported enum size");
             }
@@ -147,19 +147,19 @@ namespace Engine {
             auto type = std::static_pointer_cast<const EnumType>(m_type);
             switch (m_type->GetTypeSize()) {
             case 1: {
-                *(static_cast<uint8_t *>(m_data)) = static_cast<uint8_t>(*type->from_string(sv));
+                *(reinterpret_cast<uint8_t *>(m_data)) = static_cast<uint8_t>(*type->from_string(sv));
                 break;
             }
             case 2: {
-                *(static_cast<uint16_t *>(m_data)) = static_cast<uint16_t>(*type->from_string(sv));
+                *(reinterpret_cast<uint16_t *>(m_data)) = static_cast<uint16_t>(*type->from_string(sv));
                 break;
             }
             case 4: {
-                *(static_cast<uint32_t *>(m_data)) = static_cast<uint32_t>(*type->from_string(sv));
+                *(reinterpret_cast<uint32_t *>(m_data)) = static_cast<uint32_t>(*type->from_string(sv));
                 break;
             }
             case 8: {
-                *(static_cast<uint64_t *>(m_data)) = static_cast<uint64_t>(*type->from_string(sv));
+                *(reinterpret_cast<uint64_t *>(m_data)) = static_cast<uint64_t>(*type->from_string(sv));
                 break;
             }
             default:

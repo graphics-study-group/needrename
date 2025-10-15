@@ -162,7 +162,7 @@ namespace SerializationTest {
         double m_double = 0.0;
     };
 
-    #define TestMagicEnumDefine(XMACRO, enum_name) \
+    #define TEST_MATIC_ENUM_DEFINE(XMACRO, enum_name) \
     XMACRO(enum_name, E1) \
     XMACRO(enum_name, E2) \
     XMACRO(enum_name, E3)
@@ -173,7 +173,7 @@ namespace SerializationTest {
         EnumTest() = default;
         virtual ~EnumTest() = default;
 
-        DECLARE_ENUM(TestMagicEnum, TestMagicEnumDefine)
+        DECLARE_ENUM(TestMagicEnum, TEST_MATIC_ENUM_DEFINE)
         REFL_SER_ENABLE TestMagicEnum m_magic_enum = TestMagicEnum::E1;
         REFL_SER_ENABLE enum class TestNormalEnum { NE1, NE2, NE3 } m_normal_enum = TestNormalEnum::NE1;
 
@@ -186,6 +186,6 @@ namespace SerializationTest {
     };
 } // namespace SerializationTest
 
-DECLARE_REFLECTIVE_FUNCTIONS(SerializationTest::EnumTest::TestMagicEnum, TestMagicEnumDefine)
+DECLARE_REFLECTIVE_FUNCTIONS(SerializationTest::EnumTest::TestMagicEnum, TEST_MATIC_ENUM_DEFINE)
 
 #endif // CTEST_SERIALIZATION_TEST_H
