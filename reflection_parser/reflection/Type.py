@@ -22,7 +22,7 @@ class Enum:
         self.name = get_simple_name(cx_type)
         self.full_name = get_type_full_name(cx_type)
         self.mangled_name = get_type_mangled_name(cx_type)
-        self.values = []  # list of (name, value)
+        self.values = []  # list of enum value names (str)
 
 
 class Method:

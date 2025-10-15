@@ -87,10 +87,14 @@ The parser generates reflection for several key classes:
         - A `Type` 's kind can be `None`, `Const`, `Pointer` . 
         - If the `Type` 's kind is `Const`, it can be dynamic casted to `ConstType`. A `Var` with const type can't invoke non-const method and will always get const `Var` members. 
         - If the `Type` 's kind is `Pointer`, it can be dynamic casted to `PointerType`. A `PointerType` can be a raw pointer or a shared, weak, unique pointer. Use `GetPointedType` to get the pointed type. A `Var` with pointer type can use `GetPointedVar` to a `Var` represents pointed data by the pointer.
+        - f the `Type`'s kind is `Enum`, it can be dynamically cast to `EnumType`. `EnumType`stores the list of enum values and provides functions to translate between strings and enum values (`EnumType::to_string`and `EnumType::from_string`).
 2. **Var**
     - A container that holds a type and a pointer to an instance of that type (as a `void*`). You can cast the `void*` pointer to obtain the desired class type. The **`Var`** class also provides functions like **`Var::InvokeMethod`** and **`Var::GetMember`** to invoke member functions and access member variables. 
     - **Warning:** If the return value of the function called by `Var::InvokeMethod` is not void or reference, the system will `malloc` memory for it. The system won't call the returned type's constructor! And the returned `Var` will free the malloced memory when the `Var` is destructed. The `Var` won't call the object's destructor! **Make sure the type of returned value is simple basic type.**
-    - **`Var`** supports polymorphism, meaning that if a **`Var`** holds an instance of type A but points to an object of type B (a derived class), **`InvokeMethod`** will invoke methods from type B.
+    - **`Var`** supports polymorphism. This means that if a `Var` holds an instance of type A but points to an object of type B (a derived class), `InvokeMethod` will invoke methods from type B.
+    - If a `Var`'s type is a pointer, you can call `Var::GetPointedVar`to get the `Var`it points to.
+    - You can call `Var::GetConstVar`to get a const version of the `Var`(with a `ConstType`).
+    - If a `Var`'s type is an enum, you can call `Var::GetEnumString`and `Var::SetEnumFromString`to manipulate this `Var` using string representations.
 3. **ArrayVar**
     - The reflection system only support array like types (raw array, std::vector, std::array) as member variables. Use `Var::GetArrayMember` to get an `ArrayVar`.
     - Use `Var ArrayVar::GetElement(size_t index)` to get the element `Var` at the given index.
@@ -99,8 +103,10 @@ The parser generates reflection for several key classes:
 ## Serialization System
 
 1. **Serialization Functions**
+
     - The parser generates member functions for each reflective class as **`__serialization_save__`** and **`__serialization_load__`** to handle serialization and deserialization.
     - For special types like smart pointers or STL containers (e.g., `std::vector`), the serialization system implements specific outter serialization functions.
+
 2. **Custom Serialization**
     - If a class wants to customize its serialization process, it can implement the functions:
         - **`save_to_archive(Archive&)`**
@@ -108,14 +114,60 @@ The parser generates reflection for several key classes:
     - The serialization system follows the priority:
         - Internal serialization functions > External serialization functions > Generated serialization functions.
     - You must include `Reflection/serialization.h` where you want to implement custom serialization functions.
+
 3. **Serialization and Deserialization**
     - Developers can use the templates:
         - **`serialize(T, Archive)`**
         - **`deserialize(T, Archive)`**
     - These templates will automatically perform the serialization and deserialization process for the given type.
+
 4. **Smart Pointer Serialization**
     - The serialization system supports smart pointers and ensures that the objects they point to are properly serialized and deserialized. It guarantees that multiple smart pointers pointing to the same object will not result in duplicate serialization or object creation.
     - **The smart pointer can not point to the main object to be serialized itself !!!**. If you have a class A, which has a smart pointer point to A itself. The serialization system will crash. If you want to do this, you must wrap class A with another class.
+
+5. **Enum Serialization**
+
+    - The serialization system supports enums by serializing them **as** strings. There are two **kinds** of enums supported:
+    
+        - **Magic Enum** (via X-Macro)
+            Developers use an X-Macro to define the enum.
+            
+            ```c++
+            #define COMPARATOR_ENUM_DEF(XMACRO, enum_name) \
+                XMACRO(enum_name, Never) \
+                ...
+                XMACRO(enum_name, Always)
+            
+            namespace Engine::_enum {
+                DECLARE_ENUM(Comparator, COMPARATOR_ENUM_DEF)
+            }
+            DECLARE_REFLECTIVE_FUNCTIONS(Engine::_enum::Comparator, COMPARATOR_ENUM_DEF)
+            ```
+        
+            The macro `DECLARE_REFLECTIVE_FUNCTIONS` instantiates template functions `Engine::Reflection::to_string<EnumType>(EnumType)` and `Engine::Reflection::from_string<EnumType>(std::string_view)`.
+
+            The serialization system uses these functions to serialize and deserialize enums.
+
+            Note that magic enums defined this way do not support reflection (beyond the generated string conversion functions).
+        
+        -   **Reflection-Enabled Enum**
+            Enums are defined using reflection macros:
+
+            ```c++
+            REFL_SER_ENABLE enum class REFL_SER_CLASS() TestEnum {
+                E1, E2
+            } test = TestEnum::E1;
+            ```
+    
+            The reflection parser scans the code and registers the enum values along with their corresponding string names. It also generates the string translation functions (`to_string`, `from_string`) and associates them with the `EnumType`.
+
+    -   **Serialization Process for Enums:**
+        When an enum is serialized, the system first checks if the enum type is registered as a reflectable type.
+        
+        -   If it is reflectable, the system calls the registered `to_string` function (generated by the reflection parser) to serialize the enum value to its string representation.
+        -   If it is not reflectable, the system attempts to call the template `to_string<EnumType>` function.
+            -   If this template function was instantiated by the X-Macro (as in the Magic Enum case), it serializes the enum to its string representation.
+            -   If the template function is not instantiated (i.e., no X-Macro was used and it's not reflectable), the system falls back to serializing the enum as its underlying integer value.
 
 ## Archive
 
