@@ -2,9 +2,13 @@
 #define REFLECTION_REFLECTION_INCLUDED
 
 #include <cassert>
+#include <charconv>
+#include <limits>
 #include <memory>
-#include <vector>
 #include <optional>
+#include <string>
+#include <type_traits>
+#include <vector>
 
 #include "Field.h"
 #include "Method.h"
@@ -59,14 +63,14 @@ namespace Engine {
         template <typename T>
         std::shared_ptr<const Type> CreateType();
 
-        /// @brief Translate an enum value to a string with reflection. If it is not a reflectable enum, it will return the
-        /// underlying integer value as a string.
+        /// @brief Translate an enum value to a string with reflection. If it is not a reflectable enum, it will return
+        /// the underlying integer value as a string.
         template <typename T>
         constexpr std::string_view enum_to_string(T value) noexcept;
 
-        /// @brief Translate a string to an enum value with reflection. If it is not a reflectable enum, it will try to parse
-        /// the string as an integer and cast it to the enum type. If the string is not a valid integer, it will return
-        /// std::nullopt. @b Warning: If the integer is out of range, the behavior is undefined.
+        /// @brief Translate a string to an enum value with reflection. If it is not a reflectable enum, it will try to
+        /// parse the string as an integer and cast it to the enum type. If the string is not a valid integer, it will
+        /// return std::nullopt. @b Warning: If the integer is out of range, the behavior is undefined.
         template <typename T>
         constexpr std::optional<T> enum_from_string(std::string_view sv) noexcept;
     } // namespace Reflection
@@ -170,11 +174,31 @@ namespace Engine {
         template <typename T>
         constexpr std::optional<T> enum_from_string(std::string_view sv) noexcept {
             static_assert(std::is_enum_v<T>, "enum_from_string can only be used with enum types");
-            try {
-                int int_value = std::stoi(std::string(sv));
-                return static_cast<T>(int_value);
-            } catch (...) {
-                return std::nullopt;
+            using Underlying = std::underlying_type_t<T>;
+            // Use std::from_chars to parse directly from the string_view's buffer
+            // This avoids allocating a temporary std::string and is much faster.
+            if (sv.empty()) return std::nullopt;
+            if constexpr (std::is_signed_v<Underlying>) {
+                long long v = 0;
+                auto first = sv.data();
+                auto last = sv.data() + sv.size();
+                auto res = std::from_chars(first, last, v);
+                if (res.ec != std::errc() || res.ptr != last) return std::nullopt;
+                if (v < static_cast<long long>(std::numeric_limits<Underlying>::min())
+                    || v > static_cast<long long>(std::numeric_limits<Underlying>::max())) {
+                    return std::nullopt;
+                }
+                return static_cast<T>(static_cast<Underlying>(v));
+            } else {
+                unsigned long long v = 0u;
+                auto first = sv.data();
+                auto last = sv.data() + sv.size();
+                auto res = std::from_chars(first, last, v);
+                if (res.ec != std::errc() || res.ptr != last) return std::nullopt;
+                if (v > static_cast<unsigned long long>(std::numeric_limits<Underlying>::max())) {
+                    return std::nullopt;
+                }
+                return static_cast<T>(static_cast<Underlying>(v));
             }
         }
     } // namespace Reflection
