@@ -13,9 +13,11 @@
 % endfor
 </%def>
 
+% if file_path in parser.file_type_map.keys():
 % for class_type in parser.file_type_map[file_path]:
 ${generate_headers(class_type)}
 % endfor
+% endif
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
@@ -40,6 +42,7 @@ namespace Engine
         }
         % endif
 
+        % if file_path in parser.file_type_map.keys():
         % for class_type in parser.file_type_map[file_path]:
         std::shared_ptr<Type> TypeRegistrar::Register_${class_type.mangled_name}()
         {
@@ -165,6 +168,7 @@ std::add_pointer<${method.return_type.full_name}>::type ret_ptr = reinterpret_ca
             % endfor
         }
         % endfor
+        % endif
 
         % if file_path in parser.file_enum_map.keys():
         % for enum_type in parser.file_enum_map[file_path]:

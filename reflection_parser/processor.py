@@ -191,7 +191,7 @@ class ReflectionParser:
             template_impl = Template(f.read())
         for file in output_files:
             input_path = str(Path(file["input_path"]).resolve())
-            if input_path not in self.file_type_map.keys():
+            if input_path not in self.file_type_map.keys() and input_path not in self.file_enum_map.keys():
                 continue
             output_path = os.path.join(generated_code_dir, file["output_impl_file"]["registrar"])
             with open(output_path, "w") as out:
