@@ -221,18 +221,15 @@ int main() {
     assert(struct_struct_test2.m_double == 2.718281828459045);
 
     EnumTest enum_test;
-    enum_test.m_magic_enum = EnumTest::TestMagicEnum::E2;
     enum_test.m_normal_enum = EnumTest::TestNormalEnum::NE2;
     enum_test.m_color = EnumTest::Color::Green;
     archive.clear();
     Engine::Serialization::serialize(enum_test, archive);
     std::cout << "enum test:" << std::endl << archive.m_context->json.dump(4) << std::endl;
-    enum_test.m_magic_enum = EnumTest::TestMagicEnum::E3;
     enum_test.m_normal_enum = EnumTest::TestNormalEnum::NE3;
     enum_test.m_color = EnumTest::Color::Blue;
     Engine::Serialization::deserialize(enum_test, archive);
     archive.clear();
-    assert(enum_test.m_magic_enum == EnumTest::TestMagicEnum::E2);
     assert(enum_test.m_normal_enum == EnumTest::TestNormalEnum::NE2);
     assert(enum_test.m_color == EnumTest::Color::Green);
 

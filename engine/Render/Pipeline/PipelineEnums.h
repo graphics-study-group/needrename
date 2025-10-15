@@ -1,22 +1,50 @@
 #ifndef RENDER_PIPELINE_PIPELINEENUMS_INCLUDED
 #define RENDER_PIPELINE_PIPELINEENUMS_INCLUDED
 
-#include <Render/Enums/enum_def.h>
+#include <Reflection/macros.h>
 
 namespace Engine {
     namespace PipelineUtils {
 
-        using FillingMode = _enum::RasterizerFillingMode;
-        using CullingMode = _enum::RasterizerCullingMode;
-        using FrontFace = _enum::RasterizerFrontFace;
+        enum class REFL_SER_CLASS() FillingMode {
+            Fill,
+            Line,
+            Point
+        };
+        enum class REFL_SER_CLASS() CullingMode {
+            None,
+            Front,
+            Back,
+            All
+        };
+        enum class REFL_SER_CLASS() FrontFace {
+            Counterclockwise,
+            Clockwise
+        };
+
         /// @brief C.f. https://registry.khronos.org/vulkan/specs/latest/man/html/VkCompareOp.html
-        using DSComparator = _enum::Comparator;
+        enum class REFL_SER_CLASS() DSComparator {
+            Never,
+            Less,
+            Equal,
+            LEqual,
+            Greater,
+            NEqual,
+            GEqual,
+            Always
+        };
+
         /// @brief C.f. https://registry.khronos.org/vulkan/specs/latest/man/html/VkStencilOp.html
-        using StencilOperation = _enum::StencilOperation;
-        /// @brief C.f. https://registry.khronos.org/vulkan/specs/latest/man/html/VkBlendOp.html
-        using BlendOperation = _enum::ColorBlendOperation;
-        /// @brief C.f. https://registry.khronos.org/vulkan/specs/latest/man/html/VkBlendFactor.html
-        using BlendFactor = _enum::ColorBlendFactor;
+        enum class REFL_SER_CLASS() StencilOperation {
+            Keep,
+            Zero,
+            Replace,
+            IncrClamp,
+            DecrClamp,
+            Invert,
+            IncrWrap,
+            DecrWrap
+        };
 
         enum class ColorChannelMask : int {
             None = 0x0,
@@ -39,6 +67,30 @@ namespace Engine {
             RGBA = R | G | B | A,
 
             All = RGBA
+        };
+
+        /// @brief C.f. https://registry.khronos.org/vulkan/specs/latest/man/html/VkBlendOp.html
+        enum class REFL_SER_CLASS() BlendOperation {
+            None,
+            Add,
+            Substract,
+            ReverseSubstract,
+            Min,
+            Max
+        };
+
+        /// @brief C.f. https://registry.khronos.org/vulkan/specs/latest/man/html/VkBlendFactor.html
+        enum class REFL_SER_CLASS() BlendFactor {
+            Zero,
+            One,
+            SrcColor,
+            OneMinusSrcColor,
+            DstColor,
+            OneMinusDstColor,
+            SrcAlpha,
+            OneMinusSrcAlpha,
+            DstAlpha,
+            OneMinusDstAlpha
         };
     } // namespace PipelineUtils
 } // namespace Engine

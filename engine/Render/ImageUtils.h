@@ -1,7 +1,6 @@
 #ifndef ENGINE_RENDER_IMAGEUTILS_INCLUDED
 #define ENGINE_RENDER_IMAGEUTILS_INCLUDED
-
-#include "Render/Enums/enum_def.h"
+#include <Reflection/macros.h>
 
 namespace Engine {
     namespace ImageUtils {
@@ -13,7 +12,16 @@ namespace Engine {
             TextureImage
         };
 
-        using ImageFormat = _enum::ImageFormat;
+        enum class REFL_SER_CLASS() ImageFormat {
+            UNDEFINED,
+            R8G8B8A8SNorm,
+            R8G8B8A8UNorm,
+            R8G8B8A8SRGB,
+            // 32-bit packed float for HDR rendering. In Vulkan, it is actually B10-G11-R11.
+            R11G11B10UFloat,
+            R32G32B32A32SFloat,
+            D32SFLOAT,
+        };
 
         struct TextureDesc {
             // An integer between 1 and 3 for dimension.
@@ -30,8 +38,16 @@ namespace Engine {
         };
 
         struct SamplerDesc {
-            using AddressMode = _enum::SamplerAddressMode;
-            using FilterMode = _enum::SamplerFilterMode;
+            enum class REFL_SER_CLASS() AddressMode : uint8_t {
+                Repeat,
+                MirroredRepeat,
+                ClampToEdge
+            };
+
+            enum class REFL_SER_CLASS() FilterMode : uint8_t {
+                Point,
+                Linear
+            };
 
             // Filter mode.
             FilterMode min_filter{FilterMode::Point}, max_filter{FilterMode::Point}, mipmap_filter{FilterMode::Point};
