@@ -175,31 +175,17 @@ namespace Engine {
         constexpr std::optional<T> enum_from_string(std::string_view sv) noexcept {
             static_assert(std::is_enum_v<T>, "enum_from_string can only be used with enum types");
             using Underlying = std::underlying_type_t<T>;
+            static_assert(std::is_integral_v<Underlying>, "how come the underlying type is not an integer?");
             // Use std::from_chars to parse directly from the string_view's buffer
             // This avoids allocating a temporary std::string and is much faster.
             if (sv.empty()) return std::nullopt;
-            if constexpr (std::is_signed_v<Underlying>) {
-                long long v = 0;
-                auto first = sv.data();
-                auto last = sv.data() + sv.size();
-                auto res = std::from_chars(first, last, v);
-                if (res.ec != std::errc() || res.ptr != last) return std::nullopt;
-                if (v < static_cast<long long>(std::numeric_limits<Underlying>::min())
-                    || v > static_cast<long long>(std::numeric_limits<Underlying>::max())) {
-                    return std::nullopt;
-                }
-                return static_cast<T>(static_cast<Underlying>(v));
-            } else {
-                unsigned long long v = 0u;
-                auto first = sv.data();
-                auto last = sv.data() + sv.size();
-                auto res = std::from_chars(first, last, v);
-                if (res.ec != std::errc() || res.ptr != last) return std::nullopt;
-                if (v > static_cast<unsigned long long>(std::numeric_limits<Underlying>::max())) {
-                    return std::nullopt;
-                }
-                return static_cast<T>(static_cast<Underlying>(v));
-            }
+
+            Underlying parsed;
+            // We have to use this before P2007R0 is merged into C++ standard.
+            auto ret = std::from_chars(sv.data(), sv.data() + sv.size(), parsed);
+            // ret.ec returns std::errc::result_out_of_range if out of range, and so no more checks are needed.
+            if (ret.ec != std::errc() || ret.ptr != sv.data() + sv.size()) return std::nullopt;
+            return static_cast<T>(parsed);
         }
     } // namespace Reflection
 } // namespace Engine
