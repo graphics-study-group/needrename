@@ -364,5 +364,21 @@ int main() {
     std::cout << "enum_class_test: m_color == " << color_var.GetEnumString() << std::endl;
     assert(color_var.GetEnumString() == "Green");
 
+    // Additional coverage: different underlying types
+    auto small_var = enum_class_test.GetMember("m_small");
+    auto big_var = enum_class_test.GetMember("m_big");
+    assert(small_var.GetType()->GetTypeKind() == Engine::Reflection::Type::TypeKind::Enum);
+    assert(big_var.GetType()->GetTypeKind() == Engine::Reflection::Type::TypeKind::Enum);
+    // Check default string values
+    std::cout << "enum_class_test: m_small == " << small_var.GetEnumString() << std::endl;
+    assert(small_var.GetEnumString() == "A");
+    std::cout << "enum_class_test: m_big == " << big_var.GetEnumString() << std::endl;
+    assert(big_var.GetEnumString() == "Big");
+    // Change via string and verify
+    small_var.SetEnumFromString("C");
+    big_var.SetEnumFromString("One");
+    assert(small_var.GetEnumString() == "C");
+    assert(big_var.GetEnumString() == "One");
+
     return 0;
 }

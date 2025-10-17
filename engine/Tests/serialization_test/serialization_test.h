@@ -175,6 +175,14 @@ namespace SerializationTest {
             Blue
         };
         REFL_SER_ENABLE Color m_color = Color::Red;
+
+        // Additional enums with explicit underlying types for coverage
+        enum class REFL_SER_CLASS() SmallU8 : uint8_t { A = 0, B = 1, C = 200 };
+        enum class REFL_SER_CLASS() BigU64 : uint64_t { Zero = 0ull, One = 1ull, Big = 0x100000000ull };
+        enum class BigNoRefl : uint64_t { Zero = 0ull, One = 1ull, Big = 0x100000000ull };
+        REFL_SER_ENABLE SmallU8 m_small = SmallU8::B;
+        REFL_SER_ENABLE BigU64 m_big = BigU64::Big;
+        REFL_SER_ENABLE BigNoRefl m_bignorefl = BigNoRefl::Big;
     };
 } // namespace SerializationTest
 

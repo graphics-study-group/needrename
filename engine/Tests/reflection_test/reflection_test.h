@@ -170,10 +170,25 @@ public:
         Blue
     };
 
+    // Reflective enums with explicit underlying types for coverage
+    enum class REFL_SER_CLASS() SmallU8 : uint8_t {
+        A = 0,
+        B = 1,
+        C = 200
+    };
+
+    enum class REFL_SER_CLASS() BigU64 : uint64_t {
+        Zero = 0ull,
+        One = 1ull,
+        Big = 0x100000000ull // > 32-bit to exercise wide underlying type
+    };
+
     REFL_ENABLE EnumClassTest() = default;
     virtual ~EnumClassTest() = default;
 
     REFL_SER_ENABLE Color m_color = Color::Red;
+    REFL_SER_ENABLE SmallU8 m_small = SmallU8::A;
+    REFL_SER_ENABLE BigU64 m_big = BigU64::Big;
 };
 
 #endif // CTEST_REFLECTION_TEST_H
