@@ -78,7 +78,7 @@ ${constructor.arg_types[i].full_name}\
 )); });
             % endfor
 
-            type->SetDeconstructor(
+            type->SetDeleter(
                 [](void *obj)
                 { delete static_cast<std::add_pointer<${class_type.full_name}>::type>(obj); }
             );

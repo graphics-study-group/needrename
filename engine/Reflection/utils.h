@@ -13,9 +13,9 @@
 
 namespace Engine {
     namespace Reflection {
-        /// @brief Wrapper function for deconstructor.
+        /// @brief Wrapper function for deleter.
         /// Format: <void func(the owner object to be deconstructed)>
-        using WrapperDeconstructor = std::function<void(void *)>;
+        using WrapperDeleter = std::function<void(void *)>;
         /// @brief Wrapper function for member function.
         /// Format: <void func(the owner object of the member function, return value, arguments)>
         using WrapperMemberFunc = std::function<void(void *, void *&, std::vector<void *>)>;

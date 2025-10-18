@@ -6,8 +6,8 @@ namespace Engine {
         std::unordered_map<std::type_index, std::shared_ptr<const Type>> Type::s_index_type_map;
         std::unordered_map<std::string, std::type_index> Type::s_name_index_map;
 
-        Type::Type(const std::string &name, size_t size, bool reflectable, const WrapperDeconstructor &deconstructor) :
-            m_deconstructor(deconstructor), m_name(name), m_size(size), m_reflectable(reflectable) {
+        Type::Type(const std::string &name, size_t size, bool reflectable, const WrapperDeleter &deleter) :
+            m_deleter(deleter), m_name(name), m_size(size), m_reflectable(reflectable) {
         }
 
         std::shared_ptr<const Method> Type::GetMethodFromMangledName(const std::string &name) const {
@@ -35,15 +35,15 @@ namespace Engine {
             return m_kind;
         }
 
-        void Type::SetDeconstructor(const WrapperDeconstructor &deconstructor) {
-            m_deconstructor = deconstructor;
+        void Type::SetDeleter(const WrapperDeleter &deleter) {
+            m_deleter = deleter;
         }
 
         void Type::DeleteObject(void *obj) const {
-            if (m_deconstructor) {
-                m_deconstructor(obj);
+            if (m_deleter) {
+                m_deleter(obj);
             } else {
-                throw std::runtime_error("Deconstructor not set for type " + m_name);
+                throw std::runtime_error("Deleter not set for type " + m_name);
             }
         }
 
@@ -116,8 +116,8 @@ namespace Engine {
         std::unordered_map<std::type_index, WrapperSmartPointerGet> PointerType::s_weak_pointer_getter_map;
         std::unordered_map<std::type_index, WrapperSmartPointerGet> PointerType::s_unique_pointer_getter_map;
 
-        PointerType::PointerType(std::shared_ptr<const Type> pointed_type, size_t size, PointerTypeKind kind, const WrapperDeconstructor &deconstructor) :
-            Type(pointed_type->GetName(), size, pointed_type->IsReflectable(), deconstructor), m_pointed_type(pointed_type),
+        PointerType::PointerType(std::shared_ptr<const Type> pointed_type, size_t size, PointerTypeKind kind, const WrapperDeleter &deleter) :
+            Type(pointed_type->GetName(), size, pointed_type->IsReflectable(), deleter), m_pointed_type(pointed_type),
             m_pointer_kind(kind) {
             m_kind = TypeKind::Pointer;
             switch (kind) {

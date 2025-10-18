@@ -12,7 +12,7 @@ namespace Engine {
         template <typename T>
         static void InitBuiltinType(const char* name) {
             Type *type = new Type(name, sizeof(T), false);
-            type->SetDeconstructor([](void *obj) {
+            type->SetDeleter([](void *obj) {
                 delete static_cast<std::add_pointer_t<T>>(obj);
             });
             Type::s_index_type_map[std::type_index(typeid(T))] = std::shared_ptr<const Type>(type);
