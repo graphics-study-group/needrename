@@ -85,6 +85,7 @@ namespace Engine {
             /// @param func the member function wrapper
             /// @param return_type the return type of the function
             /// @param is_const whether the function is const
+            /// @param return_value_needs_free whether the return value needs to be freed (only void functions should be false)
             template <typename... Args>
             void AddMethod(
                 const std::string &name,
