@@ -24,6 +24,8 @@ def get_type_full_name(cx_type: CX.Type):
         result += get_qualified_name(cx_type.get_declaration())
     elif cx_type.kind == CX.TypeKind.ELABORATED:
         result += get_qualified_name(cx_type.get_declaration())
+    elif cx_type.kind == CX.TypeKind.ENUM:
+        result += get_qualified_name(cx_type.get_declaration())
     else:
         result += cx_type.spelling
     return result
@@ -45,6 +47,8 @@ def get_simple_name(cx_type: CX.Type):
         result += cx_type.get_declaration().displayname
     elif cx_type.kind == CX.TypeKind.ELABORATED:
         result += cx_type.get_declaration().displayname
+    elif cx_type.kind == CX.TypeKind.ENUM:
+        result += cx_type.get_declaration().displayname
     else:
         result += cx_type.spelling
     return result
@@ -64,6 +68,8 @@ def get_type_mangled_name(cx_type: CX.Type):
     if cx_type.kind == CX.TypeKind.RECORD:
         result += get_mangled_qualified_name(cx_type.get_declaration())
     elif cx_type.kind == CX.TypeKind.ELABORATED:
+        result += get_mangled_qualified_name(cx_type.get_declaration())
+    elif cx_type.kind == CX.TypeKind.ENUM:
         result += get_mangled_qualified_name(cx_type.get_declaration())
     else:
         result += cx_type.spelling

@@ -21,12 +21,12 @@ namespace Engine::RenderSystemState {
             vk::UniqueSampler s = m_system.getDevice().createSamplerUnique(
                 vk::SamplerCreateInfo{
                     vk::SamplerCreateFlags{},
-                    ToVkFilter(desc.min_filter),
-                    ToVkFilter(desc.max_filter),
-                    ToVkSamplerMipmapMode(desc.mipmap_filter),
-                    ToVkSamplerAddressMode(desc.u_address),
-                    ToVkSamplerAddressMode(desc.v_address),
-                    ToVkSamplerAddressMode(desc.w_address),
+                    ImageUtils::ToVkFilter(desc.min_filter),
+                    ImageUtils::ToVkFilter(desc.max_filter),
+                    ImageUtils::ToVkSamplerMipmapMode(desc.mipmap_filter),
+                    ImageUtils::ToVkSamplerAddressMode(desc.u_address),
+                    ImageUtils::ToVkSamplerAddressMode(desc.v_address),
+                    ImageUtils::ToVkSamplerAddressMode(desc.w_address),
                     desc.bias_lod,
                     false,
                     0.0,

@@ -160,6 +160,30 @@ namespace SerializationTest {
         InnerClass m_inner_class{};
         double m_double = 0.0;
     };
+
+    class REFL_SER_CLASS(REFL_WHITELIST) EnumTest {
+        REFL_SER_BODY(EnumTest)
+    public:
+        EnumTest() = default;
+        virtual ~EnumTest() = default;
+
+        REFL_SER_ENABLE enum class TestNormalEnum { NE1, NE2, NE3 } m_normal_enum = TestNormalEnum::NE1;
+
+        enum class REFL_SER_CLASS() Color {
+            Red,
+            Green,
+            Blue
+        };
+        REFL_SER_ENABLE Color m_color = Color::Red;
+
+        // Additional enums with explicit underlying types for coverage
+        enum class REFL_SER_CLASS() SmallU8 : uint8_t { A = 0, B = 1, C = 200 };
+        enum class REFL_SER_CLASS() BigU64 : uint64_t { Zero = 0ull, One = 1ull, Big = 0x100000000ull };
+        enum class BigNoRefl : uint64_t { Zero = 0ull, One = 1ull, Big = 0x100000000ull };
+        REFL_SER_ENABLE SmallU8 m_small = SmallU8::B;
+        REFL_SER_ENABLE BigU64 m_big = BigU64::Big;
+        REFL_SER_ENABLE BigNoRefl m_bignorefl = BigNoRefl::Big;
+    };
 } // namespace SerializationTest
 
 #endif // CTEST_SERIALIZATION_TEST_H

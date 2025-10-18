@@ -3,15 +3,17 @@ import pickle
 import clang.cindex as CX
 from pathlib import Path
 from mako.template import Template
-from reflection.Type import Type, Method, Field
+from reflection.Type import Type, Enum, Method, Field
 from reflection.utils import find_smart_pointer_type_from_template
 
 
 class ReflectionParser:
     def __init__(self):
         self.types = {} # a map from type name to Type object
+        self.enums = {} # a map from enum name to Enum object
         self.files = [] # a list of files to be parsed
         self.file_type_map = {} # a map from file path to types in the file
+        self.file_enum_map = {} # a map from file path to enums in the file
         self.type_file_map = {} # a map from type name to file path, may contain parent projects' types
 
     def in_record_type(self, name: str):
@@ -140,7 +142,22 @@ class ReflectionParser:
             self.file_type_map[path].append(current_type)
             self.type_file_map[current_type.full_name] = path
         return
-
+    
+    def traverse_enum(self, node: CX.Cursor, args: list):
+        current_type = Enum(node.type)
+        if self.enums.get(current_type.full_name) is not None:
+            return
+        for child in node.get_children():
+            if child.kind == CX.CursorKind.ENUM_CONSTANT_DECL:
+                current_type.values.append(child.spelling)
+        self.enums[current_type.full_name] = current_type
+        assert node.location.file is not None
+        path = str(Path(node.location.file.name).resolve())
+        if path not in self.file_enum_map:
+            self.file_enum_map[path] = []
+        self.file_enum_map[path].append(current_type)
+        return
+        
 
     def traverse(self, node: CX.Cursor):
         if node.location.file is not None:
@@ -151,6 +168,8 @@ class ReflectionParser:
         if args is not None:
             if node.kind == CX.CursorKind.CLASS_DECL or node.kind == CX.CursorKind.STRUCT_DECL:
                 self.traverse_class(node, args)
+            elif node.kind ==CX.CursorKind.ENUM_DECL:
+                self.traverse_enum(node, args)
             else:
                 raise Exception(f"Reflection macro can only be used in a class or struct, but found '{node.spelling}' '{node.kind}' not in a class")
         for child in node.get_children():
@@ -160,9 +179,8 @@ class ReflectionParser:
     def generate_code(self, generated_code_dir: str, output_files: list):
         with open("template/registrar_declare.hpp.template", "r") as f:
             template_declare = Template(f.read())
-        mangled_names = [one_type.mangled_name for one_type in self.types.values()]
         with open(os.path.join(generated_code_dir, "registrar_declare.hpp"), "w") as f:
-            f.write(template_declare.render(mangled_names=mangled_names))
+            f.write(template_declare.render(parser=self))
             
         with open("template/reflection_init.ipp.template", "r") as f:
             template_init = Template(f.read())
@@ -173,7 +191,7 @@ class ReflectionParser:
             template_impl = Template(f.read())
         for file in output_files:
             input_path = str(Path(file["input_path"]).resolve())
-            if input_path not in self.file_type_map.keys():
+            if input_path not in self.file_type_map.keys() and input_path not in self.file_enum_map.keys():
                 continue
             output_path = os.path.join(generated_code_dir, file["output_impl_file"]["registrar"])
             with open(output_path, "w") as out:

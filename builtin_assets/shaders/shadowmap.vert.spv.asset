@@ -5,7 +5,7 @@
             "Asset::m_guid": "2191CAAF586849B8B5565ED808897D7E",
             "ShaderAsset::m_name": "shadowmap.vert.spv",
             "ShaderAsset::m_entry_point": "main",
-            "ShaderAsset::shaderType": 1
+            "ShaderAsset::shaderType": "Vertex"
         }
     },
     "%main_id": "&0"

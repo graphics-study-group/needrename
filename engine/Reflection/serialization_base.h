@@ -66,13 +66,41 @@ namespace Engine {
         template <is_enum_type T>
         void save_to_archive(const T &value, Archive &archive) {
             Json &json = *archive.m_cursor;
-            json = static_cast<int>(value);
+            auto type = Reflection::GetType<T>();
+            if (type->IsReflectable()) {
+                assert(type->GetTypeKind() == Reflection::Type::TypeKind::Enum);
+                json = std::dynamic_pointer_cast<const Reflection::EnumType>(type)->to_string(static_cast<uint64_t>(value));
+            } else {
+                json = std::to_string(static_cast<std::underlying_type_t<T>>(value));
+            }
         }
 
         template <is_enum_type T>
         void load_from_archive(T &value, Archive &archive) {
             Json &json = *archive.m_cursor;
-            value = static_cast<T>(json.get<int>());
+            auto type = Reflection::GetType<T>();
+            if (type->IsReflectable()) {
+                assert(type->GetTypeKind() == Reflection::Type::TypeKind::Enum);
+                std::string str = json.get<std::string>();
+                value = static_cast<T>(*(std::dynamic_pointer_cast<const Reflection::EnumType>(type)->from_string(str)));
+                return;
+            }
+            const std::string str = json.get<std::string>();
+            std::string_view sv{str};
+            using Underlying = std::underlying_type_t<T>;
+            std::optional<T> opt;
+            if (!sv.empty()) {
+                Underlying parsed{};
+                auto ret = std::from_chars(sv.data(), sv.data() + sv.size(), parsed);
+                if (ret.ec == std::errc() && ret.ptr == sv.data() + sv.size()) {
+                    opt = static_cast<T>(parsed);
+                }
+            }
+            if (opt) {
+                value = *opt;
+            } else {
+                throw std::runtime_error("Failed to load enum from string: " + json.get<std::string>());
+            }
         }
     } // namespace Serialization
 } // namespace Engine

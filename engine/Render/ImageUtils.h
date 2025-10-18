@@ -1,5 +1,6 @@
 #ifndef ENGINE_RENDER_IMAGEUTILS_INCLUDED
 #define ENGINE_RENDER_IMAGEUTILS_INCLUDED
+#include <Reflection/macros.h>
 
 namespace Engine {
     namespace ImageUtils {
@@ -11,7 +12,7 @@ namespace Engine {
             TextureImage
         };
 
-        enum class ImageFormat {
+        enum class REFL_SER_CLASS() ImageFormat {
             UNDEFINED,
             R8G8B8A8SNorm,
             R8G8B8A8UNorm,
@@ -37,13 +38,13 @@ namespace Engine {
         };
 
         struct SamplerDesc {
-            enum class AddressMode : uint8_t {
+            enum class REFL_SER_CLASS() AddressMode : uint8_t {
                 Repeat,
                 MirroredRepeat,
                 ClampToEdge
             };
 
-            enum class FilterMode : uint8_t {
+            enum class REFL_SER_CLASS() FilterMode : uint8_t {
                 Point,
                 Linear
             };

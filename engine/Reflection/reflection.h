@@ -2,7 +2,12 @@
 #define REFLECTION_REFLECTION_INCLUDED
 
 #include <cassert>
+#include <charconv>
+#include <limits>
 #include <memory>
+#include <optional>
+#include <string>
+#include <type_traits>
 #include <vector>
 
 #include "Field.h"
@@ -124,7 +129,7 @@ namespace Engine {
         template <typename T>
         std::shared_ptr<const Type> CreateType() {
             if constexpr (std::is_const_v<std::remove_reference_t<T>>) {
-                return std::shared_ptr<const Type>(new ConstType(GetType<std::remove_const_t<T>>()));
+                return std::shared_ptr<const Type>(new ConstType(GetType<std::remove_cvref_t<T>>()));
             } else if constexpr (std::is_pointer_v<T>) {
                 return std::shared_ptr<const PointerType>(
                     new PointerType(GetType<std::remove_pointer_t<T>>(), sizeof(T), PointerType::PointerTypeKind::Raw)

@@ -13,9 +13,11 @@
 % endfor
 </%def>
 
+% if file_path in parser.file_type_map.keys():
 % for class_type in parser.file_type_map[file_path]:
 ${generate_headers(class_type)}
 % endfor
+% endif
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
@@ -26,11 +28,36 @@ namespace Engine
     {
         class Type;
 
+        % if file_path in parser.file_enum_map.keys():
+        static constexpr size_t hash_string_view(std::string_view v)
+        {
+            size_t hash = 0xcbf29ce484222325ull;
+            constexpr size_t prime = 0x100000001b3ull;
+            for (char c : v)
+            {
+                hash ^= static_cast<size_t>(c);
+                hash *= prime;
+            }
+            return hash;
+        }
+        % endif
+
+        % if file_path in parser.file_type_map.keys():
         % for class_type in parser.file_type_map[file_path]:
         std::shared_ptr<Type> TypeRegistrar::Register_${class_type.mangled_name}()
         {
             std::shared_ptr<Type> type = std::shared_ptr<Type>(new Type("${class_type.full_name}", sizeof(${class_type.full_name}), true));
 
+            Type::s_index_type_map[std::type_index(typeid(${class_type.full_name}))] = type;
+            Type::s_name_index_map.emplace("${class_type.full_name}", std::type_index(typeid(${class_type.full_name})));
+            PointerType::RegisterSmartPointerGetFunc<${class_type.full_name}>();
+            return type;
+        }
+        % endfor
+
+        % for class_type in parser.file_type_map[file_path]:
+        void TypeRegistrar::RegisterMethodField_${class_type.mangled_name}(std::shared_ptr<Type> type)
+        {
             % for constructor in class_type.constructors:
             type->AddConstructor<\
                 % for i in range(len(constructor.arg_types)):
@@ -139,13 +166,57 @@ std::add_pointer<${method.return_type.full_name}>::type ret_ptr = reinterpret_ca
             );
             % endif
             % endfor
+        }
+        % endfor
+        % endif
 
-            Type::s_index_type_map[std::type_index(typeid(${class_type.full_name}))] = type;
-            Type::s_name_index_map.emplace("${class_type.full_name}", std::type_index(typeid(${class_type.full_name})));
-            PointerType::RegisterSmartPointerGetFunc<${class_type.full_name}>();
+        % if file_path in parser.file_enum_map.keys():
+        % for enum_type in parser.file_enum_map[file_path]:
+        std::shared_ptr<EnumType> TypeRegistrar::Register_${enum_type.mangled_name}()
+        {
+            std::shared_ptr<EnumType> type = std::shared_ptr<EnumType>(
+                new EnumType(
+                    "${enum_type.full_name}", 
+                    sizeof(${enum_type.full_name}), 
+                    true,
+                    {
+                        % for i, value in enumerate(enum_type.values):
+                        static_cast<uint64_t>(${enum_type.full_name}::${value})\
+                            % if i < len(enum_type.values) - 1:
+,
+                            % else:
+
+                            % endif
+                        % endfor
+                    },
+                    [](uint64_t value) -> std::string_view {
+                        switch(static_cast<${enum_type.full_name}>(value))
+                        {
+                            % for value in enum_type.values:
+                            case ${enum_type.full_name}::${value}: return "${value}";
+                            % endfor
+                            default: return "";
+                        }
+                    },
+                    [](const std::string_view &name) -> std::optional<uint64_t> {
+                        auto hash = hash_string_view(name);
+                        switch(hash)
+                        {
+                            % for value in enum_type.values:
+                            case hash_string_view("${value}"): return static_cast<uint64_t>(${enum_type.full_name}::${value});
+                            % endfor
+                            default: return std::nullopt;
+                        }
+                    }
+                )
+            );
+            Type::s_index_type_map[std::type_index(typeid(${enum_type.full_name}))] = type;
+            Type::s_name_index_map.emplace("${enum_type.full_name}", std::type_index(typeid(${enum_type.full_name})));
+            PointerType::RegisterSmartPointerGetFunc<${enum_type.full_name}>();
             return type;
         }
         % endfor
+        % endif
     }
 }
 

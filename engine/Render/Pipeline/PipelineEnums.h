@@ -1,27 +1,29 @@
 #ifndef RENDER_PIPELINE_PIPELINEENUMS_INCLUDED
 #define RENDER_PIPELINE_PIPELINEENUMS_INCLUDED
 
+#include <Reflection/macros.h>
+
 namespace Engine {
     namespace PipelineUtils {
 
-        enum class FillingMode {
+        enum class REFL_SER_CLASS() FillingMode {
             Fill,
             Line,
             Point
         };
-        enum class CullingMode {
+        enum class REFL_SER_CLASS() CullingMode {
             None,
             Front,
             Back,
             All
         };
-        enum class FrontFace {
+        enum class REFL_SER_CLASS() FrontFace {
             Counterclockwise,
             Clockwise
         };
 
         /// @brief C.f. https://registry.khronos.org/vulkan/specs/latest/man/html/VkCompareOp.html
-        enum class DSComparator {
+        enum class REFL_SER_CLASS() DSComparator {
             Never,
             Less,
             Equal,
@@ -33,7 +35,7 @@ namespace Engine {
         };
 
         /// @brief C.f. https://registry.khronos.org/vulkan/specs/latest/man/html/VkStencilOp.html
-        enum class StencilOperation {
+        enum class REFL_SER_CLASS() StencilOperation {
             Keep,
             Zero,
             Replace,
@@ -68,7 +70,7 @@ namespace Engine {
         };
 
         /// @brief C.f. https://registry.khronos.org/vulkan/specs/latest/man/html/VkBlendOp.html
-        enum class BlendOperation {
+        enum class REFL_SER_CLASS() BlendOperation {
             None,
             Add,
             Substract,
@@ -78,7 +80,7 @@ namespace Engine {
         };
 
         /// @brief C.f. https://registry.khronos.org/vulkan/specs/latest/man/html/VkBlendFactor.html
-        enum class BlendFactor {
+        enum class REFL_SER_CLASS() BlendFactor {
             Zero,
             One,
             SrcColor,

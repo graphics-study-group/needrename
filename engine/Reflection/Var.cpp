@@ -121,6 +121,52 @@ namespace Engine {
             return Var(std::shared_ptr<const Type>(new ConstType(m_type)), m_data);
         }
 
+        std::string_view Var::GetEnumString() const {
+            if (m_type->GetTypeKind() != Type::TypeKind::Enum) {
+                throw std::runtime_error("Var is not an enum type");
+            }
+            auto type = std::static_pointer_cast<const EnumType>(m_type);
+            switch (m_type->GetTypeSize()) {
+            case 1:
+                return type->to_string(*(reinterpret_cast<uint8_t *>(m_data)));
+            case 2:
+                return type->to_string(*(reinterpret_cast<uint16_t *>(m_data)));
+            case 4:
+                return type->to_string(*(reinterpret_cast<uint32_t *>(m_data)));
+            case 8:
+                return type->to_string(*(reinterpret_cast<uint64_t *>(m_data)));
+            default:
+                throw std::runtime_error("Unsupported enum size");
+            }
+        }
+
+        void Var::SetEnumFromString(std::string_view sv) {
+            if (m_type->GetTypeKind() != Type::TypeKind::Enum) {
+                throw std::runtime_error("Var is not an enum type");
+            }
+            auto type = std::static_pointer_cast<const EnumType>(m_type);
+            switch (m_type->GetTypeSize()) {
+            case 1: {
+                *(reinterpret_cast<uint8_t *>(m_data)) = static_cast<uint8_t>(*type->from_string(sv));
+                break;
+            }
+            case 2: {
+                *(reinterpret_cast<uint16_t *>(m_data)) = static_cast<uint16_t>(*type->from_string(sv));
+                break;
+            }
+            case 4: {
+                *(reinterpret_cast<uint32_t *>(m_data)) = static_cast<uint32_t>(*type->from_string(sv));
+                break;
+            }
+            case 8: {
+                *(reinterpret_cast<uint64_t *>(m_data)) = static_cast<uint64_t>(*type->from_string(sv));
+                break;
+            }
+            default:
+                throw std::runtime_error("Unsupported enum size");
+            }
+        }
+
         std::shared_ptr<const Type> Var::GetType() const {
             return m_type;
         }

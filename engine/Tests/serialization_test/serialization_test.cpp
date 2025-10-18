@@ -220,5 +220,27 @@ int main() {
     assert(struct_struct_test2.m_inner_class.m_inner_int == 200);
     assert(struct_struct_test2.m_double == 2.718281828459045);
 
+    EnumTest enum_test;
+    enum_test.m_normal_enum = EnumTest::TestNormalEnum::NE2;
+    enum_test.m_color = EnumTest::Color::Green;
+    enum_test.m_small = EnumTest::SmallU8::C; // uint8_t underlying
+    enum_test.m_big = EnumTest::BigU64::Big;  // uint64_t underlying
+    enum_test.m_bignorefl = EnumTest::BigNoRefl::Big; // no reflection info
+    archive.clear();
+    Engine::Serialization::serialize(enum_test, archive);
+    std::cout << "enum test:" << std::endl << archive.m_context->json.dump(4) << std::endl;
+    enum_test.m_normal_enum = EnumTest::TestNormalEnum::NE3;
+    enum_test.m_color = EnumTest::Color::Blue;
+    enum_test.m_small = EnumTest::SmallU8::A;
+    enum_test.m_big = EnumTest::BigU64::Zero;
+    enum_test.m_bignorefl = EnumTest::BigNoRefl::Zero;
+    Engine::Serialization::deserialize(enum_test, archive);
+    archive.clear();
+    assert(enum_test.m_normal_enum == EnumTest::TestNormalEnum::NE2);
+    assert(enum_test.m_color == EnumTest::Color::Green);
+    assert(enum_test.m_small == EnumTest::SmallU8::C);
+    assert(enum_test.m_big == EnumTest::BigU64::Big);
+    assert(enum_test.m_bignorefl == EnumTest::BigNoRefl::Big);
+
     return 0;
 }

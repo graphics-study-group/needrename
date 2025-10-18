@@ -1,7 +1,9 @@
 #ifndef REFLECTION_UTILS_INCLUDED
 #define REFLECTION_UTILS_INCLUDED
 
+#include <cstdint>
 #include <functional>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -29,6 +31,10 @@ namespace Engine {
         /// @brief Wrapper function for getting a smart pointer's raw pointer.
         /// Format: <void *func(the void pointer to the smart pointer)>
         using WrapperSmartPointerGet = std::function<void *(void *)>;
+        /// @brief Wrapper function for enum from string.
+        using WrapperEnumToString = std::function<std::string_view(uint64_t)>;
+        /// @brief Wrapper function for enum to string.
+        using WrapperEnumFromString = std::function<std::optional<uint64_t>(std::string_view)>;
 
         /// @brief Get the mangled name of some arguments.
         template <typename... Args>

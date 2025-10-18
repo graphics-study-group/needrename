@@ -5,7 +5,7 @@
             "Asset::m_guid": "9B381210B6EF92D084CBEB4E09F3D652",
             "ShaderAsset::m_name": "blinn_phong.frag.spv",
             "ShaderAsset::m_entry_point": "main",
-            "ShaderAsset::shaderType": 2
+            "ShaderAsset::shaderType": "Fragment"
         }
     },
     "%main_id": "&0"
