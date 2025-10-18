@@ -191,4 +191,42 @@ public:
     REFL_SER_ENABLE BigU64 m_big = BigU64::Big;
 };
 
+// A reflectable type used to verify that Var construction & destruction
+// correctly invoke the underlying object's ctor/dtor. It also embeds a
+// smart pointer to ensure owned resources are released when Var is destroyed.
+class REFL_SER_CLASS(REFL_WHITELIST) LifecycleTest {
+    REFL_SER_BODY(LifecycleTest)
+public:
+    struct InnerProbe {
+        static inline int alive = 0;
+        static inline int destroyed = 0;
+        InnerProbe() { ++alive; }
+        ~InnerProbe() { ++destroyed; --alive; }
+    };
+
+    // Default ctor/dtor with counters
+    REFL_ENABLE LifecycleTest() : m_probe(std::make_shared<InnerProbe>()) { ++constructed; ++alive; }
+    virtual ~LifecycleTest() { ++destructed; --alive; }
+
+    // Return-by-value method to exercise reflected return Var lifetime
+    REFL_ENABLE LifecycleTest MakeAnother() const { return LifecycleTest(); }
+
+    // A held smart pointer resource that should be released on destruction
+    std::shared_ptr<InnerProbe> m_probe{};
+
+    // Static counters (simple, observable contract for tests)
+    static inline int constructed = 0;
+    static inline int destructed = 0;
+    static inline int alive = 0;
+
+    // Helper for tests (not required to be reflectable)
+    static void ResetCounters() {
+        constructed = 0;
+        destructed = 0;
+        alive = 0;
+        InnerProbe::destroyed = 0;
+        InnerProbe::alive = 0;
+    }
+};
+
 #endif // CTEST_REFLECTION_TEST_H
