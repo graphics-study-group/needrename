@@ -50,7 +50,8 @@ namespace Engine {
             /// @param name Type name
             /// @param size Type size
             /// @param reflectable whether the type is reflectable
-            Type(const std::string &name, size_t size, bool reflectable = false);
+            /// @param deconstructor the deconstructor for the type
+            Type(const std::string &name, size_t size, bool reflectable = false, const WrapperDeconstructor &deconstructor = nullptr);
 
             // suppress the warning of -Weffc++
             Type(const Type &) = delete;
@@ -64,6 +65,7 @@ namespace Engine {
 
         protected:
             std::vector<std::shared_ptr<const Type>> m_base_type{};
+            WrapperDeconstructor m_deconstructor = nullptr;
             std::unordered_map<std::string, std::shared_ptr<const Field>> m_fields{};
             std::unordered_map<std::string, std::shared_ptr<const ArrayField>> m_array_fields{};
             std::unordered_map<std::string, std::shared_ptr<const Method>> m_methods{};
@@ -76,6 +78,12 @@ namespace Engine {
             TypeKind m_kind = TypeKind::None;
 
         public:
+            // Set the deconstructor for the type (static cast a void pointer to the type pointer and call delete)
+            void SetDeconstructor(const WrapperDeconstructor &deconstructor);
+
+            // Delete an object of the type
+            void DeleteObject(void *obj) const;
+
             // Add a constructor to the type
             template <typename... Args>
             void AddConstructor(const WrapperMemberFunc &func);
@@ -196,7 +204,7 @@ namespace Engine {
                 Weak,
                 Unique
             };
-            PointerType(std::shared_ptr<const Type> pointed_type, size_t size, PointerTypeKind kind);
+            PointerType(std::shared_ptr<const Type> pointed_type, size_t size, PointerTypeKind kind, const WrapperDeconstructor &deconstructor);
             virtual ~PointerType() = default;
 
         protected:

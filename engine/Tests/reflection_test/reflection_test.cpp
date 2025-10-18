@@ -189,7 +189,8 @@ int main() {
     std::cout << "----------------------------------- Test a FooA as a FooBase* var -----------------------------------"
               << std::endl;
     std::cout << "[] (Foobase) Var foo2: (it is a FooA in fact)" << std::endl;
-    Engine::Reflection::Var foo2(Engine::Reflection::GetType("FooBase"), FooAtype->CreateInstance(5, 7).GetDataPtr());
+    Engine::Reflection::Var foo2_origin = FooAtype->CreateInstance(5, 7);
+    Engine::Reflection::Var foo2(Engine::Reflection::GetType("FooBase"), foo2_origin.GetDataPtr());
     void *foo2_data = foo2.GetDataPtr();
     std::cout << "[] foo2: PrintHelloWorld (virtual)" << std::endl;
     foo2.InvokeMethod("PrintHelloWorld");

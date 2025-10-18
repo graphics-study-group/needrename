@@ -47,7 +47,7 @@ namespace Engine {
             void Reset();
 
             /// @brief Mark the Var as needing to be freed.
-            void MarkNeedFree();
+            void MarkNeedFree(bool need_free = true);
 
             /// @brief Invoke a method of the object.
             /// @param name The name of the method

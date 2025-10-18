@@ -38,6 +38,7 @@ namespace Engine {
                     if (type->IsReflectable()) {
                         auto var = type->CreateInstance(SerializationMarker{});
                         archive.m_context->pointer_map[id] = std::shared_ptr<void>(static_cast<T *>(var.GetDataPtr()));
+                        var.MarkNeedFree(false);
                         value = static_pointer_cast<T>(archive.m_context->pointer_map[id]);
                         deserialize(*value, temp_archive);
                     } else {
@@ -85,6 +86,7 @@ namespace Engine {
                     if (type->IsReflectable()) {
                         auto var = type->CreateInstance(Serialization::SerializationMarker{});
                         archive.m_context->pointer_map[id] = std::shared_ptr<void>(static_cast<T *>(var.GetDataPtr()));
+                        var.MarkNeedFree(false);
                         value = static_pointer_cast<T>(archive.m_context->pointer_map[id]);
                         deserialize(*(value.lock()), temp_archive);
                     } else {
@@ -131,6 +133,7 @@ namespace Engine {
                 if (type->IsReflectable()) {
                     auto var = type->CreateInstance(Serialization::SerializationMarker{});
                     value = std::unique_ptr<T>(static_cast<T *>(var.GetDataPtr()));
+                    var.MarkNeedFree(false);
                     deserialize(*value, temp_archive);
                 } else {
                     value = backdoor_create_unique<T>();
