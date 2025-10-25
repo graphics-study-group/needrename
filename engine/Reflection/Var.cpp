@@ -40,17 +40,16 @@ namespace Engine {
         }
 
         void Var::Reset() {
-            /// XXX: Don't know how to call destructor of the type
             if (m_need_free && m_data) {
-                free(m_data);
+                m_type->DeleteObject(m_data);
             }
             m_data = nullptr;
             m_need_free = false;
             m_type = nullptr;
         }
 
-        void Var::MarkNeedFree() {
-            m_need_free = true;
+        void Var::MarkNeedFree(bool need_free) {
+            m_need_free = need_free;
         }
 
         Var Var::GetMember(const std::string &name) {

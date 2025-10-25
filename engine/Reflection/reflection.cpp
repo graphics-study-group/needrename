@@ -9,6 +9,17 @@
 
 namespace Engine {
     namespace Reflection {
+        template <typename T>
+        static void InitBuiltinType(const char* name) {
+            Type *type = new Type(name, sizeof(T), false);
+            type->SetDeleter([](void *obj) {
+                delete static_cast<std::add_pointer_t<T>>(obj);
+            });
+            Type::s_index_type_map[std::type_index(typeid(T))] = std::shared_ptr<const Type>(type);
+            PointerType::RegisterSmartPointerGetFunc<T>();
+            Type::s_name_index_map.emplace(name, std::type_index(typeid(T)));
+        }
+
         void Initialize() {
             Registrar::RegisterBasicTypes();
             RegisterAllTypes();
@@ -17,112 +28,38 @@ namespace Engine {
         /// @brief Register basic types list in https://en.cppreference.com/w/cpp/language/type and some frequently used
         /// types.
         void Registrar::RegisterBasicTypes() {
+            // special-case void (cannot use InitBuiltinType<void>())
             Type::s_index_type_map[std::type_index(typeid(void))] =
                 std::shared_ptr<const Type>(new Type("void", 0u, false));
-            Type::s_index_type_map[std::type_index(typeid(std::nullptr_t))] =
-                std::shared_ptr<const Type>(new Type("std::nullptr_t", sizeof(std::nullptr_t), false));
-            Type::s_index_type_map[std::type_index(typeid(bool))] =
-                std::shared_ptr<const Type>(new Type("bool", sizeof(bool), false));
-            Type::s_index_type_map[std::type_index(typeid(char))] =
-                std::shared_ptr<const Type>(new Type("char", sizeof(char), false));
-            Type::s_index_type_map[std::type_index(typeid(signed char))] =
-                std::shared_ptr<const Type>(new Type("signed char", sizeof(signed char), false));
-            Type::s_index_type_map[std::type_index(typeid(unsigned char))] =
-                std::shared_ptr<const Type>(new Type("unsigned char", sizeof(unsigned char), false));
-            Type::s_index_type_map[std::type_index(typeid(char8_t))] =
-                std::shared_ptr<const Type>(new Type("char8_t", sizeof(char8_t), false));
-            Type::s_index_type_map[std::type_index(typeid(char16_t))] =
-                std::shared_ptr<const Type>(new Type("char16_t", sizeof(char16_t), false));
-            Type::s_index_type_map[std::type_index(typeid(char32_t))] =
-                std::shared_ptr<const Type>(new Type("char32_t", sizeof(char32_t), false));
-            Type::s_index_type_map[std::type_index(typeid(wchar_t))] =
-                std::shared_ptr<const Type>(new Type("wchar_t", sizeof(wchar_t), false));
-            Type::s_index_type_map[std::type_index(typeid(short))] =
-                std::shared_ptr<const Type>(new Type("short", sizeof(short), false));
-            Type::s_index_type_map[std::type_index(typeid(unsigned short))] =
-                std::shared_ptr<const Type>(new Type("unsigned short", sizeof(unsigned short), false));
-            Type::s_index_type_map[std::type_index(typeid(int))] =
-                std::shared_ptr<const Type>(new Type("int", sizeof(int), false));
-            Type::s_index_type_map[std::type_index(typeid(unsigned int))] =
-                std::shared_ptr<const Type>(new Type("unsigned int", sizeof(unsigned int), false));
-            Type::s_index_type_map[std::type_index(typeid(long))] =
-                std::shared_ptr<const Type>(new Type("long", sizeof(long), false));
-            Type::s_index_type_map[std::type_index(typeid(unsigned long))] =
-                std::shared_ptr<const Type>(new Type("unsigned long", sizeof(unsigned long), false));
-            Type::s_index_type_map[std::type_index(typeid(long long))] =
-                std::shared_ptr<const Type>(new Type("long long", sizeof(long long), false));
-            Type::s_index_type_map[std::type_index(typeid(unsigned long long))] =
-                std::shared_ptr<const Type>(new Type("unsigned long long", sizeof(unsigned long long), false));
-            Type::s_index_type_map[std::type_index(typeid(float))] =
-                std::shared_ptr<const Type>(new Type("float", sizeof(float), false));
-            Type::s_index_type_map[std::type_index(typeid(double))] =
-                std::shared_ptr<const Type>(new Type("double", sizeof(double), false));
-            Type::s_index_type_map[std::type_index(typeid(long double))] =
-                std::shared_ptr<const Type>(new Type("long double", sizeof(long double), false));
-            Type::s_index_type_map[std::type_index(typeid(std::string))] =
-                std::shared_ptr<const Type>(new Type("std::string", sizeof(std::string), false));
-            Type::s_index_type_map[std::type_index(typeid(glm::vec2))] =
-                std::shared_ptr<const Type>(new Type("glm::vec2", sizeof(glm::vec2), false));
-            Type::s_index_type_map[std::type_index(typeid(glm::vec3))] =
-                std::shared_ptr<const Type>(new Type("glm::vec3", sizeof(glm::vec3), false));
-            Type::s_index_type_map[std::type_index(typeid(glm::vec4))] =
-                std::shared_ptr<const Type>(new Type("glm::vec4", sizeof(glm::vec4), false));
-            Type::s_index_type_map[std::type_index(typeid(glm::quat))] =
-                std::shared_ptr<const Type>(new Type("glm::quat", sizeof(glm::quat), false));
-
             PointerType::RegisterSmartPointerGetFunc<void>();
-            PointerType::RegisterSmartPointerGetFunc<std::nullptr_t>();
-            PointerType::RegisterSmartPointerGetFunc<bool>();
-            PointerType::RegisterSmartPointerGetFunc<char>();
-            PointerType::RegisterSmartPointerGetFunc<signed char>();
-            PointerType::RegisterSmartPointerGetFunc<unsigned char>();
-            PointerType::RegisterSmartPointerGetFunc<char8_t>();
-            PointerType::RegisterSmartPointerGetFunc<char16_t>();
-            PointerType::RegisterSmartPointerGetFunc<char32_t>();
-            PointerType::RegisterSmartPointerGetFunc<wchar_t>();
-            PointerType::RegisterSmartPointerGetFunc<short>();
-            PointerType::RegisterSmartPointerGetFunc<unsigned short>();
-            PointerType::RegisterSmartPointerGetFunc<int>();
-            PointerType::RegisterSmartPointerGetFunc<unsigned int>();
-            PointerType::RegisterSmartPointerGetFunc<long>();
-            PointerType::RegisterSmartPointerGetFunc<unsigned long>();
-            PointerType::RegisterSmartPointerGetFunc<long long>();
-            PointerType::RegisterSmartPointerGetFunc<unsigned long long>();
-            PointerType::RegisterSmartPointerGetFunc<float>();
-            PointerType::RegisterSmartPointerGetFunc<double>();
-            PointerType::RegisterSmartPointerGetFunc<long double>();
-            PointerType::RegisterSmartPointerGetFunc<std::string>();
-            PointerType::RegisterSmartPointerGetFunc<glm::vec2>();
-            PointerType::RegisterSmartPointerGetFunc<glm::vec3>();
-            PointerType::RegisterSmartPointerGetFunc<glm::vec4>();
-            PointerType::RegisterSmartPointerGetFunc<glm::quat>();
-
             Type::s_name_index_map.emplace("void", std::type_index(typeid(void)));
-            Type::s_name_index_map.emplace("std::nullptr_t", std::type_index(typeid(std::nullptr_t)));
-            Type::s_name_index_map.emplace("bool", std::type_index(typeid(bool)));
-            Type::s_name_index_map.emplace("char", std::type_index(typeid(char)));
-            Type::s_name_index_map.emplace("signed char", std::type_index(typeid(signed char)));
-            Type::s_name_index_map.emplace("unsigned char", std::type_index(typeid(unsigned char)));
-            Type::s_name_index_map.emplace("char8_t", std::type_index(typeid(char8_t)));
-            Type::s_name_index_map.emplace("char16_t", std::type_index(typeid(char16_t)));
-            Type::s_name_index_map.emplace("char32_t", std::type_index(typeid(char32_t)));
-            Type::s_name_index_map.emplace("wchar_t", std::type_index(typeid(wchar_t)));
-            Type::s_name_index_map.emplace("short", std::type_index(typeid(short)));
-            Type::s_name_index_map.emplace("unsigned short", std::type_index(typeid(unsigned short)));
-            Type::s_name_index_map.emplace("int", std::type_index(typeid(int)));
-            Type::s_name_index_map.emplace("unsigned int", std::type_index(typeid(unsigned int)));
-            Type::s_name_index_map.emplace("long", std::type_index(typeid(long)));
-            Type::s_name_index_map.emplace("unsigned long", std::type_index(typeid(unsigned long)));
-            Type::s_name_index_map.emplace("long long", std::type_index(typeid(long long)));
-            Type::s_name_index_map.emplace("unsigned long long", std::type_index(typeid(unsigned long long)));
-            Type::s_name_index_map.emplace("float", std::type_index(typeid(float)));
-            Type::s_name_index_map.emplace("double", std::type_index(typeid(double)));
-            Type::s_name_index_map.emplace("long double", std::type_index(typeid(long double)));
-            Type::s_name_index_map.emplace("std::string", std::type_index(typeid(std::string)));
-            Type::s_name_index_map.emplace("glm::vec2", std::type_index(typeid(glm::vec2)));
-            Type::s_name_index_map.emplace("glm::vec3", std::type_index(typeid(glm::vec3)));
-            Type::s_name_index_map.emplace("glm::vec4", std::type_index(typeid(glm::vec4)));
-            Type::s_name_index_map.emplace("glm::quat", std::type_index(typeid(glm::quat)));
+
+            // use InitBuiltinType<T>("T") for the rest
+            InitBuiltinType<std::nullptr_t>("std::nullptr_t");
+            InitBuiltinType<bool>("bool");
+            InitBuiltinType<char>("char");
+            InitBuiltinType<signed char>("signed char");
+            InitBuiltinType<unsigned char>("unsigned char");
+            InitBuiltinType<char8_t>("char8_t");
+            InitBuiltinType<char16_t>("char16_t");
+            InitBuiltinType<char32_t>("char32_t");
+            InitBuiltinType<wchar_t>("wchar_t");
+            InitBuiltinType<short>("short");
+            InitBuiltinType<unsigned short>("unsigned short");
+            InitBuiltinType<int>("int");
+            InitBuiltinType<unsigned int>("unsigned int");
+            InitBuiltinType<long>("long");
+            InitBuiltinType<unsigned long>("unsigned long");
+            InitBuiltinType<long long>("long long");
+            InitBuiltinType<unsigned long long>("unsigned long long");
+            InitBuiltinType<float>("float");
+            InitBuiltinType<double>("double");
+            InitBuiltinType<long double>("long double");
+            InitBuiltinType<std::string>("std::string");
+            InitBuiltinType<glm::vec2>("glm::vec2");
+            InitBuiltinType<glm::vec3>("glm::vec3");
+            InitBuiltinType<glm::vec4>("glm::vec4");
+            InitBuiltinType<glm::quat>("glm::quat");
 
             Type::s_name_index_map.emplace("int8_t", std::type_index(typeid(int8_t)));
             Type::s_name_index_map.emplace("int16_t", std::type_index(typeid(int16_t)));

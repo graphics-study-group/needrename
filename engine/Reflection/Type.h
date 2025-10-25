@@ -50,7 +50,8 @@ namespace Engine {
             /// @param name Type name
             /// @param size Type size
             /// @param reflectable whether the type is reflectable
-            Type(const std::string &name, size_t size, bool reflectable = false);
+            /// @param deleter the deleter for the type
+            Type(const std::string &name, size_t size, bool reflectable = false, const WrapperDeleter &deleter = nullptr);
 
             // suppress the warning of -Weffc++
             Type(const Type &) = delete;
@@ -64,6 +65,7 @@ namespace Engine {
 
         protected:
             std::vector<std::shared_ptr<const Type>> m_base_type{};
+            WrapperDeleter m_deleter = nullptr;
             std::unordered_map<std::string, std::shared_ptr<const Field>> m_fields{};
             std::unordered_map<std::string, std::shared_ptr<const ArrayField>> m_array_fields{};
             std::unordered_map<std::string, std::shared_ptr<const Method>> m_methods{};
@@ -76,6 +78,12 @@ namespace Engine {
             TypeKind m_kind = TypeKind::None;
 
         public:
+            // Set the deleter for the type (static cast a void pointer to the type pointer and call delete)
+            void SetDeleter(const WrapperDeleter &deleter);
+
+            // Delete an object of the type
+            void DeleteObject(void *obj) const;
+
             // Add a constructor to the type
             template <typename... Args>
             void AddConstructor(const WrapperMemberFunc &func);
@@ -85,6 +93,7 @@ namespace Engine {
             /// @param func the member function wrapper
             /// @param return_type the return type of the function
             /// @param is_const whether the function is const
+            /// @param return_value_needs_free whether the return value needs to be freed (only void functions should be false)
             template <typename... Args>
             void AddMethod(
                 const std::string &name,
@@ -195,7 +204,7 @@ namespace Engine {
                 Weak,
                 Unique
             };
-            PointerType(std::shared_ptr<const Type> pointed_type, size_t size, PointerTypeKind kind);
+            PointerType(std::shared_ptr<const Type> pointed_type, size_t size, PointerTypeKind kind, const WrapperDeleter &deleter);
             virtual ~PointerType() = default;
 
         protected:

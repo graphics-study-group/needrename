@@ -189,7 +189,8 @@ int main() {
     std::cout << "----------------------------------- Test a FooA as a FooBase* var -----------------------------------"
               << std::endl;
     std::cout << "[] (Foobase) Var foo2: (it is a FooA in fact)" << std::endl;
-    Engine::Reflection::Var foo2(Engine::Reflection::GetType("FooBase"), FooAtype->CreateInstance(5, 7).GetDataPtr());
+    Engine::Reflection::Var foo2_origin = FooAtype->CreateInstance(5, 7);
+    Engine::Reflection::Var foo2(Engine::Reflection::GetType("FooBase"), foo2_origin.GetDataPtr());
     void *foo2_data = foo2.GetDataPtr();
     std::cout << "[] foo2: PrintHelloWorld (virtual)" << std::endl;
     foo2.InvokeMethod("PrintHelloWorld");
@@ -379,6 +380,46 @@ int main() {
     big_var.SetEnumFromString("One");
     assert(small_var.GetEnumString() == "C");
     assert(big_var.GetEnumString() == "One");
+
+    std::cout << "------------------------------- Test Var Lifetime ------------------------------" << std::endl;
+    {
+        auto lifecycle_type = Engine::Reflection::GetType("LifecycleTest");
+        // Reset counters and check a clean slate
+        LifecycleTest::ResetCounters();
+        assert(LifecycleTest::constructed == 0);
+        assert(LifecycleTest::destructed == 0);
+        assert(LifecycleTest::alive == 0);
+        assert(LifecycleTest::InnerProbe::alive == 0);
+        assert(LifecycleTest::InnerProbe::destroyed == 0);
+
+        // Construct via Type::CreateInstance -> should call default ctor
+        {
+            Engine::Reflection::Var v = lifecycle_type->CreateInstance();
+            std::cout << "[lifecycle] after CreateInstance: constructed=" << LifecycleTest::constructed
+                      << " alive=" << LifecycleTest::alive << std::endl;
+            assert(LifecycleTest::constructed == 1);
+            assert(LifecycleTest::alive == 1);
+            // smart pointer should point to a live InnerProbe
+            auto &obj = v.Get<LifecycleTest>();
+            assert(obj.m_probe != nullptr);
+            assert(LifecycleTest::InnerProbe::alive == 1);
+            // Call a reflected method that returns by value -> result wrapped by Var
+            Engine::Reflection::Var ret = v.InvokeMethod("MakeAnother");
+            std::cout << "[lifecycle] after MakeAnother: constructed=" << LifecycleTest::constructed
+                      << " alive=" << LifecycleTest::alive << std::endl;
+            assert(LifecycleTest::alive == 2);
+            // The returned object's probe should also be valid while ret lives
+            auto &ret_obj = ret.Get<LifecycleTest>();
+            assert(ret_obj.m_probe != nullptr);
+            assert(LifecycleTest::InnerProbe::alive == 2);
+        }
+        // After leaving scope, both Vars should destroy their underlying objects
+        std::cout << "[lifecycle] after scope: destructed=" << LifecycleTest::destructed
+                  << " alive=" << LifecycleTest::alive << std::endl;
+        assert(LifecycleTest::alive == 0);
+        // Both inner probes should be destroyed as shared_ptr refcount drops to zero
+        assert(LifecycleTest::InnerProbe::alive == 0);
+    }
 
     return 0;
 }
