@@ -4,6 +4,7 @@
 #include <iostream>
 #include <nlohmann/json.hpp>
 
+#include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include <Asset/AssetManager/AssetManager.h>
 #include <Asset/Scene/GameObjectAsset.h>
 #include <Framework/component/RenderComponent/CameraComponent.h>
@@ -41,7 +42,7 @@ int main(int argc, char **argv) {
 
     auto cmc = MainClass::GetInstance();
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
-    cmc->GetAssetManager()->SetBuiltinAssetPath(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
+    std::dynamic_pointer_cast<FileSystemDatabase>(cmc->GetAssetDatabase())->SetBuiltinAssetPath(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
     cmc->GetAssetManager()->LoadBuiltinAssets();
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading project");
@@ -50,18 +51,18 @@ int main(int argc, char **argv) {
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Importing external resource");
     cmc->GetAssetManager()->ImportExternalResource(mesh_path, std::filesystem::path("."));
 
-    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading the prefab which has just imported");
-    std::filesystem::path prefab_path = cmc->GetAssetManager()->GetAssetsDirectory() / mesh_path.filename();
-    prefab_path.replace_extension(".gameobject.asset");
-    nlohmann::json prefab_json;
-    std::ifstream prefab_file(prefab_path);
-    prefab_file >> prefab_json;
-    prefab_file.close();
-    GUID prefab_guid(prefab_json["%data"]["&0"]["Asset::m_guid"].get<std::string>());
-    auto prefab_asset =
-        dynamic_pointer_cast<GameObjectAsset>(cmc->GetAssetManager()->LoadAssetImmediately(prefab_guid));
+    // SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading the prefab which has just imported");
+    // std::filesystem::path prefab_path = cmc->GetAssetManager()->GetAssetsDirectory() / mesh_path.filename();
+    // prefab_path.replace_extension(".gameobject.asset");
+    // nlohmann::json prefab_json;
+    // std::ifstream prefab_file(prefab_path);
+    // prefab_file >> prefab_json;
+    // prefab_file.close();
+    // GUID prefab_guid(prefab_json["%data"]["&0"]["Asset::m_guid"].get<std::string>());
+    // auto prefab_asset =
+    //     dynamic_pointer_cast<GameObjectAsset>(cmc->GetAssetManager()->LoadAssetImmediately(prefab_guid));
 
-    cmc->GetWorldSystem()->LoadGameObjectAsset(prefab_asset);
+    // cmc->GetWorldSystem()->LoadGameObjectAsset(prefab_asset);
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Setting up camera");
     auto camera_go = cmc->GetWorldSystem()->CreateGameObject<GameObject>();

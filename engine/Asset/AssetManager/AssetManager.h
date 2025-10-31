@@ -23,33 +23,19 @@ namespace Engine {
 
         /***************** Initialization Functions ****************/
 
-        /// @brief Set the path to the built-in assets
-        void SetBuiltinAssetPath(const std::filesystem::path &path);
-
         /// @brief Load built-in assets
         void LoadBuiltinAssets();
 
-        /// @brief Load asset list from a project directory
-        /// @param path Path to the project directory
-        void LoadProject(std::filesystem::path path);
+        /// @brief Load asset list from project
+        void LoadProject();
 
-        /***************** Query Global Informations ****************/
+        /***************** Asset (GUID) Query And Modification ****************/
 
         /// @brief Generate a GUID
         /// @return GUID
         inline GUID GenerateGUID() {
             return generateGUID(m_guid_gen);
         }
-
-        inline std::filesystem::path GetProjectPath() const {
-            return m_project_path;
-        }
-        inline std::filesystem::path GetAssetsDirectory() const {
-            return m_project_path / "assets";
-        }
-
-        /***************** Asset Data Base Query And Modification ****************/
-        // TODO: Implement AssetDataBase to support multiple retrieval methods
 
         /// @brief Load an external resource, copy to the project asset directory
         /// @param resourcePath Path to the external resource
@@ -58,21 +44,21 @@ namespace Engine {
 
         /// @brief Add an asset guid to the system.
         /// @param guid the guid of the asset
-        /// @param path the path of asset file relative to the project directory
+        /// @param path the in-project path of the asset
         void AddAsset(const GUID &guid, const std::filesystem::path &path);
 
-        /// @brief Get the path to the asset file
+        /// @brief Get the in-project path to the asset
         /// @param guid GUID of the asset
         /// @return path to the asset file
         std::filesystem::path GetAssetPath(GUID guid) const;
 
-        /// @brief Get the path to the asset file
+        /// @brief Get the in-project path to the asset
         /// @param asset Asset class pointer
         /// @return path to the asset file
         std::filesystem::path GetAssetPath(const std::shared_ptr<Asset> &asset) const;
 
         /// @brief Get an unloaded AssetRef of the given path
-        /// @param path the path of the asset file relative to the project directory
+        /// @param path the in-project path of the asset
         /// @return an unloaded AssetRef if the path exist, which only contains the GUID. nullptr otherwise
         std::shared_ptr<AssetRef> GetNewAssetRef(const std::filesystem::path &path);
 
@@ -87,12 +73,9 @@ namespace Engine {
     protected:
         std::mt19937_64 m_guid_gen{std::random_device{}()};
 
-        std::filesystem::path m_builtin_asset_path{};
-        std::filesystem::path m_project_path{};
-
         /// @brief GUID to asset path map
-        std::unordered_map<GUID, std::filesystem::path, GUIDHash> m_assets_map{};
-        std::unordered_map<std::filesystem::path, GUID> m_path_to_guid{};
+        std::unordered_map<GUID, std::string, GUIDHash> m_assets_map{};
+        std::unordered_map<std::string, GUID> m_path_to_guid{};
 
         std::queue<std::shared_ptr<AssetRef>> m_loading_queue{};
     };

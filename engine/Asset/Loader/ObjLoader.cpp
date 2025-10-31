@@ -1,5 +1,5 @@
 #include "ObjLoader.h"
-#include <SDL3/SDL.h>
+#include <Asset/AssetDatabase/AssetDatabase.h>
 #include <Asset/AssetManager/AssetManager.h>
 #include <Asset/AssetRef.h>
 #include <Asset/Material/MaterialAsset.h>
@@ -10,6 +10,7 @@
 #include <Framework/object/GameObject.h>
 #include <Framework/world/WorldSystem.h>
 #include <MainClass.h>
+#include <SDL3/SDL.h>
 #include <nlohmann/json.hpp>
 #include <tiny_obj_loader.h>
 
@@ -92,16 +93,16 @@ namespace Engine {
         Serialization::Archive archive;
         archive.prepare_save();
         m_mesh_asset->save_asset_to_archive(archive);
-        archive.save_to_file(
-            m_manager.lock()->GetAssetsDirectory() / path_in_project / (m_mesh_asset->m_name + ".mesh.asset")
+        MainClass::GetInstance()->GetAssetDatabase()->SaveArchive(
+            archive, path_in_project / (m_mesh_asset->m_name + ".mesh.asset")
         );
         m_manager.lock()->AddAsset(m_mesh_asset->GetGUID(), path_in_project / (m_mesh_asset->m_name + ".mesh.asset"));
         for (const auto &material : m_material_assets) {
             archive.clear();
             archive.prepare_save();
             material->save_asset_to_archive(archive);
-            archive.save_to_file(
-                m_manager.lock()->GetAssetsDirectory() / path_in_project / (material->m_name + ".material.asset")
+            MainClass::GetInstance()->GetAssetDatabase()->SaveArchive(
+                archive, path_in_project / (material->m_name + ".material.asset")
             );
             m_manager.lock()->AddAsset(material->GetGUID(), path_in_project / (material->m_name + ".material.asset"));
         }
@@ -109,8 +110,8 @@ namespace Engine {
             archive.clear();
             archive.prepare_save();
             texture->save_asset_to_archive(archive);
-            archive.save_to_file(
-                m_manager.lock()->GetAssetsDirectory() / path_in_project / (texture->m_name + ".png.asset")
+            MainClass::GetInstance()->GetAssetDatabase()->SaveArchive(
+                archive, path_in_project / (texture->m_name + ".png.asset")
             );
             m_manager.lock()->AddAsset(texture->GetGUID(), path_in_project / (texture->m_name + ".png.asset"));
         }
@@ -131,8 +132,8 @@ namespace Engine {
         archive.clear();
         archive.prepare_save();
         m_game_object_asset->save_asset_to_archive(archive);
-        archive.save_to_file(
-            m_manager.lock()->GetAssetsDirectory() / path_in_project / (m_mesh_asset->m_name + ".gameobject.asset")
+        MainClass::GetInstance()->GetAssetDatabase()->SaveArchive(
+            archive, path_in_project / (m_mesh_asset->m_name + ".gameobject.asset")
         );
         m_manager.lock()->AddAsset(
             m_game_object_asset->GetGUID(), path_in_project / (m_mesh_asset->m_name + ".gameobject.asset")
@@ -197,9 +198,8 @@ namespace Engine {
         switch (material.illum) {
         case 2: // Blinn-Phong
         {
-            material_asset.m_library = m_manager.lock()->GetNewAssetRef(
-                std::filesystem::path("~/material_libraries/BlinnPhongLibrary.asset")
-            );
+            material_asset.m_library =
+                m_manager.lock()->GetNewAssetRef(std::filesystem::path("~/material_libraries/BlinnPhongLibrary.asset"));
             material_asset.m_properties["ambient_color"] =
                 glm::vec4{material.ambient[0], material.ambient[1], material.ambient[2], 1.0f};
             material_asset.m_properties["specular_color"] =
@@ -214,9 +214,8 @@ namespace Engine {
         }
         default: // unknown model, load every property
         {
-            material_asset.m_library = m_manager.lock()->GetNewAssetRef(
-                std::filesystem::path("~/material_libraries/BlinnPhongLibrary.asset")
-            );
+            material_asset.m_library =
+                m_manager.lock()->GetNewAssetRef(std::filesystem::path("~/material_libraries/BlinnPhongLibrary.asset"));
             material_asset.m_properties["ambient"] =
                 glm::vec4{material.ambient[0], material.ambient[1], material.ambient[2], 1.0f};
             material_asset.m_properties["diffuse"] =

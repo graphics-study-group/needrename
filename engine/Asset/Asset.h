@@ -22,10 +22,6 @@ namespace Engine {
         /// @return path to the asset file
         virtual std::filesystem::path GetAssetPath();
 
-        /// @brief Get the path to the asset meta file
-        /// @return path to the asset meta file
-        virtual std::filesystem::path GetMetaPath();
-
         /// @brief Not allowed
         virtual void save_to_archive(Serialization::Archive &archive) const;
         /// @brief Not allowed

@@ -3,6 +3,7 @@
 #include <fstream>
 #include <iostream>
 
+#include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include <Asset/AssetManager/AssetManager.h>
 #include <Asset/Scene/GameObjectAsset.h>
 #include <Core/Delegate/FuncDelegate.h>
@@ -91,7 +92,7 @@ int main() {
     auto cmc = MainClass::GetInstance();
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
     RegisterAllTypes();
-    cmc->GetAssetManager()->SetBuiltinAssetPath(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
+    std::dynamic_pointer_cast<FileSystemDatabase>(cmc->GetAssetDatabase())->SetBuiltinAssetPath(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
     cmc->GetAssetManager()->LoadBuiltinAssets();
     auto rsys = cmc->GetRenderSystem();
     auto asset_manager = cmc->GetAssetManager();
@@ -104,22 +105,22 @@ int main() {
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading project");
     cmc->LoadProject(project_path);
 
-    std::filesystem::path mesh_path(ENGINE_ASSETS_DIR);
-    mesh_path = mesh_path / "four_bunny" / "four_bunny.obj";
-    std::filesystem::path prefab_path = cmc->GetAssetManager()->GetAssetsDirectory() / mesh_path.filename();
-    prefab_path.replace_extension(".gameobject.asset");
-    nlohmann::json prefab_json;
-    std::ifstream prefab_file(prefab_path);
-    prefab_file >> prefab_json;
-    prefab_file.close();
-    GUID prefab_guid(prefab_json["%data"]["&0"]["Asset::m_guid"].get<std::string>());
-    auto prefab_asset =
-        dynamic_pointer_cast<GameObjectAsset>(cmc->GetAssetManager()->LoadAssetImmediately(prefab_guid));
-    prefab_asset->m_MainObject->AddComponent<SpinningComponent>();
-    prefab_asset->m_MainObject->m_name = "Spinning Bunny";
-    auto &spinning_transform = prefab_asset->m_MainObject->GetTransformRef();
-    spinning_transform.SetPosition(spinning_transform.GetPosition() + glm::vec3(0.0f, 0.2f, 0.0f));
-    world->LoadGameObjectAsset(prefab_asset);
+    // std::filesystem::path mesh_path(ENGINE_ASSETS_DIR);
+    // mesh_path = mesh_path / "four_bunny" / "four_bunny.obj";
+    // std::filesystem::path prefab_path = cmc->GetAssetManager()->GetAssetsDirectory() / mesh_path.filename();
+    // prefab_path.replace_extension(".gameobject.asset");
+    // nlohmann::json prefab_json;
+    // std::ifstream prefab_file(prefab_path);
+    // prefab_file >> prefab_json;
+    // prefab_file.close();
+    // GUID prefab_guid(prefab_json["%data"]["&0"]["Asset::m_guid"].get<std::string>());
+    // auto prefab_asset =
+    //     dynamic_pointer_cast<GameObjectAsset>(cmc->GetAssetManager()->LoadAssetImmediately(prefab_guid));
+    // prefab_asset->m_MainObject->AddComponent<SpinningComponent>();
+    // prefab_asset->m_MainObject->m_name = "Spinning Bunny";
+    // auto &spinning_transform = prefab_asset->m_MainObject->GetTransformRef();
+    // spinning_transform.SetPosition(spinning_transform.GetPosition() + glm::vec3(0.0f, 0.2f, 0.0f));
+    // world->LoadGameObjectAsset(prefab_asset);
 
     auto input = MainClass::GetInstance()->GetInputSystem();
     input->AddAxis(Input::ButtonAxis("move forward", Input::AxisType::TypeKey, "w", "s"));

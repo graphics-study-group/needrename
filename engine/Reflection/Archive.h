@@ -60,9 +60,12 @@ namespace Engine {
             void prepare_load();
             /// @brief Clear the archive and reset it to the initial state.
             void clear();
+
             /// @brief Save the archive to a file.
+            [[deprecated("Use AssetDatabase to save the archive instead.")]]
             void save_to_file(std::filesystem::path path);
             /// @brief Load the archive from a file.
+            [[deprecated("Use AssetDatabase to load the archive instead.")]]
             void load_from_file(std::filesystem::path path);
 
             /// @brief Get the json property of the main object stored in the archive.

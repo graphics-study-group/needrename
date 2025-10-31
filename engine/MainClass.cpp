@@ -1,14 +1,15 @@
 #include "MainClass.h"
 
-#include "Asset/AssetManager/AssetManager.h"
-#include "Framework/world/WorldSystem.h"
-#include "UserInterface/GUISystem.h"
+#include <Asset/AssetDatabase/FileSystemDatabase.h>
+#include <Asset/AssetManager/AssetManager.h>
 #include <Asset/Scene/LevelAsset.h>
 #include <Core/Functional/EventQueue.h>
 #include <Core/Functional/SDLWindow.h>
 #include <Core/Functional/Time.h>
-#include <UserInterface/Input.h>
+#include <Framework/world/WorldSystem.h>
 #include <Render/FullRenderSystem.h>
+#include <UserInterface/GUISystem.h>
+#include <UserInterface/Input.h>
 
 #include <exception>
 #include <fstream>
@@ -24,7 +25,7 @@ namespace Engine {
             return m_instance.lock();
         }
 
-        std::shared_ptr <MainClass> sptr{nullptr};
+        std::shared_ptr<MainClass> sptr{nullptr};
         std::call_once(MainClass::m_instance_ready, [&] {
             sptr = std::make_shared<MainClass>();
             MainClass::m_instance = sptr;
@@ -37,7 +38,8 @@ namespace Engine {
     }
 
     void MainClass::LoadProject(const std::filesystem::path &path) {
-        this->asset->LoadProject(path);
+        std::dynamic_pointer_cast<FileSystemDatabase>(this->asset_database)->SetProjectAssetPath(path / "assets");
+        this->asset_manager->LoadProject();
 
         nlohmann::json project_config;
         std::ifstream file(path / "project.config");
@@ -49,7 +51,8 @@ namespace Engine {
         }
         assert(project_config.contains("default_level"));
         GUID default_level_guid(project_config["default_level"].get<std::string>());
-        auto level_asset = std::dynamic_pointer_cast<LevelAsset>(this->asset->LoadAssetImmediately(default_level_guid));
+        auto level_asset =
+            std::dynamic_pointer_cast<LevelAsset>(this->asset_manager->LoadAssetImmediately(default_level_guid));
         this->world->LoadLevelAsset(level_asset);
     }
 
@@ -67,7 +70,8 @@ namespace Engine {
         this->time = std::make_shared<TimeSystem>();
         this->renderer = std::make_shared<RenderSystem>(this->window);
         this->world = std::make_shared<WorldSystem>();
-        this->asset = std::make_shared<AssetManager>();
+        this->asset_database = std::make_shared<FileSystemDatabase>();
+        this->asset_manager = std::make_shared<AssetManager>();
         this->gui = std::make_shared<GUISystem>(this->renderer);
         this->input = std::make_shared<Input>();
         this->event_queue = std::make_shared<EventQueue>();
@@ -106,8 +110,12 @@ namespace Engine {
         return time;
     }
 
+    std::shared_ptr<AssetDatabase> MainClass::GetAssetDatabase() const {
+        return asset_database;
+    }
+
     std::shared_ptr<AssetManager> MainClass::GetAssetManager() const {
-        return asset;
+        return asset_manager;
     }
 
     std::shared_ptr<WorldSystem> MainClass::GetWorldSystem() const {
@@ -132,7 +140,7 @@ namespace Engine {
 
     void MainClass::RunOneFrame() {
         // TODO: asynchronous execution
-        this->asset->LoadAssetsInQueue();
+        this->asset_manager->LoadAssetsInQueue();
 
         SDL_Event event;
         while (SDL_PollEvent(&event)) {

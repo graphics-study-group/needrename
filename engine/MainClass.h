@@ -12,6 +12,7 @@
 namespace Engine {
     class RenderSystem;
     class WorldSystem;
+    class AssetDatabase;
     class AssetManager;
     class GUISystem;
     class Input;
@@ -49,6 +50,7 @@ namespace Engine {
         std::shared_ptr<TimeSystem> GetTimeSystem() const;
         std::shared_ptr<RenderSystem> GetRenderSystem() const;
         std::shared_ptr<WorldSystem> GetWorldSystem() const;
+        std::shared_ptr<AssetDatabase> GetAssetDatabase() const;
         std::shared_ptr<AssetManager> GetAssetManager() const;
         std::shared_ptr<GUISystem> GetGUISystem() const;
         std::shared_ptr<Input> GetInputSystem() const;
@@ -61,7 +63,8 @@ namespace Engine {
         std::shared_ptr<SDLWindow> window{};
         std::shared_ptr<TimeSystem> time{};
         std::shared_ptr<WorldSystem> world{};
-        std::shared_ptr<AssetManager> asset{};
+        std::shared_ptr<AssetDatabase> asset_database{};
+        std::shared_ptr<AssetManager> asset_manager{};
         std::shared_ptr<GUISystem> gui{};
         std::shared_ptr<Input> input{};
         std::shared_ptr<EventQueue> event_queue{};

@@ -4,6 +4,7 @@
 #include <iostream>
 
 #include "Render/FullRenderSystem.h"
+#include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include <Asset/AssetManager/AssetManager.h>
 #include <Core/Delegate/FuncDelegate.h>
 #include <Framework/world/WorldSystem.h>
@@ -40,7 +41,7 @@ int main() {
 
     auto cmc = MainClass::GetInstance();
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
-    cmc->GetAssetManager()->SetBuiltinAssetPath(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
+    std::dynamic_pointer_cast<FileSystemDatabase>(cmc->GetAssetDatabase())->SetBuiltinAssetPath(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
     cmc->GetAssetManager()->LoadBuiltinAssets();
     auto rsys = cmc->GetRenderSystem();
     auto asset_manager = cmc->GetAssetManager();
