@@ -35,22 +35,26 @@ namespace Engine {
         GUID guid;
         while (true) {
             if (m_recursive) {
-                ++(*m_rit);
                 if (!m_rit || *m_rit == std::filesystem::end(*m_rit)) return false;
                 const auto &entry = **m_rit;
                 auto rel = std::filesystem::relative(entry.path(), m_root);
                 if (rel.extension() == k_asset_file_extension && GetGUID(entry.path(), guid)) {
                     out = {m_prefix / rel, guid};
+                    ++(*m_rit);
                     return true;
+                } else {
+                    ++(*m_rit);
                 }
             } else {
-                ++(*m_it);
                 if (!m_it || *m_it == std::filesystem::end(*m_it)) return false;
                 const auto &entry = **m_it;
                 auto rel = std::filesystem::relative(entry.path(), m_root);
                 if (rel.extension() == k_asset_file_extension && GetGUID(entry.path(), guid)) {
                     out = {m_prefix / rel, guid};
+                    ++(*m_it);
                     return true;
+                } else {
+                    ++(*m_it);
                 }
             }
         }
