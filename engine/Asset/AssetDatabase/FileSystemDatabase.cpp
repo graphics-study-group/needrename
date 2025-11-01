@@ -3,7 +3,59 @@
 #include <fstream>
 #include <nlohmann/json.hpp>
 
+static bool GetGUID(const std::filesystem::path &asset_path, Engine::GUID &out_guid) {
+    std::ifstream file(asset_path);
+    if (file.is_open()) {
+        nlohmann::json json_data = nlohmann::json::parse(file);
+        if (json_data.contains("%main_id")) {
+            std::string str_id = json_data["%main_id"].get<std::string>();
+            if (json_data["%data"].contains(str_id) && json_data["%data"][str_id].contains("Asset::m_guid")) {
+                out_guid = Engine::GUID(json_data["%data"][str_id]["Asset::m_guid"].get<std::string>());
+                file.close();
+                return true;
+            }
+        }
+        file.close();
+    }
+    return false;
+}
+
 namespace Engine {
+    FileSystemDatabase::IterImpl::IterImpl(std::filesystem::path root, const std::string &prefix, bool recursive) :
+        m_root(root), m_prefix(prefix), m_recursive(recursive) {
+        if (recursive) m_rit = std::make_unique<std::filesystem::recursive_directory_iterator>(root);
+        else m_it = std::make_unique<std::filesystem::directory_iterator>(root);
+    }
+
+    std::unique_ptr<AssetDatabase::ListRange::IterImplBase> FileSystemDatabase::IterImpl::begin_clone() const {
+        return std::make_unique<IterImpl>(m_root, m_prefix, m_recursive);
+    }
+
+    bool FileSystemDatabase::IterImpl::next(AssetPair &out) {
+        GUID guid;
+        while (true) {
+            if (m_recursive) {
+                ++(*m_rit);
+                if (!m_rit || *m_rit == std::filesystem::end(*m_rit)) return false;
+                const auto &entry = **m_rit;
+                auto rel = std::filesystem::relative(entry.path(), m_root);
+                if (rel.extension() == k_asset_file_extension && GetGUID(entry.path(), guid)) {
+                    out = {m_prefix / rel, guid};
+                    return true;
+                }
+            } else {
+                ++(*m_it);
+                if (!m_it || *m_it == std::filesystem::end(*m_it)) return false;
+                const auto &entry = **m_it;
+                auto rel = std::filesystem::relative(entry.path(), m_root);
+                if (rel.extension() == k_asset_file_extension && GetGUID(entry.path(), guid)) {
+                    out = {m_prefix / rel, guid};
+                    return true;
+                }
+            }
+        }
+    }
+
     void FileSystemDatabase::SaveArchive(Serialization::Archive &archive, std::filesystem::path path) {
         auto json_path = ProjectPathToFilesystemPath(path);
         std::ofstream json_file(json_path);
@@ -52,29 +104,10 @@ namespace Engine {
         }
     }
 
-    std::vector<std::pair<std::filesystem::path, GUID>> FileSystemDatabase::ListAssets(
-        std::filesystem::path directory, bool recursive
-    ) {
+    AssetDatabase::ListRange FileSystemDatabase::ListAssets(std::filesystem::path directory, bool recursive) {
         auto root = ProjectPathToFilesystemPath(directory);
-        std::vector<std::pair<std::filesystem::path, GUID>> result;
-        std::filesystem::path prefix = directory.string().starts_with("~") ? "~" : "/";
-        GUID guid;
-        if (recursive == false) {
-            for (const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(root)) {
-                std::filesystem::path relative_path = std::filesystem::relative(entry.path(), root);
-                if (relative_path.extension() == k_asset_file_extension && GetGUID(entry.path(), guid)) {
-                    result.push_back({prefix / relative_path, guid});
-                }
-            }
-        } else {
-            for (const std::filesystem::directory_entry &entry : std::filesystem::recursive_directory_iterator(root)) {
-                std::filesystem::path relative_path = std::filesystem::relative(entry.path(), root);
-                if (relative_path.extension() == k_asset_file_extension && GetGUID(entry.path(), guid)) {
-                    result.push_back({prefix / relative_path, guid});
-                }
-            }
-        }
-        return result;
+        std::string prefix = directory.string().starts_with("~") ? "~" : "/";
+        return ListRange(std::make_unique<IterImpl>(root, prefix, recursive));
     }
 
     std::filesystem::path FileSystemDatabase::GetAssetsDirectory() const {
@@ -111,22 +144,5 @@ namespace Engine {
         } else {
             return ("/" / std::filesystem::relative(fs_path, m_project_asset_path)).lexically_normal();
         }
-    }
-
-    bool FileSystemDatabase::GetGUID(const std::filesystem::path &asset_path, GUID &out_guid) const {
-        std::ifstream file(asset_path);
-        if (file.is_open()) {
-            nlohmann::json json_data = nlohmann::json::parse(file);
-            if (json_data.contains("%main_id")) {
-                std::string str_id = json_data["%main_id"].get<std::string>();
-                if (json_data["%data"].contains(str_id) && json_data["%data"][str_id].contains("Asset::m_guid")) {
-                    out_guid = GUID(json_data["%data"][str_id]["Asset::m_guid"].get<std::string>());
-                    file.close();
-                    return true;
-                }
-            }
-            file.close();
-        }
-        return false;
     }
 } // namespace Engine

@@ -12,6 +12,18 @@ namespace Engine {
         FileSystemDatabase() = default;
         virtual ~FileSystemDatabase() = default;
 
+        struct IterImpl : public AssetDatabase::ListRange::IterImplBase {
+            std::filesystem::path m_root;
+            std::string m_prefix;
+            bool m_recursive;
+            std::unique_ptr<std::filesystem::directory_iterator> m_it{};
+            std::unique_ptr<std::filesystem::recursive_directory_iterator> m_rit{};
+
+            IterImpl(std::filesystem::path root, const std::string &prefix, bool recursive);
+            std::unique_ptr<IterImplBase> begin_clone() const override;
+            bool next(AssetPair &out) override;
+        };
+
         /// @brief Save the archive.
         virtual void SaveArchive(Serialization::Archive &archive, std::filesystem::path path) override;
         /// @brief Load the archive.
@@ -21,11 +33,9 @@ namespace Engine {
          *
          * @param directory The directory to search for assets.
          * @param recursive Whether to search recursively.
-         * @return std::vector<std::pair<std::filesystem::path, GUID>> A list of asset paths and their GUIDs.
+         * @return A lazy input-range of (project_path, GUID) pairs.
          */
-        virtual std::vector<std::pair<std::filesystem::path, GUID>> ListAssets(
-            std::filesystem::path directory = {}, bool recursive = true
-        ) override;
+        virtual ListRange ListAssets(std::filesystem::path directory = {}, bool recursive = true) override;
 
         std::filesystem::path GetAssetsDirectory() const;
         void SetBuiltinAssetPath(const std::filesystem::path &path);
@@ -39,8 +49,6 @@ namespace Engine {
 
         std::filesystem::path ProjectPathToFilesystemPath(const std::filesystem::path &project_path) const;
         std::filesystem::path FilesystemPathToProjectPath(const std::filesystem::path &fs_path) const;
-        /// @brief Get the GUID of an asset file. Return false if the file is not found or not an asset file.
-        bool GetGUID(const std::filesystem::path &asset_path, GUID &out_guid) const;
     };
 } // namespace Engine
 
