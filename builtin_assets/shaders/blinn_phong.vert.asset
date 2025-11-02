@@ -1,6 +1,7 @@
 {
     "%data": {
         "&0": {
+            "%extra_data_id": 0,
             "%type": "Engine::ShaderAsset",
             "Asset::m_guid": "5ACA54938E17F42BC293F502932155A2",
             "ShaderAsset::m_name": "blinn_phong.vert.spv",
@@ -8,5 +9,10 @@
             "ShaderAsset::shaderType": "Vertex"
         }
     },
+    "%extra_data": [
+        {
+            "%extension": ".spv"
+        }
+    ],
     "%main_id": "&0"
 }

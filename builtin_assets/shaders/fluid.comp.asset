@@ -1,6 +1,7 @@
 {
     "%data": {
         "&0": {
+            "%extra_data_id": 0,
             "%type": "Engine::ShaderAsset",
             "Asset::m_guid": "EC591BB43CF6474D8FFECFD9F61D71CB",
             "ShaderAsset::m_name": "fluid.comp.spv",
@@ -8,5 +9,10 @@
             "ShaderAsset::shaderType": "Compute"
         }
     },
+    "%extra_data": [
+        {
+            "%extension": ".spv"
+        }
+    ],
     "%main_id": "&0"
 }

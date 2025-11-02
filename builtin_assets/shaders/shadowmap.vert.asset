@@ -1,6 +1,7 @@
 {
     "%data": {
         "&0": {
+            "%extra_data_id": 0,
             "%type": "Engine::ShaderAsset",
             "Asset::m_guid": "2191CAAF586849B8B5565ED808897D7E",
             "ShaderAsset::m_name": "shadowmap.vert.spv",
@@ -8,5 +9,10 @@
             "ShaderAsset::shaderType": "Vertex"
         }
     },
+    "%extra_data": [
+        {
+            "%extension": ".spv"
+        }
+    ],
     "%main_id": "&0"
 }

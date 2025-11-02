@@ -1,6 +1,7 @@
 {
     "%data": {
         "&0": {
+            "%extra_data_id": 0,
             "%type": "Engine::ShaderAsset",
             "Asset::m_guid": "6F507D1CAEE04798BBC61BB30BE818DF",
             "ShaderAsset::m_name": "bloom.comp.spv",
@@ -8,5 +9,10 @@
             "ShaderAsset::shaderType": "Compute"
         }
     },
+    "%extra_data": [
+        {
+            "%extension": ".spv"
+        }
+    ],
     "%main_id": "&0"
 }

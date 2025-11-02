@@ -1,6 +1,7 @@
 {
     "%data": {
         "&0": {
+            "%extra_data_id": 0,
             "%type": "Engine::ShaderAsset",
             "Asset::m_guid": "26052172A78B471DBF6B2601F6166D61",
             "ShaderAsset::m_name": "debug_writethrough.vert.spv",
@@ -8,5 +9,10 @@
             "ShaderAsset::shaderType": "Vertex"
         }
     },
+    "%extra_data": [
+        {
+            "%extension": ".spv"
+        }
+    ],
     "%main_id": "&0"
 }

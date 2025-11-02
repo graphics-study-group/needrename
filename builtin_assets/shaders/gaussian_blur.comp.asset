@@ -1,6 +1,7 @@
 {
     "%data": {
         "&0": {
+            "%extra_data_id": 0,
             "%type": "Engine::ShaderAsset",
             "Asset::m_guid": "5A6BAC1050004EB19BE406A9FA40A8CC",
             "ShaderAsset::m_name": "gaussain_blur.comp.spv",
@@ -8,5 +9,10 @@
             "ShaderAsset::shaderType": "Compute"
         }
     },
+    "%extra_data": [
+        {
+            "%extension": ".spv"
+        }
+    ],
     "%main_id": "&0"
 }
