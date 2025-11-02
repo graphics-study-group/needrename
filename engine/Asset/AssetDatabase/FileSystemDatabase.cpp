@@ -62,50 +62,12 @@ namespace Engine {
 
     void FileSystemDatabase::SaveArchive(Serialization::Archive &archive, std::filesystem::path path) {
         auto json_path = ProjectPathToFilesystemPath(path);
-        std::ofstream json_file(json_path);
-        if (json_file.is_open()) {
-            json_file << archive.m_context->json.dump(4) << std::endl;
-            json_file.close();
-        } else {
-            throw std::runtime_error("Failed to open json file");
-        }
-
-        auto extra_data_path = json_path.replace_extension("");
-        if (archive.m_context->extra_data.size() > 0) {
-            std::ofstream extra_data_file(extra_data_path, std::ios::binary);
-            if (extra_data_file.is_open()) {
-                extra_data_file.write(
-                    reinterpret_cast<const char *>(archive.m_context->extra_data.data()),
-                    archive.m_context->extra_data.size()
-                );
-                extra_data_file.close();
-            } else {
-                throw std::runtime_error("Failed to open extra data file");
-            }
-        }
+        archive.save_to_file(json_path.replace_extension(""));
     }
 
     void FileSystemDatabase::LoadArchive(Serialization::Archive &archive, std::filesystem::path path) {
         auto json_path = ProjectPathToFilesystemPath(path);
-        archive.clear();
-        std::ifstream json_file(json_path);
-        if (json_file.is_open()) {
-            json_file >> archive.m_context->json;
-            json_file.close();
-        } else {
-            throw std::runtime_error("Failed to open .asset file");
-        }
-
-        auto extra_data_path = json_path.replace_extension("");
-        std::ifstream extra_data_file(extra_data_path, std::ios::binary);
-        if (extra_data_file.is_open()) {
-            extra_data_file.seekg(0, std::ios::end);
-            size_t size = extra_data_file.tellg();
-            extra_data_file.seekg(0, std::ios::beg);
-            archive.m_context->extra_data.resize(size);
-            extra_data_file.read(reinterpret_cast<char *>(archive.m_context->extra_data.data()), size);
-            extra_data_file.close();
-        }
+        archive.load_from_file(json_path.replace_extension(""));
     }
 
     AssetDatabase::ListRange FileSystemDatabase::ListAssets(std::filesystem::path directory, bool recursive) {
