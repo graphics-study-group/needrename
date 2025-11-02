@@ -18,182 +18,331 @@ namespace Editor {
 
     void ProjectWidget::Render() {
         if (ImGui::Begin(m_name.c_str())) {
-            using AssetInfo = Engine::FileSystemDatabase::AssetInfo;
-            std::vector<AssetInfo> assets = m_database.lock()->ListDirectory(m_current_path);
+            // Left sidebar
+            RenderSidebar();
 
-            // Layout parameters
-            const float tile_icon_size = 64.0f;
-            const float tile_text_height = 32.0f;        // reserved height for 1-2 lines of text
-            const float tile_w = tile_icon_size + 16.0f; // include inner padding
-            const float tile_h = tile_icon_size + tile_text_height + 12.0f;
-            const float item_spacing = 12.0f;
-
-            // Top path bar (breadcrumb-like simple text)
+            // Vertical splitter to resize sidebar
+            ImGui::SameLine(0.0f, 0.0f);
+            const float splitter_thickness = 4.0f;
+            float before_right_remain = ImGui::GetContentRegionAvail().x; // width available for splitter+right pane
+            ImGui::InvisibleButton("##vsplit", ImVec2(splitter_thickness, ImGui::GetContentRegionAvail().y));
+            if (ImGui::IsItemHovered()) ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+            if (ImGui::IsItemActive()) {
+                float delta = ImGui::GetIO().MouseDelta.x;
+                // compute total content width and clamp so right pane keeps minimum width
+                float total = m_sidebar_width + splitter_thickness + before_right_remain;
+                float min_left = 120.0f;
+                float min_right = 150.0f;
+                m_sidebar_width = m_sidebar_width + delta;
+                if (m_sidebar_width < min_left) m_sidebar_width = min_left;
+                float max_left = total - splitter_thickness - min_right;
+                if (m_sidebar_width > max_left) m_sidebar_width = max_left;
+            }
+            // optional visual
             {
-                std::string where = m_current_path.empty() ? std::string("/") : m_current_path.generic_string();
-                ImGui::TextUnformatted(where.c_str());
-                ImGui::Separator();
+                ImVec2 a = ImGui::GetItemRectMin();
+                ImVec2 b = ImGui::GetItemRectMax();
+                ImGui::GetWindowDrawList()->AddRectFilled(a, b, ImGui::GetColorU32(ImGuiCol_Separator));
             }
 
-            // Scrollable content region for tiling assets
-            ImGui::BeginChild("ProjectWidgetContent", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
+            // Right pane (top breadcrumb + horizontal splitter + bottom content)
+            ImGui::SameLine(0.0f, 0.0f);
+            ImGui::BeginChild("RightPane", ImVec2(0, 0), false);
 
-            // Compute how many columns we can fit in current width
-            float content_width = ImGui::GetContentRegionAvail().x;
-            if (content_width <= 0.0f) content_width = tile_w; // avoid div-by-zero
-            int columns = (int)((content_width + item_spacing) / (tile_w + item_spacing));
-            if (columns < 1) columns = 1;
-            int col = 0;
+            // Top area: breadcrumb with adjustable height
+            ImGui::BeginChild("RightTopBreadcrumb", ImVec2(0, m_breadcrumb_height), false);
+            RenderBreadcrumb();
+            ImGui::EndChild();
 
-            auto draw_tile = [&](const std::string &display_name,
-                                 bool is_folder,
-                                 const std::filesystem::path *target_path,
-                                 bool is_up = false) {
-                // Begin group to keep icon + text together
-                ImGui::BeginGroup();
-                // Reserve the full tile area and draw custom content inside
-                ImVec2 cursor = ImGui::GetCursorScreenPos();
-                ImGui::InvisibleButton("tile", ImVec2(tile_w, tile_h));
-                bool hovered = ImGui::IsItemHovered();
-                bool double_clicked = hovered && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left);
+            // Bottom area: main content
+            ImGui::BeginChild("RightBottomContent", ImVec2(0, 0), false);
+            RenderContent();
+            ImGui::EndChild();
 
-                ImDrawList *dl = ImGui::GetWindowDrawList();
-                ImU32 bg_col =
-                    hovered ? ImGui::GetColorU32(ImGuiCol_FrameBgHovered) : ImGui::GetColorU32(ImGuiCol_FrameBg, 0.0f);
-                // Draw tile background
-                dl->AddRectFilled(cursor, ImVec2(cursor.x + tile_w, cursor.y + tile_h), bg_col, 6.0f);
+            ImGui::EndChild(); // RightPane
+        }
+        ImGui::End();
+    }
 
-                // Icon area
-                ImVec2 icon_min(cursor.x + (tile_w - tile_icon_size) * 0.5f, cursor.y + 8.0f);
-                ImVec2 icon_max(icon_min.x + tile_icon_size, icon_min.y + tile_icon_size);
-                if (is_folder) {
-                    // Folder: draw a filled rounded rect in orange-like color
-                    ImU32 folder_col = ImColor(255, 180, 80);
-                    // Tab on top
-                    ImVec2 tab_min(icon_min.x + tile_icon_size * 0.0f, icon_min.y);
-                    ImVec2 tab_max(icon_min.x + tile_icon_size * 0.3f, icon_min.y + tile_icon_size * 0.28f);
-                    ImVec2 t0(icon_min.x + tile_icon_size * 0.27f, icon_min.y);
-                    ImVec2 t1(icon_min.x + tile_icon_size * 0.27f, icon_min.y + tile_icon_size * 0.28f);
-                    ImVec2 t2(icon_min.x + tile_icon_size * 0.27f + tile_icon_size * 0.27f, icon_min.y + tile_icon_size * 0.27f);
-                    dl->AddRectFilled(tab_min, tab_max, folder_col, 3.0f);
-                    dl->AddTriangleFilled(t0, t1, t2, ImGui::GetColorU32(folder_col));
-                    // Body
-                    dl->AddRectFilled(
-                        ImVec2(icon_min.x, icon_min.y + tile_icon_size * 0.18f), icon_max, folder_col, 5.0f
-                    );
-                } else {
-                    // File: draw a blue-ish document shape (rectangle with a folded corner)
-                    ImU32 file_col = ImColor(100, 170, 255);
-                    ImVec2 doc_min = icon_min;
-                    ImVec2 doc_max = icon_max;
-                    // main body
-                    dl->AddRectFilled(doc_min, doc_max, file_col, 6.0f);
-                    // folded corner
-                    float corner = tile_icon_size * 0.25f;
-                    ImVec2 c0(doc_max.x - corner, doc_min.y);
-                    ImVec2 c1(doc_max.x, doc_min.y + corner);
-                    dl->AddTriangleFilled(c0, ImVec2(doc_max.x, doc_min.y), c1, ImGui::GetColorU32(ImGuiCol_WindowBg));
-                    dl->AddLine(c0, c1, ImGui::GetColorU32(ImGuiCol_Border));
-                }
+    void ProjectWidget::RenderBreadcrumb() {
+        std::string where = m_current_path.empty() ? std::string("/") : m_current_path.generic_string();
+        ImGui::TextUnformatted(where.c_str());
+        ImGui::Separator();
+    }
 
-                // Name text (drawn via draw list to avoid cursor reposition asserts)
-                ImVec2 text_area_min(cursor.x + 6.0f, icon_max.y + 4.0f);
-                ImVec2 text_area_max(cursor.x + tile_w - 6.0f, cursor.y + tile_h - 6.0f);
-                float max_w = text_area_max.x - text_area_min.x;
-                std::string label = is_up ? std::string(".. ") : display_name;
-                // Fit to available width with simple ellipsis
-                auto fit_with_ellipsis = [&](const std::string &s) -> std::string {
-                    ImVec2 sz = ImGui::CalcTextSize(s.c_str());
-                    if (sz.x <= max_w) return s;
-                    const char *ell = "...";
-                    float ell_w = ImGui::CalcTextSize(ell).x;
-                    std::string out;
-                    out.reserve(s.size());
-                    for (size_t i = 0; i < s.size(); ++i) {
-                        out.push_back(s[i]);
-                        ImVec2 cur = ImGui::CalcTextSize(out.c_str());
-                        if (cur.x + ell_w > max_w) {
-                            if (!out.empty()) out.pop_back();
-                            out += ell;
-                            break;
-                        }
-                    }
-                    if (out.empty()) return std::string(ell);
-                    return out;
-                };
-                std::string to_draw = fit_with_ellipsis(label);
+    void ProjectWidget::RenderSidebar() {
+        ImGui::BeginChild("ProjectSidebar", ImVec2(m_sidebar_width, 0), true);
+        ImGuiTreeNodeFlags base_flags =
+            ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_SpanAvailWidth;
 
-                ImVec2 text_size = ImGui::CalcTextSize(to_draw.c_str());
-                float text_x = text_area_min.x; // left-align inside area
-                float text_y =
-                    text_area_min.y + std::max(0.0f, (text_area_max.y - text_area_min.y - text_size.y) * 0.5f);
-                ImU32 text_col = is_up ? ImGui::GetColorU32(ImGuiCol_TextDisabled) : ImGui::GetColorU32(ImGuiCol_Text);
-                dl->PushClipRect(text_area_min, text_area_max, true);
-                dl->AddText(ImVec2(text_x, text_y), text_col, to_draw.c_str());
-                dl->PopClipRect();
+        auto db_ptr = m_database.lock();
+        if (!db_ptr) {
+            ImGui::TextUnformatted("Asset database unavailable");
+            ImGui::EndChild();
+            return;
+        }
+        auto &db = *db_ptr;
 
-                // Handle double-click action
-                if (double_clicked && target_path) {
-                    if (is_folder) {
-                        m_current_path = *target_path;
-                    }
-                    // Files: no open action for now
-                }
-                ImGui::EndGroup();
+        // Project root '/'
+        ImGui::PushID("root_project");
+        ImGuiTreeNodeFlags flags = base_flags | ImGuiTreeNodeFlags_DefaultOpen;
+        if (m_current_path.generic_string() == "/" || m_current_path.empty()) flags |= ImGuiTreeNodeFlags_Selected;
+        bool open = ImGui::TreeNodeEx("/", flags);
+        if (ImGui::IsItemClicked()) {
+            m_current_path = "/";
+        }
+        if (open) {
+            RenderDirTree("/", db);
+            ImGui::TreePop();
+        }
+        ImGui::PopID();
 
-                // Layout next tile on same line when possible
-                col++;
-                if (col < columns) {
-                    ImGui::SameLine(0.0f, item_spacing);
-                } else {
-                    col = 0;
-                }
-            };
+        // Builtin root '~'
+        ImGui::PushID("root_builtin");
+        flags = base_flags | ImGuiTreeNodeFlags_DefaultOpen;
+        if (m_current_path.generic_string() == "~") flags |= ImGuiTreeNodeFlags_Selected;
+        open = ImGui::TreeNodeEx("~", flags);
+        if (ImGui::IsItemClicked()) {
+            m_current_path = "~";
+        }
+        if (open) {
+            RenderDirTree("~", db);
+            ImGui::TreePop();
+        }
+        ImGui::PopID();
 
-            // Optional "up" tile if we are not at root
-            auto is_root = [&]() -> bool {
-                if (m_current_path.empty()) return true; // project root shorthand
-                auto s = m_current_path.generic_string();
-                return (s == "/" || s == "~");
-            };
+        ImGui::EndChild();
+    }
 
-            col = 0; // reset column counter for the row flow
-            if (!is_root()) {
-                std::filesystem::path parent = m_current_path.parent_path();
-                // Avoid infinite loop like parent("/") == "/" by normalizing
-                if (parent != m_current_path) {
-                    ImGui::PushID("__up__");
-                    draw_tile("..", true, &parent, true);
-                    ImGui::PopID();
-                }
+    void ProjectWidget::RenderDirTree(const std::filesystem::path &base_path, Engine::FileSystemDatabase &db) {
+        using AssetInfo = Engine::FileSystemDatabase::AssetInfo;
+        std::vector<AssetInfo> entries = db.ListDirectory(base_path, true);
+        std::vector<std::filesystem::path> subdirs;
+        subdirs.reserve(entries.size());
+        for (auto &e : entries) {
+            if (e.is_directory) subdirs.push_back(e.path);
+        }
+        std::sort(subdirs.begin(), subdirs.end(), [](const auto &a, const auto &b) {
+            return a.filename().generic_string() < b.filename().generic_string();
+        });
+
+        ImGuiTreeNodeFlags base_flags =
+            ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_SpanAvailWidth;
+
+        for (const auto &p : subdirs) {
+            std::string label = p.filename().generic_string();
+            if (label.empty()) label = p.generic_string();
+            ImGui::PushID(p.generic_string().c_str());
+            ImGuiTreeNodeFlags flags = base_flags;
+            if (m_current_path == p) flags |= ImGuiTreeNodeFlags_Selected;
+            bool open = ImGui::TreeNodeEx(label.c_str(), flags);
+            if (ImGui::IsItemClicked()) {
+                m_current_path = p;
             }
+            if (open) {
+                RenderDirTree(p, db);
+                ImGui::TreePop();
+            }
+            ImGui::PopID();
+        }
+    }
 
-            // Draw assets as tiles
+    void ProjectWidget::RenderContent() {
+        ImGui::BeginChild("ProjectWidgetContent", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
+
+        const float tile_w = m_tile_icon_size + 16.0f; // include inner padding
+
+        float content_width = ImGui::GetContentRegionAvail().x;
+        if (content_width <= 0.0f) content_width = tile_w;
+        int columns = (int)((content_width + m_item_spacing) / (tile_w + m_item_spacing));
+        if (columns < 1) columns = 1;
+        int col = 0;
+
+        // Up tile
+        if (m_current_path != "/" && m_current_path != "~") {
+            std::filesystem::path parent = m_current_path.parent_path();
+            if (parent != m_current_path) {
+                ImGui::PushID("__up__");
+                DrawTile("..", true, &parent, true, col, columns);
+                ImGui::PopID();
+            }
+        }
+
+        // Directory listing
+        using AssetInfo = Engine::FileSystemDatabase::AssetInfo;
+        auto db_ptr = m_database.lock();
+        if (db_ptr) {
+            std::vector<AssetInfo> assets = db_ptr->ListDirectory(m_current_path, true);
             for (size_t i = 0; i < assets.size(); ++i) {
                 const auto &a = assets[i];
                 bool is_dir = a.is_directory;
 
-                // Derive display name
                 std::string name;
                 if (is_dir) {
                     name = a.path.filename().generic_string();
                     if (name.empty()) name = a.path.generic_string();
                 } else {
-                    // Prefer stem without extension for files
                     name = a.path.stem().generic_string();
                     if (name.empty()) name = a.path.filename().generic_string();
                 }
 
-                // Target path to navigate into (folders only)
                 const std::filesystem::path *target = is_dir ? &a.path : nullptr;
-
                 ImGui::PushID((int)i);
-                draw_tile(name, is_dir, target);
+                DrawTile(name, is_dir, target, false, col, columns);
                 ImGui::PopID();
             }
-
-            ImGui::EndChild();
         }
-        ImGui::End();
+
+        ImGui::EndChild();
+    }
+
+    void ProjectWidget::WrapToLines(
+        const std::string &s, float max_w, int max_lines, std::vector<std::string> &out_lines
+    ) const {
+        out_lines.clear();
+        if (s.empty() || max_w <= 0.0f || max_lines <= 0) return;
+        const char *ell = "...";
+        float ell_w = ImGui::CalcTextSize(ell).x;
+
+        size_t idx = 0;
+        const size_t n = s.size();
+        for (int line = 0; line < max_lines && idx < n; ++line) {
+            bool last_line = (line == max_lines - 1);
+            std::string cur;
+
+            // fill characters that fit in this line
+            while (idx < n) {
+                char c = s[idx];
+                std::string test = cur;
+                test.push_back(c);
+                float w = ImGui::CalcTextSize(test.c_str()).x;
+                if (last_line) {
+                    // reserve space for ellipsis if there will be more characters remaining
+                    bool more_after = (idx + 1 < n);
+                    if (w + (more_after ? ell_w : 0.0f) <= max_w) {
+                        cur.swap(test);
+                        ++idx;
+                    } else {
+                        break;
+                    }
+                } else {
+                    if (w <= max_w) {
+                        cur.swap(test);
+                        ++idx;
+                    } else {
+                        break;
+                    }
+                }
+            }
+
+            if (cur.empty()) {
+                // can't fit any character in this line
+                if (last_line) {
+                    out_lines.emplace_back(ell);
+                    return;
+                } else {
+                    // push empty to avoid infinite loop; but typically shouldn't happen with fonts > 0
+                    out_lines.emplace_back("");
+                    continue;
+                }
+            }
+
+            if (last_line && idx < n) {
+                // not all consumed: need ellipsis
+                // ensure adding ellipsis still fits
+                while (!cur.empty() && ImGui::CalcTextSize((cur + ell).c_str()).x > max_w) {
+                    cur.pop_back();
+                }
+                cur += ell;
+                out_lines.emplace_back(std::move(cur));
+                return;
+            } else {
+                out_lines.emplace_back(std::move(cur));
+            }
+        }
+    }
+
+    void ProjectWidget::DrawTile(
+        const std::string &display_name,
+        bool is_folder,
+        const std::filesystem::path *target_path,
+        bool is_up,
+        int &col,
+        int columns
+    ) {
+        const float tile_w = m_tile_icon_size + 16.0f; // include inner padding
+        const float tile_h = m_tile_icon_size + m_tile_text_height + 12.0f;
+
+        ImGui::BeginGroup();
+        ImVec2 cursor = ImGui::GetCursorScreenPos();
+        ImGui::InvisibleButton("tile", ImVec2(tile_w, tile_h));
+        bool hovered = ImGui::IsItemHovered();
+        bool double_clicked = hovered && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left);
+
+        ImDrawList *dl = ImGui::GetWindowDrawList();
+        ImU32 bg_col =
+            hovered ? ImGui::GetColorU32(ImGuiCol_FrameBgHovered) : ImGui::GetColorU32(ImGuiCol_FrameBg, 0.0f);
+        dl->AddRectFilled(cursor, ImVec2(cursor.x + tile_w, cursor.y + tile_h), bg_col, 6.0f);
+
+        // Icon area
+        ImVec2 icon_min(cursor.x + (tile_w - m_tile_icon_size) * 0.5f, cursor.y + 8.0f);
+        ImVec2 icon_max(icon_min.x + m_tile_icon_size, icon_min.y + m_tile_icon_size);
+        if (is_folder) {
+            ImU32 folder_col = ImColor(255, 180, 80);
+            ImVec2 tab_min(icon_min.x + m_tile_icon_size * 0.0f, icon_min.y);
+            ImVec2 tab_max(icon_min.x + m_tile_icon_size * 0.3f, icon_min.y + m_tile_icon_size * 0.28f);
+            ImVec2 t0(icon_min.x + m_tile_icon_size * 0.27f, icon_min.y);
+            ImVec2 t1(icon_min.x + m_tile_icon_size * 0.27f, icon_min.y + m_tile_icon_size * 0.28f);
+            ImVec2 t2(
+                icon_min.x + m_tile_icon_size * 0.27f + m_tile_icon_size * 0.27f, icon_min.y + m_tile_icon_size * 0.27f
+            );
+            dl->AddRectFilled(tab_min, tab_max, folder_col, 3.0f);
+            dl->AddTriangleFilled(t0, t1, t2, ImGui::GetColorU32(folder_col));
+            dl->AddRectFilled(ImVec2(icon_min.x, icon_min.y + m_tile_icon_size * 0.18f), icon_max, folder_col, 5.0f);
+        } else {
+            ImU32 file_col = ImColor(100, 170, 255);
+            ImVec2 doc_min = icon_min;
+            ImVec2 doc_max = icon_max;
+            dl->AddRectFilled(doc_min, doc_max, file_col, 6.0f);
+            float corner = m_tile_icon_size * 0.25f;
+            ImVec2 c0(doc_max.x - corner, doc_min.y);
+            ImVec2 c1(doc_max.x, doc_min.y + corner);
+            dl->AddTriangleFilled(c0, ImVec2(doc_max.x, doc_min.y), c1, ImGui::GetColorU32(ImGuiCol_WindowBg));
+            dl->AddLine(c0, c1, ImGui::GetColorU32(ImGuiCol_Border));
+        }
+
+        // Text (wrap to configurable lines, ellipsis on last line)
+        ImVec2 text_area_min(cursor.x + 6.0f, icon_max.y + 4.0f);
+        ImVec2 text_area_max(cursor.x + tile_w - 6.0f, cursor.y + tile_h - 6.0f);
+        float max_w = text_area_max.x - text_area_min.x;
+        std::string label = is_up ? std::string(".. ") : display_name;
+        std::vector<std::string> lines;
+        WrapToLines(label, max_w, m_tile_max_lines, lines);
+        float line_h = ImGui::GetTextLineHeight();
+        float block_h = line_h * static_cast<float>(lines.size());
+        float base_y = text_area_min.y + std::max(0.0f, (text_area_max.y - text_area_min.y - block_h) * 0.5f);
+        ImU32 text_col = is_up ? ImGui::GetColorU32(ImGuiCol_TextDisabled) : ImGui::GetColorU32(ImGuiCol_Text);
+        dl->PushClipRect(text_area_min, text_area_max, true);
+        for (size_t li = 0; li < lines.size(); ++li) {
+            if (!lines[li].empty()) {
+                dl->AddText(ImVec2(text_area_min.x, base_y + line_h * li), text_col, lines[li].c_str());
+            }
+        }
+        dl->PopClipRect();
+
+        if (double_clicked && target_path) {
+            if (is_folder) {
+                m_current_path = *target_path;
+            }
+        }
+        ImGui::EndGroup();
+
+        // Flow layout
+        col++;
+        if (col < columns) {
+            ImGui::SameLine(0.0f, m_item_spacing);
+        } else {
+            col = 0;
+        }
     }
 } // namespace Editor

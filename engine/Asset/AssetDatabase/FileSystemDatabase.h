@@ -48,7 +48,14 @@ namespace Engine {
         /// @brief Load the archive.
         void LoadArchive(Serialization::Archive &archive, const std::filesystem::path &path);
 
-        std::vector<AssetInfo> ListDirectory(const std::filesystem::path &path) const;
+        /**
+         * @brief List the assets in a directory.
+         * 
+         * @param path the target directory path
+         * @param only_name whether to only list the names without loading asset info
+         * @return std::vector<AssetInfo> 
+         */
+        std::vector<AssetInfo> ListDirectory(const std::filesystem::path &path, bool only_name = false) const;
 
         std::filesystem::path GetAssetsDirectory() const;
         void LoadBuiltinAssets(const std::filesystem::path &path);
