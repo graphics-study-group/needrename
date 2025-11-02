@@ -46,8 +46,8 @@ struct LowerPlaneMeshAsset : public MeshAsset {
 std::pair<std::shared_ptr<MaterialLibraryAsset>, std::shared_ptr<MaterialTemplateAsset>> ConstructMaterial() {
     auto test_asset = std::make_shared<MaterialTemplateAsset>();
     auto lib_asset = std::make_shared<MaterialLibraryAsset>();
-    auto vs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/blinn_phong.vert.spv.asset");
-    auto fs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/blinn_phong.frag.spv.asset");
+    auto vs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/blinn_phong.vert.asset");
+    auto fs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/blinn_phong.frag.asset");
     MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(vs_ref);
     MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(fs_ref);
 
@@ -230,7 +230,7 @@ int main(int argc, char **argv) {
     std::shared_ptr depth = RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Depth Attachment");
 
     auto asys = cmc->GetAssetManager();
-    auto cs_ref = asys->GetNewAssetRef("~/shaders/gaussian_blur.comp.spv.asset");
+    auto cs_ref = asys->GetNewAssetRef("~/shaders/gaussian_blur.comp.asset");
     asys->LoadAssetImmediately(cs_ref);
     ComputeStage cstage{*rsys};
     cstage.Instantiate(*cs_ref->cas<ShaderAsset>());

@@ -2,7 +2,7 @@
     "%data": {
         "&0": {
             "%type": "Engine::MaterialAsset",
-            "Asset::m_guid": "09CDF049F5138FFA763A5D892A455966",
+            "Asset::m_guid": "245193AFAB61F6CA966793CF86011D3B",
             "MaterialAsset::m_library": "&1",
             "MaterialAsset::m_name": "Bunny_Material.001",
             "MaterialAsset::m_properties": {
@@ -38,8 +38,9 @@
         },
         "&2": {
             "%type": "Engine::AssetRef",
-            "AssetRef::m_guid": "F21DB2ED9C717E8BFF30A6F32780E4EC"
+            "AssetRef::m_guid": "768C59F870698B657FADA0FAAA3AA465"
         }
     },
+    "%extra_data": [],
     "%main_id": "&0"
 }

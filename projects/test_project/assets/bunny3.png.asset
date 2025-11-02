@@ -1,8 +1,9 @@
 {
     "%data": {
         "&0": {
+            "%extra_data_id": 0,
             "%type": "Engine::Image2DTextureAsset",
-            "Asset::m_guid": "01A1BBBFFFF4192FFF1BE490448FBC83",
+            "Asset::m_guid": "347EFD503CC786167DEF4F30CE94161A",
             "Image2DTextureAsset::m_channel": 4,
             "Image2DTextureAsset::m_format": "R8G8B8A8UNorm",
             "Image2DTextureAsset::m_height": 3072,
@@ -11,5 +12,10 @@
             "TextureAsset::m_name": "bunny3"
         }
     },
+    "%extra_data": [
+        {
+            "%extension": ".png"
+        }
+    ],
     "%main_id": "&0"
 }

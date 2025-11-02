@@ -25,9 +25,9 @@ namespace sch = std::chrono;
 std::pair<std::shared_ptr<MaterialLibraryAsset>, std::shared_ptr<MaterialTemplateAsset>> ConstructMaterial() {
     auto test_asset = std::make_shared<MaterialTemplateAsset>();
     auto lib_asset = std::make_shared<MaterialLibraryAsset>();
-    auto vs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/pbr_base.vert.spv.asset");
+    auto vs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/pbr_base.vert.asset");
     auto fs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef(
-        "~/shaders/lambertian_cook_torrance.frag.spv.asset"
+        "~/shaders/lambertian_cook_torrance.frag.asset"
     );
     assert(vs_ref && fs_ref);
     MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(vs_ref);
@@ -298,7 +298,7 @@ int main(int argc, char **argv) {
     rsys->SetActiveCamera(camera);
 
     // Setup compute shader
-    auto cs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/bloom.comp.spv.asset");
+    auto cs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/bloom.comp.asset");
     assert(cs_ref);
     MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(cs_ref);
     auto bloom_compute_stage = std::make_shared<ComputeStage>(*rsys);

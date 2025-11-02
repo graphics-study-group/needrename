@@ -46,8 +46,8 @@ struct LowerPlaneMeshAsset : public MeshAsset {
 std::pair<std::shared_ptr<MaterialLibraryAsset>, std::shared_ptr<MaterialTemplateAsset>> ConstructMaterial() {
     auto test_asset = std::make_shared<MaterialTemplateAsset>();
     auto test_lib_asset = std::make_shared<MaterialLibraryAsset>();
-    auto vs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/debug_writethrough.vert.spv.asset");
-    auto fs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/debug_writethrough_mrt.frag.spv.asset");
+    auto vs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/debug_writethrough.vert.asset");
+    auto fs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/debug_writethrough_mrt.frag.asset");
     MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(vs_ref);
     MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(fs_ref);
 
