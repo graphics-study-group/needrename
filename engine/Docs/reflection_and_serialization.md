@@ -203,6 +203,7 @@ The parser generates reflection for several key classes:
                 }
             },
             "&3": {
+                "%extra_data_id": 0,
                 "%type": "Engine::MeshComponent",
                 "Component::m_parentGameObject": "&1",
                 "MeshComponent::m_mesh_asset": "&8",
@@ -227,6 +228,11 @@ The parser generates reflection for several key classes:
                 "AssetRef::m_guid": "D8676A9BA404F7A084DC7E30A9E5245D"
             }
         },
+        "%extra_data": [
+            {
+                "%extension": ".bin"
+            }
+        ],
         "%main_id": "&0"
     }
     
@@ -239,6 +245,9 @@ The parser generates reflection for several key classes:
 3. **Additional Data in Archive**
 
     - The **extra_data** field in the archive is used to store additional binary data that cannot be directly represented in JSON. This is typically used for large assets like models or textures, where the serialized JSON data is not sufficient.
+    - During custom serialization, you can use `Archive::create_new_extra_data_buffer` to allocate a new extra data buffer. This function returns an ID for the extra data buffer. You should store this ID as a `size_t`value under the key `"%extra_data_id"`in the JSON section of your custom serialization function, so that the correct extra data segment can be located during deserialization.
+    - `Archive::create_new_extra_data_buffer` allows you to specify a suggested file extension for the extra data. When the extra data is stored as a separate file, it will use this extension, making it easier for external tools to recognize and edit the content. For example, a texture asset can set the extension to `png`, allowing external image editors to open it directly.
+    - By default, the `Archive`is stored as a file named `name.asset`, while the extra data is stored in separate files following the pattern `name.0.ext`, `name.1.ext`, and so on.
 
 4. **File Storage**
 
