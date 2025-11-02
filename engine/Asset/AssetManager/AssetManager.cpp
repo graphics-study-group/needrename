@@ -12,44 +12,6 @@
 #include <nlohmann/json.hpp>
 
 namespace Engine {
-    void AssetManager::LoadBuiltinAssets() {
-        for (const auto &[relative_path, guid] : MainClass::GetInstance()->GetAssetDatabase()->ListAssets("~", true)) {
-            AddAsset(guid, relative_path);
-        }
-    }
-
-    void AssetManager::LoadProject() {
-        for (const auto &[relative_path, guid] : MainClass::GetInstance()->GetAssetDatabase()->ListAssets({}, true)) {
-            AddAsset(guid, relative_path);
-        }
-    }
-
-    std::filesystem::path AssetManager::GetAssetPath(GUID guid) const {
-        auto it = m_assets_map.find(guid);
-        if (it != m_assets_map.end()) {
-            return it->second;
-        } else {
-            throw std::runtime_error("Asset not found");
-        }
-    }
-
-    std::filesystem::path AssetManager::GetAssetPath(const std::shared_ptr<Asset> &asset) const {
-        return GetAssetPath(asset->GetGUID());
-    }
-
-    std::shared_ptr<AssetRef> AssetManager::GetNewAssetRef(const std::filesystem::path &path) {
-        std::string path_str = path.lexically_normal().generic_string();
-        if (m_path_to_guid.find(path_str) == m_path_to_guid.end()) return nullptr;
-        return std::make_shared<AssetRef>(m_path_to_guid[path_str]);
-    }
-
-    void AssetManager::AddAsset(const GUID &guid, const std::filesystem::path &path) {
-        if (m_assets_map.find(guid) != m_assets_map.end()) throw std::runtime_error("asset GUID already exists");
-        std::string path_str = path.lexically_normal().generic_string();
-        m_assets_map[guid] = path_str;
-        m_path_to_guid[path_str] = guid;
-    }
-
     void AssetManager::AddToLoadingQueue(std::shared_ptr<AssetRef> asset_ref) {
         m_loading_queue.push(asset_ref);
     }
@@ -57,10 +19,9 @@ namespace Engine {
     void AssetManager::LoadAssetsInQueue() {
         while (!m_loading_queue.empty()) {
             auto asset_ref = m_loading_queue.front();
-            auto path = GetAssetPath(asset_ref->GetGUID());
 
             Serialization::Archive archive;
-            MainClass::GetInstance()->GetAssetDatabase()->LoadArchive(archive, path);
+            MainClass::GetInstance()->GetAssetDatabase()->LoadArchive(archive, asset_ref->GetGUID());
             archive.prepare_load();
 
             auto asset_type = Reflection::GetType(archive.GetMainDataProperty("%type").get<std::string>());
@@ -77,9 +38,8 @@ namespace Engine {
     }
 
     std::shared_ptr<Asset> AssetManager::LoadAssetImmediately(const GUID &guid) {
-        auto path = GetAssetPath(guid);
         Serialization::Archive archive;
-        MainClass::GetInstance()->GetAssetDatabase()->LoadArchive(archive, path);
+        MainClass::GetInstance()->GetAssetDatabase()->LoadArchive(archive, guid);
         auto type = Reflection::GetType(archive.GetMainDataProperty("%type").get<std::string>());
         assert(type->IsReflectable());
         auto var = type->CreateInstance(Serialization::SerializationMarker{});

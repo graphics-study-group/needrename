@@ -23,8 +23,7 @@ int main(int argc, char *argv[]) {
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
 
     auto asys = cmc->GetAssetManager();
-    cmc->SetBuiltinAssetPath(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
-    asys->LoadBuiltinAssets();
+    cmc->LoadBuiltinAssets(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
 
     auto cs = std::make_shared<ShaderAsset>();
     cs->LoadFromFile(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "shaders/fluid.comp.0.spv", ShaderAsset::ShaderType::Compute);

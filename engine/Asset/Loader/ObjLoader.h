@@ -8,7 +8,7 @@
 
 namespace Engine {
     class AssetManager;
-    class AssetDatabase;
+    class FileSystemDatabase;
     class MeshAsset;
     class MaterialAsset;
 
@@ -31,8 +31,7 @@ namespace Engine {
         );
 
     protected:
-        std::weak_ptr<AssetManager> m_manager{};
-        std::weak_ptr<AssetDatabase> m_database{};
+        std::weak_ptr<FileSystemDatabase> m_database{};
     };
 } // namespace Engine
 

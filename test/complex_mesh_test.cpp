@@ -221,10 +221,10 @@ int main(int argc, char **argv) {
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
 
     auto asys = cmc->GetAssetManager();
-    cmc->SetBuiltinAssetPath(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
-    asys->LoadBuiltinAssets();
+    auto adb = std::dynamic_pointer_cast<FileSystemDatabase>(cmc->GetAssetDatabase());
+    cmc->LoadBuiltinAssets(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
 
-    auto test_asset = asys->GetNewAssetRef(std::filesystem::path("~/material_libraries/BlinnPhongLibrary.asset"));
+    auto test_asset = adb->GetNewAssetRef(std::filesystem::path("~/material_libraries/BlinnPhongLibrary.asset"));
     asys->LoadAssetImmediately(test_asset);
     asys->LoadAssetsInQueue();
 

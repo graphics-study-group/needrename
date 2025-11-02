@@ -44,10 +44,13 @@ struct LowerPlaneMeshAsset : public MeshAsset {
 };
 
 std::pair<std::shared_ptr<MaterialLibraryAsset>, std::shared_ptr<MaterialTemplateAsset>> ConstructMaterial() {
+    auto adb = std::dynamic_pointer_cast<FileSystemDatabase>(
+        MainClass::GetInstance()->GetAssetDatabase()
+    );
     auto test_asset = std::make_shared<MaterialTemplateAsset>();
     auto lib_asset = std::make_shared<MaterialLibraryAsset>();
-    auto vs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/blinn_phong.vert.asset");
-    auto fs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/blinn_phong.frag.asset");
+    auto vs_ref = adb->GetNewAssetRef("~/shaders/blinn_phong.vert.asset");
+    auto fs_ref = adb->GetNewAssetRef("~/shaders/blinn_phong.frag.asset");
     MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(vs_ref);
     MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(fs_ref);
 
@@ -155,7 +158,7 @@ int main(int argc, char **argv) {
 
     auto cmc = MainClass::GetInstance();
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
-    cmc->SetBuiltinAssetPath(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
+    cmc->LoadBuiltinAssets(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
 
     auto rsys = cmc->GetRenderSystem();
     // Prepare texture
@@ -164,7 +167,6 @@ int main(int argc, char **argv) {
     std::shared_ptr allocated_image_texture = ImageTexture::CreateUnique(*rsys, *test_texture_asset);
 
     // Prepare material
-    cmc->GetAssetManager()->LoadBuiltinAssets();
     auto test_asset = ConstructMaterial();
 
     // // Do not delete this code, it is a useful tool for generating asset files.
@@ -230,7 +232,8 @@ int main(int argc, char **argv) {
     std::shared_ptr depth = RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Depth Attachment");
 
     auto asys = cmc->GetAssetManager();
-    auto cs_ref = asys->GetNewAssetRef("~/shaders/gaussian_blur.comp.asset");
+    auto adb = std::dynamic_pointer_cast<FileSystemDatabase>(cmc->GetAssetDatabase());
+    auto cs_ref = adb->GetNewAssetRef("~/shaders/gaussian_blur.comp.asset");
     asys->LoadAssetImmediately(cs_ref);
     ComputeStage cstage{*rsys};
     cstage.Instantiate(*cs_ref->cas<ShaderAsset>());

@@ -70,14 +70,16 @@ std::array<std::shared_ptr<MaterialTemplateAsset>, 2> ConstructMaterialTemplate(
         std::make_shared<MaterialTemplateAsset>(),
         std::make_shared<MaterialTemplateAsset>()
     };
-    
-    auto shadow_map_vs_ref =
-        MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/shadowmap.vert.asset");
-    auto vs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/blinn_phong.vert.asset");
-    auto fs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/blinn_phong.frag.asset");
-    MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(shadow_map_vs_ref);
-    MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(vs_ref);
-    MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(fs_ref);
+
+    auto adb = std::dynamic_pointer_cast<FileSystemDatabase>(MainClass::GetInstance()->GetAssetDatabase());
+    auto asys = MainClass::GetInstance()->GetAssetManager();
+
+    auto shadow_map_vs_ref = adb->GetNewAssetRef("~/shaders/shadowmap.vert.asset");
+    auto vs_ref = adb->GetNewAssetRef("~/shaders/blinn_phong.vert.asset");
+    auto fs_ref = adb->GetNewAssetRef("~/shaders/blinn_phong.frag.asset");
+    asys->LoadAssetImmediately(shadow_map_vs_ref);
+    asys->LoadAssetImmediately(vs_ref);
+    asys->LoadAssetImmediately(fs_ref);
 
     templates[0]->name = "Blinn-Phong Lit";
     templates[1]->name = "Shadow map pass";
@@ -120,7 +122,7 @@ int main(int argc, char **argv) {
 
     auto cmc = MainClass::GetInstance();
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
-    cmc->SetBuiltinAssetPath(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
+    cmc->LoadBuiltinAssets(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
 
     auto rsys = cmc->GetRenderSystem();
 
@@ -192,7 +194,6 @@ int main(int argc, char **argv) {
     );
 
     // Prepare material
-    cmc->GetAssetManager()->LoadBuiltinAssets();
     auto test_template_assets = ConstructMaterialTemplate();
     auto test_library_asset = ConstructMaterialLibrary(test_template_assets);
     auto test_library_asset_ref = std::make_shared<AssetRef>(test_library_asset);

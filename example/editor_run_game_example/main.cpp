@@ -92,8 +92,7 @@ int main() {
     auto cmc = MainClass::GetInstance();
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
     RegisterAllTypes();
-    cmc->SetBuiltinAssetPath(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
-    cmc->GetAssetManager()->LoadBuiltinAssets();
+    cmc->LoadBuiltinAssets(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
     auto rsys = cmc->GetRenderSystem();
     auto asset_manager = cmc->GetAssetManager();
     auto world = cmc->GetWorldSystem();

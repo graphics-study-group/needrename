@@ -23,12 +23,13 @@ using namespace Engine;
 namespace sch = std::chrono;
 
 std::pair<std::shared_ptr<MaterialLibraryAsset>, std::shared_ptr<MaterialTemplateAsset>> ConstructMaterial() {
+    auto adb = std::dynamic_pointer_cast<FileSystemDatabase>(
+        MainClass::GetInstance()->GetAssetDatabase()
+    );
     auto test_asset = std::make_shared<MaterialTemplateAsset>();
     auto lib_asset = std::make_shared<MaterialLibraryAsset>();
-    auto vs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/pbr_base.vert.asset");
-    auto fs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef(
-        "~/shaders/lambertian_cook_torrance.frag.asset"
-    );
+    auto vs_ref = adb->GetNewAssetRef("~/shaders/pbr_base.vert.asset");
+    auto fs_ref = adb->GetNewAssetRef("~/shaders/lambertian_cook_torrance.frag.asset");
     assert(vs_ref && fs_ref);
     MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(vs_ref);
     MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(fs_ref);
@@ -235,8 +236,8 @@ int main(int argc, char **argv) {
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
 
     auto asys = cmc->GetAssetManager();
-    cmc->SetBuiltinAssetPath(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
-    asys->LoadBuiltinAssets();
+    auto adb = std::dynamic_pointer_cast<FileSystemDatabase>(cmc->GetAssetDatabase());
+    cmc->LoadBuiltinAssets(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
     asys->LoadAssetsInQueue();
 
     auto rsys = cmc->GetRenderSystem();
@@ -298,7 +299,7 @@ int main(int argc, char **argv) {
     rsys->SetActiveCamera(camera);
 
     // Setup compute shader
-    auto cs_ref = MainClass::GetInstance()->GetAssetManager()->GetNewAssetRef("~/shaders/bloom.comp.asset");
+    auto cs_ref = adb->GetNewAssetRef("~/shaders/bloom.comp.asset");
     assert(cs_ref);
     MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(cs_ref);
     auto bloom_compute_stage = std::make_shared<ComputeStage>(*rsys);

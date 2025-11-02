@@ -45,8 +45,8 @@ int main(int argc, char **argv) {
     auto cmc = MainClass::GetInstance();
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
     auto asys = cmc->GetAssetManager();
-    cmc->SetBuiltinAssetPath(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
-    asys->LoadBuiltinAssets();
+    auto adb = std::dynamic_pointer_cast<FileSystemDatabase>(cmc->GetAssetDatabase());
+    cmc->LoadBuiltinAssets(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading project");
     cmc->LoadProject(project_path);
@@ -58,7 +58,7 @@ int main(int argc, char **argv) {
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading the prefab which has just imported");
     std::filesystem::path prefab_path = path_in_project / mesh_path.filename();
     prefab_path.replace_extension(".gameobject.asset");
-    auto prefab_ref = asys->GetNewAssetRef(prefab_path);
+    auto prefab_ref = adb->GetNewAssetRef(prefab_path);
     asys->LoadAssetImmediately(prefab_ref);
     cmc->GetWorldSystem()->LoadGameObjectAsset(prefab_ref->as<GameObjectAsset>());
 

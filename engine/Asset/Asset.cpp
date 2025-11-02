@@ -11,10 +11,6 @@ namespace Engine {
     Asset::~Asset() {
     }
 
-    std::filesystem::path Asset::GetAssetPath() {
-        return MainClass::GetInstance()->GetAssetManager()->GetAssetPath(m_guid);
-    }
-
     void Asset::save_to_archive(Serialization::Archive &archive) const {
         throw std::runtime_error("Asset serialization is not allowed. Use AssetRef instead.");
     }

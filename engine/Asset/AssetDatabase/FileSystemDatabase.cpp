@@ -1,7 +1,20 @@
 #include "FileSystemDatabase.h"
+#include <Asset/AssetRef.h>
 #include <Reflection/Archive.h>
 #include <fstream>
 #include <nlohmann/json.hpp>
+
+static bool GetGUID(const Engine::Serialization::Archive &archive, Engine::GUID &out_guid) {
+    const nlohmann::json &json_data = archive.m_context->json;
+    if (json_data.contains("%main_id")) {
+        std::string str_id = json_data["%main_id"].get<std::string>();
+        if (json_data["%data"].contains(str_id) && json_data["%data"][str_id].contains("Asset::m_guid")) {
+            out_guid = Engine::GUID(json_data["%data"][str_id]["Asset::m_guid"].get<std::string>());
+            return true;
+        }
+    }
+    return false;
+}
 
 static bool GetGUID(const std::filesystem::path &asset_path, Engine::GUID &out_guid) {
     std::ifstream file(asset_path);
@@ -21,46 +34,44 @@ static bool GetGUID(const std::filesystem::path &asset_path, Engine::GUID &out_g
 }
 
 namespace Engine {
-    FileSystemDatabase::IterImpl::IterImpl(std::filesystem::path root, const std::string &prefix, bool recursive) :
-        m_root(root), m_prefix(prefix), m_recursive(recursive) {
-        if (recursive) m_rit = std::make_unique<std::filesystem::recursive_directory_iterator>(root);
-        else m_it = std::make_unique<std::filesystem::directory_iterator>(root);
-    }
-
-    std::unique_ptr<AssetDatabase::ListRange::IterImplBase> FileSystemDatabase::IterImpl::begin_clone() const {
-        return std::make_unique<IterImpl>(m_root, m_prefix, m_recursive);
-    }
-
-    bool FileSystemDatabase::IterImpl::next(AssetPair &out) {
-        GUID guid;
-        while (true) {
-            if (m_recursive) {
-                if (!m_rit || *m_rit == std::filesystem::end(*m_rit)) return false;
-                const auto &entry = **m_rit;
-                auto rel = std::filesystem::relative(entry.path(), m_root);
-                if (rel.extension() == k_asset_file_extension && GetGUID(entry.path(), guid)) {
-                    out = {m_prefix / rel, guid};
-                    ++(*m_rit);
-                    return true;
-                } else {
-                    ++(*m_rit);
-                }
-            } else {
-                if (!m_it || *m_it == std::filesystem::end(*m_it)) return false;
-                const auto &entry = **m_it;
-                auto rel = std::filesystem::relative(entry.path(), m_root);
-                if (rel.extension() == k_asset_file_extension && GetGUID(entry.path(), guid)) {
-                    out = {m_prefix / rel, guid};
-                    ++(*m_it);
-                    return true;
-                } else {
-                    ++(*m_it);
-                }
-            }
+    std::filesystem::path FileSystemDatabase::GetAssetPath(GUID guid) const {
+        auto it = m_assets_map.find(guid);
+        if (it != m_assets_map.end()) {
+            return it->second;
+        } else {
+            throw std::runtime_error("Asset not found");
         }
     }
 
+    std::shared_ptr<AssetRef> FileSystemDatabase::GetNewAssetRef(const std::filesystem::path &path) {
+        std::string path_str = path.lexically_normal().generic_string();
+        if (m_path_to_guid.find(path_str) == m_path_to_guid.end()) return nullptr;
+        return std::make_shared<AssetRef>(m_path_to_guid[path_str]);
+    }
+
+    void FileSystemDatabase::AddAsset(const GUID &guid, const std::filesystem::path &path) {
+        if (m_assets_map.find(guid) != m_assets_map.end()) throw std::runtime_error("asset GUID already exists");
+        std::string path_str = path.lexically_normal().generic_string();
+        m_assets_map[guid] = path_str;
+        m_path_to_guid[path_str] = guid;
+    }
+
+    void FileSystemDatabase::SaveArchive(Serialization::Archive &archive, GUID guid) {
+        SaveArchive(archive, GetAssetPath(guid));
+    }
+
+    void FileSystemDatabase::LoadArchive(Serialization::Archive &archive, GUID guid) {
+        LoadArchive(archive, GetAssetPath(guid));
+    }
+
     void FileSystemDatabase::SaveArchive(Serialization::Archive &archive, std::filesystem::path path) {
+        GUID guid;
+        if (!GetGUID(archive, guid)) {
+            throw std::runtime_error("Failed to get GUID from asset file: " + path.string());
+        }
+        if (m_assets_map.find(guid) == m_assets_map.end()) {
+            AddAsset(guid, path);
+        }
         auto json_path = ProjectPathToFilesystemPath(path);
         archive.save_to_file(json_path.replace_extension(""));
     }
@@ -70,22 +81,44 @@ namespace Engine {
         archive.load_from_file(json_path.replace_extension(""));
     }
 
-    AssetDatabase::ListRange FileSystemDatabase::ListAssets(std::filesystem::path directory, bool recursive) {
-        auto root = ProjectPathToFilesystemPath(directory);
-        std::string prefix = directory.string().starts_with("~") ? "~" : "/";
-        return ListRange(std::make_unique<IterImpl>(root, prefix, recursive));
-    }
-
     std::filesystem::path FileSystemDatabase::GetAssetsDirectory() const {
         return m_project_asset_path;
     }
 
-    void FileSystemDatabase::SetBuiltinAssetPath(const std::filesystem::path &path) {
+    void FileSystemDatabase::LoadBuiltinAssets(const std::filesystem::path &path) {
         m_builtin_asset_path = path.generic_string();
+        for (const std::filesystem::directory_entry &entry :
+             std::filesystem::recursive_directory_iterator(m_builtin_asset_path)) {
+            std::filesystem::path relative_path = std::filesystem::relative(entry.path(), m_builtin_asset_path);
+            if (relative_path.extension() == ".asset") {
+                std::ifstream file(entry.path());
+                if (file.is_open()) {
+                    GUID guid;
+                    if (GetGUID(entry.path(), guid)) {
+                        AddAsset(guid, "~" / relative_path);
+                    }
+                    file.close();
+                }
+            }
+        }
     }
 
-    void FileSystemDatabase::SetProjectAssetPath(const std::filesystem::path &path) {
+    void FileSystemDatabase::LoadProjectAssets(const std::filesystem::path &path) {
         m_project_asset_path = path.generic_string();
+        for (const std::filesystem::directory_entry &entry :
+             std::filesystem::recursive_directory_iterator(m_project_asset_path)) {
+            std::filesystem::path relative_path = std::filesystem::relative(entry.path(), m_project_asset_path);
+            if (relative_path.extension() == ".asset") {
+                std::ifstream file(entry.path());
+                if (file.is_open()) {
+                    GUID guid;
+                    if (GetGUID(entry.path(), guid)) {
+                        AddAsset(guid, "/" / relative_path);
+                    }
+                    file.close();
+                }
+            }
+        }
     }
 
     std::filesystem::path FileSystemDatabase::ProjectPathToFilesystemPath(
