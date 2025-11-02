@@ -42,6 +42,7 @@ namespace Engine {
             Uint32 sdl_window_flags = 0
         );
 
+        void SetBuiltinAssetPath(const std::filesystem::path &path);
         void LoadProject(const std::filesystem::path &path);
         void MainLoop();
         void LoopFinite(uint64_t max_frame_count = 0u, float max_time_seconds = 0.0f);

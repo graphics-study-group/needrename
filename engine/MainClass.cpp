@@ -37,6 +37,11 @@ namespace Engine {
         SDL_Quit();
     }
 
+    void MainClass::SetBuiltinAssetPath(const std::filesystem::path &path) {
+        // XXX: Modify here when multiple AssetDatabase types are supported
+        std::dynamic_pointer_cast<FileSystemDatabase>(this->asset_database)->SetBuiltinAssetPath(path);
+    }
+
     void MainClass::LoadProject(const std::filesystem::path &path) {
         std::dynamic_pointer_cast<FileSystemDatabase>(this->asset_database)->SetProjectAssetPath(path / "assets");
         this->asset_manager->LoadProject();
