@@ -94,7 +94,8 @@ int main() {
     RegisterAllTypes();
     cmc->LoadBuiltinAssets(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
     auto rsys = cmc->GetRenderSystem();
-    auto asset_manager = cmc->GetAssetManager();
+    auto asys = cmc->GetAssetManager();
+    auto adb = std::dynamic_pointer_cast<FileSystemDatabase>(cmc->GetAssetDatabase());
     auto world = cmc->GetWorldSystem();
     auto gui = cmc->GetGUISystem();
     auto window = cmc->GetWindow();
@@ -104,22 +105,15 @@ int main() {
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading project");
     cmc->LoadProject(project_path);
 
-    // std::filesystem::path mesh_path(ENGINE_ASSETS_DIR);
-    // mesh_path = mesh_path / "four_bunny" / "four_bunny.obj";
-    // std::filesystem::path prefab_path = cmc->GetAssetManager()->GetAssetsDirectory() / mesh_path.filename();
-    // prefab_path.replace_extension(".gameobject.asset");
-    // nlohmann::json prefab_json;
-    // std::ifstream prefab_file(prefab_path);
-    // prefab_file >> prefab_json;
-    // prefab_file.close();
-    // GUID prefab_guid(prefab_json["%data"]["&0"]["Asset::m_guid"].get<std::string>());
-    // auto prefab_asset =
-    //     dynamic_pointer_cast<GameObjectAsset>(cmc->GetAssetManager()->LoadAssetImmediately(prefab_guid));
-    // prefab_asset->m_MainObject->AddComponent<SpinningComponent>();
-    // prefab_asset->m_MainObject->m_name = "Spinning Bunny";
-    // auto &spinning_transform = prefab_asset->m_MainObject->GetTransformRef();
-    // spinning_transform.SetPosition(spinning_transform.GetPosition() + glm::vec3(0.0f, 0.2f, 0.0f));
-    // world->LoadGameObjectAsset(prefab_asset);
+    std::filesystem::path prefab_path = "/four_bunny.gameobject.asset";
+    auto prefab_ref = adb->GetNewAssetRef(prefab_path);
+    asys->LoadAssetImmediately(prefab_ref);
+    auto prefab_asset = prefab_ref->as<GameObjectAsset>();
+    prefab_asset->m_MainObject->AddComponent<SpinningComponent>();
+    prefab_asset->m_MainObject->m_name = "Spinning Bunny";
+    auto &spinning_transform = prefab_asset->m_MainObject->GetTransformRef();
+    spinning_transform.SetPosition(spinning_transform.GetPosition() + glm::vec3(0.0f, 0.2f, 0.0f));
+    world->LoadGameObjectAsset(prefab_asset);
 
     auto input = MainClass::GetInstance()->GetInputSystem();
     input->AddAxis(Input::ButtonAxis("move forward", Input::AxisType::TypeKey, "w", "s"));
@@ -164,7 +158,7 @@ int main() {
     while (!onQuit) {
         cmc->GetTimeSystem()->NextFrame();
 
-        asset_manager->LoadAssetsInQueue();
+        asys->LoadAssetsInQueue();
 
         SDL_Event event;
         while (SDL_PollEvent(&event)) {

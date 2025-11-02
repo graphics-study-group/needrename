@@ -4,6 +4,7 @@
 #include "AssetDatabase.h"
 #include <Core/guid.h>
 #include <unordered_map>
+#include <vector>
 
 namespace Engine {
     class AssetRef;
@@ -14,6 +15,13 @@ namespace Engine {
 
         FileSystemDatabase() = default;
         virtual ~FileSystemDatabase() = default;
+
+        struct AssetInfo {
+            std::filesystem::path path;
+            GUID guid;
+            std::string type_name;
+            bool is_directory;
+        };
 
         /// @brief Add an asset guid to the system.
         /// @param guid the guid of the asset
@@ -28,7 +36,7 @@ namespace Engine {
         /// @brief Get an unloaded AssetRef of the given path
         /// @param path the in-project path of the asset
         /// @return an unloaded AssetRef if the path exist, which only contains the GUID. nullptr otherwise
-        std::shared_ptr<AssetRef> GetNewAssetRef(const std::filesystem::path &path);
+        std::shared_ptr<AssetRef> GetNewAssetRef(const std::filesystem::path &path) const;
 
         /// @brief Save the archive.
         virtual void SaveArchive(Serialization::Archive &archive, GUID guid) override;
@@ -36,16 +44,11 @@ namespace Engine {
         virtual void LoadArchive(Serialization::Archive &archive, GUID guid) override;
 
         /// @brief Save the archive.
-        void SaveArchive(Serialization::Archive &archive, std::filesystem::path path);
+        void SaveArchive(Serialization::Archive &archive, const std::filesystem::path &path);
         /// @brief Load the archive.
-        void LoadArchive(Serialization::Archive &archive, std::filesystem::path path);
-        /**
-         * @brief List all assets in the specified directory.
-         *
-         * @param directory The directory to search for assets.
-         * @param recursive Whether to search recursively.
-         * @return A lazy input-range of (project_path, GUID) pairs.
-         */
+        void LoadArchive(Serialization::Archive &archive, const std::filesystem::path &path);
+
+        std::vector<AssetInfo> ListDirectory(const std::filesystem::path &path) const;
 
         std::filesystem::path GetAssetsDirectory() const;
         void LoadBuiltinAssets(const std::filesystem::path &path);

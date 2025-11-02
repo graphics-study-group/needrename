@@ -7,6 +7,7 @@
 
 namespace Engine {
     class GameObject;
+    class FileSystemDatabase;
 }
 
 namespace Editor {
@@ -19,6 +20,7 @@ namespace Editor {
 
     protected:
         std::filesystem::path m_current_path{};
+        std::weak_ptr<Engine::FileSystemDatabase> m_database{};
     };
 } // namespace Editor
 
