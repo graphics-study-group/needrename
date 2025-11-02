@@ -37,11 +37,6 @@ namespace Engine {
             return generateGUID(m_guid_gen);
         }
 
-        /// @brief Load an external resource, copy to the project asset directory
-        /// @param resourcePath Path to the external resource
-        /// @param path_in_project Path to the output asset file
-        void ImportExternalResource(std::filesystem::path resourcePath, std::filesystem::path path_in_project);
-
         /// @brief Add an asset guid to the system.
         /// @param guid the guid of the asset
         /// @param path the in-project path of the asset
