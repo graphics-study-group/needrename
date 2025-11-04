@@ -4,63 +4,65 @@
 #include <fstream>
 #include <nlohmann/json.hpp>
 
-static bool GetGUID(const Engine::Serialization::Archive &archive, Engine::GUID &out_guid) {
-    const nlohmann::json &json_data = archive.m_context->json;
-    if (json_data.contains("%main_id")) {
-        std::string str_id = json_data["%main_id"].get<std::string>();
-        if (json_data["%data"].contains(str_id) && json_data["%data"][str_id].contains("Asset::m_guid")) {
-            out_guid = Engine::GUID(json_data["%data"][str_id]["Asset::m_guid"].get<std::string>());
-            return true;
-        }
-    }
-    return false;
-}
-
-static bool GetGUID(const std::filesystem::path &asset_path, Engine::GUID &out_guid) {
-    std::ifstream file(asset_path);
-    if (file.is_open()) {
-        nlohmann::json json_data = nlohmann::json::parse(file);
+namespace {
+    bool GetGUID(const Engine::Serialization::Archive &archive, Engine::GUID &out_guid) {
+        const nlohmann::json &json_data = archive.m_context->json;
         if (json_data.contains("%main_id")) {
             std::string str_id = json_data["%main_id"].get<std::string>();
             if (json_data["%data"].contains(str_id) && json_data["%data"][str_id].contains("Asset::m_guid")) {
                 out_guid = Engine::GUID(json_data["%data"][str_id]["Asset::m_guid"].get<std::string>());
-                file.close();
                 return true;
             }
         }
-        file.close();
+        return false;
     }
-    return false;
-}
 
-static bool GetAssetInfo(const std::filesystem::path &asset_path, Engine::FileSystemDatabase::AssetInfo &out_info) {
-    bool success = true;
-    std::ifstream file(asset_path);
-    if (file.is_open()) {
-        out_info.path = asset_path;
-        out_info.is_directory = false;
-        nlohmann::json json_data = nlohmann::json::parse(file);
-        if (json_data.contains("%main_id")) {
-            std::string str_id = json_data["%main_id"].get<std::string>();
-            if (json_data["%data"].contains(str_id) && json_data["%data"][str_id].contains("Asset::m_guid")) {
-                out_info.guid = Engine::GUID(json_data["%data"][str_id]["Asset::m_guid"].get<std::string>());
+    bool GetGUID(const std::filesystem::path &asset_path, Engine::GUID &out_guid) {
+        std::ifstream file(asset_path);
+        if (file.is_open()) {
+            nlohmann::json json_data = nlohmann::json::parse(file);
+            if (json_data.contains("%main_id")) {
+                std::string str_id = json_data["%main_id"].get<std::string>();
+                if (json_data["%data"].contains(str_id) && json_data["%data"][str_id].contains("Asset::m_guid")) {
+                    out_guid = Engine::GUID(json_data["%data"][str_id]["Asset::m_guid"].get<std::string>());
+                    file.close();
+                    return true;
+                }
+            }
+            file.close();
+        }
+        return false;
+    }
+
+    bool GetAssetInfo(const std::filesystem::path &asset_path, Engine::FileSystemDatabase::AssetInfo &out_info) {
+        bool success = true;
+        std::ifstream file(asset_path);
+        if (file.is_open()) {
+            out_info.path = asset_path;
+            out_info.is_directory = false;
+            nlohmann::json json_data = nlohmann::json::parse(file);
+            if (json_data.contains("%main_id")) {
+                std::string str_id = json_data["%main_id"].get<std::string>();
+                if (json_data["%data"].contains(str_id) && json_data["%data"][str_id].contains("Asset::m_guid")) {
+                    out_info.guid = Engine::GUID(json_data["%data"][str_id]["Asset::m_guid"].get<std::string>());
+                } else {
+                    success = false;
+                }
+                if (json_data["%data"].contains(str_id) && json_data["%data"][str_id].contains("%type")) {
+                    out_info.type_name = json_data["%data"][str_id]["%type"].get<std::string>().substr(1);
+                } else {
+                    success = false;
+                }
             } else {
                 success = false;
             }
-            if (json_data["%data"].contains(str_id) && json_data["%data"][str_id].contains("%type")) {
-                out_info.type_name = json_data["%data"][str_id]["%type"].get<std::string>().substr(1);
-            } else {
-                success = false;
-            }
+            file.close();
         } else {
             success = false;
         }
-        file.close();
-    } else {
-        success = false;
+        return success;
     }
-    return success;
-}
+} // namespace
 
 namespace Engine {
     std::filesystem::path FileSystemDatabase::GetAssetPath(GUID guid) const {
