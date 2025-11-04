@@ -56,8 +56,7 @@ int main(int argc, char **argv) {
     Engine::Importer::ImportExternalResource(mesh_path, path_in_project);
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading the prefab which has just imported");
-    std::filesystem::path prefab_path = path_in_project / mesh_path.filename();
-    prefab_path.replace_extension(".gameobject.asset");
+    std::filesystem::path prefab_path = path_in_project / ("GO_" + mesh_path.stem().string() + ".asset");
     auto prefab_ref = adb->GetNewAssetRef(prefab_path);
     asys->LoadAssetImmediately(prefab_ref);
     cmc->GetWorldSystem()->LoadGameObjectAsset(prefab_ref->as<GameObjectAsset>());

@@ -105,7 +105,7 @@ int main() {
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading project");
     cmc->LoadProject(project_path);
 
-    std::filesystem::path prefab_path = "/four_bunny.gameobject.asset";
+    std::filesystem::path prefab_path = "/GO_four_bunny.asset";
     auto prefab_ref = adb->GetNewAssetRef(prefab_path);
     asys->LoadAssetImmediately(prefab_ref);
     auto prefab_asset = prefab_ref->as<GameObjectAsset>();

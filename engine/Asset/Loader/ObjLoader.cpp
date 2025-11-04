@@ -95,18 +95,18 @@ namespace Engine {
         auto database = m_database.lock();
         archive.prepare_save();
         m_mesh_asset->save_asset_to_archive(archive);
-        database->SaveArchive(archive, path_in_project / (m_mesh_asset->m_name + ".mesh.asset"));
+        database->SaveArchive(archive, path_in_project / (m_mesh_asset->m_name + ".asset"));
         for (const auto &material : m_material_assets) {
             archive.clear();
             archive.prepare_save();
             material->save_asset_to_archive(archive);
-            database->SaveArchive(archive, path_in_project / (material->m_name + ".material.asset"));
+            database->SaveArchive(archive, path_in_project / (material->m_name + ".asset"));
         }
         for (const auto &texture : m_texture_assets) {
             archive.clear();
             archive.prepare_save();
             texture->save_asset_to_archive(archive);
-            database->SaveArchive(archive, path_in_project / (texture->m_name + ".png.asset"));
+            database->SaveArchive(archive, path_in_project / (texture->m_name + ".asset"));
         }
 
         std::shared_ptr<GameObjectAsset> m_game_object_asset = std::make_shared<GameObjectAsset>();
@@ -125,7 +125,7 @@ namespace Engine {
         archive.clear();
         archive.prepare_save();
         m_game_object_asset->save_asset_to_archive(archive);
-        database->SaveArchive(archive, path_in_project / (m_mesh_asset->m_name + ".gameobject.asset"));
+        database->SaveArchive(archive, path_in_project / ("GO_" + m_mesh_asset->m_name + ".asset"));
     }
 
     void ObjLoader::LoadMeshAssetFromTinyObj(
