@@ -10,7 +10,7 @@
 namespace Engine {
     namespace Serialization {
         using Json = nlohmann::json;
-        using Buffer = std::vector<std::byte>;
+        using BinData = std::vector<std::byte>;
         using AddressID = unsigned long long;
         using IDMap = std::unordered_map<AddressID, int>;
         using PointerMap = std::unordered_map<int, std::shared_ptr<void>>;
@@ -26,7 +26,7 @@ namespace Engine {
                 // The json object stores the data in a json format.
                 Json json{};
                 // The extra data is used to store additional data. Usually binary data.
-                std::vector<Buffer> extra_data{};
+                std::vector<BinData> extra_data{};
 
                 // The map between object pointer and id in this archive. Used in serialization.
                 IDMap id_map{};
