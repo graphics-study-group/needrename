@@ -4,6 +4,8 @@
 #include "Widget.h"
 #include <filesystem>
 #include <memory>
+#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace Engine {
@@ -14,12 +16,6 @@ namespace Engine {
 namespace Editor {
     class ProjectWidget : public Widget {
     public:
-        ProjectWidget(const std::string &name);
-        virtual ~ProjectWidget();
-
-        virtual void Render() override;
-
-    protected:
         static constexpr const float k_breadcrumb_height = 28.0f;
         static constexpr const float k_item_spacing = 12.0f;
         static constexpr const int k_tile_max_lines = 4; // max lines rendered for file names
@@ -40,6 +36,12 @@ namespace Editor {
         static constexpr const float k_text_max = 120.0f;
         static constexpr const char *k_ellipsis = "...";
 
+        ProjectWidget(const std::string &name);
+        virtual ~ProjectWidget();
+
+        virtual void Render() override;
+
+    protected:
         std::filesystem::path m_current_path{"/"};
         std::weak_ptr<Engine::FileSystemDatabase> m_database{};
 
@@ -47,6 +49,21 @@ namespace Editor {
         float m_sidebar_width{240.0f};
         float m_tile_icon_size{64.0f};
         float m_tile_text_height{48.0f};
+
+        // Cached directory content for performance
+        struct CachedEntry {
+            std::filesystem::path path{};
+            bool is_directory{false};
+            std::string display_name{};               // original (pre-wrap) label
+            std::string tooltip{};                    // prebuilt tooltip
+            std::vector<std::string> wrapped_lines{}; // wrapped to cached wrap width
+        };
+        struct CachedDir {
+            std::vector<CachedEntry> entries{};
+            float wrap_width_used{-1.0f};
+        };
+        std::unordered_map<std::string, CachedDir> m_dir_cache{}; // key: generic path string ("/", "~", etc.)
+        std::unordered_set<std::string> m_open_dirs{};            // dirs currently open in sidebar (this frame)
 
         // Rendering helpers
         void RenderBreadcrumb();
@@ -56,13 +73,18 @@ namespace Editor {
         void DrawTile(
             const std::string &display_name,
             bool is_folder,
-            const std::filesystem::path *target_path,
+            const std::filesystem::path &target_path,
             bool is_up,
-            const std::string *tooltip,
-            int &col,
-            int columns
+            const std::string &tooltip,
+            const std::vector<std::string> &prewrapped_lines,
+            int &current_col,
+            int total_columns
         );
-        void WrapToLines(const std::string &s, float max_w, int max_lines, std::vector<std::string> &out_lines) const;
+
+        // Ensure listing exists; when wrap_width > 0, also ensure wrapped_lines match that width
+        void EnsureDirCache(const std::filesystem::path &dir, Engine::FileSystemDatabase &db, float wrap_width);
+        // Remove caches for directories that are not open in sidebar and not current content dir
+        void PruneDirCacheAfterSidebar();
     };
 } // namespace Editor
 

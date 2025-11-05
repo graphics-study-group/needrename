@@ -6,6 +6,91 @@
 #include <string>
 #include <vector>
 
+namespace {
+    void WrapToLines(const std::string &s, float max_w, int max_lines, std::vector<std::string> &out_lines) {
+        out_lines.clear();
+        if (s.empty() || max_w <= 0.0f || max_lines <= 0) return;
+        const char *ell = Editor::ProjectWidget::k_ellipsis;
+        float ell_w = ImGui::CalcTextSize(ell).x;
+
+        size_t idx = 0;
+        const size_t n = s.size();
+        for (int line = 0; line < max_lines && idx < n; ++line) {
+            bool last_line = (line == max_lines - 1);
+            std::string cur;
+
+            // fill characters that fit in this line
+            while (idx < n) {
+                char c = s[idx];
+                std::string test = cur;
+                test.push_back(c);
+                float w = ImGui::CalcTextSize(test.c_str()).x;
+                if (last_line) {
+                    // reserve space for ellipsis if there will be more characters remaining
+                    bool more_after = (idx + 1 < n);
+                    if (w + (more_after ? ell_w : 0.0f) <= max_w) {
+                        cur.swap(test);
+                        ++idx;
+                    } else {
+                        break;
+                    }
+                } else {
+                    if (w <= max_w) {
+                        cur.swap(test);
+                        ++idx;
+                    } else {
+                        break;
+                    }
+                }
+            }
+
+            if (cur.empty()) {
+                // can't fit any character in this line
+                if (last_line) {
+                    out_lines.emplace_back(ell);
+                    return;
+                } else {
+                    // push empty to avoid infinite loop; but typically shouldn't happen with fonts > 0
+                    out_lines.emplace_back("");
+                    continue;
+                }
+            }
+
+            if (last_line && idx < n) {
+                // not all consumed: need ellipsis
+                // ensure adding ellipsis still fits
+                while (!cur.empty() && ImGui::CalcTextSize((cur + ell).c_str()).x > max_w) {
+                    cur.pop_back();
+                }
+                cur += ell;
+                out_lines.emplace_back(std::move(cur));
+                return;
+            } else {
+                out_lines.emplace_back(std::move(cur));
+            }
+        }
+    }
+
+    std::string MakeTooltip(const Engine::FileSystemDatabase::AssetInfo &info) {
+        std::string tooltip;
+        if (info.is_directory) {
+            tooltip.reserve(128);
+            tooltip += "Path: ";
+            tooltip += info.path.generic_string();
+            tooltip += "\nType: <Directory>";
+        } else {
+            tooltip.reserve(196);
+            tooltip += "Path: ";
+            tooltip += info.path.generic_string();
+            tooltip += "\nGUID: ";
+            tooltip += info.guid.toString();
+            tooltip += "\nType: ";
+            tooltip += (info.type_name.empty() ? std::string("<unknown>") : info.type_name);
+        }
+        return tooltip;
+    }
+} // namespace
+
 namespace Editor {
     ProjectWidget::ProjectWidget(const std::string &name) : Widget(name) {
         m_database =
@@ -71,6 +156,8 @@ namespace Editor {
     }
 
     void ProjectWidget::RenderSidebar() {
+        // Track open directories per-frame (for cache pruning)
+        m_open_dirs.clear();
         ImGui::BeginChild("ProjectSidebar", ImVec2(m_sidebar_width, 0), true);
         ImGuiTreeNodeFlags base_flags =
             ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_SpanAvailWidth;
@@ -92,6 +179,7 @@ namespace Editor {
             m_current_path = "/";
         }
         if (open) {
+            m_open_dirs.insert("/");
             RenderDirTree("/", db);
             ImGui::TreePop();
         }
@@ -106,21 +194,29 @@ namespace Editor {
             m_current_path = "~";
         }
         if (open) {
+            m_open_dirs.insert("~");
             RenderDirTree("~", db);
             ImGui::TreePop();
         }
         ImGui::PopID();
 
         ImGui::EndChild();
+
+        // After rendering sidebar, prune caches for dirs that are now closed
+        PruneDirCacheAfterSidebar();
     }
 
     void ProjectWidget::RenderDirTree(const std::filesystem::path &base_path, Engine::FileSystemDatabase &db) {
-        using AssetInfo = Engine::FileSystemDatabase::AssetInfo;
-        std::vector<AssetInfo> entries = db.ListDirectory(base_path);
+        // Ensure directory listing is cached (no text wrapping needed in sidebar)
+        EnsureDirCache(base_path, db, 0.0f);
+        auto key = base_path.generic_string();
+        auto it_dir = m_dir_cache.find(key);
+        if (it_dir == m_dir_cache.end()) return;
+
         std::vector<std::filesystem::path> subdirs;
-        subdirs.reserve(entries.size());
-        for (auto &e : entries) {
-            if (e.is_directory) subdirs.push_back(e.path);
+        subdirs.reserve(it_dir->second.entries.size());
+        for (auto &ce : it_dir->second.entries) {
+            if (ce.is_directory) subdirs.push_back(ce.path);
         }
         std::sort(subdirs.begin(), subdirs.end(), [](const auto &a, const auto &b) {
             return a.filename().generic_string() < b.filename().generic_string();
@@ -140,6 +236,7 @@ namespace Editor {
                 m_current_path = p;
             }
             if (open) {
+                m_open_dirs.insert(p.generic_string());
                 RenderDirTree(p, db);
                 ImGui::TreePop();
             }
@@ -166,131 +263,91 @@ namespace Editor {
         }
 
         const float tile_w = m_tile_icon_size + k_tile_inner_padding; // include inner padding
+        const float wrap_width = tile_w - 2.0f * k_text_side_padding;
 
         float content_width = ImGui::GetContentRegionAvail().x;
         if (content_width <= 0.0f) content_width = tile_w;
-        int columns = (int)((content_width + k_item_spacing) / (tile_w + k_item_spacing));
-        if (columns < 1) columns = 1;
-        int col = 0;
+        int total_columns = (int)((content_width + k_item_spacing) / (tile_w + k_item_spacing));
+        if (total_columns < 1) total_columns = 1;
+        int current_col = 0;
 
         // Up tile
         if (m_current_path != "/" && m_current_path != "~") {
             std::filesystem::path parent = m_current_path.parent_path();
             if (parent != m_current_path) {
                 ImGui::PushID("__up__");
-                DrawTile("..", true, &parent, true, nullptr, col, columns);
+                DrawTile("..", true, parent, true, "", {".."}, current_col, total_columns);
                 ImGui::PopID();
             }
         }
 
         // Directory listing
-        using AssetInfo = Engine::FileSystemDatabase::AssetInfo;
         auto db_ptr = m_database.lock();
         if (db_ptr) {
-            std::vector<AssetInfo> assets = db_ptr->ListDirectory(m_current_path);
-            for (size_t i = 0; i < assets.size(); ++i) {
-                const auto &a = assets[i];
-                bool is_dir = a.is_directory;
-
-                std::string name;
-                if (is_dir) {
-                    name = a.path.filename().generic_string();
-                    if (name.empty()) name = a.path.generic_string();
-                } else {
-                    name = a.path.stem().generic_string();
-                    if (name.empty()) name = a.path.filename().generic_string();
+            // Ensure cache for current directory and current wrap width
+            EnsureDirCache(m_current_path, *db_ptr, wrap_width);
+            auto key_curr = m_current_path.generic_string();
+            auto it_dir = m_dir_cache.find(key_curr);
+            if (it_dir != m_dir_cache.end()) {
+                for (size_t i = 0; i < it_dir->second.entries.size(); ++i) {
+                    const auto &e = it_dir->second.entries[i];
+                    ImGui::PushID((int)i);
+                    DrawTile(
+                        e.display_name,
+                        e.is_directory,
+                        e.path,
+                        false,
+                        e.tooltip,
+                        e.wrapped_lines,
+                        current_col,
+                        total_columns
+                    );
+                    ImGui::PopID();
                 }
-
-                const std::filesystem::path *target = is_dir ? &a.path : nullptr;
-
-                // Build tooltip text (path, guid, type) and pass pointer; show sensible info for directories
-                std::string tooltip;
-                if (is_dir) {
-                    tooltip.reserve(128);
-                    tooltip += "Path: ";
-                    tooltip += a.path.generic_string();
-                    tooltip += "\nType: <Directory>";
-                } else {
-                    tooltip.reserve(196);
-                    tooltip += "Path: ";
-                    tooltip += a.path.generic_string();
-                    tooltip += "\nGUID: ";
-                    tooltip += a.guid.toString();
-                    tooltip += "\nType: ";
-                    tooltip += (a.type_name.empty() ? std::string("<unknown>") : a.type_name);
-                }
-
-                ImGui::PushID((int)i);
-                DrawTile(name, is_dir, target, false, &tooltip, col, columns);
-                ImGui::PopID();
             }
         }
 
         ImGui::EndChild();
     }
 
-    void ProjectWidget::WrapToLines(
-        const std::string &s, float max_w, int max_lines, std::vector<std::string> &out_lines
-    ) const {
-        out_lines.clear();
-        if (s.empty() || max_w <= 0.0f || max_lines <= 0) return;
-        const char *ell = "...";
-        float ell_w = ImGui::CalcTextSize(ell).x;
-
-        size_t idx = 0;
-        const size_t n = s.size();
-        for (int line = 0; line < max_lines && idx < n; ++line) {
-            bool last_line = (line == max_lines - 1);
-            std::string cur;
-
-            // fill characters that fit in this line
-            while (idx < n) {
-                char c = s[idx];
-                std::string test = cur;
-                test.push_back(c);
-                float w = ImGui::CalcTextSize(test.c_str()).x;
-                if (last_line) {
-                    // reserve space for ellipsis if there will be more characters remaining
-                    bool more_after = (idx + 1 < n);
-                    if (w + (more_after ? ell_w : 0.0f) <= max_w) {
-                        cur.swap(test);
-                        ++idx;
-                    } else {
-                        break;
-                    }
-                } else {
-                    if (w <= max_w) {
-                        cur.swap(test);
-                        ++idx;
-                    } else {
-                        break;
-                    }
-                }
+    void ProjectWidget::EnsureDirCache(
+        const std::filesystem::path &dir, Engine::FileSystemDatabase &db, float wrap_width
+    ) {
+        bool listed = m_dir_cache.find(dir.generic_string()) != m_dir_cache.end();
+        auto &bucket = m_dir_cache[dir.generic_string()];
+        // List directory once on demand
+        if (!listed) {
+            auto list = db.ListDirectory(dir);
+            bucket.entries.reserve(list.size());
+            for (auto &it : list) {
+                CachedEntry e;
+                e.path = it.path;
+                e.is_directory = it.is_directory;
+                e.display_name = it.path.filename().generic_string();
+                e.tooltip = MakeTooltip(it);
+                bucket.entries.emplace_back(std::move(e));
             }
+            // reset wrap marker so we compute wrapping for current width below
+            bucket.wrap_width_used = -1.0f;
+        }
 
-            if (cur.empty()) {
-                // can't fit any character in this line
-                if (last_line) {
-                    out_lines.emplace_back(ell);
-                    return;
-                } else {
-                    // push empty to avoid infinite loop; but typically shouldn't happen with fonts > 0
-                    out_lines.emplace_back("");
-                    continue;
-                }
+        // Compute or refresh wrapping if width changed and requested
+        if (wrap_width > 0.0f && bucket.wrap_width_used != wrap_width) {
+            for (auto &e : bucket.entries) {
+                WrapToLines(e.display_name, wrap_width, k_tile_max_lines, e.wrapped_lines);
             }
+            bucket.wrap_width_used = wrap_width;
+        }
+    }
 
-            if (last_line && idx < n) {
-                // not all consumed: need ellipsis
-                // ensure adding ellipsis still fits
-                while (!cur.empty() && ImGui::CalcTextSize((cur + ell).c_str()).x > max_w) {
-                    cur.pop_back();
-                }
-                cur += ell;
-                out_lines.emplace_back(std::move(cur));
-                return;
+    void ProjectWidget::PruneDirCacheAfterSidebar() {
+        // keep current content directory as well
+        std::string keep_curr = m_current_path.generic_string();
+        for (auto it = m_dir_cache.begin(); it != m_dir_cache.end();) {
+            if (m_open_dirs.find(it->first) == m_open_dirs.end() && it->first != keep_curr) {
+                it = m_dir_cache.erase(it);
             } else {
-                out_lines.emplace_back(std::move(cur));
+                ++it;
             }
         }
     }
@@ -298,11 +355,12 @@ namespace Editor {
     void ProjectWidget::DrawTile(
         const std::string &display_name,
         bool is_folder,
-        const std::filesystem::path *target_path,
+        const std::filesystem::path &target_path,
         bool is_up,
-        const std::string *tooltip,
-        int &col,
-        int columns
+        const std::string &tooltip,
+        const std::vector<std::string> &prewrapped_lines,
+        int &current_col,
+        int total_columns
     ) {
         const float tile_w = m_tile_icon_size + k_tile_inner_padding; // include inner padding
         const float tile_h = m_tile_icon_size + m_tile_text_height + k_tile_vertical_padding;
@@ -314,9 +372,9 @@ namespace Editor {
         bool double_clicked = hovered && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left);
 
         // Tooltip on hover after a short delay
-        if (tooltip && ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
             ImGui::BeginTooltip();
-            ImGui::TextUnformatted(tooltip->c_str());
+            ImGui::TextUnformatted(tooltip.c_str());
             ImGui::EndTooltip();
         }
 
@@ -355,35 +413,29 @@ namespace Editor {
         // Text (wrap to configurable lines, ellipsis on last line)
         ImVec2 text_area_min(cursor.x + k_text_side_padding, icon_max.y + k_icon_text_gap);
         ImVec2 text_area_max(cursor.x + tile_w - k_text_side_padding, cursor.y + tile_h - k_text_side_padding);
-        float max_w = text_area_max.x - text_area_min.x;
         std::string label = is_up ? std::string(".. ") : display_name;
-        std::vector<std::string> lines;
-        WrapToLines(label, max_w, k_tile_max_lines, lines);
         float line_h = ImGui::GetTextLineHeight();
-        float block_h = line_h * static_cast<float>(lines.size());
-        float base_y = text_area_min.y + std::max(0.0f, (text_area_max.y - text_area_min.y - block_h) * 0.5f);
         ImU32 text_col = is_up ? ImGui::GetColorU32(ImGuiCol_TextDisabled) : ImGui::GetColorU32(ImGuiCol_Text);
         dl->PushClipRect(text_area_min, text_area_max, true);
-        for (size_t li = 0; li < lines.size(); ++li) {
-            if (!lines[li].empty()) {
-                dl->AddText(ImVec2(text_area_min.x, base_y + line_h * li), text_col, lines[li].c_str());
+        for (size_t li = 0; li < prewrapped_lines.size(); ++li) {
+            const auto &ln = prewrapped_lines[li];
+            if (!ln.empty()) {
+                dl->AddText(ImVec2(text_area_min.x, text_area_min.y + line_h * li), text_col, ln.c_str());
             }
         }
         dl->PopClipRect();
 
-        if (double_clicked && target_path) {
-            if (is_folder) {
-                m_current_path = *target_path;
-            }
+        if (double_clicked && is_folder) {
+            m_current_path = target_path;
         }
         ImGui::EndGroup();
 
         // Flow layout
-        col++;
-        if (col < columns) {
+        current_col++;
+        if (current_col < total_columns) {
             ImGui::SameLine(0.0f, k_item_spacing);
         } else {
-            col = 0;
+            current_col = 0;
         }
     }
 } // namespace Editor
