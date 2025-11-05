@@ -49,7 +49,7 @@ namespace {
                     success = false;
                 }
                 if (json_data["%data"].contains(str_id) && json_data["%data"][str_id].contains("%type")) {
-                    out_info.type_name = json_data["%data"][str_id]["%type"].get<std::string>().substr(1);
+                    out_info.type_name = json_data["%data"][str_id]["%type"].get<std::string>();
                 } else {
                     success = false;
                 }
