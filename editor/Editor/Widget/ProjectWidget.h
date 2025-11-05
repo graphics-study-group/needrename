@@ -58,6 +58,7 @@ namespace Editor {
             bool is_folder,
             const std::filesystem::path *target_path,
             bool is_up,
+            const std::string *tooltip,
             int &col,
             int columns
         );

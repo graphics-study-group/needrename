@@ -178,7 +178,7 @@ namespace Editor {
             std::filesystem::path parent = m_current_path.parent_path();
             if (parent != m_current_path) {
                 ImGui::PushID("__up__");
-                DrawTile("..", true, &parent, true, col, columns);
+                DrawTile("..", true, &parent, true, nullptr, col, columns);
                 ImGui::PopID();
             }
         }
@@ -202,8 +202,26 @@ namespace Editor {
                 }
 
                 const std::filesystem::path *target = is_dir ? &a.path : nullptr;
+
+                // Build tooltip text (path, guid, type) and pass pointer; show sensible info for directories
+                std::string tooltip;
+                if (is_dir) {
+                    tooltip.reserve(128);
+                    tooltip += "Path: ";
+                    tooltip += a.path.generic_string();
+                    tooltip += "\nType: <Directory>";
+                } else {
+                    tooltip.reserve(196);
+                    tooltip += "Path: ";
+                    tooltip += a.path.generic_string();
+                    tooltip += "\nGUID: ";
+                    tooltip += a.guid.toString();
+                    tooltip += "\nType: ";
+                    tooltip += (a.type_name.empty() ? std::string("<unknown>") : a.type_name);
+                }
+
                 ImGui::PushID((int)i);
-                DrawTile(name, is_dir, target, false, col, columns);
+                DrawTile(name, is_dir, target, false, &tooltip, col, columns);
                 ImGui::PopID();
             }
         }
@@ -282,6 +300,7 @@ namespace Editor {
         bool is_folder,
         const std::filesystem::path *target_path,
         bool is_up,
+        const std::string *tooltip,
         int &col,
         int columns
     ) {
@@ -293,6 +312,13 @@ namespace Editor {
         ImGui::InvisibleButton("tile", ImVec2(tile_w, tile_h));
         bool hovered = ImGui::IsItemHovered();
         bool double_clicked = hovered && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left);
+
+        // Tooltip on hover after a short delay
+        if (tooltip && ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+            ImGui::BeginTooltip();
+            ImGui::TextUnformatted(tooltip->c_str());
+            ImGui::EndTooltip();
+        }
 
         ImDrawList *dl = ImGui::GetWindowDrawList();
         ImU32 bg_col =
