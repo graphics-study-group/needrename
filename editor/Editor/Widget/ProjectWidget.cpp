@@ -23,7 +23,7 @@ namespace Editor {
 
             // Vertical splitter to resize sidebar
             ImGui::SameLine(0.0f, 0.0f);
-            const float splitter_thickness = 4.0f;
+            const float splitter_thickness = k_splitter_thickness;
             float before_right_remain = ImGui::GetContentRegionAvail().x; // width available for splitter+right pane
             ImGui::InvisibleButton("##vsplit", ImVec2(splitter_thickness, ImGui::GetContentRegionAvail().y));
             if (ImGui::IsItemHovered()) ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
@@ -31,8 +31,8 @@ namespace Editor {
                 float delta = ImGui::GetIO().MouseDelta.x;
                 // compute total content width and clamp so right pane keeps minimum width
                 float total = m_sidebar_width + splitter_thickness + before_right_remain;
-                float min_left = 120.0f;
-                float min_right = 150.0f;
+                float min_left = k_sidebar_min_width;
+                float min_right = k_rightpane_min_width;
                 m_sidebar_width = m_sidebar_width + delta;
                 if (m_sidebar_width < min_left) m_sidebar_width = min_left;
                 float max_left = total - splitter_thickness - min_right;
@@ -50,7 +50,7 @@ namespace Editor {
             ImGui::BeginChild("RightPane", ImVec2(0, 0), false);
 
             // Top area: breadcrumb with adjustable height
-            ImGui::BeginChild("RightTopBreadcrumb", ImVec2(0, m_breadcrumb_height), false);
+            ImGui::BeginChild("RightTopBreadcrumb", ImVec2(0, k_breadcrumb_height), false);
             RenderBreadcrumb();
             ImGui::EndChild();
 
@@ -116,7 +116,7 @@ namespace Editor {
 
     void ProjectWidget::RenderDirTree(const std::filesystem::path &base_path, Engine::FileSystemDatabase &db) {
         using AssetInfo = Engine::FileSystemDatabase::AssetInfo;
-        std::vector<AssetInfo> entries = db.ListDirectory(base_path, true);
+        std::vector<AssetInfo> entries = db.ListDirectory(base_path);
         std::vector<std::filesystem::path> subdirs;
         subdirs.reserve(entries.size());
         for (auto &e : entries) {
@@ -150,11 +150,26 @@ namespace Editor {
     void ProjectWidget::RenderContent() {
         ImGui::BeginChild("ProjectWidgetContent", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
 
-        const float tile_w = m_tile_icon_size + 16.0f; // include inner padding
+        // Ctrl + Mouse Wheel: adjust icon size when hovering the content area
+        {
+            ImGuiIO &io = ImGui::GetIO();
+            if (io.KeyCtrl && ImGui::IsWindowHovered()) {
+                float wheel = io.MouseWheel;
+                if (wheel != 0.0f) {
+                    // Use additive step for predictable control; clamp to reasonable bounds
+                    m_tile_icon_size = std::clamp(m_tile_icon_size + wheel * k_icon_step, k_icon_min, k_icon_max);
+
+                    // Keep text block height roughly proportional for balance (non-invasive tweak)
+                    m_tile_text_height = std::clamp(m_tile_icon_size * 0.75f, k_text_min, k_text_max);
+                }
+            }
+        }
+
+        const float tile_w = m_tile_icon_size + k_tile_inner_padding; // include inner padding
 
         float content_width = ImGui::GetContentRegionAvail().x;
         if (content_width <= 0.0f) content_width = tile_w;
-        int columns = (int)((content_width + m_item_spacing) / (tile_w + m_item_spacing));
+        int columns = (int)((content_width + k_item_spacing) / (tile_w + k_item_spacing));
         if (columns < 1) columns = 1;
         int col = 0;
 
@@ -172,7 +187,7 @@ namespace Editor {
         using AssetInfo = Engine::FileSystemDatabase::AssetInfo;
         auto db_ptr = m_database.lock();
         if (db_ptr) {
-            std::vector<AssetInfo> assets = db_ptr->ListDirectory(m_current_path, true);
+            std::vector<AssetInfo> assets = db_ptr->ListDirectory(m_current_path);
             for (size_t i = 0; i < assets.size(); ++i) {
                 const auto &a = assets[i];
                 bool is_dir = a.is_directory;
@@ -270,8 +285,8 @@ namespace Editor {
         int &col,
         int columns
     ) {
-        const float tile_w = m_tile_icon_size + 16.0f; // include inner padding
-        const float tile_h = m_tile_icon_size + m_tile_text_height + 12.0f;
+        const float tile_w = m_tile_icon_size + k_tile_inner_padding; // include inner padding
+        const float tile_h = m_tile_icon_size + m_tile_text_height + k_tile_vertical_padding;
 
         ImGui::BeginGroup();
         ImVec2 cursor = ImGui::GetCursorScreenPos();
@@ -285,7 +300,7 @@ namespace Editor {
         dl->AddRectFilled(cursor, ImVec2(cursor.x + tile_w, cursor.y + tile_h), bg_col, 6.0f);
 
         // Icon area
-        ImVec2 icon_min(cursor.x + (tile_w - m_tile_icon_size) * 0.5f, cursor.y + 8.0f);
+        ImVec2 icon_min(cursor.x + (tile_w - m_tile_icon_size) * 0.5f, cursor.y + k_icon_top_padding);
         ImVec2 icon_max(icon_min.x + m_tile_icon_size, icon_min.y + m_tile_icon_size);
         if (is_folder) {
             ImU32 folder_col = ImColor(255, 180, 80);
@@ -312,12 +327,12 @@ namespace Editor {
         }
 
         // Text (wrap to configurable lines, ellipsis on last line)
-        ImVec2 text_area_min(cursor.x + 6.0f, icon_max.y + 4.0f);
-        ImVec2 text_area_max(cursor.x + tile_w - 6.0f, cursor.y + tile_h - 6.0f);
+        ImVec2 text_area_min(cursor.x + k_text_side_padding, icon_max.y + k_icon_text_gap);
+        ImVec2 text_area_max(cursor.x + tile_w - k_text_side_padding, cursor.y + tile_h - k_text_side_padding);
         float max_w = text_area_max.x - text_area_min.x;
         std::string label = is_up ? std::string(".. ") : display_name;
         std::vector<std::string> lines;
-        WrapToLines(label, max_w, m_tile_max_lines, lines);
+        WrapToLines(label, max_w, k_tile_max_lines, lines);
         float line_h = ImGui::GetTextLineHeight();
         float block_h = line_h * static_cast<float>(lines.size());
         float base_y = text_area_min.y + std::max(0.0f, (text_area_max.y - text_area_min.y - block_h) * 0.5f);
@@ -340,7 +355,7 @@ namespace Editor {
         // Flow layout
         col++;
         if (col < columns) {
-            ImGui::SameLine(0.0f, m_item_spacing);
+            ImGui::SameLine(0.0f, k_item_spacing);
         } else {
             col = 0;
         }

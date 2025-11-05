@@ -55,7 +55,7 @@ namespace Engine {
          * @param only_name whether to only list the names without loading asset info
          * @return std::vector<AssetInfo> 
          */
-        std::vector<AssetInfo> ListDirectory(const std::filesystem::path &path, bool only_name = false) const;
+        std::vector<AssetInfo> ListDirectory(const std::filesystem::path &path) const;
 
         std::filesystem::path GetAssetsDirectory() const;
         void LoadBuiltinAssets(const std::filesystem::path &path);

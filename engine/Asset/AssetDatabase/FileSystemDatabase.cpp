@@ -113,7 +113,7 @@ namespace Engine {
     }
 
     std::vector<FileSystemDatabase::AssetInfo> FileSystemDatabase::ListDirectory(
-        const std::filesystem::path &path, bool only_name
+        const std::filesystem::path &path
     ) const {
         std::vector<AssetInfo> assets;
         for (auto &entry : std::filesystem::directory_iterator(ProjectPathToFilesystemPath(path))) {
@@ -123,11 +123,7 @@ namespace Engine {
                 info.is_directory = true;
                 assets.push_back(info);
             } else if (entry.is_regular_file() && entry.path().extension() == k_asset_file_extension) {
-                if (only_name) {
-                    info.path = FilesystemPathToProjectPath(entry.path());
-                    info.is_directory = false;
-                    assets.push_back(info);
-                } else if (GetAssetInfo(entry.path(), info)) {
+                if (GetAssetInfo(entry.path(), info)) {
                     assets.push_back(info);
                 }
             }
