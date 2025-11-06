@@ -11,16 +11,6 @@ namespace Engine {
     Asset::~Asset() {
     }
 
-    std::filesystem::path Asset::GetAssetPath() {
-        return MainClass::GetInstance()->GetAssetManager()->GetAssetPath(m_guid);
-    }
-
-    std::filesystem::path Asset::GetMetaPath() {
-        std::filesystem::path metaPath = MainClass::GetInstance()->GetAssetManager()->GetAssetPath(m_guid);
-        metaPath.replace_extension(metaPath.extension().string() + ".asset");
-        return metaPath;
-    }
-
     void Asset::save_to_archive(Serialization::Archive &archive) const {
         throw std::runtime_error("Asset serialization is not allowed. Use AssetRef instead.");
     }

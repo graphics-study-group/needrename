@@ -1,6 +1,7 @@
 #include <SDL3/SDL.h>
 #include <iostream>
 
+#include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include "Asset/AssetManager/AssetManager.h"
 #include "MainClass.h"
 #include "Render/FullRenderSystem.h"
@@ -22,11 +23,10 @@ int main(int argc, char *argv[]) {
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
 
     auto asys = cmc->GetAssetManager();
-    asys->SetBuiltinAssetPath(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
-    asys->LoadBuiltinAssets();
+    cmc->LoadBuiltinAssets(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
 
     auto cs = std::make_shared<ShaderAsset>();
-    cs->LoadFromFile(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "shaders/fluid.comp.spv", ShaderAsset::ShaderType::Compute);
+    cs->LoadFromFile(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "shaders/fluid.comp.0.spv", ShaderAsset::ShaderType::Compute);
 
     auto rsys = cmc->GetRenderSystem();
 

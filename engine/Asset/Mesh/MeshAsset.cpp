@@ -44,8 +44,10 @@ namespace Engine {
     }
 
     void MeshAsset::save_asset_to_archive(Serialization::Archive &archive) const {
-        auto &data = archive.m_context->extra_data;
-        assert(data.empty());
+        auto &json = *archive.m_cursor;
+        size_t extra_data_id = archive.create_new_extra_data_buffer(".mesh");
+        json["%extra_data_id"] = extra_data_id;
+        auto &data = archive.m_context->extra_data[extra_data_id];
 
         size_t reserved_size = sizeof(size_t); // submesh count
         size_t submesh_count = GetSubmeshCount();
@@ -101,7 +103,8 @@ namespace Engine {
     }
 
     void MeshAsset::load_asset_from_archive(Serialization::Archive &archive) {
-        auto &data = archive.m_context->extra_data;
+        auto &json = *archive.m_cursor;
+        auto &data = archive.m_context->extra_data[json["%extra_data_id"].get<size_t>()];
         size_t offset = 0;
 
         size_t submesh_count = *reinterpret_cast<const size_t *>(&data[offset]);

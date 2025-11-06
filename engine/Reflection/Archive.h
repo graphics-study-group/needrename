@@ -10,7 +10,7 @@
 namespace Engine {
     namespace Serialization {
         using Json = nlohmann::json;
-        using Buffer = std::vector<std::byte>;
+        using BinData = std::vector<std::byte>;
         using AddressID = unsigned long long;
         using IDMap = std::unordered_map<AddressID, int>;
         using PointerMap = std::unordered_map<int, std::shared_ptr<void>>;
@@ -26,7 +26,7 @@ namespace Engine {
                 // The json object stores the data in a json format.
                 Json json{};
                 // The extra data is used to store additional data. Usually binary data.
-                Buffer extra_data{};
+                std::vector<BinData> extra_data{};
 
                 // The map between object pointer and id in this archive. Used in serialization.
                 IDMap id_map{};
@@ -60,6 +60,15 @@ namespace Engine {
             void prepare_load();
             /// @brief Clear the archive and reset it to the initial state.
             void clear();
+            /**
+             * @brief Create a new extra data buffer. Usually used in custom serialization function.
+             * Make sure to set "%extra_data_id" in the currently serializing object's json to the returned index.
+             *
+             * @param extension suggested file extension for the extra data buffer (for example: ".fbx", ".png", etc.)
+             * @return the index of the created extra data buffer
+             */
+            size_t create_new_extra_data_buffer(const std::string &extension = "");
+
             /// @brief Save the archive to a file.
             void save_to_file(std::filesystem::path path);
             /// @brief Load the archive from a file.

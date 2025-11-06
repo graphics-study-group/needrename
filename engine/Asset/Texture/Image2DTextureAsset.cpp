@@ -12,8 +12,10 @@ namespace Engine {
     }
 
     void Image2DTextureAsset::save_asset_to_archive(Serialization::Archive &archive) const {
-        auto &data = archive.m_context->extra_data;
-        assert(data.empty());
+        auto &json = *archive.m_cursor;
+        size_t extra_data_id = archive.create_new_extra_data_buffer(".png");
+        json["%extra_data_id"] = extra_data_id;
+        auto &data = archive.m_context->extra_data[extra_data_id];
 
         stbi_flip_vertically_on_write(false); // this is a static variable, so we need to reset it every time
         stbi_write_png_to_func(write_png_to_mem, &data, m_width, m_height, m_channel, m_data.data(), 0);
@@ -22,7 +24,8 @@ namespace Engine {
     }
 
     void Image2DTextureAsset::load_asset_from_archive(Serialization::Archive &archive) {
-        auto &data = archive.m_context->extra_data;
+        auto &json = *archive.m_cursor;
+        auto &data = archive.m_context->extra_data[json["%extra_data_id"].get<size_t>()];
 
         stbi_set_flip_vertically_on_load(false); // this is a static variable, so we need to reset it every time
         int width, height, channel;

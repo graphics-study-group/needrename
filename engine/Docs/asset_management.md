@@ -6,7 +6,7 @@ The Asset Management system is responsible for handling various types of game as
 
 1. **`Asset` Identification and GUID**
     - Every `Asset` has a unique `GUID` (Globally Unique Identifier), which is stored both in the runtime structure and in the asset file.
-    - The `AssetManager` keeps a mapping between `GUID` and file paths, ensuring assets can be located and loaded correctly.
+    - The actual data of the asset is managed by the `AssetDatabase`. Through the GUID, the corresponding asset data can be  loaded or saved in the `AssetDatabase`.
 2. **Serialization of `Asset`s**
     - `Asset`s utilize the serialization system for storage and retrieval. However, direct serialization using standard `serialize` functions is **not supported**.
     - `Asset` serialization must be handled exclusively through the `AssetManager`. Attempting to serialize an `Asset` directly will invoke the pre-defined custom serialization functions (`save_to_archive` and `load_from_archive`) and result in a runtime error.

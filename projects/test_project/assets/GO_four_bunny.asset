@@ -2,7 +2,7 @@
     "%data": {
         "&0": {
             "%type": "Engine::GameObjectAsset",
-            "Asset::m_guid": "C052739654DA3905A0E7187B4DCDA668",
+            "Asset::m_guid": "5FAC9F7A26FC7F1AFB8A88A826A9B65E",
             "GameObjectAsset::m_MainObject": "&1"
         },
         "&1": {
@@ -56,24 +56,25 @@
         },
         "&4": {
             "%type": "Engine::AssetRef",
-            "AssetRef::m_guid": "09CDF049F5138FFA763A5D892A455966"
+            "AssetRef::m_guid": "245193AFAB61F6CA966793CF86011D3B"
         },
         "&5": {
             "%type": "Engine::AssetRef",
-            "AssetRef::m_guid": "4D4D8B15B9DCBFD5FF5E9D113EFE626C"
+            "AssetRef::m_guid": "76448773FE0D73FFFD58BD6502397D57"
         },
         "&6": {
             "%type": "Engine::AssetRef",
-            "AssetRef::m_guid": "946CF686B270AE5EE5762EA69BCBE71D"
+            "AssetRef::m_guid": "BE4BA6F01E52962B627780AFB8835795"
         },
         "&7": {
             "%type": "Engine::AssetRef",
-            "AssetRef::m_guid": "0CFCEEB7A064BCA25BC52D6AD6F6B140"
+            "AssetRef::m_guid": "78DB8135E5BFDB51F551BC77D2941450"
         },
         "&8": {
             "%type": "Engine::AssetRef",
-            "AssetRef::m_guid": "D8676A9BA404F7A084DC7E30A9E5245D"
+            "AssetRef::m_guid": "7D3805E5B6B33FD8B6FBF8D11E1BF3BE"
         }
     },
+    "%extra_data": [],
     "%main_id": "&0"
 }

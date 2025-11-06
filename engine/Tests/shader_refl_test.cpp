@@ -108,7 +108,7 @@ inline void PrintDescriptorSetLayoutBindings (const std::unordered_map<uint32_t,
 int main(int argc, char *argv[]) {
 
     auto p = argc == 1 ? 
-        std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "shaders/pbr_base.vert.spv" 
+        std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "shaders/pbr_base.vert.0.spv" 
         : std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "shaders" / argv[1];
 
     // Get SDL logging working.
@@ -118,12 +118,12 @@ int main(int argc, char *argv[]) {
     auto layout = Engine::ShdrRfl::SPLayout::Reflect(binary, false);
     PrintLayout(layout);
 
-    binary = ReadSpirvBinary(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "shaders/lambertian_cook_torrance.frag.spv");
+    binary = ReadSpirvBinary(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "shaders/lambertian_cook_torrance.frag.0.spv");
     layout.Merge(Engine::ShdrRfl::SPLayout::Reflect(binary, false));
     PrintLayout(layout);
     PrintDescriptorSetLayoutBindings(layout.GenerateAllLayoutBindings());
 
-    binary = ReadSpirvBinary(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "shaders/fluid.comp.spv");
+    binary = ReadSpirvBinary(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "shaders/fluid.comp.0.spv");
     layout = Engine::ShdrRfl::SPLayout::Reflect(binary, false);
     PrintLayout(layout);
     PrintDescriptorSetLayoutBindings(layout.GenerateAllLayoutBindings());

@@ -1,0 +1,46 @@
+{
+    "%data": {
+        "&0": {
+            "%type": "Engine::MaterialAsset",
+            "Asset::m_guid": "78DB8135E5BFDB51F551BC77D2941450",
+            "MaterialAsset::m_library": "&1",
+            "MaterialAsset::m_name": "Bunny_Material.004",
+            "MaterialAsset::m_properties": {
+                "ambient_color": {
+                    "m_type": "Simple",
+                    "m_ubo_type": "Vec4",
+                    "m_value": [
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0
+                    ]
+                },
+                "base_tex": {
+                    "m_type": "Texture",
+                    "m_value": "&2"
+                },
+                "specular_color": {
+                    "m_type": "Simple",
+                    "m_ubo_type": "Vec4",
+                    "m_value": [
+                        0.5,
+                        0.5,
+                        0.5,
+                        96.07845306396484
+                    ]
+                }
+            }
+        },
+        "&1": {
+            "%type": "Engine::AssetRef",
+            "AssetRef::m_guid": "CC90BD98BB3190F9AACD4CC3D6162782"
+        },
+        "&2": {
+            "%type": "Engine::AssetRef",
+            "AssetRef::m_guid": "76A86B995031EA1436342318129D2DDC"
+        }
+    },
+    "%extra_data": [],
+    "%main_id": "&0"
+}
