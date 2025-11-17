@@ -10,7 +10,6 @@
 #include "Render/RenderSystem/AllocatorState.h"
 #include "Render/RenderSystem/FrameManager.h"
 #include "Render/RenderSystem/GlobalConstantDescriptorPool.h"
-#include "Render/RenderSystem/Instance.h"
 #include "Render/RenderSystem/MaterialDescriptorManager.h"
 #include "Render/RenderSystem/MaterialRegistry.h"
 #include "Render/RenderSystem/DeviceInterface.h"
@@ -58,7 +57,7 @@ namespace Engine {
 
 
         // Order of declaration effects destructing order!
-        std::unique_ptr <RenderSystemState::DeviceInterface> m_device_interface;
+        std::unique_ptr <RenderSystemState::DeviceInterface> m_device_interface{};
         vk::UniqueDevice m_device{};
 
         QueueFamilyIndices m_queue_families{};
@@ -72,8 +71,7 @@ namespace Engine {
         RenderSystemState::SamplerManager m_sampler_manager;
     };
 
-    RenderSystem::RenderSystem(std::weak_ptr<SDLWindow> parent_window) {
-        this->pimpl = std::make_unique<RenderSystem::impl>(*this, parent_window);
+    RenderSystem::RenderSystem(std::weak_ptr<SDLWindow> parent_window) : pimpl(std::make_unique<RenderSystem::impl>(*this, parent_window)) {
     }
 
     void RenderSystem::Create() {
