@@ -1,5 +1,5 @@
 #include "Swapchain.h"
-#include "Render/RenderSystem/PhysicalDevice.h"
+#include "Render/RenderSystem/DeviceInterface.h"
 #include <SDL3/SDL.h>
 #include <vulkan/vulkan.hpp>
 
@@ -89,12 +89,11 @@ namespace Engine::RenderSystemState {
     }
 
     void Swapchain::CreateSwapchain(
-        const PhysicalDevice &physical_device,
+        const DeviceInterface & interface,
         vk::Device logical_device,
-        vk::SurfaceKHR surface,
         vk::Extent2D expected_extent
     ) {
-        const auto swapchain_support = physical_device.GetSwapchainSupport(surface);
+        const auto swapchain_support = interface.GetSwapchainSupport();
         const auto [extent, format, mode] = SelectSwapchainConfig(swapchain_support, expected_extent);
 
         uint32_t image_count = swapchain_support.capabilities.minImageCount + 1;
@@ -111,7 +110,7 @@ namespace Engine::RenderSystemState {
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating a swapchain with %u images.", image_count);
 
         vk::SwapchainCreateInfoKHR info;
-        info.surface = surface;
+        info.surface = interface.GetSurface();
         info.minImageCount = image_count;
         info.imageFormat = format.format;
         info.imageColorSpace = format.colorSpace;
@@ -130,7 +129,7 @@ namespace Engine::RenderSystemState {
             info.oldSwapchain = nullptr;
         }
 
-        auto indices = physical_device.GetQueueFamilyIndices(surface);
+        auto indices = interface.GetQueueFamilies();
         std::vector<uint32_t> queues{indices.graphics.value(), indices.present.value()};
         if (indices.graphics != indices.present) {
             info.imageSharingMode = vk::SharingMode::eConcurrent;

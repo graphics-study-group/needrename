@@ -13,7 +13,7 @@
 #include "Render/RenderSystem/Instance.h"
 #include "Render/RenderSystem/MaterialDescriptorManager.h"
 #include "Render/RenderSystem/MaterialRegistry.h"
-#include "Render/RenderSystem/PhysicalDevice.h"
+#include "Render/RenderSystem/DeviceInterface.h"
 #include "Render/RenderSystem/RendererManager.h"
 #include "Render/RenderSystem/Structs.h"
 #include "Render/RenderSystem/Swapchain.h"
@@ -48,7 +48,6 @@ namespace Engine {
 
         void CreateCommandPools();
 
-        static constexpr const char *validation_layer_name = "VK_LAYER_KHRONOS_validation";
         static constexpr std::array<std::string_view, 1> device_extension_name = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
         // uint32_t m_in_flight_frame_id = 0;
@@ -57,12 +56,9 @@ namespace Engine {
 
         std::weak_ptr<Camera> m_active_camera{};
 
-        RenderSystemState::PhysicalDevice m_selected_physical_device{};
 
         // Order of declaration effects destructing order!
-
-        RenderSystemState::Instance m_instance{};
-        vk::UniqueSurfaceKHR m_surface{};
+        std::unique_ptr <RenderSystemState::DeviceInterface> m_device_interface;
         vk::UniqueDevice m_device{};
 
         QueueFamilyIndices m_queue_families{};
@@ -81,16 +77,16 @@ namespace Engine {
     }
 
     void RenderSystem::Create() {
-        assert(!this->pimpl->m_instance.get() || "Recreating render system");
+        assert(!this->pimpl->m_device_interface.get() || "Recreating render system");
         VULKAN_HPP_DEFAULT_DISPATCHER.init(
             reinterpret_cast<PFN_vkGetInstanceProcAddr>(SDL_Vulkan_GetVkGetInstanceProcAddr())
         );
-        pimpl->m_instance.Create("no name", "no name");
-        VULKAN_HPP_DEFAULT_DISPATCHER.init(pimpl->m_instance.get());
-        pimpl->CreateSurface();
-
-        pimpl->m_selected_physical_device =
-            RenderSystemState::PhysicalDevice::SelectPhysicalDevice(pimpl->m_instance.get(), pimpl->m_surface.get());
+        RenderSystemState::DeviceInterface::DeviceConfiguration cfg {
+            .window = pimpl->m_window.lock()->GetWindow(),
+            .application_name = "",
+            .application_version = 0
+        };
+        pimpl->m_device_interface = std::make_unique<RenderSystemState::DeviceInterface>(cfg);
         pimpl->CreateLogicalDevice();
         VULKAN_HPP_DEFAULT_DISPATCHER.init(pimpl->m_device.get());
         pimpl->CreateSwapchain();
@@ -124,16 +120,16 @@ namespace Engine {
     }
 
     vk::Instance RenderSystem::getInstance() const {
-        return pimpl->m_instance.get();
+        return pimpl->m_device_interface->GetInstance();
     }
     vk::SurfaceKHR RenderSystem::getSurface() const {
-        return pimpl->m_surface.get();
+        return pimpl->m_device_interface->GetSurface();
     }
     vk::Device RenderSystem::getDevice() const {
         return pimpl->m_device.get();
     }
     vk::PhysicalDevice RenderSystem::GetPhysicalDevice() const {
-        return pimpl->m_selected_physical_device.get();
+        return pimpl->m_device_interface->GetPhysicalDevice();
     }
     const RenderSystemState::AllocatorState &RenderSystem::GetAllocatorState() const {
         return pimpl->m_allocator_state;
@@ -195,7 +191,7 @@ namespace Engine {
     void RenderSystem::impl::CreateLogicalDevice() {
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating logical device.");
 
-        m_queue_families = m_selected_physical_device.GetQueueFamilyIndices(m_surface.get());
+        m_queue_families = m_device_interface->GetQueueFamilies();
         // Find unique indices
         std::vector<uint32_t> indices_vector{m_queue_families.graphics.value(), m_queue_families.present.value()};
         std::sort(indices_vector.begin(), indices_vector.end());
@@ -235,7 +231,7 @@ namespace Engine {
         // Validation layers are not used for logical devices.
         dci.enabledLayerCount = 0;
 
-        m_device = m_selected_physical_device.get().createDeviceUnique(dci);
+        m_device = m_device_interface->GetPhysicalDevice().createDeviceUnique(dci);
 
         SDL_LogInfo(0, "Retreiving queues.");
         this->m_queues.graphicsQueue = m_device->getQueue(m_queue_families.graphics.value(), 0);
@@ -253,7 +249,7 @@ namespace Engine {
         height = static_cast<uint32_t>(h);
         vk::Extent2D expected_extent{width, height};
 
-        m_swapchain.CreateSwapchain(m_selected_physical_device, m_device.get(), m_surface.get(), expected_extent);
+        m_swapchain.CreateSwapchain(*m_device_interface, m_device.get(), expected_extent);
     }
 
     void RenderSystem::impl::CreateCommandPools() {
@@ -268,19 +264,4 @@ namespace Engine {
         m_queues.presentPool = m_device->createCommandPoolUnique(info);
     }
 
-    void RenderSystem::impl::CreateSurface() {
-        SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating KHR surface.");
-
-        vk::SurfaceKHR surface;
-        int ret =
-            SDL_Vulkan_CreateSurface(m_window.lock()->GetWindow(), m_instance.get(), nullptr, (VkSurfaceKHR *)&surface);
-
-        if (ret < 0) {
-            SDL_LogCritical(SDL_LOG_CATEGORY_RENDER, "Failed to create native surface, %s.", SDL_GetError());
-            return;
-        }
-
-        // Pass the instance to it to assure successful deletion
-        m_surface = vk::UniqueSurfaceKHR(surface, m_instance.get());
-    }
 } // namespace Engine

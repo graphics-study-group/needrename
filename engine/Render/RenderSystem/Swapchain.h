@@ -10,7 +10,7 @@ namespace Engine {
     class RenderSystem;
 
     namespace RenderSystemState {
-        class PhysicalDevice;
+        class DeviceInterface;
         class Swapchain {
         protected:
             vk::UniqueSwapchainKHR m_swapchain{};
@@ -29,9 +29,8 @@ namespace Engine {
             static constexpr auto DEPTH_FORMAT_VK = vk::Format::eD32Sfloat;
 
             void CreateSwapchain(
-                const PhysicalDevice &physical_device,
+                const DeviceInterface & device_interface,
                 vk::Device logical_device,
-                vk::SurfaceKHR surface,
                 vk::Extent2D expected_extent
             );
 
