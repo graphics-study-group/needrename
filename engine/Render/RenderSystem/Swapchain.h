@@ -30,7 +30,6 @@ namespace Engine {
 
             void CreateSwapchain(
                 const DeviceInterface & device_interface,
-                vk::Device logical_device,
                 vk::Extent2D expected_extent
             );
 

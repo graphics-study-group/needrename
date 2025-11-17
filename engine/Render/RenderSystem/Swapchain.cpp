@@ -90,7 +90,6 @@ namespace Engine::RenderSystemState {
 
     void Swapchain::CreateSwapchain(
         const DeviceInterface & interface,
-        vk::Device logical_device,
         vk::Extent2D expected_extent
     ) {
         const auto swapchain_support = interface.GetSwapchainSupport();
@@ -139,12 +138,12 @@ namespace Engine::RenderSystemState {
             info.imageSharingMode = vk::SharingMode::eExclusive;
         }
 
-        m_swapchain = logical_device.createSwapchainKHRUnique(info);
-        m_images = logical_device.getSwapchainImagesKHR(m_swapchain.get());
+        m_swapchain = interface.GetDevice().createSwapchainKHRUnique(info);
+        m_images = interface.GetDevice().getSwapchainImagesKHR(m_swapchain.get());
         m_image_format = format;
         m_extent = extent;
 
-        this->RetrieveImageViews(logical_device);
+        this->RetrieveImageViews(interface.GetDevice());
     }
 
     vk::SwapchainKHR Swapchain::GetSwapchain() const {

@@ -35,17 +35,8 @@ namespace Engine {
 
             };
 
-        /// @brief Create a vk::SurfaceKHR.
-        /// It should be called right after instance creation, before selecting a physical device.
-        void CreateSurface();
-
-        /// @brief Create a logical device from selected physical device.
-        void CreateLogicalDevice();
-
         /// @brief Create a swap chain, possibly replace the older one.
         void CreateSwapchain();
-
-        void CreateCommandPools();
 
         static constexpr std::array<std::string_view, 1> device_extension_name = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
@@ -58,10 +49,7 @@ namespace Engine {
 
         // Order of declaration effects destructing order!
         std::unique_ptr <RenderSystemState::DeviceInterface> m_device_interface{};
-        vk::UniqueDevice m_device{};
 
-        QueueFamilyIndices m_queue_families{};
-        QueueInfo m_queues{};
         RenderSystemState::AllocatorState m_allocator_state;
         RenderSystemState::Swapchain m_swapchain{};
         RenderSystemState::FrameManager m_frame_manager;
@@ -85,8 +73,7 @@ namespace Engine {
             .application_version = 0
         };
         pimpl->m_device_interface = std::make_unique<RenderSystemState::DeviceInterface>(cfg);
-        pimpl->CreateLogicalDevice();
-        VULKAN_HPP_DEFAULT_DISPATCHER.init(pimpl->m_device.get());
+
         pimpl->CreateSwapchain();
 
         pimpl->m_allocator_state.Create();
@@ -124,7 +111,7 @@ namespace Engine {
         return pimpl->m_device_interface->GetSurface();
     }
     vk::Device RenderSystem::getDevice() const {
-        return pimpl->m_device.get();
+        return pimpl->m_device_interface->GetDevice();
     }
     vk::PhysicalDevice RenderSystem::GetPhysicalDevice() const {
         return pimpl->m_device_interface->GetPhysicalDevice();
@@ -133,10 +120,10 @@ namespace Engine {
         return pimpl->m_allocator_state;
     }
     const RenderSystem::QueueFamilyIndices &RenderSystem::GetQueueFamilies() const {
-        return pimpl->m_queue_families;
+        return pimpl->m_device_interface->GetQueueFamilies();
     }
     const RenderSystem::QueueInfo &RenderSystem::getQueueInfo() const {
-        return pimpl->m_queues;
+        return pimpl->m_device_interface->GetQueueInfo();
     }
     const RenderSystemState::Swapchain &RenderSystem::GetSwapchain() const {
         return pimpl->m_swapchain;
@@ -174,7 +161,7 @@ namespace Engine {
     }
 
     void RenderSystem::WaitForIdle() const {
-        pimpl->m_device->waitIdle();
+        pimpl->m_device_interface->GetDevice().waitIdle();
     }
 
     void RenderSystem::UpdateSwapchain() {
@@ -184,57 +171,6 @@ namespace Engine {
 
     uint32_t RenderSystem::StartFrame() {
         return pimpl->m_frame_manager.StartFrame();
-    }
-
-    void RenderSystem::impl::CreateLogicalDevice() {
-        SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating logical device.");
-
-        m_queue_families = m_device_interface->GetQueueFamilies();
-        // Find unique indices
-        std::vector<uint32_t> indices_vector{m_queue_families.graphics.value(), m_queue_families.present.value()};
-        std::sort(indices_vector.begin(), indices_vector.end());
-        auto end = std::unique(indices_vector.begin(), indices_vector.end());
-        // Create DeviceQueueCreateInfo
-        float priority = 1.0f;
-        std::vector<vk::DeviceQueueCreateInfo> dqcs;
-        dqcs.reserve(std::distance(indices_vector.begin(), end));
-        for (auto itr = indices_vector.begin(); itr != end; ++itr) {
-            vk::DeviceQueueCreateInfo dqc;
-            dqc.pQueuePriorities = &priority;
-            dqc.queueCount = 1;
-            dqc.queueFamilyIndex = *itr;
-            dqcs.push_back(dqc);
-        }
-        dqcs.shrink_to_fit();
-
-        vk::DeviceCreateInfo dci{};
-        dci.queueCreateInfoCount = static_cast<uint32_t>(dqcs.size());
-        dci.pQueueCreateInfos = dqcs.data();
-
-        vk::PhysicalDeviceFeatures2 pdf{};
-        vk::PhysicalDeviceVulkan13Features features13{};
-        features13.dynamicRendering = true;
-        features13.synchronization2 = true;
-        pdf.pNext = &features13;
-        dci.pNext = &pdf;
-
-        // Fill up extensions
-        dci.enabledExtensionCount = device_extension_name.size();
-        std::vector<const char *> extensions;
-        for (const auto &extension : device_extension_name) {
-            extensions.push_back(extension.data());
-        }
-        dci.ppEnabledExtensionNames = extensions.data();
-
-        // Validation layers are not used for logical devices.
-        dci.enabledLayerCount = 0;
-
-        m_device = m_device_interface->GetPhysicalDevice().createDeviceUnique(dci);
-
-        SDL_LogInfo(0, "Retreiving queues.");
-        this->m_queues.graphicsQueue = m_device->getQueue(m_queue_families.graphics.value(), 0);
-        this->m_queues.presentQueue = m_device->getQueue(m_queue_families.present.value(), 0);
-        this->CreateCommandPools();
     }
 
     void RenderSystem::impl::CreateSwapchain() {
@@ -247,19 +183,6 @@ namespace Engine {
         height = static_cast<uint32_t>(h);
         vk::Extent2D expected_extent{width, height};
 
-        m_swapchain.CreateSwapchain(*m_device_interface, m_device.get(), expected_extent);
+        m_swapchain.CreateSwapchain(*m_device_interface, expected_extent);
     }
-
-    void RenderSystem::impl::CreateCommandPools() {
-        SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating command pools.");
-        vk::CommandPoolCreateInfo info{};
-        info.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer;
-        info.queueFamilyIndex = m_queue_families.graphics.value();
-        m_queues.graphicsPool = m_device->createCommandPoolUnique(info);
-        m_queues.graphicsOneTimePool = m_device->createCommandPoolUnique(info);
-
-        info.queueFamilyIndex = m_queue_families.present.value();
-        m_queues.presentPool = m_device->createCommandPoolUnique(info);
-    }
-
 } // namespace Engine

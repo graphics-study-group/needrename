@@ -53,6 +53,7 @@ namespace Engine {
     
             const QueueFamilyIndices & GetQueueFamilies() const;
             const SwapchainSupport & GetSwapchainSupport() const;
+            const QueueInfo & GetQueueInfo() const;
         };
     }
 }

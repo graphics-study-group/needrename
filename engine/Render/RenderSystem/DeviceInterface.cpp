@@ -21,6 +21,7 @@ namespace Engine::RenderSystemState {
         // Cached info
         QueueFamilyIndices queue_families{};
         SwapchainSupport swapchain_support{};
+        QueueInfo queues{};
 
         /**
          * @brief Check whether the validation layer exists for instance creation.
@@ -252,10 +253,74 @@ namespace Engine::RenderSystemState {
         }
 
         /**
-         * @brief Create the Vulkan device.
+         * @brief Create the Vulkan device, and retrieve queues to submit command buffers to.
          */
         void CreateDevice(const DeviceConfiguration & cfg) {
             assert(physical_device);
+
+            SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating logical device.");
+
+            // Find unique indices
+            std::vector<uint32_t> indices_vector{queue_families.graphics.value(), queue_families.present.value()};
+            std::sort(indices_vector.begin(), indices_vector.end());
+            auto end = std::unique(indices_vector.begin(), indices_vector.end());
+            // Create DeviceQueueCreateInfo
+            float priority = 1.0f;
+            std::vector<vk::DeviceQueueCreateInfo> dqcs;
+            dqcs.reserve(std::distance(indices_vector.begin(), end));
+            for (auto itr = indices_vector.begin(); itr != end; ++itr) {
+                vk::DeviceQueueCreateInfo dqc;
+                dqc.pQueuePriorities = &priority;
+                dqc.queueCount = 1;
+                dqc.queueFamilyIndex = *itr;
+                dqcs.push_back(dqc);
+            }
+            dqcs.shrink_to_fit();
+
+            vk::DeviceCreateInfo dci{};
+            dci.queueCreateInfoCount = static_cast<uint32_t>(dqcs.size());
+            dci.pQueueCreateInfos = dqcs.data();
+
+            vk::PhysicalDeviceFeatures2 pdf{};
+            vk::PhysicalDeviceVulkan13Features features13{};
+            features13.dynamicRendering = true;
+            features13.synchronization2 = true;
+            pdf.pNext = &features13;
+            dci.pNext = &pdf;
+
+            // Fill up extensions
+            dci.enabledExtensionCount = DEVICE_EXTENSION_NAMES.size();
+            std::vector<const char *> extensions;
+            for (const auto &extension : DEVICE_EXTENSION_NAMES) {
+                extensions.push_back(extension);
+            }
+            dci.ppEnabledExtensionNames = extensions.data();
+
+            // Validation layers are not used for logical devices.
+            dci.enabledLayerCount = 0;
+
+            device = physical_device.createDeviceUnique(dci);
+            cfg.dynamic_dispatcher->init(device.get());
+        }
+
+        /**
+         * @brief Retrieve queues and create command pools to create
+         * command buffers from.
+         */
+        void CreateCommandPool(const DeviceConfiguration & cfg) {
+            SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Retreiving queues.");
+            queues.graphicsQueue = device->getQueue(queue_families.graphics.value(), 0);
+            queues.presentQueue = device->getQueue(queue_families.present.value(), 0);
+
+            SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating command pools.");
+            vk::CommandPoolCreateInfo info{};
+            info.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer;
+            info.queueFamilyIndex = queue_families.graphics.value();
+            queues.graphicsPool = device->createCommandPoolUnique(info);
+            queues.graphicsOneTimePool = device->createCommandPoolUnique(info);
+
+            info.queueFamilyIndex = queue_families.present.value();
+            queues.presentPool = device->createCommandPoolUnique(info);
         }
     };
 
@@ -264,6 +329,7 @@ namespace Engine::RenderSystemState {
         pimpl->CreateSurface(cfg);
         pimpl->GetPhysicalDevice(cfg);
         pimpl->CreateDevice(cfg);
+        pimpl->CreateCommandPool(cfg);
     }
     DeviceInterface::~DeviceInterface() = default;
 
@@ -288,5 +354,8 @@ namespace Engine::RenderSystemState {
     }
     const SwapchainSupport &DeviceInterface::GetSwapchainSupport() const {
         return pimpl->swapchain_support;
+    }
+    const QueueInfo &DeviceInterface::GetQueueInfo() const {
+        return pimpl->queues;
     }
 } // namespace Engine::RenderSystemState
