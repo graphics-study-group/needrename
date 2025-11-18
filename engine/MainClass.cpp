@@ -76,7 +76,7 @@ namespace Engine {
         this->world = std::make_shared<WorldSystem>();
         this->asset_database = std::make_shared<FileSystemDatabase>();
         this->asset_manager = std::make_shared<AssetManager>();
-        this->gui = std::make_shared<GUISystem>(this->renderer);
+        this->gui = std::make_shared<GUISystem>();
         this->input = std::make_shared<Input>();
         this->event_queue = std::make_shared<EventQueue>();
 

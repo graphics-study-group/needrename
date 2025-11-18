@@ -24,7 +24,7 @@ namespace Engine {
         m_context = nullptr;
     }
 
-    GUISystem::GUISystem(std::shared_ptr<RenderSystem> render_system) : m_render_system(render_system) {
+    GUISystem::GUISystem() {
     }
 
     GUISystem::~GUISystem() {
@@ -69,22 +69,22 @@ namespace Engine {
         ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     }
 
-    void GUISystem::CreateVulkanBackend(vk::Format color_attachment_format) {
-        auto system = m_render_system.lock();
-        const auto &swapchain = system->GetSwapchain();
+    void GUISystem::CreateVulkanBackend(RenderSystem & render_system, vk::Format color_attachment_format) {
+
+        const auto &swapchain = render_system.GetSwapchain();
         ImGui_ImplVulkan_InitInfo info{};
-        info.Instance = system->getInstance();
-        info.PhysicalDevice = system->GetPhysicalDevice();
-        info.Device = system->getDevice();
-        info.Queue = system->getQueueInfo().graphicsQueue;
-        info.DescriptorPool = system->GetGlobalConstantDescriptorPool().get();
+        info.Instance = render_system.getInstance();
+        info.PhysicalDevice = render_system.GetPhysicalDevice();
+        info.Device = render_system.getDevice();
+        info.Queue = render_system.getQueueInfo().graphicsQueue;
+        info.DescriptorPool = render_system.GetGlobalConstantDescriptorPool().get();
         info.ImageCount = swapchain.GetFrameCount();
         info.MinImageCount = info.ImageCount;
         info.UseDynamicRendering = true;
         info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
 
         std::array<vk::Format, 1> formats = {
-            {color_attachment_format == vk::Format::eUndefined ? system->GetSwapchain().COLOR_FORMAT_VK
+            {color_attachment_format == vk::Format::eUndefined ? render_system.GetSwapchain().COLOR_FORMAT_VK
                                                                : color_attachment_format}
         };
         VkPipelineRenderingCreateInfoKHR pipeline{static_cast<VkPipelineRenderingCreateInfoKHR>(

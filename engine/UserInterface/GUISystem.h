@@ -19,7 +19,6 @@ namespace Engine {
 
     class GUISystem {
     protected:
-        std::weak_ptr<RenderSystem> m_render_system;
         ImGuiContext *m_context{nullptr};
 
         void CleanUp();
@@ -28,7 +27,7 @@ namespace Engine {
         /// @brief Construct a GUI system with render system
         /// @param render_system
         /// Standard dependency injection pattern
-        GUISystem(std::shared_ptr<RenderSystem> render_system);
+        GUISystem();
         ~GUISystem();
 
         GUISystem(const GUISystem &) = delete;
@@ -72,7 +71,7 @@ namespace Engine {
          * @param color_attachment_format Format of the color attachment.
          * If UNDEFINED will use swapchain format.
          */
-        void CreateVulkanBackend(vk::Format color_attachment_format);
+        void CreateVulkanBackend(RenderSystem & render_system, vk::Format color_attachment_format);
 
         /**
          * @brief Get current ImGui context for drawing.
