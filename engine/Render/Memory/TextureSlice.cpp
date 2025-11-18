@@ -15,7 +15,7 @@ namespace Engine {
     };
 
     SlicedTextureView::SlicedTextureView(RenderSystem &system, const Texture &tex, TextureSlice slice) :
-        m_system(system), pimpl(std::make_unique<impl>(tex, slice, vk::UniqueImageView{nullptr})) {
+        pimpl(std::make_unique<impl>(tex, slice, vk::UniqueImageView{nullptr})) {
         vk::ImageViewCreateInfo ivci{
             vk::ImageViewCreateFlags{},
             tex.GetImage(),
@@ -30,7 +30,7 @@ namespace Engine {
                 pimpl->m_slice.array_size
             }
         };
-        pimpl->m_view = m_system.getDevice().createImageViewUnique(ivci);
+        pimpl->m_view = system.getDevice().createImageViewUnique(ivci);
     }
 
     SlicedTextureView::~SlicedTextureView() = default;
