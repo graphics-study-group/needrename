@@ -10,8 +10,9 @@ namespace Engine::RenderSystemState {
     struct DeviceInterface::impl {
 
         static constexpr const char * VALIDATION_LAYER_NAME{"VK_LAYER_KHRONOS_validation"};
-        static constexpr std::array <const char *, 1> DEVICE_EXTENSION_NAMES{
-            VK_KHR_SWAPCHAIN_EXTENSION_NAME
+        static constexpr std::array <const char *, 2> DEVICE_EXTENSION_NAMES{
+            VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+            VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME
         };
 
         vk::UniqueInstance instance{};
@@ -111,8 +112,22 @@ namespace Engine::RenderSystemState {
             int ret = SDL_Vulkan_CreateSurface(cfg.window, instance.get(), nullptr, (VkSurfaceKHR *)&surface);
 
             if (ret < 0) {
-                SDL_LogCritical(SDL_LOG_CATEGORY_RENDER, "Failed to create native surface, %s.", SDL_GetError());
-                return;
+                const std::string sdl_error{SDL_GetError()};
+                SDL_LogCritical(SDL_LOG_CATEGORY_RENDER, "Failed to create native surface, %s.", sdl_error.c_str());
+
+                const std::string message_box_info{
+                    std::format(
+                        "Cannot create Vulkan surface: {}\n"
+                        "This is an unrecoverable error and the program will now terminate.",
+                        sdl_error
+                    )
+                };
+                SDL_ShowSimpleMessageBox(
+                    SDL_MESSAGEBOX_ERROR, 
+                    "Critical Error",
+                    message_box_info.c_str(),
+                    cfg.window);
+                std::terminate();
             }
 
             // Pass the instance to it to assure successful deletion

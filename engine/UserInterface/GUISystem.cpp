@@ -129,7 +129,17 @@ namespace Engine {
         )};
         info.PipelineRenderingCreateInfo = pipeline;
 
-        if (!ImGui_ImplVulkan_Init(&info)) SDL_LogCritical(0, "Failed to initialize Vulkan backend for ImGui.");
+        if (!ImGui_ImplVulkan_Init(&info)) {
+            // This should not happen as ImGui_ImplVulkan_Init only returns true.
+            SDL_LogCritical(0, "Failed to initialize Vulkan backend for ImGui.");
+            SDL_ShowSimpleMessageBox(
+                SDL_MESSAGEBOX_ERROR, 
+                "Critical Error",
+                "Cannot initialize Vulkan backend for ImGUI.\n"
+                "This is an unrecoverable error and the program will now terminate.",
+                nullptr);
+            std::terminate();
+        }
     }
     ImGuiContext *GUISystem::GetCurrentContext() const {
         assert(pimpl->m_context);
