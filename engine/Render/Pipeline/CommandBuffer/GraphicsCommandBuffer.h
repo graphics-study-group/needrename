@@ -126,6 +126,7 @@ namespace Engine {
         void Reset() noexcept override;
 
     protected:
+        RenderSystem & m_system;
         uint32_t m_inflight_frame_index;
         std::optional<std::pair<vk::Pipeline, vk::PipelineLayout>> m_bound_material_pipeline{};
     };

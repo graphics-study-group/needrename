@@ -8,7 +8,7 @@ namespace Engine {
         impl(TransferCommandBuffer &&_cb) : cb(std::move(_cb)) {};
     };
     TransferContext::TransferContext(RenderSystem &system, vk::CommandBuffer cb, uint32_t frame_in_flight) :
-        pimpl(std::make_unique<TransferContext::impl>(TransferCommandBuffer(system, cb))) {
+        pimpl(std::make_unique<TransferContext::impl>(TransferCommandBuffer(cb))) {
     }
     TransferContext::~TransferContext() = default;
 

@@ -24,7 +24,7 @@
 
 namespace Engine {
     GraphicsCommandBuffer::GraphicsCommandBuffer(RenderSystem &system, vk::CommandBuffer cb, uint32_t frame_in_flight) :
-        TransferCommandBuffer(system, cb), m_inflight_frame_index(frame_in_flight) {
+        TransferCommandBuffer(cb), m_system(system), m_inflight_frame_index(frame_in_flight) {
     }
 
     void GraphicsCommandBuffer::BeginRendering(

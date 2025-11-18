@@ -3,8 +3,8 @@
 #include "Render/Pipeline/CommandBuffer/AccessHelperFuncs.h"
 
 namespace Engine {
-    TransferCommandBuffer::TransferCommandBuffer(RenderSystem &system, vk::CommandBuffer cb) :
-        ICommandBuffer(cb), m_system(system) {
+    TransferCommandBuffer::TransferCommandBuffer(vk::CommandBuffer cb) :
+        ICommandBuffer(cb) {
     }
 
     void TransferCommandBuffer::BlitColorImage(const Texture &src, const Texture &dst) {
