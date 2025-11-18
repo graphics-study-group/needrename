@@ -76,28 +76,6 @@ namespace {
 }
 
 namespace Engine::RenderSystemState {
-    void Swapchain::RetrieveImageViews(vk::Device device) {
-        SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Retreiving image views for %llu swap chain images.", m_images.size());
-        m_image_views.clear();
-        m_image_views.resize(m_images.size());
-
-        vk::ImageViewCreateInfo ivci{
-            vk::ImageViewCreateFlags{},
-            nullptr,
-            vk::ImageViewType::e2D,
-            vk::Format::eR8G8B8A8Srgb,
-            m_image_format.format == vk::Format::eR8G8B8A8Srgb
-                ? vk::ComponentMapping{}
-                : vk::ComponentMapping{vk::ComponentSwizzle::eB, vk::ComponentSwizzle::eIdentity, vk::ComponentSwizzle::eR, vk::ComponentSwizzle::eIdentity},
-            vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}
-        };
-
-        for (size_t i = 0; i < m_images.size(); i++) {
-            ivci.image = m_images[i];
-            m_image_views[i] = device.createImageViewUnique(ivci);
-        }
-    }
-
     void Swapchain::CreateSwapchain(
         const DeviceInterface & interface,
         vk::Extent2D expected_extent
@@ -152,8 +130,6 @@ namespace Engine::RenderSystemState {
         m_images = interface.GetDevice().getSwapchainImagesKHR(m_swapchain.get());
         m_image_format = format;
         m_extent = extent;
-
-        this->RetrieveImageViews(interface.GetDevice());
     }
 
     vk::SwapchainKHR Swapchain::GetSwapchain() const {
@@ -161,9 +137,6 @@ namespace Engine::RenderSystemState {
     }
     auto Swapchain::GetImages() const -> const decltype(m_images) & {
         return m_images;
-    }
-    auto Swapchain::GetImageViews() const -> const decltype(m_image_views) & {
-        return m_image_views;
     }
 
     vk::SurfaceFormatKHR Swapchain::GetImageFormat() const {
@@ -174,7 +147,6 @@ namespace Engine::RenderSystemState {
     }
 
     uint32_t Swapchain::GetFrameCount() const {
-        assert(m_images.size() == m_image_views.size());
         return m_images.size();
     }
 } // namespace Engine::RenderSystemState

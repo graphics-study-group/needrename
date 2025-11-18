@@ -16,13 +16,9 @@ namespace Engine {
             vk::UniqueSwapchainKHR m_swapchain{};
             // Images retreived from swapchain don't require clean up.
             std::vector<vk::Image> m_images{};
-            // However, image views do need clean up.
-            std::vector<vk::UniqueImageView> m_image_views{};
 
             vk::SurfaceFormatKHR m_image_format{};
             vk::Extent2D m_extent{};
-
-            void RetrieveImageViews(vk::Device device);
 
         public:
             static constexpr auto COLOR_FORMAT_VK = vk::Format::eR8G8B8A8Srgb;
@@ -35,7 +31,6 @@ namespace Engine {
 
             vk::SwapchainKHR GetSwapchain() const;
             auto GetImages() const -> const decltype(m_images) &;
-            auto GetImageViews() const -> const decltype(m_image_views) &;
 
             vk::SurfaceFormatKHR GetImageFormat() const;
             vk::Extent2D GetExtent() const;
