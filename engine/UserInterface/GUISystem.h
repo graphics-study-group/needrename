@@ -19,9 +19,8 @@ namespace Engine {
 
     class GUISystem {
     protected:
-        ImGuiContext *m_context{nullptr};
-
-        void CleanUp();
+        struct impl;
+        std::unique_ptr <impl> pimpl;
 
     public:
         /// @brief Construct a GUI system with render system

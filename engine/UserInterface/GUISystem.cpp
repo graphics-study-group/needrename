@@ -13,22 +13,46 @@
 #include <vulkan/vulkan.hpp>
 
 namespace Engine {
-    void GUISystem::CleanUp() {
-        if (m_context != nullptr) {
-            ImGui_ImplSDL3_Shutdown();
-            if (ImGui::GetIO().BackendRendererUserData) {
-                ImGui_ImplVulkan_Shutdown();
-            }
-            ImGui::DestroyContext(m_context);
-        }
-        m_context = nullptr;
-    }
 
-    GUISystem::GUISystem() {
+    struct GUISystem::impl {
+        ImGuiContext *m_context{nullptr};
+
+        struct VulkanResources {
+            static constexpr std::array<vk::DescriptorPoolSize, 11> DESCRIPTOR_POOL_SIZES{
+                vk::DescriptorPoolSize{ vk::DescriptorType::eSampler, 1000 },
+                vk::DescriptorPoolSize{ vk::DescriptorType::eCombinedImageSampler, 1000 },
+                vk::DescriptorPoolSize{ vk::DescriptorType::eSampledImage, 1000 },
+                vk::DescriptorPoolSize{ vk::DescriptorType::eStorageImage, 1000 },
+                vk::DescriptorPoolSize{ vk::DescriptorType::eUniformTexelBuffer, 1000 },
+                vk::DescriptorPoolSize{ vk::DescriptorType::eStorageTexelBuffer, 1000 },
+                vk::DescriptorPoolSize{ vk::DescriptorType::eUniformBuffer, 1000 },
+                vk::DescriptorPoolSize{ vk::DescriptorType::eStorageBuffer, 1000 },
+                vk::DescriptorPoolSize{ vk::DescriptorType::eUniformBufferDynamic, 1000 },
+                vk::DescriptorPoolSize{ vk::DescriptorType::eStorageBufferDynamic, 1000 },
+                vk::DescriptorPoolSize{ vk::DescriptorType::eInputAttachment, 1000 }
+            };
+            vk::UniqueDescriptorPool descriptor_pool {};
+        } vkr {};
+
+        void CleanUp() {
+            if (m_context != nullptr) {
+                ImGui_ImplSDL3_Shutdown();
+                if (ImGui::GetIO().BackendRendererUserData) {
+                    ImGui_ImplVulkan_Shutdown();
+                }
+                ImGui::DestroyContext(m_context);
+            }
+            m_context = nullptr;
+            // This might not be necessary.
+            vkr.descriptor_pool.release();
+        }
+    };
+
+    GUISystem::GUISystem() : pimpl(std::make_unique<impl>()) {
     }
 
     GUISystem::~GUISystem() {
-        CleanUp();
+        pimpl->CleanUp();
     }
 
     bool GUISystem::WantCaptureMouse() const {
@@ -62,14 +86,25 @@ namespace Engine {
 
     void GUISystem::Create(SDL_Window *window) {
         SDL_LogInfo(0, "Initializing GUI system with ImGui.");
-        assert(m_context == nullptr && "Re-creating GUI system.");
-        m_context = ImGui::CreateContext();
-        assert(m_context && "Failed to create ImGui context.");
+        assert(pimpl->m_context == nullptr && "Re-creating GUI system.");
+        pimpl->m_context = ImGui::CreateContext();
+        assert(pimpl->m_context && "Failed to create ImGui context.");
         ImGui_ImplSDL3_InitForVulkan(window);
         ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     }
 
     void GUISystem::CreateVulkanBackend(RenderSystem & render_system, vk::Format color_attachment_format) {
+
+        if(pimpl->vkr.descriptor_pool) {
+            SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Recreating Vulkan backend for GUI subsystem.");
+        } else {
+            vk::DescriptorPoolCreateInfo dpci{
+                vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
+                1000,
+                pimpl->vkr.DESCRIPTOR_POOL_SIZES
+            };
+            pimpl->vkr.descriptor_pool = render_system.getDevice().createDescriptorPoolUnique(dpci);
+        }
 
         const auto &swapchain = render_system.GetSwapchain();
         ImGui_ImplVulkan_InitInfo info{};
@@ -77,7 +112,7 @@ namespace Engine {
         info.PhysicalDevice = render_system.GetPhysicalDevice();
         info.Device = render_system.getDevice();
         info.Queue = render_system.getQueueInfo().graphicsQueue;
-        info.DescriptorPool = render_system.GetGlobalConstantDescriptorPool().get();
+        info.DescriptorPool = pimpl->vkr.descriptor_pool.get();
         info.ImageCount = swapchain.GetFrameCount();
         info.MinImageCount = info.ImageCount;
         info.UseDynamicRendering = true;
@@ -95,7 +130,7 @@ namespace Engine {
         if (!ImGui_ImplVulkan_Init(&info)) SDL_LogCritical(0, "Failed to initialize Vulkan backend for ImGui.");
     }
     ImGuiContext *GUISystem::GetCurrentContext() const {
-        assert(this->m_context);
-        return this->m_context;
+        assert(pimpl->m_context);
+        return pimpl->m_context;
     }
 } // namespace Engine
