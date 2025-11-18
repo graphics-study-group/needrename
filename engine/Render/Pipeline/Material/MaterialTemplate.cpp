@@ -264,7 +264,7 @@ namespace Engine {
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Createing pipelines for material %s.", pimpl->m_name.c_str());
         // Prepare descriptor pool
         vk::DescriptorPoolCreateInfo dpci{{}, PoolInfo::MAX_SET_SIZE, PoolInfo::DESCRIPTOR_POOL_SIZES, nullptr};
-        vk::Device dvc = m_system.getDevice();
+        vk::Device dvc = m_system.GetDevice();
         pimpl->m_poolInfo.pool = dvc.createDescriptorPoolUnique(dpci);
         DEBUG_SET_NAME_TEMPLATE(
             dvc, pimpl->m_poolInfo.pool.get(), std::format("Descriptor Pool - Material {}", pimpl->m_name)
@@ -302,7 +302,7 @@ namespace Engine {
 
         std::vector layouts(size, layout);
         vk::DescriptorSetAllocateInfo dsai{pimpl->m_poolInfo.pool.get(), layouts};
-        auto sets = m_system.getDevice().allocateDescriptorSets(dsai);
+        auto sets = m_system.GetDevice().allocateDescriptorSets(dsai);
         assert(sets.size() == size);
         return sets;
     }

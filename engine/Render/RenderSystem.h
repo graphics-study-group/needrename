@@ -26,6 +26,7 @@ namespace Engine {
     };
 
     namespace RenderSystemState {
+        class DeviceInterface;
         class Swapchain;
         class AllocatorState;
         class GlobalConstantDescriptorPool;
@@ -72,19 +73,19 @@ namespace Engine {
 
         void CompleteFrame();
 
-        vk::Instance getInstance() const;
+        /**
+         * @brief Get a handle to the Vulkan logical device that the current Render
+         * System runs on.
+         */
+        vk::Device GetDevice() const;
 
-        vk::SurfaceKHR getSurface() const;
-
-        vk::Device getDevice() const;
-
-        vk::PhysicalDevice GetPhysicalDevice() const;
+        /**
+         * @brief Get interfaces to all unique Vulkan low-level objects managed by the
+         * system.
+         */
+        const RenderSystemState::DeviceInterface &GetDeviceInterface() const;
 
         const RenderSystemState::AllocatorState &GetAllocatorState() const;
-
-        const QueueFamilyIndices &GetQueueFamilies() const;
-
-        const QueueInfo &getQueueInfo() const;
 
         const RenderSystemState::Swapchain &GetSwapchain() const;
 

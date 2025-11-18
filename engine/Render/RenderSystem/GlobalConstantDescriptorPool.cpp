@@ -1,12 +1,12 @@
 #include "GlobalConstantDescriptorPool.h"
-
+#include "Render/RenderSystem/DeviceInterface.h"
 #include "Render/DebugUtils.h"
 #include "Render/RenderSystem.h"
 
 namespace Engine::RenderSystemState {
     void GlobalConstantDescriptorPool::CreateLayouts(std::shared_ptr<RenderSystem> system) {
-        m_per_camera_constant_layout.Create(system->getDevice());
-        m_per_scene_constant_layout.Create(system->getDevice());
+        m_per_camera_constant_layout.Create(system->GetDevice());
+        m_per_scene_constant_layout.Create(system->GetDevice());
     }
 
     void GlobalConstantDescriptorPool::AllocateGlobalSets(
@@ -14,7 +14,7 @@ namespace Engine::RenderSystemState {
     ) {
         // Allocate buffers
         m_per_camera_buffers.clear();
-        auto ubo_alignment = system->GetPhysicalDevice().getProperties().limits.minUniformBufferOffsetAlignment;
+        auto ubo_alignment = system->GetDeviceInterface().GetPhysicalDevice().getProperties().limits.minUniformBufferOffsetAlignment;
         for (uint32_t i = 0; i < inflight_frame_count; i++) {
             m_per_camera_buffers.emplace_back(
                 IndexedBuffer::Create(
@@ -48,7 +48,7 @@ namespace Engine::RenderSystemState {
         std::vector<vk::DescriptorSetLayout> layouts{inflight_frame_count, m_per_camera_constant_layout.get()};
         layouts.insert(layouts.cend(), inflight_frame_count, m_per_scene_constant_layout.get());
         vk::DescriptorSetAllocateInfo info{m_handle.get(), layouts, nullptr};
-        auto descriptor_sets = system->getDevice().allocateDescriptorSets(info);
+        auto descriptor_sets = system->GetDevice().allocateDescriptorSets(info);
         assert(descriptor_sets.size() == inflight_frame_count * 2);
         m_per_camera_descriptor_sets = {descriptor_sets.begin(), descriptor_sets.begin() + inflight_frame_count};
         m_per_scene_descriptor_sets = {descriptor_sets.begin() + inflight_frame_count, descriptor_sets.end()};
@@ -59,10 +59,10 @@ namespace Engine::RenderSystemState {
 
         for (size_t i = 0; i < inflight_frame_count; i++) {
             DEBUG_SET_NAME_TEMPLATE(
-                system->getDevice(), m_per_camera_descriptor_sets[i], std::format("Desc Set - Camera {}", i)
+                system->GetDevice(), m_per_camera_descriptor_sets[i], std::format("Desc Set - Camera {}", i)
             );
             DEBUG_SET_NAME_TEMPLATE(
-                system->getDevice(), m_per_scene_descriptor_sets[i], std::format("Desc Set - Scene {}", i)
+                system->GetDevice(), m_per_scene_descriptor_sets[i], std::format("Desc Set - Scene {}", i)
             );
         }
 
@@ -88,14 +88,14 @@ namespace Engine::RenderSystemState {
             writes[i + inflight_frame_count].descriptorCount = 1;
             writes[i + inflight_frame_count].pBufferInfo = &buffers[i + inflight_frame_count];
         }
-        system->getDevice().updateDescriptorSets(writes, {});
+        system->GetDevice().updateDescriptorSets(writes, {});
     }
 
     void GlobalConstantDescriptorPool::Create(std::weak_ptr<RenderSystem> system, uint32_t inflight_frame_count) {
         auto p_system = system.lock();
         vk::DescriptorPoolCreateInfo info{vk::DescriptorPoolCreateFlags{}, MAX_SET_SIZE, DESCRIPTOR_POOL_SIZES};
-        m_handle = p_system->getDevice().createDescriptorPoolUnique(info);
-        DEBUG_SET_NAME_TEMPLATE(p_system->getDevice(), m_handle.get(), "Desc Pool - Global");
+        m_handle = p_system->GetDevice().createDescriptorPoolUnique(info);
+        DEBUG_SET_NAME_TEMPLATE(p_system->GetDevice(), m_handle.get(), "Desc Pool - Global");
 
         CreateLayouts(p_system);
         AllocateGlobalSets(p_system, inflight_frame_count);

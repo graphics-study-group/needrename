@@ -4,6 +4,7 @@
 #include "Asset/Material/ShaderAsset.h"
 #include "Render/Memory/Buffer.h"
 #include "Render/RenderSystem.h"
+#include "Render/RenderSystem/DeviceInterface.h"
 #include "Render/RenderSystem/GlobalConstantDescriptorPool.h"
 #include "Render/Memory/ShaderParameters/ShaderParameter.h"
 #include "Render/Memory/ShaderParameters/ShaderParameterLayout.h"
@@ -51,10 +52,10 @@ namespace Engine {
                 vk::DescriptorSetLayoutCreateFlags{},
                 desc_bindings[0]
             };
-            m_passInfo.desc_layout = system.getDevice().createDescriptorSetLayoutUnique(dslci);
+            m_passInfo.desc_layout = system.GetDevice().createDescriptorSetLayoutUnique(dslci);
 
             vk::PipelineLayoutCreateInfo plci{vk::PipelineLayoutCreateFlags{}, {m_passInfo.desc_layout.get()}, {}};
-            m_passInfo.pipeline_layout = system.getDevice().createPipelineLayoutUnique(plci);
+            m_passInfo.pipeline_layout = system.GetDevice().createPipelineLayoutUnique(plci);
 
             vk::ShaderModuleCreateInfo smci{
                 vk::ShaderModuleCreateFlags{},
@@ -62,7 +63,7 @@ namespace Engine {
                 reinterpret_cast<const uint32_t *>(code.data())
             };
             m_passInfo.shaders.resize(1);
-            m_passInfo.shaders[0] = system.getDevice().createShaderModuleUnique(smci);
+            m_passInfo.shaders[0] = system.GetDevice().createShaderModuleUnique(smci);
 
             vk::PipelineShaderStageCreateInfo pssci{
                 vk::PipelineShaderStageCreateFlags{},
@@ -71,7 +72,7 @@ namespace Engine {
                 "main"
             };
             vk::ComputePipelineCreateInfo cpci{vk::PipelineCreateFlags{}, pssci, m_passInfo.pipeline_layout.get()};
-            auto ret = system.getDevice().createComputePipelineUnique(nullptr, cpci);
+            auto ret = system.GetDevice().createComputePipelineUnique(nullptr, cpci);
             m_passInfo.pipeline = std::move(ret.value);
         }
     };
@@ -92,7 +93,7 @@ namespace Engine {
                         m_system,
                         Buffer::BufferType::Uniform,
                         ptype->expected_size,
-                        m_system.GetPhysicalDevice().getProperties().limits.minUniformBufferOffsetAlignment,
+                        m_system.GetDeviceInterface().GetPhysicalDevice().getProperties().limits.minUniformBufferOffsetAlignment,
                         impl::InstancedPassInfo::BACK_BUFFERS,
                         std::format(
                             "Indexed UBO {} for Material",
@@ -108,7 +109,7 @@ namespace Engine {
         vk::DescriptorSetAllocateInfo dsai{
             m_system.GetGlobalConstantDescriptorPool().get(), layouts
         };
-        auto desc_sets = m_system.getDevice().allocateDescriptorSets(dsai);
+        auto desc_sets = m_system.GetDevice().allocateDescriptorSets(dsai);
 
         assert(desc_sets.size() == impl::InstancedPassInfo::BACK_BUFFERS);
         for (int i = 0; i < impl::InstancedPassInfo::BACK_BUFFERS; i++) {
@@ -169,7 +170,7 @@ namespace Engine {
                 };
                 write_count ++;
             }
-            m_system.getDevice().updateDescriptorSets(vk_writes, {});
+            m_system.GetDevice().updateDescriptorSets(vk_writes, {});
             pimpl->m_ipi._is_descriptor_dirty[backbuffer] = false;
         }
 

@@ -100,27 +100,18 @@ namespace Engine {
         return camera ? camera->m_display_id : 0;
     }
 
-    vk::Instance RenderSystem::getInstance() const {
-        return pimpl->m_device_interface->GetInstance();
-    }
-    vk::SurfaceKHR RenderSystem::getSurface() const {
-        return pimpl->m_device_interface->GetSurface();
-    }
-    vk::Device RenderSystem::getDevice() const {
+
+    vk::Device RenderSystem::GetDevice() const {
         return pimpl->m_device_interface->GetDevice();
     }
-    vk::PhysicalDevice RenderSystem::GetPhysicalDevice() const {
-        return pimpl->m_device_interface->GetPhysicalDevice();
+    const RenderSystemState::DeviceInterface &RenderSystem::GetDeviceInterface() const {
+        return *pimpl->m_device_interface;
     }
+
     const RenderSystemState::AllocatorState &RenderSystem::GetAllocatorState() const {
         return pimpl->m_allocator_state;
     }
-    const RenderSystem::QueueFamilyIndices &RenderSystem::GetQueueFamilies() const {
-        return pimpl->m_device_interface->GetQueueFamilies();
-    }
-    const RenderSystem::QueueInfo &RenderSystem::getQueueInfo() const {
-        return pimpl->m_device_interface->GetQueueInfo();
-    }
+
     const RenderSystemState::Swapchain &RenderSystem::GetSwapchain() const {
         return pimpl->m_swapchain;
     }

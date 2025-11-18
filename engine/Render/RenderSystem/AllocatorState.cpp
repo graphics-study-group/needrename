@@ -3,6 +3,7 @@
 #include "Render/DebugUtils.h"
 #include "Render/ImageUtilsFunc.h"
 #include "Render/RenderSystem.h"
+#include "Render/RenderSystem/DeviceInterface.h"
 
 #include <SDL3/SDL.h>
 #include <vulkan/vulkan_hash.hpp>
@@ -126,9 +127,9 @@ namespace Engine::RenderSystemState {
     }
     void AllocatorState::Create() {
         VmaAllocatorCreateInfo info{};
-        info.device = m_system.getDevice();
-        info.physicalDevice = m_system.GetPhysicalDevice();
-        info.instance = m_system.getInstance();
+        info.device = m_system.GetDevice();
+        info.physicalDevice = m_system.GetDeviceInterface().GetPhysicalDevice();
+        info.instance = m_system.GetDeviceInterface().GetInstance();
         info.vulkanApiVersion = vk::ApiVersion13;
 
         vmaDestroyAllocator(pimpl->m_allocator);
@@ -159,7 +160,7 @@ namespace Engine::RenderSystemState {
         VkResult result = vmaCreateBuffer(pimpl->m_allocator, &bcinfo, &ainfo, &buffer, &allocation, nullptr);
         vk::detail::resultCheck(vk::Result{result}, "Failed to create buffer.");
         assert(buffer != nullptr && allocation != nullptr);
-        DEBUG_SET_NAME_TEMPLATE(m_system.getDevice(), static_cast<vk::Buffer>(buffer), name);
+        DEBUG_SET_NAME_TEMPLATE(m_system.GetDevice(), static_cast<vk::Buffer>(buffer), name);
         return BufferAllocation(static_cast<vk::Buffer>(buffer), allocation, pimpl->m_allocator);
     }
 
@@ -183,7 +184,7 @@ namespace Engine::RenderSystemState {
         const std::string &name
     ) const noexcept try {
         const auto [iusage, musage] = ImageUtils::GetImageFlags(type);
-        auto fsupport = pimpl->QueryFormatSupport(m_system.GetPhysicalDevice(), format, type);
+        auto fsupport = pimpl->QueryFormatSupport(m_system.GetDeviceInterface().GetPhysicalDevice(), format, type);
         if (fsupport.first <= 0) {
             SDL_LogError(
                 SDL_LOG_CATEGORY_RENDER,
@@ -198,7 +199,7 @@ namespace Engine::RenderSystemState {
         }
 
         auto ifsupport = pimpl->UpdateImageFormatSupportInfo(
-            m_system.GetPhysicalDevice(), 
+            m_system.GetDeviceInterface().GetPhysicalDevice(), 
             format, 
             dimension, 
             vk::ImageTiling::eOptimal, 
@@ -270,7 +271,7 @@ namespace Engine::RenderSystemState {
         VkImage image;
         VmaAllocation allocation;
         vmaCreateImage(pimpl->m_allocator, &iinfo2, &ainfo, &image, &allocation, nullptr);
-        DEBUG_SET_NAME_TEMPLATE(m_system.getDevice(), static_cast<vk::Image>(image), name);
+        DEBUG_SET_NAME_TEMPLATE(m_system.GetDevice(), static_cast<vk::Image>(image), name);
         return std::unique_ptr<ImageAllocation>(new ImageAllocation(static_cast<vk::Image>(image), allocation, pimpl->m_allocator));
     }
     catch (std::exception &e) {
@@ -282,7 +283,7 @@ namespace Engine::RenderSystemState {
         vk::Format format, 
         vk::FormatFeatureFlagBits feature
     ) const noexcept {
-        auto ret = pimpl->UpdateFormatSupportInfo(m_system.GetPhysicalDevice(), format);
+        auto ret = pimpl->UpdateFormatSupportInfo(m_system.GetDeviceInterface().GetPhysicalDevice(), format);
         return static_cast<bool>(vk::FormatFeatureFlags{ret.formatProperties.optimalTilingFeatures & feature});
     }
 

@@ -7,6 +7,7 @@
 #include "Render/RenderSystem/GlobalConstantDescriptorPool.h"
 #include "Render/RenderSystem/Structs.h"
 #include "Render/RenderSystem/Swapchain.h"
+#include "Render/RenderSystem/DeviceInterface.h"
 #include <SDL3/SDL.h>
 #include <backends/imgui_impl_sdl3.h>
 #include <backends/imgui_impl_vulkan.h>
@@ -105,15 +106,15 @@ namespace Engine {
                 1000,
                 pimpl->vkr.DESCRIPTOR_POOL_SIZES
             };
-            pimpl->vkr.descriptor_pool = render_system.getDevice().createDescriptorPoolUnique(dpci);
+            pimpl->vkr.descriptor_pool = render_system.GetDevice().createDescriptorPoolUnique(dpci);
         }
 
         const auto &swapchain = render_system.GetSwapchain();
         ImGui_ImplVulkan_InitInfo info{};
-        info.Instance = render_system.getInstance();
-        info.PhysicalDevice = render_system.GetPhysicalDevice();
-        info.Device = render_system.getDevice();
-        info.Queue = render_system.getQueueInfo().graphicsQueue;
+        info.Instance = render_system.GetDeviceInterface().GetInstance();
+        info.PhysicalDevice = render_system.GetDeviceInterface().GetPhysicalDevice();
+        info.Device = render_system.GetDevice();
+        info.Queue = render_system.GetDeviceInterface().GetQueueInfo().graphicsQueue;
         info.DescriptorPool = pimpl->vkr.descriptor_pool.get();
         info.ImageCount = swapchain.GetFrameCount();
         info.MinImageCount = info.ImageCount;

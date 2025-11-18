@@ -18,7 +18,7 @@ namespace Engine::RenderSystemState {
     vk::Sampler SamplerManager::GetSampler(ImageUtils::SamplerDesc desc) {
         auto itr = pimpl->m_samplers.find(desc);
         if (itr == pimpl->m_samplers.end()) {
-            vk::UniqueSampler s = m_system.getDevice().createSamplerUnique(
+            vk::UniqueSampler s = m_system.GetDevice().createSamplerUnique(
                 vk::SamplerCreateInfo{
                     vk::SamplerCreateFlags{},
                     ImageUtils::ToVkFilter(desc.min_filter),
@@ -40,7 +40,7 @@ namespace Engine::RenderSystemState {
                 }
             );
             DEBUG_SET_NAME_TEMPLATE(
-                m_system.getDevice(), 
+                m_system.GetDevice(), 
                 s.get(), 
                 std::format(
                     "Sampler (filter: {},{}, addresser: {},{},{})",

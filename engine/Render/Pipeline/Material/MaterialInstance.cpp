@@ -7,6 +7,7 @@
 #include "Render/Pipeline/PipelineUtils.h"
 #include "Render/Pipeline/Material/MaterialLibrary.h"
 #include "Render/RenderSystem.h"
+#include "Render/RenderSystem/DeviceInterface.h"
 #include "Render/RenderSystem/FrameManager.h"
 #include "Render/RenderSystem/SubmissionHelper.h"
 #include <Asset/Material/MaterialAsset.h>
@@ -77,7 +78,7 @@ namespace Engine {
                             system,
                             Buffer::BufferType::Uniform,
                             ptype->expected_size,
-                            system.GetPhysicalDevice().getProperties().limits.minUniformBufferOffsetAlignment,
+                            system.GetDeviceInterface().GetPhysicalDevice().getProperties().limits.minUniformBufferOffsetAlignment,
                             PassInfo::BACK_BUFFERS,
                             std::format(
                                 "Indexed UBO {} for Material",
@@ -190,7 +191,7 @@ namespace Engine {
                 };
                 write_count ++;
             }
-            m_system.getDevice().updateDescriptorSets(vk_writes, {});
+            m_system.GetDevice().updateDescriptorSets(vk_writes, {});
             pass_info._is_descriptor_dirty[backbuffer] = false;
         }
 

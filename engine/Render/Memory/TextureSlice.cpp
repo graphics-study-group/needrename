@@ -30,7 +30,7 @@ namespace Engine {
                 pimpl->m_slice.array_size
             }
         };
-        pimpl->m_view = system.getDevice().createImageViewUnique(ivci);
+        pimpl->m_view = system.GetDevice().createImageViewUnique(ivci);
     }
 
     SlicedTextureView::~SlicedTextureView() = default;

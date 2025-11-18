@@ -9,6 +9,7 @@
 #include "Render/RenderSystem/Structs.h"
 #include "Render/RenderSystem/SubmissionHelper.h"
 #include "Render/RenderSystem/Swapchain.h"
+#include "Render/RenderSystem/DeviceInterface.h"
 
 #include <SDL3/SDL.h>
 
@@ -208,7 +209,7 @@ namespace Engine::RenderSystemState {
     FrameManager::~FrameManager() = default;
 
     void FrameManager::impl::Create() {
-        auto device = m_system.getDevice();
+        auto device = m_system.GetDevice();
 
         vk::SemaphoreCreateInfo sinfo{};
         vk::FenceCreateInfo finfo{{vk::FenceCreateFlagBits::eSignaled}};
@@ -245,9 +246,10 @@ namespace Engine::RenderSystemState {
         }
 
         // Allocate main render command buffers
+        const auto & queue_info = m_system.GetDeviceInterface().GetQueueInfo();
         auto new_command_buffers = device.allocateCommandBuffersUnique(
             vk::CommandBufferAllocateInfo{
-                m_system.getQueueInfo().graphicsPool.get(), vk::CommandBufferLevel::ePrimary, FRAMES_IN_FLIGHT
+                queue_info.graphicsPool.get(), vk::CommandBufferLevel::ePrimary, FRAMES_IN_FLIGHT
             }
         );
         for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; i++) {
@@ -260,7 +262,7 @@ namespace Engine::RenderSystemState {
         // Allocate copying and presenting command buffers
         new_command_buffers = device.allocateCommandBuffersUnique(
             vk::CommandBufferAllocateInfo{
-                m_system.getQueueInfo().presentPool.get(), vk::CommandBufferLevel::ePrimary, FRAMES_IN_FLIGHT
+                queue_info.presentPool.get(), vk::CommandBufferLevel::ePrimary, FRAMES_IN_FLIGHT
             }
         );
         for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; i++) {
@@ -318,7 +320,7 @@ namespace Engine::RenderSystemState {
 
     uint32_t FrameManager::StartFrame(uint64_t timeout) {
 
-        auto device = pimpl->m_system.getDevice();
+        auto device = pimpl->m_system.GetDevice();
         uint32_t fif = GetFrameInFlight();
 
         // Wait for command buffer execution.
@@ -373,7 +375,7 @@ namespace Engine::RenderSystemState {
 
         info.setSignalSemaphores({this->pimpl->render_command_executed_semaphores[fif].get()});
         std::array<vk::SubmitInfo, 1> infos{info};
-        this->pimpl->m_system.getQueueInfo().graphicsQueue.submit(infos, nullptr);
+        this->pimpl->m_system.GetDeviceInterface().GetQueueInfo().graphicsQueue.submit(infos, nullptr);
 
         pimpl->m_submission_helper->OnPostMainCbSubmission();
     }
@@ -381,7 +383,7 @@ namespace Engine::RenderSystemState {
     void FrameManager::StageCopyComposition(
         vk::Image image, vk::Extent2D extent, vk::Offset2D offsetSrc, vk::Offset2D offsetDst
     ) {
-        const auto &families = pimpl->m_system.GetQueueFamilies();
+        const auto &families = pimpl->m_system.GetDeviceInterface().GetQueueFamilies();
         PresentingHelper::PresentingOperation copy_op{
             .image = image,
             .src_queue_family = families.graphics.value(),
@@ -400,7 +402,7 @@ namespace Engine::RenderSystemState {
         vk::Offset2D offsetDst,
         vk::Filter filter
     ) {
-        const auto &families = pimpl->m_system.GetQueueFamilies();
+        const auto &families = pimpl->m_system.GetDeviceInterface().GetQueueFamilies();
         PresentingHelper::PresentingOperation blit_op{
             .image = image,
             .src_queue_family = families.graphics.value(),
@@ -447,7 +449,7 @@ namespace Engine::RenderSystemState {
         };
 
         vk::SubmitInfo sinfo{rces, psfb, {copy_cb}, ss};
-        const auto &queueInfo = pimpl->m_system.getQueueInfo();
+        const auto &queueInfo = pimpl->m_system.GetDeviceInterface().GetQueueInfo();
         queueInfo.presentQueue.submit(sinfo, this->pimpl->command_executed_fences[this->GetFrameInFlight()].get());
 
         // Queue a present directive
@@ -498,12 +500,12 @@ namespace Engine::RenderSystemState {
         };
 
         vk::SubmitInfo sinfo{rces, psfb, {copy_cb}, ss};
-        pimpl->m_system.getQueueInfo().presentQueue.submit(
+        pimpl->m_system.GetDeviceInterface().GetQueueInfo().presentQueue.submit(
             sinfo, this->pimpl->command_executed_fences[this->GetFrameInFlight()].get()
         );
 
         if (timeout) {
-            auto device = pimpl->m_system.getDevice();
+            auto device = pimpl->m_system.GetDevice();
             auto result = device.waitForFences({this->pimpl->command_executed_fences[fif].get()}, true, timeout);
             if (result != vk::Result::eSuccess) {
                 SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Timed out waiting for composition for frame id %u.", fif);
