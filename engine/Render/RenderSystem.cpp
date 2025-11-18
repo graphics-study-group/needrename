@@ -26,8 +26,6 @@
 
 #include <iostream>
 
-VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
-
 namespace Engine {
     struct RenderSystem::impl {
         impl(RenderSystem &parent, std::weak_ptr<SDLWindow> parent_window) :
@@ -63,14 +61,12 @@ namespace Engine {
     }
 
     void RenderSystem::Create() {
-        assert(!this->pimpl->m_device_interface.get() || "Recreating render system");
-        VULKAN_HPP_DEFAULT_DISPATCHER.init(
-            reinterpret_cast<PFN_vkGetInstanceProcAddr>(SDL_Vulkan_GetVkGetInstanceProcAddr())
-        );
+        assert(!this->pimpl->m_device_interface.get() && "Recreating render system");
         RenderSystemState::DeviceInterface::DeviceConfiguration cfg {
             .window = pimpl->m_window.lock()->GetWindow(),
             .application_name = "",
-            .application_version = 0
+            .application_version = 0,
+            .dynamic_dispatcher = nullptr
         };
         pimpl->m_device_interface = std::make_unique<RenderSystemState::DeviceInterface>(cfg);
 

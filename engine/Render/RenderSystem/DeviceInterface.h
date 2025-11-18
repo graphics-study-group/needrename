@@ -36,11 +36,14 @@ namespace Engine {
         public:
 
             struct DeviceConfiguration {
+                // Parent window to create a surface from
                 SDL_Window * window;
+                // Arbitrary application name. Does not affect Vulkan behavior.
                 std::string application_name;
+                // Arbitrary application version. Does not affect Vulkan behavior.
                 uint32_t application_version;
-
-                vk::detail::DispatchLoaderDynamic * dynamic_dispatcher{&VULKAN_HPP_DEFAULT_DISPATCHER};
+                // Vulkan-Hpp dynamic dispatcher, can be null, in which case uses the default one.
+                vk::detail::DispatchLoaderDynamic * dynamic_dispatcher;
             };
 
             DeviceInterface(DeviceConfiguration cfg);

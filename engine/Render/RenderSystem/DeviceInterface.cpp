@@ -4,6 +4,8 @@
 #include <SDL3/SDL_vulkan.h>
 #include <unordered_set>
 
+VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
+
 namespace Engine::RenderSystemState {
     struct DeviceInterface::impl {
 
@@ -39,8 +41,26 @@ namespace Engine::RenderSystemState {
          * @brief Create a new instance.
          */
         void CreateInstance(const DeviceConfiguration & cfg) {
+            
+            static_assert(
+                std::is_same<decltype(VULKAN_HPP_DEFAULT_DISPATCHER), vk::detail::DispatchLoaderDynamic>::value,
+                "Vulkan-Hpp loader is not configured to be dynamic.");
+            if (cfg.dynamic_dispatcher) {
+                cfg.dynamic_dispatcher->init(
+                    reinterpret_cast<PFN_vkGetInstanceProcAddr>(SDL_Vulkan_GetVkGetInstanceProcAddr())
+                );
+            } else {
+                VULKAN_HPP_DEFAULT_DISPATCHER.init(
+                    reinterpret_cast<PFN_vkGetInstanceProcAddr>(SDL_Vulkan_GetVkGetInstanceProcAddr())
+                );
+            }
+
             vk::ApplicationInfo appInfo{
-                cfg.application_name.c_str(), cfg.application_version, "NEEDRENAME", VK_MAKE_VERSION(0, 1, 0), VK_API_VERSION_1_3
+                cfg.application_name.c_str(),
+                cfg.application_version,
+                "NEEDRENAME",
+                VK_MAKE_VERSION(0, 1, 0),
+                VK_API_VERSION_1_3
             };
 
             SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating Vulkan instance.");
@@ -73,7 +93,12 @@ namespace Engine::RenderSystemState {
             instInfo.enabledLayerCount = 0;
 #endif
             instance = vk::createInstanceUnique(instInfo);
-            cfg.dynamic_dispatcher->init(instance.get());
+            if (cfg.dynamic_dispatcher) {
+                cfg.dynamic_dispatcher->init(instance.get());
+            } else {
+                VULKAN_HPP_DEFAULT_DISPATCHER.init(instance.get());
+            }
+                
         }
 
         /**
@@ -300,7 +325,12 @@ namespace Engine::RenderSystemState {
             dci.enabledLayerCount = 0;
 
             device = physical_device.createDeviceUnique(dci);
-            cfg.dynamic_dispatcher->init(device.get());
+            if (cfg.dynamic_dispatcher) {
+                cfg.dynamic_dispatcher->init(device.get());
+            } else {
+                VULKAN_HPP_DEFAULT_DISPATCHER.init(device.get());
+            }
+            
         }
 
         /**
@@ -325,6 +355,7 @@ namespace Engine::RenderSystemState {
     };
 
     DeviceInterface::DeviceInterface(DeviceConfiguration cfg) : pimpl(std::make_unique<impl>()) {
+        assert(cfg.window);
         pimpl->CreateInstance(cfg);
         pimpl->CreateSurface(cfg);
         pimpl->GetPhysicalDevice(cfg);
