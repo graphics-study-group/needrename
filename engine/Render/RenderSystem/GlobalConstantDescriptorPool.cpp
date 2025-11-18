@@ -14,7 +14,9 @@ namespace Engine::RenderSystemState {
     ) {
         // Allocate buffers
         m_per_camera_buffers.clear();
-        auto ubo_alignment = system->GetDeviceInterface().GetPhysicalDevice().getProperties().limits.minUniformBufferOffsetAlignment;
+        auto ubo_alignment = system->GetDeviceInterface().QueryLimit(
+            RenderSystemState::DeviceInterface::PhysicalDeviceLimitInteger::UniformBufferOffsetAlignment
+        );
         for (uint32_t i = 0; i < inflight_frame_count; i++) {
             m_per_camera_buffers.emplace_back(
                 IndexedBuffer::Create(

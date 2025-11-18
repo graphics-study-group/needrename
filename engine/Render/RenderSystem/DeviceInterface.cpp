@@ -18,6 +18,7 @@ namespace Engine::RenderSystemState {
         vk::UniqueInstance instance{};
         vk::UniqueSurfaceKHR surface{};
         vk::PhysicalDeviceMemoryProperties physical_device_memory_properties{};
+        vk::PhysicalDeviceProperties physical_device_properties{};
         vk::PhysicalDevice physical_device{};
         vk::UniqueDevice device{};
 
@@ -287,6 +288,7 @@ namespace Engine::RenderSystemState {
 
             physical_device = selected_device;
             physical_device_memory_properties = physical_device.getMemoryProperties();
+            physical_device_properties = physical_device.getProperties();
 
             queue_families = FillQueueFamilyIndices(physical_device);
             swapchain_support = FillSwapchainSupport(physical_device);
@@ -403,5 +405,23 @@ namespace Engine::RenderSystemState {
     }
     const QueueInfo &DeviceInterface::GetQueueInfo() const {
         return pimpl->queues;
+    }
+    uint32_t DeviceInterface::QueryLimit(PhysicalDeviceLimitInteger limit) const {
+        switch(limit) {
+            using enum PhysicalDeviceLimitInteger;
+            case MaxUniformBufferSize:
+                return pimpl->physical_device_properties.limits.maxUniformBufferRange;
+            case MaxStorageBufferSize:
+                return pimpl->physical_device_properties.limits.maxStorageBufferRange;
+            case UniformBufferOffsetAlignment:
+                return pimpl->physical_device_properties.limits.minUniformBufferOffsetAlignment;
+            case StorageBufferOffsetAlignment:
+                return pimpl->physical_device_properties.limits.minStorageBufferOffsetAlignment;
+        }
+        return 0;
+    }
+    float DeviceInterface::QueryLimit(PhysicalDeviceLimitFloat limit) const {
+        assert(!"Unimplemented.");
+        return 0.0f;
     }
 } // namespace Engine::RenderSystemState

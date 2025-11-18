@@ -46,6 +46,17 @@ namespace Engine {
                 vk::detail::DispatchLoaderDynamic * dynamic_dispatcher;
             };
 
+            enum class PhysicalDeviceLimitInteger {
+                MaxUniformBufferSize,
+                MaxStorageBufferSize,
+                UniformBufferOffsetAlignment,
+                StorageBufferOffsetAlignment
+            };
+
+            enum class PhysicalDeviceLimitFloat {
+
+            };
+
             DeviceInterface(DeviceConfiguration cfg);
             ~DeviceInterface();
 
@@ -57,6 +68,9 @@ namespace Engine {
             const QueueFamilyIndices & GetQueueFamilies() const;
             const SwapchainSupport & GetSwapchainSupport() const;
             const QueueInfo & GetQueueInfo() const;
+
+            uint32_t QueryLimit(PhysicalDeviceLimitInteger limit) const;
+            float QueryLimit(PhysicalDeviceLimitFloat limit) const;
         };
     }
 }

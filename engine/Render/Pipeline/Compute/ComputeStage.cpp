@@ -93,7 +93,9 @@ namespace Engine {
                         m_system,
                         Buffer::BufferType::Uniform,
                         ptype->expected_size,
-                        m_system.GetDeviceInterface().GetPhysicalDevice().getProperties().limits.minUniformBufferOffsetAlignment,
+                        m_system.GetDeviceInterface().QueryLimit(
+                            RenderSystemState::DeviceInterface::PhysicalDeviceLimitInteger::UniformBufferOffsetAlignment
+                        ),
                         impl::InstancedPassInfo::BACK_BUFFERS,
                         std::format(
                             "Indexed UBO {} for Material",
