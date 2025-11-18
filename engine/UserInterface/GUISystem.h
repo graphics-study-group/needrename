@@ -23,9 +23,7 @@ namespace Engine {
         std::unique_ptr <impl> pimpl;
 
     public:
-        /// @brief Construct a GUI system with render system
-        /// @param render_system
-        /// Standard dependency injection pattern
+
         GUISystem();
         ~GUISystem();
 

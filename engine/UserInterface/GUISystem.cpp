@@ -11,6 +11,7 @@
 #include <backends/imgui_impl_sdl3.h>
 #include <backends/imgui_impl_vulkan.h>
 #include <vulkan/vulkan.hpp>
+#include <iostream>
 
 namespace Engine {
 
@@ -44,7 +45,7 @@ namespace Engine {
             }
             m_context = nullptr;
             // This might not be necessary.
-            vkr.descriptor_pool.release();
+            vkr.descriptor_pool.reset(nullptr);
         }
     };
 
@@ -52,6 +53,7 @@ namespace Engine {
     }
 
     GUISystem::~GUISystem() {
+        std::cerr << "GUI System deconstructed" << std::endl;
         pimpl->CleanUp();
     }
 
