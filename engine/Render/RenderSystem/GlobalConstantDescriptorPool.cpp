@@ -20,7 +20,7 @@ namespace Engine::RenderSystemState {
         for (uint32_t i = 0; i < inflight_frame_count; i++) {
             m_per_camera_buffers.emplace_back(
                 IndexedBuffer::Create(
-                    *system, 
+                    system->GetAllocatorState(), 
                     Engine::Buffer::BufferType::Uniform,
                     sizeof(ConstantData::PerCameraStruct),
                     ubo_alignment,
@@ -35,7 +35,7 @@ namespace Engine::RenderSystemState {
         for (uint32_t i = 0; i < inflight_frame_count; i++) {
             m_per_scene_buffers.emplace_back(
                 Buffer::Create(
-                    *system, 
+                    system->GetAllocatorState(), 
                     Engine::Buffer::BufferType::Uniform, 
                     sizeof(Engine::ConstantData::PerSceneStruct), 
                     std::format("Buffer - scene uniforms {}", i)

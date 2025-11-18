@@ -8,16 +8,14 @@ namespace Engine {
     ) : m_size(size), allocation(std::move(alloc)){
     }
 
-    Buffer Buffer::Create(RenderSystem & system, BufferType type, size_t size, const std::string &name) {
-        auto &allocator_state = system.GetAllocatorState();
-        return Buffer(allocator_state.AllocateBuffer(type, size, name), size);
+    Buffer Buffer::Create(const RenderSystemState::AllocatorState & allocator, BufferType type, size_t size, const std::string &name) {
+        return Buffer(allocator.AllocateBuffer(type, size, name), size);
     }
 
     std::unique_ptr<Buffer> Buffer::CreateUnique(
-        RenderSystem &system, BufferType type, size_t size, const std::string &name
+        const RenderSystemState::AllocatorState &allocator, BufferType type, size_t size, const std::string &name
     ) {
-        auto &allocator_state = system.GetAllocatorState();
-        return std::unique_ptr<Buffer>(new Buffer(allocator_state.AllocateBuffer(type, size, name), size));
+        return std::unique_ptr<Buffer>(new Buffer(allocator.AllocateBuffer(type, size, name), size));
     }
 
     vk::Buffer Buffer::GetBuffer() const {

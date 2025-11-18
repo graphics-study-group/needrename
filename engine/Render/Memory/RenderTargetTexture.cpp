@@ -13,7 +13,7 @@ namespace Engine {
         RenderSystem &system, RenderTargetTextureDesc texture, SamplerDesc sampler, const std::string &name
     ) {
         assert(texture.multisample == 1 && "Unimplemented multisampling feature.");
-        return RenderTargetTexture(system,
+        auto ret = RenderTargetTexture(system,
                 TextureDesc{
                     .dimensions = texture.dimensions,
                     .width = texture.width,
@@ -28,12 +28,23 @@ namespace Engine {
                 },
                 sampler,
                 name);
+
+        ret.support_random_access = system.GetAllocatorState().QueryFormatFeatures(
+            ImageUtils::GetVkFormat(ret.GetTextureDescription().format),
+            vk::FormatFeatureFlagBits::eStorageImage
+        );
+
+        ret.support_atomic_access = system.GetAllocatorState().QueryFormatFeatures(
+            ImageUtils::GetVkFormat(ret.GetTextureDescription().format),
+            vk::FormatFeatureFlagBits::eStorageImageAtomic
+        );
+
+        return ret;
     }
     std::unique_ptr<RenderTargetTexture> RenderTargetTexture::CreateUnique(
         RenderSystem &system, RenderTargetTextureDesc texture, SamplerDesc sampler, const std::string &name
     ) {
-        
-        return std::unique_ptr<RenderTargetTexture>(
+        auto ret = std::unique_ptr<RenderTargetTexture>(
             new RenderTargetTexture(system,
                 TextureDesc{
                     .dimensions = texture.dimensions,
@@ -51,17 +62,21 @@ namespace Engine {
                 name
             )
         );
-    }
-    bool RenderTargetTexture::SupportRandomAccess() const noexcept {
-        return m_system.GetAllocatorState().QueryFormatFeatures(
-            ImageUtils::GetVkFormat(this->GetTextureDescription().format),
+        ret->support_random_access = system.GetAllocatorState().QueryFormatFeatures(
+            ImageUtils::GetVkFormat(ret->GetTextureDescription().format),
             vk::FormatFeatureFlagBits::eStorageImage
         );
-    }
-    bool RenderTargetTexture::SupportAtomicOperation() const noexcept {
-        return m_system.GetAllocatorState().QueryFormatFeatures(
-            ImageUtils::GetVkFormat(this->GetTextureDescription().format),
+
+        ret->support_atomic_access = system.GetAllocatorState().QueryFormatFeatures(
+            ImageUtils::GetVkFormat(ret->GetTextureDescription().format),
             vk::FormatFeatureFlagBits::eStorageImageAtomic
         );
+        return ret;
+    }
+    bool RenderTargetTexture::SupportRandomAccess() const noexcept {
+        return support_random_access;
+    }
+    bool RenderTargetTexture::SupportAtomicOperation() const noexcept {
+        return support_atomic_access;
     }
 } // namespace Engine

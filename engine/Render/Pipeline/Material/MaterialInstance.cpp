@@ -75,7 +75,7 @@ namespace Engine {
                         assert(ptype);
 
                         pass.ubos[pbuffer->name] = IndexedBuffer::CreateUnique(
-                            system,
+                            system.GetAllocatorState(),
                             Buffer::BufferType::Uniform,
                             ptype->expected_size,
                             system.GetDeviceInterface().QueryLimit(

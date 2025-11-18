@@ -90,7 +90,7 @@ namespace Engine {
                     assert(ptype);
 
                     pimpl->m_ipi.ubos[pbuffer->name] = IndexedBuffer::CreateUnique(
-                        m_system,
+                        m_system.GetAllocatorState(),
                         Buffer::BufferType::Uniform,
                         ptype->expected_size,
                         m_system.GetDeviceInterface().QueryLimit(

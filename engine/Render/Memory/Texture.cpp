@@ -19,13 +19,13 @@ namespace Engine {
         std::string m_name {};
     };
 
-    Texture::Texture(RenderSystem & system) : m_system(system), pimpl(nullptr) {
+    Texture::Texture() : pimpl(nullptr) {
     }
 
     Texture::Texture(RenderSystem &system, TextureDesc texture, SamplerDesc sampler, const std::string &name) :
-        m_system(system), pimpl(std::make_unique<impl>()) {
+        pimpl(std::make_unique<impl>()) {
 
-        auto &allocator = m_system.GetAllocatorState();
+        auto &allocator = system.GetAllocatorState();
         auto dimension = texture.dimensions;
         auto [width, height, depth] = std::tie(texture.width, texture.height, texture.depth);
         auto mipLevels = texture.mipmap_levels;
@@ -53,15 +53,15 @@ namespace Engine {
         pimpl->m_tdesc = texture;
         pimpl->m_name = name;
 
-        pimpl->m_sampler = m_system.GetSamplerManager().GetSampler(sampler);
+        pimpl->m_sampler = system.GetSamplerManager().GetSampler(sampler);
         pimpl->m_sdesc = sampler;
 
         pimpl->m_full_view = std::make_unique<SlicedTextureView>(
-            m_system, *this, TextureSlice{0, texture.mipmap_levels, 0, texture.array_layers}
+            system, *this, TextureSlice{0, texture.mipmap_levels, 0, texture.array_layers}
         );
     }
 
-    Texture::Texture(Texture && o) noexcept : Texture(o.m_system) {
+    Texture::Texture(Texture && o) noexcept : Texture() {
         std::swap(this->pimpl, o.pimpl);
     }
 
@@ -93,7 +93,7 @@ namespace Engine {
         return pimpl->m_sampler;
     }
 
-    Buffer Engine::Texture::CreateStagingBuffer() const {
+    Buffer Engine::Texture::CreateStagingBuffer(const RenderSystemState::AllocatorState & allocator) const {
         assert(
             ((std::get<0>(ImageUtils::GetImageFlags(this->GetTextureDescription().type))
               & vk::ImageUsageFlagBits::eTransferDst)
@@ -107,7 +107,7 @@ namespace Engine {
         assert(buffer_size > 0);
 
         return Buffer::Create(
-            m_system,
+            allocator,
             Buffer::BufferType::Staging,
             buffer_size,
             std::format("Buffer - texture ({}) staging", pimpl->m_name)

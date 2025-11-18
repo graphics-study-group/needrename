@@ -16,6 +16,10 @@ namespace Engine {
     class AllocatedMemory;
     class Buffer;
 
+    namespace RenderSystemState {
+        class AllocatorState;
+    };
+
     /**
      *  @brief A base class for textures with handles to 
      * allocated GPU resources. You should call named constructors
@@ -29,13 +33,12 @@ namespace Engine {
         using SamplerDesc = ImageUtils::SamplerDesc;
 
     protected:
-        RenderSystem &m_system;
 
         struct impl;
         std::unique_ptr <impl> pimpl;
         
         // Used in move operator for copy-and-swap
-        Texture (RenderSystem &);
+        Texture ();
 
         Texture(
             RenderSystem & system,
@@ -88,7 +91,7 @@ namespace Engine {
         /**
          * @brief Acquire a buffer large enough to hold the whole texture.
          */
-        Buffer CreateStagingBuffer() const;
+        Buffer CreateStagingBuffer(const RenderSystemState::AllocatorState & allocator) const;
 
         /**
          * @brief Whether this texture supports random access (UAV

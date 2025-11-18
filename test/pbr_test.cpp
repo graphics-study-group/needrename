@@ -134,7 +134,7 @@ class MeshComponentFromFile : public MeshComponent {
         m_submeshes.clear();
         size_t submesh_count = m_mesh_asset->as<MeshAsset>()->GetSubmeshCount();
         for (size_t i = 0; i < submesh_count; i++) {
-            m_submeshes.push_back(std::make_shared<HomogeneousMesh>(m_system, m_mesh_asset, i));
+            m_submeshes.push_back(std::make_shared<HomogeneousMesh>(m_system.lock()->GetAllocatorState(), m_mesh_asset, i));
         }
     }
 

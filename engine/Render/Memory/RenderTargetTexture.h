@@ -44,6 +44,8 @@ namespace Engine {
             SamplerDesc sampler,
             const std::string & name = ""
         );
+
+        bool support_random_access{false}, support_atomic_access{false};
     
     public:
         static RenderTargetTexture Create(

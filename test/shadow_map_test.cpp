@@ -134,11 +134,11 @@ int main(int argc, char **argv) {
     // Prepare mesh
     auto test_mesh_asset = std::make_shared<LowerPlaneMeshAsset>();
     auto test_mesh_asset_ref = std::make_shared<AssetRef>(test_mesh_asset);
-    HomogeneousMesh test_mesh{rsys, test_mesh_asset_ref, 0};
+    HomogeneousMesh test_mesh{rsys->GetAllocatorState(), test_mesh_asset_ref, 0};
 
     auto test_mesh_asset_2 = std::make_shared<HighPlaneMeshAsset>();
     auto test_mesh_asset_2_ref = std::make_shared<AssetRef>(test_mesh_asset_2);
-    HomogeneousMesh test_mesh_2{rsys, test_mesh_asset_2_ref, 0};
+    HomogeneousMesh test_mesh_2{rsys->GetAllocatorState(), test_mesh_asset_2_ref, 0};
 
     // Submit scene data
     const auto &global_pool = rsys->GetGlobalConstantDescriptorPool();

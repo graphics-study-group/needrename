@@ -51,7 +51,7 @@ namespace Engine {
          * @param name Name of the buffer.
          */
         static IndexedBuffer Create(
-            RenderSystem & system,
+            const RenderSystemState::AllocatorState & allocator,
             BufferType type,
             size_t slice_size,
             size_t slice_alignment,
@@ -59,7 +59,7 @@ namespace Engine {
             const std::string &name = ""
         );
         static std::unique_ptr <IndexedBuffer> CreateUnique(
-            RenderSystem & system,
+            const RenderSystemState::AllocatorState & allocator,
             BufferType type,
             size_t slice_size,
             size_t slice_alignment,

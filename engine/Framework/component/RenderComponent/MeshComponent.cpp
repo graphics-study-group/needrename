@@ -1,6 +1,7 @@
 #include "MeshComponent.h"
 
 #include "Asset/Mesh/MeshAsset.h"
+#include "Render/RenderSystem.h"
 #include "Render/RenderSystem/FrameManager.h"
 #include "Render/RenderSystem/SubmissionHelper.h"
 #include "Render/Renderer/HomogeneousMesh.h"
@@ -30,7 +31,7 @@ namespace Engine {
         m_submeshes.clear();
         size_t submesh_count = m_mesh_asset->as<MeshAsset>()->GetSubmeshCount();
         for (size_t i = 0; i < submesh_count; i++) {
-            m_submeshes.push_back(std::make_shared<HomogeneousMesh>(m_system, m_mesh_asset, i));
+            m_submeshes.push_back(std::make_shared<HomogeneousMesh>(m_system.lock()->GetAllocatorState(), m_mesh_asset, i));
         }
     }
 

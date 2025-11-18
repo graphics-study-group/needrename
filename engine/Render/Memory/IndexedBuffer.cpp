@@ -36,7 +36,7 @@ namespace Engine {
     IndexedBuffer::~IndexedBuffer() = default;
 
     IndexedBuffer IndexedBuffer::Create(
-        RenderSystem & system,
+        const RenderSystemState::AllocatorState & allocator,
         BufferType type,
         size_t slice_size,
         size_t slice_alignment,
@@ -48,9 +48,8 @@ namespace Engine {
         size_t aligned_size =
             slice_alignment ? ((slice_size + slice_alignment - 1) & ~(slice_alignment - 1)) : slice_size;
 
-        auto &allocator_state = system.GetAllocatorState();
         return IndexedBuffer(
-            allocator_state.AllocateBuffer(type, aligned_size * slices, name), 
+            allocator.AllocateBuffer(type, aligned_size * slices, name), 
             aligned_size * slices,
             slice_size,
             slice_alignment,
@@ -60,7 +59,7 @@ namespace Engine {
     }
 
     std::unique_ptr<IndexedBuffer> IndexedBuffer::CreateUnique(
-        RenderSystem &system,
+        const RenderSystemState::AllocatorState & allocator,
         BufferType type,
         size_t slice_size,
         size_t slice_alignment,
@@ -72,9 +71,8 @@ namespace Engine {
         size_t aligned_size =
             slice_alignment ? ((slice_size + slice_alignment - 1) & ~(slice_alignment - 1)) : slice_size;
 
-        auto &allocator_state = system.GetAllocatorState();
         return std::unique_ptr<IndexedBuffer>(new IndexedBuffer(
-                allocator_state.AllocateBuffer(type, aligned_size * slices, name), 
+                allocator.AllocateBuffer(type, aligned_size * slices, name), 
                 aligned_size * slices,
                 slice_size,
                 slice_alignment,

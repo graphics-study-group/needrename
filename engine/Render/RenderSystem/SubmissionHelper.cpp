@@ -37,7 +37,7 @@ namespace Engine::RenderSystemState {
             };
             cb.pipelineBarrier2(vk::DependencyInfo{{}, barriers, {}, {}});
 
-            auto buffer{mesh.CreateStagingBuffer()};
+            auto buffer{mesh.CreateStagingBuffer(m_system.GetAllocatorState())};
             vk::BufferCopy copy{0, 0, static_cast<vk::DeviceSize>(mesh.GetExpectedBufferSize())};
             cb.copyBuffer(buffer.GetBuffer(), mesh.GetBuffer().GetBuffer(), {copy});
 
@@ -52,7 +52,7 @@ namespace Engine::RenderSystemState {
         const Texture &texture, const std::byte *data, size_t length
     ) {
         auto enqueued = [&texture, data, length, this](vk::CommandBuffer cb) {
-            Buffer buffer{texture.CreateStagingBuffer()};
+            Buffer buffer{texture.CreateStagingBuffer(m_system.GetAllocatorState())};
             assert(length <= buffer.GetSize());
             std::byte *mapped_ptr = buffer.GetVMAddress();
             std::memcpy(mapped_ptr, data, length);
