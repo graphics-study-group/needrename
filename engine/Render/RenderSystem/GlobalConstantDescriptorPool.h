@@ -5,6 +5,12 @@
 #include "Render/ConstantData/PerSceneConstants.h"
 #include "Render/Memory/IndexedBuffer.h"
 
+#include <vulkan/vulkan_handles.hpp>
+
+namespace vk{
+    class DescriptorPool;
+}
+
 namespace Engine {
     namespace RenderSystemState {
         /**
@@ -22,7 +28,8 @@ namespace Engine {
          * therefore managed by this
          * class.
          */
-        class GlobalConstantDescriptorPool : public Engine::VkWrapperIndependent<vk::UniqueDescriptorPool> {
+        class GlobalConstantDescriptorPool {
+            vk::UniqueDescriptorPool m_handle;
         protected:
             static constexpr uint32_t MAX_SET_SIZE = 128;
             static constexpr uint32_t MAX_CAMERAS = 16;
@@ -70,6 +77,10 @@ namespace Engine {
                 decltype(m_per_scene_descriptor_sets[inflight]) &;
             std::byte *GetPerSceneConstantMemory(uint32_t inflight) const;
             void FlushPerSceneConstantMemory(uint32_t inflight) const;
+
+            vk::DescriptorPool get() const noexcept {
+                return m_handle.get();
+            }
         };
     } // namespace RenderSystemState
 } // namespace Engine

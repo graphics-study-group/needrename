@@ -2,7 +2,6 @@
 #define RENDER_RENDERSYSTEM_SWAPCHAIN_INCLUDED
 
 #include "Render/ImageUtils.h"
-#include "Render/VkWrapper.tcc"
 #include <vector>
 
 namespace Engine {

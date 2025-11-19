@@ -1,10 +1,11 @@
 #ifndef RENDER_CONSTANTDATA_PERSCENECONSTANTS_INCLUDED
 #define RENDER_CONSTANTDATA_PERSCENECONSTANTS_INCLUDED
 
-#include "Render/VkWrapper.tcc"
 #include <glm.hpp>
+#include <vulkan/vulkan_handles.hpp>
 
 namespace vk {
+    class DescriptorSetLayout;
     class Device;
 }
 
@@ -32,10 +33,15 @@ layout(std140, set = 0, binding = 0)
             alignas(16) glm::vec4 light_color[MAX_LIGHT_SOURCES_PER_SCENE];
         };
 
-        class PerSceneConstantLayout : public VkWrapperIndependent<vk::UniqueDescriptorSetLayout> {
+        class PerSceneConstantLayout {
+            vk::UniqueDescriptorSetLayout m_handle;
         public:
             static constexpr uint32_t PER_SCENE_SET_NUMBER = 0;
             void Create(vk::Device device);
+
+            vk::DescriptorSetLayout get() const noexcept {
+                return m_handle.get();
+            }
         };
     } // namespace ConstantData
 } // namespace Engine
