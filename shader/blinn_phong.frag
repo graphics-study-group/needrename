@@ -1,4 +1,6 @@
 #version 450
+#extension GL_ARB_shading_language_include : require
+#include "interface.glsl"
 
 layout(constant_id = 0) const int SPECULAR_SHADING_MODE = 2;
 
@@ -9,17 +11,6 @@ layout(location = 3) in vec3 frag_position;
 
 layout(location = 0) out vec4 outColor;
 
-layout(set = 0, binding = 0) uniform PerSceneUniform {
-    uint light_count;
-    vec4 light_source[8];
-    vec4 light_color[8];
-} scene;
-
-layout(set = 1, binding = 0) uniform CameraBuffer{
-    mat4 view;
-    mat4 proj;
-} camera;
-
 layout(set = 2, binding = 1) uniform sampler2D base_tex;
 layout(set = 2, binding = 0) uniform Material {
     vec4 specular_color;
@@ -27,11 +18,11 @@ layout(set = 2, binding = 0) uniform Material {
 } material;
 
 void main() {
-    vec3 frag_position_vs = (camera.view * vec4(frag_position, 1.0)).xyz;
+    vec3 frag_position_vs = (camera.cameras[pc.camera_id].view * vec4(frag_position, 1.0)).xyz;
     // Get normalized normal vector in view space
-    vec3 normal_vs = normalize(mat3(camera.view) * frag_normal);
+    vec3 normal_vs = normalize(mat3(camera.cameras[pc.camera_id].view) * frag_normal);
     // Get normalized incident vector pointing from the light source
-    vec3 incident_vs = (camera.view * vec4(frag_position - scene.light_source[0].xyz, 1.0)).xyz;
+    vec3 incident_vs = (camera.cameras[pc.camera_id].view * vec4(frag_position - scene.light_source[0].xyz, 1.0)).xyz;
     incident_vs = normalize(incident_vs);
     // Get view position in view space
     vec3 view_position_vs = vec3(0.0, 0.0, 0.0);

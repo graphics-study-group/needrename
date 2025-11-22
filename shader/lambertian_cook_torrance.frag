@@ -3,6 +3,8 @@
  * Modified from https://github.com/Nadrin/PBR/blob/master/data/shaders/glsl/pbr_fs.glsl.
  */
 #version 450 core
+#extension GL_ARB_shading_language_include : require
+#include "interface.glsl"
 
 #define M_PI 3.1415926538
 #define M_EPS (1e-5)
@@ -13,17 +15,6 @@ layout(location = 2) in vec3 frag_normal;
 layout(location = 3) in vec3 frag_position;
 
 layout(location = 0) out vec4 out_color;
-
-layout(set = 0, binding = 0) uniform PerSceneUniform {
-    uint light_count;
-    vec4 light_source[8];
-    vec4 light_color[8];
-} scene;
-
-layout(std140, set = 1, binding = 0) uniform CameraBuffer {
-    mat4 view;
-    mat4 proj;
-} camera;
 
 layout(std140, set = 2, binding = 0) uniform Material {
     float metalness;
@@ -70,8 +61,8 @@ void main()
     const float roughness = material.roughness;
 
     // Remember that we are in view space, and the camera is at exactly (0,0,0).
-    vec3 Lo = normalize((- camera.view * vec4(frag_position, 1.0)).xyz);
-    vec3 N = (camera.view * vec4(frag_normal, 0.0)).xyz;
+    vec3 Lo = normalize((- camera.cameras[pc.camera_id].view * vec4(frag_position, 1.0)).xyz);
+    vec3 N = (camera.cameras[pc.camera_id].view * vec4(frag_normal, 0.0)).xyz;
     float cosLo = max(0.0, dot(N, Lo));
         
     // Specular reflection vector.
@@ -83,7 +74,7 @@ void main()
     vec3 directLighting = vec3(0);
     for(int i = 0; i < scene.light_count; ++i)
     {
-        vec3 Li = -(camera.view * vec4(frag_position - scene.light_source[i].xyz, 0.0)).xyz;
+        vec3 Li = -(camera.cameras[pc.camera_id].view * vec4(frag_position - scene.light_source[i].xyz, 0.0)).xyz;
         vec3 Lradiance = scene.light_color[i].rgb;
         vec3 Lh = normalize(Li + Lo);
 
