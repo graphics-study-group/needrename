@@ -12,6 +12,7 @@
 #include "Render/RenderSystem/GlobalConstantDescriptorPool.h"
 #include "Render/RenderSystem/RendererManager.h"
 #include "Render/RenderSystem/Swapchain.h"
+#include "Render/RenderSystem/CameraManager.h"
 #include "Render/Renderer/Camera.h"
 #include "Render/Renderer/HomogeneousMesh.h"
 
@@ -116,7 +117,7 @@ namespace Engine {
 
         const auto &global_pool = m_system.GetGlobalConstantDescriptorPool();
         const auto &per_scene_descriptor_set = global_pool.GetPerSceneConstantSet(m_inflight_frame_index);
-        const auto &per_camera_descriptor_set = global_pool.GetPerCameraConstantSet(m_inflight_frame_index);
+        const auto &per_camera_descriptor_set = m_system.GetCameraManager().GetDescriptorSet(m_inflight_frame_index);
         auto material_descriptor_set = material.GetDescriptor(tpl, m_inflight_frame_index);
 
         if (material_descriptor_set) {
@@ -125,9 +126,7 @@ namespace Engine {
                 pipeline_layout,
                 0,
                 {per_scene_descriptor_set, per_camera_descriptor_set, material_descriptor_set},
-                {static_cast<uint32_t>(
-                    global_pool.GetPerCameraDynamicOffset(m_inflight_frame_index, m_system.GetActiveCameraId())
-                )}
+                {}
             );
         } else {
             cb.bindDescriptorSets(
@@ -135,9 +134,7 @@ namespace Engine {
                 pipeline_layout,
                 0,
                 {per_scene_descriptor_set, per_camera_descriptor_set},
-                {static_cast<uint32_t>(
-                    global_pool.GetPerCameraDynamicOffset(m_inflight_frame_index, m_system.GetActiveCameraId())
-                )}
+                {}
             );
         }
     }
@@ -153,44 +150,48 @@ namespace Engine {
     }
 
     void GraphicsCommandBuffer::DrawMesh(const HomogeneousMesh &mesh, const glm::mat4 &model_matrix) {
+        this->DrawMesh(mesh, model_matrix, m_system.GetCameraManager().GetActiveCameraIndex());
+    }
+
+    void GraphicsCommandBuffer::DrawMesh(
+        const HomogeneousMesh &mesh, const glm::mat4 &model_matrix, int32_t camera_index
+    ) {
         auto bindings = mesh.GetVertexBufferInfo();
         std::vector<vk::Buffer> vertex_buffers{bindings.second.size(), bindings.first};
         cb.bindVertexBuffers(0, vertex_buffers, bindings.second);
         auto indices = mesh.GetIndexBufferInfo();
         cb.bindIndexBuffer(indices.first, indices.second, vk::IndexType::eUint32);
 
+        struct {
+            glm::mat4 m;
+            int32_t i;
+        } push_constants {.m = model_matrix, .i = camera_index};
+
         cb.pushConstants(
             m_bound_material_pipeline.value().second,
             vk::ShaderStageFlagBits::eVertex,
             0,
             ConstantData::PerModelConstantPushConstant::PUSH_RANGE_SIZE,
-            reinterpret_cast<const void *>(&model_matrix)
+            reinterpret_cast<const void *>(&push_constants)
         );
         cb.drawIndexed(mesh.GetVertexIndexCount(), 1, 0, 0, 0);
     }
 
     void GraphicsCommandBuffer::DrawRenderers(const std::string & tag, const RendererList &renderers) {
-        auto camera = m_system.GetActiveCamera().lock();
-        assert(camera);
-        this->DrawRenderers(tag,
-            renderers, camera->GetViewMatrix(), camera->GetProjectionMatrix(), m_system.GetSwapchain().GetExtent()
+        this->DrawRenderers(
+            tag,
+            renderers,
+            m_system.GetCameraManager().GetActiveCameraIndex(),
+            m_system.GetSwapchain().GetExtent()
         );
     }
 
     void GraphicsCommandBuffer::DrawRenderers(
         const std::string & tag,
         const RendererList &renderers,
-        const glm::mat4 &view_matrix,
-        const glm::mat4 &projection_matrix,
+        int32_t camera_index,
         vk::Extent2D extent
     ) {
-        // Write camera transforms
-        auto camera_ptr = m_system.GetGlobalConstantDescriptorPool().GetPerCameraConstantMemory(
-            m_system.GetFrameManager().GetFrameInFlight(), m_system.GetActiveCameraId()
-        );
-        ConstantData::PerCameraStruct camera_struct{view_matrix, projection_matrix};
-        std::memcpy(camera_ptr, &camera_struct, sizeof camera_struct);
-
         vk::Rect2D scissor{{0, 0}, extent};
         this->SetupViewport(extent.width, extent.height, scissor);
         for (const auto &rid : renderers) {
@@ -205,7 +206,7 @@ namespace Engine {
                 assert(materials.size() == meshes.size());
                 for (size_t id = 0; id < materials.size(); id++) {
                     this->BindMaterial(*materials[id], tag, HomogeneousMesh::MeshVertexType::Basic);
-                    this->DrawMesh(*meshes[id], model_matrix);
+                    this->DrawMesh(*meshes[id], model_matrix, camera_index);
                 }
             }
         }

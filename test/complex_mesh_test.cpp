@@ -264,7 +264,7 @@ int main(int argc, char **argv) {
     auto camera = std::make_shared<Camera>();
     camera->set_aspect_ratio(1920.0 / 1080.0);
     camera->UpdateViewMatrix(transform);
-    rsys->SetActiveCamera(camera);
+    rsys->GetCameraManager().SetActiveCameraIndex(camera->m_display_id);
 
     uint64_t frame_count = 0;
     uint64_t start_timer = SDL_GetPerformanceCounter();

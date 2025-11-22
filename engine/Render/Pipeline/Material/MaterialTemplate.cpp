@@ -13,6 +13,7 @@
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/GlobalConstantDescriptorPool.h"
 #include "Render/RenderSystem/Swapchain.h"
+#include "Render/RenderSystem/CameraManager.h"
 #include "Render/Renderer/HomogeneousMesh.h"
 
 #include "Render/Memory/ShaderParameters/ShaderParameterLayout.h"
@@ -95,7 +96,7 @@ namespace Engine {
                 };
                 std::array<vk::DescriptorSetLayout, 3> set_layouts{
                     pool.GetPerSceneConstantLayout().get(),
-                    pool.GetPerCameraConstantLayout().get(),
+                    m_system.GetCameraManager().GetDescriptorSetLayout(),
                     pass_info.desc_layout.get()
                 };
                 vk::PipelineLayoutCreateInfo plci{{}, set_layouts, push_constants};
@@ -111,7 +112,7 @@ namespace Engine {
                     ConstantData::PerModelConstantPushConstant::GetPushConstantRange()
                 };
                 std::array<vk::DescriptorSetLayout, 2> set_layouts{
-                    pool.GetPerSceneConstantLayout().get(), pool.GetPerCameraConstantLayout().get()
+                    pool.GetPerSceneConstantLayout().get(), m_system.GetCameraManager().GetDescriptorSetLayout()
                 };
                 vk::PipelineLayoutCreateInfo plci{{}, set_layouts, push_constants};
                 pass_info.pipeline_layout = device.createPipelineLayoutUnique(plci);

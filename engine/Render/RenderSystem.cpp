@@ -86,20 +86,6 @@ namespace Engine {
         std::cerr << "Render system deconstructed" << std::endl;
     }
 
-    void RenderSystem::SetActiveCamera(std::weak_ptr<Camera> camera) {
-        pimpl->m_active_camera = camera;
-    }
-
-    std::weak_ptr<Camera> RenderSystem::GetActiveCamera() const {
-        return pimpl->m_active_camera;
-    }
-
-    uint32_t RenderSystem::GetActiveCameraId() const {
-        auto camera = pimpl->m_active_camera.lock();
-        return camera ? camera->m_display_id : 0;
-    }
-
-
     vk::Device RenderSystem::GetDevice() const {
         return pimpl->m_device_interface->GetDevice();
     }
@@ -142,12 +128,6 @@ namespace Engine {
         if (pimpl->m_frame_manager.CompositeToFramebufferAndPresent()) {
             this->UpdateSwapchain();
         }
-    }
-
-    void RenderSystem::WritePerCameraConstants(const ConstantData::PerCameraStruct &data, uint32_t in_flight_index) {
-        auto *ptr = pimpl->m_descriptor_pool.GetPerCameraConstantMemory(in_flight_index, GetActiveCameraId());
-        std::memcpy(ptr, &data, sizeof data);
-        pimpl->m_descriptor_pool.FlushPerCameraConstantMemory(in_flight_index, GetActiveCameraId());
     }
 
     void RenderSystem::WaitForIdle() const {

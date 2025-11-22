@@ -166,17 +166,5 @@ namespace Engine {
             };
             return info;
         }
-
-        vk::PipelineShaderStageCreateInfo ToVulkanShaderStageCreateInfo(
-            const PipelineProperties::Shaders &p, std::vector<vk::UniqueShaderModule> &v
-        ) {
-            v.clear();
-        }
-
-        vk::PipelineLayoutCreateInfo ToVulkanPipelineLayoutCreateInfo(const PipelineProperties::Shaders &p) {
-        }
-
-        vk::PipelineRenderingCreateInfo ToVulkanPipelineRenderingCreateInfo(const PipelineProperties::Attachments &p) {
-        }
     } // namespace PipelineUtils
 }; // namespace Engine

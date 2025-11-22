@@ -1,6 +1,7 @@
 #include "SceneWidget.h"
 #include <Core/Functional/SDLWindow.h>
 #include <MainClass.h>
+#include <Framework/world/WorldSystem.h>
 #include <Render/AttachmentUtils.h>
 #include <Render/ImageUtils.h>
 #include <Render/Memory/RenderTargetTexture.h>
@@ -9,6 +10,7 @@
 #include <Render/RenderSystem.h>
 #include <Render/RenderSystem/FrameManager.h>
 #include <Render/RenderSystem/SamplerManager.h>
+#include <Render/RenderSystem/CameraManager.h>
 #include <Render/Renderer/Camera.h>
 #include <backends/imgui_impl_vulkan.h>
 
@@ -88,11 +90,12 @@ namespace Editor {
             {(uint32_t)m_viewport_size.x, (uint32_t)m_viewport_size.y},
             "Editor Scene Pass"
         );
-        Engine::MainClass::GetInstance()->GetRenderSystem()->SetActiveCamera(m_camera.m_camera);
+        Engine::MainClass::GetInstance()->GetRenderSystem()->GetCameraManager().SetActiveCameraIndex(
+            Engine::MainClass::GetInstance()->GetWorldSystem()->m_active_camera->m_display_id
+        );
         cb.DrawRenderers("",
             Engine::MainClass::GetInstance()->GetRenderSystem()->GetRendererManager().FilterAndSortRenderers({}),
-            m_camera.m_camera->GetViewMatrix(),
-            m_camera.m_camera->GetProjectionMatrix(),
+            Engine::MainClass::GetInstance()->GetRenderSystem()->GetCameraManager().GetActiveCameraIndex(),
             {(uint32_t)m_viewport_size.x, (uint32_t)m_viewport_size.y}
         );
         cb.EndRendering();

@@ -199,7 +199,7 @@ namespace Engine {
             this->window->GetExtent(),
             "Main Pass"
         );
-        this->renderer->SetActiveCamera(this->world->m_active_camera);
+        this->renderer->GetCameraManager().SetActiveCameraIndex(this->world->m_active_camera->m_display_id);
         cb.DrawRenderers("", renderer->GetRendererManager().FilterAndSortRenderers({}));
         cb.EndRendering();
 

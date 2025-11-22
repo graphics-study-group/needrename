@@ -155,9 +155,7 @@ int main(int argc, char **argv) {
         auto ptr = global_pool.GetPerSceneConstantMemory(i);
         memcpy(ptr, &scene, sizeof scene);
         global_pool.FlushPerSceneConstantMemory(i);
-        auto camera_ptr = global_pool.GetPerCameraConstantMemory(i, 0);
-        std::memcpy(camera_ptr, &camera_mats, sizeof camera_mats);
-        global_pool.FlushPerCameraConstantMemory(i, 0);
+        rsys->GetCameraManager().WriteCameraMatrices(glm::mat4{1.0f}, glm::mat4{1.0f});
     }
 
     // Prepare attachments

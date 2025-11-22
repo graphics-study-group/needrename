@@ -296,7 +296,7 @@ int main(int argc, char **argv) {
     auto camera = std::make_shared<Camera>();
     camera->set_aspect_ratio(1920.0 / 1080.0);
     camera->UpdateViewMatrix(transform);
-    rsys->SetActiveCamera(camera);
+    rsys->GetCameraManager().SetActiveCameraIndex(camera->m_display_id);
 
     // Setup compute shader
     auto cs_ref = adb->GetNewAssetRef("~/shaders/bloom.comp.asset");

@@ -61,9 +61,6 @@ namespace Engine {
 
         ~RenderSystem();
 
-        void SetActiveCamera(std::weak_ptr<Camera>);
-        std::weak_ptr<Camera> GetActiveCamera() const;
-        uint32_t GetActiveCameraId() const;
         void WaitForIdle() const;
 
         /// @brief Update the swapchain in response of a window resize etc.
@@ -102,7 +99,6 @@ namespace Engine {
 
         RenderSystemState::CameraManager & GetCameraManager();
 
-        void WritePerCameraConstants(const ConstantData::PerCameraStruct &data, uint32_t in_flight_index);
     };
 } // namespace Engine
 

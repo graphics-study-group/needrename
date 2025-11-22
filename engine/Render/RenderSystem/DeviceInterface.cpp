@@ -338,9 +338,6 @@ namespace Engine::RenderSystemState {
             }
             dci.ppEnabledExtensionNames = extensions.data();
 
-            // Validation layers are not used for logical devices.
-            dci.enabledLayerCount = 0;
-
             device = physical_device.createDeviceUnique(dci);
             if (cfg.dynamic_dispatcher) {
                 cfg.dynamic_dispatcher->init(device.get());

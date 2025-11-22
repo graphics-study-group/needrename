@@ -1,5 +1,5 @@
-#ifndef ENGINE_RENDER_FULLRENDERSYSTEM_INCLUDED
-#define ENGINE_RENDER_FULLRENDERSYSTEM_INCLUDED
+#ifndef RENDER_FULLRENDERSYSTEM
+#define RENDER_FULLRENDERSYSTEM
 
 /** THIS FILE IS USED AS INTERFACE ONLY, DO NOT INCLUDE IT IN THE INTERNAL ENGINE LIBRARY. **/
 
@@ -11,6 +11,7 @@
 #include "Render/ConstantData/PerModelConstants.h"
 #include "Render/ConstantData/PerSceneConstants.h"
 
+#include "Render/RenderSystem/CameraManager.h"
 #include "Render/RenderSystem/FrameManager.h"
 #include "Render/RenderSystem/GlobalConstantDescriptorPool.h"
 #include "Render/RenderSystem/MaterialRegistry.h"
@@ -44,4 +45,4 @@
 
 #include "Render/RenderSystem.h"
 
-#endif // ENGINE_RENDER_FULLRENDERSYSTEM_INCLUDED
+#endif // RENDER_FULLRENDERSYSTEM

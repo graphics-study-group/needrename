@@ -1,5 +1,6 @@
 #include "CameraManager.h"
 
+#include "Render/DebugUtils.h"
 #include "Render/RenderSystem/DeviceInterface.h"
 #include <glm.hpp>
 #include <vulkan/vulkan.h>
@@ -55,6 +56,14 @@ namespace Engine::RenderSystemState {
         vk::DescriptorSetAllocateInfo dsai {desc_pool, layouts};
         auto ret = device.allocateDescriptorSets(dsai);
         std::copy_n(ret.begin(), pimpl->descriptors.size(), pimpl->descriptors.begin());
+
+#ifndef NDEBUG
+        for (uint32_t i = 0; i < pimpl->descriptors.size(); i++) {
+            DEBUG_SET_NAME_TEMPLATE(
+                system->GetDevice(), pimpl->descriptors[i], std::format("Desc Set - Camera {}", i)
+            );
+        }
+#endif
 
         // Allocate the back buffer.
         static_assert(sizeof(impl::CameraData) * MAX_CAMERAS == sizeof(impl::front_buffer));
