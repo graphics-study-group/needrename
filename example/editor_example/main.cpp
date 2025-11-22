@@ -125,7 +125,7 @@ int main() {
         gui->DrawGUI(
             {&window->GetColorTexture(),
              nullptr,
-             Engine::AttachmentUtils::LoadOperation::Load,
+             Engine::AttachmentUtils::LoadOperation::Clear,
              Engine::AttachmentUtils::StoreOperation::Store},
             window->GetExtent(),
             cb
