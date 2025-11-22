@@ -128,6 +128,7 @@ namespace Engine::RenderSystemState {
             return;
         }
         auto index = camera.lock()->m_display_id;
+        assert(index < pimpl->registered_cameras.size());
         if (!pimpl->registered_cameras[index].owner_before(camera)) {
             SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Re-registering camera id %u.", index);
         }
@@ -149,5 +150,27 @@ namespace Engine::RenderSystemState {
     vk::DescriptorSetLayout CameraManager::GetDescriptorSetLayout() const noexcept {
         assert(pimpl->camera_descriptor_set_layout);
         return pimpl->camera_descriptor_set_layout.get();
+    }
+    void CameraManager::SetActiveCameraIndex(uint32_t index) noexcept {
+        assert(index < pimpl->registered_cameras.size());
+        if (pimpl->registered_cameras[index].expired()) {
+            SDL_LogWarn(
+                SDL_LOG_CATEGORY_RENDER, 
+                std::format(
+                    "Camera {} is expired or not registered, but is set to be the active camera.", 
+                    m_active_camera_index
+                ).c_str()
+            );
+        }
+        m_active_camera_index = index;
+    }
+    uint32_t CameraManager::GetActiveCameraIndex() const noexcept {
+        if (pimpl->registered_cameras[m_active_camera_index].expired()) {
+            SDL_LogWarn(
+                SDL_LOG_CATEGORY_RENDER, 
+                std::format("Currently active camera {} is expired or not registered.", m_active_camera_index).c_str()
+            );
+        }
+        return m_active_camera_index;
     }
 } // namespace Engine::RenderSystemState

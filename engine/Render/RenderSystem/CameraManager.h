@@ -7,6 +7,7 @@
 
 namespace vk {
     class DescriptorSet;
+    class DescriptorSetLayout;
 }
 
 namespace Engine {
@@ -64,13 +65,8 @@ namespace Engine {
             vk::DescriptorSet GetDescriptorSet(uint32_t frame_in_flight) const noexcept;
             vk::DescriptorSetLayout GetDescriptorSetLayout() const noexcept;
 
-            void SetActiveCameraIndex(uint32_t index) noexcept {
-                m_active_camera_index = index;
-            }
-
-            uint32_t GetActiveCameraIndex() const noexcept {
-                return m_active_camera_index;
-            }
+            void SetActiveCameraIndex(uint32_t index) noexcept;
+            uint32_t GetActiveCameraIndex() const noexcept;
         };
     }
 }

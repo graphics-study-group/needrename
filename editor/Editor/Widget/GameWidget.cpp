@@ -77,7 +77,7 @@ namespace Editor {
             "Editor Game Pass"
         );
         Engine::MainClass::GetInstance()->GetRenderSystem()->GetCameraManager().SetActiveCameraIndex(
-            Engine::MainClass::GetInstance()->GetWorldSystem()->m_active_camera->m_display_id
+            Engine::MainClass::GetInstance()->GetWorldSystem()->GetActiveCamera()->m_display_id
         );
         cb.DrawRenderers("",
             Engine::MainClass::GetInstance()->GetRenderSystem()->GetRendererManager().FilterAndSortRenderers({})

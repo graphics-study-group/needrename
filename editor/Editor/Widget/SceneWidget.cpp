@@ -25,6 +25,7 @@ namespace Editor {
         // m_camera.m_clipping_far = 1e3f;
         // m_camera.UpdateViewMatrix();
         // m_camera.UpdateProjectionMatrix();
+        Engine::MainClass::GetInstance()->GetRenderSystem()->GetCameraManager().RegisterCamera(m_camera.m_camera);
     }
 
     SceneWidget::~SceneWidget() {
@@ -91,7 +92,7 @@ namespace Editor {
             "Editor Scene Pass"
         );
         Engine::MainClass::GetInstance()->GetRenderSystem()->GetCameraManager().SetActiveCameraIndex(
-            Engine::MainClass::GetInstance()->GetWorldSystem()->m_active_camera->m_display_id
+            Engine::MainClass::GetInstance()->GetWorldSystem()->GetActiveCamera()->m_display_id
         );
         cb.DrawRenderers("",
             Engine::MainClass::GetInstance()->GetRenderSystem()->GetRendererManager().FilterAndSortRenderers({}),

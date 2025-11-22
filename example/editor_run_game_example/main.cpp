@@ -138,7 +138,7 @@ int main() {
     camera_comp->m_camera->set_aspect_ratio(1.0 * opt.resol_x / opt.resol_y);
     auto control_comp = camera_go->template AddComponent<ControlComponent>();
     control_comp->m_camera = camera_comp;
-    cmc->GetWorldSystem()->m_active_camera = camera_comp->m_camera;
+    cmc->GetWorldSystem()->SetActiveCamera(camera_comp->m_camera, &cmc->GetRenderSystem()->GetCameraManager());
     cmc->GetWorldSystem()->AddGameObjectToWorld(camera_go);
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Create Editor Window");
