@@ -169,7 +169,7 @@ namespace Engine {
 
         cb.pushConstants(
             m_bound_material_pipeline.value().second,
-            vk::ShaderStageFlagBits::eVertex,
+            vk::ShaderStageFlagBits::eAll,
             0,
             ConstantData::PerModelConstantPushConstant::PUSH_RANGE_SIZE,
             reinterpret_cast<const void *>(&push_constants)

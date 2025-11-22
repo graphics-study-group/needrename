@@ -117,7 +117,7 @@ RenderGraph BuildRenderGraph(
         vk::CommandBuffer rcb = gcb.GetCommandBuffer();
         rcb.pushConstants(
             material->GetLibrary()->FindMaterialTemplate("", HomogeneousMesh::MeshVertexType::Basic)->GetPipelineLayout(),
-            vk::ShaderStageFlagBits::eVertex,
+            vk::ShaderStageFlagBits::eAll,
             0,
             ConstantData::PerModelConstantPushConstant::PUSH_RANGE_SIZE,
             reinterpret_cast<const void *>(&EYE4)

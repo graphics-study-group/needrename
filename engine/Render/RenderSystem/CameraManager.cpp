@@ -94,7 +94,9 @@ namespace Engine::RenderSystemState {
         );
         for (uint32_t i = 0; i < pimpl->descriptors.size(); i++) {
             buffers[i].offset = pimpl->back_buffer->GetSliceOffset(i);
-            writes[i].setBufferInfo({buffers[i]});
+            writes[i].dstSet = pimpl->descriptors[i];
+            writes[i].descriptorCount = 1;
+            writes[i].pBufferInfo = &buffers[i];
         }
         device.updateDescriptorSets(writes, {});
     }

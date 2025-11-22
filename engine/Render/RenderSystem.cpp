@@ -140,7 +140,9 @@ namespace Engine {
     }
 
     uint32_t RenderSystem::StartFrame() {
-        return pimpl->m_frame_manager.StartFrame();
+        auto fb = pimpl->m_frame_manager.StartFrame();
+        GetCameraManager().UploadCameraData(GetFrameManager().GetFrameInFlight());
+        return fb;
     }
 
     void RenderSystem::impl::CreateSwapchain() {

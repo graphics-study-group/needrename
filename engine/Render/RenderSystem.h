@@ -67,6 +67,14 @@ namespace Engine {
         /// @note You need to recreate depth images and framebuffers that refer to the swap chain.
         void UpdateSwapchain();
 
+        /**
+         * @brief Start the rendering of the next frame.
+         * 
+         * This method also submits necessary data to GPU, meaning that all logic 
+         * that might change these data must finish before calling it. 
+         * If you start a frame by manually calling `FrameManager::StartFrame()`,
+         * then you must make sure that these data are submitted correctly yourself.
+         */
         uint32_t StartFrame();
 
         void CompleteFrame();
