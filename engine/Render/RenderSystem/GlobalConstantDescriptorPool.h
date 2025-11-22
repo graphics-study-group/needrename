@@ -1,7 +1,6 @@
 #ifndef RENDER_RENDERSYSTEM_GLOBALCONSTANTDESCRIPTORPOOL_INCLUDED
 #define RENDER_RENDERSYSTEM_GLOBALCONSTANTDESCRIPTORPOOL_INCLUDED
 
-#include "Render/ConstantData/PerCameraConstants.h"
 #include "Render/ConstantData/PerSceneConstants.h"
 #include "Render/Memory/IndexedBuffer.h"
 
@@ -41,14 +40,6 @@ namespace Engine {
                 vk::DescriptorPoolSize{vk::DescriptorType::eStorageBuffer, 128}
             };
 
-            // Per camera constant descriptor set layout
-            Engine::ConstantData::PerCameraConstantLayout m_per_camera_constant_layout{};
-            // Per camera constant uniform buffers. Per camera constants contain only uniform buffers.
-            std::vector<Engine::IndexedBuffer>
-                m_per_camera_buffers{};
-            // Per camera constant descriptor sets. These sets don't need explicit freeing.
-            std::vector<vk::DescriptorSet> m_per_camera_descriptor_sets{};
-
             // Per scene constant descriptor set layout
             Engine::ConstantData::PerSceneConstantLayout m_per_scene_constant_layout{};
             // Per scene constant uniform buffers. Per scene constants contain only uniform buffers.
@@ -65,12 +56,6 @@ namespace Engine {
             ~GlobalConstantDescriptorPool() = default;
 
             void Create(std::weak_ptr<RenderSystem> system, uint32_t inflight_frame_count);
-            auto GetPerCameraConstantLayout() const -> const decltype(m_per_camera_constant_layout) &;
-            auto GetPerCameraConstantSet(uint32_t inflight) const -> const
-                decltype(m_per_camera_descriptor_sets[inflight]) &;
-            ConstantData::PerCameraStruct *GetPerCameraConstantMemory(uint32_t inflight, uint32_t camera_id) const;
-            std::ptrdiff_t GetPerCameraDynamicOffset(uint32_t inflight, uint32_t camera_id) const;
-            void FlushPerCameraConstantMemory(uint32_t inflight, uint32_t camera_id) const;
 
             auto GetPerSceneConstantLayout() const -> const decltype(m_per_scene_constant_layout) &;
             auto GetPerSceneConstantSet(uint32_t inflight) const -> const
