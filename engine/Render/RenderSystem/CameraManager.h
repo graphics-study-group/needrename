@@ -11,6 +11,8 @@ namespace vk {
 
 namespace Engine {
     class RenderSystem;
+    class Camera;
+
     namespace RenderSystemState {
         /**
          * @brief A class offering unified access to underlying
@@ -32,13 +34,13 @@ namespace Engine {
             void Create(std::shared_ptr <RenderSystem> system);
 
             /**
-             * @brief Write new camera matrices to currently active camera.
+             * @brief Manually write new camera matrices to currently active camera.
              * Effectively calls `WriteCameraMatrices(GetActiveCameraIndex(), ...)`.
              */
             void WriteCameraMatrices(const glm::mat4 & view_matrix, const glm::mat4 & projection_matrix);
 
             /**
-             * @brief Write new camera matrices to a camera.
+             * @brief Manually write new camera matrices to a camera.
              */
             void WriteCameraMatrices(uint32_t index, const glm::mat4 & view_matrix, const glm::mat4 & projection_matrix);
 
@@ -46,6 +48,18 @@ namespace Engine {
              * @brief Upload camera data for a given frame in flight index.
              */
             void UploadCameraData(uint32_t frame_in_flight) const noexcept;
+
+            /**
+             * @brief Register a new camera into the manager, possibly substituting an old one.
+             * 
+             * Pass an empty pointer to unregister all cameras.
+             */
+            void RegisterCamera(std::weak_ptr <Camera> camera) noexcept;
+
+            /**
+             * @brief Fetch camera data from all registered cameras.
+             */
+            void FetchCameraData();
 
             vk::DescriptorSet GetDescriptorSet(uint32_t frame_in_flight) const noexcept;
             vk::DescriptorSetLayout GetDescriptorSetLayout() const noexcept;

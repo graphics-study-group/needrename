@@ -74,14 +74,26 @@ namespace Engine {
          * that might change these data must finish before calling it. 
          * If you start a frame by manually calling `FrameManager::StartFrame()`,
          * then you must make sure that these data are submitted correctly yourself.
+         * 
+         * @todo buffer and texture submissions are completed by `FrameManager`.
+         * Maybe we should unify these two data streams.
          */
         uint32_t StartFrame();
 
+        /**
+         * @brief Complete the rendering of the current frame.
+         * 
+         * This method also does resource (i.e. swapchain) recreation if necessary.
+         * If you end a frame by manually calling `FrameManager::CompleteFrame()`,
+         * then you must make sure that these resources are recreated correctly yourself.
+         */
         void CompleteFrame();
 
         /**
          * @brief Get a handle to the Vulkan logical device that the current Render
          * System runs on.
+         * 
+         * Shorthand for `GetDeviceInterface().GetDevice()`
          */
         vk::Device GetDevice() const;
 

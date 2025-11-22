@@ -1,9 +1,11 @@
 #include "CameraManager.h"
 
+#include "Render/Renderer/Camera.h"
 #include "Render/DebugUtils.h"
 #include "Render/RenderSystem/DeviceInterface.h"
 #include <glm.hpp>
 #include <vulkan/vulkan.h>
+#include <SDL3/SDL.h>
 
 namespace Engine::RenderSystemState {
     struct CameraManager::impl {
@@ -31,6 +33,9 @@ namespace Engine::RenderSystemState {
 
         // Descriptors for each frame in flight
         std::array <vk::DescriptorSet, FrameManager::FRAMES_IN_FLIGHT> descriptors {};
+
+        // Registered cameras
+        std::array <std::weak_ptr<Camera>, MAX_CAMERAS> registered_cameras;
     };
 
     CameraManager::CameraManager() noexcept : pimpl(std::make_unique<impl>()) {
@@ -116,6 +121,26 @@ namespace Engine::RenderSystemState {
             sizeof (pimpl->front_buffer)
         );
         pimpl->back_buffer->FlushSlice(frame_in_flight);
+    }
+    void CameraManager::RegisterCamera(std::weak_ptr<Camera> camera) noexcept {
+        if (camera.owner_before(std::weak_ptr<Camera>())) {
+            std::fill(pimpl->registered_cameras.begin(), pimpl->registered_cameras.end(), std::weak_ptr<Camera>());
+            return;
+        }
+        auto index = camera.lock()->m_display_id;
+        if (!pimpl->registered_cameras[index].owner_before(camera)) {
+            SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Re-registering camera id %u.", index);
+        }
+        pimpl->registered_cameras[index] = camera;
+    }
+    void CameraManager::FetchCameraData() {
+        for (auto p : pimpl->registered_cameras) {
+            // Possible race condition but we don't care anyway.
+            if (!p.expired()) {
+                auto l = p.lock();
+                this->WriteCameraMatrices(l->m_display_id, l->GetViewMatrix(), l->GetProjectionMatrix());
+            }
+        }
     }
     vk::DescriptorSet CameraManager::GetDescriptorSet(uint32_t frame_in_flight) const noexcept {
         assert(frame_in_flight < pimpl->descriptors.size());
