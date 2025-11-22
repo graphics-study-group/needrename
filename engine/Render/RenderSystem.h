@@ -37,6 +37,7 @@ namespace Engine {
         class QueueFamilyIndices;
         class QueueInfo;
         class SamplerManager;
+        class CameraManager;
     }; // namespace RenderSystemState
 
     class RenderSystem : public std::enable_shared_from_this<RenderSystem> {
@@ -98,6 +99,8 @@ namespace Engine {
         RenderSystemState::RendererManager &GetRendererManager();
 
         RenderSystemState::SamplerManager & GetSamplerManager();
+
+        RenderSystemState::CameraManager & GetCameraManager();
 
         void WritePerCameraConstants(const ConstantData::PerCameraStruct &data, uint32_t in_flight_index);
     };

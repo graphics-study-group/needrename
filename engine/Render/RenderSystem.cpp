@@ -17,6 +17,7 @@
 #include "Render/RenderSystem/Structs.h"
 #include "Render/RenderSystem/Swapchain.h"
 #include "Render/RenderSystem/SamplerManager.h"
+#include "Render/RenderSystem/CameraManager.h"
 #include "Render/Renderer/Camera.h"
 #include "Render/Renderer/HomogeneousMesh.h"
 
@@ -36,10 +37,6 @@ namespace Engine {
         /// @brief Create a swap chain, possibly replace the older one.
         void CreateSwapchain();
 
-        static constexpr std::array<std::string_view, 1> device_extension_name = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
-
-        // uint32_t m_in_flight_frame_id = 0;
-
         std::weak_ptr<SDLWindow> m_window;
 
         std::weak_ptr<Camera> m_active_camera{};
@@ -55,6 +52,7 @@ namespace Engine {
         RenderSystemState::MaterialRegistry m_material_registry{};
         RenderSystemState::RendererManager m_renderer_manager;
         RenderSystemState::SamplerManager m_sampler_manager;
+        RenderSystemState::CameraManager m_camera_manager;
     };
 
     RenderSystem::RenderSystem(std::weak_ptr<SDLWindow> parent_window) : pimpl(std::make_unique<RenderSystem::impl>(*this, parent_window)) {
@@ -78,6 +76,7 @@ namespace Engine {
         pimpl->m_frame_manager.Create();
         pimpl->m_descriptor_pool.Create(shared_from_this(), pimpl->m_frame_manager.FRAMES_IN_FLIGHT);
         pimpl->m_material_registry.Create(shared_from_this());
+        pimpl->m_camera_manager.Create(shared_from_this());
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Vulkan initialization finished.");
     }
 
@@ -133,6 +132,10 @@ namespace Engine {
 
     RenderSystemState::SamplerManager &RenderSystem::GetSamplerManager() {
         return pimpl->m_sampler_manager;
+    }
+
+    RenderSystemState::CameraManager &RenderSystem::GetCameraManager() {
+        return pimpl->m_camera_manager;
     }
 
     void RenderSystem::CompleteFrame() {

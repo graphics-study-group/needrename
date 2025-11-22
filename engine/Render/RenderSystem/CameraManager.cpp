@@ -17,6 +17,8 @@ namespace Engine::RenderSystemState {
             }
         };
 
+        std::weak_ptr <RenderSystem> system {};
+
         // Camera descriptor set layout, currently containing only one UBO.
         vk::UniqueDescriptorSetLayout camera_descriptor_set_layout {};
 
@@ -30,16 +32,16 @@ namespace Engine::RenderSystemState {
         std::array <vk::DescriptorSet, FrameManager::FRAMES_IN_FLIGHT> descriptors {};
     };
 
-    CameraManager::CameraManager(
-        RenderSystem &system
-    ) noexcept : m_system(system), pimpl(std::make_unique<impl>()) {
+    CameraManager::CameraManager() noexcept : pimpl(std::make_unique<impl>()) {
     }
     CameraManager::~CameraManager() noexcept = default;
 
-    void CameraManager::Create() {
-        auto desc_pool = m_system.GetGlobalConstantDescriptorPool().get();
-        const auto & allocator = m_system.GetAllocatorState();
-        auto device = m_system.GetDevice();
+    void CameraManager::Create(std::shared_ptr <RenderSystem> system) {
+        pimpl->system = system;
+
+        auto desc_pool = system->GetGlobalConstantDescriptorPool().get();
+        const auto & allocator = system->GetAllocatorState();
+        auto device = system->GetDevice();
         assert(desc_pool && "Camera manager must be initialized after GlobalConstantDescriptorPool.");
 
         // Create decriptor set layout and allocate descriptors
@@ -60,7 +62,7 @@ namespace Engine::RenderSystemState {
             allocator,
             Buffer::BufferType::Uniform,
             sizeof(impl::front_buffer),
-            m_system.GetDeviceInterface().QueryLimit(DeviceInterface::PhysicalDeviceLimitInteger::UniformBufferOffsetAlignment),
+            system->GetDeviceInterface().QueryLimit(DeviceInterface::PhysicalDeviceLimitInteger::UniformBufferOffsetAlignment),
             pimpl->descriptors.size(),
             "Aggregated Camera Uniform Buffer"
         );
@@ -107,5 +109,9 @@ namespace Engine::RenderSystemState {
     vk::DescriptorSet CameraManager::GetDescriptorSet(uint32_t frame_in_flight) const noexcept {
         assert(frame_in_flight < pimpl->descriptors.size());
         return pimpl->descriptors[frame_in_flight];
+    }
+    vk::DescriptorSetLayout CameraManager::GetDescriptorSetLayout() const noexcept {
+        assert(pimpl->camera_descriptor_set_layout);
+        return pimpl->camera_descriptor_set_layout.get();
     }
 } // namespace Engine::RenderSystemState

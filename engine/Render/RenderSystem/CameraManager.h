@@ -20,17 +20,16 @@ namespace Engine {
         public:
             static constexpr uint32_t MAX_CAMERAS = 16;
         private:
-            RenderSystem & m_system;
             uint32_t m_active_camera_index{};
 
             struct impl;
             std::unique_ptr <impl> pimpl;
         public:
 
-            CameraManager(RenderSystem & system) noexcept;
+            CameraManager() noexcept;
             ~CameraManager() noexcept;
 
-            void Create();
+            void Create(std::shared_ptr <RenderSystem> system);
 
             /**
              * @brief Write new camera matrices to currently active camera.
@@ -49,6 +48,7 @@ namespace Engine {
             void UploadCameraData(uint32_t frame_in_flight) const noexcept;
 
             vk::DescriptorSet GetDescriptorSet(uint32_t frame_in_flight) const noexcept;
+            vk::DescriptorSetLayout GetDescriptorSetLayout() const noexcept;
 
             void SetActiveCameraIndex(uint32_t index) noexcept {
                 m_active_camera_index = index;
