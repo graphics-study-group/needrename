@@ -13,6 +13,7 @@ namespace Engine {
     namespace ConstantData {
         struct PerModelPushStruct {
             glm::mat4 model_matrix;
+            int32_t camera_index;
         };
 
         class PerModelConstantPushConstant {
