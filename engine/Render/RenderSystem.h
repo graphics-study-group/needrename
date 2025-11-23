@@ -38,6 +38,7 @@ namespace Engine {
         class QueueInfo;
         class SamplerManager;
         class CameraManager;
+        class SceneDataManager;
     }; // namespace RenderSystemState
 
     class RenderSystem : public std::enable_shared_from_this<RenderSystem> {
@@ -107,8 +108,6 @@ namespace Engine {
 
         const RenderSystemState::Swapchain &GetSwapchain() const;
 
-        const RenderSystemState::GlobalConstantDescriptorPool &GetGlobalConstantDescriptorPool() const;
-
         RenderSystemState::MaterialRegistry &GetMaterialRegistry();
 
         RenderSystemState::FrameManager &GetFrameManager();
@@ -118,6 +117,8 @@ namespace Engine {
         RenderSystemState::SamplerManager & GetSamplerManager();
 
         RenderSystemState::CameraManager & GetCameraManager();
+
+        RenderSystemState::SceneDataManager & GetSceneDataManager();
 
     };
 } // namespace Engine

@@ -9,12 +9,10 @@
 #include "Render/ImageUtilsFunc.h"
 
 #include "Render/ConstantData/PerModelConstants.h"
-#include "Render/ConstantData/PerSceneConstants.h"
 
 #include "Render/RenderSystem/CameraManager.h"
 #include "Render/RenderSystem/DeviceInterface.h"
 #include "Render/RenderSystem/FrameManager.h"
-#include "Render/RenderSystem/GlobalConstantDescriptorPool.h"
 #include "Render/RenderSystem/MaterialRegistry.h"
 #include "Render/RenderSystem/RendererManager.h"
 #include "Render/RenderSystem/SamplerManager.h"

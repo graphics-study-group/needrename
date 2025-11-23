@@ -53,6 +53,7 @@ namespace Engine {
         RenderSystemState::RendererManager m_renderer_manager;
         RenderSystemState::SamplerManager m_sampler_manager;
         RenderSystemState::CameraManager m_camera_manager;
+        RenderSystemState::SceneDataManager m_scene_data_manager;
     };
 
     RenderSystem::RenderSystem(std::weak_ptr<SDLWindow> parent_window) : pimpl(std::make_unique<RenderSystem::impl>(*this, parent_window)) {
@@ -72,11 +73,11 @@ namespace Engine {
 
         pimpl->m_allocator_state.Create();
 
-        // Create synchorization semaphores
         pimpl->m_frame_manager.Create();
         pimpl->m_descriptor_pool.Create(shared_from_this(), pimpl->m_frame_manager.FRAMES_IN_FLIGHT);
         pimpl->m_material_registry.Create(shared_from_this());
         pimpl->m_camera_manager.Create(shared_from_this());
+        pimpl->m_scene_data_manager.Create(shared_from_this());
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Vulkan initialization finished.");
     }
 
@@ -122,6 +123,10 @@ namespace Engine {
 
     RenderSystemState::CameraManager &RenderSystem::GetCameraManager() {
         return pimpl->m_camera_manager;
+    }
+
+    RenderSystemState::SceneDataManager &RenderSystem::GetSceneDataManager() {
+        return pimpl->m_scene_data_manager;
     }
 
     void RenderSystem::CompleteFrame() {
