@@ -9,7 +9,6 @@
 #include "Render/Pipeline/CommandBuffer.h"
 #include "Render/RenderSystem/AllocatorState.h"
 #include "Render/RenderSystem/FrameManager.h"
-#include "Render/RenderSystem/GlobalConstantDescriptorPool.h"
 #include "Render/RenderSystem/MaterialDescriptorManager.h"
 #include "Render/RenderSystem/MaterialRegistry.h"
 #include "Render/RenderSystem/DeviceInterface.h"
@@ -48,7 +47,6 @@ namespace Engine {
         RenderSystemState::AllocatorState m_allocator_state;
         RenderSystemState::Swapchain m_swapchain{};
         RenderSystemState::FrameManager m_frame_manager;
-        RenderSystemState::GlobalConstantDescriptorPool m_descriptor_pool{};
         RenderSystemState::MaterialRegistry m_material_registry{};
         RenderSystemState::RendererManager m_renderer_manager;
         RenderSystemState::SamplerManager m_sampler_manager;
@@ -74,7 +72,6 @@ namespace Engine {
         pimpl->m_allocator_state.Create();
 
         pimpl->m_frame_manager.Create();
-        pimpl->m_descriptor_pool.Create(shared_from_this(), pimpl->m_frame_manager.FRAMES_IN_FLIGHT);
         pimpl->m_material_registry.Create(shared_from_this());
         pimpl->m_camera_manager.Create(shared_from_this());
         pimpl->m_scene_data_manager.Create(shared_from_this());
@@ -100,9 +97,6 @@ namespace Engine {
 
     const RenderSystemState::Swapchain &RenderSystem::GetSwapchain() const {
         return pimpl->m_swapchain;
-    }
-    const RenderSystemState::GlobalConstantDescriptorPool &RenderSystem::GetGlobalConstantDescriptorPool() const {
-        return pimpl->m_descriptor_pool;
     }
 
     RenderSystemState::MaterialRegistry &RenderSystem::GetMaterialRegistry() {
@@ -148,6 +142,9 @@ namespace Engine {
         auto fb = pimpl->m_frame_manager.StartFrame();
         GetCameraManager().FetchCameraData();
         GetCameraManager().UploadCameraData(GetFrameManager().GetFrameInFlight());
+
+        GetSceneDataManager().FetchLightData();
+        GetSceneDataManager().UploadSceneData(GetFrameManager().GetFrameInFlight());
         return fb;
     }
 

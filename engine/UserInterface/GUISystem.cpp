@@ -4,7 +4,6 @@
 #include "Render/ImageUtilsFunc.h"
 #include "Render/Pipeline/CommandBuffer/GraphicsCommandBuffer.h"
 #include "Render/RenderSystem.h"
-#include "Render/RenderSystem/GlobalConstantDescriptorPool.h"
 #include "Render/RenderSystem/Structs.h"
 #include "Render/RenderSystem/Swapchain.h"
 #include "Render/RenderSystem/DeviceInterface.h"

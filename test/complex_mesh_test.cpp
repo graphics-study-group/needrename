@@ -192,14 +192,12 @@ void PrepareGui() {
 }
 
 void SubmitSceneData(std::shared_ptr<RenderSystem> rsys, uint32_t id) {
-    ConstantData::PerSceneStruct scene{
-        1,
-        glm::vec4{GetCartesian(g_SceneData.zenith, g_SceneData.azimuth), 0.0f},
-        glm::vec4{1.0, 1.0, 1.0, 0.0},
-    };
-    auto ptr = rsys->GetGlobalConstantDescriptorPool().GetPerSceneConstantMemory(id);
-    memcpy(ptr, &scene, sizeof scene);
-    rsys->GetGlobalConstantDescriptorPool().FlushPerSceneConstantMemory(id);
+    rsys->GetSceneDataManager().SetLightDirectional(
+        0, 
+        GetCartesian(g_SceneData.zenith, g_SceneData.azimuth), 
+        glm::vec3{1.0, 1.0, 1.0}
+    );
+    rsys->GetSceneDataManager().SetLightCount(1);
 }
 
 void SubmitMaterialData(std::shared_ptr<MeshComponentFromFile> mesh) {

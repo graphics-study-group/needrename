@@ -9,7 +9,6 @@
 #include "Render/Pipeline/Material/MaterialLibrary.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/FrameManager.h"
-#include "Render/RenderSystem/GlobalConstantDescriptorPool.h"
 #include "Render/RenderSystem/RendererManager.h"
 #include "Render/RenderSystem/Swapchain.h"
 #include "Render/RenderSystem/CameraManager.h"
@@ -115,8 +114,7 @@ namespace Engine {
 
         material.UpdateGPUInfo(tpl, m_inflight_frame_index);
 
-        const auto &global_pool = m_system.GetGlobalConstantDescriptorPool();
-        const auto &per_scene_descriptor_set = global_pool.GetPerSceneConstantSet(m_inflight_frame_index);
+        const auto &per_scene_descriptor_set = m_system.GetSceneDataManager().GetDescriptorSet(m_inflight_frame_index);
         const auto &per_camera_descriptor_set = m_system.GetCameraManager().GetDescriptorSet(m_inflight_frame_index);
         auto material_descriptor_set = material.GetDescriptor(tpl, m_inflight_frame_index);
 

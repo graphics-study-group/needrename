@@ -1,6 +1,6 @@
 #include "SceneDataManager.h"
 
-
+#include "Render/Memory/IndexedBuffer.h"
 #include "Render/DebugUtils.h"
 #include <vulkan/vulkan.hpp>
 

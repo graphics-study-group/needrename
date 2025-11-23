@@ -11,7 +11,6 @@
 #include "Render/Pipeline/PipelineInfo.h"
 #include "Render/Pipeline/PipelineUtils.h"
 #include "Render/RenderSystem.h"
-#include "Render/RenderSystem/GlobalConstantDescriptorPool.h"
 #include "Render/RenderSystem/Swapchain.h"
 #include "Render/RenderSystem/CameraManager.h"
 #include "Render/Renderer/HomogeneousMesh.h"
@@ -71,7 +70,6 @@ namespace Engine {
 
         // Create pipeline layout
         {
-            const auto &pool = m_system.GetGlobalConstantDescriptorPool();
             auto desc_bindings = pimpl->m_layout.GenerateLayoutBindings(2);
             if (!desc_bindings.empty()) {
                 unsigned ubo_count{0};
@@ -95,7 +93,7 @@ namespace Engine {
                     ConstantData::PerModelConstantPushConstant::GetPushConstantRange()
                 };
                 std::array<vk::DescriptorSetLayout, 3> set_layouts{
-                    pool.GetPerSceneConstantLayout().get(),
+                    m_system.GetSceneDataManager().GetDescriptorSetLayout(),
                     m_system.GetCameraManager().GetDescriptorSetLayout(),
                     pass_info.desc_layout.get()
                 };
@@ -112,7 +110,8 @@ namespace Engine {
                     ConstantData::PerModelConstantPushConstant::GetPushConstantRange()
                 };
                 std::array<vk::DescriptorSetLayout, 2> set_layouts{
-                    pool.GetPerSceneConstantLayout().get(), m_system.GetCameraManager().GetDescriptorSetLayout()
+                    m_system.GetSceneDataManager().GetDescriptorSetLayout(),
+                    m_system.GetCameraManager().GetDescriptorSetLayout()
                 };
                 vk::PipelineLayoutCreateInfo plci{{}, set_layouts, push_constants};
                 pass_info.pipeline_layout = device.createPipelineLayoutUnique(plci);

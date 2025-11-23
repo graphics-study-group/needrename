@@ -3,6 +3,7 @@
 #include "Render/Renderer/Camera.h"
 #include "Render/DebugUtils.h"
 #include "Render/RenderSystem/DeviceInterface.h"
+#include "Render/Memory/IndexedBuffer.h"
 #include <glm.hpp>
 #include <vulkan/vulkan.h>
 #include <SDL3/SDL.h>

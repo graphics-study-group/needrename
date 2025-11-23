@@ -5,7 +5,7 @@
 #include "Render/Memory/Buffer.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/DeviceInterface.h"
-#include "Render/RenderSystem/GlobalConstantDescriptorPool.h"
+#include "Render/Memory/IndexedBuffer.h"
 #include "Render/Memory/ShaderParameters/ShaderParameter.h"
 #include "Render/Memory/ShaderParameters/ShaderParameterLayout.h"
 #include <string>
@@ -19,19 +19,23 @@ namespace Engine {
 
     struct ComputeStage::impl {
         struct InstancedPassInfo {
-            static constexpr uint32_t BACK_BUFFERS = 3;
+            static constexpr uint32_t BACK_BUFFERS = RenderSystemState::FrameManager::FRAMES_IN_FLIGHT;
 
             std::unordered_map <std::string, std::unique_ptr<IndexedBuffer>> ubos{};
 
             std::bitset<8> _is_ubo_dirty{};
             std::bitset<8> _is_descriptor_dirty{};
 
-            std::array<vk::DescriptorSet, BACK_BUFFERS> desc_sets{};
+            std::array<vk::DescriptorSet, BACK_BUFFERS> desc_sets {};
         } m_ipi;
         
         std::vector <std::byte> m_ubo_staging_buffer{};
 
         PassInfo m_passInfo{};
+        // This will create a lot of allocations of descriptor pool.
+        // We might need to optimize it a little.
+        vk::UniqueDescriptorPool desc_pool {};
+
         ShdrRfl::SPLayout layout{};
         ShdrRfl::ShaderParameters parameters{};
 
@@ -39,6 +43,7 @@ namespace Engine {
             assert(asset.shaderType == ShaderAsset::ShaderType::Compute);
             auto code = asset.binary;
 
+            // Create descriptor and pipeline layout
             layout = ShdrRfl::SPLayout::Reflect(code, false);
             auto desc_bindings = layout.GenerateAllLayoutBindings();
             if (desc_bindings.size() > 1) {
@@ -57,6 +62,28 @@ namespace Engine {
             vk::PipelineLayoutCreateInfo plci{vk::PipelineLayoutCreateFlags{}, {m_passInfo.desc_layout.get()}, {}};
             m_passInfo.pipeline_layout = system.GetDevice().createPipelineLayoutUnique(plci);
 
+            // Create descriptor pool
+            std::unordered_map <vk::DescriptorType, uint32_t> descriptor_pool_size;
+            std::vector <vk::DescriptorPoolSize> flattened_descriptor_pool_size;
+            for (auto b : desc_bindings[0]) {
+                if (auto itr = descriptor_pool_size.find(b.descriptorType); itr == descriptor_pool_size.end()) {
+                    descriptor_pool_size[b.descriptorType] = 1;
+                } else {
+                    *itr++;
+                }
+            }
+            flattened_descriptor_pool_size.reserve(descriptor_pool_size.size());
+            for (const auto & b : descriptor_pool_size) {
+                flattened_descriptor_pool_size.push_back(vk::DescriptorPoolSize{b.first, b.second * InstancedPassInfo::BACK_BUFFERS});
+            }
+            vk::DescriptorPoolCreateInfo dpci {
+                vk::DescriptorPoolCreateFlags{},
+                InstancedPassInfo::BACK_BUFFERS,
+                flattened_descriptor_pool_size
+            };
+            desc_pool = system.GetDevice().createDescriptorPoolUnique(dpci);
+
+            // Create shader module
             vk::ShaderModuleCreateInfo smci{
                 vk::ShaderModuleCreateFlags{},
                 code.size() * sizeof(uint32_t),
@@ -109,7 +136,7 @@ namespace Engine {
         std::array <vk::DescriptorSetLayout, impl::InstancedPassInfo::BACK_BUFFERS> layouts{};
         std::fill(layouts.begin(), layouts.end(), pimpl->m_passInfo.desc_layout.get());
         vk::DescriptorSetAllocateInfo dsai{
-            m_system.GetGlobalConstantDescriptorPool().get(), layouts
+            pimpl->desc_pool.get(), layouts
         };
         auto desc_sets = m_system.GetDevice().allocateDescriptorSets(dsai);
 

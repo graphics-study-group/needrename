@@ -29,7 +29,6 @@ namespace Engine {
         class DeviceInterface;
         class Swapchain;
         class AllocatorState;
-        class GlobalConstantDescriptorPool;
         class MaterialRegistry;
         class FrameManager;
         class RendererManager;
