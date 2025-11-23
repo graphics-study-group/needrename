@@ -14,6 +14,12 @@ namespace Engine::RenderSystemState {
             glm::mat4 proj_matrix;
         };
 
+        static constexpr std::array<vk::DescriptorPoolSize, 1> CAMERA_DESCRIPTOR_POOL_SIZE {
+            vk::DescriptorPoolSize{
+                vk::DescriptorType::eUniformBuffer, 16
+            }
+        };
+
         static constexpr std::array<vk::DescriptorSetLayoutBinding, 1> CAMERA_DESCRIPTOR_BINDINGS {
             vk::DescriptorSetLayoutBinding{
                 0, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eAllGraphics
@@ -21,6 +27,8 @@ namespace Engine::RenderSystemState {
         };
 
         std::weak_ptr <RenderSystem> system {};
+
+        vk::UniqueDescriptorPool camera_descriptor_pool {};
 
         // Camera descriptor set layout, currently containing only one UBO.
         vk::UniqueDescriptorSetLayout camera_descriptor_set_layout {};
@@ -45,10 +53,18 @@ namespace Engine::RenderSystemState {
     void CameraManager::Create(std::shared_ptr <RenderSystem> system) {
         pimpl->system = system;
 
-        auto desc_pool = system->GetGlobalConstantDescriptorPool().get();
         const auto & allocator = system->GetAllocatorState();
         auto device = system->GetDevice();
-        assert(desc_pool && "Camera manager must be initialized after GlobalConstantDescriptorPool.");
+
+        vk::DescriptorPoolCreateInfo dpci {
+            vk::DescriptorPoolCreateFlagBits{},
+            pimpl->descriptors.size(),
+            impl::CAMERA_DESCRIPTOR_POOL_SIZE
+        };
+        pimpl->camera_descriptor_pool = device.createDescriptorPoolUnique(dpci);
+        DEBUG_SET_NAME_TEMPLATE(
+            device, pimpl->camera_descriptor_pool.get(), "Camera Descriptor Pool"
+        );
 
         // Create decriptor set layout and allocate descriptors
         vk::DescriptorSetLayoutCreateInfo dslci {
@@ -58,14 +74,14 @@ namespace Engine::RenderSystemState {
         pimpl->camera_descriptor_set_layout = device.createDescriptorSetLayoutUnique(dslci);
 
         std::vector <vk::DescriptorSetLayout> layouts(pimpl->descriptors.size(), pimpl->camera_descriptor_set_layout.get());
-        vk::DescriptorSetAllocateInfo dsai {desc_pool, layouts};
+        vk::DescriptorSetAllocateInfo dsai {pimpl->camera_descriptor_pool.get(), layouts};
         auto ret = device.allocateDescriptorSets(dsai);
         std::copy_n(ret.begin(), pimpl->descriptors.size(), pimpl->descriptors.begin());
 
 #ifndef NDEBUG
         for (uint32_t i = 0; i < pimpl->descriptors.size(); i++) {
             DEBUG_SET_NAME_TEMPLATE(
-                system->GetDevice(), pimpl->descriptors[i], std::format("Desc Set - Camera {}", i)
+                device, pimpl->descriptors[i], std::format("Desc Set - Camera FIF {}", i)
             );
         }
 #endif
