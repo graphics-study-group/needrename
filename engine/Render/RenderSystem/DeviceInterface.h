@@ -20,6 +20,7 @@ namespace vk {
 namespace Engine {
     namespace RenderSystemState {
         struct QueueFamilyIndices;
+        struct QueueInfo;
         struct SwapchainSupport;
 
         /**
