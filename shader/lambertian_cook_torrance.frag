@@ -72,10 +72,10 @@ void main()
     vec3 F0 = mix(vec3(0.04), albedo, metalness);
 
     vec3 directLighting = vec3(0);
-    for(int i = 0; i < scene.light_count; ++i)
+    for(int i = 0; i < scene.lights.light_count; ++i)
     {
-        vec3 Li = -(camera.cameras[pc.camera_id].view * vec4(frag_position - scene.light_source[i].xyz, 0.0)).xyz;
-        vec3 Lradiance = scene.light_color[i].rgb;
+        vec3 Li = -(camera.cameras[pc.camera_id].view * vec4(frag_position - scene.lights.light_source[i].xyz, 0.0)).xyz;
+        vec3 Lradiance = scene.lights.light_color[i].rgb;
         vec3 Lh = normalize(Li + Lo);
 
         float cosLi = max(0.0, dot(N, Li));

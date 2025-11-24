@@ -3,6 +3,8 @@
 #include "Render/Memory/IndexedBuffer.h"
 #include "Render/DebugUtils.h"
 #include <vulkan/vulkan.hpp>
+#include <ext/matrix_transform.hpp>
+#include <ext/matrix_clip_space.hpp>
 
 namespace Engine::RenderSystemState {
     struct SceneDataManager::impl {
@@ -30,9 +32,14 @@ namespace Engine::RenderSystemState {
                 // Light source in world coordinate, could be position or direction. 
                 // The last component is unused.
                 alignas(16) glm::vec4 light_source[MAX_LIGHTS];
+
                 // Light color in linear RGB multiplied by its strength.
                 // The last component is unused.
                 alignas(16) glm::vec4 light_color[MAX_LIGHTS];
+
+                // Light matrices used in shadow mapping.
+                // Precaculated projection * view matrices.
+                alignas(16) glm::mat4 light_matrices[MAX_LIGHTS];
             };
 
             LightUniformBuffer front_buffer;
@@ -119,6 +126,11 @@ namespace Engine::RenderSystemState {
         assert(index < MAX_LIGHTS);
         pimpl->lights.front_buffer.light_source[index] = glm::vec4(direction, 0.0f);
         pimpl->lights.front_buffer.light_color[index] = glm::vec4(intensity, 0.0f);
+        // TODO: determine clip planes and light eye position from the scene
+        auto proj = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, 0.1f, 10.0f);
+        proj[1][1] *= -1.0f;
+        auto view = glm::lookAtRH(-direction, glm::vec3{0.0f, 0.0f, 0.0f}, glm::vec3{0.0f, 1.0f, 0.0f});
+        pimpl->lights.front_buffer.light_matrices[index] = proj * view;
     }
 
     void SceneDataManager::SetLight(uint32_t index, std::shared_ptr<void> light) noexcept {
@@ -132,14 +144,13 @@ namespace Engine::RenderSystemState {
     }
 
     void SceneDataManager::UploadSceneData(uint32_t frame_in_flight) const noexcept {
+        // TODO: use some dirty bit check to avoid memory write.
         std::memcpy(
             pimpl->lights.back_buffer->GetSlicePtr(frame_in_flight), 
             &pimpl->lights.front_buffer,
             sizeof (pimpl->lights.front_buffer)
         );
         pimpl->lights.back_buffer->FlushSlice(frame_in_flight);
-        // TODO: We should recompute matrices for the lights here for shadow maps.
-
         // We might need to perform descriptor writes here to update textures in the future.
     }
 

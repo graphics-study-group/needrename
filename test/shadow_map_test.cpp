@@ -19,7 +19,10 @@
 using namespace Engine;
 namespace sch = std::chrono;
 
-constexpr glm::mat4 EYE4{glm::mat4(1.0)};
+constexpr Engine::ConstantData::PerModelPushStruct PUSH_CONSTANT{
+    .model_matrix = glm::mat4{1.0f},
+    .camera_index = 0
+}; 
 
 struct LowerPlaneMeshAsset : public MeshAsset {
     LowerPlaneMeshAsset() {
@@ -141,15 +144,13 @@ int main(int argc, char **argv) {
     HomogeneousMesh test_mesh_2{rsys->GetAllocatorState(), test_mesh_asset_2_ref, 0};
 
     // Submit scene data
-    for (uint32_t i = 0; i < 3; i++) {
-        rsys->GetCameraManager().WriteCameraMatrices(glm::mat4{1.0f}, glm::mat4{1.0f});
-        rsys->GetSceneDataManager().SetLightDirectional(
-            0, 
-            glm::vec3{-5.0f, -5.0f, -5.0f}, 
-            glm::vec3{1.0, 1.0, 1.0}
-        );
-        rsys->GetSceneDataManager().SetLightCount(1);
-    }
+    rsys->GetCameraManager().WriteCameraMatrices(glm::mat4{1.0f}, glm::mat4{1.0f});
+    rsys->GetSceneDataManager().SetLightDirectional(
+        0, 
+        glm::vec3{0.0f, 0.0f, 1.0f}, 
+        glm::vec3{1.0, 1.0, 1.0}
+    );
+    rsys->GetSceneDataManager().SetLightCount(1);
 
     // Prepare attachments
     Engine::RenderTargetTexture::RenderTargetTextureDesc desc{
@@ -206,6 +207,7 @@ int main(int argc, char **argv) {
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
         *allocated_image_texture, test_texture_asset->GetPixelData(), test_texture_asset->GetPixelDataSize()
     );
+    rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*blank_color, {1.0f, 0.0f, 0.0f, 0.0f});
 
     RenderGraphBuilder rgb{*rsys};
     rgb.RegisterImageAccess(*color);
@@ -220,7 +222,13 @@ int main(int argc, char **argv) {
             vk::Rect2D shadow_map_scissor{{0, 0}, shadow_map_extent};
             gcb.BeginRendering(
                 {nullptr},
-                {shadow.get(), nullptr, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store},
+                {
+                    shadow.get(), 
+                    nullptr, 
+                    AttachmentUtils::LoadOperation::Clear,
+                    AttachmentUtils::StoreOperation::Store,
+                    AttachmentUtils::DepthClearValue{1.0f, 0U}
+                },
                 shadow_map_extent,
                 "Shadowmap Pass"
             );
@@ -233,7 +241,7 @@ int main(int argc, char **argv) {
                 vk::ShaderStageFlagBits::eAll,
                 0,
                 ConstantData::PerModelConstantPushConstant::PUSH_RANGE_SIZE,
-                reinterpret_cast<const void *>(&EYE4)
+                reinterpret_cast<const void *>(&PUSH_CONSTANT)
             );
             gcb.DrawMesh(test_mesh);
             gcb.DrawMesh(test_mesh_2);
@@ -263,7 +271,7 @@ int main(int argc, char **argv) {
                 vk::ShaderStageFlagBits::eAll,
                 0,
                 ConstantData::PerModelConstantPushConstant::PUSH_RANGE_SIZE,
-                reinterpret_cast<const void *>(&EYE4)
+                reinterpret_cast<const void *>(&PUSH_CONSTANT)
             );
             gcb.DrawMesh(test_mesh);
             gcb.DrawMesh(test_mesh_2);
@@ -283,18 +291,6 @@ int main(int argc, char **argv) {
                 quited = true;
                 break;
             }
-        }
-
-        switch (frame_count % 3) {
-        case 0:
-            rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*blank_color, {1.0f, 0.0f, 0.0f, 0.0f});
-            break;
-        case 1:
-            rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*blank_color, {0.0f, 1.0f, 0.0f, 0.0f});
-            break;
-        case 2:
-            rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*blank_color, {0.0f, 0.0f, 1.0f, 0.0f});
-            break;
         }
 
         auto index = rsys->StartFrame();

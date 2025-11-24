@@ -22,7 +22,7 @@ void main() {
     // Get normalized normal vector in view space
     vec3 normal_vs = normalize(mat3(camera.cameras[pc.camera_id].view) * frag_normal);
     // Get normalized incident vector pointing from the light source
-    vec3 incident_vs = (camera.cameras[pc.camera_id].view * vec4(frag_position - scene.light_source[0].xyz, 1.0)).xyz;
+    vec3 incident_vs = (camera.cameras[pc.camera_id].view * vec4(frag_position - scene.lights.light_source[0].xyz, 1.0)).xyz;
     incident_vs = normalize(incident_vs);
     // Get view position in view space
     vec3 view_position_vs = vec3(0.0, 0.0, 0.0);
