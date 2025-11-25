@@ -8,7 +8,9 @@
 #include "Asset/Material/MaterialTemplateAsset.h"
 #include "Asset/Mesh/PlaneMeshAsset.h"
 #include "Asset/Texture/Image2DTextureAsset.h"
+#include "Framework/object/GameObject.h"
 #include "Framework/component/RenderComponent/MeshComponent.h"
+#include "Framework/world/WorldSystem.h"
 #include "Core/Functional/SDLWindow.h"
 #include "UserInterface/GUISystem.h"
 #include "MainClass.h"
@@ -18,11 +20,6 @@
 
 using namespace Engine;
 namespace sch = std::chrono;
-
-constexpr Engine::ConstantData::PerModelPushStruct PUSH_CONSTANT{
-    .model_matrix = glm::mat4{1.0f},
-    .camera_index = 0
-}; 
 
 struct LowerPlaneMeshAsset : public PlaneMeshAsset {
     LowerPlaneMeshAsset() {
@@ -111,15 +108,6 @@ int main(int argc, char **argv) {
     test_texture_asset->LoadFromFile(std::string(ENGINE_ASSETS_DIR) + "/bunny/bunny.png");
     auto allocated_image_texture = ImageTexture::CreateUnique(*rsys, *test_texture_asset);
 
-    // Prepare mesh
-    auto test_mesh_asset = std::make_shared<LowerPlaneMeshAsset>();
-    auto test_mesh_asset_ref = std::make_shared<AssetRef>(test_mesh_asset);
-    HomogeneousMesh test_mesh{rsys->GetAllocatorState(), test_mesh_asset_ref, 0};
-
-    auto test_mesh_asset_2 = std::make_shared<HighPlaneMeshAsset>();
-    auto test_mesh_asset_2_ref = std::make_shared<AssetRef>(test_mesh_asset_2);
-    HomogeneousMesh test_mesh_2{rsys->GetAllocatorState(), test_mesh_asset_2_ref, 0};
-
     // Submit scene data
     rsys->GetCameraManager().WriteCameraMatrices(glm::mat4{1.0f}, glm::mat4{1.0f});
     rsys->GetSceneDataManager().SetLightDirectional(
@@ -179,13 +167,31 @@ int main(int argc, char **argv) {
         "base_tex", blank_color
     );
 
-    rsys->GetFrameManager().GetSubmissionHelper().EnqueueVertexBufferSubmission(test_mesh);
-    rsys->GetFrameManager().GetSubmissionHelper().EnqueueVertexBufferSubmission(test_mesh_2);
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
         *allocated_image_texture, test_texture_asset->GetPixelData(), test_texture_asset->GetPixelDataSize()
     );
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*blank_color, {1.0f, 0.0f, 0.0f, 0.0f});
 
+    // Prepare mesh
+    auto parent_go = cmc->GetWorldSystem()->CreateGameObject<GameObject>();
+    auto test_mesh_asset = std::make_shared<LowerPlaneMeshAsset>();
+    auto test_mesh_asset_ref = std::make_shared<AssetRef>(test_mesh_asset);
+    auto test_mesh_comp = std::make_shared<MeshComponent>(parent_go);
+    test_mesh_comp->m_mesh_asset = test_mesh_asset_ref;
+    test_mesh_comp->GetMaterials().resize(1);
+    test_mesh_comp->GetMaterials()[0] = test_material_instance;
+    test_mesh_comp->RenderInit();
+
+    auto test_mesh_asset_2 = std::make_shared<HighPlaneMeshAsset>();
+    auto test_mesh_asset_2_ref = std::make_shared<AssetRef>(test_mesh_asset_2);
+    auto test_mesh_comp_2 = std::make_shared<MeshComponent>(parent_go);
+    test_mesh_comp_2->m_mesh_asset = test_mesh_asset_2_ref;
+    test_mesh_comp_2->GetMaterials().resize(1);
+    test_mesh_comp_2->GetMaterials()[0] = test_material_instance;
+    test_mesh_comp_2->RenderInit();
+    
+
+    // Build Render Graph
     RenderGraphBuilder rgb{*rsys};
     rgb.RegisterImageAccess(*color);
     rgb.RegisterImageAccess(*depth);
@@ -194,7 +200,7 @@ int main(int argc, char **argv) {
     using IAT = AccessHelper::ImageAccessType;
     rgb.UseImage(*shadow, IAT::DepthAttachmentWrite);
     rgb.RecordRasterizerPassWithoutRT(
-        [rsys, shadow, test_library, test_material_instance, &test_mesh, &test_mesh_2](GraphicsCommandBuffer &gcb) {
+        [rsys, shadow, test_library, test_material_instance](GraphicsCommandBuffer &gcb) {
             vk::Extent2D shadow_map_extent{2048, 2048};
             vk::Rect2D shadow_map_scissor{{0, 0}, shadow_map_extent};
             gcb.BeginRendering(
@@ -212,16 +218,12 @@ int main(int argc, char **argv) {
             gcb.SetupViewport(shadow_map_extent.width, shadow_map_extent.height, shadow_map_scissor);
             gcb.BindMaterial(*test_material_instance, "Shadowmap", HomogeneousMesh::MeshVertexType::Basic);
 
-            vk::CommandBuffer rcb = gcb.GetCommandBuffer();
-            rcb.pushConstants(
-                test_library->FindMaterialTemplate("Shadowmap", HomogeneousMesh::MeshVertexType::Basic)->GetPipelineLayout(),
-                vk::ShaderStageFlagBits::eAll,
+            gcb.DrawRenderers(
+                "Shadowmap",
+                rsys->GetRendererManager().FilterAndSortRenderers({}),
                 0,
-                ConstantData::PerModelConstantPushConstant::PUSH_RANGE_SIZE,
-                reinterpret_cast<const void *>(&PUSH_CONSTANT)
+                vk::Extent2D{shadow->GetTextureDescription().width, shadow->GetTextureDescription().height}
             );
-            gcb.DrawMesh(test_mesh);
-            gcb.DrawMesh(test_mesh_2);
             gcb.EndRendering();
         }
     );
@@ -236,22 +238,15 @@ int main(int argc, char **argv) {
          AttachmentUtils::LoadOperation::Clear,
          AttachmentUtils::StoreOperation::DontCare,
          AttachmentUtils::DepthClearValue{1.0f, 0U}},
-        [rsys, test_material_instance, test_library, &test_mesh, &test_mesh_2](GraphicsCommandBuffer &gcb) {
+        [rsys, test_material_instance, test_library](GraphicsCommandBuffer &gcb) {
             vk::Extent2D extent{rsys->GetSwapchain().GetExtent()};
             vk::Rect2D scissor{{0, 0}, extent};
             gcb.SetupViewport(extent.width, extent.height, scissor);
             gcb.BindMaterial(*test_material_instance, "Lit", HomogeneousMesh::MeshVertexType::Basic);
-            // Push model matrix...
-            vk::CommandBuffer rcb = gcb.GetCommandBuffer();
-            rcb.pushConstants(
-                test_library->FindMaterialTemplate("Lit", HomogeneousMesh::MeshVertexType::Basic)->GetPipelineLayout(),
-                vk::ShaderStageFlagBits::eAll,
-                0,
-                ConstantData::PerModelConstantPushConstant::PUSH_RANGE_SIZE,
-                reinterpret_cast<const void *>(&PUSH_CONSTANT)
+            gcb.DrawRenderers(
+                "Lit",
+                rsys->GetRendererManager().FilterAndSortRenderers({})
             );
-            gcb.DrawMesh(test_mesh);
-            gcb.DrawMesh(test_mesh_2);
         },
         "Lit pass"
     );
