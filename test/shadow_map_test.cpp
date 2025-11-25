@@ -15,6 +15,7 @@
 #include "UserInterface/GUISystem.h"
 #include "MainClass.h"
 #include "Render/FullRenderSystem.h"
+#include "Framework/component/RenderComponent/ObjTestMeshComponent.h"
 
 #include "cmake_config.h"
 
@@ -25,20 +26,35 @@ struct LowerPlaneMeshAsset : public PlaneMeshAsset {
     LowerPlaneMeshAsset() {
         this->m_submeshes.resize(1);
         this->m_submeshes[0].m_positions = {
-            {1.0f, -1.0f, 0.5f}, {1.0f, 1.0f, 0.5f}, {-1.0f, 1.0f, 0.5f}, {-1.0f, -1.0f, 0.5f},
+            {1.0f, -1.0f, 0.0f}, {1.0f, 1.0f, 0.0f}, {-1.0f, 1.0f, 0.0f}, {-1.0f, -1.0f, 0.0f},
         };
     }
 };
 
-struct HighPlaneMeshAsset : public PlaneMeshAsset {
-    HighPlaneMeshAsset() {
-        this->m_submeshes.resize(1);
-        this->m_submeshes[0].m_positions = {
-            {0.5f, -0.5f, 0.0f},
-            {0.5f, 0.5f, 0.0f},
-            {-0.5f, 0.5f, 0.0f},
-            {-0.5f, -0.5f, 0.0f},
-        };
+class ShadowMapMeshComponent : public ObjTestMeshComponent {
+public:
+    ShadowMapMeshComponent(
+        std::weak_ptr <GameObject> go,
+        std::filesystem::path mesh_file_name,
+        std::shared_ptr<MaterialLibrary> library,
+        std::shared_ptr<Texture> albedo
+    ) : ObjTestMeshComponent(mesh_file_name, go) {
+        auto system = m_system.lock();
+        auto &helper = system->GetFrameManager().GetSubmissionHelper();
+
+        for (size_t i = 0; i < m_submeshes.size(); i++) {
+            auto ptr = std::make_shared<MaterialInstance>(*system, library);
+            ptr->AssignVectorVariable(
+                "ambient_color", glm::vec4(0.0, 0.0, 0.0, 0.0)
+            );
+            ptr->AssignVectorVariable(
+                "specular_color", glm::vec4(1.0, 1.0, 1.0, 64.0)
+            );
+            ptr->AssignTexture(
+                "base_tex", albedo
+            );
+            m_materials.push_back(ptr);
+        }
     }
 };
 
@@ -64,6 +80,7 @@ std::array<std::shared_ptr<MaterialTemplateAsset>, 2> ConstructMaterialTemplate(
     MaterialTemplateSinglePassProperties shadow_map_pass{}, lit_pass{};
     shadow_map_pass.shaders.shaders = std::vector{shadow_map_vs_ref};
     shadow_map_pass.attachments.depth = ImageUtils::ImageFormat::D32SFLOAT;
+    // shadow_map_pass.rasterizer.culling = PipelineProperties::RasterizerProperties::CullingMode::Front;
     lit_pass.shaders.shaders = std::vector{vs_ref, fs_ref};
     lit_pass.attachments.color = std::vector{ImageUtils::ImageFormat::R8G8B8A8UNorm};
     lit_pass.attachments.color_blending = std::vector{PipelineProperties::ColorBlendingProperties{}};
@@ -112,8 +129,8 @@ int main(int argc, char **argv) {
     rsys->GetCameraManager().WriteCameraMatrices(glm::mat4{1.0f}, glm::mat4{1.0f});
     rsys->GetSceneDataManager().SetLightDirectional(
         0, 
-        glm::vec3{0.0f, 0.0f, 1.0f}, 
-        glm::vec3{1.0, 1.0, 1.0}
+        glm::vec3{1.0f, 1.0f, 1.0f}, 
+        glm::vec3{1.0f, 1.0f, 1.0f}
     );
     rsys->GetSceneDataManager().SetLightCount(1);
 
@@ -173,22 +190,36 @@ int main(int argc, char **argv) {
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*blank_color, {1.0f, 0.0f, 0.0f, 0.0f});
 
     // Prepare mesh
-    auto parent_go = cmc->GetWorldSystem()->CreateGameObject<GameObject>();
-    auto test_mesh_asset = std::make_shared<LowerPlaneMeshAsset>();
-    auto test_mesh_asset_ref = std::make_shared<AssetRef>(test_mesh_asset);
-    auto test_mesh_comp = std::make_shared<MeshComponent>(parent_go);
-    test_mesh_comp->m_mesh_asset = test_mesh_asset_ref;
-    test_mesh_comp->GetMaterials().resize(1);
-    test_mesh_comp->GetMaterials()[0] = test_material_instance;
-    test_mesh_comp->RenderInit();
+    auto floor_go = cmc->GetWorldSystem()->CreateGameObject<GameObject>();
+    floor_go->GetTransformRef().SetScale({5.0f, 5.0f, 1.0f}).SetPosition({0.0f, 0.0f, 0.5f});
+    auto floor_mesh_asset = std::make_shared<LowerPlaneMeshAsset>();
+    auto floor_mesh_asset_ref = std::make_shared<AssetRef>(floor_mesh_asset);
+    auto floor_mesh_comp = std::make_shared<MeshComponent>(floor_go);
+    floor_mesh_comp->m_mesh_asset = floor_mesh_asset_ref;
+    floor_mesh_comp->GetMaterials().resize(1);
+    floor_mesh_comp->GetMaterials()[0] = test_material_instance;
+    floor_mesh_comp->RenderInit();
 
-    auto test_mesh_asset_2 = std::make_shared<HighPlaneMeshAsset>();
-    auto test_mesh_asset_2_ref = std::make_shared<AssetRef>(test_mesh_asset_2);
-    auto test_mesh_comp_2 = std::make_shared<MeshComponent>(parent_go);
-    test_mesh_comp_2->m_mesh_asset = test_mesh_asset_2_ref;
-    test_mesh_comp_2->GetMaterials().resize(1);
-    test_mesh_comp_2->GetMaterials()[0] = test_material_instance;
-    test_mesh_comp_2->RenderInit();
+    auto cube_go = cmc->GetWorldSystem()->CreateGameObject<GameObject>();
+    cube_go->GetTransformRef().SetScale({0.5f, 0.5f, 0.5f});
+    auto cube_mesh_comp = std::make_shared<ShadowMapMeshComponent>(
+        cube_go,
+        std::filesystem::path{std::string(ENGINE_ASSETS_DIR) + "/meshes/cube.obj"},
+        test_library,
+        blank_color
+    );
+
+    auto shpere_go = cmc->GetWorldSystem()->CreateGameObject<GameObject>();
+    shpere_go->GetTransformRef().SetScale({0.5f, 0.5f, 0.5f}).SetPosition({1.0f, 2.0f, 0.0f});
+    auto sphere_mesh_comp = std::make_shared<ShadowMapMeshComponent>(
+        shpere_go,
+        std::filesystem::path{std::string(ENGINE_ASSETS_DIR) + "/meshes/sphere.obj"},
+        test_library,
+        blank_color
+    );
+    // We cannot call `RenderInit()` because this component has no associated asset.
+    rsys->GetRendererManager().RegisterRendererComponent(cube_mesh_comp);
+    rsys->GetRendererManager().RegisterRendererComponent(sphere_mesh_comp);
     
 
     // Build Render Graph

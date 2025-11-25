@@ -3,6 +3,7 @@
 
 #include <tiny_obj_loader.h>
 #include <SDL3/SDL.h>
+#include "Asset/Loader/ObjLoader.h"
 #include "Framework/component/RenderComponent/MeshComponent.h"
 
 namespace Engine {
@@ -93,14 +94,19 @@ namespace Engine {
 
     public:
         ObjTestMeshComponent(
-            std::filesystem::path mesh_file_name
-        ) : MeshComponent(std::weak_ptr<GameObject>()) {
+            std::filesystem::path mesh_file_name,
+            std::weak_ptr<GameObject> go = std::weak_ptr<GameObject>()
+        ) : MeshComponent(go) {
             LoadMesh(mesh_file_name);
         }
 
         ~ObjTestMeshComponent() {
             m_materials.clear();
             m_submeshes.clear();
+        }
+
+        virtual void RenderInit() override {
+            assert(!"This component has no mesh nor material asset to load from.");
         }
     };
 }

@@ -12,13 +12,19 @@ namespace Engine {
             Point
         };
         enum class REFL_SER_CLASS() CullingMode {
+            // No faces are culled
             None,
+            // Front faces are culled
             Front,
+            // Back faces are culled
             Back,
+            // All faces are culled
             All
         };
         enum class REFL_SER_CLASS() FrontFace {
+            // Counterclockwise faces are counted as front face.
             Counterclockwise,
+            // Clockwise faces are counted as front face.
             Clockwise
         };
 
