@@ -12,6 +12,31 @@
 namespace Engine {
 
     struct HomogeneousMesh::impl {
+
+        static constexpr std::array<vk::VertexInputBindingDescription, 2> BINDINGS_BASIC = {
+            // Position
+            vk::VertexInputBindingDescription{0, sizeof(VertexStruct::VertexPosition), vk::VertexInputRate::eVertex},
+            // Other attributes
+            vk::VertexInputBindingDescription{1, sizeof(VertexStruct::VertexAttributeBasic), vk::VertexInputRate::eVertex}
+        };
+        static constexpr const std::array<vk::VertexInputAttributeDescription, VertexStruct::VERTEX_ATTRIBUTE_BASIC_COUNT + 1>
+            ATTRIBUTES_BASIC = {
+                // Position
+                vk::VertexInputAttributeDescription{0, BINDINGS_BASIC[0].binding, vk::Format::eR32G32B32Sfloat, 0},
+                // Vertex color
+                vk::VertexInputAttributeDescription{
+                    1, BINDINGS_BASIC[1].binding, vk::Format::eR32G32B32Sfloat, VertexStruct::OFFSET_COLOR
+                },
+                // Vertex normal
+                vk::VertexInputAttributeDescription{
+                    2, BINDINGS_BASIC[1].binding, vk::Format::eR32G32B32Sfloat, VertexStruct::OFFSET_NORMAL
+                },
+                // Texcoord 1
+                vk::VertexInputAttributeDescription{
+                    3, BINDINGS_BASIC[1].binding, vk::Format::eR32G32Sfloat, VertexStruct::OFFSET_TEXCOORD1
+                }
+        };
+
         std::unique_ptr<Buffer> m_buffer{};
         std::vector<vk::DeviceSize> m_buffer_offsets{};
 
@@ -169,7 +194,7 @@ namespace Engine {
     vk::PipelineVertexInputStateCreateInfo HomogeneousMesh::GetVertexInputState(MeshVertexType type) {
         assert(type == MeshVertexType::Basic && "Unimplemented");
         return vk::PipelineVertexInputStateCreateInfo{
-            vk::PipelineVertexInputStateCreateFlags{0}, VertexStruct::BINDINGS_BASIC, VertexStruct::ATTRIBUTES_BASIC
+            vk::PipelineVertexInputStateCreateFlags{0}, impl::BINDINGS_BASIC, impl::ATTRIBUTES_BASIC
         };
     }
 

@@ -2,7 +2,7 @@
 #define RENDER_RENDERER_VERTEXSTRUCT_INCLUDED
 
 #include <cctype>
-#include <vulkan/vulkan.hpp>
+#include <array>
 
 namespace Engine {
     namespace VertexStruct {
@@ -60,31 +60,6 @@ namespace Engine {
             sizeof(VertexPosition) + sizeof(VertexAttributeBasic) + sizeof(VertexAttributeExtended)
                 + sizeof(VertexAttributeSkinned)
         };
-
-        constexpr const std::array<vk::VertexInputBindingDescription, 2> BINDINGS_BASIC = {
-            // Position
-            vk::VertexInputBindingDescription{0, sizeof(VertexPosition), vk::VertexInputRate::eVertex},
-            // Other attributes
-            vk::VertexInputBindingDescription{1, sizeof(VertexAttributeBasic), vk::VertexInputRate::eVertex}
-        };
-        constexpr const std::array<vk::VertexInputAttributeDescription, VertexStruct::VERTEX_ATTRIBUTE_BASIC_COUNT + 1>
-            ATTRIBUTES_BASIC = {
-                // Position
-                vk::VertexInputAttributeDescription{0, BINDINGS_BASIC[0].binding, vk::Format::eR32G32B32Sfloat, 0},
-                // Vertex color
-                vk::VertexInputAttributeDescription{
-                    1, BINDINGS_BASIC[1].binding, vk::Format::eR32G32B32Sfloat, VertexStruct::OFFSET_COLOR
-                },
-                // Vertex normal
-                vk::VertexInputAttributeDescription{
-                    2, BINDINGS_BASIC[1].binding, vk::Format::eR32G32B32Sfloat, VertexStruct::OFFSET_NORMAL
-                },
-                // Texcoord 1
-                vk::VertexInputAttributeDescription{
-                    3, BINDINGS_BASIC[1].binding, vk::Format::eR32G32Sfloat, VertexStruct::OFFSET_TEXCOORD1
-                }
-        };
-
     }; // namespace VertexStruct
 }; // namespace Engine
 
