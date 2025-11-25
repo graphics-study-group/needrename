@@ -6,7 +6,7 @@
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include "Asset/AssetManager/AssetManager.h"
 #include "Asset/Material/MaterialTemplateAsset.h"
-#include "Asset/Mesh/MeshAsset.h"
+#include "Asset/Mesh/PlaneMeshAsset.h"
 #include "Asset/Texture/Image2DTextureAsset.h"
 #include "Framework/component/RenderComponent/MeshComponent.h"
 #include "Core/Functional/SDLWindow.h"
@@ -21,25 +21,16 @@ namespace sch = std::chrono;
 
 constexpr glm::mat4 EYE4 = glm::mat4(1.0f);
 
-struct LowerPlaneMeshAsset : public MeshAsset {
+struct LowerPlaneMeshAsset : public PlaneMeshAsset {
     LowerPlaneMeshAsset() {
         this->m_submeshes.resize(1);
-        this->m_submeshes[0] = {
-            .m_indices = {0, 3, 2, 0, 2, 1},
-            .m_positions =
-                {
-                    {0.5f, -0.5f, 0.0f},
-                    {0.5f, 0.5f, 0.0f},
-                    {-0.5f, 0.5f, 0.0f},
-                    {-0.5f, -0.5f, 0.0f},
-                },
-            .m_attributes_basic = {
-                {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {1.0f, 0.0f}},
-                {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {1.0f, 1.0f}},
-                {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {0.0f, 1.0f}},
-                {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {0.0f, 0.0f}}
-            },
+        this->m_submeshes[0].m_positions = {
+            {1.0f, -1.0f, 0.5f}, {1.0f, 1.0f, 0.5f}, {-1.0f, 1.0f, 0.5f}, {-1.0f, -1.0f, 0.5f},
         };
+        for (auto & attr : this->m_submeshes[0].m_attributes_basic) {
+            // Flip normal to upwards in clip space.
+            attr.normal[2] = -1.0f;
+        }
     }
 };
 
@@ -194,15 +185,13 @@ int main(int argc, char **argv) {
     HomogeneousMesh test_mesh{rsys->GetAllocatorState(), test_mesh_asset_ref, 0};
 
     // Submit scene data
-    for (uint32_t i = 0; i < 3; i++) {
-        rsys->GetCameraManager().WriteCameraMatrices(glm::mat4{1.0f}, glm::mat4{1.0f});
-        rsys->GetSceneDataManager().SetLightDirectional(
-            0, 
-            glm::vec3{-5.0f, -5.0f, -5.0f}, 
-            glm::vec3{1.0, 1.0, 1.0}
-        );
-        rsys->GetSceneDataManager().SetLightCount(1);
-    }
+    rsys->GetCameraManager().WriteCameraMatrices(glm::mat4{1.0f}, glm::mat4{1.0f});
+    rsys->GetSceneDataManager().SetLightDirectional(
+        0, 
+        glm::vec3{-5.0f, -5.0f, -5.0f}, 
+        glm::vec3{1.0, 1.0, 1.0}
+    );
+    rsys->GetSceneDataManager().SetLightCount(1);
 
     // Prepare attachments
     

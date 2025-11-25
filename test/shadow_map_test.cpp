@@ -6,7 +6,7 @@
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include "Asset/AssetManager/AssetManager.h"
 #include "Asset/Material/MaterialTemplateAsset.h"
-#include "Asset/Mesh/MeshAsset.h"
+#include "Asset/Mesh/PlaneMeshAsset.h"
 #include "Asset/Texture/Image2DTextureAsset.h"
 #include "Framework/component/RenderComponent/MeshComponent.h"
 #include "Core/Functional/SDLWindow.h"
@@ -24,46 +24,23 @@ constexpr Engine::ConstantData::PerModelPushStruct PUSH_CONSTANT{
     .camera_index = 0
 }; 
 
-struct LowerPlaneMeshAsset : public MeshAsset {
+struct LowerPlaneMeshAsset : public PlaneMeshAsset {
     LowerPlaneMeshAsset() {
         this->m_submeshes.resize(1);
-        this->m_submeshes[0] = {
-            .m_indices = {0, 3, 2, 0, 2, 1},
-            .m_positions =
-                {
-                    {1.0f, -1.0f, 0.5f},
-                    {1.0f, 1.0f, 0.5f},
-                    {-1.0f, 1.0f, 0.5f},
-                    {-1.0f, -1.0f, 0.5f},
-                },
-            .m_attributes_basic = {
-                {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {1.0f, 0.0f}},
-                {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {1.0f, 1.0f}},
-                {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {0.0f, 1.0f}},
-                {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {0.0f, 0.0f}}
-            },
+        this->m_submeshes[0].m_positions = {
+            {1.0f, -1.0f, 0.5f}, {1.0f, 1.0f, 0.5f}, {-1.0f, 1.0f, 0.5f}, {-1.0f, -1.0f, 0.5f},
         };
     }
 };
 
-struct HighPlaneMeshAsset : public MeshAsset {
+struct HighPlaneMeshAsset : public PlaneMeshAsset {
     HighPlaneMeshAsset() {
         this->m_submeshes.resize(1);
-        this->m_submeshes[0] = {
-            .m_indices = {0, 3, 2, 0, 2, 1},
-            .m_positions =
-                {
-                    {0.5f, -0.5f, 0.0f},
-                    {0.5f, 0.5f, 0.0f},
-                    {-0.5f, 0.5f, 0.0f},
-                    {-0.5f, -0.5f, 0.0f},
-                },
-            .m_attributes_basic = {
-                {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {1.0f, 0.0f}},
-                {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {1.0f, 1.0f}},
-                {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {0.0f, 1.0f}},
-                {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {0.0f, 0.0f}}
-            },
+        this->m_submeshes[0].m_positions = {
+            {0.5f, -0.5f, 0.0f},
+            {0.5f, 0.5f, 0.0f},
+            {-0.5f, 0.5f, 0.0f},
+            {-0.5f, -0.5f, 0.0f},
         };
     }
 };

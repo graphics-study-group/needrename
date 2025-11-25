@@ -11,11 +11,11 @@
 #include "Asset/Material/MaterialTemplateAsset.h"
 #include "Asset/Mesh/MeshAsset.h"
 #include "Asset/Texture/Image2DTextureAsset.h"
-#include "Framework/component/RenderComponent/MeshComponent.h"
 #include "Core/Functional/SDLWindow.h"
 #include "UserInterface/GUISystem.h"
 #include "MainClass.h"
 #include "Render/FullRenderSystem.h"
+#include "Framework/component/RenderComponent/ObjTestMeshComponent.h"
 
 #include "cmake_config.h"
 
@@ -51,101 +51,20 @@ std::pair<std::shared_ptr<MaterialLibraryAsset>, std::shared_ptr<MaterialTemplat
     return std::make_pair(lib_asset, test_asset);
 }
 
-class MeshComponentFromFile : public MeshComponent {
+class PBRMeshComponent : public ObjTestMeshComponent {
     Transform transform;
-
     struct UniformData {
         float metalness;
         float roughness;
     };
-
     UniformData m_uniform_data{1.0, 1.0};
 
-    void LoadMesh(std::filesystem::path mesh) {
-        tinyobj::ObjReaderConfig reader_config{};
-        tinyobj::ObjReader reader{};
-
-        m_materials.clear();
-        m_submeshes.clear();
-
-        if (!reader.ParseFromFile(mesh.string(), reader_config)) {
-            SDL_LogCritical(0, "Failed to load OBJ file %s", mesh.string().c_str());
-            if (!reader.Error().empty()) {
-                SDL_LogCritical(0, "TinyObjLoader reports: %s", reader.Error().c_str());
-            }
-            throw std::runtime_error("Cannot load OBJ file");
-        }
-
-        SDL_LogInfo(0, "Loaded OBJ file %s", mesh.string().c_str());
-        if (!reader.Warning().empty()) {
-            SDL_LogWarn(0, "TinyObjLoader reports: %s", reader.Warning().c_str());
-        }
-
-        const auto &attrib = reader.GetAttrib();
-        const auto &origin_shapes = reader.GetShapes();
-        std::vector<tinyobj::shape_t> shapes;
-        const auto &origin_materials = reader.GetMaterials();
-
-        // We dont need materials from the obj file.
-        std::vector<tinyobj::material_t> materials;
-
-        // Split the subshapes by material
-        for (size_t shp = 0; shp < origin_shapes.size(); shp++) {
-            const auto &shape = origin_shapes[shp];
-            auto shape_vertices_size = shape.mesh.num_face_vertices.size();
-            std::map<int, tinyobj::shape_t> material_id_map;
-            int shape_id = 0;
-            for (size_t fc = 0; fc < shape_vertices_size; fc++) {
-                auto &material_id = shape.mesh.material_ids[fc];
-                if (material_id_map.find(material_id) == material_id_map.end()) {
-                    material_id_map[material_id] = tinyobj::shape_t{
-                        .name = shape.name + "_" + std::to_string(shape_id++),
-                        .mesh = tinyobj::mesh_t{},
-                        .lines = tinyobj::lines_t{},
-                        .points = tinyobj::points_t{}
-                    };
-                }
-                auto &new_shape = material_id_map[material_id];
-                unsigned int face_vertex_count = shape.mesh.num_face_vertices[fc];
-                assert(face_vertex_count == 3);
-                new_shape.mesh.num_face_vertices.push_back(face_vertex_count);
-                new_shape.mesh.material_ids.push_back(material_id);
-                new_shape.mesh.smoothing_group_ids.push_back(shape.mesh.smoothing_group_ids[fc]);
-                for (unsigned int vrtx = 0; vrtx < face_vertex_count; vrtx++) {
-                    new_shape.mesh.indices.push_back(shape.mesh.indices[fc * 3 + vrtx]);
-                }
-            }
-
-            for (const auto &[_, new_shape] : material_id_map) {
-                shapes.push_back(new_shape);
-                materials.push_back(tinyobj::material_t{});
-                std::fill(
-                    shapes.back().mesh.material_ids.begin(), shapes.back().mesh.material_ids.end(), materials.size() - 1
-                );
-            }
-        }
-
-        this->m_mesh_asset =
-            std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(std::make_shared<MeshAsset>()));
-        ObjLoader loader;
-        loader.LoadMeshAssetFromTinyObj(*(this->m_mesh_asset->as<MeshAsset>()), attrib, shapes);
-
-        assert(m_mesh_asset && m_mesh_asset->IsValid());
-        m_submeshes.clear();
-        size_t submesh_count = m_mesh_asset->as<MeshAsset>()->GetSubmeshCount();
-        for (size_t i = 0; i < submesh_count; i++) {
-            m_submeshes.push_back(std::make_shared<HomogeneousMesh>(m_system.lock()->GetAllocatorState(), m_mesh_asset, i));
-        }
-    }
-
 public:
-    MeshComponentFromFile(
+    PBRMeshComponent(
         std::filesystem::path mesh_file_name,
         std::shared_ptr<MaterialLibrary> library,
         std::shared_ptr<const Texture> albedo
-    ) : MeshComponent(std::weak_ptr<GameObject>()), transform() {
-        LoadMesh(mesh_file_name);
-
+    ) : ObjTestMeshComponent(mesh_file_name), transform() {
         auto system = m_system.lock();
         auto &helper = system->GetFrameManager().GetSubmissionHelper();
 
@@ -156,7 +75,7 @@ public:
         }
     }
 
-    ~MeshComponentFromFile() {
+    ~PBRMeshComponent() {
         m_materials.clear();
         m_submeshes.clear();
     }
@@ -215,7 +134,7 @@ void SubmitSceneData(std::shared_ptr<RenderSystem> rsys, uint32_t id) {
     rsys->GetSceneDataManager().SetLightCount(1);
 }
 
-void SubmitMaterialData(std::shared_ptr<MeshComponentFromFile> mesh) {
+void SubmitMaterialData(std::shared_ptr<PBRMeshComponent> mesh) {
     mesh->UpdateUniformData(g_SceneData.metalness, g_SceneData.roughness);
 }
 
@@ -284,7 +203,7 @@ int main(int argc, char **argv) {
 
     // Setup mesh
     std::filesystem::path mesh_path{std::string(ENGINE_ASSETS_DIR) + "/sphere/sphere.obj"};
-    std::shared_ptr tmc = std::make_shared<MeshComponentFromFile>(mesh_path, pbr_material, red_texture);
+    std::shared_ptr tmc = std::make_shared<PBRMeshComponent>(mesh_path, pbr_material, red_texture);
     rsys->GetRendererManager().RegisterRendererComponent(tmc);
 
     // Setup camera
