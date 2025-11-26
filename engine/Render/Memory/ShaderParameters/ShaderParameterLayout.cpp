@@ -218,7 +218,7 @@ namespace Engine::ShdrRfl {
                             vk::DescriptorImageInfo {
                                 (*pimg)->GetSampler(),
                                 (*pimg)->GetImageView(),
-                                vk::ImageLayout::eShaderReadOnlyOptimal
+                                vk::ImageLayout::eReadOnlyOptimal
                             },
                             vk::DescriptorType::eCombinedImageSampler
                         )
