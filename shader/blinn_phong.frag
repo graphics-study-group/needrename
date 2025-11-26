@@ -46,11 +46,22 @@ void main() {
     }
 
     // Sample base color
-    vec3 base_color = texture(base_tex, frag_uv).rgb * frag_color;
+    const vec3 base_color = texture(base_tex, frag_uv).rgb * frag_color;
+    const vec3 ambient = material.ambient_color.rgb * base_color;
+    const vec3 light = diffuse_coef * base_color + (specular_coef * material.specular_color.rgb) * base_color;
+    float shadow_coef = 1.0;
+    if (scene.lights.light_count > 0) {
+        // Caculate shadow
+        // Determine fragment position in light space
+        vec4 frag_position_ls = scene.lights.light_vp_matrix[0] * vec4(frag_position, 1.0);
+        frag_position_ls.xyz /= frag_position_ls.w;
+        // mapping [-1, 1] to [0, 1] for sampling
+        frag_position_ls.xy *= 0.5;
+        frag_position_ls.xy += 0.5;
+        float light_map_depth = texture(light_shadowmaps[0], frag_position_ls.xy).x;
 
-    outColor = vec4(
-        diffuse_coef * base_color + 
-        material.ambient_color.rgb * base_color +
-        (specular_coef * material.specular_color.rgb) * base_color
-        ,1.0);
+        // Larger depth -> farther -> occluded
+        shadow_coef = (light_map_depth > frag_position_ls.z) ? 1.0 : 0.0;
+    }
+    outColor = vec4(ambient + shadow_coef * light, 1.0);
 }

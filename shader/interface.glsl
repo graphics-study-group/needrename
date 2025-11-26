@@ -1,19 +1,20 @@
 #ifndef INTERFACE_GLSL_INCLUDED
 #define INTERFACE_GLSL_INCLUDED
 
-#define MAX_LIGHTS 8
+#define MAX_SHADOW_CASTING_LIGHTS 8
 #define MAX_CAMERAS 16
 
 struct LightAttributeStruct {
     uint light_count;
-    vec4 light_source[MAX_LIGHTS];
-    vec4 light_color[MAX_LIGHTS];
-    mat4 light_vp_matrix[MAX_LIGHTS];
+    vec4 light_source[MAX_SHADOW_CASTING_LIGHTS];
+    vec4 light_color[MAX_SHADOW_CASTING_LIGHTS];
+    mat4 light_vp_matrix[MAX_SHADOW_CASTING_LIGHTS];
 };
 
 layout(set = 0, binding = 0) uniform PerSceneUniform {
     LightAttributeStruct lights;
 } scene;
+layout(set = 0, binding = 1) uniform sampler2D light_shadowmaps[MAX_SHADOW_CASTING_LIGHTS];
 
 struct CameraBufferStruct {
     mat4 view;

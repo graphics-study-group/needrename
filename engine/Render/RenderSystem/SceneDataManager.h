@@ -48,6 +48,11 @@ namespace Engine {
              * @brief Set the shadow map of a shadow-casting light
              * 
              * This manager does not obtain the ownership of the texture.
+             * 
+             * The manager assumes that the shadowmap assigned is sychronized correctly,
+             * and takes the layout `VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL` before
+             * sampling from it. You should use `UseImage(*shadow, ShaderRead)`
+             * or similar to synchronize its access.
              */
             void SetLightShadowMap(uint32_t index, std::weak_ptr <RenderTargetTexture> shadowmap) noexcept;
 
