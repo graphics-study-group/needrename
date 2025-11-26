@@ -27,25 +27,41 @@ namespace Engine::RenderSystemState {
         std::array <vk::DescriptorSet, FrameManager::FRAMES_IN_FLIGHT> descriptors{};
 
         struct {
-            struct LightUniformBuffer {
+            struct ShadowCastingLightUniformBuffer {
                 uint32_t light_count;
                 // Light source in world coordinate, could be position or direction. 
                 // The last component is unused.
-                alignas(16) glm::vec4 light_source[MAX_LIGHTS];
+                alignas(16) glm::vec4 light_source[MAX_SHADOW_CASTING_LIGHTS];
 
                 // Light color in linear RGB multiplied by its strength.
                 // The last component is unused.
-                alignas(16) glm::vec4 light_color[MAX_LIGHTS];
+                alignas(16) glm::vec4 light_color[MAX_SHADOW_CASTING_LIGHTS];
 
                 // Light matrices used in shadow mapping.
                 // Precaculated projection * view matrices.
-                alignas(16) glm::mat4 light_matrices[MAX_LIGHTS];
+                alignas(16) glm::mat4 light_matrices[MAX_SHADOW_CASTING_LIGHTS];
+            };
+
+            struct NonShadowCastingLightUniformBuffer {
+                uint32_t light_count;
+                // Light source in world coordinate, could be position or direction. 
+                // The last component is unused.
+                alignas(16) glm::vec4 light_source[MAX_NON_SHADOW_CASTING_LIGHTS];
+
+                // Light color in linear RGB multiplied by its strength.
+                // The last component is unused.
+                alignas(16) glm::vec4 light_color[MAX_NON_SHADOW_CASTING_LIGHTS];
+            };
+
+            struct LightUniformBuffer {
+                ShadowCastingLightUniformBuffer shadow_casting;
+                // NonShadowCastingLightUniformBuffer non_shadow_casting;
             };
 
             LightUniformBuffer front_buffer;
             std::unique_ptr <IndexedBuffer> back_buffer;
 
-            std::array <std::weak_ptr<void>, MAX_LIGHTS> bound_light_components;
+            std::array <std::weak_ptr<void>, MAX_SHADOW_CASTING_LIGHTS/* + MAX_NON_SHADOW_CASTING_LIGHTS*/> bound_light_components;
         } lights;
     };
     SceneDataManager::SceneDataManager() noexcept : pimpl(std::make_unique<impl>()) {
@@ -123,24 +139,54 @@ namespace Engine::RenderSystemState {
     }
 
     void SceneDataManager::SetLightDirectional(uint32_t index, glm::vec3 direction, glm::vec3 intensity) noexcept {
-        assert(index < MAX_LIGHTS);
-        pimpl->lights.front_buffer.light_source[index] = glm::vec4(direction, 0.0f);
-        pimpl->lights.front_buffer.light_color[index] = glm::vec4(intensity, 0.0f);
+        assert(index < MAX_SHADOW_CASTING_LIGHTS);
+        pimpl->lights.front_buffer.shadow_casting.light_source[index] = glm::vec4(direction, 0.0f);
+        pimpl->lights.front_buffer.shadow_casting.light_color[index] = glm::vec4(intensity, 0.0f);
         // TODO: determine clip planes and light eye position from the scene
         auto proj = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, 0.1f, 10.0f);
         proj[1][1] *= -1.0f;
         auto view = glm::lookAtRH(-direction, glm::vec3{0.0f, 0.0f, 0.0f}, glm::vec3{0.0f, 1.0f, 0.0f});
-        pimpl->lights.front_buffer.light_matrices[index] = proj * view;
+        pimpl->lights.front_buffer.shadow_casting.light_matrices[index] = proj * view;
+    }
+
+    void SceneDataManager::SetLightPoint(
+        uint32_t index, glm::vec3 direction, glm::vec3 intensity, float radius
+    ) noexcept {
+        assert(!"Unimplemented");
+    }
+
+    void SceneDataManager::SetLightCone(
+        uint32_t index, glm::vec3 direction, glm::vec3 intensity, float inner_angle, float outer_angle
+    ) noexcept {
+        assert(!"Unimplemented");
+    }
+
+    void SceneDataManager::SetLightDirectionalNonShadowCasting(
+        uint32_t index, glm::vec3 direction, glm::vec3 intensity
+    ) noexcept {
+        assert(!"Unimplemented");
+    }
+
+    void SceneDataManager::SetLightShadowMap(uint32_t index, std::weak_ptr<RenderTargetTexture> shadowmap) noexcept {
+        assert(!"Unimplemented");
     }
 
     void SceneDataManager::SetLight(uint32_t index, std::shared_ptr<void> light) noexcept {
-        assert(index < MAX_LIGHTS);
+        assert(index < MAX_SHADOW_CASTING_LIGHTS);
         pimpl->lights.bound_light_components[index] = light;
     }
 
+    void SceneDataManager::SetLightNonShadowCasting(uint32_t index, std::shared_ptr<void> light) noexcept {
+        assert(!"Unimplemented");
+    }
+
     void SceneDataManager::SetLightCount(uint32_t count) noexcept {
-        assert(count < MAX_LIGHTS);
-        pimpl->lights.front_buffer.light_count = count;
+        assert(count < MAX_SHADOW_CASTING_LIGHTS);
+        pimpl->lights.front_buffer.shadow_casting.light_count = count;
+    }
+
+    void SceneDataManager::SetLightCountNonShadowCasting(uint32_t count) noexcept {
+        assert(!"Unimplemented");
     }
 
     void SceneDataManager::UploadSceneData(uint32_t frame_in_flight) const noexcept {
