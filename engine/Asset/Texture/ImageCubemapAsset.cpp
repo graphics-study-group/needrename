@@ -7,7 +7,6 @@
 
 namespace Engine {
     void ImageCubemapAsset::LoadFromFile(const std::array <std::filesystem::path, 6> & paths) {
-        stbi_set_flip_vertically_on_load(true); // this is a static variable, so we need to reset it every time
         int width, height, channels;
         auto first_image = stbi_load(paths[0].string().c_str(), &width, &height, &channels, 4);
         assert(first_image);
@@ -19,7 +18,6 @@ namespace Engine {
 
         for (int i = 1; i < 6; i++) {
             int nw, nh, nc;
-            stbi_set_flip_vertically_on_load(true);
             auto image = stbi_load(paths[i].string().c_str(), &nw, &nh, &nc, 4);
             assert(image);
             assert(nw == width && nh == height && nc == channels);
