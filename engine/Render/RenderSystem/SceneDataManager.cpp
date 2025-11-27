@@ -235,29 +235,31 @@ namespace Engine::RenderSystemState {
         pimpl->lights.back_buffer->FlushSlice(frame_in_flight);
         
         const auto shadow_casting_light_count = pimpl->lights.front_buffer.shadow_casting.light_count;
-        std::vector <vk::DescriptorImageInfo> shadowmap_descriptor_write(
-            shadow_casting_light_count,
-            vk::DescriptorImageInfo{}
-        );
+        if (shadow_casting_light_count > 0) {
+            std::vector <vk::DescriptorImageInfo> shadowmap_descriptor_write(
+                shadow_casting_light_count,
+                vk::DescriptorImageInfo{}
+            );
 
-        for (size_t i = 0; i < shadow_casting_light_count; i++) {
-            assert(!pimpl->lights.bound_shadow_maps[i].expired());
-            shadowmap_descriptor_write[i] = vk::DescriptorImageInfo{
-                nullptr, pimpl->lights.bound_shadow_maps[i].lock()->GetImageView(), vk::ImageLayout::eReadOnlyOptimal
-            };
+            for (size_t i = 0; i < shadow_casting_light_count; i++) {
+                assert(!pimpl->lights.bound_shadow_maps[i].expired());
+                shadowmap_descriptor_write[i] = vk::DescriptorImageInfo{
+                    nullptr, pimpl->lights.bound_shadow_maps[i].lock()->GetImageView(), vk::ImageLayout::eReadOnlyOptimal
+                };
+            }
+
+            pimpl->device.updateDescriptorSets(
+                {
+                    vk::WriteDescriptorSet{
+                        pimpl->descriptors[frame_in_flight], 
+                        1, 0, 
+                        vk::DescriptorType::eCombinedImageSampler, 
+                        shadowmap_descriptor_write
+                    }
+                },
+                {}
+            );
         }
-
-        pimpl->device.updateDescriptorSets(
-            {
-                vk::WriteDescriptorSet{
-                    pimpl->descriptors[frame_in_flight], 
-                    1, 0, 
-                    vk::DescriptorType::eCombinedImageSampler, 
-                    shadowmap_descriptor_write
-                }
-            },
-            {}
-        );
     }
 
     void SceneDataManager::FetchLightData() noexcept {
