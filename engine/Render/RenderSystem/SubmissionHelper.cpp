@@ -70,7 +70,7 @@ namespace Engine::RenderSystemState {
                 0,
                 0,
                 0,
-                vk::ImageSubresourceLayers{vk::ImageAspectFlagBits::eColor, 0, 0, 1},
+                vk::ImageSubresourceLayers{vk::ImageAspectFlagBits::eColor, 0, 0, texture.GetTextureDescription().array_layers},
                 vk::Offset3D{0, 0, 0},
                 vk::Extent3D{
                     texture.GetTextureDescription().width,

@@ -38,6 +38,7 @@ namespace Engine {
         assert(dimension != 2 || (depth == 1));
         assert(mipLevels >= 1);
         assert(arrayLayers >= 1);
+        assert(!texture.is_cube_map || arrayLayers == 6);
 
         auto dim = dimension == 1 ? vk::ImageType::e1D : (dimension == 2 ? vk::ImageType::e2D : vk::ImageType::e3D);
         pimpl->m_image = allocator.AllocateImageUnique(
@@ -47,6 +48,7 @@ namespace Engine {
             ImageUtils::GetVkFormat(texture.format),
             mipLevels,
             arrayLayers,
+            texture.is_cube_map,
             vk::SampleCountFlagBits::e1,
             name
         );
@@ -102,7 +104,7 @@ namespace Engine {
             && "A staging buffer is created, but the image does not support tranfer usage."
         );
         uint64_t buffer_size = pimpl->m_tdesc.height 
-            * pimpl->m_tdesc.width * pimpl->m_tdesc.depth 
+            * pimpl->m_tdesc.width * pimpl->m_tdesc.depth * pimpl->m_tdesc.array_layers
             * ImageUtils::GetPixelSize(pimpl->m_tdesc.format);
         assert(buffer_size > 0);
 

@@ -180,6 +180,7 @@ namespace Engine::RenderSystemState {
         vk::Format format,
         uint32_t miplevel,
         uint32_t array_layers,
+        bool is_cube_map,
         vk::SampleCountFlagBits samples,
         const std::string &name
     ) const noexcept try {
@@ -247,8 +248,10 @@ namespace Engine::RenderSystemState {
         }
         
         // VkImageCreateInfo iinfo {};
+        vk::ImageCreateFlags icf{};
+        if (is_cube_map) icf |= vk::ImageCreateFlagBits::eCubeCompatible;
         vk::ImageCreateInfo iinfo{
-            vk::ImageCreateFlags{0U},
+            icf,
             dimension,
             format,
             extent,
@@ -294,6 +297,7 @@ namespace Engine::RenderSystemState {
         vk::Format format,
         uint32_t miplevel,
         uint32_t array_layers,
+        bool is_cube_map,
         vk::SampleCountFlagBits samples,
         const std::string &name
     ) const {
