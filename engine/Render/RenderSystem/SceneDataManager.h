@@ -5,6 +5,7 @@
 #include <fwd.hpp>
 
 namespace vk {
+    class CommandBuffer;
     class DescriptorSet;
     class DescriptorSetLayout;
 }
@@ -93,6 +94,13 @@ namespace Engine {
             void UploadSceneData(uint32_t frame_in_flight) const noexcept;
 
             void FetchLightData() noexcept;
+
+            /**
+             * @brief Record commands for drawing a skybox.
+             * 
+             * @todo It should be relocated and integrated with GraphicsCommandBuffer.
+             */
+            void DrawSkybox(vk::CommandBuffer cb, uint32_t frame_in_flight, glm::mat4 pv) const;
 
             vk::DescriptorSet GetLightDescriptorSet(uint32_t frame_in_flight) const noexcept;
             vk::DescriptorSetLayout GetLightDescriptorSetLayout() const noexcept;

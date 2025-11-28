@@ -5,6 +5,26 @@
 #include <vulkan/vulkan.hpp>
 #include <ext/matrix_transform.hpp>
 #include <ext/matrix_clip_space.hpp>
+#include <fstream>
+
+#include "cmake_config.h"
+
+namespace {
+    std::vector <std::byte> read_spirv_file(std::filesystem::path path) {
+        std::ifstream file(path, std::ios::ate | std::ios::binary);
+
+        if (!file.is_open()) {
+            throw std::runtime_error("failed to open file!");
+        }
+
+        std::vector<std::byte> buffer(file.tellg());
+        file.seekg(0, std::ios::beg);
+        file.read(reinterpret_cast<char*>(buffer.data()), static_cast<std::streamsize>(buffer.size()));
+        file.close();
+
+        return buffer;
+    }
+}
 
 namespace Engine::RenderSystemState {
     struct SceneDataManager::impl {
@@ -156,12 +176,168 @@ namespace Engine::RenderSystemState {
                 }
             };
 
+            static constexpr std::array PIPELINE_PUSH_CONSTANT_RANGE {
+                vk::PushConstantRange{
+                    vk::ShaderStageFlagBits::eAll, 0, sizeof(glm::mat4)
+                }
+            };
+
+            std::array <vk::Sampler, 1> immutable_sampler;
             vk::UniqueDescriptorSetLayout descriptor_set_layout;
             vk::UniquePipelineLayout pipeline_layout;
-            std::array <vk::DescriptorSet, FrameManager::FRAMES_IN_FLIGHT> skybox_descriptors{};
+            vk::UniquePipeline pipeline;
+            std::array <vk::DescriptorSet, FrameManager::FRAMES_IN_FLIGHT> descriptors{};
+
+            void CreatePipeline(std::shared_ptr <RenderSystem> system) {
+                // Get shader modules
+                // TODO: We maybe really need to use the asset system here.
+                auto buffer = read_spirv_file(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "shaders" / "skybox.vert.0.spv");
+                vk::ShaderModuleCreateInfo smci{
+                    vk::ShaderModuleCreateFlags{},
+                    buffer.size(), reinterpret_cast<uint32_t *>(buffer.data())
+                };
+                // these two modules will be destroyed automatically when out of the scope.
+                auto shdrv = system->GetDevice().createShaderModuleUnique(smci);
+                buffer = read_spirv_file(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "shaders" / "skybox.frag.0.spv");
+                smci.codeSize = buffer.size();
+                smci.pCode = reinterpret_cast<uint32_t *>(buffer.data());
+                auto shdrf = system->GetDevice().createShaderModuleUnique(smci);
+
+                // Create the pipeline
+                std::array <vk::PipelineShaderStageCreateInfo, 2> pssci {
+                    vk::PipelineShaderStageCreateInfo{
+                        vk::PipelineShaderStageCreateFlags{},
+                        vk::ShaderStageFlagBits::eVertex,
+                        shdrv.get(),
+                        "main"
+                    },
+                    vk::PipelineShaderStageCreateInfo{
+                        vk::PipelineShaderStageCreateFlags{},
+                        vk::ShaderStageFlagBits::eFragment,
+                        shdrf.get(),
+                        "main"
+                    }
+                };
+
+                // vertex data are hardcoded
+                vk::PipelineVertexInputStateCreateInfo pvisci {};
+                vk::PipelineInputAssemblyStateCreateInfo piasci {
+                    vk::PipelineInputAssemblyStateCreateFlags{},
+                    vk::PrimitiveTopology::eTriangleList
+                };
+                // No tessellation
+                vk::PipelineTessellationStateCreateInfo ptsci {};
+                // Viewport is dynamically set
+                vk::PipelineViewportStateCreateInfo pvsci {{}, 1, {}, 1, {}};
+
+                vk::PipelineRasterizationStateCreateInfo prsci {
+                    vk::PipelineRasterizationStateCreateFlags{},
+                    false, false, vk::PolygonMode::eFill,
+                    vk::CullModeFlagBits::eNone,
+                    vk::FrontFace::eCounterClockwise,
+                    false, 0.0f, 0.0f, 0.0f, 1.0f
+                };
+                // No multisampling
+                vk::PipelineMultisampleStateCreateInfo pmssci {
+                    vk::PipelineMultisampleStateCreateFlags{},
+                    vk::SampleCountFlagBits::e1,
+                    false
+                };
+
+                vk::PipelineDepthStencilStateCreateInfo pdssci {
+                    vk::PipelineDepthStencilStateCreateFlags{},
+                    true, false, vk::CompareOp::eLessOrEqual, false, false
+                };
+
+                std::array color_blend_attachment_states {
+                    vk::PipelineColorBlendAttachmentState{
+                        false,
+                        vk::BlendFactor::eOne, vk::BlendFactor::eZero, vk::BlendOp::eAdd,
+                        vk::BlendFactor::eOne, vk::BlendFactor::eZero, vk::BlendOp::eAdd,
+                        vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
+                        vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA
+                    }
+                };
+                vk::PipelineColorBlendStateCreateInfo pcbsci {
+                    vk::PipelineColorBlendStateCreateFlags{},
+                    false, vk::LogicOp::eNoOp, color_blend_attachment_states
+                };
+                
+                std::array <vk::DynamicState, 2> dynamic_states {
+                    vk::DynamicState::eViewport,
+                    vk::DynamicState::eScissor
+                };
+                vk::PipelineDynamicStateCreateInfo pdsci {
+                    vk::PipelineDynamicStateCreateFlags{},
+                    dynamic_states
+                };
+
+                // TODO: need a way to change these dynamically.
+                std::array color_attachment_formats {
+                    vk::Format::eR8G8B8A8Unorm
+                };
+                vk::PipelineRenderingCreateInfo prci {
+                    0,
+                    color_attachment_formats,
+                    vk::Format::eD32Sfloat,
+                    vk::Format::eUndefined
+                };
+                
+                vk::GraphicsPipelineCreateInfo gpci {
+                    vk::PipelineCreateFlags{},
+                    pssci, &pvisci, &piasci, &ptsci,
+                    &pvsci, &prsci, &pmssci, &pdssci,
+                    &pcbsci, &pdsci, pipeline_layout.get(),
+                    nullptr, 0
+                };
+                gpci.pNext = &prci;
+
+                pipeline = system->GetDevice().createGraphicsPipelineUnique(nullptr, gpci).value;
+                DEBUG_SET_NAME_TEMPLATE(
+                    system->GetDevice(), pipeline.get(), "Skybox Pipeline"
+                );
+            }
 
             void Create(std::shared_ptr<RenderSystem> system, vk::DescriptorPool pool) {
+                auto device = system->GetDevice();
+                // Create descriptor set layout
+                auto descriptor_bindings = DESCRIPTOR_BINDINGS;
+                immutable_sampler[0] = system->GetSamplerManager().GetSampler(
+                    ImageUtils::SamplerDesc{
+                        .u_address = ImageUtils::SamplerDesc::AddressMode::ClampToEdge,
+                        .v_address = ImageUtils::SamplerDesc::AddressMode::ClampToEdge,
+                        .w_address = ImageUtils::SamplerDesc::AddressMode::ClampToEdge
+                    }
+                );
+                descriptor_bindings[0].setImmutableSamplers(immutable_sampler);
+                vk::DescriptorSetLayoutCreateInfo dslci {
+                    vk::DescriptorSetLayoutCreateFlags{},
+                    descriptor_bindings
+                };
+                descriptor_set_layout = device.createDescriptorSetLayoutUnique(dslci);
 
+                // Create pipeline layout for skybox rendering pipeline
+                vk::PipelineLayoutCreateInfo plci{
+                    vk::PipelineLayoutCreateFlags{},
+                    {descriptor_set_layout.get()},
+                    PIPELINE_PUSH_CONSTANT_RANGE
+                };
+                pipeline_layout = device.createPipelineLayoutUnique(plci);
+
+                // Allocate descriptors
+                std::vector <vk::DescriptorSetLayout> layouts(descriptors.size(), descriptor_set_layout.get());
+                vk::DescriptorSetAllocateInfo dsai {pool, layouts};
+                auto ret = device.allocateDescriptorSets(dsai);
+                std::copy_n(ret.begin(), descriptors.size(), descriptors.begin());
+
+#ifndef NDEBUG
+                for (uint32_t i = 0; i < descriptors.size(); i++) {
+                    DEBUG_SET_NAME_TEMPLATE(
+                        device, descriptors[i], std::format("Desc Set - Skybox {}", i)
+                    );
+                }
+#endif
+                CreatePipeline(system);
             }
         } skybox;
 
@@ -171,7 +347,7 @@ namespace Engine::RenderSystemState {
             // Create dedicated descriptor pool
             vk::DescriptorPoolCreateInfo dpci {
                 vk::DescriptorPoolCreateFlagBits{},
-                lights.light_descriptors.size() + skybox.skybox_descriptors.size(),
+                lights.light_descriptors.size() + skybox.descriptors.size(),
                 impl::SCENE_DESCRIPTOR_POOL_SIZE
             };
             scene_descriptor_pool = device.createDescriptorPoolUnique(dpci);
@@ -297,6 +473,28 @@ namespace Engine::RenderSystemState {
         }
     }
 
+    void SceneDataManager::DrawSkybox(vk::CommandBuffer cb, uint32_t frame_in_flight, glm::mat4 pv) const {
+        assert(frame_in_flight < pimpl->skybox.descriptors.size());
+        cb.bindPipeline(vk::PipelineBindPoint::eGraphics, nullptr);
+        cb.bindDescriptorSets(
+            vk::PipelineBindPoint::eGraphics,
+            pimpl->skybox.pipeline_layout.get(),
+            0,
+            { pimpl->skybox.descriptors[frame_in_flight] },
+            {}
+        );
+        // camera PV matrix is pushed directly.
+        cb.pushConstants(
+            pimpl->skybox.pipeline_layout.get(),
+            vk::ShaderStageFlagBits::eAllGraphics,
+            0,
+            sizeof (glm::mat4),
+            { reinterpret_cast<const void *>(&pv) }
+        );
+        // Vertex info is embedded in the skybox.vert shader.
+        cb.draw(36, 1, 0, 0);
+    }
+
     vk::DescriptorSet SceneDataManager::GetLightDescriptorSet(uint32_t frame_in_flight) const noexcept {
         assert(frame_in_flight < pimpl->lights.light_descriptors.size());
         return pimpl->lights.light_descriptors[frame_in_flight];
@@ -304,6 +502,15 @@ namespace Engine::RenderSystemState {
 
     vk::DescriptorSetLayout SceneDataManager::GetLightDescriptorSetLayout() const noexcept {
         return pimpl->lights.descriptor_set_layout.get();
+    }
+
+    vk::DescriptorSet SceneDataManager::GetSkyboxDescriptorSet(uint32_t frame_in_flight) const noexcept {
+        assert(frame_in_flight < pimpl->skybox.descriptors.size());
+        return pimpl->skybox.descriptors[frame_in_flight];
+    }
+
+    vk::DescriptorSetLayout SceneDataManager::GetSkyboxDescriptorSetLayout() const noexcept {
+        return pimpl->skybox.descriptor_set_layout.get();
     }
 
 } // namespace Engine::RenderSystemState
