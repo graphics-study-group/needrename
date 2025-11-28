@@ -93,7 +93,7 @@ namespace Engine {
                     ConstantData::PerModelConstantPushConstant::GetPushConstantRange()
                 };
                 std::array<vk::DescriptorSetLayout, 3> set_layouts{
-                    m_system.GetSceneDataManager().GetDescriptorSetLayout(),
+                    m_system.GetSceneDataManager().GetLightDescriptorSetLayout(),
                     m_system.GetCameraManager().GetDescriptorSetLayout(),
                     pass_info.desc_layout.get()
                 };
@@ -110,7 +110,7 @@ namespace Engine {
                     ConstantData::PerModelConstantPushConstant::GetPushConstantRange()
                 };
                 std::array<vk::DescriptorSetLayout, 2> set_layouts{
-                    m_system.GetSceneDataManager().GetDescriptorSetLayout(),
+                    m_system.GetSceneDataManager().GetLightDescriptorSetLayout(),
                     m_system.GetCameraManager().GetDescriptorSetLayout()
                 };
                 vk::PipelineLayoutCreateInfo plci{{}, set_layouts, push_constants};

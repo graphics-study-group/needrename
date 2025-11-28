@@ -10,31 +10,18 @@ namespace Engine::RenderSystemState {
     struct SceneDataManager::impl {
         vk::Device device;
         vk::UniqueDescriptorPool scene_descriptor_pool;
-        vk::UniqueDescriptorSetLayout scene_descriptor_set_layout;
 
         static constexpr std::array SCENE_DESCRIPTOR_POOL_SIZE {
             vk::DescriptorPoolSize{
                 vk::DescriptorType::eUniformBuffer, 1 * FrameManager::FRAMES_IN_FLIGHT
             },
             vk::DescriptorPoolSize{
-                vk::DescriptorType::eCombinedImageSampler, MAX_SHADOW_CASTING_LIGHTS * FrameManager::FRAMES_IN_FLIGHT
+                // Shadowmaps + skybox cubemap
+                vk::DescriptorType::eCombinedImageSampler, (MAX_SHADOW_CASTING_LIGHTS + 1) * FrameManager::FRAMES_IN_FLIGHT
             }
         };
 
-        static constexpr std::array SCENE_DESCRIPTOR_BINDINGS {
-            // Uniform buffer for lights
-            vk::DescriptorSetLayoutBinding{
-                0, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eAllGraphics
-            },
-            // Shadow maps binding
-            vk::DescriptorSetLayoutBinding{
-                1, vk::DescriptorType::eCombinedImageSampler, MAX_SHADOW_CASTING_LIGHTS, vk::ShaderStageFlagBits::eAllGraphics
-            }
-        };
-
-        std::array <vk::DescriptorSet, FrameManager::FRAMES_IN_FLIGHT> descriptors{};
-
-        struct {
+        struct Light {
             struct ShadowCastingLightUniformBuffer {
                 uint32_t light_count;
                 /// Light source in world coordinate, could be position or direction. 
@@ -66,100 +53,142 @@ namespace Engine::RenderSystemState {
                 // NonShadowCastingLightUniformBuffer non_shadow_casting;
             };
 
+            static constexpr std::array DESCRIPTOR_BINDINGS {
+                // Uniform buffer for lights
+                vk::DescriptorSetLayoutBinding{
+                    0, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eAllGraphics
+                },
+                // Shadow maps binding
+                vk::DescriptorSetLayoutBinding{
+                    1, vk::DescriptorType::eCombinedImageSampler, MAX_SHADOW_CASTING_LIGHTS, vk::ShaderStageFlagBits::eAllGraphics
+                }
+            };
+
             LightUniformBuffer front_buffer;
             std::unique_ptr <IndexedBuffer> back_buffer;
 
+            vk::UniqueDescriptorSetLayout descriptor_set_layout;
+            std::array <vk::DescriptorSet, FrameManager::FRAMES_IN_FLIGHT> light_descriptors{};
+
             std::array <std::weak_ptr<void>, MAX_SHADOW_CASTING_LIGHTS/* + MAX_NON_SHADOW_CASTING_LIGHTS*/> bound_light_components;
             std::array <std::weak_ptr<RenderTargetTexture>, MAX_SHADOW_CASTING_LIGHTS> bound_shadow_maps;
+
+            void Create(std::shared_ptr<RenderSystem> system, vk::DescriptorPool pool) {
+                auto & allocator = system->GetAllocatorState();
+                auto device = system->GetDevice();
+
+                // Create decriptor set layout and allocate descriptors for lighting
+                auto scene_descriptor_bindings = DESCRIPTOR_BINDINGS;
+                // Set up immutable samplers for shadow maps
+                std::array <vk::Sampler, MAX_SHADOW_CASTING_LIGHTS> immutable_samplers;
+                std::fill(
+                    immutable_samplers.begin(),
+                    immutable_samplers.end(),
+                    system->GetSamplerManager().GetSampler(
+                        ImageUtils::SamplerDesc{
+                            .u_address = ImageUtils::SamplerDesc::AddressMode::ClampToEdge,
+                            .v_address = ImageUtils::SamplerDesc::AddressMode::ClampToEdge,
+                            .w_address = ImageUtils::SamplerDesc::AddressMode::ClampToEdge
+                        }
+                    )
+                );
+                scene_descriptor_bindings[1].setImmutableSamplers(immutable_samplers);
+                vk::DescriptorSetLayoutCreateInfo dslci {
+                    vk::DescriptorSetLayoutCreateFlags{},
+                    scene_descriptor_bindings
+                };
+                descriptor_set_layout = device.createDescriptorSetLayoutUnique(dslci);
+
+                std::vector <vk::DescriptorSetLayout> layouts(light_descriptors.size(), descriptor_set_layout.get());
+                vk::DescriptorSetAllocateInfo dsai {pool, layouts};
+                auto ret = device.allocateDescriptorSets(dsai);
+                std::copy_n(ret.begin(), light_descriptors.size(), light_descriptors.begin());
+
+#ifndef NDEBUG
+                for (uint32_t i = 0; i < light_descriptors.size(); i++) {
+                    DEBUG_SET_NAME_TEMPLATE(
+                        device, light_descriptors[i], std::format("Desc Set - Scene FIF {}", i)
+                    );
+                }
+#endif
+
+                // Allocate the back buffer for lights.
+                back_buffer = IndexedBuffer::CreateUnique(
+                    allocator,
+                    Buffer::BufferType::Uniform,
+                    sizeof(pimpl->lights.front_buffer),
+                    system->GetDeviceInterface().QueryLimit(DeviceInterface::PhysicalDeviceLimitInteger::UniformBufferOffsetAlignment),
+                    light_descriptors.size(),
+                    "Scene Light Uniform Buffer"
+                );
+                assert(back_buffer);
+
+                // Write out descriptors
+                std::vector <vk::DescriptorBufferInfo> buffers(
+                    light_descriptors.size(),
+                    vk::DescriptorBufferInfo{
+                        back_buffer->GetBuffer(),
+                        0,
+                        back_buffer->GetSliceSize()
+                    }
+                );
+                std::vector <vk::WriteDescriptorSet> writes(
+                    light_descriptors.size(),
+                    vk::WriteDescriptorSet{
+                        nullptr, 0, 0, vk::DescriptorType::eUniformBuffer, {}, {}, {}
+                    }
+                );
+                for (uint32_t i = 0; i < light_descriptors.size(); i++) {
+                    buffers[i].offset = back_buffer->GetSliceOffset(i);
+                    writes[i].dstSet = light_descriptors[i];
+                    writes[i].descriptorCount = 1;
+                    writes[i].pBufferInfo = &buffers[i];
+                }
+                device.updateDescriptorSets(writes, {});
+            }
         } lights;
+
+        struct Skybox {
+            static constexpr std::array DESCRIPTOR_BINDINGS {
+                // cubemap binding
+                vk::DescriptorSetLayoutBinding{
+                    0, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eAllGraphics
+                }
+            };
+
+            vk::UniqueDescriptorSetLayout descriptor_set_layout;
+            vk::UniquePipelineLayout pipeline_layout;
+            std::array <vk::DescriptorSet, FrameManager::FRAMES_IN_FLIGHT> skybox_descriptors{};
+
+            void Create(std::shared_ptr<RenderSystem> system, vk::DescriptorPool pool) {
+
+            }
+        } skybox;
+
+        void Create(std::shared_ptr<RenderSystem> system) {
+            device = system->GetDevice();
+
+            // Create dedicated descriptor pool
+            vk::DescriptorPoolCreateInfo dpci {
+                vk::DescriptorPoolCreateFlagBits{},
+                lights.light_descriptors.size() + skybox.skybox_descriptors.size(),
+                impl::SCENE_DESCRIPTOR_POOL_SIZE
+            };
+            scene_descriptor_pool = device.createDescriptorPoolUnique(dpci);
+            DEBUG_SET_NAME_TEMPLATE(
+                device, scene_descriptor_pool.get(), "Scene Descriptor Pool"
+            );
+
+            lights.Create(system, scene_descriptor_pool.get());
+            skybox.Create(system, scene_descriptor_pool.get());
+        }
     };
     SceneDataManager::SceneDataManager() noexcept : pimpl(std::make_unique<impl>()) {
     }
     SceneDataManager::~SceneDataManager() noexcept = default;
 
     void SceneDataManager::Create(std::shared_ptr<RenderSystem> system) {
-        auto & allocator = system->GetAllocatorState();
-        pimpl->device = system->GetDevice();
-
-        // Create dedicated descriptor pool
-        vk::DescriptorPoolCreateInfo dpci {
-            vk::DescriptorPoolCreateFlagBits{},
-            pimpl->descriptors.size(),
-            impl::SCENE_DESCRIPTOR_POOL_SIZE
-        };
-        pimpl->scene_descriptor_pool = pimpl->device.createDescriptorPoolUnique(dpci);
-        DEBUG_SET_NAME_TEMPLATE(
-            pimpl->device, pimpl->scene_descriptor_pool.get(), "Scene Descriptor Pool"
-        );
-
-        // Create decriptor set layout and allocate descriptors
-        auto scene_descriptor_bindings = pimpl->SCENE_DESCRIPTOR_BINDINGS;
-        // Set up immutable samplers for shadow maps
-        std::array <vk::Sampler, MAX_SHADOW_CASTING_LIGHTS> immutable_samplers;
-        std::fill(
-            immutable_samplers.begin(),
-            immutable_samplers.end(),
-            system->GetSamplerManager().GetSampler(
-                ImageUtils::SamplerDesc{
-                    .u_address = ImageUtils::SamplerDesc::AddressMode::ClampToEdge,
-                    .v_address = ImageUtils::SamplerDesc::AddressMode::ClampToEdge,
-                    .w_address = ImageUtils::SamplerDesc::AddressMode::ClampToEdge
-                }
-            )
-        );
-        scene_descriptor_bindings[1].setImmutableSamplers(immutable_samplers);
-        vk::DescriptorSetLayoutCreateInfo dslci {
-            vk::DescriptorSetLayoutCreateFlags{},
-            scene_descriptor_bindings
-        };
-        pimpl->scene_descriptor_set_layout = pimpl->device.createDescriptorSetLayoutUnique(dslci);
-
-        std::vector <vk::DescriptorSetLayout> layouts(pimpl->descriptors.size(), pimpl->scene_descriptor_set_layout.get());
-        vk::DescriptorSetAllocateInfo dsai {pimpl->scene_descriptor_pool.get(), layouts};
-        auto ret = pimpl->device.allocateDescriptorSets(dsai);
-        std::copy_n(ret.begin(), pimpl->descriptors.size(), pimpl->descriptors.begin());
-
-#ifndef NDEBUG
-        for (uint32_t i = 0; i < pimpl->descriptors.size(); i++) {
-            DEBUG_SET_NAME_TEMPLATE(
-               pimpl-> device, pimpl->descriptors[i], std::format("Desc Set - Scene FIF {}", i)
-            );
-        }
-#endif
-
-        // Allocate the back buffer for lights.
-        pimpl->lights.back_buffer = IndexedBuffer::CreateUnique(
-            allocator,
-            Buffer::BufferType::Uniform,
-            sizeof(pimpl->lights.front_buffer),
-            system->GetDeviceInterface().QueryLimit(DeviceInterface::PhysicalDeviceLimitInteger::UniformBufferOffsetAlignment),
-            pimpl->descriptors.size(),
-            "Scene Light Uniform Buffer"
-        );
-        assert(pimpl->lights.back_buffer);
-
-        // Write out descriptors
-        std::vector <vk::DescriptorBufferInfo> buffers(
-            pimpl->descriptors.size(),
-            vk::DescriptorBufferInfo{
-                pimpl->lights.back_buffer->GetBuffer(),
-                0,
-                pimpl->lights.back_buffer->GetSliceSize()
-            }
-        );
-        std::vector <vk::WriteDescriptorSet> writes(
-            pimpl->descriptors.size(),
-            vk::WriteDescriptorSet{
-                nullptr, 0, 0, vk::DescriptorType::eUniformBuffer, {}, {}, {}
-            }
-        );
-        for (uint32_t i = 0; i < pimpl->descriptors.size(); i++) {
-            buffers[i].offset = pimpl->lights.back_buffer->GetSliceOffset(i);
-            writes[i].dstSet = pimpl->descriptors[i];
-            writes[i].descriptorCount = 1;
-            writes[i].pBufferInfo = &buffers[i];
-        }
-        pimpl->device.updateDescriptorSets(writes, {});
+        pimpl->Create(system);
     }
 
     void SceneDataManager::SetLightDirectional(uint32_t index, glm::vec3 direction, glm::vec3 intensity) noexcept {
@@ -251,7 +280,7 @@ namespace Engine::RenderSystemState {
             pimpl->device.updateDescriptorSets(
                 {
                     vk::WriteDescriptorSet{
-                        pimpl->descriptors[frame_in_flight], 
+                        pimpl->lights.light_descriptors[frame_in_flight], 
                         1, 0, 
                         vk::DescriptorType::eCombinedImageSampler, 
                         shadowmap_descriptor_write
@@ -268,13 +297,13 @@ namespace Engine::RenderSystemState {
         }
     }
 
-    vk::DescriptorSet SceneDataManager::GetDescriptorSet(uint32_t frame_in_flight) const noexcept {
-        assert(frame_in_flight < pimpl->descriptors.size());
-        return pimpl->descriptors[frame_in_flight];
+    vk::DescriptorSet SceneDataManager::GetLightDescriptorSet(uint32_t frame_in_flight) const noexcept {
+        assert(frame_in_flight < pimpl->lights.light_descriptors.size());
+        return pimpl->lights.light_descriptors[frame_in_flight];
     }
 
-    vk::DescriptorSetLayout SceneDataManager::GetDescriptorSetLayout() const noexcept {
-        return pimpl->scene_descriptor_set_layout.get();
+    vk::DescriptorSetLayout SceneDataManager::GetLightDescriptorSetLayout() const noexcept {
+        return pimpl->lights.descriptor_set_layout.get();
     }
 
 } // namespace Engine::RenderSystemState

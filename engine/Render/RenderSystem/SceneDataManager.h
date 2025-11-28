@@ -94,8 +94,11 @@ namespace Engine {
 
             void FetchLightData() noexcept;
 
-            vk::DescriptorSet GetDescriptorSet(uint32_t frame_in_flight) const noexcept;
-            vk::DescriptorSetLayout GetDescriptorSetLayout() const noexcept;
+            vk::DescriptorSet GetLightDescriptorSet(uint32_t frame_in_flight) const noexcept;
+            vk::DescriptorSetLayout GetLightDescriptorSetLayout() const noexcept;
+
+            vk::DescriptorSet GetSkyboxDescriptorSet(uint32_t frame_in_flight) const noexcept;
+            vk::DescriptorSetLayout GetSkyboxDescriptorSetLayout() const noexcept;
         };
     }
 }

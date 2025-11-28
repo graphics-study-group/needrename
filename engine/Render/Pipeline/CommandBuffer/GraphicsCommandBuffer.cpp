@@ -114,7 +114,7 @@ namespace Engine {
 
         material.UpdateGPUInfo(tpl, m_inflight_frame_index);
 
-        const auto &per_scene_descriptor_set = m_system.GetSceneDataManager().GetDescriptorSet(m_inflight_frame_index);
+        const auto &per_scene_descriptor_set = m_system.GetSceneDataManager().GetLightDescriptorSet(m_inflight_frame_index);
         const auto &per_camera_descriptor_set = m_system.GetCameraManager().GetDescriptorSet(m_inflight_frame_index);
         auto material_descriptor_set = material.GetDescriptor(tpl, m_inflight_frame_index);
 
