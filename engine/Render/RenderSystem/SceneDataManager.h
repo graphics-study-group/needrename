@@ -51,7 +51,7 @@ namespace Engine {
              * This manager does not obtain the ownership of the texture.
              * 
              * The manager assumes that the shadowmap assigned is sychronized correctly,
-             * and takes the layout `VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL` before
+             * and takes the layout `VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL` before
              * sampling from it. You should use `UseImage(*shadow, ShaderRead)`
              * or similar to synchronize its access.
              */
@@ -90,6 +90,16 @@ namespace Engine {
              * by the shaders), and will not affect any data on the host side.
              */
             void SetLightCountNonShadowCasting(uint32_t count) noexcept;
+
+            /**
+             * @brief Set the current skybox cubemap to be the new texture.
+             * 
+             * The manager assumes that the cubemap assigned is sychronized correctly,
+             * and takes the layout `VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL` before
+             * sampling from it. You can use `UseImage(*shadow, ShaderRead)`
+             * or similar to synchronize its access.
+             */
+            void SetSkyboxCubemap(std::shared_ptr <Texture> texture) noexcept;
 
             void UploadSceneData(uint32_t frame_in_flight) const noexcept;
 

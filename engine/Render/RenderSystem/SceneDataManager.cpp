@@ -178,7 +178,7 @@ namespace Engine::RenderSystemState {
 
             static constexpr std::array PIPELINE_PUSH_CONSTANT_RANGE {
                 vk::PushConstantRange{
-                    vk::ShaderStageFlagBits::eAll, 0, sizeof(glm::mat4)
+                    vk::ShaderStageFlagBits::eAllGraphics, 0, sizeof(glm::mat4)
                 }
             };
 
@@ -187,6 +187,8 @@ namespace Engine::RenderSystemState {
             vk::UniquePipelineLayout pipeline_layout;
             vk::UniquePipeline pipeline;
             std::array <vk::DescriptorSet, FrameManager::FRAMES_IN_FLIGHT> descriptors{};
+
+            std::shared_ptr <Texture> skybox_texture;
 
             void CreatePipeline(std::shared_ptr <RenderSystem> system) {
                 // Get shader modules
@@ -430,6 +432,10 @@ namespace Engine::RenderSystemState {
         assert(!"Unimplemented");
     }
 
+    void SceneDataManager::SetSkyboxCubemap(std::shared_ptr<Texture> texture) noexcept {
+        pimpl->skybox.skybox_texture = texture;
+    }
+
     void SceneDataManager::UploadSceneData(uint32_t frame_in_flight) const noexcept {
         // TODO: use some dirty bit check to avoid memory write.
         std::memcpy(
@@ -439,29 +445,46 @@ namespace Engine::RenderSystemState {
         );
         pimpl->lights.back_buffer->FlushSlice(frame_in_flight);
         
+        std::vector <vk::WriteDescriptorSet> descriptor_writes;
+        descriptor_writes.reserve(2);
+        std::vector <vk::DescriptorImageInfo> shadowmap_image_descriptor_writes{};
+
         const auto shadow_casting_light_count = pimpl->lights.front_buffer.shadow_casting.light_count;
         if (shadow_casting_light_count > 0) {
-            std::vector <vk::DescriptorImageInfo> shadowmap_descriptor_write(
-                shadow_casting_light_count,
-                vk::DescriptorImageInfo{}
-            );
+            shadowmap_image_descriptor_writes.resize(shadow_casting_light_count);
 
             for (size_t i = 0; i < shadow_casting_light_count; i++) {
                 assert(!pimpl->lights.bound_shadow_maps[i].expired());
-                shadowmap_descriptor_write[i] = vk::DescriptorImageInfo{
+                shadowmap_image_descriptor_writes[i] = vk::DescriptorImageInfo{
                     nullptr, pimpl->lights.bound_shadow_maps[i].lock()->GetImageView(), vk::ImageLayout::eReadOnlyOptimal
                 };
             }
 
+            descriptor_writes.push_back(
+                vk::WriteDescriptorSet{
+                    pimpl->lights.light_descriptors[frame_in_flight], 1, 0,
+                    vk::DescriptorType::eCombinedImageSampler,
+                    shadowmap_image_descriptor_writes
+                }
+            );
+        }
+
+        std::array <vk::DescriptorImageInfo, 1> cubemap_image_descriptor_writes{};
+        if (pimpl->skybox.skybox_texture) {
+            auto p = pimpl->skybox.skybox_texture;
+            cubemap_image_descriptor_writes[0] = vk::DescriptorImageInfo{
+                nullptr, p->GetImageView(), vk::ImageLayout::eReadOnlyOptimal
+            };
+            descriptor_writes.push_back(vk::WriteDescriptorSet{
+                pimpl->skybox.descriptors[frame_in_flight], 0, 0,
+                vk::DescriptorType::eCombinedImageSampler,
+                cubemap_image_descriptor_writes
+            });
+        }
+
+        if (!descriptor_writes.empty()) {
             pimpl->device.updateDescriptorSets(
-                {
-                    vk::WriteDescriptorSet{
-                        pimpl->lights.light_descriptors[frame_in_flight], 
-                        1, 0, 
-                        vk::DescriptorType::eCombinedImageSampler, 
-                        shadowmap_descriptor_write
-                    }
-                },
+                {descriptor_writes},
                 {}
             );
         }
@@ -475,7 +498,9 @@ namespace Engine::RenderSystemState {
 
     void SceneDataManager::DrawSkybox(vk::CommandBuffer cb, uint32_t frame_in_flight, glm::mat4 pv) const {
         assert(frame_in_flight < pimpl->skybox.descriptors.size());
-        cb.bindPipeline(vk::PipelineBindPoint::eGraphics, nullptr);
+        if (!pimpl->skybox.skybox_texture)  return;
+
+        cb.bindPipeline(vk::PipelineBindPoint::eGraphics, pimpl->skybox.pipeline.get());
         cb.bindDescriptorSets(
             vk::PipelineBindPoint::eGraphics,
             pimpl->skybox.pipeline_layout.get(),

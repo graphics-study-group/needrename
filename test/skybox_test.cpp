@@ -44,7 +44,7 @@ int main(int argc, char **argv) {
     auto cubemap = std::make_shared<ImageCubemapAsset>();
     cubemap->LoadFromFile(CUBEMAP_FACES);
 
-    auto skybox_texture = ImageTexture::CreateUnique(
+    std::shared_ptr skybox_texture = ImageTexture::CreateUnique(
         *rsys,
         ImageTexture::ImageTextureDesc{
             .dimensions = 2,
@@ -64,6 +64,7 @@ int main(int argc, char **argv) {
         cubemap->GetPixelData(),
         cubemap->GetPixelDataSize()
     );
+    rsys->GetSceneDataManager().SetSkyboxCubemap(skybox_texture);
 
     // Dummy texture for presenting
     auto rt = RenderTargetTexture::CreateUnique(
@@ -183,7 +184,7 @@ int main(int argc, char **argv) {
         cb.endRendering();
         cb.end();
         rsys->GetFrameManager().SubmitMainCommandBuffer();
-        rsys->GetFrameManager().StageBlitComposition(rt->GetImage(), {16, 16}, rsys->GetSwapchain().GetExtent());
+        rsys->GetFrameManager().StageBlitComposition(rt->GetImage(), {1920, 1080}, rsys->GetSwapchain().GetExtent());
         rsys->CompleteFrame();
 
         SDL_Delay(10);
