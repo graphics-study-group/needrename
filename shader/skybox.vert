@@ -54,7 +54,7 @@ const vec3 POSITIONS[36] = vec3[](
 
 void main() {
     texture_coordinate = POSITIONS[gl_VertexIndex];
-    vec4 position = vec4(texture_coordinate, 0.0);
+    vec4 position = vec4(texture_coordinate, 1.0);
     position = pc.camera_pv_mat * position;
-    gl_Position = vec4(position.xy, 1.0, 1.0);
+    gl_Position = position.xyww;
 }
