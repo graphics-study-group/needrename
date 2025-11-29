@@ -43,7 +43,6 @@ namespace Engine::RenderSystemState {
 
         struct Light {
             struct ShadowCastingLightUniformBuffer {
-                uint32_t light_count;
                 /// Light source in world coordinate, could be position or direction. 
                 /// The last component is unused.
                 alignas(16) glm::vec4 light_source[MAX_SHADOW_CASTING_LIGHTS];
@@ -58,7 +57,6 @@ namespace Engine::RenderSystemState {
             };
 
             struct NonShadowCastingLightUniformBuffer {
-                uint32_t light_count;
                 /// Light source in world coordinate, could be position or direction. 
                 /// The last component is unused.
                 alignas(16) glm::vec4 light_source[MAX_NON_SHADOW_CASTING_LIGHTS];
@@ -69,8 +67,10 @@ namespace Engine::RenderSystemState {
             };
 
             struct LightUniformBuffer {
+                uint32_t shadow_casting_light_count;
+                uint32_t non_shadow_casting_light_count;
                 ShadowCastingLightUniformBuffer shadow_casting;
-                // NonShadowCastingLightUniformBuffer non_shadow_casting;
+                NonShadowCastingLightUniformBuffer non_shadow_casting;
             };
 
             static constexpr std::array DESCRIPTOR_BINDINGS {
@@ -90,7 +90,7 @@ namespace Engine::RenderSystemState {
             vk::UniqueDescriptorSetLayout descriptor_set_layout;
             std::array <vk::DescriptorSet, FrameManager::FRAMES_IN_FLIGHT> light_descriptors{};
 
-            std::array <std::weak_ptr<void>, MAX_SHADOW_CASTING_LIGHTS/* + MAX_NON_SHADOW_CASTING_LIGHTS*/> bound_light_components;
+            std::array <std::weak_ptr<void>, MAX_SHADOW_CASTING_LIGHTS + MAX_NON_SHADOW_CASTING_LIGHTS> bound_light_components;
             std::array <std::weak_ptr<RenderTargetTexture>, MAX_SHADOW_CASTING_LIGHTS> bound_shadow_maps;
 
             void Create(std::shared_ptr<RenderSystem> system, vk::DescriptorPool pool) {
@@ -395,7 +395,9 @@ namespace Engine::RenderSystemState {
     void SceneDataManager::SetLightDirectionalNonShadowCasting(
         uint32_t index, glm::vec3 direction, glm::vec3 intensity
     ) noexcept {
-        assert(!"Unimplemented");
+        assert(index < MAX_NON_SHADOW_CASTING_LIGHTS);
+        pimpl->lights.front_buffer.non_shadow_casting.light_source[index] = glm::vec4(direction, 0.0f);
+        pimpl->lights.front_buffer.non_shadow_casting.light_color[index] = glm::vec4(intensity, 0.0f);
     }
 
     void SceneDataManager::SetLightShadowMap(uint32_t index, std::weak_ptr<RenderTargetTexture> shadowmap) noexcept {
@@ -420,16 +422,18 @@ namespace Engine::RenderSystemState {
     }
 
     void SceneDataManager::SetLightNonShadowCasting(uint32_t index, std::shared_ptr<void> light) noexcept {
-        assert(!"Unimplemented");
+        assert(index < MAX_NON_SHADOW_CASTING_LIGHTS);
+        pimpl->lights.bound_light_components[MAX_SHADOW_CASTING_LIGHTS + index] = light;
     }
 
     void SceneDataManager::SetLightCount(uint32_t count) noexcept {
         assert(count < MAX_SHADOW_CASTING_LIGHTS);
-        pimpl->lights.front_buffer.shadow_casting.light_count = count;
+        pimpl->lights.front_buffer.shadow_casting_light_count = count;
     }
 
     void SceneDataManager::SetLightCountNonShadowCasting(uint32_t count) noexcept {
-        assert(!"Unimplemented");
+        assert(count < MAX_NON_SHADOW_CASTING_LIGHTS);
+        pimpl->lights.front_buffer.non_shadow_casting_light_count = count;
     }
 
     void SceneDataManager::SetSkyboxCubemap(std::shared_ptr<Texture> texture) noexcept {
@@ -449,7 +453,7 @@ namespace Engine::RenderSystemState {
         descriptor_writes.reserve(2);
         std::vector <vk::DescriptorImageInfo> shadowmap_image_descriptor_writes{};
 
-        const auto shadow_casting_light_count = pimpl->lights.front_buffer.shadow_casting.light_count;
+        const auto shadow_casting_light_count = pimpl->lights.front_buffer.shadow_casting_light_count;
         if (shadow_casting_light_count > 0) {
             shadowmap_image_descriptor_writes.resize(shadow_casting_light_count);
 
