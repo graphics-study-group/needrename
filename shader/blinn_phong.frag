@@ -22,7 +22,13 @@ void main() {
     // Get normalized normal vector in view space
     vec3 normal_vs = normalize(mat3(camera.cameras[pc.camera_id].view) * frag_normal);
     // Get normalized incident vector pointing from the light source
-    vec3 incident_vs = (camera.cameras[pc.camera_id].view * vec4(frag_position - scene.lights.light_source[0].xyz, 1.0)).xyz;
+    vec3 incident_vs;
+    if (scene.casting_light_count == 1) {
+        incident_vs = (camera.cameras[pc.camera_id].view * vec4(frag_position - scene.casting_lights.light_source[0].xyz, 1.0)).xyz;
+    } else if (scene.noncasting_light_count == 1) {
+        incident_vs = (camera.cameras[pc.camera_id].view * vec4(frag_position - scene.noncasting_lights.light_source[0].xyz, 1.0)).xyz;
+    }
+    
     incident_vs = normalize(incident_vs);
     // Get view position in view space
     vec3 view_position_vs = vec3(0.0, 0.0, 0.0);
@@ -50,10 +56,10 @@ void main() {
     const vec3 ambient = material.ambient_color.rgb * base_color;
     const vec3 light = diffuse_coef * base_color + (specular_coef * material.specular_color.rgb) * base_color;
     float shadow_coef = 1.0;
-    if (scene.lights.light_count > 0) {
+    if (scene.casting_light_count > 0) {
         // Caculate shadow
         // Determine fragment position in light space
-        vec4 frag_position_ls = scene.lights.light_vp_matrix[0] * vec4(frag_position, 1.0);
+        vec4 frag_position_ls = scene.casting_lights.light_vp_matrix[0] * vec4(frag_position, 1.0);
         frag_position_ls.xyz /= frag_position_ls.w;
         // mapping [-1, 1] to [0, 1] for sampling
         frag_position_ls.xy *= 0.5;

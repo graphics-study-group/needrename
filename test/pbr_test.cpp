@@ -126,12 +126,12 @@ void PrepareGui() {
 }
 
 void SubmitSceneData(std::shared_ptr<RenderSystem> rsys, uint32_t id) {
-    rsys->GetSceneDataManager().SetLightDirectional(
+    rsys->GetSceneDataManager().SetLightDirectionalNonShadowCasting(
         0, 
         GetCartesian(g_SceneData.zenith, g_SceneData.azimuth), 
         glm::vec3{2.0, 2.0, 2.0}
     );
-    rsys->GetSceneDataManager().SetLightCount(1);
+    rsys->GetSceneDataManager().SetLightCountNonShadowCasting(1);
 }
 
 void SubmitMaterialData(std::shared_ptr<PBRMeshComponent> mesh) {

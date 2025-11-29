@@ -11,5 +11,5 @@ out gl_PerVertex
  
 void main()
 {
-    gl_Position = scene.lights.light_vp_matrix[pc.camera_id] * pc.model * vec4(vertex_position.xyz, 1.0);
+    gl_Position = scene.casting_lights.light_vp_matrix[pc.camera_id] * pc.model * vec4(vertex_position.xyz, 1.0);
 }

@@ -186,12 +186,12 @@ int main(int argc, char **argv) {
 
     // Submit scene data
     rsys->GetCameraManager().WriteCameraMatrices(glm::mat4{1.0f}, glm::mat4{1.0f});
-    rsys->GetSceneDataManager().SetLightDirectional(
+    rsys->GetSceneDataManager().SetLightDirectionalNonShadowCasting(
         0, 
         glm::vec3{-5.0f, -5.0f, -5.0f}, 
         glm::vec3{1.0, 1.0, 1.0}
     );
-    rsys->GetSceneDataManager().SetLightCount(1);
+    rsys->GetSceneDataManager().SetLightCountNonShadowCasting(1);
 
     // Prepare attachments
     

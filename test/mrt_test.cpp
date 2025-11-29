@@ -149,11 +149,9 @@ int main(int argc, char **argv) {
     HomogeneousMesh test_mesh{rsys->GetAllocatorState(), test_mesh_asset_ref, 0};
 
     // Submit scene data
-    for (uint32_t i = 0; i < 3; i++) {
-        rsys->GetCameraManager().WriteCameraMatrices(glm::mat4{1.0f}, glm::mat4{1.0f});
-        rsys->GetSceneDataManager().SetLightDirectional(0, glm::vec3{-5.0f, -5.0f, -5.0f}, glm::vec3{1.0, 1.0, 1.0});
-        rsys->GetSceneDataManager().SetLightCount(1);
-    }
+    rsys->GetCameraManager().WriteCameraMatrices(glm::mat4{1.0f}, glm::mat4{1.0f});
+    rsys->GetSceneDataManager().SetLightDirectionalNonShadowCasting(0, glm::vec3{-5.0f, -5.0f, -5.0f}, glm::vec3{1.0, 1.0, 1.0});
+    rsys->GetSceneDataManager().SetLightCountNonShadowCasting(1);
 
     // Prepare attachments
     RenderTargetTexture::RenderTargetTextureDesc desc{
