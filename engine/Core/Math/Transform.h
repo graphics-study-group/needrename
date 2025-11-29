@@ -35,7 +35,7 @@ namespace Engine {
         Transform &SetPosition(glm::vec3 position);
 
         /// @brief Set the position component of transform with nautical euler angles (Tait–Bryan angles)
-        /// , in pitch-roll-yaw order.
+        /// , in pitch-roll-yaw (X-Y-Z) order.
         /// @param euler angle in radians
         /// @return this for chaining set operations
         Transform &SetRotationEuler(glm::vec3 euler);
