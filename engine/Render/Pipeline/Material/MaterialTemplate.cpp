@@ -5,7 +5,6 @@
 
 #include "MaterialInstance.h"
 #include "Render/AttachmentUtilsFunc.h"
-#include "Render/ConstantData/PerModelConstants.h"
 #include "Render/DebugUtils.h"
 #include "Render/ImageUtilsFunc.h"
 #include "Render/Pipeline/PipelineInfo.h"
@@ -90,7 +89,7 @@ namespace Engine {
                 pass_info.desc_layout = device.createDescriptorSetLayoutUnique(dslci);
 
                 std::array<vk::PushConstantRange, 1> push_constants{
-                    ConstantData::PerModelConstantPushConstant::GetPushConstantRange()
+                    RenderSystemState::RendererManager::GetPushConstantRange()
                 };
                 std::array<vk::DescriptorSetLayout, 3> set_layouts{
                     m_system.GetSceneDataManager().GetLightDescriptorSetLayout(),
@@ -107,7 +106,7 @@ namespace Engine {
                 );
 
                 std::array<vk::PushConstantRange, 1> push_constants{
-                    ConstantData::PerModelConstantPushConstant::GetPushConstantRange()
+                    RenderSystemState::RendererManager::GetPushConstantRange()
                 };
                 std::array<vk::DescriptorSetLayout, 2> set_layouts{
                     m_system.GetSceneDataManager().GetLightDescriptorSetLayout(),

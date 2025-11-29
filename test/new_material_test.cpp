@@ -110,7 +110,7 @@ RenderGraph BuildRenderGraph(
             material->GetLibrary()->FindMaterialTemplate("", HomogeneousMesh::MeshVertexType::Basic)->GetPipelineLayout(),
             vk::ShaderStageFlagBits::eAll,
             0,
-            ConstantData::PerModelConstantPushConstant::PUSH_RANGE_SIZE,
+            sizeof (RenderSystemState::RendererManager::RendererDataStruct),
             reinterpret_cast<const void *>(&EYE4)
         );
         gcb.DrawMesh(*mesh);

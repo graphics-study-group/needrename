@@ -3,7 +3,6 @@
 #include "Framework/component/RenderComponent/MeshComponent.h"
 
 #include "Render/AttachmentUtilsFunc.h"
-#include "Render/ConstantData/PerModelConstants.h"
 #include "Render/Memory/Buffer.h"
 #include "Render/Pipeline/Material/MaterialInstance.h"
 #include "Render/Pipeline/Material/MaterialLibrary.h"
@@ -169,7 +168,7 @@ namespace Engine {
             m_bound_material_pipeline.value().second,
             vk::ShaderStageFlagBits::eAll,
             0,
-            ConstantData::PerModelConstantPushConstant::PUSH_RANGE_SIZE,
+            sizeof (push_constants),
             reinterpret_cast<const void *>(&push_constants)
         );
         cb.drawIndexed(mesh.GetVertexIndexCount(), 1, 0, 0, 0);
