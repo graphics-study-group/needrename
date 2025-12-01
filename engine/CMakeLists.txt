@@ -19,6 +19,7 @@ target_link_libraries(EngineLibExternalDependency
 )
 target_compile_definitions(EngineLibExternalDependency INTERFACE VULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1)
 target_compile_definitions(EngineLibExternalDependency INTERFACE VULKAN_HPP_STORAGE_SHARED)
+target_compile_definitions(EngineLibExternalDependency INTERFACE GLM_FORCE_DEPTH_ZERO_TO_ONE)
 
 add_subdirectory(Asset)
 add_subdirectory(Core)

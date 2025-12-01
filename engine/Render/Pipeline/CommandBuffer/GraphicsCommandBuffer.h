@@ -92,31 +92,22 @@ namespace Engine {
          */
         void DrawMesh(const HomogeneousMesh &mesh);
         void DrawMesh(const HomogeneousMesh &mesh, const glm::mat4 &model_matrix);
+        void DrawMesh(const HomogeneousMesh &mesh, const glm::mat4 &model_matrix, int32_t camera_index);
 
         /**
          * @brief Draw renderers in the RendererList with specified pass index.
          * 
-         * Sets up camera data with the currently active camera and 
-         * viewport and draw each renderer with its material.
+         * The camera index used in rendering is assumed to be the current active camera.
          */
         void DrawRenderers(const std::string & tag, const RendererList &renderers);
 
         /**
          * @brief Draw renderers in the RendererList with specified pass index.
-         * 
-         * Sets up camera data and viewport and draw each renderer with its material.
-         * 
-         * Camera data are submitted to the buffer of the currently active camera
-         * obtained from `GetActiveCameraId()` method. This might interfere with
-         * other camera's matrices if not used properly. Therefore it is
-         * suggested to use the simpler overload which handles camera data
-         * internally.
          */
         void DrawRenderers(
             const std::string & tag,
             const RendererList &renderers,
-            const glm::mat4 &view_matrix,
-            const glm::mat4 &projection_matrix,
+            int32_t camera_index,
             vk::Extent2D extent
         );
 
@@ -126,6 +117,7 @@ namespace Engine {
         void Reset() noexcept override;
 
     protected:
+        RenderSystem & m_system;
         uint32_t m_inflight_frame_index;
         std::optional<std::pair<vk::Pipeline, vk::PipelineLayout>> m_bound_material_pipeline{};
     };

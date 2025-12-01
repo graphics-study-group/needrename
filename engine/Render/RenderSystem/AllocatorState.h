@@ -70,6 +70,7 @@ namespace Engine {
                 vk::Format format,
                 uint32_t miplevel,
                 uint32_t array_layers,
+                bool is_cube_map,
                 vk::SampleCountFlagBits samples,
                 const std::string &name = ""
             ) const;
@@ -81,6 +82,7 @@ namespace Engine {
                 vk::Format format,
                 uint32_t miplevel,
                 uint32_t array_layers,
+                bool is_cube_map,
                 vk::SampleCountFlagBits samples,
                 const std::string &name = ""
             ) const noexcept;

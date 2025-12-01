@@ -115,7 +115,7 @@ class MeshComponentFromFile : public MeshComponent {
         m_submeshes.clear();
         size_t submesh_count = m_mesh_asset->as<MeshAsset>()->GetSubmeshCount();
         for (size_t i = 0; i < submesh_count; i++) {
-            m_submeshes.push_back(std::make_shared<HomogeneousMesh>(m_system, m_mesh_asset, i));
+            m_submeshes.push_back(std::make_shared<HomogeneousMesh>(m_system.lock()->GetAllocatorState(), m_mesh_asset, i));
         }
     }
 
@@ -192,14 +192,12 @@ void PrepareGui() {
 }
 
 void SubmitSceneData(std::shared_ptr<RenderSystem> rsys, uint32_t id) {
-    ConstantData::PerSceneStruct scene{
-        1,
-        glm::vec4{GetCartesian(g_SceneData.zenith, g_SceneData.azimuth), 0.0f},
-        glm::vec4{1.0, 1.0, 1.0, 0.0},
-    };
-    auto ptr = rsys->GetGlobalConstantDescriptorPool().GetPerSceneConstantMemory(id);
-    memcpy(ptr, &scene, sizeof scene);
-    rsys->GetGlobalConstantDescriptorPool().FlushPerSceneConstantMemory(id);
+    rsys->GetSceneDataManager().SetLightDirectionalNonShadowCasting(
+        0, 
+        GetCartesian(g_SceneData.zenith, g_SceneData.azimuth), 
+        glm::vec3{1.0, 1.0, 1.0}
+    );
+    rsys->GetSceneDataManager().SetLightCountNonShadowCasting(1);
 }
 
 void SubmitMaterialData(std::shared_ptr<MeshComponentFromFile> mesh) {
@@ -232,7 +230,7 @@ int main(int argc, char **argv) {
     rsys->GetMaterialRegistry().AddMaterial(test_asset);
 
     auto gsys = cmc->GetGUISystem();
-    gsys->CreateVulkanBackend(ImageUtils::GetVkFormat(Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm));
+    gsys->CreateVulkanBackend(*rsys, ImageUtils::GetVkFormat(Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm));
 
     Engine::RenderTargetTexture::RenderTargetTextureDesc desc{
         .dimensions = 2,
@@ -264,7 +262,8 @@ int main(int argc, char **argv) {
     auto camera = std::make_shared<Camera>();
     camera->set_aspect_ratio(1920.0 / 1080.0);
     camera->UpdateViewMatrix(transform);
-    rsys->SetActiveCamera(camera);
+    rsys->GetCameraManager().RegisterCamera(camera);
+    rsys->GetCameraManager().SetActiveCameraIndex(camera->m_display_id);
 
     uint64_t frame_count = 0;
     uint64_t start_timer = SDL_GetPerformanceCounter();

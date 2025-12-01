@@ -26,9 +26,9 @@ namespace Engine {
     };
 
     namespace RenderSystemState {
+        class DeviceInterface;
         class Swapchain;
         class AllocatorState;
-        class GlobalConstantDescriptorPool;
         class MaterialRegistry;
         class FrameManager;
         class RendererManager;
@@ -36,6 +36,8 @@ namespace Engine {
         class QueueFamilyIndices;
         class QueueInfo;
         class SamplerManager;
+        class CameraManager;
+        class SceneDataManager;
     }; // namespace RenderSystemState
 
     class RenderSystem : public std::enable_shared_from_this<RenderSystem> {
@@ -59,36 +61,51 @@ namespace Engine {
 
         ~RenderSystem();
 
-        void SetActiveCamera(std::weak_ptr<Camera>);
-        std::weak_ptr<Camera> GetActiveCamera() const;
-        uint32_t GetActiveCameraId() const;
         void WaitForIdle() const;
 
         /// @brief Update the swapchain in response of a window resize etc.
         /// @note You need to recreate depth images and framebuffers that refer to the swap chain.
         void UpdateSwapchain();
 
+        /**
+         * @brief Start the rendering of the next frame.
+         * 
+         * This method also submits necessary data to GPU, meaning that all logic 
+         * that might change these data must finish before calling it. 
+         * If you start a frame by manually calling `FrameManager::StartFrame()`,
+         * then you must make sure that these data are submitted correctly yourself.
+         * 
+         * @todo buffer and texture submissions are completed by `FrameManager`.
+         * Maybe we should unify these two data streams.
+         */
         uint32_t StartFrame();
 
+        /**
+         * @brief Complete the rendering of the current frame.
+         * 
+         * This method also does resource (i.e. swapchain) recreation if necessary.
+         * If you end a frame by manually calling `FrameManager::CompleteFrame()`,
+         * then you must make sure that these resources are recreated correctly yourself.
+         */
         void CompleteFrame();
 
-        vk::Instance getInstance() const;
+        /**
+         * @brief Get a handle to the Vulkan logical device that the current Render
+         * System runs on.
+         * 
+         * Shorthand for `GetDeviceInterface().GetDevice()`
+         */
+        vk::Device GetDevice() const;
 
-        vk::SurfaceKHR getSurface() const;
-
-        vk::Device getDevice() const;
-
-        vk::PhysicalDevice GetPhysicalDevice() const;
+        /**
+         * @brief Get interfaces to all unique Vulkan low-level objects managed by the
+         * system.
+         */
+        const RenderSystemState::DeviceInterface &GetDeviceInterface() const;
 
         const RenderSystemState::AllocatorState &GetAllocatorState() const;
 
-        const QueueFamilyIndices &GetQueueFamilies() const;
-
-        const QueueInfo &getQueueInfo() const;
-
         const RenderSystemState::Swapchain &GetSwapchain() const;
-
-        const RenderSystemState::GlobalConstantDescriptorPool &GetGlobalConstantDescriptorPool() const;
 
         RenderSystemState::MaterialRegistry &GetMaterialRegistry();
 
@@ -98,7 +115,10 @@ namespace Engine {
 
         RenderSystemState::SamplerManager & GetSamplerManager();
 
-        void WritePerCameraConstants(const ConstantData::PerCameraStruct &data, uint32_t in_flight_index);
+        RenderSystemState::CameraManager & GetCameraManager();
+
+        RenderSystemState::SceneDataManager & GetSceneDataManager();
+
     };
 } // namespace Engine
 

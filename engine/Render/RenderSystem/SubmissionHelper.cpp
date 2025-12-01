@@ -6,6 +6,7 @@
 #include "Render/Pipeline/CommandBuffer/LayoutTransferHelper.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/Structs.h"
+#include "Render/RenderSystem/DeviceInterface.h"
 #include "Render/Renderer/HomogeneousMesh.h"
 
 #include "Render/DebugUtils.h"
@@ -24,7 +25,7 @@ namespace Engine::RenderSystemState {
     SubmissionHelper::SubmissionHelper(RenderSystem &system) : IFrameManagerComponent(system), pimpl(std::make_unique<impl>()) {
         // Pre-allocate a fence
         vk::FenceCreateInfo fcinfo{};
-        pimpl->m_completion_fence = system.getDevice().createFenceUnique(fcinfo);
+        pimpl->m_completion_fence = system.GetDevice().createFenceUnique(fcinfo);
     }
 
     SubmissionHelper::~SubmissionHelper() = default;
@@ -36,7 +37,7 @@ namespace Engine::RenderSystemState {
             };
             cb.pipelineBarrier2(vk::DependencyInfo{{}, barriers, {}, {}});
 
-            auto buffer{mesh.CreateStagingBuffer()};
+            auto buffer{mesh.CreateStagingBuffer(m_system.GetAllocatorState())};
             vk::BufferCopy copy{0, 0, static_cast<vk::DeviceSize>(mesh.GetExpectedBufferSize())};
             cb.copyBuffer(buffer.GetBuffer(), mesh.GetBuffer().GetBuffer(), {copy});
 
@@ -51,7 +52,7 @@ namespace Engine::RenderSystemState {
         const Texture &texture, const std::byte *data, size_t length
     ) {
         auto enqueued = [&texture, data, length, this](vk::CommandBuffer cb) {
-            Buffer buffer{texture.CreateStagingBuffer()};
+            Buffer buffer{texture.CreateStagingBuffer(m_system.GetAllocatorState())};
             assert(length <= buffer.GetSize());
             std::byte *mapped_ptr = buffer.GetVMAddress();
             std::memcpy(mapped_ptr, data, length);
@@ -69,7 +70,7 @@ namespace Engine::RenderSystemState {
                 0,
                 0,
                 0,
-                vk::ImageSubresourceLayers{vk::ImageAspectFlagBits::eColor, 0, 0, 1},
+                vk::ImageSubresourceLayers{vk::ImageAspectFlagBits::eColor, 0, 0, texture.GetTextureDescription().array_layers},
                 vk::Offset3D{0, 0, 0},
                 vk::Extent3D{
                     texture.GetTextureDescription().width,
@@ -123,13 +124,14 @@ namespace Engine::RenderSystemState {
         if (pimpl->m_pending_operations.empty()) return;
 
         // Allocate one-time command buffer
+        const auto & queue_info = m_system.GetDeviceInterface().GetQueueInfo();
         vk::CommandBufferAllocateInfo cbainfo{
-            m_system.getQueueInfo().graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1
+            queue_info.graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1
         };
-        auto cbs = m_system.getDevice().allocateCommandBuffersUnique(cbainfo);
+        auto cbs = m_system.GetDevice().allocateCommandBuffersUnique(cbainfo);
         assert(cbs.size() == 1);
         pimpl->m_one_time_cb = std::move(cbs[0]);
-        DEBUG_SET_NAME_TEMPLATE(m_system.getDevice(), pimpl->m_one_time_cb.get(), "One-time submission CB");
+        DEBUG_SET_NAME_TEMPLATE(m_system.GetDevice(), pimpl->m_one_time_cb.get(), "One-time submission CB");
 
         // Record all operations
         vk::CommandBufferBeginInfo cbbinfo{vk::CommandBufferUsageFlagBits::eOneTimeSubmit};
@@ -147,7 +149,7 @@ namespace Engine::RenderSystemState {
 
         std::array<vk::CommandBuffer, 1> submitted_cb = {pimpl->m_one_time_cb.get()};
         std::array<vk::SubmitInfo, 1> sinfos = {vk::SubmitInfo{{}, {}, submitted_cb, {}}};
-        m_system.getQueueInfo().graphicsQueue.submit(sinfos, {pimpl->m_completion_fence.get()});
+        queue_info.graphicsQueue.submit(sinfos, {pimpl->m_completion_fence.get()});
     }
 
     void SubmissionHelper::OnPreMainCbSubmission()
@@ -158,14 +160,14 @@ namespace Engine::RenderSystemState {
     void SubmissionHelper::OnFrameComplete() {
         if (!pimpl->m_one_time_cb) return;
 
-        auto wfresult = m_system.getDevice().waitForFences(
+        auto wfresult = m_system.GetDevice().waitForFences(
             {pimpl->m_completion_fence.get()}, true, std::numeric_limits<uint64_t>::max()
         );
         if (wfresult != vk::Result::eSuccess) {
             SDL_LogError(SDL_LOG_CATEGORY_RENDER, "An error occured when waiting for submission fence.");
         }
 
-        m_system.getDevice().resetFences({pimpl->m_completion_fence.get()});
+        m_system.GetDevice().resetFences({pimpl->m_completion_fence.get()});
         pimpl->m_one_time_cb.reset();
         pimpl->m_pending_dellocations.clear();
     }

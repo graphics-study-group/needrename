@@ -33,14 +33,24 @@ namespace Engine {
         /**
          * @brief Create a buffer.
          */
-        static Buffer Create(RenderSystem & system, BufferType type, size_t size, const std::string &name = "");
+        static Buffer Create(
+            const RenderSystemState::AllocatorState & allocator, 
+            BufferType type, 
+            size_t size, 
+            const std::string &name = ""
+        );
         /**
          * @brief Create a buffer with host side details on heap,
          * and return a uniquely owning pointer to the buffer.
          * 
          * Cast the `unique_ptr` to `shared_ptr` if necessary.
          */
-        static std::unique_ptr<Buffer> CreateUnique(RenderSystem & system, BufferType type, size_t size, const std::string &name = "");
+        static std::unique_ptr<Buffer> CreateUnique(
+            const RenderSystemState::AllocatorState & allocator, 
+            BufferType type, 
+            size_t size, const 
+            std::string &name = ""
+        );
 
         vk::Buffer GetBuffer() const;
 

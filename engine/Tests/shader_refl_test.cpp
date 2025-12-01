@@ -115,11 +115,11 @@ int main(int argc, char *argv[]) {
     SDL_SetLogPriorities(SDL_LOG_PRIORITY_VERBOSE);
     
     auto binary = ReadSpirvBinary(p);
-    auto layout = Engine::ShdrRfl::SPLayout::Reflect(binary, false);
+    auto layout = Engine::ShdrRfl::SPLayout::Reflect(binary, true);
     PrintLayout(layout);
 
     binary = ReadSpirvBinary(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "shaders/lambertian_cook_torrance.frag.0.spv");
-    layout.Merge(Engine::ShdrRfl::SPLayout::Reflect(binary, false));
+    layout.Merge(Engine::ShdrRfl::SPLayout::Reflect(binary, true));
     PrintLayout(layout);
     PrintDescriptorSetLayoutBindings(layout.GenerateAllLayoutBindings());
 

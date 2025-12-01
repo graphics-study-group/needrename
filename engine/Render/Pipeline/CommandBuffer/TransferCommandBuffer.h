@@ -34,7 +34,7 @@ namespace Engine {
             int32_t x0, y0, z0, x1, y1, z1;
         };
 
-        TransferCommandBuffer(RenderSystem &system, vk::CommandBuffer cb);
+        TransferCommandBuffer(vk::CommandBuffer cb);
         virtual ~TransferCommandBuffer() = default;
 
         TransferCommandBuffer(const TransferCommandBuffer &) = delete;
@@ -68,9 +68,6 @@ namespace Engine {
          * and should be synchronized as such.
          */
         void GenerateMipmaps(const Texture &img, AccessHelper::ImageAccessType previousAccess);
-
-    protected:
-        RenderSystem &m_system;
     };
 }; // namespace Engine
 

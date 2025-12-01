@@ -39,9 +39,15 @@ set_target_properties(complex_mesh_test PROPERTIES FOLDER tests)
 
 add_executable(shadow_map_test shadow_map_test.cpp)
 add_dependencies(shadow_map_test shader)
-target_link_libraries(shadow_map_test engine)
+target_link_libraries(shadow_map_test engine tinyobjloader)
 add_test(NAME shadow_map_test COMMAND shadow_map_test 120)
 set_target_properties(shadow_map_test PROPERTIES FOLDER tests)
+
+add_executable(skybox_test skybox_test.cpp)
+add_dependencies(skybox_test shader)
+target_link_libraries(skybox_test engine)
+add_test(NAME skybox_test COMMAND skybox_test 120)
+set_target_properties(skybox_test PROPERTIES FOLDER tests)
 
 add_executable(imgui_test imgui_test.cpp)
 target_link_libraries(imgui_test engine)

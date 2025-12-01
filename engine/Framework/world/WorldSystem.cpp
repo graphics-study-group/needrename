@@ -3,6 +3,7 @@
 #include <Asset/Scene/LevelAsset.h>
 #include <Core/Delegate/Delegate.h>
 #include <Framework/component/RenderComponent/RendererComponent.h>
+#include <Render/RenderSystem/CameraManager.h>
 #include <Core/Functional/EventQueue.h>
 #include <MainClass.h>
 
@@ -51,6 +52,7 @@ namespace Engine {
         for (auto &go : levelAsset->m_gameobjects) {
             AddGameObjectToWorld(go);
         }
+        // We cannot register camera here as render system is not guaranteed to be initalized correctly at this point.
         m_active_camera = levelAsset->m_default_camera;
     }
 
@@ -60,5 +62,14 @@ namespace Engine {
 
     const std::vector<std::shared_ptr<GameObject>> &WorldSystem::GetGameObjects() const {
         return m_game_objects;
+    }
+    std::shared_ptr<Camera> WorldSystem::GetActiveCamera() const noexcept {
+        return m_active_camera;
+    }
+    void WorldSystem::SetActiveCamera(std::shared_ptr<Camera> camera, RenderSystemState::CameraManager * registrar) noexcept {
+        m_active_camera = camera;
+        if (registrar) {
+            registrar->RegisterCamera(camera);
+        }
     }
 } // namespace Engine

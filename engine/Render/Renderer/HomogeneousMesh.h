@@ -9,11 +9,13 @@ namespace vk {
 namespace Engine {
     class AssetRef;
     class Buffer;
-    class RenderSystem;
+    
+    namespace RenderSystemState {
+        class AllocatorState;
+    }
 
     /// @brief A homogeneous mesh of only one material at runtime, constructed from mesh asset.
     class HomogeneousMesh {
-        std::weak_ptr<RenderSystem> m_system;
         struct impl;
         std::unique_ptr<impl> pimpl;
 
@@ -25,8 +27,16 @@ namespace Engine {
             Skinned
         };
 
+        /**
+         * @brief Create the Homogenenous mesh from an asset.
+         * The Host-side buffer is allocated, but no data will be uploaded.
+         * 
+         * To upload any data, you need to create a staging buffer and issue
+         * a buffer copy command. This procedure is automatically handled by
+         * `RendererManager` if correctly registered.
+         */
         HomogeneousMesh(
-            std::weak_ptr<RenderSystem> system,
+            const RenderSystemState::AllocatorState & allocator,
             std::shared_ptr<AssetRef> mesh_asset,
             size_t submesh_idx,
             MeshVertexType type = MeshVertexType::Basic
@@ -34,13 +44,13 @@ namespace Engine {
         ~HomogeneousMesh();
 
         /**
-         * @brief Create a staging buffer containing all vertices data.
+         * @brief Create a staging buffer containing all vertices data
+         * with the supplied allocator.
          * 
-         * This method
-         * is automatically called on mesh submission, and you typically do
+         * This method is automatically called on mesh submission, and you typically do
          * not need to call it manually.
          */
-        Buffer CreateStagingBuffer() const;
+        Buffer CreateStagingBuffer(const RenderSystemState::AllocatorState & allocator) const;
 
         /**
          * @brief Get vertex index count viz. how many vertices are drawn in the draw call.

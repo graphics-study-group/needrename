@@ -12,7 +12,7 @@ namespace Engine {
     };
 
     ComputeContext::ComputeContext(RenderSystem &system, vk::CommandBuffer cb, uint32_t frame_in_flight) :
-        pimpl(std::make_unique<ComputeContext::impl>(ComputeCommandBuffer(system, cb, frame_in_flight))) {
+        pimpl(std::make_unique<ComputeContext::impl>(ComputeCommandBuffer(cb, frame_in_flight))) {
     }
     ComputeContext::~ComputeContext() = default;
 

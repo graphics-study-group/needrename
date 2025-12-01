@@ -6,62 +6,46 @@
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include "Asset/AssetManager/AssetManager.h"
 #include "Asset/Material/MaterialTemplateAsset.h"
-#include "Asset/Mesh/MeshAsset.h"
+#include "Asset/Mesh/PlaneMeshAsset.h"
 #include "Asset/Texture/Image2DTextureAsset.h"
+#include "Framework/object/GameObject.h"
 #include "Framework/component/RenderComponent/MeshComponent.h"
+#include "Framework/world/WorldSystem.h"
 #include "Core/Functional/SDLWindow.h"
 #include "UserInterface/GUISystem.h"
 #include "MainClass.h"
 #include "Render/FullRenderSystem.h"
+#include "Framework/component/RenderComponent/ObjTestMeshComponent.h"
 
 #include "cmake_config.h"
 
 using namespace Engine;
 namespace sch = std::chrono;
 
-constexpr glm::mat4 EYE4{glm::mat4(1.0)};
-
-struct LowerPlaneMeshAsset : public MeshAsset {
+struct LowerPlaneMeshAsset : public PlaneMeshAsset {
     LowerPlaneMeshAsset() {
         this->m_submeshes.resize(1);
-        this->m_submeshes[0] = {
-            .m_indices = {0, 3, 2, 0, 2, 1},
-            .m_positions =
-                {
-                    {1.0f, -1.0f, 0.5f},
-                    {1.0f, 1.0f, 0.5f},
-                    {-1.0f, 1.0f, 0.5f},
-                    {-1.0f, -1.0f, 0.5f},
-                },
-            .m_attributes_basic = {
-                {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {1.0f, 0.0f}},
-                {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {1.0f, 1.0f}},
-                {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {0.0f, 1.0f}},
-                {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {0.0f, 0.0f}}
-            },
+        this->m_submeshes[0].m_positions = {
+            {1.0f, -1.0f, 0.0f}, {1.0f, 1.0f, 0.0f}, {-1.0f, 1.0f, 0.0f}, {-1.0f, -1.0f, 0.0f},
         };
+        for (auto & attr : this->m_submeshes[0].m_attributes_basic) {
+            attr.normal[2] = -1.0f;
+        }
     }
 };
 
-struct HighPlaneMeshAsset : public MeshAsset {
-    HighPlaneMeshAsset() {
-        this->m_submeshes.resize(1);
-        this->m_submeshes[0] = {
-            .m_indices = {0, 3, 2, 0, 2, 1},
-            .m_positions =
-                {
-                    {0.5f, -0.5f, 0.0f},
-                    {0.5f, 0.5f, 0.0f},
-                    {-0.5f, 0.5f, 0.0f},
-                    {-0.5f, -0.5f, 0.0f},
-                },
-            .m_attributes_basic = {
-                {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {1.0f, 0.0f}},
-                {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {1.0f, 1.0f}},
-                {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {0.0f, 1.0f}},
-                {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, -1.0f}, .texcoord1 = {0.0f, 0.0f}}
-            },
-        };
+class ShadowMapMeshComponent : public ObjTestMeshComponent {
+public:
+    ShadowMapMeshComponent(
+        std::weak_ptr <GameObject> go,
+        std::filesystem::path mesh_file_name,
+        std::shared_ptr<MaterialInstance> instance
+    ) : ObjTestMeshComponent(mesh_file_name, go) {
+        auto system = m_system.lock();
+
+        for (size_t i = 0; i < m_submeshes.size(); i++) {
+            m_materials.push_back(instance);
+        }
     }
 };
 
@@ -87,6 +71,9 @@ std::array<std::shared_ptr<MaterialTemplateAsset>, 2> ConstructMaterialTemplate(
     MaterialTemplateSinglePassProperties shadow_map_pass{}, lit_pass{};
     shadow_map_pass.shaders.shaders = std::vector{shadow_map_vs_ref};
     shadow_map_pass.attachments.depth = ImageUtils::ImageFormat::D32SFLOAT;
+    shadow_map_pass.rasterizer.depth_bias_constant = 0.05f;
+    shadow_map_pass.rasterizer.depth_bias_slope = 1.0f;
+    // shadow_map_pass.rasterizer.culling = PipelineProperties::RasterizerProperties::CullingMode::Front;
     lit_pass.shaders.shaders = std::vector{vs_ref, fs_ref};
     lit_pass.attachments.color = std::vector{ImageUtils::ImageFormat::R8G8B8A8UNorm};
     lit_pass.attachments.color_blending = std::vector{PipelineProperties::ColorBlendingProperties{}};
@@ -126,48 +113,26 @@ int main(int argc, char **argv) {
 
     auto rsys = cmc->GetRenderSystem();
 
-    // Prepare texture
-    auto test_texture_asset = std::make_shared<Image2DTextureAsset>();
-    test_texture_asset->LoadFromFile(std::string(ENGINE_ASSETS_DIR) + "/bunny/bunny.png");
-    auto allocated_image_texture = ImageTexture::CreateUnique(*rsys, *test_texture_asset);
-
-    // Prepare mesh
-    auto test_mesh_asset = std::make_shared<LowerPlaneMeshAsset>();
-    auto test_mesh_asset_ref = std::make_shared<AssetRef>(test_mesh_asset);
-    HomogeneousMesh test_mesh{rsys, test_mesh_asset_ref, 0};
-
-    auto test_mesh_asset_2 = std::make_shared<HighPlaneMeshAsset>();
-    auto test_mesh_asset_2_ref = std::make_shared<AssetRef>(test_mesh_asset_2);
-    HomogeneousMesh test_mesh_2{rsys, test_mesh_asset_2_ref, 0};
-
     // Submit scene data
-    const auto &global_pool = rsys->GetGlobalConstantDescriptorPool();
-    struct {
-        glm::mat4 view{1.0f};
-        glm::mat4 proj{1.0f};
-    } camera_mats;
-    ConstantData::PerSceneStruct scene{
-        1,
-        glm::vec4{-5.0f, -5.0f, -5.0f, 0.0f},
-        glm::vec4{1.0, 1.0, 1.0, 0.0},
-    };
-    for (uint32_t i = 0; i < 3; i++) {
-        auto ptr = global_pool.GetPerSceneConstantMemory(i);
-        memcpy(ptr, &scene, sizeof scene);
-        global_pool.FlushPerSceneConstantMemory(i);
-        auto camera_ptr = global_pool.GetPerCameraConstantMemory(i, 0);
-        std::memcpy(camera_ptr, &camera_mats, sizeof camera_mats);
-        global_pool.FlushPerCameraConstantMemory(i, 0);
-    }
+    Transform transform{};
+    transform.SetPosition({0.0f, 0.0f, -5.0f}).SetRotationEuler(glm::vec3{M_PI_2, 0.0f, 0.0f});
+    auto camera = std::make_shared<Camera>();
+    camera->set_aspect_ratio(1920.0 / 1080.0);
+    camera->m_clipping_far = 1e2;
+    camera->UpdateViewMatrix(transform);
+    rsys->GetCameraManager().RegisterCamera(camera);
+    rsys->GetCameraManager().SetActiveCameraIndex(camera->m_display_id);
+    rsys->GetSceneDataManager().SetLightDirectional(
+        0, 
+        glm::vec3{1.0f, 1.0f, 1.0f}, 
+        glm::vec3{1.0f, 1.0f, 1.0f}
+    );
+    rsys->GetSceneDataManager().SetLightCount(1);
 
     // Prepare attachments
     Engine::RenderTargetTexture::RenderTargetTextureDesc desc{
-        .dimensions = 2,
-        .width = 1920,
-        .height = 1080,
-        .depth = 1,
-        .mipmap_levels = 1,
-        .array_layers = 1,
+        .dimensions = 2, .width = 1920, .height = 1080,
+        .depth = 1, .mipmap_levels = 1, .array_layers = 1,
         .format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R8G8B8A8UNorm,
         .multisample = 1,
         .is_cube_map = false
@@ -176,22 +141,18 @@ int main(int argc, char **argv) {
     desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::D32SFLOAT;
     std::shared_ptr depth = Engine::RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Depth attachment");
     desc.width = desc.height = 2048;
-    std::shared_ptr shadow = Engine::RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Depth attachment");
-    std::shared_ptr blank_color = Engine::ImageTexture::CreateUnique(
-        *rsys, 
-        ImageTexture::ImageTextureDesc{
-            .dimensions = 2,
-            .width = 16,
-            .height = 16,
-            .depth = 1,
-            .mipmap_levels = 1,
-            .array_layers = 1,
-            .format = ImageTexture::ImageTextureDesc::ImageTextureFormat::R8G8B8A8UNorm,
-            .is_cube_map = false
-        }, 
-        Texture::SamplerDesc{}, 
-        "Blank color"
-    );
+    std::shared_ptr shadow = Engine::RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Shadowmap Light 0");
+    rsys->GetSceneDataManager().SetLightShadowMap(0, shadow);
+    auto idesc = ImageTexture::ImageTextureDesc{
+        .dimensions = 2, .width = 16, .height = 16, .depth = 1,
+        .mipmap_levels = 1, .array_layers = 1,
+        .format = ImageTexture::ImageTextureDesc::ImageTextureFormat::R8G8B8A8UNorm,
+        .is_cube_map = false
+    };
+    std::shared_ptr blank_color_red = Engine::ImageTexture::CreateUnique(*rsys, idesc, Texture::SamplerDesc{}, "Blank color red");
+    std::shared_ptr blank_color_gray = Engine::ImageTexture::CreateUnique(*rsys, idesc, Texture::SamplerDesc{}, "Blank color gray");
+    rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*blank_color_red, {1.0f, 0.0f, 0.0f, 0.0f});
+    rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*blank_color_gray, {0.5f, 0.5f, 0.5f, 0.0f});
 
     // Prepare material
     auto test_template_assets = ConstructMaterialTemplate();
@@ -199,23 +160,47 @@ int main(int argc, char **argv) {
     auto test_library_asset_ref = std::make_shared<AssetRef>(test_library_asset);
     auto test_library = std::make_shared<MaterialLibrary>(*rsys);
     test_library->Instantiate(*test_library_asset_ref->cas<MaterialLibraryAsset>());
-    auto test_material_instance = std::make_shared<MaterialInstance>(*rsys, test_library);
-    test_material_instance->AssignVectorVariable(
-        "ambient_color", glm::vec4(0.0, 0.0, 0.0, 0.0)
-    );
-    test_material_instance->AssignVectorVariable(
-        "specular_color", glm::vec4(1.0, 1.0, 1.0, 64.0)
-    );
-    test_material_instance->AssignTexture(
-        "base_tex", blank_color
+    auto object_material_instance = std::make_shared<MaterialInstance>(*rsys, test_library);
+    object_material_instance->AssignVectorVariable("ambient_color", glm::vec4(0.0, 0.0, 0.0, 0.0));
+    object_material_instance->AssignVectorVariable("specular_color", glm::vec4(1.0, 1.0, 1.0, 64.0));
+    object_material_instance->AssignTexture("base_tex", blank_color_red);
+    auto floor_material_instance = std::make_shared<MaterialInstance>(*rsys, test_library);
+    floor_material_instance->AssignVectorVariable("ambient_color", glm::vec4(0.0, 0.0, 0.0, 0.0));
+    floor_material_instance->AssignVectorVariable("specular_color", glm::vec4(1.0, 1.0, 1.0, 64.0));
+    floor_material_instance->AssignTexture("base_tex", blank_color_gray);
+
+    // Prepare mesh
+    auto floor_go = cmc->GetWorldSystem()->CreateGameObject<GameObject>();
+    floor_go->GetTransformRef().SetScale({5.0f, 5.0f, 1.0f}).SetPosition({0.0f, 0.0f, 0.5f});
+    auto floor_mesh_asset = std::make_shared<LowerPlaneMeshAsset>();
+    auto floor_mesh_asset_ref = std::make_shared<AssetRef>(floor_mesh_asset);
+    auto floor_mesh_comp = std::make_shared<MeshComponent>(floor_go);
+    floor_mesh_comp->m_mesh_asset = floor_mesh_asset_ref;
+    floor_mesh_comp->GetMaterials().resize(1);
+    floor_mesh_comp->GetMaterials()[0] = floor_material_instance;
+    floor_mesh_comp->RenderInit();
+
+    auto cube_go = cmc->GetWorldSystem()->CreateGameObject<GameObject>();
+    cube_go->GetTransformRef().SetScale({0.5f, 0.5f, 0.5f});
+    auto cube_mesh_comp = std::make_shared<ShadowMapMeshComponent>(
+        cube_go,
+        std::filesystem::path{std::string(ENGINE_ASSETS_DIR) + "/meshes/cube.obj"},
+        object_material_instance
     );
 
-    rsys->GetFrameManager().GetSubmissionHelper().EnqueueVertexBufferSubmission(test_mesh);
-    rsys->GetFrameManager().GetSubmissionHelper().EnqueueVertexBufferSubmission(test_mesh_2);
-    rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
-        *allocated_image_texture, test_texture_asset->GetPixelData(), test_texture_asset->GetPixelDataSize()
+    auto shpere_go = cmc->GetWorldSystem()->CreateGameObject<GameObject>();
+    shpere_go->GetTransformRef().SetScale({0.5f, 0.5f, 0.5f}).SetPosition({1.0f, 2.0f, 0.0f});
+    auto sphere_mesh_comp = std::make_shared<ShadowMapMeshComponent>(
+        shpere_go,
+        std::filesystem::path{std::string(ENGINE_ASSETS_DIR) + "/meshes/sphere.obj"},
+        object_material_instance
     );
+    // We cannot call `RenderInit()` because this component has no associated asset.
+    rsys->GetRendererManager().RegisterRendererComponent(cube_mesh_comp);
+    rsys->GetRendererManager().RegisterRendererComponent(sphere_mesh_comp);
+    
 
+    // Build Render Graph
     RenderGraphBuilder rgb{*rsys};
     rgb.RegisterImageAccess(*color);
     rgb.RegisterImageAccess(*depth);
@@ -224,28 +209,30 @@ int main(int argc, char **argv) {
     using IAT = AccessHelper::ImageAccessType;
     rgb.UseImage(*shadow, IAT::DepthAttachmentWrite);
     rgb.RecordRasterizerPassWithoutRT(
-        [rsys, shadow, test_library, test_material_instance, &test_mesh, &test_mesh_2](GraphicsCommandBuffer &gcb) {
+        [rsys, shadow, test_library, object_material_instance](GraphicsCommandBuffer &gcb) {
             vk::Extent2D shadow_map_extent{2048, 2048};
             vk::Rect2D shadow_map_scissor{{0, 0}, shadow_map_extent};
             gcb.BeginRendering(
                 {nullptr},
-                {shadow.get(), nullptr, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store},
+                {
+                    shadow.get(), 
+                    nullptr, 
+                    AttachmentUtils::LoadOperation::Clear,
+                    AttachmentUtils::StoreOperation::Store,
+                    AttachmentUtils::DepthClearValue{1.0f, 0U}
+                },
                 shadow_map_extent,
                 "Shadowmap Pass"
             );
             gcb.SetupViewport(shadow_map_extent.width, shadow_map_extent.height, shadow_map_scissor);
-            gcb.BindMaterial(*test_material_instance, "Shadowmap", HomogeneousMesh::MeshVertexType::Basic);
+            gcb.BindMaterial(*object_material_instance, "Shadowmap", HomogeneousMesh::MeshVertexType::Basic);
 
-            vk::CommandBuffer rcb = gcb.GetCommandBuffer();
-            rcb.pushConstants(
-                test_library->FindMaterialTemplate("Shadowmap", HomogeneousMesh::MeshVertexType::Basic)->GetPipelineLayout(),
-                vk::ShaderStageFlagBits::eVertex,
+            gcb.DrawRenderers(
+                "Shadowmap",
+                rsys->GetRendererManager().FilterAndSortRenderers({}),
                 0,
-                ConstantData::PerModelConstantPushConstant::PUSH_RANGE_SIZE,
-                reinterpret_cast<const void *>(&EYE4)
+                vk::Extent2D{shadow->GetTextureDescription().width, shadow->GetTextureDescription().height}
             );
-            gcb.DrawMesh(test_mesh);
-            gcb.DrawMesh(test_mesh_2);
             gcb.EndRendering();
         }
     );
@@ -260,22 +247,15 @@ int main(int argc, char **argv) {
          AttachmentUtils::LoadOperation::Clear,
          AttachmentUtils::StoreOperation::DontCare,
          AttachmentUtils::DepthClearValue{1.0f, 0U}},
-        [rsys, test_material_instance, test_library, &test_mesh, &test_mesh_2](GraphicsCommandBuffer &gcb) {
+        [rsys, object_material_instance, test_library](GraphicsCommandBuffer &gcb) {
             vk::Extent2D extent{rsys->GetSwapchain().GetExtent()};
             vk::Rect2D scissor{{0, 0}, extent};
             gcb.SetupViewport(extent.width, extent.height, scissor);
-            gcb.BindMaterial(*test_material_instance, "Lit", HomogeneousMesh::MeshVertexType::Basic);
-            // Push model matrix...
-            vk::CommandBuffer rcb = gcb.GetCommandBuffer();
-            rcb.pushConstants(
-                test_library->FindMaterialTemplate("Lit", HomogeneousMesh::MeshVertexType::Basic)->GetPipelineLayout(),
-                vk::ShaderStageFlagBits::eVertex,
-                0,
-                ConstantData::PerModelConstantPushConstant::PUSH_RANGE_SIZE,
-                reinterpret_cast<const void *>(&EYE4)
+            gcb.BindMaterial(*object_material_instance, "Lit", HomogeneousMesh::MeshVertexType::Basic);
+            gcb.DrawRenderers(
+                "Lit",
+                rsys->GetRendererManager().FilterAndSortRenderers({})
             );
-            gcb.DrawMesh(test_mesh);
-            gcb.DrawMesh(test_mesh_2);
         },
         "Lit pass"
     );
@@ -292,18 +272,6 @@ int main(int argc, char **argv) {
                 quited = true;
                 break;
             }
-        }
-
-        switch (frame_count % 3) {
-        case 0:
-            rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*blank_color, {1.0f, 0.0f, 0.0f, 0.0f});
-            break;
-        case 1:
-            rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*blank_color, {0.0f, 1.0f, 0.0f, 0.0f});
-            break;
-        case 2:
-            rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*blank_color, {0.0f, 0.0f, 1.0f, 0.0f});
-            break;
         }
 
         auto index = rsys->StartFrame();

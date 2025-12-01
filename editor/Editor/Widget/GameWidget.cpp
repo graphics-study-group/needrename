@@ -6,12 +6,14 @@
 #include <Framework/world/WorldSystem.h>
 #include <Core/Functional/SDLWindow.h>
 #include <MainClass.h>
+#include <Render/Renderer/Camera.h>
 #include <Render/Memory/RenderTargetTexture.h>
 #include <Render/Pipeline/CommandBuffer/GraphicsCommandBuffer.h>
 #include <Render/Pipeline/CommandBuffer/GraphicsContext.h>
 #include <Render/RenderSystem.h>
 #include <Render/RenderSystem/FrameManager.h>
 #include <Render/RenderSystem/SamplerManager.h>
+#include <Render/RenderSystem/CameraManager.h>
 #include <backends/imgui_impl_vulkan.h>
 
 namespace Editor {
@@ -74,8 +76,8 @@ namespace Editor {
             {(uint32_t)m_viewport_size.x, (uint32_t)m_viewport_size.y},
             "Editor Game Pass"
         );
-        Engine::MainClass::GetInstance()->GetRenderSystem()->SetActiveCamera(
-            Engine::MainClass::GetInstance()->GetWorldSystem()->m_active_camera
+        Engine::MainClass::GetInstance()->GetRenderSystem()->GetCameraManager().SetActiveCameraIndex(
+            Engine::MainClass::GetInstance()->GetWorldSystem()->GetActiveCamera()->m_display_id
         );
         cb.DrawRenderers("",
             Engine::MainClass::GetInstance()->GetRenderSystem()->GetRendererManager().FilterAndSortRenderers({})

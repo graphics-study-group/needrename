@@ -38,23 +38,21 @@ namespace Engine {
             void EnqueueVertexBufferSubmission(const HomogeneousMesh &mesh);
 
             /***
-             * @brief Enqueue a texture buffer submission.
-             * Record corresponding image
+             * @brief Enqueue a texture buffer submission. Record corresponding image
              * barriers and buffer writes to a disposable command buffer.
-             * A
-             * staging buffer is created, and will be de-allocated at the end of the frame.
-             * The layout of
-             * the image will be transferred to optimal for shader read after submission.
-             * Only color
-             * aspect and the very first level of mipmap is considered for submission, and no blitting or mipmap
-             * generation is recorded.
+             * 
+             * A staging buffer is created, and will be de-allocated at the end of the frame.
+             * The layout of the image will be transferred to optimal for shader read after submission.
+             *
+             * Only color aspect and the very first level of mipmap is considered for submission, 
+             * and no blitting or mipmap generation is recorded, which means that the data must
+             * cover the whole image size and all array layers.
              * 
              * @param texture
              * @param data
              * Linearized buffer data. Refer to
              * https://registry.khronos.org/vulkan/specs/latest/html/vkspec.html#copies-buffers-images-addressing
- * for
-             * how to organize the data.
+             * for how to organize the data.
              * @param length
              */
             void EnqueueTextureBufferSubmission(const Texture &texture, const std::byte *data, size_t length);

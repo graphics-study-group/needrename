@@ -48,7 +48,7 @@ int main() {
     auto gui = cmc->GetGUISystem();
     auto window = cmc->GetWindow();
     auto event_queue = cmc->GetEventQueue();
-    gui->CreateVulkanBackend(ImageUtils::GetVkFormat(window->GetColorTexture().GetTextureDescription().format));
+    gui->CreateVulkanBackend(*rsys, ImageUtils::GetVkFormat(window->GetColorTexture().GetTextureDescription().format));
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading project");
     cmc->LoadProject(project_path);
@@ -125,7 +125,7 @@ int main() {
         gui->DrawGUI(
             {&window->GetColorTexture(),
              nullptr,
-             Engine::AttachmentUtils::LoadOperation::Load,
+             Engine::AttachmentUtils::LoadOperation::Clear,
              Engine::AttachmentUtils::StoreOperation::Store},
             window->GetExtent(),
             cb

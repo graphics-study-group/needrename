@@ -1,5 +1,5 @@
-#ifndef FRAMEWORK_WORLD_WORLDSYSTEM_H
-#define FRAMEWORK_WORLD_WORLDSYSTEM_H
+#ifndef WORLD_WORLDSYSTEM
+#define WORLD_WORLDSYSTEM
 
 #include <Core/guid.h>
 #include <Framework/component/TransformComponent/TransformComponent.h>
@@ -12,6 +12,10 @@ namespace Engine {
     class LevelAsset;
     class GameObjectAsset;
     class Camera;
+    namespace RenderSystemState {
+        class CameraManager;
+    }
+    
 
     class WorldSystem {
     public:
@@ -47,6 +51,17 @@ namespace Engine {
 
         const std::vector<std::shared_ptr<GameObject>> &GetGameObjects() const;
 
+        std::shared_ptr <Camera> GetActiveCamera() const noexcept;
+
+        /**
+         * @brief Set the active camera, and try registering it to the render system.
+         * 
+         * If registrar if left to be nullptr, no attempts will be made to register it.
+         * 
+         * @todo Temporary fix. Needs futher discussion.
+         */
+        void SetActiveCamera(std::shared_ptr<Camera> camera, RenderSystemState::CameraManager * registrar = nullptr) noexcept;
+
     protected:
         std::mt19937_64 m_id_gen{std::random_device{}()};
 
@@ -54,7 +69,6 @@ namespace Engine {
         std::vector<std::shared_ptr<GameObject>> m_game_objects{};
         std::vector<std::shared_ptr<Component>> m_all_components{};
 
-    public:
         std::shared_ptr<Camera> m_active_camera{};
     };
 
@@ -74,4 +88,4 @@ namespace Engine {
         m_go_loading_queue.push_back(go);
     }
 } // namespace Engine
-#endif // FRAMEWORK_WORLD_WORLDSYSTEM_H
+#endif // WORLD_WORLDSYSTEM

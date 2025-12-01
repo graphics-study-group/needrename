@@ -23,8 +23,6 @@ namespace Engine {
      * Wrapper around vk::ImageView.
      */
     class SlicedTextureView {
-        RenderSystem &m_system;
-
         struct impl;
         std::unique_ptr<impl> pimpl;
 

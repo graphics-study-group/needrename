@@ -5,7 +5,7 @@
 namespace Engine::RenderSystemState {
     void MaterialDescriptorManager::Create(std::shared_ptr<RenderSystem> system) {
         m_system = system;
-        m_logical_device = system->getDevice();
+        m_logical_device = system->GetDevice();
 
         vk::DescriptorPoolCreateInfo info{
             vk::DescriptorPoolCreateFlags{}, MAX_SET_SIZE, DESCRIPTOR_POOL_SIZES.size(), DESCRIPTOR_POOL_SIZES.data()

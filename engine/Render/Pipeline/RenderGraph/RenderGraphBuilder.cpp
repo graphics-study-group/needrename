@@ -232,14 +232,13 @@ namespace Engine {
         std::function<void(TransferCommandBuffer &)> pass, 
         const std::string & name
     ) {
-        std::function<void(vk::CommandBuffer)> f = [system = &this->m_system,
-                                                    pass,
+        std::function<void(vk::CommandBuffer)> f = [pass,
                                                     name,
                                                     bb = std::move(pimpl->m_buffer_barriers),
                                                     ib = std::move(pimpl->m_image_barriers)](vk::CommandBuffer cb) {
             vk::DependencyInfo dep{vk::DependencyFlags{}, {}, bb, ib};
             cb.pipelineBarrier2(dep);
-            TransferCommandBuffer tcb{*system, cb};
+            TransferCommandBuffer tcb{cb};
             tcb.GetCommandBuffer().beginDebugUtilsLabelEXT({(name + " (Transfer)").c_str()});
             std::invoke(pass, std::ref(tcb));
             tcb.GetCommandBuffer().endDebugUtilsLabelEXT();
@@ -261,7 +260,7 @@ namespace Engine {
                                                     ib = std::move(pimpl->m_image_barriers)](vk::CommandBuffer cb) {
             vk::DependencyInfo dep{vk::DependencyFlags{}, {}, bb, ib};
             cb.pipelineBarrier2(dep);
-            ComputeCommandBuffer ccb{*system, cb, system->GetFrameManager().GetFrameInFlight()};
+            ComputeCommandBuffer ccb{cb, system->GetFrameManager().GetFrameInFlight()};
             ccb.GetCommandBuffer().beginDebugUtilsLabelEXT({(name + " (Compute)").c_str()});
             std::invoke(pass, std::ref(ccb));
             ccb.GetCommandBuffer().endDebugUtilsLabelEXT();

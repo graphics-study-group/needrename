@@ -58,6 +58,7 @@ namespace Engine {
         auto level_asset =
             std::dynamic_pointer_cast<LevelAsset>(this->asset_manager->LoadAssetImmediately(default_level_guid));
         this->world->LoadLevelAsset(level_asset);
+        this->renderer->GetCameraManager().RegisterCamera(this->world->GetActiveCamera());
     }
 
     void MainClass::Initialize(
@@ -76,7 +77,7 @@ namespace Engine {
         this->world = std::make_shared<WorldSystem>();
         this->asset_database = std::make_shared<FileSystemDatabase>();
         this->asset_manager = std::make_shared<AssetManager>();
-        this->gui = std::make_shared<GUISystem>(this->renderer);
+        this->gui = std::make_shared<GUISystem>();
         this->input = std::make_shared<Input>();
         this->event_queue = std::make_shared<EventQueue>();
 
@@ -199,7 +200,7 @@ namespace Engine {
             this->window->GetExtent(),
             "Main Pass"
         );
-        this->renderer->SetActiveCamera(this->world->m_active_camera);
+        this->renderer->GetCameraManager().SetActiveCameraIndex(this->world->GetActiveCamera()->m_display_id);
         cb.DrawRenderers("", renderer->GetRendererManager().FilterAndSortRenderers({}));
         cb.EndRendering();
 

@@ -3,6 +3,11 @@
 
 #include <memory>
 #include <vector>
+#include <glm.hpp>
+
+namespace vk {
+    class PushConstantRange;
+}
 
 namespace Engine {
     class RenderSystem;
@@ -15,6 +20,15 @@ namespace Engine {
             std::unique_ptr<impl> pimpl;
 
         public:
+            /**
+             * @brief A small struct holding all renderer data pushed
+             * to the GPU.
+             */
+            struct RendererDataStruct {
+                glm::mat4 model_matrix;
+                int32_t camera_index;
+            };
+
             struct FilterCriteria {
                 enum class BinaryCriterion : uint8_t {
                     No,
@@ -78,6 +92,11 @@ namespace Engine {
              * @brief Get the renderer data used for draw calls.
              */
             const RendererComponent *GetRendererData(RendererHandle handle) const noexcept;
+
+            /**
+             * @brief Get the push constant range for renderers.
+             */
+            static vk::PushConstantRange GetPushConstantRange();
         };
     } // namespace RenderSystemState
 

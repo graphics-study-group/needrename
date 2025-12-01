@@ -5,14 +5,13 @@
 
 #include "MaterialInstance.h"
 #include "Render/AttachmentUtilsFunc.h"
-#include "Render/ConstantData/PerModelConstants.h"
 #include "Render/DebugUtils.h"
 #include "Render/ImageUtilsFunc.h"
 #include "Render/Pipeline/PipelineInfo.h"
 #include "Render/Pipeline/PipelineUtils.h"
 #include "Render/RenderSystem.h"
-#include "Render/RenderSystem/GlobalConstantDescriptorPool.h"
 #include "Render/RenderSystem/Swapchain.h"
+#include "Render/RenderSystem/CameraManager.h"
 #include "Render/Renderer/HomogeneousMesh.h"
 
 #include "Render/Memory/ShaderParameters/ShaderParameterLayout.h"
@@ -70,7 +69,6 @@ namespace Engine {
 
         // Create pipeline layout
         {
-            const auto &pool = m_system.GetGlobalConstantDescriptorPool();
             auto desc_bindings = pimpl->m_layout.GenerateLayoutBindings(2);
             if (!desc_bindings.empty()) {
                 unsigned ubo_count{0};
@@ -91,11 +89,11 @@ namespace Engine {
                 pass_info.desc_layout = device.createDescriptorSetLayoutUnique(dslci);
 
                 std::array<vk::PushConstantRange, 1> push_constants{
-                    ConstantData::PerModelConstantPushConstant::GetPushConstantRange()
+                    RenderSystemState::RendererManager::GetPushConstantRange()
                 };
                 std::array<vk::DescriptorSetLayout, 3> set_layouts{
-                    pool.GetPerSceneConstantLayout().get(),
-                    pool.GetPerCameraConstantLayout().get(),
+                    m_system.GetSceneDataManager().GetLightDescriptorSetLayout(),
+                    m_system.GetCameraManager().GetDescriptorSetLayout(),
                     pass_info.desc_layout.get()
                 };
                 vk::PipelineLayoutCreateInfo plci{{}, set_layouts, push_constants};
@@ -108,10 +106,11 @@ namespace Engine {
                 );
 
                 std::array<vk::PushConstantRange, 1> push_constants{
-                    ConstantData::PerModelConstantPushConstant::GetPushConstantRange()
+                    RenderSystemState::RendererManager::GetPushConstantRange()
                 };
                 std::array<vk::DescriptorSetLayout, 2> set_layouts{
-                    pool.GetPerSceneConstantLayout().get(), pool.GetPerCameraConstantLayout().get()
+                    m_system.GetSceneDataManager().GetLightDescriptorSetLayout(),
+                    m_system.GetCameraManager().GetDescriptorSetLayout()
                 };
                 vk::PipelineLayoutCreateInfo plci{{}, set_layouts, push_constants};
                 pass_info.pipeline_layout = device.createPipelineLayoutUnique(plci);
@@ -264,7 +263,7 @@ namespace Engine {
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Createing pipelines for material %s.", pimpl->m_name.c_str());
         // Prepare descriptor pool
         vk::DescriptorPoolCreateInfo dpci{{}, PoolInfo::MAX_SET_SIZE, PoolInfo::DESCRIPTOR_POOL_SIZES, nullptr};
-        vk::Device dvc = m_system.getDevice();
+        vk::Device dvc = m_system.GetDevice();
         pimpl->m_poolInfo.pool = dvc.createDescriptorPoolUnique(dpci);
         DEBUG_SET_NAME_TEMPLATE(
             dvc, pimpl->m_poolInfo.pool.get(), std::format("Descriptor Pool - Material {}", pimpl->m_name)
@@ -302,7 +301,7 @@ namespace Engine {
 
         std::vector layouts(size, layout);
         vk::DescriptorSetAllocateInfo dsai{pimpl->m_poolInfo.pool.get(), layouts};
-        auto sets = m_system.getDevice().allocateDescriptorSets(dsai);
+        auto sets = m_system.GetDevice().allocateDescriptorSets(dsai);
         assert(sets.size() == size);
         return sets;
     }

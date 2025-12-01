@@ -100,7 +100,7 @@ int main() {
     auto gui = cmc->GetGUISystem();
     auto window = cmc->GetWindow();
     auto event_queue = cmc->GetEventQueue();
-    gui->CreateVulkanBackend(ImageUtils::GetVkFormat(window->GetColorTexture().GetTextureDescription().format));
+    gui->CreateVulkanBackend(*rsys, ImageUtils::GetVkFormat(window->GetColorTexture().GetTextureDescription().format));
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading project");
     cmc->LoadProject(project_path);
@@ -138,7 +138,7 @@ int main() {
     camera_comp->m_camera->set_aspect_ratio(1.0 * opt.resol_x / opt.resol_y);
     auto control_comp = camera_go->template AddComponent<ControlComponent>();
     control_comp->m_camera = camera_comp;
-    cmc->GetWorldSystem()->m_active_camera = camera_comp->m_camera;
+    cmc->GetWorldSystem()->SetActiveCamera(camera_comp->m_camera, &cmc->GetRenderSystem()->GetCameraManager());
     cmc->GetWorldSystem()->AddGameObjectToWorld(camera_go);
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Create Editor Window");
@@ -214,7 +214,7 @@ int main() {
         gui->DrawGUI(
             {&window->GetColorTexture(),
              nullptr,
-             Engine::AttachmentUtils::LoadOperation::Load,
+             Engine::AttachmentUtils::LoadOperation::Clear,
              Engine::AttachmentUtils::StoreOperation::Store},
             window->GetExtent(),
             cb

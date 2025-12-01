@@ -145,4 +145,11 @@ namespace Engine::RenderSystemState {
         assert(pimpl->m_data[handle].m_component);
         return pimpl->m_data[handle].m_component.get();
     }
+    vk::PushConstantRange RendererManager::GetPushConstantRange() {
+        return vk::PushConstantRange{
+            vk::ShaderStageFlagBits::eAllGraphics,
+            0,
+            sizeof(RendererDataStruct)
+        };
+    }
 }; // namespace Engine::RenderSystemState
