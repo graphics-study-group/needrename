@@ -60,9 +60,10 @@ std::pair<std::shared_ptr<MaterialLibraryAsset>, std::shared_ptr<MaterialTemplat
     test_asset->properties = mtspp;
 
     test_lib_asset->m_name = "MRT Writethrough";
-    test_lib_asset->material_bundle[""] = {
-        {(uint32_t)HomogeneousMesh::MeshVertexType::Position, std::make_shared<AssetRef>(test_asset)}
-    };
+    MaterialLibraryAsset::MaterialTemplateReference ref;
+    ref.expected_mesh_type = (uint32_t)HomogeneousMesh::MeshVertexType::Position;
+    ref.material_template = std::make_shared<AssetRef>(test_asset);
+    test_lib_asset->material_bundle[""] = ref;
 
     return std::make_pair(test_lib_asset, test_asset);
 }

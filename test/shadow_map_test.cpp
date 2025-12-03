@@ -87,12 +87,14 @@ std::array<std::shared_ptr<MaterialTemplateAsset>, 2> ConstructMaterialTemplate(
 std::shared_ptr <MaterialLibraryAsset> ConstructMaterialLibrary(std::array<std::shared_ptr<MaterialTemplateAsset>, 2> & templates) {
     std::shared_ptr <MaterialLibraryAsset> lib = std::make_shared<MaterialLibraryAsset>();
     lib->m_name = "Blinn-Phong w. Shadowmap";
-    lib->material_bundle["Lit"] = std::unordered_map<uint32_t, std::shared_ptr<AssetRef>> {
-        {static_cast<uint32_t>(HomogeneousMesh::MeshVertexType::Basic), std::make_shared<AssetRef>(templates[0])}
-    };
-    lib->material_bundle["Shadowmap"] = std::unordered_map<uint32_t, std::shared_ptr<AssetRef>> {
-        {static_cast<uint32_t>(HomogeneousMesh::MeshVertexType::Position), std::make_shared<AssetRef>(templates[1])}
-    };
+    MaterialLibraryAsset::MaterialTemplateReference ref;
+    ref.expected_mesh_type = static_cast<uint32_t>(HomogeneousMesh::MeshVertexType::Basic);
+    ref.material_template = std::make_shared<AssetRef>(templates[0]);
+    lib->material_bundle["Lit"] = ref;
+
+    ref.expected_mesh_type = static_cast<uint32_t>(HomogeneousMesh::MeshVertexType::Position);
+    ref.material_template = std::make_shared<AssetRef>(templates[1]);
+    lib->material_bundle["Shadowmap"] = ref;
     return lib;
 }
 
