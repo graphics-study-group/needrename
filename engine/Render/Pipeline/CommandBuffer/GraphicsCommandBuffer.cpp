@@ -166,7 +166,7 @@ namespace Engine {
 
         cb.pushConstants(
             m_bound_material_pipeline.value().second,
-            vk::ShaderStageFlagBits::eAll,
+            vk::ShaderStageFlagBits::eAllGraphics,
             0,
             sizeof (push_constants),
             reinterpret_cast<const void *>(&push_constants)
