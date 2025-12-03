@@ -142,7 +142,7 @@ namespace Engine {
             SDL_LogVerbose(
                 SDL_LOG_CATEGORY_RENDER,
                 "Lazily allocating descriptor and UBOs for material template %p.",
-                (const void *)&tpl
+                static_cast<void *>(tpl)
             );
             itr = pimpl->CreatePassInfo(m_system, *tpl);
         }
