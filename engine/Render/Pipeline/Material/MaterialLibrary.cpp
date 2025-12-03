@@ -16,47 +16,61 @@ namespace Engine {
         std::shared_ptr<MaterialTemplate> GetPipelineOrCreate(
             RenderSystem & system,
             const std::string & tag,
-            uint32_t type
+            uint32_t asset_type
         ) {
-            assert(type < MAX_MESH_TYPE_COUNT);
+            assert(asset_type < MAX_MESH_TYPE_COUNT);
             auto itr = pipeline_table.find(tag);
-            if (itr == pipeline_table.end() || !(itr->second[type])) {
-                CreatePipeline(system, tag, type);
+            if (itr == pipeline_table.end() || !(itr->second[asset_type])) {
+                CreatePipeline(system, tag, asset_type, asset_type);
             }
-            return pipeline_table[tag][type];
+            return pipeline_table[tag][asset_type];
         }
 
         /**
          * @brief Create a pipeline, assuming that the asset corresponding to
          * both the tag and the mesh type exists.
          */
-        void CreatePipeline(RenderSystem & system, const std::string & tag, uint32_t type) {
-            assert(type < MAX_MESH_TYPE_COUNT);
+        void CreatePipeline(RenderSystem & system, const std::string & tag, uint32_t asset_type, uint32_t actual_type) {
+            assert(asset_type < MAX_MESH_TYPE_COUNT);
             auto itr = pipeline_asset_table.find(tag);
             assert(itr != pipeline_asset_table.end() && "Pipeline tag not found.");
-            auto itr2 = itr->second[type];
+            auto itr2 = itr->second[asset_type];
             assert(itr2 && "Mesh type not found.");
     
             const auto & asset = itr2->cas<const MaterialTemplateAsset>();
-            SDL_LogInfo(
-                SDL_LOG_CATEGORY_RENDER,
-                std::format(
-                    "Creating material (name: {}, type: {}) from asset {}.",
-                    tag,
-                    type,
-                    asset->name
-                ).c_str()
-            );
-            pipeline_table[tag][type] = std::make_unique<MaterialTemplate>(
+            if (asset_type == actual_type) {
+                SDL_LogInfo(
+                    SDL_LOG_CATEGORY_RENDER,
+                    std::format(
+                        "Creating material (name: {}, type: {}) from asset {}.",
+                        tag,
+                        asset_type,
+                        asset->name
+                    ).c_str()
+                );
+            } else {
+                SDL_LogInfo(
+                    SDL_LOG_CATEGORY_RENDER,
+                    std::format(
+                        "Creating material (name: {}, type: {} -> {}) from asset {}.",
+                        tag,
+                        asset_type,
+                        actual_type,
+                        asset->name
+                    ).c_str()
+                );
+            }
+            
+            pipeline_table[tag][actual_type] = std::make_unique<MaterialTemplate>(
                 system,
                 asset->properties,
-                static_cast<MeshVertexType>(type),
+                static_cast<MeshVertexType>(actual_type),
                 asset->name
             );
             SDL_LogInfo(
                 SDL_LOG_CATEGORY_RENDER,
                 "Created material %p.",
-                static_cast<void *>(pipeline_table[tag][type].get())
+                static_cast<void *>(pipeline_table[tag][actual_type].get())
             );
         }
     };
@@ -112,13 +126,12 @@ namespace Engine {
         if (available_idx != idx) {
             SDL_LogWarn(
                 SDL_LOG_CATEGORY_RENDER,
-                "Pipeline tagged %s found, but mesh type %ul is not available, and is downgraded to %ul.",
+                "Pipeline tagged %s found, but mesh type %u is not available, and is downgraded to %u.",
                 tag.c_str(), idx, available_idx
             );
 
-            auto ptr = pimpl->GetPipelineOrCreate(m_system, tag, available_idx);
-            pimpl->pipeline_table[tag][idx] = ptr;
-            return ptr.get();
+            pimpl->CreatePipeline(m_system, tag, available_idx, idx);
+            return pimpl->pipeline_table[tag][idx].get();
         }
     
         return pimpl->GetPipelineOrCreate(m_system, tag, idx).get();
