@@ -28,8 +28,8 @@ namespace {
 
 namespace Engine::RenderSystemState {
     struct SceneDataManager::impl {
-        vk::Device device;
-        vk::UniqueDescriptorPool scene_descriptor_pool;
+        vk::Device device {};
+        vk::UniqueDescriptorPool scene_descriptor_pool {};
 
         static constexpr std::array SCENE_DESCRIPTOR_POOL_SIZE {
             vk::DescriptorPoolSize{
@@ -84,14 +84,14 @@ namespace Engine::RenderSystemState {
                 }
             };
 
-            LightUniformBuffer front_buffer;
-            std::unique_ptr <IndexedBuffer> back_buffer;
+            LightUniformBuffer front_buffer{};
+            std::unique_ptr <IndexedBuffer> back_buffer{};
 
-            vk::UniqueDescriptorSetLayout descriptor_set_layout;
+            vk::UniqueDescriptorSetLayout descriptor_set_layout{};
             std::array <vk::DescriptorSet, FrameManager::FRAMES_IN_FLIGHT> light_descriptors{};
 
-            std::array <std::weak_ptr<void>, MAX_SHADOW_CASTING_LIGHTS + MAX_NON_SHADOW_CASTING_LIGHTS> bound_light_components;
-            std::array <std::weak_ptr<RenderTargetTexture>, MAX_SHADOW_CASTING_LIGHTS> bound_shadow_maps;
+            std::array <std::weak_ptr<void>, MAX_SHADOW_CASTING_LIGHTS + MAX_NON_SHADOW_CASTING_LIGHTS> bound_light_components{};
+            std::array <std::weak_ptr<RenderTargetTexture>, MAX_SHADOW_CASTING_LIGHTS> bound_shadow_maps{};
 
             void Create(std::shared_ptr<RenderSystem> system, vk::DescriptorPool pool) {
                 auto & allocator = system->GetAllocatorState();
@@ -166,7 +166,7 @@ namespace Engine::RenderSystemState {
                 }
                 device.updateDescriptorSets(writes, {});
             }
-        } lights;
+        } lights{};
 
         struct Skybox {
             static constexpr std::array DESCRIPTOR_BINDINGS {
@@ -341,7 +341,7 @@ namespace Engine::RenderSystemState {
 #endif
                 CreatePipeline(system);
             }
-        } skybox;
+        } skybox{};
 
         void Create(std::shared_ptr<RenderSystem> system) {
             device = system->GetDevice();

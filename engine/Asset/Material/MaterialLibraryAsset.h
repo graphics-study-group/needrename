@@ -26,7 +26,7 @@ namespace Engine {
         REFL_ENABLE MaterialLibraryAsset() = default;
         virtual ~MaterialLibraryAsset() = default;
 
-        REFL_SER_ENABLE TagBundle material_bundle;
+        REFL_SER_ENABLE TagBundle material_bundle{};
         REFL_SER_ENABLE std::string m_name{};
     };
 }
