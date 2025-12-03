@@ -13,13 +13,22 @@ namespace Engine {
 
     struct HomogeneousMesh::impl {
 
+        static constexpr std::array<vk::VertexInputBindingDescription, 1> BINDINGS_POSITION = {
+            vk::VertexInputBindingDescription{0, sizeof(VertexStruct::VertexPosition), vk::VertexInputRate::eVertex}
+        };
+
+        static constexpr std::array<vk::VertexInputAttributeDescription, 1> ATTRIBUTES_POSITON = {
+            // Position
+            vk::VertexInputAttributeDescription{0, BINDINGS_POSITION[0].binding, vk::Format::eR32G32B32Sfloat, 0},
+        };
+
         static constexpr std::array<vk::VertexInputBindingDescription, 2> BINDINGS_BASIC = {
             // Position
             vk::VertexInputBindingDescription{0, sizeof(VertexStruct::VertexPosition), vk::VertexInputRate::eVertex},
             // Other attributes
             vk::VertexInputBindingDescription{1, sizeof(VertexStruct::VertexAttributeBasic), vk::VertexInputRate::eVertex}
         };
-        static constexpr const std::array<vk::VertexInputAttributeDescription, VertexStruct::VERTEX_ATTRIBUTE_BASIC_COUNT + 1>
+        static constexpr std::array<vk::VertexInputAttributeDescription, VertexStruct::VERTEX_ATTRIBUTE_BASIC_COUNT + 1>
             ATTRIBUTES_BASIC = {
                 // Position
                 vk::VertexInputAttributeDescription{0, BINDINGS_BASIC[0].binding, vk::Format::eR32G32B32Sfloat, 0},
@@ -152,6 +161,9 @@ namespace Engine {
                 m_buffer_offsets.push_back(
                     new_vertex_count * sizeof(VertexStruct::VertexAttributeBasic) + *m_buffer_offsets.rbegin()
                 );
+            case MeshVertexType::Position:
+            default:
+                ;
             }
 
             assert(*m_buffer_offsets.rbegin() == buffer_size - new_vertex_index_count * sizeof(uint32_t));
@@ -192,10 +204,20 @@ namespace Engine {
     }
 
     vk::PipelineVertexInputStateCreateInfo HomogeneousMesh::GetVertexInputState(MeshVertexType type) {
-        assert(type == MeshVertexType::Basic && "Unimplemented");
-        return vk::PipelineVertexInputStateCreateInfo{
-            vk::PipelineVertexInputStateCreateFlags{0}, impl::BINDINGS_BASIC, impl::ATTRIBUTES_BASIC
-        };
+        switch(type) {
+        using enum MeshVertexType;
+        case Position:
+            return vk::PipelineVertexInputStateCreateInfo{
+                vk::PipelineVertexInputStateCreateFlags{}, impl::BINDINGS_POSITION, impl::ATTRIBUTES_POSITON
+            };
+        case Basic:
+            return vk::PipelineVertexInputStateCreateInfo{
+                vk::PipelineVertexInputStateCreateFlags{}, impl::BINDINGS_BASIC, impl::ATTRIBUTES_BASIC
+            };
+        default:
+            assert(!"Unimplemented");
+        }
+        
     }
 
     std::pair<vk::Buffer, uint64_t> HomogeneousMesh::GetIndexBufferInfo() const {

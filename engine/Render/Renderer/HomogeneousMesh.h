@@ -14,18 +14,20 @@ namespace Engine {
         class AllocatorState;
     }
 
+    enum class MeshVertexType {
+        Position,
+        Basic,
+        Extended,
+        Skinned
+    };
+
     /// @brief A homogeneous mesh of only one material at runtime, constructed from mesh asset.
     class HomogeneousMesh {
         struct impl;
         std::unique_ptr<impl> pimpl;
 
     public:
-        enum class MeshVertexType {
-            Position,
-            Basic,
-            Extended,
-            Skinned
-        };
+        using MeshVertexType = MeshVertexType;
 
         /**
          * @brief Create the Homogenenous mesh from an asset.

@@ -66,8 +66,8 @@ namespace Engine {
             impl::PipelineBundle p;
             for (auto & [type, tpl] : bundle) {
                 assert(type < impl::MAX_MESH_TYPE_COUNT);
-                p[type] = std::make_shared<MaterialTemplate>(m_system);
-                p[type]->Instantiate(*tpl->cas<const MaterialTemplateAsset>());
+                const auto & asset = *tpl->cas<const MaterialTemplateAsset>();
+                p[type] = std::make_shared<MaterialTemplate>(m_system, asset.properties, static_cast<MeshVertexType>(type), asset.name);
             }
             pimpl->pipeline_table[tag] = std::move(p);
         }

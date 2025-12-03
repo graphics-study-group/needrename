@@ -1,11 +1,9 @@
-#ifndef MATERIAL_MATERIALTEMPLATE
-#define MATERIAL_MATERIALTEMPLATE
+#ifndef PIPELINE_MATERIAL_MATERIALTEMPLATE_INCLUDED
+#define PIPELINE_MATERIAL_MATERIALTEMPLATE_INCLUDED
 
 #include <optional>
 #include <unordered_map>
 #include <variant>
-
-#include "Asset/InstantiatedFromAsset.h"
 
 namespace vk {
     class Pipeline;
@@ -22,6 +20,8 @@ namespace Engine {
     class MaterialTemplateAsset;
     class MaterialTemplateProperties;
     class MaterialTemplateSinglePassProperties;
+
+    enum class MeshVertexType;
 
     namespace PipelineInfo {
         class MaterialPassInfo;
@@ -40,8 +40,7 @@ namespace Engine {
      * It contains all public immutable data for a given pipeline, mainly
      * the layout configuration and a handle to the binary object.
      */
-    class MaterialTemplate : protected std::enable_shared_from_this<MaterialTemplate>,
-                             public IInstantiatedFromAsset<MaterialTemplateAsset> {
+    class MaterialTemplate : protected std::enable_shared_from_this<MaterialTemplate> {
     public:
         using PassInfo = PipelineInfo::MaterialPassInfo;
         using PoolInfo = PipelineInfo::MaterialPoolInfo;
@@ -52,7 +51,8 @@ namespace Engine {
         struct impl;
         std::unique_ptr<impl> pimpl;
 
-        void CreatePipeline(const MaterialTemplateSinglePassProperties &prop, vk::Device device);
+        MaterialTemplate(RenderSystem & system);
+
     public:
         /**
          * @brief Construct a new Material Template object.
@@ -62,9 +62,12 @@ namespace Engine {
          * @param asset A shared pointer to the AssetRef
          * representing the material template's properties.
          */
-        MaterialTemplate(RenderSystem &system);
-
-        void Instantiate(const MaterialTemplateAsset &asset) override;
+        MaterialTemplate(
+            RenderSystem &system,
+            const MaterialTemplateSinglePassProperties & properties,
+            MeshVertexType type,
+            const std::string & name = ""
+        );
 
         virtual ~MaterialTemplate();
 
@@ -128,4 +131,4 @@ namespace Engine {
     };
 } // namespace Engine
 
-#endif // MATERIAL_MATERIALTEMPLATE
+#endif // PIPELINE_MATERIAL_MATERIALTEMPLATE_INCLUDED
