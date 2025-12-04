@@ -42,7 +42,7 @@ namespace Engine::RenderSystemState {
             }
         };
 
-        struct Light {
+        struct Scene {
             struct ShadowCastingLightUniformBuffer {
                 /// Light source in world coordinate, could be position or direction. 
                 /// The last component is unused.
@@ -85,16 +85,16 @@ namespace Engine::RenderSystemState {
                 }
             };
 
-            LightUniformBuffer front_buffer{};
-            std::unique_ptr <IndexedBuffer> back_buffer{};
-
-            vk::UniqueDescriptorSetLayout descriptor_set_layout{};
-            std::array <vk::DescriptorSet, FrameManager::FRAMES_IN_FLIGHT> light_descriptors{};
-
+            // Light data
+            LightUniformBuffer light_front_buffer{};
+            std::unique_ptr <IndexedBuffer> light_back_buffer{};
             std::array <std::weak_ptr<void>, MAX_SHADOW_CASTING_LIGHTS + MAX_NON_SHADOW_CASTING_LIGHTS> bound_light_components{};
             std::array <std::weak_ptr<RenderTargetTexture>, MAX_SHADOW_CASTING_LIGHTS> bound_shadow_maps{};
-
             std::shared_ptr <RenderTargetTexture> default_light_map;
+
+            // Scene data
+            vk::UniqueDescriptorSetLayout scene_descriptor_set_layout{};
+            std::array <vk::DescriptorSet, FrameManager::FRAMES_IN_FLIGHT> scene_descriptor_sets{};
 
             void Create(std::shared_ptr<RenderSystem> system, vk::DescriptorPool pool) {
                 auto & allocator = system->GetAllocatorState();
@@ -120,31 +120,32 @@ namespace Engine::RenderSystemState {
                     vk::DescriptorSetLayoutCreateFlags{},
                     scene_descriptor_bindings
                 };
-                descriptor_set_layout = device.createDescriptorSetLayoutUnique(dslci);
+                scene_descriptor_set_layout = device.createDescriptorSetLayoutUnique(dslci);
+                DEBUG_SET_NAME_TEMPLATE(device, scene_descriptor_set_layout.get(), "Scene Descriptor Set Layout");
 
-                std::vector <vk::DescriptorSetLayout> layouts(light_descriptors.size(), descriptor_set_layout.get());
+                std::vector <vk::DescriptorSetLayout> layouts(scene_descriptor_sets.size(), scene_descriptor_set_layout.get());
                 vk::DescriptorSetAllocateInfo dsai {pool, layouts};
                 auto ret = device.allocateDescriptorSets(dsai);
-                std::copy_n(ret.begin(), light_descriptors.size(), light_descriptors.begin());
+                std::copy_n(ret.begin(), scene_descriptor_sets.size(), scene_descriptor_sets.begin());
 
 #ifndef NDEBUG
-                for (uint32_t i = 0; i < light_descriptors.size(); i++) {
+                for (uint32_t i = 0; i < scene_descriptor_sets.size(); i++) {
                     DEBUG_SET_NAME_TEMPLATE(
-                        device, light_descriptors[i], std::format("Desc Set - Scene FIF {}", i)
+                        device, scene_descriptor_sets[i], std::format("Desc Set - Scene FIF {}", i)
                     );
                 }
 #endif
 
                 // Allocate the back buffer for lights.
-                back_buffer = IndexedBuffer::CreateUnique(
+                light_back_buffer = IndexedBuffer::CreateUnique(
                     allocator,
                     Buffer::BufferType::Uniform,
-                    sizeof(pimpl->lights.front_buffer),
+                    sizeof(pimpl->scene.light_front_buffer),
                     system->GetDeviceInterface().QueryLimit(DeviceInterface::PhysicalDeviceLimitInteger::UniformBufferOffsetAlignment),
-                    light_descriptors.size(),
+                    scene_descriptor_sets.size(),
                     "Scene Light Uniform Buffer"
                 );
-                assert(back_buffer);
+                assert(light_back_buffer);
 
                 // Prepare default depth map
                 default_light_map = RenderTargetTexture::CreateUnique(
@@ -166,28 +167,28 @@ namespace Engine::RenderSystemState {
 
                 // Write out descriptors
                 std::vector <vk::DescriptorBufferInfo> buffers(
-                    light_descriptors.size(),
+                    scene_descriptor_sets.size(),
                     vk::DescriptorBufferInfo{
-                        back_buffer->GetBuffer(),
+                        light_back_buffer->GetBuffer(),
                         0,
-                        back_buffer->GetSliceSize()
+                        light_back_buffer->GetSliceSize()
                     }
                 );
                 std::vector <vk::WriteDescriptorSet> writes(
-                    light_descriptors.size(),
+                    scene_descriptor_sets.size(),
                     vk::WriteDescriptorSet{
                         nullptr, 0, 0, vk::DescriptorType::eUniformBuffer, {}, {}, {}
                     }
                 );
-                for (uint32_t i = 0; i < light_descriptors.size(); i++) {
-                    buffers[i].offset = back_buffer->GetSliceOffset(i);
-                    writes[i].dstSet = light_descriptors[i];
+                for (uint32_t i = 0; i < scene_descriptor_sets.size(); i++) {
+                    buffers[i].offset = light_back_buffer->GetSliceOffset(i);
+                    writes[i].dstSet = scene_descriptor_sets[i];
                     writes[i].descriptorCount = 1;
                     writes[i].pBufferInfo = &buffers[i];
                 }
                 device.updateDescriptorSets(writes, {});
             }
-        } lights{};
+        } scene{};
 
         struct Skybox {
             static constexpr std::array DESCRIPTOR_BINDINGS {
@@ -338,6 +339,7 @@ namespace Engine::RenderSystemState {
                     descriptor_bindings
                 };
                 descriptor_set_layout = device.createDescriptorSetLayoutUnique(dslci);
+                DEBUG_SET_NAME_TEMPLATE(device, descriptor_set_layout.get(), "Skybox Pipeline Descriptor Set Layout");
 
                 // Create pipeline layout for skybox rendering pipeline
                 vk::PipelineLayoutCreateInfo plci{
@@ -346,6 +348,7 @@ namespace Engine::RenderSystemState {
                     PIPELINE_PUSH_CONSTANT_RANGE
                 };
                 pipeline_layout = device.createPipelineLayoutUnique(plci);
+                DEBUG_SET_NAME_TEMPLATE(device, pipeline_layout.get(), "Skybox Pipeline Layout");
 
                 // Allocate descriptors
                 std::vector <vk::DescriptorSetLayout> layouts(descriptors.size(), descriptor_set_layout.get());
@@ -370,7 +373,7 @@ namespace Engine::RenderSystemState {
             // Create dedicated descriptor pool
             vk::DescriptorPoolCreateInfo dpci {
                 vk::DescriptorPoolCreateFlagBits{},
-                lights.light_descriptors.size() + skybox.descriptors.size(),
+                scene.scene_descriptor_sets.size() + skybox.descriptors.size(),
                 impl::SCENE_DESCRIPTOR_POOL_SIZE
             };
             scene_descriptor_pool = device.createDescriptorPoolUnique(dpci);
@@ -378,7 +381,7 @@ namespace Engine::RenderSystemState {
                 device, scene_descriptor_pool.get(), "Scene Descriptor Pool"
             );
 
-            lights.Create(system, scene_descriptor_pool.get());
+            scene.Create(system, scene_descriptor_pool.get());
             skybox.Create(system, scene_descriptor_pool.get());
         }
     };
@@ -392,13 +395,13 @@ namespace Engine::RenderSystemState {
 
     void SceneDataManager::SetLightDirectional(uint32_t index, glm::vec3 direction, glm::vec3 intensity) noexcept {
         assert(index < MAX_SHADOW_CASTING_LIGHTS);
-        pimpl->lights.front_buffer.shadow_casting.light_source[index] = glm::vec4(direction, 0.0f);
-        pimpl->lights.front_buffer.shadow_casting.light_color[index] = glm::vec4(intensity, 0.0f);
+        pimpl->scene.light_front_buffer.shadow_casting.light_source[index] = glm::vec4(direction, 0.0f);
+        pimpl->scene.light_front_buffer.shadow_casting.light_color[index] = glm::vec4(intensity, 0.0f);
         // TODO: determine clip planes and light eye position from the scene
         auto proj = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, 0.1f, 10.0f);
         proj[1][1] *= -1.0f;
         auto view = glm::lookAtRH(-direction, glm::vec3{0.0f, 0.0f, 0.0f}, glm::vec3{0.0f, 1.0f, 0.0f});
-        pimpl->lights.front_buffer.shadow_casting.light_matrices[index] = proj * view;
+        pimpl->scene.light_front_buffer.shadow_casting.light_matrices[index] = proj * view;
     }
 
     void SceneDataManager::SetLightPoint(
@@ -417,8 +420,8 @@ namespace Engine::RenderSystemState {
         uint32_t index, glm::vec3 direction, glm::vec3 intensity
     ) noexcept {
         assert(index < MAX_NON_SHADOW_CASTING_LIGHTS);
-        pimpl->lights.front_buffer.non_shadow_casting.light_source[index] = glm::vec4(direction, 0.0f);
-        pimpl->lights.front_buffer.non_shadow_casting.light_color[index] = glm::vec4(intensity, 0.0f);
+        pimpl->scene.light_front_buffer.non_shadow_casting.light_source[index] = glm::vec4(direction, 0.0f);
+        pimpl->scene.light_front_buffer.non_shadow_casting.light_color[index] = glm::vec4(intensity, 0.0f);
     }
 
     void SceneDataManager::SetLightShadowMap(uint32_t index, std::weak_ptr<RenderTargetTexture> shadowmap) noexcept {
@@ -434,27 +437,27 @@ namespace Engine::RenderSystemState {
             assert(desc.format == ImageUtils::ImageFormat::D32SFLOAT);
         }
 #endif
-        pimpl->lights.bound_shadow_maps[index] = shadowmap;
+        pimpl->scene.bound_shadow_maps[index] = shadowmap;
     }
 
     void SceneDataManager::SetLight(uint32_t index, std::shared_ptr<void> light) noexcept {
         assert(index < MAX_SHADOW_CASTING_LIGHTS);
-        pimpl->lights.bound_light_components[index] = light;
+        pimpl->scene.bound_light_components[index] = light;
     }
 
     void SceneDataManager::SetLightNonShadowCasting(uint32_t index, std::shared_ptr<void> light) noexcept {
         assert(index < MAX_NON_SHADOW_CASTING_LIGHTS);
-        pimpl->lights.bound_light_components[MAX_SHADOW_CASTING_LIGHTS + index] = light;
+        pimpl->scene.bound_light_components[MAX_SHADOW_CASTING_LIGHTS + index] = light;
     }
 
     void SceneDataManager::SetLightCount(uint32_t count) noexcept {
         assert(count < MAX_SHADOW_CASTING_LIGHTS);
-        pimpl->lights.front_buffer.shadow_casting_light_count = count;
+        pimpl->scene.light_front_buffer.shadow_casting_light_count = count;
     }
 
     void SceneDataManager::SetLightCountNonShadowCasting(uint32_t count) noexcept {
         assert(count < MAX_NON_SHADOW_CASTING_LIGHTS);
-        pimpl->lights.front_buffer.non_shadow_casting_light_count = count;
+        pimpl->scene.light_front_buffer.non_shadow_casting_light_count = count;
     }
 
     void SceneDataManager::SetSkyboxCubemap(std::shared_ptr<Texture> texture) noexcept {
@@ -464,24 +467,24 @@ namespace Engine::RenderSystemState {
     void SceneDataManager::UploadSceneData(uint32_t frame_in_flight) const noexcept {
         // TODO: use some dirty bit check to avoid memory write.
         std::memcpy(
-            pimpl->lights.back_buffer->GetSlicePtr(frame_in_flight), 
-            &pimpl->lights.front_buffer,
-            sizeof (pimpl->lights.front_buffer)
+            pimpl->scene.light_back_buffer->GetSlicePtr(frame_in_flight), 
+            &pimpl->scene.light_front_buffer,
+            sizeof (pimpl->scene.light_front_buffer)
         );
-        pimpl->lights.back_buffer->FlushSlice(frame_in_flight);
+        pimpl->scene.light_back_buffer->FlushSlice(frame_in_flight);
         
         std::vector <vk::WriteDescriptorSet> descriptor_writes;
         descriptor_writes.reserve(2);
         std::vector <vk::DescriptorImageInfo> shadowmap_image_descriptor_writes{MAX_SHADOW_CASTING_LIGHTS, vk::DescriptorImageInfo{}};
 
-        const auto shadow_casting_light_count = pimpl->lights.front_buffer.shadow_casting_light_count;
+        const auto shadow_casting_light_count = pimpl->scene.light_front_buffer.shadow_casting_light_count;
         for (size_t i = 0; i < MAX_SHADOW_CASTING_LIGHTS; i++) {
             bool use_default_map = true;
             if (i < shadow_casting_light_count) {
-                if(!pimpl->lights.bound_shadow_maps[i].expired()) {
+                if(!pimpl->scene.bound_shadow_maps[i].expired()) {
                     use_default_map = false;
                     shadowmap_image_descriptor_writes[i] = vk::DescriptorImageInfo{
-                        nullptr, pimpl->lights.bound_shadow_maps[i].lock()->GetImageView(), vk::ImageLayout::eReadOnlyOptimal
+                        nullptr, pimpl->scene.bound_shadow_maps[i].lock()->GetImageView(), vk::ImageLayout::eReadOnlyOptimal
                     };
                 } else {
                     SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Shadowmap %llu is not assigned, and is defaulted.", i);
@@ -490,14 +493,14 @@ namespace Engine::RenderSystemState {
 
             if (use_default_map) {
                 shadowmap_image_descriptor_writes[i] = vk::DescriptorImageInfo{
-                    nullptr, pimpl->lights.default_light_map->GetImageView(), vk::ImageLayout::eReadOnlyOptimal
+                    nullptr, pimpl->scene.default_light_map->GetImageView(), vk::ImageLayout::eReadOnlyOptimal
                 };
             }
         }
 
         descriptor_writes.push_back(
             vk::WriteDescriptorSet{
-                pimpl->lights.light_descriptors[frame_in_flight], 1, 0,
+                pimpl->scene.scene_descriptor_sets[frame_in_flight], 1, 0,
                 vk::DescriptorType::eCombinedImageSampler,
                 shadowmap_image_descriptor_writes
             }
@@ -525,7 +528,7 @@ namespace Engine::RenderSystemState {
     }
 
     void SceneDataManager::FetchLightData() noexcept {
-        for (auto p : pimpl->lights.bound_light_components) {
+        for (auto p : pimpl->scene.bound_light_components) {
             // ...
         }
     }
@@ -555,12 +558,12 @@ namespace Engine::RenderSystemState {
     }
 
     vk::DescriptorSet SceneDataManager::GetLightDescriptorSet(uint32_t frame_in_flight) const noexcept {
-        assert(frame_in_flight < pimpl->lights.light_descriptors.size());
-        return pimpl->lights.light_descriptors[frame_in_flight];
+        assert(frame_in_flight < pimpl->scene.scene_descriptor_sets.size());
+        return pimpl->scene.scene_descriptor_sets[frame_in_flight];
     }
 
     vk::DescriptorSetLayout SceneDataManager::GetLightDescriptorSetLayout() const noexcept {
-        return pimpl->lights.descriptor_set_layout.get();
+        return pimpl->scene.scene_descriptor_set_layout.get();
     }
 
     vk::DescriptorSet SceneDataManager::GetSkyboxDescriptorSet(uint32_t frame_in_flight) const noexcept {
