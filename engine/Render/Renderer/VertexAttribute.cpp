@@ -59,7 +59,11 @@ namespace Engine {
             if (stride == 0)   continue;
             
             // alignment is required only if VK_KHR_portability_subset is enabled.
-            ret.push_back(vk::VertexInputBindingDescription{ret.size(), stride, vk::VertexInputRate::eVertex});
+            ret.push_back(vk::VertexInputBindingDescription{
+                static_cast<uint32_t>(ret.size()),
+                stride,
+                vk::VertexInputRate::eVertex
+            });
         }
 
         ret.shrink_to_fit();
@@ -84,7 +88,12 @@ namespace Engine {
                 );
             }
             
-            ret.push_back(vk::VertexInputAttributeDescription{i, ret.size(), format, 0u});
+            ret.push_back(vk::VertexInputAttributeDescription{
+                i,
+                static_cast<uint32_t>(ret.size()),
+                format,
+                0u
+            });
         }
         
         ret.shrink_to_fit();

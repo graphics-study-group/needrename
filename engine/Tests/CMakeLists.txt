@@ -24,6 +24,11 @@ target_link_libraries(shader_refl_test engine)
 add_test(NAME shader_refl_test COMMAND shader_refl_test)
 set_target_properties(shader_refl_test PROPERTIES FOLDER engine_tests)
 
+add_executable(vertex_attribute_test vertex_attribute_test.cpp)
+target_link_libraries(vertex_attribute_test engine)
+add_test(NAME vertex_attribute_test COMMAND vertex_attribute_test)
+set_target_properties(vertex_attribute_test PROPERTIES FOLDER engine_tests)
+
 add_subdirectory(reflection_test)
 add_subdirectory(serialization_test)
 set_target_properties(reflection_test PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/engine/Tests")
