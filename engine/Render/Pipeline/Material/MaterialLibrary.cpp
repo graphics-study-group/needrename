@@ -7,8 +7,6 @@
 
 namespace Engine {
     struct MaterialLibrary::impl {
-        constexpr static uint32_t MAX_MESH_TYPE_COUNT = 5;
-
         struct PipelineAssetItem {
             MeshVertexType expected_mesh_type;
             std::shared_ptr<AssetRef> material_template_asset;
@@ -23,7 +21,6 @@ namespace Engine {
             const std::string & tag,
             uint64_t mesh_type
         ) {
-            assert(mesh_type < MAX_MESH_TYPE_COUNT);
             auto itr = pipeline_table.find(tag);
             if (itr == pipeline_table.end() || !(itr->second[mesh_type])) {
                 CreatePipeline(system, tag, mesh_type);
@@ -36,7 +33,6 @@ namespace Engine {
          * both the tag and the mesh type exists.
          */
         void CreatePipeline(RenderSystem & system, const std::string & tag, uint64_t actual_type) {
-            assert(actual_type < MAX_MESH_TYPE_COUNT);
             auto itr = pipeline_asset_table.find(tag);
             assert(itr != pipeline_asset_table.end() && "Pipeline tag not found.");
             assert(itr->second.material_template_asset && "Invalid material template asset.");
@@ -77,7 +73,6 @@ namespace Engine {
         const std::string &tag, VertexAttribute mesh_type
     ) const noexcept {
         auto idx = mesh_type.packed;
-        assert(idx < impl::MAX_MESH_TYPE_COUNT);
 
         auto itr = pimpl->pipeline_table.find(tag);
         if (itr != pimpl->pipeline_table.end() && itr->second[idx]) {

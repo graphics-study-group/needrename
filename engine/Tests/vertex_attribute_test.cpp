@@ -45,6 +45,19 @@ int main() {
         .SetAttribute(VertexAttributeSemantic::BoneIndices, VertexAttributeType::Uint16x2)
         .SetAttribute(VertexAttributeSemantic::BoneWeights, VertexAttributeType::SFloat32x2);
 
+    assert(attribute.GetAttribute(VertexAttributeSemantic::Position) == VertexAttributeType::SFloat32x3);
+    assert(attribute.GetAttribute(VertexAttributeSemantic::BoneIndices) == VertexAttributeType::Uint16x2);
+    assert(attribute.GetAttribute(VertexAttributeSemantic::BoneWeights) == VertexAttributeType::SFloat32x2);
+
     Print(attribute.ToVkVertexInputBinding());
     Print(attribute.ToVkVertexAttribute());
+
+    std::cout << "Total size: " << attribute.GetTotalPerVertexSize() << std::endl ;
+    auto offsets = attribute.EnumerateOffsetFactor();
+
+    std::cout << "Offsets:";
+    for (auto offset : offsets) {
+        std::cout << " " << offset ;
+    }
+    std::cout << std::endl ;
 }
