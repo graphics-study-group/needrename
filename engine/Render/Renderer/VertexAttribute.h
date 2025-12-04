@@ -91,15 +91,10 @@ namespace Engine {
          * Each vertex attibute corresponds to exactly one binding, and
          * the stride of the binding is exactly the same as the size
          * occupied by one item of the attribute (i.e. 128 for `SFloat32x4`).
-         * The input rate is set to per mesh.
+         * The input rate is set to per vertex.
          * The binding numbers are guranteed to be contingous and increasing.
-         *
-         * @param device a pointer to the device interface to check physical limits.
-         * Pass null to ignore the checks.
          */
-        std::vector <vk::VertexInputBindingDescription> ToVkVertexInputBinding(
-            RenderSystemState::DeviceInterface * device = nullptr
-        ) const noexcept;
+        std::vector <vk::VertexInputBindingDescription> ToVkVertexInputBinding() const noexcept;
 
         /**
          * @brief Generate a vertex input attribute description from the
@@ -110,14 +105,11 @@ namespace Engine {
          * `ToVkVertexInputBinding`.
          * Offsets are set to zero, and true offsets of the attributes into the 
          * underlying buffer will be determined at bind time.
-         * 
-         * @param device a pointer to the device interface to check physical limits.
-         * Pass null to ignore the checks.
+         *
          * @param allocator a pointer to the allocator to check format limits.
          * Pass null to ignore the checks.
          */
         std::vector <vk::VertexInputAttributeDescription> ToVkVertexAttribute(
-            RenderSystemState::DeviceInterface * device = nullptr,
             RenderSystemState::AllocatorState * allocator = nullptr
         ) const noexcept;
     };
