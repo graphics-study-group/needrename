@@ -3,6 +3,7 @@
 #include "Render/Memory/IndexedBuffer.h"
 #include "Render/DebugUtils.h"
 #include <vulkan/vulkan.hpp>
+#include <SDL3/SDL.h>
 #include <ext/matrix_transform.hpp>
 #include <ext/matrix_clip_space.hpp>
 #include <fstream>
@@ -93,6 +94,8 @@ namespace Engine::RenderSystemState {
             std::array <std::weak_ptr<void>, MAX_SHADOW_CASTING_LIGHTS + MAX_NON_SHADOW_CASTING_LIGHTS> bound_light_components{};
             std::array <std::weak_ptr<RenderTargetTexture>, MAX_SHADOW_CASTING_LIGHTS> bound_shadow_maps{};
 
+            std::shared_ptr <RenderTargetTexture> default_light_map;
+
             void Create(std::shared_ptr<RenderSystem> system, vk::DescriptorPool pool) {
                 auto & allocator = system->GetAllocatorState();
                 auto device = system->GetDevice();
@@ -142,6 +145,24 @@ namespace Engine::RenderSystemState {
                     "Scene Light Uniform Buffer"
                 );
                 assert(back_buffer);
+
+                // Prepare default depth map
+                default_light_map = RenderTargetTexture::CreateUnique(
+                    *system,
+                    RenderTargetTexture::RenderTargetTextureDesc{
+                        .dimensions = 2,
+                        .width = 16, .height = 16, .depth = 1,
+                        .mipmap_levels = 1, .array_layers = 1,
+                        .format = RenderTargetTexture::RTTFormat::D32SFLOAT,
+                        .multisample = 1,
+                        .is_cube_map = false
+                    },
+                    Texture::SamplerDesc{
+
+                    },
+                    "Default shadowmap"
+                );
+                system->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*default_light_map, 1.0f);
 
                 // Write out descriptors
                 std::vector <vk::DescriptorBufferInfo> buffers(
@@ -451,27 +472,36 @@ namespace Engine::RenderSystemState {
         
         std::vector <vk::WriteDescriptorSet> descriptor_writes;
         descriptor_writes.reserve(2);
-        std::vector <vk::DescriptorImageInfo> shadowmap_image_descriptor_writes{};
+        std::vector <vk::DescriptorImageInfo> shadowmap_image_descriptor_writes{MAX_SHADOW_CASTING_LIGHTS, vk::DescriptorImageInfo{}};
 
         const auto shadow_casting_light_count = pimpl->lights.front_buffer.shadow_casting_light_count;
-        if (shadow_casting_light_count > 0) {
-            shadowmap_image_descriptor_writes.resize(shadow_casting_light_count);
-
-            for (size_t i = 0; i < shadow_casting_light_count; i++) {
-                assert(!pimpl->lights.bound_shadow_maps[i].expired());
-                shadowmap_image_descriptor_writes[i] = vk::DescriptorImageInfo{
-                    nullptr, pimpl->lights.bound_shadow_maps[i].lock()->GetImageView(), vk::ImageLayout::eReadOnlyOptimal
-                };
+        for (size_t i = 0; i < MAX_SHADOW_CASTING_LIGHTS; i++) {
+            bool use_default_map = true;
+            if (i < shadow_casting_light_count) {
+                if(!pimpl->lights.bound_shadow_maps[i].expired()) {
+                    use_default_map = false;
+                    shadowmap_image_descriptor_writes[i] = vk::DescriptorImageInfo{
+                        nullptr, pimpl->lights.bound_shadow_maps[i].lock()->GetImageView(), vk::ImageLayout::eReadOnlyOptimal
+                    };
+                } else {
+                    SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Shadowmap %llu is not assigned, and is defaulted.", i);
+                }
             }
 
-            descriptor_writes.push_back(
-                vk::WriteDescriptorSet{
-                    pimpl->lights.light_descriptors[frame_in_flight], 1, 0,
-                    vk::DescriptorType::eCombinedImageSampler,
-                    shadowmap_image_descriptor_writes
-                }
-            );
+            if (use_default_map) {
+                shadowmap_image_descriptor_writes[i] = vk::DescriptorImageInfo{
+                    nullptr, pimpl->lights.default_light_map->GetImageView(), vk::ImageLayout::eReadOnlyOptimal
+                };
+            }
         }
+
+        descriptor_writes.push_back(
+            vk::WriteDescriptorSet{
+                pimpl->lights.light_descriptors[frame_in_flight], 1, 0,
+                vk::DescriptorType::eCombinedImageSampler,
+                shadowmap_image_descriptor_writes
+            }
+        );
 
         std::array <vk::DescriptorImageInfo, 1> cubemap_image_descriptor_writes{};
         if (pimpl->skybox.skybox_texture) {
