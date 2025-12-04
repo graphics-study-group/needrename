@@ -90,6 +90,7 @@ namespace Engine {
             for (auto f : vec) {
                 m_buffer_offsets.push_back(f * new_vertex_count);
             }
+            m_buffer_offsets.push_back(new_vertex_count * m_attribute.GetTotalPerVertexSize());
         }
     }
 
@@ -118,6 +119,8 @@ namespace Engine {
 
         for (uint32_t i = 0; i < 16; i++) {
             auto semantic = static_cast<VertexAttributeSemantic>(i);
+            if (!m_attribute.HasAttribute(semantic)) continue;
+
             switch(semantic) {
                 using enum VertexAttributeSemantic;
                 case Position:
@@ -129,9 +132,16 @@ namespace Engine {
                     break;
                 case Normal: {
                     // deinterleave data
-                    std::vector <std::array<float, 3>> deinterleaved;
-                    deinterleaved.reserve(GetVertexCount());
-                    for (const auto & attr : attributes) deinterleaved.push_back({attr.normal[0], attr.normal[1], attr.normal[2]});
+                    // TODO: How to deinterleave the data should depends on vertex attributes
+                    // Now we just assume that it is defaulted.
+                    std::vector <float> deinterleaved;
+                    deinterleaved.reserve(GetVertexCount() * 3);
+                    for (const auto & attr : attributes) {
+                        deinterleaved.push_back(attr.normal[0]);
+                        deinterleaved.push_back(attr.normal[1]);
+                        deinterleaved.push_back(attr.normal[2]);
+                    }
+                    assert(deinterleaved.size() * sizeof(float) == m_attribute.GetPerVertexSize(semantic) * GetVertexCount());
                     std::memcpy(
                         pointer + m_attribute.GetOffsetFactor(semantic) * GetVertexCount(),
                         deinterleaved.data(),
@@ -141,9 +151,14 @@ namespace Engine {
                 }
                 case Color: {
                     // deinterleave data
-                    std::vector <std::array<float, 3>> deinterleaved;
-                    deinterleaved.reserve(GetVertexCount());
-                    for (const auto & attr : attributes) deinterleaved.push_back({attr.color[0], attr.color[1], attr.color[2]});
+                    std::vector <float> deinterleaved;
+                    deinterleaved.reserve(GetVertexCount() * 3);
+                    for (const auto & attr : attributes) {
+                        deinterleaved.push_back(attr.color[0]);
+                        deinterleaved.push_back(attr.color[1]);
+                        deinterleaved.push_back(attr.color[2]);
+                    }
+                    assert(deinterleaved.size() * sizeof(float) == m_attribute.GetPerVertexSize(semantic) * GetVertexCount());
                     std::memcpy(
                         pointer + m_attribute.GetOffsetFactor(semantic) * GetVertexCount(),
                         deinterleaved.data(),
@@ -153,9 +168,13 @@ namespace Engine {
                 }
                 case Texcoord0: {
                     // deinterleave data
-                    std::vector <std::array<float, 2>> deinterleaved;
-                    deinterleaved.reserve(GetVertexCount());
-                    for (const auto & attr : attributes) deinterleaved.push_back({attr.texcoord1[0], attr.texcoord1[1]});
+                    std::vector <float> deinterleaved;
+                    deinterleaved.reserve(GetVertexCount() * 2);
+                    for (const auto & attr : attributes) {
+                        deinterleaved.push_back(attr.texcoord1[0]);
+                        deinterleaved.push_back(attr.texcoord1[1]);
+                    }
+                    assert(deinterleaved.size() * sizeof(float) == m_attribute.GetPerVertexSize(semantic) * GetVertexCount());
                     std::memcpy(
                         pointer + m_attribute.GetOffsetFactor(semantic) * GetVertexCount(),
                         deinterleaved.data(),
