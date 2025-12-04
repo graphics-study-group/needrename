@@ -13,6 +13,7 @@
 #include "Render/RenderSystem/CameraManager.h"
 #include "Render/Renderer/Camera.h"
 #include "Render/Renderer/HomogeneousMesh.h"
+#include "Render/Renderer/VertexAttribute.h"
 
 #include "Render/DebugUtils.h"
 
@@ -92,9 +93,9 @@ namespace Engine {
     void GraphicsCommandBuffer::BindMaterial(
         MaterialInstance &material,
         const std::string & tag,
-        HomogeneousMesh::MeshVertexType type
+        VertexAttribute attribute
     ) {
-        auto tpl = material.GetLibrary()->FindMaterialTemplate(tag, type);
+        auto tpl = material.GetLibrary()->FindMaterialTemplate(tag, attribute);
         assert(tpl && "Material template not found.");
         const auto &pipeline = tpl->GetPipeline();
         const auto &pipeline_layout = tpl->GetPipelineLayout();
@@ -202,7 +203,7 @@ namespace Engine {
 
                 assert(materials.size() == meshes.size());
                 for (size_t id = 0; id < materials.size(); id++) {
-                    this->BindMaterial(*materials[id], tag, HomogeneousMesh::MeshVertexType::Basic);
+                    this->BindMaterial(*materials[id], tag, meshes[id]->GetVertexAttribute());
                     this->DrawMesh(*meshes[id], model_matrix, camera_index);
                 }
             }

@@ -64,7 +64,7 @@ std::pair<std::shared_ptr<MaterialLibraryAsset>, std::shared_ptr<MaterialTemplat
 
     lib_asset->m_name = "Blinn-Phong";
     MaterialLibraryAsset::MaterialTemplateReference ref;
-    ref.expected_mesh_type = (uint32_t)HomogeneousMesh::MeshVertexType::Basic;
+    ref.expected_mesh_type = 0;
     ref.material_template = std::make_shared<AssetRef>(test_asset);
     lib_asset->material_bundle[""] = ref;
 
@@ -104,11 +104,11 @@ RenderGraph BuildRenderGraph(
         );
 
         gcb.SetupViewport(extent.width, extent.height, {{0, 0}, extent});
-        gcb.BindMaterial(*material, "", HomogeneousMesh::MeshVertexType::Basic);
+        gcb.BindMaterial(*material, "", VertexAttribute::GetDefaultBasicVertexAttribute());
         // Push model matrix...
         vk::CommandBuffer rcb = gcb.GetCommandBuffer();
         rcb.pushConstants(
-            material->GetLibrary()->FindMaterialTemplate("", HomogeneousMesh::MeshVertexType::Basic)->GetPipelineLayout(),
+            material->GetLibrary()->FindMaterialTemplate("", VertexAttribute::GetDefaultBasicVertexAttribute())->GetPipelineLayout(),
             vk::ShaderStageFlagBits::eAllGraphics,
             0,
             sizeof (RenderSystemState::RendererManager::RendererDataStruct),

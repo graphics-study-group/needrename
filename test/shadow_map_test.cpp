@@ -88,11 +88,11 @@ std::shared_ptr <MaterialLibraryAsset> ConstructMaterialLibrary(std::array<std::
     std::shared_ptr <MaterialLibraryAsset> lib = std::make_shared<MaterialLibraryAsset>();
     lib->m_name = "Blinn-Phong w. Shadowmap";
     MaterialLibraryAsset::MaterialTemplateReference ref;
-    ref.expected_mesh_type = static_cast<uint32_t>(HomogeneousMesh::MeshVertexType::Basic);
+    ref.expected_mesh_type = 0;
     ref.material_template = std::make_shared<AssetRef>(templates[0]);
     lib->material_bundle["Lit"] = ref;
 
-    ref.expected_mesh_type = static_cast<uint32_t>(HomogeneousMesh::MeshVertexType::Position);
+    ref.expected_mesh_type = 0;
     ref.material_template = std::make_shared<AssetRef>(templates[1]);
     lib->material_bundle["Shadowmap"] = ref;
     return lib;
@@ -227,7 +227,7 @@ int main(int argc, char **argv) {
                 "Shadowmap Pass"
             );
             gcb.SetupViewport(shadow_map_extent.width, shadow_map_extent.height, shadow_map_scissor);
-            gcb.BindMaterial(*object_material_instance, "Shadowmap", HomogeneousMesh::MeshVertexType::Basic);
+            gcb.BindMaterial(*object_material_instance, "Shadowmap", VertexAttribute::GetDefaultBasicVertexAttribute());
 
             gcb.DrawRenderers(
                 "Shadowmap",
@@ -253,7 +253,7 @@ int main(int argc, char **argv) {
             vk::Extent2D extent{rsys->GetSwapchain().GetExtent()};
             vk::Rect2D scissor{{0, 0}, extent};
             gcb.SetupViewport(extent.width, extent.height, scissor);
-            gcb.BindMaterial(*object_material_instance, "Lit", HomogeneousMesh::MeshVertexType::Basic);
+            gcb.BindMaterial(*object_material_instance, "Lit", VertexAttribute::GetDefaultBasicVertexAttribute());
             gcb.DrawRenderers(
                 "Lit",
                 rsys->GetRendererManager().FilterAndSortRenderers({})

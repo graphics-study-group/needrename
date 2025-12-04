@@ -46,10 +46,10 @@ namespace Engine {
      */
     enum class VertexAttributeSemantic : uint8_t {
         Position,
-        Normal,
-        Tangent,
         Color,
+        Normal,
         Texcoord0,
+        Tangent,
         Texcoord1,
         Texcoord2,
         Texcoord3,
@@ -85,6 +85,10 @@ namespace Engine {
             return static_cast<VertexAttributeType>(shifted & 0xF);
         }
 
+        bool HasAttribute(VertexAttributeSemantic semantic) const noexcept {
+            return GetAttribute(semantic) != VertexAttributeType::Unused;
+        }
+
         /**
          * @brief Generate a vertex input binding description from the
          * stored vertex attribute.
@@ -112,6 +116,43 @@ namespace Engine {
         std::vector <vk::VertexInputAttributeDescription> ToVkVertexAttribute(
             RenderSystemState::AllocatorState * allocator = nullptr
         ) const noexcept;
+
+        /**
+         * @brief Get total vertex size.
+         */
+        uint32_t GetTotalPerVertexSize() const noexcept;
+
+        /**
+         * @brief Get a per vertex size, enough to hold all attributes.
+         * @note This size does not include the size of the index buffer.
+         */
+        uint32_t GetPerVertexSize(VertexAttributeSemantic semantic) const noexcept;
+
+        /**
+         * @brief Get the multiplier of the offset of the semantic.
+         * The offset of the given semantic is caculated by multiply
+         * the factor and the vertex count.
+         */
+        uint64_t GetOffsetFactor(VertexAttributeSemantic semantic) const noexcept;
+
+        /**
+         * @brief Enumerate the offset factor of all used attributes.
+         */
+        std::vector <uint64_t> EnumerateOffsetFactor() const noexcept;
+
+        static constexpr VertexAttribute GetDefaultBasicVertexAttribute() {
+            return VertexAttribute{
+                .packed =
+                    // Position
+                    (static_cast<uint8_t>(VertexAttributeType::SFloat32x3)) |
+                    // Color
+                    (static_cast<uint8_t>(VertexAttributeType::SFloat32x3) << 4) |
+                    // Normal
+                    (static_cast<uint8_t>(VertexAttributeType::SFloat32x3) << 8) |
+                    // Texcoord0
+                    (static_cast<uint8_t>(VertexAttributeType::SFloat32x2) << 12)
+            };
+        }
     };
 }
 

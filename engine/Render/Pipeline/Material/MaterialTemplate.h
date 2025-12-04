@@ -65,7 +65,7 @@ namespace Engine {
         MaterialTemplate(
             RenderSystem &system,
             const MaterialTemplateSinglePassProperties & properties,
-            MeshVertexType type,
+            VertexAttribute attribute,
             const std::string & name = ""
         );
 

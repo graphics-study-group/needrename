@@ -61,7 +61,7 @@ std::pair<std::shared_ptr<MaterialLibraryAsset>, std::shared_ptr<MaterialTemplat
 
     test_lib_asset->m_name = "MRT Writethrough";
     MaterialLibraryAsset::MaterialTemplateReference ref;
-    ref.expected_mesh_type = (uint32_t)HomogeneousMesh::MeshVertexType::Position;
+    ref.expected_mesh_type = 0;
     ref.material_template = std::make_shared<AssetRef>(test_asset);
     test_lib_asset->material_bundle[""] = ref;
 
@@ -103,11 +103,13 @@ RenderGraph BuildRenderGraph(
         );
 
         gcb.SetupViewport(extent.width, extent.height, {{0, 0}, extent});
-        gcb.BindMaterial(*material, "", Engine::HomogeneousMesh::MeshVertexType::Position);
+        VertexAttribute attribute;
+        attribute.SetAttribute(VertexAttributeSemantic::Position, VertexAttributeType::SFloat32x3);
+        gcb.BindMaterial(*material, "", attribute);
         // Push model matrix...
         vk::CommandBuffer rcb = gcb.GetCommandBuffer();
         rcb.pushConstants(
-            material->GetLibrary()->FindMaterialTemplate("", Engine::HomogeneousMesh::MeshVertexType::Position)->GetPipelineLayout(),
+            material->GetLibrary()->FindMaterialTemplate("", attribute)->GetPipelineLayout(),
             vk::ShaderStageFlagBits::eAllGraphics,
             0,
             sizeof(RenderSystemState::RendererManager::RendererDataStruct),

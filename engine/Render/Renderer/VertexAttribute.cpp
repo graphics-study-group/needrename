@@ -25,7 +25,7 @@ namespace {
         }
     }
 
-    uint32_t GetStride(Engine::VertexAttributeType type) {
+    uint32_t GetSize(Engine::VertexAttributeType type) {
         switch (type) {
             using enum Engine::VertexAttributeType;
             case SFloat32x1:
@@ -45,6 +45,10 @@ namespace {
             default:
                 return 0;
         }
+    }
+
+    uint32_t GetStride(Engine::VertexAttributeType type) {
+        return GetSize(type);
     }
 }
 
@@ -99,4 +103,39 @@ namespace Engine {
         ret.shrink_to_fit();
         return ret;
     }
-}
+
+    uint32_t VertexAttribute::GetTotalPerVertexSize() const noexcept {
+        uint32_t ret{0};
+        for (uint32_t i = 0; i < 16; i++) {
+            auto type = this->GetAttribute(static_cast<VertexAttributeSemantic>(i));
+            auto stride = GetSize(type);
+            ret += stride;
+        }
+        return ret;
+    }
+    uint32_t VertexAttribute::GetPerVertexSize(VertexAttributeSemantic semantic) const noexcept {
+        return GetSize(GetAttribute(semantic));
+    }
+    uint64_t VertexAttribute::GetOffsetFactor(VertexAttributeSemantic semantic) const noexcept {
+        uint32_t ret{0};
+        for (uint32_t i = 0; i < static_cast<uint32_t>(semantic); i++) {
+            auto type = this->GetAttribute(static_cast<VertexAttributeSemantic>(i));
+            auto stride = GetStride(type);
+            ret += stride;
+        }
+        return ret;
+    }
+    std::vector<uint64_t> VertexAttribute::EnumerateOffsetFactor() const noexcept {
+        std::vector <uint64_t> ret;
+        uint64_t offset{0};
+        ret.reserve(16);
+        for (uint32_t i = 0; i < 16; i++) {
+            auto type = this->GetAttribute(static_cast<VertexAttributeSemantic>(i));
+            auto stride = GetStride(type);
+            if (stride) ret.push_back(offset);
+
+            offset += stride;
+        }
+        return ret;
+    }
+} // namespace Engine

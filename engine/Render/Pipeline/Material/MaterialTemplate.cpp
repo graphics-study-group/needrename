@@ -33,7 +33,7 @@ namespace Engine {
         void CreatePipeline(
             RenderSystem & system,
             const MaterialTemplateSinglePassProperties &prop,
-            MeshVertexType type
+            VertexAttribute attribute
         ) {
             vk::Device device = system.GetDevice();
             PassInfo pass_info;
@@ -121,7 +121,13 @@ namespace Engine {
             bool use_swapchain_attachments =
                 prop.attachments.color.empty() && prop.attachments.depth == ImageUtils::ImageFormat::UNDEFINED;
 
-            auto vis = HomogeneousMesh::GetVertexInputState(type);
+            auto vertex_bindings = attribute.ToVkVertexInputBinding();
+            auto vertex_attribute = attribute.ToVkVertexAttribute();
+            auto vis = vk::PipelineVertexInputStateCreateInfo{
+                vk::PipelineVertexInputStateCreateFlags{},
+                vertex_bindings,
+                vertex_attribute
+            };
             auto iasi = vk::PipelineInputAssemblyStateCreateInfo{{}, vk::PrimitiveTopology::eTriangleList, vk::False};
             auto vsi = vk::PipelineViewportStateCreateInfo{{}, 1, nullptr, 1, nullptr};
             auto rsci = PipelineUtils::ToVulkanRasterizationStateCreateInfo(prop.rasterizer);
@@ -263,7 +269,7 @@ namespace Engine {
     MaterialTemplate::MaterialTemplate(
         RenderSystem &system,
         const MaterialTemplateSinglePassProperties &properties,
-        MeshVertexType type,
+        VertexAttribute attribute,
         const std::string &name
     ) : MaterialTemplate(system) {
         pimpl->m_name = name;
@@ -277,7 +283,7 @@ namespace Engine {
         );
 
         // Create pipelines
-        pimpl->CreatePipeline(system, properties, type);
+        pimpl->CreatePipeline(system, properties, attribute);
     }
 
     MaterialTemplate::~MaterialTemplate() = default;

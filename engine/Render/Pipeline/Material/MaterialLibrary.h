@@ -41,17 +41,17 @@ namespace Engine {
          */
         const MaterialTemplate * FindMaterialTemplate(
             const std::string & tag,
-            HomogeneousMesh::MeshVertexType mesh_type
+            VertexAttribute mesh_type
         ) const noexcept;
 
         MaterialTemplate * FindMaterialTemplate(
             const std::string & tag,
-            HomogeneousMesh::MeshVertexType mesh_type
+            VertexAttribute mesh_type
         ) noexcept;
 
         void PreheatMaterialTemplate(
             const std::string & tag,
-            HomogeneousMesh::MeshVertexType mesh_type
+            VertexAttribute mesh_type
         ) noexcept;
 
         void Instantiate (const MaterialLibraryAsset &) override;
