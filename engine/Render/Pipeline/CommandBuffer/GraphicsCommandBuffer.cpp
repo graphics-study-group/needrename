@@ -15,7 +15,6 @@
 #include "Render/Renderer/HomogeneousMesh.h"
 
 #include "Render/DebugUtils.h"
-#include "Render/Pipeline/CommandBuffer/LayoutTransferHelper.h"
 
 #include <SDL3/SDL.h>
 #include <glm.hpp>
