@@ -3,7 +3,7 @@
 #include <vulkan/vulkan.hpp>
 
 namespace {
-    vk::Format ToVkFormat(Engine::VertexAttributeType type) {
+    constexpr vk::Format ToVkFormat(Engine::VertexAttributeType type) {
         switch (type) {
             using enum Engine::VertexAttributeType;
             case SFloat32x1:
@@ -25,29 +25,29 @@ namespace {
         }
     }
 
-    uint32_t GetSize(Engine::VertexAttributeType type) {
+    constexpr uint32_t GetSize(Engine::VertexAttributeType type) {
         switch (type) {
             using enum Engine::VertexAttributeType;
             case SFloat32x1:
-                return 32;
+                return sizeof(float);
             case SFloat32x2:
-                return 64;
+                return sizeof(float) * 2;
             case SFloat32x3:
-                return 96;
+                return sizeof(float) * 3;
             case SFloat32x4:
-                return 128;
+                return sizeof(float) * 4;
             case Uint8x4:
-                return 32;
+                return sizeof(uint8_t) * 4;
             case Uint16x2:
-                return 32;
+                return sizeof(uint16_t) * 2;
             case Uint32x1:
-                return 32;
+                return sizeof(uint32_t) * 1;
             default:
                 return 0;
         }
     }
 
-    uint32_t GetStride(Engine::VertexAttributeType type) {
+    constexpr uint32_t GetStride(Engine::VertexAttributeType type) {
         return GetSize(type);
     }
 }
