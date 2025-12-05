@@ -13,6 +13,7 @@ namespace Engine {
     class Buffer;
     class MaterialAsset;
     class MaterialLibrary;
+    class VertexAttribute;
 
     namespace ShdrRfl {
         class ShaderParameters;
@@ -68,7 +69,7 @@ namespace Engine {
         );
         void UpdateGPUInfo(
             const std::string & tag,
-            HomogeneousMesh::MeshVertexType type,
+            VertexAttribute type,
             uint32_t backbuffer
         );
 
@@ -92,7 +93,7 @@ namespace Engine {
         ) const noexcept;
         vk::DescriptorSet GetDescriptor(
             const std::string & tag,
-            HomogeneousMesh::MeshVertexType type,
+            VertexAttribute type,
             uint32_t backbuffer
         ) const noexcept;
 

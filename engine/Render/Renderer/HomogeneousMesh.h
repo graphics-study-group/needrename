@@ -9,6 +9,7 @@ namespace vk {
 namespace Engine {
     class AssetRef;
     class Buffer;
+    class VertexAttribute;
     
     namespace RenderSystemState {
         class AllocatorState;
@@ -20,12 +21,6 @@ namespace Engine {
         std::unique_ptr<impl> pimpl;
 
     public:
-        enum class MeshVertexType {
-            Position,
-            Basic,
-            Extended,
-            Skinned
-        };
 
         /**
          * @brief Create the Homogenenous mesh from an asset.
@@ -38,8 +33,7 @@ namespace Engine {
         HomogeneousMesh(
             const RenderSystemState::AllocatorState & allocator,
             std::shared_ptr<AssetRef> mesh_asset,
-            size_t submesh_idx,
-            MeshVertexType type = MeshVertexType::Basic
+            size_t submesh_idx
         );
         ~HomogeneousMesh();
 
@@ -76,17 +70,17 @@ namespace Engine {
 
         /**
          * @brief Get vertex attribute buffers, along with their offsets in the buffer.
+         * The final element in this buffer is the offset of the index buffer.
+         * You might wish to remove it before binding vertex input buffers.
          * 
-         * Our
-         * vertex attributes are allocated in the same buffer with different offsets:
+         * Our vertex attributes are allocated in the same buffer with different offsets:
          * ```
-         * POSITION ... | BASICATTR ... | EXTENDEDATTR ... | SKINNEDATTR ... | INDEX ...
-         * ^ Offset 0   | ^ Offset 1    | ^ Offset 2       | ^ Offset 3      | ^ Offset 4
+         * ATTR0 ...  | ATTR1 ...  | ATTR2 ...  | INDEX ...
+         * ^ Offset 0 | ^ Offset 1 | ^ Offset 2 | ^ Offset 3
          * ```
-         * Note that index buffer have a
-         * different element count of the rest of buffers.
+         * Note that index buffer have a different element count of the rest of buffers.
          */
-        std::pair<vk::Buffer, std::vector<uint64_t>> GetVertexBufferInfo() const;
+        std::pair <vk::Buffer, std::vector<uint64_t>> GetVertexBufferInfo() const;
 
         /**
          * @brief Get vertex index buffer, along with its offset in the buffer.
@@ -94,18 +88,18 @@ namespace Engine {
          * Our
          * vertex attributes along with indices are allocated in the same buffer with different offsets:
          * ```
-         * POSITION ... | BASICATTR ... | EXTENDEDATTR ... | SKINNEDATTR ... | INDEX ...
-         * ^ Offset 0   | ^ Offset 1    | ^ Offset 2       | ^ Offset 3      | ^ Offset 4
+         * ATTR0 ...  | ATTR1 ...  | ATTR2 ...  | INDEX ...
+         * ^ Offset 0 | ^ Offset 1 | ^ Offset 2 | ^ Offset 3
          * ```
          * Note that index
          * buffer have a different element count of the rest of buffers.
          */
-        std::pair<vk::Buffer, uint64_t> GetIndexBufferInfo() const;
+        std::pair <vk::Buffer, uint64_t> GetIndexBufferInfo() const;
 
         /**
-         * @brief Query `VkPipelineVertexInputStateCreateInfo` associated with the mesh type.
+         * @brief
          */
-        static vk::PipelineVertexInputStateCreateInfo GetVertexInputState(MeshVertexType type = MeshVertexType::Basic);
+        VertexAttribute GetVertexAttribute() const;
     };
 }; // namespace Engine
 

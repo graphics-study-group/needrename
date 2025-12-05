@@ -19,27 +19,62 @@ namespace Engine {
         return m_submeshes[submesh_idx].m_indices.size();
     }
     uint32_t MeshAsset::GetSubmeshVertexCount(size_t submesh_idx) const {
-        return m_submeshes[submesh_idx].m_positions.size();
+        return m_submeshes[submesh_idx].vertex_count;
     }
     uint64_t MeshAsset::GetSubmeshExpectedBufferSize(size_t submesh_idx) const {
         uint64_t ret = GetSubmeshVertexIndexCount(submesh_idx) * sizeof(uint32_t);
-        if (!m_submeshes[submesh_idx].m_attributes_basic.empty()) {
-            ret += GetSubmeshVertexCount(submesh_idx) * sizeof(VertexStruct::VertexAttributeBasic);
-        }
-        if (!m_submeshes[submesh_idx].m_attributes_extended.empty()) {
-            assert(
-                m_submeshes[submesh_idx].m_attributes_extended.size()
-                == m_submeshes[submesh_idx].m_attributes_basic.size()
-            );
-            ret += GetSubmeshVertexCount(submesh_idx) * sizeof(VertexStruct::VertexAttributeExtended);
-        }
-        if (!m_submeshes[submesh_idx].m_attributes_skinned.empty()) {
-            assert(
-                m_submeshes[submesh_idx].m_attributes_skinned.size()
-                == m_submeshes[submesh_idx].m_attributes_basic.size()
-            );
-            ret += GetSubmeshVertexCount(submesh_idx) * sizeof(VertexStruct::VertexAttributeSkinned);
-        }
+        uint64_t attribute_size;
+
+        attribute_size = m_submeshes[submesh_idx].positions.attribf.size();
+        assert(Submesh::Attributes::GetStride(m_submeshes[submesh_idx].positions.type) == 0 
+            || attribute_size / Submesh::Attributes::GetStride(m_submeshes[submesh_idx].positions.type) == GetSubmeshVertexCount(submesh_idx));
+        ret += sizeof(uint32_t) * attribute_size;
+
+        attribute_size = m_submeshes[submesh_idx].color.attribf.size();
+        assert(Submesh::Attributes::GetStride(m_submeshes[submesh_idx].color.type) == 0 
+            || attribute_size / Submesh::Attributes::GetStride(m_submeshes[submesh_idx].color.type) == GetSubmeshVertexCount(submesh_idx));
+        ret += sizeof(uint32_t) * attribute_size;
+
+        attribute_size = m_submeshes[submesh_idx].normal.attribf.size();
+        assert(Submesh::Attributes::GetStride(m_submeshes[submesh_idx].normal.type) == 0 
+            || attribute_size / Submesh::Attributes::GetStride(m_submeshes[submesh_idx].normal.type) == GetSubmeshVertexCount(submesh_idx));
+        ret += sizeof(uint32_t) * attribute_size;
+
+        attribute_size = m_submeshes[submesh_idx].texcoord0.attribf.size();
+        assert(Submesh::Attributes::GetStride(m_submeshes[submesh_idx].texcoord0.type) == 0 
+            || attribute_size / Submesh::Attributes::GetStride(m_submeshes[submesh_idx].texcoord0.type) == GetSubmeshVertexCount(submesh_idx));
+        ret += sizeof(uint32_t) * attribute_size;
+
+        attribute_size = m_submeshes[submesh_idx].tangent.attribf.size();
+        assert(Submesh::Attributes::GetStride(m_submeshes[submesh_idx].tangent.type) == 0 
+            || attribute_size / Submesh::Attributes::GetStride(m_submeshes[submesh_idx].tangent.type) == GetSubmeshVertexCount(submesh_idx));
+        ret += sizeof(uint32_t) * attribute_size;
+
+        attribute_size = m_submeshes[submesh_idx].texcoord1.attribf.size();
+        assert(Submesh::Attributes::GetStride(m_submeshes[submesh_idx].texcoord1.type) == 0 
+            || attribute_size / Submesh::Attributes::GetStride(m_submeshes[submesh_idx].texcoord1.type) == GetSubmeshVertexCount(submesh_idx));
+        ret += sizeof(uint32_t) * attribute_size;
+
+        attribute_size = m_submeshes[submesh_idx].texcoord2.attribf.size();
+        assert(Submesh::Attributes::GetStride(m_submeshes[submesh_idx].texcoord2.type) == 0 
+            || attribute_size / Submesh::Attributes::GetStride(m_submeshes[submesh_idx].texcoord2.type) == GetSubmeshVertexCount(submesh_idx));
+        ret += sizeof(uint32_t) * attribute_size;
+
+        attribute_size = m_submeshes[submesh_idx].texcoord3.attribf.size();
+        assert(Submesh::Attributes::GetStride(m_submeshes[submesh_idx].texcoord3.type) == 0 
+            || attribute_size / Submesh::Attributes::GetStride(m_submeshes[submesh_idx].texcoord3.type) == GetSubmeshVertexCount(submesh_idx));
+        ret += sizeof(uint32_t) * attribute_size;
+
+        attribute_size = m_submeshes[submesh_idx].bone_indices.attribf.size();
+        assert(Submesh::Attributes::GetStride(m_submeshes[submesh_idx].bone_indices.type) == 0 
+            || attribute_size / Submesh::Attributes::GetStride(m_submeshes[submesh_idx].bone_indices.type) == GetSubmeshVertexCount(submesh_idx));
+        ret += sizeof(uint32_t) * attribute_size;
+
+        attribute_size = m_submeshes[submesh_idx].bone_weights.attribf.size();
+        assert(Submesh::Attributes::GetStride(m_submeshes[submesh_idx].bone_weights.type) == 0 
+            || attribute_size / Submesh::Attributes::GetStride(m_submeshes[submesh_idx].bone_weights.type) == GetSubmeshVertexCount(submesh_idx));
+        ret += sizeof(uint32_t) * attribute_size;
+
         return ret;
     }
 
@@ -76,26 +111,13 @@ namespace Engine {
                 reinterpret_cast<const std::byte *>(m_submeshes[i].m_indices.data() + m_submeshes[i].m_indices.size())
             );
 
-            size_t m_vertex_size = m_submeshes[i].m_positions.size();
+            size_t m_vertex_size = GetSubmeshVertexCount(i);
             data.insert(
                 data.end(),
                 reinterpret_cast<const std::byte *>(&m_vertex_size),
                 reinterpret_cast<const std::byte *>((&m_vertex_size) + 1)
             );
-            data.insert(
-                data.end(),
-                reinterpret_cast<const std::byte *>(m_submeshes[i].m_positions.data()),
-                reinterpret_cast<const std::byte *>(
-                    m_submeshes[i].m_positions.data() + m_submeshes[i].m_positions.size()
-                )
-            );
-            data.insert(
-                data.end(),
-                reinterpret_cast<const std::byte *>(m_submeshes[i].m_attributes_basic.data()),
-                reinterpret_cast<const std::byte *>(
-                    m_submeshes[i].m_attributes_basic.data() + m_submeshes[i].m_attributes_basic.size()
-                )
-            );
+            /* TODO: serialize vertex attributes */
         }
 
         // save base class (such as GUID)
@@ -123,20 +145,7 @@ namespace Engine {
 
             size_t m_vertex_size = *reinterpret_cast<const size_t *>(&data[offset]);
             offset += sizeof(size_t);
-            m_submeshes[i].m_positions.resize(m_vertex_size);
-            std::memcpy(
-                m_submeshes[i].m_positions.data(),
-                &data[offset],
-                m_vertex_size * sizeof(decltype(m_submeshes[i].m_positions)::value_type)
-            );
-            offset += m_vertex_size * sizeof(decltype(m_submeshes[i].m_positions)::value_type);
-            m_submeshes[i].m_attributes_basic.resize(m_vertex_size);
-            std::memcpy(
-                m_submeshes[i].m_attributes_basic.data(),
-                &data[offset],
-                m_vertex_size * sizeof(decltype(m_submeshes[i].m_attributes_basic)::value_type)
-            );
-            offset += m_vertex_size * sizeof(decltype(m_submeshes[i].m_attributes_basic)::value_type);
+            /* TODO: deserialize vertex attributes */
         }
 
         Asset::load_asset_from_archive(archive);

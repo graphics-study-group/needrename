@@ -35,6 +35,7 @@
 #include "Render/Pipeline/Material/Templates/BlinnPhong.h"
 
 #include "Render/Renderer/Camera.h"
+#include "Render/Renderer/VertexAttribute.h"
 #include "Render/Renderer/HomogeneousMesh.h"
 
 #include "Render/Memory/Texture.h"

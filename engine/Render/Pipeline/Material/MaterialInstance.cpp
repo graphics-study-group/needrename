@@ -10,6 +10,7 @@
 #include "Render/RenderSystem/DeviceInterface.h"
 #include "Render/RenderSystem/FrameManager.h"
 #include "Render/RenderSystem/SubmissionHelper.h"
+#include "Render/Renderer/VertexAttribute.h"
 #include <Asset/Material/MaterialAsset.h>
 #include <Asset/Texture/Image2DTextureAsset.h>
 #include <Render/Memory/IndexedBuffer.h>
@@ -142,7 +143,7 @@ namespace Engine {
             SDL_LogVerbose(
                 SDL_LOG_CATEGORY_RENDER,
                 "Lazily allocating descriptor and UBOs for material template %p.",
-                (const void *)&tpl
+                static_cast<void *>(tpl)
             );
             itr = pimpl->CreatePassInfo(m_system, *tpl);
         }
@@ -221,7 +222,7 @@ namespace Engine {
     }
 
     void MaterialInstance::UpdateGPUInfo(
-        const std::string &tag, HomogeneousMesh::MeshVertexType type, uint32_t backbuffer
+        const std::string &tag, VertexAttribute type, uint32_t backbuffer
     ) {
         auto tpl = GetLibrary()->FindMaterialTemplate(tag, type);
         this->UpdateGPUInfo(tpl, backbuffer);
@@ -234,7 +235,7 @@ namespace Engine {
     }
 
     vk::DescriptorSet MaterialInstance::GetDescriptor(
-        const std::string &tag, HomogeneousMesh::MeshVertexType type, uint32_t backbuffer
+        const std::string &tag, VertexAttribute type, uint32_t backbuffer
     ) const noexcept {
         assert(backbuffer < impl::PassInfo::BACK_BUFFERS);
 

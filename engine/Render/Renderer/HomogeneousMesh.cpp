@@ -3,7 +3,7 @@
 #include <Asset/Mesh/MeshAsset.h>
 
 #include "Render/Memory/Buffer.h"
-#include "Render/Renderer/VertexStruct.h"
+#include "Render/Renderer/VertexAttribute.h"
 #include "Render/RenderSystem/AllocatorState.h"
 
 #include <SDL3/SDL.h>
@@ -12,30 +12,6 @@
 namespace Engine {
 
     struct HomogeneousMesh::impl {
-
-        static constexpr std::array<vk::VertexInputBindingDescription, 2> BINDINGS_BASIC = {
-            // Position
-            vk::VertexInputBindingDescription{0, sizeof(VertexStruct::VertexPosition), vk::VertexInputRate::eVertex},
-            // Other attributes
-            vk::VertexInputBindingDescription{1, sizeof(VertexStruct::VertexAttributeBasic), vk::VertexInputRate::eVertex}
-        };
-        static constexpr const std::array<vk::VertexInputAttributeDescription, VertexStruct::VERTEX_ATTRIBUTE_BASIC_COUNT + 1>
-            ATTRIBUTES_BASIC = {
-                // Position
-                vk::VertexInputAttributeDescription{0, BINDINGS_BASIC[0].binding, vk::Format::eR32G32B32Sfloat, 0},
-                // Vertex color
-                vk::VertexInputAttributeDescription{
-                    1, BINDINGS_BASIC[1].binding, vk::Format::eR32G32B32Sfloat, VertexStruct::OFFSET_COLOR
-                },
-                // Vertex normal
-                vk::VertexInputAttributeDescription{
-                    2, BINDINGS_BASIC[1].binding, vk::Format::eR32G32B32Sfloat, VertexStruct::OFFSET_NORMAL
-                },
-                // Texcoord 1
-                vk::VertexInputAttributeDescription{
-                    3, BINDINGS_BASIC[1].binding, vk::Format::eR32G32Sfloat, VertexStruct::OFFSET_TEXCOORD1
-                }
-        };
 
         std::unique_ptr<Buffer> m_buffer{};
         std::vector<vk::DeviceSize> m_buffer_offsets{};
@@ -46,7 +22,7 @@ namespace Engine {
 
         std::shared_ptr<AssetRef> m_mesh_asset{};
         size_t m_submesh_idx{};
-        MeshVertexType m_type{};
+        VertexAttribute m_attribute{};
 
         void WriteToMemory(std::byte *pointer) const;
         /**
@@ -59,42 +35,21 @@ namespace Engine {
         uint32_t GetVertexIndexCount() const {
             return m_mesh_asset->as<MeshAsset>()->GetSubmeshVertexIndexCount(m_submesh_idx);
         }
-
         uint32_t GetVertexCount() const {
             return m_mesh_asset->as<MeshAsset>()->GetSubmeshVertexCount(m_submesh_idx);
         }
-
         uint64_t GetExpectedBufferSize() const {
-            auto vertex_cnt = GetVertexCount();
-            uint64_t size = GetVertexIndexCount() * sizeof(uint32_t);
-            switch (m_type) {
-            case MeshVertexType::Skinned:
-                size += vertex_cnt * sizeof(VertexStruct::VertexAttributeSkinned);
-                [[fallthrough]];
-            case MeshVertexType::Extended:
-                size += vertex_cnt * sizeof(VertexStruct::VertexAttributeExtended);
-                [[fallthrough]];
-            case MeshVertexType::Basic:
-                size += vertex_cnt * sizeof(VertexStruct::VertexAttributeBasic);
-                [[fallthrough]];
-            case MeshVertexType::Position:
-                size += vertex_cnt * sizeof(VertexStruct::VertexPosition);
-            }
-            return size;
+            return GetVertexIndexCount() * sizeof(uint32_t) + GetVertexCount() * m_attribute.GetTotalPerVertexSize();
         }
     };
 
     HomogeneousMesh::HomogeneousMesh(
-        const RenderSystemState::AllocatorState & allocator,
+        const RenderSystemState::AllocatorState &allocator,
         std::shared_ptr<AssetRef> mesh_asset,
-        size_t submesh_idx,
-        MeshVertexType type
+        size_t submesh_idx
     ) : pimpl(std::make_unique<impl>()) {
         pimpl->m_mesh_asset = mesh_asset;
         pimpl->m_submesh_idx = submesh_idx;
-
-        assert(type == MeshVertexType::Basic && "Unimplemented");
-        pimpl->m_type = type;
         pimpl->m_buffer = nullptr;
 
         pimpl->FetchFromAsset(allocator);
@@ -103,7 +58,34 @@ namespace Engine {
     HomogeneousMesh::~HomogeneousMesh() {
     }
 
+    /// @brief Fetch basic vertex info from asset. Actual data are not stored in this class.
+    /// @param allocator 
     void HomogeneousMesh::impl::FetchFromAsset(const RenderSystemState::AllocatorState & allocator) {
+        // Load vertex attribute format
+        {
+            const auto & asset = m_mesh_asset->as<MeshAsset>();
+            const auto & submesh = asset->m_submeshes[m_submesh_idx];
+            m_attribute = {};
+
+            using enum MeshAsset::Submesh::Attributes::AttributeType;
+            if (submesh.positions.type != Unused) {
+                assert(submesh.positions.type == Floatx3);
+                m_attribute.SetAttribute(VertexAttributeSemantic::Position, VertexAttributeType::SFloat32x3);
+            }
+            if (submesh.color.type != Unused) {
+                assert(submesh.color.type == Floatx3);
+                m_attribute.SetAttribute(VertexAttributeSemantic::Color, VertexAttributeType::SFloat32x3);
+            }
+            if (submesh.normal.type != Unused) {
+                assert(submesh.normal.type == Floatx3);
+                m_attribute.SetAttribute(VertexAttributeSemantic::Normal, VertexAttributeType::SFloat32x3);
+            }
+            if (submesh.texcoord0.type != Unused) {
+                assert(submesh.texcoord0.type == Floatx2);
+                m_attribute.SetAttribute(VertexAttributeSemantic::Texcoord0, VertexAttributeType::SFloat32x2);
+            }
+        }
+        
         const uint64_t buffer_size = GetExpectedBufferSize();
 
         if (m_total_allocated_buffer_size != buffer_size) {
@@ -124,37 +106,11 @@ namespace Engine {
 
             // Generate buffer offsets
             m_buffer_offsets.clear();
-            m_buffer_offsets.push_back(0);
-            switch (m_type) {
-            case MeshVertexType::Skinned:
-                m_buffer_offsets.push_back(new_vertex_count * sizeof(VertexStruct::VertexPosition));
-                m_buffer_offsets.push_back(
-                    new_vertex_count * sizeof(VertexStruct::VertexAttributeBasic) + *m_buffer_offsets.rbegin()
-                );
-                m_buffer_offsets.push_back(
-                    new_vertex_count * sizeof(VertexStruct::VertexAttributeExtended) + *m_buffer_offsets.rbegin()
-                );
-                m_buffer_offsets.push_back(
-                    new_vertex_count * sizeof(VertexStruct::VertexAttributeSkinned) + *m_buffer_offsets.rbegin()
-                );
-                break;
-            case MeshVertexType::Extended:
-                m_buffer_offsets.push_back(new_vertex_count * sizeof(VertexStruct::VertexPosition));
-                m_buffer_offsets.push_back(
-                    new_vertex_count * sizeof(VertexStruct::VertexAttributeBasic) + *m_buffer_offsets.rbegin()
-                );
-                m_buffer_offsets.push_back(
-                    new_vertex_count * sizeof(VertexStruct::VertexAttributeExtended) + *m_buffer_offsets.rbegin()
-                );
-                break;
-            case MeshVertexType::Basic:
-                m_buffer_offsets.push_back(new_vertex_count * sizeof(VertexStruct::VertexPosition));
-                m_buffer_offsets.push_back(
-                    new_vertex_count * sizeof(VertexStruct::VertexAttributeBasic) + *m_buffer_offsets.rbegin()
-                );
+            auto vec = m_attribute.EnumerateOffsetFactor();
+            for (auto f : vec) {
+                m_buffer_offsets.push_back(f * new_vertex_count);
             }
-
-            assert(*m_buffer_offsets.rbegin() == buffer_size - new_vertex_index_count * sizeof(uint32_t));
+            m_buffer_offsets.push_back(new_vertex_count * m_attribute.GetTotalPerVertexSize());
         }
     }
 
@@ -175,33 +131,69 @@ namespace Engine {
     void HomogeneousMesh::impl::WriteToMemory(std::byte *pointer) const {
         uint64_t offset = 0;
         auto &mesh_asset = *m_mesh_asset->as<MeshAsset>();
-        const auto &positions = mesh_asset.m_submeshes[m_submesh_idx].m_positions;
-        const auto &attributes = mesh_asset.m_submeshes[m_submesh_idx].m_attributes_basic;
+        auto &submesh = mesh_asset.m_submeshes[m_submesh_idx];
         const auto &indices = mesh_asset.m_submeshes[m_submesh_idx].m_indices;
-        // Position
-        std::memcpy(&pointer[offset], positions.data(), positions.size() * sizeof(VertexStruct::VertexPosition));
-        offset += positions.size() * sizeof(VertexStruct::VertexPosition);
-        // Attributes
-        std::memcpy(
-            &pointer[offset], attributes.data(), attributes.size() * sizeof(VertexStruct::VertexAttributeBasic)
-        );
-        offset += attributes.size() * sizeof(VertexStruct::VertexAttributeBasic);
-        // Index
-        std::memcpy(&pointer[offset], indices.data(), indices.size() * sizeof(uint32_t));
-        offset += indices.size() * sizeof(uint32_t);
-    }
 
-    vk::PipelineVertexInputStateCreateInfo HomogeneousMesh::GetVertexInputState(MeshVertexType type) {
-        assert(type == MeshVertexType::Basic && "Unimplemented");
-        return vk::PipelineVertexInputStateCreateInfo{
-            vk::PipelineVertexInputStateCreateFlags{0}, impl::BINDINGS_BASIC, impl::ATTRIBUTES_BASIC
-        };
+        for (uint32_t i = 0; i < 16; i++) {
+            auto semantic = static_cast<VertexAttributeSemantic>(i);
+            if (!m_attribute.HasAttribute(semantic)) continue;
+
+            switch(semantic) {
+                using enum VertexAttributeSemantic;
+                case Position:
+                    // TODO: We assume that input read from mesh asset and data submitted to 
+                    // GPU is the same. We might need to renormalize the input sometimes.
+                    assert(submesh.positions.type == MeshAsset::Submesh::Attributes::AttributeType::Floatx3);
+                    std::memcpy(
+                        pointer + m_attribute.GetOffsetFactor(semantic) * GetVertexCount(),
+                        submesh.positions.attribf.data(),
+                        m_attribute.GetPerVertexSize(semantic) * GetVertexCount()
+                    );
+                    break;
+                case Normal: {
+                    assert(submesh.normal.type == MeshAsset::Submesh::Attributes::AttributeType::Floatx3);
+                    // TODO: How to deinterleave the data should depends on vertex attributes
+                    // Now we just assume that it is defaulted.
+                    std::memcpy(
+                        pointer + m_attribute.GetOffsetFactor(semantic) * GetVertexCount(),
+                        submesh.normal.attribf.data(),
+                        m_attribute.GetPerVertexSize(semantic) * GetVertexCount()
+                    );
+                    break;
+                }
+                case Color: {
+                    assert(submesh.color.type == MeshAsset::Submesh::Attributes::AttributeType::Floatx3);
+                    std::memcpy(
+                        pointer + m_attribute.GetOffsetFactor(semantic) * GetVertexCount(),
+                        submesh.color.attribf.data(),
+                        m_attribute.GetPerVertexSize(semantic) * GetVertexCount()
+                    );
+                    break;
+                }
+                case Texcoord0: {
+                    assert(submesh.texcoord0.type == MeshAsset::Submesh::Attributes::AttributeType::Floatx2);
+                    std::memcpy(
+                        pointer + m_attribute.GetOffsetFactor(semantic) * GetVertexCount(),
+                        submesh.texcoord0.attribf.data(),
+                        m_attribute.GetPerVertexSize(semantic) * GetVertexCount()
+                    );
+                    break;
+                }
+            }
+        }
+        // Index
+        std::memcpy(pointer + m_attribute.GetTotalPerVertexSize() * GetVertexCount(), indices.data(), indices.size() * sizeof(uint32_t));
+        offset += indices.size() * sizeof(uint32_t);
     }
 
     std::pair<vk::Buffer, uint64_t> HomogeneousMesh::GetIndexBufferInfo() const {
         assert(pimpl->m_buffer->GetBuffer());
         // Last offset is the offset of index buffer.
         return std::make_pair(pimpl->m_buffer->GetBuffer(), *(pimpl->m_buffer_offsets.rbegin()));
+    }
+
+    VertexAttribute HomogeneousMesh::GetVertexAttribute() const {
+        return pimpl->m_attribute;
     }
 
     uint32_t HomogeneousMesh::GetVertexIndexCount() const {

@@ -59,20 +59,19 @@ namespace Engine {
 
             /**
              * @brief Enqueue a texture clear operation.
-             * Record corresponding image
-             * barriers to a disposable command buffer, and issue a clear operation.
- * The
-             * layout of the image will be transferred to optimal for shader read after clear operation.
+             * Record corresponding image barriers to a disposable command buffer, and issue a clear 
+             * operation. The layout of the image will be transferred to optimal for shader read 
+             * after clear operation.
              *
              * Useful for creating a blank default texture.
-             * Only color aspect is cleared. All mipmap
-             * levels and arrays are cleared.
+             * Only color aspect is cleared. All mipmap levels and arrays are cleared.
              * 
              * @param texture
              * @param color
-
              */
             void EnqueueTextureClear(const Texture &texture, std::tuple<float, float, float, float> color_rgba);
+            void EnqueueTextureClear(const Texture &texture, float depth);
+            // void EnqueueTextureClear(const Texture &texture, std::tuple<float, uint8_t> depth_stencil);
 
             /***
              * @brief Execute staged submissions. 

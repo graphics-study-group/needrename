@@ -13,9 +13,9 @@
 #include "Render/RenderSystem/CameraManager.h"
 #include "Render/Renderer/Camera.h"
 #include "Render/Renderer/HomogeneousMesh.h"
+#include "Render/Renderer/VertexAttribute.h"
 
 #include "Render/DebugUtils.h"
-#include "Render/Pipeline/CommandBuffer/LayoutTransferHelper.h"
 
 #include <SDL3/SDL.h>
 #include <glm.hpp>
@@ -93,9 +93,10 @@ namespace Engine {
     void GraphicsCommandBuffer::BindMaterial(
         MaterialInstance &material,
         const std::string & tag,
-        HomogeneousMesh::MeshVertexType type
+        VertexAttribute attribute
     ) {
-        auto tpl = material.GetLibrary()->FindMaterialTemplate(tag, type);
+        auto tpl = material.GetLibrary()->FindMaterialTemplate(tag, attribute);
+        assert(tpl && "Material template not found.");
         const auto &pipeline = tpl->GetPipeline();
         const auto &pipeline_layout = tpl->GetPipelineLayout();
 
@@ -154,6 +155,7 @@ namespace Engine {
         const HomogeneousMesh &mesh, const glm::mat4 &model_matrix, int32_t camera_index
     ) {
         auto bindings = mesh.GetVertexBufferInfo();
+        bindings.second.pop_back();
         std::vector<vk::Buffer> vertex_buffers{bindings.second.size(), bindings.first};
         cb.bindVertexBuffers(0, vertex_buffers, bindings.second);
         auto indices = mesh.GetIndexBufferInfo();
@@ -166,7 +168,7 @@ namespace Engine {
 
         cb.pushConstants(
             m_bound_material_pipeline.value().second,
-            vk::ShaderStageFlagBits::eAll,
+            vk::ShaderStageFlagBits::eAllGraphics,
             0,
             sizeof (push_constants),
             reinterpret_cast<const void *>(&push_constants)
@@ -202,7 +204,7 @@ namespace Engine {
 
                 assert(materials.size() == meshes.size());
                 for (size_t id = 0; id < materials.size(); id++) {
-                    this->BindMaterial(*materials[id], tag, HomogeneousMesh::MeshVertexType::Basic);
+                    this->BindMaterial(*materials[id], tag, meshes[id]->GetVertexAttribute());
                     this->DrawMesh(*meshes[id], model_matrix, camera_index);
                 }
             }

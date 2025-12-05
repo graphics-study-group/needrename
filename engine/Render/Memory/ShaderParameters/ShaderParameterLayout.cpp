@@ -187,6 +187,27 @@ namespace {
     };
 }
 
+/**
+ * @todo Differentiating whether a variable can be assigned directly by its type
+ * is making the whole interface unnecessarily complex. We should first process
+ * all types and variables in the shader, and determine whether they can be directly
+ * assigned or not after that.
+ * 
+ * We should then try to model the type system of GLSL with only five components:
+ * 1. simple types (e.g. float, int, uint, etc.);
+ * 2. vector types (e.g. vector of 3 ints, matrix of 3x3 floats);
+ * 3. array types;
+ * 4. composed types (e.g. structure);
+ * 5. opaque types (e.g. image).
+ * 
+ * When reflecting the SPIR-V codes, we process the resources in a from-top-to-bottom
+ * fashion, starting with interfaces exposed as UBO or SSBO and process recursively.
+ * On the way back from leave nodes, we can determine whether a variable can be 
+ * assigned or not by looking at its type and name.
+ * 
+ * In the same line of thought, interfaces and type information should therefore not
+ * be intermingled. This can save us a lot of headaches.
+ */
 namespace Engine::ShdrRfl {
     std::vector <std::unique_ptr<SPType>> Engine::ShdrRfl::SPLayout::types{};
 

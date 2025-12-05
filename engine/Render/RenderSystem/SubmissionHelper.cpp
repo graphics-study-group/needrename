@@ -3,7 +3,6 @@
 #include "Render/Memory/Buffer.h"
 #include "Render/Memory/Texture.h"
 #include "Render/Pipeline/CommandBuffer/BufferTransferHelper.h"
-#include "Render/Pipeline/CommandBuffer/LayoutTransferHelper.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/Structs.h"
 #include "Render/RenderSystem/DeviceInterface.h"
@@ -12,6 +11,72 @@
 #include "Render/DebugUtils.h"
 
 #include <SDL3/SDL.h>
+
+namespace {
+    enum class TextureTransferType {
+        TextureUploadBefore,
+        TextureUploadAfter,
+        TextureClearBefore,
+        TextureClearAfter
+    };
+
+    std::pair<vk::PipelineStageFlags2, vk::AccessFlags2> GetScope1(TextureTransferType type) {
+        using enum TextureTransferType;
+        switch (type) {
+        case TextureUploadBefore:
+        case TextureClearBefore:
+            return std::make_pair(vk::PipelineStageFlagBits2::eFragmentShader, vk::AccessFlagBits2::eShaderRead);
+        case TextureUploadAfter:
+        case TextureClearAfter:
+            return std::make_pair(vk::PipelineStageFlagBits2::eTransfer, vk::AccessFlagBits2::eTransferWrite);
+        }
+        __builtin_unreachable();
+    }
+    std::pair<vk::PipelineStageFlags2, vk::AccessFlags2> GetScope2(TextureTransferType type) {
+        using enum TextureTransferType;
+        switch (type) {
+        case TextureUploadBefore:
+        case TextureClearBefore:
+            return std::make_pair(vk::PipelineStageFlagBits2::eTransfer, vk::AccessFlagBits2::eTransferWrite);
+        case TextureUploadAfter:
+        case TextureClearAfter:
+            return std::make_pair(vk::PipelineStageFlagBits2::eFragmentShader, vk::AccessFlagBits2::eShaderRead);
+        }
+        __builtin_unreachable();
+    }
+    std::pair<vk::ImageLayout, vk::ImageLayout> GetLayouts(TextureTransferType type) {
+        using enum TextureTransferType;
+        switch (type) {
+        case TextureUploadBefore:
+        case TextureClearBefore:
+            return std::make_pair(vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
+        case TextureUploadAfter:
+        case TextureClearAfter:
+            return std::make_pair(vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eReadOnlyOptimal);
+        }
+        __builtin_unreachable();
+    }
+
+    vk::ImageMemoryBarrier2 GetTextureBarrier(TextureTransferType type, vk::Image image, vk::ImageAspectFlags aspect) {
+        auto [scope1, scope2, layouts] = std::tuple{GetScope1(type), GetScope2(type), GetLayouts(type)};
+        vk::ImageSubresourceRange subresource{
+            aspect, 0, vk::RemainingMipLevels, 0, vk::RemainingArrayLayers
+        };
+        vk::ImageMemoryBarrier2 barrier{
+            scope1.first,
+            scope1.second,
+            scope2.first,
+            scope2.second,
+            layouts.first,
+            layouts.second,
+            vk::QueueFamilyIgnored,
+            vk::QueueFamilyIgnored,
+            image,
+            subresource
+        };
+        return barrier;
+    }
+}
 
 namespace Engine::RenderSystemState {
     struct SubmissionHelper::impl {
@@ -51,6 +116,8 @@ namespace Engine::RenderSystemState {
     void SubmissionHelper::EnqueueTextureBufferSubmission(
         const Texture &texture, const std::byte *data, size_t length
     ) {
+        assert(ImageUtils::GetVkAspect(texture.GetTextureDescription().format) & vk::ImageAspectFlagBits::eColor);
+
         auto enqueued = [&texture, data, length, this](vk::CommandBuffer cb) {
             Buffer buffer{texture.CreateStagingBuffer(m_system.GetAllocatorState())};
             assert(length <= buffer.GetSize());
@@ -59,8 +126,8 @@ namespace Engine::RenderSystemState {
             buffer.Flush();
 
             // Transit layout to TransferDstOptimal
-            std::array<vk::ImageMemoryBarrier2, 1> barriers = {LayoutTransferHelper::GetTextureBarrier(
-                LayoutTransferHelper::TextureTransferType::TextureUploadBefore, texture.GetImage()
+            std::array<vk::ImageMemoryBarrier2, 1> barriers = {GetTextureBarrier(
+                TextureTransferType::TextureUploadBefore, texture.GetImage(), ImageUtils::GetVkAspect(texture.GetTextureDescription().format)
             )};
             vk::DependencyInfo dinfo{vk::DependencyFlags{}, {}, {}, barriers};
             cb.pipelineBarrier2(dinfo);
@@ -70,7 +137,7 @@ namespace Engine::RenderSystemState {
                 0,
                 0,
                 0,
-                vk::ImageSubresourceLayers{vk::ImageAspectFlagBits::eColor, 0, 0, texture.GetTextureDescription().array_layers},
+                vk::ImageSubresourceLayers{ImageUtils::GetVkAspect(texture.GetTextureDescription().format), 0, 0, texture.GetTextureDescription().array_layers},
                 vk::Offset3D{0, 0, 0},
                 vk::Extent3D{
                     texture.GetTextureDescription().width,
@@ -81,8 +148,8 @@ namespace Engine::RenderSystemState {
             cb.copyBufferToImage(buffer.GetBuffer(), texture.GetImage(), vk::ImageLayout::eTransferDstOptimal, {copy});
 
             // Transfer image for sampling
-            barriers[0] = LayoutTransferHelper::GetTextureBarrier(
-                LayoutTransferHelper::TextureTransferType::TextureUploadAfter, texture.GetImage()
+            barriers[0] = GetTextureBarrier(
+                TextureTransferType::TextureUploadAfter, texture.GetImage(), ImageUtils::GetVkAspect(texture.GetTextureDescription().format)
             );
             dinfo.setImageMemoryBarriers(barriers);
             cb.pipelineBarrier2(dinfo);
@@ -93,10 +160,12 @@ namespace Engine::RenderSystemState {
     }
 
     void SubmissionHelper::EnqueueTextureClear(const Texture &texture, std::tuple<float, float, float, float> color) {
+        assert(ImageUtils::GetVkAspect(texture.GetTextureDescription().format) & vk::ImageAspectFlagBits::eColor);
+
         auto enqueued = [&texture, color, this](vk::CommandBuffer cb) {
             // Transit layout to TransferDstOptimal
-            std::array<vk::ImageMemoryBarrier2, 1> barriers = {LayoutTransferHelper::GetTextureBarrier(
-                LayoutTransferHelper::TextureTransferType::TextureClearBefore, texture.GetImage()
+            std::array<vk::ImageMemoryBarrier2, 1> barriers = {GetTextureBarrier(
+                TextureTransferType::TextureClearBefore, texture.GetImage(), vk::ImageAspectFlagBits::eColor
             )};
             vk::DependencyInfo dinfo{vk::DependencyFlags{}, {}, {}, barriers};
             cb.pipelineBarrier2(dinfo);
@@ -111,8 +180,38 @@ namespace Engine::RenderSystemState {
             );
 
             // Transfer image for sampling
-            barriers[0] = LayoutTransferHelper::GetTextureBarrier(
-                LayoutTransferHelper::TextureTransferType::TextureClearAfter, texture.GetImage()
+            barriers[0] = GetTextureBarrier(
+                TextureTransferType::TextureClearAfter, texture.GetImage(), vk::ImageAspectFlagBits::eColor
+            );
+            dinfo.setImageMemoryBarriers(barriers);
+            cb.pipelineBarrier2(dinfo);
+        };
+        pimpl->m_pending_operations.push(enqueued);
+    }
+
+    void SubmissionHelper::EnqueueTextureClear(const Texture &texture, float depth) {
+        assert(0.0f <= depth && depth <= 1.0f);
+        assert(ImageUtils::GetVkAspect(texture.GetTextureDescription().format) & vk::ImageAspectFlagBits::eDepth);
+    
+        auto enqueued = [&texture, depth, this](vk::CommandBuffer cb) {
+            // Transit layout to TransferDstOptimal
+            std::array<vk::ImageMemoryBarrier2, 1> barriers = {GetTextureBarrier(
+                TextureTransferType::TextureClearBefore, texture.GetImage(), vk::ImageAspectFlagBits::eDepth
+            )};
+            vk::DependencyInfo dinfo{vk::DependencyFlags{}, {}, {}, barriers};
+            cb.pipelineBarrier2(dinfo);
+            cb.clearDepthStencilImage(
+                texture.GetImage(),
+                vk::ImageLayout::eTransferDstOptimal,
+                vk::ClearDepthStencilValue{depth, 0U},
+                {vk::ImageSubresourceRange{
+                    vk::ImageAspectFlagBits::eDepth, 0, vk::RemainingMipLevels, 0, vk::RemainingArrayLayers
+                }}
+            );
+
+            // Transfer image for sampling
+            barriers[0] = GetTextureBarrier(
+                TextureTransferType::TextureClearAfter, texture.GetImage(), vk::ImageAspectFlagBits::eDepth
             );
             dinfo.setImageMemoryBarriers(barriers);
             cb.pipelineBarrier2(dinfo);

@@ -185,4 +185,4 @@ namespace Engine {
     } // namespace PipelineProperties
 } // namespace Engine
 
-#endif // ASSET_MATERIAL_PIPELINEPROPERTY_INCLUDED
+#endif // MATERIAL_PIPELINEPROPERTY
