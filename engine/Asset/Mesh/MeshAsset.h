@@ -3,7 +3,6 @@
 
 #include <Asset/Asset.h>
 #include <Reflection/macros.h>
-#include <Render/Renderer/VertexStruct.h>
 #include <vector>
 #include <variant>
 
