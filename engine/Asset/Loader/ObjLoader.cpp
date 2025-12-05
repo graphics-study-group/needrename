@@ -143,6 +143,7 @@ namespace Engine {
             auto &submesh = mesh_asset.m_submeshes.back();
             uint32_t vertex_id = 0;
             std::map<std::tuple<int, int, int>, uint32_t> vertex_id_map;
+
             for (const auto &index : shape.mesh.indices) {
                 std::tuple<int, int, int> key(index.vertex_index, index.normal_index, index.texcoord_index);
                 if (vertex_id_map.find(key) == vertex_id_map.end()) {
@@ -173,6 +174,8 @@ namespace Engine {
                 }
                 submesh.m_indices.push_back(vertex_id_map[key]);
             }
+
+            submesh.vertex_count = vertex_id;
         }
     }
 
