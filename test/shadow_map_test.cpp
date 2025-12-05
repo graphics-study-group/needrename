@@ -27,7 +27,7 @@ struct LowerPlaneMeshAsset : public PlaneMeshAsset {
         this->m_submeshes.resize(1);
         this->m_submeshes[0].positions = MeshAsset::Submesh::Attributes{
             .type = MeshAsset::Submesh::Attributes::AttributeType::Floatx3,
-            .attribf = {1.0f, -1.0f, 0.5f, 1.0f, 1.0f, 0.5f, -1.0f, 1.0f, 0.5f, -1.0f, -1.0f, 0.5f},
+            .attribf = {1.0f, -1.0f, 0.0f, 1.0f, 1.0f, 0.0f, -1.0f, 1.0f, 0.0f, -1.0f, -1.0f, 0.0f},
         };
 
         // Flip normal to upwards in clip space.
