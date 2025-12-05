@@ -35,12 +35,6 @@ namespace Engine {
             std::shared_ptr<AssetRef> mesh_asset,
             size_t submesh_idx
         );
-        HomogeneousMesh(
-            const RenderSystemState::AllocatorState & allocator,
-            std::shared_ptr<AssetRef> mesh_asset,
-            size_t submesh_idx,
-            VertexAttribute attribute
-        );
         ~HomogeneousMesh();
 
         /**

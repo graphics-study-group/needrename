@@ -44,19 +44,12 @@ namespace Engine {
     };
 
     HomogeneousMesh::HomogeneousMesh(
-        const RenderSystemState::AllocatorState &allocator, std::shared_ptr<AssetRef> mesh_asset, size_t submesh_idx
-    ) : HomogeneousMesh(allocator, mesh_asset, submesh_idx, VertexAttribute::GetDefaultBasicVertexAttribute()) {
-    }
-
-    HomogeneousMesh::HomogeneousMesh(
         const RenderSystemState::AllocatorState &allocator,
         std::shared_ptr<AssetRef> mesh_asset,
-        size_t submesh_idx,
-        VertexAttribute attribute
+        size_t submesh_idx
     ) : pimpl(std::make_unique<impl>()) {
         pimpl->m_mesh_asset = mesh_asset;
         pimpl->m_submesh_idx = submesh_idx;
-        pimpl->m_attribute = attribute;
         pimpl->m_buffer = nullptr;
 
         pimpl->FetchFromAsset(allocator);
@@ -65,6 +58,8 @@ namespace Engine {
     HomogeneousMesh::~HomogeneousMesh() {
     }
 
+    /// @brief Fetch basic vertex info from asset. Actual data are not stored in this class.
+    /// @param allocator 
     void HomogeneousMesh::impl::FetchFromAsset(const RenderSystemState::AllocatorState & allocator) {
         // Load vertex attribute format
         {
