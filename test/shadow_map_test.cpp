@@ -184,6 +184,7 @@ int main(int argc, char **argv) {
     floor_mesh_comp->GetMaterials().resize(1);
     floor_mesh_comp->GetMaterials()[0] = floor_material_instance;
     floor_mesh_comp->RenderInit();
+    assert(floor_mesh_comp->GetSubmesh(0)->GetVertexAttribute().HasAttribute(VertexAttributeSemantic::Texcoord0));
 
     auto cube_go = cmc->GetWorldSystem()->CreateGameObject<GameObject>();
     cube_go->GetTransformRef().SetScale({0.5f, 0.5f, 0.5f});
@@ -201,7 +202,9 @@ int main(int argc, char **argv) {
         object_material_instance
     );
     // We cannot call `RenderInit()` because this component has no associated asset.
+    assert(cube_mesh_comp->GetSubmesh(0)->GetVertexAttribute().HasAttribute(VertexAttributeSemantic::Texcoord0));
     rsys->GetRendererManager().RegisterRendererComponent(cube_mesh_comp);
+    assert(sphere_mesh_comp->GetSubmesh(0)->GetVertexAttribute().HasAttribute(VertexAttributeSemantic::Texcoord0));
     rsys->GetRendererManager().RegisterRendererComponent(sphere_mesh_comp);
     
 
@@ -230,8 +233,6 @@ int main(int argc, char **argv) {
                 "Shadowmap Pass"
             );
             gcb.SetupViewport(shadow_map_extent.width, shadow_map_extent.height, shadow_map_scissor);
-            gcb.BindMaterial(*object_material_instance, "Shadowmap", VertexAttribute::GetDefaultBasicVertexAttribute());
-
             gcb.DrawRenderers(
                 "Shadowmap",
                 rsys->GetRendererManager().FilterAndSortRenderers({}),
@@ -256,7 +257,6 @@ int main(int argc, char **argv) {
             vk::Extent2D extent{rsys->GetSwapchain().GetExtent()};
             vk::Rect2D scissor{{0, 0}, extent};
             gcb.SetupViewport(extent.width, extent.height, scissor);
-            gcb.BindMaterial(*object_material_instance, "Lit", VertexAttribute::GetDefaultBasicVertexAttribute());
             gcb.DrawRenderers(
                 "Lit",
                 rsys->GetRendererManager().FilterAndSortRenderers({})

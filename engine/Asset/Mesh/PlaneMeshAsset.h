@@ -46,7 +46,7 @@ namespace Engine {
                         0.0f, 0.0f, 1.0f
                     }
                 },
-                .texcoord1 = Submesh::Attributes{
+                .texcoord0 = Submesh::Attributes{
                     .type = Submesh::Attributes::AttributeType::Floatx2,
                     .attribf = std::vector <float> {
                         1.0f, 0.0f,
