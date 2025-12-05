@@ -147,31 +147,29 @@ namespace Engine {
                 std::tuple<int, int, int> key(index.vertex_index, index.normal_index, index.texcoord_index);
                 if (vertex_id_map.find(key) == vertex_id_map.end()) {
                     vertex_id_map[key] = vertex_id++;
-                    submesh.m_positions.push_back(
-                        VertexStruct::VertexPosition{
-                            .position = {
-                                positions[index.vertex_index * 3],
-                                positions[index.vertex_index * 3 + 1],
-                                positions[index.vertex_index * 3 + 2]
-                            }
-                        }
-                    );
-                    VertexStruct::VertexAttributeBasic attr = {};
+                    submesh.positions.type = MeshAsset::Submesh::Attributes::AttributeType::Floatx3;
+                    submesh.positions.attribf.push_back(positions[index.vertex_index * 3]);
+                    submesh.positions.attribf.push_back(positions[index.vertex_index * 3 + 1]);
+                    submesh.positions.attribf.push_back(positions[index.vertex_index * 3 + 2]);
+
+
                     if (colors.size() > 0) {
-                        attr.color[0] = colors[index.vertex_index * 3];
-                        attr.color[1] = colors[index.vertex_index * 3 + 1];
-                        attr.color[2] = colors[index.vertex_index * 3 + 2];
+                        submesh.color.type = MeshAsset::Submesh::Attributes::AttributeType::Floatx3;
+                        submesh.color.attribf.push_back(colors[index.vertex_index * 3]);
+                        submesh.color.attribf.push_back(colors[index.vertex_index * 3 + 1]);
+                        submesh.color.attribf.push_back(colors[index.vertex_index * 3 + 2]);
                     }
                     if (index.normal_index >= 0) {
-                        attr.normal[0] = normals[index.normal_index * 3];
-                        attr.normal[1] = normals[index.normal_index * 3 + 1];
-                        attr.normal[2] = normals[index.normal_index * 3 + 2];
+                        submesh.normal.type = MeshAsset::Submesh::Attributes::AttributeType::Floatx3;
+                        submesh.normal.attribf.push_back(normals[index.normal_index * 3]);
+                        submesh.normal.attribf.push_back(normals[index.normal_index * 3 + 1]);
+                        submesh.normal.attribf.push_back(normals[index.normal_index * 3 + 2]);
                     }
                     if (index.texcoord_index >= 0) {
-                        attr.texcoord1[0] = uvs[index.texcoord_index * 2];
-                        attr.texcoord1[1] = uvs[index.texcoord_index * 2 + 1];
+                        submesh.texcoord0.type = MeshAsset::Submesh::Attributes::AttributeType::Floatx2;
+                        submesh.texcoord0.attribf.push_back(uvs[index.texcoord_index * 2]);
+                        submesh.texcoord0.attribf.push_back(uvs[index.texcoord_index * 2 + 1]);
                     }
-                    submesh.m_attributes_basic.push_back(attr);
                 }
                 submesh.m_indices.push_back(vertex_id_map[key]);
             }

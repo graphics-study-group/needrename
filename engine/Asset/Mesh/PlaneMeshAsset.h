@@ -18,20 +18,43 @@ namespace Engine {
             this->m_submeshes.resize(1);
             this->m_submeshes[0] = {
                 .m_indices = {0, 3, 2, 0, 2, 1},
-                .m_positions =
-                    {
-                        {1.0f, -1.0f, 0.0f},
-                        {1.0f, 1.0f, 0.0f},
-                        {-1.0f, 1.0f, 0.0f},
-                        {-1.0f, -1.0f, 0.0f},
+                .vertex_count = 4,
+                .positions = Submesh::Attributes{
+                    .type = Submesh::Attributes::AttributeType::Floatx3,
+                    .attribf = std::vector<float>{
+                        1.0f, -1.0f, 0.0f,
+                        1.0f, 1.0f, 0.0f,
+                        -1.0f, 1.0f, 0.0f,
+                        -1.0f, -1.0f, 0.0f
                     },
-            
-                .m_attributes_basic = {
-                    {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, 1.0f}, .texcoord1 = {1.0f, 0.0f}},
-                    {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, 1.0f}, .texcoord1 = {1.0f, 1.0f}},
-                    {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, 1.0f}, .texcoord1 = {0.0f, 1.0f}},
-                    {.color = {1.0f, 1.0f, 1.0f}, .normal = {0.0f, 0.0f, 1.0f}, .texcoord1 = {0.0f, 0.0f}}
                 },
+                .color = Submesh::Attributes{
+                    .type = Submesh::Attributes::AttributeType::Floatx3,
+                    .attribf = std::vector<float>{
+                        1.0f, 1.0f, 1.0f,
+                        1.0f, 1.0f, 1.0f,
+                        1.0f, 1.0f, 1.0f,
+                        1.0f, 1.0f, 1.0f,
+                    }
+                },
+                .normal = Submesh::Attributes{
+                    .type = Submesh::Attributes::AttributeType::Floatx3,
+                    .attribf = std::vector<float>{
+                        0.0f, 0.0f, 1.0f,
+                        0.0f, 0.0f, 1.0f,
+                        0.0f, 0.0f, 1.0f,
+                        0.0f, 0.0f, 1.0f
+                    }
+                },
+                .texcoord1 = Submesh::Attributes{
+                    .type = Submesh::Attributes::AttributeType::Floatx2,
+                    .attribf = std::vector <float> {
+                        1.0f, 0.0f,
+                        1.0f, 1.0f,
+                        0.0f, 1.0f,
+                        0.0f, 0.0f
+                    }
+                }
             };
         }
 

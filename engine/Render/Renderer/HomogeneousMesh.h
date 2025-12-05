@@ -76,15 +76,15 @@ namespace Engine {
 
         /**
          * @brief Get vertex attribute buffers, along with their offsets in the buffer.
+         * The final element in this buffer is the offset of the index buffer.
+         * You might wish to remove it before binding vertex input buffers.
          * 
-         * Our
-         * vertex attributes are allocated in the same buffer with different offsets:
+         * Our vertex attributes are allocated in the same buffer with different offsets:
          * ```
          * ATTR0 ...  | ATTR1 ...  | ATTR2 ...  | INDEX ...
          * ^ Offset 0 | ^ Offset 1 | ^ Offset 2 | ^ Offset 3
          * ```
-         * Note that index buffer have a
-         * different element count of the rest of buffers.
+         * Note that index buffer have a different element count of the rest of buffers.
          */
         std::pair <vk::Buffer, std::vector<uint64_t>> GetVertexBufferInfo() const;
 

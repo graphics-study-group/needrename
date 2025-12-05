@@ -22,14 +22,16 @@ namespace sch = std::chrono;
 constexpr glm::mat4 EYE4 = glm::mat4(1.0f);
 
 struct LowerPlaneMeshAsset : public PlaneMeshAsset {
-    LowerPlaneMeshAsset() {
+    LowerPlaneMeshAsset() : PlaneMeshAsset() {
         this->m_submeshes.resize(1);
-        this->m_submeshes[0].m_positions = {
-            {1.0f, -1.0f, 0.5f}, {1.0f, 1.0f, 0.5f}, {-1.0f, 1.0f, 0.5f}, {-1.0f, -1.0f, 0.5f},
+        this->m_submeshes[0].positions = MeshAsset::Submesh::Attributes{
+            .type = MeshAsset::Submesh::Attributes::AttributeType::Floatx3,
+            .attribf = {1.0f, -1.0f, 0.5f, 1.0f, 1.0f, 0.5f, -1.0f, 1.0f, 0.5f, -1.0f, -1.0f, 0.5f},
         };
-        for (auto & attr : this->m_submeshes[0].m_attributes_basic) {
-            // Flip normal to upwards in clip space.
-            attr.normal[2] = -1.0f;
+
+        // Flip normal to upwards in clip space.
+        for (size_t i = 0; i < this->m_submeshes[0].normal.attribf.size(); i += 3) {
+            this->m_submeshes[0].normal.attribf[i + 2] = -1.0f;
         }
     }
 };

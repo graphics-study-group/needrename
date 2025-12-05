@@ -66,6 +66,31 @@ namespace Engine {
     }
 
     void HomogeneousMesh::impl::FetchFromAsset(const RenderSystemState::AllocatorState & allocator) {
+        // Load vertex attribute format
+        {
+            const auto & asset = m_mesh_asset->as<MeshAsset>();
+            const auto & submesh = asset->m_submeshes[m_submesh_idx];
+            m_attribute = {};
+
+            using enum MeshAsset::Submesh::Attributes::AttributeType;
+            if (submesh.positions.type != Unused) {
+                assert(submesh.positions.type == Floatx3);
+                m_attribute.SetAttribute(VertexAttributeSemantic::Position, VertexAttributeType::SFloat32x3);
+            }
+            if (submesh.color.type != Unused) {
+                assert(submesh.color.type == Floatx3);
+                m_attribute.SetAttribute(VertexAttributeSemantic::Color, VertexAttributeType::SFloat32x3);
+            }
+            if (submesh.normal.type != Unused) {
+                assert(submesh.normal.type == Floatx3);
+                m_attribute.SetAttribute(VertexAttributeSemantic::Normal, VertexAttributeType::SFloat32x3);
+            }
+            if (submesh.texcoord0.type != Unused) {
+                assert(submesh.texcoord0.type == Floatx2);
+                m_attribute.SetAttribute(VertexAttributeSemantic::Texcoord0, VertexAttributeType::SFloat32x2);
+            }
+        }
+        
         const uint64_t buffer_size = GetExpectedBufferSize();
 
         if (m_total_allocated_buffer_size != buffer_size) {
@@ -111,11 +136,8 @@ namespace Engine {
     void HomogeneousMesh::impl::WriteToMemory(std::byte *pointer) const {
         uint64_t offset = 0;
         auto &mesh_asset = *m_mesh_asset->as<MeshAsset>();
-        const auto &positions = mesh_asset.m_submeshes[m_submesh_idx].m_positions;
-        const auto &attributes = mesh_asset.m_submeshes[m_submesh_idx].m_attributes_basic;
+        auto &submesh = mesh_asset.m_submeshes[m_submesh_idx];
         const auto &indices = mesh_asset.m_submeshes[m_submesh_idx].m_indices;
-
-        assert(positions.size() == attributes.size() && positions.size() == GetVertexCount());
 
         for (uint32_t i = 0; i < 16; i++) {
             auto semantic = static_cast<VertexAttributeSemantic>(i);
@@ -124,60 +146,40 @@ namespace Engine {
             switch(semantic) {
                 using enum VertexAttributeSemantic;
                 case Position:
+                    // TODO: We assume that input read from mesh asset and data submitted to 
+                    // GPU is the same. We might need to renormalize the input sometimes.
+                    assert(submesh.positions.type == MeshAsset::Submesh::Attributes::AttributeType::Floatx3);
                     std::memcpy(
                         pointer + m_attribute.GetOffsetFactor(semantic) * GetVertexCount(),
-                        positions.data(),
+                        submesh.positions.attribf.data(),
                         m_attribute.GetPerVertexSize(semantic) * GetVertexCount()
                     );
                     break;
                 case Normal: {
-                    // deinterleave data
+                    assert(submesh.normal.type == MeshAsset::Submesh::Attributes::AttributeType::Floatx3);
                     // TODO: How to deinterleave the data should depends on vertex attributes
                     // Now we just assume that it is defaulted.
-                    std::vector <float> deinterleaved;
-                    deinterleaved.reserve(GetVertexCount() * 3);
-                    for (const auto & attr : attributes) {
-                        deinterleaved.push_back(attr.normal[0]);
-                        deinterleaved.push_back(attr.normal[1]);
-                        deinterleaved.push_back(attr.normal[2]);
-                    }
-                    assert(deinterleaved.size() * sizeof(float) == m_attribute.GetPerVertexSize(semantic) * GetVertexCount());
                     std::memcpy(
                         pointer + m_attribute.GetOffsetFactor(semantic) * GetVertexCount(),
-                        deinterleaved.data(),
+                        submesh.normal.attribf.data(),
                         m_attribute.GetPerVertexSize(semantic) * GetVertexCount()
                     );
                     break;
                 }
                 case Color: {
-                    // deinterleave data
-                    std::vector <float> deinterleaved;
-                    deinterleaved.reserve(GetVertexCount() * 3);
-                    for (const auto & attr : attributes) {
-                        deinterleaved.push_back(attr.color[0]);
-                        deinterleaved.push_back(attr.color[1]);
-                        deinterleaved.push_back(attr.color[2]);
-                    }
-                    assert(deinterleaved.size() * sizeof(float) == m_attribute.GetPerVertexSize(semantic) * GetVertexCount());
+                    assert(submesh.color.type == MeshAsset::Submesh::Attributes::AttributeType::Floatx3);
                     std::memcpy(
                         pointer + m_attribute.GetOffsetFactor(semantic) * GetVertexCount(),
-                        deinterleaved.data(),
+                        submesh.color.attribf.data(),
                         m_attribute.GetPerVertexSize(semantic) * GetVertexCount()
                     );
                     break;
                 }
                 case Texcoord0: {
-                    // deinterleave data
-                    std::vector <float> deinterleaved;
-                    deinterleaved.reserve(GetVertexCount() * 2);
-                    for (const auto & attr : attributes) {
-                        deinterleaved.push_back(attr.texcoord1[0]);
-                        deinterleaved.push_back(attr.texcoord1[1]);
-                    }
-                    assert(deinterleaved.size() * sizeof(float) == m_attribute.GetPerVertexSize(semantic) * GetVertexCount());
+                    assert(submesh.texcoord0.type == MeshAsset::Submesh::Attributes::AttributeType::Floatx2);
                     std::memcpy(
                         pointer + m_attribute.GetOffsetFactor(semantic) * GetVertexCount(),
-                        deinterleaved.data(),
+                        submesh.texcoord0.attribf.data(),
                         m_attribute.GetPerVertexSize(semantic) * GetVertexCount()
                     );
                     break;

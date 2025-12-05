@@ -155,6 +155,7 @@ namespace Engine {
         const HomogeneousMesh &mesh, const glm::mat4 &model_matrix, int32_t camera_index
     ) {
         auto bindings = mesh.GetVertexBufferInfo();
+        bindings.second.pop_back();
         std::vector<vk::Buffer> vertex_buffers{bindings.second.size(), bindings.first};
         cb.bindVertexBuffers(0, vertex_buffers, bindings.second);
         auto indices = mesh.GetIndexBufferInfo();

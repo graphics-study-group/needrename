@@ -24,8 +24,9 @@ constexpr glm::mat4 EYE4 = glm::mat4(1.0f);
 struct LowerPlaneMeshAsset : public PlaneMeshAsset {
     LowerPlaneMeshAsset() {
         this->m_submeshes.resize(1);
-        this->m_submeshes[0].m_positions = {
-            {1.0f, -1.0f, 0.5f}, {1.0f, 1.0f, 0.5f}, {-1.0f, 1.0f, 0.5f}, {-1.0f, -1.0f, 0.5f},
+        this->m_submeshes[0].positions = MeshAsset::Submesh::Attributes{
+            .type = MeshAsset::Submesh::Attributes::AttributeType::Floatx3,
+            .attribf = {1.0f, -1.0f, 0.5f, 1.0f, 1.0f, 0.5f, -1.0f, 1.0f, 0.5f, -1.0f, -1.0f, 0.5f},
         };
     }
 };
