@@ -9,7 +9,6 @@
 #include "Render/Pipeline/CommandBuffer.h"
 #include "Render/RenderSystem/AllocatorState.h"
 #include "Render/RenderSystem/FrameManager.h"
-#include "Render/RenderSystem/MaterialDescriptorManager.h"
 #include "Render/RenderSystem/MaterialRegistry.h"
 #include "Render/RenderSystem/DeviceInterface.h"
 #include "Render/RenderSystem/RendererManager.h"
