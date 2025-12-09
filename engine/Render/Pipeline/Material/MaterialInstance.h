@@ -66,7 +66,7 @@ namespace Engine {
          * May perform lazy buffer or descriptor allocations.
          */
         void UpdateGPUInfo(
-            MaterialTemplate * tpl,
+            MaterialTemplate & tpl,
             uint32_t backbuffer
         );
         void UpdateGPUInfo(
@@ -90,7 +90,7 @@ namespace Engine {
 
          */
         vk::DescriptorSet GetDescriptor(
-            MaterialTemplate * tpl,
+            const MaterialTemplate & tpl,
             uint32_t backbuffer
         ) const noexcept;
         vk::DescriptorSet GetDescriptor(

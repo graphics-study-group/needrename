@@ -91,14 +91,11 @@ namespace Engine {
     }
 
     void GraphicsCommandBuffer::BindMaterial(
-        MaterialInstance &material,
-        const std::string & tag,
-        VertexAttribute attribute
+        MaterialInstance & material,
+        MaterialTemplate & tpl
     ) {
-        auto tpl = material.GetLibrary().FindMaterialTemplate(tag, attribute);
-        assert(tpl && "Material template not found.");
-        const auto &pipeline = tpl->GetPipeline();
-        const auto &pipeline_layout = tpl->GetPipelineLayout();
+        const auto &pipeline = tpl.GetPipeline();
+        const auto &pipeline_layout = tpl.GetPipelineLayout();
 
         bool bind_new_pipeline = false;
         if (!m_bound_material_pipeline.has_value()) {
@@ -204,7 +201,11 @@ namespace Engine {
 
                 assert(materials.size() == meshes.size());
                 for (size_t id = 0; id < materials.size(); id++) {
-                    this->BindMaterial(*materials[id], tag, meshes[id]->GetVertexAttribute());
+                    auto & mtl = *materials[id];
+                    auto tpl = mtl.GetLibrary().FindMaterialTemplate(tag, meshes[id]->GetVertexAttribute());
+                    if (!tpl)   continue;
+
+                    this->BindMaterial(mtl, *tpl);
                     this->DrawMesh(*meshes[id], model_matrix, camera_index);
                 }
             }

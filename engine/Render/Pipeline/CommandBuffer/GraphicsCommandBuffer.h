@@ -75,8 +75,7 @@ namespace Engine {
          */
         void BindMaterial(
             MaterialInstance &inst,
-            const std::string & tag,
-            VertexAttribute attribute
+            MaterialTemplate & tpl
         );
 
         /// @brief Setup the viewport parameters

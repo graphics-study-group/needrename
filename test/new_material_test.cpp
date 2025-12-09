@@ -106,7 +106,9 @@ RenderGraph BuildRenderGraph(
         );
 
         gcb.SetupViewport(extent.width, extent.height, {{0, 0}, extent});
-        gcb.BindMaterial(*material, "", VertexAttribute::GetDefaultBasicVertexAttribute());
+        auto tpl = material->GetLibrary().FindMaterialTemplate("", VertexAttribute::GetDefaultBasicVertexAttribute());
+        assert(tpl);
+        gcb.BindMaterial(*material, *tpl);
         // Push model matrix...
         vk::CommandBuffer rcb = gcb.GetCommandBuffer();
         rcb.pushConstants(

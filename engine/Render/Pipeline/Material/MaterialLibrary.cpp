@@ -11,12 +11,12 @@ namespace Engine {
             MeshVertexType expected_mesh_type;
             std::shared_ptr<AssetRef> material_template_asset;
         };
-        using PipelineBundle = std::unordered_map <uint64_t, std::shared_ptr<MaterialTemplate>>;
+        using PipelineBundle = std::unordered_map <uint64_t, std::unique_ptr<MaterialTemplate>>;
 
         std::unordered_map <std::string, PipelineBundle> pipeline_table {};
         std::unordered_map <std::string, PipelineAssetItem> pipeline_asset_table {};
 
-        std::shared_ptr<MaterialTemplate> GetPipelineOrCreate(
+        MaterialTemplate & GetPipelineOrCreate(
             RenderSystem & system,
             const std::string & tag,
             uint64_t mesh_type
@@ -25,7 +25,7 @@ namespace Engine {
             if (itr == pipeline_table.end() || !(itr->second[mesh_type])) {
                 CreatePipeline(system, tag, mesh_type);
             }
-            return pipeline_table[tag][mesh_type];
+            return *pipeline_table[tag][mesh_type];
         }
 
         /**
@@ -79,7 +79,8 @@ namespace Engine {
             return itr->second[idx].get();
         }
         if (itr == pimpl->pipeline_table.end()) {
-            auto inserted = pimpl->pipeline_table.insert({tag, {}});
+            auto inserted = pimpl->pipeline_table.insert({tag, impl::PipelineBundle{}});
+            assert(inserted.second && "Failed insertion into pipeline unordered map.");
             itr = inserted.first;
         }
         
@@ -104,7 +105,7 @@ namespace Engine {
                 tag.c_str(), idx, available_idx
             );
         }
-        return pimpl->GetPipelineOrCreate(m_system, tag, idx).get();
+        return &pimpl->GetPipelineOrCreate(m_system, tag, idx);
     }
 
     MaterialTemplate *MaterialLibrary::FindMaterialTemplate(

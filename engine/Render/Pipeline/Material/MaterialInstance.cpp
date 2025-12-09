@@ -132,18 +132,17 @@ namespace Engine {
         return pimpl->parameters;
     }
 
-    void MaterialInstance::UpdateGPUInfo(MaterialTemplate * tpl, uint32_t backbuffer) {
+    void MaterialInstance::UpdateGPUInfo(MaterialTemplate & tpl, uint32_t backbuffer) {
         assert(backbuffer < impl::PassInfo::BACK_BUFFERS);
-        assert(tpl);
 
-        auto itr = pimpl->m_pass_infos.find(tpl);
+        auto itr = pimpl->m_pass_infos.find(&tpl);
         if (itr == pimpl->m_pass_infos.end()) {
             SDL_LogVerbose(
                 SDL_LOG_CATEGORY_RENDER,
                 "Lazily allocating descriptor and UBOs for material template %p.",
-                static_cast<void *>(tpl)
+                static_cast<const void *>(&tpl)
             );
-            itr = pimpl->CreatePassInfo(m_system, *tpl);
+            itr = pimpl->CreatePassInfo(m_system, tpl);
         }
         auto & pass_info = itr->second;
 
@@ -158,7 +157,7 @@ namespace Engine {
                     kv.second->GetSliceSize()
                 );
             }
-            auto writes_from_layout = tpl->GetReflectedShaderInfo().GenerateDescriptorSetWrite(2, pimpl->parameters);
+            auto writes_from_layout = tpl.GetReflectedShaderInfo().GenerateDescriptorSetWrite(2, pimpl->parameters);
 
             std::vector <vk::WriteDescriptorSet> vk_writes {writes_from_layout.buffer.size() + writes_from_layout.image.size()};
             std::vector <std::array<vk::DescriptorBufferInfo, 1>> vk_buffer_writes {writes_from_layout.buffer.size()};
@@ -198,7 +197,7 @@ namespace Engine {
 
         // Then do UBO buffer writes
         if (pass_info._is_ubo_dirty[backbuffer]) {
-            const auto & splayout = tpl->GetReflectedShaderInfo();
+            const auto & splayout = tpl.GetReflectedShaderInfo();
 
             for (const auto & kv : pass_info.ubos) {
                 auto itr = splayout.name_mapping.find(kv.first);
@@ -223,11 +222,12 @@ namespace Engine {
         const std::string &tag, VertexAttribute type, uint32_t backbuffer
     ) {
         auto tpl = GetLibrary().FindMaterialTemplate(tag, type);
-        this->UpdateGPUInfo(tpl, backbuffer);
+        assert(tpl);
+        this->UpdateGPUInfo(*tpl, backbuffer);
     }
 
-    vk::DescriptorSet MaterialInstance::GetDescriptor(MaterialTemplate *tpl, uint32_t backbuffer) const noexcept {
-        auto itr = pimpl->m_pass_infos.find(tpl);
+    vk::DescriptorSet MaterialInstance::GetDescriptor(const MaterialTemplate &tpl, uint32_t backbuffer) const noexcept {
+        auto itr = pimpl->m_pass_infos.find(&tpl);
         if (itr == pimpl->m_pass_infos.end())   return nullptr;
         return itr->second.desc_sets[backbuffer];
     }
@@ -239,7 +239,7 @@ namespace Engine {
 
         auto tpl = GetLibrary().FindMaterialTemplate(tag, type);
         assert(tpl);
-        return this->GetDescriptor(tpl, backbuffer);
+        return this->GetDescriptor(*tpl, backbuffer);
     }
     void MaterialInstance::Instantiate(const MaterialAsset &asset) {
         for (const auto & prop : asset.m_properties) {
