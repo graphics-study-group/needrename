@@ -106,13 +106,13 @@ RenderGraph BuildRenderGraph(
         );
 
         gcb.SetupViewport(extent.width, extent.height, {{0, 0}, extent});
-        auto tpl = material->GetLibrary().FindMaterialTemplate("", VertexAttribute::GetDefaultBasicVertexAttribute());
+        auto tpl = material->GetLibrary().FindMaterialTemplate("", mesh->GetVertexAttribute());
         assert(tpl);
         gcb.BindMaterial(*material, *tpl);
         // Push model matrix...
         vk::CommandBuffer rcb = gcb.GetCommandBuffer();
         rcb.pushConstants(
-            material->GetLibrary().FindMaterialTemplate("", VertexAttribute::GetDefaultBasicVertexAttribute())->GetPipelineLayout(),
+            material->GetLibrary().FindMaterialTemplate("", mesh->GetVertexAttribute())->GetPipelineLayout(),
             vk::ShaderStageFlagBits::eAllGraphics,
             0,
             sizeof (RenderSystemState::RendererManager::RendererDataStruct),
