@@ -110,7 +110,7 @@ RenderGraph BuildRenderGraph(
         // Push model matrix...
         vk::CommandBuffer rcb = gcb.GetCommandBuffer();
         rcb.pushConstants(
-            material->GetLibrary()->FindMaterialTemplate("", attribute)->GetPipelineLayout(),
+            material->GetLibrary().FindMaterialTemplate("", attribute)->GetPipelineLayout(),
             vk::ShaderStageFlagBits::eAllGraphics,
             0,
             sizeof(RenderSystemState::RendererManager::RendererDataStruct),
@@ -145,7 +145,7 @@ int main(int argc, char **argv) {
     auto test_asset_ref = std::make_shared<AssetRef>(test_asset.first);
     auto test_library = std::make_shared<MaterialLibrary>(*rsys);
     test_library->Instantiate(*test_asset_ref->cas<MaterialLibraryAsset>());
-    auto test_material_instance = std::make_shared<MaterialInstance>(*rsys, test_library);
+    auto test_material_instance = std::make_shared<MaterialInstance>(*rsys, *test_library);
 
     // Prepare mesh
     auto test_mesh_asset = std::make_shared<LowerPlaneMeshAsset>();

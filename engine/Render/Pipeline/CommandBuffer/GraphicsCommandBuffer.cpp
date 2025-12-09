@@ -95,7 +95,7 @@ namespace Engine {
         const std::string & tag,
         VertexAttribute attribute
     ) {
-        auto tpl = material.GetLibrary()->FindMaterialTemplate(tag, attribute);
+        auto tpl = material.GetLibrary().FindMaterialTemplate(tag, attribute);
         assert(tpl && "Material template not found.");
         const auto &pipeline = tpl->GetPipeline();
         const auto &pipeline_layout = tpl->GetPipelineLayout();

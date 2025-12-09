@@ -37,13 +37,15 @@ namespace Engine {
     class MaterialInstance : public IInstantiatedFromAsset<MaterialAsset> {
     protected:
         RenderSystem &m_system;
+        MaterialLibrary &m_library;
+
         struct impl;
         std::unique_ptr<impl> pimpl;
 
     public:
         MaterialInstance(
-            RenderSystem &system,
-            std::shared_ptr <MaterialLibrary> library
+            RenderSystem & system,
+            MaterialLibrary & library
         );
         virtual ~MaterialInstance();
 
@@ -108,7 +110,7 @@ namespace Engine {
         /**
          * @brief Get the material library assigned to this instance.
          */
-        std::shared_ptr <MaterialLibrary> GetLibrary() const;
+        MaterialLibrary & GetLibrary() const;
     };
 } // namespace Engine
 

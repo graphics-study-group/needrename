@@ -38,7 +38,7 @@ namespace Engine {
             m_system.lock()->GetMaterialRegistry().AddMaterial(lib);
             auto ptr = std::make_shared<MaterialInstance>(
                 *(m_system.lock()),
-                m_system.lock()->GetMaterialRegistry().GetMaterial(lib->cas<MaterialLibraryAsset>()->m_name)
+                *m_system.lock()->GetMaterialRegistry().GetMaterial(lib->cas<MaterialLibraryAsset>()->m_name)
             );
             m_materials.push_back(ptr);
         }

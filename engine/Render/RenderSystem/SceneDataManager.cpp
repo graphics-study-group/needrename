@@ -96,9 +96,9 @@ namespace Engine::RenderSystemState {
             vk::UniqueDescriptorSetLayout scene_descriptor_set_layout{};
             std::array <vk::DescriptorSet, FrameManager::FRAMES_IN_FLIGHT> scene_descriptor_sets{};
 
-            void Create(std::shared_ptr<RenderSystem> system, vk::DescriptorPool pool) {
-                auto & allocator = system->GetAllocatorState();
-                auto device = system->GetDevice();
+            void Create(RenderSystem & system, vk::DescriptorPool pool) {
+                auto & allocator = system.GetAllocatorState();
+                auto device = system.GetDevice();
 
                 // Create decriptor set layout and allocate descriptors for lighting
                 auto scene_descriptor_bindings = DESCRIPTOR_BINDINGS;
@@ -107,7 +107,7 @@ namespace Engine::RenderSystemState {
                 std::fill(
                     immutable_samplers.begin(),
                     immutable_samplers.end(),
-                    system->GetSamplerManager().GetSampler(
+                    system.GetSamplerManager().GetSampler(
                         ImageUtils::SamplerDesc{
                             .u_address = ImageUtils::SamplerDesc::AddressMode::ClampToEdge,
                             .v_address = ImageUtils::SamplerDesc::AddressMode::ClampToEdge,
@@ -141,7 +141,7 @@ namespace Engine::RenderSystemState {
                     allocator,
                     Buffer::BufferType::Uniform,
                     sizeof(pimpl->scene.light_front_buffer),
-                    system->GetDeviceInterface().QueryLimit(DeviceInterface::PhysicalDeviceLimitInteger::UniformBufferOffsetAlignment),
+                    system.GetDeviceInterface().QueryLimit(DeviceInterface::PhysicalDeviceLimitInteger::UniformBufferOffsetAlignment),
                     scene_descriptor_sets.size(),
                     "Scene Light Uniform Buffer"
                 );
@@ -149,7 +149,7 @@ namespace Engine::RenderSystemState {
 
                 // Prepare default depth map
                 default_light_map = RenderTargetTexture::CreateUnique(
-                    *system,
+                    system,
                     RenderTargetTexture::RenderTargetTextureDesc{
                         .dimensions = 2,
                         .width = 16, .height = 16, .depth = 1,
@@ -163,7 +163,7 @@ namespace Engine::RenderSystemState {
                     },
                     "Default shadowmap"
                 );
-                system->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*default_light_map, 1.0f);
+                system.GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*default_light_map, 1.0f);
 
                 // Write out descriptors
                 std::vector <vk::DescriptorBufferInfo> buffers(
@@ -212,7 +212,7 @@ namespace Engine::RenderSystemState {
 
             std::shared_ptr <Texture> skybox_texture;
 
-            void CreatePipeline(std::shared_ptr <RenderSystem> system) {
+            void CreatePipeline(RenderSystem & system) {
                 // Get shader modules
                 // TODO: We maybe really need to use the asset system here.
                 auto buffer = read_spirv_file(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "shaders" / "skybox.vert.0.spv");
@@ -221,11 +221,11 @@ namespace Engine::RenderSystemState {
                     buffer.size(), reinterpret_cast<uint32_t *>(buffer.data())
                 };
                 // these two modules will be destroyed automatically when out of the scope.
-                auto shdrv = system->GetDevice().createShaderModuleUnique(smci);
+                auto shdrv = system.GetDevice().createShaderModuleUnique(smci);
                 buffer = read_spirv_file(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "shaders" / "skybox.frag.0.spv");
                 smci.codeSize = buffer.size();
                 smci.pCode = reinterpret_cast<uint32_t *>(buffer.data());
-                auto shdrf = system->GetDevice().createShaderModuleUnique(smci);
+                auto shdrf = system.GetDevice().createShaderModuleUnique(smci);
 
                 // Create the pipeline
                 std::array <vk::PipelineShaderStageCreateInfo, 2> pssci {
@@ -316,17 +316,17 @@ namespace Engine::RenderSystemState {
                 };
                 gpci.pNext = &prci;
 
-                pipeline = system->GetDevice().createGraphicsPipelineUnique(nullptr, gpci).value;
+                pipeline = system.GetDevice().createGraphicsPipelineUnique(nullptr, gpci).value;
                 DEBUG_SET_NAME_TEMPLATE(
-                    system->GetDevice(), pipeline.get(), "Skybox Pipeline"
+                    system.GetDevice(), pipeline.get(), "Skybox Pipeline"
                 );
             }
 
-            void Create(std::shared_ptr<RenderSystem> system, vk::DescriptorPool pool) {
-                auto device = system->GetDevice();
+            void Create(RenderSystem & system, vk::DescriptorPool pool) {
+                auto device = system.GetDevice();
                 // Create descriptor set layout
                 auto descriptor_bindings = DESCRIPTOR_BINDINGS;
-                immutable_sampler[0] = system->GetSamplerManager().GetSampler(
+                immutable_sampler[0] = system.GetSamplerManager().GetSampler(
                     ImageUtils::SamplerDesc{
                         .u_address = ImageUtils::SamplerDesc::AddressMode::ClampToEdge,
                         .v_address = ImageUtils::SamplerDesc::AddressMode::ClampToEdge,
@@ -367,8 +367,8 @@ namespace Engine::RenderSystemState {
             }
         } skybox{};
 
-        void Create(std::shared_ptr<RenderSystem> system) {
-            device = system->GetDevice();
+        void Create(RenderSystem & system) {
+            device = system.GetDevice();
 
             // Create dedicated descriptor pool
             vk::DescriptorPoolCreateInfo dpci {
@@ -385,12 +385,15 @@ namespace Engine::RenderSystemState {
             skybox.Create(system, scene_descriptor_pool.get());
         }
     };
-    SceneDataManager::SceneDataManager() noexcept : pimpl(std::make_unique<impl>()) {
+    SceneDataManager::SceneDataManager(
+        RenderSystem & system
+    ) noexcept : m_system(system), pimpl(std::make_unique<impl>()) {
     }
+
     SceneDataManager::~SceneDataManager() noexcept = default;
 
-    void SceneDataManager::Create(std::shared_ptr<RenderSystem> system) {
-        pimpl->Create(system);
+    void SceneDataManager::Create() {
+        pimpl->Create(m_system);
     }
 
     void SceneDataManager::SetLightDirectional(uint32_t index, glm::vec3 direction, glm::vec3 intensity) noexcept {

@@ -24,15 +24,15 @@ namespace Engine {
             static constexpr uint32_t MAX_CAMERAS = 16;
         private:
             uint32_t m_active_camera_index{};
-
+            RenderSystem & m_system;
             struct impl;
             std::unique_ptr <impl> pimpl;
         public:
 
-            CameraManager() noexcept;
+            CameraManager(RenderSystem & system) noexcept;
             ~CameraManager() noexcept;
 
-            void Create(std::shared_ptr <RenderSystem> system);
+            void Create();
 
             /**
              * @brief Manually write new camera matrices to currently active camera.

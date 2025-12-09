@@ -70,7 +70,7 @@ public:
         auto &helper = system->GetFrameManager().GetSubmissionHelper();
 
         for (size_t i = 0; i < m_submeshes.size(); i++) {
-            auto ptr = std::make_shared<MaterialInstance>(*system, library);
+            auto ptr = std::make_shared<MaterialInstance>(*system, *library);
             ptr->AssignTexture("albedoSampler", albedo);
             m_materials.push_back(ptr);
         }

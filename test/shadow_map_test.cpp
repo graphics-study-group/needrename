@@ -165,11 +165,11 @@ int main(int argc, char **argv) {
     auto test_library_asset_ref = std::make_shared<AssetRef>(test_library_asset);
     auto test_library = std::make_shared<MaterialLibrary>(*rsys);
     test_library->Instantiate(*test_library_asset_ref->cas<MaterialLibraryAsset>());
-    auto object_material_instance = std::make_shared<MaterialInstance>(*rsys, test_library);
+    auto object_material_instance = std::make_shared<MaterialInstance>(*rsys, *test_library);
     object_material_instance->AssignVectorVariable("ambient_color", glm::vec4(0.0, 0.0, 0.0, 0.0));
     object_material_instance->AssignVectorVariable("specular_color", glm::vec4(1.0, 1.0, 1.0, 64.0));
     object_material_instance->AssignTexture("base_tex", blank_color_red);
-    auto floor_material_instance = std::make_shared<MaterialInstance>(*rsys, test_library);
+    auto floor_material_instance = std::make_shared<MaterialInstance>(*rsys, *test_library);
     floor_material_instance->AssignVectorVariable("ambient_color", glm::vec4(0.0, 0.0, 0.0, 0.0));
     floor_material_instance->AssignVectorVariable("specular_color", glm::vec4(1.0, 1.0, 1.0, 64.0));
     floor_material_instance->AssignTexture("base_tex", blank_color_gray);

@@ -110,7 +110,7 @@ RenderGraph BuildRenderGraph(
         // Push model matrix...
         vk::CommandBuffer rcb = gcb.GetCommandBuffer();
         rcb.pushConstants(
-            material->GetLibrary()->FindMaterialTemplate("", VertexAttribute::GetDefaultBasicVertexAttribute())->GetPipelineLayout(),
+            material->GetLibrary().FindMaterialTemplate("", VertexAttribute::GetDefaultBasicVertexAttribute())->GetPipelineLayout(),
             vk::ShaderStageFlagBits::eAllGraphics,
             0,
             sizeof (RenderSystemState::RendererManager::RendererDataStruct),

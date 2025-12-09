@@ -36,8 +36,6 @@ namespace Engine {
             
         };
 
-        std::weak_ptr <MaterialLibrary> m_library;
-
         ShdrRfl::ShaderParameters parameters{};
         std::unordered_map <const MaterialTemplate *, PassInfo> m_pass_infos{};
 
@@ -101,8 +99,8 @@ namespace Engine {
     };
 
     MaterialInstance::MaterialInstance(RenderSystem &system,
-            std::shared_ptr <MaterialLibrary> library) :
-        m_system(system), pimpl(std::make_unique<impl>(impl{library})) {
+            MaterialLibrary &library) :
+        m_system(system), m_library(library), pimpl(std::make_unique<impl>()) {
     }
 
     MaterialInstance::~MaterialInstance() = default;
@@ -224,7 +222,7 @@ namespace Engine {
     void MaterialInstance::UpdateGPUInfo(
         const std::string &tag, VertexAttribute type, uint32_t backbuffer
     ) {
-        auto tpl = GetLibrary()->FindMaterialTemplate(tag, type);
+        auto tpl = GetLibrary().FindMaterialTemplate(tag, type);
         this->UpdateGPUInfo(tpl, backbuffer);
     }
 
@@ -239,7 +237,7 @@ namespace Engine {
     ) const noexcept {
         assert(backbuffer < impl::PassInfo::BACK_BUFFERS);
 
-        auto tpl = GetLibrary()->FindMaterialTemplate(tag, type);
+        auto tpl = GetLibrary().FindMaterialTemplate(tag, type);
         assert(tpl);
         return this->GetDescriptor(tpl, backbuffer);
     }
@@ -292,7 +290,7 @@ namespace Engine {
             }
         }
     }
-    std::shared_ptr<MaterialLibrary> MaterialInstance::GetLibrary() const {
-        return pimpl->m_library.lock();
+    MaterialLibrary & MaterialInstance::GetLibrary() const {
+        return m_library;
     }
 } // namespace Engine
