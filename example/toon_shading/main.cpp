@@ -65,6 +65,7 @@ int main() {
     };
     std::shared_ptr ramp_map = CreateRampMapTexture(*rsys, 128, control_points);
     auto material_instance = std::make_shared<MaterialInstance>(*rsys, *material_library);
+    material_instance->AssignVectorVariable("Material::rim_light_color", glm::vec4{1.0f, 1.0f, 1.0f, 0.0f});
     material_instance->AssignTexture("base_texture", blank_color_gray);
     material_instance->AssignTexture("ramp_texture", ramp_map);
 

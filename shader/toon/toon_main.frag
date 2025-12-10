@@ -5,7 +5,7 @@
 layout(constant_id = 0) const float FRESNEL_POWER = 5;
 
 layout(set = 2, binding = 0) uniform Material {
-    vec3 rim_light_color;
+    vec4 rim_light_color;
 } mat;
 
 layout(set = 2, binding = 1) uniform sampler2D base_texture;
@@ -40,6 +40,6 @@ void main() {
     float NdotV = clamp(dot(view_vs, normal_vs), 0.0, 1.0);
     float fresnel = pow((1 - NdotV), FRESNEL_POWER);
     fresnel = smoothstep(0.0, 1.0, fresnel);
-    frag_color += fresnel * mat.rim_light_color;
+    frag_color += fresnel * mat.rim_light_color.rgb;
 }
 
