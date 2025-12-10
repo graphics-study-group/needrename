@@ -23,12 +23,12 @@ void main() {
     // Caculate basic info
     vec3 position_vs = (camera.cameras[pc.camera_id].view * vec4(position_ws, 1.0)).xyz;
     vec3 normal_vs = normalize(mat3(camera.cameras[pc.camera_id].view) * normal_ws);
-    vec3 incident_vs = (camera.cameras[pc.camera_id].view * vec4(position_ws - scene.noncasting_lights.light_source[0].xyz, 1.0)).xyz;
-    incident_vs = normalize(incident_vs);
+    // We handle directional light only here, so light_source is the world space incident vector.
+    vec3 incident_vs = normalize(mat3(camera.cameras[pc.camera_id].view) * scene.noncasting_lights.light_source[0].xyz);
 
     // Determine base color
     vec3 base_color = texture(base_texture, uv_0).rgb;
-    float ramp_coef = dot(normal_vs, incident_vs);
+    float ramp_coef = clamp(dot(normal_vs, incident_vs), 0.0, 1.0);
     vec3 ramp_color = texture(ramp_texture, ramp_coef).rgb;
 
     frag_color = base_color * ramp_color * scene.noncasting_lights.light_color[0].rgb;

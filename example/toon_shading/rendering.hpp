@@ -1,5 +1,5 @@
-#ifndef EXAMPLE_TOON_SHADING_RENDERING_INCLUDED
-#define EXAMPLE_TOON_SHADING_RENDERING_INCLUDED
+#ifndef TOON_SHADING_RENDERING
+#define TOON_SHADING_RENDERING
 
 #include <memory>
 
@@ -60,7 +60,10 @@ std::unique_ptr <Engine::ImageTexture> CreateRampMapTexture(Engine::RenderSystem
             .format = Engine::ImageTexture::ITFormat::R8G8B8A8UNorm,
             .is_cube_map = false
         },
-        Engine::ImageTexture::SamplerDesc{},
+        Engine::ImageTexture::SamplerDesc{
+            .u_address = Engine::ImageTexture::SamplerDesc::AddressMode::ClampToEdge,
+            .v_address = Engine::ImageTexture::SamplerDesc::AddressMode::ClampToEdge,
+        },
         "Ramp map"
     );
     return ptr;
@@ -243,4 +246,4 @@ Engine::RenderGraph BuildRenderGraph(
     return rgb.BuildRenderGraph();
 }
 
-#endif // EXAMPLE_TOON_SHADING_RENDERING_INCLUDED
+#endif // TOON_SHADING_RENDERING
