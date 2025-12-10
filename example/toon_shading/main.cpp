@@ -63,7 +63,13 @@ int main() {
         RampControlPoint{0.0f, 0, 0, 0},
         RampControlPoint{0.5f, 255, 255, 255}
     };
-    std::shared_ptr ramp_map = CreateRampMapTexture(*rsys, 128, control_points);
+    std::shared_ptr ramp_map = CreateRampMapTexture(*rsys, 128);
+    auto data = FillRampMap(128, control_points);
+    rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
+        *ramp_map,
+        reinterpret_cast<std::byte *>(data.data()),
+        data.size()
+    );
     auto material_instance = std::make_shared<MaterialInstance>(*rsys, *material_library);
     material_instance->AssignVectorVariable("Material::rim_light_color", glm::vec4{1.0f, 1.0f, 1.0f, 0.0f});
     material_instance->AssignTexture("base_texture", blank_color_gray);

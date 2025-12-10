@@ -24,11 +24,11 @@ struct RampControlPoint {
 
 /**
  * @brief Fill a ramp map with control points.
- * Assume 3-channel linear RGB, 1 byte per channel.
+ * Assume 4-channel linear RGBA format, 1 byte per channel.
  */
 std::vector <uint8_t> FillRampMap(uint32_t width, const std::vector <RampControlPoint> & cp) {
     std::vector <uint8_t> data;
-    data.resize(3 * width);
+    data.resize(4 * width);
 
     auto current_cp = cp.begin();
     for (size_t i = 0; i < width; i++) {
@@ -37,18 +37,19 @@ std::vector <uint8_t> FillRampMap(uint32_t width, const std::vector <RampControl
             current_cp = std::next(current_cp);
         }
 
-        data[3 * i] = current_cp->r;
-        data[3 * i + 1] = current_cp->g;
-        data[3 * i + 2] = current_cp->b;
+        data[4 * i] = current_cp->r;
+        data[4 * i + 1] = current_cp->g;
+        data[4 * i + 2] = current_cp->b;
+        data[4 * i + 3] = 0;
     }
     return data;
 }
 
 /**
  * @brief Create a ramp map with control points.
- * Assume 3-channel linear RGB, 1 byte per channel.
+ * Assume 4-channel linear RGBA format, 1 byte per channel.
  */
-std::unique_ptr <Engine::ImageTexture> CreateRampMapTexture(Engine::RenderSystem & system, uint32_t width, const std::vector <RampControlPoint> & cp) {
+std::unique_ptr <Engine::ImageTexture> CreateRampMapTexture(Engine::RenderSystem & system, uint32_t width) {
     auto ptr = Engine::ImageTexture::CreateUnique(
         system,
         Engine::ImageTexture::ImageTextureDesc{
@@ -62,14 +63,6 @@ std::unique_ptr <Engine::ImageTexture> CreateRampMapTexture(Engine::RenderSystem
         Engine::ImageTexture::SamplerDesc{},
         "Ramp map"
     );
-
-    auto data = FillRampMap(width, cp);
-    system.GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
-        *ptr,
-        reinterpret_cast<std::byte *>(data.data()),
-        data.size()
-    );
-
     return ptr;
 }
 
