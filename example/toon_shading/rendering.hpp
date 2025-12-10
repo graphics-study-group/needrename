@@ -208,6 +208,31 @@ Engine::RenderGraph BuildRenderGraph(
         ""
     );
 
+    rgb.RecordRasterizerPass(
+        Engine::AttachmentUtils::AttachmentDescription{
+            &color,
+            nullptr,
+            AttachmentUtils::LoadOperation::Load,
+            AttachmentUtils::StoreOperation::Store
+        },
+        Engine::AttachmentUtils::AttachmentDescription{
+            &depth,
+            nullptr,
+            AttachmentUtils::LoadOperation::Load,
+            AttachmentUtils::StoreOperation::Store
+        },
+        [&system, &color, &depth] (Engine::GraphicsCommandBuffer & gcb) -> void {
+            vk::Extent2D extent{
+                color.GetTextureDescription().width,
+                color.GetTextureDescription().height
+            };
+            vk::Rect2D scissor{{0, 0}, extent};
+            gcb.SetupViewport(extent.width, extent.height, scissor);
+            gcb.DrawRenderers("main", system.GetRendererManager().FilterAndSortRenderers({}));
+        },
+        ""
+    );
+
     if (gui_system) {
         rgb.UseImage(color, IAT::ColorAttachmentWrite);
         rgb.RecordRasterizerPassWithoutRT([&system, gui_system, &color](Engine::GraphicsCommandBuffer &gcb) {
