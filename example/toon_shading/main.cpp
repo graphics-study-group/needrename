@@ -89,6 +89,7 @@ int main() {
                 quited = true;
                 break;
             }
+            gsys->ProcessEvent(&event);
         }
 
         auto index = rsys->StartFrame();
