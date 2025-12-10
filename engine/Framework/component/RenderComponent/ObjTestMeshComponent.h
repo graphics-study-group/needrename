@@ -4,6 +4,7 @@
 #include <tiny_obj_loader.h>
 #include <SDL3/SDL.h>
 #include "Asset/Loader/ObjLoader.h"
+#include "Asset/Mesh/MeshAsset.h"
 #include "Framework/component/RenderComponent/MeshComponent.h"
 
 namespace Engine {

@@ -3,6 +3,7 @@
 
 #include <memory>
 
+#include <UserInterface/GUISystem.h>
 #include <Render/FullRenderSystem.h>
 #include <Asset/AssetRef.h>
 #include <Asset/Material/MaterialTemplateAsset.h>
@@ -10,10 +11,10 @@
 #include <cmake_config.h>
 
 const std::unordered_map <const char *, const char *> SHADER_FILENAME_MAP = {
-    {"BackfacingVert", "shaders/blinn_phong.vert.0.spv"},
-    {"BackfacingFrag", "shaders/blinn_phong.frag.0.spv"},
-    {"MainVert", "shaders/blinn_phong.vert.0.spv"},
-    {"MainFrag", "shaders/blinn_phong.frag.0.spv"}
+    {"BackfacingVert", "shaders/toon_outline.vert.0.spv"},
+    {"BackfacingFrag", "shaders/toon_outline.frag.0.spv"},
+    {"MainVert", "shaders/toon_main.vert.0.spv"},
+    {"MainFrag", "shaders/toon_main.frag.0.spv"}
 };
 
 struct RampControlPoint {
@@ -84,6 +85,7 @@ std::unique_ptr <Engine::MaterialTemplateAsset> GetOutlinePassTemplate() {
     asset->properties.attachments.color = {Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm};
     asset->properties.attachments.depth = Engine::ImageUtils::ImageFormat::D32SFLOAT;
     asset->properties.attachments.stencil = Engine::ImageUtils::ImageFormat::UNDEFINED;
+    asset->properties.attachments.color_blending = {Engine::PipelineProperties::ColorBlendingProperties{}};
 
     asset->properties.depth_stencil.depth_test_enable = true;
     asset->properties.depth_stencil.depth_write_enable = true;
@@ -108,6 +110,7 @@ std::unique_ptr <Engine::MaterialTemplateAsset> GetMainPassTemplate() {
     asset->properties.attachments.color = {Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm};
     asset->properties.attachments.depth = Engine::ImageUtils::ImageFormat::D32SFLOAT;
     asset->properties.attachments.stencil = Engine::ImageUtils::ImageFormat::UNDEFINED;
+    asset->properties.attachments.color_blending = {Engine::PipelineProperties::ColorBlendingProperties{}};
 
     asset->properties.depth_stencil.depth_test_enable = true;
     asset->properties.depth_stencil.depth_write_enable = true;
@@ -183,7 +186,8 @@ Engine::RenderGraph BuildRenderGraph(
             &color,
             nullptr,
             AttachmentUtils::LoadOperation::Clear,
-            AttachmentUtils::StoreOperation::Store
+            AttachmentUtils::StoreOperation::Store,
+            AttachmentUtils::ColorClearValue{1.0f, 1.0f, 1.0f, 1.0f}
         },
         Engine::AttachmentUtils::AttachmentDescription{
             &depth,
