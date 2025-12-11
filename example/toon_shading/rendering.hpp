@@ -203,7 +203,8 @@ Engine::RenderGraph BuildRenderGraph(
         },
         ""
     );
-
+    rgb.UseImage(color, IAT::ColorAttachmentWrite);
+    rgb.UseImage(depth, IAT::DepthAttachmentWrite);
     rgb.RecordRasterizerPass(
         Engine::AttachmentUtils::AttachmentDescription{
             &color,
