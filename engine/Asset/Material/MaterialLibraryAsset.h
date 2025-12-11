@@ -20,13 +20,21 @@ namespace Engine {
     class REFL_SER_CLASS(REFL_WHITELIST) MaterialLibraryAsset : public Asset {
         REFL_SER_BODY(MaterialLibraryAsset)
     public:
-        using MeshTypeBundle = std::unordered_map <uint32_t, std::shared_ptr<AssetRef>>;
-        using TagBundle = std::unordered_map <std::string, MeshTypeBundle>;
+        struct REFL_SER_CLASS(REFL_BLACKLIST) MaterialTemplateReference {
+            REFL_SER_SIMPLE_STRUCT(MaterialTemplateReference)
+            uint32_t expected_mesh_type {};
+            std::shared_ptr <AssetRef> material_template {};
+            
+            /// Unused.
+            // std::vector <uint32_t> preheat_mesh_types;
+        };
+
+        using TagBundle = std::unordered_map <std::string, MaterialTemplateReference>;
 
         REFL_ENABLE MaterialLibraryAsset() = default;
         virtual ~MaterialLibraryAsset() = default;
 
-        REFL_SER_ENABLE TagBundle material_bundle;
+        REFL_SER_ENABLE TagBundle material_bundle{};
         REFL_SER_ENABLE std::string m_name{};
     };
 }

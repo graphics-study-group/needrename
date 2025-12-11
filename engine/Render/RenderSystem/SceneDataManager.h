@@ -22,14 +22,15 @@ namespace Engine {
             static constexpr uint32_t MAX_NON_SHADOW_CASTING_LIGHTS = 16;
 
         private:
+            RenderSystem & m_system;
             struct impl;
             std::unique_ptr <impl> pimpl;
 
         public:
             
-            SceneDataManager() noexcept;
+            SceneDataManager(RenderSystem & system) noexcept;
             ~SceneDataManager() noexcept;
-            void Create(std::shared_ptr<RenderSystem> system);
+            void Create();
 
             /**
              * @brief Set the shadow-casting light tracked by the index to be a directional light.

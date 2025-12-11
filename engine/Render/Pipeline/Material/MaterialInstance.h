@@ -13,6 +13,7 @@ namespace Engine {
     class Buffer;
     class MaterialAsset;
     class MaterialLibrary;
+    class VertexAttribute;
 
     namespace ShdrRfl {
         class ShaderParameters;
@@ -36,13 +37,15 @@ namespace Engine {
     class MaterialInstance : public IInstantiatedFromAsset<MaterialAsset> {
     protected:
         RenderSystem &m_system;
+        MaterialLibrary &m_library;
+
         struct impl;
         std::unique_ptr<impl> pimpl;
 
     public:
         MaterialInstance(
-            RenderSystem &system,
-            std::shared_ptr <MaterialLibrary> library
+            RenderSystem & system,
+            MaterialLibrary & library
         );
         virtual ~MaterialInstance();
 
@@ -63,12 +66,12 @@ namespace Engine {
          * May perform lazy buffer or descriptor allocations.
          */
         void UpdateGPUInfo(
-            MaterialTemplate * tpl,
+            MaterialTemplate & tpl,
             uint32_t backbuffer
         );
         void UpdateGPUInfo(
             const std::string & tag,
-            HomogeneousMesh::MeshVertexType type,
+            VertexAttribute type,
             uint32_t backbuffer
         );
 
@@ -87,12 +90,12 @@ namespace Engine {
 
          */
         vk::DescriptorSet GetDescriptor(
-            MaterialTemplate * tpl,
+            const MaterialTemplate & tpl,
             uint32_t backbuffer
         ) const noexcept;
         vk::DescriptorSet GetDescriptor(
             const std::string & tag,
-            HomogeneousMesh::MeshVertexType type,
+            VertexAttribute type,
             uint32_t backbuffer
         ) const noexcept;
 
@@ -107,7 +110,7 @@ namespace Engine {
         /**
          * @brief Get the material library assigned to this instance.
          */
-        std::shared_ptr <MaterialLibrary> GetLibrary() const;
+        MaterialLibrary & GetLibrary() const;
     };
 } // namespace Engine
 

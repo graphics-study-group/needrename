@@ -5,15 +5,14 @@
 #include "Render/Pipeline/Material/Templates/BlinnPhong.h"
 
 namespace Engine::RenderSystemState {
-    void MaterialRegistry::Create(std::weak_ptr<RenderSystem> system) {
-        this->m_system = system;
+    void MaterialRegistry::Create() {
     }
 
     void MaterialRegistry::AddMaterial(std::shared_ptr<AssetRef> ref) {
         auto asset = ref->cas<MaterialLibraryAsset>();
         assert(asset);
         if (this->find(asset->m_name) == this->end()) {
-            auto ptr = std::make_shared<MaterialLibrary>(*(m_system.lock()));
+            auto ptr = std::make_shared<MaterialLibrary>(m_system);
             this->operator[](asset->m_name) = ptr;
             ptr->Instantiate(*ref->cas<MaterialLibraryAsset>());
         }

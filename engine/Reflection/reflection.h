@@ -1,5 +1,5 @@
-#ifndef REFLECTION_REFLECTION_INCLUDED
-#define REFLECTION_REFLECTION_INCLUDED
+#ifndef ENGINE_REFLECTION_REFLECTION_INCLUDED
+#define ENGINE_REFLECTION_REFLECTION_INCLUDED
 
 #include <cassert>
 #include <charconv>
@@ -127,36 +127,66 @@ namespace Engine {
         };
 
         template <typename T>
+        void DefaultDeleter(void * obj) {
+            static_assert(!std::is_void_v<T>);
+            delete static_cast<std::add_pointer_t<T>>(obj);
+        }
+
+        template <typename T>
         std::shared_ptr<const Type> CreateType() {
-            auto deleter = [](void *obj) {
-                delete static_cast<std::add_pointer_t<T>>(obj);
-            };
             if constexpr (std::is_const_v<std::remove_reference_t<T>>) {
                 return std::shared_ptr<const Type>(new ConstType(GetType<std::remove_cvref_t<T>>()));
             } else if constexpr (std::is_pointer_v<T>) {
                 return std::shared_ptr<const PointerType>(
-                    new PointerType(GetType<std::remove_pointer_t<T>>(), sizeof(T), PointerType::PointerTypeKind::Raw, deleter)
+                    new PointerType(
+                        GetType<std::remove_pointer_t<T>>(),
+                        sizeof(T),
+                        PointerType::PointerTypeKind::Raw,
+                        DefaultDeleter<T>
+                    )
                 );
             } else if constexpr (is_std_shared_ptr<T>) {
-                return std::shared_ptr<const PointerType>(new PointerType(
-                    GetType<typename T::element_type>(), sizeof(T), PointerType::PointerTypeKind::Shared, deleter
-                ));
+                return std::shared_ptr<const PointerType>(
+                    new PointerType(
+                        GetType<typename T::element_type>(),
+                        sizeof(T),
+                        PointerType::PointerTypeKind::Shared,
+                        DefaultDeleter<T>
+                    )
+                );
             } else if constexpr (is_std_weak_ptr<T>) {
                 return std::shared_ptr<const PointerType>(
-                    new PointerType(GetType<typename T::element_type>(), sizeof(T), PointerType::PointerTypeKind::Weak, deleter)
+                    new PointerType(
+                        GetType<typename T::element_type>(),
+                        sizeof(T),
+                        PointerType::PointerTypeKind::Weak,
+                        DefaultDeleter<T>
+                    )
                 );
             } else if constexpr (is_std_unique_ptr<T>) {
-                return std::shared_ptr<const PointerType>(new PointerType(
-                    GetType<typename T::element_type>(), sizeof(T), PointerType::PointerTypeKind::Unique, deleter
-                ));
+                return std::shared_ptr<const PointerType>(
+                    new PointerType(
+                        GetType<typename T::element_type>(),
+                        sizeof(T),
+                        PointerType::PointerTypeKind::Unique,
+                        DefaultDeleter<T>
+                    )
+                );
             }
             if constexpr (std::is_void_v<T>) {
                 throw std::runtime_error("The void type should be created in initialization");
             } else {
-                return std::shared_ptr<const Type>(new Type(typeid(std::remove_const_t<T>).name(), sizeof(T), false, deleter));
+                return std::shared_ptr<const Type>(
+                    new Type(
+                        typeid(std::remove_const_t<T>).name(),
+                        sizeof(T),
+                        false,
+                        DefaultDeleter<T>
+                    )
+                );
             }
         }
     } // namespace Reflection
 } // namespace Engine
 
-#endif // REFLECTION_REFLECTION_INCLUDED
+#endif // ENGINE_REFLECTION_REFLECTION_INCLUDED

@@ -25,11 +25,14 @@ namespace sch = std::chrono;
 struct LowerPlaneMeshAsset : public PlaneMeshAsset {
     LowerPlaneMeshAsset() {
         this->m_submeshes.resize(1);
-        this->m_submeshes[0].m_positions = {
-            {1.0f, -1.0f, 0.0f}, {1.0f, 1.0f, 0.0f}, {-1.0f, 1.0f, 0.0f}, {-1.0f, -1.0f, 0.0f},
+        this->m_submeshes[0].positions = MeshAsset::Submesh::Attributes{
+            .type = MeshAsset::Submesh::Attributes::AttributeType::Floatx3,
+            .attribf = {1.0f, -1.0f, 0.0f, 1.0f, 1.0f, 0.0f, -1.0f, 1.0f, 0.0f, -1.0f, -1.0f, 0.0f},
         };
-        for (auto & attr : this->m_submeshes[0].m_attributes_basic) {
-            attr.normal[2] = -1.0f;
+
+        // Flip normal to upwards in clip space.
+        for (size_t i = 0; i < this->m_submeshes[0].normal.attribf.size(); i += 3) {
+            this->m_submeshes[0].normal.attribf[i + 2] = -1.0f;
         }
     }
 };
@@ -87,12 +90,14 @@ std::array<std::shared_ptr<MaterialTemplateAsset>, 2> ConstructMaterialTemplate(
 std::shared_ptr <MaterialLibraryAsset> ConstructMaterialLibrary(std::array<std::shared_ptr<MaterialTemplateAsset>, 2> & templates) {
     std::shared_ptr <MaterialLibraryAsset> lib = std::make_shared<MaterialLibraryAsset>();
     lib->m_name = "Blinn-Phong w. Shadowmap";
-    lib->material_bundle["Lit"] = std::unordered_map<uint32_t, std::shared_ptr<AssetRef>> {
-        {static_cast<uint32_t>(HomogeneousMesh::MeshVertexType::Basic), std::make_shared<AssetRef>(templates[0])}
-    };
-    lib->material_bundle["Shadowmap"] = std::unordered_map<uint32_t, std::shared_ptr<AssetRef>> {
-        {static_cast<uint32_t>(HomogeneousMesh::MeshVertexType::Position), std::make_shared<AssetRef>(templates[1])}
-    };
+    MaterialLibraryAsset::MaterialTemplateReference ref;
+    ref.expected_mesh_type = 0;
+    ref.material_template = std::make_shared<AssetRef>(templates[0]);
+    lib->material_bundle["Lit"] = ref;
+
+    ref.expected_mesh_type = 0;
+    ref.material_template = std::make_shared<AssetRef>(templates[1]);
+    lib->material_bundle["Shadowmap"] = ref;
     return lib;
 }
 
@@ -160,11 +165,11 @@ int main(int argc, char **argv) {
     auto test_library_asset_ref = std::make_shared<AssetRef>(test_library_asset);
     auto test_library = std::make_shared<MaterialLibrary>(*rsys);
     test_library->Instantiate(*test_library_asset_ref->cas<MaterialLibraryAsset>());
-    auto object_material_instance = std::make_shared<MaterialInstance>(*rsys, test_library);
+    auto object_material_instance = std::make_shared<MaterialInstance>(*rsys, *test_library);
     object_material_instance->AssignVectorVariable("ambient_color", glm::vec4(0.0, 0.0, 0.0, 0.0));
     object_material_instance->AssignVectorVariable("specular_color", glm::vec4(1.0, 1.0, 1.0, 64.0));
     object_material_instance->AssignTexture("base_tex", blank_color_red);
-    auto floor_material_instance = std::make_shared<MaterialInstance>(*rsys, test_library);
+    auto floor_material_instance = std::make_shared<MaterialInstance>(*rsys, *test_library);
     floor_material_instance->AssignVectorVariable("ambient_color", glm::vec4(0.0, 0.0, 0.0, 0.0));
     floor_material_instance->AssignVectorVariable("specular_color", glm::vec4(1.0, 1.0, 1.0, 64.0));
     floor_material_instance->AssignTexture("base_tex", blank_color_gray);
@@ -179,6 +184,7 @@ int main(int argc, char **argv) {
     floor_mesh_comp->GetMaterials().resize(1);
     floor_mesh_comp->GetMaterials()[0] = floor_material_instance;
     floor_mesh_comp->RenderInit();
+    assert(floor_mesh_comp->GetSubmesh(0)->GetVertexAttribute().HasAttribute(VertexAttributeSemantic::Texcoord0));
 
     auto cube_go = cmc->GetWorldSystem()->CreateGameObject<GameObject>();
     cube_go->GetTransformRef().SetScale({0.5f, 0.5f, 0.5f});
@@ -196,7 +202,9 @@ int main(int argc, char **argv) {
         object_material_instance
     );
     // We cannot call `RenderInit()` because this component has no associated asset.
+    assert(cube_mesh_comp->GetSubmesh(0)->GetVertexAttribute().HasAttribute(VertexAttributeSemantic::Texcoord0));
     rsys->GetRendererManager().RegisterRendererComponent(cube_mesh_comp);
+    assert(sphere_mesh_comp->GetSubmesh(0)->GetVertexAttribute().HasAttribute(VertexAttributeSemantic::Texcoord0));
     rsys->GetRendererManager().RegisterRendererComponent(sphere_mesh_comp);
     
 
@@ -225,8 +233,6 @@ int main(int argc, char **argv) {
                 "Shadowmap Pass"
             );
             gcb.SetupViewport(shadow_map_extent.width, shadow_map_extent.height, shadow_map_scissor);
-            gcb.BindMaterial(*object_material_instance, "Shadowmap", HomogeneousMesh::MeshVertexType::Basic);
-
             gcb.DrawRenderers(
                 "Shadowmap",
                 rsys->GetRendererManager().FilterAndSortRenderers({}),
@@ -251,7 +257,6 @@ int main(int argc, char **argv) {
             vk::Extent2D extent{rsys->GetSwapchain().GetExtent()};
             vk::Rect2D scissor{{0, 0}, extent};
             gcb.SetupViewport(extent.width, extent.height, scissor);
-            gcb.BindMaterial(*object_material_instance, "Lit", HomogeneousMesh::MeshVertexType::Basic);
             gcb.DrawRenderers(
                 "Lit",
                 rsys->GetRendererManager().FilterAndSortRenderers({})

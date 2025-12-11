@@ -19,6 +19,7 @@ namespace Engine {
     class MaterialTemplate;
     class MaterialInstance;
     class Buffer;
+    class VertexAttribute;
 
     namespace AttachmentUtils {
         class AttachmentDescription;
@@ -74,8 +75,7 @@ namespace Engine {
          */
         void BindMaterial(
             MaterialInstance &inst,
-            const std::string & tag,
-            HomogeneousMesh::MeshVertexType type
+            MaterialTemplate & tpl
         );
 
         /// @brief Setup the viewport parameters

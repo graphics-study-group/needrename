@@ -10,6 +10,7 @@
 #include "Render/RenderSystem/DeviceInterface.h"
 #include "Render/RenderSystem/FrameManager.h"
 #include "Render/RenderSystem/SubmissionHelper.h"
+#include "Render/Renderer/VertexAttribute.h"
 #include <Asset/Material/MaterialAsset.h>
 #include <Asset/Texture/Image2DTextureAsset.h>
 #include <Render/Memory/IndexedBuffer.h>
@@ -34,8 +35,6 @@ namespace Engine {
             std::array <vk::DescriptorSet, BACK_BUFFERS> desc_sets{};
             
         };
-
-        std::weak_ptr <MaterialLibrary> m_library;
 
         ShdrRfl::ShaderParameters parameters{};
         std::unordered_map <const MaterialTemplate *, PassInfo> m_pass_infos{};
@@ -100,8 +99,8 @@ namespace Engine {
     };
 
     MaterialInstance::MaterialInstance(RenderSystem &system,
-            std::shared_ptr <MaterialLibrary> library) :
-        m_system(system), pimpl(std::make_unique<impl>(impl{library})) {
+            MaterialLibrary &library) :
+        m_system(system), m_library(library), pimpl(std::make_unique<impl>()) {
     }
 
     MaterialInstance::~MaterialInstance() = default;
@@ -133,18 +132,17 @@ namespace Engine {
         return pimpl->parameters;
     }
 
-    void MaterialInstance::UpdateGPUInfo(MaterialTemplate * tpl, uint32_t backbuffer) {
+    void MaterialInstance::UpdateGPUInfo(MaterialTemplate & tpl, uint32_t backbuffer) {
         assert(backbuffer < impl::PassInfo::BACK_BUFFERS);
-        assert(tpl);
 
-        auto itr = pimpl->m_pass_infos.find(tpl);
+        auto itr = pimpl->m_pass_infos.find(&tpl);
         if (itr == pimpl->m_pass_infos.end()) {
             SDL_LogVerbose(
                 SDL_LOG_CATEGORY_RENDER,
                 "Lazily allocating descriptor and UBOs for material template %p.",
-                (const void *)&tpl
+                static_cast<const void *>(&tpl)
             );
-            itr = pimpl->CreatePassInfo(m_system, *tpl);
+            itr = pimpl->CreatePassInfo(m_system, tpl);
         }
         auto & pass_info = itr->second;
 
@@ -159,7 +157,7 @@ namespace Engine {
                     kv.second->GetSliceSize()
                 );
             }
-            auto writes_from_layout = tpl->GetReflectedShaderInfo().GenerateDescriptorSetWrite(2, pimpl->parameters);
+            auto writes_from_layout = tpl.GetReflectedShaderInfo().GenerateDescriptorSetWrite(2, pimpl->parameters);
 
             std::vector <vk::WriteDescriptorSet> vk_writes {writes_from_layout.buffer.size() + writes_from_layout.image.size()};
             std::vector <std::array<vk::DescriptorBufferInfo, 1>> vk_buffer_writes {writes_from_layout.buffer.size()};
@@ -199,7 +197,7 @@ namespace Engine {
 
         // Then do UBO buffer writes
         if (pass_info._is_ubo_dirty[backbuffer]) {
-            const auto & splayout = tpl->GetReflectedShaderInfo();
+            const auto & splayout = tpl.GetReflectedShaderInfo();
 
             for (const auto & kv : pass_info.ubos) {
                 auto itr = splayout.name_mapping.find(kv.first);
@@ -221,26 +219,27 @@ namespace Engine {
     }
 
     void MaterialInstance::UpdateGPUInfo(
-        const std::string &tag, HomogeneousMesh::MeshVertexType type, uint32_t backbuffer
+        const std::string &tag, VertexAttribute type, uint32_t backbuffer
     ) {
-        auto tpl = GetLibrary()->FindMaterialTemplate(tag, type);
-        this->UpdateGPUInfo(tpl, backbuffer);
+        auto tpl = GetLibrary().FindMaterialTemplate(tag, type);
+        assert(tpl);
+        this->UpdateGPUInfo(*tpl, backbuffer);
     }
 
-    vk::DescriptorSet MaterialInstance::GetDescriptor(MaterialTemplate *tpl, uint32_t backbuffer) const noexcept {
-        auto itr = pimpl->m_pass_infos.find(tpl);
+    vk::DescriptorSet MaterialInstance::GetDescriptor(const MaterialTemplate &tpl, uint32_t backbuffer) const noexcept {
+        auto itr = pimpl->m_pass_infos.find(&tpl);
         if (itr == pimpl->m_pass_infos.end())   return nullptr;
         return itr->second.desc_sets[backbuffer];
     }
 
     vk::DescriptorSet MaterialInstance::GetDescriptor(
-        const std::string &tag, HomogeneousMesh::MeshVertexType type, uint32_t backbuffer
+        const std::string &tag, VertexAttribute type, uint32_t backbuffer
     ) const noexcept {
         assert(backbuffer < impl::PassInfo::BACK_BUFFERS);
 
-        auto tpl = GetLibrary()->FindMaterialTemplate(tag, type);
+        auto tpl = GetLibrary().FindMaterialTemplate(tag, type);
         assert(tpl);
-        return this->GetDescriptor(tpl, backbuffer);
+        return this->GetDescriptor(*tpl, backbuffer);
     }
     void MaterialInstance::Instantiate(const MaterialAsset &asset) {
         for (const auto & prop : asset.m_properties) {
@@ -291,7 +290,7 @@ namespace Engine {
             }
         }
     }
-    std::shared_ptr<MaterialLibrary> MaterialInstance::GetLibrary() const {
-        return pimpl->m_library.lock();
+    MaterialLibrary & MaterialInstance::GetLibrary() const {
+        return m_library;
     }
 } // namespace Engine

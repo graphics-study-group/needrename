@@ -9,11 +9,11 @@
 namespace Engine {
     namespace RenderSystemState {
         class MaterialRegistry final : protected std::unordered_map<std::string, std::shared_ptr<MaterialLibrary>> {
-            std::weak_ptr<RenderSystem> m_system{};
+            RenderSystem & m_system;
 
         public:
-            MaterialRegistry() = default;
-            void Create(std::weak_ptr<RenderSystem>);
+            MaterialRegistry(RenderSystem & system) : m_system(system) {};
+            void Create();
             void AddMaterial(std::shared_ptr<AssetRef> ref);
             auto GetMaterial(const std::string &name) -> decltype(this->at(name));
         };

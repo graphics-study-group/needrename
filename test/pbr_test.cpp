@@ -44,9 +44,10 @@ std::pair<std::shared_ptr<MaterialLibraryAsset>, std::shared_ptr<MaterialTemplat
     test_asset->properties = mtspp;
 
     lib_asset->m_name = "LambertianCookTorrancePBR";
-    lib_asset->material_bundle[""] = {
-        {(uint32_t)HomogeneousMesh::MeshVertexType::Basic, std::make_shared<AssetRef>(test_asset)}
-    };
+    MaterialLibraryAsset::MaterialTemplateReference ref;
+    ref.expected_mesh_type = 0;
+    ref.material_template = std::make_shared<AssetRef>(test_asset);
+    lib_asset->material_bundle[""] = ref;
 
     return std::make_pair(lib_asset, test_asset);
 }
@@ -69,7 +70,7 @@ public:
         auto &helper = system->GetFrameManager().GetSubmissionHelper();
 
         for (size_t i = 0; i < m_submeshes.size(); i++) {
-            auto ptr = std::make_shared<MaterialInstance>(*system, library);
+            auto ptr = std::make_shared<MaterialInstance>(*system, *library);
             ptr->AssignTexture("albedoSampler", albedo);
             m_materials.push_back(ptr);
         }

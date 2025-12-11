@@ -1,14 +1,68 @@
 #include "MaterialLibrary.h"
 
+#include "Render/Renderer/VertexAttribute.h"
 #include "Asset/Material/MaterialTemplateAsset.h"
 #include <cassert>
 #include <SDL3/SDL.h>
 
 namespace Engine {
     struct MaterialLibrary::impl {
-        constexpr static uint32_t MAX_MESH_TYPE_COUNT = 5;
-        using PipelineBundle = std::array <std::shared_ptr<MaterialTemplate>, MAX_MESH_TYPE_COUNT>;
+        struct PipelineAssetItem {
+            MeshVertexType expected_mesh_type;
+            std::shared_ptr<AssetRef> material_template_asset;
+        };
+        using PipelineBundle = std::unordered_map <uint64_t, std::unique_ptr<MaterialTemplate>>;
+
         std::unordered_map <std::string, PipelineBundle> pipeline_table {};
+        std::unordered_map <std::string, PipelineAssetItem> pipeline_asset_table {};
+
+        MaterialTemplate & GetPipelineOrCreate(
+            RenderSystem & system,
+            const std::string & tag,
+            uint64_t mesh_type
+        ) {
+            auto itr = pipeline_table.find(tag);
+            if (itr == pipeline_table.end() || !(itr->second[mesh_type])) {
+                CreatePipeline(system, tag, mesh_type);
+            }
+            return *pipeline_table[tag][mesh_type];
+        }
+
+        /**
+         * @brief Create a pipeline, assuming that the asset corresponding to
+         * both the tag and the mesh type exists.
+         */
+        void CreatePipeline(RenderSystem & system, const std::string & tag, uint64_t actual_type) {
+            auto itr = pipeline_asset_table.find(tag);
+            assert(itr != pipeline_asset_table.end() && "Pipeline tag not found.");
+            assert(itr->second.material_template_asset && "Invalid material template asset.");
+            
+            auto expected_type = static_cast<uint64_t>(itr->second.expected_mesh_type);
+            const auto & asset = itr->second.material_template_asset->cas<const MaterialTemplateAsset>();
+
+            SDL_LogInfo(
+                SDL_LOG_CATEGORY_RENDER,
+                std::format(
+                    "Creating material (name: {}, type: {} -> {}) from asset {}.",
+                    tag,
+                    expected_type,
+                    actual_type,
+                    asset->name
+                ).c_str()
+            );
+            
+            pipeline_table[tag][actual_type] = std::make_unique<MaterialTemplate>(
+                system,
+                asset->properties,
+                VertexAttribute{.packed = actual_type},
+                asset->name
+            );
+            SDL_LogInfo(
+                SDL_LOG_CATEGORY_RENDER,
+                "Created material %p.",
+                static_cast<void *>(pipeline_table[tag][actual_type].get())
+            );
+        }
     };
 
     MaterialLibrary::MaterialLibrary(RenderSystem & s) : m_system(s), pimpl(std::make_unique<impl>()){
@@ -16,60 +70,57 @@ namespace Engine {
     MaterialLibrary::~MaterialLibrary() {
     }
     const MaterialTemplate * MaterialLibrary::FindMaterialTemplate(
-        const std::string &tag, HomogeneousMesh::MeshVertexType mesh_type
+        const std::string &tag, VertexAttribute mesh_type
     ) const noexcept {
-        auto idx = static_cast<std::underlying_type<HomogeneousMesh::MeshVertexType>::type>(mesh_type);
-        assert(idx < impl::MAX_MESH_TYPE_COUNT);
+        auto idx = mesh_type.packed;
 
         auto itr = pimpl->pipeline_table.find(tag);
+        if (itr != pimpl->pipeline_table.end() && itr->second[idx]) {
+            return itr->second[idx].get();
+        }
         if (itr == pimpl->pipeline_table.end()) {
-            SDL_LogVerbose(
+            auto inserted = pimpl->pipeline_table.insert({tag, impl::PipelineBundle{}});
+            assert(inserted.second && "Failed insertion into pipeline unordered map.");
+            itr = inserted.first;
+        }
+        
+        // The pipeline is not found -> try create from asset
+        auto asset_itr = pimpl->pipeline_asset_table.find(tag);
+        if (asset_itr == pimpl->pipeline_asset_table.end()) {
+            SDL_LogError(
                 SDL_LOG_CATEGORY_RENDER,
-                "Cannot find pipeline tagged %s.",
+                "Cannot find pipeline tagged %s",
                 tag.c_str()
             );
             return nullptr;
         }
-
-        for (int i = idx; i >= 0; i--) {
-            if (itr->second[i]) {
-                if (i != idx) {
-                    SDL_LogWarn(
-                        SDL_LOG_CATEGORY_RENDER,
-                        "Pipeline tagged %s does not support mesh type %u. Downgraded to %d.",
-                        tag.c_str(),
-                        (unsigned int)mesh_type,
-                        i
-                    );
-                }
-                return itr->second[i].get();
-            }
+        // Find lowest available asset
+        auto asset_ptr = asset_itr->second.material_template_asset;
+        uint64_t available_idx = static_cast<uint64_t>(asset_itr->second.expected_mesh_type);
+        // Construct material from compatible material.
+        if (available_idx != idx) {
+            SDL_LogWarn(
+                SDL_LOG_CATEGORY_RENDER,
+                "Pipeline tagged %s found, but mesh type %llu is not available, and is downgraded to %llu.",
+                tag.c_str(), idx, available_idx
+            );
         }
-
-        SDL_LogError(
-            SDL_LOG_CATEGORY_RENDER,
-            "Pipeline tagged %s exists, but none is usable for mesh type %u.",
-            tag.c_str(),
-            (unsigned int)mesh_type
-        );
-        return nullptr;
+        return &pimpl->GetPipelineOrCreate(m_system, tag, idx);
     }
+
     MaterialTemplate *MaterialLibrary::FindMaterialTemplate(
-        const std::string &tag, HomogeneousMesh::MeshVertexType mesh_type
+        const std::string &tag, VertexAttribute mesh_type
     ) noexcept {
         return const_cast<MaterialTemplate *>(std::as_const(*this).FindMaterialTemplate(tag, mesh_type));
     }
+
     void MaterialLibrary::Instantiate(const MaterialLibraryAsset & asset) {
         pimpl->pipeline_table.clear();
         for (auto & [tag, bundle] : asset.material_bundle) {
-
-            impl::PipelineBundle p;
-            for (auto & [type, tpl] : bundle) {
-                assert(type < impl::MAX_MESH_TYPE_COUNT);
-                p[type] = std::make_shared<MaterialTemplate>(m_system);
-                p[type]->Instantiate(*tpl->cas<const MaterialTemplateAsset>());
-            }
-            pimpl->pipeline_table[tag] = std::move(p);
+            pimpl->pipeline_asset_table[tag] = impl::PipelineAssetItem{
+                .expected_mesh_type = static_cast<MeshVertexType>(bundle.expected_mesh_type),
+                .material_template_asset = bundle.material_template
+            };
         }
     }
 } // namespace Engine

@@ -27,8 +27,6 @@ namespace Engine::RenderSystemState {
             }
         };
 
-        std::weak_ptr <RenderSystem> system {};
-
         vk::UniqueDescriptorPool camera_descriptor_pool {};
 
         // Camera descriptor set layout, currently containing only one UBO.
@@ -45,17 +43,18 @@ namespace Engine::RenderSystemState {
 
         // Registered cameras
         std::array <std::weak_ptr<Camera>, MAX_CAMERAS> registered_cameras;
+
     };
 
-    CameraManager::CameraManager() noexcept : pimpl(std::make_unique<impl>()) {
+    CameraManager::CameraManager(
+        RenderSystem & system
+    ) noexcept : m_system(system), pimpl(std::make_unique<impl>()) {
     }
     CameraManager::~CameraManager() noexcept = default;
 
-    void CameraManager::Create(std::shared_ptr <RenderSystem> system) {
-        pimpl->system = system;
-
-        const auto & allocator = system->GetAllocatorState();
-        auto device = system->GetDevice();
+    void CameraManager::Create() {
+        const auto & allocator = m_system.GetAllocatorState();
+        auto device = m_system.GetDevice();
 
         vk::DescriptorPoolCreateInfo dpci {
             vk::DescriptorPoolCreateFlagBits{},
@@ -93,7 +92,7 @@ namespace Engine::RenderSystemState {
             allocator,
             Buffer::BufferType::Uniform,
             sizeof(impl::front_buffer),
-            system->GetDeviceInterface().QueryLimit(DeviceInterface::PhysicalDeviceLimitInteger::UniformBufferOffsetAlignment),
+            m_system.GetDeviceInterface().QueryLimit(DeviceInterface::PhysicalDeviceLimitInteger::UniformBufferOffsetAlignment),
             pimpl->descriptors.size(),
             "Aggregated Camera Uniform Buffer"
         );

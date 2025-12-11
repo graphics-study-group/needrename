@@ -24,8 +24,9 @@ constexpr glm::mat4 EYE4 = glm::mat4(1.0f);
 struct LowerPlaneMeshAsset : public PlaneMeshAsset {
     LowerPlaneMeshAsset() {
         this->m_submeshes.resize(1);
-        this->m_submeshes[0].m_positions = {
-            {1.0f, -1.0f, 0.5f}, {1.0f, 1.0f, 0.5f}, {-1.0f, 1.0f, 0.5f}, {-1.0f, -1.0f, 0.5f},
+        this->m_submeshes[0].positions = MeshAsset::Submesh::Attributes{
+            .type = MeshAsset::Submesh::Attributes::AttributeType::Floatx3,
+            .attribf = {1.0f, -1.0f, 0.5f, 1.0f, 1.0f, 0.5f, -1.0f, 1.0f, 0.5f, -1.0f, -1.0f, 0.5f},
         };
     }
 };
@@ -60,9 +61,10 @@ std::pair<std::shared_ptr<MaterialLibraryAsset>, std::shared_ptr<MaterialTemplat
     test_asset->properties = mtspp;
 
     test_lib_asset->m_name = "MRT Writethrough";
-    test_lib_asset->material_bundle[""] = {
-        {(uint32_t)HomogeneousMesh::MeshVertexType::Position, std::make_shared<AssetRef>(test_asset)}
-    };
+    MaterialLibraryAsset::MaterialTemplateReference ref;
+    ref.expected_mesh_type = 0;
+    ref.material_template = std::make_shared<AssetRef>(test_asset);
+    test_lib_asset->material_bundle[""] = ref;
 
     return std::make_pair(test_lib_asset, test_asset);
 }
@@ -102,12 +104,16 @@ RenderGraph BuildRenderGraph(
         );
 
         gcb.SetupViewport(extent.width, extent.height, {{0, 0}, extent});
-        gcb.BindMaterial(*material, "", Engine::HomogeneousMesh::MeshVertexType::Position);
+        VertexAttribute attribute;
+        attribute.SetAttribute(VertexAttributeSemantic::Position, VertexAttributeType::SFloat32x3);
+        auto tpl = material->GetLibrary().FindMaterialTemplate("", attribute);
+        assert(tpl);
+        gcb.BindMaterial(*material, *tpl);
         // Push model matrix...
         vk::CommandBuffer rcb = gcb.GetCommandBuffer();
         rcb.pushConstants(
-            material->GetLibrary()->FindMaterialTemplate("", Engine::HomogeneousMesh::MeshVertexType::Position)->GetPipelineLayout(),
-            vk::ShaderStageFlagBits::eAll,
+            material->GetLibrary().FindMaterialTemplate("", attribute)->GetPipelineLayout(),
+            vk::ShaderStageFlagBits::eAllGraphics,
             0,
             sizeof(RenderSystemState::RendererManager::RendererDataStruct),
             reinterpret_cast<const void *>(&EYE4)
@@ -141,7 +147,7 @@ int main(int argc, char **argv) {
     auto test_asset_ref = std::make_shared<AssetRef>(test_asset.first);
     auto test_library = std::make_shared<MaterialLibrary>(*rsys);
     test_library->Instantiate(*test_asset_ref->cas<MaterialLibraryAsset>());
-    auto test_material_instance = std::make_shared<MaterialInstance>(*rsys, test_library);
+    auto test_material_instance = std::make_shared<MaterialInstance>(*rsys, *test_library);
 
     // Prepare mesh
     auto test_mesh_asset = std::make_shared<LowerPlaneMeshAsset>();
