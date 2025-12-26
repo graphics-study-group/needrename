@@ -31,9 +31,9 @@ namespace {
         cb.begin(vk::CommandBufferBeginInfo{});
         DEBUG_CMD_START_LABEL(cb, "Final Copy");
         barriers[0] = vk::ImageMemoryBarrier2{
-            vk::PipelineStageFlagBits2::eTransfer,
-            vk::AccessFlagBits2::eNone,
-            vk::PipelineStageFlagBits2::eTransfer,
+            vk::PipelineStageFlagBits2::eAllCommands,
+            vk::AccessFlagBits2::eMemoryWrite,
+            vk::PipelineStageFlagBits2::eAllTransfer,
             vk::AccessFlagBits2::eTransferRead,
             vk::ImageLayout::eColorAttachmentOptimal,
             vk::ImageLayout::eTransferSrcOptimal,
@@ -43,9 +43,9 @@ namespace {
             vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}
         };
         barriers[1] = vk::ImageMemoryBarrier2{
-            vk::PipelineStageFlagBits2::eTransfer,
+            vk::PipelineStageFlagBits2::eAllTransfer,
             vk::AccessFlagBits2::eNone, // > Set up execution dep instead of memory dep.
-            vk::PipelineStageFlagBits2::eTransfer,
+            vk::PipelineStageFlagBits2::eAllTransfer,
             vk::AccessFlagBits2::eTransferWrite,
             vk::ImageLayout::eUndefined,
             vk::ImageLayout::eTransferDstOptimal,
@@ -81,9 +81,9 @@ namespace {
         );
 
         barriers[0] = vk::ImageMemoryBarrier2{
-            vk::PipelineStageFlagBits2::eTransfer,
+            vk::PipelineStageFlagBits2::eAllTransfer,
             vk::AccessFlagBits2::eTransferRead,
-            vk::PipelineStageFlagBits2::eBottomOfPipe,
+            vk::PipelineStageFlagBits2::eNone,
             vk::AccessFlagBits2::eNone,
             vk::ImageLayout::eTransferSrcOptimal,
             vk::ImageLayout::eColorAttachmentOptimal,
@@ -93,10 +93,10 @@ namespace {
             vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}
         };
         barriers[1] = vk::ImageMemoryBarrier2{
-            vk::PipelineStageFlagBits2::eTransfer,
+            vk::PipelineStageFlagBits2::eAllTransfer,
             vk::AccessFlagBits2::eTransferWrite,
-            vk::PipelineStageFlagBits2::eBottomOfPipe,
-            vk::AccessFlagBits2::eNone,
+            vk::PipelineStageFlagBits2::eHost,
+            vk::AccessFlagBits2::eMemoryRead,
             vk::ImageLayout::eTransferDstOptimal,
              vk::ImageLayout::ePresentSrcKHR,
             vk::QueueFamilyIgnored,
@@ -372,9 +372,9 @@ namespace Engine::RenderSystemState {
 
         // Signal ready for presenting.
         signal_infos[0] = vk::SemaphoreSubmitInfo{
-            pimpl->copy_to_swapchain_completed_semaphores[fif].get(),
+            pimpl->copy_to_swapchain_completed_semaphores[GetFramebuffer()].get(),
             0,
-            vk::PipelineStageFlagBits2::eAllTransfer
+            vk::PipelineStageFlagBits2::eHost
         };
 
         vk::SubmitInfo2 sinfo{vk::SubmitFlags{}, wait_infos, {cbsi}, signal_infos};
