@@ -419,4 +419,7 @@ namespace Engine::RenderSystemState {
     SubmissionHelper &FrameManager::GetSubmissionHelper() {
         return *(pimpl->m_submission_helper);
     }
+    const FrameSemaphore & FrameManager::GetFrameSemaphore() const noexcept {
+        return pimpl->timeline_semaphores[GetFrameInFlight()];
+    }
 } // namespace Engine::RenderSystemState

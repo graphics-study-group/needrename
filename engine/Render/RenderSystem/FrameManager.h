@@ -12,6 +12,8 @@ namespace Engine {
 
     namespace RenderSystemState {
         class SubmissionHelper;
+        class FrameSemaphore;
+
         /// @brief Multiple frame in flight manager
         class FrameManager final {
         public:
@@ -85,7 +87,9 @@ namespace Engine {
                 vk::Filter filter = vk::Filter::eLinear
             );
 
-            SubmissionHelper &GetSubmissionHelper();
+            SubmissionHelper & GetSubmissionHelper();
+
+            const FrameSemaphore & GetFrameSemaphore() const noexcept;
         };
     } // namespace RenderSystemState
 } // namespace Engine

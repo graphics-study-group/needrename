@@ -222,7 +222,18 @@ namespace Engine::RenderSystemState {
     }
 
     void SubmissionHelper::ExecuteSubmission() {
-        if (pimpl->m_pending_operations.empty()) return;
+        auto & frame_semaphore = m_system.GetFrameManager().GetFrameSemaphore();
+        if (pimpl->m_pending_operations.empty()) {
+            // We do not need to worry about synchronization too much
+            // as timeline semaphores are guaranteed to be monotonically increasing.
+            m_system.GetDevice().signalSemaphore(
+                vk::SemaphoreSignalInfo{
+                    frame_semaphore.timeline_semaphore.get(),
+                    frame_semaphore.GetTimepointValue(FrameSemaphore::TimePoint::PreTransferFinished)
+                }
+            );
+            return;
+        }
 
         // Allocate one-time command buffer
         const auto & queue_info = m_system.GetDeviceInterface().GetQueueInfo();
@@ -248,9 +259,12 @@ namespace Engine::RenderSystemState {
         DEBUG_CMD_END_LABEL(pimpl->m_one_time_cb.get());
         pimpl->m_one_time_cb->end();
 
-        std::array<vk::CommandBuffer, 1> submitted_cb = {pimpl->m_one_time_cb.get()};
-        std::array<vk::SubmitInfo, 1> sinfos = {vk::SubmitInfo{{}, {}, submitted_cb, {}}};
-        queue_info.graphicsQueue.submit(sinfos, {pimpl->m_completion_fence.get()});
+        vk::SemaphoreSubmitInfo wait_info{}, signal_info{};
+        wait_info = frame_semaphore.GetSubmitInfo(FrameSemaphore::TimePoint::Pending, vk::PipelineStageFlagBits2::eAllCommands);
+        signal_info = frame_semaphore.GetSubmitInfo(FrameSemaphore::TimePoint::PreTransferFinished, vk::PipelineStageFlagBits2::eAllTransfer);
+        vk::CommandBufferSubmitInfo cbsinfo{pimpl->m_one_time_cb.get()};
+        vk::SubmitInfo2 sinfo{vk::SubmitFlags{}, {wait_info}, {cbsinfo}, {signal_info}};
+        queue_info.graphicsQueue.submit2(sinfo);
     }
 
     void SubmissionHelper::OnPreMainCbSubmission()
@@ -260,7 +274,7 @@ namespace Engine::RenderSystemState {
 
     void SubmissionHelper::OnFrameComplete() {
         if (!pimpl->m_one_time_cb) return;
-
+        // Is this fence wait actually needed?
         auto wfresult = m_system.GetDevice().waitForFences(
             {pimpl->m_completion_fence.get()}, true, std::numeric_limits<uint64_t>::max()
         );
