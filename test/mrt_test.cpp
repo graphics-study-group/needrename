@@ -206,28 +206,26 @@ int main(int argc, char **argv) {
         auto index = rsys->StartFrame();
         rg.Execute();
 
-        vk::Image to_be_present;
+        RenderTargetTexture * to_be_present;
         switch(color) {
             case 0:
-                to_be_present = color_1->GetImage();
+                to_be_present = color_1.get();
                 break;
             case 1:
-                to_be_present = color_2->GetImage();
+                to_be_present = color_2.get();
                 break;
             case 2:
-                to_be_present = color_3->GetImage();
+                to_be_present = color_3.get();
                 break;
             default:
-                to_be_present = color_4->GetImage();
+                to_be_present = color_4.get();
                 break;
         }
-
-        rsys->GetFrameManager().StageBlitComposition(
-            to_be_present,
-            vk::Extent2D{color_1->GetTextureDescription().width, color_1->GetTextureDescription().height},
-            rsys->GetSwapchain().GetExtent()
+        rsys->CompleteFrame(
+            *to_be_present,
+            to_be_present->GetTextureDescription().width, 
+            to_be_present->GetTextureDescription().height
         );
-        rsys->CompleteFrame();
 
         SDL_Delay(10);
 

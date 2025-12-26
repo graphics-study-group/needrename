@@ -283,8 +283,7 @@ int main(int argc, char **argv) {
         assert(index < 3);
 
         rg.Execute();
-        rsys->GetFrameManager().StageCopyComposition(color->GetImage());
-        rsys->CompleteFrame();
+        rsys->CompleteFrame(*color, color->GetTextureDescription().width, color->GetTextureDescription().height);
 
         SDL_Delay(10);
 

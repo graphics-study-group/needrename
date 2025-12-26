@@ -20,6 +20,7 @@ namespace Engine {
     class RendererComponent;
     class Camera;
     class GraphicsCommandBuffer;
+    class RenderTargetTexture;
 
     namespace ConstantData {
         struct PerCameraStruct;
@@ -87,7 +88,13 @@ namespace Engine {
          * If you end a frame by manually calling `FrameManager::CompleteFrame()`,
          * then you must make sure that these resources are recreated correctly yourself.
          */
-        void CompleteFrame();
+        void CompleteFrame(
+            const RenderTargetTexture & present_texture,
+            uint32_t width,
+            uint32_t height,
+            uint32_t offset_x = 0,
+            uint32_t offset_y = 0
+        );
 
         /**
          * @brief Get a handle to the Vulkan logical device that the current Render

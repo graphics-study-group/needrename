@@ -114,15 +114,11 @@ int main(int argc, char *argv[]) {
         ccontext.GetCommandBuffer().End();
 
         rsys->GetFrameManager().SubmitMainCommandBuffer();
-        rsys->GetFrameManager().StageBlitComposition(
-            color_present->GetImage(),
-            vk::Extent2D{
-                color_present->GetTextureDescription().width, 
-                color_present->GetTextureDescription().height
-            },
-            rsys->GetSwapchain().GetExtent()
+        rsys->CompleteFrame(
+            *color_present,
+            color_present->GetTextureDescription().width, 
+            color_present->GetTextureDescription().height
         );
-        rsys->CompleteFrame();
 
         SDL_Delay(15);
     }

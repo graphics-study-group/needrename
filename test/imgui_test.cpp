@@ -91,8 +91,7 @@ int main(int argc, char **argv) {
         gsys->DrawGUI(color_att, extent, cb);
         cb.End();
         rsys->GetFrameManager().SubmitMainCommandBuffer();
-        rsys->GetFrameManager().StageCopyComposition(color->GetImage());
-        rsys->CompleteFrame();
+        rsys->CompleteFrame(*color, color->GetTextureDescription().width, color->GetTextureDescription().height);
 
         SDL_Delay(10);
 
