@@ -15,8 +15,10 @@ namespace Engine::RenderSystemState {
             PreComputeFinished,
             GraphicFinished,
             PostComputeFinished,
-            // Unfortunately `VkPresentInfoKHR` only accepts binary semaphore.
-            // CopyToPresentFinished,
+            // While `VkPresentInfoKHR` only accepts binary semaphore,
+            // we still need this to prevent writing on textures
+            // being copied to present.
+            CopyToPresentFinished,
             MAX_TIME_POINTS
         };
 
