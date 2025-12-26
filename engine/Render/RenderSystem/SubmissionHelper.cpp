@@ -264,7 +264,7 @@ namespace Engine::RenderSystemState {
         signal_info = frame_semaphore.GetSubmitInfo(FrameSemaphore::TimePoint::PreTransferFinished, vk::PipelineStageFlagBits2::eAllTransfer);
         vk::CommandBufferSubmitInfo cbsinfo{pimpl->m_one_time_cb.get()};
         vk::SubmitInfo2 sinfo{vk::SubmitFlags{}, {wait_info}, {cbsinfo}, {signal_info}};
-        queue_info.graphicsQueue.submit2(sinfo);
+        queue_info.graphicsQueue.submit2(sinfo, pimpl->m_completion_fence.get());
     }
 
     void SubmissionHelper::OnPreMainCbSubmission()
