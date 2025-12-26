@@ -9,6 +9,7 @@
 
 namespace Engine {
     class Texture;
+    class Buffer;
     class HomogeneousMesh;
 
     namespace RenderSystemState {
@@ -24,6 +25,11 @@ namespace Engine {
         public:
             SubmissionHelper(RenderSystem &system);
             virtual ~SubmissionHelper();
+
+            /**
+             * @brief Enqueue a buffer uploading.
+             */
+            void EnqueueBufferSubmission(const Buffer & buffer, std::vector<std::byte> && data);
 
             /***
              * @brief Enqueue a vertex buffer uploading.
