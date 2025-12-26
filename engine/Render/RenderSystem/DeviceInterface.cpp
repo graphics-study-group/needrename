@@ -327,6 +327,11 @@ namespace Engine::RenderSystemState {
             vk::PhysicalDeviceVulkan13Features features13{};
             features13.dynamicRendering = true;
             features13.synchronization2 = true;
+
+            vk::PhysicalDeviceVulkan12Features features12{};
+            features12.timelineSemaphore = true;
+
+            features13.pNext = &features12;
             pdf.pNext = &features13;
             dci.pNext = &pdf;
 
