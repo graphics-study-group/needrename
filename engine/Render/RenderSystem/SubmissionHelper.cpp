@@ -8,6 +8,8 @@
 #include "Render/RenderSystem/DeviceInterface.h"
 #include "Render/Renderer/HomogeneousMesh.h"
 
+#include "Render/RenderSystem/FrameSemaphore.hpp"
+
 #include "Render/DebugUtils.h"
 
 #include <SDL3/SDL.h>

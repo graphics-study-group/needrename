@@ -11,43 +11,11 @@
 #include "Render/RenderSystem/Swapchain.h"
 #include "Render/RenderSystem/DeviceInterface.h"
 
+#include "Render/RenderSystem/FrameSemaphore.hpp"
+
 #include <SDL3/SDL.h>
 
 namespace {
-    struct FrameSemaphore final {
-        vk::UniqueSemaphore timeline_semaphore;
-        uint64_t frame_count;
-
-        enum class TimePoint {
-            Pending,
-            PreTransferFinished,
-            PreComputeFinished,
-            GraphicFinished,
-            PostComputeFinished,
-            // Unfortunately `VkPresentInfoKHR` only accepts binary semaphore.
-            // CopyToPresentFinished,
-            MAX_TIME_POINTS
-        };
-
-        void StepFrame() {
-            frame_count++;
-        }
-
-        uint64_t GetTimepointValue(TimePoint timepoint) const noexcept {
-            return frame_count * std::underlying_type_t<TimePoint>(TimePoint::MAX_TIME_POINTS) 
-                    + std::underlying_type_t<TimePoint>(timepoint);
-        }
-
-        vk::SemaphoreSubmitInfo GetSubmitInfo(TimePoint timepoint, vk::PipelineStageFlags2 stage) const noexcept {
-            assert(timeline_semaphore);
-            return vk::SemaphoreSubmitInfo{
-                timeline_semaphore.get(), 
-                GetTimepointValue(timepoint),
-                stage
-            };
-        }
-    };
-
     void RecordCopyCommand(
         const vk::CommandBuffer &cb,
         const vk::Image &src,
@@ -86,9 +54,7 @@ namespace {
             dst,
             vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}
         };
-
-        vk::DependencyInfo dep{{}, {}, {}, barriers};
-        cb.pipelineBarrier2(dep);
+        cb.pipelineBarrier2(vk::DependencyInfo{{}, {}, {}, barriers});
 
         cb.blitImage(
             src,
@@ -138,8 +104,7 @@ namespace {
             dst,
             vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}
         };
-        vk::DependencyInfo dep{{}, {}, {}, barriers};
-        cb.pipelineBarrier2(dep);
+        cb.pipelineBarrier2(vk::DependencyInfo{{}, {}, {}, barriers});
 
         cb.end();
     }
