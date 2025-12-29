@@ -112,10 +112,36 @@ namespace {
 
     void ReadbackCommand(vk::CommandBuffer cb, const Engine::Buffer & src, const Engine::Buffer & dst) {
         using namespace Engine;
-
         cb.copyBuffer(
             src.GetBuffer(), dst.GetBuffer(),
             vk::BufferCopy{0, 0, vk::WholeSize}
+        );
+    }
+
+    void ReadbackCommand(
+        vk::CommandBuffer cb,
+        const Engine::Texture & src,
+        vk::ImageAspectFlagBits aspect,
+        uint32_t level,
+        uint32_t layer,
+        vk::Extent3D extent,
+        const Engine::Buffer & dst
+    ) {
+        using namespace Engine;
+
+        cb.copyImageToBuffer(
+            src.GetImage(),
+            vk::ImageLayout::eTransferSrcOptimal,
+            dst.GetBuffer(),
+            vk::BufferImageCopy{
+                0, 0, 0,
+                vk::ImageSubresourceLayers{
+                    aspect,
+                    level, layer, 1
+                },
+                vk::Offset3D{0, 0, 0},
+                extent
+            }
         );
     }
 }
@@ -524,7 +550,6 @@ namespace Engine::RenderSystemState {
     }
 
     std::shared_ptr<Buffer> FrameManager::EnqueuePostGraphicsBufferReadback(const Buffer & device_buffer) {
-        
         // This has to be a shared pointer as release time is undetermined.
         std::shared_ptr staging_buffer = Buffer::CreateUnique(
             pimpl->m_system.GetAllocatorState(),
@@ -534,6 +559,29 @@ namespace Engine::RenderSystemState {
 
         auto enqueued = [&device_buffer, staging_buffer] (vk::CommandBuffer cb) -> void {
             ReadbackCommand(cb, device_buffer, *staging_buffer);
+        };
+        pimpl->readback.post_graphics_commands.push(enqueued);
+
+        return staging_buffer;
+    }
+    std::shared_ptr<Buffer> FrameManager::EnqueuePostGraphicsImageReadback(const Texture &image, uint32_t array_layer, uint32_t miplevel) {
+        auto texture_desc = image.GetTextureDescription();
+        assert(array_layer <= texture_desc.array_layers);
+        assert(miplevel <= texture_desc.mipmap_levels);
+        // This has to be a shared pointer as release time is undetermined.
+        std::shared_ptr staging_buffer = Buffer::CreateUnique(
+            pimpl->m_system.GetAllocatorState(),
+            Buffer::BufferType::Staging,
+            texture_desc.width * texture_desc.height * texture_desc.depth * ImageUtils::GetPixelSize(texture_desc.format)
+        );
+
+        auto enqueued = [=, &image] (vk::CommandBuffer cb) -> void {
+            ReadbackCommand(
+                cb, image,
+                vk::ImageAspectFlagBits::eColor,
+                miplevel, array_layer,
+                vk::Extent3D{texture_desc.width, texture_desc.height, texture_desc.depth},
+                *staging_buffer);
         };
         pimpl->readback.post_graphics_commands.push(enqueued);
 
