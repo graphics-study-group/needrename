@@ -28,6 +28,8 @@ namespace Engine {
             enum class BufferType {
                 // Staging buffer on host memory
                 Staging,
+                // Readback
+                Readback,
                 // Vertex buffer on device memory
                 Vertex,
                 // Uniform buffer on host memory

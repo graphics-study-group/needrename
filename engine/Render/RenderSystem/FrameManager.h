@@ -7,6 +7,7 @@
 namespace Engine {
     class RenderSystem;
     class Texture;
+    class Buffer;
     class GraphicsCommandBuffer;
     class GraphicsContext;
     class ComputeContext;
@@ -85,11 +86,16 @@ namespace Engine {
              * The area specified by extent and offset will be blitted
              * to the whole swapchain image.
              * 
+             * This method inserts appopriate barriers to ensure memory dependencies for the image.
+             * The layout of the image is assumed to be in `COLOR_ATTACHMENT_OPTIMAL`.
+             * 
              * Exactly one call of this method is expected each frame.
              * You should probably use `RenderSystem::CompleteFrame()`
              * if you have no idea what to use.
              * 
              * @return True if the swapchain needs to be recreated.
+             * 
+             * @todo Revisit sychronization methods for this command.
              */
             [[nodiscard]]
             bool PresentToFramebuffer(
@@ -111,7 +117,7 @@ namespace Engine {
              * While readback commands are submitted to GPU on main commandbuffer submission,
              * data will not be available until the frame has completed.
              * 
-             * This method performs no sychronization operations apart from the semaphore
+             * This method performs no sychronization operation apart from the semaphore
              * wait on the submission of the readback commandbuffer.
              * 
              * @return a staging buffer, whose content is undetermined until
@@ -125,9 +131,9 @@ namespace Engine {
              * While readback commands are submitted to GPU on main commandbuffer submission,
              * data will not be available until the frame has completed.
              * 
-             * This method performs no sychronization operations apart from the semaphore
+             * This method performs no sychronization operation apart from the semaphore
              * wait on the submission of the readback commandbuffer.
-             * The texture is assumed to be in `TRANSFER_SRC_OPTIMAL` layout.
+             * The texture is assumed to be in `GENERAL` layout.
              * Only color aspect is read back.
              * 
              * @return a staging buffer, whose content is undetermined until

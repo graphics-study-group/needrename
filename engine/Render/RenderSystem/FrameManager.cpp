@@ -131,7 +131,7 @@ namespace {
 
         cb.copyImageToBuffer(
             src.GetImage(),
-            vk::ImageLayout::eTransferSrcOptimal,
+            vk::ImageLayout::eGeneral,
             dst.GetBuffer(),
             vk::BufferImageCopy{
                 0, 0, 0,
@@ -553,7 +553,7 @@ namespace Engine::RenderSystemState {
         // This has to be a shared pointer as release time is undetermined.
         std::shared_ptr staging_buffer = Buffer::CreateUnique(
             pimpl->m_system.GetAllocatorState(),
-            Buffer::BufferType::Staging,
+            Buffer::BufferType::Readback,
             device_buffer.GetSize()
         );
 
@@ -571,7 +571,7 @@ namespace Engine::RenderSystemState {
         // This has to be a shared pointer as release time is undetermined.
         std::shared_ptr staging_buffer = Buffer::CreateUnique(
             pimpl->m_system.GetAllocatorState(),
-            Buffer::BufferType::Staging,
+            Buffer::BufferType::Readback,
             texture_desc.width * texture_desc.height * texture_desc.depth * ImageUtils::GetPixelSize(texture_desc.format)
         );
 
