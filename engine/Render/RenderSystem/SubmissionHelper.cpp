@@ -157,7 +157,7 @@ namespace Engine::RenderSystemState {
         vk::UniqueFence m_completion_fence{};
     };
 
-    SubmissionHelper::SubmissionHelper(RenderSystem &system) : IFrameManagerComponent(system), pimpl(std::make_unique<impl>()) {
+    SubmissionHelper::SubmissionHelper(RenderSystem &system) : m_system(system), pimpl(std::make_unique<impl>()) {
         // Pre-allocate a fence
         vk::FenceCreateInfo fcinfo{};
         pimpl->m_completion_fence = system.GetDevice().createFenceUnique(fcinfo);
