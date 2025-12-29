@@ -14,6 +14,7 @@
 #include "Render/RenderSystem/FrameSemaphore.hpp"
 
 #include <SDL3/SDL.h>
+#include <bitset>
 
 namespace {
     void RecordCopyCommand(
@@ -108,6 +109,15 @@ namespace {
         DEBUG_CMD_END_LABEL(cb);
         cb.end();
     }
+
+    void ReadbackCommand(vk::CommandBuffer cb, const Engine::Buffer & src, const Engine::Buffer & dst) {
+        using namespace Engine;
+
+        cb.copyBuffer(
+            src.GetBuffer(), dst.GetBuffer(),
+            vk::BufferCopy{0, 0, vk::WholeSize}
+        );
+    }
 }
 
 namespace Engine::RenderSystemState {
@@ -124,6 +134,14 @@ namespace Engine::RenderSystemState {
 
         std::array<vk::UniqueCommandBuffer, FRAMES_IN_FLIGHT> command_buffers{};
         std::array<vk::UniqueCommandBuffer, FRAMES_IN_FLIGHT> copy_to_swapchain_command_buffers{};
+
+        // Data and handles used by readback routines.
+        struct {
+            std::bitset <FRAMES_IN_FLIGHT> has_post_graphics_rb{};
+            std::array <vk::UniqueFence, FRAMES_IN_FLIGHT> post_graphics_rb_fences {};
+            std::array <vk::UniqueCommandBuffer, FRAMES_IN_FLIGHT> post_graphics_rb_cbs {};
+            std::queue <std::function<void(vk::CommandBuffer)>> post_graphics_commands;
+        } readback;
 
         uint32_t current_frame_in_flight{std::numeric_limits<uint32_t>::max()};
 
@@ -166,6 +184,11 @@ namespace Engine::RenderSystemState {
             command_executed_fences[i] = device.createFenceUnique(finfo);
             DEBUG_SET_NAME_TEMPLATE(
                 device, command_executed_fences[i].get(), std::format("Fence - all commands executed {}", i)
+            );
+
+            readback.post_graphics_rb_fences[i] = device.createFenceUnique({});
+            DEBUG_SET_NAME_TEMPLATE(
+                device, command_executed_fences[i].get(), std::format("Fence - post graphics readback executed {}", i)
             );
         }
         copy_to_swapchain_completed_semaphores.resize(m_system.GetSwapchain().GetFrameCount());
@@ -213,6 +236,19 @@ namespace Engine::RenderSystemState {
             copy_to_swapchain_command_buffers[i] = std::move(new_command_buffers[i]);
             DEBUG_SET_NAME_TEMPLATE(
                 device, copy_to_swapchain_command_buffers[i].get(), std::format("Command buffer - composition {}", i)
+            );
+        }
+
+        // Readback command buffers
+        new_command_buffers = device.allocateCommandBuffersUnique(
+            vk::CommandBufferAllocateInfo{
+                queue_info.graphicsOneTimePool.get(), vk::CommandBufferLevel::ePrimary, FRAMES_IN_FLIGHT
+            }
+        );
+        for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; i++) {
+            readback.post_graphics_rb_cbs[i] = std::move(new_command_buffers[i]);
+            DEBUG_SET_NAME_TEMPLATE(
+                device, readback.post_graphics_rb_cbs[i].get(), std::format("Command buffer - post graphics readback {}", i)
             );
         }
 
@@ -285,7 +321,6 @@ namespace Engine::RenderSystemState {
                 }
             );
         }
-        
 
         // Acquire new image
         auto acquire_result = device.acquireNextImageKHR(
@@ -302,8 +337,6 @@ namespace Engine::RenderSystemState {
             );
         }
         pimpl->current_framebuffer = acquire_result.value;
-
-        pimpl->m_submission_helper->OnFrameStart();
 
         return pimpl->current_framebuffer;
     }
@@ -356,8 +389,35 @@ namespace Engine::RenderSystemState {
                 {signal_info}
             }, 
             nullptr);
+        
+        // Record readback commands
+        if (pimpl->readback.post_graphics_commands.empty()) return;
 
-        pimpl->m_submission_helper->OnPostMainCbSubmission();
+        assert(!pimpl->readback.has_post_graphics_rb[fif]);
+        pimpl->readback.has_post_graphics_rb.set(fif);
+
+        auto rbcb = pimpl->readback.post_graphics_rb_cbs[fif].get();
+        rbcb.begin(vk::CommandBufferBeginInfo{
+            vk::CommandBufferUsageFlagBits::eOneTimeSubmit
+        });
+        while(!pimpl->readback.post_graphics_commands.empty()) {
+            std::invoke(pimpl->readback.post_graphics_commands.front(), rbcb);
+        }
+        rbcb.end();
+
+        wait_infos[0] = pimpl->timeline_semaphores[fif].GetSubmitInfo(
+            FrameSemaphore::TimePoint::GraphicFinished,
+            vk::PipelineStageFlagBits2::eAllTransfer
+        );
+        cbsi.commandBuffer = rbcb;
+        this->pimpl->m_system.GetDeviceInterface().GetQueueInfo().graphicsQueue.submit2(
+            vk::SubmitInfo2{
+                vk::SubmitFlags{},
+                {wait_infos[0]},
+                {cbsi},
+                {}
+            }, 
+            pimpl->readback.post_graphics_rb_fences[fif].get());
     }
 
     bool FrameManager::PresentToFramebuffer(
@@ -435,6 +495,18 @@ namespace Engine::RenderSystemState {
     }
 
     void FrameManager::impl::CompleteFrame() {
+
+        if (readback.has_post_graphics_rb[current_frame_in_flight]) {
+            m_system.GetDevice().waitForFences(
+                {readback.post_graphics_rb_fences[current_frame_in_flight].get()},
+                true,
+                std::numeric_limits<uint64_t>::max()
+            );
+            readback.has_post_graphics_rb.reset(current_frame_in_flight);
+            m_system.GetDevice().resetFences({readback.post_graphics_rb_fences[current_frame_in_flight].get()});
+            readback.post_graphics_rb_cbs[current_frame_in_flight].reset();
+        }
+
         // Increment FIF counter, reset framebuffer index
         current_frame_in_flight = (current_frame_in_flight + 1) % FRAMES_IN_FLIGHT;
         current_framebuffer = std::numeric_limits<uint32_t>::max();
@@ -449,5 +521,22 @@ namespace Engine::RenderSystemState {
     }
     const FrameSemaphore & FrameManager::GetFrameSemaphore() const noexcept {
         return pimpl->timeline_semaphores[GetFrameInFlight()];
+    }
+
+    std::shared_ptr<Buffer> FrameManager::EnqueuePostGraphicsBufferReadback(const Buffer & device_buffer) {
+        
+        // This has to be a shared pointer as release time is undetermined.
+        std::shared_ptr staging_buffer = Buffer::CreateUnique(
+            pimpl->m_system.GetAllocatorState(),
+            Buffer::BufferType::Staging,
+            device_buffer.GetSize()
+        );
+
+        auto enqueued = [&device_buffer, staging_buffer] (vk::CommandBuffer cb) -> void {
+            ReadbackCommand(cb, device_buffer, *staging_buffer);
+        };
+        pimpl->readback.post_graphics_commands.push(enqueued);
+
+        return staging_buffer;
     }
 } // namespace Engine::RenderSystemState

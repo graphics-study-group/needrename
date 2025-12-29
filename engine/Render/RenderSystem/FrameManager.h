@@ -79,6 +79,17 @@ namespace Engine {
              */
             void SubmitMainCommandBuffer();
 
+            /**
+             * @brief Present an image to the swapchain by blitting.
+             * The area specified by extent and offset will be blitted
+             * to the whole swapchain image.
+             * 
+             * Exactly one call of this method is expected each frame.
+             * You should probably use `RenderSystem::CompleteFrame()`
+             * if you have no idea what to use.
+             * 
+             * @return True if the swapchain needs to be recreated.
+             */
             [[nodiscard]]
             bool PresentToFramebuffer(
                 vk::Image image,
@@ -90,6 +101,19 @@ namespace Engine {
             SubmissionHelper & GetSubmissionHelper();
 
             const FrameSemaphore & GetFrameSemaphore() const noexcept;
+
+            /// Buffer Readback operations
+
+            /**
+             * @brief Enqueue a post graphics readback from GPU to CPU host memory.
+             * 
+             * While readback commands are submitted to GPU on main commandbuffer submission,
+             * data will not be available until the frame has completed.
+             * 
+             * @return a staging buffer, whose content is undetermined until
+             * this frame has completed.
+             */
+            std::shared_ptr<Buffer> EnqueuePostGraphicsBufferReadback(const Buffer & device_buffer);
         };
     } // namespace RenderSystemState
 } // namespace Engine
