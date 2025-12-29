@@ -3,6 +3,7 @@
 #include "UserInterface/GUISystem.h"
 #include "Render/Pipeline/CommandBuffer/AccessHelperFuncs.h"
 #include "Render/Pipeline/RenderGraph/RenderGraph.h"
+#include "Render/Pipeline/RenderGraph/RenderGraphUtils.hpp"
 #include <SDL3/SDL.h>
 #include <unordered_map>
 #include <vulkan/vulkan.hpp>
@@ -13,73 +14,7 @@ namespace Engine {
         std::vector<vk::BufferMemoryBarrier2> m_buffer_barriers{};
         std::vector<std::function<void(vk::CommandBuffer)>> m_commands{};
 
-        struct TextureAccessMemo {
-            using AccessTuple = std::tuple<vk::PipelineStageFlags2, vk::AccessFlags2, vk::ImageLayout>;
-            std::unordered_map<const Texture *, AccessTuple> m_memo;
-
-            void RegisterTexture(const Texture *texture, AccessTuple previous_access) {
-                if (m_memo.contains(texture)) {
-                    SDL_LogWarn(
-                        SDL_LOG_CATEGORY_RENDER, "Texture %p is already registered.", static_cast<const void *>(texture)
-                    );
-                }
-                m_memo[texture] = previous_access;
-            }
-
-            AccessTuple UpdateAccessTuple(const Texture *texture, AccessTuple new_access_tuple) {
-                if (!m_memo.contains(texture)) {
-                    SDL_LogWarn(
-                        SDL_LOG_CATEGORY_RENDER,
-                        "Texture %p is not registered, defaulting to none.",
-                        static_cast<const void *>(texture)
-                    );
-
-                    m_memo[texture] = std::make_tuple(
-                        vk::PipelineStageFlagBits2::eNone, vk::AccessFlagBits2::eNone, vk::ImageLayout::eUndefined
-                    );
-                }
-
-                std::swap(m_memo[texture], new_access_tuple);
-                return new_access_tuple;
-            };
-        } m_memo;
-
-        vk::ImageMemoryBarrier2 GetImageBarrier(Texture &texture, AccessHelper::ImageAccessType new_access) noexcept {
-            vk::ImageMemoryBarrier2 barrier{};
-            barrier.image = texture.GetImage();
-            barrier.subresourceRange = vk::ImageSubresourceRange{
-                ImageUtils::GetVkAspect(texture.GetTextureDescription().format),
-                0,
-                vk::RemainingMipLevels,
-                0,
-                vk::RemainingArrayLayers
-            };
-
-            if (barrier.subresourceRange.aspectMask == vk::ImageAspectFlagBits::eNone) {
-                SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Failed to infer aspect range when inserting an image barrier.");
-                barrier.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor | vk::ImageAspectFlagBits::eDepth
-                                                      | vk::ImageAspectFlagBits::eStencil;
-            }
-
-            TextureAccessMemo::AccessTuple dst_tuple{AccessHelper::GetAccessScope(new_access)};
-
-            std::tie(barrier.dstStageMask, barrier.dstAccessMask, barrier.newLayout) = dst_tuple;
-            std::tie(barrier.srcStageMask, barrier.srcAccessMask, barrier.oldLayout) =
-                m_memo.UpdateAccessTuple(&texture, dst_tuple);
-
-            barrier.dstQueueFamilyIndex = barrier.srcQueueFamilyIndex = vk::QueueFamilyIgnored;
-            return barrier;
-        }
-
-        static vk::BufferMemoryBarrier2 GetBufferBarrier(
-            Buffer &buffer [[maybe_unused]],
-            AccessHelper::BufferAccessType new_access [[maybe_unused]],
-            AccessHelper::BufferAccessType prev_access [[maybe_unused]]
-        ) {
-            assert(!"Unimplemented");
-            vk::BufferMemoryBarrier2 barrier{};
-            return barrier;
-        }
+        RenderGraphImpl::TextureAccessMemo m_memo;
     };
 
     RenderGraphBuilder::RenderGraphBuilder(RenderSystem &system) : m_system(system), pimpl(std::make_unique<impl>()) {
@@ -92,12 +27,20 @@ namespace Engine {
     }
 
     void RenderGraphBuilder::UseImage(Texture &texture, AccessHelper::ImageAccessType new_access) {
-        pimpl->m_image_barriers.push_back(pimpl->GetImageBarrier(texture, new_access));
+        auto new_tuple = AccessHelper::GetAccessScope(new_access);
+        pimpl->m_image_barriers.push_back(
+            RenderGraphImpl::GetImageBarrier(
+                texture,
+                pimpl->m_memo.GetAccessTuple(&texture),
+                new_tuple
+            )
+        );
+        pimpl->m_memo.UpdateAccessTuple(&texture, new_tuple);
     }
     void RenderGraphBuilder::UseBuffer(
         Buffer &buffer, AccessHelper::BufferAccessType new_access, AccessHelper::BufferAccessType prev_access
     ) {
-        pimpl->m_buffer_barriers.push_back(pimpl->GetBufferBarrier(buffer, new_access, prev_access));
+        pimpl->m_buffer_barriers.push_back(RenderGraphImpl::GetBufferBarrier(buffer, prev_access, new_access));
     }
     void RenderGraphBuilder::RecordRasterizerPassWithoutRT(std::function<void(GraphicsCommandBuffer &)> pass) {
         std::function<void(vk::CommandBuffer)> f = [system = &this->m_system,
