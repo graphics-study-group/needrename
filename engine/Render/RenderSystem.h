@@ -33,9 +33,6 @@ namespace Engine {
         class MaterialRegistry;
         class FrameManager;
         class RendererManager;
-        class SwapchainSupport;
-        class QueueFamilyIndices;
-        class QueueInfo;
         class SamplerManager;
         class CameraManager;
         class SceneDataManager;
@@ -47,9 +44,6 @@ namespace Engine {
         std::unique_ptr<impl> pimpl;
 
     public:
-        using SwapchainSupport = Engine::RenderSystemState::SwapchainSupport;
-        using QueueFamilyIndices = Engine::RenderSystemState::QueueFamilyIndices;
-        using QueueInfo = Engine::RenderSystemState::QueueInfo;
 
         RenderSystem(std::weak_ptr<SDLWindow> parent_window);
 

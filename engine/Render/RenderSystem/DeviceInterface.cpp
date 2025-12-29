@@ -22,9 +22,29 @@ namespace Engine::RenderSystemState {
         vk::PhysicalDevice physical_device{};
         vk::UniqueDevice device{};
 
+        // Queue families
+        struct QueueFamilies {
+            std::optional<uint32_t> graphics;
+            std::optional<uint32_t> graphics_present;
+            std::optional<uint32_t> async_compute;
+            std::optional<uint32_t> async_compute_present;
+            std::optional<uint32_t> async_transfer;
+
+            /**
+             * Only async transfer needs this.
+             * > Queues supporting graphics and/or compute operations must report (1,1,1) 
+             * > in minImageTransferGranularity, meaning that there are no additional 
+             * > restrictions on the granularity of image transfer operations for these queues.
+             */
+            std::tuple<uint32_t, uint32_t, uint32_t> async_transfer_granularity;
+
+            bool is_complete() const noexcept {
+                return graphics.has_value() && graphics_present.has_value();
+            }
+        } queue_families;
+        
+
         // Cached info
-        QueueFamilyIndices queue_families{};
-        SwapchainSupport swapchain_support{};
         QueueInfo queues{};
 
         /**
@@ -138,20 +158,18 @@ namespace Engine::RenderSystemState {
         /**
          * @brief Fill up a struct containing usable queue family indices.
          */
-        QueueFamilyIndices FillQueueFamilyIndices(vk::PhysicalDevice pd) {
+        QueueFamilies FillQueueFamilyIndices(vk::PhysicalDevice pd) {
             assert(surface);
     
-            QueueFamilyIndices q;
+            QueueFamilies q;
+
             auto queueFamilyProps = pd.getQueueFamilyProperties();
             SDL_LogDebug(SDL_LOG_CATEGORY_RENDER, "\tInspecting queue families");
+
             for (size_t i = 0; i < queueFamilyProps.size(); i++) {
                 const auto &prop = queueFamilyProps[i];
 
-                bool isGeneralQueueFamily = (prop.queueFlags & vk::QueueFlagBits::eGraphics)
-                                            && (prop.queueFlags & vk::QueueFlagBits::eTransfer)
-                                            && (prop.queueFlags & vk::QueueFlagBits::eCompute);
                 bool supportPresenting = pd.getSurfaceSupportKHR(i, surface.get());
-
                 SDL_LogDebug(
                     SDL_LOG_CATEGORY_RENDER,
                     std::format(
@@ -161,15 +179,24 @@ namespace Engine::RenderSystemState {
                         prop.queueFlags & vk::QueueFlagBits::eTransfer ? "Transfer " : "",
                         prop.queueFlags & vk::QueueFlagBits::eCompute ? "Compute " : "",
                         supportPresenting ? "Can" : "Cannot"
-                    )
-                        .c_str()
+                    ).c_str()
                 );
 
-                if (isGeneralQueueFamily) {
-                    if (!q.graphics.has_value()) q.graphics = i;
-                }
-                if (supportPresenting) {
-                    if (!q.present.has_value()) q.present = i;
+                if (prop.queueFlags & vk::QueueFlagBits::eGraphics) {
+                    assert(pd.getSurfaceSupportKHR(i, surface.get()));
+                    q.graphics = q.graphics_present = i;
+                } else if (prop.queueFlags & vk::QueueFlagBits::eCompute) {
+                    q.async_compute = i;
+                    if (pd.getSurfaceSupportKHR(i, surface.get())) {
+                        q.async_compute_present = i;
+                    }
+                } else if (prop.queueFlags & vk::QueueFlagBits::eTransfer) {
+                    q.async_transfer = i;
+                    q.async_transfer_granularity = std::tie(
+                        prop.minImageTransferGranularity.width,
+                        prop.minImageTransferGranularity.height,
+                        prop.minImageTransferGranularity.depth
+                    );
                 }
             }
             return q;
@@ -210,7 +237,7 @@ namespace Engine::RenderSystemState {
             }
 
             // Check if all queue families are available
-            if (!FillQueueFamilyIndices(pd).isComplete()) {
+            if (!FillQueueFamilyIndices(pd).is_complete()) {
                 SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Cannot find complete queue family.");
                 return -1;
             }
@@ -291,7 +318,6 @@ namespace Engine::RenderSystemState {
             physical_device_properties = physical_device.getProperties();
 
             queue_families = FillQueueFamilyIndices(physical_device);
-            swapchain_support = FillSwapchainSupport(physical_device);
         }
 
         /**
@@ -303,14 +329,23 @@ namespace Engine::RenderSystemState {
             SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating logical device.");
 
             // Find unique indices
-            std::vector<uint32_t> indices_vector{queue_families.graphics.value(), queue_families.present.value()};
-            std::sort(indices_vector.begin(), indices_vector.end());
-            auto end = std::unique(indices_vector.begin(), indices_vector.end());
+            assert(queue_families.graphics.has_value() && queue_families.graphics_present.has_value());
+            uint32_t graphics_queue = queue_families.graphics.value();
+            std::array indices{
+                queue_families.graphics.value(),
+                queue_families.graphics_present.value(),
+                queue_families.async_compute.value_or(graphics_queue),
+                queue_families.async_compute_present.value_or(graphics_queue),
+                queue_families.async_transfer.value_or(graphics_queue)
+            };
+            std::sort(indices.begin(), indices.end());
+            auto end = std::unique(indices.begin(), indices.end());
+
             // Create DeviceQueueCreateInfo
             float priority = 1.0f;
             std::vector<vk::DeviceQueueCreateInfo> dqcs;
-            dqcs.reserve(std::distance(indices_vector.begin(), end));
-            for (auto itr = indices_vector.begin(); itr != end; ++itr) {
+            dqcs.reserve(std::distance(indices.begin(), end));
+            for (auto itr = indices.begin(); itr != end; ++itr) {
                 vk::DeviceQueueCreateInfo dqc;
                 dqc.pQueuePriorities = &priority;
                 dqc.queueCount = 1;
@@ -359,7 +394,7 @@ namespace Engine::RenderSystemState {
         void CreateCommandPool(const DeviceConfiguration & cfg) {
             SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Retreiving queues.");
             queues.graphicsQueue = device->getQueue(queue_families.graphics.value(), 0);
-            queues.presentQueue = device->getQueue(queue_families.present.value(), 0);
+            queues.presentQueue = device->getQueue(queue_families.graphics_present.value(), 0);
 
             SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating command pools.");
             vk::CommandPoolCreateInfo info{};
@@ -368,7 +403,7 @@ namespace Engine::RenderSystemState {
             queues.graphicsPool = device->createCommandPoolUnique(info);
             queues.graphicsOneTimePool = device->createCommandPoolUnique(info);
 
-            info.queueFamilyIndex = queue_families.present.value();
+            info.queueFamilyIndex = queue_families.graphics_present.value();
             queues.presentPool = device->createCommandPoolUnique(info);
         }
     };
@@ -399,14 +434,28 @@ namespace Engine::RenderSystemState {
         assert(pimpl->device);
         return pimpl->device.get();
     }
-    const QueueFamilyIndices &DeviceInterface::GetQueueFamilies() const {
-        return pimpl->queue_families;
-    }
-    const SwapchainSupport &DeviceInterface::GetSwapchainSupport() const {
-        return pimpl->swapchain_support;
+    SwapchainSupport DeviceInterface::GetSwapchainSupport() const {
+        return pimpl->FillSwapchainSupport(pimpl->physical_device);
     }
     const QueueInfo &DeviceInterface::GetQueueInfo() const {
         return pimpl->queues;
+    }
+    std::optional <uint32_t> DeviceInterface::GetQueueFamily(DeviceInterface::QueueFamilyType type) const noexcept {
+        switch(type) {
+            using enum DeviceInterface::QueueFamilyType;
+            case GraphicsMain:
+                assert(pimpl->queue_families.graphics.has_value());
+                return pimpl->queue_families.graphics;
+            case GraphicsPresent:
+                assert(pimpl->queue_families.graphics_present.has_value());
+                return pimpl->queue_families.graphics_present;
+            case AsynchronousCompute:
+                return pimpl->queue_families.async_compute;
+            case AsynchronousComputePresent:
+                return pimpl->queue_families.async_compute_present;
+            case AsynchronousTransfer:
+                return pimpl->queue_families.async_transfer;
+        }
     }
     uint32_t DeviceInterface::QueryLimit(PhysicalDeviceLimitInteger limit) const {
         switch(limit) {
@@ -419,6 +468,12 @@ namespace Engine::RenderSystemState {
                 return pimpl->physical_device_properties.limits.minUniformBufferOffsetAlignment;
             case StorageBufferOffsetAlignment:
                 return pimpl->physical_device_properties.limits.minStorageBufferOffsetAlignment;
+            case AsyncTransferImageGranularityWidth:
+                return std::get<0>(pimpl->queue_families.async_transfer_granularity);
+            case AsyncTransferImageGranularityHeight:
+                return std::get<1>(pimpl->queue_families.async_transfer_granularity);
+            case AsyncTransferImageGranularityDepth:
+                return std::get<2>(pimpl->queue_families.async_transfer_granularity);
         }
         return 0;
     }

@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 #include <cstdint>
+#include <optional>
 
 struct SDL_Window;
 
@@ -19,7 +20,6 @@ namespace vk {
 
 namespace Engine {
     namespace RenderSystemState {
-        struct QueueFamilyIndices;
         struct QueueInfo;
         struct SwapchainSupport;
 
@@ -51,11 +51,31 @@ namespace Engine {
                 MaxUniformBufferSize,
                 MaxStorageBufferSize,
                 UniformBufferOffsetAlignment,
-                StorageBufferOffsetAlignment
+                StorageBufferOffsetAlignment,
+                AsyncTransferImageGranularityWidth,
+                AsyncTransferImageGranularityHeight,
+                AsyncTransferImageGranularityDepth
             };
 
             enum class PhysicalDeviceLimitFloat {
 
+            };
+
+            enum class QueueFamilyType {
+                // Main graphics queue family that supports all operations.
+                GraphicsMain,
+                // Whether present from graphics queue family is supported.
+                // For modern hardwares it can be assumed that graphics main
+                // queue family always supports present.
+                GraphicsPresent,
+                // Optional asychronous compute queue family.
+                AsynchronousCompute,
+                // Whether present from asynchronous compute queue family is supported.
+                // If this value exists, it is guranteed to be the same as
+                // `AsynchronousCompute` enum value.
+                AsynchronousComputePresent,
+                // Optional asychronous transfer (DMA) queue family.
+                AsynchronousTransfer,
             };
 
             DeviceInterface(DeviceConfiguration cfg);
@@ -65,10 +85,22 @@ namespace Engine {
             vk::SurfaceKHR GetSurface() const;
             vk::PhysicalDevice GetPhysicalDevice() const;
             vk::Device GetDevice() const;
-    
-            const QueueFamilyIndices & GetQueueFamilies() const;
-            const SwapchainSupport & GetSwapchainSupport() const;
+
             const QueueInfo & GetQueueInfo() const;
+
+            /**
+             * @brief Query information on swapchain supports (e.g. surface formats).
+             */
+            SwapchainSupport GetSwapchainSupport() const;
+
+            /**
+             * @brief Query information on queue family indices of different type.
+             * 
+             * Queries for graphics and graphics present queue family are guaranteed
+             * to return non-null optional.
+             */
+            std::optional<uint32_t> GetQueueFamily(QueueFamilyType type) const noexcept;
+
 
             uint32_t QueryLimit(PhysicalDeviceLimitInteger limit) const;
             float QueryLimit(PhysicalDeviceLimitFloat limit) const;
