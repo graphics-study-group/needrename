@@ -28,6 +28,22 @@ namespace Engine {
         RenderGraph(RenderSystem & system, std::vector <std::function<void(vk::CommandBuffer)>> commands);
         ~RenderGraph();
 
+        /**
+         * @brief Add an external input dependency on a texture for this frame.
+         * 
+         * Useful for setting up temporal reused textures.
+         */
+        void AddExternalInputDependency(Texture & texture, AccessHelper::ImageAccessType access);
+        void AddExternalInputDependency(Buffer & buffer, AccessHelper::BufferAccessType access);
+
+        /**
+         * @brief Add an external output dependency on a texture for this frame.
+         * 
+         * Useful if you want to present an image that is not used as a color attachment.
+         */
+        void AddExternalOutputDependency(Texture & texture, AccessHelper::ImageAccessType access);
+        void AddExternalOutputDependency(Buffer & buffer, AccessHelper::BufferAccessType access);
+
         void Execute();
     };
 }
