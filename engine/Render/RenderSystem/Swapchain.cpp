@@ -166,4 +166,34 @@ namespace Engine::RenderSystemState {
     uint32_t Swapchain::GetFrameCount() const {
         return m_images.size();
     }
+    vk::ImageMemoryBarrier2 Swapchain::GetPreCopyBarrier(uint32_t framebuffer) const noexcept {
+        assert(framebuffer < m_images.size());
+        return vk::ImageMemoryBarrier2{
+            vk::PipelineStageFlagBits2::eAllTransfer,
+            vk::AccessFlagBits2::eNone, // > Set up execution dep instead of memory dep.
+            vk::PipelineStageFlagBits2::eAllTransfer,
+            vk::AccessFlagBits2::eTransferWrite,
+            vk::ImageLayout::eUndefined,
+            vk::ImageLayout::eTransferDstOptimal,
+            vk::QueueFamilyIgnored,
+            vk::QueueFamilyIgnored,
+            m_images[framebuffer],
+            vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}
+        };
+    }
+    vk::ImageMemoryBarrier2 Swapchain::GetPostCopyBarrier(uint32_t framebuffer) const noexcept {
+        assert(framebuffer < m_images.size());
+        return vk::ImageMemoryBarrier2{
+            vk::PipelineStageFlagBits2::eAllTransfer,
+            vk::AccessFlagBits2::eTransferWrite,
+            vk::PipelineStageFlagBits2::eHost,
+            vk::AccessFlagBits2::eMemoryRead,
+            vk::ImageLayout::eTransferDstOptimal,
+            vk::ImageLayout::ePresentSrcKHR,
+            vk::QueueFamilyIgnored,
+            vk::QueueFamilyIgnored,
+            m_images[framebuffer],
+            vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}
+        };
+    }
 } // namespace Engine::RenderSystemState

@@ -24,11 +24,11 @@ namespace Engine::RenderSystemState {
 
         // Queue families
         struct QueueFamilies {
-            std::optional<uint32_t> graphics;
-            std::optional<uint32_t> graphics_present;
-            std::optional<uint32_t> async_compute;
-            std::optional<uint32_t> async_compute_present;
-            std::optional<uint32_t> async_transfer;
+            std::optional<uint32_t> graphics {};
+            std::optional<uint32_t> graphics_present {};
+            std::optional<uint32_t> async_compute {};
+            std::optional<uint32_t> async_compute_present {};
+            std::optional<uint32_t> async_transfer {};
 
             /**
              * Only async transfer needs this.
@@ -36,12 +36,12 @@ namespace Engine::RenderSystemState {
              * > in minImageTransferGranularity, meaning that there are no additional 
              * > restrictions on the granularity of image transfer operations for these queues.
              */
-            std::tuple<uint32_t, uint32_t, uint32_t> async_transfer_granularity;
+            std::tuple<uint32_t, uint32_t, uint32_t> async_transfer_granularity {};
 
             bool is_complete() const noexcept {
                 return graphics.has_value() && graphics_present.has_value();
             }
-        } queue_families;
+        } queue_families {};
         
 
         // Cached info

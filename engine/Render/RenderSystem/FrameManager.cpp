@@ -24,7 +24,8 @@ namespace {
         vk::Offset2D offset_src,
         vk::Extent2D extent_dst,
         vk::Offset2D offset_dst,
-        const vk::Image &dst,
+        const Engine::RenderSystemState::Swapchain & swapchain,
+        uint32_t framebuffer,
         vk::Filter filter
     ) {
         std::array<vk::ImageMemoryBarrier2, 2> barriers {};
@@ -43,24 +44,13 @@ namespace {
             src,
             vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}
         };
-        barriers[1] = vk::ImageMemoryBarrier2{
-            vk::PipelineStageFlagBits2::eAllTransfer,
-            vk::AccessFlagBits2::eNone, // > Set up execution dep instead of memory dep.
-            vk::PipelineStageFlagBits2::eAllTransfer,
-            vk::AccessFlagBits2::eTransferWrite,
-            vk::ImageLayout::eUndefined,
-            vk::ImageLayout::eTransferDstOptimal,
-            vk::QueueFamilyIgnored,
-            vk::QueueFamilyIgnored,
-            dst,
-            vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}
-        };
+        barriers[1] = swapchain.GetPreCopyBarrier(framebuffer);
         cb.pipelineBarrier2(vk::DependencyInfo{{}, {}, {}, barriers});
 
         cb.blitImage(
             src,
             vk::ImageLayout::eTransferSrcOptimal,
-            dst,
+            swapchain.GetImages()[framebuffer],
             vk::ImageLayout::eTransferDstOptimal,
             {vk::ImageBlit{
                 vk::ImageSubresourceLayers{vk::ImageAspectFlagBits::eColor, 0, 0, 1},
@@ -93,18 +83,7 @@ namespace {
             src,
             vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}
         };
-        barriers[1] = vk::ImageMemoryBarrier2{
-            vk::PipelineStageFlagBits2::eAllTransfer,
-            vk::AccessFlagBits2::eTransferWrite,
-            vk::PipelineStageFlagBits2::eHost,
-            vk::AccessFlagBits2::eMemoryRead,
-            vk::ImageLayout::eTransferDstOptimal,
-             vk::ImageLayout::ePresentSrcKHR,
-            vk::QueueFamilyIgnored,
-            vk::QueueFamilyIgnored,
-            dst,
-            vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}
-        };
+        barriers[1] = swapchain.GetPostCopyBarrier(framebuffer);
         cb.pipelineBarrier2(vk::DependencyInfo{{}, {}, {}, barriers});
         DEBUG_CMD_END_LABEL(cb);
         cb.end();
@@ -166,8 +145,8 @@ namespace Engine::RenderSystemState {
             std::bitset <FRAMES_IN_FLIGHT> has_post_graphics_rb{};
             std::array <vk::UniqueFence, FRAMES_IN_FLIGHT> post_graphics_rb_fences {};
             std::array <vk::UniqueCommandBuffer, FRAMES_IN_FLIGHT> post_graphics_rb_cbs {};
-            std::queue <std::function<void(vk::CommandBuffer)>> post_graphics_commands;
-        } readback;
+            std::queue <std::function<void(vk::CommandBuffer)>> post_graphics_commands {};
+        } readback {};
 
         uint32_t current_frame_in_flight{std::numeric_limits<uint32_t>::max()};
 
@@ -463,7 +442,8 @@ namespace Engine::RenderSystemState {
             offsetSrc, 
             this->pimpl->m_system.GetSwapchain().GetExtent(),
             {0, 0},
-            framebuffer_image,
+            this->pimpl->m_system.GetSwapchain(),
+            GetFramebuffer(),
             filter
         );
 
