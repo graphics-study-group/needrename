@@ -212,9 +212,9 @@ namespace Engine::RenderSystemState {
                 device, command_executed_fences[i].get(), std::format("Fence - all commands executed {}", i)
             );
 
-            readback.post_graphics_rb_fences[i] = device.createFenceUnique({});
+            readback.post_graphics_rb_fences[i] = device.createFenceUnique(finfo);
             DEBUG_SET_NAME_TEMPLATE(
-                device, command_executed_fences[i].get(), std::format("Fence - post graphics readback executed {}", i)
+                device, readback.post_graphics_rb_fences[i].get(), std::format("Fence - post graphics readback executed {}", i)
             );
         }
         copy_to_swapchain_completed_semaphores.resize(m_system.GetSwapchain().GetFrameCount());
@@ -268,7 +268,7 @@ namespace Engine::RenderSystemState {
         // Readback command buffers
         new_command_buffers = device.allocateCommandBuffersUnique(
             vk::CommandBufferAllocateInfo{
-                queue_info.graphicsOneTimePool.get(), vk::CommandBufferLevel::ePrimary, FRAMES_IN_FLIGHT
+                queue_info.graphicsPool.get(), vk::CommandBufferLevel::ePrimary, FRAMES_IN_FLIGHT
             }
         );
         for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; i++) {
@@ -428,14 +428,17 @@ namespace Engine::RenderSystemState {
         });
         while(!pimpl->readback.post_graphics_commands.empty()) {
             std::invoke(pimpl->readback.post_graphics_commands.front(), rbcb);
+            pimpl->readback.post_graphics_commands.pop();
         }
         rbcb.end();
 
         wait_infos[0] = pimpl->timeline_semaphores[fif].GetSubmitInfo(
-            FrameSemaphore::TimePoint::GraphicFinished,
+            FrameSemaphore::TimePoint::PostComputeFinished,
             vk::PipelineStageFlagBits2::eAllTransfer
         );
         cbsi.commandBuffer = rbcb;
+        
+        pimpl->m_system.GetDevice().resetFences({pimpl->readback.post_graphics_rb_fences[fif].get()});
         this->pimpl->m_system.GetDeviceInterface().GetQueueInfo().graphicsQueue.submit2(
             vk::SubmitInfo2{
                 vk::SubmitFlags{},
@@ -529,8 +532,7 @@ namespace Engine::RenderSystemState {
                 std::numeric_limits<uint64_t>::max()
             );
             readback.has_post_graphics_rb.reset(current_frame_in_flight);
-            m_system.GetDevice().resetFences({readback.post_graphics_rb_fences[current_frame_in_flight].get()});
-            readback.post_graphics_rb_cbs[current_frame_in_flight].reset();
+            readback.post_graphics_rb_cbs[current_frame_in_flight]->reset();
         }
 
         // Increment FIF counter, reset framebuffer index
