@@ -7,7 +7,7 @@
 
 namespace Engine {
     struct RenderGraph::impl {
-        std::vector <RenderGraphImpl::Task> m_commands;
+        std::vector <std::function<void(vk::CommandBuffer)>> m_commands;
 
         struct {
             RenderTargetTexture * target {nullptr};
@@ -16,25 +16,13 @@ namespace Engine {
         } present_info;
     };
 
-    RenderGraph::RenderGraph(RenderSystem & system, std::vector<RenderGraphImpl::Task> && commands) :
+    RenderGraph::RenderGraph(
+        RenderSystem & system,
+        std::vector<std::function<void(vk::CommandBuffer)>> && commands,
+        const RenderGraphImpl::RenderGraphExtraInfo & extra
+    ) :
         m_system(system),
         pimpl(std::make_unique<impl>()) {
-        for (const auto & t : commands) {
-            if (auto ptr = std::get_if<RenderGraphImpl::Present>(&t)) {
-                if (pimpl->present_info.target) {
-                    SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Multiple present info found in the RenderGraph.");
-                }
-
-                pimpl->present_info.target = &ptr->present_from;
-                pimpl->present_info.extent = vk::Extent2D{ptr->extent_x, ptr->extent_y};
-                pimpl->present_info.offset = vk::Offset2D{ptr->offset_x, ptr->offset_y};
-            }
-        }
-
-        if (!pimpl->present_info.target) {
-            SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "No present info found in the RenderGraph.");
-        }
-
         pimpl->m_commands = std::move(commands);
     }
     RenderGraph::~RenderGraph() = default;
@@ -45,18 +33,7 @@ namespace Engine {
         cb.begin(cbbi);
 
         for (const auto &f : pimpl->m_commands) {
-            if (auto ptr = std::get_if<RenderGraphImpl::Command>(&f)) {
-                std::invoke(ptr->func, cb);
-            } else if (auto ptr = std::get_if<RenderGraphImpl::Synchronization>(&f)) {
-                cb.pipelineBarrier2(
-                    vk::DependencyInfo{
-                        vk::DependencyFlags{},
-                        ptr->memory_barriers,
-                        ptr->buffer_barriers,
-                        ptr->image_barriers
-                    }
-                );
-            }
+            std::invoke(f, cb);
         }
 
         cb.end();

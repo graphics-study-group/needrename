@@ -216,14 +216,36 @@ namespace Engine {
         pimpl->m_image_barriers.clear();
     }
     RenderGraph RenderGraphBuilder::BuildRenderGraph() {
-        auto tsk = std::move(pimpl->m_tasks);
-        pimpl->m_tasks.clear();
         if (!pimpl->m_buffer_barriers.empty() || !pimpl->m_image_barriers.empty()) {
             SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Leftover memory barriers when building render graph.");
-            pimpl->m_buffer_barriers.clear();
-            pimpl->m_image_barriers.clear();
+            RecordSynchronization();
         }
-        return RenderGraph(m_system, std::move(tsk));
+
+        std::vector <std::function<void(vk::CommandBuffer)>> compiled;
+        RenderGraphImpl::RenderGraphExtraInfo extra{};
+
+        for (const auto & t : pimpl->m_tasks) {
+            if (auto p = std::get_if<RenderGraphImpl::Command>(&t)) {
+                compiled.push_back(p->func);
+            } else if (auto p = std::get_if<RenderGraphImpl::Synchronization>(&t)) {
+                // Ideally we can merge barriers here.
+                compiled.push_back([
+                    mb = std::move(p->memory_barriers),
+                    bb = std::move(p->buffer_barriers),
+                    ib = std::move(p->image_barriers)
+                ](vk::CommandBuffer cb) -> void {
+                    cb.pipelineBarrier2(vk::DependencyInfo{
+                        vk::DependencyFlags{},
+                        mb, bb, ib
+                    });
+                });
+            } else if (auto p = std::get_if<RenderGraphImpl::Present>(&t)) {
+                // extra...
+            }
+        }
+        
+        pimpl->m_tasks.clear();
+        return RenderGraph(m_system, std::move(compiled), extra);
     }
     RenderGraph RenderGraphBuilder::BuildDefaultRenderGraph(
         RenderTargetTexture &color_attachment, RenderTargetTexture &depth_attachment, GUISystem *gui_system

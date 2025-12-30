@@ -44,6 +44,10 @@ namespace Engine {
             }
         };
 
+        struct RenderGraphExtraInfo {
+
+        };
+
         vk::ImageMemoryBarrier2 GetImageBarrier(Texture &texture,
             TextureAccessMemo::AccessTuple old_access,
             TextureAccessMemo::AccessTuple new_access) noexcept {
