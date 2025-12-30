@@ -224,21 +224,17 @@ namespace Engine {
         std::vector <std::function<void(vk::CommandBuffer)>> compiled;
         RenderGraphImpl::RenderGraphExtraInfo extra{};
 
-        for (const auto & t : pimpl->m_tasks) {
+        extra.m_initial_image_access = std::move(pimpl->m_memo.m_initial_access);
+        extra.m_final_image_access = std::move(pimpl->m_memo.m_memo);
+        pimpl->m_memo.m_initial_access.clear();
+        pimpl->m_memo.m_memo.clear();
+
+        for (auto & t : pimpl->m_tasks) {
             if (auto p = std::get_if<RenderGraphImpl::Command>(&t)) {
                 compiled.push_back(p->func);
             } else if (auto p = std::get_if<RenderGraphImpl::Synchronization>(&t)) {
                 // Ideally we can merge barriers here.
-                compiled.push_back([
-                    mb = std::move(p->memory_barriers),
-                    bb = std::move(p->buffer_barriers),
-                    ib = std::move(p->image_barriers)
-                ](vk::CommandBuffer cb) -> void {
-                    cb.pipelineBarrier2(vk::DependencyInfo{
-                        vk::DependencyFlags{},
-                        mb, bb, ib
-                    });
-                });
+                compiled.push_back(p->GetBarrierCommand());
             } else if (auto p = std::get_if<RenderGraphImpl::Present>(&t)) {
                 // extra...
             }

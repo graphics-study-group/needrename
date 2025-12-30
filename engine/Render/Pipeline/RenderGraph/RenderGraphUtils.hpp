@@ -9,8 +9,12 @@
 
 namespace Engine {
     namespace RenderGraphImpl {
+
+        using GeneralAccessTuple = std::tuple<vk::PipelineStageFlags2, vk::AccessFlags2>;
+        using ImageAccessTuple = std::tuple<vk::PipelineStageFlags2, vk::AccessFlags2, vk::ImageLayout>;
+
         struct TextureAccessMemo {
-            using AccessTuple = std::tuple<vk::PipelineStageFlags2, vk::AccessFlags2, vk::ImageLayout>;
+            using AccessTuple = ImageAccessTuple;
             std::unordered_map<const Texture *, AccessTuple> m_memo;
             std::unordered_map<const Texture *, AccessTuple> m_initial_access;
 
@@ -45,10 +49,11 @@ namespace Engine {
         };
 
         struct RenderGraphExtraInfo {
-
+            std::unordered_map<const Texture *, ImageAccessTuple> m_initial_image_access;
+            std::unordered_map<const Texture *, ImageAccessTuple> m_final_image_access;
         };
 
-        vk::ImageMemoryBarrier2 GetImageBarrier(Texture &texture,
+        inline vk::ImageMemoryBarrier2 GetImageBarrier(Texture &texture,
             TextureAccessMemo::AccessTuple old_access,
             TextureAccessMemo::AccessTuple new_access) noexcept {
             vk::ImageMemoryBarrier2 barrier{};
@@ -74,7 +79,7 @@ namespace Engine {
             return barrier;
         }
 
-        vk::BufferMemoryBarrier2 GetBufferBarrier(
+        inline vk::BufferMemoryBarrier2 GetBufferBarrier(
             Buffer &buffer [[maybe_unused]],
             AccessHelper::BufferAccessType old_access [[maybe_unused]],
             AccessHelper::BufferAccessType new_access [[maybe_unused]]
