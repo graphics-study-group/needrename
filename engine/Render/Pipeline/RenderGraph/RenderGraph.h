@@ -4,6 +4,8 @@
 #include <vector>
 #include <functional>
 
+#include "Render/Pipeline/RenderGraph/RenderGraphTask.hpp"
+
 namespace vk {
     class CommandBuffer;
 }
@@ -11,10 +13,6 @@ namespace vk {
 namespace Engine {
     namespace RenderSystemState {
         class FrameManager;
-    }
-
-    namespace RenderGraphImpl {
-        struct Task;
     }
 
     /**
@@ -31,7 +29,7 @@ namespace Engine {
 
         friend class RenderGraphBuilder;
 
-        RenderGraph(RenderSystem & system, std::vector <RenderGraphImpl::Task> commands);
+        RenderGraph(RenderSystem & system, std::vector <RenderGraphImpl::Task> && commands);
     public:
         
         ~RenderGraph();

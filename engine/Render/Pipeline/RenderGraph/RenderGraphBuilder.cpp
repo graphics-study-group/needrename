@@ -223,7 +223,7 @@ namespace Engine {
             pimpl->m_buffer_barriers.clear();
             pimpl->m_image_barriers.clear();
         }
-        return RenderGraph(m_system, tsk);
+        return RenderGraph(m_system, std::move(tsk));
     }
     RenderGraph RenderGraphBuilder::BuildDefaultRenderGraph(
         RenderTargetTexture &color_attachment, RenderTargetTexture &depth_attachment, GUISystem *gui_system

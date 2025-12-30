@@ -3,7 +3,13 @@
 
 #include <variant>
 #include <vector>
-#include <vulkan/vulkan.hpp>
+
+namespace vk {
+    struct CommandBuffer;
+    struct MemoryBarrier2;
+    struct BufferMemoryBarrier2;
+    struct ImageMemoryBarrier2;
+}
 
 namespace Engine {
     class RenderTargetTexture;
@@ -27,8 +33,8 @@ namespace Engine {
 
         struct Present {
             RenderTargetTexture & present_from;
-            vk::Offset2D offset;
-            vk::Extent2D extent;
+            uint32_t extent_x, extent_y;
+            int32_t offset_x, offset_y;
         };
 
         typedef std::variant <Command, Synchronization, Present> Task;

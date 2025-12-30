@@ -16,7 +16,7 @@ namespace Engine {
         } present_info;
     };
 
-    RenderGraph::RenderGraph(RenderSystem & system, std::vector<RenderGraphImpl::Task> commands) :
+    RenderGraph::RenderGraph(RenderSystem & system, std::vector<RenderGraphImpl::Task> && commands) :
         m_system(system),
         pimpl(std::make_unique<impl>()) {
         for (const auto & t : commands) {
@@ -26,8 +26,8 @@ namespace Engine {
                 }
 
                 pimpl->present_info.target = &ptr->present_from;
-                pimpl->present_info.extent = ptr->extent;
-                pimpl->present_info.offset = ptr->offset;
+                pimpl->present_info.extent = vk::Extent2D{ptr->extent_x, ptr->extent_y};
+                pimpl->present_info.offset = vk::Offset2D{ptr->offset_x, ptr->offset_y};
             }
         }
 
