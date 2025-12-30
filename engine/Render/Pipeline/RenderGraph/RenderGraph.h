@@ -13,6 +13,10 @@ namespace Engine {
         class FrameManager;
     }
 
+    namespace RenderGraphImpl {
+        struct Task;
+    }
+
     /**
      * @brief Resolved render graph ready to be executed.
      * Contains a list of `vk::CommandBuffer` method calls.
@@ -24,8 +28,12 @@ namespace Engine {
         
         struct impl;
         std::unique_ptr <impl> pimpl;
+
+        friend class RenderGraphBuilder;
+
+        RenderGraph(RenderSystem & system, std::vector <RenderGraphImpl::Task> commands);
     public:
-        RenderGraph(RenderSystem & system, std::vector <std::function<void(vk::CommandBuffer)>> commands);
+        
         ~RenderGraph();
 
         /**
