@@ -42,8 +42,16 @@ namespace Engine {
                 std::swap(m_memo[texture], new_access_tuple);
             };
 
-            AccessTuple GetAccessTuple(const Texture *texture) const noexcept {
-                assert(m_memo.contains(texture));
+            AccessTuple GetAccessTuple(const Texture *texture) noexcept {
+                if (!m_memo.contains(texture)) {
+                    SDL_LogWarn(
+                        SDL_LOG_CATEGORY_RENDER,
+                        "Texture %p is not registered, defaulting to none.",
+                        static_cast<const void *>(texture)
+                    );
+
+                    RegisterTexture(texture, std::make_tuple(vk::PipelineStageFlagBits2::eNone, vk::AccessFlagBits2::eNone, vk::ImageLayout::eUndefined));
+                }
                 return m_memo.at(texture);
             }
         };

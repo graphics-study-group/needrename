@@ -241,7 +241,7 @@ namespace Engine {
         }
         
         pimpl->m_tasks.clear();
-        return RenderGraph(m_system, std::move(compiled), extra);
+        return RenderGraph(m_system, std::move(compiled), std::move(extra));
     }
     RenderGraph RenderGraphBuilder::BuildDefaultRenderGraph(
         RenderTargetTexture &color_attachment, RenderTargetTexture &depth_attachment, GUISystem *gui_system

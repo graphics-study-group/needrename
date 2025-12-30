@@ -34,7 +34,7 @@ namespace Engine {
         RenderGraph(
             RenderSystem & system,
             std::vector <std::function<void(vk::CommandBuffer)>> && commands,
-            const RenderGraphImpl::RenderGraphExtraInfo & extra
+            RenderGraphImpl::RenderGraphExtraInfo && extra
         );
     public:
         

@@ -25,11 +25,13 @@ namespace Engine {
     RenderGraph::RenderGraph(
         RenderSystem & system,
         std::vector<std::function<void(vk::CommandBuffer)>> && commands,
-        const RenderGraphImpl::RenderGraphExtraInfo & extra
+        RenderGraphImpl::RenderGraphExtraInfo && extra
     ) :
         m_system(system),
         pimpl(std::make_unique<impl>()) {
         pimpl->m_commands = std::move(commands);
+        pimpl->m_initial_image_access = std::move(extra.m_initial_image_access);
+        pimpl->m_final_image_access = std::move(extra.m_final_image_access);
     }
     RenderGraph::~RenderGraph() = default;
 
@@ -48,7 +50,7 @@ namespace Engine {
         if (itr == pimpl->m_final_image_access.end() || itr->second == access_tuple)
             return;
 
-        pimpl->initial_sync.image_barriers.push_back(RenderGraphImpl::GetImageBarrier(texture, itr->second, access_tuple));
+        pimpl->final_sync.image_barriers.push_back(RenderGraphImpl::GetImageBarrier(texture, itr->second, access_tuple));
     }
 
     void RenderGraph::Execute() {
