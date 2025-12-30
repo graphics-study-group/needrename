@@ -110,7 +110,7 @@ namespace {
 
         cb.copyImageToBuffer(
             src.GetImage(),
-            vk::ImageLayout::eGeneral,
+            vk::ImageLayout::eTransferSrcOptimal,
             dst.GetBuffer(),
             vk::BufferImageCopy{
                 0, 0, 0,
