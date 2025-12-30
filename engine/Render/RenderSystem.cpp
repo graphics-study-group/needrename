@@ -94,7 +94,11 @@ namespace Engine {
     void RenderSystem::CompleteFrame(
         const RenderTargetTexture &present_texture, uint32_t width, uint32_t height, uint32_t offset_x, uint32_t offset_y
     ) {
-        if (pimpl->m_frame_manager.PresentToFramebuffer(present_texture.GetImage(), {width, height}, {offset_x, offset_y})) {
+        if (pimpl->m_frame_manager.PresentToFramebuffer(
+            present_texture.GetImage(),
+            {width, height},
+            {(int32_t)offset_x, (int32_t)offset_y}
+        )) {
             this->UpdateSwapchain();
         }
     }

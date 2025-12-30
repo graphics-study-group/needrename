@@ -56,15 +56,15 @@ namespace {
                 vk::ImageSubresourceLayers{vk::ImageAspectFlagBits::eColor, 0, 0, 1},
                 {vk::Offset3D{offset_src, 0},
                     vk::Offset3D{
-                        offset_src.x + extent_src.width,
-                        offset_src.y + extent_src.height,
+                        offset_src.x + (int32_t)extent_src.width,
+                        offset_src.y + (int32_t)extent_src.height,
                         1
                     }},
                 vk::ImageSubresourceLayers{vk::ImageAspectFlagBits::eColor, 0, 0, 1},
                 {vk::Offset3D{offset_dst, 0},
                     vk::Offset3D{
-                        offset_dst.x + extent_dst.width,
-                        offset_dst.y + extent_dst.height,
+                        offset_dst.x + (int32_t)extent_dst.width,
+                        offset_dst.y + (int32_t)extent_dst.height,
                         1
                     }}
             }},
