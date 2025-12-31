@@ -16,6 +16,7 @@ target_link_libraries(EngineLibExternalDependency
     json
     imgui
     vma
+    glslang
 )
 target_compile_definitions(EngineLibExternalDependency INTERFACE VULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1)
 target_compile_definitions(EngineLibExternalDependency INTERFACE VULKAN_HPP_STORAGE_SHARED)
