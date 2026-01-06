@@ -15,7 +15,6 @@ void FinalizeGlslang() {
     glslang::FinalizeProcess();
 }
 
-// 编译 GLSL shader 字符串为 SPIR-V
 bool CompileGLSLtoSPV(const std::string &shaderSource, EShLanguage shaderType, std::vector<uint32_t> &spirv) {
     const char *shaderStrings[1];
     shaderStrings[0] = shaderSource.c_str();

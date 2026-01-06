@@ -52,3 +52,10 @@ add_custom_command(TARGET transform_test POST_BUILD
     $<TARGET_FILE_DIR:transform_test>
     COMMENT "Copying Engine DLLs"
 )
+
+add_custom_command(TARGET shader_compile_test POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    $<TARGET_FILE:glslang>
+    $<TARGET_FILE_DIR:shader_compile_test>
+    COMMENT "Copying glslang DLLs"
+)
