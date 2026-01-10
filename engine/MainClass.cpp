@@ -10,6 +10,7 @@
 #include <Render/FullRenderSystem.h>
 #include <UserInterface/GUISystem.h>
 #include <UserInterface/Input.h>
+#include <glslang/Public/ShaderLang.h>
 
 #include <exception>
 #include <fstream>
@@ -35,6 +36,7 @@ namespace Engine {
 
     MainClass::~MainClass() {
         SDL_Quit();
+        glslang::FinalizeProcess();
     }
 
     void MainClass::LoadBuiltinAssets(const std::filesystem::path &path) {
@@ -85,6 +87,7 @@ namespace Engine {
         this->window->CreateRenderTargets(this->renderer);
         this->gui->Create(this->window->GetWindow());
         Reflection::Initialize();
+        glslang::InitializeProcess();
     }
 
     void MainClass::MainLoop() {

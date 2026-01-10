@@ -1,15 +1,20 @@
 {
     "%data": {
         "&0": {
-            "%extra_data_id": 0,
             "%type": "Engine::ShaderAsset",
             "Asset::m_guid": "5ACA54938E17F42BC293F502932155A2",
-            "ShaderAsset::m_name": "blinn_phong.vert.spv",
+            "ShaderAsset::m_name": "blinn_phong.vert",
             "ShaderAsset::m_entry_point": "main",
-            "ShaderAsset::shaderType": "Vertex"
+            "ShaderAsset::shaderType": "Vertex",
+            "ShaderAsset::storeType": "GLSL",
+            "glsl_extra_data_id": 0,
+            "binary_extra_data_id": 1
         }
     },
     "%extra_data": [
+        {
+            "%extension": ".glsl"
+        },
         {
             "%extension": ".spv"
         }
