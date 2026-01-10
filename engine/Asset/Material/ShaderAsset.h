@@ -3,6 +3,7 @@
 
 #include <Asset/Asset.h>
 #include <Reflection/macros.h>
+#include <string>
 
 namespace Engine {
     class REFL_SER_CLASS(REFL_WHITELIST) ShaderAsset : public Asset {
@@ -20,20 +21,29 @@ namespace Engine {
             Geometry
         } shaderType{ShaderType::None};
 
+        REFL_SER_ENABLE enum class REFL_SER_CLASS() StoreType {
+            GLSL,
+            SPIRV
+        } storeType{StoreType::SPIRV};
+
         /// @brief Name of the shader.
         REFL_SER_ENABLE std::string m_name{};
         /// @brief Entry point name for the shader, case-sensitive. Default to "main".
         REFL_SER_ENABLE std::string m_entry_point{};
+
         std::vector<uint32_t> binary{};
+        std::string glsl_code{};
 
         virtual void save_asset_to_archive(Serialization::Archive &archive) const override;
         virtual void load_asset_from_archive(Serialization::Archive &archive) override;
+
         void LoadFromFile(
             const std::filesystem::path &path,
             ShaderType type,
             const std::string &name = "",
             const std::string &entry_point = "main"
         );
+        bool Compile();
     };
 } // namespace Engine
 

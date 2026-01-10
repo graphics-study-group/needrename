@@ -42,7 +42,7 @@ add_compile_definitions($<$<CONFIG:Release>:NDEBUG>)
 add_subdirectory(engine)
 add_subdirectory(editor)
 add_subdirectory(example)
-add_subdirectory(shader)
+# add_subdirectory(shader)
 
 include(CTest)
 add_subdirectory(test)
