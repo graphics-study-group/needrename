@@ -40,8 +40,8 @@ namespace Engine {
             assert(file_size > 0);
             glsl_code.resize(file_size);
             std::memcpy(glsl_code.data(), data.data(), file_size);
-
-            Compile();
+            bool compile_res = Compile();
+            assert(compile_res);
         } else if (storeType == StoreType::SPIRV) {
             auto &data = archive.m_context->extra_data[json["binary_extra_data_id"].get<size_t>()];
             size_t file_size = data.size();
@@ -63,15 +63,18 @@ namespace Engine {
 
         if (path.extension() == ".glsl") {
             storeType = StoreType::GLSL;
-            std::ifstream file(path);
+            std::ifstream file(path, std::ios::binary | std::ios::ate);
             assert(file.is_open());
-            file.seekg(0, std::ios::end);
             size_t file_size = file.tellg();
             file.seekg(0, std::ios::beg);
             SDL_LogVerbose(
-                SDL_LOG_CATEGORY_APPLICATION, "Loading shader %s, size %zu bytes\n", path.string().c_str(), file_size
+                SDL_LOG_CATEGORY_APPLICATION, "Loading shader %s, size %llu bytes\n", path.string().c_str(), file_size
             );
             glsl_code.resize(file_size);
+            file.read(glsl_code.data(), file_size);
+            file.close();
+            bool compile_res = Compile();
+            assert(compile_res);
         } else if (path.extension() == ".spv") {
             storeType = StoreType::SPIRV;
             std::ifstream file(path, std::ios::binary | std::ios::ate);
@@ -79,7 +82,7 @@ namespace Engine {
             size_t file_size = file.tellg();
             file.seekg(0, std::ios::beg);
             SDL_LogVerbose(
-                SDL_LOG_CATEGORY_APPLICATION, "Loading shader %s, size %zu bytes\n", path.string().c_str(), file_size
+                SDL_LOG_CATEGORY_APPLICATION, "Loading shader %s, size %llu bytes\n", path.string().c_str(), file_size
             );
             binary.resize((file_size - sizeof(uint32_t) + 1) / sizeof(uint32_t) + 1);
             file.read(reinterpret_cast<char *>(binary.data()), file_size);
