@@ -60,7 +60,10 @@ namespace Engine {
         auto level_asset =
             std::dynamic_pointer_cast<LevelAsset>(this->asset_manager->LoadAssetImmediately(default_level_guid));
         this->world->LoadLevelAsset(level_asset);
-        this->renderer->GetCameraManager().RegisterCamera(this->world->GetActiveCamera());
+
+        auto active_camera = this->world->GetActiveCamera();
+        if (active_camera)
+            this->renderer->GetCameraManager().RegisterCamera(active_camera);
     }
 
     void MainClass::Initialize(
