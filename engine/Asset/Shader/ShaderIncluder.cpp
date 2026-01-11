@@ -22,9 +22,7 @@ namespace Engine {
         return includeSystem(headerName, includerName, inclusionDepth);
     }
 
-    IncludeResult *ShaderIncluder::includeSystem(
-        const char *headerName, const char *includerName, size_t inclusionDepth
-    ) {
+    IncludeResult *ShaderIncluder::includeSystem(const char *headerName, const char *, size_t) {
         std::string real_path = std::string(headerName);
         for (const auto &[key, path] : k_include_path_map) {
             if (std::string(headerName).find(key + "/") == 0) {

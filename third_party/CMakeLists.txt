@@ -44,4 +44,4 @@ target_include_directories(
 )
 
 set(ENABLE_OPT OFF CACHE BOOL "Enable optimizations" FORCE)
-add_subdirectory(glslang EXCLUDE_FROM_ALL)
+add_subdirectory(glslang EXCLUDE_FROM_ALL SYSTEM)
