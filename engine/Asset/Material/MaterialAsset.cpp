@@ -80,6 +80,10 @@ namespace Engine {
                 break;
             }
             break;
+        case Type::Undefined:
+        default:
+            assert(!"Unidentified property type.");
+            break;
         }
     }
 
