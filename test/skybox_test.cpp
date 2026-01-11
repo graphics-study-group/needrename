@@ -247,8 +247,7 @@ int main(int argc, char **argv) {
         cb.endRendering();
         cb.end();
         rsys->GetFrameManager().SubmitMainCommandBuffer();
-        rsys->GetFrameManager().StageBlitComposition(rt->GetImage(), {800, 800}, rsys->GetSwapchain().GetExtent());
-        rsys->CompleteFrame();
+        rsys->CompleteFrame(*rt, 800, 800);
 
         SDL_Delay(10);
 

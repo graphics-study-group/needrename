@@ -129,9 +129,9 @@ namespace Engine {
                 vk::ImageLayout::eTransferDstOptimal,
                 {vk::ImageBlit{
                     vk::ImageSubresourceLayers{vk::ImageAspectFlagBits::eColor, level - 1, 0, 1},
-                    {vk::Offset3D{0, 0, 0}, vk::Offset3D{width, height, 1}},
+                    {vk::Offset3D{0, 0, 0}, vk::Offset3D{(int32_t)width, (int32_t)height, 1}},
                     vk::ImageSubresourceLayers{vk::ImageAspectFlagBits::eColor, level, 0, 1},
-                    {vk::Offset3D{0, 0, 0}, vk::Offset3D{width >> 1, height >> 1, 1}}
+                    {vk::Offset3D{0, 0, 0}, vk::Offset3D{(int32_t)(width >> 1), (int32_t)(height >> 1), 1}}
                 }},
                 vk::Filter::eLinear
             );

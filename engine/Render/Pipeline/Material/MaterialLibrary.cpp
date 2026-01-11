@@ -8,8 +8,8 @@
 namespace Engine {
     struct MaterialLibrary::impl {
         struct PipelineAssetItem {
-            MeshVertexType expected_mesh_type;
-            std::shared_ptr<AssetRef> material_template_asset;
+            MeshVertexType expected_mesh_type {};
+            std::shared_ptr<AssetRef> material_template_asset {};
         };
         using PipelineBundle = std::unordered_map <uint64_t, std::unique_ptr<MaterialTemplate>>;
 

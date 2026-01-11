@@ -1,4 +1,5 @@
 file(GLOB_RECURSE SOURCE "./*.cpp")
+file(GLOB_RECURSE HEADER_PRIVATE "./*.hpp")
 
 add_library(EngineLibRender
     OBJECT

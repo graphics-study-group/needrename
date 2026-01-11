@@ -3,6 +3,8 @@
 #include "UserInterface/GUISystem.h"
 #include "Render/Pipeline/CommandBuffer/AccessHelperFuncs.h"
 #include "Render/Pipeline/RenderGraph/RenderGraph.h"
+#include "Render/Pipeline/RenderGraph/RenderGraphUtils.hpp"
+#include "Render/Pipeline/RenderGraph/RenderGraphTask.hpp"
 #include <SDL3/SDL.h>
 #include <unordered_map>
 #include <vulkan/vulkan.hpp>
@@ -11,75 +13,9 @@ namespace Engine {
     struct RenderGraphBuilder::impl {
         std::vector<vk::ImageMemoryBarrier2> m_image_barriers{};
         std::vector<vk::BufferMemoryBarrier2> m_buffer_barriers{};
-        std::vector<std::function<void(vk::CommandBuffer)>> m_commands{};
+        std::vector<RenderGraphImpl::Task> m_tasks{};
 
-        struct TextureAccessMemo {
-            using AccessTuple = std::tuple<vk::PipelineStageFlags2, vk::AccessFlags2, vk::ImageLayout>;
-            std::unordered_map<const Texture *, AccessTuple> m_memo;
-
-            void RegisterTexture(const Texture *texture, AccessTuple previous_access) {
-                if (m_memo.contains(texture)) {
-                    SDL_LogWarn(
-                        SDL_LOG_CATEGORY_RENDER, "Texture %p is already registered.", static_cast<const void *>(texture)
-                    );
-                }
-                m_memo[texture] = previous_access;
-            }
-
-            AccessTuple UpdateAccessTuple(const Texture *texture, AccessTuple new_access_tuple) {
-                if (!m_memo.contains(texture)) {
-                    SDL_LogWarn(
-                        SDL_LOG_CATEGORY_RENDER,
-                        "Texture %p is not registered, defaulting to none.",
-                        static_cast<const void *>(texture)
-                    );
-
-                    m_memo[texture] = std::make_tuple(
-                        vk::PipelineStageFlagBits2::eNone, vk::AccessFlagBits2::eNone, vk::ImageLayout::eUndefined
-                    );
-                }
-
-                std::swap(m_memo[texture], new_access_tuple);
-                return new_access_tuple;
-            };
-        } m_memo;
-
-        vk::ImageMemoryBarrier2 GetImageBarrier(Texture &texture, AccessHelper::ImageAccessType new_access) noexcept {
-            vk::ImageMemoryBarrier2 barrier{};
-            barrier.image = texture.GetImage();
-            barrier.subresourceRange = vk::ImageSubresourceRange{
-                ImageUtils::GetVkAspect(texture.GetTextureDescription().format),
-                0,
-                vk::RemainingMipLevels,
-                0,
-                vk::RemainingArrayLayers
-            };
-
-            if (barrier.subresourceRange.aspectMask == vk::ImageAspectFlagBits::eNone) {
-                SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Failed to infer aspect range when inserting an image barrier.");
-                barrier.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor | vk::ImageAspectFlagBits::eDepth
-                                                      | vk::ImageAspectFlagBits::eStencil;
-            }
-
-            TextureAccessMemo::AccessTuple dst_tuple{AccessHelper::GetAccessScope(new_access)};
-
-            std::tie(barrier.dstStageMask, barrier.dstAccessMask, barrier.newLayout) = dst_tuple;
-            std::tie(barrier.srcStageMask, barrier.srcAccessMask, barrier.oldLayout) =
-                m_memo.UpdateAccessTuple(&texture, dst_tuple);
-
-            barrier.dstQueueFamilyIndex = barrier.srcQueueFamilyIndex = vk::QueueFamilyIgnored;
-            return barrier;
-        }
-
-        static vk::BufferMemoryBarrier2 GetBufferBarrier(
-            Buffer &buffer [[maybe_unused]],
-            AccessHelper::BufferAccessType new_access [[maybe_unused]],
-            AccessHelper::BufferAccessType prev_access [[maybe_unused]]
-        ) {
-            assert(!"Unimplemented");
-            vk::BufferMemoryBarrier2 barrier{};
-            return barrier;
-        }
+        RenderGraphImpl::TextureAccessMemo m_memo;
     };
 
     RenderGraphBuilder::RenderGraphBuilder(RenderSystem &system) : m_system(system), pimpl(std::make_unique<impl>()) {
@@ -92,29 +28,35 @@ namespace Engine {
     }
 
     void RenderGraphBuilder::UseImage(Texture &texture, AccessHelper::ImageAccessType new_access) {
-        pimpl->m_image_barriers.push_back(pimpl->GetImageBarrier(texture, new_access));
+        auto new_tuple = AccessHelper::GetAccessScope(new_access);
+        pimpl->m_image_barriers.push_back(
+            RenderGraphImpl::GetImageBarrier(
+                texture,
+                pimpl->m_memo.GetAccessTuple(&texture),
+                new_tuple
+            )
+        );
+        pimpl->m_memo.UpdateAccessTuple(&texture, new_tuple);
     }
     void RenderGraphBuilder::UseBuffer(
         Buffer &buffer, AccessHelper::BufferAccessType new_access, AccessHelper::BufferAccessType prev_access
     ) {
-        pimpl->m_buffer_barriers.push_back(pimpl->GetBufferBarrier(buffer, new_access, prev_access));
+        pimpl->m_buffer_barriers.push_back(RenderGraphImpl::GetBufferBarrier(buffer, prev_access, new_access));
     }
     void RenderGraphBuilder::RecordRasterizerPassWithoutRT(std::function<void(GraphicsCommandBuffer &)> pass) {
         std::function<void(vk::CommandBuffer)> f = [system = &this->m_system,
-                                                    pass,
-                                                    bb = std::move(pimpl->m_buffer_barriers),
-                                                    ib = std::move(pimpl->m_image_barriers)](vk::CommandBuffer cb) {
-            vk::DependencyInfo dep{vk::DependencyFlags{}, {}, bb, ib};
-            cb.pipelineBarrier2(dep);
+                                                    pass](vk::CommandBuffer cb) {
+
             GraphicsCommandBuffer gcb{*system, cb, system->GetFrameManager().GetFrameInFlight()};
             std::invoke(pass, std::ref(gcb));
         };
-
-        pimpl->m_commands.push_back(f);
-
-        // Get STL containers out of ``valid but unspecified'' states.
-        pimpl->m_buffer_barriers.clear();
-        pimpl->m_image_barriers.clear();
+        this->RecordSynchronization();
+        pimpl->m_tasks.push_back(
+            RenderGraphImpl::Command{
+                RenderGraphImpl::Command::Type::Graphics,
+                f
+            }
+        );
     }
     void RenderGraphBuilder::RecordRasterizerPass(
         AttachmentUtils::AttachmentDescription color,
@@ -161,22 +103,20 @@ namespace Engine {
                                                     pass,
                                                     color,
                                                     depth,
-                                                    name,
-                                                    bb = std::move(pimpl->m_buffer_barriers),
-                                                    ib = std::move(pimpl->m_image_barriers)](vk::CommandBuffer cb) {
-            vk::DependencyInfo dep{vk::DependencyFlags{}, {}, bb, ib};
-            cb.pipelineBarrier2(dep);
+                                                    name](vk::CommandBuffer cb) {
             GraphicsCommandBuffer gcb{*system, cb, system->GetFrameManager().GetFrameInFlight()};
             gcb.BeginRendering(color, depth, system->GetSwapchain().GetExtent(), name);
             std::invoke(pass, std::ref(gcb));
             gcb.EndRendering();
         };
 
-        pimpl->m_commands.push_back(f);
-
-        // Get STL containers out of ``valid but unspecified'' states.
-        pimpl->m_buffer_barriers.clear();
-        pimpl->m_image_barriers.clear();
+        this->RecordSynchronization();
+        pimpl->m_tasks.push_back(
+            RenderGraphImpl::Command{
+                RenderGraphImpl::Command::Type::Graphics,
+                f
+            }
+        );
     }
 
     void RenderGraphBuilder::RecordRasterizerPass(
@@ -211,89 +151,97 @@ namespace Engine {
                                                     pass,
                                                     &colors,
                                                     depth,
-                                                    name,
-                                                    bb = std::move(pimpl->m_buffer_barriers),
-                                                    ib = std::move(pimpl->m_image_barriers)](vk::CommandBuffer cb) {
-            vk::DependencyInfo dep{vk::DependencyFlags{}, {}, bb, ib};
-            cb.pipelineBarrier2(dep);
+                                                    name](vk::CommandBuffer cb) {
+
             GraphicsCommandBuffer gcb{*system, cb, system->GetFrameManager().GetFrameInFlight()};
             gcb.BeginRendering(colors, depth, system->GetSwapchain().GetExtent(), name);
             std::invoke(pass, std::ref(gcb));
             gcb.EndRendering();
         };
-
-        pimpl->m_commands.push_back(f);
-
-        // Get STL containers out of ``valid but unspecified'' states.
-        pimpl->m_buffer_barriers.clear();
-        pimpl->m_image_barriers.clear();
+        this->RecordSynchronization();
+        pimpl->m_tasks.push_back(
+            RenderGraphImpl::Command{
+                RenderGraphImpl::Command::Type::Graphics,
+                f
+            }
+        );
     }
     void RenderGraphBuilder::RecordTransferPass(
         std::function<void(TransferCommandBuffer &)> pass, 
         const std::string & name
     ) {
         std::function<void(vk::CommandBuffer)> f = [pass,
-                                                    name,
-                                                    bb = std::move(pimpl->m_buffer_barriers),
-                                                    ib = std::move(pimpl->m_image_barriers)](vk::CommandBuffer cb) {
-            vk::DependencyInfo dep{vk::DependencyFlags{}, {}, bb, ib};
-            cb.pipelineBarrier2(dep);
+                                                    name](vk::CommandBuffer cb) {
             TransferCommandBuffer tcb{cb};
             tcb.GetCommandBuffer().beginDebugUtilsLabelEXT({(name + " (Transfer)").c_str()});
             std::invoke(pass, std::ref(tcb));
             tcb.GetCommandBuffer().endDebugUtilsLabelEXT();
         };
 
-        pimpl->m_commands.push_back(f);
-
-        // Get STL containers out of ``valid but unspecified'' states.
-        pimpl->m_buffer_barriers.clear();
-        pimpl->m_image_barriers.clear();
+        this->RecordSynchronization();
+        pimpl->m_tasks.push_back(RenderGraphImpl::Command{
+            RenderGraphImpl::Command::Type::Transfer,
+            f
+        });
     }
     void RenderGraphBuilder::RecordComputePass(
         std::function<void(ComputeCommandBuffer &)> pass, const std::string &name
     ) {
         std::function<void(vk::CommandBuffer)> f = [system = &this->m_system,
                                                     pass,
-                                                    name,
-                                                    bb = std::move(pimpl->m_buffer_barriers),
-                                                    ib = std::move(pimpl->m_image_barriers)](vk::CommandBuffer cb) {
-            vk::DependencyInfo dep{vk::DependencyFlags{}, {}, bb, ib};
-            cb.pipelineBarrier2(dep);
+                                                    name](vk::CommandBuffer cb) {
             ComputeCommandBuffer ccb{cb, system->GetFrameManager().GetFrameInFlight()};
             ccb.GetCommandBuffer().beginDebugUtilsLabelEXT({(name + " (Compute)").c_str()});
             std::invoke(pass, std::ref(ccb));
             ccb.GetCommandBuffer().endDebugUtilsLabelEXT();
         };
 
-        pimpl->m_commands.push_back(f);
-
-        // Get STL containers out of ``valid but unspecified'' states.
-        pimpl->m_buffer_barriers.clear();
-        pimpl->m_image_barriers.clear();
+        this->RecordSynchronization();
+        pimpl->m_tasks.push_back(
+            RenderGraphImpl::Command{
+                RenderGraphImpl::Command::Type::Compute,
+                f
+            }
+        );
     }
     void RenderGraphBuilder::RecordSynchronization() {
-        std::function<void(vk::CommandBuffer)> f = [bb = std::move(pimpl->m_buffer_barriers),
-                                                    ib = std::move(pimpl->m_image_barriers)](vk::CommandBuffer cb) {
-            vk::DependencyInfo dep{vk::DependencyFlags{}, {}, bb, ib};
-            cb.pipelineBarrier2(dep);
-        };
-
-        pimpl->m_commands.push_back(f);
-
-        // Get STL containers out of ``valid but unspecified'' states.
+        pimpl->m_tasks.push_back(
+            RenderGraphImpl::Synchronization{
+                {},
+                std::move(pimpl->m_buffer_barriers),
+                std::move(pimpl->m_image_barriers)
+            }
+        );
         pimpl->m_buffer_barriers.clear();
         pimpl->m_image_barriers.clear();
     }
     RenderGraph RenderGraphBuilder::BuildRenderGraph() {
-        auto cmd = std::move(pimpl->m_commands);
-        pimpl->m_commands.clear();
         if (!pimpl->m_buffer_barriers.empty() || !pimpl->m_image_barriers.empty()) {
             SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Leftover memory barriers when building render graph.");
-            pimpl->m_buffer_barriers.clear();
-            pimpl->m_image_barriers.clear();
+            RecordSynchronization();
         }
-        return RenderGraph(m_system, cmd);
+
+        std::vector <std::function<void(vk::CommandBuffer)>> compiled;
+        RenderGraphImpl::RenderGraphExtraInfo extra{};
+
+        extra.m_initial_image_access = std::move(pimpl->m_memo.m_initial_access);
+        extra.m_final_image_access = std::move(pimpl->m_memo.m_memo);
+        pimpl->m_memo.m_initial_access.clear();
+        pimpl->m_memo.m_memo.clear();
+
+        for (auto & t : pimpl->m_tasks) {
+            if (auto p = std::get_if<RenderGraphImpl::Command>(&t)) {
+                compiled.push_back(p->func);
+            } else if (auto p = std::get_if<RenderGraphImpl::Synchronization>(&t)) {
+                // Ideally we can merge barriers here.
+                compiled.push_back(p->GetBarrierCommand());
+            } else if (auto p = std::get_if<RenderGraphImpl::Present>(&t)) {
+                // extra...
+            }
+        }
+        
+        pimpl->m_tasks.clear();
+        return RenderGraph(m_system, std::move(compiled), std::move(extra));
     }
     RenderGraph RenderGraphBuilder::BuildDefaultRenderGraph(
         RenderTargetTexture &color_attachment, RenderTargetTexture &depth_attachment, GUISystem *gui_system

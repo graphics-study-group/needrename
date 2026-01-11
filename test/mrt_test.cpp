@@ -22,7 +22,7 @@ namespace sch = std::chrono;
 constexpr glm::mat4 EYE4 = glm::mat4(1.0f);
 
 struct LowerPlaneMeshAsset : public PlaneMeshAsset {
-    LowerPlaneMeshAsset() {
+    LowerPlaneMeshAsset() : PlaneMeshAsset() {
         this->m_submeshes.resize(1);
         this->m_submeshes[0].positions = MeshAsset::Submesh::Attributes{
             .type = MeshAsset::Submesh::Attributes::AttributeType::Floatx3,
@@ -106,6 +106,9 @@ RenderGraph BuildRenderGraph(
         gcb.SetupViewport(extent.width, extent.height, {{0, 0}, extent});
         VertexAttribute attribute;
         attribute.SetAttribute(VertexAttributeSemantic::Position, VertexAttributeType::SFloat32x3);
+        attribute.SetAttribute(VertexAttributeSemantic::Color, VertexAttributeType::SFloat32x3);
+        attribute.SetAttribute(VertexAttributeSemantic::Normal, VertexAttributeType::SFloat32x3);
+        attribute.SetAttribute(VertexAttributeSemantic::Texcoord0, VertexAttributeType::SFloat32x2);
         auto tpl = material->GetLibrary().FindMaterialTemplate("", attribute);
         assert(tpl);
         gcb.BindMaterial(*material, *tpl);
@@ -173,15 +176,17 @@ int main(int argc, char **argv) {
     };
     auto depth = RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Depth Attachment");
     desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R8G8B8A8UNorm;
-    auto color_1 = RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Color Attachment (Position)");
-    auto color_2 = RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Color Attachment (Vertex color)");
-    auto color_3 = RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Color Attachment (Normal)");
-    auto color_4 = RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Color Attachment (Texcoord)");
+    std::array colors {
+        RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Color Attachment (Position)"),
+        RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Color Attachment (Vertex color)"),
+        RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Color Attachment (Normal)"),
+        RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Color Attachment (Texcoord)")
+    };
 
     auto asys = cmc->GetAssetManager();
 
     RenderGraph rg{BuildRenderGraph(
-        rsys.get(), color_1.get(), color_2.get(), color_3.get(), color_4.get(), depth.get(), test_material_instance.get(), &test_mesh)
+        rsys.get(), colors[0].get(), colors[1].get(), colors[2].get(), colors[3].get(), depth.get(), test_material_instance.get(), &test_mesh)
     };
 
     bool quited = false;
@@ -204,30 +209,20 @@ int main(int argc, char **argv) {
         rsys->GetFrameManager().GetSubmissionHelper().EnqueueVertexBufferSubmission(test_mesh);
 
         auto index = rsys->StartFrame();
+
+        // Test readback on the next color attachment for fixed layout
+        auto buf = rsys->GetFrameManager().EnqueuePostGraphicsImageReadback(
+            *colors[(color + 1) % 4], 0, 0
+        );
+
+        rg.AddExternalOutputDependency(*colors[(color + 1) % 4], AccessHelper::ImageAccessType::TransferRead);
         rg.Execute();
 
-        vk::Image to_be_present;
-        switch(color) {
-            case 0:
-                to_be_present = color_1->GetImage();
-                break;
-            case 1:
-                to_be_present = color_2->GetImage();
-                break;
-            case 2:
-                to_be_present = color_3->GetImage();
-                break;
-            default:
-                to_be_present = color_4->GetImage();
-                break;
-        }
-
-        rsys->GetFrameManager().StageBlitComposition(
-            to_be_present,
-            vk::Extent2D{color_1->GetTextureDescription().width, color_1->GetTextureDescription().height},
-            rsys->GetSwapchain().GetExtent()
+        rsys->CompleteFrame(
+            *colors[color],
+            colors[color]->GetTextureDescription().width, 
+            colors[color]->GetTextureDescription().height
         );
-        rsys->CompleteFrame();
 
         SDL_Delay(10);
 

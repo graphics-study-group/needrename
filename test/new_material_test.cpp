@@ -258,12 +258,12 @@ int main(int argc, char **argv) {
         } else {
             nonblur.Execute();
         }
-        rsys->GetFrameManager().StageBlitComposition(
-            has_gaussian_blur ? postproc->GetImage() : color->GetImage(),
-            vk::Extent2D{postproc->GetTextureDescription().width, postproc->GetTextureDescription().height},
-            rsys->GetSwapchain().GetExtent()
+
+        rsys->CompleteFrame(
+            has_gaussian_blur ? *postproc : *color,
+            postproc->GetTextureDescription().width, 
+            postproc->GetTextureDescription().height
         );
-        rsys->CompleteFrame();
 
         SDL_Delay(10);
 
