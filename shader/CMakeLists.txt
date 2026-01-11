@@ -6,7 +6,8 @@ else()
 endif()
 
 file(GLOB_RECURSE GLSL_SOURCE_FILES
-    "*.frag" "*.vert" "*.comp"
+    # "*.frag" "*.vert" "*.comp"
+    "skybox.*"
 )
 
 foreach(GLSL ${GLSL_SOURCE_FILES})
@@ -36,5 +37,5 @@ add_custom_target(
 set_target_properties(
     shader
     PROPERTIES ADDITIONAL_CLEAN_FILES
-    ${SPIRV_BINARY_FILES}
+    "${SPIRV_BINARY_FILES}"
 )
