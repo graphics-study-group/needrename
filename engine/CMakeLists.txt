@@ -40,6 +40,8 @@ add_library(engine SHARED
     $<TARGET_OBJECTS:EngineLibUserInterface>
 )
 
+add_dependencies(engine shader)
+
 # Widely used dependencies such as SDL and Vulkan are marked as public
 target_link_libraries(engine
     PUBLIC

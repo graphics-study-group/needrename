@@ -1,15 +1,20 @@
 {
     "%data": {
         "&0": {
-            "%extra_data_id": 0,
             "%type": "Engine::ShaderAsset",
             "Asset::m_guid": "6F507D1CAEE04798BBC61BB30BE818DF",
-            "ShaderAsset::m_name": "bloom.comp.spv",
+            "ShaderAsset::m_name": "bloom.comp",
             "ShaderAsset::m_entry_point": "main",
-            "ShaderAsset::shaderType": "Compute"
+            "ShaderAsset::shaderType": "Compute",
+            "ShaderAsset::storeType": "GLSL",
+            "glsl_extra_data_id": 0,
+            "binary_extra_data_id": 1
         }
     },
     "%extra_data": [
+        {
+            "%extension": ".glsl"
+        },
         {
             "%extension": ".spv"
         }
