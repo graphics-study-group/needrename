@@ -1,7 +1,7 @@
 #include "ComputeStage.h"
 
 #include "Asset/AssetRef.h"
-#include "Asset/Material/ShaderAsset.h"
+#include "Asset/Shader/ShaderAsset.h"
 #include "Render/Memory/Buffer.h"
 #include "Render/DebugUtils.h"
 #include "Render/RenderSystem.h"

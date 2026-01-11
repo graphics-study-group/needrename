@@ -3,7 +3,7 @@
 
 /** Structures holding information with regards to VkPipeline etc. */
 
-#include "Asset/Material/ShaderAsset.h"
+#include "Asset/Shader/ShaderAsset.h"
 #include <any>
 #include <vector>
 #include <vulkan/vulkan.hpp>
