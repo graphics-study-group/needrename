@@ -2,7 +2,7 @@
 #define ASSET_MATERIAL_MATERIALASSET_INCLUDED
 
 #include <Asset/Asset.h>
-#include <Asset/Material/ShaderAsset.h>
+#include <Asset/Shader/ShaderAsset.h>
 #include <Reflection/macros.h>
 #include <Reflection/serialization_smart_pointer.h>
 #include <Reflection/serialization_unordered_map.h>

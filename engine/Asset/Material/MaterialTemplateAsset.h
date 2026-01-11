@@ -4,7 +4,7 @@
 #include <Asset/Asset.h>
 #include <Asset/AssetRef.h>
 #include <Asset/Material/PipelineProperty.h>
-#include <Asset/Material/ShaderAsset.h>
+#include <Asset/Shader/ShaderAsset.h>
 #include <Reflection/macros.h>
 #include <Reflection/serialization_smart_pointer.h>
 #include <Reflection/serialization_unordered_map.h>
