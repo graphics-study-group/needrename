@@ -135,19 +135,12 @@ namespace Engine::ShaderCompiler {
         TBuiltInResource resources = DefaultTBuiltInResource;
         Engine::ShaderIncluder includer;
         EShMessages messages = (EShMessages)(EShMsgSpvRules | EShMsgVulkanRules);
-        try {
-            if (!shader.parse(&resources, 100, false, messages, includer)) {
-                SDL_LogError(
-                    SDL_LOG_CATEGORY_APPLICATION,
-                    "GLSL Parsing Failed:\n%s\n%s\n",
-                    shader.getInfoLog(),
-                    shader.getInfoDebugLog()
-                );
-                return false;
-            }
-        } catch (const std::bad_alloc &e) {
+        if (!shader.parse(&resources, 100, false, messages, includer)) {
             SDL_LogError(
-                SDL_LOG_CATEGORY_APPLICATION, "GLSL Compilation Failed: Memory allocation error: %s\n", e.what()
+                SDL_LOG_CATEGORY_APPLICATION,
+                "GLSL Parsing Failed:\n%s\n%s\n",
+                shader.getInfoLog(),
+                shader.getInfoDebugLog()
             );
             return false;
         }
