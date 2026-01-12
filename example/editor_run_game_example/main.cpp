@@ -222,10 +222,11 @@ int main() {
 
         cb.End();
         rsys->GetFrameManager().SubmitMainCommandBuffer();
-        rsys->GetFrameManager().StageBlitComposition(
-            window->GetColorTexture().GetImage(), window->GetExtent(), window->GetExtent()
+        rsys->CompleteFrame(
+            window->GetColorTexture(),
+            window->GetExtent().width,
+            window->GetExtent().height
         );
-        rsys->CompleteFrame();
     }
     rsys->WaitForIdle();
 

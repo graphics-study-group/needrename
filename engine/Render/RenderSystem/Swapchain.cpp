@@ -4,14 +4,12 @@
 #include <vulkan/vulkan.hpp>
 
 namespace {
-    std::tuple<vk::Extent2D, vk::SurfaceFormatKHR, vk::PresentModeKHR> SelectSwapchainConfig(
-        const Engine::RenderSystemState::SwapchainSupport &support, vk::Extent2D expected_extent
+
+    vk::SurfaceFormatKHR SelectSwapchainFormat(
+        const std::vector<vk::SurfaceFormatKHR> & formats
     ) {
-        assert(!support.formats.empty());
-        assert(!support.modes.empty());
-        // Select surface format
         vk::SurfaceFormatKHR pickedFormat{};
-        for (const auto &format : support.formats) {
+        for (const auto &format : formats) {
             if (format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear) {
                 // Select R8G8B8A8 SRGB first
                 if (format.format == vk::Format::eR8G8B8A8Srgb) {
@@ -41,9 +39,15 @@ namespace {
                 "B8G8R8A8. Blue and red channels may appear swapped."
             );
         }
+        return pickedFormat;
+    }
+
+    vk::PresentModeKHR SelectPresentMode(
+        const std::vector<vk::PresentModeKHR> & modes
+    ) {
         // Select display mode
         vk::PresentModeKHR pickedMode = vk::PresentModeKHR::eFifo;
-        for (const auto &mode : support.modes) {
+        for (const auto &mode : modes) {
             if (mode == vk::PresentModeKHR::eMailbox) {
                 pickedMode = mode;
                 break;
@@ -52,26 +56,31 @@ namespace {
         if (pickedMode == vk::PresentModeKHR::eFifo) {
             SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Mailbox mode not supported, fall back to FIFO.");
         }
+        return pickedMode;
+    }
 
+    vk::Extent2D SelectSwapchainExtent(
+        const vk::SurfaceCapabilitiesKHR & caps,
+        vk::Extent2D expected_extent
+    ) {
         // Measure extent
         vk::Extent2D extent{};
-        if (support.capabilities.currentExtent.height != std::numeric_limits<uint32_t>::max()) {
-            extent = support.capabilities.currentExtent;
+        if (caps.currentExtent.height != std::numeric_limits<uint32_t>::max()) {
+            extent = caps.currentExtent;
         } else {
             extent = expected_extent;
-
             extent.width = std::clamp(
-                extent.width, support.capabilities.minImageExtent.width, support.capabilities.maxImageExtent.width
+                extent.width, caps.minImageExtent.width, caps.maxImageExtent.width
             );
             extent.height = std::clamp(
-                extent.height, support.capabilities.minImageExtent.height, support.capabilities.maxImageExtent.height
+                extent.height, caps.minImageExtent.height, caps.maxImageExtent.height
             );
 
             if (extent.width != expected_extent.width || extent.height != expected_extent.height) {
                 SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Swapchain extent clamped to (%u, %u).", extent.width, extent.height);
             }
         }
-        return std::make_tuple(extent, pickedFormat, pickedMode);
+        return extent;
     }
 }
 
@@ -81,7 +90,9 @@ namespace Engine::RenderSystemState {
         vk::Extent2D expected_extent
     ) {
         const auto swapchain_support = interface.GetSwapchainSupport();
-        const auto [extent, format, mode] = SelectSwapchainConfig(swapchain_support, expected_extent);
+        const auto extent = SelectSwapchainExtent(swapchain_support.capabilities, expected_extent);
+        const auto format = SelectSwapchainFormat(swapchain_support.formats);
+        const auto mode = SelectPresentMode(swapchain_support.modes);
 
         uint32_t image_count = swapchain_support.capabilities.minImageCount + 1;
         if (swapchain_support.capabilities.maxImageCount > 0
@@ -116,12 +127,18 @@ namespace Engine::RenderSystemState {
             info.oldSwapchain = nullptr;
         }
 
-        auto indices = interface.GetQueueFamilies();
-        std::vector<uint32_t> queues{indices.graphics.value(), indices.present.value()};
-        if (indices.graphics != indices.present) {
+        auto graphics_index = interface.GetQueueFamily(DeviceInterface::QueueFamilyType::GraphicsMain).value();
+        std::array indices{
+            graphics_index,
+            interface.GetQueueFamily(DeviceInterface::QueueFamilyType::GraphicsPresent).value(),
+            interface.GetQueueFamily(DeviceInterface::QueueFamilyType::AsynchronousComputePresent).value_or(graphics_index),
+        };
+        std::ranges::sort(indices);
+        auto [ret, last] = std::ranges::unique(indices);
+        if (std::distance(indices.begin(), ret) > 1) {
             info.imageSharingMode = vk::SharingMode::eConcurrent;
-            info.queueFamilyIndexCount = 2;
-            info.pQueueFamilyIndices = queues.data();
+            info.queueFamilyIndexCount = std::distance(indices.begin(), ret);
+            info.pQueueFamilyIndices = indices.data();
         } else {
             info.imageSharingMode = vk::SharingMode::eExclusive;
         }
@@ -148,5 +165,35 @@ namespace Engine::RenderSystemState {
 
     uint32_t Swapchain::GetFrameCount() const {
         return m_images.size();
+    }
+    vk::ImageMemoryBarrier2 Swapchain::GetPreCopyBarrier(uint32_t framebuffer) const noexcept {
+        assert(framebuffer < m_images.size());
+        return vk::ImageMemoryBarrier2{
+            vk::PipelineStageFlagBits2::eAllTransfer,
+            vk::AccessFlagBits2::eNone, // > Set up execution dep instead of memory dep.
+            vk::PipelineStageFlagBits2::eAllTransfer,
+            vk::AccessFlagBits2::eTransferWrite,
+            vk::ImageLayout::eUndefined,
+            vk::ImageLayout::eTransferDstOptimal,
+            vk::QueueFamilyIgnored,
+            vk::QueueFamilyIgnored,
+            m_images[framebuffer],
+            vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}
+        };
+    }
+    vk::ImageMemoryBarrier2 Swapchain::GetPostCopyBarrier(uint32_t framebuffer) const noexcept {
+        assert(framebuffer < m_images.size());
+        return vk::ImageMemoryBarrier2{
+            vk::PipelineStageFlagBits2::eAllTransfer,
+            vk::AccessFlagBits2::eTransferWrite,
+            vk::PipelineStageFlagBits2::eHost,
+            vk::AccessFlagBits2::eMemoryRead,
+            vk::ImageLayout::eTransferDstOptimal,
+            vk::ImageLayout::ePresentSrcKHR,
+            vk::QueueFamilyIgnored,
+            vk::QueueFamilyIgnored,
+            m_images[framebuffer],
+            vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}
+        };
     }
 } // namespace Engine::RenderSystemState

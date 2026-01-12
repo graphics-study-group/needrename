@@ -5,25 +5,31 @@
 #include <queue>
 #include <vector>
 
-#include "Render/RenderSystem/FrameManagerComponent.h"
-
 namespace Engine {
+    class RenderSystem;
     class Texture;
+    class Buffer;
     class HomogeneousMesh;
 
     namespace RenderSystemState {
         /// @brief A helper for submitting data to GPU.
         /// Used in `FrameManager`.
-        class SubmissionHelper final : public IFrameManagerComponent {
+        class SubmissionHelper {
             using CmdOperation = std::function<void(vk::CommandBuffer)>;
 
         private:
+            RenderSystem & m_system;
             struct impl;
             std::unique_ptr<impl> pimpl;
 
         public:
             SubmissionHelper(RenderSystem &system);
             virtual ~SubmissionHelper();
+
+            /**
+             * @brief Enqueue a buffer uploading.
+             */
+            void EnqueueBufferSubmission(const Buffer & buffer, std::vector<std::byte> && data);
 
             /***
              * @brief Enqueue a vertex buffer uploading.
@@ -82,14 +88,14 @@ namespace Engine {
              */
             void ExecuteSubmission();
 
-            void OnPreMainCbSubmission() override;
+            void OnPreMainCbSubmission();
 
             /***
              * @brief Complete the frame. Wait for execution of the disposable command buffer,
              * de-allocate staging buffers,
              * reset the fence, and remove the command buffer.
              */
-            void OnFrameComplete() override;
+            void OnFrameComplete();
         };
     } // namespace RenderSystemState
 } // namespace Engine

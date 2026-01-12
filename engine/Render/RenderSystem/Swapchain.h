@@ -35,6 +35,18 @@ namespace Engine {
             vk::Extent2D GetExtent() const;
 
             uint32_t GetFrameCount() const;
+
+            /**
+             * @brief Get a barrier that transit the state of the given framebuffer
+             * before the copy or blitting command.
+             */
+            vk::ImageMemoryBarrier2 GetPreCopyBarrier(uint32_t framebuffer) const noexcept;
+
+            /**
+             * @brief Get a barrier that transit the state of the given framebuffer
+             * after the copy or blitting command.
+             */
+            vk::ImageMemoryBarrier2 GetPostCopyBarrier(uint32_t framebuffer) const noexcept;
         };
     } // namespace RenderSystemState
 } // namespace Engine

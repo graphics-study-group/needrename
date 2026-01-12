@@ -2,11 +2,12 @@
 
 #include "Render/Memory/Buffer.h"
 #include "Render/Memory/Texture.h"
-#include "Render/Pipeline/CommandBuffer/BufferTransferHelper.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/Structs.h"
 #include "Render/RenderSystem/DeviceInterface.h"
 #include "Render/Renderer/HomogeneousMesh.h"
+
+#include "Render/RenderSystem/FrameSemaphore.hpp"
 
 #include "Render/DebugUtils.h"
 
@@ -20,7 +21,7 @@ namespace {
         TextureClearAfter
     };
 
-    std::pair<vk::PipelineStageFlags2, vk::AccessFlags2> GetScope1(TextureTransferType type) {
+    std::pair<vk::PipelineStageFlags2, vk::AccessFlags2> GetScope1Image(TextureTransferType type) {
         using enum TextureTransferType;
         switch (type) {
         case TextureUploadBefore:
@@ -32,7 +33,7 @@ namespace {
         }
         __builtin_unreachable();
     }
-    std::pair<vk::PipelineStageFlags2, vk::AccessFlags2> GetScope2(TextureTransferType type) {
+    std::pair<vk::PipelineStageFlags2, vk::AccessFlags2> GetScope2Image(TextureTransferType type) {
         using enum TextureTransferType;
         switch (type) {
         case TextureUploadBefore:
@@ -58,7 +59,7 @@ namespace {
     }
 
     vk::ImageMemoryBarrier2 GetTextureBarrier(TextureTransferType type, vk::Image image, vk::ImageAspectFlags aspect) {
-        auto [scope1, scope2, layouts] = std::tuple{GetScope1(type), GetScope2(type), GetLayouts(type)};
+        auto [scope1, scope2, layouts] = std::tuple{GetScope1Image(type), GetScope2Image(type), GetLayouts(type)};
         vk::ImageSubresourceRange subresource{
             aspect, 0, vk::RemainingMipLevels, 0, vk::RemainingArrayLayers
         };
@@ -76,6 +77,75 @@ namespace {
         };
         return barrier;
     }
+
+    enum class BufferTransferType {
+        // Barrier before writing to a vertex buffer.
+        VertexBefore,
+        // Barrier after writing to a vertex buffer.
+        VertexAfter,
+        // General transfer to a unknown buffer
+        GeneralTransferBefore,
+        // General transfer to a unknown buffer
+        GeneralTransferAfter
+    };
+
+    std::pair<vk::PipelineStageFlagBits2, vk::AccessFlags2> GetScope1Buffer(BufferTransferType type) {
+        switch (type) {
+        case BufferTransferType::VertexBefore:
+            return std::make_pair(
+                vk::PipelineStageFlagBits2::eVertexInput,
+                vk::AccessFlagBits2::eVertexAttributeRead | vk::AccessFlagBits2::eIndexRead
+            );
+        case BufferTransferType::VertexAfter:
+            return std::make_pair(vk::PipelineStageFlagBits2::eTransfer, vk::AccessFlagBits2::eTransferWrite);
+        case BufferTransferType::GeneralTransferBefore:
+            return std::make_pair(
+                vk::PipelineStageFlagBits2::eAllCommands,
+                vk::AccessFlagBits2::eMemoryRead | vk::AccessFlagBits2::eMemoryWrite
+            );
+        case BufferTransferType::GeneralTransferAfter:
+            return std::make_pair(
+                vk::PipelineStageFlagBits2::eCopy,
+                vk::AccessFlagBits2::eTransferWrite
+            );
+        default:
+            assert(false && "Unexpected buffer transfer type.");
+            return std::make_pair(vk::PipelineStageFlagBits2::eNone, vk::AccessFlagBits2::eNone);
+        }
+    }
+    std::pair<vk::PipelineStageFlagBits2, vk::AccessFlags2> GetScope2Buffer(BufferTransferType type) {
+        switch (type) {
+        case BufferTransferType::VertexBefore:
+            return std::make_pair(vk::PipelineStageFlagBits2::eTransfer, vk::AccessFlagBits2::eTransferWrite);
+        case BufferTransferType::VertexAfter:
+            return std::make_pair(
+                vk::PipelineStageFlagBits2::eVertexInput,
+                vk::AccessFlagBits2::eVertexAttributeRead | vk::AccessFlagBits2::eIndexRead
+            );
+        case BufferTransferType::GeneralTransferBefore:
+            return std::make_pair(
+                vk::PipelineStageFlagBits2::eCopy,
+                vk::AccessFlagBits2::eTransferWrite
+            );
+        case BufferTransferType::GeneralTransferAfter:
+            return std::make_pair(
+                vk::PipelineStageFlagBits2::eAllCommands,
+                vk::AccessFlagBits2::eMemoryRead | vk::AccessFlagBits2::eMemoryWrite
+            );
+        default:
+            assert(false && "Unexpected buffer transfer type.");
+            return std::make_pair(vk::PipelineStageFlagBits2::eNone, vk::AccessFlagBits2::eNone);
+        }
+    }
+
+    vk::MemoryBarrier2 GetBufferBarrier(BufferTransferType type) {
+        return vk::MemoryBarrier2{
+            GetScope1Buffer(type).first,
+            GetScope1Buffer(type).second,
+            GetScope2Buffer(type).first,
+            GetScope2Buffer(type).second
+        };
+    }
 }
 
 namespace Engine::RenderSystemState {
@@ -87,7 +157,7 @@ namespace Engine::RenderSystemState {
         vk::UniqueFence m_completion_fence{};
     };
 
-    SubmissionHelper::SubmissionHelper(RenderSystem &system) : IFrameManagerComponent(system), pimpl(std::make_unique<impl>()) {
+    SubmissionHelper::SubmissionHelper(RenderSystem &system) : m_system(system), pimpl(std::make_unique<impl>()) {
         // Pre-allocate a fence
         vk::FenceCreateInfo fcinfo{};
         pimpl->m_completion_fence = system.GetDevice().createFenceUnique(fcinfo);
@@ -95,10 +165,51 @@ namespace Engine::RenderSystemState {
 
     SubmissionHelper::~SubmissionHelper() = default;
 
+    void SubmissionHelper::EnqueueBufferSubmission(const Buffer &buffer, std::vector<std::byte> &&data) {
+        assert(data.size() >= buffer.GetSize());
+
+        auto enqueued = [data = std::move(data), &buffer, this](vk::CommandBuffer cb) {
+            auto staging_buffer = Buffer::Create(
+                this->m_system.GetAllocatorState(),
+                AllocatorState::BufferType::Staging,
+                buffer.GetSize(),
+                "Staging buffer"
+            );
+            std::memcpy(staging_buffer.GetVMAddress(), data.data(), sizeof(buffer.GetSize()));
+
+            auto mbarrier = GetBufferBarrier(BufferTransferType::GeneralTransferBefore);
+            std::array<vk::BufferMemoryBarrier2, 1> barriers{};
+            barriers[0] = {
+                mbarrier.srcStageMask, mbarrier.srcAccessMask,
+                mbarrier.dstStageMask, mbarrier.dstAccessMask,
+                vk::QueueFamilyIgnored, vk::QueueFamilyIgnored,
+                buffer.GetBuffer(),
+                buffer.GetSize()
+            };
+            
+            cb.pipelineBarrier2(vk::DependencyInfo{{}, {}, barriers, {}});
+            vk::BufferCopy copy{0, 0, static_cast<vk::DeviceSize>(buffer.GetSize())};
+            cb.copyBuffer(staging_buffer.GetBuffer(), buffer.GetBuffer(), {copy});
+
+            mbarrier = GetBufferBarrier(BufferTransferType::GeneralTransferAfter);
+            barriers[0] = {
+                mbarrier.srcStageMask, mbarrier.srcAccessMask,
+                mbarrier.dstStageMask, mbarrier.dstAccessMask,
+                vk::QueueFamilyIgnored, vk::QueueFamilyIgnored,
+                buffer.GetBuffer(),
+                buffer.GetSize()
+            };
+            cb.pipelineBarrier2(vk::DependencyInfo{{}, {}, barriers, {}});
+
+            pimpl->m_pending_dellocations.push_back(std::move(staging_buffer));
+        };
+        pimpl->m_pending_operations.push(enqueued);
+    }
+
     void SubmissionHelper::EnqueueVertexBufferSubmission(const HomogeneousMesh &mesh) {
         auto enqueued = [&mesh, this](vk::CommandBuffer cb) {
             std::array<vk::MemoryBarrier2, 1> barriers = {
-                BufferTransferHelper::GetBufferBarrier(BufferTransferHelper::BufferTransferType::VertexBefore)
+                GetBufferBarrier(BufferTransferType::VertexBefore)
             };
             cb.pipelineBarrier2(vk::DependencyInfo{{}, barriers, {}, {}});
 
@@ -106,7 +217,7 @@ namespace Engine::RenderSystemState {
             vk::BufferCopy copy{0, 0, static_cast<vk::DeviceSize>(mesh.GetExpectedBufferSize())};
             cb.copyBuffer(buffer.GetBuffer(), mesh.GetBuffer().GetBuffer(), {copy});
 
-            barriers[0] = BufferTransferHelper::GetBufferBarrier(BufferTransferHelper::BufferTransferType::VertexAfter);
+            barriers[0] = GetBufferBarrier(BufferTransferType::VertexAfter);
             cb.pipelineBarrier2(vk::DependencyInfo{{}, barriers, {}, {}});
             pimpl->m_pending_dellocations.push_back(std::move(buffer));
         };
@@ -220,7 +331,18 @@ namespace Engine::RenderSystemState {
     }
 
     void SubmissionHelper::ExecuteSubmission() {
-        if (pimpl->m_pending_operations.empty()) return;
+        auto & frame_semaphore = m_system.GetFrameManager().GetFrameSemaphore();
+        if (pimpl->m_pending_operations.empty()) {
+            // We do not need to worry about synchronization too much
+            // as timeline semaphores are guaranteed to be monotonically increasing.
+            m_system.GetDevice().signalSemaphore(
+                vk::SemaphoreSignalInfo{
+                    frame_semaphore.timeline_semaphore.get(),
+                    frame_semaphore.GetTimepointValue(FrameSemaphore::TimePoint::PreTransferFinished)
+                }
+            );
+            return;
+        }
 
         // Allocate one-time command buffer
         const auto & queue_info = m_system.GetDeviceInterface().GetQueueInfo();
@@ -246,9 +368,12 @@ namespace Engine::RenderSystemState {
         DEBUG_CMD_END_LABEL(pimpl->m_one_time_cb.get());
         pimpl->m_one_time_cb->end();
 
-        std::array<vk::CommandBuffer, 1> submitted_cb = {pimpl->m_one_time_cb.get()};
-        std::array<vk::SubmitInfo, 1> sinfos = {vk::SubmitInfo{{}, {}, submitted_cb, {}}};
-        queue_info.graphicsQueue.submit(sinfos, {pimpl->m_completion_fence.get()});
+        vk::SemaphoreSubmitInfo wait_info{}, signal_info{};
+        wait_info = frame_semaphore.GetSubmitInfo(FrameSemaphore::TimePoint::Pending, vk::PipelineStageFlagBits2::eAllCommands);
+        signal_info = frame_semaphore.GetSubmitInfo(FrameSemaphore::TimePoint::PreTransferFinished, vk::PipelineStageFlagBits2::eAllTransfer);
+        vk::CommandBufferSubmitInfo cbsinfo{pimpl->m_one_time_cb.get()};
+        vk::SubmitInfo2 sinfo{vk::SubmitFlags{}, {wait_info}, {cbsinfo}, {signal_info}};
+        queue_info.graphicsQueue.submit2(sinfo, pimpl->m_completion_fence.get());
     }
 
     void SubmissionHelper::OnPreMainCbSubmission()
@@ -258,7 +383,7 @@ namespace Engine::RenderSystemState {
 
     void SubmissionHelper::OnFrameComplete() {
         if (!pimpl->m_one_time_cb) return;
-
+        // Is this fence wait actually needed?
         auto wfresult = m_system.GetDevice().waitForFences(
             {pimpl->m_completion_fence.get()}, true, std::numeric_limits<uint64_t>::max()
         );

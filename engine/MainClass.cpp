@@ -215,9 +215,10 @@ namespace Engine {
 
         cb.End();
         this->renderer->GetFrameManager().SubmitMainCommandBuffer();
-        this->renderer->GetFrameManager().StageBlitComposition(
-            this->window->GetColorTexture().GetImage(), this->window->GetExtent(), this->window->GetExtent()
+        this->renderer->CompleteFrame(
+            this->window->GetColorTexture(),
+            this->window->GetExtent().width,
+            this->window->GetExtent().height
         );
-        this->renderer->CompleteFrame();
     }
 } // namespace Engine

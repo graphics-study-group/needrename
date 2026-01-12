@@ -22,6 +22,12 @@ namespace Engine::RenderSystemState {
             case BufferType::Staging:
                 return std::make_tuple(
                     vk::BufferUsageFlagBits::eTransferSrc,
+                    VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
+                    VMA_MEMORY_USAGE_AUTO_PREFER_HOST
+                );
+            case BufferType::Readback:
+                return std::make_tuple(
+                    vk::BufferUsageFlagBits::eTransferDst,
                     VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT,
                     VMA_MEMORY_USAGE_AUTO_PREFER_HOST
                 );

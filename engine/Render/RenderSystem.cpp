@@ -91,6 +91,18 @@ namespace Engine {
         std::cerr << "Render system deconstructed" << std::endl;
     }
 
+    void RenderSystem::CompleteFrame(
+        const RenderTargetTexture &present_texture, uint32_t width, uint32_t height, uint32_t offset_x, uint32_t offset_y
+    ) {
+        if (pimpl->m_frame_manager.PresentToFramebuffer(
+            present_texture.GetImage(),
+            {width, height},
+            {(int32_t)offset_x, (int32_t)offset_y}
+        )) {
+            this->UpdateSwapchain();
+        }
+    }
+
     vk::Device RenderSystem::GetDevice() const {
         return pimpl->m_device_interface->GetDevice();
     }
@@ -128,12 +140,6 @@ namespace Engine {
 
     RenderSystemState::SceneDataManager &RenderSystem::GetSceneDataManager() {
         return pimpl->m_scene_data_manager;
-    }
-
-    void RenderSystem::CompleteFrame() {
-        if (pimpl->m_frame_manager.CompositeToFramebufferAndPresent()) {
-            this->UpdateSwapchain();
-        }
     }
 
     void RenderSystem::WaitForIdle() const {
