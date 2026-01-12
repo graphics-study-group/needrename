@@ -186,7 +186,7 @@ namespace Engine::RenderSystemState {
         return vk::ImageMemoryBarrier2{
             vk::PipelineStageFlagBits2::eAllTransfer,
             vk::AccessFlagBits2::eTransferWrite,
-            vk::PipelineStageFlagBits2::eHost,
+            vk::PipelineStageFlagBits2::eAllCommands,
             vk::AccessFlagBits2::eMemoryRead,
             vk::ImageLayout::eTransferDstOptimal,
             vk::ImageLayout::ePresentSrcKHR,

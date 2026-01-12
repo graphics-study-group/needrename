@@ -35,7 +35,7 @@ namespace Engine {
                     RegisterTexture(texture, std::make_tuple(vk::PipelineStageFlagBits2::eNone, vk::AccessFlagBits2::eNone, vk::ImageLayout::eUndefined));
                 }
 
-                std::swap(m_memo[texture], new_access_tuple);
+                m_memo[texture] = new_access_tuple;
             };
 
             AccessTuple GetAccessTuple(const Texture *texture) const noexcept {
