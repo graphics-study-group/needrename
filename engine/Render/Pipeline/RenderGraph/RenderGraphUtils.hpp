@@ -9,8 +9,12 @@
 
 namespace Engine {
     namespace RenderGraphImpl {
+
+        using GeneralAccessTuple = std::tuple<vk::PipelineStageFlags2, vk::AccessFlags2>;
+        using ImageAccessTuple = std::tuple<vk::PipelineStageFlags2, vk::AccessFlags2, vk::ImageLayout>;
+
         struct TextureAccessMemo {
-            using AccessTuple = std::tuple<vk::PipelineStageFlags2, vk::AccessFlags2, vk::ImageLayout>;
+            using AccessTuple = ImageAccessTuple;
             std::unordered_map<const Texture *, AccessTuple> m_memo;
             std::unordered_map<const Texture *, AccessTuple> m_initial_access;
 
@@ -38,13 +42,26 @@ namespace Engine {
                 m_memo[texture] = new_access_tuple;
             };
 
-            AccessTuple GetAccessTuple(const Texture *texture) const noexcept {
-                assert(m_memo.contains(texture));
+            AccessTuple GetAccessTuple(const Texture *texture) noexcept {
+                if (!m_memo.contains(texture)) {
+                    SDL_LogWarn(
+                        SDL_LOG_CATEGORY_RENDER,
+                        "Texture %p is not registered, defaulting to none.",
+                        static_cast<const void *>(texture)
+                    );
+
+                    RegisterTexture(texture, std::make_tuple(vk::PipelineStageFlagBits2::eNone, vk::AccessFlagBits2::eNone, vk::ImageLayout::eUndefined));
+                }
                 return m_memo.at(texture);
             }
         };
 
-        vk::ImageMemoryBarrier2 GetImageBarrier(Texture &texture,
+        struct RenderGraphExtraInfo {
+            std::unordered_map<const Texture *, ImageAccessTuple> m_initial_image_access;
+            std::unordered_map<const Texture *, ImageAccessTuple> m_final_image_access;
+        };
+
+        inline vk::ImageMemoryBarrier2 GetImageBarrier(Texture &texture,
             TextureAccessMemo::AccessTuple old_access,
             TextureAccessMemo::AccessTuple new_access) noexcept {
             vk::ImageMemoryBarrier2 barrier{};
@@ -70,7 +87,7 @@ namespace Engine {
             return barrier;
         }
 
-        vk::BufferMemoryBarrier2 GetBufferBarrier(
+        inline vk::BufferMemoryBarrier2 GetBufferBarrier(
             Buffer &buffer [[maybe_unused]],
             AccessHelper::BufferAccessType old_access [[maybe_unused]],
             AccessHelper::BufferAccessType new_access [[maybe_unused]]

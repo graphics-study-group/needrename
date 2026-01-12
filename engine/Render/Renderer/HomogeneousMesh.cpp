@@ -178,6 +178,8 @@ namespace Engine {
                         m_attribute.GetPerVertexSize(semantic) * GetVertexCount()
                     );
                     break;
+                default:
+                    assert(!"Unimplemented");
                 }
             }
         }

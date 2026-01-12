@@ -456,6 +456,8 @@ namespace Engine::RenderSystemState {
             case AsynchronousTransfer:
                 return pimpl->queue_families.async_transfer;
         }
+        __builtin_unreachable();
+        return std::nullopt;
     }
     uint32_t DeviceInterface::QueryLimit(PhysicalDeviceLimitInteger limit) const {
         switch(limit) {
@@ -475,6 +477,7 @@ namespace Engine::RenderSystemState {
             case AsyncTransferImageGranularityDepth:
                 return std::get<2>(pimpl->queue_families.async_transfer_granularity);
         }
+        __builtin_unreachable();
         return 0;
     }
     float DeviceInterface::QueryLimit(PhysicalDeviceLimitFloat limit) const {

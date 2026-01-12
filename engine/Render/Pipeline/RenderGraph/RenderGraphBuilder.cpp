@@ -4,6 +4,7 @@
 #include "Render/Pipeline/CommandBuffer/AccessHelperFuncs.h"
 #include "Render/Pipeline/RenderGraph/RenderGraph.h"
 #include "Render/Pipeline/RenderGraph/RenderGraphUtils.hpp"
+#include "Render/Pipeline/RenderGraph/RenderGraphTask.hpp"
 #include <SDL3/SDL.h>
 #include <unordered_map>
 #include <vulkan/vulkan.hpp>
@@ -12,7 +13,7 @@ namespace Engine {
     struct RenderGraphBuilder::impl {
         std::vector<vk::ImageMemoryBarrier2> m_image_barriers{};
         std::vector<vk::BufferMemoryBarrier2> m_buffer_barriers{};
-        std::vector<std::function<void(vk::CommandBuffer)>> m_commands{};
+        std::vector<RenderGraphImpl::Task> m_tasks{};
 
         RenderGraphImpl::TextureAccessMemo m_memo;
     };
@@ -44,20 +45,18 @@ namespace Engine {
     }
     void RenderGraphBuilder::RecordRasterizerPassWithoutRT(std::function<void(GraphicsCommandBuffer &)> pass) {
         std::function<void(vk::CommandBuffer)> f = [system = &this->m_system,
-                                                    pass,
-                                                    bb = std::move(pimpl->m_buffer_barriers),
-                                                    ib = std::move(pimpl->m_image_barriers)](vk::CommandBuffer cb) {
-            vk::DependencyInfo dep{vk::DependencyFlags{}, {}, bb, ib};
-            cb.pipelineBarrier2(dep);
+                                                    pass](vk::CommandBuffer cb) {
+
             GraphicsCommandBuffer gcb{*system, cb, system->GetFrameManager().GetFrameInFlight()};
             std::invoke(pass, std::ref(gcb));
         };
-
-        pimpl->m_commands.push_back(f);
-
-        // Get STL containers out of ``valid but unspecified'' states.
-        pimpl->m_buffer_barriers.clear();
-        pimpl->m_image_barriers.clear();
+        this->RecordSynchronization();
+        pimpl->m_tasks.push_back(
+            RenderGraphImpl::Command{
+                RenderGraphImpl::Command::Type::Graphics,
+                f
+            }
+        );
     }
     void RenderGraphBuilder::RecordRasterizerPass(
         AttachmentUtils::AttachmentDescription color,
@@ -104,22 +103,20 @@ namespace Engine {
                                                     pass,
                                                     color,
                                                     depth,
-                                                    name,
-                                                    bb = std::move(pimpl->m_buffer_barriers),
-                                                    ib = std::move(pimpl->m_image_barriers)](vk::CommandBuffer cb) {
-            vk::DependencyInfo dep{vk::DependencyFlags{}, {}, bb, ib};
-            cb.pipelineBarrier2(dep);
+                                                    name](vk::CommandBuffer cb) {
             GraphicsCommandBuffer gcb{*system, cb, system->GetFrameManager().GetFrameInFlight()};
             gcb.BeginRendering(color, depth, system->GetSwapchain().GetExtent(), name);
             std::invoke(pass, std::ref(gcb));
             gcb.EndRendering();
         };
 
-        pimpl->m_commands.push_back(f);
-
-        // Get STL containers out of ``valid but unspecified'' states.
-        pimpl->m_buffer_barriers.clear();
-        pimpl->m_image_barriers.clear();
+        this->RecordSynchronization();
+        pimpl->m_tasks.push_back(
+            RenderGraphImpl::Command{
+                RenderGraphImpl::Command::Type::Graphics,
+                f
+            }
+        );
     }
 
     void RenderGraphBuilder::RecordRasterizerPass(
@@ -154,89 +151,97 @@ namespace Engine {
                                                     pass,
                                                     &colors,
                                                     depth,
-                                                    name,
-                                                    bb = std::move(pimpl->m_buffer_barriers),
-                                                    ib = std::move(pimpl->m_image_barriers)](vk::CommandBuffer cb) {
-            vk::DependencyInfo dep{vk::DependencyFlags{}, {}, bb, ib};
-            cb.pipelineBarrier2(dep);
+                                                    name](vk::CommandBuffer cb) {
+
             GraphicsCommandBuffer gcb{*system, cb, system->GetFrameManager().GetFrameInFlight()};
             gcb.BeginRendering(colors, depth, system->GetSwapchain().GetExtent(), name);
             std::invoke(pass, std::ref(gcb));
             gcb.EndRendering();
         };
-
-        pimpl->m_commands.push_back(f);
-
-        // Get STL containers out of ``valid but unspecified'' states.
-        pimpl->m_buffer_barriers.clear();
-        pimpl->m_image_barriers.clear();
+        this->RecordSynchronization();
+        pimpl->m_tasks.push_back(
+            RenderGraphImpl::Command{
+                RenderGraphImpl::Command::Type::Graphics,
+                f
+            }
+        );
     }
     void RenderGraphBuilder::RecordTransferPass(
         std::function<void(TransferCommandBuffer &)> pass, 
         const std::string & name
     ) {
         std::function<void(vk::CommandBuffer)> f = [pass,
-                                                    name,
-                                                    bb = std::move(pimpl->m_buffer_barriers),
-                                                    ib = std::move(pimpl->m_image_barriers)](vk::CommandBuffer cb) {
-            vk::DependencyInfo dep{vk::DependencyFlags{}, {}, bb, ib};
-            cb.pipelineBarrier2(dep);
+                                                    name](vk::CommandBuffer cb) {
             TransferCommandBuffer tcb{cb};
             tcb.GetCommandBuffer().beginDebugUtilsLabelEXT({(name + " (Transfer)").c_str()});
             std::invoke(pass, std::ref(tcb));
             tcb.GetCommandBuffer().endDebugUtilsLabelEXT();
         };
 
-        pimpl->m_commands.push_back(f);
-
-        // Get STL containers out of ``valid but unspecified'' states.
-        pimpl->m_buffer_barriers.clear();
-        pimpl->m_image_barriers.clear();
+        this->RecordSynchronization();
+        pimpl->m_tasks.push_back(RenderGraphImpl::Command{
+            RenderGraphImpl::Command::Type::Transfer,
+            f
+        });
     }
     void RenderGraphBuilder::RecordComputePass(
         std::function<void(ComputeCommandBuffer &)> pass, const std::string &name
     ) {
         std::function<void(vk::CommandBuffer)> f = [system = &this->m_system,
                                                     pass,
-                                                    name,
-                                                    bb = std::move(pimpl->m_buffer_barriers),
-                                                    ib = std::move(pimpl->m_image_barriers)](vk::CommandBuffer cb) {
-            vk::DependencyInfo dep{vk::DependencyFlags{}, {}, bb, ib};
-            cb.pipelineBarrier2(dep);
+                                                    name](vk::CommandBuffer cb) {
             ComputeCommandBuffer ccb{cb, system->GetFrameManager().GetFrameInFlight()};
             ccb.GetCommandBuffer().beginDebugUtilsLabelEXT({(name + " (Compute)").c_str()});
             std::invoke(pass, std::ref(ccb));
             ccb.GetCommandBuffer().endDebugUtilsLabelEXT();
         };
 
-        pimpl->m_commands.push_back(f);
-
-        // Get STL containers out of ``valid but unspecified'' states.
-        pimpl->m_buffer_barriers.clear();
-        pimpl->m_image_barriers.clear();
+        this->RecordSynchronization();
+        pimpl->m_tasks.push_back(
+            RenderGraphImpl::Command{
+                RenderGraphImpl::Command::Type::Compute,
+                f
+            }
+        );
     }
     void RenderGraphBuilder::RecordSynchronization() {
-        std::function<void(vk::CommandBuffer)> f = [bb = std::move(pimpl->m_buffer_barriers),
-                                                    ib = std::move(pimpl->m_image_barriers)](vk::CommandBuffer cb) {
-            vk::DependencyInfo dep{vk::DependencyFlags{}, {}, bb, ib};
-            cb.pipelineBarrier2(dep);
-        };
-
-        pimpl->m_commands.push_back(f);
-
-        // Get STL containers out of ``valid but unspecified'' states.
+        pimpl->m_tasks.push_back(
+            RenderGraphImpl::Synchronization{
+                {},
+                std::move(pimpl->m_buffer_barriers),
+                std::move(pimpl->m_image_barriers)
+            }
+        );
         pimpl->m_buffer_barriers.clear();
         pimpl->m_image_barriers.clear();
     }
     RenderGraph RenderGraphBuilder::BuildRenderGraph() {
-        auto cmd = std::move(pimpl->m_commands);
-        pimpl->m_commands.clear();
         if (!pimpl->m_buffer_barriers.empty() || !pimpl->m_image_barriers.empty()) {
             SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Leftover memory barriers when building render graph.");
-            pimpl->m_buffer_barriers.clear();
-            pimpl->m_image_barriers.clear();
+            RecordSynchronization();
         }
-        return RenderGraph(m_system, cmd);
+
+        std::vector <std::function<void(vk::CommandBuffer)>> compiled;
+        RenderGraphImpl::RenderGraphExtraInfo extra{};
+
+        extra.m_initial_image_access = std::move(pimpl->m_memo.m_initial_access);
+        extra.m_final_image_access = std::move(pimpl->m_memo.m_memo);
+        pimpl->m_memo.m_initial_access.clear();
+        pimpl->m_memo.m_memo.clear();
+
+        for (auto & t : pimpl->m_tasks) {
+            if (auto p = std::get_if<RenderGraphImpl::Command>(&t)) {
+                compiled.push_back(p->func);
+            } else if (auto p = std::get_if<RenderGraphImpl::Synchronization>(&t)) {
+                // Ideally we can merge barriers here.
+                compiled.push_back(p->GetBarrierCommand());
+            } else if (auto p = std::get_if<RenderGraphImpl::Present>(&t)) {
+                // extra...
+            }
+        }
+        
+        pimpl->m_tasks.clear();
+        return RenderGraph(m_system, std::move(compiled), std::move(extra));
     }
     RenderGraph RenderGraphBuilder::BuildDefaultRenderGraph(
         RenderTargetTexture &color_attachment, RenderTargetTexture &depth_attachment, GUISystem *gui_system

@@ -28,7 +28,7 @@ namespace Engine {
             std::bitset<8> _is_descriptor_dirty{};
 
             std::array<vk::DescriptorSet, BACK_BUFFERS> desc_sets {};
-        } m_ipi;
+        } m_ipi {};
         
         std::vector <std::byte> m_ubo_staging_buffer{};
 
