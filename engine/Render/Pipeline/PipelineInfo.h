@@ -1,27 +1,17 @@
 #ifndef RENDER_PIPELINE_PIPELINEINFO_INCLUDED
 #define RENDER_PIPELINE_PIPELINEINFO_INCLUDED
 
-/** Structures holding information with regards to VkPipeline etc. */
-
-#include "Asset/Material/ShaderAsset.h"
-#include <any>
-#include <vector>
+#include <array>
 #include <vulkan/vulkan.hpp>
 
 namespace Engine {
     class Buffer;
     namespace PipelineInfo {
-        struct PassInfo {
+        struct ComputePassInfo {
             vk::UniquePipeline pipeline{};
             vk::UniquePipelineLayout pipeline_layout{};
             vk::UniqueDescriptorSetLayout desc_layout{};
-            std::vector<vk::UniqueShaderModule> shaders{};
-        };
-
-        struct MaterialPassInfo : PassInfo {
-            constexpr static std::array<vk::DynamicState, 2> PIPELINE_DYNAMIC_STATES = {
-                vk::DynamicState::eViewport, vk::DynamicState::eScissor
-            };
+            vk::UniqueShaderModule shader;
         };
 
         struct PoolInfo {

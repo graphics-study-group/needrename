@@ -82,6 +82,10 @@ namespace {
 namespace Engine {
 
     struct MaterialTemplate::impl {
+        constexpr static std::array<vk::DynamicState, 2> PIPELINE_DYNAMIC_STATES = {
+            vk::DynamicState::eViewport, vk::DynamicState::eScissor
+        };
+
         vk::DescriptorSetLayout desc_set_layout;
         vk::PipelineLayout pipeline_layout;
         const ShdrRfl::SPLayout * m_layout{};
@@ -127,7 +131,7 @@ namespace Engine {
             auto rsci = PipelineUtils::ToVulkanRasterizationStateCreateInfo(prop.rasterizer);
             auto msi = vk::PipelineMultisampleStateCreateInfo{{}, vk::SampleCountFlagBits::e1, vk::False};
             auto dsci = PipelineUtils::ToVulkanDepthStencilStateCreateInfo(prop.depth_stencil);
-            auto dsi = vk::PipelineDynamicStateCreateInfo{{}, PassInfo::PIPELINE_DYNAMIC_STATES};
+            auto dsi = vk::PipelineDynamicStateCreateInfo{{}, PIPELINE_DYNAMIC_STATES};
 
             vk::PipelineColorBlendStateCreateInfo cbsi{};
             vk::PipelineRenderingCreateInfo prci{};

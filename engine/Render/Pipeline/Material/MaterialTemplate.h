@@ -43,7 +43,6 @@ namespace Engine {
      */
     class MaterialTemplate : protected std::enable_shared_from_this<MaterialTemplate> {
     public:
-        using PassInfo = PipelineInfo::MaterialPassInfo;
         using PoolInfo = PipelineInfo::MaterialPoolInfo;
 
     protected:

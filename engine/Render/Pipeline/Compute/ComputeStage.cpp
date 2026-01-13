@@ -96,18 +96,17 @@ namespace Engine {
                 code.size() * sizeof(uint32_t),
                 reinterpret_cast<const uint32_t *>(code.data())
             };
-            m_passInfo.shaders.resize(1);
-            m_passInfo.shaders[0] = system.GetDevice().createShaderModuleUnique(smci);
+            m_passInfo.shader = system.GetDevice().createShaderModuleUnique(smci);
             DEBUG_SET_NAME_TEMPLATE(
                 system.GetDevice(),
-                m_passInfo.shaders[0].get(),
+                m_passInfo.shader.get(),
                 std::format("Shader Module for Compute Pipeline {}", asset.m_name)
             );
 
             vk::PipelineShaderStageCreateInfo pssci{
                 vk::PipelineShaderStageCreateFlags{},
                 vk::ShaderStageFlagBits::eCompute,
-                m_passInfo.shaders[0].get(),
+                m_passInfo.shader.get(),
                 "main"
             };
             vk::ComputePipelineCreateInfo cpci{vk::PipelineCreateFlags{}, pssci, m_passInfo.pipeline_layout.get()};
