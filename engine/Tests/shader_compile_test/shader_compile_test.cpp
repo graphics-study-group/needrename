@@ -30,8 +30,9 @@ bool Compile(std::filesystem::path path) {
 
 int main() {
     bool flag = true;
-    flag &= Compile(ENGINE_SOURCE_DIR "/Tests/shader_compile_test/folder/local_include_test.vert");
     flag &= Compile(ENGINE_SOURCE_DIR "/Tests/shader_compile_test/blinn_phong_test_shader.frag");
+    flag &= Compile(ENGINE_SOURCE_DIR "/Tests/shader_compile_test/folder/local_include_test.frag");
+    flag &= Compile(ENGINE_SOURCE_DIR "/Tests/shader_compile_test/folder/multi_level_include_test.frag");
 
     if (!flag) {
         std::cerr << "One or more shader compilations failed.\n";
