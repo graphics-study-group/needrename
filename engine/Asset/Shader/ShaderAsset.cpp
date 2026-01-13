@@ -75,7 +75,7 @@ namespace Engine {
             glsl_code.resize(file_size);
             file.read(glsl_code.data(), file_size);
             file.close();
-            bool compile_res = Compile();
+            bool compile_res = Compile(path.parent_path());
             assert(compile_res);
         } else if (path.extension() == ".spv") {
             storeType = StoreType::SPIRV;
@@ -94,7 +94,7 @@ namespace Engine {
         }
     }
 
-    bool ShaderAsset::Compile() {
+    bool ShaderAsset::Compile(std::filesystem::path shader_directory) {
         if (binary.size() > 0) {
             // Already compiled
             return true;
@@ -122,10 +122,11 @@ namespace Engine {
         default:
             throw std::runtime_error("Unsupported shader type for compilation");
         }
-        std::filesystem::path shader_directory;
-        auto fs_db = std::dynamic_pointer_cast<FileSystemDatabase>(MainClass::GetInstance()->GetAssetDatabase());
-        if (fs_db) {
-            shader_directory = fs_db->GetAssetPath(GetGUID()).parent_path();
+        if (shader_directory.empty()) {
+            auto fs_db = std::dynamic_pointer_cast<FileSystemDatabase>(MainClass::GetInstance()->GetAssetDatabase());
+            if (fs_db) {
+                shader_directory = fs_db->GetAssetPath(GetGUID()).parent_path();
+            }
         }
         return MainClass::GetInstance()->GetShaderCompiler()->CompileGLSLtoSPV(
             binary, glsl_code, type, shader_directory
