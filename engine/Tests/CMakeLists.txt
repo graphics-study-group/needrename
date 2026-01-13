@@ -24,38 +24,23 @@ target_link_libraries(shader_refl_test engine)
 add_test(NAME shader_refl_test COMMAND shader_refl_test)
 set_target_properties(shader_refl_test PROPERTIES FOLDER engine_tests)
 
-add_executable(shader_compile_test shader_compile_test.cpp)
-target_link_libraries(shader_compile_test engine)
-add_test(NAME shader_compile_test COMMAND shader_compile_test)
-set_target_properties(shader_compile_test PROPERTIES FOLDER engine_tests)
-
 add_executable(vertex_attribute_test vertex_attribute_test.cpp)
 target_link_libraries(vertex_attribute_test engine)
 add_test(NAME vertex_attribute_test COMMAND vertex_attribute_test)
 set_target_properties(vertex_attribute_test PROPERTIES FOLDER engine_tests)
 
 add_subdirectory(reflection_test)
-add_subdirectory(serialization_test)
 set_target_properties(reflection_test PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/engine/Tests")
+add_subdirectory(serialization_test)
 set_target_properties(serialization_test PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/engine/Tests")
+add_subdirectory(shader_compile_test)
+set_target_properties(shader_compile_test PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/engine/Tests")
 
 add_custom_command(TARGET transform_test POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
     $<TARGET_FILE:SDL3::SDL3-shared>
+    $<TARGET_FILE:engine>
+    $<TARGET_FILE:glslang>
     $<TARGET_FILE_DIR:transform_test>
     COMMENT "Copying SDL DLLs"
-)
-
-add_custom_command(TARGET transform_test POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    $<TARGET_FILE:engine>
-    $<TARGET_FILE_DIR:transform_test>
-    COMMENT "Copying Engine DLLs"
-)
-
-add_custom_command(TARGET shader_compile_test POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    $<TARGET_FILE:glslang>
-    $<TARGET_FILE_DIR:shader_compile_test>
-    COMMENT "Copying glslang DLLs"
 )
