@@ -16,10 +16,14 @@ namespace Engine {
         ShaderCompiler();
         ~ShaderCompiler();
 
-        bool CompileGLSLtoSPV(const std::string &glsl_code, EShLanguage shader_type, std::vector<uint32_t> &spirv);
+        bool CompileGLSLtoSPV(
+            std::vector<uint32_t> &spirv,
+            const std::string &glsl_code,
+            EShLanguage shader_type,
+            const std::filesystem::path &shader_directory = std::filesystem::path{}
+        );
 
     protected:
-        ShaderIncluder m_includer{};
         TBuiltInResource m_built_in_resource = {
             .maxLights = 32,
             .maxClipPlanes = 6,

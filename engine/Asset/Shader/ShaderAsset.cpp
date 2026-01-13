@@ -2,6 +2,7 @@
 #include <SDL3/SDL.h>
 #include <fstream>
 
+#include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include <Asset/Shader/ShaderCompiler.h>
 #include <MainClass.h>
 #include <Reflection/serialization.h>
@@ -121,6 +122,13 @@ namespace Engine {
         default:
             throw std::runtime_error("Unsupported shader type for compilation");
         }
-        return MainClass::GetInstance()->GetShaderCompiler()->CompileGLSLtoSPV(glsl_code, type, binary);
+        std::filesystem::path shader_directory;
+        auto fs_db = std::dynamic_pointer_cast<FileSystemDatabase>(MainClass::GetInstance()->GetAssetDatabase());
+        if (fs_db) {
+            shader_directory = fs_db->GetAssetPath(GetGUID()).parent_path();
+        }
+        return MainClass::GetInstance()->GetShaderCompiler()->CompileGLSLtoSPV(
+            binary, glsl_code, type, shader_directory
+        );
     }
 } // namespace Engine

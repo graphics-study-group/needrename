@@ -19,7 +19,7 @@ int main() {
     std::string shader_code((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
 
     std::vector<uint32_t> spirv;
-    if (compiler.CompileGLSLtoSPV(shader_code, EShLangFragment, spirv)) {
+    if (compiler.CompileGLSLtoSPV(spirv, shader_code, EShLangFragment)) {
         std::cout << "Shader compiled successfully! SPIR-V size: " << spirv.size() << " words\n";
     } else {
         std::cerr << "Shader compilation failed!\n";
