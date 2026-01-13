@@ -67,8 +67,13 @@ namespace Engine {
          * 
          * @param color_attachment_format Format of the color attachment.
          * If UNDEFINED will use swapchain format.
+         * @param samples Multisample state. Reserved for future use.
          */
-        void CreateVulkanBackend(RenderSystem & render_system, vk::Format color_attachment_format);
+        void CreateVulkanBackend(
+            RenderSystem & render_system,
+            vk::Format color_attachment_format,
+            uint8_t samples = 1
+        );
 
         /**
          * @brief Get current ImGui context for drawing.
@@ -78,6 +83,16 @@ namespace Engine {
          * building a GUI.
          */
         ImGuiContext * GetCurrentContext() const;
+
+        /**
+         * @brief Reset the color attachment format.
+         * 
+         * This will recreate the rendering pipeline used by the Dear ImGui backend.
+         */
+        void ResetColorAttachmentFormat(
+            vk::Format format,
+            uint8_t samples = 1
+        ) noexcept;
     };
 } // namespace Engine
 
