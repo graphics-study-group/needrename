@@ -21,101 +21,95 @@
 #include <glm.hpp>
 #include <vulkan/vulkan.hpp>
 
+namespace {
+    std::vector <vk::Format> ToVulkanFormat(
+        const std::vector <Engine::ImageUtils::ImageFormat> & format,
+        vk::Format default_color_format
+    ) {
+        std::vector <vk::Format> ret;
+        std::transform(
+            format.begin(),
+            format.end(),
+            std::back_inserter(ret),
+            [default_color_format] (Engine::ImageUtils::ImageFormat fmt) -> vk::Format {
+                if (fmt == Engine::ImageUtils::ImageFormat::UNDEFINED) {
+                    return default_color_format;
+                } else {
+                    return Engine::ImageUtils::GetVkFormat(fmt);
+                }
+            }
+        );
+        return ret;
+    }
+
+    std::vector <vk::PipelineColorBlendAttachmentState> ToVulkanColorBlendingOps(
+        const std::vector <Engine::PipelineProperties::ColorBlendingProperties> & cbps
+    ) {
+        std::vector <vk::PipelineColorBlendAttachmentState> ret;
+        ret.reserve(cbps.size());
+        for (const auto & cbp : cbps) {
+            if (cbp.color_op == Engine::PipelineUtils::BlendOperation::None
+                || cbp.alpha_op == Engine::PipelineUtils::BlendOperation::None) {
+                ret.push_back(vk::PipelineColorBlendAttachmentState{
+                    vk::False,
+                    vk::BlendFactor::eSrcAlpha,
+                    vk::BlendFactor::eOneMinusSrcAlpha,
+                    vk::BlendOp::eAdd,
+                    vk::BlendFactor::eOne,
+                    vk::BlendFactor::eZero,
+                    vk::BlendOp::eAdd,
+                    vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB
+                        | vk::ColorComponentFlagBits::eA
+                });
+            } else {
+                ret.push_back(vk::PipelineColorBlendAttachmentState{
+                    vk::True,
+                    Engine::PipelineUtils::ToVkBlendFactor(cbp.src_color),
+                    Engine::PipelineUtils::ToVkBlendFactor(cbp.dst_color),
+                    Engine::PipelineUtils::ToVkBlendOp(cbp.color_op),
+                    Engine::PipelineUtils::ToVkBlendFactor(cbp.src_alpha),
+                    Engine::PipelineUtils::ToVkBlendFactor(cbp.dst_alpha),
+                    Engine::PipelineUtils::ToVkBlendOp(cbp.alpha_op),
+                    static_cast<vk::ColorComponentFlags>(static_cast<int>(cbp.color_write_mask))
+                });
+            }
+        }
+        ret.shrink_to_fit();
+        return ret;
+    }
+}
+
 namespace Engine {
 
     struct MaterialTemplate::impl {
-        PassInfo m_passes{};
-        ShdrRfl::SPLayout m_layout{};
+        vk::DescriptorSetLayout desc_set_layout;
+        vk::PipelineLayout pipeline_layout;
+        const ShdrRfl::SPLayout * m_layout{};
+
+        vk::UniquePipeline pipeline;
 
         PoolInfo m_poolInfo{};
         std::string m_name{};
 
         void CreatePipeline(
             RenderSystem & system,
+            const std::vector <vk::ShaderModule> shader_modules,
             const MaterialTemplateSinglePassProperties &prop,
             VertexAttribute attribute
         ) {
             vk::Device device = system.GetDevice();
-            PassInfo pass_info;
-            m_layout.variables.clear();
-            m_layout.interfaces.clear();
-            m_layout.name_mapping.clear();
 
             // Process and reflect on shaders.
             std::vector<vk::PipelineShaderStageCreateInfo> psscis;
-            pass_info.shaders.resize(prop.shaders.shaders.size());
             psscis.resize(prop.shaders.shaders.size());
             for (size_t i = 0; i < prop.shaders.shaders.size(); i++) {
-                assert(prop.shaders.shaders[i] && "Invalid shader asset.");
-
                 auto shader_asset = prop.shaders.shaders[i]->cas<ShaderAsset>();
-                auto code = shader_asset->binary;
-                m_layout.Merge(Engine::ShdrRfl::SPLayout::Reflect(code, true));
-                vk::ShaderModuleCreateInfo ci{
-                    {}, code.size() * sizeof(uint32_t), reinterpret_cast<const uint32_t *>(code.data())
-                };
-
-                pass_info.shaders[i] = device.createShaderModuleUnique(ci);
-                DEBUG_SET_NAME_TEMPLATE(
-                    device, pass_info.shaders[i].get(), std::format("Shader Module - {}", shader_asset->m_name)
-                );
-
                 psscis[i] = vk::PipelineShaderStageCreateInfo{
                     {},
                     PipelineUtils::ToVulkanShaderStageFlagBits(shader_asset->shaderType),
-                    pass_info.shaders[i].get(),
+                    shader_modules[i],
                     shader_asset->m_entry_point.empty() ? "main" : shader_asset->m_entry_point.c_str()
                 };
-            }
-
-            // Create pipeline layout
-            {
-                auto desc_bindings = m_layout.GenerateLayoutBindings(2);
-                if (!desc_bindings.empty()) {
-                    unsigned ubo_count{0};
-                    for (auto & db : desc_bindings) {
-                        if (db.descriptorType == vk::DescriptorType::eUniformBuffer) {
-                            ubo_count ++;
-                        }
-                    }
-                    if (ubo_count != 1) {
-                        SDL_LogWarn(
-                            SDL_LOG_CATEGORY_RENDER,
-                            "Found %u uniform buffer binding points instead of one.",
-                            ubo_count
-                        );
-                    }
-
-                    vk::DescriptorSetLayoutCreateInfo dslci{{}, desc_bindings};
-                    pass_info.desc_layout = device.createDescriptorSetLayoutUnique(dslci);
-
-                    std::array<vk::PushConstantRange, 1> push_constants{
-                        RenderSystemState::RendererManager::GetPushConstantRange()
-                    };
-                    std::array<vk::DescriptorSetLayout, 3> set_layouts{
-                        system.GetSceneDataManager().GetLightDescriptorSetLayout(),
-                        system.GetCameraManager().GetDescriptorSetLayout(),
-                        pass_info.desc_layout.get()
-                    };
-                    vk::PipelineLayoutCreateInfo plci{{}, set_layouts, push_constants};
-                    pass_info.pipeline_layout = device.createPipelineLayoutUnique(plci);
-                } else {
-                    SDL_LogWarn(
-                        SDL_LOG_CATEGORY_RENDER,
-                        "Material %s pipeline has no material descriptors.",
-                        m_name.c_str()
-                    );
-
-                    std::array<vk::PushConstantRange, 1> push_constants{
-                        RenderSystemState::RendererManager::GetPushConstantRange()
-                    };
-                    std::array<vk::DescriptorSetLayout, 2> set_layouts{
-                        system.GetSceneDataManager().GetLightDescriptorSetLayout(),
-                        system.GetCameraManager().GetDescriptorSetLayout()
-                    };
-                    vk::PipelineLayoutCreateInfo plci{{}, set_layouts, push_constants};
-                    pass_info.pipeline_layout = device.createPipelineLayoutUnique(plci);
-                }
             }
 
             bool use_swapchain_attachments =
@@ -181,49 +175,8 @@ namespace Engine {
                     && "Mismatched color attachment and blending operation size."
                 );
 
-                cbass.resize(prop.attachments.color_blending.size());
-
-                for (size_t i = 0; i < prop.attachments.color.size(); i++) {
-                    if (prop.attachments.color[i] == ImageUtils::ImageFormat::UNDEFINED) {
-                        SDL_LogWarn(
-                            SDL_LOG_CATEGORY_RENDER,
-                            "Material template \"%s\" (color attachment %llu) does not specify its format. "
-                            "Falling back to Swapchain default format. Gamma correction and color space may be incorrect.",
-                            m_name.c_str(),
-                            i
-                        );
-                        color_attachment_formats[i] = default_color_format;
-                    } else {
-                        color_attachment_formats[i] = ImageUtils::GetVkFormat(prop.attachments.color[i]);
-                    }
-
-                    const auto &cb = prop.attachments.color_blending[i];
-                    if (cb.color_op == PipelineUtils::BlendOperation::None
-                        || cb.alpha_op == PipelineUtils::BlendOperation::None) {
-                        cbass[i] = vk::PipelineColorBlendAttachmentState{
-                            vk::False,
-                            vk::BlendFactor::eSrcAlpha,
-                            vk::BlendFactor::eOneMinusSrcAlpha,
-                            vk::BlendOp::eAdd,
-                            vk::BlendFactor::eOne,
-                            vk::BlendFactor::eZero,
-                            vk::BlendOp::eAdd,
-                            vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB
-                                | vk::ColorComponentFlagBits::eA
-                        };
-                    } else {
-                        cbass[i] = vk::PipelineColorBlendAttachmentState{
-                            vk::True,
-                            PipelineUtils::ToVkBlendFactor(cb.src_color),
-                            PipelineUtils::ToVkBlendFactor(cb.dst_color),
-                            PipelineUtils::ToVkBlendOp(cb.color_op),
-                            PipelineUtils::ToVkBlendFactor(cb.src_alpha),
-                            PipelineUtils::ToVkBlendFactor(cb.dst_alpha),
-                            PipelineUtils::ToVkBlendOp(cb.alpha_op),
-                            static_cast<vk::ColorComponentFlags>(static_cast<int>(cb.color_write_mask))
-                        };
-                    }
-                }
+                cbass = ToVulkanColorBlendingOps(prop.attachments.color_blending);
+                color_attachment_formats = ToVulkanFormat(prop.attachments.color, default_color_format);
 
                 prci = vk::PipelineRenderingCreateInfo{
                     0,
@@ -232,6 +185,7 @@ namespace Engine {
                     vk::Format::eUndefined
                 };
             }
+
             cbsi.logicOpEnable = vk::False;
             cbsi.setAttachments(cbass);
 
@@ -245,18 +199,16 @@ namespace Engine {
             gpci.pDepthStencilState = &dsci;
             gpci.pColorBlendState = &cbsi;
             gpci.pDynamicState = &dsi;
-            gpci.layout = pass_info.pipeline_layout.get();
+            gpci.layout = pipeline_layout;
             gpci.renderPass = nullptr;
             gpci.subpass = 0;
             gpci.pNext = &prci;
 
             auto ret = device.createGraphicsPipelineUnique(nullptr, gpci);
-            pass_info.pipeline = std::move(ret.value);
+            pipeline = std::move(ret.value);
             SDL_LogInfo(
                 SDL_LOG_CATEGORY_RENDER, "Successfully created material %s.", m_name.c_str()
             );
-
-            m_passes = std::move(pass_info);
         }
     };
 
@@ -266,9 +218,14 @@ namespace Engine {
     MaterialTemplate::MaterialTemplate(
         RenderSystem &system,
         const MaterialTemplateSinglePassProperties &properties,
+        const std::vector<vk::ShaderModule> &shaders,
+        vk::DescriptorSetLayout ds_layout,
+        vk::PipelineLayout layout,
+        const ShdrRfl::SPLayout * reflected,
         VertexAttribute attribute,
         const std::string &name
     ) : MaterialTemplate(system) {
+
         pimpl->m_name = name;
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Createing pipelines for material %s.", pimpl->m_name.c_str());
         // Prepare descriptor pool
@@ -280,26 +237,26 @@ namespace Engine {
         );
 
         // Create pipelines
-        pimpl->CreatePipeline(system, properties, attribute);
+        pimpl->desc_set_layout = ds_layout;
+        pimpl->pipeline_layout = layout;
+        pimpl->m_layout = reflected;
+        pimpl->CreatePipeline(system, shaders, properties, attribute);
     }
 
     MaterialTemplate::~MaterialTemplate() = default;
 
     vk::Pipeline MaterialTemplate::GetPipeline() const noexcept {
-        return pimpl->m_passes.pipeline.get();
+        return pimpl->pipeline.get();
     }
     vk::PipelineLayout MaterialTemplate::GetPipelineLayout() const noexcept {
-        return pimpl->m_passes.pipeline_layout.get();
+        return pimpl->pipeline_layout;
     }
-    auto MaterialTemplate::GetPassInfo() const -> const PassInfo & {
-        return pimpl->m_passes;
-    }
+
     vk::DescriptorSetLayout MaterialTemplate::GetDescriptorSetLayout() const {
-        return pimpl->m_passes.desc_layout.get();
+        return pimpl->desc_set_layout;
     }
     std::vector<vk::DescriptorSet> MaterialTemplate::AllocateDescriptorSets(uint32_t size) {
-
-        auto layout = pimpl->m_passes.desc_layout.get();
+        auto layout = pimpl->desc_set_layout;
         if (!layout) {
             SDL_LogWarn(
                 SDL_LOG_CATEGORY_RENDER,
@@ -317,18 +274,18 @@ namespace Engine {
     }
     const ShdrRfl::SPVariable * MaterialTemplate::GetVariable(const std::string & name) const noexcept
     {
-        if (auto itr{pimpl->m_layout.name_mapping.find(name)}; 
-            itr != pimpl->m_layout.name_mapping.end()) {
+        if (auto itr{pimpl->m_layout->name_mapping.find(name)}; 
+            itr != pimpl->m_layout->name_mapping.end()) {
             return itr->second;
         }
         return nullptr;
     }
     const ShdrRfl::SPLayout &MaterialTemplate::GetReflectedShaderInfo() const noexcept {
-        return pimpl->m_layout;
+        return *(pimpl->m_layout);
     }
     size_t MaterialTemplate::GetExpectedUniformBufferSize() const noexcept {
         size_t size = 0;
-        for (auto pinterface : pimpl->m_layout.interfaces) {
+        for (auto pinterface : pimpl->m_layout->interfaces) {
             if (auto pbuf = dynamic_cast<const ShdrRfl::SPInterfaceBuffer *>(pinterface)) {
                 if (pbuf->type == ShdrRfl::SPInterfaceBuffer::Type::UniformBuffer) {
                     if (auto ptype = dynamic_cast<const ShdrRfl::SPTypeSimpleStruct *>(pbuf->underlying_type)) {

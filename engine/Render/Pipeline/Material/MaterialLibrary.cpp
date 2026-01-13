@@ -2,6 +2,9 @@
 
 #include "Render/Renderer/VertexAttribute.h"
 #include "Asset/Material/MaterialTemplateAsset.h"
+#include "Render/DebugUtils.h"
+#include "Render/Memory/ShaderParameters/ShaderParameterLayout.h"
+
 #include <cassert>
 #include <SDL3/SDL.h>
 
@@ -11,7 +14,16 @@ namespace Engine {
             MeshVertexType expected_mesh_type {};
             std::shared_ptr<AssetRef> material_template_asset {};
         };
-        using PipelineBundle = std::unordered_map <uint64_t, std::unique_ptr<MaterialTemplate>>;
+
+        struct PipelineBundle {
+            std::vector <vk::UniqueShaderModule> shader_modules{};
+            ShdrRfl::SPLayout reflected{};
+
+            vk::UniqueDescriptorSetLayout descriptor_set_layout{};
+            vk::UniquePipelineLayout pipeline_layout{};
+
+            std::unordered_map <uint64_t, std::unique_ptr<MaterialTemplate>> materials{};
+        };
 
         std::unordered_map <std::string, PipelineBundle> pipeline_table {};
         std::unordered_map <std::string, PipelineAssetItem> pipeline_asset_table {};
@@ -22,10 +34,93 @@ namespace Engine {
             uint64_t mesh_type
         ) {
             auto itr = pipeline_table.find(tag);
-            if (itr == pipeline_table.end() || !(itr->second[mesh_type])) {
+            if (itr == pipeline_table.end() || !(itr->second.materials[mesh_type])) {
                 CreatePipeline(system, tag, mesh_type);
             }
-            return *pipeline_table[tag][mesh_type];
+            return *pipeline_table[tag].materials[mesh_type];
+        }
+
+        void CompileShaderModules (
+            PipelineBundle & b,
+            vk::Device d,
+            const std::vector<std::shared_ptr<AssetRef>> & shader_refs
+        ) {
+            b.reflected.variables.clear();
+            b.reflected.interfaces.clear();
+            b.reflected.name_mapping.clear();
+
+            b.shader_modules.clear();
+            b.shader_modules.resize(shader_refs.size());
+
+            for (size_t i = 0; i < shader_refs.size(); i++) {
+                assert(shader_refs[i] && "Invalid shader asset.");
+
+                auto shader_asset = shader_refs[i]->cas<ShaderAsset>();
+                auto code = shader_asset->binary;
+                b.reflected.Merge(Engine::ShdrRfl::SPLayout::Reflect(code, true));
+                vk::ShaderModuleCreateInfo ci{
+                    {}, code.size() * sizeof(uint32_t), reinterpret_cast<const uint32_t *>(code.data())
+                };
+
+                b.shader_modules[i] = d.createShaderModuleUnique(ci);
+                DEBUG_SET_NAME_TEMPLATE(
+                    d, b.shader_modules[i].get(), std::format("Shader Module - {}", shader_asset->m_name)
+                );
+            }
+        }
+
+        void GenerateDescriptorSetAndPipelineLayout(
+            PipelineBundle & b,
+            vk::Device d,
+            vk::DescriptorSetLayout scene_descriptors,
+            vk::DescriptorSetLayout camera_descriptors,
+            const std::string & name
+        ) {
+            auto desc_bindings = b.reflected.GenerateLayoutBindings(2);
+            if (!desc_bindings.empty()) {
+                unsigned ubo_count{0};
+                for (auto & db : desc_bindings) {
+                    if (db.descriptorType == vk::DescriptorType::eUniformBuffer) {
+                        ubo_count ++;
+                    }
+                }
+                if (ubo_count != 1) {
+                    SDL_LogWarn(
+                        SDL_LOG_CATEGORY_RENDER,
+                        "Found %u uniform buffer binding points instead of one.",
+                        ubo_count
+                    );
+                }
+
+                vk::DescriptorSetLayoutCreateInfo dslci{{}, desc_bindings};
+                b.descriptor_set_layout = d.createDescriptorSetLayoutUnique(dslci);
+
+                std::array<vk::PushConstantRange, 1> push_constants{
+                    RenderSystemState::RendererManager::GetPushConstantRange()
+                };
+                std::array<vk::DescriptorSetLayout, 3> set_layouts{
+                    scene_descriptors,
+                    camera_descriptors,
+                    b.descriptor_set_layout.get()
+                };
+                vk::PipelineLayoutCreateInfo plci{{}, set_layouts, push_constants};
+                b.pipeline_layout = d.createPipelineLayoutUnique(plci);
+            } else {
+                SDL_LogWarn(
+                    SDL_LOG_CATEGORY_RENDER,
+                    "Material %s pipeline has no material descriptors.",
+                    name.c_str()
+                );
+
+                std::array<vk::PushConstantRange, 1> push_constants{
+                    RenderSystemState::RendererManager::GetPushConstantRange()
+                };
+                std::array<vk::DescriptorSetLayout, 2> set_layouts{
+                    scene_descriptors, camera_descriptors
+                };
+                vk::PipelineLayoutCreateInfo plci{{}, set_layouts, push_constants};
+                b.pipeline_layout = d.createPipelineLayoutUnique(plci);
+            }
         }
 
         /**
@@ -50,17 +145,47 @@ namespace Engine {
                     asset->name
                 ).c_str()
             );
+
+            if (pipeline_table[tag].shader_modules.empty()) {
+                CompileShaderModules(
+                    pipeline_table[tag],
+                    system.GetDevice(),
+                    asset->properties.shaders.shaders
+                );
+
+                GenerateDescriptorSetAndPipelineLayout(
+                    pipeline_table[tag],
+                    system.GetDevice(),
+                    system.GetSceneDataManager().GetLightDescriptorSetLayout(),
+                    system.GetCameraManager().GetDescriptorSetLayout(),
+                    asset->name
+                );
+            }
             
-            pipeline_table[tag][actual_type] = std::make_unique<MaterialTemplate>(
+            const auto & b = pipeline_table[tag];
+            std::vector <vk::ShaderModule> shader_modules;
+            std::transform(
+                b.shader_modules.begin(),
+                b.shader_modules.end(),
+                std::back_inserter(shader_modules),
+                [] (const vk::UniqueShaderModule & usm) {
+                    return usm.get();
+                }
+            );
+            pipeline_table[tag].materials[actual_type] = std::make_unique<MaterialTemplate>(
                 system,
                 asset->properties,
+                shader_modules,
+                b.descriptor_set_layout.get(),
+                b.pipeline_layout.get(),
+                &b.reflected,
                 VertexAttribute{.packed = actual_type},
                 asset->name
             );
             SDL_LogInfo(
                 SDL_LOG_CATEGORY_RENDER,
                 "Created material %p.",
-                static_cast<void *>(pipeline_table[tag][actual_type].get())
+                static_cast<void *>(pipeline_table[tag].materials[actual_type].get())
             );
         }
     };
@@ -75,8 +200,8 @@ namespace Engine {
         auto idx = mesh_type.packed;
 
         auto itr = pimpl->pipeline_table.find(tag);
-        if (itr != pimpl->pipeline_table.end() && itr->second[idx]) {
-            return itr->second[idx].get();
+        if (itr != pimpl->pipeline_table.end() && itr->second.materials[idx]) {
+            return itr->second.materials[idx].get();
         }
         if (itr == pimpl->pipeline_table.end()) {
             auto inserted = pimpl->pipeline_table.insert({tag, impl::PipelineBundle{}});

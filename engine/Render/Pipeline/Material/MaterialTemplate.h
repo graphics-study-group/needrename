@@ -11,6 +11,7 @@ namespace vk {
     class DescriptorSetLayout;
     class DescriptorSet;
     class DescriptorImageInfo;
+    class ShaderModule;
 } // namespace vk
 
 namespace Engine {
@@ -56,15 +57,14 @@ namespace Engine {
     public:
         /**
          * @brief Construct a new Material Template object.
-         * 
-         * @param system The
-         * RenderSystem associated with this material template.
-         * @param asset A shared pointer to the AssetRef
-         * representing the material template's properties.
          */
         MaterialTemplate(
-            RenderSystem &system,
+            RenderSystem & system,
             const MaterialTemplateSinglePassProperties & properties,
+            const std::vector <vk::ShaderModule> & shaders,
+            vk::DescriptorSetLayout ds_layout,
+            vk::PipelineLayout layout,
+            const ShdrRfl::SPLayout * reflected,
             VertexAttribute attribute,
             const std::string & name = ""
         );
@@ -88,14 +88,6 @@ namespace Engine {
          * The pipeline layout associated with the specified pass index.
          */
         vk::PipelineLayout GetPipelineLayout() const noexcept;
-
-        /**
-         * @brief Get the pass information for a specific pass index.
-         * 
-         * @return const PassInfo & A
-         * constant reference to the PassInfo struct associated with the specified pass index.
-         */
-        const PassInfo &GetPassInfo() const;
 
         /**
          * @brief Get the descriptor set layout for a specific pass index.
