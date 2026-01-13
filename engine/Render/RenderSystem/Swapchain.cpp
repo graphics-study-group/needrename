@@ -1,28 +1,36 @@
 #include "Swapchain.h"
+
 #include "Render/RenderSystem/DeviceInterface.h"
+#include "Render/ImageUtils.h"
+
 #include <SDL3/SDL.h>
 #include <vulkan/vulkan.hpp>
 
 namespace {
 
+    static constexpr std::array PREFERED_COLOR_FORMATS = {
+        vk::Format::eR8G8B8A8Srgb,
+        vk::Format::eR8G8B8A8Unorm,
+        vk::Format::eR8G8B8Srgb,
+        vk::Format::eR8G8B8Unorm
+    };
+
     vk::SurfaceFormatKHR SelectSwapchainFormat(
         const std::vector<vk::SurfaceFormatKHR> & formats
     ) {
         vk::SurfaceFormatKHR pickedFormat{};
+
+        uint32_t color_formats = PREFERED_COLOR_FORMATS.size();
         for (const auto &format : formats) {
             if (format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear) {
-                // Select R8G8B8A8 SRGB first
-                if (format.format == vk::Format::eR8G8B8A8Srgb) {
-                    pickedFormat = format;
-                    // Select B8G8R8A8 SRBG as backup
-                } else if (format.format == vk::Format::eB8G8R8A8Srgb) {
-                    if (pickedFormat.format != vk::Format::eR8G8B8A8Srgb) {
-                        pickedFormat = format;
-                    }
+                auto itr = std::find(PREFERED_COLOR_FORMATS.begin(), PREFERED_COLOR_FORMATS.end(), format.format);
+                if (itr != PREFERED_COLOR_FORMATS.end()) {
+                    color_formats = std::min(color_formats, (uint32_t)std::distance(PREFERED_COLOR_FORMATS.begin(), itr));
                 }
             }
         }
-        if (pickedFormat.format == vk::Format::eUndefined) {
+        
+        if (color_formats >= PREFERED_COLOR_FORMATS.size()) {
             SDL_LogCritical(SDL_LOG_CATEGORY_RENDER, "This device support neither B8G8R8A8 nor R8G8B8A8 swapchain format.");
             SDL_ShowSimpleMessageBox(
                 SDL_MESSAGEBOX_ERROR,
@@ -32,13 +40,9 @@ namespace {
                 nullptr
             );
             std::terminate();
-        } else if (pickedFormat.format == vk::Format::eB8G8R8A8Srgb) {
-            SDL_LogWarn(
-                SDL_LOG_CATEGORY_RENDER,
-                "This device does not support R8G8B8A8 swapchain format. Falling back to "
-                "B8G8R8A8. Blue and red channels may appear swapped."
-            );
         }
+
+        pickedFormat.format = PREFERED_COLOR_FORMATS[color_formats];
         return pickedFormat;
     }
 
@@ -85,6 +89,20 @@ namespace {
 }
 
 namespace Engine::RenderSystemState {
+    struct Swapchain::impl {
+        vk::UniqueSwapchainKHR m_swapchain{};
+        // Images retreived from swapchain don't require clean up.
+        std::vector<vk::Image> m_images{};
+
+        vk::SurfaceFormatKHR m_image_format{};
+        vk::Extent2D m_extent{};
+    };
+
+    Swapchain::Swapchain() noexcept : pimpl(std::make_unique<impl>()) {
+    }
+
+    Swapchain::~Swapchain() = default;
+
     void Swapchain::CreateSwapchain(
         const DeviceInterface & interface,
         vk::Extent2D expected_extent
@@ -120,9 +138,9 @@ namespace Engine::RenderSystemState {
         // Disable alpha blending for framebuffers
         info.compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque;
         info.clipped = vk::True;
-        if (m_swapchain) {
+        if (pimpl->m_swapchain) {
             SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Replacing old swap chain.");
-            info.oldSwapchain = m_swapchain.get();
+            info.oldSwapchain = pimpl->m_swapchain.get();
         } else {
             info.oldSwapchain = nullptr;
         }
@@ -143,31 +161,37 @@ namespace Engine::RenderSystemState {
             info.imageSharingMode = vk::SharingMode::eExclusive;
         }
 
-        m_swapchain = interface.GetDevice().createSwapchainKHRUnique(info);
-        m_images = interface.GetDevice().getSwapchainImagesKHR(m_swapchain.get());
-        m_image_format = format;
-        m_extent = extent;
+        pimpl->m_swapchain = interface.GetDevice().createSwapchainKHRUnique(info);
+        pimpl->m_images = interface.GetDevice().getSwapchainImagesKHR(pimpl->m_swapchain.get());
+        pimpl->m_image_format = format;
+        pimpl->m_extent = extent;
     }
 
-    vk::SwapchainKHR Swapchain::GetSwapchain() const {
-        return m_swapchain.get();
+    vk::SwapchainKHR Swapchain::GetSwapchain() const noexcept {
+        return pimpl->m_swapchain.get();
     }
-    auto Swapchain::GetImages() const -> const decltype(m_images) & {
-        return m_images;
-    }
-
-    vk::SurfaceFormatKHR Swapchain::GetImageFormat() const {
-        return m_image_format;
-    }
-    vk::Extent2D Swapchain::GetExtent() const {
-        return m_extent;
+    const std::vector <vk::Image> & Swapchain::GetImages() const noexcept {
+        return pimpl->m_images;
     }
 
-    uint32_t Swapchain::GetFrameCount() const {
-        return m_images.size();
+    vk::SurfaceFormatKHR Swapchain::GetSurfaceFormat() const noexcept {
+        return pimpl->m_image_format;
     }
+
+    vk::Extent2D Swapchain::GetExtent() const noexcept {
+        return pimpl->m_extent;
+    }
+
+    uint32_t Swapchain::GetFrameCount() const noexcept {
+        return pimpl->m_images.size();
+    }
+
+    vk::Format Swapchain::GetColorFormat() const noexcept {
+        return this->GetSurfaceFormat().format;
+    }
+
     vk::ImageMemoryBarrier2 Swapchain::GetPreCopyBarrier(uint32_t framebuffer) const noexcept {
-        assert(framebuffer < m_images.size());
+        assert(framebuffer < pimpl->m_images.size());
         return vk::ImageMemoryBarrier2{
             vk::PipelineStageFlagBits2::eAllTransfer,
             vk::AccessFlagBits2::eNone, // > Set up execution dep instead of memory dep.
@@ -177,12 +201,12 @@ namespace Engine::RenderSystemState {
             vk::ImageLayout::eTransferDstOptimal,
             vk::QueueFamilyIgnored,
             vk::QueueFamilyIgnored,
-            m_images[framebuffer],
+            pimpl->m_images[framebuffer],
             vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}
         };
     }
     vk::ImageMemoryBarrier2 Swapchain::GetPostCopyBarrier(uint32_t framebuffer) const noexcept {
-        assert(framebuffer < m_images.size());
+        assert(framebuffer < pimpl->m_images.size());
         return vk::ImageMemoryBarrier2{
             vk::PipelineStageFlagBits2::eAllTransfer,
             vk::AccessFlagBits2::eTransferWrite,
@@ -192,7 +216,7 @@ namespace Engine::RenderSystemState {
             vk::ImageLayout::ePresentSrcKHR,
             vk::QueueFamilyIgnored,
             vk::QueueFamilyIgnored,
-            m_images[framebuffer],
+            pimpl->m_images[framebuffer],
             vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}
         };
     }

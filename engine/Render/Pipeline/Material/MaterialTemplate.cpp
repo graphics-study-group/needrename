@@ -139,8 +139,7 @@ namespace Engine {
             vk::PipelineRenderingCreateInfo prci{};
             std::vector<vk::PipelineColorBlendAttachmentState> cbass;
 
-            vk::Format default_color_format{system.GetSwapchain().COLOR_FORMAT_VK};
-            vk::Format default_depth_format{system.GetSwapchain().DEPTH_FORMAT_VK};
+            vk::Format default_color_format{system.GetSwapchain().GetColorFormat()};
 
             std::vector<vk::Format> color_attachment_formats{prop.attachments.color.size(), vk::Format::eUndefined};
             // Fill in attachment information
@@ -155,7 +154,7 @@ namespace Engine {
                 color_attachment_formats = {default_color_format};
 
                 prci = vk::PipelineRenderingCreateInfo{
-                    0, color_attachment_formats, default_depth_format, vk::Format::eUndefined
+                    0, color_attachment_formats, vk::Format::eUndefined, vk::Format::eUndefined
                 };
                 cbass.push_back(
                     vk::PipelineColorBlendAttachmentState{
@@ -229,9 +228,7 @@ namespace Engine {
                 prci = vk::PipelineRenderingCreateInfo{
                     0,
                     color_attachment_formats,
-                    prop.attachments.depth == ImageUtils::ImageFormat::UNDEFINED
-                        ? default_depth_format
-                        : ImageUtils::GetVkFormat(prop.attachments.depth),
+                    ImageUtils::GetVkFormat(prop.attachments.depth),
                     vk::Format::eUndefined
                 };
             }

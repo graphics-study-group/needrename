@@ -76,10 +76,12 @@ std::array<std::shared_ptr<MaterialTemplateAsset>, 2> ConstructMaterialTemplate(
     shadow_map_pass.attachments.depth = ImageUtils::ImageFormat::D32SFLOAT;
     shadow_map_pass.rasterizer.depth_bias_constant = 0.05f;
     shadow_map_pass.rasterizer.depth_bias_slope = 1.0f;
+
     // shadow_map_pass.rasterizer.culling = PipelineProperties::RasterizerProperties::CullingMode::Front;
     lit_pass.shaders.shaders = std::vector{vs_ref, fs_ref};
     lit_pass.attachments.color = std::vector{ImageUtils::ImageFormat::R8G8B8A8UNorm};
     lit_pass.attachments.color_blending = std::vector{PipelineProperties::ColorBlendingProperties{}};
+    lit_pass.attachments.depth = ImageUtils::ImageFormat::D32SFLOAT;
 
     templates[0]->properties = lit_pass;
     templates[1]->properties = shadow_map_pass;
