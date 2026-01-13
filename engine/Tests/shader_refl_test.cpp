@@ -23,7 +23,8 @@ inline std::vector <uint32_t> GetSpirvBinaryFromGLSL(std::filesystem::path p, ES
     file.close();
 
     std::vector <uint32_t> binary{};
-    Engine::ShaderCompiler::CompileGLSLtoSPV(glsl_code, shaderType, binary);
+    Engine::ShaderCompiler compiler;
+    compiler.CompileGLSLtoSPV(glsl_code, shaderType, binary);
     return binary;
 }
 

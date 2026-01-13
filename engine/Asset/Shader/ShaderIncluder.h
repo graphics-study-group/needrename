@@ -3,12 +3,13 @@
 
 #pragma once
 
+#include <filesystem>
 #include <glslang/Public/ShaderLang.h>
 #include <unordered_map>
 
 namespace Engine {
     class ShaderIncluder : public glslang::TShader::Includer {
-        static const std::unordered_map<std::string, std::string> k_include_path_map;
+        static const std::unordered_map<std::filesystem::path, std::filesystem::path> k_include_path_map;
 
     public:
         ShaderIncluder();

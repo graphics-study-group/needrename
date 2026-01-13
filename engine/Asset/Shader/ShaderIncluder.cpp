@@ -6,7 +6,7 @@ namespace Engine {
     using IncludeResult = glslang::TShader::Includer::IncludeResult;
     typedef char tUserDataElement;
 
-    const std::unordered_map<std::string, std::string> ShaderIncluder::k_include_path_map{
+    const std::unordered_map<std::filesystem::path, std::filesystem::path> ShaderIncluder::k_include_path_map{
         {"engine", ENGINE_BUILTIN_ASSETS_DIR "/shaders/include"}
     };
 
@@ -23,10 +23,10 @@ namespace Engine {
     }
 
     IncludeResult *ShaderIncluder::includeSystem(const char *headerName, const char *, size_t) {
-        std::string real_path = std::string(headerName);
+        std::filesystem::path real_path = std::filesystem::path(headerName);
         for (const auto &[key, path] : k_include_path_map) {
-            if (std::string(headerName).find(key + "/") == 0) {
-                real_path = path + std::string(headerName).substr(key.length());
+            if (real_path.lexically_normal().generic_string().starts_with(key.generic_string() + "/")) {
+                real_path = path / real_path.lexically_relative(key);
                 break;
             }
         }
@@ -37,7 +37,7 @@ namespace Engine {
             char *data = new tUserDataElement[content.size() + 1];
             std::memcpy(data, content.data(), content.size());
             data[content.size()] = '\0';
-            return new IncludeResult(real_path, data, content.size(), data);
+            return new IncludeResult(real_path.generic_string(), data, content.size(), data);
         }
         // Not found
         return nullptr;

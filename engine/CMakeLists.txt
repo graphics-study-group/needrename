@@ -60,6 +60,7 @@ target_link_libraries(engine
     EngineLibUserInterface
 )
 
+# TODO: Use relative paths when install.
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h)
 
 include(CTest)

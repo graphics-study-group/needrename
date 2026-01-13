@@ -3,6 +3,7 @@
 #include <fstream>
 
 #include <Asset/Shader/ShaderCompiler.h>
+#include <MainClass.h>
 #include <Reflection/serialization.h>
 
 namespace Engine {
@@ -120,6 +121,6 @@ namespace Engine {
         default:
             throw std::runtime_error("Unsupported shader type for compilation");
         }
-        return ShaderCompiler::CompileGLSLtoSPV(glsl_code, type, binary);
+        return MainClass::GetInstance()->GetShaderCompiler()->CompileGLSLtoSPV(glsl_code, type, binary);
     }
 } // namespace Engine

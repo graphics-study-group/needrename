@@ -3,6 +3,7 @@
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include <Asset/AssetManager/AssetManager.h>
 #include <Asset/Scene/LevelAsset.h>
+#include <Asset/Shader/ShaderCompiler.h>
 #include <Core/Functional/EventQueue.h>
 #include <Core/Functional/SDLWindow.h>
 #include <Core/Functional/Time.h>
@@ -36,7 +37,6 @@ namespace Engine {
 
     MainClass::~MainClass() {
         SDL_Quit();
-        glslang::FinalizeProcess();
     }
 
     void MainClass::LoadBuiltinAssets(const std::filesystem::path &path) {
@@ -90,7 +90,9 @@ namespace Engine {
         this->window->CreateRenderTargets(this->renderer);
         this->gui->Create(this->window->GetWindow());
         Reflection::Initialize();
-        glslang::InitializeProcess();
+
+        // if in editor mode
+        this->shader_compiler = std::make_shared<ShaderCompiler>();
     }
 
     void MainClass::MainLoop() {
@@ -147,6 +149,10 @@ namespace Engine {
 
     std::shared_ptr<EventQueue> MainClass::GetEventQueue() const {
         return event_queue;
+    }
+
+    std::shared_ptr<ShaderCompiler> MainClass::GetShaderCompiler() {
+        return shader_compiler;
     }
 
     void MainClass::RunOneFrame() {
