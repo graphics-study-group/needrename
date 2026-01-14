@@ -86,13 +86,12 @@ namespace Engine {
             vk::DynamicState::eViewport, vk::DynamicState::eScissor
         };
 
-        vk::DescriptorSetLayout desc_set_layout;
-        vk::PipelineLayout pipeline_layout;
+        vk::DescriptorPool desc_pool {};
+        vk::DescriptorSetLayout desc_set_layout {};
+        vk::PipelineLayout pipeline_layout {};
         const ShdrRfl::SPLayout * m_layout{};
 
         vk::UniquePipeline pipeline;
-
-        PoolInfo m_poolInfo{};
         std::string m_name{};
 
         void CreatePipeline(
@@ -223,8 +222,8 @@ namespace Engine {
         RenderSystem &system,
         const MaterialTemplateSinglePassProperties &properties,
         const std::vector<vk::ShaderModule> &shaders,
-        vk::DescriptorSetLayout ds_layout,
         vk::PipelineLayout layout,
+        std::optional<std::pair<vk::DescriptorPool, vk::DescriptorSetLayout>> material_descriptor_info,
         const ShdrRfl::SPLayout * reflected,
         VertexAttribute attribute,
         const std::string &name
@@ -232,18 +231,22 @@ namespace Engine {
 
         pimpl->m_name = name;
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Createing pipelines for material %s.", pimpl->m_name.c_str());
-        // Prepare descriptor pool
-        vk::DescriptorPoolCreateInfo dpci{{}, PoolInfo::MAX_SET_SIZE, PoolInfo::DESCRIPTOR_POOL_SIZES, nullptr};
         vk::Device dvc = m_system.GetDevice();
-        pimpl->m_poolInfo.pool = dvc.createDescriptorPoolUnique(dpci);
-        DEBUG_SET_NAME_TEMPLATE(
-            dvc, pimpl->m_poolInfo.pool.get(), std::format("Descriptor Pool - Material {}", pimpl->m_name)
-        );
-
-        // Create pipelines
-        pimpl->desc_set_layout = ds_layout;
+        if (material_descriptor_info) {
+            pimpl->desc_pool = material_descriptor_info.value().first;
+            pimpl->desc_set_layout = material_descriptor_info.value().second;
+        } else {
+            SDL_LogDebug(
+                SDL_LOG_CATEGORY_RENDER,
+                "Material %s has not per material descriptor.",
+                name.c_str()
+            );
+        }
+        
         pimpl->pipeline_layout = layout;
         pimpl->m_layout = reflected;
+
+        // Create pipelines
         pimpl->CreatePipeline(system, shaders, properties, attribute);
     }
 
@@ -271,7 +274,7 @@ namespace Engine {
         }
 
         std::vector layouts(size, layout);
-        vk::DescriptorSetAllocateInfo dsai{pimpl->m_poolInfo.pool.get(), layouts};
+        vk::DescriptorSetAllocateInfo dsai{pimpl->desc_pool, layouts};
         auto sets = m_system.GetDevice().allocateDescriptorSets(dsai);
         assert(sets.size() == size);
         return sets;

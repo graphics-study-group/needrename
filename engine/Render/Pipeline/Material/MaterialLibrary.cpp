@@ -17,16 +17,30 @@ namespace Engine {
             "SKYBOX"
         };
 
+        static constexpr size_t MAX_MATERIAL_DESCRIPTORS_PER_POOL = 128;
+        static constexpr std::array DEFAULT_MATERIAL_DESCRIPTOR_POOL_SIZE {
+            vk::DescriptorPoolSize{vk::DescriptorType::eUniformBuffer, 128},
+            vk::DescriptorPoolSize{vk::DescriptorType::eStorageBuffer, 128},
+            vk::DescriptorPoolSize{vk::DescriptorType::eStorageBufferDynamic, 128},
+            vk::DescriptorPoolSize{vk::DescriptorType::eCombinedImageSampler, 128}
+        };
+
         struct PipelineAssetItem {
             MeshVertexType expected_mesh_type {};
             std::shared_ptr<AssetRef> material_template_asset {};
         };
 
         struct PipelineBundle {
+            /// Shader modules for the pipeline.
             std::vector <vk::UniqueShaderModule> shader_modules{};
+            /// Reflected pipeline info.
             ShdrRfl::SPLayout reflected{};
 
+            /// Descriptor pool for material descriptors (could be null if no material descriptor is found).
+            vk::UniqueDescriptorPool descriptor_pool{};
+            /// Descriptor set layout for material descriptors (could be null if no material descriptor is found).
             vk::UniqueDescriptorSetLayout descriptor_set_layout{};
+            /// Material pipeline layout.
             vk::UniquePipelineLayout pipeline_layout{};
 
             std::unordered_map <uint64_t, std::unique_ptr<MaterialTemplate>> materials{};
@@ -116,6 +130,17 @@ namespace Engine {
                 };
                 vk::PipelineLayoutCreateInfo plci{{}, set_layouts, push_constants};
                 b.pipeline_layout = d.createPipelineLayoutUnique(plci);
+
+                // Also create a descriptor pool
+                auto dpci = vk::DescriptorPoolCreateInfo{
+                    vk::DescriptorPoolCreateFlags{},
+                    MAX_MATERIAL_DESCRIPTORS_PER_POOL,
+                    DEFAULT_MATERIAL_DESCRIPTOR_POOL_SIZE
+                };
+                b.descriptor_pool = d.createDescriptorPoolUnique(dpci);
+                DEBUG_SET_NAME_TEMPLATE(
+                    d, b.descriptor_pool.get(), std::format("Descriptor Pool - Material {}", name)
+                );
             } else {
                 SDL_LogWarn(
                     SDL_LOG_CATEGORY_RENDER,
@@ -216,16 +241,33 @@ namespace Engine {
                     return usm.get();
                 }
             );
-            pipeline_table[tag].materials[actual_type] = std::make_unique<MaterialTemplate>(
-                system,
-                asset->properties,
-                shader_modules,
-                b.descriptor_set_layout.get(),
-                b.pipeline_layout.get(),
-                &b.reflected,
-                VertexAttribute{.packed = actual_type},
-                asset->name
-            );
+            if (b.descriptor_pool) {
+                pipeline_table[tag].materials[actual_type] = std::make_unique<MaterialTemplate>(
+                    system,
+                    asset->properties,
+                    shader_modules,
+                    b.pipeline_layout.get(),
+                    std::make_pair(
+                        b.descriptor_pool.get(),
+                        b.descriptor_set_layout.get()
+                    ),
+                    &b.reflected,
+                    VertexAttribute{.packed = actual_type},
+                    asset->name
+                );
+            } else {
+                pipeline_table[tag].materials[actual_type] = std::make_unique<MaterialTemplate>(
+                    system,
+                    asset->properties,
+                    shader_modules,
+                    b.pipeline_layout.get(),
+                    std::nullopt,
+                    &b.reflected,
+                    VertexAttribute{.packed = actual_type},
+                    asset->name
+                );
+            }
+            
             SDL_LogInfo(
                 SDL_LOG_CATEGORY_RENDER,
                 "Created material %p.",

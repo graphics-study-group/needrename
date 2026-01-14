@@ -10,6 +10,7 @@ namespace vk {
     class PipelineLayout;
     class DescriptorSetLayout;
     class DescriptorSet;
+    class DescriptorPool;
     class DescriptorImageInfo;
     class ShaderModule;
 } // namespace vk
@@ -61,8 +62,10 @@ namespace Engine {
             RenderSystem & system,
             const MaterialTemplateSinglePassProperties & properties,
             const std::vector <vk::ShaderModule> & shaders,
-            vk::DescriptorSetLayout ds_layout,
             vk::PipelineLayout layout,
+            std::optional<
+                std::pair<vk::DescriptorPool, vk::DescriptorSetLayout>
+            > material_descriptor_info,
             const ShdrRfl::SPLayout * reflected,
             VertexAttribute attribute,
             const std::string & name = ""
