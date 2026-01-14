@@ -6,10 +6,17 @@
 #include "Render/Memory/ShaderParameters/ShaderParameterLayout.h"
 
 #include <cassert>
+#include <unordered_set>
+#include <string_view>
 #include <SDL3/SDL.h>
 
 namespace Engine {
     struct MaterialLibrary::impl {
+
+        static const inline std::unordered_set <std::string_view> SPECIAL_TAGS {
+            "SKYBOX"
+        };
+
         struct PipelineAssetItem {
             MeshVertexType expected_mesh_type {};
             std::shared_ptr<AssetRef> material_template_asset {};
@@ -69,6 +76,10 @@ namespace Engine {
             }
         }
 
+        /**
+         * @brief Create general material pipeline layout,
+         * which contains three descriptor sets, the last of which being reflected from shader.
+         */
         void GenerateDescriptorSetAndPipelineLayout(
             PipelineBundle & b,
             vk::Device d,
@@ -124,6 +135,30 @@ namespace Engine {
         }
 
         /**
+         * @brief Create a special layout for skybox rendering pipelines.
+         */
+        void GenerateDescriptorSetAndPipelineLayoutSkybox(
+            PipelineBundle & b,
+            vk::Device d,
+            vk::DescriptorSetLayout skybox_desc_set_layout
+        ) {
+            static constexpr std::array PIPELINE_PUSH_CONSTANT_RANGE {
+                vk::PushConstantRange{
+                    vk::ShaderStageFlagBits::eAllGraphics, 0, sizeof(glm::mat4)
+                }
+            };
+
+            // Create pipeline layout for skybox rendering pipeline
+            vk::PipelineLayoutCreateInfo plci{
+                vk::PipelineLayoutCreateFlags{},
+                {skybox_desc_set_layout},
+                PIPELINE_PUSH_CONSTANT_RANGE
+            };
+            b.pipeline_layout = d.createPipelineLayoutUnique(plci);
+            DEBUG_SET_NAME_TEMPLATE(d, b.pipeline_layout.get(), "Skybox Pipeline Layout");
+        }
+
+        /**
          * @brief Create a pipeline, assuming that the asset corresponding to
          * both the tag and the mesh type exists.
          */
@@ -152,14 +187,23 @@ namespace Engine {
                     system.GetDevice(),
                     asset->properties.shaders.shaders
                 );
-
-                GenerateDescriptorSetAndPipelineLayout(
-                    pipeline_table[tag],
-                    system.GetDevice(),
-                    system.GetSceneDataManager().GetLightDescriptorSetLayout(),
-                    system.GetCameraManager().GetDescriptorSetLayout(),
-                    asset->name
-                );
+                if (SPECIAL_TAGS.contains(tag)) {
+                    if (tag == "SKYBOX") {
+                        GenerateDescriptorSetAndPipelineLayoutSkybox(
+                            pipeline_table[tag],
+                            system.GetDevice(),
+                            system.GetSceneDataManager().GetSkyboxDescriptorSetLayout()
+                        );
+                    }
+                } else {
+                    GenerateDescriptorSetAndPipelineLayout(
+                        pipeline_table[tag],
+                        system.GetDevice(),
+                        system.GetSceneDataManager().GetLightDescriptorSetLayout(),
+                        system.GetCameraManager().GetDescriptorSetLayout(),
+                        asset->name
+                    );
+                }
             }
             
             const auto & b = pipeline_table[tag];

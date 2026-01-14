@@ -3,6 +3,9 @@
 #include <chrono>
 #include <fstream>
 
+#include "Asset/AssetDatabase/FileSystemDatabase.h"
+#include "Asset/AssetManager/AssetManager.h"
+#include "Asset/Material/MaterialTemplateAsset.h"
 #include "Asset/Texture/ImageCubemapAsset.h"
 #include "UserInterface/GUISystem.h"
 #include "MainClass.h"
@@ -39,6 +42,39 @@ const std::array<std::filesystem::path, 6> CUBEMAP_FACES = {
     std::filesystem::path{ENGINE_BUILTIN_ASSETS_DIR} / "skybox" / "skybox_D_tonemapped.png"
 };
 
+
+std::pair<std::shared_ptr<MaterialLibraryAsset>, std::shared_ptr<MaterialTemplateAsset>> ConstructMaterial() {
+    auto adb = std::dynamic_pointer_cast<FileSystemDatabase>(
+        MainClass::GetInstance()->GetAssetDatabase()
+    );
+    auto test_asset = std::make_shared<MaterialTemplateAsset>();
+    auto lib_asset = std::make_shared<MaterialLibraryAsset>();
+    auto vs_ref = adb->GetNewAssetRef("~/shaders/skybox.vert.asset");
+    auto fs_ref = adb->GetNewAssetRef("~/shaders/skybox.frag.asset");
+    MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(vs_ref);
+    MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(fs_ref);
+
+    test_asset->name = "Skybox";
+
+    MaterialTemplateSinglePassProperties mtspp{};
+    mtspp.attachments.color = {ImageUtils::ImageFormat::R8G8B8A8UNorm};
+    using CBP = PipelineProperties::ColorBlendingProperties;
+    CBP cbp{};
+    mtspp.attachments.color_blending = {cbp};
+    mtspp.attachments.depth = ImageUtils::ImageFormat::D32SFLOAT;
+    mtspp.shaders.shaders = std::vector<std::shared_ptr<AssetRef>>{vs_ref, fs_ref};
+
+    test_asset->properties = mtspp;
+
+    lib_asset->m_name = "Skybox";
+    MaterialLibraryAsset::MaterialTemplateReference ref;
+    ref.expected_mesh_type = 0;
+    ref.material_template = std::make_shared<AssetRef>(test_asset);
+    lib_asset->material_bundle["SKYBOX"] = ref;
+
+    return std::make_pair(lib_asset, test_asset);
+}
+
 int main(int argc, char **argv) {
     int64_t max_frame_count = std::numeric_limits<int64_t>::max();
     if (argc > 1) {
@@ -58,6 +94,10 @@ int main(int argc, char **argv) {
     auto camera = std::make_shared<Camera>();
     camera->set_aspect_ratio(800.0 / 800.0);
     camera->m_clipping_far = 1e2;
+
+    auto [lib_asset, tpl_asset] = ConstructMaterial();
+    auto lib = std::make_shared<MaterialLibrary>(*rsys);
+    lib->Instantiate(*lib_asset);
 
     // Load skybox cubemap
     auto cubemap = std::make_shared<ImageCubemapAsset>();
@@ -241,6 +281,7 @@ int main(int argc, char **argv) {
         camera->UpdateViewMatrix(t);
         rsys->GetSceneDataManager().DrawSkybox(
             cb,
+            *lib,
             rsys->GetFrameManager().GetFrameInFlight(),
             camera->GetProjectionMatrix() * camera->GetViewMatrix()
         );
