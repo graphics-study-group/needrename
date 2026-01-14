@@ -43,3 +43,5 @@ target_include_directories(
     "${THIRD_PARTY_DIR}/imgui/backends/"
 )
 
+set(ENABLE_OPT OFF CACHE BOOL "Enable optimizations" FORCE)
+add_subdirectory(glslang EXCLUDE_FROM_ALL SYSTEM)

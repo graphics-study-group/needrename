@@ -11,11 +11,11 @@ namespace Engine {
     Asset::~Asset() {
     }
 
-    void Asset::save_to_archive(Serialization::Archive &archive) const {
+    void Asset::save_to_archive(Serialization::Archive &) const {
         throw std::runtime_error("Asset serialization is not allowed. Use AssetRef instead.");
     }
 
-    void Asset::load_from_archive(Serialization::Archive &archive) {
+    void Asset::load_from_archive(Serialization::Archive &) {
         throw std::runtime_error("Asset serialization is not allowed. Use AssetRef instead.");
     }
 

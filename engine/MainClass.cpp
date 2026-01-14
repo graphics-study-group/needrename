@@ -3,6 +3,7 @@
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include <Asset/AssetManager/AssetManager.h>
 #include <Asset/Scene/LevelAsset.h>
+#include <Asset/Shader/ShaderCompiler.h>
 #include <Core/Functional/EventQueue.h>
 #include <Core/Functional/SDLWindow.h>
 #include <Core/Functional/Time.h>
@@ -10,6 +11,7 @@
 #include <Render/FullRenderSystem.h>
 #include <UserInterface/GUISystem.h>
 #include <UserInterface/Input.h>
+#include <glslang/Public/ShaderLang.h>
 
 #include <exception>
 #include <fstream>
@@ -58,7 +60,10 @@ namespace Engine {
         auto level_asset =
             std::dynamic_pointer_cast<LevelAsset>(this->asset_manager->LoadAssetImmediately(default_level_guid));
         this->world->LoadLevelAsset(level_asset);
-        this->renderer->GetCameraManager().RegisterCamera(this->world->GetActiveCamera());
+
+        auto active_camera = this->world->GetActiveCamera();
+        if (active_camera)
+            this->renderer->GetCameraManager().RegisterCamera(active_camera);
     }
 
     void MainClass::Initialize(
@@ -85,6 +90,9 @@ namespace Engine {
         this->window->CreateRenderTargets(this->renderer);
         this->gui->Create(this->window->GetWindow());
         Reflection::Initialize();
+
+        // if in editor mode
+        this->shader_compiler = std::make_shared<ShaderCompiler>();
     }
 
     void MainClass::MainLoop() {
@@ -141,6 +149,10 @@ namespace Engine {
 
     std::shared_ptr<EventQueue> MainClass::GetEventQueue() const {
         return event_queue;
+    }
+
+    std::shared_ptr<ShaderCompiler> MainClass::GetShaderCompiler() {
+        return shader_compiler;
     }
 
     void MainClass::RunOneFrame() {
