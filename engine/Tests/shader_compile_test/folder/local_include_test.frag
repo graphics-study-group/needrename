@@ -1,21 +1,8 @@
 #version 450
 #extension GL_ARB_shading_language_include : require
-#include "interface.glsl"
-
-layout(constant_id = 0) const int SPECULAR_SHADING_MODE = 2;
-
-layout(location = 0) in vec3 frag_color;
-layout(location = 1) in vec2 frag_uv;
-layout(location = 2) in vec3 frag_normal;
-layout(location = 3) in vec3 frag_position;
-
-layout(location = 0) out vec4 outColor;
-
-layout(set = 2, binding = 1) uniform sampler2D base_tex;
-layout(set = 2, binding = 0) uniform Material {
-    vec4 specular_color;
-    vec4 ambient_color;
-} material;
+#include <engine/interface.glsl>
+#include "../include1.glsl"
+#include "include2.glsl"
 
 void main() {
     vec3 frag_position_vs = (camera.cameras[pc.camera_id].view * vec4(frag_position, 1.0)).xyz;

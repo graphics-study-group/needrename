@@ -1,15 +1,20 @@
 {
     "%data": {
         "&0": {
-            "%extra_data_id": 0,
             "%type": "Engine::ShaderAsset",
             "Asset::m_guid": "A9BE0A978CB44D7D96C9FC525E4EC6A1",
-            "ShaderAsset::m_name": "lambertian_cook_torrance.frag.spv",
+            "ShaderAsset::m_name": "lambertian_cook_torrance.frag",
             "ShaderAsset::m_entry_point": "main",
-            "ShaderAsset::shaderType": "Fragment"
+            "ShaderAsset::shaderType": "Fragment",
+            "ShaderAsset::storeType": "GLSL",
+            "glsl_extra_data_id": 0,
+            "binary_extra_data_id": 1
         }
     },
     "%extra_data": [
+        {
+            "%extension": ".glsl"
+        },
         {
             "%extension": ".spv"
         }

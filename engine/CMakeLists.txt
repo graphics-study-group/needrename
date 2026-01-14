@@ -16,6 +16,7 @@ target_link_libraries(EngineLibExternalDependency
     json
     imgui
     vma
+    glslang
 )
 target_compile_definitions(EngineLibExternalDependency INTERFACE VULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1)
 target_compile_definitions(EngineLibExternalDependency INTERFACE VULKAN_HPP_STORAGE_SHARED)
@@ -39,6 +40,8 @@ add_library(engine SHARED
     $<TARGET_OBJECTS:EngineLibUserInterface>
 )
 
+add_dependencies(engine shader)
+
 # Widely used dependencies such as SDL and Vulkan are marked as public
 target_link_libraries(engine
     PUBLIC
@@ -57,6 +60,7 @@ target_link_libraries(engine
     EngineLibUserInterface
 )
 
+# TODO: Use relative paths when install.
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/cmake_config.h)
 
 include(CTest)

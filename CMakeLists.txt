@@ -13,8 +13,9 @@ set(REFLECTION_PARSER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/reflection_parser)
 set(EXAMPLES_DIR ${CMAKE_CURRENT_SOURCE_DIR}/example)
 set(TESTS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/test)
 set(PROJECTS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/projects)
+set(BUILD_SHARED_LIBS ON)
 
-find_package(Vulkan REQUIRED COMPONENTS SPIRV-Tools glslangValidator)
+find_package(Vulkan REQUIRED COMPONENTS glslangValidator)
 find_package(SDL3 REQUIRED CONFIG REQUIRED COMPONENTS SDL3-shared)
 message(STATUS "Vulkan version: ${Vulkan_VERSION}")
 

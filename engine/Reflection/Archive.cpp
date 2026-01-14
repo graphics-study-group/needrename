@@ -95,7 +95,7 @@ namespace Engine {
                     extra_data_file.read(reinterpret_cast<char *>(data.data()), size);
                     extra_data_file.close();
                 } else {
-                    throw std::runtime_error("Failed to open extra data file");
+                    data.clear();
                 }
             }
         }

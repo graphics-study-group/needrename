@@ -10,7 +10,7 @@
 #include <Render/Pipeline/PipelineEnums.h>
 
 #include <Asset/AssetRef.h>
-#include <Asset/Material/ShaderAsset.h>
+#include <Asset/Shader/ShaderAsset.h>
 
 namespace Engine {
     namespace PipelineProperties {

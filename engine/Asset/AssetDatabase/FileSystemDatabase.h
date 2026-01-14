@@ -17,10 +17,10 @@ namespace Engine {
         virtual ~FileSystemDatabase() = default;
 
         struct AssetInfo {
-            std::filesystem::path path;
-            GUID guid;
-            std::string type_name;
-            bool is_directory;
+            std::filesystem::path path{};
+            GUID guid{};
+            std::string type_name{};
+            bool is_directory{};
         };
 
         /// @brief Add an asset guid to the system.

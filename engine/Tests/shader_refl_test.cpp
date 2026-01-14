@@ -6,21 +6,25 @@
 #include <SDL3/SDL.h>
 #include <vulkan/vulkan.hpp>
 
+#include "Asset/Shader/ShaderCompiler.h"
 #include "Render/Memory/ShaderParameters/ShaderParameterLayout.h"
 #include "Render/Memory/ShaderParameters/ShaderParameterSimple.h"
 #include <cmake_config.h>
 
-inline std::vector <uint32_t> ReadSpirvBinary(std::filesystem::path p) {
-    std::vector <uint32_t> binary{};
-    // Read SPIR-V code
+inline std::vector <uint32_t> GetSpirvBinaryFromGLSL(std::filesystem::path p, EShLanguage shaderType) {
     std::ifstream file(p, std::ios::binary | std::ios::ate);
     assert(file.is_open());
     size_t file_size = file.tellg();
     file.seekg(0, std::ios::beg);
-    printf("Loading shader %s, size %zu bytes\n", p.string().c_str(), file_size);
-    binary.resize((file_size - sizeof(uint32_t) + 1) / sizeof(uint32_t) + 1);
-    file.read(reinterpret_cast<char *>(binary.data()), file_size);
+
+    std::string glsl_code;
+    glsl_code.resize(file_size);
+    file.read(glsl_code.data(), file_size);
     file.close();
+
+    std::vector <uint32_t> binary{};
+    Engine::ShaderCompiler compiler;
+    compiler.CompileGLSLtoSPV(binary, glsl_code, shaderType);
     return binary;
 }
 
@@ -106,25 +110,29 @@ inline void PrintDescriptorSetLayoutBindings (const std::unordered_map<uint32_t,
 }
 
 int main(int argc, char *argv[]) {
+    glslang::InitializeProcess();
 
     auto p = argc == 1 ? 
-        std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "shaders/pbr_base.vert.0.spv" 
+        std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "shaders/pbr_base.vert.0.glsl" 
         : std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "shaders" / argv[1];
 
     // Get SDL logging working.
     SDL_SetLogPriorities(SDL_LOG_PRIORITY_VERBOSE);
     
-    auto binary = ReadSpirvBinary(p);
+    auto binary = GetSpirvBinaryFromGLSL(p, EShLangVertex);
     auto layout = Engine::ShdrRfl::SPLayout::Reflect(binary, true);
     PrintLayout(layout);
 
-    binary = ReadSpirvBinary(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "shaders/lambertian_cook_torrance.frag.0.spv");
+    binary = GetSpirvBinaryFromGLSL(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "shaders/lambertian_cook_torrance.frag.0.glsl", EShLangFragment);
     layout.Merge(Engine::ShdrRfl::SPLayout::Reflect(binary, true));
     PrintLayout(layout);
     PrintDescriptorSetLayoutBindings(layout.GenerateAllLayoutBindings());
 
-    binary = ReadSpirvBinary(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "shaders/fluid.comp.0.spv");
+    binary = GetSpirvBinaryFromGLSL(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "shaders/fluid.comp.0.glsl", EShLangCompute);
     layout = Engine::ShdrRfl::SPLayout::Reflect(binary, false);
     PrintLayout(layout);
     PrintDescriptorSetLayoutBindings(layout.GenerateAllLayoutBindings());
+
+    glslang::FinalizeProcess();
+    return 0;
 }

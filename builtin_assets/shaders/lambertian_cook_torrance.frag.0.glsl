@@ -4,7 +4,7 @@
  */
 #version 450 core
 #extension GL_ARB_shading_language_include : require
-#include "interface.glsl"
+#include "engine/interface.glsl"
 
 #define M_PI 3.1415926538
 #define M_EPS (1e-5)
