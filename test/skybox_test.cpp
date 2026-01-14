@@ -63,6 +63,7 @@ std::pair<std::shared_ptr<MaterialLibraryAsset>, std::shared_ptr<MaterialTemplat
     mtspp.attachments.color_blending = {cbp};
     mtspp.attachments.depth = ImageUtils::ImageFormat::D32SFLOAT;
     mtspp.shaders.shaders = std::vector<std::shared_ptr<AssetRef>>{vs_ref, fs_ref};
+    mtspp.depth_stencil.depth_comparator = PipelineUtils::DSComparator::LEqual;
 
     test_asset->properties = mtspp;
 
