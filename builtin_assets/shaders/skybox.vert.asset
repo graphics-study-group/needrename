@@ -1,0 +1,23 @@
+{
+    "%data": {
+        "&0": {
+            "%type": "Engine::ShaderAsset",
+            "Asset::m_guid": "917745CBDD3448B099C6CFE19BAF2BA0",
+            "ShaderAsset::m_name": "skybox.vert",
+            "ShaderAsset::m_entry_point": "main",
+            "ShaderAsset::shaderType": "Vertex",
+            "ShaderAsset::storeType": "GLSL",
+            "glsl_extra_data_id": 0,
+            "binary_extra_data_id": 1
+        }
+    },
+    "%extra_data": [
+        {
+            "%extension": ".glsl"
+        },
+        {
+            "%extension": ".spv"
+        }
+    ],
+    "%main_id": "&0"
+}

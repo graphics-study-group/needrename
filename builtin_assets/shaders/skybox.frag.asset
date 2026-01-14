@@ -1,0 +1,23 @@
+{
+    "%data": {
+        "&0": {
+            "%type": "Engine::ShaderAsset",
+            "Asset::m_guid": "63FF8228AEF8415D8CA842798532486D",
+            "ShaderAsset::m_name": "skybox.frag",
+            "ShaderAsset::m_entry_point": "main",
+            "ShaderAsset::shaderType": "Fragment",
+            "ShaderAsset::storeType": "GLSL",
+            "glsl_extra_data_id": 0,
+            "binary_extra_data_id": 1
+        }
+    },
+    "%extra_data": [
+        {
+            "%extension": ".glsl"
+        },
+        {
+            "%extension": ".spv"
+        }
+    ],
+    "%main_id": "&0"
+}
