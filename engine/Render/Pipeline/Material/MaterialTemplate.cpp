@@ -22,6 +22,43 @@
 #include <vulkan/vulkan.hpp>
 
 namespace {
+    vk::SpecializationInfo FillSpecializationInfo (
+        const std::unordered_map <uint32_t, int32_t> & spec_vars,
+        std::vector <vk::SpecializationMapEntry> & sme,
+        std::vector <std::byte> & buf
+    ) {
+        sme.clear();
+        buf.clear();
+
+        vk::SpecializationInfo speci{};
+
+        if (!spec_vars.empty()) {
+            sme.reserve(spec_vars.size());
+            buf.resize(spec_vars.size() * sizeof(int32_t));
+            uint32_t current_offset = 0u;
+            for (const auto & [k, v] : spec_vars) {
+                const auto size = sizeof(int32_t);
+                std::memcpy(buf.data() + current_offset, &v, size);
+                sme.push_back(
+                    vk::SpecializationMapEntry{
+                        k, current_offset, size
+                    }
+                );
+                current_offset += size;
+            }
+            speci.setMapEntries(sme);
+
+            // We cannot use `setData` directly as it cannot get size correctly.
+            speci.setDataSize(buf.size());
+            speci.setPData(buf.data());
+        } else {
+            speci.setMapEntries(0);
+            speci.setDataSize(0);
+        }
+
+        return speci;
+    }
+
     std::vector <vk::Format> ToVulkanFormat(
         const std::vector <Engine::ImageUtils::ImageFormat> & format,
         vk::Format default_color_format
@@ -91,7 +128,7 @@ namespace Engine {
         vk::PipelineLayout pipeline_layout {};
         const ShdrRfl::SPLayout * m_layout{};
 
-        vk::UniquePipeline pipeline;
+        vk::UniquePipeline pipeline {};
         std::string m_name{};
 
         void CreatePipeline(
@@ -102,17 +139,26 @@ namespace Engine {
         ) {
             vk::Device device = system.GetDevice();
 
-            // Process and reflect on shaders.
-            std::vector<vk::PipelineShaderStageCreateInfo> psscis;
-            psscis.resize(prop.shaders.shaders.size());
-            for (size_t i = 0; i < prop.shaders.shaders.size(); i++) {
-                auto shader_asset = prop.shaders.shaders[i]->cas<ShaderAsset>();
-                psscis[i] = vk::PipelineShaderStageCreateInfo{
-                    {},
-                    PipelineUtils::ToVulkanShaderStageFlagBits(shader_asset->shaderType),
-                    shader_modules[i],
-                    shader_asset->m_entry_point.empty() ? "main" : shader_asset->m_entry_point.c_str()
-                };
+            // Process shaders.
+            vk::SpecializationInfo speci{};
+            std::vector <vk::PipelineShaderStageCreateInfo> psscis;
+            std::vector <vk::SpecializationMapEntry> sme;
+            std::vector <std::byte> specialization_constant_buffer;
+            {
+                // Prepare specialization constants
+                speci = FillSpecializationInfo(prop.shaders.specialization_constants, sme, specialization_constant_buffer);
+
+                psscis.resize(prop.shaders.shaders.size());
+                for (size_t i = 0; i < prop.shaders.shaders.size(); i++) {
+                    auto shader_asset = prop.shaders.shaders[i]->cas<ShaderAsset>();
+                    psscis[i] = vk::PipelineShaderStageCreateInfo{
+                        {},
+                        PipelineUtils::ToVulkanShaderStageFlagBits(shader_asset->shaderType),
+                        shader_modules[i],
+                        shader_asset->m_entry_point.empty() ? "main" : shader_asset->m_entry_point.c_str(),
+                        &speci
+                    };
+                }
             }
 
             bool use_swapchain_attachments =
@@ -231,7 +277,7 @@ namespace Engine {
 
         pimpl->m_name = name;
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Createing pipelines for material %s.", pimpl->m_name.c_str());
-        vk::Device dvc = m_system.GetDevice();
+
         if (material_descriptor_info) {
             pimpl->desc_pool = material_descriptor_info.value().first;
             pimpl->desc_set_layout = material_descriptor_info.value().second;
