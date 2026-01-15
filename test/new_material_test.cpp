@@ -61,6 +61,9 @@ std::pair<std::shared_ptr<MaterialLibraryAsset>, std::shared_ptr<MaterialTemplat
     mtspp.attachments.color_blending = {cbp};
     mtspp.attachments.depth = ImageUtils::ImageFormat::D32SFLOAT;
     mtspp.shaders.shaders = std::vector<std::shared_ptr<AssetRef>>{vs_ref, fs_ref};
+    mtspp.shaders.specialization_constants = {
+        {0, 1}
+    };
 
     test_asset->properties = mtspp;
 
