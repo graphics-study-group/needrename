@@ -22,11 +22,7 @@ namespace Engine {
     glslang::TShader::Includer::IncludeResult *DirStackFileIncluder::includeLocal(
         const char *headerName, const char *includerName, size_t inclusionDepth
     ) {
-        auto result = readLocalPath(headerName, includerName, static_cast<int>(inclusionDepth));
-        if (result != nullptr) {
-            return result;
-        }
-        return readSystemPath(headerName);
+        return readLocalPath(headerName, includerName, static_cast<int>(inclusionDepth));
     }
 
     glslang::TShader::Includer::IncludeResult *DirStackFileIncluder::includeSystem(
