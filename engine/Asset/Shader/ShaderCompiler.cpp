@@ -134,7 +134,7 @@ namespace Engine {
         includer.setLocalPath(shader_abs_path.parent_path().lexically_normal().generic_string());
         EShMessages messages = (EShMessages)(EShMsgSpvRules | EShMsgVulkanRules);
         if (emit_debug_info) {
-            messages = (EShMessages)(EShMsgSpvRules | EShMsgVulkanRules | EShMsgDebugInfo);
+            messages = (EShMessages)(messages | EShMsgDebugInfo);
         }
         if (!shader.parse(&m_built_in_resource, 110, false, messages, includer)) {
             SDL_LogError(
@@ -166,6 +166,8 @@ namespace Engine {
                 option.emitNonSemanticShaderDebugSource = true;
                 option.generateDebugInfo = true;
                 option.stripDebugInfo = false;
+                option.optimizeSize = false;
+                option.disableOptimizer = true;
             }
             glslang::GlslangToSpv(*intermediate, spirv, &option);
         }
