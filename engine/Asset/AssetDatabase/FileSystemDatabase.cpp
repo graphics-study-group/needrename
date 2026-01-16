@@ -177,10 +177,12 @@ namespace Engine {
         // Case 1: "~" prefixed project path (e.g., "~/a/b")
         auto it = project_path.begin();
         if (it != project_path.end() && it->string() == "~") {
+            assert(!m_builtin_asset_path.empty());
             return m_builtin_asset_path / (std::filesystem::relative(project_path, "~"));
         }
         // Case 2: "/" prefixed project path (e.g., "/a/b")
         if (project_path.has_root_directory()) {
+            assert(!m_project_asset_path.empty());
             return m_project_asset_path / project_path.relative_path();
         }
         // Case 3: relative project path (e.g., "a/b")

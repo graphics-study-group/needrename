@@ -61,6 +61,9 @@ namespace Engine {
         void LoadBuiltinAssets(const std::filesystem::path &path);
         void LoadProjectAssets(const std::filesystem::path &path);
 
+        std::filesystem::path ProjectPathToFilesystemPath(const std::filesystem::path &project_path) const;
+        std::filesystem::path FilesystemPathToProjectPath(const std::filesystem::path &fs_path) const;
+
     protected:
         /// @brief Path to the engine built-in assets
         std::filesystem::path m_builtin_asset_path{};
@@ -69,9 +72,6 @@ namespace Engine {
 
         std::unordered_map<GUID, std::string, GUIDHash> m_assets_map{};
         std::unordered_map<std::string, GUID> m_path_to_guid{};
-
-        std::filesystem::path ProjectPathToFilesystemPath(const std::filesystem::path &project_path) const;
-        std::filesystem::path FilesystemPathToProjectPath(const std::filesystem::path &fs_path) const;
     };
 } // namespace Engine
 
