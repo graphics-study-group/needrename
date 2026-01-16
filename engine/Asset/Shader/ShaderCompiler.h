@@ -16,11 +16,28 @@ namespace Engine {
         ShaderCompiler();
         ~ShaderCompiler();
 
+        /**
+         * @brief Compile GLSL to SPIR-V representation via source code.
+         * 
+         * Due to the way glslang handles inclusion and debug info, non-semantic debug information
+         * may be incorrect. Therefore, it is recommended to use the file name instead.
+         */
         bool CompileGLSLtoSPV(
             std::vector<uint32_t> &spirv,
             const std::string &glsl_code,
             EShLanguage shader_type,
             const std::filesystem::path &shader_directory = std::filesystem::path{}
+        );
+
+        /**
+         * @brief Compile GLSL to SPIR-V representation via its absolute path.
+         * 
+         * Shader type is inferred from the filename
+         */
+        bool CompileGLSLtoSPV(
+            std::vector<uint32_t> &spirv,
+            const std::filesystem::path &shader_abs_path,
+            bool emit_debug_info = true
         );
 
     protected:
