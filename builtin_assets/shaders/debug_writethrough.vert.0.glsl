@@ -1,7 +1,7 @@
 // Apply MVP transforms and write through all vertex attributes to the fragment shader.
 #version 450 core
 #extension GL_ARB_shading_language_include : require
-#include "engine/interface.glsl"
+#include <engine/interface.glsl>
 
 layout(location = 0) in vec3 vertex_position;
 layout(location = 1) in vec3 vertex_color;
