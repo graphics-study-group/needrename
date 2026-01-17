@@ -102,8 +102,14 @@ namespace Engine {
 
             /// @brief A vector of all shader programs used in the pipeline
             std::vector<std::shared_ptr<AssetRef>> shaders{};
-            // TODO: Support shader specialization
-            // std::vector <...> specialization;
+
+            /// @brief Specialization constants.
+            /// We are supporting `int` (`int32_t`) only.
+            /// `bool` is not supported, but you can use `int` instead.
+            /// `float` is not supported until `std::variant` reflection is supported.
+            std::unordered_map <
+                uint32_t, int32_t
+            > specialization_constants {};
         };
 
         /// @brief C.f.

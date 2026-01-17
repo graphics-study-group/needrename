@@ -38,6 +38,12 @@ namespace Engine {
          * The pipeline is first by tags, and then by mesh type.
          * It is selected to guarantee that no mesh vertex attributes
          * are left out by the vertex shader input.
+         * 
+         * @note The following tags are reserved:
+         *  - `SKYBOX`: reserved for skybox rendering.
+         * 
+         * @param tag The tag of the material. 
+         * @param mesh_type vertex format of the mesh.
          */
         const MaterialTemplate * FindMaterialTemplate(
             const std::string & tag,

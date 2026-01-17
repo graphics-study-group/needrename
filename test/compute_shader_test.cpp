@@ -1,8 +1,9 @@
 #include <SDL3/SDL.h>
 #include <iostream>
 
-#include <Asset/AssetDatabase/FileSystemDatabase.h>
+#include "Asset/AssetDatabase/FileSystemDatabase.h"
 #include "Asset/AssetManager/AssetManager.h"
+#include "Asset/Shader/ShaderAsset.h"
 #include "MainClass.h"
 #include "Render/FullRenderSystem.h"
 #include <cmake_config.h>

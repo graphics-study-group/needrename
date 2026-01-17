@@ -1,40 +1,61 @@
 #ifndef RENDER_RENDERSYSTEM_SWAPCHAIN_INCLUDED
 #define RENDER_RENDERSYSTEM_SWAPCHAIN_INCLUDED
 
-#include "Render/ImageUtils.h"
+#include <memory>
 #include <vector>
 
-namespace Engine {
+namespace vk {
+    struct SwapchainKHR;
+    struct Image;
+    struct SurfaceFormatKHR;
+    struct Extent2D;
+    struct ImageMemoryBarrier2;
 
+    enum class Format;
+}
+
+namespace Engine {
     class RenderSystem;
 
     namespace RenderSystemState {
         class DeviceInterface;
         class Swapchain {
-        protected:
-            vk::UniqueSwapchainKHR m_swapchain{};
-            // Images retreived from swapchain don't require clean up.
-            std::vector<vk::Image> m_images{};
-
-            vk::SurfaceFormatKHR m_image_format{};
-            vk::Extent2D m_extent{};
+            struct impl;
+            std::unique_ptr <impl> pimpl;
 
         public:
-            static constexpr auto COLOR_FORMAT_VK = vk::Format::eR8G8B8A8Srgb;
-            static constexpr auto DEPTH_FORMAT_VK = vk::Format::eD32Sfloat;
+            Swapchain() noexcept;
+            ~Swapchain() noexcept;
 
             void CreateSwapchain(
                 const DeviceInterface & device_interface,
                 vk::Extent2D expected_extent
             );
 
-            vk::SwapchainKHR GetSwapchain() const;
-            auto GetImages() const -> const decltype(m_images) &;
+            vk::SwapchainKHR GetSwapchain() const noexcept;
+            const std::vector <vk::Image> & GetImages() const noexcept;
 
-            vk::SurfaceFormatKHR GetImageFormat() const;
-            vk::Extent2D GetExtent() const;
+            /**
+             * @brief Get current format of the presentable surface.
+             */
+            vk::SurfaceFormatKHR GetSurfaceFormat() const noexcept;
 
-            uint32_t GetFrameCount() const;
+            /**
+             * @brief Get current extent of the presentable surface.
+             */
+            vk::Extent2D GetExtent() const noexcept;
+
+            /**
+             * @brief Get total frame buffer images count.
+             */
+            uint32_t GetFrameCount() const noexcept;
+
+            /**
+             * @brief Get the color format of the presentable surface.
+             * 
+             * Shorthand for `GetSurfaceFormat().format`.
+             */
+            vk::Format GetColorFormat() const noexcept;
 
             /**
              * @brief Get a barrier that transit the state of the given framebuffer

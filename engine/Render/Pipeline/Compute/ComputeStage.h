@@ -14,7 +14,7 @@ namespace Engine {
     }
 
     class ComputeStage : public IInstantiatedFromAsset<ShaderAsset> {
-        using PassInfo = PipelineInfo::PassInfo;
+        using PassInfo = PipelineInfo::ComputePassInfo;
 
         RenderSystem &m_system;
 
@@ -24,6 +24,7 @@ namespace Engine {
     public:
         ComputeStage(RenderSystem &system);
 
+        // TODO: Add specialization constant support.
         void Instantiate(const ShaderAsset &asset) override;
 
         ~ComputeStage();

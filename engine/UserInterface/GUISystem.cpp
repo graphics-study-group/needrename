@@ -95,7 +95,11 @@ namespace Engine {
         ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     }
 
-    void GUISystem::CreateVulkanBackend(RenderSystem & render_system, vk::Format color_attachment_format) {
+    void GUISystem::CreateVulkanBackend(
+        RenderSystem & render_system,
+        vk::Format color_attachment_format,
+        uint8_t samples
+    ) {
 
         if(pimpl->vkr.descriptor_pool) {
             SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Recreating Vulkan backend for GUI subsystem.");
@@ -118,16 +122,17 @@ namespace Engine {
         info.ImageCount = swapchain.GetFrameCount();
         info.MinImageCount = info.ImageCount;
         info.UseDynamicRendering = true;
-        info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
 
         std::array<vk::Format, 1> formats = {
-            {color_attachment_format == vk::Format::eUndefined ? render_system.GetSwapchain().COLOR_FORMAT_VK
+            {color_attachment_format == vk::Format::eUndefined ? render_system.GetSwapchain().GetColorFormat()
                                                                : color_attachment_format}
         };
         VkPipelineRenderingCreateInfoKHR pipeline{static_cast<VkPipelineRenderingCreateInfoKHR>(
             vk::PipelineRenderingCreateInfo{0, formats, vk::Format::eUndefined, vk::Format::eUndefined}
         )};
-        info.PipelineRenderingCreateInfo = pipeline;
+
+        info.PipelineInfoMain.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+        info.PipelineInfoMain.PipelineRenderingCreateInfo = pipeline;
 
         if (!ImGui_ImplVulkan_Init(&info)) {
             // This should not happen as ImGui_ImplVulkan_Init only returns true.
@@ -144,5 +149,26 @@ namespace Engine {
     ImGuiContext *GUISystem::GetCurrentContext() const {
         assert(pimpl->m_context);
         return pimpl->m_context;
+    }
+    void GUISystem::ResetColorAttachmentFormat(
+        vk::Format format,
+        uint8_t samples
+    ) noexcept {
+        VkPipelineRenderingCreateInfoKHR prci{
+            static_cast<VkPipelineRenderingCreateInfoKHR>(
+                vk::PipelineRenderingCreateInfo{
+                    0,
+                    {format},
+                    vk::Format::eUndefined,
+                    vk::Format::eUndefined
+                }
+            )
+        };
+        ImGui_ImplVulkan_PipelineInfo pi{
+            .RenderPass = nullptr,
+            .MSAASamples = VK_SAMPLE_COUNT_1_BIT,
+            .PipelineRenderingCreateInfo = prci
+        };
+        ImGui_ImplVulkan_CreateMainPipeline(&pi);
     }
 } // namespace Engine

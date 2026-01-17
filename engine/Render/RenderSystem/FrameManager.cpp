@@ -472,7 +472,7 @@ namespace Engine::RenderSystemState {
         };
         signal_infos[1] = pimpl->timeline_semaphores[fif].GetSubmitInfo(
             FrameSemaphore::TimePoint::CopyToPresentFinished,
-            vk::PipelineStageFlagBits2::eAllTransfer
+            vk::PipelineStageFlagBits2::eAllCommands
         );
 
         vk::SubmitInfo2 sinfo{vk::SubmitFlags{}, wait_infos, {cbsi}, signal_infos};
