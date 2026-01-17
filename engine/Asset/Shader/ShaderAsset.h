@@ -43,7 +43,7 @@ namespace Engine {
             const std::string &name = "",
             const std::string &entry_point = "main"
         );
-        bool Compile(std::filesystem::path shader_directory = std::filesystem::path{});
+        bool Compile(std::filesystem::path shader_path_abs = std::filesystem::path{});
     };
 } // namespace Engine
 

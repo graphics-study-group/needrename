@@ -11,7 +11,7 @@ namespace Engine {
         if (auto main_instance = MainClass::GetInstance()) {
             if (auto asset_db = main_instance->GetAssetDatabase()) {
                 if (auto fs_db = std::dynamic_pointer_cast<FileSystemDatabase>(asset_db)) {
-                    addSystemPath(fs_db->GetAssetsDirectory());
+                    addSystemPath(fs_db->GetProjectAssetsPath());
                 }
             }
         }
@@ -22,11 +22,7 @@ namespace Engine {
     glslang::TShader::Includer::IncludeResult *DirStackFileIncluder::includeLocal(
         const char *headerName, const char *includerName, size_t inclusionDepth
     ) {
-        auto result = readLocalPath(headerName, includerName, static_cast<int>(inclusionDepth));
-        if (result != nullptr) {
-            return result;
-        }
-        return readSystemPath(headerName);
+        return readLocalPath(headerName, includerName, static_cast<int>(inclusionDepth));
     }
 
     glslang::TShader::Includer::IncludeResult *DirStackFileIncluder::includeSystem(

@@ -16,10 +16,7 @@ namespace Engine {
         json["binary_extra_data_id"] = binary_extra_data_id;
 
         if (storeType == StoreType::GLSL) {
-            auto &data = archive.m_context->extra_data[glsl_extra_data_id];
-            size_t file_size = glsl_code.size();
-            data.resize(file_size);
-            std::memcpy(data.data(), glsl_code.data(), file_size);
+            // Ignore GLSL shader save
         } else if (storeType == StoreType::SPIRV) {
             auto &data = archive.m_context->extra_data[binary_extra_data_id];
             size_t file_size = binary.size() * sizeof(uint32_t);
@@ -37,11 +34,7 @@ namespace Engine {
         auto &json = *archive.m_cursor;
 
         if (storeType == StoreType::GLSL) {
-            auto &data = archive.m_context->extra_data[json["glsl_extra_data_id"].get<size_t>()];
-            size_t file_size = data.size();
-            assert(file_size > 0);
-            glsl_code.resize(file_size);
-            std::memcpy(glsl_code.data(), data.data(), file_size);
+            // Don't load GLSL source from asset, instead load it directly from file.
             bool compile_res = Compile();
             assert(compile_res);
         } else if (storeType == StoreType::SPIRV) {
@@ -75,7 +68,7 @@ namespace Engine {
             glsl_code.resize(file_size);
             file.read(glsl_code.data(), file_size);
             file.close();
-            bool compile_res = Compile(path.parent_path());
+            bool compile_res = Compile(path);
             assert(compile_res);
         } else if (path.extension() == ".spv") {
             storeType = StoreType::SPIRV;
@@ -94,7 +87,7 @@ namespace Engine {
         }
     }
 
-    bool ShaderAsset::Compile(std::filesystem::path shader_directory) {
+    bool ShaderAsset::Compile(std::filesystem::path shader_path_abs) {
         if (binary.size() > 0) {
             // Already compiled
             return true;
@@ -122,14 +115,17 @@ namespace Engine {
         default:
             throw std::runtime_error("Unsupported shader type for compilation");
         }
-        if (shader_directory.empty()) {
+        
+        if (shader_path_abs.empty()) {
             auto fs_db = std::dynamic_pointer_cast<FileSystemDatabase>(MainClass::GetInstance()->GetAssetDatabase());
-            if (fs_db) {
-                shader_directory = fs_db->GetAssetPath(GetGUID()).parent_path();
-            }
+            assert(fs_db);
+            shader_path_abs = fs_db->GetAssetPath(GetGUID()).to_absolute_path();
+            // XXX: We need to generalize here.
+            shader_path_abs = shader_path_abs.replace_extension(
+                "0.glsl"
+            );
         }
-        return MainClass::GetInstance()->GetShaderCompiler()->CompileGLSLtoSPV(
-            binary, glsl_code, type, shader_directory
-        );
+        assert(shader_path_abs.is_absolute());
+        return MainClass::GetInstance()->GetShaderCompiler()->CompileGLSLtoSPV(binary, shader_path_abs);
     }
 } // namespace Engine

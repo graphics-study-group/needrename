@@ -34,11 +34,13 @@ namespace {
         return false;
     }
 
-    bool GetAssetInfo(const std::filesystem::path &asset_path, Engine::FileSystemDatabase::AssetInfo &out_info) {
+    bool GetAssetInfo(
+        const std::filesystem::path &asset_absolute_path, Engine::FileSystemDatabase::AssetInfo &out_info
+    ) {
         bool success = true;
-        std::ifstream file(asset_path);
+        std::ifstream file(asset_absolute_path);
         if (file.is_open()) {
-            out_info.path = asset_path;
+            out_info.path.from_absolute_path(asset_absolute_path);
             out_info.is_directory = false;
             nlohmann::json json_data = nlohmann::json::parse(file);
             if (json_data.contains("%main_id")) {
@@ -65,7 +67,66 @@ namespace {
 } // namespace
 
 namespace Engine {
-    std::filesystem::path FileSystemDatabase::GetAssetPath(GUID guid) const {
+    AssetPath::AssetPath(const FileSystemDatabase &db) : std::filesystem::path(), m_database(db) {
+    }
+
+    AssetPath::AssetPath(const FileSystemDatabase &db, const std::filesystem::path &path) :
+        std::filesystem::path(path), m_database(db) {
+        static_cast<std::filesystem::path &>(*this) = this->lexically_normal();
+    }
+
+    AssetPath &AssetPath::operator=(const AssetPath &other) {
+        assert(&m_database == &other.m_database && "Cannot assign AssetPath from different FileSystemDatabase");
+        static_cast<std::filesystem::path &>(*this) = static_cast<const std::filesystem::path &>(other);
+        return *this;
+    }
+
+    bool AssetPath::operator==(const AssetPath &other) const {
+        assert(&m_database == &other.m_database && "Cannot compare AssetPath from different FileSystemDatabase");
+        return static_cast<const std::filesystem::path &>(*this) == static_cast<const std::filesystem::path &>(other);
+    }
+
+    std::size_t AssetPath::Hash::operator()(const AssetPath &p) const {
+        return std::hash<std::filesystem::path>{}(static_cast<const std::filesystem::path &>(p));
+    }
+
+    std::filesystem::path AssetPath::to_absolute_path() const {
+        auto project_asset_path = m_database.GetProjectAssetsPath();
+        auto builtin_asset_path = m_database.GetBuiltinAssetsPath();
+        // Case 1: "~" prefixed project path (e.g., "~/a/b")
+        auto it = this->begin();
+        if (it != this->end() && it->string() == "~") {
+            assert(!builtin_asset_path.empty());
+            return builtin_asset_path / (std::filesystem::relative(*this, "~"));
+        }
+        // Case 2: "/" prefixed project path (e.g., "/a/b")
+        if (this->has_root_directory()) {
+            assert(!project_asset_path.empty());
+            return project_asset_path / this->relative_path();
+        }
+        // Case 3: relative project path (e.g., "a/b")
+        return project_asset_path / *this;
+    }
+
+    void AssetPath::from_absolute_path(const std::filesystem::path &absolute_path) {
+        auto project_asset_path = m_database.GetProjectAssetsPath();
+        auto builtin_asset_path = m_database.GetBuiltinAssetsPath();
+        if (absolute_path.string().starts_with(builtin_asset_path.string())) {
+            static_cast<std::filesystem::path &>(*this) =
+                ("~" / std::filesystem::relative(absolute_path, builtin_asset_path)).lexically_normal();
+        } else {
+            static_cast<std::filesystem::path &>(*this) =
+                ("/" / std::filesystem::relative(absolute_path, project_asset_path)).lexically_normal();
+        }
+    }
+
+    AssetPath AssetPath::parent_path() const {
+        AssetPath parent(m_database);
+        static_cast<std::filesystem::path &>(parent) = std::filesystem::path::parent_path();
+        return parent;
+    }
+
+    AssetPath FileSystemDatabase::GetAssetPath(GUID guid) const {
         auto it = m_assets_map.find(guid);
         if (it != m_assets_map.end()) {
             return it->second;
@@ -74,17 +135,15 @@ namespace Engine {
         }
     }
 
-    std::shared_ptr<AssetRef> FileSystemDatabase::GetNewAssetRef(const std::filesystem::path &path) const {
-        std::string path_str = path.lexically_normal().generic_string();
-        if (m_path_to_guid.find(path_str) == m_path_to_guid.end()) return nullptr;
-        return std::make_shared<AssetRef>(m_path_to_guid.at(path_str));
+    std::shared_ptr<AssetRef> FileSystemDatabase::GetNewAssetRef(const AssetPath &path) const {
+        if (m_path_to_guid.find(path) == m_path_to_guid.end()) return nullptr;
+        return std::make_shared<AssetRef>(m_path_to_guid.at(path));
     }
 
-    void FileSystemDatabase::AddAsset(const GUID &guid, const std::filesystem::path &path) {
+    void FileSystemDatabase::AddAsset(const GUID &guid, const AssetPath &path) {
         if (m_assets_map.find(guid) != m_assets_map.end()) throw std::runtime_error("asset GUID already exists");
-        std::string path_str = path.lexically_normal().generic_string();
-        m_assets_map[guid] = path_str;
-        m_path_to_guid[path_str] = guid;
+        m_assets_map.emplace(guid, path);
+        m_path_to_guid[path] = guid;
     }
 
     void FileSystemDatabase::SaveArchive(Serialization::Archive &archive, GUID guid) {
@@ -95,31 +154,31 @@ namespace Engine {
         LoadArchive(archive, GetAssetPath(guid));
     }
 
-    void FileSystemDatabase::SaveArchive(Serialization::Archive &archive, const std::filesystem::path &path) {
+    void FileSystemDatabase::SaveArchive(Serialization::Archive &archive, const AssetPath &path) {
         GUID guid;
         if (!GetGUID(archive, guid)) {
-            throw std::runtime_error("Failed to get GUID from asset file: " + path.string());
+            throw std::runtime_error("Failed to get GUID from asset file: " + path.generic_string());
         }
         if (m_assets_map.find(guid) == m_assets_map.end()) {
             AddAsset(guid, path);
         }
-        auto json_path = ProjectPathToFilesystemPath(path);
+        auto json_path = path.to_absolute_path();
         archive.save_to_file(json_path.replace_extension(""));
     }
 
-    void FileSystemDatabase::LoadArchive(Serialization::Archive &archive, const std::filesystem::path &path) {
-        auto json_path = ProjectPathToFilesystemPath(path);
+    void FileSystemDatabase::LoadArchive(Serialization::Archive &archive, const AssetPath &path) {
+        auto json_path = path.to_absolute_path();
         archive.load_from_file(json_path.replace_extension(""));
     }
 
-    std::vector<FileSystemDatabase::AssetInfo> FileSystemDatabase::ListDirectory(
-        const std::filesystem::path &path
-    ) const {
+    std::vector<FileSystemDatabase::AssetInfo> FileSystemDatabase::ListDirectory(const AssetPath &path) const {
         std::vector<AssetInfo> assets;
-        for (auto &entry : std::filesystem::directory_iterator(ProjectPathToFilesystemPath(path))) {
-            AssetInfo info;
+        for (auto &entry : std::filesystem::directory_iterator(path.to_absolute_path())) {
+            AssetInfo info{.path = AssetPath(*this)};
             if (entry.is_directory()) {
-                info.path = FilesystemPathToProjectPath(entry.path());
+                auto asset_path = AssetPath(*this);
+                asset_path.from_absolute_path(entry.path());
+                info.path = asset_path;
                 info.is_directory = true;
                 assets.push_back(info);
             } else if (entry.is_regular_file() && entry.path().extension() == k_asset_file_extension) {
@@ -131,8 +190,12 @@ namespace Engine {
         return assets;
     }
 
-    std::filesystem::path FileSystemDatabase::GetAssetsDirectory() const {
+    const std::filesystem::path &FileSystemDatabase::GetProjectAssetsPath() const {
         return m_project_asset_path;
+    }
+
+    const std::filesystem::path &FileSystemDatabase::GetBuiltinAssetsPath() const {
+        return m_builtin_asset_path;
     }
 
     void FileSystemDatabase::LoadBuiltinAssets(const std::filesystem::path &path) {
@@ -145,7 +208,7 @@ namespace Engine {
                 if (file.is_open()) {
                     GUID guid;
                     if (GetGUID(entry.path(), guid)) {
-                        AddAsset(guid, "~" / relative_path);
+                        AddAsset(guid, AssetPath(*this, "~" / relative_path));
                     }
                     file.close();
                 }
@@ -163,35 +226,11 @@ namespace Engine {
                 if (file.is_open()) {
                     GUID guid;
                     if (GetGUID(entry.path(), guid)) {
-                        AddAsset(guid, "/" / relative_path);
+                        AddAsset(guid, AssetPath(*this, "/" / relative_path));
                     }
                     file.close();
                 }
             }
-        }
-    }
-
-    std::filesystem::path FileSystemDatabase::ProjectPathToFilesystemPath(
-        const std::filesystem::path &project_path
-    ) const {
-        // Case 1: "~" prefixed project path (e.g., "~/a/b")
-        auto it = project_path.begin();
-        if (it != project_path.end() && it->string() == "~") {
-            return m_builtin_asset_path / (std::filesystem::relative(project_path, "~"));
-        }
-        // Case 2: "/" prefixed project path (e.g., "/a/b")
-        if (project_path.has_root_directory()) {
-            return m_project_asset_path / project_path.relative_path();
-        }
-        // Case 3: relative project path (e.g., "a/b")
-        return m_project_asset_path / project_path;
-    }
-
-    std::filesystem::path FileSystemDatabase::FilesystemPathToProjectPath(const std::filesystem::path &fs_path) const {
-        if (fs_path.string().starts_with(m_builtin_asset_path.string())) {
-            return ("~" / std::filesystem::relative(fs_path, m_builtin_asset_path)).lexically_normal();
-        } else {
-            return ("/" / std::filesystem::relative(fs_path, m_project_asset_path)).lexically_normal();
         }
     }
 } // namespace Engine
