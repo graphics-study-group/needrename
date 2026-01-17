@@ -49,8 +49,8 @@ std::pair<std::shared_ptr<MaterialLibraryAsset>, std::shared_ptr<MaterialTemplat
     );
     auto test_asset = std::make_shared<MaterialTemplateAsset>();
     auto lib_asset = std::make_shared<MaterialLibraryAsset>();
-    auto vs_ref = adb->GetNewAssetRef("~/shaders/skybox.vert.asset");
-    auto fs_ref = adb->GetNewAssetRef("~/shaders/skybox.frag.asset");
+    auto vs_ref = adb->GetNewAssetRef({*adb, "~/shaders/skybox.vert.asset"});
+    auto fs_ref = adb->GetNewAssetRef({*adb, "~/shaders/skybox.frag.asset"});
     MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(vs_ref);
     MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(fs_ref);
 

@@ -7,6 +7,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include <Asset/AssetDatabase/FileSystemDatabase.h>
 
 namespace Engine {
     class GameObject;
@@ -15,6 +16,8 @@ namespace Engine {
 
 namespace Editor {
     class ProjectWidget : public Widget {
+        using AssetPath = Engine::AssetPath;
+
     public:
         static constexpr const float k_breadcrumb_height = 28.0f;
         static constexpr const float k_item_spacing = 12.0f;
@@ -36,14 +39,14 @@ namespace Editor {
         static constexpr const float k_text_max = 120.0f;
         static constexpr const char *k_ellipsis = "...";
 
-        ProjectWidget(const std::string &name);
+        ProjectWidget(const std::string &name, Engine::FileSystemDatabase &database);
         virtual ~ProjectWidget();
 
         virtual void Render() override;
 
     protected:
-        std::filesystem::path m_current_path{"/"};
-        std::weak_ptr<Engine::FileSystemDatabase> m_database{};
+        Engine::FileSystemDatabase &m_database;
+        AssetPath m_current_path;
 
         // Layout parameters (tweakable)
         float m_sidebar_width{240.0f};
@@ -52,7 +55,7 @@ namespace Editor {
 
         // Cached directory content for performance
         struct CachedEntry {
-            std::filesystem::path path{};
+            AssetPath path;
             bool is_directory{false};
             std::string display_name{};               // original (pre-wrap) label
             std::string tooltip{};                    // prebuilt tooltip
@@ -62,18 +65,18 @@ namespace Editor {
             std::vector<CachedEntry> entries{};
             float wrap_width_used{-1.0f};
         };
-        std::unordered_map<std::string, CachedDir> m_dir_cache{}; // key: generic path string ("/", "~", etc.)
-        std::unordered_set<std::string> m_open_dirs{};            // dirs currently open in sidebar (this frame)
+        std::unordered_map<AssetPath, CachedDir, AssetPath::Hash> m_dir_cache{};
+        std::unordered_set<AssetPath, AssetPath::Hash> m_open_dirs{};            // dirs currently open in sidebar (this frame)
 
         // Rendering helpers
         void RenderBreadcrumb();
         void RenderSidebar();
-        void RenderDirTree(const std::filesystem::path &base_path, Engine::FileSystemDatabase &db);
+        void RenderDirTree(const AssetPath &base_path);
         void RenderContent();
         void DrawTile(
             const std::string &display_name,
             bool is_folder,
-            const std::filesystem::path &target_path,
+            const AssetPath &target_path,
             bool is_up,
             const std::string &tooltip,
             const std::vector<std::string> &prewrapped_lines,
@@ -82,7 +85,7 @@ namespace Editor {
         );
 
         // Ensure listing exists; when wrap_width > 0, also ensure wrapped_lines match that width
-        void EnsureDirCache(const std::filesystem::path &dir, Engine::FileSystemDatabase &db, float wrap_width);
+        void EnsureDirCache(const AssetPath &dir, float wrap_width);
         // Remove caches for directories that are not open in sidebar and not current content dir
         void PruneDirCacheAfterSidebar();
     };

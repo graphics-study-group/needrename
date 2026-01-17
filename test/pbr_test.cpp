@@ -28,8 +28,8 @@ std::pair<std::shared_ptr<MaterialLibraryAsset>, std::shared_ptr<MaterialTemplat
     );
     auto test_asset = std::make_shared<MaterialTemplateAsset>();
     auto lib_asset = std::make_shared<MaterialLibraryAsset>();
-    auto vs_ref = adb->GetNewAssetRef("~/shaders/pbr_base.vert.asset");
-    auto fs_ref = adb->GetNewAssetRef("~/shaders/lambertian_cook_torrance.frag.asset");
+    auto vs_ref = adb->GetNewAssetRef({*adb, "~/shaders/pbr_base.vert.asset"});
+    auto fs_ref = adb->GetNewAssetRef({*adb, "~/shaders/lambertian_cook_torrance.frag.asset"});
     assert(vs_ref && fs_ref);
     MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(vs_ref);
     MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(fs_ref);
@@ -218,7 +218,7 @@ int main(int argc, char **argv) {
     rsys->GetCameraManager().SetActiveCameraIndex(camera->m_display_id);
 
     // Setup compute shader
-    auto cs_ref = adb->GetNewAssetRef("~/shaders/bloom.comp.asset");
+    auto cs_ref = adb->GetNewAssetRef({*adb, "~/shaders/bloom.comp.asset"});
     assert(cs_ref);
     MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(cs_ref);
     auto bloom_compute_stage = std::make_shared<ComputeStage>(*rsys);

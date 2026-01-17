@@ -92,10 +92,8 @@ namespace {
 } // namespace
 
 namespace Editor {
-    ProjectWidget::ProjectWidget(const std::string &name) : Widget(name) {
-        m_database =
-            std::dynamic_pointer_cast<Engine::FileSystemDatabase>(Engine::MainClass::GetInstance()->GetAssetDatabase());
-        assert(!m_database.expired());
+    ProjectWidget::ProjectWidget(const std::string &name, Engine::FileSystemDatabase &database) :
+        Widget(name), m_database(database), m_current_path(database, "/") {
     }
 
     ProjectWidget::~ProjectWidget() {
@@ -162,25 +160,19 @@ namespace Editor {
         ImGuiTreeNodeFlags base_flags =
             ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_SpanAvailWidth;
 
-        auto db_ptr = m_database.lock();
-        if (!db_ptr) {
-            ImGui::TextUnformatted("Asset database unavailable");
-            ImGui::EndChild();
-            return;
-        }
-        auto &db = *db_ptr;
-
         // Project root '/'
+        AssetPath root_path(m_database, "/");
+        AssetPath builtin_root(m_database, "~");
         ImGui::PushID("root_project");
         ImGuiTreeNodeFlags flags = base_flags | ImGuiTreeNodeFlags_DefaultOpen;
-        if (m_current_path.generic_string() == "/" || m_current_path.empty()) flags |= ImGuiTreeNodeFlags_Selected;
+        if (m_current_path == root_path || m_current_path.empty()) flags |= ImGuiTreeNodeFlags_Selected;
         bool open = ImGui::TreeNodeEx("/", flags);
         if (ImGui::IsItemClicked()) {
-            m_current_path = "/";
+            m_current_path = root_path;
         }
         if (open) {
-            m_open_dirs.insert("/");
-            RenderDirTree("/", db);
+            m_open_dirs.insert(root_path);
+            RenderDirTree(root_path);
             ImGui::TreePop();
         }
         ImGui::PopID();
@@ -188,14 +180,14 @@ namespace Editor {
         // Builtin root '~'
         ImGui::PushID("root_builtin");
         flags = base_flags | ImGuiTreeNodeFlags_DefaultOpen;
-        if (m_current_path.generic_string() == "~") flags |= ImGuiTreeNodeFlags_Selected;
+        if (m_current_path == builtin_root) flags |= ImGuiTreeNodeFlags_Selected;
         open = ImGui::TreeNodeEx("~", flags);
         if (ImGui::IsItemClicked()) {
-            m_current_path = "~";
+            m_current_path = builtin_root;
         }
         if (open) {
-            m_open_dirs.insert("~");
-            RenderDirTree("~", db);
+            m_open_dirs.insert(builtin_root);
+            RenderDirTree(builtin_root);
             ImGui::TreePop();
         }
         ImGui::PopID();
@@ -206,17 +198,16 @@ namespace Editor {
         PruneDirCacheAfterSidebar();
     }
 
-    void ProjectWidget::RenderDirTree(const std::filesystem::path &base_path, Engine::FileSystemDatabase &db) {
+    void ProjectWidget::RenderDirTree(const AssetPath &base_path) {
         // Ensure directory listing is cached (no text wrapping needed in sidebar)
-        EnsureDirCache(base_path, db, 0.0f);
-        auto key = base_path.generic_string();
-        auto it_dir = m_dir_cache.find(key);
+        EnsureDirCache(base_path, 0.0f);
+        auto it_dir = m_dir_cache.find(base_path);
         if (it_dir == m_dir_cache.end()) return;
 
-        std::vector<std::filesystem::path> subdirs;
+        std::vector<AssetPath> subdirs;
         subdirs.reserve(it_dir->second.entries.size());
         for (auto &ce : it_dir->second.entries) {
-            if (ce.is_directory) subdirs.push_back(ce.path);
+            if (ce.is_directory) subdirs.emplace_back(ce.path);
         }
         std::sort(subdirs.begin(), subdirs.end(), [](const auto &a, const auto &b) {
             return a.filename().generic_string() < b.filename().generic_string();
@@ -236,8 +227,8 @@ namespace Editor {
                 m_current_path = p;
             }
             if (open) {
-                m_open_dirs.insert(p.generic_string());
-                RenderDirTree(p, db);
+                m_open_dirs.insert(p);
+                RenderDirTree(p);
                 ImGui::TreePop();
             }
             ImGui::PopID();
@@ -272,8 +263,8 @@ namespace Editor {
         int current_col = 0;
 
         // Up tile
-        if (m_current_path != "/" && m_current_path != "~") {
-            std::filesystem::path parent = m_current_path.parent_path();
+        if (m_current_path != AssetPath(m_database, "/") && m_current_path != AssetPath(m_database, "~")) {
+            AssetPath parent = m_current_path.parent_path();
             if (parent != m_current_path) {
                 ImGui::PushID("__up__");
                 DrawTile("..", true, parent, true, "", {".."}, current_col, total_columns);
@@ -282,45 +273,39 @@ namespace Editor {
         }
 
         // Directory listing
-        auto db_ptr = m_database.lock();
-        if (db_ptr) {
-            // Ensure cache for current directory and current wrap width
-            EnsureDirCache(m_current_path, *db_ptr, wrap_width);
-            auto key_curr = m_current_path.generic_string();
-            auto it_dir = m_dir_cache.find(key_curr);
-            if (it_dir != m_dir_cache.end()) {
-                for (size_t i = 0; i < it_dir->second.entries.size(); ++i) {
-                    const auto &e = it_dir->second.entries[i];
-                    ImGui::PushID((int)i);
-                    DrawTile(
-                        e.display_name,
-                        e.is_directory,
-                        e.path,
-                        false,
-                        e.tooltip,
-                        e.wrapped_lines,
-                        current_col,
-                        total_columns
-                    );
-                    ImGui::PopID();
-                }
+        // Ensure cache for current directory and current wrap width
+        EnsureDirCache(m_current_path, wrap_width);
+        auto it_dir = m_dir_cache.find(m_current_path);
+        if (it_dir != m_dir_cache.end()) {
+            for (size_t i = 0; i < it_dir->second.entries.size(); ++i) {
+                const auto &e = it_dir->second.entries[i];
+                ImGui::PushID((int)i);
+                DrawTile(
+                    e.display_name,
+                    e.is_directory,
+                    e.path,
+                    false,
+                    e.tooltip,
+                    e.wrapped_lines,
+                    current_col,
+                    total_columns
+                );
+                ImGui::PopID();
             }
         }
 
         ImGui::EndChild();
     }
 
-    void ProjectWidget::EnsureDirCache(
-        const std::filesystem::path &dir, Engine::FileSystemDatabase &db, float wrap_width
-    ) {
-        bool listed = m_dir_cache.find(dir.generic_string()) != m_dir_cache.end();
-        auto &bucket = m_dir_cache[dir.generic_string()];
+    void ProjectWidget::EnsureDirCache(const AssetPath &dir, float wrap_width) {
+        bool listed = m_dir_cache.find(dir) != m_dir_cache.end();
+        auto &bucket = m_dir_cache[dir];
         // List directory once on demand
         if (!listed) {
-            auto list = db.ListDirectory(dir);
+            auto list = m_database.ListDirectory(dir);
             bucket.entries.reserve(list.size());
             for (auto &it : list) {
-                CachedEntry e;
+                CachedEntry e{.path = AssetPath(m_database, "")};
                 e.path = it.path;
                 e.is_directory = it.is_directory;
                 e.display_name = it.path.filename().generic_string();
@@ -342,9 +327,8 @@ namespace Editor {
 
     void ProjectWidget::PruneDirCacheAfterSidebar() {
         // keep current content directory as well
-        std::string keep_curr = m_current_path.generic_string();
         for (auto it = m_dir_cache.begin(); it != m_dir_cache.end();) {
-            if (m_open_dirs.find(it->first) == m_open_dirs.end() && it->first != keep_curr) {
+            if (m_open_dirs.find(it->first) == m_open_dirs.end() && it->first != m_current_path) {
                 it = m_dir_cache.erase(it);
             } else {
                 ++it;
@@ -355,7 +339,7 @@ namespace Editor {
     void ProjectWidget::DrawTile(
         const std::string &display_name,
         bool is_folder,
-        const std::filesystem::path &target_path,
+        const AssetPath &target_path,
         bool is_up,
         const std::string &tooltip,
         const std::vector<std::string> &prewrapped_lines,

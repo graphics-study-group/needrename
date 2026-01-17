@@ -61,9 +61,9 @@ std::array<std::shared_ptr<MaterialTemplateAsset>, 2> ConstructMaterialTemplate(
     auto adb = std::dynamic_pointer_cast<FileSystemDatabase>(MainClass::GetInstance()->GetAssetDatabase());
     auto asys = MainClass::GetInstance()->GetAssetManager();
 
-    auto shadow_map_vs_ref = adb->GetNewAssetRef("~/shaders/shadowmap.vert.asset");
-    auto vs_ref = adb->GetNewAssetRef("~/shaders/blinn_phong.vert.asset");
-    auto fs_ref = adb->GetNewAssetRef("~/shaders/blinn_phong.frag.asset");
+    auto shadow_map_vs_ref = adb->GetNewAssetRef({*adb, "~/shaders/shadowmap.vert.asset"});
+    auto vs_ref = adb->GetNewAssetRef({*adb, "~/shaders/blinn_phong.vert.asset"});
+    auto fs_ref = adb->GetNewAssetRef({*adb, "~/shaders/blinn_phong.frag.asset"});
     asys->LoadAssetImmediately(shadow_map_vs_ref);
     asys->LoadAssetImmediately(vs_ref);
     asys->LoadAssetImmediately(fs_ref);

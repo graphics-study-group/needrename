@@ -11,7 +11,7 @@ namespace Engine {
         if (auto main_instance = MainClass::GetInstance()) {
             if (auto asset_db = main_instance->GetAssetDatabase()) {
                 if (auto fs_db = std::dynamic_pointer_cast<FileSystemDatabase>(asset_db)) {
-                    addSystemPath(fs_db->GetAssetsDirectory());
+                    addSystemPath(fs_db->GetProjectAssetsPath());
                 }
             }
         }
