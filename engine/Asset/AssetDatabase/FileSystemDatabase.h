@@ -12,6 +12,14 @@ namespace Engine {
 
     /**
      * @brief A path class that represents an asset path in the project.
+     * 
+     * An asset path stores an internal unique file system path for an asset.
+     * It has two special root directories:
+     * - A path starting with `~/` refers to a built-in asset;
+     * - A path starting with `/` refers to an asset in project, whose root directory
+     *   corresponds to the project directory.
+     * 
+     * Call `to_absolute_path()` to get an absolute path for this asset on the local disk.
      */
     class AssetPath : private std::filesystem::path {
     private:
