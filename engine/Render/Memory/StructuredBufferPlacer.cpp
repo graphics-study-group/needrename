@@ -89,7 +89,7 @@ namespace Engine {
             return;
         }
 
-        assert(itr->second.info != &typeid(StructuredBufferPlacer));
+        assert(itr->second.info == &typeid(StructuredBufferPlacer));
         assert(&buf.parent == this);
         buf.SetVariable(name, ptr, itr->second.size);
     }

@@ -80,7 +80,7 @@ namespace Engine {
             T val
         ) noexcept requires (std::is_standard_layout_v<T>) {
             assert(this->TypeCheck(name, typeid(T)));
-            SetVariable(name, &val);
+            SetVariable(buf, name, &val);
         }
 
         /**
@@ -95,6 +95,8 @@ namespace Engine {
 
         /**
          * @brief Set the structured buffer variable.
+         * 
+         * The caller must ensure that the specified buffer is available when writing it.
          */
         void SetStructuredBuffer (
             StructuredBuffer & buf,
