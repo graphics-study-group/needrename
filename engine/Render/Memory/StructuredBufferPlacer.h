@@ -7,7 +7,7 @@
 #include <typeinfo>
 
 namespace Engine {
-    // Opaque class holding a structured buffer
+
     class StructuredBuffer;
 
     /**
@@ -16,8 +16,6 @@ namespace Engine {
     class StructuredBufferPlacer {
         struct impl;
         std::unique_ptr <impl> pimpl;
-
-        bool TypeCheck (const std::string & name, const std::type_info & type) const noexcept;
 
     public:
         StructuredBufferPlacer() noexcept;
@@ -49,60 +47,23 @@ namespace Engine {
         };
 
         /**
-         * @brief Create a new structured buffer by this type.
-         */
-        std::unique_ptr <StructuredBuffer> CreateBuffer() const noexcept;
-
-        /**
-         * @brief Set the variable of name to a value.
-         * 
-         * @param buf the structured buffer.
-         * @param name Name of the variable. If no variable of the name is found,
-         * then no change to the state of this class will be effectuated.
-         * @param ptr Pointer to the data containing the value. Caller must ensure
-         * that the pointer can be casted into a variable of the given type.
-         */
-        void SetVariable(
-            StructuredBuffer & buf,
-            const std::string & name,
-            const void * ptr
-        ) const noexcept;
-
-        /**
-         * @brief Set the variable of name to a value.
-         * 
-         * Safer alternative to the `void *` version.
-         */
-        template <typename T>
-        void SetVariable(
-            StructuredBuffer & buf,
-            const std::string & name,
-            T val
-        ) noexcept requires (std::is_standard_layout_v<T>) {
-            assert(this->TypeCheck(name, typeid(T)));
-            SetVariable(buf, name, &val);
-        }
-
-        /**
          * @brief Mark a variable as a structured buffer.
          * Use this to place another structured buffer into it.
+         * 
+         * @param buffer The subbuffer. It is up to the caller to ensure:
+         *          - Subbuffer outlives the main buffer;
+         *          - No cycle exists in the chain of subbuffers.
          */
         void AddStructuredBuffer (
             const std::string & name,
             size_t offset,
-            size_t buffer_size
+            const StructuredBufferPlacer & buffer
         );
 
         /**
-         * @brief Set the structured buffer variable.
-         * 
-         * The caller must ensure that the specified buffer is available when writing it.
+         * @brief Recursively determine the maximal size of this buffer.
          */
-        void SetStructuredBuffer (
-            StructuredBuffer & buf,
-            const std::string & name,
-            const StructuredBuffer & buffer
-        );
+        size_t CalculateMaxSize() const noexcept;
 
         void WriteBuffer(
             const StructuredBuffer & data,
