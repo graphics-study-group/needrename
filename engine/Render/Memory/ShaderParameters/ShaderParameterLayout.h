@@ -19,7 +19,7 @@ namespace Engine {
 
         struct SPLayout {
             // Interfaces are guaranteed to be sorted by set and binding numbers
-            std::vector <const SPInterface *> interfaces;
+            std::vector <std::unique_ptr<SPInterface>> interfaces;
             std::unordered_map <std::string, const SPInterface *> interface_name_mapping;
 
             struct DescriptorSetWrite {

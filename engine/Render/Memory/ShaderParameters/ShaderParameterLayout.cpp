@@ -157,7 +157,7 @@ namespace Engine::ShdrRfl {
     ) const noexcept {
         DescriptorSetWrite write;
 
-        for (auto pinterface : this->interfaces) {
+        for (const auto & pinterface : this->interfaces) {
             if (pinterface->layout_set != set) continue;
             auto & intfc = interfaces.GetInterfaces();
             auto itr = intfc.find(pinterface->name);
@@ -170,7 +170,7 @@ namespace Engine::ShdrRfl {
                 continue;
             }
 
-            if (auto popaque = dynamic_cast<const SPInterfaceOpaqueImage *>(pinterface)) {
+            if (auto popaque = dynamic_cast<const SPInterfaceOpaqueImage *>(pinterface.get())) {
                 auto pimg = std::get_if<std::shared_ptr<const Texture>>(&itr->second);
                 if (pimg) {
                     assert(popaque->array_size == 0);
@@ -192,7 +192,7 @@ namespace Engine::ShdrRfl {
                         pinterface->name.c_str()
                     );
                 }
-            } else if (auto pstorage = dynamic_cast<const SPInterfaceOpaqueStorageImage *>(pinterface)) {
+            } else if (auto pstorage = dynamic_cast<const SPInterfaceOpaqueStorageImage *>(pinterface.get())) {
                 auto pimg = std::get_if<std::shared_ptr<const Texture>>(&itr->second);
                 if (pimg) {
                     assert(pstorage->array_size == 0);
@@ -216,7 +216,7 @@ namespace Engine::ShdrRfl {
                         pinterface->name.c_str()
                     );
                 }
-            } else if (auto pbuffer = dynamic_cast<const SPInterfaceBuffer *>(pinterface)) {
+            } else if (auto pbuffer = dynamic_cast<const SPInterfaceBuffer *>(pinterface.get())) {
                 if (auto pbuf = std::get_if<std::tuple<std::reference_wrapper<const Buffer>, size_t, size_t>>(&itr->second)) {
                     auto offset = std::get<1>(*pbuf);
                     auto range = std::get<2>(*pbuf) > 0 ? std::get<2>(*pbuf) : vk::WholeSize;
@@ -285,8 +285,8 @@ namespace Engine::ShdrRfl {
         GenerateAllLayoutBindings() const {
         std::unordered_map <uint32_t, std::vector <vk::DescriptorSetLayoutBinding>> sets;
 
-        for (auto interface : this->interfaces) {
-            if (auto ptr = dynamic_cast<const SPInterfaceBuffer *>(interface)) {
+        for (const auto & interface : this->interfaces) {
+            if (auto ptr = dynamic_cast<const SPInterfaceBuffer *>(interface.get())) {
                 if (ptr->type == SPInterfaceBuffer::Type::UniformBuffer) {
                     sets[ptr->layout_set].emplace_back(vk::DescriptorSetLayoutBinding{
                         ptr->layout_binding,
@@ -309,7 +309,7 @@ namespace Engine::ShdrRfl {
                         "Ignoring buffer with unknown type."
                     );
                 }
-            } else if (auto ptr = dynamic_cast<const SPInterfaceOpaqueImage *>(interface)) {
+            } else if (auto ptr = dynamic_cast<const SPInterfaceOpaqueImage *>(interface.get())) {
                 sets[ptr->layout_set].emplace_back(vk::DescriptorSetLayoutBinding{
                     ptr->layout_binding,
                     vk::DescriptorType::eCombinedImageSampler,
@@ -317,7 +317,7 @@ namespace Engine::ShdrRfl {
                     vk::ShaderStageFlagBits::eAll,
                     {}
                 });
-            } else if (auto ptr = dynamic_cast<const SPInterfaceOpaqueStorageImage *>(interface)) {
+            } else if (auto ptr = dynamic_cast<const SPInterfaceOpaqueStorageImage *>(interface.get())) {
                 sets[ptr->layout_set].emplace_back(vk::DescriptorSetLayoutBinding{
                     ptr->layout_binding,
                     vk::DescriptorType::eStorageImage,
@@ -339,8 +339,8 @@ namespace Engine::ShdrRfl {
     std::vector<vk::DescriptorSetLayoutBinding> SPLayout::GenerateLayoutBindings(uint32_t set) const {
         std::vector <vk::DescriptorSetLayoutBinding> bindings;
 
-        for (auto interface : this->interfaces) {
-            if (auto ptr = dynamic_cast<const SPInterfaceBuffer *>(interface)) {
+        for (const auto & interface : this->interfaces) {
+            if (auto ptr = dynamic_cast<const SPInterfaceBuffer *>(interface.get())) {
                 if (ptr->layout_set != set) continue;
 
                 if (ptr->type == SPInterfaceBuffer::Type::UniformBuffer) {
@@ -365,7 +365,7 @@ namespace Engine::ShdrRfl {
                         "Ignoring buffer with unknown type."
                     );
                 }
-            } else if (auto ptr = dynamic_cast<const SPInterfaceOpaqueImage *>(interface)) {
+            } else if (auto ptr = dynamic_cast<const SPInterfaceOpaqueImage *>(interface.get())) {
                 bindings.emplace_back(vk::DescriptorSetLayoutBinding{
                     ptr->layout_binding,
                     vk::DescriptorType::eCombinedImageSampler,
@@ -373,7 +373,7 @@ namespace Engine::ShdrRfl {
                     vk::ShaderStageFlagBits::eAll,
                     {}
                 });
-            } else if (auto ptr = dynamic_cast<const SPInterfaceOpaqueStorageImage *>(interface)) {
+            } else if (auto ptr = dynamic_cast<const SPInterfaceOpaqueStorageImage *>(interface.get())) {
                 bindings.emplace_back(vk::DescriptorSetLayoutBinding{
                     ptr->layout_binding,
                     vk::DescriptorType::eStorageImage,
@@ -404,17 +404,13 @@ namespace Engine::ShdrRfl {
                 continue;
             }
 
-            // We don't have to do this recursively for now,
-            // as no recursive struct is processed,
-            // and named variables are all transferred whatsoever.
-
             // Add an entry pointing to the variable
             this->interface_name_mapping[name] = kv.second;
             {
                 auto ptr = dynamic_cast<const SPInterface *>(kv.second);
                 if (ptr) {
                     bool found = false;
-                    for (auto p : this->interfaces) {
+                    for (const auto & p : this->interfaces) {
                         if (p->layout_set == ptr->layout_set && p->layout_binding == ptr->layout_binding) {
                             SDL_LogWarn(
                                 SDL_LOG_CATEGORY_RENDER,
@@ -426,7 +422,17 @@ namespace Engine::ShdrRfl {
                             found = true;
                         }
                     }
-                    if (!found) this->interfaces.push_back(ptr);
+                    if (!found) {
+                        auto other_ptr = std::find_if(
+                            other.interfaces.begin(),
+                            other.interfaces.end(),
+                            [ptr] (const std::unique_ptr <SPInterface> & p) {
+                                return p.get() == ptr;
+                            }
+                        );
+                        assert(other_ptr != other.interfaces.end());
+                        this->interfaces.push_back(std::move(*other_ptr));
+                    }
                 }
             }
             
@@ -459,11 +465,11 @@ namespace Engine::ShdrRfl {
             const auto &type = compiler.get_type(image.type_id);
             FillImageInfo(*ptr, type);
 
-            layout.interfaces.push_back(ptr.get());
             if (layout.interface_name_mapping.contains(image.name)) {
                 SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Duplicated resource name: %s", image.name.c_str());
             }
             layout.interface_name_mapping[image.name] = ptr.get();
+            layout.interfaces.push_back(std::move(ptr));
         }
 
         // Storage images
@@ -476,11 +482,11 @@ namespace Engine::ShdrRfl {
             ptr->layout_set = desc_set;
             ptr->layout_binding = compiler.get_decoration(image.id, spv::DecorationBinding);
 
-            layout.interfaces.push_back(ptr.get());
             if (layout.interface_name_mapping.contains(image.name)) {
                 SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Duplicated resource name: %s", image.name.c_str());
             }
             layout.interface_name_mapping[image.name] = ptr.get();
+            layout.interfaces.push_back(std::move(ptr));
         }
 
         // Other opaque types are currently unsupported
@@ -507,11 +513,12 @@ namespace Engine::ShdrRfl {
 
             buffer_interface_ptr->layout_set = desc_set;
             buffer_interface_ptr->layout_binding = compiler.get_decoration(ubo.id, spv::DecorationBinding);
-            layout.interfaces.push_back(buffer_interface_ptr.get());
+
             if (layout.interface_name_mapping.contains(ubo.name)) {
                 SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Duplicated resource name: %s", ubo.name.c_str());
             }
             layout.interface_name_mapping[ubo.name] = buffer_interface_ptr.get();
+            layout.interfaces.push_back(std::move(buffer_interface_ptr));
         }
 
         // SSBOs
@@ -525,24 +532,24 @@ namespace Engine::ShdrRfl {
 
             buffer_interface_ptr->layout_set = desc_set;
             buffer_interface_ptr->layout_binding = compiler.get_decoration(ssbo.id, spv::DecorationBinding);
-            layout.interfaces.push_back(buffer_interface_ptr.get());
+            
             if (layout.interface_name_mapping.contains(ssbo.name)) {
                 SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Duplicated resource name: %s", ssbo.name.c_str());
             }
             layout.interface_name_mapping[ssbo.name] = buffer_interface_ptr.get();
+            layout.interfaces.push_back(std::move(buffer_interface_ptr));
         }
 
         std::sort(
             layout.interfaces.begin(),
             layout.interfaces.end(),
-            [](const SPInterface * lhs, const SPInterface * rhs) -> bool {
+            [](const std::unique_ptr <SPInterface> & lhs, const std::unique_ptr <SPInterface> & rhs) -> bool {
                 if (lhs->layout_set != rhs->layout_set) {
                     return lhs->layout_set < rhs->layout_set;
                 }
                 return lhs->layout_binding < rhs->layout_binding;
             }
         );
-        
 
         return layout;
     }

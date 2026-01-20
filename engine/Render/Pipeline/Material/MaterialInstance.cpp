@@ -68,8 +68,8 @@ namespace Engine {
             assert(allocated_sets.size() == pass.desc_sets.size());
             std::copy(allocated_sets.begin(), allocated_sets.end(), pass.desc_sets.begin());
 
-            for (auto pinterface : splayout.interfaces) {
-                if (auto pbuffer = dynamic_cast <const ShdrRfl::SPInterfaceBuffer *>(pinterface)) {
+            for (const auto & pinterface : splayout.interfaces) {
+                if (auto pbuffer = dynamic_cast <const ShdrRfl::SPInterfaceBuffer *>(pinterface.get())) {
                     if (pbuffer->type == ShdrRfl::SPInterfaceBuffer::Type::UniformBuffer) {
                         auto psb = dynamic_cast<const ShdrRfl::SPInterfaceStructuredBuffer *>(pbuffer);
                         if (!psb) {

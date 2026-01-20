@@ -127,10 +127,10 @@ namespace Engine {
     void ComputeStage::Instantiate(const ShaderAsset &asset) {
         pimpl->CreatePipeline(m_system, asset);
 
-        for (auto pinterface : pimpl->layout.interfaces) {
-            if (auto pbuffer = dynamic_cast <const ShdrRfl::SPInterfaceBuffer *>(pinterface)) {
+        for (const auto & pinterface : pimpl->layout.interfaces) {
+            if (auto pbuffer = dynamic_cast <const ShdrRfl::SPInterfaceBuffer *>(pinterface.get())) {
                 if (pbuffer->type == ShdrRfl::SPInterfaceBuffer::Type::UniformBuffer) {
-                    auto psb = dynamic_cast<const ShdrRfl::SPInterfaceStructuredBuffer *>(pinterface);
+                    auto psb = dynamic_cast<const ShdrRfl::SPInterfaceStructuredBuffer *>(pinterface.get());
                     if (!psb) {
                         SDL_LogWarn(
                             SDL_LOG_CATEGORY_RENDER,
