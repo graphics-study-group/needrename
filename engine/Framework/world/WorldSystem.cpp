@@ -28,10 +28,6 @@ namespace Engine {
         }
     }
 
-    GUID WorldSystem::GenerateID() {
-        return generateGUID(m_id_gen);
-    }
-
     void WorldSystem::LoadGameObjectInQueue() {
         auto event_queue = MainClass::GetInstance()->GetEventQueue();
         for (auto &go : m_go_loading_queue) {

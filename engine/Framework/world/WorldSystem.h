@@ -25,9 +25,6 @@ namespace Engine {
         void AddInitEvent();
         void AddTickEvent();
 
-        /// @brief Generate a GUID using the random generator in the WorldSystem.
-        GUID GenerateID();
-
         /// @brief GameObject factory function. Create a GameObject and return a shared pointer to it.
         /// @tparam T T must be derived from GameObject
         /// @tparam ...Args The arguments to be passed to the constructor of T
@@ -63,8 +60,6 @@ namespace Engine {
         void SetActiveCamera(std::shared_ptr<Camera> camera, RenderSystemState::CameraManager * registrar = nullptr) noexcept;
 
     protected:
-        std::mt19937_64 m_id_gen{std::random_device{}()};
-
         std::vector<std::shared_ptr<GameObject>> m_go_loading_queue{};
         std::vector<std::shared_ptr<GameObject>> m_game_objects{};
         std::vector<std::shared_ptr<Component>> m_all_components{};
