@@ -49,10 +49,10 @@ namespace Engine {
             std::is_standard_layout_v<T> &&
             std::is_trivially_copyable_v<T> &&
             !std::is_pointer_v<T> &&
-            !std::is_array_v<T> &&
-            !std::is_reference_v<T>
+            !std::is_array_v<T>
         ) {
-            SetVariable(name, &val, sizeof(T), typeid(T));
+            using ActualType = std::remove_cvref_t<T>;
+            SetVariable(name, &val, sizeof(ActualType), typeid(ActualType));
         }
 
         template <typename T>
@@ -63,14 +63,14 @@ namespace Engine {
             std::is_standard_layout_v<T> &&
             std::is_trivially_copyable_v<T> &&
             !std::is_pointer_v<T> &&
-            std::is_array_v<T> && std::rank_v<T> == 1 &&
-            !std::is_reference_v<T>
+            std::is_array_v<T> && 
+            std::rank_v<T> == 1 &&
+            std::is_bounded_array_v<T>
         ) {
             constexpr auto ext = std::extent_v<T, 0>;
-            using UT = std::remove_extent_t<T>;
-            static_assert(std::is_same_v<UT[ext], T>);
+            using ActualElemType = std::remove_cv_t<std::remove_extent_t<T>>;
 
-            SetVariable(name, val, sizeof(UT) * ext, typeid(UT[ext]));
+            SetVariable(name, val, sizeof(ActualElemType) * ext, typeid(ActualElemType[ext]));
         }
 
         /**
