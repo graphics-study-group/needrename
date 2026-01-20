@@ -16,6 +16,7 @@ namespace Editor {
         auto world = Engine::MainClass::GetInstance()->GetWorldSystem();
         bool selected_changed = false;
         std::shared_ptr<Engine::GameObject> need_remove_go = nullptr;
+        std::shared_ptr<Engine::GameObject> need_rename_go = nullptr;
 
         if (ImGui::Begin(m_name.c_str())) {
             // Top toolbar: add-button (opens popup) + search box
@@ -70,11 +71,13 @@ namespace Editor {
                         )) {
                         // Finish renaming when Enter is pressed
                         m_rename_buffer = buf;
+                        need_rename_go = go;
                         m_renaming_game_object.reset();
                     }
                     // Finish renaming when focus is lost
                     if (!ImGui::IsItemActive() && ImGui::IsItemDeactivatedAfterEdit()) {
                         m_rename_buffer = buf;
+                        need_rename_go = go;
                         m_renaming_game_object.reset();
                     }
                     ImGui::PopID();
@@ -100,6 +103,19 @@ namespace Editor {
                     }
                 }
             }
+            // Hotkeys for selected game object
+            auto selected = m_selected_game_object.lock();
+            if (selected) {
+                // F2 to rename
+                if (ImGui::IsKeyPressed(ImGuiKey_F2)) {
+                    m_renaming_game_object = selected;
+                    m_rename_buffer = selected->m_name;
+                }
+                // Delete to remove
+                if (ImGui::IsKeyPressed(ImGuiKey_Delete)) {
+                    need_remove_go = selected;
+                }
+            }
         }
         ImGui::End();
 
@@ -109,6 +125,9 @@ namespace Editor {
                 selected_changed = true;
             }
             world->RemoveGameObjectFromWorld(need_remove_go);
+        }
+        if (need_rename_go) {
+            need_rename_go->m_name = m_rename_buffer;
         }
 
         if (selected_changed) {
