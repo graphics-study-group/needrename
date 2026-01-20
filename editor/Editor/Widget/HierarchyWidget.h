@@ -4,6 +4,7 @@
 #include "Widget.h"
 #include <Core/Delegate/Event.h>
 #include <memory>
+#include <string>
 
 namespace Engine {
     class GameObject;
@@ -22,6 +23,7 @@ namespace Editor {
 
     protected:
         std::weak_ptr<Engine::GameObject> m_selected_game_object{};
+        std::string m_search{};
     };
 } // namespace Editor
 
