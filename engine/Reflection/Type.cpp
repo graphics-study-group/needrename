@@ -1,4 +1,5 @@
 #include "Type.h"
+#include <cassert>
 #include <cstdarg>
 
 namespace Engine {
@@ -10,11 +11,15 @@ namespace Engine {
             m_deleter(deleter), m_name(name), m_size(size), m_reflectable(reflectable) {
         }
 
-        std::shared_ptr<const Method> Type::GetMethodFromMangledName(const std::string &name) const {
+        std::shared_ptr<const Method> Type::GetMethodFromMangledName(
+            const std::string &name, bool is_constructor
+        ) const {
             if (m_methods.find(name) != m_methods.end()) return m_methods.at(name);
-            for (auto &base_type : m_base_type) {
-                auto func = base_type->GetMethodFromMangledName(name);
-                if (func) return func;
+            if (!is_constructor) {
+                for (auto &base_type : m_base_type) {
+                    auto func = base_type->GetMethodFromMangledName(name);
+                    if (func) return func;
+                }
             }
             return nullptr;
         }
@@ -29,6 +34,16 @@ namespace Engine {
 
         bool Type::IsReflectable() const {
             return m_reflectable;
+        }
+
+        bool Type::IsDerivedFrom(std::shared_ptr<const Type> &base_type) const {
+            assert(base_type->IsReflectable() && "The base type to check must be reflectable");
+            for (const auto &bt : m_base_type) {
+                if (bt->GetName() == base_type->GetName() || bt->IsDerivedFrom(base_type)) {
+                    return true;
+                }
+            }
+            return false;
         }
 
         Type::TypeKind Type::GetTypeKind() const {
@@ -116,7 +131,9 @@ namespace Engine {
         std::unordered_map<std::type_index, WrapperSmartPointerGet> PointerType::s_weak_pointer_getter_map;
         std::unordered_map<std::type_index, WrapperSmartPointerGet> PointerType::s_unique_pointer_getter_map;
 
-        PointerType::PointerType(std::shared_ptr<const Type> pointed_type, size_t size, PointerTypeKind kind, const WrapperDeleter &deleter) :
+        PointerType::PointerType(
+            std::shared_ptr<const Type> pointed_type, size_t size, PointerTypeKind kind, const WrapperDeleter &deleter
+        ) :
             Type(pointed_type->GetName(), size, pointed_type->IsReflectable(), deleter), m_pointed_type(pointed_type),
             m_pointer_kind(kind) {
             m_kind = TypeKind::Pointer;
@@ -151,7 +168,9 @@ namespace Engine {
             const std::vector<uint64_t> &enum_values,
             WrapperEnumToString to_string,
             WrapperEnumFromString from_string
-        ) : Type(name, size, reflectable), m_enum_values(enum_values), m_to_string(to_string), m_from_string(from_string) {
+        ) :
+            Type(name, size, reflectable), m_enum_values(enum_values), m_to_string(to_string),
+            m_from_string(from_string) {
             m_kind = TypeKind::Enum;
         }
 

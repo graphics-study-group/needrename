@@ -35,8 +35,9 @@ namespace Engine {
 
         template <typename... Args>
         std::shared_ptr<const Method> Type::GetMethod(const std::string &name, Args &&...args) const {
+            bool is_constructor = (name == k_constructor_name);
             auto mangled_name = name + GetMangledName(std::forward<Args>(args)...);
-            return GetMethodFromMangledName(mangled_name);
+            return GetMethodFromMangledName(mangled_name, is_constructor);
         }
     } // namespace Reflection
 } // namespace Engine

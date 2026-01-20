@@ -61,7 +61,7 @@ namespace Engine {
             virtual ~Type() = default;
 
         private:
-            std::shared_ptr<const Method> GetMethodFromMangledName(const std::string &name) const;
+            std::shared_ptr<const Method> GetMethodFromMangledName(const std::string &name, bool is_constructor = false) const;
 
         protected:
             std::vector<std::shared_ptr<const Type>> m_base_type{};
@@ -136,8 +136,26 @@ namespace Engine {
 
             // Get the name of the type
             const std::string &GetName() const;
+
+            /**
+             * @brief Get the size of the type in bytes.
+             * @return size_t representing the size of the type in bytes
+             */
             size_t GetTypeSize() const;
+            /**
+             * @brief Check if the type is reflectable.
+             */
             bool IsReflectable() const;
+            /**
+             * @brief Check if the type is derived from another type.
+             * @param base_type the base type to check against
+             * @return true if the type is derived from base_type, false otherwise
+             */
+            bool IsDerivedFrom(std::shared_ptr<const Type> &base_type) const;
+            /**
+             * @brief Get the kind of the type.
+             * @return TypeKind enum value representing the kind of the type
+             */
             TypeKind GetTypeKind() const;
 
             /// @brief Create an instance of the type.
