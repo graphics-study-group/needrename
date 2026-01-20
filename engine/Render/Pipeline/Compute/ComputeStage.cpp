@@ -7,6 +7,7 @@
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/DeviceInterface.h"
 #include "Render/Memory/IndexedBuffer.h"
+#include "Render/Memory/StructuredBufferPlacer.h"
 #include "Render/Memory/ShaderParameters/ShaderParameter.h"
 #include "Render/Memory/ShaderParameters/ShaderParameterLayout.h"
 #include <string>
@@ -129,13 +130,23 @@ namespace Engine {
         for (auto pinterface : pimpl->layout.interfaces) {
             if (auto pbuffer = dynamic_cast <const ShdrRfl::SPInterfaceBuffer *>(pinterface)) {
                 if (pbuffer->type == ShdrRfl::SPInterfaceBuffer::Type::UniformBuffer) {
-                    auto ptype = dynamic_cast <const ShdrRfl::SPTypeSimpleStruct *>(pbuffer->underlying_type);
-                    assert(ptype);
+                    auto psb = dynamic_cast<const ShdrRfl::SPInterfaceStructuredBuffer *>(pinterface);
+                    if (!psb) {
+                        SDL_LogWarn(
+                            SDL_LOG_CATEGORY_RENDER,
+                            "Uniform buffer named %s is not structured, and cannot be manipulated.",
+                            pbuffer->name.c_str()
+                        );
+                        continue;
+                    }
+
+                    auto placer = psb->buffer_placer;
+                    assert(placer);
 
                     pimpl->m_ipi.ubos[pbuffer->name] = IndexedBuffer::CreateUnique(
                         m_system.GetAllocatorState(),
                         Buffer::BufferType::Uniform,
-                        ptype->expected_size,
+                        placer->CalculateMaxSize(),
                         m_system.GetDeviceInterface().QueryLimit(
                             RenderSystemState::DeviceInterface::PhysicalDeviceLimitInteger::UniformBufferOffsetAlignment
                         ),
@@ -221,14 +232,14 @@ namespace Engine {
         if (pimpl->m_ipi._is_ubo_dirty[backbuffer]) {
 
             for (const auto & kv : this->pimpl->m_ipi.ubos) {
-                auto itr = pimpl->layout.name_mapping.find(kv.first);
-                assert(itr != pimpl->layout.name_mapping.end());
-                auto pbuf = dynamic_cast<const ShdrRfl::SPInterfaceBuffer *>(itr->second);
+                auto itr = pimpl->layout.interface_name_mapping.find(kv.first);
+                assert(itr != pimpl->layout.interface_name_mapping.end());
+                auto pbuf = dynamic_cast<const ShdrRfl::SPInterfaceStructuredBuffer *>(itr->second);
                 assert(pbuf && pbuf->type == ShdrRfl::SPInterfaceBuffer::Type::UniformBuffer);
 
                 pimpl->layout.PlaceBufferVariable(
                     this->pimpl->m_ubo_staging_buffer,
-                    pbuf,
+                    *pbuf,
                     this->pimpl->parameters
                 );
 
@@ -245,14 +256,40 @@ namespace Engine {
 
     void ComputeStage::AssignScalarVariable(
         const std::string & name,
-        std::variant<uint32_t, int32_t, float> value) noexcept {
-        pimpl->parameters.Assign(name, value);
+        std::variant<uint32_t, float> value) noexcept {
+        
+        struct Visitor {
+            impl* pimpl;
+            const std::string & name;
+
+            void operator () (uint32_t v) {
+                pimpl->parameters.Assign(name, v);
+            };
+            void operator () (float v) {
+                pimpl->parameters.Assign(name, v);
+            };
+        };
+
+        std::visit(Visitor{pimpl.get(), name}, value);
         pimpl->m_ipi._is_ubo_dirty.set();
     }
     void ComputeStage::AssignVectorVariable(
         const std::string & name,
         std::variant<glm::vec4, glm::mat4> value) noexcept {
-        pimpl->parameters.Assign(name, value);
+
+        struct Visitor {
+            impl* pimpl;
+            const std::string & name;
+
+            void operator () (const glm::vec4 & v) {
+                pimpl->parameters.Assign(name, v);
+            };
+            void operator () (const glm::mat4 & v) {
+                pimpl->parameters.Assign(name, v);
+            };
+        };
+
+        std::visit(Visitor{pimpl.get(), name}, value);
         pimpl->m_ipi._is_ubo_dirty.set();
     }
     void ComputeStage::AssignTexture(

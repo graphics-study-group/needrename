@@ -66,9 +66,8 @@ namespace Engine {
             vk::Device d,
             const std::vector<std::shared_ptr<AssetRef>> & shader_refs
         ) {
-            b.reflected.variables.clear();
             b.reflected.interfaces.clear();
-            b.reflected.name_mapping.clear();
+            b.reflected.interface_name_mapping.clear();
 
             b.shader_modules.clear();
             b.shader_modules.resize(shader_refs.size());

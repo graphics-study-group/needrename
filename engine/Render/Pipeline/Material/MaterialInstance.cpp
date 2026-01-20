@@ -1,6 +1,7 @@
 #include "MaterialInstance.h"
 
 #include "Asset/Material/MaterialAsset.h"
+#include "Render/Memory/StructuredBufferPlacer.h"
 #include "Render/Memory/ShaderParameters/ShaderParameter.h"
 #include "Render/Memory/ShaderParameters/ShaderParameterLayout.h"
 #include "Render/Pipeline/PipelineInfo.h"
@@ -70,13 +71,20 @@ namespace Engine {
             for (auto pinterface : splayout.interfaces) {
                 if (auto pbuffer = dynamic_cast <const ShdrRfl::SPInterfaceBuffer *>(pinterface)) {
                     if (pbuffer->type == ShdrRfl::SPInterfaceBuffer::Type::UniformBuffer) {
-                        auto ptype = dynamic_cast <const ShdrRfl::SPTypeSimpleStruct *>(pbuffer->underlying_type);
-                        assert(ptype);
+                        auto psb = dynamic_cast<const ShdrRfl::SPInterfaceStructuredBuffer *>(pbuffer);
+                        if (!psb) {
+                            SDL_LogWarn(
+                                SDL_LOG_CATEGORY_RENDER,
+                                "Uniform buffer named %s is not structured, and cannot be manipulated.",
+                                pbuffer->name.c_str()
+                            );
+                            continue;
+                        }
 
                         pass.ubos[pbuffer->name] = IndexedBuffer::CreateUnique(
                             system.GetAllocatorState(),
                             Buffer::BufferType::Uniform,
-                            ptype->expected_size,
+                            psb->buffer_placer->CalculateMaxSize(),
                             system.GetDeviceInterface().QueryLimit(
                                 RenderSystemState::DeviceInterface::PhysicalDeviceLimitInteger::UniformBufferOffsetAlignment
                             ),
@@ -107,15 +115,39 @@ namespace Engine {
 
     void MaterialInstance::AssignScalarVariable(
         const std::string &name,
-        std::variant<uint32_t, int32_t, float> value
+        std::variant<uint32_t, float> value
     ) {
         this->pimpl->SetUboDirtyFlags();
-        this->pimpl->parameters.Assign(name, value);
+        struct Visitor {
+            impl* pimpl;
+            const std::string & name;
+
+            void operator () (uint32_t v) {
+                pimpl->parameters.Assign(name, v);
+            };
+            void operator () (float v) {
+                pimpl->parameters.Assign(name, v);
+            };
+        };
+
+        std::visit(Visitor{pimpl.get(), name}, value);
     }
 
     void MaterialInstance::AssignVectorVariable(const std::string &name, std::variant<glm::vec4, glm::mat4> value) {
         this->pimpl->SetUboDirtyFlags();
-        this->pimpl->parameters.Assign(name, value);
+
+        struct Visitor {
+            impl* pimpl;
+            const std::string & name;
+
+            void operator () (const glm::vec4 & v) {
+                pimpl->parameters.Assign(name, v);
+            };
+            void operator () (const glm::mat4 & v) {
+                pimpl->parameters.Assign(name, v);
+            };
+        };
+        std::visit(Visitor{pimpl.get(), name}, value);
     }
 
     void MaterialInstance::AssignTexture(const std::string &name, std::shared_ptr <const Texture> texture) {
@@ -200,14 +232,14 @@ namespace Engine {
             const auto & splayout = tpl.GetReflectedShaderInfo();
 
             for (const auto & kv : pass_info.ubos) {
-                auto itr = splayout.name_mapping.find(kv.first);
-                assert(itr != splayout.name_mapping.end());
-                auto pbuf = dynamic_cast<const ShdrRfl::SPInterfaceBuffer *>(itr->second);
+                auto itr = splayout.interface_name_mapping.find(kv.first);
+                assert(itr != splayout.interface_name_mapping.end());
+                auto pbuf = dynamic_cast<const ShdrRfl::SPInterfaceStructuredBuffer *>(itr->second);
                 assert(pbuf && pbuf->type == ShdrRfl::SPInterfaceBuffer::Type::UniformBuffer);
 
                 splayout.PlaceBufferVariable(
                     this->pimpl->m_buffer,
-                    pbuf,
+                    *pbuf,
                     this->pimpl->parameters
                 );
 
@@ -269,7 +301,7 @@ namespace Engine {
                     AssignScalarVariable("Material::" + prop.first, std::any_cast<float>(p.m_value));
                     break;
                 case MaterialProperty::InBlockVarType::Int:
-                    AssignScalarVariable("Material::" + prop.first, std::any_cast<int>(p.m_value));
+                    AssignScalarVariable("Material::" + prop.first, std::any_cast<uint32_t>(p.m_value));
                     break;
                 case MaterialProperty::InBlockVarType::Vec4:
                     AssignVectorVariable("Material::" + prop.first, std::any_cast<glm::vec4>(p.m_value));

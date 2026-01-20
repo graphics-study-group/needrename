@@ -106,22 +106,9 @@ namespace Engine {
         std::vector<vk::DescriptorSet> AllocateDescriptorSets(uint32_t sz = 1);
 
         /**
-         * @brief Query a reflected variable data by its name.
-         */
-        const ShdrRfl::SPVariable * GetVariable(const std::string & name) const noexcept;
-
-        /**
          * @brief Get all reflected shader info.
          */
         const ShdrRfl::SPLayout & GetReflectedShaderInfo () const noexcept;
-        
-        /**
-         * @brief Query the expected size of the uniform buffer object.
-         * If multiple UBOs for descriptor set 3 (material slot)
-         * are found in the shader, the maximum size will be returned.
-         * Note that multiple UBOs are currently poorly supported.
-         */
-        size_t GetExpectedUniformBufferSize() const noexcept;
     };
 } // namespace Engine
 
