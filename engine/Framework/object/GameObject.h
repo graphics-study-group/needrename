@@ -14,6 +14,8 @@
 #pragma GCC diagnostic ignored "-Wnon-virtual-dtor"
 
 namespace Engine {
+    using ObjectID = uint32_t;
+
     class Component;
     class TransformComponent;
     class WorldSystem;
@@ -44,7 +46,7 @@ namespace Engine {
         Transform &GetTransformRef();
         Transform GetWorldTransform();
         void SetParent(std::shared_ptr<GameObject> parent);
-        uint32_t GetID() const noexcept;
+        ObjectID GetID() const noexcept;
 
         bool operator==(const GameObject &other) const noexcept;
 
@@ -58,7 +60,7 @@ namespace Engine {
         std::vector<std::shared_ptr<Component>> m_components{};
     
     protected:
-        uint32_t m_id{};
+        ObjectID m_id{};
     };
 
     template <typename T, typename... Args>

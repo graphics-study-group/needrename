@@ -33,7 +33,7 @@ namespace Engine {
         parent->m_childGameObject.push_back(shared_from_this());
     }
 
-    uint32_t GameObject::GetID() const noexcept {
+    ObjectID GameObject::GetID() const noexcept {
         return m_id;
     }
 

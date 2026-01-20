@@ -10,7 +10,7 @@ namespace Engine {
     void Component::Tick() {
     }
 
-    uint32_t Component::GetID() const noexcept {
+    ObjectID Component::GetID() const noexcept {
         return m_id;
     }
     

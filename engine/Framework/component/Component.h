@@ -1,6 +1,7 @@
 #ifndef FRAMEWORK_COMPONENT_COMPONENT_INCLUDED
 #define FRAMEWORK_COMPONENT_COMPONENT_INCLUDED
 
+#include <Framework/object/GameObject.h>
 #include <Reflection/macros.h>
 #include <Reflection/serialization_smart_pointer.h>
 #include <memory>
@@ -25,7 +26,7 @@ namespace Engine {
         /// @brief Called every frame.
         virtual void Tick();
 
-        uint32_t GetID() const noexcept;
+        ObjectID GetID() const noexcept;
 
         bool operator==(const Component &other) const noexcept;
 
@@ -34,7 +35,7 @@ namespace Engine {
 
     protected:
         friend class WorldSystem;
-        uint32_t m_id{};
+        ObjectID m_id{};
     };
 } // namespace Engine
 
