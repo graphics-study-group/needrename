@@ -6,6 +6,24 @@
 #include <unordered_map>
 #include <SDL3/SDL.h>
 
+#ifndef NDEBUG
+#include <cxxabi.h>
+namespace {
+    std::string DemangleTypeName(const char * p) {
+        char * demangled_name_buf = abi::__cxa_demangle(p, nullptr, nullptr, nullptr);
+        std::string name{demangled_name_buf};
+        free(demangled_name_buf);
+        return name;
+    }
+}
+#else
+namespace {
+    std::string DemangleTypeName(const char * p) {
+        return std::string{p};
+    }
+}
+#endif
+
 namespace Engine {
     struct StructuredBufferPlacer::impl {
         struct TypeInfo {
@@ -100,10 +118,9 @@ namespace Engine {
                     SDL_LOG_CATEGORY_APPLICATION,
                     "Variable of name %s has type %s in the placer but %s in the buffer.",
                     name.c_str(),
-                    info.info->name(),
-                    varptr->type->name()
+                    DemangleTypeName(info.info->name()).c_str(),
+                    DemangleTypeName(varptr->type->name()).c_str()
                 );
-                continue;
             }
 
             if (info.info == &typeid(StructuredBuffer)) {
