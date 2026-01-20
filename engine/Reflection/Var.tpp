@@ -12,6 +12,14 @@ namespace Engine {
         }
 
         template <typename T>
+        std::shared_ptr<T> Var::GetAsSharedPtr() {
+            if (m_type->GetTypeKind() == Type::TypeKind::Const && !std::is_const_v<T>)
+                throw std::runtime_error("Cannot get non-const shared pointer from const Var");
+            MarkNeedFree(false);
+            return std::shared_ptr<T>(static_cast<T *>(m_data));
+        }
+
+        template <typename T>
         T &Var::Set(const T &value) {
             if (m_type->GetTypeKind() == Type::TypeKind::Const)
                 throw std::runtime_error("Cannot set value of a const Var");
