@@ -17,7 +17,7 @@ namespace Engine {
 class REFL_SER_CLASS(REFL_WHITELIST) SpinningComponent : public Engine::Component {
     REFL_SER_BODY(SpinningComponent)
 public:
-    SpinningComponent(std::weak_ptr<Engine::GameObject> gameObject);
+    REFL_ENABLE SpinningComponent(std::weak_ptr<Engine::GameObject> gameObject);
 
     REFL_SER_ENABLE float m_speed = 30.0f;
     REFL_SER_ENABLE std::vector<float> no_use = {1.0f, 8.0f, 2.0f, 3.0f, 7.0f, 6.0f};
@@ -32,7 +32,7 @@ public:
 class REFL_SER_CLASS(REFL_WHITELIST) ControlComponent : public Engine::Component {
     REFL_SER_BODY(ControlComponent)
 public:
-    ControlComponent(std::weak_ptr<Engine::GameObject> gameObject);
+    REFL_ENABLE ControlComponent(std::weak_ptr<Engine::GameObject> gameObject);
 
     REFL_SER_ENABLE std::shared_ptr<Engine::CameraComponent> m_camera{};
     REFL_SER_ENABLE float m_rotation_speed = 10.0f;

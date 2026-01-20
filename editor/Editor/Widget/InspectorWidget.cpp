@@ -1,4 +1,5 @@
 #include "InspectorWidget.h"
+#include <Core/guid.h>
 #include <Framework/component/Component.h>
 #include <Framework/object/GameObject.h>
 #include <MainClass.h>
@@ -6,10 +7,10 @@
 #include <imgui.h>
 #include <iostream>
 #include <unordered_map>
-#include <Core/guid.h>
 
 namespace Editor {
     InspectorWidget::InspectorWidget(const std::string &name) : Widget(name) {
+        LoadAvailableComponentTypes();
     }
 
     InspectorWidget::~InspectorWidget() {
@@ -59,6 +60,24 @@ namespace Editor {
                     ImGui::PopID();
                 }
 
+                ImGui::Separator();
+                if (ImGui::Button("Add Component")) {
+                    ImGui::OpenPopup("AddComponentPopup");
+                }
+                if (ImGui::BeginPopup("AddComponentPopup")) {
+                    for (const auto &component_type_name : m_component_types) {
+                        if (ImGui::MenuItem(component_type_name.c_str())) {
+                            auto component_type = Engine::Reflection::GetType(component_type_name);
+                            if (component_type) {
+                                auto component_var =
+                                    component_type->CreateInstance(std::weak_ptr<Engine::GameObject>(game_object));
+                                auto component_ptr = component_var.GetAsSharedPtr<Engine::Component>();
+                                game_object->AddComponent(component_ptr);
+                            }
+                        }
+                    }
+                    ImGui::EndPopup();
+                }
                 break;
             }
             case InspectorMode::kInspectorModeAsset: {
@@ -79,6 +98,19 @@ namespace Editor {
         } else {
             m_inspector_mode = InspectorMode::kInspectorModeNone;
             m_inspected_object = {};
+        }
+    }
+
+    void InspectorWidget::LoadAvailableComponentTypes() {
+        m_component_types.clear();
+        const auto &registered_types = Engine::Reflection::Type::s_name_index_map;
+        auto component_type = Engine::Reflection::GetType("Engine::Component");
+        assert(component_type && component_type->IsReflectable() && "Component type must be registered");
+        for (const auto &[type_name, type_index] : registered_types) {
+            auto type = Engine::Reflection::GetType(type_name);
+            if (type->IsDerivedFrom(component_type)) {
+                m_component_types.push_back(type->GetName());
+            }
         }
     }
 

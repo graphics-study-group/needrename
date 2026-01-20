@@ -30,6 +30,10 @@ namespace Editor {
 
         InspectorMode m_inspector_mode{InspectorMode::kInspectorModeNone};
         std::any m_inspected_object{};
+        // Available component types for adding new components
+        std::vector<std::string> m_component_types{};
+
+        void LoadAvailableComponentTypes();
 
     private:
         void InspectVar(const std::string &name, Engine::Reflection::Var var);
