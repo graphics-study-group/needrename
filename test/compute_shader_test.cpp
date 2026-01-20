@@ -84,7 +84,7 @@ int main(int argc, char *argv[]) {
         auto ccb = dynamic_cast<ComputeCommandBuffer &>(ccontext.GetCommandBuffer());
 
         ccontext.PrepareCommandBuffer();
-        cstage.AssignScalarVariable("UBO::frame_count", static_cast<int>(frame_count));
+        cstage.AssignScalarVariable("UBO::frame_count", static_cast<uint32_t>(frame_count));
         ccb.BindComputeStage(cstage);
         ccb.DispatchCompute(1280 / 16 + 1, 720 / 16 + 1, 1);
 
