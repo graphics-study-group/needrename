@@ -24,6 +24,8 @@ namespace Editor {
     protected:
         std::weak_ptr<Engine::GameObject> m_selected_game_object{};
         std::string m_search{};
+        std::weak_ptr<Engine::GameObject> m_renaming_game_object{};
+        std::string m_rename_buffer{};
     };
 } // namespace Editor
 

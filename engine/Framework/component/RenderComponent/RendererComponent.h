@@ -16,8 +16,11 @@ namespace Engine {
     class REFL_SER_CLASS(REFL_WHITELIST) RendererComponent : public Component {
         REFL_SER_BODY(RendererComponent)
     protected:
+        using RendererHandle = uint32_t;
+        
         std::vector<std::shared_ptr<MaterialInstance>> m_materials{};
         std::weak_ptr<RenderSystem> m_system{};
+        RendererHandle m_renderer_handle{};
 
     public:
         REFL_ENABLE RendererComponent(std::weak_ptr<GameObject> gameObject);
@@ -27,6 +30,8 @@ namespace Engine {
         /// to world coordinate (i.e. the model matrix)
         /// @return Transform
         virtual Transform GetWorldTransform() const;
+        
+        virtual void UnregisterFromRenderSystem();
 
         virtual void RenderInit();
         virtual void Tick() override;

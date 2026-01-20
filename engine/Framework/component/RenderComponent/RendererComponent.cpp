@@ -22,12 +22,21 @@ namespace Engine {
         return parentGameObject->GetWorldTransform();
     }
 
+    void RendererComponent::UnregisterFromRenderSystem() {
+        auto system = m_system.lock();
+        if (system) {
+            system->GetRendererManager().UnregisterRendererComponent(
+                m_renderer_handle
+            );
+        }
+    }
+
     void RendererComponent::RenderInit() {
         m_system = MainClass::GetInstance()->GetRenderSystem();
         auto system = m_system.lock();
 
         // We should do some check maybe to avoid repetition.
-        system->GetRendererManager().RegisterRendererComponent(
+        m_renderer_handle = system->GetRendererManager().RegisterRendererComponent(
             std::dynamic_pointer_cast<RendererComponent>(shared_from_this())
         );
 

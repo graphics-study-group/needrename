@@ -2,10 +2,12 @@
 #include <Asset/Scene/GameObjectAsset.h>
 #include <Asset/Scene/LevelAsset.h>
 #include <Core/Delegate/Delegate.h>
-#include <Framework/component/RenderComponent/RendererComponent.h>
-#include <Render/RenderSystem/CameraManager.h>
 #include <Core/Functional/EventQueue.h>
+#include <Framework/component/RenderComponent/RendererComponent.h>
 #include <MainClass.h>
+#include <Render/RenderSystem.h>
+#include <Render/RenderSystem/CameraManager.h>
+#include <Render/RenderSystem/RendererManager.h>
 
 namespace Engine {
     WorldSystem::WorldSystem() {
@@ -86,7 +88,9 @@ namespace Engine {
     std::shared_ptr<Camera> WorldSystem::GetActiveCamera() const noexcept {
         return m_active_camera;
     }
-    void WorldSystem::SetActiveCamera(std::shared_ptr<Camera> camera, RenderSystemState::CameraManager * registrar) noexcept {
+    void WorldSystem::SetActiveCamera(
+        std::shared_ptr<Camera> camera, RenderSystemState::CameraManager *registrar
+    ) noexcept {
         m_active_camera = camera;
         if (registrar) {
             registrar->RegisterCamera(camera);
@@ -103,6 +107,10 @@ namespace Engine {
         auto it = std::find(m_all_components.begin(), m_all_components.end(), comp);
         if (it != m_all_components.end()) {
             m_all_components.erase(it);
+        }
+        auto render_comp = std::dynamic_pointer_cast<RendererComponent>(comp);
+        if (render_comp) {
+            render_comp->UnregisterFromRenderSystem();
         }
     }
 } // namespace Engine
