@@ -79,7 +79,9 @@ namespace Engine {
             }
             max_size = std::max(max_size, element_size + v.offset);
         }
-        return size_t();
+        pimpl->size.max_size_dirty = false;
+        pimpl->size.max_size = max_size;
+        return max_size;
     }
 
     void StructuredBufferPlacer::WriteBuffer(const StructuredBuffer &data, std::byte *buffer) const noexcept {
@@ -106,10 +108,10 @@ namespace Engine {
 
             if (info.info == &typeid(StructuredBuffer)) {
                 // Recursively process buffer writes.
+                using cbp = const StructuredBuffer *;
                 assert(info.subbuffer != nullptr);
-                assert(varptr->value.size() >= sizeof(const StructuredBuffer *));
-
-                auto embedded_buffer_ptr = reinterpret_cast<const StructuredBuffer *>(varptr->value.data());
+                assert(varptr->value.size() >= sizeof(cbp));
+                auto embedded_buffer_ptr = *reinterpret_cast<const cbp *>(varptr->value.data());
                 info.subbuffer->WriteBuffer(*embedded_buffer_ptr, buffer + info.offset);
             } else {
                 // For other standard-layout variables, just memcpy them.
