@@ -40,6 +40,12 @@ namespace Engine {
         /// GameObjects.
         void LoadGameObjectInQueue();
 
+        /// @brief Remove a GameObject from the world. TODO: Better removal process instead of simple erase.
+        void RemoveGameObjectFromWorld(std::shared_ptr<GameObject> go);
+
+        /// @brief Editor use after a GameObject's components have been modified.
+        void RefreshGameObjectInWorld(std::shared_ptr<GameObject> go);
+
         /// @brief Load a level asset. Add all GameObjects in the level asset to the loading queue.
         void LoadLevelAsset(std::shared_ptr<LevelAsset> levelAsset);
 
@@ -65,6 +71,12 @@ namespace Engine {
         std::vector<std::shared_ptr<Component>> m_all_components{};
 
         std::shared_ptr<Camera> m_active_camera{};
+
+        uint32_t m_go_id_counter{0};
+        uint32_t m_component_id_counter{0};
+
+        void AddComponent(std::shared_ptr<Component> comp);
+        void RemoveComponent(std::shared_ptr<Component> comp);
     };
 
     template <typename T, typename... Args>

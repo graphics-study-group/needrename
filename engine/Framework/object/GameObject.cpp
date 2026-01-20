@@ -32,4 +32,12 @@ namespace Engine {
         m_parentGameObject = parent;
         parent->m_childGameObject.push_back(shared_from_this());
     }
+
+    uint32_t GameObject::GetID() const noexcept {
+        return m_id;
+    }
+
+    bool GameObject::operator==(const GameObject &other) const noexcept {
+        return this->m_id == other.m_id;
+    }
 } // namespace Engine

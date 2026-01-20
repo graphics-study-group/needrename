@@ -31,9 +31,10 @@ namespace Engine {
     void WorldSystem::LoadGameObjectInQueue() {
         auto event_queue = MainClass::GetInstance()->GetEventQueue();
         for (auto &go : m_go_loading_queue) {
-            m_all_components.insert(m_all_components.end(), go->m_components.begin(), go->m_components.end());
+            go->m_id = m_go_id_counter++;
             m_game_objects.push_back(go);
             for (auto &comp : go->m_components) {
+                AddComponent(comp);
                 auto render_comp = std::dynamic_pointer_cast<RendererComponent>(comp);
                 if (render_comp) {
                     render_comp->RenderInit();
@@ -42,6 +43,29 @@ namespace Engine {
             }
         }
         m_go_loading_queue.clear();
+    }
+
+    void WorldSystem::RemoveGameObjectFromWorld(std::shared_ptr<GameObject> go) {
+        // TODO: Better removal process instead of simple erase.
+        auto it = std::find(m_game_objects.begin(), m_game_objects.end(), go);
+        if (it != m_game_objects.end()) {
+            for (auto &comp : go->m_components) {
+                RemoveComponent(comp);
+            }
+            m_game_objects.erase(it);
+        }
+    }
+
+    void WorldSystem::RefreshGameObjectInWorld(std::shared_ptr<GameObject> go) {
+        auto it = std::find(m_game_objects.begin(), m_game_objects.end(), go);
+        if (it != m_game_objects.end()) {
+            for (auto &comp : go->m_components) {
+                RemoveComponent(comp);
+            }
+            for (auto &comp : go->m_components) {
+                AddComponent(comp);
+            }
+        }
     }
 
     void WorldSystem::LoadLevelAsset(std::shared_ptr<LevelAsset> levelAsset) {
@@ -66,6 +90,19 @@ namespace Engine {
         m_active_camera = camera;
         if (registrar) {
             registrar->RegisterCamera(camera);
+        }
+    }
+
+    void WorldSystem::AddComponent(std::shared_ptr<Component> comp) {
+        comp->m_id = m_component_id_counter++;
+        m_all_components.push_back(comp);
+    }
+
+    void WorldSystem::RemoveComponent(std::shared_ptr<Component> comp) {
+        // TODO: Better removal process instead of simple erase.
+        auto it = std::find(m_all_components.begin(), m_all_components.end(), comp);
+        if (it != m_all_components.end()) {
+            m_all_components.erase(it);
         }
     }
 } // namespace Engine

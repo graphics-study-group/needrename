@@ -9,4 +9,12 @@ namespace Engine {
 
     void Component::Tick() {
     }
+
+    uint32_t Component::GetID() const noexcept {
+        return m_id;
+    }
+    
+    bool Component::operator==(const Component &other) const noexcept {
+        return this->m_id == other.m_id;
+    }
 } // namespace Engine

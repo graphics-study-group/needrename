@@ -25,8 +25,16 @@ namespace Engine {
         /// @brief Called every frame.
         virtual void Tick();
 
+        uint32_t GetID() const noexcept;
+
+        bool operator==(const Component &other) const noexcept;
+
     public:
         REFL_SER_ENABLE std::weak_ptr<GameObject> m_parentGameObject{};
+
+    protected:
+        friend class WorldSystem;
+        uint32_t m_id{};
     };
 } // namespace Engine
 

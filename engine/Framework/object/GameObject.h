@@ -44,6 +44,9 @@ namespace Engine {
         Transform &GetTransformRef();
         Transform GetWorldTransform();
         void SetParent(std::shared_ptr<GameObject> parent);
+        uint32_t GetID() const noexcept;
+
+        bool operator==(const GameObject &other) const noexcept;
 
     public:
         std::string m_name{};
@@ -53,6 +56,9 @@ namespace Engine {
 
         std::shared_ptr<TransformComponent> m_transformComponent{};
         std::vector<std::shared_ptr<Component>> m_components{};
+    
+    protected:
+        uint32_t m_id{};
     };
 
     template <typename T, typename... Args>

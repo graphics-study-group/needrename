@@ -2,6 +2,7 @@
 #include <Core/guid.h>
 #include <Framework/component/Component.h>
 #include <Framework/object/GameObject.h>
+#include <Framework/world/WorldSystem.h>
 #include <MainClass.h>
 #include <Reflection/reflection.h>
 #include <imgui.h>
@@ -17,6 +18,7 @@ namespace Editor {
     }
 
     void InspectorWidget::Render() {
+        auto world = Engine::MainClass::GetInstance()->GetWorldSystem();
         if (ImGui::Begin(m_name.c_str())) {
             switch (m_inspector_mode) {
             case InspectorMode::kInspectorModeGameObject: {
@@ -73,6 +75,7 @@ namespace Editor {
                                     component_type->CreateInstance(std::weak_ptr<Engine::GameObject>(game_object));
                                 auto component_ptr = component_var.GetAsSharedPtr<Engine::Component>();
                                 game_object->AddComponent(component_ptr);
+                                world->RefreshGameObjectInWorld(game_object);
                             }
                         }
                     }
