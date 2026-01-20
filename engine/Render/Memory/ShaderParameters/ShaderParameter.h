@@ -10,16 +10,16 @@
 namespace Engine {
     class Texture;
     class Buffer;
+    class StructuredBuffer;
+
     namespace ShdrRfl {
         struct ShaderParameters {
-            using ParameterVariant = std::variant<
-                    std::monostate,
-                    uint32_t,
-                    int32_t,
-                    float,
-                    glm::vec4,
-                    glm::mat4
-                >;
+            struct impl;
+            std::unique_ptr <impl> pimpl;
+
+            ShaderParameters();
+            ~ShaderParameters() noexcept;
+
             using InterfaceVariant = std::variant<
                     std::monostate,
                     std::shared_ptr<const Texture>,
@@ -28,12 +28,14 @@ namespace Engine {
                     std::tuple<std::shared_ptr<const Buffer>, size_t, size_t>,
                     std::tuple<std::reference_wrapper<const Buffer>, size_t, size_t>
                 >;
-            std::unordered_map <std::string, ParameterVariant> arguments;
-            std::unordered_map <std::string, InterfaceVariant> interfaces;
 
-            void Assign(const std::string & name, std::variant<uint32_t, int32_t, float> value) noexcept;
-
-            void Assign(const std::string & name, std::variant<glm::vec4, glm::mat4> value) noexcept;
+            void Assign(const std::string & name, uint32_t) noexcept;
+            void Assign(const std::string & name, float) noexcept;
+            void Assign(const std::string & name, const glm::vec4 &) noexcept;
+            void Assign(const std::string & name, const glm::mat4 &) noexcept;
+    
+            void Assign(const std::string & name, float (& v) [4]) noexcept;
+            void Assign(const std::string & name, float (& v) [16]) noexcept;
 
             /**
              * @brief Assign a texture by its name.
@@ -62,6 +64,9 @@ namespace Engine {
                 size_t offset = 0ULL, 
                 size_t size = 0ULL
             ) noexcept;
+
+            const std::unordered_map <std::string, InterfaceVariant> & GetInterfaces() const noexcept;
+            const StructuredBuffer & GetStructuredBuffer() const noexcept;
         };
     }
 }
