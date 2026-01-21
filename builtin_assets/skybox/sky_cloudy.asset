@@ -4,12 +4,15 @@
             "%extra_data_id": 0,
             "%type": "Engine::ImageCubemapAsset",
             "Asset::m_guid": "423615BE2F14C68B2ADC81315AD3B648",
+            "ImageCubemapAsset::m_channel": 4,
+            "ImageCubemapAsset::m_height": 512,
+            "ImageCubemapAsset::m_width": 512,
             "TextureAsset::m_name": ""
         }
     },
     "%extra_data": [
         {
-            "%extension": ".skybox"
+            "%extension": ".png"
         }
     ],
     "%main_id": "&0"

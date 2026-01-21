@@ -34,12 +34,12 @@ namespace sch = std::chrono;
  * - Dow face (Z-): rotated for 180 degrees;
  */
 const std::array<std::filesystem::path, 6> CUBEMAP_FACES = {
-    std::filesystem::path{ENGINE_BUILTIN_ASSETS_DIR} / "skybox" / "skybox_R_tonemapped.png",
-    std::filesystem::path{ENGINE_BUILTIN_ASSETS_DIR} / "skybox" / "skybox_L_tonemapped.png",
-    std::filesystem::path{ENGINE_BUILTIN_ASSETS_DIR} / "skybox" / "skybox_F_tonemapped.png",
-    std::filesystem::path{ENGINE_BUILTIN_ASSETS_DIR} / "skybox" / "skybox_B_tonemapped.png",
-    std::filesystem::path{ENGINE_BUILTIN_ASSETS_DIR} / "skybox" / "skybox_U_tonemapped.png",
-    std::filesystem::path{ENGINE_BUILTIN_ASSETS_DIR} / "skybox" / "skybox_D_tonemapped.png"
+    std::filesystem::path{ENGINE_ASSETS_DIR} / "skybox" / "skybox_R_tonemapped.png",
+    std::filesystem::path{ENGINE_ASSETS_DIR} / "skybox" / "skybox_L_tonemapped.png",
+    std::filesystem::path{ENGINE_ASSETS_DIR} / "skybox" / "skybox_F_tonemapped.png",
+    std::filesystem::path{ENGINE_ASSETS_DIR} / "skybox" / "skybox_B_tonemapped.png",
+    std::filesystem::path{ENGINE_ASSETS_DIR} / "skybox" / "skybox_U_tonemapped.png",
+    std::filesystem::path{ENGINE_ASSETS_DIR} / "skybox" / "skybox_D_tonemapped.png"
 };
 
 
@@ -102,7 +102,13 @@ int main(int argc, char **argv) {
 
     // Load skybox cubemap
     auto cubemap = std::make_shared<ImageCubemapAsset>();
-    cubemap->LoadFromFile(CUBEMAP_FACES);
+    cubemap->LoadFromFile(std::filesystem::path{ENGINE_ASSETS_DIR} / "skybox" / "sky_cloudy.png", 512, 512);
+    // cubemap->LoadFromFile(CUBEMAP_FACES);
+    
+    // Engine::Serialization::Archive archive;
+    // archive.prepare_save();
+    // cubemap->save_asset_to_archive(archive);
+    // archive.save_to_file(std::string(ENGINE_ASSETS_DIR) + "/skybox.asset");
 
     std::shared_ptr skybox_texture = ImageTexture::CreateUnique(
         *rsys,
