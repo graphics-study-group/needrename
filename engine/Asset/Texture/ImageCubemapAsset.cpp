@@ -67,8 +67,8 @@ namespace {
                     }
 
                     dir = glm::normalize(dir);
-                    float lon = std::atan2(dir.z, dir.x);
-                    float lat = std::asin(dir.y);
+                    float lon = std::atan2(dir.y, dir.x);
+                    float lat = -std::asin(dir.z);
 
                     float srcX = (lon + glm::pi<float>()) / (2.0f * glm::pi<float>()) * srcW;
                     float srcY = (glm::pi<float>() / 2.0f - lat) / glm::pi<float>() * srcH;
