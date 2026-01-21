@@ -60,6 +60,47 @@ namespace Engine {
         auto level_asset =
             std::dynamic_pointer_cast<LevelAsset>(this->asset_manager->LoadAssetImmediately(default_level_guid));
         this->world->LoadLevelAsset(level_asset);
+        
+        if (level_asset->m_skybox_texture) {
+            // XXX: Hard code texture creation here. Should use MaterialAsset in the future.
+            auto adb = std::dynamic_pointer_cast<FileSystemDatabase>(
+                this->GetAssetDatabase()
+            );
+            auto lib_asset_ref = adb->GetNewAssetRef({*adb, "~/material_libraries/SkyboxLibrary.asset"});
+            this->asset_manager->LoadAssetImmediately(lib_asset_ref);
+            auto lib_asset = lib_asset_ref->as<MaterialLibraryAsset>();
+
+            m_skybox_material_library = std::make_shared<MaterialLibrary>(*this->renderer);
+            m_skybox_material_library->Instantiate(*lib_asset);
+
+            this->asset_manager->LoadAssetImmediately(level_asset->m_skybox_texture);
+            auto cubemap = level_asset->m_skybox_texture->as<ImageCubemapAsset>();
+            std::shared_ptr skybox_texture = ImageTexture::CreateUnique(
+                *this->renderer,
+                ImageTexture::ImageTextureDesc{
+                    .dimensions = 2,
+                    .width = 512,
+                    .height = 512,
+                    .depth = 1,
+                    .mipmap_levels = 1,
+                    .array_layers = 6,
+                    .format = ImageTexture::ITFormat::R8G8B8A8SRGB,
+                    .is_cube_map = true
+                },
+                ImageUtils::SamplerDesc{
+                    .u_address = ImageUtils::SamplerDesc::AddressMode::ClampToEdge,
+                    .v_address = ImageUtils::SamplerDesc::AddressMode::ClampToEdge,
+                    .w_address = ImageUtils::SamplerDesc::AddressMode::ClampToEdge
+                },
+                "Skybox"
+            );
+            this->renderer->GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
+                *skybox_texture,
+                cubemap->GetPixelData(),
+                cubemap->GetPixelDataSize()
+            );
+            this->renderer->GetSceneDataManager().SetSkyboxCubemap(skybox_texture);
+        }
 
         auto active_camera = this->world->GetActiveCamera();
         if (active_camera)

@@ -79,6 +79,10 @@ namespace Engine {
         bool m_on_quit = false;
 
         void RunOneFrame();
+
+    private:
+        // XXX: Temporary skybox material library
+        std::shared_ptr<MaterialLibrary> m_skybox_material_library{};
     };
 } // namespace Engine
 
