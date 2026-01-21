@@ -86,7 +86,6 @@ namespace Engine {
     private:
         // XXX: Temporary skybox material library
         std::shared_ptr<MaterialLibrary> m_skybox_material_library{};
-        std::shared_ptr<ImageCubemapAsset> m_skybox_cubemap_asset{};
     };
 } // namespace Engine
 

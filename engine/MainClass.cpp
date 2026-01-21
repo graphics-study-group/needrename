@@ -75,7 +75,7 @@ namespace Engine {
             m_skybox_material_library->Instantiate(*lib_asset);
 
             this->asset_manager->LoadAssetImmediately(level_asset->m_skybox_texture);
-            m_skybox_cubemap_asset = level_asset->m_skybox_texture->as<ImageCubemapAsset>();
+            auto cubemap = level_asset->m_skybox_texture->as<ImageCubemapAsset>();
             std::shared_ptr skybox_texture = ImageTexture::CreateUnique(
                 *this->renderer,
                 ImageTexture::ImageTextureDesc{
@@ -97,8 +97,8 @@ namespace Engine {
             );
             this->renderer->GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
                 *skybox_texture,
-                m_skybox_cubemap_asset->GetPixelData(),
-                m_skybox_cubemap_asset->GetPixelDataSize()
+                cubemap->GetPixelData(),
+                cubemap->GetPixelDataSize()
             );
             this->renderer->GetSceneDataManager().SetSkyboxCubemap(skybox_texture);
         }
