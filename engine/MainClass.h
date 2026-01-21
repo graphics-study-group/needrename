@@ -21,6 +21,9 @@ namespace Engine {
     class EventQueue;
     class ShaderCompiler;
 
+    class MaterialLibrary;
+    class ImageCubemapAsset;
+
     class MainClass {
     public:
         /**
@@ -79,6 +82,11 @@ namespace Engine {
         bool m_on_quit = false;
 
         void RunOneFrame();
+
+    private:
+        // XXX: Temporary skybox material library
+        std::shared_ptr<MaterialLibrary> m_skybox_material_library{};
+        std::shared_ptr<ImageCubemapAsset> m_skybox_cubemap_asset{};
     };
 } // namespace Engine
 

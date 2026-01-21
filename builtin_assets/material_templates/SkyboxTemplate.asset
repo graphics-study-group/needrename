@@ -1,0 +1,89 @@
+{
+    "%data": {
+        "&0": {
+            "%type": "Engine::MaterialTemplateAsset",
+            "Asset::m_guid": "40D0558818344762D670519B835BEA89",
+            "MaterialTemplateAsset::name": "Skybox",
+            "MaterialTemplateAsset::properties": {
+                "%type": "Engine::MaterialTemplateSinglePassProperties",
+                "MaterialTemplateSinglePassProperties::attachments": {
+                    "%type": "Engine::PipelineProperties::Attachments",
+                    "Attachments::color": [
+                        "R8G8B8A8UNorm"
+                    ],
+                    "Attachments::color_blending": [
+                        {
+                            "%type": "Engine::PipelineProperties::ColorBlendingProperties",
+                            "ColorBlendingProperties::alpha_op": "None",
+                            "ColorBlendingProperties::color_op": "None",
+                            "ColorBlendingProperties::color_write_mask": "15",
+                            "ColorBlendingProperties::dst_alpha": "Zero",
+                            "ColorBlendingProperties::dst_color": "Zero",
+                            "ColorBlendingProperties::src_alpha": "One",
+                            "ColorBlendingProperties::src_color": "One"
+                        }
+                    ],
+                    "Attachments::depth": "D32SFLOAT",
+                    "Attachments::stencil": "UNDEFINED"
+                },
+                "MaterialTemplateSinglePassProperties::depth_stencil": {
+                    "%type": "Engine::PipelineProperties::DSProperties",
+                    "DSProperties::depth_bound_test_enable": false,
+                    "DSProperties::depth_comparator": "LEqual",
+                    "DSProperties::depth_test_enable": true,
+                    "DSProperties::depth_write_enable": true,
+                    "DSProperties::max_depth": 1.0,
+                    "DSProperties::min_depth": 0.0,
+                    "DSProperties::stencil_back": {
+                        "%type": "Engine::PipelineProperties::StencilState",
+                        "StencilState::comparator": "Never",
+                        "StencilState::compare_mask": 255,
+                        "StencilState::fail_op": "Keep",
+                        "StencilState::pass_op": "Keep",
+                        "StencilState::reference": 0,
+                        "StencilState::write_mask": 255,
+                        "StencilState::zfail_op": "Keep"
+                    },
+                    "DSProperties::stencil_front": {
+                        "%type": "Engine::PipelineProperties::StencilState",
+                        "StencilState::comparator": "Never",
+                        "StencilState::compare_mask": 255,
+                        "StencilState::fail_op": "Keep",
+                        "StencilState::pass_op": "Keep",
+                        "StencilState::reference": 0,
+                        "StencilState::write_mask": 255,
+                        "StencilState::zfail_op": "Keep"
+                    },
+                    "DSProperties::stencil_test_enable": false
+                },
+                "MaterialTemplateSinglePassProperties::rasterizer": {
+                    "%type": "Engine::PipelineProperties::RasterizerProperties",
+                    "RasterizerProperties::culling": "None",
+                    "RasterizerProperties::depth_bias_constant": 0.0,
+                    "RasterizerProperties::depth_bias_slope": 0.0,
+                    "RasterizerProperties::filling": "Fill",
+                    "RasterizerProperties::front": "Counterclockwise",
+                    "RasterizerProperties::line_width": 1.0
+                },
+                "MaterialTemplateSinglePassProperties::shaders": {
+                    "%type": "Engine::PipelineProperties::Shaders",
+                    "Shaders::shaders": [
+                        "&1",
+                        "&2"
+                    ],
+                    "Shaders::specialization_constants": []
+                }
+            }
+        },
+        "&1": {
+            "%type": "Engine::AssetRef",
+            "AssetRef::m_guid": "917745CBDD3448B099C6CFE19BAF2BA0"
+        },
+        "&2": {
+            "%type": "Engine::AssetRef",
+            "AssetRef::m_guid": "63FF8228AEF8415D8CA842798532486D"
+        }
+    },
+    "%extra_data": [],
+    "%main_id": "&0"
+}

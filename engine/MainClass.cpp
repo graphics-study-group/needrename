@@ -4,6 +4,7 @@
 #include <Asset/AssetManager/AssetManager.h>
 #include <Asset/Scene/LevelAsset.h>
 #include <Asset/Shader/ShaderCompiler.h>
+#include <Asset/Texture/ImageCubemapAsset.h>
 #include <Core/Functional/EventQueue.h>
 #include <Core/Functional/SDLWindow.h>
 #include <Core/Functional/Time.h>
@@ -11,10 +12,10 @@
 #include <Render/FullRenderSystem.h>
 #include <UserInterface/GUISystem.h>
 #include <UserInterface/Input.h>
-#include <glslang/Public/ShaderLang.h>
 
 #include <exception>
 #include <fstream>
+#include <glslang/Public/ShaderLang.h>
 #include <nlohmann/json.hpp>
 
 namespace Engine {
@@ -60,6 +61,47 @@ namespace Engine {
         auto level_asset =
             std::dynamic_pointer_cast<LevelAsset>(this->asset_manager->LoadAssetImmediately(default_level_guid));
         this->world->LoadLevelAsset(level_asset);
+        
+        if (level_asset->m_skybox_texture) {
+            // XXX: Hard code texture creation here. Should use MaterialAsset in the future.
+            auto adb = std::dynamic_pointer_cast<FileSystemDatabase>(
+                this->GetAssetDatabase()
+            );
+            auto lib_asset_ref = adb->GetNewAssetRef({*adb, "~/material_libraries/SkyboxLibrary.asset"});
+            this->asset_manager->LoadAssetImmediately(lib_asset_ref);
+            auto lib_asset = lib_asset_ref->as<MaterialLibraryAsset>();
+
+            m_skybox_material_library = std::make_shared<MaterialLibrary>(*this->renderer);
+            m_skybox_material_library->Instantiate(*lib_asset);
+
+            this->asset_manager->LoadAssetImmediately(level_asset->m_skybox_texture);
+            m_skybox_cubemap_asset = level_asset->m_skybox_texture->as<ImageCubemapAsset>();
+            std::shared_ptr skybox_texture = ImageTexture::CreateUnique(
+                *this->renderer,
+                ImageTexture::ImageTextureDesc{
+                    .dimensions = 2,
+                    .width = 512,
+                    .height = 512,
+                    .depth = 1,
+                    .mipmap_levels = 1,
+                    .array_layers = 6,
+                    .format = ImageTexture::ITFormat::R8G8B8A8SRGB,
+                    .is_cube_map = true
+                },
+                ImageUtils::SamplerDesc{
+                    .u_address = ImageUtils::SamplerDesc::AddressMode::ClampToEdge,
+                    .v_address = ImageUtils::SamplerDesc::AddressMode::ClampToEdge,
+                    .w_address = ImageUtils::SamplerDesc::AddressMode::ClampToEdge
+                },
+                "Skybox"
+            );
+            this->renderer->GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
+                *skybox_texture,
+                m_skybox_cubemap_asset->GetPixelData(),
+                m_skybox_cubemap_asset->GetPixelDataSize()
+            );
+            this->renderer->GetSceneDataManager().SetSkyboxCubemap(skybox_texture);
+        }
 
         auto active_camera = this->world->GetActiveCamera();
         if (active_camera)
@@ -213,6 +255,22 @@ namespace Engine {
             "Main Pass"
         );
         this->renderer->GetCameraManager().SetActiveCameraIndex(this->world->GetActiveCamera()->m_display_id);
+
+        if (m_skybox_material_library) {
+            vk::Extent2D extent = renderer->GetSwapchain().GetExtent();
+            vk::Rect2D scissor{{0, 0}, extent};
+            cb.SetupViewport(extent.width, extent.height, scissor);
+            glm::mat4 camera_pv_mat = world->GetActiveCamera()->GetViewMatrix();
+            camera_pv_mat[3][0] = camera_pv_mat[3][1] = camera_pv_mat[3][2] = 0.0f;
+            camera_pv_mat = world->GetActiveCamera()->GetProjectionMatrix() * camera_pv_mat;
+            renderer->GetSceneDataManager().DrawSkybox(
+                renderer->GetFrameManager().GetRawMainCommandBuffer(),
+                *m_skybox_material_library,
+                renderer->GetFrameManager().GetFrameInFlight(),
+                camera_pv_mat
+            );
+        }
+
         cb.DrawRenderers("", renderer->GetRendererManager().FilterAndSortRenderers({}));
         cb.EndRendering();
 

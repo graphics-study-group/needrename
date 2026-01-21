@@ -23,6 +23,9 @@ namespace Engine {
         const std::byte *GetPixelData() const;
         size_t GetPixelDataSize() const;
 
+        virtual void save_asset_to_archive(Serialization::Archive &archive) const override;
+        virtual void load_asset_from_archive(Serialization::Archive &archive) override;
+
     protected:
         std::vector<std::byte> m_data{};
     };
