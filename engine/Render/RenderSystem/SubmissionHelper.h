@@ -28,18 +28,31 @@ namespace Engine {
 
             /**
              * @brief Enqueue a buffer uploading.
+             * 
+             * @param data Host-side buffer containing all data.
              */
             void EnqueueBufferSubmission(const Buffer & buffer, std::vector<std::byte> && data);
+
+            /**
+             * @brief Enqueue a buffer uploading.
+             * 
+             * @param data Host-side buffer containing all data.
+             * Data are immediately copied to a staging buffer.
+             * It is safe to free this buffer after calling this method.
+             */
+            void EnqueueBufferSubmission(const Buffer & buffer, const std::vector<std::byte> &data);
 
             /***
              * @brief Enqueue a vertex buffer uploading.
              * Record corresponding memory
              * barriers and buffer writes to a disposable command buffer at the beginning of a frame.
-             * A
-             * staging buffer is created, and will be de-allocated at the end of the frame.
+             * A staging buffer is created, and will be de-allocated at the end of the frame.
              * 
-             * @param
-             * mesh A homogeneous mesh whose vertex buffer is to be updated.
+             * Vertex data are copied into the staging buffer immediately.
+             * You can free the underlying vertex asset after calling this method,
+             * so long as you are sure that it will not be evicted from GPU memory.
+             * 
+             * @param mesh A homogeneous mesh whose vertex buffer is to be updated.
              */
             void EnqueueVertexBufferSubmission(const HomogeneousMesh &mesh);
 
@@ -59,6 +72,8 @@ namespace Engine {
              * Linearized buffer data. Refer to
              * https://registry.khronos.org/vulkan/specs/latest/html/vkspec.html#copies-buffers-images-addressing
              * for how to organize the data.
+             * Data are immediately copied to a staging buffer.
+             * It is safe to free this buffer after calling this method.
              * @param length
              */
             void EnqueueTextureBufferSubmission(const Texture &texture, const std::byte *data, size_t length);
@@ -80,13 +95,23 @@ namespace Engine {
             // void EnqueueTextureClear(const Texture &texture, std::tuple<float, uint8_t> depth_stencil);
 
             /***
-             * @brief Execute staged submissions. 
-             * Allocated a new command buffer if
-             * needed, record all pending operations, and submit the
-             * buffer to the graphics queue
-             * allocated by the render system.
+             * @brief Execute staged submissions.
+             *
+             * Allocated a new command buffer if needed, record all pending operations, and 
+             * submit the buffer to the graphics queue allocated by the render system.
+             * 
+             * @warning This method uses internal synchronization mechanisms to ensure 
+             * correct memory dependency. Unexpected call-sites will likely results in 
+             * synchronization failure.
              */
             void ExecuteSubmission();
+
+            /**
+             * @brief Immediately execute staged submissions.
+             * 
+             * Use this method sparingly, as it causes CPU to stall and wait for all submission.
+             */
+            void ExecuteSubmissionImmediately();
 
             void OnPreMainCbSubmission();
 
