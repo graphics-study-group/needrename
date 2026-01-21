@@ -108,7 +108,7 @@ int main(int argc, char **argv) {
     // Engine::Serialization::Archive archive;
     // archive.prepare_save();
     // cubemap->save_asset_to_archive(archive);
-    // archive.save_to_file(std::string(ENGINE_ASSETS_DIR) + "/skybox.asset");
+    // archive.save_to_file(std::string(ENGINE_ASSETS_DIR) + "/skybox");
 
     std::shared_ptr skybox_texture = ImageTexture::CreateUnique(
         *rsys,

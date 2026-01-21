@@ -96,14 +96,14 @@
                 "%type": "Engine::Transform",
                 "Transform::m_position": [
                     0.0,
-                    1.0,
-                    0.0
+                    -0.7,
+                    0.5
                 ],
                 "Transform::m_rotation": [
+                    -0.259,
                     0.0,
                     0.0,
-                    1.0,
-                    0.0
+                    0.966
                 ],
                 "Transform::m_scale": [
                     1.0,
