@@ -151,7 +151,7 @@ namespace {
 namespace Engine::RenderSystemState {
     struct SubmissionHelper::impl {
         std::queue<CmdOperation> m_pending_operations{};
-        std::vector<Buffer> m_pending_dellocations{};
+        std::vector<std::unique_ptr<Buffer>> m_pending_dellocations{};
 
         vk::UniqueCommandBuffer m_one_time_cb{};
         vk::UniqueFence m_completion_fence{};
@@ -168,15 +168,20 @@ namespace Engine::RenderSystemState {
     void SubmissionHelper::EnqueueBufferSubmission(const Buffer &buffer, std::vector<std::byte> &&data) {
         assert(data.size() >= buffer.GetSize());
 
-        auto enqueued = [data = std::move(data), &buffer, this](vk::CommandBuffer cb) {
-            auto staging_buffer = Buffer::Create(
+        auto staging_buffer = Buffer::CreateUnique(
                 this->m_system.GetAllocatorState(),
                 AllocatorState::BufferType::Staging,
                 buffer.GetSize(),
                 "Staging buffer"
             );
-            std::memcpy(staging_buffer.GetVMAddress(), data.data(), sizeof(buffer.GetSize()));
+        std::memcpy(staging_buffer->GetVMAddress(), data.data(), sizeof(buffer.GetSize()));
+        staging_buffer->Flush();
+        data.clear();
 
+        auto enqueued = [
+            data = std::move(data), &buffer, this,
+            pbuf = staging_buffer.get()
+        ](vk::CommandBuffer cb) {
             auto mbarrier = GetBufferBarrier(BufferTransferType::GeneralTransferBefore);
             std::array<vk::BufferMemoryBarrier2, 1> barriers{};
             barriers[0] = {
@@ -189,7 +194,7 @@ namespace Engine::RenderSystemState {
             
             cb.pipelineBarrier2(vk::DependencyInfo{{}, {}, barriers, {}});
             vk::BufferCopy copy{0, 0, static_cast<vk::DeviceSize>(buffer.GetSize())};
-            cb.copyBuffer(staging_buffer.GetBuffer(), buffer.GetBuffer(), {copy});
+            cb.copyBuffer(pbuf->GetBuffer(), buffer.GetBuffer(), {copy});
 
             mbarrier = GetBufferBarrier(BufferTransferType::GeneralTransferAfter);
             barriers[0] = {
@@ -200,27 +205,69 @@ namespace Engine::RenderSystemState {
                 buffer.GetSize()
             };
             cb.pipelineBarrier2(vk::DependencyInfo{{}, {}, barriers, {}});
-
-            pimpl->m_pending_dellocations.push_back(std::move(staging_buffer));
         };
+        pimpl->m_pending_dellocations.push_back(std::move(staging_buffer));
+        pimpl->m_pending_operations.push(enqueued);
+    }
+
+    void SubmissionHelper::EnqueueBufferSubmission(const Buffer &buffer, const std::vector<std::byte> &data) {
+        auto staging_buffer = Buffer::CreateUnique(
+                this->m_system.GetAllocatorState(),
+                AllocatorState::BufferType::Staging,
+                buffer.GetSize(),
+                "Staging buffer"
+            );
+        std::memcpy(staging_buffer->GetVMAddress(), data.data(), sizeof(buffer.GetSize()));
+        staging_buffer->Flush();
+
+        auto enqueued = [
+            data = std::move(data), &buffer, this,
+            pbuf = staging_buffer.get()
+        ](vk::CommandBuffer cb) {
+            auto mbarrier = GetBufferBarrier(BufferTransferType::GeneralTransferBefore);
+            std::array<vk::BufferMemoryBarrier2, 1> barriers{};
+            barriers[0] = {
+                mbarrier.srcStageMask, mbarrier.srcAccessMask,
+                mbarrier.dstStageMask, mbarrier.dstAccessMask,
+                vk::QueueFamilyIgnored, vk::QueueFamilyIgnored,
+                buffer.GetBuffer(),
+                buffer.GetSize()
+            };
+            
+            cb.pipelineBarrier2(vk::DependencyInfo{{}, {}, barriers, {}});
+            vk::BufferCopy copy{0, 0, static_cast<vk::DeviceSize>(buffer.GetSize())};
+            cb.copyBuffer(pbuf->GetBuffer(), buffer.GetBuffer(), {copy});
+
+            mbarrier = GetBufferBarrier(BufferTransferType::GeneralTransferAfter);
+            barriers[0] = {
+                mbarrier.srcStageMask, mbarrier.srcAccessMask,
+                mbarrier.dstStageMask, mbarrier.dstAccessMask,
+                vk::QueueFamilyIgnored, vk::QueueFamilyIgnored,
+                buffer.GetBuffer(),
+                buffer.GetSize()
+            };
+            cb.pipelineBarrier2(vk::DependencyInfo{{}, {}, barriers, {}});
+        };
+        pimpl->m_pending_dellocations.push_back(std::move(staging_buffer));
         pimpl->m_pending_operations.push(enqueued);
     }
 
     void SubmissionHelper::EnqueueVertexBufferSubmission(const HomogeneousMesh &mesh) {
-        auto enqueued = [&mesh, this](vk::CommandBuffer cb) {
+        auto buffer{mesh.CreateStagingBuffer(m_system.GetAllocatorState())};
+
+        auto enqueued = [&mesh, this, pbuf = buffer.get()](vk::CommandBuffer cb) {
             std::array<vk::MemoryBarrier2, 1> barriers = {
                 GetBufferBarrier(BufferTransferType::VertexBefore)
             };
             cb.pipelineBarrier2(vk::DependencyInfo{{}, barriers, {}, {}});
 
-            auto buffer{mesh.CreateStagingBuffer(m_system.GetAllocatorState())};
             vk::BufferCopy copy{0, 0, static_cast<vk::DeviceSize>(mesh.GetExpectedBufferSize())};
-            cb.copyBuffer(buffer.GetBuffer(), mesh.GetBuffer().GetBuffer(), {copy});
+            cb.copyBuffer(pbuf->GetBuffer(), mesh.GetBuffer().GetBuffer(), {copy});
 
             barriers[0] = GetBufferBarrier(BufferTransferType::VertexAfter);
             cb.pipelineBarrier2(vk::DependencyInfo{{}, barriers, {}, {}});
-            pimpl->m_pending_dellocations.push_back(std::move(buffer));
         };
+        pimpl->m_pending_dellocations.push_back(std::move(buffer));
         pimpl->m_pending_operations.push(enqueued);
     }
 
@@ -229,12 +276,16 @@ namespace Engine::RenderSystemState {
     ) {
         assert(ImageUtils::GetVkAspect(texture.GetTextureDescription().format) & vk::ImageAspectFlagBits::eColor);
 
-        auto enqueued = [&texture, data, length, this](vk::CommandBuffer cb) {
-            Buffer buffer{texture.CreateStagingBuffer(m_system.GetAllocatorState())};
-            assert(length <= buffer.GetSize());
-            std::byte *mapped_ptr = buffer.GetVMAddress();
-            std::memcpy(mapped_ptr, data, length);
-            buffer.Flush();
+        auto staging_buffer{texture.CreateStagingBuffer(m_system.GetAllocatorState())};
+        assert(length <= staging_buffer->GetSize());
+        std::byte *mapped_ptr = staging_buffer->GetVMAddress();
+        std::memcpy(mapped_ptr, data, length);
+        staging_buffer->Flush();
+
+        auto enqueued = [
+            &texture,
+            pbuf = staging_buffer.get(),
+            data, length, this](vk::CommandBuffer cb) {
 
             // Transit layout to TransferDstOptimal
             std::array<vk::ImageMemoryBarrier2, 1> barriers = {GetTextureBarrier(
@@ -256,7 +307,7 @@ namespace Engine::RenderSystemState {
                     texture.GetTextureDescription().depth
                 }
             };
-            cb.copyBufferToImage(buffer.GetBuffer(), texture.GetImage(), vk::ImageLayout::eTransferDstOptimal, {copy});
+            cb.copyBufferToImage(pbuf->GetBuffer(), texture.GetImage(), vk::ImageLayout::eTransferDstOptimal, {copy});
 
             // Transfer image for sampling
             barriers[0] = GetTextureBarrier(
@@ -264,9 +315,8 @@ namespace Engine::RenderSystemState {
             );
             dinfo.setImageMemoryBarriers(barriers);
             cb.pipelineBarrier2(dinfo);
-
-            pimpl->m_pending_dellocations.push_back(std::move(buffer));
         };
+        pimpl->m_pending_dellocations.push_back(std::move(staging_buffer));
         pimpl->m_pending_operations.push(enqueued);
     }
 
