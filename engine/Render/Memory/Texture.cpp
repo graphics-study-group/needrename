@@ -95,7 +95,7 @@ namespace Engine {
         return pimpl->m_sampler;
     }
 
-    Buffer Engine::Texture::CreateStagingBuffer(const RenderSystemState::AllocatorState & allocator) const {
+    std::unique_ptr <Buffer> Engine::Texture::CreateStagingBuffer(const RenderSystemState::AllocatorState & allocator) const {
         assert(
             ((std::get<0>(ImageUtils::GetImageFlags(this->GetTextureDescription().type))
               & vk::ImageUsageFlagBits::eTransferDst)
@@ -108,7 +108,7 @@ namespace Engine {
             * ImageUtils::GetPixelSize(pimpl->m_tdesc.format);
         assert(buffer_size > 0);
 
-        return Buffer::Create(
+        return Buffer::CreateUnique(
             allocator,
             Buffer::BufferType::Staging,
             buffer_size,

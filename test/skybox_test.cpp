@@ -100,10 +100,6 @@ int main(int argc, char **argv) {
     auto lib = std::make_shared<MaterialLibrary>(*rsys);
     lib->Instantiate(*lib_asset);
 
-    // Load skybox cubemap
-    auto cubemap = std::make_shared<ImageCubemapAsset>();
-    cubemap->LoadFromFile(CUBEMAP_FACES);
-
     std::shared_ptr skybox_texture = ImageTexture::CreateUnique(
         *rsys,
         ImageTexture::ImageTextureDesc{
@@ -123,11 +119,18 @@ int main(int argc, char **argv) {
         },
         "Skybox"
     );
-    rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
-        *skybox_texture,
-        cubemap->GetPixelData(),
-        cubemap->GetPixelDataSize()
-    );
+    {
+        // Load skybox cubemap
+        auto cubemap = std::make_shared<ImageCubemapAsset>();
+        cubemap->LoadFromFile(CUBEMAP_FACES);
+        rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
+            *skybox_texture,
+            cubemap->GetPixelData(),
+            cubemap->GetPixelDataSize()
+        );
+        rsys->GetFrameManager().GetSubmissionHelper().ExecuteSubmissionImmediately();
+    }
+    
     rsys->GetSceneDataManager().SetSkyboxCubemap(skybox_texture);
 
     // Dummy texture for presenting
