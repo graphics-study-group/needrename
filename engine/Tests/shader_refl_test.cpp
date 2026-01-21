@@ -8,7 +8,7 @@
 
 #include "Asset/Shader/ShaderCompiler.h"
 #include "Render/Memory/ShaderParameters/ShaderParameterLayout.h"
-#include "Render/Memory/ShaderParameters/ShaderParameterComplex.h"
+#include "Render/Memory/ShaderParameters/ShaderInterface.h"
 #include <cmake_config.h>
 
 inline std::vector <uint32_t> GetSpirvBinaryFromGLSL(std::filesystem::path p, EShLanguage shaderType) {

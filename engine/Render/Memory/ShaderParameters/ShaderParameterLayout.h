@@ -1,7 +1,7 @@
 #ifndef MEMORY_SHADERPARAMETERS_SHADERPARAMETERLAYOUT_INCLUDED
 #define MEMORY_SHADERPARAMETERS_SHADERPARAMETERLAYOUT_INCLUDED
 
-#include "ShaderParameterComplex.h"
+#include "ShaderInterface.h"
 #include <memory>
 #include <unordered_map>
 
