@@ -95,13 +95,23 @@ namespace Engine {
             // void EnqueueTextureClear(const Texture &texture, std::tuple<float, uint8_t> depth_stencil);
 
             /***
-             * @brief Execute staged submissions. 
-             * Allocated a new command buffer if
-             * needed, record all pending operations, and submit the
-             * buffer to the graphics queue
-             * allocated by the render system.
+             * @brief Execute staged submissions.
+             *
+             * Allocated a new command buffer if needed, record all pending operations, and 
+             * submit the buffer to the graphics queue allocated by the render system.
+             * 
+             * @warning This method uses internal synchronization mechanisms to ensure 
+             * correct memory dependency. Unexpected call-sites will likely results in 
+             * synchronization failure.
              */
             void ExecuteSubmission();
+
+            /**
+             * @brief Immediately execute staged submissions.
+             * 
+             * Use this method sparingly, as it causes CPU to stall and wait for all submission.
+             */
+            void ExecuteSubmissionImmediately();
 
             void OnPreMainCbSubmission();
 

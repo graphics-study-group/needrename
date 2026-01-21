@@ -426,8 +426,43 @@ namespace Engine::RenderSystemState {
         queue_info.graphicsQueue.submit2(sinfo, pimpl->m_completion_fence.get());
     }
 
-    void SubmissionHelper::OnPreMainCbSubmission()
-    {
+    void SubmissionHelper::ExecuteSubmissionImmediately() {
+        if (pimpl->m_pending_operations.empty())    return;
+
+        vk::UniqueFence fence = m_system.GetDevice().createFenceUnique(vk::FenceCreateInfo{});
+
+        const auto & queue_info = m_system.GetDeviceInterface().GetQueueInfo();
+        vk::CommandBufferAllocateInfo cbainfo{
+            queue_info.graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1
+        };
+        auto cbs = m_system.GetDevice().allocateCommandBuffersUnique(cbainfo);
+        assert(cbs.size() == 1);
+        auto cb = std::move(cbs[0]);
+        DEBUG_SET_NAME_TEMPLATE(m_system.GetDevice(), cb.get(), "One-time submission CB");
+
+        // Record all operations
+        vk::CommandBufferBeginInfo cbbinfo{vk::CommandBufferUsageFlagBits::eOneTimeSubmit};
+        cb->begin(cbbinfo);
+        DEBUG_CMD_START_LABEL(cb.get(), "Resource Submission");
+
+        while (!pimpl->m_pending_operations.empty()) {
+            auto enqueued = pimpl->m_pending_operations.front();
+            enqueued(cb.get());
+            pimpl->m_pending_operations.pop();
+        }
+
+        DEBUG_CMD_END_LABEL(cb.get());
+        cb->end();
+
+        // Submit and wait for the fence.
+        vk::CommandBufferSubmitInfo cbsinfo{cb.get()};
+        vk::SubmitInfo2 sinfo{vk::SubmitFlags{}, {}, {cbsinfo}, {}};
+        queue_info.graphicsQueue.submit2(sinfo, fence.get());
+        m_system.GetDevice().waitForFences({fence.get()}, true, std::numeric_limits<uint64_t>::max());
+        pimpl->m_pending_dellocations.clear();
+    }
+
+    void SubmissionHelper::OnPreMainCbSubmission() {
         this->ExecuteSubmission();
     }
 
