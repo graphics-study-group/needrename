@@ -36,6 +36,7 @@ int main(int argc, char **argv) {
     );
 
     std::filesystem::path mesh_path(ENGINE_ASSETS_DIR);
+    // mesh_path = mesh_path / "bunny" / "bunny.obj";
     mesh_path = mesh_path / "four_bunny" / "four_bunny.obj";
 
     SDL_Init(SDL_INIT_VIDEO);
@@ -64,8 +65,8 @@ int main(int argc, char **argv) {
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Setting up camera");
     auto camera_go = cmc->GetWorldSystem()->CreateGameObject<GameObject>();
     Transform transform{};
-    transform.SetPosition({0.0f, 1.0f, 0.0f});
-    transform.SetRotationEuler(glm::vec3{0.0, 0.0, 3.1415926});
+    transform.SetPosition({0.0f, -0.7f, 0.5f});
+    transform.SetRotationEuler(glm::vec3{glm::radians(-30.0f), 0.0f, 0.0f});
     camera_go->SetTransform(transform);
     auto camera_comp = camera_go->template AddComponent<CameraComponent>();
     camera_comp->m_camera->set_aspect_ratio(1.0 * opt.resol_x / opt.resol_y);
