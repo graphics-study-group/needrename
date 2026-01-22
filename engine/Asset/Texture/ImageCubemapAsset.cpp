@@ -6,9 +6,9 @@
 #include <glm.hpp>
 #include <gtc/constants.hpp>
 #include <stb_image.h>
-#include <cstring>
-#include <assert.h>
 #include <stb_image_write.h>
+
+#include <Reflection/serialization.h>
 
 namespace {
     void sampleBilinear(const std::byte *src, int w, int h, int c, float x, float y, std::byte *out) {
@@ -103,7 +103,7 @@ namespace Engine {
         stbi_image_free(raw_image_data);
     }
 
-    void ImageCubemapAsset::LoadFromFile(const std::array <std::filesystem::path, 6> & paths) {
+    void ImageCubemapAsset::LoadFromFile(const std::array<std::filesystem::path, 6> &paths) {
         int width, height, channels;
         stbi_set_flip_vertically_on_load(true);
         auto first_image = stbi_load(paths[0].string().c_str(), &width, &height, &channels, 4);
@@ -128,7 +128,7 @@ namespace Engine {
             stbi_image_free(image);
         }
     }
-    const std::byte * ImageCubemapAsset::GetPixelData() const {
+    const std::byte *ImageCubemapAsset::GetPixelData() const {
         return m_data.data();
     }
     size_t ImageCubemapAsset::GetPixelDataSize() const {
@@ -165,17 +165,15 @@ namespace Engine {
                     int src_idx = (y * m_width + x) * m_channel;
                     int dst_idx = (dst_y * combined_width + dst_x) * m_channel;
 
-                    std::memcpy(
-                        combined_image.data() + dst_idx,
-                        src_face + src_idx,
-                        m_channel
-                    );
+                    std::memcpy(combined_image.data() + dst_idx, src_face + src_idx, m_channel);
                 }
             }
         }
 
         stbi_flip_vertically_on_write(false);
-        stbi_write_png_to_func(write_png_to_mem, &data, combined_width, combined_height, m_channel, combined_image.data(), 0);
+        stbi_write_png_to_func(
+            write_png_to_mem, &data, combined_width, combined_height, m_channel, combined_image.data(), 0
+        );
 
         TextureAsset::save_asset_to_archive(archive);
     }
@@ -218,9 +216,7 @@ namespace Engine {
                     int dst_idx = (y * face_width + x) * channel;
 
                     std::memcpy(
-                        dst_face + dst_idx,
-                        reinterpret_cast<const std::byte *>(raw_image_data) + src_idx,
-                        channel
+                        dst_face + dst_idx, reinterpret_cast<const std::byte *>(raw_image_data) + src_idx, channel
                     );
                 }
             }

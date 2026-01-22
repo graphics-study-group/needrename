@@ -11,6 +11,7 @@
 namespace Engine {
     class GameObject;
     class Camera;
+    class AssetRef;
 
     class REFL_SER_CLASS(REFL_WHITELIST) LevelAsset : public Asset {
         REFL_SER_BODY(LevelAsset)
