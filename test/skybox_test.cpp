@@ -49,8 +49,8 @@ std::pair<std::shared_ptr<MaterialLibraryAsset>, std::shared_ptr<MaterialTemplat
     );
     auto test_asset = std::make_shared<MaterialTemplateAsset>();
     auto lib_asset = std::make_shared<MaterialLibraryAsset>();
-    auto vs_ref = adb->GetNewAssetRef("~/shaders/skybox.vert.asset");
-    auto fs_ref = adb->GetNewAssetRef("~/shaders/skybox.frag.asset");
+    auto vs_ref = adb->GetNewAssetRef({*adb, "~/shaders/skybox.vert.asset"});
+    auto fs_ref = adb->GetNewAssetRef({*adb, "~/shaders/skybox.frag.asset"});
     MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(vs_ref);
     MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(fs_ref);
 
@@ -100,10 +100,6 @@ int main(int argc, char **argv) {
     auto lib = std::make_shared<MaterialLibrary>(*rsys);
     lib->Instantiate(*lib_asset);
 
-    // Load skybox cubemap
-    auto cubemap = std::make_shared<ImageCubemapAsset>();
-    cubemap->LoadFromFile(CUBEMAP_FACES);
-
     std::shared_ptr skybox_texture = ImageTexture::CreateUnique(
         *rsys,
         ImageTexture::ImageTextureDesc{
@@ -123,11 +119,18 @@ int main(int argc, char **argv) {
         },
         "Skybox"
     );
-    rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
-        *skybox_texture,
-        cubemap->GetPixelData(),
-        cubemap->GetPixelDataSize()
-    );
+    {
+        // Load skybox cubemap
+        auto cubemap = std::make_shared<ImageCubemapAsset>();
+        cubemap->LoadFromFile(CUBEMAP_FACES);
+        rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
+            *skybox_texture,
+            cubemap->GetPixelData(),
+            cubemap->GetPixelDataSize()
+        );
+        rsys->GetFrameManager().GetSubmissionHelper().ExecuteSubmissionImmediately();
+    }
+    
     rsys->GetSceneDataManager().SetSkyboxCubemap(skybox_texture);
 
     // Dummy texture for presenting

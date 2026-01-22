@@ -119,7 +119,7 @@ namespace Engine {
         if (shader_path_abs.empty()) {
             auto fs_db = std::dynamic_pointer_cast<FileSystemDatabase>(MainClass::GetInstance()->GetAssetDatabase());
             assert(fs_db);
-            shader_path_abs = fs_db->ProjectPathToFilesystemPath(fs_db->GetAssetPath(GetGUID()));
+            shader_path_abs = fs_db->GetAssetPath(GetGUID()).to_absolute_path();
             // XXX: We need to generalize here.
             shader_path_abs = shader_path_abs.replace_extension(
                 "0.glsl"

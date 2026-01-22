@@ -95,18 +95,18 @@ namespace Engine {
         auto database = m_database.lock();
         archive.prepare_save();
         m_mesh_asset->save_asset_to_archive(archive);
-        database->SaveArchive(archive, path_in_project / (m_mesh_asset->m_name + ".asset"));
+        database->SaveArchive(archive, AssetPath(*database, path_in_project / (m_mesh_asset->m_name + ".asset")));
         for (const auto &material : m_material_assets) {
             archive.clear();
             archive.prepare_save();
             material->save_asset_to_archive(archive);
-            database->SaveArchive(archive, path_in_project / (material->m_name + ".asset"));
+            database->SaveArchive(archive, AssetPath(*database, path_in_project / (material->m_name + ".asset")));
         }
         for (const auto &texture : m_texture_assets) {
             archive.clear();
             archive.prepare_save();
             texture->save_asset_to_archive(archive);
-            database->SaveArchive(archive, path_in_project / (texture->m_name + ".asset"));
+            database->SaveArchive(archive, AssetPath(*database, path_in_project / (texture->m_name + ".asset")));
         }
 
         std::shared_ptr<GameObjectAsset> m_game_object_asset = std::make_shared<GameObjectAsset>();
@@ -125,7 +125,7 @@ namespace Engine {
         archive.clear();
         archive.prepare_save();
         m_game_object_asset->save_asset_to_archive(archive);
-        database->SaveArchive(archive, path_in_project / ("GO_" + m_mesh_asset->m_name + ".asset"));
+        database->SaveArchive(archive, AssetPath(*database, path_in_project / ("GO_" + m_mesh_asset->m_name + ".asset")));
     }
 
     void ObjLoader::LoadMeshAssetFromTinyObj(
@@ -182,13 +182,15 @@ namespace Engine {
     void ObjLoader::LoadMaterialAssetFromTinyObj(
         MaterialAsset &material_asset, const tinyobj::material_t &material, const std::filesystem::path &base_path
     ) {
+        auto database = m_database.lock();
+
         material_asset.m_name = material.name;
 
         switch (material.illum) {
         case 2: // Blinn-Phong
         {
             material_asset.m_library =
-                m_database.lock()->GetNewAssetRef(std::filesystem::path("~/material_libraries/BlinnPhongLibrary.asset"));
+                database->GetNewAssetRef(AssetPath(*database, std::filesystem::path("~/material_libraries/BlinnPhongLibrary.asset")));
             material_asset.m_properties["ambient_color"] =
                 glm::vec4{material.ambient[0], material.ambient[1], material.ambient[2], 1.0f};
             material_asset.m_properties["specular_color"] =
@@ -204,7 +206,7 @@ namespace Engine {
         default: // unknown model, load every property
         {
             material_asset.m_library =
-                m_database.lock()->GetNewAssetRef(std::filesystem::path("~/material_libraries/BlinnPhongLibrary.asset"));
+                database->GetNewAssetRef(AssetPath(*database, std::filesystem::path("~/material_libraries/BlinnPhongLibrary.asset")));
             material_asset.m_properties["ambient"] =
                 glm::vec4{material.ambient[0], material.ambient[1], material.ambient[2], 1.0f};
             material_asset.m_properties["diffuse"] =

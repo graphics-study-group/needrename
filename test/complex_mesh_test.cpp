@@ -222,7 +222,7 @@ int main(int argc, char **argv) {
     auto adb = std::dynamic_pointer_cast<FileSystemDatabase>(cmc->GetAssetDatabase());
     cmc->LoadBuiltinAssets(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
 
-    auto test_asset = adb->GetNewAssetRef(std::filesystem::path("~/material_libraries/BlinnPhongLibrary.asset"));
+    auto test_asset = adb->GetNewAssetRef(AssetPath(*adb, "~/material_libraries/BlinnPhongLibrary.asset"));
     asys->LoadAssetImmediately(test_asset);
     asys->LoadAssetsInQueue();
 

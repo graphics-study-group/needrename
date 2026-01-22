@@ -1,7 +1,9 @@
 #include "MainWindow.h"
+#include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include <Editor/Widget/HierarchyWidget.h>
 #include <Editor/Widget/InspectorWidget.h>
 #include <Editor/Widget/ProjectWidget.h>
+#include <MainClass.h>
 #include <backends/imgui_impl_sdl3.h>
 #include <backends/imgui_impl_vulkan.h>
 #include <imgui_internal.h>
@@ -10,7 +12,9 @@ namespace Editor {
     MainWindow::MainWindow() {
         auto hierachy_widget = std::make_shared<HierarchyWidget>(k_hierarchy_widget_name);
         AddWidget(hierachy_widget);
-        auto project_widget = std::make_shared<ProjectWidget>(k_project_widget_name);
+        auto database =
+            std::dynamic_pointer_cast<Engine::FileSystemDatabase>(Engine::MainClass::GetInstance()->GetAssetDatabase());
+        auto project_widget = std::make_shared<ProjectWidget>(k_project_widget_name, *database);
         AddWidget(project_widget);
         auto inspector_widget = std::make_shared<InspectorWidget>(k_inspector_widget_name);
         hierachy_widget->m_OnGameObjectSelectedDelegate.AddListener(

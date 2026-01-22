@@ -37,8 +37,8 @@ std::pair<std::shared_ptr<MaterialLibraryAsset>, std::shared_ptr<MaterialTemplat
     );
     auto test_asset = std::make_shared<MaterialTemplateAsset>();
     auto test_lib_asset = std::make_shared<MaterialLibraryAsset>();
-    auto vs_ref = adb->GetNewAssetRef("~/shaders/debug_writethrough.vert.asset");
-    auto fs_ref = adb->GetNewAssetRef("~/shaders/debug_writethrough_mrt.frag.asset");
+    auto vs_ref = adb->GetNewAssetRef({*adb, "~/shaders/debug_writethrough.vert.asset"});
+    auto fs_ref = adb->GetNewAssetRef({*adb, "~/shaders/debug_writethrough_mrt.frag.asset"});
     MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(vs_ref);
     MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(fs_ref);
 
