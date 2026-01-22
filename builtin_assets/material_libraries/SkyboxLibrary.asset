@@ -5,7 +5,7 @@
             "Asset::m_guid": "E1444D76F4A1CF7F7EEC0650886B827B",
             "MaterialLibraryAsset::m_name": "Skybox",
             "MaterialLibraryAsset::material_bundle": {
-                "": {
+                "SKYBOX": {
                     "%type": "Engine::MaterialLibraryAsset::MaterialTemplateReference",
                     "MaterialTemplateReference::expected_mesh_type": 0,
                     "MaterialTemplateReference::material_template": "&1"

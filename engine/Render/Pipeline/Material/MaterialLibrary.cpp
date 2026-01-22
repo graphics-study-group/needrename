@@ -213,7 +213,15 @@ namespace Engine {
                     asset->properties.shaders.shaders
                 );
                 if (SPECIAL_TAGS.contains(tag)) {
-                    assert(false && "Special tags are not supported yet.");
+                    if (tag == "SKYBOX") {
+                        GenerateDescriptorSetAndPipelineLayout(
+                            pipeline_table[tag],
+                            system.GetDevice(),
+                            system.GetSceneDataManager().GetLightDescriptorSetLayout(),
+                            system.GetCameraManager().GetDescriptorSetLayout(),
+                            asset->name
+                        );
+                    }
                 } else {
                     GenerateDescriptorSetAndPipelineLayout(
                         pipeline_table[tag],

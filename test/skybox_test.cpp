@@ -71,7 +71,7 @@ std::pair<std::shared_ptr<MaterialLibraryAsset>, std::shared_ptr<MaterialTemplat
     MaterialLibraryAsset::MaterialTemplateReference ref;
     ref.expected_mesh_type = 0;
     ref.material_template = std::make_shared<AssetRef>(test_asset);
-    lib_asset->material_bundle[""] = ref;
+    lib_asset->material_bundle["SKYBOX"] = ref;
 
     return std::make_pair(lib_asset, test_asset);
 }

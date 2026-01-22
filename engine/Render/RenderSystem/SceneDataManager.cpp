@@ -317,7 +317,7 @@ namespace Engine::RenderSystemState {
         );
 
         if (pimpl->skybox.skybox_material) {
-            auto tpl = pimpl->skybox.skybox_material->GetLibrary().FindMaterialTemplate("", {0});
+            auto tpl = pimpl->skybox.skybox_material->GetLibrary().FindMaterialTemplate("SKYBOX", {0});
             pimpl->skybox.skybox_material->UpdateGPUInfo(*tpl, frame_in_flight);
         }
 
@@ -340,7 +340,7 @@ namespace Engine::RenderSystemState {
     ) const {
         if (!pimpl->skybox.skybox_material)  return;
 
-        auto tpl = pimpl->skybox.skybox_material->GetLibrary().FindMaterialTemplate("", {0});
+        auto tpl = pimpl->skybox.skybox_material->GetLibrary().FindMaterialTemplate("SKYBOX", {0});
         cb.bindPipeline(vk::PipelineBindPoint::eGraphics, tpl->GetPipeline());
         const auto &sky_box_descriptor_set = pimpl->skybox.skybox_material->GetDescriptor(*tpl, frame_in_flight);
         cb.bindDescriptorSets(
