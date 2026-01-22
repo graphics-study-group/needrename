@@ -346,8 +346,8 @@ namespace Engine::RenderSystemState {
         cb.bindDescriptorSets(
             vk::PipelineBindPoint::eGraphics,
             tpl->GetPipelineLayout(),
-            0,
-            { nullptr, nullptr, sky_box_descriptor_set },
+            2,
+            { sky_box_descriptor_set },
             {}
         );
         // camera PV matrix is pushed directly.
