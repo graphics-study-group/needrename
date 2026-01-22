@@ -94,14 +94,11 @@ namespace Engine {
             void SetLightCountNonShadowCasting(uint32_t count) noexcept;
 
             /**
-             * @brief Set the current skybox cubemap to be the new texture.
+             * @brief Set the current skybox material.
              * 
-             * The manager assumes that the cubemap assigned is sychronized correctly,
-             * and takes the layout `VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL` before
-             * sampling from it. You can use `UseImage(*shadow, ShaderRead)`
-             * or similar to synchronize its access.
+             * The manager assumes that the material instance contains a MaterialLibrary which set a MaterialTemplate
+             * with tag `SKYBOX`. The shader should not use any scene descriptor set.
              */
-            // void SetSkyboxCubemap(std::shared_ptr <Texture> texture) noexcept;
             void SetSkyboxMaterial(std::shared_ptr <MaterialInstance> material) noexcept;
 
             void UploadSceneData(uint32_t frame_in_flight) const noexcept;
