@@ -127,19 +127,8 @@ int main(int argc, char **argv) {
     {
         // Load skybox cubemap
         auto cubemap = std::make_shared<ImageCubemapAsset>();
-        cubemap->LoadFromFile(CUBEMAP_FACES);
-        rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
-            *skybox_texture,
-            cubemap->GetPixelData(),
-            cubemap->GetPixelDataSize()
-        );
-        rsys->GetFrameManager().GetSubmissionHelper().ExecuteSubmissionImmediately();
-    }
-    
-    {
-        // Load skybox cubemap
-        auto cubemap = std::make_shared<ImageCubemapAsset>();
-        cubemap->LoadFromFile(CUBEMAP_FACES);
+        cubemap->LoadFromFile(std::filesystem::path{ENGINE_ASSETS_DIR} / "skybox" / "sky_cloudy.png", 512, 512);
+        // cubemap->LoadFromFile(CUBEMAP_FACES);
         rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
             *skybox_texture,
             cubemap->GetPixelData(),
@@ -301,7 +290,8 @@ int main(int argc, char **argv) {
         rsys->GetSceneDataManager().DrawSkybox(
             cb,
             rsys->GetFrameManager().GetFrameInFlight(),
-            camera->GetProjectionMatrix() * camera->GetViewMatrix()
+            camera->GetViewMatrix(),
+            camera->GetProjectionMatrix()
         );
         cb.endRendering();
         cb.end();
