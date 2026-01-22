@@ -54,7 +54,7 @@ namespace Engine {
             ) const noexcept;
 
             ImageAllocation AllocateImage(
-                ImageUtils::ImageType type,
+                ImageMemoryType type,
                 vk::ImageType dimension,
                 vk::Extent3D extent,
                 vk::Format format,
@@ -66,7 +66,7 @@ namespace Engine {
             ) const;
 
             std::unique_ptr<ImageAllocation> AllocateImageUnique(
-                ImageUtils::ImageType type,
+                ImageMemoryType type,
                 vk::ImageType dimension,
                 vk::Extent3D extent,
                 vk::Format format,

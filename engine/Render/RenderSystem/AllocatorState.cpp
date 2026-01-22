@@ -8,6 +8,61 @@
 #include <SDL3/SDL.h>
 #include <vulkan/vulkan_hash.hpp>
 
+namespace {
+
+    constexpr std::tuple<vk::ImageUsageFlags, VmaMemoryUsage> GetImageFlags(Engine::ImageMemoryType type) {
+        using namespace Engine;
+        vk::ImageUsageFlags iuf;
+
+        if (type.Test(ImageMemoryTypeBits::CopyFrom))           iuf |= vk::ImageUsageFlagBits::eTransferSrc;
+        if (type.Test(ImageMemoryTypeBits::CopyTo))             iuf |= vk::ImageUsageFlagBits::eTransferDst;
+        if (type.Test(ImageMemoryTypeBits::ShaderSampled))      iuf |= vk::ImageUsageFlagBits::eSampled;
+        if (type.Test(ImageMemoryTypeBits::ShaderRandomAccess)) iuf |= vk::ImageUsageFlagBits::eStorage;
+        if (type.Test(ImageMemoryTypeBits::ColorAttachment))    iuf |= vk::ImageUsageFlagBits::eColorAttachment;
+        if (type.Test(ImageMemoryTypeBits::DepthStencilAttachment))   iuf |= vk::ImageUsageFlagBits::eDepthStencilAttachment;
+
+        return std::make_tuple(iuf, VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE);
+    }
+
+    constexpr vk::FormatFeatureFlags GetFormatFeatures(Engine::ImageMemoryType type) {
+        using namespace Engine;
+
+        vk::FormatFeatureFlags fff{};
+
+        if (type.Test(ImageMemoryTypeBits::CopyFrom)) {
+            fff |= vk::FormatFeatureFlagBits::eBlitSrc | vk::FormatFeatureFlagBits::eTransferSrc;
+        }
+        if (type.Test(ImageMemoryTypeBits::CopyTo)) {
+            fff |= vk::FormatFeatureFlagBits::eBlitDst | vk::FormatFeatureFlagBits::eTransferDst;
+        }
+        if (type.Test(ImageMemoryTypeBits::ShaderSampled)) {
+            fff |= vk::FormatFeatureFlagBits::eSampledImage | vk::FormatFeatureFlagBits::eSampledImageFilterLinear;
+            if (type.Test(ImageMemoryTypeBits::BackedByBuffer)) {
+                fff |= vk::FormatFeatureFlagBits::eUniformTexelBuffer;
+            }
+        }
+        if (type.Test(ImageMemoryTypeBits::ShaderRandomAccess)) {
+            fff |= vk::FormatFeatureFlagBits::eStorageImage;
+            if (type.Test(ImageMemoryTypeBits::ShaderAtomicAccess)) {
+                fff |= vk::FormatFeatureFlagBits::eStorageImageAtomic;
+            }
+            if (type.Test(ImageMemoryTypeBits::BackedByBuffer)) {
+                fff |= vk::FormatFeatureFlagBits::eStorageTexelBuffer;
+                if (type.Test(ImageMemoryTypeBits::ShaderAtomicAccess)) {
+                    fff |= vk::FormatFeatureFlagBits::eStorageTexelBufferAtomic;
+                }
+            }
+        }
+        if (type.Test(ImageMemoryTypeBits::ColorAttachment)) {
+            fff |= vk::FormatFeatureFlagBits::eColorAttachment | vk::FormatFeatureFlagBits::eColorAttachmentBlend;
+        }
+        if (type.Test(ImageMemoryTypeBits::DepthStencilAttachment)) {
+            fff |= vk::FormatFeatureFlagBits::eDepthStencilAttachment;
+        }
+        return fff;
+    }
+}
+
 namespace Engine::RenderSystemState {
     struct AllocatorState::impl {
         VmaAllocator m_allocator{};
@@ -111,12 +166,12 @@ namespace Engine::RenderSystemState {
          * positive if fully supported in optimal tiling.
          * The second item of the pair returns supported features.
          */
-        std::pair<int, vk::FormatFeatureFlags> QueryFormatSupport(vk::PhysicalDevice dev, vk::Format format, ImageUtils::ImageType type) {
+        std::pair<int, vk::FormatFeatureFlags> QueryFormatSupport(vk::PhysicalDevice dev, vk::Format format, ImageMemoryType type) {
             const auto & s = UpdateFormatSupportInfo(dev, format);
-            if (!(~s.formatProperties.optimalTilingFeatures & ImageUtils::GetFormatFeatures(type))) {
+            if (!(~s.formatProperties.optimalTilingFeatures & GetFormatFeatures(type))) {
                 return std::make_pair(1, s.formatProperties.optimalTilingFeatures);
             }
-            if (!(~s.formatProperties.linearTilingFeatures & ImageUtils::GetFormatFeatures(type))) {
+            if (!(~s.formatProperties.linearTilingFeatures & GetFormatFeatures(type))) {
                 return std::make_pair(-1, s.formatProperties.optimalTilingFeatures);
             }
             return std::make_pair(0, s.formatProperties.optimalTilingFeatures);
@@ -177,7 +232,7 @@ namespace Engine::RenderSystemState {
     }
 
     std::unique_ptr<ImageAllocation> AllocatorState::AllocateImageUnique(
-        ImageUtils::ImageType type,
+        ImageMemoryType type,
         vk::ImageType dimension,
         vk::Extent3D extent,
         vk::Format format,
@@ -187,7 +242,7 @@ namespace Engine::RenderSystemState {
         vk::SampleCountFlagBits samples,
         const std::string &name
     ) const noexcept try {
-        const auto [iusage, musage] = ImageUtils::GetImageFlags(type);
+        const auto [iusage, musage] = GetImageFlags(type);
         auto fsupport = pimpl->QueryFormatSupport(m_system.GetDeviceInterface().GetPhysicalDevice(), format, type);
         if (fsupport.first <= 0) {
             SDL_LogError(
@@ -195,7 +250,7 @@ namespace Engine::RenderSystemState {
                 std::format(
                     "Format {} does not support requested features. We requested: {} but only {} are supported.",
                     to_string(format),
-                    to_string(ImageUtils::GetFormatFeatures(type)),
+                    to_string(GetFormatFeatures(type)),
                     to_string(fsupport.second)
                 ).c_str()
             );
@@ -294,7 +349,7 @@ namespace Engine::RenderSystemState {
     }
 
     ImageAllocation AllocatorState::AllocateImage(
-        ImageUtils::ImageType type,
+        ImageMemoryType type,
         vk::ImageType dimension,
         vk::Extent3D extent,
         vk::Format format,

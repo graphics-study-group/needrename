@@ -24,7 +24,7 @@ namespace Engine {
                     .height = texture.height,
                     .depth = texture.depth,
                     .format = static_cast<ImageUtils::ImageFormat>(static_cast<int>(texture.format)),
-                    .type = ImageUtils::ImageType::TextureImage,
+                    .memory_type = {ImageMemoryTypeBits::DefaultTexture},
                     .mipmap_levels = texture.mipmap_levels,
                     .array_layers = texture.array_layers,
                     .is_cube_map = texture.is_cube_map
@@ -41,7 +41,7 @@ namespace Engine {
                     .height = static_cast<uint32_t>(asset.m_height),
                     .depth = 1,
                     .format = ImageUtils::ImageFormat::R8G8B8A8SRGB,
-                    .type = ImageUtils::ImageType::TextureImage,
+                    .memory_type = {ImageMemoryTypeBits::DefaultTexture},
                     .mipmap_levels = asset.m_mip_level,
                     .array_layers = 1,
                     .is_cube_map = false

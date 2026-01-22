@@ -289,7 +289,7 @@ namespace Engine::RenderSystemState {
             assert(desc.array_layers == 1 && desc.mipmap_levels == 1);
             assert(desc.dimensions == 2 && desc.depth == 1 && desc.height > 1 && desc.width > 1);
             assert(desc.is_cube_map == false);
-            assert(desc.type == ImageUtils::ImageType::DepthAttachment || desc.type == ImageUtils::ImageType::DepthStencilAttachment);
+            assert(desc.memory_type.Test(ImageMemoryTypeBits::DepthStencilAttachment));
             assert(desc.format == ImageUtils::ImageFormat::D32SFLOAT);
         }
 #endif
