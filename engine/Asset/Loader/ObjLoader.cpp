@@ -62,9 +62,10 @@ namespace Engine {
                     new_shape.mesh.indices.push_back(shape.mesh.indices[fc * 3 + vrtx]);
                 }
             }
-            for (const auto &[_, new_shape] : material_id_map) {
+            for (const auto &[id, new_shape] : material_id_map) {
                 shapes.push_back(new_shape);
-                materials.push_back(origin_materials[new_shape.mesh.material_ids[0]]);
+                if (id < 0) continue;
+                materials.push_back(origin_materials[id]);
                 std::fill(
                     shapes.back().mesh.material_ids.begin(), shapes.back().mesh.material_ids.end(), materials.size() - 1
                 );
