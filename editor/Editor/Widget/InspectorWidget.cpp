@@ -37,12 +37,12 @@ namespace Editor {
                     if (ImGui::TreeNodeEx("", ImGuiTreeNodeFlags_None, "<%s>", component_type->GetName().c_str())) {
                         Engine::Reflection::Var component_var(component_type, component.get());
                         unsigned int field_idx = 0;
-                        for (auto &[name, field] : component_type->GetFields()) {
+                        for (auto &[name, field] : component_type->GetAllFields()) {
                             ImGui::PushID(field_idx++);
                             this->InspectVar(name, field->GetVar(component_var.GetDataPtr()));
                             ImGui::PopID();
                         }
-                        for (auto &[name, array_field] : component_type->GetArrayFields()) {
+                        for (auto &[name, array_field] : component_type->GetAllArrayFields()) {
                             ImGui::PushID(field_idx++);
                             auto array_var = component_var.GetArrayMember(name);
                             if (ImGui::TreeNodeEx(name.c_str(), ImGuiTreeNodeFlags_None)) {
@@ -174,12 +174,12 @@ namespace Editor {
         } else if (var.GetType()->IsReflectable()) {
             if (ImGui::TreeNodeEx("", ImGuiTreeNodeFlags_None, name.c_str())) {
                 unsigned int field_idx = 0;
-                for (auto &[name, field] : var.GetType()->GetFields()) {
+                for (auto &[name, field] : var.GetType()->GetAllFields()) {
                     ImGui::PushID(field_idx++);
                     this->InspectVar(name, field->GetVar(var.GetDataPtr()));
                     ImGui::PopID();
                 }
-                for (auto &[name, array_field] : var.GetType()->GetArrayFields()) {
+                for (auto &[name, array_field] : var.GetType()->GetAllArrayFields()) {
                     ImGui::PushID(field_idx++);
                     auto array_var = var.GetArrayMember(name);
                     if (ImGui::TreeNodeEx(name.c_str(), ImGuiTreeNodeFlags_None)) {

@@ -114,12 +114,22 @@ namespace Engine {
             return nullptr;
         }
 
-        const std::unordered_map<std::string, std::shared_ptr<const Field>> &Type::GetFields() const {
-            return m_fields;
+        std::unordered_map<std::string, std::shared_ptr<const Field>> Type::GetAllFields() const {
+            std::unordered_map<std::string, std::shared_ptr<const Field>> all_fields = m_fields;
+            for (const auto &base_type : m_base_type) {
+                auto base_fields = base_type->GetAllFields();
+                all_fields.insert(base_fields.begin(), base_fields.end());
+            }
+            return all_fields;
         }
 
-        const std::unordered_map<std::string, std::shared_ptr<const ArrayField>> &Type::GetArrayFields() const {
-            return m_array_fields;
+        std::unordered_map<std::string, std::shared_ptr<const ArrayField>> Type::GetAllArrayFields() const {
+            std::unordered_map<std::string, std::shared_ptr<const ArrayField>> all_array_fields = m_array_fields;
+            for (const auto &base_type : m_base_type) {
+                auto base_array_fields = base_type->GetAllArrayFields();
+                all_array_fields.insert(base_array_fields.begin(), base_array_fields.end());
+            }
+            return all_array_fields;
         }
 
         ConstType::ConstType(std::shared_ptr<const Type> base_type) :

@@ -181,11 +181,11 @@ namespace Engine {
             /// @return the shared pointer to the ArrayField object
             std::shared_ptr<const ArrayField> GetArrayField(const std::string &name) const;
 
-            /// @brief Get the unordered map of fields of the type.
-            const std::unordered_map<std::string, std::shared_ptr<const Field>> &GetFields() const;
+            /// @brief Get the unordered map of fields of the type (including inherited fields).
+            std::unordered_map<std::string, std::shared_ptr<const Field>> GetAllFields() const;
 
-            /// @brief Get the unordered map of array fields of the type.
-            const std::unordered_map<std::string, std::shared_ptr<const ArrayField>> &GetArrayFields() const;
+            /// @brief Get the unordered map of array fields of the type (including inherited array fields).
+            std::unordered_map<std::string, std::shared_ptr<const ArrayField>> GetAllArrayFields() const;
         };
 
         class ConstType : public Type {
