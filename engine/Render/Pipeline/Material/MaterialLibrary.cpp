@@ -213,13 +213,7 @@ namespace Engine {
                     asset->properties.shaders.shaders
                 );
                 if (SPECIAL_TAGS.contains(tag)) {
-                    if (tag == "SKYBOX") {
-                        GenerateDescriptorSetAndPipelineLayoutSkybox(
-                            pipeline_table[tag],
-                            system.GetDevice(),
-                            system.GetSceneDataManager().GetSkyboxDescriptorSetLayout()
-                        );
-                    }
+                    assert(false && "Special tags are not supported yet.");
                 } else {
                     GenerateDescriptorSetAndPipelineLayout(
                         pipeline_table[tag],
