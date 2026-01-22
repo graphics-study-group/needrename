@@ -20,6 +20,7 @@ namespace Engine {
 
         REFL_SER_ENABLE std::vector<std::shared_ptr<GameObject>> m_gameobjects{};
         REFL_SER_ENABLE std::shared_ptr<Camera> m_default_camera{};
+        REFL_SER_ENABLE std::shared_ptr<AssetRef> m_skybox_material{};
     };
 } // namespace Engine
 

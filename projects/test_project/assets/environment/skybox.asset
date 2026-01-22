@@ -1,0 +1,26 @@
+{
+    "%data": {
+        "&0": {
+            "%type": "Engine::MaterialAsset",
+            "Asset::m_guid": "07BF9F33F68CCAB150A6078964D33EF1",
+            "MaterialAsset::m_library": "&1",
+            "MaterialAsset::m_name": "skybox",
+            "MaterialAsset::m_properties": {
+                "skybox": {
+                    "m_type": "CubeTexture",
+                    "m_value": "&2"
+                }
+            }
+        },
+        "&1": {
+            "%type": "Engine::AssetRef",
+            "AssetRef::m_guid": "E1444D76F4A1CF7F7EEC0650886B827B"
+        },
+        "&2": {
+            "%type": "Engine::AssetRef",
+            "AssetRef::m_guid": "423615BE2F14C68B2ADC81315AD3B648"
+        }
+    },
+    "%extra_data": [],
+    "%main_id": "&0"
+}

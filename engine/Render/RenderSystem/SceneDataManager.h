@@ -12,6 +12,7 @@ namespace vk {
 
 namespace Engine {
     class RenderSystem;
+    class MaterialInstance;
     namespace RenderSystemState {
         /**
          * @brief Aggregated manager for scene data, such as lights and skybox.
@@ -100,7 +101,8 @@ namespace Engine {
              * sampling from it. You can use `UseImage(*shadow, ShaderRead)`
              * or similar to synchronize its access.
              */
-            void SetSkyboxCubemap(std::shared_ptr <Texture> texture) noexcept;
+            // void SetSkyboxCubemap(std::shared_ptr <Texture> texture) noexcept;
+            void SetSkyboxMaterial(std::shared_ptr <MaterialInstance> material) noexcept;
 
             void UploadSceneData(uint32_t frame_in_flight) const noexcept;
 
@@ -111,7 +113,7 @@ namespace Engine {
              * 
              * @todo It should be relocated and integrated with GraphicsCommandBuffer.
              */
-            void DrawSkybox(vk::CommandBuffer cb, MaterialLibrary & library, uint32_t frame_in_flight, glm::mat4 pv) const;
+            void DrawSkybox(vk::CommandBuffer cb, uint32_t frame_in_flight, glm::mat4 pv) const;
 
             vk::DescriptorSet GetLightDescriptorSet(uint32_t frame_in_flight) const noexcept;
             vk::DescriptorSetLayout GetLightDescriptorSetLayout() const noexcept;

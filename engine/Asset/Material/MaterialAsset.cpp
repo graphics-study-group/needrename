@@ -20,8 +20,9 @@ namespace Engine {
         m_type(Type::Simple), m_ubo_type(InBlockVarType::Mat4), m_value(value) {
     }
 
-    MaterialProperty::MaterialProperty(const std::shared_ptr<AssetRef> &value) :
-        m_type(Type::Texture), m_ubo_type(InBlockVarType::Undefined), m_value(value) {
+    MaterialProperty::MaterialProperty(const std::shared_ptr<AssetRef> &value, Type type) :
+        m_type(type), m_ubo_type(InBlockVarType::Undefined), m_value(value) {
+        assert(type == Type::Texture || type == Type::CubeTexture);
     }
 
     void MaterialProperty::save_to_archive(Serialization::Archive &archive) const {
@@ -35,6 +36,13 @@ namespace Engine {
             break;
         case Type::Texture: {
             json["m_type"] = "Texture";
+            json["m_value"] = Serialization::Json::object();
+            Serialization::Archive temp_archive(archive, &json["m_value"]);
+            Serialization::serialize(std::any_cast<std::shared_ptr<AssetRef>>(m_value), temp_archive);
+            break;
+        }
+        case Type::CubeTexture: {
+            json["m_type"] = "CubeTexture";
             json["m_value"] = Serialization::Json::object();
             Serialization::Archive temp_archive(archive, &json["m_value"]);
             Serialization::serialize(std::any_cast<std::shared_ptr<AssetRef>>(m_value), temp_archive);
@@ -112,6 +120,11 @@ namespace Engine {
             }
         } else if (type == "Texture") {
             m_type = Type::Texture;
+            m_value = std::make_shared<AssetRef>();
+            Serialization::Archive temp_archive(archive, &json["m_value"]);
+            Serialization::deserialize(std::any_cast<std::shared_ptr<AssetRef> &>(m_value), temp_archive);
+        } else if (type == "CubeTexture") {
+            m_type = Type::CubeTexture;
             m_value = std::make_shared<AssetRef>();
             Serialization::Archive temp_archive(archive, &json["m_value"]);
             Serialization::deserialize(std::any_cast<std::shared_ptr<AssetRef> &>(m_value), temp_archive);
