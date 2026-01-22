@@ -2,7 +2,7 @@
 
 #include "Asset/AssetRef.h"
 #include "Asset/Shader/ShaderAsset.h"
-#include "Render/Memory/Buffer.h"
+#include "Render/Memory/DeviceBuffer.h"
 #include "Render/DebugUtils.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/DeviceInterface.h"
@@ -145,7 +145,7 @@ namespace Engine {
 
                     pimpl->m_ipi.ubos[pbuffer->name] = IndexedBuffer::CreateUnique(
                         m_system.GetAllocatorState(),
-                        Buffer::BufferType::Uniform,
+                        DeviceBuffer::BufferType::Uniform,
                         placer->CalculateMaxSize(),
                         m_system.GetDeviceInterface().QueryLimit(
                             RenderSystemState::DeviceInterface::PhysicalDeviceLimitInteger::UniformBufferOffsetAlignment
@@ -300,7 +300,7 @@ namespace Engine {
     }
     void ComputeStage::AssignBuffer(
         const std::string & name,
-        std::shared_ptr <const Buffer> buffer) noexcept {
+        std::shared_ptr <const DeviceBuffer> buffer) noexcept {
         pimpl->parameters.Assign(name, buffer);
         pimpl->m_ipi._is_descriptor_dirty.set();
     }

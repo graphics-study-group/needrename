@@ -5,7 +5,7 @@
 #include <vulkan/vulkan.hpp>
 
 namespace Engine {
-    class Buffer;
+    class DeviceBuffer;
     namespace PipelineInfo {
         struct ComputePassInfo {
             vk::UniquePipeline pipeline{};

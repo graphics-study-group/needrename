@@ -18,7 +18,7 @@ namespace vk {
 namespace Engine {
     class MaterialTemplate;
     class MaterialInstance;
-    class Buffer;
+    class DeviceBuffer;
     class VertexAttribute;
 
     namespace AttachmentUtils {

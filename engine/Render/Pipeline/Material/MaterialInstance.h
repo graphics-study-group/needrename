@@ -2,7 +2,7 @@
 #define PIPELINE_MATERIAL_MATERIALINSTANCE_INCLUDED
 
 #include "MaterialTemplate.h"
-#include "Render/Memory/Buffer.h"
+#include "Render/Memory/DeviceBuffer.h"
 #include "Render/Renderer/HomogeneousMesh.h"
 #include "Asset/InstantiatedFromAsset.h"
 
@@ -10,7 +10,7 @@
 
 namespace Engine {
     class Texture;
-    class Buffer;
+    class DeviceBuffer;
     class MaterialAsset;
     class MaterialLibrary;
     class VertexAttribute;
@@ -57,7 +57,7 @@ namespace Engine {
         void AssignScalarVariable(const std::string & name, std::variant<uint32_t, float> value);
         void AssignVectorVariable(const std::string & name, std::variant<glm::vec4, glm::mat4> value);
         void AssignTexture(const std::string & name, std::shared_ptr <const Texture> texture);
-        void AssignBuffer(const std::string & name, std::shared_ptr <const Buffer> buffer);
+        void AssignBuffer(const std::string & name, std::shared_ptr <const DeviceBuffer> buffer);
 
         /**
          * @brief Upload current state of this instance to GPU:

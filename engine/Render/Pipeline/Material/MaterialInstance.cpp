@@ -83,7 +83,7 @@ namespace Engine {
 
                         pass.ubos[pbuffer->name] = IndexedBuffer::CreateUnique(
                             system.GetAllocatorState(),
-                            Buffer::BufferType::Uniform,
+                            DeviceBuffer::BufferType::Uniform,
                             psb->buffer_placer->CalculateMaxSize(),
                             system.GetDeviceInterface().QueryLimit(
                                 RenderSystemState::DeviceInterface::PhysicalDeviceLimitInteger::UniformBufferOffsetAlignment
@@ -155,7 +155,7 @@ namespace Engine {
         this->pimpl->parameters.Assign(name, texture);
     }
 
-    void MaterialInstance::AssignBuffer(const std::string &name, std::shared_ptr <const Buffer> buffer) {
+    void MaterialInstance::AssignBuffer(const std::string &name, std::shared_ptr <const DeviceBuffer> buffer) {
         this->pimpl->SetDescriptorDirtyFlags();
         this->pimpl->parameters.Assign(name, buffer);
     }
@@ -184,7 +184,7 @@ namespace Engine {
             for (const auto & kv : pass_info.ubos) {
                 this->pimpl->parameters.Assign(
                     kv.first, 
-                    *(static_cast<const Buffer *>(kv.second.get())),
+                    *(static_cast<const DeviceBuffer *>(kv.second.get())),
                     kv.second->GetSliceOffset(backbuffer),
                     kv.second->GetSliceSize()
                 );

@@ -9,7 +9,7 @@
 
 namespace Engine {
     class Texture;
-    class Buffer;
+    class DeviceBuffer;
     class StructuredBuffer;
 
     namespace ShdrRfl {
@@ -25,8 +25,8 @@ namespace Engine {
                     std::shared_ptr<const Texture>,
                     std::vector <std::shared_ptr<const Texture>>,
                     // Buffer, offset and size
-                    std::tuple<std::shared_ptr<const Buffer>, size_t, size_t>,
-                    std::tuple<std::reference_wrapper<const Buffer>, size_t, size_t>
+                    std::tuple<std::shared_ptr<const DeviceBuffer>, size_t, size_t>,
+                    std::tuple<std::reference_wrapper<const DeviceBuffer>, size_t, size_t>
                 >;
 
             void Assign(const std::string & name, uint32_t) noexcept;
@@ -49,7 +49,7 @@ namespace Engine {
              */
             void Assign(
                 const std::string & name, 
-                std::shared_ptr <const Buffer> buf, 
+                std::shared_ptr <const DeviceBuffer> buf, 
                 size_t offset = 0ULL, 
                 size_t size = 0ULL
             ) noexcept;
@@ -60,7 +60,7 @@ namespace Engine {
              */
             void Assign(
                 const std::string & name, 
-                const Buffer & buf, 
+                const DeviceBuffer & buf, 
                 size_t offset = 0ULL, 
                 size_t size = 0ULL
             ) noexcept;

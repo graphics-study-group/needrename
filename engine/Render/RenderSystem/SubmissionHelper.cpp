@@ -1,6 +1,6 @@
 #include "SubmissionHelper.h"
 
-#include "Render/Memory/Buffer.h"
+#include "Render/Memory/DeviceBuffer.h"
 #include "Render/Memory/Texture.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/Structs.h"
@@ -151,7 +151,7 @@ namespace {
 namespace Engine::RenderSystemState {
     struct SubmissionHelper::impl {
         std::queue<CmdOperation> m_pending_operations{};
-        std::vector<std::unique_ptr<Buffer>> m_pending_dellocations{};
+        std::vector<std::unique_ptr<DeviceBuffer>> m_pending_dellocations{};
 
         vk::UniqueCommandBuffer m_one_time_cb{};
         vk::UniqueFence m_completion_fence{};
@@ -165,10 +165,10 @@ namespace Engine::RenderSystemState {
 
     SubmissionHelper::~SubmissionHelper() = default;
 
-    void SubmissionHelper::EnqueueBufferSubmission(const Buffer &buffer, std::vector<std::byte> &&data) {
+    void SubmissionHelper::EnqueueBufferSubmission(const DeviceBuffer &buffer, std::vector<std::byte> &&data) {
         assert(data.size() >= buffer.GetSize());
 
-        auto staging_buffer = Buffer::CreateUnique(
+        auto staging_buffer = DeviceBuffer::CreateUnique(
                 this->m_system.GetAllocatorState(),
                 AllocatorState::BufferType::Staging,
                 buffer.GetSize(),
@@ -210,8 +210,8 @@ namespace Engine::RenderSystemState {
         pimpl->m_pending_operations.push(enqueued);
     }
 
-    void SubmissionHelper::EnqueueBufferSubmission(const Buffer &buffer, const std::vector<std::byte> &data) {
-        auto staging_buffer = Buffer::CreateUnique(
+    void SubmissionHelper::EnqueueBufferSubmission(const DeviceBuffer &buffer, const std::vector<std::byte> &data) {
+        auto staging_buffer = DeviceBuffer::CreateUnique(
                 this->m_system.GetAllocatorState(),
                 AllocatorState::BufferType::Staging,
                 buffer.GetSize(),

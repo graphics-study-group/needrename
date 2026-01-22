@@ -46,7 +46,7 @@ namespace Engine {
          * Useful for setting up temporal reused textures.
          */
         void AddExternalInputDependency(Texture & texture, AccessHelper::ImageAccessType previous_access);
-        void AddExternalInputDependency(Buffer & buffer, AccessHelper::BufferAccessType previous_access);
+        void AddExternalInputDependency(DeviceBuffer & buffer, AccessHelper::BufferAccessType previous_access);
 
         /**
          * @brief Add an external output dependency on a texture for this frame.
@@ -54,7 +54,7 @@ namespace Engine {
          * Useful if you want to present an image that is not used as a color attachment.
          */
         void AddExternalOutputDependency(Texture & texture, AccessHelper::ImageAccessType next_access);
-        void AddExternalOutputDependency(Buffer & buffer, AccessHelper::BufferAccessType next_access);
+        void AddExternalOutputDependency(DeviceBuffer & buffer, AccessHelper::BufferAccessType next_access);
 
         void Execute();
     };

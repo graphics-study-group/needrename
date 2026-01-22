@@ -3,7 +3,7 @@
 #include "Framework/component/RenderComponent/MeshComponent.h"
 
 #include "Render/AttachmentUtilsFunc.h"
-#include "Render/Memory/Buffer.h"
+#include "Render/Memory/DeviceBuffer.h"
 #include "Render/Pipeline/Material/MaterialInstance.h"
 #include "Render/Pipeline/Material/MaterialLibrary.h"
 #include "Render/RenderSystem.h"

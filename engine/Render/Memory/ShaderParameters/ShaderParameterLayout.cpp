@@ -217,7 +217,7 @@ namespace Engine::ShdrRfl {
                     );
                 }
             } else if (auto pbuffer = dynamic_cast<const SPInterfaceBuffer *>(pinterface.get())) {
-                if (auto pbuf = std::get_if<std::tuple<std::reference_wrapper<const Buffer>, size_t, size_t>>(&itr->second)) {
+                if (auto pbuf = std::get_if<std::tuple<std::reference_wrapper<const DeviceBuffer>, size_t, size_t>>(&itr->second)) {
                     auto offset = std::get<1>(*pbuf);
                     auto range = std::get<2>(*pbuf) > 0 ? std::get<2>(*pbuf) : vk::WholeSize;
 
@@ -239,7 +239,7 @@ namespace Engine::ShdrRfl {
                             type
                         )
                     );
-                } else if (auto pbuf = std::get_if<std::tuple<std::shared_ptr<const Buffer>, size_t, size_t>>(&itr->second)) {
+                } else if (auto pbuf = std::get_if<std::tuple<std::shared_ptr<const DeviceBuffer>, size_t, size_t>>(&itr->second)) {
                     auto offset = std::get<1>(*pbuf);
                     auto range = std::get<2>(*pbuf) > 0 ? std::get<2>(*pbuf) : vk::WholeSize;
 

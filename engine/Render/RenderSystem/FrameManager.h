@@ -7,7 +7,7 @@
 namespace Engine {
     class RenderSystem;
     class Texture;
-    class Buffer;
+    class DeviceBuffer;
     class GraphicsCommandBuffer;
     class GraphicsContext;
     class ComputeContext;
@@ -123,7 +123,7 @@ namespace Engine {
              * @return a staging buffer, whose content is undetermined until
              * this frame has completed.
              */
-            std::shared_ptr<Buffer> EnqueuePostGraphicsBufferReadback(const Buffer & device_buffer);
+            std::shared_ptr<DeviceBuffer> EnqueuePostGraphicsBufferReadback(const DeviceBuffer & device_buffer);
 
             /**
              * @brief Enqueue a post graphics readback from GPU to CPU host memory.
@@ -139,7 +139,7 @@ namespace Engine {
              * @return a staging buffer, whose content is undetermined until
              * this frame has completed.
              */
-            std::shared_ptr<Buffer> EnqueuePostGraphicsImageReadback(const Texture & image, uint32_t array_layer, uint32_t miplevel);
+            std::shared_ptr<DeviceBuffer> EnqueuePostGraphicsImageReadback(const Texture & image, uint32_t array_layer, uint32_t miplevel);
         };
     } // namespace RenderSystemState
 } // namespace Engine

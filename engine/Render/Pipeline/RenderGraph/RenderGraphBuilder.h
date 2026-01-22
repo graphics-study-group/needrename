@@ -11,7 +11,7 @@ namespace Engine {
     class RenderSystem;
     class GUISystem;
     class Texture;
-    class Buffer;
+    class DeviceBuffer;
     class RenderGraph;
     class GraphicsCommandBuffer;
     class TransferCommandBuffer;
@@ -55,7 +55,7 @@ namespace Engine {
          * @brief Mark a buffer to be used in the following pass.
          */
         void UseBuffer (
-            Buffer & buffer,
+            DeviceBuffer & buffer,
             AccessHelper::BufferAccessType new_access,
             AccessHelper::BufferAccessType prev_access
         );

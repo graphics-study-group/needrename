@@ -1,7 +1,7 @@
 #include "FrameManager.h"
 
 #include "Render/DebugUtils.h"
-#include "Render/Memory/Buffer.h"
+#include "Render/Memory/DeviceBuffer.h"
 #include "Render/Pipeline/CommandBuffer.h"
 #include "Render/Pipeline/CommandBuffer/ComputeContext.h"
 #include "Render/Pipeline/CommandBuffer/GraphicsContext.h"
@@ -89,7 +89,7 @@ namespace {
         cb.end();
     }
 
-    void ReadbackCommand(vk::CommandBuffer cb, const Engine::Buffer & src, const Engine::Buffer & dst) {
+    void ReadbackCommand(vk::CommandBuffer cb, const Engine::DeviceBuffer & src, const Engine::DeviceBuffer & dst) {
         using namespace Engine;
         cb.copyBuffer(
             src.GetBuffer(), dst.GetBuffer(),
@@ -104,7 +104,7 @@ namespace {
         uint32_t level,
         uint32_t layer,
         vk::Extent3D extent,
-        const Engine::Buffer & dst
+        const Engine::DeviceBuffer & dst
     ) {
         using namespace Engine;
 
@@ -531,11 +531,11 @@ namespace Engine::RenderSystemState {
         return pimpl->timeline_semaphores[GetFrameInFlight()];
     }
 
-    std::shared_ptr<Buffer> FrameManager::EnqueuePostGraphicsBufferReadback(const Buffer & device_buffer) {
+    std::shared_ptr<DeviceBuffer> FrameManager::EnqueuePostGraphicsBufferReadback(const DeviceBuffer & device_buffer) {
         // This has to be a shared pointer as release time is undetermined.
-        std::shared_ptr staging_buffer = Buffer::CreateUnique(
+        std::shared_ptr staging_buffer = DeviceBuffer::CreateUnique(
             pimpl->m_system.GetAllocatorState(),
-            Buffer::BufferType::Readback,
+            DeviceBuffer::BufferType::Readback,
             device_buffer.GetSize()
         );
 
@@ -546,14 +546,14 @@ namespace Engine::RenderSystemState {
 
         return staging_buffer;
     }
-    std::shared_ptr<Buffer> FrameManager::EnqueuePostGraphicsImageReadback(const Texture &image, uint32_t array_layer, uint32_t miplevel) {
+    std::shared_ptr<DeviceBuffer> FrameManager::EnqueuePostGraphicsImageReadback(const Texture &image, uint32_t array_layer, uint32_t miplevel) {
         auto texture_desc = image.GetTextureDescription();
         assert(array_layer <= texture_desc.array_layers);
         assert(miplevel <= texture_desc.mipmap_levels);
         // This has to be a shared pointer as release time is undetermined.
-        std::shared_ptr staging_buffer = Buffer::CreateUnique(
+        std::shared_ptr staging_buffer = DeviceBuffer::CreateUnique(
             pimpl->m_system.GetAllocatorState(),
-            Buffer::BufferType::Readback,
+            DeviceBuffer::BufferType::Readback,
             texture_desc.width * texture_desc.height * texture_desc.depth * ImageUtils::GetPixelSize(texture_desc.format)
         );
 

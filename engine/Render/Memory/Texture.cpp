@@ -2,7 +2,7 @@
 
 #include "Render/ImageUtilsFunc.h"
 #include "Render/Memory/AllocatedMemory.h"
-#include "Render/Memory/Buffer.h"
+#include "Render/Memory/DeviceBuffer.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/AllocatorState.h"
 
@@ -95,7 +95,7 @@ namespace Engine {
         return pimpl->m_sampler;
     }
 
-    std::unique_ptr <Buffer> Engine::Texture::CreateStagingBuffer(const RenderSystemState::AllocatorState & allocator) const {
+    std::unique_ptr <DeviceBuffer> Engine::Texture::CreateStagingBuffer(const RenderSystemState::AllocatorState & allocator) const {
         assert(
             ((std::get<0>(ImageUtils::GetImageFlags(this->GetTextureDescription().type))
               & vk::ImageUsageFlagBits::eTransferDst)
@@ -108,9 +108,9 @@ namespace Engine {
             * ImageUtils::GetPixelSize(pimpl->m_tdesc.format);
         assert(buffer_size > 0);
 
-        return Buffer::CreateUnique(
+        return DeviceBuffer::CreateUnique(
             allocator,
-            Buffer::BufferType::Staging,
+            DeviceBuffer::BufferType::Staging,
             buffer_size,
             std::format("Buffer - texture ({}) staging", pimpl->m_name)
         );

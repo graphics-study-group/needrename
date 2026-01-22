@@ -8,7 +8,7 @@ namespace vk {
 
 namespace Engine {
     class AssetRef;
-    class Buffer;
+    class DeviceBuffer;
     class VertexAttribute;
     
     namespace RenderSystemState {
@@ -46,7 +46,7 @@ namespace Engine {
          * 
          * Vertex data are copied into the staging buffer immediately.
          */
-        std::unique_ptr <Buffer> CreateStagingBuffer(const RenderSystemState::AllocatorState & allocator) const;
+        std::unique_ptr <DeviceBuffer> CreateStagingBuffer(const RenderSystemState::AllocatorState & allocator) const;
 
         /**
          * @brief Get vertex index count viz. how many vertices are drawn in the draw call.
@@ -68,7 +68,7 @@ namespace Engine {
         /**
          * @brief Get the underlying buffer, which contains all vertex data.
          */
-        const Buffer &GetBuffer() const;
+        const DeviceBuffer &GetBuffer() const;
 
         /**
          * @brief Get vertex attribute buffers, along with their offsets in the buffer.

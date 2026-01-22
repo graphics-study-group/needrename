@@ -39,7 +39,7 @@ namespace Engine {
         pimpl->m_memo.UpdateAccessTuple(&texture, new_tuple);
     }
     void RenderGraphBuilder::UseBuffer(
-        Buffer &buffer, AccessHelper::BufferAccessType new_access, AccessHelper::BufferAccessType prev_access
+        DeviceBuffer &buffer, AccessHelper::BufferAccessType new_access, AccessHelper::BufferAccessType prev_access
     ) {
         pimpl->m_buffer_barriers.push_back(RenderGraphImpl::GetBufferBarrier(buffer, prev_access, new_access));
     }

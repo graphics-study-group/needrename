@@ -2,7 +2,7 @@
 #include <Asset/AssetRef.h>
 #include <Asset/Mesh/MeshAsset.h>
 
-#include "Render/Memory/Buffer.h"
+#include "Render/Memory/DeviceBuffer.h"
 #include "Render/Renderer/VertexAttribute.h"
 #include "Render/RenderSystem/AllocatorState.h"
 
@@ -13,7 +13,7 @@ namespace Engine {
 
     struct HomogeneousMesh::impl {
 
-        std::unique_ptr<Buffer> m_buffer{};
+        std::unique_ptr<DeviceBuffer> m_buffer{};
         std::vector<vk::DeviceSize> m_buffer_offsets{};
 
         bool m_updated{false};
@@ -101,7 +101,7 @@ namespace Engine {
                 new_vertex_index_count,
                 buffer_size
             );
-            m_buffer = Buffer::CreateUnique(allocator, Buffer::BufferType::Vertex, buffer_size, "Buffer - mesh vertices");
+            m_buffer = DeviceBuffer::CreateUnique(allocator, DeviceBuffer::BufferType::Vertex, buffer_size, "Buffer - mesh vertices");
             m_total_allocated_buffer_size = buffer_size;
 
             // Generate buffer offsets
@@ -114,12 +114,12 @@ namespace Engine {
         }
     }
 
-    std::unique_ptr <Buffer> HomogeneousMesh::CreateStagingBuffer(const RenderSystemState::AllocatorState & allocator) const {
+    std::unique_ptr <DeviceBuffer> HomogeneousMesh::CreateStagingBuffer(const RenderSystemState::AllocatorState & allocator) const {
         pimpl->FetchFromAsset(allocator);
 
         const uint64_t buffer_size = GetExpectedBufferSize();
 
-        auto buffer = Buffer::CreateUnique(allocator, Buffer::BufferType::Staging, buffer_size, "Buffer - mesh staging");
+        auto buffer = DeviceBuffer::CreateUnique(allocator, DeviceBuffer::BufferType::Staging, buffer_size, "Buffer - mesh staging");
 
         std::byte *data = buffer->GetVMAddress();
         pimpl->WriteToMemory(data);
@@ -210,7 +210,7 @@ namespace Engine {
         return pimpl->GetExpectedBufferSize();
     }
 
-    const Buffer &HomogeneousMesh::GetBuffer() const {
+    const DeviceBuffer &HomogeneousMesh::GetBuffer() const {
         return *pimpl->m_buffer;
     }
 

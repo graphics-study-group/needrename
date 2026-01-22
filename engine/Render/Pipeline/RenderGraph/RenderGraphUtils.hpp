@@ -88,7 +88,7 @@ namespace Engine {
         }
 
         inline vk::BufferMemoryBarrier2 GetBufferBarrier(
-            Buffer &buffer [[maybe_unused]],
+            DeviceBuffer &buffer [[maybe_unused]],
             AccessHelper::BufferAccessType old_access [[maybe_unused]],
             AccessHelper::BufferAccessType new_access [[maybe_unused]]
         ) {
