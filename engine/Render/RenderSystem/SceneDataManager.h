@@ -110,7 +110,7 @@ namespace Engine {
              * 
              * @todo It should be relocated and integrated with GraphicsCommandBuffer.
              */
-            void DrawSkybox(vk::CommandBuffer cb, uint32_t frame_in_flight, glm::mat4 pv) const;
+            void DrawSkybox(vk::CommandBuffer cb, uint32_t frame_in_flight, glm::mat4 view_mat, glm::mat4 proj_mat) const;
 
             vk::DescriptorSet GetLightDescriptorSet(uint32_t frame_in_flight) const noexcept;
             vk::DescriptorSetLayout GetLightDescriptorSetLayout() const noexcept;

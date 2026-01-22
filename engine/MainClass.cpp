@@ -74,7 +74,6 @@ namespace Engine {
             );
             material_instance->Instantiate(*level_asset->m_skybox_material->as<MaterialAsset>());
             this->renderer->GetSceneDataManager().SetSkyboxMaterial(material_instance);
-            m_draw_skybox = true;
         }
 
         auto active_camera = this->world->GetActiveCamera();
@@ -230,19 +229,12 @@ namespace Engine {
         );
         this->renderer->GetCameraManager().SetActiveCameraIndex(this->world->GetActiveCamera()->m_display_id);
 
-        if (m_draw_skybox) {
-            vk::Extent2D extent = renderer->GetSwapchain().GetExtent();
-            vk::Rect2D scissor{{0, 0}, extent};
-            cb.SetupViewport(extent.width, extent.height, scissor);
-            glm::mat4 camera_pv_mat = world->GetActiveCamera()->GetViewMatrix();
-            camera_pv_mat[3][0] = camera_pv_mat[3][1] = camera_pv_mat[3][2] = 0.0f;
-            camera_pv_mat = world->GetActiveCamera()->GetProjectionMatrix() * camera_pv_mat;
-            renderer->GetSceneDataManager().DrawSkybox(
-                renderer->GetFrameManager().GetRawMainCommandBuffer(),
-                renderer->GetFrameManager().GetFrameInFlight(),
-                camera_pv_mat
-            );
-        }
+        renderer->GetSceneDataManager().DrawSkybox(
+            renderer->GetFrameManager().GetRawMainCommandBuffer(),
+            renderer->GetFrameManager().GetFrameInFlight(),
+            world->GetActiveCamera()->GetViewMatrix(),
+            world->GetActiveCamera()->GetProjectionMatrix()
+        );
 
         cb.DrawRenderers("", renderer->GetRendererManager().FilterAndSortRenderers({}));
         cb.EndRendering();

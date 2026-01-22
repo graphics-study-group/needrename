@@ -78,8 +78,6 @@ namespace Engine {
 
         bool m_on_quit = false;
 
-        bool m_draw_skybox = false;
-
         void RunOneFrame();
     };
 } // namespace Engine
