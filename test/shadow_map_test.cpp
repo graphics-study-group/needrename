@@ -164,6 +164,20 @@ int main(int argc, char **argv) {
     // Prepare material
     auto test_template_assets = ConstructMaterialTemplate();
     auto test_library_asset = ConstructMaterialLibrary(test_template_assets);
+
+    // Engine::Serialization::Archive archive;
+    // archive.prepare_save();
+    // test_template_assets[0]->save_asset_to_archive(archive);
+    // archive.save_to_file(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "material_templates" / "BlinnPhongTemplate");
+    // archive.clear();
+    // archive.prepare_save();
+    // test_template_assets[1]->save_asset_to_archive(archive);
+    // archive.save_to_file(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "material_templates" / "ShadowMapTemplate");
+    // archive.clear();
+    // archive.prepare_save();
+    // test_library_asset->save_asset_to_archive(archive);
+    // archive.save_to_file(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "material_libraries" / "BlinnPhongWithShadowMapLibrary");
+
     auto test_library_asset_ref = std::make_shared<AssetRef>(test_library_asset);
     auto test_library = std::make_shared<MaterialLibrary>(*rsys);
     test_library->Instantiate(*test_library_asset_ref->cas<MaterialLibraryAsset>());

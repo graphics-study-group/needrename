@@ -2,27 +2,14 @@
     "%data": {
         "&0": {
             "%type": "Engine::MaterialTemplateAsset",
-            "Asset::m_guid": "8343954977BA6A7CF658BFEE421AD515",
-            "MaterialTemplateAsset::name": "Blinn-Phong",
+            "Asset::m_guid": "0A31C596A3B9DB54881FA9550A82311C",
+            "MaterialTemplateAsset::name": "Shadow map pass",
             "MaterialTemplateAsset::properties": {
                 "%type": "Engine::MaterialTemplateSinglePassProperties",
                 "MaterialTemplateSinglePassProperties::attachments": {
                     "%type": "Engine::PipelineProperties::Attachments",
-                    "Attachments::color": [
-                        "R8G8B8A8UNorm"
-                    ],
-                    "Attachments::color_blending": [
-                        {
-                            "%type": "Engine::PipelineProperties::ColorBlendingProperties",
-                            "ColorBlendingProperties::alpha_op": "None",
-                            "ColorBlendingProperties::color_op": "None",
-                            "ColorBlendingProperties::color_write_mask": "15",
-                            "ColorBlendingProperties::dst_alpha": "Zero",
-                            "ColorBlendingProperties::dst_color": "Zero",
-                            "ColorBlendingProperties::src_alpha": "One",
-                            "ColorBlendingProperties::src_color": "One"
-                        }
-                    ],
+                    "Attachments::color": [],
+                    "Attachments::color_blending": [],
                     "Attachments::depth": "D32SFLOAT",
                     "Attachments::stencil": "UNDEFINED"
                 },
@@ -59,8 +46,8 @@
                 "MaterialTemplateSinglePassProperties::rasterizer": {
                     "%type": "Engine::PipelineProperties::RasterizerProperties",
                     "RasterizerProperties::culling": "None",
-                    "RasterizerProperties::depth_bias_constant": 0.0,
-                    "RasterizerProperties::depth_bias_slope": 0.0,
+                    "RasterizerProperties::depth_bias_constant": 0.05000000074505806,
+                    "RasterizerProperties::depth_bias_slope": 1.0,
                     "RasterizerProperties::filling": "Fill",
                     "RasterizerProperties::front": "Counterclockwise",
                     "RasterizerProperties::line_width": 1.0
@@ -68,8 +55,7 @@
                 "MaterialTemplateSinglePassProperties::shaders": {
                     "%type": "Engine::PipelineProperties::Shaders",
                     "Shaders::shaders": [
-                        "&1",
-                        "&2"
+                        "&1"
                     ],
                     "Shaders::specialization_constants": []
                 }
@@ -77,11 +63,7 @@
         },
         "&1": {
             "%type": "Engine::AssetRef",
-            "AssetRef::m_guid": "5ACA54938E17F42BC293F502932155A2"
-        },
-        "&2": {
-            "%type": "Engine::AssetRef",
-            "AssetRef::m_guid": "9B381210B6EF92D084CBEB4E09F3D652"
+            "AssetRef::m_guid": "2191CAAF586849B8B5565ED808897D7E"
         }
     },
     "%extra_data": [],

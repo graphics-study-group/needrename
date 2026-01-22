@@ -1,0 +1,31 @@
+{
+    "%data": {
+        "&0": {
+            "%type": "Engine::MaterialLibraryAsset",
+            "Asset::m_guid": "E335281ABE3F1FA9788F074FF218FF71",
+            "MaterialLibraryAsset::m_name": "Blinn-Phong w. Shadowmap",
+            "MaterialLibraryAsset::material_bundle": {
+                "Lit": {
+                    "%type": "Engine::MaterialLibraryAsset::MaterialTemplateReference",
+                    "MaterialTemplateReference::expected_mesh_type": 0,
+                    "MaterialTemplateReference::material_template": "&2"
+                },
+                "Shadowmap": {
+                    "%type": "Engine::MaterialLibraryAsset::MaterialTemplateReference",
+                    "MaterialTemplateReference::expected_mesh_type": 0,
+                    "MaterialTemplateReference::material_template": "&1"
+                }
+            }
+        },
+        "&1": {
+            "%type": "Engine::AssetRef",
+            "AssetRef::m_guid": "0A31C596A3B9DB54881FA9550A82311C"
+        },
+        "&2": {
+            "%type": "Engine::AssetRef",
+            "AssetRef::m_guid": "83AA8A24013D93EB4FDE77C6F535A0B8"
+        }
+    },
+    "%extra_data": [],
+    "%main_id": "&0"
+}
