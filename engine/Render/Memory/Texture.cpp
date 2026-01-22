@@ -110,7 +110,7 @@ namespace Engine {
 
         return DeviceBuffer::CreateUnique(
             allocator,
-            DeviceBuffer::BufferType::Staging,
+            {BufferTypeBits::StagingToDevice},
             buffer_size,
             std::format("Buffer - texture ({}) staging", pimpl->m_name)
         );

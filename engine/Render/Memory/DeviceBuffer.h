@@ -3,6 +3,7 @@
 
 #include <memory>
 
+#include "Render/Memory/MemoryTypes.h"
 #include "Render/RenderSystem/AllocatorState.h"
 
 namespace Engine {
@@ -20,7 +21,6 @@ namespace Engine {
         DeviceBuffer(BufferAllocation && alloc, size_t size);
 
     public:
-        using BufferType = RenderSystemState::AllocatorState::BufferType;
 
         virtual ~DeviceBuffer() = default;
 

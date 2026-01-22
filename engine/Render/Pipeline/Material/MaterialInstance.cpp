@@ -83,7 +83,7 @@ namespace Engine {
 
                         pass.ubos[pbuffer->name] = IndexedBuffer::CreateUnique(
                             system.GetAllocatorState(),
-                            DeviceBuffer::BufferType::Uniform,
+                            {BufferTypeBits::HostAccessibleUniform},
                             psb->buffer_placer->CalculateMaxSize(),
                             system.GetDeviceInterface().QueryLimit(
                                 RenderSystemState::DeviceInterface::PhysicalDeviceLimitInteger::UniformBufferOffsetAlignment

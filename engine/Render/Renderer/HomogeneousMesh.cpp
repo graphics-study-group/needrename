@@ -101,7 +101,12 @@ namespace Engine {
                 new_vertex_index_count,
                 buffer_size
             );
-            m_buffer = DeviceBuffer::CreateUnique(allocator, DeviceBuffer::BufferType::Vertex, buffer_size, "Buffer - mesh vertices");
+            m_buffer = DeviceBuffer::CreateUnique(
+                allocator,
+                {BufferTypeBits::Vertex, BufferTypeBits::Index, BufferTypeBits::CopyTo},
+                buffer_size,
+                "Buffer - mesh vertices"
+            );
             m_total_allocated_buffer_size = buffer_size;
 
             // Generate buffer offsets
@@ -119,7 +124,12 @@ namespace Engine {
 
         const uint64_t buffer_size = GetExpectedBufferSize();
 
-        auto buffer = DeviceBuffer::CreateUnique(allocator, DeviceBuffer::BufferType::Staging, buffer_size, "Buffer - mesh staging");
+        auto buffer = DeviceBuffer::CreateUnique(
+            allocator,
+            {BufferTypeBits::StagingToDevice},
+            buffer_size,
+            "Buffer - mesh staging"
+        );
 
         std::byte *data = buffer->GetVMAddress();
         pimpl->WriteToMemory(data);

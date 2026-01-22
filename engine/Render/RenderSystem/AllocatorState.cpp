@@ -18,34 +18,31 @@ namespace Engine::RenderSystemState {
         static const std::tuple<vk::BufferUsageFlags, VmaAllocationCreateFlags, VmaMemoryUsage> GetBufferFlags(
             BufferType type
         ) {
-            switch (type) {
-            case BufferType::Staging:
-                return std::make_tuple(
-                    vk::BufferUsageFlagBits::eTransferSrc,
-                    VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
-                    VMA_MEMORY_USAGE_AUTO_PREFER_HOST
-                );
-            case BufferType::Readback:
-                return std::make_tuple(
-                    vk::BufferUsageFlagBits::eTransferDst,
-                    VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT,
-                    VMA_MEMORY_USAGE_AUTO_PREFER_HOST
-                );
-            case BufferType::Vertex:
-                return std::make_tuple(
-                    vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer
-                        | vk::BufferUsageFlagBits::eVertexBuffer,
-                    0,
-                    VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE
-                );
-            case BufferType::Uniform:
-                return std::make_tuple(
-                    vk::BufferUsageFlagBits::eUniformBuffer,
-                    VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT,
-                    VMA_MEMORY_USAGE_AUTO_PREFER_HOST
-                );
+            vk::BufferUsageFlags buf{};
+            VmaAllocationCreateFlags vacf{};
+
+            if (type.Test(BufferTypeBits::CopyFrom))        buf |= vk::BufferUsageFlagBits::eTransferSrc;
+            if (type.Test(BufferTypeBits::CopyTo))          buf |= vk::BufferUsageFlagBits::eTransferDst;
+            if (type.Test(BufferTypeBits::ShaderReadOnly)) {
+                buf |= vk::BufferUsageFlagBits::eUniformBuffer;
+                if (type.Test(BufferTypeBits::ImagelikeAccess)) {
+                    buf |= vk::BufferUsageFlagBits::eUniformTexelBuffer;
+                }
             }
-            return std::make_tuple(vk::BufferUsageFlags{}, 0, VMA_MEMORY_USAGE_AUTO);
+            if (type.Test(BufferTypeBits::ShaderWrite)) {
+                buf |= vk::BufferUsageFlagBits::eStorageBuffer;
+                if (type.Test(BufferTypeBits::ImagelikeAccess)) {
+                    buf |= vk::BufferUsageFlagBits::eStorageTexelBuffer;
+                }
+            }
+            if (type.Test(BufferTypeBits::Index))               buf |= vk::BufferUsageFlagBits::eIndexBuffer;
+            if (type.Test(BufferTypeBits::Vertex))              buf |= vk::BufferUsageFlagBits::eVertexBuffer;
+            if (type.Test(BufferTypeBits::IndirectDrawCommand)) buf |= vk::BufferUsageFlagBits::eIndirectBuffer;
+
+            if (type.Test(BufferTypeBits::HostRandomAccess))        vacf |= VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
+            if (type.Test(BufferTypeBits::HostSequentialAccess))    vacf |= VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+
+            return std::make_tuple(buf, vacf, VMA_MEMORY_USAGE_AUTO);
         }
 
         const auto & UpdateFormatSupportInfo(vk::PhysicalDevice dev, vk::Format format) {

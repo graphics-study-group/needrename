@@ -90,7 +90,7 @@ namespace Engine::RenderSystemState {
         static_assert(sizeof(impl::CameraData) * MAX_CAMERAS == sizeof(impl::front_buffer));
         pimpl->back_buffer = IndexedBuffer::CreateUnique(
             allocator,
-            DeviceBuffer::BufferType::Uniform,
+            {BufferTypeBits::HostAccessibleUniform},
             sizeof(impl::front_buffer),
             m_system.GetDeviceInterface().QueryLimit(DeviceInterface::PhysicalDeviceLimitInteger::UniformBufferOffsetAlignment),
             pimpl->descriptors.size(),

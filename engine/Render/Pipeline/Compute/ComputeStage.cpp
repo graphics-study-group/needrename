@@ -145,7 +145,7 @@ namespace Engine {
 
                     pimpl->m_ipi.ubos[pbuffer->name] = IndexedBuffer::CreateUnique(
                         m_system.GetAllocatorState(),
-                        DeviceBuffer::BufferType::Uniform,
+                        {BufferTypeBits::HostAccessibleUniform},
                         placer->CalculateMaxSize(),
                         m_system.GetDeviceInterface().QueryLimit(
                             RenderSystemState::DeviceInterface::PhysicalDeviceLimitInteger::UniformBufferOffsetAlignment

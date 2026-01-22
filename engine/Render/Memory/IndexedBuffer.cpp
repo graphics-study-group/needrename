@@ -43,8 +43,6 @@ namespace Engine {
         uint32_t slices,
         const std::string &name
     ) {
-        assert(type == BufferType::Uniform && "Currently only uniform buffer can be indexed.");
-
         size_t aligned_size =
             slice_alignment ? ((slice_size + slice_alignment - 1) & ~(slice_alignment - 1)) : slice_size;
 
@@ -66,8 +64,6 @@ namespace Engine {
         uint32_t slices,
         const std::string &name
     ) {
-        assert(type == BufferType::Uniform && "Currently only uniform buffer can be indexed.");
-
         size_t aligned_size =
             slice_alignment ? ((slice_size + slice_alignment - 1) & ~(slice_alignment - 1)) : slice_size;
 

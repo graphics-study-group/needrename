@@ -120,7 +120,7 @@ namespace Engine::RenderSystemState {
                 // Allocate the back buffer for lights.
                 light_back_buffer = IndexedBuffer::CreateUnique(
                     allocator,
-                    DeviceBuffer::BufferType::Uniform,
+                    {BufferTypeBits::HostAccessibleUniform},
                     sizeof(pimpl->scene.light_front_buffer),
                     system.GetDeviceInterface().QueryLimit(DeviceInterface::PhysicalDeviceLimitInteger::UniformBufferOffsetAlignment),
                     scene_descriptor_sets.size(),

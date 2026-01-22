@@ -29,8 +29,6 @@ namespace Engine {
         );
 
     public:
-        using DeviceBuffer::BufferType;
-
         IndexedBuffer (const IndexedBuffer &) = delete;
         void operator= (const IndexedBuffer &) = delete;
 

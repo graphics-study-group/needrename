@@ -170,7 +170,7 @@ namespace Engine::RenderSystemState {
 
         auto staging_buffer = DeviceBuffer::CreateUnique(
                 this->m_system.GetAllocatorState(),
-                AllocatorState::BufferType::Staging,
+                {BufferTypeBits::StagingToDevice},
                 buffer.GetSize(),
                 "Staging buffer"
             );
@@ -213,7 +213,7 @@ namespace Engine::RenderSystemState {
     void SubmissionHelper::EnqueueBufferSubmission(const DeviceBuffer &buffer, const std::vector<std::byte> &data) {
         auto staging_buffer = DeviceBuffer::CreateUnique(
                 this->m_system.GetAllocatorState(),
-                AllocatorState::BufferType::Staging,
+                {BufferTypeBits::StagingToDevice},
                 buffer.GetSize(),
                 "Staging buffer"
             );

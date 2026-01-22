@@ -5,6 +5,7 @@
 #include <vulkan/vulkan.h>
 #include "Render/ImageUtils.h"
 #include "Render/Memory/AllocatedMemory.h"
+#include "Render/Memory/MemoryTypes.h"
 
 class VkExtent3D;
 class VmaAllocator_T;
@@ -24,19 +25,6 @@ namespace Engine {
     class RenderSystem;
     namespace RenderSystemState {
         class AllocatorState {
-        public:
-            enum class BufferType {
-                // Staging buffer on host memory
-                Staging,
-                // Readback
-                Readback,
-                // Vertex buffer on device memory
-                Vertex,
-                // Uniform buffer on host memory
-                Uniform
-            };
-
-        private:
             struct impl;
             std::unique_ptr <impl> pimpl;
 
