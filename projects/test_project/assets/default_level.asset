@@ -6,7 +6,7 @@
                 "&9"
             ],
             "LevelAsset::m_default_camera": "&12",
-            "LevelAsset::m_skybox_texture": "&13",
+            "LevelAsset::m_skybox_material": "&13",
             "Asset::m_guid": "FF182376000000000000000000000000",
             "%type": "Engine::LevelAsset"
         },
@@ -128,7 +128,7 @@
         },
         "&13": {
             "%type": "Engine::AssetRef",
-            "AssetRef::m_guid": "423615BE2F14C68B2ADC81315AD3B648"
+            "AssetRef::m_guid": "07BF9F33F68CCAB150A6078964D33EF1"
         }
     },
     "%extra_data": [],

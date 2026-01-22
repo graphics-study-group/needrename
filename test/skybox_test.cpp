@@ -71,7 +71,7 @@ std::pair<std::shared_ptr<MaterialLibraryAsset>, std::shared_ptr<MaterialTemplat
     MaterialLibraryAsset::MaterialTemplateReference ref;
     ref.expected_mesh_type = 0;
     ref.material_template = std::make_shared<AssetRef>(test_asset);
-    lib_asset->material_bundle["SKYBOX"] = ref;
+    lib_asset->material_bundle[""] = ref;
 
     return std::make_pair(lib_asset, test_asset);
 }
@@ -119,6 +119,11 @@ int main(int argc, char **argv) {
         },
         "Skybox"
     );
+
+    auto skybox_material = std::make_shared<MaterialInstance>(*rsys, *lib);
+    skybox_material->AssignTexture("skybox", skybox_texture);
+    rsys->GetSceneDataManager().SetSkyboxMaterial(skybox_material);
+
     {
         // Load skybox cubemap
         auto cubemap = std::make_shared<ImageCubemapAsset>();
@@ -137,8 +142,6 @@ int main(int argc, char **argv) {
         );
         rsys->GetFrameManager().GetSubmissionHelper().ExecuteSubmissionImmediately();
     }
-    
-    rsys->GetSceneDataManager().SetSkyboxCubemap(skybox_texture);
 
     // Dummy texture for presenting
     auto rt = RenderTargetTexture::CreateUnique(
@@ -292,7 +295,6 @@ int main(int argc, char **argv) {
         camera->UpdateViewMatrix(t);
         rsys->GetSceneDataManager().DrawSkybox(
             cb,
-            *lib,
             rsys->GetFrameManager().GetFrameInFlight(),
             camera->GetProjectionMatrix() * camera->GetViewMatrix()
         );

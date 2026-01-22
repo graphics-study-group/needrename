@@ -37,6 +37,8 @@ namespace Engine {
             SSBO,
             // Texture to be sampled (or combined image sampler).
             Texture,
+            // Cube texture to be sampled.
+            CubeTexture,
             // Storage image. Generally used in compute shaders.
             StorageImage,
             // Simple variable that does not occupy a descriptor slot.
@@ -55,7 +57,7 @@ namespace Engine {
         MaterialProperty(int value);
         MaterialProperty(const glm::vec4 &value);
         MaterialProperty(const glm::mat4 &value);
-        MaterialProperty(const std::shared_ptr<AssetRef> &value);
+        MaterialProperty(const std::shared_ptr<AssetRef> &value, Type type);
         virtual ~MaterialProperty() = default;
     };
 

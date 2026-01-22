@@ -4,7 +4,7 @@
 #include <Asset/AssetManager/AssetManager.h>
 #include <Asset/Scene/LevelAsset.h>
 #include <Asset/Shader/ShaderCompiler.h>
-#include <Asset/Texture/ImageCubemapAsset.h>
+#include <Asset/Material/MaterialAsset.h>
 #include <Core/Functional/EventQueue.h>
 #include <Core/Functional/SDLWindow.h>
 #include <Core/Functional/Time.h>
@@ -62,45 +62,19 @@ namespace Engine {
             std::dynamic_pointer_cast<LevelAsset>(this->asset_manager->LoadAssetImmediately(default_level_guid));
         this->world->LoadLevelAsset(level_asset);
         
-        if (level_asset->m_skybox_texture) {
-            // XXX: Hard code texture creation here. Should use MaterialAsset in the future.
-            auto adb = std::dynamic_pointer_cast<FileSystemDatabase>(
-                this->GetAssetDatabase()
+        if (level_asset->m_skybox_material) {
+            this->asset_manager->LoadAssetImmediately(level_asset->m_skybox_material);
+            this->asset_manager->LoadAssetsInQueue();
+            // XXX: like RendererComponent.cpp, this is a temporary solution. simply check the m_name
+            auto lib = level_asset->m_skybox_material->as<MaterialAsset>()->m_library;
+            this->renderer->GetMaterialRegistry().AddMaterial(lib);
+            auto material_instance = std::make_shared<MaterialInstance>(
+                *(this->renderer),
+                *this->renderer->GetMaterialRegistry().GetMaterial(lib->cas<MaterialLibraryAsset>()->m_name)
             );
-            auto lib_asset_ref = adb->GetNewAssetRef({*adb, "~/material_libraries/SkyboxLibrary.asset"});
-            this->asset_manager->LoadAssetImmediately(lib_asset_ref);
-            auto lib_asset = lib_asset_ref->as<MaterialLibraryAsset>();
-
-            m_skybox_material_library = std::make_shared<MaterialLibrary>(*this->renderer);
-            m_skybox_material_library->Instantiate(*lib_asset);
-
-            this->asset_manager->LoadAssetImmediately(level_asset->m_skybox_texture);
-            auto cubemap = level_asset->m_skybox_texture->as<ImageCubemapAsset>();
-            std::shared_ptr skybox_texture = ImageTexture::CreateUnique(
-                *this->renderer,
-                ImageTexture::ImageTextureDesc{
-                    .dimensions = 2,
-                    .width = 512,
-                    .height = 512,
-                    .depth = 1,
-                    .mipmap_levels = 1,
-                    .array_layers = 6,
-                    .format = ImageTexture::ITFormat::R8G8B8A8SRGB,
-                    .is_cube_map = true
-                },
-                ImageUtils::SamplerDesc{
-                    .u_address = ImageUtils::SamplerDesc::AddressMode::ClampToEdge,
-                    .v_address = ImageUtils::SamplerDesc::AddressMode::ClampToEdge,
-                    .w_address = ImageUtils::SamplerDesc::AddressMode::ClampToEdge
-                },
-                "Skybox"
-            );
-            this->renderer->GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
-                *skybox_texture,
-                cubemap->GetPixelData(),
-                cubemap->GetPixelDataSize()
-            );
-            this->renderer->GetSceneDataManager().SetSkyboxCubemap(skybox_texture);
+            material_instance->Instantiate(*level_asset->m_skybox_material->as<MaterialAsset>());
+            this->renderer->GetSceneDataManager().SetSkyboxMaterial(material_instance);
+            m_draw_skybox = true;
         }
 
         auto active_camera = this->world->GetActiveCamera();
@@ -256,7 +230,7 @@ namespace Engine {
         );
         this->renderer->GetCameraManager().SetActiveCameraIndex(this->world->GetActiveCamera()->m_display_id);
 
-        if (m_skybox_material_library) {
+        if (m_draw_skybox) {
             vk::Extent2D extent = renderer->GetSwapchain().GetExtent();
             vk::Rect2D scissor{{0, 0}, extent};
             cb.SetupViewport(extent.width, extent.height, scissor);
@@ -265,7 +239,6 @@ namespace Engine {
             camera_pv_mat = world->GetActiveCamera()->GetProjectionMatrix() * camera_pv_mat;
             renderer->GetSceneDataManager().DrawSkybox(
                 renderer->GetFrameManager().GetRawMainCommandBuffer(),
-                *m_skybox_material_library,
                 renderer->GetFrameManager().GetFrameInFlight(),
                 camera_pv_mat
             );

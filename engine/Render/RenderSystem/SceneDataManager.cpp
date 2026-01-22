@@ -183,7 +183,7 @@ namespace Engine::RenderSystemState {
             vk::UniqueDescriptorSetLayout descriptor_set_layout;
             std::array <vk::DescriptorSet, FrameManager::FRAMES_IN_FLIGHT> descriptors{};
 
-            std::shared_ptr <Texture> skybox_texture;
+            std::shared_ptr <MaterialInstance> skybox_material{};
 
             void Create(RenderSystem & system, vk::DescriptorPool pool) {
                 auto device = system.GetDevice();
@@ -316,8 +316,8 @@ namespace Engine::RenderSystemState {
         pimpl->scene.light_front_buffer.non_shadow_casting_light_count = count;
     }
 
-    void SceneDataManager::SetSkyboxCubemap(std::shared_ptr<Texture> texture) noexcept {
-        pimpl->skybox.skybox_texture = texture;
+    void SceneDataManager::SetSkyboxMaterial(std::shared_ptr<MaterialInstance> material) noexcept {
+        pimpl->skybox.skybox_material = material;
     }
 
     void SceneDataManager::UploadSceneData(uint32_t frame_in_flight) const noexcept {
@@ -362,17 +362,9 @@ namespace Engine::RenderSystemState {
             }
         );
 
-        std::array <vk::DescriptorImageInfo, 1> cubemap_image_descriptor_writes{};
-        if (pimpl->skybox.skybox_texture) {
-            auto p = pimpl->skybox.skybox_texture;
-            cubemap_image_descriptor_writes[0] = vk::DescriptorImageInfo{
-                nullptr, p->GetImageView(), vk::ImageLayout::eReadOnlyOptimal
-            };
-            descriptor_writes.push_back(vk::WriteDescriptorSet{
-                pimpl->skybox.descriptors[frame_in_flight], 0, 0,
-                vk::DescriptorType::eCombinedImageSampler,
-                cubemap_image_descriptor_writes
-            });
+        if (pimpl->skybox.skybox_material) {
+            auto tpl = pimpl->skybox.skybox_material->GetLibrary().FindMaterialTemplate("", {0});
+            pimpl->skybox.skybox_material->UpdateGPUInfo(*tpl, frame_in_flight);
         }
 
         if (!descriptor_writes.empty()) {
@@ -390,18 +382,19 @@ namespace Engine::RenderSystemState {
     }
 
     void SceneDataManager::DrawSkybox(
-        vk::CommandBuffer cb, MaterialLibrary &library, uint32_t frame_in_flight, glm::mat4 pv
+        vk::CommandBuffer cb, uint32_t frame_in_flight, glm::mat4 pv
     ) const {
         assert(frame_in_flight < pimpl->skybox.descriptors.size());
-        if (!pimpl->skybox.skybox_texture)  return;
+        if (!pimpl->skybox.skybox_material)  return;
 
-        auto tpl = library.FindMaterialTemplate("SKYBOX", {0});
+        auto tpl = pimpl->skybox.skybox_material->GetLibrary().FindMaterialTemplate("", {0});
         cb.bindPipeline(vk::PipelineBindPoint::eGraphics, tpl->GetPipeline());
+        const auto &sky_box_descriptor_set = pimpl->skybox.skybox_material->GetDescriptor(*tpl, frame_in_flight);
         cb.bindDescriptorSets(
             vk::PipelineBindPoint::eGraphics,
             tpl->GetPipelineLayout(),
             0,
-            { pimpl->skybox.descriptors[frame_in_flight] },
+            { nullptr, nullptr, sky_box_descriptor_set },
             {}
         );
         // camera PV matrix is pushed directly.
