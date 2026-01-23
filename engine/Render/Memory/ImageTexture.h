@@ -5,6 +5,7 @@
 
 namespace Engine {
     class Image2DTextureAsset;
+    class ImageCubemapAsset;
     /**
      * @brief A read-only image texture.
      * Its content must be transferred from the CPU side, and
@@ -43,6 +44,7 @@ namespace Engine {
             const std::string & name = ""
         );
         static std::unique_ptr <ImageTexture> CreateUnique(RenderSystem & system, const Image2DTextureAsset &asset);
+        static std::unique_ptr <ImageTexture> CreateUnique(RenderSystem & system, const ImageCubemapAsset &asset);
     };
 }
 

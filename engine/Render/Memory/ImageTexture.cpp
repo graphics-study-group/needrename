@@ -1,6 +1,7 @@
 #include "ImageTexture.h"
 
 #include "Asset/Texture/Image2DTextureAsset.h"
+#include "Asset/Texture/ImageCubemapAsset.h"
 
 namespace Engine {
     ImageTexture::ImageTexture(
@@ -46,6 +47,29 @@ namespace Engine {
                     .array_layers = 1,
                     .is_cube_map = false
                 }, SamplerDesc{}, asset.m_name
+            )
+        );
+    }
+    std::unique_ptr<ImageTexture> ImageTexture::CreateUnique(RenderSystem &system, const ImageCubemapAsset &asset) {
+        return std::unique_ptr<ImageTexture>(new ImageTexture(
+                system, 
+                TextureDesc{
+                    .dimensions = 2,
+                    .width = static_cast<uint32_t>(asset.m_width),
+                    .height = static_cast<uint32_t>(asset.m_height),
+                    .depth = 1,
+                    .format = ImageUtils::ImageFormat::R8G8B8A8SRGB,
+                    .type = ImageUtils::ImageType::TextureImage,
+                    .mipmap_levels = 1,
+                    .array_layers = 6,
+                    .is_cube_map = true
+                },
+                SamplerDesc{
+                    .u_address = SamplerDesc::AddressMode::ClampToEdge,
+                    .v_address = SamplerDesc::AddressMode::ClampToEdge,
+                    .w_address = SamplerDesc::AddressMode::ClampToEdge
+                },
+                asset.m_name
             )
         );
     }

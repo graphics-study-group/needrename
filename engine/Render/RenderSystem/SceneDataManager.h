@@ -12,6 +12,7 @@ namespace vk {
 
 namespace Engine {
     class RenderSystem;
+    class MaterialInstance;
     namespace RenderSystemState {
         /**
          * @brief Aggregated manager for scene data, such as lights and skybox.
@@ -93,14 +94,12 @@ namespace Engine {
             void SetLightCountNonShadowCasting(uint32_t count) noexcept;
 
             /**
-             * @brief Set the current skybox cubemap to be the new texture.
+             * @brief Set the current skybox material.
              * 
-             * The manager assumes that the cubemap assigned is sychronized correctly,
-             * and takes the layout `VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL` before
-             * sampling from it. You can use `UseImage(*shadow, ShaderRead)`
-             * or similar to synchronize its access.
+             * The manager assumes that the material instance contains a MaterialLibrary which set a MaterialTemplate
+             * with tag `SKYBOX`. The shader should not use any scene descriptor set.
              */
-            void SetSkyboxCubemap(std::shared_ptr <Texture> texture) noexcept;
+            void SetSkyboxMaterial(std::shared_ptr <MaterialInstance> material) noexcept;
 
             void UploadSceneData(uint32_t frame_in_flight) const noexcept;
 
@@ -108,16 +107,17 @@ namespace Engine {
 
             /**
              * @brief Record commands for drawing a skybox.
+             * @param cb The command buffer to record commands into.
+             * @param frame_in_flight The current frame in flight index.
+             * @param view_mat The view matrix of the current camera. 3x3 matrix (no translation).
+             * @param proj_mat The projection matrix of the current camera.
              * 
              * @todo It should be relocated and integrated with GraphicsCommandBuffer.
              */
-            void DrawSkybox(vk::CommandBuffer cb, MaterialLibrary & library, uint32_t frame_in_flight, glm::mat4 pv) const;
+            void DrawSkybox(vk::CommandBuffer cb, uint32_t frame_in_flight, glm::mat3 view_mat, glm::mat4 proj_mat) const;
 
             vk::DescriptorSet GetLightDescriptorSet(uint32_t frame_in_flight) const noexcept;
             vk::DescriptorSetLayout GetLightDescriptorSetLayout() const noexcept;
-
-            vk::DescriptorSet GetSkyboxDescriptorSet(uint32_t frame_in_flight) const noexcept;
-            vk::DescriptorSetLayout GetSkyboxDescriptorSetLayout() const noexcept;
         };
     }
 }

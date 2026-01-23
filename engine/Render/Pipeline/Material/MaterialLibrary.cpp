@@ -12,11 +12,6 @@
 
 namespace Engine {
     struct MaterialLibrary::impl {
-
-        static const inline std::unordered_set <std::string_view> SPECIAL_TAGS {
-            "SKYBOX"
-        };
-
         static constexpr size_t MAX_MATERIAL_DESCRIPTORS_PER_POOL = 128;
         static constexpr std::array DEFAULT_MATERIAL_DESCRIPTOR_POOL_SIZE {
             vk::DescriptorPoolSize{vk::DescriptorType::eUniformBuffer, 128},
@@ -159,30 +154,6 @@ namespace Engine {
         }
 
         /**
-         * @brief Create a special layout for skybox rendering pipelines.
-         */
-        void GenerateDescriptorSetAndPipelineLayoutSkybox(
-            PipelineBundle & b,
-            vk::Device d,
-            vk::DescriptorSetLayout skybox_desc_set_layout
-        ) {
-            static constexpr std::array PIPELINE_PUSH_CONSTANT_RANGE {
-                vk::PushConstantRange{
-                    vk::ShaderStageFlagBits::eAllGraphics, 0, sizeof(glm::mat4)
-                }
-            };
-
-            // Create pipeline layout for skybox rendering pipeline
-            vk::PipelineLayoutCreateInfo plci{
-                vk::PipelineLayoutCreateFlags{},
-                {skybox_desc_set_layout},
-                PIPELINE_PUSH_CONSTANT_RANGE
-            };
-            b.pipeline_layout = d.createPipelineLayoutUnique(plci);
-            DEBUG_SET_NAME_TEMPLATE(d, b.pipeline_layout.get(), "Skybox Pipeline Layout");
-        }
-
-        /**
          * @brief Create a pipeline, assuming that the asset corresponding to
          * both the tag and the mesh type exists.
          */
@@ -211,23 +182,13 @@ namespace Engine {
                     system.GetDevice(),
                     asset->properties.shaders.shaders
                 );
-                if (SPECIAL_TAGS.contains(tag)) {
-                    if (tag == "SKYBOX") {
-                        GenerateDescriptorSetAndPipelineLayoutSkybox(
-                            pipeline_table[tag],
-                            system.GetDevice(),
-                            system.GetSceneDataManager().GetSkyboxDescriptorSetLayout()
-                        );
-                    }
-                } else {
-                    GenerateDescriptorSetAndPipelineLayout(
-                        pipeline_table[tag],
-                        system.GetDevice(),
-                        system.GetSceneDataManager().GetLightDescriptorSetLayout(),
-                        system.GetCameraManager().GetDescriptorSetLayout(),
-                        asset->name
-                    );
-                }
+                GenerateDescriptorSetAndPipelineLayout(
+                    pipeline_table[tag],
+                    system.GetDevice(),
+                    system.GetSceneDataManager().GetLightDescriptorSetLayout(),
+                    system.GetCameraManager().GetDescriptorSetLayout(),
+                    asset->name
+                );
             }
             
             const auto & b = pipeline_table[tag];

@@ -3,14 +3,16 @@
 #include <stb_image.h>
 #include <stb_image_write.h>
 
-namespace Engine {
-    static void write_png_to_mem(void *context, void *data, int size) {
+namespace {
+    void write_png_to_mem(void *context, void *data, int size) {
         auto &extra_data = *reinterpret_cast<std::vector<std::byte> *>(context);
         extra_data.insert(
             extra_data.end(), reinterpret_cast<std::byte *>(data), reinterpret_cast<std::byte *>(data) + size
         );
     }
+}
 
+namespace Engine {
     void Image2DTextureAsset::save_asset_to_archive(Serialization::Archive &archive) const {
         auto &json = *archive.m_cursor;
         size_t extra_data_id = archive.create_new_extra_data_buffer(".png");

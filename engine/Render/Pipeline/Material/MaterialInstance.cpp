@@ -14,6 +14,7 @@
 #include "Render/Renderer/VertexAttribute.h"
 #include <Asset/Material/MaterialAsset.h>
 #include <Asset/Texture/Image2DTextureAsset.h>
+#include <Asset/Texture/ImageCubemapAsset.h>
 #include <Render/Memory/IndexedBuffer.h>
 #include <SDL3/SDL.h>
 #include <bitset>
@@ -288,6 +289,17 @@ namespace Engine {
                 auto texture_asset =
                     std::any_cast<std::shared_ptr<AssetRef>>(p.m_value)->as<Image2DTextureAsset>();
                 // TODO: We should allocate texture from assets in a pool.
+                auto texture = std::shared_ptr<ImageTexture>(std::move(ImageTexture::CreateUnique(this->m_system, *texture_asset)));
+                AssignTexture(prop.first, texture);
+                m_system.GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
+                    *texture, texture_asset->GetPixelData(), texture_asset->GetPixelDataSize()
+                );
+                break;
+            }
+            case MaterialProperty::Type::CubeTexture:
+            {
+                auto texture_asset =
+                    std::any_cast<std::shared_ptr<AssetRef>>(p.m_value)->as<ImageCubemapAsset>();
                 auto texture = std::shared_ptr<ImageTexture>(std::move(ImageTexture::CreateUnique(this->m_system, *texture_asset)));
                 AssignTexture(prop.first, texture);
                 m_system.GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
