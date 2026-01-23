@@ -3,8 +3,8 @@
 #include <array>
 #include <assert.h>
 #include <cstring>
+#include <numbers>
 #include <glm.hpp>
-#include <gtc/constants.hpp>
 #include <stb_image.h>
 #include <stb_image_write.h>
 
@@ -26,10 +26,10 @@ namespace {
             float c01 = (float)src[(y1 * w + x0) * c + k];
             float c11 = (float)src[(y1 * w + x1) * c + k];
 
-            float c0 = c00 * (1 - tx) + c10 * tx;
-            float c1 = c01 * (1 - tx) + c11 * tx;
+            float c0 = glm::mix(c00, c10, tx);
+            float c1 = glm::mix(c01, c11, tx);
 
-            out[k] = (std::byte)(c0 * (1 - ty) + c1 * ty);
+            out[k] = (std::byte)glm::mix(c0, c1, ty);
         }
     }
     void convertEquirectToCubemap(
@@ -71,8 +71,8 @@ namespace {
                     float lon = std::atan2(dir.y, dir.x);
                     float lat = -std::asin(dir.z);
 
-                    float srcX = (lon + glm::pi<float>()) / (2.0f * glm::pi<float>()) * srcW;
-                    float srcY = (glm::pi<float>() / 2.0f - lat) / glm::pi<float>() * srcH;
+                    float srcX = (lon + std::numbers::pi_v<float>) / (2.0f * std::numbers::pi_v<float>) * srcW;
+                    float srcY = (std::numbers::pi_v<float> / 2.0f - lat) / std::numbers::pi_v<float> * srcH;
 
                     std::byte *pixel = &dst[(y * faceSize + x) * channels];
 
@@ -82,7 +82,7 @@ namespace {
             std::memcpy(&out[face * faceSize * faceSize * channels], dst.data(), dst.size());
         }
     }
-    static void write_png_to_mem(void *context, void *data, int size) {
+    void write_png_to_mem(void *context, void *data, int size) {
         auto &extra_data = *reinterpret_cast<std::vector<std::byte> *>(context);
         extra_data.insert(
             extra_data.end(), reinterpret_cast<std::byte *>(data), reinterpret_cast<std::byte *>(data) + size
