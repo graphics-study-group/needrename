@@ -12,11 +12,6 @@
 
 namespace Engine {
     struct MaterialLibrary::impl {
-
-        static const inline std::unordered_set <std::string_view> SPECIAL_TAGS {
-            "SKYBOX"
-        };
-
         static constexpr size_t MAX_MATERIAL_DESCRIPTORS_PER_POOL = 128;
         static constexpr std::array DEFAULT_MATERIAL_DESCRIPTOR_POOL_SIZE {
             vk::DescriptorPoolSize{vk::DescriptorType::eUniformBuffer, 128},
@@ -188,25 +183,13 @@ namespace Engine {
                     system.GetDevice(),
                     asset->properties.shaders.shaders
                 );
-                if (SPECIAL_TAGS.contains(tag)) {
-                    if (tag == "SKYBOX") {
-                        GenerateDescriptorSetAndPipelineLayout(
-                            pipeline_table[tag],
-                            system.GetDevice(),
-                            system.GetSceneDataManager().GetLightDescriptorSetLayout(),
-                            system.GetCameraManager().GetDescriptorSetLayout(),
-                            asset->name
-                        );
-                    }
-                } else {
-                    GenerateDescriptorSetAndPipelineLayout(
-                        pipeline_table[tag],
-                        system.GetDevice(),
-                        system.GetSceneDataManager().GetLightDescriptorSetLayout(),
-                        system.GetCameraManager().GetDescriptorSetLayout(),
-                        asset->name
-                    );
-                }
+                GenerateDescriptorSetAndPipelineLayout(
+                    pipeline_table[tag],
+                    system.GetDevice(),
+                    system.GetSceneDataManager().GetLightDescriptorSetLayout(),
+                    system.GetCameraManager().GetDescriptorSetLayout(),
+                    asset->name
+                );
             }
             
             const auto & b = pipeline_table[tag];
