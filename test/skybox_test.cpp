@@ -34,12 +34,12 @@ namespace sch = std::chrono;
  * - Dow face (Z-): rotated for 180 degrees;
  */
 const std::array<std::filesystem::path, 6> CUBEMAP_FACES = {
-    std::filesystem::path{ENGINE_BUILTIN_ASSETS_DIR} / "skybox" / "skybox_R_tonemapped.png",
-    std::filesystem::path{ENGINE_BUILTIN_ASSETS_DIR} / "skybox" / "skybox_L_tonemapped.png",
-    std::filesystem::path{ENGINE_BUILTIN_ASSETS_DIR} / "skybox" / "skybox_F_tonemapped.png",
-    std::filesystem::path{ENGINE_BUILTIN_ASSETS_DIR} / "skybox" / "skybox_B_tonemapped.png",
-    std::filesystem::path{ENGINE_BUILTIN_ASSETS_DIR} / "skybox" / "skybox_U_tonemapped.png",
-    std::filesystem::path{ENGINE_BUILTIN_ASSETS_DIR} / "skybox" / "skybox_D_tonemapped.png"
+    std::filesystem::path{ENGINE_ASSETS_DIR} / "skybox" / "skybox_R_tonemapped.png",
+    std::filesystem::path{ENGINE_ASSETS_DIR} / "skybox" / "skybox_L_tonemapped.png",
+    std::filesystem::path{ENGINE_ASSETS_DIR} / "skybox" / "skybox_F_tonemapped.png",
+    std::filesystem::path{ENGINE_ASSETS_DIR} / "skybox" / "skybox_B_tonemapped.png",
+    std::filesystem::path{ENGINE_ASSETS_DIR} / "skybox" / "skybox_U_tonemapped.png",
+    std::filesystem::path{ENGINE_ASSETS_DIR} / "skybox" / "skybox_D_tonemapped.png"
 };
 
 
@@ -100,10 +100,6 @@ int main(int argc, char **argv) {
     auto lib = std::make_shared<MaterialLibrary>(*rsys);
     lib->Instantiate(*lib_asset);
 
-    // Load skybox cubemap
-    auto cubemap = std::make_shared<ImageCubemapAsset>();
-    cubemap->LoadFromFile(CUBEMAP_FACES);
-
     std::shared_ptr skybox_texture = ImageTexture::CreateUnique(
         *rsys,
         ImageTexture::ImageTextureDesc{
@@ -123,12 +119,23 @@ int main(int argc, char **argv) {
         },
         "Skybox"
     );
-    rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
-        *skybox_texture,
-        cubemap->GetPixelData(),
-        cubemap->GetPixelDataSize()
-    );
-    rsys->GetSceneDataManager().SetSkyboxCubemap(skybox_texture);
+
+    auto skybox_material = std::make_shared<MaterialInstance>(*rsys, *lib);
+    skybox_material->AssignTexture("skybox", skybox_texture);
+    rsys->GetSceneDataManager().SetSkyboxMaterial(skybox_material);
+
+    {
+        // Load skybox cubemap
+        auto cubemap = std::make_shared<ImageCubemapAsset>();
+        cubemap->LoadFromFile(std::filesystem::path{ENGINE_ASSETS_DIR} / "skybox" / "sky_cloudy.png", 512, 512);
+        // cubemap->LoadFromFile(CUBEMAP_FACES);
+        rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
+            *skybox_texture,
+            cubemap->GetPixelData(),
+            cubemap->GetPixelDataSize()
+        );
+        rsys->GetFrameManager().GetSubmissionHelper().ExecuteSubmissionImmediately();
+    }
 
     // Dummy texture for presenting
     auto rt = RenderTargetTexture::CreateUnique(
@@ -282,9 +289,9 @@ int main(int argc, char **argv) {
         camera->UpdateViewMatrix(t);
         rsys->GetSceneDataManager().DrawSkybox(
             cb,
-            *lib,
             rsys->GetFrameManager().GetFrameInFlight(),
-            camera->GetProjectionMatrix() * camera->GetViewMatrix()
+            camera->GetViewMatrix(),
+            camera->GetProjectionMatrix()
         );
         cb.endRendering();
         cb.end();

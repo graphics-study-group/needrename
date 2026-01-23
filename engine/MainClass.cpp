@@ -4,6 +4,7 @@
 #include <Asset/AssetManager/AssetManager.h>
 #include <Asset/Scene/LevelAsset.h>
 #include <Asset/Shader/ShaderCompiler.h>
+#include <Asset/Material/MaterialAsset.h>
 #include <Core/Functional/EventQueue.h>
 #include <Core/Functional/SDLWindow.h>
 #include <Core/Functional/Time.h>
@@ -60,6 +61,20 @@ namespace Engine {
         auto level_asset =
             std::dynamic_pointer_cast<LevelAsset>(this->asset_manager->LoadAssetImmediately(default_level_guid));
         this->world->LoadLevelAsset(level_asset);
+        
+        if (level_asset->m_skybox_material) {
+            this->asset_manager->LoadAssetImmediately(level_asset->m_skybox_material);
+            this->asset_manager->LoadAssetsInQueue();
+            // XXX: like RendererComponent.cpp, this is a temporary solution. simply check the m_name
+            auto lib = level_asset->m_skybox_material->as<MaterialAsset>()->m_library;
+            this->renderer->GetMaterialRegistry().AddMaterial(lib);
+            auto material_instance = std::make_shared<MaterialInstance>(
+                *(this->renderer),
+                *this->renderer->GetMaterialRegistry().GetMaterial(lib->cas<MaterialLibraryAsset>()->m_name)
+            );
+            material_instance->Instantiate(*level_asset->m_skybox_material->as<MaterialAsset>());
+            this->renderer->GetSceneDataManager().SetSkyboxMaterial(material_instance);
+        }
 
         auto active_camera = this->world->GetActiveCamera();
         if (active_camera)
@@ -213,6 +228,14 @@ namespace Engine {
             "Main Pass"
         );
         this->renderer->GetCameraManager().SetActiveCameraIndex(this->world->GetActiveCamera()->m_display_id);
+
+        renderer->GetSceneDataManager().DrawSkybox(
+            renderer->GetFrameManager().GetRawMainCommandBuffer(),
+            renderer->GetFrameManager().GetFrameInFlight(),
+            world->GetActiveCamera()->GetViewMatrix(),
+            world->GetActiveCamera()->GetProjectionMatrix()
+        );
+
         cb.DrawRenderers("", renderer->GetRendererManager().FilterAndSortRenderers({}));
         cb.EndRendering();
 

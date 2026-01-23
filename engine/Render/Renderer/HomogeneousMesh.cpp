@@ -114,16 +114,16 @@ namespace Engine {
         }
     }
 
-    Buffer HomogeneousMesh::CreateStagingBuffer(const RenderSystemState::AllocatorState & allocator) const {
+    std::unique_ptr <Buffer> HomogeneousMesh::CreateStagingBuffer(const RenderSystemState::AllocatorState & allocator) const {
         pimpl->FetchFromAsset(allocator);
 
         const uint64_t buffer_size = GetExpectedBufferSize();
 
-        Buffer buffer = Buffer::Create(allocator, Buffer::BufferType::Staging, buffer_size, "Buffer - mesh staging");
+        auto buffer = Buffer::CreateUnique(allocator, Buffer::BufferType::Staging, buffer_size, "Buffer - mesh staging");
 
-        std::byte *data = buffer.GetVMAddress();
+        std::byte *data = buffer->GetVMAddress();
         pimpl->WriteToMemory(data);
-        buffer.Flush();
+        buffer->Flush();
 
         return buffer;
     }

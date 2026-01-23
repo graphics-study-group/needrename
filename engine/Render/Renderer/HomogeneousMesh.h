@@ -43,8 +43,10 @@ namespace Engine {
          * 
          * This method is automatically called on mesh submission, and you typically do
          * not need to call it manually.
+         * 
+         * Vertex data are copied into the staging buffer immediately.
          */
-        Buffer CreateStagingBuffer(const RenderSystemState::AllocatorState & allocator) const;
+        std::unique_ptr <Buffer> CreateStagingBuffer(const RenderSystemState::AllocatorState & allocator) const;
 
         /**
          * @brief Get vertex index count viz. how many vertices are drawn in the draw call.

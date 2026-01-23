@@ -172,52 +172,7 @@ namespace Engine::RenderSystemState {
         } scene{};
 
         struct Skybox {
-            static constexpr std::array DESCRIPTOR_BINDINGS {
-                // cubemap binding
-                vk::DescriptorSetLayoutBinding{
-                    0, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eAllGraphics
-                }
-            };
-
-            std::array <vk::Sampler, 1> immutable_sampler;
-            vk::UniqueDescriptorSetLayout descriptor_set_layout;
-            std::array <vk::DescriptorSet, FrameManager::FRAMES_IN_FLIGHT> descriptors{};
-
-            std::shared_ptr <Texture> skybox_texture;
-
-            void Create(RenderSystem & system, vk::DescriptorPool pool) {
-                auto device = system.GetDevice();
-                // Create descriptor set layout
-                auto descriptor_bindings = DESCRIPTOR_BINDINGS;
-                immutable_sampler[0] = system.GetSamplerManager().GetSampler(
-                    ImageUtils::SamplerDesc{
-                        .u_address = ImageUtils::SamplerDesc::AddressMode::ClampToEdge,
-                        .v_address = ImageUtils::SamplerDesc::AddressMode::ClampToEdge,
-                        .w_address = ImageUtils::SamplerDesc::AddressMode::ClampToEdge
-                    }
-                );
-                descriptor_bindings[0].setImmutableSamplers(immutable_sampler);
-                vk::DescriptorSetLayoutCreateInfo dslci {
-                    vk::DescriptorSetLayoutCreateFlags{},
-                    descriptor_bindings
-                };
-                descriptor_set_layout = device.createDescriptorSetLayoutUnique(dslci);
-                DEBUG_SET_NAME_TEMPLATE(device, descriptor_set_layout.get(), "Skybox Pipeline Descriptor Set Layout");
-
-                // Allocate descriptors
-                std::vector <vk::DescriptorSetLayout> layouts(descriptors.size(), descriptor_set_layout.get());
-                vk::DescriptorSetAllocateInfo dsai {pool, layouts};
-                auto ret = device.allocateDescriptorSets(dsai);
-                std::copy_n(ret.begin(), descriptors.size(), descriptors.begin());
-
-#ifndef NDEBUG
-                for (uint32_t i = 0; i < descriptors.size(); i++) {
-                    DEBUG_SET_NAME_TEMPLATE(
-                        device, descriptors[i], std::format("Desc Set - Skybox {}", i)
-                    );
-                }
-#endif
-            }
+            std::shared_ptr <MaterialInstance> skybox_material{};
         } skybox{};
 
         void Create(RenderSystem & system) {
@@ -226,7 +181,7 @@ namespace Engine::RenderSystemState {
             // Create dedicated descriptor pool
             vk::DescriptorPoolCreateInfo dpci {
                 vk::DescriptorPoolCreateFlagBits{},
-                scene.scene_descriptor_sets.size() + skybox.descriptors.size(),
+                scene.scene_descriptor_sets.size(),
                 impl::SCENE_DESCRIPTOR_POOL_SIZE
             };
             scene_descriptor_pool = device.createDescriptorPoolUnique(dpci);
@@ -235,7 +190,6 @@ namespace Engine::RenderSystemState {
             );
 
             scene.Create(system, scene_descriptor_pool.get());
-            skybox.Create(system, scene_descriptor_pool.get());
         }
     };
     SceneDataManager::SceneDataManager(
@@ -316,8 +270,8 @@ namespace Engine::RenderSystemState {
         pimpl->scene.light_front_buffer.non_shadow_casting_light_count = count;
     }
 
-    void SceneDataManager::SetSkyboxCubemap(std::shared_ptr<Texture> texture) noexcept {
-        pimpl->skybox.skybox_texture = texture;
+    void SceneDataManager::SetSkyboxMaterial(std::shared_ptr<MaterialInstance> material) noexcept {
+        pimpl->skybox.skybox_material = material;
     }
 
     void SceneDataManager::UploadSceneData(uint32_t frame_in_flight) const noexcept {
@@ -362,17 +316,9 @@ namespace Engine::RenderSystemState {
             }
         );
 
-        std::array <vk::DescriptorImageInfo, 1> cubemap_image_descriptor_writes{};
-        if (pimpl->skybox.skybox_texture) {
-            auto p = pimpl->skybox.skybox_texture;
-            cubemap_image_descriptor_writes[0] = vk::DescriptorImageInfo{
-                nullptr, p->GetImageView(), vk::ImageLayout::eReadOnlyOptimal
-            };
-            descriptor_writes.push_back(vk::WriteDescriptorSet{
-                pimpl->skybox.descriptors[frame_in_flight], 0, 0,
-                vk::DescriptorType::eCombinedImageSampler,
-                cubemap_image_descriptor_writes
-            });
+        if (pimpl->skybox.skybox_material) {
+            auto tpl = pimpl->skybox.skybox_material->GetLibrary().FindMaterialTemplate("SKYBOX", {0});
+            pimpl->skybox.skybox_material->UpdateGPUInfo(*tpl, frame_in_flight);
         }
 
         if (!descriptor_writes.empty()) {
@@ -390,18 +336,29 @@ namespace Engine::RenderSystemState {
     }
 
     void SceneDataManager::DrawSkybox(
-        vk::CommandBuffer cb, MaterialLibrary &library, uint32_t frame_in_flight, glm::mat4 pv
+        vk::CommandBuffer cb, uint32_t frame_in_flight, glm::mat3 view_mat, glm::mat4 proj_mat
     ) const {
-        assert(frame_in_flight < pimpl->skybox.descriptors.size());
-        if (!pimpl->skybox.skybox_texture)  return;
+        if (!pimpl->skybox.skybox_material)  return;
 
-        auto tpl = library.FindMaterialTemplate("SKYBOX", {0});
+        vk::Extent2D extent = m_system.GetSwapchain().GetExtent();
+        vk::Rect2D scissor{{0, 0}, extent};
+        vk::Viewport vp;
+        vp.setWidth(extent.width).setHeight(extent.height);
+        vp.setX(0.0f).setY(0.0f);
+        vp.setMaxDepth(1.0f).setMinDepth(0.0f);
+        cb.setViewport(0, 1, &vp);
+        cb.setScissor(0, 1, &scissor);
+
+        glm::mat4 pv = proj_mat * glm::mat4(view_mat);
+
+        auto tpl = pimpl->skybox.skybox_material->GetLibrary().FindMaterialTemplate("SKYBOX", {0});
         cb.bindPipeline(vk::PipelineBindPoint::eGraphics, tpl->GetPipeline());
+        const auto &sky_box_descriptor_set = pimpl->skybox.skybox_material->GetDescriptor(*tpl, frame_in_flight);
         cb.bindDescriptorSets(
             vk::PipelineBindPoint::eGraphics,
             tpl->GetPipelineLayout(),
-            0,
-            { pimpl->skybox.descriptors[frame_in_flight] },
+            2,
+            { sky_box_descriptor_set },
             {}
         );
         // camera PV matrix is pushed directly.
@@ -424,14 +381,4 @@ namespace Engine::RenderSystemState {
     vk::DescriptorSetLayout SceneDataManager::GetLightDescriptorSetLayout() const noexcept {
         return pimpl->scene.scene_descriptor_set_layout.get();
     }
-
-    vk::DescriptorSet SceneDataManager::GetSkyboxDescriptorSet(uint32_t frame_in_flight) const noexcept {
-        assert(frame_in_flight < pimpl->skybox.descriptors.size());
-        return pimpl->skybox.descriptors[frame_in_flight];
-    }
-
-    vk::DescriptorSetLayout SceneDataManager::GetSkyboxDescriptorSetLayout() const noexcept {
-        return pimpl->skybox.descriptor_set_layout.get();
-    }
-
 } // namespace Engine::RenderSystemState

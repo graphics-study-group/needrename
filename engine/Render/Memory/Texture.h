@@ -91,7 +91,7 @@ namespace Engine {
         /**
          * @brief Acquire a buffer large enough to hold the whole texture.
          */
-        Buffer CreateStagingBuffer(const RenderSystemState::AllocatorState & allocator) const;
+        std::unique_ptr <Buffer> CreateStagingBuffer(const RenderSystemState::AllocatorState & allocator) const;
 
         /**
          * @brief Whether this texture supports random access (UAV
