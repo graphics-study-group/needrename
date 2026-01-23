@@ -59,7 +59,7 @@ namespace Engine {
                     .height = static_cast<uint32_t>(asset.m_height),
                     .depth = 1,
                     .format = ImageUtils::ImageFormat::R8G8B8A8SRGB,
-                    .type = ImageUtils::ImageType::TextureImage,
+                    .memory_type = {ImageMemoryTypeBits::DefaultTexture},
                     .mipmap_levels = 1,
                     .array_layers = 6,
                     .is_cube_map = true
