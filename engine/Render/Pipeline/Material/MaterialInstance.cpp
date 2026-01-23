@@ -14,6 +14,7 @@
 #include <Asset/Material/MaterialAsset.h>
 #include <Asset/Texture/Image2DTextureAsset.h>
 #include <Asset/Texture/ImageCubemapAsset.h>
+#include <Asset/Texture/SolidColorTextureAsset.h>
 #include <Render/Memory/IndexedBuffer.h>
 #include <SDL3/SDL.h>
 #include <bitset>
@@ -256,12 +257,38 @@ namespace Engine {
             {
                 auto texture_asset =
                     std::any_cast<std::shared_ptr<AssetRef>>(p.m_value)->as<Image2DTextureAsset>();
-                // TODO: We should allocate texture from assets in a pool.
-                auto texture = std::shared_ptr<ImageTexture>(std::move(ImageTexture::CreateUnique(this->m_system, *texture_asset)));
-                AssignTexture(prop.first, texture);
-                m_system.GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
-                    *texture, texture_asset->GetPixelData(), texture_asset->GetPixelDataSize()
-                );
+                if (texture_asset) {
+                    // TODO: We should allocate texture from assets in a pool.
+                    auto texture = std::shared_ptr<ImageTexture>(std::move(ImageTexture::CreateUnique(this->m_system, *texture_asset)));
+                    AssignTexture(prop.first, texture);
+                    m_system.GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
+                        *texture, texture_asset->GetPixelData(), texture_asset->GetPixelDataSize()
+                    );
+                }
+                auto solid_color_asset =
+                    std::any_cast<std::shared_ptr<AssetRef>>(p.m_value)->as<SolidColorTextureAsset>();
+                if (solid_color_asset) {
+                    std::shared_ptr texture = ImageTexture::CreateUnique(
+                        this->m_system, 
+                        ImageTexture::ImageTextureDesc{
+                            .dimensions = 2,
+                            .width = 4,
+                            .height = 4,
+                            .depth = 1,
+                            .mipmap_levels = 1,
+                            .array_layers = 1,
+                            .format = ImageTexture::ImageTextureDesc::ImageTextureFormat::R8G8B8A8UNorm,
+                            .is_cube_map = false
+                        }, 
+                        Texture::SamplerDesc{}, 
+                        "Sampled Albedo"
+                    );
+                    AssignTexture(prop.first, texture);
+                    m_system.GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(
+                        *texture,
+                        { solid_color_asset->m_color.r, solid_color_asset->m_color.g, solid_color_asset->m_color.b, solid_color_asset->m_color.a }
+                    );
+                }
                 break;
             }
             case MaterialProperty::Type::CubeTexture:
