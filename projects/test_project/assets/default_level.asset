@@ -3,7 +3,9 @@
         "&0": {
             "LevelAsset::m_gameobjects": [
                 "&1",
-                "&9"
+                "&9",
+                "&14",
+                "&19"
             ],
             "LevelAsset::m_default_camera": "&12",
             "LevelAsset::m_skybox_material": "&13",
@@ -129,6 +131,114 @@
         "&13": {
             "%type": "Engine::AssetRef",
             "AssetRef::m_guid": "07BF9F33F68CCAB150A6078964D33EF1"
+        },
+        "&14": {
+            "%type": "Engine::GameObject",
+            "GameObject::m_childGameObject": [],
+            "GameObject::m_components": [
+                "&15",
+                "&16"
+            ],
+            "GameObject::m_name": "four_bunny",
+            "GameObject::m_parentGameObject": null,
+            "GameObject::m_transformComponent": "&15"
+        },
+        "&15": {
+            "%type": "Engine::TransformComponent",
+            "Component::m_parentGameObject": "&14",
+            "TransformComponent::m_transform": {
+                "%type": "Engine::Transform",
+                "Transform::m_position": [
+                    0.0,
+                    0.6,
+                    0.3
+                ],
+                "Transform::m_rotation": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0
+                ],
+                "Transform::m_scale": [
+                    0.1,
+                    0.1,
+                    0.1
+                ]
+            }
+        },
+        "&16": {
+            "%type": "Engine::MeshComponent",
+            "Component::m_parentGameObject": "&14",
+            "MeshComponent::m_mesh_asset": "&17",
+            "RendererComponent::m_cast_shadow": false,
+            "RendererComponent::m_is_eagerly_loaded": false,
+            "RendererComponent::m_layer": 4294967295,
+            "RendererComponent::m_material_assets": [
+                "&18"
+            ],
+            "RendererComponent::m_priority": 0
+        },
+        "&17": {
+            "%type": "Engine::AssetRef",
+            "AssetRef::m_guid": "8457638A83F0B8F2E64BA42E948BEB8A"
+        },
+        "&18": {
+            "%type": "Engine::AssetRef",
+            "AssetRef::m_guid": "622D0097A1291FCC44CBBF6F1F762E35"
+        },
+        "&19": {
+            "%type": "Engine::GameObject",
+            "GameObject::m_childGameObject": [],
+            "GameObject::m_components": [
+                "&20",
+                "&21"
+            ],
+            "GameObject::m_name": "four_bunny",
+            "GameObject::m_parentGameObject": null,
+            "GameObject::m_transformComponent": "&20"
+        },
+        "&20": {
+            "%type": "Engine::TransformComponent",
+            "Component::m_parentGameObject": "&14",
+            "TransformComponent::m_transform": {
+                "%type": "Engine::Transform",
+                "Transform::m_position": [
+                    0.0,
+                    0.0,
+                    -0.02
+                ],
+                "Transform::m_rotation": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0
+                ],
+                "Transform::m_scale": [
+                    1.0,
+                    1.0,
+                    0.02
+                ]
+            }
+        },
+        "&21": {
+            "%type": "Engine::MeshComponent",
+            "Component::m_parentGameObject": "&19",
+            "MeshComponent::m_mesh_asset": "&22",
+            "RendererComponent::m_cast_shadow": false,
+            "RendererComponent::m_is_eagerly_loaded": false,
+            "RendererComponent::m_layer": 4294967295,
+            "RendererComponent::m_material_assets": [
+                "&23"
+            ],
+            "RendererComponent::m_priority": 0
+        },
+        "&22": {
+            "%type": "Engine::AssetRef",
+            "AssetRef::m_guid": "66A947478DFF1F1F883236DAE46E3D98"
+        },
+        "&23": {
+            "%type": "Engine::AssetRef",
+            "AssetRef::m_guid": "622D0097A1291FCC44CBBF6F1F762E35"
         }
     },
     "%extra_data": [],

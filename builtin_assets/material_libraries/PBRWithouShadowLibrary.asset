@@ -1,0 +1,22 @@
+{
+    "%data": {
+        "&0": {
+            "%type": "Engine::MaterialLibraryAsset",
+            "Asset::m_guid": "D3364AE928621310CF1EE68F8D5EDB0A",
+            "MaterialLibraryAsset::m_name": "Lambertian Cook Torrance PBR Without Shadow",
+            "MaterialLibraryAsset::material_bundle": {
+                "": {
+                    "%type": "Engine::MaterialLibraryAsset::MaterialTemplateReference",
+                    "MaterialTemplateReference::expected_mesh_type": 0,
+                    "MaterialTemplateReference::material_template": "&1"
+                }
+            }
+        },
+        "&1": {
+            "%type": "Engine::AssetRef",
+            "AssetRef::m_guid": "6D638EF97A23CBEDE1236A31ECAF2ACF"
+        }
+    },
+    "%extra_data": [],
+    "%main_id": "&0"
+}
