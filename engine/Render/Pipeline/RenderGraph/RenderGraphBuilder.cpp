@@ -15,7 +15,10 @@ namespace Engine {
         std::vector<vk::BufferMemoryBarrier2> m_buffer_barriers{};
         std::vector<RenderGraphImpl::Task> m_tasks{};
 
+        
+        std::vector <RenderGraphImpl::PassType> pass_types;
         RenderGraphImpl::TextureAccessMemo m_memo;
+        RenderGraphImpl::BufferAccessMemo m_buffer_memo;
     };
 
     RenderGraphBuilder::RenderGraphBuilder(RenderSystem &system) : m_system(system), pimpl(std::make_unique<impl>()) {
@@ -38,12 +41,11 @@ namespace Engine {
         );
         pimpl->m_memo.UpdateAccessTuple(&texture, new_tuple);
     }
-    void RenderGraphBuilder::UseBuffer(
-        DeviceBuffer &buffer, AccessHelper::BufferAccessType new_access, AccessHelper::BufferAccessType prev_access
-    ) {
-        pimpl->m_buffer_barriers.push_back(RenderGraphImpl::GetBufferBarrier(buffer, prev_access, new_access));
+    void RenderGraphBuilder::UseBuffer(DeviceBuffer &buffer, MemoryAccessTypeBuffer access) {
+        pimpl->m_buffer_memo.UpdateLastAccess(buffer.GetBuffer(), pimpl->pass_types.size(), access);
     }
     void RenderGraphBuilder::RecordRasterizerPassWithoutRT(std::function<void(GraphicsCommandBuffer &)> pass) {
+        pimpl->pass_types.push_back(RenderGraphImpl::PassType::Graphics);
         std::function<void(vk::CommandBuffer)> f = [system = &this->m_system,
                                                     pass](vk::CommandBuffer cb) {
 
@@ -99,6 +101,7 @@ namespace Engine {
             }
         }
 
+        pimpl->pass_types.push_back(RenderGraphImpl::PassType::Graphics);
         std::function<void(vk::CommandBuffer)> f = [system = &this->m_system,
                                                     pass,
                                                     color,
@@ -147,6 +150,7 @@ namespace Engine {
             }
         }
 
+        pimpl->pass_types.push_back(RenderGraphImpl::PassType::Graphics);
         std::function<void(vk::CommandBuffer)> f = [system = &this->m_system,
                                                     pass,
                                                     &colors,
@@ -170,6 +174,7 @@ namespace Engine {
         std::function<void(TransferCommandBuffer &)> pass, 
         const std::string & name
     ) {
+        pimpl->pass_types.push_back(RenderGraphImpl::PassType::Transfer);
         std::function<void(vk::CommandBuffer)> f = [pass,
                                                     name](vk::CommandBuffer cb) {
             TransferCommandBuffer tcb{cb};
@@ -187,6 +192,7 @@ namespace Engine {
     void RenderGraphBuilder::RecordComputePass(
         std::function<void(ComputeCommandBuffer &)> pass, const std::string &name
     ) {
+        pimpl->pass_types.push_back(RenderGraphImpl::PassType::Compute);
         std::function<void(vk::CommandBuffer)> f = [system = &this->m_system,
                                                     pass,
                                                     name](vk::CommandBuffer cb) {
@@ -205,6 +211,24 @@ namespace Engine {
         );
     }
     void RenderGraphBuilder::RecordSynchronization() {
+        // Build buffer barriers
+        const auto current_pass_id = pimpl->pass_types.size() - 1;
+        for (const auto & [buf, acc] : pimpl->m_buffer_memo.accesses) {
+            if (acc.size() < 2) continue;
+            if (acc.back().pass_index != current_pass_id)   continue;
+
+            const auto & prev_acc = *(acc.rbegin() - 1);
+            pimpl->m_buffer_barriers.push_back(
+                pimpl->m_buffer_memo.GenerateBarrier(
+                    buf,
+                    prev_acc.access,
+                    pimpl->pass_types[prev_acc.pass_index],
+                    acc.back().access,
+                    pimpl->pass_types[acc.back().pass_index]
+                )
+            );
+        }
+
         pimpl->m_tasks.push_back(
             RenderGraphImpl::Synchronization{
                 {},

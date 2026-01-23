@@ -4,6 +4,7 @@
 #include <memory>
 #include <functional>
 
+#include "Render/Memory/MemoryAccessTypes.h"
 #include "Render/Pipeline/CommandBuffer/AccessHelperTypes.h"
 
 namespace Engine {
@@ -56,8 +57,7 @@ namespace Engine {
          */
         void UseBuffer (
             DeviceBuffer & buffer,
-            AccessHelper::BufferAccessType new_access,
-            AccessHelper::BufferAccessType prev_access
+            MemoryAccessTypeBuffer access
         );
 
         /**
