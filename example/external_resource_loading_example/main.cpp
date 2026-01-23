@@ -36,6 +36,8 @@ int main(int argc, char **argv) {
     );
 
     std::filesystem::path mesh_path(ENGINE_ASSETS_DIR);
+    // mesh_path = mesh_path / "meshes" / "sphere.obj";
+    // mesh_path = mesh_path / "meshes" / "cube.obj";
     // mesh_path = mesh_path / "bunny" / "bunny.obj";
     mesh_path = mesh_path / "four_bunny" / "four_bunny.obj";
 
@@ -66,6 +68,7 @@ int main(int argc, char **argv) {
     auto camera_go = cmc->GetWorldSystem()->CreateGameObject<GameObject>();
     Transform transform{};
     transform.SetPosition({0.0f, -0.7f, 0.5f});
+    // transform.SetPosition({0.0f, -3.7f, 2.5f});
     transform.SetRotationEuler(glm::vec3{glm::radians(-30.0f), 0.0f, 0.0f});
     camera_go->SetTransform(transform);
     auto camera_comp = camera_go->template AddComponent<CameraComponent>();

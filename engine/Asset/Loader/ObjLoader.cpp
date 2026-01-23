@@ -116,10 +116,17 @@ namespace Engine {
         std::shared_ptr<MeshComponent> m_mesh_component =
             std::make_shared<MeshComponent>(m_game_object_asset->m_MainObject);
         m_mesh_component->m_mesh_asset = std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(m_mesh_asset));
-        for (const auto &material : m_material_assets) {
-            m_mesh_component->m_material_assets.push_back(
-                std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(material))
-            );
+        auto submesh_count = m_mesh_asset->m_submeshes.size();
+        for (size_t i = 0; i < submesh_count; i++) {
+            if (i < m_material_assets.size()) {
+                m_mesh_component->m_material_assets.push_back(
+                    std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(m_material_assets[i]))
+                );
+            } else {
+                m_mesh_component->m_material_assets.push_back(database->GetNewAssetRef(
+                    AssetPath(*database, std::filesystem::path("~/materials/solid_color_dark_grey.asset"))
+                ));
+            }
         }
         m_game_object_asset->m_MainObject->AddComponent(m_mesh_component);
 
