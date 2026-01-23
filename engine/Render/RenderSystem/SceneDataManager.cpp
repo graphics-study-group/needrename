@@ -336,7 +336,7 @@ namespace Engine::RenderSystemState {
     }
 
     void SceneDataManager::DrawSkybox(
-        vk::CommandBuffer cb, uint32_t frame_in_flight, glm::mat4 view_mat, glm::mat4 proj_mat
+        vk::CommandBuffer cb, uint32_t frame_in_flight, glm::mat3 view_mat, glm::mat4 proj_mat
     ) const {
         if (!pimpl->skybox.skybox_material)  return;
 
@@ -349,8 +349,7 @@ namespace Engine::RenderSystemState {
         cb.setViewport(0, 1, &vp);
         cb.setScissor(0, 1, &scissor);
 
-        view_mat[3][0] = view_mat[3][1] = view_mat[3][2] = 0.0f;
-        glm::mat4 pv = proj_mat * view_mat;
+        glm::mat4 pv = proj_mat * glm::mat4(view_mat);
 
         auto tpl = pimpl->skybox.skybox_material->GetLibrary().FindMaterialTemplate("SKYBOX", {0});
         cb.bindPipeline(vk::PipelineBindPoint::eGraphics, tpl->GetPipeline());

@@ -107,10 +107,14 @@ namespace Engine {
 
             /**
              * @brief Record commands for drawing a skybox.
+             * @param cb The command buffer to record commands into.
+             * @param frame_in_flight The current frame in flight index.
+             * @param view_mat The view matrix of the current camera. 3x3 matrix (no translation).
+             * @param proj_mat The projection matrix of the current camera.
              * 
              * @todo It should be relocated and integrated with GraphicsCommandBuffer.
              */
-            void DrawSkybox(vk::CommandBuffer cb, uint32_t frame_in_flight, glm::mat4 view_mat, glm::mat4 proj_mat) const;
+            void DrawSkybox(vk::CommandBuffer cb, uint32_t frame_in_flight, glm::mat3 view_mat, glm::mat4 proj_mat) const;
 
             vk::DescriptorSet GetLightDescriptorSet(uint32_t frame_in_flight) const noexcept;
             vk::DescriptorSetLayout GetLightDescriptorSetLayout() const noexcept;
