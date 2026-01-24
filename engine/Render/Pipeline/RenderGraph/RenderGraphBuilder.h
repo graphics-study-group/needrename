@@ -27,9 +27,10 @@ namespace Engine {
      * Helps to resolve data dependencies between passes and set up barriers.
      */
     class RenderGraphBuilder {
-        RenderSystem & m_system;
         struct impl;
         std::unique_ptr <impl> pimpl;
+    protected:
+        RenderSystem &m_system;
     public:
 
         RenderGraphBuilder(RenderSystem & system);
