@@ -62,6 +62,11 @@ target_link_libraries(compute_shader_test engine)
 add_test(NAME compute_shader_test COMMAND compute_shader_test 120)
 set_target_properties(compute_shader_test PROPERTIES FOLDER tests)
 
+add_executable(compute_buffer_test compute_buffer_test.cpp)
+target_link_libraries(compute_buffer_test engine)
+add_test(NAME compute_buffer_test COMMAND compute_buffer_test)
+set_target_properties(compute_buffer_test PROPERTIES FOLDER tests)
+
 add_executable(pbr_test pbr_test.cpp)
 target_link_libraries(pbr_test engine tinyobjloader)
 add_test(NAME pbr_test COMMAND pbr_test 120)
