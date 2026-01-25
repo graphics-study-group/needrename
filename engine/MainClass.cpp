@@ -203,12 +203,6 @@ namespace Engine {
 
         this->renderer->StartFrame();
         this->render_graph->Execute();
-        renderer->GetSceneDataManager().DrawSkybox(
-            renderer->GetFrameManager().GetRawMainCommandBuffer(),
-            renderer->GetFrameManager().GetFrameInFlight(),
-            world->GetActiveCamera()->GetViewMatrix(),
-            world->GetActiveCamera()->GetProjectionMatrix()
-        );
         this->renderer->CompleteFrame(
             this->window->GetColorTexture(),
             this->window->GetExtent().width,
