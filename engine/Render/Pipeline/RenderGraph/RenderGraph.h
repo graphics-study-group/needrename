@@ -56,6 +56,15 @@ namespace Engine {
         void AddExternalOutputDependency(Texture & texture, AccessHelper::ImageAccessType next_access);
         void AddExternalOutputDependency(DeviceBuffer & buffer, AccessHelper::BufferAccessType next_access);
 
+        /**
+         * @brief Record all operations onto the specified command buffer.
+         */
+        void Record(vk::CommandBuffer cb);
+
+        /**
+         * @brief Execute the render graph by recording all commands onto the main command
+         * buffer and submitting it for execution.
+         */
         void Execute();
     };
 }

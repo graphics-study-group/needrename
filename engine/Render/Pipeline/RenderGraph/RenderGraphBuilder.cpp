@@ -26,11 +26,11 @@ namespace Engine {
 
     RenderGraphBuilder::~RenderGraphBuilder() = default;
 
-    void RenderGraphBuilder::RegisterImageAccess(Texture &texture, AccessHelper::ImageAccessType prev_access) {
+    void RenderGraphBuilder::RegisterImageAccess(const Texture &texture, AccessHelper::ImageAccessType prev_access) {
         pimpl->m_memo.RegisterTexture(&texture, AccessHelper::GetAccessScope(prev_access));
     }
 
-    void RenderGraphBuilder::UseImage(Texture &texture, AccessHelper::ImageAccessType new_access) {
+    void RenderGraphBuilder::UseImage(const Texture &texture, AccessHelper::ImageAccessType new_access) {
         auto new_tuple = AccessHelper::GetAccessScope(new_access);
         pimpl->m_image_barriers.push_back(
             RenderGraphImpl::GetImageBarrier(
@@ -41,7 +41,7 @@ namespace Engine {
         );
         pimpl->m_memo.UpdateAccessTuple(&texture, new_tuple);
     }
-    void RenderGraphBuilder::UseBuffer(DeviceBuffer &buffer, MemoryAccessTypeBuffer access) {
+    void RenderGraphBuilder::UseBuffer(const DeviceBuffer &buffer, MemoryAccessTypeBuffer access) {
         pimpl->m_buffer_memo.UpdateLastAccess(buffer.GetBuffer(), pimpl->pass_types.size(), access);
     }
     void RenderGraphBuilder::RecordRasterizerPassWithoutRT(std::function<void(GraphicsCommandBuffer &)> pass) {

@@ -40,7 +40,7 @@ namespace Engine {
          * @brief Register a new image texture to manage its access by the internal memo system.
          */
         void RegisterImageAccess (
-            Texture & texture,
+            const Texture & texture,
             AccessHelper::ImageAccessType prev_access = AccessHelper::ImageAccessType::None
         );
         
@@ -48,7 +48,7 @@ namespace Engine {
          * @brief Mark an image to be used in the following pass.
          */
         void UseImage (
-            Texture & texture,
+            const Texture & texture,
             AccessHelper::ImageAccessType new_access
         );
 
@@ -56,7 +56,7 @@ namespace Engine {
          * @brief Mark a buffer to be used in the following pass.
          */
         void UseBuffer (
-            DeviceBuffer & buffer,
+            const DeviceBuffer & buffer,
             MemoryAccessTypeBuffer access
         );
 

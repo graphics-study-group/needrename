@@ -53,8 +53,7 @@ namespace Engine {
         pimpl->final_sync.image_barriers.push_back(RenderGraphImpl::GetImageBarrier(texture, itr->second, access_tuple));
     }
 
-    void RenderGraph::Execute() {
-        auto cb = m_system.GetFrameManager().GetRawMainCommandBuffer();
+    void RenderGraph::Record(vk::CommandBuffer cb) {
         vk::CommandBufferBeginInfo cbbi{};
         cb.begin(cbbi);
 
@@ -73,6 +72,11 @@ namespace Engine {
         }
 
         cb.end();
+    }
+
+    void RenderGraph::Execute() {
+        auto cb = m_system.GetFrameManager().GetRawMainCommandBuffer();
+        Record(cb);
         m_system.GetFrameManager().SubmitMainCommandBuffer();
         if (pimpl->present_info.target)
             m_system.CompleteFrame(
