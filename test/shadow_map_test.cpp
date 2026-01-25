@@ -298,7 +298,7 @@ int main(int argc, char **argv) {
         auto index = rsys->StartFrame();
         assert(index < 3);
 
-        rg.Execute();
+        rg->Execute();
         rsys->CompleteFrame(*color, color->GetTextureDescription().width, color->GetTextureDescription().height);
 
         SDL_Delay(10);

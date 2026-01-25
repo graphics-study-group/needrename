@@ -305,7 +305,7 @@ int main(int argc, char **argv) {
         // Draw
         auto index = rsys->StartFrame();
 
-        rg.Execute();
+        rg->Execute();
         rsys->CompleteFrame(
             *color,
             color->GetTextureDescription().width,

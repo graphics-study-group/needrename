@@ -248,7 +248,7 @@ int main(int argc, char **argv) {
     auto depth = RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Depth attachment");
 
     RenderGraphBuilder rgb{*rsys};
-    RenderGraph rg{rgb.BuildDefaultRenderGraph(*color, *depth, gsys.get())};
+    auto rg{rgb.BuildDefaultRenderGraph(*color, *depth, gsys.get())};
 
     // Setup mesh
     std::filesystem::path mesh_path{std::string(ENGINE_ASSETS_DIR) + "/four_bunny/four_bunny.obj"};
@@ -291,7 +291,7 @@ int main(int argc, char **argv) {
 
         // Draw
         auto index = rsys->StartFrame();
-        rg.Execute();
+        rg->Execute();
         rsys->CompleteFrame(
             *color,
             color->GetTextureDescription().width,

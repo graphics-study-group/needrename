@@ -76,7 +76,7 @@ std::pair<std::shared_ptr<MaterialLibraryAsset>, std::shared_ptr<MaterialTemplat
     return std::make_pair(lib_asset, test_asset);
 }
 
-RenderGraph BuildRenderGraph(
+std::unique_ptr<RenderGraph> BuildRenderGraph(
     RenderSystem *rsys,
     RenderTargetTexture *color,
     RenderTargetTexture *depth,
@@ -228,8 +228,8 @@ int main(int argc, char **argv) {
     cstage.AssignTexture("inputImage", color);
     cstage.AssignTexture("outputImage", postproc);
 
-    RenderGraph nonblur{BuildRenderGraph(rsys.get(), color.get(), depth.get(), test_material_instance.get(), &test_mesh)};
-    RenderGraph blur{BuildRenderGraph(
+    auto nonblur{BuildRenderGraph(rsys.get(), color.get(), depth.get(), test_material_instance.get(), &test_mesh)};
+    auto blur{BuildRenderGraph(
         rsys.get(), color.get(), depth.get(), test_material_instance.get(), &test_mesh, postproc.get(), &cstage
     )};
 
@@ -257,9 +257,9 @@ int main(int argc, char **argv) {
 
         auto index = rsys->StartFrame();
         if (has_gaussian_blur) {
-            blur.Execute();
+            blur->Execute();
         } else {
-            nonblur.Execute();
+            nonblur->Execute();
         }
 
         rsys->CompleteFrame(

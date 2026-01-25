@@ -12,8 +12,9 @@
 #include <Render/FullRenderSystem.h>
 #include <UserInterface/GUISystem.h>
 #include <UserInterface/Input.h>
-#include <glslang/Public/ShaderLang.h>
+#include <Render/Pipeline/RenderGraph/ComplexRenderGraphBuilder.h>
 
+#include <glslang/Public/ShaderLang.h>
 #include <exception>
 #include <fstream>
 #include <nlohmann/json.hpp>
@@ -103,6 +104,8 @@ namespace Engine {
 
         this->renderer->Create();
         this->window->CreateRenderTargets(this->renderer);
+        this->render_graph_builder = std::make_unique<ComplexRenderGraphBuilder>(*this->renderer);
+        this->render_graph = std::move(this->render_graph_builder->BuildDefaultRenderGraph(this->window->GetColorTexture(), this->window->GetDepthTexture()));
         this->gui->Create(this->window->GetWindow());
         Reflection::Initialize();
 
@@ -199,57 +202,13 @@ namespace Engine {
         this->event_queue->ProcessEvents();
 
         this->renderer->StartFrame();
-        auto context = this->renderer->GetFrameManager().GetGraphicsContext();
-        GraphicsCommandBuffer &cb = dynamic_cast<GraphicsCommandBuffer &>(context.GetCommandBuffer());
-
-        cb.Begin();
-        context.UseImage(
-            this->window->GetColorTexture(),
-            GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite,
-            GraphicsContext::ImageAccessType::None
-        );
-        context.UseImage(
-            this->window->GetDepthTexture(),
-            GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite,
-            GraphicsContext::ImageAccessType::None
-        );
-        context.PrepareCommandBuffer();
-        cb.BeginRendering(
-            {&this->window->GetColorTexture(),
-             nullptr,
-             AttachmentUtils::LoadOperation::Clear,
-             AttachmentUtils::StoreOperation::Store},
-            {&this->window->GetDepthTexture(),
-             nullptr,
-             AttachmentUtils::LoadOperation::Clear,
-             AttachmentUtils::StoreOperation::DontCare,
-             AttachmentUtils::DepthClearValue{1.0f, 0U}},
-            this->window->GetExtent(),
-            "Main Pass"
-        );
-        this->renderer->GetCameraManager().SetActiveCameraIndex(this->world->GetActiveCamera()->m_display_id);
-
+        this->render_graph->Execute();
         renderer->GetSceneDataManager().DrawSkybox(
             renderer->GetFrameManager().GetRawMainCommandBuffer(),
             renderer->GetFrameManager().GetFrameInFlight(),
             world->GetActiveCamera()->GetViewMatrix(),
             world->GetActiveCamera()->GetProjectionMatrix()
         );
-
-        cb.DrawRenderers("", renderer->GetRendererManager().FilterAndSortRenderers({}));
-        cb.EndRendering();
-
-        // context.UseImage(this->window->GetColorTexture(),
-        // GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite,
-        // GraphicsContext::ImageAccessType::ColorAttachmentWrite); context.PrepareCommandBuffer();
-        // this->gui->DrawGUI({this->window->GetColorTexture().GetImage(),
-        //                     this->window->GetColorTexture().GetImageView(),
-        //                     vk::AttachmentLoadOp::eLoad,
-        //                     vk::AttachmentStoreOp::eStore},
-        //                    this->window->GetExtent(), cb);
-
-        cb.End();
-        this->renderer->GetFrameManager().SubmitMainCommandBuffer();
         this->renderer->CompleteFrame(
             this->window->GetColorTexture(),
             this->window->GetExtent().width,

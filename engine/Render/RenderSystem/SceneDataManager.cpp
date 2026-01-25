@@ -208,7 +208,7 @@ namespace Engine::RenderSystemState {
         pimpl->scene.light_front_buffer.shadow_casting.light_source[index] = glm::vec4(direction, 0.0f);
         pimpl->scene.light_front_buffer.shadow_casting.light_color[index] = glm::vec4(intensity, 0.0f);
         // TODO: determine clip planes and light eye position from the scene
-        auto proj = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, 0.1f, 10.0f);
+        auto proj = glm::ortho(-2.0f, 2.0f, -2.0f, 2.0f, 0.001f, 10.0f);
         proj[1][1] *= -1.0f;
         auto view = glm::lookAtRH(-direction, glm::vec3{0.0f, 0.0f, 0.0f}, glm::vec3{0.0f, 1.0f, 0.0f});
         pimpl->scene.light_front_buffer.shadow_casting.light_matrices[index] = proj * view;

@@ -61,7 +61,7 @@ namespace Engine {
             std::unordered_map<const Texture *, ImageAccessTuple> m_final_image_access;
         };
 
-        inline vk::ImageMemoryBarrier2 GetImageBarrier(Texture &texture,
+        inline vk::ImageMemoryBarrier2 GetImageBarrier(const Texture &texture,
             TextureAccessMemo::AccessTuple old_access,
             TextureAccessMemo::AccessTuple new_access) noexcept {
             vk::ImageMemoryBarrier2 barrier{};

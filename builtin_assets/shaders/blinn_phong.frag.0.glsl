@@ -24,7 +24,7 @@ void main() {
     // Get normalized incident vector pointing from the light source
     vec3 incident_vs;
     if (scene.casting_light_count == 1) {
-        incident_vs = (camera.cameras[pc.camera_id].view * vec4(frag_position - scene.casting_lights.light_source[0].xyz, 1.0)).xyz;
+        incident_vs = normalize(mat3(camera.cameras[pc.camera_id].view) * scene.casting_lights.light_source[0].xyz);
     } else if (scene.noncasting_light_count == 1) {
         incident_vs = (camera.cameras[pc.camera_id].view * vec4(frag_position - scene.noncasting_lights.light_source[0].xyz, 1.0)).xyz;
     }

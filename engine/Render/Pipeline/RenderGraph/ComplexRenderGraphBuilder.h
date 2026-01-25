@@ -14,7 +14,9 @@ namespace Engine {
         ComplexRenderGraphBuilder(RenderSystem &system);
         ~ComplexRenderGraphBuilder() = default;
 
-        RenderGraph BuildDefaultRenderGraph(RenderTargetTexture &color_target, RenderTargetTexture &depth_target);
+        std::unique_ptr<RenderGraph> BuildDefaultRenderGraph(
+            const RenderTargetTexture &color_target, const RenderTargetTexture &depth_target
+        );
 
     protected:
         std::shared_ptr<RenderTargetTexture> m_shadow_target{};

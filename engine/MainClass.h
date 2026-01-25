@@ -21,6 +21,9 @@ namespace Engine {
     class EventQueue;
     class ShaderCompiler;
 
+    class ComplexRenderGraphBuilder;
+    class RenderGraph;
+
     class MainClass {
     public:
         /**
@@ -72,6 +75,9 @@ namespace Engine {
         std::shared_ptr<Input> input{};
         std::shared_ptr<EventQueue> event_queue{};
         std::shared_ptr<ShaderCompiler> shader_compiler{};
+
+        std::unique_ptr<ComplexRenderGraphBuilder> render_graph_builder{};
+        std::shared_ptr<RenderGraph> render_graph{};
 
         static std::weak_ptr <MainClass> m_instance;
         static std::once_flag m_instance_ready;

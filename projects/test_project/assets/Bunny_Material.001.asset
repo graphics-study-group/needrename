@@ -34,7 +34,7 @@
         },
         "&1": {
             "%type": "Engine::AssetRef",
-            "AssetRef::m_guid": "CC90BD98BB3190F9AACD4CC3D6162782"
+            "AssetRef::m_guid": "E335281ABE3F1FA9788F074FF218FF71"
         },
         "&2": {
             "%type": "Engine::AssetRef",

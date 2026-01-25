@@ -69,7 +69,7 @@ std::pair<std::shared_ptr<MaterialLibraryAsset>, std::shared_ptr<MaterialTemplat
     return std::make_pair(test_lib_asset, test_asset);
 }
 
-RenderGraph BuildRenderGraph(
+std::unique_ptr<RenderGraph> BuildRenderGraph(
     RenderSystem *rsys,
     RenderTargetTexture *color_1,
     RenderTargetTexture *color_2,
@@ -185,7 +185,7 @@ int main(int argc, char **argv) {
 
     auto asys = cmc->GetAssetManager();
 
-    RenderGraph rg{BuildRenderGraph(
+    auto rg{BuildRenderGraph(
         rsys.get(), colors[0].get(), colors[1].get(), colors[2].get(), colors[3].get(), depth.get(), test_material_instance.get(), &test_mesh)
     };
 
@@ -215,8 +215,8 @@ int main(int argc, char **argv) {
             *colors[(color + 1) % 4], 0, 0
         );
 
-        rg.AddExternalOutputDependency(*colors[(color + 1) % 4], AccessHelper::ImageAccessType::TransferRead);
-        rg.Execute();
+        rg->AddExternalOutputDependency(*colors[(color + 1) % 4], AccessHelper::ImageAccessType::TransferRead);
+        rg->Execute();
 
         rsys->CompleteFrame(
             *colors[color],

@@ -40,7 +40,7 @@ namespace Engine {
          * @brief Register a new image texture to manage its access by the internal memo system.
          */
         void RegisterImageAccess (
-            Texture & texture,
+            const Texture & texture,
             AccessHelper::ImageAccessType prev_access = AccessHelper::ImageAccessType::None
         );
         
@@ -48,7 +48,7 @@ namespace Engine {
          * @brief Mark an image to be used in the following pass.
          */
         void UseImage (
-            Texture & texture,
+            const Texture & texture,
             AccessHelper::ImageAccessType new_access
         );
 
@@ -133,14 +133,14 @@ namespace Engine {
         /**
          * @brief Create a RenderGraph and reset internal states to default.
          */
-        RenderGraph BuildRenderGraph();
+        std::unique_ptr<RenderGraph> BuildRenderGraph();
 
         /**
          * @brief Build a default render graph.
          */
-        RenderGraph BuildDefaultRenderGraph(
-            RenderTargetTexture & color_attachment, 
-            RenderTargetTexture & depth_attachment,
+        std::unique_ptr<RenderGraph> BuildDefaultRenderGraph(
+            const RenderTargetTexture & color_attachment, 
+            const RenderTargetTexture & depth_attachment,
             GUISystem * gui_system = nullptr
         );
     };

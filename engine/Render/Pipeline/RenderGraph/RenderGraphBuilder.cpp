@@ -23,11 +23,11 @@ namespace Engine {
 
     RenderGraphBuilder::~RenderGraphBuilder() = default;
 
-    void RenderGraphBuilder::RegisterImageAccess(Texture &texture, AccessHelper::ImageAccessType prev_access) {
+    void RenderGraphBuilder::RegisterImageAccess(const Texture &texture, AccessHelper::ImageAccessType prev_access) {
         pimpl->m_memo.RegisterTexture(&texture, AccessHelper::GetAccessScope(prev_access));
     }
 
-    void RenderGraphBuilder::UseImage(Texture &texture, AccessHelper::ImageAccessType new_access) {
+    void RenderGraphBuilder::UseImage(const Texture &texture, AccessHelper::ImageAccessType new_access) {
         auto new_tuple = AccessHelper::GetAccessScope(new_access);
         pimpl->m_image_barriers.push_back(
             RenderGraphImpl::GetImageBarrier(
@@ -215,7 +215,7 @@ namespace Engine {
         pimpl->m_buffer_barriers.clear();
         pimpl->m_image_barriers.clear();
     }
-    RenderGraph RenderGraphBuilder::BuildRenderGraph() {
+    std::unique_ptr<RenderGraph> RenderGraphBuilder::BuildRenderGraph() {
         if (!pimpl->m_buffer_barriers.empty() || !pimpl->m_image_barriers.empty()) {
             SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Leftover memory barriers when building render graph.");
             RecordSynchronization();
@@ -241,10 +241,10 @@ namespace Engine {
         }
         
         pimpl->m_tasks.clear();
-        return RenderGraph(m_system, std::move(compiled), std::move(extra));
+        return std::unique_ptr<RenderGraph>(new RenderGraph(m_system, std::move(compiled), std::move(extra)));
     }
-    RenderGraph RenderGraphBuilder::BuildDefaultRenderGraph(
-        RenderTargetTexture &color_attachment, RenderTargetTexture &depth_attachment, GUISystem *gui_system
+    std::unique_ptr<RenderGraph> RenderGraphBuilder::BuildDefaultRenderGraph(
+        const RenderTargetTexture &color_attachment, const RenderTargetTexture &depth_attachment, GUISystem *gui_system
     ) {
         using IAT = AccessHelper::ImageAccessType;
         this->RegisterImageAccess(color_attachment, IAT::None);

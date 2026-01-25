@@ -5,8 +5,7 @@
                 "&1",
                 "&9",
                 "&14",
-                "&19",
-                "&24"
+                "&19"
             ],
             "LevelAsset::m_default_camera": "&12",
             "LevelAsset::m_skybox_material": "&13",
