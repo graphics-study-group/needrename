@@ -2,10 +2,15 @@
     "%data": {
         "&0": {
             "%type": "Engine::MaterialLibraryAsset",
-            "Asset::m_guid": "4430FD7DD9B20F656408C14159D7D4A7",
-            "MaterialLibraryAsset::m_name": "Lambertian Cook Torrance PBR Without Shadow",
+            "Asset::m_guid": "D3364AE928621310CF1EE68F8D5EDB0A",
+            "MaterialLibraryAsset::m_name": "Lambertian Cook Torrance PBR",
             "MaterialLibraryAsset::material_bundle": {
-                "": {
+                "Lit": {
+                    "%type": "Engine::MaterialLibraryAsset::MaterialTemplateReference",
+                    "MaterialTemplateReference::expected_mesh_type": 0,
+                    "MaterialTemplateReference::material_template": "&2"
+                },
+                "Shadowmap": {
                     "%type": "Engine::MaterialLibraryAsset::MaterialTemplateReference",
                     "MaterialTemplateReference::expected_mesh_type": 0,
                     "MaterialTemplateReference::material_template": "&1"
@@ -13,6 +18,10 @@
             }
         },
         "&1": {
+            "%type": "Engine::AssetRef",
+            "AssetRef::m_guid": "0A31C596A3B9DB54881FA9550A82311C"
+        },
+        "&2": {
             "%type": "Engine::AssetRef",
             "AssetRef::m_guid": "6D638EF97A23CBEDE1236A31ECAF2ACF"
         }

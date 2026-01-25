@@ -9,7 +9,7 @@
                 "MaterialTemplateSinglePassProperties::attachments": {
                     "%type": "Engine::PipelineProperties::Attachments",
                     "Attachments::color": [
-                        "R8G8B8A8UNorm"
+                        "R11G11B10UFloat"
                     ],
                     "Attachments::color_blending": [
                         {

@@ -100,7 +100,7 @@ int main() {
     auto gui = cmc->GetGUISystem();
     auto window = cmc->GetWindow();
     auto event_queue = cmc->GetEventQueue();
-    gui->CreateVulkanBackend(*rsys, ImageUtils::GetVkFormat(window->GetColorTexture().GetTextureDescription().format));
+    gui->CreateVulkanBackend(*rsys, ImageUtils::GetVkFormat(window->GetColorTexture()->GetTextureDescription().format));
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading project");
     cmc->LoadProject(project_path);
@@ -199,12 +199,12 @@ int main() {
             GraphicsContext::ImageAccessType::ColorAttachmentWrite
         );
         context.UseImage(
-            window->GetColorTexture(),
+            *window->GetColorTexture(),
             GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite,
             GraphicsContext::ImageAccessType::None
         );
         context.UseImage(
-            window->GetDepthTexture(),
+            *window->GetDepthTexture(),
             GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite,
             GraphicsContext::ImageAccessType::None
         );
@@ -212,7 +212,7 @@ int main() {
         gui->PrepareGUI();
         main_window.Render();
         gui->DrawGUI(
-            {&window->GetColorTexture(),
+            {window->GetColorTexture().get(),
              nullptr,
              Engine::AttachmentUtils::LoadOperation::Clear,
              Engine::AttachmentUtils::StoreOperation::Store},
@@ -223,7 +223,7 @@ int main() {
         cb.End();
         rsys->GetFrameManager().SubmitMainCommandBuffer();
         rsys->CompleteFrame(
-            window->GetColorTexture(),
+            *window->GetColorTexture(),
             window->GetExtent().width,
             window->GetExtent().height
         );

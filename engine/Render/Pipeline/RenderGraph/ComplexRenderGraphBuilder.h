@@ -4,6 +4,7 @@
 #include "RenderGraphBuilder.h"
 
 namespace Engine {
+    class AssetRef;
     class RenderTargetTexture;
 
     class ComplexRenderGraphBuilder : public RenderGraphBuilder {
@@ -15,11 +16,15 @@ namespace Engine {
         ~ComplexRenderGraphBuilder() = default;
 
         std::unique_ptr<RenderGraph> BuildDefaultRenderGraph(
-            const RenderTargetTexture &color_target, const RenderTargetTexture &depth_target
+            std::shared_ptr<const RenderTargetTexture> color_target_ptr,
+            std::shared_ptr<const RenderTargetTexture> depth_target_ptr
         );
 
     protected:
         std::shared_ptr<RenderTargetTexture> m_shadow_target{};
+        std::shared_ptr<RenderTargetTexture> m_hdr_color_target{};
+
+        std::shared_ptr<AssetRef> m_bloom_shader{};
     };
 } // namespace Engine
 

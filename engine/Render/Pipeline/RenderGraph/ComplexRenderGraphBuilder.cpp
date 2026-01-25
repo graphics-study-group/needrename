@@ -1,5 +1,8 @@
 #include "ComplexRenderGraphBuilder.h"
 #include "RenderGraph.h"
+#include <Asset/AssetDatabase/FileSystemDatabase.h>
+#include <Asset/AssetManager/AssetManager.h>
+#include <Asset/Shader/ShaderAsset.h>
 #include <Framework/world/WorldSystem.h>
 #include <MainClass.h>
 #include <Render/Memory/RenderTargetTexture.h>
@@ -13,10 +16,16 @@ namespace Engine {
     }
 
     std::unique_ptr<RenderGraph> ComplexRenderGraphBuilder::BuildDefaultRenderGraph(
-        const RenderTargetTexture &color_target, const RenderTargetTexture &depth_target
+        std::shared_ptr<const RenderTargetTexture> color_target_ptr,
+        std::shared_ptr<const RenderTargetTexture> depth_target_ptr
     ) {
+        auto &color_target = *color_target_ptr;
+        auto &depth_target = *depth_target_ptr;
+
         // XXX: Hardcoded light direction
-        m_system.GetSceneDataManager().SetLightDirectional(0, glm::vec3{1.0f, 1.0f, -1.0f}, glm::vec3{1.0f, 1.0f, 1.0f});
+        m_system.GetSceneDataManager().SetLightDirectional(
+            0, glm::vec3{1.0f, 1.0f, -1.0f}, glm::vec3{1.0f, 1.0f, 1.0f}
+        );
         m_system.GetSceneDataManager().SetLightCount(1);
 
         RenderTargetTexture::RenderTargetTextureDesc desc{
@@ -30,18 +39,32 @@ namespace Engine {
             .multisample = 1,
             .is_cube_map = false
         };
-        Texture::SamplerDesc sampler_desc{
-            .u_address = Texture::SamplerDesc::AddressMode::ClampToEdge,
-            .v_address = Texture::SamplerDesc::AddressMode::ClampToEdge,
-            .w_address = Texture::SamplerDesc::AddressMode::ClampToEdge
-        };
         m_shadow_target =
-            Engine::RenderTargetTexture::CreateUnique(m_system, desc, sampler_desc, "Shadowmap Light 0");
+            Engine::RenderTargetTexture::CreateUnique(m_system, desc, Texture::SamplerDesc{}, "Shadowmap Light 0");
         m_system.GetSceneDataManager().SetLightShadowMap(0, m_shadow_target);
+
+        desc.width = color_target.GetTextureDescription().width,
+        desc.height = color_target.GetTextureDescription().height,
+        desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R11G11B10UFloat,
+        m_hdr_color_target =
+            RenderTargetTexture::CreateUnique(m_system, desc, Texture::SamplerDesc{}, "HDR Color Attachment");
+
         auto &shadow_target = *m_shadow_target;
+        auto &hdr_color_target = *m_hdr_color_target;
+
+        // XXX: Hardcoded bloom shader. Should use AssetManager to load shader when we have pipeline asset.
+        auto &adb = *std::dynamic_pointer_cast<FileSystemDatabase>(MainClass::GetInstance()->GetAssetDatabase());
+        auto &amg = *MainClass::GetInstance()->GetAssetManager();
+        m_bloom_shader = adb.GetNewAssetRef(AssetPath{adb, "~/shaders/bloom.comp.asset"});
+        amg.LoadAssetImmediately(m_bloom_shader);
+        auto bloom_compute_stage = std::make_shared<ComputeStage>(m_system);
+        bloom_compute_stage->Instantiate(*m_bloom_shader->cas<ShaderAsset>());
+        bloom_compute_stage->AssignTexture("inputImage", m_hdr_color_target);
+        bloom_compute_stage->AssignTexture("outputImage", color_target_ptr);
 
         this->RegisterImageAccess(color_target);
         this->RegisterImageAccess(depth_target);
+        this->RegisterImageAccess(hdr_color_target);
         this->RegisterImageAccess(shadow_target);
 
         auto &system = m_system;
@@ -71,10 +94,10 @@ namespace Engine {
         });
 
         this->UseImage(shadow_target, IAT::ShaderRead);
-        this->UseImage(color_target, IAT::ColorAttachmentWrite);
+        this->UseImage(hdr_color_target, IAT::ColorAttachmentWrite);
         this->UseImage(depth_target, IAT::DepthAttachmentWrite);
         this->RecordRasterizerPass(
-            {&color_target, nullptr, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store},
+            {&hdr_color_target, nullptr, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store},
             {&depth_target,
              nullptr,
              AttachmentUtils::LoadOperation::Clear,
@@ -93,6 +116,20 @@ namespace Engine {
                 );
             },
             "Main pass"
+        );
+
+        this->UseImage(hdr_color_target, IAT::ShaderReadRandomWrite);
+        this->UseImage(color_target, IAT::ShaderRandomWrite);
+        this->RecordComputePass(
+            [bloom_compute_stage, &color_target](ComputeCommandBuffer &ccb) {
+                ccb.BindComputeStage(*bloom_compute_stage);
+                ccb.DispatchCompute(
+                    color_target.GetTextureDescription().width / 16 + 1,
+                    color_target.GetTextureDescription().height / 16 + 1,
+                    1
+                );
+            },
+            "Bloom FX pass"
         );
 
         return this->BuildRenderGraph();

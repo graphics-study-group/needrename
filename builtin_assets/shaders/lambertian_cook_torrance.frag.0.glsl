@@ -53,6 +53,21 @@ vec3 fresnelSchlick(vec3 F0, float cosTheta)
     return F0 + (vec3(1.0) - F0) * pow(1.0 - cosTheta, 5.0);
 }
 
+// Calculate shadow factor for a given light
+float calculateShadow(int lightIndex)
+{
+    // Determine fragment position in light space
+    vec4 frag_position_ls = scene.casting_lights.light_vp_matrix[lightIndex] * vec4(frag_position, 1.0);
+    frag_position_ls.xyz /= frag_position_ls.w;
+    // mapping [-1, 1] to [0, 1] for sampling
+    frag_position_ls.xy *= 0.5;
+    frag_position_ls.xy += 0.5;
+    float light_map_depth = texture(light_shadowmaps[lightIndex], frag_position_ls.xy).x;
+
+    // Larger depth -> farther -> occluded
+    return (light_map_depth > frag_position_ls.z) ? 1.0 : 0.0;
+}
+
 void main()
 {
     vec3 albedo = texture(albedoSampler, frag_uv).rgb;
@@ -62,7 +77,7 @@ void main()
 
     // Remember that we are in view space, and the camera is at exactly (0,0,0).
     vec3 Lo = normalize((- camera.cameras[pc.camera_id].view * vec4(frag_position, 1.0)).xyz);
-    vec3 N = (camera.cameras[pc.camera_id].view * vec4(frag_normal, 0.0)).xyz;
+    vec3 N = normalize((camera.cameras[pc.camera_id].view * vec4(frag_normal, 0.0)).xyz);
     float cosLo = max(0.0, dot(N, Lo));
         
     // Specular reflection vector.
@@ -100,6 +115,38 @@ void main()
 
         // Total contribution for this light.
         directLighting += (diffuseBRDF + specularBRDF) * Lradiance * cosLi;
+    }
+    
+    for(int i = 0; i < scene.casting_light_count; ++i)
+    {
+        // For directional lights, the light direction is fixed
+        vec3 Li = normalize((mat3(camera.cameras[pc.camera_id].view) * -scene.casting_lights.light_source[i].xyz).xyz);
+        vec3 Lradiance = scene.casting_lights.light_color[i].rgb;
+        vec3 Lh = normalize(Li + Lo);
+
+        float cosLi = max(0.0, dot(N, Li));
+        float cosLh = max(0.0, dot(N, Lh));
+ 
+        vec3 F  = fresnelSchlick(F0, max(0.0, dot(Lh, Lo)));
+        float D = ndfGGX(cosLh, roughness);
+        float G = gaSchlickGGX(cosLi, cosLo, roughness);
+
+        // Diffuse scattering happens due to light being refracted multiple times by a dielectric medium.
+        // Metals on the other hand either reflect or absorb energy, so diffuse contribution is always zero.
+        // To be energy conserving we must scale diffuse BRDF contribution based on Fresnel factor & metalness.
+        vec3 kd = mix(vec3(1.0) - F, vec3(0.0), metalness);
+
+        // Lambert diffuse BRDF.
+        vec3 diffuseBRDF = kd * albedo;
+
+        // Cook-Torrance specular microfacet BRDF.
+        vec3 specularBRDF = (F * D * G) / max(M_EPS, 4.0 * cosLi * cosLo);
+        
+        // Calculate shadow factor
+        float shadowCoef = calculateShadow(i);
+
+        // Total contribution for this light with shadow
+        directLighting += shadowCoef * (diffuseBRDF + specularBRDF) * Lradiance * cosLi;
     }
 
     out_color = vec4(directLighting, 1.0);

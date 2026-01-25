@@ -42,12 +42,12 @@ namespace Engine {
         return {m_color_texture->GetTextureDescription().width, m_color_texture->GetTextureDescription().height};
     }
 
-    const RenderTargetTexture &SDLWindow::GetColorTexture() const noexcept {
-        return *m_color_texture;
+    std::shared_ptr<const RenderTargetTexture> SDLWindow::GetColorTexture() const noexcept {
+        return m_color_texture;
     }
 
-    const RenderTargetTexture &SDLWindow::GetDepthTexture() const noexcept {
-        return *m_depth_texture;
+    std::shared_ptr<const RenderTargetTexture> SDLWindow::GetDepthTexture() const noexcept {
+        return m_depth_texture;
     }
 
     SDL_Window *SDLWindow::GetWindow() {

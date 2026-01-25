@@ -80,6 +80,10 @@ namespace Engine {
         auto active_camera = this->world->GetActiveCamera();
         if (active_camera)
             this->renderer->GetCameraManager().RegisterCamera(active_camera);
+
+        // XXX: this should load from pipeline asset. it contains shader asset (comp)
+        this->render_graph_builder = std::make_unique<ComplexRenderGraphBuilder>(*this->renderer);
+        this->render_graph = std::move(this->render_graph_builder->BuildDefaultRenderGraph(this->window->GetColorTexture(), this->window->GetDepthTexture()));
     }
 
     void MainClass::Initialize(
@@ -104,8 +108,6 @@ namespace Engine {
 
         this->renderer->Create();
         this->window->CreateRenderTargets(this->renderer);
-        this->render_graph_builder = std::make_unique<ComplexRenderGraphBuilder>(*this->renderer);
-        this->render_graph = std::move(this->render_graph_builder->BuildDefaultRenderGraph(this->window->GetColorTexture(), this->window->GetDepthTexture()));
         this->gui->Create(this->window->GetWindow());
         Reflection::Initialize();
 
@@ -204,7 +206,7 @@ namespace Engine {
         this->renderer->StartFrame();
         this->render_graph->Execute();
         this->renderer->CompleteFrame(
-            this->window->GetColorTexture(),
+            *this->window->GetColorTexture(),
             this->window->GetExtent().width,
             this->window->GetExtent().height
         );
