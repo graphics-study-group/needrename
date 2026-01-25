@@ -32,7 +32,8 @@ namespace Engine {
     };
 
     template <class T>
-    class ComputeBufferTyped : public ComputeBuffer {
+    class ComputeBufferTyped {
+        std::unique_ptr <ComputeBuffer> buffer;
     public:
         /**
          * @brief Create a new compute buffer.
@@ -42,8 +43,7 @@ namespace Engine {
          * @param as_vertex_buffer Allows it to be used as vertex and index buffer.
          * @param as_indirect_draw_buffer Allows it to be used as indirect draw command buffer.
          */
-        template <class U>
-        static std::unique_ptr<ComputeBufferTyped<U>> CreateUniqueTyped(
+        static std::unique_ptr<ComputeBufferTyped<T>> CreateUniqueTyped(
             const RenderSystemState::AllocatorState & allocator,
             size_t count,
             bool allow_cpu_access,
@@ -52,7 +52,8 @@ namespace Engine {
             bool as_indirect_draw_buffer,
             const std::string &name = ""
         ) {
-            return ComputeBuffer::CreateUnique(
+            auto self = std::make_unique<ComputeBufferTyped<T>>();
+            self->buffer = ComputeBuffer::CreateUnique(
                 allocator,
                 count * sizeof(T),
                 allow_cpu_access,
@@ -61,10 +62,19 @@ namespace Engine {
                 as_indirect_draw_buffer,
                 name
             );
+            return self;
         }
 
-        std::span<T> GetVMAddressTyped() {
-            return std::span<T>(reinterpret_cast<T *>(GetVMAddress()), GetSize());
+        size_t GetCount() const noexcept {
+            return buffer->GetSize() / sizeof(T);
+        }
+
+        std::span<T> GetVMAddress() {
+            return std::span<T>(reinterpret_cast<T *>(buffer->GetVMAddress()), GetCount());
+        }
+
+        const ComputeBuffer & GetComputeBuffer() {
+            return *buffer;
         }
     };
 };
