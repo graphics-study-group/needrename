@@ -41,12 +41,9 @@ namespace Engine {
         ShdrRfl::SPLayout layout{};
         ShdrRfl::ShaderParameters parameters{};
 
-        void CreatePipeline(RenderSystem &system, const ShaderAsset &asset) {
-            assert(asset.shaderType == ShaderAsset::ShaderType::Compute);
-            auto code = asset.binary;
-
+        void CreatePipeline(RenderSystem &system, const std::vector <uint32_t> & spirv_code, const std::string_view name = "") {
             // Create descriptor and pipeline layout
-            layout = ShdrRfl::SPLayout::Reflect(code, false);
+            layout = ShdrRfl::SPLayout::Reflect(spirv_code, false);
             auto desc_bindings = layout.GenerateAllLayoutBindings();
             if (desc_bindings.size() > 1) {
                 SDL_LogWarn(
@@ -66,7 +63,7 @@ namespace Engine {
             DEBUG_SET_NAME_TEMPLATE(
                 system.GetDevice(),
                 m_passInfo.pipeline_layout.get(),
-                std::format("Pipeline Layout for Compute {}", asset.m_name)
+                std::format("Pipeline Layout for Compute {}", name)
             );
 
             // Create descriptor pool
@@ -88,20 +85,20 @@ namespace Engine {
             DEBUG_SET_NAME_TEMPLATE(
                 system.GetDevice(),
                 desc_pool.get(),
-                std::format("Descriptor Pool for Compute Pipeline {}", asset.m_name)
+                std::format("Descriptor Pool for Compute Pipeline {}", name)
             );
 
             // Create shader module
             vk::ShaderModuleCreateInfo smci{
                 vk::ShaderModuleCreateFlags{},
-                code.size() * sizeof(uint32_t),
-                reinterpret_cast<const uint32_t *>(code.data())
+                spirv_code.size() * sizeof(uint32_t),
+                reinterpret_cast<const uint32_t *>(spirv_code.data())
             };
             m_passInfo.shader = system.GetDevice().createShaderModuleUnique(smci);
             DEBUG_SET_NAME_TEMPLATE(
                 system.GetDevice(),
                 m_passInfo.shader.get(),
-                std::format("Shader Module for Compute Pipeline {}", asset.m_name)
+                std::format("Shader Module for Compute Pipeline {}", name)
             );
 
             vk::PipelineShaderStageCreateInfo pssci{
@@ -116,7 +113,7 @@ namespace Engine {
             DEBUG_SET_NAME_TEMPLATE(
                 system.GetDevice(),
                 m_passInfo.pipeline.get(),
-                std::format("Compute Pipeline {}", asset.m_name)
+                std::format("Compute Pipeline {}", name)
             );
         }
     };
@@ -125,7 +122,12 @@ namespace Engine {
     }
 
     void ComputeStage::Instantiate(const ShaderAsset &asset) {
-        pimpl->CreatePipeline(m_system, asset);
+        assert(asset.shaderType == ShaderAsset::ShaderType::Compute);
+        Instantiate(asset.binary, asset.m_name);
+    }
+
+    void ComputeStage::Instantiate(const std::vector<uint32_t> &code, const std::string_view name) {
+        pimpl->CreatePipeline(m_system, code, name);
 
         for (const auto & pinterface : pimpl->layout.interfaces) {
             if (auto pbuffer = dynamic_cast <const ShdrRfl::SPInterfaceBuffer *>(pinterface.get())) {
@@ -301,6 +303,11 @@ namespace Engine {
     void ComputeStage::AssignBuffer(
         const std::string & name,
         std::shared_ptr <const DeviceBuffer> buffer) noexcept {
+        pimpl->parameters.Assign(name, buffer);
+        pimpl->m_ipi._is_descriptor_dirty.set();
+    }
+
+    void ComputeStage::AssignComputeBuffer(const std::string &name, const ComputeBuffer &buffer) noexcept {
         pimpl->parameters.Assign(name, buffer);
         pimpl->m_ipi._is_descriptor_dirty.set();
     }

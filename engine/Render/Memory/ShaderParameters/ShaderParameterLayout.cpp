@@ -216,17 +216,21 @@ namespace Engine::ShdrRfl {
                         pinterface->name.c_str()
                     );
                 }
-            } else if (auto pbuffer = dynamic_cast<const SPInterfaceBuffer *>(pinterface.get())) {
+            } 
+            // The interface is a buffer
+            else if (auto pbuffer = dynamic_cast<const SPInterfaceBuffer *>(pinterface.get())) {
+                // Check for uniform buffer
                 if (auto pbuf = std::get_if<std::tuple<std::reference_wrapper<const DeviceBuffer>, size_t, size_t>>(&itr->second)) {
+                    if (pbuffer->type != SPInterfaceBuffer::Type::UniformBuffer) {
+                        SDL_LogWarn(
+                            SDL_LOG_CATEGORY_RENDER,
+                            "Interface %s is not assigned to a uniform buffer.",
+                            pinterface->name.c_str()
+                        );
+                        continue;
+                    }
                     auto offset = std::get<1>(*pbuf);
                     auto range = std::get<2>(*pbuf) > 0 ? std::get<2>(*pbuf) : vk::WholeSize;
-
-                    vk::DescriptorType type;
-                    if (pbuffer->type == SPInterfaceBuffer::Type::StorageBuffer) {
-                        type = vk::DescriptorType::eStorageBuffer;
-                    } else if (pbuffer->type == SPInterfaceBuffer::Type::UniformBuffer) {
-                        type = vk::DescriptorType::eUniformBuffer;
-                    } 
 
                     write.buffer.push_back(
                         std::make_tuple(
@@ -236,19 +240,20 @@ namespace Engine::ShdrRfl {
                                 offset,
                                 range
                             },
-                            type
+                            vk::DescriptorType::eUniformBuffer
                         )
                     );
                 } else if (auto pbuf = std::get_if<std::tuple<std::shared_ptr<const DeviceBuffer>, size_t, size_t>>(&itr->second)) {
+                    if (pbuffer->type != SPInterfaceBuffer::Type::UniformBuffer) {
+                        SDL_LogWarn(
+                            SDL_LOG_CATEGORY_RENDER,
+                            "Interface %s is not assigned to a uniform buffer.",
+                            pinterface->name.c_str()
+                        );
+                        continue;
+                    }
                     auto offset = std::get<1>(*pbuf);
                     auto range = std::get<2>(*pbuf) > 0 ? std::get<2>(*pbuf) : vk::WholeSize;
-
-                    vk::DescriptorType type;
-                    if (pbuffer->type == SPInterfaceBuffer::Type::StorageBuffer) {
-                        type = vk::DescriptorType::eStorageBuffer;
-                    } else if (pbuffer->type == SPInterfaceBuffer::Type::UniformBuffer) {
-                        type = vk::DescriptorType::eUniformBuffer;
-                    } 
 
                     write.buffer.push_back(
                         std::make_tuple(
@@ -258,10 +263,56 @@ namespace Engine::ShdrRfl {
                                 offset,
                                 range
                             },
-                            type
+                            vk::DescriptorType::eUniformBuffer
                         )
                     );
-                } else {
+                }
+                // Check for shader storage buffer
+                else if (auto pbuf = std::get_if<std::reference_wrapper<const ComputeBuffer>>(&itr->second)) {
+                    if (pbuffer->type != SPInterfaceBuffer::Type::StorageBuffer) {
+                        SDL_LogWarn(
+                            SDL_LOG_CATEGORY_RENDER,
+                            "Interface %s is not assigned to a storage buffer.",
+                            pinterface->name.c_str()
+                        );
+                        continue;
+                    }
+
+                    write.buffer.push_back(
+                        std::make_tuple(
+                            pbuffer->layout_binding,
+                            vk::DescriptorBufferInfo {
+                                (*pbuf).get().GetBuffer(),
+                                0,
+                                vk::WholeSize
+                            },
+                            vk::DescriptorType::eStorageBuffer
+                        )
+                    );
+                } else if (auto pbuf = std::get_if<std::shared_ptr<const ComputeBuffer>>(&itr->second)) {
+                    if (pbuffer->type != SPInterfaceBuffer::Type::StorageBuffer) {
+                        SDL_LogWarn(
+                            SDL_LOG_CATEGORY_RENDER,
+                            "Interface %s is not assigned to a storage buffer.",
+                            pinterface->name.c_str()
+                        );
+                        continue;
+                    }
+
+                    write.buffer.push_back(
+                        std::make_tuple(
+                            pbuffer->layout_binding,
+                            vk::DescriptorBufferInfo {
+                                (*pbuf)->GetBuffer(),
+                                0,
+                                vk::WholeSize
+                            },
+                            vk::DescriptorType::eStorageBuffer
+                        )
+                    );
+                }
+                // Check for storage buffer
+                else {
                     SDL_LogWarn(
                         SDL_LOG_CATEGORY_RENDER,
                         "Interface %s is not assigned to a buffer nor image.",

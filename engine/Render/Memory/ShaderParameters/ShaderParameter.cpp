@@ -44,7 +44,18 @@ namespace Engine::ShdrRfl {
     void ShaderParameters::Assign(const std::string &name, std::shared_ptr <const DeviceBuffer> buf, size_t offset, size_t size) noexcept {
         pimpl->interfaces[name] = std::make_tuple(buf, offset, size);
     }
-    void ShaderParameters::Assign(const std::string &name, const DeviceBuffer &buf, size_t offset, size_t size) noexcept {
+    void ShaderParameters::Assign(
+                const std::string & name, 
+                std::shared_ptr <const ComputeBuffer> buf
+    ) noexcept {
+        pimpl->interfaces[name] = buf;
+    }
+    void ShaderParameters::Assign(const std::string &name, const ComputeBuffer &buf) noexcept {
+        pimpl->interfaces[name] = std::cref(buf);
+    }
+    void ShaderParameters::Assign(
+        const std::string &name, const DeviceBuffer &buf, size_t offset, size_t size
+    ) noexcept {
         pimpl->interfaces[name] = std::make_tuple(std::cref(buf), offset, size);
     }
     auto ShaderParameters::GetInterfaces() const noexcept -> const std::unordered_map <std::string, ShaderParameters::InterfaceVariant> & {

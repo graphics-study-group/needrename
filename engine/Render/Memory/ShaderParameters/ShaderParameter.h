@@ -1,5 +1,5 @@
-#ifndef MEMORY_SHADERPARAMETERS_SHADERPARAMETER_INCLUDED
-#define MEMORY_SHADERPARAMETERS_SHADERPARAMETER_INCLUDED
+#ifndef MEMORY_SHADERPARAMETERS_SHADERPARAMETER
+#define MEMORY_SHADERPARAMETERS_SHADERPARAMETER
 
 #include <unordered_map>
 #include <string>
@@ -11,6 +11,7 @@ namespace Engine {
     class Texture;
     class DeviceBuffer;
     class StructuredBuffer;
+    class ComputeBuffer;
 
     namespace ShdrRfl {
         struct ShaderParameters {
@@ -26,7 +27,10 @@ namespace Engine {
                     std::vector <std::shared_ptr<const Texture>>,
                     // Buffer, offset and size
                     std::tuple<std::shared_ptr<const DeviceBuffer>, size_t, size_t>,
-                    std::tuple<std::reference_wrapper<const DeviceBuffer>, size_t, size_t>
+                    std::tuple<std::reference_wrapper<const DeviceBuffer>, size_t, size_t>,
+                    // Compute buffer, which binds to storage buffers.
+                    std::shared_ptr<const ComputeBuffer>,
+                    std::reference_wrapper<const ComputeBuffer>
                 >;
 
             void Assign(const std::string & name, uint32_t) noexcept;
@@ -65,10 +69,20 @@ namespace Engine {
                 size_t size = 0ULL
             ) noexcept;
 
+            void Assign(
+                const std::string & name, 
+                std::shared_ptr <const ComputeBuffer> buf
+            ) noexcept;
+
+            void Assign(
+                const std::string & name,
+                const ComputeBuffer & buf
+            ) noexcept;
+
             const std::unordered_map <std::string, InterfaceVariant> & GetInterfaces() const noexcept;
             const StructuredBuffer & GetStructuredBuffer() const noexcept;
         };
     }
 }
 
-#endif // MEMORY_SHADERPARAMETERS_SHADERPARAMETER_INCLUDED
+#endif // MEMORY_SHADERPARAMETERS_SHADERPARAMETER
