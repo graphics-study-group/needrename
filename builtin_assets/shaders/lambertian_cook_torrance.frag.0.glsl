@@ -53,7 +53,7 @@ vec3 fresnelSchlick(vec3 F0, float cosTheta)
     return F0 + (vec3(1.0) - F0) * pow(1.0 - cosTheta, 5.0);
 }
 
-// Calculate shadow factor for a given light
+// Calculate shadow factor for a given light with PCF anti-aliasing
 float calculateShadow(int lightIndex)
 {
     // Determine fragment position in light space
@@ -62,10 +62,29 @@ float calculateShadow(int lightIndex)
     // mapping [-1, 1] to [0, 1] for sampling
     frag_position_ls.xy *= 0.5;
     frag_position_ls.xy += 0.5;
-    float light_map_depth = texture(light_shadowmaps[lightIndex], frag_position_ls.xy).x;
-
-    // Larger depth -> farther -> occluded
-    return (light_map_depth > frag_position_ls.z) ? 1.0 : 0.0;
+    
+    float shadow = 0.0;
+    float bias = 0.005;
+    float samples = 3.0;
+    float offset = 0.001;
+    int norm = 0;
+    
+    // PCF: Sample around the current fragment in the shadow map
+    for (float x = -offset; x < offset; x += offset / (samples * 0.5))
+    {
+        for (float y = -offset; y < offset; y += offset / (samples * 0.5))
+        {
+            float light_map_depth = texture(light_shadowmaps[lightIndex], frag_position_ls.xy + vec2(x, y)).x;
+            if (frag_position_ls.z - bias > light_map_depth)
+                shadow += 1.0;
+            ++norm;
+        }
+    }
+    
+    // Average the shadow samples
+    shadow /= float(norm);
+    // Convert to shadow coefficient (0.0 = fully in shadow, 1.0 = fully lit)
+    return 1.0 - shadow;
 }
 
 void main()
@@ -142,7 +161,7 @@ void main()
         // Cook-Torrance specular microfacet BRDF.
         vec3 specularBRDF = (F * D * G) / max(M_EPS, 4.0 * cosLi * cosLo);
         
-        // Calculate shadow factor
+        // Calculate shadow factor with PCF anti-aliasing
         float shadowCoef = calculateShadow(i);
 
         // Total contribution for this light with shadow
