@@ -228,14 +228,14 @@ int main(int argc, char **argv) {
 
     // Build render graph.
     RenderGraphBuilder rgb{*rsys};
-    rgb.RegisterImageAccess(*hdr_color);
-    rgb.RegisterImageAccess(*depth);
-    rgb.RegisterImageAccess(*color);
+    rgb.ImportExternalResource(*hdr_color);
+    rgb.ImportExternalResource(*depth);
+    rgb.ImportExternalResource(*color);
 
     // Color pass
-    using IAT = AccessHelper::ImageAccessType;
+    using IAT = MemoryAccessTypeImageBits;
     rgb.UseImage(*hdr_color, IAT::ColorAttachmentWrite);
-    rgb.UseImage(*depth, IAT::DepthAttachmentWrite);
+    rgb.UseImage(*depth, IAT::DepthStencilAttachmentWrite);
     rgb.RecordRasterizerPass(
         AttachmentUtils::AttachmentDescription{
             hdr_color.get(), nullptr, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store
@@ -254,7 +254,7 @@ int main(int argc, char **argv) {
     );
 
     // Bloom pass
-    rgb.UseImage(*hdr_color, IAT::ShaderReadRandomWrite);
+    rgb.UseImage(*hdr_color, IAT::ShaderRandomRead);
     rgb.UseImage(*color, IAT::ShaderRandomWrite);
     rgb.RecordComputePass(
         [bloom_compute_stage, color](ComputeCommandBuffer &ccb) {

@@ -79,13 +79,13 @@ RenderGraph BuildRenderGraph(
     MaterialInstance *material,
     HomogeneousMesh *mesh
 ) {
-    using IAT = Engine::AccessHelper::ImageAccessType;
+    using IAT = Engine::MemoryAccessTypeImageBits;
     RenderGraphBuilder rgb{*rsys};
     rgb.UseImage(*color_1, IAT::ColorAttachmentWrite);
     rgb.UseImage(*color_2, IAT::ColorAttachmentWrite);
     rgb.UseImage(*color_3, IAT::ColorAttachmentWrite);
     rgb.UseImage(*color_4, IAT::ColorAttachmentWrite);
-    rgb.UseImage(*depth, IAT::DepthAttachmentWrite);
+    rgb.UseImage(*depth, IAT::DepthStencilAttachmentWrite);
     rgb.RecordRasterizerPassWithoutRT([rsys, color_1, color_2, color_3, color_4, depth, material, mesh](GraphicsCommandBuffer &gcb) {
         auto extent = rsys->GetSwapchain().GetExtent();
         gcb.BeginRendering(
