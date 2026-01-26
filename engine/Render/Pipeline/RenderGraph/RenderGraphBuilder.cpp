@@ -15,6 +15,7 @@ namespace Engine {
         std::vector <RenderGraphImpl::PassType> pass_types {};
 
         RenderGraphImpl::PassType GetPassType(int32_t pass_index) {
+            assert(pass_index < 0 || pass_index < pass_types.size());
             return pass_index < 0 ? RenderGraphImpl::PassType::None : pass_types[pass_index];
         }
 
@@ -162,14 +163,14 @@ namespace Engine {
         );
     }
     void RenderGraphBuilder::RecordSynchronization() {
-        const auto current_pass_id = pimpl->pass_types.size() - 1;
+        const int current_pass_id = pimpl->pass_types.size() - 1;
         std::vector<vk::ImageMemoryBarrier2> image_barriers{};
         std::vector<vk::BufferMemoryBarrier2> buffer_barriers{};
         // Build image barriers
         for (const auto & [img, acc] : pimpl->m_texture_memo.accesses) {
             if (acc.size() < 2) continue;
             if (acc.back().pass_index != current_pass_id)   continue;
-            const auto & prev_acc = *(acc.rbegin() - 1);
+            const auto & prev_acc = *(acc.rbegin() + 1);
             image_barriers.push_back(
                 pimpl->m_texture_memo.GenerateBarrier(
                     img->GetImage(),
@@ -186,7 +187,7 @@ namespace Engine {
             if (acc.size() < 2) continue;
             if (acc.back().pass_index != current_pass_id)   continue;
 
-            const auto & prev_acc = *(acc.rbegin() - 1);
+            const auto & prev_acc = *(acc.rbegin() + 1);
             buffer_barriers.push_back(
                 pimpl->m_buffer_memo.GenerateBarrier(
                     buf,
