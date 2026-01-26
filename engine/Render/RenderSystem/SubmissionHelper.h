@@ -8,7 +8,7 @@
 namespace Engine {
     class RenderSystem;
     class Texture;
-    class Buffer;
+    class DeviceBuffer;
     class HomogeneousMesh;
 
     namespace RenderSystemState {
@@ -31,7 +31,7 @@ namespace Engine {
              * 
              * @param data Host-side buffer containing all data.
              */
-            void EnqueueBufferSubmission(const Buffer & buffer, std::vector<std::byte> && data);
+            void EnqueueBufferSubmission(const DeviceBuffer & buffer, std::vector<std::byte> && data);
 
             /**
              * @brief Enqueue a buffer uploading.
@@ -40,7 +40,7 @@ namespace Engine {
              * Data are immediately copied to a staging buffer.
              * It is safe to free this buffer after calling this method.
              */
-            void EnqueueBufferSubmission(const Buffer & buffer, const std::vector<std::byte> &data);
+            void EnqueueBufferSubmission(const DeviceBuffer & buffer, const std::vector<std::byte> &data);
 
             /***
              * @brief Enqueue a vertex buffer uploading.

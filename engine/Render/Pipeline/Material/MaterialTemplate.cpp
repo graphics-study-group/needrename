@@ -325,28 +325,8 @@ namespace Engine {
         assert(sets.size() == size);
         return sets;
     }
-    const ShdrRfl::SPVariable * MaterialTemplate::GetVariable(const std::string & name) const noexcept
-    {
-        if (auto itr{pimpl->m_layout->name_mapping.find(name)}; 
-            itr != pimpl->m_layout->name_mapping.end()) {
-            return itr->second;
-        }
-        return nullptr;
-    }
+
     const ShdrRfl::SPLayout &MaterialTemplate::GetReflectedShaderInfo() const noexcept {
         return *(pimpl->m_layout);
-    }
-    size_t MaterialTemplate::GetExpectedUniformBufferSize() const noexcept {
-        size_t size = 0;
-        for (auto pinterface : pimpl->m_layout->interfaces) {
-            if (auto pbuf = dynamic_cast<const ShdrRfl::SPInterfaceBuffer *>(pinterface)) {
-                if (pbuf->type == ShdrRfl::SPInterfaceBuffer::Type::UniformBuffer) {
-                    if (auto ptype = dynamic_cast<const ShdrRfl::SPTypeSimpleStruct *>(pbuf->underlying_type)) {
-                        size = std::max(size, ptype->expected_size);
-                    } 
-                }
-            }
-        }
-        return size;
     }
 } // namespace Engine

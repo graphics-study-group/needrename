@@ -18,7 +18,7 @@ namespace Engine {
         size_t slice_alignment,
         uint32_t slices,
         size_t aligned_slice_size
-    ) : Buffer(std::move(alloc), size), 
+    ) : DeviceBuffer(std::move(alloc), size), 
         pimpl(std::make_unique<IndexedBuffer::impl>(
             slice_size, 
             slice_alignment, 
@@ -26,7 +26,7 @@ namespace Engine {
             aligned_slice_size, 
             nullptr
         )) {
-        pimpl->base_ptr = Buffer::GetVMAddress();
+        pimpl->base_ptr = DeviceBuffer::GetVMAddress();
     }
 
     IndexedBuffer::IndexedBuffer(IndexedBuffer &&) noexcept = default;
@@ -43,8 +43,6 @@ namespace Engine {
         uint32_t slices,
         const std::string &name
     ) {
-        assert(type == BufferType::Uniform && "Currently only uniform buffer can be indexed.");
-
         size_t aligned_size =
             slice_alignment ? ((slice_size + slice_alignment - 1) & ~(slice_alignment - 1)) : slice_size;
 
@@ -66,8 +64,6 @@ namespace Engine {
         uint32_t slices,
         const std::string &name
     ) {
-        assert(type == BufferType::Uniform && "Currently only uniform buffer can be indexed.");
-
         size_t aligned_size =
             slice_alignment ? ((slice_size + slice_alignment - 1) & ~(slice_alignment - 1)) : slice_size;
 
@@ -99,10 +95,10 @@ namespace Engine {
     }
 
     void IndexedBuffer::FlushSlice(uint32_t slice) const {
-        Buffer::Flush(GetSliceOffset(slice), pimpl->aligned_slice_size);
+        DeviceBuffer::Flush(GetSliceOffset(slice), pimpl->aligned_slice_size);
     }
 
     void IndexedBuffer::InvalidateSlice(uint32_t slice) {
-        Buffer::Invalidate(GetSliceOffset(slice), pimpl->aligned_slice_size);
+        DeviceBuffer::Invalidate(GetSliceOffset(slice), pimpl->aligned_slice_size);
     }
 } // namespace Engine

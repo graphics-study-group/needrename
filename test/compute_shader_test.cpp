@@ -10,6 +10,33 @@
 
 using namespace Engine;
 
+auto BuildRenderGraph(
+    RenderSystem & rsys,
+    RenderTargetTexture & color_in,
+    RenderTargetTexture & color_out,
+    RenderTargetTexture & color_present,
+    ComputeStage & compute
+) {
+    RenderGraphBuilder rgb{rsys};
+    rgb.ImportExternalResource(color_in, MemoryAccessTypeImageBits::TransferWrite);
+
+    rgb.UseImage(color_in, MemoryAccessTypeImageBits::ShaderRandomRead);
+    rgb.UseImage(color_out, MemoryAccessTypeImageBits::ShaderRandomWrite);
+    rgb.UseImage(color_present, MemoryAccessTypeImageBits::ShaderRandomWrite);
+    rgb.RecordComputePass([&] (ComputeCommandBuffer & ccb) -> void {
+        ccb.BindComputeStage(compute);
+        ccb.DispatchCompute(1280 / 16 + 1, 720 / 16 + 1, 1);
+    });
+
+    rgb.UseImage(color_in, MemoryAccessTypeImageBits::TransferWrite);
+    rgb.UseImage(color_out, MemoryAccessTypeImageBits::TransferRead);
+    rgb.RecordTransferPass([&] (TransferCommandBuffer & tcb) -> void {
+        tcb.BlitColorImage(color_out, color_in);
+    });
+
+    return rgb.BuildRenderGraph();
+}
+
 int main(int argc, char *argv[]) {
     int64_t max_frame_count = std::numeric_limits<int64_t>::max();
     if (argc > 1) {
@@ -54,6 +81,14 @@ int main(int argc, char *argv[]) {
     cstage.AssignTexture("inputImage", color_input);
     cstage.AssignTexture("outputColorImage", color_present);
 
+    auto rg = BuildRenderGraph(
+        *rsys,
+        *color_input,
+        *color_output,
+        *color_present,
+        cstage
+    );
+
     uint64_t frame_count = 0;
     while (++frame_count) {
         if (frame_count > max_frame_count) break;
@@ -68,55 +103,14 @@ int main(int argc, char *argv[]) {
         }
 
         rsys->StartFrame();
-        auto ccontext = rsys->GetFrameManager().GetComputeContext();
-        ccontext.GetCommandBuffer().Begin();
-        ccontext.UseImage(
-            *color_input, 
-            ComputeContext::ImageComputeAccessType::ShaderReadRandomWrite, 
-            frame_count == 1 ? ComputeContext::ImageAccessType::None : ComputeContext::ImageAccessType::TransferWrite
-        );
-        ccontext.UseImage(
-            *color_output, ComputeContext::ImageComputeAccessType::ShaderRandomWrite, ComputeContext::ImageAccessType::None
-        );
-        ccontext.UseImage(
-            *color_present, ComputeContext::ImageComputeAccessType::ShaderRandomWrite, ComputeContext::ImageAccessType::None
-        );
-        auto ccb = dynamic_cast<ComputeCommandBuffer &>(ccontext.GetCommandBuffer());
+        cstage.AssignScalarVariable("UBO::frame_count", static_cast<uint32_t>(frame_count));
 
-        ccontext.PrepareCommandBuffer();
-        cstage.AssignScalarVariable("UBO::frame_count", static_cast<int>(frame_count));
-        ccb.BindComputeStage(cstage);
-        ccb.DispatchCompute(1280 / 16 + 1, 720 / 16 + 1, 1);
+        if (frame_count == 1) rg->AddExternalInputDependency(*color_input, MemoryAccessTypeImageBits::None);
+        rg->Execute();
 
-        // Blit back history info
-        auto gcontext = rsys->GetFrameManager().GetGraphicsContext();
-        auto & tcontext = static_cast<TransferContext &>(gcontext);
-        tcontext.UseImage(
-            *color_output,
-            GraphicsContext::ImageTransferAccessType::TransferRead,
-            GraphicsContext::ImageAccessType::ShaderRandomWrite
-        );
-        tcontext.UseImage(
-            *color_input,
-            GraphicsContext::ImageTransferAccessType::TransferWrite,
-            GraphicsContext::ImageAccessType::ShaderReadRandomWrite
-        );
-        tcontext.PrepareCommandBuffer();
-        auto & tcb = dynamic_cast<TransferCommandBuffer &>(tcontext.GetCommandBuffer());
-        tcb.BlitColorImage(*color_output, *color_input);
-
-        // We need this barrier to transfer image to color attachment layout for presenting.
-        gcontext.UseImage(
-            *color_present,
-            GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite,
-            GraphicsContext::ImageAccessType::ShaderRandomWrite
-        );
-        gcontext.PrepareCommandBuffer();
-        ccontext.GetCommandBuffer().End();
-
-        rsys->GetFrameManager().SubmitMainCommandBuffer();
         rsys->CompleteFrame(
             *color_present,
+            MemoryAccessTypeImageBits::ShaderRandomWrite,
             color_present->GetTextureDescription().width, 
             color_present->GetTextureDescription().height
         );

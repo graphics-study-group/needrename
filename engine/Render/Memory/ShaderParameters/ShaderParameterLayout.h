@@ -1,7 +1,7 @@
 #ifndef MEMORY_SHADERPARAMETERS_SHADERPARAMETERLAYOUT_INCLUDED
 #define MEMORY_SHADERPARAMETERS_SHADERPARAMETERLAYOUT_INCLUDED
 
-#include "ShaderParameterComplex.h"
+#include "ShaderInterface.h"
 #include <memory>
 #include <unordered_map>
 
@@ -18,15 +18,9 @@ namespace Engine {
         struct ShaderParameters;
 
         struct SPLayout {
-            // Types are only added and never removed.
-            // We will have no more than ~100 shaders, so this
-            // might be Ok anyway.
-            static std::vector <std::unique_ptr<SPType>> types;
-            std::vector <std::unique_ptr<SPVariable>> variables;
-
             // Interfaces are guaranteed to be sorted by set and binding numbers
-            std::vector <const SPInterface *> interfaces;
-            std::unordered_map <std::string, const SPVariable *> name_mapping;
+            std::vector <std::unique_ptr<SPInterface>> interfaces;
+            std::unordered_map <std::string, const SPInterface *> interface_name_mapping;
 
             struct DescriptorSetWrite {
                 std::vector <std::tuple<uint32_t, vk::DescriptorImageInfo, vk::DescriptorType>> image {};
@@ -51,7 +45,7 @@ namespace Engine {
              */
             void PlaceBufferVariable(
                 std::vector <std::byte> & buffer,
-                const SPInterfaceBuffer * interface,
+                const SPInterfaceStructuredBuffer & interface,
                 const ShaderParameters & arguments
             ) const noexcept;
 

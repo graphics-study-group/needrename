@@ -1,17 +1,11 @@
 #ifndef ENGINE_RENDER_IMAGEUTILS_INCLUDED
 #define ENGINE_RENDER_IMAGEUTILS_INCLUDED
+
+#include "Render/Memory/MemoryTypes.h"
 #include <Reflection/macros.h>
 
 namespace Engine {
     namespace ImageUtils {
-        enum class ImageType {
-            DepthAttachment,
-            DepthStencilAttachment,
-            ColorAttachment,
-            // Color image used for sampling. Can be transferred from/to.
-            TextureImage
-        };
-
         enum class REFL_SER_CLASS() ImageFormat {
             UNDEFINED,
             R8G8B8A8SNorm,
@@ -28,8 +22,10 @@ namespace Engine {
             uint32_t dimensions;
             // Integers at least 1 for sizes.
             uint32_t width, height, depth;
-            ImageUtils::ImageFormat format;
-            ImageUtils::ImageType type;
+            // Format of this image
+            ImageFormat format;
+            // Allowed memory access on this image.
+            ImageMemoryType memory_type;
             // Use zero to automatically determine mipmap levels
             // by `max(log(width), log(height), log(depth))`
             uint32_t mipmap_levels;

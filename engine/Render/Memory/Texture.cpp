@@ -2,7 +2,7 @@
 
 #include "Render/ImageUtilsFunc.h"
 #include "Render/Memory/AllocatedMemory.h"
-#include "Render/Memory/Buffer.h"
+#include "Render/Memory/DeviceBuffer.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/AllocatorState.h"
 
@@ -42,7 +42,7 @@ namespace Engine {
 
         auto dim = dimension == 1 ? vk::ImageType::e1D : (dimension == 2 ? vk::ImageType::e2D : vk::ImageType::e3D);
         pimpl->m_image = allocator.AllocateImageUnique(
-            texture.type,
+            texture.memory_type,
             dim,
             vk::Extent3D{width, height, depth},
             ImageUtils::GetVkFormat(texture.format),
@@ -95,22 +95,15 @@ namespace Engine {
         return pimpl->m_sampler;
     }
 
-    std::unique_ptr <Buffer> Engine::Texture::CreateStagingBuffer(const RenderSystemState::AllocatorState & allocator) const {
-        assert(
-            ((std::get<0>(ImageUtils::GetImageFlags(this->GetTextureDescription().type))
-              & vk::ImageUsageFlagBits::eTransferDst)
-             || (std::get<0>(ImageUtils::GetImageFlags(this->GetTextureDescription().type))
-                 & vk::ImageUsageFlagBits::eTransferSrc))
-            && "A staging buffer is created, but the image does not support tranfer usage."
-        );
+    std::unique_ptr <DeviceBuffer> Engine::Texture::CreateStagingBuffer(const RenderSystemState::AllocatorState & allocator) const {
         uint64_t buffer_size = pimpl->m_tdesc.height 
             * pimpl->m_tdesc.width * pimpl->m_tdesc.depth * pimpl->m_tdesc.array_layers
             * ImageUtils::GetPixelSize(pimpl->m_tdesc.format);
         assert(buffer_size > 0);
 
-        return Buffer::CreateUnique(
+        return DeviceBuffer::CreateUnique(
             allocator,
-            Buffer::BufferType::Staging,
+            {BufferTypeBits::StagingToDevice},
             buffer_size,
             std::format("Buffer - texture ({}) staging", pimpl->m_name)
         );

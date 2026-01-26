@@ -22,6 +22,8 @@ namespace Engine {
     class GraphicsCommandBuffer;
     class RenderTargetTexture;
 
+    enum class MemoryAccessTypeImageBits;
+
     namespace ConstantData {
         struct PerCameraStruct;
     };
@@ -82,6 +84,14 @@ namespace Engine {
          * If you end a frame by manually calling `FrameManager::CompleteFrame()`,
          * then you must make sure that these resources are recreated correctly yourself.
          */
+        void CompleteFrame(
+            const RenderTargetTexture & present_texture,
+            MemoryAccessTypeImageBits last_access,
+            uint32_t width,
+            uint32_t height,
+            uint32_t offset_x = 0,
+            uint32_t offset_y = 0
+        );
         void CompleteFrame(
             const RenderTargetTexture & present_texture,
             uint32_t width,

@@ -1,5 +1,5 @@
-#ifndef MEMORY_SHADERPARAMETERS_SHADERPARAMETER_INCLUDED
-#define MEMORY_SHADERPARAMETERS_SHADERPARAMETER_INCLUDED
+#ifndef MEMORY_SHADERPARAMETERS_SHADERPARAMETER
+#define MEMORY_SHADERPARAMETERS_SHADERPARAMETER
 
 #include <unordered_map>
 #include <string>
@@ -9,31 +9,34 @@
 
 namespace Engine {
     class Texture;
-    class Buffer;
+    class DeviceBuffer;
+    class StructuredBuffer;
+    class ComputeBuffer;
+
     namespace ShdrRfl {
         struct ShaderParameters {
-            using ParameterVariant = std::variant<
-                    std::monostate,
-                    uint32_t,
-                    int32_t,
-                    float,
-                    glm::vec4,
-                    glm::mat4
-                >;
+            struct impl;
+            std::unique_ptr <impl> pimpl;
+
+            ShaderParameters();
+            ~ShaderParameters() noexcept;
+
             using InterfaceVariant = std::variant<
                     std::monostate,
                     std::shared_ptr<const Texture>,
                     std::vector <std::shared_ptr<const Texture>>,
                     // Buffer, offset and size
-                    std::tuple<std::shared_ptr<const Buffer>, size_t, size_t>,
-                    std::tuple<std::reference_wrapper<const Buffer>, size_t, size_t>
+                    std::tuple<std::shared_ptr<const DeviceBuffer>, size_t, size_t>,
+                    std::tuple<std::reference_wrapper<const DeviceBuffer>, size_t, size_t>
                 >;
-            std::unordered_map <std::string, ParameterVariant> arguments;
-            std::unordered_map <std::string, InterfaceVariant> interfaces;
 
-            void Assign(const std::string & name, std::variant<uint32_t, int32_t, float> value) noexcept;
-
-            void Assign(const std::string & name, std::variant<glm::vec4, glm::mat4> value) noexcept;
+            void Assign(const std::string & name, uint32_t) noexcept;
+            void Assign(const std::string & name, float) noexcept;
+            void Assign(const std::string & name, const glm::vec4 &) noexcept;
+            void Assign(const std::string & name, const glm::mat4 &) noexcept;
+    
+            void Assign(const std::string & name, float (& v) [4]) noexcept;
+            void Assign(const std::string & name, float (& v) [16]) noexcept;
 
             /**
              * @brief Assign a texture by its name.
@@ -47,7 +50,7 @@ namespace Engine {
              */
             void Assign(
                 const std::string & name, 
-                std::shared_ptr <const Buffer> buf, 
+                std::shared_ptr <const DeviceBuffer> buf, 
                 size_t offset = 0ULL, 
                 size_t size = 0ULL
             ) noexcept;
@@ -58,12 +61,15 @@ namespace Engine {
              */
             void Assign(
                 const std::string & name, 
-                const Buffer & buf, 
+                const DeviceBuffer & buf, 
                 size_t offset = 0ULL, 
                 size_t size = 0ULL
             ) noexcept;
+
+            const std::unordered_map <std::string, InterfaceVariant> & GetInterfaces() const noexcept;
+            const StructuredBuffer & GetStructuredBuffer() const noexcept;
         };
     }
 }
 
-#endif // MEMORY_SHADERPARAMETERS_SHADERPARAMETER_INCLUDED
+#endif // MEMORY_SHADERPARAMETERS_SHADERPARAMETER

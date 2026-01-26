@@ -8,6 +8,61 @@
 #include <SDL3/SDL.h>
 #include <vulkan/vulkan_hash.hpp>
 
+namespace {
+
+    constexpr std::tuple<vk::ImageUsageFlags, VmaMemoryUsage> GetImageFlags(Engine::ImageMemoryType type) {
+        using namespace Engine;
+        vk::ImageUsageFlags iuf;
+
+        if (type.Test(ImageMemoryTypeBits::CopyFrom))           iuf |= vk::ImageUsageFlagBits::eTransferSrc;
+        if (type.Test(ImageMemoryTypeBits::CopyTo))             iuf |= vk::ImageUsageFlagBits::eTransferDst;
+        if (type.Test(ImageMemoryTypeBits::ShaderSampled))      iuf |= vk::ImageUsageFlagBits::eSampled;
+        if (type.Test(ImageMemoryTypeBits::ShaderRandomAccess)) iuf |= vk::ImageUsageFlagBits::eStorage;
+        if (type.Test(ImageMemoryTypeBits::ColorAttachment))    iuf |= vk::ImageUsageFlagBits::eColorAttachment;
+        if (type.Test(ImageMemoryTypeBits::DepthStencilAttachment))   iuf |= vk::ImageUsageFlagBits::eDepthStencilAttachment;
+
+        return std::make_tuple(iuf, VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE);
+    }
+
+    constexpr vk::FormatFeatureFlags GetFormatFeatures(Engine::ImageMemoryType type) {
+        using namespace Engine;
+
+        vk::FormatFeatureFlags fff{};
+
+        if (type.Test(ImageMemoryTypeBits::CopyFrom)) {
+            fff |= vk::FormatFeatureFlagBits::eBlitSrc | vk::FormatFeatureFlagBits::eTransferSrc;
+        }
+        if (type.Test(ImageMemoryTypeBits::CopyTo)) {
+            fff |= vk::FormatFeatureFlagBits::eBlitDst | vk::FormatFeatureFlagBits::eTransferDst;
+        }
+        if (type.Test(ImageMemoryTypeBits::ShaderSampled)) {
+            fff |= vk::FormatFeatureFlagBits::eSampledImage | vk::FormatFeatureFlagBits::eSampledImageFilterLinear;
+            if (type.Test(ImageMemoryTypeBits::BackedByBuffer)) {
+                fff |= vk::FormatFeatureFlagBits::eUniformTexelBuffer;
+            }
+        }
+        if (type.Test(ImageMemoryTypeBits::ShaderRandomAccess)) {
+            fff |= vk::FormatFeatureFlagBits::eStorageImage;
+            if (type.Test(ImageMemoryTypeBits::ShaderAtomicAccess)) {
+                fff |= vk::FormatFeatureFlagBits::eStorageImageAtomic;
+            }
+            if (type.Test(ImageMemoryTypeBits::BackedByBuffer)) {
+                fff |= vk::FormatFeatureFlagBits::eStorageTexelBuffer;
+                if (type.Test(ImageMemoryTypeBits::ShaderAtomicAccess)) {
+                    fff |= vk::FormatFeatureFlagBits::eStorageTexelBufferAtomic;
+                }
+            }
+        }
+        if (type.Test(ImageMemoryTypeBits::ColorAttachment)) {
+            fff |= vk::FormatFeatureFlagBits::eColorAttachment | vk::FormatFeatureFlagBits::eColorAttachmentBlend;
+        }
+        if (type.Test(ImageMemoryTypeBits::DepthStencilAttachment)) {
+            fff |= vk::FormatFeatureFlagBits::eDepthStencilAttachment;
+        }
+        return fff;
+    }
+}
+
 namespace Engine::RenderSystemState {
     struct AllocatorState::impl {
         VmaAllocator m_allocator{};
@@ -18,34 +73,31 @@ namespace Engine::RenderSystemState {
         static const std::tuple<vk::BufferUsageFlags, VmaAllocationCreateFlags, VmaMemoryUsage> GetBufferFlags(
             BufferType type
         ) {
-            switch (type) {
-            case BufferType::Staging:
-                return std::make_tuple(
-                    vk::BufferUsageFlagBits::eTransferSrc,
-                    VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
-                    VMA_MEMORY_USAGE_AUTO_PREFER_HOST
-                );
-            case BufferType::Readback:
-                return std::make_tuple(
-                    vk::BufferUsageFlagBits::eTransferDst,
-                    VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT,
-                    VMA_MEMORY_USAGE_AUTO_PREFER_HOST
-                );
-            case BufferType::Vertex:
-                return std::make_tuple(
-                    vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer
-                        | vk::BufferUsageFlagBits::eVertexBuffer,
-                    0,
-                    VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE
-                );
-            case BufferType::Uniform:
-                return std::make_tuple(
-                    vk::BufferUsageFlagBits::eUniformBuffer,
-                    VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT,
-                    VMA_MEMORY_USAGE_AUTO_PREFER_HOST
-                );
+            vk::BufferUsageFlags buf{};
+            VmaAllocationCreateFlags vacf{};
+
+            if (type.Test(BufferTypeBits::CopyFrom))        buf |= vk::BufferUsageFlagBits::eTransferSrc;
+            if (type.Test(BufferTypeBits::CopyTo))          buf |= vk::BufferUsageFlagBits::eTransferDst;
+            if (type.Test(BufferTypeBits::ShaderReadOnly)) {
+                buf |= vk::BufferUsageFlagBits::eUniformBuffer;
+                if (type.Test(BufferTypeBits::ImagelikeAccess)) {
+                    buf |= vk::BufferUsageFlagBits::eUniformTexelBuffer;
+                }
             }
-            return std::make_tuple(vk::BufferUsageFlags{}, 0, VMA_MEMORY_USAGE_AUTO);
+            if (type.Test(BufferTypeBits::ShaderWrite)) {
+                buf |= vk::BufferUsageFlagBits::eStorageBuffer;
+                if (type.Test(BufferTypeBits::ImagelikeAccess)) {
+                    buf |= vk::BufferUsageFlagBits::eStorageTexelBuffer;
+                }
+            }
+            if (type.Test(BufferTypeBits::Index))               buf |= vk::BufferUsageFlagBits::eIndexBuffer;
+            if (type.Test(BufferTypeBits::Vertex))              buf |= vk::BufferUsageFlagBits::eVertexBuffer;
+            if (type.Test(BufferTypeBits::IndirectDrawCommand)) buf |= vk::BufferUsageFlagBits::eIndirectBuffer;
+
+            if (type.Test(BufferTypeBits::HostRandomAccess))        vacf |= VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
+            if (type.Test(BufferTypeBits::HostSequentialAccess))    vacf |= VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+
+            return std::make_tuple(buf, vacf, VMA_MEMORY_USAGE_AUTO);
         }
 
         const auto & UpdateFormatSupportInfo(vk::PhysicalDevice dev, vk::Format format) {
@@ -114,12 +166,12 @@ namespace Engine::RenderSystemState {
          * positive if fully supported in optimal tiling.
          * The second item of the pair returns supported features.
          */
-        std::pair<int, vk::FormatFeatureFlags> QueryFormatSupport(vk::PhysicalDevice dev, vk::Format format, ImageUtils::ImageType type) {
+        std::pair<int, vk::FormatFeatureFlags> QueryFormatSupport(vk::PhysicalDevice dev, vk::Format format, ImageMemoryType type) {
             const auto & s = UpdateFormatSupportInfo(dev, format);
-            if (!(~s.formatProperties.optimalTilingFeatures & ImageUtils::GetFormatFeatures(type))) {
+            if (!(~s.formatProperties.optimalTilingFeatures & GetFormatFeatures(type))) {
                 return std::make_pair(1, s.formatProperties.optimalTilingFeatures);
             }
-            if (!(~s.formatProperties.linearTilingFeatures & ImageUtils::GetFormatFeatures(type))) {
+            if (!(~s.formatProperties.linearTilingFeatures & GetFormatFeatures(type))) {
                 return std::make_pair(-1, s.formatProperties.optimalTilingFeatures);
             }
             return std::make_pair(0, s.formatProperties.optimalTilingFeatures);
@@ -167,7 +219,7 @@ namespace Engine::RenderSystemState {
         vk::detail::resultCheck(vk::Result{result}, "Failed to create buffer.");
         assert(buffer != nullptr && allocation != nullptr);
         DEBUG_SET_NAME_TEMPLATE(m_system.GetDevice(), static_cast<vk::Buffer>(buffer), name);
-        return BufferAllocation(static_cast<vk::Buffer>(buffer), allocation, pimpl->m_allocator);
+        return BufferAllocation(static_cast<vk::Buffer>(buffer), allocation, pimpl->m_allocator, type);
     }
 
     std::unique_ptr<BufferAllocation> AllocatorState::AllocateBufferUnique(
@@ -180,7 +232,7 @@ namespace Engine::RenderSystemState {
     }
 
     std::unique_ptr<ImageAllocation> AllocatorState::AllocateImageUnique(
-        ImageUtils::ImageType type,
+        ImageMemoryType type,
         vk::ImageType dimension,
         vk::Extent3D extent,
         vk::Format format,
@@ -190,7 +242,7 @@ namespace Engine::RenderSystemState {
         vk::SampleCountFlagBits samples,
         const std::string &name
     ) const noexcept try {
-        const auto [iusage, musage] = ImageUtils::GetImageFlags(type);
+        const auto [iusage, musage] = GetImageFlags(type);
         auto fsupport = pimpl->QueryFormatSupport(m_system.GetDeviceInterface().GetPhysicalDevice(), format, type);
         if (fsupport.first <= 0) {
             SDL_LogError(
@@ -198,7 +250,7 @@ namespace Engine::RenderSystemState {
                 std::format(
                     "Format {} does not support requested features. We requested: {} but only {} are supported.",
                     to_string(format),
-                    to_string(ImageUtils::GetFormatFeatures(type)),
+                    to_string(GetFormatFeatures(type)),
                     to_string(fsupport.second)
                 ).c_str()
             );
@@ -281,7 +333,7 @@ namespace Engine::RenderSystemState {
         VmaAllocation allocation;
         vmaCreateImage(pimpl->m_allocator, &iinfo2, &ainfo, &image, &allocation, nullptr);
         DEBUG_SET_NAME_TEMPLATE(m_system.GetDevice(), static_cast<vk::Image>(image), name);
-        return std::unique_ptr<ImageAllocation>(new ImageAllocation(static_cast<vk::Image>(image), allocation, pimpl->m_allocator));
+        return std::unique_ptr<ImageAllocation>(new ImageAllocation(static_cast<vk::Image>(image), allocation, pimpl->m_allocator, type));
     }
     catch (std::exception &e) {
         SDL_LogError(SDL_LOG_CATEGORY_RENDER, e.what());
@@ -297,7 +349,7 @@ namespace Engine::RenderSystemState {
     }
 
     ImageAllocation AllocatorState::AllocateImage(
-        ImageUtils::ImageType type,
+        ImageMemoryType type,
         vk::ImageType dimension,
         vk::Extent3D extent,
         vk::Format format,

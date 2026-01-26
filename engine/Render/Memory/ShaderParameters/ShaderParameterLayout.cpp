@@ -1,6 +1,9 @@
 #include "ShaderParameterLayout.h"
 #include "ShaderParameter.h"
 
+#include "../StructuredBuffer.h"
+#include "../StructuredBufferPlacer.h"
+
 // CMake is messing with the SPIRV-Cross in Vulkan SDK
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Weffc++"
@@ -9,60 +12,32 @@
 #include <vulkan/vulkan.hpp>
 #include <SDL3/SDL.h>
 
-namespace {
-    Engine::ShdrRfl::SPAssignableSimple::Type GetSimpleAssignableType (
-        const spirv_cross::SPIRType & type
-    ) {
-        using namespace Engine::ShdrRfl;
-        if (type.basetype == spirv_cross::SPIRType::Struct) {
-            // Recursive structure...
-            assert(!"Recursive struct not supported.");
-            return SPAssignableSimple::Type::Unknown;
-        } 
-        if (type.columns > 1) {
-            // This is a matrix
-            assert(type.vecsize == 4 && type.columns == 4);
-            assert(type.basetype == spirv_cross::SPIRType::Float);
-            return SPAssignableSimple::Type::FMat4;
-        }
-        if (type.vecsize > 1) {
-            // This is a vector
-            assert(type.vecsize == 4);
-            assert(type.basetype == spirv_cross::SPIRType::Float);
-            return SPAssignableSimple::Type::FVec4;
-        }
-        // This is a scalar
-        switch(type.basetype) {
-        case spirv_cross::SPIRType::Float:
-            return SPAssignableSimple::Type::Float;
-            break;
-        case spirv_cross::SPIRType::Int:
-            return SPAssignableSimple::Type::Sint;
-            break;
-        case spirv_cross::SPIRType::UInt:
-            return SPAssignableSimple::Type::Uint;
-            break;
-        default:
-            assert(!"Unimplemented type.");
-        }
-        return SPAssignableSimple::Type::Unknown;
-    }
+namespace Engine::ShdrRfl {
+    // Types are only added and never removed.
+    // We will have no more than ~100 shaders, so this
+    // might be Ok anyway.
+    struct TypeStorage {
+        std::vector <std::unique_ptr<StructuredBufferPlacer>> structured_buffers;
+    };
+    static TypeStorage type_storage;
+}
 
+namespace {
     void ReflectSimpleStruct(
         Engine::ShdrRfl::SPLayout & layout,
-        Engine::ShdrRfl::SPInterfaceBuffer & root,
+        Engine::ShdrRfl::SPInterfaceStructuredBuffer & root,
         const spirv_cross::Resource & buffer,
         const spirv_cross::Compiler & compiler
     ) {
+        using namespace Engine;
         using namespace Engine::ShdrRfl;
         // Construct the underlying type
-        auto struct_type_ptr = std::unique_ptr<SPTypeSimpleStruct>(new SPTypeSimpleStruct{});
+        auto placer = std::unique_ptr<StructuredBufferPlacer>(new StructuredBufferPlacer{});
         auto &type = compiler.get_type(buffer.base_type_id);
 
-        struct_type_ptr->expected_size = compiler.get_declared_struct_size(type);
-        assert(struct_type_ptr->expected_size > 0 && "Dynamic array not supported.");
-
         unsigned member_count = type.member_types.size();
+
+        // For every member
         for (unsigned i = 0; i < member_count; i++)
         {
             auto &member_type = compiler.get_type(type.member_types[i]);
@@ -76,56 +51,46 @@ namespace {
             // Get member offset within this struct.
             const size_t offset = compiler.type_struct_member_offset(type, i);
             const auto &name = compiler.get_member_name(type.self, i);
+
+            // Simple array
             if (!member_type.array.empty()){
-                assert(member_type.array.size() == 1 && "Multi-dimensional array is unsupported");
-                SPTypeSimpleArray * array_type_ptr = nullptr;
-                SPTypeSimpleArray array_type;
-                array_type.array_length = member_type.array.size();
-                array_type.type = GetSimpleAssignableType(member_type);
-                for (const auto & type : SPLayout::types) {
-                    auto found_array_type_ptr = dynamic_cast<SPTypeSimpleArray *>(type.get()); 
-                    if (found_array_type_ptr) {
-                        if (found_array_type_ptr->array_length == array_type.array_length 
-                            && found_array_type_ptr->type == array_type.type) {
-                            array_type_ptr = found_array_type_ptr;
-                        }
+                assert(!"Support for array variables is unimplemented.");
+            } else {
+                const auto qualified_name = root.name + "::" + name;
+                if (member_type.basetype == spirv_cross::SPIRType::Struct) {
+                    // Recursive structure...
+                    assert(!"Recursive struct not supported.");
+                } else if (member_type.columns > 1) {
+                    // This is a matrix
+                    assert(member_type.vecsize == 4 && member_type.columns == 4);
+                    assert(member_type.basetype == spirv_cross::SPIRType::Float);
+                    placer->AddVariable<float[16]>(qualified_name, offset);
+                } else if (member_type.vecsize > 1) {
+                    // This is a vector
+                    assert(member_type.vecsize == 4);
+                    assert(member_type.basetype == spirv_cross::SPIRType::Float);
+                    placer->AddVariable<float[4]>(qualified_name, offset);
+                } else {
+                    // This is a scalar
+                    switch(member_type.basetype) {
+                    case spirv_cross::SPIRType::Float:
+                        placer->AddVariable<float>(qualified_name, offset);
+                        break;
+                    case spirv_cross::SPIRType::Int:
+                        placer->AddVariable<int32_t>(qualified_name, offset);
+                        break;
+                    case spirv_cross::SPIRType::UInt:
+                        placer->AddVariable<uint32_t>(qualified_name, offset);
+                        break;
+                    default:
+                        assert(!"Unimplemented type.");
                     }
                 }
-                if (array_type_ptr == nullptr) {
-                    auto new_unique_type_ptr = std::unique_ptr<SPTypeSimpleArray>(new SPTypeSimpleArray(array_type));
-                    array_type_ptr = new_unique_type_ptr.get();
-                    SPLayout::types.emplace_back(std::move(new_unique_type_ptr));
-                }
-
-                auto mem_ptr = std::unique_ptr <SPAssignableArray>(new SPAssignableArray{});
-                mem_ptr->name = root.name + "::" + name;
-                mem_ptr->absolute_offset = offset;
-                mem_ptr->parent_interface = &root;
-                mem_ptr->underlying_type = array_type_ptr;
-
-                struct_type_ptr->members.push_back(mem_ptr.get());
-                if (layout.name_mapping.contains(name)) {
-                    SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Duplicated variable name: %s", name.c_str());
-                }
-                layout.name_mapping[name] = mem_ptr.get();
-                layout.variables.emplace_back(std::move(mem_ptr));
-            } else {
-                auto mem_ptr = std::unique_ptr <SPAssignableSimple>(new SPAssignableSimple{});
-                mem_ptr->name = root.name + "::" + name;
-                mem_ptr->absolute_offset = offset;
-                mem_ptr->parent_interface = &root;
-                mem_ptr->type = GetSimpleAssignableType(member_type);
-                struct_type_ptr->members.push_back(mem_ptr.get());
-                if (layout.name_mapping.contains(name)) {
-                    SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Duplicated variable name: %s", name.c_str());
-                }
-                layout.name_mapping[name] = mem_ptr.get();
-                layout.variables.emplace_back(std::move(mem_ptr));
             }
             
         }
-        root.underlying_type = struct_type_ptr.get();
-        SPLayout::types.emplace_back(std::move(struct_type_ptr));
+        root.buffer_placer = placer.get();
+        type_storage.structured_buffers.emplace_back(std::move(placer));
     }
 
     void FillImageInfo(
@@ -162,29 +127,6 @@ namespace {
             SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Unidentified image dimension.");
         }
     }
-
-    template <typename T> requires std::is_trivially_copyable_v<T>
-    bool CopyToBuffer (
-        std::byte * pbuf,
-        const Engine::ShdrRfl::SPAssignable * assignable,
-        const Engine::ShdrRfl::ShaderParameters::ParameterVariant & v
-    ) {
-        auto pv = std::get_if<T>(&v);
-        if (!pv) {
-            SDL_LogWarn(
-                SDL_LOG_CATEGORY_RENDER,
-                "Skipping mistyped variable %s.",
-                assignable->name.c_str()
-            );
-            return false;
-        }
-        std::memcpy(
-            pbuf,
-            pv,
-            sizeof(T)
-        );
-        return true;
-    };
 }
 
 /**
@@ -209,18 +151,17 @@ namespace {
  * be intermingled. This can save us a lot of headaches.
  */
 namespace Engine::ShdrRfl {
-    std::vector <std::unique_ptr<SPType>> Engine::ShdrRfl::SPLayout::types{};
 
     SPLayout::DescriptorSetWrite SPLayout::GenerateDescriptorSetWrite(
         uint32_t set, const ShaderParameters &interfaces
     ) const noexcept {
         DescriptorSetWrite write;
 
-        for (auto pinterface : this->interfaces) {
+        for (const auto & pinterface : this->interfaces) {
             if (pinterface->layout_set != set) continue;
-
-            auto itr = interfaces.interfaces.find(pinterface->name);
-            if (itr == interfaces.interfaces.end()) {
+            auto & intfc = interfaces.GetInterfaces();
+            auto itr = intfc.find(pinterface->name);
+            if (itr == intfc.end()) {
                 SDL_LogWarn(
                     SDL_LOG_CATEGORY_RENDER,
                     "Skipping unassigned interface %s.",
@@ -229,7 +170,7 @@ namespace Engine::ShdrRfl {
                 continue;
             }
 
-            if (auto popaque = dynamic_cast<const SPInterfaceOpaqueImage *>(pinterface)) {
+            if (auto popaque = dynamic_cast<const SPInterfaceOpaqueImage *>(pinterface.get())) {
                 auto pimg = std::get_if<std::shared_ptr<const Texture>>(&itr->second);
                 if (pimg) {
                     assert(popaque->array_size == 0);
@@ -251,7 +192,7 @@ namespace Engine::ShdrRfl {
                         pinterface->name.c_str()
                     );
                 }
-            } else if (auto pstorage = dynamic_cast<const SPInterfaceOpaqueStorageImage *>(pinterface)) {
+            } else if (auto pstorage = dynamic_cast<const SPInterfaceOpaqueStorageImage *>(pinterface.get())) {
                 auto pimg = std::get_if<std::shared_ptr<const Texture>>(&itr->second);
                 if (pimg) {
                     assert(pstorage->array_size == 0);
@@ -275,17 +216,33 @@ namespace Engine::ShdrRfl {
                         pinterface->name.c_str()
                     );
                 }
-            } else if (auto pbuffer = dynamic_cast<const SPInterfaceBuffer *>(pinterface)) {
-                if (auto pbuf = std::get_if<std::tuple<std::reference_wrapper<const Buffer>, size_t, size_t>>(&itr->second)) {
-                    auto offset = std::get<1>(*pbuf);
-                    auto range = std::get<2>(*pbuf) > 0 ? std::get<2>(*pbuf) : vk::WholeSize;
-
-                    vk::DescriptorType type;
-                    if (pbuffer->type == SPInterfaceBuffer::Type::StorageBuffer) {
-                        type = vk::DescriptorType::eStorageBuffer;
-                    } else if (pbuffer->type == SPInterfaceBuffer::Type::UniformBuffer) {
-                        type = vk::DescriptorType::eUniformBuffer;
-                    } 
+            } 
+            // The interface is a buffer
+            else if (auto pbuffer = dynamic_cast<const SPInterfaceBuffer *>(pinterface.get())) {
+                if (auto pbuf = std::get_if<std::tuple<std::reference_wrapper<const DeviceBuffer>, size_t, size_t>>(&itr->second)) {
+                    auto desctp = 
+                        pbuffer->type == SPInterfaceBuffer::Type::StorageBuffer ?
+                        vk::DescriptorType::eStorageBuffer : vk::DescriptorType::eUniformBuffer;
+                    auto [buffer, offset, range] = *pbuf;
+                    if (desctp == vk::DescriptorType::eStorageBuffer) {
+                        if (!buffer.get().GetType().Test(BufferTypeBits::ShaderWrite)) {
+                            SDL_LogWarn(
+                                SDL_LOG_CATEGORY_RENDER,
+                                "Interface %s is not assigned to a storage buffer.",
+                                pinterface->name.c_str()
+                            );
+                            continue;
+                        }
+                    } else if (desctp == vk::DescriptorType::eUniformBuffer) {
+                        if (!buffer.get().GetType().Test(BufferTypeBits::ShaderReadOnly)) {
+                            SDL_LogWarn(
+                                SDL_LOG_CATEGORY_RENDER,
+                                "Interface %s is not assigned to a uniform buffer.",
+                                pinterface->name.c_str()
+                            );
+                            continue;
+                        }
+                    }
 
                     write.buffer.push_back(
                         std::make_tuple(
@@ -293,21 +250,35 @@ namespace Engine::ShdrRfl {
                             vk::DescriptorBufferInfo {
                                 std::get<0>(*pbuf).get().GetBuffer(),
                                 offset,
-                                range
+                                range == 0 ? vk::WholeSize : range
                             },
-                            type
+                            desctp
                         )
                     );
-                } else if (auto pbuf = std::get_if<std::tuple<std::shared_ptr<const Buffer>, size_t, size_t>>(&itr->second)) {
-                    auto offset = std::get<1>(*pbuf);
-                    auto range = std::get<2>(*pbuf) > 0 ? std::get<2>(*pbuf) : vk::WholeSize;
-
-                    vk::DescriptorType type;
-                    if (pbuffer->type == SPInterfaceBuffer::Type::StorageBuffer) {
-                        type = vk::DescriptorType::eStorageBuffer;
-                    } else if (pbuffer->type == SPInterfaceBuffer::Type::UniformBuffer) {
-                        type = vk::DescriptorType::eUniformBuffer;
-                    } 
+                } else if (auto pbuf = std::get_if<std::tuple<std::shared_ptr<const DeviceBuffer>, size_t, size_t>>(&itr->second)) {
+                    auto desctp = 
+                        pbuffer->type == SPInterfaceBuffer::Type::StorageBuffer ?
+                        vk::DescriptorType::eStorageBuffer : vk::DescriptorType::eUniformBuffer;
+                    auto [buffer, offset, range] = *pbuf;
+                    if (desctp == vk::DescriptorType::eStorageBuffer) {
+                        if (!buffer->GetType().Test(BufferTypeBits::ShaderWrite)) {
+                            SDL_LogWarn(
+                                SDL_LOG_CATEGORY_RENDER,
+                                "Interface %s is not assigned to a storage buffer.",
+                                pinterface->name.c_str()
+                            );
+                            continue;
+                        }
+                    } else if (desctp == vk::DescriptorType::eUniformBuffer) {
+                        if (!buffer->GetType().Test(BufferTypeBits::ShaderReadOnly)) {
+                            SDL_LogWarn(
+                                SDL_LOG_CATEGORY_RENDER,
+                                "Interface %s is not assigned to a uniform buffer.",
+                                pinterface->name.c_str()
+                            );
+                            continue;
+                        }
+                    }
 
                     write.buffer.push_back(
                         std::make_tuple(
@@ -315,12 +286,13 @@ namespace Engine::ShdrRfl {
                             vk::DescriptorBufferInfo {
                                 std::get<0>(*pbuf)->GetBuffer(),
                                 offset,
-                                range
+                                range == 0 ? vk::WholeSize : range
                             },
-                            type
+                            desctp
                         )
                     );
-                } else {
+                }
+                else {
                     SDL_LogWarn(
                         SDL_LOG_CATEGORY_RENDER,
                         "Interface %s is not assigned to a buffer nor image.",
@@ -334,72 +306,18 @@ namespace Engine::ShdrRfl {
     }
 
     void SPLayout::PlaceBufferVariable(
-        std::vector<std::byte> &buffer, const SPInterfaceBuffer *interface, const ShaderParameters &arguments
+        std::vector<std::byte> &buffer, const SPInterfaceStructuredBuffer & interface, const ShaderParameters &arguments
     ) const noexcept {
-        assert(interface);
-        auto ptype = dynamic_cast<const SPTypeSimpleStruct *>(interface->underlying_type);
-        assert(ptype);
-        buffer.resize(ptype->expected_size);
-
-        for (auto pmember : ptype->members) {
-            auto itr = arguments.arguments.find(pmember->name);
-            if (itr == arguments.arguments.end()) {
-                SDL_LogWarn(
-                    SDL_LOG_CATEGORY_RENDER,
-                    "Skipping unassigned variable %s.",
-                    pmember->name.c_str()
-                );
-                continue;
-            }
-            if (auto ps = dynamic_cast<const SPAssignableSimple *>(pmember)) {
-                switch(ps->type) {
-                case SPAssignableSimple::Type::Uint:
-                    CopyToBuffer<uint32_t>(&buffer[ps->absolute_offset], ps, itr->second);
-                    break;
-                case SPAssignableSimple::Type::Sint:
-                    CopyToBuffer<int32_t>(&buffer[ps->absolute_offset], ps, itr->second);
-                    break;
-                case SPAssignableSimple::Type::Float:
-                    CopyToBuffer<float>(&buffer[ps->absolute_offset], ps, itr->second);
-                    break;
-                case SPAssignableSimple::Type::FVec4:
-                    CopyToBuffer<glm::vec4>(&buffer[ps->absolute_offset], ps, itr->second);
-                    break;
-                case SPAssignableSimple::Type::FMat4:
-                    CopyToBuffer<glm::mat4>(&buffer[ps->absolute_offset], ps, itr->second);
-                    break;
-                default:
-                    SDL_LogWarn(
-                        SDL_LOG_CATEGORY_RENDER,
-                        "Unknown type for variable %s",
-                        ps->name.c_str()
-                    );
-                }
-            } else if (auto pa = dynamic_cast<const SPAssignableArray *>(pmember)) {
-                auto ptype = dynamic_cast<const SPTypeSimpleArray *>(pa->underlying_type);
-                assert(ptype);
-
-                SDL_LogWarn(
-                    SDL_LOG_CATEGORY_RENDER,
-                    "Ignoring array typed assignable %s.",
-                    pmember->name.c_str()
-                );
-            } else {
-                SDL_LogWarn(
-                    SDL_LOG_CATEGORY_RENDER,
-                    "Unknown shader assignable %s.",
-                    pmember->name.c_str()
-                );
-            }
-        }
+        assert(interface.buffer_placer);
+        interface.buffer_placer->WriteBuffer(arguments.GetStructuredBuffer(), buffer);
     }
 
     std::unordered_map<uint32_t, std::vector<vk::DescriptorSetLayoutBinding>> SPLayout::
         GenerateAllLayoutBindings() const {
         std::unordered_map <uint32_t, std::vector <vk::DescriptorSetLayoutBinding>> sets;
 
-        for (auto interface : this->interfaces) {
-            if (auto ptr = dynamic_cast<const SPInterfaceBuffer *>(interface)) {
+        for (const auto & interface : this->interfaces) {
+            if (auto ptr = dynamic_cast<const SPInterfaceBuffer *>(interface.get())) {
                 if (ptr->type == SPInterfaceBuffer::Type::UniformBuffer) {
                     sets[ptr->layout_set].emplace_back(vk::DescriptorSetLayoutBinding{
                         ptr->layout_binding,
@@ -422,7 +340,7 @@ namespace Engine::ShdrRfl {
                         "Ignoring buffer with unknown type."
                     );
                 }
-            } else if (auto ptr = dynamic_cast<const SPInterfaceOpaqueImage *>(interface)) {
+            } else if (auto ptr = dynamic_cast<const SPInterfaceOpaqueImage *>(interface.get())) {
                 sets[ptr->layout_set].emplace_back(vk::DescriptorSetLayoutBinding{
                     ptr->layout_binding,
                     vk::DescriptorType::eCombinedImageSampler,
@@ -430,7 +348,7 @@ namespace Engine::ShdrRfl {
                     vk::ShaderStageFlagBits::eAll,
                     {}
                 });
-            } else if (auto ptr = dynamic_cast<const SPInterfaceOpaqueStorageImage *>(interface)) {
+            } else if (auto ptr = dynamic_cast<const SPInterfaceOpaqueStorageImage *>(interface.get())) {
                 sets[ptr->layout_set].emplace_back(vk::DescriptorSetLayoutBinding{
                     ptr->layout_binding,
                     vk::DescriptorType::eStorageImage,
@@ -452,8 +370,8 @@ namespace Engine::ShdrRfl {
     std::vector<vk::DescriptorSetLayoutBinding> SPLayout::GenerateLayoutBindings(uint32_t set) const {
         std::vector <vk::DescriptorSetLayoutBinding> bindings;
 
-        for (auto interface : this->interfaces) {
-            if (auto ptr = dynamic_cast<const SPInterfaceBuffer *>(interface)) {
+        for (const auto & interface : this->interfaces) {
+            if (auto ptr = dynamic_cast<const SPInterfaceBuffer *>(interface.get())) {
                 if (ptr->layout_set != set) continue;
 
                 if (ptr->type == SPInterfaceBuffer::Type::UniformBuffer) {
@@ -478,7 +396,7 @@ namespace Engine::ShdrRfl {
                         "Ignoring buffer with unknown type."
                     );
                 }
-            } else if (auto ptr = dynamic_cast<const SPInterfaceOpaqueImage *>(interface)) {
+            } else if (auto ptr = dynamic_cast<const SPInterfaceOpaqueImage *>(interface.get())) {
                 bindings.emplace_back(vk::DescriptorSetLayoutBinding{
                     ptr->layout_binding,
                     vk::DescriptorType::eCombinedImageSampler,
@@ -486,7 +404,7 @@ namespace Engine::ShdrRfl {
                     vk::ShaderStageFlagBits::eAll,
                     {}
                 });
-            } else if (auto ptr = dynamic_cast<const SPInterfaceOpaqueStorageImage *>(interface)) {
+            } else if (auto ptr = dynamic_cast<const SPInterfaceOpaqueStorageImage *>(interface.get())) {
                 bindings.emplace_back(vk::DescriptorSetLayoutBinding{
                     ptr->layout_binding,
                     vk::DescriptorType::eStorageImage,
@@ -506,9 +424,9 @@ namespace Engine::ShdrRfl {
     }
 
     void SPLayout::Merge(SPLayout &&other) {
-        for (auto & kv : other.name_mapping) {
+        for (auto & kv : other.interface_name_mapping) {
             const auto & name = kv.first;
-            if (this->name_mapping.contains(name)) {
+            if (this->interface_name_mapping.contains(name)) {
                 SDL_LogDebug(
                     SDL_LOG_CATEGORY_RENDER,
                     "Ignoring duplicated name %s.",
@@ -517,17 +435,13 @@ namespace Engine::ShdrRfl {
                 continue;
             }
 
-            // We don't have to do this recursively for now,
-            // as no recursive struct is processed,
-            // and named variables are all transferred whatsoever.
-
             // Add an entry pointing to the variable
-            this->name_mapping[name] = kv.second;
+            this->interface_name_mapping[name] = kv.second;
             {
                 auto ptr = dynamic_cast<const SPInterface *>(kv.second);
                 if (ptr) {
                     bool found = false;
-                    for (auto p : this->interfaces) {
+                    for (const auto & p : this->interfaces) {
                         if (p->layout_set == ptr->layout_set && p->layout_binding == ptr->layout_binding) {
                             SDL_LogWarn(
                                 SDL_LOG_CATEGORY_RENDER,
@@ -539,22 +453,24 @@ namespace Engine::ShdrRfl {
                             found = true;
                         }
                     }
-                    if (!found) this->interfaces.push_back(ptr);
+                    if (!found) {
+                        auto other_ptr = std::find_if(
+                            other.interfaces.begin(),
+                            other.interfaces.end(),
+                            [ptr] (const std::unique_ptr <SPInterface> & p) {
+                                return p.get() == ptr;
+                            }
+                        );
+                        assert(other_ptr != other.interfaces.end());
+                        this->interfaces.push_back(std::move(*other_ptr));
+                    }
                 }
             }
             
-            // Transfer ownership of the variable
-            for (auto & uptr : other.variables) {
-                if (uptr.get() == kv.second) {
-                    this->variables.emplace_back(std::move(uptr));
-                    break;
-                }
-            }
         }
 
-        other.variables.clear();
         other.interfaces.clear();
-        other.name_mapping.clear();
+        other.interface_name_mapping.clear();
     }
 
     SPLayout Engine::ShdrRfl::SPLayout::Reflect(
@@ -580,12 +496,11 @@ namespace Engine::ShdrRfl {
             const auto &type = compiler.get_type(image.type_id);
             FillImageInfo(*ptr, type);
 
-            layout.interfaces.push_back(ptr.get());
-            if (layout.name_mapping.contains(image.name)) {
+            if (layout.interface_name_mapping.contains(image.name)) {
                 SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Duplicated resource name: %s", image.name.c_str());
             }
-            layout.name_mapping[image.name] = ptr.get();
-            layout.variables.emplace_back(std::move(ptr));
+            layout.interface_name_mapping[image.name] = ptr.get();
+            layout.interfaces.push_back(std::move(ptr));
         }
 
         // Storage images
@@ -598,12 +513,11 @@ namespace Engine::ShdrRfl {
             ptr->layout_set = desc_set;
             ptr->layout_binding = compiler.get_decoration(image.id, spv::DecorationBinding);
 
-            layout.interfaces.push_back(ptr.get());
-            if (layout.name_mapping.contains(image.name)) {
+            if (layout.interface_name_mapping.contains(image.name)) {
                 SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Duplicated resource name: %s", image.name.c_str());
             }
-            layout.name_mapping[image.name] = ptr.get();
-            layout.variables.emplace_back(std::move(ptr));
+            layout.interface_name_mapping[image.name] = ptr.get();
+            layout.interfaces.push_back(std::move(ptr));
         }
 
         // Other opaque types are currently unsupported
@@ -622,7 +536,7 @@ namespace Engine::ShdrRfl {
             auto desc_set = compiler.get_decoration(ubo.id, spv::DecorationDescriptorSet);
             if (filter_out_low_descriptors && desc_set < 2) continue;
 
-            auto buffer_interface_ptr = std::unique_ptr<SPInterfaceBuffer>(new SPInterfaceBuffer{});
+            auto buffer_interface_ptr = std::unique_ptr<SPInterfaceStructuredBuffer>(new SPInterfaceStructuredBuffer{});
             buffer_interface_ptr->type = SPInterfaceBuffer::Type::UniformBuffer;
             buffer_interface_ptr->name = ubo.name;
 
@@ -630,12 +544,12 @@ namespace Engine::ShdrRfl {
 
             buffer_interface_ptr->layout_set = desc_set;
             buffer_interface_ptr->layout_binding = compiler.get_decoration(ubo.id, spv::DecorationBinding);
-            layout.interfaces.push_back(buffer_interface_ptr.get());
-            if (layout.name_mapping.contains(ubo.name)) {
+
+            if (layout.interface_name_mapping.contains(ubo.name)) {
                 SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Duplicated resource name: %s", ubo.name.c_str());
             }
-            layout.name_mapping[ubo.name] = buffer_interface_ptr.get();
-            layout.variables.emplace_back(std::move(buffer_interface_ptr));
+            layout.interface_name_mapping[ubo.name] = buffer_interface_ptr.get();
+            layout.interfaces.push_back(std::move(buffer_interface_ptr));
         }
 
         // SSBOs
@@ -647,29 +561,26 @@ namespace Engine::ShdrRfl {
             buffer_interface_ptr->type = SPInterfaceBuffer::Type::StorageBuffer;
             buffer_interface_ptr->name = ssbo.name;
 
-            ReflectSimpleStruct(layout, *buffer_interface_ptr, ssbo, compiler);
-
             buffer_interface_ptr->layout_set = desc_set;
             buffer_interface_ptr->layout_binding = compiler.get_decoration(ssbo.id, spv::DecorationBinding);
-            layout.interfaces.push_back(buffer_interface_ptr.get());
-            if (layout.name_mapping.contains(ssbo.name)) {
+            
+            if (layout.interface_name_mapping.contains(ssbo.name)) {
                 SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Duplicated resource name: %s", ssbo.name.c_str());
             }
-            layout.name_mapping[ssbo.name] = buffer_interface_ptr.get();
-            layout.variables.emplace_back(std::move(buffer_interface_ptr));
+            layout.interface_name_mapping[ssbo.name] = buffer_interface_ptr.get();
+            layout.interfaces.push_back(std::move(buffer_interface_ptr));
         }
 
         std::sort(
             layout.interfaces.begin(),
             layout.interfaces.end(),
-            [](const SPInterface * lhs, const SPInterface * rhs) -> bool {
+            [](const std::unique_ptr <SPInterface> & lhs, const std::unique_ptr <SPInterface> & rhs) -> bool {
                 if (lhs->layout_set != rhs->layout_set) {
                     return lhs->layout_set < rhs->layout_set;
                 }
                 return lhs->layout_binding < rhs->layout_binding;
             }
         );
-        
 
         return layout;
     }

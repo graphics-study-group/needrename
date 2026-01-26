@@ -62,15 +62,15 @@ namespace Engine {
         bloom_compute_stage->AssignTexture("inputImage", m_hdr_color_target);
         bloom_compute_stage->AssignTexture("outputImage", color_target_ptr);
 
-        this->RegisterImageAccess(color_target);
-        this->RegisterImageAccess(depth_target);
-        this->RegisterImageAccess(hdr_color_target);
-        this->RegisterImageAccess(shadow_target);
+        this->ImportExternalResource(color_target);
+        this->ImportExternalResource(depth_target);
+        this->ImportExternalResource(hdr_color_target);
+        this->ImportExternalResource(shadow_target);
 
         auto &system = m_system;
         auto &world = *MainClass::GetInstance()->GetWorldSystem();
-        using IAT = AccessHelper::ImageAccessType;
-        this->UseImage(*m_shadow_target, IAT::DepthAttachmentWrite);
+        using IAT = MemoryAccessTypeImageBits;
+        this->UseImage(*m_shadow_target, IAT::DepthStencilAttachmentWrite);
         this->RecordRasterizerPassWithoutRT([&system, &shadow_target](GraphicsCommandBuffer &gcb) {
             vk::Extent2D shadow_map_extent{
                 shadow_target.GetTextureDescription().width, shadow_target.GetTextureDescription().height
@@ -93,9 +93,9 @@ namespace Engine {
             gcb.EndRendering();
         });
 
-        this->UseImage(shadow_target, IAT::ShaderRead);
+        this->UseImage(shadow_target, IAT::ShaderSampledRead);
         this->UseImage(hdr_color_target, IAT::ColorAttachmentWrite);
-        this->UseImage(depth_target, IAT::DepthAttachmentWrite);
+        this->UseImage(depth_target, IAT::DepthStencilAttachmentWrite);
         this->RecordRasterizerPass(
             {&hdr_color_target, nullptr, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store},
             {&depth_target,
@@ -118,7 +118,7 @@ namespace Engine {
             "Main pass"
         );
 
-        this->UseImage(hdr_color_target, IAT::ShaderReadRandomWrite);
+        this->UseImage(hdr_color_target, IAT::ShaderRandomRead);
         this->UseImage(color_target, IAT::ShaderRandomWrite);
         this->RecordComputePass(
             [bloom_compute_stage, &color_target](ComputeCommandBuffer &ccb) {
@@ -132,7 +132,7 @@ namespace Engine {
             "Bloom FX pass"
         );
         // this make sure the color_target is COLOR_ATTACHMENT_OPTIMAL
-        this->UseImage(color_target, IAT::ColorAttachmentRead);
+        // this->UseImage(color_target, IAT::ColorAttachmentRead);
 
         return this->BuildRenderGraph();
     }

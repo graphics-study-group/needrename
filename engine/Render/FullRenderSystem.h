@@ -38,9 +38,17 @@
 #include "Render/Renderer/VertexAttribute.h"
 #include "Render/Renderer/HomogeneousMesh.h"
 
+#include "Render/Memory/MemoryTypes.h"
+#include "Render/Memory/MemoryAccessTypes.h"
+
 #include "Render/Memory/Texture.h"
 #include "Render/Memory/RenderTargetTexture.h"
 #include "Render/Memory/ImageTexture.h"
+
+#include "Render/Memory/DeviceBuffer.h"
+#include "Render/Memory/StructuredBuffer.h"
+#include "Render/Memory/StructuredBufferPlacer.h"
+#include "Render/Memory/ComputeBuffer.h"
 
 #include "Render/RenderSystem.h"
 
