@@ -29,6 +29,13 @@ namespace Engine {
     RenderGraphBuilder::~RenderGraphBuilder() = default;
 
     void RenderGraphBuilder::ImportExternalResource(const Texture &texture, MemoryAccessTypeImageBits access) {
+        if (pimpl->m_texture_memo.accesses.contains(&texture)) {
+            SDL_LogWarn(
+                SDL_LOG_CATEGORY_RENDER,
+                "Importing an external texture resource %p after it has already been used by the render graph.",
+                &texture
+            );
+        }
         pimpl->m_texture_memo.UpdateLastAccess(&texture, -1, {access});
     }
 

@@ -32,12 +32,12 @@ namespace Engine {
 
             void EnsureRecordExists(const Texture * t) {
                 if (!accesses.contains(t)) {
-                    accesses[t] = {};
+                    accesses[t] = {{-1, MemoryAccessTypeImage{MemoryAccessTypeImageBits::None}}};
                 }
             }
 
             /**
-             * @brief Update last access entry of a given buffer.
+             * @brief Update last access entry of a given pass of a given image.
              */
             void UpdateLastAccess(const Texture * t, int32_t pass_index, MemoryAccessTypeImage access) {
                 EnsureRecordExists(t);
@@ -211,12 +211,12 @@ namespace Engine {
 
             void EnsureRecordExists(vk::Buffer b) {
                 if (!accesses.contains(b)) {
-                    accesses[b] = {};
+                    accesses[b] = {{-1, MemoryAccessTypeBuffer{MemoryAccessTypeBufferBits::None}}};
                 }
             }
 
             /**
-             * @brief Update last access entry of a given buffer.
+             * @brief Update access entry of a given pass of a given buffer.
              */
             void UpdateLastAccess(vk::Buffer b, int32_t pass_index, MemoryAccessTypeBuffer access) {
                 EnsureRecordExists(b);
