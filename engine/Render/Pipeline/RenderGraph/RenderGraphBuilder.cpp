@@ -14,8 +14,8 @@ namespace Engine {
         std::vector<RenderGraphImpl::Task> m_tasks{};
         std::vector <RenderGraphImpl::PassType> pass_types {};
 
-        RenderGraphImpl::PassType GetPassType(uint32_t pass_index) {
-            return pass_index == vk::SubpassExternal ? RenderGraphImpl::PassType::None : pass_types[pass_index];
+        RenderGraphImpl::PassType GetPassType(int32_t pass_index) {
+            return pass_index < 0 ? RenderGraphImpl::PassType::None : pass_types[pass_index];
         }
 
         RenderGraphImpl::TextureAccessMemo m_texture_memo;
@@ -28,7 +28,7 @@ namespace Engine {
     RenderGraphBuilder::~RenderGraphBuilder() = default;
 
     void RenderGraphBuilder::ImportExternalResource(const Texture &texture, MemoryAccessTypeImageBits access) {
-        pimpl->m_texture_memo.UpdateLastAccess(&texture, vk::SubpassExternal, {access});
+        pimpl->m_texture_memo.UpdateLastAccess(&texture, -1, {access});
     }
 
     void RenderGraphBuilder::UseImage(const Texture &texture, MemoryAccessTypeImageBits access) {

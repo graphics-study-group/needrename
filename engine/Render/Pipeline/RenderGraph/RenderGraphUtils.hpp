@@ -23,7 +23,7 @@ namespace Engine {
 
         struct TextureAccessMemo {
             struct Access {
-                uint32_t pass_index;
+                int32_t pass_index;
                 MemoryAccessTypeImage access;
             };
 
@@ -39,13 +39,18 @@ namespace Engine {
             /**
              * @brief Update last access entry of a given buffer.
              */
-            void UpdateLastAccess(const Texture * t, uint32_t pass_index, MemoryAccessTypeImage access) {
+            void UpdateLastAccess(const Texture * t, int32_t pass_index, MemoryAccessTypeImage access) {
                 EnsureRecordExists(t);
                 auto & v = accesses[t];
-                if(v.empty() || v.back().pass_index != pass_index) {
+                if(v.empty()) {
                     v.push_back({pass_index, access});
                 } else {
-                    v.back().access = access;
+                    auto itr = v.begin();
+                    while (itr->pass_index < pass_index && itr != v.end()) itr++;
+
+                    if (itr == v.end()) v.push_back({pass_index, access});
+                    else if (itr->pass_index == pass_index) itr->access = access;
+                    else v.insert(itr, {pass_index, access});
                 }
             }
 
@@ -79,6 +84,7 @@ namespace Engine {
                         SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Ignoring invaild access pattern.");
                     }
                 }
+                return ret;
             }
 
             static constexpr vk::AccessFlags2 GetAccessFlags(MemoryAccessTypeImage a) noexcept {
@@ -188,7 +194,7 @@ namespace Engine {
 
         struct BufferAccessMemo {
             struct Access {
-                uint32_t pass_index;
+                int32_t pass_index;
                 MemoryAccessTypeBuffer access;
             };
 
@@ -206,13 +212,18 @@ namespace Engine {
             /**
              * @brief Update last access entry of a given buffer.
              */
-            void UpdateLastAccess(vk::Buffer b, uint32_t pass_index, MemoryAccessTypeBuffer access) {
+            void UpdateLastAccess(vk::Buffer b, int32_t pass_index, MemoryAccessTypeBuffer access) {
                 EnsureRecordExists(b);
                 auto & v = accesses[b];
-                if(v.empty() || v.back().pass_index != pass_index) {
+                if(v.empty()) {
                     v.push_back({pass_index, access});
                 } else {
-                    v.back().access = access;
+                    auto itr = v.begin();
+                    while (itr->pass_index < pass_index && itr != v.end()) itr++;
+
+                    if (itr == v.end()) v.push_back({pass_index, access});
+                    else if (itr->pass_index == pass_index) itr->access = access;
+                    else v.insert(itr, {pass_index, access});
                 }
             }
 
