@@ -7,6 +7,7 @@
 #include "Framework/component/RenderComponent/MeshComponent.h"
 #include "Framework/component/RenderComponent/RendererComponent.h"
 #include "Render/Pipeline/CommandBuffer.h"
+#include "Render/Memory/MemoryAccessTypes.h"
 #include "Render/RenderSystem/AllocatorState.h"
 #include "Render/RenderSystem/FrameManager.h"
 #include "Render/RenderSystem/MaterialRegistry.h"
@@ -92,15 +93,35 @@ namespace Engine {
     }
 
     void RenderSystem::CompleteFrame(
-        const RenderTargetTexture &present_texture, uint32_t width, uint32_t height, uint32_t offset_x, uint32_t offset_y
+        const RenderTargetTexture &present_texture,
+        MemoryAccessTypeImageBits last_access,
+        uint32_t width,
+        uint32_t height,
+        uint32_t offset_x,
+        uint32_t offset_y
     ) {
         if (pimpl->m_frame_manager.PresentToFramebuffer(
             present_texture.GetImage(),
+            last_access,
             {width, height},
             {(int32_t)offset_x, (int32_t)offset_y}
         )) {
             this->UpdateSwapchain();
         }
+    }
+
+    void RenderSystem::CompleteFrame(
+        const RenderTargetTexture &present_texture,
+        uint32_t width,
+        uint32_t height,
+        uint32_t offset_x,
+        uint32_t offset_y
+    ) {
+        this->CompleteFrame(
+            present_texture,
+            MemoryAccessTypeImageBits::ColorAttachmentWrite,
+            width, height, offset_x, offset_y
+        );
     }
 
     vk::Device RenderSystem::GetDevice() const {

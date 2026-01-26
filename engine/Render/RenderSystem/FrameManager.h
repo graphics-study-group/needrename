@@ -12,6 +12,8 @@ namespace Engine {
     class GraphicsContext;
     class ComputeContext;
 
+    enum class MemoryAccessTypeImageBits;
+
     namespace RenderSystemState {
         class SubmissionHelper;
         class FrameSemaphore;
@@ -100,6 +102,7 @@ namespace Engine {
             [[nodiscard]]
             bool PresentToFramebuffer(
                 vk::Image image,
+                MemoryAccessTypeImageBits last_access,
                 vk::Extent2D extentSrc,
                 vk::Offset2D offsetSrc = {0, 0},
                 vk::Filter filter = vk::Filter::eLinear

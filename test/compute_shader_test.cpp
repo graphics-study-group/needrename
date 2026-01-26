@@ -110,6 +110,7 @@ int main(int argc, char *argv[]) {
 
         rsys->CompleteFrame(
             *color_present,
+            MemoryAccessTypeImageBits::ShaderRandomWrite,
             color_present->GetTextureDescription().width, 
             color_present->GetTextureDescription().height
         );
