@@ -6,6 +6,35 @@
 
 #include <SDL3/SDL.h>
 
+namespace {
+    inline vk::ImageMemoryBarrier2 GetImageBarrier(const Engine::Texture &texture,
+        Engine::RenderGraphImpl::ImageAccessTuple old_access,
+        Engine::RenderGraphImpl::ImageAccessTuple new_access) noexcept {
+        using namespace Engine;
+        vk::ImageMemoryBarrier2 barrier{};
+        barrier.image = texture.GetImage();
+        barrier.subresourceRange = vk::ImageSubresourceRange{
+            ImageUtils::GetVkAspect(texture.GetTextureDescription().format),
+            0,
+            vk::RemainingMipLevels,
+            0,
+            vk::RemainingArrayLayers
+        };
+
+        if (barrier.subresourceRange.aspectMask == vk::ImageAspectFlagBits::eNone) {
+            SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Failed to infer aspect range when inserting an image barrier.");
+            barrier.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor | vk::ImageAspectFlagBits::eDepth
+                                                    | vk::ImageAspectFlagBits::eStencil;
+        }
+
+        std::tie(barrier.srcStageMask, barrier.srcAccessMask, barrier.oldLayout) = old_access;
+        std::tie(barrier.dstStageMask, barrier.dstAccessMask, barrier.newLayout) = new_access;
+
+        barrier.dstQueueFamilyIndex = barrier.srcQueueFamilyIndex = vk::QueueFamilyIgnored;
+        return barrier;
+    }
+}
+
 namespace Engine {
     struct RenderGraph::impl {
         std::vector <std::function<void(vk::CommandBuffer)>> m_commands;
@@ -41,7 +70,7 @@ namespace Engine {
         if (itr == pimpl->m_initial_image_access.end() || itr->second == access_tuple)
             return;
 
-        pimpl->initial_sync.image_barriers.push_back(RenderGraphImpl::GetImageBarrier(texture, access_tuple, itr->second));
+        pimpl->initial_sync.image_barriers.push_back(GetImageBarrier(texture, access_tuple, itr->second));
     }
 
     void RenderGraph::AddExternalOutputDependency(Texture &texture, AccessHelper::ImageAccessType next_access) {
@@ -50,7 +79,7 @@ namespace Engine {
         if (itr == pimpl->m_final_image_access.end() || itr->second == access_tuple)
             return;
 
-        pimpl->final_sync.image_barriers.push_back(RenderGraphImpl::GetImageBarrier(texture, itr->second, access_tuple));
+        pimpl->final_sync.image_barriers.push_back(GetImageBarrier(texture, itr->second, access_tuple));
     }
 
     void RenderGraph::Record(vk::CommandBuffer cb) {
