@@ -27,10 +27,7 @@ namespace Engine {
                     std::vector <std::shared_ptr<const Texture>>,
                     // Buffer, offset and size
                     std::tuple<std::shared_ptr<const DeviceBuffer>, size_t, size_t>,
-                    std::tuple<std::reference_wrapper<const DeviceBuffer>, size_t, size_t>,
-                    // Compute buffer, which binds to storage buffers.
-                    std::shared_ptr<const ComputeBuffer>,
-                    std::reference_wrapper<const ComputeBuffer>
+                    std::tuple<std::reference_wrapper<const DeviceBuffer>, size_t, size_t>
                 >;
 
             void Assign(const std::string & name, uint32_t) noexcept;
@@ -67,16 +64,6 @@ namespace Engine {
                 const DeviceBuffer & buf, 
                 size_t offset = 0ULL, 
                 size_t size = 0ULL
-            ) noexcept;
-
-            void Assign(
-                const std::string & name, 
-                std::shared_ptr <const ComputeBuffer> buf
-            ) noexcept;
-
-            void Assign(
-                const std::string & name,
-                const ComputeBuffer & buf
             ) noexcept;
 
             const std::unordered_map <std::string, InterfaceVariant> & GetInterfaces() const noexcept;

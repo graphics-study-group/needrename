@@ -1,6 +1,7 @@
 #ifndef RENDER_MEMORY_STRUCTUREDBUFFER_INCLUDED
 #define RENDER_MEMORY_STRUCTUREDBUFFER_INCLUDED
 
+#include <span>
 #include <memory>
 #include <vector>
 #include <typeinfo>
@@ -55,22 +56,20 @@ namespace Engine {
             SetVariable(name, &val, sizeof(ActualType), typeid(ActualType));
         }
 
-        template <typename T>
+        template <typename T, size_t extent>
         void SetVariable(
             const std::string & name,
-            T val
+            std::span<T, extent> spn
         ) noexcept requires (
             std::is_standard_layout_v<T> &&
             std::is_trivially_copyable_v<T> &&
             !std::is_pointer_v<T> &&
-            std::is_array_v<T> && 
-            std::rank_v<T> == 1 &&
-            std::is_bounded_array_v<T>
+            !std::is_array_v<T> &&
+            extent != std::dynamic_extent
         ) {
-            constexpr auto ext = std::extent_v<T, 0>;
-            using ActualElemType = std::remove_cv_t<std::remove_extent_t<T>>;
-
-            SetVariable(name, val, sizeof(ActualElemType) * ext, typeid(ActualElemType[ext]));
+            static_assert(extent == spn.size());
+            using ActualType = std::remove_cvref_t<T>;
+            SetVariable(name, spn.data(), sizeof(ActualType) * extent, typeid(ActualType[extent]));
         }
 
         /**

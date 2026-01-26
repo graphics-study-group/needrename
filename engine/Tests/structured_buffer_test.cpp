@@ -44,11 +44,11 @@ int main() {
 
     subsb.SetVariable<uint32_t>("v1", 0x55AA55AA);
     subsb.SetVariable<double>("v2", 1e9);
-    subsb.SetVariable<float[3]>("v3", glm::value_ptr(v));
+    subsb.SetVariable<const float, 3>("v3", std::span<const float, 3>{glm::value_ptr(v), glm::value_ptr(v) + 3});
 
     supersb.SetVariable<uint64_t>("v1", 0xAA55AA55);
     supersb.SetStructuredBuffer("v2", subsb);
-    supersb.SetVariable<float[16]>("v3", glm::value_ptr(m));
+    supersb.SetVariable<const float, 16>("v3", std::span<const float, 16>{glm::value_ptr(m), glm::value_ptr(m) + 16});
 
     {
         sub_placer.WriteBuffer(subsb, buffer);

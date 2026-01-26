@@ -307,6 +307,13 @@ namespace Engine {
         pimpl->m_ipi._is_descriptor_dirty.set();
     }
 
+    void ComputeStage::AssignComputeBuffer(
+        const std::string &name, std::shared_ptr<const ComputeBuffer> buffer
+    ) noexcept {
+        pimpl->parameters.Assign(name, buffer);
+        pimpl->m_ipi._is_descriptor_dirty.set();
+    }
+
     void ComputeStage::AssignComputeBuffer(const std::string &name, const ComputeBuffer &buffer) noexcept {
         pimpl->parameters.Assign(name, buffer);
         pimpl->m_ipi._is_descriptor_dirty.set();
