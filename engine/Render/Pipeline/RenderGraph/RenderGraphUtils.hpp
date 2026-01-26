@@ -188,8 +188,14 @@ namespace Engine {
         };
 
         struct RenderGraphExtraInfo {
-            std::unordered_map<const Texture *, ImageAccessTuple> m_initial_image_access;
-            std::unordered_map<const Texture *, ImageAccessTuple> m_final_image_access;
+            std::unordered_map<
+                const Texture *,
+                std::pair<RenderGraphImpl::PassType, MemoryAccessTypeImage>
+            > m_initial_image_access;
+            std::unordered_map<
+                const Texture *,
+                std::pair<RenderGraphImpl::PassType, MemoryAccessTypeImage>
+            > m_final_image_access;
         };
 
         struct BufferAccessMemo {

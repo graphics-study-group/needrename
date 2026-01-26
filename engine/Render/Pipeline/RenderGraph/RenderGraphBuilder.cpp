@@ -212,18 +212,8 @@ namespace Engine {
         RenderGraphImpl::RenderGraphExtraInfo extra{};
 
         for (const auto & [img, acc] : pimpl->m_texture_memo.accesses) {
-            const auto first_access = acc.front();
-            const auto last_access = acc.back();
-            extra.m_initial_image_access[img] = std::make_tuple(
-                pimpl->m_texture_memo.GetPipelineStage(pimpl->GetPassType(first_access.pass_index), first_access.access),
-                pimpl->m_texture_memo.GetAccessFlags(first_access.access),
-                pimpl->m_texture_memo.GetImageLayout(first_access.access)
-            );
-            extra.m_final_image_access[img] = std::make_tuple(
-                pimpl->m_texture_memo.GetPipelineStage(pimpl->GetPassType(last_access.pass_index), last_access.access),
-                pimpl->m_texture_memo.GetAccessFlags(last_access.access),
-                pimpl->m_texture_memo.GetImageLayout(last_access.access)
-            );
+            extra.m_initial_image_access[img] = std::make_pair(pimpl->GetPassType(acc.front().pass_index), acc.front().access);
+            extra.m_final_image_access[img] = std::make_pair(pimpl->GetPassType(acc.back().pass_index), acc.back().access);
         }
 
         pimpl->m_texture_memo.accesses.clear();

@@ -215,7 +215,7 @@ int main(int argc, char **argv) {
             *colors[(color + 1) % 4], 0, 0
         );
 
-        rg.AddExternalOutputDependency(*colors[(color + 1) % 4], AccessHelper::ImageAccessType::TransferRead);
+        rg.AddExternalOutputDependency(*colors[(color + 1) % 4], MemoryAccessTypeImageBits::TransferRead);
         rg.Execute();
 
         rsys->CompleteFrame(

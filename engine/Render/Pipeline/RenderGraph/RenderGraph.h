@@ -4,6 +4,8 @@
 #include <vector>
 #include <functional>
 
+#include "Render/Memory/MemoryAccessTypes.h"
+
 namespace vk {
     class CommandBuffer;
 }
@@ -45,16 +47,16 @@ namespace Engine {
          * 
          * Useful for setting up temporal reused textures.
          */
-        void AddExternalInputDependency(Texture & texture, AccessHelper::ImageAccessType previous_access);
-        void AddExternalInputDependency(DeviceBuffer & buffer, AccessHelper::BufferAccessType previous_access);
+        void AddExternalInputDependency(Texture & texture, MemoryAccessTypeImageBits previous_access);
+        void AddExternalInputDependency(DeviceBuffer & buffer, MemoryAccessTypeBuffer previous_access);
 
         /**
          * @brief Add an external output dependency on a texture for this frame.
          * 
          * Useful if you want to present an image that is not used as a color attachment.
          */
-        void AddExternalOutputDependency(Texture & texture, AccessHelper::ImageAccessType next_access);
-        void AddExternalOutputDependency(DeviceBuffer & buffer, AccessHelper::BufferAccessType next_access);
+        void AddExternalOutputDependency(Texture & texture, MemoryAccessTypeImageBits next_access);
+        void AddExternalOutputDependency(DeviceBuffer & buffer, MemoryAccessTypeBuffer next_access);
 
         /**
          * @brief Record all operations onto the specified command buffer.

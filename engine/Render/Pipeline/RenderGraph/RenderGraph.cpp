@@ -41,8 +41,7 @@ namespace Engine {
 
         RenderGraphImpl::Synchronization initial_sync, final_sync; 
 
-        std::unordered_map <const Texture *, RenderGraphImpl::ImageAccessTuple> m_initial_image_access;
-        std::unordered_map <const Texture *, RenderGraphImpl::ImageAccessTuple> m_final_image_access;
+        RenderGraphImpl::RenderGraphExtraInfo extra;
 
         struct {
             RenderTargetTexture * target {nullptr};
@@ -59,27 +58,38 @@ namespace Engine {
         m_system(system),
         pimpl(std::make_unique<impl>()) {
         pimpl->m_commands = std::move(commands);
-        pimpl->m_initial_image_access = std::move(extra.m_initial_image_access);
-        pimpl->m_final_image_access = std::move(extra.m_final_image_access);
+        pimpl->extra = std::move(extra);
     }
     RenderGraph::~RenderGraph() = default;
 
-    void RenderGraph::AddExternalInputDependency(Texture &texture, AccessHelper::ImageAccessType previous_access) {
-        auto itr = pimpl->m_initial_image_access.find(&texture);
-        auto access_tuple = AccessHelper::GetAccessScope(previous_access);
-        if (itr == pimpl->m_initial_image_access.end() || itr->second == access_tuple)
+    void RenderGraph::AddExternalInputDependency(Texture &texture, MemoryAccessTypeImageBits previous_access) {
+        auto itr = pimpl->extra.m_initial_image_access.find(&texture);
+        if (itr == pimpl->extra.m_initial_image_access.end() || itr->second.second == MemoryAccessTypeImage{previous_access})
             return;
 
-        pimpl->initial_sync.image_barriers.push_back(GetImageBarrier(texture, access_tuple, itr->second));
+        pimpl->initial_sync.image_barriers.push_back(
+            RenderGraphImpl::TextureAccessMemo::GenerateBarrier(
+                texture.GetImage(),
+                {previous_access}, RenderGraphImpl::PassType::None,
+                itr->second.second, itr->second.first,
+                ImageUtils::GetVkAspect(texture.GetTextureDescription().format)
+            )
+        );
     }
 
-    void RenderGraph::AddExternalOutputDependency(Texture &texture, AccessHelper::ImageAccessType next_access) {
-        auto itr = pimpl->m_final_image_access.find(&texture);
-        auto access_tuple = AccessHelper::GetAccessScope(next_access);
-        if (itr == pimpl->m_final_image_access.end() || itr->second == access_tuple)
+    void RenderGraph::AddExternalOutputDependency(Texture &texture, MemoryAccessTypeImageBits next_access) {
+        auto itr = pimpl->extra.m_final_image_access.find(&texture);
+        if (itr == pimpl->extra.m_final_image_access.end() || itr->second.second == MemoryAccessTypeImage{next_access})
             return;
 
-        pimpl->final_sync.image_barriers.push_back(GetImageBarrier(texture, itr->second, access_tuple));
+        pimpl->final_sync.image_barriers.push_back(
+            RenderGraphImpl::TextureAccessMemo::GenerateBarrier(
+                texture.GetImage(),
+                itr->second.second, itr->second.first,
+                {next_access}, RenderGraphImpl::PassType::None,
+                ImageUtils::GetVkAspect(texture.GetTextureDescription().format)
+            )
+        );
     }
 
     void RenderGraph::Record(vk::CommandBuffer cb) {
