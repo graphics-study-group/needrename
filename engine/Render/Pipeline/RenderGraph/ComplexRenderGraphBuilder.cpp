@@ -131,9 +131,11 @@ namespace Engine {
             },
             "Bloom FX pass"
         );
-        // this make sure the color_target is COLOR_ATTACHMENT_OPTIMAL
-        // this->UseImage(color_target, IAT::ColorAttachmentRead);
 
         return this->BuildRenderGraph();
+    }
+
+    MemoryAccessTypeImageBits ComplexRenderGraphBuilder::GetColorAttachmentAccessType() const {
+        return MemoryAccessTypeImageBits::ShaderRandomWrite;
     }
 } // namespace Engine

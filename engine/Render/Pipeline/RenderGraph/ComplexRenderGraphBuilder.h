@@ -19,6 +19,8 @@ namespace Engine {
             std::shared_ptr<const RenderTargetTexture> color_target_ptr,
             std::shared_ptr<const RenderTargetTexture> depth_target_ptr
         );
+        
+        MemoryAccessTypeImageBits GetColorAttachmentAccessType() const;
 
     protected:
         std::shared_ptr<RenderTargetTexture> m_shadow_target{};

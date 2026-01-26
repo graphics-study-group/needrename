@@ -207,6 +207,7 @@ namespace Engine {
         this->render_graph->Execute();
         this->renderer->CompleteFrame(
             *this->window->GetColorTexture(),
+            this->render_graph_builder->GetColorAttachmentAccessType(),
             this->window->GetExtent().width,
             this->window->GetExtent().height
         );
