@@ -11,13 +11,14 @@
 
 namespace Engine {
     struct RenderGraphBuilder::impl {
-        std::vector<vk::ImageMemoryBarrier2> m_image_barriers{};
-        std::vector<vk::BufferMemoryBarrier2> m_buffer_barriers{};
         std::vector<RenderGraphImpl::Task> m_tasks{};
+        std::vector <RenderGraphImpl::PassType> pass_types {};
 
-        
-        std::vector <RenderGraphImpl::PassType> pass_types;
-        RenderGraphImpl::TextureAccessMemo m_memo;
+        RenderGraphImpl::PassType GetPassType(uint32_t pass_index) {
+            return pass_index == vk::SubpassExternal ? RenderGraphImpl::PassType::None : pass_types[pass_index];
+        }
+
+        RenderGraphImpl::TextureAccessMemo m_texture_memo;
         RenderGraphImpl::BufferAccessMemo m_buffer_memo;
     };
 
@@ -26,24 +27,17 @@ namespace Engine {
 
     RenderGraphBuilder::~RenderGraphBuilder() = default;
 
-    void RenderGraphBuilder::RegisterImageAccess(const Texture &texture, AccessHelper::ImageAccessType prev_access) {
-        pimpl->m_memo.RegisterTexture(&texture, AccessHelper::GetAccessScope(prev_access));
+    void RenderGraphBuilder::ImportExternalResource(const Texture &texture, MemoryAccessTypeImageBits access) {
+        pimpl->m_texture_memo.UpdateLastAccess(&texture, vk::SubpassExternal, {access});
     }
 
-    void RenderGraphBuilder::UseImage(const Texture &texture, AccessHelper::ImageAccessType new_access) {
-        auto new_tuple = AccessHelper::GetAccessScope(new_access);
-        pimpl->m_image_barriers.push_back(
-            RenderGraphImpl::GetImageBarrier(
-                texture,
-                pimpl->m_memo.GetAccessTuple(&texture),
-                new_tuple
-            )
-        );
-        pimpl->m_memo.UpdateAccessTuple(&texture, new_tuple);
+    void RenderGraphBuilder::UseImage(const Texture &texture, MemoryAccessTypeImageBits access) {
+        pimpl->m_texture_memo.UpdateLastAccess(&texture, pimpl->pass_types.size(), {access});
     }
     void RenderGraphBuilder::UseBuffer(const DeviceBuffer &buffer, MemoryAccessTypeBuffer access) {
         pimpl->m_buffer_memo.UpdateLastAccess(buffer.GetBuffer(), pimpl->pass_types.size(), access);
     }
+
     void RenderGraphBuilder::RecordRasterizerPassWithoutRT(std::function<void(GraphicsCommandBuffer &)> pass) {
         pimpl->pass_types.push_back(RenderGraphImpl::PassType::Graphics);
         std::function<void(vk::CommandBuffer)> f = [system = &this->m_system,
@@ -80,27 +74,6 @@ namespace Engine {
         std::function<void(GraphicsCommandBuffer &)> pass,
         const std::string &name
     ) {
-
-        if (!pimpl->m_memo.m_memo.contains(color.texture)
-            || std::get<2>(pimpl->m_memo.m_memo[color.texture]) != vk::ImageLayout::eColorAttachmentOptimal) {
-            SDL_LogWarn(
-                SDL_LOG_CATEGORY_RENDER,
-                "Color attachment texture %p is not sychronized properly.",
-                static_cast<const void *>(color.texture)
-            );
-        }
-        if (depth.texture) {
-            if (!pimpl->m_memo.m_memo.contains(depth.texture)
-                || std::get<2>(pimpl->m_memo.m_memo[depth.texture])
-                       != vk::ImageLayout::eDepthStencilAttachmentOptimal) {
-                SDL_LogWarn(
-                    SDL_LOG_CATEGORY_RENDER,
-                    "Depth attachment texture %p is not sychronized properly.",
-                    static_cast<const void *>(depth.texture)
-                );
-            }
-        }
-
         pimpl->pass_types.push_back(RenderGraphImpl::PassType::Graphics);
         std::function<void(vk::CommandBuffer)> f = [system = &this->m_system,
                                                     pass,
@@ -128,28 +101,6 @@ namespace Engine {
         std::function<void(GraphicsCommandBuffer &)> pass,
         const std::string &name
     ) {
-        for (const auto & color : colors) {
-            if (!pimpl->m_memo.m_memo.contains(color.texture)
-                || std::get<2>(pimpl->m_memo.m_memo[color.texture]) != vk::ImageLayout::eColorAttachmentOptimal) {
-                SDL_LogWarn(
-                    SDL_LOG_CATEGORY_RENDER,
-                    "Color attachment texture %p is not sychronized properly.",
-                    static_cast<const void *>(color.texture)
-                );
-            }
-        }
-        if (depth.texture) {
-            if (!pimpl->m_memo.m_memo.contains(depth.texture)
-                || std::get<2>(pimpl->m_memo.m_memo[depth.texture])
-                       != vk::ImageLayout::eDepthStencilAttachmentOptimal) {
-                SDL_LogWarn(
-                    SDL_LOG_CATEGORY_RENDER,
-                    "Depth attachment texture %p is not sychronized properly.",
-                    static_cast<const void *>(depth.texture)
-                );
-            }
-        }
-
         pimpl->pass_types.push_back(RenderGraphImpl::PassType::Graphics);
         std::function<void(vk::CommandBuffer)> f = [system = &this->m_system,
                                                     pass,
@@ -211,20 +162,38 @@ namespace Engine {
         );
     }
     void RenderGraphBuilder::RecordSynchronization() {
-        // Build buffer barriers
         const auto current_pass_id = pimpl->pass_types.size() - 1;
+        std::vector<vk::ImageMemoryBarrier2> image_barriers{};
+        std::vector<vk::BufferMemoryBarrier2> buffer_barriers{};
+        // Build image barriers
+        for (const auto & [img, acc] : pimpl->m_texture_memo.accesses) {
+            if (acc.size() < 2) continue;
+            if (acc.back().pass_index != current_pass_id)   continue;
+            const auto & prev_acc = *(acc.rbegin() - 1);
+            image_barriers.push_back(
+                pimpl->m_texture_memo.GenerateBarrier(
+                    img->GetImage(),
+                    prev_acc.access,
+                    pimpl->GetPassType(prev_acc.pass_index),
+                    acc.back().access,
+                    pimpl->GetPassType(acc.back().pass_index),
+                    ImageUtils::GetVkAspect(img->GetTextureDescription().format)
+                )
+            );
+        }
+        // Build buffer barriers
         for (const auto & [buf, acc] : pimpl->m_buffer_memo.accesses) {
             if (acc.size() < 2) continue;
             if (acc.back().pass_index != current_pass_id)   continue;
 
             const auto & prev_acc = *(acc.rbegin() - 1);
-            pimpl->m_buffer_barriers.push_back(
+            buffer_barriers.push_back(
                 pimpl->m_buffer_memo.GenerateBarrier(
                     buf,
                     prev_acc.access,
-                    pimpl->pass_types[prev_acc.pass_index],
+                    pimpl->GetPassType(prev_acc.pass_index),
                     acc.back().access,
-                    pimpl->pass_types[acc.back().pass_index]
+                    pimpl->GetPassType(acc.back().pass_index)
                 )
             );
         }
@@ -232,26 +201,32 @@ namespace Engine {
         pimpl->m_tasks.push_back(
             RenderGraphImpl::Synchronization{
                 {},
-                std::move(pimpl->m_buffer_barriers),
-                std::move(pimpl->m_image_barriers)
+                std::move(buffer_barriers),
+                std::move(image_barriers)
             }
         );
-        pimpl->m_buffer_barriers.clear();
-        pimpl->m_image_barriers.clear();
     }
     RenderGraph RenderGraphBuilder::BuildRenderGraph() {
-        if (!pimpl->m_buffer_barriers.empty() || !pimpl->m_image_barriers.empty()) {
-            SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Leftover memory barriers when building render graph.");
-            RecordSynchronization();
-        }
-
         std::vector <std::function<void(vk::CommandBuffer)>> compiled;
         RenderGraphImpl::RenderGraphExtraInfo extra{};
 
-        extra.m_initial_image_access = std::move(pimpl->m_memo.m_initial_access);
-        extra.m_final_image_access = std::move(pimpl->m_memo.m_memo);
-        pimpl->m_memo.m_initial_access.clear();
-        pimpl->m_memo.m_memo.clear();
+        for (const auto & [img, acc] : pimpl->m_texture_memo.accesses) {
+            const auto first_access = acc.front();
+            const auto last_access = acc.back();
+            extra.m_initial_image_access[img] = std::make_tuple(
+                pimpl->m_texture_memo.GetPipelineStage(pimpl->GetPassType(first_access.pass_index), first_access.access),
+                pimpl->m_texture_memo.GetAccessFlags(first_access.access),
+                pimpl->m_texture_memo.GetImageLayout(first_access.access)
+            );
+            extra.m_final_image_access[img] = std::make_tuple(
+                pimpl->m_texture_memo.GetPipelineStage(pimpl->GetPassType(last_access.pass_index), last_access.access),
+                pimpl->m_texture_memo.GetAccessFlags(last_access.access),
+                pimpl->m_texture_memo.GetImageLayout(last_access.access)
+            );
+        }
+
+        pimpl->m_texture_memo.accesses.clear();
+        pimpl->m_buffer_memo.accesses.clear();
 
         for (auto & t : pimpl->m_tasks) {
             if (auto p = std::get_if<RenderGraphImpl::Command>(&t)) {
@@ -270,11 +245,10 @@ namespace Engine {
     RenderGraph RenderGraphBuilder::BuildDefaultRenderGraph(
         RenderTargetTexture &color_attachment, RenderTargetTexture &depth_attachment, GUISystem *gui_system
     ) {
-        using IAT = AccessHelper::ImageAccessType;
-        this->RegisterImageAccess(color_attachment, IAT::None);
-        this->RegisterImageAccess(depth_attachment, IAT::None);
-        this->UseImage(color_attachment, IAT::ColorAttachmentWrite);
-        this->UseImage(depth_attachment, IAT::DepthAttachmentWrite);
+        this->ImportExternalResource(color_attachment, MemoryAccessTypeImageBits::None);
+        this->ImportExternalResource(depth_attachment, MemoryAccessTypeImageBits::None);
+        this->UseImage(color_attachment, MemoryAccessTypeImageBits::ColorAttachmentWrite);
+        this->UseImage(depth_attachment, MemoryAccessTypeImageBits::DepthStencilAttachmentWrite);
         this->RecordRasterizerPass(
             {&color_attachment, nullptr, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store},
             {&depth_attachment,
@@ -288,7 +262,7 @@ namespace Engine {
         );
 
         if (gui_system) {
-            this->UseImage(color_attachment, IAT::ColorAttachmentWrite);
+            this->UseImage(color_attachment, MemoryAccessTypeImageBits::ColorAttachmentWrite);
             this->RecordRasterizerPassWithoutRT([this, gui_system, &color_attachment](Engine::GraphicsCommandBuffer &gcb) {
                 gui_system->DrawGUI(
                     {&color_attachment,

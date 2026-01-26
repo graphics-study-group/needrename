@@ -39,9 +39,9 @@ namespace Engine {
         /**
          * @brief Register a new image texture to manage its access by the internal memo system.
          */
-        void RegisterImageAccess (
+        void ImportExternalResource (
             const Texture & texture,
-            AccessHelper::ImageAccessType prev_access = AccessHelper::ImageAccessType::None
+            MemoryAccessTypeImageBits prev_access = MemoryAccessTypeImageBits::None
         );
         
         /**
@@ -49,7 +49,7 @@ namespace Engine {
          */
         void UseImage (
             const Texture & texture,
-            AccessHelper::ImageAccessType new_access
+            MemoryAccessTypeImageBits access
         );
 
         /**

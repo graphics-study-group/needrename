@@ -22,45 +22,162 @@ namespace Engine {
         };
 
         struct TextureAccessMemo {
-            using AccessTuple = ImageAccessTuple;
-            std::unordered_map<const Texture *, AccessTuple> m_memo;
-            std::unordered_map<const Texture *, AccessTuple> m_initial_access;
-
-            void RegisterTexture(const Texture *texture, AccessTuple previous_access) {
-                if (m_memo.contains(texture)) {
-                    SDL_LogWarn(
-                        SDL_LOG_CATEGORY_RENDER, "Texture %p is already registered.", static_cast<const void *>(texture)
-                    );
-                }
-                m_memo[texture] = previous_access;
-                m_initial_access[texture] = previous_access;
-            }
-
-            void UpdateAccessTuple(const Texture *texture, AccessTuple new_access_tuple) {
-                if (!m_memo.contains(texture)) {
-                    SDL_LogWarn(
-                        SDL_LOG_CATEGORY_RENDER,
-                        "Texture %p is not registered, defaulting to none.",
-                        static_cast<const void *>(texture)
-                    );
-
-                    RegisterTexture(texture, std::make_tuple(vk::PipelineStageFlagBits2::eNone, vk::AccessFlagBits2::eNone, vk::ImageLayout::eUndefined));
-                }
-
-                m_memo[texture] = new_access_tuple;
+            struct Access {
+                uint32_t pass_index;
+                MemoryAccessTypeImage access;
             };
 
-            AccessTuple GetAccessTuple(const Texture *texture) noexcept {
-                if (!m_memo.contains(texture)) {
-                    SDL_LogWarn(
-                        SDL_LOG_CATEGORY_RENDER,
-                        "Texture %p is not registered, defaulting to none.",
-                        static_cast<const void *>(texture)
-                    );
+            using Memo = std::unordered_map<const Texture *, std::vector<Access>>;
+            Memo accesses;
 
-                    RegisterTexture(texture, std::make_tuple(vk::PipelineStageFlagBits2::eNone, vk::AccessFlagBits2::eNone, vk::ImageLayout::eUndefined));
+            void EnsureRecordExists(const Texture * t) {
+                if (!accesses.contains(t)) {
+                    accesses[t] = {};
                 }
-                return m_memo.at(texture);
+            }
+
+            /**
+             * @brief Update last access entry of a given buffer.
+             */
+            void UpdateLastAccess(const Texture * t, uint32_t pass_index, MemoryAccessTypeImage access) {
+                EnsureRecordExists(t);
+                auto & v = accesses[t];
+                if(v.empty() || v.back().pass_index != pass_index) {
+                    v.push_back({pass_index, access});
+                } else {
+                    v.back().access = access;
+                }
+            }
+
+            static constexpr vk::PipelineStageFlags2 GetPipelineStage(PassType p, MemoryAccessTypeImage a) noexcept {
+                vk::PipelineStageFlags2 ret{};
+                if (
+                    a.Test(MemoryAccessTypeImageBits::ColorAttachmentRead) |
+                    a.Test(MemoryAccessTypeImageBits::ColorAttachmentWrite) |
+                    a.Test(MemoryAccessTypeImageBits::DepthStencilAttachmentRead) |
+                    a.Test(MemoryAccessTypeImageBits::DepthStencilAttachmentWrite)
+                ) {
+                    if (p == PassType::Graphics)    ret |= vk::PipelineStageFlagBits2::eAllGraphics;
+                    else    SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Ignoring invaild access pattern.");
+                }
+                if (
+                    a.Test(MemoryAccessTypeImageBits::TransferRead) |
+                    a.Test(MemoryAccessTypeImageBits::TransferWrite)
+                ) {
+                    ret |= vk::PipelineStageFlagBits2::eAllTransfer;
+                }
+                if (
+                    a.Test(MemoryAccessTypeImageBits::ShaderSampledRead) |
+                    a.Test(MemoryAccessTypeImageBits::ShaderRandomRead) |
+                    a.Test(MemoryAccessTypeImageBits::ShaderRandomWrite)
+                ) {
+                    if (p == PassType::Graphics) {
+                        ret |= vk::PipelineStageFlagBits2::eAllGraphics;
+                    } else if (p == PassType::Compute) {
+                        ret |= vk::PipelineStageFlagBits2::eComputeShader;
+                    } else {
+                        SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Ignoring invaild access pattern.");
+                    }
+                }
+            }
+
+            static constexpr vk::AccessFlags2 GetAccessFlags(MemoryAccessTypeImage a) noexcept {
+                vk::AccessFlags2 ret{};
+                if (a.Test(MemoryAccessTypeImageBits::ColorAttachmentRead)) {
+                    ret |= vk::AccessFlagBits2::eColorAttachmentRead;
+                }
+                if (a.Test(MemoryAccessTypeImageBits::ColorAttachmentWrite)) {
+                    ret |= vk::AccessFlagBits2::eColorAttachmentWrite;
+                }
+                if (a.Test(MemoryAccessTypeImageBits::DepthStencilAttachmentRead)) {
+                    ret |= vk::AccessFlagBits2::eDepthStencilAttachmentRead;
+                }
+                if (a.Test(MemoryAccessTypeImageBits::DepthStencilAttachmentWrite)) {
+                    ret |= vk::AccessFlagBits2::eDepthStencilAttachmentWrite;
+                }
+                if (a.Test(MemoryAccessTypeImageBits::TransferRead)) {
+                    ret |= vk::AccessFlagBits2::eTransferRead;
+                }
+                if (a.Test(MemoryAccessTypeImageBits::TransferWrite)) {
+                    ret |= vk::AccessFlagBits2::eTransferWrite;
+                }
+                if (a.Test(MemoryAccessTypeImageBits::ShaderSampledRead)) {
+                    ret |= vk::AccessFlagBits2::eShaderSampledRead;
+                }
+                if (a.Test(MemoryAccessTypeImageBits::ShaderRandomRead)) {
+                    ret |= vk::AccessFlagBits2::eShaderStorageRead;
+                }
+                if (a.Test(MemoryAccessTypeImageBits::ShaderRandomWrite)) {
+                    ret |= vk::AccessFlagBits2::eShaderStorageWrite;
+                }
+                return ret;
+            }
+
+            static constexpr vk::ImageLayout GetImageLayout(MemoryAccessTypeImage a) noexcept {
+                if (
+                    a.Test(MemoryAccessTypeImageBits::ColorAttachmentRead) |
+                    a.Test(MemoryAccessTypeImageBits::ColorAttachmentWrite)
+                ) {
+                    return vk::ImageLayout::eColorAttachmentOptimal;
+                }
+                if (
+                    a.Test(MemoryAccessTypeImageBits::DepthStencilAttachmentRead) |
+                    a.Test(MemoryAccessTypeImageBits::DepthStencilAttachmentRead)
+                ) {
+                    return vk::ImageLayout::eDepthStencilAttachmentOptimal;
+                }
+                if (
+                    a.Test(MemoryAccessTypeImageBits::TransferRead)
+                ) {
+                    return vk::ImageLayout::eTransferSrcOptimal;
+                }
+                if (
+                    a.Test(MemoryAccessTypeImageBits::TransferWrite)
+                ) {
+                    return vk::ImageLayout::eTransferDstOptimal;
+                }
+                if (
+                    a.Test(MemoryAccessTypeImageBits::ShaderSampledRead)
+                ) {
+                    return vk::ImageLayout::eReadOnlyOptimal;
+                }
+                if (
+                    a.Test(MemoryAccessTypeImageBits::ShaderRandomRead) |
+                    a.Test(MemoryAccessTypeImageBits::ShaderRandomWrite)
+                ) {
+                    return vk::ImageLayout::eGeneral;
+                }
+                return vk::ImageLayout::eUndefined;
+            }
+
+            static constexpr vk::ImageMemoryBarrier2 GenerateBarrier(
+                vk::Image image,
+                MemoryAccessTypeImage prev_access,
+                PassType prev_pass_type,
+                MemoryAccessTypeImage curr_access,
+                PassType curr_pass_type,
+                vk::ImageAspectFlags aspect,
+                uint32_t mipmap_base = 0,
+                uint32_t mipmap_range = vk::RemainingMipLevels,
+                uint32_t array_layer_base = 0,
+                uint32_t array_layer_range = vk::RemainingArrayLayers
+            ) {
+                return vk::ImageMemoryBarrier2 {
+                    GetPipelineStage(prev_pass_type, prev_access),
+                    GetAccessFlags(prev_access),
+                    GetPipelineStage(curr_pass_type, curr_access),
+                    GetAccessFlags(curr_access),
+                    GetImageLayout(prev_access),
+                    GetImageLayout(curr_access),
+                    vk::QueueFamilyIgnored,
+                    vk::QueueFamilyIgnored,
+                    image,
+                    vk::ImageSubresourceRange {
+                        aspect,
+                        mipmap_base, mipmap_range,
+                        array_layer_base, array_layer_range
+                    }
+                };
             }
         };
 
@@ -68,42 +185,6 @@ namespace Engine {
             std::unordered_map<const Texture *, ImageAccessTuple> m_initial_image_access;
             std::unordered_map<const Texture *, ImageAccessTuple> m_final_image_access;
         };
-
-        inline vk::ImageMemoryBarrier2 GetImageBarrier(const Texture &texture,
-            TextureAccessMemo::AccessTuple old_access,
-            TextureAccessMemo::AccessTuple new_access) noexcept {
-            vk::ImageMemoryBarrier2 barrier{};
-            barrier.image = texture.GetImage();
-            barrier.subresourceRange = vk::ImageSubresourceRange{
-                ImageUtils::GetVkAspect(texture.GetTextureDescription().format),
-                0,
-                vk::RemainingMipLevels,
-                0,
-                vk::RemainingArrayLayers
-            };
-
-            if (barrier.subresourceRange.aspectMask == vk::ImageAspectFlagBits::eNone) {
-                SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Failed to infer aspect range when inserting an image barrier.");
-                barrier.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor | vk::ImageAspectFlagBits::eDepth
-                                                      | vk::ImageAspectFlagBits::eStencil;
-            }
-
-            std::tie(barrier.srcStageMask, barrier.srcAccessMask, barrier.oldLayout) = old_access;
-            std::tie(barrier.dstStageMask, barrier.dstAccessMask, barrier.newLayout) = new_access;
-
-            barrier.dstQueueFamilyIndex = barrier.srcQueueFamilyIndex = vk::QueueFamilyIgnored;
-            return barrier;
-        }
-
-        inline vk::BufferMemoryBarrier2 GetBufferBarrier(
-            DeviceBuffer &buffer [[maybe_unused]],
-            AccessHelper::BufferAccessType old_access [[maybe_unused]],
-            AccessHelper::BufferAccessType new_access [[maybe_unused]]
-        ) {
-            assert(!"Unimplemented");
-            vk::BufferMemoryBarrier2 barrier{};
-            return barrier;
-        }
 
         struct BufferAccessMemo {
             struct Access {
@@ -128,14 +209,14 @@ namespace Engine {
             void UpdateLastAccess(vk::Buffer b, uint32_t pass_index, MemoryAccessTypeBuffer access) {
                 EnsureRecordExists(b);
                 auto & v = accesses[b];
-                if(v.empty() || v.back().pass_index < pass_index) {
+                if(v.empty() || v.back().pass_index != pass_index) {
                     v.push_back({pass_index, access});
                 } else {
                     v.back().access = access;
                 }
             }
 
-            static vk::PipelineStageFlags2 GetPipelineStage(PassType p, MemoryAccessTypeBuffer a) noexcept {
+            static constexpr vk::PipelineStageFlags2 GetPipelineStage(PassType p, MemoryAccessTypeBuffer a) noexcept {
                 vk::PipelineStageFlags2 ret{};
 
                 if (
@@ -181,7 +262,7 @@ namespace Engine {
                 return ret;
             }
 
-            static vk::AccessFlags2 GetAccessFlags(MemoryAccessTypeBuffer a) noexcept {
+            static constexpr vk::AccessFlags2 GetAccessFlags(MemoryAccessTypeBuffer a) noexcept {
                 vk::AccessFlags2 ret{};
                 if (a.Test(MemoryAccessTypeBufferBits::IndirectDrawRead)) {
                     ret |= vk::AccessFlagBits2::eIndirectCommandRead;
@@ -216,7 +297,7 @@ namespace Engine {
                 return ret;
             }
 
-            static vk::BufferMemoryBarrier2 GenerateBarrier(
+            static constexpr vk::BufferMemoryBarrier2 GenerateBarrier(
                 vk::Buffer buffer,
                 MemoryAccessTypeBuffer prev_access,
                 PassType prev_pass_type,
