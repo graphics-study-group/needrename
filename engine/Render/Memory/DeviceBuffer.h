@@ -94,6 +94,11 @@ namespace Engine {
          */
         void Invalidate(size_t offset = 0, size_t size = 0) const;
 
+        /**
+         * @brief Get the memory type assigned to the buffer when allocated.
+         */
+        BufferType GetType() const noexcept;
+
     protected:
         size_t m_size{0ULL};
         BufferAllocation allocation;

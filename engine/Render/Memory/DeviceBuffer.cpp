@@ -37,4 +37,7 @@ namespace Engine {
     void DeviceBuffer::Invalidate(size_t offset, size_t size) const {
         allocation.InvalidateMemory(offset, size);
     }
+    BufferType DeviceBuffer::GetType() const noexcept {
+        return allocation.GetMemoryType();
+    }
 } // namespace Engine
