@@ -12,6 +12,28 @@
 using namespace Engine;
 namespace sch = std::chrono;
 
+auto BuildRenderGraph(RenderSystem & rsys, GUISystem & gsys, RenderTargetTexture & color) {
+    RenderGraphBuilder rgb{rsys};
+    rgb.UseImage(color, MemoryAccessTypeImageBits::ColorAttachmentDefault);
+    rgb.RecordRasterizerPassWithoutRT(
+        [&] (GraphicsCommandBuffer & gcb) -> void {
+            gsys.DrawGUI(
+                AttachmentUtils::AttachmentDescription{
+                    &color, nullptr,
+                    AttachmentUtils::LoadOperation::Clear,
+                    AttachmentUtils::StoreOperation::Store,
+                },
+                vk::Extent2D{
+                    color.GetTextureDescription().width, 
+                    color.GetTextureDescription().height
+                },
+                gcb
+            );
+        }
+    );
+    return rgb.BuildRenderGraph();
+}
+
 int main(int argc, char **argv) {
     int64_t max_frame_count = std::numeric_limits<int64_t>::max();
     if (argc > 1) {
@@ -42,16 +64,7 @@ int main(int argc, char **argv) {
         .is_cube_map = false
     };
     auto color = RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Color attachment");
-    desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::D32SFLOAT;
-    auto depth = RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Depth attachment");
-
-    Engine::AttachmentUtils::AttachmentDescription color_att, depth_att;
-    color_att.texture = color.get();
-    color_att.load_op = AttachmentUtils::LoadOperation::Clear;
-    color_att.store_op = AttachmentUtils::StoreOperation::Store;
-    depth_att.texture = depth.get();
-    depth_att.load_op = AttachmentUtils::LoadOperation::Clear;
-    depth_att.store_op = AttachmentUtils::StoreOperation::DontCare;
+    auto rg = BuildRenderGraph(*rsys, *gsys, *color);
 
     bool quited = false;
     while (max_frame_count--) {
@@ -71,26 +84,9 @@ int main(int argc, char **argv) {
 
         auto index = rsys->StartFrame();
         auto context = rsys->GetFrameManager().GetGraphicsContext();
-        GraphicsCommandBuffer &cb = dynamic_cast<GraphicsCommandBuffer &>(context.GetCommandBuffer());
 
         assert(index < 3);
-
-        cb.Begin();
-        context.UseImage(
-            *color,
-            GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite,
-            GraphicsContext::ImageAccessType::None
-        );
-        context.UseImage(
-            *depth,
-            GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite,
-            GraphicsContext::ImageAccessType::None
-        );
-        context.PrepareCommandBuffer();
-        vk::Extent2D extent{rsys->GetSwapchain().GetExtent()};
-        gsys->DrawGUI(color_att, extent, cb);
-        cb.End();
-        rsys->GetFrameManager().SubmitMainCommandBuffer();
+        rg.Execute();
         rsys->CompleteFrame(*color, color->GetTextureDescription().width, color->GetTextureDescription().height);
 
         SDL_Delay(10);
