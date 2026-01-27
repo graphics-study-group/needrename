@@ -44,6 +44,13 @@ namespace Engine {
         // A small buffer for uniform buffer staging to avoid random write to UBO.
         std::vector<std::byte> m_buffer{};
 
+        std::unordered_map <std::string,
+            std::variant<
+                std::shared_ptr <const Texture>,
+                std::shared_ptr <const DeviceBuffer>
+            >
+        > owned_resources;
+
         void SetUboDirtyFlags() noexcept {
             for (auto & [k, v] : m_pass_infos) {
                 v._is_ubo_dirty.set();
@@ -153,12 +160,14 @@ namespace Engine {
 
     void MaterialInstance::AssignTexture(const std::string &name, std::shared_ptr <const Texture> texture) {
         this->pimpl->SetDescriptorDirtyFlags();
-        this->pimpl->parameters.Assign(name, texture);
+        this->pimpl->owned_resources[name] = texture;
+        this->pimpl->parameters.Assign(name, *texture);
     }
 
     void MaterialInstance::AssignBuffer(const std::string &name, std::shared_ptr <const DeviceBuffer> buffer) {
         this->pimpl->SetDescriptorDirtyFlags();
-        this->pimpl->parameters.Assign(name, buffer);
+        this->pimpl->owned_resources[name] = buffer;
+        this->pimpl->parameters.Assign(name, *buffer);
     }
 
     const ShdrRfl::ShaderParameters &MaterialInstance::GetShaderParameters() const noexcept {
