@@ -14,6 +14,7 @@ namespace Engine {
     class Camera;
     namespace RenderSystemState {
         class CameraManager;
+        class SceneDataManager;
     }
     
 
@@ -45,6 +46,10 @@ namespace Engine {
 
         /// @brief Editor use after a GameObject's components have been modified.
         void RefreshGameObjectInWorld(std::shared_ptr<GameObject> go);
+
+        /// @brief Filter light components and update the light data.
+        /// TODO: need futher discussion. Did not use the light manager in scene data manager for now.
+        void UpdateLightData(RenderSystemState::SceneDataManager &scene_data_manager);
 
         /// @brief Load a level asset. Add all GameObjects in the level asset to the loading queue.
         void LoadLevelAsset(std::shared_ptr<LevelAsset> levelAsset);

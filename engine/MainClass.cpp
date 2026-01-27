@@ -203,6 +203,8 @@ namespace Engine {
 
         this->event_queue->ProcessEvents();
 
+        this->world->UpdateLightData(this->renderer->GetSceneDataManager());
+
         this->renderer->StartFrame();
         this->render_graph->Execute();
         this->renderer->CompleteFrame(

@@ -48,6 +48,11 @@ namespace Engine {
             void SetLightDirectionalNonShadowCasting(uint32_t index, glm::vec3 direction, glm::vec3 intensity) noexcept;
 
             /**
+             * @brief Set the none shadow-casting light tracked by the index to be a point light.
+             */
+            void SetLightPointNonShadowCasting(uint32_t index, glm::vec3 position, glm::vec3 intensity) noexcept;
+
+            /**
              * @brief Set the shadow map of a shadow-casting light
              * 
              * This manager does not obtain the ownership of the texture.

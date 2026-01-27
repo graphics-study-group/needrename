@@ -230,7 +230,15 @@ namespace Engine::RenderSystemState {
         uint32_t index, glm::vec3 direction, glm::vec3 intensity
     ) noexcept {
         assert(index < MAX_NON_SHADOW_CASTING_LIGHTS);
-        pimpl->scene.light_front_buffer.non_shadow_casting.light_source[index] = glm::vec4(direction, 0.0f);
+        pimpl->scene.light_front_buffer.non_shadow_casting.light_source[index] = glm::vec4(direction, 0.0f); // w = 0.0f for directional light
+        pimpl->scene.light_front_buffer.non_shadow_casting.light_color[index] = glm::vec4(intensity, 0.0f);
+    }
+
+    void SceneDataManager::SetLightPointNonShadowCasting(
+        uint32_t index, glm::vec3 position, glm::vec3 intensity
+    ) noexcept {
+        assert(index < MAX_NON_SHADOW_CASTING_LIGHTS);
+        pimpl->scene.light_front_buffer.non_shadow_casting.light_source[index] = glm::vec4(position, 1.0f); // w = 1.0f for point light
         pimpl->scene.light_front_buffer.non_shadow_casting.light_color[index] = glm::vec4(intensity, 0.0f);
     }
 

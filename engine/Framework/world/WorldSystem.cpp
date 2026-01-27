@@ -3,11 +3,13 @@
 #include <Asset/Scene/LevelAsset.h>
 #include <Core/Delegate/Delegate.h>
 #include <Core/Functional/EventQueue.h>
+#include <Framework/component/RenderComponent/LightComponent.h>
 #include <Framework/component/RenderComponent/RendererComponent.h>
 #include <MainClass.h>
 #include <Render/RenderSystem.h>
 #include <Render/RenderSystem/CameraManager.h>
 #include <Render/RenderSystem/RendererManager.h>
+#include <Render/RenderSystem/SceneDataManager.h>
 
 namespace Engine {
     WorldSystem::WorldSystem() {
@@ -66,6 +68,60 @@ namespace Engine {
             }
             for (auto &comp : go->m_components) {
                 AddComponent(comp);
+            }
+        }
+    }
+
+    void WorldSystem::UpdateLightData(RenderSystemState::SceneDataManager &scene_data_manager) {
+        std::vector<std::shared_ptr<LightComponent>> casting_light;
+        std::vector<std::shared_ptr<LightComponent>> non_casting_light;
+        for (auto &comp : m_all_components) {
+            auto light_comp = std::dynamic_pointer_cast<LightComponent>(comp);
+            if (light_comp) {
+                if (light_comp->m_cast_shadow) {
+                    if (light_comp->m_type == LightType::Directional) {
+                        casting_light.push_back(light_comp);
+                    } else {
+                        SDL_LogWarn(
+                            SDL_LOG_CATEGORY_APPLICATION, "Shadow casting point light and spot light are not supported."
+                        );
+                    }
+                } else {
+                    if (light_comp->m_type != LightType::Spot) {
+                        non_casting_light.push_back(light_comp);
+                    } else {
+                        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "Spot light is not supported.");
+                    }
+                }
+            }
+        }
+        scene_data_manager.SetLightCount(casting_light.size());
+        for (uint32_t i = 0; i < casting_light.size(); ++i) {
+            auto transform = casting_light[i]->m_parentGameObject.lock()->GetWorldTransform();
+            scene_data_manager.SetLightDirectional(
+                i,
+                glm::normalize(transform.GetRotation() * glm::vec3(0.0f, 1.0f, 0.0f)),
+                casting_light[i]->m_color * casting_light[i]->m_intensity
+            );
+        }
+        scene_data_manager.SetLightCountNonShadowCasting(non_casting_light.size());
+        for (uint32_t i = 0; i < non_casting_light.size(); ++i) {
+            auto transform = non_casting_light[i]->m_parentGameObject.lock()->GetWorldTransform();
+            switch (non_casting_light[i]->m_type) {
+            case LightType::Directional:
+                scene_data_manager.SetLightDirectionalNonShadowCasting(
+                    i,
+                    glm::normalize(transform.GetRotation() * glm::vec3(0.0f, 1.0f, 0.0f)),
+                    non_casting_light[i]->m_color * non_casting_light[i]->m_intensity
+                );
+                break;
+            case LightType::Point:
+                scene_data_manager.SetLightPointNonShadowCasting(
+                    i, transform.GetPosition(), non_casting_light[i]->m_color * non_casting_light[i]->m_intensity
+                );
+                break;
+            default:
+                break;
             }
         }
     }
