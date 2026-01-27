@@ -69,14 +69,14 @@ int main(int argc, char *argv[]) {
     cstage.AssignComputeBuffer("Output", compbuf2->GetComputeBuffer());
 
     RenderGraphBuilder rgb{*rsys};
-    rgb.UseBuffer(compbuf1->GetComputeBuffer(), {MemoryAccessTypeBufferBits::ShaderRandomRead});
-    rgb.UseBuffer(compbuf2->GetComputeBuffer(), {MemoryAccessTypeBufferBits::ShaderRandomWrite});
-    rgb.RecordComputePass([&cstage](ComputeCommandBuffer & ccb) -> void {
+    auto cbi1 = rgb.ImportExternalResource(compbuf1->GetComputeBuffer());
+    auto cbi2 = rgb.ImportExternalResource(compbuf2->GetComputeBuffer());
+    rgb.UseBuffer(cbi1, {MemoryAccessTypeBufferBits::ShaderRandomRead});
+    rgb.UseBuffer(cbi2, {MemoryAccessTypeBufferBits::ShaderRandomWrite});
+    rgb.RecordComputePass([&cstage](ComputeCommandBuffer & ccb, const RenderGraph &) -> void {
         ccb.BindComputeStage(cstage);
         ccb.DispatchCompute(BUFFER_SIZE / 16 + 1, 1, 1);
     });
-    rgb.UseBuffer(compbuf2->GetComputeBuffer(), {MemoryAccessTypeBufferBits::HostAccess});
-    rgb.RecordSynchronization();
     auto rg{rgb.BuildRenderGraph()};
 
     const auto & queues = rsys->GetDeviceInterface().GetQueueInfo();

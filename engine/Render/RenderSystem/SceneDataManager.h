@@ -57,7 +57,15 @@ namespace Engine {
              * sampling from it. You should use `UseImage(*shadow, ShaderRead)`
              * or similar to synchronize its access.
              */
-            void SetLightShadowMap(uint32_t index, std::weak_ptr <RenderTargetTexture> shadowmap) noexcept;
+            void SetLightShadowMap(uint32_t index, const RenderTargetTexture & shadowmap) noexcept;
+
+            /**
+             * @brief Remove a shadow map from the manager.
+             * 
+             * As this manager does not track the ownership of the texture,
+             * you should *always* call this method after destroying the shadow map.
+             */
+            void RemoveLightShadowMap(uint32_t index) noexcept;
 
             /**
              * @brief Set a shadow-casting light to be bound to a light component.

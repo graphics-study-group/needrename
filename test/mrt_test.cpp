@@ -81,50 +81,57 @@ RenderGraph BuildRenderGraph(
 ) {
     using IAT = Engine::MemoryAccessTypeImageBits;
     RenderGraphBuilder rgb{*rsys};
-    rgb.UseImage(*color_1, IAT::ColorAttachmentWrite);
-    rgb.UseImage(*color_2, IAT::ColorAttachmentWrite);
-    rgb.UseImage(*color_3, IAT::ColorAttachmentWrite);
-    rgb.UseImage(*color_4, IAT::ColorAttachmentWrite);
-    rgb.UseImage(*depth, IAT::DepthStencilAttachmentWrite);
-    rgb.RecordRasterizerPassWithoutRT([rsys, color_1, color_2, color_3, color_4, depth, material, mesh](GraphicsCommandBuffer &gcb) {
-        auto extent = rsys->GetSwapchain().GetExtent();
-        gcb.BeginRendering(
-            {
-                {color_1, nullptr, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store},
-                {color_2, nullptr, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store},
-                {color_3, nullptr, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store},
-                {color_4, nullptr, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store}
-            },
-            {depth,
-             nullptr,
-             AttachmentUtils::LoadOperation::Clear,
-             AttachmentUtils::StoreOperation::DontCare,
-             AttachmentUtils::DepthClearValue{1.0f, 0U}},
-            extent
-        );
+    auto c1 = rgb.ImportExternalResource(*color_1);
+    auto c2 = rgb.ImportExternalResource(*color_2);
+    auto c3 = rgb.ImportExternalResource(*color_3);
+    auto c4 = rgb.ImportExternalResource(*color_4);
+    auto d0 = rgb.ImportExternalResource(*depth);
+    rgb.UseImage(c1, IAT::ColorAttachmentWrite);
+    rgb.UseImage(c2, IAT::ColorAttachmentWrite);
+    rgb.UseImage(c3, IAT::ColorAttachmentWrite);
+    rgb.UseImage(c4, IAT::ColorAttachmentWrite);
+    rgb.UseImage(d0, IAT::DepthStencilAttachmentWrite);
+    rgb.RecordRasterizerPassWithoutRT(
+        [rsys, color_1, color_2, color_3, color_4, depth, material, mesh](GraphicsCommandBuffer &gcb, const RenderGraph &) {
+            auto extent = rsys->GetSwapchain().GetExtent();
+            gcb.BeginRendering(
+                {
+                    {color_1, nullptr, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store},
+                    {color_2, nullptr, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store},
+                    {color_3, nullptr, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store},
+                    {color_4, nullptr, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store}
+                },
+                {depth,
+                nullptr,
+                AttachmentUtils::LoadOperation::Clear,
+                AttachmentUtils::StoreOperation::DontCare,
+                AttachmentUtils::DepthClearValue{1.0f, 0U}},
+                extent
+            );
 
-        gcb.SetupViewport(extent.width, extent.height, {{0, 0}, extent});
-        VertexAttribute attribute;
-        attribute.SetAttribute(VertexAttributeSemantic::Position, VertexAttributeType::SFloat32x3);
-        attribute.SetAttribute(VertexAttributeSemantic::Color, VertexAttributeType::SFloat32x3);
-        attribute.SetAttribute(VertexAttributeSemantic::Normal, VertexAttributeType::SFloat32x3);
-        attribute.SetAttribute(VertexAttributeSemantic::Texcoord0, VertexAttributeType::SFloat32x2);
-        auto tpl = material->GetLibrary().FindMaterialTemplate("", attribute);
-        assert(tpl);
-        gcb.BindMaterial(*material, *tpl);
-        // Push model matrix...
-        vk::CommandBuffer rcb = gcb.GetCommandBuffer();
-        rcb.pushConstants(
-            material->GetLibrary().FindMaterialTemplate("", attribute)->GetPipelineLayout(),
-            vk::ShaderStageFlagBits::eAllGraphics,
-            0,
-            sizeof(RenderSystemState::RendererManager::RendererDataStruct),
-            reinterpret_cast<const void *>(&EYE4)
-        );
-        gcb.DrawMesh(*mesh);
+            gcb.SetupViewport(extent.width, extent.height, {{0, 0}, extent});
+            VertexAttribute attribute;
+            attribute.SetAttribute(VertexAttributeSemantic::Position, VertexAttributeType::SFloat32x3);
+            attribute.SetAttribute(VertexAttributeSemantic::Color, VertexAttributeType::SFloat32x3);
+            attribute.SetAttribute(VertexAttributeSemantic::Normal, VertexAttributeType::SFloat32x3);
+            attribute.SetAttribute(VertexAttributeSemantic::Texcoord0, VertexAttributeType::SFloat32x2);
+            auto tpl = material->GetLibrary().FindMaterialTemplate("", attribute);
+            assert(tpl);
+            gcb.BindMaterial(*material, *tpl);
+            // Push model matrix...
+            vk::CommandBuffer rcb = gcb.GetCommandBuffer();
+            rcb.pushConstants(
+                material->GetLibrary().FindMaterialTemplate("", attribute)->GetPipelineLayout(),
+                vk::ShaderStageFlagBits::eAllGraphics,
+                0,
+                sizeof(RenderSystemState::RendererManager::RendererDataStruct),
+                reinterpret_cast<const void *>(&EYE4)
+            );
+            gcb.DrawMesh(*mesh);
 
-        gcb.EndRendering();
-    });
+            gcb.EndRendering();
+        }
+    );
     return rgb.BuildRenderGraph();
 }
 

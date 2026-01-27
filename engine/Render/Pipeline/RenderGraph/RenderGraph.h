@@ -35,7 +35,7 @@ namespace Engine {
 
         RenderGraph(
             RenderSystem & system,
-            std::vector <std::function<void(vk::CommandBuffer)>> && commands,
+            std::vector <std::function<void(vk::CommandBuffer, const RenderGraph &)>> && commands,
             RenderGraphImpl::RenderGraphExtraInfo && extra
         );
     public:
@@ -57,6 +57,13 @@ namespace Engine {
          */
         void AddExternalOutputDependency(Texture & texture, MemoryAccessTypeImageBits next_access);
         void AddExternalOutputDependency(DeviceBuffer & buffer, MemoryAccessTypeBuffer next_access);
+
+        /**
+         * @brief Get a internally managed render target texture.
+         * 
+         * @return nullptr if handle is not available.
+         */
+        RenderTargetTexture * GetInternalTextureResource(int32_t handle) const noexcept;
 
         /**
          * @brief Record all operations onto the specified command buffer.

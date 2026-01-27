@@ -232,23 +232,8 @@ int main(int argc, char **argv) {
     auto gsys = cmc->GetGUISystem();
     gsys->CreateVulkanBackend(*rsys, ImageUtils::GetVkFormat(Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm));
 
-    Engine::RenderTargetTexture::RenderTargetTextureDesc desc{
-        .dimensions = 2,
-        .width = 1280,
-        .height = 720,
-        .depth = 1,
-        .mipmap_levels = 1,
-        .array_layers = 1,
-        .format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R8G8B8A8UNorm,
-        .multisample = 1,
-        .is_cube_map = false
-    };
-    auto color = RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Color attachment");
-    desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::D32SFLOAT;
-    auto depth = RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Depth attachment");
-
     RenderGraphBuilder rgb{*rsys};
-    RenderGraph rg{rgb.BuildDefaultRenderGraph(*color, *depth, gsys.get())};
+    RenderGraph rg{rgb.BuildDefaultRenderGraph(1280, 720, gsys.get())};
 
     // Setup mesh
     std::filesystem::path mesh_path{std::string(ENGINE_ASSETS_DIR) + "/four_bunny/four_bunny.obj"};
@@ -292,6 +277,7 @@ int main(int argc, char **argv) {
         // Draw
         auto index = rsys->StartFrame();
         rg.Execute();
+        auto color = rg.GetInternalTextureResource(0);
         rsys->CompleteFrame(
             *color,
             color->GetTextureDescription().width,

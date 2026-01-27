@@ -138,8 +138,8 @@ int main(int argc, char **argv) {
     }
 
     // Dummy texture for presenting
-    auto rt = RenderTargetTexture::CreateUnique(
-        *rsys,
+    RenderGraphBuilder rgb{*rsys};
+    auto crt = rgb.RequestRenderTargetTexture(
         RenderTargetTexture::RenderTargetTextureDesc{
             .dimensions = 2,
             .width = 800,
@@ -148,12 +148,9 @@ int main(int argc, char **argv) {
             .mipmap_levels = 1,
             .array_layers = 1,
             .format = RenderTargetTexture::RTTFormat::R8G8B8A8UNorm
-        },
-        ImageUtils::SamplerDesc{},
-        "Dummy render texture"
+        }, {}
     );
-    auto drt = RenderTargetTexture::CreateUnique(
-        *rsys,
+    auto drt = rgb.RequestRenderTargetTexture(
         RenderTargetTexture::RenderTargetTextureDesc{
             .dimensions = 2,
             .width = 800,
@@ -162,67 +159,23 @@ int main(int argc, char **argv) {
             .mipmap_levels = 1,
             .array_layers = 1,
             .format = RenderTargetTexture::RTTFormat::D32SFLOAT
-        },
-        ImageUtils::SamplerDesc{},
-        "Dummy render texture"
+        }, {}
     );
-
-    std::array color_attachments {
-        vk::RenderingAttachmentInfo{
-            rt->GetImageView(),
-            vk::ImageLayout::eColorAttachmentOptimal,
-            vk::ResolveModeFlagBits::eNone,
-            nullptr, vk::ImageLayout::eUndefined,
-            vk::AttachmentLoadOp::eClear,
-            vk::AttachmentStoreOp::eStore,
-            vk::ClearColorValue{0.0f, 0.0f, 0.0f, 1.0f}
+    rgb.UseImage(crt, MemoryAccessTypeImageBits::ColorAttachmentDefault);
+    rgb.UseImage(drt, MemoryAccessTypeImageBits::DepthStencilAttachmentDefault);
+    rgb.RecordRasterizerPass(
+        {crt, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store},
+        {drt, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::DontCare, AttachmentUtils::DepthClearValue{1.0f, 0U}},
+            [rsys, camera] (GraphicsCommandBuffer & cb, const RenderGraph &) -> void {
+                rsys->GetSceneDataManager().DrawSkybox(
+                    cb.GetCommandBuffer(),
+                    rsys->GetFrameManager().GetFrameInFlight(),
+                    camera->GetViewMatrix(),
+                    camera->GetProjectionMatrix()
+                );
         }
-    };
-
-    vk::RenderingAttachmentInfo depth_attachment {
-        drt->GetImageView(),
-        vk::ImageLayout::eDepthAttachmentOptimal,
-        vk::ResolveModeFlagBits::eNone,
-        nullptr, vk::ImageLayout::eUndefined,
-        vk::AttachmentLoadOp::eClear,
-        vk::AttachmentStoreOp::eDontCare,
-        vk::ClearDepthStencilValue{1.0f, 0U}
-    };
-
-    std::array barriers {
-        vk::ImageMemoryBarrier2{
-            vk::PipelineStageFlagBits2::eTopOfPipe,
-            vk::AccessFlagBits2::eNone,
-            vk::PipelineStageFlagBits2::eColorAttachmentOutput,
-            vk::AccessFlagBits2::eColorAttachmentRead | vk::AccessFlagBits2::eColorAttachmentWrite,
-            vk::ImageLayout::eUndefined,
-            vk::ImageLayout::eColorAttachmentOptimal,
-            vk::QueueFamilyIgnored,
-            vk::QueueFamilyIgnored,
-            rt->GetImage(),
-            vk::ImageSubresourceRange{
-                vk::ImageAspectFlagBits::eColor,
-                0, vk::RemainingMipLevels,
-                0, vk::RemainingArrayLayers
-            }
-        },
-        vk::ImageMemoryBarrier2{
-            vk::PipelineStageFlagBits2::eTopOfPipe,
-            vk::AccessFlagBits2::eNone,
-            vk::PipelineStageFlagBits2::eEarlyFragmentTests | vk::PipelineStageFlagBits2::eLateFragmentTests,
-            vk::AccessFlagBits2::eDepthStencilAttachmentRead | vk::AccessFlagBits2::eDepthStencilAttachmentWrite,
-            vk::ImageLayout::eUndefined,
-            vk::ImageLayout::eDepthAttachmentOptimal,
-            vk::QueueFamilyIgnored,
-            vk::QueueFamilyIgnored,
-            drt->GetImage(),
-            vk::ImageSubresourceRange{
-                vk::ImageAspectFlagBits::eDepth,
-                0, vk::RemainingMipLevels,
-                0, vk::RemainingArrayLayers
-            }
-        }
-    };
+    );
+    auto rg = rgb.BuildRenderGraph();
 
     bool quited{false};
     glm::vec3 euler_angle_rotation{};
@@ -269,34 +222,12 @@ int main(int argc, char **argv) {
         }
 
         rsys->StartFrame();
-        auto cb = rsys->GetFrameManager().GetRawMainCommandBuffer();
-        vk::CommandBufferBeginInfo cbbi{};
-        cb.begin(cbbi);
-        cb.pipelineBarrier2(vk::DependencyInfo{
-            vk::DependencyFlags{}, {}, {}, barriers
-        });
-        cb.setViewport(0, {vk::Viewport{0, 0, 800, 800, 0.0f, 1.0f}});
-        cb.setScissor(0, {vk::Rect2D{{0, 0}, {800, 800}}});
-        cb.beginRendering(vk::RenderingInfo{
-            vk::RenderingFlags{},
-            vk::Rect2D{{0, 0}, {800, 800}},
-            1, 0,
-            color_attachments,
-            &depth_attachment
-        });
+        
         Transform t;
         t.SetPosition({0.0f, 0.0f, 0.0f}).SetRotationEuler(euler_angle_rotation);
         camera->UpdateViewMatrix(t);
-        rsys->GetSceneDataManager().DrawSkybox(
-            cb,
-            rsys->GetFrameManager().GetFrameInFlight(),
-            camera->GetViewMatrix(),
-            camera->GetProjectionMatrix()
-        );
-        cb.endRendering();
-        cb.end();
-        rsys->GetFrameManager().SubmitMainCommandBuffer();
-        rsys->CompleteFrame(*rt, 800, 800);
+        rg.Execute();
+        rsys->CompleteFrame(*rg.GetInternalTextureResource(crt), 800, 800);
 
         SDL_Delay(10);
 
