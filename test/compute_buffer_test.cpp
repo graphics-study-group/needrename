@@ -75,8 +75,6 @@ int main(int argc, char *argv[]) {
         ccb.BindComputeStage(cstage);
         ccb.DispatchCompute(BUFFER_SIZE / 16 + 1, 1, 1);
     });
-    rgb.UseBuffer(compbuf2->GetComputeBuffer(), {MemoryAccessTypeBufferBits::HostAccess});
-    rgb.RecordSynchronization();
     auto rg{rgb.BuildRenderGraph()};
 
     const auto & queues = rsys->GetDeviceInterface().GetQueueInfo();

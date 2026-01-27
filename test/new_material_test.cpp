@@ -137,9 +137,6 @@ RenderGraph BuildRenderGraph(
                 blurred->GetTextureDescription().width / 16 + 1, blurred->GetTextureDescription().height / 16 + 1, 1
             );
         });
-
-        rgb.UseImage(*blurred, IAT::ColorAttachmentWrite);
-        rgb.RecordSynchronization();
     }
     return rgb.BuildRenderGraph();
 }
@@ -264,6 +261,7 @@ int main(int argc, char **argv) {
 
         rsys->CompleteFrame(
             has_gaussian_blur ? *postproc : *color,
+            has_gaussian_blur ? MemoryAccessTypeImageBits::ShaderRandomWrite : MemoryAccessTypeImageBits::ColorAttachmentWrite,
             postproc->GetTextureDescription().width, 
             postproc->GetTextureDescription().height
         );

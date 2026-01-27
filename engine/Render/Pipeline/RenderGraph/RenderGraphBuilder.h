@@ -125,11 +125,6 @@ namespace Engine {
         );
 
         /**
-         * @brief Explicitly record a synchronization operation.
-         */
-        void RecordSynchronization ();
-
-        /**
          * @brief Create a RenderGraph and reset internal states to default.
          */
         RenderGraph BuildRenderGraph();
