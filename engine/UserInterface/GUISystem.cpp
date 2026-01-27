@@ -78,12 +78,19 @@ namespace Engine {
     void GUISystem::DrawGUI(
         const AttachmentUtils::AttachmentDescription &att, vk::Extent2D extent, GraphicsCommandBuffer &cb
     ) const {
-        ImGui::Render();
         cb.BeginRendering(att, {}, extent, "GUI rendering pass");
+        ImGui::Render();
         ImGui_ImplVulkan_RenderDrawData(
             ImGui::GetDrawData(), static_cast<VkCommandBuffer>(cb.GetCommandBuffer()), nullptr
         );
         cb.EndRendering();
+    }
+
+    void GUISystem::DrawGUI(vk::CommandBuffer cb) const noexcept {
+        ImGui::Render();
+        ImGui_ImplVulkan_RenderDrawData(
+            ImGui::GetDrawData(), static_cast<VkCommandBuffer>(cb), nullptr
+        );
     }
 
     void GUISystem::Create(SDL_Window *window) {
