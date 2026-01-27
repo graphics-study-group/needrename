@@ -104,7 +104,7 @@ namespace Engine {
         this->asset_manager = std::make_shared<AssetManager>();
         this->gui = std::make_shared<GUISystem>();
         this->input = std::make_shared<Input>();
-        this->event_queue = std::make_shared<EventQueue>();
+        this->event_queue = std::make_shared<EventQueue>(*this->world);
 
         this->renderer->Create();
         this->window->CreateRenderTargets(this->renderer);

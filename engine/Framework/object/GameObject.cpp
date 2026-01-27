@@ -2,42 +2,49 @@
 #include <Framework/component/Component.h>
 #include <Framework/component/TransformComponent/TransformComponent.h>
 #include <Framework/object/GameObject.h>
+#include <Framework/world/WorldSystem.h>
 #include <MainClass.h>
 
 namespace Engine {
-    void GameObject::AddComponent(std::shared_ptr<Component> component) {
-        m_components.push_back(component);
-        component->m_parentGameObject = weak_from_this();
-    }
-
+    // TODO: save WorldSystem reference. Need the reflection parser support no backdoor constructor.
     const Transform &GameObject::GetTransform() const {
-        return m_transformComponent->GetTransform();
+        return MainClass::GetInstance()
+            ->GetWorldSystem()
+            ->GetComponent<TransformComponent>(m_transformComponent)
+            ->GetTransform();
     }
-
     Transform &GameObject::GetTransformRef() {
-        return m_transformComponent->GetTransformRef();
+        return MainClass::GetInstance()
+            ->GetWorldSystem()
+            ->GetComponent<TransformComponent>(m_transformComponent)
+            ->GetTransformRef();
     }
 
     Transform GameObject::GetWorldTransform() {
-        auto parentGameObject = m_parentGameObject.lock();
-        if (parentGameObject) return parentGameObject->GetWorldTransform() * m_transformComponent->GetTransform();
-        return m_transformComponent->GetTransform();
+        if (m_parentGameObject) {
+            return MainClass::GetInstance()->GetWorldSystem()->GetGameObject(m_parentGameObject)->GetWorldTransform()
+                   * GetTransform();
+        }
+        return GetTransform();
     }
 
     void GameObject::SetTransform(const Transform &transform) {
-        m_transformComponent->SetTransform(transform);
+        MainClass::GetInstance()
+            ->GetWorldSystem()
+            ->GetComponent<TransformComponent>(m_transformComponent)
+            ->SetTransform(transform);
     }
 
-    void GameObject::SetParent(std::shared_ptr<GameObject> parent) {
+    void GameObject::SetParent(ObjectHandle parent) {
         m_parentGameObject = parent;
-        parent->m_childGameObject.push_back(shared_from_this());
+        MainClass::GetInstance()->GetWorldSystem()->GetGameObject(parent)->m_childGameObject.push_back(m_handle);
     }
 
-    ObjectID GameObject::GetID() const noexcept {
-        return m_id;
+    ObjectHandle GameObject::GetHandle() const noexcept {
+        return m_handle;
     }
 
     bool GameObject::operator==(const GameObject &other) const noexcept {
-        return this->m_id == other.m_id;
+        return this->m_handle == other.m_handle;
     }
 } // namespace Engine

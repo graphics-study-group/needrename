@@ -18,77 +18,138 @@ namespace Engine {
     WorldSystem::~WorldSystem() {
     }
 
+    ObjectHandle WorldSystem::CreateGameObject() {
+        auto go_ptr = std::unique_ptr<GameObject>(new GameObject());
+        m_go_id_counter++;
+        go_ptr->m_handle = m_go_id_counter;
+        auto ret_handle = go_ptr->m_handle;
+        auto transform_component = go_ptr->template AddComponent<TransformComponent>();
+        go_ptr->m_transformComponent = transform_component;
+        m_go_map[ret_handle] = go_ptr.get();
+        m_go_cmd_queue.push({ObjectCmd::Add, std::move(go_ptr)});
+        return ret_handle;
+    }
+
+    ComponentHandle WorldSystem::CreateComponent(ObjectHandle objectHandle) {
+        auto comp_ptr = std::unique_ptr<Component>(new Component(objectHandle));
+        m_component_id_counter++;
+        comp_ptr->m_handle = m_component_id_counter;
+        auto ret_handle = comp_ptr->m_handle;
+        m_comp_map[ret_handle] = comp_ptr.get();
+        m_comp_cmd_queue.push({ComponentCmd::Add, std::move(comp_ptr)});
+        return ret_handle;
+    }
+
+    void WorldSystem::RemoveGameObject(ObjectHandle handle) {
+        m_go_cmd_queue.push({ObjectCmd::Remove, handle});
+    }
+
+    void WorldSystem::RemoveComponent(ComponentHandle handle) {
+        m_comp_cmd_queue.push({ComponentCmd::Remove, handle});
+    }
+
+    void WorldSystem::FlushCmdQueue() {
+        auto event_queue = MainClass::GetInstance()->GetEventQueue();
+
+        while (!m_go_cmd_queue.empty()) {
+            auto &cmd = m_go_cmd_queue.front();
+            switch (cmd.cmd) {
+            case ObjectCmd::Add:
+                auto &go_ptr = std::get<std::unique_ptr<GameObject>>(cmd.go);
+                m_game_objects.push_back(std::move(go_ptr));
+                break;
+            case ObjectCmd::Remove:
+                auto go_ptr = this->GetGameObject(std::get<ObjectHandle>(cmd.go));
+                for (auto comp : go_ptr->m_components) {
+                    this->RemoveComponent(comp);
+                }
+                m_go_map.erase(std::get<ObjectHandle>(cmd.go));
+                m_game_objects.erase(
+                    std::remove(m_game_objects.begin(), m_game_objects.end(), go_ptr), m_game_objects.end()
+                );
+                break;
+            }
+            m_go_cmd_queue.pop();
+        }
+
+        while (!m_comp_cmd_queue.empty()) {
+            auto &cmd = m_comp_cmd_queue.front();
+            switch (cmd.cmd) {
+            case ComponentCmd::Add:
+                auto &comp_ptr = std::get<std::unique_ptr<Component>>(cmd.comp);
+                m_components.push_back(std::move(comp_ptr));
+                event_queue->AddEvent(comp_ptr->GetHandle(), &Component::Init);
+                // XXX: should not render init here
+                auto render_comp = dynamic_cast<RendererComponent *>(comp_ptr.get());
+                if (render_comp) {
+                    render_comp->RenderInit();
+                }
+                break;
+            case ComponentCmd::Remove:
+                auto comp_ptr = this->GetComponent(std::get<ComponentHandle>(cmd.comp));
+                m_comp_map.erase(std::get<ComponentHandle>(cmd.comp));
+                m_components.erase(std::remove(m_components.begin(), m_components.end(), comp_ptr), m_components.end());
+                break;
+            }
+            m_comp_cmd_queue.pop();
+        }
+    }
+
+    GameObject *WorldSystem::GetGameObject(ObjectHandle handle) {
+        auto it = m_go_map.find(handle);
+        if (it == m_go_map.end()) {
+            return nullptr;
+        }
+        return it->second;
+    }
+
+    Component *WorldSystem::GetComponent(ComponentHandle handle) {
+        auto it = m_comp_map.find(handle);
+        if (it == m_comp_map.end()) {
+            return nullptr;
+        }
+        return it->second;
+    }
+
+    const std::vector<std::unique_ptr<GameObject>> &WorldSystem::GetGameObjects() const {
+        return m_game_objects;
+    }
+
+    const std::vector<std::unique_ptr<Component>> &WorldSystem::GetComponents() const {
+        return m_components;
+    }
+
     void WorldSystem::AddInitEvent() {
         auto event_queue = MainClass::GetInstance()->GetEventQueue();
-        for (auto &comp : m_all_components) {
-            event_queue->AddEvent(comp, &Component::Init);
+        for (auto &comp : m_components) {
+            event_queue->AddEvent(comp->GetHandle(), &Component::Init);
         }
     }
 
     void WorldSystem::AddTickEvent() {
         auto event_queue = MainClass::GetInstance()->GetEventQueue();
-        for (auto &comp : m_all_components) {
-            event_queue->AddEvent(comp, &Component::Tick);
-        }
-    }
-
-    void WorldSystem::LoadGameObjectInQueue() {
-        auto event_queue = MainClass::GetInstance()->GetEventQueue();
-        for (auto &go : m_go_loading_queue) {
-            go->m_id = m_go_id_counter++;
-            m_game_objects.push_back(go);
-            for (auto &comp : go->m_components) {
-                AddComponent(comp);
-                auto render_comp = std::dynamic_pointer_cast<RendererComponent>(comp);
-                if (render_comp) {
-                    render_comp->RenderInit();
-                }
-                event_queue->AddEvent(comp, &Component::Init);
-            }
-        }
-        m_go_loading_queue.clear();
-    }
-
-    void WorldSystem::RemoveGameObjectFromWorld(std::shared_ptr<GameObject> go) {
-        // TODO: Better removal process instead of simple erase.
-        auto it = std::find(m_game_objects.begin(), m_game_objects.end(), go);
-        if (it != m_game_objects.end()) {
-            for (auto &comp : go->m_components) {
-                RemoveComponent(comp);
-            }
-            m_game_objects.erase(it);
-        }
-    }
-
-    void WorldSystem::RefreshGameObjectInWorld(std::shared_ptr<GameObject> go) {
-        auto it = std::find(m_game_objects.begin(), m_game_objects.end(), go);
-        if (it != m_game_objects.end()) {
-            for (auto &comp : go->m_components) {
-                RemoveComponent(comp);
-            }
-            for (auto &comp : go->m_components) {
-                AddComponent(comp);
-            }
+        for (auto &comp : m_components) {
+            event_queue->AddEvent(comp->GetHandle(), &Component::Tick);
         }
     }
 
     void WorldSystem::UpdateLightData(RenderSystemState::SceneDataManager &scene_data_manager) {
-        std::vector<std::shared_ptr<LightComponent>> casting_light;
-        std::vector<std::shared_ptr<LightComponent>> non_casting_light;
-        for (auto &comp : m_all_components) {
-            auto light_comp = std::dynamic_pointer_cast<LightComponent>(comp);
-            if (light_comp) {
-                if (light_comp->m_cast_shadow) {
-                    if (light_comp->m_type == LightType::Directional) {
-                        casting_light.push_back(light_comp);
+        std::vector<LightComponent *> casting_light;
+        std::vector<LightComponent *> non_casting_light;
+        for (auto &comp : m_components) {
+            auto ptr = dynamic_cast<LightComponent *>(comp.get());
+            if (ptr) {
+                if (ptr->m_cast_shadow) {
+                    if (ptr->m_type == LightType::Directional) {
+                        casting_light.push_back(ptr);
                     } else {
                         SDL_LogWarn(
                             SDL_LOG_CATEGORY_APPLICATION, "Shadow casting point light and spot light are not supported."
                         );
                     }
                 } else {
-                    if (light_comp->m_type != LightType::Spot) {
-                        non_casting_light.push_back(light_comp);
+                    if (ptr->m_type != LightType::Spot) {
+                        non_casting_light.push_back(ptr);
                     } else {
                         SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "Spot light is not supported.");
                     }
@@ -126,21 +187,6 @@ namespace Engine {
         }
     }
 
-    void WorldSystem::LoadLevelAsset(std::shared_ptr<LevelAsset> levelAsset) {
-        for (auto &go : levelAsset->m_gameobjects) {
-            AddGameObjectToWorld(go);
-        }
-        // We cannot register camera here as render system is not guaranteed to be initalized correctly at this point.
-        m_active_camera = levelAsset->m_default_camera;
-    }
-
-    void WorldSystem::LoadGameObjectAsset(std::shared_ptr<GameObjectAsset> gameObjectAsset) {
-        AddGameObjectToWorld(gameObjectAsset->m_MainObject);
-    }
-
-    const std::vector<std::shared_ptr<GameObject>> &WorldSystem::GetGameObjects() const {
-        return m_game_objects;
-    }
     std::shared_ptr<Camera> WorldSystem::GetActiveCamera() const noexcept {
         return m_active_camera;
     }
@@ -153,20 +199,17 @@ namespace Engine {
         }
     }
 
-    void WorldSystem::AddComponent(std::shared_ptr<Component> comp) {
-        comp->m_id = m_component_id_counter++;
-        m_all_components.push_back(comp);
+    ObjectHandle WorldSystem::NextAvailableObjectHandle() {
+        do {
+            m_go_id_counter++;
+        } while (m_go_map.find(m_go_id_counter) != m_go_map.end() && m_go_id_counter != 0u);
+        return m_go_id_counter;
     }
 
-    void WorldSystem::RemoveComponent(std::shared_ptr<Component> comp) {
-        // TODO: Better removal process instead of simple erase.
-        auto it = std::find(m_all_components.begin(), m_all_components.end(), comp);
-        if (it != m_all_components.end()) {
-            m_all_components.erase(it);
-        }
-        auto render_comp = std::dynamic_pointer_cast<RendererComponent>(comp);
-        if (render_comp) {
-            render_comp->UnregisterFromRenderSystem();
-        }
+    ComponentHandle WorldSystem::NextAvailableComponentHandle() {
+        do {
+            m_component_id_counter++;
+        } while (m_comp_map.find(m_component_id_counter) != m_comp_map.end() && m_component_id_counter != 0u);
+        return m_component_id_counter;
     }
 } // namespace Engine

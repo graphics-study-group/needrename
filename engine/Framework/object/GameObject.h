@@ -8,19 +8,14 @@
 #include <memory>
 #include <string>
 #include <vector>
-
-// Suppress warning from std::enable_shared_from_this
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wnon-virtual-dtor"
+#include <Framework/world/Handle.h>
 
 namespace Engine {
-    using ObjectID = uint32_t;
-
     class Component;
     class TransformComponent;
     class WorldSystem;
 
-    class REFL_SER_CLASS(REFL_BLACKLIST) GameObject : public std::enable_shared_from_this<GameObject> {
+    class REFL_SER_CLASS(REFL_BLACKLIST) GameObject {
         REFL_SER_BODY(GameObject)
     private:
         friend class WorldSystem;
@@ -30,48 +25,41 @@ namespace Engine {
     public:
         virtual ~GameObject() = default;
 
-        /// @brief Add a component to the GameObject. Will set the component's parent to this GameObject.
-        /// @param component The component to be added
-        void AddComponent(std::shared_ptr<Component> component);
-
         /// @brief Add a component of type T to the GameObject.
         /// @tparam T T must be derived from Component
         /// @tparam Args The arguments to be passed to the constructor of T
         /// @return The shared pointer to the created component
         template <typename T, typename... Args>
-        std::shared_ptr<T> AddComponent(Args &&...args);
+        ComponentHandle AddComponent(Args &&...args);
 
         const Transform &GetTransform() const;
         void SetTransform(const Transform &transform);
         Transform &GetTransformRef();
         Transform GetWorldTransform();
-        void SetParent(std::shared_ptr<GameObject> parent);
-        ObjectID GetID() const noexcept;
+        void SetParent(ObjectHandle parent);
+        ObjectHandle GetHandle() const noexcept;
 
         bool operator==(const GameObject &other) const noexcept;
 
     public:
         std::string m_name{};
+        ObjectHandle m_parentGameObject{0};
+        std::vector<ObjectHandle> m_childGameObject{};
 
-        std::weak_ptr<GameObject> m_parentGameObject{};
-        std::vector<std::shared_ptr<GameObject>> m_childGameObject{};
-
-        std::shared_ptr<TransformComponent> m_transformComponent{};
-        std::vector<std::shared_ptr<Component>> m_components{};
+        ComponentHandle m_transformComponent{};
+        std::vector<ComponentHandle> m_components{};
     
     protected:
-        ObjectID m_id{};
+        ObjectHandle m_handle{};
     };
 
     template <typename T, typename... Args>
-    std::shared_ptr<T> GameObject::AddComponent(Args &&...args) {
+    ComponentHandle GameObject::AddComponent(Args &&...args) {
         static_assert(std::is_base_of<Component, T>::value, "T must be derived from Component");
         auto component = std::make_shared<T>(weak_from_this(), std::forward<Args>(args)...);
         AddComponent(component);
         return component;
     }
 } // namespace Engine
-
-#pragma GCC diagnostic pop
 
 #endif // FRAMEWORK_OBJECT_GAMEOBJECT_INCLUDED

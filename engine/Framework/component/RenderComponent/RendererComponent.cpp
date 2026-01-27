@@ -12,7 +12,7 @@
 #include <Render/Pipeline/Material/MaterialInstance.h>
 
 namespace Engine {
-    RendererComponent::RendererComponent(std::weak_ptr<GameObject> gameObject) : Component(gameObject) {
+    RendererComponent::RendererComponent(ObjectHandle gameObject) : Component(gameObject) {
         m_system = MainClass::GetInstance()->GetRenderSystem();
     }
 

@@ -1,6 +1,9 @@
 #include "EventQueue.h"
 
 namespace Engine {
+    EventQueue::EventQueue(WorldSystem &world) : m_world(world) {
+    }
+
     void EventQueue::AddEvent(DelegatePtr event) {
         m_events.push(std::move(event));
     }

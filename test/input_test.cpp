@@ -21,7 +21,7 @@ using namespace Engine;
 
 class ControlComponent : public Component {
 public:
-    ControlComponent(std::weak_ptr<GameObject> gameObject) : Component(gameObject) {
+    ControlComponent(ObjectHandle gameObject) : Component(gameObject) {
     }
 
     std::shared_ptr<CameraComponent> m_camera{};

@@ -110,29 +110,29 @@ namespace Engine {
             database->SaveArchive(archive, AssetPath(*database, path_in_project / (texture->m_name + ".asset")));
         }
 
-        std::shared_ptr<GameObjectAsset> m_game_object_asset = std::make_shared<GameObjectAsset>();
-        m_game_object_asset->m_MainObject = MainClass::GetInstance()->GetWorldSystem()->CreateGameObject<GameObject>();
-        m_game_object_asset->m_MainObject->m_name = m_mesh_asset->m_name;
-        std::shared_ptr<MeshComponent> m_mesh_component =
-            std::make_shared<MeshComponent>(m_game_object_asset->m_MainObject);
-        m_mesh_component->m_mesh_asset = std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(m_mesh_asset));
-        auto submesh_count = m_mesh_asset->m_submeshes.size();
-        for (size_t i = 0; i < submesh_count; i++) {
-            if (i < m_material_assets.size()) {
-                m_mesh_component->m_material_assets.push_back(
-                    std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(m_material_assets[i]))
-                );
-            } else {
-                m_mesh_component->m_material_assets.push_back(database->GetNewAssetRef(
-                    AssetPath(*database, std::filesystem::path("~/materials/solid_color_dark_grey.asset"))
-                ));
-            }
-        }
-        m_game_object_asset->m_MainObject->AddComponent(m_mesh_component);
+        // std::shared_ptr<GameObjectAsset> m_game_object_asset = std::make_shared<GameObjectAsset>();
+        // m_game_object_asset->m_MainObject = MainClass::GetInstance()->GetWorldSystem()->CreateGameObject<GameObject>();
+        // m_game_object_asset->m_MainObject->m_name = m_mesh_asset->m_name;
+        // std::shared_ptr<MeshComponent> m_mesh_component =
+        //     std::make_shared<MeshComponent>(m_game_object_asset->m_MainObject);
+        // m_mesh_component->m_mesh_asset = std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(m_mesh_asset));
+        // auto submesh_count = m_mesh_asset->m_submeshes.size();
+        // for (size_t i = 0; i < submesh_count; i++) {
+        //     if (i < m_material_assets.size()) {
+        //         m_mesh_component->m_material_assets.push_back(
+        //             std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(m_material_assets[i]))
+        //         );
+        //     } else {
+        //         m_mesh_component->m_material_assets.push_back(database->GetNewAssetRef(
+        //             AssetPath(*database, std::filesystem::path("~/materials/solid_color_dark_grey.asset"))
+        //         ));
+        //     }
+        // }
+        // m_game_object_asset->m_MainObject->AddComponent(m_mesh_component);
 
         archive.clear();
         archive.prepare_save();
-        m_game_object_asset->save_asset_to_archive(archive);
+        // m_game_object_asset->save_asset_to_archive(archive);
         database->SaveArchive(archive, AssetPath(*database, path_in_project / ("GO_" + m_mesh_asset->m_name + ".asset")));
     }
 

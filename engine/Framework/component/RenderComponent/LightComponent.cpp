@@ -2,6 +2,6 @@
 
 namespace Engine
 {
-    LightComponent::LightComponent(std::weak_ptr<GameObject> gameObject) : Component(gameObject) {
+    LightComponent::LightComponent(ObjectHandle gameObject) : Component(gameObject) {
     }
 }

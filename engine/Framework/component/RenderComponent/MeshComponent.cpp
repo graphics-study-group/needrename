@@ -8,7 +8,7 @@
 #include <Asset/AssetRef.h>
 
 namespace Engine {
-    MeshComponent::MeshComponent(std::weak_ptr<GameObject> gameObject) : RendererComponent(gameObject) {
+    MeshComponent::MeshComponent(ObjectHandle gameObject) : RendererComponent(gameObject) {
     }
 
     std::shared_ptr<HomogeneousMesh> MeshComponent::GetSubmesh(uint32_t slot) const {

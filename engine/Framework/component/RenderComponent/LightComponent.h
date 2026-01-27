@@ -18,7 +18,7 @@ namespace Engine {
     class REFL_SER_CLASS(REFL_WHITELIST) LightComponent : public Component {
         REFL_SER_BODY(LightComponent)
     public:
-        REFL_ENABLE LightComponent(std::weak_ptr<GameObject> gameObject);
+        REFL_ENABLE LightComponent(ObjectHandle gameObject);
         virtual ~LightComponent() = default;
 
     public:

@@ -5,18 +5,18 @@
 #include <Reflection/macros.h>
 #include <Reflection/serialization_smart_pointer.h>
 #include <memory>
-
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wnon-virtual-dtor"
+#include <Framework/world/Handle.h>
 
 namespace Engine {
-    class GameObject;
-
-    class REFL_SER_CLASS(REFL_WHITELIST) Component : public std::enable_shared_from_this<Component> {
+    class REFL_SER_CLASS(REFL_WHITELIST) Component {
         REFL_SER_BODY(Component)
-    public:
+
+    protected:
+        friend class WorldSystem;
         Component() = delete;
-        REFL_ENABLE Component(std::weak_ptr<GameObject> gameObject);
+        Component(ObjectHandle parent_object);
+    
+    public:
         virtual ~Component() = default;
 
         /// @brief Initialize the component. Called when the parent GameObject before the first Tick after the
@@ -26,7 +26,7 @@ namespace Engine {
         /// @brief Called every frame.
         virtual void Tick();
 
-        ObjectID GetID() const noexcept;
+        ComponentHandle GetHandle() const noexcept;
 
         bool operator==(const Component &other) const noexcept;
 
@@ -34,11 +34,9 @@ namespace Engine {
         REFL_SER_ENABLE std::weak_ptr<GameObject> m_parentGameObject{};
 
     protected:
-        friend class WorldSystem;
-        ObjectID m_id{};
+        ComponentHandle m_handle{};
     };
 } // namespace Engine
 
-#pragma GCC diagnostic pop
 
 #endif // FRAMEWORK_COMPONENT_COMPONENT_INCLUDED

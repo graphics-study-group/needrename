@@ -10,7 +10,7 @@
 #include <gtc/matrix_transform.hpp>
 
 namespace Engine {
-    CameraComponent::CameraComponent(std::weak_ptr<GameObject> gameObject) : Component(gameObject) {
+    CameraComponent::CameraComponent(ObjectHandle gameObject) : Component(gameObject) {
         m_camera = std::make_shared<Camera>();
         UpdateViewMatrix();
         UpdateProjectionMatrix();

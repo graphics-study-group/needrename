@@ -29,7 +29,7 @@
 
 using namespace Engine;
 
-SpinningComponent::SpinningComponent(std::weak_ptr<GameObject> gameObject) : Component(gameObject) {
+SpinningComponent::SpinningComponent(ObjectHandle gameObject) : Component(gameObject) {
 }
 
 void SpinningComponent::Init() {
@@ -47,7 +47,7 @@ void SpinningComponent::Tick() {
     }
 }
 
-ControlComponent::ControlComponent(std::weak_ptr<GameObject> gameObject) : Component(gameObject) {
+ControlComponent::ControlComponent(ObjectHandle gameObject) : Component(gameObject) {
 }
 
 void ControlComponent::Tick() {

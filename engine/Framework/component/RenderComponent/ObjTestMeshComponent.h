@@ -95,7 +95,7 @@ namespace Engine {
     public:
         ObjTestMeshComponent(
             std::filesystem::path mesh_file_name,
-            std::weak_ptr<GameObject> go = std::weak_ptr<GameObject>()
+            ObjectHandle go = 0u
         ) : MeshComponent(go) {
             LoadMesh(mesh_file_name);
         }

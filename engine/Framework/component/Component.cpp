@@ -1,7 +1,7 @@
 #include "Component.h"
 
 namespace Engine {
-    Component::Component(std::weak_ptr<GameObject> gameObject) : m_parentGameObject(gameObject) {
+    Component::Component(ObjectHandle parent_object) : m_handle(parent_object) {
     }
 
     void Component::Init() {
@@ -10,11 +10,11 @@ namespace Engine {
     void Component::Tick() {
     }
 
-    ObjectID Component::GetID() const noexcept {
-        return m_id;
+    ComponentHandle Component::GetHandle() const noexcept {
+        return m_handle;
     }
     
     bool Component::operator==(const Component &other) const noexcept {
-        return this->m_id == other.m_id;
+        return this->m_handle == other.m_handle;
     }
 } // namespace Engine

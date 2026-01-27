@@ -11,7 +11,7 @@ namespace Engine {
     class REFL_SER_CLASS(REFL_WHITELIST) CameraComponent : public Component {
         REFL_SER_BODY(CameraComponent)
     public:
-        REFL_ENABLE CameraComponent(std::weak_ptr<GameObject> gameObject);
+        REFL_ENABLE CameraComponent(ObjectHandle gameObject);
         virtual ~CameraComponent() = default;
 
         virtual void Tick() override;
