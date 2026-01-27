@@ -67,11 +67,14 @@ void main() {
     vec3 totalLight = vec3(0.0);
     float shininess = material.specular_color.w;
 
-    // Process non-casting lights (point lights)
+    // Process non-casting lights
     for (int i = 0; i < scene.noncasting_light_count; ++i) {
         // Get normalized incident vector pointing from the light source
-        vec3 incident_vs = (camera.cameras[pc.camera_id].view * vec4(frag_position - scene.noncasting_lights.light_source[i].xyz, 1.0)).xyz;
-        incident_vs = normalize(incident_vs);
+        vec3 incident_vs = vec3(0.0);
+        if (scene.noncasting_lights.light_source[i].w == 0.0) // 0: directional light
+            incident_vs = normalize(mat3(camera.cameras[pc.camera_id].view) * scene.noncasting_lights.light_source[i].xyz);
+        else if (scene.noncasting_lights.light_source[i].w != 0.0) // 1: point light
+            incident_vs = normalize((camera.cameras[pc.camera_id].view * vec4(frag_position - scene.noncasting_lights.light_source[i].xyz, 1.0)).xyz);
 
         // Calculate diffuse coefficient
         float diffuse_coef = max(0.0, dot(-incident_vs, normal_vs));

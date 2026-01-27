@@ -22,12 +22,6 @@ namespace Engine {
         auto &color_target = *color_target_ptr;
         auto &depth_target = *depth_target_ptr;
 
-        // XXX: Hardcoded light direction
-        m_system.GetSceneDataManager().SetLightDirectional(
-            0, glm::vec3{1.0f, 1.0f, -1.0f}, glm::vec3{1.0f, 1.0f, 1.0f}
-        );
-        m_system.GetSceneDataManager().SetLightCount(1);
-
         RenderTargetTexture::RenderTargetTextureDesc desc{
             .dimensions = 2,
             .width = SHADOWMAP_WIDTH,

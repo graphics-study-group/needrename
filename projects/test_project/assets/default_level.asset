@@ -6,7 +6,9 @@
                 "&9",
                 "&14",
                 "&19",
-                "&24"
+                "&24",
+                "&29",
+                "&32"
             ],
             "LevelAsset::m_default_camera": "&12",
             "LevelAsset::m_skybox_material": "&13",
@@ -294,6 +296,98 @@
         "&28": {
             "%type": "Engine::AssetRef",
             "AssetRef::m_guid": "B24F0192DE71DE0391D44C379471F141"
+        },
+        "&29": {
+            "%type": "Engine::GameObject",
+            "GameObject::m_childGameObject": [],
+            "GameObject::m_components": [
+                "&30",
+                "&31"
+            ],
+            "GameObject::m_name": "four_bunny",
+            "GameObject::m_parentGameObject": null,
+            "GameObject::m_transformComponent": "&30"
+        },
+        "&30": {
+            "%type": "Engine::TransformComponent",
+            "Component::m_parentGameObject": "&29",
+            "TransformComponent::m_transform": {
+                "%type": "Engine::Transform",
+                "Transform::m_position": [
+                    0.0,
+                    0.0,
+                    1.0
+                ],
+                "Transform::m_rotation": [
+                    -0.612,
+                    0.354,
+                    0.0,
+                    0.707
+                ],
+                "Transform::m_scale": [
+                    1.0,
+                    1.0,
+                    1.0
+                ]
+            }
+        },
+        "&31": {
+            "%type": "Engine::LightComponent",
+            "Component::m_parentGameObject": "&29",
+            "LightComponent::m_color": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "LightComponent::m_intensity": 1.0,
+            "LightComponent::m_type": "Directional",
+            "LightComponent::m_cast_shadow": true
+        },
+        "&32": {
+            "%type": "Engine::GameObject",
+            "GameObject::m_childGameObject": [],
+            "GameObject::m_components": [
+                "&33",
+                "&34"
+            ],
+            "GameObject::m_name": "four_bunny",
+            "GameObject::m_parentGameObject": null,
+            "GameObject::m_transformComponent": "&33"
+        },
+        "&33": {
+            "%type": "Engine::TransformComponent",
+            "Component::m_parentGameObject": "&32",
+            "TransformComponent::m_transform": {
+                "%type": "Engine::Transform",
+                "Transform::m_position": [
+                    0.0,
+                    0.0,
+                    0.3
+                ],
+                "Transform::m_rotation": [
+                    -0.612,
+                    0.354,
+                    0.0,
+                    0.707
+                ],
+                "Transform::m_scale": [
+                    1.0,
+                    1.0,
+                    1.0
+                ]
+            }
+        },
+        "&34": {
+            "%type": "Engine::LightComponent",
+            "Component::m_parentGameObject": "&32",
+            "LightComponent::m_color": [
+                1.0,
+                0.2,
+                0.2
+            ],
+            "LightComponent::m_intensity": 0.5,
+            "LightComponent::m_type": "Point",
+            "LightComponent::m_cast_shadow": false
         }
     },
     "%extra_data": [],
