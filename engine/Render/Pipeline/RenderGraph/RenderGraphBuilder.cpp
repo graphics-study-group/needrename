@@ -9,18 +9,93 @@
 #include <unordered_map>
 #include <vulkan/vulkan.hpp>
 
+namespace {
+}
+
 namespace Engine {
     struct RenderGraphBuilder::impl {
-        std::vector<RenderGraphImpl::Task> m_tasks{};
-        std::vector <RenderGraphImpl::PassType> pass_types {};
+
+        struct Pass {
+            RenderGraphImpl::PassType type;
+            std::function <void(vk::CommandBuffer)> operation;
+        };
+
+        std::vector <Pass> m_tasks{};
 
         RenderGraphImpl::PassType GetPassType(int32_t pass_index) {
-            assert(pass_index < 0 || pass_index < pass_types.size());
-            return pass_index < 0 ? RenderGraphImpl::PassType::None : pass_types[pass_index];
+            assert(pass_index < 0 || pass_index < m_tasks.size());
+            return pass_index < 0 ? RenderGraphImpl::PassType::None : m_tasks[pass_index].type;
         }
 
         RenderGraphImpl::TextureAccessMemo m_texture_memo;
         RenderGraphImpl::BufferAccessMemo m_buffer_memo;
+
+        std::function <void(vk::CommandBuffer)> GetPrePassSynchronizationFunc(int32_t pass_index) {
+            std::vector<vk::ImageMemoryBarrier2> image_barriers{};
+            std::vector<vk::BufferMemoryBarrier2> buffer_barriers{};
+            // Build image barriers
+            for (const auto & [img, acc] : m_texture_memo.accesses) {
+                if (acc.size() < 2) continue;
+                
+                auto itr = std::find_if(
+                    acc.begin(),
+                    acc.end(),
+                    [pass_index](const RenderGraphImpl::TextureAccessMemo::Access & access) {
+                        return access.pass_index == pass_index;
+                    }
+                );
+                if (itr == acc.begin() || itr == acc.end()) continue;
+                const auto pitr = (itr - 1);
+
+                image_barriers.push_back(
+                    m_texture_memo.GenerateBarrier(
+                        img->GetImage(),
+                        pitr->access,
+                        GetPassType(pitr->pass_index),
+                        itr->access,
+                        GetPassType(itr->pass_index),
+                        ImageUtils::GetVkAspect(img->GetTextureDescription().format)
+                    )
+                );
+            }
+            // Build buffer barriers
+            for (const auto & [buf, acc] : m_buffer_memo.accesses) {
+                if (acc.size() < 2) continue;
+
+                auto itr = std::find_if(
+                    acc.begin(),
+                    acc.end(),
+                    [pass_index](const RenderGraphImpl::BufferAccessMemo::Access & access) {
+                        return access.pass_index == pass_index;
+                    }
+                );
+                if (itr == acc.begin() || itr == acc.end()) continue;
+                const auto pitr = (itr - 1);
+
+                buffer_barriers.push_back(
+                    m_buffer_memo.GenerateBarrier(
+                        buf,
+                        pitr->access,
+                        GetPassType(pitr->pass_index),
+                        itr->access,
+                        GetPassType(itr->pass_index)
+                    )
+                );
+            }
+
+            return [
+                ib = std::move(image_barriers),
+                bb = std::move(buffer_barriers)
+            ] (vk::CommandBuffer cb) -> void {
+                vk::DependencyInfo dep{
+                    vk::DependencyFlags{},
+                    {},
+                    bb,
+                    ib
+                };
+                cb.pipelineBarrier2(dep);
+            };
+        }
     };
 
     RenderGraphBuilder::RenderGraphBuilder(RenderSystem &system) : m_system(system), pimpl(std::make_unique<impl>()) {
@@ -32,32 +107,31 @@ namespace Engine {
         if (pimpl->m_texture_memo.accesses.contains(&texture)) {
             SDL_LogWarn(
                 SDL_LOG_CATEGORY_RENDER,
-                "Importing an external texture resource %p after it has already been used by the render graph.",
+                "Importing an external texture resource %p after it has already been used by the render graph."
+                "Previous dependencies will be cleared.",
                 &texture
             );
         }
-        pimpl->m_texture_memo.UpdateLastAccess(&texture, -1, {access});
+        pimpl->m_texture_memo.accesses[&texture] ={ {-1, {access}} };
     }
 
     void RenderGraphBuilder::UseImage(const Texture &texture, MemoryAccessTypeImageBits access) {
-        pimpl->m_texture_memo.UpdateLastAccess(&texture, pimpl->pass_types.size(), {access});
+        pimpl->m_texture_memo.UpdateLastAccess(&texture, pimpl->m_tasks.size(), {access});
     }
     void RenderGraphBuilder::UseBuffer(const DeviceBuffer &buffer, MemoryAccessTypeBuffer access) {
-        pimpl->m_buffer_memo.UpdateLastAccess(buffer.GetBuffer(), pimpl->pass_types.size(), access);
+        pimpl->m_buffer_memo.UpdateLastAccess(buffer.GetBuffer(), pimpl->m_tasks.size(), access);
     }
 
     void RenderGraphBuilder::RecordRasterizerPassWithoutRT(std::function<void(GraphicsCommandBuffer &)> pass) {
-        pimpl->pass_types.push_back(RenderGraphImpl::PassType::Graphics);
         std::function<void(vk::CommandBuffer)> f = [system = &this->m_system,
                                                     pass](vk::CommandBuffer cb) {
 
             GraphicsCommandBuffer gcb{*system, cb, system->GetFrameManager().GetFrameInFlight()};
             std::invoke(pass, std::ref(gcb));
         };
-        this->RecordSynchronization();
         pimpl->m_tasks.push_back(
-            RenderGraphImpl::Command{
-                RenderGraphImpl::Command::Type::Graphics,
+            impl::Pass{
+                RenderGraphImpl::PassType::Graphics,
                 f
             }
         );
@@ -82,7 +156,6 @@ namespace Engine {
         std::function<void(GraphicsCommandBuffer &)> pass,
         const std::string &name
     ) {
-        pimpl->pass_types.push_back(RenderGraphImpl::PassType::Graphics);
         std::function<void(vk::CommandBuffer)> f = [system = &this->m_system,
                                                     pass,
                                                     color,
@@ -94,10 +167,9 @@ namespace Engine {
             gcb.EndRendering();
         };
 
-        this->RecordSynchronization();
         pimpl->m_tasks.push_back(
-            RenderGraphImpl::Command{
-                RenderGraphImpl::Command::Type::Graphics,
+            impl::Pass{
+                RenderGraphImpl::PassType::Graphics,
                 f
             }
         );
@@ -109,7 +181,6 @@ namespace Engine {
         std::function<void(GraphicsCommandBuffer &)> pass,
         const std::string &name
     ) {
-        pimpl->pass_types.push_back(RenderGraphImpl::PassType::Graphics);
         std::function<void(vk::CommandBuffer)> f = [system = &this->m_system,
                                                     pass,
                                                     &colors,
@@ -121,10 +192,9 @@ namespace Engine {
             std::invoke(pass, std::ref(gcb));
             gcb.EndRendering();
         };
-        this->RecordSynchronization();
         pimpl->m_tasks.push_back(
-            RenderGraphImpl::Command{
-                RenderGraphImpl::Command::Type::Graphics,
+            impl::Pass{
+                RenderGraphImpl::PassType::Graphics,
                 f
             }
         );
@@ -133,7 +203,6 @@ namespace Engine {
         std::function<void(TransferCommandBuffer &)> pass, 
         const std::string & name
     ) {
-        pimpl->pass_types.push_back(RenderGraphImpl::PassType::Transfer);
         std::function<void(vk::CommandBuffer)> f = [pass,
                                                     name](vk::CommandBuffer cb) {
             TransferCommandBuffer tcb{cb};
@@ -142,16 +211,16 @@ namespace Engine {
             tcb.GetCommandBuffer().endDebugUtilsLabelEXT();
         };
 
-        this->RecordSynchronization();
-        pimpl->m_tasks.push_back(RenderGraphImpl::Command{
-            RenderGraphImpl::Command::Type::Transfer,
-            f
-        });
+        pimpl->m_tasks.push_back(
+            impl::Pass{
+                RenderGraphImpl::PassType::Transfer,
+                f
+            }
+        );
     }
     void RenderGraphBuilder::RecordComputePass(
         std::function<void(ComputeCommandBuffer &)> pass, const std::string &name
     ) {
-        pimpl->pass_types.push_back(RenderGraphImpl::PassType::Compute);
         std::function<void(vk::CommandBuffer)> f = [system = &this->m_system,
                                                     pass,
                                                     name](vk::CommandBuffer cb) {
@@ -161,59 +230,14 @@ namespace Engine {
             ccb.GetCommandBuffer().endDebugUtilsLabelEXT();
         };
 
-        this->RecordSynchronization();
         pimpl->m_tasks.push_back(
-            RenderGraphImpl::Command{
-                RenderGraphImpl::Command::Type::Compute,
+            impl::Pass{
+                RenderGraphImpl::PassType::Compute,
                 f
             }
         );
     }
-    void RenderGraphBuilder::RecordSynchronization() {
-        const int current_pass_id = pimpl->pass_types.size() - 1;
-        std::vector<vk::ImageMemoryBarrier2> image_barriers{};
-        std::vector<vk::BufferMemoryBarrier2> buffer_barriers{};
-        // Build image barriers
-        for (const auto & [img, acc] : pimpl->m_texture_memo.accesses) {
-            if (acc.size() < 2) continue;
-            if (acc.back().pass_index != current_pass_id)   continue;
-            const auto & prev_acc = *(acc.rbegin() + 1);
-            image_barriers.push_back(
-                pimpl->m_texture_memo.GenerateBarrier(
-                    img->GetImage(),
-                    prev_acc.access,
-                    pimpl->GetPassType(prev_acc.pass_index),
-                    acc.back().access,
-                    pimpl->GetPassType(acc.back().pass_index),
-                    ImageUtils::GetVkAspect(img->GetTextureDescription().format)
-                )
-            );
-        }
-        // Build buffer barriers
-        for (const auto & [buf, acc] : pimpl->m_buffer_memo.accesses) {
-            if (acc.size() < 2) continue;
-            if (acc.back().pass_index != current_pass_id)   continue;
-
-            const auto & prev_acc = *(acc.rbegin() + 1);
-            buffer_barriers.push_back(
-                pimpl->m_buffer_memo.GenerateBarrier(
-                    buf,
-                    prev_acc.access,
-                    pimpl->GetPassType(prev_acc.pass_index),
-                    acc.back().access,
-                    pimpl->GetPassType(acc.back().pass_index)
-                )
-            );
-        }
-
-        pimpl->m_tasks.push_back(
-            RenderGraphImpl::Synchronization{
-                {},
-                std::move(buffer_barriers),
-                std::move(image_barriers)
-            }
-        );
-    }
+    
     RenderGraph RenderGraphBuilder::BuildRenderGraph() {
         std::vector <std::function<void(vk::CommandBuffer)>> compiled;
         RenderGraphImpl::RenderGraphExtraInfo extra{};
@@ -223,20 +247,13 @@ namespace Engine {
             extra.m_final_image_access[img] = std::make_pair(pimpl->GetPassType(acc.back().pass_index), acc.back().access);
         }
 
-        pimpl->m_texture_memo.accesses.clear();
-        pimpl->m_buffer_memo.accesses.clear();
-
-        for (auto & t : pimpl->m_tasks) {
-            if (auto p = std::get_if<RenderGraphImpl::Command>(&t)) {
-                compiled.push_back(p->func);
-            } else if (auto p = std::get_if<RenderGraphImpl::Synchronization>(&t)) {
-                // Ideally we can merge barriers here.
-                compiled.push_back(p->GetBarrierCommand());
-            } else if (auto p = std::get_if<RenderGraphImpl::Present>(&t)) {
-                // extra...
-            }
+        for (size_t pass = 0; pass < pimpl->m_tasks.size(); pass++) {
+            compiled.push_back(pimpl->GetPrePassSynchronizationFunc(pass));
+            compiled.push_back(pimpl->m_tasks[pass].operation);
         }
         
+        pimpl->m_texture_memo.accesses.clear();
+        pimpl->m_buffer_memo.accesses.clear();
         pimpl->m_tasks.clear();
         return RenderGraph(m_system, std::move(compiled), std::move(extra));
     }
