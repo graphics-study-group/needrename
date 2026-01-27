@@ -5,6 +5,7 @@
 #include <Core/Functional/EventQueue.h>
 #include <Framework/component/RenderComponent/LightComponent.h>
 #include <Framework/component/RenderComponent/RendererComponent.h>
+#include <Framework/object/GameObject.h>
 #include <MainClass.h>
 #include <Render/RenderSystem.h>
 #include <Render/RenderSystem/CameraManager.h>
@@ -47,11 +48,12 @@ namespace Engine {
         while (!m_go_cmd_queue.empty()) {
             auto &cmd = m_go_cmd_queue.front();
             switch (cmd.cmd) {
-            case ObjectCmd::Add:
+            case ObjectCmd::Add: {
                 auto &go_ptr = std::get<std::unique_ptr<GameObject>>(cmd.go);
                 m_game_objects.push_back(std::move(go_ptr));
                 break;
-            case ObjectCmd::Remove:
+            }
+            case ObjectCmd::Remove: {
                 auto go_ptr = this->GetGameObject(std::get<ObjectHandle>(cmd.go));
                 for (auto comp : go_ptr->m_components) {
                     this->RemoveComponent(comp);
@@ -62,13 +64,14 @@ namespace Engine {
                 );
                 break;
             }
+            }
             m_go_cmd_queue.pop();
         }
 
         while (!m_comp_cmd_queue.empty()) {
             auto &cmd = m_comp_cmd_queue.front();
             switch (cmd.cmd) {
-            case ComponentCmd::Add:
+            case ComponentCmd::Add: {
                 auto &comp_ptr = std::get<std::unique_ptr<Component>>(cmd.comp);
                 m_components.push_back(std::move(comp_ptr));
                 event_queue->AddEvent(comp_ptr->GetHandle(), &Component::Init);
@@ -78,11 +81,13 @@ namespace Engine {
                     render_comp->RenderInit();
                 }
                 break;
-            case ComponentCmd::Remove:
+            }
+            case ComponentCmd::Remove: {
                 auto comp_ptr = this->GetComponent(std::get<ComponentHandle>(cmd.comp));
                 m_comp_map.erase(std::get<ComponentHandle>(cmd.comp));
                 m_components.erase(std::remove(m_components.begin(), m_components.end(), comp_ptr), m_components.end());
                 break;
+            }
             }
             m_comp_cmd_queue.pop();
         }
@@ -151,7 +156,7 @@ namespace Engine {
         }
         scene_data_manager.SetLightCount(casting_light.size());
         for (uint32_t i = 0; i < casting_light.size(); ++i) {
-            auto transform = casting_light[i]->m_parentGameObject.lock()->GetWorldTransform();
+            auto transform = casting_light[i]->GetParentGameObject()->GetWorldTransform();
             scene_data_manager.SetLightDirectional(
                 i,
                 glm::normalize(transform.GetRotation() * glm::vec3(0.0f, 1.0f, 0.0f)),
@@ -160,7 +165,7 @@ namespace Engine {
         }
         scene_data_manager.SetLightCountNonShadowCasting(non_casting_light.size());
         for (uint32_t i = 0; i < non_casting_light.size(); ++i) {
-            auto transform = non_casting_light[i]->m_parentGameObject.lock()->GetWorldTransform();
+            auto transform = non_casting_light[i]->GetParentGameObject()->GetWorldTransform();
             switch (non_casting_light[i]->m_type) {
             case LightType::Directional:
                 scene_data_manager.SetLightDirectionalNonShadowCasting(
