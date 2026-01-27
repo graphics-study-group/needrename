@@ -4,6 +4,7 @@
 #include <memory>
 #include <vector>
 #include <glm.hpp>
+#include <Framework/world/Handle.h>
 
 namespace vk {
     class PushConstantRange;
@@ -53,7 +54,7 @@ namespace Engine {
             RendererManager(RenderSystem &system);
             ~RendererManager();
 
-            RendererHandle RegisterRendererComponent(std::shared_ptr<RendererComponent> component);
+            RendererHandle RegisterRendererComponent(ComponentHandle comp_handle);
 
             /**
              * @brief Unregister a component from the manager.

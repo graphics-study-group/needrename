@@ -1,13 +1,14 @@
 #ifndef FRAMEWORK_COMPONENT_COMPONENT_INCLUDED
 #define FRAMEWORK_COMPONENT_COMPONENT_INCLUDED
 
-#include <Framework/object/GameObject.h>
 #include <Reflection/macros.h>
 #include <Reflection/serialization_smart_pointer.h>
 #include <memory>
 #include <Framework/world/Handle.h>
 
 namespace Engine {
+    class GameObject;
+
     class REFL_SER_CLASS(REFL_WHITELIST) Component {
         REFL_SER_BODY(Component)
 
@@ -22,16 +23,16 @@ namespace Engine {
         /// @brief Initialize the component. Called when the parent GameObject before the first Tick after the
         /// GameObject is created.
         virtual void Init();
-
         /// @brief Called every frame.
         virtual void Tick();
 
         ComponentHandle GetHandle() const noexcept;
+        GameObject *GetParentGameObject() const;
 
         bool operator==(const Component &other) const noexcept;
 
     public:
-        REFL_SER_ENABLE std::weak_ptr<GameObject> m_parentGameObject{};
+        ObjectHandle m_parentGameObject{0};
 
     protected:
         ComponentHandle m_handle{};

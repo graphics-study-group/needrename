@@ -18,25 +18,18 @@ namespace Engine {
     WorldSystem::~WorldSystem() {
     }
 
+    WorldSystem &WorldSystem::GetInstance() {
+        return *MainClass::GetInstance()->GetWorldSystem();
+    }
+
     ObjectHandle WorldSystem::CreateGameObject() {
         auto go_ptr = std::unique_ptr<GameObject>(new GameObject());
-        m_go_id_counter++;
-        go_ptr->m_handle = m_go_id_counter;
-        auto ret_handle = go_ptr->m_handle;
+        auto ret_handle = this->NextAvailableObjectHandle();
+        go_ptr->m_handle = ret_handle;
         auto transform_component = go_ptr->template AddComponent<TransformComponent>();
         go_ptr->m_transformComponent = transform_component;
         m_go_map[ret_handle] = go_ptr.get();
         m_go_cmd_queue.push({ObjectCmd::Add, std::move(go_ptr)});
-        return ret_handle;
-    }
-
-    ComponentHandle WorldSystem::CreateComponent(ObjectHandle objectHandle) {
-        auto comp_ptr = std::unique_ptr<Component>(new Component(objectHandle));
-        m_component_id_counter++;
-        comp_ptr->m_handle = m_component_id_counter;
-        auto ret_handle = comp_ptr->m_handle;
-        m_comp_map[ret_handle] = comp_ptr.get();
-        m_comp_cmd_queue.push({ComponentCmd::Add, std::move(comp_ptr)});
         return ret_handle;
     }
 

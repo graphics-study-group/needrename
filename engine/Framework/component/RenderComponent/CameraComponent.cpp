@@ -24,7 +24,7 @@ namespace Engine {
         m_camera->UpdateProjectionMatrix();
     }
     void CameraComponent::UpdateViewMatrix() {
-        auto parent = m_parentGameObject.lock();
+        auto parent = this->GetParentGameObject();
         if (!parent) {
             SDL_LogWarn(0, "Missing parent game object for camera");
             return;

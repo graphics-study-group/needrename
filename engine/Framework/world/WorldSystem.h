@@ -3,7 +3,6 @@
 
 #include "Handle.h"
 #include <Framework/component/TransformComponent/TransformComponent.h>
-#include <Framework/object/GameObject.h>
 #include <memory>
 #include <queue>
 #include <unordered_map>
@@ -14,6 +13,8 @@ namespace Engine {
     class LevelAsset;
     class GameObjectAsset;
     class Camera;
+    class GameObject;
+
     namespace RenderSystemState {
         class CameraManager;
         class SceneDataManager;
@@ -24,11 +25,22 @@ namespace Engine {
         WorldSystem();
         ~WorldSystem();
 
+        static WorldSystem &GetInstance();
+
         void AddInitEvent();
         void AddTickEvent();
 
         ObjectHandle CreateGameObject();
-        ComponentHandle CreateComponent(ObjectHandle objectHandle);
+        template <typename T, typename... Args>
+        ComponentHandle CreateComponent(ObjectHandle objectHandle, Args &&...args) {
+            static_assert(std::is_base_of<Component, T>::value, "T must be derived from Component");
+            auto comp_ptr = std::unique_ptr<T>(new T(objectHandle, std::forward<Args>(args)...));
+            auto ret_handle = this->NextAvailableComponentHandle();
+            comp_ptr->m_handle = ret_handle;
+            m_comp_map[ret_handle] = comp_ptr.get();
+            m_comp_cmd_queue.push({ComponentCmd::Add, std::move(comp_ptr)});
+            return ret_handle;
+        }
 
         void RemoveGameObject(ObjectHandle handle);
         void RemoveComponent(ComponentHandle handle);
