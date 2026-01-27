@@ -87,9 +87,11 @@ RenderGraph BuildRenderGraph(
 ) {
     using IAT = Engine::MemoryAccessTypeImageBits;
     RenderGraphBuilder rgb{*rsys};
-    rgb.UseImage(*color, IAT::ColorAttachmentWrite);
-    rgb.UseImage(*depth, IAT::DepthStencilAttachmentWrite);
-    rgb.RecordRasterizerPassWithoutRT([rsys, color, depth, material, mesh](GraphicsCommandBuffer &gcb) {
+    auto c = rgb.ImportExternalResource(*color);
+    auto d = rgb.ImportExternalResource(*depth);
+    rgb.UseImage(c, IAT::ColorAttachmentWrite);
+    rgb.UseImage(d, IAT::DepthStencilAttachmentWrite);
+    rgb.RecordRasterizerPassWithoutRT([rsys, color, depth, material, mesh](GraphicsCommandBuffer &gcb, const RenderGraph &) {
         auto extent = rsys->GetSwapchain().GetExtent();
         gcb.BeginRendering(
             AttachmentUtils::AttachmentDescription{
@@ -128,10 +130,10 @@ RenderGraph BuildRenderGraph(
 
     if (blurred && kernel) {
         rgb.ImportExternalResource(*blurred);
-        rgb.UseImage(*color, IAT::ShaderRandomRead);
-        rgb.UseImage(*blurred, IAT::ShaderRandomWrite);
+        rgb.UseImage(c, IAT::ShaderRandomRead);
+        rgb.UseImage(d, IAT::ShaderRandomWrite);
 
-        rgb.RecordComputePass([blurred, kernel](ComputeCommandBuffer &ccb) {
+        rgb.RecordComputePass([blurred, kernel](ComputeCommandBuffer &ccb, const RenderGraph &) {
             ccb.BindComputeStage(*kernel);
             ccb.DispatchCompute(
                 blurred->GetTextureDescription().width / 16 + 1, blurred->GetTextureDescription().height / 16 + 1, 1
@@ -222,8 +224,8 @@ int main(int argc, char **argv) {
     asys->LoadAssetImmediately(cs_ref);
     ComputeStage cstage{*rsys};
     cstage.Instantiate(*cs_ref->cas<ShaderAsset>());
-    cstage.AssignTexture("inputImage", color);
-    cstage.AssignTexture("outputImage", postproc);
+    cstage.AssignTexture("inputImage", *color);
+    cstage.AssignTexture("outputImage", *postproc);
 
     RenderGraph nonblur{BuildRenderGraph(rsys.get(), color.get(), depth.get(), test_material_instance.get(), &test_mesh)};
     RenderGraph blur{BuildRenderGraph(

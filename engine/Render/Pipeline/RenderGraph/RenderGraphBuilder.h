@@ -92,6 +92,10 @@ namespace Engine {
         
         /**
          * @brief Mark an image to be used in the following pass.
+         * 
+         * @details actual access to the image is not determined until the next pass
+         * is recorded. You can only have one bit of access, as the access is tied
+         * to the current image layout.
          */
         void UseImage (
             int32_t texture_handle,
@@ -110,7 +114,6 @@ namespace Engine {
          * @brief Record a pass which includes draw calls.
          * 
          * To use this method, you have to manually set up render targets within the `pass` function.
-         * You also cannot access any internal resources managed by the render graph.
          */
         void RecordRasterizerPassWithoutRT (
             std::function<void(GraphicsCommandBuffer &, const RenderGraph &)> pass

@@ -12,28 +12,6 @@
 using namespace Engine;
 namespace sch = std::chrono;
 
-auto BuildRenderGraph(RenderSystem & rsys, GUISystem & gsys, RenderTargetTexture & color) {
-    RenderGraphBuilder rgb{rsys};
-    rgb.UseImage(color, MemoryAccessTypeImageBits::ColorAttachmentDefault);
-    rgb.RecordRasterizerPassWithoutRT(
-        [&] (GraphicsCommandBuffer & gcb) -> void {
-            gsys.DrawGUI(
-                AttachmentUtils::AttachmentDescription{
-                    &color, nullptr,
-                    AttachmentUtils::LoadOperation::Clear,
-                    AttachmentUtils::StoreOperation::Store,
-                },
-                vk::Extent2D{
-                    color.GetTextureDescription().width, 
-                    color.GetTextureDescription().height
-                },
-                gcb
-            );
-        }
-    );
-    return rgb.BuildRenderGraph();
-}
-
 int main(int argc, char **argv) {
     int64_t max_frame_count = std::numeric_limits<int64_t>::max();
     if (argc > 1) {
@@ -52,6 +30,7 @@ int main(int argc, char **argv) {
     auto gsys = cmc->GetGUISystem();
     gsys->CreateVulkanBackend(*rsys, ImageUtils::GetVkFormat(Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm));
 
+    RenderGraphBuilder rgb{*rsys};
     Engine::RenderTargetTexture::RenderTargetTextureDesc desc{
         .dimensions = 2,
         .width = 1920,
@@ -63,8 +42,26 @@ int main(int argc, char **argv) {
         .multisample = 1,
         .is_cube_map = false
     };
-    auto color = RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Color attachment");
-    auto rg = BuildRenderGraph(*rsys, *gsys, *color);
+    auto c = rgb.RequestRenderTargetTexture(desc, {});
+    rgb.UseImage(c, MemoryAccessTypeImageBits::ColorAttachmentDefault);
+    rgb.RecordRasterizerPassWithoutRT(
+        [&] (GraphicsCommandBuffer & gcb, const RenderGraph & rg) -> void {
+            auto color = rg.GetInternalTextureResource(c);
+            gsys->DrawGUI(
+                AttachmentUtils::AttachmentDescription{
+                    color, nullptr,
+                    AttachmentUtils::LoadOperation::Clear,
+                    AttachmentUtils::StoreOperation::Store,
+                },
+                vk::Extent2D{
+                    color->GetTextureDescription().width, 
+                    color->GetTextureDescription().height
+                },
+                gcb
+            );
+        }
+    );
+    auto rg = rgb.BuildRenderGraph();
 
     bool quited = false;
     while (max_frame_count--) {
@@ -87,6 +84,7 @@ int main(int argc, char **argv) {
 
         assert(index < 3);
         rg.Execute();
+        auto color = rg.GetInternalTextureResource(c);
         rsys->CompleteFrame(*color, color->GetTextureDescription().width, color->GetTextureDescription().height);
 
         SDL_Delay(10);

@@ -138,8 +138,6 @@ namespace Engine {
                 MemoryAccessTypeBuffer access;
             };
 
-            // vk::Buffer does not have simple hasher here, so I'm using VkBuffer instead.
-            // You can include <vulkan/vulkan_hash.hpp> to get its hasher, though.
             using Memo = std::unordered_map <int32_t, std::vector<Access>>;
             Memo accesses;
 
