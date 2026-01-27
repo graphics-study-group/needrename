@@ -128,6 +128,8 @@ namespace Engine {
                 const Texture *,
                 std::pair<RenderGraphImpl::PassType, MemoryAccessTypeImage>
             > m_final_image_access;
+
+            std::unordered_map<int32_t, std::unique_ptr<RenderTargetTexture>> internal_texture_cache;
         };
 
         struct BufferAccessMemo {

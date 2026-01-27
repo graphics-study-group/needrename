@@ -23,19 +23,33 @@ namespace Engine {
             std::optional <RGAttachmentDesc> depth_attachments;
         };
         std::vector <Pass> m_tasks{};
+
+        // Synchronization helpers
         RenderGraphImpl::TextureAccessMemo m_texture_memo;
         RenderGraphImpl::BufferAccessMemo m_buffer_memo;
 
+        // Resource managers
+        struct TextureCreationInfo {
+            RenderTargetTexture::RenderTargetTextureDesc t;
+            RenderTargetTexture::SamplerDesc s;
+        };
         int32_t resource_counter = 0;
+        std::unordered_map <int32_t, TextureCreationInfo> texture_creation_info;
         std::unordered_map <int32_t, std::unique_ptr <RenderTargetTexture>> internal_texture_cache;
-        std::unordered_map <int32_t, std::unique_ptr <DeviceBuffer>> internal_buffer_cache;
-
         std::unordered_map <int32_t, const RenderTargetTexture *> texture_mapping;
         std::unordered_map <int32_t, const DeviceBuffer *> buffer_mapping;
 
         RenderGraphImpl::PassType GetPassType(int32_t pass_index) {
             assert(pass_index < 0 || pass_index < m_tasks.size());
             return pass_index < 0 ? RenderGraphImpl::PassType::None : m_tasks[pass_index].type;
+        }
+
+        void CreateInternalResources (RenderSystem & system) {
+            for (const auto & [idx, tci] : texture_creation_info) {
+                auto ptr = RenderTargetTexture::CreateUnique(system, tci.t, tci.s, std::format("Render Graph Resource {}", idx));
+                texture_mapping[idx] = ptr.get();
+                internal_texture_cache[idx] = std::move(ptr);
+            }
         }
 
         std::function <void(vk::CommandBuffer)> GetPrePassSynchronizationFunc(int32_t pass_index) {
@@ -121,6 +135,7 @@ namespace Engine {
         const RenderTargetTexture &texture, MemoryAccessTypeImageBits prev_access
     ) {
         auto curr_id = pimpl->resource_counter++;
+        curr_id = -curr_id;
         pimpl->m_texture_memo.accesses[curr_id] ={ {-1, {prev_access}} };
         pimpl->texture_mapping[curr_id] = &texture;
         return curr_id;
@@ -128,8 +143,22 @@ namespace Engine {
 
     int32_t RenderGraphBuilder::ImportExternalResource(const DeviceBuffer &buffer, MemoryAccessTypeBuffer prev_access) {
         auto curr_id = pimpl->resource_counter++;
+        curr_id = -curr_id;
         pimpl->m_buffer_memo.accesses[curr_id] = { {-1, prev_access} };
         pimpl->buffer_mapping[curr_id] = &buffer;
+        return curr_id;
+    }
+
+    int32_t RenderGraphBuilder::RequestRenderTargetTexture(
+        RenderTargetTexture::RenderTargetTextureDesc texture_description,
+        RenderTargetTexture::SamplerDesc sampler_description
+    ) noexcept {
+        auto curr_id = pimpl->resource_counter++;
+        pimpl->m_texture_memo.accesses[curr_id] = { {-1, {MemoryAccessTypeImageBits::None}} };
+        pimpl->texture_creation_info[curr_id] = {
+            texture_description,
+            sampler_description
+        };
         return curr_id;
     }
 
@@ -263,12 +292,15 @@ namespace Engine {
         std::vector <std::function<void(vk::CommandBuffer)>> compiled;
         RenderGraphImpl::RenderGraphExtraInfo extra{};
 
+        pimpl->CreateInternalResources(m_system);
+
         for (const auto & [img_idx, acc] : pimpl->m_texture_memo.accesses) {
             const auto img = pimpl->texture_mapping[img_idx];
             assert(img);
             extra.m_initial_image_access[img] = std::make_pair(pimpl->GetPassType(acc.front().pass_index), acc.front().access);
             extra.m_final_image_access[img] = std::make_pair(pimpl->GetPassType(acc.back().pass_index), acc.back().access);
         }
+        extra.internal_texture_cache = std::move(pimpl->internal_texture_cache);
 
         for (size_t pass = 0; pass < pimpl->m_tasks.size(); pass++) {
             compiled.push_back(pimpl->GetPrePassSynchronizationFunc(pass));

@@ -72,6 +72,18 @@ namespace Engine {
             const DeviceBuffer & buffer,
             MemoryAccessTypeBuffer prev_access = {MemoryAccessTypeBufferBits::None}
         );
+
+        /**
+         * @brief Request a new render target texture to be created when compiling the
+         * render graph.
+         * 
+         * Such resources will have their lifetime managed automatically by the compiled
+         * render graph.
+         */
+        int32_t RequestRenderTargetTexture (
+            RenderTargetTexture::RenderTargetTextureDesc texture_description,
+            RenderTargetTexture::SamplerDesc sampler_description
+        ) noexcept;
         
         /**
          * @brief Mark an image to be used in the following pass.
