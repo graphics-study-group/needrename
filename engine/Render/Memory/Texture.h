@@ -14,7 +14,7 @@ namespace vk {
 namespace Engine {
     class RenderSystem;
     class AllocatedMemory;
-    class Buffer;
+    class DeviceBuffer;
 
     namespace RenderSystemState {
         class AllocatorState;
@@ -91,7 +91,7 @@ namespace Engine {
         /**
          * @brief Acquire a buffer large enough to hold the whole texture.
          */
-        std::unique_ptr <Buffer> CreateStagingBuffer(const RenderSystemState::AllocatorState & allocator) const;
+        std::unique_ptr <DeviceBuffer> CreateStagingBuffer(const RenderSystemState::AllocatorState & allocator) const;
 
         /**
          * @brief Whether this texture supports random access (UAV

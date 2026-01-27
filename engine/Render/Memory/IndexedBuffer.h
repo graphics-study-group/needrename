@@ -1,7 +1,7 @@
 #ifndef RENDER_MEMORY_INDEXEDBUFFER_INCLUDED
 #define RENDER_MEMORY_INDEXEDBUFFER_INCLUDED
 
-#include "Render/Memory/Buffer.h"
+#include "Render/Memory/DeviceBuffer.h"
 
 namespace Engine {
 
@@ -15,7 +15,7 @@ namespace Engine {
      * be aligned accordingly, making the
      * buffer suitable to use for dynamic buffer descriptors.
      */
-    class IndexedBuffer : public Buffer {
+    class IndexedBuffer : public DeviceBuffer {
         struct impl;
         std::unique_ptr<impl> pimpl;
 
@@ -29,8 +29,6 @@ namespace Engine {
         );
 
     public:
-        using Buffer::BufferType;
-
         IndexedBuffer (const IndexedBuffer &) = delete;
         void operator= (const IndexedBuffer &) = delete;
 

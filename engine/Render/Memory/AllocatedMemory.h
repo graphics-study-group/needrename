@@ -2,6 +2,7 @@
 #define RENDER_MEMORY_ALLOCATEDMEMORY_INCLUDED
 
 #include <variant>
+#include "MemoryTypes.h"
 
 class VmaAllocation_T;
 class VmaAllocator_T;
@@ -41,7 +42,12 @@ namespace Engine {
         struct impl;
         std::unique_ptr <impl> pimpl;
     public:
-        ImageAllocation(vk::Image image, VmaAllocation allocation, VmaAllocator allocator);
+        ImageAllocation(
+            vk::Image image,
+            VmaAllocation allocation,
+            VmaAllocator allocator,
+            ImageMemoryType type
+        );
         ~ImageAllocation();
 
         ImageAllocation(const ImageAllocation &) = delete;
@@ -51,13 +57,20 @@ namespace Engine {
         ImageAllocation & operator= (ImageAllocation && other) noexcept;
 
         const vk::Image & GetImage() const noexcept;
+
+        ImageMemoryType GetMemoryType() const noexcept;
     };
 
     class BufferAllocation : private AllocatedMemory {
         struct impl;
         std::unique_ptr <impl> pimpl;
     public:
-        BufferAllocation(vk::Buffer buffer, VmaAllocation allocation, VmaAllocator allocator);
+        BufferAllocation(
+            vk::Buffer buffer,
+            VmaAllocation allocation,
+            VmaAllocator allocator,
+            BufferType type
+        );
         ~BufferAllocation();
 
         BufferAllocation(const BufferAllocation &) = delete;
@@ -72,6 +85,8 @@ namespace Engine {
 
         void FlushMemory(size_t offset = 0, size_t size = 0) const;
         void InvalidateMemory(size_t offset = 0, size_t size = 0) const;
+
+        BufferType GetMemoryType() const noexcept;
     };
 } // namespace Engine
 

@@ -212,12 +212,12 @@ int main(int argc, char **argv) {
 
     // Build Render Graph
     RenderGraphBuilder rgb{*rsys};
-    rgb.RegisterImageAccess(*color);
-    rgb.RegisterImageAccess(*depth);
-    rgb.RegisterImageAccess(*shadow);
+    rgb.ImportExternalResource(*color);
+    rgb.ImportExternalResource(*depth);
+    rgb.ImportExternalResource(*shadow);
 
-    using IAT = AccessHelper::ImageAccessType;
-    rgb.UseImage(*shadow, IAT::DepthAttachmentWrite);
+    using IAT = MemoryAccessTypeImageBits;
+    rgb.UseImage(*shadow, IAT::DepthStencilAttachmentWrite);
     rgb.RecordRasterizerPassWithoutRT(
         [rsys, shadow, test_library, object_material_instance](GraphicsCommandBuffer &gcb) {
             vk::Extent2D shadow_map_extent{2048, 2048};
@@ -245,9 +245,9 @@ int main(int argc, char **argv) {
         }
     );
 
-    rgb.UseImage(*shadow, IAT::ShaderRead);
+    rgb.UseImage(*shadow, IAT::ShaderSampledRead);
     rgb.UseImage(*color, IAT::ColorAttachmentWrite);
-    rgb.UseImage(*depth, IAT::DepthAttachmentWrite);
+    rgb.UseImage(*depth, IAT::DepthStencilAttachmentWrite);
     rgb.RecordRasterizerPass(
         {color.get(), nullptr, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store},
         {depth.get(),

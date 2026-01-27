@@ -8,6 +8,7 @@
 namespace Engine {
     class RenderSystem;
     class ShaderAsset;
+    class ComputeBuffer;
 
     namespace ShdrRfl {
         class ShaderParameters;
@@ -26,15 +27,21 @@ namespace Engine {
 
         // TODO: Add specialization constant support.
         void Instantiate(const ShaderAsset &asset) override;
+        void Instantiate(const std::vector<uint32_t> & code, const std::string_view name);
 
         ~ComputeStage();
 
         void UpdateGPUInfo(uint32_t backbuffer);
 
-        void AssignScalarVariable(const std::string & name, std::variant<uint32_t, int32_t, float> value) noexcept;
+        void AssignScalarVariable(const std::string & name, std::variant<uint32_t, float> value) noexcept;
         void AssignVectorVariable(const std::string & name, std::variant<glm::vec4, glm::mat4> value) noexcept;
+
         void AssignTexture(const std::string & name, std::shared_ptr <const Texture> texture) noexcept;
-        void AssignBuffer(const std::string & name, std::shared_ptr <const Buffer> buffer) noexcept;
+
+        void AssignBuffer(const std::string & name, std::shared_ptr <const DeviceBuffer> buffer) noexcept;
+
+        void AssignComputeBuffer(const std::string & name, std::shared_ptr <const ComputeBuffer> buffer) noexcept;
+        void AssignComputeBuffer(const std::string & name, const ComputeBuffer & buffer) noexcept;
 
         vk::Pipeline GetPipeline() const noexcept;
         vk::PipelineLayout GetPipelineLayout() const noexcept;

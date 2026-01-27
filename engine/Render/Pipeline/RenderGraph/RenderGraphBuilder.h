@@ -4,6 +4,7 @@
 #include <memory>
 #include <functional>
 
+#include "Render/Memory/MemoryAccessTypes.h"
 #include "Render/Pipeline/CommandBuffer/AccessHelperTypes.h"
 
 namespace Engine {
@@ -11,7 +12,7 @@ namespace Engine {
     class RenderSystem;
     class GUISystem;
     class Texture;
-    class Buffer;
+    class DeviceBuffer;
     class RenderGraph;
     class GraphicsCommandBuffer;
     class TransferCommandBuffer;
@@ -38,26 +39,25 @@ namespace Engine {
         /**
          * @brief Register a new image texture to manage its access by the internal memo system.
          */
-        void RegisterImageAccess (
-            Texture & texture,
-            AccessHelper::ImageAccessType prev_access = AccessHelper::ImageAccessType::None
+        void ImportExternalResource (
+            const Texture & texture,
+            MemoryAccessTypeImageBits prev_access = MemoryAccessTypeImageBits::None
         );
         
         /**
          * @brief Mark an image to be used in the following pass.
          */
         void UseImage (
-            Texture & texture,
-            AccessHelper::ImageAccessType new_access
+            const Texture & texture,
+            MemoryAccessTypeImageBits access
         );
 
         /**
          * @brief Mark a buffer to be used in the following pass.
          */
         void UseBuffer (
-            Buffer & buffer,
-            AccessHelper::BufferAccessType new_access,
-            AccessHelper::BufferAccessType prev_access
+            const DeviceBuffer & buffer,
+            MemoryAccessTypeBuffer access
         );
 
         /**

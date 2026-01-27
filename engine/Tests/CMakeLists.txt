@@ -29,6 +29,11 @@ target_link_libraries(vertex_attribute_test engine)
 add_test(NAME vertex_attribute_test COMMAND vertex_attribute_test)
 set_target_properties(vertex_attribute_test PROPERTIES FOLDER engine_tests)
 
+add_executable(structured_buffer_test structured_buffer_test.cpp)
+target_link_libraries(structured_buffer_test engine)
+add_test(NAME structured_buffer_test COMMAND structured_buffer_test)
+set_target_properties(structured_buffer_test PROPERTIES FOLDER engine_tests)
+
 add_subdirectory(reflection_test)
 set_target_properties(reflection_test PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/engine/Tests")
 add_subdirectory(serialization_test)

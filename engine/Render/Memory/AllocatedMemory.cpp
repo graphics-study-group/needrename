@@ -52,13 +52,15 @@ namespace Engine {
 
     struct ImageAllocation::impl {
         vk::Image image;
+        ImageMemoryType type;
     };
 
     ImageAllocation::ImageAllocation(
         vk::Image image, 
         VmaAllocation allocation, 
-        VmaAllocator allocator
-    ) : AllocatedMemory(allocation, allocator), pimpl(std::make_unique<impl>(image)) {
+        VmaAllocator allocator,
+        ImageMemoryType type
+    ) : AllocatedMemory(allocation, allocator), pimpl(std::make_unique<impl>(image, type)) {
     }
     ImageAllocation::~ImageAllocation() {
         if (pimpl->image) vmaDestroyImage(GetAllocator(), pimpl->image, GetAllocation());
@@ -66,7 +68,7 @@ namespace Engine {
 
     ImageAllocation::ImageAllocation(
         ImageAllocation &&other
-    ) noexcept : AllocatedMemory(std::move(other)), pimpl(std::make_unique<impl>(other.pimpl->image)) {
+    ) noexcept : AllocatedMemory(std::move(other)), pimpl(std::make_unique<impl>(other.pimpl->image, other.pimpl->type)) {
         other.pimpl->image = nullptr;
     }
 
@@ -76,6 +78,7 @@ namespace Engine {
             if (pimpl->image) vmaDestroyImage(GetAllocator(), pimpl->image, GetAllocation());
             this->AllocatedMemory::operator=(std::move(other));
             this->pimpl->image = other.pimpl->image;
+            this->pimpl->type = other.pimpl->type;
             other.pimpl->image = nullptr;
         }
         return *this;
@@ -84,14 +87,20 @@ namespace Engine {
     const vk::Image &ImageAllocation::GetImage() const noexcept {
         return pimpl->image;
     }
+    ImageMemoryType ImageAllocation::GetMemoryType() const noexcept {
+        return pimpl->type;
+    }
     struct BufferAllocation::impl {
         vk::Buffer buffer;
+        BufferType type;
         std::byte * mapped_ptr;
     };
     BufferAllocation::BufferAllocation(
         vk::Buffer buffer, 
         VmaAllocation allocation, 
-        VmaAllocator allocator) : AllocatedMemory(allocation, allocator), pimpl(std::make_unique<impl>(buffer, nullptr)) {
+        VmaAllocator allocator,
+        BufferType type
+    ) : AllocatedMemory(allocation, allocator), pimpl(std::make_unique<impl>(buffer, type, nullptr)) {
     }
     BufferAllocation::~BufferAllocation() {
         if(pimpl->buffer) {
@@ -103,7 +112,7 @@ namespace Engine {
     }
     BufferAllocation::BufferAllocation(
         BufferAllocation &&other
-    ) noexcept : AllocatedMemory(std::move(other)), pimpl(std::make_unique<impl>(other.pimpl->buffer, other.pimpl->mapped_ptr)) {
+    ) noexcept : AllocatedMemory(std::move(other)), pimpl(std::make_unique<impl>(other.pimpl->buffer, other.pimpl->type, other.pimpl->mapped_ptr)) {
         other.pimpl->buffer = nullptr;
         other.pimpl->mapped_ptr = nullptr;
     }
@@ -118,6 +127,7 @@ namespace Engine {
             }
             this->AllocatedMemory::operator=(std::move(other));
             this->pimpl->buffer = other.pimpl->buffer;
+            this->pimpl->type = other.pimpl->type;
             this->pimpl->mapped_ptr = other.pimpl->mapped_ptr;
             other.pimpl->buffer = nullptr;
             other.pimpl->mapped_ptr = nullptr;
@@ -155,5 +165,8 @@ namespace Engine {
             static_cast<vk::Result>(vmaInvalidateAllocation(GetAllocator(), GetAllocation(), offset, size)),
             "Failed to invalidate mapped memory."
         );
+    }
+    BufferType BufferAllocation::GetMemoryType() const noexcept {
+        return pimpl->type;
     }
 } // namespace Engine

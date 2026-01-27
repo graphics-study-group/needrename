@@ -85,10 +85,10 @@ RenderGraph BuildRenderGraph(
     RenderTargetTexture *blurred = nullptr,
     ComputeStage *kernel = nullptr
 ) {
-    using IAT = Engine::AccessHelper::ImageAccessType;
+    using IAT = Engine::MemoryAccessTypeImageBits;
     RenderGraphBuilder rgb{*rsys};
     rgb.UseImage(*color, IAT::ColorAttachmentWrite);
-    rgb.UseImage(*depth, IAT::DepthAttachmentWrite);
+    rgb.UseImage(*depth, IAT::DepthStencilAttachmentWrite);
     rgb.RecordRasterizerPassWithoutRT([rsys, color, depth, material, mesh](GraphicsCommandBuffer &gcb) {
         auto extent = rsys->GetSwapchain().GetExtent();
         gcb.BeginRendering(
@@ -127,8 +127,8 @@ RenderGraph BuildRenderGraph(
     });
 
     if (blurred && kernel) {
-        rgb.RegisterImageAccess(*blurred);
-        rgb.UseImage(*color, IAT::ShaderReadRandomWrite);
+        rgb.ImportExternalResource(*blurred);
+        rgb.UseImage(*color, IAT::ShaderRandomRead);
         rgb.UseImage(*blurred, IAT::ShaderRandomWrite);
 
         rgb.RecordComputePass([blurred, kernel](ComputeCommandBuffer &ccb) {

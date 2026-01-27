@@ -8,7 +8,7 @@
 
 #include "Asset/Shader/ShaderCompiler.h"
 #include "Render/Memory/ShaderParameters/ShaderParameterLayout.h"
-#include "Render/Memory/ShaderParameters/ShaderParameterSimple.h"
+#include "Render/Memory/ShaderParameters/ShaderInterface.h"
 #include <cmake_config.h>
 
 inline std::vector <uint32_t> GetSpirvBinaryFromGLSL(std::filesystem::path p, EShLanguage shaderType) {
@@ -31,7 +31,7 @@ inline std::vector <uint32_t> GetSpirvBinaryFromGLSL(std::filesystem::path p, ES
 inline void PrintLayout(const Engine::ShdrRfl::SPLayout & layout) {
     std::cout << "Interfaces: " << std::endl;
     for (const auto & i : layout.interfaces) {
-        if (auto ptr = dynamic_cast<const Engine::ShdrRfl::SPInterfaceOpaqueImage *>(i)) {
+        if (auto ptr = dynamic_cast<const Engine::ShdrRfl::SPInterfaceOpaqueImage *>(i.get())) {
             std::cout << "\t" << std::format(
                 "{}: Set: {}, Binding: {}, Type: Image (size {}, flags {})",
                 i->name,
@@ -40,7 +40,7 @@ inline void PrintLayout(const Engine::ShdrRfl::SPLayout & layout) {
                 ptr->array_size,
                 static_cast<uint32_t>(ptr->flags)
             ) << std::endl;
-        } else if (auto ptr = dynamic_cast<const Engine::ShdrRfl::SPInterfaceOpaqueStorageImage *>(i)) {
+        } else if (auto ptr = dynamic_cast<const Engine::ShdrRfl::SPInterfaceOpaqueStorageImage *>(i.get())) {
             std::cout << "\t" << std::format(
                 "{}: Set: {}, Binding: {}, Type: Storage Image (size {})", 
                 i->name,
@@ -48,7 +48,7 @@ inline void PrintLayout(const Engine::ShdrRfl::SPLayout & layout) {
                 i->layout_binding, 
                 ptr->array_size
             ) << std::endl;
-        } else if (auto ptr = dynamic_cast<const Engine::ShdrRfl::SPInterfaceBuffer *>(i)) {
+        } else if (auto ptr = dynamic_cast<const Engine::ShdrRfl::SPInterfaceBuffer *>(i.get())) {
             std::cout << "\t" << std::format(
                 "{}: Set: {}, Binding: {}, Type: {}",
                 i->name,
@@ -56,9 +56,6 @@ inline void PrintLayout(const Engine::ShdrRfl::SPLayout & layout) {
                 i->layout_binding, 
                 ptr->type == Engine::ShdrRfl::SPInterfaceBuffer::Type::StorageBuffer ? "SSBO" : "UBO"
             ) << std::endl;
-            if (auto tptr = dynamic_cast<const Engine::ShdrRfl::SPTypeSimpleStruct *>(ptr->underlying_type)) {
-                std::cout << "\t\tTakes up " << tptr->expected_size << " bytes" << std::endl ;
-            }
         } else {
             std::cout << "\t" << std::format(
                 "{}: Set: {}, Binding: {}, Type: {}",
@@ -67,29 +64,6 @@ inline void PrintLayout(const Engine::ShdrRfl::SPLayout & layout) {
                 i->layout_binding, 
                 "Unknown"
             ) << std::endl;
-        }
-    }
-
-    std::cout << "Assignables:" << std::endl;
-    for (const auto & p : layout.name_mapping) {
-        std::cout << "\t" << p.first << " (" << p.second->name << ")" << std::endl;
-        auto ptr_simple = dynamic_cast<const Engine::ShdrRfl::SPAssignableInterface *>(p.second);
-        if (ptr_simple) {
-            std::cout << "\t\t" << std::format(
-                "Contained in set {}, binding {}, offset {}", 
-                ptr_simple->parent_interface->layout_set,
-                ptr_simple->parent_interface->layout_binding,
-                ptr_simple->absolute_offset
-            ) << std::endl;
-        } else {
-            auto ptr_interface = dynamic_cast<const Engine::ShdrRfl::SPInterface *>(p.second);
-            if (ptr_interface) {
-                std::cout << "\t\t" << std::format(
-                    "Occupies descriptor set {}, binding {}",
-                    ptr_interface->layout_set,
-                    ptr_interface->layout_binding
-                ) << std::endl ;
-            }
         }
     }
 }
@@ -120,16 +94,23 @@ int main(int argc, char *argv[]) {
     SDL_SetLogPriorities(SDL_LOG_PRIORITY_VERBOSE);
     
     auto binary = GetSpirvBinaryFromGLSL(p, EShLangVertex);
-    auto layout = Engine::ShdrRfl::SPLayout::Reflect(binary, true);
-    PrintLayout(layout);
+    auto layout1 = Engine::ShdrRfl::SPLayout::Reflect(binary, true);
+    std::cout << " - Vertex Shader: " << std::endl;
+    PrintLayout(layout1);
 
     binary = GetSpirvBinaryFromGLSL(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "shaders/lambertian_cook_torrance.frag.0.glsl", EShLangFragment);
-    layout.Merge(Engine::ShdrRfl::SPLayout::Reflect(binary, true));
+    auto layout = Engine::ShdrRfl::SPLayout::Reflect(binary, true);
+    std::cout << " - Fragment Shader: " << std::endl;
+    PrintLayout(layout);
+
+    layout.Merge(std::move(layout1));
+    std::cout << " - Merged Shader: " << std::endl;
     PrintLayout(layout);
     PrintDescriptorSetLayoutBindings(layout.GenerateAllLayoutBindings());
 
     binary = GetSpirvBinaryFromGLSL(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "shaders/fluid.comp.0.glsl", EShLangCompute);
     layout = Engine::ShdrRfl::SPLayout::Reflect(binary, false);
+    std::cout << " - Compute Shader: " << std::endl;
     PrintLayout(layout);
     PrintDescriptorSetLayoutBindings(layout.GenerateAllLayoutBindings());
 

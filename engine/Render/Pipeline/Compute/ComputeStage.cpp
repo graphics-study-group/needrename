@@ -2,11 +2,12 @@
 
 #include "Asset/AssetRef.h"
 #include "Asset/Shader/ShaderAsset.h"
-#include "Render/Memory/Buffer.h"
+#include "Render/Memory/DeviceBuffer.h"
 #include "Render/DebugUtils.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/DeviceInterface.h"
 #include "Render/Memory/IndexedBuffer.h"
+#include "Render/Memory/StructuredBufferPlacer.h"
 #include "Render/Memory/ShaderParameters/ShaderParameter.h"
 #include "Render/Memory/ShaderParameters/ShaderParameterLayout.h"
 #include <string>
@@ -40,12 +41,9 @@ namespace Engine {
         ShdrRfl::SPLayout layout{};
         ShdrRfl::ShaderParameters parameters{};
 
-        void CreatePipeline(RenderSystem &system, const ShaderAsset &asset) {
-            assert(asset.shaderType == ShaderAsset::ShaderType::Compute);
-            auto code = asset.binary;
-
+        void CreatePipeline(RenderSystem &system, const std::vector <uint32_t> & spirv_code, const std::string_view name = "") {
             // Create descriptor and pipeline layout
-            layout = ShdrRfl::SPLayout::Reflect(code, false);
+            layout = ShdrRfl::SPLayout::Reflect(spirv_code, false);
             auto desc_bindings = layout.GenerateAllLayoutBindings();
             if (desc_bindings.size() > 1) {
                 SDL_LogWarn(
@@ -65,7 +63,7 @@ namespace Engine {
             DEBUG_SET_NAME_TEMPLATE(
                 system.GetDevice(),
                 m_passInfo.pipeline_layout.get(),
-                std::format("Pipeline Layout for Compute {}", asset.m_name)
+                std::format("Pipeline Layout for Compute {}", name)
             );
 
             // Create descriptor pool
@@ -87,20 +85,20 @@ namespace Engine {
             DEBUG_SET_NAME_TEMPLATE(
                 system.GetDevice(),
                 desc_pool.get(),
-                std::format("Descriptor Pool for Compute Pipeline {}", asset.m_name)
+                std::format("Descriptor Pool for Compute Pipeline {}", name)
             );
 
             // Create shader module
             vk::ShaderModuleCreateInfo smci{
                 vk::ShaderModuleCreateFlags{},
-                code.size() * sizeof(uint32_t),
-                reinterpret_cast<const uint32_t *>(code.data())
+                spirv_code.size() * sizeof(uint32_t),
+                reinterpret_cast<const uint32_t *>(spirv_code.data())
             };
             m_passInfo.shader = system.GetDevice().createShaderModuleUnique(smci);
             DEBUG_SET_NAME_TEMPLATE(
                 system.GetDevice(),
                 m_passInfo.shader.get(),
-                std::format("Shader Module for Compute Pipeline {}", asset.m_name)
+                std::format("Shader Module for Compute Pipeline {}", name)
             );
 
             vk::PipelineShaderStageCreateInfo pssci{
@@ -115,7 +113,7 @@ namespace Engine {
             DEBUG_SET_NAME_TEMPLATE(
                 system.GetDevice(),
                 m_passInfo.pipeline.get(),
-                std::format("Compute Pipeline {}", asset.m_name)
+                std::format("Compute Pipeline {}", name)
             );
         }
     };
@@ -124,18 +122,33 @@ namespace Engine {
     }
 
     void ComputeStage::Instantiate(const ShaderAsset &asset) {
-        pimpl->CreatePipeline(m_system, asset);
+        assert(asset.shaderType == ShaderAsset::ShaderType::Compute);
+        Instantiate(asset.binary, asset.m_name);
+    }
 
-        for (auto pinterface : pimpl->layout.interfaces) {
-            if (auto pbuffer = dynamic_cast <const ShdrRfl::SPInterfaceBuffer *>(pinterface)) {
+    void ComputeStage::Instantiate(const std::vector<uint32_t> &code, const std::string_view name) {
+        pimpl->CreatePipeline(m_system, code, name);
+
+        for (const auto & pinterface : pimpl->layout.interfaces) {
+            if (auto pbuffer = dynamic_cast <const ShdrRfl::SPInterfaceBuffer *>(pinterface.get())) {
                 if (pbuffer->type == ShdrRfl::SPInterfaceBuffer::Type::UniformBuffer) {
-                    auto ptype = dynamic_cast <const ShdrRfl::SPTypeSimpleStruct *>(pbuffer->underlying_type);
-                    assert(ptype);
+                    auto psb = dynamic_cast<const ShdrRfl::SPInterfaceStructuredBuffer *>(pinterface.get());
+                    if (!psb) {
+                        SDL_LogWarn(
+                            SDL_LOG_CATEGORY_RENDER,
+                            "Uniform buffer named %s is not structured, and cannot be manipulated.",
+                            pbuffer->name.c_str()
+                        );
+                        continue;
+                    }
+
+                    auto placer = psb->buffer_placer;
+                    assert(placer);
 
                     pimpl->m_ipi.ubos[pbuffer->name] = IndexedBuffer::CreateUnique(
                         m_system.GetAllocatorState(),
-                        Buffer::BufferType::Uniform,
-                        ptype->expected_size,
+                        {BufferTypeBits::HostAccessibleUniform},
+                        placer->CalculateMaxSize(),
                         m_system.GetDeviceInterface().QueryLimit(
                             RenderSystemState::DeviceInterface::PhysicalDeviceLimitInteger::UniformBufferOffsetAlignment
                         ),
@@ -221,14 +234,14 @@ namespace Engine {
         if (pimpl->m_ipi._is_ubo_dirty[backbuffer]) {
 
             for (const auto & kv : this->pimpl->m_ipi.ubos) {
-                auto itr = pimpl->layout.name_mapping.find(kv.first);
-                assert(itr != pimpl->layout.name_mapping.end());
-                auto pbuf = dynamic_cast<const ShdrRfl::SPInterfaceBuffer *>(itr->second);
+                auto itr = pimpl->layout.interface_name_mapping.find(kv.first);
+                assert(itr != pimpl->layout.interface_name_mapping.end());
+                auto pbuf = dynamic_cast<const ShdrRfl::SPInterfaceStructuredBuffer *>(itr->second);
                 assert(pbuf && pbuf->type == ShdrRfl::SPInterfaceBuffer::Type::UniformBuffer);
 
                 pimpl->layout.PlaceBufferVariable(
                     this->pimpl->m_ubo_staging_buffer,
-                    pbuf,
+                    *pbuf,
                     this->pimpl->parameters
                 );
 
@@ -245,14 +258,40 @@ namespace Engine {
 
     void ComputeStage::AssignScalarVariable(
         const std::string & name,
-        std::variant<uint32_t, int32_t, float> value) noexcept {
-        pimpl->parameters.Assign(name, value);
+        std::variant<uint32_t, float> value) noexcept {
+        
+        struct Visitor {
+            impl* pimpl;
+            const std::string & name;
+
+            void operator () (uint32_t v) {
+                pimpl->parameters.Assign(name, v);
+            };
+            void operator () (float v) {
+                pimpl->parameters.Assign(name, v);
+            };
+        };
+
+        std::visit(Visitor{pimpl.get(), name}, value);
         pimpl->m_ipi._is_ubo_dirty.set();
     }
     void ComputeStage::AssignVectorVariable(
         const std::string & name,
         std::variant<glm::vec4, glm::mat4> value) noexcept {
-        pimpl->parameters.Assign(name, value);
+
+        struct Visitor {
+            impl* pimpl;
+            const std::string & name;
+
+            void operator () (const glm::vec4 & v) {
+                pimpl->parameters.Assign(name, v);
+            };
+            void operator () (const glm::mat4 & v) {
+                pimpl->parameters.Assign(name, v);
+            };
+        };
+
+        std::visit(Visitor{pimpl.get(), name}, value);
         pimpl->m_ipi._is_ubo_dirty.set();
     }
     void ComputeStage::AssignTexture(
@@ -263,7 +302,19 @@ namespace Engine {
     }
     void ComputeStage::AssignBuffer(
         const std::string & name,
-        std::shared_ptr <const Buffer> buffer) noexcept {
+        std::shared_ptr <const DeviceBuffer> buffer) noexcept {
+        pimpl->parameters.Assign(name, buffer);
+        pimpl->m_ipi._is_descriptor_dirty.set();
+    }
+
+    void ComputeStage::AssignComputeBuffer(
+        const std::string &name, std::shared_ptr<const ComputeBuffer> buffer
+    ) noexcept {
+        pimpl->parameters.Assign(name, buffer);
+        pimpl->m_ipi._is_descriptor_dirty.set();
+    }
+
+    void ComputeStage::AssignComputeBuffer(const std::string &name, const ComputeBuffer &buffer) noexcept {
         pimpl->parameters.Assign(name, buffer);
         pimpl->m_ipi._is_descriptor_dirty.set();
     }

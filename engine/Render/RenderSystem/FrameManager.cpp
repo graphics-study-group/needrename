@@ -1,7 +1,8 @@
 #include "FrameManager.h"
 
 #include "Render/DebugUtils.h"
-#include "Render/Memory/Buffer.h"
+#include "Render/Memory/DeviceBuffer.h"
+#include "Render/Memory/MemoryAccessHelper.hpp"
 #include "Render/Pipeline/CommandBuffer.h"
 #include "Render/Pipeline/CommandBuffer/ComputeContext.h"
 #include "Render/Pipeline/CommandBuffer/GraphicsContext.h"
@@ -20,6 +21,7 @@ namespace {
     void RecordCopyCommand(
         const vk::CommandBuffer &cb,
         const vk::Image &src,
+        Engine::MemoryAccessTypeImageBits last_access,
         vk::Extent2D extent_src,
         vk::Offset2D offset_src,
         vk::Extent2D extent_dst,
@@ -34,10 +36,10 @@ namespace {
         DEBUG_CMD_START_LABEL(cb, "Final Copy");
         barriers[0] = vk::ImageMemoryBarrier2{
             vk::PipelineStageFlagBits2::eAllCommands,
-            vk::AccessFlagBits2::eMemoryWrite,
+            Engine::GetAccessFlags({last_access}),
             vk::PipelineStageFlagBits2::eAllTransfer,
             vk::AccessFlagBits2::eTransferRead,
-            vk::ImageLayout::eColorAttachmentOptimal,
+            Engine::GetImageLayout({last_access}),
             vk::ImageLayout::eTransferSrcOptimal,
             vk::QueueFamilyIgnored,
             vk::QueueFamilyIgnored,
@@ -76,8 +78,9 @@ namespace {
             vk::AccessFlagBits2::eTransferRead,
             vk::PipelineStageFlagBits2::eNone,
             vk::AccessFlagBits2::eNone,
+            // No layout transitions here.
             vk::ImageLayout::eTransferSrcOptimal,
-            vk::ImageLayout::eColorAttachmentOptimal,
+            vk::ImageLayout::eTransferSrcOptimal,
             vk::QueueFamilyIgnored,
             vk::QueueFamilyIgnored,
             src,
@@ -89,7 +92,7 @@ namespace {
         cb.end();
     }
 
-    void ReadbackCommand(vk::CommandBuffer cb, const Engine::Buffer & src, const Engine::Buffer & dst) {
+    void ReadbackCommand(vk::CommandBuffer cb, const Engine::DeviceBuffer & src, const Engine::DeviceBuffer & dst) {
         using namespace Engine;
         cb.copyBuffer(
             src.GetBuffer(), dst.GetBuffer(),
@@ -104,7 +107,7 @@ namespace {
         uint32_t level,
         uint32_t layer,
         vk::Extent3D extent,
-        const Engine::Buffer & dst
+        const Engine::DeviceBuffer & dst
     ) {
         using namespace Engine;
 
@@ -429,7 +432,11 @@ namespace Engine::RenderSystemState {
     }
 
     bool FrameManager::PresentToFramebuffer(
-        vk::Image image, vk::Extent2D extentSrc, vk::Offset2D offsetSrc, vk::Filter filter
+        vk::Image image,
+        MemoryAccessTypeImageBits last_access,
+        vk::Extent2D extentSrc,
+        vk::Offset2D offsetSrc,
+        vk::Filter filter
     ) {
         const auto fif = GetFrameInFlight();
         const auto framebuffer_image = this->pimpl->m_system.GetSwapchain().GetImages()[GetFramebuffer()];
@@ -437,7 +444,8 @@ namespace Engine::RenderSystemState {
 
         RecordCopyCommand(
             copy_cb,
-            image, 
+            image,
+            last_access,
             extentSrc,
             offsetSrc, 
             this->pimpl->m_system.GetSwapchain().GetExtent(),
@@ -531,11 +539,11 @@ namespace Engine::RenderSystemState {
         return pimpl->timeline_semaphores[GetFrameInFlight()];
     }
 
-    std::shared_ptr<Buffer> FrameManager::EnqueuePostGraphicsBufferReadback(const Buffer & device_buffer) {
+    std::shared_ptr<DeviceBuffer> FrameManager::EnqueuePostGraphicsBufferReadback(const DeviceBuffer & device_buffer) {
         // This has to be a shared pointer as release time is undetermined.
-        std::shared_ptr staging_buffer = Buffer::CreateUnique(
+        std::shared_ptr staging_buffer = DeviceBuffer::CreateUnique(
             pimpl->m_system.GetAllocatorState(),
-            Buffer::BufferType::Readback,
+            {BufferTypeBits::ReadbackFromDevice},
             device_buffer.GetSize()
         );
 
@@ -546,14 +554,14 @@ namespace Engine::RenderSystemState {
 
         return staging_buffer;
     }
-    std::shared_ptr<Buffer> FrameManager::EnqueuePostGraphicsImageReadback(const Texture &image, uint32_t array_layer, uint32_t miplevel) {
+    std::shared_ptr<DeviceBuffer> FrameManager::EnqueuePostGraphicsImageReadback(const Texture &image, uint32_t array_layer, uint32_t miplevel) {
         auto texture_desc = image.GetTextureDescription();
         assert(array_layer <= texture_desc.array_layers);
         assert(miplevel <= texture_desc.mipmap_levels);
         // This has to be a shared pointer as release time is undetermined.
-        std::shared_ptr staging_buffer = Buffer::CreateUnique(
+        std::shared_ptr staging_buffer = DeviceBuffer::CreateUnique(
             pimpl->m_system.GetAllocatorState(),
-            Buffer::BufferType::Readback,
+            {BufferTypeBits::ReadbackFromDevice},
             texture_desc.width * texture_desc.height * texture_desc.depth * ImageUtils::GetPixelSize(texture_desc.format)
         );
 

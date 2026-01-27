@@ -20,8 +20,8 @@ namespace Engine {
                     .height = texture.height,
                     .depth = texture.depth,
                     .format = static_cast<ImageUtils::ImageFormat>(static_cast<int>(texture.format)),
-                    .type = (texture.format == RenderTargetTextureDesc::RTTFormat::D32SFLOAT) 
-                        ? ImageUtils::ImageType::DepthAttachment : ImageUtils::ImageType::ColorAttachment,
+                    .memory_type = {(texture.format == RenderTargetTextureDesc::RTTFormat::D32SFLOAT) 
+                        ? ImageMemoryTypeBits::DefaultDepthAttachment : ImageMemoryTypeBits::DefaultColorAttachment},
                     .mipmap_levels = texture.mipmap_levels,
                     .array_layers = texture.array_layers,
                     .is_cube_map = texture.is_cube_map
@@ -52,8 +52,8 @@ namespace Engine {
                     .height = texture.height,
                     .depth = texture.depth,
                     .format = static_cast<ImageUtils::ImageFormat>(static_cast<int>(texture.format)),
-                    .type = (texture.format == RenderTargetTextureDesc::RTTFormat::D32SFLOAT) 
-                        ? ImageUtils::ImageType::DepthAttachment : ImageUtils::ImageType::ColorAttachment,
+                    .memory_type = {(texture.format == RenderTargetTextureDesc::RTTFormat::D32SFLOAT) 
+                        ? ImageMemoryTypeBits::DefaultDepthAttachment : ImageMemoryTypeBits::DefaultColorAttachment},
                     .mipmap_levels = texture.mipmap_levels,
                     .array_layers = texture.array_layers,
                     .is_cube_map = texture.is_cube_map
