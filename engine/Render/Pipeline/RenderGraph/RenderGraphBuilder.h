@@ -57,6 +57,7 @@ namespace Engine {
          * This method facilitates persistent data usage between frames (for TAA, for example).
          * 
          * @return a handle to the managed resource, used in the render graph internally.
+         * External resources will have negative handles.
          */
         int32_t ImportExternalResource (
             const RenderTargetTexture & texture,
@@ -67,6 +68,7 @@ namespace Engine {
          * @brief Register a new buffer to manage its access by the internal memo system.
          * 
          * @return a handle to the managed resource, used in the render graph internally.
+         * External resources will have negative handles.
          */
         int32_t ImportExternalResource (
             const DeviceBuffer & buffer,
@@ -79,6 +81,9 @@ namespace Engine {
          * 
          * Such resources will have their lifetime managed automatically by the compiled
          * render graph.
+         * 
+         * @return a handle to the managed resource, used in the render graph internally.
+         * Internal resouces will have positive handles.
          */
         int32_t RequestRenderTargetTexture (
             RenderTargetTexture::RenderTargetTextureDesc texture_description,
@@ -173,10 +178,12 @@ namespace Engine {
 
         /**
          * @brief Build a default render graph.
+         * 
+         * The render graph will have defaulted attachments.
+         * Color and depth attachments will always have handle value 0 and 1 respectively.
          */
         RenderGraph BuildDefaultRenderGraph(
-            RenderTargetTexture & color_attachment, 
-            RenderTargetTexture & depth_attachment,
+            uint32_t width, uint32_t height,
             GUISystem * gui_system = nullptr
         );
     };

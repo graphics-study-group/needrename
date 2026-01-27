@@ -374,10 +374,35 @@ namespace Engine {
         return RenderGraph(m_system, std::move(compiled), std::move(extra));
     }
     RenderGraph RenderGraphBuilder::BuildDefaultRenderGraph(
-        RenderTargetTexture &color_attachment, RenderTargetTexture &depth_attachment, GUISystem *gui_system
+        uint32_t width, uint32_t height,
+        GUISystem *gui_system
     ) {
-        auto ca = this->ImportExternalResource(color_attachment, MemoryAccessTypeImageBits::None);
-        auto da = this->ImportExternalResource(depth_attachment, MemoryAccessTypeImageBits::None);
+        auto ca = this->RequestRenderTargetTexture(
+            {
+                .dimensions = 2,
+                .width = width,
+                .height = height,
+                .depth = 1,
+                .mipmap_levels = 1,
+                .array_layers = 1,
+                .format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R8G8B8A8UNorm,
+                .multisample = 1,
+                .is_cube_map = false
+            }, {}
+        );
+        auto da = this->RequestRenderTargetTexture(
+            {
+                .dimensions = 2,
+                .width = width,
+                .height = height,
+                .depth = 1,
+                .mipmap_levels = 1,
+                .array_layers = 1,
+                .format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::D32SFLOAT,
+                .multisample = 1,
+                .is_cube_map = false
+            }, {}
+        );
         this->UseImage(ca, MemoryAccessTypeImageBits::ColorAttachmentWrite);
         this->UseImage(da, MemoryAccessTypeImageBits::DepthStencilAttachmentWrite);
         this->RecordRasterizerPass(
@@ -386,16 +411,17 @@ namespace Engine {
              AttachmentUtils::LoadOperation::Clear,
              AttachmentUtils::StoreOperation::DontCare,
              AttachmentUtils::DepthClearValue{1.0f, 0U}},
-            [this, &color_attachment, &depth_attachment](Engine::GraphicsCommandBuffer &gcb, const RenderGraph &) {
+            [this](Engine::GraphicsCommandBuffer &gcb, const RenderGraph &) {
                 gcb.DrawRenderers("", this->m_system.GetRendererManager().FilterAndSortRenderers({}));
             }
         );
 
         if (gui_system) {
             this->UseImage(ca, MemoryAccessTypeImageBits::ColorAttachmentWrite);
-            this->RecordRasterizerPassWithoutRT([this, gui_system, &color_attachment](Engine::GraphicsCommandBuffer &gcb, const RenderGraph &) {
+            this->RecordRasterizerPassWithoutRT([this, ca, gui_system](Engine::GraphicsCommandBuffer &gcb, const RenderGraph & gb) {
+                auto pca = gb.GetInternalTextureResource(ca);
                 gui_system->DrawGUI(
-                    {&color_attachment,
+                    {pca,
                      nullptr,
                      AttachmentUtils::LoadOperation::Load,
                      AttachmentUtils::StoreOperation::Store},
