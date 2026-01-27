@@ -108,7 +108,7 @@ namespace Engine {
          * You also cannot access any internal resources managed by the render graph.
          */
         void RecordRasterizerPassWithoutRT (
-            std::function<void(GraphicsCommandBuffer &)> pass
+            std::function<void(GraphicsCommandBuffer &, const RenderGraph &)> pass
         );
 
         /**
@@ -120,7 +120,7 @@ namespace Engine {
          */
         void RecordRasterizerPass (
             RGAttachmentDesc color,
-            std::function<void(GraphicsCommandBuffer &)> pass,
+            std::function<void(GraphicsCommandBuffer &, const RenderGraph &)> pass,
             const std::string & name = ""
         );
 
@@ -133,7 +133,7 @@ namespace Engine {
         void RecordRasterizerPass (
             RGAttachmentDesc color,
             RGAttachmentDesc depth,
-            std::function<void(GraphicsCommandBuffer &)> pass,
+            std::function<void(GraphicsCommandBuffer &, const RenderGraph &)> pass,
             const std::string & name = ""
         );
 
@@ -146,7 +146,7 @@ namespace Engine {
         void RecordRasterizerPass (
             std::initializer_list <RGAttachmentDesc> colors,
             RGAttachmentDesc depth,
-            std::function<void(GraphicsCommandBuffer &)> pass,
+            std::function<void(GraphicsCommandBuffer &, const RenderGraph &)> pass,
             const std::string & name = ""
         );
 
@@ -154,7 +154,7 @@ namespace Engine {
          * @brief Record a pass with transfer commands.
          */
         void RecordTransferPass (
-            std::function<void(TransferCommandBuffer &)> pass,
+            std::function<void(TransferCommandBuffer &, const RenderGraph &)> pass,
             const std::string & name = ""
         );
 
@@ -162,7 +162,7 @@ namespace Engine {
          * @brief Record a pass with compute shader dispatches.
          */
         void RecordComputePass (
-            std::function<void(ComputeCommandBuffer &)> pass,
+            std::function<void(ComputeCommandBuffer &, const RenderGraph &)> pass,
             const std::string & name = ""
         );
 

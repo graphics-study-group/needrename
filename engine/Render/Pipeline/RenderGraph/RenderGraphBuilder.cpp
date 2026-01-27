@@ -17,7 +17,7 @@ namespace Engine {
 
         struct Pass {
             RenderGraphImpl::PassType type;
-            std::function <void(vk::CommandBuffer)> operation;
+            std::function <void(vk::CommandBuffer, const RenderGraph &)> operation;
 
             std::vector <RGAttachmentDesc> color_attachments;
             std::optional <RGAttachmentDesc> depth_attachments;
@@ -52,7 +52,7 @@ namespace Engine {
             }
         }
 
-        std::function <void(vk::CommandBuffer)> GetPrePassSynchronizationFunc(int32_t pass_index) {
+        std::function <void(vk::CommandBuffer, const RenderGraph &)> GetPrePassSynchronizationFunc(int32_t pass_index) {
             std::vector<vk::ImageMemoryBarrier2> image_barriers{};
             std::vector<vk::BufferMemoryBarrier2> buffer_barriers{};
             // Build image barriers
@@ -114,7 +114,7 @@ namespace Engine {
             return [
                 ib = std::move(image_barriers),
                 bb = std::move(buffer_barriers)
-            ] (vk::CommandBuffer cb) -> void {
+            ] (vk::CommandBuffer cb, const RenderGraph &) -> void {
                 vk::DependencyInfo dep{
                     vk::DependencyFlags{},
                     {},
@@ -169,12 +169,12 @@ namespace Engine {
         pimpl->m_buffer_memo.UpdateLastAccess(buffer, pimpl->m_tasks.size(), access);
     }
 
-    void RenderGraphBuilder::RecordRasterizerPassWithoutRT(std::function<void(GraphicsCommandBuffer &)> pass) {
-        std::function<void(vk::CommandBuffer)> f = [system = &this->m_system,
-                                                    pass](vk::CommandBuffer cb) {
+    void RenderGraphBuilder::RecordRasterizerPassWithoutRT(std::function<void(GraphicsCommandBuffer &, const RenderGraph &)> pass) {
+        std::function<void(vk::CommandBuffer, const RenderGraph &)> f = [system = &this->m_system,
+                                                    pass](vk::CommandBuffer cb, const RenderGraph & rg) {
 
             GraphicsCommandBuffer gcb{*system, cb, system->GetFrameManager().GetFrameInFlight()};
-            std::invoke(pass, std::ref(gcb));
+            std::invoke(pass, std::ref(gcb), std::cref(rg));
         };
         pimpl->m_tasks.push_back(
             impl::Pass{
@@ -185,14 +185,14 @@ namespace Engine {
     }
     void RenderGraphBuilder::RecordRasterizerPass(
         RGAttachmentDesc color,
-        std::function<void(GraphicsCommandBuffer &)> pass,
+        std::function<void(GraphicsCommandBuffer &, const RenderGraph &)> pass,
         const std::string &name
     ) {
-        std::function<void(vk::CommandBuffer)> f = [system = &this->m_system,
+        std::function<void(vk::CommandBuffer, const RenderGraph &)> f = [system = &this->m_system,
                                                     pass,
-                                                    name](vk::CommandBuffer cb) {
+                                                    name](vk::CommandBuffer cb, const RenderGraph & rg) {
             GraphicsCommandBuffer gcb{*system, cb, system->GetFrameManager().GetFrameInFlight()};
-            std::invoke(pass, std::ref(gcb));
+            std::invoke(pass, std::ref(gcb), std::cref(rg));
         };
 
         pimpl->m_tasks.push_back(
@@ -207,14 +207,14 @@ namespace Engine {
     void RenderGraphBuilder::RecordRasterizerPass(
         RGAttachmentDesc color,
         RGAttachmentDesc depth,
-        std::function<void(GraphicsCommandBuffer &)> pass,
+        std::function<void(GraphicsCommandBuffer &, const RenderGraph &)> pass,
         const std::string &name
     ) {
-        std::function<void(vk::CommandBuffer)> f = [system = &this->m_system,
+        std::function<void(vk::CommandBuffer, const RenderGraph &)> f = [system = &this->m_system,
                                                     pass,
-                                                    name](vk::CommandBuffer cb) {
+                                                    name](vk::CommandBuffer cb, const RenderGraph & rg) {
             GraphicsCommandBuffer gcb{*system, cb, system->GetFrameManager().GetFrameInFlight()};
-            std::invoke(pass, std::ref(gcb));
+            std::invoke(pass, std::ref(gcb), std::cref(rg));
         };
 
         pimpl->m_tasks.push_back(
@@ -230,15 +230,15 @@ namespace Engine {
     void RenderGraphBuilder::RecordRasterizerPass(
         std::initializer_list<RGAttachmentDesc> colors,
         RGAttachmentDesc depth,
-        std::function<void(GraphicsCommandBuffer &)> pass,
+        std::function<void(GraphicsCommandBuffer &, const RenderGraph &)> pass,
         const std::string &name
     ) {
-        std::function<void(vk::CommandBuffer)> f = [system = &this->m_system,
+        std::function<void(vk::CommandBuffer, const RenderGraph &)> f = [system = &this->m_system,
                                                     pass,
-                                                    name](vk::CommandBuffer cb) {
+                                                    name](vk::CommandBuffer cb, const RenderGraph & rg) {
 
             GraphicsCommandBuffer gcb{*system, cb, system->GetFrameManager().GetFrameInFlight()};
-            std::invoke(pass, std::ref(gcb));
+            std::invoke(pass, std::ref(gcb), std::cref(rg));
         };
         pimpl->m_tasks.push_back(
             impl::Pass{
@@ -250,14 +250,14 @@ namespace Engine {
         );
     }
     void RenderGraphBuilder::RecordTransferPass(
-        std::function<void(TransferCommandBuffer &)> pass, 
+        std::function<void(TransferCommandBuffer &, const RenderGraph &)> pass, 
         const std::string & name
     ) {
-        std::function<void(vk::CommandBuffer)> f = [pass,
-                                                    name](vk::CommandBuffer cb) {
+        std::function<void(vk::CommandBuffer, const RenderGraph &)> f = [pass,
+                                                    name](vk::CommandBuffer cb, const RenderGraph & rg) {
             TransferCommandBuffer tcb{cb};
             tcb.GetCommandBuffer().beginDebugUtilsLabelEXT({(name + " (Transfer)").c_str()});
-            std::invoke(pass, std::ref(tcb));
+            std::invoke(pass, std::ref(tcb), std::cref(rg));
             tcb.GetCommandBuffer().endDebugUtilsLabelEXT();
         };
 
@@ -269,14 +269,14 @@ namespace Engine {
         );
     }
     void RenderGraphBuilder::RecordComputePass(
-        std::function<void(ComputeCommandBuffer &)> pass, const std::string &name
+        std::function<void(ComputeCommandBuffer &, const RenderGraph &)> pass, const std::string &name
     ) {
-        std::function<void(vk::CommandBuffer)> f = [system = &this->m_system,
+        std::function<void(vk::CommandBuffer, const RenderGraph &)> f = [system = &this->m_system,
                                                     pass,
-                                                    name](vk::CommandBuffer cb) {
+                                                    name](vk::CommandBuffer cb, const RenderGraph & rg) {
             ComputeCommandBuffer ccb{cb, system->GetFrameManager().GetFrameInFlight()};
             ccb.GetCommandBuffer().beginDebugUtilsLabelEXT({(name + " (Compute)").c_str()});
-            std::invoke(pass, std::ref(ccb));
+            std::invoke(pass, std::ref(ccb), std::cref(rg));
             ccb.GetCommandBuffer().endDebugUtilsLabelEXT();
         };
 
@@ -289,7 +289,7 @@ namespace Engine {
     }
     
     RenderGraph RenderGraphBuilder::BuildRenderGraph() {
-        std::vector <std::function<void(vk::CommandBuffer)>> compiled;
+        std::vector <std::function<void(vk::CommandBuffer, const RenderGraph &)>> compiled;
         RenderGraphImpl::RenderGraphExtraInfo extra{};
 
         pimpl->CreateInternalResources(m_system);
@@ -351,7 +351,7 @@ namespace Engine {
                 };
 
                 compiled.push_back(
-                    [render_extent, color_attachments, depth_attachment, op = pass_info.operation](vk::CommandBuffer cb) -> void {
+                    [render_extent, color_attachments, depth_attachment, op = pass_info.operation](vk::CommandBuffer cb, const RenderGraph & rg) -> void {
                         auto ri = vk::RenderingInfo{
                             vk::RenderingFlags{},
                             vk::Rect2D{{0, 0}, render_extent},
@@ -361,7 +361,7 @@ namespace Engine {
                             nullptr
                         };
                         cb.beginRendering(ri);
-                        op(cb);
+                        op(cb, rg);
                         cb.endRendering();
                     }
                 );
@@ -386,14 +386,14 @@ namespace Engine {
              AttachmentUtils::LoadOperation::Clear,
              AttachmentUtils::StoreOperation::DontCare,
              AttachmentUtils::DepthClearValue{1.0f, 0U}},
-            [this, &color_attachment, &depth_attachment](Engine::GraphicsCommandBuffer &gcb) {
+            [this, &color_attachment, &depth_attachment](Engine::GraphicsCommandBuffer &gcb, const RenderGraph &) {
                 gcb.DrawRenderers("", this->m_system.GetRendererManager().FilterAndSortRenderers({}));
             }
         );
 
         if (gui_system) {
             this->UseImage(ca, MemoryAccessTypeImageBits::ColorAttachmentWrite);
-            this->RecordRasterizerPassWithoutRT([this, gui_system, &color_attachment](Engine::GraphicsCommandBuffer &gcb) {
+            this->RecordRasterizerPassWithoutRT([this, gui_system, &color_attachment](Engine::GraphicsCommandBuffer &gcb, const RenderGraph &) {
                 gui_system->DrawGUI(
                     {&color_attachment,
                      nullptr,
