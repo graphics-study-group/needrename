@@ -27,7 +27,7 @@ namespace Engine::ShdrRfl {
     }
 
     void ShaderParameters::Assign(const std::string &name, const glm::mat4 &v) noexcept {
-        pimpl->buffer.SetVariable<const float, 16>(name, std::span<const float, 16>(glm::value_ptr(v), glm::value_ptr(v) + 4));
+        pimpl->buffer.SetVariable<const float, 16>(name, std::span<const float, 16>(glm::value_ptr(v), glm::value_ptr(v) + 16));
     }
 
     void ShaderParameters::Assign(const std::string &name, float (&v)[4]) noexcept {
