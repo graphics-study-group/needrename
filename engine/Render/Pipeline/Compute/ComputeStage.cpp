@@ -294,23 +294,13 @@ namespace Engine {
         std::visit(Visitor{pimpl.get(), name}, value);
         pimpl->m_ipi._is_ubo_dirty.set();
     }
-    void ComputeStage::AssignTexture(
-        const std::string & name, 
-        std::shared_ptr <const Texture> texture) noexcept {
-        pimpl->parameters.Assign(name, texture);
-        pimpl->m_ipi._is_descriptor_dirty.set();
-    }
-    void ComputeStage::AssignBuffer(
-        const std::string & name,
-        std::shared_ptr <const DeviceBuffer> buffer) noexcept {
-        pimpl->parameters.Assign(name, buffer);
+    void ComputeStage::AssignTexture(const std::string &name, const Texture &texture) noexcept {
+        pimpl->parameters.Assign(name, std::cref(texture));
         pimpl->m_ipi._is_descriptor_dirty.set();
     }
 
-    void ComputeStage::AssignComputeBuffer(
-        const std::string &name, std::shared_ptr<const ComputeBuffer> buffer
-    ) noexcept {
-        pimpl->parameters.Assign(name, buffer);
+    void ComputeStage::AssignBuffer(const std::string &name, const DeviceBuffer &buffer) noexcept {
+        pimpl->parameters.Assign(name, std::cref(buffer));
         pimpl->m_ipi._is_descriptor_dirty.set();
     }
 
