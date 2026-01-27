@@ -4,23 +4,18 @@
 #include <memory>
 #include <functional>
 
+#include "Render/AttachmentUtils.h"
+#include "Render/Memory/RenderTargetTexture.h"
 #include "Render/Memory/MemoryAccessTypes.h"
-#include "Render/Pipeline/CommandBuffer/AccessHelperTypes.h"
 
 namespace Engine {
-
     class RenderSystem;
     class GUISystem;
-    class Texture;
     class DeviceBuffer;
     class RenderGraph;
     class GraphicsCommandBuffer;
     class TransferCommandBuffer;
     class ComputeCommandBuffer;
-
-    namespace AttachmentUtils {
-        class AttachmentDescription;
-    };
 
     /**
      * @brief Helper class for building a `RenderGraph`.
@@ -33,22 +28,56 @@ namespace Engine {
         std::unique_ptr <impl> pimpl;
     public:
 
+        struct RGAttachmentDesc {
+            using LoadOp = AttachmentUtils::LoadOperation;
+            using StoreOp = AttachmentUtils::StoreOperation;
+            using ClearValue = AttachmentUtils::ClearValue;
+
+            int32_t rt_handle;
+            LoadOp load_op{};
+            StoreOp store_op{};
+            ClearValue clear_value{};
+
+            // These values control the image view used in the rendering.
+            // They are currently unused. All renderings are defaulted
+            // to be performed on the full image view.
+            uint32_t base_mip {0};
+            uint32_t base_array_layer {1};
+            uint32_t mip_range {0};
+            uint32_t array_layer_range {1};
+        };
+
         RenderGraphBuilder(RenderSystem & system);
         ~RenderGraphBuilder();
 
         /**
          * @brief Register a new image texture to manage its access by the internal memo system.
+         * 
+         * The lifetime of this texture is managed by the caller.
+         * This method facilitates persistent data usage between frames (for TAA, for example).
+         * 
+         * @return a handle to the managed resource, used in the render graph internally.
          */
-        void ImportExternalResource (
-            const Texture & texture,
+        int32_t ImportExternalResource (
+            const RenderTargetTexture & texture,
             MemoryAccessTypeImageBits prev_access = MemoryAccessTypeImageBits::None
+        );
+
+        /**
+         * @brief Register a new buffer to manage its access by the internal memo system.
+         * 
+         * @return a handle to the managed resource, used in the render graph internally.
+         */
+        int32_t ImportExternalResource (
+            const DeviceBuffer & buffer,
+            MemoryAccessTypeBuffer prev_access = {MemoryAccessTypeBufferBits::None}
         );
         
         /**
          * @brief Mark an image to be used in the following pass.
          */
         void UseImage (
-            const Texture & texture,
+            int32_t texture_handle,
             MemoryAccessTypeImageBits access
         );
 
@@ -56,7 +85,7 @@ namespace Engine {
          * @brief Mark a buffer to be used in the following pass.
          */
         void UseBuffer (
-            const DeviceBuffer & buffer,
+            int32_t buffer_handle,
             MemoryAccessTypeBuffer access
         );
 
@@ -64,6 +93,7 @@ namespace Engine {
          * @brief Record a pass which includes draw calls.
          * 
          * To use this method, you have to manually set up render targets within the `pass` function.
+         * You also cannot access any internal resources managed by the render graph.
          */
         void RecordRasterizerPassWithoutRT (
             std::function<void(GraphicsCommandBuffer &)> pass
@@ -77,7 +107,7 @@ namespace Engine {
          * Its extent is set to swapchain extent.
          */
         void RecordRasterizerPass (
-            AttachmentUtils::AttachmentDescription color,
+            RGAttachmentDesc color,
             std::function<void(GraphicsCommandBuffer &)> pass,
             const std::string & name = ""
         );
@@ -89,8 +119,8 @@ namespace Engine {
          * Its extent is set to swapchain extent.
          */
         void RecordRasterizerPass (
-            AttachmentUtils::AttachmentDescription color,
-            AttachmentUtils::AttachmentDescription depth,
+            RGAttachmentDesc color,
+            RGAttachmentDesc depth,
             std::function<void(GraphicsCommandBuffer &)> pass,
             const std::string & name = ""
         );
@@ -102,8 +132,8 @@ namespace Engine {
          * Its extent is set to swapchain extent.
          */
         void RecordRasterizerPass (
-            std::initializer_list <AttachmentUtils::AttachmentDescription> colors,
-            AttachmentUtils::AttachmentDescription depth,
+            std::initializer_list <RGAttachmentDesc> colors,
+            RGAttachmentDesc depth,
             std::function<void(GraphicsCommandBuffer &)> pass,
             const std::string & name = ""
         );
