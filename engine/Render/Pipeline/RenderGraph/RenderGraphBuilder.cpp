@@ -1,10 +1,8 @@
 #include "RenderGraphBuilder.h"
 
 #include "UserInterface/GUISystem.h"
-#include "Render/Pipeline/CommandBuffer/AccessHelperFuncs.h"
 #include "Render/Pipeline/RenderGraph/RenderGraph.h"
 #include "Render/Pipeline/RenderGraph/RenderGraphUtils.hpp"
-#include "Render/Pipeline/RenderGraph/RenderGraphTask.hpp"
 #include <SDL3/SDL.h>
 #include <unordered_map>
 #include <vulkan/vulkan.hpp>
@@ -39,11 +37,17 @@ namespace Engine {
         std::unordered_map <int32_t, const RenderTargetTexture *> texture_mapping;
         std::unordered_map <int32_t, const DeviceBuffer *> buffer_mapping;
 
-        RenderGraphImpl::PassType GetPassType(int32_t pass_index) {
+        /**
+         * @brief Get pass type, considering for negative pass indices.
+         */
+        RenderGraphImpl::PassType GetPassType(int32_t pass_index) const noexcept {
             assert(pass_index < 0 || pass_index < m_tasks.size());
             return pass_index < 0 ? RenderGraphImpl::PassType::None : m_tasks[pass_index].type;
         }
 
+        /**
+         * @brief Create internally managed texture resources and populate texture mapping.
+         */
         void CreateInternalResources (RenderSystem & system) {
             for (const auto & [idx, tci] : texture_creation_info) {
                 auto ptr = RenderTargetTexture::CreateUnique(system, tci.t, tci.s, std::format("Render Graph Resource {}", idx));
@@ -52,6 +56,9 @@ namespace Engine {
             }
         }
 
+        /**
+         * @brief Get the sychronization operation before a pass specified by its index.
+         */
         std::function <void(vk::CommandBuffer, const RenderGraph &)> GetPrePassSynchronizationFunc(int32_t pass_index) {
             std::vector<vk::ImageMemoryBarrier2> image_barriers{};
             std::vector<vk::BufferMemoryBarrier2> buffer_barriers{};
@@ -123,6 +130,54 @@ namespace Engine {
                 };
                 cb.pipelineBarrier2(dep);
             };
+        }
+
+        /**
+         * @brief Validate whether a texture is ready for use as a color attachment.
+         * 
+         * @internal somewhat expensive. avoid if not debugging.
+         */
+        bool ValidateColorAttachment(int32_t handle, int32_t pass_index) const {
+            // Check for synchronization
+            auto itr = m_texture_memo.accesses.find(handle);
+            if (itr == m_texture_memo.accesses.end())   return false;
+
+            const auto & accesses = itr->second;
+            auto access_itr = std::find_if(
+                accesses.begin(),
+                accesses.end(),
+                [pass_index] (const auto & a) {return a.pass_index == pass_index;}
+            );
+            if (access_itr == accesses.end())   return false;
+            if (!access_itr->access.Test(MemoryAccessTypeImageBits::ColorAttachmentDefault)) return false;
+
+            // Check for correct format
+            auto fmt = texture_mapping.at(handle)->GetTextureDescription().format;
+            return ImageUtils::HasColorAspect(fmt);
+        }
+
+        /**
+         * @brief Validate whether a texture is ready for use as a depth-stencil attachment.
+         * 
+         * @internal somewhat expensive. avoid if not debugging.
+         */
+        bool ValidateDepthStencilAttachment(int32_t handle, int32_t pass_index) const {
+            // Check for synchronization
+            auto itr = m_texture_memo.accesses.find(handle);
+            if (itr == m_texture_memo.accesses.end())   return false;
+
+            const auto & accesses = itr->second;
+            auto access_itr = std::find_if(
+                accesses.begin(),
+                accesses.end(),
+                [pass_index] (const auto & a) {return a.pass_index == pass_index;}
+            );
+            if (access_itr == accesses.end())   return false;
+            if (!access_itr->access.Test(MemoryAccessTypeImageBits::DepthStencilAttachmentDefault)) return false;
+
+            // Check for correct format
+            auto fmt = texture_mapping.at(handle)->GetTextureDescription().format;
+            return ImageUtils::HasDepthAspect(fmt);
         }
     };
 
@@ -308,10 +363,13 @@ namespace Engine {
             bool has_render_pass = pass_info.color_attachments.size() || pass_info.depth_attachments.has_value();
             if (has_render_pass) {
 
+                bool has_stencil = false;
                 std::vector <vk::RenderingAttachmentInfo> color_attachments;
                 vk::RenderingAttachmentInfo depth_attachment;
 
                 for (const auto & ca : pass_info.color_attachments) {
+                    assert(pimpl->ValidateColorAttachment(ca.rt_handle, pass));
+
                     auto t = pimpl->texture_mapping[ca.rt_handle];
                     color_attachments.push_back(
                         vk::RenderingAttachmentInfo{
@@ -329,6 +387,8 @@ namespace Engine {
 
                 if (pass_info.depth_attachments.has_value()) {
                     const auto & da = pass_info.depth_attachments.value();
+                    assert(pimpl->ValidateDepthStencilAttachment(da.rt_handle, pass));
+
                     auto t = pimpl->texture_mapping[da.rt_handle];
                     depth_attachment = vk::RenderingAttachmentInfo{
                         t->GetImageView(),
@@ -340,6 +400,10 @@ namespace Engine {
                         AttachmentUtils::GetVkStoreOp(da.store_op),
                         AttachmentUtils::GetVkClearValue(da.clear_value)
                     };
+
+                    if (ImageUtils::HasStencilAspect(t->GetTextureDescription().format)) {
+                        has_stencil = true;
+                    }
                 }
 
                 auto first_available_attachment = pass_info.color_attachments.empty() ?
@@ -351,14 +415,20 @@ namespace Engine {
                 };
 
                 compiled.push_back(
-                    [render_extent, color_attachments, depth_attachment, op = pass_info.operation](vk::CommandBuffer cb, const RenderGraph & rg) -> void {
+                    [
+                        has_stencil,
+                        render_extent,
+                        color_attachments,
+                        depth_attachment,
+                        op = pass_info.operation
+                    ](vk::CommandBuffer cb, const RenderGraph & rg) -> void {
                         auto ri = vk::RenderingInfo{
                             vk::RenderingFlags{},
                             vk::Rect2D{{0, 0}, render_extent},
                             1, 0,
                             color_attachments,
                             &depth_attachment,
-                            nullptr
+                            has_stencil ? &depth_attachment : nullptr
                         };
                         cb.beginRendering(ri);
                         op(cb, rg);
