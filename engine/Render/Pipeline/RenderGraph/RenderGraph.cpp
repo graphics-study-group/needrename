@@ -92,6 +92,12 @@ namespace Engine {
         );
     }
 
+    RenderTargetTexture *RenderGraph::GetInternalTextureResource(int32_t handle) const noexcept {
+        auto itr = pimpl->extra.internal_texture_cache.find(handle);
+        if (itr == pimpl->extra.internal_texture_cache.end())  return nullptr;
+        return itr->second.get();
+    }
+
     void RenderGraph::Record(vk::CommandBuffer cb) {
         vk::CommandBufferBeginInfo cbbi{};
         cb.begin(cbbi);

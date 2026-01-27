@@ -59,6 +59,13 @@ namespace Engine {
         void AddExternalOutputDependency(DeviceBuffer & buffer, MemoryAccessTypeBuffer next_access);
 
         /**
+         * @brief Get a internally managed render target texture.
+         * 
+         * @return nullptr if handle is not available.
+         */
+        RenderTargetTexture * GetInternalTextureResource(int32_t handle) const noexcept;
+
+        /**
          * @brief Record all operations onto the specified command buffer.
          */
         void Record(vk::CommandBuffer cb);
