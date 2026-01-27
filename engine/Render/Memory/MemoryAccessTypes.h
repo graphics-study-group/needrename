@@ -49,7 +49,8 @@ namespace Engine {
         ShaderRandomWrite               = 1 << 8,
 
         DepthStencilAttachmentDefault   = (DepthStencilAttachmentRead | DepthStencilAttachmentWrite),
-        ColorAttachmentDefault          = (ColorAttachmentRead | ColorAttachmentWrite)
+        ColorAttachmentDefault          = (ColorAttachmentRead | ColorAttachmentWrite),
+        ShaderRandomDefault             = (ShaderRandomRead | ShaderRandomWrite)
     };
     using MemoryAccessTypeImage = Flags<MemoryAccessTypeImageBits>;
 }

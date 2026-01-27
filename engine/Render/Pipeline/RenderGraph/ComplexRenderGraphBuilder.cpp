@@ -48,9 +48,12 @@ namespace Engine {
         desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R11G11B10UFloat,
         m_hdr_color_target =
             RenderTargetTexture::CreateUnique(m_system, desc, Texture::SamplerDesc{}, "HDR Color Attachment");
+        m_bloom_temp =
+            RenderTargetTexture::CreateUnique(m_system, desc, Texture::SamplerDesc{}, "Bloom Temp Attachment");
 
         auto &shadow_target = *m_shadow_target;
         auto &hdr_color_target = *m_hdr_color_target;
+        auto &bloom_temp = *m_bloom_temp;
 
         // XXX: Hardcoded bloom shader. Should use AssetManager to load shader when we have pipeline asset.
         auto &adb = *std::dynamic_pointer_cast<FileSystemDatabase>(MainClass::GetInstance()->GetAssetDatabase());
@@ -60,11 +63,13 @@ namespace Engine {
         auto bloom_compute_stage = std::make_shared<ComputeStage>(m_system);
         bloom_compute_stage->Instantiate(*m_bloom_shader->cas<ShaderAsset>());
         bloom_compute_stage->AssignTexture("inputImage", m_hdr_color_target);
+        bloom_compute_stage->AssignTexture("bloomTemp", m_bloom_temp);
         bloom_compute_stage->AssignTexture("outputImage", color_target_ptr);
 
         this->ImportExternalResource(color_target);
         this->ImportExternalResource(depth_target);
         this->ImportExternalResource(hdr_color_target);
+        this->ImportExternalResource(bloom_temp);
         this->ImportExternalResource(shadow_target);
 
         auto &system = m_system;
@@ -119,6 +124,7 @@ namespace Engine {
         );
 
         this->UseImage(hdr_color_target, IAT::ShaderRandomRead);
+        this->UseImage(bloom_temp, IAT::ShaderRandomDefault);
         this->UseImage(color_target, IAT::ShaderRandomWrite);
         this->RecordComputePass(
             [bloom_compute_stage, &color_target](ComputeCommandBuffer &ccb) {

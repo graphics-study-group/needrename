@@ -25,6 +25,7 @@ namespace Engine {
     protected:
         std::shared_ptr<RenderTargetTexture> m_shadow_target{};
         std::shared_ptr<RenderTargetTexture> m_hdr_color_target{};
+        std::shared_ptr<RenderTargetTexture> m_bloom_temp{};
 
         std::shared_ptr<AssetRef> m_bloom_shader{};
     };
