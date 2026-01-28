@@ -91,7 +91,7 @@ namespace Editor {
     }
 
     void InspectorWidget::SetSelectedGameObject(ObjectHandle game_object) {
-        if (!game_object) {
+        if (!game_object.IsValid()) {
             m_inspector_mode = InspectorMode::kInspectorModeGameObject;
             m_inspected_object = game_object;
         } else {

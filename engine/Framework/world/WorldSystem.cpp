@@ -233,14 +233,14 @@ namespace Engine {
 
     ObjectHandle WorldSystem::NextAvailableObjectHandle() {
         do {
-            m_go_id_counter++;
+            m_go_id_counter.m_data++;
         } while (m_go_map.find(m_go_id_counter) != m_go_map.end() && m_go_id_counter != 0u);
         return m_go_id_counter;
     }
 
     ComponentHandle WorldSystem::NextAvailableComponentHandle() {
         do {
-            m_component_id_counter++;
+            m_component_id_counter.m_data++;
         } while (m_comp_map.find(m_component_id_counter) != m_comp_map.end() && m_component_id_counter != 0u);
         return m_component_id_counter;
     }

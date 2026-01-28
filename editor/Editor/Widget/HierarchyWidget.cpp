@@ -102,7 +102,7 @@ namespace Editor {
                 }
             }
             // Hotkeys for selected game object
-            if (m_selected_game_object) {
+            if (m_selected_game_object.IsValid()) {
                 // F2 to rename
                 if (ImGui::IsKeyPressed(ImGuiKey_F2)) {
                     m_renaming_game_object = m_selected_game_object;
@@ -116,14 +116,14 @@ namespace Editor {
         }
         ImGui::End();
 
-        if (need_remove_go) {
+        if (need_remove_go.IsValid()) {
             if (m_selected_game_object == need_remove_go) {
                 m_selected_game_object = 0;
                 selected_changed = true;
             }
             world->RemoveGameObject(need_remove_go);
         }
-        if (need_rename_go) {
+        if (need_rename_go.IsValid()) {
             world->GetGameObjectRef(need_rename_go).m_name = m_rename_buffer;
         }
 

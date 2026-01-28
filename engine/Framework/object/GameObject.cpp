@@ -21,7 +21,7 @@ namespace Engine {
     }
 
     Transform GameObject::GetWorldTransform() {
-        if (m_parentGameObject) {
+        if (m_parentGameObject.IsValid()) {
             return MainClass::GetInstance()->GetWorldSystem()->GetGameObject(m_parentGameObject)->GetWorldTransform()
                    * GetTransform();
         }
