@@ -28,6 +28,28 @@ namespace Engine {
         Asset::save_asset_to_archive(archive);
     }
     void SceneAsset::load_asset_from_archive(Serialization::Archive &archive) {
+        Asset::load_asset_from_archive(archive);
+        Serialization::Json &json = *archive.m_cursor;
+        if (!m_scene) {
+            m_scene = std::make_unique<Scene>();
+        }
+        m_scene->Clear();
+        for (auto &js : json["objects"]) {
+            Serialization::Archive temp_archive(archive, &js);
+            auto &go = *m_scene->m_game_objects.emplace_back(
+                std::unique_ptr<GameObject>(new GameObject(Serialization::SerializationMarker{}))
+            );
+            go.m_scene = m_scene.get();
+            Serialization::deserialize(go, temp_archive);
+        }
+        for (auto &js : json["components"]) {
+            Serialization::Archive temp_archive(archive, &js);
+            auto &comp = *m_scene->m_components.emplace_back(
+                std::unique_ptr<Component>(new Component(Serialization::SerializationMarker{}))
+            );
+            comp.m_scene = m_scene.get();
+            Serialization::deserialize(comp, temp_archive);
+        }
     }
 
 } // namespace Engine

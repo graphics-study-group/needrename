@@ -2,6 +2,7 @@
 #define ASSET_SCENE_SCENEASSET_H
 
 #include <Asset/Asset.h>
+#include <Framework/world/Scene.h>
 #include <Reflection/macros.h>
 #include <memory>
 
@@ -12,7 +13,8 @@ namespace Engine {
     class GameObject;
     class Scene;
 
-    class SceneAsset : public Asset {
+    class REFL_SER_CLASS(REFL_WHITELIST) SceneAsset : public Asset {
+        REFL_SER_BODY(SceneAsset)
     public:
         SceneAsset() = default;
         SceneAsset(std::unique_ptr<Scene> &&scene);
@@ -21,7 +23,6 @@ namespace Engine {
         virtual void save_asset_to_archive(Serialization::Archive &archive) const override;
         virtual void load_asset_from_archive(Serialization::Archive &archive) override;
 
-    protected:
         std::unique_ptr<Scene> m_scene{};
     };
 } // namespace Engine

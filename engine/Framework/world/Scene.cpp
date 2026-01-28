@@ -1,4 +1,5 @@
 #include "Scene.h"
+#include <Asset/Scene/SceneAsset.h>
 #include <Core/Delegate/Delegate.h>
 #include <Core/Functional/EventQueue.h>
 #include <Framework/component/RenderComponent/LightComponent.h>
@@ -165,5 +166,30 @@ namespace Engine {
         for (auto &comp : m_components) {
             m_event_queue->AddEvent(comp->GetHandle(), &Component::Tick);
         }
+    }
+
+    void Scene::Clear() {
+        ClearEventQueue();
+        m_game_objects.clear();
+        m_components.clear();
+        m_go_map.clear();
+        m_comp_map.clear();
+        m_go_add_queue.clear();
+        m_go_remove_queue.clear();
+        m_comp_add_queue.clear();
+        m_comp_remove_queue.clear();
+    }
+
+    void Scene::AddSceneAsset(SceneAsset &asset) {
+        asset.m_scene->FlushCmdQueue();
+        for (auto &go : asset.m_scene->m_game_objects) {
+            go->m_scene = this;
+            m_go_add_queue.push_back(std::move(go));
+        }
+        for (auto &comp : asset.m_scene->m_components) {
+            comp->m_scene = this;
+            m_comp_add_queue.push_back(std::move(comp));
+        }
+        asset.m_scene->Clear();
     }
 } // namespace Engine

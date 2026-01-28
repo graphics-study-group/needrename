@@ -18,6 +18,7 @@ namespace Engine {
         REFL_SER_BODY(GameObject)
     protected:
         friend class Scene;
+        friend class SceneAsset;
         friend class Component;
         // GameObject must be created by Scene's factory function
         GameObject(Scene *scene);
@@ -46,6 +47,9 @@ namespace Engine {
         REFL_ENABLE ObjectHandle GetHandle() const noexcept;
 
         bool operator==(const GameObject &other) const noexcept;
+
+        void save_to_archive(Serialization::Archive &archive) const;
+        void load_from_archive(Serialization::Archive &archive);
 
     public:
         REFL_SER_ENABLE std::string m_name{};

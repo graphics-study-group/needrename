@@ -11,6 +11,7 @@ namespace Engine {
     class GameObject;
     class EventQueue;
     class Component;
+    class SceneAsset;
     namespace Reflection {
         class Type;
     }
@@ -57,7 +58,21 @@ namespace Engine {
         const std::vector<std::unique_ptr<GameObject>> &GetGameObjects() const;
         const std::vector<std::unique_ptr<Component>> &GetComponents() const;
 
+        Scene(const Scene &) = delete;
+        Scene &operator=(const Scene &) = delete;
+        Scene(Scene &&) = delete;
+        Scene &operator=(Scene &&) = delete;
+
+        /// @brief Clear all GameObjects and Components in the scene.
+        void Clear();
+
+        /// @brief Add a SceneAsset to the scene.
+        /// @param asset 
+        void AddSceneAsset(SceneAsset &asset);
+
     protected:
+        friend class SceneAsset;
+
         std::vector<std::unique_ptr<GameObject>> m_go_add_queue{};
         std::vector<ObjectHandle> m_go_remove_queue{};
         std::vector<std::unique_ptr<Component>> m_comp_add_queue{};

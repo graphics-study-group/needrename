@@ -15,6 +15,7 @@ namespace Engine {
 
     protected:
         friend class Scene;
+        friend class SceneAsset;
         Component() = delete;
         Component(GameObject *parent);
     
@@ -35,6 +36,9 @@ namespace Engine {
         GameObject *GetParentGameObject() const;
 
         bool operator==(const Component &other) const noexcept;
+
+        void save_to_archive(Serialization::Archive &archive) const;
+        void load_from_archive(Serialization::Archive &archive);
 
     public:
         REFL_SER_ENABLE ObjectHandle m_parentGameObject{};

@@ -20,6 +20,14 @@ namespace Engine {
         bool HandleBase::operator==(const HandleBase &other) const noexcept {
             return m_data == other.m_data;
         }
+
+        void HandleBase::save_to_archive(Serialization::Archive &archive) const {
+            m_data.save_to_archive(archive);
+        }
+
+        void HandleBase::load_from_archive(Serialization::Archive &archive) {
+            m_data.load_from_archive(archive);
+        }
     } // namespace detail
 
     ObjectHandle::ObjectHandle(GUID data) : HandleBase(data) {

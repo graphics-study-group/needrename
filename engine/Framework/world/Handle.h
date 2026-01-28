@@ -7,6 +7,9 @@
 #include <functional>
 
 namespace Engine {
+    namespace Serialization {
+        class Archive;
+    }
     class WorldSystem;
 
     namespace detail {
@@ -21,6 +24,9 @@ namespace Engine {
             REFL_ENABLE virtual bool IsValid() const noexcept;
             REFL_ENABLE virtual void Reset() noexcept;
             bool operator==(const HandleBase &other) const noexcept;
+
+            void save_to_archive(Serialization::Archive &archive) const;
+            void load_from_archive(Serialization::Archive &archive);
 
         protected:
             friend class Engine::WorldSystem;

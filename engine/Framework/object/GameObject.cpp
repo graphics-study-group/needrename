@@ -39,4 +39,18 @@ namespace Engine {
     bool GameObject::operator==(const GameObject &other) const noexcept {
         return this->m_handle == other.m_handle;
     }
+
+    void GameObject::save_to_archive(Serialization::Archive &archive) const {
+        Serialization::Json &json = *archive.m_cursor;
+        Serialization::Archive temp_archive(archive, &json["GameObject::m_handle"]);
+        Serialization::serialize(m_handle, temp_archive);
+        this->_SERIALIZATION_SAVE_(archive);
+    }
+
+    void GameObject::load_from_archive(Serialization::Archive &archive) {
+        Serialization::Json &json = *archive.m_cursor;
+        Serialization::Archive temp_archive(archive, &json["GameObject::m_handle"]);
+        Serialization::deserialize(m_handle, temp_archive);
+        this->_SERIALIZATION_LOAD_(archive);
+    }
 } // namespace Engine
