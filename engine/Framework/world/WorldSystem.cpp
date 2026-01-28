@@ -30,67 +30,64 @@ namespace Engine {
         auto transform_component = go_ptr->template AddComponent<TransformComponent>();
         go_ptr->m_transformComponent = transform_component;
         m_go_map[ret_handle] = go_ptr.get();
-        m_go_cmd_queue.push({ObjectCmd::Add, std::move(go_ptr)});
+        m_go_add_queue.push_back(std::move(go_ptr));
         return ret_handle;
     }
 
     void WorldSystem::RemoveGameObject(ObjectHandle handle) {
-        m_go_cmd_queue.push({ObjectCmd::Remove, handle});
+        m_go_remove_queue.push_back(handle);
     }
 
     void WorldSystem::RemoveComponent(ComponentHandle handle) {
-        m_comp_cmd_queue.push({ComponentCmd::Remove, handle});
+        m_comp_remove_queue.push_back(handle);
     }
 
     void WorldSystem::FlushCmdQueue() {
         auto event_queue = MainClass::GetInstance()->GetEventQueue();
 
-        while (!m_go_cmd_queue.empty()) {
-            auto &cmd = m_go_cmd_queue.front();
-            switch (cmd.cmd) {
-            case ObjectCmd::Add: {
-                auto &go_ptr = std::get<std::unique_ptr<GameObject>>(cmd.go);
-                m_game_objects.push_back(std::move(go_ptr));
-                break;
-            }
-            case ObjectCmd::Remove: {
-                auto go_ptr = this->GetGameObject(std::get<ObjectHandle>(cmd.go));
-                for (auto comp : go_ptr->m_components) {
-                    this->RemoveComponent(comp);
-                }
-                m_go_map.erase(std::get<ObjectHandle>(cmd.go));
-                m_game_objects.erase(
-                    std::remove(m_game_objects.begin(), m_game_objects.end(), go_ptr), m_game_objects.end()
-                );
-                break;
-            }
-            }
-            m_go_cmd_queue.pop();
+        for (auto &go_ptr : m_go_add_queue) {
+            m_game_objects.push_back(std::move(go_ptr));
         }
+        m_go_add_queue.clear();
+        for (auto handle : m_go_remove_queue) {
+            auto go_ptr = this->GetGameObject(handle);
+            for (auto comp : go_ptr->m_components) {
+                this->RemoveComponent(comp);
+            }
+            m_go_map.erase(handle);
+            m_game_objects.erase(
+                std::remove_if(
+                    m_game_objects.begin(),
+                    m_game_objects.end(),
+                    [&handle](const std::unique_ptr<GameObject> &obj) { return obj->GetHandle() == handle; }
+                ),
+                m_game_objects.end()
+            );
+        }
+        m_go_remove_queue.clear();
 
-        while (!m_comp_cmd_queue.empty()) {
-            auto &cmd = m_comp_cmd_queue.front();
-            switch (cmd.cmd) {
-            case ComponentCmd::Add: {
-                auto &comp_ptr = std::get<std::unique_ptr<Component>>(cmd.comp);
-                m_components.push_back(std::move(comp_ptr));
-                event_queue->AddEvent(comp_ptr->GetHandle(), &Component::Init);
-                // XXX: should not render init here
-                auto render_comp = dynamic_cast<RendererComponent *>(comp_ptr.get());
-                if (render_comp) {
-                    render_comp->RenderInit();
-                }
-                break;
+        for (auto &comp_ptr : m_comp_add_queue) {
+            m_components.push_back(std::move(comp_ptr));
+            event_queue->AddEvent(comp_ptr->GetHandle(), &Component::Init);
+            // XXX: should not render init here
+            auto render_comp = dynamic_cast<RendererComponent *>(comp_ptr.get());
+            if (render_comp) {
+                render_comp->RenderInit();
             }
-            case ComponentCmd::Remove: {
-                auto comp_ptr = this->GetComponent(std::get<ComponentHandle>(cmd.comp));
-                m_comp_map.erase(std::get<ComponentHandle>(cmd.comp));
-                m_components.erase(std::remove(m_components.begin(), m_components.end(), comp_ptr), m_components.end());
-                break;
-            }
-            }
-            m_comp_cmd_queue.pop();
         }
+        m_comp_add_queue.clear();
+        for (auto handle : m_comp_remove_queue) {
+            m_comp_map.erase(handle);
+            m_components.erase(
+                std::remove_if(
+                    m_components.begin(),
+                    m_components.end(),
+                    [&handle](const std::unique_ptr<Component> &comp) { return comp->GetHandle() == handle; }
+                ),
+                m_components.end()
+            );
+        }
+        m_comp_remove_queue.clear();
     }
 
     GameObject *WorldSystem::GetGameObject(ObjectHandle handle) {

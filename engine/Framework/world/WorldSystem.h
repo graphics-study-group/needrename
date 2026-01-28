@@ -4,7 +4,6 @@
 #include "Handle.h"
 #include <Framework/component/TransformComponent/TransformComponent.h>
 #include <memory>
-#include <queue>
 #include <unordered_map>
 #include <variant>
 #include <vector>
@@ -38,7 +37,7 @@ namespace Engine {
             auto ret_handle = this->NextAvailableComponentHandle();
             comp_ptr->m_handle = ret_handle;
             m_comp_map[ret_handle] = comp_ptr.get();
-            m_comp_cmd_queue.push({ComponentCmd::Add, std::move(comp_ptr)});
+            m_comp_add_queue.push_back(std::move(comp_ptr));
             return ret_handle;
         }
 
@@ -76,23 +75,10 @@ namespace Engine {
         ) noexcept;
 
     protected:
-        struct ObjectCmd {
-            enum {
-                Add,
-                Remove
-            } cmd;
-            std::variant<std::unique_ptr<GameObject>, ObjectHandle> go;
-        };
-        std::queue<ObjectCmd> m_go_cmd_queue{};
-
-        struct ComponentCmd {
-            enum {
-                Add,
-                Remove
-            } cmd;
-            std::variant<std::unique_ptr<Component>, ComponentHandle> comp;
-        };
-        std::queue<ComponentCmd> m_comp_cmd_queue{};
+        std::vector<std::unique_ptr<GameObject>> m_go_add_queue{};
+        std::vector<ObjectHandle> m_go_remove_queue{};
+        std::vector<std::unique_ptr<Component>> m_comp_add_queue{};
+        std::vector<ComponentHandle> m_comp_remove_queue{};
 
         std::vector<std::unique_ptr<GameObject>> m_game_objects{};
         std::vector<std::unique_ptr<Component>> m_components{};
