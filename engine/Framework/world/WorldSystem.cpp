@@ -7,6 +7,7 @@
 #include <Framework/component/RenderComponent/RendererComponent.h>
 #include <Framework/object/GameObject.h>
 #include <MainClass.h>
+#include <Reflection/Type.h>
 #include <Render/RenderSystem.h>
 #include <Render/RenderSystem/CameraManager.h>
 #include <Render/RenderSystem/RendererManager.h>
@@ -23,7 +24,7 @@ namespace Engine {
         return *MainClass::GetInstance()->GetWorldSystem();
     }
 
-    ObjectHandle WorldSystem::CreateGameObject() {
+    GameObject &WorldSystem::CreateGameObject() {
         auto go_ptr = std::unique_ptr<GameObject>(new GameObject());
         auto ret_handle = this->NextAvailableObjectHandle();
         go_ptr->m_handle = ret_handle;
@@ -31,7 +32,20 @@ namespace Engine {
         go_ptr->m_transformComponent = transform_component;
         m_go_map[ret_handle] = go_ptr.get();
         m_go_add_queue.push_back(std::move(go_ptr));
-        return ret_handle;
+        return *go_ptr;
+    }
+
+    Component &WorldSystem::CreateComponent(ObjectHandle objectHandle, const Reflection::Type &type) {
+        auto comp_var = type.CreateInstance(objectHandle);
+        auto comp_ptr = std::unique_ptr<Component>(static_cast<Component *>(comp_var.GetDataPtr()));
+        auto ret_handle = this->NextAvailableComponentHandle();
+        comp_ptr->m_handle = ret_handle;
+        m_comp_map[ret_handle] = comp_ptr.get();
+        if (auto obj = this->GetGameObject(objectHandle)) {
+            obj->m_components.push_back(ret_handle);
+        }
+        m_comp_add_queue.push_back(std::move(comp_ptr));
+        return *comp_ptr;
     }
 
     void WorldSystem::RemoveGameObject(ObjectHandle handle) {
@@ -104,6 +118,22 @@ namespace Engine {
             return nullptr;
         }
         return it->second;
+    }
+
+    GameObject &WorldSystem::GetGameObjectRef(ObjectHandle handle) {
+        auto it = m_go_map.find(handle);
+        if (it == m_go_map.end()) {
+            throw std::runtime_error("GameObject not found.");
+        }
+        return *it->second;
+    }
+
+    Component &WorldSystem::GetComponentRef(ComponentHandle handle) {
+        auto it = m_comp_map.find(handle);
+        if (it == m_comp_map.end()) {
+            throw std::runtime_error("Component not found.");
+        }
+        return *it->second;
     }
 
     const std::vector<std::unique_ptr<GameObject>> &WorldSystem::GetGameObjects() const {

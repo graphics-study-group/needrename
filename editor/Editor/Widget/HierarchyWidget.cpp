@@ -1,4 +1,5 @@
 #include "HierarchyWidget.h"
+#include <Framework/object/GameObject.h>
 #include <Framework/world/WorldSystem.h>
 #include <MainClass.h>
 #include <cstdio>
@@ -15,8 +16,8 @@ namespace Editor {
     void HierarchyWidget::Render() {
         auto world = Engine::MainClass::GetInstance()->GetWorldSystem();
         bool selected_changed = false;
-        std::shared_ptr<Engine::GameObject> need_remove_go = nullptr;
-        std::shared_ptr<Engine::GameObject> need_rename_go = nullptr;
+        ObjectHandle need_remove_go = 0;
+        ObjectHandle need_rename_go = 0;
 
         if (ImGui::Begin(m_name.c_str())) {
             // Top toolbar: add-button (opens popup) + search box
@@ -25,9 +26,8 @@ namespace Editor {
             }
             if (ImGui::BeginPopup("HierarchyAddMenu")) {
                 if (ImGui::MenuItem("Create Empty GameObject")) {
-                    auto go = world->CreateGameObject<Engine::GameObject>();
-                    go->m_name = "New GameObject";
-                    world->AddGameObjectToWorld(go);
+                    auto go = world->CreateGameObject();
+                    go.m_name = "New GameObject";
                 }
                 ImGui::MenuItem("Create Light");
                 ImGui::EndPopup();
@@ -54,12 +54,10 @@ namespace Editor {
                         continue;
                     }
                 }
-                auto selected = m_selected_game_object.lock();
-                auto renaming = m_renaming_game_object.lock();
                 std::string label = go->m_name + "##hierarchy_item_" + std::to_string(index++);
 
                 // Show InputText if this item is being renamed
-                if (renaming == go) {
+                if (m_renaming_game_object == go->GetHandle()) {
                     char buf[256];
                     std::snprintf(buf, sizeof(buf), "%s", m_rename_buffer.c_str());
                     ImGui::PushID(go.get());
@@ -71,63 +69,62 @@ namespace Editor {
                         )) {
                         // Finish renaming when Enter is pressed
                         m_rename_buffer = buf;
-                        need_rename_go = go;
-                        m_renaming_game_object.reset();
+                        need_rename_go = go->GetHandle();
+                        m_renaming_game_object = 0;
                     }
                     // Finish renaming when focus is lost
                     if (!ImGui::IsItemActive() && ImGui::IsItemDeactivatedAfterEdit()) {
                         m_rename_buffer = buf;
-                        need_rename_go = go;
-                        m_renaming_game_object.reset();
+                        need_rename_go = go->GetHandle();
+                        m_renaming_game_object = 0;
                     }
                     ImGui::PopID();
                 } else {
                     // Show Selectable normally
-                    if (ImGui::Selectable(label.c_str(), selected == go)) {
-                        if (selected != go) {
+                    if (ImGui::Selectable(label.c_str(), m_selected_game_object == go->GetHandle())) {
+                        if (m_selected_game_object != go->GetHandle()) {
                             selected_changed = true;
                         }
-                        m_selected_game_object = go;
+                        m_selected_game_object = go->GetHandle();
                     }
                     // Right-click context menu (with unique ID per item)
                     std::string context_id = "hierarchy_context_" + std::to_string(index - 1);
                     if (ImGui::BeginPopupContextItem(context_id.c_str())) {
                         if (ImGui::MenuItem("Rename")) {
-                            m_renaming_game_object = go;
+                            m_renaming_game_object = go->GetHandle();
                             m_rename_buffer = go->m_name;
                         }
                         if (ImGui::MenuItem("Delete")) {
-                            need_remove_go = go;
+                            need_remove_go = go->GetHandle();
                         }
                         ImGui::EndPopup();
                     }
                 }
             }
             // Hotkeys for selected game object
-            auto selected = m_selected_game_object.lock();
-            if (selected) {
+            if (m_selected_game_object) {
                 // F2 to rename
                 if (ImGui::IsKeyPressed(ImGuiKey_F2)) {
-                    m_renaming_game_object = selected;
-                    m_rename_buffer = selected->m_name;
+                    m_renaming_game_object = m_selected_game_object;
+                    m_rename_buffer = world->GetGameObjectRef(m_selected_game_object).m_name;
                 }
                 // Delete to remove
                 if (ImGui::IsKeyPressed(ImGuiKey_Delete)) {
-                    need_remove_go = selected;
+                    need_remove_go = m_selected_game_object;
                 }
             }
         }
         ImGui::End();
 
         if (need_remove_go) {
-            if (m_selected_game_object.lock() == need_remove_go) {
-                m_selected_game_object.reset();
+            if (m_selected_game_object == need_remove_go) {
+                m_selected_game_object = 0;
                 selected_changed = true;
             }
-            world->RemoveGameObjectFromWorld(need_remove_go);
+            world->RemoveGameObject(need_remove_go);
         }
         if (need_rename_go) {
-            need_rename_go->m_name = m_rename_buffer;
+            world->GetGameObjectRef(need_rename_go).m_name = m_rename_buffer;
         }
 
         if (selected_changed) {

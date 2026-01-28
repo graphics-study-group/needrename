@@ -22,20 +22,20 @@ namespace Editor {
         if (ImGui::Begin(m_name.c_str())) {
             switch (m_inspector_mode) {
             case InspectorMode::kInspectorModeGameObject: {
-                auto weak_game_object = std::any_cast<std::weak_ptr<Engine::GameObject>>(m_inspected_object);
-                if (weak_game_object.expired()) {
+                auto game_object = world->GetGameObject(std::any_cast<ObjectHandle>(m_inspected_object));
+                if (!game_object) {
                     ImGui::Text("No GameObject selected");
                     break;
                 }
-                auto game_object = weak_game_object.lock();
                 ImGui::Text((std::string("<GameObject>") + game_object->m_name).c_str());
                 ImGui::Separator();
                 unsigned int component_idx = 0;
-                for (const auto &component : game_object->m_components) {
+                for (auto component_handle : game_object->m_components) {
+                    auto component = world->GetComponent(component_handle);
                     ImGui::PushID(component_idx++);
                     auto component_type = Engine::Reflection::GetTypeFromObject(*component);
                     if (ImGui::TreeNodeEx("", ImGuiTreeNodeFlags_None, "<%s>", component_type->GetName().c_str())) {
-                        Engine::Reflection::Var component_var(component_type, component.get());
+                        Engine::Reflection::Var component_var(component_type, component);
                         unsigned int field_idx = 0;
                         for (auto &[name, field] : component_type->GetAllFields()) {
                             ImGui::PushID(field_idx++);
@@ -71,11 +71,7 @@ namespace Editor {
                         if (ImGui::MenuItem(component_type_name.c_str())) {
                             auto component_type = Engine::Reflection::GetType(component_type_name);
                             if (component_type) {
-                                auto component_var =
-                                    component_type->CreateInstance(std::weak_ptr<Engine::GameObject>(game_object));
-                                auto component_ptr = component_var.GetAsSharedPtr<Engine::Component>();
-                                game_object->AddComponent(component_ptr);
-                                world->RefreshGameObjectInWorld(game_object);
+                                world->CreateComponent(game_object->GetHandle(), *component_type);
                             }
                         }
                     }
@@ -94,8 +90,8 @@ namespace Editor {
         ImGui::End();
     }
 
-    void InspectorWidget::SetSelectedGameObject(std::weak_ptr<Engine::GameObject> game_object) {
-        if (!game_object.expired()) {
+    void InspectorWidget::SetSelectedGameObject(ObjectHandle game_object) {
+        if (!game_object) {
             m_inspector_mode = InspectorMode::kInspectorModeGameObject;
             m_inspected_object = game_object;
         } else {

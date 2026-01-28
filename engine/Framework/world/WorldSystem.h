@@ -13,11 +13,13 @@ namespace Engine {
     class GameObjectAsset;
     class Camera;
     class GameObject;
-
     namespace RenderSystemState {
         class CameraManager;
         class SceneDataManager;
-    } // namespace RenderSystemState
+    }
+    namespace Reflection {
+        class Type;
+    }
 
     class WorldSystem {
     public:
@@ -29,16 +31,20 @@ namespace Engine {
         void AddInitEvent();
         void AddTickEvent();
 
-        ObjectHandle CreateGameObject();
+        GameObject &CreateGameObject();
+        Component &CreateComponent(ObjectHandle objectHandle, const Reflection::Type &type);
         template <typename T, typename... Args>
-        ComponentHandle CreateComponent(ObjectHandle objectHandle, Args &&...args) {
+        T &CreateComponent(ObjectHandle objectHandle, Args &&...args) {
             static_assert(std::is_base_of<Component, T>::value, "T must be derived from Component");
             auto comp_ptr = std::unique_ptr<T>(new T(objectHandle, std::forward<Args>(args)...));
             auto ret_handle = this->NextAvailableComponentHandle();
             comp_ptr->m_handle = ret_handle;
             m_comp_map[ret_handle] = comp_ptr.get();
+            if (auto obj = this->GetGameObject(objectHandle)) {
+                obj->m_components.push_back(ret_handle);
+            }
             m_comp_add_queue.push_back(std::move(comp_ptr));
-            return ret_handle;
+            return *comp_ptr;
         }
 
         void RemoveGameObject(ObjectHandle handle);
@@ -52,6 +58,12 @@ namespace Engine {
         template <typename T>
         T *GetComponent(ComponentHandle handle) {
             return dynamic_cast<T *>(GetComponent(handle));
+        }
+        GameObject &GetGameObjectRef(ObjectHandle handle);
+        Component &GetComponentRef(ComponentHandle handle);
+        template <typename T>
+        T &GetComponentRef(ComponentHandle handle) {
+            return dynamic_cast<T &>(GetComponentRef(handle));
         }
 
         const std::vector<std::unique_ptr<GameObject>> &GetGameObjects() const;

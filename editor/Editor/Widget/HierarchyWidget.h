@@ -3,8 +3,8 @@
 
 #include "Widget.h"
 #include <Core/Delegate/Event.h>
-#include <memory>
 #include <string>
+#include <Framework/world/Handle.h>
 
 namespace Engine {
     class GameObject;
@@ -12,6 +12,8 @@ namespace Engine {
 
 namespace Editor {
     class HierarchyWidget : public Widget {
+        using ObjectHandle = Engine::ObjectHandle;
+
     public:
         HierarchyWidget(const std::string &name);
         virtual ~HierarchyWidget();
@@ -19,12 +21,12 @@ namespace Editor {
         virtual void Render() override;
 
     public:
-        Engine::Event<std::weak_ptr<Engine::GameObject>> m_OnGameObjectSelectedDelegate{};
+        Engine::Event<ObjectHandle> m_OnGameObjectSelectedDelegate{};
 
     protected:
-        std::weak_ptr<Engine::GameObject> m_selected_game_object{};
+        ObjectHandle m_selected_game_object{};
         std::string m_search{};
-        std::weak_ptr<Engine::GameObject> m_renaming_game_object{};
+        ObjectHandle m_renaming_game_object{};
         std::string m_rename_buffer{};
     };
 } // namespace Editor
