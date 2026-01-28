@@ -59,8 +59,7 @@ namespace Engine::RenderSystemState {
     }
     RendererManager::~RendererManager() = default;
 
-    RendererHandle RendererManager::RegisterRendererComponent(ComponentHandle comp_handle) {
-        auto component = WorldSystem::GetInstance().GetComponent<RendererComponent>(comp_handle);
+    RendererHandle RendererManager::RegisterRendererComponent(RendererComponent *component) {
         SDL_LogDebug(SDL_LOG_CATEGORY_RENDER, "Registering component 0x%p", static_cast<void *>(component));
 
         impl::StatusFlags sflag{};

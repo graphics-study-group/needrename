@@ -7,11 +7,11 @@
 #include <tiny_obj_loader.h>
 
 #include "Asset/Material/MaterialAsset.h"
-#include "Framework/component/RenderComponent/MeshComponent.h"
 #include "Core/Functional/SDLWindow.h"
-#include "UserInterface/GUISystem.h"
+#include "Framework/component/RenderComponent/MeshComponent.h"
 #include "MainClass.h"
 #include "Render/FullRenderSystem.h"
+#include "UserInterface/GUISystem.h"
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include <Asset/AssetManager/AssetManager.h>
 #include <Asset/AssetRef.h>
@@ -115,13 +115,17 @@ class MeshComponentFromFile : public MeshComponent {
         m_submeshes.clear();
         size_t submesh_count = m_mesh_asset->as<MeshAsset>()->GetSubmeshCount();
         for (size_t i = 0; i < submesh_count; i++) {
-            m_submeshes.push_back(std::make_shared<HomogeneousMesh>(m_system.lock()->GetAllocatorState(), m_mesh_asset, i));
+            m_submeshes.push_back(
+                std::make_shared<HomogeneousMesh>(m_system.lock()->GetAllocatorState(), m_mesh_asset, i)
+            );
         }
     }
 
 public:
-    MeshComponentFromFile(std::filesystem::path mesh_file_name) :
-        MeshComponent(std::weak_ptr<GameObject>()), transform() {
+    MeshComponentFromFile(ObjectHandle parent) : MeshComponent(parent), transform() {
+    }
+
+    void LoadFile(std::filesystem::path mesh_file_name) {
         LoadMesh(mesh_file_name);
 
         auto system = m_system.lock();
@@ -193,14 +197,12 @@ void PrepareGui() {
 
 void SubmitSceneData(std::shared_ptr<RenderSystem> rsys, uint32_t id) {
     rsys->GetSceneDataManager().SetLightDirectionalNonShadowCasting(
-        0, 
-        GetCartesian(g_SceneData.zenith, g_SceneData.azimuth), 
-        glm::vec3{1.0, 1.0, 1.0}
+        0, GetCartesian(g_SceneData.zenith, g_SceneData.azimuth), glm::vec3{1.0, 1.0, 1.0}
     );
     rsys->GetSceneDataManager().SetLightCountNonShadowCasting(1);
 }
 
-void SubmitMaterialData(std::shared_ptr<MeshComponentFromFile> mesh) {
+void SubmitMaterialData(MeshComponentFromFile *mesh) {
     mesh->UpdateUniformData(g_SceneData.r, g_SceneData.g, g_SceneData.b, g_SceneData.coef);
 }
 
@@ -252,7 +254,9 @@ int main(int argc, char **argv) {
 
     // Setup mesh
     std::filesystem::path mesh_path{std::string(ENGINE_ASSETS_DIR) + "/four_bunny/four_bunny.obj"};
-    std::shared_ptr tmc = std::make_shared<MeshComponentFromFile>(mesh_path);
+    auto go = cmc->GetWorldSystem()->CreateGameObject();
+    auto tmc = &cmc->GetWorldSystem()->CreateComponent<MeshComponentFromFile>(go.GetHandle());
+    tmc->LoadFile(mesh_path);
     rsys->GetRendererManager().RegisterRendererComponent(tmc);
 
     // Setup camera
@@ -292,11 +296,7 @@ int main(int argc, char **argv) {
         // Draw
         auto index = rsys->StartFrame();
         rg->Execute();
-        rsys->CompleteFrame(
-            *color,
-            color->GetTextureDescription().width,
-            color->GetTextureDescription().height
-        );
+        rsys->CompleteFrame(*color, color->GetTextureDescription().width, color->GetTextureDescription().height);
 
         SDL_Delay(5);
 

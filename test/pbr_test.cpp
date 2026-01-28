@@ -205,7 +205,7 @@ int main(int argc, char **argv) {
     // Setup mesh
     std::filesystem::path mesh_path{std::string(ENGINE_ASSETS_DIR) + "/meshes/sphere.obj"};
     std::shared_ptr tmc = std::make_shared<PBRMeshComponent>(mesh_path, pbr_material, red_texture);
-    rsys->GetRendererManager().RegisterRendererComponent(tmc);
+    rsys->GetRendererManager().RegisterRendererComponent(tmc.get());
 
     // Setup camera
     Transform transform{};

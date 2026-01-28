@@ -36,7 +36,7 @@ namespace Engine {
         auto system = m_system.lock();
 
         // We should do some check maybe to avoid repetition.
-        m_renderer_handle = system->GetRendererManager().RegisterRendererComponent(m_handle);
+        m_renderer_handle = system->GetRendererManager().RegisterRendererComponent(this);
 
         for (size_t i = 0; i < m_material_assets.size(); i++) {
             // XXX: This is a temporary solution: It simply check the m_name in material assets and add it to the

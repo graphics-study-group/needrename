@@ -54,7 +54,7 @@ namespace Engine {
             RendererManager(RenderSystem &system);
             ~RendererManager();
 
-            RendererHandle RegisterRendererComponent(ComponentHandle comp_handle);
+            RendererHandle RegisterRendererComponent(RendererComponent *component);
 
             /**
              * @brief Unregister a component from the manager.

@@ -40,7 +40,7 @@ struct LowerPlaneMeshAsset : public PlaneMeshAsset {
 class ShadowMapMeshComponent : public ObjTestMeshComponent {
 public:
     ShadowMapMeshComponent(
-        std::weak_ptr <GameObject> go,
+        ObjectHandle go,
         std::filesystem::path mesh_file_name,
         std::shared_ptr<MaterialInstance> instance
     ) : ObjTestMeshComponent(mesh_file_name, go) {
@@ -191,27 +191,27 @@ int main(int argc, char **argv) {
     floor_material_instance->AssignTexture("base_tex", blank_color_gray);
 
     // Prepare mesh
-    auto floor_go = cmc->GetWorldSystem()->CreateGameObject<GameObject>();
-    floor_go->GetTransformRef().SetScale({5.0f, 5.0f, 1.0f}).SetPosition({0.0f, 0.0f, 0.5f});
+    auto floor_go = cmc->GetWorldSystem()->CreateGameObject();
+    floor_go.GetTransformRef().SetScale({5.0f, 5.0f, 1.0f}).SetPosition({0.0f, 0.0f, 0.5f});
     auto floor_mesh_asset = std::make_shared<LowerPlaneMeshAsset>();
     auto floor_mesh_asset_ref = std::make_shared<AssetRef>(floor_mesh_asset);
-    auto floor_mesh_comp = std::make_shared<MeshComponent>(floor_go);
-    floor_mesh_comp->m_mesh_asset = floor_mesh_asset_ref;
-    floor_mesh_comp->GetMaterials().resize(1);
-    floor_mesh_comp->GetMaterials()[0] = floor_material_instance;
-    floor_mesh_comp->RenderInit();
-    assert(floor_mesh_comp->GetSubmesh(0)->GetVertexAttribute().HasAttribute(VertexAttributeSemantic::Texcoord0));
+    auto floor_mesh_comp = cmc->GetWorldSystem()->CreateComponent<MeshComponent>(floor_go.GetHandle());
+    floor_mesh_comp.m_mesh_asset = floor_mesh_asset_ref;
+    floor_mesh_comp.GetMaterials().resize(1);
+    floor_mesh_comp.GetMaterials()[0] = floor_material_instance;
+    floor_mesh_comp.RenderInit();
+    assert(floor_mesh_comp.GetSubmesh(0)->GetVertexAttribute().HasAttribute(VertexAttributeSemantic::Texcoord0));
 
-    auto cube_go = cmc->GetWorldSystem()->CreateGameObject<GameObject>();
-    cube_go->GetTransformRef().SetScale({0.5f, 0.5f, 0.5f});
-    auto cube_mesh_comp = std::make_shared<ShadowMapMeshComponent>(
-        cube_go,
+    auto cube_go = cmc->GetWorldSystem()->CreateGameObject();
+    cube_go.GetTransformRef().SetScale({0.5f, 0.5f, 0.5f});
+    auto cube_mesh_comp = cmc->GetWorldSystem()->CreateComponent<ShadowMapMeshComponent>(
+        cube_go.GetHandle(),
         std::filesystem::path{std::string(ENGINE_ASSETS_DIR) + "/meshes/cube.obj"},
         object_material_instance
     );
 
-    auto shpere_go = cmc->GetWorldSystem()->CreateGameObject<GameObject>();
-    shpere_go->GetTransformRef().SetScale({0.5f, 0.5f, 0.5f}).SetPosition({1.0f, 2.0f, 0.0f});
+    auto shpere_go = cmc->GetWorldSystem()->CreateGameObject();
+    shpere_go.GetTransformRef().SetScale({0.5f, 0.5f, 0.5f}).SetPosition({1.0f, 2.0f, 0.0f});
     auto sphere_mesh_comp = std::make_shared<ShadowMapMeshComponent>(
         shpere_go,
         std::filesystem::path{std::string(ENGINE_ASSETS_DIR) + "/meshes/sphere.obj"},

@@ -7,17 +7,18 @@
 #include <Asset/AssetManager/AssetManager.h>
 #include <Asset/Scene/GameObjectAsset.h>
 #include <Core/Delegate/FuncDelegate.h>
-#include <Framework/component/Component.h>
-#include <Framework/component/RenderComponent/CameraComponent.h>
-#include <Framework/world/WorldSystem.h>
 #include <Core/Functional/EventQueue.h>
 #include <Core/Functional/SDLWindow.h>
 #include <Core/Functional/Time.h>
-#include <UserInterface/GUISystem.h>
-#include <UserInterface/Input.h>
+#include <Framework/component/Component.h>
+#include <Framework/component/RenderComponent/CameraComponent.h>
+#include <Framework/object/GameObject.h>
+#include <Framework/world/WorldSystem.h>
 #include <MainClass.h>
 #include <Render/FullRenderSystem.h>
 #include <SDL3/SDL.h>
+#include <UserInterface/GUISystem.h>
+#include <UserInterface/Input.h>
 #include <cmake_config.h>
 
 #include <Editor/Widget/GameWidget.h>
@@ -38,7 +39,7 @@ void SpinningComponent::Init() {
 
 void SpinningComponent::Tick() {
     float dt = MainClass::GetInstance()->GetTimeSystem()->GetDeltaTimeInSeconds();
-    auto go = m_parentGameObject.lock();
+    auto go = WorldSystem::GetInstance().GetGameObject(m_parentGameObject);
     if (go) {
         auto &transform = go->GetTransformRef();
         transform.SetRotation(
@@ -59,7 +60,7 @@ void ControlComponent::Tick() {
     auto roll_right = input->GetAxisRaw("roll right");
     auto look_x = input->GetAxisRaw("look x");
     auto look_y = input->GetAxisRaw("look y");
-    Transform &transform = m_parentGameObject.lock()->GetTransformRef();
+    Transform &transform = WorldSystem::GetInstance().GetGameObjectRef(m_parentGameObject).GetTransformRef();
     float dt = MainClass::GetInstance()->GetTimeSystem()->GetDeltaTimeInSeconds();
     transform.SetRotation(
         transform.GetRotation()
@@ -105,41 +106,41 @@ int main() {
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading project");
     cmc->LoadProject(project_path);
 
-    AssetPath prefab_path{*adb, "/GO_four_bunny.asset"};
-    auto prefab_ref = adb->GetNewAssetRef(prefab_path);
-    asys->LoadAssetImmediately(prefab_ref);
-    auto prefab_asset = prefab_ref->as<GameObjectAsset>();
-    prefab_asset->m_MainObject->AddComponent<SpinningComponent>();
-    prefab_asset->m_MainObject->m_name = "Spinning Bunny";
-    auto &spinning_transform = prefab_asset->m_MainObject->GetTransformRef();
-    spinning_transform.SetPosition(spinning_transform.GetPosition() + glm::vec3(0.0f, 0.2f, 0.0f));
-    world->LoadGameObjectAsset(prefab_asset);
+    // AssetPath prefab_path{*adb, "/GO_four_bunny.asset"};
+    // auto prefab_ref = adb->GetNewAssetRef(prefab_path);
+    // asys->LoadAssetImmediately(prefab_ref);
+    // auto prefab_asset = prefab_ref->as<GameObjectAsset>();
+    // prefab_asset->m_MainObject->AddComponent<SpinningComponent>();
+    // prefab_asset->m_MainObject->m_name = "Spinning Bunny";
+    // auto &spinning_transform = prefab_asset->m_MainObject->GetTransformRef();
+    // spinning_transform.SetPosition(spinning_transform.GetPosition() + glm::vec3(0.0f, 0.2f, 0.0f));
+    // world->LoadGameObjectAsset(prefab_asset);
 
-    auto input = MainClass::GetInstance()->GetInputSystem();
-    input->AddAxis(Input::ButtonAxis("move forward", Input::AxisType::TypeKey, "w", "s"));
-    input->AddAxis(Input::ButtonAxis("move right", Input::AxisType::TypeKey, "d", "a"));
-    input->AddAxis(Input::ButtonAxis("move up", Input::AxisType::TypeKey, "space", "left shift"));
-    input->AddAxis(Input::ButtonAxis("roll right", Input::AxisType::TypeKey, "e", "q"));
-    input->AddAxis(
-        Input::MotionAxis("look x", Input::AxisType::TypeMouseMotion, "x", 0.3f, 3.0f, 0.001f, 3.0f, false, true)
-    );
-    input->AddAxis(
-        Input::MotionAxis("look y", Input::AxisType::TypeMouseMotion, "y", 0.3f, 3.0f, 0.001f, 3.0f, false, true)
-    );
+    // auto input = MainClass::GetInstance()->GetInputSystem();
+    // input->AddAxis(Input::ButtonAxis("move forward", Input::AxisType::TypeKey, "w", "s"));
+    // input->AddAxis(Input::ButtonAxis("move right", Input::AxisType::TypeKey, "d", "a"));
+    // input->AddAxis(Input::ButtonAxis("move up", Input::AxisType::TypeKey, "space", "left shift"));
+    // input->AddAxis(Input::ButtonAxis("roll right", Input::AxisType::TypeKey, "e", "q"));
+    // input->AddAxis(
+    //     Input::MotionAxis("look x", Input::AxisType::TypeMouseMotion, "x", 0.3f, 3.0f, 0.001f, 3.0f, false, true)
+    // );
+    // input->AddAxis(
+    //     Input::MotionAxis("look y", Input::AxisType::TypeMouseMotion, "y", 0.3f, 3.0f, 0.001f, 3.0f, false, true)
+    // );
 
-    auto camera_go = cmc->GetWorldSystem()->CreateGameObject<GameObject>();
-    camera_go->m_name = "Main Camera";
-    Transform transform{};
-    transform.SetPosition({0.0f, 0.2f, -0.7f});
-    transform.SetRotationEuler(glm::vec3{1.57, 0.0, 3.1415926});
-    transform.SetScale({1.0f, 1.0f, 1.0f});
-    camera_go->SetTransform(transform);
-    auto camera_comp = camera_go->template AddComponent<CameraComponent>();
-    camera_comp->m_camera->set_aspect_ratio(1.0 * opt.resol_x / opt.resol_y);
-    auto control_comp = camera_go->template AddComponent<ControlComponent>();
-    control_comp->m_camera = camera_comp;
-    cmc->GetWorldSystem()->SetActiveCamera(camera_comp->m_camera, &cmc->GetRenderSystem()->GetCameraManager());
-    cmc->GetWorldSystem()->AddGameObjectToWorld(camera_go);
+    // auto camera_go = cmc->GetWorldSystem()->CreateGameObject<GameObject>();
+    // camera_go->m_name = "Main Camera";
+    // Transform transform{};
+    // transform.SetPosition({0.0f, 0.2f, -0.7f});
+    // transform.SetRotationEuler(glm::vec3{1.57, 0.0, 3.1415926});
+    // transform.SetScale({1.0f, 1.0f, 1.0f});
+    // camera_go->SetTransform(transform);
+    // auto camera_comp = camera_go->template AddComponent<CameraComponent>();
+    // camera_comp->m_camera->set_aspect_ratio(1.0 * opt.resol_x / opt.resol_y);
+    // auto control_comp = camera_go->template AddComponent<ControlComponent>();
+    // control_comp->m_camera = camera_comp;
+    // cmc->GetWorldSystem()->SetActiveCamera(camera_comp->m_camera, &cmc->GetRenderSystem()->GetCameraManager());
+    // cmc->GetWorldSystem()->AddGameObjectToWorld(camera_go);
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Create Editor Window");
     Editor::MainWindow main_window;
@@ -172,7 +173,7 @@ int main() {
 
         if (game_widget->m_accept_input) cmc->GetInputSystem()->Update();
         else cmc->GetInputSystem()->ResetAxes();
-        world->LoadGameObjectInQueue();
+        world->FlushCmdQueue();
 
         if (main_window.m_is_playing) {
             world->AddTickEvent();
@@ -222,11 +223,7 @@ int main() {
 
         cb.End();
         rsys->GetFrameManager().SubmitMainCommandBuffer();
-        rsys->CompleteFrame(
-            *window->GetColorTexture(),
-            window->GetExtent().width,
-            window->GetExtent().height
-        );
+        rsys->CompleteFrame(*window->GetColorTexture(), window->GetExtent().width, window->GetExtent().height);
     }
     rsys->WaitForIdle();
 

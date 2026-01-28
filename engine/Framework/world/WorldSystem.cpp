@@ -27,13 +27,14 @@ namespace Engine {
 
     GameObject &WorldSystem::CreateGameObject() {
         auto go_ptr = std::unique_ptr<GameObject>(new GameObject());
-        auto ret_handle = this->NextAvailableObjectHandle();
-        go_ptr->m_handle = ret_handle;
+        auto handle = this->NextAvailableObjectHandle();
+        auto &ret = *go_ptr;
+        go_ptr->m_handle = handle;
+        m_go_map[handle] = go_ptr.get();
         auto transform_component = go_ptr->template AddComponent<TransformComponent>();
-        go_ptr->m_transformComponent = transform_component;
-        m_go_map[ret_handle] = go_ptr.get();
+        go_ptr->m_transformComponent = transform_component.m_handle;
         m_go_add_queue.push_back(std::move(go_ptr));
-        return *go_ptr;
+        return ret;
     }
 
     Component &WorldSystem::CreateComponent(ObjectHandle objectHandle, const Reflection::Type &type) {
@@ -43,14 +44,15 @@ namespace Engine {
 
     Component &WorldSystem::AddComponent(ObjectHandle objectHandle, Component *ptr) {
         auto comp_ptr = std::unique_ptr<Component>(static_cast<Component *>(ptr));
-        auto ret_handle = this->NextAvailableComponentHandle();
-        comp_ptr->m_handle = ret_handle;
-        m_comp_map[ret_handle] = comp_ptr.get();
+        auto handle = this->NextAvailableComponentHandle();
+        auto &ret = *comp_ptr;
+        comp_ptr->m_handle = handle;
+        m_comp_map[handle] = comp_ptr.get();
         if (auto obj = this->GetGameObject(objectHandle)) {
-            obj->m_components.push_back(ret_handle);
+            obj->m_components.push_back(handle);
         }
         m_comp_add_queue.push_back(std::move(comp_ptr));
-        return *comp_ptr;
+        return ret;
     }
 
     void WorldSystem::RemoveGameObject(ObjectHandle handle) {

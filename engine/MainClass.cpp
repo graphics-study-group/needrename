@@ -195,7 +195,7 @@ namespace Engine {
         }
 
         this->input->Update();
-        this->world->LoadGameObjectInQueue();
+        this->world->FlushCmdQueue();
         // TODO: add input event
         this->world->AddTickEvent();
         // this->gui->PrepareGUI();

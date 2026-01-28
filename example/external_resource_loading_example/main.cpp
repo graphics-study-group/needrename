@@ -58,23 +58,23 @@ int main(int argc, char **argv) {
     std::filesystem::path path_in_project = "/";
     Engine::Importer::ImportExternalResource(mesh_path, path_in_project);
 
-    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading the prefab which has just imported");
-    AssetPath prefab_path{*adb, path_in_project / ("GO_" + mesh_path.stem().string() + ".asset")};
-    auto prefab_ref = adb->GetNewAssetRef(prefab_path);
-    asys->LoadAssetImmediately(prefab_ref);
-    cmc->GetWorldSystem()->LoadGameObjectAsset(prefab_ref->as<GameObjectAsset>());
+    // SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading the prefab which has just imported");
+    // AssetPath prefab_path{*adb, path_in_project / ("GO_" + mesh_path.stem().string() + ".asset")};
+    // auto prefab_ref = adb->GetNewAssetRef(prefab_path);
+    // asys->LoadAssetImmediately(prefab_ref);
+    // cmc->GetWorldSystem()->LoadGameObjectAsset(prefab_ref->as<GameObjectAsset>());
 
-    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Setting up camera");
-    auto camera_go = cmc->GetWorldSystem()->CreateGameObject<GameObject>();
-    Transform transform{};
-    transform.SetPosition({0.0f, -0.7f, 0.5f});
-    // transform.SetPosition({0.0f, -3.7f, 2.5f});
-    transform.SetRotationEuler(glm::vec3{glm::radians(-30.0f), 0.0f, 0.0f});
-    camera_go->SetTransform(transform);
-    auto camera_comp = camera_go->template AddComponent<CameraComponent>();
-    camera_comp->m_camera->set_aspect_ratio(1.0 * opt.resol_x / opt.resol_y);
-    cmc->GetWorldSystem()->SetActiveCamera(camera_comp->m_camera, &cmc->GetRenderSystem()->GetCameraManager());
-    cmc->GetWorldSystem()->AddGameObjectToWorld(camera_go);
+    // SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Setting up camera");
+    // auto camera_go = cmc->GetWorldSystem()->CreateGameObject<GameObject>();
+    // Transform transform{};
+    // transform.SetPosition({0.0f, -0.7f, 0.5f});
+    // // transform.SetPosition({0.0f, -3.7f, 2.5f});
+    // transform.SetRotationEuler(glm::vec3{glm::radians(-30.0f), 0.0f, 0.0f});
+    // camera_go->SetTransform(transform);
+    // auto camera_comp = camera_go->template AddComponent<CameraComponent>();
+    // camera_comp->m_camera->set_aspect_ratio(1.0 * opt.resol_x / opt.resol_y);
+    // cmc->GetWorldSystem()->SetActiveCamera(camera_comp->m_camera, &cmc->GetRenderSystem()->GetCameraManager());
+    // cmc->GetWorldSystem()->AddGameObjectToWorld(camera_go);
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Entering main loop");
     cmc->LoopFinite(max_frame_count, 0.0f);

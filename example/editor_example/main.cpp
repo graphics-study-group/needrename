@@ -84,7 +84,7 @@ int main() {
 
         if (game_widget->m_accept_input) cmc->GetInputSystem()->Update();
         else cmc->GetInputSystem()->ResetAxes();
-        world->LoadGameObjectInQueue();
+        world->FlushCmdQueue();
 
         if (main_window.m_is_playing) {
             world->AddTickEvent();

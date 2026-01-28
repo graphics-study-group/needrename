@@ -26,11 +26,11 @@ namespace Engine {
 
         /// @brief Add a component of type T to the GameObject.
         /// @tparam T T must be derived from Component
-        /// @tparam Args The arguments to be passed to the constructor of T
-        /// @return The shared pointer to the created component
-        template <typename T, typename... Args>
-        ComponentHandle AddComponent(Args &&...args) {
-            WorldSystem::GetInstance().CreateComponent<T>(m_handle, std::forward<Args>(args)...);
+        /// @return The reference to the created component
+        template <typename T>
+        T &AddComponent() {
+            static_assert(std::is_base_of_v<Component, T>, "T must be derived from Component");
+            return WorldSystem::GetInstance().CreateComponent<T>(m_handle);
         }
 
         const Transform &GetTransform() const;
