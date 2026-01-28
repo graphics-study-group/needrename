@@ -2,10 +2,8 @@
 #define WORLD_WORLDSYSTEM
 
 #include "Handle.h"
-#include <Framework/component/TransformComponent/TransformComponent.h>
 #include <memory>
 #include <unordered_map>
-#include <variant>
 #include <vector>
 
 namespace Engine {
@@ -13,6 +11,7 @@ namespace Engine {
     class GameObjectAsset;
     class Camera;
     class GameObject;
+    class Component;
     namespace RenderSystemState {
         class CameraManager;
         class SceneDataManager;
@@ -33,18 +32,10 @@ namespace Engine {
 
         GameObject &CreateGameObject();
         Component &CreateComponent(ObjectHandle objectHandle, const Reflection::Type &type);
-        template <typename T, typename... Args>
-        T &CreateComponent(ObjectHandle objectHandle, Args &&...args) {
+        template <typename T>
+        T &CreateComponent(ObjectHandle objectHandle) {
             static_assert(std::is_base_of<Component, T>::value, "T must be derived from Component");
-            auto comp_ptr = std::unique_ptr<T>(new T(objectHandle, std::forward<Args>(args)...));
-            auto ret_handle = this->NextAvailableComponentHandle();
-            comp_ptr->m_handle = ret_handle;
-            m_comp_map[ret_handle] = comp_ptr.get();
-            if (auto obj = this->GetGameObject(objectHandle)) {
-                obj->m_components.push_back(ret_handle);
-            }
-            m_comp_add_queue.push_back(std::move(comp_ptr));
-            return *comp_ptr;
+            return static_cast<T &>(AddComponent(objectHandle, new T(objectHandle)));
         }
 
         void RemoveGameObject(ObjectHandle handle);
@@ -106,6 +97,8 @@ namespace Engine {
     private:
         ObjectHandle m_go_id_counter{0};
         ComponentHandle m_component_id_counter{0};
+
+        Component &AddComponent(ObjectHandle objectHandle, Component *ptr);
     };
 } // namespace Engine
 #endif // WORLD_WORLDSYSTEM

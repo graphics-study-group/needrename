@@ -5,6 +5,7 @@
 #include <Core/Functional/EventQueue.h>
 #include <Framework/component/RenderComponent/LightComponent.h>
 #include <Framework/component/RenderComponent/RendererComponent.h>
+#include <Framework/component/TransformComponent/TransformComponent.h>
 #include <Framework/object/GameObject.h>
 #include <MainClass.h>
 #include <Reflection/Type.h>
@@ -37,7 +38,11 @@ namespace Engine {
 
     Component &WorldSystem::CreateComponent(ObjectHandle objectHandle, const Reflection::Type &type) {
         auto comp_var = type.CreateInstance(objectHandle);
-        auto comp_ptr = std::unique_ptr<Component>(static_cast<Component *>(comp_var.GetDataPtr()));
+        return AddComponent(objectHandle, static_cast<Component *>(comp_var.GetDataPtr()));
+    }
+
+    Component &WorldSystem::AddComponent(ObjectHandle objectHandle, Component *ptr) {
+        auto comp_ptr = std::unique_ptr<Component>(static_cast<Component *>(ptr));
         auto ret_handle = this->NextAvailableComponentHandle();
         comp_ptr->m_handle = ret_handle;
         m_comp_map[ret_handle] = comp_ptr.get();
