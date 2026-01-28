@@ -1,19 +1,28 @@
 #ifndef COMPONENT_RENDERCOMPONENT_OBJTESTMESHCOMPONENT_INCLUDED
 #define COMPONENT_RENDERCOMPONENT_OBJTESTMESHCOMPONENT_INCLUDED
 
-#include <tiny_obj_loader.h>
-#include <SDL3/SDL.h>
 #include "Asset/Loader/ObjLoader.h"
 #include "Framework/component/RenderComponent/MeshComponent.h"
+#include <SDL3/SDL.h>
+#include <tiny_obj_loader.h>
 
 namespace Engine {
     /**
      * @brief A mesh component that loads an obj file on construct.
-     * 
+     *
      * @warning For test only! Never use this component in production.
      * Always include this header after all your inclusion to avoid definition problems.
      */
     class ObjTestMeshComponent : public MeshComponent {
+
+    public:
+        ObjTestMeshComponent(ObjectHandle go) : MeshComponent(go) {
+        }
+
+        ~ObjTestMeshComponent() {
+            m_materials.clear();
+            m_submeshes.clear();
+        }
 
         void LoadMesh(std::filesystem::path mesh) {
             tinyobj::ObjReaderConfig reader_config{};
@@ -38,7 +47,7 @@ namespace Engine {
             const auto &attrib = reader.GetAttrib();
             const auto &origin_shapes = reader.GetShapes();
             std::vector<tinyobj::shape_t> shapes;
-            const auto &origin_materials = reader.GetMaterials();
+            // const auto &origin_materials = reader.GetMaterials();
 
             // We dont need materials from the obj file.
             std::vector<tinyobj::material_t> materials;
@@ -74,7 +83,9 @@ namespace Engine {
                     shapes.push_back(new_shape);
                     materials.push_back(tinyobj::material_t{});
                     std::fill(
-                        shapes.back().mesh.material_ids.begin(), shapes.back().mesh.material_ids.end(), materials.size() - 1
+                        shapes.back().mesh.material_ids.begin(),
+                        shapes.back().mesh.material_ids.end(),
+                        materials.size() - 1
                     );
                 }
             }
@@ -88,27 +99,16 @@ namespace Engine {
             m_submeshes.clear();
             size_t submesh_count = m_mesh_asset->as<MeshAsset>()->GetSubmeshCount();
             for (size_t i = 0; i < submesh_count; i++) {
-                m_submeshes.push_back(std::make_shared<HomogeneousMesh>(m_system.lock()->GetAllocatorState(), m_mesh_asset, i));
+                m_submeshes.push_back(
+                    std::make_shared<HomogeneousMesh>(m_system.lock()->GetAllocatorState(), m_mesh_asset, i)
+                );
             }
-        }
-
-    public:
-        ObjTestMeshComponent(
-            std::filesystem::path mesh_file_name,
-            ObjectHandle go = 0u
-        ) : MeshComponent(go) {
-            LoadMesh(mesh_file_name);
-        }
-
-        ~ObjTestMeshComponent() {
-            m_materials.clear();
-            m_submeshes.clear();
         }
 
         virtual void RenderInit() override {
             assert(!"This component has no mesh nor material asset to load from.");
         }
     };
-}
+} // namespace Engine
 
 #endif // COMPONENT_RENDERCOMPONENT_OBJTESTMESHCOMPONENT_INCLUDED

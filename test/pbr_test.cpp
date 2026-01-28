@@ -5,17 +5,21 @@
 
 #include <tiny_obj_loader.h>
 
-#include <Asset/AssetDatabase/FileSystemDatabase.h>
+#include "Render/FullRenderSystem.h"
+
 #include "Asset/AssetManager/AssetManager.h"
 #include "Asset/Loader/ObjLoader.h"
 #include "Asset/Material/MaterialTemplateAsset.h"
 #include "Asset/Mesh/MeshAsset.h"
 #include "Asset/Texture/Image2DTextureAsset.h"
 #include "Core/Functional/SDLWindow.h"
-#include "UserInterface/GUISystem.h"
-#include "MainClass.h"
-#include "Render/FullRenderSystem.h"
 #include "Framework/component/RenderComponent/ObjTestMeshComponent.h"
+#include "Framework/object/GameObject.h"
+#include "Framework/world/WorldSystem.h"
+#include "MainClass.h"
+#include <Asset/AssetDatabase/FileSystemDatabase.h>
+
+#include "UserInterface/GUISystem.h"
 
 #include "cmake_config.h"
 
@@ -23,9 +27,7 @@ using namespace Engine;
 namespace sch = std::chrono;
 
 std::pair<std::shared_ptr<MaterialLibraryAsset>, std::shared_ptr<MaterialTemplateAsset>> ConstructMaterial() {
-    auto adb = std::dynamic_pointer_cast<FileSystemDatabase>(
-        MainClass::GetInstance()->GetAssetDatabase()
-    );
+    auto adb = std::dynamic_pointer_cast<FileSystemDatabase>(MainClass::GetInstance()->GetAssetDatabase());
     auto test_asset = std::make_shared<MaterialTemplateAsset>();
     auto lib_asset = std::make_shared<MaterialLibraryAsset>();
     auto vs_ref = adb->GetNewAssetRef({*adb, "~/shaders/pbr_base.vert.asset"});
@@ -61,11 +63,16 @@ class PBRMeshComponent : public ObjTestMeshComponent {
     UniformData m_uniform_data{1.0, 1.0};
 
 public:
-    PBRMeshComponent(
+    PBRMeshComponent(ObjectHandle parentObject) : ObjTestMeshComponent(parentObject), transform() {
+    }
+
+    void LoadData(
         std::filesystem::path mesh_file_name,
         std::shared_ptr<MaterialLibrary> library,
         std::shared_ptr<const Texture> albedo
-    ) : ObjTestMeshComponent(mesh_file_name), transform() {
+    ) {
+        this->LoadMesh(mesh_file_name);
+
         auto system = m_system.lock();
         auto &helper = system->GetFrameManager().GetSubmissionHelper();
 
@@ -128,14 +135,12 @@ void PrepareGui() {
 
 void SubmitSceneData(std::shared_ptr<RenderSystem> rsys, uint32_t id) {
     rsys->GetSceneDataManager().SetLightDirectionalNonShadowCasting(
-        0, 
-        GetCartesian(g_SceneData.zenith, g_SceneData.azimuth), 
-        glm::vec3{2.0, 2.0, 2.0}
+        0, GetCartesian(g_SceneData.zenith, g_SceneData.azimuth), glm::vec3{2.0, 2.0, 2.0}
     );
     rsys->GetSceneDataManager().SetLightCountNonShadowCasting(1);
 }
 
-void SubmitMaterialData(std::shared_ptr<PBRMeshComponent> mesh) {
+void SubmitMaterialData(PBRMeshComponent *mesh) {
     mesh->UpdateUniformData(g_SceneData.metalness, g_SceneData.roughness);
 }
 
@@ -178,7 +183,9 @@ int main(int argc, char **argv) {
         .multisample = 1,
         .is_cube_map = false
     };
-    std::shared_ptr hdr_color{RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "HDR Color Attachment")};
+    std::shared_ptr hdr_color{
+        RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "HDR Color Attachment")
+    };
     desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R8G8B8A8UNorm;
     std::shared_ptr color{RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Color Attachment")};
     desc.mipmap_levels = 1;
@@ -186,7 +193,7 @@ int main(int argc, char **argv) {
     std::shared_ptr depth{RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Depth Attachment")};
 
     std::shared_ptr red_texture = ImageTexture::CreateUnique(
-        *rsys, 
+        *rsys,
         ImageTexture::ImageTextureDesc{
             .dimensions = 2,
             .width = 4,
@@ -196,16 +203,18 @@ int main(int argc, char **argv) {
             .array_layers = 1,
             .format = ImageTexture::ImageTextureDesc::ImageTextureFormat::R8G8B8A8UNorm,
             .is_cube_map = false
-        }, 
-        Texture::SamplerDesc{}, 
+        },
+        Texture::SamplerDesc{},
         "Sampled Albedo"
     );
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*red_texture, {1.0, 0.0, 0.0, 1.0});
 
     // Setup mesh
     std::filesystem::path mesh_path{std::string(ENGINE_ASSETS_DIR) + "/meshes/sphere.obj"};
-    std::shared_ptr tmc = std::make_shared<PBRMeshComponent>(mesh_path, pbr_material, red_texture);
-    rsys->GetRendererManager().RegisterRendererComponent(tmc.get());
+    auto go = cmc->GetWorldSystem()->CreateGameObject();
+    auto tmc = &go.AddComponent<PBRMeshComponent>();
+    tmc->LoadData(mesh_path, pbr_material, red_texture);
+    rsys->GetRendererManager().RegisterRendererComponent(tmc);
 
     // Setup camera
     Transform transform{};
@@ -306,11 +315,7 @@ int main(int argc, char **argv) {
         auto index = rsys->StartFrame();
 
         rg->Execute();
-        rsys->CompleteFrame(
-            *color,
-            color->GetTextureDescription().width,
-            color->GetTextureDescription().height
-        );
+        rsys->CompleteFrame(*color, color->GetTextureDescription().width, color->GetTextureDescription().height);
 
         // SDL_Delay(5);
 

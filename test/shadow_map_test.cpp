@@ -39,11 +39,11 @@ struct LowerPlaneMeshAsset : public PlaneMeshAsset {
 
 class ShadowMapMeshComponent : public ObjTestMeshComponent {
 public:
-    ShadowMapMeshComponent(
-        ObjectHandle go,
-        std::filesystem::path mesh_file_name,
-        std::shared_ptr<MaterialInstance> instance
-    ) : ObjTestMeshComponent(mesh_file_name, go) {
+    ShadowMapMeshComponent(ObjectHandle go) : ObjTestMeshComponent(go) {
+    }
+
+    void LoadData(std::filesystem::path mesh_file_name, std::shared_ptr<MaterialInstance> instance) {
+        this->LoadMesh(mesh_file_name);
         auto system = m_system.lock();
 
         for (size_t i = 0; i < m_submeshes.size(); i++) {
@@ -53,9 +53,8 @@ public:
 };
 
 std::array<std::shared_ptr<MaterialTemplateAsset>, 2> ConstructMaterialTemplate() {
-    std::array<std::shared_ptr<MaterialTemplateAsset>, 2> templates {
-        std::make_shared<MaterialTemplateAsset>(),
-        std::make_shared<MaterialTemplateAsset>()
+    std::array<std::shared_ptr<MaterialTemplateAsset>, 2> templates{
+        std::make_shared<MaterialTemplateAsset>(), std::make_shared<MaterialTemplateAsset>()
     };
 
     auto adb = std::dynamic_pointer_cast<FileSystemDatabase>(MainClass::GetInstance()->GetAssetDatabase());
@@ -89,8 +88,10 @@ std::array<std::shared_ptr<MaterialTemplateAsset>, 2> ConstructMaterialTemplate(
     return templates;
 }
 
-std::shared_ptr <MaterialLibraryAsset> ConstructMaterialLibrary(std::array<std::shared_ptr<MaterialTemplateAsset>, 2> & templates) {
-    std::shared_ptr <MaterialLibraryAsset> lib = std::make_shared<MaterialLibraryAsset>();
+std::shared_ptr<MaterialLibraryAsset> ConstructMaterialLibrary(
+    std::array<std::shared_ptr<MaterialTemplateAsset>, 2> &templates
+) {
+    std::shared_ptr<MaterialLibraryAsset> lib = std::make_shared<MaterialLibraryAsset>();
     lib->m_name = "Blinn-Phong w. Shadowmap";
     MaterialLibraryAsset::MaterialTemplateReference ref;
     ref.expected_mesh_type = 0;
@@ -129,35 +130,44 @@ int main(int argc, char **argv) {
     camera->UpdateViewMatrix(transform);
     rsys->GetCameraManager().RegisterCamera(camera);
     rsys->GetCameraManager().SetActiveCameraIndex(camera->m_display_id);
-    rsys->GetSceneDataManager().SetLightDirectional(
-        0, 
-        glm::vec3{1.0f, 1.0f, 1.0f}, 
-        glm::vec3{1.0f, 1.0f, 1.0f}
-    );
+    rsys->GetSceneDataManager().SetLightDirectional(0, glm::vec3{1.0f, 1.0f, 1.0f}, glm::vec3{1.0f, 1.0f, 1.0f});
     rsys->GetSceneDataManager().SetLightCount(1);
 
     // Prepare attachments
     Engine::RenderTargetTexture::RenderTargetTextureDesc desc{
-        .dimensions = 2, .width = 1920, .height = 1080,
-        .depth = 1, .mipmap_levels = 1, .array_layers = 1,
+        .dimensions = 2,
+        .width = 1920,
+        .height = 1080,
+        .depth = 1,
+        .mipmap_levels = 1,
+        .array_layers = 1,
         .format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R8G8B8A8UNorm,
         .multisample = 1,
         .is_cube_map = false
     };
-    std::shared_ptr color = Engine::RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Color attachment");
+    std::shared_ptr color =
+        Engine::RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Color attachment");
     desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::D32SFLOAT;
-    std::shared_ptr depth = Engine::RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Depth attachment");
+    std::shared_ptr depth =
+        Engine::RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Depth attachment");
     desc.width = desc.height = 2048;
-    std::shared_ptr shadow = Engine::RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Shadowmap Light 0");
+    std::shared_ptr shadow =
+        Engine::RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Shadowmap Light 0");
     rsys->GetSceneDataManager().SetLightShadowMap(0, shadow);
     auto idesc = ImageTexture::ImageTextureDesc{
-        .dimensions = 2, .width = 16, .height = 16, .depth = 1,
-        .mipmap_levels = 1, .array_layers = 1,
+        .dimensions = 2,
+        .width = 16,
+        .height = 16,
+        .depth = 1,
+        .mipmap_levels = 1,
+        .array_layers = 1,
         .format = ImageTexture::ImageTextureDesc::ImageTextureFormat::R8G8B8A8UNorm,
         .is_cube_map = false
     };
-    std::shared_ptr blank_color_red = Engine::ImageTexture::CreateUnique(*rsys, idesc, Texture::SamplerDesc{}, "Blank color red");
-    std::shared_ptr blank_color_gray = Engine::ImageTexture::CreateUnique(*rsys, idesc, Texture::SamplerDesc{}, "Blank color gray");
+    std::shared_ptr blank_color_red =
+        Engine::ImageTexture::CreateUnique(*rsys, idesc, Texture::SamplerDesc{}, "Blank color red");
+    std::shared_ptr blank_color_gray =
+        Engine::ImageTexture::CreateUnique(*rsys, idesc, Texture::SamplerDesc{}, "Blank color gray");
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*blank_color_red, {1.0f, 0.0f, 0.0f, 0.0f});
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*blank_color_gray, {0.5f, 0.5f, 0.5f, 0.0f});
 
@@ -168,15 +178,14 @@ int main(int argc, char **argv) {
     // Engine::Serialization::Archive archive;
     // archive.prepare_save();
     // test_template_assets[0]->save_asset_to_archive(archive);
-    // archive.save_to_file(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "material_templates" / "BlinnPhongTemplate");
-    // archive.clear();
-    // archive.prepare_save();
+    // archive.save_to_file(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "material_templates" /
+    // "BlinnPhongTemplate"); archive.clear(); archive.prepare_save();
     // test_template_assets[1]->save_asset_to_archive(archive);
-    // archive.save_to_file(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "material_templates" / "ShadowMapTemplate");
-    // archive.clear();
-    // archive.prepare_save();
+    // archive.save_to_file(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "material_templates" /
+    // "ShadowMapTemplate"); archive.clear(); archive.prepare_save();
     // test_library_asset->save_asset_to_archive(archive);
-    // archive.save_to_file(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "material_libraries" / "BlinnPhongWithShadowMapLibrary");
+    // archive.save_to_file(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "material_libraries" /
+    // "BlinnPhongWithShadowMapLibrary");
 
     auto test_library_asset_ref = std::make_shared<AssetRef>(test_library_asset);
     auto test_library = std::make_shared<MaterialLibrary>(*rsys);
@@ -204,25 +213,22 @@ int main(int argc, char **argv) {
 
     auto cube_go = cmc->GetWorldSystem()->CreateGameObject();
     cube_go.GetTransformRef().SetScale({0.5f, 0.5f, 0.5f});
-    auto cube_mesh_comp = cmc->GetWorldSystem()->CreateComponent<ShadowMapMeshComponent>(
-        cube_go.GetHandle(),
-        std::filesystem::path{std::string(ENGINE_ASSETS_DIR) + "/meshes/cube.obj"},
-        object_material_instance
+    auto cube_mesh_comp = cmc->GetWorldSystem()->CreateComponent<ShadowMapMeshComponent>(cube_go.GetHandle());
+    cube_mesh_comp.LoadData(
+        std::filesystem::path{std::string(ENGINE_ASSETS_DIR) + "/meshes/cube.obj"}, object_material_instance
     );
 
     auto shpere_go = cmc->GetWorldSystem()->CreateGameObject();
     shpere_go.GetTransformRef().SetScale({0.5f, 0.5f, 0.5f}).SetPosition({1.0f, 2.0f, 0.0f});
-    auto sphere_mesh_comp = std::make_shared<ShadowMapMeshComponent>(
-        shpere_go,
-        std::filesystem::path{std::string(ENGINE_ASSETS_DIR) + "/meshes/sphere.obj"},
-        object_material_instance
+    auto sphere_mesh_comp = cmc->GetWorldSystem()->CreateComponent<ShadowMapMeshComponent>(shpere_go.GetHandle());
+    sphere_mesh_comp.LoadData(
+        std::filesystem::path{std::string(ENGINE_ASSETS_DIR) + "/meshes/sphere.obj"}, object_material_instance
     );
-    // We cannot call `RenderInit()` because this component has no associated asset.
-    assert(cube_mesh_comp->GetSubmesh(0)->GetVertexAttribute().HasAttribute(VertexAttributeSemantic::Texcoord0));
-    rsys->GetRendererManager().RegisterRendererComponent(cube_mesh_comp);
-    assert(sphere_mesh_comp->GetSubmesh(0)->GetVertexAttribute().HasAttribute(VertexAttributeSemantic::Texcoord0));
-    rsys->GetRendererManager().RegisterRendererComponent(sphere_mesh_comp);
-    
+    // We cannot call `LoadData()` because this component has no associated asset.
+    assert(cube_mesh_comp.GetSubmesh(0)->GetVertexAttribute().HasAttribute(VertexAttributeSemantic::Texcoord0));
+    rsys->GetRendererManager().RegisterRendererComponent(&cube_mesh_comp);
+    assert(sphere_mesh_comp.GetSubmesh(0)->GetVertexAttribute().HasAttribute(VertexAttributeSemantic::Texcoord0));
+    rsys->GetRendererManager().RegisterRendererComponent(&sphere_mesh_comp);
 
     // Build Render Graph
     RenderGraphBuilder rgb{*rsys};
@@ -238,13 +244,11 @@ int main(int argc, char **argv) {
             vk::Rect2D shadow_map_scissor{{0, 0}, shadow_map_extent};
             gcb.BeginRendering(
                 {nullptr},
-                {
-                    shadow.get(), 
-                    nullptr, 
-                    AttachmentUtils::LoadOperation::Clear,
-                    AttachmentUtils::StoreOperation::Store,
-                    AttachmentUtils::DepthClearValue{1.0f, 0U}
-                },
+                {shadow.get(),
+                 nullptr,
+                 AttachmentUtils::LoadOperation::Clear,
+                 AttachmentUtils::StoreOperation::Store,
+                 AttachmentUtils::DepthClearValue{1.0f, 0U}},
                 shadow_map_extent,
                 "Shadowmap Pass"
             );
@@ -273,10 +277,7 @@ int main(int argc, char **argv) {
             vk::Extent2D extent{rsys->GetSwapchain().GetExtent()};
             vk::Rect2D scissor{{0, 0}, extent};
             gcb.SetupViewport(extent.width, extent.height, scissor);
-            gcb.DrawRenderers(
-                "Lit",
-                rsys->GetRendererManager().FilterAndSortRenderers({})
-            );
+            gcb.DrawRenderers("Lit", rsys->GetRendererManager().FilterAndSortRenderers({}));
         },
         "Lit pass"
     );

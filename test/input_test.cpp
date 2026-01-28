@@ -6,15 +6,16 @@
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include <Asset/AssetManager/AssetManager.h>
 #include <Asset/Scene/GameObjectAsset.h>
-#include <Framework/component/Component.h>
-#include <Framework/component/RenderComponent/CameraComponent.h>
-#include <Framework/world/WorldSystem.h>
 #include <Core/Functional/SDLWindow.h>
 #include <Core/Functional/Time.h>
-#include <UserInterface/Input.h>
+#include <Framework/component/Component.h>
+#include <Framework/component/RenderComponent/CameraComponent.h>
+#include <Framework/object/GameObject.h>
+#include <Framework/world/WorldSystem.h>
 #include <MainClass.h>
 #include <Render/RenderSystem.h>
 #include <Render/Renderer/Camera.h>
+#include <UserInterface/Input.h>
 #include <cmake_config.h>
 
 using namespace Engine;
@@ -38,7 +39,7 @@ public:
         auto roll_right = input->GetAxisRaw("roll right");
         auto look_x = input->GetAxisRaw("look x");
         auto look_y = input->GetAxisRaw("look y");
-        Transform &transform = m_parentGameObject.lock()->GetTransformRef();
+        Transform &transform = this->GetParentGameObject()->GetTransformRef();
         float dt = MainClass::GetInstance()->GetTimeSystem()->GetDeltaTimeInSeconds();
         transform.SetRotation(
             transform.GetRotation()
