@@ -1,6 +1,7 @@
 #ifndef ENGINE_FRAMEWORK_WORLD_HANDLE_INCLUDED
 #define ENGINE_FRAMEWORK_WORLD_HANDLE_INCLUDED
 
+#include <Core/guid.h>
 #include <Reflection/macros.h>
 #include <cstdint>
 #include <functional>
@@ -13,16 +14,17 @@ namespace Engine {
             REFL_SER_BODY(HandleBase)
         public:
             REFL_ENABLE HandleBase() = default;
-            REFL_ENABLE HandleBase(uint32_t data);
+            REFL_ENABLE HandleBase(GUID data);
             virtual ~HandleBase() = default;
 
-            REFL_ENABLE uint32_t GetData() const noexcept;
+            REFL_ENABLE virtual GUID GetData() const noexcept;
             REFL_ENABLE virtual bool IsValid() const noexcept;
+            REFL_ENABLE virtual void Reset() noexcept;
             bool operator==(const HandleBase &other) const noexcept;
 
         protected:
             friend class Engine::WorldSystem;
-            uint32_t m_data{0u};
+            GUID m_data{};
         };
     } // namespace detail
 
@@ -30,14 +32,14 @@ namespace Engine {
         REFL_SER_BODY(ObjectHandle)
     public:
         REFL_ENABLE ObjectHandle() = default;
-        REFL_ENABLE ObjectHandle(uint32_t data);
+        REFL_ENABLE ObjectHandle(GUID data);
     };
 
     class REFL_SER_CLASS(REFL_WHITELIST) ComponentHandle : public detail::HandleBase {
         REFL_SER_BODY(ComponentHandle)
     public:
         REFL_ENABLE ComponentHandle() = default;
-        REFL_ENABLE ComponentHandle(uint32_t data);
+        REFL_ENABLE ComponentHandle(GUID data);
     };
 } // namespace Engine
 
@@ -45,13 +47,13 @@ namespace std {
     template <>
     struct hash<Engine::ObjectHandle> {
         size_t operator()(const Engine::ObjectHandle &p) const noexcept {
-            return std::hash<uint32_t>()(p.GetData());
+            return std::hash<Engine::GUID>()(p.GetData());
         }
     };
     template <>
     struct hash<Engine::ComponentHandle> {
         size_t operator()(const Engine::ComponentHandle &p) const noexcept {
-            return std::hash<uint32_t>()(p.GetData());
+            return std::hash<Engine::GUID>()(p.GetData());
         }
     };
 } // namespace std

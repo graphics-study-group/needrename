@@ -32,7 +32,7 @@ namespace Engine {
         bool operator==(const Component &other) const noexcept;
 
     public:
-        ObjectHandle m_parentGameObject{0};
+        ObjectHandle m_parentGameObject{};
 
     protected:
         ComponentHandle m_handle{};

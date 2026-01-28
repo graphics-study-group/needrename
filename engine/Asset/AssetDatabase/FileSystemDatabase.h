@@ -112,7 +112,7 @@ namespace Engine {
         /// @brief Path to the current project assets
         std::filesystem::path m_project_asset_path{};
 
-        std::unordered_map<GUID, AssetPath, GUIDHash> m_assets_map{};
+        std::unordered_map<GUID, AssetPath> m_assets_map{};
         std::unordered_map<AssetPath, GUID, AssetPath::Hash> m_path_to_guid{};
     };
 } // namespace Engine

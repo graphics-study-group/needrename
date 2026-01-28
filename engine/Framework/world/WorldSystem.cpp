@@ -25,6 +25,14 @@ namespace Engine {
         return *MainClass::GetInstance()->GetWorldSystem();
     }
 
+    ObjectHandle WorldSystem::NextAvailableObjectHandle() {
+        return ObjectHandle{generateGUID(m_go_handle_gen)};
+    }
+
+    ComponentHandle WorldSystem::NextAvailableComponentHandle() {
+        return ComponentHandle{generateGUID(m_comp_handle_gen)};
+    }
+
     GameObject &WorldSystem::CreateGameObject() {
         auto go_ptr = std::unique_ptr<GameObject>(new GameObject());
         auto handle = this->NextAvailableObjectHandle();
@@ -229,19 +237,5 @@ namespace Engine {
         if (registrar) {
             registrar->RegisterCamera(camera);
         }
-    }
-
-    ObjectHandle WorldSystem::NextAvailableObjectHandle() {
-        do {
-            m_go_id_counter.m_data++;
-        } while (m_go_map.find(m_go_id_counter) != m_go_map.end() && m_go_id_counter != 0u);
-        return m_go_id_counter;
-    }
-
-    ComponentHandle WorldSystem::NextAvailableComponentHandle() {
-        do {
-            m_component_id_counter.m_data++;
-        } while (m_comp_map.find(m_component_id_counter) != m_comp_map.end() && m_component_id_counter != 0u);
-        return m_component_id_counter;
     }
 } // namespace Engine

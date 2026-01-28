@@ -44,7 +44,7 @@ namespace Engine {
 
     public:
         std::string m_name{};
-        ObjectHandle m_parentGameObject{0};
+        ObjectHandle m_parentGameObject{};
         std::vector<ObjectHandle> m_childGameObject{};
 
         ComponentHandle m_transformComponent{};

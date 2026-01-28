@@ -16,8 +16,8 @@ namespace Editor {
     void HierarchyWidget::Render() {
         auto world = Engine::MainClass::GetInstance()->GetWorldSystem();
         bool selected_changed = false;
-        ObjectHandle need_remove_go = 0;
-        ObjectHandle need_rename_go = 0;
+        ObjectHandle need_remove_go;
+        ObjectHandle need_rename_go;
 
         if (ImGui::Begin(m_name.c_str())) {
             // Top toolbar: add-button (opens popup) + search box
@@ -70,13 +70,13 @@ namespace Editor {
                         // Finish renaming when Enter is pressed
                         m_rename_buffer = buf;
                         need_rename_go = go->GetHandle();
-                        m_renaming_game_object = 0;
+                        m_renaming_game_object.Reset();
                     }
                     // Finish renaming when focus is lost
                     if (!ImGui::IsItemActive() && ImGui::IsItemDeactivatedAfterEdit()) {
                         m_rename_buffer = buf;
                         need_rename_go = go->GetHandle();
-                        m_renaming_game_object = 0;
+                        m_renaming_game_object.Reset();
                     }
                     ImGui::PopID();
                 } else {
@@ -118,7 +118,7 @@ namespace Editor {
 
         if (need_remove_go.IsValid()) {
             if (m_selected_game_object == need_remove_go) {
-                m_selected_game_object = 0;
+                m_selected_game_object.Reset();
                 selected_changed = true;
             }
             world->RemoveGameObject(need_remove_go);

@@ -3,6 +3,7 @@
 
 #include "Handle.h"
 #include <memory>
+#include <random>
 #include <unordered_map>
 #include <vector>
 
@@ -15,7 +16,7 @@ namespace Engine {
     namespace RenderSystemState {
         class CameraManager;
         class SceneDataManager;
-    }
+    } // namespace RenderSystemState
     namespace Reflection {
         class Type;
     }
@@ -29,6 +30,9 @@ namespace Engine {
 
         void AddInitEvent();
         void AddTickEvent();
+
+        ObjectHandle NextAvailableObjectHandle();
+        ComponentHandle NextAvailableComponentHandle();
 
         GameObject &CreateGameObject();
         Component &CreateComponent(ObjectHandle objectHandle, const Reflection::Type &type);
@@ -91,12 +95,9 @@ namespace Engine {
 
         std::shared_ptr<Camera> m_active_camera{};
 
-        ObjectHandle NextAvailableObjectHandle();
-        ComponentHandle NextAvailableComponentHandle();
-
-    private:
-        ObjectHandle m_go_id_counter{0};
-        ComponentHandle m_component_id_counter{0};
+    protected:
+        std::mt19937_64 m_go_handle_gen{std::random_device{}()};
+        std::mt19937_64 m_comp_handle_gen{std::random_device{}()};
 
         Component &AddComponent(ObjectHandle objectHandle, Component *ptr);
     };
