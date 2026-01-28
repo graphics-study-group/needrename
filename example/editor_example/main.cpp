@@ -25,10 +25,9 @@ using namespace Engine;
 
 void Start() {
     auto cmc = MainClass::GetInstance();
-    auto world = cmc->GetWorldSystem();
-    auto event_queue = cmc->GetEventQueue();
-    event_queue->Clear();
-    world->GetMainSceneRef().AddInitEvent();
+    auto &scene = cmc->GetWorldSystem()->GetMainSceneRef();
+    scene.ClearEventQueue();
+    scene.AddInitEvent();
 }
 
 int main() {
@@ -47,7 +46,6 @@ int main() {
     auto world = cmc->GetWorldSystem();
     auto gui = cmc->GetGUISystem();
     auto window = cmc->GetWindow();
-    auto event_queue = cmc->GetEventQueue();
     gui->CreateVulkanBackend(*rsys, ImageUtils::GetVkFormat(window->GetColorTexture()->GetTextureDescription().format));
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading project");
@@ -88,7 +86,7 @@ int main() {
 
         if (main_window.m_is_playing) {
             world->GetMainSceneRef().AddTickEvent();
-            event_queue->ProcessEvents();
+            world->GetMainSceneRef().ProcessEvents();
         }
         rsys->StartFrame();
         auto context = rsys->GetFrameManager().GetGraphicsContext();

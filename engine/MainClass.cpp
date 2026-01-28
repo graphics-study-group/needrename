@@ -103,7 +103,6 @@ namespace Engine {
         this->asset_manager = std::make_shared<AssetManager>();
         this->gui = std::make_shared<GUISystem>();
         this->input = std::make_shared<Input>();
-        this->event_queue = std::make_shared<EventQueue>(*this->world);
 
         this->renderer->Create();
         this->window->CreateRenderTargets(this->renderer);
@@ -166,10 +165,6 @@ namespace Engine {
         return input;
     }
 
-    std::shared_ptr<EventQueue> MainClass::GetEventQueue() const {
-        return event_queue;
-    }
-
     std::shared_ptr<ShaderCompiler> MainClass::GetShaderCompiler() {
         return shader_compiler;
     }
@@ -200,7 +195,7 @@ namespace Engine {
         this->world->GetMainSceneRef().AddTickEvent();
         // this->gui->PrepareGUI();
 
-        this->event_queue->ProcessEvents();
+        this->world->GetMainSceneRef().ProcessEvents();
 
         this->world->UpdateLightData(this->renderer->GetSceneDataManager());
 

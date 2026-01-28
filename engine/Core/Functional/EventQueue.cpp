@@ -1,7 +1,7 @@
 #include "EventQueue.h"
 
 namespace Engine {
-    EventQueue::EventQueue(WorldSystem &world) : m_world(world) {
+    EventQueue::EventQueue(Scene &scene) : m_scene(scene) {
     }
 
     void EventQueue::AddEvent(DelegatePtr event) {

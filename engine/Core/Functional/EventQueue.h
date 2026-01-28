@@ -2,7 +2,7 @@
 #define ENGINE_FUNCTIONAL_EVENTQUEUE_H
 
 #include <Core/Delegate/ComponentDelegate.h>
-#include <Framework/world/WorldSystem.h>
+#include <Framework/world/Scene.h>
 #include <memory>
 #include <queue>
 
@@ -11,20 +11,20 @@ namespace Engine {
         using DelegatePtr = std::unique_ptr<DelegateBase<>>;
 
     public:
-        EventQueue(WorldSystem &world);
+        EventQueue(Scene &world);
         virtual ~EventQueue() = default;
 
         void AddEvent(DelegatePtr event);
         template <typename T>
         void AddEvent(ComponentHandle object, void (T::*method)()) {
-            m_events.push(std::make_unique<ComponentDelegate<>>(m_world.GetMainSceneRef(), object, method));
+            m_events.push(std::make_unique<ComponentDelegate<>>(m_scene, object, method));
         }
         void ProcessEvents();
 
         void Clear();
 
     protected:
-        WorldSystem &m_world;
+        Scene &m_scene;
         std::queue<DelegatePtr> m_events{};
     };
 } // namespace Engine

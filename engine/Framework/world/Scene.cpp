@@ -1,6 +1,4 @@
 #include "Scene.h"
-#include <Asset/Scene/GameObjectAsset.h>
-#include <Asset/Scene/LevelAsset.h>
 #include <Core/Delegate/Delegate.h>
 #include <Core/Functional/EventQueue.h>
 #include <Framework/component/RenderComponent/LightComponent.h>
@@ -14,6 +12,7 @@
 
 namespace Engine {
     Scene::Scene() {
+        m_event_queue = std::make_unique<EventQueue>(*this);
     }
 
     Scene::~Scene() {
@@ -60,8 +59,6 @@ namespace Engine {
     }
 
     void Scene::FlushCmdQueue() {
-        auto event_queue = MainClass::GetInstance()->GetEventQueue();
-
         for (auto &go_ptr : m_go_add_queue) {
             m_game_objects.push_back(std::move(go_ptr));
         }
@@ -85,7 +82,7 @@ namespace Engine {
 
         for (auto &comp_ptr : m_comp_add_queue) {
             m_components.push_back(std::move(comp_ptr));
-            event_queue->AddEvent(comp_ptr->GetHandle(), &Component::Init);
+            m_event_queue->AddEvent(comp_ptr->GetHandle(), &Component::Init);
             // XXX: should not render init here
             auto render_comp = dynamic_cast<RendererComponent *>(comp_ptr.get());
             if (render_comp) {
@@ -105,6 +102,14 @@ namespace Engine {
             );
         }
         m_comp_remove_queue.clear();
+    }
+
+    void Scene::ProcessEvents() {
+        m_event_queue->ProcessEvents();
+    }
+
+    void Scene::ClearEventQueue() {
+        m_event_queue->Clear();
     }
 
     GameObject *Scene::GetGameObject(ObjectHandle handle) {
@@ -148,16 +153,14 @@ namespace Engine {
     }
 
     void Scene::AddInitEvent() {
-        auto event_queue = MainClass::GetInstance()->GetEventQueue();
         for (auto &comp : m_components) {
-            event_queue->AddEvent(comp->GetHandle(), &Component::Init);
+            m_event_queue->AddEvent(comp->GetHandle(), &Component::Init);
         }
     }
 
     void Scene::AddTickEvent() {
-        auto event_queue = MainClass::GetInstance()->GetEventQueue();
         for (auto &comp : m_components) {
-            event_queue->AddEvent(comp->GetHandle(), &Component::Tick);
+            m_event_queue->AddEvent(comp->GetHandle(), &Component::Tick);
         }
     }
 } // namespace Engine

@@ -8,10 +8,8 @@
 #include <vector>
 
 namespace Engine {
-    class LevelAsset;
-    class GameObjectAsset;
-    class Camera;
     class GameObject;
+    class EventQueue;
     class Component;
     namespace Reflection {
         class Type;
@@ -38,6 +36,10 @@ namespace Engine {
 
         /// @brief Load or remove all GameObjects or Components in the command queue.
         void FlushCmdQueue();
+        /// @brief Process all events in the event queue.
+        void ProcessEvents();
+        /// @brief Clear all events in the event queue.
+        void ClearEventQueue();
 
         GameObject *GetGameObject(ObjectHandle handle);
         Component *GetComponent(ComponentHandle handle);
@@ -66,6 +68,8 @@ namespace Engine {
 
         std::unordered_map<ObjectHandle, GameObject *> m_go_map{};
         std::unordered_map<ComponentHandle, Component *> m_comp_map{};
+
+        std::unique_ptr<EventQueue> m_event_queue{};
 
     protected:
         Component &AddComponent(ObjectHandle objectHandle, Component *ptr);
