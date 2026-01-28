@@ -61,7 +61,6 @@ namespace Engine {
         GUID default_level_guid(project_config["default_level"].get<std::string>());
         auto level_asset =
             std::dynamic_pointer_cast<LevelAsset>(this->asset_manager->LoadAssetImmediately(default_level_guid));
-        this->world->LoadLevelAsset(level_asset);
         
         if (level_asset->m_skybox_material) {
             this->asset_manager->LoadAssetImmediately(level_asset->m_skybox_material);
