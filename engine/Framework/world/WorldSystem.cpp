@@ -1,6 +1,4 @@
 #include "WorldSystem.h"
-#include <Asset/Scene/GameObjectAsset.h>
-#include <Asset/Scene/LevelAsset.h>
 #include <Core/Delegate/Delegate.h>
 #include <Core/Functional/EventQueue.h>
 #include <Framework/component/RenderComponent/LightComponent.h>
@@ -16,6 +14,7 @@
 
 namespace Engine {
     WorldSystem::WorldSystem() {
+        m_main_scene = std::make_unique<Scene>();
     }
 
     WorldSystem::~WorldSystem() {

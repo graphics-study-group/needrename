@@ -81,13 +81,16 @@ namespace Engine {
         m_go_remove_queue.clear();
 
         for (auto &comp_ptr : m_comp_add_queue) {
-            m_components.push_back(std::move(comp_ptr));
-            m_event_queue->AddEvent(comp_ptr->GetHandle(), &Component::Init);
             // XXX: should not render init here
-            auto render_comp = dynamic_cast<RendererComponent *>(comp_ptr.get());
-            if (render_comp) {
-                render_comp->RenderInit();
+            if (this == &MainClass::GetInstance()->GetWorldSystem()->GetMainSceneRef()) {
+                auto render_comp = dynamic_cast<RendererComponent *>(comp_ptr.get());
+                if (render_comp) {
+                    render_comp->RenderInit();
+                }
             }
+
+            m_event_queue->AddEvent(comp_ptr->GetHandle(), &Component::Init);
+            m_components.push_back(std::move(comp_ptr));
         }
         m_comp_add_queue.clear();
         for (auto handle : m_comp_remove_queue) {

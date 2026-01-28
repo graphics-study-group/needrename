@@ -38,22 +38,22 @@ namespace Engine {
             return m_scene->CreateComponent<T>(*this);
         }
 
-        const Transform &GetTransform() const;
-        void SetTransform(const Transform &transform);
-        Transform &GetTransformRef();
-        Transform GetWorldTransform();
-        void SetParent(ObjectHandle parent);
-        ObjectHandle GetHandle() const noexcept;
+        REFL_ENABLE const Transform &GetTransform() const;
+        REFL_ENABLE void SetTransform(const Transform &transform);
+        REFL_ENABLE Transform &GetTransformRef();
+        REFL_ENABLE Transform GetWorldTransform();
+        REFL_ENABLE void SetParent(ObjectHandle parent);
+        REFL_ENABLE ObjectHandle GetHandle() const noexcept;
 
         bool operator==(const GameObject &other) const noexcept;
 
     public:
-        std::string m_name{};
-        ObjectHandle m_parentGameObject{};
-        std::vector<ObjectHandle> m_childGameObject{};
+        REFL_SER_ENABLE std::string m_name{};
+        REFL_SER_ENABLE ObjectHandle m_parentGameObject{};
+        REFL_SER_ENABLE std::vector<ObjectHandle> m_childGameObject{};
 
-        ComponentHandle m_transformComponent{};
-        std::vector<ComponentHandle> m_components{};
+        REFL_SER_ENABLE ComponentHandle m_transformComponent{};
+        REFL_SER_ENABLE std::vector<ComponentHandle> m_components{};
 
     protected:
         Scene *m_scene{};

@@ -8,7 +8,6 @@
 #include <Asset/AssetManager/AssetManager.h>
 #include <Asset/AssetRef.h>
 #include <Asset/Loader/Importer.h>
-#include <Asset/Scene/GameObjectAsset.h>
 #include <Core/Functional/SDLWindow.h>
 #include <Framework/component/RenderComponent/CameraComponent.h>
 #include <Framework/world/WorldSystem.h>

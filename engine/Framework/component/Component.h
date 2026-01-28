@@ -31,13 +31,13 @@ namespace Engine {
         /// @brief Called every frame.
         virtual void Tick();
 
-        ComponentHandle GetHandle() const noexcept;
+        REFL_ENABLE ComponentHandle GetHandle() const noexcept;
         GameObject *GetParentGameObject() const;
 
         bool operator==(const Component &other) const noexcept;
 
     public:
-        ObjectHandle m_parentGameObject{};
+        REFL_SER_ENABLE ObjectHandle m_parentGameObject{};
 
     protected:
         Scene *m_scene{};

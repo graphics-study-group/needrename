@@ -5,7 +5,6 @@
 
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include <Asset/AssetManager/AssetManager.h>
-#include <Asset/Scene/GameObjectAsset.h>
 #include <Core/Functional/SDLWindow.h>
 #include <Core/Functional/Time.h>
 #include <Framework/component/Component.h>
