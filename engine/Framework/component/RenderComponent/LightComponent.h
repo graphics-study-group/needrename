@@ -3,6 +3,7 @@
 
 #include <Framework/component/Component.h>
 #include <Reflection/macros.h>
+#include <Reflection/serialization_glm.h>
 #include <glm.hpp>
 
 namespace Engine {
