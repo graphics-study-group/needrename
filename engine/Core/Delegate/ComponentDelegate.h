@@ -13,8 +13,10 @@ namespace Engine {
         using FunctionType = std::function<void(Args...)>;
 
         ComponentDelegate(const ComponentDelegate &) = default;
-        ComponentDelegate(WorldSystem &world, ComponentHandle comp, FunctionType function) :
-            m_world(world), m_comp(comp), m_function(function) {
+        template <typename T>
+        ComponentDelegate(WorldSystem &world, ComponentHandle comp, void (T::*method)(Args...)) : m_world(world), m_comp(comp) {
+            auto ptr = m_world.GetComponent<T>(m_comp);
+            m_function = [ptr, method](Args... args) { (ptr->*method)(args...); };
         }
         virtual ~ComponentDelegate() = default;
 
