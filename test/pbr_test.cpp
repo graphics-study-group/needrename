@@ -63,7 +63,7 @@ class PBRMeshComponent : public ObjTestMeshComponent {
     UniformData m_uniform_data{1.0, 1.0};
 
 public:
-    PBRMeshComponent(ObjectHandle parentObject) : ObjTestMeshComponent(parentObject), transform() {
+    PBRMeshComponent(GameObject *parentObject) : ObjTestMeshComponent(parentObject), transform() {
     }
 
     void LoadData(
@@ -209,10 +209,11 @@ int main(int argc, char **argv) {
     );
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*red_texture, {1.0, 0.0, 0.0, 1.0});
 
+    auto scene = std::make_unique<Scene>();
     // Setup mesh
     std::filesystem::path mesh_path{std::string(ENGINE_ASSETS_DIR) + "/meshes/sphere.obj"};
-    auto go = cmc->GetWorldSystem()->CreateGameObject();
-    auto tmc = &go.AddComponent<PBRMeshComponent>();
+    auto &go = scene->CreateGameObject();
+    auto tmc = &scene->CreateComponent<PBRMeshComponent>(go);
     tmc->LoadData(mesh_path, pbr_material, red_texture);
     rsys->GetRendererManager().RegisterRendererComponent(tmc);
 

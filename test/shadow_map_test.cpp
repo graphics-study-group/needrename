@@ -39,7 +39,7 @@ struct LowerPlaneMeshAsset : public PlaneMeshAsset {
 
 class ShadowMapMeshComponent : public ObjTestMeshComponent {
 public:
-    ShadowMapMeshComponent(ObjectHandle go) : ObjTestMeshComponent(go) {
+    ShadowMapMeshComponent(GameObject *parent) : ObjTestMeshComponent(parent) {
     }
 
     void LoadData(std::filesystem::path mesh_file_name, std::shared_ptr<MaterialInstance> instance) {
@@ -199,28 +199,29 @@ int main(int argc, char **argv) {
     floor_material_instance->AssignVectorVariable("specular_color", glm::vec4(1.0, 1.0, 1.0, 64.0));
     floor_material_instance->AssignTexture("base_tex", blank_color_gray);
 
+    auto scene = std::make_unique<Scene>();
     // Prepare mesh
-    auto floor_go = cmc->GetWorldSystem()->CreateGameObject();
+    auto &floor_go = scene->CreateGameObject();
     floor_go.GetTransformRef().SetScale({5.0f, 5.0f, 1.0f}).SetPosition({0.0f, 0.0f, 0.5f});
     auto floor_mesh_asset = std::make_shared<LowerPlaneMeshAsset>();
     auto floor_mesh_asset_ref = std::make_shared<AssetRef>(floor_mesh_asset);
-    auto floor_mesh_comp = cmc->GetWorldSystem()->CreateComponent<MeshComponent>(floor_go.GetHandle());
+    auto &floor_mesh_comp = scene->CreateComponent<MeshComponent>(floor_go);
     floor_mesh_comp.m_mesh_asset = floor_mesh_asset_ref;
     floor_mesh_comp.GetMaterials().resize(1);
     floor_mesh_comp.GetMaterials()[0] = floor_material_instance;
     floor_mesh_comp.RenderInit();
     assert(floor_mesh_comp.GetSubmesh(0)->GetVertexAttribute().HasAttribute(VertexAttributeSemantic::Texcoord0));
 
-    auto cube_go = cmc->GetWorldSystem()->CreateGameObject();
+    auto &cube_go = scene->CreateGameObject();
     cube_go.GetTransformRef().SetScale({0.5f, 0.5f, 0.5f});
-    auto cube_mesh_comp = cmc->GetWorldSystem()->CreateComponent<ShadowMapMeshComponent>(cube_go.GetHandle());
+    auto &cube_mesh_comp = scene->CreateComponent<ShadowMapMeshComponent>(cube_go);
     cube_mesh_comp.LoadData(
         std::filesystem::path{std::string(ENGINE_ASSETS_DIR) + "/meshes/cube.obj"}, object_material_instance
     );
 
-    auto shpere_go = cmc->GetWorldSystem()->CreateGameObject();
+    auto &shpere_go = scene->CreateGameObject();
     shpere_go.GetTransformRef().SetScale({0.5f, 0.5f, 0.5f}).SetPosition({1.0f, 2.0f, 0.0f});
-    auto sphere_mesh_comp = cmc->GetWorldSystem()->CreateComponent<ShadowMapMeshComponent>(shpere_go.GetHandle());
+    auto &sphere_mesh_comp = scene->CreateComponent<ShadowMapMeshComponent>(shpere_go);
     sphere_mesh_comp.LoadData(
         std::filesystem::path{std::string(ENGINE_ASSETS_DIR) + "/meshes/sphere.obj"}, object_material_instance
     );

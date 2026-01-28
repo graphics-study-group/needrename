@@ -22,7 +22,7 @@ using namespace Engine;
 
 class ControlComponent : public Component {
 public:
-    ControlComponent(ObjectHandle gameObject) : Component(gameObject) {
+    ControlComponent(GameObject *parent) : Component(parent) {
     }
 
     std::shared_ptr<CameraComponent> m_camera{};

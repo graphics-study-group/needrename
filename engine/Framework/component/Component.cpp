@@ -2,7 +2,7 @@
 #include <Framework/object/GameObject.h>
 
 namespace Engine {
-    Component::Component(ObjectHandle parent_object) : m_parentGameObject(parent_object) {
+    Component::Component(GameObject *parent) : m_parentGameObject(parent->GetHandle()), m_scene(parent->m_scene) {
     }
 
     void Component::Init() {
@@ -17,7 +17,7 @@ namespace Engine {
 
     GameObject *Component::GetParentGameObject() const {
         if (!m_parentGameObject.IsValid()) return nullptr;
-        return WorldSystem::GetInstance().GetGameObject(m_parentGameObject);
+        return m_scene->GetGameObject(m_parentGameObject);
     }
 
     bool Component::operator==(const Component &other) const noexcept {

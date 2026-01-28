@@ -28,7 +28,7 @@ void Start() {
     auto world = cmc->GetWorldSystem();
     auto event_queue = cmc->GetEventQueue();
     event_queue->Clear();
-    world->AddInitEvent();
+    world->GetMainSceneRef().AddInitEvent();
 }
 
 int main() {
@@ -84,10 +84,10 @@ int main() {
 
         if (game_widget->m_accept_input) cmc->GetInputSystem()->Update();
         else cmc->GetInputSystem()->ResetAxes();
-        world->FlushCmdQueue();
+        world->GetMainSceneRef().FlushCmdQueue();
 
         if (main_window.m_is_playing) {
-            world->AddTickEvent();
+            world->GetMainSceneRef().AddTickEvent();
             event_queue->ProcessEvents();
         }
         rsys->StartFrame();

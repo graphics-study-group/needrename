@@ -16,7 +16,7 @@ namespace Engine {
     class ObjTestMeshComponent : public MeshComponent {
 
     public:
-        ObjTestMeshComponent(ObjectHandle go) : MeshComponent(go) {
+        ObjTestMeshComponent(GameObject *parent) : MeshComponent(parent) {
         }
 
         ~ObjTestMeshComponent() {

@@ -2,7 +2,7 @@
 #define FRAMEWORK_OBJECT_GAMEOBJECT_INCLUDED
 
 #include <Core/Math/Transform.h>
-#include <Framework/world/WorldSystem.h>
+#include <Framework/world/Scene.h>
 #include <Reflection/macros.h>
 #include <Reflection/serialization_smart_pointer.h>
 #include <Reflection/serialization_vector.h>
@@ -14,15 +14,20 @@ namespace Engine {
     class Component;
     class TransformComponent;
 
-    class REFL_SER_CLASS(REFL_BLACKLIST) GameObject {
+    class REFL_SER_CLASS(REFL_WHITELIST) GameObject {
         REFL_SER_BODY(GameObject)
-    private:
-        friend class WorldSystem;
-        // GameObject must be created by WorldSystem's factory function
-        GameObject() = default;
+    protected:
+        friend class Scene;
+        friend class Component;
+        // GameObject must be created by Scene's factory function
+        GameObject(Scene *scene);
 
     public:
         virtual ~GameObject() = default;
+        GameObject(const GameObject &other) = delete;
+        GameObject(GameObject &&other) = delete;
+        GameObject &operator=(const GameObject &other) = delete;
+        GameObject &operator=(GameObject &&other) = delete;
 
         /// @brief Add a component of type T to the GameObject.
         /// @tparam T T must be derived from Component
@@ -30,7 +35,7 @@ namespace Engine {
         template <typename T>
         T &AddComponent() {
             static_assert(std::is_base_of_v<Component, T>, "T must be derived from Component");
-            return WorldSystem::GetInstance().CreateComponent<T>(m_handle);
+            return m_scene->CreateComponent<T>(*this);
         }
 
         const Transform &GetTransform() const;
@@ -51,6 +56,7 @@ namespace Engine {
         std::vector<ComponentHandle> m_components{};
 
     protected:
+        Scene *m_scene{};
         ObjectHandle m_handle{};
     };
 } // namespace Engine

@@ -19,6 +19,7 @@
 #include <Asset/Mesh/MeshAsset.h>
 #include <Framework/object/GameObject.h>
 #include <Framework/world/WorldSystem.h>
+#include <Framework/world/Scene.h>
 
 #include "cmake_config.h"
 
@@ -122,7 +123,7 @@ class MeshComponentFromFile : public MeshComponent {
     }
 
 public:
-    MeshComponentFromFile(ObjectHandle parent) : MeshComponent(parent), transform() {
+    MeshComponentFromFile(GameObject *parent) : MeshComponent(parent), transform() {
     }
 
     void LoadFile(std::filesystem::path mesh_file_name) {
@@ -252,10 +253,11 @@ int main(int argc, char **argv) {
     RenderGraphBuilder rgb{*rsys};
     auto rg{rgb.BuildDefaultRenderGraph(*color, *depth, gsys.get())};
 
+    auto scene = std::make_unique<Scene>();
     // Setup mesh
     std::filesystem::path mesh_path{std::string(ENGINE_ASSETS_DIR) + "/four_bunny/four_bunny.obj"};
-    auto go = cmc->GetWorldSystem()->CreateGameObject();
-    auto tmc = &cmc->GetWorldSystem()->CreateComponent<MeshComponentFromFile>(go.GetHandle());
+    auto &go = scene->CreateGameObject();
+    auto tmc = &scene->CreateComponent<MeshComponentFromFile>(go);
     tmc->LoadFile(mesh_path);
     rsys->GetRendererManager().RegisterRendererComponent(tmc);
 

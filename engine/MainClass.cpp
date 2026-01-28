@@ -195,9 +195,9 @@ namespace Engine {
         }
 
         this->input->Update();
-        this->world->FlushCmdQueue();
+        this->world->GetMainSceneRef().FlushCmdQueue();
         // TODO: add input event
-        this->world->AddTickEvent();
+        this->world->GetMainSceneRef().AddTickEvent();
         // this->gui->PrepareGUI();
 
         this->event_queue->ProcessEvents();

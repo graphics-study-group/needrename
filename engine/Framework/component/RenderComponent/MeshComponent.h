@@ -14,7 +14,7 @@ namespace Engine {
         std::vector<std::shared_ptr<HomogeneousMesh>> m_submeshes{};
 
     public:
-        REFL_ENABLE MeshComponent(ObjectHandle gameObject);
+        REFL_ENABLE MeshComponent(GameObject *parent);
         virtual ~MeshComponent() = default;
 
         std::shared_ptr<HomogeneousMesh> GetSubmesh(uint32_t slot) const;

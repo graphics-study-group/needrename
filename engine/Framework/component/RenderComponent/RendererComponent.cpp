@@ -12,7 +12,7 @@
 #include <Render/Pipeline/Material/MaterialInstance.h>
 
 namespace Engine {
-    RendererComponent::RendererComponent(ObjectHandle gameObject) : Component(gameObject) {
+    RendererComponent::RendererComponent(GameObject *parent) : Component(parent) {
         m_system = MainClass::GetInstance()->GetRenderSystem();
     }
 

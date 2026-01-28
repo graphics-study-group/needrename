@@ -30,7 +30,7 @@
 
 using namespace Engine;
 
-SpinningComponent::SpinningComponent(ObjectHandle gameObject) : Component(gameObject) {
+SpinningComponent::SpinningComponent(GameObject *parent) : Component(parent) {
 }
 
 void SpinningComponent::Init() {
@@ -39,7 +39,7 @@ void SpinningComponent::Init() {
 
 void SpinningComponent::Tick() {
     float dt = MainClass::GetInstance()->GetTimeSystem()->GetDeltaTimeInSeconds();
-    auto go = WorldSystem::GetInstance().GetGameObject(m_parentGameObject);
+    auto go = m_scene->GetGameObject(m_parentGameObject);
     if (go) {
         auto &transform = go->GetTransformRef();
         transform.SetRotation(
@@ -48,7 +48,7 @@ void SpinningComponent::Tick() {
     }
 }
 
-ControlComponent::ControlComponent(ObjectHandle gameObject) : Component(gameObject) {
+ControlComponent::ControlComponent(GameObject *parent) : Component(parent) {
 }
 
 void ControlComponent::Tick() {
@@ -60,7 +60,7 @@ void ControlComponent::Tick() {
     auto roll_right = input->GetAxisRaw("roll right");
     auto look_x = input->GetAxisRaw("look x");
     auto look_y = input->GetAxisRaw("look y");
-    Transform &transform = WorldSystem::GetInstance().GetGameObjectRef(m_parentGameObject).GetTransformRef();
+    Transform &transform = m_scene->GetGameObjectRef(m_parentGameObject).GetTransformRef();
     float dt = MainClass::GetInstance()->GetTimeSystem()->GetDeltaTimeInSeconds();
     transform.SetRotation(
         transform.GetRotation()
@@ -79,7 +79,7 @@ void Start() {
     auto world = cmc->GetWorldSystem();
     auto event_queue = cmc->GetEventQueue();
     event_queue->Clear();
-    world->AddInitEvent();
+    world->GetMainSceneRef().AddInitEvent();
 }
 
 int main() {
@@ -173,10 +173,10 @@ int main() {
 
         if (game_widget->m_accept_input) cmc->GetInputSystem()->Update();
         else cmc->GetInputSystem()->ResetAxes();
-        world->FlushCmdQueue();
+        world->GetMainSceneRef().FlushCmdQueue();
 
         if (main_window.m_is_playing) {
-            world->AddTickEvent();
+            world->GetMainSceneRef().AddTickEvent();
             event_queue->ProcessEvents();
         }
 

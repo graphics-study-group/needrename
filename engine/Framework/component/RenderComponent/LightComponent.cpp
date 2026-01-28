@@ -2,6 +2,6 @@
 
 namespace Engine
 {
-    LightComponent::LightComponent(ObjectHandle gameObject) : Component(gameObject) {
+    LightComponent::LightComponent(GameObject *parent) : Component(parent) {
     }
 }

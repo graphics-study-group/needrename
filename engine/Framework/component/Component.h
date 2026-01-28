@@ -7,18 +7,23 @@
 #include <Framework/world/Handle.h>
 
 namespace Engine {
+    class Scene;
     class GameObject;
 
     class REFL_SER_CLASS(REFL_WHITELIST) Component {
         REFL_SER_BODY(Component)
 
     protected:
-        friend class WorldSystem;
+        friend class Scene;
         Component() = delete;
-        Component(ObjectHandle parent_object);
+        Component(GameObject *parent);
     
     public:
         virtual ~Component() = default;
+        Component(const Component &other) = delete;
+        Component(Component &&other) = delete;
+        Component &operator=(const Component &other) = delete;
+        Component &operator=(Component &&other) = delete;
 
         /// @brief Initialize the component. Called when the parent GameObject before the first Tick after the
         /// GameObject is created.
@@ -35,6 +40,7 @@ namespace Engine {
         ObjectHandle m_parentGameObject{};
 
     protected:
+        Scene *m_scene{};
         ComponentHandle m_handle{};
     };
 } // namespace Engine

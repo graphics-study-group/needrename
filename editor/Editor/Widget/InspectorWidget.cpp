@@ -18,11 +18,11 @@ namespace Editor {
     }
 
     void InspectorWidget::Render() {
-        auto world = Engine::MainClass::GetInstance()->GetWorldSystem();
+        auto &scene = Engine::MainClass::GetInstance()->GetWorldSystem()->GetMainSceneRef();
         if (ImGui::Begin(m_name.c_str())) {
             switch (m_inspector_mode) {
             case InspectorMode::kInspectorModeGameObject: {
-                auto game_object = world->GetGameObject(std::any_cast<ObjectHandle>(m_inspected_object));
+                auto game_object = scene.GetGameObject(std::any_cast<ObjectHandle>(m_inspected_object));
                 if (!game_object) {
                     ImGui::Text("No GameObject selected");
                     break;
@@ -31,7 +31,7 @@ namespace Editor {
                 ImGui::Separator();
                 unsigned int component_idx = 0;
                 for (auto component_handle : game_object->m_components) {
-                    auto component = world->GetComponent(component_handle);
+                    auto component = scene.GetComponent(component_handle);
                     ImGui::PushID(component_idx++);
                     auto component_type = Engine::Reflection::GetTypeFromObject(*component);
                     if (ImGui::TreeNodeEx("", ImGuiTreeNodeFlags_None, "<%s>", component_type->GetName().c_str())) {
@@ -71,7 +71,7 @@ namespace Editor {
                         if (ImGui::MenuItem(component_type_name.c_str())) {
                             auto component_type = Engine::Reflection::GetType(component_type_name);
                             if (component_type) {
-                                world->CreateComponent(game_object->GetHandle(), *component_type);
+                                scene.CreateComponent(*game_object, *component_type);
                             }
                         }
                     }

@@ -17,7 +17,7 @@ namespace Engine {
         void AddEvent(DelegatePtr event);
         template <typename T>
         void AddEvent(ComponentHandle object, void (T::*method)()) {
-            m_events.push(std::make_unique<ComponentDelegate<>>(m_world, object, method));
+            m_events.push(std::make_unique<ComponentDelegate<>>(m_world.GetMainSceneRef(), object, method));
         }
         void ProcessEvents();
 

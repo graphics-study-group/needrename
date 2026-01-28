@@ -14,7 +14,7 @@ namespace Editor {
     }
 
     void HierarchyWidget::Render() {
-        auto world = Engine::MainClass::GetInstance()->GetWorldSystem();
+        auto &scene = Engine::MainClass::GetInstance()->GetWorldSystem()->GetMainSceneRef();
         bool selected_changed = false;
         ObjectHandle need_remove_go;
         ObjectHandle need_rename_go;
@@ -26,7 +26,7 @@ namespace Editor {
             }
             if (ImGui::BeginPopup("HierarchyAddMenu")) {
                 if (ImGui::MenuItem("Create Empty GameObject")) {
-                    auto go = world->CreateGameObject();
+                    auto &go = scene.CreateGameObject();
                     go.m_name = "New GameObject";
                 }
                 ImGui::MenuItem("Create Light");
@@ -46,7 +46,7 @@ namespace Editor {
             ImGui::Separator();
 
             uint32_t index = 0;
-            for (const auto &go : world->GetGameObjects()) {
+            for (const auto &go : scene.GetGameObjects()) {
                 // Filter by search string if present
                 if (!m_search.empty()) {
                     std::string name = go->m_name;
@@ -106,7 +106,7 @@ namespace Editor {
                 // F2 to rename
                 if (ImGui::IsKeyPressed(ImGuiKey_F2)) {
                     m_renaming_game_object = m_selected_game_object;
-                    m_rename_buffer = world->GetGameObjectRef(m_selected_game_object).m_name;
+                    m_rename_buffer = scene.GetGameObjectRef(m_selected_game_object).m_name;
                 }
                 // Delete to remove
                 if (ImGui::IsKeyPressed(ImGuiKey_Delete)) {
@@ -121,10 +121,10 @@ namespace Editor {
                 m_selected_game_object.Reset();
                 selected_changed = true;
             }
-            world->RemoveGameObject(need_remove_go);
+            scene.RemoveGameObject(need_remove_go);
         }
         if (need_rename_go.IsValid()) {
-            world->GetGameObjectRef(need_rename_go).m_name = m_rename_buffer;
+            scene.GetGameObjectRef(need_rename_go).m_name = m_rename_buffer;
         }
 
         if (selected_changed) {
