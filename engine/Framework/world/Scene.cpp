@@ -184,10 +184,12 @@ namespace Engine {
         asset.m_scene->FlushCmdQueue();
         for (auto &go : asset.m_scene->m_game_objects) {
             go->m_scene = this;
+            m_go_map[go->GetHandle()] = go.get();
             m_go_add_queue.push_back(std::move(go));
         }
         for (auto &comp : asset.m_scene->m_components) {
             comp->m_scene = this;
+            m_comp_map[comp->GetHandle()] = comp.get();
             m_comp_add_queue.push_back(std::move(comp));
         }
         asset.m_scene->Clear();

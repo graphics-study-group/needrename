@@ -3,6 +3,7 @@
 #include <Framework/object/GameObject.h>
 #include <Framework/world/Scene.h>
 #include <Reflection/Archive.h>
+#include <Reflection/reflection.h>
 #include <Reflection/serialization.h>
 
 namespace Engine {
@@ -41,14 +42,20 @@ namespace Engine {
             );
             go.m_scene = m_scene.get();
             Serialization::deserialize(go, temp_archive);
+            m_scene->m_go_map[go.GetHandle()] = &go;
         }
         for (auto &js : json["components"]) {
             Serialization::Archive temp_archive(archive, &js);
+            auto type = Reflection::GetType(js["%type"].get<std::string>());
+            assert(type);
+            auto comp_var = type->CreateInstance(Serialization::SerializationMarker{});
+            comp_var.MarkNeedFree(false);
             auto &comp = *m_scene->m_components.emplace_back(
-                std::unique_ptr<Component>(new Component(Serialization::SerializationMarker{}))
+                std::unique_ptr<Component>(static_cast<Component *>(comp_var.GetDataPtr()))
             );
             comp.m_scene = m_scene.get();
             Serialization::deserialize(comp, temp_archive);
+            m_scene->m_comp_map[comp.GetHandle()] = &comp;
         }
     }
 

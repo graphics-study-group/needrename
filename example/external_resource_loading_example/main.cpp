@@ -57,7 +57,6 @@ int main(int argc, char **argv) {
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading project");
     cmc->LoadProject(project_path);
 
-    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Importing external resource");
     std::filesystem::path path_in_project = "/";
     Engine::Importer::ImportExternalResource(mesh_path, path_in_project);
 
