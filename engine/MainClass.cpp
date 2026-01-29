@@ -87,7 +87,8 @@ namespace Engine {
 
         // XXX: this should load from pipeline asset. it contains shader asset (comp)
         this->render_graph_builder = std::make_unique<ComplexRenderGraphBuilder>(*this->renderer);
-        this->render_graph = std::move(this->render_graph_builder->BuildDefaultRenderGraph(this->window->GetColorTexture(), this->window->GetDepthTexture()));
+        auto [w, h] = this->window->GetSize();
+        this->render_graph = std::move(this->render_graph_builder->BuildDefaultRenderGraph(w, h));
     }
 
     void MainClass::Initialize(
@@ -110,7 +111,6 @@ namespace Engine {
         this->input = std::make_shared<Input>();
 
         this->renderer->Create();
-        this->window->CreateRenderTargets(this->renderer);
         this->gui->Create(this->window->GetWindow());
         Reflection::Initialize();
 
@@ -206,11 +206,11 @@ namespace Engine {
 
         this->renderer->StartFrame();
         this->render_graph->Execute();
+        auto [w, h] = this->window->GetSize();
         this->renderer->CompleteFrame(
-            *this->window->GetColorTexture(),
+            *this->render_graph->GetInternalTextureResource(this->render_graph_builder->GetFinalColorAttachmentID()),
             this->render_graph_builder->GetColorAttachmentAccessType(),
-            this->window->GetExtent().width,
-            this->window->GetExtent().height
+            w, h
         );
     }
 } // namespace Engine

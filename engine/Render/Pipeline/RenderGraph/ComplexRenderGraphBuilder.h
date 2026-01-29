@@ -15,19 +15,14 @@ namespace Engine {
         ComplexRenderGraphBuilder(RenderSystem &system);
         ~ComplexRenderGraphBuilder() = default;
 
-        std::unique_ptr<RenderGraph> BuildDefaultRenderGraph(
-            std::shared_ptr<const RenderTargetTexture> color_target_ptr,
-            std::shared_ptr<const RenderTargetTexture> depth_target_ptr
-        );
-        
+        std::unique_ptr<RenderGraph> BuildDefaultRenderGraph(uint32_t width, uint32_t height);
+
         MemoryAccessTypeImageBits GetColorAttachmentAccessType() const;
+        uint32_t GetFinalColorAttachmentID() const;
 
     protected:
-        std::shared_ptr<RenderTargetTexture> m_shadow_target{};
-        std::shared_ptr<RenderTargetTexture> m_hdr_color_target{};
-        std::shared_ptr<RenderTargetTexture> m_bloom_temp{};
-
         std::shared_ptr<AssetRef> m_bloom_shader{};
+        uint32_t m_final_color_attachment_id{0};
     };
 } // namespace Engine
 

@@ -46,7 +46,7 @@ int main(int argc, char **argv) {
     rgb.UseImage(c, MemoryAccessTypeImageBits::ColorAttachmentDefault);
     rgb.RecordRasterizerPassWithoutRT(
         [&] (GraphicsCommandBuffer & gcb, const RenderGraph & rg) -> void {
-            auto color = rg->GetInternalTextureResource(c);
+            auto color = rg.GetInternalTextureResource(c);
             gsys->DrawGUI(
                 AttachmentUtils::AttachmentDescription{
                     color, nullptr,

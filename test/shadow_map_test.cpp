@@ -133,27 +133,6 @@ int main(int argc, char **argv) {
     rsys->GetSceneDataManager().SetLightDirectional(0, glm::vec3{1.0f, 1.0f, 1.0f}, glm::vec3{1.0f, 1.0f, 1.0f});
     rsys->GetSceneDataManager().SetLightCount(1);
 
-    // Prepare attachments
-    Engine::RenderTargetTexture::RenderTargetTextureDesc desc{
-        .dimensions = 2,
-        .width = 1920,
-        .height = 1080,
-        .depth = 1,
-        .mipmap_levels = 1,
-        .array_layers = 1,
-        .format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R8G8B8A8UNorm,
-        .multisample = 1,
-        .is_cube_map = false
-    };
-    std::shared_ptr color =
-        Engine::RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Color attachment");
-    desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::D32SFLOAT;
-    std::shared_ptr depth =
-        Engine::RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Depth attachment");
-    desc.width = desc.height = 2048;
-    std::shared_ptr shadow =
-        Engine::RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Shadowmap Light 0");
-    rsys->GetSceneDataManager().SetLightShadowMap(0, shadow);
     auto idesc = ImageTexture::ImageTextureDesc{
         .dimensions = 2,
         .width = 16,
@@ -255,7 +234,7 @@ int main(int argc, char **argv) {
         [rsys, s, test_library, object_material_instance](GraphicsCommandBuffer &gcb, const RenderGraph & rg) {
             vk::Extent2D shadow_map_extent{2048, 2048};
             vk::Rect2D shadow_map_scissor{{0, 0}, shadow_map_extent};
-            auto sm = rg->GetInternalTextureResource(s);
+            auto sm = rg.GetInternalTextureResource(s);
             rsys->GetSceneDataManager().SetLightShadowMap(0, *sm);
             gcb.BeginRendering(
                 {nullptr},

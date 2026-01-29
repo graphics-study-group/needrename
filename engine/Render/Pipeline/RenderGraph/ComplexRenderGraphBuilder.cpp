@@ -15,14 +15,27 @@ namespace Engine {
     ComplexRenderGraphBuilder::ComplexRenderGraphBuilder(RenderSystem &system) : RenderGraphBuilder(system) {
     }
 
-    std::unique_ptr<RenderGraph> ComplexRenderGraphBuilder::BuildDefaultRenderGraph(
-        std::shared_ptr<const RenderTargetTexture> color_target_ptr,
-        std::shared_ptr<const RenderTargetTexture> depth_target_ptr
-    ) {
-        auto &color_target = *color_target_ptr;
-        auto &depth_target = *depth_target_ptr;
+    std::unique_ptr<RenderGraph> ComplexRenderGraphBuilder::BuildDefaultRenderGraph(uint32_t width, uint32_t height) {
+        RenderTargetTexture::RenderTargetTextureDesc rtt_desc{
+            .dimensions = 2,
+            .width = 1920,
+            .height = 1080,
+            .depth = 1,
+            .mipmap_levels = 1,
+            .array_layers = 1,
+            .format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R8G8B8A8UNorm,
+            .multisample = 1,
+            .is_cube_map = false
+        };
+        auto color_id = this->RequestRenderTargetTexture(rtt_desc, Texture::SamplerDesc{});
+        m_final_color_attachment_id = color_id;
+        rtt_desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R11G11B10UFloat;
+        auto hdr_color_id = this->RequestRenderTargetTexture(rtt_desc, Texture::SamplerDesc{});
+        auto bloom_temp_id = this->RequestRenderTargetTexture(rtt_desc, Texture::SamplerDesc{});
+        rtt_desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::D32SFLOAT;
+        auto depth_id = this->RequestRenderTargetTexture(rtt_desc, Texture::SamplerDesc{});
 
-        RenderTargetTexture::RenderTargetTextureDesc desc{
+        RenderTargetTexture::RenderTargetTextureDesc shadow_desc{
             .dimensions = 2,
             .width = SHADOWMAP_WIDTH,
             .height = SHADOWMAP_HEIGHT,
@@ -33,21 +46,7 @@ namespace Engine {
             .multisample = 1,
             .is_cube_map = false
         };
-        m_shadow_target =
-            Engine::RenderTargetTexture::CreateUnique(m_system, desc, Texture::SamplerDesc{}, "Shadowmap Light 0");
-        m_system.GetSceneDataManager().SetLightShadowMap(0, m_shadow_target);
-
-        desc.width = color_target.GetTextureDescription().width,
-        desc.height = color_target.GetTextureDescription().height,
-        desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R11G11B10UFloat,
-        m_hdr_color_target =
-            RenderTargetTexture::CreateUnique(m_system, desc, Texture::SamplerDesc{}, "HDR Color Attachment");
-        m_bloom_temp =
-            RenderTargetTexture::CreateUnique(m_system, desc, Texture::SamplerDesc{}, "Bloom Temp Attachment");
-
-        auto &shadow_target = *m_shadow_target;
-        auto &hdr_color_target = *m_hdr_color_target;
-        auto &bloom_temp = *m_bloom_temp;
+        auto shadow_id = this->RequestRenderTargetTexture(shadow_desc, Texture::SamplerDesc{});
 
         // XXX: Hardcoded bloom shader. Should use AssetManager to load shader when we have pipeline asset.
         auto &adb = *std::dynamic_pointer_cast<FileSystemDatabase>(MainClass::GetInstance()->GetAssetDatabase());
@@ -56,28 +55,18 @@ namespace Engine {
         amg.LoadAssetImmediately(m_bloom_shader);
         auto bloom_compute_stage = std::make_shared<ComputeStage>(m_system);
         bloom_compute_stage->Instantiate(*m_bloom_shader->cas<ShaderAsset>());
-        bloom_compute_stage->AssignTexture("inputImage", m_hdr_color_target);
-        bloom_compute_stage->AssignTexture("bloomTemp", m_bloom_temp);
-        bloom_compute_stage->AssignTexture("outputImage", color_target_ptr);
-
-        this->ImportExternalResource(color_target);
-        this->ImportExternalResource(depth_target);
-        this->ImportExternalResource(hdr_color_target);
-        this->ImportExternalResource(bloom_temp);
-        this->ImportExternalResource(shadow_target);
 
         auto &system = m_system;
         auto &world = *MainClass::GetInstance()->GetWorldSystem();
         using IAT = MemoryAccessTypeImageBits;
-        this->UseImage(*m_shadow_target, IAT::DepthStencilAttachmentWrite);
-        this->RecordRasterizerPassWithoutRT([&system, &shadow_target](GraphicsCommandBuffer &gcb) {
-            vk::Extent2D shadow_map_extent{
-                shadow_target.GetTextureDescription().width, shadow_target.GetTextureDescription().height
-            };
+        this->UseImage(shadow_id, IAT::DepthStencilAttachmentWrite);
+        this->RecordRasterizerPassWithoutRT([&system, &shadow_id](GraphicsCommandBuffer &gcb, const RenderGraph &rg) {
+            vk::Extent2D shadow_map_extent{SHADOWMAP_WIDTH, SHADOWMAP_HEIGHT};
             vk::Rect2D shadow_map_scissor{{0, 0}, shadow_map_extent};
+            auto shadow_map_target = rg.GetInternalTextureResource(shadow_id);
             gcb.BeginRendering(
                 {nullptr},
-                {&shadow_target,
+                {shadow_map_target,
                  nullptr,
                  AttachmentUtils::LoadOperation::Clear,
                  AttachmentUtils::StoreOperation::Store,
@@ -92,17 +81,16 @@ namespace Engine {
             gcb.EndRendering();
         });
 
-        this->UseImage(shadow_target, IAT::ShaderSampledRead);
-        this->UseImage(hdr_color_target, IAT::ColorAttachmentWrite);
-        this->UseImage(depth_target, IAT::DepthStencilAttachmentWrite);
+        this->UseImage(shadow_id, IAT::ShaderSampledRead);
+        this->UseImage(hdr_color_id, IAT::ColorAttachmentWrite);
+        this->UseImage(depth_id, IAT::DepthStencilAttachmentWrite);
         this->RecordRasterizerPass(
-            {&hdr_color_target, nullptr, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store},
-            {&depth_target,
-             nullptr,
+            {hdr_color_id, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store},
+            {depth_id,
              AttachmentUtils::LoadOperation::Clear,
              AttachmentUtils::StoreOperation::DontCare,
              AttachmentUtils::DepthClearValue{1.0f, 0U}},
-            [&system, &world](GraphicsCommandBuffer &gcb) {
+            [&system, &world](GraphicsCommandBuffer &gcb, const RenderGraph &) {
                 vk::Extent2D extent{system.GetSwapchain().GetExtent()};
                 vk::Rect2D scissor{{0, 0}, extent};
                 gcb.SetupViewport(extent.width, extent.height, scissor);
@@ -114,28 +102,32 @@ namespace Engine {
                     world.GetActiveCamera()->GetProjectionMatrix()
                 );
             },
-            "Main pass"
+            "Main Lit pass"
         );
 
-        this->UseImage(hdr_color_target, IAT::ShaderRandomRead);
-        this->UseImage(bloom_temp, IAT::ShaderRandomDefault);
-        this->UseImage(color_target, IAT::ShaderRandomWrite);
+        this->UseImage(hdr_color_id, IAT::ShaderRandomRead);
+        this->UseImage(bloom_temp_id, IAT::ShaderRandomDefault);
+        this->UseImage(color_id, IAT::ShaderRandomWrite);
         this->RecordComputePass(
-            [bloom_compute_stage, &color_target](ComputeCommandBuffer &ccb) {
+            [bloom_compute_stage, width, height](ComputeCommandBuffer &ccb, const RenderGraph &) {
                 ccb.BindComputeStage(*bloom_compute_stage);
-                ccb.DispatchCompute(
-                    color_target.GetTextureDescription().width / 16 + 1,
-                    color_target.GetTextureDescription().height / 16 + 1,
-                    1
-                );
+                ccb.DispatchCompute(width / 16 + 1, height / 16 + 1, 1);
             },
             "Bloom FX pass"
         );
 
-        return this->BuildRenderGraph();
+        auto rg{this->BuildRenderGraph()};
+
+        bloom_compute_stage->AssignTexture("inputImage", *rg->GetInternalTextureResource(hdr_color_id));
+        bloom_compute_stage->AssignTexture("bloomTemp", *rg->GetInternalTextureResource(bloom_temp_id));
+        bloom_compute_stage->AssignTexture("outputImage", *rg->GetInternalTextureResource(color_id));
+        return rg;
     }
 
     MemoryAccessTypeImageBits ComplexRenderGraphBuilder::GetColorAttachmentAccessType() const {
         return MemoryAccessTypeImageBits::ShaderRandomWrite;
+    }
+    uint32_t ComplexRenderGraphBuilder::GetFinalColorAttachmentID() const {
+        return m_final_color_attachment_id;
     }
 } // namespace Engine
