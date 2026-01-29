@@ -110,7 +110,7 @@ namespace Engine {
             database->SaveArchive(archive, AssetPath(*database, path_in_project / (texture->m_name + ".asset")));
         }
 
-        std::unique_ptr<Scene> temp_scene = std::make_unique<Scene>();
+        std::shared_ptr<Scene> temp_scene = std::make_shared<Scene>();
         auto &go = temp_scene->CreateGameObject();
         go.m_name = m_mesh_asset->m_name;
         auto &mesh_component = go.AddComponent<MeshComponent>();

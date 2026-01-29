@@ -80,8 +80,12 @@ int main(int argc, char **argv) {
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Entering main loop");
     cmc->LoopFinite(max_frame_count, 0.0f);
-
     std::filesystem::remove_all(project_path);
+
+    // cmc->LoopFinite(60, 0.0f);
+    // Serialization::Archive archive;
+    // cmc->GetWorldSystem()->SaveLevelToArchive(archive);
+    // adb->SaveArchive(archive, AssetPath(*adb, "new_level.asset"));
 
     return 0;
 }

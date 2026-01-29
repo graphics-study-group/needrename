@@ -7,7 +7,7 @@
 #include <Reflection/serialization.h>
 
 namespace Engine {
-    SceneAsset::SceneAsset(std::unique_ptr<Scene> &&scene) : m_scene(std::move(scene)) {
+    SceneAsset::SceneAsset(std::shared_ptr<Scene> scene) : m_scene(scene) {
         m_scene->FlushCmdQueue();
     }
 

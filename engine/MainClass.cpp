@@ -61,6 +61,7 @@ namespace Engine {
         GUID default_level_guid(project_config["default_level"].get<std::string>());
         auto level_asset =
             std::dynamic_pointer_cast<LevelAsset>(this->asset_manager->LoadAssetImmediately(default_level_guid));
+        this->world->GetMainSceneRef().AddSceneAsset(*level_asset);
         
         if (level_asset->m_skybox_material) {
             this->asset_manager->LoadAssetImmediately(level_asset->m_skybox_material);
@@ -74,6 +75,10 @@ namespace Engine {
             );
             material_instance->Instantiate(*level_asset->m_skybox_material->as<MaterialAsset>());
             this->renderer->GetSceneDataManager().SetSkyboxMaterial(material_instance);
+            this->world->m_skybox_material = level_asset->m_skybox_material;
+        }
+        if (level_asset->m_default_camera) {
+            this->world->SetActiveCamera(level_asset->m_default_camera);
         }
 
         auto active_camera = this->world->GetActiveCamera();

@@ -12,6 +12,10 @@
 #include <Render/RenderSystem/RendererManager.h>
 #include <Render/RenderSystem/SceneDataManager.h>
 
+#include <Asset/AssetRef.h>
+#include <Asset/Scene/LevelAsset.h>
+#include <Reflection/serialization.h>
+
 namespace Engine {
     WorldSystem::WorldSystem() {
         m_main_scene = std::make_unique<Scene>();
@@ -96,5 +100,14 @@ namespace Engine {
 
     Scene &WorldSystem::GetMainSceneRef() noexcept {
         return *m_main_scene;
+    }
+
+    void WorldSystem::SaveLevelToArchive(Serialization::Archive &archive) {
+        auto level_asset = std::make_unique<LevelAsset>(m_main_scene);
+        level_asset->m_default_camera = m_active_camera;
+        level_asset->m_skybox_material = m_skybox_material;
+        archive.clear();
+        archive.prepare_save();
+        level_asset->save_asset_to_archive(archive);
     }
 } // namespace Engine

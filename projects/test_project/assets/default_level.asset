@@ -1,393 +1,140 @@
 {
     "%data": {
         "&0": {
-            "LevelAsset::m_gameobjects": [
-                "&1",
-                "&9",
-                "&14",
-                "&19",
-                "&24",
-                "&29",
-                "&32"
+            "%type": "Engine::LevelAsset",
+            "Asset::m_guid": "3EDB7E730C82D1B43EDC10AA7378D452",
+            "LevelAsset::m_default_camera": "&6",
+            "LevelAsset::m_skybox_material": "&7",
+            "components": [
+                {
+                    "%type": "Engine::TransformComponent",
+                    "Component::m_handle": "F59442D8FDDD633A00E991B79BD819E3",
+                    "Component::m_parentGameObject": "1FF27D96C6FF32B9D11D4BEF11E16092",
+                    "TransformComponent::m_transform": {
+                        "%type": "Engine::Transform",
+                        "Transform::m_position": [
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        "Transform::m_rotation": [
+                            0.0,
+                            0.0,
+                            0.0,
+                            1.0
+                        ],
+                        "Transform::m_scale": [
+                            1.0,
+                            1.0,
+                            1.0
+                        ]
+                    }
+                },
+                {
+                    "%type": "Engine::MeshComponent",
+                    "Component::m_handle": "A5F26BB71931FB337D00442712AA282E",
+                    "Component::m_parentGameObject": "1FF27D96C6FF32B9D11D4BEF11E16092",
+                    "MeshComponent::m_mesh_asset": "&5",
+                    "RendererComponent::m_cast_shadow": false,
+                    "RendererComponent::m_is_eagerly_loaded": false,
+                    "RendererComponent::m_layer": 4294967295,
+                    "RendererComponent::m_material_assets": [
+                        "&1",
+                        "&2",
+                        "&3",
+                        "&4"
+                    ],
+                    "RendererComponent::m_priority": 0
+                },
+                {
+                    "%type": "Engine::TransformComponent",
+                    "Component::m_handle": "9C5412EB2E00655E27E9AAB4E2DC4FD9",
+                    "Component::m_parentGameObject": "33F8D6C6FF9C23DA2A50E58E4ADB8A08",
+                    "TransformComponent::m_transform": {
+                        "%type": "Engine::Transform",
+                        "Transform::m_position": [
+                            0.0,
+                            -0.699999988079071,
+                            0.5
+                        ],
+                        "Transform::m_rotation": [
+                            -0.258819043636322,
+                            0.0,
+                            0.0,
+                            0.9659258127212524
+                        ],
+                        "Transform::m_scale": [
+                            1.0,
+                            1.0,
+                            1.0
+                        ]
+                    }
+                },
+                {
+                    "%type": "Engine::CameraComponent",
+                    "CameraComponent::m_camera": "&6",
+                    "Component::m_handle": "719ACE4E38B48BAF65FC9F95C9688AFD",
+                    "Component::m_parentGameObject": "33F8D6C6FF9C23DA2A50E58E4ADB8A08"
+                }
             ],
-            "LevelAsset::m_default_camera": "&12",
-            "LevelAsset::m_skybox_material": "&13",
-            "Asset::m_guid": "FF182376000000000000000000000000",
-            "%type": "Engine::LevelAsset"
+            "objects": [
+                {
+                    "%type": "Engine::GameObject",
+                    "GameObject::m_childGameObject": [],
+                    "GameObject::m_components": [
+                        "F59442D8FDDD633A00E991B79BD819E3",
+                        "A5F26BB71931FB337D00442712AA282E"
+                    ],
+                    "GameObject::m_handle": "1FF27D96C6FF32B9D11D4BEF11E16092",
+                    "GameObject::m_name": "four_bunny",
+                    "GameObject::m_parentGameObject": "00000000000000000000000000000000",
+                    "GameObject::m_transformComponent": "F59442D8FDDD633A00E991B79BD819E3"
+                },
+                {
+                    "%type": "Engine::GameObject",
+                    "GameObject::m_childGameObject": [],
+                    "GameObject::m_components": [
+                        "9C5412EB2E00655E27E9AAB4E2DC4FD9",
+                        "719ACE4E38B48BAF65FC9F95C9688AFD"
+                    ],
+                    "GameObject::m_handle": "33F8D6C6FF9C23DA2A50E58E4ADB8A08",
+                    "GameObject::m_name": "",
+                    "GameObject::m_parentGameObject": "00000000000000000000000000000000",
+                    "GameObject::m_transformComponent": "9C5412EB2E00655E27E9AAB4E2DC4FD9"
+                }
+            ]
         },
         "&1": {
-            "%type": "Engine::GameObject",
-            "GameObject::m_childGameObject": [],
-            "GameObject::m_components": [
-                "&2",
-                "&3"
-            ],
-            "GameObject::m_name": "four_bunny",
-            "GameObject::m_parentGameObject": null,
-            "GameObject::m_transformComponent": "&2"
+            "%type": "Engine::AssetRef",
+            "AssetRef::m_guid": "62DE25CD9119A9E0D0E84138B510390C"
         },
         "&2": {
-            "%type": "Engine::TransformComponent",
-            "Component::m_parentGameObject": "&1",
-            "TransformComponent::m_transform": {
-                "%type": "Engine::Transform",
-                "Transform::m_position": [
-                    0.0,
-                    0.0,
-                    0.0
-                ],
-                "Transform::m_rotation": [
-                    0.0,
-                    0.0,
-                    0.0,
-                    1.0
-                ],
-                "Transform::m_scale": [
-                    1.0,
-                    1.0,
-                    1.0
-                ]
-            }
+            "%type": "Engine::AssetRef",
+            "AssetRef::m_guid": "9B89970409A98F2E3C5937D9E3B30A88"
         },
         "&3": {
-            "%type": "Engine::MeshComponent",
-            "Component::m_parentGameObject": "&1",
-            "MeshComponent::m_mesh_asset": "&8",
-            "RendererComponent::m_cast_shadow": true,
-            "RendererComponent::m_is_eagerly_loaded": false,
-            "RendererComponent::m_layer": 4294967295,
-            "RendererComponent::m_material_assets": [
-                "&4",
-                "&5",
-                "&6",
-                "&7"
-            ],
-            "RendererComponent::m_priority": 0
+            "%type": "Engine::AssetRef",
+            "AssetRef::m_guid": "33644EC9F14B3CA212C209FF0365B694"
         },
         "&4": {
             "%type": "Engine::AssetRef",
-            "AssetRef::m_guid": "245193AFAB61F6CA966793CF86011D3B"
+            "AssetRef::m_guid": "9D4CB9CA085159D7C95FA5D1C9E8F648"
         },
         "&5": {
             "%type": "Engine::AssetRef",
-            "AssetRef::m_guid": "76448773FE0D73FFFD58BD6502397D57"
+            "AssetRef::m_guid": "083C2548800AB24479F834FA452BCB1E"
         },
         "&6": {
-            "%type": "Engine::AssetRef",
-            "AssetRef::m_guid": "BE4BA6F01E52962B627780AFB8835795"
+            "%type": "Engine::Camera",
+            "Camera::m_aspect_ratio": 1.7777777910232544,
+            "Camera::m_clipping_far": 1000.0,
+            "Camera::m_clipping_near": 0.0010000000474974513,
+            "Camera::m_display_id": 0,
+            "Camera::m_fov_vertical": 45.0
         },
         "&7": {
             "%type": "Engine::AssetRef",
-            "AssetRef::m_guid": "78DB8135E5BFDB51F551BC77D2941450"
-        },
-        "&8": {
-            "%type": "Engine::AssetRef",
-            "AssetRef::m_guid": "7D3805E5B6B33FD8B6FBF8D11E1BF3BE"
-        },
-        "&9": {
-            "%type": "Engine::GameObject",
-            "GameObject::m_childGameObject": [],
-            "GameObject::m_components": [
-                "&10",
-                "&11"
-            ],
-            "GameObject::m_name": "Camera",
-            "GameObject::m_parentGameObject": null,
-            "GameObject::m_transformComponent": "&10"
-        },
-        "&10": {
-            "%type": "Engine::TransformComponent",
-            "Component::m_parentGameObject": "&9",
-            "TransformComponent::m_transform": {
-                "%type": "Engine::Transform",
-                "Transform::m_position": [
-                    0.0,
-                    -0.7,
-                    0.5
-                ],
-                "Transform::m_rotation": [
-                    -0.259,
-                    0.0,
-                    0.0,
-                    0.966
-                ],
-                "Transform::m_scale": [
-                    1.0,
-                    1.0,
-                    1.0
-                ]
-            }
-        },
-        "&11": {
-            "%type": "Engine::CameraComponent",
-            "Component::m_parentGameObject": "&9",
-            "CameraComponent::m_camera": "&12"
-        },
-        "&12": {
-            "%type": "Engine::Camera",
-            "Camera::m_fov_vertical": 45.0,
-            "Camera::m_aspect_ratio": 1.777778,
-            "Camera::m_clipping_near": 0.001,
-            "Camera::m_clipping_far": 1000.0,
-            "Camera::m_display_id": 0
-        },
-        "&13": {
-            "%type": "Engine::AssetRef",
             "AssetRef::m_guid": "07BF9F33F68CCAB150A6078964D33EF1"
-        },
-        "&14": {
-            "%type": "Engine::GameObject",
-            "GameObject::m_childGameObject": [],
-            "GameObject::m_components": [
-                "&15",
-                "&16"
-            ],
-            "GameObject::m_name": "four_bunny",
-            "GameObject::m_parentGameObject": null,
-            "GameObject::m_transformComponent": "&15"
-        },
-        "&15": {
-            "%type": "Engine::TransformComponent",
-            "Component::m_parentGameObject": "&14",
-            "TransformComponent::m_transform": {
-                "%type": "Engine::Transform",
-                "Transform::m_position": [
-                    0.0,
-                    0.6,
-                    0.3
-                ],
-                "Transform::m_rotation": [
-                    0.0,
-                    0.0,
-                    0.0,
-                    1.0
-                ],
-                "Transform::m_scale": [
-                    0.1,
-                    0.1,
-                    0.1
-                ]
-            }
-        },
-        "&16": {
-            "%type": "Engine::MeshComponent",
-            "Component::m_parentGameObject": "&14",
-            "MeshComponent::m_mesh_asset": "&17",
-            "RendererComponent::m_cast_shadow": true,
-            "RendererComponent::m_is_eagerly_loaded": false,
-            "RendererComponent::m_layer": 4294967295,
-            "RendererComponent::m_material_assets": [
-                "&18"
-            ],
-            "RendererComponent::m_priority": 0
-        },
-        "&17": {
-            "%type": "Engine::AssetRef",
-            "AssetRef::m_guid": "8457638A83F0B8F2E64BA42E948BEB8A"
-        },
-        "&18": {
-            "%type": "Engine::AssetRef",
-            "AssetRef::m_guid": "622D0097A1291FCC44CBBF6F1F762E35"
-        },
-        "&19": {
-            "%type": "Engine::GameObject",
-            "GameObject::m_childGameObject": [],
-            "GameObject::m_components": [
-                "&20",
-                "&21"
-            ],
-            "GameObject::m_name": "four_bunny",
-            "GameObject::m_parentGameObject": null,
-            "GameObject::m_transformComponent": "&20"
-        },
-        "&20": {
-            "%type": "Engine::TransformComponent",
-            "Component::m_parentGameObject": "&19",
-            "TransformComponent::m_transform": {
-                "%type": "Engine::Transform",
-                "Transform::m_position": [
-                    0.0,
-                    0.0,
-                    -0.02
-                ],
-                "Transform::m_rotation": [
-                    0.0,
-                    0.0,
-                    0.0,
-                    1.0
-                ],
-                "Transform::m_scale": [
-                    1.0,
-                    1.0,
-                    0.02
-                ]
-            }
-        },
-        "&21": {
-            "%type": "Engine::MeshComponent",
-            "Component::m_parentGameObject": "&19",
-            "MeshComponent::m_mesh_asset": "&22",
-            "RendererComponent::m_cast_shadow": true,
-            "RendererComponent::m_is_eagerly_loaded": false,
-            "RendererComponent::m_layer": 4294967295,
-            "RendererComponent::m_material_assets": [
-                "&23"
-            ],
-            "RendererComponent::m_priority": 0
-        },
-        "&22": {
-            "%type": "Engine::AssetRef",
-            "AssetRef::m_guid": "66A947478DFF1F1F883236DAE46E3D98"
-        },
-        "&23": {
-            "%type": "Engine::AssetRef",
-            "AssetRef::m_guid": "622D0097A1291FCC44CBBF6F1F762E35"
-        },
-        "&24": {
-            "%type": "Engine::GameObject",
-            "GameObject::m_childGameObject": [],
-            "GameObject::m_components": [
-                "&25",
-                "&26"
-            ],
-            "GameObject::m_name": "four_bunny",
-            "GameObject::m_parentGameObject": null,
-            "GameObject::m_transformComponent": "&25"
-        },
-        "&25": {
-            "%type": "Engine::TransformComponent",
-            "Component::m_parentGameObject": "&24",
-            "TransformComponent::m_transform": {
-                "%type": "Engine::Transform",
-                "Transform::m_position": [
-                    0.2,
-                    0.3,
-                    0.3
-                ],
-                "Transform::m_rotation": [
-                    0.0,
-                    0.0,
-                    0.0,
-                    1.0
-                ],
-                "Transform::m_scale": [
-                    0.2,
-                    0.1,
-                    0.1
-                ]
-            }
-        },
-        "&26": {
-            "%type": "Engine::MeshComponent",
-            "Component::m_parentGameObject": "&24",
-            "MeshComponent::m_mesh_asset": "&27",
-            "RendererComponent::m_cast_shadow": true,
-            "RendererComponent::m_is_eagerly_loaded": false,
-            "RendererComponent::m_layer": 4294967295,
-            "RendererComponent::m_material_assets": [
-                "&28"
-            ],
-            "RendererComponent::m_priority": 0
-        },
-        "&27": {
-            "%type": "Engine::AssetRef",
-            "AssetRef::m_guid": "8457638A83F0B8F2E64BA42E948BEB8A"
-        },
-        "&28": {
-            "%type": "Engine::AssetRef",
-            "AssetRef::m_guid": "B24F0192DE71DE0391D44C379471F141"
-        },
-        "&29": {
-            "%type": "Engine::GameObject",
-            "GameObject::m_childGameObject": [],
-            "GameObject::m_components": [
-                "&30",
-                "&31"
-            ],
-            "GameObject::m_name": "four_bunny",
-            "GameObject::m_parentGameObject": null,
-            "GameObject::m_transformComponent": "&30"
-        },
-        "&30": {
-            "%type": "Engine::TransformComponent",
-            "Component::m_parentGameObject": "&29",
-            "TransformComponent::m_transform": {
-                "%type": "Engine::Transform",
-                "Transform::m_position": [
-                    0.0,
-                    0.0,
-                    1.0
-                ],
-                "Transform::m_rotation": [
-                    -0.612,
-                    0.354,
-                    0.0,
-                    0.707
-                ],
-                "Transform::m_scale": [
-                    1.0,
-                    1.0,
-                    1.0
-                ]
-            }
-        },
-        "&31": {
-            "%type": "Engine::LightComponent",
-            "Component::m_parentGameObject": "&29",
-            "LightComponent::m_color": [
-                1.0,
-                1.0,
-                1.0
-            ],
-            "LightComponent::m_intensity": 1.0,
-            "LightComponent::m_type": "Directional",
-            "LightComponent::m_cast_shadow": true
-        },
-        "&32": {
-            "%type": "Engine::GameObject",
-            "GameObject::m_childGameObject": [],
-            "GameObject::m_components": [
-                "&33",
-                "&34"
-            ],
-            "GameObject::m_name": "four_bunny",
-            "GameObject::m_parentGameObject": null,
-            "GameObject::m_transformComponent": "&33"
-        },
-        "&33": {
-            "%type": "Engine::TransformComponent",
-            "Component::m_parentGameObject": "&32",
-            "TransformComponent::m_transform": {
-                "%type": "Engine::Transform",
-                "Transform::m_position": [
-                    0.0,
-                    0.0,
-                    0.3
-                ],
-                "Transform::m_rotation": [
-                    -0.612,
-                    0.354,
-                    0.0,
-                    0.707
-                ],
-                "Transform::m_scale": [
-                    1.0,
-                    1.0,
-                    1.0
-                ]
-            }
-        },
-        "&34": {
-            "%type": "Engine::LightComponent",
-            "Component::m_parentGameObject": "&32",
-            "LightComponent::m_color": [
-                1.0,
-                0.2,
-                0.2
-            ],
-            "LightComponent::m_intensity": 0.5,
-            "LightComponent::m_type": "Point",
-            "LightComponent::m_cast_shadow": false
         }
     },
     "%extra_data": [],

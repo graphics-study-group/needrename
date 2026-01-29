@@ -28,7 +28,7 @@ namespace Engine {
         }
 
         bool IsValid() const {
-            return !m_scene.GetComponent(m_comp);
+            return m_scene.GetComponent(m_comp) != nullptr;
         }
 
     protected:

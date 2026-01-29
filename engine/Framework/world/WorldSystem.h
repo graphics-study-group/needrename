@@ -8,10 +8,15 @@
 namespace Engine {
     class Camera;
     class Scene;
+    class AssetRef;
     namespace RenderSystemState {
         class CameraManager;
         class SceneDataManager;
     } // namespace RenderSystemState
+
+    namespace Serialization {
+        class Archive;
+    }
 
     class WorldSystem {
     public:
@@ -40,9 +45,17 @@ namespace Engine {
 
         Scene &GetMainSceneRef() noexcept;
 
+        /**
+         * @brief Save the main scene to the archive.
+         * Temporary use.
+         */
+        void SaveLevelToArchive(Serialization::Archive &archive);
+
     protected:
         std::shared_ptr<Camera> m_active_camera{};
         std::shared_ptr<Scene> m_main_scene{};
+    public:
+        std::shared_ptr<AssetRef> m_skybox_material{};
 
     protected:
         std::mt19937_64 m_go_handle_gen{std::random_device{}()};

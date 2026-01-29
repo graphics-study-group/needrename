@@ -2,9 +2,9 @@
     "%data": {
         "&0": {
             "%type": "Engine::MaterialAsset",
-            "Asset::m_guid": "245193AFAB61F6CA966793CF86011D3B",
+            "Asset::m_guid": "9D4CB9CA085159D7C95FA5D1C9E8F648",
             "MaterialAsset::m_library": "&1",
-            "MaterialAsset::m_name": "Bunny_Material.001",
+            "MaterialAsset::m_name": "Bunny_Material.005",
             "MaterialAsset::m_properties": {
                 "ambient_color": {
                     "m_type": "Simple",
@@ -38,7 +38,7 @@
         },
         "&2": {
             "%type": "Engine::AssetRef",
-            "AssetRef::m_guid": "768C59F870698B657FADA0FAAA3AA465"
+            "AssetRef::m_guid": "25CDFBEB986D106229E9877CC5C1D7E2"
         }
     },
     "%extra_data": [],
