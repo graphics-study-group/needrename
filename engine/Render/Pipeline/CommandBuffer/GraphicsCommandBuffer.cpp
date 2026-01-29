@@ -151,12 +151,19 @@ namespace Engine {
     void GraphicsCommandBuffer::DrawMesh(
         const HomogeneousMesh &mesh, const glm::mat4 &model_matrix, int32_t camera_index
     ) {
-        auto bindings = mesh.GetVertexBufferInfo();
-        bindings.second.pop_back();
-        std::vector<vk::Buffer> vertex_buffers{bindings.second.size(), bindings.first};
-        cb.bindVertexBuffers(0, vertex_buffers, bindings.second);
-        auto indices = mesh.GetIndexBufferInfo();
-        cb.bindIndexBuffer(indices.first, indices.second, vk::IndexType::eUint32);
+        auto bindings = mesh.GetVertexAttributeBufferBindings();
+        std::vector <vk::DeviceSize> offsets{};
+        std::vector <vk::Buffer> buffers{};
+        offsets.resize(bindings.size());
+        buffers.resize(bindings.size());
+        for (size_t i = 0; i < bindings.size(); i++) {
+            offsets[i] = bindings[i].offset;
+            buffers[i] = bindings[i].buffer->GetBuffer();
+        }
+
+        cb.bindVertexBuffers(0, buffers, offsets);
+        auto indices = mesh.GetIndexBufferBinding();
+        cb.bindIndexBuffer(indices.buffer->GetBuffer(), indices.offset, vk::IndexType::eUint32);
 
         struct {
             glm::mat4 m;
@@ -170,7 +177,7 @@ namespace Engine {
             sizeof (push_constants),
             reinterpret_cast<const void *>(&push_constants)
         );
-        cb.drawIndexed(mesh.GetVertexIndexCount(), 1, 0, 0, 0);
+        cb.drawIndexed(mesh.GetIndexCount(), 1, 0, 0, 0);
     }
 
     void GraphicsCommandBuffer::DrawRenderers(const std::string & tag, const RendererList &renderers) {
@@ -202,7 +209,7 @@ namespace Engine {
                 assert(materials.size() == meshes.size());
                 for (size_t id = 0; id < materials.size(); id++) {
                     auto & mtl = *materials[id];
-                    auto tpl = mtl.GetLibrary().FindMaterialTemplate(tag, meshes[id]->GetVertexAttribute());
+                    auto tpl = mtl.GetLibrary().FindMaterialTemplate(tag, meshes[id]->GetVertexAttributeFormat());
                     if (!tpl)   continue;
 
                     this->BindMaterial(mtl, *tpl);

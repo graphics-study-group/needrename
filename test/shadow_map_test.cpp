@@ -173,7 +173,7 @@ int main(int argc, char **argv) {
     floor_mesh_comp->GetMaterials().resize(1);
     floor_mesh_comp->GetMaterials()[0] = floor_material_instance;
     floor_mesh_comp->RenderInit();
-    assert(floor_mesh_comp->GetSubmesh(0)->GetVertexAttribute().HasAttribute(VertexAttributeSemantic::Texcoord0));
+    assert(floor_mesh_comp->GetSubmesh(0)->GetVertexAttributeFormat().HasAttribute(VertexAttributeSemantic::Texcoord0));
 
     auto cube_go = cmc->GetWorldSystem()->CreateGameObject<GameObject>();
     cube_go->GetTransformRef().SetScale({0.5f, 0.5f, 0.5f});
@@ -191,9 +191,9 @@ int main(int argc, char **argv) {
         object_material_instance
     );
     // We cannot call `RenderInit()` because this component has no associated asset.
-    assert(cube_mesh_comp->GetSubmesh(0)->GetVertexAttribute().HasAttribute(VertexAttributeSemantic::Texcoord0));
+    assert(cube_mesh_comp->GetSubmesh(0)->GetVertexAttributeFormat().HasAttribute(VertexAttributeSemantic::Texcoord0));
     rsys->GetRendererManager().RegisterRendererComponent(cube_mesh_comp);
-    assert(sphere_mesh_comp->GetSubmesh(0)->GetVertexAttribute().HasAttribute(VertexAttributeSemantic::Texcoord0));
+    assert(sphere_mesh_comp->GetSubmesh(0)->GetVertexAttributeFormat().HasAttribute(VertexAttributeSemantic::Texcoord0));
     rsys->GetRendererManager().RegisterRendererComponent(sphere_mesh_comp);
     
 

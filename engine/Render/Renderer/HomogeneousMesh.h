@@ -1,6 +1,8 @@
 #ifndef RENDER_RENDERER_HOMOGENEOUSMESH_INCLUDED
 #define RENDER_RENDERER_HOMOGENEOUSMESH_INCLUDED
 
+#include "IVertexBasedRenderer.h"
+
 namespace vk {
     class Buffer;
     class PipelineVertexInputStateCreateInfo;
@@ -16,7 +18,7 @@ namespace Engine {
     }
 
     /// @brief A homogeneous mesh of only one material at runtime, constructed from mesh asset.
-    class HomogeneousMesh {
+    class HomogeneousMesh : public IVertexBasedRenderer {
         struct impl;
         std::unique_ptr<impl> pimpl;
 
@@ -35,7 +37,7 @@ namespace Engine {
             std::shared_ptr<AssetRef> mesh_asset,
             size_t submesh_idx
         );
-        ~HomogeneousMesh();
+        virtual ~HomogeneousMesh();
 
         /**
          * @brief Create a staging buffer containing all vertices data
@@ -51,12 +53,12 @@ namespace Engine {
         /**
          * @brief Get vertex index count viz. how many vertices are drawn in the draw call.
          */
-        uint32_t GetVertexIndexCount() const;
+        uint32_t GetIndexCount() const noexcept override;
 
         /**
          * @brief Get vertex count viz. how many distinct vertices data are there.
          */
-        uint32_t GetVertexCount() const;
+        uint32_t GetVertexAttributeCount() const noexcept override;
 
         /**
          * @brief Get expected buffer size. The buffer contains all vertex attributes
@@ -82,7 +84,9 @@ namespace Engine {
          * ```
          * Note that index buffer have a different element count of the rest of buffers.
          */
-        std::pair <vk::Buffer, std::vector<uint64_t>> GetVertexBufferInfo() const;
+        void FillVertexAttributeBufferBindings (
+            std::vector <BufferBindingInfo> &
+        ) const noexcept override;
 
         /**
          * @brief Get vertex index buffer, along with its offset in the buffer.
@@ -96,12 +100,9 @@ namespace Engine {
          * Note that index
          * buffer have a different element count of the rest of buffers.
          */
-        std::pair <vk::Buffer, uint64_t> GetIndexBufferInfo() const;
+        BufferBindingInfo GetIndexBufferBinding() const noexcept override;
 
-        /**
-         * @brief
-         */
-        VertexAttribute GetVertexAttribute() const;
+        VertexAttribute GetVertexAttributeFormat() const noexcept override;
     };
 }; // namespace Engine
 

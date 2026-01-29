@@ -55,8 +55,7 @@ namespace Engine {
         pimpl->FetchFromAsset(allocator);
     }
 
-    HomogeneousMesh::~HomogeneousMesh() {
-    }
+    HomogeneousMesh::~HomogeneousMesh() = default;
 
     /// @brief Fetch basic vertex info from asset. Actual data are not stored in this class.
     /// @param allocator 
@@ -198,21 +197,25 @@ namespace Engine {
         offset += indices.size() * sizeof(uint32_t);
     }
 
-    std::pair<vk::Buffer, uint64_t> HomogeneousMesh::GetIndexBufferInfo() const {
+    HomogeneousMesh::BufferBindingInfo HomogeneousMesh::GetIndexBufferBinding() const noexcept {
         assert(pimpl->m_buffer->GetBuffer());
         // Last offset is the offset of index buffer.
-        return std::make_pair(pimpl->m_buffer->GetBuffer(), *(pimpl->m_buffer_offsets.rbegin()));
+        return {
+            pimpl->m_buffer.get(),
+            *(pimpl->m_buffer_offsets.rbegin()),
+            0
+        };
     }
 
-    VertexAttribute HomogeneousMesh::GetVertexAttribute() const {
+    VertexAttribute HomogeneousMesh::GetVertexAttributeFormat() const noexcept {
         return pimpl->m_attribute;
     }
 
-    uint32_t HomogeneousMesh::GetVertexIndexCount() const {
+    uint32_t HomogeneousMesh::GetIndexCount() const noexcept {
         return pimpl->GetVertexIndexCount();
     }
 
-    uint32_t HomogeneousMesh::GetVertexCount() const {
+    uint32_t HomogeneousMesh::GetVertexAttributeCount() const noexcept {
         return pimpl->GetVertexCount();
     }
 
@@ -224,8 +227,21 @@ namespace Engine {
         return *pimpl->m_buffer;
     }
 
-    std::pair<vk::Buffer, std::vector<uint64_t>> HomogeneousMesh::GetVertexBufferInfo() const {
+    void HomogeneousMesh::FillVertexAttributeBufferBindings(std::vector <HomogeneousMesh::BufferBindingInfo> & v) const noexcept {
         assert(pimpl->m_buffer->GetBuffer());
-        return std::make_pair(pimpl->m_buffer->GetBuffer(), pimpl->m_buffer_offsets);
+        v.clear();
+        v.reserve(pimpl->m_buffer_offsets.size());
+        std::transform(
+            pimpl->m_buffer_offsets.begin(),
+            pimpl->m_buffer_offsets.end() - 1,
+            std::back_inserter(v),
+            [this] (size_t offset) -> BufferBindingInfo {
+                return {
+                    pimpl->m_buffer.get(),
+                    offset,
+                    0
+                };
+            }
+        );
     }
 } // namespace Engine
