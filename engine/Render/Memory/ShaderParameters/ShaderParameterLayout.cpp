@@ -171,15 +171,15 @@ namespace Engine::ShdrRfl {
             }
 
             if (auto popaque = dynamic_cast<const SPInterfaceOpaqueImage *>(pinterface.get())) {
-                auto pimg = std::get_if<std::shared_ptr<const Texture>>(&itr->second);
+                auto pimg = std::get_if<std::reference_wrapper<const Texture>>(&itr->second);
                 if (pimg) {
                     assert(popaque->array_size == 0);
                     write.image.push_back(
                         std::make_tuple(
                             popaque->layout_binding,
                             vk::DescriptorImageInfo {
-                                (*pimg)->GetSampler(),
-                                (*pimg)->GetImageView(),
+                                pimg->get().GetSampler(),
+                                pimg->get().GetImageView(),
                                 vk::ImageLayout::eReadOnlyOptimal
                             },
                             vk::DescriptorType::eCombinedImageSampler
@@ -193,17 +193,17 @@ namespace Engine::ShdrRfl {
                     );
                 }
             } else if (auto pstorage = dynamic_cast<const SPInterfaceOpaqueStorageImage *>(pinterface.get())) {
-                auto pimg = std::get_if<std::shared_ptr<const Texture>>(&itr->second);
+                auto pimg = std::get_if<std::reference_wrapper<const Texture>>(&itr->second);
                 if (pimg) {
                     assert(pstorage->array_size == 0);
-                    assert((*pimg)->SupportRandomAccess());
+                    assert((pimg)->get().SupportRandomAccess());
 
                     write.image.push_back(
                         std::make_tuple(
                             pstorage->layout_binding,
                             vk::DescriptorImageInfo {
-                                (*pimg)->GetSampler(),
-                                (*pimg)->GetImageView(),
+                                pimg->get().GetSampler(),
+                                pimg->get().GetImageView(),
                                 vk::ImageLayout::eGeneral
                             },
                             vk::DescriptorType::eStorageImage
@@ -255,44 +255,7 @@ namespace Engine::ShdrRfl {
                             desctp
                         )
                     );
-                } else if (auto pbuf = std::get_if<std::tuple<std::shared_ptr<const DeviceBuffer>, size_t, size_t>>(&itr->second)) {
-                    auto desctp = 
-                        pbuffer->type == SPInterfaceBuffer::Type::StorageBuffer ?
-                        vk::DescriptorType::eStorageBuffer : vk::DescriptorType::eUniformBuffer;
-                    auto [buffer, offset, range] = *pbuf;
-                    if (desctp == vk::DescriptorType::eStorageBuffer) {
-                        if (!buffer->GetType().Test(BufferTypeBits::ShaderWrite)) {
-                            SDL_LogWarn(
-                                SDL_LOG_CATEGORY_RENDER,
-                                "Interface %s is not assigned to a storage buffer.",
-                                pinterface->name.c_str()
-                            );
-                            continue;
-                        }
-                    } else if (desctp == vk::DescriptorType::eUniformBuffer) {
-                        if (!buffer->GetType().Test(BufferTypeBits::ShaderReadOnly)) {
-                            SDL_LogWarn(
-                                SDL_LOG_CATEGORY_RENDER,
-                                "Interface %s is not assigned to a uniform buffer.",
-                                pinterface->name.c_str()
-                            );
-                            continue;
-                        }
-                    }
-
-                    write.buffer.push_back(
-                        std::make_tuple(
-                            pbuffer->layout_binding,
-                            vk::DescriptorBufferInfo {
-                                std::get<0>(*pbuf)->GetBuffer(),
-                                offset,
-                                range == 0 ? vk::WholeSize : range
-                            },
-                            desctp
-                        )
-                    );
-                }
-                else {
+                } else {
                     SDL_LogWarn(
                         SDL_LOG_CATEGORY_RENDER,
                         "Interface %s is not assigned to a buffer nor image.",

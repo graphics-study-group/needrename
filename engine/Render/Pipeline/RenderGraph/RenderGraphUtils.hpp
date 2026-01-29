@@ -28,10 +28,10 @@ namespace Engine {
                 MemoryAccessTypeImage access;
             };
 
-            using Memo = std::unordered_map<const Texture *, std::vector<Access>>;
+            using Memo = std::unordered_map<int32_t, std::vector<Access>>;
             Memo accesses;
 
-            void EnsureRecordExists(const Texture * t) {
+            void EnsureRecordExists(int32_t t) {
                 if (!accesses.contains(t)) {
                     accesses[t] = {{-1, MemoryAccessTypeImage{MemoryAccessTypeImageBits::None}}};
                 }
@@ -40,7 +40,7 @@ namespace Engine {
             /**
              * @brief Update last access entry of a given pass of a given image.
              */
-            void UpdateLastAccess(const Texture * t, int32_t pass_index, MemoryAccessTypeImage access) {
+            void UpdateLastAccess(int32_t t, int32_t pass_index, MemoryAccessTypeImage access) {
                 EnsureRecordExists(t);
                 auto & v = accesses[t];
                 if(v.empty()) {
@@ -128,6 +128,8 @@ namespace Engine {
                 const Texture *,
                 std::pair<RenderGraphImpl::PassType, MemoryAccessTypeImage>
             > m_final_image_access;
+
+            std::unordered_map<int32_t, std::unique_ptr<RenderTargetTexture>> internal_texture_cache;
         };
 
         struct BufferAccessMemo {
@@ -136,12 +138,10 @@ namespace Engine {
                 MemoryAccessTypeBuffer access;
             };
 
-            // vk::Buffer does not have simple hasher here, so I'm using VkBuffer instead.
-            // You can include <vulkan/vulkan_hash.hpp> to get its hasher, though.
-            using Memo = std::unordered_map <VkBuffer, std::vector<Access>>;
+            using Memo = std::unordered_map <int32_t, std::vector<Access>>;
             Memo accesses;
 
-            void EnsureRecordExists(vk::Buffer b) {
+            void EnsureRecordExists(int32_t b) {
                 if (!accesses.contains(b)) {
                     accesses[b] = {{-1, MemoryAccessTypeBuffer{MemoryAccessTypeBufferBits::None}}};
                 }
@@ -150,7 +150,7 @@ namespace Engine {
             /**
              * @brief Update access entry of a given pass of a given buffer.
              */
-            void UpdateLastAccess(vk::Buffer b, int32_t pass_index, MemoryAccessTypeBuffer access) {
+            void UpdateLastAccess(int32_t b, int32_t pass_index, MemoryAccessTypeBuffer access) {
                 EnsureRecordExists(b);
                 auto & v = accesses[b];
                 if(v.empty()) {

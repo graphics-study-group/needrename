@@ -4,23 +4,18 @@
 #include <memory>
 #include <functional>
 
+#include "Render/AttachmentUtils.h"
+#include "Render/Memory/RenderTargetTexture.h"
 #include "Render/Memory/MemoryAccessTypes.h"
-#include "Render/Pipeline/CommandBuffer/AccessHelperTypes.h"
 
 namespace Engine {
-
     class RenderSystem;
     class GUISystem;
-    class Texture;
     class DeviceBuffer;
     class RenderGraph;
     class GraphicsCommandBuffer;
     class TransferCommandBuffer;
     class ComputeCommandBuffer;
-
-    namespace AttachmentUtils {
-        class AttachmentDescription;
-    };
 
     /**
      * @brief Helper class for building a `RenderGraph`.
@@ -34,22 +29,77 @@ namespace Engine {
         RenderSystem &m_system;
     public:
 
+        struct RGAttachmentDesc {
+            using LoadOp = AttachmentUtils::LoadOperation;
+            using StoreOp = AttachmentUtils::StoreOperation;
+            using ClearValue = AttachmentUtils::ClearValue;
+
+            int32_t rt_handle;
+            LoadOp load_op{};
+            StoreOp store_op{};
+            ClearValue clear_value{};
+
+            // These values control the image view used in the rendering.
+            // They are currently unused. All renderings are defaulted
+            // to be performed on the full image view.
+            uint32_t base_mip {0};
+            uint32_t base_array_layer {1};
+            uint32_t mip_range {0};
+            uint32_t array_layer_range {1};
+        };
+
         RenderGraphBuilder(RenderSystem & system);
         ~RenderGraphBuilder();
 
         /**
          * @brief Register a new image texture to manage its access by the internal memo system.
+         * 
+         * The lifetime of this texture is managed by the caller.
+         * This method facilitates persistent data usage between frames (for TAA, for example).
+         * 
+         * @return a handle to the managed resource, used in the render graph internally.
+         * External resources will have negative handles.
          */
-        void ImportExternalResource (
-            const Texture & texture,
+        int32_t ImportExternalResource (
+            const RenderTargetTexture & texture,
             MemoryAccessTypeImageBits prev_access = MemoryAccessTypeImageBits::None
         );
+
+        /**
+         * @brief Register a new buffer to manage its access by the internal memo system.
+         * 
+         * @return a handle to the managed resource, used in the render graph internally.
+         * External resources will have negative handles.
+         */
+        int32_t ImportExternalResource (
+            const DeviceBuffer & buffer,
+            MemoryAccessTypeBuffer prev_access = {MemoryAccessTypeBufferBits::None}
+        );
+
+        /**
+         * @brief Request a new render target texture to be created when compiling the
+         * render graph.
+         * 
+         * Such resources will have their lifetime managed automatically by the compiled
+         * render graph.
+         * 
+         * @return a handle to the managed resource, used in the render graph internally.
+         * Internal resouces will have positive handles.
+         */
+        int32_t RequestRenderTargetTexture (
+            RenderTargetTexture::RenderTargetTextureDesc texture_description,
+            RenderTargetTexture::SamplerDesc sampler_description
+        ) noexcept;
         
         /**
          * @brief Mark an image to be used in the following pass.
+         * 
+         * @details actual access to the image is not determined until the next pass
+         * is recorded. You can only have one bit of access, as the access is tied
+         * to the current image layout.
          */
         void UseImage (
-            const Texture & texture,
+            int32_t texture_handle,
             MemoryAccessTypeImageBits access
         );
 
@@ -57,7 +107,7 @@ namespace Engine {
          * @brief Mark a buffer to be used in the following pass.
          */
         void UseBuffer (
-            const DeviceBuffer & buffer,
+            int32_t buffer_handle,
             MemoryAccessTypeBuffer access
         );
 
@@ -67,7 +117,7 @@ namespace Engine {
          * To use this method, you have to manually set up render targets within the `pass` function.
          */
         void RecordRasterizerPassWithoutRT (
-            std::function<void(GraphicsCommandBuffer &)> pass
+            std::function<void(GraphicsCommandBuffer &, const RenderGraph &)> pass
         );
 
         /**
@@ -78,8 +128,8 @@ namespace Engine {
          * Its extent is set to swapchain extent.
          */
         void RecordRasterizerPass (
-            AttachmentUtils::AttachmentDescription color,
-            std::function<void(GraphicsCommandBuffer &)> pass,
+            RGAttachmentDesc color,
+            std::function<void(GraphicsCommandBuffer &, const RenderGraph &)> pass,
             const std::string & name = ""
         );
 
@@ -90,9 +140,9 @@ namespace Engine {
          * Its extent is set to swapchain extent.
          */
         void RecordRasterizerPass (
-            AttachmentUtils::AttachmentDescription color,
-            AttachmentUtils::AttachmentDescription depth,
-            std::function<void(GraphicsCommandBuffer &)> pass,
+            RGAttachmentDesc color,
+            RGAttachmentDesc depth,
+            std::function<void(GraphicsCommandBuffer &, const RenderGraph &)> pass,
             const std::string & name = ""
         );
 
@@ -103,9 +153,9 @@ namespace Engine {
          * Its extent is set to swapchain extent.
          */
         void RecordRasterizerPass (
-            std::initializer_list <AttachmentUtils::AttachmentDescription> colors,
-            AttachmentUtils::AttachmentDescription depth,
-            std::function<void(GraphicsCommandBuffer &)> pass,
+            std::initializer_list <RGAttachmentDesc> colors,
+            RGAttachmentDesc depth,
+            std::function<void(GraphicsCommandBuffer &, const RenderGraph &)> pass,
             const std::string & name = ""
         );
 
@@ -113,7 +163,7 @@ namespace Engine {
          * @brief Record a pass with transfer commands.
          */
         void RecordTransferPass (
-            std::function<void(TransferCommandBuffer &)> pass,
+            std::function<void(TransferCommandBuffer &, const RenderGraph &)> pass,
             const std::string & name = ""
         );
 
@@ -121,14 +171,9 @@ namespace Engine {
          * @brief Record a pass with compute shader dispatches.
          */
         void RecordComputePass (
-            std::function<void(ComputeCommandBuffer &)> pass,
+            std::function<void(ComputeCommandBuffer &, const RenderGraph &)> pass,
             const std::string & name = ""
         );
-
-        /**
-         * @brief Explicitly record a synchronization operation.
-         */
-        void RecordSynchronization ();
 
         /**
          * @brief Create a RenderGraph and reset internal states to default.
@@ -137,10 +182,12 @@ namespace Engine {
 
         /**
          * @brief Build a default render graph.
+         * 
+         * The render graph will have defaulted attachments.
+         * Color and depth attachments will always have handle value 0 and 1 respectively.
          */
         std::unique_ptr<RenderGraph> BuildDefaultRenderGraph(
-            const RenderTargetTexture & color_attachment, 
-            const RenderTargetTexture & depth_attachment,
+            uint32_t width, uint32_t height,
             GUISystem * gui_system = nullptr
         );
     };

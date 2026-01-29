@@ -183,9 +183,7 @@ int main(int argc, char **argv) {
         .multisample = 1,
         .is_cube_map = false
     };
-    std::shared_ptr hdr_color{
-        RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "HDR Color Attachment")
-    };
+    std::shared_ptr hdr_color{RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "HDR Color Attachment")};
     desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R8G8B8A8UNorm;
     std::shared_ptr color{RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Color Attachment")};
     desc.mipmap_levels = 1;
@@ -233,60 +231,70 @@ int main(int argc, char **argv) {
     MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(cs_ref);
     auto bloom_compute_stage = std::make_shared<ComputeStage>(*rsys);
     bloom_compute_stage->Instantiate(*cs_ref->cas<ShaderAsset>());
-    bloom_compute_stage->AssignTexture("inputImage", hdr_color);
-    bloom_compute_stage->AssignTexture("outputImage", color);
 
     // Build render graph.
     RenderGraphBuilder rgb{*rsys};
-    rgb.ImportExternalResource(*hdr_color);
-    rgb.ImportExternalResource(*depth);
-    rgb.ImportExternalResource(*color);
-
+    RenderTargetTexture::RenderTargetTextureDesc rtt_desc{
+        .dimensions = 2,
+        .width = 1920,
+        .height = 1080,
+        .depth = 1,
+        .mipmap_levels = 1,
+        .array_layers = 1,
+        .format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R11G11B10UFloat,
+        .multisample = 1,
+        .is_cube_map = false
+    };
+    auto hc = rgb.RequestRenderTargetTexture(rtt_desc, Texture::SamplerDesc{});
+    rtt_desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::D32SFLOAT;
+    auto d = rgb.RequestRenderTargetTexture(rtt_desc, Texture::SamplerDesc{});
+    rtt_desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R8G8B8A8UNorm;
+    auto c = rgb.RequestRenderTargetTexture(rtt_desc, Texture::SamplerDesc{});
     // Color pass
     using IAT = MemoryAccessTypeImageBits;
-    rgb.UseImage(*hdr_color, IAT::ColorAttachmentWrite);
-    rgb.UseImage(*depth, IAT::DepthStencilAttachmentWrite);
+    rgb.UseImage(hc, IAT::ColorAttachmentWrite);
+    rgb.UseImage(d, IAT::DepthStencilAttachmentWrite);
     rgb.RecordRasterizerPass(
-        AttachmentUtils::AttachmentDescription{
-            hdr_color.get(), nullptr, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store
+        RenderGraphBuilder::RGAttachmentDesc{
+            hc, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store
         },
-        AttachmentUtils::AttachmentDescription{
-            depth.get(),
-            nullptr,
+        RenderGraphBuilder::RGAttachmentDesc{
+            d,
             AttachmentUtils::LoadOperation::Clear,
             AttachmentUtils::StoreOperation::DontCare,
             AttachmentUtils::DepthClearValue{1.0f, 0U}
         },
-        [rsys](GraphicsCommandBuffer &gcb) {
+        [rsys](GraphicsCommandBuffer &gcb, const RenderGraph &) {
             gcb.DrawRenderers("", rsys->GetRendererManager().FilterAndSortRenderers({}));
         },
         "Color pass"
     );
 
     // Bloom pass
-    rgb.UseImage(*hdr_color, IAT::ShaderRandomRead);
-    rgb.UseImage(*color, IAT::ShaderRandomWrite);
+    rgb.UseImage(hc, IAT::ShaderRandomRead);
+    rgb.UseImage(c, IAT::ShaderRandomWrite);
     rgb.RecordComputePass(
-        [bloom_compute_stage, color](ComputeCommandBuffer &ccb) {
+        [bloom_compute_stage](ComputeCommandBuffer &ccb, const RenderGraph &) {
             ccb.BindComputeStage(*bloom_compute_stage);
             ccb.DispatchCompute(
-                color->GetTextureDescription().width / 16 + 1, color->GetTextureDescription().height / 16 + 1, 1
+                1920 / 16 + 1, 1080 / 16 + 1, 1
             );
         },
         "Bloom FX pass"
     );
 
     // GUI pass
-    rgb.UseImage(*color, IAT::ColorAttachmentWrite);
-    rgb.RecordRasterizerPassWithoutRT([rsys, gsys, color](GraphicsCommandBuffer &gcb) {
-        gsys->DrawGUI(
-            {color.get(), nullptr, AttachmentUtils::LoadOperation::Load, AttachmentUtils::StoreOperation::Store},
-            rsys->GetSwapchain().GetExtent(),
-            gcb
-        );
+    rgb.UseImage(c, IAT::ColorAttachmentWrite);
+    rgb.RecordRasterizerPass(
+        {c, AttachmentUtils::LoadOperation::Load, AttachmentUtils::StoreOperation::Store},
+        [rsys, gsys](GraphicsCommandBuffer &gcb, const RenderGraph &) {
+            gsys->DrawGUI(gcb.GetCommandBuffer());
     });
 
     auto rg{rgb.BuildRenderGraph()};
+
+    bloom_compute_stage->AssignTexture("inputImage", *rg->GetInternalTextureResource(hc));
+    bloom_compute_stage->AssignTexture("outputImage", *rg->GetInternalTextureResource(c));
 
     uint64_t frame_count = 0;
     uint64_t start_timer = SDL_GetPerformanceCounter();
@@ -316,7 +324,12 @@ int main(int argc, char **argv) {
         auto index = rsys->StartFrame();
 
         rg->Execute();
-        rsys->CompleteFrame(*color, color->GetTextureDescription().width, color->GetTextureDescription().height);
+        auto color = rg->GetInternalTextureResource(c);
+        rsys->CompleteFrame(
+            *color,
+            color->GetTextureDescription().width,
+            color->GetTextureDescription().height
+        );
 
         // SDL_Delay(5);
 

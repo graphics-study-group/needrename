@@ -8,19 +8,39 @@
 namespace Engine {
     namespace ImageUtils {
 
-        constexpr vk::ImageAspectFlags GetVkAspect(ImageFormat format) {
+        constexpr bool HasColorAspect(ImageFormat format) {
             switch (format) {
             case ImageFormat::R8G8B8A8SNorm:
             case ImageFormat::R8G8B8A8UNorm:
             case ImageFormat::R8G8B8A8SRGB:
             case ImageFormat::R11G11B10UFloat:
             case ImageFormat::R32G32B32A32SFloat:
-                return vk::ImageAspectFlagBits::eColor;
-            case ImageFormat::D32SFLOAT:
-                return vk::ImageAspectFlagBits::eDepth;
+                return true;
             default:
-                return vk::ImageAspectFlagBits::eNone;
+                return false;
             }
+        }
+
+        constexpr bool HasDepthAspect(ImageFormat format) {
+            switch (format) {
+            case ImageFormat::D32SFLOAT:
+                return true;
+            default:
+                return false;
+            }
+        }
+
+        constexpr bool HasStencilAspect(ImageFormat format) {
+            switch (format) {
+            default:
+                return false;
+            }
+        }
+
+        constexpr vk::ImageAspectFlags GetVkAspect(ImageFormat format) {
+            return (HasColorAspect(format)  ? vk::ImageAspectFlagBits::eColor   : vk::ImageAspectFlagBits::eNone) |
+                (HasDepthAspect(format)     ? vk::ImageAspectFlagBits::eDepth   : vk::ImageAspectFlagBits::eNone) |
+                (HasStencilAspect(format)   ? vk::ImageAspectFlagBits::eStencil : vk::ImageAspectFlagBits::eNone);
         }
 
         constexpr vk::ImageType GetVkTypeFromExtent(VkExtent3D extent) {

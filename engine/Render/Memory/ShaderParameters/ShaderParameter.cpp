@@ -38,17 +38,16 @@ namespace Engine::ShdrRfl {
         pimpl->buffer.SetVariable<float, 16>(name, v);
     }
 
-    void ShaderParameters::Assign(const std::string &name, std::shared_ptr<const Texture> tex) noexcept {
-        pimpl->interfaces[name] = tex;
+    void ShaderParameters::Assign(const std::string &name, const Texture &value) noexcept {
+        pimpl->interfaces[name] = value;
     }
-    void ShaderParameters::Assign(const std::string &name, std::shared_ptr <const DeviceBuffer> buf, size_t offset, size_t size) noexcept {
-        pimpl->interfaces[name] = std::make_tuple(buf, offset, size);
-    }
+
     void ShaderParameters::Assign(
         const std::string &name, const DeviceBuffer &buf, size_t offset, size_t size
     ) noexcept {
         pimpl->interfaces[name] = std::make_tuple(std::cref(buf), offset, size);
     }
+
     auto ShaderParameters::GetInterfaces() const noexcept -> const std::unordered_map <std::string, ShaderParameters::InterfaceVariant> & {
         return pimpl->interfaces;
     }
