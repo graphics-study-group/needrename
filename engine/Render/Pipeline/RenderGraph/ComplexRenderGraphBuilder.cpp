@@ -66,7 +66,7 @@ namespace Engine {
         auto &world = *MainClass::GetInstance()->GetWorldSystem();
         using IAT = MemoryAccessTypeImageBits;
         this->UseImage(shadow_id, IAT::DepthStencilAttachmentWrite);
-        this->RecordRasterizerPassWithoutRT([&system, &shadow_id](GraphicsCommandBuffer &gcb, const RenderGraph &rg) {
+        this->RecordRasterizerPassWithoutRT([&system, shadow_id](GraphicsCommandBuffer &gcb, const RenderGraph &rg) {
             vk::Extent2D shadow_map_extent{SHADOWMAP_WIDTH, SHADOWMAP_HEIGHT};
             vk::Rect2D shadow_map_scissor{{0, 0}, shadow_map_extent};
             auto shadow_map_target = rg.GetInternalTextureResource(shadow_id);
@@ -160,6 +160,7 @@ namespace Engine {
         auto bloom_compute_stage_scene = std::make_shared<ComputeStage>(m_system);
         bloom_compute_stage_scene->Instantiate(*m_bloom_shader->cas<ShaderAsset>());
         auto bloom_compute_stage_game = std::make_shared<ComputeStage>(m_system);
+        bloom_compute_stage_game->Instantiate(*m_bloom_shader->cas<ShaderAsset>());
         int32_t hdr_color_id1, bloom_temp_id1, color_id1;
         RecordMainRender(
             texture_width,
