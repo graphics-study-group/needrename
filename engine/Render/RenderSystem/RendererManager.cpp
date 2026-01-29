@@ -56,6 +56,7 @@ namespace Engine::RenderSystemState {
             std::unique_ptr <HomogeneousMesh> renderer;
             MaterialInstance * material;
             RendererComponent * component;
+            const MeshAsset::Submesh * submesh;
         };
 
         std::unordered_map<RendererHandle, RendererControlBlock> m_status;
@@ -100,6 +101,7 @@ namespace Engine::RenderSystemState {
                     );
                 m_data[total_renderer_count].material = rc->GetMaterial(i).get();
                 m_data[total_renderer_count].component = rc.get();
+                m_data[total_renderer_count].submesh = &masset->m_submeshes[i];
                 m_status[total_renderer_count].status = sflag;
                 m_status[total_renderer_count].refcnt = 1;
                 rl.push_back(total_renderer_count);
@@ -107,6 +109,22 @@ namespace Engine::RenderSystemState {
             }
             rl.shrink_to_fit();
             return rl;
+        }
+
+        std::vector <std::byte> PrepareSubmissionData(const RendererDataBlock & data) {
+            std::vector <std::byte> buf{};
+
+            buf.resize(
+                data.renderer->GetIndexCount() * sizeof(uint32_t) + 
+                data.renderer->GetVertexAttributeFormat().GetTotalPerVertexSize() * data.renderer->GetVertexAttributeCount()
+            );
+            data.submesh->WriteVertexAttributeBuffer(buf.data());
+            data.submesh->WriteIndexBuffer(
+                buf.data() + 
+                data.renderer->GetVertexAttributeFormat().GetTotalPerVertexSize() * data.renderer->GetVertexAttributeCount()
+            );
+
+            return buf;
         }
     };
 
@@ -162,8 +180,10 @@ namespace Engine::RenderSystemState {
                     "Eagerly loading renderer %u",
                     k
                 );
-                m_system.GetFrameManager().GetSubmissionHelper().EnqueueVertexBufferSubmission(
-                    *pimpl->m_data[k].renderer
+
+                m_system.GetFrameManager().GetSubmissionHelper().EnqueueBufferSubmissionVertex(
+                    pimpl->m_data[k].renderer->GetBuffer(),
+                    pimpl->PrepareSubmissionData(pimpl->m_data[k])
                 );
             }
         }
@@ -194,8 +214,9 @@ namespace Engine::RenderSystemState {
                         i
                     );
 
-                    m_system.GetFrameManager().GetSubmissionHelper().EnqueueVertexBufferSubmission(
-                        *pimpl->m_data[i].renderer.get()
+                    m_system.GetFrameManager().GetSubmissionHelper().EnqueueBufferSubmissionVertex(
+                        pimpl->m_data[i].renderer->GetBuffer(),
+                        pimpl->PrepareSubmissionData(pimpl->m_data[i])
                     );
                 }
             }

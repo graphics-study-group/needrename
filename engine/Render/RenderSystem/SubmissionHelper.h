@@ -42,6 +42,18 @@ namespace Engine {
              */
             void EnqueueBufferSubmission(const DeviceBuffer & buffer, const std::vector<std::byte> &data);
 
+            /**
+             * @brief Enqueue a buffer uploading.
+             * 
+             * This method functions the same as `EnqueueBufferSubmission`,
+             * except that the uploaded buffer is considered a vertex & index
+             * buffer, and is synchronized as such.
+             */
+            void EnqueueBufferSubmissionVertex(
+                const DeviceBuffer & vertex_buffer,
+                const std::vector <std::byte> & data
+            );
+
             /***
              * @brief Enqueue a vertex buffer uploading.
              * Record corresponding memory
@@ -54,6 +66,7 @@ namespace Engine {
              * 
              * @param mesh A homogeneous mesh whose vertex buffer is to be updated.
              */
+            [[deprecated("Use EnqueueBufferSubmissionVertex() method instead.")]]
             void EnqueueVertexBufferSubmission(const HomogeneousMesh &mesh);
 
             /***
