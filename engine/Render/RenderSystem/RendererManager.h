@@ -12,8 +12,24 @@ namespace vk {
 namespace Engine {
     class RenderSystem;
     class RendererComponent;
+    class MaterialInstance;
 
     namespace RenderSystemState {
+        /**
+         * @brief This class manages run-time data and their lifetime of renderers (i.e. meshes).
+         * 
+         * Two sets of interfaces are provided in this class. 
+         * The first high-level one faces `RendererComponent`s and their derivatives, controls lifetime of the
+         * actual renderers, and how draws are filtered.
+         * The second low-level one faces `RendererHandle`s, and is used to sort draws, and obtain draw calls and their
+         * information.
+         * 
+         * `RendererHandle`s are provided on a submesh (i.e. `HomogeneousMesh`) granularity, and one `RendererComponent`
+         * can therefore have multipled `RendererHandle`s.
+         * They directly interfaces with low level Vulkan functionalities.
+         * 
+         * @note This class does not handles Asset lifetime. It simply assumes that all used assets are available.
+         */
         class RendererManager {
             RenderSystem &m_system;
             struct impl;
@@ -52,8 +68,26 @@ namespace Engine {
 
             RendererManager(RenderSystem &system);
             ~RendererManager();
+            
+            /**
+             * @brief Register a renderer component to the renderer manager.
+             * 
+             * This manager will hereafter hold a owning shared pointer to the
+             * component until it being unregistered.
+             * 
+             * Underlying resource of this renderer component may be allocated
+             * depending on the type of the renderer.
+             * But its data will not be submitted to GPU until it is used unless
+             * it is explicitly specified to be eagerly loaded.
+             */
+            void RegisterRendererComponent(std::shared_ptr<RendererComponent> component);
 
-            RendererHandle RegisterRendererComponent(std::shared_ptr<RendererComponent> component);
+            /**
+             * @brief Fetch the underlying renderers of this renderer.
+             */
+            RendererList GetRendererListsFromComponent(
+                const std::shared_ptr <RendererComponent> & component
+            ) const noexcept;
 
             /**
              * @brief Unregister a component from the manager.
@@ -62,7 +96,7 @@ namespace Engine {
              * and its auxillary data will remain in the manager until a
              * `ClearUnregisteredRendererComponent()` call.
              */
-            void UnregisterRendererComponent(RendererHandle handle);
+            void UnregisterRendererComponent(const std::shared_ptr <RendererComponent> & component);
 
             /**
              * @brief Update renderer component states.
@@ -91,7 +125,17 @@ namespace Engine {
             /**
              * @brief Get the renderer data used for draw calls.
              */
-            const RendererComponent *GetRendererData(RendererHandle handle) const noexcept;
+            const IVertexBasedRenderer *GetRendererData(RendererHandle handle) const noexcept;
+
+            /**
+             * @brief Get the component that the renderer is attached to.
+             */
+            const RendererComponent *GetRendererComponent(RendererHandle handle) const noexcept;
+
+            /**
+             * @brief Get the material that the renderer uses.
+             */
+            MaterialInstance *GetMaterialInstance(RendererHandle handle) const noexcept;
 
             /**
              * @brief Get the push constant range for renderers.
