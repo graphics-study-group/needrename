@@ -1,5 +1,8 @@
 #include "MeshAsset.h"
+
+#include "Render/Renderer/VertexAttribute.h"
 #include <Reflection/serialization.h>
+
 #include <cassert>
 #include <fstream>
 #include <map>
@@ -254,5 +257,139 @@ namespace Engine {
         }
 
         Asset::load_asset_from_archive(archive);
+    }
+    VertexAttribute MeshAsset::Submesh::ToVertexAttributeFormat() const noexcept {
+#ifdef SET_ATTRIBUTE_TYPE
+#error Duplicated SET_ATTRIBUTE_TYPE definition
+#else
+#define SET_ATTRIBUTE_TYPE(attr, semantics) \
+        switch(attr.type) {                                     \
+        case Floatx1:                                           \
+            ret.SetAttribute(                                   \
+                Engine::VertexAttributeSemantic::semantics,     \
+                Engine::VertexAttributeType::SFloat32x1         \
+            );                                                  \
+            break;                                              \
+        case Floatx2:                                           \
+            ret.SetAttribute(                                   \
+                Engine::VertexAttributeSemantic::semantics,     \
+                Engine::VertexAttributeType::SFloat32x2         \
+            );                                                  \
+            break;                                              \
+        case Floatx3:                                           \
+            ret.SetAttribute(                                   \
+                Engine::VertexAttributeSemantic::semantics,     \
+                Engine::VertexAttributeType::SFloat32x3         \
+            );                                                  \
+            break;                                              \
+        case Floatx4:                                           \
+            ret.SetAttribute(                                   \
+                Engine::VertexAttributeSemantic::semantics,     \
+                Engine::VertexAttributeType::SFloat32x4         \
+            );                                                  \
+            break;                                              \
+        case Uintx1:                                            \
+            ret.SetAttribute(                                   \
+                Engine::VertexAttributeSemantic::semantics,     \
+                Engine::VertexAttributeType::Uint32x1           \
+            );                                                  \
+            break;                                              \
+        case Uintx2:                                            \
+            ret.SetAttribute(                                   \
+                Engine::VertexAttributeSemantic::semantics,     \
+                Engine::VertexAttributeType::Uint16x2           \
+            );                                                  \
+            break;                                              \
+        case Uintx4:                                            \
+            ret.SetAttribute(                                   \
+                Engine::VertexAttributeSemantic::semantics,     \
+                Engine::VertexAttributeType::Uint8x4            \
+            );                                                  \
+            break;                                              \
+        default:                                                \
+            ret.SetAttribute(                                   \
+                Engine::VertexAttributeSemantic::semantics,     \
+                Engine::VertexAttributeType::Unused             \
+            );                                                  \
+        }
+#endif
+
+        using enum Attributes::AttributeType;
+        VertexAttribute ret{};
+        SET_ATTRIBUTE_TYPE(positions, Position);
+        SET_ATTRIBUTE_TYPE(color, Color);
+        SET_ATTRIBUTE_TYPE(normal, Normal);
+        SET_ATTRIBUTE_TYPE(texcoord0, Texcoord0);
+        SET_ATTRIBUTE_TYPE(tangent, Tangent);
+        SET_ATTRIBUTE_TYPE(texcoord1, Texcoord1);
+        SET_ATTRIBUTE_TYPE(texcoord2, Texcoord2);
+        SET_ATTRIBUTE_TYPE(texcoord3, Texcoord3);
+        SET_ATTRIBUTE_TYPE(bone_indices, BoneIndices);
+        SET_ATTRIBUTE_TYPE(bone_weights, BoneWeights);
+        return ret;
+#undef SET_ATTRIBUTE_TYPE
+    }
+    void MeshAsset::Submesh::WriteVertexAttributeBuffer(std::byte *buf) const noexcept {
+        uint64_t current_offset = 0;
+        const auto write_attr = [&](const Submesh::Attributes &attr) {
+            using T = Submesh::Attributes::AttributeType;
+            size_t elem_count = 0;
+            switch (attr.type) {
+            case T::Floatx1:
+            case T::Floatx2:
+            case T::Floatx3:
+            case T::Floatx4:
+                elem_count = attr.attribf.size();
+                break;
+            case T::Uintx1:
+            case T::Uintx2:
+            case T::Uintx3:
+            case T::Uintx4:
+                elem_count = attr.attribu.size();
+                break;
+            default:
+                elem_count = 0;
+                break;
+            }
+
+            if (elem_count == 0) return;
+            if (attr.type == T::Floatx1 || 
+                attr.type == T::Floatx2 || 
+                attr.type == T::Floatx3 || 
+                attr.type == T::Floatx4
+            ) {
+                std::memcpy(
+                    buf + current_offset,
+                    attr.attribf.data(),
+                    attr.attribf.size() * sizeof(float)
+                );
+                current_offset += attr.attribf.size() * sizeof(float);
+            } else if (attr.type == T::Uintx1) {
+                std::memcpy(
+                    buf + current_offset,
+                    attr.attribu.data(),
+                    attr.attribu.size() * sizeof(uint32_t)
+                );
+                current_offset += attr.attribu.size() * sizeof(uint32_t);
+            } else {
+                // Uintx2, etc. requires compressing `uint32_t` into `uint16_t`, etc.
+                throw std::runtime_error("Unimplemented vertex attribute type.");
+            }
+        };
+
+        // Write order must matches `VertexAttributeSemantic` order.
+        write_attr(positions);
+        write_attr(color);
+        write_attr(normal);
+        write_attr(tangent);
+        write_attr(texcoord0);
+        write_attr(texcoord1);
+        write_attr(texcoord2);
+        write_attr(texcoord3);
+        write_attr(bone_indices);
+        write_attr(bone_weights);
+    }
+    void MeshAsset::Submesh::WriteIndexBuffer(std::byte *buf) const noexcept {
+        std::memcpy(buf, m_indices.data(), sizeof(uint32_t) * m_indices.size());
     }
 } // namespace Engine

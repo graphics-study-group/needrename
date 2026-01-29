@@ -163,7 +163,7 @@ namespace Engine::RenderSystemState {
                     k
                 );
                 m_system.GetFrameManager().GetSubmissionHelper().EnqueueVertexBufferSubmission(
-                    *pimpl->m_data[k].renderer.get()
+                    *pimpl->m_data[k].renderer
                 );
             }
         }
