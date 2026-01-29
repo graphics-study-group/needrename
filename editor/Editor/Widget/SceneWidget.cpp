@@ -31,32 +31,7 @@ namespace Editor {
     SceneWidget::~SceneWidget() {
     }
 
-    void SceneWidget::CreateRenderTargets(std::shared_ptr<Engine::RenderSystem> render_system) {
-        SDL_GetWindowSizeInPixels(
-            Engine::MainClass::GetInstance()->GetWindow()->GetWindow(), &m_texture_width, &m_texture_height
-        );
-        Engine::RenderTargetTexture::RenderTargetTextureDesc tdesc{
-            .dimensions = 2,
-            .width = (uint32_t)m_texture_width,
-            .height = (uint32_t)m_texture_height,
-            .depth = 1,
-            .mipmap_levels = 1,
-            .array_layers = 1,
-            .format = Engine::RenderTargetTexture::RTTFormat::R8G8B8A8UNorm,
-            .is_cube_map = false
-        };
-        Engine::Texture::SamplerDesc sdesc{};
-
-        m_color_texture = Engine::RenderTargetTexture::CreateUnique(*render_system, tdesc, sdesc, "scene color attachment");
-        tdesc.format = Engine::RenderTargetTexture::RTTFormat::D32SFLOAT;
-        m_depth_texture = Engine::RenderTargetTexture::CreateUnique(*render_system, tdesc, sdesc, "scene depth attachment");
-
-        m_color_att_id = reinterpret_cast<ImTextureID>(ImGui_ImplVulkan_AddTexture(
-            m_color_texture->GetSampler(), m_color_texture->GetImageView(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-        ));
-    }
-
-    void SceneWidget::PreRender() {
+    void SceneWidget::Render() {
         float aspect_ratio = static_cast<float>(m_viewport_size.x) / static_cast<float>(m_viewport_size.y);
         m_camera.m_camera->set_aspect_ratio(aspect_ratio);
         if (aspect_ratio > 1.0f) {
@@ -65,44 +40,6 @@ namespace Editor {
             m_camera.m_camera->set_fov_horizontal(m_camera_fov);
         }
 
-        auto context = Engine::MainClass::GetInstance()->GetRenderSystem()->GetFrameManager().GetGraphicsContext();
-        auto &cb = dynamic_cast<Engine::GraphicsCommandBuffer &>(context.GetCommandBuffer());
-        context.UseImage(
-            *m_color_texture,
-            Engine::GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite,
-            Engine::GraphicsContext::ImageAccessType::None
-        );
-        context.UseImage(
-            *m_depth_texture,
-            Engine::GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite,
-            Engine::GraphicsContext::ImageAccessType::None
-        );
-        context.PrepareCommandBuffer();
-        cb.BeginRendering(
-            {m_color_texture.get(),
-             nullptr,
-             Engine::AttachmentUtils::LoadOperation::Clear,
-             Engine::AttachmentUtils::StoreOperation::Store},
-            {m_depth_texture.get(),
-             nullptr,
-             Engine::AttachmentUtils::LoadOperation::Clear,
-             Engine::AttachmentUtils::StoreOperation::DontCare,
-             Engine::AttachmentUtils::DepthClearValue{1.0f, 0U}},
-            {(uint32_t)m_viewport_size.x, (uint32_t)m_viewport_size.y},
-            "Editor Scene Pass"
-        );
-        Engine::MainClass::GetInstance()->GetRenderSystem()->GetCameraManager().SetActiveCameraIndex(
-            m_camera.m_camera->m_display_id
-        );
-        cb.DrawRenderers("",
-            Engine::MainClass::GetInstance()->GetRenderSystem()->GetRendererManager().FilterAndSortRenderers({}),
-            Engine::MainClass::GetInstance()->GetRenderSystem()->GetCameraManager().GetActiveCameraIndex(),
-            {(uint32_t)m_viewport_size.x, (uint32_t)m_viewport_size.y}
-        );
-        cb.EndRendering();
-    }
-
-    void SceneWidget::Render() {
         if (ImGui::Begin(m_name.c_str())) {
             m_viewport_size = ImGui::GetContentRegionAvail();
             ImGui::Image(

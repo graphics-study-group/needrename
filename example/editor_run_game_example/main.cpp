@@ -15,10 +15,13 @@
 #include <Framework/world/WorldSystem.h>
 #include <MainClass.h>
 #include <Render/FullRenderSystem.h>
+#include <Render/Pipeline/RenderGraph/ComplexRenderGraphBuilder.h>
 #include <SDL3/SDL.h>
 #include <UserInterface/GUISystem.h>
 #include <UserInterface/Input.h>
 #include <cmake_config.h>
+
+#include <backends/imgui_impl_vulkan.h>
 
 #include <Editor/Widget/GameWidget.h>
 #include <Editor/Widget/SceneWidget.h>
@@ -98,55 +101,42 @@ int main() {
     auto world = cmc->GetWorldSystem();
     auto gui = cmc->GetGUISystem();
     auto window = cmc->GetWindow();
-    gui->CreateVulkanBackend(*rsys, ImageUtils::GetVkFormat(window->GetColorTexture()->GetTextureDescription().format));
+    gui->CreateVulkanBackend(*rsys, ImageUtils::GetVkFormat(Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm));
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading project");
     cmc->LoadProject(project_path);
 
-    // AssetPath prefab_path{*adb, "/GO_four_bunny.asset"};
-    // auto prefab_ref = adb->GetNewAssetRef(prefab_path);
-    // asys->LoadAssetImmediately(prefab_ref);
-    // auto prefab_asset = prefab_ref->as<GameObjectAsset>();
-    // prefab_asset->m_MainObject->AddComponent<SpinningComponent>();
-    // prefab_asset->m_MainObject->m_name = "Spinning Bunny";
-    // auto &spinning_transform = prefab_asset->m_MainObject->GetTransformRef();
-    // spinning_transform.SetPosition(spinning_transform.GetPosition() + glm::vec3(0.0f, 0.2f, 0.0f));
-    // world->LoadGameObjectAsset(prefab_asset);
-
-    // auto input = MainClass::GetInstance()->GetInputSystem();
-    // input->AddAxis(Input::ButtonAxis("move forward", Input::AxisType::TypeKey, "w", "s"));
-    // input->AddAxis(Input::ButtonAxis("move right", Input::AxisType::TypeKey, "d", "a"));
-    // input->AddAxis(Input::ButtonAxis("move up", Input::AxisType::TypeKey, "space", "left shift"));
-    // input->AddAxis(Input::ButtonAxis("roll right", Input::AxisType::TypeKey, "e", "q"));
-    // input->AddAxis(
-    //     Input::MotionAxis("look x", Input::AxisType::TypeMouseMotion, "x", 0.3f, 3.0f, 0.001f, 3.0f, false, true)
-    // );
-    // input->AddAxis(
-    //     Input::MotionAxis("look y", Input::AxisType::TypeMouseMotion, "y", 0.3f, 3.0f, 0.001f, 3.0f, false, true)
-    // );
-
-    // auto camera_go = cmc->GetWorldSystem()->CreateGameObject<GameObject>();
-    // camera_go->m_name = "Main Camera";
-    // Transform transform{};
-    // transform.SetPosition({0.0f, 0.2f, -0.7f});
-    // transform.SetRotationEuler(glm::vec3{1.57, 0.0, 3.1415926});
-    // transform.SetScale({1.0f, 1.0f, 1.0f});
-    // camera_go->SetTransform(transform);
-    // auto camera_comp = camera_go->template AddComponent<CameraComponent>();
-    // camera_comp->m_camera->set_aspect_ratio(1.0 * opt.resol_x / opt.resol_y);
-    // auto control_comp = camera_go->template AddComponent<ControlComponent>();
-    // control_comp->m_camera = camera_comp;
-    // cmc->GetWorldSystem()->SetActiveCamera(camera_comp->m_camera, &cmc->GetRenderSystem()->GetCameraManager());
-    // cmc->GetWorldSystem()->AddGameObjectToWorld(camera_go);
-
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Create Editor Window");
     Editor::MainWindow main_window;
     auto scene_widget = std::make_shared<Editor::SceneWidget>(Editor::MainWindow::k_scene_widget_name);
-    scene_widget->CreateRenderTargets(rsys);
     main_window.AddWidget(scene_widget);
     auto game_widget = std::make_shared<Editor::GameWidget>(Editor::MainWindow::k_game_widget_name);
-    game_widget->CreateRenderTargets(rsys);
     main_window.AddWidget(game_widget);
+
+    auto rgb = std::make_unique<ComplexRenderGraphBuilder>(*cmc->GetRenderSystem());
+    int32_t final_color_id, scene_color_id, game_color_id;
+    auto rg = rgb->BuildEditorRenderGraph(
+        1920,
+        1080,
+        [scene_widget]() -> vk::Extent2D { return {scene_widget->m_viewport_size.x, scene_widget->m_viewport_size.y}; },
+        [game_widget]() -> vk::Extent2D { return {game_widget->m_viewport_size.x, game_widget->m_viewport_size.y}; },
+        gui.get(),
+        scene_color_id,
+        game_color_id,
+        final_color_id
+    );
+
+    auto scene_texture = rg->GetInternalTextureResource(scene_color_id);
+    ImTextureID scene_color_att_id = reinterpret_cast<ImTextureID>(ImGui_ImplVulkan_AddTexture(
+        scene_texture->GetSampler(), scene_texture->GetImageView(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+    ));
+    scene_widget->m_color_att_id = scene_color_att_id;
+
+    auto game_texture = rg->GetInternalTextureResource(game_color_id);
+    ImTextureID game_color_att_id = reinterpret_cast<ImTextureID>(ImGui_ImplVulkan_AddTexture(
+        game_texture->GetSampler(), game_texture->GetImageView(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+    ));
+    game_widget->m_color_att_id = game_color_att_id;
 
     main_window.m_OnStart.AddDelegate(std::make_unique<FuncDelegate<>>(Start));
 
@@ -178,49 +168,9 @@ int main() {
         }
 
         rsys->StartFrame();
-        auto context = rsys->GetFrameManager().GetGraphicsContext();
-        GraphicsCommandBuffer &cb = dynamic_cast<GraphicsCommandBuffer &>(context.GetCommandBuffer());
-
-        cb.Begin();
-
-        scene_widget->PreRender();
-        game_widget->PreRender();
-
-        context.UseImage(
-            *std::static_pointer_cast<Engine::Texture>(scene_widget->m_color_texture),
-            GraphicsContext::ImageGraphicsAccessType::ShaderRead,
-            GraphicsContext::ImageAccessType::ColorAttachmentWrite
-        );
-        context.UseImage(
-            *std::static_pointer_cast<Engine::Texture>(game_widget->m_color_texture),
-            GraphicsContext::ImageGraphicsAccessType::ShaderRead,
-            GraphicsContext::ImageAccessType::ColorAttachmentWrite
-        );
-        context.UseImage(
-            *window->GetColorTexture(),
-            GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite,
-            GraphicsContext::ImageAccessType::None
-        );
-        context.UseImage(
-            *window->GetDepthTexture(),
-            GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite,
-            GraphicsContext::ImageAccessType::None
-        );
-        context.PrepareCommandBuffer();
-        gui->PrepareGUI();
-        main_window.Render();
-        gui->DrawGUI(
-            {window->GetColorTexture().get(),
-             nullptr,
-             Engine::AttachmentUtils::LoadOperation::Clear,
-             Engine::AttachmentUtils::StoreOperation::Store},
-            window->GetExtent(),
-            cb
-        );
-
-        cb.End();
-        rsys->GetFrameManager().SubmitMainCommandBuffer();
-        rsys->CompleteFrame(*window->GetColorTexture(), window->GetExtent().width, window->GetExtent().height);
+        rg->Execute();
+        auto [w, h] = cmc->GetWindow()->GetSize();
+        rsys->CompleteFrame(*rg->GetInternalTextureResource(final_color_id), w, h);
     }
     rsys->WaitForIdle();
 

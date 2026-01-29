@@ -5,7 +5,7 @@
 
 namespace Engine {
     class AssetRef;
-    class RenderTargetTexture;
+    class ComputeStage;
 
     class ComplexRenderGraphBuilder : public RenderGraphBuilder {
         static const uint32_t SHADOWMAP_WIDTH = 2048;
@@ -15,14 +15,36 @@ namespace Engine {
         ComplexRenderGraphBuilder(RenderSystem &system);
         ~ComplexRenderGraphBuilder() = default;
 
-        std::unique_ptr<RenderGraph> BuildDefaultRenderGraph(uint32_t width, uint32_t height);
+        std::unique_ptr<RenderGraph> BuildDefaultRenderGraph(
+            uint32_t texture_width,
+            uint32_t texture_height,
+            std::function<vk::Extent2D()> get_viewport_func,
+            int32_t &final_color_target_id
+        );
 
-        MemoryAccessTypeImageBits GetColorAttachmentAccessType() const;
-        uint32_t GetFinalColorAttachmentID() const;
+        std::unique_ptr<RenderGraph> BuildEditorRenderGraph(
+            uint32_t texture_width,
+            uint32_t texture_height,
+            std::function<vk::Extent2D()> get_scene_widget_viewport_func,
+            std::function<vk::Extent2D()> get_game_widget_viewport_func,
+            GUISystem * gui_system,
+            int32_t &scene_widget_color_id,
+            int32_t &game_widget_color_id,
+            int32_t &final_color_target_id
+        );
 
     protected:
         std::shared_ptr<AssetRef> m_bloom_shader{};
-        uint32_t m_final_color_attachment_id{0};
+
+        void RecordMainRender(
+            uint32_t texture_width,
+            uint32_t texture_height,
+            std::function<vk::Extent2D()> get_viewport_func,
+            std::shared_ptr<ComputeStage> bloom_compute_stage,
+            int32_t &hdr_color_id,
+            int32_t &bloom_temp_id,
+            int32_t &final_color_target_id
+        );
     };
 } // namespace Engine
 

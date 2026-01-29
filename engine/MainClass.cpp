@@ -12,7 +12,6 @@
 #include <Render/FullRenderSystem.h>
 #include <UserInterface/GUISystem.h>
 #include <UserInterface/Input.h>
-#include <Render/Pipeline/RenderGraph/ComplexRenderGraphBuilder.h>
 
 #include <glslang/Public/ShaderLang.h>
 #include <exception>
@@ -84,11 +83,6 @@ namespace Engine {
         auto active_camera = this->world->GetActiveCamera();
         if (active_camera)
             this->renderer->GetCameraManager().RegisterCamera(active_camera);
-
-        // XXX: this should load from pipeline asset. it contains shader asset (comp)
-        this->render_graph_builder = std::make_unique<ComplexRenderGraphBuilder>(*this->renderer);
-        auto [w, h] = this->window->GetSize();
-        this->render_graph = std::move(this->render_graph_builder->BuildDefaultRenderGraph(w, h));
     }
 
     void MainClass::Initialize(
@@ -170,8 +164,13 @@ namespace Engine {
         return input;
     }
 
-    std::shared_ptr<ShaderCompiler> MainClass::GetShaderCompiler() {
+    std::shared_ptr<ShaderCompiler> MainClass::GetShaderCompiler() const {
         return shader_compiler;
+    }
+
+     void MainClass::SetRenderGraph(std::unique_ptr<RenderGraph> &render_graph, uint32_t final_color_attachment_id) {
+        this->render_graph = std::move(render_graph);
+        this->m_final_color_attachment_id = final_color_attachment_id;
     }
 
     void MainClass::RunOneFrame() {
@@ -208,8 +207,8 @@ namespace Engine {
         this->render_graph->Execute();
         auto [w, h] = this->window->GetSize();
         this->renderer->CompleteFrame(
-            *this->render_graph->GetInternalTextureResource(this->render_graph_builder->GetFinalColorAttachmentID()),
-            this->render_graph_builder->GetColorAttachmentAccessType(),
+            *this->render_graph->GetInternalTextureResource(this->m_final_color_attachment_id),
+            MemoryAccessTypeImageBits::ShaderRandomWrite,
             w, h
         );
     }

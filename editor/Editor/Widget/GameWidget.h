@@ -5,12 +5,6 @@
 #include <imgui.h>
 #include <memory>
 
-namespace Engine {
-    class RenderSystem;
-    class RenderTargetTexture;
-    class GraphicsCommandBuffer;
-} // namespace Engine
-
 namespace Editor {
     class GameWidget : public Widget {
     public:
@@ -19,24 +13,13 @@ namespace Editor {
 
         virtual void Render() override;
 
-        void CreateRenderTargets(std::shared_ptr<Engine::RenderSystem> render_system);
-        /// @brief Draw the active camera to the widget texture used for ImGui. Contain a synchronization operation for
-        /// writting to the color and depth textures.
-        /// XXX: Should be rewritten after we have a better render pipline.
-        void PreRender();
-
-    protected:
-        ImVec2 m_viewport_size{1280, 720};
-
     public:
-        // TODO: Need better way to allocate textures and set barriers.
+        ImVec2 m_viewport_size{1280, 720};
         int m_texture_width{1920};
         int m_texture_height{1080};
-        std::shared_ptr<Engine::RenderTargetTexture> m_color_texture{};
-        std::shared_ptr<Engine::RenderTargetTexture> m_depth_texture{};
-        ImTextureID m_color_att_id{};
-
         bool m_accept_input{false};
+
+        ImTextureID m_color_att_id{0};
     };
 } // namespace Editor
 

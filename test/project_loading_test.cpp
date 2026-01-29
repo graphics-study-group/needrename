@@ -5,11 +5,12 @@
 
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include <Asset/AssetManager/AssetManager.h>
+#include <Core/Functional/SDLWindow.h>
 #include <Framework/component/RenderComponent/CameraComponent.h>
 #include <Framework/world/WorldSystem.h>
-#include <Core/Functional/SDLWindow.h>
 #include <MainClass.h>
-#include <Render/RenderSystem.h>
+#include <Render/Pipeline/RenderGraph/ComplexRenderGraphBuilder.h>
+#include <Render/FullRenderSystem.h>
 #include <cmake_config.h>
 
 using namespace Engine;
@@ -34,6 +35,13 @@ int main(int argc, char **argv) {
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading project");
     cmc->LoadProject(project_path);
+    auto rgb = std::make_unique<ComplexRenderGraphBuilder>(*cmc->GetRenderSystem());
+    auto [w, h] = cmc->GetWindow()->GetSize();
+    int32_t final_color_id;
+    auto rg = rgb->BuildDefaultRenderGraph(
+        w, h, [cmc]() { return cmc->GetRenderSystem()->GetSwapchain().GetExtent(); }, final_color_id
+    );
+    cmc->SetRenderGraph(rg, final_color_id);
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Entering main loop");
     cmc->LoopFinite(max_frame_count);
