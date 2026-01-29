@@ -24,7 +24,6 @@ public:
     ControlComponent(GameObject *parent) : Component(parent) {
     }
 
-    std::shared_ptr<CameraComponent> m_camera{};
     float m_rotation_speed = 10.0f;
     float m_move_speed = 1.0f;
     float m_roll_speed = 1.0f;
@@ -170,18 +169,17 @@ int main(int argc, char **argv) {
         )
     );
 
-    // auto camera_go = cmc->GetWorldSystem()->CreateGameObject<GameObject>();
-    // Transform transform{};
-    // transform.SetPosition({0.0f, -0.7f, 0.5f});
-    // transform.SetRotationEuler(glm::vec3{glm::radians(-30.0f), 0.0, 0.0});
-    // transform.SetScale({1.0f, 1.0f, 1.0f});
-    // camera_go->SetTransform(transform);
-    // auto camera_comp = camera_go->template AddComponent<CameraComponent>();
-    // camera_comp->m_camera->set_aspect_ratio(1.0 * opt.resol_x / opt.resol_y);
-    // auto control_comp = camera_go->template AddComponent<ControlComponent>();
-    // control_comp->m_camera = camera_comp;
-    // cmc->GetWorldSystem()->SetActiveCamera(camera_comp->m_camera, &cmc->GetRenderSystem()->GetCameraManager());
-    // cmc->GetWorldSystem()->AddGameObjectToWorld(camera_go);
+    auto &main_scene = cmc->GetWorldSystem()->GetMainSceneRef();
+    auto &camera_go = main_scene.CreateGameObject();
+    Transform transform{};
+    transform.SetPosition({0.0f, -0.7f, 0.5f});
+    transform.SetRotationEuler(glm::vec3{glm::radians(-30.0f), 0.0, 0.0});
+    transform.SetScale({1.0f, 1.0f, 1.0f});
+    camera_go.SetTransform(transform);
+    auto &camera_comp = camera_go.template AddComponent<CameraComponent>();
+    camera_comp.m_camera->set_aspect_ratio(1.0 * opt.resol_x / opt.resol_y);
+    auto &control_comp = camera_go.template AddComponent<ControlComponent>();
+    cmc->GetWorldSystem()->SetActiveCamera(camera_comp.m_camera, &cmc->GetRenderSystem()->GetCameraManager());
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Entering main loop");
     cmc->LoopFinite(max_frame_count);
