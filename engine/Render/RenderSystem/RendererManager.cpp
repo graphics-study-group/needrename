@@ -144,7 +144,7 @@ namespace Engine::RenderSystemState {
             pimpl->renderer_components[component] = rl;
         } else if (auto smc = std::dynamic_pointer_cast<StaticMeshComponent>(component)) {
             auto rl = pimpl->CreateStaticHMesh(
-                smc, mc->m_mesh_asset, m_system
+                smc, smc->m_mesh_asset, m_system
             );
             pimpl->renderer_components[component] = rl;
         }

@@ -10,6 +10,9 @@ namespace Engine {
         REFL_SER_BODY(StaticMeshComponent)
     public:
 
+        StaticMeshComponent(std::weak_ptr <GameObject> go) : RendererComponent(go) {};
+        virtual ~StaticMeshComponent() = default;
+
         REFL_ENABLE std::shared_ptr<AssetRef> m_mesh_asset{};
     };
 }
