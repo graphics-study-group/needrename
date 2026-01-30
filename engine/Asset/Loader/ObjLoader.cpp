@@ -6,7 +6,7 @@
 #include <Asset/Mesh/MeshAsset.h>
 #include <Asset/Scene/GameObjectAsset.h>
 #include <Asset/Texture/Image2DTextureAsset.h>
-#include <Framework/component/RenderComponent/MeshComponent.h>
+#include <Framework/component/RenderComponent/StaticMeshComponent.h>
 #include <Framework/object/GameObject.h>
 #include <Framework/world/WorldSystem.h>
 #include <MainClass.h>
@@ -112,8 +112,8 @@ namespace Engine {
         std::shared_ptr<GameObjectAsset> m_game_object_asset = std::make_shared<GameObjectAsset>();
         m_game_object_asset->m_MainObject = MainClass::GetInstance()->GetWorldSystem()->CreateGameObject<GameObject>();
         m_game_object_asset->m_MainObject->m_name = m_mesh_asset->m_name;
-        std::shared_ptr<MeshComponent> m_mesh_component =
-            std::make_shared<MeshComponent>(m_game_object_asset->m_MainObject);
+        std::shared_ptr<StaticMeshComponent> m_mesh_component =
+            std::make_shared<StaticMeshComponent>(m_game_object_asset->m_MainObject);
         m_mesh_component->m_mesh_asset = std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(m_mesh_asset));
         for (const auto &material : m_material_assets) {
             m_mesh_component->m_material_assets.push_back(

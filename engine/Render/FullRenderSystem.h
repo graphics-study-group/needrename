@@ -36,6 +36,7 @@
 
 #include "Render/Renderer/Camera.h"
 #include "Render/Renderer/VertexAttribute.h"
+#include "Render/Renderer/StaticHomogeneousMesh.h"
 
 #include "Render/Memory/MemoryTypes.h"
 #include "Render/Memory/MemoryAccessTypes.h"

@@ -1,7 +1,6 @@
 #include "GraphicsCommandBuffer.h"
 
-#include "Framework/component/RenderComponent/MeshComponent.h"
-
+#include "Framework/component/RenderComponent/RendererComponent.h"
 #include "Render/AttachmentUtilsFunc.h"
 #include "Render/Memory/DeviceBuffer.h"
 #include "Render/Pipeline/Material/MaterialInstance.h"

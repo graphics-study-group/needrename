@@ -86,7 +86,8 @@ namespace Engine {
                 bindings.push_back(
                     {
                         submesh_ref.vi_buffer.get(),
-                        offset
+                        offset,
+                        0
                     }
                 );
             }
@@ -98,7 +99,8 @@ namespace Engine {
             assert(data_block_ref.submeshes[submesh_index].vi_buffer);
             return {
                 data_block_ref.submeshes[submesh_index].vi_buffer.get(),
-                data_block_ref.submeshes[submesh_index].attribute_offsets.back()
+                data_block_ref.submeshes[submesh_index].attribute_offsets.back(),
+                0
             };
         }
 
