@@ -100,12 +100,15 @@ int main(int argc, char **argv) {
     auto lib = std::make_shared<MaterialLibrary>(*rsys);
     lib->Instantiate(*lib_asset);
 
+    uint32_t width = 1024;
+    uint32_t height = 1024;
+
     std::shared_ptr skybox_texture = ImageTexture::CreateUnique(
         *rsys,
         ImageTexture::ImageTextureDesc{
             .dimensions = 2,
-            .width = 512,
-            .height = 512,
+            .width = width,
+            .height = height,
             .depth = 1,
             .mipmap_levels = 1,
             .array_layers = 6,
@@ -127,7 +130,13 @@ int main(int argc, char **argv) {
     {
         // Load skybox cubemap
         auto cubemap = std::make_shared<ImageCubemapAsset>();
-        cubemap->LoadFromFile(std::filesystem::path{ENGINE_ASSETS_DIR} / "skybox" / "sky_cloudy.png", 512, 512);
+        cubemap->LoadFromFile(std::filesystem::path{ENGINE_ASSETS_DIR} / "skybox" / "sky_cloudy.png", width, height);
+
+        // Engine::Serialization::Archive archive;
+        // archive.prepare_save();
+        // cubemap->save_asset_to_archive(archive);
+        // archive.save_to_file(std::string(ENGINE_ASSETS_DIR) + "/skybox.asset");
+
         // cubemap->LoadFromFile(CUBEMAP_FACES);
         rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
             *skybox_texture,
