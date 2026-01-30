@@ -49,7 +49,7 @@ namespace Engine {
             auto type = Reflection::GetType(js["%type"].get<std::string>());
             assert(type);
             auto comp_var = type->CreateInstance(Serialization::SerializationMarker{});
-            comp_var.MarkNeedFree(false);
+            comp_var.SetNeedFree(false);
             auto &comp = *m_scene->m_components.emplace_back(
                 std::unique_ptr<Component>(static_cast<Component *>(comp_var.GetDataPtr()))
             );

@@ -29,7 +29,7 @@ namespace Engine {
             // TODO: asset memory management
             auto var = asset_type->CreateInstance(Serialization::SerializationMarker{});
             auto asset_ptr = std::shared_ptr<Asset>(static_cast<Asset *>(var.GetDataPtr()));
-            var.MarkNeedFree(false);
+            var.SetNeedFree(false);
             asset_ptr->load_asset_from_archive(archive);
             asset_ref->m_asset = asset_ptr;
 
@@ -44,7 +44,7 @@ namespace Engine {
         assert(type->IsReflectable());
         auto var = type->CreateInstance(Serialization::SerializationMarker{});
         std::shared_ptr<Asset> ret = std::shared_ptr<Asset>(static_cast<Asset *>(var.GetDataPtr()));
-        var.MarkNeedFree(false);
+        var.SetNeedFree(false);
         archive.prepare_load();
         ret->load_asset_from_archive(archive);
         return ret;

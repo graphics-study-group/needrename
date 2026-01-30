@@ -119,7 +119,7 @@ int main() {
     );
 
     auto &camera_go = main_scene.CreateGameObject();
-    camera_go.m_name = "Main Camera";
+    camera_go.m_name = "Controled Camera";
     Transform transform{};
     transform.SetPosition({0.0f, 0.2f, -0.7f});
     transform.SetRotationEuler(glm::vec3{1.57, 0.0, 3.1415926});
@@ -127,7 +127,7 @@ int main() {
     camera_go.SetTransform(transform);
     auto &camera_comp = camera_go.template AddComponent<CameraComponent>();
     camera_comp.m_camera->set_aspect_ratio(1.0 * opt.resol_x / opt.resol_y);
-    auto &control_comp = camera_go.template AddComponent<ControlComponent>();
+    camera_go.template AddComponent<ControlComponent>();
     world->SetActiveCamera(camera_comp.m_camera, &cmc->GetRenderSystem()->GetCameraManager());
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Create Editor Window");
@@ -185,6 +185,7 @@ int main() {
             world->GetMainSceneRef().AddTickEvent();
             world->GetMainSceneRef().ProcessEvents();
         }
+        world->UpdateLightData(rsys->GetSceneDataManager());
 
         gui->PrepareGUI();
         main_window.Render();

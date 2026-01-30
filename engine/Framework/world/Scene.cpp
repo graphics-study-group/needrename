@@ -33,6 +33,7 @@ namespace Engine {
 
     Component &Scene::CreateComponent(GameObject &parent, const Reflection::Type &type) {
         auto comp_var = type.CreateInstance(&parent);
+        comp_var.SetNeedFree(false);
         return AddComponent(parent.GetHandle(), static_cast<Component *>(comp_var.GetDataPtr()));
     }
 

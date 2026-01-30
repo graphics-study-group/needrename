@@ -15,7 +15,7 @@ namespace Engine {
         std::shared_ptr<T> Var::GetAsSharedPtr() {
             if (m_type->GetTypeKind() == Type::TypeKind::Const && !std::is_const_v<T>)
                 throw std::runtime_error("Cannot get non-const shared pointer from const Var");
-            MarkNeedFree(false);
+            SetNeedFree(false);
             return std::shared_ptr<T>(static_cast<T *>(m_data));
         }
 

@@ -48,7 +48,7 @@ namespace Engine {
             m_type = nullptr;
         }
 
-        void Var::MarkNeedFree(bool need_free) {
+        void Var::SetNeedFree(bool need_free) {
             m_need_free = need_free;
         }
 
