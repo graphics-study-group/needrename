@@ -16,8 +16,8 @@
 #include <Framework/world/Scene.h>
 #include <Framework/world/WorldSystem.h>
 #include <MainClass.h>
-#include <Render/RenderSystem.h>
-#include <Render/Renderer/Camera.h>
+#include <Render/FullRenderSystem.h>
+#include <Render/Pipeline/RenderGraph/ComplexRenderGraphBuilder.h>
 #include <cmake_config.h>
 
 using namespace Engine;
@@ -42,7 +42,6 @@ int main(int argc, char **argv) {
     // mesh_path = mesh_path / "meshes" / "sphere.obj";
     // mesh_path = mesh_path / "meshes" / "cube.obj";
     // mesh_path = mesh_path / "bunny" / "bunny.obj";
-    mesh_path = mesh_path / "four_bunny" / "four_bunny.obj";
 
     SDL_Init(SDL_INIT_VIDEO);
 
@@ -56,6 +55,17 @@ int main(int argc, char **argv) {
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading project");
     cmc->LoadProject(project_path);
+    auto rgb = std::make_unique<ComplexRenderGraphBuilder>(*cmc->GetRenderSystem());
+    auto [w, h] = cmc->GetWindow()->GetSize();
+    int32_t final_color_id;
+    auto rg = rgb->BuildDefaultRenderGraph(
+        w,
+        h,
+        [cmc]() { return cmc->GetRenderSystem()->GetSwapchain().GetExtent(); },
+        [cmc]() { return cmc->GetWorldSystem()->GetActiveCamera()->m_display_id; },
+        final_color_id
+    );
+    cmc->SetRenderGraph(rg, final_color_id);
 
     std::filesystem::path path_in_project = "/";
     Engine::Importer::ImportExternalResource(mesh_path, path_in_project);

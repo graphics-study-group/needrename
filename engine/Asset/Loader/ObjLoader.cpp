@@ -14,6 +14,8 @@
 #include <nlohmann/json.hpp>
 #include <tiny_obj_loader.h>
 
+#include <unordered_map>
+
 namespace Engine {
     ObjLoader::ObjLoader() {
         m_database = std::dynamic_pointer_cast<FileSystemDatabase>(MainClass::GetInstance()->GetAssetDatabase());
@@ -78,16 +80,20 @@ namespace Engine {
 
         std::vector<std::shared_ptr<MaterialAsset>> m_material_assets;
         std::vector<std::shared_ptr<Image2DTextureAsset>> m_texture_assets;
+        std::unordered_map<std::string, size_t> material_name_to_index;
 
         for (const auto &material : materials) {
             std::shared_ptr<MaterialAsset> m_material_asset = std::make_shared<MaterialAsset>();
-            LoadMaterialAssetFromTinyObj(*m_material_asset, material, path.parent_path());
-            m_material_assets.push_back(m_material_asset);
-
-            for (const auto &[name, property] : m_material_asset->m_properties) {
-                if (property.m_type == MaterialProperty::Type::Texture) {
-                    auto ref = std::any_cast<std::shared_ptr<AssetRef>>(property.m_value);
-                    m_texture_assets.push_back(ref->as<Image2DTextureAsset>());
+            auto it = material_name_to_index.find(material.name);
+            if (it == material_name_to_index.end()) {
+                material_name_to_index[material.name] = m_material_assets.size();
+                LoadMaterialAssetFromTinyObj(*m_material_asset, material, path.parent_path());
+                m_material_assets.push_back(m_material_asset);
+                for (const auto &[name, property] : m_material_asset->m_properties) {
+                    if (property.m_type == MaterialProperty::Type::Texture) {
+                        auto ref = std::any_cast<std::shared_ptr<AssetRef>>(property.m_value);
+                        m_texture_assets.push_back(ref->as<Image2DTextureAsset>());
+                    }
                 }
             }
         }
@@ -117,9 +123,9 @@ namespace Engine {
         mesh_component.m_mesh_asset = std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(m_mesh_asset));
         auto submesh_count = m_mesh_asset->m_submeshes.size();
         for (size_t i = 0; i < submesh_count; i++) {
-            if (i < m_material_assets.size()) {
+            if (i < materials.size()) {
                 mesh_component.m_material_assets.push_back(
-                    std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(m_material_assets[i]))
+                    std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(m_material_assets[material_name_to_index[materials[i].name]]))
                 );
             } else {
                 mesh_component.m_material_assets.push_back(database->GetNewAssetRef(
