@@ -142,7 +142,10 @@ namespace Engine {
         pimpl->m_ready = false;
     }
 
-    void HomogeneousMesh::Submit(RenderSystemState::SubmissionHelper & sh) {
+    void HomogeneousMesh::Submit(
+        const RenderSystemState::AllocatorState &,
+        RenderSystemState::SubmissionHelper & sh
+    ) {
         assert(pimpl->m_buffer != nullptr);
 
         std::vector <std::byte> buf{};

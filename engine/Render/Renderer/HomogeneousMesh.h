@@ -12,10 +12,6 @@ namespace Engine {
     class AssetRef;
     class DeviceBuffer;
     class VertexAttribute;
-    
-    namespace RenderSystemState {
-        class AllocatorState;
-    }
 
     /// @brief A homogeneous mesh of only one material at runtime, constructed from mesh asset.
     class HomogeneousMesh : public IVertexBasedRenderer {
@@ -106,7 +102,10 @@ namespace Engine {
 
         bool IsReady() const noexcept override;
         void Remove() noexcept override;
-        void Submit(RenderSystemState::SubmissionHelper &) override;
+        void Submit(
+            const RenderSystemState::AllocatorState &,
+            RenderSystemState::SubmissionHelper &
+        ) override;
     };
 }; // namespace Engine
 
