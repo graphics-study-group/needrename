@@ -6,7 +6,6 @@
 #include "Render/RenderSystem/Structs.h"
 #include "Render/RenderSystem/DeviceInterface.h"
 #include "Render/Renderer/HomogeneousMesh.h"
-
 #include "Render/RenderSystem/FrameSemaphore.hpp"
 
 #include "Render/DebugUtils.h"

@@ -8,6 +8,7 @@
 
 #include "Asset/Material/MaterialAsset.h"
 #include "Framework/component/RenderComponent/MeshComponent.h"
+#include "Render/Renderer/HomogeneousMesh.h"
 #include "Core/Functional/SDLWindow.h"
 #include "UserInterface/GUISystem.h"
 #include "MainClass.h"

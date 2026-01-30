@@ -1,5 +1,5 @@
-#ifndef RENDER_FULLRENDERSYSTEM
-#define RENDER_FULLRENDERSYSTEM
+#ifndef ENGINE_RENDER_FULLRENDERSYSTEM_INCLUDED
+#define ENGINE_RENDER_FULLRENDERSYSTEM_INCLUDED
 
 /** THIS FILE IS USED AS INTERFACE ONLY, DO NOT INCLUDE IT IN THE INTERNAL ENGINE LIBRARY. **/
 
@@ -36,7 +36,6 @@
 
 #include "Render/Renderer/Camera.h"
 #include "Render/Renderer/VertexAttribute.h"
-#include "Render/Renderer/HomogeneousMesh.h"
 
 #include "Render/Memory/MemoryTypes.h"
 #include "Render/Memory/MemoryAccessTypes.h"
@@ -52,4 +51,4 @@
 
 #include "Render/RenderSystem.h"
 
-#endif // RENDER_FULLRENDERSYSTEM
+#endif // ENGINE_RENDER_FULLRENDERSYSTEM_INCLUDED

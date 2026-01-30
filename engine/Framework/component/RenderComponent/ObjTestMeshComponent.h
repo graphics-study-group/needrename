@@ -5,6 +5,7 @@
 #include <SDL3/SDL.h>
 #include "Asset/Loader/ObjLoader.h"
 #include "Framework/component/RenderComponent/MeshComponent.h"
+#include "Render/Renderer/HomogeneousMesh.h"
 
 namespace Engine {
     /**

@@ -2,7 +2,6 @@
 #define PIPELINE_COMMANDBUFFER_GRAPHICSCOMMANDBUFFER_INCLUDED
 
 #include "Render/Pipeline/CommandBuffer/TransferCommandBuffer.h"
-#include "Render/Renderer/HomogeneousMesh.h"
 #include "Render/RenderSystem/RendererManager.h"
 
 // GLM forward declaration.
@@ -20,6 +19,7 @@ namespace Engine {
     class MaterialInstance;
     class DeviceBuffer;
     class VertexAttribute;
+    class IVertexBasedRenderer;
 
     namespace AttachmentUtils {
         class AttachmentDescription;

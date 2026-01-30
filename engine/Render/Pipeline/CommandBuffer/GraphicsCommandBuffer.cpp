@@ -12,8 +12,8 @@
 #include "Render/RenderSystem/Swapchain.h"
 #include "Render/RenderSystem/CameraManager.h"
 #include "Render/Renderer/Camera.h"
-#include "Render/Renderer/HomogeneousMesh.h"
 #include "Render/Renderer/VertexAttribute.h"
+#include "Render/Renderer/IVertexBasedRenderer.h"
 
 #include "Render/DebugUtils.h"
 

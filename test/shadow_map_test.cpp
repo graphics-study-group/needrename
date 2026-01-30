@@ -15,6 +15,7 @@
 #include "UserInterface/GUISystem.h"
 #include "MainClass.h"
 #include "Render/FullRenderSystem.h"
+#include "Render/Renderer/HomogeneousMesh.h"
 #include "Framework/component/RenderComponent/ObjTestMeshComponent.h"
 
 #include "cmake_config.h"

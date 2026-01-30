@@ -18,7 +18,6 @@
 #include "Render/RenderSystem/SamplerManager.h"
 #include "Render/RenderSystem/CameraManager.h"
 #include "Render/Renderer/Camera.h"
-#include "Render/Renderer/HomogeneousMesh.h"
 
 #include <Core/Functional/SDLWindow.h>
 #include <UserInterface/GUISystem.h>
