@@ -136,14 +136,14 @@ namespace Engine {
     ) {
         auto bloom_compute_stage = std::make_shared<ComputeStage>(m_system);
         bloom_compute_stage->Instantiate(*m_bloom_shader->cas<ShaderAsset>());
-        int32_t hdr_color_id, bloom_temp_id, color_id;
+        int32_t hdr_color_id, bloom_temp_id;
         RecordMainRender(
-            texture_width, texture_height, get_viewport_func, bloom_compute_stage, hdr_color_id, bloom_temp_id, color_id
+            texture_width, texture_height, get_viewport_func, bloom_compute_stage, hdr_color_id, bloom_temp_id, final_color_target_id
         );
         auto rg{this->BuildRenderGraph()};
         bloom_compute_stage->AssignTexture("inputImage", *rg->GetInternalTextureResource(hdr_color_id));
         bloom_compute_stage->AssignTexture("bloomTemp", *rg->GetInternalTextureResource(bloom_temp_id));
-        bloom_compute_stage->AssignTexture("outputImage", *rg->GetInternalTextureResource(color_id));
+        bloom_compute_stage->AssignTexture("outputImage", *rg->GetInternalTextureResource(final_color_target_id));
         return rg;
     }
 

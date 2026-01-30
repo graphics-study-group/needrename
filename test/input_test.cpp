@@ -64,7 +64,7 @@ int main(int argc, char **argv) {
     std::filesystem::path project_path(ENGINE_PROJECTS_DIR);
     project_path = project_path / "test_project";
 
-    StartupOptions opt{.resol_x = 1280, .resol_y = 720, .title = "Input Test"};
+    StartupOptions opt{.resol_x = 1920, .resol_y = 1080, .title = "Input Test"};
 
     auto cmc = MainClass::GetInstance();
     cmc->Initialize(&opt, SDL_INIT_VIDEO | SDL_INIT_GAMEPAD, SDL_LOG_PRIORITY_VERBOSE);
