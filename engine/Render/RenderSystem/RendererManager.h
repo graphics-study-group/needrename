@@ -13,6 +13,7 @@ namespace Engine {
     class RenderSystem;
     class RendererComponent;
     class MaterialInstance;
+    class IVertexBasedRenderer;
 
     namespace RenderSystemState {
         /**
@@ -75,8 +76,8 @@ namespace Engine {
              * This manager will hereafter hold a owning shared pointer to the
              * component until it being unregistered.
              * 
-             * Underlying resource of this renderer component may be allocated
-             * depending on the type of the renderer.
+             * Underlying resource of this renderer component will be allocated
+             * if necessary, and in the process related assets may be accessed.
              * But its data will not be submitted to GPU until it is used unless
              * it is explicitly specified to be eagerly loaded.
              */

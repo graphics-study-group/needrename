@@ -103,6 +103,10 @@ namespace Engine {
         BufferBindingInfo GetIndexBufferBinding() const noexcept override;
 
         VertexAttribute GetVertexAttributeFormat() const noexcept override;
+
+        bool IsReady() const noexcept override;
+        void Remove() noexcept override;
+        void Submit(RenderSystemState::SubmissionHelper &) override;
     };
 }; // namespace Engine
 

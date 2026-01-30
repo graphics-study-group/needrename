@@ -16,7 +16,7 @@ namespace Engine {
         std::unique_ptr<DeviceBuffer> m_buffer{};
         std::vector<vk::DeviceSize> m_buffer_offsets{};
 
-        bool m_updated{false};
+        bool m_ready{false};
 
         uint64_t m_total_allocated_buffer_size{0};
 
@@ -69,7 +69,6 @@ namespace Engine {
 
         if (m_total_allocated_buffer_size != buffer_size) {
             m_total_allocated_buffer_size = 0;
-            m_updated = true;
 
             const uint32_t new_vertex_count = GetVertexCount();
             const uint32_t new_vertex_index_count = GetVertexIndexCount();
@@ -132,6 +131,35 @@ namespace Engine {
 
     VertexAttribute HomogeneousMesh::GetVertexAttributeFormat() const noexcept {
         return pimpl->m_attribute;
+    }
+
+    bool HomogeneousMesh::IsReady() const noexcept {
+        return pimpl->m_ready;
+    }
+
+    void HomogeneousMesh::Remove() noexcept {
+        // Nothing happens. Buffer is de-allocated automatically by RAII.
+        pimpl->m_ready = false;
+    }
+
+    void HomogeneousMesh::Submit(RenderSystemState::SubmissionHelper & sh) {
+        assert(pimpl->m_buffer != nullptr);
+
+        std::vector <std::byte> buf{};
+
+        buf.resize(
+            GetIndexCount() * sizeof(uint32_t) + 
+            GetVertexAttributeFormat().GetTotalPerVertexSize() * GetVertexAttributeCount()
+        );
+        const auto & submesh = pimpl->m_mesh_asset->cas<MeshAsset>()->m_submeshes[pimpl->m_submesh_idx];
+        submesh.WriteVertexAttributeBuffer(buf.data());
+        submesh.WriteIndexBuffer(
+            buf.data() + 
+            GetVertexAttributeFormat().GetTotalPerVertexSize() * GetVertexAttributeCount()
+        );
+
+        sh.EnqueueBufferSubmissionVertex(this->GetBuffer(), buf);
+        pimpl->m_ready = true;
     }
 
     uint32_t HomogeneousMesh::GetIndexCount() const noexcept {

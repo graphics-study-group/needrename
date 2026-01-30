@@ -42,52 +42,29 @@ namespace Engine::RenderSystemState {
             RendererList
         > renderer_components;
 
+        struct StaticPerSubmeshData {
+            uint32_t refcnt{0};
+            std::vector <std::unique_ptr <DeviceBuffer>> vertex_index_buffer;
+        };
+        std::unordered_map <GUID, StaticPerSubmeshData, GUIDHash> static_mesh_asset_data_cache;
+
         ////////////////////////////////////////////////////////////////////////
 
         // XXX: use atomic for multithreads.
         uint32_t total_renderer_count;
-        struct RendererControlBlock {
-            StatusFlags status{};
-            // XXX: use atomic for multithreads.
-            uint32_t refcnt{0};
-        };
 
         struct RendererDataBlock {
-            std::unique_ptr <HomogeneousMesh> renderer;
             MaterialInstance * material;
             RendererComponent * component;
             const MeshAsset::Submesh * submesh;
+            std::unique_ptr <IVertexBasedRenderer> renderer;
         };
-
-        std::unordered_map<RendererHandle, RendererControlBlock> m_status;
         std::unordered_map<RendererHandle, RendererDataBlock> m_data;
-
-        void IncreaseRefCount(const RendererList & l) noexcept {
-            for (auto i : l) {
-                auto itr = m_status.find(i);
-                if (itr != m_status.end()) {
-                    itr->second.refcnt++;
-                }
-            }
-        }
-
-        void DecreaseRefCountAndRemove(const RendererList & l) noexcept {
-            for (auto i : l) {
-                auto itr = m_status.find(i);
-                if (itr != m_status.end()) {
-                    itr->second.refcnt--;
-                    if (itr->second.refcnt == 0) {
-                        itr->second.status.Set(impl::StatusBits::Removal);
-                    }
-                }
-            }
-        }
 
         RendererList CreateHomogeousMeshFromAsset(
             const std::shared_ptr <RendererComponent> & rc,
             const std::shared_ptr <AssetRef> & asset,
-            StatusFlags sflag,
-            const RenderSystemState::AllocatorState & allocator
+            RenderSystem & s
         ) {
             RendererList rl{};
             auto masset = asset->cas<MeshAsset>();
@@ -95,37 +72,27 @@ namespace Engine::RenderSystemState {
             for (size_t i = 0; i < masset->GetSubmeshCount(); i++) {
                 m_data[total_renderer_count].renderer = 
                     std::make_unique<HomogeneousMesh>(
-                        allocator,
+                        s.GetAllocatorState(),
                         asset,
                         i
                     );
                 m_data[total_renderer_count].material = rc->GetMaterial(i).get();
                 m_data[total_renderer_count].component = rc.get();
                 m_data[total_renderer_count].submesh = &masset->m_submeshes[i];
-                m_status[total_renderer_count].status = sflag;
-                m_status[total_renderer_count].refcnt = 1;
                 rl.push_back(total_renderer_count);
+
+                if (rc->m_is_eagerly_loaded) {
+                    m_data[total_renderer_count].renderer->Submit(
+                        s.GetFrameManager().GetSubmissionHelper()
+                    );
+                }
+
                 total_renderer_count ++;
             }
             rl.shrink_to_fit();
             return rl;
         }
 
-        std::vector <std::byte> PrepareSubmissionData(const RendererDataBlock & data) {
-            std::vector <std::byte> buf{};
-
-            buf.resize(
-                data.renderer->GetIndexCount() * sizeof(uint32_t) + 
-                data.renderer->GetVertexAttributeFormat().GetTotalPerVertexSize() * data.renderer->GetVertexAttributeCount()
-            );
-            data.submesh->WriteVertexAttributeBuffer(buf.data());
-            data.submesh->WriteIndexBuffer(
-                buf.data() + 
-                data.renderer->GetVertexAttributeFormat().GetTotalPerVertexSize() * data.renderer->GetVertexAttributeCount()
-            );
-
-            return buf;
-        }
     };
 
     RendererManager::RendererManager(RenderSystem &system) : m_system(system), pimpl(std::make_unique<impl>()) {
@@ -134,15 +101,10 @@ namespace Engine::RenderSystemState {
 
     void RendererManager::RegisterRendererComponent(std::shared_ptr<RendererComponent> component) {
         SDL_LogDebug(SDL_LOG_CATEGORY_RENDER, "Registering component 0x%p", static_cast<void *>(component.get()));
-
-        impl::StatusFlags sflag{};
-        if (component->m_cast_shadow) sflag.Set(impl::StatusBits::ShadowCaster);
-        if (component->m_is_eagerly_loaded) sflag.Set(impl::StatusBits::Eager);
-
         // Legacy mesh component
         if (auto mc = std::dynamic_pointer_cast<MeshComponent>(component)) {
             auto rl = pimpl->CreateHomogeousMeshFromAsset(
-                mc, mc->m_mesh_asset, sflag, m_system.GetAllocatorState()
+                mc, mc->m_mesh_asset, m_system
             );
             pimpl->renderer_components[component] = rl;
         }
@@ -154,37 +116,24 @@ namespace Engine::RenderSystemState {
     RendererList RendererManager::GetRendererListsFromComponent(
         const std::shared_ptr<RendererComponent> &component
     ) const noexcept {
-        return RendererList();
+        auto itr = pimpl->renderer_components.find(component);
+        assert(itr != pimpl->renderer_components.end());
+        return itr->second;
     }
     void RendererManager::UnregisterRendererComponent(
         const std::shared_ptr<RendererComponent> &component
     ) {
         if (!pimpl->renderer_components.contains(component))    return;
-
-        pimpl->DecreaseRefCountAndRemove(pimpl->renderer_components[component]);
+        for (const auto i : pimpl->renderer_components[component]) {
+            pimpl->m_data[i].renderer->Remove();
+            pimpl->m_data.erase(i);
+        }
         pimpl->renderer_components.erase(component);
     }
     void RendererManager::UpdateRendererStates() {
-        assert(pimpl->m_status.size() == pimpl->m_data.size());
-
-        for (auto & [k, v] : pimpl->m_status) {
-
-            if (v.status.Test(impl::StatusBits::Removal)) {
-                break;
-            }
-
-            if (v.status.Test(impl::StatusBits::Eager) && !v.status.Test(impl::StatusBits::Loaded)) {
-                v.status.Set(impl::StatusBits::Loaded);
-                SDL_LogDebug(
-                    SDL_LOG_CATEGORY_RENDER,
-                    "Eagerly loading renderer %u",
-                    k
-                );
-
-                m_system.GetFrameManager().GetSubmissionHelper().EnqueueBufferSubmissionVertex(
-                    pimpl->m_data[k].renderer->GetBuffer(),
-                    pimpl->PrepareSubmissionData(pimpl->m_data[k])
-                );
+        for (auto & [k, v] : pimpl->m_data) {
+            if (!v.renderer->IsReady()) {
+                v.renderer->Submit(m_system.GetFrameManager().GetSubmissionHelper());
             }
         }
     }
@@ -203,22 +152,10 @@ namespace Engine::RenderSystemState {
             }
 
             for (auto i : rl) {
-                if (pimpl->m_status[i].status.Test(impl::StatusBits::Removal)) continue;
-                filtered_renderers.insert(i);
-    
-                if (!pimpl->m_status[i].status.Test(impl::StatusBits::Loaded)) {
-                    pimpl->m_status[i].status.Set(impl::StatusBits::Loaded);
-                    SDL_LogDebug(
-                        SDL_LOG_CATEGORY_RENDER,
-                        "Lazily loading component %u",
-                        i
-                    );
-
-                    m_system.GetFrameManager().GetSubmissionHelper().EnqueueBufferSubmissionVertex(
-                        pimpl->m_data[i].renderer->GetBuffer(),
-                        pimpl->PrepareSubmissionData(pimpl->m_data[i])
-                    );
+                if (!pimpl->m_data[i].renderer->IsReady()) {
+                    pimpl->m_data[i].renderer->Submit(m_system.GetFrameManager().GetSubmissionHelper());
                 }
+                filtered_renderers.insert(i);
             }
         }
 
