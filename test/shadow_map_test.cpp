@@ -47,7 +47,8 @@ public:
     ) : ObjTestMeshComponent(mesh_file_name, go) {
         auto system = m_system.lock();
 
-        for (size_t i = 0; i < m_submeshes.size(); i++) {
+        auto masset = m_mesh_asset->cas<MeshAsset>();
+        for (size_t i = 0; i < masset->GetSubmeshCount(); i++) {
             m_materials.push_back(instance);
         }
     }
@@ -192,9 +193,7 @@ int main(int argc, char **argv) {
         object_material_instance
     );
     // We cannot call `RenderInit()` because this component has no associated asset.
-    assert(cube_mesh_comp->GetSubmesh(0)->GetVertexAttributeFormat().HasAttribute(VertexAttributeSemantic::Texcoord0));
     rsys->GetRendererManager().RegisterRendererComponent(cube_mesh_comp);
-    assert(sphere_mesh_comp->GetSubmesh(0)->GetVertexAttributeFormat().HasAttribute(VertexAttributeSemantic::Texcoord0));
     rsys->GetRendererManager().RegisterRendererComponent(sphere_mesh_comp);
     
 

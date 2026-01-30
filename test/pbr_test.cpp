@@ -67,9 +67,9 @@ public:
         std::shared_ptr<const Texture> albedo
     ) : ObjTestMeshComponent(mesh_file_name), transform() {
         auto system = m_system.lock();
-        auto &helper = system->GetFrameManager().GetSubmissionHelper();
 
-        for (size_t i = 0; i < m_submeshes.size(); i++) {
+        auto masset = m_mesh_asset->cas<MeshAsset>();
+        for (size_t i = 0; i < masset->GetSubmeshCount(); i++) {
             auto ptr = std::make_shared<MaterialInstance>(*system, *library);
             ptr->AssignTexture("albedoSampler", albedo);
             m_materials.push_back(ptr);
@@ -78,7 +78,6 @@ public:
 
     ~PBRMeshComponent() {
         m_materials.clear();
-        m_submeshes.clear();
     }
 
     Transform GetWorldTransform() const override {
