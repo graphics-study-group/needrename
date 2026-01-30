@@ -7,6 +7,7 @@
 
 namespace vk {
     class Extent2D;
+    class CommandBuffer;
     enum class Format;
 } // namespace vk
 
@@ -50,6 +51,15 @@ namespace Engine {
         void DrawGUI(
             const AttachmentUtils::AttachmentDescription &attachment, vk::Extent2D extent, GraphicsCommandBuffer &cb
         ) const;
+
+        /**
+         * @brief Record GUI rendering code on the given command buffer.
+         * 
+         * This method effectively only records draw calls onto the command buffer.
+         */
+        void DrawGUI(
+            vk::CommandBuffer cb
+        ) const noexcept;
 
         /**
          * @brief Initialize GUISystem.

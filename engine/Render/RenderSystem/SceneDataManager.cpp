@@ -70,7 +70,7 @@ namespace Engine::RenderSystemState {
             LightUniformBuffer light_front_buffer{};
             std::unique_ptr <IndexedBuffer> light_back_buffer{};
             std::array <std::weak_ptr<void>, MAX_SHADOW_CASTING_LIGHTS + MAX_NON_SHADOW_CASTING_LIGHTS> bound_light_components{};
-            std::array <std::weak_ptr<RenderTargetTexture>, MAX_SHADOW_CASTING_LIGHTS> bound_shadow_maps{};
+            std::array <const RenderTargetTexture *, MAX_SHADOW_CASTING_LIGHTS> bound_shadow_maps{};
             std::shared_ptr <RenderTargetTexture> default_light_map;
 
             // Scene data
@@ -234,12 +234,11 @@ namespace Engine::RenderSystemState {
         pimpl->scene.light_front_buffer.non_shadow_casting.light_color[index] = glm::vec4(intensity, 0.0f);
     }
 
-    void SceneDataManager::SetLightShadowMap(uint32_t index, std::weak_ptr<RenderTargetTexture> shadowmap) noexcept {
+    void SceneDataManager::SetLightShadowMap(uint32_t index, const RenderTargetTexture & shadowmap) noexcept {
         assert(index < MAX_SHADOW_CASTING_LIGHTS);
-        assert(!shadowmap.expired());
 #ifndef NDEBUG
         {
-            auto desc = shadowmap.lock()->GetTextureDescription();
+            auto desc = shadowmap.GetTextureDescription();
             assert(desc.array_layers == 1 && desc.mipmap_levels == 1);
             assert(desc.dimensions == 2 && desc.depth == 1 && desc.height > 1 && desc.width > 1);
             assert(desc.is_cube_map == false);
@@ -247,7 +246,12 @@ namespace Engine::RenderSystemState {
             assert(desc.format == ImageUtils::ImageFormat::D32SFLOAT);
         }
 #endif
-        pimpl->scene.bound_shadow_maps[index] = shadowmap;
+        pimpl->scene.bound_shadow_maps[index] = &shadowmap;
+    }
+
+    void SceneDataManager::RemoveLightShadowMap(uint32_t index) noexcept {
+        assert(index < MAX_SHADOW_CASTING_LIGHTS);
+        pimpl->scene.bound_shadow_maps[index] = nullptr;
     }
 
     void SceneDataManager::SetLight(uint32_t index, std::shared_ptr<void> light) noexcept {
@@ -291,10 +295,10 @@ namespace Engine::RenderSystemState {
         for (size_t i = 0; i < MAX_SHADOW_CASTING_LIGHTS; i++) {
             bool use_default_map = true;
             if (i < shadow_casting_light_count) {
-                if(!pimpl->scene.bound_shadow_maps[i].expired()) {
+                if(pimpl->scene.bound_shadow_maps[i] != nullptr) {
                     use_default_map = false;
                     shadowmap_image_descriptor_writes[i] = vk::DescriptorImageInfo{
-                        nullptr, pimpl->scene.bound_shadow_maps[i].lock()->GetImageView(), vk::ImageLayout::eReadOnlyOptimal
+                        nullptr, pimpl->scene.bound_shadow_maps[i]->GetImageView(), vk::ImageLayout::eReadOnlyOptimal
                     };
                 } else {
                     SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Shadowmap %llu is not assigned, and is defaulted.", i);

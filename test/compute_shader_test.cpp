@@ -18,19 +18,20 @@ auto BuildRenderGraph(
     ComputeStage & compute
 ) {
     RenderGraphBuilder rgb{rsys};
-    rgb.ImportExternalResource(color_in, MemoryAccessTypeImageBits::TransferWrite);
-
-    rgb.UseImage(color_in, MemoryAccessTypeImageBits::ShaderRandomRead);
-    rgb.UseImage(color_out, MemoryAccessTypeImageBits::ShaderRandomWrite);
-    rgb.UseImage(color_present, MemoryAccessTypeImageBits::ShaderRandomWrite);
-    rgb.RecordComputePass([&] (ComputeCommandBuffer & ccb) -> void {
+    auto ci = rgb.ImportExternalResource(color_in, MemoryAccessTypeImageBits::TransferWrite);
+    auto co = rgb.ImportExternalResource(color_out);
+    auto cp = rgb.ImportExternalResource(color_present);
+    rgb.UseImage(ci, MemoryAccessTypeImageBits::ShaderRandomRead);
+    rgb.UseImage(co, MemoryAccessTypeImageBits::ShaderRandomWrite);
+    rgb.UseImage(cp, MemoryAccessTypeImageBits::ShaderRandomWrite);
+    rgb.RecordComputePass([&] (ComputeCommandBuffer & ccb, const RenderGraph &) -> void {
         ccb.BindComputeStage(compute);
         ccb.DispatchCompute(1280 / 16 + 1, 720 / 16 + 1, 1);
     });
 
-    rgb.UseImage(color_in, MemoryAccessTypeImageBits::TransferWrite);
-    rgb.UseImage(color_out, MemoryAccessTypeImageBits::TransferRead);
-    rgb.RecordTransferPass([&] (TransferCommandBuffer & tcb) -> void {
+    rgb.UseImage(ci, MemoryAccessTypeImageBits::TransferWrite);
+    rgb.UseImage(co, MemoryAccessTypeImageBits::TransferRead);
+    rgb.RecordTransferPass([&] (TransferCommandBuffer & tcb, const RenderGraph &) -> void {
         tcb.BlitColorImage(color_out, color_in);
     });
 
@@ -77,9 +78,9 @@ int main(int argc, char *argv[]) {
     
     ComputeStage cstage{*rsys};
     cstage.Instantiate(*cs);
-    cstage.AssignTexture("outputImage", color_output);
-    cstage.AssignTexture("inputImage", color_input);
-    cstage.AssignTexture("outputColorImage", color_present);
+    cstage.AssignTexture("outputImage", *color_output);
+    cstage.AssignTexture("inputImage", *color_input);
+    cstage.AssignTexture("outputColorImage", *color_present);
 
     auto rg = BuildRenderGraph(
         *rsys,

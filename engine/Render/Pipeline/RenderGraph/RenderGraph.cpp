@@ -37,7 +37,7 @@ namespace {
 
 namespace Engine {
     struct RenderGraph::impl {
-        std::vector <std::function<void(vk::CommandBuffer)>> m_commands;
+        std::vector <std::function<void(vk::CommandBuffer, const RenderGraph &)>> m_commands;
 
         RenderGraphImpl::Synchronization initial_sync, final_sync; 
 
@@ -52,7 +52,7 @@ namespace Engine {
 
     RenderGraph::RenderGraph(
         RenderSystem & system,
-        std::vector<std::function<void(vk::CommandBuffer)>> && commands,
+        std::vector<std::function<void(vk::CommandBuffer, const RenderGraph &)>> && commands,
         RenderGraphImpl::RenderGraphExtraInfo && extra
     ) :
         m_system(system),
@@ -92,6 +92,12 @@ namespace Engine {
         );
     }
 
+    RenderTargetTexture *RenderGraph::GetInternalTextureResource(int32_t handle) const noexcept {
+        auto itr = pimpl->extra.internal_texture_cache.find(handle);
+        if (itr == pimpl->extra.internal_texture_cache.end())  return nullptr;
+        return itr->second.get();
+    }
+
     void RenderGraph::Record(vk::CommandBuffer cb) {
         vk::CommandBufferBeginInfo cbbi{};
         cb.begin(cbbi);
@@ -102,7 +108,7 @@ namespace Engine {
         }
 
         for (const auto &f : pimpl->m_commands) {
-            std::invoke(f, cb);
+            std::invoke(f, cb, *this);
         }
 
         if (!pimpl->final_sync.empty()) {
