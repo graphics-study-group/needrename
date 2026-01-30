@@ -69,7 +69,9 @@ public:
     void LoadData(
         std::filesystem::path mesh_file_name,
         std::shared_ptr<MaterialLibrary> library,
-        std::shared_ptr<const Texture> albedo
+        std::shared_ptr<const Texture> albedo,
+        std::shared_ptr<const Texture> metalness,
+        std::shared_ptr<const Texture> roughness
     ) {
         this->LoadMesh(mesh_file_name);
 
@@ -79,6 +81,8 @@ public:
         for (size_t i = 0; i < m_submeshes.size(); i++) {
             auto ptr = std::make_shared<MaterialInstance>(*system, *library);
             ptr->AssignTexture("albedoSampler", albedo);
+            ptr->AssignTexture("metalnessSampler", metalness);
+            ptr->AssignTexture("roughnessSampler", roughness);
             m_materials.push_back(ptr);
         }
     }
@@ -99,8 +103,8 @@ public:
         m_uniform_data = {.metalness = metalness, .roughness = roughness};
 
         for (auto &material : m_materials) {
-            material->AssignScalarVariable("Material::metalness", metalness);
-            material->AssignScalarVariable("Material::roughness", roughness);
+            material->AssignScalarVariable("Material::metalness_scale", metalness);
+            material->AssignScalarVariable("Material::roughness_scale", roughness);
         }
     }
 };
@@ -183,36 +187,41 @@ int main(int argc, char **argv) {
         .multisample = 1,
         .is_cube_map = false
     };
-    std::shared_ptr hdr_color{RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "HDR Color Attachment")};
+    std::shared_ptr hdr_color{
+        RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "HDR Color Attachment")
+    };
     desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R8G8B8A8UNorm;
     std::shared_ptr color{RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Color Attachment")};
     desc.mipmap_levels = 1;
     desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::D32SFLOAT;
     std::shared_ptr depth{RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Depth Attachment")};
 
-    std::shared_ptr red_texture = ImageTexture::CreateUnique(
-        *rsys,
-        ImageTexture::ImageTextureDesc{
-            .dimensions = 2,
-            .width = 4,
-            .height = 4,
-            .depth = 1,
-            .mipmap_levels = 1,
-            .array_layers = 1,
-            .format = ImageTexture::ImageTextureDesc::ImageTextureFormat::R8G8B8A8UNorm,
-            .is_cube_map = false
-        },
-        Texture::SamplerDesc{},
-        "Sampled Albedo"
-    );
+    ImageTexture::ImageTextureDesc empty_desc{
+        .dimensions = 2,
+        .width = 4,
+        .height = 4,
+        .depth = 1,
+        .mipmap_levels = 1,
+        .array_layers = 1,
+        .format = ImageTexture::ImageTextureDesc::ImageTextureFormat::R8G8B8A8UNorm,
+        .is_cube_map = false
+    };
+    std::shared_ptr red_texture =
+        ImageTexture::CreateUnique(*rsys, empty_desc, Texture::SamplerDesc{}, "Sampled Albedo");
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*red_texture, {1.0, 0.0, 0.0, 1.0});
+    std::shared_ptr metalness_texture =
+        ImageTexture::CreateUnique(*rsys, empty_desc, Texture::SamplerDesc{}, "Sampled Metalness");
+    rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*metalness_texture, {1.0, 1.0, 1.0, 1.0});
+    std::shared_ptr roughness_texture =
+        ImageTexture::CreateUnique(*rsys, empty_desc, Texture::SamplerDesc{}, "Sampled Roughness");
+    rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*roughness_texture, {1.0, 1.0, 1.0, 1.0});
 
     auto scene = std::make_unique<Scene>();
     // Setup mesh
     std::filesystem::path mesh_path{std::string(ENGINE_ASSETS_DIR) + "/meshes/sphere.obj"};
     auto &go = scene->CreateGameObject();
     auto tmc = &scene->CreateComponent<PBRMeshComponent>(go);
-    tmc->LoadData(mesh_path, pbr_material, red_texture);
+    tmc->LoadData(mesh_path, pbr_material, red_texture, metalness_texture, roughness_texture);
     rsys->GetRendererManager().RegisterRendererComponent(tmc);
 
     // Setup camera
@@ -276,9 +285,7 @@ int main(int argc, char **argv) {
     rgb.RecordComputePass(
         [bloom_compute_stage](ComputeCommandBuffer &ccb, const RenderGraph &) {
             ccb.BindComputeStage(*bloom_compute_stage);
-            ccb.DispatchCompute(
-                1920 / 16 + 1, 1080 / 16 + 1, 1
-            );
+            ccb.DispatchCompute(1920 / 16 + 1, 1080 / 16 + 1, 1);
         },
         "Bloom FX pass"
     );
@@ -287,9 +294,8 @@ int main(int argc, char **argv) {
     rgb.UseImage(c, IAT::ColorAttachmentWrite);
     rgb.RecordRasterizerPass(
         {c, AttachmentUtils::LoadOperation::Load, AttachmentUtils::StoreOperation::Store},
-        [rsys, gsys](GraphicsCommandBuffer &gcb, const RenderGraph &) {
-            gsys->DrawGUI(gcb.GetCommandBuffer());
-    });
+        [rsys, gsys](GraphicsCommandBuffer &gcb, const RenderGraph &) { gsys->DrawGUI(gcb.GetCommandBuffer()); }
+    );
 
     auto rg{rgb.BuildRenderGraph()};
 
@@ -325,11 +331,7 @@ int main(int argc, char **argv) {
 
         rg->Execute();
         auto color = rg->GetInternalTextureResource(c);
-        rsys->CompleteFrame(
-            *color,
-            color->GetTextureDescription().width,
-            color->GetTextureDescription().height
-        );
+        rsys->CompleteFrame(*color, color->GetTextureDescription().width, color->GetTextureDescription().height);
 
         // SDL_Delay(5);
 
