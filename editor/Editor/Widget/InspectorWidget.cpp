@@ -134,12 +134,12 @@ namespace Editor {
             var.Set(value);
         } else if (var.GetType()->GetName() == "glm::vec3") {
             glm::vec3 value = var.Get<glm::vec3>();
-            ImGui::InputFloat3(name.c_str(), &value[0]);
+            ImGui::DragFloat3(name.c_str(), &value[0], 0.1f);
             var.Set(value);
         } else if (var.GetType()->GetName() == "glm::quat") {
             glm::quat value = var.Get<glm::quat>();
-            ImGui::InputFloat4(name.c_str(), &value[0]);
-            var.Set(value);
+            ImGui::DragFloat4(name.c_str(), &value[0], 0.01f);
+            var.Set(glm::normalize(value));
         } else if (var.GetType()->GetTypeKind() == Engine::Reflection::Type::TypeKind::Pointer) {
             auto pointer_type = std::dynamic_pointer_cast<const Engine::Reflection::PointerType>(var.GetType());
             if (pointer_type && pointer_type->GetPointedType()->GetName() == "Engine::AssetRef") {
