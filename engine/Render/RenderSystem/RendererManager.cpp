@@ -7,46 +7,31 @@
 #include "Render/RenderSystem/FrameManager.h"
 #include "Render/RenderSystem/SubmissionHelper.h"
 #include "Render/Renderer/HomogeneousMesh.h"
+#include "Render/Renderer/StaticHomogeneousMesh.h"
 
 #include <SDL3/SDL.h>
 #include <unordered_set>
 
 namespace Engine::RenderSystemState {
     struct RendererManager::impl {
-
-        enum class StatusBits : uint32_t {
-            MemoryStatusMask = 0x0000FFFF,
-            RendererTypeMask = 0xFFFF0000,
-
-            // Submitted to GPU and ready for rendering.
-            Ready = 0b0000'0000'0000'0001,
-            // A submission is pending.
-            Pending = 0b0000'0000'0000'0010,
-            // Loaded to CPU memory from disk.
-            Loaded = 0b0000'0000'0000'0100,
-            // Eager submission requested.
-            Eager = 0b0000'0000'0000'1000,
-
-            // Slated for removal from the manager.
-            Removal = 0b0000'0000'1000'0000,
-
-            // This renderer cast shadows.
-            ShadowCaster = 0b0000'0001'0000'0000,
-        };
-        using StatusFlags = Flags<StatusBits>;
-
-        ////////////////////////////////////////////////////////////////////////
-
         std::unordered_map <
             std::shared_ptr <RendererComponent>,
             RendererList
         > renderer_components;
 
-        struct StaticPerSubmeshData {
-            uint32_t refcnt{0};
-            std::vector <std::unique_ptr <DeviceBuffer>> vertex_index_buffer;
-        };
-        std::unordered_map <GUID, StaticPerSubmeshData, GUIDHash> static_mesh_asset_data_cache;
+        std::unordered_map <
+            GUID,
+            StaticHomogeneousMesh::StaticHMeshSharedDataBlock,
+            GUIDHash
+        > static_mesh_asset_data_cache;
+        
+        void ScanForDeallocation() {
+            for (auto & [k, v] : static_mesh_asset_data_cache) {
+                if (v.refcnt == 0) {
+                    static_mesh_asset_data_cache.erase(k);
+                }
+            }
+        }
 
         ////////////////////////////////////////////////////////////////////////
 
@@ -54,6 +39,8 @@ namespace Engine::RenderSystemState {
         uint32_t total_renderer_count;
 
         struct RendererDataBlock {
+            // Count down deallocation until all frames-in-flight are rendered.
+            int32_t pending_deallocation_countdown;
             MaterialInstance * material;
             RendererComponent * component;
             const MeshAsset::Submesh * submesh;
@@ -68,21 +55,26 @@ namespace Engine::RenderSystemState {
         ) {
             RendererList rl{};
             auto masset = asset->cas<MeshAsset>();
+            assert(masset);
+
             rl.reserve(masset->GetSubmeshCount());
             for (size_t i = 0; i < masset->GetSubmeshCount(); i++) {
-                m_data[total_renderer_count].renderer = 
+                auto & d = m_data[total_renderer_count];
+                d.pending_deallocation_countdown = -1;
+                d.renderer = 
                     std::make_unique<HomogeneousMesh>(
                         s.GetAllocatorState(),
                         asset,
                         i
                     );
-                m_data[total_renderer_count].material = rc->GetMaterial(i).get();
-                m_data[total_renderer_count].component = rc.get();
-                m_data[total_renderer_count].submesh = &masset->m_submeshes[i];
+                d.material = rc->GetMaterial(i).get();
+                d.component = rc.get();
+                d.submesh = &masset->m_submeshes[i];
                 rl.push_back(total_renderer_count);
 
                 if (rc->m_is_eagerly_loaded) {
                     m_data[total_renderer_count].renderer->Submit(
+                        s.GetAllocatorState(),
                         s.GetFrameManager().GetSubmissionHelper()
                     );
                 }
@@ -93,6 +85,49 @@ namespace Engine::RenderSystemState {
             return rl;
         }
 
+        RendererList CreateStaticHMesh(
+            const std::shared_ptr <StaticMeshComponent> & rc,
+            const std::shared_ptr <AssetRef> & asset,
+            RenderSystem & s
+        ) {
+            auto masset = asset->cas<MeshAsset>();
+            assert(masset);
+
+            if (!static_mesh_asset_data_cache.contains(asset->GetGUID())) {
+                static_mesh_asset_data_cache[asset->GetGUID()].submeshes.resize(masset->GetSubmeshCount());
+            }
+
+            auto & e = static_mesh_asset_data_cache[asset->GetGUID()];
+            e.refcnt += 1;
+
+            RendererList rl{};
+            rl.reserve(masset->GetSubmeshCount());
+            for (size_t i = 0; i < masset->GetSubmeshCount(); i++) {
+                auto & d = m_data[total_renderer_count];
+                d.pending_deallocation_countdown = -1;
+                d.renderer = 
+                    std::make_unique<StaticHomogeneousMesh>(
+                        i,
+                        *masset,
+                        e
+                    );
+                d.material = rc->GetMaterial(i).get();
+                d.component = rc.get();
+                d.submesh = &masset->m_submeshes[i];
+                rl.push_back(total_renderer_count);
+
+                if (rc->m_is_eagerly_loaded) {
+                    d.renderer->Submit(
+                        s.GetAllocatorState(),
+                        s.GetFrameManager().GetSubmissionHelper()
+                    );
+                }
+
+                total_renderer_count ++;
+            }
+            rl.shrink_to_fit();
+            return rl;
+        }
     };
 
     RendererManager::RendererManager(RenderSystem &system) : m_system(system), pimpl(std::make_unique<impl>()) {
@@ -105,6 +140,11 @@ namespace Engine::RenderSystemState {
         if (auto mc = std::dynamic_pointer_cast<MeshComponent>(component)) {
             auto rl = pimpl->CreateHomogeousMeshFromAsset(
                 mc, mc->m_mesh_asset, m_system
+            );
+            pimpl->renderer_components[component] = rl;
+        } else if (auto smc = std::dynamic_pointer_cast<StaticMeshComponent>(component)) {
+            auto rl = pimpl->CreateStaticHMesh(
+                smc, mc->m_mesh_asset, m_system
             );
             pimpl->renderer_components[component] = rl;
         }
@@ -124,22 +164,24 @@ namespace Engine::RenderSystemState {
         const std::shared_ptr<RendererComponent> &component
     ) {
         if (!pimpl->renderer_components.contains(component))    return;
-        for (const auto i : pimpl->renderer_components[component]) {
-            pimpl->m_data[i].renderer->Remove();
-            pimpl->m_data.erase(i);
+
+        // Mark resources for pending deallocation.
+        for (auto i : pimpl->renderer_components[component]) {
+            pimpl->m_data[i].pending_deallocation_countdown = RenderSystemState::FrameManager::FRAMES_IN_FLIGHT;
         }
+
         pimpl->renderer_components.erase(component);
     }
-    void RendererManager::UpdateRendererStates() {
+
+    void RendererManager::PerformPendingCleanUp() {
         for (auto & [k, v] : pimpl->m_data) {
-            if (!v.renderer->IsReady()) {
-                v.renderer->Submit(m_system.GetFrameManager().GetSubmissionHelper());
-            }
+            if (v.pending_deallocation_countdown < 0)    continue;
+            v.pending_deallocation_countdown -= 1;
+            if (v.pending_deallocation_countdown == 0) pimpl->m_data.erase(k);
         }
+        pimpl->ScanForDeallocation();
     }
-    void RendererManager::ClearUnregisteredRendererComponent() {
-        assert(!"Unimplemented");
-    }
+
     RendererList RendererManager::FilterAndSortRenderers(FilterCriteria fc, SortingCriterion sc) {
         assert(sc == SortingCriterion::None && "Unimplemented");
         std::unordered_set <uint32_t> filtered_renderers{};
@@ -152,8 +194,13 @@ namespace Engine::RenderSystemState {
             }
 
             for (auto i : rl) {
+                if (pimpl->m_data[i].pending_deallocation_countdown >= 0)  continue;
+
                 if (!pimpl->m_data[i].renderer->IsReady()) {
-                    pimpl->m_data[i].renderer->Submit(m_system.GetFrameManager().GetSubmissionHelper());
+                    pimpl->m_data[i].renderer->Submit(
+                        m_system.GetAllocatorState(),
+                        m_system.GetFrameManager().GetSubmissionHelper()
+                    );
                 }
                 filtered_renderers.insert(i);
             }

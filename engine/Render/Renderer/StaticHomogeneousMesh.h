@@ -53,6 +53,7 @@ namespace Engine {
             data_block_ref.refcnt += 1;
         };
         virtual ~StaticHomogeneousMesh() noexcept {
+            assert(data_block_ref.refcnt > 0);
             data_block_ref.refcnt -= 1;
         };
 

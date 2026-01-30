@@ -1,5 +1,5 @@
-#ifndef RENDER_RENDERSYSTEM_RENDERERMANAGER
-#define RENDER_RENDERSYSTEM_RENDERERMANAGER
+#ifndef RENDER_RENDERSYSTEM_RENDERERMANAGER_INCLUDED
+#define RENDER_RENDERSYSTEM_RENDERERMANAGER_INCLUDED
 
 #include <memory>
 #include <vector>
@@ -93,26 +93,17 @@ namespace Engine {
             /**
              * @brief Unregister a component from the manager.
              * It will no longer be present in the `RendererList` returned by the manager.
-             * Its underlying resources are not deallocated until a `UpdateRendererStates()` call,
-             * and its auxillary data will remain in the manager until a
-             * `ClearUnregisteredRendererComponent()` call.
+             * Actual clean up of left-over GPU resources are not performed until
+             * `PerformPendingCleanUp()` call, to avoid destroying
+             * resources that is still used by GPU.
              */
             void UnregisterRendererComponent(const std::shared_ptr <RendererComponent> & component);
-
-            /**
-             * @brief Update renderer component states.
-             * Eagerly loaded renderers which are not currently loaded will be prepared
-             * to be submitted to GPU, and unregistered renderers are removed from GPU.
-             *
-             * Actual uploading is performed by `FrameManager`.
-             */
-            void UpdateRendererStates();
 
             /**
              * @brief Clear up unregistered renderers from internal data structure, and
              * cosolidate internal memory to avoid fragmentation.
              */
-            void ClearUnregisteredRendererComponent();
+            void PerformPendingCleanUp();
 
             /**
              * @brief Filter and sort renderers based on given criteria.
@@ -120,6 +111,9 @@ namespace Engine {
              * be prepared to be submitted.
              *
              * Actual uploading is performed by `FrameManager`.
+             * 
+             * @note You should not cache the result of this method across frames,
+             * as renderers could be deallocated.
              */
             RendererList FilterAndSortRenderers(FilterCriteria fc, SortingCriterion sc = SortingCriterion::None);
 
@@ -149,4 +143,4 @@ namespace Engine {
     using RendererList = RenderSystemState::RendererManager::RendererList;
 } // namespace Engine
 
-#endif // RENDER_RENDERSYSTEM_RENDERERMANAGER
+#endif // RENDER_RENDERSYSTEM_RENDERERMANAGER_INCLUDED
