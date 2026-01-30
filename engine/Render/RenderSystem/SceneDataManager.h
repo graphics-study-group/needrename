@@ -100,6 +100,11 @@ namespace Engine {
             void SetLightCount(uint32_t count) noexcept;
 
             /**
+             * @brief Get the number of shadow-casting lights in the scene.
+             */
+            uint32_t GetNumShadowCastingLights() const noexcept;
+
+            /**
              * @brief Set how many none shadow-casting lights are there in the scene.
              * 
              * This only affects the drawing process (i.e. how many lights are processed

@@ -60,33 +60,44 @@ namespace Engine {
             .multisample = 1,
             .is_cube_map = false
         };
-        auto shadow_id = this->RequestRenderTargetTexture(shadow_desc, Texture::SamplerDesc{});
+        std::vector<int32_t> shadow_ids;
+        shadow_ids.resize(RenderSystemState::SceneDataManager::MAX_SHADOW_CASTING_LIGHTS);
+        for (size_t i = 0; i < shadow_ids.size(); i++) {
+            shadow_ids[i] = this->RequestRenderTargetTexture(shadow_desc, Texture::SamplerDesc{});
+        }
 
         auto &system = m_system;
         using IAT = MemoryAccessTypeImageBits;
-        this->UseImage(shadow_id, IAT::DepthStencilAttachmentWrite);
-        this->RecordRasterizerPassWithoutRT([&system, shadow_id](GraphicsCommandBuffer &gcb, const RenderGraph &rg) {
+        for (size_t i = 0; i < shadow_ids.size(); i++) {
+            this->UseImage(shadow_ids[i], IAT::DepthStencilAttachmentWrite);
+        }
+        this->RecordRasterizerPassWithoutRT([&system, shadow_ids](GraphicsCommandBuffer &gcb, const RenderGraph &rg) {
             vk::Extent2D shadow_map_extent{SHADOWMAP_WIDTH, SHADOWMAP_HEIGHT};
             vk::Rect2D shadow_map_scissor{{0, 0}, shadow_map_extent};
-            auto shadow_map_target = rg.GetInternalTextureResource(shadow_id);
-            gcb.BeginRendering(
-                {nullptr},
-                {shadow_map_target,
-                 nullptr,
-                 AttachmentUtils::LoadOperation::Clear,
-                 AttachmentUtils::StoreOperation::Store,
-                 AttachmentUtils::DepthClearValue{1.0f, 0U}},
-                shadow_map_extent,
-                "Shadowmap Pass"
-            );
-            gcb.SetupViewport(shadow_map_extent.width, shadow_map_extent.height, shadow_map_scissor);
-            gcb.DrawRenderers(
-                "Shadowmap", system.GetRendererManager().FilterAndSortRenderers({}), 0, shadow_map_extent
-            );
-            gcb.EndRendering();
+            for (size_t i = 0; i < system.GetSceneDataManager().GetNumShadowCastingLights(); i++) {
+                auto shadow_map_target = rg.GetInternalTextureResource(shadow_ids[i]);
+                system.GetSceneDataManager().SetLightShadowMap(i, *shadow_map_target);
+                gcb.BeginRendering(
+                    {nullptr},
+                    {shadow_map_target,
+                    nullptr,
+                    AttachmentUtils::LoadOperation::Clear,
+                    AttachmentUtils::StoreOperation::Store,
+                    AttachmentUtils::DepthClearValue{1.0f, 0U}},
+                    shadow_map_extent,
+                    "Shadowmap Pass"
+                );
+                gcb.SetupViewport(shadow_map_extent.width, shadow_map_extent.height, shadow_map_scissor);
+                gcb.DrawRenderers(
+                    "Shadowmap", system.GetRendererManager().FilterAndSortRenderers({}), 0, shadow_map_extent
+                );
+                gcb.EndRendering();
+            }
         });
 
-        this->UseImage(shadow_id, IAT::ShaderSampledRead);
+        for (size_t i = 0; i < shadow_ids.size(); i++) {
+            this->UseImage(shadow_ids[i], IAT::ShaderSampledRead);
+        }
         this->UseImage(hdr_color_id, IAT::ColorAttachmentWrite);
         this->UseImage(depth_id, IAT::DepthStencilAttachmentWrite);
         this->RecordRasterizerPass(

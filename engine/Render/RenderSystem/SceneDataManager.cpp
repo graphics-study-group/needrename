@@ -277,6 +277,10 @@ namespace Engine::RenderSystemState {
         pimpl->scene.light_front_buffer.shadow_casting_light_count = count;
     }
 
+    uint32_t SceneDataManager::GetNumShadowCastingLights() const noexcept {
+        return pimpl->scene.light_front_buffer.shadow_casting_light_count;
+    }
+
     void SceneDataManager::SetLightCountNonShadowCasting(uint32_t count) noexcept {
         assert(count < MAX_NON_SHADOW_CASTING_LIGHTS);
         pimpl->scene.light_front_buffer.non_shadow_casting_light_count = count;
