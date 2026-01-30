@@ -348,11 +348,10 @@ namespace Engine::RenderSystemState {
     }
 
     void SceneDataManager::DrawSkybox(
-        vk::CommandBuffer cb, uint32_t frame_in_flight, glm::mat3 view_mat, glm::mat4 proj_mat
+        vk::CommandBuffer cb, uint32_t frame_in_flight, glm::mat4 pv_mat, const vk::Extent2D &extent
     ) const {
         if (!pimpl->skybox.skybox_material)  return;
 
-        vk::Extent2D extent = m_system.GetSwapchain().GetExtent();
         vk::Rect2D scissor{{0, 0}, extent};
         vk::Viewport vp;
         vp.setWidth(extent.width).setHeight(extent.height);
@@ -360,8 +359,6 @@ namespace Engine::RenderSystemState {
         vp.setMaxDepth(1.0f).setMinDepth(0.0f);
         cb.setViewport(0, 1, &vp);
         cb.setScissor(0, 1, &scissor);
-
-        glm::mat4 pv = proj_mat * glm::mat4(view_mat);
 
         auto tpl = pimpl->skybox.skybox_material->GetLibrary().FindMaterialTemplate("SKYBOX", {0});
         cb.bindPipeline(vk::PipelineBindPoint::eGraphics, tpl->GetPipeline());
@@ -379,7 +376,7 @@ namespace Engine::RenderSystemState {
             vk::ShaderStageFlagBits::eAllGraphics,
             0,
             sizeof (glm::mat4),
-            { reinterpret_cast<const void *>(&pv) }
+            { reinterpret_cast<const void *>(&pv_mat) }
         );
         // Vertex info is embedded in the skybox.vert shader.
         cb.draw(36, 1, 0, 0);

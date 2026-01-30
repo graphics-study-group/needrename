@@ -9,8 +9,8 @@
 #include <Framework/component/RenderComponent/CameraComponent.h>
 #include <Framework/world/WorldSystem.h>
 #include <MainClass.h>
-#include <Render/Pipeline/RenderGraph/ComplexRenderGraphBuilder.h>
 #include <Render/FullRenderSystem.h>
+#include <Render/Pipeline/RenderGraph/ComplexRenderGraphBuilder.h>
 #include <cmake_config.h>
 
 using namespace Engine;
@@ -39,7 +39,11 @@ int main(int argc, char **argv) {
     auto [w, h] = cmc->GetWindow()->GetSize();
     int32_t final_color_id;
     auto rg = rgb->BuildDefaultRenderGraph(
-        w, h, [cmc]() { return cmc->GetRenderSystem()->GetSwapchain().GetExtent(); }, final_color_id
+        w,
+        h,
+        [cmc]() { return cmc->GetRenderSystem()->GetSwapchain().GetExtent(); },
+        [cmc]() { return cmc->GetWorldSystem()->GetActiveCamera()->m_display_id; },
+        final_color_id
     );
     cmc->SetRenderGraph(rg, final_color_id);
 

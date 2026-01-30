@@ -6,6 +6,10 @@
 #include <imgui.h>
 #include <memory>
 
+namespace Engine {
+    class RenderTargetTexture;
+}
+
 namespace Editor {
     class SceneWidget : public Widget {
     public:
@@ -14,17 +18,18 @@ namespace Editor {
 
         virtual void Render() override;
 
-    protected:
-        SceneCamera m_camera{};
-        bool m_camera_control_on{false};
+        void SetDisplayTexture(const Engine::RenderTargetTexture &texture);
+        uint8_t GetCameraIndex() const;
 
     public:
         ImVec2 m_viewport_size{1280, 720};
         float m_camera_fov{45.0f};
-        int m_texture_width{1960};
-        int m_texture_height{1080};
 
+    protected:
+        SceneCamera m_camera{};
+        bool m_camera_control_on{false};
         ImTextureID m_color_att_id{0};
+        ImVec2 m_texture_size{};
     };
 } // namespace Editor
 

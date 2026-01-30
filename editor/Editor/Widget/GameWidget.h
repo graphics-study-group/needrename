@@ -5,6 +5,10 @@
 #include <imgui.h>
 #include <memory>
 
+namespace Engine {
+    class RenderTargetTexture;
+}
+
 namespace Editor {
     class GameWidget : public Widget {
     public:
@@ -12,14 +16,16 @@ namespace Editor {
         virtual ~GameWidget();
 
         virtual void Render() override;
+        
+        void SetDisplayTexture(const Engine::RenderTargetTexture &texture);
 
     public:
-        ImVec2 m_viewport_size{1280, 720};
-        int m_texture_width{1920};
-        int m_texture_height{1080};
+        ImVec2 m_viewport_size{1920, 1080};
         bool m_accept_input{false};
 
-        ImTextureID m_color_att_id{0};
+    protected:
+        ImTextureID m_color_att_id{};
+        ImVec2 m_texture_size{};
     };
 } // namespace Editor
 

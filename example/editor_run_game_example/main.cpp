@@ -21,8 +21,6 @@
 #include <UserInterface/Input.h>
 #include <cmake_config.h>
 
-#include <backends/imgui_impl_vulkan.h>
-
 #include <Editor/Widget/GameWidget.h>
 #include <Editor/Widget/SceneWidget.h>
 #include <Editor/Window/MainWindow.h>
@@ -89,7 +87,7 @@ int main() {
 
     SDL_Init(SDL_INIT_VIDEO);
 
-    StartupOptions opt{.resol_x = 1920, .resol_y = 1080, .title = "Editor"};
+    StartupOptions opt{.resol_x = 2560, .resol_y = 1440, .title = "Editor"};
 
     auto cmc = MainClass::GetInstance();
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
@@ -101,10 +99,36 @@ int main() {
     auto world = cmc->GetWorldSystem();
     auto gui = cmc->GetGUISystem();
     auto window = cmc->GetWindow();
+    auto &main_scene = world->GetMainSceneRef();
     gui->CreateVulkanBackend(*rsys, ImageUtils::GetVkFormat(Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm));
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading project");
     cmc->LoadProject(project_path);
+
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Add extra objects");
+    auto input = MainClass::GetInstance()->GetInputSystem();
+    input->AddAxis(Input::ButtonAxis("move forward", Input::AxisType::TypeKey, "w", "s"));
+    input->AddAxis(Input::ButtonAxis("move right", Input::AxisType::TypeKey, "d", "a"));
+    input->AddAxis(Input::ButtonAxis("move up", Input::AxisType::TypeKey, "space", "left shift"));
+    input->AddAxis(Input::ButtonAxis("roll right", Input::AxisType::TypeKey, "e", "q"));
+    input->AddAxis(
+        Input::MotionAxis("look x", Input::AxisType::TypeMouseMotion, "x", 0.3f, 3.0f, 0.001f, 3.0f, false, true)
+    );
+    input->AddAxis(
+        Input::MotionAxis("look y", Input::AxisType::TypeMouseMotion, "y", 0.3f, 3.0f, 0.001f, 3.0f, false, true)
+    );
+
+    auto &camera_go = main_scene.CreateGameObject();
+    camera_go.m_name = "Main Camera";
+    Transform transform{};
+    transform.SetPosition({0.0f, 0.2f, -0.7f});
+    transform.SetRotationEuler(glm::vec3{1.57, 0.0, 3.1415926});
+    transform.SetScale({1.0f, 1.0f, 1.0f});
+    camera_go.SetTransform(transform);
+    auto &camera_comp = camera_go.template AddComponent<CameraComponent>();
+    camera_comp.m_camera->set_aspect_ratio(1.0 * opt.resol_x / opt.resol_y);
+    auto &control_comp = camera_go.template AddComponent<ControlComponent>();
+    world->SetActiveCamera(camera_comp.m_camera, &cmc->GetRenderSystem()->GetCameraManager());
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Create Editor Window");
     Editor::MainWindow main_window;
@@ -116,10 +140,12 @@ int main() {
     auto rgb = std::make_unique<ComplexRenderGraphBuilder>(*cmc->GetRenderSystem());
     int32_t final_color_id, scene_color_id, game_color_id;
     auto rg = rgb->BuildEditorRenderGraph(
-        1920,
-        1080,
+        opt.resol_x,
+        opt.resol_y,
         [scene_widget]() -> vk::Extent2D { return {scene_widget->m_viewport_size.x, scene_widget->m_viewport_size.y}; },
+        [scene_widget]() -> uint8_t { return scene_widget->GetCameraIndex(); },
         [game_widget]() -> vk::Extent2D { return {game_widget->m_viewport_size.x, game_widget->m_viewport_size.y}; },
+        [world]() -> uint8_t { return world->GetActiveCamera()->m_display_id; },
         gui.get(),
         scene_color_id,
         game_color_id,
@@ -127,16 +153,9 @@ int main() {
     );
 
     auto scene_texture = rg->GetInternalTextureResource(scene_color_id);
-    ImTextureID scene_color_att_id = reinterpret_cast<ImTextureID>(ImGui_ImplVulkan_AddTexture(
-        scene_texture->GetSampler(), scene_texture->GetImageView(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-    ));
-    scene_widget->m_color_att_id = scene_color_att_id;
-
+    scene_widget->SetDisplayTexture(*scene_texture);
     auto game_texture = rg->GetInternalTextureResource(game_color_id);
-    ImTextureID game_color_att_id = reinterpret_cast<ImTextureID>(ImGui_ImplVulkan_AddTexture(
-        game_texture->GetSampler(), game_texture->GetImageView(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-    ));
-    game_widget->m_color_att_id = game_color_att_id;
+    game_widget->SetDisplayTexture(*game_texture);
 
     main_window.m_OnStart.AddDelegate(std::make_unique<FuncDelegate<>>(Start));
 
@@ -166,6 +185,9 @@ int main() {
             world->GetMainSceneRef().AddTickEvent();
             world->GetMainSceneRef().ProcessEvents();
         }
+
+        gui->PrepareGUI();
+        main_window.Render();
 
         rsys->StartFrame();
         rg->Execute();

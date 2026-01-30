@@ -37,7 +37,6 @@ class REFL_SER_CLASS(REFL_WHITELIST) ControlComponent : public Engine::Component
 public:
     REFL_ENABLE ControlComponent(Engine::GameObject *parent);
 
-    REFL_SER_ENABLE std::shared_ptr<Engine::CameraComponent> m_camera{};
     REFL_SER_ENABLE float m_rotation_speed = 10.0f;
     REFL_SER_ENABLE float m_move_speed = 1.0f;
     REFL_SER_ENABLE float m_roll_speed = 1.0f;

@@ -167,11 +167,13 @@ int main(int argc, char **argv) {
         {crt, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store},
         {drt, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::DontCare, AttachmentUtils::DepthClearValue{1.0f, 0U}},
             [rsys, camera] (GraphicsCommandBuffer & cb, const RenderGraph &) -> void {
+                glm::mat3 view_matrix = glm::mat3(camera->GetViewMatrix());
+                glm::mat4 pv = camera->GetProjectionMatrix() * glm::mat4(view_matrix);
                 rsys->GetSceneDataManager().DrawSkybox(
                     cb.GetCommandBuffer(),
                     rsys->GetFrameManager().GetFrameInFlight(),
-                    camera->GetViewMatrix(),
-                    camera->GetProjectionMatrix()
+                    pv,
+                    rsys->GetSwapchain().GetExtent()
                 );
         }
     );

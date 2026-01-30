@@ -1,16 +1,16 @@
 #include "SceneWidget.h"
 #include <Core/Functional/SDLWindow.h>
-#include <MainClass.h>
 #include <Framework/world/WorldSystem.h>
+#include <MainClass.h>
 #include <Render/AttachmentUtils.h>
 #include <Render/ImageUtils.h>
 #include <Render/Memory/RenderTargetTexture.h>
 #include <Render/Pipeline/CommandBuffer/GraphicsCommandBuffer.h>
 #include <Render/Pipeline/CommandBuffer/GraphicsContext.h>
 #include <Render/RenderSystem.h>
+#include <Render/RenderSystem/CameraManager.h>
 #include <Render/RenderSystem/FrameManager.h>
 #include <Render/RenderSystem/SamplerManager.h>
-#include <Render/RenderSystem/CameraManager.h>
 #include <Render/Renderer/Camera.h>
 #include <backends/imgui_impl_vulkan.h>
 
@@ -46,7 +46,7 @@ namespace Editor {
                 m_color_att_id,
                 m_viewport_size,
                 ImVec2(0, 0),
-                ImVec2(m_viewport_size.x / m_texture_width, m_viewport_size.y / m_texture_height)
+                ImVec2(m_viewport_size.x / m_texture_size.x, m_viewport_size.y / m_texture_size.y)
             );
 
             if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
@@ -66,5 +66,16 @@ namespace Editor {
             }
         }
         ImGui::End();
+    }
+
+    void SceneWidget::SetDisplayTexture(const Engine::RenderTargetTexture &texture) {
+        m_color_att_id = reinterpret_cast<ImTextureID>(ImGui_ImplVulkan_AddTexture(
+            texture.GetSampler(), texture.GetImageView(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+        ));
+        m_texture_size = ImVec2(texture.GetTextureDescription().width, texture.GetTextureDescription().height);
+    }
+
+    uint8_t SceneWidget::GetCameraIndex() const {
+        return m_camera.m_camera->m_display_id;
     }
 } // namespace Editor

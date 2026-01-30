@@ -3,7 +3,6 @@
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include <Asset/AssetManager/AssetManager.h>
 #include <Asset/Shader/ShaderAsset.h>
-#include <Framework/world/WorldSystem.h>
 #include <MainClass.h>
 #include <Render/Memory/RenderTargetTexture.h>
 #include <Render/RenderSystem.h>
@@ -25,6 +24,7 @@ namespace Engine {
         uint32_t texture_width,
         uint32_t texture_height,
         std::function<vk::Extent2D()> get_viewport_func,
+        std::function<uint8_t()> get_camera_index_func,
         std::shared_ptr<ComputeStage> bloom_compute_stage,
         int32_t &hdr_color_id,
         int32_t &bloom_temp_id,
@@ -63,7 +63,6 @@ namespace Engine {
         auto shadow_id = this->RequestRenderTargetTexture(shadow_desc, Texture::SamplerDesc{});
 
         auto &system = m_system;
-        auto &world = *MainClass::GetInstance()->GetWorldSystem();
         using IAT = MemoryAccessTypeImageBits;
         this->UseImage(shadow_id, IAT::DepthStencilAttachmentWrite);
         this->RecordRasterizerPassWithoutRT([&system, shadow_id](GraphicsCommandBuffer &gcb, const RenderGraph &rg) {
@@ -96,21 +95,22 @@ namespace Engine {
              AttachmentUtils::LoadOperation::Clear,
              AttachmentUtils::StoreOperation::DontCare,
              AttachmentUtils::DepthClearValue{1.0f, 0U}},
-            [&system, &world, get_viewport_func](GraphicsCommandBuffer &gcb, const RenderGraph &) {
+            [&system, get_viewport_func, get_camera_index_func](GraphicsCommandBuffer &gcb, const RenderGraph &) {
                 vk::Extent2D extent{get_viewport_func()};
                 vk::Rect2D scissor{{0, 0}, extent};
                 gcb.SetupViewport(extent.width, extent.height, scissor);
+                system.GetCameraManager().SetActiveCameraIndex(get_camera_index_func());
                 gcb.DrawRenderers(
                     "Lit",
                     system.GetRendererManager().FilterAndSortRenderers({}),
-                    world.GetActiveCamera()->m_display_id,
+                    system.GetCameraManager().GetActiveCameraIndex(),
                     extent
                 );
                 system.GetSceneDataManager().DrawSkybox(
                     system.GetFrameManager().GetRawMainCommandBuffer(),
                     system.GetFrameManager().GetFrameInFlight(),
-                    world.GetActiveCamera()->GetViewMatrix(),
-                    world.GetActiveCamera()->GetProjectionMatrix()
+                    system.GetCameraManager().GetPVMatForSkybox(),
+                    extent
                 );
             },
             "Main Lit pass"
@@ -132,13 +132,21 @@ namespace Engine {
         uint32_t texture_width,
         uint32_t texture_height,
         std::function<vk::Extent2D()> get_viewport_func,
+        std::function<uint8_t()> get_camera_index_func,
         int32_t &final_color_target_id
     ) {
         auto bloom_compute_stage = std::make_shared<ComputeStage>(m_system);
         bloom_compute_stage->Instantiate(*m_bloom_shader->cas<ShaderAsset>());
         int32_t hdr_color_id, bloom_temp_id;
         RecordMainRender(
-            texture_width, texture_height, get_viewport_func, bloom_compute_stage, hdr_color_id, bloom_temp_id, final_color_target_id
+            texture_width,
+            texture_height,
+            get_viewport_func,
+            get_camera_index_func,
+            bloom_compute_stage,
+            hdr_color_id,
+            bloom_temp_id,
+            final_color_target_id
         );
         auto rg{this->BuildRenderGraph()};
         bloom_compute_stage->AssignTexture("inputImage", *rg->GetInternalTextureResource(hdr_color_id));
@@ -151,7 +159,9 @@ namespace Engine {
         uint32_t texture_width,
         uint32_t texture_height,
         std::function<vk::Extent2D()> get_scene_widget_viewport_func,
+        std::function<uint8_t()> get_scene_camera_index_func,
         std::function<vk::Extent2D()> get_game_widget_viewport_func,
+        std::function<uint8_t()> get_game_camera_index_func,
         GUISystem *gui_system,
         int32_t &scene_widget_color_id,
         int32_t &game_widget_color_id,
@@ -166,6 +176,7 @@ namespace Engine {
             texture_width,
             texture_height,
             get_scene_widget_viewport_func,
+            get_scene_camera_index_func,
             bloom_compute_stage_scene,
             hdr_color_id1,
             bloom_temp_id1,
@@ -176,6 +187,7 @@ namespace Engine {
             texture_width,
             texture_height,
             get_game_widget_viewport_func,
+            get_game_camera_index_func,
             bloom_compute_stage_game,
             hdr_color_id2,
             bloom_temp_id2,

@@ -98,7 +98,7 @@
                         "719ACE4E38B48BAF65FC9F95C9688AFD"
                     ],
                     "GameObject::m_handle": "33F8D6C6FF9C23DA2A50E58E4ADB8A08",
-                    "GameObject::m_name": "",
+                    "GameObject::m_name": "fixed_camera",
                     "GameObject::m_parentGameObject": "00000000000000000000000000000000",
                     "GameObject::m_transformComponent": "9C5412EB2E00655E27E9AAB4E2DC4FD9"
                 }
