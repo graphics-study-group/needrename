@@ -1,30 +1,21 @@
 #include "SceneWidget.h"
+#include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include <Core/Functional/SDLWindow.h>
 #include <Framework/world/WorldSystem.h>
 #include <MainClass.h>
-#include <Render/AttachmentUtils.h>
-#include <Render/ImageUtils.h>
+#include <Reflection/serialization.h>
 #include <Render/Memory/RenderTargetTexture.h>
-#include <Render/Pipeline/CommandBuffer/GraphicsCommandBuffer.h>
-#include <Render/Pipeline/CommandBuffer/GraphicsContext.h>
 #include <Render/RenderSystem.h>
 #include <Render/RenderSystem/CameraManager.h>
-#include <Render/RenderSystem/FrameManager.h>
-#include <Render/RenderSystem/SamplerManager.h>
 #include <Render/Renderer/Camera.h>
+
+#include <SDL3/SDL.h>
 #include <backends/imgui_impl_vulkan.h>
+#include <vulkan/vulkan.hpp>
 
 namespace Editor {
     SceneWidget::SceneWidget(const std::string &name) : Widget(name) {
         m_camera.m_camera->m_display_id = 15u;
-        // m_camera.m_transform.SetPosition({0.0f, 0.05f, -0.7f});
-        // m_camera.m_transform.SetRotationEuler(glm::vec3{1.57, 0.0, 3.1415926});
-        // m_camera.m_fov = 45.0f;
-        // m_camera.m_aspect_ratio = 1.0f;
-        // m_camera.m_clipping_near = 1e-3f;
-        // m_camera.m_clipping_far = 1e3f;
-        // m_camera.UpdateViewMatrix();
-        // m_camera.UpdateProjectionMatrix();
         Engine::MainClass::GetInstance()->GetRenderSystem()->GetCameraManager().RegisterCamera(m_camera.m_camera);
     }
 
@@ -63,6 +54,16 @@ namespace Editor {
                 float delta_right = ImGui::IsKeyDown(ImGuiKey_D) * 1.0f - ImGui::IsKeyDown(ImGuiKey_A) * 1.0f;
                 m_camera.MoveControl(delta_forward, delta_right);
                 m_camera.m_camera->UpdateViewMatrix(m_camera.m_transform);
+            }
+
+            if (ImGui::IsWindowFocused() && ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S)) {
+                Engine::Serialization::Archive archive;
+                Engine::MainClass::GetInstance()->GetWorldSystem()->SaveLevelToArchive(archive);
+                auto &adb = *std::dynamic_pointer_cast<Engine::FileSystemDatabase>(
+                    Engine::MainClass::GetInstance()->GetAssetDatabase()
+                );
+                adb.SaveArchive(archive, Engine::AssetPath(adb, "new_level.asset"));
+                SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Save level to %s", "new_level.asset");
             }
         }
         ImGui::End();

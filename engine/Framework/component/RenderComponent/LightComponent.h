@@ -24,7 +24,7 @@ namespace Engine {
 
     public:
         REFL_SER_ENABLE glm::vec3 m_color{1.0f, 1.0f, 1.0f};
-        REFL_SER_ENABLE float m_intensity{10.0f};
+        REFL_SER_ENABLE float m_intensity{5.0f};
         REFL_SER_ENABLE LightType m_type{LightType::Directional};
         REFL_SER_ENABLE bool m_cast_shadow{true};
     };

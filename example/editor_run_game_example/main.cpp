@@ -43,7 +43,7 @@ void SpinningComponent::Tick() {
     if (go) {
         auto &transform = go->GetTransformRef();
         transform.SetRotation(
-            transform.GetRotation() * glm::angleAxis(glm::radians(m_speed * dt), glm::vec3(0.0f, 1.0f, 0.0f))
+            transform.GetRotation() * glm::angleAxis(glm::radians(m_speed * dt), glm::vec3(0.0f, 0.0f, 1.0f))
         );
     }
 }
@@ -121,8 +121,8 @@ int main() {
     auto &camera_go = main_scene.CreateGameObject();
     camera_go.m_name = "Controled Camera";
     Transform transform{};
-    transform.SetPosition({0.0f, 0.2f, -0.7f});
-    transform.SetRotationEuler(glm::vec3{1.57, 0.0, 3.1415926});
+    transform.SetPosition({0.0f, -0.7f, 0.5f});
+    transform.SetRotationEuler(glm::vec3{glm::radians(-30.0f), 0.0, 0.0});
     transform.SetScale({1.0f, 1.0f, 1.0f});
     camera_go.SetTransform(transform);
     auto &camera_comp = camera_go.template AddComponent<CameraComponent>();

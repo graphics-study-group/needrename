@@ -1,0 +1,17 @@
+{
+    "%data": {
+        "&0": {
+            "%type": "Engine::SolidColorTextureAsset",
+            "Asset::m_guid": "24EF50B82AB1DC9793F60A50DBE77719",
+            "SolidColorTextureAsset::m_color": [
+                1.0,
+                1.0,
+                1.0,
+                1.0
+            ],
+            "TextureAsset::m_name": "dark_grey"
+        }
+    },
+    "%extra_data": [],
+    "%main_id": "&0"
+}

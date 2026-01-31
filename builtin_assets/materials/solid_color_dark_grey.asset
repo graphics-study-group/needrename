@@ -10,12 +10,20 @@
                     "m_type": "Texture",
                     "m_value": "&2"
                 },
-                "metalness": {
+                "metalnessSampler": {
+                    "m_type": "Texture",
+                    "m_value": "&3"
+                },
+                "metalness_scale": {
                     "m_type": "Simple",
                     "m_ubo_type": "Float",
-                    "m_value": 0.1
+                    "m_value": 0.5
                 },
-                "roughness": {
+                "roughnessSampler": {
+                    "m_type": "Texture",
+                    "m_value": "&4"
+                },
+                "roughness_scale": {
                     "m_type": "Simple",
                     "m_ubo_type": "Float",
                     "m_value": 0.2
@@ -29,6 +37,14 @@
         "&2": {
             "%type": "Engine::AssetRef",
             "AssetRef::m_guid": "1D73E8C7640A3DF77B503B3F5E97DBE5"
+        },
+        "&3": {
+            "%type": "Engine::AssetRef",
+            "AssetRef::m_guid": "24EF50B82AB1DC9793F60A50DBE77719"
+        },
+        "&4": {
+            "%type": "Engine::AssetRef",
+            "AssetRef::m_guid": "24EF50B82AB1DC9793F60A50DBE77719"
         }
     },
     "%extra_data": [],
