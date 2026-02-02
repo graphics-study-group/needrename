@@ -222,7 +222,6 @@ int main(int argc, char **argv) {
             vk::Extent2D shadow_map_extent{2048, 2048};
             vk::Rect2D shadow_map_scissor{{0, 0}, shadow_map_extent};
             auto sm = rg.GetInternalTextureResource(s);
-            rsys->GetSceneDataManager().SetLightShadowMap(0, *sm);
             gcb.BeginRendering(
                 {nullptr},
                 {
@@ -267,6 +266,9 @@ int main(int argc, char **argv) {
         "Lit pass"
     );
     auto rg{rgb.BuildRenderGraph()};
+    auto sm = rg.GetInternalTextureResource(s);
+    // Shadow map change must be effectuated before start of a frame.
+    rsys->GetSceneDataManager().SetLightShadowMap(0, *sm);
 
     bool quited = false;
 
