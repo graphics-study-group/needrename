@@ -81,7 +81,7 @@ namespace Engine {
         }
         if (
             a.Test(MemoryAccessTypeImageBits::DepthStencilAttachmentRead) |
-            a.Test(MemoryAccessTypeImageBits::DepthStencilAttachmentRead)
+            a.Test(MemoryAccessTypeImageBits::DepthStencilAttachmentWrite)
         ) {
             return vk::ImageLayout::eDepthStencilAttachmentOptimal;
         }

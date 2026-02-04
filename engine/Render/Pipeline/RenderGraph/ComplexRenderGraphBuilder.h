@@ -38,17 +38,7 @@ namespace Engine {
 
     protected:
         std::shared_ptr<AssetRef> m_bloom_shader{};
-
-        void RecordMainRender(
-            uint32_t texture_width,
-            uint32_t texture_height,
-            std::function<vk::Extent2D()> get_viewport_func,
-            std::function<uint8_t()> get_camera_index_func,
-            std::shared_ptr<ComputeStage> bloom_compute_stage,
-            int32_t &hdr_color_id,
-            int32_t &bloom_temp_id,
-            int32_t &final_color_target_id
-        );
+        std::shared_ptr<ComputeStage> m_bloom_compute_stage{};
     };
 } // namespace Engine
 

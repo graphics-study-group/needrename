@@ -115,44 +115,6 @@
                 },
                 {
                     "%type": "Engine::TransformComponent",
-                    "Component::m_handle": "A47BEB75A221D63DE33C961364FBEBBC",
-                    "Component::m_parentGameObject": "19E44107D5A7AA71B2D66A5CF02C9FD4",
-                    "TransformComponent::m_transform": {
-                        "%type": "Engine::Transform",
-                        "Transform::m_position": [
-                            0.0,
-                            -0.699999988079071,
-                            0.5
-                        ],
-                        "Transform::m_rotation": [
-                            -0.258819043636322,
-                            0.0,
-                            0.0,
-                            0.9659258127212524
-                        ],
-                        "Transform::m_scale": [
-                            1.0,
-                            1.0,
-                            1.0
-                        ]
-                    }
-                },
-                {
-                    "%type": "Engine::CameraComponent",
-                    "CameraComponent::m_camera": "&9",
-                    "Component::m_handle": "762873D2381549DD37E804C06285D466",
-                    "Component::m_parentGameObject": "19E44107D5A7AA71B2D66A5CF02C9FD4"
-                },
-                {
-                    "%type": "ControlComponent",
-                    "Component::m_handle": "A61443F23E0905EDC7F61F5E864D9A81",
-                    "Component::m_parentGameObject": "19E44107D5A7AA71B2D66A5CF02C9FD4",
-                    "ControlComponent::m_move_speed": 1.0,
-                    "ControlComponent::m_roll_speed": 1.0,
-                    "ControlComponent::m_rotation_speed": 10.0
-                },
-                {
-                    "%type": "Engine::TransformComponent",
                     "Component::m_handle": "29CB1EF8F10639F5BA9A20C44A304BCC",
                     "Component::m_parentGameObject": "69357EE08BA8772358F96C4782D8AB2C",
                     "TransformComponent::m_transform": {
@@ -225,19 +187,6 @@
                     "GameObject::m_name": "floor",
                     "GameObject::m_parentGameObject": "00000000000000000000000000000000",
                     "GameObject::m_transformComponent": "42A07A028C88E12204E236AB302C3D10"
-                },
-                {
-                    "%type": "Engine::GameObject",
-                    "GameObject::m_childGameObject": [],
-                    "GameObject::m_components": [
-                        "A47BEB75A221D63DE33C961364FBEBBC",
-                        "762873D2381549DD37E804C06285D466",
-                        "A61443F23E0905EDC7F61F5E864D9A81"
-                    ],
-                    "GameObject::m_handle": "19E44107D5A7AA71B2D66A5CF02C9FD4",
-                    "GameObject::m_name": "Controled Camera",
-                    "GameObject::m_parentGameObject": "00000000000000000000000000000000",
-                    "GameObject::m_transformComponent": "A47BEB75A221D63DE33C961364FBEBBC"
                 },
                 {
                     "%type": "Engine::GameObject",

@@ -18,18 +18,18 @@ namespace Engine {
         auto &amg = *MainClass::GetInstance()->GetAssetManager();
         m_bloom_shader = adb.GetNewAssetRef(AssetPath{adb, "~/shaders/bloom.comp.asset"});
         amg.LoadAssetImmediately(m_bloom_shader);
+        m_bloom_compute_stage = std::make_shared<ComputeStage>(m_system);
+        m_bloom_compute_stage->Instantiate(*m_bloom_shader->cas<ShaderAsset>());
     }
 
-    void ComplexRenderGraphBuilder::RecordMainRender(
+    std::unique_ptr<RenderGraph> ComplexRenderGraphBuilder::BuildDefaultRenderGraph(
         uint32_t texture_width,
         uint32_t texture_height,
         std::function<vk::Extent2D()> get_viewport_func,
         std::function<uint8_t()> get_camera_index_func,
-        std::shared_ptr<ComputeStage> bloom_compute_stage,
-        int32_t &hdr_color_id,
-        int32_t &bloom_temp_id,
         int32_t &final_color_target_id
     ) {
+        int32_t hdr_color_id, bloom_temp_id;
         RenderTargetTexture::RenderTargetTextureDesc rtt_desc{
             .dimensions = 2,
             .width = texture_width,
@@ -67,6 +67,7 @@ namespace Engine {
         }
 
         auto &system = m_system;
+        auto &bloom_compute_stage = *m_bloom_compute_stage;
         using IAT = MemoryAccessTypeImageBits;
         for (size_t i = 0; i < shadow_ids.size(); i++) {
             this->UseImage(shadow_ids[i], IAT::DepthStencilAttachmentWrite);
@@ -76,7 +77,6 @@ namespace Engine {
             vk::Rect2D shadow_map_scissor{{0, 0}, shadow_map_extent};
             for (size_t i = 0; i < system.GetSceneDataManager().GetNumShadowCastingLights(); i++) {
                 auto shadow_map_target = rg.GetInternalTextureResource(shadow_ids[i]);
-                system.GetSceneDataManager().SetLightShadowMap(i, *shadow_map_target);
                 gcb.BeginRendering(
                     {nullptr},
                     {shadow_map_target,
@@ -128,41 +128,27 @@ namespace Engine {
         );
 
         this->UseImage(hdr_color_id, IAT::ShaderRandomRead);
-        this->UseImage(bloom_temp_id, IAT::ShaderRandomDefault);
+        // TODO: strange, add this makes RenderDoc corrupted texture
+        // this->UseImage(bloom_temp_id, IAT::ShaderRandomDefault);
         this->UseImage(color_id, IAT::ShaderRandomWrite);
         this->RecordComputePass(
-            [bloom_compute_stage, texture_width, texture_height](ComputeCommandBuffer &ccb, const RenderGraph &) {
-                ccb.BindComputeStage(*bloom_compute_stage);
+            [&bloom_compute_stage, texture_width, texture_height](ComputeCommandBuffer &ccb, const RenderGraph &) {
+                ccb.BindComputeStage(bloom_compute_stage);
                 ccb.DispatchCompute(texture_width / 16 + 1, texture_height / 16 + 1, 1);
             },
             "Bloom FX pass"
         );
-    }
 
-    std::unique_ptr<RenderGraph> ComplexRenderGraphBuilder::BuildDefaultRenderGraph(
-        uint32_t texture_width,
-        uint32_t texture_height,
-        std::function<vk::Extent2D()> get_viewport_func,
-        std::function<uint8_t()> get_camera_index_func,
-        int32_t &final_color_target_id
-    ) {
-        auto bloom_compute_stage = std::make_shared<ComputeStage>(m_system);
-        bloom_compute_stage->Instantiate(*m_bloom_shader->cas<ShaderAsset>());
-        int32_t hdr_color_id, bloom_temp_id;
-        RecordMainRender(
-            texture_width,
-            texture_height,
-            get_viewport_func,
-            get_camera_index_func,
-            bloom_compute_stage,
-            hdr_color_id,
-            bloom_temp_id,
-            final_color_target_id
-        );
         auto rg{this->BuildRenderGraph()};
-        bloom_compute_stage->AssignTexture("inputImage", *rg->GetInternalTextureResource(hdr_color_id));
-        bloom_compute_stage->AssignTexture("bloomTemp", *rg->GetInternalTextureResource(bloom_temp_id));
-        bloom_compute_stage->AssignTexture("outputImage", *rg->GetInternalTextureResource(final_color_target_id));
+        bloom_compute_stage.AssignTexture("inputImage", *rg->GetInternalTextureResource(hdr_color_id));
+        bloom_compute_stage.AssignTexture("bloomTemp", *rg->GetInternalTextureResource(bloom_temp_id));
+        bloom_compute_stage.AssignTexture("outputImage", *rg->GetInternalTextureResource(final_color_target_id));
+
+        for (size_t i = 0; i < shadow_ids.size(); i++) {
+            auto shadow_map_target = rg->GetInternalTextureResource(shadow_ids[i]);
+            system.GetSceneDataManager().SetLightShadowMap(i, *shadow_map_target);
+        }
+
         return rg;
     }
 
@@ -178,65 +164,6 @@ namespace Engine {
         int32_t &game_widget_color_id,
         int32_t &final_color_target_id
     ) {
-        auto bloom_compute_stage_scene = std::make_shared<ComputeStage>(m_system);
-        bloom_compute_stage_scene->Instantiate(*m_bloom_shader->cas<ShaderAsset>());
-        auto bloom_compute_stage_game = std::make_shared<ComputeStage>(m_system);
-        bloom_compute_stage_game->Instantiate(*m_bloom_shader->cas<ShaderAsset>());
-        int32_t hdr_color_id1, bloom_temp_id1, color_id1;
-        RecordMainRender(
-            texture_width,
-            texture_height,
-            get_scene_widget_viewport_func,
-            get_scene_camera_index_func,
-            bloom_compute_stage_scene,
-            hdr_color_id1,
-            bloom_temp_id1,
-            color_id1
-        );
-        int32_t hdr_color_id2, bloom_temp_id2, color_id2;
-        RecordMainRender(
-            texture_width,
-            texture_height,
-            get_game_widget_viewport_func,
-            get_game_camera_index_func,
-            bloom_compute_stage_game,
-            hdr_color_id2,
-            bloom_temp_id2,
-            color_id2
-        );
-        scene_widget_color_id = color_id1;
-        game_widget_color_id = color_id2;
-
-        RenderTargetTexture::RenderTargetTextureDesc rtt_desc{
-            .dimensions = 2,
-            .width = texture_width,
-            .height = texture_height,
-            .depth = 1,
-            .mipmap_levels = 1,
-            .array_layers = 1,
-            .format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R8G8B8A8UNorm,
-            .multisample = 1,
-            .is_cube_map = false
-        };
-        final_color_target_id = this->RequestRenderTargetTexture(rtt_desc, Texture::SamplerDesc{});
-        this->UseImage(color_id1, MemoryAccessTypeImageBits::ShaderSampledRead);
-        this->UseImage(color_id2, MemoryAccessTypeImageBits::ShaderSampledRead);
-        this->UseImage(final_color_target_id, MemoryAccessTypeImageBits::ColorAttachmentWrite);
-        this->RecordRasterizerPass(
-            {final_color_target_id, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store},
-            [gui_system](GraphicsCommandBuffer &gcb, const RenderGraph &) {
-                gui_system->DrawGUI(gcb.GetCommandBuffer());
-            }
-        );
-
-        auto rg{this->BuildRenderGraph()};
-        bloom_compute_stage_scene->AssignTexture("inputImage", *rg->GetInternalTextureResource(hdr_color_id1));
-        bloom_compute_stage_scene->AssignTexture("bloomTemp", *rg->GetInternalTextureResource(bloom_temp_id1));
-        bloom_compute_stage_scene->AssignTexture("outputImage", *rg->GetInternalTextureResource(color_id1));
-        bloom_compute_stage_game->AssignTexture("inputImage", *rg->GetInternalTextureResource(hdr_color_id2));
-        bloom_compute_stage_game->AssignTexture("bloomTemp", *rg->GetInternalTextureResource(bloom_temp_id2));
-        bloom_compute_stage_game->AssignTexture("outputImage", *rg->GetInternalTextureResource(color_id2));
-
-        return rg;
+        assert(false && "Not implemented");
     }
 } // namespace Engine
