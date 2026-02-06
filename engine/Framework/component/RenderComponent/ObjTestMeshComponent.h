@@ -13,7 +13,7 @@ namespace Engine {
      * Always include this header after all your inclusion to avoid definition problems.
      */
     class ObjTestMeshComponent : public StaticMeshComponent {
-
+    public:
         void LoadMesh(std::filesystem::path mesh) {
             tinyobj::ObjReaderConfig reader_config{};
             tinyobj::ObjReader reader{};
@@ -87,10 +87,8 @@ namespace Engine {
 
     public:
         ObjTestMeshComponent(
-            std::filesystem::path mesh_file_name,
-            std::weak_ptr<GameObject> go = std::weak_ptr<GameObject>()
-        ) : StaticMeshComponent(go) {
-            LoadMesh(mesh_file_name);
+            GameObject *parent
+        ) : StaticMeshComponent(parent) {
         }
 
         ~ObjTestMeshComponent() {

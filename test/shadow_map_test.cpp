@@ -186,7 +186,7 @@ int main(int argc, char **argv) {
     floor_go.GetTransformRef().SetScale({5.0f, 5.0f, 1.0f}).SetPosition({0.0f, 0.0f, 0.5f});
     auto floor_mesh_asset = std::make_shared<LowerPlaneMeshAsset>();
     auto floor_mesh_asset_ref = std::make_shared<AssetRef>(floor_mesh_asset);
-    auto floor_mesh_comp = std::make_shared<MeshComponent>(floor_go);
+    auto floor_mesh_comp = std::make_shared<MeshComponent>(&floor_go);
     floor_mesh_comp->m_mesh_asset = floor_mesh_asset_ref;
     floor_mesh_comp->GetMaterials().resize(1);
     floor_mesh_comp->GetMaterials()[0] = floor_material_instance;
@@ -207,8 +207,8 @@ int main(int argc, char **argv) {
         std::filesystem::path{std::string(ENGINE_ASSETS_DIR) + "/meshes/sphere.obj"}, object_material_instance
     );
     // We cannot call `RenderInit()` because this component has no associated asset.
-    rsys->GetRendererManager().RegisterRendererComponent(cube_mesh_comp);
-    rsys->GetRendererManager().RegisterRendererComponent(sphere_mesh_comp);
+    rsys->GetRendererManager().RegisterRendererComponent(cube_mesh_comp.GetHandle());
+    rsys->GetRendererManager().RegisterRendererComponent(sphere_mesh_comp.GetHandle());
     
 
     // Build Render Graph

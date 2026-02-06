@@ -20,7 +20,6 @@ namespace Engine {
         
         std::vector<std::shared_ptr<MaterialInstance>> m_materials{};
         std::weak_ptr<RenderSystem> m_system{};
-        RendererHandle m_renderer_handle{};
 
     public:
         REFL_ENABLE RendererComponent(GameObject *parent);

@@ -221,7 +221,7 @@ int main(int argc, char **argv) {
     auto &go = scene->CreateGameObject();
     auto tmc = &scene->CreateComponent<PBRMeshComponent>(go);
     tmc->LoadData(mesh_path, pbr_material, red_texture, metalness_texture, roughness_texture);
-    rsys->GetRendererManager().RegisterRendererComponent(tmc);
+    rsys->GetRendererManager().RegisterRendererComponent(tmc->GetHandle());
 
     // Setup camera
     Transform transform{};

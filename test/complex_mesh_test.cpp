@@ -116,8 +116,11 @@ class MeshComponentFromFile : public StaticMeshComponent {
     }
 
 public:
-    MeshComponentFromFile(std::filesystem::path mesh_file_name) :
-        StaticMeshComponent(std::weak_ptr<GameObject>()), transform() {
+    MeshComponentFromFile(GameObject *parent) :
+        StaticMeshComponent(parent), transform() {
+    }
+
+    void LoadFile(std::filesystem::path mesh_file_name) {
         LoadMesh(mesh_file_name);
 
         auto system = m_system.lock();
@@ -232,9 +235,9 @@ int main(int argc, char **argv) {
     // Setup mesh
     std::filesystem::path mesh_path{std::string(ENGINE_ASSETS_DIR) + "/four_bunny/four_bunny.obj"};
     auto &go = scene->CreateGameObject();
-    auto tmc = &scene->CreateComponent<MeshComponentFromFile>(go);
-    tmc->LoadFile(mesh_path);
-    rsys->GetRendererManager().RegisterRendererComponent(tmc);
+    auto &tmc = scene->CreateComponent<MeshComponentFromFile>(go);
+    tmc.LoadFile(mesh_path);
+    rsys->GetRendererManager().RegisterRendererComponent(tmc.GetHandle());
 
     // Setup camera
     Transform transform{};
@@ -268,7 +271,7 @@ int main(int argc, char **argv) {
 
         // Submit data
         SubmitSceneData(rsys, rsys->GetFrameManager().GetFrameInFlight());
-        SubmitMaterialData(tmc);
+        SubmitMaterialData(&tmc);
 
         // Draw
         auto index = rsys->StartFrame();
