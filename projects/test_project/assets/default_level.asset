@@ -3,7 +3,7 @@
         "&0": {
             "%type": "Engine::LevelAsset",
             "Asset::m_guid": "3EDB7E730C82D1B43EDC10AA7378D452",
-            "LevelAsset::m_default_camera": "&9",
+            "LevelAsset::m_default_camera": "&6",
             "LevelAsset::m_skybox_material": "&10",
             "components": [
                 {
@@ -241,14 +241,6 @@
         "&8": {
             "%type": "Engine::AssetRef",
             "AssetRef::m_guid": "66A947478DFF1F1F883236DAE46E3D98"
-        },
-        "&9": {
-            "%type": "Engine::Camera",
-            "Camera::m_aspect_ratio": 1.7777777910232544,
-            "Camera::m_clipping_far": 1000.0,
-            "Camera::m_clipping_near": 0.0010000000474974513,
-            "Camera::m_display_id": 0,
-            "Camera::m_fov_vertical": 45.0
         }
     },
     "%extra_data": [],

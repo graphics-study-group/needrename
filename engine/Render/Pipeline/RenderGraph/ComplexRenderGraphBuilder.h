@@ -23,23 +23,9 @@ namespace Engine {
             int32_t &final_color_target_id
         );
 
-        std::unique_ptr<RenderGraph> BuildEditorRenderGraph(
-            uint32_t texture_width,
-            uint32_t texture_height,
-            std::function<vk::Extent2D()> get_scene_widget_viewport_func,
-            std::function<uint8_t()> get_scene_camera_index_func,
-            std::function<vk::Extent2D()> get_game_widget_viewport_func,
-            std::function<uint8_t()> get_game_camera_index_func,
-            GUISystem * gui_system,
-            int32_t &scene_widget_color_id,
-            int32_t &game_widget_color_id,
-            int32_t &final_color_target_id
-        );
-
     protected:
         std::shared_ptr<AssetRef> m_bloom_shader{};
         std::shared_ptr<ComputeStage> m_bloom_compute_stage{};
-        std::shared_ptr<ComputeStage> m_scene_bloom_compute_stage{};
     };
 } // namespace Engine
 

@@ -15,7 +15,6 @@
 #include <Framework/world/WorldSystem.h>
 #include <MainClass.h>
 #include <Render/FullRenderSystem.h>
-#include <Render/Pipeline/RenderGraph/ComplexRenderGraphBuilder.h>
 #include <SDL3/SDL.h>
 #include <UserInterface/GUISystem.h>
 #include <UserInterface/Input.h>
@@ -24,6 +23,7 @@
 #include <Editor/Widget/GameWidget.h>
 #include <Editor/Widget/SceneWidget.h>
 #include <Editor/Window/MainWindow.h>
+#include <Editor/Render/EditorRenderGraphBuilder.h>
 
 #include "CustomComponent.h"
 #include <meta_editor_run_game_example/reflection_init.ipp>
@@ -87,7 +87,18 @@ int main() {
 
     SDL_Init(SDL_INIT_VIDEO);
 
-    StartupOptions opt{.resol_x = 2560, .resol_y = 1440, .title = "Editor"};
+    int displayIndex = 1;
+    auto displayMode = SDL_GetDesktopDisplayMode(displayIndex);
+    if (displayMode == nullptr) {
+        SDL_Log("Failed to get display mode: %s", SDL_GetError());
+        SDL_Quit();
+        return -1;
+    }
+    int screenWidth = displayMode->w;
+    int screenHeight = displayMode->h;
+    SDL_Log("Screen Resolution: %dx%d @ %fHz", 
+            screenWidth, screenHeight, displayMode->refresh_rate);
+    StartupOptions opt{.resol_x = (int)(screenWidth * 0.9), .resol_y = (int)(screenHeight * 0.9), .title = "Editor"};
 
     auto cmc = MainClass::GetInstance();
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
@@ -137,11 +148,11 @@ int main() {
     auto game_widget = std::make_shared<Editor::GameWidget>(Editor::MainWindow::k_game_widget_name);
     main_window.AddWidget(game_widget);
 
-    auto rgb = std::make_unique<ComplexRenderGraphBuilder>(*cmc->GetRenderSystem());
+    auto rgb = std::make_unique<Editor::EditorRenderGraphBuilder>(*cmc->GetRenderSystem());
     int32_t final_color_id, scene_color_id, game_color_id;
     auto rg = rgb->BuildEditorRenderGraph(
-        opt.resol_x,
-        opt.resol_y,
+        screenWidth,
+        screenHeight,
         [scene_widget]() -> vk::Extent2D { return {scene_widget->m_viewport_size.x, scene_widget->m_viewport_size.y}; },
         [scene_widget]() -> uint8_t { return scene_widget->GetCameraIndex(); },
         [game_widget]() -> vk::Extent2D { return {game_widget->m_viewport_size.x, game_widget->m_viewport_size.y}; },
