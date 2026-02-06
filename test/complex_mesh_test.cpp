@@ -231,11 +231,11 @@ int main(int argc, char **argv) {
     RenderGraphBuilder rgb{*rsys};
     auto rg{rgb.BuildDefaultRenderGraph(1280, 720, gsys.get())};
 
-    auto scene = std::make_unique<Scene>();
+    auto &scene = cmc->GetWorldSystem()->GetMainSceneRef();
     // Setup mesh
     std::filesystem::path mesh_path{std::string(ENGINE_ASSETS_DIR) + "/four_bunny/four_bunny.obj"};
-    auto &go = scene->CreateGameObject();
-    auto &tmc = scene->CreateComponent<MeshComponentFromFile>(go);
+    auto &go = scene.CreateGameObject();
+    auto &tmc = scene.CreateComponent<MeshComponentFromFile>(go);
     tmc.LoadFile(mesh_path);
     rsys->GetRendererManager().RegisterRendererComponent(tmc.GetHandle());
 

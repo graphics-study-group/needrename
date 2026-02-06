@@ -215,11 +215,11 @@ int main(int argc, char **argv) {
         ImageTexture::CreateUnique(*rsys, empty_desc, Texture::SamplerDesc{}, "Sampled Roughness");
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*roughness_texture, {1.0, 1.0, 1.0, 1.0});
 
-    auto scene = std::make_unique<Scene>();
+    auto &scene = cmc->GetWorldSystem()->GetMainSceneRef();
     // Setup mesh
     std::filesystem::path mesh_path{std::string(ENGINE_ASSETS_DIR) + "/meshes/sphere.obj"};
-    auto &go = scene->CreateGameObject();
-    auto tmc = &scene->CreateComponent<PBRMeshComponent>(go);
+    auto &go = scene.CreateGameObject();
+    auto tmc = &scene.CreateComponent<PBRMeshComponent>(go);
     tmc->LoadData(mesh_path, pbr_material, red_texture, metalness_texture, roughness_texture);
     rsys->GetRendererManager().RegisterRendererComponent(tmc->GetHandle());
 
