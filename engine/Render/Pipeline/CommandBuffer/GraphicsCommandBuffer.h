@@ -2,7 +2,6 @@
 #define PIPELINE_COMMANDBUFFER_GRAPHICSCOMMANDBUFFER_INCLUDED
 
 #include "Render/Pipeline/CommandBuffer/TransferCommandBuffer.h"
-#include "Render/Renderer/HomogeneousMesh.h"
 #include "Render/RenderSystem/RendererManager.h"
 
 // GLM forward declaration.
@@ -20,6 +19,7 @@ namespace Engine {
     class MaterialInstance;
     class DeviceBuffer;
     class VertexAttribute;
+    class IVertexBasedRenderer;
 
     namespace AttachmentUtils {
         class AttachmentDescription;
@@ -90,9 +90,9 @@ namespace Engine {
          * Write per-mesh data, and send draw call to GPU.
          * Does not do any extra stuff such as setting up viewports.
          */
-        void DrawMesh(const HomogeneousMesh &mesh);
-        void DrawMesh(const HomogeneousMesh &mesh, const glm::mat4 &model_matrix);
-        void DrawMesh(const HomogeneousMesh &mesh, const glm::mat4 &model_matrix, int32_t camera_index);
+        void DrawMesh(const IVertexBasedRenderer &mesh);
+        void DrawMesh(const IVertexBasedRenderer &mesh, const glm::mat4 &model_matrix);
+        void DrawMesh(const IVertexBasedRenderer &mesh, const glm::mat4 &model_matrix, int32_t camera_index);
 
         /**
          * @brief Draw renderers in the RendererList with specified pass index.

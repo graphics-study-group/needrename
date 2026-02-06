@@ -8,7 +8,8 @@
 
 #include "Asset/Material/MaterialAsset.h"
 #include "Core/Functional/SDLWindow.h"
-#include "Framework/component/RenderComponent/MeshComponent.h"
+#include "Framework/component/RenderComponent/StaticMeshComponent.h"
+#include "Render/Renderer/HomogeneousMesh.h"
 #include "MainClass.h"
 #include "Render/FullRenderSystem.h"
 #include "UserInterface/GUISystem.h"
@@ -26,7 +27,7 @@
 using namespace Engine;
 namespace sch = std::chrono;
 
-class MeshComponentFromFile : public MeshComponent {
+class MeshComponentFromFile : public StaticMeshComponent {
     Transform transform;
 
     struct UniformData {
@@ -41,7 +42,6 @@ class MeshComponentFromFile : public MeshComponent {
         tinyobj::ObjReader reader{};
 
         m_materials.clear();
-        m_submeshes.clear();
 
         if (!reader.ParseFromFile(mesh.string(), reader_config)) {
             SDL_LogCritical(0, "Failed to load OBJ file %s", mesh.string().c_str());
@@ -113,20 +113,11 @@ class MeshComponentFromFile : public MeshComponent {
         }
 
         assert(m_mesh_asset && m_mesh_asset->IsValid());
-        m_submeshes.clear();
-        size_t submesh_count = m_mesh_asset->as<MeshAsset>()->GetSubmeshCount();
-        for (size_t i = 0; i < submesh_count; i++) {
-            m_submeshes.push_back(
-                std::make_shared<HomogeneousMesh>(m_system.lock()->GetAllocatorState(), m_mesh_asset, i)
-            );
-        }
     }
 
 public:
-    MeshComponentFromFile(GameObject *parent) : MeshComponent(parent), transform() {
-    }
-
-    void LoadFile(std::filesystem::path mesh_file_name) {
+    MeshComponentFromFile(std::filesystem::path mesh_file_name) :
+        StaticMeshComponent(std::weak_ptr<GameObject>()), transform() {
         LoadMesh(mesh_file_name);
 
         auto system = m_system.lock();
@@ -145,7 +136,6 @@ public:
 
     ~MeshComponentFromFile() {
         m_materials.clear();
-        m_submeshes.clear();
     }
 
     Transform GetWorldTransform() const override {

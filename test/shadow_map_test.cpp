@@ -15,6 +15,7 @@
 #include "UserInterface/GUISystem.h"
 #include "MainClass.h"
 #include "Render/FullRenderSystem.h"
+#include "Render/Renderer/HomogeneousMesh.h"
 #include "Framework/component/RenderComponent/ObjTestMeshComponent.h"
 
 #include "cmake_config.h"
@@ -46,7 +47,8 @@ public:
         this->LoadMesh(mesh_file_name);
         auto system = m_system.lock();
 
-        for (size_t i = 0; i < m_submeshes.size(); i++) {
+        auto masset = m_mesh_asset->cas<MeshAsset>();
+        for (size_t i = 0; i < masset->GetSubmeshCount(); i++) {
             m_materials.push_back(instance);
         }
     }
@@ -184,12 +186,12 @@ int main(int argc, char **argv) {
     floor_go.GetTransformRef().SetScale({5.0f, 5.0f, 1.0f}).SetPosition({0.0f, 0.0f, 0.5f});
     auto floor_mesh_asset = std::make_shared<LowerPlaneMeshAsset>();
     auto floor_mesh_asset_ref = std::make_shared<AssetRef>(floor_mesh_asset);
-    auto &floor_mesh_comp = scene->CreateComponent<MeshComponent>(floor_go);
-    floor_mesh_comp.m_mesh_asset = floor_mesh_asset_ref;
-    floor_mesh_comp.GetMaterials().resize(1);
-    floor_mesh_comp.GetMaterials()[0] = floor_material_instance;
-    floor_mesh_comp.RenderInit();
-    assert(floor_mesh_comp.GetSubmesh(0)->GetVertexAttribute().HasAttribute(VertexAttributeSemantic::Texcoord0));
+    auto floor_mesh_comp = std::make_shared<MeshComponent>(floor_go);
+    floor_mesh_comp->m_mesh_asset = floor_mesh_asset_ref;
+    floor_mesh_comp->GetMaterials().resize(1);
+    floor_mesh_comp->GetMaterials()[0] = floor_material_instance;
+    floor_mesh_comp->RenderInit();
+    assert(floor_mesh_comp->GetSubmesh(0)->GetVertexAttributeFormat().HasAttribute(VertexAttributeSemantic::Texcoord0));
 
     auto &cube_go = scene->CreateGameObject();
     cube_go.GetTransformRef().SetScale({0.5f, 0.5f, 0.5f});
@@ -204,11 +206,10 @@ int main(int argc, char **argv) {
     sphere_mesh_comp.LoadData(
         std::filesystem::path{std::string(ENGINE_ASSETS_DIR) + "/meshes/sphere.obj"}, object_material_instance
     );
-    // We cannot call `LoadData()` because this component has no associated asset.
-    assert(cube_mesh_comp.GetSubmesh(0)->GetVertexAttribute().HasAttribute(VertexAttributeSemantic::Texcoord0));
-    rsys->GetRendererManager().RegisterRendererComponent(&cube_mesh_comp);
-    assert(sphere_mesh_comp.GetSubmesh(0)->GetVertexAttribute().HasAttribute(VertexAttributeSemantic::Texcoord0));
-    rsys->GetRendererManager().RegisterRendererComponent(&sphere_mesh_comp);
+    // We cannot call `RenderInit()` because this component has no associated asset.
+    rsys->GetRendererManager().RegisterRendererComponent(cube_mesh_comp);
+    rsys->GetRendererManager().RegisterRendererComponent(sphere_mesh_comp);
+    
 
     // Build Render Graph
     RenderGraphBuilder rgb{*rsys};

@@ -13,6 +13,7 @@
 #include "UserInterface/GUISystem.h"
 #include "MainClass.h"
 #include "Render/FullRenderSystem.h"
+#include "Render/Renderer/HomogeneousMesh.h"
 
 #include "cmake_config.h"
 
@@ -111,13 +112,13 @@ std::unique_ptr<RenderGraph> BuildRenderGraph(
         );
 
         gcb.SetupViewport(extent.width, extent.height, {{0, 0}, extent});
-        auto tpl = material->GetLibrary().FindMaterialTemplate("", mesh->GetVertexAttribute());
+        auto tpl = material->GetLibrary().FindMaterialTemplate("", mesh->GetVertexAttributeFormat());
         assert(tpl);
         gcb.BindMaterial(*material, *tpl);
         // Push model matrix...
         vk::CommandBuffer rcb = gcb.GetCommandBuffer();
         rcb.pushConstants(
-            material->GetLibrary().FindMaterialTemplate("", mesh->GetVertexAttribute())->GetPipelineLayout(),
+            material->GetLibrary().FindMaterialTemplate("", mesh->GetVertexAttributeFormat())->GetPipelineLayout(),
             vk::ShaderStageFlagBits::eAllGraphics,
             0,
             sizeof (RenderSystemState::RendererManager::RendererDataStruct),

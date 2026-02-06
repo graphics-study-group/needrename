@@ -5,7 +5,7 @@
 
 #include "Asset/InstantiatedFromAsset.h"
 #include "Asset/Material/MaterialLibraryAsset.h"
-#include "Render/Renderer/HomogeneousMesh.h"
+#include "Render/Renderer/VertexAttribute.h"
 
 namespace Engine {
 

@@ -8,6 +8,7 @@
 
 namespace Engine {
     class ObjLoader;
+    class VertexAttribute;
 
     class REFL_SER_CLASS(REFL_WHITELIST) MeshAsset : public Asset {
         REFL_SER_BODY(MeshAsset)
@@ -71,6 +72,25 @@ namespace Engine {
             Attributes color {}, normal {}, texcoord0 {};
             Attributes tangent {}, texcoord1 {}, texcoord2 {}, texcoord3 {};
             Attributes bone_indices {}, bone_weights {};
+
+            /**
+             * @brief Get a `VertexAttribute` descibing this submesh.
+             */
+            VertexAttribute ToVertexAttributeFormat() const noexcept;
+
+            /**
+             * @brief Write out all vertex attributes to the given buffer.
+             * 
+             * The buffer is assumed to be large enough.
+             */
+            void WriteVertexAttributeBuffer(std::byte * buf) const noexcept;
+
+            /**
+             * @brief Write out all indices to the given buffer.
+             * 
+             * The buffer is assumed to be large enough.
+             */
+            void WriteIndexBuffer(std::byte * buf) const noexcept;
         };
 
         REFL_ENABLE size_t GetSubmeshCount() const;

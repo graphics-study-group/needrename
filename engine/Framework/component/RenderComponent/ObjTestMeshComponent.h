@@ -2,9 +2,8 @@
 #define COMPONENT_RENDERCOMPONENT_OBJTESTMESHCOMPONENT_INCLUDED
 
 #include "Asset/Loader/ObjLoader.h"
-#include "Framework/component/RenderComponent/MeshComponent.h"
-#include <SDL3/SDL.h>
-#include <tiny_obj_loader.h>
+#include "Framework/component/RenderComponent/StaticMeshComponent.h"
+#include "Render/Renderer/HomogeneousMesh.h"
 
 namespace Engine {
     /**
@@ -13,23 +12,13 @@ namespace Engine {
      * @warning For test only! Never use this component in production.
      * Always include this header after all your inclusion to avoid definition problems.
      */
-    class ObjTestMeshComponent : public MeshComponent {
-
-    public:
-        ObjTestMeshComponent(GameObject *parent) : MeshComponent(parent) {
-        }
-
-        ~ObjTestMeshComponent() {
-            m_materials.clear();
-            m_submeshes.clear();
-        }
+    class ObjTestMeshComponent : public StaticMeshComponent {
 
         void LoadMesh(std::filesystem::path mesh) {
             tinyobj::ObjReaderConfig reader_config{};
             tinyobj::ObjReader reader{};
 
             m_materials.clear();
-            m_submeshes.clear();
 
             if (!reader.ParseFromFile(mesh.string(), reader_config)) {
                 SDL_LogCritical(0, "Failed to load OBJ file %s", mesh.string().c_str());
@@ -94,15 +83,18 @@ namespace Engine {
                 std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(std::make_shared<MeshAsset>()));
             ObjLoader loader;
             loader.LoadMeshAssetFromTinyObj(*(this->m_mesh_asset->as<MeshAsset>()), attrib, shapes);
+        }
 
-            assert(m_mesh_asset && m_mesh_asset->IsValid());
-            m_submeshes.clear();
-            size_t submesh_count = m_mesh_asset->as<MeshAsset>()->GetSubmeshCount();
-            for (size_t i = 0; i < submesh_count; i++) {
-                m_submeshes.push_back(
-                    std::make_shared<HomogeneousMesh>(m_system.lock()->GetAllocatorState(), m_mesh_asset, i)
-                );
-            }
+    public:
+        ObjTestMeshComponent(
+            std::filesystem::path mesh_file_name,
+            std::weak_ptr<GameObject> go = std::weak_ptr<GameObject>()
+        ) : StaticMeshComponent(go) {
+            LoadMesh(mesh_file_name);
+        }
+
+        ~ObjTestMeshComponent() {
+            m_materials.clear();
         }
 
         virtual void RenderInit() override {

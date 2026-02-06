@@ -6,7 +6,7 @@
 #include <Asset/Mesh/MeshAsset.h>
 #include <Asset/Scene/SceneAsset.h>
 #include <Asset/Texture/Image2DTextureAsset.h>
-#include <Framework/component/RenderComponent/MeshComponent.h>
+#include <Framework/component/RenderComponent/StaticMeshComponent.h>
 #include <Framework/object/GameObject.h>
 #include <Framework/world/Scene.h>
 #include <MainClass.h>
@@ -119,7 +119,7 @@ namespace Engine {
         std::shared_ptr<Scene> temp_scene = std::make_shared<Scene>();
         auto &go = temp_scene->CreateGameObject();
         go.m_name = m_mesh_asset->m_name;
-        auto &mesh_component = go.AddComponent<MeshComponent>();
+        auto &mesh_component = go.AddComponent<StaticMeshComponent>();
         mesh_component.m_mesh_asset = std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(m_mesh_asset));
         auto submesh_count = m_mesh_asset->m_submeshes.size();
         for (size_t i = 0; i < submesh_count; i++) {

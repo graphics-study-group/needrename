@@ -6,7 +6,6 @@
 #include "Render/RenderSystem/Structs.h"
 #include "Render/RenderSystem/DeviceInterface.h"
 #include "Render/Renderer/HomogeneousMesh.h"
-
 #include "Render/RenderSystem/FrameSemaphore.hpp"
 
 #include "Render/DebugUtils.h"
@@ -174,7 +173,7 @@ namespace Engine::RenderSystemState {
                 buffer.GetSize(),
                 "Staging buffer"
             );
-        std::memcpy(staging_buffer->GetVMAddress(), data.data(), sizeof(buffer.GetSize()));
+        std::memcpy(staging_buffer->GetVMAddress(), data.data(), buffer.GetSize());
         staging_buffer->Flush();
         data.clear();
 
@@ -217,7 +216,7 @@ namespace Engine::RenderSystemState {
                 buffer.GetSize(),
                 "Staging buffer"
             );
-        std::memcpy(staging_buffer->GetVMAddress(), data.data(), sizeof(buffer.GetSize()));
+        std::memcpy(staging_buffer->GetVMAddress(), data.data(), buffer.GetSize());
         staging_buffer->Flush();
 
         auto enqueued = [
@@ -245,6 +244,52 @@ namespace Engine::RenderSystemState {
                 vk::QueueFamilyIgnored, vk::QueueFamilyIgnored,
                 buffer.GetBuffer(),
                 buffer.GetSize()
+            };
+            cb.pipelineBarrier2(vk::DependencyInfo{{}, {}, barriers, {}});
+        };
+        pimpl->m_pending_dellocations.push_back(std::move(staging_buffer));
+        pimpl->m_pending_operations.push(enqueued);
+    }
+
+    void SubmissionHelper::EnqueueBufferSubmissionVertex(
+        const DeviceBuffer &vertex_buffer, const std::vector<std::byte> &data
+    ) {
+        auto staging_buffer = DeviceBuffer::CreateUnique(
+                this->m_system.GetAllocatorState(),
+                {BufferTypeBits::StagingToDevice},
+                vertex_buffer.GetSize(),
+                "Staging buffer"
+            );
+        std::memcpy(staging_buffer->GetVMAddress(), data.data(), vertex_buffer.GetSize());
+        staging_buffer->Flush();
+
+        auto enqueued = [
+            data = std::move(data), &vertex_buffer, this,
+            pbuf = staging_buffer.get()
+        ](vk::CommandBuffer cb) {
+            auto mbarrier = GetBufferBarrier(BufferTransferType::VertexBefore);
+            std::array<vk::BufferMemoryBarrier2, 1> barriers{};
+            barriers[0] = {
+                mbarrier.srcStageMask, mbarrier.srcAccessMask,
+                mbarrier.dstStageMask, mbarrier.dstAccessMask,
+                vk::QueueFamilyIgnored, vk::QueueFamilyIgnored,
+                vertex_buffer.GetBuffer(),
+                0,
+                vertex_buffer.GetSize()
+            };
+            
+            cb.pipelineBarrier2(vk::DependencyInfo{{}, {}, barriers, {}});
+            vk::BufferCopy copy{0, 0, static_cast<vk::DeviceSize>(vertex_buffer.GetSize())};
+            cb.copyBuffer(pbuf->GetBuffer(), vertex_buffer.GetBuffer(), {copy});
+
+            mbarrier = GetBufferBarrier(BufferTransferType::VertexAfter);
+            barriers[0] = {
+                mbarrier.srcStageMask, mbarrier.srcAccessMask,
+                mbarrier.dstStageMask, mbarrier.dstAccessMask,
+                vk::QueueFamilyIgnored, vk::QueueFamilyIgnored,
+                vertex_buffer.GetBuffer(),
+                0,
+                vertex_buffer.GetSize()
             };
             cb.pipelineBarrier2(vk::DependencyInfo{{}, {}, barriers, {}});
         };

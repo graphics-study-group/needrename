@@ -3,7 +3,6 @@
 
 #include "MaterialTemplate.h"
 #include "Render/Memory/DeviceBuffer.h"
-#include "Render/Renderer/HomogeneousMesh.h"
 #include "Asset/InstantiatedFromAsset.h"
 
 #include <any>

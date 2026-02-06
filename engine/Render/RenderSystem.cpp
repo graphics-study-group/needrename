@@ -4,7 +4,6 @@
 #include <SDL3/SDL_vulkan.h>
 #include <unordered_set>
 
-#include "Framework/component/RenderComponent/MeshComponent.h"
 #include "Framework/component/RenderComponent/RendererComponent.h"
 #include "Render/Pipeline/CommandBuffer.h"
 #include "Render/Memory/MemoryAccessTypes.h"
@@ -18,7 +17,6 @@
 #include "Render/RenderSystem/SamplerManager.h"
 #include "Render/RenderSystem/CameraManager.h"
 #include "Render/Renderer/Camera.h"
-#include "Render/Renderer/HomogeneousMesh.h"
 
 #include <Core/Functional/SDLWindow.h>
 #include <UserInterface/GUISystem.h>

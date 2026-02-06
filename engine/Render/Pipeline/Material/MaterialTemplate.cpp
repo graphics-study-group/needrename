@@ -12,7 +12,6 @@
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/Swapchain.h"
 #include "Render/RenderSystem/CameraManager.h"
-#include "Render/Renderer/HomogeneousMesh.h"
 
 #include "Render/Memory/ShaderParameters/ShaderParameterLayout.h"
 

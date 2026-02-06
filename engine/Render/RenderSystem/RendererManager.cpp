@@ -1,150 +1,229 @@
 #include "RendererManager.h"
 #include "Core/flagbits.h"
+#include "Asset/Mesh/MeshAsset.h"
 #include "Framework/component/RenderComponent/MeshComponent.h"
+#include "Framework/component/RenderComponent/StaticMeshComponent.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/FrameManager.h"
 #include "Render/RenderSystem/SubmissionHelper.h"
 #include "Render/Renderer/HomogeneousMesh.h"
+#include "Render/Renderer/StaticHomogeneousMesh.h"
 #include "Framework/world/WorldSystem.h"
 
 #include <SDL3/SDL.h>
+#include <unordered_set>
 
 namespace Engine::RenderSystemState {
     struct RendererManager::impl {
+        std::unordered_map <
+            std::shared_ptr <RendererComponent>,
+            RendererList
+        > renderer_components;
 
-        enum class StatusBits : uint32_t {
-            MemoryStatusMask = 0x0000FFFF,
-            RendererTypeMask = 0xFFFF0000,
+        std::unordered_map <
+            GUID,
+            StaticHomogeneousMesh::StaticHMeshSharedDataBlock
+        > static_mesh_asset_data_cache;
+        
+        void ScanForDeallocation() {
+            for (auto & [k, v] : static_mesh_asset_data_cache) {
+                if (v.refcnt == 0) {
+                    static_mesh_asset_data_cache.erase(k);
+                }
+            }
+        }
 
-            // Submitted to GPU and ready for rendering.
-            Ready = 0b0000'0000'0000'0001,
-            // A submission is pending.
-            Pending = 0b0000'0000'0000'0010,
-            // Loaded to CPU memory from disk.
-            Loaded = 0b0000'0000'0000'0100,
-            // Eager submission requested.
-            Eager = 0b0000'0000'0000'1000,
+        ////////////////////////////////////////////////////////////////////////
 
-            // Slated for removal from the manager.
-            Removal = 0b0000'0000'1000'0000,
-
-            // This renderer cast shadows.
-            ShadowCaster = 0b0000'0001'0000'0000,
-        };
-        using StatusFlags = Flags<StatusBits>;
-
-        struct RendererControlBlock {
-            StatusFlags status{};
-            uint32_t layer{};
-        };
+        // XXX: use atomic for multithreads.
+        uint32_t total_renderer_count;
 
         struct RendererDataBlock {
-            /// We will try to move data such as materials and buffers from `RendererComponent`
-            /// into this manager to form a ECS architecture.
-            /// For now we just save its pointer.
-            RendererComponent *m_component;
-
-            // uint32_t renderer_idx;
-            // uint32_t material_idx;
+            // Count down deallocation until all frames-in-flight are rendered.
+            int32_t pending_deallocation_countdown;
+            MaterialInstance * material;
+            RendererComponent * component;
+            const MeshAsset::Submesh * submesh;
+            std::unique_ptr <IVertexBasedRenderer> renderer;
         };
+        std::unordered_map<RendererHandle, RendererDataBlock> m_data;
 
-        std::vector<RendererControlBlock> m_status;
-        std::vector<RendererDataBlock> m_data;
+        RendererList CreateHomogeousMeshFromAsset(
+            const std::shared_ptr <RendererComponent> & rc,
+            const std::shared_ptr <AssetRef> & asset,
+            RenderSystem & s
+        ) {
+            RendererList rl{};
+            auto masset = asset->cas<MeshAsset>();
+            assert(masset);
 
-        // std::vector <HomogeneousMesh *> m_meshes;
-        // std::vector <MaterialInstance *> m_materials;
+            rl.reserve(masset->GetSubmeshCount());
+            for (size_t i = 0; i < masset->GetSubmeshCount(); i++) {
+                auto & d = m_data[total_renderer_count];
+                d.pending_deallocation_countdown = -1;
+                d.renderer = 
+                    std::make_unique<HomogeneousMesh>(
+                        s.GetAllocatorState(),
+                        asset,
+                        i
+                    );
+                d.material = rc->GetMaterial(i).get();
+                d.component = rc.get();
+                d.submesh = &masset->m_submeshes[i];
+                rl.push_back(total_renderer_count);
+
+                if (rc->m_is_eagerly_loaded) {
+                    m_data[total_renderer_count].renderer->Submit(
+                        s.GetAllocatorState(),
+                        s.GetFrameManager().GetSubmissionHelper()
+                    );
+                }
+
+                total_renderer_count ++;
+            }
+            rl.shrink_to_fit();
+            return rl;
+        }
+
+        RendererList CreateStaticHMesh(
+            const std::shared_ptr <StaticMeshComponent> & rc,
+            const std::shared_ptr <AssetRef> & asset,
+            RenderSystem & s
+        ) {
+            auto masset = asset->cas<MeshAsset>();
+            assert(masset);
+
+            if (!static_mesh_asset_data_cache.contains(asset->GetGUID())) {
+                static_mesh_asset_data_cache[asset->GetGUID()].submeshes.resize(masset->GetSubmeshCount());
+            }
+
+            auto & e = static_mesh_asset_data_cache[asset->GetGUID()];
+            e.refcnt += 1;
+
+            RendererList rl{};
+            rl.reserve(masset->GetSubmeshCount());
+            for (size_t i = 0; i < masset->GetSubmeshCount(); i++) {
+                auto & d = m_data[total_renderer_count];
+                d.pending_deallocation_countdown = -1;
+                d.renderer = 
+                    std::make_unique<StaticHomogeneousMesh>(
+                        i,
+                        *masset,
+                        e
+                    );
+                d.material = rc->GetMaterial(i).get();
+                d.component = rc.get();
+                d.submesh = &masset->m_submeshes[i];
+                rl.push_back(total_renderer_count);
+
+                if (rc->m_is_eagerly_loaded) {
+                    d.renderer->Submit(
+                        s.GetAllocatorState(),
+                        s.GetFrameManager().GetSubmissionHelper()
+                    );
+                }
+
+                total_renderer_count ++;
+            }
+            rl.shrink_to_fit();
+            return rl;
+        }
     };
 
     RendererManager::RendererManager(RenderSystem &system) : m_system(system), pimpl(std::make_unique<impl>()) {
     }
     RendererManager::~RendererManager() = default;
 
-    RendererHandle RendererManager::RegisterRendererComponent(RendererComponent *component) {
-        SDL_LogDebug(SDL_LOG_CATEGORY_RENDER, "Registering component 0x%p", static_cast<void *>(component));
-
-        impl::StatusFlags sflag{};
-        if (component->m_cast_shadow) sflag.Set(impl::StatusBits::ShadowCaster);
-        if (component->m_is_eagerly_loaded) sflag.Set(impl::StatusBits::Eager);
-        // sflag.Set(impl::StatusBits::Loaded);
-
-        pimpl->m_status.push_back(impl::RendererControlBlock{.status = sflag, .layer = component->m_layer});
-        pimpl->m_data.push_back(impl::RendererDataBlock{component});
-        assert(pimpl->m_status.size() == pimpl->m_data.size());
-
-        return pimpl->m_data.size() - 1;
-    }
-    void RendererManager::UnregisterRendererComponent(RendererHandle handle) {
-        assert(handle < pimpl->m_status.size());
-        pimpl->m_status[handle].status.Set(impl::StatusBits::Removal);
-    }
-    void RendererManager::UpdateRendererStates() {
-        assert(pimpl->m_status.size() == pimpl->m_data.size());
-
-        for (size_t i = 0; i < pimpl->m_status.size(); i++) {
-            auto &s = pimpl->m_status[i].status;
-
-            if (s.Test(impl::StatusBits::Removal)) {
-                pimpl->m_data[i].m_component = nullptr;
-                break;
-            }
-
-            if (s.Test(impl::StatusBits::Eager) && !s.Test(impl::StatusBits::Loaded)) {
-                s.Set(impl::StatusBits::Loaded);
-                SDL_LogDebug(
-                    SDL_LOG_CATEGORY_RENDER,
-                    "Eagerly loading component 0x%p",
-                    static_cast<void *>(pimpl->m_data[i].m_component)
-                );
-                if (auto mesh_ptr = dynamic_cast<MeshComponent *>(pimpl->m_data[i].m_component)) {
-                    for (auto mesh : mesh_ptr->GetSubmeshes()) {
-                        m_system.GetFrameManager().GetSubmissionHelper().EnqueueVertexBufferSubmission(*mesh);
-                    }
-                }
-            }
+    void RendererManager::RegisterRendererComponent(std::shared_ptr<RendererComponent> component) {
+        SDL_LogDebug(SDL_LOG_CATEGORY_RENDER, "Registering component 0x%p", static_cast<void *>(component.get()));
+        // Legacy mesh component
+        if (auto mc = std::dynamic_pointer_cast<MeshComponent>(component)) {
+            auto rl = pimpl->CreateHomogeousMeshFromAsset(
+                mc, mc->m_mesh_asset, m_system
+            );
+            pimpl->renderer_components[component] = rl;
+        } else if (auto smc = std::dynamic_pointer_cast<StaticMeshComponent>(component)) {
+            auto rl = pimpl->CreateStaticHMesh(
+                smc, smc->m_mesh_asset, m_system
+            );
+            pimpl->renderer_components[component] = rl;
+        }
+        // Unknown component
+        else {
+            SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Unknown renderer component type");
         }
     }
-    void RendererManager::ClearUnregisteredRendererComponent() {
-        assert(!"Unimplemented");
+    RendererList RendererManager::GetRendererListsFromComponent(
+        const std::shared_ptr<RendererComponent> &component
+    ) const noexcept {
+        auto itr = pimpl->renderer_components.find(component);
+        assert(itr != pimpl->renderer_components.end());
+        return itr->second;
     }
+    void RendererManager::UnregisterRendererComponent(
+        const std::shared_ptr<RendererComponent> &component
+    ) {
+        if (!pimpl->renderer_components.contains(component))    return;
+
+        // Mark resources for pending deallocation.
+        for (auto i : pimpl->renderer_components[component]) {
+            pimpl->m_data[i].pending_deallocation_countdown = RenderSystemState::FrameManager::FRAMES_IN_FLIGHT;
+        }
+
+        pimpl->renderer_components.erase(component);
+    }
+
+    void RendererManager::PerformPendingCleanUp() {
+        for (auto & [k, v] : pimpl->m_data) {
+            if (v.pending_deallocation_countdown < 0)    continue;
+            v.pending_deallocation_countdown -= 1;
+            if (v.pending_deallocation_countdown == 0) pimpl->m_data.erase(k);
+        }
+        pimpl->ScanForDeallocation();
+    }
+
     RendererList RendererManager::FilterAndSortRenderers(FilterCriteria fc, SortingCriterion sc) {
         assert(sc == SortingCriterion::None && "Unimplemented");
-        std::vector<uint32_t> ret{};
+        std::unordered_set <uint32_t> filtered_renderers{};
 
-        for (uint32_t i = 0; i < pimpl->m_status.size(); i++) {
+        for (const auto & [rc, rl] : pimpl->renderer_components) {
 
-            if ((fc.layer & pimpl->m_status[i].layer) == 0) continue;
+            if ((fc.layer & rc->m_layer) == 0) continue;
             if (fc.is_shadow_caster != FilterCriteria::BinaryCriterion::DontCare) {
-                auto shadow_caster = pimpl->m_status[i].status.Test(impl::StatusBits::ShadowCaster);
-                if (shadow_caster != static_cast<int>(fc.is_shadow_caster)) continue;
+                if (rc->m_cast_shadow != static_cast<int>(fc.is_shadow_caster)) continue;
             }
 
-            if (pimpl->m_status[i].status.Test(impl::StatusBits::Removal)) continue;
+            for (auto i : rl) {
+                if (pimpl->m_data[i].pending_deallocation_countdown >= 0)  continue;
 
-            ret.push_back(i);
-            if (!pimpl->m_status[i].status.Test(impl::StatusBits::Loaded)) {
-                pimpl->m_status[i].status.Set(impl::StatusBits::Loaded);
-                SDL_LogDebug(
-                    SDL_LOG_CATEGORY_RENDER,
-                    "Lazily loading component 0x%p",
-                    static_cast<void *>(pimpl->m_data[i].m_component)
-                );
-
-                if (auto mesh_ptr = dynamic_cast<MeshComponent *>(pimpl->m_data[i].m_component)) {
-                    for (auto mesh : mesh_ptr->GetSubmeshes()) {
-                        m_system.GetFrameManager().GetSubmissionHelper().EnqueueVertexBufferSubmission(*mesh);
-                    }
+                if (!pimpl->m_data[i].renderer->IsReady()) {
+                    pimpl->m_data[i].renderer->Submit(
+                        m_system.GetAllocatorState(),
+                        m_system.GetFrameManager().GetSubmissionHelper()
+                    );
                 }
+                filtered_renderers.insert(i);
             }
         }
 
-        // TODO: Cache the result for better performace.
+        RendererList ret{};
+        ret.reserve(filtered_renderers.size());
+        for (auto i : filtered_renderers)   ret.push_back(i);
+
         return ret;
     }
 
-    const RendererComponent *RendererManager::GetRendererData(RendererHandle handle) const noexcept {
-        assert(handle < pimpl->m_data.size());
-        assert(pimpl->m_data[handle].m_component);
-        return pimpl->m_data[handle].m_component;
+    const IVertexBasedRenderer *RendererManager::GetRendererData(RendererHandle handle) const noexcept {
+        assert(pimpl->m_data.contains(handle));
+        return pimpl->m_data[handle].renderer.get();
+    }
+    const RendererComponent *RendererManager::GetRendererComponent(RendererHandle handle) const noexcept {
+        assert(pimpl->m_data.contains(handle));
+        return pimpl->m_data[handle].component;
+    }
+    MaterialInstance *RendererManager::GetMaterialInstance(RendererHandle handle) const noexcept {
+        assert(pimpl->m_data.contains(handle));
+        return pimpl->m_data[handle].material;
     }
     vk::PushConstantRange RendererManager::GetPushConstantRange() {
         return vk::PushConstantRange{
