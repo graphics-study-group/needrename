@@ -24,17 +24,32 @@ using namespace Engine;
 namespace sch = std::chrono;
 
 struct LowerPlaneMeshAsset : public PlaneMeshAsset {
-    LowerPlaneMeshAsset() {
-        this->m_submeshes.resize(1);
-        this->m_submeshes[0].positions = MeshAsset::Submesh::Attributes{
-            .type = MeshAsset::Submesh::Attributes::AttributeType::Floatx3,
-            .attribf = {1.0f, -1.0f, 0.0f, 1.0f, 1.0f, 0.0f, -1.0f, 1.0f, 0.0f, -1.0f, -1.0f, 0.0f},
-        };
+    constexpr static std::array <float, 12> REPLACEMENT_POSITION = {
+        1.0f, -1.0f, 0.5f, 1.0f, 1.0f, 0.5f, -1.0f, 1.0f, 0.5f, -1.0f, -1.0f, 0.5f
+    };
 
-        // Flip normal to upwards in clip space.
-        for (size_t i = 0; i < this->m_submeshes[0].normal.attribf.size(); i += 3) {
-            this->m_submeshes[0].normal.attribf[i + 2] = -1.0f;
-        }
+    LowerPlaneMeshAsset() : PlaneMeshAsset() {
+        assert(this->m_submeshes[0].positions.buffer_size == REPLACEMENT_POSITION.size() * sizeof(float));
+        // Replace position buffer
+        std::memcpy(
+            reinterpret_cast<std::byte *>(m_submeshes[0].m_vertex_attributes.data())
+            + this->m_submeshes[0].positions.buffer_offset,
+            reinterpret_cast<const std::byte *>(REPLACEMENT_POSITION.data()),
+            this->m_submeshes[0].positions.buffer_size
+        );
+        // Reverse vertex normal
+        float * nb{reinterpret_cast<float *>(
+            m_submeshes[0].m_vertex_attributes.data() 
+            + m_submeshes[0].normal.buffer_offset
+        )};
+        float * ne{reinterpret_cast<float *>(
+            m_submeshes[0].m_vertex_attributes.data() 
+            + m_submeshes[0].normal.buffer_offset 
+            + m_submeshes[0].normal.buffer_size
+        )};
+        for (float * i = nb; i <= ne; i += 3) {
+            *(i + 2) = -1.0f;
+        };
     }
 };
 
