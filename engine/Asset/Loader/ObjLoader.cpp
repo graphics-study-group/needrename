@@ -9,6 +9,7 @@
 #include <Framework/component/RenderComponent/StaticMeshComponent.h>
 #include <Framework/object/GameObject.h>
 #include <Framework/world/Scene.h>
+#include <Framework/world/WorldSystem.h>
 #include <MainClass.h>
 #include <SDL3/SDL.h>
 #include <nlohmann/json.hpp>
@@ -116,8 +117,8 @@ namespace Engine {
             database->SaveArchive(archive, AssetPath(*database, path_in_project / (texture->m_name + ".asset")));
         }
 
-        std::shared_ptr<Scene> temp_scene = std::make_shared<Scene>();
-        auto &go = temp_scene->CreateGameObject();
+        auto &temp_scene = MainClass::GetInstance()->GetWorldSystem()->CreateScene();
+        auto &go = temp_scene.CreateGameObject();
         go.m_name = m_mesh_asset->m_name;
         auto &mesh_component = go.AddComponent<StaticMeshComponent>();
         mesh_component.m_mesh_asset = std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(m_mesh_asset));
@@ -134,11 +135,11 @@ namespace Engine {
             }
         }
 
-        auto scene_asset = std::make_unique<SceneAsset>(std::move(temp_scene));
-        archive.clear();
-        archive.prepare_save();
-        scene_asset->save_asset_to_archive(archive);
-        database->SaveArchive(archive, AssetPath(*database, path_in_project / ("GO_" + m_mesh_asset->m_name + ".asset")));
+        // auto scene_asset = std::make_unique<SceneAsset>(std::move(temp_scene));
+        // archive.clear();
+        // archive.prepare_save();
+        // scene_asset->save_asset_to_archive(archive);
+        // database->SaveArchive(archive, AssetPath(*database, path_in_project / ("GO_" + m_mesh_asset->m_name + ".asset")));
     }
 
     void ObjLoader::LoadMeshAssetFromTinyObj(

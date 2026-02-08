@@ -8,6 +8,7 @@
 #include <vector>
 
 namespace Engine {
+    class WorldSystem;
     class GameObject;
     class EventQueue;
     class Component;
@@ -17,9 +18,13 @@ namespace Engine {
     }
 
     class Scene {
+    protected:
+        friend class WorldSystem;
+        Scene(uint32_t sceneID);
     public:
-        Scene();
-        ~Scene();
+        virtual ~Scene();
+
+        uint32_t GetID() const noexcept;
 
         void AddInitEvent();
         void AddTickEvent();
@@ -73,6 +78,8 @@ namespace Engine {
     protected:
         friend class SceneAsset;
 
+        uint32_t m_sceneID;
+
         std::vector<std::unique_ptr<GameObject>> m_go_add_queue{};
         std::vector<ObjectHandle> m_go_remove_queue{};
         std::vector<std::unique_ptr<Component>> m_comp_add_queue{};
@@ -86,8 +93,13 @@ namespace Engine {
 
         std::unique_ptr<EventQueue> m_event_queue{};
 
+        uint32_t m_comp_id_gen{0};
+        uint32_t m_go_id_gen{0};
+
     protected:
         Component &AddComponent(ObjectHandle objectHandle, Component *ptr);
+        ComponentHandle NextAvailableComponentHandle();
+        ObjectHandle NextAvailableGameObjectHandle();
     };
 } // namespace Engine
 

@@ -138,8 +138,8 @@ namespace Engine::RenderSystemState {
     RendererManager::~RendererManager() = default;
 
     void RendererManager::RegisterRendererComponent(const ComponentHandle &comp_handle) {
-        SDL_LogDebug(SDL_LOG_CATEGORY_RENDER, "Registering component %s", comp_handle.GetData().toString().c_str());
-        auto component = MainClass::GetInstance()->GetWorldSystem()->GetMainSceneRef().GetComponent(comp_handle);
+        SDL_LogDebug(SDL_LOG_CATEGORY_RENDER, "Registering component %d in scene %d", comp_handle.GetID(), comp_handle.GetSceneID());
+        auto component = comp_handle.GetComponent();
         // Legacy mesh component
         if (auto mc = dynamic_cast<MeshComponent*>(component)) {
             auto rl = pimpl->CreateHomogeousMeshFromAsset(

@@ -30,33 +30,33 @@ namespace Engine {
     }
     void SceneAsset::load_asset_from_archive(Serialization::Archive &archive) {
         Asset::load_asset_from_archive(archive);
-        Serialization::Json &json = *archive.m_cursor;
-        if (!m_scene) {
-            m_scene = std::make_unique<Scene>();
-        }
-        m_scene->Clear();
-        for (auto &js : json["objects"]) {
-            Serialization::Archive temp_archive(archive, &js);
-            auto &go = *m_scene->m_game_objects.emplace_back(
-                std::unique_ptr<GameObject>(new GameObject(Serialization::SerializationMarker{}))
-            );
-            go.m_scene = m_scene.get();
-            Serialization::deserialize(go, temp_archive);
-            m_scene->m_go_map[go.GetHandle()] = &go;
-        }
-        for (auto &js : json["components"]) {
-            Serialization::Archive temp_archive(archive, &js);
-            auto type = Reflection::GetType(js["%type"].get<std::string>());
-            assert(type);
-            auto comp_var = type->CreateInstance(Serialization::SerializationMarker{});
-            comp_var.SetNeedFree(false);
-            auto &comp = *m_scene->m_components.emplace_back(
-                std::unique_ptr<Component>(static_cast<Component *>(comp_var.GetDataPtr()))
-            );
-            comp.m_scene = m_scene.get();
-            Serialization::deserialize(comp, temp_archive);
-            m_scene->m_comp_map[comp.GetHandle()] = &comp;
-        }
+        // Serialization::Json &json = *archive.m_cursor;
+        // if (!m_scene) {
+        //     m_scene = std::make_unique<Scene>();
+        // }
+        // m_scene->Clear();
+        // for (auto &js : json["objects"]) {
+        //     Serialization::Archive temp_archive(archive, &js);
+        //     auto &go = *m_scene->m_game_objects.emplace_back(
+        //         std::unique_ptr<GameObject>(new GameObject(Serialization::SerializationMarker{}))
+        //     );
+        //     go.m_scene = m_scene.get();
+        //     Serialization::deserialize(go, temp_archive);
+        //     m_scene->m_go_map[go.GetHandle()] = &go;
+        // }
+        // for (auto &js : json["components"]) {
+        //     Serialization::Archive temp_archive(archive, &js);
+        //     auto type = Reflection::GetType(js["%type"].get<std::string>());
+        //     assert(type);
+        //     auto comp_var = type->CreateInstance(Serialization::SerializationMarker{});
+        //     comp_var.SetNeedFree(false);
+        //     auto &comp = *m_scene->m_components.emplace_back(
+        //         std::unique_ptr<Component>(static_cast<Component *>(comp_var.GetDataPtr()))
+        //     );
+        //     comp.m_scene = m_scene.get();
+        //     Serialization::deserialize(comp, temp_archive);
+        //     m_scene->m_comp_map[comp.GetHandle()] = &comp;
+        // }
     }
 
 } // namespace Engine

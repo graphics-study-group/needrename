@@ -18,18 +18,11 @@
 
 namespace Engine {
     WorldSystem::WorldSystem() {
-        m_main_scene = std::make_unique<Scene>();
+        auto &scene = CreateScene();
+        m_main_scene = m_scene_map[scene.GetID()];
     }
 
     WorldSystem::~WorldSystem() {
-    }
-
-    ObjectHandle WorldSystem::NextAvailableObjectHandle() {
-        return ObjectHandle{generateGUID(m_go_handle_gen)};
-    }
-
-    ComponentHandle WorldSystem::NextAvailableComponentHandle() {
-        return ComponentHandle{generateGUID(m_comp_handle_gen)};
     }
 
     void WorldSystem::UpdateLightData(RenderSystemState::SceneDataManager &scene_data_manager) {
@@ -98,8 +91,28 @@ namespace Engine {
         }
     }
 
-    Scene &WorldSystem::GetMainSceneRef() noexcept {
+    Scene &WorldSystem::GetMainSceneRef() {
         return *m_main_scene;
+    }
+    Scene &WorldSystem::GetSceneRef(uint32_t sceneID) {
+        if (m_scene_map.find(sceneID) == m_scene_map.end())
+            throw std::runtime_error("Scene not found.");
+        return *m_scene_map[sceneID];
+    }
+    Scene *WorldSystem::GetScenePtr(uint32_t sceneID) {
+        if (m_scene_map.find(sceneID) == m_scene_map.end())
+            return nullptr;
+        return m_scene_map[sceneID].get();
+    }
+    Scene &WorldSystem::CreateScene() {
+        uint32_t sceneID = m_scene_id_gen++;
+        m_scene_map[sceneID] = std::shared_ptr<Scene>(new Scene(sceneID));
+        return *m_scene_map[sceneID];
+    }
+    void WorldSystem::RemoveScene(uint32_t sceneID) {
+        if (m_scene_map.find(sceneID) != m_scene_map.end())
+            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "Scene %d not found.", sceneID);
+        m_scene_map.erase(sceneID);
     }
 
     void WorldSystem::SaveLevelToArchive(Serialization::Archive &archive) {

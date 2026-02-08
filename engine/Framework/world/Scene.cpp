@@ -12,16 +12,20 @@
 #include <Render/RenderSystem.h>
 
 namespace Engine {
-    Scene::Scene() {
+    Scene::Scene(uint32_t sceneID) : m_sceneID(sceneID) {
         m_event_queue = std::make_unique<EventQueue>(*this);
     }
 
     Scene::~Scene() {
     }
 
+    uint32_t Scene::GetID() const noexcept {
+        return m_sceneID;
+    }
+
     GameObject &Scene::CreateGameObject() {
         auto go_ptr = std::unique_ptr<GameObject>(new GameObject(this));
-        auto handle = MainClass::GetInstance()->GetWorldSystem()->NextAvailableObjectHandle();
+        auto handle = NextAvailableGameObjectHandle();
         auto &ret = *go_ptr;
         go_ptr->m_handle = handle;
         m_go_map[handle] = go_ptr.get();
@@ -41,7 +45,7 @@ namespace Engine {
         auto comp_ptr = std::unique_ptr<Component>(static_cast<Component *>(ptr));
         comp_ptr->m_scene = this;
         comp_ptr->m_parentGameObject = objectHandle;
-        auto handle = MainClass::GetInstance()->GetWorldSystem()->NextAvailableComponentHandle();
+        auto handle = NextAvailableComponentHandle();
         auto &ret = *comp_ptr;
         comp_ptr->m_handle = handle;
         m_comp_map[handle] = comp_ptr.get();
@@ -194,5 +198,19 @@ namespace Engine {
             m_comp_add_queue.push_back(std::move(comp));
         }
         asset.m_scene->Clear();
+    }
+
+    ComponentHandle Scene::NextAvailableComponentHandle() {
+        while (m_comp_map.find(ComponentHandle(m_sceneID, m_comp_id_gen)) != m_comp_map.end() || m_comp_id_gen == 0) {
+            m_comp_id_gen++;
+        }
+        return ComponentHandle(m_sceneID, m_comp_id_gen++);
+    }
+
+    ObjectHandle Scene::NextAvailableGameObjectHandle() {
+        while (m_go_map.find(ObjectHandle(m_sceneID, m_go_id_gen)) != m_go_map.end() || m_go_id_gen == 0) {
+            m_go_id_gen++;
+        }
+        return ObjectHandle(m_sceneID, m_go_id_gen++);
     }
 } // namespace Engine
