@@ -55,15 +55,11 @@
                 "MaterialTemplateSinglePassProperties::shaders": {
                     "%type": "Engine::PipelineProperties::Shaders",
                     "Shaders::shaders": [
-                        "&1"
+                        "2191CAAF586849B8B5565ED808897D7E"
                     ],
                     "Shaders::specialization_constants": []
                 }
             }
-        },
-        "&1": {
-            "%type": "Engine::AssetRef",
-            "AssetRef::m_guid": "2191CAAF586849B8B5565ED808897D7E"
         }
     },
     "%extra_data": [],

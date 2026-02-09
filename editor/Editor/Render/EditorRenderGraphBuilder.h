@@ -1,6 +1,7 @@
 #ifndef EDITOR_RENDER_EDITORRENDERGRAPHBUILDER_INCLUDED
 #define EDITOR_RENDER_EDITORRENDERGRAPHBUILDER_INCLUDED
 
+#include "Asset/AssetRef.h"
 #include "Render/Pipeline/RenderGraph/RenderGraphBuilder.h"
 #include <vulkan/vulkan.hpp>
 
@@ -34,7 +35,7 @@ namespace Editor {
         );
 
     protected:
-        std::shared_ptr<Engine::AssetRef> m_bloom_shader{};
+        Engine::AssetRef m_bloom_shader{};
         std::shared_ptr<Engine::ComputeStage> m_game_bloom_compute_stage{};
         std::shared_ptr<Engine::ComputeStage> m_scene_bloom_compute_stage{};
     };

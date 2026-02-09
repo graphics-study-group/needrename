@@ -60,8 +60,6 @@ std::pair<std::shared_ptr<MaterialLibraryAsset>, std::shared_ptr<MaterialTemplat
     auto lib_asset = std::make_shared<MaterialLibraryAsset>();
     auto vs_ref = adb->GetNewAssetRef({*adb, "~/shaders/blinn_phong.vert.asset"});
     auto fs_ref = adb->GetNewAssetRef({*adb, "~/shaders/blinn_phong.frag.asset"});
-    MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(vs_ref);
-    MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(fs_ref);
 
     test_asset->name = "Blinn-Phong";
 
@@ -76,7 +74,7 @@ std::pair<std::shared_ptr<MaterialLibraryAsset>, std::shared_ptr<MaterialTemplat
     cbp.dst_alpha = CBP::BlendFactor::Zero;
     mtspp.attachments.color_blending = {cbp};
     mtspp.attachments.depth = ImageUtils::ImageFormat::D32SFLOAT;
-    mtspp.shaders.shaders = std::vector<std::shared_ptr<AssetRef>>{vs_ref, fs_ref};
+    mtspp.shaders.shaders = std::vector<AssetRef>{vs_ref, fs_ref};
     mtspp.shaders.specialization_constants = {
         {0, 1}
     };
@@ -86,7 +84,7 @@ std::pair<std::shared_ptr<MaterialLibraryAsset>, std::shared_ptr<MaterialTemplat
     lib_asset->m_name = "Blinn-Phong";
     MaterialLibraryAsset::MaterialTemplateReference ref;
     ref.expected_mesh_type = 0;
-    ref.material_template = std::make_shared<AssetRef>(test_asset);
+    ref.material_template = AssetRef(test_asset);
     lib_asset->material_bundle[""] = ref;
 
     return std::make_pair(lib_asset, test_asset);
@@ -204,7 +202,7 @@ int main(int argc, char **argv) {
 
     // Prepare mesh
     auto test_mesh_asset = std::make_shared<LowerPlaneMeshAsset>();
-    auto test_mesh_asset_ref = std::make_shared<AssetRef>(test_mesh_asset);
+    auto test_mesh_asset_ref = AssetRef(test_mesh_asset);
     HomogeneousMesh test_mesh{rsys->GetAllocatorState(), test_mesh_asset_ref, 0};
 
     // Submit scene data
@@ -237,9 +235,8 @@ int main(int argc, char **argv) {
     auto asys = cmc->GetAssetManager();
     auto adb = std::dynamic_pointer_cast<FileSystemDatabase>(cmc->GetAssetDatabase());
     auto cs_ref = adb->GetNewAssetRef({*adb, "~/shaders/gaussian_blur.comp.asset"});
-    asys->LoadAssetImmediately(cs_ref);
     ComputeStage cstage{*rsys};
-    cstage.Instantiate(*cs_ref->cas<ShaderAsset>());
+    cstage.Instantiate(*cs_ref.cas<ShaderAsset>());
     cstage.AssignTexture("inputImage", *color);
     cstage.AssignTexture("outputImage", *postproc);
 

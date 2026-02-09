@@ -1,6 +1,5 @@
 #include "EditorRenderGraphBuilder.h"
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
-#include <Asset/AssetManager/AssetManager.h>
 #include <Asset/AssetRef.h>
 #include <Asset/Shader/ShaderAsset.h>
 #include <MainClass.h>
@@ -23,9 +22,7 @@ namespace Editor {
     EditorRenderGraphBuilder::EditorRenderGraphBuilder(RenderSystem &system) : RenderGraphBuilder(system) {
         // XXX: Hardcoded bloom shader. Should use AssetManager to load shader when we have pipeline asset.
         auto &adb = *std::dynamic_pointer_cast<FileSystemDatabase>(MainClass::GetInstance()->GetAssetDatabase());
-        auto &amg = *MainClass::GetInstance()->GetAssetManager();
         m_bloom_shader = adb.GetNewAssetRef(AssetPath{adb, "~/shaders/bloom.comp.asset"});
-        amg.LoadAssetImmediately(m_bloom_shader);
     }
 
     std::unique_ptr<RenderGraph> EditorRenderGraphBuilder::BuildEditorRenderGraph(
@@ -64,9 +61,9 @@ namespace Editor {
         auto depth_id = this->RequestRenderTargetTexture(rtt_desc, Texture::SamplerDesc{});
 
         m_game_bloom_compute_stage = std::make_shared<ComputeStage>(m_system);
-        m_game_bloom_compute_stage->Instantiate(*m_bloom_shader->cas<ShaderAsset>());
+        m_game_bloom_compute_stage->Instantiate(*m_bloom_shader.cas<ShaderAsset>());
         m_scene_bloom_compute_stage = std::make_shared<ComputeStage>(m_system);
-        m_scene_bloom_compute_stage->Instantiate(*m_bloom_shader->cas<ShaderAsset>());
+        m_scene_bloom_compute_stage->Instantiate(*m_bloom_shader.cas<ShaderAsset>());
         auto &system = m_system;
         auto &scene_bloom = *m_scene_bloom_compute_stage;
         auto &game_bloom = *m_game_bloom_compute_stage;

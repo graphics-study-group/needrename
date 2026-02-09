@@ -61,8 +61,6 @@ std::pair<std::shared_ptr<MaterialLibraryAsset>, std::shared_ptr<MaterialTemplat
     auto test_lib_asset = std::make_shared<MaterialLibraryAsset>();
     auto vs_ref = adb->GetNewAssetRef({*adb, "~/shaders/debug_writethrough.vert.asset"});
     auto fs_ref = adb->GetNewAssetRef({*adb, "~/shaders/debug_writethrough_mrt.frag.asset"});
-    MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(vs_ref);
-    MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(fs_ref);
 
     test_asset->name = "Writethrough";
 
@@ -78,14 +76,14 @@ std::pair<std::shared_ptr<MaterialLibraryAsset>, std::shared_ptr<MaterialTemplat
     cbp.color_op = cbp.alpha_op = CBP::BlendOperation::None;
     mtspp.attachments.color_blending = {cbp, cbp, cbp, cbp};
     mtspp.attachments.depth = ImageUtils::ImageFormat::D32SFLOAT;
-    mtspp.shaders.shaders = std::vector<std::shared_ptr<AssetRef>>{vs_ref, fs_ref};
+    mtspp.shaders.shaders = std::vector<AssetRef>{vs_ref, fs_ref};
 
     test_asset->properties = mtspp;
 
     test_lib_asset->m_name = "MRT Writethrough";
     MaterialLibraryAsset::MaterialTemplateReference ref;
     ref.expected_mesh_type = 0;
-    ref.material_template = std::make_shared<AssetRef>(test_asset);
+    ref.material_template = AssetRef(test_asset);
     test_lib_asset->material_bundle[""] = ref;
 
     return std::make_pair(test_lib_asset, test_asset);
@@ -176,14 +174,14 @@ int main(int argc, char **argv) {
 
     // Prepare material
     auto test_asset = ConstructMaterial();
-    auto test_asset_ref = std::make_shared<AssetRef>(test_asset.first);
+    auto test_asset_ref = AssetRef(test_asset.first);
     auto test_library = std::make_shared<MaterialLibrary>(*rsys);
-    test_library->Instantiate(*test_asset_ref->cas<MaterialLibraryAsset>());
+    test_library->Instantiate(*test_asset_ref.cas<MaterialLibraryAsset>());
     auto test_material_instance = std::make_shared<MaterialInstance>(*rsys, *test_library);
 
     // Prepare mesh
     auto test_mesh_asset = std::make_shared<LowerPlaneMeshAsset>();
-    auto test_mesh_asset_ref = std::make_shared<AssetRef>(test_mesh_asset);
+    auto test_mesh_asset_ref = AssetRef(test_mesh_asset);
     HomogeneousMesh test_mesh{rsys->GetAllocatorState(), test_mesh_asset_ref, 0};
 
     // Submit scene data

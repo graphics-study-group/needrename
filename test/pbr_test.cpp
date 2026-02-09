@@ -32,9 +32,6 @@ std::pair<std::shared_ptr<MaterialLibraryAsset>, std::shared_ptr<MaterialTemplat
     auto lib_asset = std::make_shared<MaterialLibraryAsset>();
     auto vs_ref = adb->GetNewAssetRef({*adb, "~/shaders/pbr_base.vert.asset"});
     auto fs_ref = adb->GetNewAssetRef({*adb, "~/shaders/lambertian_cook_torrance.frag.asset"});
-    assert(vs_ref && fs_ref);
-    MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(vs_ref);
-    MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(fs_ref);
 
     test_asset->name = "LambertianCookTorrancePBR";
 
@@ -42,13 +39,13 @@ std::pair<std::shared_ptr<MaterialLibraryAsset>, std::shared_ptr<MaterialTemplat
     mtspp.attachments.color = {ImageUtils::ImageFormat::R11G11B10UFloat};
     mtspp.attachments.color_blending = {PipelineProperties::ColorBlendingProperties{}};
     mtspp.attachments.depth = ImageUtils::ImageFormat::D32SFLOAT;
-    mtspp.shaders.shaders = std::vector<std::shared_ptr<AssetRef>>{vs_ref, fs_ref};
+    mtspp.shaders.shaders = std::vector<AssetRef>{vs_ref, fs_ref};
     test_asset->properties = mtspp;
 
     lib_asset->m_name = "LambertianCookTorrancePBR";
     MaterialLibraryAsset::MaterialTemplateReference ref;
     ref.expected_mesh_type = 0;
-    ref.material_template = std::make_shared<AssetRef>(test_asset);
+    ref.material_template = AssetRef(test_asset);
     lib_asset->material_bundle[""] = ref;
 
     return std::make_pair(lib_asset, test_asset);
@@ -77,7 +74,7 @@ public:
 
         auto system = m_system.lock();
 
-        auto masset = m_mesh_asset->cas<MeshAsset>();
+        auto masset = m_mesh_asset.cas<MeshAsset>();
         for (size_t i = 0; i < masset->GetSubmeshCount(); i++) {
             auto ptr = std::make_shared<MaterialInstance>(*system, *library);
             ptr->AssignTexture("albedoSampler", albedo);
@@ -164,11 +161,10 @@ int main(int argc, char **argv) {
     auto asys = cmc->GetAssetManager();
     auto adb = std::dynamic_pointer_cast<FileSystemDatabase>(cmc->GetAssetDatabase());
     cmc->LoadBuiltinAssets(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
-    asys->LoadAssetsInQueue();
 
     auto rsys = cmc->GetRenderSystem();
     auto pbr_material_assets = ConstructMaterial();
-    auto pbr_material_asset_ref = std::make_shared<AssetRef>(pbr_material_assets.first);
+    auto pbr_material_asset_ref = AssetRef(pbr_material_assets.first);
     auto pbr_material = std::make_shared<MaterialLibrary>(*rsys);
     pbr_material->Instantiate(*pbr_material_assets.first);
 
@@ -235,10 +231,8 @@ int main(int argc, char **argv) {
 
     // Setup compute shader
     auto cs_ref = adb->GetNewAssetRef({*adb, "~/shaders/bloom.comp.asset"});
-    assert(cs_ref);
-    MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(cs_ref);
     auto bloom_compute_stage = std::make_shared<ComputeStage>(*rsys);
-    bloom_compute_stage->Instantiate(*cs_ref->cas<ShaderAsset>());
+    bloom_compute_stage->Instantiate(*cs_ref.cas<ShaderAsset>());
 
     // Build render graph.
     RenderGraphBuilder rgb{*rsys};

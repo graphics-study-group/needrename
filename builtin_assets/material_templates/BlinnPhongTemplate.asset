@@ -68,20 +68,12 @@
                 "MaterialTemplateSinglePassProperties::shaders": {
                     "%type": "Engine::PipelineProperties::Shaders",
                     "Shaders::shaders": [
-                        "&1",
-                        "&2"
+                        "5ACA54938E17F42BC293F502932155A2",
+                        "9B381210B6EF92D084CBEB4E09F3D652"
                     ],
                     "Shaders::specialization_constants": []
                 }
             }
-        },
-        "&1": {
-            "%type": "Engine::AssetRef",
-            "AssetRef::m_guid": "5ACA54938E17F42BC293F502932155A2"
-        },
-        "&2": {
-            "%type": "Engine::AssetRef",
-            "AssetRef::m_guid": "9B381210B6EF92D084CBEB4E09F3D652"
         }
     },
     "%extra_data": [],

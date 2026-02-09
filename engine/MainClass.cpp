@@ -62,17 +62,15 @@ namespace Engine {
             std::dynamic_pointer_cast<LevelAsset>(this->asset_manager->LoadAssetImmediately(default_level_guid));
         this->world->GetMainSceneRef().AddSceneAsset(*level_asset);
         
-        if (level_asset->m_skybox_material) {
-            this->asset_manager->LoadAssetImmediately(level_asset->m_skybox_material);
-            this->asset_manager->LoadAssetsInQueue();
+        if (level_asset->m_skybox_material.IsValid()) {
             // XXX: like RendererComponent.cpp, this is a temporary solution. simply check the m_name
-            auto lib = level_asset->m_skybox_material->as<MaterialAsset>()->m_library;
+            auto lib = level_asset->m_skybox_material.as<MaterialAsset>()->m_library;
             this->renderer->GetMaterialRegistry().AddMaterial(lib);
             auto material_instance = std::make_shared<MaterialInstance>(
                 *(this->renderer),
-                *this->renderer->GetMaterialRegistry().GetMaterial(lib->cas<MaterialLibraryAsset>()->m_name)
+                *this->renderer->GetMaterialRegistry().GetMaterial(lib.cas<MaterialLibraryAsset>()->m_name)
             );
-            material_instance->Instantiate(*level_asset->m_skybox_material->as<MaterialAsset>());
+            material_instance->Instantiate(*level_asset->m_skybox_material.as<MaterialAsset>());
             this->renderer->GetSceneDataManager().SetSkyboxMaterial(material_instance);
             this->world->m_skybox_material = level_asset->m_skybox_material;
         }

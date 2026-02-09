@@ -28,7 +28,7 @@ namespace Engine::Materials {
         const auto &base_texture_prop = asset.m_properties.at("base_tex");
         assert(base_texture_prop.m_type == MaterialProperty::Type::Texture);
         auto base_texture_asset =
-            (std::any_cast<std::shared_ptr<AssetRef>>(base_texture_prop.m_value))->as<Image2DTextureAsset>();
+            (std::any_cast<AssetRef>(base_texture_prop.m_value)).as<Image2DTextureAsset>();
         this->SetBaseTexture(
             ImageTexture::CreateUnique(m_system, *base_texture_asset)
         );

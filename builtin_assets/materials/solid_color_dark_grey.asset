@@ -3,16 +3,16 @@
         "&0": {
             "%type": "Engine::MaterialAsset",
             "Asset::m_guid": "B24F0192DE71DE0391D44C379471F141",
-            "MaterialAsset::m_library": "&1",
+            "MaterialAsset::m_library": "D3364AE928621310CF1EE68F8D5EDB0A",
             "MaterialAsset::m_name": "Solid Color Dark Grey",
             "MaterialAsset::m_properties": {
                 "albedoSampler": {
                     "m_type": "Texture",
-                    "m_value": "&2"
+                    "m_value": "1D73E8C7640A3DF77B503B3F5E97DBE5"
                 },
                 "metalnessSampler": {
                     "m_type": "Texture",
-                    "m_value": "&3"
+                    "m_value": "24EF50B82AB1DC9793F60A50DBE77719"
                 },
                 "metalness_scale": {
                     "m_type": "Simple",
@@ -21,7 +21,7 @@
                 },
                 "roughnessSampler": {
                     "m_type": "Texture",
-                    "m_value": "&4"
+                    "m_value": "24EF50B82AB1DC9793F60A50DBE77719"
                 },
                 "roughness_scale": {
                     "m_type": "Simple",
@@ -29,22 +29,6 @@
                     "m_value": 0.2
                 }
             }
-        },
-        "&1": {
-            "%type": "Engine::AssetRef",
-            "AssetRef::m_guid": "D3364AE928621310CF1EE68F8D5EDB0A"
-        },
-        "&2": {
-            "%type": "Engine::AssetRef",
-            "AssetRef::m_guid": "1D73E8C7640A3DF77B503B3F5E97DBE5"
-        },
-        "&3": {
-            "%type": "Engine::AssetRef",
-            "AssetRef::m_guid": "24EF50B82AB1DC9793F60A50DBE77719"
-        },
-        "&4": {
-            "%type": "Engine::AssetRef",
-            "AssetRef::m_guid": "24EF50B82AB1DC9793F60A50DBE77719"
         }
     },
     "%extra_data": [],

@@ -80,9 +80,9 @@ namespace Engine {
             }
 
             this->m_mesh_asset =
-                std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(std::make_shared<MeshAsset>()));
+                AssetRef(std::dynamic_pointer_cast<Asset>(std::make_shared<MeshAsset>()));
             ObjLoader loader;
-            loader.LoadMeshAssetFromTinyObj(*(this->m_mesh_asset->as<MeshAsset>()), attrib, shapes);
+            loader.LoadMeshAssetFromTinyObj(*(this->m_mesh_asset.as<MeshAsset>()), attrib, shapes);
         }
 
     public:

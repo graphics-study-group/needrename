@@ -8,13 +8,9 @@
                 "SKYBOX": {
                     "%type": "Engine::MaterialLibraryAsset::MaterialTemplateReference",
                     "MaterialTemplateReference::expected_mesh_type": 0,
-                    "MaterialTemplateReference::material_template": "&1"
+                    "MaterialTemplateReference::material_template": "40D0558818344762D670519B835BEA89"
                 }
             }
-        },
-        "&1": {
-            "%type": "Engine::AssetRef",
-            "AssetRef::m_guid": "40D0558818344762D670519B835BEA89"
         }
     },
     "%extra_data": [],

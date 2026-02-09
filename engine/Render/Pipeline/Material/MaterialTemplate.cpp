@@ -149,7 +149,7 @@ namespace Engine {
 
                 psscis.resize(prop.shaders.shaders.size());
                 for (size_t i = 0; i < prop.shaders.shaders.size(); i++) {
-                    auto shader_asset = prop.shaders.shaders[i]->cas<ShaderAsset>();
+                    auto shader_asset = prop.shaders.shaders[i].cas<ShaderAsset>();
                     psscis[i] = vk::PipelineShaderStageCreateInfo{
                         {},
                         PipelineUtils::ToVulkanShaderStageFlagBits(shader_asset->shaderType),

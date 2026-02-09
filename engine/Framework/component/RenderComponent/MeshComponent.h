@@ -25,7 +25,7 @@ namespace Engine {
         virtual void RenderInit() override;
         virtual void Tick() override;
 
-        REFL_SER_ENABLE std::shared_ptr<AssetRef> m_mesh_asset{};
+        REFL_SER_ENABLE AssetRef m_mesh_asset{};
     };
 } // namespace Engine
 

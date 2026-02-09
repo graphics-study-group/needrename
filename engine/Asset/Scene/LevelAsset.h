@@ -2,6 +2,7 @@
 #define ASSET_SCENE_LEVELASSET_H
 
 #include "SceneAsset.h"
+#include <Asset/AssetRef.h>
 #include <Reflection/macros.h>
 #include <Reflection/serialization_smart_pointer.h>
 #include <memory>
@@ -9,7 +10,6 @@
 
 namespace Engine {
     class Camera;
-    class AssetRef;
 
     /**
      * @brief LevelAsset contains some extra config for the scene.
@@ -22,7 +22,7 @@ namespace Engine {
         ~LevelAsset() = default;
 
         REFL_SER_ENABLE std::shared_ptr<Camera> m_default_camera{};
-        REFL_SER_ENABLE std::shared_ptr<AssetRef> m_skybox_material{};
+        REFL_SER_ENABLE AssetRef m_skybox_material{};
     };
 } // namespace Engine
 

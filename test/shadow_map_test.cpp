@@ -62,7 +62,7 @@ public:
         this->LoadMesh(mesh_file_name);
         auto system = m_system.lock();
 
-        auto masset = m_mesh_asset->cas<MeshAsset>();
+        auto masset = m_mesh_asset.cas<MeshAsset>();
         for (size_t i = 0; i < masset->GetSubmeshCount(); i++) {
             m_materials.push_back(instance);
         }
@@ -80,9 +80,6 @@ std::array<std::shared_ptr<MaterialTemplateAsset>, 2> ConstructMaterialTemplate(
     auto shadow_map_vs_ref = adb->GetNewAssetRef({*adb, "~/shaders/shadowmap.vert.asset"});
     auto vs_ref = adb->GetNewAssetRef({*adb, "~/shaders/blinn_phong.vert.asset"});
     auto fs_ref = adb->GetNewAssetRef({*adb, "~/shaders/blinn_phong.frag.asset"});
-    asys->LoadAssetImmediately(shadow_map_vs_ref);
-    asys->LoadAssetImmediately(vs_ref);
-    asys->LoadAssetImmediately(fs_ref);
 
     templates[0]->name = "Blinn-Phong Lit";
     templates[1]->name = "Shadow map pass";
@@ -112,11 +109,11 @@ std::shared_ptr<MaterialLibraryAsset> ConstructMaterialLibrary(
     lib->m_name = "Blinn-Phong w. Shadowmap";
     MaterialLibraryAsset::MaterialTemplateReference ref;
     ref.expected_mesh_type = 0;
-    ref.material_template = std::make_shared<AssetRef>(templates[0]);
+    ref.material_template = AssetRef(templates[0]);
     lib->material_bundle["Lit"] = ref;
 
     ref.expected_mesh_type = 0;
-    ref.material_template = std::make_shared<AssetRef>(templates[1]);
+    ref.material_template = AssetRef(templates[1]);
     lib->material_bundle["Shadowmap"] = ref;
     return lib;
 }
@@ -183,9 +180,9 @@ int main(int argc, char **argv) {
     // archive.save_to_file(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "material_libraries" /
     // "BlinnPhongWithShadowMapLibrary");
 
-    auto test_library_asset_ref = std::make_shared<AssetRef>(test_library_asset);
+    auto test_library_asset_ref = AssetRef(test_library_asset);
     auto test_library = std::make_shared<MaterialLibrary>(*rsys);
-    test_library->Instantiate(*test_library_asset_ref->cas<MaterialLibraryAsset>());
+    test_library->Instantiate(*test_library_asset_ref.cas<MaterialLibraryAsset>());
     auto object_material_instance = std::make_shared<MaterialInstance>(*rsys, *test_library);
     object_material_instance->AssignVectorVariable("ambient_color", glm::vec4(0.0, 0.0, 0.0, 0.0));
     object_material_instance->AssignVectorVariable("specular_color", glm::vec4(1.0, 1.0, 1.0, 64.0));
@@ -200,7 +197,7 @@ int main(int argc, char **argv) {
     auto &floor_go = scene.CreateGameObject();
     floor_go.GetTransformRef().SetScale({5.0f, 5.0f, 1.0f}).SetPosition({0.0f, 0.0f, 0.5f});
     auto floor_mesh_asset = std::make_shared<LowerPlaneMeshAsset>();
-    auto floor_mesh_asset_ref = std::make_shared<AssetRef>(floor_mesh_asset);
+    auto floor_mesh_asset_ref = AssetRef(floor_mesh_asset);
     auto &floor_mesh_comp = scene.CreateComponent<MeshComponent>(floor_go);
     floor_mesh_comp.m_mesh_asset = floor_mesh_asset_ref;
     floor_mesh_comp.GetMaterials().resize(1);

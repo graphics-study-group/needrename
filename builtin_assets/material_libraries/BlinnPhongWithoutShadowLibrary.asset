@@ -8,13 +8,9 @@
                 "": {
                     "%type": "Engine::MaterialLibraryAsset::MaterialTemplateReference",
                     "MaterialTemplateReference::expected_mesh_type": 1,
-                    "MaterialTemplateReference::material_template": "&1"
+                    "MaterialTemplateReference::material_template": "8343954977BA6A7CF658BFEE421AD515"
                 }
             }
-        },
-        "&1": {
-            "%type": "Engine::AssetRef",
-            "AssetRef::m_guid": "8343954977BA6A7CF658BFEE421AD515"
         }
     },
     "%main_id": "&0"

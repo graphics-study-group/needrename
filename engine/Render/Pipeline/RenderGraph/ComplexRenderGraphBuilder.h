@@ -24,7 +24,7 @@ namespace Engine {
         );
 
     protected:
-        std::shared_ptr<AssetRef> m_bloom_shader{};
+        AssetRef m_bloom_shader{};
         std::shared_ptr<ComputeStage> m_bloom_compute_stage{};
     };
 } // namespace Engine

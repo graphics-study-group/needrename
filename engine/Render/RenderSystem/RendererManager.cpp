@@ -53,11 +53,11 @@ namespace Engine::RenderSystemState {
 
         RendererList CreateHomogeousMeshFromAsset(
             MeshComponent * rc,
-            const std::shared_ptr <AssetRef> & asset,
+            AssetRef & asset,
             RenderSystem & s
         ) {
             RendererList rl{};
-            auto masset = asset->cas<MeshAsset>();
+            auto masset = asset.cas<MeshAsset>();
             assert(masset);
 
             rl.reserve(masset->GetSubmeshCount());
@@ -90,17 +90,17 @@ namespace Engine::RenderSystemState {
 
         RendererList CreateStaticHMesh(
             StaticMeshComponent * rc,
-            const std::shared_ptr <AssetRef> & asset,
+            AssetRef & asset,
             RenderSystem & s
         ) {
-            auto masset = asset->cas<MeshAsset>();
+            auto masset = asset.cas<MeshAsset>();
             assert(masset);
 
-            if (!static_mesh_asset_data_cache.contains(asset->GetGUID())) {
-                static_mesh_asset_data_cache[asset->GetGUID()].submeshes.resize(masset->GetSubmeshCount());
+            if (!static_mesh_asset_data_cache.contains(asset.GetGUID())) {
+                static_mesh_asset_data_cache[asset.GetGUID()].submeshes.resize(masset->GetSubmeshCount());
             }
 
-            auto & e = static_mesh_asset_data_cache[asset->GetGUID()];
+            auto & e = static_mesh_asset_data_cache[asset.GetGUID()];
             e.refcnt += 1;
 
             RendererList rl{};

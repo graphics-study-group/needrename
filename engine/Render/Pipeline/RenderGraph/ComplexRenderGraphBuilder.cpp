@@ -1,7 +1,6 @@
 #include "ComplexRenderGraphBuilder.h"
 #include "RenderGraph.h"
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
-#include <Asset/AssetManager/AssetManager.h>
 #include <Asset/Shader/ShaderAsset.h>
 #include <MainClass.h>
 #include <Render/Memory/RenderTargetTexture.h>
@@ -15,9 +14,7 @@ namespace Engine {
     ComplexRenderGraphBuilder::ComplexRenderGraphBuilder(RenderSystem &system) : RenderGraphBuilder(system) {
         // XXX: Hardcoded bloom shader. Should use AssetManager to load shader when we have pipeline asset.
         auto &adb = *std::dynamic_pointer_cast<FileSystemDatabase>(MainClass::GetInstance()->GetAssetDatabase());
-        auto &amg = *MainClass::GetInstance()->GetAssetManager();
         m_bloom_shader = adb.GetNewAssetRef(AssetPath{adb, "~/shaders/bloom.comp.asset"});
-        amg.LoadAssetImmediately(m_bloom_shader);
     }
 
     std::unique_ptr<RenderGraph> ComplexRenderGraphBuilder::BuildDefaultRenderGraph(
@@ -65,7 +62,7 @@ namespace Engine {
         }
 
         m_bloom_compute_stage = std::make_shared<ComputeStage>(m_system);
-        m_bloom_compute_stage->Instantiate(*m_bloom_shader->cas<ShaderAsset>());
+        m_bloom_compute_stage->Instantiate(*m_bloom_shader.cas<ShaderAsset>());
 
         auto &system = m_system;
         auto &bloom_compute_stage = *m_bloom_compute_stage;

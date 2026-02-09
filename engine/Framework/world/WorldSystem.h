@@ -2,6 +2,7 @@
 #define WORLD_WORLDSYSTEM
 
 #include "Handle.h"
+#include <Asset/AssetRef.h>
 #include <memory>
 #include <random>
 #include <unordered_map>
@@ -60,7 +61,7 @@ namespace Engine {
         std::unordered_map<uint32_t, std::shared_ptr<Scene>> m_scene_map{};
         uint32_t m_scene_id_gen{1};
     public:
-        std::shared_ptr<AssetRef> m_skybox_material{};
+        AssetRef m_skybox_material{};
     };
 } // namespace Engine
 #endif // WORLD_WORLDSYSTEM

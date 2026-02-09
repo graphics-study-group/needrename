@@ -8,22 +8,14 @@
                 "Lit": {
                     "%type": "Engine::MaterialLibraryAsset::MaterialTemplateReference",
                     "MaterialTemplateReference::expected_mesh_type": 0,
-                    "MaterialTemplateReference::material_template": "&2"
+                    "MaterialTemplateReference::material_template": "6D638EF97A23CBEDE1236A31ECAF2ACF"
                 },
                 "Shadowmap": {
                     "%type": "Engine::MaterialLibraryAsset::MaterialTemplateReference",
                     "MaterialTemplateReference::expected_mesh_type": 0,
-                    "MaterialTemplateReference::material_template": "&1"
+                    "MaterialTemplateReference::material_template": "0A31C596A3B9DB54881FA9550A82311C"
                 }
             }
-        },
-        "&1": {
-            "%type": "Engine::AssetRef",
-            "AssetRef::m_guid": "0A31C596A3B9DB54881FA9550A82311C"
-        },
-        "&2": {
-            "%type": "Engine::AssetRef",
-            "AssetRef::m_guid": "6D638EF97A23CBEDE1236A31ECAF2ACF"
         }
     },
     "%extra_data": [],

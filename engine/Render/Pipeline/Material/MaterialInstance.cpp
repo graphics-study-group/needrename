@@ -297,7 +297,7 @@ namespace Engine {
             case MaterialProperty::Type::Texture:
             {
                 auto texture_asset =
-                    std::any_cast<std::shared_ptr<AssetRef>>(p.m_value)->as<Image2DTextureAsset>();
+                    std::any_cast<AssetRef>(p.m_value).as<Image2DTextureAsset>();
                 if (texture_asset) {
                     // TODO: We should allocate texture from assets in a pool.
                     auto texture = std::shared_ptr<ImageTexture>(std::move(ImageTexture::CreateUnique(this->m_system, *texture_asset)));
@@ -307,7 +307,7 @@ namespace Engine {
                     );
                 }
                 auto solid_color_asset =
-                    std::any_cast<std::shared_ptr<AssetRef>>(p.m_value)->as<SolidColorTextureAsset>();
+                    std::any_cast<AssetRef>(p.m_value).as<SolidColorTextureAsset>();
                 if (solid_color_asset) {
                     std::shared_ptr texture = ImageTexture::CreateUnique(
                         this->m_system, 
@@ -335,7 +335,7 @@ namespace Engine {
             case MaterialProperty::Type::CubeTexture:
             {
                 auto texture_asset =
-                    std::any_cast<std::shared_ptr<AssetRef>>(p.m_value)->as<ImageCubemapAsset>();
+                    std::any_cast<AssetRef>(p.m_value).as<ImageCubemapAsset>();
                 auto texture = std::shared_ptr<ImageTexture>(std::move(ImageTexture::CreateUnique(this->m_system, *texture_asset)));
                 AssignTexture(prop.first, texture);
                 m_system.GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(

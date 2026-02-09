@@ -20,7 +20,7 @@ namespace Engine {
 
         uint64_t m_total_allocated_buffer_size{0};
 
-        std::shared_ptr<AssetRef> m_mesh_asset{};
+        AssetRef m_mesh_asset{};
         size_t m_submesh_idx{};
         VertexAttribute m_attribute{};
         /**
@@ -31,10 +31,10 @@ namespace Engine {
         void FetchFromAsset(const RenderSystemState::AllocatorState & allocator);
 
         uint32_t GetVertexIndexCount() const {
-            return m_mesh_asset->as<MeshAsset>()->GetSubmeshVertexIndexCount(m_submesh_idx);
+            return m_mesh_asset.cas<MeshAsset>()->GetSubmeshVertexIndexCount(m_submesh_idx);
         }
         uint32_t GetVertexCount() const {
-            return m_mesh_asset->as<MeshAsset>()->GetSubmeshVertexCount(m_submesh_idx);
+            return m_mesh_asset.cas<MeshAsset>()->GetSubmeshVertexCount(m_submesh_idx);
         }
         uint64_t GetExpectedBufferSize() const {
             return GetVertexIndexCount() * sizeof(uint32_t) + GetVertexCount() * m_attribute.GetTotalPerVertexSize();
@@ -43,7 +43,7 @@ namespace Engine {
 
     HomogeneousMesh::HomogeneousMesh(
         const RenderSystemState::AllocatorState &allocator,
-        std::shared_ptr<AssetRef> mesh_asset,
+        AssetRef mesh_asset,
         size_t submesh_idx
     ) : pimpl(std::make_unique<impl>()) {
         pimpl->m_mesh_asset = mesh_asset;
@@ -60,7 +60,7 @@ namespace Engine {
     void HomogeneousMesh::impl::FetchFromAsset(const RenderSystemState::AllocatorState & allocator) {
         // Load vertex attribute format
         {
-            const auto & asset = m_mesh_asset->as<MeshAsset>();
+            const auto & asset = m_mesh_asset.as<MeshAsset>();
             const auto & submesh = asset->m_submeshes[m_submesh_idx];
             m_attribute = submesh.ToVertexAttributeFormat();
         }
@@ -110,8 +110,8 @@ namespace Engine {
         );
 
         std::byte *data = buffer->GetVMAddress();
-        pimpl->m_mesh_asset->cas<MeshAsset>()->m_submeshes[pimpl->m_submesh_idx].WriteVertexAttributeBuffer(data);
-        pimpl->m_mesh_asset->cas<MeshAsset>()->m_submeshes[pimpl->m_submesh_idx].WriteIndexBuffer(
+        pimpl->m_mesh_asset.cas<MeshAsset>()->m_submeshes[pimpl->m_submesh_idx].WriteVertexAttributeBuffer(data);
+        pimpl->m_mesh_asset.cas<MeshAsset>()->m_submeshes[pimpl->m_submesh_idx].WriteIndexBuffer(
             data + GetVertexAttributeFormat().GetTotalPerVertexSize() * GetVertexAttributeCount()
         );
         buffer->Flush();
@@ -154,7 +154,7 @@ namespace Engine {
             GetIndexCount() * sizeof(uint32_t) + 
             GetVertexAttributeFormat().GetTotalPerVertexSize() * GetVertexAttributeCount()
         );
-        const auto & submesh = pimpl->m_mesh_asset->cas<MeshAsset>()->m_submeshes[pimpl->m_submesh_idx];
+        const auto & submesh = pimpl->m_mesh_asset.cas<MeshAsset>()->m_submeshes[pimpl->m_submesh_idx];
         submesh.WriteVertexAttributeBuffer(buf.data());
         submesh.WriteIndexBuffer(
             buf.data() + 
