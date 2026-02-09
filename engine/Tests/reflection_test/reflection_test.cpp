@@ -421,5 +421,58 @@ int main() {
         assert(LifecycleTest::InnerProbe::alive == 0);
     }
 
+    std::cout << "----------------------------- Test GetMemberRecursively ----------------------------" << std::endl;
+    // Test GetMemberRecursively functionality
+    Engine::Reflection::Var topLevelVar = Engine::Reflection::GetType("TopLevelStruct")->CreateInstance();
+    
+    // Test direct member access
+    std::cout << "[] Testing direct member access" << std::endl;
+    topLevelVar.GetMember("top_value").Set(999);
+    assert(topLevelVar.GetMember("top_value").Get<int>() == 999);
+    std::cout << "top_value: " << topLevelVar.GetMember("top_value").Get<int>() << std::endl;
+    
+    // Test single-level recursive access
+    std::cout << "[] Testing single-level recursive access" << std::endl;
+    topLevelVar.GetMemberRecursively("middle_member.middle_value").Set(888);
+    assert(topLevelVar.GetMemberRecursively("middle_member.middle_value").Get<int>() == 888);
+    std::cout << "middle_member.middle_value: " << topLevelVar.GetMemberRecursively("middle_member.middle_value").Get<int>() << std::endl;
+    
+    // Verify the same value is accessible via regular GetMember
+    assert(topLevelVar.GetMember("middle_member").GetMember("middle_value").Get<int>() == 888);
+    
+    // Test two-level recursive access
+    std::cout << "[] Testing two-level recursive access" << std::endl;
+    topLevelVar.GetMemberRecursively("middle_member.nested_member.level1_value").Set(777);
+    assert(topLevelVar.GetMemberRecursively("middle_member.nested_member.level1_value").Get<int>() == 777);
+    std::cout << "middle_member.nested_member.level1_value: " << topLevelVar.GetMemberRecursively("middle_member.nested_member.level1_value").Get<int>() << std::endl;
+    
+    // Verify the same value is accessible via regular GetMember chain
+    assert(topLevelVar.GetMember("middle_member").GetMember("nested_member").GetMember("level1_value").Get<int>() == 777);
+    
+    // Test string member access
+    std::cout << "[] Testing string member access" << std::endl;
+    topLevelVar.GetMemberRecursively("middle_member.nested_member.level1_name").Set(std::string("recursive_test"));
+    assert(topLevelVar.GetMemberRecursively("middle_member.nested_member.level1_name").Get<std::string>() == "recursive_test");
+    std::cout << "middle_member.nested_member.level1_name: " << topLevelVar.GetMemberRecursively("middle_member.nested_member.level1_name").Get<std::string>() << std::endl;
+    
+    // Test accessing string via regular GetMember for comparison
+    assert(topLevelVar.GetMember("middle_member").GetMember("nested_member").GetMember("level1_name").Get<std::string>() == "recursive_test");
+    
+    // Test edge case: single member (should work same as regular GetMember)
+    std::cout << "[] Testing single member (edge case)" << std::endl;
+    topLevelVar.GetMemberRecursively("top_value").Set(111);
+    assert(topLevelVar.GetMemberRecursively("top_value").Get<int>() == 111);
+    assert(topLevelVar.GetMember("top_value").Get<int>() == 111); // Should match regular access
+    
+    // Test with string paths
+    std::cout << "[] Testing various path combinations" << std::endl;
+    topLevelVar.GetMemberRecursively("top_name").Set(std::string("recursive_top"));
+    topLevelVar.GetMemberRecursively("middle_member.middle_name").Set(std::string("recursive_middle"));
+    
+    assert(topLevelVar.GetMemberRecursively("top_name").Get<std::string>() == "recursive_top");
+    assert(topLevelVar.GetMemberRecursively("middle_member.middle_name").Get<std::string>() == "recursive_middle");
+    
+    std::cout << "All GetMemberRecursively tests passed!" << std::endl;
+
     return 0;
 }

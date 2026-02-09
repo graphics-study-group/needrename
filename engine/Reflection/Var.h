@@ -67,6 +67,11 @@ namespace Engine {
             /// @return a Var object representing the field
             Var GetMember(const std::string &name);
 
+            /// @brief Get a member field of the object recursively. (e.g. "a.b.c")
+            /// @param name the name of the field
+            /// @return a Var object representing the field
+            Var GetMemberRecursively(const std::string &name);
+
             /// @brief Get an array member field of the object.
             /// The member should be an array, std::vector or std::array.
             /// @param name the name of the array field
