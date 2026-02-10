@@ -14,7 +14,6 @@
 #include "Render/RenderSystem/RendererManager.h"
 #include "Render/RenderSystem/Structs.h"
 #include "Render/RenderSystem/Swapchain.h"
-#include "Render/RenderSystem/SamplerManager.h"
 #include "Render/RenderSystem/CameraManager.h"
 #include "Render/Renderer/Camera.h"
 
@@ -33,7 +32,6 @@ namespace Engine {
             m_frame_manager(parent),
             m_material_registry(parent),
             m_renderer_manager(parent),
-            m_sampler_manager(parent),
             m_scene_data_manager(parent),
             m_camera_manager(parent) {
 
@@ -56,7 +54,6 @@ namespace Engine {
         RenderSystemState::FrameManager m_frame_manager;
         RenderSystemState::MaterialRegistry m_material_registry;
         RenderSystemState::RendererManager m_renderer_manager;
-        RenderSystemState::SamplerManager m_sampler_manager;
         RenderSystemState::SceneDataManager m_scene_data_manager;
         RenderSystemState::CameraManager m_camera_manager;
     };
