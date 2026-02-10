@@ -46,7 +46,7 @@ namespace Engine {
         Scene &GetSceneRef(uint32_t sceneID);
         Scene *GetScenePtr(uint32_t sceneID);
         Scene &CreateScene();
-        void RemoveScene(uint32_t sceneID);
+        void ClearUnusedScenes();
 
         /**
          * @brief Save the main scene to the archive.

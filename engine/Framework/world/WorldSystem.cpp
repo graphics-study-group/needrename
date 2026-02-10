@@ -109,10 +109,14 @@ namespace Engine {
         m_scene_map[sceneID] = std::shared_ptr<Scene>(new Scene(sceneID));
         return *m_scene_map[sceneID];
     }
-    void WorldSystem::RemoveScene(uint32_t sceneID) {
-        if (m_scene_map.find(sceneID) != m_scene_map.end())
-            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "Scene %d not found.", sceneID);
-        m_scene_map.erase(sceneID);
+    void WorldSystem::ClearUnusedScenes() {
+        for (auto it = m_scene_map.begin(); it != m_scene_map.end();) {
+            if (it->second.use_count() == 1) {
+                it = m_scene_map.erase(it);
+            } else {
+                ++it;
+            }
+        }
     }
 
     void WorldSystem::SaveLevelToArchive(Serialization::Archive &archive) {
