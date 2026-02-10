@@ -15,11 +15,11 @@ namespace Engine::ShdrRfl {
     ShaderParameters::~ShaderParameters() noexcept = default;
 
     void ShaderParameters::Assign(const std::string &name, uint32_t v) noexcept {
-        pimpl->buffer.SetVariable(name, v);
+        pimpl->buffer.SetVariable<uint32_t>(name, v);
     }
 
     void ShaderParameters::Assign(const std::string &name, float v) noexcept {
-        pimpl->buffer.SetVariable(name, v);
+        pimpl->buffer.SetVariable<float>(name, v);
     }
 
     void ShaderParameters::Assign(const std::string &name, const glm::vec4 &v) noexcept {
