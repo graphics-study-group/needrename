@@ -42,6 +42,7 @@ int main(int argc, char **argv) {
     // mesh_path = mesh_path / "meshes" / "sphere.obj";
     // mesh_path = mesh_path / "meshes" / "cube.obj";
     // mesh_path = mesh_path / "bunny" / "bunny.obj";
+    mesh_path = mesh_path / "four_bunny" / "four_bunny.obj";
 
     SDL_Init(SDL_INIT_VIDEO);
 
@@ -74,7 +75,7 @@ int main(int argc, char **argv) {
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading the prefab which has just imported");
     AssetPath prefab_path{*adb, path_in_project / ("GO_" + mesh_path.stem().string() + ".asset")};
     auto prefab_ref = adb->GetNewAssetRef(prefab_path);
-    main_scene.AddSceneAsset(*prefab_ref.as<SceneAsset>());
+    prefab_ref.as<SceneAsset>()->AddToScene(main_scene);
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Setting up camera");
     auto &camera_go = main_scene.CreateGameObject();

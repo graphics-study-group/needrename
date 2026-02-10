@@ -23,6 +23,13 @@ namespace Engine {
         return m_sceneID;
     }
 
+    ObjectHandle Scene::GetNullObjectHandle() const noexcept {
+        return ObjectHandle{GetID(), 0};
+    }
+    ComponentHandle Scene::GetNullComponentHandle() const noexcept {
+        return ComponentHandle{GetID(), 0};
+    }
+
     GameObject &Scene::CreateGameObject() {
         auto go_ptr = std::unique_ptr<GameObject>(new GameObject(this));
         auto handle = NextAvailableGameObjectHandle();
@@ -121,7 +128,7 @@ namespace Engine {
         m_event_queue->Clear();
     }
 
-    GameObject *Scene::GetGameObject(ObjectHandle handle) {
+    GameObject *Scene::GetGameObject(ObjectHandle handle) const {
         auto it = m_go_map.find(handle);
         if (it == m_go_map.end()) {
             return nullptr;
@@ -129,7 +136,7 @@ namespace Engine {
         return it->second;
     }
 
-    Component *Scene::GetComponent(ComponentHandle handle) {
+    Component *Scene::GetComponent(ComponentHandle handle) const {
         auto it = m_comp_map.find(handle);
         if (it == m_comp_map.end()) {
             return nullptr;
@@ -137,7 +144,7 @@ namespace Engine {
         return it->second;
     }
 
-    GameObject &Scene::GetGameObjectRef(ObjectHandle handle) {
+    GameObject &Scene::GetGameObjectRef(ObjectHandle handle) const {
         auto it = m_go_map.find(handle);
         if (it == m_go_map.end()) {
             throw std::runtime_error("GameObject not found.");
@@ -145,7 +152,7 @@ namespace Engine {
         return *it->second;
     }
 
-    Component &Scene::GetComponentRef(ComponentHandle handle) {
+    Component &Scene::GetComponentRef(ComponentHandle handle) const {
         auto it = m_comp_map.find(handle);
         if (it == m_comp_map.end()) {
             throw std::runtime_error("Component not found.");
@@ -183,21 +190,6 @@ namespace Engine {
         m_go_remove_queue.clear();
         m_comp_add_queue.clear();
         m_comp_remove_queue.clear();
-    }
-
-    void Scene::AddSceneAsset(SceneAsset &asset) {
-        asset.m_scene->FlushCmdQueue();
-        for (auto &go : asset.m_scene->m_game_objects) {
-            go->m_scene = this;
-            m_go_map[go->GetHandle()] = go.get();
-            m_go_add_queue.push_back(std::move(go));
-        }
-        for (auto &comp : asset.m_scene->m_components) {
-            comp->m_scene = this;
-            m_comp_map[comp->GetHandle()] = comp.get();
-            m_comp_add_queue.push_back(std::move(comp));
-        }
-        asset.m_scene->Clear();
     }
 
     ComponentHandle Scene::NextAvailableComponentHandle() {

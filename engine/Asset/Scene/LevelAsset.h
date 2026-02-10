@@ -18,7 +18,6 @@ namespace Engine {
         REFL_SER_BODY(LevelAsset)
     public:
         REFL_ENABLE LevelAsset() = default;
-        REFL_ENABLE LevelAsset(std::shared_ptr<Scene> scene);
         ~LevelAsset() = default;
 
         REFL_SER_ENABLE std::shared_ptr<Camera> m_default_camera{};

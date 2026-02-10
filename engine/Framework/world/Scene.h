@@ -26,6 +26,9 @@ namespace Engine {
 
         uint32_t GetID() const noexcept;
 
+        ObjectHandle GetNullObjectHandle() const noexcept;
+        ComponentHandle GetNullComponentHandle() const noexcept;
+
         void AddInitEvent();
         void AddTickEvent();
 
@@ -47,16 +50,16 @@ namespace Engine {
         /// @brief Clear all events in the event queue.
         void ClearEventQueue();
 
-        GameObject *GetGameObject(ObjectHandle handle);
-        Component *GetComponent(ComponentHandle handle);
+        GameObject *GetGameObject(ObjectHandle handle) const;
+        Component *GetComponent(ComponentHandle handle) const;
         template <typename T>
-        T *GetComponent(ComponentHandle handle) {
+        T *GetComponent(ComponentHandle handle) const{
             return dynamic_cast<T *>(GetComponent(handle));
         }
-        GameObject &GetGameObjectRef(ObjectHandle handle);
-        Component &GetComponentRef(ComponentHandle handle);
+        GameObject &GetGameObjectRef(ObjectHandle handle) const;
+        Component &GetComponentRef(ComponentHandle handle) const;
         template <typename T>
-        T &GetComponentRef(ComponentHandle handle) {
+        T &GetComponentRef(ComponentHandle handle) const {
             return dynamic_cast<T &>(GetComponentRef(handle));
         }
 
@@ -70,10 +73,6 @@ namespace Engine {
 
         /// @brief Clear all GameObjects and Components in the scene.
         void Clear();
-
-        /// @brief Add a SceneAsset to the scene.
-        /// @param asset 
-        void AddSceneAsset(SceneAsset &asset);
 
     protected:
         friend class SceneAsset;

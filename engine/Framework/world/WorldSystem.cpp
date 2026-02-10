@@ -120,11 +120,11 @@ namespace Engine {
     }
 
     void WorldSystem::SaveLevelToArchive(Serialization::Archive &archive) {
-        auto level_asset = std::make_unique<LevelAsset>(m_main_scene);
-        level_asset->m_default_camera = m_active_camera;
-        level_asset->m_skybox_material = m_skybox_material;
-        archive.clear();
-        archive.prepare_save();
-        level_asset->save_asset_to_archive(archive);
+        // auto level_asset = std::make_unique<LevelAsset>(m_main_scene);
+        // level_asset->m_default_camera = m_active_camera;
+        // level_asset->m_skybox_material = m_skybox_material;
+        // archive.clear();
+        // archive.prepare_save();
+        // level_asset->save_asset_to_archive(archive);
     }
 } // namespace Engine

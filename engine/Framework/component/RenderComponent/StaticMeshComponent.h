@@ -13,7 +13,7 @@ namespace Engine {
         REFL_ENABLE StaticMeshComponent(GameObject *parent) : RendererComponent(parent) {};
         virtual ~StaticMeshComponent() = default;
 
-        REFL_ENABLE AssetRef m_mesh_asset{};
+        REFL_SER_ENABLE AssetRef m_mesh_asset{};
     };
 }
 

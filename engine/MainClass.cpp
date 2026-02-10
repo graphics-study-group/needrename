@@ -60,7 +60,7 @@ namespace Engine {
         GUID default_level_guid(project_config["default_level"].get<std::string>());
         auto level_asset =
             std::dynamic_pointer_cast<LevelAsset>(this->asset_manager->LoadAssetImmediately(default_level_guid));
-        this->world->GetMainSceneRef().AddSceneAsset(*level_asset);
+        level_asset->AddToScene(this->world->GetMainSceneRef());
         
         if (level_asset->m_skybox_material.IsValid()) {
             // XXX: like RendererComponent.cpp, this is a temporary solution. simply check the m_name

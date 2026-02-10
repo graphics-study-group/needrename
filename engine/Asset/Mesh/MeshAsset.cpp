@@ -55,7 +55,7 @@ namespace Engine {
             data.insert(
                 data.end(),
                 reinterpret_cast<const std::byte *>(sz.data()),
-                reinterpret_cast<const std::byte *>(sz.data() + sz.size() * sizeof(size_t))
+                reinterpret_cast<const std::byte *>(sz.data() + sz.size())
             );
 
             auto write_attr = [&data](const Submesh::Attributes & attr) -> void {

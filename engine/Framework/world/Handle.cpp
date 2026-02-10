@@ -1,4 +1,5 @@
 #include "Handle.h"
+#include "HandleResolver.h"
 #include <Framework/world/Scene.h>
 #include <Framework/world/WorldSystem.h>
 #include <MainClass.h>
@@ -33,16 +34,10 @@ namespace Engine {
             Engine::Serialization::Json &json = *archive.m_cursor;
             json = m_ID;
         }
-
-        void HandleBase::load_from_archive(Engine::Serialization::Archive &archive) {
-            Engine::Serialization::Json &json = *archive.m_cursor;
-            m_ID = json.get<uint32_t>();
-        }
     } // namespace detail
 
     ObjectHandle::ObjectHandle(uint32_t sceneID, uint32_t ID) : detail::HandleBase(sceneID, ID) {
     }
-
     GameObject *ObjectHandle::GetGameObject() const {
         auto scene = MainClass::GetInstance()->GetWorldSystem()->GetScenePtr(m_sceneID);
         if (scene) {
@@ -50,6 +45,13 @@ namespace Engine {
         }
         return nullptr;
     }
+    void ObjectHandle::load_from_archive(Engine::Serialization::Archive &archive) {
+        Engine::Serialization::Json &json = *archive.m_cursor;
+        auto &resolver = archive.GetOrCreateResolver<HandleResolver>();
+        assert(resolver.m_obj_map.find(json.get<uint32_t>()) != resolver.m_obj_map.end());
+        *this = resolver.m_obj_map[json.get<uint32_t>()];
+    }
+
     ComponentHandle::ComponentHandle(uint32_t sceneID, uint32_t ID) : detail::HandleBase(sceneID, ID) {
     }
     Component *ComponentHandle::GetComponent() const {
@@ -58,5 +60,12 @@ namespace Engine {
             return scene->GetComponent(*this);
         }
         return nullptr;
+    }
+
+    void ComponentHandle::load_from_archive(Engine::Serialization::Archive &archive) {
+        Engine::Serialization::Json &json = *archive.m_cursor;
+        auto &resolver = archive.GetOrCreateResolver<HandleResolver>();
+        assert(resolver.m_comp_map.find(json.get<uint32_t>()) != resolver.m_comp_map.end());
+        *this = resolver.m_comp_map[json.get<uint32_t>()];
     }
 } // namespace Engine

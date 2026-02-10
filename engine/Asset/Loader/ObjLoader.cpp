@@ -134,12 +134,14 @@ namespace Engine {
                 ));
             }
         }
+        temp_scene.FlushCmdQueue();
 
-        // auto scene_asset = std::make_unique<SceneAsset>(std::move(temp_scene));
-        // archive.clear();
-        // archive.prepare_save();
-        // scene_asset->save_asset_to_archive(archive);
-        // database->SaveArchive(archive, AssetPath(*database, path_in_project / ("GO_" + m_mesh_asset->m_name + ".asset")));
+        auto scene_asset = std::make_unique<SceneAsset>();
+        scene_asset->SaveFromScene(temp_scene);
+        archive.clear();
+        archive.prepare_save();
+        scene_asset->save_asset_to_archive(archive);
+        database->SaveArchive(archive, AssetPath(*database, path_in_project / ("GO_" + m_mesh_asset->m_name + ".asset")));
     }
 
     void ObjLoader::LoadMeshAssetFromTinyObj(

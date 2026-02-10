@@ -35,9 +35,6 @@ namespace Engine {
         m_system = MainClass::GetInstance()->GetRenderSystem();
         auto system = m_system.lock();
 
-        // We should do some check maybe to avoid repetition.
-        system->GetRendererManager().RegisterRendererComponent(m_handle);
-
         for (size_t i = 0; i < m_material_assets.size(); i++) {
             // XXX: This is a temporary solution: It simply check the m_name in material assets and add it to the
             // registry. We should reconsider the relationship between MaterialRegistry and MaterialTemplateAsset.
@@ -56,6 +53,9 @@ namespace Engine {
             assert(mat_ptr && mat_asset);
             mat_ptr->Instantiate(*mat_asset);
         }
+
+        // We should do some check maybe to avoid repetition.
+        system->GetRendererManager().RegisterRendererComponent(m_handle);
     }
 
     void RendererComponent::Tick() {

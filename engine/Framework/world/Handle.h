@@ -24,9 +24,8 @@ namespace Engine {
             virtual void Reset() noexcept;
             bool operator==(const HandleBase &other) const noexcept;
 
-            // TODO: temporary solution. This should not be serialized automatically.
-            void save_to_archive(Engine::Serialization::Archive &archive) const;
-            void load_from_archive(Engine::Serialization::Archive &archive);
+            virtual void save_to_archive(Engine::Serialization::Archive &archive) const;
+            virtual void load_from_archive(Engine::Serialization::Archive &) = 0;
 
         protected:
             uint32_t m_sceneID{};
@@ -39,7 +38,10 @@ namespace Engine {
     class ObjectHandle : public detail::HandleBase {
     public:
         ObjectHandle() = default;
+
         GameObject *GetGameObject() const;
+        virtual void load_from_archive(Engine::Serialization::Archive &archive) override;
+
     protected:
         friend class Scene;
         ObjectHandle(uint32_t sceneID, uint32_t ID);
@@ -48,7 +50,10 @@ namespace Engine {
     class ComponentHandle : public detail::HandleBase {
     public:
         ComponentHandle() = default;
+
         Component *GetComponent() const;
+        virtual void load_from_archive(Engine::Serialization::Archive &archive) override;
+
     protected:
         friend class Scene;
         ComponentHandle(uint32_t sceneID, uint32_t ID);
