@@ -32,6 +32,9 @@ namespace Engine::RenderSystemState {
         // Camera descriptor set layout, currently containing only one UBO.
         vk::UniqueDescriptorSetLayout camera_descriptor_set_layout {};
 
+        // Common pipeline layout for scene & camera.
+        vk::UniquePipelineLayout camera_common_pipeline_layout {};
+
         // A front buffer storing all camera data on the CPU side.
         std::array <CameraData, MAX_CAMERAS> front_buffer {};
 
@@ -66,13 +69,35 @@ namespace Engine::RenderSystemState {
             device, pimpl->camera_descriptor_pool.get(), "Camera Descriptor Pool"
         );
 
-        // Create decriptor set layout and allocate descriptors
-        vk::DescriptorSetLayoutCreateInfo dslci {
-            vk::DescriptorSetLayoutCreateFlags{},
-            pimpl->CAMERA_DESCRIPTOR_BINDINGS
-        };
-        pimpl->camera_descriptor_set_layout = device.createDescriptorSetLayoutUnique(dslci);
+        // Create decriptor set layout
+        {
+            vk::DescriptorSetLayoutCreateInfo dslci {
+                vk::DescriptorSetLayoutCreateFlags{},
+                pimpl->CAMERA_DESCRIPTOR_BINDINGS
+            };
+            pimpl->camera_descriptor_set_layout = device.createDescriptorSetLayoutUnique(dslci);
+            DEBUG_SET_NAME_TEMPLATE(device, pimpl->camera_descriptor_set_layout.get(), "Camera Descriptor Set Layout");
+        }
+        // Create common pipeline layout
+        {
+            assert(m_system.GetSceneDataManager().GetLightDescriptorSetLayout());
+            std::array pipeline_layout_descriptor_sets{
+                m_system.GetSceneDataManager().GetLightDescriptorSetLayout(),
+                pimpl->camera_descriptor_set_layout.get()
+            };
+            std::array pipeline_layout_pcr{
+                RendererManager::GetPushConstantRange()
+            };
+            vk::PipelineLayoutCreateInfo plci{
+                vk::PipelineLayoutCreateFlags{},
+                pipeline_layout_descriptor_sets,
+                pipeline_layout_pcr
+            };
+            pimpl->camera_common_pipeline_layout = device.createPipelineLayoutUnique(plci);
+            DEBUG_SET_NAME_TEMPLATE(device, pimpl->camera_common_pipeline_layout.get(), "Camera Common Pipeline Layout");
+        }
 
+        // Allocate descriptors
         std::vector <vk::DescriptorSetLayout> layouts(pimpl->descriptors.size(), pimpl->camera_descriptor_set_layout.get());
         vk::DescriptorSetAllocateInfo dsai {pimpl->camera_descriptor_pool.get(), layouts};
         auto ret = device.allocateDescriptorSets(dsai);
@@ -166,6 +191,9 @@ namespace Engine::RenderSystemState {
     vk::DescriptorSetLayout CameraManager::GetDescriptorSetLayout() const noexcept {
         assert(pimpl->camera_descriptor_set_layout);
         return pimpl->camera_descriptor_set_layout.get();
+    }
+    vk::PipelineLayout CameraManager::GetCommonPipelineLayout() const noexcept {
+        return pimpl->camera_common_pipeline_layout.get();
     }
     void CameraManager::SetActiveCameraIndex(uint32_t index) noexcept {
         assert(index < pimpl->registered_cameras.size());

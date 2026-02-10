@@ -8,6 +8,7 @@
 namespace vk {
     class DescriptorSet;
     class DescriptorSetLayout;
+    class PipelineLayout;
 }
 
 namespace Engine {
@@ -64,6 +65,15 @@ namespace Engine {
 
             vk::DescriptorSet GetDescriptorSet(uint32_t frame_in_flight) const noexcept;
             vk::DescriptorSetLayout GetDescriptorSetLayout() const noexcept;
+
+            /**
+             * @brief Acquire a pipeline layout that has descriptor set 0 & 1
+             * correctly set up according to scene & camera data.
+             * 
+             * All graphics pipelines should therefore be compatible to
+             * this common pipeline layout.
+             */
+            vk::PipelineLayout GetCommonPipelineLayout() const noexcept;
 
             void SetActiveCameraIndex(uint32_t index) noexcept;
             uint32_t GetActiveCameraIndex() const noexcept;

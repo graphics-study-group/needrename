@@ -75,34 +75,49 @@ namespace Engine::RenderSystemState {
 
             // Scene data
             vk::UniqueDescriptorSetLayout scene_descriptor_set_layout{};
+            vk::UniquePipelineLayout scene_common_pipeline_layout{};
             std::array <vk::DescriptorSet, FrameManager::FRAMES_IN_FLIGHT> scene_descriptor_sets{};
 
             void Create(RenderSystem & system, vk::DescriptorPool pool) {
                 auto & allocator = system.GetAllocatorState();
                 auto device = system.GetDevice();
 
-                // Create decriptor set layout and allocate descriptors for lighting
-                auto scene_descriptor_bindings = DESCRIPTOR_BINDINGS;
-                // Set up immutable samplers for shadow maps
-                std::array <vk::Sampler, MAX_SHADOW_CASTING_LIGHTS> immutable_samplers;
-                std::fill(
-                    immutable_samplers.begin(),
-                    immutable_samplers.end(),
-                    system.GetSamplerManager().GetSampler(
-                        ImageUtils::SamplerDesc{
-                            .u_address = ImageUtils::SamplerDesc::AddressMode::ClampToEdge,
-                            .v_address = ImageUtils::SamplerDesc::AddressMode::ClampToEdge,
-                            .w_address = ImageUtils::SamplerDesc::AddressMode::ClampToEdge
-                        }
-                    )
-                );
-                scene_descriptor_bindings[1].setImmutableSamplers(immutable_samplers);
-                vk::DescriptorSetLayoutCreateInfo dslci {
-                    vk::DescriptorSetLayoutCreateFlags{},
-                    scene_descriptor_bindings
-                };
-                scene_descriptor_set_layout = device.createDescriptorSetLayoutUnique(dslci);
-                DEBUG_SET_NAME_TEMPLATE(device, scene_descriptor_set_layout.get(), "Scene Descriptor Set Layout");
+                // Create decriptor set layout
+                {
+                    auto scene_descriptor_bindings = DESCRIPTOR_BINDINGS;
+                    // Set up immutable samplers for shadow maps
+                    std::array <vk::Sampler, MAX_SHADOW_CASTING_LIGHTS> immutable_samplers;
+                    std::fill(
+                        immutable_samplers.begin(),
+                        immutable_samplers.end(),
+                        system.GetSamplerManager().GetSampler(
+                            ImageUtils::SamplerDesc{
+                                .u_address = ImageUtils::SamplerDesc::AddressMode::ClampToEdge,
+                                .v_address = ImageUtils::SamplerDesc::AddressMode::ClampToEdge,
+                                .w_address = ImageUtils::SamplerDesc::AddressMode::ClampToEdge
+                            }
+                        )
+                    );
+                    scene_descriptor_bindings[1].setImmutableSamplers(immutable_samplers);
+                    vk::DescriptorSetLayoutCreateInfo dslci {
+                        vk::DescriptorSetLayoutCreateFlags{},
+                        scene_descriptor_bindings
+                    };
+                    scene_descriptor_set_layout = device.createDescriptorSetLayoutUnique(dslci);
+                    DEBUG_SET_NAME_TEMPLATE(device, scene_descriptor_set_layout.get(), "Scene Descriptor Set Layout");
+                }
+                // Create common pipeline layout
+                {
+                    std::array pcr{RendererManager::GetPushConstantRange()};
+                    vk::PipelineLayoutCreateInfo plci{
+                        vk::PipelineLayoutCreateFlags{},
+                        {scene_descriptor_set_layout.get()},
+                        pcr
+                    };
+                    scene_common_pipeline_layout = device.createPipelineLayoutUnique(plci);
+                    DEBUG_SET_NAME_TEMPLATE(device, scene_common_pipeline_layout.get(), "Scene Common Pipeline Layout");
+                }
+                
 
                 std::vector <vk::DescriptorSetLayout> layouts(scene_descriptor_sets.size(), scene_descriptor_set_layout.get());
                 vk::DescriptorSetAllocateInfo dsai {pool, layouts};
@@ -384,5 +399,8 @@ namespace Engine::RenderSystemState {
 
     vk::DescriptorSetLayout SceneDataManager::GetLightDescriptorSetLayout() const noexcept {
         return pimpl->scene.scene_descriptor_set_layout.get();
+    }
+    vk::PipelineLayout SceneDataManager::GetCommonPipelineLayout() const noexcept {
+        return pimpl->scene.scene_common_pipeline_layout.get();
     }
 } // namespace Engine::RenderSystemState
