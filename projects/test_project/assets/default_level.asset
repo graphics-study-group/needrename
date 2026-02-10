@@ -4,7 +4,7 @@
         "%type": "Engine::LevelAsset",
         "Asset::m_guid": "FF182376000000000000000000000000",
         "LevelAsset::m_default_camera": 5,
-        "LevelAsset::m_skybox_material": null,
+        "LevelAsset::m_skybox_material": "07BF9F33F68CCAB150A6078964D33EF1",
         "SceneAsset::components": [
             {
                 "%type": "Engine::TransformComponent",
