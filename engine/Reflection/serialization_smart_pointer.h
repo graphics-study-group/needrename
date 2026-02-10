@@ -3,22 +3,47 @@
 
 #include "serialization.h"
 #include <memory>
+#include <unordered_map>
 
 namespace Engine {
     namespace Serialization {
+        using AddressID = uintptr_t;
+        using IDMap = std::unordered_map<AddressID, int>;
+        using PointerMap = std::unordered_map<int, std::shared_ptr<void>>;
+        static const std::string SMART_POINTER_DATA_KEY = "%smart_pointer_data";
+
+        class SmartPointerResolver : public Resolver {
+        public:
+            IDMap id_map{};
+            PointerMap pointer_map{};
+            int current_id = 1;
+
+            std::string GetIDKey(int id) {
+                return std::string("&") + std::to_string(id);
+            }
+            int GetKeyIDFromString(const Json &json) {
+                return std::stoi(json.get<std::string>().substr(1));
+            }
+        };
+
         template <typename T>
         void save_to_archive(const std::shared_ptr<T> &value, Archive &archive) {
             Json &json = *archive.m_cursor;
             if (value) {
+                auto &resolver = archive.GetOrCreateResolver<SmartPointerResolver>();
+                if (!archive.m_context->json.contains(SMART_POINTER_DATA_KEY)) {
+                    archive.m_context->json[SMART_POINTER_DATA_KEY] = Json::object();
+                }
+
                 AddressID adr_id = reinterpret_cast<AddressID>(value.get());
-                if (archive.m_context->id_map.find(adr_id) == archive.m_context->id_map.end()) {
-                    archive.m_context->id_map[adr_id] = archive.m_context->current_id++;
-                    std::string str_id = std::string("&") + std::to_string(archive.m_context->id_map[adr_id]);
-                    archive.m_context->json["%data"][str_id] = Json::object();
-                    Archive temp_archive(archive, &archive.m_context->json["%data"][str_id]);
+                if (resolver.id_map.find(adr_id) == resolver.id_map.end()) {
+                    resolver.id_map[adr_id] = resolver.current_id++;
+                    std::string str_id = resolver.GetIDKey(resolver.id_map[adr_id]);
+                    archive.m_context->json[SMART_POINTER_DATA_KEY][str_id] = Json::object();
+                    Archive temp_archive(archive, &archive.m_context->json[SMART_POINTER_DATA_KEY][str_id]);
                     serialize(*value, temp_archive);
                 }
-                json = std::string("&") + std::to_string(archive.m_context->id_map[adr_id]);
+                json = resolver.GetIDKey(resolver.id_map[adr_id]);
             } else {
                 json = nullptr;
             }
@@ -28,26 +53,28 @@ namespace Engine {
         void load_from_archive(std::shared_ptr<T> &value, Archive &archive) {
             Json &json = *archive.m_cursor;
             if (!json.is_null()) {
+                auto &resolver = archive.GetOrCreateResolver<SmartPointerResolver>();
+
                 std::string str_id = json.get<std::string>();
-                int id = std::stoi(str_id.substr(1));
-                if (archive.m_context->pointer_map.find(id) == archive.m_context->pointer_map.end()) {
-                    Archive temp_archive(archive, &archive.m_context->json["%data"][str_id]);
+                int id = resolver.GetKeyIDFromString(json);
+                if (resolver.pointer_map.find(id) == resolver.pointer_map.end()) {
+                    Archive temp_archive(archive, &archive.m_context->json[SMART_POINTER_DATA_KEY][str_id]);
                     auto type = Engine::Reflection::GetType(
-                        archive.m_context->json["%data"][str_id]["%type"].get<std::string>()
+                        archive.m_context->json[SMART_POINTER_DATA_KEY][str_id]["%type"].get<std::string>()
                     );
                     if (type->IsReflectable()) {
                         auto var = type->CreateInstance(SerializationMarker{});
-                        archive.m_context->pointer_map[id] = std::shared_ptr<void>(static_cast<T *>(var.GetDataPtr()));
+                        resolver.pointer_map[id] = std::shared_ptr<void>(static_cast<T *>(var.GetDataPtr()));
                         var.SetNeedFree(false);
-                        value = static_pointer_cast<T>(archive.m_context->pointer_map[id]);
+                        value = static_pointer_cast<T>(resolver.pointer_map[id]);
                         deserialize(*value, temp_archive);
                     } else {
                         value = backdoor_create_shared<T>();
-                        archive.m_context->pointer_map[id] = value;
+                        resolver.pointer_map[id] = value;
                         deserialize(*value, temp_archive);
                     }
                 } else {
-                    value = static_pointer_cast<T>(archive.m_context->pointer_map[id]);
+                    value = static_pointer_cast<T>(resolver.pointer_map[id]);
                 }
             } else {
                 value = nullptr;
@@ -58,15 +85,20 @@ namespace Engine {
         void save_to_archive(const std::weak_ptr<T> &value, Archive &archive) {
             Json &json = *archive.m_cursor;
             if (value.lock()) {
+                auto &resolver = archive.GetOrCreateResolver<SmartPointerResolver>();
+                if (!archive.m_context->json.contains(SMART_POINTER_DATA_KEY)) {
+                    archive.m_context->json[SMART_POINTER_DATA_KEY] = Json::object();
+                }
+
                 AddressID adr_id = reinterpret_cast<AddressID>(value.lock().get());
-                if (archive.m_context->id_map.find(adr_id) == archive.m_context->id_map.end()) {
-                    archive.m_context->id_map[adr_id] = archive.m_context->current_id++;
-                    std::string str_id = std::string("&") + std::to_string(archive.m_context->id_map[adr_id]);
-                    archive.m_context->json["%data"][str_id] = Json::object();
-                    Archive temp_archive(archive, &archive.m_context->json["%data"][str_id]);
+                if (resolver.id_map.find(adr_id) == resolver.id_map.end()) {
+                    resolver.id_map[adr_id] = resolver.current_id++;
+                    std::string str_id = resolver.GetIDKey(resolver.id_map[adr_id]);
+                    archive.m_context->json[SMART_POINTER_DATA_KEY][str_id] = Json::object();
+                    Archive temp_archive(archive, &archive.m_context->json[SMART_POINTER_DATA_KEY][str_id]);
                     serialize(*(value.lock()), temp_archive);
                 }
-                json = std::string("&") + std::to_string(archive.m_context->id_map[adr_id]);
+                json = resolver.GetIDKey(resolver.id_map[adr_id]);
             } else {
                 json = nullptr;
             }
@@ -76,26 +108,28 @@ namespace Engine {
         void load_from_archive(std::weak_ptr<T> &value, Archive &archive) {
             Json &json = *archive.m_cursor;
             if (!json.is_null()) {
+                auto &resolver = archive.GetOrCreateResolver<SmartPointerResolver>();
+
                 std::string str_id = json.get<std::string>();
-                int id = std::stoi(str_id.substr(1));
-                if (archive.m_context->pointer_map.find(id) == archive.m_context->pointer_map.end()) {
-                    Archive temp_archive(archive, &archive.m_context->json["%data"][str_id]);
+                int id = resolver.GetKeyIDFromString(json);
+                if (resolver.pointer_map.find(id) == resolver.pointer_map.end()) {
+                    Archive temp_archive(archive, &archive.m_context->json[SMART_POINTER_DATA_KEY][str_id]);
                     auto type = Engine::Reflection::GetType(
-                        archive.m_context->json["%data"][str_id]["%type"].get<std::string>()
+                        archive.m_context->json[SMART_POINTER_DATA_KEY][str_id]["%type"].get<std::string>()
                     );
                     if (type->IsReflectable()) {
-                        auto var = type->CreateInstance(Serialization::SerializationMarker{});
-                        archive.m_context->pointer_map[id] = std::shared_ptr<void>(static_cast<T *>(var.GetDataPtr()));
+                        auto var = type->CreateInstance(SerializationMarker{});
+                        resolver.pointer_map[id] = std::shared_ptr<void>(static_cast<T *>(var.GetDataPtr()));
                         var.SetNeedFree(false);
-                        value = static_pointer_cast<T>(archive.m_context->pointer_map[id]);
+                        value = static_pointer_cast<T>(resolver.pointer_map[id]);
                         deserialize(*(value.lock()), temp_archive);
                     } else {
                         value = backdoor_create_shared<T>();
-                        archive.m_context->pointer_map[id] = value.lock();
+                        resolver.pointer_map[id] = value.lock();
                         deserialize(*(value.lock()), temp_archive);
                     }
                 } else {
-                    value = static_pointer_cast<T>(archive.m_context->pointer_map[id]);
+                    value = static_pointer_cast<T>(resolver.pointer_map[id]);
                 }
             } else {
                 value.reset();
@@ -106,15 +140,8 @@ namespace Engine {
         void save_to_archive(const std::unique_ptr<T> &value, Archive &archive) {
             Json &json = *archive.m_cursor;
             if (value) {
-                AddressID adr_id = reinterpret_cast<AddressID>(value.get());
-                if (archive.m_context->id_map.find(adr_id) == archive.m_context->id_map.end()) {
-                    archive.m_context->id_map[adr_id] = archive.m_context->current_id++;
-                    std::string str_id = std::string("&") + std::to_string(archive.m_context->id_map[adr_id]);
-                    archive.m_context->json["%data"][str_id] = Json::object();
-                    Archive temp_archive(archive, &archive.m_context->json["%data"][str_id]);
-                    serialize(*value, temp_archive);
-                }
-                json = std::string("&") + std::to_string(archive.m_context->id_map[adr_id]);
+                Archive temp_archive(archive, &json);
+                serialize(*value, temp_archive);
             } else {
                 json = nullptr;
             }
@@ -124,14 +151,11 @@ namespace Engine {
         void load_from_archive(std::unique_ptr<T> &value, Archive &archive) {
             Json &json = *archive.m_cursor;
             if (!json.is_null()) {
-                std::string str_id = json.get<std::string>();
-                // int id = std::stoi(str_id.substr(1));
-
-                Archive temp_archive(archive, &archive.m_context->json["%data"][str_id]);
-                auto type =
-                    Engine::Reflection::GetType(archive.m_context->json["%data"][str_id]["%type"].get<std::string>());
-                if (type->IsReflectable()) {
-                    auto var = type->CreateInstance(Serialization::SerializationMarker{});
+                Archive temp_archive(archive, &json);
+                std::shared_ptr<const Engine::Reflection::Type> type{};
+                if (json.contains("%type")) type = Engine::Reflection::GetType(json["%type"].get<std::string>());
+                if (type && type->IsReflectable()) {
+                    auto var = type->CreateInstance(SerializationMarker{});
                     value = std::unique_ptr<T>(static_cast<T *>(var.GetDataPtr()));
                     var.SetNeedFree(false);
                     deserialize(*value, temp_archive);

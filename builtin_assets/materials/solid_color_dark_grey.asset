@@ -1,36 +1,33 @@
 {
-    "%data": {
-        "&0": {
-            "%type": "Engine::MaterialAsset",
-            "Asset::m_guid": "B24F0192DE71DE0391D44C379471F141",
-            "MaterialAsset::m_library": "D3364AE928621310CF1EE68F8D5EDB0A",
-            "MaterialAsset::m_name": "Solid Color Dark Grey",
-            "MaterialAsset::m_properties": {
-                "albedoSampler": {
-                    "m_type": "Texture",
-                    "m_value": "1D73E8C7640A3DF77B503B3F5E97DBE5"
-                },
-                "metalnessSampler": {
-                    "m_type": "Texture",
-                    "m_value": "24EF50B82AB1DC9793F60A50DBE77719"
-                },
-                "metalness_scale": {
-                    "m_type": "Simple",
-                    "m_ubo_type": "Float",
-                    "m_value": 0.5
-                },
-                "roughnessSampler": {
-                    "m_type": "Texture",
-                    "m_value": "24EF50B82AB1DC9793F60A50DBE77719"
-                },
-                "roughness_scale": {
-                    "m_type": "Simple",
-                    "m_ubo_type": "Float",
-                    "m_value": 0.2
-                }
+    "%main_data": {
+        "%type": "Engine::MaterialAsset",
+        "Asset::m_guid": "B24F0192DE71DE0391D44C379471F141",
+        "MaterialAsset::m_library": "D3364AE928621310CF1EE68F8D5EDB0A",
+        "MaterialAsset::m_name": "Solid Color Dark Grey",
+        "MaterialAsset::m_properties": {
+            "albedoSampler": {
+                "m_type": "Texture",
+                "m_value": "1D73E8C7640A3DF77B503B3F5E97DBE5"
+            },
+            "metalnessSampler": {
+                "m_type": "Texture",
+                "m_value": "24EF50B82AB1DC9793F60A50DBE77719"
+            },
+            "metalness_scale": {
+                "m_type": "Simple",
+                "m_ubo_type": "Float",
+                "m_value": 0.5
+            },
+            "roughnessSampler": {
+                "m_type": "Texture",
+                "m_value": "24EF50B82AB1DC9793F60A50DBE77719"
+            },
+            "roughness_scale": {
+                "m_type": "Simple",
+                "m_ubo_type": "Float",
+                "m_value": 0.2
             }
         }
     },
-    "%extra_data": [],
-    "%main_id": "&0"
+    "%extra_data": []
 }

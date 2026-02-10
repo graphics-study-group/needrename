@@ -1,38 +1,35 @@
 {
-    "%data": {
-        "&0": {
-            "%type": "Engine::MaterialAsset",
-            "Asset::m_guid": "622D0097A1291FCC44CBBF6F1F762E35",
-            "MaterialAsset::m_library": "E335281ABE3F1FA9788F074FF218FF71",
-            "MaterialAsset::m_name": "Solid Color Dark Grey Blinn Phong",
-            "MaterialAsset::m_properties": {
-                "ambient_color": {
-                    "m_type": "Simple",
-                    "m_ubo_type": "Vec4",
-                    "m_value": [
-                        0.05,
-                        0.05,
-                        0.05,
-                        1.0
-                    ]
-                },
-                "base_tex": {
-                    "m_type": "Texture",
-                    "m_value": "1D73E8C7640A3DF77B503B3F5E97DBE5"
-                },
-                "specular_color": {
-                    "m_type": "Simple",
-                    "m_ubo_type": "Vec4",
-                    "m_value": [
-                        0.5,
-                        0.5,
-                        0.5,
-                        96.07845306396484
-                    ]
-                }
+    "%main_data": {
+        "%type": "Engine::MaterialAsset",
+        "Asset::m_guid": "622D0097A1291FCC44CBBF6F1F762E35",
+        "MaterialAsset::m_library": "E335281ABE3F1FA9788F074FF218FF71",
+        "MaterialAsset::m_name": "Solid Color Dark Grey Blinn Phong",
+        "MaterialAsset::m_properties": {
+            "ambient_color": {
+                "m_type": "Simple",
+                "m_ubo_type": "Vec4",
+                "m_value": [
+                    0.05,
+                    0.05,
+                    0.05,
+                    1.0
+                ]
+            },
+            "base_tex": {
+                "m_type": "Texture",
+                "m_value": "1D73E8C7640A3DF77B503B3F5E97DBE5"
+            },
+            "specular_color": {
+                "m_type": "Simple",
+                "m_ubo_type": "Vec4",
+                "m_value": [
+                    0.5,
+                    0.5,
+                    0.5,
+                    96.07845306396484
+                ]
             }
         }
     },
-    "%extra_data": [],
-    "%main_id": "&0"
+    "%extra_data": []
 }

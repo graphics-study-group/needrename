@@ -1,23 +1,20 @@
 {
-    "%data": {
-        "&0": {
-            "%type": "Engine::MaterialLibraryAsset",
-            "Asset::m_guid": "D3364AE928621310CF1EE68F8D5EDB0A",
-            "MaterialLibraryAsset::m_name": "Lambertian Cook Torrance PBR",
-            "MaterialLibraryAsset::material_bundle": {
-                "Lit": {
-                    "%type": "Engine::MaterialLibraryAsset::MaterialTemplateReference",
-                    "MaterialTemplateReference::expected_mesh_type": 0,
-                    "MaterialTemplateReference::material_template": "6D638EF97A23CBEDE1236A31ECAF2ACF"
-                },
-                "Shadowmap": {
-                    "%type": "Engine::MaterialLibraryAsset::MaterialTemplateReference",
-                    "MaterialTemplateReference::expected_mesh_type": 0,
-                    "MaterialTemplateReference::material_template": "0A31C596A3B9DB54881FA9550A82311C"
-                }
+    "%main_data": {
+        "%type": "Engine::MaterialLibraryAsset",
+        "Asset::m_guid": "D3364AE928621310CF1EE68F8D5EDB0A",
+        "MaterialLibraryAsset::m_name": "Lambertian Cook Torrance PBR",
+        "MaterialLibraryAsset::material_bundle": {
+            "Lit": {
+                "%type": "Engine::MaterialLibraryAsset::MaterialTemplateReference",
+                "MaterialTemplateReference::expected_mesh_type": 0,
+                "MaterialTemplateReference::material_template": "6D638EF97A23CBEDE1236A31ECAF2ACF"
+            },
+            "Shadowmap": {
+                "%type": "Engine::MaterialLibraryAsset::MaterialTemplateReference",
+                "MaterialTemplateReference::expected_mesh_type": 0,
+                "MaterialTemplateReference::material_template": "0A31C596A3B9DB54881FA9550A82311C"
             }
         }
     },
-    "%extra_data": [],
-    "%main_id": "&0"
+    "%extra_data": []
 }
