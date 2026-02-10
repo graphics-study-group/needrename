@@ -74,8 +74,8 @@ namespace Engine::RenderSystemState {
             std::shared_ptr <RenderTargetTexture> default_light_map;
 
             // Scene data
-            vk::UniqueDescriptorSetLayout scene_descriptor_set_layout{};
-            vk::UniquePipelineLayout scene_common_pipeline_layout{};
+            vk::DescriptorSetLayout scene_descriptor_set_layout{};
+            vk::PipelineLayout scene_common_pipeline_layout{};
             std::array <vk::DescriptorSet, FrameManager::FRAMES_IN_FLIGHT> scene_descriptor_sets{};
 
             void Create(RenderSystem & system, vk::DescriptorPool pool) {
@@ -103,23 +103,25 @@ namespace Engine::RenderSystemState {
                         vk::DescriptorSetLayoutCreateFlags{},
                         scene_descriptor_bindings
                     };
-                    scene_descriptor_set_layout = device.createDescriptorSetLayoutUnique(dslci);
-                    DEBUG_SET_NAME_TEMPLATE(device, scene_descriptor_set_layout.get(), "Scene Descriptor Set Layout");
+                    scene_descriptor_set_layout = system.GetIRCache().GetDescriptorSetLayout(
+                        dslci, "Scene Descriptor Set Layout"
+                    );
                 }
                 // Create common pipeline layout
                 {
                     std::array pcr{RendererManager::GetPushConstantRange()};
                     vk::PipelineLayoutCreateInfo plci{
                         vk::PipelineLayoutCreateFlags{},
-                        {scene_descriptor_set_layout.get()},
+                        {scene_descriptor_set_layout},
                         pcr
                     };
-                    scene_common_pipeline_layout = device.createPipelineLayoutUnique(plci);
-                    DEBUG_SET_NAME_TEMPLATE(device, scene_common_pipeline_layout.get(), "Scene Common Pipeline Layout");
+                    scene_common_pipeline_layout = system.GetIRCache().GetPipelineLayout(
+                        plci, "Scene Common Pipeline Layout"
+                    );
                 }
                 
 
-                std::vector <vk::DescriptorSetLayout> layouts(scene_descriptor_sets.size(), scene_descriptor_set_layout.get());
+                std::vector <vk::DescriptorSetLayout> layouts(scene_descriptor_sets.size(), scene_descriptor_set_layout);
                 vk::DescriptorSetAllocateInfo dsai {pool, layouts};
                 auto ret = device.allocateDescriptorSets(dsai);
                 std::copy_n(ret.begin(), scene_descriptor_sets.size(), scene_descriptor_sets.begin());
@@ -398,9 +400,9 @@ namespace Engine::RenderSystemState {
     }
 
     vk::DescriptorSetLayout SceneDataManager::GetLightDescriptorSetLayout() const noexcept {
-        return pimpl->scene.scene_descriptor_set_layout.get();
+        return pimpl->scene.scene_descriptor_set_layout;
     }
     vk::PipelineLayout SceneDataManager::GetCommonPipelineLayout() const noexcept {
-        return pimpl->scene.scene_common_pipeline_layout.get();
+        return pimpl->scene.scene_common_pipeline_layout;
     }
 } // namespace Engine::RenderSystemState
