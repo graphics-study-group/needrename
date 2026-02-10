@@ -1,5 +1,6 @@
 #include "SceneWidget.h"
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
+#include <Asset/Scene/LevelAsset.h>
 #include <Core/Functional/SDLWindow.h>
 #include <Framework/world/WorldSystem.h>
 #include <MainClass.h>
@@ -57,13 +58,16 @@ namespace Editor {
             }
 
             if (ImGui::IsWindowFocused() && ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S)) {
-                Engine::Serialization::Archive archive;
-                Engine::MainClass::GetInstance()->GetWorldSystem()->SaveLevelToArchive(archive);
                 auto &adb = *std::dynamic_pointer_cast<Engine::FileSystemDatabase>(
                     Engine::MainClass::GetInstance()->GetAssetDatabase()
                 );
-                adb.SaveArchive(archive, Engine::AssetPath(adb, "new_level.asset"));
-                SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Save level to %s", "new_level.asset");
+                auto level_asset = adb.GetNewAssetRef(Engine::AssetPath{adb, "default_level.asset"}).as<Engine::LevelAsset>();
+                Engine::MainClass::GetInstance()->GetWorldSystem()->SaveLevelToAsset(*level_asset);
+                Engine::Serialization::Archive archive;
+                archive.prepare_save();
+                level_asset->save_asset_to_archive(archive);
+                adb.SaveArchive(archive, adb.GetAssetPath(level_asset->GetGUID()));
+                SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Save level to %s", "default_level.asset");
             }
         }
         ImGui::End();

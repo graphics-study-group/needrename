@@ -16,6 +16,7 @@ namespace Engine {
         class HandleBase {
         public:
             HandleBase() = default;
+            HandleBase(uint32_t ID);
             virtual ~HandleBase() = default;
 
             virtual uint32_t GetSceneID() const noexcept;
@@ -38,6 +39,7 @@ namespace Engine {
     class ObjectHandle : public detail::HandleBase {
     public:
         ObjectHandle() = default;
+        ObjectHandle(uint32_t ID);
 
         GameObject *GetGameObject() const;
         virtual void load_from_archive(Engine::Serialization::Archive &archive) override;
@@ -50,6 +52,7 @@ namespace Engine {
     class ComponentHandle : public detail::HandleBase {
     public:
         ComponentHandle() = default;
+        ComponentHandle(uint32_t ID);
 
         Component *GetComponent() const;
         virtual void load_from_archive(Engine::Serialization::Archive &archive) override;

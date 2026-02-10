@@ -44,8 +44,6 @@ namespace Engine {
 
         std::weak_ptr<SDLWindow> m_window;
 
-        std::weak_ptr<Camera> m_active_camera{};
-
 
         // Order of declaration effects destructing order!
         std::unique_ptr <RenderSystemState::DeviceInterface> m_device_interface{};

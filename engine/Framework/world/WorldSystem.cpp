@@ -1,6 +1,7 @@
 #include "WorldSystem.h"
 #include <Core/Delegate/Delegate.h>
 #include <Core/Functional/EventQueue.h>
+#include <Framework/component/RenderComponent/CameraComponent.h>
 #include <Framework/component/RenderComponent/LightComponent.h>
 #include <Framework/component/RenderComponent/RendererComponent.h>
 #include <Framework/component/TransformComponent/TransformComponent.h>
@@ -80,14 +81,16 @@ namespace Engine {
     }
 
     std::shared_ptr<Camera> WorldSystem::GetActiveCamera() const noexcept {
-        return m_active_camera;
+        auto camera_comp = m_main_scene->GetComponent<CameraComponent>(m_active_camera);
+        if (camera_comp) return camera_comp->m_camera;
+        return nullptr;
     }
     void WorldSystem::SetActiveCamera(
-        std::shared_ptr<Camera> camera, RenderSystemState::CameraManager *registrar
+        ComponentHandle camera_comp, RenderSystemState::CameraManager *registrar
     ) noexcept {
-        m_active_camera = camera;
+        m_active_camera = camera_comp;
         if (registrar) {
-            registrar->RegisterCamera(camera);
+            registrar->RegisterCamera(GetActiveCamera());
         }
     }
 
@@ -95,13 +98,11 @@ namespace Engine {
         return *m_main_scene;
     }
     Scene &WorldSystem::GetSceneRef(uint32_t sceneID) {
-        if (m_scene_map.find(sceneID) == m_scene_map.end())
-            throw std::runtime_error("Scene not found.");
+        if (m_scene_map.find(sceneID) == m_scene_map.end()) throw std::runtime_error("Scene not found.");
         return *m_scene_map[sceneID];
     }
     Scene *WorldSystem::GetScenePtr(uint32_t sceneID) {
-        if (m_scene_map.find(sceneID) == m_scene_map.end())
-            return nullptr;
+        if (m_scene_map.find(sceneID) == m_scene_map.end()) return nullptr;
         return m_scene_map[sceneID].get();
     }
     Scene &WorldSystem::CreateScene() {
@@ -119,12 +120,9 @@ namespace Engine {
         }
     }
 
-    void WorldSystem::SaveLevelToArchive(Serialization::Archive &archive) {
-        // auto level_asset = std::make_unique<LevelAsset>(m_main_scene);
-        // level_asset->m_default_camera = m_active_camera;
-        // level_asset->m_skybox_material = m_skybox_material;
-        // archive.clear();
-        // archive.prepare_save();
-        // level_asset->save_asset_to_archive(archive);
+    void WorldSystem::SaveLevelToAsset(LevelAsset &level_asset) {
+        level_asset.m_default_camera = m_active_camera;
+        level_asset.m_skybox_material = m_skybox_material;
+        level_asset.SaveFromScene(*m_main_scene);
     }
 } // namespace Engine

@@ -7,6 +7,9 @@
 
 namespace Engine {
     namespace detail {
+        HandleBase::HandleBase(uint32_t ID) : m_sceneID(0), m_ID(ID) {
+        }
+
         HandleBase::HandleBase(uint32_t sceneID, uint32_t ID) : m_sceneID(sceneID), m_ID(ID) {
         }
 
@@ -36,6 +39,8 @@ namespace Engine {
         }
     } // namespace detail
 
+    ObjectHandle::ObjectHandle(uint32_t ID) : detail::HandleBase(ID) {
+    }
     ObjectHandle::ObjectHandle(uint32_t sceneID, uint32_t ID) : detail::HandleBase(sceneID, ID) {
     }
     GameObject *ObjectHandle::GetGameObject() const {
@@ -52,6 +57,8 @@ namespace Engine {
         *this = resolver.m_obj_map[json.get<uint32_t>()];
     }
 
+    ComponentHandle::ComponentHandle(uint32_t ID) : detail::HandleBase(ID) {
+    }
     ComponentHandle::ComponentHandle(uint32_t sceneID, uint32_t ID) : detail::HandleBase(sceneID, ID) {
     }
     Component *ComponentHandle::GetComponent() const {

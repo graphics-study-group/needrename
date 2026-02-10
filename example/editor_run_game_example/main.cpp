@@ -139,7 +139,7 @@ int main() {
     auto &camera_comp = camera_go.template AddComponent<CameraComponent>();
     camera_comp.m_camera->set_aspect_ratio(1.0 * opt.resol_x / opt.resol_y);
     camera_go.template AddComponent<ControlComponent>();
-    world->SetActiveCamera(camera_comp.m_camera, &cmc->GetRenderSystem()->GetCameraManager());
+    world->SetActiveCamera(camera_comp.GetHandle(), &cmc->GetRenderSystem()->GetCameraManager());
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Create Editor Window");
     Editor::MainWindow main_window;

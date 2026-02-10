@@ -9,6 +9,7 @@
 #include <Asset/AssetRef.h>
 #include <Asset/Loader/Importer.h>
 #include <Asset/Scene/SceneAsset.h>
+#include <Asset/Scene/LevelAsset.h>
 #include <Core/Functional/SDLWindow.h>
 #include <Core/Math/Transform.h>
 #include <Framework/component/RenderComponent/CameraComponent.h>
@@ -79,6 +80,7 @@ int main(int argc, char **argv) {
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Setting up camera");
     auto &camera_go = main_scene.CreateGameObject();
+    camera_go.m_name = "fixed camera";
     Transform transform{};
     transform.SetPosition({0.0f, -0.7f, 0.5f});
     // transform.SetPosition({0.0f, -3.7f, 2.5f});
@@ -86,16 +88,19 @@ int main(int argc, char **argv) {
     camera_go.SetTransform(transform);
     auto &camera_comp = camera_go.AddComponent<CameraComponent>();
     camera_comp.m_camera->set_aspect_ratio(1.0 * opt.resol_x / opt.resol_y);
-    cmc->GetWorldSystem()->SetActiveCamera(camera_comp.m_camera, &cmc->GetRenderSystem()->GetCameraManager());
+    cmc->GetWorldSystem()->SetActiveCamera(camera_comp.GetHandle(), &cmc->GetRenderSystem()->GetCameraManager());
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Entering main loop");
     cmc->LoopFinite(max_frame_count, 0.0f);
     std::filesystem::remove_all(project_path);
 
     // cmc->LoopFinite(60, 0.0f);
+    // auto level_asset = adb->GetNewAssetRef(AssetPath{*adb, path_in_project / "default_level.asset"}).as<LevelAsset>();
+    // cmc->GetWorldSystem()->SaveLevelToAsset(*level_asset);
     // Serialization::Archive archive;
-    // cmc->GetWorldSystem()->SaveLevelToArchive(archive);
-    // adb->SaveArchive(archive, AssetPath(*adb, "new_level.asset"));
+    // archive.prepare_save();
+    // level_asset->save_asset_to_archive(archive);
+    // adb->SaveArchive(archive, adb->GetAssetPath(level_asset->GetGUID()));
 
     return 0;
 }

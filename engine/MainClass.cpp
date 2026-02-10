@@ -60,27 +60,7 @@ namespace Engine {
         GUID default_level_guid(project_config["default_level"].get<std::string>());
         auto level_asset =
             std::dynamic_pointer_cast<LevelAsset>(this->asset_manager->LoadAssetImmediately(default_level_guid));
-        level_asset->AddToScene(this->world->GetMainSceneRef());
-        
-        if (level_asset->m_skybox_material.IsValid()) {
-            // XXX: like RendererComponent.cpp, this is a temporary solution. simply check the m_name
-            auto lib = level_asset->m_skybox_material.as<MaterialAsset>()->m_library;
-            this->renderer->GetMaterialRegistry().AddMaterial(lib);
-            auto material_instance = std::make_shared<MaterialInstance>(
-                *(this->renderer),
-                *this->renderer->GetMaterialRegistry().GetMaterial(lib.cas<MaterialLibraryAsset>()->m_name)
-            );
-            material_instance->Instantiate(*level_asset->m_skybox_material.as<MaterialAsset>());
-            this->renderer->GetSceneDataManager().SetSkyboxMaterial(material_instance);
-            this->world->m_skybox_material = level_asset->m_skybox_material;
-        }
-        if (level_asset->m_default_camera) {
-            this->world->SetActiveCamera(level_asset->m_default_camera);
-        }
-
-        auto active_camera = this->world->GetActiveCamera();
-        if (active_camera)
-            this->renderer->GetCameraManager().RegisterCamera(active_camera);
+        level_asset->LoadToWorld();
     }
 
     void MainClass::Initialize(
