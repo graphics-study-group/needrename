@@ -28,7 +28,7 @@ namespace Engine {
     struct RenderSystem::impl {
         impl(
             RenderSystem &parent, std::weak_ptr<SDLWindow> parent_window
-        ) : m_window(parent_window), 
+        ) : m_window(parent_window),
             m_allocator_state(parent),
             m_frame_manager(parent),
             m_material_registry(parent),
@@ -49,6 +49,7 @@ namespace Engine {
 
         // Order of declaration effects destructing order!
         std::unique_ptr <RenderSystemState::DeviceInterface> m_device_interface{};
+        std::unique_ptr <RenderSystemState::ImmutableResourceCache> m_immutable_resource_cache{};
 
         RenderSystemState::AllocatorState m_allocator_state;
         RenderSystemState::Swapchain m_swapchain{};
@@ -72,6 +73,10 @@ namespace Engine {
             .dynamic_dispatcher = nullptr
         };
         pimpl->m_device_interface = std::make_unique<RenderSystemState::DeviceInterface>(cfg);
+        pimpl->m_immutable_resource_cache =
+            std::make_unique<RenderSystemState::ImmutableResourceCache>(
+                pimpl->m_device_interface->GetDevice()
+            );
 
         pimpl->CreateSwapchain();
 
@@ -149,8 +154,8 @@ namespace Engine {
         return pimpl->m_renderer_manager;
     }
 
-    RenderSystemState::SamplerManager &RenderSystem::GetSamplerManager() {
-        return pimpl->m_sampler_manager;
+    RenderSystemState::ImmutableResourceCache &RenderSystem::GetIRCache() {
+        return *pimpl->m_immutable_resource_cache;
     }
 
     RenderSystemState::CameraManager &RenderSystem::GetCameraManager() {

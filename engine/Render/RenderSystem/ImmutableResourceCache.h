@@ -4,6 +4,7 @@
 #include <memory>
 
 namespace vk {
+    class Device;
     class Sampler;
     class DescriptorSetLayout;
     class PipelineLayout;
@@ -23,15 +24,12 @@ namespace Engine {
          * structures are largely based on it.
          */
         class ImmutableResourceCache {
-            RenderSystem & m_system;
             struct impl;
             std::unique_ptr <impl> pimpl;
 
         public:
-            ImmutableResourceCache(RenderSystem & system);
+            ImmutableResourceCache(vk::Device dvc);
             ~ImmutableResourceCache() noexcept;
-
-            void Create() noexcept;
 
             vk::Sampler GetSampler(
                 const ImageUtils::SamplerDesc &

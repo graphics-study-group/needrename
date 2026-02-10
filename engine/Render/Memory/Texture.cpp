@@ -55,7 +55,7 @@ namespace Engine {
         pimpl->m_tdesc = texture;
         pimpl->m_name = name;
 
-        pimpl->m_sampler = system.GetSamplerManager().GetSampler(sampler);
+        pimpl->m_sampler = system.GetIRCache().GetSampler(sampler);
         pimpl->m_sdesc = sampler;
 
         pimpl->m_full_view = std::make_unique<SlicedTextureView>(

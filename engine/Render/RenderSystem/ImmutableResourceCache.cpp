@@ -177,15 +177,13 @@ namespace Engine::RenderSystemState {
     };
 
     ImmutableResourceCache::ImmutableResourceCache(
-        RenderSystem &system
-    ) : m_system(system), pimpl(std::make_unique<impl>()) {
+        vk::Device dvc
+    ) : pimpl(std::make_unique<impl>()) {
+        pimpl->dvc = dvc;
     }
 
     ImmutableResourceCache::~ImmutableResourceCache() noexcept = default;
 
-    void ImmutableResourceCache::Create() noexcept {
-        pimpl->dvc = m_system.GetDevice();
-    }
     vk::Sampler ImmutableResourceCache::GetSampler(const ImageUtils::SamplerDesc & desc) {
         vk::SamplerCreateInfo sci {
             vk::SamplerCreateFlags{},

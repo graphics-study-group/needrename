@@ -90,7 +90,7 @@ namespace Engine::RenderSystemState {
                     std::fill(
                         immutable_samplers.begin(),
                         immutable_samplers.end(),
-                        system.GetSamplerManager().GetSampler(
+                        system.GetIRCache().GetSampler(
                             ImageUtils::SamplerDesc{
                                 .u_address = ImageUtils::SamplerDesc::AddressMode::ClampToEdge,
                                 .v_address = ImageUtils::SamplerDesc::AddressMode::ClampToEdge,
