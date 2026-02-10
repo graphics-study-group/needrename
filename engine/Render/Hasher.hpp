@@ -4,6 +4,12 @@
 #include <cstdint>
 
 namespace Engine {
+    template <typename T>
+    concept HashableVulkanHppHandle = requires {
+        typename T::CType;
+        typename T::NativeType;
+    };
+
     /**
      * @brief FNV hasher taken from VALVE fossilize lib
      */
@@ -55,6 +61,20 @@ namespace Engine {
         inline void u64(uint64_t value) noexcept {
             u32(value & 0xffffffffu);
             u32(value >> 32);
+        }
+
+        template <typename T>
+        inline void pointer(T *ptr) {
+            u64(std::bit_cast<uintptr_t>(ptr));
+        }
+
+        template <HashableVulkanHppHandle T>
+        inline void handle(T h) {
+            u64(
+                std::bit_cast<uintptr_t>(
+                    static_cast<typename T::CType>(h)
+                )
+            );
         }
 
         inline void string(const char *str) noexcept {
