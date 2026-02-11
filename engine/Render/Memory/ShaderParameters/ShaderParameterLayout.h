@@ -14,6 +14,8 @@ namespace vk {
 }
 
 namespace Engine {
+    struct StructuredBuffer;
+
     namespace ShdrRfl {
         struct ShaderParameters;
 
@@ -49,6 +51,11 @@ namespace Engine {
                 std::vector <std::byte> & buffer,
                 const SPInterfaceStructuredBuffer & interface,
                 const ShaderParameters & arguments
+            ) const noexcept;
+            void PlaceBufferVariable(
+                std::vector <std::byte> & rbuffer,
+                const SPInterfaceStructuredBuffer & interface,
+                const StructuredBuffer & sbuffer
             ) const noexcept;
 
             /**

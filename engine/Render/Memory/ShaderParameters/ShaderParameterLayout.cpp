@@ -269,10 +269,21 @@ namespace Engine::ShdrRfl {
     }
 
     void SPLayout::PlaceBufferVariable(
-        std::vector<std::byte> &buffer, const SPInterfaceStructuredBuffer & interface, const ShaderParameters &arguments
+        std::vector<std::byte> &buffer,
+        const SPInterfaceStructuredBuffer & interface,
+        const ShaderParameters &arguments
     ) const noexcept {
         assert(interface.buffer_placer);
         interface.buffer_placer->WriteBuffer(arguments.GetStructuredBuffer(), buffer);
+    }
+
+    void SPLayout::PlaceBufferVariable(
+        std::vector<std::byte> &buffer,
+        const SPInterfaceStructuredBuffer & interface,
+        const StructuredBuffer & sb
+    ) const noexcept {
+        assert(interface.buffer_placer);
+        interface.buffer_placer->WriteBuffer(sb, buffer);
     }
 
     std::unordered_map<uint32_t, std::vector<vk::DescriptorSetLayoutBinding>> SPLayout::

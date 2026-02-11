@@ -19,6 +19,7 @@
 #include <Render/Memory/IndexedBuffer.h>
 #include <SDL3/SDL.h>
 #include <bitset>
+#include <gtc/type_ptr.hpp>
 
 namespace Engine {
 
@@ -39,7 +40,7 @@ namespace Engine {
         };
 
         std::unique_ptr <ShaderResourceBinding> p_srb{};
-        std::unique_ptr <ShdrRfl::ShaderParameters> p_parameters{};
+        std::unique_ptr <StructuredBuffer> p_buffer{};
         std::unordered_map <const MaterialTemplate *, PassInfo> m_pass_infos{};
 
         // A small buffer for uniform buffer staging to avoid random write to UBO.
@@ -108,7 +109,7 @@ namespace Engine {
             MaterialLibrary &library) :
         m_system(system), m_library(library), pimpl(std::make_unique<impl>()) {
         pimpl->p_srb = std::make_unique<ShaderResourceBinding>(m_system.GetIRCache());
-        pimpl->p_parameters = std::make_unique<ShdrRfl::ShaderParameters>();
+        pimpl->p_buffer = std::make_unique<StructuredBuffer>();
     }
 
     MaterialInstance::~MaterialInstance() = default;
@@ -123,10 +124,10 @@ namespace Engine {
             const std::string & name;
 
             void operator () (uint32_t v) {
-                pimpl->p_parameters->Assign(name, v);
+                pimpl->p_buffer->SetVariable<uint32_t>(name, v);
             };
             void operator () (float v) {
-                pimpl->p_parameters->Assign(name, v);
+                pimpl->p_buffer->SetVariable<float>(name, v);
             };
         };
 
@@ -141,10 +142,16 @@ namespace Engine {
             const std::string & name;
 
             void operator () (const glm::vec4 & v) {
-                pimpl->p_parameters->Assign(name, v);
+                pimpl->p_buffer->SetVariable<const float, 4>(
+                    name,
+                    std::span<const float, 4>(glm::value_ptr(v), glm::value_ptr(v) + 4)
+                );
             };
             void operator () (const glm::mat4 & v) {
-                pimpl->p_parameters->Assign(name, v);
+                pimpl->p_buffer->SetVariable<const float, 16>(
+                    name,
+                    std::span<const float, 16>(glm::value_ptr(v), glm::value_ptr(v) + 16)
+                );
             };
         };
         std::visit(Visitor{pimpl.get(), name}, value);
@@ -158,10 +165,6 @@ namespace Engine {
     void MaterialInstance::AssignBuffer(const std::string &name, std::shared_ptr <const DeviceBuffer> buffer) {
         this->pimpl->owned_resources[name] = buffer;
         this->pimpl->p_srb->BindBuffer(name, *buffer);
-    }
-
-    const ShdrRfl::ShaderParameters &MaterialInstance::GetShaderParameters() const noexcept {
-        return *pimpl->p_parameters;
     }
 
     std::vector <uint32_t> MaterialInstance::UpdateGPUInfo(MaterialTemplate & tpl, uint32_t backbuffer) {
@@ -214,7 +217,7 @@ namespace Engine {
                 splayout.PlaceBufferVariable(
                     pimpl->m_buffer,
                     *pbuf,
-                    *pimpl->p_parameters
+                    *pimpl->p_buffer
                 );
 
                 std::memcpy(
