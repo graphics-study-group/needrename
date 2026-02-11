@@ -14,10 +14,6 @@ namespace Engine {
     class MaterialLibrary;
     class VertexAttribute;
 
-    namespace ShdrRfl {
-        class ShaderParameters;
-    }
-
     /**
      * @brief A light-weight instance of a given material library.
      * 

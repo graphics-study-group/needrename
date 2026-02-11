@@ -2,7 +2,6 @@
 
 #include "Asset/Material/MaterialAsset.h"
 #include "Render/Memory/StructuredBufferPlacer.h"
-#include "Render/Memory/ShaderParameters/ShaderParameter.h"
 #include "Render/Memory/ShaderParameters/ShaderParameterLayout.h"
 #include "Render/Memory/ShaderParameters/ShaderResourceBinding.h"
 #include "Render/Pipeline/PipelineInfo.h"

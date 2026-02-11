@@ -17,26 +17,11 @@ namespace Engine {
     struct StructuredBuffer;
 
     namespace ShdrRfl {
-        struct ShaderParameters;
 
         struct SPLayout {
             // Interfaces are guaranteed to be sorted by set and binding numbers
             std::vector <std::unique_ptr<SPInterface>> interfaces;
             std::unordered_map <std::string, const SPInterface *> interface_name_mapping;
-
-            struct DescriptorSetWrite {
-                std::vector <std::tuple<uint32_t, vk::DescriptorImageInfo, vk::DescriptorType>> image {};
-                std::vector <std::tuple<uint32_t, vk::DescriptorBufferInfo, vk::DescriptorType>> buffer {};
-            };
-
-            /**
-             * @brief Generate `vk::DescriptorWrite` according to
-             * variables supplied.
-             */
-            DescriptorSetWrite GenerateDescriptorSetWrite(
-                uint32_t set,
-                const ShaderParameters & interfaces
-            ) const noexcept;
 
             /**
              * @brief Place all simple variables (i.e. scalars, arrays,
@@ -47,11 +32,6 @@ namespace Engine {
              * 
              * @see StructuredBufferPlacer::WriteBuffer() for actual implementation.
              */
-            void PlaceBufferVariable(
-                std::vector <std::byte> & buffer,
-                const SPInterfaceStructuredBuffer & interface,
-                const ShaderParameters & arguments
-            ) const noexcept;
             void PlaceBufferVariable(
                 std::vector <std::byte> & rbuffer,
                 const SPInterfaceStructuredBuffer & interface,

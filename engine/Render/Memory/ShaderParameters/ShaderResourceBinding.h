@@ -26,7 +26,7 @@ namespace Engine {
      * changes to descriptor sets (i.e. resetting texture or buffer references)
      * can lead to memory leak if too frequent.
      * 
-     * Useing this class with `ShaderParameter` together is recommended.
+     * Using this class with `StructuredBuffer` together is recommended.
      * The other class handles trivial uniform buffer variables (e.g. floats, 
      * vectors and matrics).
      */
