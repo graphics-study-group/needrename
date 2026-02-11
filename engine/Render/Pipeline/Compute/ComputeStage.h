@@ -40,10 +40,11 @@ namespace Engine {
         void AssignBuffer(const std::string & name, const DeviceBuffer & buffer) noexcept;
         void AssignComputeBuffer(const std::string & name, const ComputeBuffer & buffer) noexcept;
 
+        const ShdrRfl::SPLayout & GetReflectedShaderInfo() const noexcept;
         vk::Pipeline GetPipeline() const noexcept;
         vk::PipelineLayout GetPipelineLayout() const noexcept;
         vk::DescriptorSetLayout GetDescriptorSetLayout() const noexcept;
-
+        vk::DescriptorPool GetDescriptorPool() const noexcept;
         vk::DescriptorSet GetDescriptorSet(uint32_t backbuffer) const noexcept;
     };
 } // namespace Engine

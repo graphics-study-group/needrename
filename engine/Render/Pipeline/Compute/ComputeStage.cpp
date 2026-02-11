@@ -309,6 +309,10 @@ namespace Engine {
         pimpl->m_ipi._is_descriptor_dirty.set();
     }
 
+    const ShdrRfl::SPLayout &ComputeStage::GetReflectedShaderInfo() const noexcept {
+        return pimpl->layout;
+    }
+
     vk::Pipeline ComputeStage::GetPipeline() const noexcept {
         return pimpl->m_passInfo.pipeline.get();
     }
@@ -317,6 +321,9 @@ namespace Engine {
     }
     vk::DescriptorSetLayout ComputeStage::GetDescriptorSetLayout() const noexcept {
         return pimpl->m_passInfo.desc_layout.get();
+    }
+    vk::DescriptorPool ComputeStage::GetDescriptorPool() const noexcept {
+        return pimpl->desc_pool.get();
     }
     vk::DescriptorSet ComputeStage::GetDescriptorSet(uint32_t backbuffer) const noexcept {
         assert(backbuffer < impl::InstancedPassInfo::BACK_BUFFERS);
