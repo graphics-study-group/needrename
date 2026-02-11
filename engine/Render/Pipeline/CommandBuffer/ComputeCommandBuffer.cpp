@@ -1,6 +1,7 @@
 #include "ComputeCommandBuffer.h"
 
 #include "Render/Pipeline/Compute/ComputeStage.h"
+#include "Render/Pipeline/Compute/ComputeResourceBinding.h"
 
 namespace Engine {
     
@@ -12,19 +13,25 @@ namespace Engine {
         bound_pipeline = stage;
         this->cb.bindPipeline(vk::PipelineBindPoint::eCompute, stage.GetPipeline());
     }
-    void ComputeCommandBuffer::DispatchCompute(uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ) {
+    void ComputeCommandBuffer::BindComputeResource(ComputeResourceBinding &binding) {
         assert(bound_pipeline.has_value() && "Compute pipeline is not bound.");
-        const auto &stage = bound_pipeline.value();
 
-        stage.get().UpdateGPUInfo(inflight_frame_index);
-
+        auto offsets = binding.UpdateGPUInfo(inflight_frame_index);
         this->cb.bindDescriptorSets(
             vk::PipelineBindPoint::eCompute,
-            stage.get().GetPipelineLayout(),
+            bound_pipeline.value().get().GetPipelineLayout(),
             0,
-            {stage.get().GetDescriptorSet(inflight_frame_index)},
-            {}
+            {binding.GetDescriptorSet(inflight_frame_index)},
+            offsets
         );
+    }
+    void ComputeCommandBuffer::DispatchCompute(
+        uint32_t groupCountX,
+        uint32_t groupCountY,
+        uint32_t groupCountZ
+    ) {
+        assert(bound_pipeline.has_value() && "Compute pipeline is not bound.");
+        const auto &stage = bound_pipeline.value();
         this->cb.dispatch(groupCountX, groupCountY, groupCountZ);
     }
 } // namespace Engine
