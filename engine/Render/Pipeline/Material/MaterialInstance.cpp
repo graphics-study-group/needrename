@@ -178,7 +178,7 @@ namespace Engine {
 
         // First prepare descriptor writes
         for (const auto & [k, v] : pass_info.ubos) {
-            pimpl->p_srb->BindBuffer(k, *v, v->GetSliceSize(), v->GetSliceOffset(backbuffer));
+            pimpl->p_srb->BindBuffer(k, *v, v->GetSliceOffset(backbuffer), v->GetSliceSize());
         }
         pass_info.desc_set_cache[backbuffer] = pimpl->p_srb->GetDescriptorSet(
             2,

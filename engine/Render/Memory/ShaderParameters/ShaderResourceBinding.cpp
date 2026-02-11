@@ -110,6 +110,7 @@ namespace Engine {
         }
         
         // Allocate descriptor set
+        assert(pool);
         vk::DescriptorSetAllocateInfo dsai{pool, {dsl}};
         auto descriptor = d.allocateDescriptorSets(dsai)[0];
         pimpl->descriptor_sets[layout_hash][content_hash] = descriptor;
@@ -193,7 +194,7 @@ namespace Engine {
                 writes.push_back(
                     vk::WriteDescriptorSet{
                         descriptor,
-                        popaque->layout_binding,
+                        pbuffer->layout_binding,
                         0u,     // 0th element
                         1u,     // 1 descriptor
                         desctp

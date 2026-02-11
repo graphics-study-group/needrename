@@ -15,7 +15,8 @@ namespace Engine {
      */
     struct RenderResourceHasher {
         constexpr static size_t C = 0x100000001b3ull;
-        size_t s = 0xcbf29ce484222325ull;
+        constexpr static size_t S = 0xcbf29ce484222325ull;
+        size_t s{S};
 
         template <typename T>
         inline void binary_data(const T *data, size_t size) noexcept {
