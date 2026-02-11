@@ -42,6 +42,8 @@ namespace Engine {
              * 
              * @param buffer a CPU buffer to be copied to GPU.
              * Will be resized if necessary.
+             * 
+             * @see StructuredBufferPlacer::WriteBuffer() for actual implementation.
              */
             void PlaceBufferVariable(
                 std::vector <std::byte> & buffer,

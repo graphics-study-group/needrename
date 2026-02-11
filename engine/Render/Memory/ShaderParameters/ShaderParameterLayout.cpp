@@ -332,7 +332,6 @@ namespace Engine::ShdrRfl {
 
     std::vector<vk::DescriptorSetLayoutBinding> SPLayout::GenerateLayoutBindings(uint32_t set) const {
         std::vector <vk::DescriptorSetLayoutBinding> bindings;
-
         for (const auto & interface : this->interfaces) {
             if (auto ptr = dynamic_cast<const SPInterfaceBuffer *>(interface.get())) {
                 if (ptr->layout_set != set) continue;
