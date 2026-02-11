@@ -1,5 +1,5 @@
-#ifndef PIPELINE_COMPUTE_COMPUTESTAGE_INCLUDED
-#define PIPELINE_COMPUTE_COMPUTESTAGE_INCLUDED
+#ifndef PIPELINE_COMPUTE_COMPUTESTAGE
+#define PIPELINE_COMPUTE_COMPUTESTAGE
 
 #include "Asset/InstantiatedFromAsset.h"
 #include "Render/Pipeline/PipelineInfo.h"
@@ -9,9 +9,10 @@ namespace Engine {
     class RenderSystem;
     class ShaderAsset;
     class ComputeBuffer;
+    class ComputeResourceBinding;
 
     namespace ShdrRfl {
-        class ShaderParameters;
+        class SPLayout;
     }
 
     class ComputeStage : public IInstantiatedFromAsset<ShaderAsset> {
@@ -31,22 +32,23 @@ namespace Engine {
 
         ~ComputeStage();
 
-        void UpdateGPUInfo(uint32_t backbuffer);
-
-        void AssignScalarVariable(const std::string & name, std::variant<uint32_t, float> value) noexcept;
-        void AssignVectorVariable(const std::string & name, std::variant<glm::vec4, glm::mat4> value) noexcept;
-
-        void AssignTexture(const std::string & name, const Texture & texture) noexcept;
-        void AssignBuffer(const std::string & name, const DeviceBuffer & buffer) noexcept;
-        void AssignComputeBuffer(const std::string & name, const ComputeBuffer & buffer) noexcept;
+        /**
+         * @brief Allocate a new resource binding to this compute stage.
+         * 
+         * This allocated binding is guaranteed to be available until the
+         * destruction of this compute stage.
+         * 
+         * @note These bindings will not be de-allocated. Call this member
+         * sparingly to avoid memory leak.
+         */
+        ComputeResourceBinding & AllocateResourceBinding() noexcept;
 
         const ShdrRfl::SPLayout & GetReflectedShaderInfo() const noexcept;
         vk::Pipeline GetPipeline() const noexcept;
         vk::PipelineLayout GetPipelineLayout() const noexcept;
         vk::DescriptorSetLayout GetDescriptorSetLayout() const noexcept;
         vk::DescriptorPool GetDescriptorPool() const noexcept;
-        vk::DescriptorSet GetDescriptorSet(uint32_t backbuffer) const noexcept;
     };
 } // namespace Engine
 
-#endif // PIPELINE_COMPUTE_COMPUTESTAGE_INCLUDED
+#endif // PIPELINE_COMPUTE_COMPUTESTAGE
