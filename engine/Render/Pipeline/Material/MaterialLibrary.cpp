@@ -209,10 +209,7 @@ namespace Engine {
                     asset->properties,
                     shader_modules,
                     b.pipeline_layout,
-                    std::make_pair(
-                        b.descriptor_pool.get(),
-                        b.descriptor_set_layout
-                    ),
+                    b.descriptor_pool.get(),
                     &b.reflected,
                     VertexAttribute{.packed = actual_type},
                     asset->name
@@ -223,7 +220,7 @@ namespace Engine {
                     asset->properties,
                     shader_modules,
                     b.pipeline_layout,
-                    std::nullopt,
+                    nullptr,
                     &b.reflected,
                     VertexAttribute{.packed = actual_type},
                     asset->name
