@@ -1,10 +1,14 @@
 #include "HierarchyWidget.h"
+#include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include <Framework/object/GameObject.h>
 #include <Framework/world/WorldSystem.h>
 #include <MainClass.h>
 #include <cstdio>
 #include <cstring>
 #include <imgui.h>
+
+#include <Framework/component/RenderComponent/LightComponent.h>
+#include <Framework/component/RenderComponent/StaticMeshComponent.h>
 
 namespace Editor {
     HierarchyWidget::HierarchyWidget(const std::string &name) : Widget(name) {
@@ -14,6 +18,9 @@ namespace Editor {
     }
 
     void HierarchyWidget::Render() {
+        auto &adb = *std::dynamic_pointer_cast<Engine::FileSystemDatabase>(
+            Engine::MainClass::GetInstance()->GetAssetDatabase()
+        );
         auto &scene = Engine::MainClass::GetInstance()->GetWorldSystem()->GetMainSceneRef();
         bool selected_changed = false;
         ObjectHandle need_remove_go;
@@ -25,11 +32,48 @@ namespace Editor {
                 ImGui::OpenPopup("HierarchyAddMenu");
             }
             if (ImGui::BeginPopup("HierarchyAddMenu")) {
-                if (ImGui::MenuItem("Create Empty GameObject")) {
+                if (ImGui::MenuItem("Create Empty")) {
                     auto &go = scene.CreateGameObject();
                     go.m_name = "New GameObject";
                 }
-                ImGui::MenuItem("Create Light");
+                if (ImGui::BeginMenu("Create Light")) {
+                    if (ImGui::MenuItem("Directional Light")) {
+                        auto &go = scene.CreateGameObject();
+                        go.m_name = "Directional Light";
+                        auto &comp = go.AddComponent<Engine::LightComponent>();
+                        comp.m_type = Engine::LightType::Directional;
+                        comp.m_cast_shadow = true;
+                    }
+                    if (ImGui::MenuItem("Point Light")) {
+                        auto &go = scene.CreateGameObject();
+                        go.m_name = "Point Light";
+                        auto &comp = go.AddComponent<Engine::LightComponent>();
+                        comp.m_type = Engine::LightType::Point;
+                        comp.m_cast_shadow = false;
+                    }
+                    ImGui::EndMenu();
+                }
+                if (ImGui::BeginMenu("Create Mesh")) {
+                    if (ImGui::MenuItem("Cube")) {
+                        auto &go = scene.CreateGameObject();
+                        go.m_name = "Cube";
+                        auto &comp = go.AddComponent<Engine::StaticMeshComponent>();
+                        comp.m_mesh_asset = adb.GetNewAssetRef(Engine::AssetPath(adb, "~/mesh/cube.asset"));
+                        comp.m_material_assets.push_back(
+                            adb.GetNewAssetRef(Engine::AssetPath(adb, "~/materials/solid_color_dark_grey.asset"))
+                        );
+                    }
+                    if (ImGui::MenuItem("Sphere")) {
+                        auto &go = scene.CreateGameObject();
+                        go.m_name = "Sphere";
+                        auto &comp = go.AddComponent<Engine::StaticMeshComponent>();
+                        comp.m_mesh_asset = adb.GetNewAssetRef(Engine::AssetPath(adb, "~/mesh/sphere.asset"));
+                        comp.m_material_assets.push_back(
+                            adb.GetNewAssetRef(Engine::AssetPath(adb, "~/materials/solid_color_dark_grey.asset"))
+                        );
+                    }
+                    ImGui::EndMenu();
+                }
                 ImGui::EndPopup();
             }
 
