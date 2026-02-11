@@ -8,7 +8,7 @@
 
 namespace Engine {
     struct ShaderResourceBinding::impl {
-        const ShdrRfl::SPLayout * layout;
+        RenderSystemState::ImmutableResourceCache * irc;
 
         using InterfaceVariant = std::variant<
             std::monostate,
@@ -42,13 +42,19 @@ namespace Engine {
             }
         }
         
-        std::unordered_map <size_t, vk::DescriptorSet> descriptor_sets;
+        std::unordered_map <
+            size_t, vk::DescriptorSetLayout
+        > descriptor_set_layout_cache;
+        std::unordered_map <size_t,
+            // XXX: use a LRU cache instead of unordered map here, to mitigate memory leak.
+            std::unordered_map<size_t, vk::DescriptorSet>
+        > descriptor_sets;
     };
 
     ShaderResourceBinding::ShaderResourceBinding(
-        const ShdrRfl::SPLayout &s
+        RenderSystemState::ImmutableResourceCache & irc
     ) : pimpl(std::make_unique<impl>()){
-        pimpl->layout = &s;
+        pimpl->irc = &irc;
     }
 
     ShaderResourceBinding::~ShaderResourceBinding() noexcept = default;
@@ -71,31 +77,48 @@ namespace Engine {
 
     vk::DescriptorSet ShaderResourceBinding::GetDescriptorSet(
         uint32_t set_id,
+        const ShdrRfl::SPLayout & s,
         vk::Device d,
-        vk::DescriptorSetLayout dsl,
         vk::DescriptorPool pool
     ) {
         // First calculate a hash from currently bound resources.
         RenderResourceHasher h;
-        h.handle(dsl);
-        pimpl->hash_current_interfaces(h);
-        auto hash = h.get();
+        h.pointer(&s);
+        h.u32(set_id);
+        auto layout_hash = h.get();
+
+        RenderResourceHasher ch;
+        pimpl->hash_current_interfaces(ch);
+        auto content_hash = ch.get();
 
         // Return a cache hit
-        if (pimpl->descriptor_sets.contains(hash)) {
-            return pimpl->descriptor_sets[hash];
+        if (pimpl->descriptor_sets[layout_hash].contains(content_hash)) {
+            return pimpl->descriptor_sets[layout_hash][content_hash];
         }
 
-        // Allocate descriptor and write to it.
+        // Get the descriptor set layout for the descriptor set
+        auto dsl = pimpl->descriptor_set_layout_cache[layout_hash];
+        if (dsl == nullptr) {
+            auto dslb = s.GenerateLayoutBindings(set_id);
+            dsl = pimpl->irc->GetDescriptorSetLayout(
+                vk::DescriptorSetLayoutCreateInfo{
+                    vk::DescriptorSetLayoutCreateFlags{},
+                    dslb
+                }
+            );
+            pimpl->descriptor_set_layout_cache[layout_hash] = dsl;
+        }
+        
+        // Allocate descriptor set
         vk::DescriptorSetAllocateInfo dsai{pool, {dsl}};
         auto descriptor = d.allocateDescriptorSets(dsai)[0];
-        pimpl->descriptor_sets[hash] = descriptor;
+        pimpl->descriptor_sets[layout_hash][content_hash] = descriptor;
 
         // Produce descriptor writes
         std::vector <vk::DescriptorImageInfo> image_infos;
         std::vector <vk::DescriptorBufferInfo> buffer_infos;
         std::vector <vk::WriteDescriptorSet> writes;
-        for (const auto & pinterface : pimpl->layout->interfaces) {
+        for (const auto & pinterface : s.interfaces) {
             if (pinterface->layout_set != set_id) continue;
 
             auto & intfc = pimpl->interfaces;

@@ -37,7 +37,7 @@ namespace Engine {
     public:
 
         ShaderResourceBinding(
-            const ShdrRfl::SPLayout & s
+            RenderSystemState::ImmutableResourceCache & irc
         );
         ~ShaderResourceBinding() noexcept;
 
@@ -68,8 +68,8 @@ namespace Engine {
          */
         vk::DescriptorSet GetDescriptorSet(
             uint32_t set_id,
+            const ShdrRfl::SPLayout & s,
             vk::Device d,
-            vk::DescriptorSetLayout dsl,
             vk::DescriptorPool pool
         );
     };
