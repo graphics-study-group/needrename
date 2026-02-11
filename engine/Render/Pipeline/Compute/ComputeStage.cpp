@@ -41,17 +41,10 @@ namespace Engine {
         void CreatePipeline(RenderSystem &system, const std::vector <uint32_t> & spirv_code, const std::string_view name = "") {
             // Create descriptor and pipeline layout
             layout = ShdrRfl::SPLayout::Reflect(spirv_code, false);
-            auto desc_bindings = layout.GenerateAllLayoutBindings();
-            if (desc_bindings.size() > 1) {
-                SDL_LogWarn(
-                    SDL_LOG_CATEGORY_RENDER,
-                    "Found multiple descriptor sets. Only zeroth set is currently utilized."
-                );
-            }
-            assert(desc_bindings.contains(0) && "Descriptor set zero is empty.");
+            auto desc_bindings = layout.GenerateLayoutBindings(0, true, false);
             vk::DescriptorSetLayoutCreateInfo dslci{
                 vk::DescriptorSetLayoutCreateFlags{},
-                desc_bindings[0]
+                desc_bindings
             };
             m_passInfo.desc_layout = system.GetDevice().createDescriptorSetLayoutUnique(dslci);
 
@@ -106,7 +99,9 @@ namespace Engine {
         }
     };
 
-    ComputeStage::ComputeStage(RenderSystem &system) : m_system(system), pimpl(std::make_unique<ComputeStage::impl>()) {
+    ComputeStage::ComputeStage(
+        RenderSystem &system
+    ) : m_system(system), pimpl(std::make_unique<ComputeStage::impl>()) {
     }
 
     void ComputeStage::Instantiate(const ShaderAsset &asset) {

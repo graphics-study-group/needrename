@@ -153,7 +153,7 @@ namespace Engine {
                 writes.push_back(
                     vk::WriteDescriptorSet{
                         nullptr,
-                        popaque->layout_binding,
+                        pstorage->layout_binding,
                         0u,     // 0th element
                         1u,     // 1 descriptor
                         vk::DescriptorType::eStorageImage
