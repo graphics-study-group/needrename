@@ -30,7 +30,8 @@ namespace Engine {
             // directly use this index.
             static constexpr uint32_t BACK_BUFFERS = 3;
 
-            std::unordered_map <std::string, std::unique_ptr<IndexedBuffer>> ubos{};
+            std::unordered_map <uint32_t, std::string> ubo_name_lut{};
+            std::unordered_map <uint32_t, std::unique_ptr<IndexedBuffer>> ubos{};
 
             std::array <vk::DescriptorSet, BACK_BUFFERS> desc_set_cache{};
 
@@ -79,7 +80,7 @@ namespace Engine {
                             continue;
                         }
 
-                        pass.ubos[pbuffer->name] = IndexedBuffer::CreateUnique(
+                        pass.ubos[pbuffer->layout_binding] = IndexedBuffer::CreateUnique(
                             system.GetAllocatorState(),
                             {BufferTypeBits::HostAccessibleUniform},
                             psb->buffer_placer->CalculateMaxSize(),
@@ -92,6 +93,7 @@ namespace Engine {
                                 pbuffer->name
                             )
                         );
+                        pass.ubo_name_lut[pbuffer->layout_binding] = pbuffer->name;
                     }
                 }
             }
@@ -162,7 +164,7 @@ namespace Engine {
         return *pimpl->p_parameters;
     }
 
-    void MaterialInstance::UpdateGPUInfo(MaterialTemplate & tpl, uint32_t backbuffer) {
+    std::vector <uint32_t> MaterialInstance::UpdateGPUInfo(MaterialTemplate & tpl, uint32_t backbuffer) {
         assert(backbuffer < impl::PassInfo::BACK_BUFFERS);
 
         auto itr = pimpl->m_pass_infos.find(&tpl);
@@ -177,23 +179,34 @@ namespace Engine {
         auto & pass_info = itr->second;
 
         // First prepare descriptor writes
+        std::vector <uint32_t> dynamic_offsets;
         for (const auto & [k, v] : pass_info.ubos) {
-            pimpl->p_srb->BindBuffer(k, *v, v->GetSliceOffset(backbuffer), v->GetSliceSize());
+            pimpl->p_srb->BindBuffer(
+                pass_info.ubo_name_lut[k],
+                *v,
+                0,
+                v->GetSliceSize()
+            );
+            // FIXME: Dynamic offset order might not be correct.
+            dynamic_offsets.push_back(v->GetSliceOffset(backbuffer));
         }
+
         pass_info.desc_set_cache[backbuffer] = pimpl->p_srb->GetDescriptorSet(
             2,
             tpl.GetReflectedShaderInfo(),
             m_system.GetDevice(),
-            tpl.GetDescriptorPool()
+            tpl.GetDescriptorPool(),
+            true, false
         );
-
 
         // Then do UBO buffer writes
         if (pass_info._is_ubo_dirty[backbuffer]) {
             const auto & splayout = tpl.GetReflectedShaderInfo();
 
-            for (const auto & kv : pass_info.ubos) {
-                auto itr = splayout.interface_name_mapping.find(kv.first);
+            for (const auto & [k, v] : pass_info.ubos) {
+                auto itr = splayout.interface_name_mapping.find(
+                    pass_info.ubo_name_lut[k]
+                );
                 assert(itr != splayout.interface_name_mapping.end());
                 auto pbuf = dynamic_cast<const ShdrRfl::SPInterfaceStructuredBuffer *>(itr->second);
                 assert(pbuf && pbuf->type == ShdrRfl::SPInterfaceBuffer::Type::UniformBuffer);
@@ -204,19 +217,25 @@ namespace Engine {
                     *pimpl->p_parameters
                 );
 
-                std::memcpy(kv.second->GetSlicePtr(backbuffer), this->pimpl->m_buffer.data(), this->pimpl->m_buffer.size());
+                std::memcpy(
+                    v->GetSlicePtr(backbuffer),
+                    this->pimpl->m_buffer.data(),
+                    this->pimpl->m_buffer.size()
+                );
             }
             
             pass_info._is_ubo_dirty[backbuffer] = false;
         }
+
+        return dynamic_offsets;
     }
 
-    void MaterialInstance::UpdateGPUInfo(
+    std::vector <uint32_t> MaterialInstance::UpdateGPUInfo(
         const std::string &tag, VertexAttribute type, uint32_t backbuffer
     ) {
         auto tpl = GetLibrary().FindMaterialTemplate(tag, type);
         assert(tpl);
-        this->UpdateGPUInfo(*tpl, backbuffer);
+        return this->UpdateGPUInfo(*tpl, backbuffer);
     }
 
     vk::DescriptorSet MaterialInstance::GetDescriptor(const MaterialTemplate &tpl, uint32_t backbuffer) const noexcept {

@@ -132,7 +132,7 @@ namespace Engine {
             m_bound_material_pipeline = std::make_pair(pipeline, pipeline_layout);
         }
 
-        material.UpdateGPUInfo(tpl, m_inflight_frame_index);
+        auto dynamic_offsets = material.UpdateGPUInfo(tpl, m_inflight_frame_index);
 
         auto material_descriptor_set = material.GetDescriptor(tpl, m_inflight_frame_index);
         if (material_descriptor_set) {
@@ -141,7 +141,7 @@ namespace Engine {
                 pipeline_layout,
                 2,
                 {material_descriptor_set},
-                {}
+                dynamic_offsets
             );
         }
     }

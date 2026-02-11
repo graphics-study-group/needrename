@@ -42,9 +42,6 @@ namespace Engine {
             }
         }
         
-        std::unordered_map <
-            size_t, vk::DescriptorSetLayout
-        > descriptor_set_layout_cache;
         std::unordered_map <size_t,
             // XXX: use a LRU cache instead of unordered map here, to mitigate memory leak.
             std::unordered_map<size_t, vk::DescriptorSet>
@@ -79,12 +76,15 @@ namespace Engine {
         uint32_t set_id,
         const ShdrRfl::SPLayout & s,
         vk::Device d,
-        vk::DescriptorPool pool
+        vk::DescriptorPool pool,
+        bool enforce_dynamic_uniform,
+        bool enforce_dynamic_storage
     ) {
         // First calculate a hash from currently bound resources.
         RenderResourceHasher h;
         h.pointer(&s);
-        h.u32(set_id);
+        // Set id won't be too large, so this might be safe.
+        h.u32((enforce_dynamic_uniform << 31u) | (enforce_dynamic_storage << 30u) | set_id);
         auto layout_hash = h.get();
 
         RenderResourceHasher ch;
@@ -97,23 +97,11 @@ namespace Engine {
         }
 
         // Get the descriptor set layout for the descriptor set
-        auto dsl = pimpl->descriptor_set_layout_cache[layout_hash];
-        if (dsl == nullptr) {
-            auto dslb = s.GenerateLayoutBindings(set_id);
-            dsl = pimpl->irc->GetDescriptorSetLayout(
-                vk::DescriptorSetLayoutCreateInfo{
-                    vk::DescriptorSetLayoutCreateFlags{},
-                    dslb
-                }
-            );
-            pimpl->descriptor_set_layout_cache[layout_hash] = dsl;
-        }
-        
-        // Allocate descriptor set
-        assert(pool);
-        vk::DescriptorSetAllocateInfo dsai{pool, {dsl}};
-        auto descriptor = d.allocateDescriptorSets(dsai)[0];
-        pimpl->descriptor_sets[layout_hash][content_hash] = descriptor;
+        auto dslb = s.GenerateLayoutBindings(
+            set_id,
+            enforce_dynamic_uniform,
+            enforce_dynamic_storage
+        );
 
         // Produce descriptor writes
         std::vector <vk::DescriptorImageInfo> image_infos;
@@ -141,7 +129,7 @@ namespace Engine {
                 );
                 writes.push_back(
                     vk::WriteDescriptorSet{
-                        descriptor,
+                        nullptr,
                         popaque->layout_binding,
                         0u,     // 0th element
                         1u,     // 1 descriptor
@@ -164,7 +152,7 @@ namespace Engine {
                 );
                 writes.push_back(
                     vk::WriteDescriptorSet{
-                        descriptor,
+                        nullptr,
                         popaque->layout_binding,
                         0u,     // 0th element
                         1u,     // 1 descriptor
@@ -178,11 +166,18 @@ namespace Engine {
                 auto pbuf = std::get_if<std::tuple<std::reference_wrapper<const DeviceBuffer>, size_t, size_t>>(&itr->second);
                 assert(pbuf);
 
-                // Determine whether it is storage buffer or uniform buffer
-                auto desctp = 
-                    pbuffer->type == ShdrRfl::SPInterfaceBuffer::Type::StorageBuffer ?
-                    vk::DescriptorType::eStorageBuffer : vk::DescriptorType::eUniformBuffer;
+                // Determine whether it is storage buffer or uniform buffer and static or dynamic
+                auto itr = std::find_if(
+                    dslb.begin(), dslb.end(),
+                    [&pbuffer](const vk::DescriptorSetLayoutBinding & p) -> bool {
+                        return p.binding == pbuffer->layout_binding;
+                    }
+                );
+                assert(itr != dslb.end());
+                auto desctp = itr->descriptorType;
                 auto [buffer, offset, range] = *pbuf;
+
+                // TODO: Test for buffer type (storage vs uniform)
 
                 buffer_infos.push_back(
                     vk::DescriptorBufferInfo {
@@ -193,7 +188,7 @@ namespace Engine {
                 );
                 writes.push_back(
                     vk::WriteDescriptorSet{
-                        descriptor,
+                        nullptr,
                         pbuffer->layout_binding,
                         0u,     // 0th element
                         1u,     // 1 descriptor
@@ -202,6 +197,22 @@ namespace Engine {
                 );
                 writes.back().setPBufferInfo(&buffer_infos.back());
             }
+        }
+
+        auto dsl = pimpl->irc->GetDescriptorSetLayout(
+            vk::DescriptorSetLayoutCreateInfo{
+                vk::DescriptorSetLayoutCreateFlags{},
+                dslb
+            }
+        );
+        // Allocate descriptor set
+        assert(pool);
+        vk::DescriptorSetAllocateInfo dsai{pool, {dsl}};
+        auto descriptor = d.allocateDescriptorSets(dsai)[0];
+        pimpl->descriptor_sets[layout_hash][content_hash] = descriptor;
+
+        for (auto & w : writes) {
+            w.dstSet = descriptor;
         }
 
         d.updateDescriptorSets(writes, {});

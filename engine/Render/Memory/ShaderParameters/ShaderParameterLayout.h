@@ -62,9 +62,15 @@ namespace Engine {
 
             /**
              * @brief Generate descriptor set layout binding for a given set.
+             * 
+             * These bindings are sorted by binding numbers.
              */
             std::vector <vk::DescriptorSetLayoutBinding>
-            GenerateLayoutBindings(uint32_t set) const;
+            GenerateLayoutBindings(
+                uint32_t set,
+                bool enforce_dynamic_uniform_buffer = false,
+                bool enforce_dynamic_storage_buffer = false
+            ) const;
 
             /**
              * @brief Merge a SPLayout from another shader.

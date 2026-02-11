@@ -330,7 +330,11 @@ namespace Engine::ShdrRfl {
         return sets;
     }
 
-    std::vector<vk::DescriptorSetLayoutBinding> SPLayout::GenerateLayoutBindings(uint32_t set) const {
+    std::vector<vk::DescriptorSetLayoutBinding> SPLayout::GenerateLayoutBindings(
+        uint32_t set,
+        bool enforce_dynamic_uniform_buffer,
+        bool enforce_dynamic_storage_buffer
+    ) const {
         std::vector <vk::DescriptorSetLayoutBinding> bindings;
         for (const auto & interface : this->interfaces) {
             if (auto ptr = dynamic_cast<const SPInterfaceBuffer *>(interface.get())) {
@@ -339,7 +343,9 @@ namespace Engine::ShdrRfl {
                 if (ptr->type == SPInterfaceBuffer::Type::UniformBuffer) {
                     bindings.emplace_back(vk::DescriptorSetLayoutBinding{
                         ptr->layout_binding,
-                        vk::DescriptorType::eUniformBuffer,
+                        enforce_dynamic_uniform_buffer ?
+                            vk::DescriptorType::eUniformBufferDynamic
+                            : vk::DescriptorType::eUniformBuffer,
                         1,
                         vk::ShaderStageFlagBits::eAll,
                         {}
@@ -347,7 +353,9 @@ namespace Engine::ShdrRfl {
                 } else if (ptr->type == SPInterfaceBuffer::Type::StorageBuffer) {
                     bindings.emplace_back(vk::DescriptorSetLayoutBinding{
                         ptr->layout_binding,
-                        vk::DescriptorType::eStorageBuffer,
+                        enforce_dynamic_storage_buffer ?
+                            vk::DescriptorType::eStorageBufferDynamic
+                            : vk::DescriptorType::eStorageBuffer,
                         1,
                         vk::ShaderStageFlagBits::eAll,
                         {}
@@ -382,6 +390,15 @@ namespace Engine::ShdrRfl {
             }
         }
 
+        std::sort(
+            bindings.begin(),
+            bindings.end(),
+            [](
+                const vk::DescriptorSetLayoutBinding & lhs,
+                const vk::DescriptorSetLayoutBinding & rhs) -> bool {
+                return lhs.binding < rhs.binding;
+            }
+        );
         return bindings;
     }
 

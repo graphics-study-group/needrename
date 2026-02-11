@@ -63,12 +63,15 @@ namespace Engine {
          * Performs descriptor writes and UBO buffer writes.
          * 
          * May perform lazy buffer or descriptor allocations.
+         * 
+         * @return A vector containing all dynamic uniform buffer offsets.
+         * Guaranteed to be sorted by binding numbers.
          */
-        void UpdateGPUInfo(
+        std::vector <uint32_t> UpdateGPUInfo(
             MaterialTemplate & tpl,
             uint32_t backbuffer
         );
-        void UpdateGPUInfo(
+        std::vector <uint32_t> UpdateGPUInfo(
             const std::string & tag,
             VertexAttribute type,
             uint32_t backbuffer

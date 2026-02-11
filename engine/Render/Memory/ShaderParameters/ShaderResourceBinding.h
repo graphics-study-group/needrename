@@ -43,6 +43,10 @@ namespace Engine {
 
         /**
          * @brief Point an interface to a storage or uniform buffer.
+         * 
+         * @param offset Offset must meet the requirement specified by the
+         * backend. For dynamic buffers, this offset is added to the dynamic
+         * offset on binding time.
          */
         void BindBuffer(
             const std::string & name,
@@ -70,7 +74,9 @@ namespace Engine {
             uint32_t set_id,
             const ShdrRfl::SPLayout & s,
             vk::Device d,
-            vk::DescriptorPool pool
+            vk::DescriptorPool pool,
+            bool enforce_dynamic_uniform = false,
+            bool enforce_dynamic_storage = false
         );
     };
 }

@@ -15,6 +15,7 @@ namespace Engine {
         static constexpr size_t MAX_MATERIAL_DESCRIPTORS_PER_POOL = 128;
         static constexpr std::array DEFAULT_MATERIAL_DESCRIPTOR_POOL_SIZE {
             vk::DescriptorPoolSize{vk::DescriptorType::eUniformBuffer, 128},
+            vk::DescriptorPoolSize{vk::DescriptorType::eUniformBufferDynamic, 128},
             vk::DescriptorPoolSize{vk::DescriptorType::eStorageBuffer, 128},
             vk::DescriptorPoolSize{vk::DescriptorType::eStorageBufferDynamic, 128},
             vk::DescriptorPoolSize{vk::DescriptorType::eCombinedImageSampler, 128}
@@ -96,11 +97,14 @@ namespace Engine {
             vk::DescriptorSetLayout camera_descriptors,
             const std::string & name
         ) {
-            auto desc_bindings = b.reflected.GenerateLayoutBindings(2);
+            auto desc_bindings = b.reflected.GenerateLayoutBindings(2, true, false);
             if (!desc_bindings.empty()) {
                 unsigned ubo_count{0};
                 for (auto & db : desc_bindings) {
-                    if (db.descriptorType == vk::DescriptorType::eUniformBuffer) {
+                    if (
+                        db.descriptorType == vk::DescriptorType::eUniformBuffer ||
+                        db.descriptorType == vk::DescriptorType::eUniformBufferDynamic
+                    ) {
                         ubo_count ++;
                     }
                 }
