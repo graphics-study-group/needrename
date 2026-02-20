@@ -15,6 +15,7 @@
 #include "UserInterface/GUISystem.h"
 #include "MainClass.h"
 #include "Render/FullRenderSystem.h"
+#include "Render/Renderer/HomogeneousMesh.h"
 #include "Framework/component/RenderComponent/ObjTestMeshComponent.h"
 
 #include "cmake_config.h"
@@ -23,17 +24,32 @@ using namespace Engine;
 namespace sch = std::chrono;
 
 struct LowerPlaneMeshAsset : public PlaneMeshAsset {
-    LowerPlaneMeshAsset() {
-        this->m_submeshes.resize(1);
-        this->m_submeshes[0].positions = MeshAsset::Submesh::Attributes{
-            .type = MeshAsset::Submesh::Attributes::AttributeType::Floatx3,
-            .attribf = {1.0f, -1.0f, 0.0f, 1.0f, 1.0f, 0.0f, -1.0f, 1.0f, 0.0f, -1.0f, -1.0f, 0.0f},
-        };
+    constexpr static std::array <float, 12> REPLACEMENT_POSITION = {
+        1.0f, -1.0f, 0.5f, 1.0f, 1.0f, 0.5f, -1.0f, 1.0f, 0.5f, -1.0f, -1.0f, 0.5f
+    };
 
-        // Flip normal to upwards in clip space.
-        for (size_t i = 0; i < this->m_submeshes[0].normal.attribf.size(); i += 3) {
-            this->m_submeshes[0].normal.attribf[i + 2] = -1.0f;
-        }
+    LowerPlaneMeshAsset() : PlaneMeshAsset() {
+        assert(this->m_submeshes[0].positions.buffer_size == REPLACEMENT_POSITION.size() * sizeof(float));
+        // Replace position buffer
+        std::memcpy(
+            reinterpret_cast<std::byte *>(m_submeshes[0].m_vertex_attributes.data())
+            + this->m_submeshes[0].positions.buffer_offset,
+            reinterpret_cast<const std::byte *>(REPLACEMENT_POSITION.data()),
+            this->m_submeshes[0].positions.buffer_size
+        );
+        // Reverse vertex normal
+        float * nb{reinterpret_cast<float *>(
+            m_submeshes[0].m_vertex_attributes.data() 
+            + m_submeshes[0].normal.buffer_offset
+        )};
+        float * ne{reinterpret_cast<float *>(
+            m_submeshes[0].m_vertex_attributes.data() 
+            + m_submeshes[0].normal.buffer_offset 
+            + m_submeshes[0].normal.buffer_size
+        )};
+        for (float * i = nb; i <= ne; i += 3) {
+            *(i + 2) = -1.0f;
+        };
     }
 };
 
@@ -46,7 +62,8 @@ public:
     ) : ObjTestMeshComponent(mesh_file_name, go) {
         auto system = m_system.lock();
 
-        for (size_t i = 0; i < m_submeshes.size(); i++) {
+        auto masset = m_mesh_asset->cas<MeshAsset>();
+        for (size_t i = 0; i < masset->GetSubmeshCount(); i++) {
             m_materials.push_back(instance);
         }
     }
@@ -173,7 +190,7 @@ int main(int argc, char **argv) {
     floor_mesh_comp->GetMaterials().resize(1);
     floor_mesh_comp->GetMaterials()[0] = floor_material_instance;
     floor_mesh_comp->RenderInit();
-    assert(floor_mesh_comp->GetSubmesh(0)->GetVertexAttribute().HasAttribute(VertexAttributeSemantic::Texcoord0));
+    assert(floor_mesh_comp->GetSubmesh(0)->GetVertexAttributeFormat().HasAttribute(VertexAttributeSemantic::Texcoord0));
 
     auto cube_go = cmc->GetWorldSystem()->CreateGameObject<GameObject>();
     cube_go->GetTransformRef().SetScale({0.5f, 0.5f, 0.5f});
@@ -191,9 +208,7 @@ int main(int argc, char **argv) {
         object_material_instance
     );
     // We cannot call `RenderInit()` because this component has no associated asset.
-    assert(cube_mesh_comp->GetSubmesh(0)->GetVertexAttribute().HasAttribute(VertexAttributeSemantic::Texcoord0));
     rsys->GetRendererManager().RegisterRendererComponent(cube_mesh_comp);
-    assert(sphere_mesh_comp->GetSubmesh(0)->GetVertexAttribute().HasAttribute(VertexAttributeSemantic::Texcoord0));
     rsys->GetRendererManager().RegisterRendererComponent(sphere_mesh_comp);
     
 

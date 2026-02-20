@@ -1,7 +1,6 @@
 #include "GraphicsCommandBuffer.h"
 
-#include "Framework/component/RenderComponent/MeshComponent.h"
-
+#include "Framework/component/RenderComponent/RendererComponent.h"
 #include "Render/AttachmentUtilsFunc.h"
 #include "Render/Memory/DeviceBuffer.h"
 #include "Render/Pipeline/Material/MaterialInstance.h"
@@ -12,8 +11,8 @@
 #include "Render/RenderSystem/Swapchain.h"
 #include "Render/RenderSystem/CameraManager.h"
 #include "Render/Renderer/Camera.h"
-#include "Render/Renderer/HomogeneousMesh.h"
 #include "Render/Renderer/VertexAttribute.h"
+#include "Render/Renderer/IVertexBasedRenderer.h"
 
 #include "Render/DebugUtils.h"
 
@@ -144,19 +143,26 @@ namespace Engine {
         cb.setScissor(0, 1, &scissor);
     }
 
-    void GraphicsCommandBuffer::DrawMesh(const HomogeneousMesh &mesh, const glm::mat4 &model_matrix) {
+    void GraphicsCommandBuffer::DrawMesh(const IVertexBasedRenderer &mesh, const glm::mat4 &model_matrix) {
         this->DrawMesh(mesh, model_matrix, m_system.GetCameraManager().GetActiveCameraIndex());
     }
 
     void GraphicsCommandBuffer::DrawMesh(
-        const HomogeneousMesh &mesh, const glm::mat4 &model_matrix, int32_t camera_index
+        const IVertexBasedRenderer &mesh, const glm::mat4 &model_matrix, int32_t camera_index
     ) {
-        auto bindings = mesh.GetVertexBufferInfo();
-        bindings.second.pop_back();
-        std::vector<vk::Buffer> vertex_buffers{bindings.second.size(), bindings.first};
-        cb.bindVertexBuffers(0, vertex_buffers, bindings.second);
-        auto indices = mesh.GetIndexBufferInfo();
-        cb.bindIndexBuffer(indices.first, indices.second, vk::IndexType::eUint32);
+        auto bindings = mesh.GetVertexAttributeBufferBindings();
+        std::vector <vk::DeviceSize> offsets{};
+        std::vector <vk::Buffer> buffers{};
+        offsets.resize(bindings.size());
+        buffers.resize(bindings.size());
+        for (size_t i = 0; i < bindings.size(); i++) {
+            offsets[i] = bindings[i].offset;
+            buffers[i] = bindings[i].buffer->GetBuffer();
+        }
+
+        cb.bindVertexBuffers(0, buffers, offsets);
+        auto indices = mesh.GetIndexBufferBinding();
+        cb.bindIndexBuffer(indices.buffer->GetBuffer(), indices.offset, vk::IndexType::eUint32);
 
         struct {
             glm::mat4 m;
@@ -170,7 +176,7 @@ namespace Engine {
             sizeof (push_constants),
             reinterpret_cast<const void *>(&push_constants)
         );
-        cb.drawIndexed(mesh.GetVertexIndexCount(), 1, 0, 0, 0);
+        cb.drawIndexed(mesh.GetIndexCount(), 1, 0, 0, 0);
     }
 
     void GraphicsCommandBuffer::DrawRenderers(const std::string & tag, const RendererList &renderers) {
@@ -191,24 +197,15 @@ namespace Engine {
         vk::Rect2D scissor{{0, 0}, extent};
         this->SetupViewport(extent.width, extent.height, scissor);
         for (const auto &rid : renderers) {
-            const auto &component = m_system.GetRendererManager().GetRendererData(rid);
-            glm::mat4 model_matrix = component->GetWorldTransform().GetTransformMatrix();
+            const auto & mesh = m_system.GetRendererManager().GetRendererData(rid);
+            glm::mat4 model_matrix = m_system.GetRendererManager().GetRendererComponent(rid)->GetWorldTransform().GetTransformMatrix();
+            auto material_instance = m_system.GetRendererManager().GetMaterialInstance(rid);
 
-            const auto &materials = component->GetMaterials();
+            auto tpl = material_instance->GetLibrary().FindMaterialTemplate(tag, mesh->GetVertexAttributeFormat());
+            if (!tpl)   continue;
 
-            if (auto mesh_ptr = dynamic_cast<const MeshComponent *>(component)) {
-                const auto &meshes = mesh_ptr->GetSubmeshes();
-
-                assert(materials.size() == meshes.size());
-                for (size_t id = 0; id < materials.size(); id++) {
-                    auto & mtl = *materials[id];
-                    auto tpl = mtl.GetLibrary().FindMaterialTemplate(tag, meshes[id]->GetVertexAttribute());
-                    if (!tpl)   continue;
-
-                    this->BindMaterial(mtl, *tpl);
-                    this->DrawMesh(*meshes[id], model_matrix, camera_index);
-                }
-            }
+            this->BindMaterial(*material_instance, *tpl);
+            this->DrawMesh(*mesh, model_matrix, camera_index);
         }
     }
 
@@ -217,7 +214,7 @@ namespace Engine {
         DEBUG_CMD_END_LABEL(cb);
     }
 
-    void GraphicsCommandBuffer::DrawMesh(const HomogeneousMesh &mesh) {
+    void GraphicsCommandBuffer::DrawMesh(const IVertexBasedRenderer &mesh) {
         this->DrawMesh(mesh, glm::mat4{1.0f});
     }
 

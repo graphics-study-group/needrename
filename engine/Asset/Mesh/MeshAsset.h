@@ -1,5 +1,7 @@
-#ifndef ASSET_MESH_MESHASSET_INCLUDED
-#define ASSET_MESH_MESHASSET_INCLUDED
+#ifndef ASSET_MESH_MESHASSET
+#define ASSET_MESH_MESHASSET
+
+#include "Render/Renderer/VertexAttribute.h"
 
 #include <Asset/Asset.h>
 #include <Reflection/macros.h>
@@ -8,17 +10,10 @@
 
 namespace Engine {
     class ObjLoader;
+    class VertexAttribute;
 
     class REFL_SER_CLASS(REFL_WHITELIST) MeshAsset : public Asset {
         REFL_SER_BODY(MeshAsset)
-
-        /**
-         * @brief Determines the expected buffer size of a submesh.
-         * This method is only used for serialization and deserialization.
-         * To calculate the buffer size of a mesh, you should use the
-         * `HomogeneousMesh` version of this method.
-         */
-        REFL_ENABLE uint64_t GetSubmeshExpectedBufferSize(size_t submesh_idx) const;
 
     public:
         REFL_ENABLE MeshAsset();
@@ -29,41 +24,15 @@ namespace Engine {
         struct Submesh {
             std::vector<uint32_t> m_indices{};
 
+            // Raw buffer containing all vertex attribute data
+            std::vector <std::byte> m_vertex_attributes;
+
             struct Attributes {
-                enum class AttributeType : uint32_t {
-                    Unused,
-                    Floatx1,
-                    Floatx2,
-                    Floatx3,
-                    Floatx4,
-                    Uintx1,
-                    Uintx2,
-                    Uintx3,
-                    Uintx4
-                } type {};
-
-                std::vector <float> attribf{};
-                std::vector <uint32_t> attribu{};
-
-                static constexpr uint8_t GetStride(AttributeType type) {
-                    switch(type) {
-                        using enum AttributeType;
-                        case Floatx1:
-                        case Uintx1:
-                            return 1;
-                        case Floatx2:
-                        case Uintx2:
-                            return 2;
-                        case Floatx3:
-                        case Uintx3:
-                            return 3;
-                        case Floatx4:
-                        case Uintx4:
-                            return 4;
-                        default:
-                            return 0;
-                    }
-                }
+                VertexAttributeType type{VertexAttributeType::Unused};
+                // Offset of this attribute into the buffer in bytes.
+                size_t buffer_offset{0};
+                // Size of this attribute in bytes.
+                size_t buffer_size{0};
             };
 
             uint32_t vertex_count {};
@@ -71,6 +40,34 @@ namespace Engine {
             Attributes color {}, normal {}, texcoord0 {};
             Attributes tangent {}, texcoord1 {}, texcoord2 {}, texcoord3 {};
             Attributes bone_indices {}, bone_weights {};
+
+            /**
+             * @brief Get a `VertexAttribute` descibing this submesh.
+             */
+            VertexAttribute ToVertexAttributeFormat() const noexcept;
+
+            /**
+             * @brief Write out all vertex attributes to the given buffer.
+             * 
+             * The buffer is assumed to be large enough.
+             */
+            void WriteVertexAttributeBuffer(std::byte * buf) const noexcept;
+
+            /**
+             * @brief Write out all indices to the given buffer.
+             * 
+             * The buffer is assumed to be large enough.
+             */
+            void WriteIndexBuffer(std::byte * buf) const noexcept;
+
+            /**
+             * @brief Get the total buffer size of this submesh.
+             * 
+             * @return `m_indices.size() * sizeof(uint32_t) + m_vertex_attributes.size()`
+             */
+            size_t GetTotalBufferSize() const noexcept {
+                return m_indices.size() * sizeof(uint32_t) + m_vertex_attributes.size();
+            }
         };
 
         REFL_ENABLE size_t GetSubmeshCount() const;
@@ -85,4 +82,4 @@ namespace Engine {
     };
 } // namespace Engine
 
-#endif // ASSET_MESH_MESHASSET_INCLUDED
+#endif // ASSET_MESH_MESHASSET

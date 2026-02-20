@@ -6,7 +6,7 @@
 #include <Asset/Mesh/MeshAsset.h>
 #include <Asset/Scene/GameObjectAsset.h>
 #include <Asset/Texture/Image2DTextureAsset.h>
-#include <Framework/component/RenderComponent/MeshComponent.h>
+#include <Framework/component/RenderComponent/StaticMeshComponent.h>
 #include <Framework/object/GameObject.h>
 #include <Framework/world/WorldSystem.h>
 #include <MainClass.h>
@@ -112,8 +112,8 @@ namespace Engine {
         std::shared_ptr<GameObjectAsset> m_game_object_asset = std::make_shared<GameObjectAsset>();
         m_game_object_asset->m_MainObject = MainClass::GetInstance()->GetWorldSystem()->CreateGameObject<GameObject>();
         m_game_object_asset->m_MainObject->m_name = m_mesh_asset->m_name;
-        std::shared_ptr<MeshComponent> m_mesh_component =
-            std::make_shared<MeshComponent>(m_game_object_asset->m_MainObject);
+        std::shared_ptr<StaticMeshComponent> m_mesh_component =
+            std::make_shared<StaticMeshComponent>(m_game_object_asset->m_MainObject);
         m_mesh_component->m_mesh_asset = std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(m_mesh_asset));
         for (const auto &material : m_material_assets) {
             m_mesh_component->m_material_assets.push_back(
@@ -144,38 +144,77 @@ namespace Engine {
             uint32_t vertex_id = 0;
             std::map<std::tuple<int, int, int>, uint32_t> vertex_id_map;
 
+            std::vector <float> position, color, normal, texcoord0;
+
             for (const auto &index : shape.mesh.indices) {
                 std::tuple<int, int, int> key(index.vertex_index, index.normal_index, index.texcoord_index);
                 if (vertex_id_map.find(key) == vertex_id_map.end()) {
                     vertex_id_map[key] = vertex_id++;
-                    submesh.positions.type = MeshAsset::Submesh::Attributes::AttributeType::Floatx3;
-                    submesh.positions.attribf.push_back(positions[index.vertex_index * 3]);
-                    submesh.positions.attribf.push_back(positions[index.vertex_index * 3 + 1]);
-                    submesh.positions.attribf.push_back(positions[index.vertex_index * 3 + 2]);
+                    submesh.positions.type = VertexAttributeType::SFloat32x3;
+                    position.push_back(positions[index.vertex_index * 3]);
+                    position.push_back(positions[index.vertex_index * 3 + 1]);
+                    position.push_back(positions[index.vertex_index * 3 + 2]);
 
 
                     if (colors.size() > 0) {
-                        submesh.color.type = MeshAsset::Submesh::Attributes::AttributeType::Floatx3;
-                        submesh.color.attribf.push_back(colors[index.vertex_index * 3]);
-                        submesh.color.attribf.push_back(colors[index.vertex_index * 3 + 1]);
-                        submesh.color.attribf.push_back(colors[index.vertex_index * 3 + 2]);
+                        submesh.color.type = VertexAttributeType::SFloat32x3;
+                        color.push_back(colors[index.vertex_index * 3]);
+                        color.push_back(colors[index.vertex_index * 3 + 1]);
+                        color.push_back(colors[index.vertex_index * 3 + 2]);
                     }
                     if (index.normal_index >= 0) {
-                        submesh.normal.type = MeshAsset::Submesh::Attributes::AttributeType::Floatx3;
-                        submesh.normal.attribf.push_back(normals[index.normal_index * 3]);
-                        submesh.normal.attribf.push_back(normals[index.normal_index * 3 + 1]);
-                        submesh.normal.attribf.push_back(normals[index.normal_index * 3 + 2]);
+                        submesh.normal.type = VertexAttributeType::SFloat32x3;
+                        normal.push_back(normals[index.normal_index * 3]);
+                        normal.push_back(normals[index.normal_index * 3 + 1]);
+                        normal.push_back(normals[index.normal_index * 3 + 2]);
                     }
                     if (index.texcoord_index >= 0) {
-                        submesh.texcoord0.type = MeshAsset::Submesh::Attributes::AttributeType::Floatx2;
-                        submesh.texcoord0.attribf.push_back(uvs[index.texcoord_index * 2]);
-                        submesh.texcoord0.attribf.push_back(uvs[index.texcoord_index * 2 + 1]);
+                        submesh.texcoord0.type = VertexAttributeType::SFloat32x2;
+                        texcoord0.push_back(uvs[index.texcoord_index * 2]);
+                        texcoord0.push_back(uvs[index.texcoord_index * 2 + 1]);
                     }
                 }
                 submesh.m_indices.push_back(vertex_id_map[key]);
             }
-
             submesh.vertex_count = vertex_id;
+            submesh.m_vertex_attributes.reserve(
+                position.size() * sizeof(float) +
+                color.size() * sizeof(float) +
+                normal.size() * sizeof(float) +
+                texcoord0.size() * sizeof(float)
+            );
+
+            submesh.positions.buffer_offset = submesh.m_vertex_attributes.size();
+            submesh.m_vertex_attributes.insert(
+                submesh.m_vertex_attributes.end(),
+                reinterpret_cast<const std::byte *>(position.data()),
+                reinterpret_cast<const std::byte *>(position.data() + position.size())
+            );
+            submesh.positions.buffer_size = position.size() * sizeof(float);
+
+            submesh.color.buffer_offset = submesh.m_vertex_attributes.size();
+            submesh.m_vertex_attributes.insert(
+                submesh.m_vertex_attributes.end(),
+                reinterpret_cast<const std::byte *>(color.data()),
+                reinterpret_cast<const std::byte *>(color.data() + color.size())
+            );
+            submesh.color.buffer_size = color.size() * sizeof(float);
+
+            submesh.normal.buffer_offset = submesh.m_vertex_attributes.size();
+            submesh.m_vertex_attributes.insert(
+                submesh.m_vertex_attributes.end(),
+                reinterpret_cast<const std::byte *>(normal.data()),
+                reinterpret_cast<const std::byte *>(normal.data() + normal.size())
+            );
+            submesh.normal.buffer_size = normal.size() * sizeof(float);
+
+            submesh.texcoord0.buffer_offset = submesh.m_vertex_attributes.size();
+            submesh.m_vertex_attributes.insert(
+                submesh.m_vertex_attributes.end(),
+                reinterpret_cast<const std::byte *>(texcoord0.data()),
+                reinterpret_cast<const std::byte *>(texcoord0.data() + texcoord0.size())
+            );
+            submesh.texcoord0.buffer_size = texcoord0.size() * sizeof(float);
         }
     }
 

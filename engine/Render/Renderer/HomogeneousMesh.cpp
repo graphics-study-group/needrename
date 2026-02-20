@@ -16,15 +16,13 @@ namespace Engine {
         std::unique_ptr<DeviceBuffer> m_buffer{};
         std::vector<vk::DeviceSize> m_buffer_offsets{};
 
-        bool m_updated{false};
+        bool m_ready{false};
 
         uint64_t m_total_allocated_buffer_size{0};
 
         std::shared_ptr<AssetRef> m_mesh_asset{};
         size_t m_submesh_idx{};
         VertexAttribute m_attribute{};
-
-        void WriteToMemory(std::byte *pointer) const;
         /**
          * @brief Allocate buffer and update pre-calculated offsets.
          * Called before
@@ -55,8 +53,7 @@ namespace Engine {
         pimpl->FetchFromAsset(allocator);
     }
 
-    HomogeneousMesh::~HomogeneousMesh() {
-    }
+    HomogeneousMesh::~HomogeneousMesh() = default;
 
     /// @brief Fetch basic vertex info from asset. Actual data are not stored in this class.
     /// @param allocator 
@@ -65,32 +62,13 @@ namespace Engine {
         {
             const auto & asset = m_mesh_asset->as<MeshAsset>();
             const auto & submesh = asset->m_submeshes[m_submesh_idx];
-            m_attribute = {};
-
-            using enum MeshAsset::Submesh::Attributes::AttributeType;
-            if (submesh.positions.type != Unused) {
-                assert(submesh.positions.type == Floatx3);
-                m_attribute.SetAttribute(VertexAttributeSemantic::Position, VertexAttributeType::SFloat32x3);
-            }
-            if (submesh.color.type != Unused) {
-                assert(submesh.color.type == Floatx3);
-                m_attribute.SetAttribute(VertexAttributeSemantic::Color, VertexAttributeType::SFloat32x3);
-            }
-            if (submesh.normal.type != Unused) {
-                assert(submesh.normal.type == Floatx3);
-                m_attribute.SetAttribute(VertexAttributeSemantic::Normal, VertexAttributeType::SFloat32x3);
-            }
-            if (submesh.texcoord0.type != Unused) {
-                assert(submesh.texcoord0.type == Floatx2);
-                m_attribute.SetAttribute(VertexAttributeSemantic::Texcoord0, VertexAttributeType::SFloat32x2);
-            }
+            m_attribute = submesh.ToVertexAttributeFormat();
         }
         
         const uint64_t buffer_size = GetExpectedBufferSize();
 
         if (m_total_allocated_buffer_size != buffer_size) {
             m_total_allocated_buffer_size = 0;
-            m_updated = true;
 
             const uint32_t new_vertex_count = GetVertexCount();
             const uint32_t new_vertex_index_count = GetVertexIndexCount();
@@ -132,87 +110,66 @@ namespace Engine {
         );
 
         std::byte *data = buffer->GetVMAddress();
-        pimpl->WriteToMemory(data);
+        pimpl->m_mesh_asset->cas<MeshAsset>()->m_submeshes[pimpl->m_submesh_idx].WriteVertexAttributeBuffer(data);
+        pimpl->m_mesh_asset->cas<MeshAsset>()->m_submeshes[pimpl->m_submesh_idx].WriteIndexBuffer(
+            data + GetVertexAttributeFormat().GetTotalPerVertexSize() * GetVertexAttributeCount()
+        );
         buffer->Flush();
 
         return buffer;
     }
 
-    void HomogeneousMesh::impl::WriteToMemory(std::byte *pointer) const {
-        uint64_t offset = 0;
-        auto &mesh_asset = *m_mesh_asset->as<MeshAsset>();
-        auto &submesh = mesh_asset.m_submeshes[m_submesh_idx];
-        const auto &indices = mesh_asset.m_submeshes[m_submesh_idx].m_indices;
-
-        for (uint32_t i = 0; i < 16; i++) {
-            auto semantic = static_cast<VertexAttributeSemantic>(i);
-            if (!m_attribute.HasAttribute(semantic)) continue;
-
-            switch(semantic) {
-                using enum VertexAttributeSemantic;
-                case Position:
-                    // TODO: We assume that input read from mesh asset and data submitted to 
-                    // GPU is the same. We might need to renormalize the input sometimes.
-                    assert(submesh.positions.type == MeshAsset::Submesh::Attributes::AttributeType::Floatx3);
-                    std::memcpy(
-                        pointer + m_attribute.GetOffsetFactor(semantic) * GetVertexCount(),
-                        submesh.positions.attribf.data(),
-                        m_attribute.GetPerVertexSize(semantic) * GetVertexCount()
-                    );
-                    break;
-                case Normal: {
-                    assert(submesh.normal.type == MeshAsset::Submesh::Attributes::AttributeType::Floatx3);
-                    // TODO: How to deinterleave the data should depends on vertex attributes
-                    // Now we just assume that it is defaulted.
-                    std::memcpy(
-                        pointer + m_attribute.GetOffsetFactor(semantic) * GetVertexCount(),
-                        submesh.normal.attribf.data(),
-                        m_attribute.GetPerVertexSize(semantic) * GetVertexCount()
-                    );
-                    break;
-                }
-                case Color: {
-                    assert(submesh.color.type == MeshAsset::Submesh::Attributes::AttributeType::Floatx3);
-                    std::memcpy(
-                        pointer + m_attribute.GetOffsetFactor(semantic) * GetVertexCount(),
-                        submesh.color.attribf.data(),
-                        m_attribute.GetPerVertexSize(semantic) * GetVertexCount()
-                    );
-                    break;
-                }
-                case Texcoord0: {
-                    assert(submesh.texcoord0.type == MeshAsset::Submesh::Attributes::AttributeType::Floatx2);
-                    std::memcpy(
-                        pointer + m_attribute.GetOffsetFactor(semantic) * GetVertexCount(),
-                        submesh.texcoord0.attribf.data(),
-                        m_attribute.GetPerVertexSize(semantic) * GetVertexCount()
-                    );
-                    break;
-                default:
-                    assert(!"Unimplemented");
-                }
-            }
-        }
-        // Index
-        std::memcpy(pointer + m_attribute.GetTotalPerVertexSize() * GetVertexCount(), indices.data(), indices.size() * sizeof(uint32_t));
-        offset += indices.size() * sizeof(uint32_t);
-    }
-
-    std::pair<vk::Buffer, uint64_t> HomogeneousMesh::GetIndexBufferInfo() const {
+    HomogeneousMesh::BufferBindingInfo HomogeneousMesh::GetIndexBufferBinding() const noexcept {
         assert(pimpl->m_buffer->GetBuffer());
         // Last offset is the offset of index buffer.
-        return std::make_pair(pimpl->m_buffer->GetBuffer(), *(pimpl->m_buffer_offsets.rbegin()));
+        return {
+            pimpl->m_buffer.get(),
+            *(pimpl->m_buffer_offsets.rbegin()),
+            0
+        };
     }
 
-    VertexAttribute HomogeneousMesh::GetVertexAttribute() const {
+    VertexAttribute HomogeneousMesh::GetVertexAttributeFormat() const noexcept {
         return pimpl->m_attribute;
     }
 
-    uint32_t HomogeneousMesh::GetVertexIndexCount() const {
+    bool HomogeneousMesh::IsReady() const noexcept {
+        return pimpl->m_ready;
+    }
+
+    void HomogeneousMesh::Remove() noexcept {
+        // Nothing happens. Buffer is de-allocated automatically by RAII.
+        pimpl->m_ready = false;
+    }
+
+    void HomogeneousMesh::Submit(
+        const RenderSystemState::AllocatorState &,
+        RenderSystemState::SubmissionHelper & sh
+    ) {
+        assert(pimpl->m_buffer != nullptr);
+
+        std::vector <std::byte> buf{};
+
+        buf.resize(
+            GetIndexCount() * sizeof(uint32_t) + 
+            GetVertexAttributeFormat().GetTotalPerVertexSize() * GetVertexAttributeCount()
+        );
+        const auto & submesh = pimpl->m_mesh_asset->cas<MeshAsset>()->m_submeshes[pimpl->m_submesh_idx];
+        submesh.WriteVertexAttributeBuffer(buf.data());
+        submesh.WriteIndexBuffer(
+            buf.data() + 
+            GetVertexAttributeFormat().GetTotalPerVertexSize() * GetVertexAttributeCount()
+        );
+
+        sh.EnqueueBufferSubmissionVertex(this->GetBuffer(), buf);
+        pimpl->m_ready = true;
+    }
+
+    uint32_t HomogeneousMesh::GetIndexCount() const noexcept {
         return pimpl->GetVertexIndexCount();
     }
 
-    uint32_t HomogeneousMesh::GetVertexCount() const {
+    uint32_t HomogeneousMesh::GetVertexAttributeCount() const noexcept {
         return pimpl->GetVertexCount();
     }
 
@@ -224,8 +181,21 @@ namespace Engine {
         return *pimpl->m_buffer;
     }
 
-    std::pair<vk::Buffer, std::vector<uint64_t>> HomogeneousMesh::GetVertexBufferInfo() const {
+    void HomogeneousMesh::FillVertexAttributeBufferBindings(std::vector <HomogeneousMesh::BufferBindingInfo> & v) const noexcept {
         assert(pimpl->m_buffer->GetBuffer());
-        return std::make_pair(pimpl->m_buffer->GetBuffer(), pimpl->m_buffer_offsets);
+        v.clear();
+        v.reserve(pimpl->m_buffer_offsets.size());
+        std::transform(
+            pimpl->m_buffer_offsets.begin(),
+            pimpl->m_buffer_offsets.end() - 1,
+            std::back_inserter(v),
+            [this] (size_t offset) -> BufferBindingInfo {
+                return {
+                    pimpl->m_buffer.get(),
+                    offset,
+                    0
+                };
+            }
+        );
     }
 } // namespace Engine
