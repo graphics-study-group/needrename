@@ -1,9 +1,10 @@
-#ifndef ASSET_MESH_PLANEMESHASSET_INCLUDED
-#define ASSET_MESH_PLANEMESHASSET_INCLUDED
+#ifndef ASSET_MESH_PLANEMESHASSET
+#define ASSET_MESH_PLANEMESHASSET
 
 #include "Asset/Mesh/MeshAsset.h"
 #include "Reflection/macros.h"
 #include <cassert>
+#include <cstring>
 
 namespace Engine {
     /**
@@ -13,49 +14,62 @@ namespace Engine {
      */
     class REFL_SER_CLASS(REFL_WHITELIST) PlaneMeshAsset : public MeshAsset {
         REFL_SER_BODY(PlaneMeshAsset)
+        constexpr static std::array<float, 4*(3*3+2)> ATTRIBUTE_BUFFERS = {
+            // Position
+            1.0f, -1.0f, 0.0f,
+            1.0f, 1.0f, 0.0f,
+            -1.0f, 1.0f, 0.0f,
+            -1.0f, -1.0f, 0.0f,
+            // Color
+            1.0f, 1.0f, 1.0f,
+            1.0f, 1.0f, 1.0f,
+            1.0f, 1.0f, 1.0f,
+            1.0f, 1.0f, 1.0f,
+            // Normal
+            0.0f, 0.0f, 1.0f,
+            0.0f, 0.0f, 1.0f,
+            0.0f, 0.0f, 1.0f,
+            0.0f, 0.0f, 1.0f,
+            // Texcoord 0
+            1.0f, 0.0f,
+            1.0f, 1.0f,
+            0.0f, 1.0f,
+            0.0f, 0.0f
+        };
     public:
         PlaneMeshAsset() : MeshAsset() {
             this->m_submeshes.resize(1);
             this->m_submeshes[0] = {
                 .m_indices = {0, 3, 2, 0, 2, 1},
+                .m_vertex_attributes = {},
                 .vertex_count = 4,
                 .positions = Submesh::Attributes{
-                    .type = Submesh::Attributes::AttributeType::Floatx3,
-                    .attribf = std::vector<float>{
-                        1.0f, -1.0f, 0.0f,
-                        1.0f, 1.0f, 0.0f,
-                        -1.0f, 1.0f, 0.0f,
-                        -1.0f, -1.0f, 0.0f
-                    },
+                    .type = VertexAttributeType::SFloat32x3,
+                    .buffer_offset = 0,
+                    .buffer_size = sizeof(float) * 4 * 3
                 },
                 .color = Submesh::Attributes{
-                    .type = Submesh::Attributes::AttributeType::Floatx3,
-                    .attribf = std::vector<float>{
-                        1.0f, 1.0f, 1.0f,
-                        1.0f, 1.0f, 1.0f,
-                        1.0f, 1.0f, 1.0f,
-                        1.0f, 1.0f, 1.0f,
-                    }
+                    .type = VertexAttributeType::SFloat32x3,
+                    .buffer_offset = sizeof(float) * 4 * 3,
+                    .buffer_size = sizeof(float) * 4 * 3
                 },
                 .normal = Submesh::Attributes{
-                    .type = Submesh::Attributes::AttributeType::Floatx3,
-                    .attribf = std::vector<float>{
-                        0.0f, 0.0f, 1.0f,
-                        0.0f, 0.0f, 1.0f,
-                        0.0f, 0.0f, 1.0f,
-                        0.0f, 0.0f, 1.0f
-                    }
+                    .type = VertexAttributeType::SFloat32x3,
+                    .buffer_offset = sizeof(float) * 4 * 3 * 2,
+                    .buffer_size = sizeof(float) * 4 * 3
                 },
                 .texcoord0 = Submesh::Attributes{
-                    .type = Submesh::Attributes::AttributeType::Floatx2,
-                    .attribf = std::vector <float> {
-                        1.0f, 0.0f,
-                        1.0f, 1.0f,
-                        0.0f, 1.0f,
-                        0.0f, 0.0f
-                    }
+                    .type = VertexAttributeType::SFloat32x3,
+                    .buffer_offset = sizeof(float) * 4 * 3 * 3,
+                    .buffer_size = sizeof(float) * 4 * 2
                 }
             };
+            this->m_submeshes[0].m_vertex_attributes.resize(sizeof(float) * ATTRIBUTE_BUFFERS.size());
+            std::memcpy(
+                m_submeshes[0].m_vertex_attributes.data(),
+                ATTRIBUTE_BUFFERS.data(),
+                m_submeshes[0].m_vertex_attributes.size()
+            );
         }
 
         virtual void save_asset_to_archive(Serialization::Archive &) const override {
@@ -67,4 +81,4 @@ namespace Engine {
     };
 }
 
-#endif // ASSET_MESH_PLANEMESHASSET_INCLUDED
+#endif // ASSET_MESH_PLANEMESHASSET
