@@ -4,8 +4,10 @@
 #include <Asset/Shader/ShaderAsset.h>
 #include <MainClass.h>
 #include <Render/Memory/RenderTargetTexture.h>
+#include <Render/Memory/ShaderParameters/ShaderResourceBinding.h>
 #include <Render/Pipeline/CommandBuffer/ComputeCommandBuffer.h>
 #include <Render/Pipeline/CommandBuffer/GraphicsCommandBuffer.h>
+#include <Render/Pipeline/Compute/ComputeResourceBinding.h>
 #include <Render/Pipeline/Compute/ComputeStage.h>
 #include <Render/Pipeline/RenderGraph/RenderGraph.h>
 #include <Render/RenderSystem.h>
@@ -155,8 +157,24 @@ namespace Editor {
         this->UseImage(hdr_color_id, IAT::ShaderRandomRead);
         this->UseImage(scene_bloom_temp_id, IAT::ShaderRandomDefault);
         this->UseImage(scene_widget_color_id, IAT::ShaderRandomWrite);
+        auto &scene_bloom_binding = scene_bloom.AllocateResourceBinding();
         this->RecordComputePass(
-            [&scene_bloom, texture_width, texture_height](ComputeCommandBuffer &ccb, const RenderGraph &) {
+            [&scene_bloom,
+             texture_width,
+             texture_height,
+             &scene_bloom_binding,
+             hdr_color_id,
+             scene_bloom_temp_id,
+             scene_widget_color_id](ComputeCommandBuffer &ccb, const RenderGraph &rg) {
+                scene_bloom_binding.GetShaderResourceBinding().BindTexture(
+                    "inputImage", *rg.GetInternalTextureResource(hdr_color_id)
+                );
+                scene_bloom_binding.GetShaderResourceBinding().BindTexture(
+                    "bloomTemp", *rg.GetInternalTextureResource(scene_bloom_temp_id)
+                );
+                scene_bloom_binding.GetShaderResourceBinding().BindTexture(
+                    "outputImage", *rg.GetInternalTextureResource(scene_widget_color_id)
+                );
                 ccb.BindComputeStage(scene_bloom);
                 ccb.DispatchCompute(texture_width / 16 + 1, texture_height / 16 + 1, 1);
             },
@@ -203,8 +221,24 @@ namespace Editor {
         this->UseImage(hdr_color_id, IAT::ShaderRandomRead);
         this->UseImage(game_bloom_temp_id, IAT::ShaderRandomDefault);
         this->UseImage(game_widget_color_id, IAT::ShaderRandomWrite);
+        auto &game_bloom_binding = game_bloom.AllocateResourceBinding();
         this->RecordComputePass(
-            [&game_bloom, texture_width, texture_height](ComputeCommandBuffer &ccb, const RenderGraph &) {
+            [&game_bloom,
+             texture_width,
+             texture_height,
+             &game_bloom_binding,
+             hdr_color_id,
+             game_bloom_temp_id,
+             game_widget_color_id](ComputeCommandBuffer &ccb, const RenderGraph &rg) {
+                game_bloom_binding.GetShaderResourceBinding().BindTexture(
+                    "inputImage", *rg.GetInternalTextureResource(hdr_color_id)
+                );
+                game_bloom_binding.GetShaderResourceBinding().BindTexture(
+                    "bloomTemp", *rg.GetInternalTextureResource(game_bloom_temp_id)
+                );
+                game_bloom_binding.GetShaderResourceBinding().BindTexture(
+                    "outputImage", *rg.GetInternalTextureResource(game_widget_color_id)
+                );
                 ccb.BindComputeStage(game_bloom);
                 ccb.DispatchCompute(texture_width / 16 + 1, texture_height / 16 + 1, 1);
             },
@@ -222,13 +256,6 @@ namespace Editor {
         );
 
         auto rg{this->BuildRenderGraph()};
-        scene_bloom.AssignTexture("inputImage", *rg->GetInternalTextureResource(hdr_color_id));
-        scene_bloom.AssignTexture("bloomTemp", *rg->GetInternalTextureResource(scene_bloom_temp_id));
-        scene_bloom.AssignTexture("outputImage", *rg->GetInternalTextureResource(scene_widget_color_id));
-        game_bloom.AssignTexture("inputImage", *rg->GetInternalTextureResource(hdr_color_id));
-        game_bloom.AssignTexture("bloomTemp", *rg->GetInternalTextureResource(game_bloom_temp_id));
-        game_bloom.AssignTexture("outputImage", *rg->GetInternalTextureResource(game_widget_color_id));
-
         for (size_t i = 0; i < shadow_ids.size(); i++) {
             auto shadow_map_target = rg->GetInternalTextureResource(shadow_ids[i]);
             system.GetSceneDataManager().SetLightShadowMap(i, *shadow_map_target);

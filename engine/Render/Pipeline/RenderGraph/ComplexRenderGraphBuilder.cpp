@@ -4,6 +4,7 @@
 #include <Asset/Shader/ShaderAsset.h>
 #include <MainClass.h>
 #include <Render/Memory/RenderTargetTexture.h>
+#include <Render/Pipeline/Compute/ComputeResourceBinding.h>
 #include <Render/RenderSystem.h>
 #include <Render/RenderSystem/SceneDataManager.h>
 #include <UserInterface/GUISystem.h>
@@ -78,10 +79,10 @@ namespace Engine {
                 gcb.BeginRendering(
                     {nullptr},
                     {shadow_map_target,
-                    nullptr,
-                    AttachmentUtils::LoadOperation::Clear,
-                    AttachmentUtils::StoreOperation::Store,
-                    AttachmentUtils::DepthClearValue{1.0f, 0U}},
+                     nullptr,
+                     AttachmentUtils::LoadOperation::Clear,
+                     AttachmentUtils::StoreOperation::Store,
+                     AttachmentUtils::DepthClearValue{1.0f, 0U}},
                     shadow_map_extent,
                     "Shadowmap Pass"
                 );
@@ -129,8 +130,24 @@ namespace Engine {
         // TODO: strange, add this makes RenderDoc corrupted texture
         this->UseImage(bloom_temp_id, IAT::ShaderRandomDefault);
         this->UseImage(color_id, IAT::ShaderRandomWrite);
+        auto &bloom_compute_binding = bloom_compute_stage.AllocateResourceBinding();
         this->RecordComputePass(
-            [&bloom_compute_stage, texture_width, texture_height](ComputeCommandBuffer &ccb, const RenderGraph &) {
+            [&bloom_compute_stage,
+             texture_width,
+             texture_height,
+             &bloom_compute_binding,
+             hdr_color_id,
+             bloom_temp_id,
+             final_color_target_id](ComputeCommandBuffer &ccb, const RenderGraph &rg) {
+                bloom_compute_binding.GetShaderResourceBinding().BindTexture(
+                    "inputImage", *rg.GetInternalTextureResource(hdr_color_id)
+                );
+                bloom_compute_binding.GetShaderResourceBinding().BindTexture(
+                    "bloomTemp", *rg.GetInternalTextureResource(bloom_temp_id)
+                );
+                bloom_compute_binding.GetShaderResourceBinding().BindTexture(
+                    "outputImage", *rg.GetInternalTextureResource(final_color_target_id)
+                );
                 ccb.BindComputeStage(bloom_compute_stage);
                 ccb.DispatchCompute(texture_width / 16 + 1, texture_height / 16 + 1, 1);
             },
@@ -138,9 +155,6 @@ namespace Engine {
         );
 
         auto rg{this->BuildRenderGraph()};
-        bloom_compute_stage.AssignTexture("inputImage", *rg->GetInternalTextureResource(hdr_color_id));
-        bloom_compute_stage.AssignTexture("bloomTemp", *rg->GetInternalTextureResource(bloom_temp_id));
-        bloom_compute_stage.AssignTexture("outputImage", *rg->GetInternalTextureResource(final_color_target_id));
 
         for (size_t i = 0; i < shadow_ids.size(); i++) {
             auto shadow_map_target = rg->GetInternalTextureResource(shadow_ids[i]);
