@@ -12,7 +12,6 @@
 #include <Render/RenderSystem.h>
 #include <Render/RenderSystem/CameraManager.h>
 #include <Render/RenderSystem/FrameManager.h>
-#include <Render/RenderSystem/SamplerManager.h>
 #include <Render/Renderer/Camera.h>
 
 #include <backends/imgui_impl_vulkan.h>

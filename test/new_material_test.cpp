@@ -97,7 +97,8 @@ std::unique_ptr<RenderGraph> BuildRenderGraph(
     MaterialInstance *material,
     HomogeneousMesh *mesh,
     RenderTargetTexture *blurred = nullptr,
-    ComputeStage *kernel = nullptr
+    ComputeStage *kernel = nullptr,
+    ComputeResourceBinding *kbinding = nullptr
 ) {
     using IAT = Engine::MemoryAccessTypeImageBits;
     RenderGraphBuilder rgb{*rsys};
@@ -147,8 +148,9 @@ std::unique_ptr<RenderGraph> BuildRenderGraph(
         rgb.UseImage(c, IAT::ShaderRandomRead);
         rgb.UseImage(d, IAT::ShaderRandomWrite);
 
-        rgb.RecordComputePass([blurred, kernel](ComputeCommandBuffer &ccb, const RenderGraph &) {
+        rgb.RecordComputePass([blurred, kernel, kbinding](ComputeCommandBuffer &ccb, const RenderGraph &) {
             ccb.BindComputeStage(*kernel);
+            ccb.BindComputeResource(*kbinding);
             ccb.DispatchCompute(
                 blurred->GetTextureDescription().width / 16 + 1, blurred->GetTextureDescription().height / 16 + 1, 1
             );
@@ -237,12 +239,17 @@ int main(int argc, char **argv) {
     auto cs_ref = adb->GetNewAssetRef({*adb, "~/shaders/gaussian_blur.comp.asset"});
     ComputeStage cstage{*rsys};
     cstage.Instantiate(*cs_ref.cas<ShaderAsset>());
-    cstage.AssignTexture("inputImage", *color);
-    cstage.AssignTexture("outputImage", *postproc);
 
-    auto nonblur{BuildRenderGraph(rsys.get(), color.get(), depth.get(), test_material_instance.get(), &test_mesh)};
+    auto &kbinding = cstage.AllocateResourceBinding();
+    kbinding.GetShaderResourceBinding().BindTexture("inputImage", *color);
+    kbinding.GetShaderResourceBinding().BindTexture("outputImage", *postproc);
+
+    auto nonblur{BuildRenderGraph(rsys.get(), color.get(), depth.get(),
+        test_material_instance.get(), &test_mesh)
+    };
     auto blur{BuildRenderGraph(
-        rsys.get(), color.get(), depth.get(), test_material_instance.get(), &test_mesh, postproc.get(), &cstage
+        rsys.get(), color.get(), depth.get(), test_material_instance.get(),
+        &test_mesh, postproc.get(), &cstage, &kbinding
     )};
 
     bool quited = false;

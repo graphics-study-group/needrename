@@ -15,7 +15,8 @@ auto BuildRenderGraph(
     RenderTargetTexture & color_in,
     RenderTargetTexture & color_out,
     RenderTargetTexture & color_present,
-    ComputeStage & compute
+    ComputeStage & compute,
+    ComputeResourceBinding & cbinding
 ) {
     RenderGraphBuilder rgb{rsys};
     auto ci = rgb.ImportExternalResource(color_in, MemoryAccessTypeImageBits::TransferWrite);
@@ -24,8 +25,9 @@ auto BuildRenderGraph(
     rgb.UseImage(ci, MemoryAccessTypeImageBits::ShaderRandomRead);
     rgb.UseImage(co, MemoryAccessTypeImageBits::ShaderRandomWrite);
     rgb.UseImage(cp, MemoryAccessTypeImageBits::ShaderRandomWrite);
-    rgb.RecordComputePass([&] (ComputeCommandBuffer & ccb, const RenderGraph &) -> void {
+    rgb.RecordComputePass([&] (ComputeCommandBuffer & ccb, const RenderGraph & rg) -> void {
         ccb.BindComputeStage(compute);
+        ccb.BindComputeResource(cbinding);
         ccb.DispatchCompute(1280 / 16 + 1, 720 / 16 + 1, 1);
     });
 
@@ -78,16 +80,18 @@ int main(int argc, char *argv[]) {
     
     ComputeStage cstage{*rsys};
     cstage.Instantiate(*cs);
-    cstage.AssignTexture("outputImage", *color_output);
-    cstage.AssignTexture("inputImage", *color_input);
-    cstage.AssignTexture("outputColorImage", *color_present);
+    auto & cbinding = cstage.AllocateResourceBinding();
+    cbinding.GetShaderResourceBinding().BindTexture("outputImage", *color_output);
+    cbinding.GetShaderResourceBinding().BindTexture("inputImage", *color_input);
+    cbinding.GetShaderResourceBinding().BindTexture("outputColorImage", *color_present);
 
     auto rg = BuildRenderGraph(
         *rsys,
         *color_input,
         *color_output,
         *color_present,
-        cstage
+        cstage,
+        cbinding
     );
 
     uint64_t frame_count = 0;
@@ -104,7 +108,9 @@ int main(int argc, char *argv[]) {
         }
 
         rsys->StartFrame();
-        cstage.AssignScalarVariable("UBO::frame_count", static_cast<uint32_t>(frame_count));
+        cbinding.GetStructuredBuffer().SetVariable<uint32_t>(
+            "UBO::frame_count", static_cast<uint32_t>(frame_count)
+        );
 
         if (frame_count == 1) rg->AddExternalInputDependency(*color_input, MemoryAccessTypeImageBits::None);
         rg->Execute();

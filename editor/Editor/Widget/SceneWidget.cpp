@@ -7,6 +7,7 @@
 #include <Reflection/serialization.h>
 #include <Render/Memory/RenderTargetTexture.h>
 #include <Render/RenderSystem.h>
+#include <Render/RenderSystem/FrameManager.h>
 #include <Render/RenderSystem/CameraManager.h>
 #include <Render/Renderer/Camera.h>
 

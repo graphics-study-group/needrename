@@ -15,6 +15,7 @@ namespace Engine {
         static constexpr size_t MAX_MATERIAL_DESCRIPTORS_PER_POOL = 128;
         static constexpr std::array DEFAULT_MATERIAL_DESCRIPTOR_POOL_SIZE {
             vk::DescriptorPoolSize{vk::DescriptorType::eUniformBuffer, 128},
+            vk::DescriptorPoolSize{vk::DescriptorType::eUniformBufferDynamic, 128},
             vk::DescriptorPoolSize{vk::DescriptorType::eStorageBuffer, 128},
             vk::DescriptorPoolSize{vk::DescriptorType::eStorageBufferDynamic, 128},
             vk::DescriptorPoolSize{vk::DescriptorType::eCombinedImageSampler, 128}
@@ -34,9 +35,9 @@ namespace Engine {
             /// Descriptor pool for material descriptors (could be null if no material descriptor is found).
             vk::UniqueDescriptorPool descriptor_pool{};
             /// Descriptor set layout for material descriptors (could be null if no material descriptor is found).
-            vk::UniqueDescriptorSetLayout descriptor_set_layout{};
+            vk::DescriptorSetLayout descriptor_set_layout{};
             /// Material pipeline layout.
-            vk::UniquePipelineLayout pipeline_layout{};
+            vk::PipelineLayout pipeline_layout{};
 
             std::unordered_map <uint64_t, std::unique_ptr<MaterialTemplate>> materials{};
         };
@@ -90,16 +91,20 @@ namespace Engine {
          */
         void GenerateDescriptorSetAndPipelineLayout(
             PipelineBundle & b,
+            RenderSystemState::ImmutableResourceCache & irc,
             vk::Device d,
             vk::DescriptorSetLayout scene_descriptors,
             vk::DescriptorSetLayout camera_descriptors,
             const std::string & name
         ) {
-            auto desc_bindings = b.reflected.GenerateLayoutBindings(2);
+            auto desc_bindings = b.reflected.GenerateLayoutBindings(2, true, false);
             if (!desc_bindings.empty()) {
                 unsigned ubo_count{0};
                 for (auto & db : desc_bindings) {
-                    if (db.descriptorType == vk::DescriptorType::eUniformBuffer) {
+                    if (
+                        db.descriptorType == vk::DescriptorType::eUniformBuffer ||
+                        db.descriptorType == vk::DescriptorType::eUniformBufferDynamic
+                    ) {
                         ubo_count ++;
                     }
                 }
@@ -112,7 +117,7 @@ namespace Engine {
                 }
 
                 vk::DescriptorSetLayoutCreateInfo dslci{{}, desc_bindings};
-                b.descriptor_set_layout = d.createDescriptorSetLayoutUnique(dslci);
+                b.descriptor_set_layout = irc.GetDescriptorSetLayout(dslci);
 
                 std::array<vk::PushConstantRange, 1> push_constants{
                     RenderSystemState::RendererManager::GetPushConstantRange()
@@ -120,10 +125,10 @@ namespace Engine {
                 std::array<vk::DescriptorSetLayout, 3> set_layouts{
                     scene_descriptors,
                     camera_descriptors,
-                    b.descriptor_set_layout.get()
+                    b.descriptor_set_layout
                 };
                 vk::PipelineLayoutCreateInfo plci{{}, set_layouts, push_constants};
-                b.pipeline_layout = d.createPipelineLayoutUnique(plci);
+                b.pipeline_layout = irc.GetPipelineLayout(plci);
 
                 // Also create a descriptor pool
                 auto dpci = vk::DescriptorPoolCreateInfo{
@@ -149,7 +154,7 @@ namespace Engine {
                     scene_descriptors, camera_descriptors
                 };
                 vk::PipelineLayoutCreateInfo plci{{}, set_layouts, push_constants};
-                b.pipeline_layout = d.createPipelineLayoutUnique(plci);
+                b.pipeline_layout = irc.GetPipelineLayout(plci);
             }
         }
 
@@ -184,6 +189,7 @@ namespace Engine {
                 );
                 GenerateDescriptorSetAndPipelineLayout(
                     pipeline_table[tag],
+                    system.GetIRCache(),
                     system.GetDevice(),
                     system.GetSceneDataManager().GetLightDescriptorSetLayout(),
                     system.GetCameraManager().GetDescriptorSetLayout(),
@@ -206,11 +212,8 @@ namespace Engine {
                     system,
                     asset->properties,
                     shader_modules,
-                    b.pipeline_layout.get(),
-                    std::make_pair(
-                        b.descriptor_pool.get(),
-                        b.descriptor_set_layout.get()
-                    ),
+                    b.pipeline_layout,
+                    b.descriptor_pool.get(),
                     &b.reflected,
                     VertexAttribute{.packed = actual_type},
                     asset->name
@@ -220,8 +223,8 @@ namespace Engine {
                     system,
                     asset->properties,
                     shader_modules,
-                    b.pipeline_layout.get(),
-                    std::nullopt,
+                    b.pipeline_layout,
+                    nullptr,
                     &b.reflected,
                     VertexAttribute{.packed = actual_type},
                     asset->name

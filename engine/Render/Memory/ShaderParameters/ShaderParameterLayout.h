@@ -14,27 +14,14 @@ namespace vk {
 }
 
 namespace Engine {
+    struct StructuredBuffer;
+
     namespace ShdrRfl {
-        struct ShaderParameters;
 
         struct SPLayout {
             // Interfaces are guaranteed to be sorted by set and binding numbers
             std::vector <std::unique_ptr<SPInterface>> interfaces;
             std::unordered_map <std::string, const SPInterface *> interface_name_mapping;
-
-            struct DescriptorSetWrite {
-                std::vector <std::tuple<uint32_t, vk::DescriptorImageInfo, vk::DescriptorType>> image {};
-                std::vector <std::tuple<uint32_t, vk::DescriptorBufferInfo, vk::DescriptorType>> buffer {};
-            };
-
-            /**
-             * @brief Generate `vk::DescriptorWrite` according to
-             * variables supplied.
-             */
-            DescriptorSetWrite GenerateDescriptorSetWrite(
-                uint32_t set,
-                const ShaderParameters & interfaces
-            ) const noexcept;
 
             /**
              * @brief Place all simple variables (i.e. scalars, arrays,
@@ -42,11 +29,13 @@ namespace Engine {
              * 
              * @param buffer a CPU buffer to be copied to GPU.
              * Will be resized if necessary.
+             * 
+             * @see StructuredBufferPlacer::WriteBuffer() for actual implementation.
              */
             void PlaceBufferVariable(
-                std::vector <std::byte> & buffer,
+                std::vector <std::byte> & rbuffer,
                 const SPInterfaceStructuredBuffer & interface,
-                const ShaderParameters & arguments
+                const StructuredBuffer & sbuffer
             ) const noexcept;
 
             /**
@@ -60,9 +49,15 @@ namespace Engine {
 
             /**
              * @brief Generate descriptor set layout binding for a given set.
+             * 
+             * These bindings are sorted by binding numbers.
              */
             std::vector <vk::DescriptorSetLayoutBinding>
-            GenerateLayoutBindings(uint32_t set) const;
+            GenerateLayoutBindings(
+                uint32_t set,
+                bool enforce_dynamic_uniform_buffer = false,
+                bool enforce_dynamic_storage_buffer = false
+            ) const;
 
             /**
              * @brief Merge a SPLayout from another shader.

@@ -14,7 +14,7 @@ layout(constant_id = 3) const float dt = 0.15;
 
 layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
 layout(set = 0, binding = 0) uniform UBO {
-    int frame_count;
+    uint frame_count;
 } ubo;
 layout(set = 0, binding = 1, rgba32f) uniform restrict readonly image2D inputImage;
 layout(set = 0, binding = 2, rgba32f) uniform restrict writeonly image2D outputImage;

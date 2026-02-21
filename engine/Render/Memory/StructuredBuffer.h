@@ -45,7 +45,7 @@ namespace Engine {
         template <typename T>
         void SetVariable(
             const std::string & name,
-            T val
+            std::type_identity<T>::type val
         ) noexcept requires (
             std::is_standard_layout_v<T> &&
             std::is_trivially_copyable_v<T> &&
@@ -59,7 +59,7 @@ namespace Engine {
         template <typename T, size_t extent>
         void SetVariable(
             const std::string & name,
-            std::span<T, extent> spn
+            std::type_identity<std::span<T, extent>>::type spn
         ) noexcept requires (
             std::is_standard_layout_v<T> &&
             std::is_trivially_copyable_v<T> &&

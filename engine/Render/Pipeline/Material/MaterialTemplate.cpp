@@ -123,7 +123,6 @@ namespace Engine {
         };
 
         vk::DescriptorPool desc_pool {};
-        vk::DescriptorSetLayout desc_set_layout {};
         vk::PipelineLayout pipeline_layout {};
         const ShdrRfl::SPLayout * m_layout{};
 
@@ -268,7 +267,7 @@ namespace Engine {
         const MaterialTemplateSinglePassProperties &properties,
         const std::vector<vk::ShaderModule> &shaders,
         vk::PipelineLayout layout,
-        std::optional<std::pair<vk::DescriptorPool, vk::DescriptorSetLayout>> material_descriptor_info,
+        vk::DescriptorPool pool,
         const ShdrRfl::SPLayout * reflected,
         VertexAttribute attribute,
         const std::string &name
@@ -277,16 +276,7 @@ namespace Engine {
         pimpl->m_name = name;
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Createing pipelines for material %s.", pimpl->m_name.c_str());
 
-        if (material_descriptor_info) {
-            pimpl->desc_pool = material_descriptor_info.value().first;
-            pimpl->desc_set_layout = material_descriptor_info.value().second;
-        } else {
-            SDL_LogDebug(
-                SDL_LOG_CATEGORY_RENDER,
-                "Material %s has not per material descriptor.",
-                name.c_str()
-            );
-        }
+        pimpl->desc_pool = pool;
         
         pimpl->pipeline_layout = layout;
         pimpl->m_layout = reflected;
@@ -304,25 +294,8 @@ namespace Engine {
         return pimpl->pipeline_layout;
     }
 
-    vk::DescriptorSetLayout MaterialTemplate::GetDescriptorSetLayout() const {
-        return pimpl->desc_set_layout;
-    }
-    std::vector<vk::DescriptorSet> MaterialTemplate::AllocateDescriptorSets(uint32_t size) {
-        auto layout = pimpl->desc_set_layout;
-        if (!layout) {
-            SDL_LogWarn(
-                SDL_LOG_CATEGORY_RENDER,
-                "Allocating empty descriptor for material %s",
-                pimpl->m_name.c_str()
-            );
-            return std::vector<vk::DescriptorSet>(size, nullptr);
-        }
-
-        std::vector layouts(size, layout);
-        vk::DescriptorSetAllocateInfo dsai{pimpl->desc_pool, layouts};
-        auto sets = m_system.GetDevice().allocateDescriptorSets(dsai);
-        assert(sets.size() == size);
-        return sets;
+    vk::DescriptorPool MaterialTemplate::GetDescriptorPool() const noexcept {
+        return pimpl->desc_pool;
     }
 
     const ShdrRfl::SPLayout &MaterialTemplate::GetReflectedShaderInfo() const noexcept {

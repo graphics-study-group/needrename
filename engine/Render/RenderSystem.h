@@ -35,7 +35,7 @@ namespace Engine {
         class MaterialRegistry;
         class FrameManager;
         class RendererManager;
-        class SamplerManager;
+        class ImmutableResourceCache;
         class CameraManager;
         class SceneDataManager;
     }; // namespace RenderSystemState
@@ -124,7 +124,7 @@ namespace Engine {
 
         RenderSystemState::RendererManager &GetRendererManager();
 
-        RenderSystemState::SamplerManager & GetSamplerManager();
+        RenderSystemState::ImmutableResourceCache & GetIRCache();
 
         RenderSystemState::CameraManager & GetCameraManager();
 

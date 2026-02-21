@@ -14,10 +14,6 @@ namespace Engine {
     class MaterialLibrary;
     class VertexAttribute;
 
-    namespace ShdrRfl {
-        class ShaderParameters;
-    }
-
     /**
      * @brief A light-weight instance of a given material library.
      * 
@@ -48,11 +44,6 @@ namespace Engine {
         );
         virtual ~MaterialInstance();
 
-        /**
-         * @brief Acquire a reference to the underlying shader parameters.
-         */
-        const ShdrRfl::ShaderParameters & GetShaderParameters() const noexcept;
-
         void AssignScalarVariable(const std::string & name, std::variant<uint32_t, float> value);
         void AssignVectorVariable(const std::string & name, std::variant<glm::vec4, glm::mat4> value);
         void AssignTexture(const std::string & name, std::shared_ptr <const Texture> texture);
@@ -63,12 +54,15 @@ namespace Engine {
          * Performs descriptor writes and UBO buffer writes.
          * 
          * May perform lazy buffer or descriptor allocations.
+         * 
+         * @return A vector containing all dynamic uniform buffer offsets.
+         * Guaranteed to be sorted by binding numbers.
          */
-        void UpdateGPUInfo(
+        std::vector <uint32_t> UpdateGPUInfo(
             MaterialTemplate & tpl,
             uint32_t backbuffer
         );
-        void UpdateGPUInfo(
+        std::vector <uint32_t> UpdateGPUInfo(
             const std::string & tag,
             VertexAttribute type,
             uint32_t backbuffer
