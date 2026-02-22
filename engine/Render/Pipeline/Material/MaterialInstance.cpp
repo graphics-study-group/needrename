@@ -170,6 +170,8 @@ namespace Engine {
     std::vector <uint32_t> MaterialInstance::UpdateGPUInfo(MaterialTemplate & tpl, uint32_t backbuffer) {
         assert(backbuffer < impl::PassInfo::BACK_BUFFERS);
 
+        if(!tpl.HasMaterialData())  return {};
+
         auto itr = pimpl->m_pass_infos.find(&tpl);
         if (itr == pimpl->m_pass_infos.end()) {
             SDL_LogVerbose(
@@ -241,7 +243,10 @@ namespace Engine {
         return this->UpdateGPUInfo(*tpl, backbuffer);
     }
 
-    vk::DescriptorSet MaterialInstance::GetDescriptor(const MaterialTemplate &tpl, uint32_t backbuffer) const noexcept {
+    vk::DescriptorSet MaterialInstance::GetDescriptor(
+        const MaterialTemplate &tpl,
+        uint32_t backbuffer
+    ) const noexcept {
         auto itr = pimpl->m_pass_infos.find(&tpl);
         if (itr == pimpl->m_pass_infos.end())   return nullptr;
         return itr->second.desc_set_cache[backbuffer];

@@ -274,7 +274,10 @@ namespace Engine {
     ) : MaterialTemplate(system) {
 
         pimpl->m_name = name;
-        SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Createing pipelines for material %s.", pimpl->m_name.c_str());
+        SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating pipelines for material %s.", pimpl->m_name.c_str());
+        if (!pimpl->desc_pool) {
+            SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "This material has no per-material data");
+        }
 
         pimpl->desc_pool = pool;
         
@@ -300,5 +303,8 @@ namespace Engine {
 
     const ShdrRfl::SPLayout &MaterialTemplate::GetReflectedShaderInfo() const noexcept {
         return *(pimpl->m_layout);
+    }
+    bool MaterialTemplate::HasMaterialData() const noexcept {
+        return pimpl->desc_pool;
     }
 } // namespace Engine

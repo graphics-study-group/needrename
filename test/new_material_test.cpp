@@ -46,7 +46,7 @@ struct LowerPlaneMeshAsset : public PlaneMeshAsset {
             + m_submeshes[0].normal.buffer_offset 
             + m_submeshes[0].normal.buffer_size
         )};
-        for (float * i = nb; i <= ne; i += 3) {
+        for (float * i = nb; i < ne; i += 3) {
             *(i + 2) = -1.0f;
         };
     }
@@ -126,6 +126,8 @@ std::unique_ptr<RenderGraph> BuildRenderGraph(
         );
 
         gcb.SetupViewport(extent.width, extent.height, {{0, 0}, extent});
+        gcb.BindSceneResources(rsys->GetSceneDataManager());
+        gcb.BindCameraResources(rsys->GetCameraManager());
         auto tpl = material->GetLibrary().FindMaterialTemplate("", mesh->GetVertexAttributeFormat());
         assert(tpl);
         gcb.BindMaterial(*material, *tpl);
@@ -144,9 +146,9 @@ std::unique_ptr<RenderGraph> BuildRenderGraph(
     });
 
     if (blurred && kernel) {
-        rgb.ImportExternalResource(*blurred);
+        auto gb = rgb.ImportExternalResource(*blurred);
         rgb.UseImage(c, IAT::ShaderRandomRead);
-        rgb.UseImage(d, IAT::ShaderRandomWrite);
+        rgb.UseImage(gb, IAT::ShaderRandomWrite);
 
         rgb.RecordComputePass([blurred, kernel, kbinding](ComputeCommandBuffer &ccb, const RenderGraph &) {
             ccb.BindComputeStage(*kernel);

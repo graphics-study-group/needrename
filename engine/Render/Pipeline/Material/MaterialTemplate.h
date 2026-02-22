@@ -102,6 +102,12 @@ namespace Engine {
          * @brief Get all reflected shader info.
          */
         const ShdrRfl::SPLayout & GetReflectedShaderInfo () const noexcept;
+
+        /**
+         * @brief Query whether this material template has data to be submitted
+         * to GPU before draws.
+         */
+        bool HasMaterialData() const noexcept;
     };
 } // namespace Engine
 

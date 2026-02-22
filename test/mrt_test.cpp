@@ -47,7 +47,7 @@ struct LowerPlaneMeshAsset : public PlaneMeshAsset {
             + m_submeshes[0].normal.buffer_offset 
             + m_submeshes[0].normal.buffer_size
         )};
-        for (float * i = nb; i <= ne; i += 3) {
+        for (float * i = nb; i < ne; i += 3) {
             *(i + 2) = -1.0f;
         };
     }
@@ -130,6 +130,8 @@ std::unique_ptr<RenderGraph> BuildRenderGraph(
             );
 
             gcb.SetupViewport(extent.width, extent.height, {{0, 0}, extent});
+            gcb.BindSceneResources(rsys->GetSceneDataManager());
+            gcb.BindCameraResources(rsys->GetCameraManager());
             VertexAttribute attribute;
             attribute.SetAttribute(VertexAttributeSemantic::Position, VertexAttributeType::SFloat32x3);
             attribute.SetAttribute(VertexAttributeSemantic::Color, VertexAttributeType::SFloat32x3);
