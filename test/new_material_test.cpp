@@ -148,9 +148,9 @@ RenderGraph BuildRenderGraph(
     });
 
     if (blurred && kernel) {
-        rgb.ImportExternalResource(*blurred);
+        auto gb = rgb.ImportExternalResource(*blurred);
         rgb.UseImage(c, IAT::ShaderRandomRead);
-        rgb.UseImage(d, IAT::ShaderRandomWrite);
+        rgb.UseImage(gb, IAT::ShaderRandomWrite);
 
         rgb.RecordComputePass([blurred, kernel, kbinding](ComputeCommandBuffer &ccb, const RenderGraph &) {
             ccb.BindComputeStage(*kernel);
