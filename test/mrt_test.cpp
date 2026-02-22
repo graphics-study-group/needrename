@@ -132,6 +132,8 @@ RenderGraph BuildRenderGraph(
             );
 
             gcb.SetupViewport(extent.width, extent.height, {{0, 0}, extent});
+            gcb.BindSceneResources(rsys->GetSceneDataManager());
+            gcb.BindCameraResources(rsys->GetCameraManager());
             VertexAttribute attribute;
             attribute.SetAttribute(VertexAttributeSemantic::Position, VertexAttributeType::SFloat32x3);
             attribute.SetAttribute(VertexAttributeSemantic::Color, VertexAttributeType::SFloat32x3);

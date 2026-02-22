@@ -128,6 +128,8 @@ RenderGraph BuildRenderGraph(
         );
 
         gcb.SetupViewport(extent.width, extent.height, {{0, 0}, extent});
+        gcb.BindSceneResources(rsys->GetSceneDataManager());
+        gcb.BindCameraResources(rsys->GetCameraManager());
         auto tpl = material->GetLibrary().FindMaterialTemplate("", mesh->GetVertexAttributeFormat());
         assert(tpl);
         gcb.BindMaterial(*material, *tpl);
