@@ -64,11 +64,18 @@ namespace Engine {
             resolver.m_obj_map[object_json["GameObject::m_handle"].get<uint32_t>()] = go.GetHandle();
         }
         for (auto &component_json : json["SceneAsset::components"]) {
-            auto &parent_go =
-                scene.GetGameObjectRef(resolver.m_obj_map[component_json["Component::m_parentGameObject"].get<uint32_t>()]);
+            auto &parent_go = scene.GetGameObjectRef(
+                resolver.m_obj_map[component_json["Component::m_parentGameObject"].get<uint32_t>()]
+            );
             auto type = Reflection::GetType(component_json["%type"].get<std::string>());
-            auto &comp = scene.CreateComponent(parent_go, *type);
-            resolver.m_comp_map[component_json["Component::m_handle"].get<uint32_t>()] = comp.GetHandle();
+            // Transform Component is already created when creating GameObject
+            if (type->GetName() == "Engine::TransformComponent") {
+                resolver.m_comp_map[component_json["Component::m_handle"].get<uint32_t>()] =
+                    parent_go.m_transformComponent;
+            } else {
+                auto &comp = scene.CreateComponent(parent_go, *type);
+                resolver.m_comp_map[component_json["Component::m_handle"].get<uint32_t>()] = comp.GetHandle();
+            }
         }
         // Deserialize GO and Comps
         for (auto &object_json : json["SceneAsset::objects"]) {

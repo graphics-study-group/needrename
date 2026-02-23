@@ -3,12 +3,12 @@
     "%main_data": {
         "%type": "Engine::LevelAsset",
         "Asset::m_guid": "FF182376000000000000000000000000",
-        "LevelAsset::m_default_camera": 17,
+        "LevelAsset::m_default_camera": 8,
         "LevelAsset::m_skybox_material": "07BF9F33F68CCAB150A6078964D33EF1",
         "SceneAsset::components": [
             {
                 "%type": "Engine::TransformComponent",
-                "Component::m_handle": 12,
+                "Component::m_handle": 1,
                 "Component::m_parentGameObject": 1,
                 "TransformComponent::m_transform": {
                     "%type": "Engine::Transform",
@@ -31,24 +31,8 @@
                 }
             },
             {
-                "%type": "Engine::StaticMeshComponent",
-                "Component::m_handle": 13,
-                "Component::m_parentGameObject": 1,
-                "RendererComponent::m_cast_shadow": false,
-                "RendererComponent::m_is_eagerly_loaded": false,
-                "RendererComponent::m_layer": 4294967295,
-                "RendererComponent::m_material_assets": [
-                    "5CA53C55F3CAB35883C13A0C49B45EF2",
-                    "610197E0BA48EA77EC0F34E77B9048B4",
-                    "527B2AF10E89DC580133DAC3E20FDDD3",
-                    "61DC73F3C56890B90ADA56EF57FB6033"
-                ],
-                "RendererComponent::m_priority": 0,
-                "StaticMeshComponent::m_mesh_asset": "2F64399226C20D8B76E40F1E8B80AFCA"
-            },
-            {
                 "%type": "Engine::TransformComponent",
-                "Component::m_handle": 14,
+                "Component::m_handle": 2,
                 "Component::m_parentGameObject": 2,
                 "TransformComponent::m_transform": {
                     "%type": "Engine::Transform",
@@ -71,14 +55,8 @@
                 }
             },
             {
-                "%type": "Engine::CameraComponent",
-                "CameraComponent::m_camera": "&1",
-                "Component::m_handle": 15,
-                "Component::m_parentGameObject": 2
-            },
-            {
                 "%type": "Engine::TransformComponent",
-                "Component::m_handle": 16,
+                "Component::m_handle": 3,
                 "Component::m_parentGameObject": 3,
                 "TransformComponent::m_transform": {
                     "%type": "Engine::Transform",
@@ -101,22 +79,8 @@
                 }
             },
             {
-                "%type": "Engine::CameraComponent",
-                "CameraComponent::m_camera": "&2",
-                "Component::m_handle": 17,
-                "Component::m_parentGameObject": 3
-            },
-            {
-                "%type": "ControlComponent",
-                "Component::m_handle": 18,
-                "Component::m_parentGameObject": 3,
-                "ControlComponent::m_move_speed": 1.0,
-                "ControlComponent::m_roll_speed": 1.0,
-                "ControlComponent::m_rotation_speed": 10.0
-            },
-            {
                 "%type": "Engine::TransformComponent",
-                "Component::m_handle": 19,
+                "Component::m_handle": 4,
                 "Component::m_parentGameObject": 4,
                 "TransformComponent::m_transform": {
                     "%type": "Engine::Transform",
@@ -139,21 +103,8 @@
                 }
             },
             {
-                "%type": "Engine::LightComponent",
-                "Component::m_handle": 20,
-                "Component::m_parentGameObject": 4,
-                "LightComponent::m_cast_shadow": true,
-                "LightComponent::m_color": [
-                    1.0,
-                    1.0,
-                    1.0
-                ],
-                "LightComponent::m_intensity": 1.0,
-                "LightComponent::m_type": "Directional"
-            },
-            {
                 "%type": "Engine::TransformComponent",
-                "Component::m_handle": 21,
+                "Component::m_handle": 5,
                 "Component::m_parentGameObject": 5,
                 "TransformComponent::m_transform": {
                     "%type": "Engine::Transform",
@@ -177,7 +128,56 @@
             },
             {
                 "%type": "Engine::StaticMeshComponent",
-                "Component::m_handle": 22,
+                "Component::m_handle": 6,
+                "Component::m_parentGameObject": 1,
+                "RendererComponent::m_cast_shadow": false,
+                "RendererComponent::m_is_eagerly_loaded": false,
+                "RendererComponent::m_layer": 4294967295,
+                "RendererComponent::m_material_assets": [
+                    "5CA53C55F3CAB35883C13A0C49B45EF2",
+                    "610197E0BA48EA77EC0F34E77B9048B4",
+                    "527B2AF10E89DC580133DAC3E20FDDD3",
+                    "61DC73F3C56890B90ADA56EF57FB6033"
+                ],
+                "RendererComponent::m_priority": 0,
+                "StaticMeshComponent::m_mesh_asset": "2F64399226C20D8B76E40F1E8B80AFCA"
+            },
+            {
+                "%type": "Engine::CameraComponent",
+                "CameraComponent::m_camera": "&1",
+                "Component::m_handle": 7,
+                "Component::m_parentGameObject": 2
+            },
+            {
+                "%type": "Engine::CameraComponent",
+                "CameraComponent::m_camera": "&2",
+                "Component::m_handle": 8,
+                "Component::m_parentGameObject": 3
+            },
+            {
+                "%type": "ControlComponent",
+                "Component::m_handle": 9,
+                "Component::m_parentGameObject": 3,
+                "ControlComponent::m_move_speed": 1.0,
+                "ControlComponent::m_roll_speed": 1.0,
+                "ControlComponent::m_rotation_speed": 10.0
+            },
+            {
+                "%type": "Engine::LightComponent",
+                "Component::m_handle": 10,
+                "Component::m_parentGameObject": 4,
+                "LightComponent::m_cast_shadow": true,
+                "LightComponent::m_color": [
+                    1.0,
+                    1.0,
+                    1.0
+                ],
+                "LightComponent::m_intensity": 1.0,
+                "LightComponent::m_type": "Directional"
+            },
+            {
+                "%type": "Engine::StaticMeshComponent",
+                "Component::m_handle": 11,
                 "Component::m_parentGameObject": 5,
                 "RendererComponent::m_cast_shadow": false,
                 "RendererComponent::m_is_eagerly_loaded": false,
@@ -194,62 +194,62 @@
                 "%type": "Engine::GameObject",
                 "GameObject::m_childGameObject": [],
                 "GameObject::m_components": [
-                    12,
-                    13
+                    1,
+                    6
                 ],
                 "GameObject::m_handle": 1,
                 "GameObject::m_name": "four_bunny",
                 "GameObject::m_parentGameObject": 0,
-                "GameObject::m_transformComponent": 12
+                "GameObject::m_transformComponent": 1
             },
             {
                 "%type": "Engine::GameObject",
                 "GameObject::m_childGameObject": [],
                 "GameObject::m_components": [
-                    14,
-                    15
+                    2,
+                    7
                 ],
                 "GameObject::m_handle": 2,
                 "GameObject::m_name": "fixed camera",
                 "GameObject::m_parentGameObject": 0,
-                "GameObject::m_transformComponent": 14
+                "GameObject::m_transformComponent": 2
             },
             {
                 "%type": "Engine::GameObject",
                 "GameObject::m_childGameObject": [],
                 "GameObject::m_components": [
-                    16,
-                    17,
-                    18
+                    3,
+                    8,
+                    9
                 ],
                 "GameObject::m_handle": 3,
                 "GameObject::m_name": "Controled Camera",
                 "GameObject::m_parentGameObject": 0,
-                "GameObject::m_transformComponent": 16
+                "GameObject::m_transformComponent": 3
             },
             {
                 "%type": "Engine::GameObject",
                 "GameObject::m_childGameObject": [],
                 "GameObject::m_components": [
-                    19,
-                    20
+                    4,
+                    10
                 ],
                 "GameObject::m_handle": 4,
                 "GameObject::m_name": "Directional Light",
                 "GameObject::m_parentGameObject": 0,
-                "GameObject::m_transformComponent": 19
+                "GameObject::m_transformComponent": 4
             },
             {
                 "%type": "Engine::GameObject",
                 "GameObject::m_childGameObject": [],
                 "GameObject::m_components": [
-                    21,
-                    22
+                    5,
+                    11
                 ],
                 "GameObject::m_handle": 5,
                 "GameObject::m_name": "Floor",
                 "GameObject::m_parentGameObject": 0,
-                "GameObject::m_transformComponent": 21
+                "GameObject::m_transformComponent": 5
             }
         ]
     },
