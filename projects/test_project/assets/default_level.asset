@@ -3,7 +3,7 @@
     "%main_data": {
         "%type": "Engine::LevelAsset",
         "Asset::m_guid": "FF182376000000000000000000000000",
-        "LevelAsset::m_default_camera": 8,
+        "LevelAsset::m_default_camera": 7,
         "LevelAsset::m_skybox_material": "07BF9F33F68CCAB150A6078964D33EF1",
         "SceneAsset::components": [
             {
@@ -46,30 +46,6 @@
                         0.0,
                         0.0,
                         0.9659258127212524
-                    ],
-                    "Transform::m_scale": [
-                        1.0,
-                        1.0,
-                        1.0
-                    ]
-                }
-            },
-            {
-                "%type": "Engine::TransformComponent",
-                "Component::m_handle": 3,
-                "Component::m_parentGameObject": 3,
-                "TransformComponent::m_transform": {
-                    "%type": "Engine::Transform",
-                    "Transform::m_position": [
-                        0.8437545299530029,
-                        0.19693955779075623,
-                        0.9619179964065552
-                    ],
-                    "Transform::m_rotation": [
-                        -0.2439611852169037,
-                        -0.5252652764320374,
-                        -0.8105865120887756,
-                        0.08676949888467789
                     ],
                     "Transform::m_scale": [
                         1.0,
@@ -149,20 +125,6 @@
                 "Component::m_parentGameObject": 2
             },
             {
-                "%type": "Engine::CameraComponent",
-                "CameraComponent::m_camera": "&2",
-                "Component::m_handle": 8,
-                "Component::m_parentGameObject": 3
-            },
-            {
-                "%type": "ControlComponent",
-                "Component::m_handle": 9,
-                "Component::m_parentGameObject": 3,
-                "ControlComponent::m_move_speed": 1.0,
-                "ControlComponent::m_roll_speed": 1.0,
-                "ControlComponent::m_rotation_speed": 10.0
-            },
-            {
                 "%type": "Engine::LightComponent",
                 "Component::m_handle": 10,
                 "Component::m_parentGameObject": 4,
@@ -213,19 +175,6 @@
                 "GameObject::m_name": "fixed camera",
                 "GameObject::m_parentGameObject": 0,
                 "GameObject::m_transformComponent": 2
-            },
-            {
-                "%type": "Engine::GameObject",
-                "GameObject::m_childGameObject": [],
-                "GameObject::m_components": [
-                    3,
-                    8,
-                    9
-                ],
-                "GameObject::m_handle": 3,
-                "GameObject::m_name": "Controled Camera",
-                "GameObject::m_parentGameObject": 0,
-                "GameObject::m_transformComponent": 3
             },
             {
                 "%type": "Engine::GameObject",

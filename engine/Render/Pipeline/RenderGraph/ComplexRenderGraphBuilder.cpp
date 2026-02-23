@@ -25,7 +25,7 @@ namespace Engine {
         std::function<uint8_t()> get_camera_index_func,
         int32_t &final_color_target_id
     ) {
-        int32_t hdr_color_id, bloom_temp_id;
+        int32_t hdr_color_id;
         RenderTargetTexture::RenderTargetTextureDesc rtt_desc{
             .dimensions = 2,
             .width = texture_width,
@@ -41,7 +41,6 @@ namespace Engine {
         final_color_target_id = color_id;
         rtt_desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R11G11B10UFloat;
         hdr_color_id = this->RequestRenderTargetTexture(rtt_desc, Texture::SamplerDesc{});
-        bloom_temp_id = this->RequestRenderTargetTexture(rtt_desc, Texture::SamplerDesc{});
         rtt_desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::D32SFLOAT;
         auto depth_id = this->RequestRenderTargetTexture(rtt_desc, Texture::SamplerDesc{});
 
@@ -127,8 +126,6 @@ namespace Engine {
         );
 
         this->UseImage(hdr_color_id, IAT::ShaderRandomRead);
-        // TODO: strange, add this makes RenderDoc corrupted texture
-        this->UseImage(bloom_temp_id, IAT::ShaderRandomDefault);
         this->UseImage(color_id, IAT::ShaderRandomWrite);
         auto &bloom_compute_binding = bloom_compute_stage.AllocateResourceBinding();
         this->RecordComputePass(
@@ -137,18 +134,15 @@ namespace Engine {
              texture_height,
              &bloom_compute_binding,
              hdr_color_id,
-             bloom_temp_id,
              final_color_target_id](ComputeCommandBuffer &ccb, const RenderGraph &rg) {
                 bloom_compute_binding.GetShaderResourceBinding().BindTexture(
                     "inputImage", *rg.GetInternalTextureResource(hdr_color_id)
                 );
                 bloom_compute_binding.GetShaderResourceBinding().BindTexture(
-                    "bloomTemp", *rg.GetInternalTextureResource(bloom_temp_id)
-                );
-                bloom_compute_binding.GetShaderResourceBinding().BindTexture(
                     "outputImage", *rg.GetInternalTextureResource(final_color_target_id)
                 );
                 ccb.BindComputeStage(bloom_compute_stage);
+                ccb.BindComputeResource(bloom_compute_binding);
                 ccb.DispatchCompute(texture_width / 16 + 1, texture_height / 16 + 1, 1);
             },
             "Bloom FX pass"
