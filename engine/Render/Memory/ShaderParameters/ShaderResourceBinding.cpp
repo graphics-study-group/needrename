@@ -136,7 +136,6 @@ namespace Engine {
                         vk::DescriptorType::eCombinedImageSampler
                     }
                 );
-                writes.back().setPImageInfo(&image_infos.back());
             } else if (auto pstorage = dynamic_cast<const ShdrRfl::SPInterfaceOpaqueStorageImage *>(pinterface.get())) {
                 auto pimg = std::get_if<std::reference_wrapper<const Texture>>(&itr->second);
                 assert(pimg);
@@ -159,7 +158,6 @@ namespace Engine {
                         vk::DescriptorType::eStorageImage
                     }
                 );
-                writes.back().setPImageInfo(&image_infos.back());
             } 
             // The interface is a buffer
             else if (auto pbuffer = dynamic_cast<const ShdrRfl::SPInterfaceBuffer *>(pinterface.get())) {
@@ -195,7 +193,6 @@ namespace Engine {
                         desctp
                     }
                 );
-                writes.back().setPBufferInfo(&buffer_infos.back());
             }
         }
 
@@ -211,8 +208,30 @@ namespace Engine {
         auto descriptor = d.allocateDescriptorSets(dsai)[0];
         pimpl->descriptor_sets[layout_hash][content_hash] = descriptor;
 
+        size_t image_write_count{0}, buffer_write_count{0};
         for (auto & w : writes) {
             w.dstSet = descriptor;
+            switch(w.descriptorType) {
+                using enum vk::DescriptorType;
+                /* case eSampler:
+                case eSampledImage: */
+                case eCombinedImageSampler:
+                case eStorageImage:
+                    w.setPImageInfo(&image_infos[image_write_count++]);
+                    break;
+                case eUniformBuffer:
+                case eStorageBuffer:
+                case eUniformBufferDynamic:
+                case eStorageBufferDynamic:
+                    w.setPBufferInfo(&buffer_infos[buffer_write_count++]);
+                    break;
+                /* case eUniformTexelBuffer:
+                case eStorageTexelBuffer:
+                    w.setPTexelBufferView(nullptr);
+                    break; */
+                default:
+                    ;
+            }
         }
 
         d.updateDescriptorSets(writes, {});
