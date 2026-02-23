@@ -249,7 +249,6 @@ int main(int argc, char **argv) {
         .is_cube_map = false
     };
     auto hc = rgb.RequestRenderTargetTexture(rtt_desc, Texture::SamplerDesc{});
-    auto hc_temp = rgb.RequestRenderTargetTexture(rtt_desc, Texture::SamplerDesc{});
     rtt_desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::D32SFLOAT;
     auto d = rgb.RequestRenderTargetTexture(rtt_desc, Texture::SamplerDesc{});
     rtt_desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R8G8B8A8UNorm;
@@ -276,7 +275,6 @@ int main(int argc, char **argv) {
 
     // Bloom pass
     rgb.UseImage(hc, IAT::ShaderRandomRead);
-    rgb.UseImage(hc_temp, IAT::ShaderRandomDefault);
     rgb.UseImage(c, IAT::ShaderRandomWrite);
     rgb.RecordComputePass(
         [bloom_compute_stage, &bloom_compute_binding, hc, c](

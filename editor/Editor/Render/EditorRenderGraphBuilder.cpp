@@ -56,8 +56,6 @@ namespace Editor {
 
         rtt_desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R11G11B10UFloat;
         auto hdr_color_id = this->RequestRenderTargetTexture(rtt_desc, Texture::SamplerDesc{});
-        auto scene_bloom_temp_id = this->RequestRenderTargetTexture(rtt_desc, Texture::SamplerDesc{});
-        auto game_bloom_temp_id = this->RequestRenderTargetTexture(rtt_desc, Texture::SamplerDesc{});
 
         rtt_desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::D32SFLOAT;
         auto depth_id = this->RequestRenderTargetTexture(rtt_desc, Texture::SamplerDesc{});
@@ -155,7 +153,6 @@ namespace Editor {
         );
 
         this->UseImage(hdr_color_id, IAT::ShaderRandomRead);
-        this->UseImage(scene_bloom_temp_id, IAT::ShaderRandomDefault);
         this->UseImage(scene_widget_color_id, IAT::ShaderRandomWrite);
         auto &scene_bloom_binding = scene_bloom.AllocateResourceBinding();
         this->RecordComputePass(
@@ -164,18 +161,15 @@ namespace Editor {
              texture_height,
              &scene_bloom_binding,
              hdr_color_id,
-             scene_bloom_temp_id,
              scene_widget_color_id](ComputeCommandBuffer &ccb, const RenderGraph &rg) {
                 scene_bloom_binding.GetShaderResourceBinding().BindTexture(
                     "inputImage", *rg.GetInternalTextureResource(hdr_color_id)
                 );
                 scene_bloom_binding.GetShaderResourceBinding().BindTexture(
-                    "bloomTemp", *rg.GetInternalTextureResource(scene_bloom_temp_id)
-                );
-                scene_bloom_binding.GetShaderResourceBinding().BindTexture(
                     "outputImage", *rg.GetInternalTextureResource(scene_widget_color_id)
                 );
                 ccb.BindComputeStage(scene_bloom);
+                ccb.BindComputeResource(scene_bloom_binding);
                 ccb.DispatchCompute(texture_width / 16 + 1, texture_height / 16 + 1, 1);
             },
             "Bloom FX pass"
@@ -219,7 +213,6 @@ namespace Editor {
         );
 
         this->UseImage(hdr_color_id, IAT::ShaderRandomRead);
-        this->UseImage(game_bloom_temp_id, IAT::ShaderRandomDefault);
         this->UseImage(game_widget_color_id, IAT::ShaderRandomWrite);
         auto &game_bloom_binding = game_bloom.AllocateResourceBinding();
         this->RecordComputePass(
@@ -228,18 +221,15 @@ namespace Editor {
              texture_height,
              &game_bloom_binding,
              hdr_color_id,
-             game_bloom_temp_id,
              game_widget_color_id](ComputeCommandBuffer &ccb, const RenderGraph &rg) {
                 game_bloom_binding.GetShaderResourceBinding().BindTexture(
                     "inputImage", *rg.GetInternalTextureResource(hdr_color_id)
                 );
                 game_bloom_binding.GetShaderResourceBinding().BindTexture(
-                    "bloomTemp", *rg.GetInternalTextureResource(game_bloom_temp_id)
-                );
-                game_bloom_binding.GetShaderResourceBinding().BindTexture(
                     "outputImage", *rg.GetInternalTextureResource(game_widget_color_id)
                 );
                 ccb.BindComputeStage(game_bloom);
+                ccb.BindComputeResource(game_bloom_binding);
                 ccb.DispatchCompute(texture_width / 16 + 1, texture_height / 16 + 1, 1);
             },
             "Bloom FX pass"
