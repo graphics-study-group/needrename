@@ -1,20 +1,87 @@
 #include "Texture.h"
 
+#include "Render/Hasher.hpp"
 #include "Render/ImageUtilsFunc.h"
 #include "Render/Memory/AllocatedMemory.h"
 #include "Render/Memory/DeviceBuffer.h"
+#include "Render/Memory/TextureSubresourceView.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/AllocatorState.h"
 
 #include <vulkan/vulkan.hpp>
 
+namespace {
+    constexpr vk::ImageType GetImageType(const Engine::Texture::TextureDesc & d) {
+        return d.dimensions == 1 ? vk::ImageType::e1D : 
+            (d.dimensions == 2 ? vk::ImageType::e2D : vk::ImageType::e3D);
+    }
+
+    constexpr vk::ImageViewType GetImageViewType(
+        const Engine::Texture::TextureDesc & d,
+        const Engine::TextureSubresourceRange & r
+    ) {
+        assert(r.array_layer_base < d.array_layers && "Array layer base out of range.");
+        assert(
+            ((r.array_layer_base + r.array_layer_size <= d.array_layers) 
+                || (r.array_layer_size == vk::RemainingArrayLayers)
+            ) && "Array layer out of range."
+        );
+        assert(r.mip_level_base < d.mipmap_levels && "Mipmap level base out of range.");
+        assert(
+            ((r.mip_level_base + r.mip_level_size <= d.mipmap_levels) 
+                || (r.mip_level_size == vk::RemainingMipLevels)
+            ) && "Mipmap level out of range."
+        );
+
+        if (d.is_cube_map) {
+            assert(d.dimensions == 2 && "Cubemap is not 2D.");
+            return vk::ImageViewType::eCube;
+        }
+
+        if (d.dimensions == 3) {
+            assert(
+                (r.array_layer_size == 1 || r.array_layer_size == vk::RemainingArrayLayers)
+                && "3D texture array is not supported"
+            );
+            return vk::ImageViewType::e3D;
+        } else {
+            if (
+                r.array_layer_size == 1 ||
+                (r.array_layer_size == vk::RemainingArrayLayers && d.array_layers == 1)
+            ) {
+                return (d.dimensions == 1 ? vk::ImageViewType::e1D : vk::ImageViewType::e2D);
+            } else {
+                return (d.dimensions == 1 ? vk::ImageViewType::e1DArray : vk::ImageViewType::e2DArray);
+            }
+        }
+    }
+}
+
 namespace Engine {
 
     struct Texture::impl {
+        vk::Device device {};
+
         TextureDesc m_tdesc {};
         SamplerDesc m_sdesc {};
         std::unique_ptr <ImageAllocation> m_image {};
-        std::unique_ptr <SlicedTextureView> m_full_view {};
+
+        struct subresource_hasher {
+            size_t operator() (const TextureSubresourceRange & r) const noexcept {
+                RenderResourceHasher h;
+                h.u32(r.array_layer_base);
+                h.u32(r.array_layer_size);
+                h.u32(r.mip_level_base);
+                h.u32(r.mip_level_size);
+                return h.get();
+            };
+        };
+
+        std::unordered_map <
+            TextureSubresourceRange,
+            vk::UniqueImageView,
+            subresource_hasher> m_views;
+
         vk::Sampler m_sampler {};
         std::string m_name {};
     };
@@ -41,6 +108,7 @@ namespace Engine {
         assert(!texture.is_cube_map || arrayLayers == 6);
 
         auto dim = dimension == 1 ? vk::ImageType::e1D : (dimension == 2 ? vk::ImageType::e2D : vk::ImageType::e3D);
+        pimpl->device = system.GetDevice();
         pimpl->m_image = allocator.AllocateImageUnique(
             texture.memory_type,
             dim,
@@ -57,10 +125,6 @@ namespace Engine {
 
         pimpl->m_sampler = system.GetIRCache().GetSampler(sampler);
         pimpl->m_sdesc = sampler;
-
-        pimpl->m_full_view = std::make_unique<SlicedTextureView>(
-            system, *this, TextureSlice{0, texture.mipmap_levels, 0, texture.array_layers}
-        );
     }
 
     Texture::Texture(Texture && o) noexcept : Texture() {
@@ -82,13 +146,30 @@ namespace Engine {
         return pimpl->m_image->GetImage();
     }
 
-    const SlicedTextureView &Texture::GetFullSlice() const noexcept {
-        assert(pimpl->m_full_view);
-        return *(pimpl->m_full_view);
+    vk::ImageView Engine::Texture::GetImageView() const {
+        return this->GetImageView(TextureSubresourceRange{});
     }
 
-    vk::ImageView Engine::Texture::GetImageView() const noexcept {
-        return this->GetFullSlice().GetImageView();
+    vk::ImageView Texture::GetImageView(const TextureSubresourceRange &tsv) const {
+        auto itr = pimpl->m_views.find(tsv);
+        if (itr != pimpl->m_views.end())    return itr->second.get();
+
+        vk::ImageViewCreateInfo ivci{
+            vk::ImageViewCreateFlags{},
+            pimpl->m_image->GetImage(),
+            GetImageViewType(pimpl->m_tdesc, tsv),
+            ImageUtils::GetVkFormat(pimpl->m_tdesc.format),
+            vk::ComponentMapping{},
+            vk::ImageSubresourceRange{
+                ImageUtils::GetVkAspect(pimpl->m_tdesc.format),
+                tsv.mip_level_base,
+                tsv.mip_level_size,
+                tsv.array_layer_base,
+                tsv.array_layer_size
+            }
+        };
+        pimpl->m_views[tsv] = pimpl->device.createImageViewUnique(ivci);
+        return pimpl->m_views[tsv].get();
     }
 
     vk::Sampler Texture::GetSampler() const noexcept {
