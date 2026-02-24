@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <variant>
 
+#include "Render/Memory/TextureSubresourceView.h"
+
 namespace Engine {
     class RenderTargetTexture;
     class SlicedTextureView;
@@ -32,14 +34,11 @@ namespace Engine {
         typedef std::variant<ColorClearValue, DepthClearValue> ClearValue;
 
         struct AttachmentDescription {
-            const RenderTargetTexture *texture{nullptr};
-
-            /// @brief Sliced view of the texture. If left null, use the full view.
-            const SlicedTextureView *texture_view{nullptr};
+            RenderTargetTexture *texture{nullptr};
+            TextureSubresourceRange range{};
 
             LoadOperation load_op{};
             StoreOperation store_op{};
-
             ClearValue clear_value{};
         };
     } // namespace AttachmentUtils
