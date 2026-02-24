@@ -8,17 +8,18 @@
 
 namespace Engine {
     struct ShaderResourceBinding::impl {
-        RenderSystemState::ImmutableResourceCache * irc;
+        RenderSystemState::ImmutableResourceCache * irc{nullptr};
 
         using InterfaceVariant = std::variant<
             std::monostate,
-            std::reference_wrapper<const Texture>,
+            // XXX: immutable sampler is not properly considered for hashing.
+            std::tuple<vk::ImageView, vk::Sampler>,
             // Buffer, offset and size
-            std::tuple<std::reference_wrapper<const DeviceBuffer>, size_t, size_t>
+            std::tuple<vk::Buffer, size_t, size_t>
         >;
 
         // This map has to be ordered to ensure consistent hash.
-        std::map <std::string, InterfaceVariant> interfaces;
+        std::map <std::string, InterfaceVariant> interfaces{};
 
         void hash_current_interfaces(RenderResourceHasher & h) const noexcept {
             struct HashVisitor {
@@ -26,11 +27,12 @@ namespace Engine {
 
                 void operator () (std::monostate) {
                 }
-                void operator () (const std::reference_wrapper<const Texture> & r) {
-                    h->pointer(&r.get());
+                void operator () (const std::tuple<vk::ImageView, vk::Sampler> & r) {
+                    h->handle(std::get<0>(r));
+                    h->handle(std::get<1>(r));
                 }
-                void operator () (const std::tuple<std::reference_wrapper<const DeviceBuffer>, size_t, size_t> & r) {
-                    h->pointer(&std::get<0>(r).get());
+                void operator () (const std::tuple<vk::Buffer, size_t, size_t> & r) {
+                    h->handle(std::get<0>(r));
                     h->u64(std::get<1>(r));
                     h->u64(std::get<2>(r));
                 }
@@ -42,10 +44,11 @@ namespace Engine {
             }
         }
         
+        // XXX: beware of hash collision.
         std::unordered_map <size_t,
             // XXX: use a LRU cache instead of unordered map here, to mitigate memory leak.
             std::unordered_map<size_t, vk::DescriptorSet>
-        > descriptor_sets;
+        > descriptor_sets{};
     };
 
     ShaderResourceBinding::ShaderResourceBinding(
@@ -63,13 +66,22 @@ namespace Engine {
         size_t size
     ) noexcept {
         static_assert(vk::WholeSize == std::numeric_limits<size_t>::max());
-        pimpl->interfaces[name] = std::make_tuple(std::cref(buf), offset, size);
+        pimpl->interfaces[name] = std::make_tuple(buf.GetBuffer(), offset, size);
     }
     void ShaderResourceBinding::BindTexture(
         const std::string &name,
-        const Texture &texture
+        Texture &texture
     ) noexcept {
-        pimpl->interfaces[name] = std::cref(texture);
+        this->BindTexture(name, texture, TextureSubresourceRange::GetFullRange());
+    }
+
+    void ShaderResourceBinding::BindTexture(
+        const std::string &name, Texture &texture, TextureSubresourceRange range
+    ) noexcept {
+        pimpl->interfaces[name] = std::make_tuple(
+            texture.GetImageView(range),
+            texture.GetSampler()
+        );
     }
 
     vk::DescriptorSet ShaderResourceBinding::GetDescriptorSet(
@@ -117,13 +129,13 @@ namespace Engine {
             }
 
             if (auto popaque = dynamic_cast<const ShdrRfl::SPInterfaceOpaqueImage *>(pinterface.get())) {
-                auto pimg = std::get_if<std::reference_wrapper<const Texture>>(&itr->second);
+                auto pimg = std::get_if<std::tuple<vk::ImageView, vk::Sampler>>(&itr->second);
                 assert(pimg);
                 assert(popaque->array_size == 0);
                 image_infos.push_back(
                     vk::DescriptorImageInfo{
-                        pimg->get().GetSampler(),
-                        pimg->get().GetImageView(),
+                        std::get<1>(*pimg),
+                        std::get<0>(*pimg),
                         vk::ImageLayout::eReadOnlyOptimal
                     }
                 );
@@ -137,15 +149,14 @@ namespace Engine {
                     }
                 );
             } else if (auto pstorage = dynamic_cast<const ShdrRfl::SPInterfaceOpaqueStorageImage *>(pinterface.get())) {
-                auto pimg = std::get_if<std::reference_wrapper<const Texture>>(&itr->second);
+                auto pimg = std::get_if<std::tuple<vk::ImageView, vk::Sampler>>(&itr->second);
                 assert(pimg);
                 assert(pstorage->array_size == 0);
-                assert((pimg)->get().SupportRandomAccess());
 
                 image_infos.push_back(
                     vk::DescriptorImageInfo{
-                        pimg->get().GetSampler(),
-                        pimg->get().GetImageView(),
+                        std::get<1>(*pimg),
+                        std::get<0>(*pimg),
                         vk::ImageLayout::eGeneral
                     }
                 );
@@ -161,7 +172,7 @@ namespace Engine {
             } 
             // The interface is a buffer
             else if (auto pbuffer = dynamic_cast<const ShdrRfl::SPInterfaceBuffer *>(pinterface.get())) {
-                auto pbuf = std::get_if<std::tuple<std::reference_wrapper<const DeviceBuffer>, size_t, size_t>>(&itr->second);
+                auto pbuf = std::get_if<std::tuple<vk::Buffer, size_t, size_t>>(&itr->second);
                 assert(pbuf);
 
                 // Determine whether it is storage buffer or uniform buffer and static or dynamic
@@ -179,7 +190,7 @@ namespace Engine {
 
                 buffer_infos.push_back(
                     vk::DescriptorBufferInfo {
-                        std::get<0>(*pbuf).get().GetBuffer(),
+                        buffer,
                         offset,
                         range
                     }
