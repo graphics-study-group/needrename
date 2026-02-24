@@ -492,7 +492,7 @@ namespace Engine {
                 auto pca = gb.GetInternalTextureResource(ca);
                 gui_system->DrawGUI(
                     {pca,
-                     nullptr,
+                     TextureSubresourceRange::GetSingleRange(),
                      AttachmentUtils::LoadOperation::Load,
                      AttachmentUtils::StoreOperation::Store},
                     this->m_system.GetSwapchain().GetExtent(),

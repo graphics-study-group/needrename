@@ -213,7 +213,7 @@ int main() {
         main_window.Render();
         gui->DrawGUI(
             {&window->GetColorTexture(),
-             nullptr,
+             Engine::TextureSubresourceRange::GetSingleRange(),
              Engine::AttachmentUtils::LoadOperation::Clear,
              Engine::AttachmentUtils::StoreOperation::Store},
             window->GetExtent(),
