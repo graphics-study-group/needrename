@@ -64,7 +64,7 @@ public:
     PBRMeshComponent(
         std::filesystem::path mesh_file_name,
         std::shared_ptr<MaterialLibrary> library,
-        std::shared_ptr<const Texture> albedo
+        std::shared_ptr<Texture> albedo
     ) : ObjTestMeshComponent(mesh_file_name), transform() {
         auto system = m_system.lock();
 

@@ -50,7 +50,7 @@ namespace Engine {
          */
         void BindTexture(
             const std::string & name,
-            std::shared_ptr <const Texture> texture
+            std::shared_ptr <Texture> texture
         ) noexcept;
 
         /**

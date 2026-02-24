@@ -103,7 +103,7 @@ namespace Engine {
     }
     void ComputeResourceBinding::BindTexture(
         const std::string &name,
-        std::shared_ptr<const Texture> texture
+        std::shared_ptr<Texture> texture
     ) noexcept {
         pimpl->owned_resource[name] = texture;
         pimpl->p_srb->BindTexture(name, *texture);
