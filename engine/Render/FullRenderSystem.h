@@ -1,5 +1,5 @@
-#ifndef ENGINE_RENDER_FULLRENDERSYSTEM_INCLUDED
-#define ENGINE_RENDER_FULLRENDERSYSTEM_INCLUDED
+#ifndef RENDER_FULLRENDERSYSTEM
+#define RENDER_FULLRENDERSYSTEM
 
 /** THIS FILE IS USED AS INTERFACE ONLY, DO NOT INCLUDE IT IN THE INTERNAL ENGINE LIBRARY. **/
 
@@ -45,6 +45,7 @@
 #include "Render/Memory/Texture.h"
 #include "Render/Memory/RenderTargetTexture.h"
 #include "Render/Memory/ImageTexture.h"
+#include "Render/Memory/TextureSubresourceView.h"
 
 #include "Render/Memory/DeviceBuffer.h"
 #include "Render/Memory/StructuredBuffer.h"
@@ -54,4 +55,4 @@
 
 #include "Render/RenderSystem.h"
 
-#endif // ENGINE_RENDER_FULLRENDERSYSTEM_INCLUDED
+#endif // RENDER_FULLRENDERSYSTEM

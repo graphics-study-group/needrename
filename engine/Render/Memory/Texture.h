@@ -2,7 +2,6 @@
 #define RENDER_MEMORY_TEXTURE_INCLUDED
 
 #include "Render/ImageUtils.h"
-#include "Render/Memory/TextureSlice.h"
 #include <memory>
 
 namespace vk {
