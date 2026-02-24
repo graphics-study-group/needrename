@@ -204,6 +204,7 @@ int main(int argc, char **argv) {
     MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(cs_ref);
     auto bloom_compute_stage = std::make_shared<ComputeStage>(*rsys);
     bloom_compute_stage->Instantiate(*cs_ref->cas<ShaderAsset>());
+    auto & bloom_compute_binding = bloom_compute_stage->AllocateResourceBinding();
 
     // Build render graph.
     RenderGraphBuilder rgb{*rsys};
@@ -247,8 +248,17 @@ int main(int argc, char **argv) {
     rgb.UseImage(hc, IAT::ShaderRandomRead);
     rgb.UseImage(c, IAT::ShaderRandomWrite);
     rgb.RecordComputePass(
-        [bloom_compute_stage](ComputeCommandBuffer &ccb, const RenderGraph &) {
+        [bloom_compute_stage, &bloom_compute_binding, hc, c](
+            ComputeCommandBuffer &ccb,
+            const RenderGraph & rg
+        ) {
+            // These descriptors should be cached, so there should be only one write.
+            bloom_compute_binding.GetShaderResourceBinding().BindTexture(
+                "inputImage", *rg.GetInternalTextureResource(hc));
+            bloom_compute_binding.GetShaderResourceBinding().BindTexture(
+                "outputImage", *rg.GetInternalTextureResource(c));
             ccb.BindComputeStage(*bloom_compute_stage);
+            ccb.BindComputeResource(bloom_compute_binding);
             ccb.DispatchCompute(
                 1920 / 16 + 1, 1080 / 16 + 1, 1
             );
@@ -265,9 +275,6 @@ int main(int argc, char **argv) {
     });
 
     auto rg{rgb.BuildRenderGraph()};
-
-    bloom_compute_stage->AssignTexture("inputImage", *rg.GetInternalTextureResource(hc));
-    bloom_compute_stage->AssignTexture("outputImage", *rg.GetInternalTextureResource(c));
 
     uint64_t frame_count = 0;
     uint64_t start_timer = SDL_GetPerformanceCounter();

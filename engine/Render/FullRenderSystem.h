@@ -11,9 +11,9 @@
 #include "Render/RenderSystem/CameraManager.h"
 #include "Render/RenderSystem/DeviceInterface.h"
 #include "Render/RenderSystem/FrameManager.h"
+#include "Render/RenderSystem/ImmutableResourceCache.h"
 #include "Render/RenderSystem/MaterialRegistry.h"
 #include "Render/RenderSystem/RendererManager.h"
-#include "Render/RenderSystem/SamplerManager.h"
 #include "Render/RenderSystem/SceneDataManager.h"
 #include "Render/RenderSystem/Structs.h"
 #include "Render/RenderSystem/SubmissionHelper.h"
@@ -26,6 +26,7 @@
 #include "Render/Pipeline/CommandBuffer/GraphicsContext.h"
 
 #include "Render/Pipeline/Compute/ComputeStage.h"
+#include "Render/Pipeline/Compute/ComputeResourceBinding.h"
 
 #include "Render/Pipeline/RenderGraph/RenderGraph.h"
 #include "Render/Pipeline/RenderGraph/RenderGraphBuilder.h"
@@ -49,6 +50,7 @@
 #include "Render/Memory/StructuredBuffer.h"
 #include "Render/Memory/StructuredBufferPlacer.h"
 #include "Render/Memory/ComputeBuffer.h"
+#include "Render/Memory/ShaderParameters/ShaderResourceBinding.h"
 
 #include "Render/RenderSystem.h"
 

@@ -1,5 +1,4 @@
 #include "ShaderParameterLayout.h"
-#include "ShaderParameter.h"
 
 #include "../StructuredBuffer.h"
 #include "../StructuredBufferPlacer.h"
@@ -152,127 +151,13 @@ namespace {
  */
 namespace Engine::ShdrRfl {
 
-    SPLayout::DescriptorSetWrite SPLayout::GenerateDescriptorSetWrite(
-        uint32_t set, const ShaderParameters &interfaces
-    ) const noexcept {
-        DescriptorSetWrite write;
-
-        for (const auto & pinterface : this->interfaces) {
-            if (pinterface->layout_set != set) continue;
-            auto & intfc = interfaces.GetInterfaces();
-            auto itr = intfc.find(pinterface->name);
-            if (itr == intfc.end()) {
-                SDL_LogWarn(
-                    SDL_LOG_CATEGORY_RENDER,
-                    "Skipping unassigned interface %s.",
-                    pinterface->name.c_str()
-                );
-                continue;
-            }
-
-            if (auto popaque = dynamic_cast<const SPInterfaceOpaqueImage *>(pinterface.get())) {
-                auto pimg = std::get_if<std::reference_wrapper<const Texture>>(&itr->second);
-                if (pimg) {
-                    assert(popaque->array_size == 0);
-                    write.image.push_back(
-                        std::make_tuple(
-                            popaque->layout_binding,
-                            vk::DescriptorImageInfo {
-                                pimg->get().GetSampler(),
-                                pimg->get().GetImageView(),
-                                vk::ImageLayout::eReadOnlyOptimal
-                            },
-                            vk::DescriptorType::eCombinedImageSampler
-                        )
-                    );
-                } else {
-                    SDL_LogWarn(
-                        SDL_LOG_CATEGORY_RENDER,
-                        "Interface %s is not assigned to an image.",
-                        pinterface->name.c_str()
-                    );
-                }
-            } else if (auto pstorage = dynamic_cast<const SPInterfaceOpaqueStorageImage *>(pinterface.get())) {
-                auto pimg = std::get_if<std::reference_wrapper<const Texture>>(&itr->second);
-                if (pimg) {
-                    assert(pstorage->array_size == 0);
-                    assert((pimg)->get().SupportRandomAccess());
-
-                    write.image.push_back(
-                        std::make_tuple(
-                            pstorage->layout_binding,
-                            vk::DescriptorImageInfo {
-                                pimg->get().GetSampler(),
-                                pimg->get().GetImageView(),
-                                vk::ImageLayout::eGeneral
-                            },
-                            vk::DescriptorType::eStorageImage
-                        )
-                    );
-                } else {
-                    SDL_LogWarn(
-                        SDL_LOG_CATEGORY_RENDER,
-                        "Interface %s is not assigned to an image.",
-                        pinterface->name.c_str()
-                    );
-                }
-            } 
-            // The interface is a buffer
-            else if (auto pbuffer = dynamic_cast<const SPInterfaceBuffer *>(pinterface.get())) {
-                if (auto pbuf = std::get_if<std::tuple<std::reference_wrapper<const DeviceBuffer>, size_t, size_t>>(&itr->second)) {
-                    auto desctp = 
-                        pbuffer->type == SPInterfaceBuffer::Type::StorageBuffer ?
-                        vk::DescriptorType::eStorageBuffer : vk::DescriptorType::eUniformBuffer;
-                    auto [buffer, offset, range] = *pbuf;
-                    if (desctp == vk::DescriptorType::eStorageBuffer) {
-                        if (!buffer.get().GetType().Test(BufferTypeBits::ShaderWrite)) {
-                            SDL_LogWarn(
-                                SDL_LOG_CATEGORY_RENDER,
-                                "Interface %s is not assigned to a storage buffer.",
-                                pinterface->name.c_str()
-                            );
-                            continue;
-                        }
-                    } else if (desctp == vk::DescriptorType::eUniformBuffer) {
-                        if (!buffer.get().GetType().Test(BufferTypeBits::ShaderReadOnly)) {
-                            SDL_LogWarn(
-                                SDL_LOG_CATEGORY_RENDER,
-                                "Interface %s is not assigned to a uniform buffer.",
-                                pinterface->name.c_str()
-                            );
-                            continue;
-                        }
-                    }
-
-                    write.buffer.push_back(
-                        std::make_tuple(
-                            pbuffer->layout_binding,
-                            vk::DescriptorBufferInfo {
-                                std::get<0>(*pbuf).get().GetBuffer(),
-                                offset,
-                                range == 0 ? vk::WholeSize : range
-                            },
-                            desctp
-                        )
-                    );
-                } else {
-                    SDL_LogWarn(
-                        SDL_LOG_CATEGORY_RENDER,
-                        "Interface %s is not assigned to a buffer nor image.",
-                        pinterface->name.c_str()
-                    );
-                }
-            }
-        }
-
-        return write;
-    }
-
     void SPLayout::PlaceBufferVariable(
-        std::vector<std::byte> &buffer, const SPInterfaceStructuredBuffer & interface, const ShaderParameters &arguments
+        std::vector<std::byte> &buffer,
+        const SPInterfaceStructuredBuffer & interface,
+        const StructuredBuffer & sb
     ) const noexcept {
         assert(interface.buffer_placer);
-        interface.buffer_placer->WriteBuffer(arguments.GetStructuredBuffer(), buffer);
+        interface.buffer_placer->WriteBuffer(sb, buffer);
     }
 
     std::unordered_map<uint32_t, std::vector<vk::DescriptorSetLayoutBinding>> SPLayout::
@@ -330,9 +215,12 @@ namespace Engine::ShdrRfl {
         return sets;
     }
 
-    std::vector<vk::DescriptorSetLayoutBinding> SPLayout::GenerateLayoutBindings(uint32_t set) const {
+    std::vector<vk::DescriptorSetLayoutBinding> SPLayout::GenerateLayoutBindings(
+        uint32_t set,
+        bool enforce_dynamic_uniform_buffer,
+        bool enforce_dynamic_storage_buffer
+    ) const {
         std::vector <vk::DescriptorSetLayoutBinding> bindings;
-
         for (const auto & interface : this->interfaces) {
             if (auto ptr = dynamic_cast<const SPInterfaceBuffer *>(interface.get())) {
                 if (ptr->layout_set != set) continue;
@@ -340,7 +228,9 @@ namespace Engine::ShdrRfl {
                 if (ptr->type == SPInterfaceBuffer::Type::UniformBuffer) {
                     bindings.emplace_back(vk::DescriptorSetLayoutBinding{
                         ptr->layout_binding,
-                        vk::DescriptorType::eUniformBuffer,
+                        enforce_dynamic_uniform_buffer ?
+                            vk::DescriptorType::eUniformBufferDynamic
+                            : vk::DescriptorType::eUniformBuffer,
                         1,
                         vk::ShaderStageFlagBits::eAll,
                         {}
@@ -348,7 +238,9 @@ namespace Engine::ShdrRfl {
                 } else if (ptr->type == SPInterfaceBuffer::Type::StorageBuffer) {
                     bindings.emplace_back(vk::DescriptorSetLayoutBinding{
                         ptr->layout_binding,
-                        vk::DescriptorType::eStorageBuffer,
+                        enforce_dynamic_storage_buffer ?
+                            vk::DescriptorType::eStorageBufferDynamic
+                            : vk::DescriptorType::eStorageBuffer,
                         1,
                         vk::ShaderStageFlagBits::eAll,
                         {}
@@ -383,6 +275,15 @@ namespace Engine::ShdrRfl {
             }
         }
 
+        std::sort(
+            bindings.begin(),
+            bindings.end(),
+            [](
+                const vk::DescriptorSetLayoutBinding & lhs,
+                const vk::DescriptorSetLayoutBinding & rhs) -> bool {
+                return lhs.binding < rhs.binding;
+            }
+        );
         return bindings;
     }
 

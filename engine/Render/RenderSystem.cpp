@@ -14,7 +14,6 @@
 #include "Render/RenderSystem/RendererManager.h"
 #include "Render/RenderSystem/Structs.h"
 #include "Render/RenderSystem/Swapchain.h"
-#include "Render/RenderSystem/SamplerManager.h"
 #include "Render/RenderSystem/CameraManager.h"
 #include "Render/Renderer/Camera.h"
 
@@ -28,14 +27,13 @@ namespace Engine {
     struct RenderSystem::impl {
         impl(
             RenderSystem &parent, std::weak_ptr<SDLWindow> parent_window
-        ) : m_window(parent_window), 
+        ) : m_window(parent_window),
             m_allocator_state(parent),
             m_frame_manager(parent),
             m_material_registry(parent),
             m_renderer_manager(parent),
-            m_sampler_manager(parent),
-            m_camera_manager(parent),
-            m_scene_data_manager(parent) {
+            m_scene_data_manager(parent),
+            m_camera_manager(parent) {
 
             };
 
@@ -49,15 +47,15 @@ namespace Engine {
 
         // Order of declaration effects destructing order!
         std::unique_ptr <RenderSystemState::DeviceInterface> m_device_interface{};
+        std::unique_ptr <RenderSystemState::ImmutableResourceCache> m_immutable_resource_cache{};
 
         RenderSystemState::AllocatorState m_allocator_state;
         RenderSystemState::Swapchain m_swapchain{};
         RenderSystemState::FrameManager m_frame_manager;
         RenderSystemState::MaterialRegistry m_material_registry;
         RenderSystemState::RendererManager m_renderer_manager;
-        RenderSystemState::SamplerManager m_sampler_manager;
-        RenderSystemState::CameraManager m_camera_manager;
         RenderSystemState::SceneDataManager m_scene_data_manager;
+        RenderSystemState::CameraManager m_camera_manager;
     };
 
     RenderSystem::RenderSystem(std::weak_ptr<SDLWindow> parent_window) : pimpl(std::make_unique<RenderSystem::impl>(*this, parent_window)) {
@@ -72,6 +70,10 @@ namespace Engine {
             .dynamic_dispatcher = nullptr
         };
         pimpl->m_device_interface = std::make_unique<RenderSystemState::DeviceInterface>(cfg);
+        pimpl->m_immutable_resource_cache =
+            std::make_unique<RenderSystemState::ImmutableResourceCache>(
+                pimpl->m_device_interface->GetDevice()
+            );
 
         pimpl->CreateSwapchain();
 
@@ -79,8 +81,8 @@ namespace Engine {
 
         pimpl->m_frame_manager.Create();
         pimpl->m_material_registry.Create();
-        pimpl->m_camera_manager.Create();
         pimpl->m_scene_data_manager.Create();
+        pimpl->m_camera_manager.Create();
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Vulkan initialization finished.");
     }
 
@@ -149,8 +151,8 @@ namespace Engine {
         return pimpl->m_renderer_manager;
     }
 
-    RenderSystemState::SamplerManager &RenderSystem::GetSamplerManager() {
-        return pimpl->m_sampler_manager;
+    RenderSystemState::ImmutableResourceCache &RenderSystem::GetIRCache() {
+        return *pimpl->m_immutable_resource_cache;
     }
 
     RenderSystemState::CameraManager &RenderSystem::GetCameraManager() {

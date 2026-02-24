@@ -21,6 +21,11 @@ namespace Engine {
     class VertexAttribute;
     class IVertexBasedRenderer;
 
+    namespace RenderSystemState {
+        class SceneDataManager;
+        class CameraManager;
+    };
+
     namespace AttachmentUtils {
         class AttachmentDescription;
     };
@@ -63,6 +68,24 @@ namespace Engine {
             const std::string & name = ""
         );
 
+         /**
+         * @brief Bind per scene resources to the command buffer.
+         * 
+         * Must be called before any draw calls.
+         * 
+         * Automatically called by `DrawRenderers` but not by `DrawMesh`.
+         */
+        void BindSceneResources(const RenderSystemState::SceneDataManager &);
+        
+        /**
+         * @brief Bind per camera resources to the command buffer.
+         * 
+         * Must be called before any draw calls, after `BindSceneResources`.
+         * 
+         * Automatically called by `DrawRenderers` but not by `DrawMesh`.
+         */
+        void BindCameraResources(const RenderSystemState::CameraManager &);
+
         /**
          * @brief Bind a material for rendering.
          * 
@@ -72,6 +95,8 @@ namespace Engine {
          * the given material instance.
          * 
          * May perform lazy allocation of buffers, etc.
+         * 
+         * Automatically called by `DrawRenderers` but not by `DrawMesh`
          */
         void BindMaterial(
             MaterialInstance &inst,

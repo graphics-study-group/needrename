@@ -47,7 +47,7 @@ struct LowerPlaneMeshAsset : public PlaneMeshAsset {
             + m_submeshes[0].normal.buffer_offset 
             + m_submeshes[0].normal.buffer_size
         )};
-        for (float * i = nb; i <= ne; i += 3) {
+        for (float * i = nb; i < ne; i += 3) {
             *(i + 2) = -1.0f;
         };
     }
@@ -237,7 +237,6 @@ int main(int argc, char **argv) {
             vk::Extent2D shadow_map_extent{2048, 2048};
             vk::Rect2D shadow_map_scissor{{0, 0}, shadow_map_extent};
             auto sm = rg.GetInternalTextureResource(s);
-            rsys->GetSceneDataManager().SetLightShadowMap(0, *sm);
             gcb.BeginRendering(
                 {nullptr},
                 {
@@ -282,6 +281,9 @@ int main(int argc, char **argv) {
         "Lit pass"
     );
     auto rg{rgb.BuildRenderGraph()};
+    auto sm = rg.GetInternalTextureResource(s);
+    // Shadow map change must be effectuated before start of a frame.
+    rsys->GetSceneDataManager().SetLightShadowMap(0, *sm);
 
     bool quited = false;
 

@@ -63,9 +63,7 @@ namespace Engine {
             const MaterialTemplateSinglePassProperties & properties,
             const std::vector <vk::ShaderModule> & shaders,
             vk::PipelineLayout layout,
-            std::optional<
-                std::pair<vk::DescriptorPool, vk::DescriptorSetLayout>
-            > material_descriptor_info,
+            vk::DescriptorPool pool,
             const ShdrRfl::SPLayout * reflected,
             VertexAttribute attribute,
             const std::string & name = ""
@@ -92,23 +90,22 @@ namespace Engine {
         vk::PipelineLayout GetPipelineLayout() const noexcept;
 
         /**
-         * @brief Get the descriptor set layout for a specific pass index.
+         * @brief Get the descriptor pool for this material.
          *
-         * @return
-         * vk::DescriptorSetLayout The descriptor set layout associated with the specified pass index.
+         * @return vk::DescriptorPool can be null if no material descriptor presents.
          */
-        vk::DescriptorSetLayout GetDescriptorSetLayout() const;
-
-        /// @brief Allocate a descriptor set with the layout of a given pass index.
-        /// As per Vulkan recommendation, allocated descriptors are generally not required to be cleaned up to speed up
-        /// allocation. When its descriptor pool is de-allocated, all descriptors attached are automatically destroyed.
-        /// @return Allocated descriptor set
-        std::vector<vk::DescriptorSet> AllocateDescriptorSets(uint32_t sz = 1);
+        vk::DescriptorPool GetDescriptorPool() const noexcept;
 
         /**
          * @brief Get all reflected shader info.
          */
         const ShdrRfl::SPLayout & GetReflectedShaderInfo () const noexcept;
+
+        /**
+         * @brief Query whether this material template has data to be submitted
+         * to GPU before draws.
+         */
+        bool HasMaterialData() const noexcept;
     };
 } // namespace Engine
 

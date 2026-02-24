@@ -59,7 +59,7 @@ namespace Engine {
                     .buffer_size = sizeof(float) * 4 * 3
                 },
                 .texcoord0 = Submesh::Attributes{
-                    .type = VertexAttributeType::SFloat32x3,
+                    .type = VertexAttributeType::SFloat32x2,
                     .buffer_offset = sizeof(float) * 4 * 3 * 3,
                     .buffer_size = sizeof(float) * 4 * 2
                 }

@@ -126,6 +126,15 @@ namespace Engine {
 
             vk::DescriptorSet GetLightDescriptorSet(uint32_t frame_in_flight) const noexcept;
             vk::DescriptorSetLayout GetLightDescriptorSetLayout() const noexcept;
+
+            /**
+             * @brief Acquire a pipeline layout that has descriptor set 0
+             * correctly set up according to scene data.
+             * 
+             * All graphics pipelines should therefore be compatible to
+             * this common pipeline layout.
+             */
+            vk::PipelineLayout GetCommonPipelineLayout() const noexcept;
         };
     }
 }

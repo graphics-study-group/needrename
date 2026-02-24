@@ -89,6 +89,30 @@ namespace Engine {
         cb.beginRendering(info);
     }
 
+    void GraphicsCommandBuffer::BindSceneResources(
+        const RenderSystemState::SceneDataManager & sdm
+    ) {
+        cb.bindDescriptorSets(
+            vk::PipelineBindPoint::eGraphics,
+            sdm.GetCommonPipelineLayout(),
+            0,
+            {sdm.GetLightDescriptorSet(m_inflight_frame_index)},
+            {}
+        );
+    }
+
+    void GraphicsCommandBuffer::BindCameraResources(
+        const RenderSystemState::CameraManager & cm
+    ) {
+        cb.bindDescriptorSets(
+            vk::PipelineBindPoint::eGraphics,
+            cm.GetCommonPipelineLayout(),
+            1,
+            {cm.GetDescriptorSet(m_inflight_frame_index)},
+            {}
+        );
+    }
+
     void GraphicsCommandBuffer::BindMaterial(
         MaterialInstance & material,
         MaterialTemplate & tpl
@@ -108,27 +132,17 @@ namespace Engine {
             m_bound_material_pipeline = std::make_pair(pipeline, pipeline_layout);
         }
 
-        material.UpdateGPUInfo(tpl, m_inflight_frame_index);
+        if (!tpl.HasMaterialData()) return;
 
-        const auto &per_scene_descriptor_set = m_system.GetSceneDataManager().GetLightDescriptorSet(m_inflight_frame_index);
-        const auto &per_camera_descriptor_set = m_system.GetCameraManager().GetDescriptorSet(m_inflight_frame_index);
+        auto dynamic_offsets = material.UpdateGPUInfo(tpl, m_inflight_frame_index);
         auto material_descriptor_set = material.GetDescriptor(tpl, m_inflight_frame_index);
-
         if (material_descriptor_set) {
             cb.bindDescriptorSets(
                 vk::PipelineBindPoint::eGraphics,
                 pipeline_layout,
-                0,
-                {per_scene_descriptor_set, per_camera_descriptor_set, material_descriptor_set},
-                {}
-            );
-        } else {
-            cb.bindDescriptorSets(
-                vk::PipelineBindPoint::eGraphics,
-                pipeline_layout,
-                0,
-                {per_scene_descriptor_set, per_camera_descriptor_set},
-                {}
+                2,
+                {material_descriptor_set},
+                dynamic_offsets
             );
         }
     }
@@ -194,6 +208,9 @@ namespace Engine {
         int32_t camera_index,
         vk::Extent2D extent
     ) {
+        BindSceneResources(m_system.GetSceneDataManager());
+        BindCameraResources(m_system.GetCameraManager());
+
         vk::Rect2D scissor{{0, 0}, extent};
         this->SetupViewport(extent.width, extent.height, scissor);
         for (const auto &rid : renderers) {
