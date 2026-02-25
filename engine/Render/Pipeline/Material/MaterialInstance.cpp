@@ -5,7 +5,7 @@
 #include "Render/Memory/ShaderParameters/ShaderParameterLayout.h"
 #include "Render/Memory/ShaderParameters/ShaderResourceBinding.h"
 #include "Render/Pipeline/PipelineInfo.h"
-#include "Render/Pipeline/PipelineUtils.h"
+#include "Render/Pipeline/PipelineUtils.hpp"
 #include "Render/Pipeline/Material/MaterialLibrary.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/DeviceInterface.h"
