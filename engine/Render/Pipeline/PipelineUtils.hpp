@@ -184,6 +184,121 @@ namespace Engine::PipelineUtils {
         };
         return info;
     }
+
+    /**
+     * @brief Fill up shader specialization info.
+     * 
+     * @param spec_vars specialization variables.
+     * @param sme a vector of `vk::SpecializationMapEntry`, referenced by the
+     * returned `vk::SpecializationInfo`
+     * @param buf Buffer containing actual data of all spec vars. Referenced
+     * by `sme`.
+     */
+    inline vk::SpecializationInfo FillSpecializationInfo (
+        const std::unordered_map <uint32_t, int32_t> & spec_vars,
+        std::vector <vk::SpecializationMapEntry> & sme,
+        std::vector <std::byte> & buf
+    ) {
+        sme.clear();
+        buf.clear();
+
+        vk::SpecializationInfo speci{};
+
+        if (!spec_vars.empty()) {
+            sme.reserve(spec_vars.size());
+            buf.resize(spec_vars.size() * sizeof(int32_t));
+            uint32_t current_offset = 0u;
+            for (const auto & [k, v] : spec_vars) {
+                const auto size = sizeof(int32_t);
+                std::memcpy(buf.data() + current_offset, &v, size);
+                sme.push_back(
+                    vk::SpecializationMapEntry{
+                        k, current_offset, size
+                    }
+                );
+                current_offset += size;
+            }
+            speci.setMapEntries(sme);
+
+            // We cannot use `setData` directly as it cannot get size correctly.
+            speci.setDataSize(buf.size());
+            speci.setPData(buf.data());
+        } else {
+            speci.setMapEntries(0);
+            speci.setDataSize(0);
+        }
+
+        return speci;
+    }
+
+    /**
+     * @brief Convert a vector of `ImageUtils::ImageFormat`s to corresponding 
+     * `vk::Format`s, and replace undefined formats to a default format.
+     */
+    inline std::vector <vk::Format> ToVulkanFormat(
+        const std::vector <Engine::ImageUtils::ImageFormat> & format,
+        vk::Format default_color_format
+    ) {
+        std::vector <vk::Format> ret;
+        std::transform(
+            format.begin(),
+            format.end(),
+            std::back_inserter(ret),
+            [default_color_format] (Engine::ImageUtils::ImageFormat fmt) -> vk::Format {
+                if (fmt == Engine::ImageUtils::ImageFormat::UNDEFINED) {
+                    return default_color_format;
+                } else {
+                    return Engine::ImageUtils::GetVkFormat(fmt);
+                }
+            }
+        );
+        return ret;
+    }
+
+    /**
+     * @brief Convert a vector of `ColorBlendingProperties` to corresponding
+     * `vk::PipelineColorBlendAttachmentState`s.
+     * 
+     * If the color blending uses `None` as blending operation, a default state
+     * will be supplied in the returned vector instead.
+     */
+    inline std::vector <vk::PipelineColorBlendAttachmentState> ToVulkanColorBlendingOps(
+        const std::vector <Engine::PipelineProperties::ColorBlendingProperties> & cbps,
+        vk::PipelineColorBlendAttachmentState default_state 
+            = vk::PipelineColorBlendAttachmentState{
+                vk::False,
+                vk::BlendFactor::eSrcAlpha,
+                vk::BlendFactor::eOneMinusSrcAlpha,
+                vk::BlendOp::eAdd,
+                vk::BlendFactor::eOne,
+                vk::BlendFactor::eZero,
+                vk::BlendOp::eAdd,
+                vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB
+                    | vk::ColorComponentFlagBits::eA
+            }
+    ) {
+        std::vector <vk::PipelineColorBlendAttachmentState> ret;
+        ret.reserve(cbps.size());
+        for (const auto & cbp : cbps) {
+            if (cbp.color_op == Engine::PipelineUtils::BlendOperation::None
+                || cbp.alpha_op == Engine::PipelineUtils::BlendOperation::None) {
+                ret.push_back(default_state);
+            } else {
+                ret.push_back(vk::PipelineColorBlendAttachmentState{
+                    vk::True,
+                    Engine::PipelineUtils::ToVkBlendFactor(cbp.src_color),
+                    Engine::PipelineUtils::ToVkBlendFactor(cbp.dst_color),
+                    Engine::PipelineUtils::ToVkBlendOp(cbp.color_op),
+                    Engine::PipelineUtils::ToVkBlendFactor(cbp.src_alpha),
+                    Engine::PipelineUtils::ToVkBlendFactor(cbp.dst_alpha),
+                    Engine::PipelineUtils::ToVkBlendOp(cbp.alpha_op),
+                    static_cast<vk::ColorComponentFlags>(static_cast<int>(cbp.color_write_mask))
+                });
+            }
+        }
+        ret.shrink_to_fit();
+        return ret;
+    }
 }
 
 #endif // RENDER_PIPELINE_PIPELINEUTILS
