@@ -66,9 +66,9 @@ public:
     void LoadData(
         std::filesystem::path mesh_file_name,
         std::shared_ptr<MaterialLibrary> library,
-        std::shared_ptr<const Texture> albedo,
-        std::shared_ptr<const Texture> metalness,
-        std::shared_ptr<const Texture> roughness
+        std::shared_ptr<Texture> albedo,
+        std::shared_ptr<Texture> metalness,
+        std::shared_ptr<Texture> roughness
     ) {
         this->LoadMesh(mesh_file_name);
 

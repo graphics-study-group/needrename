@@ -100,7 +100,7 @@ namespace Editor {
                 gcb.BeginRendering(
                     {nullptr},
                     {shadow_map_target,
-                     nullptr,
+                     TextureSubresourceRange::GetSingleRange(),
                      AttachmentUtils::LoadOperation::Clear,
                      AttachmentUtils::StoreOperation::Store,
                      AttachmentUtils::DepthClearValue{1.0f, 0U}},
