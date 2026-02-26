@@ -42,8 +42,16 @@ namespace Engine {
         return {m_color_texture->GetTextureDescription().width, m_color_texture->GetTextureDescription().height};
     }
 
+    RenderTargetTexture &SDLWindow::GetColorTexture() noexcept {
+        return *m_color_texture;
+    }
+
     const RenderTargetTexture &SDLWindow::GetColorTexture() const noexcept {
         return *m_color_texture;
+    }
+
+    RenderTargetTexture &SDLWindow::GetDepthTexture() noexcept {
+        return *m_depth_texture;
     }
 
     const RenderTargetTexture &SDLWindow::GetDepthTexture() const noexcept {

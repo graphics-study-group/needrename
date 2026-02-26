@@ -216,11 +216,11 @@ namespace Engine {
         context.PrepareCommandBuffer();
         cb.BeginRendering(
             {&this->window->GetColorTexture(),
-             nullptr,
+             TextureSubresourceRange::GetSingleRange(),
              AttachmentUtils::LoadOperation::Clear,
              AttachmentUtils::StoreOperation::Store},
             {&this->window->GetDepthTexture(),
-             nullptr,
+             TextureSubresourceRange::GetSingleRange(),
              AttachmentUtils::LoadOperation::Clear,
              AttachmentUtils::StoreOperation::DontCare,
              AttachmentUtils::DepthClearValue{1.0f, 0U}},

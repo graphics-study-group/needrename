@@ -49,7 +49,7 @@ int main(int argc, char **argv) {
             auto color = rg.GetInternalTextureResource(c);
             gsys->DrawGUI(
                 AttachmentUtils::AttachmentDescription{
-                    color, nullptr,
+                    color, TextureSubresourceRange::GetSingleRange(),
                     AttachmentUtils::LoadOperation::Clear,
                     AttachmentUtils::StoreOperation::Store,
                 },

@@ -29,7 +29,9 @@ namespace Engine {
         void CreateRenderTargets(std::shared_ptr<RenderSystem> render_system);
 
         vk::Extent2D GetExtent() const;
+        RenderTargetTexture &GetColorTexture() noexcept;
         const RenderTargetTexture &GetColorTexture() const noexcept;
+        RenderTargetTexture &GetDepthTexture() noexcept;
         const RenderTargetTexture &GetDepthTexture() const noexcept;
 
         /// Get the underlying pointer of this window

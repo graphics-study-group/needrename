@@ -11,7 +11,7 @@ namespace Engine::Materials {
     BlinnPhongInstance::BlinnPhongInstance(RenderSystem &system, std::shared_ptr<MaterialLibrary> lib) :
         MaterialInstance(system, *lib) {
     }
-    void BlinnPhongInstance::SetBaseTexture(std::shared_ptr<const Texture> image) {
+    void BlinnPhongInstance::SetBaseTexture(std::shared_ptr<Texture> image) {
         this->base_texture = std::const_pointer_cast<Texture>(image);
         this->AssignTexture("base_tex", image);
     }

@@ -3,7 +3,7 @@
 
 #include "AttachmentUtils.h"
 #include "Render/Memory/RenderTargetTexture.h"
-#include "Render/Memory/TextureSlice.h"
+#include "Render/Memory/TextureSubresourceView.h"
 #include <vulkan/vulkan.hpp>
 
 namespace Engine {
@@ -43,33 +43,19 @@ namespace Engine {
         const inline vk::RenderingAttachmentInfo GetVkAttachmentInfo(
             const AttachmentDescription &desc, vk::ImageLayout layout
         ) noexcept {
-            assert(desc.texture || desc.texture_view);
+            assert(desc.texture && "");
 
-            if (desc.texture_view) {
-                return vk::RenderingAttachmentInfo{
-                    desc.texture_view->GetImageView(),
-                    layout,
-                    // We are not going to support MSAA...
-                    vk::ResolveModeFlagBits::eNone,
-                    nullptr,
-                    vk::ImageLayout::eUndefined,
-                    GetVkLoadOp(desc.load_op),
-                    GetVkStoreOp(desc.store_op),
-                    GetVkClearValue(desc.clear_value)
-                };
-            } else {
-                return vk::RenderingAttachmentInfo{
-                    desc.texture->GetImageView(),
-                    layout,
-                    // We are not going to support MSAA...
-                    vk::ResolveModeFlagBits::eNone,
-                    nullptr,
-                    vk::ImageLayout::eUndefined,
-                    GetVkLoadOp(desc.load_op),
-                    GetVkStoreOp(desc.store_op),
-                    GetVkClearValue(desc.clear_value)
-                };
-            }
+            return vk::RenderingAttachmentInfo{
+                desc.texture->GetImageView(desc.range),
+                layout,
+                // We are not going to support MSAA...
+                vk::ResolveModeFlagBits::eNone,
+                nullptr,
+                vk::ImageLayout::eUndefined,
+                GetVkLoadOp(desc.load_op),
+                GetVkStoreOp(desc.store_op),
+                GetVkClearValue(desc.clear_value)
+            };
         }
     } // namespace AttachmentUtils
 } // namespace Engine

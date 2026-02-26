@@ -64,11 +64,11 @@ namespace Editor {
         context.PrepareCommandBuffer();
         cb.BeginRendering(
             {m_color_texture.get(),
-             nullptr,
+             Engine::TextureSubresourceRange::GetSingleRange(),
              Engine::AttachmentUtils::LoadOperation::Clear,
              Engine::AttachmentUtils::StoreOperation::Store},
             {m_depth_texture.get(),
-             nullptr,
+             Engine::TextureSubresourceRange::GetSingleRange(),
              Engine::AttachmentUtils::LoadOperation::Clear,
              Engine::AttachmentUtils::StoreOperation::DontCare,
              Engine::AttachmentUtils::DepthClearValue{1.0f, 0U}},
