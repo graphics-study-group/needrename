@@ -1,5 +1,5 @@
-#ifndef ASSET_MATERIAL_PIPELINEPROPERTY_INCLUDED
-#define ASSET_MATERIAL_PIPELINEPROPERTY_INCLUDED
+#ifndef ASSET_MATERIAL_PIPELINEPROPERTY
+#define ASSET_MATERIAL_PIPELINEPROPERTY
 
 #include <Reflection/macros.h>
 #include <Reflection/serialization_smart_pointer.h>
@@ -191,4 +191,4 @@ namespace Engine {
     } // namespace PipelineProperties
 } // namespace Engine
 
-#endif // ASSET_MATERIAL_PIPELINEPROPERTY_INCLUDED
+#endif // ASSET_MATERIAL_PIPELINEPROPERTY

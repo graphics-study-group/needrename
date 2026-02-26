@@ -116,13 +116,13 @@ std::unique_ptr<RenderGraph> BuildRenderGraph(
             auto extent = rsys->GetSwapchain().GetExtent();
             gcb.BeginRendering(
                 {
-                    {color_1, nullptr, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store},
-                    {color_2, nullptr, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store},
-                    {color_3, nullptr, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store},
-                    {color_4, nullptr, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store}
+                    {color_1, Engine::TextureSubresourceRange::GetSingleRange(), AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store},
+                    {color_2, Engine::TextureSubresourceRange::GetSingleRange(), AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store},
+                    {color_3, Engine::TextureSubresourceRange::GetSingleRange(), AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store},
+                    {color_4, Engine::TextureSubresourceRange::GetSingleRange(), AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store}
                 },
                 {depth,
-                nullptr,
+                Engine::TextureSubresourceRange::GetSingleRange(),
                 AttachmentUtils::LoadOperation::Clear,
                 AttachmentUtils::StoreOperation::DontCare,
                 AttachmentUtils::DepthClearValue{1.0f, 0U}},

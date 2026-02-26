@@ -6,6 +6,8 @@
 // GLM forward declarations.
 #include <fwd.hpp>
 
+#include "Render/Memory/TextureSubresourceView.h"
+
 namespace Engine {
 
     class DeviceBuffer;
@@ -65,7 +67,20 @@ namespace Engine {
          */
         void BindTexture(
             const std::string & name,
-            const Texture & texture
+            Texture & texture
+        ) noexcept;
+
+        /**
+         * @brief Point an interface to a subresource of a texture.
+         * 
+         * @note While you can operate on a subresource, it might not be
+         * correctly sychronized, as currently the Render Graph operates on 
+         * resource granularity.
+         */
+        void BindTexture(
+            const std::string & name,
+            Texture & texture,
+            TextureSubresourceRange range
         ) noexcept;
 
         /**

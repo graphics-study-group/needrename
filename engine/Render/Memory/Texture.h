@@ -2,7 +2,6 @@
 #define RENDER_MEMORY_TEXTURE_INCLUDED
 
 #include "Render/ImageUtils.h"
-#include "Render/Memory/TextureSlice.h"
 #include <memory>
 
 namespace vk {
@@ -15,6 +14,7 @@ namespace Engine {
     class RenderSystem;
     class AllocatedMemory;
     class DeviceBuffer;
+    class TextureSubresourceRange;
 
     namespace RenderSystemState {
         class AllocatorState;
@@ -78,15 +78,10 @@ namespace Engine {
         vk::Sampler GetSampler() const noexcept;
 
         /**
-         * @brief Get a slice referring to the whole range
-         * of its subresources (i.e. mipmaps and array layers)
+         * @brief Get the underlying handle a texture slice.
          */
-        const SlicedTextureView &GetFullSlice() const noexcept;
-
-        /**
-         * @brief Get the underlying handle of the full texture slice.
-         */
-        vk::ImageView GetImageView() const noexcept;
+        vk::ImageView GetImageView() const;
+        vk::ImageView GetImageView(const TextureSubresourceRange & tsr) const;
 
         /**
          * @brief Acquire a buffer large enough to hold the whole texture.

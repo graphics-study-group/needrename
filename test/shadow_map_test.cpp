@@ -252,7 +252,7 @@ int main(int argc, char **argv) {
                 {nullptr},
                 {
                     sm, 
-                    nullptr, 
+                    Engine::TextureSubresourceRange::GetSingleRange(), 
                     AttachmentUtils::LoadOperation::Clear,
                     AttachmentUtils::StoreOperation::Store,
                     AttachmentUtils::DepthClearValue{1.0f, 0U}

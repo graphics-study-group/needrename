@@ -5,7 +5,7 @@
 #include "Render/Memory/ShaderParameters/ShaderParameterLayout.h"
 #include "Render/Memory/ShaderParameters/ShaderResourceBinding.h"
 #include "Render/Pipeline/PipelineInfo.h"
-#include "Render/Pipeline/PipelineUtils.h"
+#include "Render/Pipeline/PipelineUtils.hpp"
 #include "Render/Pipeline/Material/MaterialLibrary.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/DeviceInterface.h"
@@ -157,7 +157,7 @@ namespace Engine {
         std::visit(Visitor{pimpl.get(), name}, value);
     }
 
-    void MaterialInstance::AssignTexture(const std::string &name, std::shared_ptr <const Texture> texture) {
+    void MaterialInstance::AssignTexture(const std::string &name, std::shared_ptr <Texture> texture) {
         this->pimpl->owned_resources[name] = texture;
         this->pimpl->p_srb->BindTexture(name, *texture);
     }

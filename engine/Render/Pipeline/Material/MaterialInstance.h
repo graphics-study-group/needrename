@@ -46,7 +46,7 @@ namespace Engine {
 
         void AssignScalarVariable(const std::string & name, std::variant<uint32_t, float> value);
         void AssignVectorVariable(const std::string & name, std::variant<glm::vec4, glm::mat4> value);
-        void AssignTexture(const std::string & name, std::shared_ptr <const Texture> texture);
+        void AssignTexture(const std::string & name, std::shared_ptr <Texture> texture);
         void AssignBuffer(const std::string & name, std::shared_ptr <const DeviceBuffer> buffer);
 
         /**

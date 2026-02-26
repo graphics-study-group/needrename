@@ -16,7 +16,7 @@ namespace Engine {
 
         public:
             BlinnPhongInstance(RenderSystem &system, std::shared_ptr<MaterialLibrary> tpl);
-            void SetBaseTexture(std::shared_ptr<const Texture> image);
+            void SetBaseTexture(std::shared_ptr<Texture> image);
             void SetSpecular(glm::vec4 spec);
             void SetAmbient(glm::vec4 spec);
             void Instantiate(const MaterialAsset &asset) override;

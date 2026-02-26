@@ -111,13 +111,13 @@ std::unique_ptr<RenderGraph> BuildRenderGraph(
         gcb.BeginRendering(
             AttachmentUtils::AttachmentDescription{
                 color, 
-                nullptr, 
+                TextureSubresourceRange::GetSingleRange(), 
                 AttachmentUtils::LoadOperation::Clear, 
                 AttachmentUtils::StoreOperation::Store
             },
             AttachmentUtils::AttachmentDescription{
                 depth,
-                nullptr,
+                TextureSubresourceRange::GetSingleRange(),
                 AttachmentUtils::LoadOperation::Clear,
                 AttachmentUtils::StoreOperation::DontCare,
                 AttachmentUtils::DepthClearValue{1.0f, 0U}
