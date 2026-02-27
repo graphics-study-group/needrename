@@ -26,11 +26,14 @@ namespace Engine
          * This method facilitates persistent data usage between frames 
          * (for TAA, for example).
          * 
+         * The reference is non const as new views might be generated during
+         * rendering.
+         * 
          * @return a handle to the managed resource, used in the render graph 
          * internally. External resources will have negative handles.
          */
         int32_t ImportExternalResource (
-            const RenderTargetTexture & texture,
+            RenderTargetTexture & texture,
             MemoryAccessTypeImageBits prev_access = MemoryAccessTypeImageBits::None
         );
 

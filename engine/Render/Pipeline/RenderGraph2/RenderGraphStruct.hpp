@@ -3,12 +3,9 @@
 
 #include <vector>
 #include <functional>
+#include <vulkan/vulkan.hpp>
 
 #include "Render/Memory/MemoryAccessTypes.h"
-
-namespace vk {
-    struct CommandBuffer;
-}
 
 namespace Engine {
     class RenderGraph2;
@@ -21,9 +18,7 @@ namespace Engine {
      * render passes may be merged into one render graph pass after compilation.
      */
     struct RenderGraphCompiledPass {
-        std::vector <
-            std::pair<uint32_t, MemoryAccessTypeBuffer>
-        > wait_passes;
+        vk::PipelineStageFlags2 wait_stage, signal_stage;
 
         std::vector <
             std::function <void(vk::CommandBuffer, const RenderGraph2 & rg)>
@@ -47,7 +42,7 @@ namespace Engine {
         > texture_mapping;
 
         std::unordered_map <
-            int32_t, DeviceBuffer *
+            int32_t, const DeviceBuffer *
         > buffer_mapping;
     };
 }

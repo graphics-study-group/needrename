@@ -10,7 +10,7 @@ namespace Engine {
 
         std::vector <
             std::tuple<
-                RenderTargetTexture *,
+                const RenderTargetTexture *,
                 MemoryAccessTypeImageBits,
                 MemoryAccessTypeImageBits
             >
