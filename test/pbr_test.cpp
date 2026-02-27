@@ -229,11 +229,11 @@ int main(int argc, char **argv) {
     rgb.UseImage(hc, IAT::ColorAttachmentWrite);
     rgb.UseImage(d, IAT::DepthStencilAttachmentWrite);
     rgb.RecordRasterizerPass(
-        RenderGraphBuilder::RGAttachmentDesc{
-            hc, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store
+        RGAttachmentDesc{
+            hc, {}, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store
         },
-        RenderGraphBuilder::RGAttachmentDesc{
-            d,
+        RGAttachmentDesc{
+            d, {},
             AttachmentUtils::LoadOperation::Clear,
             AttachmentUtils::StoreOperation::DontCare,
             AttachmentUtils::DepthClearValue{1.0f, 0U}
@@ -269,7 +269,7 @@ int main(int argc, char **argv) {
     // GUI pass
     rgb.UseImage(c, IAT::ColorAttachmentWrite);
     rgb.RecordRasterizerPass(
-        {c, AttachmentUtils::LoadOperation::Load, AttachmentUtils::StoreOperation::Store},
+        {c, {}, AttachmentUtils::LoadOperation::Load, AttachmentUtils::StoreOperation::Store},
         [rsys, gsys](GraphicsCommandBuffer &gcb, const RenderGraph &) {
             gsys->DrawGUI(gcb.GetCommandBuffer());
     });
