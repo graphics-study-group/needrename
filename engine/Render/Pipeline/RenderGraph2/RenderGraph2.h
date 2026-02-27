@@ -1,0 +1,10 @@
+#ifndef PIPELINE_RENDERGRAPH2_RENDERGRAPH2
+#define PIPELINE_RENDERGRAPH2_RENDERGRAPH2
+
+namespace Engine {
+    class RenderGraph2 {
+
+    };
+}
+
+#endif // PIPELINE_RENDERGRAPH2_RENDERGRAPH2
