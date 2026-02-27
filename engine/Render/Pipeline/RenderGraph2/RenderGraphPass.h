@@ -12,7 +12,7 @@ namespace vk {
 }
 
 namespace Engine {
-    class RenderGraph;
+    class RenderGraph2;
     class GraphicsCommandBuffer;
     class ComputeCommandBuffer;
 
@@ -32,12 +32,11 @@ namespace Engine {
         RenderGraphPassAffinity affinity{}, actual_type{};
 
         // Actual pass function
-        std::function <void(vk::CommandBuffer, const RenderGraph &)> pass_function{};
+        std::function <void(vk::CommandBuffer, const RenderGraph2 &)> pass_function{};
 
         // Access registry
         std::unordered_map <int32_t, MemoryAccessTypeImageBits> image_access{};
         std::unordered_map <int32_t, MemoryAccessTypeBuffer> buffer_access{};
-        MemoryAccessTypeBuffer global_access{MemoryAccessTypeBufferBits::None};
 
         // Attachments
         std::vector <RGAttachmentDesc> color_attachments;
@@ -62,7 +61,7 @@ namespace Engine {
          * Actual type and affinity of the pass is set to Graphics.
          */
         RenderGraphPassBuilder & SetRasterizerPassFunction (
-            std::function <void(GraphicsCommandBuffer &, const RenderGraph &)> f
+            std::function <void(GraphicsCommandBuffer &, const RenderGraph2 &)> f
         ) noexcept;
 
         /**
@@ -71,7 +70,7 @@ namespace Engine {
          * Actual type and affinity of the pass is set to Compute.
          */
         RenderGraphPassBuilder & SetComputePassFunction (
-            std::function <void(ComputeCommandBuffer &, const RenderGraph &)> f
+            std::function <void(ComputeCommandBuffer &, const RenderGraph2 &)> f
         ) noexcept;
 
         RenderGraphPassBuilder & SetAffinity(
@@ -102,11 +101,13 @@ namespace Engine {
          * 
          * Used to synchronize global scope accesses. This is typically carried
          * out by a semaphore or a memory barrier.
+         * 
+         * Implementationwise, it is marked by a special resource handle zero.
          */
         RenderGraphPassBuilder & SetGlobalAccess (
             MemoryAccessTypeBuffer access
         ) noexcept {
-            pass.global_access = access;
+            pass.buffer_access[0] = access;
             return *this;
         }
 
@@ -125,6 +126,18 @@ namespace Engine {
             pass.image_access[attachment.rt_handle] = MemoryAccessTypeImageBits::DepthStencilAttachmentDefault;
             return *this;
         }
+
+        /**
+         * @brief Wrap the rasterizer pass function between render pass
+         * beginning and ending commands.
+         * 
+         * You should only call this method after all attachments and the pass
+         * function are specified.
+         * 
+         * Rendering area is determined by the size of the smallest color
+         * attachment.
+         */
+        RenderGraphPassBuilder & WrapRenderPass() noexcept;
 
         RenderGraphPass Get() noexcept {
             return pass;
