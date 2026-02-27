@@ -20,13 +20,14 @@ namespace Engine
         ~RenderGraphBuilder2();
 
         /**
-         * @brief Register a new image texture to manage its access by the internal memo system.
+         * @brief Register a new image texture to manage its access internally.
          * 
          * The lifetime of this texture is managed by the caller.
-         * This method facilitates persistent data usage between frames (for TAA, for example).
+         * This method facilitates persistent data usage between frames 
+         * (for TAA, for example).
          * 
-         * @return a handle to the managed resource, used in the render graph internally.
-         * External resources will have negative handles.
+         * @return a handle to the managed resource, used in the render graph 
+         * internally. External resources will have negative handles.
          */
         int32_t ImportExternalResource (
             const RenderTargetTexture & texture,
@@ -34,10 +35,10 @@ namespace Engine
         );
 
         /**
-         * @brief Register a new buffer to manage its access by the internal memo system.
+         * @brief Register a new buffer to manage its access internally.
          * 
-         * @return a handle to the managed resource, used in the render graph internally.
-         * External resources will have negative handles.
+         * @return a handle to the managed resource, used in the render graph
+         * internally. External resources will have negative handles.
          */
         int32_t ImportExternalResource (
             const DeviceBuffer & buffer,
@@ -45,14 +46,17 @@ namespace Engine
         );
 
         /**
-         * @brief Request a new render target texture to be created when compiling the
-         * render graph.
+         * @brief Request a new render target texture to be created when
+         * compiling the render graph.
          * 
-         * Such resources will have their lifetime managed automatically by the compiled
-         * render graph.
+         * Such resources will have their lifetime managed automatically by the
+         * compiled render graph.
+         * Render target allocated by this method is considered transient. They
+         * cannot be used across frames. If you wish to use a persistent render
+         * texture, import it with `ImportExternalResource` method.
          * 
-         * @return a handle to the managed resource, used in the render graph internally.
-         * Internal resouces will have positive handles.
+         * @return a handle to the managed resource, used in the render graph
+         * internally. Internal resouces will have positive handles.
          */
         int32_t RequestRenderTargetTexture (
             RenderTargetTexture::RenderTargetTextureDesc texture_description,
