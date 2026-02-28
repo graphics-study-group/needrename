@@ -502,6 +502,24 @@ namespace Engine {
                     dst_access = GetAccessFlags({a});
                     dst_stage = AffinityToPipelineStage(old_p.actual_type);
 
+#ifndef NDEBUG
+                    SDL_LogDebug(
+                        SDL_LOG_CATEGORY_RENDER,
+                        std::format(
+                            "  Inserting buffer barrier for resource {}: "
+                            "subpass \"{}\" ({}, {}) "
+                            "-> subpass \"{}\" ({}, {})",
+                            r,
+                            pimpl->passes[pass_order[itr->first]].name,
+                            vk::to_string(src_stage),
+                            vk::to_string(src_access),
+                            old_p.name,
+                            vk::to_string(dst_stage),
+                            vk::to_string(dst_access)
+                        ).c_str()
+                    );
+#endif
+
                     subpass.buffer_barriers.push_back(
                         std::make_pair(
                             r,
