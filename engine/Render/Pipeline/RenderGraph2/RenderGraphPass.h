@@ -35,12 +35,12 @@ namespace Engine {
         std::function <void(vk::CommandBuffer, const RenderGraph2 &)> pass_function{};
 
         // Access registry
-        std::unordered_map <int32_t, MemoryAccessTypeImageBits> image_access{};
-        std::unordered_map <int32_t, MemoryAccessTypeBuffer> buffer_access{};
+        std::unordered_map <RGTextureHandle, MemoryAccessTypeImageBits> image_access{};
+        std::unordered_map <RGBufferHandle, MemoryAccessTypeBuffer> buffer_access{};
 
         // Attachments
-        std::vector <RGAttachmentDesc> color_attachments;
-        RGAttachmentDesc depth_attachment;
+        std::vector <RGAttachmentDesc2> color_attachments;
+        RGAttachmentDesc2 depth_attachment;
     };
 
     class RenderGraphPassBuilder {
@@ -102,7 +102,7 @@ namespace Engine {
          * @brief Mark an image for access.
          */
         RenderGraphPassBuilder & UseImage (
-            int32_t handle,
+            RGTextureHandle handle,
             MemoryAccessTypeImageBits access
         ) noexcept {
             pass.image_access[handle] = access;
@@ -117,7 +117,7 @@ namespace Engine {
          * does not support buffer ganularity synchronization after all.
          */
         RenderGraphPassBuilder & UseBuffer (
-            int32_t handle,
+            RGBufferHandle handle,
             MemoryAccessTypeBuffer access
         ) noexcept {
             pass.buffer_access[handle] = access;
@@ -135,7 +135,7 @@ namespace Engine {
         RenderGraphPassBuilder & SetGlobalAccess (
             MemoryAccessTypeBuffer access
         ) noexcept {
-            pass.buffer_access[0] = access;
+            pass.buffer_access[static_cast<RGBufferHandle>(0)] = access;
             return *this;
         }
 
@@ -145,7 +145,7 @@ namespace Engine {
          * This attachment will be automatically marked for read and write.
          */
         RenderGraphPassBuilder & AppendColorAttachment (
-            RGAttachmentDesc attachment
+            RGAttachmentDesc2 attachment
         ) noexcept {
             pass.color_attachments.push_back(attachment);
             pass.image_access[attachment.rt_handle] = MemoryAccessTypeImageBits::ColorAttachmentDefault;
@@ -158,7 +158,7 @@ namespace Engine {
          * This attachment will be automatically marked for read and write.
          */
         RenderGraphPassBuilder & SetDepthStencilAttachment (
-            RGAttachmentDesc attachment
+            RGAttachmentDesc2 attachment
         ) noexcept {
             pass.depth_attachment = attachment;
             pass.image_access[attachment.rt_handle] = MemoryAccessTypeImageBits::DepthStencilAttachmentDefault;

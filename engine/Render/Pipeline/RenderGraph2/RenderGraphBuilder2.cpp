@@ -4,6 +4,7 @@
 #include <SDL3/SDL.h>
 
 #include "Render/Memory/MemoryAccessHelper.hpp"
+#include "Render/Pipeline/RenderGraph/RGAttachmentDesc.h"
 #include "Render/Pipeline/RenderGraph2/RenderGraph2.h"
 #include "Render/Pipeline/RenderGraph2/RenderGraphPass.h"
 #include "Render/Pipeline/RenderGraph2/RenderGraphStruct.hpp"
@@ -27,11 +28,11 @@ namespace {
 
     struct UsageCache {
         std::unordered_map<
-            int32_t,
+            Engine::RGBufferHandle,
             std::vector<std::pair<uint32_t, Engine::MemoryAccessTypeBuffer>>
         > buffer_usages {};
         std::unordered_map<
-            int32_t,
+            Engine::RGTextureHandle,
             std::vector<std::pair<uint32_t, Engine::MemoryAccessTypeImageBits>>
         > image_usages {};
 
@@ -115,17 +116,17 @@ namespace Engine {
                 RenderTargetTexture::RenderTargetTextureDesc t {};
                 RenderTargetTexture::SamplerDesc s {};
             };
-            std::unordered_map <int32_t, TextureCreationInfo> texture_creation_info;
-            std::unordered_map <int32_t, RenderTargetTexture *> texture_mapping;
-            std::unordered_map <int32_t, const DeviceBuffer *> buffer_mapping;
+            std::unordered_map <RGTextureHandle, TextureCreationInfo> texture_creation_info;
+            std::unordered_map <RGTextureHandle, RenderTargetTexture *> texture_mapping;
+            std::unordered_map <RGBufferHandle, const DeviceBuffer *> buffer_mapping;
 
             /**
              * @brief Materialize render target textures from the
              * `texture_creation_info`.
              */
-            std::unordered_map <int32_t, std::unique_ptr<RenderTargetTexture>>
+            std::unordered_map <RGTextureHandle, std::unique_ptr<RenderTargetTexture>>
             MaterializeRenderTargetTextures(RenderSystem & s) const {
-                std::unordered_map <int32_t, std::unique_ptr<RenderTargetTexture>> ret{};
+                std::unordered_map <RGTextureHandle, std::unique_ptr<RenderTargetTexture>> ret{};
                 for (const auto & [k, v] : texture_creation_info) {
                     ret[k] = RenderTargetTexture::CreateUnique(
                         s,
@@ -174,14 +175,15 @@ namespace Engine {
                             continue;
                         }
                         // Transient resource has read before write.
-                        if (r > 0) {
+                        auto rid = static_cast<int32_t>(r);
+                        if (rid > 0) {
                             if (HasReadAccess({prev.second}) && HasWriteAccess({next.second})) {
                                 SDL_LogInfo(
                                     SDL_LOG_CATEGORY_RENDER,
                                     std::format(
                                         "Transient render target {} has read access before write access. "
                                         "Dependency chain is reversed for this access.",
-                                        r
+                                        rid
                                     ).c_str()
                                 );
                                 std::swap(prev, next);
@@ -205,14 +207,15 @@ namespace Engine {
                             continue;
                         }
                         // Transient resource has read before write.
-                        if (r > 0) {
+                        auto rid = static_cast<int32_t>(r);
+                        if (rid > 0) {
                             if (HasReadAccess({prev.second}) && HasWriteAccess({next.second})) {
                                 SDL_LogWarn(
                                     SDL_LOG_CATEGORY_RENDER,
                                     std::format(
                                         "Transient buffer {} has read access before write access. "
                                         "Dependency chain is reversed for this access.",
-                                        r
+                                        rid
                                     ).c_str()
                                 );
                                 std::swap(prev, next);
@@ -236,33 +239,33 @@ namespace Engine {
     }
     RenderGraphBuilder2::~RenderGraphBuilder2() = default;
 
-    int32_t RenderGraphBuilder2::ImportExternalResource(
+    RGTextureHandle RenderGraphBuilder2::ImportExternalResource(
         RenderTargetTexture &texture, MemoryAccessTypeImageBits prev_access
     ) {
         pimpl->rs.resource_counter++;
-        auto ret = -pimpl->rs.resource_counter;
+        auto ret = static_cast<RGTextureHandle>(-pimpl->rs.resource_counter);
         pimpl->rs.texture_mapping[ret] = &texture;
         pimpl->passes.front().image_access[ret] = prev_access;
         return ret;
     }
 
-    int32_t RenderGraphBuilder2::ImportExternalResource(
+    RGBufferHandle RenderGraphBuilder2::ImportExternalResource(
         const DeviceBuffer &buffer, MemoryAccessTypeBuffer prev_access
     ) {
         pimpl->rs.resource_counter++;
-        auto ret = -pimpl->rs.resource_counter;
+        auto ret = static_cast<RGBufferHandle>(-pimpl->rs.resource_counter);
         pimpl->rs.buffer_mapping[ret] = &buffer;
         pimpl->passes.front().buffer_access[ret] = prev_access;
         return ret;
     }
 
-    int32_t RenderGraphBuilder2::RequestRenderTargetTexture(
+    RGTextureHandle RenderGraphBuilder2::RequestRenderTargetTexture(
         RenderTargetTexture::RenderTargetTextureDesc texture_description,
         RenderTargetTexture::SamplerDesc sampler_description,
         std::string_view name
     ) noexcept {
         pimpl->rs.resource_counter++;
-        auto ret = pimpl->rs.resource_counter;
+        auto ret = static_cast<RGTextureHandle>(pimpl->rs.resource_counter);
         pimpl->rs.texture_creation_info[ret] = {
             .name = std::string{name},
             .t = texture_description,
@@ -306,6 +309,7 @@ namespace Engine {
             for (const auto & [r, u] : usages) {
                 auto last_affinity = pimpl->passes[pass_order[u.front().first]].affinity;
                 auto last_affinity_pass = u.front().first;
+                auto rid = static_cast<int32_t>(r);
                 for (const auto & usage : u) {
                     if (pimpl->passes[pass_order[usage.first]].affinity != last_affinity) {
                         SDL_LogInfo(
@@ -315,7 +319,7 @@ namespace Engine {
                                 "{} incurred by resource {}",
                                 pimpl->passes[pass_order[last_affinity_pass]].name,
                                 pimpl->passes[pass_order[usage.first]].name,
-                                r
+                                rid
                             ).c_str()
                         );
                         auto new_affinity = pimpl->passes[pass_order[usage.first]].affinity;
@@ -448,7 +452,7 @@ namespace Engine {
                             "  Inserting image barrier for resource {}: "
                             "subpass \"{}\" ({}, {}, {}) "
                             "-> subpass \"{}\" ({}, {}, {})",
-                            r,
+                            static_cast<int32_t>(r),
                             pimpl->passes[pass_order[itr->first]].name,
                             vk::to_string(src_stage),
                             vk::to_string(src_access),
@@ -511,7 +515,7 @@ namespace Engine {
                             "  Inserting buffer barrier for resource {}: "
                             "subpass \"{}\" ({}, {}) "
                             "-> subpass \"{}\" ({}, {})",
-                            r,
+                            static_cast<int32_t>(r),
                             pimpl->passes[pass_order[itr->first]].name,
                             vk::to_string(src_stage),
                             vk::to_string(src_access),
@@ -549,7 +553,7 @@ namespace Engine {
             e.texture_mapping[k] = v.get();
         }
         for (const auto & [r, a] : usage.image_usages) {
-            if (r > 0)  continue;
+            if (static_cast<int32_t>(r) > 0)  continue;
             e.first_persistent_texture_access[r] = a.front().second;
             e.last_persistent_texture_access[r] = a.back().second;
         }

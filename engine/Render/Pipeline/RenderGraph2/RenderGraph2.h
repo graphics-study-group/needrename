@@ -10,6 +10,9 @@ namespace Engine {
     class RenderGraphCompiledPass;
     class RenderGraph2ExtraInfo;
 
+    enum class RGTextureHandle : int32_t;
+    enum class RGBufferHandle : int32_t;
+
     class RenderGraph2 {
         struct impl;
         std::unique_ptr <impl> pimpl;
@@ -30,7 +33,7 @@ namespace Engine {
          * method sparingly.
          */
         void AddExternalInputDependency(
-            int32_t rt_handle,
+            RGTextureHandle rt_handle,
             MemoryAccessTypeImageBits access
         );
 
@@ -43,7 +46,7 @@ namespace Engine {
          * method sparingly.
          */
         void AddExternalOutputDependency(
-            int32_t rt_handle,
+            RGTextureHandle rt_handle,
             MemoryAccessTypeImageBits access
         );
 
@@ -53,7 +56,7 @@ namespace Engine {
          * @return nullptr if handle is not available.
          */
         RenderTargetTexture * GetInternalTextureResource(
-            int32_t handle
+            RGTextureHandle handle
         ) const noexcept;
 
         /**

@@ -51,7 +51,7 @@ namespace Engine {
     RenderGraph2::~RenderGraph2() noexcept = default;
 
     void RenderGraph2::AddExternalInputDependency(
-        int32_t rt_handle,
+        RGTextureHandle rt_handle,
         MemoryAccessTypeImageBits access
     ) {
         auto itr = pimpl->extra_info.first_persistent_texture_access.find(rt_handle);
@@ -69,7 +69,7 @@ namespace Engine {
     }
 
     void RenderGraph2::AddExternalOutputDependency(
-        int32_t rt_handle,
+        RGTextureHandle rt_handle,
         MemoryAccessTypeImageBits access
     ) {
         auto itr = pimpl->extra_info.last_persistent_texture_access.find(rt_handle);
@@ -87,7 +87,7 @@ namespace Engine {
     }
 
     RenderTargetTexture *RenderGraph2::GetInternalTextureResource(
-        int32_t handle
+        RGTextureHandle handle
     ) const noexcept {
         auto itr = pimpl->extra_info.texture_mapping.find(handle);
         if (itr != pimpl->extra_info.texture_mapping.end()) {

@@ -21,8 +21,8 @@ namespace Engine {
         vk::PipelineStageFlags2 wait_stage{}, signal_stage{};
 
         struct Subpass {
-            std::vector <std::pair<int32_t, vk::ImageMemoryBarrier2>> image_barriers {};
-            std::vector <std::pair<int32_t, vk::BufferMemoryBarrier2>> buffer_barriers {};
+            std::vector <std::pair<RGTextureHandle, vk::ImageMemoryBarrier2>> image_barriers {};
+            std::vector <std::pair<RGBufferHandle, vk::BufferMemoryBarrier2>> buffer_barriers {};
             vk::MemoryBarrier2 global_memory_barrier {};
 
             std::function <void(vk::CommandBuffer, const RenderGraph2 & rg)> pass_work {};
@@ -35,19 +35,19 @@ namespace Engine {
      */
     struct RenderGraph2ExtraInfo {
         std::unordered_map <
-            int32_t, MemoryAccessTypeImageBits
+            RGTextureHandle, MemoryAccessTypeImageBits
         > first_persistent_texture_access, last_persistent_texture_access;
 
         std::unordered_map <
-            int32_t, std::unique_ptr <RenderTargetTexture>
+            RGTextureHandle, std::unique_ptr <RenderTargetTexture>
         > transient_texture_storage;
 
         std::unordered_map <
-            int32_t, RenderTargetTexture *
+            RGTextureHandle, RenderTargetTexture *
         > texture_mapping;
 
         std::unordered_map <
-            int32_t, const DeviceBuffer *
+            RGBufferHandle, const DeviceBuffer *
         > buffer_mapping;
     };
 }

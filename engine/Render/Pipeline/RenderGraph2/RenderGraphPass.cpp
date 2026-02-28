@@ -37,7 +37,7 @@ namespace Engine {
     }
     RenderGraphPassBuilder &RenderGraphPassBuilder::WrapRenderPass() noexcept {
         assert(pass.actual_type == RenderGraphPassAffinity::Graphics);
-        assert(pass.color_attachments.size() > 0 || pass.depth_attachment.rt_handle != 0);
+        assert(pass.color_attachments.size() > 0 || static_cast<int32_t>(pass.depth_attachment.rt_handle) != 0);
 
         auto f = [
             // These values are all copied
@@ -78,7 +78,7 @@ namespace Engine {
                 );
             }
 
-            if (da.rt_handle != 0) {
+            if (static_cast<int32_t>(da.rt_handle) != 0) {
                 auto t = rg.GetInternalTextureResource(da.rt_handle);
                 dai = vk::RenderingAttachmentInfo{
                     t->GetImageView(da.range),

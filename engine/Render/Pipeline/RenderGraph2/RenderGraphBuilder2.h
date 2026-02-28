@@ -33,7 +33,7 @@ namespace Engine
          * internally. External resources will have negative handles.
          */
         [[nodiscard]]
-        int32_t ImportExternalResource (
+        RGTextureHandle ImportExternalResource (
             RenderTargetTexture & texture,
             MemoryAccessTypeImageBits prev_access = MemoryAccessTypeImageBits::None
         );
@@ -45,7 +45,7 @@ namespace Engine
          * internally. External resources will have negative handles.
          */
         [[nodiscard]]
-        int32_t ImportExternalResource (
+        RGBufferHandle ImportExternalResource (
             const DeviceBuffer & buffer,
             MemoryAccessTypeBuffer prev_access = {MemoryAccessTypeBufferBits::None}
         );
@@ -64,7 +64,7 @@ namespace Engine
          * internally. Internal resouces will have positive handles.
          */
         [[nodiscard]]
-        int32_t RequestRenderTargetTexture (
+        RGTextureHandle RequestRenderTargetTexture (
             RenderTargetTexture::RenderTargetTextureDesc texture_description,
             RenderTargetTexture::SamplerDesc sampler_description,
             std::string_view name = ""
