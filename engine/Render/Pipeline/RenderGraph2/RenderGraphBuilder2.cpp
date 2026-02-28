@@ -230,9 +230,9 @@ namespace Engine {
         RenderSystem &system
     ) : system(system), pimpl(std::make_unique<impl>()) {
         // Append a source pass.
-        this->AddPass(
+        /* this->AddPass(
             RenderGraphPassBuilder{system}.SetName("Virtual Source").Get()
-        );
+        ); */
     }
     RenderGraphBuilder2::~RenderGraphBuilder2() = default;
 
@@ -338,6 +338,7 @@ namespace Engine {
         std::unordered_map <uint32_t, uint32_t> merged_pass_lut {};
         
         for (const auto & [p1, v] : cross_queue_dep) {
+            affected_passes.insert(p1);
             for (const auto & [p2, _] : v) {
                 affected_passes.insert(p2);
             }
@@ -347,6 +348,7 @@ namespace Engine {
             if (affected_passes.contains(i)) {
                 merged_passes.push_back({});
             }
+            // XXX: merge passes that signal on None and wait on None
             merged_passes.back().push_back(i);
             merged_pass_lut[i] = merged_passes.size() - 1;
         }
