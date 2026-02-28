@@ -22,10 +22,13 @@ namespace Engine {
     RenderGraphPassBuilder &RenderGraphPassBuilder::SetComputePassFunction(
         std::function<void(ComputeCommandBuffer &, const RenderGraph2 &)> fn
     ) noexcept {
-        auto f = [system = &this->system,
+        auto f = [name = pass.name, system = &this->system,
                 fn](vk::CommandBuffer cb, const RenderGraph2 & rg) {
+
             ComputeCommandBuffer ccb{cb, system->GetFrameManager().GetFrameInFlight()};
+            DEBUG_CMD_START_LABEL(cb, std::format("Compute Pass {}", name).c_str());
             std::invoke(fn, std::ref(ccb), std::cref(rg));
+            DEBUG_CMD_END_LABEL(cb);
         };
         pass.pass_function = f;
         pass.actual_type = RenderGraphPassAffinity::Compute;
@@ -93,6 +96,7 @@ namespace Engine {
                 };
             }
 
+            DEBUG_CMD_START_LABEL(cb, std::format("Rasterizer Pass {}", name).c_str());
             cb.beginRendering(vk::RenderingInfo{
                 vk::RenderingFlags{},
                 rendering_area,
@@ -101,10 +105,9 @@ namespace Engine {
                 &dai,
                 &dai
             });
-            DEBUG_CMD_START_LABEL(cb, std::format("Rasterizer Pass {}", name).c_str());
             wrapped(cb, rg);
-            DEBUG_CMD_END_LABEL(cb);
             cb.endRendering();
+            DEBUG_CMD_END_LABEL(cb);
         };
         pass.pass_function = f;
         return *this;
