@@ -58,7 +58,7 @@ namespace Engine {
         /**
          * @brief Set up a pass function for rasterizer.
          * 
-         * Actual type and affinity of the pass is set to Graphics.
+         * Actual type and affinity of the pass are set to Graphics.
          */
         RenderGraphPassBuilder & SetRasterizerPassFunction (
             std::function <void(GraphicsCommandBuffer &, const RenderGraph2 &)> f
@@ -67,12 +67,30 @@ namespace Engine {
         /**
          * @brief Set up a pass function for compute shader invocations.
          * 
-         * Actual type and affinity of the pass is set to Compute.
+         * Actual type of the pass is set to Compute.
+         * Affinity is set to Graphics. See `SetAffinity()` for more
+         * details.
          */
         RenderGraphPassBuilder & SetComputePassFunction (
             std::function <void(ComputeCommandBuffer &, const RenderGraph2 &)> f
         ) noexcept;
 
+        /**
+         * @brief Set affinity of the pass.
+         * 
+         * Affinity determines whether the workload will be redistributed to
+         * be carried out asynchronously.
+         * 
+         * Typically you want all workloads to be distributed synchronously onto
+         * the Graphics core if you don't know what you are doing, which is the
+         * default behavior.
+         * Asynchronous Compute, if implemented badly, could harm overall
+         * performance instead.
+         * 
+         * @see Here are some references on Asynchronous Compute:
+         * https://developer.nvidia.com/blog/advanced-api-performance-async-compute-and-overlap/
+         * https://gpuopen.com/learn/concurrent-execution-asynchronous-queues/
+         */
         RenderGraphPassBuilder & SetAffinity(
             RenderGraphPassAffinity affinity
         ) noexcept {

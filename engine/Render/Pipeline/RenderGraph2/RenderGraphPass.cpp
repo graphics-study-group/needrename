@@ -29,7 +29,7 @@ namespace Engine {
         };
         pass.pass_function = f;
         pass.actual_type = RenderGraphPassAffinity::Compute;
-        pass.affinity = RenderGraphPassAffinity::Compute;
+        pass.affinity = RenderGraphPassAffinity::Graphics;
         return *this;
     }
     RenderGraphPassBuilder &RenderGraphPassBuilder::WrapRenderPass() noexcept {
