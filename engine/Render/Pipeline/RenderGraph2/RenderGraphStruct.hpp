@@ -18,11 +18,16 @@ namespace Engine {
      * render passes may be merged into one render graph pass after compilation.
      */
     struct RenderGraphCompiledPass {
-        vk::PipelineStageFlags2 wait_stage, signal_stage;
+        vk::PipelineStageFlags2 wait_stage{}, signal_stage{};
 
-        std::vector <
-            std::function <void(vk::CommandBuffer, const RenderGraph2 & rg)>
-        > pass_works;
+        struct Subpass {
+            std::vector <std::pair<int32_t, vk::ImageMemoryBarrier2>> image_barriers {};
+            std::vector <std::pair<int32_t, vk::BufferMemoryBarrier2>> buffer_barriers {};
+            vk::MemoryBarrier2 global_memory_barrier {};
+
+            std::function <void(vk::CommandBuffer, const RenderGraph2 & rg)> pass_work {};
+        };
+        std::vector <Subpass> subpasses {};
     };
 
     /**

@@ -102,8 +102,31 @@ namespace Engine {
     ) const {
         assert(pass < pimpl->passes.size());
 
-        for (const auto & f : pimpl->passes[pass].pass_works) {
-            std::invoke(f, cb, *this);
+        std::vector <vk::ImageMemoryBarrier2> imb{};
+        std::vector <vk::MemoryBarrier2> bmb{};
+        for (const auto & subpass : pimpl->passes[pass].subpasses) {
+            // Construct barriers.
+            imb.clear();
+            imb.reserve(subpass.image_barriers.size());
+            for (const auto & [r, b] : subpass.image_barriers) {
+                imb.push_back(b);
+                imb.back().image = this->GetInternalTextureResource(r)->GetImage();
+            }
+            bmb.clear();
+            bmb.reserve(subpass.buffer_barriers.size());
+            for (const auto & [r, b] : subpass.buffer_barriers) {
+                bmb.push_back(vk::MemoryBarrier2{
+                    b.srcStageMask, b.srcAccessMask,
+                    b.dstStageMask, b.dstAccessMask
+                });
+            }
+
+            cb.pipelineBarrier2(vk::DependencyInfo{
+                vk::DependencyFlags{},
+                bmb, {}, imb
+            });
+            // Invoke pass function.
+            std::invoke(subpass.pass_work, cb, *this);
         }
     }
 

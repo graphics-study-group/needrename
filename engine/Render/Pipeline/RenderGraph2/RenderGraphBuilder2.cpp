@@ -35,16 +35,20 @@ namespace {
             std::vector<std::pair<uint32_t, Engine::MemoryAccessTypeImageBits>>
         > image_usages {};
 
+        template <typename T>
+        static bool less_by_pass_index (
+            const std::pair<uint32_t, T> & lhs,
+            const std::pair<uint32_t, T> & rhs
+        ) noexcept {
+            return lhs.first < rhs.first;
+        }
+
         void SortByPassIndex () noexcept {
             for (auto & [r, u] : buffer_usages) {
-                std::sort(u.begin(), u.end(), [](const auto & lhs, const auto & rhs) {
-                    return lhs.first < rhs.first;
-                });
+                std::sort(u.begin(), u.end(), less_by_pass_index<Engine::MemoryAccessTypeBuffer>);
             }
             for (auto & [r, u] : image_usages) {
-                std::sort(u.begin(), u.end(), [](const auto & lhs, const auto & rhs) {
-                    return lhs.first < rhs.first;
-                });
+                std::sort(u.begin(), u.end(), less_by_pass_index<Engine::MemoryAccessTypeImageBits>);
             }
         }
     };
@@ -369,20 +373,124 @@ namespace Engine {
         for (size_t i = 0; i < p.size(); i++) {
             p[i].wait_stage = wait_stage[i];
             p[i].signal_stage = signal_stage[i];
-            p[i].pass_works = {};
-            for (auto subpass : merged_passes[i]) {
-                p[i].pass_works.push_back(
-                    pimpl->passes[reordered_pass_lut[subpass]].pass_function
-                );
+            p[i].subpasses = {};
+            for (auto subpass_id : merged_passes[i]) {
+                RenderGraphCompiledPass::Subpass subpass;
+                const auto & old_p = pimpl->passes[pass_order[subpass_id]];
+                subpass.pass_work = old_p.pass_function;
+                // Build barriers for textures.
+                for (auto [r, a] : old_p.image_access) {
+                    const auto & u = reordered_usage.image_usages[r];
+                    auto itr = std::lower_bound(
+                        u.begin(),
+                        u.end(),
+                        std::make_pair(subpass_id, MemoryAccessTypeImageBits{}),
+                        UsageCache::less_by_pass_index<MemoryAccessTypeImageBits>
+                    );
+
+                    vk::AccessFlags2 src_access, dst_access;
+                    vk::PipelineStageFlags2 src_stage, dst_stage;
+                    vk::ImageLayout src_layout, dst_layout;
+
+                    if (itr == u.begin()) {
+                        src_access = vk::AccessFlagBits2::eNone;
+                        src_stage = vk::PipelineStageFlagBits2::eNone;
+                        src_layout = vk::ImageLayout::eUndefined;
+                    } else {
+                        itr = itr - 1;
+                        src_access = GetAccessFlags({itr->second});
+                        src_stage = AffinityToPipelineStage(pimpl->passes[pass_order[itr->first]].actual_type);
+                        src_layout = GetImageLayout({itr->second});
+                    }
+                    dst_access = GetAccessFlags({a});
+                    dst_stage = AffinityToPipelineStage(old_p.actual_type);
+                    dst_layout = GetImageLayout({a});
+                    vk::ImageAspectFlags aspect{};
+                    if (pimpl->rs.texture_creation_info.contains(r)) {
+                        aspect = ImageUtils::GetVkAspect(
+                            static_cast<ImageUtils::ImageFormat>(
+                                static_cast<std::underlying_type_t<RenderTargetTexture::RTTFormat>>(
+                                    pimpl->rs.texture_creation_info[r].t.format
+                                )
+                            )
+                        );
+                    } else {
+                        assert(pimpl->rs.texture_mapping.contains(r));
+                        aspect = ImageUtils::GetVkAspect(
+                            pimpl->rs.texture_mapping[r]->GetTextureDescription().format
+                        );
+                    }
+
+                    subpass.image_barriers.push_back(
+                        std::make_pair(
+                            r,
+                            vk::ImageMemoryBarrier2{
+                                src_stage, src_access,
+                                dst_stage, dst_access,
+                                src_layout, dst_layout,
+                                // XXX: Need QFOT for exclusive sharing mode resources.
+                                vk::QueueFamilyIgnored, vk::QueueFamilyIgnored,
+                                nullptr,
+                                vk::ImageSubresourceRange{
+                                    aspect,
+                                    0, vk::RemainingMipLevels,
+                                    0, vk::RemainingArrayLayers
+                                }
+                            }
+                        )
+                    );
+                }
+
+                // Build barrier for buffers
+                for (auto [r, a] : old_p.buffer_access) {
+                    const auto & u = reordered_usage.buffer_usages[r];
+                    auto itr = std::lower_bound(
+                        u.begin(),
+                        u.end(),
+                        std::make_pair(subpass_id, MemoryAccessTypeBuffer{}),
+                        UsageCache::less_by_pass_index<MemoryAccessTypeBuffer>
+                    );
+
+                    vk::AccessFlags2 src_access, dst_access;
+                    vk::PipelineStageFlags2 src_stage, dst_stage;
+
+                    if (itr == u.begin()) {
+                        src_access = vk::AccessFlagBits2::eNone;
+                        src_stage = vk::PipelineStageFlagBits2::eNone;
+                    } else {
+                        itr = itr - 1;
+                        src_access = GetAccessFlags({itr->second});
+                        src_stage = AffinityToPipelineStage(pimpl->passes[pass_order[itr->first]].actual_type);
+                    }
+                    dst_access = GetAccessFlags({a});
+                    dst_stage = AffinityToPipelineStage(old_p.actual_type);
+
+                    subpass.buffer_barriers.push_back(
+                        std::make_pair(
+                            r,
+                            vk::BufferMemoryBarrier2{
+                                src_stage, src_access,
+                                dst_stage, dst_access,
+                                // XXX: Need QFOT for exclusive sharing mode resources.
+                                vk::QueueFamilyIgnored, vk::QueueFamilyIgnored,
+                                nullptr,
+                                0, vk::WholeSize
+                            }
+                        )
+                    );
+                }
+                p[i].subpasses.push_back(std::move(subpass));
             }
         }
-
 
         RenderGraph2ExtraInfo e{};
         e.buffer_mapping = std::move(pimpl->rs.buffer_mapping);
         e.texture_mapping = std::move(pimpl->rs.texture_mapping);
         e.transient_texture_storage = std::move(pimpl->rs.MaterializeRenderTargetTextures(system));
-
+        for (const auto & [k, v] : e.transient_texture_storage) {
+            assert(!e.texture_mapping.contains(k));
+            e.texture_mapping[k] = v.get();
+        }
         for (const auto & [r, a] : usage.image_usages) {
             if (r > 0)  continue;
             e.first_persistent_texture_access[r] = a.front().second;
