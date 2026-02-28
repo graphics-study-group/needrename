@@ -74,7 +74,7 @@ namespace {
 
             in_degree.resize(adjacent_list_in.size());
             std::transform(
-                adjacent_list_in.begin(), adjacent_list_out.end(),
+                adjacent_list_in.begin(), adjacent_list_in.end(),
                 in_degree.begin(),
                 [] (const std::unordered_set<uint32_t> & edges) -> uint32_t {
                     return edges.size();
@@ -286,10 +286,10 @@ namespace Engine {
             reordered_pass_lut[pass_order[i]] = i;
         }
         auto reordered_usage = usage;
-        for (auto & [r, u] : usage.image_usages) {
+        for (auto & [r, u] : reordered_usage.image_usages) {
             for (auto & ru : u) ru.first = reordered_pass_lut[ru.first];
         }
-        for (auto & [r, u] : usage.buffer_usages) {
+        for (auto & [r, u] : reordered_usage.buffer_usages) {
             for (auto & ru : u) ru.first = reordered_pass_lut[ru.first];
         }
         reordered_usage.SortByPassIndex();
@@ -313,8 +313,8 @@ namespace Engine {
                             std::format(
                                 "Found cross-queue dependency between pass {} and "
                                 "{} incurred by resource {}",
-                                pass_order[last_affinity_pass],
-                                pass_order[usage.first],
+                                pimpl->passes[pass_order[last_affinity_pass]].name,
+                                pimpl->passes[pass_order[usage.first]].name,
                                 r
                             ).c_str()
                         );
@@ -374,10 +374,30 @@ namespace Engine {
             p[i].wait_stage = wait_stage[i];
             p[i].signal_stage = signal_stage[i];
             p[i].subpasses = {};
+#ifndef NDEBUG
+            SDL_LogDebug(
+                SDL_LOG_CATEGORY_RENDER,
+                std::format(
+                    "Pass {} wait {} signal {}",
+                    i,
+                    vk::to_string(wait_stage[i]),
+                    vk::to_string(signal_stage[i])
+                ).c_str()
+            );
+#endif
             for (auto subpass_id : merged_passes[i]) {
                 RenderGraphCompiledPass::Subpass subpass;
                 const auto & old_p = pimpl->passes[pass_order[subpass_id]];
                 subpass.pass_work = old_p.pass_function;
+#ifndef NDEBUG
+                SDL_LogDebug(
+                    SDL_LOG_CATEGORY_RENDER,
+                    std::format(
+                        "Processing subpass \"{}\" (merged into pass {})",
+                        old_p.name, i
+                    ).c_str()
+                );
+#endif
                 // Build barriers for textures.
                 for (auto [r, a] : old_p.image_access) {
                     const auto & u = reordered_usage.image_usages[r];
@@ -420,7 +440,25 @@ namespace Engine {
                             pimpl->rs.texture_mapping[r]->GetTextureDescription().format
                         );
                     }
-
+#ifndef NDEBUG
+                    SDL_LogDebug(
+                        SDL_LOG_CATEGORY_RENDER,
+                        std::format(
+                            "  Inserting image barrier for resource {}: "
+                            "subpass \"{}\" ({}, {}, {}) "
+                            "-> subpass \"{}\" ({}, {}, {})",
+                            r,
+                            pimpl->passes[pass_order[itr->first]].name,
+                            vk::to_string(src_stage),
+                            vk::to_string(src_access),
+                            vk::to_string(src_layout),
+                            old_p.name,
+                            vk::to_string(dst_stage),
+                            vk::to_string(dst_access),
+                            vk::to_string(dst_layout)
+                        ).c_str()
+                    );
+#endif
                     subpass.image_barriers.push_back(
                         std::make_pair(
                             r,
