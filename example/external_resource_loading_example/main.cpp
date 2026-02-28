@@ -63,8 +63,6 @@ int main(int argc, char **argv) {
     auto rg = rgb->BuildDefaultRenderGraph(
         w,
         h,
-        [cmc]() { return cmc->GetRenderSystem()->GetSwapchain().GetExtent(); },
-        [cmc]() { return cmc->GetWorldSystem()->GetActiveCamera()->m_display_id; },
         final_color_id
     );
     cmc->SetRenderGraph(rg, final_color_id);

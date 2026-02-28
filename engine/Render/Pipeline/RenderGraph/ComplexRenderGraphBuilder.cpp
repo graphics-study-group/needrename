@@ -2,11 +2,13 @@
 #include "RenderGraph.h"
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include <Asset/Shader/ShaderAsset.h>
+#include <Framework/world/WorldSystem.h>
 #include <MainClass.h>
 #include <Render/Memory/RenderTargetTexture.h>
 #include <Render/Pipeline/Compute/ComputeResourceBinding.h>
 #include <Render/RenderSystem.h>
 #include <Render/RenderSystem/SceneDataManager.h>
+#include <Render/Renderer/Camera.h>
 #include <UserInterface/GUISystem.h>
 
 #include <vulkan/vulkan.hpp>
@@ -19,11 +21,7 @@ namespace Engine {
     }
 
     std::unique_ptr<RenderGraph> ComplexRenderGraphBuilder::BuildDefaultRenderGraph(
-        uint32_t texture_width,
-        uint32_t texture_height,
-        std::function<vk::Extent2D()> get_viewport_func,
-        std::function<uint8_t()> get_camera_index_func,
-        int32_t &final_color_target_id
+        uint32_t texture_width, uint32_t texture_height, int32_t &final_color_target_id
     ) {
         int32_t hdr_color_id;
         RenderTargetTexture::RenderTargetTextureDesc rtt_desc{
@@ -65,6 +63,7 @@ namespace Engine {
         m_bloom_compute_stage->Instantiate(*m_bloom_shader.cas<ShaderAsset>());
 
         auto &system = m_system;
+        auto world_system = MainClass::GetInstance()->GetWorldSystem().get();
         auto &bloom_compute_stage = *m_bloom_compute_stage;
         using IAT = MemoryAccessTypeImageBits;
         for (size_t i = 0; i < shadow_ids.size(); i++) {
@@ -104,11 +103,11 @@ namespace Engine {
              AttachmentUtils::LoadOperation::Clear,
              AttachmentUtils::StoreOperation::DontCare,
              AttachmentUtils::DepthClearValue{1.0f, 0U}},
-            [&system, get_viewport_func, get_camera_index_func](GraphicsCommandBuffer &gcb, const RenderGraph &) {
-                vk::Extent2D extent{get_viewport_func()};
+            [&system, world_system](GraphicsCommandBuffer &gcb, const RenderGraph &) {
+                vk::Extent2D extent{system.GetSwapchain().GetExtent()};
                 vk::Rect2D scissor{{0, 0}, extent};
                 gcb.SetupViewport(extent.width, extent.height, scissor);
-                system.GetCameraManager().SetActiveCameraIndex(get_camera_index_func());
+                system.GetCameraManager().SetActiveCameraIndex(world_system->GetActiveCamera()->m_display_id);
                 gcb.DrawRenderers(
                     "Lit",
                     system.GetRendererManager().FilterAndSortRenderers({}),

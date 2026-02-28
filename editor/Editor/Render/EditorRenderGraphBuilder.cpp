@@ -2,6 +2,7 @@
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include <Asset/AssetRef.h>
 #include <Asset/Shader/ShaderAsset.h>
+#include <Framework/world/WorldSystem.h>
 #include <MainClass.h>
 #include <Render/Memory/RenderTargetTexture.h>
 #include <Render/Memory/ShaderParameters/ShaderResourceBinding.h>
@@ -14,7 +15,11 @@
 #include <Render/RenderSystem/CameraManager.h>
 #include <Render/RenderSystem/FrameManager.h>
 #include <Render/RenderSystem/SceneDataManager.h>
+#include <Render/Renderer/Camera.h>
 #include <UserInterface/GUISystem.h>
+
+#include <Editor/Widget/GameWidget.h>
+#include <Editor/Widget/SceneWidget.h>
 
 #include <vulkan/vulkan.hpp>
 
@@ -30,11 +35,8 @@ namespace Editor {
     std::unique_ptr<RenderGraph> EditorRenderGraphBuilder::BuildEditorRenderGraph(
         uint32_t texture_width,
         uint32_t texture_height,
-        std::function<vk::Extent2D()> get_scene_widget_viewport_func,
-        std::function<uint8_t()> get_scene_camera_index_func,
-        std::function<vk::Extent2D()> get_game_widget_viewport_func,
-        std::function<uint8_t()> get_game_camera_index_func,
-        GUISystem *gui_system,
+        SceneWidget *scene_widget,
+        GameWidget *game_widget,
         int32_t &scene_widget_color_id,
         int32_t &game_widget_color_id,
         int32_t &final_color_target_id
@@ -65,6 +67,8 @@ namespace Editor {
         m_scene_bloom_compute_stage = std::make_shared<ComputeStage>(m_system);
         m_scene_bloom_compute_stage->Instantiate(*m_bloom_shader.cas<ShaderAsset>());
         auto &system = m_system;
+        auto world_system = MainClass::GetInstance()->GetWorldSystem().get();
+        auto gui_system = MainClass::GetInstance()->GetGUISystem().get();
         auto &scene_bloom = *m_scene_bloom_compute_stage;
         auto &game_bloom = *m_game_bloom_compute_stage;
 
@@ -129,13 +133,14 @@ namespace Editor {
              AttachmentUtils::LoadOperation::Clear,
              AttachmentUtils::StoreOperation::DontCare,
              AttachmentUtils::DepthClearValue{1.0f, 0U}},
-            [&system,
-             get_scene_widget_viewport_func,
-             get_scene_camera_index_func](GraphicsCommandBuffer &gcb, const RenderGraph &) {
-                vk::Extent2D extent{get_scene_widget_viewport_func()};
+            [&system, scene_widget](GraphicsCommandBuffer &gcb, const RenderGraph &) {
+                vk::Extent2D extent{
+                    static_cast<uint32_t>(scene_widget->m_viewport_size.x),
+                    static_cast<uint32_t>(scene_widget->m_viewport_size.y)
+                };
                 vk::Rect2D scissor{{0, 0}, extent};
                 gcb.SetupViewport(extent.width, extent.height, scissor);
-                system.GetCameraManager().SetActiveCameraIndex(get_scene_camera_index_func());
+                system.GetCameraManager().SetActiveCameraIndex(scene_widget->GetCameraIndex());
                 gcb.DrawRenderers(
                     "Lit",
                     system.GetRendererManager().FilterAndSortRenderers({}),
@@ -156,12 +161,9 @@ namespace Editor {
         this->UseImage(scene_widget_color_id, IAT::ShaderRandomWrite);
         auto &scene_bloom_binding = scene_bloom.AllocateResourceBinding();
         this->RecordComputePass(
-            [&scene_bloom,
-             texture_width,
-             texture_height,
-             &scene_bloom_binding,
-             hdr_color_id,
-             scene_widget_color_id](ComputeCommandBuffer &ccb, const RenderGraph &rg) {
+            [&scene_bloom, texture_width, texture_height, &scene_bloom_binding, hdr_color_id, scene_widget_color_id](
+                ComputeCommandBuffer &ccb, const RenderGraph &rg
+            ) {
                 scene_bloom_binding.GetShaderResourceBinding().BindTexture(
                     "inputImage", *rg.GetInternalTextureResource(hdr_color_id)
                 );
@@ -189,13 +191,14 @@ namespace Editor {
              AttachmentUtils::LoadOperation::Clear,
              AttachmentUtils::StoreOperation::DontCare,
              AttachmentUtils::DepthClearValue{1.0f, 0U}},
-            [&system,
-             get_game_widget_viewport_func,
-             get_game_camera_index_func](GraphicsCommandBuffer &gcb, const RenderGraph &) {
-                vk::Extent2D extent{get_game_widget_viewport_func()};
+            [&system, game_widget, world_system](GraphicsCommandBuffer &gcb, const RenderGraph &) {
+                vk::Extent2D extent{
+                    static_cast<uint32_t>(game_widget->m_viewport_size.x),
+                    static_cast<uint32_t>(game_widget->m_viewport_size.y)
+                };
                 vk::Rect2D scissor{{0, 0}, extent};
                 gcb.SetupViewport(extent.width, extent.height, scissor);
-                system.GetCameraManager().SetActiveCameraIndex(get_game_camera_index_func());
+                system.GetCameraManager().SetActiveCameraIndex(world_system->GetActiveCamera()->m_display_id);
                 gcb.DrawRenderers(
                     "Lit",
                     system.GetRendererManager().FilterAndSortRenderers({}),
@@ -216,12 +219,9 @@ namespace Editor {
         this->UseImage(game_widget_color_id, IAT::ShaderRandomWrite);
         auto &game_bloom_binding = game_bloom.AllocateResourceBinding();
         this->RecordComputePass(
-            [&game_bloom,
-             texture_width,
-             texture_height,
-             &game_bloom_binding,
-             hdr_color_id,
-             game_widget_color_id](ComputeCommandBuffer &ccb, const RenderGraph &rg) {
+            [&game_bloom, texture_width, texture_height, &game_bloom_binding, hdr_color_id, game_widget_color_id](
+                ComputeCommandBuffer &ccb, const RenderGraph &rg
+            ) {
                 game_bloom_binding.GetShaderResourceBinding().BindTexture(
                     "inputImage", *rg.GetInternalTextureResource(hdr_color_id)
                 );

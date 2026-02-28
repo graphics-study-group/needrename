@@ -11,7 +11,8 @@ namespace Engine {
 }
 
 namespace Editor {
-    
+    class SceneWidget;
+    class GameWidget;
 
     class EditorRenderGraphBuilder : public Engine::RenderGraphBuilder {
         static const uint32_t SHADOWMAP_WIDTH = 2048;
@@ -24,11 +25,8 @@ namespace Editor {
         std::unique_ptr<Engine::RenderGraph> BuildEditorRenderGraph(
             uint32_t texture_width,
             uint32_t texture_height,
-            std::function<vk::Extent2D()> get_scene_widget_viewport_func,
-            std::function<uint8_t()> get_scene_camera_index_func,
-            std::function<vk::Extent2D()> get_game_widget_viewport_func,
-            std::function<uint8_t()> get_game_camera_index_func,
-            Engine::GUISystem * gui_system,
+            SceneWidget *scene_widget,
+            GameWidget *game_widget,
             int32_t &scene_widget_color_id,
             int32_t &game_widget_color_id,
             int32_t &final_color_target_id

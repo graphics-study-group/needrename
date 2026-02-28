@@ -153,11 +153,8 @@ int main() {
     auto rg = rgb->BuildEditorRenderGraph(
         screenWidth,
         screenHeight,
-        [scene_widget]() -> vk::Extent2D { return {scene_widget->m_viewport_size.x, scene_widget->m_viewport_size.y}; },
-        [scene_widget]() -> uint8_t { return scene_widget->GetCameraIndex(); },
-        [game_widget]() -> vk::Extent2D { return {game_widget->m_viewport_size.x, game_widget->m_viewport_size.y}; },
-        [world]() -> uint8_t { return world->GetActiveCamera()->m_display_id; },
-        gui.get(),
+        scene_widget.get(),
+        game_widget.get(),
         scene_color_id,
         game_color_id,
         final_color_id

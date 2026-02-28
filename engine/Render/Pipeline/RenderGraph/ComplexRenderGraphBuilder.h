@@ -18,8 +18,6 @@ namespace Engine {
         std::unique_ptr<RenderGraph> BuildDefaultRenderGraph(
             uint32_t texture_width,
             uint32_t texture_height,
-            std::function<vk::Extent2D()> get_viewport_func,
-            std::function<uint8_t()> get_camera_index_func,
             int32_t &final_color_target_id
         );
 
