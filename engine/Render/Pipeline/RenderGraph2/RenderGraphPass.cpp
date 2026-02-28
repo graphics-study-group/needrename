@@ -53,7 +53,7 @@ namespace Engine {
                 {std::numeric_limits<uint32_t>::max(), std::numeric_limits<uint32_t>::max()}
             };
             std::vector <vk::RenderingAttachmentInfo> cai{ca.size()};
-            vk::RenderingAttachmentInfo dai{};
+            vk::RenderingAttachmentInfo dai{}, sai{};
 
             // Fill up color attachment info.
             for (size_t i = 0; i < cai.size(); i++) {
@@ -90,10 +90,15 @@ namespace Engine {
                     AttachmentUtils::GetVkStoreOp(da.store_op),
                     AttachmentUtils::GetVkClearValue(da.clear_value)
                 };
+
+                if (ImageUtils::GetVkAspect(t->GetTextureDescription().format) & vk::ImageAspectFlagBits::eStencil) {
+                    sai = dai;
+                } else {
+                    sai = {nullptr};
+                }
             } else {
-                dai = vk::RenderingAttachmentInfo{
-                    nullptr
-                };
+                dai = {nullptr};
+                sai = {nullptr};
             }
 
             DEBUG_CMD_START_LABEL(cb, std::format("Rasterizer Pass {}", name).c_str());
@@ -103,7 +108,7 @@ namespace Engine {
                 1, 0,
                 cai,
                 &dai,
-                &dai
+                &sai
             });
             wrapped(cb, rg);
             cb.endRendering();
