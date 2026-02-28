@@ -154,11 +154,13 @@ namespace Engine {
         auto & fm = system.GetFrameManager();
         auto cb = fm.GetRawMainCommandBuffer();
         
+        cb.begin(vk::CommandBufferBeginInfo{});
         RecordPrePass(cb);
         for (size_t i = 0; i < pimpl->passes.size(); i++) {
             this->Record(i, cb);
         }
         RecordPostPass(cb);
+        cb.end();
         fm.SubmitMainCommandBuffer();
     }
 
