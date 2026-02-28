@@ -32,6 +32,7 @@ namespace Engine
          * @return a handle to the managed resource, used in the render graph 
          * internally. External resources will have negative handles.
          */
+        [[nodiscard]]
         int32_t ImportExternalResource (
             RenderTargetTexture & texture,
             MemoryAccessTypeImageBits prev_access = MemoryAccessTypeImageBits::None
@@ -43,6 +44,7 @@ namespace Engine
          * @return a handle to the managed resource, used in the render graph
          * internally. External resources will have negative handles.
          */
+        [[nodiscard]]
         int32_t ImportExternalResource (
             const DeviceBuffer & buffer,
             MemoryAccessTypeBuffer prev_access = {MemoryAccessTypeBufferBits::None}
@@ -61,6 +63,7 @@ namespace Engine
          * @return a handle to the managed resource, used in the render graph
          * internally. Internal resouces will have positive handles.
          */
+        [[nodiscard]]
         int32_t RequestRenderTargetTexture (
             RenderTargetTexture::RenderTargetTextureDesc texture_description,
             RenderTargetTexture::SamplerDesc sampler_description,

@@ -177,6 +177,7 @@ namespace Engine {
          */
         RenderGraphPassBuilder & WrapRenderPass() noexcept;
 
+        [[nodiscard]]
         RenderGraphPass Get() noexcept {
             return pass;
         }
