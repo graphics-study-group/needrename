@@ -69,6 +69,8 @@ namespace Engine
 
         /**
          * @brief Add a pass to this render graph.
+         * 
+         * Use `RenderGraphPassBuilder` to construct the pass.
          */
         void AddPass(RenderGraphPass && pass) noexcept;
 

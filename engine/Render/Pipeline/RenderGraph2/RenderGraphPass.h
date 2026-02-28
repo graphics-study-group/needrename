@@ -98,6 +98,9 @@ namespace Engine {
             return *this;
         }
 
+        /**
+         * @brief Mark an image for access.
+         */
         RenderGraphPassBuilder & UseImage (
             int32_t handle,
             MemoryAccessTypeImageBits access
@@ -106,6 +109,13 @@ namespace Engine {
             return *this;
         }
 
+        /**
+         * @brief Mark a buffer for access.
+         * 
+         * @note Currently buffer dependency will introduce a global barrier
+         * instead of a per-buffer barrier. It seems that most graphics drivers
+         * does not support buffer ganularity synchronization after all.
+         */
         RenderGraphPassBuilder & UseBuffer (
             int32_t handle,
             MemoryAccessTypeBuffer access
@@ -129,6 +139,11 @@ namespace Engine {
             return *this;
         }
 
+        /**
+         * @brief Append a new color attachment.
+         * 
+         * This attachment will be automatically marked for read and write.
+         */
         RenderGraphPassBuilder & AppendColorAttachment (
             RGAttachmentDesc attachment
         ) noexcept {
@@ -137,6 +152,11 @@ namespace Engine {
             return *this;
         }
 
+        /**
+         * @brief Set depth stencil attachment.
+         * 
+         * This attachment will be automatically marked for read and write.
+         */
         RenderGraphPassBuilder & SetDepthStencilAttachment (
             RGAttachmentDesc attachment
         ) noexcept {
