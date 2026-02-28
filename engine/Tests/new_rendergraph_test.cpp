@@ -41,6 +41,7 @@ int main() {
             .UseImage(gbuffer, MemoryAccessTypeImageBits::ShaderSampledRead)
             .AppendColorAttachment({fbuffer, {}, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store})
             .SetRasterizerPassFunction(dummy_graphics_pass)
+            .WrapRenderPass()
             .Get()
     );
 
@@ -50,6 +51,7 @@ int main() {
             .SetGlobalAccess({MemoryAccessTypeBufferBits::IndexRead, MemoryAccessTypeBufferBits::VertexRead})
             .AppendColorAttachment({gbuffer, {}, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store})
             .SetRasterizerPassFunction(dummy_graphics_pass)
+            .WrapRenderPass()
             .Get()
     );
 

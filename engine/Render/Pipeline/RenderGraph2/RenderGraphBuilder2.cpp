@@ -311,7 +311,7 @@ namespace Engine {
                         SDL_LogInfo(
                             SDL_LOG_CATEGORY_RENDER,
                             std::format(
-                                "Found cross-queue dependency between pass {} and "
+                                "Found cross-queue dependency from pass {} to "
                                 "{} incurred by resource {}",
                                 pimpl->passes[pass_order[last_affinity_pass]].name,
                                 pimpl->passes[pass_order[usage.first]].name,
@@ -321,7 +321,7 @@ namespace Engine {
                         auto new_affinity = pimpl->passes[pass_order[usage.first]].affinity;
 
                         auto src{AffinityToPipelineStage(last_affinity)}, dst{AffinityToPipelineStage(new_affinity)};
-                        cross_queue_dep[usage.first][last_affinity_pass] = std::make_pair(src, dst);
+                        cross_queue_dep[last_affinity_pass][usage.first] = std::make_pair(src, dst);
                         
                         last_affinity = pimpl->passes[pass_order[usage.first]].affinity;
                         last_affinity_pass = usage.first;
@@ -338,18 +338,17 @@ namespace Engine {
         std::unordered_map <uint32_t, uint32_t> merged_pass_lut {};
         
         for (const auto & [p1, v] : cross_queue_dep) {
-            affected_passes.insert(p1);
             for (const auto & [p2, _] : v) {
                 affected_passes.insert(p2);
             }
         }
         merged_passes.push_back({});
         for (size_t i = 0; i < pass_order.size(); i++) {
-            merged_passes.back().push_back(i);
-            merged_pass_lut[i] = merged_passes.size() - 1;
             if (affected_passes.contains(i)) {
                 merged_passes.push_back({});
             }
+            merged_passes.back().push_back(i);
+            merged_pass_lut[i] = merged_passes.size() - 1;
         }
 
         // Rescan merged passes to obtain stages
@@ -361,8 +360,8 @@ namespace Engine {
                 for (const auto & cqd : cross_queue_dep[src_pass]) {
                     auto dst_pass = cqd.first;
 
-                    signal_stage[src_pass] |= cqd.second.first;
-                    wait_stage[dst_pass] |= cqd.second.second;
+                    signal_stage[merged_pass_lut[src_pass]] |= cqd.second.first;
+                    wait_stage[merged_pass_lut[dst_pass]] |= cqd.second.second;
                 }
             }
         }
@@ -378,7 +377,7 @@ namespace Engine {
             SDL_LogDebug(
                 SDL_LOG_CATEGORY_RENDER,
                 std::format(
-                    "Pass {} wait {} signal {}",
+                    "Pass {}: Wait {}, Signal {}",
                     i,
                     vk::to_string(wait_stage[i]),
                     vk::to_string(signal_stage[i])
