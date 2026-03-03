@@ -8,6 +8,8 @@
 #include "Render/Memory/RenderTargetTexture.h"
 #include "Render/Memory/MemoryAccessTypes.h"
 
+#include "RGAttachmentDesc.h"
+
 namespace Engine {
     class RenderSystem;
     class GUISystem;
@@ -28,25 +30,6 @@ namespace Engine {
     protected:
         RenderSystem &m_system;
     public:
-
-        struct RGAttachmentDesc {
-            using LoadOp = AttachmentUtils::LoadOperation;
-            using StoreOp = AttachmentUtils::StoreOperation;
-            using ClearValue = AttachmentUtils::ClearValue;
-
-            int32_t rt_handle;
-            LoadOp load_op{};
-            StoreOp store_op{};
-            ClearValue clear_value{};
-
-            // These values control the image view used in the rendering.
-            // They are currently unused. All renderings are defaulted
-            // to be performed on the full image view.
-            uint32_t base_mip {0};
-            uint32_t base_array_layer {1};
-            uint32_t mip_range {0};
-            uint32_t array_layer_range {1};
-        };
 
         RenderGraphBuilder(RenderSystem & system);
         ~RenderGraphBuilder();

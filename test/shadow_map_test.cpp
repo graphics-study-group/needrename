@@ -275,8 +275,8 @@ int main(int argc, char **argv) {
     rgb.UseImage(c, IAT::ColorAttachmentWrite);
     rgb.UseImage(d, IAT::DepthStencilAttachmentWrite);
     rgb.RecordRasterizerPass(
-        {c, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store},
-        {d,
+        {c, {}, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store},
+        {d, {},
          AttachmentUtils::LoadOperation::Clear,
          AttachmentUtils::StoreOperation::DontCare,
          AttachmentUtils::DepthClearValue{1.0f, 0U}},

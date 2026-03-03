@@ -476,8 +476,8 @@ namespace Engine {
         this->UseImage(ca, MemoryAccessTypeImageBits::ColorAttachmentWrite);
         this->UseImage(da, MemoryAccessTypeImageBits::DepthStencilAttachmentWrite);
         this->RecordRasterizerPass(
-            {ca, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store},
-            {da,
+            {ca, {}, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store},
+            {da, {},
              AttachmentUtils::LoadOperation::Clear,
              AttachmentUtils::StoreOperation::DontCare,
              AttachmentUtils::DepthClearValue{1.0f, 0U}},
