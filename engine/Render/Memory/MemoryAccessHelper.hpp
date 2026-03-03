@@ -40,6 +40,31 @@ namespace Engine {
         return ret;
     }
 
+    constexpr bool HasReadAccess(MemoryAccessTypeBuffer a) noexcept {
+        if (
+            a.Test(MemoryAccessTypeBufferBits::IndirectDrawRead) ||
+            a.Test(MemoryAccessTypeBufferBits::IndexRead) ||
+            a.Test(MemoryAccessTypeBufferBits::VertexRead) ||
+            a.Test(MemoryAccessTypeBufferBits::ShaderRead) ||
+            a.Test(MemoryAccessTypeBufferBits::ShaderSampled) ||
+            a.Test(MemoryAccessTypeBufferBits::ShaderRandomRead) ||
+            a.Test(MemoryAccessTypeBufferBits::TransferRead)
+        ) {
+            return true;
+        }
+        return false;
+    }
+
+    constexpr bool HasWriteAccess(MemoryAccessTypeBuffer a) noexcept {
+        if (
+            a.Test(MemoryAccessTypeBufferBits::ShaderRandomWrite) ||
+            a.Test(MemoryAccessTypeBufferBits::TransferWrite)
+        ) {
+            return true;
+        }
+        return false;
+    }
+
     constexpr vk::AccessFlags2 GetAccessFlags(MemoryAccessTypeImage a) noexcept {
         vk::AccessFlags2 ret{};
         if (a.Test(MemoryAccessTypeImageBits::ColorAttachmentRead)) {
@@ -107,6 +132,31 @@ namespace Engine {
             return vk::ImageLayout::eGeneral;
         }
         return vk::ImageLayout::eUndefined;
+    }
+
+    constexpr bool HasReadAccess(MemoryAccessTypeImage a) noexcept {
+        if (
+            a.Test(MemoryAccessTypeImageBits::ColorAttachmentRead) ||
+            a.Test(MemoryAccessTypeImageBits::DepthStencilAttachmentRead) ||
+            a.Test(MemoryAccessTypeImageBits::TransferRead) ||
+            a.Test(MemoryAccessTypeImageBits::ShaderSampledRead) ||
+            a.Test(MemoryAccessTypeImageBits::ShaderRandomRead)
+         ) {
+            return true;
+        }
+        return false;
+    }
+
+    constexpr bool HasWriteAccess(MemoryAccessTypeImage a) noexcept {
+        if (
+            a.Test(MemoryAccessTypeImageBits::ColorAttachmentWrite) ||
+            a.Test(MemoryAccessTypeImageBits::DepthStencilAttachmentWrite) ||
+            a.Test(MemoryAccessTypeImageBits::TransferWrite) ||
+            a.Test(MemoryAccessTypeImageBits::ShaderRandomWrite)
+         ) {
+            return true;
+        }
+        return false;
     }
 }
 

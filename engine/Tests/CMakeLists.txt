@@ -34,6 +34,11 @@ target_link_libraries(structured_buffer_test engine)
 add_test(NAME structured_buffer_test COMMAND structured_buffer_test)
 set_target_properties(structured_buffer_test PROPERTIES FOLDER engine_tests)
 
+add_executable(new_rendergraph_test new_rendergraph_test.cpp)
+target_link_libraries(new_rendergraph_test engine)
+add_test(NAME new_rendergraph_test COMMAND new_rendergraph_test)
+set_target_properties(new_rendergraph_test PROPERTIES FOLDER engine_tests)
+
 add_subdirectory(reflection_test)
 set_target_properties(reflection_test PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/engine/Tests")
 add_subdirectory(serialization_test)
