@@ -128,8 +128,9 @@ namespace Editor {
         this->UseImage(hdr_color_id, IAT::ColorAttachmentWrite);
         this->UseImage(depth_id, IAT::DepthStencilAttachmentWrite);
         this->RecordRasterizerPass(
-            {hdr_color_id, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store},
+            {hdr_color_id, {}, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store},
             {depth_id,
+             {},
              AttachmentUtils::LoadOperation::Clear,
              AttachmentUtils::StoreOperation::DontCare,
              AttachmentUtils::DepthClearValue{1.0f, 0U}},
@@ -186,8 +187,9 @@ namespace Editor {
         this->UseImage(hdr_color_id, IAT::ColorAttachmentWrite);
         this->UseImage(depth_id, IAT::DepthStencilAttachmentWrite);
         this->RecordRasterizerPass(
-            {hdr_color_id, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store},
+            {hdr_color_id, {}, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store},
             {depth_id,
+             {},
              AttachmentUtils::LoadOperation::Clear,
              AttachmentUtils::StoreOperation::DontCare,
              AttachmentUtils::DepthClearValue{1.0f, 0U}},
@@ -239,7 +241,7 @@ namespace Editor {
         this->UseImage(scene_widget_color_id, IAT::ShaderSampledRead);
         this->UseImage(game_widget_color_id, IAT::ShaderSampledRead);
         this->RecordRasterizerPass(
-            {final_color_target_id, AttachmentUtils::LoadOperation::Load, AttachmentUtils::StoreOperation::Store},
+            {final_color_target_id, {}, AttachmentUtils::LoadOperation::Load, AttachmentUtils::StoreOperation::Store},
             [gui_system](GraphicsCommandBuffer &gcb, const RenderGraph &) {
                 gui_system->DrawGUI(gcb.GetCommandBuffer());
             }

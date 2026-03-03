@@ -98,8 +98,9 @@ namespace Engine {
         this->UseImage(hdr_color_id, IAT::ColorAttachmentWrite);
         this->UseImage(depth_id, IAT::DepthStencilAttachmentWrite);
         this->RecordRasterizerPass(
-            {hdr_color_id, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store},
+            {hdr_color_id, {}, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store},
             {depth_id,
+             {},
              AttachmentUtils::LoadOperation::Clear,
              AttachmentUtils::StoreOperation::DontCare,
              AttachmentUtils::DepthClearValue{1.0f, 0U}},
