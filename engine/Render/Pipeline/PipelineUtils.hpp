@@ -5,6 +5,7 @@
 
 #include "Asset/Material/PipelineProperty.h"
 #include "Render/Pipeline/PipelineEnums.h"
+#include "Render/Hasher.hpp"
 
 namespace Engine::PipelineUtils {
     constexpr vk::PolygonMode ToVkPolygonMode(FillingMode mode) {
@@ -18,6 +19,7 @@ namespace Engine::PipelineUtils {
         }
         __builtin_unreachable();
     }
+
     constexpr vk::CullModeFlags ToVkCullMode(CullingMode mode) {
         switch (mode) {
         case CullingMode::None:
@@ -31,6 +33,7 @@ namespace Engine::PipelineUtils {
         }
         __builtin_unreachable();
     }
+
     constexpr vk::FrontFace ToVkFrontFace(FrontFace face) {
         switch (face) {
         case FrontFace::Counterclockwise:
@@ -40,12 +43,15 @@ namespace Engine::PipelineUtils {
         }
         __builtin_unreachable();
     }
+
     constexpr vk::CompareOp ToVkCompareOp(DSComparator comp) {
         return static_cast<vk::CompareOp>(static_cast<int>(comp));
     }
+
     constexpr vk::StencilOp ToVkStencilOp(StencilOperation op) {
         return static_cast<vk::StencilOp>(static_cast<int>(op));
     }
+
     constexpr vk::BlendOp ToVkBlendOp(BlendOperation op) {
         switch (op) {
         case BlendOperation::None:
@@ -90,6 +96,29 @@ namespace Engine::PipelineUtils {
         }
         __builtin_unreachable();
     }
+    
+    /**
+     * @brief Hasher for `PipelineRuntimeInfo` struct.
+     */
+    struct pipeline_runtime_info_hasher {
+        size_t operator() (const Engine::PipelineRuntimeInfo & pri) const noexcept {
+            Engine::RenderResourceHasher h;
+
+            h.u64(pri.va.packed);
+            
+            const auto & upcasted = static_cast<const Engine::PipelineRuntimeInfoPerRenderingHeader &>(pri);
+            h.any(upcasted);
+
+            h.u32(static_cast<uint32_t>(pri.depth_stencil_attachment_format));
+            for (int i = 0; i < 8; i++) {
+                if (pri.color_attachment_format[i] == Engine::ImageUtils::ImageFormat::UNDEFINED)
+                    break;
+                h.u32(static_cast<uint32_t>(pri.color_attachment_format[i]));
+            }
+
+            return h.get();
+        }
+    };
 
     /**
      * Converts a ShaderAsset::ShaderType to a Vulkan shader stage flag bits.

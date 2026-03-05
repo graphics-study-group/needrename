@@ -78,6 +78,21 @@ namespace Engine {
             );
         }
 
+        /**
+         * @brief Convert any type by bit to `uint32_t` or `uint64_t` and hash
+         * the converted integer.
+         */
+        template <typename T>
+        inline void any(const T & a) {
+            if constexpr (sizeof(T) == sizeof(uint32_t)) {
+                u32(std::bit_cast<uint32_t>(a));
+            } else if constexpr (sizeof(T) == sizeof(uint64_t)) {
+                u64(std::bit_cast<uint64_t>(a));
+            } else {
+                static_assert(false, "Failed to convert T to uint32_t or uint64_t");
+            }
+        }
+
         inline void string(const char *str) noexcept {
             char c;
             u32(0xff);
