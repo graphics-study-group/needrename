@@ -69,6 +69,20 @@ namespace Engine {
             const std::string & name = ""
         );
 
+        /**
+         * @brief Set up pipeline runtime info.
+         */
+        void SetRenderingInfo (PipelineRuntimeInfoPerRendering pripr) noexcept {
+            m_pripr = pripr;
+        }
+
+        /**
+         * @brief Get pipeline runtime info.
+         */
+        const PipelineRuntimeInfoPerRendering & GetRenderingInfo() const noexcept {
+            return m_pripr;
+        }
+
          /**
          * @brief Bind per scene resources to the command buffer.
          * 
