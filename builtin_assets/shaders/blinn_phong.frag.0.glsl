@@ -3,6 +3,9 @@
 #include <engine/interface.glsl>
 
 layout(constant_id = 0) const int SPECULAR_SHADING_MODE = 2;
+layout(constant_id = 1) const float SHADOW_BIAS = 0.005;
+layout(constant_id = 2) const float SHADOW_SAMPLES = 3.0;
+layout(constant_id = 3) const float SHADOW_OFFSET = 0.001;
 
 layout(location = 0) in vec3 frag_color;
 layout(location = 1) in vec2 frag_uv;
@@ -28,18 +31,14 @@ float calculateShadow(int lightIndex)
     frag_position_ls.xy += 0.5;
     
     float shadow = 0.0;
-    float bias = 0.005;
-    float samples = 3.0;
-    float offset = 0.001;
     int norm = 0;
     
-    // PCF: Sample around the current fragment in the shadow map
-    for (float x = -offset; x < offset; x += offset / (samples * 0.5))
+    for (float x = -SHADOW_OFFSET; x < SHADOW_OFFSET; x += SHADOW_OFFSET / (SHADOW_SAMPLES * 0.5))
     {
-        for (float y = -offset; y < offset; y += offset / (samples * 0.5))
+        for (float y = -SHADOW_OFFSET; y < SHADOW_OFFSET; y += SHADOW_OFFSET / (SHADOW_SAMPLES * 0.5))
         {
             float light_map_depth = texture(light_shadowmaps[lightIndex], frag_position_ls.xy + vec2(x, y)).x;
-            if (frag_position_ls.z - bias > light_map_depth)
+            if (frag_position_ls.z - SHADOW_BIAS > light_map_depth)
                 shadow += 1.0;
             ++norm;
         }
