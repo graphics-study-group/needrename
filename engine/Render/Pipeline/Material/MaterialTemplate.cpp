@@ -91,10 +91,6 @@ namespace Engine {
                 if (f == ImageUtils::ImageFormat::UNDEFINED)    break;
                 color_attachment_formats.push_back(ImageUtils::GetVkFormat(f));
             }
-            assert(
-                color_attachment_formats.size() == prop.attachments.color_blending.size()
-                && "Mismatched color attachment and blending operation size."
-            );
 
             std::vector<vk::PipelineColorBlendAttachmentState> cbass{
                 PipelineUtils::ToVulkanColorBlendingOps(prop.attachments.color_blending)
