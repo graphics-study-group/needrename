@@ -90,7 +90,7 @@ The parser generates reflection for several key classes:
         - f the `Type`'s kind is `Enum`, it can be dynamically cast to `EnumType`. `EnumType`stores the list of enum values and provides functions to translate between strings and enum values (`EnumType::to_string`and `EnumType::from_string`).
 2. **Var**
     - A container that holds a type and a pointer to an instance of that type (as a `void*`). You can cast the `void*` pointer to obtain the desired class type. The **`Var`** class also provides functions like **`Var::InvokeMethod`** and **`Var::GetMember`** to invoke member functions and access member variables. 
-    - Some `Var` objects may hold a pointer that is not referenced elsewhere, such as a `Var` obtained from `Type::CreateInstance` or the return value after a function `Invoke`. These `Var` objects will be marked with “need free", and their destructors will be called (i.e., `delete static_cast<original type pointer>(m_data)`) at the end of their lifecycle. You can also modify the deallocation flag using `Var::SetNeedFree`.
+    - Some `Var` objects may hold a pointer that is not referenced elsewhere, such as a `Var` obtained from `Type::CreateInstance` or the return value after a function `Invoke`. These `Var` objects will be marked with "need free", and their destructors will be called (i.e., `delete static_cast<original type pointer>(m_data)`) at the end of their lifecycle. You can also modify the deallocation flag using `Var::SetNeedFree`.
     - **`Var`** supports polymorphism. This means that if a `Var` holds an instance of type A but points to an object of type B (a derived class), `InvokeMethod` will invoke methods from type B.
     - If the return value of the function called by `Var::InvokeMethod` is not void or reference, the system will call its default constructor and use "=" to assign the var. This var will be marked as "need free".
     - If a `Var`'s type is a pointer, you can call `Var::GetPointedVar`to get the `Var`it points to.
@@ -162,83 +162,58 @@ The parser generates reflection for several key classes:
 
     ```json
     {
-        "%data": {
-            "&0": {
-                "%type": "Engine::GameObjectAsset",
-                "Asset::m_guid": "C052739654DA3905A0E7187B4DCDA668",
-                "GameObjectAsset::m_MainObject": "&1"
-            },
-            "&1": {
-                "%type": "Engine::GameObject",
-                "GameObject::m_childGameObject": [],
-                "GameObject::m_components": [
-                    "&2",
-                    "&3"
-                ],
-                "GameObject::m_name": "four_bunny",
-                "GameObject::m_parentGameObject": null,
-                "GameObject::m_transformComponent": "&2"
-            },
-            "&2": {
-                "%type": "Engine::TransformComponent",
-                "Component::m_parentGameObject": "&1",
-                "TransformComponent::m_transform": {
-                    "%type": "Engine::Transform",
-                    "Transform::m_position": [
-                        0.0,
-                        0.0,
-                        0.0
-                    ],
-                    "Transform::m_rotation": [
-                        0.0,
-                        0.0,
-                        0.0,
-                        1.0
-                    ],
-                    "Transform::m_scale": [
-                        1.0,
-                        1.0,
-                        1.0
-                    ]
+        "%extra_data": [],
+        "%main_data": {
+            "%type": "Engine::LevelAsset",
+            "Asset::m_guid": "FF182376000000000000000000000000",
+            "LevelAsset::m_default_camera": 7,
+            "LevelAsset::m_skybox_material": "07BF9F33F68CCAB150A6078964D33EF1",
+            "SceneAsset::components": [
+                {
+                    "%type": "Engine::TransformComponent",
+                    "Component::m_handle": 1,
+                    "Component::m_parentGameObject": 1,
+                    "TransformComponent::m_transform": {
+                        "%type": "Engine::Transform",
+                        "Transform::m_position": [0.0, 0.0, 0.0],
+                        "Transform::m_rotation": [0.0, 0.0, 0.0, 1.0],
+                        "Transform::m_scale": [1.0, 1.0, 1.0]
+                    }
+                },
+                {
+                    "%type": "Engine::CameraComponent",
+                    "CameraComponent::m_camera": "&1",
+                    "Component::m_handle": 7,
+                    "Component::m_parentGameObject": 2
                 }
-            },
-            "&3": {
-                "%extra_data_id": 0,
-                "%type": "Engine::MeshComponent",
-                "Component::m_parentGameObject": "&1",
-                "MeshComponent::m_mesh_asset": "&8",
-                "RendererComponent::m_cast_shadow": false,
-                "RendererComponent::m_is_eagerly_loaded": false,
-                "RendererComponent::m_layer": 4294967295,
-                "RendererComponent::m_material_assets": [
-                    "&4",
-                    "&5",
-                    "&6",
-                    "&7"
-                ],
-                "RendererComponent::m_priority": 0
-            },
-            "&4": {
-                "%type": "Engine::AssetRef",
-                "AssetRef::m_guid": "09CDF049F5138FFA763A5D892A455966"
-            },
-            ......
-            "&8": {
-                "%type": "Engine::AssetRef",
-                "AssetRef::m_guid": "D8676A9BA404F7A084DC7E30A9E5245D"
-            }
+            ],
+            "SceneAsset::objects": [
+                {
+                    "%type": "Engine::GameObject",
+                    "GameObject::m_childGameObject": [],
+                    "GameObject::m_components": [1, 6],
+                    "GameObject::m_handle": 1,
+                    "GameObject::m_name": "four_bunny",
+                    "GameObject::m_parentGameObject": 0,
+                    "GameObject::m_transformComponent": 1
+                }
+            ]
         },
-        "%extra_data": [
-            {
-                "%extension": ".bin"
+        "%smart_pointer_data": {
+            "&1": {
+                "%type": "Engine::Camera",
+                "Camera::m_aspect_ratio": 1.7777777910232544,
+                "Camera::m_clipping_far": 1000.0,
+                "Camera::m_clipping_near": 0.0010000000474974513,
+                "Camera::m_fov_vertical": 45.0
             }
-        ],
-        "%main_id": "&0"
+        }
     }
-    
     ```
 
-    - The **`%data`** section stores all encountered objects, and the **`%main_id`** points to the main object being serialized.
+    - **`%main_data`**: Stores the main object being serialized directly (inline, without ID references).
+    - **`%smart_pointer_data`**: Stores objects pointed to by smart pointers, using `&N` IDs for reference.
+    - **`%extra_data`**: Stores additional binary data (see section 3 below).
     - Each object contains a **`%type`** field, which indicates the type of the object. During deserialization, this type information is used by the reflection system to properly reconstruct objects, ensuring correct polymorphic behavior.
     - Note that we use `class_name::member_name` to store the key of a member instead of full name including its parent namespace. Please make sure do not inherit different base classes with the same name (even if they are in different namespace).
 
@@ -252,3 +227,103 @@ The parser generates reflection for several key classes:
 4. **File Storage**
 
     - An archive can be directly loaded from or saved to a file. The file is stored as a `abc.asset` JSON file, with additional data stored in a separate file (if applicable). The name of the extra data file is derived by removing the ```.asset``` suffix from the JSON file name.
+
+## Global Resolver System
+
+The Archive class includes a **global resolver** system that provides specialized handling for different types of data during serialization and deserialization.
+
+### Resolver Base Class
+
+```cpp
+class Resolver {
+public:
+    Resolver() = default;
+    virtual ~Resolver() = default;
+};
+```
+
+### GlobalContext Structure
+
+```cpp
+struct GlobalContext {
+    Json json{};
+    std::vector<BinData> extra_data{};
+    std::vector<std::unique_ptr<Resolver>> resolvers{};
+    bool save_prepared = false;
+    bool load_prepared = false;
+};
+```
+
+### SmartPointerResolver
+
+The `SmartPointerResolver` stores mappings between smart pointers and their corresponding JSON data blocks.
+
+```cpp
+class SmartPointerResolver : public Resolver {
+public:
+    IDMap id_map{};           // Address -> Serialization ID
+    PointerMap pointer_map{}; // Serialization ID -> shared_ptr<void>
+    int current_id = 1;
+};
+```
+
+**Purpose**:
+- Ensures that multiple smart pointers pointing to the same object do not result in duplicate serialization or object creation.
+- During serialization: checks if the pointer address has been recorded; if not, assigns a new ID and serializes the object.
+- During deserialization: checks if an ID already has a corresponding pointer; if so, reuses it to avoid duplicate creation.
+
+### HandleResolver
+
+The `HandleResolver` is specifically designed for `ObjectHandle` and `ComponentHandle` serialization.
+
+```cpp
+class HandleResolver : public Resolver {
+public:
+    std::unordered_map<uint32_t, ObjectHandle> m_obj_map{};
+    std::unordered_map<uint32_t, ComponentHandle> m_comp_map{};
+};
+```
+
+**Purpose**:
+- Addresses the mismatch between **stored handles** (asset-time) and **runtime handles** (scene-time).
+- When a `SceneAsset` is instantiated into a runtime `Scene`, the `HandleResolver` remaps stored handles to runtime-safe handles.
+- Prevents ID conflicts between existing and newly added objects/components.
+
+### Using Resolvers
+
+```cpp
+template <ResolverType T>
+T &GetOrCreateResolver() {
+    for (auto &resolver : m_context->resolvers) {
+        if (dynamic_cast<T *>(resolver.get())) {
+            return *dynamic_cast<T *>(resolver.get());
+        }
+    }
+    m_context->resolvers.push_back(std::make_unique<T>());
+    return *dynamic_cast<T *>(m_context->resolvers.back().get());
+}
+```
+
+**Usage Example** (Handle deserialization):
+```cpp
+void ObjectHandle::load_from_archive(Archive &archive) {
+    Json &json = *archive.m_cursor;
+    auto &resolver = archive.GetOrCreateResolver<HandleResolver>();
+    *this = resolver.m_obj_map[json.get<uint32_t>()];
+}
+```
+
+### Two-Phase Deserialization for SceneAsset
+
+When deserializing a `SceneAsset` into a runtime `Scene`:
+
+1. **Phase 1 - Create Objects and Build Mapping**:
+   - Create all `GameObject` instances and record their ID mappings
+   - Create all `Component` instances and record their ID mappings
+   - Store mappings in `HandleResolver`
+
+2. **Phase 2 - Deserialize Data**:
+   - Deserialize all `GameObject` and `Component` data
+   - `Handle::load_from_archive` uses the resolver to convert stored IDs to runtime handles
+
+This two-phase approach ensures that all handles can be correctly resolved even when IDs change between asset storage and runtime.
