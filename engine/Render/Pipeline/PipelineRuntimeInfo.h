@@ -25,31 +25,18 @@ namespace Engine {
          * Values that are not a power of two are not valid.
          * Other values (e.g. 8) may be supported depending on the platform.
          */
-        uint8_t samples : 8;
-        
-        /**
-         * Enable alpha-to-coverage technique for multisampling.
-         */
-        bool alpha_to_coverage_enable : 1;
-
-        /**
-         * Write one to alpha channel after multisampling.
-         * It should be combined with alpha-to-coverage technique.
-         */
-        bool alpha_to_one_enable : 1;
+        uint8_t samples;
 
         // Pad to 4 bytes
-        uint8_t : 0;
-        uint8_t _padding_1[2];
+        uint8_t _padding[3];
 
         bool operator== (const PipelineRuntimeInfoPerRenderingHeader & rhs) const noexcept {
             return (
-                samples == rhs.samples &&
-                alpha_to_coverage_enable == rhs.alpha_to_coverage_enable &&
-                alpha_to_one_enable == rhs.alpha_to_one_enable
+                samples == rhs.samples
             );
         };
     };
+    static_assert(sizeof(PipelineRuntimeInfoPerRenderingHeader) == sizeof(uint32_t));
 
     /**
      * @brief Runtime information for graphics pipelines that is determined on
