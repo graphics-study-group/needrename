@@ -67,8 +67,7 @@ public:
         std::filesystem::path mesh_file_name,
         std::shared_ptr<MaterialLibrary> library,
         std::shared_ptr<Texture> albedo,
-        std::shared_ptr<Texture> metalness,
-        std::shared_ptr<Texture> roughness
+        std::shared_ptr<Texture> MRAO
     ) {
         this->LoadMesh(mesh_file_name);
 
@@ -78,8 +77,7 @@ public:
         for (size_t i = 0; i < masset->GetSubmeshCount(); i++) {
             auto ptr = std::make_shared<MaterialInstance>(*system, *library);
             ptr->AssignTexture("albedoSampler", albedo);
-            ptr->AssignTexture("metalnessSampler", metalness);
-            ptr->AssignTexture("roughnessSampler", roughness);
+            ptr->AssignTexture("MRAOSampler", MRAO);
             m_materials.push_back(ptr);
         }
     }
@@ -204,19 +202,16 @@ int main(int argc, char **argv) {
     std::shared_ptr red_texture =
         ImageTexture::CreateUnique(*rsys, empty_desc, Texture::SamplerDesc{}, "Sampled Albedo");
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*red_texture, {1.0, 0.0, 0.0, 1.0});
-    std::shared_ptr metalness_texture =
-        ImageTexture::CreateUnique(*rsys, empty_desc, Texture::SamplerDesc{}, "Sampled Metalness");
-    rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*metalness_texture, {1.0, 1.0, 1.0, 1.0});
-    std::shared_ptr roughness_texture =
-        ImageTexture::CreateUnique(*rsys, empty_desc, Texture::SamplerDesc{}, "Sampled Roughness");
-    rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*roughness_texture, {1.0, 1.0, 1.0, 1.0});
+    std::shared_ptr MRAO_texture =
+        ImageTexture::CreateUnique(*rsys, empty_desc, Texture::SamplerDesc{}, "Sampled MRAO");
+    rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*MRAO_texture, {1.0, 1.0, 1.0, 1.0});
 
     auto &scene = cmc->GetWorldSystem()->GetMainSceneRef();
     // Setup mesh
     std::filesystem::path mesh_path{std::string(ENGINE_ASSETS_DIR) + "/meshes/sphere.obj"};
     auto &go = scene.CreateGameObject();
     auto tmc = &scene.CreateComponent<PBRMeshComponent>(go);
-    tmc->LoadData(mesh_path, pbr_material, red_texture, metalness_texture, roughness_texture);
+    tmc->LoadData(mesh_path, pbr_material, red_texture, MRAO_texture);
     rsys->GetRendererManager().RegisterRendererComponent(tmc->GetHandle());
 
     // Setup camera

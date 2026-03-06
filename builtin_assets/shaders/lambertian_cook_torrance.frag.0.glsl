@@ -21,8 +21,7 @@ layout(std140, set = 2, binding = 0) uniform Material {
     float roughness_scale;
 } material;
 layout (set=2, binding=1) uniform sampler2D albedoSampler;
-layout (set=2, binding=2) uniform sampler2D metalnessSampler;
-layout (set=2, binding=3) uniform sampler2D roughnessSampler;
+layout (set=2, binding=2) uniform sampler2D MRAOSampler;
 
 // GGX/Towbridge-Reitz normal distribution function.
 // Uses Disney's reparametrization of alpha = roughness^2.
@@ -93,8 +92,8 @@ void main()
 {
     vec3 albedo = texture(albedoSampler, frag_uv).rgb;
 
-    const float metalness = texture(metalnessSampler, frag_uv).r * material.metalness_scale;
-    const float roughness = texture(roughnessSampler, frag_uv).r * material.roughness_scale;
+    const float metalness = texture(MRAOSampler, frag_uv).r * material.metalness_scale;
+    const float roughness = texture(MRAOSampler, frag_uv).g * material.roughness_scale;
 
     // Remember that we are in view space, and the camera is at exactly (0,0,0).
     vec3 Lo = normalize((- camera.cameras[pc.camera_id].view * vec4(frag_position, 1.0)).xyz);

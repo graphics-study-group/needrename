@@ -9,7 +9,7 @@
                 "m_type": "Texture",
                 "m_value": "1D73E8C7640A3DF77B503B3F5E97DBE5"
             },
-            "metalnessSampler": {
+            "MRAOSampler": {
                 "m_type": "Texture",
                 "m_value": "24EF50B82AB1DC9793F60A50DBE77719"
             },
@@ -17,10 +17,6 @@
                 "m_type": "Simple",
                 "m_ubo_type": "Float",
                 "m_value": 0.5
-            },
-            "roughnessSampler": {
-                "m_type": "Texture",
-                "m_value": "24EF50B82AB1DC9793F60A50DBE77719"
             },
             "roughness_scale": {
                 "m_type": "Simple",
