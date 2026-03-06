@@ -25,7 +25,7 @@ namespace Engine {
             std::vector<uint32_t> m_indices{};
 
             // Raw buffer containing all vertex attribute data
-            std::vector <std::byte> m_vertex_attributes;
+            std::vector <std::byte> m_vertex_attributes {};
 
             struct Attributes {
                 VertexAttributeType type{VertexAttributeType::Unused};
