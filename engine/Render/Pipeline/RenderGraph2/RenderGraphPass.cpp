@@ -27,7 +27,7 @@ namespace Engine {
                 fn](vk::CommandBuffer cb, const RenderGraph2 & rg) {
 
             ComputeCommandBuffer ccb{cb, system->GetFrameManager().GetFrameInFlight()};
-            DEBUG_CMD_START_LABEL(cb, std::format("Compute Pass {}", name).c_str());
+            DEBUG_CMD_START_LABEL(cb, std::format("{} (Compute)", name).c_str());
             std::invoke(fn, std::ref(ccb), std::cref(rg));
             DEBUG_CMD_END_LABEL(cb);
         };
@@ -57,7 +57,7 @@ namespace Engine {
             vk::RenderingAttachmentInfo dai{}, sai{};
 
             // Fill up color attachment info.
-            for (size_t i = 0; i < cai.size(); i++) {
+            for (size_t i = 0; i < ca.size(); i++) {
                 auto t = rg.GetInternalTextureResource(ca[i].rt_handle);
                 cai[i] = vk::RenderingAttachmentInfo{
                     t->GetImageView(ca[i].range),
@@ -102,7 +102,7 @@ namespace Engine {
                 sai = {nullptr};
             }
 
-            DEBUG_CMD_START_LABEL(cb, std::format("Rasterizer Pass {}", name).c_str());
+            DEBUG_CMD_START_LABEL(cb, std::format("{} (Rasterizer)", name).c_str());
             cb.beginRendering(vk::RenderingInfo{
                 vk::RenderingFlags{},
                 rendering_area,

@@ -96,6 +96,34 @@ namespace Engine {
                 && "Mismatched color attachment and blending operation size."
             );
 
+            std::vector<vk::PipelineColorBlendAttachmentState> cbass{
+                PipelineUtils::ToVulkanColorBlendingOps(prop.attachments.color_blending)
+            };
+
+            if (color_attachment_formats.size() < cbass.size()) {
+                SDL_LogWarn(
+                    SDL_LOG_CATEGORY_RENDER,
+                    "For material %s, %llu color render targets are requested, but only %llu are provided. "
+                    "Shader writes to extra color attachments will be discarded.",
+                    m_name.c_str(),
+                    color_attachment_formats.size(),
+                    cbass.size()
+                );
+                cbass.resize(color_attachment_formats.size());
+            } else if (color_attachment_formats.size() > cbass.size()) {
+                SDL_LogWarn(
+                    SDL_LOG_CATEGORY_RENDER,
+                    "For material %s, %llu color render targets are requested, but only %llu are provided. "
+                    "Extra color render targets will not be written in the shader.",
+                    m_name.c_str(),
+                    color_attachment_formats.size(),
+                    cbass.size()
+                );
+                for (auto i = cbass.size(); i < color_attachment_formats.size(); i++) {
+                    cbass.push_back(vk::PipelineColorBlendAttachmentState{});
+                }
+            }
+
             prci = vk::PipelineRenderingCreateInfo{
                 0,
                 color_attachment_formats,
@@ -103,11 +131,7 @@ namespace Engine {
                 // XXX: stencil attachment support
                 vk::Format::eUndefined
             };
-
             cbsi.logicOpEnable = vk::False;
-            std::vector<vk::PipelineColorBlendAttachmentState> cbass{
-                PipelineUtils::ToVulkanColorBlendingOps(prop.attachments.color_blending)
-            };
             cbsi.setAttachments(cbass);
 
             vk::GraphicsPipelineCreateInfo gpci{};
