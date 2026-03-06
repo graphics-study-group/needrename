@@ -168,7 +168,7 @@ int main(int argc, char **argv) {
         {drt, {}, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::DontCare, AttachmentUtils::DepthClearValue{1.0f, 0U}},
             [rsys, camera] (GraphicsCommandBuffer & cb, const RenderGraph &) -> void {
                 rsys->GetSceneDataManager().DrawSkybox(
-                    cb.GetCommandBuffer(),
+                    cb,
                     rsys->GetFrameManager().GetFrameInFlight(),
                     camera->GetViewMatrix(),
                     camera->GetProjectionMatrix()
