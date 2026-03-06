@@ -11,6 +11,7 @@ namespace Engine {
         auto f = [system = &this->system,
                 fn](vk::CommandBuffer cb, const RenderGraph2 & rg) {
             GraphicsCommandBuffer gcb{*system, cb, system->GetFrameManager().GetFrameInFlight()};
+            gcb.SetRenderingInfo(rg.GetCurrentPassRuntimeInfo());
             std::invoke(fn, std::ref(gcb), std::cref(rg));
         };
         pass.pass_function = f;

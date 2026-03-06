@@ -6,6 +6,7 @@
 #include <vulkan/vulkan.hpp>
 
 #include "Render/Memory/MemoryAccessTypes.h"
+#include "Render/Pipeline/PipelineRuntimeInfo.h"
 
 namespace Engine {
     class RenderGraph2;
@@ -24,6 +25,8 @@ namespace Engine {
             std::vector <std::pair<RGTextureHandle, vk::ImageMemoryBarrier2>> image_barriers {};
             std::vector <std::pair<RGBufferHandle, vk::BufferMemoryBarrier2>> buffer_barriers {};
             vk::MemoryBarrier2 global_memory_barrier {};
+
+            PipelineRuntimeInfoPerRendering per_rendering_info {};
 
             std::function <void(vk::CommandBuffer, const RenderGraph2 & rg)> pass_work {};
         };
