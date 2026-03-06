@@ -23,7 +23,6 @@ namespace Engine {
         };
 
         struct PipelineAssetItem {
-            MeshVertexType expected_mesh_type {};
             std::shared_ptr<AssetRef> material_template_asset {};
         };
 
@@ -211,8 +210,8 @@ namespace Engine {
                     shader_modules,
                     b.pipeline_layout,
                     b.descriptor_pool.get(),
-                    &b.reflected,
-                    VertexAttribute{pri.va},
+                    b.reflected,
+                    pri,
                     asset->name
                 );
             } else {
@@ -222,8 +221,8 @@ namespace Engine {
                     shader_modules,
                     b.pipeline_layout,
                     nullptr,
-                    &b.reflected,
-                    VertexAttribute{pri.va},
+                    b.reflected,
+                    pri,
                     asset->name
                 );
             }
@@ -241,10 +240,8 @@ namespace Engine {
     MaterialLibrary::~MaterialLibrary() {
     }
     const MaterialTemplate * MaterialLibrary::FindMaterialTemplate(
-        const std::string &tag, VertexAttribute mesh_type
+        const std::string &tag, const PipelineRuntimeInfo & pri
     ) const noexcept {
-        auto pri = PipelineRuntimeInfo{ {.va = mesh_type}, {} };
-
         auto itr = pimpl->pipeline_table.find(tag);
         if (itr != pimpl->pipeline_table.end() && itr->second.materials[pri]) {
             return itr->second.materials[pri].get();
@@ -274,16 +271,15 @@ namespace Engine {
     }
 
     MaterialTemplate *MaterialLibrary::FindMaterialTemplate(
-        const std::string &tag, VertexAttribute mesh_type
+        const std::string &tag, const PipelineRuntimeInfo & pri
     ) noexcept {
-        return const_cast<MaterialTemplate *>(std::as_const(*this).FindMaterialTemplate(tag, mesh_type));
+        return const_cast<MaterialTemplate *>(std::as_const(*this).FindMaterialTemplate(tag, pri));
     }
 
     void MaterialLibrary::Instantiate(const MaterialLibraryAsset & asset) {
         pimpl->pipeline_table.clear();
         for (auto & [tag, bundle] : asset.material_bundle) {
             pimpl->pipeline_asset_table[tag] = impl::PipelineAssetItem{
-                .expected_mesh_type = static_cast<MeshVertexType>(bundle.expected_mesh_type),
                 .material_template_asset = bundle.material_template
             };
         }

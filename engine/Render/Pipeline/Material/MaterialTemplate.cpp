@@ -7,6 +7,7 @@
 #include "Render/AttachmentUtilsFunc.h"
 #include "Render/DebugUtils.h"
 #include "Render/ImageUtilsFunc.h"
+#include "Render/Pipeline/PipelineRuntimeInfo.h"
 #include "Render/Pipeline/PipelineInfo.h"
 #include "Render/Pipeline/PipelineUtils.hpp"
 #include "Render/RenderSystem.h"
@@ -38,7 +39,7 @@ namespace Engine {
             RenderSystem & system,
             const std::vector <vk::ShaderModule> shader_modules,
             const MaterialTemplateSinglePassProperties &prop,
-            VertexAttribute attribute
+            const PipelineRuntimeInfo &pri
         ) {
             vk::Device device = system.GetDevice();
 
@@ -70,8 +71,8 @@ namespace Engine {
             bool use_swapchain_attachments =
                 prop.attachments.color.empty() && prop.attachments.depth == ImageUtils::ImageFormat::UNDEFINED;
 
-            auto vertex_bindings = attribute.ToVkVertexInputBinding();
-            auto vertex_attribute = attribute.ToVkVertexAttribute();
+            auto vertex_bindings = pri.va.ToVkVertexInputBinding();
+            auto vertex_attribute = pri.va.ToVkVertexAttribute();
             auto vis = vk::PipelineVertexInputStateCreateInfo{
                 vk::PipelineVertexInputStateCreateFlags{},
                 vertex_bindings,
@@ -176,11 +177,10 @@ namespace Engine {
         const std::vector<vk::ShaderModule> &shaders,
         vk::PipelineLayout layout,
         vk::DescriptorPool pool,
-        const ShdrRfl::SPLayout * reflected,
-        VertexAttribute attribute,
+        const ShdrRfl::SPLayout &reflected,
+        const PipelineRuntimeInfo &pri,
         const std::string &name
     ) : MaterialTemplate(system) {
-
         pimpl->m_name = name;
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating pipelines for material %s.", pimpl->m_name.c_str());
         if (!pimpl->desc_pool) {
@@ -190,10 +190,10 @@ namespace Engine {
         pimpl->desc_pool = pool;
         
         pimpl->pipeline_layout = layout;
-        pimpl->m_layout = reflected;
+        pimpl->m_layout = &reflected;
 
         // Create pipelines
-        pimpl->CreatePipeline(system, shaders, properties, attribute);
+        pimpl->CreatePipeline(system, shaders, properties, pri);
     }
 
     MaterialTemplate::~MaterialTemplate() = default;

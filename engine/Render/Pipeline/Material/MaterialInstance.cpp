@@ -235,9 +235,9 @@ namespace Engine {
     }
 
     std::vector <uint32_t> MaterialInstance::UpdateGPUInfo(
-        const std::string &tag, VertexAttribute type, uint32_t backbuffer
+        const std::string &tag, const PipelineRuntimeInfo & pri, uint32_t backbuffer
     ) {
-        auto tpl = GetLibrary().FindMaterialTemplate(tag, type);
+        auto tpl = GetLibrary().FindMaterialTemplate(tag, pri);
         assert(tpl);
         return this->UpdateGPUInfo(*tpl, backbuffer);
     }
@@ -252,11 +252,11 @@ namespace Engine {
     }
 
     vk::DescriptorSet MaterialInstance::GetDescriptor(
-        const std::string &tag, VertexAttribute type, uint32_t backbuffer
+        const std::string &tag, const PipelineRuntimeInfo & pri, uint32_t backbuffer
     ) const noexcept {
         assert(backbuffer < impl::PassInfo::BACK_BUFFERS);
 
-        auto tpl = GetLibrary().FindMaterialTemplate(tag, type);
+        auto tpl = GetLibrary().FindMaterialTemplate(tag, pri);
         assert(tpl);
         return this->GetDescriptor(*tpl, backbuffer);
     }

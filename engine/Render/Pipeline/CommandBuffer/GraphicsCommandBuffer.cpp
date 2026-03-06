@@ -31,11 +31,14 @@ namespace Engine {
         vk::Extent2D extent,
         const std::string &name
     ) {
-        DEBUG_CMD_START_LABEL(cb, name.c_str());
         std::vector<vk::RenderingAttachmentInfo> color_attachment;
 
         if (color.texture) {
             color_attachment.push_back(GetVkAttachmentInfo(color, vk::ImageLayout::eColorAttachmentOptimal));
+            m_pripr.color_attachment_format[0] = color.texture->GetTextureDescription().format;
+            m_pripr.color_attachment_format[1] = ImageUtils::ImageFormat::UNDEFINED;
+        } else {
+            m_pripr.color_attachment_format[0] = ImageUtils::ImageFormat::UNDEFINED;
         }
 
         vk::RenderingAttachmentInfo depth_attachment;
@@ -43,7 +46,9 @@ namespace Engine {
             depth_attachment = vk::RenderingAttachmentInfo{
                 GetVkAttachmentInfo(depth, vk::ImageLayout::eDepthStencilAttachmentOptimal)
             };
+            m_pripr.depth_stencil_attachment_format = depth.texture->GetTextureDescription().format;
         } else {
+            m_pripr.depth_stencil_attachment_format = ImageUtils::ImageFormat::UNDEFINED;
         }
 
         vk::RenderingInfo info{
@@ -55,7 +60,7 @@ namespace Engine {
             depth.texture ? &depth_attachment : nullptr,
             nullptr
         };
-        // Begin rendering after transit
+        DEBUG_CMD_START_LABEL(cb, name.c_str());
         cb.beginRendering(info);
     }
 
@@ -65,16 +70,22 @@ namespace Engine {
         vk::Extent2D extent,
         const std::string &name
     ) {
-        DEBUG_CMD_START_LABEL(cb, name.c_str());
-
         std::vector<vk::RenderingAttachmentInfo> color_attachment_info(colors.size(), vk::RenderingAttachmentInfo{});
+        assert(colors.size() < 8 && "At most 8 color rendering targets are supported.");
         for (size_t i = 0; i < colors.size(); i++) {
             color_attachment_info[i] = GetVkAttachmentInfo(colors[i], vk::ImageLayout::eColorAttachmentOptimal);
+            m_pripr.color_attachment_format[i] = colors[i].texture->GetTextureDescription().format;
+        }
+        if (colors.size() < 8) {
+            m_pripr.color_attachment_format[colors.size()] = ImageUtils::ImageFormat::UNDEFINED;
         }
 
         vk::RenderingAttachmentInfo depth_attachment_info{};
         if (depth.texture) {
             depth_attachment_info = GetVkAttachmentInfo(depth, vk::ImageLayout::eDepthStencilAttachmentOptimal);
+            m_pripr.depth_stencil_attachment_format = depth.texture->GetTextureDescription().format;
+        } else {
+            m_pripr.depth_stencil_attachment_format = ImageUtils::ImageFormat::UNDEFINED;
         }
 
         vk::RenderingInfo info{
@@ -86,6 +97,8 @@ namespace Engine {
             depth.texture ? &depth_attachment_info : nullptr,
             nullptr
         };
+
+        DEBUG_CMD_START_LABEL(cb, name.c_str());
         cb.beginRendering(info);
     }
 
@@ -218,7 +231,13 @@ namespace Engine {
             glm::mat4 model_matrix = m_system.GetRendererManager().GetRendererComponent(rid)->GetWorldTransform().GetTransformMatrix();
             auto material_instance = m_system.GetRendererManager().GetMaterialInstance(rid);
 
-            auto tpl = material_instance->GetLibrary().FindMaterialTemplate(tag, mesh->GetVertexAttributeFormat());
+            auto tpl = material_instance->GetLibrary().FindMaterialTemplate(
+                tag,
+                {
+                    {mesh->GetVertexAttributeFormat()},
+                    m_pripr
+                }
+            );
             if (!tpl)   continue;
 
             this->BindMaterial(*material_instance, *tpl);
@@ -229,6 +248,8 @@ namespace Engine {
     void GraphicsCommandBuffer::EndRendering() {
         cb.endRendering();
         DEBUG_CMD_END_LABEL(cb);
+
+        m_pripr = {};
     }
 
     void GraphicsCommandBuffer::DrawMesh(const IVertexBasedRenderer &mesh) {

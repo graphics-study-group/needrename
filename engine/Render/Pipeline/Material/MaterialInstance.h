@@ -68,7 +68,7 @@ namespace Engine {
         );
         std::vector <uint32_t> UpdateGPUInfo(
             const std::string & tag,
-            VertexAttribute type,
+            const PipelineRuntimeInfo & pri,
             uint32_t backbuffer
         );
 
@@ -92,7 +92,7 @@ namespace Engine {
         ) const noexcept;
         vk::DescriptorSet GetDescriptor(
             const std::string & tag,
-            VertexAttribute type,
+            const PipelineRuntimeInfo & pri,
             uint32_t backbuffer
         ) const noexcept;
 
