@@ -91,6 +91,10 @@ namespace Engine {
     struct PipelineRuntimeInfo : PipelineRuntimeInfoPerDraw, PipelineRuntimeInfoPerRendering {
         bool operator== (const PipelineRuntimeInfo &) const noexcept = default;
     };
+    static_assert(
+        std::is_aggregate_v<PipelineRuntimeInfo>,
+        "PipelineRuntimeInfo is not an aggregate."
+    );
 }
 
 #endif // RENDER_PIPELINE_PIPELINERUNTIMEINFO_INCLUDED
