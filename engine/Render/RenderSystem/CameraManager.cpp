@@ -223,7 +223,7 @@ namespace Engine::RenderSystemState {
     glm::mat4 CameraManager::GetPVMatForSkybox() const {
         auto camera = pimpl->registered_cameras[m_active_camera_index].lock();
         assert(camera);
-        glm::mat3 view_mat_without_rotation = glm::mat3(camera->GetViewMatrix());
-        return camera->GetProjectionMatrix() * glm::mat4(view_mat_without_rotation);
+        glm::mat3 view_mat_without_translation = glm::mat3(camera->GetViewMatrix());
+        return camera->GetProjectionMatrix() * glm::mat4(view_mat_without_translation);
     }
 } // namespace Engine::RenderSystemState
