@@ -33,7 +33,7 @@ namespace Engine {
 
     template <class T>
     class ComputeBufferTyped {
-        std::unique_ptr <ComputeBuffer> buffer;
+        std::unique_ptr <ComputeBuffer> buffer {};
     public:
         /**
          * @brief Create a new compute buffer.

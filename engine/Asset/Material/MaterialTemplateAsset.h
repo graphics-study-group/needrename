@@ -31,7 +31,7 @@ namespace Engine {
     /// material, and are stored in this struct or left as default. And these are either fixed or filled in at run-time:
     /// 2nd and 3rd, which are decided based on the mesh to be drawn;
     /// 5th, which is always dynamic and unspecified until rendering;
-    /// 7th, which is always disabled due to poor compatibility with deferred rendering;
+    /// 7th, which is always determined by attachment samples at runtime;
     /// 10th, which is always fixed to be viewports and scissors.
     struct REFL_SER_CLASS(REFL_WHITELIST) MaterialTemplateSinglePassProperties {
         REFL_SER_BODY(MaterialTemplateSinglePassProperties)
@@ -43,6 +43,7 @@ namespace Engine {
         using DSProperties = PipelineProperties::DSProperties;
         using Shaders = PipelineProperties::Shaders;
         using Attachments = PipelineProperties::Attachments;
+        using Multisampling = PipelineProperties::Multisampling;
 
         /// @brief C.f. `vkPipelineRasterizationStateCreateInfo`
         REFL_SER_ENABLE RasterizerProperties rasterizer{};
@@ -56,6 +57,9 @@ namespace Engine {
         /// @brief C.f. `vkPipelineRenderingCreateInfo`
         /// Use UNDEFINED image format to adapt to swapchain.
         REFL_SER_ENABLE Attachments attachments{};
+
+        /// @brief C.f. `vkPipelineMultisampleStateCreateInfo`
+        REFL_SER_ENABLE Multisampling multisampling{};
 
         // XXX: We had better support pipeline caches to speed up loading...
         // C.f. `vkGetPipelineCacheData`

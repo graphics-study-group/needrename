@@ -22,8 +22,7 @@ namespace Engine {
     class MaterialTemplateAsset;
     class MaterialTemplateProperties;
     class MaterialTemplateSinglePassProperties;
-
-    enum class MeshVertexType;
+    class PipelineRuntimeInfo;
 
     namespace PipelineInfo {
         class MaterialPassInfo;
@@ -64,8 +63,8 @@ namespace Engine {
             const std::vector <vk::ShaderModule> & shaders,
             vk::PipelineLayout layout,
             vk::DescriptorPool pool,
-            const ShdrRfl::SPLayout * reflected,
-            VertexAttribute attribute,
+            const ShdrRfl::SPLayout & reflected,
+            const PipelineRuntimeInfo & attribute,
             const std::string & name = ""
         );
 

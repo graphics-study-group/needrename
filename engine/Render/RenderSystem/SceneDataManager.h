@@ -5,7 +5,6 @@
 #include <fwd.hpp>
 
 namespace vk {
-    class CommandBuffer;
     class DescriptorSet;
     class DescriptorSetLayout;
 }
@@ -13,6 +12,8 @@ namespace vk {
 namespace Engine {
     class RenderSystem;
     class MaterialInstance;
+    class GraphicsCommandBuffer;
+
     namespace RenderSystemState {
         /**
          * @brief Aggregated manager for scene data, such as lights and skybox.
@@ -115,6 +116,11 @@ namespace Engine {
 
             /**
              * @brief Record commands for drawing a skybox.
+             * 
+             * This method should be called with in a render pass. You can use
+             * `GraphicsCommandBuffer::BeginRendering()` or render graph to do
+             * this.
+             * 
              * @param cb The command buffer to record commands into.
              * @param frame_in_flight The current frame in flight index.
              * @param view_mat The view matrix of the current camera. 3x3 matrix (no translation).
@@ -122,7 +128,12 @@ namespace Engine {
              * 
              * @todo It should be relocated and integrated with GraphicsCommandBuffer.
              */
-            void DrawSkybox(vk::CommandBuffer cb, uint32_t frame_in_flight, glm::mat3 view_mat, glm::mat4 proj_mat) const;
+            void DrawSkybox(
+                GraphicsCommandBuffer & cb,
+                uint32_t frame_in_flight,
+                glm::mat3 view_mat,
+                glm::mat4 proj_mat
+            ) const;
 
             vk::DescriptorSet GetLightDescriptorSet(uint32_t frame_in_flight) const noexcept;
             vk::DescriptorSetLayout GetLightDescriptorSetLayout() const noexcept;

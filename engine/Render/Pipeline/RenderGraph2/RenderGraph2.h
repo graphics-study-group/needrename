@@ -9,6 +9,7 @@ namespace Engine {
 
     class RenderGraphCompiledPass;
     class RenderGraph2ExtraInfo;
+    class PipelineRuntimeInfoPerRendering;
 
     enum class RGTextureHandle : int32_t;
     enum class RGBufferHandle : int32_t;
@@ -58,6 +59,13 @@ namespace Engine {
         RenderTargetTexture * GetInternalTextureResource(
             RGTextureHandle handle
         ) const noexcept;
+
+        /**
+         * @brief Request the graphics pipeline runtime information of the
+         * current pass or subpass.
+         */
+        const PipelineRuntimeInfoPerRendering &
+        GetCurrentPassRuntimeInfo() const noexcept;
 
         /**
          * @brief Record all operations of a given pass onto the specified

@@ -337,11 +337,6 @@ namespace Engine::RenderSystemState {
             }
         );
 
-        if (pimpl->skybox.skybox_material) {
-            auto tpl = pimpl->skybox.skybox_material->GetLibrary().FindMaterialTemplate("SKYBOX", {0});
-            pimpl->skybox.skybox_material->UpdateGPUInfo(*tpl, frame_in_flight);
-        }
-
         if (!descriptor_writes.empty()) {
             pimpl->device.updateDescriptorSets(
                 {descriptor_writes},
@@ -357,25 +352,29 @@ namespace Engine::RenderSystemState {
     }
 
     void SceneDataManager::DrawSkybox(
-        vk::CommandBuffer cb, uint32_t frame_in_flight, glm::mat3 view_mat, glm::mat4 proj_mat
+        GraphicsCommandBuffer & cb,
+        uint32_t frame_in_flight,
+        glm::mat3 view_mat,
+        glm::mat4 proj_mat
     ) const {
         if (!pimpl->skybox.skybox_material)  return;
 
         vk::Extent2D extent = m_system.GetSwapchain().GetExtent();
         vk::Rect2D scissor{{0, 0}, extent};
-        vk::Viewport vp;
-        vp.setWidth(extent.width).setHeight(extent.height);
-        vp.setX(0.0f).setY(0.0f);
-        vp.setMaxDepth(1.0f).setMinDepth(0.0f);
-        cb.setViewport(0, 1, &vp);
-        cb.setScissor(0, 1, &scissor);
+        cb.SetupViewport(extent.width, extent.height, scissor);
 
         glm::mat4 pv = proj_mat * glm::mat4(view_mat);
 
-        auto tpl = pimpl->skybox.skybox_material->GetLibrary().FindMaterialTemplate("SKYBOX", {0});
-        cb.bindPipeline(vk::PipelineBindPoint::eGraphics, tpl->GetPipeline());
+        auto tpl = pimpl->skybox.skybox_material->GetLibrary().FindMaterialTemplate(
+            "SKYBOX",
+            {{0}, cb.GetRenderingInfo()}
+        );
+        pimpl->skybox.skybox_material->UpdateGPUInfo(*tpl, frame_in_flight);
+
+        auto rcb = cb.GetCommandBuffer();
+        rcb.bindPipeline(vk::PipelineBindPoint::eGraphics, tpl->GetPipeline());
         const auto &sky_box_descriptor_set = pimpl->skybox.skybox_material->GetDescriptor(*tpl, frame_in_flight);
-        cb.bindDescriptorSets(
+        rcb.bindDescriptorSets(
             vk::PipelineBindPoint::eGraphics,
             tpl->GetPipelineLayout(),
             2,
@@ -383,7 +382,7 @@ namespace Engine::RenderSystemState {
             {}
         );
         // camera PV matrix is pushed directly.
-        cb.pushConstants(
+        rcb.pushConstants(
             tpl->GetPipelineLayout(),
             vk::ShaderStageFlagBits::eAllGraphics,
             0,
@@ -391,7 +390,7 @@ namespace Engine::RenderSystemState {
             { reinterpret_cast<const void *>(&pv) }
         );
         // Vertex info is embedded in the skybox.vert shader.
-        cb.draw(36, 1, 0, 0);
+        rcb.draw(36, 1, 0, 0);
     }
 
     vk::DescriptorSet SceneDataManager::GetLightDescriptorSet(uint32_t frame_in_flight) const noexcept {

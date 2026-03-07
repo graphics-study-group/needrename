@@ -230,7 +230,7 @@ namespace Engine {
         this->renderer->GetCameraManager().SetActiveCameraIndex(this->world->GetActiveCamera()->m_display_id);
 
         renderer->GetSceneDataManager().DrawSkybox(
-            renderer->GetFrameManager().GetRawMainCommandBuffer(),
+            cb,
             renderer->GetFrameManager().GetFrameInFlight(),
             world->GetActiveCamera()->GetViewMatrix(),
             world->GetActiveCamera()->GetProjectionMatrix()

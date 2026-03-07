@@ -245,8 +245,17 @@ namespace Engine {
     ) {
         std::function<void(vk::CommandBuffer, const RenderGraph &)> f = [system = &this->m_system,
                                                     pass,
+                                                    color_rt = color.rt_handle,
                                                     name](vk::CommandBuffer cb, const RenderGraph & rg) {
             GraphicsCommandBuffer gcb{*system, cb, system->GetFrameManager().GetFrameInFlight()};
+            gcb.SetRenderingInfo({
+                {},
+                {
+                    rg.GetInternalTextureResource(color_rt)->GetTextureDescription().format,
+                    ImageUtils::ImageFormat::UNDEFINED
+                },
+                ImageUtils::ImageFormat::UNDEFINED
+            });
             std::invoke(pass, std::ref(gcb), std::cref(rg));
         };
 
@@ -267,8 +276,18 @@ namespace Engine {
     ) {
         std::function<void(vk::CommandBuffer, const RenderGraph &)> f = [system = &this->m_system,
                                                     pass,
+                                                    color_rt = color.rt_handle,
+                                                    depth_rt = depth.rt_handle,
                                                     name](vk::CommandBuffer cb, const RenderGraph & rg) {
             GraphicsCommandBuffer gcb{*system, cb, system->GetFrameManager().GetFrameInFlight()};
+            gcb.SetRenderingInfo({
+                {},
+                {
+                    rg.GetInternalTextureResource(color_rt)->GetTextureDescription().format,
+                    ImageUtils::ImageFormat::UNDEFINED
+                },
+                rg.GetInternalTextureResource(depth_rt)->GetTextureDescription().format
+            });
             std::invoke(pass, std::ref(gcb), std::cref(rg));
         };
 
@@ -288,11 +307,29 @@ namespace Engine {
         std::function<void(GraphicsCommandBuffer &, const RenderGraph &)> pass,
         const std::string &name
     ) {
+        assert(colors.size() <= 8 && "Too many color attachments.");
+        std::vector <uint32_t> color_rts;
+        std::transform(
+            colors.begin(),
+            colors.end(),
+            std::back_inserter(color_rts),
+            [] (const RGAttachmentDesc & rgad) {
+                return rgad.rt_handle;
+            }
+        );
+
         std::function<void(vk::CommandBuffer, const RenderGraph &)> f = [system = &this->m_system,
                                                     pass,
+                                                    color_rts = std::move(color_rts),
+                                                    depth_rt = depth.rt_handle,
                                                     name](vk::CommandBuffer cb, const RenderGraph & rg) {
 
             GraphicsCommandBuffer gcb{*system, cb, system->GetFrameManager().GetFrameInFlight()};
+            PipelineRuntimeInfoPerRendering pripr{};
+            for (int i = 0; i < color_rts.size(); i++) {
+                pripr.color_attachment_format[i] = rg.GetInternalTextureResource(color_rts[i])->GetTextureDescription().format;
+            }
+            pripr.depth_stencil_attachment_format = rg.GetInternalTextureResource(depth_rt)->GetTextureDescription().format;
             std::invoke(pass, std::ref(gcb), std::cref(rg));
         };
         pimpl->m_tasks.push_back(
