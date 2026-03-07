@@ -116,7 +116,7 @@ namespace Engine {
                     extent
                 );
                 system.GetSceneDataManager().DrawSkybox(
-                    system.GetFrameManager().GetRawMainCommandBuffer(),
+                    gcb,
                     system.GetFrameManager().GetFrameInFlight(),
                     system.GetCameraManager().GetPVMatForSkybox(),
                     extent
