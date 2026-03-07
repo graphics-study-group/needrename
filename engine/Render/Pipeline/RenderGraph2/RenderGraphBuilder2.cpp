@@ -227,6 +227,47 @@ namespace Engine {
             }
             return dg;
         }
+
+        /**
+         * @brief Build pipeline rendering info for a subpass
+         */
+        PipelineRuntimeInfoPerRendering GetPerRenderingInfo (
+            const RenderGraphPass & subpass
+        ) const noexcept {
+            PipelineRuntimeInfoPerRendering ret{};
+
+            std::fill(
+                ret.color_attachment_format,
+                ret.color_attachment_format + 8,
+                ImageUtils::ImageFormat::UNDEFINED
+            );
+            uint8_t multisample_count{0};
+            for (int i = 0; i < subpass.color_attachments.size(); i++) {
+                ImageUtils::ImageFormat format;
+                auto rth = subpass.color_attachments[i].rt_handle;
+                // Imported external resource
+                if (static_cast<int32_t>(rth) < 0) {
+                    format = rs.texture_mapping.at(rth)->GetTextureDescription().format;
+                } else {
+                    format = static_cast<ImageUtils::ImageFormat>(
+                        rs.texture_creation_info.at(rth).t.format
+                    );
+                }
+                ret.color_attachment_format[i] = format;
+            }
+            auto drth = subpass.depth_attachment.rt_handle;
+            if (static_cast<int32_t>(drth) < 0) {
+                ret.depth_stencil_attachment_format = rs.texture_mapping.at(drth)->GetTextureDescription().format;
+            } else if (static_cast<int32_t>(drth) > 0) {
+                ret.depth_stencil_attachment_format = static_cast<ImageUtils::ImageFormat>(
+                    rs.texture_creation_info.at(drth).t.format
+                );
+            } else {
+                ret.depth_stencil_attachment_format = ImageUtils::ImageFormat::UNDEFINED;
+            }
+
+            return ret;
+        }
     };
 
     RenderGraphBuilder2::RenderGraphBuilder2(
@@ -540,6 +581,9 @@ namespace Engine {
                         )
                     );
                 }
+
+                // Prepare attachment information
+                subpass.per_rendering_info = pimpl->GetPerRenderingInfo(old_p);
                 p[i].subpasses.push_back(std::move(subpass));
             }
         }

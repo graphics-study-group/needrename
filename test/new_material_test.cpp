@@ -125,16 +125,22 @@ std::unique_ptr<RenderGraph> BuildRenderGraph(
             extent
         );
 
+        PipelineRuntimeInfo pri{};
+        pri.va = mesh->GetVertexAttributeFormat();
+        pri.color_attachment_format[0] = color->GetTextureDescription().format;
+        pri.color_attachment_format[1] = ImageUtils::ImageFormat::UNDEFINED;
+        pri.depth_stencil_attachment_format = depth->GetTextureDescription().format;
+
         gcb.SetupViewport(extent.width, extent.height, {{0, 0}, extent});
         gcb.BindSceneResources(rsys->GetSceneDataManager());
         gcb.BindCameraResources(rsys->GetCameraManager());
-        auto tpl = material->GetLibrary().FindMaterialTemplate("", mesh->GetVertexAttributeFormat());
+        auto tpl = material->GetLibrary().FindMaterialTemplate("", pri);
         assert(tpl);
         gcb.BindMaterial(*material, *tpl);
         // Push model matrix...
         vk::CommandBuffer rcb = gcb.GetCommandBuffer();
         rcb.pushConstants(
-            material->GetLibrary().FindMaterialTemplate("", mesh->GetVertexAttributeFormat())->GetPipelineLayout(),
+            material->GetLibrary().FindMaterialTemplate("", pri)->GetPipelineLayout(),
             vk::ShaderStageFlagBits::eAllGraphics,
             0,
             sizeof (RenderSystemState::RendererManager::RendererDataStruct),

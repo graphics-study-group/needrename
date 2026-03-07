@@ -71,6 +71,10 @@ namespace Engine {
     struct VertexAttribute {
         uint64_t packed;
 
+        bool operator == (const VertexAttribute & rhs) const noexcept {
+            return packed == rhs.packed;
+        }
+
         VertexAttribute & SetAttribute(VertexAttributeSemantic semantic, VertexAttributeType type) noexcept {
             uint64_t type_bits {static_cast<uint8_t>(type)};
             uint64_t mask {0xF};

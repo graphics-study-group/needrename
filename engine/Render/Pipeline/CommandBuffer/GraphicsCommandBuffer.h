@@ -1,6 +1,7 @@
 #ifndef PIPELINE_COMMANDBUFFER_GRAPHICSCOMMANDBUFFER_INCLUDED
 #define PIPELINE_COMMANDBUFFER_GRAPHICSCOMMANDBUFFER_INCLUDED
 
+#include "Render/Pipeline/PipelineRuntimeInfo.h"
 #include "Render/Pipeline/CommandBuffer/TransferCommandBuffer.h"
 #include "Render/RenderSystem/RendererManager.h"
 
@@ -68,6 +69,20 @@ namespace Engine {
             const std::string & name = ""
         );
 
+        /**
+         * @brief Set up pipeline runtime info.
+         */
+        void SetRenderingInfo (PipelineRuntimeInfoPerRendering pripr) noexcept {
+            m_pripr = pripr;
+        }
+
+        /**
+         * @brief Get pipeline runtime info.
+         */
+        const PipelineRuntimeInfoPerRendering & GetRenderingInfo() const noexcept {
+            return m_pripr;
+        }
+
          /**
          * @brief Bind per scene resources to the command buffer.
          * 
@@ -124,7 +139,10 @@ namespace Engine {
          * 
          * The camera index used in rendering is assumed to be the current active camera.
          */
-        void DrawRenderers(const std::string & tag, const RendererList &renderers);
+        void DrawRenderers(
+            const std::string & tag,
+            const RendererList &renderers
+        );
 
         /**
          * @brief Draw renderers in the RendererList with specified pass index.
@@ -144,7 +162,12 @@ namespace Engine {
     protected:
         RenderSystem & m_system;
         uint32_t m_inflight_frame_index;
-        std::optional<std::pair<vk::Pipeline, vk::PipelineLayout>> m_bound_material_pipeline{};
+
+        std::optional<
+            std::pair<vk::Pipeline, vk::PipelineLayout>
+        > m_bound_material_pipeline{};
+
+        PipelineRuntimeInfoPerRendering m_pripr{};
     };
 } // namespace Engine
 

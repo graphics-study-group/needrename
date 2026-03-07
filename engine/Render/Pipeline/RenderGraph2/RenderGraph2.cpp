@@ -8,6 +8,8 @@ namespace Engine {
         std::vector <RenderGraphCompiledPass> passes{};
         RenderGraph2ExtraInfo extra_info{};
 
+        const PipelineRuntimeInfoPerRendering * pripr_ptr{nullptr};
+
         std::vector <
             std::tuple<
                 const RenderTargetTexture *,
@@ -96,6 +98,12 @@ namespace Engine {
         return nullptr;
     }
 
+    const PipelineRuntimeInfoPerRendering &
+    RenderGraph2::GetCurrentPassRuntimeInfo() const noexcept {
+        assert(pimpl->pripr_ptr);
+        return *pimpl->pripr_ptr;
+    }
+
     void RenderGraph2::Record(
         uint32_t pass,
         vk::CommandBuffer cb
@@ -126,7 +134,9 @@ namespace Engine {
                 bmb, {}, imb
             });
             // Invoke pass function.
+            pimpl->pripr_ptr = &subpass.per_rendering_info;
             std::invoke(subpass.pass_work, cb, *this);
+            pimpl->pripr_ptr = nullptr;
         }
     }
 

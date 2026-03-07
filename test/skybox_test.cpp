@@ -177,7 +177,7 @@ int main(int argc, char **argv) {
                 glm::mat3 view_matrix = glm::mat3(camera->GetViewMatrix());
                 glm::mat4 pv = camera->GetProjectionMatrix() * glm::mat4(view_matrix);
                 rsys->GetSceneDataManager().DrawSkybox(
-                    cb.GetCommandBuffer(),
+                    cb,
                     rsys->GetFrameManager().GetFrameInFlight(),
                     pv,
                     rsys->GetSwapchain().GetExtent()

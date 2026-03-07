@@ -6,6 +6,7 @@
 #include "Asset/InstantiatedFromAsset.h"
 #include "Asset/Material/MaterialLibraryAsset.h"
 #include "Render/Renderer/VertexAttribute.h"
+#include "Render/Pipeline/PipelineRuntimeInfo.h"
 
 namespace Engine {
 
@@ -47,12 +48,11 @@ namespace Engine {
          */
         const MaterialTemplate * FindMaterialTemplate(
             const std::string & tag,
-            VertexAttribute mesh_type
+            const PipelineRuntimeInfo & pri
         ) const noexcept;
-
         MaterialTemplate * FindMaterialTemplate(
             const std::string & tag,
-            VertexAttribute mesh_type
+            const PipelineRuntimeInfo & pri
         ) noexcept;
 
         void PreheatMaterialTemplate(

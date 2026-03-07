@@ -132,18 +132,26 @@ std::unique_ptr<RenderGraph> BuildRenderGraph(
             gcb.SetupViewport(extent.width, extent.height, {{0, 0}, extent});
             gcb.BindSceneResources(rsys->GetSceneDataManager());
             gcb.BindCameraResources(rsys->GetCameraManager());
-            VertexAttribute attribute;
-            attribute.SetAttribute(VertexAttributeSemantic::Position, VertexAttributeType::SFloat32x3);
-            attribute.SetAttribute(VertexAttributeSemantic::Color, VertexAttributeType::SFloat32x3);
-            attribute.SetAttribute(VertexAttributeSemantic::Normal, VertexAttributeType::SFloat32x3);
-            attribute.SetAttribute(VertexAttributeSemantic::Texcoord0, VertexAttributeType::SFloat32x2);
-            auto tpl = material->GetLibrary().FindMaterialTemplate("", attribute);
+
+            PipelineRuntimeInfo pri{};
+            pri.va.SetAttribute(VertexAttributeSemantic::Position, VertexAttributeType::SFloat32x3);
+            pri.va.SetAttribute(VertexAttributeSemantic::Color, VertexAttributeType::SFloat32x3);
+            pri.va.SetAttribute(VertexAttributeSemantic::Normal, VertexAttributeType::SFloat32x3);
+            pri.va.SetAttribute(VertexAttributeSemantic::Texcoord0, VertexAttributeType::SFloat32x2);
+            pri.color_attachment_format[0] = color_1->GetTextureDescription().format;
+            pri.color_attachment_format[1] = color_2->GetTextureDescription().format;
+            pri.color_attachment_format[2] = color_3->GetTextureDescription().format;
+            pri.color_attachment_format[3] = color_4->GetTextureDescription().format;
+            pri.color_attachment_format[4] = ImageUtils::ImageFormat::UNDEFINED;
+            pri.depth_stencil_attachment_format = depth->GetTextureDescription().format;
+
+            auto tpl = material->GetLibrary().FindMaterialTemplate("", pri);
             assert(tpl);
             gcb.BindMaterial(*material, *tpl);
             // Push model matrix...
             vk::CommandBuffer rcb = gcb.GetCommandBuffer();
             rcb.pushConstants(
-                material->GetLibrary().FindMaterialTemplate("", attribute)->GetPipelineLayout(),
+                material->GetLibrary().FindMaterialTemplate("", pri)->GetPipelineLayout(),
                 vk::ShaderStageFlagBits::eAllGraphics,
                 0,
                 sizeof(RenderSystemState::RendererManager::RendererDataStruct),

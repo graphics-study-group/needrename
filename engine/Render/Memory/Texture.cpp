@@ -80,7 +80,7 @@ namespace Engine {
         std::unordered_map <
             TextureSubresourceRange,
             vk::UniqueImageView,
-            subresource_hasher> m_views;
+            subresource_hasher> m_views {};
 
         vk::Sampler m_sampler {};
         std::string m_name {};

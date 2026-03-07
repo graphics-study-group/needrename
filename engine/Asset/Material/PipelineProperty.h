@@ -188,6 +188,26 @@ namespace Engine {
             ImageUtils::ImageFormat depth{};
             ImageUtils::ImageFormat stencil{};
         };
+
+        /**
+         * @brief c.f. `vkPipelineMultisampleStateCreateInfo`
+         * While how many samples are used are determined at run-time, this
+         * struct controls how some techniques are used. If multisampling are
+         * not actually used, how these techniques perform is
+         * implementation-defined.
+         */
+        struct REFL_SER_CLASS(REFL_BLACKLIST) Multisampling {
+            REFL_SER_SIMPLE_STRUCT(Multisampling)
+            /**
+             * Enable alpha-to-coverage technique for multisampling.
+             */
+            bool alpha_to_coverage_enable{false};
+            /**
+             * Write one to alpha channel after multisampling.
+             * It should be combined with alpha-to-coverage technique.
+             */
+            bool alpha_to_one_enable{false};
+        };
     } // namespace PipelineProperties
 } // namespace Engine
 
