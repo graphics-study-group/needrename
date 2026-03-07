@@ -14,7 +14,7 @@ namespace Engine {
         std::vector<std::shared_ptr<HomogeneousMesh>> m_submeshes{};
 
     public:
-        REFL_ENABLE MeshComponent(std::weak_ptr<GameObject> gameObject);
+        REFL_ENABLE MeshComponent(GameObject *parent);
         virtual ~MeshComponent() = default;
 
         std::shared_ptr<HomogeneousMesh> GetSubmesh(uint32_t slot) const;
@@ -25,7 +25,7 @@ namespace Engine {
         virtual void RenderInit() override;
         virtual void Tick() override;
 
-        REFL_SER_ENABLE std::shared_ptr<AssetRef> m_mesh_asset{};
+        REFL_SER_ENABLE AssetRef m_mesh_asset{};
     };
 } // namespace Engine
 

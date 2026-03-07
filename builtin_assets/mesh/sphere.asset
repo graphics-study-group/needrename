@@ -1,0 +1,12 @@
+{
+    "%extra_data": [
+        {
+            "%extension": ".mesh"
+        }
+    ],
+    "%main_data": {
+        "%extra_data_id": 0,
+        "%type": "Engine::MeshAsset",
+        "Asset::m_guid": "302A5A47A27962C1577017BE708D78F6"
+    }
+}

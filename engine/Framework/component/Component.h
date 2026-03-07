@@ -4,32 +4,50 @@
 #include <Reflection/macros.h>
 #include <Reflection/serialization_smart_pointer.h>
 #include <memory>
-
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wnon-virtual-dtor"
+#include <Framework/world/Handle.h>
 
 namespace Engine {
+    class Scene;
     class GameObject;
 
-    class REFL_SER_CLASS(REFL_WHITELIST) Component : public std::enable_shared_from_this<Component> {
+    class REFL_SER_CLASS(REFL_WHITELIST) Component {
         REFL_SER_BODY(Component)
-    public:
+
+    protected:
+        friend class Scene;
+        friend class SceneAsset;
         Component() = delete;
-        REFL_ENABLE Component(std::weak_ptr<GameObject> gameObject);
+        Component(GameObject *parent);
+    
+    public:
         virtual ~Component() = default;
+        Component(const Component &other) = delete;
+        Component(Component &&other) = delete;
+        Component &operator=(const Component &other) = delete;
+        Component &operator=(Component &&other) = delete;
 
         /// @brief Initialize the component. Called when the parent GameObject before the first Tick after the
         /// GameObject is created.
         virtual void Init();
-
         /// @brief Called every frame.
         virtual void Tick();
 
+        REFL_ENABLE ComponentHandle GetHandle() const noexcept;
+        GameObject *GetParentGameObject() const;
+
+        bool operator==(const Component &other) const noexcept;
+
+        void save_to_archive(Serialization::Archive &archive) const;
+        void load_from_archive(Serialization::Archive &archive);
+
     public:
-        REFL_SER_ENABLE std::weak_ptr<GameObject> m_parentGameObject{};
+        REFL_SER_ENABLE ObjectHandle m_parentGameObject{};
+
+    protected:
+        Scene *m_scene{};
+        ComponentHandle m_handle{};
     };
 } // namespace Engine
 
-#pragma GCC diagnostic pop
 
 #endif // FRAMEWORK_COMPONENT_COMPONENT_INCLUDED

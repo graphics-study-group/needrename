@@ -55,14 +55,14 @@ struct LowerPlaneMeshAsset : public PlaneMeshAsset {
 
 class ShadowMapMeshComponent : public ObjTestMeshComponent {
 public:
-    ShadowMapMeshComponent(
-        std::weak_ptr <GameObject> go,
-        std::filesystem::path mesh_file_name,
-        std::shared_ptr<MaterialInstance> instance
-    ) : ObjTestMeshComponent(mesh_file_name, go) {
+    ShadowMapMeshComponent(GameObject *parent) : ObjTestMeshComponent(parent) {
+    }
+
+    void LoadData(std::filesystem::path mesh_file_name, std::shared_ptr<MaterialInstance> instance) {
+        this->LoadMesh(mesh_file_name);
         auto system = m_system.lock();
 
-        auto masset = m_mesh_asset->cas<MeshAsset>();
+        auto masset = m_mesh_asset.cas<MeshAsset>();
         for (size_t i = 0; i < masset->GetSubmeshCount(); i++) {
             m_materials.push_back(instance);
         }
@@ -70,9 +70,8 @@ public:
 };
 
 std::array<std::shared_ptr<MaterialTemplateAsset>, 2> ConstructMaterialTemplate() {
-    std::array<std::shared_ptr<MaterialTemplateAsset>, 2> templates {
-        std::make_shared<MaterialTemplateAsset>(),
-        std::make_shared<MaterialTemplateAsset>()
+    std::array<std::shared_ptr<MaterialTemplateAsset>, 2> templates{
+        std::make_shared<MaterialTemplateAsset>(), std::make_shared<MaterialTemplateAsset>()
     };
 
     auto adb = std::dynamic_pointer_cast<FileSystemDatabase>(MainClass::GetInstance()->GetAssetDatabase());
@@ -81,9 +80,6 @@ std::array<std::shared_ptr<MaterialTemplateAsset>, 2> ConstructMaterialTemplate(
     auto shadow_map_vs_ref = adb->GetNewAssetRef({*adb, "~/shaders/shadowmap.vert.asset"});
     auto vs_ref = adb->GetNewAssetRef({*adb, "~/shaders/blinn_phong.vert.asset"});
     auto fs_ref = adb->GetNewAssetRef({*adb, "~/shaders/blinn_phong.frag.asset"});
-    asys->LoadAssetImmediately(shadow_map_vs_ref);
-    asys->LoadAssetImmediately(vs_ref);
-    asys->LoadAssetImmediately(fs_ref);
 
     templates[0]->name = "Blinn-Phong Lit";
     templates[1]->name = "Shadow map pass";
@@ -106,16 +102,18 @@ std::array<std::shared_ptr<MaterialTemplateAsset>, 2> ConstructMaterialTemplate(
     return templates;
 }
 
-std::shared_ptr <MaterialLibraryAsset> ConstructMaterialLibrary(std::array<std::shared_ptr<MaterialTemplateAsset>, 2> & templates) {
-    std::shared_ptr <MaterialLibraryAsset> lib = std::make_shared<MaterialLibraryAsset>();
+std::shared_ptr<MaterialLibraryAsset> ConstructMaterialLibrary(
+    std::array<std::shared_ptr<MaterialTemplateAsset>, 2> &templates
+) {
+    std::shared_ptr<MaterialLibraryAsset> lib = std::make_shared<MaterialLibraryAsset>();
     lib->m_name = "Blinn-Phong w. Shadowmap";
     MaterialLibraryAsset::MaterialTemplateReference ref;
     ref.expected_mesh_type = 0;
-    ref.material_template = std::make_shared<AssetRef>(templates[0]);
+    ref.material_template = AssetRef(templates[0]);
     lib->material_bundle["Lit"] = ref;
 
     ref.expected_mesh_type = 0;
-    ref.material_template = std::make_shared<AssetRef>(templates[1]);
+    ref.material_template = AssetRef(templates[1]);
     lib->material_bundle["Shadowmap"] = ref;
     return lib;
 }
@@ -146,31 +144,45 @@ int main(int argc, char **argv) {
     camera->UpdateViewMatrix(transform);
     rsys->GetCameraManager().RegisterCamera(camera);
     rsys->GetCameraManager().SetActiveCameraIndex(camera->m_display_id);
-    rsys->GetSceneDataManager().SetLightDirectional(
-        0, 
-        glm::vec3{1.0f, 1.0f, 1.0f}, 
-        glm::vec3{1.0f, 1.0f, 1.0f}
-    );
+    rsys->GetSceneDataManager().SetLightDirectional(0, glm::vec3{1.0f, 1.0f, 1.0f}, glm::vec3{1.0f, 1.0f, 1.0f});
     rsys->GetSceneDataManager().SetLightCount(1);
 
-    // Prepare attachments
     auto idesc = ImageTexture::ImageTextureDesc{
-        .dimensions = 2, .width = 16, .height = 16, .depth = 1,
-        .mipmap_levels = 1, .array_layers = 1,
+        .dimensions = 2,
+        .width = 16,
+        .height = 16,
+        .depth = 1,
+        .mipmap_levels = 1,
+        .array_layers = 1,
         .format = ImageTexture::ImageTextureDesc::ImageTextureFormat::R8G8B8A8UNorm,
         .is_cube_map = false
     };
-    std::shared_ptr blank_color_red = Engine::ImageTexture::CreateUnique(*rsys, idesc, Texture::SamplerDesc{}, "Blank color red");
-    std::shared_ptr blank_color_gray = Engine::ImageTexture::CreateUnique(*rsys, idesc, Texture::SamplerDesc{}, "Blank color gray");
+    std::shared_ptr blank_color_red =
+        Engine::ImageTexture::CreateUnique(*rsys, idesc, Texture::SamplerDesc{}, "Blank color red");
+    std::shared_ptr blank_color_gray =
+        Engine::ImageTexture::CreateUnique(*rsys, idesc, Texture::SamplerDesc{}, "Blank color gray");
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*blank_color_red, {1.0f, 0.0f, 0.0f, 0.0f});
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*blank_color_gray, {0.5f, 0.5f, 0.5f, 0.0f});
 
     // Prepare material
     auto test_template_assets = ConstructMaterialTemplate();
     auto test_library_asset = ConstructMaterialLibrary(test_template_assets);
-    auto test_library_asset_ref = std::make_shared<AssetRef>(test_library_asset);
+
+    // Engine::Serialization::Archive archive;
+    // archive.prepare_save();
+    // test_template_assets[0]->save_asset_to_archive(archive);
+    // archive.save_to_file(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "material_templates" /
+    // "BlinnPhongTemplate"); archive.clear(); archive.prepare_save();
+    // test_template_assets[1]->save_asset_to_archive(archive);
+    // archive.save_to_file(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "material_templates" /
+    // "ShadowMapTemplate"); archive.clear(); archive.prepare_save();
+    // test_library_asset->save_asset_to_archive(archive);
+    // archive.save_to_file(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "material_libraries" /
+    // "BlinnPhongWithShadowMapLibrary");
+
+    auto test_library_asset_ref = AssetRef(test_library_asset);
     auto test_library = std::make_shared<MaterialLibrary>(*rsys);
-    test_library->Instantiate(*test_library_asset_ref->cas<MaterialLibraryAsset>());
+    test_library->Instantiate(*test_library_asset_ref.cas<MaterialLibraryAsset>());
     auto object_material_instance = std::make_shared<MaterialInstance>(*rsys, *test_library);
     object_material_instance->AssignVectorVariable("ambient_color", glm::vec4(0.0, 0.0, 0.0, 0.0));
     object_material_instance->AssignVectorVariable("specular_color", glm::vec4(1.0, 1.0, 1.0, 64.0));
@@ -180,36 +192,35 @@ int main(int argc, char **argv) {
     floor_material_instance->AssignVectorVariable("specular_color", glm::vec4(1.0, 1.0, 1.0, 64.0));
     floor_material_instance->AssignTexture("base_tex", blank_color_gray);
 
+    auto &scene = cmc->GetWorldSystem()->GetMainSceneRef();
     // Prepare mesh
-    auto floor_go = cmc->GetWorldSystem()->CreateGameObject<GameObject>();
-    floor_go->GetTransformRef().SetScale({5.0f, 5.0f, 1.0f}).SetPosition({0.0f, 0.0f, 0.5f});
+    auto &floor_go = scene.CreateGameObject();
+    floor_go.GetTransformRef().SetScale({5.0f, 5.0f, 1.0f}).SetPosition({0.0f, 0.0f, 0.5f});
     auto floor_mesh_asset = std::make_shared<LowerPlaneMeshAsset>();
-    auto floor_mesh_asset_ref = std::make_shared<AssetRef>(floor_mesh_asset);
-    auto floor_mesh_comp = std::make_shared<MeshComponent>(floor_go);
-    floor_mesh_comp->m_mesh_asset = floor_mesh_asset_ref;
-    floor_mesh_comp->GetMaterials().resize(1);
-    floor_mesh_comp->GetMaterials()[0] = floor_material_instance;
-    floor_mesh_comp->RenderInit();
-    assert(floor_mesh_comp->GetSubmesh(0)->GetVertexAttributeFormat().HasAttribute(VertexAttributeSemantic::Texcoord0));
+    auto floor_mesh_asset_ref = AssetRef(floor_mesh_asset);
+    auto &floor_mesh_comp = scene.CreateComponent<MeshComponent>(floor_go);
+    floor_mesh_comp.m_mesh_asset = floor_mesh_asset_ref;
+    floor_mesh_comp.GetMaterials().resize(1);
+    floor_mesh_comp.GetMaterials()[0] = floor_material_instance;
+    floor_mesh_comp.RenderInit();
+    assert(floor_mesh_comp.GetSubmesh(0)->GetVertexAttributeFormat().HasAttribute(VertexAttributeSemantic::Texcoord0));
 
-    auto cube_go = cmc->GetWorldSystem()->CreateGameObject<GameObject>();
-    cube_go->GetTransformRef().SetScale({0.5f, 0.5f, 0.5f});
-    auto cube_mesh_comp = std::make_shared<ShadowMapMeshComponent>(
-        cube_go,
-        std::filesystem::path{std::string(ENGINE_ASSETS_DIR) + "/meshes/cube.obj"},
-        object_material_instance
+    auto &cube_go = scene.CreateGameObject();
+    cube_go.GetTransformRef().SetScale({0.5f, 0.5f, 0.5f});
+    auto &cube_mesh_comp = scene.CreateComponent<ShadowMapMeshComponent>(cube_go);
+    cube_mesh_comp.LoadData(
+        std::filesystem::path{std::string(ENGINE_ASSETS_DIR) + "/meshes/cube.obj"}, object_material_instance
     );
 
-    auto shpere_go = cmc->GetWorldSystem()->CreateGameObject<GameObject>();
-    shpere_go->GetTransformRef().SetScale({0.5f, 0.5f, 0.5f}).SetPosition({1.0f, 2.0f, 0.0f});
-    auto sphere_mesh_comp = std::make_shared<ShadowMapMeshComponent>(
-        shpere_go,
-        std::filesystem::path{std::string(ENGINE_ASSETS_DIR) + "/meshes/sphere.obj"},
-        object_material_instance
+    auto &shpere_go = scene.CreateGameObject();
+    shpere_go.GetTransformRef().SetScale({0.5f, 0.5f, 0.5f}).SetPosition({1.0f, 2.0f, 0.0f});
+    auto &sphere_mesh_comp = scene.CreateComponent<ShadowMapMeshComponent>(shpere_go);
+    sphere_mesh_comp.LoadData(
+        std::filesystem::path{std::string(ENGINE_ASSETS_DIR) + "/meshes/sphere.obj"}, object_material_instance
     );
     // We cannot call `RenderInit()` because this component has no associated asset.
-    rsys->GetRendererManager().RegisterRendererComponent(cube_mesh_comp);
-    rsys->GetRendererManager().RegisterRendererComponent(sphere_mesh_comp);
+    rsys->GetRendererManager().RegisterRendererComponent(cube_mesh_comp.GetHandle());
+    rsys->GetRendererManager().RegisterRendererComponent(sphere_mesh_comp.GetHandle());
     
 
     // Build Render Graph
@@ -273,15 +284,12 @@ int main(int argc, char **argv) {
             vk::Extent2D extent{rsys->GetSwapchain().GetExtent()};
             vk::Rect2D scissor{{0, 0}, extent};
             gcb.SetupViewport(extent.width, extent.height, scissor);
-            gcb.DrawRenderers(
-                "Lit",
-                rsys->GetRendererManager().FilterAndSortRenderers({})
-            );
+            gcb.DrawRenderers("Lit", rsys->GetRendererManager().FilterAndSortRenderers({}));
         },
         "Lit pass"
     );
     auto rg{rgb.BuildRenderGraph()};
-    auto sm = rg.GetInternalTextureResource(s);
+    auto sm = rg->GetInternalTextureResource(s);
     // Shadow map change must be effectuated before start of a frame.
     rsys->GetSceneDataManager().SetLightShadowMap(0, *sm);
 
@@ -301,8 +309,8 @@ int main(int argc, char **argv) {
         auto index = rsys->StartFrame();
         assert(index < 3);
 
-        rg.Execute();
-        auto color = rg.GetInternalTextureResource(c);
+        rg->Execute();
+        auto color = rg->GetInternalTextureResource(c);
         rsys->CompleteFrame(*color, color->GetTextureDescription().width, color->GetTextureDescription().height);
 
         SDL_Delay(10);

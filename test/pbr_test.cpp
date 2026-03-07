@@ -5,17 +5,21 @@
 
 #include <tiny_obj_loader.h>
 
-#include <Asset/AssetDatabase/FileSystemDatabase.h>
+#include "Render/FullRenderSystem.h"
+
 #include "Asset/AssetManager/AssetManager.h"
 #include "Asset/Loader/ObjLoader.h"
 #include "Asset/Material/MaterialTemplateAsset.h"
 #include "Asset/Mesh/MeshAsset.h"
 #include "Asset/Texture/Image2DTextureAsset.h"
 #include "Core/Functional/SDLWindow.h"
-#include "UserInterface/GUISystem.h"
-#include "MainClass.h"
-#include "Render/FullRenderSystem.h"
 #include "Framework/component/RenderComponent/ObjTestMeshComponent.h"
+#include "Framework/object/GameObject.h"
+#include "Framework/world/WorldSystem.h"
+#include "MainClass.h"
+#include <Asset/AssetDatabase/FileSystemDatabase.h>
+
+#include "UserInterface/GUISystem.h"
 
 #include "cmake_config.h"
 
@@ -23,16 +27,11 @@ using namespace Engine;
 namespace sch = std::chrono;
 
 std::pair<std::shared_ptr<MaterialLibraryAsset>, std::shared_ptr<MaterialTemplateAsset>> ConstructMaterial() {
-    auto adb = std::dynamic_pointer_cast<FileSystemDatabase>(
-        MainClass::GetInstance()->GetAssetDatabase()
-    );
+    auto adb = std::dynamic_pointer_cast<FileSystemDatabase>(MainClass::GetInstance()->GetAssetDatabase());
     auto test_asset = std::make_shared<MaterialTemplateAsset>();
     auto lib_asset = std::make_shared<MaterialLibraryAsset>();
     auto vs_ref = adb->GetNewAssetRef({*adb, "~/shaders/pbr_base.vert.asset"});
     auto fs_ref = adb->GetNewAssetRef({*adb, "~/shaders/lambertian_cook_torrance.frag.asset"});
-    assert(vs_ref && fs_ref);
-    MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(vs_ref);
-    MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(fs_ref);
 
     test_asset->name = "LambertianCookTorrancePBR";
 
@@ -40,13 +39,13 @@ std::pair<std::shared_ptr<MaterialLibraryAsset>, std::shared_ptr<MaterialTemplat
     mtspp.attachments.color = {ImageUtils::ImageFormat::R11G11B10UFloat};
     mtspp.attachments.color_blending = {PipelineProperties::ColorBlendingProperties{}};
     mtspp.attachments.depth = ImageUtils::ImageFormat::D32SFLOAT;
-    mtspp.shaders.shaders = std::vector<std::shared_ptr<AssetRef>>{vs_ref, fs_ref};
+    mtspp.shaders.shaders = std::vector<AssetRef>{vs_ref, fs_ref};
     test_asset->properties = mtspp;
 
     lib_asset->m_name = "LambertianCookTorrancePBR";
     MaterialLibraryAsset::MaterialTemplateReference ref;
     ref.expected_mesh_type = 0;
-    ref.material_template = std::make_shared<AssetRef>(test_asset);
+    ref.material_template = AssetRef(test_asset);
     lib_asset->material_bundle[""] = ref;
 
     return std::make_pair(lib_asset, test_asset);
@@ -61,17 +60,24 @@ class PBRMeshComponent : public ObjTestMeshComponent {
     UniformData m_uniform_data{1.0, 1.0};
 
 public:
-    PBRMeshComponent(
+    PBRMeshComponent(GameObject *parentObject) : ObjTestMeshComponent(parentObject), transform() {
+    }
+
+    void LoadData(
         std::filesystem::path mesh_file_name,
         std::shared_ptr<MaterialLibrary> library,
-        std::shared_ptr<Texture> albedo
-    ) : ObjTestMeshComponent(mesh_file_name), transform() {
+        std::shared_ptr<Texture> albedo,
+        std::shared_ptr<Texture> MRAO
+    ) {
+        this->LoadMesh(mesh_file_name);
+
         auto system = m_system.lock();
 
-        auto masset = m_mesh_asset->cas<MeshAsset>();
+        auto masset = m_mesh_asset.cas<MeshAsset>();
         for (size_t i = 0; i < masset->GetSubmeshCount(); i++) {
             auto ptr = std::make_shared<MaterialInstance>(*system, *library);
             ptr->AssignTexture("albedoSampler", albedo);
+            ptr->AssignTexture("MRAOSampler", MRAO);
             m_materials.push_back(ptr);
         }
     }
@@ -91,8 +97,8 @@ public:
         m_uniform_data = {.metalness = metalness, .roughness = roughness};
 
         for (auto &material : m_materials) {
-            material->AssignScalarVariable("Material::metalness", metalness);
-            material->AssignScalarVariable("Material::roughness", roughness);
+            material->AssignScalarVariable("Material::metalness_scale", metalness);
+            material->AssignScalarVariable("Material::roughness_scale", roughness);
         }
     }
 };
@@ -127,14 +133,12 @@ void PrepareGui() {
 
 void SubmitSceneData(std::shared_ptr<RenderSystem> rsys, uint32_t id) {
     rsys->GetSceneDataManager().SetLightDirectionalNonShadowCasting(
-        0, 
-        GetCartesian(g_SceneData.zenith, g_SceneData.azimuth), 
-        glm::vec3{2.0, 2.0, 2.0}
+        0, GetCartesian(g_SceneData.zenith, g_SceneData.azimuth), glm::vec3{2.0, 2.0, 2.0}
     );
     rsys->GetSceneDataManager().SetLightCountNonShadowCasting(1);
 }
 
-void SubmitMaterialData(std::shared_ptr<PBRMeshComponent> mesh) {
+void SubmitMaterialData(PBRMeshComponent *mesh) {
     mesh->UpdateUniformData(g_SceneData.metalness, g_SceneData.roughness);
 }
 
@@ -155,38 +159,60 @@ int main(int argc, char **argv) {
     auto asys = cmc->GetAssetManager();
     auto adb = std::dynamic_pointer_cast<FileSystemDatabase>(cmc->GetAssetDatabase());
     cmc->LoadBuiltinAssets(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
-    asys->LoadAssetsInQueue();
 
     auto rsys = cmc->GetRenderSystem();
     auto pbr_material_assets = ConstructMaterial();
-    auto pbr_material_asset_ref = std::make_shared<AssetRef>(pbr_material_assets.first);
+    auto pbr_material_asset_ref = AssetRef(pbr_material_assets.first);
     auto pbr_material = std::make_shared<MaterialLibrary>(*rsys);
     pbr_material->Instantiate(*pbr_material_assets.first);
 
     auto gsys = cmc->GetGUISystem();
     gsys->CreateVulkanBackend(*rsys, ImageUtils::GetVkFormat(Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm));
 
-    std::shared_ptr red_texture = ImageTexture::CreateUnique(
-        *rsys, 
-        ImageTexture::ImageTextureDesc{
-            .dimensions = 2,
-            .width = 4,
-            .height = 4,
-            .depth = 1,
-            .mipmap_levels = 1,
-            .array_layers = 1,
-            .format = ImageTexture::ImageTextureDesc::ImageTextureFormat::R8G8B8A8UNorm,
-            .is_cube_map = false
-        }, 
-        Texture::SamplerDesc{}, 
-        "Sampled Albedo"
-    );
-    rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*red_texture, {1.0, 0.0, 0.0, 1.0});
+    RenderTargetTexture::RenderTargetTextureDesc desc{
+        .dimensions = 2,
+        .width = 1920,
+        .height = 1080,
+        .depth = 1,
+        .mipmap_levels = 1,
+        .array_layers = 1,
+        .format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R11G11B10UFloat,
+        .multisample = 1,
+        .is_cube_map = false
+    };
+    std::shared_ptr hdr_color{
+        RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "HDR Color Attachment")
+    };
+    desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R8G8B8A8UNorm;
+    std::shared_ptr color{RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Color Attachment")};
+    desc.mipmap_levels = 1;
+    desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::D32SFLOAT;
+    std::shared_ptr depth{RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Depth Attachment")};
 
+    ImageTexture::ImageTextureDesc empty_desc{
+        .dimensions = 2,
+        .width = 4,
+        .height = 4,
+        .depth = 1,
+        .mipmap_levels = 1,
+        .array_layers = 1,
+        .format = ImageTexture::ImageTextureDesc::ImageTextureFormat::R8G8B8A8UNorm,
+        .is_cube_map = false
+    };
+    std::shared_ptr red_texture =
+        ImageTexture::CreateUnique(*rsys, empty_desc, Texture::SamplerDesc{}, "Sampled Albedo");
+    rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*red_texture, {1.0, 0.0, 0.0, 1.0});
+    std::shared_ptr MRAO_texture =
+        ImageTexture::CreateUnique(*rsys, empty_desc, Texture::SamplerDesc{}, "Sampled MRAO");
+    rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*MRAO_texture, {1.0, 1.0, 1.0, 1.0});
+
+    auto &scene = cmc->GetWorldSystem()->GetMainSceneRef();
     // Setup mesh
     std::filesystem::path mesh_path{std::string(ENGINE_ASSETS_DIR) + "/meshes/sphere.obj"};
-    std::shared_ptr tmc = std::make_shared<PBRMeshComponent>(mesh_path, pbr_material, red_texture);
-    rsys->GetRendererManager().RegisterRendererComponent(tmc);
+    auto &go = scene.CreateGameObject();
+    auto tmc = &scene.CreateComponent<PBRMeshComponent>(go);
+    tmc->LoadData(mesh_path, pbr_material, red_texture, MRAO_texture);
+    rsys->GetRendererManager().RegisterRendererComponent(tmc->GetHandle());
 
     // Setup camera
     Transform transform{};
@@ -200,10 +226,8 @@ int main(int argc, char **argv) {
 
     // Setup compute shader
     auto cs_ref = adb->GetNewAssetRef({*adb, "~/shaders/bloom.comp.asset"});
-    assert(cs_ref);
-    MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(cs_ref);
     auto bloom_compute_stage = std::make_shared<ComputeStage>(*rsys);
-    bloom_compute_stage->Instantiate(*cs_ref->cas<ShaderAsset>());
+    bloom_compute_stage->Instantiate(*cs_ref.cas<ShaderAsset>());
     auto & bloom_compute_binding = bloom_compute_stage->AllocateResourceBinding();
 
     // Build render graph.

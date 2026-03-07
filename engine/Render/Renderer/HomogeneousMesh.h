@@ -30,7 +30,7 @@ namespace Engine {
          */
         HomogeneousMesh(
             const RenderSystemState::AllocatorState & allocator,
-            std::shared_ptr<AssetRef> mesh_asset,
+            AssetRef mesh_asset,
             size_t submesh_idx
         );
         virtual ~HomogeneousMesh();

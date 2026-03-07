@@ -2,12 +2,12 @@
 #define ASSET_ASSETDATABASE_FILESYSTEMDATABASE_INCLUDED
 
 #include "AssetDatabase.h"
+#include <Asset/AssetRef.h>
 #include <Core/guid.h>
 #include <unordered_map>
 #include <vector>
 
 namespace Engine {
-    class AssetRef;
     class FileSystemDatabase;
 
     /**
@@ -79,8 +79,8 @@ namespace Engine {
 
         /// @brief Get an unloaded AssetRef of the given path
         /// @param path the in-project path of the asset
-        /// @return an unloaded AssetRef if the path exist, which only contains the GUID. nullptr otherwise
-        std::shared_ptr<AssetRef> GetNewAssetRef(const AssetPath &path) const;
+        /// @return an unloaded AssetRef if the path exist, which only contains the GUID. throw std::runtime_error otherwise
+        AssetRef GetNewAssetRef(const AssetPath &path) const;
 
         /// @brief Save the archive.
         virtual void SaveArchive(Serialization::Archive &archive, GUID guid) override;
@@ -112,7 +112,7 @@ namespace Engine {
         /// @brief Path to the current project assets
         std::filesystem::path m_project_asset_path{};
 
-        std::unordered_map<GUID, AssetPath, GUIDHash> m_assets_map{};
+        std::unordered_map<GUID, AssetPath> m_assets_map{};
         std::unordered_map<AssetPath, GUID, AssetPath::Hash> m_path_to_guid{};
     };
 } // namespace Engine

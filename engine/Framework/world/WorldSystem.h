@@ -1,91 +1,62 @@
 #ifndef WORLD_WORLDSYSTEM
 #define WORLD_WORLDSYSTEM
 
-#include <Core/guid.h>
-#include <Framework/component/TransformComponent/TransformComponent.h>
-#include <Framework/object/GameObject.h>
+#include "Handle.h"
+#include <Asset/AssetRef.h>
 #include <memory>
 #include <random>
-#include <vector>
+#include <unordered_map>
 
 namespace Engine {
-    class LevelAsset;
-    class GameObjectAsset;
     class Camera;
+    class Scene;
+    class LevelAsset;
     namespace RenderSystemState {
         class CameraManager;
-    }
-    
+        class SceneDataManager;
+    } // namespace RenderSystemState
 
     class WorldSystem {
     public:
         WorldSystem();
         ~WorldSystem();
 
-        void AddInitEvent();
-        void AddTickEvent();
+        /// @brief Filter light components and update the light data.
+        /// TODO: need futher discussion. Did not use the light manager in scene data manager for now.
+        void UpdateLightData(RenderSystemState::SceneDataManager &scene_data_manager);
 
-        /// @brief Generate a GUID using the random generator in the WorldSystem.
-        GUID GenerateID();
-
-        /// @brief GameObject factory function. Create a GameObject and return a shared pointer to it.
-        /// @tparam T T must be derived from GameObject
-        /// @tparam ...Args The arguments to be passed to the constructor of T
-        /// @return The shared pointer to the created GameObject
-        template <typename T, typename... Args>
-        std::shared_ptr<T> CreateGameObject(Args... args);
-
-        /// @brief Add a GameObject to the loading queue.
-        template <typename T>
-        void AddGameObjectToWorld(std::shared_ptr<T> go);
-
-        /// @brief Load all GameObjects in the loading queue. This will call Init() on all components of the
-        /// GameObjects.
-        void LoadGameObjectInQueue();
-
-        /// @brief Load a level asset. Add all GameObjects in the level asset to the loading queue.
-        void LoadLevelAsset(std::shared_ptr<LevelAsset> levelAsset);
-
-        /// @brief Load a GameObject asset. Add the GameObject in the asset to the loading queue.
-        void LoadGameObjectAsset(std::shared_ptr<GameObjectAsset> gameObjectAsset);
-
-        const std::vector<std::shared_ptr<GameObject>> &GetGameObjects() const;
-
-        std::shared_ptr <Camera> GetActiveCamera() const noexcept;
+        std::shared_ptr<Camera> GetActiveCamera() const noexcept;
 
         /**
          * @brief Set the active camera, and try registering it to the render system.
-         * 
+         *
          * If registrar if left to be nullptr, no attempts will be made to register it.
-         * 
+         *
          * @todo Temporary fix. Needs futher discussion.
          */
-        void SetActiveCamera(std::shared_ptr<Camera> camera, RenderSystemState::CameraManager * registrar = nullptr) noexcept;
+        void SetActiveCamera(
+            ComponentHandle camera_comp, RenderSystemState::CameraManager *registrar = nullptr
+        ) noexcept;
+
+        Scene &GetMainSceneRef();
+        Scene &GetSceneRef(uint32_t sceneID);
+        Scene *GetScenePtr(uint32_t sceneID);
+        Scene &CreateScene();
+        void ClearUnusedScenes();
+
+        /**
+         * @brief Save the main scene to a level_asset.
+         */
+        void SaveLevelToAsset(LevelAsset &level_asset);
 
     protected:
-        std::mt19937_64 m_id_gen{std::random_device{}()};
+        ComponentHandle m_active_camera{};
+        std::shared_ptr<Scene> m_main_scene{};
 
-        std::vector<std::shared_ptr<GameObject>> m_go_loading_queue{};
-        std::vector<std::shared_ptr<GameObject>> m_game_objects{};
-        std::vector<std::shared_ptr<Component>> m_all_components{};
-
-        std::shared_ptr<Camera> m_active_camera{};
+        std::unordered_map<uint32_t, std::shared_ptr<Scene>> m_scene_map{};
+        uint32_t m_scene_id_gen{1};
+    public:
+        AssetRef m_skybox_material{};
     };
-
-    template <typename T, typename... Args>
-    std::shared_ptr<T> WorldSystem::CreateGameObject(Args... args) {
-        static_assert(std::is_base_of<GameObject, T>::value, "T must be derived from GameObject");
-        GameObject *go_ptr = new T(std::forward<Args>(args)...);
-        auto game_object = std::shared_ptr<T>(go_ptr);
-        game_object->template AddComponent<TransformComponent>();
-        game_object->m_transformComponent = dynamic_pointer_cast<TransformComponent>(game_object->m_components[0]);
-        return game_object;
-    }
-
-    template <typename T>
-    void WorldSystem::AddGameObjectToWorld(std::shared_ptr<T> go) {
-        static_assert(std::is_base_of<GameObject, T>::value, "T must be derived from GameObject");
-        m_go_loading_queue.push_back(go);
-    }
 } // namespace Engine
 #endif // WORLD_WORLDSYSTEM

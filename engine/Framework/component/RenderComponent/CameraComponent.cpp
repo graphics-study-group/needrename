@@ -10,7 +10,7 @@
 #include <gtc/matrix_transform.hpp>
 
 namespace Engine {
-    CameraComponent::CameraComponent(std::weak_ptr<GameObject> gameObject) : Component(gameObject) {
+    CameraComponent::CameraComponent(GameObject *parent) : Component(parent) {
         m_camera = std::make_shared<Camera>();
         UpdateViewMatrix();
         UpdateProjectionMatrix();
@@ -24,7 +24,7 @@ namespace Engine {
         m_camera->UpdateProjectionMatrix();
     }
     void CameraComponent::UpdateViewMatrix() {
-        auto parent = m_parentGameObject.lock();
+        auto parent = this->GetParentGameObject();
         if (!parent) {
             SDL_LogWarn(0, "Missing parent game object for camera");
             return;

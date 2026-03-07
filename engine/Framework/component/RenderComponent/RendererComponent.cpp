@@ -12,43 +12,50 @@
 #include <Render/Pipeline/Material/MaterialInstance.h>
 
 namespace Engine {
-    RendererComponent::RendererComponent(std::weak_ptr<GameObject> gameObject) : Component(gameObject) {
+    RendererComponent::RendererComponent(GameObject *parent) : Component(parent) {
         m_system = MainClass::GetInstance()->GetRenderSystem();
     }
 
     Transform RendererComponent::GetWorldTransform() const {
-        auto parentGameObject = m_parentGameObject.lock();
+        auto parentGameObject = this->GetParentGameObject();
         assert(parentGameObject && "A renderer component has no parent game object.");
         return parentGameObject->GetWorldTransform();
+    }
+
+    void RendererComponent::UnregisterFromRenderSystem() {
+        auto system = m_system.lock();
+        if (system) {
+            system->GetRendererManager().UnregisterRendererComponent(
+                m_handle
+            );
+        }
     }
 
     void RendererComponent::RenderInit() {
         m_system = MainClass::GetInstance()->GetRenderSystem();
         auto system = m_system.lock();
 
-        // We should do some check maybe to avoid repetition.
-        system->GetRendererManager().RegisterRendererComponent(
-            std::dynamic_pointer_cast<RendererComponent>(shared_from_this())
-        );
-
         for (size_t i = 0; i < m_material_assets.size(); i++) {
             // XXX: This is a temporary solution: It simply check the m_name in material assets and add it to the
             // registry. We should reconsider the relationship between MaterialRegistry and MaterialTemplateAsset.
-            auto lib = m_material_assets[i]->as<MaterialAsset>()->m_library;
+            auto lib = m_material_assets[i].as<MaterialAsset>()->m_library;
             m_system.lock()->GetMaterialRegistry().AddMaterial(lib);
             auto ptr = std::make_shared<MaterialInstance>(
                 *(m_system.lock()),
-                *m_system.lock()->GetMaterialRegistry().GetMaterial(lib->cas<MaterialLibraryAsset>()->m_name)
+                *m_system.lock()->GetMaterialRegistry().GetMaterial(lib.cas<MaterialLibraryAsset>()->m_name)
             );
             m_materials.push_back(ptr);
         }
 
         for (size_t i = 0; i < m_material_assets.size(); i++) {
             auto mat_ptr = std::dynamic_pointer_cast<MaterialInstance>(m_materials[i]);
-            auto mat_asset = (m_material_assets[i]->cas<MaterialAsset>());
+            auto mat_asset = (m_material_assets[i].cas<MaterialAsset>());
             assert(mat_ptr && mat_asset);
             mat_ptr->Instantiate(*mat_asset);
         }
+
+        // We should do some check maybe to avoid repetition.
+        system->GetRendererManager().RegisterRendererComponent(m_handle);
     }
 
     void RendererComponent::Tick() {

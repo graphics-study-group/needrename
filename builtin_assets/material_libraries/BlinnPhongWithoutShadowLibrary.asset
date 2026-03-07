@@ -1,0 +1,14 @@
+{
+    "%main_data": {
+        "%type": "Engine::MaterialLibraryAsset",
+        "Asset::m_guid": "CC90BD98BB3190F9AACD4CC3D6162782",
+        "MaterialLibraryAsset::m_name": "Blinn-Phong Without Shadowmap",
+        "MaterialLibraryAsset::material_bundle": {
+            "": {
+                "%type": "Engine::MaterialLibraryAsset::MaterialTemplateReference",
+                "MaterialTemplateReference::expected_mesh_type": 1,
+                "MaterialTemplateReference::material_template": "8343954977BA6A7CF658BFEE421AD515"
+            }
+        }
+    }
+}

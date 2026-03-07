@@ -2,34 +2,55 @@
 #include <Framework/component/Component.h>
 #include <Framework/component/TransformComponent/TransformComponent.h>
 #include <Framework/object/GameObject.h>
+#include <Framework/world/Scene.h>
 #include <MainClass.h>
 
 namespace Engine {
-    void GameObject::AddComponent(std::shared_ptr<Component> component) {
-        m_components.push_back(component);
-        component->m_parentGameObject = weak_from_this();
+    GameObject::GameObject(Scene *scene) : m_scene(scene) {
     }
 
     const Transform &GameObject::GetTransform() const {
-        return m_transformComponent->GetTransform();
+        return m_scene->GetComponent<TransformComponent>(m_transformComponent)->GetTransform();
     }
-
     Transform &GameObject::GetTransformRef() {
-        return m_transformComponent->GetTransformRef();
+        return m_scene->GetComponent<TransformComponent>(m_transformComponent)->GetTransformRef();
     }
 
     Transform GameObject::GetWorldTransform() {
-        auto parentGameObject = m_parentGameObject.lock();
-        if (parentGameObject) return parentGameObject->GetWorldTransform() * m_transformComponent->GetTransform();
-        return m_transformComponent->GetTransform();
+        if (m_parentGameObject.IsValid()) {
+            return m_scene->GetGameObject(m_parentGameObject)->GetWorldTransform() * GetTransform();
+        }
+        return GetTransform();
     }
 
     void GameObject::SetTransform(const Transform &transform) {
-        m_transformComponent->SetTransform(transform);
+        m_scene->GetComponent<TransformComponent>(m_transformComponent)->SetTransform(transform);
     }
 
-    void GameObject::SetParent(std::shared_ptr<GameObject> parent) {
+    void GameObject::SetParent(ObjectHandle parent) {
         m_parentGameObject = parent;
-        parent->m_childGameObject.push_back(shared_from_this());
+        m_scene->GetGameObject(parent)->m_childGameObject.push_back(m_handle);
+    }
+
+    ObjectHandle GameObject::GetHandle() const noexcept {
+        return m_handle;
+    }
+
+    bool GameObject::operator==(const GameObject &other) const noexcept {
+        return this->m_handle == other.m_handle;
+    }
+
+    void GameObject::save_to_archive(Serialization::Archive &archive) const {
+        Serialization::Json &json = *archive.m_cursor;
+        Serialization::Archive temp_archive(archive, &json["GameObject::m_handle"]);
+        Serialization::serialize(m_handle, temp_archive);
+        this->_SERIALIZATION_SAVE_(archive);
+    }
+
+    void GameObject::load_from_archive(Serialization::Archive &archive) {
+        Serialization::Json &json = *archive.m_cursor;
+        Serialization::Archive temp_archive(archive, &json["GameObject::m_handle"]);
+        Serialization::deserialize(m_handle, temp_archive);
+        this->_SERIALIZATION_LOAD_(archive);
     }
 } // namespace Engine

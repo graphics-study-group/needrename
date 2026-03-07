@@ -51,8 +51,6 @@ std::pair<std::shared_ptr<MaterialLibraryAsset>, std::shared_ptr<MaterialTemplat
     auto lib_asset = std::make_shared<MaterialLibraryAsset>();
     auto vs_ref = adb->GetNewAssetRef({*adb, "~/shaders/skybox.vert.asset"});
     auto fs_ref = adb->GetNewAssetRef({*adb, "~/shaders/skybox.frag.asset"});
-    MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(vs_ref);
-    MainClass::GetInstance()->GetAssetManager()->LoadAssetImmediately(fs_ref);
 
     test_asset->name = "Skybox";
 
@@ -62,7 +60,7 @@ std::pair<std::shared_ptr<MaterialLibraryAsset>, std::shared_ptr<MaterialTemplat
     CBP cbp{};
     mtspp.attachments.color_blending = {cbp};
     mtspp.attachments.depth = ImageUtils::ImageFormat::D32SFLOAT;
-    mtspp.shaders.shaders = std::vector<std::shared_ptr<AssetRef>>{vs_ref, fs_ref};
+    mtspp.shaders.shaders = std::vector<AssetRef>{vs_ref, fs_ref};
     mtspp.depth_stencil.depth_comparator = PipelineUtils::DSComparator::LEqual;
 
     test_asset->properties = mtspp;
@@ -70,7 +68,7 @@ std::pair<std::shared_ptr<MaterialLibraryAsset>, std::shared_ptr<MaterialTemplat
     lib_asset->m_name = "Skybox";
     MaterialLibraryAsset::MaterialTemplateReference ref;
     ref.expected_mesh_type = 0;
-    ref.material_template = std::make_shared<AssetRef>(test_asset);
+    ref.material_template = AssetRef(test_asset);
     lib_asset->material_bundle["SKYBOX"] = ref;
 
     return std::make_pair(lib_asset, test_asset);
@@ -100,12 +98,15 @@ int main(int argc, char **argv) {
     auto lib = std::make_shared<MaterialLibrary>(*rsys);
     lib->Instantiate(*lib_asset);
 
+    uint32_t width = 1024;
+    uint32_t height = 1024;
+
     std::shared_ptr skybox_texture = ImageTexture::CreateUnique(
         *rsys,
         ImageTexture::ImageTextureDesc{
             .dimensions = 2,
-            .width = 512,
-            .height = 512,
+            .width = width,
+            .height = height,
             .depth = 1,
             .mipmap_levels = 1,
             .array_layers = 6,
@@ -127,7 +128,13 @@ int main(int argc, char **argv) {
     {
         // Load skybox cubemap
         auto cubemap = std::make_shared<ImageCubemapAsset>();
-        cubemap->LoadFromFile(std::filesystem::path{ENGINE_ASSETS_DIR} / "skybox" / "sky_cloudy.png", 512, 512);
+        cubemap->LoadFromFile(std::filesystem::path{ENGINE_ASSETS_DIR} / "skybox" / "sky_cloudy.png", width, height);
+
+        // Engine::Serialization::Archive archive;
+        // archive.prepare_save();
+        // cubemap->save_asset_to_archive(archive);
+        // archive.save_to_file(std::string(ENGINE_ASSETS_DIR) + "/skybox.asset");
+
         // cubemap->LoadFromFile(CUBEMAP_FACES);
         rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
             *skybox_texture,
@@ -167,11 +174,13 @@ int main(int argc, char **argv) {
         {crt, {}, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store},
         {drt, {}, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::DontCare, AttachmentUtils::DepthClearValue{1.0f, 0U}},
             [rsys, camera] (GraphicsCommandBuffer & cb, const RenderGraph &) -> void {
+                glm::mat3 view_matrix = glm::mat3(camera->GetViewMatrix());
+                glm::mat4 pv = camera->GetProjectionMatrix() * glm::mat4(view_matrix);
                 rsys->GetSceneDataManager().DrawSkybox(
                     cb,
                     rsys->GetFrameManager().GetFrameInFlight(),
-                    camera->GetViewMatrix(),
-                    camera->GetProjectionMatrix()
+                    pv,
+                    rsys->GetSwapchain().GetExtent()
                 );
         }
     );
@@ -226,8 +235,8 @@ int main(int argc, char **argv) {
         Transform t;
         t.SetPosition({0.0f, 0.0f, 0.0f}).SetRotationEuler(euler_angle_rotation);
         camera->UpdateViewMatrix(t);
-        rg.Execute();
-        rsys->CompleteFrame(*rg.GetInternalTextureResource(crt), 800, 800);
+        rg->Execute();
+        rsys->CompleteFrame(*rg->GetInternalTextureResource(crt), 800, 800);
 
         SDL_Delay(10);
 

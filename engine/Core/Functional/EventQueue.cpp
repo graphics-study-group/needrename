@@ -1,6 +1,9 @@
 #include "EventQueue.h"
 
 namespace Engine {
+    EventQueue::EventQueue(Scene &scene) : m_scene(scene) {
+    }
+
     void EventQueue::AddEvent(DelegatePtr event) {
         m_events.push(std::move(event));
     }

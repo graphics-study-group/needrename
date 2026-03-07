@@ -1,15 +1,13 @@
 {
-    "%data": {
-        "&0": {
-            "%type": "Engine::ShaderAsset",
-            "Asset::m_guid": "26052172A78B471DBF6B2601F6166D61",
-            "ShaderAsset::m_name": "debug_writethrough.vert",
-            "ShaderAsset::m_entry_point": "main",
-            "ShaderAsset::shaderType": "Vertex",
-            "ShaderAsset::storeType": "GLSL",
-            "glsl_extra_data_id": 0,
-            "binary_extra_data_id": 1
-        }
+    "%main_data": {
+        "%type": "Engine::ShaderAsset",
+        "Asset::m_guid": "26052172A78B471DBF6B2601F6166D61",
+        "ShaderAsset::m_name": "debug_writethrough.vert",
+        "ShaderAsset::m_entry_point": "main",
+        "ShaderAsset::shaderType": "Vertex",
+        "ShaderAsset::storeType": "GLSL",
+        "glsl_extra_data_id": 0,
+        "binary_extra_data_id": 1
     },
     "%extra_data": [
         {
@@ -18,6 +16,5 @@
         {
             "%extension": ".spv"
         }
-    ],
-    "%main_id": "&0"
+    ]
 }

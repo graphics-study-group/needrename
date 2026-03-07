@@ -380,7 +380,7 @@ namespace Engine {
         );
     }
     
-    RenderGraph RenderGraphBuilder::BuildRenderGraph() {
+    std::unique_ptr<RenderGraph> RenderGraphBuilder::BuildRenderGraph() {
         std::vector <std::function<void(vk::CommandBuffer, const RenderGraph &)>> compiled;
         RenderGraphImpl::RenderGraphExtraInfo extra{};
 
@@ -478,9 +478,9 @@ namespace Engine {
         }
         // Reset everything
         pimpl = std::make_unique<impl>();
-        return RenderGraph(m_system, std::move(compiled), std::move(extra));
+        return std::unique_ptr<RenderGraph>(new RenderGraph(m_system, std::move(compiled), std::move(extra)));
     }
-    RenderGraph RenderGraphBuilder::BuildDefaultRenderGraph(
+    std::unique_ptr<RenderGraph> RenderGraphBuilder::BuildDefaultRenderGraph(
         uint32_t width, uint32_t height,
         GUISystem *gui_system
     ) {

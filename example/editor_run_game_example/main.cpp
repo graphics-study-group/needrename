@@ -5,31 +5,32 @@
 
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include <Asset/AssetManager/AssetManager.h>
-#include <Asset/Scene/GameObjectAsset.h>
 #include <Core/Delegate/FuncDelegate.h>
-#include <Framework/component/Component.h>
-#include <Framework/component/RenderComponent/CameraComponent.h>
-#include <Framework/world/WorldSystem.h>
 #include <Core/Functional/EventQueue.h>
 #include <Core/Functional/SDLWindow.h>
 #include <Core/Functional/Time.h>
-#include <UserInterface/GUISystem.h>
-#include <UserInterface/Input.h>
+#include <Framework/component/Component.h>
+#include <Framework/component/RenderComponent/CameraComponent.h>
+#include <Framework/object/GameObject.h>
+#include <Framework/world/WorldSystem.h>
 #include <MainClass.h>
 #include <Render/FullRenderSystem.h>
 #include <SDL3/SDL.h>
+#include <UserInterface/GUISystem.h>
+#include <UserInterface/Input.h>
 #include <cmake_config.h>
 
 #include <Editor/Widget/GameWidget.h>
 #include <Editor/Widget/SceneWidget.h>
 #include <Editor/Window/MainWindow.h>
+#include <Editor/Render/EditorRenderGraphBuilder.h>
 
 #include "CustomComponent.h"
 #include <meta_editor_run_game_example/reflection_init.ipp>
 
 using namespace Engine;
 
-SpinningComponent::SpinningComponent(std::weak_ptr<GameObject> gameObject) : Component(gameObject) {
+SpinningComponent::SpinningComponent(GameObject *parent) : Component(parent) {
 }
 
 void SpinningComponent::Init() {
@@ -38,16 +39,16 @@ void SpinningComponent::Init() {
 
 void SpinningComponent::Tick() {
     float dt = MainClass::GetInstance()->GetTimeSystem()->GetDeltaTimeInSeconds();
-    auto go = m_parentGameObject.lock();
+    auto go = m_scene->GetGameObject(m_parentGameObject);
     if (go) {
         auto &transform = go->GetTransformRef();
         transform.SetRotation(
-            transform.GetRotation() * glm::angleAxis(glm::radians(m_speed * dt), glm::vec3(0.0f, 1.0f, 0.0f))
+            transform.GetRotation() * glm::angleAxis(glm::radians(m_speed * dt), glm::vec3(0.0f, 0.0f, 1.0f))
         );
     }
 }
 
-ControlComponent::ControlComponent(std::weak_ptr<GameObject> gameObject) : Component(gameObject) {
+ControlComponent::ControlComponent(GameObject *parent) : Component(parent) {
 }
 
 void ControlComponent::Tick() {
@@ -59,7 +60,7 @@ void ControlComponent::Tick() {
     auto roll_right = input->GetAxisRaw("roll right");
     auto look_x = input->GetAxisRaw("look x");
     auto look_y = input->GetAxisRaw("look y");
-    Transform &transform = m_parentGameObject.lock()->GetTransformRef();
+    Transform &transform = m_scene->GetGameObjectRef(m_parentGameObject).GetTransformRef();
     float dt = MainClass::GetInstance()->GetTimeSystem()->GetDeltaTimeInSeconds();
     transform.SetRotation(
         transform.GetRotation()
@@ -75,10 +76,9 @@ void ControlComponent::Tick() {
 
 void Start() {
     auto cmc = MainClass::GetInstance();
-    auto world = cmc->GetWorldSystem();
-    auto event_queue = cmc->GetEventQueue();
-    event_queue->Clear();
-    world->AddInitEvent();
+    auto &scene = cmc->GetWorldSystem()->GetMainSceneRef();
+    scene.ClearEventQueue();
+    scene.AddInitEvent();
 }
 
 int main() {
@@ -87,7 +87,18 @@ int main() {
 
     SDL_Init(SDL_INIT_VIDEO);
 
-    StartupOptions opt{.resol_x = 1920, .resol_y = 1080, .title = "Editor"};
+    int displayIndex = 1;
+    auto displayMode = SDL_GetDesktopDisplayMode(displayIndex);
+    if (displayMode == nullptr) {
+        SDL_Log("Failed to get display mode: %s", SDL_GetError());
+        SDL_Quit();
+        return -1;
+    }
+    int screenWidth = displayMode->w;
+    int screenHeight = displayMode->h;
+    SDL_Log("Screen Resolution: %dx%d @ %fHz", 
+            screenWidth, screenHeight, displayMode->refresh_rate);
+    StartupOptions opt{.resol_x = (int)(screenWidth * 0.9), .resol_y = (int)(screenHeight * 0.9), .title = "Editor"};
 
     auto cmc = MainClass::GetInstance();
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
@@ -99,22 +110,13 @@ int main() {
     auto world = cmc->GetWorldSystem();
     auto gui = cmc->GetGUISystem();
     auto window = cmc->GetWindow();
-    auto event_queue = cmc->GetEventQueue();
-    gui->CreateVulkanBackend(*rsys, ImageUtils::GetVkFormat(window->GetColorTexture().GetTextureDescription().format));
+    auto &main_scene = world->GetMainSceneRef();
+    gui->CreateVulkanBackend(*rsys, ImageUtils::GetVkFormat(Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm));
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading project");
     cmc->LoadProject(project_path);
 
-    AssetPath prefab_path{*adb, "/GO_four_bunny.asset"};
-    auto prefab_ref = adb->GetNewAssetRef(prefab_path);
-    asys->LoadAssetImmediately(prefab_ref);
-    auto prefab_asset = prefab_ref->as<GameObjectAsset>();
-    prefab_asset->m_MainObject->AddComponent<SpinningComponent>();
-    prefab_asset->m_MainObject->m_name = "Spinning Bunny";
-    auto &spinning_transform = prefab_asset->m_MainObject->GetTransformRef();
-    spinning_transform.SetPosition(spinning_transform.GetPosition() + glm::vec3(0.0f, 0.2f, 0.0f));
-    world->LoadGameObjectAsset(prefab_asset);
-
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Add extra objects");
     auto input = MainClass::GetInstance()->GetInputSystem();
     input->AddAxis(Input::ButtonAxis("move forward", Input::AxisType::TypeKey, "w", "s"));
     input->AddAxis(Input::ButtonAxis("move right", Input::AxisType::TypeKey, "d", "a"));
@@ -127,28 +129,41 @@ int main() {
         Input::MotionAxis("look y", Input::AxisType::TypeMouseMotion, "y", 0.3f, 3.0f, 0.001f, 3.0f, false, true)
     );
 
-    auto camera_go = cmc->GetWorldSystem()->CreateGameObject<GameObject>();
-    camera_go->m_name = "Main Camera";
-    Transform transform{};
-    transform.SetPosition({0.0f, 0.2f, -0.7f});
-    transform.SetRotationEuler(glm::vec3{1.57, 0.0, 3.1415926});
-    transform.SetScale({1.0f, 1.0f, 1.0f});
-    camera_go->SetTransform(transform);
-    auto camera_comp = camera_go->template AddComponent<CameraComponent>();
-    camera_comp->m_camera->set_aspect_ratio(1.0 * opt.resol_x / opt.resol_y);
-    auto control_comp = camera_go->template AddComponent<ControlComponent>();
-    control_comp->m_camera = camera_comp;
-    cmc->GetWorldSystem()->SetActiveCamera(camera_comp->m_camera, &cmc->GetRenderSystem()->GetCameraManager());
-    cmc->GetWorldSystem()->AddGameObjectToWorld(camera_go);
+    // auto &camera_go = main_scene.CreateGameObject();
+    // camera_go.m_name = "Controled Camera";
+    // Transform transform{};
+    // transform.SetPosition({0.0f, -0.7f, 0.5f});
+    // transform.SetRotationEuler(glm::vec3{glm::radians(-30.0f), 0.0, 0.0});
+    // transform.SetScale({1.0f, 1.0f, 1.0f});
+    // camera_go.SetTransform(transform);
+    // auto &camera_comp = camera_go.template AddComponent<CameraComponent>();
+    // camera_comp.m_camera->set_aspect_ratio(1.0 * opt.resol_x / opt.resol_y);
+    // camera_go.template AddComponent<ControlComponent>();
+    // world->SetActiveCamera(camera_comp.GetHandle(), &cmc->GetRenderSystem()->GetCameraManager());
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Create Editor Window");
     Editor::MainWindow main_window;
     auto scene_widget = std::make_shared<Editor::SceneWidget>(Editor::MainWindow::k_scene_widget_name);
-    scene_widget->CreateRenderTargets(rsys);
     main_window.AddWidget(scene_widget);
     auto game_widget = std::make_shared<Editor::GameWidget>(Editor::MainWindow::k_game_widget_name);
-    game_widget->CreateRenderTargets(rsys);
     main_window.AddWidget(game_widget);
+
+    auto rgb = std::make_unique<Editor::EditorRenderGraphBuilder>(*cmc->GetRenderSystem());
+    int32_t final_color_id, scene_color_id, game_color_id;
+    auto rg = rgb->BuildEditorRenderGraph(
+        screenWidth,
+        screenHeight,
+        scene_widget.get(),
+        game_widget.get(),
+        scene_color_id,
+        game_color_id,
+        final_color_id
+    );
+
+    auto scene_texture = rg->GetInternalTextureResource(scene_color_id);
+    scene_widget->SetDisplayTexture(*scene_texture);
+    auto game_texture = rg->GetInternalTextureResource(game_color_id);
+    game_widget->SetDisplayTexture(*game_texture);
 
     main_window.m_OnStart.AddDelegate(std::make_unique<FuncDelegate<>>(Start));
 
@@ -172,61 +187,21 @@ int main() {
 
         if (game_widget->m_accept_input) cmc->GetInputSystem()->Update();
         else cmc->GetInputSystem()->ResetAxes();
-        world->LoadGameObjectInQueue();
+        world->GetMainSceneRef().FlushCmdQueue();
 
         if (main_window.m_is_playing) {
-            world->AddTickEvent();
-            event_queue->ProcessEvents();
+            world->GetMainSceneRef().AddTickEvent();
+            world->GetMainSceneRef().ProcessEvents();
         }
+        world->UpdateLightData(rsys->GetSceneDataManager());
 
-        rsys->StartFrame();
-        auto context = rsys->GetFrameManager().GetGraphicsContext();
-        GraphicsCommandBuffer &cb = dynamic_cast<GraphicsCommandBuffer &>(context.GetCommandBuffer());
-
-        cb.Begin();
-
-        scene_widget->PreRender();
-        game_widget->PreRender();
-
-        context.UseImage(
-            *std::static_pointer_cast<Engine::Texture>(scene_widget->m_color_texture),
-            GraphicsContext::ImageGraphicsAccessType::ShaderRead,
-            GraphicsContext::ImageAccessType::ColorAttachmentWrite
-        );
-        context.UseImage(
-            *std::static_pointer_cast<Engine::Texture>(game_widget->m_color_texture),
-            GraphicsContext::ImageGraphicsAccessType::ShaderRead,
-            GraphicsContext::ImageAccessType::ColorAttachmentWrite
-        );
-        context.UseImage(
-            window->GetColorTexture(),
-            GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite,
-            GraphicsContext::ImageAccessType::None
-        );
-        context.UseImage(
-            window->GetDepthTexture(),
-            GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite,
-            GraphicsContext::ImageAccessType::None
-        );
-        context.PrepareCommandBuffer();
         gui->PrepareGUI();
         main_window.Render();
-        gui->DrawGUI(
-            {&window->GetColorTexture(),
-             Engine::TextureSubresourceRange::GetSingleRange(),
-             Engine::AttachmentUtils::LoadOperation::Clear,
-             Engine::AttachmentUtils::StoreOperation::Store},
-            window->GetExtent(),
-            cb
-        );
 
-        cb.End();
-        rsys->GetFrameManager().SubmitMainCommandBuffer();
-        rsys->CompleteFrame(
-            window->GetColorTexture(),
-            window->GetExtent().width,
-            window->GetExtent().height
-        );
+        rsys->StartFrame();
+        rg->Execute();
+        auto [w, h] = cmc->GetWindow()->GetSize();
+        rsys->CompleteFrame(*rg->GetInternalTextureResource(final_color_id), w, h);
     }
     rsys->WaitForIdle();
 

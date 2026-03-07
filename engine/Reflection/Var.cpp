@@ -1,6 +1,7 @@
 #include "Var.h"
 #include "Field.h"
 #include "Type.h"
+#include <algorithm>
 #include <cstring>
 #include <stdexcept>
 
@@ -48,7 +49,7 @@ namespace Engine {
             m_type = nullptr;
         }
 
-        void Var::MarkNeedFree(bool need_free) {
+        void Var::SetNeedFree(bool need_free) {
             m_need_free = need_free;
         }
 
@@ -63,6 +64,24 @@ namespace Engine {
             auto ret = field->GetVar(m_data);
             if (m_type->GetTypeKind() == Type::TypeKind::Const) {
                 ret.m_type = std::shared_ptr<const Type>(new ConstType(ret.m_type));
+            }
+            return ret;
+        }
+
+        Var Var::GetMemberRecursively(const std::string &name) {
+            std::vector<std::string> path;
+            auto start = name.begin();
+            auto end = name.begin();
+            while (end != name.end()) {
+                end = std::find(start, name.end(), '.');
+                path.emplace_back(start, end);
+                if (end != name.end()) {
+                    start = end + 1;
+                }
+            }
+            Var ret = GetMember(path.front());
+            for (auto it = path.begin() + 1; it != path.end(); it++) {
+                ret = ret.GetMember(*it);
             }
             return ret;
         }

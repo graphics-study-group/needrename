@@ -27,16 +27,19 @@ namespace Engine {
             return generateGUID(m_guid_gen);
         }
 
-        void AddToLoadingQueue(std::shared_ptr<AssetRef> asset);
-
+        void AddToLoadingQueue(const GUID &guid);
         void LoadAssetsInQueue();
         std::shared_ptr<Asset> LoadAssetImmediately(const GUID &guid);
-        void LoadAssetImmediately(std::shared_ptr<AssetRef> asset_ref);
+        std::shared_ptr<Asset> GetAsset(const GUID &guid, bool load_if_not_loaded = true);
+        bool IsAssetLoaded(const GUID &guid);
+        void UnloadAsset(const GUID &guid);
+        void UnloadUnusedAssets();
 
     protected:
         std::mt19937_64 m_guid_gen{std::random_device{}()};
 
-        std::queue<std::shared_ptr<AssetRef>> m_loading_queue{};
+        std::queue<GUID> m_loading_queue{};
+        std::unordered_map<GUID, std::shared_ptr<Asset>> m_loaded_assets{};
     };
 } // namespace Engine
 

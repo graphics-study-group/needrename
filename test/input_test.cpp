@@ -5,26 +5,25 @@
 
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include <Asset/AssetManager/AssetManager.h>
-#include <Asset/Scene/GameObjectAsset.h>
-#include <Framework/component/Component.h>
-#include <Framework/component/RenderComponent/CameraComponent.h>
-#include <Framework/world/WorldSystem.h>
 #include <Core/Functional/SDLWindow.h>
 #include <Core/Functional/Time.h>
-#include <UserInterface/Input.h>
+#include <Framework/component/Component.h>
+#include <Framework/component/RenderComponent/CameraComponent.h>
+#include <Framework/object/GameObject.h>
+#include <Framework/world/WorldSystem.h>
 #include <MainClass.h>
-#include <Render/RenderSystem.h>
-#include <Render/Renderer/Camera.h>
+#include <Render/FullRenderSystem.h>
+#include <Render/Pipeline/RenderGraph/ComplexRenderGraphBuilder.h>
+#include <UserInterface/Input.h>
 #include <cmake_config.h>
 
 using namespace Engine;
 
 class ControlComponent : public Component {
 public:
-    ControlComponent(std::weak_ptr<GameObject> gameObject) : Component(gameObject) {
+    ControlComponent(GameObject *parent) : Component(parent) {
     }
 
-    std::shared_ptr<CameraComponent> m_camera{};
     float m_rotation_speed = 10.0f;
     float m_move_speed = 1.0f;
     float m_roll_speed = 1.0f;
@@ -38,7 +37,7 @@ public:
         auto roll_right = input->GetAxisRaw("roll right");
         auto look_x = input->GetAxisRaw("look x");
         auto look_y = input->GetAxisRaw("look y");
-        Transform &transform = m_parentGameObject.lock()->GetTransformRef();
+        Transform &transform = this->GetParentGameObject()->GetTransformRef();
         float dt = MainClass::GetInstance()->GetTimeSystem()->GetDeltaTimeInSeconds();
         transform.SetRotation(
             transform.GetRotation()
@@ -65,7 +64,7 @@ int main(int argc, char **argv) {
     std::filesystem::path project_path(ENGINE_PROJECTS_DIR);
     project_path = project_path / "test_project";
 
-    StartupOptions opt{.resol_x = 1280, .resol_y = 720, .title = "Input Test"};
+    StartupOptions opt{.resol_x = 1920, .resol_y = 1080, .title = "Input Test"};
 
     auto cmc = MainClass::GetInstance();
     cmc->Initialize(&opt, SDL_INIT_VIDEO | SDL_INIT_GAMEPAD, SDL_LOG_PRIORITY_VERBOSE);
@@ -73,6 +72,15 @@ int main(int argc, char **argv) {
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading project");
     cmc->LoadProject(project_path);
+    auto rgb = std::make_unique<ComplexRenderGraphBuilder>(*cmc->GetRenderSystem());
+    auto [w, h] = cmc->GetWindow()->GetSize();
+    int32_t final_color_id;
+    auto rg = rgb->BuildDefaultRenderGraph(
+        w,
+        h,
+        final_color_id
+    );
+    cmc->SetRenderGraph(rg, final_color_id);
 
     auto input = MainClass::GetInstance()->GetInputSystem();
     input->AddAxis(Input::ButtonAxis("move forward", Input::AxisType::TypeKey, "w", "s"));
@@ -170,18 +178,17 @@ int main(int argc, char **argv) {
         )
     );
 
-    auto camera_go = cmc->GetWorldSystem()->CreateGameObject<GameObject>();
+    auto &main_scene = cmc->GetWorldSystem()->GetMainSceneRef();
+    auto &camera_go = main_scene.CreateGameObject();
     Transform transform{};
     transform.SetPosition({0.0f, -0.7f, 0.5f});
     transform.SetRotationEuler(glm::vec3{glm::radians(-30.0f), 0.0, 0.0});
     transform.SetScale({1.0f, 1.0f, 1.0f});
-    camera_go->SetTransform(transform);
-    auto camera_comp = camera_go->template AddComponent<CameraComponent>();
-    camera_comp->m_camera->set_aspect_ratio(1.0 * opt.resol_x / opt.resol_y);
-    auto control_comp = camera_go->template AddComponent<ControlComponent>();
-    control_comp->m_camera = camera_comp;
-    cmc->GetWorldSystem()->SetActiveCamera(camera_comp->m_camera, &cmc->GetRenderSystem()->GetCameraManager());
-    cmc->GetWorldSystem()->AddGameObjectToWorld(camera_go);
+    camera_go.SetTransform(transform);
+    auto &camera_comp = camera_go.template AddComponent<CameraComponent>();
+    camera_comp.m_camera->set_aspect_ratio(1.0 * opt.resol_x / opt.resol_y);
+    auto &control_comp = camera_go.template AddComponent<ControlComponent>();
+    cmc->GetWorldSystem()->SetActiveCamera(camera_comp.GetHandle(), &cmc->GetRenderSystem()->GetCameraManager());
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Entering main loop");
     cmc->LoopFinite(max_frame_count);

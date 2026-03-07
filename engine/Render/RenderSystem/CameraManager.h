@@ -77,6 +77,12 @@ namespace Engine {
 
             void SetActiveCameraIndex(uint32_t index) noexcept;
             uint32_t GetActiveCameraIndex() const noexcept;
+
+            /**
+             * @brief Get the projection-view matrix for skybox rendering.
+             * XXX: temporary solution. Don't know how to get pv matrix since skybox don't use scene data.
+             */
+            glm::mat4 GetPVMatForSkybox() const;
         };
     }
 }

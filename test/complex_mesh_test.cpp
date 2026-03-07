@@ -7,12 +7,12 @@
 #include <tiny_obj_loader.h>
 
 #include "Asset/Material/MaterialAsset.h"
+#include "Core/Functional/SDLWindow.h"
 #include "Framework/component/RenderComponent/StaticMeshComponent.h"
 #include "Render/Renderer/HomogeneousMesh.h"
-#include "Core/Functional/SDLWindow.h"
-#include "UserInterface/GUISystem.h"
 #include "MainClass.h"
 #include "Render/FullRenderSystem.h"
+#include "UserInterface/GUISystem.h"
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include <Asset/AssetManager/AssetManager.h>
 #include <Asset/AssetRef.h>
@@ -20,6 +20,7 @@
 #include <Asset/Mesh/MeshAsset.h>
 #include <Framework/object/GameObject.h>
 #include <Framework/world/WorldSystem.h>
+#include <Framework/world/Scene.h>
 
 #include "cmake_config.h"
 
@@ -97,26 +98,29 @@ class MeshComponentFromFile : public StaticMeshComponent {
         }
 
         this->m_mesh_asset =
-            std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(std::make_shared<MeshAsset>()));
+            AssetRef(std::dynamic_pointer_cast<Asset>(std::make_shared<MeshAsset>()));
         ObjLoader loader;
-        loader.LoadMeshAssetFromTinyObj(*(this->m_mesh_asset->as<MeshAsset>()), attrib, shapes);
+        loader.LoadMeshAssetFromTinyObj(*(this->m_mesh_asset.as<MeshAsset>()), attrib, shapes);
 
         // Read material assets
         for (const auto &material : materials) {
             this->m_material_assets.push_back(
-                std::make_shared<AssetRef>(std::dynamic_pointer_cast<Asset>(std::make_shared<MaterialAsset>()))
+                AssetRef(std::dynamic_pointer_cast<Asset>(std::make_shared<MaterialAsset>()))
             );
             loader.LoadMaterialAssetFromTinyObj(
-                *(this->m_material_assets.back()->as<MaterialAsset>()), material, mesh.parent_path()
+                *(this->m_material_assets.back().as<MaterialAsset>()), material, mesh.parent_path()
             );
         }
 
-        assert(m_mesh_asset && m_mesh_asset->IsValid());
+        assert(m_mesh_asset.IsValid());
     }
 
 public:
-    MeshComponentFromFile(std::filesystem::path mesh_file_name) :
-        StaticMeshComponent(std::weak_ptr<GameObject>()), transform() {
+    MeshComponentFromFile(GameObject *parent) :
+        StaticMeshComponent(parent), transform() {
+    }
+
+    void LoadFile(std::filesystem::path mesh_file_name) {
         LoadMesh(mesh_file_name);
 
         auto system = m_system.lock();
@@ -124,9 +128,9 @@ public:
 
         for (size_t i = 0; i < m_material_assets.size(); i++) {
             auto ptr = std::make_shared<Materials::BlinnPhongInstance>(
-                *system, system->GetMaterialRegistry().GetMaterial("Blinn-Phong")
+                *system, system->GetMaterialRegistry().GetMaterial("Blinn-Phong Without Shadowmap")
             );
-            auto mat_asset = m_material_assets[i]->cas<MaterialAsset>();
+            auto mat_asset = m_material_assets[i].cas<MaterialAsset>();
             assert(mat_asset);
             ptr->Instantiate(*mat_asset);
             m_materials.push_back(ptr);
@@ -187,14 +191,12 @@ void PrepareGui() {
 
 void SubmitSceneData(std::shared_ptr<RenderSystem> rsys, uint32_t id) {
     rsys->GetSceneDataManager().SetLightDirectionalNonShadowCasting(
-        0, 
-        GetCartesian(g_SceneData.zenith, g_SceneData.azimuth), 
-        glm::vec3{1.0, 1.0, 1.0}
+        0, GetCartesian(g_SceneData.zenith, g_SceneData.azimuth), glm::vec3{1.0, 1.0, 1.0}
     );
     rsys->GetSceneDataManager().SetLightCountNonShadowCasting(1);
 }
 
-void SubmitMaterialData(std::shared_ptr<MeshComponentFromFile> mesh) {
+void SubmitMaterialData(MeshComponentFromFile *mesh) {
     mesh->UpdateUniformData(g_SceneData.r, g_SceneData.g, g_SceneData.b, g_SceneData.coef);
 }
 
@@ -216,9 +218,7 @@ int main(int argc, char **argv) {
     auto adb = std::dynamic_pointer_cast<FileSystemDatabase>(cmc->GetAssetDatabase());
     cmc->LoadBuiltinAssets(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
 
-    auto test_asset = adb->GetNewAssetRef(AssetPath(*adb, "~/material_libraries/BlinnPhongLibrary.asset"));
-    asys->LoadAssetImmediately(test_asset);
-    asys->LoadAssetsInQueue();
+    auto test_asset = adb->GetNewAssetRef(AssetPath(*adb, "~/material_libraries/BlinnPhongWithoutShadowLibrary.asset"));
 
     auto rsys = cmc->GetRenderSystem();
     rsys->GetMaterialRegistry().AddMaterial(test_asset);
@@ -227,12 +227,15 @@ int main(int argc, char **argv) {
     gsys->CreateVulkanBackend(*rsys, ImageUtils::GetVkFormat(Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm));
 
     RenderGraphBuilder rgb{*rsys};
-    RenderGraph rg{rgb.BuildDefaultRenderGraph(1280, 720, gsys.get())};
+    auto rg{rgb.BuildDefaultRenderGraph(1280, 720, gsys.get())};
 
+    auto &scene = cmc->GetWorldSystem()->GetMainSceneRef();
     // Setup mesh
     std::filesystem::path mesh_path{std::string(ENGINE_ASSETS_DIR) + "/four_bunny/four_bunny.obj"};
-    std::shared_ptr tmc = std::make_shared<MeshComponentFromFile>(mesh_path);
-    rsys->GetRendererManager().RegisterRendererComponent(tmc);
+    auto &go = scene.CreateGameObject();
+    auto &tmc = scene.CreateComponent<MeshComponentFromFile>(go);
+    tmc.LoadFile(mesh_path);
+    rsys->GetRendererManager().RegisterRendererComponent(tmc.GetHandle());
 
     // Setup camera
     Transform transform{};
@@ -266,12 +269,12 @@ int main(int argc, char **argv) {
 
         // Submit data
         SubmitSceneData(rsys, rsys->GetFrameManager().GetFrameInFlight());
-        SubmitMaterialData(tmc);
+        SubmitMaterialData(&tmc);
 
         // Draw
         auto index = rsys->StartFrame();
-        rg.Execute();
-        auto color = rg.GetInternalTextureResource(0);
+        rg->Execute();
+        auto color = rg->GetInternalTextureResource(0);
         rsys->CompleteFrame(
             *color,
             color->GetTextureDescription().width,

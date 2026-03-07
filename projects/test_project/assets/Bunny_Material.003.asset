@@ -1,46 +1,35 @@
 {
-    "%data": {
-        "&0": {
-            "%type": "Engine::MaterialAsset",
-            "Asset::m_guid": "BE4BA6F01E52962B627780AFB8835795",
-            "MaterialAsset::m_library": "&1",
-            "MaterialAsset::m_name": "Bunny_Material.003",
-            "MaterialAsset::m_properties": {
-                "ambient_color": {
-                    "m_type": "Simple",
-                    "m_ubo_type": "Vec4",
-                    "m_value": [
-                        1.0,
-                        1.0,
-                        1.0,
-                        1.0
-                    ]
-                },
-                "base_tex": {
-                    "m_type": "Texture",
-                    "m_value": "&2"
-                },
-                "specular_color": {
-                    "m_type": "Simple",
-                    "m_ubo_type": "Vec4",
-                    "m_value": [
-                        0.5,
-                        0.5,
-                        0.5,
-                        96.07845306396484
-                    ]
-                }
-            }
-        },
-        "&1": {
-            "%type": "Engine::AssetRef",
-            "AssetRef::m_guid": "CC90BD98BB3190F9AACD4CC3D6162782"
-        },
-        "&2": {
-            "%type": "Engine::AssetRef",
-            "AssetRef::m_guid": "347EFD503CC786167DEF4F30CE94161A"
-        }
-    },
     "%extra_data": [],
-    "%main_id": "&0"
+    "%main_data": {
+        "%type": "Engine::MaterialAsset",
+        "Asset::m_guid": "610197E0BA48EA77EC0F34E77B9048B4",
+        "MaterialAsset::m_library": "E335281ABE3F1FA9788F074FF218FF71",
+        "MaterialAsset::m_name": "Bunny_Material.003",
+        "MaterialAsset::m_properties": {
+            "ambient_color": {
+                "m_type": "Simple",
+                "m_ubo_type": "Vec4",
+                "m_value": [
+                    0.05000000074505806,
+                    0.05000000074505806,
+                    0.05000000074505806,
+                    1.0
+                ]
+            },
+            "base_tex": {
+                "m_type": "Texture",
+                "m_value": "FFFF822E8BE94F494F76D48C0659D386"
+            },
+            "specular_color": {
+                "m_type": "Simple",
+                "m_ubo_type": "Vec4",
+                "m_value": [
+                    0.5,
+                    0.5,
+                    0.5,
+                    96.07845306396484
+                ]
+            }
+        }
+    }
 }

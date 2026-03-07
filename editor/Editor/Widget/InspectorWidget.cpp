@@ -1,45 +1,48 @@
 #include "InspectorWidget.h"
+#include <Core/guid.h>
 #include <Framework/component/Component.h>
 #include <Framework/object/GameObject.h>
+#include <Framework/world/WorldSystem.h>
 #include <MainClass.h>
 #include <Reflection/reflection.h>
 #include <imgui.h>
 #include <iostream>
 #include <unordered_map>
-#include <Core/guid.h>
 
 namespace Editor {
     InspectorWidget::InspectorWidget(const std::string &name) : Widget(name) {
+        LoadAvailableComponentTypes();
     }
 
     InspectorWidget::~InspectorWidget() {
     }
 
     void InspectorWidget::Render() {
+        auto &scene = Engine::MainClass::GetInstance()->GetWorldSystem()->GetMainSceneRef();
         if (ImGui::Begin(m_name.c_str())) {
             switch (m_inspector_mode) {
             case InspectorMode::kInspectorModeGameObject: {
-                auto weak_game_object = std::any_cast<std::weak_ptr<Engine::GameObject>>(m_inspected_object);
-                if (weak_game_object.expired()) {
+                auto game_object = scene.GetGameObject(std::any_cast<ObjectHandle>(m_inspected_object));
+                if (!game_object) {
                     ImGui::Text("No GameObject selected");
                     break;
                 }
-                auto game_object = weak_game_object.lock();
                 ImGui::Text((std::string("<GameObject>") + game_object->m_name).c_str());
                 ImGui::Separator();
                 unsigned int component_idx = 0;
-                for (const auto &component : game_object->m_components) {
+                for (auto component_handle : game_object->m_components) {
+                    auto component = scene.GetComponent(component_handle);
                     ImGui::PushID(component_idx++);
                     auto component_type = Engine::Reflection::GetTypeFromObject(*component);
                     if (ImGui::TreeNodeEx("", ImGuiTreeNodeFlags_None, "<%s>", component_type->GetName().c_str())) {
-                        Engine::Reflection::Var component_var(component_type, component.get());
+                        Engine::Reflection::Var component_var(component_type, component);
                         unsigned int field_idx = 0;
-                        for (auto &[name, field] : component_type->GetFields()) {
+                        for (auto &[name, field] : component_type->GetAllFields()) {
                             ImGui::PushID(field_idx++);
                             this->InspectVar(name, field->GetVar(component_var.GetDataPtr()));
                             ImGui::PopID();
                         }
-                        for (auto &[name, array_field] : component_type->GetArrayFields()) {
+                        for (auto &[name, array_field] : component_type->GetAllArrayFields()) {
                             ImGui::PushID(field_idx++);
                             auto array_var = component_var.GetArrayMember(name);
                             if (ImGui::TreeNodeEx(name.c_str(), ImGuiTreeNodeFlags_None)) {
@@ -59,6 +62,21 @@ namespace Editor {
                     ImGui::PopID();
                 }
 
+                ImGui::Separator();
+                if (ImGui::Button("Add Component")) {
+                    ImGui::OpenPopup("AddComponentPopup");
+                }
+                if (ImGui::BeginPopup("AddComponentPopup")) {
+                    for (const auto &component_type_name : m_component_types) {
+                        if (ImGui::MenuItem(component_type_name.c_str())) {
+                            auto component_type = Engine::Reflection::GetType(component_type_name);
+                            if (component_type) {
+                                scene.CreateComponent(*game_object, *component_type);
+                            }
+                        }
+                    }
+                    ImGui::EndPopup();
+                }
                 break;
             }
             case InspectorMode::kInspectorModeAsset: {
@@ -72,13 +90,26 @@ namespace Editor {
         ImGui::End();
     }
 
-    void InspectorWidget::SetSelectedGameObject(std::weak_ptr<Engine::GameObject> game_object) {
-        if (!game_object.expired()) {
+    void InspectorWidget::SetSelectedGameObject(ObjectHandle game_object) {
+        if (game_object.IsValid()) {
             m_inspector_mode = InspectorMode::kInspectorModeGameObject;
             m_inspected_object = game_object;
         } else {
             m_inspector_mode = InspectorMode::kInspectorModeNone;
             m_inspected_object = {};
+        }
+    }
+
+    void InspectorWidget::LoadAvailableComponentTypes() {
+        m_component_types.clear();
+        const auto &registered_types = Engine::Reflection::Type::s_name_index_map;
+        auto component_type = Engine::Reflection::GetType("Engine::Component");
+        assert(component_type && component_type->IsReflectable() && "Component type must be registered");
+        for (const auto &[type_name, type_index] : registered_types) {
+            auto type = Engine::Reflection::GetType(type_name);
+            if (type->IsDerivedFrom(component_type)) {
+                m_component_types.push_back(type->GetName());
+            }
         }
     }
 
@@ -103,12 +134,12 @@ namespace Editor {
             var.Set(value);
         } else if (var.GetType()->GetName() == "glm::vec3") {
             glm::vec3 value = var.Get<glm::vec3>();
-            ImGui::InputFloat3(name.c_str(), &value[0]);
+            ImGui::DragFloat3(name.c_str(), &value[0], 0.1f);
             var.Set(value);
         } else if (var.GetType()->GetName() == "glm::quat") {
             glm::quat value = var.Get<glm::quat>();
-            ImGui::InputFloat4(name.c_str(), &value[0]);
-            var.Set(value);
+            ImGui::DragFloat4(name.c_str(), &value[0], 0.01f);
+            var.Set(glm::normalize(value));
         } else if (var.GetType()->GetTypeKind() == Engine::Reflection::Type::TypeKind::Pointer) {
             auto pointer_type = std::dynamic_pointer_cast<const Engine::Reflection::PointerType>(var.GetType());
             if (pointer_type && pointer_type->GetPointedType()->GetName() == "Engine::AssetRef") {
@@ -139,12 +170,12 @@ namespace Editor {
         } else if (var.GetType()->IsReflectable()) {
             if (ImGui::TreeNodeEx("", ImGuiTreeNodeFlags_None, name.c_str())) {
                 unsigned int field_idx = 0;
-                for (auto &[name, field] : var.GetType()->GetFields()) {
+                for (auto &[name, field] : var.GetType()->GetAllFields()) {
                     ImGui::PushID(field_idx++);
                     this->InspectVar(name, field->GetVar(var.GetDataPtr()));
                     ImGui::PopID();
                 }
-                for (auto &[name, array_field] : var.GetType()->GetArrayFields()) {
+                for (auto &[name, array_field] : var.GetType()->GetAllArrayFields()) {
                     ImGui::PushID(field_idx++);
                     auto array_var = var.GetArrayMember(name);
                     if (ImGui::TreeNodeEx(name.c_str(), ImGuiTreeNodeFlags_None)) {

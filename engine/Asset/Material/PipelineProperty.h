@@ -101,7 +101,7 @@ namespace Engine {
             REFL_SER_SIMPLE_STRUCT(Shaders)
 
             /// @brief A vector of all shader programs used in the pipeline
-            std::vector<std::shared_ptr<AssetRef>> shaders{};
+            std::vector<AssetRef> shaders{};
 
             /// @brief Specialization constants.
             /// We are supporting `int` (`int32_t`) only.

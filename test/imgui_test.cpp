@@ -83,8 +83,8 @@ int main(int argc, char **argv) {
         auto context = rsys->GetFrameManager().GetGraphicsContext();
 
         assert(index < 3);
-        rg.Execute();
-        auto color = rg.GetInternalTextureResource(c);
+        rg->Execute();
+        auto color = rg->GetInternalTextureResource(c);
         rsys->CompleteFrame(*color, color->GetTextureDescription().width, color->GetTextureDescription().height);
 
         SDL_Delay(10);

@@ -18,8 +18,10 @@ namespace Engine {
     class Input;
     class SDLWindow;
     class TimeSystem;
-    class EventQueue;
     class ShaderCompiler;
+
+    class ComplexRenderGraphBuilder;
+    class RenderGraph;
 
     class MainClass {
     public:
@@ -56,8 +58,9 @@ namespace Engine {
         std::shared_ptr<AssetManager> GetAssetManager() const;
         std::shared_ptr<GUISystem> GetGUISystem() const;
         std::shared_ptr<Input> GetInputSystem() const;
-        std::shared_ptr<EventQueue> GetEventQueue() const;
-        std::shared_ptr<ShaderCompiler> GetShaderCompiler();
+        std::shared_ptr<ShaderCompiler> GetShaderCompiler() const;
+
+        void SetRenderGraph(std::unique_ptr<RenderGraph> &render_graph, uint32_t final_color_attachment_id);
 
     protected:
         // XXX: window must destroyed before renderer. Because the window has some AllocatedImage2D. So the permutation
@@ -70,8 +73,10 @@ namespace Engine {
         std::shared_ptr<AssetManager> asset_manager{};
         std::shared_ptr<GUISystem> gui{};
         std::shared_ptr<Input> input{};
-        std::shared_ptr<EventQueue> event_queue{};
         std::shared_ptr<ShaderCompiler> shader_compiler{};
+
+        std::unique_ptr<RenderGraph> render_graph{};
+        uint32_t m_final_color_attachment_id = 0;
 
         static std::weak_ptr <MainClass> m_instance;
         static std::once_flag m_instance_ready;

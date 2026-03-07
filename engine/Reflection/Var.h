@@ -33,6 +33,12 @@ namespace Engine {
             template <typename T>
             T &Get();
 
+            /// @brief Get the data of the Var as a shared pointer of type T. The var will be marked as don't need free.
+            /// @tparam T The type of the shared pointer
+            /// @return The shared pointer of type T
+            template <typename T>
+            std::shared_ptr<T> GetAsSharedPtr();
+
             /// @brief Set the data of the Var as type T.
             /// @param value the value to set
             /// @return a reference to the data of type T
@@ -47,7 +53,7 @@ namespace Engine {
             void Reset();
 
             /// @brief Mark the Var as needing to be freed.
-            void MarkNeedFree(bool need_free = true);
+            void SetNeedFree(bool need_free = true);
 
             /// @brief Invoke a method of the object.
             /// @param name The name of the method
@@ -60,6 +66,11 @@ namespace Engine {
             /// @param name the name of the field
             /// @return a Var object representing the field
             Var GetMember(const std::string &name);
+
+            /// @brief Get a member field of the object recursively. (e.g. "a.b.c")
+            /// @param name the name of the field
+            /// @return a Var object representing the field
+            Var GetMemberRecursively(const std::string &name);
 
             /// @brief Get an array member field of the object.
             /// The member should be an array, std::vector or std::array.

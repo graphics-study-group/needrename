@@ -6,7 +6,6 @@
 
 namespace Engine {
     AssetRef::AssetRef() {
-        m_guid = MainClass::GetInstance()->GetAssetManager()->GenerateGUID();
     }
 
     AssetRef::AssetRef(GUID guid) : m_guid(guid) {
@@ -17,25 +16,39 @@ namespace Engine {
 
     void AssetRef::save_to_archive(Serialization::Archive &archive) const {
         Serialization::Json &json = *archive.m_cursor;
-        json["AssetRef::m_guid"] = m_guid.toString();
-        json["%type"] = Reflection::GetTypeFromObject(*this)->GetName();
+        if (m_guid.has_value()) {
+            json = m_guid.value().toString();
+        } else {
+            json = nullptr;
+        }
     }
 
     void AssetRef::load_from_archive(Serialization::Archive &archive) {
         Serialization::Json &json = *archive.m_cursor;
-        m_guid.fromString(json["AssetRef::m_guid"].get<std::string>());
-        MainClass::GetInstance()->GetAssetManager()->AddToLoadingQueue(shared_from_this());
+        if (json.is_null()) {
+            m_guid.reset();
+        } else {
+            m_guid = GUID(json.get<std::string>());
+        }
     }
 
-    void AssetRef::Unload() {
-        m_asset = nullptr;
+    void AssetRef::Load() const {
+        m_asset = MainClass::GetInstance()->GetAssetManager()->GetAsset(GetGUID());
     }
 
-    bool AssetRef::IsValid() {
+    void AssetRef::Unload() const {
+        m_asset.reset();
+    }
+
+    bool AssetRef::IsLoaded() const {
         return m_asset != nullptr;
     }
 
-    GUID AssetRef::GetGUID() {
-        return m_guid;
+    bool AssetRef::IsValid() const {
+        return m_guid.has_value();
+    }
+
+    GUID AssetRef::GetGUID() const {
+        return m_guid.value();
     }
 } // namespace Engine

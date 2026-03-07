@@ -7,6 +7,7 @@
 namespace vk {
     class DescriptorSet;
     class DescriptorSetLayout;
+    class Extent2D;
 }
 
 namespace Engine {
@@ -47,6 +48,11 @@ namespace Engine {
              * @brief Set the none shadow-casting light tracked by the index to be a directional light.
              */
             void SetLightDirectionalNonShadowCasting(uint32_t index, glm::vec3 direction, glm::vec3 intensity) noexcept;
+
+            /**
+             * @brief Set the none shadow-casting light tracked by the index to be a point light.
+             */
+            void SetLightPointNonShadowCasting(uint32_t index, glm::vec3 position, glm::vec3 intensity) noexcept;
 
             /**
              * @brief Set the shadow map of a shadow-casting light
@@ -95,6 +101,11 @@ namespace Engine {
             void SetLightCount(uint32_t count) noexcept;
 
             /**
+             * @brief Get the number of shadow-casting lights in the scene.
+             */
+            uint32_t GetNumShadowCastingLights() const noexcept;
+
+            /**
              * @brief Set how many none shadow-casting lights are there in the scene.
              * 
              * This only affects the drawing process (i.e. how many lights are processed
@@ -123,17 +134,12 @@ namespace Engine {
              * 
              * @param cb The command buffer to record commands into.
              * @param frame_in_flight The current frame in flight index.
-             * @param view_mat The view matrix of the current camera. 3x3 matrix (no translation).
-             * @param proj_mat The projection matrix of the current camera.
+             * @param pv_mat The projection-view matrix for skybox rendering.
+             * @param extent The extent of the viewport.
              * 
              * @todo It should be relocated and integrated with GraphicsCommandBuffer.
              */
-            void DrawSkybox(
-                GraphicsCommandBuffer & cb,
-                uint32_t frame_in_flight,
-                glm::mat3 view_mat,
-                glm::mat4 proj_mat
-            ) const;
+            void DrawSkybox(GraphicsCommandBuffer & cb, uint32_t frame_in_flight, glm::mat4 pv_mat, const vk::Extent2D &extent) const;
 
             vk::DescriptorSet GetLightDescriptorSet(uint32_t frame_in_flight) const noexcept;
             vk::DescriptorSetLayout GetLightDescriptorSetLayout() const noexcept;

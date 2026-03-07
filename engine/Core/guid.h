@@ -28,14 +28,6 @@ namespace Engine {
         void load_from_archive(Serialization::Archive &archive);
     };
 
-    struct GUIDHash {
-        std::size_t operator()(const GUID &guid) const {
-            std::size_t h1 = std::hash<uint64_t>{}(guid.mostSigBits);
-            std::size_t h2 = std::hash<uint64_t>{}(guid.leastSigBits);
-            return h1 ^ (h2 << 1);
-        }
-    };
-
     template <typename Generator>
     GUID generateGUID(Generator &gen) {
         std::uniform_int_distribution<uint64_t> dis(0, 0xFFFFFFFFFFFFFFFF);
@@ -45,5 +37,16 @@ namespace Engine {
         return guid;
     }
 } // namespace Engine
+
+namespace std {
+    template <>
+    struct hash<Engine::GUID> {
+        size_t operator()(const Engine::GUID &p) const noexcept {
+            std::size_t h1 = std::hash<uint64_t>{}(p.mostSigBits);
+            std::size_t h2 = std::hash<uint64_t>{}(p.leastSigBits);
+            return h1 ^ (h2 << 1);
+        }
+    };
+}
 
 #endif // CORE_GUID_INCLUDED

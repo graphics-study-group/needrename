@@ -26,23 +26,13 @@ namespace Engine {
 
         virtual ~SDLWindow();
 
-        void CreateRenderTargets(std::shared_ptr<RenderSystem> render_system);
-
-        vk::Extent2D GetExtent() const;
-        RenderTargetTexture &GetColorTexture() noexcept;
-        const RenderTargetTexture &GetColorTexture() const noexcept;
-        RenderTargetTexture &GetDepthTexture() noexcept;
-        const RenderTargetTexture &GetDepthTexture() const noexcept;
-
         /// Get the underlying pointer of this window
         SDL_Window *GetWindow();
 
+        std::pair<int, int> GetSize() const;
+
     protected:
         SDL_Window *m_window{nullptr};
-
-        // TODO: need better way to manage render target binding and textures
-        std::shared_ptr<RenderTargetTexture> m_color_texture{};
-        std::shared_ptr<RenderTargetTexture> m_depth_texture{};
     };
 } // namespace Engine
 #endif // CORE_FUNCTIONAL_SDLWINDOW_INCLUDED

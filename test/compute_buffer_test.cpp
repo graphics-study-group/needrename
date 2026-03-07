@@ -88,7 +88,7 @@ int main(int argc, char *argv[]) {
         1
     };
     auto cb = rsys->GetDevice().allocateCommandBuffers(cbai);
-    rg.Record(cb[0]);
+    rg->Record(cb[0]);
 
     auto si = vk::SubmitInfo{{}, {}, {cb}, {}};
     queues.graphicsQueue.submit(si);

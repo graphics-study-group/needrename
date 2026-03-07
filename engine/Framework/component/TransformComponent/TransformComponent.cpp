@@ -3,7 +3,7 @@
 #include <Framework/object/GameObject.h>
 
 namespace Engine {
-    TransformComponent::TransformComponent(std::weak_ptr<GameObject> gameObject) : Component(gameObject) {
+    TransformComponent::TransformComponent(GameObject *parent) : Component(parent) {
     }
 
     TransformComponent::~TransformComponent() {

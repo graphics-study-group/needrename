@@ -15,7 +15,12 @@ namespace Engine {
 
     namespace RenderSystemState{
         class DeviceInterface;
+        class ImmutableResourceCache;
     };
+
+    namespace ShdrRfl {
+        class SPLayout;
+    }
 
     /**
      * @brief A class that offers aggregated binding for shader resouces.

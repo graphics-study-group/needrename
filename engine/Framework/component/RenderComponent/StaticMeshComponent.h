@@ -5,15 +5,15 @@
 
 namespace Engine {
     class AssetRef;
+    class GameObject;
 
     class REFL_SER_CLASS(REFL_WHITELIST) StaticMeshComponent : public RendererComponent {
         REFL_SER_BODY(StaticMeshComponent)
     public:
-
-        StaticMeshComponent(std::weak_ptr <GameObject> go) : RendererComponent(go) {};
+        REFL_ENABLE StaticMeshComponent(GameObject *parent) : RendererComponent(parent) {};
         virtual ~StaticMeshComponent() = default;
 
-        REFL_ENABLE std::shared_ptr<AssetRef> m_mesh_asset{};
+        REFL_SER_ENABLE AssetRef m_mesh_asset{};
     };
 }
 

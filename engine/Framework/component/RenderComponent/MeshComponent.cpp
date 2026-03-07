@@ -8,7 +8,7 @@
 #include <Asset/AssetRef.h>
 
 namespace Engine {
-    MeshComponent::MeshComponent(std::weak_ptr<GameObject> gameObject) : RendererComponent(gameObject) {
+    MeshComponent::MeshComponent(GameObject *parent) : RendererComponent(parent) {
     }
 
     std::shared_ptr<HomogeneousMesh> MeshComponent::GetSubmesh(uint32_t slot) const {
@@ -27,9 +27,9 @@ namespace Engine {
         RendererComponent::RenderInit();
 
         // Create submeshes from mesh assets
-        assert(m_mesh_asset && m_mesh_asset->IsValid());
+        assert(m_mesh_asset.IsValid());
         m_submeshes.clear();
-        size_t submesh_count = m_mesh_asset->as<MeshAsset>()->GetSubmeshCount();
+        size_t submesh_count = m_mesh_asset.as<MeshAsset>()->GetSubmeshCount();
         for (size_t i = 0; i < submesh_count; i++) {
             m_submeshes.push_back(std::make_shared<HomogeneousMesh>(m_system.lock()->GetAllocatorState(), m_mesh_asset, i));
         }

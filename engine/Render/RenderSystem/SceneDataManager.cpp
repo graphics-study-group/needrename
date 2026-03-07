@@ -225,7 +225,7 @@ namespace Engine::RenderSystemState {
         pimpl->scene.light_front_buffer.shadow_casting.light_source[index] = glm::vec4(direction, 0.0f);
         pimpl->scene.light_front_buffer.shadow_casting.light_color[index] = glm::vec4(intensity, 0.0f);
         // TODO: determine clip planes and light eye position from the scene
-        auto proj = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, 0.1f, 10.0f);
+        auto proj = glm::ortho(-2.0f, 2.0f, -2.0f, 2.0f, 0.001f, 10.0f);
         proj[1][1] *= -1.0f;
         auto view = glm::lookAtRH(-direction, glm::vec3{0.0f, 0.0f, 0.0f}, glm::vec3{0.0f, 1.0f, 0.0f});
         pimpl->scene.light_front_buffer.shadow_casting.light_matrices[index] = proj * view;
@@ -247,7 +247,15 @@ namespace Engine::RenderSystemState {
         uint32_t index, glm::vec3 direction, glm::vec3 intensity
     ) noexcept {
         assert(index < MAX_NON_SHADOW_CASTING_LIGHTS);
-        pimpl->scene.light_front_buffer.non_shadow_casting.light_source[index] = glm::vec4(direction, 0.0f);
+        pimpl->scene.light_front_buffer.non_shadow_casting.light_source[index] = glm::vec4(direction, 0.0f); // w = 0.0f for directional light
+        pimpl->scene.light_front_buffer.non_shadow_casting.light_color[index] = glm::vec4(intensity, 0.0f);
+    }
+
+    void SceneDataManager::SetLightPointNonShadowCasting(
+        uint32_t index, glm::vec3 position, glm::vec3 intensity
+    ) noexcept {
+        assert(index < MAX_NON_SHADOW_CASTING_LIGHTS);
+        pimpl->scene.light_front_buffer.non_shadow_casting.light_source[index] = glm::vec4(position, 1.0f); // w = 1.0f for point light
         pimpl->scene.light_front_buffer.non_shadow_casting.light_color[index] = glm::vec4(intensity, 0.0f);
     }
 
@@ -284,6 +292,10 @@ namespace Engine::RenderSystemState {
     void SceneDataManager::SetLightCount(uint32_t count) noexcept {
         assert(count < MAX_SHADOW_CASTING_LIGHTS);
         pimpl->scene.light_front_buffer.shadow_casting_light_count = count;
+    }
+
+    uint32_t SceneDataManager::GetNumShadowCastingLights() const noexcept {
+        return pimpl->scene.light_front_buffer.shadow_casting_light_count;
     }
 
     void SceneDataManager::SetLightCountNonShadowCasting(uint32_t count) noexcept {
@@ -352,18 +364,12 @@ namespace Engine::RenderSystemState {
     }
 
     void SceneDataManager::DrawSkybox(
-        GraphicsCommandBuffer & cb,
-        uint32_t frame_in_flight,
-        glm::mat3 view_mat,
-        glm::mat4 proj_mat
+        GraphicsCommandBuffer & cb, uint32_t frame_in_flight, glm::mat4 pv_mat, const vk::Extent2D &extent
     ) const {
         if (!pimpl->skybox.skybox_material)  return;
 
-        vk::Extent2D extent = m_system.GetSwapchain().GetExtent();
         vk::Rect2D scissor{{0, 0}, extent};
         cb.SetupViewport(extent.width, extent.height, scissor);
-
-        glm::mat4 pv = proj_mat * glm::mat4(view_mat);
 
         auto tpl = pimpl->skybox.skybox_material->GetLibrary().FindMaterialTemplate(
             "SKYBOX",
@@ -387,7 +393,7 @@ namespace Engine::RenderSystemState {
             vk::ShaderStageFlagBits::eAllGraphics,
             0,
             sizeof (glm::mat4),
-            { reinterpret_cast<const void *>(&pv) }
+            { reinterpret_cast<const void *>(&pv_mat) }
         );
         // Vertex info is embedded in the skybox.vert shader.
         rcb.draw(36, 1, 0, 0);
