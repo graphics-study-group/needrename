@@ -474,5 +474,51 @@ int main() {
     
     std::cout << "All GetMemberRecursively tests passed!" << std::endl;
 
+    std::cout << "----------------------------------- Test IsDerivedFrom -----------------------------------" << std::endl;
+
+    auto virtual_base_type = Engine::Reflection::GetType("VirtualBase");
+    auto virtual_derived1_type = Engine::Reflection::GetType("VirtualDerived1");
+    auto virtual_derived2_type = Engine::Reflection::GetType("VirtualDerived2");
+    auto virtual_diamond_type = Engine::Reflection::GetType("VirtualDiamond");
+    auto nonvirtual_base_type = Engine::Reflection::GetType("NonVirtualBase");
+    auto nonvirtual_derived_type = Engine::Reflection::GetType("NonVirtualDerived");
+
+    std::cout << "[] Test virtual inheritance hierarchy" << std::endl;
+    assert(virtual_derived1_type->IsDerivedFrom(virtual_base_type));
+    std::cout << "VirtualDerived1 IsDerivedFrom VirtualBase: PASS" << std::endl;
+    assert(virtual_derived2_type->IsDerivedFrom(virtual_base_type));
+    std::cout << "VirtualDerived2 IsDerivedFrom VirtualBase: PASS" << std::endl;
+    assert(virtual_diamond_type->IsDerivedFrom(virtual_base_type));
+    std::cout << "VirtualDiamond IsDerivedFrom VirtualBase: PASS" << std::endl;
+    assert(virtual_diamond_type->IsDerivedFrom(virtual_derived1_type));
+    std::cout << "VirtualDiamond IsDerivedFrom VirtualDerived1: PASS" << std::endl;
+    assert(virtual_diamond_type->IsDerivedFrom(virtual_derived2_type));
+    std::cout << "VirtualDiamond IsDerivedFrom VirtualDerived2: PASS" << std::endl;
+
+    std::cout << "[] Test non-virtual inheritance hierarchy" << std::endl;
+    assert(nonvirtual_derived_type->IsDerivedFrom(nonvirtual_base_type));
+    std::cout << "NonVirtualDerived IsDerivedFrom NonVirtualBase: PASS" << std::endl;
+
+    std::cout << "[] Test that base is not derived from derived" << std::endl;
+    assert(!virtual_base_type->IsDerivedFrom(virtual_derived1_type));
+    std::cout << "VirtualBase IsDerivedFrom VirtualDerived1: PASS (correctly returns false)" << std::endl;
+    assert(!virtual_derived1_type->IsDerivedFrom(virtual_diamond_type));
+    std::cout << "VirtualDerived1 IsDerivedFrom VirtualDiamond: PASS (correctly returns false)" << std::endl;
+
+    std::cout << "[] Test same type is not considered derived from itself" << std::endl;
+    assert(!virtual_base_type->IsDerivedFrom(virtual_base_type));
+    std::cout << "VirtualBase IsDerivedFrom VirtualBase: PASS (correctly returns false for same type)" << std::endl;
+
+    std::cout << "[] Test FooA inheritance hierarchy (non-virtual)" << std::endl;
+    auto fooa_type = Engine::Reflection::GetType("FooA");
+    auto foobase_type = Engine::Reflection::GetType("FooBase");
+    auto bbase_type = Engine::Reflection::GetType("BBase");
+    assert(fooa_type->IsDerivedFrom(foobase_type));
+    std::cout << "FooA IsDerivedFrom FooBase: PASS" << std::endl;
+    assert(fooa_type->IsDerivedFrom(bbase_type));
+    std::cout << "FooA IsDerivedFrom BBase: PASS" << std::endl;
+
+    std::cout << "All IsDerivedFrom tests passed!" << std::endl;
+
     return 0;
 }

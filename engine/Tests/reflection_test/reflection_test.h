@@ -264,4 +264,61 @@ public:
     REFL_SER_ENABLE std::string top_name = "top";
 };
 
+// Test structures for virtual inheritance and IsDerivedFrom
+class REFL_SER_CLASS(REFL_BLACKLIST) VirtualBase {
+    REFL_SER_BODY(VirtualBase)
+public:
+    VirtualBase() = default;
+    virtual ~VirtualBase() = default;
+
+    int m_virtual_base = 1;
+    virtual void VirtualMethod() {}
+};
+
+class REFL_SER_CLASS(REFL_WHITELIST) VirtualDerived1 : virtual public VirtualBase {
+    REFL_SER_BODY(VirtualDerived1)
+public:
+    REFL_ENABLE VirtualDerived1() = default;
+    virtual ~VirtualDerived1() = default;
+
+    int m_derived1 = 2;
+};
+
+class REFL_SER_CLASS(REFL_WHITELIST) VirtualDerived2 : virtual public VirtualBase {
+    REFL_SER_BODY(VirtualDerived2)
+public:
+    REFL_ENABLE VirtualDerived2() = default;
+    virtual ~VirtualDerived2() = default;
+
+    int m_derived2 = 3;
+};
+
+class REFL_SER_CLASS(REFL_WHITELIST) VirtualDiamond : public VirtualDerived1, public VirtualDerived2 {
+    REFL_SER_BODY(VirtualDiamond)
+public:
+    REFL_ENABLE VirtualDiamond() = default;
+    virtual ~VirtualDiamond() = default;
+
+    int m_diamond = 4;
+};
+
+// Non-virtual inheritance for comparison
+class REFL_SER_CLASS(REFL_WHITELIST) NonVirtualBase {
+    REFL_SER_BODY(NonVirtualBase)
+public:
+    REFL_ENABLE NonVirtualBase() = default;
+    virtual ~NonVirtualBase() = default;
+
+    int m_nonvirtual_base = 5;
+};
+
+class REFL_SER_CLASS(REFL_WHITELIST) NonVirtualDerived : public NonVirtualBase {
+    REFL_SER_BODY(NonVirtualDerived)
+public:
+    REFL_ENABLE NonVirtualDerived() = default;
+    virtual ~NonVirtualDerived() = default;
+
+    int m_nonvirtual_derived = 6;
+};
+
 #endif // CTEST_REFLECTION_TEST_H
