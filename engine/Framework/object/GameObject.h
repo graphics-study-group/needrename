@@ -2,7 +2,7 @@
 #define FRAMEWORK_OBJECT_GAMEOBJECT_INCLUDED
 
 #include <Core/Math/Transform.h>
-#include <Framework/world/Scene.h>
+#include <Framework/world/Handle.h>
 #include <Reflection/macros.h>
 #include <Reflection/serialization_smart_pointer.h>
 #include <Reflection/serialization_vector.h>
@@ -11,6 +11,7 @@
 #include <vector>
 
 namespace Engine {
+    class Scene;
     class Component;
     class TransformComponent;
 
@@ -36,7 +37,7 @@ namespace Engine {
         template <typename T>
         T &AddComponent() {
             static_assert(std::is_base_of_v<Component, T>, "T must be derived from Component");
-            return m_scene->CreateComponent<T>(*this);
+            return m_scene->template CreateComponent<T>(*this);
         }
 
         REFL_ENABLE const Transform &GetTransform() const;
@@ -45,6 +46,7 @@ namespace Engine {
         REFL_ENABLE Transform GetWorldTransform();
         REFL_ENABLE void SetParent(ObjectHandle parent);
         REFL_ENABLE ObjectHandle GetHandle() const noexcept;
+        Scene *GetScene() const noexcept;
 
         bool operator==(const GameObject &other) const noexcept;
 
@@ -59,7 +61,7 @@ namespace Engine {
         REFL_SER_ENABLE ComponentHandle m_transformComponent{};
         REFL_SER_ENABLE std::vector<ComponentHandle> m_components{};
 
-    protected:
+    private:
         Scene *m_scene{};
         ObjectHandle m_handle{};
     };

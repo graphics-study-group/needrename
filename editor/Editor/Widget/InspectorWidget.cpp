@@ -2,6 +2,7 @@
 #include <Core/guid.h>
 #include <Framework/component/Component.h>
 #include <Framework/object/GameObject.h>
+#include <Framework/world/Scene.h>
 #include <Framework/world/WorldSystem.h>
 #include <MainClass.h>
 #include <Reflection/reflection.h>

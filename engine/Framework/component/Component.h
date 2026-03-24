@@ -5,10 +5,10 @@
 #include <Reflection/serialization_smart_pointer.h>
 #include <memory>
 #include <Framework/world/Handle.h>
+#include <Framework/object/GameObject.h>
 
 namespace Engine {
     class Scene;
-    class GameObject;
 
     class REFL_SER_CLASS(REFL_WHITELIST) Component {
         REFL_SER_BODY(Component)
@@ -17,7 +17,7 @@ namespace Engine {
         friend class Scene;
         friend class SceneAsset;
         Component() = delete;
-        Component(GameObject *parent);
+        Component(const GameObject &parent);
     
     public:
         virtual ~Component() = default;
@@ -33,7 +33,8 @@ namespace Engine {
         virtual void Tick();
 
         REFL_ENABLE ComponentHandle GetHandle() const noexcept;
-        GameObject *GetParentGameObject() const;
+        GameObject *GetParentGameObject() const noexcept;
+        Scene *GetScene() const noexcept;
 
         bool operator==(const Component &other) const noexcept;
 
@@ -43,7 +44,7 @@ namespace Engine {
     public:
         REFL_SER_ENABLE ObjectHandle m_parentGameObject{};
 
-    protected:
+    private:
         Scene *m_scene{};
         ComponentHandle m_handle{};
     };

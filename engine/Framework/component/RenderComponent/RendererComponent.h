@@ -23,7 +23,7 @@ namespace Engine {
         std::weak_ptr<RenderSystem> m_system{};
 
     public:
-        REFL_ENABLE RendererComponent(GameObject *parent);
+        REFL_ENABLE RendererComponent(const GameObject &parent);
         virtual ~RendererComponent() = default;
 
         /// @brief Get the transform which transforms local coordinate

@@ -10,6 +10,7 @@
 #include <Framework/component/Component.h>
 #include <Framework/component/RenderComponent/CameraComponent.h>
 #include <Framework/object/GameObject.h>
+#include <Framework/world/Scene.h>
 #include <Framework/world/WorldSystem.h>
 #include <MainClass.h>
 #include <Render/FullRenderSystem.h>
@@ -21,7 +22,7 @@ using namespace Engine;
 
 class ControlComponent : public Component {
 public:
-    ControlComponent(GameObject *parent) : Component(parent) {
+    ControlComponent(const GameObject &parent) : Component(parent) {
     }
 
     float m_rotation_speed = 10.0f;

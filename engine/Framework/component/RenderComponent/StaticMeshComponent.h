@@ -10,7 +10,7 @@ namespace Engine {
     class REFL_SER_CLASS(REFL_WHITELIST) StaticMeshComponent : public RendererComponent {
         REFL_SER_BODY(StaticMeshComponent)
     public:
-        REFL_ENABLE StaticMeshComponent(GameObject *parent) : RendererComponent(parent) {};
+        REFL_ENABLE StaticMeshComponent(const GameObject &parent) : RendererComponent(parent) {};
         virtual ~StaticMeshComponent() = default;
 
         REFL_SER_ENABLE AssetRef m_mesh_asset{};

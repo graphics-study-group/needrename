@@ -30,7 +30,7 @@
 
 using namespace Engine;
 
-SpinningComponent::SpinningComponent(GameObject *parent) : Component(parent) {
+SpinningComponent::SpinningComponent(const GameObject &parent) : Component(parent) {
 }
 
 void SpinningComponent::Init() {
@@ -39,7 +39,7 @@ void SpinningComponent::Init() {
 
 void SpinningComponent::Tick() {
     float dt = MainClass::GetInstance()->GetTimeSystem()->GetDeltaTimeInSeconds();
-    auto go = m_scene->GetGameObject(m_parentGameObject);
+    auto go = GetParentGameObject();
     if (go) {
         auto &transform = go->GetTransformRef();
         transform.SetRotation(
@@ -48,7 +48,7 @@ void SpinningComponent::Tick() {
     }
 }
 
-ControlComponent::ControlComponent(GameObject *parent) : Component(parent) {
+ControlComponent::ControlComponent(const GameObject &parent) : Component(parent) {
 }
 
 void ControlComponent::Tick() {
@@ -60,7 +60,7 @@ void ControlComponent::Tick() {
     auto roll_right = input->GetAxisRaw("roll right");
     auto look_x = input->GetAxisRaw("look x");
     auto look_y = input->GetAxisRaw("look y");
-    Transform &transform = m_scene->GetGameObjectRef(m_parentGameObject).GetTransformRef();
+    Transform &transform = GetParentGameObject()->GetTransformRef();
     float dt = MainClass::GetInstance()->GetTimeSystem()->GetDeltaTimeInSeconds();
     transform.SetRotation(
         transform.GetRotation()

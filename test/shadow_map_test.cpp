@@ -10,6 +10,7 @@
 #include "Asset/Texture/Image2DTextureAsset.h"
 #include "Framework/object/GameObject.h"
 #include "Framework/component/RenderComponent/MeshComponent.h"
+#include "Framework/world/Scene.h"
 #include "Framework/world/WorldSystem.h"
 #include "Core/Functional/SDLWindow.h"
 #include "UserInterface/GUISystem.h"
@@ -55,7 +56,7 @@ struct LowerPlaneMeshAsset : public PlaneMeshAsset {
 
 class ShadowMapMeshComponent : public ObjTestMeshComponent {
 public:
-    ShadowMapMeshComponent(GameObject *parent) : ObjTestMeshComponent(parent) {
+    ShadowMapMeshComponent(const GameObject &parent) : ObjTestMeshComponent(parent) {
     }
 
     void LoadData(std::filesystem::path mesh_file_name, std::shared_ptr<MaterialInstance> instance) {

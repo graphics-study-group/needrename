@@ -116,7 +116,7 @@ class MeshComponentFromFile : public StaticMeshComponent {
     }
 
 public:
-    MeshComponentFromFile(GameObject *parent) :
+    MeshComponentFromFile(const GameObject &parent) :
         StaticMeshComponent(parent), transform() {
     }
 

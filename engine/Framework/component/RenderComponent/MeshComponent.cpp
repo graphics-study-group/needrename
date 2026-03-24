@@ -8,7 +8,7 @@
 #include <Asset/AssetRef.h>
 
 namespace Engine {
-    MeshComponent::MeshComponent(GameObject *parent) : RendererComponent(parent) {
+    MeshComponent::MeshComponent(const GameObject &parent) : RendererComponent(parent) {
     }
 
     std::shared_ptr<HomogeneousMesh> MeshComponent::GetSubmesh(uint32_t slot) const {

@@ -13,7 +13,7 @@ namespace Engine {
     class REFL_SER_CLASS(REFL_WHITELIST) TransformComponent : public Component {
         REFL_SER_BODY(TransformComponent)
     public:
-        REFL_ENABLE TransformComponent(GameObject *parent);
+        REFL_ENABLE TransformComponent(const GameObject &parent);
         virtual ~TransformComponent();
 
         void Tick() override;

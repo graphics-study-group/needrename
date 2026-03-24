@@ -1,9 +1,10 @@
 #include "Component.h"
 #include <Framework/object/GameObject.h>
+#include <Framework/world/Scene.h>
 #include <Reflection/serialization.h>
 
 namespace Engine {
-    Component::Component(GameObject *parent) : m_parentGameObject(parent->GetHandle()), m_scene(parent->m_scene) {
+    Component::Component(const GameObject &parent) : m_parentGameObject(parent.GetHandle()), m_scene(parent.GetScene()) {
     }
 
     void Component::Init() {
@@ -16,9 +17,13 @@ namespace Engine {
         return m_handle;
     }
 
-    GameObject *Component::GetParentGameObject() const {
+    GameObject *Component::GetParentGameObject() const noexcept {
         if (!m_parentGameObject.IsValid()) return nullptr;
         return m_scene->GetGameObject(m_parentGameObject);
+    }
+
+    Scene *Component::GetScene() const noexcept {
+        return m_scene;
     }
 
     bool Component::operator==(const Component &other) const noexcept {

@@ -36,6 +36,10 @@ namespace Engine {
         return m_handle;
     }
 
+    Scene *GameObject::GetScene() const noexcept {
+        return m_scene;
+    }
+
     bool GameObject::operator==(const GameObject &other) const noexcept {
         return this->m_handle == other.m_handle;
     }

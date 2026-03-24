@@ -87,7 +87,7 @@ namespace Engine {
 
     public:
         ObjTestMeshComponent(
-            GameObject *parent
+            const GameObject &parent
         ) : StaticMeshComponent(parent) {
         }
 

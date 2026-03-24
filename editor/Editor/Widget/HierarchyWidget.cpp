@@ -1,6 +1,7 @@
 #include "HierarchyWidget.h"
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include <Framework/object/GameObject.h>
+#include <Framework/world/Scene.h>
 #include <Framework/world/WorldSystem.h>
 #include <MainClass.h>
 #include <cstdio>

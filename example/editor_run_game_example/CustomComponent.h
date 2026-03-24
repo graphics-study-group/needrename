@@ -20,7 +20,7 @@ using ComponentHandle = Engine::ComponentHandle;
 class REFL_SER_CLASS(REFL_WHITELIST) SpinningComponent : public Engine::Component {
     REFL_SER_BODY(SpinningComponent)
 public:
-    REFL_ENABLE SpinningComponent(Engine::GameObject *parent);
+    REFL_ENABLE SpinningComponent(const Engine::GameObject &parent);
 
     REFL_SER_ENABLE float m_speed = 10.0f;
     REFL_SER_ENABLE std::vector<float> no_use = {1.0f, 8.0f, 2.0f, 3.0f, 7.0f, 6.0f};
@@ -35,7 +35,7 @@ public:
 class REFL_SER_CLASS(REFL_WHITELIST) ControlComponent : public Engine::Component {
     REFL_SER_BODY(ControlComponent)
 public:
-    REFL_ENABLE ControlComponent(Engine::GameObject *parent);
+    REFL_ENABLE ControlComponent(const Engine::GameObject &parent);
 
     REFL_SER_ENABLE float m_rotation_speed = 10.0f;
     REFL_SER_ENABLE float m_move_speed = 1.0f;

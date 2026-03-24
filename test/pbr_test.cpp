@@ -15,6 +15,7 @@
 #include "Core/Functional/SDLWindow.h"
 #include "Framework/component/RenderComponent/ObjTestMeshComponent.h"
 #include "Framework/object/GameObject.h"
+#include "Framework/world/Scene.h"
 #include "Framework/world/WorldSystem.h"
 #include "MainClass.h"
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
@@ -60,7 +61,7 @@ class PBRMeshComponent : public ObjTestMeshComponent {
     UniformData m_uniform_data{1.0, 1.0};
 
 public:
-    PBRMeshComponent(GameObject *parentObject) : ObjTestMeshComponent(parentObject), transform() {
+    PBRMeshComponent(const GameObject &parentObject) : ObjTestMeshComponent(parentObject), transform() {
     }
 
     void LoadData(

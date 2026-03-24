@@ -37,7 +37,7 @@ namespace Engine {
         template <typename T>
         T &CreateComponent(GameObject &parent) {
             static_assert(std::is_base_of<Component, T>::value, "T must be derived from Component");
-            return static_cast<T &>(AddComponent(parent.GetHandle(), new T(&parent)));
+            return static_cast<T &>(AddComponent(parent.GetHandle(), new T(parent)));
         }
 
         void RemoveGameObject(ObjectHandle handle);

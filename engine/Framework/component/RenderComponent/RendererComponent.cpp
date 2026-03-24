@@ -12,7 +12,7 @@
 #include <Render/Pipeline/Material/MaterialInstance.h>
 
 namespace Engine {
-    RendererComponent::RendererComponent(GameObject *parent) : Component(parent) {
+    RendererComponent::RendererComponent(const GameObject &parent) : Component(parent) {
         m_system = MainClass::GetInstance()->GetRenderSystem();
     }
 
@@ -26,7 +26,7 @@ namespace Engine {
         auto system = m_system.lock();
         if (system) {
             system->GetRendererManager().UnregisterRendererComponent(
-                m_handle
+                GetHandle()
             );
         }
     }
@@ -55,7 +55,7 @@ namespace Engine {
         }
 
         // We should do some check maybe to avoid repetition.
-        system->GetRendererManager().RegisterRendererComponent(m_handle);
+        system->GetRendererManager().RegisterRendererComponent(GetHandle());
     }
 
     void RendererComponent::Tick() {
