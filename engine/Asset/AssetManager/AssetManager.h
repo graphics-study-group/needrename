@@ -2,6 +2,7 @@
 #define ASSET_ASSETMANAGER_ASSETMANAGER_INCLUDED
 
 #include <Core/guid.h>
+#include <atomic>
 #include <filesystem>
 #include <memory>
 #include <queue>
@@ -27,19 +28,31 @@ namespace Engine {
             return generateGUID(m_guid_gen);
         }
 
+        void AddLoadedAsset(std::unique_ptr<Asset> asset);
+        template <typename T, typename... Args>
+        T *CreateAsset(Args... args) {
+            auto asset = std::make_unique<T>(std::forward<Args>(args)...);
+            GUID guid = asset->GetGUID();
+            AddLoadedAsset(std::move(asset));
+            return dynamic_cast<T *>(GetAsset(guid));
+        }
+
         void AddToLoadingQueue(const GUID &guid);
         void LoadAssetsInQueue();
-        std::shared_ptr<Asset> LoadAssetImmediately(const GUID &guid);
-        std::shared_ptr<Asset> GetAsset(const GUID &guid, bool load_if_not_loaded = true);
+        Asset *LoadAssetImmediately(const GUID &guid);
+        Asset *GetAsset(const GUID &guid);
         bool IsAssetLoaded(const GUID &guid);
         void UnloadAsset(const GUID &guid);
         void UnloadUnusedAssets();
+        void IncrementRefCount(const GUID &guid);
+        void DecrementRefCount(const GUID &guid);
 
     protected:
         std::mt19937_64 m_guid_gen{std::random_device{}()};
 
         std::queue<GUID> m_loading_queue{};
-        std::unordered_map<GUID, std::shared_ptr<Asset>> m_loaded_assets{};
+        std::unordered_map<GUID, std::unique_ptr<Asset>> m_loaded_assets{};
+        std::unordered_map<GUID, std::atomic<unsigned int>> m_asset_ref_count{};
     };
 } // namespace Engine
 

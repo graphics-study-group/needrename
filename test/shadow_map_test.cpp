@@ -70,9 +70,10 @@ public:
     }
 };
 
-std::array<std::shared_ptr<MaterialTemplateAsset>, 2> ConstructMaterialTemplate() {
-    std::array<std::shared_ptr<MaterialTemplateAsset>, 2> templates{
-        std::make_shared<MaterialTemplateAsset>(), std::make_shared<MaterialTemplateAsset>()
+std::array<MaterialTemplateAsset *, 2> ConstructMaterialTemplate() {
+    auto am = MainClass::GetInstance()->GetAssetManager();
+    std::array<MaterialTemplateAsset *, 2> templates{
+        am->CreateAsset<MaterialTemplateAsset>(), am->CreateAsset<MaterialTemplateAsset>()
     };
 
     auto adb = std::dynamic_pointer_cast<FileSystemDatabase>(MainClass::GetInstance()->GetAssetDatabase());
@@ -103,10 +104,11 @@ std::array<std::shared_ptr<MaterialTemplateAsset>, 2> ConstructMaterialTemplate(
     return templates;
 }
 
-std::shared_ptr<MaterialLibraryAsset> ConstructMaterialLibrary(
-    std::array<std::shared_ptr<MaterialTemplateAsset>, 2> &templates
+MaterialLibraryAsset * ConstructMaterialLibrary(
+    std::array<MaterialTemplateAsset *, 2> &templates
 ) {
-    std::shared_ptr<MaterialLibraryAsset> lib = std::make_shared<MaterialLibraryAsset>();
+    auto am = MainClass::GetInstance()->GetAssetManager();
+    auto * lib = am->CreateAsset<MaterialLibraryAsset>();
     lib->m_name = "Blinn-Phong w. Shadowmap";
     MaterialLibraryAsset::MaterialTemplateReference ref;
     ref.expected_mesh_type = 0;
@@ -135,6 +137,7 @@ int main(int argc, char **argv) {
     cmc->LoadBuiltinAssets(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
 
     auto rsys = cmc->GetRenderSystem();
+    auto am = cmc->GetAssetManager();
 
     // Submit scene data
     Transform transform{};
@@ -197,7 +200,7 @@ int main(int argc, char **argv) {
     // Prepare mesh
     auto &floor_go = scene.CreateGameObject();
     floor_go.GetTransformRef().SetScale({5.0f, 5.0f, 1.0f}).SetPosition({0.0f, 0.0f, 0.5f});
-    auto floor_mesh_asset = std::make_shared<LowerPlaneMeshAsset>();
+    auto floor_mesh_asset = am->CreateAsset<LowerPlaneMeshAsset>();
     auto floor_mesh_asset_ref = AssetRef(floor_mesh_asset);
     auto &floor_mesh_comp = scene.CreateComponent<MeshComponent>(floor_go);
     floor_mesh_comp.m_mesh_asset = floor_mesh_asset_ref;

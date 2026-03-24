@@ -97,16 +97,13 @@ class MeshComponentFromFile : public StaticMeshComponent {
             }
         }
 
-        this->m_mesh_asset =
-            AssetRef(std::dynamic_pointer_cast<Asset>(std::make_shared<MeshAsset>()));
+        this->m_mesh_asset = AssetRef(MainClass::GetInstance()->GetAssetManager()->CreateAsset<MeshAsset>());
         ObjLoader loader;
         loader.LoadMeshAssetFromTinyObj(*(this->m_mesh_asset.as<MeshAsset>()), attrib, shapes);
 
         // Read material assets
         for (const auto &material : materials) {
-            this->m_material_assets.push_back(
-                AssetRef(std::dynamic_pointer_cast<Asset>(std::make_shared<MaterialAsset>()))
-            );
+            this->m_material_assets.push_back(AssetRef(MainClass::GetInstance()->GetAssetManager()->CreateAsset<MaterialAsset>()));
             loader.LoadMaterialAssetFromTinyObj(
                 *(this->m_material_assets.back().as<MaterialAsset>()), material, mesh.parent_path()
             );

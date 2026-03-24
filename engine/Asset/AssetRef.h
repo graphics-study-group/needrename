@@ -18,8 +18,8 @@ namespace Engine {
     public:
         REFL_ENABLE AssetRef();
         REFL_ENABLE AssetRef(GUID guid);
-        REFL_ENABLE AssetRef(std::shared_ptr<Asset> asset);
-        ~AssetRef() = default;
+        REFL_ENABLE AssetRef(const Asset *asset);
+        ~AssetRef();
 
         /// @brief Save the asset to the archive. Only used for automatic serialization when it is a member of another
         /// class. Only save the GUID of the asset
@@ -28,37 +28,49 @@ namespace Engine {
         /// class. Only load the GUID of the asset
         void load_from_archive(Serialization::Archive &archive);
 
-        REFL_ENABLE void Load() const;
-        REFL_ENABLE void Unload() const;
-        REFL_ENABLE bool IsLoaded() const;
+        REFL_ENABLE void Acquire(bool async_load) const;
+        REFL_ENABLE void Release() const;
+        REFL_ENABLE bool IsAcquired() const;
         REFL_ENABLE bool IsValid() const;
         REFL_ENABLE GUID GetGUID() const;
 
         template <AssetClass T>
-        std::shared_ptr<T> as();
+        T *as(bool async_load = false);
 
         template <AssetClass T>
-        std::shared_ptr<const T> cas() const;
+        const T *cas(bool async_load = false) const;
 
     private:
-        friend class AssetManager;
-
-        mutable std::shared_ptr<Asset> m_asset{};
+        mutable bool m_is_acquired{false};
         GUID m_guid{};
+
+        Asset *TryGetAsset() const;
     };
 
     template <AssetClass T>
-    std::shared_ptr<const T> AssetRef::cas() const {
-        static_assert(std::is_base_of<Asset, T>::value, "T must be a derived class of Asset");
-        if (!IsLoaded()) Load();
-        return std::dynamic_pointer_cast<const T>(m_asset);
+    const T *AssetRef::cas(bool async_load) const {
+        if (!IsValid()) throw std::runtime_error("AssetRef::cas: AssetRef is not valid");
+        if (!IsAcquired()) {
+            Acquire(async_load);
+        }
+        auto asset = TryGetAsset();
+        if (!asset) return nullptr;
+        auto ret = dynamic_cast<const T *>(asset);
+        if (!ret) throw std::runtime_error("AssetRef::cas: Asset is not of type T");
+        return ret;
     }
 
     template <AssetClass T>
-    std::shared_ptr<T> AssetRef::as() {
-        static_assert(std::is_base_of<Asset, T>::value, "T must be a derived class of Asset");
-        if (!IsLoaded()) Load();
-        return std::dynamic_pointer_cast<T>(m_asset);
+    T *AssetRef::as(bool async_load) {
+        if (!IsValid()) throw std::runtime_error("AssetRef::as: AssetRef is not valid");
+        if (!IsAcquired()) {
+            Acquire(async_load);
+        }
+        auto asset = TryGetAsset();
+        if (!asset) return nullptr;
+        auto ret = dynamic_cast<T *>(asset);
+        if (!ret) throw std::runtime_error("AssetRef::as: Asset is not of type T");
+        return ret;
     }
 } // namespace Engine
 

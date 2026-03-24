@@ -43,12 +43,13 @@ const std::array<std::filesystem::path, 6> CUBEMAP_FACES = {
 };
 
 
-std::pair<std::shared_ptr<MaterialLibraryAsset>, std::shared_ptr<MaterialTemplateAsset>> ConstructMaterial() {
+std::pair<MaterialLibraryAsset *, MaterialTemplateAsset *> ConstructMaterial() {
     auto adb = std::dynamic_pointer_cast<FileSystemDatabase>(
         MainClass::GetInstance()->GetAssetDatabase()
     );
-    auto test_asset = std::make_shared<MaterialTemplateAsset>();
-    auto lib_asset = std::make_shared<MaterialLibraryAsset>();
+    auto am = MainClass::GetInstance()->GetAssetManager();
+    auto test_asset = am->CreateAsset<MaterialTemplateAsset>();
+    auto lib_asset = am->CreateAsset<MaterialLibraryAsset>();
     auto vs_ref = adb->GetNewAssetRef({*adb, "~/shaders/skybox.vert.asset"});
     auto fs_ref = adb->GetNewAssetRef({*adb, "~/shaders/skybox.frag.asset"});
 

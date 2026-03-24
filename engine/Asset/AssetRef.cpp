@@ -11,7 +11,11 @@ namespace Engine {
     AssetRef::AssetRef(GUID guid) : m_guid(guid) {
     }
 
-    AssetRef::AssetRef(std::shared_ptr<Asset> asset) : m_asset(asset), m_guid(asset->GetGUID()) {
+    AssetRef::AssetRef(const Asset *asset) : m_guid(asset->GetGUID()) {
+    }
+
+    AssetRef::~AssetRef() {
+        Release();
     }
 
     void AssetRef::save_to_archive(Serialization::Archive &archive) const {
@@ -32,16 +36,34 @@ namespace Engine {
         }
     }
 
-    void AssetRef::Load() const {
-        m_asset = MainClass::GetInstance()->GetAssetManager()->GetAsset(GetGUID());
+    void AssetRef::Acquire(bool async_load) const {
+        if (IsValid() && !IsAcquired()) {
+            auto &amg = *MainClass::GetInstance()->GetAssetManager();
+            if (async_load) {
+                amg.AddToLoadingQueue(m_guid);
+            } else {
+                amg.LoadAssetImmediately(m_guid);
+            }
+            m_is_acquired = true;
+            amg.IncrementRefCount(m_guid);
+        }
     }
 
-    void AssetRef::Unload() const {
-        m_asset.reset();
+    void AssetRef::Release() const {
+        if (IsAcquired()) {
+            m_is_acquired = false;
+            auto cmc = MainClass::GetInstance();
+            if (cmc) {
+                auto amg = cmc->GetAssetManager();
+                if (amg) {
+                    amg->DecrementRefCount(m_guid);
+                }
+            }
+        }
     }
 
-    bool AssetRef::IsLoaded() const {
-        return m_asset != nullptr;
+    bool AssetRef::IsAcquired() const {
+        return m_is_acquired;
     }
 
     bool AssetRef::IsValid() const {
@@ -51,4 +73,11 @@ namespace Engine {
     GUID AssetRef::GetGUID() const {
         return m_guid;
     }
+
+    Asset *AssetRef::TryGetAsset() const {
+        if (!IsAcquired()) return nullptr;
+        auto &amg = *MainClass::GetInstance()->GetAssetManager();
+        return amg.GetAsset(m_guid);
+    }
+
 } // namespace Engine
