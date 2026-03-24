@@ -28,8 +28,8 @@ namespace Engine {
         /// class. Only load the GUID of the asset
         void load_from_archive(Serialization::Archive &archive);
 
-        REFL_ENABLE void Acquire(bool async_load) const;
-        REFL_ENABLE void Release() const;
+        REFL_ENABLE void Acquire(bool async_load);
+        REFL_ENABLE void Release();
         REFL_ENABLE bool IsAcquired() const;
         REFL_ENABLE bool IsValid() const;
         REFL_ENABLE GUID GetGUID() const;
@@ -38,21 +38,18 @@ namespace Engine {
         T *as(bool async_load = false);
 
         template <AssetClass T>
-        const T *cas(bool async_load = false) const;
+        const T *cas() const;
 
     private:
-        mutable bool m_is_acquired{false};
+        bool m_is_acquired{false};
         GUID m_guid{};
 
         Asset *TryGetAsset() const;
     };
 
     template <AssetClass T>
-    const T *AssetRef::cas(bool async_load) const {
+    const T *AssetRef::cas() const {
         if (!IsValid()) throw std::runtime_error("AssetRef::cas: AssetRef is not valid");
-        if (!IsAcquired()) {
-            Acquire(async_load);
-        }
         auto asset = TryGetAsset();
         if (!asset) return nullptr;
         auto ret = dynamic_cast<const T *>(asset);

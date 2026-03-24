@@ -42,14 +42,14 @@ namespace Engine {
             m_system.lock()->GetMaterialRegistry().AddMaterial(lib);
             auto ptr = std::make_shared<MaterialInstance>(
                 *(m_system.lock()),
-                *m_system.lock()->GetMaterialRegistry().GetMaterial(lib.cas<MaterialLibraryAsset>()->m_name)
+                *m_system.lock()->GetMaterialRegistry().GetMaterial(lib.as<MaterialLibraryAsset>()->m_name)
             );
             m_materials.push_back(ptr);
         }
 
         for (size_t i = 0; i < m_material_assets.size(); i++) {
             auto mat_ptr = std::dynamic_pointer_cast<MaterialInstance>(m_materials[i]);
-            auto mat_asset = (m_material_assets[i].cas<MaterialAsset>());
+            auto mat_asset = (m_material_assets[i].as<MaterialAsset>());
             assert(mat_ptr && mat_asset);
             mat_ptr->Instantiate(*mat_asset);
         }

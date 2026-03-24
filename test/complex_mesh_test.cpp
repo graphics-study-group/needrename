@@ -127,7 +127,7 @@ public:
             auto ptr = std::make_shared<Materials::BlinnPhongInstance>(
                 *system, system->GetMaterialRegistry().GetMaterial("Blinn-Phong Without Shadowmap")
             );
-            auto mat_asset = m_material_assets[i].cas<MaterialAsset>();
+            auto mat_asset = m_material_assets[i].as<MaterialAsset>();
             assert(mat_asset);
             ptr->Instantiate(*mat_asset);
             m_materials.push_back(ptr);

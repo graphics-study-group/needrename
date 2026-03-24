@@ -261,7 +261,7 @@ namespace Engine {
         assert(tpl);
         return this->GetDescriptor(*tpl, backbuffer);
     }
-    void MaterialInstance::Instantiate(const MaterialAsset &asset) {
+    void MaterialInstance::Instantiate(MaterialAsset &asset) {
         for (const auto & prop : asset.m_properties) {
             auto p = prop.second;
             switch(p.m_type) {

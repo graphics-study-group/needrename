@@ -36,7 +36,7 @@ namespace Engine {
         }
     }
 
-    void AssetRef::Acquire(bool async_load) const {
+    void AssetRef::Acquire(bool async_load) {
         if (IsValid() && !IsAcquired()) {
             auto &amg = *MainClass::GetInstance()->GetAssetManager();
             if (async_load) {
@@ -49,7 +49,7 @@ namespace Engine {
         }
     }
 
-    void AssetRef::Release() const {
+    void AssetRef::Release() {
         if (IsAcquired()) {
             m_is_acquired = false;
             auto cmc = MainClass::GetInstance();

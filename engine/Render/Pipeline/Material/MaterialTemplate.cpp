@@ -38,7 +38,7 @@ namespace Engine {
         void CreatePipeline(
             RenderSystem & system,
             const std::vector <vk::ShaderModule> shader_modules,
-            const MaterialTemplateSinglePassProperties &prop,
+            MaterialTemplateSinglePassProperties &prop,
             const PipelineRuntimeInfo &pri
         ) {
             vk::Device device = system.GetDevice();
@@ -57,7 +57,7 @@ namespace Engine {
 
                 psscis.resize(prop.shaders.shaders.size());
                 for (size_t i = 0; i < prop.shaders.shaders.size(); i++) {
-                    auto shader_asset = prop.shaders.shaders[i].cas<ShaderAsset>();
+                    auto shader_asset = prop.shaders.shaders[i].as<ShaderAsset>();
                     psscis[i] = vk::PipelineShaderStageCreateInfo{
                         {},
                         PipelineUtils::ToVulkanShaderStageFlagBits(shader_asset->shaderType),
@@ -158,7 +158,7 @@ namespace Engine {
 
     MaterialTemplate::MaterialTemplate(
         RenderSystem &system,
-        const MaterialTemplateSinglePassProperties &properties,
+        MaterialTemplateSinglePassProperties &properties,
         const std::vector<vk::ShaderModule> &shaders,
         vk::PipelineLayout layout,
         vk::DescriptorPool pool,

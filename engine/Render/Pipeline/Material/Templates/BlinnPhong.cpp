@@ -22,7 +22,7 @@ namespace Engine::Materials {
         this->AssignVectorVariable("Material::ambient_color", ambi);
     }
 
-    void BlinnPhongInstance::Instantiate(const MaterialAsset &asset) {
+    void BlinnPhongInstance::Instantiate(MaterialAsset &asset) {
         // We currently only care about base texture and specular and ambient vectors
         // Load texture asset
         const auto &base_texture_prop = asset.m_properties.at("base_tex");

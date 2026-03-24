@@ -248,7 +248,7 @@ int main(int argc, char **argv) {
     auto adb = std::dynamic_pointer_cast<FileSystemDatabase>(cmc->GetAssetDatabase());
     auto cs_ref = adb->GetNewAssetRef({*adb, "~/shaders/gaussian_blur.comp.asset"});
     ComputeStage cstage{*rsys};
-    cstage.Instantiate(*cs_ref.cas<ShaderAsset>());
+    cstage.Instantiate(*cs_ref.as<ShaderAsset>());
 
     auto &kbinding = cstage.AllocateResourceBinding();
     kbinding.GetShaderResourceBinding().BindTexture("inputImage", *color);

@@ -188,7 +188,7 @@ int main(int argc, char **argv) {
     auto test_asset = ConstructMaterial();
     auto test_asset_ref = AssetRef(test_asset.first);
     auto test_library = std::make_shared<MaterialLibrary>(*rsys);
-    test_library->Instantiate(*test_asset_ref.cas<MaterialLibraryAsset>());
+    test_library->Instantiate(*test_asset_ref.as<MaterialLibraryAsset>());
     auto test_material_instance = std::make_shared<MaterialInstance>(*rsys, *test_library);
 
     // Prepare mesh

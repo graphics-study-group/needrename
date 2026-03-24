@@ -75,7 +75,7 @@ public:
 
         auto system = m_system.lock();
 
-        auto masset = m_mesh_asset.cas<MeshAsset>();
+        auto masset = m_mesh_asset.as<MeshAsset>();
         for (size_t i = 0; i < masset->GetSubmeshCount(); i++) {
             auto ptr = std::make_shared<MaterialInstance>(*system, *library);
             ptr->AssignTexture("albedoSampler", albedo);
@@ -229,7 +229,7 @@ int main(int argc, char **argv) {
     // Setup compute shader
     auto cs_ref = adb->GetNewAssetRef({*adb, "~/shaders/bloom.comp.asset"});
     auto bloom_compute_stage = std::make_shared<ComputeStage>(*rsys);
-    bloom_compute_stage->Instantiate(*cs_ref.cas<ShaderAsset>());
+    bloom_compute_stage->Instantiate(*cs_ref.as<ShaderAsset>());
     auto & bloom_compute_binding = bloom_compute_stage->AllocateResourceBinding();
 
     // Build render graph.

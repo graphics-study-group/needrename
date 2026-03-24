@@ -104,7 +104,7 @@ namespace Engine {
     ) : m_system(system), pimpl(std::make_unique<ComputeStage::impl>()) {
     }
 
-    void ComputeStage::Instantiate(const ShaderAsset &asset) {
+    void ComputeStage::Instantiate(ShaderAsset &asset) {
         assert(asset.shaderType == ShaderAsset::ShaderType::Compute);
         Instantiate(asset.binary, asset.m_name);
     }

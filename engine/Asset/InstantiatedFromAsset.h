@@ -8,7 +8,7 @@ namespace Engine {
     class IInstantiatedFromAsset {
     public:
         virtual ~IInstantiatedFromAsset() = default;
-        virtual void Instantiate(const T &asset) = 0;
+        virtual void Instantiate(T &asset) = 0;
     };
 } // namespace Engine
 

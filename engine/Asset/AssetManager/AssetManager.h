@@ -2,7 +2,6 @@
 #define ASSET_ASSETMANAGER_ASSETMANAGER_INCLUDED
 
 #include <Core/guid.h>
-#include <atomic>
 #include <filesystem>
 #include <memory>
 #include <queue>
@@ -52,7 +51,7 @@ namespace Engine {
 
         std::queue<GUID> m_loading_queue{};
         std::unordered_map<GUID, std::unique_ptr<Asset>> m_loaded_assets{};
-        std::unordered_map<GUID, std::atomic<unsigned int>> m_asset_ref_count{};
+        std::unordered_map<GUID, unsigned int> m_asset_ref_count{};
     };
 } // namespace Engine
 

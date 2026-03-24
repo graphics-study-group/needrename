@@ -60,7 +60,7 @@ namespace Engine {
         }
 
         m_bloom_compute_stage = std::make_shared<ComputeStage>(m_system);
-        m_bloom_compute_stage->Instantiate(*m_bloom_shader.cas<ShaderAsset>());
+        m_bloom_compute_stage->Instantiate(*m_bloom_shader.as<ShaderAsset>());
 
         auto &system = m_system;
         auto world_system = MainClass::GetInstance()->GetWorldSystem().get();

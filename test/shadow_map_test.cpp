@@ -63,7 +63,7 @@ public:
         this->LoadMesh(mesh_file_name);
         auto system = m_system.lock();
 
-        auto masset = m_mesh_asset.cas<MeshAsset>();
+        auto masset = m_mesh_asset.as<MeshAsset>();
         for (size_t i = 0; i < masset->GetSubmeshCount(); i++) {
             m_materials.push_back(instance);
         }
@@ -186,7 +186,7 @@ int main(int argc, char **argv) {
 
     auto test_library_asset_ref = AssetRef(test_library_asset);
     auto test_library = std::make_shared<MaterialLibrary>(*rsys);
-    test_library->Instantiate(*test_library_asset_ref.cas<MaterialLibraryAsset>());
+    test_library->Instantiate(*test_library_asset_ref.as<MaterialLibraryAsset>());
     auto object_material_instance = std::make_shared<MaterialInstance>(*rsys, *test_library);
     object_material_instance->AssignVectorVariable("ambient_color", glm::vec4(0.0, 0.0, 0.0, 0.0));
     object_material_instance->AssignVectorVariable("specular_color", glm::vec4(1.0, 1.0, 1.0, 64.0));
