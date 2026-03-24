@@ -23,6 +23,8 @@ namespace Engine {
 
         REFL_ENABLE std::string toString() const;
         REFL_ENABLE void fromString(const std::string &str);
+        REFL_ENABLE bool IsValid() const;
+        REFL_ENABLE void SetZero();
 
         void save_to_archive(Serialization::Archive &archive) const;
         void load_from_archive(Serialization::Archive &archive);

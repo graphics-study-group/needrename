@@ -44,7 +44,7 @@ namespace Engine {
         friend class AssetManager;
 
         mutable std::shared_ptr<Asset> m_asset{};
-        std::optional<GUID> m_guid{};
+        GUID m_guid{};
     };
 
     template <AssetClass T>

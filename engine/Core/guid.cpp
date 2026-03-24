@@ -23,6 +23,15 @@ namespace Engine {
         leastSigBits = std::stoull(str.substr(16, 16), nullptr, 16);
     }
 
+    bool GUID::IsValid() const {
+        return mostSigBits != 0 && leastSigBits != 0;
+    }
+
+    void GUID::SetZero() {
+        mostSigBits = 0;
+        leastSigBits = 0;
+    }
+
     void GUID::save_to_archive(Serialization::Archive &archive) const {
         Serialization::Json &json = *archive.m_cursor;
         json = toString();

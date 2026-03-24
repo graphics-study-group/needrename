@@ -16,8 +16,8 @@ namespace Engine {
 
     void AssetRef::save_to_archive(Serialization::Archive &archive) const {
         Serialization::Json &json = *archive.m_cursor;
-        if (m_guid.has_value()) {
-            json = m_guid.value().toString();
+        if (m_guid.IsValid()) {
+            json = m_guid.toString();
         } else {
             json = nullptr;
         }
@@ -26,7 +26,7 @@ namespace Engine {
     void AssetRef::load_from_archive(Serialization::Archive &archive) {
         Serialization::Json &json = *archive.m_cursor;
         if (json.is_null()) {
-            m_guid.reset();
+            m_guid.SetZero();
         } else {
             m_guid = GUID(json.get<std::string>());
         }
@@ -45,10 +45,10 @@ namespace Engine {
     }
 
     bool AssetRef::IsValid() const {
-        return m_guid.has_value();
+        return m_guid.IsValid();
     }
 
     GUID AssetRef::GetGUID() const {
-        return m_guid.value();
+        return m_guid;
     }
 } // namespace Engine
