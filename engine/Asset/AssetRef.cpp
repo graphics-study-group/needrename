@@ -14,6 +14,14 @@ namespace Engine {
     AssetRef::AssetRef(const Asset *asset) : m_guid(asset->GetGUID()) {
     }
 
+    AssetRef::AssetRef(const AssetRef &other) : m_guid(other.m_guid) {
+    }
+
+    AssetRef &AssetRef::operator=(const AssetRef &other) {
+        m_guid = other.m_guid;
+        return *this;
+    }
+
     AssetRef::~AssetRef() {
         Release();
     }
@@ -39,10 +47,12 @@ namespace Engine {
     void AssetRef::Acquire(bool async_load) {
         if (IsValid() && !IsAcquired()) {
             auto &amg = *MainClass::GetInstance()->GetAssetManager();
-            if (async_load) {
-                amg.AddToLoadingQueue(m_guid);
-            } else {
-                amg.LoadAssetImmediately(m_guid);
+            if (!amg.IsAssetLoaded(m_guid)) {
+                if (async_load) {
+                    amg.AddToLoadingQueue(m_guid);
+                } else {
+                    amg.LoadAssetImmediately(m_guid);
+                }
             }
             m_is_acquired = true;
             amg.IncrementRefCount(m_guid);

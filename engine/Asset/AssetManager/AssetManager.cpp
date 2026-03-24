@@ -17,6 +17,10 @@ namespace Engine {
     }
 
     void AssetManager::AddToLoadingQueue(const GUID &guid) {
+        if (m_in_loading_queue.contains(guid)) {
+            return;
+        }
+        m_in_loading_queue.insert(guid);
         m_loading_queue.push(guid);
     }
 
@@ -24,6 +28,7 @@ namespace Engine {
         while (!m_loading_queue.empty()) {
             auto guid = m_loading_queue.front();
             if (IsAssetLoaded(guid)) {
+                m_in_loading_queue.erase(guid);
                 m_loading_queue.pop();
                 continue;
             }

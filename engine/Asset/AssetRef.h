@@ -25,6 +25,8 @@ namespace Engine {
         REFL_ENABLE AssetRef();
         REFL_ENABLE AssetRef(GUID guid);
         REFL_ENABLE AssetRef(const Asset *asset);
+        REFL_ENABLE AssetRef(const AssetRef &other);
+        AssetRef &operator=(const AssetRef &other);
         ~AssetRef();
 
         /// @brief Save the asset to the archive. Only used for automatic serialization when it is a member of another

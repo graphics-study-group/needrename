@@ -8,6 +8,7 @@
 #include <random>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wnon-virtual-dtor"
@@ -50,6 +51,8 @@ namespace Engine {
         std::mt19937_64 m_guid_gen{std::random_device{}()};
 
         std::queue<GUID> m_loading_queue{};
+        std::unordered_set<GUID> m_in_loading_queue{};
+
         std::unordered_map<GUID, std::unique_ptr<Asset>> m_loaded_assets{};
         std::unordered_map<GUID, unsigned int> m_asset_ref_count{};
     };
