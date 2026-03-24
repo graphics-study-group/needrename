@@ -13,6 +13,12 @@ namespace Engine {
     template <class T>
     concept AssetClass = std::is_base_of<Asset, T>::value;
 
+    /**
+     * @brief A reference to an asset. Stores the asset's GUID and an acquire flag.
+     * The acquire flag is false by default, which means it do not count as a reference in the asset manager.
+     * When the acquire flag is true, it counts as a reference in the asset manager.
+     * And The asset will be loaded eagerly or asynchronously in the asset manager.
+     */
     class REFL_SER_CLASS(REFL_WHITELIST) AssetRef final {
         REFL_SER_BODY(AssetRef)
     public:
@@ -28,15 +34,49 @@ namespace Engine {
         /// class. Only load the GUID of the asset
         void load_from_archive(Serialization::Archive &archive);
 
+        /**
+         * @brief Acquire the asset (increment reference count).
+         * If the asset is not loaded, it will be loaded eagerly or asynchronously.
+         * @param async_load Whether to load the asset asynchronously.
+         */
         REFL_ENABLE void Acquire(bool async_load);
+
+        /**
+         * @brief Release the asset (decrement reference count).
+         */
         REFL_ENABLE void Release();
+
+        /**
+         * @brief Check if the asset is acquired.
+         * @return True if the asset is acquired, false otherwise.
+         */
         REFL_ENABLE bool IsAcquired() const;
+
+        /**
+         * @brief Check if the asset guid is valid.
+         * @return True if the asset guid is valid, false otherwise.
+         */
         REFL_ENABLE bool IsValid() const;
+
+        /**
+         * @brief Get the asset guid.
+         * @return The asset guid.
+         */
         REFL_ENABLE GUID GetGUID() const;
 
+        /**
+         * @brief Get the asset as a specific type.
+         * @param async_load Whether to load the asset asynchronously.
+         * @return The asset as a specific type.
+         */
         template <AssetClass T>
         T *as(bool async_load = false);
 
+        /**
+         * @brief Get the asset as a specific type.
+         * @note The asset can't be acquired or loaded in this method.
+         * @return The asset as a specific type.
+         */
         template <AssetClass T>
         const T *cas() const;
 
