@@ -107,6 +107,7 @@ namespace Engine {
     }
 
     void AssetManager::DecrementRefCount(const GUID &guid) {
+        assert(m_asset_ref_count.contains(guid));
         --m_asset_ref_count[guid];
     }
 } // namespace Engine
