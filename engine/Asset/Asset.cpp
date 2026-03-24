@@ -5,7 +5,7 @@
 
 namespace Engine {
     Asset::Asset() {
-        m_guid = MainClass::GetInstance()->GetAssetManager()->GenerateGUID();
+        m_guid = GUID::Random();
     }
 
     Asset::~Asset() {
@@ -22,13 +22,13 @@ namespace Engine {
     void Asset::save_asset_to_archive(Serialization::Archive &archive) const {
         _SERIALIZATION_SAVE_(archive);
         Serialization::Json &json = *archive.m_cursor;
-        json["Asset::m_guid"] = m_guid.toString();
+        json["Asset::m_guid"] = m_guid.string();
     }
 
     void Asset::load_asset_from_archive(Serialization::Archive &archive) {
         _SERIALIZATION_LOAD_(archive);
         Serialization::Json &json = *archive.m_cursor;
-        m_guid.fromString(json["Asset::m_guid"].get<std::string>());
+        m_guid = GUID(json["Asset::m_guid"].get<std::string>());
     }
 
     GUID Asset::GetGUID() const {
