@@ -6,4 +6,6 @@ __generated__
 
 CMakeCache.txt
 
+.cache/
+
 # projects/test_project

@@ -19,11 +19,16 @@ namespace Editor {
     }
 
     void SceneCamera::RotateControl(float delta_x, float delta_y) {
-        m_transform.SetRotation(
-            m_transform.GetRotation()
-            * glm::quat(
-                glm::vec3{-glm::radians(delta_y * m_rotate_speed), 0.0f, -glm::radians(delta_x * m_rotate_speed)}
-            )
-        );
+        m_yaw -= delta_x * m_rotate_speed;
+        m_pitch -= delta_y * m_rotate_speed;
+
+        // Clamp the pitch to prevent gimbal lock
+        if (m_pitch > 89.0f) m_pitch = 89.0f;
+        if (m_pitch < -89.0f) m_pitch = -89.0f;
+
+        glm::quat qYaw = glm::angleAxis(glm::radians(m_yaw), glm::vec3(0.0f, 0.0f, 1.0f));
+        glm::quat qPitch = glm::angleAxis(glm::radians(m_pitch), glm::vec3(1.0f, 0.0f, 0.0f));
+
+        m_transform.SetRotation(qYaw * qPitch);
     }
 } // namespace Editor
