@@ -6,6 +6,11 @@
 #include "Handle.h"
 
 namespace Engine {
+    /**
+     * @brief HandleResolver is a custom serialization resolver for Handle.
+     * It is used for load one scene's GameObject to another scene.
+     * It will map the ID of ObjectHandle to ComponentHandle from the original scene to the new scene.
+     */
     class HandleResolver : public Engine::Serialization::Resolver {
     public:
         HandleResolver() = default;

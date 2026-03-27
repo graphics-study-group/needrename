@@ -12,6 +12,11 @@ namespace Engine {
         using Json = nlohmann::json;
         using BinData = std::vector<std::byte>;
 
+        /**
+         * @brief Base class for resolvers.
+         * The Archive holds a vector of resolvers.
+         * Resolvers can be used when loading custom types such as Pointer or Handle.
+         */
         class Resolver {
         public:
             Resolver() = default;
