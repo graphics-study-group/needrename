@@ -21,12 +21,6 @@ namespace Engine {
         AssetManager() = default;
         virtual ~AssetManager() = default;
 
-        /// @brief Generate a GUID
-        /// @return GUID
-        inline GUID GenerateGUID() {
-            return generateGUID(m_guid_gen);
-        }
-
         void AddToLoadingQueue(const GUID &guid);
         void LoadAssetsInQueue();
         std::shared_ptr<Asset> LoadAssetImmediately(const GUID &guid);
@@ -36,8 +30,6 @@ namespace Engine {
         void UnloadUnusedAssets();
 
     protected:
-        std::mt19937_64 m_guid_gen{std::random_device{}()};
-
         std::queue<GUID> m_loading_queue{};
         std::unordered_map<GUID, std::shared_ptr<Asset>> m_loaded_assets{};
     };

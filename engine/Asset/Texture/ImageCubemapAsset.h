@@ -3,6 +3,7 @@
 
 #include "Asset/Texture/TextureAsset.h"
 #include "Reflection/macros.h"
+#include <vector>
 
 namespace Engine {
     class REFL_SER_CLASS(REFL_WHITELIST) ImageCubemapAsset : public TextureAsset {
