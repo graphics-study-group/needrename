@@ -112,8 +112,8 @@ int main(int argc, char *argv[]) {
             "UBO::frame_count", static_cast<uint32_t>(frame_count)
         );
 
-        if (frame_count == 1) rg.AddExternalInputDependency(*color_input, MemoryAccessTypeImageBits::None);
-        rg.Execute();
+        if (frame_count == 1) rg->AddExternalInputDependency(*color_input, MemoryAccessTypeImageBits::None);
+        rg->Execute();
 
         rsys->CompleteFrame(
             *color_present,

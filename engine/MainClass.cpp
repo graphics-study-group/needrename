@@ -12,8 +12,8 @@
 #include <Render/FullRenderSystem.h>
 #include <UserInterface/GUISystem.h>
 #include <UserInterface/Input.h>
-#include <glslang/Public/ShaderLang.h>
 
+#include <glslang/Public/ShaderLang.h>
 #include <exception>
 #include <fstream>
 #include <nlohmann/json.hpp>
@@ -60,25 +60,7 @@ namespace Engine {
         GUID default_level_guid(project_config["default_level"].get<std::string>());
         auto level_asset =
             std::dynamic_pointer_cast<LevelAsset>(this->asset_manager->LoadAssetImmediately(default_level_guid));
-        this->world->LoadLevelAsset(level_asset);
-        
-        if (level_asset->m_skybox_material) {
-            this->asset_manager->LoadAssetImmediately(level_asset->m_skybox_material);
-            this->asset_manager->LoadAssetsInQueue();
-            // XXX: like RendererComponent.cpp, this is a temporary solution. simply check the m_name
-            auto lib = level_asset->m_skybox_material->as<MaterialAsset>()->m_library;
-            this->renderer->GetMaterialRegistry().AddMaterial(lib);
-            auto material_instance = std::make_shared<MaterialInstance>(
-                *(this->renderer),
-                *this->renderer->GetMaterialRegistry().GetMaterial(lib->cas<MaterialLibraryAsset>()->m_name)
-            );
-            material_instance->Instantiate(*level_asset->m_skybox_material->as<MaterialAsset>());
-            this->renderer->GetSceneDataManager().SetSkyboxMaterial(material_instance);
-        }
-
-        auto active_camera = this->world->GetActiveCamera();
-        if (active_camera)
-            this->renderer->GetCameraManager().RegisterCamera(active_camera);
+        level_asset->LoadToWorld();
     }
 
     void MainClass::Initialize(
@@ -99,10 +81,8 @@ namespace Engine {
         this->asset_manager = std::make_shared<AssetManager>();
         this->gui = std::make_shared<GUISystem>();
         this->input = std::make_shared<Input>();
-        this->event_queue = std::make_shared<EventQueue>();
 
         this->renderer->Create();
-        this->window->CreateRenderTargets(this->renderer);
         this->gui->Create(this->window->GetWindow());
         Reflection::Initialize();
 
@@ -162,12 +142,13 @@ namespace Engine {
         return input;
     }
 
-    std::shared_ptr<EventQueue> MainClass::GetEventQueue() const {
-        return event_queue;
+    std::shared_ptr<ShaderCompiler> MainClass::GetShaderCompiler() const {
+        return shader_compiler;
     }
 
-    std::shared_ptr<ShaderCompiler> MainClass::GetShaderCompiler() {
-        return shader_compiler;
+     void MainClass::SetRenderGraph(std::unique_ptr<RenderGraph> &render_graph, uint32_t final_color_attachment_id) {
+        this->render_graph = std::move(render_graph);
+        this->m_final_color_attachment_id = final_color_attachment_id;
     }
 
     void MainClass::RunOneFrame() {
@@ -191,69 +172,22 @@ namespace Engine {
         }
 
         this->input->Update();
-        this->world->LoadGameObjectInQueue();
+        this->world->GetMainSceneRef().FlushCmdQueue();
         // TODO: add input event
-        this->world->AddTickEvent();
+        this->world->GetMainSceneRef().AddTickEvent();
         // this->gui->PrepareGUI();
 
-        this->event_queue->ProcessEvents();
+        this->world->GetMainSceneRef().ProcessEvents();
+
+        this->world->UpdateLightData(this->renderer->GetSceneDataManager());
 
         this->renderer->StartFrame();
-        auto context = this->renderer->GetFrameManager().GetGraphicsContext();
-        GraphicsCommandBuffer &cb = dynamic_cast<GraphicsCommandBuffer &>(context.GetCommandBuffer());
-
-        cb.Begin();
-        context.UseImage(
-            this->window->GetColorTexture(),
-            GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite,
-            GraphicsContext::ImageAccessType::None
-        );
-        context.UseImage(
-            this->window->GetDepthTexture(),
-            GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite,
-            GraphicsContext::ImageAccessType::None
-        );
-        context.PrepareCommandBuffer();
-        cb.BeginRendering(
-            {&this->window->GetColorTexture(),
-             TextureSubresourceRange::GetSingleRange(),
-             AttachmentUtils::LoadOperation::Clear,
-             AttachmentUtils::StoreOperation::Store},
-            {&this->window->GetDepthTexture(),
-             TextureSubresourceRange::GetSingleRange(),
-             AttachmentUtils::LoadOperation::Clear,
-             AttachmentUtils::StoreOperation::DontCare,
-             AttachmentUtils::DepthClearValue{1.0f, 0U}},
-            this->window->GetExtent(),
-            "Main Pass"
-        );
-        this->renderer->GetCameraManager().SetActiveCameraIndex(this->world->GetActiveCamera()->m_display_id);
-
-        renderer->GetSceneDataManager().DrawSkybox(
-            cb,
-            renderer->GetFrameManager().GetFrameInFlight(),
-            world->GetActiveCamera()->GetViewMatrix(),
-            world->GetActiveCamera()->GetProjectionMatrix()
-        );
-
-        cb.DrawRenderers("", renderer->GetRendererManager().FilterAndSortRenderers({}));
-        cb.EndRendering();
-
-        // context.UseImage(this->window->GetColorTexture(),
-        // GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite,
-        // GraphicsContext::ImageAccessType::ColorAttachmentWrite); context.PrepareCommandBuffer();
-        // this->gui->DrawGUI({this->window->GetColorTexture().GetImage(),
-        //                     this->window->GetColorTexture().GetImageView(),
-        //                     vk::AttachmentLoadOp::eLoad,
-        //                     vk::AttachmentStoreOp::eStore},
-        //                    this->window->GetExtent(), cb);
-
-        cb.End();
-        this->renderer->GetFrameManager().SubmitMainCommandBuffer();
+        this->render_graph->Execute();
+        auto [w, h] = this->window->GetSize();
         this->renderer->CompleteFrame(
-            this->window->GetColorTexture(),
-            this->window->GetExtent().width,
-            this->window->GetExtent().height
+            *this->render_graph->GetInternalTextureResource(this->m_final_color_attachment_id),
+            MemoryAccessTypeImageBits::ShaderRandomWrite,
+            w, h
         );
     }
 } // namespace Engine

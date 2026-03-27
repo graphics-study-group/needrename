@@ -1,0 +1,42 @@
+#ifndef EDITOR_RENDER_EDITORRENDERGRAPHBUILDER_INCLUDED
+#define EDITOR_RENDER_EDITORRENDERGRAPHBUILDER_INCLUDED
+
+#include "Asset/AssetRef.h"
+#include "Render/Pipeline/RenderGraph/RenderGraphBuilder.h"
+#include <vulkan/vulkan.hpp>
+
+namespace Engine {
+    class AssetRef;
+    class ComputeStage;
+}
+
+namespace Editor {
+    class SceneWidget;
+    class GameWidget;
+
+    class EditorRenderGraphBuilder : public Engine::RenderGraphBuilder {
+        static const uint32_t SHADOWMAP_WIDTH = 2048;
+        static const uint32_t SHADOWMAP_HEIGHT = 2048;
+
+    public:
+        EditorRenderGraphBuilder(Engine::RenderSystem &system);
+        ~EditorRenderGraphBuilder() = default;
+
+        std::unique_ptr<Engine::RenderGraph> BuildEditorRenderGraph(
+            uint32_t texture_width,
+            uint32_t texture_height,
+            SceneWidget *scene_widget,
+            GameWidget *game_widget,
+            int32_t &scene_widget_color_id,
+            int32_t &game_widget_color_id,
+            int32_t &final_color_target_id
+        );
+
+    protected:
+        Engine::AssetRef m_bloom_shader{};
+        std::shared_ptr<Engine::ComputeStage> m_game_bloom_compute_stage{};
+        std::shared_ptr<Engine::ComputeStage> m_scene_bloom_compute_stage{};
+    };
+} // namespace Engine
+
+#endif // EDITOR_RENDER_EDITORRENDERGRAPHBUILDER_INCLUDED

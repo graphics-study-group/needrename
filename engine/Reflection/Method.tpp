@@ -12,7 +12,7 @@ namespace Engine {
             m_func(obj.GetDataPtr(), ret, arg_pointers);
             auto var = Var(m_return_type, ret);
             if (m_return_value_needs_free) {
-                var.MarkNeedFree();
+                var.SetNeedFree();
             }
             return var;
         }
@@ -25,7 +25,7 @@ namespace Engine {
             m_func(obj, ret, arg_pointers);
             auto var = Var(m_return_type, ret);
             if (m_return_value_needs_free) {
-                var.MarkNeedFree();
+                var.SetNeedFree();
             }
             return var;
         }

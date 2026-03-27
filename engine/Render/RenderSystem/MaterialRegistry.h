@@ -14,7 +14,7 @@ namespace Engine {
         public:
             MaterialRegistry(RenderSystem & system) : m_system(system) {};
             void Create();
-            void AddMaterial(std::shared_ptr<AssetRef> ref);
+            void AddMaterial(AssetRef &ref);
             auto GetMaterial(const std::string &name) -> decltype(this->at(name));
         };
     } // namespace RenderSystemState

@@ -23,17 +23,11 @@ namespace Engine {
 
         REFL_ENABLE std::string toString() const;
         REFL_ENABLE void fromString(const std::string &str);
+        REFL_ENABLE bool IsValid() const;
+        REFL_ENABLE void SetZero();
 
         void save_to_archive(Serialization::Archive &archive) const;
         void load_from_archive(Serialization::Archive &archive);
-    };
-
-    struct GUIDHash {
-        std::size_t operator()(const GUID &guid) const {
-            std::size_t h1 = std::hash<uint64_t>{}(guid.mostSigBits);
-            std::size_t h2 = std::hash<uint64_t>{}(guid.leastSigBits);
-            return h1 ^ (h2 << 1);
-        }
     };
 
     template <typename Generator>
@@ -45,5 +39,16 @@ namespace Engine {
         return guid;
     }
 } // namespace Engine
+
+namespace std {
+    template <>
+    struct hash<Engine::GUID> {
+        size_t operator()(const Engine::GUID &p) const noexcept {
+            std::size_t h1 = std::hash<uint64_t>{}(p.mostSigBits);
+            std::size_t h2 = std::hash<uint64_t>{}(p.leastSigBits);
+            return h1 ^ (h2 << 1);
+        }
+    };
+}
 
 #endif // CORE_GUID_INCLUDED

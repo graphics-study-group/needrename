@@ -2,6 +2,7 @@
 #define ASSET_MATERIAL_MATERIALASSET_INCLUDED
 
 #include <Asset/Asset.h>
+#include <Asset/AssetRef.h>
 #include <Asset/Shader/ShaderAsset.h>
 #include <Reflection/macros.h>
 #include <Reflection/serialization_smart_pointer.h>
@@ -14,7 +15,6 @@
 
 namespace Engine {
     class ObjLoader;
-    class AssetRef;
 
     struct REFL_SER_CLASS(REFL_WHITELIST) MaterialProperty {
         REFL_SER_BODY(MaterialProperty)
@@ -57,7 +57,7 @@ namespace Engine {
         MaterialProperty(int value);
         MaterialProperty(const glm::vec4 &value);
         MaterialProperty(const glm::mat4 &value);
-        MaterialProperty(const std::shared_ptr<AssetRef> &value, Type type);
+        MaterialProperty(const AssetRef &value, Type type);
         virtual ~MaterialProperty() = default;
     };
 
@@ -68,7 +68,7 @@ namespace Engine {
         virtual ~MaterialAsset() = default;
 
         REFL_SER_ENABLE std::string m_name{};
-        REFL_SER_ENABLE std::shared_ptr<AssetRef> m_library{};
+        REFL_SER_ENABLE AssetRef m_library{};
         REFL_SER_ENABLE std::unordered_map<std::string, MaterialProperty> m_properties{};
 
         friend class ObjLoader;

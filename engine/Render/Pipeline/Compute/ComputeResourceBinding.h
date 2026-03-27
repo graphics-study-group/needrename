@@ -11,6 +11,7 @@ namespace vk {
 namespace Engine {
     class StructuredBuffer;
     class ShaderResourceBinding;
+    class ComputeBuffer;
 
     class Texture;
 

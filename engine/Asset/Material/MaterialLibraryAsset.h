@@ -23,7 +23,7 @@ namespace Engine {
         struct REFL_SER_CLASS(REFL_BLACKLIST) MaterialTemplateReference {
             REFL_SER_SIMPLE_STRUCT(MaterialTemplateReference)
             uint32_t expected_mesh_type {};
-            std::shared_ptr <AssetRef> material_template {};
+            AssetRef material_template {};
             
             /// Unused.
             // std::vector <uint32_t> preheat_mesh_types;

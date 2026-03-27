@@ -8,13 +8,17 @@
 #include <Asset/AssetManager/AssetManager.h>
 #include <Asset/AssetRef.h>
 #include <Asset/Loader/Importer.h>
-#include <Asset/Scene/GameObjectAsset.h>
+#include <Asset/Scene/SceneAsset.h>
+#include <Asset/Scene/LevelAsset.h>
 #include <Core/Functional/SDLWindow.h>
+#include <Core/Math/Transform.h>
 #include <Framework/component/RenderComponent/CameraComponent.h>
+#include <Framework/object/GameObject.h>
+#include <Framework/world/Scene.h>
 #include <Framework/world/WorldSystem.h>
 #include <MainClass.h>
-#include <Render/RenderSystem.h>
-#include <Render/Renderer/Camera.h>
+#include <Render/FullRenderSystem.h>
+#include <Render/Pipeline/RenderGraph/ComplexRenderGraphBuilder.h>
 #include <cmake_config.h>
 
 using namespace Engine;
@@ -36,6 +40,8 @@ int main(int argc, char **argv) {
     );
 
     std::filesystem::path mesh_path(ENGINE_ASSETS_DIR);
+    // mesh_path = mesh_path / "meshes" / "sphere.obj";
+    // mesh_path = mesh_path / "meshes" / "cube.obj";
     // mesh_path = mesh_path / "bunny" / "bunny.obj";
     mesh_path = mesh_path / "four_bunny" / "four_bunny.obj";
 
@@ -51,32 +57,48 @@ int main(int argc, char **argv) {
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading project");
     cmc->LoadProject(project_path);
+    auto rgb = std::make_unique<ComplexRenderGraphBuilder>(*cmc->GetRenderSystem());
+    auto [w, h] = cmc->GetWindow()->GetSize();
+    int32_t final_color_id;
+    auto rg = rgb->BuildDefaultRenderGraph(
+        w,
+        h,
+        final_color_id
+    );
+    cmc->SetRenderGraph(rg, final_color_id);
 
-    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Importing external resource");
     std::filesystem::path path_in_project = "/";
     Engine::Importer::ImportExternalResource(mesh_path, path_in_project);
 
+    auto &main_scene = cmc->GetWorldSystem()->GetMainSceneRef();
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading the prefab which has just imported");
     AssetPath prefab_path{*adb, path_in_project / ("GO_" + mesh_path.stem().string() + ".asset")};
     auto prefab_ref = adb->GetNewAssetRef(prefab_path);
-    asys->LoadAssetImmediately(prefab_ref);
-    cmc->GetWorldSystem()->LoadGameObjectAsset(prefab_ref->as<GameObjectAsset>());
+    prefab_ref.as<SceneAsset>()->AddToScene(main_scene);
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Setting up camera");
-    auto camera_go = cmc->GetWorldSystem()->CreateGameObject<GameObject>();
+    auto &camera_go = main_scene.CreateGameObject();
+    camera_go.m_name = "fixed camera";
     Transform transform{};
     transform.SetPosition({0.0f, -0.7f, 0.5f});
+    // transform.SetPosition({0.0f, -3.7f, 2.5f});
     transform.SetRotationEuler(glm::vec3{glm::radians(-30.0f), 0.0f, 0.0f});
-    camera_go->SetTransform(transform);
-    auto camera_comp = camera_go->template AddComponent<CameraComponent>();
-    camera_comp->m_camera->set_aspect_ratio(1.0 * opt.resol_x / opt.resol_y);
-    cmc->GetWorldSystem()->SetActiveCamera(camera_comp->m_camera, &cmc->GetRenderSystem()->GetCameraManager());
-    cmc->GetWorldSystem()->AddGameObjectToWorld(camera_go);
+    camera_go.SetTransform(transform);
+    auto &camera_comp = camera_go.AddComponent<CameraComponent>();
+    camera_comp.m_camera->set_aspect_ratio(1.0 * opt.resol_x / opt.resol_y);
+    cmc->GetWorldSystem()->SetActiveCamera(camera_comp.GetHandle(), &cmc->GetRenderSystem()->GetCameraManager());
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Entering main loop");
     cmc->LoopFinite(max_frame_count, 0.0f);
-
     std::filesystem::remove_all(project_path);
+
+    // cmc->LoopFinite(60, 0.0f);
+    // auto level_asset = adb->GetNewAssetRef(AssetPath{*adb, path_in_project / "default_level.asset"}).as<LevelAsset>();
+    // cmc->GetWorldSystem()->SaveLevelToAsset(*level_asset);
+    // Serialization::Archive archive;
+    // archive.prepare_save();
+    // level_asset->save_asset_to_archive(archive);
+    // adb->SaveArchive(archive, adb->GetAssetPath(level_asset->GetGUID()));
 
     return 0;
 }

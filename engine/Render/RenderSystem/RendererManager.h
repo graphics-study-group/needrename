@@ -1,9 +1,9 @@
 #ifndef RENDER_RENDERSYSTEM_RENDERERMANAGER_INCLUDED
 #define RENDER_RENDERSYSTEM_RENDERERMANAGER_INCLUDED
 
-#include <memory>
 #include <vector>
 #include <glm.hpp>
+#include <Framework/world/Handle.h>
 
 namespace vk {
     class PushConstantRange;
@@ -14,6 +14,7 @@ namespace Engine {
     class RendererComponent;
     class MaterialInstance;
     class IVertexBasedRenderer;
+    class ComponentHandle;
 
     namespace RenderSystemState {
         /**
@@ -73,7 +74,7 @@ namespace Engine {
             /**
              * @brief Register a renderer component to the renderer manager.
              * 
-             * This manager will hereafter hold a owning shared pointer to the
+             * This manager will hereafter hold a ComponentHandle to the
              * component until it being unregistered.
              * 
              * Underlying resource of this renderer component will be allocated
@@ -81,13 +82,13 @@ namespace Engine {
              * But its data will not be submitted to GPU until it is used unless
              * it is explicitly specified to be eagerly loaded.
              */
-            void RegisterRendererComponent(std::shared_ptr<RendererComponent> component);
+            void RegisterRendererComponent(const ComponentHandle & component);
 
             /**
              * @brief Fetch the underlying renderers of this renderer.
              */
             RendererList GetRendererListsFromComponent(
-                const std::shared_ptr <RendererComponent> & component
+                const ComponentHandle & component
             ) const noexcept;
 
             /**
@@ -97,7 +98,7 @@ namespace Engine {
              * `PerformPendingCleanUp()` call, to avoid destroying
              * resources that is still used by GPU.
              */
-            void UnregisterRendererComponent(const std::shared_ptr <RendererComponent> & component);
+            void UnregisterRendererComponent(const ComponentHandle & component);
 
             /**
              * @brief Clear up unregistered renderers from internal data structure, and

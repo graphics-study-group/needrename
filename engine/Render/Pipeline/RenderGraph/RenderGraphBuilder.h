@@ -25,9 +25,10 @@ namespace Engine {
      * Helps to resolve data dependencies between passes and set up barriers.
      */
     class RenderGraphBuilder {
-        RenderSystem & m_system;
         struct impl;
         std::unique_ptr <impl> pimpl;
+    protected:
+        RenderSystem &m_system;
     public:
 
         RenderGraphBuilder(RenderSystem & system);
@@ -160,7 +161,7 @@ namespace Engine {
         /**
          * @brief Create a RenderGraph and reset internal states to default.
          */
-        RenderGraph BuildRenderGraph();
+        std::unique_ptr<RenderGraph> BuildRenderGraph();
 
         /**
          * @brief Build a default render graph.
@@ -168,7 +169,7 @@ namespace Engine {
          * The render graph will have defaulted attachments.
          * Color and depth attachments will always have handle value 0 and 1 respectively.
          */
-        RenderGraph BuildDefaultRenderGraph(
+        std::unique_ptr<RenderGraph> BuildDefaultRenderGraph(
             uint32_t width, uint32_t height,
             GUISystem * gui_system = nullptr
         );

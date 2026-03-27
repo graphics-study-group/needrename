@@ -12,6 +12,8 @@ endmacro()
 
 subdirlist(subdirs ${CMAKE_CURRENT_SOURCE_DIR})
 
-foreach(dir ${subdirs})
-    add_subdirectory(${dir})
-endforeach()
+# foreach(dir ${subdirs})
+#     add_subdirectory(${dir})
+# endforeach()
+add_subdirectory(external_resource_loading_example)
+add_subdirectory(editor_run_game_example)

@@ -8,6 +8,10 @@
 #include "Render/RenderSystem/SubmissionHelper.h"
 #include "Render/Renderer/HomogeneousMesh.h"
 #include "Render/Renderer/StaticHomogeneousMesh.h"
+#include "Framework/world/WorldSystem.h"
+#include "Framework/world/Handle.h"
+#include "Framework/world/Scene.h"
+#include "MainClass.h"
 
 #include <SDL3/SDL.h>
 #include <unordered_set>
@@ -15,14 +19,13 @@
 namespace Engine::RenderSystemState {
     struct RendererManager::impl {
         std::unordered_map <
-            std::shared_ptr <RendererComponent>,
+            ComponentHandle,
             RendererList
         > renderer_components;
 
         std::unordered_map <
             GUID,
-            StaticHomogeneousMesh::StaticHMeshSharedDataBlock,
-            GUIDHash
+            StaticHomogeneousMesh::StaticHMeshSharedDataBlock
         > static_mesh_asset_data_cache;
         
         void ScanForDeallocation() {
@@ -49,12 +52,12 @@ namespace Engine::RenderSystemState {
         std::unordered_map<RendererHandle, RendererDataBlock> m_data;
 
         RendererList CreateHomogeousMeshFromAsset(
-            const std::shared_ptr <RendererComponent> & rc,
-            const std::shared_ptr <AssetRef> & asset,
+            MeshComponent * rc,
+            AssetRef & asset,
             RenderSystem & s
         ) {
             RendererList rl{};
-            auto masset = asset->cas<MeshAsset>();
+            auto masset = asset.cas<MeshAsset>();
             assert(masset);
 
             rl.reserve(masset->GetSubmeshCount());
@@ -68,7 +71,7 @@ namespace Engine::RenderSystemState {
                         i
                     );
                 d.material = rc->GetMaterial(i).get();
-                d.component = rc.get();
+                d.component = rc;
                 d.submesh = &masset->m_submeshes[i];
                 rl.push_back(total_renderer_count);
 
@@ -86,18 +89,18 @@ namespace Engine::RenderSystemState {
         }
 
         RendererList CreateStaticHMesh(
-            const std::shared_ptr <StaticMeshComponent> & rc,
-            const std::shared_ptr <AssetRef> & asset,
+            StaticMeshComponent * rc,
+            AssetRef & asset,
             RenderSystem & s
         ) {
-            auto masset = asset->cas<MeshAsset>();
+            auto masset = asset.cas<MeshAsset>();
             assert(masset);
 
-            if (!static_mesh_asset_data_cache.contains(asset->GetGUID())) {
-                static_mesh_asset_data_cache[asset->GetGUID()].submeshes.resize(masset->GetSubmeshCount());
+            if (!static_mesh_asset_data_cache.contains(asset.GetGUID())) {
+                static_mesh_asset_data_cache[asset.GetGUID()].submeshes.resize(masset->GetSubmeshCount());
             }
 
-            auto & e = static_mesh_asset_data_cache[asset->GetGUID()];
+            auto & e = static_mesh_asset_data_cache[asset.GetGUID()];
             e.refcnt += 1;
 
             RendererList rl{};
@@ -112,7 +115,7 @@ namespace Engine::RenderSystemState {
                         e
                     );
                 d.material = rc->GetMaterial(i).get();
-                d.component = rc.get();
+                d.component = rc;
                 d.submesh = &masset->m_submeshes[i];
                 rl.push_back(total_renderer_count);
 
@@ -134,19 +137,20 @@ namespace Engine::RenderSystemState {
     }
     RendererManager::~RendererManager() = default;
 
-    void RendererManager::RegisterRendererComponent(std::shared_ptr<RendererComponent> component) {
-        SDL_LogDebug(SDL_LOG_CATEGORY_RENDER, "Registering component 0x%p", static_cast<void *>(component.get()));
+    void RendererManager::RegisterRendererComponent(const ComponentHandle &comp_handle) {
+        SDL_LogDebug(SDL_LOG_CATEGORY_RENDER, "Registering component %d in scene %d", comp_handle.GetID(), comp_handle.GetSceneID());
+        auto component = comp_handle.GetComponent();
         // Legacy mesh component
-        if (auto mc = std::dynamic_pointer_cast<MeshComponent>(component)) {
+        if (auto mc = dynamic_cast<MeshComponent*>(component)) {
             auto rl = pimpl->CreateHomogeousMeshFromAsset(
                 mc, mc->m_mesh_asset, m_system
             );
-            pimpl->renderer_components[component] = rl;
-        } else if (auto smc = std::dynamic_pointer_cast<StaticMeshComponent>(component)) {
+            pimpl->renderer_components[comp_handle] = rl;
+        } else if (auto smc = dynamic_cast<StaticMeshComponent*>(component)) {
             auto rl = pimpl->CreateStaticHMesh(
                 smc, smc->m_mesh_asset, m_system
             );
-            pimpl->renderer_components[component] = rl;
+            pimpl->renderer_components[comp_handle] = rl;
         }
         // Unknown component
         else {
@@ -154,14 +158,14 @@ namespace Engine::RenderSystemState {
         }
     }
     RendererList RendererManager::GetRendererListsFromComponent(
-        const std::shared_ptr<RendererComponent> &component
+        const ComponentHandle &component
     ) const noexcept {
         auto itr = pimpl->renderer_components.find(component);
         assert(itr != pimpl->renderer_components.end());
         return itr->second;
     }
     void RendererManager::UnregisterRendererComponent(
-        const std::shared_ptr<RendererComponent> &component
+        const ComponentHandle &component
     ) {
         if (!pimpl->renderer_components.contains(component))    return;
 
@@ -185,8 +189,10 @@ namespace Engine::RenderSystemState {
     RendererList RendererManager::FilterAndSortRenderers(FilterCriteria fc, SortingCriterion sc) {
         assert(sc == SortingCriterion::None && "Unimplemented");
         std::unordered_set <uint32_t> filtered_renderers{};
+        auto &scene = MainClass::GetInstance()->GetWorldSystem()->GetMainSceneRef();
 
-        for (const auto & [rc, rl] : pimpl->renderer_components) {
+        for (const auto & [handle, rl] : pimpl->renderer_components) {
+            auto rc = dynamic_cast<RendererComponent*>(scene.GetComponent(handle));
 
             if ((fc.layer & rc->m_layer) == 0) continue;
             if (fc.is_shadow_caster != FilterCriteria::BinaryCriterion::DontCare) {

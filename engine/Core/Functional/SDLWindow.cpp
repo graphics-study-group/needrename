@@ -17,45 +17,10 @@ namespace Engine {
         }
     }
 
-    void SDLWindow::CreateRenderTargets(std::shared_ptr<RenderSystem> render_system) {
+    std::pair<int, int> SDLWindow::GetSize() const {
         int w, h;
         SDL_GetWindowSizeInPixels(m_window, &w, &h);
-
-        RenderTargetTexture::RenderTargetTextureDesc desc{
-            .dimensions = 2,
-            .width = (uint32_t)w,
-            .height = (uint32_t)h,
-            .depth = 1,
-            .mipmap_levels = 1,
-            .array_layers = 1,
-            .format = RenderTargetTexture::RTTFormat::R8G8B8A8UNorm,
-            .multisample = 1,
-            .is_cube_map = false
-        };
-
-        m_color_texture = RenderTargetTexture::CreateUnique(*render_system, desc, ImageUtils::SamplerDesc{}, "Color attachment");
-        desc.format = RenderTargetTexture::RTTFormat::D32SFLOAT;
-        m_depth_texture = RenderTargetTexture::CreateUnique(*render_system, desc, ImageUtils::SamplerDesc{}, "Depth attachment");
-    }
-
-    vk::Extent2D SDLWindow::GetExtent() const {
-        return {m_color_texture->GetTextureDescription().width, m_color_texture->GetTextureDescription().height};
-    }
-
-    RenderTargetTexture &SDLWindow::GetColorTexture() noexcept {
-        return *m_color_texture;
-    }
-
-    const RenderTargetTexture &SDLWindow::GetColorTexture() const noexcept {
-        return *m_color_texture;
-    }
-
-    RenderTargetTexture &SDLWindow::GetDepthTexture() noexcept {
-        return *m_depth_texture;
-    }
-
-    const RenderTargetTexture &SDLWindow::GetDepthTexture() const noexcept {
-        return *m_depth_texture;
+        return {w, h};
     }
 
     SDL_Window *SDLWindow::GetWindow() {

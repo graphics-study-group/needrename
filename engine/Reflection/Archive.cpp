@@ -9,29 +9,21 @@ namespace Engine {
 
         void Archive::prepare_save() {
             if (m_context->save_prepared) throw std::runtime_error("Archive already initialized");
-            m_context->json["%data"] = Json::object();
+            m_context->json["%main_data"] = Json::object();
             m_context->json["%extra_data"] = Json::array();
-            std::string main_id;
-            main_id = std::string("&") + std::to_string(m_context->current_id);
-            m_context->current_id++;
-            m_context->json["%main_id"] = main_id;
-            m_context->json["%data"][main_id] = Json::object();
-            m_cursor = &m_context->json["%data"][main_id];
+            m_cursor = &m_context->json["%main_data"];
             m_context->save_prepared = true;
         }
 
         void Archive::prepare_load() {
-            std::string str_id = m_context->json["%main_id"].get<std::string>();
-            m_cursor = &m_context->json["%data"][str_id];
+            m_cursor = &m_context->json["%main_data"];
             m_context->load_prepared = true;
         }
 
         void Archive::clear() {
             m_context->json.clear();
             m_context->extra_data.clear();
-            m_context->id_map.clear();
-            m_context->pointer_map.clear();
-            m_context->current_id = 0;
+            m_context->resolvers.clear();
             m_context->save_prepared = false;
             m_context->load_prepared = false;
 

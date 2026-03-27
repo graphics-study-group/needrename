@@ -1,61 +1,30 @@
 #include "SceneWidget.h"
+#include <Asset/AssetDatabase/FileSystemDatabase.h>
+#include <Asset/Scene/LevelAsset.h>
 #include <Core/Functional/SDLWindow.h>
-#include <MainClass.h>
 #include <Framework/world/WorldSystem.h>
-#include <Render/AttachmentUtils.h>
-#include <Render/ImageUtils.h>
+#include <MainClass.h>
+#include <Reflection/serialization.h>
 #include <Render/Memory/RenderTargetTexture.h>
-#include <Render/Pipeline/CommandBuffer/GraphicsCommandBuffer.h>
-#include <Render/Pipeline/CommandBuffer/GraphicsContext.h>
 #include <Render/RenderSystem.h>
 #include <Render/RenderSystem/FrameManager.h>
 #include <Render/RenderSystem/CameraManager.h>
 #include <Render/Renderer/Camera.h>
+
+#include <SDL3/SDL.h>
 #include <backends/imgui_impl_vulkan.h>
+#include <vulkan/vulkan.hpp>
 
 namespace Editor {
     SceneWidget::SceneWidget(const std::string &name) : Widget(name) {
         m_camera.m_camera->m_display_id = 15u;
-        // m_camera.m_transform.SetPosition({0.0f, 0.05f, -0.7f});
-        // m_camera.m_transform.SetRotationEuler(glm::vec3{1.57, 0.0, 3.1415926});
-        // m_camera.m_fov = 45.0f;
-        // m_camera.m_aspect_ratio = 1.0f;
-        // m_camera.m_clipping_near = 1e-3f;
-        // m_camera.m_clipping_far = 1e3f;
-        // m_camera.UpdateViewMatrix();
-        // m_camera.UpdateProjectionMatrix();
         Engine::MainClass::GetInstance()->GetRenderSystem()->GetCameraManager().RegisterCamera(m_camera.m_camera);
     }
 
     SceneWidget::~SceneWidget() {
     }
 
-    void SceneWidget::CreateRenderTargets(std::shared_ptr<Engine::RenderSystem> render_system) {
-        SDL_GetWindowSizeInPixels(
-            Engine::MainClass::GetInstance()->GetWindow()->GetWindow(), &m_texture_width, &m_texture_height
-        );
-        Engine::RenderTargetTexture::RenderTargetTextureDesc tdesc{
-            .dimensions = 2,
-            .width = (uint32_t)m_texture_width,
-            .height = (uint32_t)m_texture_height,
-            .depth = 1,
-            .mipmap_levels = 1,
-            .array_layers = 1,
-            .format = Engine::RenderTargetTexture::RTTFormat::R8G8B8A8UNorm,
-            .is_cube_map = false
-        };
-        Engine::Texture::SamplerDesc sdesc{};
-
-        m_color_texture = Engine::RenderTargetTexture::CreateUnique(*render_system, tdesc, sdesc, "scene color attachment");
-        tdesc.format = Engine::RenderTargetTexture::RTTFormat::D32SFLOAT;
-        m_depth_texture = Engine::RenderTargetTexture::CreateUnique(*render_system, tdesc, sdesc, "scene depth attachment");
-
-        m_color_att_id = reinterpret_cast<ImTextureID>(ImGui_ImplVulkan_AddTexture(
-            m_color_texture->GetSampler(), m_color_texture->GetImageView(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-        ));
-    }
-
-    void SceneWidget::PreRender() {
+    void SceneWidget::Render() {
         float aspect_ratio = static_cast<float>(m_viewport_size.x) / static_cast<float>(m_viewport_size.y);
         m_camera.m_camera->set_aspect_ratio(aspect_ratio);
         if (aspect_ratio > 1.0f) {
@@ -64,51 +33,13 @@ namespace Editor {
             m_camera.m_camera->set_fov_horizontal(m_camera_fov);
         }
 
-        auto context = Engine::MainClass::GetInstance()->GetRenderSystem()->GetFrameManager().GetGraphicsContext();
-        auto &cb = dynamic_cast<Engine::GraphicsCommandBuffer &>(context.GetCommandBuffer());
-        context.UseImage(
-            *m_color_texture,
-            Engine::GraphicsContext::ImageGraphicsAccessType::ColorAttachmentWrite,
-            Engine::GraphicsContext::ImageAccessType::None
-        );
-        context.UseImage(
-            *m_depth_texture,
-            Engine::GraphicsContext::ImageGraphicsAccessType::DepthAttachmentWrite,
-            Engine::GraphicsContext::ImageAccessType::None
-        );
-        context.PrepareCommandBuffer();
-        cb.BeginRendering(
-            {m_color_texture.get(),
-             Engine::TextureSubresourceRange::GetSingleRange(),
-             Engine::AttachmentUtils::LoadOperation::Clear,
-             Engine::AttachmentUtils::StoreOperation::Store},
-            {m_depth_texture.get(),
-             Engine::TextureSubresourceRange::GetSingleRange(),
-             Engine::AttachmentUtils::LoadOperation::Clear,
-             Engine::AttachmentUtils::StoreOperation::DontCare,
-             Engine::AttachmentUtils::DepthClearValue{1.0f, 0U}},
-            {(uint32_t)m_viewport_size.x, (uint32_t)m_viewport_size.y},
-            "Editor Scene Pass"
-        );
-        Engine::MainClass::GetInstance()->GetRenderSystem()->GetCameraManager().SetActiveCameraIndex(
-            m_camera.m_camera->m_display_id
-        );
-        cb.DrawRenderers("",
-            Engine::MainClass::GetInstance()->GetRenderSystem()->GetRendererManager().FilterAndSortRenderers({}),
-            Engine::MainClass::GetInstance()->GetRenderSystem()->GetCameraManager().GetActiveCameraIndex(),
-            {(uint32_t)m_viewport_size.x, (uint32_t)m_viewport_size.y}
-        );
-        cb.EndRendering();
-    }
-
-    void SceneWidget::Render() {
         if (ImGui::Begin(m_name.c_str())) {
             m_viewport_size = ImGui::GetContentRegionAvail();
             ImGui::Image(
                 m_color_att_id,
                 m_viewport_size,
                 ImVec2(0, 0),
-                ImVec2(m_viewport_size.x / m_texture_width, m_viewport_size.y / m_texture_height)
+                ImVec2(m_viewport_size.x / m_texture_size.x, m_viewport_size.y / m_texture_size.y)
             );
 
             if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
@@ -126,7 +57,31 @@ namespace Editor {
                 m_camera.MoveControl(delta_forward, delta_right);
                 m_camera.m_camera->UpdateViewMatrix(m_camera.m_transform);
             }
+
+            if (ImGui::IsWindowFocused() && ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S)) {
+                auto &adb = *std::dynamic_pointer_cast<Engine::FileSystemDatabase>(
+                    Engine::MainClass::GetInstance()->GetAssetDatabase()
+                );
+                auto level_asset = adb.GetNewAssetRef(Engine::AssetPath{adb, "/default_level.asset"}).as<Engine::LevelAsset>();
+                Engine::MainClass::GetInstance()->GetWorldSystem()->SaveLevelToAsset(*level_asset);
+                Engine::Serialization::Archive archive;
+                archive.prepare_save();
+                level_asset->save_asset_to_archive(archive);
+                adb.SaveArchive(archive, adb.GetAssetPath(level_asset->GetGUID()));
+                SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Save level to %s", "/default_level.asset");
+            }
         }
         ImGui::End();
+    }
+
+    void SceneWidget::SetDisplayTexture(const Engine::RenderTargetTexture &texture) {
+        m_color_att_id = reinterpret_cast<ImTextureID>(ImGui_ImplVulkan_AddTexture(
+            texture.GetSampler(), texture.GetImageView(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+        ));
+        m_texture_size = ImVec2(texture.GetTextureDescription().width, texture.GetTextureDescription().height);
+    }
+
+    uint8_t SceneWidget::GetCameraIndex() const {
+        return m_camera.m_camera->m_display_id;
     }
 } // namespace Editor

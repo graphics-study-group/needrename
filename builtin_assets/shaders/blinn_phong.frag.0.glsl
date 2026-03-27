@@ -3,6 +3,9 @@
 #include <engine/interface.glsl>
 
 layout(constant_id = 0) const int SPECULAR_SHADING_MODE = 2;
+layout(constant_id = 1) const float SHADOW_BIAS = 0.005;
+layout(constant_id = 2) const float SHADOW_SAMPLES = 3.0;
+layout(constant_id = 3) const float SHADOW_OFFSET = 0.001;
 
 layout(location = 0) in vec3 frag_color;
 layout(location = 1) in vec2 frag_uv;
@@ -17,57 +20,110 @@ layout(set = 2, binding = 0) uniform Material {
     vec4 ambient_color;
 } material;
 
+// Calculate shadow factor for a given light with PCF anti-aliasing
+float calculateShadow(int lightIndex)
+{
+    // Determine fragment position in light space
+    vec4 frag_position_ls = scene.casting_lights.light_vp_matrix[lightIndex] * vec4(frag_position, 1.0);
+    frag_position_ls.xyz /= frag_position_ls.w;
+    // mapping [-1, 1] to [0, 1] for sampling
+    frag_position_ls.xy *= 0.5;
+    frag_position_ls.xy += 0.5;
+    
+    float shadow = 0.0;
+    int norm = 0;
+    
+    for (float x = -SHADOW_OFFSET; x < SHADOW_OFFSET; x += SHADOW_OFFSET / (SHADOW_SAMPLES * 0.5))
+    {
+        for (float y = -SHADOW_OFFSET; y < SHADOW_OFFSET; y += SHADOW_OFFSET / (SHADOW_SAMPLES * 0.5))
+        {
+            float light_map_depth = texture(light_shadowmaps[lightIndex], frag_position_ls.xy + vec2(x, y)).x;
+            if (frag_position_ls.z - SHADOW_BIAS > light_map_depth)
+                shadow += 1.0;
+            ++norm;
+        }
+    }
+    
+    // Average the shadow samples
+    shadow /= float(norm);
+    // Convert to shadow coefficient (0.0 = fully in shadow, 1.0 = fully lit)
+    return 1.0 - shadow;
+}
+
 void main() {
     vec3 frag_position_vs = (camera.cameras[pc.camera_id].view * vec4(frag_position, 1.0)).xyz;
     // Get normalized normal vector in view space
     vec3 normal_vs = normalize(mat3(camera.cameras[pc.camera_id].view) * frag_normal);
-    // Get normalized incident vector pointing from the light source
-    vec3 incident_vs;
-    if (scene.casting_light_count == 1) {
-        incident_vs = (camera.cameras[pc.camera_id].view * vec4(frag_position - scene.casting_lights.light_source[0].xyz, 1.0)).xyz;
-    } else if (scene.noncasting_light_count == 1) {
-        incident_vs = (camera.cameras[pc.camera_id].view * vec4(frag_position - scene.noncasting_lights.light_source[0].xyz, 1.0)).xyz;
-    }
-    
-    incident_vs = normalize(incident_vs);
     // Get view position in view space
     vec3 view_position_vs = vec3(0.0, 0.0, 0.0);
     // Get view vector
     vec3 view_vs = normalize(view_position_vs - frag_position_vs);
 
-    // Calculate diffuse coefficient
-    float diffuse_coef = max(0.0, dot(-incident_vs, normal_vs));
-
-    // Calculate specular coefficient
-    float shininess = material.specular_color.w;
-    float specular_coef = 0.0;
-    if (SPECULAR_SHADING_MODE == 1) {
-        // Phong shading
-        vec3 reflected = reflect(incident_vs, normal_vs);
-        specular_coef = pow(max(0.0, dot(view_vs, reflected)), shininess);
-    } else if (SPECULAR_SHADING_MODE == 2) {
-        // Blinn Phong shading
-        vec3 halfway = normalize(view_vs - incident_vs);
-        specular_coef = pow(max(0.0, dot(normal_vs, halfway)), shininess);
-    }
-
     // Sample base color
     const vec3 base_color = texture(base_tex, frag_uv).rgb * frag_color;
     const vec3 ambient = material.ambient_color.rgb * base_color;
-    const vec3 light = diffuse_coef * base_color + (specular_coef * material.specular_color.rgb) * base_color;
-    float shadow_coef = 1.0;
-    if (scene.casting_light_count > 0) {
-        // Caculate shadow
-        // Determine fragment position in light space
-        vec4 frag_position_ls = scene.casting_lights.light_vp_matrix[0] * vec4(frag_position, 1.0);
-        frag_position_ls.xyz /= frag_position_ls.w;
-        // mapping [-1, 1] to [0, 1] for sampling
-        frag_position_ls.xy *= 0.5;
-        frag_position_ls.xy += 0.5;
-        float light_map_depth = texture(light_shadowmaps[0], frag_position_ls.xy).x;
+    
+    vec3 totalLight = vec3(0.0);
+    float shininess = material.specular_color.w;
 
-        // Larger depth -> farther -> occluded
-        shadow_coef = (light_map_depth > frag_position_ls.z) ? 1.0 : 0.0;
+    // Process non-casting lights
+    for (int i = 0; i < scene.noncasting_light_count; ++i) {
+        // Get normalized incident vector pointing from the light source
+        vec3 incident_vs = vec3(0.0);
+        if (scene.noncasting_lights.light_source[i].w == 0.0) // 0: directional light
+            incident_vs = normalize(mat3(camera.cameras[pc.camera_id].view) * scene.noncasting_lights.light_source[i].xyz);
+        else if (scene.noncasting_lights.light_source[i].w != 0.0) // 1: point light
+            incident_vs = normalize((camera.cameras[pc.camera_id].view * vec4(frag_position - scene.noncasting_lights.light_source[i].xyz, 1.0)).xyz);
+
+        // Calculate diffuse coefficient
+        float diffuse_coef = max(0.0, dot(-incident_vs, normal_vs));
+
+        // Calculate specular coefficient
+        float specular_coef = 0.0;
+        if (SPECULAR_SHADING_MODE == 1) {
+            // Phong shading
+            vec3 reflected = reflect(incident_vs, normal_vs);
+            specular_coef = pow(max(0.0, dot(view_vs, reflected)), shininess);
+        } else if (SPECULAR_SHADING_MODE == 2) {
+            // Blinn Phong shading
+            vec3 halfway = normalize(view_vs - incident_vs);
+            specular_coef = pow(max(0.0, dot(normal_vs, halfway)), shininess);
+        }
+
+        // Calculate light color
+        vec3 light_color = scene.noncasting_lights.light_color[i].rgb;
+        vec3 light = diffuse_coef * base_color * light_color + (specular_coef * material.specular_color.rgb) * base_color * light_color;
+        totalLight += light;
     }
-    outColor = vec4(ambient + shadow_coef * light, 1.0);
+
+    // Process casting lights (directional lights)
+    for (int i = 0; i < scene.casting_light_count; ++i) {
+        // Get normalized incident vector pointing from the light source
+        vec3 incident_vs = normalize(mat3(camera.cameras[pc.camera_id].view) * scene.casting_lights.light_source[i].xyz);
+
+        // Calculate diffuse coefficient
+        float diffuse_coef = max(0.0, dot(-incident_vs, normal_vs));
+
+        // Calculate specular coefficient
+        float specular_coef = 0.0;
+        if (SPECULAR_SHADING_MODE == 1) {
+            // Phong shading
+            vec3 reflected = reflect(incident_vs, normal_vs);
+            specular_coef = pow(max(0.0, dot(view_vs, reflected)), shininess);
+        } else if (SPECULAR_SHADING_MODE == 2) {
+            // Blinn Phong shading
+            vec3 halfway = normalize(view_vs - incident_vs);
+            specular_coef = pow(max(0.0, dot(normal_vs, halfway)), shininess);
+        }
+
+        // Calculate shadow factor with PCF anti-aliasing
+        float shadow_coef = calculateShadow(i);
+
+        // Calculate light color
+        vec3 light_color = scene.casting_lights.light_color[i].rgb;
+        vec3 light = diffuse_coef * base_color * light_color + (specular_coef * material.specular_color.rgb) * base_color * light_color;
+        totalLight += shadow_coef * light;
+    }
+
+    outColor = vec4(ambient + totalLight, 1.0);
 }

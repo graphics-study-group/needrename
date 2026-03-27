@@ -28,7 +28,7 @@ class TestMeshComponent : public MeshComponent {
     Transform transform;
 
 public:
-    TestMeshComponent(std::shared_ptr<Material> mat) : MeshComponent(std::weak_ptr<GameObject>()), transform() {
+    TestMeshComponent(std::shared_ptr<Material> mat) : MeshComponent(0), transform() {
         m_materials.push_back(mat);
         m_submeshes.push_back(std::make_shared<TestHomoMesh>(m_system));
         m_submeshes[0]->Prepare();

@@ -1,21 +1,20 @@
 {
-    "%data": {
-        "&0": {
-            "%type": "Engine::MaterialLibraryAsset",
-            "Asset::m_guid": "CC90BD98BB3190F9AACD4CC3D6162782",
-            "MaterialLibraryAsset::m_name": "Blinn-Phong",
-            "MaterialLibraryAsset::material_bundle": {
-                "": {
-                    "%type": "Engine::MaterialLibraryAsset::MaterialTemplateReference",
-                    "MaterialTemplateReference::expected_mesh_type": 1,
-                    "MaterialTemplateReference::material_template": "&1"
-                }
+    "%main_data": {
+        "%type": "Engine::MaterialLibraryAsset",
+        "Asset::m_guid": "E335281ABE3F1FA9788F074FF218FF71",
+        "MaterialLibraryAsset::m_name": "Blinn-Phong",
+        "MaterialLibraryAsset::material_bundle": {
+            "Lit": {
+                "%type": "Engine::MaterialLibraryAsset::MaterialTemplateReference",
+                "MaterialTemplateReference::expected_mesh_type": 0,
+                "MaterialTemplateReference::material_template": "8343954977BA6A7CF658BFEE421AD515"
+            },
+            "Shadowmap": {
+                "%type": "Engine::MaterialLibraryAsset::MaterialTemplateReference",
+                "MaterialTemplateReference::expected_mesh_type": 0,
+                "MaterialTemplateReference::material_template": "0A31C596A3B9DB54881FA9550A82311C"
             }
-        },
-        "&1": {
-            "%type": "Engine::AssetRef",
-            "AssetRef::m_guid": "8343954977BA6A7CF658BFEE421AD515"
         }
     },
-    "%main_id": "&0"
+    "%extra_data": []
 }

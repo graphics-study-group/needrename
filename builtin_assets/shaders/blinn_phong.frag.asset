@@ -1,15 +1,13 @@
 {
-    "%data": {
-        "&0": {
-            "%type": "Engine::ShaderAsset",
-            "Asset::m_guid": "9B381210B6EF92D084CBEB4E09F3D652",
-            "ShaderAsset::m_name": "blinn_phong.frag",
-            "ShaderAsset::m_entry_point": "main",
-            "ShaderAsset::shaderType": "Fragment",
-            "ShaderAsset::storeType": "GLSL",
-            "glsl_extra_data_id": 0,
-            "binary_extra_data_id": 1
-        }
+    "%main_data": {
+        "%type": "Engine::ShaderAsset",
+        "Asset::m_guid": "9B381210B6EF92D084CBEB4E09F3D652",
+        "ShaderAsset::m_name": "blinn_phong.frag",
+        "ShaderAsset::m_entry_point": "main",
+        "ShaderAsset::shaderType": "Fragment",
+        "ShaderAsset::storeType": "GLSL",
+        "glsl_extra_data_id": 0,
+        "binary_extra_data_id": 1
     },
     "%extra_data": [
         {
@@ -18,6 +16,5 @@
         {
             "%extension": ".spv"
         }
-    ],
-    "%main_id": "&0"
+    ]
 }
