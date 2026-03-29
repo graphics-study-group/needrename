@@ -4,7 +4,8 @@
 #include <Reflection/serialization.h>
 
 namespace Engine {
-    Component::Component(const GameObject &parent) : m_parentGameObject(parent.GetHandle()), m_scene(parent.GetScene()) {
+    Component::Component(const GameObject &parent) :
+        m_parentGameObject(parent.GetHandle()), m_scene(parent.GetScene()) {
     }
 
     void Component::Init() {

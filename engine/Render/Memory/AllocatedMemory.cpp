@@ -1,7 +1,7 @@
 #include "AllocatedMemory.h"
 
-#include <vulkan/vulkan.hpp>
 #include <vk_mem_alloc.h>
+#include <vulkan/vulkan.hpp>
 
 namespace Engine {
 
@@ -56,19 +56,15 @@ namespace Engine {
     };
 
     ImageAllocation::ImageAllocation(
-        vk::Image image, 
-        VmaAllocation allocation, 
-        VmaAllocator allocator,
-        ImageMemoryType type
+        vk::Image image, VmaAllocation allocation, VmaAllocator allocator, ImageMemoryType type
     ) : AllocatedMemory(allocation, allocator), pimpl(std::make_unique<impl>(image, type)) {
     }
     ImageAllocation::~ImageAllocation() {
         if (pimpl->image) vmaDestroyImage(GetAllocator(), pimpl->image, GetAllocation());
     }
 
-    ImageAllocation::ImageAllocation(
-        ImageAllocation &&other
-    ) noexcept : AllocatedMemory(std::move(other)), pimpl(std::make_unique<impl>(other.pimpl->image, other.pimpl->type)) {
+    ImageAllocation::ImageAllocation(ImageAllocation &&other) noexcept :
+        AllocatedMemory(std::move(other)), pimpl(std::make_unique<impl>(other.pimpl->image, other.pimpl->type)) {
         other.pimpl->image = nullptr;
     }
 
@@ -93,33 +89,30 @@ namespace Engine {
     struct BufferAllocation::impl {
         vk::Buffer buffer;
         BufferType type;
-        std::byte * mapped_ptr;
+        std::byte *mapped_ptr;
     };
     BufferAllocation::BufferAllocation(
-        vk::Buffer buffer, 
-        VmaAllocation allocation, 
-        VmaAllocator allocator,
-        BufferType type
+        vk::Buffer buffer, VmaAllocation allocation, VmaAllocator allocator, BufferType type
     ) : AllocatedMemory(allocation, allocator), pimpl(std::make_unique<impl>(buffer, type, nullptr)) {
     }
     BufferAllocation::~BufferAllocation() {
-        if(pimpl->buffer) {
+        if (pimpl->buffer) {
             if (pimpl->mapped_ptr) {
                 vmaUnmapMemory(GetAllocator(), GetAllocation());
             }
             vmaDestroyBuffer(GetAllocator(), pimpl->buffer, GetAllocation());
         }
     }
-    BufferAllocation::BufferAllocation(
-        BufferAllocation &&other
-    ) noexcept : AllocatedMemory(std::move(other)), pimpl(std::make_unique<impl>(other.pimpl->buffer, other.pimpl->type, other.pimpl->mapped_ptr)) {
+    BufferAllocation::BufferAllocation(BufferAllocation &&other) noexcept :
+        AllocatedMemory(std::move(other)),
+        pimpl(std::make_unique<impl>(other.pimpl->buffer, other.pimpl->type, other.pimpl->mapped_ptr)) {
         other.pimpl->buffer = nullptr;
         other.pimpl->mapped_ptr = nullptr;
     }
     BufferAllocation &BufferAllocation::operator=(BufferAllocation &&other) noexcept {
         if (&other != this) {
             // XXX: Ugly, try copy-and-swap idiom.
-            if(pimpl->buffer) {
+            if (pimpl->buffer) {
                 if (pimpl->mapped_ptr) {
                     vmaUnmapMemory(GetAllocator(), GetAllocation());
                 }

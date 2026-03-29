@@ -8,24 +8,19 @@ namespace Engine {
         uint32_t slices;
 
         size_t aligned_slice_size;
-        std::byte * base_ptr;
+        std::byte *base_ptr;
     };
 
     IndexedBuffer::IndexedBuffer(
-        BufferAllocation && alloc, 
+        BufferAllocation &&alloc,
         size_t size,
         size_t slice_size,
         size_t slice_alignment,
         uint32_t slices,
         size_t aligned_slice_size
-    ) : DeviceBuffer(std::move(alloc), size), 
-        pimpl(std::make_unique<IndexedBuffer::impl>(
-            slice_size, 
-            slice_alignment, 
-            slices, 
-            aligned_slice_size, 
-            nullptr
-        )) {
+    ) :
+        DeviceBuffer(std::move(alloc), size),
+        pimpl(std::make_unique<IndexedBuffer::impl>(slice_size, slice_alignment, slices, aligned_slice_size, nullptr)) {
         pimpl->base_ptr = DeviceBuffer::GetVMAddress();
     }
 
@@ -36,7 +31,7 @@ namespace Engine {
     IndexedBuffer::~IndexedBuffer() = default;
 
     IndexedBuffer IndexedBuffer::Create(
-        const RenderSystemState::AllocatorState & allocator,
+        const RenderSystemState::AllocatorState &allocator,
         BufferType type,
         size_t slice_size,
         size_t slice_alignment,
@@ -47,7 +42,7 @@ namespace Engine {
             slice_alignment ? ((slice_size + slice_alignment - 1) & ~(slice_alignment - 1)) : slice_size;
 
         return IndexedBuffer(
-            allocator.AllocateBuffer(type, aligned_size * slices, name), 
+            allocator.AllocateBuffer(type, aligned_size * slices, name),
             aligned_size * slices,
             slice_size,
             slice_alignment,
@@ -57,7 +52,7 @@ namespace Engine {
     }
 
     std::unique_ptr<IndexedBuffer> IndexedBuffer::CreateUnique(
-        const RenderSystemState::AllocatorState & allocator,
+        const RenderSystemState::AllocatorState &allocator,
         BufferType type,
         size_t slice_size,
         size_t slice_alignment,
@@ -68,13 +63,13 @@ namespace Engine {
             slice_alignment ? ((slice_size + slice_alignment - 1) & ~(slice_alignment - 1)) : slice_size;
 
         return std::unique_ptr<IndexedBuffer>(new IndexedBuffer(
-                allocator.AllocateBuffer(type, aligned_size * slices, name), 
-                aligned_size * slices,
-                slice_size,
-                slice_alignment,
-                slices,
-                aligned_size
-            ));
+            allocator.AllocateBuffer(type, aligned_size * slices, name),
+            aligned_size * slices,
+            slice_size,
+            slice_alignment,
+            slices,
+            aligned_size
+        ));
     }
 
     size_t IndexedBuffer::GetSliceSize() const noexcept {

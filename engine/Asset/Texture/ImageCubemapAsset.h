@@ -27,7 +27,7 @@ namespace Engine {
          * X+, X-, Y+, Y-, Z+, Z-. Physical meaning of the orientation (e.g. front or back)
          * is determined in the shader code which samples the image.
          */
-        void LoadFromFile(const std::array <std::filesystem::path, 6> & paths);
+        void LoadFromFile(const std::array<std::filesystem::path, 6> &paths);
         const std::byte *GetPixelData() const;
         size_t GetPixelDataSize() const;
 
@@ -41,7 +41,6 @@ namespace Engine {
     protected:
         std::vector<std::byte> m_data{};
     };
-}
-
+} // namespace Engine
 
 #endif // ASSET_TEXTURE_IMAGECUBEMAPASSET_INCLUDED

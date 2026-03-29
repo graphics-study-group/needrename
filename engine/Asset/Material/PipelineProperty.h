@@ -30,7 +30,7 @@ namespace Engine {
             /**
              * @brief Depth bias slope factor.
              * Mostly used for shadow maps.
-             * 
+             *
              * If any of `depth_bias_slope` and `depth_bias_constant` is
              * not applicable (e.g. NaNs or Infs) or they are both zero,
              * depth bias will be disabled for the created pipeline.
@@ -40,7 +40,7 @@ namespace Engine {
             /**
              * @brief Depth bias constant factor.
              * Mostly used for shadow maps.
-             * 
+             *
              * If any of `depth_bias_slope` and `depth_bias_constant` is
              * not applicable (e.g. NaNs or Infs) or they are both zero,
              * depth bias will be disabled for the created pipeline.
@@ -107,9 +107,7 @@ namespace Engine {
             /// We are supporting `int` (`int32_t`) only.
             /// `bool` is not supported, but you can use `int` instead.
             /// `float` is not supported until `std::variant` reflection is supported.
-            std::unordered_map <
-                uint32_t, int32_t
-            > specialization_constants {};
+            std::unordered_map<uint32_t, int32_t> specialization_constants{};
         };
 
         /// @brief C.f.

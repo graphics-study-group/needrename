@@ -18,7 +18,7 @@ namespace Engine {
             using CmdOperation = std::function<void(vk::CommandBuffer)>;
 
         private:
-            RenderSystem & m_system;
+            RenderSystem &m_system;
             struct impl;
             std::unique_ptr<impl> pimpl;
 
@@ -28,42 +28,39 @@ namespace Engine {
 
             /**
              * @brief Enqueue a buffer uploading.
-             * 
+             *
              * @param data Host-side buffer containing all data.
              */
-            void EnqueueBufferSubmission(const DeviceBuffer & buffer, std::vector<std::byte> && data);
+            void EnqueueBufferSubmission(const DeviceBuffer &buffer, std::vector<std::byte> &&data);
 
             /**
              * @brief Enqueue a buffer uploading.
-             * 
+             *
              * @param data Host-side buffer containing all data.
              * Data are immediately copied to a staging buffer.
              * It is safe to free this buffer after calling this method.
              */
-            void EnqueueBufferSubmission(const DeviceBuffer & buffer, const std::vector<std::byte> &data);
+            void EnqueueBufferSubmission(const DeviceBuffer &buffer, const std::vector<std::byte> &data);
 
             /**
              * @brief Enqueue a buffer uploading.
-             * 
+             *
              * This method functions the same as `EnqueueBufferSubmission`,
              * except that the uploaded buffer is considered a vertex & index
              * buffer, and is synchronized as such.
              */
-            void EnqueueBufferSubmissionVertex(
-                const DeviceBuffer & vertex_buffer,
-                const std::vector <std::byte> & data
-            );
+            void EnqueueBufferSubmissionVertex(const DeviceBuffer &vertex_buffer, const std::vector<std::byte> &data);
 
             /***
              * @brief Enqueue a vertex buffer uploading.
              * Record corresponding memory
              * barriers and buffer writes to a disposable command buffer at the beginning of a frame.
              * A staging buffer is created, and will be de-allocated at the end of the frame.
-             * 
+             *
              * Vertex data are copied into the staging buffer immediately.
              * You can free the underlying vertex asset after calling this method,
              * so long as you are sure that it will not be evicted from GPU memory.
-             * 
+             *
              * @param mesh A homogeneous mesh whose vertex buffer is to be updated.
              */
             [[deprecated("Use EnqueueBufferSubmissionVertex() method instead.")]]
@@ -72,14 +69,14 @@ namespace Engine {
             /***
              * @brief Enqueue a texture buffer submission. Record corresponding image
              * barriers and buffer writes to a disposable command buffer.
-             * 
+             *
              * A staging buffer is created, and will be de-allocated at the end of the frame.
              * The layout of the image will be transferred to optimal for shader read after submission.
              *
-             * Only color aspect and the very first level of mipmap is considered for submission, 
+             * Only color aspect and the very first level of mipmap is considered for submission,
              * and no blitting or mipmap generation is recorded, which means that the data must
              * cover the whole image size and all array layers.
-             * 
+             *
              * @param texture
              * @param data
              * Linearized buffer data. Refer to
@@ -93,13 +90,13 @@ namespace Engine {
 
             /**
              * @brief Enqueue a texture clear operation.
-             * Record corresponding image barriers to a disposable command buffer, and issue a clear 
-             * operation. The layout of the image will be transferred to optimal for shader read 
+             * Record corresponding image barriers to a disposable command buffer, and issue a clear
+             * operation. The layout of the image will be transferred to optimal for shader read
              * after clear operation.
              *
              * Useful for creating a blank default texture.
              * Only color aspect is cleared. All mipmap levels and arrays are cleared.
-             * 
+             *
              * @param texture
              * @param color
              */
@@ -110,18 +107,18 @@ namespace Engine {
             /***
              * @brief Execute staged submissions.
              *
-             * Allocated a new command buffer if needed, record all pending operations, and 
+             * Allocated a new command buffer if needed, record all pending operations, and
              * submit the buffer to the graphics queue allocated by the render system.
-             * 
-             * @warning This method uses internal synchronization mechanisms to ensure 
-             * correct memory dependency. Unexpected call-sites will likely results in 
+             *
+             * @warning This method uses internal synchronization mechanisms to ensure
+             * correct memory dependency. Unexpected call-sites will likely results in
              * synchronization failure.
              */
             void ExecuteSubmission();
 
             /**
              * @brief Immediately execute staged submissions.
-             * 
+             *
              * Use this method sparingly, as it causes CPU to stall and wait for all submission.
              */
             void ExecuteSubmissionImmediately();

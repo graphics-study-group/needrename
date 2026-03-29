@@ -14,7 +14,8 @@ namespace Engine {
 
         ComponentDelegate(const ComponentDelegate &) = default;
         template <typename T>
-        ComponentDelegate(Scene &scene, ComponentHandle comp, void (T::*method)(Args...)) : m_scene(scene), m_comp(comp) {
+        ComponentDelegate(Scene &scene, ComponentHandle comp, void (T::*method)(Args...)) :
+            m_scene(scene), m_comp(comp) {
             auto ptr = m_scene.GetComponent<T>(m_comp);
             m_function = [ptr, method](Args... args) { (ptr->*method)(args...); };
         }

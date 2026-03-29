@@ -3,17 +3,17 @@
 #include <chrono>
 #include <fstream>
 
-#include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include "Asset/AssetManager/AssetManager.h"
 #include "Asset/Material/MaterialTemplateAsset.h"
 #include "Asset/Mesh/PlaneMeshAsset.h"
 #include "Asset/Texture/Image2DTextureAsset.h"
-#include "Framework/component/RenderComponent/MeshComponent.h"
 #include "Core/Functional/SDLWindow.h"
-#include "UserInterface/GUISystem.h"
+#include "Framework/component/RenderComponent/MeshComponent.h"
 #include "MainClass.h"
 #include "Render/FullRenderSystem.h"
 #include "Render/Renderer/HomogeneousMesh.h"
+#include "UserInterface/GUISystem.h"
+#include <Asset/AssetDatabase/FileSystemDatabase.h>
 
 #include "cmake_config.h"
 
@@ -23,7 +23,7 @@ namespace sch = std::chrono;
 constexpr glm::mat4 EYE4 = glm::mat4(1.0f);
 
 struct LowerPlaneMeshAsset : public PlaneMeshAsset {
-    constexpr static std::array <float, 12> REPLACEMENT_POSITION = {
+    constexpr static std::array<float, 12> REPLACEMENT_POSITION = {
         1.0f, -1.0f, 0.5f, 1.0f, 1.0f, 0.5f, -1.0f, 1.0f, 0.5f, -1.0f, -1.0f, 0.5f
     };
 
@@ -32,30 +32,26 @@ struct LowerPlaneMeshAsset : public PlaneMeshAsset {
         // Replace position buffer
         std::memcpy(
             reinterpret_cast<std::byte *>(m_submeshes[0].m_vertex_attributes.data())
-            + this->m_submeshes[0].positions.buffer_offset,
+                + this->m_submeshes[0].positions.buffer_offset,
             reinterpret_cast<const std::byte *>(REPLACEMENT_POSITION.data()),
             this->m_submeshes[0].positions.buffer_size
         );
         // Reverse vertex normal
-        float * nb{reinterpret_cast<float *>(
-            m_submeshes[0].m_vertex_attributes.data() 
-            + m_submeshes[0].normal.buffer_offset
-        )};
-        float * ne{reinterpret_cast<float *>(
-            m_submeshes[0].m_vertex_attributes.data() 
-            + m_submeshes[0].normal.buffer_offset 
+        float *nb{
+            reinterpret_cast<float *>(m_submeshes[0].m_vertex_attributes.data() + m_submeshes[0].normal.buffer_offset)
+        };
+        float *ne{reinterpret_cast<float *>(
+            m_submeshes[0].m_vertex_attributes.data() + m_submeshes[0].normal.buffer_offset
             + m_submeshes[0].normal.buffer_size
         )};
-        for (float * i = nb; i < ne; i += 3) {
+        for (float *i = nb; i < ne; i += 3) {
             *(i + 2) = -1.0f;
         };
     }
 };
 
 std::pair<MaterialLibraryAsset *, MaterialTemplateAsset *> ConstructMaterial() {
-    auto adb = std::dynamic_pointer_cast<FileSystemDatabase>(
-        MainClass::GetInstance()->GetAssetDatabase()
-    );
+    auto adb = std::dynamic_pointer_cast<FileSystemDatabase>(MainClass::GetInstance()->GetAssetDatabase());
     auto am = MainClass::GetInstance()->GetAssetManager();
     auto test_asset = am->CreateAsset<MaterialTemplateAsset>();
     auto lib_asset = am->CreateAsset<MaterialLibraryAsset>();
@@ -76,9 +72,7 @@ std::pair<MaterialLibraryAsset *, MaterialTemplateAsset *> ConstructMaterial() {
     mtspp.attachments.color_blending = {cbp};
     mtspp.attachments.depth = ImageUtils::ImageFormat::D32SFLOAT;
     mtspp.shaders.shaders = std::vector<AssetRef>{vs_ref, fs_ref};
-    mtspp.shaders.specialization_constants = {
-        {0, 1}
-    };
+    mtspp.shaders.specialization_constants = {{0, 1}};
 
     test_asset->properties = mtspp;
 
@@ -107,50 +101,52 @@ std::unique_ptr<RenderGraph> BuildRenderGraph(
     auto d = rgb.ImportExternalResource(*depth);
     rgb.UseImage(c, IAT::ColorAttachmentWrite);
     rgb.UseImage(d, IAT::DepthStencilAttachmentWrite);
-    rgb.RecordRasterizerPassWithoutRT([rsys, color, depth, material, mesh](GraphicsCommandBuffer &gcb, const RenderGraph &) {
-        auto extent = rsys->GetSwapchain().GetExtent();
-        gcb.BeginRendering(
-            AttachmentUtils::AttachmentDescription{
-                color, 
-                TextureSubresourceRange::GetSingleRange(), 
-                AttachmentUtils::LoadOperation::Clear, 
-                AttachmentUtils::StoreOperation::Store
-            },
-            AttachmentUtils::AttachmentDescription{
-                depth,
-                TextureSubresourceRange::GetSingleRange(),
-                AttachmentUtils::LoadOperation::Clear,
-                AttachmentUtils::StoreOperation::DontCare,
-                AttachmentUtils::DepthClearValue{1.0f, 0U}
-            },
-            extent
-        );
+    rgb.RecordRasterizerPassWithoutRT(
+        [rsys, color, depth, material, mesh](GraphicsCommandBuffer &gcb, const RenderGraph &) {
+            auto extent = rsys->GetSwapchain().GetExtent();
+            gcb.BeginRendering(
+                AttachmentUtils::AttachmentDescription{
+                    color,
+                    TextureSubresourceRange::GetSingleRange(),
+                    AttachmentUtils::LoadOperation::Clear,
+                    AttachmentUtils::StoreOperation::Store
+                },
+                AttachmentUtils::AttachmentDescription{
+                    depth,
+                    TextureSubresourceRange::GetSingleRange(),
+                    AttachmentUtils::LoadOperation::Clear,
+                    AttachmentUtils::StoreOperation::DontCare,
+                    AttachmentUtils::DepthClearValue{1.0f, 0U}
+                },
+                extent
+            );
 
-        PipelineRuntimeInfo pri{};
-        pri.va = mesh->GetVertexAttributeFormat();
-        pri.color_attachment_format[0] = color->GetTextureDescription().format;
-        pri.color_attachment_format[1] = ImageUtils::ImageFormat::UNDEFINED;
-        pri.depth_stencil_attachment_format = depth->GetTextureDescription().format;
+            PipelineRuntimeInfo pri{};
+            pri.va = mesh->GetVertexAttributeFormat();
+            pri.color_attachment_format[0] = color->GetTextureDescription().format;
+            pri.color_attachment_format[1] = ImageUtils::ImageFormat::UNDEFINED;
+            pri.depth_stencil_attachment_format = depth->GetTextureDescription().format;
 
-        gcb.SetupViewport(extent.width, extent.height, {{0, 0}, extent});
-        gcb.BindSceneResources(rsys->GetSceneDataManager());
-        gcb.BindCameraResources(rsys->GetCameraManager());
-        auto tpl = material->GetLibrary().FindMaterialTemplate("", pri);
-        assert(tpl);
-        gcb.BindMaterial(*material, *tpl);
-        // Push model matrix...
-        vk::CommandBuffer rcb = gcb.GetCommandBuffer();
-        rcb.pushConstants(
-            material->GetLibrary().FindMaterialTemplate("", pri)->GetPipelineLayout(),
-            vk::ShaderStageFlagBits::eAllGraphics,
-            0,
-            sizeof (RenderSystemState::RendererManager::RendererDataStruct),
-            reinterpret_cast<const void *>(&EYE4)
-        );
-        gcb.DrawMesh(*mesh);
+            gcb.SetupViewport(extent.width, extent.height, {{0, 0}, extent});
+            gcb.BindSceneResources(rsys->GetSceneDataManager());
+            gcb.BindCameraResources(rsys->GetCameraManager());
+            auto tpl = material->GetLibrary().FindMaterialTemplate("", pri);
+            assert(tpl);
+            gcb.BindMaterial(*material, *tpl);
+            // Push model matrix...
+            vk::CommandBuffer rcb = gcb.GetCommandBuffer();
+            rcb.pushConstants(
+                material->GetLibrary().FindMaterialTemplate("", pri)->GetPipelineLayout(),
+                vk::ShaderStageFlagBits::eAllGraphics,
+                0,
+                sizeof(RenderSystemState::RendererManager::RendererDataStruct),
+                reinterpret_cast<const void *>(&EYE4)
+            );
+            gcb.DrawMesh(*mesh);
 
-        gcb.EndRendering();
-    });
+            gcb.EndRendering();
+        }
+    );
 
     if (blurred && kernel) {
         auto gb = rgb.ImportExternalResource(*blurred);
@@ -220,14 +216,12 @@ int main(int argc, char **argv) {
     // Submit scene data
     rsys->GetCameraManager().WriteCameraMatrices(glm::mat4{1.0f}, glm::mat4{1.0f});
     rsys->GetSceneDataManager().SetLightDirectionalNonShadowCasting(
-        0, 
-        glm::vec3{-5.0f, -5.0f, -5.0f}, 
-        glm::vec3{1.0, 1.0, 1.0}
+        0, glm::vec3{-5.0f, -5.0f, -5.0f}, glm::vec3{1.0, 1.0, 1.0}
     );
     rsys->GetSceneDataManager().SetLightCountNonShadowCasting(1);
 
     // Prepare attachments
-    
+
     RenderTargetTexture::RenderTargetTextureDesc desc{
         .dimensions = 2,
         .width = 1920,
@@ -240,7 +234,8 @@ int main(int argc, char **argv) {
         .is_cube_map = false
     };
     std::shared_ptr color = RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Color Attachment");
-    std::shared_ptr postproc = RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Gaussian Blurred");
+    std::shared_ptr postproc =
+        RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Gaussian Blurred");
     desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::D32SFLOAT;
     std::shared_ptr depth = RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Depth Attachment");
 
@@ -254,12 +249,16 @@ int main(int argc, char **argv) {
     kbinding.GetShaderResourceBinding().BindTexture("inputImage", *color);
     kbinding.GetShaderResourceBinding().BindTexture("outputImage", *postproc);
 
-    auto nonblur{BuildRenderGraph(rsys.get(), color.get(), depth.get(),
-        test_material_instance.get(), &test_mesh)
-    };
+    auto nonblur{BuildRenderGraph(rsys.get(), color.get(), depth.get(), test_material_instance.get(), &test_mesh)};
     auto blur{BuildRenderGraph(
-        rsys.get(), color.get(), depth.get(), test_material_instance.get(),
-        &test_mesh, postproc.get(), &cstage, &kbinding
+        rsys.get(),
+        color.get(),
+        depth.get(),
+        test_material_instance.get(),
+        &test_mesh,
+        postproc.get(),
+        &cstage,
+        &kbinding
     )};
 
     bool quited = false;
@@ -293,8 +292,9 @@ int main(int argc, char **argv) {
 
         rsys->CompleteFrame(
             has_gaussian_blur ? *postproc : *color,
-            has_gaussian_blur ? MemoryAccessTypeImageBits::ShaderRandomWrite : MemoryAccessTypeImageBits::ColorAttachmentWrite,
-            postproc->GetTextureDescription().width, 
+            has_gaussian_blur ? MemoryAccessTypeImageBits::ShaderRandomWrite
+                              : MemoryAccessTypeImageBits::ColorAttachmentWrite,
+            postproc->GetTextureDescription().width,
             postproc->GetTextureDescription().height
         );
 

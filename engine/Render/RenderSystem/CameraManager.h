@@ -9,7 +9,7 @@ namespace vk {
     class DescriptorSet;
     class DescriptorSetLayout;
     class PipelineLayout;
-}
+} // namespace vk
 
 namespace Engine {
     class RenderSystem;
@@ -23,14 +23,15 @@ namespace Engine {
         class CameraManager {
         public:
             static constexpr uint32_t MAX_CAMERAS = 16;
+
         private:
             uint32_t m_active_camera_index{};
-            RenderSystem & m_system;
+            RenderSystem &m_system;
             struct impl;
-            std::unique_ptr <impl> pimpl;
-        public:
+            std::unique_ptr<impl> pimpl;
 
-            CameraManager(RenderSystem & system) noexcept;
+        public:
+            CameraManager(RenderSystem &system) noexcept;
             ~CameraManager() noexcept;
 
             void Create();
@@ -39,12 +40,12 @@ namespace Engine {
              * @brief Manually write new camera matrices to currently active camera.
              * Effectively calls `WriteCameraMatrices(GetActiveCameraIndex(), ...)`.
              */
-            void WriteCameraMatrices(const glm::mat4 & view_matrix, const glm::mat4 & projection_matrix);
+            void WriteCameraMatrices(const glm::mat4 &view_matrix, const glm::mat4 &projection_matrix);
 
             /**
              * @brief Manually write new camera matrices to a camera.
              */
-            void WriteCameraMatrices(uint32_t index, const glm::mat4 & view_matrix, const glm::mat4 & projection_matrix);
+            void WriteCameraMatrices(uint32_t index, const glm::mat4 &view_matrix, const glm::mat4 &projection_matrix);
 
             /**
              * @brief Upload camera data for a given frame in flight index.
@@ -53,10 +54,10 @@ namespace Engine {
 
             /**
              * @brief Register a new camera into the manager, possibly substituting an old one.
-             * 
+             *
              * Pass an empty pointer to unregister all cameras.
              */
-            void RegisterCamera(std::weak_ptr <Camera> camera) noexcept;
+            void RegisterCamera(std::weak_ptr<Camera> camera) noexcept;
 
             /**
              * @brief Fetch camera data from all registered cameras.
@@ -69,7 +70,7 @@ namespace Engine {
             /**
              * @brief Acquire a pipeline layout that has descriptor set 0 & 1
              * correctly set up according to scene & camera data.
-             * 
+             *
              * All graphics pipelines should therefore be compatible to
              * this common pipeline layout.
              */
@@ -84,7 +85,7 @@ namespace Engine {
              */
             glm::mat4 GetPVMatForSkybox() const;
         };
-    }
-}
+    } // namespace RenderSystemState
+} // namespace Engine
 
 #endif // RENDERSYSTEM_CAMERAMANAGER

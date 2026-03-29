@@ -49,7 +49,7 @@ namespace Engine {
             reinterpret_cast<const std::byte *>((&submesh_count) + 1)
         );
         for (size_t i = 0; i < submesh_count; i++) {
-            const auto & sm = m_submeshes[i];
+            const auto &sm = m_submeshes[i];
             // Meta data goes first
             std::array<size_t, 3> sz = {sm.m_indices.size(), sm.vertex_count, sm.m_vertex_attributes.size()};
             data.insert(
@@ -58,7 +58,7 @@ namespace Engine {
                 reinterpret_cast<const std::byte *>(sz.data() + sz.size())
             );
 
-            auto write_attr = [&data](const Submesh::Attributes & attr) -> void {
+            auto write_attr = [&data](const Submesh::Attributes &attr) -> void {
                 static_assert(std::is_trivially_copyable_v<Submesh::Attributes>);
                 data.insert(
                     data.end(),
@@ -84,11 +84,7 @@ namespace Engine {
                 reinterpret_cast<const std::byte *>(sm.m_indices.data()),
                 reinterpret_cast<const std::byte *>(sm.m_indices.data() + sm.m_indices.size())
             );
-            data.insert(
-                data.end(),
-                sm.m_vertex_attributes.begin(),
-                sm.m_vertex_attributes.end()
-            );
+            data.insert(data.end(), sm.m_vertex_attributes.begin(), sm.m_vertex_attributes.end());
         }
 
         // save base class (such as GUID)
@@ -118,11 +114,7 @@ namespace Engine {
             // Then read metadata
             const auto read_attr = [&](Submesh::Attributes &attr) {
                 static_assert(std::is_trivially_copyable_v<Submesh::Attributes>);
-                std::memcpy(
-                    reinterpret_cast<std::byte *>(&attr),
-                    &data[offset],
-                    sizeof(decltype(attr))
-                );
+                std::memcpy(reinterpret_cast<std::byte *>(&attr), &data[offset], sizeof(decltype(attr)));
                 offset += sizeof(decltype(attr));
             };
 
@@ -147,11 +139,7 @@ namespace Engine {
             offset += index_size * sizeof(decltype(m_submeshes[i].m_indices[0]));
 
             m_submeshes[i].m_vertex_attributes.resize(vertex_buffer_size);
-            std::memcpy(
-                m_submeshes[i].m_vertex_attributes.data(),
-                &data[offset],
-                vertex_buffer_size
-            );
+            std::memcpy(m_submeshes[i].m_vertex_attributes.data(), &data[offset], vertex_buffer_size);
             offset += vertex_buffer_size;
         }
 
@@ -161,8 +149,7 @@ namespace Engine {
 #ifdef SET_ATTRIBUTE_TYPE
 #error Duplicated SET_ATTRIBUTE_TYPE definition
 #else
-#define SET_ATTRIBUTE_TYPE(attr, semantics) \
-        ret.SetAttribute(VertexAttributeSemantic::semantics, attr.type)
+#define SET_ATTRIBUTE_TYPE(attr, semantics) ret.SetAttribute(VertexAttributeSemantic::semantics, attr.type)
 #endif
         VertexAttribute ret{};
         SET_ATTRIBUTE_TYPE(positions, Position);
@@ -181,11 +168,7 @@ namespace Engine {
     void MeshAsset::Submesh::WriteVertexAttributeBuffer(std::byte *buf) const noexcept {
         uint64_t current_offset = 0;
         const auto write_attr = [&](const Submesh::Attributes &attr) {
-            std::memcpy(
-                buf + current_offset,
-                m_vertex_attributes.data() + attr.buffer_offset,
-                attr.buffer_size
-            );
+            std::memcpy(buf + current_offset, m_vertex_attributes.data() + attr.buffer_offset, attr.buffer_size);
             current_offset += attr.buffer_size;
         };
 

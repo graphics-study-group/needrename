@@ -17,7 +17,8 @@ int main() {
 
     auto rttd = RenderTargetTexture::RenderTargetTextureDesc{
         .dimensions = 2,
-        .width = 1280, .height = 720, 
+        .width = 1280,
+        .height = 720,
         .depth = 1,
         .mipmap_levels = 1,
         .array_layers = 1,
@@ -39,7 +40,9 @@ int main() {
         RenderGraphPassBuilder{*cmc->GetRenderSystem()}
             .SetName("Main pass")
             .UseImage(gbuffer, MemoryAccessTypeImageBits::ShaderSampledRead)
-            .AppendColorAttachment({fbuffer, {}, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store})
+            .AppendColorAttachment(
+                {fbuffer, {}, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store}
+            )
             .SetRasterizerPassFunction(dummy_graphics_pass)
             .WrapRenderPass()
             .Get()
@@ -49,7 +52,9 @@ int main() {
         RenderGraphPassBuilder{*cmc->GetRenderSystem()}
             .SetName("GBuffer pass")
             .SetGlobalAccess({MemoryAccessTypeBufferBits::IndexRead, MemoryAccessTypeBufferBits::VertexRead})
-            .AppendColorAttachment({gbuffer, {}, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store})
+            .AppendColorAttachment(
+                {gbuffer, {}, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store}
+            )
             .SetRasterizerPassFunction(dummy_graphics_pass)
             .WrapRenderPass()
             .Get()

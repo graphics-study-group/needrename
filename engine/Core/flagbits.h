@@ -59,7 +59,7 @@ namespace Engine {
         constexpr bool Test(T bit) const noexcept {
             return static_cast<bool>(m_flags & static_cast<UnderlyingType>(bit));
         }
-        
+
         /// @brief Test whether all bits in a given bitset are set.
         constexpr bool TestAll(std::initializer_list<T> bits) const noexcept {
             auto b = Flags(bits).ToUnderlying();

@@ -18,25 +18,24 @@ namespace Engine {
      */
     class DeviceBuffer {
     protected:
-        DeviceBuffer(BufferAllocation && alloc, size_t size);
+        DeviceBuffer(BufferAllocation &&alloc, size_t size);
 
     public:
-
         virtual ~DeviceBuffer() = default;
 
-        DeviceBuffer (const DeviceBuffer &) = delete;
-        void operator= (const DeviceBuffer &) = delete;
+        DeviceBuffer(const DeviceBuffer &) = delete;
+        void operator=(const DeviceBuffer &) = delete;
 
-        DeviceBuffer (DeviceBuffer &&) noexcept = default;
-        DeviceBuffer & operator= (DeviceBuffer &&) noexcept = default;
+        DeviceBuffer(DeviceBuffer &&) noexcept = default;
+        DeviceBuffer &operator=(DeviceBuffer &&) noexcept = default;
 
         /**
          * @brief Create a buffer.
          */
         static DeviceBuffer Create(
-            const RenderSystemState::AllocatorState & allocator, 
-            BufferType type, 
-            size_t size, 
+            const RenderSystemState::AllocatorState &allocator,
+            BufferType type,
+            size_t size,
             const std::string &name = ""
         );
         /**
@@ -46,10 +45,10 @@ namespace Engine {
          * Cast the `unique_ptr` to `shared_ptr` if necessary.
          */
         static std::unique_ptr<DeviceBuffer> CreateUnique(
-            const RenderSystemState::AllocatorState & allocator, 
-            BufferType type, 
-            size_t size, const 
-            std::string &name = ""
+            const RenderSystemState::AllocatorState &allocator,
+            BufferType type,
+            size_t size,
+            const std::string &name = ""
         );
 
         vk::Buffer GetBuffer() const;
@@ -65,7 +64,7 @@ namespace Engine {
          * You don't need to match `Unmap()` manually before
          * cleaning up.
          */
-        std::byte * GetVMAddress();
+        std::byte *GetVMAddress();
 
         /**
          * @brief Flush the memory write to be visible on device.

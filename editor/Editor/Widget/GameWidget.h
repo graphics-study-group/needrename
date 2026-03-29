@@ -16,7 +16,7 @@ namespace Editor {
         virtual ~GameWidget();
 
         virtual void Render() override;
-        
+
         void SetDisplayTexture(const Engine::RenderTargetTexture &texture);
 
     public:

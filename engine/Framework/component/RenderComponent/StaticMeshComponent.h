@@ -15,6 +15,6 @@ namespace Engine {
 
         REFL_SER_ENABLE AssetRef m_mesh_asset{};
     };
-}
+} // namespace Engine
 
 #endif // COMPONENT_RENDERCOMPONENT_STATICMESHCOMPONENT_INCLUDED

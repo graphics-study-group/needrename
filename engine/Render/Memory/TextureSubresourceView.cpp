@@ -2,7 +2,7 @@
 
 #include "Render/Memory/Texture.h"
 
-namespace Engine{
+namespace Engine {
     vk::ImageView TextureSubresourceView::GetImageView() {
         return texture.GetImageView(this->range);
     }

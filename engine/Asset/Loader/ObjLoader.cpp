@@ -81,8 +81,8 @@ namespace Engine {
         m_mesh_asset->m_name = path.stem().string();
         LoadMeshAssetFromTinyObj(*m_mesh_asset, attrib, shapes);
 
-        std::vector<MaterialAsset*> m_material_assets;
-        std::vector<Image2DTextureAsset*> m_texture_assets;
+        std::vector<MaterialAsset *> m_material_assets;
+        std::vector<Image2DTextureAsset *> m_texture_assets;
         std::unordered_map<std::string, size_t> material_name_to_index;
 
         for (const auto &material : materials) {
@@ -143,7 +143,9 @@ namespace Engine {
         archive.clear();
         archive.prepare_save();
         scene_asset->save_asset_to_archive(archive);
-        database->SaveArchive(archive, AssetPath(*database, path_in_project / ("GO_" + m_mesh_asset->m_name + ".asset")));
+        database->SaveArchive(
+            archive, AssetPath(*database, path_in_project / ("GO_" + m_mesh_asset->m_name + ".asset"))
+        );
     }
 
     void ObjLoader::LoadMeshAssetFromTinyObj(
@@ -162,7 +164,7 @@ namespace Engine {
             uint32_t vertex_id = 0;
             std::map<std::tuple<int, int, int>, uint32_t> vertex_id_map;
 
-            std::vector <float> position, color, normal, texcoord0;
+            std::vector<float> position, color, normal, texcoord0;
 
             for (const auto &index : shape.mesh.indices) {
                 std::tuple<int, int, int> key(index.vertex_index, index.normal_index, index.texcoord_index);
@@ -172,7 +174,6 @@ namespace Engine {
                     position.push_back(positions[index.vertex_index * 3]);
                     position.push_back(positions[index.vertex_index * 3 + 1]);
                     position.push_back(positions[index.vertex_index * 3 + 2]);
-
 
                     if (colors.size() > 0) {
                         submesh.color.type = VertexAttributeType::SFloat32x3;
@@ -196,10 +197,8 @@ namespace Engine {
             }
             submesh.vertex_count = vertex_id;
             submesh.m_vertex_attributes.reserve(
-                position.size() * sizeof(float) +
-                color.size() * sizeof(float) +
-                normal.size() * sizeof(float) +
-                texcoord0.size() * sizeof(float)
+                position.size() * sizeof(float) + color.size() * sizeof(float) + normal.size() * sizeof(float)
+                + texcoord0.size() * sizeof(float)
             );
 
             submesh.positions.buffer_offset = submesh.m_vertex_attributes.size();
@@ -247,8 +246,9 @@ namespace Engine {
         switch (material.illum) {
         case 2: // Blinn-Phong
         {
-            material_asset.m_library =
-                database->GetNewAssetRef(AssetPath(*database, std::filesystem::path("~/material_libraries/BlinnPhongLibrary.asset")));
+            material_asset.m_library = database->GetNewAssetRef(
+                AssetPath(*database, std::filesystem::path("~/material_libraries/BlinnPhongLibrary.asset"))
+            );
             material_asset.m_properties["ambient_color"] =
                 glm::vec4{material.ambient[0], material.ambient[1], material.ambient[2], 1.0f};
             material_asset.m_properties["specular_color"] =
@@ -257,15 +257,15 @@ namespace Engine {
                 auto texture = am->CreateAsset<Image2DTextureAsset>();
                 texture->LoadFromFile(base_path / material.diffuse_texname);
                 texture->m_name += "_tex_diffuse";
-                material_asset.m_properties["base_tex"] =
-                    {AssetRef(texture), MaterialProperty::Type::Texture};
+                material_asset.m_properties["base_tex"] = {AssetRef(texture), MaterialProperty::Type::Texture};
             }
             break;
         }
         default: // unknown model, load every property
         {
-            material_asset.m_library =
-                database->GetNewAssetRef(AssetPath(*database, std::filesystem::path("~/material_libraries/BlinnPhongLibrary.asset")));
+            material_asset.m_library = database->GetNewAssetRef(
+                AssetPath(*database, std::filesystem::path("~/material_libraries/BlinnPhongLibrary.asset"))
+            );
             material_asset.m_properties["ambient"] =
                 glm::vec4{material.ambient[0], material.ambient[1], material.ambient[2], 1.0f};
             material_asset.m_properties["diffuse"] =
@@ -283,85 +283,97 @@ namespace Engine {
                 auto texture = std::make_shared<Image2DTextureAsset>();
                 texture->LoadFromFile(base_path / material.ambient_texname);
                 texture->m_name += "_tex_ambient";
-                material_asset.m_properties["ambient_texture"] =
-                    {AssetRef(texture.get()), MaterialProperty::Type::Texture};
+                material_asset.m_properties["ambient_texture"] = {
+                    AssetRef(texture.get()), MaterialProperty::Type::Texture
+                };
             }
             if (!material.diffuse_texname.empty()) {
                 auto texture = std::make_shared<Image2DTextureAsset>();
                 texture->LoadFromFile(base_path / material.diffuse_texname);
                 texture->m_name += "_tex_diffuse";
-                material_asset.m_properties["diffuse_texture"] =
-                    {AssetRef(texture.get()), MaterialProperty::Type::Texture};
+                material_asset.m_properties["diffuse_texture"] = {
+                    AssetRef(texture.get()), MaterialProperty::Type::Texture
+                };
             }
             if (!material.specular_texname.empty()) {
                 auto texture = std::make_shared<Image2DTextureAsset>();
                 texture->LoadFromFile(base_path / material.specular_texname);
                 texture->m_name += "_tex_specular";
-                material_asset.m_properties["specular_texture"] =
-                    {AssetRef(texture.get()), MaterialProperty::Type::Texture};
+                material_asset.m_properties["specular_texture"] = {
+                    AssetRef(texture.get()), MaterialProperty::Type::Texture
+                };
             }
             if (!material.specular_highlight_texname.empty()) {
                 auto texture = std::make_shared<Image2DTextureAsset>();
                 texture->LoadFromFile(base_path / material.specular_highlight_texname);
                 texture->m_name += "_tex_specular_highlight";
-                material_asset.m_properties["specular_highlight_texture"] =
-                    {AssetRef(texture.get()), MaterialProperty::Type::Texture};
+                material_asset.m_properties["specular_highlight_texture"] = {
+                    AssetRef(texture.get()), MaterialProperty::Type::Texture
+                };
             }
             if (!material.bump_texname.empty()) {
                 auto texture = std::make_shared<Image2DTextureAsset>();
                 texture->LoadFromFile(base_path / material.bump_texname);
                 texture->m_name += "_tex_bump";
-                material_asset.m_properties["bump_texture"] =
-                    {AssetRef(texture.get()), MaterialProperty::Type::Texture};
+                material_asset.m_properties["bump_texture"] = {
+                    AssetRef(texture.get()), MaterialProperty::Type::Texture
+                };
             }
             if (!material.displacement_texname.empty()) {
                 auto texture = std::make_shared<Image2DTextureAsset>();
                 texture->LoadFromFile(base_path / material.displacement_texname);
                 texture->m_name += "_tex_displacement";
-                material_asset.m_properties["displacement_texture"] =
-                    {AssetRef(texture.get()), MaterialProperty::Type::Texture};
+                material_asset.m_properties["displacement_texture"] = {
+                    AssetRef(texture.get()), MaterialProperty::Type::Texture
+                };
             }
             if (!material.alpha_texname.empty()) {
                 auto texture = std::make_shared<Image2DTextureAsset>();
                 texture->LoadFromFile(base_path / material.alpha_texname);
                 texture->m_name += "_tex_alpha";
-                material_asset.m_properties["alpha_texture"] =
-                    {AssetRef(texture.get()), MaterialProperty::Type::Texture};
+                material_asset.m_properties["alpha_texture"] = {
+                    AssetRef(texture.get()), MaterialProperty::Type::Texture
+                };
             }
             if (!material.roughness_texname.empty()) {
                 auto texture = std::make_shared<Image2DTextureAsset>();
                 texture->LoadFromFile(base_path / material.roughness_texname);
                 texture->m_name += "_tex_roughness";
-                material_asset.m_properties["roughness_texture"] =
-                    {AssetRef(texture.get()), MaterialProperty::Type::Texture};
+                material_asset.m_properties["roughness_texture"] = {
+                    AssetRef(texture.get()), MaterialProperty::Type::Texture
+                };
             }
             if (!material.metallic_texname.empty()) {
                 auto texture = std::make_shared<Image2DTextureAsset>();
                 texture->LoadFromFile(base_path / material.metallic_texname);
                 texture->m_name += "_tex_metallic";
-                material_asset.m_properties["metallic_texture"] =
-                    {AssetRef(texture.get()), MaterialProperty::Type::Texture};
+                material_asset.m_properties["metallic_texture"] = {
+                    AssetRef(texture.get()), MaterialProperty::Type::Texture
+                };
             }
             if (!material.sheen_texname.empty()) {
                 auto texture = std::make_shared<Image2DTextureAsset>();
                 texture->LoadFromFile(base_path / material.sheen_texname);
                 texture->m_name += "_tex_sheen";
-                material_asset.m_properties["sheen_texture"] =
-                    {AssetRef(texture.get()), MaterialProperty::Type::Texture};
+                material_asset.m_properties["sheen_texture"] = {
+                    AssetRef(texture.get()), MaterialProperty::Type::Texture
+                };
             }
             if (!material.emissive_texname.empty()) {
                 auto texture = std::make_shared<Image2DTextureAsset>();
                 texture->LoadFromFile(base_path / material.emissive_texname);
                 texture->m_name += "_tex_emissive";
-                material_asset.m_properties["emissive_texture"] =
-                    {AssetRef(texture.get()), MaterialProperty::Type::Texture};
+                material_asset.m_properties["emissive_texture"] = {
+                    AssetRef(texture.get()), MaterialProperty::Type::Texture
+                };
             }
             if (!material.normal_texname.empty()) {
                 auto texture = std::make_shared<Image2DTextureAsset>();
                 texture->LoadFromFile(base_path / material.normal_texname);
                 texture->m_name += "_tex_normal";
-                material_asset.m_properties["normal_texture"] =
-                    {AssetRef(texture.get()), MaterialProperty::Type::Texture};
+                material_asset.m_properties["normal_texture"] = {
+                    AssetRef(texture.get()), MaterialProperty::Type::Texture
+                };
             }
             break;
         }

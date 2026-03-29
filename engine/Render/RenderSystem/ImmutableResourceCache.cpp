@@ -1,11 +1,10 @@
 #include "ImmutableResourceCache.h"
 
-#include "Render/Hasher.hpp"
 #include "Render/DebugUtils.h"
+#include "Render/Hasher.hpp"
 
-#include <vulkan/vulkan.hpp>
 #include <unordered_map>
-
+#include <vulkan/vulkan.hpp>
 
 namespace Engine::RenderSystemState {
 
@@ -14,16 +13,16 @@ namespace Engine::RenderSystemState {
 
         vk::Device dvc;
 
-        std::unordered_map <size_t, vk::UniqueSampler> sampler_cache;
-        std::unordered_map <size_t, vk::UniqueDescriptorSetLayout> descriptor_set_layout_cache;
-        std::unordered_map <size_t, vk::UniquePipelineLayout> pipeline_layout_cache;
+        std::unordered_map<size_t, vk::UniqueSampler> sampler_cache;
+        std::unordered_map<size_t, vk::UniqueDescriptorSetLayout> descriptor_set_layout_cache;
+        std::unordered_map<size_t, vk::UniquePipelineLayout> pipeline_layout_cache;
 
         // Use the raw Vulkan version to avoid pulling in the huge `vulkan_hash.hpp`
-        std::unordered_map <VkSampler, size_t> sampler_rlut;
-        std::unordered_map <VkDescriptorSetLayout, size_t> descriptor_set_layout_rlut;
-        std::unordered_map <VkPipelineLayout, size_t> pipeline_layout_rlut;
+        std::unordered_map<VkSampler, size_t> sampler_rlut;
+        std::unordered_map<VkDescriptorSetLayout, size_t> descriptor_set_layout_rlut;
+        std::unordered_map<VkPipelineLayout, size_t> pipeline_layout_rlut;
 
-        auto hash_sampler_create_info(const vk::SamplerCreateInfo & sci) noexcept {
+        auto hash_sampler_create_info(const vk::SamplerCreateInfo &sci) noexcept {
             assert(sci.pNext == nullptr);
 
             Hasher h{};
@@ -48,26 +47,23 @@ namespace Engine::RenderSystemState {
             return h.get();
         }
 
-        auto hash_descriptor_set_layout(const vk::DescriptorSetLayoutCreateInfo & dsli) noexcept {
+        auto hash_descriptor_set_layout(const vk::DescriptorSetLayoutCreateInfo &dsli) noexcept {
             assert(dsli.pNext == nullptr);
 
             Hasher h;
             h.u32(dsli.bindingCount);
             h.f(dsli.flags);
-            for (uint32_t i = 0; i < dsli.bindingCount; i++)
-            {
+            for (uint32_t i = 0; i < dsli.bindingCount; i++) {
                 auto &binding = dsli.pBindings[i];
                 h.u32(binding.binding);
                 h.u32(binding.descriptorCount);
                 h.e(binding.descriptorType);
                 h.f(binding.stageFlags);
 
-                if (binding.pImmutableSamplers &&
-                    (binding.descriptorType == vk::DescriptorType::eCombinedImageSampler ||
-                    binding.descriptorType == vk::DescriptorType::eSampler))
-                {
-                    for (uint32_t j = 0; j < binding.descriptorCount; j++)
-                    {
+                if (binding.pImmutableSamplers
+                    && (binding.descriptorType == vk::DescriptorType::eCombinedImageSampler
+                        || binding.descriptorType == vk::DescriptorType::eSampler)) {
+                    for (uint32_t j = 0; j < binding.descriptorCount; j++) {
                         auto itr = sampler_rlut.find(binding.pImmutableSamplers[j]);
                         assert(itr != sampler_rlut.end());
                         h.u64(itr->second);
@@ -77,24 +73,19 @@ namespace Engine::RenderSystemState {
             return h.get();
         }
 
-        auto hash_pipeline_layout(const vk::PipelineLayoutCreateInfo & plci) noexcept {
+        auto hash_pipeline_layout(const vk::PipelineLayoutCreateInfo &plci) noexcept {
             Hasher h;
             h.u32(plci.setLayoutCount);
-            for (uint32_t i = 0; i < plci.setLayoutCount; i++)
-            {
-                if (plci.pSetLayouts[i])
-                {
+            for (uint32_t i = 0; i < plci.setLayoutCount; i++) {
+                if (plci.pSetLayouts[i]) {
                     auto itr = descriptor_set_layout_rlut.find(plci.pSetLayouts[i]);
                     assert(itr != descriptor_set_layout_rlut.end());
                     h.u64(itr->second);
-                }
-                else
-                    h.u32(0);
+                } else h.u32(0);
             }
 
             h.u32(plci.pushConstantRangeCount);
-            for (uint32_t i = 0; i < plci.pushConstantRangeCount; i++)
-            {
+            for (uint32_t i = 0; i < plci.pushConstantRangeCount; i++) {
                 auto &push = plci.pPushConstantRanges[i];
                 h.f(push.stageFlags);
                 h.u32(push.size);
@@ -106,16 +97,14 @@ namespace Engine::RenderSystemState {
         }
     };
 
-    ImmutableResourceCache::ImmutableResourceCache(
-        vk::Device dvc
-    ) : pimpl(std::make_unique<impl>()) {
+    ImmutableResourceCache::ImmutableResourceCache(vk::Device dvc) : pimpl(std::make_unique<impl>()) {
         pimpl->dvc = dvc;
     }
 
     ImmutableResourceCache::~ImmutableResourceCache() noexcept = default;
 
-    vk::Sampler ImmutableResourceCache::GetSampler(const ImageUtils::SamplerDesc & desc) {
-        vk::SamplerCreateInfo sci {
+    vk::Sampler ImmutableResourceCache::GetSampler(const ImageUtils::SamplerDesc &desc) {
+        vk::SamplerCreateInfo sci{
             vk::SamplerCreateFlags{},
             ImageUtils::ToVkFilter(desc.min_filter),
             ImageUtils::ToVkFilter(desc.max_filter),
@@ -141,7 +130,7 @@ namespace Engine::RenderSystemState {
         auto itr = pimpl->sampler_cache.find(h);
 
         if (itr == pimpl->sampler_cache.end()) {
-            auto & r = pimpl->sampler_cache[h];
+            auto &r = pimpl->sampler_cache[h];
             r = pimpl->dvc.createSamplerUnique(sci);
             pimpl->sampler_rlut[r.get()] = h;
             return r.get();
@@ -149,44 +138,36 @@ namespace Engine::RenderSystemState {
         return itr->second.get();
     }
     vk::DescriptorSetLayout ImmutableResourceCache::GetDescriptorSetLayout(
-        const vk::DescriptorSetLayoutCreateInfo & dlci, const char *name
+        const vk::DescriptorSetLayoutCreateInfo &dlci, const char *name
     ) {
         auto h = pimpl->hash_descriptor_set_layout(dlci);
         auto itr = pimpl->descriptor_set_layout_cache.find(h);
 
         if (itr == pimpl->descriptor_set_layout_cache.end()) {
-            auto & r = pimpl->descriptor_set_layout_cache[h];
+            auto &r = pimpl->descriptor_set_layout_cache[h];
             r = pimpl->dvc.createDescriptorSetLayoutUnique(dlci);
             pimpl->descriptor_set_layout_rlut[r.get()] = h;
 
             if (name) {
-                DEBUG_SET_NAME_TEMPLATE(
-                    pimpl->dvc, 
-                    r.get(), 
-                    name
-                );
+                DEBUG_SET_NAME_TEMPLATE(pimpl->dvc, r.get(), name);
             }
             return r.get();
         }
         return itr->second.get();
     }
     vk::PipelineLayout ImmutableResourceCache::GetPipelineLayout(
-        const vk::PipelineLayoutCreateInfo & plci, const char *name
+        const vk::PipelineLayoutCreateInfo &plci, const char *name
     ) {
         auto h = pimpl->hash_pipeline_layout(plci);
         auto itr = pimpl->pipeline_layout_cache.find(h);
 
         if (itr == pimpl->pipeline_layout_cache.end()) {
-            auto & r = pimpl->pipeline_layout_cache[h];
+            auto &r = pimpl->pipeline_layout_cache[h];
             r = pimpl->dvc.createPipelineLayoutUnique(plci);
             pimpl->pipeline_layout_rlut[r.get()] = h;
 
             if (name) {
-                DEBUG_SET_NAME_TEMPLATE(
-                    pimpl->dvc, 
-                    r.get(), 
-                    name
-                );
+                DEBUG_SET_NAME_TEMPLATE(pimpl->dvc, r.get(), name);
             }
             return r.get();
         }

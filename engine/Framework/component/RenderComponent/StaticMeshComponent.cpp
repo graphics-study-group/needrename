@@ -1,5 +1,3 @@
 #include "StaticMeshComponent.h"
 
-namespace Engine {
-
-}
+namespace Engine {}
