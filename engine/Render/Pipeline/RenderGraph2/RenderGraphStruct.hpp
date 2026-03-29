@@ -14,6 +14,11 @@ namespace Engine {
     class RenderTargetTexture;
 
     using RenderTargetTextureVariant = std::variant<RenderTargetTexture *, RRTTHandle>;
+    using OwnedRenderTargetTextureVariant = std::variant<
+        std::unique_ptr<RenderTargetTexture>,
+        RRTTHandle
+    >;
+
     /**
      * @brief Visitor for render target textures.
      */
@@ -57,7 +62,7 @@ namespace Engine {
         > first_persistent_texture_access, last_persistent_texture_access;
 
         std::unordered_map <
-            RGTextureHandle, std::unique_ptr <RenderTargetTexture>
+            RGTextureHandle, OwnedRenderTargetTextureVariant
         > transient_texture_storage;
 
         std::unordered_map <

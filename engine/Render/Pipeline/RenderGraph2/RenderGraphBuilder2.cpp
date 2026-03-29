@@ -116,6 +116,9 @@ namespace Engine {
                 std::string name{};
                 RenderTargetTexture::RenderTargetTextureDesc t {};
                 RenderTargetTexture::SamplerDesc s {};
+
+                // negative scales imply no resizable RTT.
+                float scale_x{-0.0f}, scale_y{-0.0f};
             };
             std::unordered_map <RGTextureHandle, TextureCreationInfo> texture_creation_info;
             std::unordered_map <
@@ -128,16 +131,31 @@ namespace Engine {
              * @brief Materialize render target textures from the
              * `texture_creation_info`.
              */
-            std::unordered_map <RGTextureHandle, std::unique_ptr<RenderTargetTexture>>
+            std::unordered_map <
+                RGTextureHandle,
+                OwnedRenderTargetTextureVariant
+            >
             MaterializeRenderTargetTextures(RenderSystem & s) const {
-                std::unordered_map <RGTextureHandle, std::unique_ptr<RenderTargetTexture>> ret{};
+                std::unordered_map <RGTextureHandle, OwnedRenderTargetTextureVariant> ret{};
                 for (const auto & [k, v] : texture_creation_info) {
-                    ret[k] = RenderTargetTexture::CreateUnique(
-                        s,
-                        v.t,
-                        v.s,
-                        v.name
-                    );
+
+                    if (v.scale_x < 0.0f || v.scale_y < 0.0f) {
+                        ret[k] = RenderTargetTexture::CreateUnique(
+                            s,
+                            v.t,
+                            v.s,
+                            v.name
+                        );
+                    } else {
+                        ret[k] = s.GetResizableRTTManager().RequestRTT(
+                            v.t,
+                            v.s,
+                            v.scale_x,
+                            v.scale_y,
+                            v.name
+                        );
+                    }
+                    
                 }
                 return ret;
             }
@@ -301,7 +319,11 @@ namespace Engine {
     RGTextureHandle RenderGraphBuilder2::ImportExternalResource(
         RRTTHandle texture, MemoryAccessTypeImageBits prev_access
     ) {
-        return RGTextureHandle();
+        pimpl->rs.resource_counter++;
+        auto ret = static_cast<RGTextureHandle>(-pimpl->rs.resource_counter);
+        pimpl->rs.texture_mapping[ret] = texture;
+        pimpl->passes.front().image_access[ret] = prev_access;
+        return ret;
     }
 
     RGBufferHandle RenderGraphBuilder2::ImportExternalResource(
@@ -327,6 +349,16 @@ namespace Engine {
             .s = sampler_description
         };
         return ret;
+    }
+
+    RGTextureHandle RenderGraphBuilder2::RequestResizableRenderTargetTexture(
+        RenderTargetTexture::RenderTargetTextureDesc texture_description,
+        RenderTargetTexture::SamplerDesc sampler_description,
+        float scale_x,
+        float scale_y,
+        std::string_view name
+    ) {
+        return RGTextureHandle();
     }
 
     void RenderGraphBuilder2::AddPass(RenderGraphPass &&pass) noexcept {
@@ -611,7 +643,14 @@ namespace Engine {
         e.transient_texture_storage = std::move(pimpl->rs.MaterializeRenderTargetTextures(system));
         for (const auto & [k, v] : e.transient_texture_storage) {
             assert(!e.texture_mapping.contains(k));
-            e.texture_mapping[k] = v.get();
+
+            switch(v.index()) {
+            case 0:
+                e.texture_mapping[k] = std::get<0>(v).get();
+                break;
+            case 1:
+                e.texture_mapping[k] = std::get<1>(v);
+            }
         }
         for (const auto & [r, a] : usage.image_usages) {
             if (static_cast<int32_t>(r) > 0)  continue;

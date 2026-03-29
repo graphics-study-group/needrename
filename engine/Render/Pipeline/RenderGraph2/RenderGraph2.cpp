@@ -50,7 +50,13 @@ namespace Engine {
         pimpl->extra_info = std::move(extra);
     }
 
-    RenderGraph2::~RenderGraph2() noexcept = default;
+    RenderGraph2::~RenderGraph2() noexcept {
+        for (auto & [k, v] : pimpl->extra_info.transient_texture_storage) {
+            if (auto handle = std::get_if<RRTTHandle>(&v)) {
+                handle->Release();
+            }
+        }
+    };
 
     void RenderGraph2::AddExternalInputDependency(
         RGTextureHandle rt_handle,
