@@ -21,6 +21,8 @@ jobs:
           style: file
           tidy-checks: '-*'
           thread-comments: ${{ github.event_name == 'pull_request' && 'update' }}
+          # Spit out why it is not formatted
+          format-review: true
           # Many directories do not have cpp files nonetheless.
           ignore: '.github | assets | builtin_assets | reflection_parser | shader | third_party'
 
