@@ -57,7 +57,7 @@ namespace Engine::RenderSystemState {
             RenderSystem & s
         ) {
             RendererList rl{};
-            auto masset = asset.cas<MeshAsset>();
+            auto masset = asset.as<MeshAsset>();
             assert(masset);
 
             rl.reserve(masset->GetSubmeshCount());
@@ -93,7 +93,7 @@ namespace Engine::RenderSystemState {
             AssetRef & asset,
             RenderSystem & s
         ) {
-            auto masset = asset.cas<MeshAsset>();
+            auto masset = asset.as<MeshAsset>();
             assert(masset);
 
             if (!static_mesh_asset_data_cache.contains(asset.GetGUID())) {

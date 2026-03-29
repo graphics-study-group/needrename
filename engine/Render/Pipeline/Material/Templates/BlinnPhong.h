@@ -19,7 +19,7 @@ namespace Engine {
             void SetBaseTexture(std::shared_ptr<Texture> image);
             void SetSpecular(glm::vec4 spec);
             void SetAmbient(glm::vec4 spec);
-            void Instantiate(const MaterialAsset &asset) override;
+            void Instantiate(MaterialAsset &asset) override;
         };
 
         class BlinnPhongTemplate : public MaterialTemplate {

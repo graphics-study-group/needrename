@@ -12,7 +12,15 @@
 #include <nlohmann/json.hpp>
 
 namespace Engine {
+    void AssetManager::AddLoadedAsset(std::unique_ptr<Asset> asset) {
+        m_loaded_assets.emplace(asset->GetGUID(), std::move(asset));
+    }
+
     void AssetManager::AddToLoadingQueue(const GUID &guid) {
+        if (m_in_loading_queue.contains(guid)) {
+            return;
+        }
+        m_in_loading_queue.insert(guid);
         m_loading_queue.push(guid);
     }
 
@@ -20,6 +28,7 @@ namespace Engine {
         while (!m_loading_queue.empty()) {
             auto guid = m_loading_queue.front();
             if (IsAssetLoaded(guid)) {
+                m_in_loading_queue.erase(guid);
                 m_loading_queue.pop();
                 continue;
             }
@@ -32,41 +41,39 @@ namespace Engine {
             assert(asset_type->IsReflectable());
             // TODO: asset memory management
             auto var = asset_type->CreateInstance(Serialization::SerializationMarker{});
-            auto asset_ptr = std::shared_ptr<Asset>(static_cast<Asset *>(var.GetDataPtr()));
+            auto asset_ptr = std::unique_ptr<Asset>(static_cast<Asset *>(var.GetDataPtr()));
             var.SetNeedFree(false);
             asset_ptr->load_asset_from_archive(archive);
-            m_loaded_assets[guid] = asset_ptr;
+            m_loaded_assets.emplace(guid, std::move(asset_ptr));
 
             m_loading_queue.pop();
         }
     }
 
-    std::shared_ptr<Asset> AssetManager::LoadAssetImmediately(const GUID &guid) {
+    Asset* AssetManager::LoadAssetImmediately(const GUID &guid) {
         if (IsAssetLoaded(guid)) {
-            return m_loaded_assets[guid];
+            return m_loaded_assets[guid].get();
         }
         Serialization::Archive archive;
         MainClass::GetInstance()->GetAssetDatabase()->LoadArchive(archive, guid);
         auto type = Reflection::GetType(archive.GetMainDataProperty("%type").get<std::string>());
         assert(type->IsReflectable());
         auto var = type->CreateInstance(Serialization::SerializationMarker{});
-        std::shared_ptr<Asset> ret = std::shared_ptr<Asset>(static_cast<Asset *>(var.GetDataPtr()));
+        std::unique_ptr<Asset> new_asset = std::unique_ptr<Asset>(static_cast<Asset *>(var.GetDataPtr()));
         var.SetNeedFree(false);
         archive.prepare_load();
-        ret->load_asset_from_archive(archive);
-        m_loaded_assets[guid] = ret;
-        return ret;
+        new_asset->load_asset_from_archive(archive);
+        GUID new_asset_guid = new_asset->GetGUID();
+        m_loaded_assets.emplace(new_asset_guid, std::move(new_asset));
+        return GetAsset(new_asset_guid);
     }
 
-    std::shared_ptr<Asset> AssetManager::GetAsset(const GUID &guid, bool load_if_not_loaded) {
-        if (m_loaded_assets.find(guid) == m_loaded_assets.end()) {
-            if (load_if_not_loaded) {
-                m_loaded_assets[guid] = LoadAssetImmediately(guid);
-            } else {
-                return nullptr;
-            }
+    Asset* AssetManager::GetAsset(const GUID &guid) {
+        auto it = m_loaded_assets.find(guid);
+        if (it == m_loaded_assets.end()) {
+            return nullptr;
         }
-        return m_loaded_assets[guid];
+        return it->second.get();
     }
 
     bool AssetManager::IsAssetLoaded(const GUID &guid) {
@@ -83,14 +90,24 @@ namespace Engine {
         bool has_unused_assets = true;
         while (has_unused_assets) {
             has_unused_assets = false;
-            for (auto it = m_loaded_assets.begin(); it != m_loaded_assets.end();) {
-                if (it->second.use_count() == 1) {
-                    it = m_loaded_assets.erase(it);
+            for (auto it = m_asset_ref_count.begin(); it != m_asset_ref_count.end();) {
+                if (it->second == 0) {
+                    UnloadAsset(it->first);
+                    it = m_asset_ref_count.erase(it);
                     has_unused_assets = true;
                 } else {
                     ++it;
                 }
             }
         }
+    }
+
+    void AssetManager::IncrementRefCount(const GUID &guid) {
+        ++m_asset_ref_count[guid];
+    }
+
+    void AssetManager::DecrementRefCount(const GUID &guid) {
+        assert(m_asset_ref_count.contains(guid));
+        --m_asset_ref_count[guid];
     }
 } // namespace Engine

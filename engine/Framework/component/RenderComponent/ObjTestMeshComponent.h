@@ -4,6 +4,8 @@
 #include "Asset/Loader/ObjLoader.h"
 #include "Framework/component/RenderComponent/StaticMeshComponent.h"
 #include "Render/Renderer/HomogeneousMesh.h"
+#include "MainClass.h"
+#include "Asset/AssetManager/AssetManager.h"
 
 namespace Engine {
     /**
@@ -79,8 +81,8 @@ namespace Engine {
                 }
             }
 
-            this->m_mesh_asset =
-                AssetRef(std::dynamic_pointer_cast<Asset>(std::make_shared<MeshAsset>()));
+            auto am = MainClass::GetInstance()->GetAssetManager();
+            this->m_mesh_asset = AssetRef(am->CreateAsset<MeshAsset>());
             ObjLoader loader;
             loader.LoadMeshAssetFromTinyObj(*(this->m_mesh_asset.as<MeshAsset>()), attrib, shapes);
         }

@@ -9,12 +9,12 @@ namespace Engine::RenderSystemState {
     }
 
     void MaterialRegistry::AddMaterial(AssetRef &ref) {
-        auto asset = ref.cas<MaterialLibraryAsset>();
+        auto asset = ref.as<MaterialLibraryAsset>();
         assert(asset);
         if (this->find(asset->m_name) == this->end()) {
             auto ptr = std::make_shared<MaterialLibrary>(m_system);
             this->operator[](asset->m_name) = ptr;
-            ptr->Instantiate(*ref.cas<MaterialLibraryAsset>());
+            ptr->Instantiate(*ref.as<MaterialLibraryAsset>());
         }
     }
     auto MaterialRegistry::GetMaterial(const std::string &name) -> decltype(this->at(name)) {

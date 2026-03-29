@@ -61,7 +61,7 @@ namespace Engine {
          */
         MaterialTemplate(
             RenderSystem & system,
-            const MaterialTemplateSinglePassProperties & properties,
+            MaterialTemplateSinglePassProperties & properties,
             const std::vector <vk::ShaderModule> & shaders,
             vk::PipelineLayout layout,
             vk::DescriptorPool pool,

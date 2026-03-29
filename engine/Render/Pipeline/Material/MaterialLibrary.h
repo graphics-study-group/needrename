@@ -60,7 +60,7 @@ namespace Engine {
             VertexAttribute mesh_type
         ) noexcept;
 
-        void Instantiate (const MaterialLibraryAsset &) override;
+        void Instantiate (MaterialLibraryAsset &) override;
     };
 }
 

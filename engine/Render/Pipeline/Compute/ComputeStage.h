@@ -27,7 +27,7 @@ namespace Engine {
         ComputeStage(RenderSystem &system);
 
         // TODO: Add specialization constant support.
-        void Instantiate(const ShaderAsset &asset) override;
+        void Instantiate(ShaderAsset &asset) override;
         void Instantiate(const std::vector<uint32_t> & code, const std::string_view name);
 
         ~ComputeStage();

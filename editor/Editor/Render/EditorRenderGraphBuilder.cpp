@@ -63,9 +63,9 @@ namespace Editor {
         auto depth_id = this->RequestRenderTargetTexture(rtt_desc, Texture::SamplerDesc{});
 
         m_game_bloom_compute_stage = std::make_shared<ComputeStage>(m_system);
-        m_game_bloom_compute_stage->Instantiate(*m_bloom_shader.cas<ShaderAsset>());
+        m_game_bloom_compute_stage->Instantiate(*m_bloom_shader.as<ShaderAsset>());
         m_scene_bloom_compute_stage = std::make_shared<ComputeStage>(m_system);
-        m_scene_bloom_compute_stage->Instantiate(*m_bloom_shader.cas<ShaderAsset>());
+        m_scene_bloom_compute_stage->Instantiate(*m_bloom_shader.as<ShaderAsset>());
         auto &system = m_system;
         auto world_system = MainClass::GetInstance()->GetWorldSystem().get();
         auto gui_system = MainClass::GetInstance()->GetGUISystem().get();

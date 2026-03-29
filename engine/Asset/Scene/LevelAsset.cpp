@@ -38,7 +38,7 @@ namespace Engine {
             auto lib = m_skybox_material.as<MaterialAsset>()->m_library;
             rsys->GetMaterialRegistry().AddMaterial(lib);
             auto material_instance = std::make_shared<MaterialInstance>(
-                *(rsys), *rsys->GetMaterialRegistry().GetMaterial(lib.cas<MaterialLibraryAsset>()->m_name)
+                *(rsys), *rsys->GetMaterialRegistry().GetMaterial(lib.as<MaterialLibraryAsset>()->m_name)
             );
             material_instance->Instantiate(*m_skybox_material.as<MaterialAsset>());
             rsys->GetSceneDataManager().SetSkyboxMaterial(material_instance);

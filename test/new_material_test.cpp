@@ -52,12 +52,13 @@ struct LowerPlaneMeshAsset : public PlaneMeshAsset {
     }
 };
 
-std::pair<std::shared_ptr<MaterialLibraryAsset>, std::shared_ptr<MaterialTemplateAsset>> ConstructMaterial() {
+std::pair<MaterialLibraryAsset *, MaterialTemplateAsset *> ConstructMaterial() {
     auto adb = std::dynamic_pointer_cast<FileSystemDatabase>(
         MainClass::GetInstance()->GetAssetDatabase()
     );
-    auto test_asset = std::make_shared<MaterialTemplateAsset>();
-    auto lib_asset = std::make_shared<MaterialLibraryAsset>();
+    auto am = MainClass::GetInstance()->GetAssetManager();
+    auto test_asset = am->CreateAsset<MaterialTemplateAsset>();
+    auto lib_asset = am->CreateAsset<MaterialLibraryAsset>();
     auto vs_ref = adb->GetNewAssetRef({*adb, "~/shaders/blinn_phong.vert.asset"});
     auto fs_ref = adb->GetNewAssetRef({*adb, "~/shaders/blinn_phong.frag.asset"});
 
@@ -188,6 +189,7 @@ int main(int argc, char **argv) {
     cmc->LoadBuiltinAssets(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
 
     auto rsys = cmc->GetRenderSystem();
+    auto am = cmc->GetAssetManager();
     // Prepare texture
     auto test_texture_asset = std::make_shared<Image2DTextureAsset>();
     test_texture_asset->LoadFromFile(std::string(ENGINE_ASSETS_DIR) + "/bunny/bunny.png");
@@ -216,7 +218,7 @@ int main(int argc, char **argv) {
     test_material_instance->SetBaseTexture(allocated_image_texture);
 
     // Prepare mesh
-    auto test_mesh_asset = std::make_shared<LowerPlaneMeshAsset>();
+    auto test_mesh_asset = am->CreateAsset<LowerPlaneMeshAsset>();
     auto test_mesh_asset_ref = AssetRef(test_mesh_asset);
     HomogeneousMesh test_mesh{rsys->GetAllocatorState(), test_mesh_asset_ref, 0};
 
@@ -251,7 +253,7 @@ int main(int argc, char **argv) {
     auto adb = std::dynamic_pointer_cast<FileSystemDatabase>(cmc->GetAssetDatabase());
     auto cs_ref = adb->GetNewAssetRef({*adb, "~/shaders/gaussian_blur.comp.asset"});
     ComputeStage cstage{*rsys};
-    cstage.Instantiate(*cs_ref.cas<ShaderAsset>());
+    cstage.Instantiate(*cs_ref.as<ShaderAsset>());
 
     auto &kbinding = cstage.AllocateResourceBinding();
     kbinding.GetShaderResourceBinding().BindTexture("inputImage", *color);

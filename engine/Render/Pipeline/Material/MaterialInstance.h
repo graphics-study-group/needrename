@@ -102,7 +102,7 @@ namespace Engine {
          * * 
          * @param asset The MaterialAsset to convert.
          */
-        void Instantiate(const MaterialAsset &asset) override;
+        void Instantiate(MaterialAsset &asset) override;
 
         /**
          * @brief Get the material library assigned to this instance.

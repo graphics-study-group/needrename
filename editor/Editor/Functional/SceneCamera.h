@@ -23,6 +23,9 @@ namespace Editor {
         float m_move_speed{1.0f};
         float m_rotate_speed{0.2f};
 
+        float m_pitch{0.0f};
+        float m_yaw{0.0f};
+
         Transform m_transform{};
 
         std::shared_ptr<Engine::Camera> m_camera{};

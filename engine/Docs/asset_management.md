@@ -21,8 +21,8 @@ The Asset Management system is responsible for handling various types of game as
 
 - `AssetRef` is a `final` value-type class for referencing assets at runtime.
 - It stores:
-  - `mutable std::shared_ptr<Asset> m_asset{}` - A mutable shared pointer to the loaded asset data
-  - `std::optional<GUID> m_guid{}` - The asset's GUID
+  - `bool m_is_acquired{false}` - Whether the asset is currently acquired (reference counted)
+  - `GUID m_guid{}` - The asset's GUID
 
 ### Serialization
 
@@ -31,55 +31,66 @@ The Asset Management system is responsible for handling various types of game as
   ```json
   "LevelAsset::m_skybox_material": "07BF9F33F68CCAB150A6078964D33EF1"
   ```
+- If the GUID is invalid (zero), it serializes as `null`.
 
-### Loading and Lifetime
+### Lifecycle Management
 
-- **`AssetRef::as<T>()`**:
-  - Queries `AssetManager` using the asset GUID
-  - Loads the asset immediately if not already loaded
-  - Returns a `std::shared_ptr<T>` to the loaded asset
-  - Uses lazy loading: the asset is loaded only when accessed
+`AssetRef` uses explicit acquire/release semantics for reference counting:
 
-```cpp
-template <AssetClass T>
-std::shared_ptr<T> AssetRef::as() {
-    static_assert(std::is_base_of<Asset, T>::value, "T must be a derived class of Asset");
-    if (!IsLoaded()) Load();
-    return std::dynamic_pointer_cast<T>(m_asset);
-}
-```
+- **`AssetRef::Acquire()`**:
+  - Increments the reference count in `AssetManager`
+  - Loads the asset eagerly if not already loaded
+
+- **`AssetRef::AcquireAsync()`**:
+  - Increments the reference count in `AssetManager`
+  - Adds the asset to the loading queue for asynchronous loading
+
+- **`AssetRef::Release()`**:
+  - Decrements the reference count in `AssetManager`
+  - Called automatically in destructor
+
+- **`AssetRef::IsAcquired()`**: Returns whether the asset is currently acquired
+
+- **`AssetRef::IsValid()`**: Returns whether the GUID is valid (non-zero)
+
+### Asset Access
+
+- **`AssetRef::as<T>(bool async_load)`**:
+  - Returns a typed pointer to the asset
+  - Automatically acquires if not already acquired
+  - Returns `nullptr` if asset not loaded yet (for async loading)
+  - Throws if GUID invalid or type mismatch
+
+- **`AssetRef::cas<T>()`** (const version):
+  - Returns a const typed pointer without acquiring or loading
+  - Returns `nullptr` if not acquired or not loaded
+  - Useful for read-only access to already-loaded assets
 
 ### Reference Counting
 
-- `AssetRef` internally contains a `mutable shared_ptr` pointing to the loaded asset data.
-- This shared pointer acts purely as a reference counter.
-- `AssetManager` uses it to determine whether an asset is still in use.
-- Unreferenced assets are automatically cleaned up via `AssetManager::UnloadUnusedAssets()`.
-
-```cpp
-void AssetManager::UnloadUnusedAssets() {
-    for (auto it = m_loaded_assets.begin(); it != m_loaded_assets.end();) {
-        if (it->second.use_count() == 1) {  // Only AssetManager holds the reference
-            it = m_loaded_assets.erase(it);
-        } else {
-            ++it;
-        }
-    }
-}
-```
+- `AssetManager` maintains a `std::unordered_map<GUID, unsigned int> m_asset_ref_count` for reference counting.
+- Each `Acquire()` call increments the count; each `Release()` call decrements it.
+- `AssetManager::UnloadUnusedAssets()` removes assets with zero reference count.
 
 ### Key Properties
 
 - Assets with the same GUID are loaded **only once** in memory.
 - The queued asset loading mechanism in `AssetManager` supports future background or preloading workflows.
 - Preloading needs to explicitly hold asset references to prevent premature cleanup.
+- Reference counting is explicit: assets must be `Acquire()`d to be kept alive.
 
 ### Usage Example
 
 ```cpp
 // Get an AssetRef and access the asset
-auto level_asset = adb.GetNewAssetRef(Engine::AssetPath{adb, "/default_level.asset"})
-                    .as<Engine::LevelAsset>();
+AssetRef level_ref(level_asset_guid);
+auto level = level_ref.as<Engine::LevelAsset>();  // Auto-acquires and loads
+
+// Async loading
+AssetRef texture_ref(texture_guid);
+texture_ref.Acquire(true);  // Add to async loading queue
+// ... later ...
+auto texture = texture_ref.as<TextureAsset>();  // May return nullptr if still loading
 ```
 
 ## SceneAsset and LevelAsset

@@ -261,7 +261,7 @@ namespace Engine {
         assert(tpl);
         return this->GetDescriptor(*tpl, backbuffer);
     }
-    void MaterialInstance::Instantiate(const MaterialAsset &asset) {
+    void MaterialInstance::Instantiate(MaterialAsset &asset) {
         for (const auto & prop : asset.m_properties) {
             auto p = prop.second;
             switch(p.m_type) {
@@ -273,8 +273,8 @@ namespace Engine {
                 break;
             case MaterialProperty::Type::Texture:
             {
-                auto texture_asset =
-                    std::any_cast<AssetRef>(p.m_value).as<Image2DTextureAsset>();
+                auto t_asset = std::any_cast<AssetRef>(p.m_value).as<Asset>();
+                auto texture_asset = dynamic_cast<Image2DTextureAsset *>(t_asset);
                 if (texture_asset) {
                     // TODO: We should allocate texture from assets in a pool.
                     auto texture = std::shared_ptr<ImageTexture>(std::move(ImageTexture::CreateUnique(this->m_system, *texture_asset)));
@@ -283,8 +283,7 @@ namespace Engine {
                         *texture, texture_asset->GetPixelData(), texture_asset->GetPixelDataSize()
                     );
                 }
-                auto solid_color_asset =
-                    std::any_cast<AssetRef>(p.m_value).as<SolidColorTextureAsset>();
+                auto solid_color_asset = dynamic_cast<SolidColorTextureAsset *>(t_asset);
                 if (solid_color_asset) {
                     std::shared_ptr texture = ImageTexture::CreateUnique(
                         this->m_system, 
