@@ -1,14 +1,14 @@
 #ifndef RENDER_MEMORY_ALLOCATEDMEMORY_INCLUDED
 #define RENDER_MEMORY_ALLOCATEDMEMORY_INCLUDED
 
-#include <variant>
 #include "MemoryTypes.h"
+#include <variant>
 
 class VmaAllocation_T;
 class VmaAllocator_T;
 class VmaAllocationInfo;
-typedef VmaAllocation_T* VmaAllocation;
-typedef VmaAllocator_T* VmaAllocator;
+typedef VmaAllocation_T *VmaAllocation;
+typedef VmaAllocator_T *VmaAllocator;
 
 namespace vk {
     class Image;
@@ -33,55 +33,47 @@ namespace Engine {
         AllocatedMemory(AllocatedMemory &&other) noexcept;
         AllocatedMemory &operator=(AllocatedMemory &&other) noexcept;
 
-        const VmaAllocation & GetAllocation() const noexcept;
-        const VmaAllocator & GetAllocator() const noexcept;
+        const VmaAllocation &GetAllocation() const noexcept;
+        const VmaAllocator &GetAllocator() const noexcept;
         VmaAllocationInfo QueryAllocationInfo() const noexcept;
     };
 
     class ImageAllocation : private AllocatedMemory {
         struct impl;
-        std::unique_ptr <impl> pimpl;
+        std::unique_ptr<impl> pimpl;
+
     public:
-        ImageAllocation(
-            vk::Image image,
-            VmaAllocation allocation,
-            VmaAllocator allocator,
-            ImageMemoryType type
-        );
+        ImageAllocation(vk::Image image, VmaAllocation allocation, VmaAllocator allocator, ImageMemoryType type);
         ~ImageAllocation();
 
         ImageAllocation(const ImageAllocation &) = delete;
         void operator=(const ImageAllocation &) = delete;
 
-        ImageAllocation(ImageAllocation && other) noexcept;
-        ImageAllocation & operator= (ImageAllocation && other) noexcept;
+        ImageAllocation(ImageAllocation &&other) noexcept;
+        ImageAllocation &operator=(ImageAllocation &&other) noexcept;
 
-        const vk::Image & GetImage() const noexcept;
+        const vk::Image &GetImage() const noexcept;
 
         ImageMemoryType GetMemoryType() const noexcept;
     };
 
     class BufferAllocation : private AllocatedMemory {
         struct impl;
-        std::unique_ptr <impl> pimpl;
+        std::unique_ptr<impl> pimpl;
+
     public:
-        BufferAllocation(
-            vk::Buffer buffer,
-            VmaAllocation allocation,
-            VmaAllocator allocator,
-            BufferType type
-        );
+        BufferAllocation(vk::Buffer buffer, VmaAllocation allocation, VmaAllocator allocator, BufferType type);
         ~BufferAllocation();
 
         BufferAllocation(const BufferAllocation &) = delete;
         void operator=(const BufferAllocation &) = delete;
 
-        BufferAllocation(BufferAllocation && other) noexcept;
-        BufferAllocation & operator= (BufferAllocation && other) noexcept;
+        BufferAllocation(BufferAllocation &&other) noexcept;
+        BufferAllocation &operator=(BufferAllocation &&other) noexcept;
 
-        const vk::Buffer & GetBuffer() const noexcept;
+        const vk::Buffer &GetBuffer() const noexcept;
 
-        std::byte * GetVMAddress();
+        std::byte *GetVMAddress();
 
         void FlushMemory(size_t offset = 0, size_t size = 0) const;
         void InvalidateMemory(size_t offset = 0, size_t size = 0) const;

@@ -35,9 +35,7 @@ namespace Engine {
          * Shader type is inferred from the filename
          */
         bool CompileGLSLtoSPV(
-            std::vector<uint32_t> &spirv,
-            const std::filesystem::path &shader_abs_path,
-            bool emit_debug_info = true
+            std::vector<uint32_t> &spirv, const std::filesystem::path &shader_abs_path, bool emit_debug_info = true
         );
 
     protected:

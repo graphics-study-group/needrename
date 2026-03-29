@@ -51,7 +51,9 @@ namespace Engine {
             /// @param size Type size
             /// @param reflectable whether the type is reflectable
             /// @param deleter the deleter for the type
-            Type(const std::string &name, size_t size, bool reflectable = false, const WrapperDeleter &deleter = nullptr);
+            Type(
+                const std::string &name, size_t size, bool reflectable = false, const WrapperDeleter &deleter = nullptr
+            );
 
             // suppress the warning of -Weffc++
             Type(const Type &) = delete;
@@ -61,7 +63,9 @@ namespace Engine {
             virtual ~Type() = default;
 
         private:
-            std::shared_ptr<const Method> GetMethodFromMangledName(const std::string &name, bool is_constructor = false) const;
+            std::shared_ptr<const Method> GetMethodFromMangledName(
+                const std::string &name, bool is_constructor = false
+            ) const;
 
         protected:
             std::vector<std::shared_ptr<const Type>> m_base_type{};
@@ -222,7 +226,12 @@ namespace Engine {
                 Weak,
                 Unique
             };
-            PointerType(std::shared_ptr<const Type> pointed_type, size_t size, PointerTypeKind kind, const WrapperDeleter &deleter);
+            PointerType(
+                std::shared_ptr<const Type> pointed_type,
+                size_t size,
+                PointerTypeKind kind,
+                const WrapperDeleter &deleter
+            );
             virtual ~PointerType() = default;
 
         protected:
@@ -250,7 +259,7 @@ namespace Engine {
             std::vector<uint64_t> m_enum_values;
             WrapperEnumToString m_to_string;
             WrapperEnumFromString m_from_string;
-            
+
         public:
             std::string_view to_string(uint64_t value) const;
             std::optional<uint64_t> from_string(std::string_view name) const;

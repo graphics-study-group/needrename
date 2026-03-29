@@ -3,8 +3,8 @@
 #include <array>
 #include <assert.h>
 #include <cstring>
-#include <numbers>
 #include <glm.hpp>
+#include <numbers>
 #include <stb_image.h>
 #include <stb_image_write.h>
 
@@ -71,7 +71,7 @@ namespace {
                     float lon = std::atan2(dir.y, dir.x);
                     float lat = -std::asin(dir.z);
 
-                    float srcX = (lon + std::numbers::pi_v<float>) / (2.0f * std::numbers::pi_v<float>) * srcW;
+                    float srcX = (lon + std::numbers::pi_v<float>) / (2.0f * std::numbers::pi_v<float>)*srcW;
                     float srcY = (std::numbers::pi_v<float> / 2.0f - lat) / std::numbers::pi_v<float> * srcH;
 
                     std::byte *pixel = &dst[(y * faceSize + x) * channels];

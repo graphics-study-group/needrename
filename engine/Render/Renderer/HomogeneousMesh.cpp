@@ -3,8 +3,8 @@
 #include <Asset/Mesh/MeshAsset.h>
 
 #include "Render/Memory/DeviceBuffer.h"
-#include "Render/Renderer/VertexAttribute.h"
 #include "Render/RenderSystem/AllocatorState.h"
+#include "Render/Renderer/VertexAttribute.h"
 
 #include <SDL3/SDL.h>
 #include <vulkan/vulkan.hpp>
@@ -28,7 +28,7 @@ namespace Engine {
          * Called before
          * `CreateStagingBuffer()`.
          */
-        void FetchFromAsset(const RenderSystemState::AllocatorState & allocator);
+        void FetchFromAsset(const RenderSystemState::AllocatorState &allocator);
 
         uint32_t GetVertexIndexCount() const {
             return m_mesh_asset.cas<MeshAsset>()->GetSubmeshVertexIndexCount(m_submesh_idx);
@@ -42,9 +42,7 @@ namespace Engine {
     };
 
     HomogeneousMesh::HomogeneousMesh(
-        const RenderSystemState::AllocatorState &allocator,
-        AssetRef mesh_asset,
-        size_t submesh_idx
+        const RenderSystemState::AllocatorState &allocator, AssetRef mesh_asset, size_t submesh_idx
     ) : pimpl(std::make_unique<impl>()) {
         pimpl->m_mesh_asset = mesh_asset;
         // eagerly load mesh asset (deprecated)
@@ -58,15 +56,15 @@ namespace Engine {
     HomogeneousMesh::~HomogeneousMesh() = default;
 
     /// @brief Fetch basic vertex info from asset. Actual data are not stored in this class.
-    /// @param allocator 
-    void HomogeneousMesh::impl::FetchFromAsset(const RenderSystemState::AllocatorState & allocator) {
+    /// @param allocator
+    void HomogeneousMesh::impl::FetchFromAsset(const RenderSystemState::AllocatorState &allocator) {
         // Load vertex attribute format
         {
-            const auto & asset = m_mesh_asset.as<MeshAsset>();
-            const auto & submesh = asset->m_submeshes[m_submesh_idx];
+            const auto &asset = m_mesh_asset.as<MeshAsset>();
+            const auto &submesh = asset->m_submeshes[m_submesh_idx];
             m_attribute = submesh.ToVertexAttributeFormat();
         }
-        
+
         const uint64_t buffer_size = GetExpectedBufferSize();
 
         if (m_total_allocated_buffer_size != buffer_size) {
@@ -99,16 +97,15 @@ namespace Engine {
         }
     }
 
-    std::unique_ptr <DeviceBuffer> HomogeneousMesh::CreateStagingBuffer(const RenderSystemState::AllocatorState & allocator) const {
+    std::unique_ptr<DeviceBuffer> HomogeneousMesh::CreateStagingBuffer(
+        const RenderSystemState::AllocatorState &allocator
+    ) const {
         pimpl->FetchFromAsset(allocator);
 
         const uint64_t buffer_size = GetExpectedBufferSize();
 
         auto buffer = DeviceBuffer::CreateUnique(
-            allocator,
-            {BufferTypeBits::StagingToDevice},
-            buffer_size,
-            "Buffer - mesh staging"
+            allocator, {BufferTypeBits::StagingToDevice}, buffer_size, "Buffer - mesh staging"
         );
 
         std::byte *data = buffer->GetVMAddress();
@@ -124,11 +121,7 @@ namespace Engine {
     HomogeneousMesh::BufferBindingInfo HomogeneousMesh::GetIndexBufferBinding() const noexcept {
         assert(pimpl->m_buffer->GetBuffer());
         // Last offset is the offset of index buffer.
-        return {
-            pimpl->m_buffer.get(),
-            *(pimpl->m_buffer_offsets.rbegin()),
-            0
-        };
+        return {pimpl->m_buffer.get(), *(pimpl->m_buffer_offsets.rbegin()), 0};
     }
 
     VertexAttribute HomogeneousMesh::GetVertexAttributeFormat() const noexcept {
@@ -144,23 +137,19 @@ namespace Engine {
         pimpl->m_ready = false;
     }
 
-    void HomogeneousMesh::Submit(
-        const RenderSystemState::AllocatorState &,
-        RenderSystemState::SubmissionHelper & sh
-    ) {
+    void HomogeneousMesh::Submit(const RenderSystemState::AllocatorState &, RenderSystemState::SubmissionHelper &sh) {
         assert(pimpl->m_buffer != nullptr);
 
-        std::vector <std::byte> buf{};
+        std::vector<std::byte> buf{};
 
         buf.resize(
-            GetIndexCount() * sizeof(uint32_t) + 
-            GetVertexAttributeFormat().GetTotalPerVertexSize() * GetVertexAttributeCount()
+            GetIndexCount() * sizeof(uint32_t)
+            + GetVertexAttributeFormat().GetTotalPerVertexSize() * GetVertexAttributeCount()
         );
-        const auto & submesh = pimpl->m_mesh_asset.as<MeshAsset>()->m_submeshes[pimpl->m_submesh_idx];
+        const auto &submesh = pimpl->m_mesh_asset.as<MeshAsset>()->m_submeshes[pimpl->m_submesh_idx];
         submesh.WriteVertexAttributeBuffer(buf.data());
         submesh.WriteIndexBuffer(
-            buf.data() + 
-            GetVertexAttributeFormat().GetTotalPerVertexSize() * GetVertexAttributeCount()
+            buf.data() + GetVertexAttributeFormat().GetTotalPerVertexSize() * GetVertexAttributeCount()
         );
 
         sh.EnqueueBufferSubmissionVertex(this->GetBuffer(), buf);
@@ -183,7 +172,9 @@ namespace Engine {
         return *pimpl->m_buffer;
     }
 
-    void HomogeneousMesh::FillVertexAttributeBufferBindings(std::vector <HomogeneousMesh::BufferBindingInfo> & v) const noexcept {
+    void HomogeneousMesh::FillVertexAttributeBufferBindings(
+        std::vector<HomogeneousMesh::BufferBindingInfo> &v
+    ) const noexcept {
         assert(pimpl->m_buffer->GetBuffer());
         v.clear();
         v.reserve(pimpl->m_buffer_offsets.size());
@@ -191,13 +182,7 @@ namespace Engine {
             pimpl->m_buffer_offsets.begin(),
             pimpl->m_buffer_offsets.end() - 1,
             std::back_inserter(v),
-            [this] (size_t offset) -> BufferBindingInfo {
-                return {
-                    pimpl->m_buffer.get(),
-                    offset,
-                    0
-                };
-            }
+            [this](size_t offset) -> BufferBindingInfo { return {pimpl->m_buffer.get(), offset, 0}; }
         );
     }
 } // namespace Engine

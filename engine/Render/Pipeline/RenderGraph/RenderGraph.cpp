@@ -1,15 +1,17 @@
 #include "RenderGraph.h"
 
-#include "Render/Pipeline/RenderGraph/RenderGraphUtils.hpp"
 #include "Render/Pipeline/RenderGraph/RenderGraphTask.hpp"
+#include "Render/Pipeline/RenderGraph/RenderGraphUtils.hpp"
 #include "Render/RenderSystem/FrameManager.h"
 
 #include <SDL3/SDL.h>
 
 namespace {
-    inline vk::ImageMemoryBarrier2 GetImageBarrier(const Engine::Texture &texture,
+    inline vk::ImageMemoryBarrier2 GetImageBarrier(
+        const Engine::Texture &texture,
         Engine::RenderGraphImpl::ImageAccessTuple old_access,
-        Engine::RenderGraphImpl::ImageAccessTuple new_access) noexcept {
+        Engine::RenderGraphImpl::ImageAccessTuple new_access
+    ) noexcept {
         using namespace Engine;
         vk::ImageMemoryBarrier2 barrier{};
         barrier.image = texture.GetImage();
@@ -23,8 +25,8 @@ namespace {
 
         if (barrier.subresourceRange.aspectMask == vk::ImageAspectFlagBits::eNone) {
             SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Failed to infer aspect range when inserting an image barrier.");
-            barrier.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor | vk::ImageAspectFlagBits::eDepth
-                                                    | vk::ImageAspectFlagBits::eStencil;
+            barrier.subresourceRange.aspectMask =
+                vk::ImageAspectFlagBits::eColor | vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
         }
 
         std::tie(barrier.srcStageMask, barrier.srcAccessMask, barrier.oldLayout) = old_access;
@@ -33,30 +35,28 @@ namespace {
         barrier.dstQueueFamilyIndex = barrier.srcQueueFamilyIndex = vk::QueueFamilyIgnored;
         return barrier;
     }
-}
+} // namespace
 
 namespace Engine {
     struct RenderGraph::impl {
-        std::vector <std::function<void(vk::CommandBuffer, const RenderGraph &)>> m_commands;
+        std::vector<std::function<void(vk::CommandBuffer, const RenderGraph &)>> m_commands;
 
-        RenderGraphImpl::Synchronization initial_sync, final_sync; 
+        RenderGraphImpl::Synchronization initial_sync, final_sync;
 
         RenderGraphImpl::RenderGraphExtraInfo extra;
 
         struct {
-            RenderTargetTexture * target {nullptr};
-            vk::Extent2D extent {};
-            vk::Offset2D offset {};
+            RenderTargetTexture *target{nullptr};
+            vk::Extent2D extent{};
+            vk::Offset2D offset{};
         } present_info;
     };
 
     RenderGraph::RenderGraph(
-        RenderSystem & system,
-        std::vector<std::function<void(vk::CommandBuffer, const RenderGraph &)>> && commands,
-        RenderGraphImpl::RenderGraphExtraInfo && extra
-    ) :
-        m_system(system),
-        pimpl(std::make_unique<impl>()) {
+        RenderSystem &system,
+        std::vector<std::function<void(vk::CommandBuffer, const RenderGraph &)>> &&commands,
+        RenderGraphImpl::RenderGraphExtraInfo &&extra
+    ) : m_system(system), pimpl(std::make_unique<impl>()) {
         pimpl->m_commands = std::move(commands);
         pimpl->extra = std::move(extra);
     }
@@ -64,14 +64,17 @@ namespace Engine {
 
     void RenderGraph::AddExternalInputDependency(Texture &texture, MemoryAccessTypeImageBits previous_access) {
         auto itr = pimpl->extra.m_initial_image_access.find(&texture);
-        if (itr == pimpl->extra.m_initial_image_access.end() || itr->second.second == MemoryAccessTypeImage{previous_access})
+        if (itr == pimpl->extra.m_initial_image_access.end()
+            || itr->second.second == MemoryAccessTypeImage{previous_access})
             return;
 
         pimpl->initial_sync.image_barriers.push_back(
             RenderGraphImpl::TextureAccessMemo::GenerateBarrier(
                 texture.GetImage(),
-                {previous_access}, RenderGraphImpl::PassType::None,
-                itr->second.second, itr->second.first,
+                {previous_access},
+                RenderGraphImpl::PassType::None,
+                itr->second.second,
+                itr->second.first,
                 ImageUtils::GetVkAspect(texture.GetTextureDescription().format)
             )
         );
@@ -85,8 +88,10 @@ namespace Engine {
         pimpl->final_sync.image_barriers.push_back(
             RenderGraphImpl::TextureAccessMemo::GenerateBarrier(
                 texture.GetImage(),
-                itr->second.second, itr->second.first,
-                {next_access}, RenderGraphImpl::PassType::None,
+                itr->second.second,
+                itr->second.first,
+                {next_access},
+                RenderGraphImpl::PassType::None,
                 ImageUtils::GetVkAspect(texture.GetTextureDescription().format)
             )
         );
@@ -94,7 +99,7 @@ namespace Engine {
 
     RenderTargetTexture *RenderGraph::GetInternalTextureResource(int32_t handle) const noexcept {
         auto itr = pimpl->extra.internal_texture_cache.find(handle);
-        if (itr == pimpl->extra.internal_texture_cache.end())  return nullptr;
+        if (itr == pimpl->extra.internal_texture_cache.end()) return nullptr;
         return itr->second.get();
     }
 

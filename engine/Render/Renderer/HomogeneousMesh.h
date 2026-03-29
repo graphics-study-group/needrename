@@ -6,7 +6,7 @@
 namespace vk {
     class Buffer;
     class PipelineVertexInputStateCreateInfo;
-}
+} // namespace vk
 
 namespace Engine {
     class AssetRef;
@@ -19,32 +19,27 @@ namespace Engine {
         std::unique_ptr<impl> pimpl;
 
     public:
-
         /**
          * @brief Create the Homogenenous mesh from an asset.
          * The Host-side buffer is allocated, but no data will be uploaded.
-         * 
+         *
          * To upload any data, you need to create a staging buffer and issue
          * a buffer copy command. This procedure is automatically handled by
          * `RendererManager` if correctly registered.
          */
-        HomogeneousMesh(
-            const RenderSystemState::AllocatorState & allocator,
-            AssetRef mesh_asset,
-            size_t submesh_idx
-        );
+        HomogeneousMesh(const RenderSystemState::AllocatorState &allocator, AssetRef mesh_asset, size_t submesh_idx);
         virtual ~HomogeneousMesh();
 
         /**
          * @brief Create a staging buffer containing all vertices data
          * with the supplied allocator.
-         * 
+         *
          * This method is automatically called on mesh submission, and you typically do
          * not need to call it manually.
-         * 
+         *
          * Vertex data are copied into the staging buffer immediately.
          */
-        std::unique_ptr <DeviceBuffer> CreateStagingBuffer(const RenderSystemState::AllocatorState & allocator) const;
+        std::unique_ptr<DeviceBuffer> CreateStagingBuffer(const RenderSystemState::AllocatorState &allocator) const;
 
         /**
          * @brief Get vertex index count viz. how many vertices are drawn in the draw call.
@@ -72,7 +67,7 @@ namespace Engine {
          * @brief Get vertex attribute buffers, along with their offsets in the buffer.
          * The final element in this buffer is the offset of the index buffer.
          * You might wish to remove it before binding vertex input buffers.
-         * 
+         *
          * Our vertex attributes are allocated in the same buffer with different offsets:
          * ```
          * ATTR0 ...  | ATTR1 ...  | ATTR2 ...  | INDEX ...
@@ -80,13 +75,11 @@ namespace Engine {
          * ```
          * Note that index buffer have a different element count of the rest of buffers.
          */
-        void FillVertexAttributeBufferBindings (
-            std::vector <BufferBindingInfo> &
-        ) const noexcept override;
+        void FillVertexAttributeBufferBindings(std::vector<BufferBindingInfo> &) const noexcept override;
 
         /**
          * @brief Get vertex index buffer, along with its offset in the buffer.
-         * 
+         *
          * Our
          * vertex attributes along with indices are allocated in the same buffer with different offsets:
          * ```
@@ -102,10 +95,7 @@ namespace Engine {
 
         bool IsReady() const noexcept override;
         void Remove() noexcept override;
-        void Submit(
-            const RenderSystemState::AllocatorState &,
-            RenderSystemState::SubmissionHelper &
-        ) override;
+        void Submit(const RenderSystemState::AllocatorState &, RenderSystemState::SubmissionHelper &) override;
     };
 }; // namespace Engine
 

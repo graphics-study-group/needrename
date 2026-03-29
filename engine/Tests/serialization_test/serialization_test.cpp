@@ -223,8 +223,8 @@ int main() {
     EnumTest enum_test;
     enum_test.m_normal_enum = EnumTest::TestNormalEnum::NE2;
     enum_test.m_color = EnumTest::Color::Green;
-    enum_test.m_small = EnumTest::SmallU8::C; // uint8_t underlying
-    enum_test.m_big = EnumTest::BigU64::Big;  // uint64_t underlying
+    enum_test.m_small = EnumTest::SmallU8::C;         // uint8_t underlying
+    enum_test.m_big = EnumTest::BigU64::Big;          // uint64_t underlying
     enum_test.m_bignorefl = EnumTest::BigNoRefl::Big; // no reflection info
     archive.clear();
     Engine::Serialization::serialize(enum_test, archive);

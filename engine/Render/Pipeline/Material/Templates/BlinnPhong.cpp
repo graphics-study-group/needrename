@@ -27,11 +27,8 @@ namespace Engine::Materials {
         // Load texture asset
         const auto &base_texture_prop = asset.m_properties.at("base_tex");
         assert(base_texture_prop.m_type == MaterialProperty::Type::Texture);
-        auto base_texture_asset =
-            (std::any_cast<AssetRef>(base_texture_prop.m_value)).as<Image2DTextureAsset>();
-        this->SetBaseTexture(
-            ImageTexture::CreateUnique(m_system, *base_texture_asset)
-        );
+        auto base_texture_asset = (std::any_cast<AssetRef>(base_texture_prop.m_value)).as<Image2DTextureAsset>();
+        this->SetBaseTexture(ImageTexture::CreateUnique(m_system, *base_texture_asset));
         m_system.GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
             *base_texture, base_texture_asset->GetPixelData(), base_texture_asset->GetPixelDataSize()
         );

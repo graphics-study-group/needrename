@@ -5,8 +5,8 @@
 
 #include <Asset/Asset.h>
 #include <Reflection/macros.h>
-#include <vector>
 #include <variant>
+#include <vector>
 
 namespace Engine {
     class ObjLoader;
@@ -25,7 +25,7 @@ namespace Engine {
             std::vector<uint32_t> m_indices{};
 
             // Raw buffer containing all vertex attribute data
-            std::vector <std::byte> m_vertex_attributes {};
+            std::vector<std::byte> m_vertex_attributes{};
 
             struct Attributes {
                 VertexAttributeType type{VertexAttributeType::Unused};
@@ -35,11 +35,11 @@ namespace Engine {
                 size_t buffer_size{0};
             };
 
-            uint32_t vertex_count {};
-            Attributes positions {};
-            Attributes color {}, normal {}, texcoord0 {};
-            Attributes tangent {}, texcoord1 {}, texcoord2 {}, texcoord3 {};
-            Attributes bone_indices {}, bone_weights {};
+            uint32_t vertex_count{};
+            Attributes positions{};
+            Attributes color{}, normal{}, texcoord0{};
+            Attributes tangent{}, texcoord1{}, texcoord2{}, texcoord3{};
+            Attributes bone_indices{}, bone_weights{};
 
             /**
              * @brief Get a `VertexAttribute` descibing this submesh.
@@ -48,21 +48,21 @@ namespace Engine {
 
             /**
              * @brief Write out all vertex attributes to the given buffer.
-             * 
+             *
              * The buffer is assumed to be large enough.
              */
-            void WriteVertexAttributeBuffer(std::byte * buf) const noexcept;
+            void WriteVertexAttributeBuffer(std::byte *buf) const noexcept;
 
             /**
              * @brief Write out all indices to the given buffer.
-             * 
+             *
              * The buffer is assumed to be large enough.
              */
-            void WriteIndexBuffer(std::byte * buf) const noexcept;
+            void WriteIndexBuffer(std::byte *buf) const noexcept;
 
             /**
              * @brief Get the total buffer size of this submesh.
-             * 
+             *
              * @return `m_indices.size() * sizeof(uint32_t) + m_vertex_attributes.size()`
              */
             size_t GetTotalBufferSize() const noexcept {

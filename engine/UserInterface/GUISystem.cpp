@@ -4,14 +4,14 @@
 #include "Render/ImageUtilsFunc.h"
 #include "Render/Pipeline/CommandBuffer/GraphicsCommandBuffer.h"
 #include "Render/RenderSystem.h"
+#include "Render/RenderSystem/DeviceInterface.h"
 #include "Render/RenderSystem/Structs.h"
 #include "Render/RenderSystem/Swapchain.h"
-#include "Render/RenderSystem/DeviceInterface.h"
 #include <SDL3/SDL.h>
 #include <backends/imgui_impl_sdl3.h>
 #include <backends/imgui_impl_vulkan.h>
-#include <vulkan/vulkan.hpp>
 #include <iostream>
+#include <vulkan/vulkan.hpp>
 
 namespace Engine {
 
@@ -20,20 +20,20 @@ namespace Engine {
 
         struct VulkanResources {
             static constexpr std::array<vk::DescriptorPoolSize, 11> DESCRIPTOR_POOL_SIZES{
-                vk::DescriptorPoolSize{ vk::DescriptorType::eSampler, 1000 },
-                vk::DescriptorPoolSize{ vk::DescriptorType::eCombinedImageSampler, 1000 },
-                vk::DescriptorPoolSize{ vk::DescriptorType::eSampledImage, 1000 },
-                vk::DescriptorPoolSize{ vk::DescriptorType::eStorageImage, 1000 },
-                vk::DescriptorPoolSize{ vk::DescriptorType::eUniformTexelBuffer, 1000 },
-                vk::DescriptorPoolSize{ vk::DescriptorType::eStorageTexelBuffer, 1000 },
-                vk::DescriptorPoolSize{ vk::DescriptorType::eUniformBuffer, 1000 },
-                vk::DescriptorPoolSize{ vk::DescriptorType::eStorageBuffer, 1000 },
-                vk::DescriptorPoolSize{ vk::DescriptorType::eUniformBufferDynamic, 1000 },
-                vk::DescriptorPoolSize{ vk::DescriptorType::eStorageBufferDynamic, 1000 },
-                vk::DescriptorPoolSize{ vk::DescriptorType::eInputAttachment, 1000 }
+                vk::DescriptorPoolSize{vk::DescriptorType::eSampler, 1000},
+                vk::DescriptorPoolSize{vk::DescriptorType::eCombinedImageSampler, 1000},
+                vk::DescriptorPoolSize{vk::DescriptorType::eSampledImage, 1000},
+                vk::DescriptorPoolSize{vk::DescriptorType::eStorageImage, 1000},
+                vk::DescriptorPoolSize{vk::DescriptorType::eUniformTexelBuffer, 1000},
+                vk::DescriptorPoolSize{vk::DescriptorType::eStorageTexelBuffer, 1000},
+                vk::DescriptorPoolSize{vk::DescriptorType::eUniformBuffer, 1000},
+                vk::DescriptorPoolSize{vk::DescriptorType::eStorageBuffer, 1000},
+                vk::DescriptorPoolSize{vk::DescriptorType::eUniformBufferDynamic, 1000},
+                vk::DescriptorPoolSize{vk::DescriptorType::eStorageBufferDynamic, 1000},
+                vk::DescriptorPoolSize{vk::DescriptorType::eInputAttachment, 1000}
             };
-            vk::UniqueDescriptorPool descriptor_pool {};
-        } vkr {};
+            vk::UniqueDescriptorPool descriptor_pool{};
+        } vkr{};
 
         void CleanUp() {
             if (m_context != nullptr) {
@@ -88,9 +88,7 @@ namespace Engine {
 
     void GUISystem::DrawGUI(vk::CommandBuffer cb) const noexcept {
         ImGui::Render();
-        ImGui_ImplVulkan_RenderDrawData(
-            ImGui::GetDrawData(), static_cast<VkCommandBuffer>(cb), nullptr
-        );
+        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), static_cast<VkCommandBuffer>(cb), nullptr);
     }
 
     void GUISystem::Create(SDL_Window *window) {
@@ -103,18 +101,14 @@ namespace Engine {
     }
 
     void GUISystem::CreateVulkanBackend(
-        RenderSystem & render_system,
-        vk::Format color_attachment_format,
-        uint8_t samples
+        RenderSystem &render_system, vk::Format color_attachment_format, uint8_t samples
     ) {
 
-        if(pimpl->vkr.descriptor_pool) {
+        if (pimpl->vkr.descriptor_pool) {
             SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Recreating Vulkan backend for GUI subsystem.");
         } else {
             vk::DescriptorPoolCreateInfo dpci{
-                vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
-                1000,
-                pimpl->vkr.DESCRIPTOR_POOL_SIZES
+                vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet, 1000, pimpl->vkr.DESCRIPTOR_POOL_SIZES
             };
             pimpl->vkr.descriptor_pool = render_system.GetDevice().createDescriptorPoolUnique(dpci);
         }
@@ -145,11 +139,12 @@ namespace Engine {
             // This should not happen as ImGui_ImplVulkan_Init only returns true.
             SDL_LogCritical(0, "Failed to initialize Vulkan backend for ImGui.");
             SDL_ShowSimpleMessageBox(
-                SDL_MESSAGEBOX_ERROR, 
+                SDL_MESSAGEBOX_ERROR,
                 "Critical Error",
                 "Cannot initialize Vulkan backend for ImGUI.\n"
                 "This is an unrecoverable error and the program will now terminate.",
-                nullptr);
+                nullptr
+            );
             std::terminate();
         }
     }
@@ -157,24 +152,12 @@ namespace Engine {
         assert(pimpl->m_context);
         return pimpl->m_context;
     }
-    void GUISystem::ResetColorAttachmentFormat(
-        vk::Format format,
-        uint8_t samples
-    ) noexcept {
-        VkPipelineRenderingCreateInfoKHR prci{
-            static_cast<VkPipelineRenderingCreateInfoKHR>(
-                vk::PipelineRenderingCreateInfo{
-                    0,
-                    {format},
-                    vk::Format::eUndefined,
-                    vk::Format::eUndefined
-                }
-            )
-        };
+    void GUISystem::ResetColorAttachmentFormat(vk::Format format, uint8_t samples) noexcept {
+        VkPipelineRenderingCreateInfoKHR prci{static_cast<VkPipelineRenderingCreateInfoKHR>(
+            vk::PipelineRenderingCreateInfo{0, {format}, vk::Format::eUndefined, vk::Format::eUndefined}
+        )};
         ImGui_ImplVulkan_PipelineInfo pi{
-            .RenderPass = nullptr,
-            .MSAASamples = VK_SAMPLE_COUNT_1_BIT,
-            .PipelineRenderingCreateInfo = prci
+            .RenderPass = nullptr, .MSAASamples = VK_SAMPLE_COUNT_1_BIT, .PipelineRenderingCreateInfo = prci
         };
         ImGui_ImplVulkan_CreateMainPipeline(&pi);
     }

@@ -13,25 +13,17 @@ namespace Engine {
     ) noexcept {
         pimpl->operator[](name) = VariableEntry{};
 
-        std::vector <std::byte> buf;
+        std::vector<std::byte> buf;
         buf.resize(size);
         std::memcpy(buf.data(), ptr, size);
 
-        VariableEntry new_entry{
-            .type = &type,
-            .size = size
-        };
+        VariableEntry new_entry{.type = &type, .size = size};
         new_entry.value = std::move(buf);
         pimpl->operator[](name) = std::move(new_entry);
     }
     void StructuredBuffer::SetStructuredBuffer(const std::string &name, const StructuredBuffer &buffer) {
         auto ptr = &buffer;
-        this->SetVariable(
-            name,
-            &ptr,
-            sizeof(ptr),
-            typeid(StructuredBuffer)
-        );
+        this->SetVariable(name, &ptr, sizeof(ptr), typeid(StructuredBuffer));
     }
     const StructuredBuffer::VariableEntry *StructuredBuffer::GetVariable(const std::string &name) const {
         auto itr = pimpl->find(name);

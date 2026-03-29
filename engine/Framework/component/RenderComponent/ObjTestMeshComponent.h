@@ -1,11 +1,11 @@
 #ifndef COMPONENT_RENDERCOMPONENT_OBJTESTMESHCOMPONENT_INCLUDED
 #define COMPONENT_RENDERCOMPONENT_OBJTESTMESHCOMPONENT_INCLUDED
 
+#include "Asset/AssetManager/AssetManager.h"
 #include "Asset/Loader/ObjLoader.h"
 #include "Framework/component/RenderComponent/StaticMeshComponent.h"
-#include "Render/Renderer/HomogeneousMesh.h"
 #include "MainClass.h"
-#include "Asset/AssetManager/AssetManager.h"
+#include "Render/Renderer/HomogeneousMesh.h"
 
 namespace Engine {
     /**
@@ -88,9 +88,7 @@ namespace Engine {
         }
 
     public:
-        ObjTestMeshComponent(
-            const GameObject &parent
-        ) : StaticMeshComponent(parent) {
+        ObjTestMeshComponent(const GameObject &parent) : StaticMeshComponent(parent) {
         }
 
         ~ObjTestMeshComponent() {

@@ -1,8 +1,8 @@
 #ifndef PIPELINE_COMMANDBUFFER_GRAPHICSCOMMANDBUFFER_INCLUDED
 #define PIPELINE_COMMANDBUFFER_GRAPHICSCOMMANDBUFFER_INCLUDED
 
-#include "Render/Pipeline/PipelineRuntimeInfo.h"
 #include "Render/Pipeline/CommandBuffer/TransferCommandBuffer.h"
+#include "Render/Pipeline/PipelineRuntimeInfo.h"
 #include "Render/RenderSystem/RendererManager.h"
 
 // GLM forward declaration.
@@ -25,7 +25,7 @@ namespace Engine {
     namespace RenderSystemState {
         class SceneDataManager;
         class CameraManager;
-    };
+    }; // namespace RenderSystemState
 
     namespace AttachmentUtils {
         class AttachmentDescription;
@@ -33,7 +33,7 @@ namespace Engine {
 
     /**
      * @brief A command buffer used for rendering.
-     * 
+     *
      * `GraphicsCommandBuffer` inherits
      * `TranferCommandBuffer` to facilitate memory
      * operations like blitting and clearing. However these
@@ -63,60 +63,57 @@ namespace Engine {
          * @brief Begin a Vulkan rendering pass with Multiple Render Targets (MRT)
          */
         void BeginRendering(
-            const std::vector <AttachmentUtils::AttachmentDescription> & colors,
+            const std::vector<AttachmentUtils::AttachmentDescription> &colors,
             const AttachmentUtils::AttachmentDescription depth,
             vk::Extent2D extent,
-            const std::string & name = ""
+            const std::string &name = ""
         );
 
         /**
          * @brief Set up pipeline runtime info.
          */
-        void SetRenderingInfo (PipelineRuntimeInfoPerRendering pripr) noexcept {
+        void SetRenderingInfo(PipelineRuntimeInfoPerRendering pripr) noexcept {
             m_pripr = pripr;
         }
 
         /**
          * @brief Get pipeline runtime info.
          */
-        const PipelineRuntimeInfoPerRendering & GetRenderingInfo() const noexcept {
+        const PipelineRuntimeInfoPerRendering &GetRenderingInfo() const noexcept {
             return m_pripr;
         }
 
-         /**
+        /**
          * @brief Bind per scene resources to the command buffer.
-         * 
+         *
          * Must be called before any draw calls.
-         * 
+         *
          * Automatically called by `DrawRenderers` but not by `DrawMesh`.
          */
         void BindSceneResources(const RenderSystemState::SceneDataManager &);
-        
+
         /**
          * @brief Bind per camera resources to the command buffer.
-         * 
+         *
          * Must be called before any draw calls, after `BindSceneResources`.
-         * 
+         *
          * Automatically called by `DrawRenderers` but not by `DrawMesh`.
          */
         void BindCameraResources(const RenderSystemState::CameraManager &);
 
         /**
          * @brief Bind a material for rendering.
-         * 
+         *
          * Bind new material pipeline to the
          * GPU (if warranted), bind descriptors to the pipeline,
          * and write pending uniform data updates of
          * the given material instance.
-         * 
+         *
          * May perform lazy allocation of buffers, etc.
-         * 
+         *
          * Automatically called by `DrawRenderers` but not by `DrawMesh`
          */
-        void BindMaterial(
-            MaterialInstance &inst,
-            MaterialTemplate & tpl
-        );
+        void BindMaterial(MaterialInstance &inst, MaterialTemplate &tpl);
 
         /// @brief Setup the viewport parameters
         /// @param vpWidth width of the viewport
@@ -126,7 +123,7 @@ namespace Engine {
 
         /**
          * @brief Minimalistic interface for drawing a mesh.
-         * 
+         *
          * Write per-mesh data, and send draw call to GPU.
          * Does not do any extra stuff such as setting up viewports.
          */
@@ -136,22 +133,16 @@ namespace Engine {
 
         /**
          * @brief Draw renderers in the RendererList with specified pass index.
-         * 
+         *
          * The camera index used in rendering is assumed to be the current active camera.
          */
-        void DrawRenderers(
-            const std::string & tag,
-            const RendererList &renderers
-        );
+        void DrawRenderers(const std::string &tag, const RendererList &renderers);
 
         /**
          * @brief Draw renderers in the RendererList with specified pass index.
          */
         void DrawRenderers(
-            const std::string & tag,
-            const RendererList &renderers,
-            int32_t camera_index,
-            vk::Extent2D extent
+            const std::string &tag, const RendererList &renderers, int32_t camera_index, vk::Extent2D extent
         );
 
         /// @brief End the render pass
@@ -160,12 +151,10 @@ namespace Engine {
         void Reset() noexcept override;
 
     protected:
-        RenderSystem & m_system;
+        RenderSystem &m_system;
         uint32_t m_inflight_frame_index;
 
-        std::optional<
-            std::pair<vk::Pipeline, vk::PipelineLayout>
-        > m_bound_material_pipeline{};
+        std::optional<std::pair<vk::Pipeline, vk::PipelineLayout>> m_bound_material_pipeline{};
 
         PipelineRuntimeInfoPerRendering m_pripr{};
     };

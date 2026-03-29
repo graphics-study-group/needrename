@@ -1,7 +1,7 @@
 #include "Swapchain.h"
 
-#include "Render/RenderSystem/DeviceInterface.h"
 #include "Render/ImageUtils.h"
+#include "Render/RenderSystem/DeviceInterface.h"
 
 #include <SDL3/SDL.h>
 #include <vulkan/vulkan.hpp>
@@ -9,15 +9,10 @@
 namespace {
 
     static constexpr std::array PREFERED_COLOR_FORMATS = {
-        vk::Format::eR8G8B8A8Srgb,
-        vk::Format::eR8G8B8A8Unorm,
-        vk::Format::eR8G8B8Srgb,
-        vk::Format::eR8G8B8Unorm
+        vk::Format::eR8G8B8A8Srgb, vk::Format::eR8G8B8A8Unorm, vk::Format::eR8G8B8Srgb, vk::Format::eR8G8B8Unorm
     };
 
-    vk::SurfaceFormatKHR SelectSwapchainFormat(
-        const std::vector<vk::SurfaceFormatKHR> & formats
-    ) {
+    vk::SurfaceFormatKHR SelectSwapchainFormat(const std::vector<vk::SurfaceFormatKHR> &formats) {
         vk::SurfaceFormatKHR pickedFormat{};
 
         uint32_t color_formats = PREFERED_COLOR_FORMATS.size();
@@ -25,13 +20,16 @@ namespace {
             if (format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear) {
                 auto itr = std::find(PREFERED_COLOR_FORMATS.begin(), PREFERED_COLOR_FORMATS.end(), format.format);
                 if (itr != PREFERED_COLOR_FORMATS.end()) {
-                    color_formats = std::min(color_formats, (uint32_t)std::distance(PREFERED_COLOR_FORMATS.begin(), itr));
+                    color_formats =
+                        std::min(color_formats, (uint32_t)std::distance(PREFERED_COLOR_FORMATS.begin(), itr));
                 }
             }
         }
-        
+
         if (color_formats >= PREFERED_COLOR_FORMATS.size()) {
-            SDL_LogCritical(SDL_LOG_CATEGORY_RENDER, "This device support neither B8G8R8A8 nor R8G8B8A8 swapchain format.");
+            SDL_LogCritical(
+                SDL_LOG_CATEGORY_RENDER, "This device support neither B8G8R8A8 nor R8G8B8A8 swapchain format."
+            );
             SDL_ShowSimpleMessageBox(
                 SDL_MESSAGEBOX_ERROR,
                 "Critical Error",
@@ -46,9 +44,7 @@ namespace {
         return pickedFormat;
     }
 
-    vk::PresentModeKHR SelectPresentMode(
-        const std::vector<vk::PresentModeKHR> & modes
-    ) {
+    vk::PresentModeKHR SelectPresentMode(const std::vector<vk::PresentModeKHR> &modes) {
         // Select display mode
         vk::PresentModeKHR pickedMode = vk::PresentModeKHR::eFifo;
         for (const auto &mode : modes) {
@@ -63,30 +59,25 @@ namespace {
         return pickedMode;
     }
 
-    vk::Extent2D SelectSwapchainExtent(
-        const vk::SurfaceCapabilitiesKHR & caps,
-        vk::Extent2D expected_extent
-    ) {
+    vk::Extent2D SelectSwapchainExtent(const vk::SurfaceCapabilitiesKHR &caps, vk::Extent2D expected_extent) {
         // Measure extent
         vk::Extent2D extent{};
         if (caps.currentExtent.height != std::numeric_limits<uint32_t>::max()) {
             extent = caps.currentExtent;
         } else {
             extent = expected_extent;
-            extent.width = std::clamp(
-                extent.width, caps.minImageExtent.width, caps.maxImageExtent.width
-            );
-            extent.height = std::clamp(
-                extent.height, caps.minImageExtent.height, caps.maxImageExtent.height
-            );
+            extent.width = std::clamp(extent.width, caps.minImageExtent.width, caps.maxImageExtent.width);
+            extent.height = std::clamp(extent.height, caps.minImageExtent.height, caps.maxImageExtent.height);
 
             if (extent.width != expected_extent.width || extent.height != expected_extent.height) {
-                SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Swapchain extent clamped to (%u, %u).", extent.width, extent.height);
+                SDL_LogWarn(
+                    SDL_LOG_CATEGORY_RENDER, "Swapchain extent clamped to (%u, %u).", extent.width, extent.height
+                );
             }
         }
         return extent;
     }
-}
+} // namespace
 
 namespace Engine::RenderSystemState {
     struct Swapchain::impl {
@@ -103,10 +94,7 @@ namespace Engine::RenderSystemState {
 
     Swapchain::~Swapchain() = default;
 
-    void Swapchain::CreateSwapchain(
-        const DeviceInterface & interface,
-        vk::Extent2D expected_extent
-    ) {
+    void Swapchain::CreateSwapchain(const DeviceInterface &interface, vk::Extent2D expected_extent) {
         const auto swapchain_support = interface.GetSwapchainSupport();
         const auto extent = SelectSwapchainExtent(swapchain_support.capabilities, expected_extent);
         const auto format = SelectSwapchainFormat(swapchain_support.formats);
@@ -149,7 +137,8 @@ namespace Engine::RenderSystemState {
         std::array indices{
             graphics_index,
             interface.GetQueueFamily(DeviceInterface::QueueFamilyType::GraphicsPresent).value(),
-            interface.GetQueueFamily(DeviceInterface::QueueFamilyType::AsynchronousComputePresent).value_or(graphics_index),
+            interface.GetQueueFamily(DeviceInterface::QueueFamilyType::AsynchronousComputePresent)
+                .value_or(graphics_index),
         };
         std::ranges::sort(indices);
         auto [ret, last] = std::ranges::unique(indices);
@@ -170,7 +159,7 @@ namespace Engine::RenderSystemState {
     vk::SwapchainKHR Swapchain::GetSwapchain() const noexcept {
         return pimpl->m_swapchain.get();
     }
-    const std::vector <vk::Image> & Swapchain::GetImages() const noexcept {
+    const std::vector<vk::Image> &Swapchain::GetImages() const noexcept {
         return pimpl->m_images;
     }
 

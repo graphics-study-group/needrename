@@ -125,8 +125,7 @@ namespace Engine {
     }
 
     AssetRef FileSystemDatabase::GetNewAssetRef(const AssetPath &path) const {
-        if (m_path_to_guid.find(path) == m_path_to_guid.end())
-            throw std::runtime_error("Asset not found");
+        if (m_path_to_guid.find(path) == m_path_to_guid.end()) throw std::runtime_error("Asset not found");
         return AssetRef(m_path_to_guid.at(path));
     }
 

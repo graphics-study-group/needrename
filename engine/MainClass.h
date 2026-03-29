@@ -6,8 +6,8 @@
 #include <SDL3/SDL.h>
 #include <filesystem>
 #include <memory>
-#include <vector>
 #include <mutex>
+#include <vector>
 
 namespace Engine {
     class RenderSystem;
@@ -27,7 +27,7 @@ namespace Engine {
     public:
         /**
          * @brief Obtain a shared pointer to the main class singleton.
-         * 
+         *
          * @note Due to shared library unloading problems, the application
          * that calls this member must hold the returned shared pointer
          * until exit of main function.
@@ -78,7 +78,7 @@ namespace Engine {
         std::unique_ptr<RenderGraph> render_graph{};
         uint32_t m_final_color_attachment_id = 0;
 
-        static std::weak_ptr <MainClass> m_instance;
+        static std::weak_ptr<MainClass> m_instance;
         static std::once_flag m_instance_ready;
 
         bool m_on_quit = false;

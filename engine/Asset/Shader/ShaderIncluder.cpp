@@ -1,9 +1,9 @@
 #include "ShaderIncluder.h"
 
-#include <filesystem>
-#include <cmake_config.h>
-#include <MainClass.h>
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
+#include <MainClass.h>
+#include <cmake_config.h>
+#include <filesystem>
 
 namespace Engine {
     DirStackFileIncluder::DirStackFileIncluder() {
@@ -75,8 +75,8 @@ namespace Engine {
         return nullptr;
     }
 
-    DirStackFileIncluder::IncludeResult *DirStackFileIncluder::readSystemPath(const char * headerName) const {
-        for (const auto & systemPath : systemPaths) {
+    DirStackFileIncluder::IncludeResult *DirStackFileIncluder::readSystemPath(const char *headerName) const {
+        for (const auto &systemPath : systemPaths) {
             std::filesystem::path candidate = (systemPath / std::filesystem::path(headerName)).lexically_normal();
             std::ifstream file(candidate, std::ios_base::binary | std::ios_base::ate);
             if (file) {

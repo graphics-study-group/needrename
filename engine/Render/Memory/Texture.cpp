@@ -11,26 +11,23 @@
 #include <vulkan/vulkan.hpp>
 
 namespace {
-    constexpr vk::ImageType GetImageType(const Engine::Texture::TextureDesc & d) {
-        return d.dimensions == 1 ? vk::ImageType::e1D : 
-            (d.dimensions == 2 ? vk::ImageType::e2D : vk::ImageType::e3D);
+    constexpr vk::ImageType GetImageType(const Engine::Texture::TextureDesc &d) {
+        return d.dimensions == 1 ? vk::ImageType::e1D : (d.dimensions == 2 ? vk::ImageType::e2D : vk::ImageType::e3D);
     }
 
     constexpr vk::ImageViewType GetImageViewType(
-        const Engine::Texture::TextureDesc & d,
-        const Engine::TextureSubresourceRange & r
+        const Engine::Texture::TextureDesc &d, const Engine::TextureSubresourceRange &r
     ) {
         assert(r.array_layer_base < d.array_layers && "Array layer base out of range.");
         assert(
-            ((r.array_layer_base + r.array_layer_size <= d.array_layers) 
-                || (r.array_layer_size == vk::RemainingArrayLayers)
-            ) && "Array layer out of range."
+            ((r.array_layer_base + r.array_layer_size <= d.array_layers)
+             || (r.array_layer_size == vk::RemainingArrayLayers))
+            && "Array layer out of range."
         );
         assert(r.mip_level_base < d.mipmap_levels && "Mipmap level base out of range.");
         assert(
-            ((r.mip_level_base + r.mip_level_size <= d.mipmap_levels) 
-                || (r.mip_level_size == vk::RemainingMipLevels)
-            ) && "Mipmap level out of range."
+            ((r.mip_level_base + r.mip_level_size <= d.mipmap_levels) || (r.mip_level_size == vk::RemainingMipLevels))
+            && "Mipmap level out of range."
         );
 
         if (d.is_cube_map) {
@@ -45,29 +42,26 @@ namespace {
             );
             return vk::ImageViewType::e3D;
         } else {
-            if (
-                r.array_layer_size == 1 ||
-                (r.array_layer_size == vk::RemainingArrayLayers && d.array_layers == 1)
-            ) {
+            if (r.array_layer_size == 1 || (r.array_layer_size == vk::RemainingArrayLayers && d.array_layers == 1)) {
                 return (d.dimensions == 1 ? vk::ImageViewType::e1D : vk::ImageViewType::e2D);
             } else {
                 return (d.dimensions == 1 ? vk::ImageViewType::e1DArray : vk::ImageViewType::e2DArray);
             }
         }
     }
-}
+} // namespace
 
 namespace Engine {
 
     struct Texture::impl {
-        vk::Device device {};
+        vk::Device device{};
 
-        TextureDesc m_tdesc {};
-        SamplerDesc m_sdesc {};
-        std::unique_ptr <ImageAllocation> m_image {};
+        TextureDesc m_tdesc{};
+        SamplerDesc m_sdesc{};
+        std::unique_ptr<ImageAllocation> m_image{};
 
         struct subresource_hasher {
-            size_t operator() (const TextureSubresourceRange & r) const noexcept {
+            size_t operator()(const TextureSubresourceRange &r) const noexcept {
                 RenderResourceHasher h;
                 h.u32(r.array_layer_base);
                 h.u32(r.array_layer_size);
@@ -77,13 +71,10 @@ namespace Engine {
             };
         };
 
-        std::unordered_map <
-            TextureSubresourceRange,
-            vk::UniqueImageView,
-            subresource_hasher> m_views {};
+        std::unordered_map<TextureSubresourceRange, vk::UniqueImageView, subresource_hasher> m_views{};
 
-        vk::Sampler m_sampler {};
-        std::string m_name {};
+        vk::Sampler m_sampler{};
+        std::string m_name{};
     };
 
     Texture::Texture() : pimpl(nullptr) {
@@ -127,7 +118,7 @@ namespace Engine {
         pimpl->m_sdesc = sampler;
     }
 
-    Texture::Texture(Texture && o) noexcept : Texture() {
+    Texture::Texture(Texture &&o) noexcept : Texture() {
         std::swap(this->pimpl, o.pimpl);
     }
 
@@ -152,7 +143,7 @@ namespace Engine {
 
     vk::ImageView Texture::GetImageView(const TextureSubresourceRange &tsv) const {
         auto itr = pimpl->m_views.find(tsv);
-        if (itr != pimpl->m_views.end())    return itr->second.get();
+        if (itr != pimpl->m_views.end()) return itr->second.get();
 
         vk::ImageViewCreateInfo ivci{
             vk::ImageViewCreateFlags{},
@@ -176,10 +167,11 @@ namespace Engine {
         return pimpl->m_sampler;
     }
 
-    std::unique_ptr <DeviceBuffer> Engine::Texture::CreateStagingBuffer(const RenderSystemState::AllocatorState & allocator) const {
-        uint64_t buffer_size = pimpl->m_tdesc.height 
-            * pimpl->m_tdesc.width * pimpl->m_tdesc.depth * pimpl->m_tdesc.array_layers
-            * ImageUtils::GetPixelSize(pimpl->m_tdesc.format);
+    std::unique_ptr<DeviceBuffer> Engine::Texture::CreateStagingBuffer(
+        const RenderSystemState::AllocatorState &allocator
+    ) const {
+        uint64_t buffer_size = pimpl->m_tdesc.height * pimpl->m_tdesc.width * pimpl->m_tdesc.depth
+                               * pimpl->m_tdesc.array_layers * ImageUtils::GetPixelSize(pimpl->m_tdesc.format);
         assert(buffer_size > 0);
 
         return DeviceBuffer::CreateUnique(

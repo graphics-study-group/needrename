@@ -8,7 +8,7 @@ namespace vk {
     class Sampler;
     class DescriptorSetLayout;
     class PipelineLayout;
-}
+} // namespace vk
 
 namespace Engine {
     namespace ImageUtils {
@@ -25,30 +25,22 @@ namespace Engine {
          */
         class ImmutableResourceCache {
             struct impl;
-            std::unique_ptr <impl> pimpl;
+            std::unique_ptr<impl> pimpl;
 
         public:
             ImmutableResourceCache(vk::Device dvc);
             ~ImmutableResourceCache() noexcept;
 
-            vk::Sampler GetSampler(
-                const ImageUtils::SamplerDesc &
-            );
-            vk::Sampler GetSampler(
-                const vk::SamplerCreateInfo &
-            );
+            vk::Sampler GetSampler(const ImageUtils::SamplerDesc &);
+            vk::Sampler GetSampler(const vk::SamplerCreateInfo &);
 
             vk::DescriptorSetLayout GetDescriptorSetLayout(
-                const vk::DescriptorSetLayoutCreateInfo &,
-                const char * name = nullptr
+                const vk::DescriptorSetLayoutCreateInfo &, const char *name = nullptr
             );
 
-            vk::PipelineLayout GetPipelineLayout(
-                const vk::PipelineLayoutCreateInfo &,
-                const char * name = nullptr
-            );
+            vk::PipelineLayout GetPipelineLayout(const vk::PipelineLayoutCreateInfo &, const char *name = nullptr);
         };
-    }
-}
+    } // namespace RenderSystemState
+} // namespace Engine
 
 #endif // RENDER_RENDERSYSTEM_IMMUTABLERESOURCECACHE_INCLUDED

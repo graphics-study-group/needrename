@@ -18,8 +18,8 @@ namespace Engine {
     class AssetRef;
 
     /**
-     * @brief The Asset Management system is responsible for handling various types of game assets, 
-     * such as textures, models, materials, and game object prefabs. 
+     * @brief The Asset Management system is responsible for handling various types of game assets,
+     * such as textures, models, materials, and game object prefabs.
      * It ensures that these assets are efficiently loaded, managed, and utilized during the game's runtime.
      */
     class AssetManager : public std::enable_shared_from_this<AssetManager> {

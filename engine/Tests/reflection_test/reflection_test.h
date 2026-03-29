@@ -200,16 +200,29 @@ public:
     struct InnerProbe {
         static inline int alive = 0;
         static inline int destroyed = 0;
-        InnerProbe() { ++alive; }
-        ~InnerProbe() { ++destroyed; --alive; }
+        InnerProbe() {
+            ++alive;
+        }
+        ~InnerProbe() {
+            ++destroyed;
+            --alive;
+        }
     };
 
     // Default ctor/dtor with counters
-    REFL_ENABLE LifecycleTest() : m_probe(std::make_shared<InnerProbe>()) { ++constructed; ++alive; }
-    virtual ~LifecycleTest() { ++destructed; --alive; }
+    REFL_ENABLE LifecycleTest() : m_probe(std::make_shared<InnerProbe>()) {
+        ++constructed;
+        ++alive;
+    }
+    virtual ~LifecycleTest() {
+        ++destructed;
+        --alive;
+    }
 
     // Return-by-value method to exercise reflected return Var lifetime
-    REFL_ENABLE LifecycleTest MakeAnother() const { return LifecycleTest(); }
+    REFL_ENABLE LifecycleTest MakeAnother() const {
+        return LifecycleTest();
+    }
 
     // A held smart pointer resource that should be released on destruction
     std::shared_ptr<InnerProbe> m_probe{};
@@ -229,15 +242,13 @@ public:
     }
 };
 
-
-
 // Test structures for GetMemberRecursively
 struct REFL_SER_CLASS(REFL_WHITELIST) NestedStruct {
     REFL_SER_BODY(NestedStruct)
 public:
     REFL_ENABLE NestedStruct() = default;
     virtual ~NestedStruct() = default;
-    
+
     REFL_SER_ENABLE int level1_value = 42;
     REFL_SER_ENABLE std::string level1_name = "level1";
 };
@@ -247,7 +258,7 @@ struct REFL_SER_CLASS(REFL_WHITELIST) MiddleStruct {
 public:
     REFL_ENABLE MiddleStruct() = default;
     virtual ~MiddleStruct() = default;
-    
+
     REFL_SER_ENABLE NestedStruct nested_member;
     REFL_SER_ENABLE int middle_value = 100;
     REFL_SER_ENABLE std::string middle_name = "middle";
@@ -258,7 +269,7 @@ struct REFL_SER_CLASS(REFL_WHITELIST) TopLevelStruct {
 public:
     REFL_ENABLE TopLevelStruct() = default;
     virtual ~TopLevelStruct() = default;
-    
+
     REFL_SER_ENABLE MiddleStruct middle_member;
     REFL_SER_ENABLE int top_value = 200;
     REFL_SER_ENABLE std::string top_name = "top";
@@ -272,7 +283,8 @@ public:
     virtual ~VirtualBase() = default;
 
     int m_virtual_base = 1;
-    virtual void VirtualMethod() {}
+    virtual void VirtualMethod() {
+    }
 };
 
 class REFL_SER_CLASS(REFL_WHITELIST) VirtualDerived1 : virtual public VirtualBase {

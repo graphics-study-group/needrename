@@ -1,16 +1,15 @@
 #ifndef RENDER_RENDERSYSTEM_ALLOCATORSTATE_INCLUDED
 #define RENDER_RENDERSYSTEM_ALLOCATORSTATE_INCLUDED
 
-#include <memory>
-#include <vulkan/vulkan.h>
 #include "Render/ImageUtils.h"
 #include "Render/Memory/AllocatedMemory.h"
 #include "Render/Memory/MemoryTypes.h"
+#include <memory>
+#include <vulkan/vulkan.h>
 
 class VkExtent3D;
 class VmaAllocator_T;
-typedef VmaAllocator_T* VmaAllocator;
-
+typedef VmaAllocator_T *VmaAllocator;
 
 namespace vk {
     enum class Format;
@@ -19,14 +18,14 @@ namespace vk {
     enum class FormatFeatureFlagBits : uint32_t;
 
     class Extent3D;
-}
+} // namespace vk
 
 namespace Engine {
     class RenderSystem;
     namespace RenderSystemState {
         class AllocatorState {
             struct impl;
-            std::unique_ptr <impl> pimpl;
+            std::unique_ptr<impl> pimpl;
 
             RenderSystem &m_system;
 
@@ -43,11 +42,7 @@ namespace Engine {
             void Create();
             VmaAllocator GetAllocator() const;
 
-            BufferAllocation AllocateBuffer(
-                BufferType type,
-                size_t size,
-                const std::string &name = ""
-            ) const;
+            BufferAllocation AllocateBuffer(BufferType type, size_t size, const std::string &name = "") const;
 
             std::unique_ptr<BufferAllocation> AllocateBufferUnique(
                 BufferType type, size_t size, const std::string &name = ""
@@ -77,10 +72,7 @@ namespace Engine {
                 const std::string &name = ""
             ) const noexcept;
 
-            bool QueryFormatFeatures(
-                vk::Format format,
-                vk::FormatFeatureFlagBits feature
-            ) const noexcept;
+            bool QueryFormatFeatures(vk::Format format, vk::FormatFeatureFlagBits feature) const noexcept;
         };
     } // namespace RenderSystemState
 } // namespace Engine

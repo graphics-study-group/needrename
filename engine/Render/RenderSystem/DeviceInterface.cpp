@@ -1,18 +1,17 @@
 #include "DeviceInterface.h"
-#include <vulkan/vulkan.hpp>
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_vulkan.h>
 #include <unordered_set>
+#include <vulkan/vulkan.hpp>
 
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 
 namespace Engine::RenderSystemState {
     struct DeviceInterface::impl {
 
-        static constexpr const char * VALIDATION_LAYER_NAME{"VK_LAYER_KHRONOS_validation"};
-        static constexpr std::array <const char *, 2> DEVICE_EXTENSION_NAMES{
-            VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-            VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME
+        static constexpr const char *VALIDATION_LAYER_NAME{"VK_LAYER_KHRONOS_validation"};
+        static constexpr std::array<const char *, 2> DEVICE_EXTENSION_NAMES{
+            VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME
         };
 
         vk::UniqueInstance instance{};
@@ -24,11 +23,11 @@ namespace Engine::RenderSystemState {
 
         // Queue families
         struct QueueFamilies {
-            std::optional<uint32_t> graphics {};
-            std::optional<uint32_t> graphics_present {};
-            std::optional<uint32_t> async_compute {};
-            std::optional<uint32_t> async_compute_present {};
-            std::optional<uint32_t> async_transfer {};
+            std::optional<uint32_t> graphics{};
+            std::optional<uint32_t> graphics_present{};
+            std::optional<uint32_t> async_compute{};
+            std::optional<uint32_t> async_compute_present{};
+            std::optional<uint32_t> async_transfer{};
 
             /**
              * Only async transfer needs this.
@@ -36,13 +35,12 @@ namespace Engine::RenderSystemState {
              * > in minImageTransferGranularity, meaning that there are no additional 
              * > restrictions on the granularity of image transfer operations for these queues.
              */
-            std::tuple<uint32_t, uint32_t, uint32_t> async_transfer_granularity {};
+            std::tuple<uint32_t, uint32_t, uint32_t> async_transfer_granularity{};
 
             bool is_complete() const noexcept {
                 return graphics.has_value() && graphics_present.has_value();
             }
-        } queue_families {};
-        
+        } queue_families{};
 
         // Cached info
         QueueInfo queues{};
@@ -62,11 +60,12 @@ namespace Engine::RenderSystemState {
         /**
          * @brief Create a new instance.
          */
-        void CreateInstance(const DeviceConfiguration & cfg) {
-            
+        void CreateInstance(const DeviceConfiguration &cfg) {
+
             static_assert(
                 std::is_same<decltype(VULKAN_HPP_DEFAULT_DISPATCHER), vk::detail::DispatchLoaderDynamic>::value,
-                "Vulkan-Hpp loader is not configured to be dynamic.");
+                "Vulkan-Hpp loader is not configured to be dynamic."
+            );
             if (cfg.dynamic_dispatcher) {
                 cfg.dynamic_dispatcher->init(
                     reinterpret_cast<PFN_vkGetInstanceProcAddr>(SDL_Vulkan_GetVkGetInstanceProcAddr())
@@ -120,15 +119,14 @@ namespace Engine::RenderSystemState {
             } else {
                 VULKAN_HPP_DEFAULT_DISPATCHER.init(instance.get());
             }
-                
         }
 
         /**
          * @brief Create a new vulkan surface with the help of SDL.
          */
-        void CreateSurface(const DeviceConfiguration & cfg) {
+        void CreateSurface(const DeviceConfiguration &cfg) {
             assert(this->instance);
-    
+
             vk::SurfaceKHR surface;
             int ret = SDL_Vulkan_CreateSurface(cfg.window, instance.get(), nullptr, (VkSurfaceKHR *)&surface);
 
@@ -136,18 +134,12 @@ namespace Engine::RenderSystemState {
                 const std::string sdl_error{SDL_GetError()};
                 SDL_LogCritical(SDL_LOG_CATEGORY_RENDER, "Failed to create native surface, %s.", sdl_error.c_str());
 
-                const std::string message_box_info{
-                    std::format(
-                        "Cannot create Vulkan surface: {}\n"
-                        "This is an unrecoverable error and the program will now terminate.",
-                        sdl_error
-                    )
-                };
-                SDL_ShowSimpleMessageBox(
-                    SDL_MESSAGEBOX_ERROR, 
-                    "Critical Error",
-                    message_box_info.c_str(),
-                    cfg.window);
+                const std::string message_box_info{std::format(
+                    "Cannot create Vulkan surface: {}\n"
+                    "This is an unrecoverable error and the program will now terminate.",
+                    sdl_error
+                )};
+                SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Critical Error", message_box_info.c_str(), cfg.window);
                 std::terminate();
             }
 
@@ -160,7 +152,7 @@ namespace Engine::RenderSystemState {
          */
         QueueFamilies FillQueueFamilyIndices(vk::PhysicalDevice pd) {
             assert(surface);
-    
+
             QueueFamilies q;
 
             auto queueFamilyProps = pd.getQueueFamilyProperties();
@@ -179,7 +171,8 @@ namespace Engine::RenderSystemState {
                         prop.queueFlags & vk::QueueFlagBits::eTransfer ? "Transfer " : "",
                         prop.queueFlags & vk::QueueFlagBits::eCompute ? "Compute " : "",
                         supportPresenting ? "Can" : "Cannot"
-                    ).c_str()
+                    )
+                        .c_str()
                 );
 
                 if (prop.queueFlags & vk::QueueFlagBits::eGraphics) {
@@ -225,15 +218,15 @@ namespace Engine::RenderSystemState {
 
             auto props = pd.getProperties();
             SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "\tInspecting %s.", props.deviceName.data());
-            switch(props.deviceType) {
-                case vk::PhysicalDeviceType::eDiscreteGpu:
-                    score += 10;
-                    break;
-                case vk::PhysicalDeviceType::eIntegratedGpu:
-                    score += 5;
-                    break;
-                default:
-                    break;
+            switch (props.deviceType) {
+            case vk::PhysicalDeviceType::eDiscreteGpu:
+                score += 10;
+                break;
+            case vk::PhysicalDeviceType::eIntegratedGpu:
+                score += 5;
+                break;
+            default:
+                break;
             }
 
             // Check if all queue families are available
@@ -253,7 +246,9 @@ namespace Engine::RenderSystemState {
             auto device_features = pd.getFeatures2<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan13Features>();
             auto features13 = device_features.get<vk::PhysicalDeviceVulkan13Features>();
             if (!(features13.dynamicRendering && features13.synchronization2)) {
-                SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "This physical device does not support needed Vulkan 1.3 features.");
+                SDL_LogInfo(
+                    SDL_LOG_CATEGORY_RENDER, "This physical device does not support needed Vulkan 1.3 features."
+                );
                 return -1;
             }
 
@@ -286,7 +281,7 @@ namespace Engine::RenderSystemState {
         /**
          * @brief Get the physical device that supports needed Vulkan features.
          */
-        void GetPhysicalDevice(const DeviceConfiguration & cfg) {
+        void GetPhysicalDevice(const DeviceConfiguration &cfg) {
             assert(surface);
 
             SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Selecting physical devices.");
@@ -304,14 +299,17 @@ namespace Engine::RenderSystemState {
             if (!selected_device) {
                 SDL_LogCritical(SDL_LOG_CATEGORY_RENDER, "Cannot select appropiate device.");
                 SDL_ShowSimpleMessageBox(
-                    SDL_MESSAGEBOX_ERROR, 
+                    SDL_MESSAGEBOX_ERROR,
                     "Critical Error",
                     "None of your GPUs supports necessary Vulkan capabilities.\n"
                     "This is an unrecoverable error and the program will now terminate.",
-                    cfg.window);
+                    cfg.window
+                );
                 std::terminate();
             }
-            SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Device %s selected.", selected_device.getProperties().deviceName.data());
+            SDL_LogInfo(
+                SDL_LOG_CATEGORY_RENDER, "Device %s selected.", selected_device.getProperties().deviceName.data()
+            );
 
             physical_device = selected_device;
             physical_device_memory_properties = physical_device.getMemoryProperties();
@@ -323,7 +321,7 @@ namespace Engine::RenderSystemState {
         /**
          * @brief Create the Vulkan device, and retrieve queues to submit command buffers to.
          */
-        void CreateDevice(const DeviceConfiguration & cfg) {
+        void CreateDevice(const DeviceConfiguration &cfg) {
             assert(physical_device);
 
             SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Creating logical device.");
@@ -384,14 +382,13 @@ namespace Engine::RenderSystemState {
             } else {
                 VULKAN_HPP_DEFAULT_DISPATCHER.init(device.get());
             }
-            
         }
 
         /**
          * @brief Retrieve queues and create command pools to create
          * command buffers from.
          */
-        void CreateCommandPool(const DeviceConfiguration & cfg) {
+        void CreateCommandPool(const DeviceConfiguration &cfg) {
             SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Retreiving queues.");
             queues.graphicsQueue = device->getQueue(queue_families.graphics.value(), 0);
             queues.presentQueue = device->getQueue(queue_families.graphics_present.value(), 0);
@@ -440,42 +437,42 @@ namespace Engine::RenderSystemState {
     const QueueInfo &DeviceInterface::GetQueueInfo() const {
         return pimpl->queues;
     }
-    std::optional <uint32_t> DeviceInterface::GetQueueFamily(DeviceInterface::QueueFamilyType type) const noexcept {
-        switch(type) {
+    std::optional<uint32_t> DeviceInterface::GetQueueFamily(DeviceInterface::QueueFamilyType type) const noexcept {
+        switch (type) {
             using enum DeviceInterface::QueueFamilyType;
-            case GraphicsMain:
-                assert(pimpl->queue_families.graphics.has_value());
-                return pimpl->queue_families.graphics;
-            case GraphicsPresent:
-                assert(pimpl->queue_families.graphics_present.has_value());
-                return pimpl->queue_families.graphics_present;
-            case AsynchronousCompute:
-                return pimpl->queue_families.async_compute;
-            case AsynchronousComputePresent:
-                return pimpl->queue_families.async_compute_present;
-            case AsynchronousTransfer:
-                return pimpl->queue_families.async_transfer;
+        case GraphicsMain:
+            assert(pimpl->queue_families.graphics.has_value());
+            return pimpl->queue_families.graphics;
+        case GraphicsPresent:
+            assert(pimpl->queue_families.graphics_present.has_value());
+            return pimpl->queue_families.graphics_present;
+        case AsynchronousCompute:
+            return pimpl->queue_families.async_compute;
+        case AsynchronousComputePresent:
+            return pimpl->queue_families.async_compute_present;
+        case AsynchronousTransfer:
+            return pimpl->queue_families.async_transfer;
         }
         __builtin_unreachable();
         return std::nullopt;
     }
     uint32_t DeviceInterface::QueryLimit(PhysicalDeviceLimitInteger limit) const {
-        switch(limit) {
+        switch (limit) {
             using enum PhysicalDeviceLimitInteger;
-            case MaxUniformBufferSize:
-                return pimpl->physical_device_properties.limits.maxUniformBufferRange;
-            case MaxStorageBufferSize:
-                return pimpl->physical_device_properties.limits.maxStorageBufferRange;
-            case UniformBufferOffsetAlignment:
-                return pimpl->physical_device_properties.limits.minUniformBufferOffsetAlignment;
-            case StorageBufferOffsetAlignment:
-                return pimpl->physical_device_properties.limits.minStorageBufferOffsetAlignment;
-            case AsyncTransferImageGranularityWidth:
-                return std::get<0>(pimpl->queue_families.async_transfer_granularity);
-            case AsyncTransferImageGranularityHeight:
-                return std::get<1>(pimpl->queue_families.async_transfer_granularity);
-            case AsyncTransferImageGranularityDepth:
-                return std::get<2>(pimpl->queue_families.async_transfer_granularity);
+        case MaxUniformBufferSize:
+            return pimpl->physical_device_properties.limits.maxUniformBufferRange;
+        case MaxStorageBufferSize:
+            return pimpl->physical_device_properties.limits.maxStorageBufferRange;
+        case UniformBufferOffsetAlignment:
+            return pimpl->physical_device_properties.limits.minUniformBufferOffsetAlignment;
+        case StorageBufferOffsetAlignment:
+            return pimpl->physical_device_properties.limits.minStorageBufferOffsetAlignment;
+        case AsyncTransferImageGranularityWidth:
+            return std::get<0>(pimpl->queue_families.async_transfer_granularity);
+        case AsyncTransferImageGranularityHeight:
+            return std::get<1>(pimpl->queue_families.async_transfer_granularity);
+        case AsyncTransferImageGranularityDepth:
+            return std::get<2>(pimpl->queue_families.async_transfer_granularity);
         }
         __builtin_unreachable();
         return 0;

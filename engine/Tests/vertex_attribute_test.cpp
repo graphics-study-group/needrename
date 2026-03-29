@@ -1,13 +1,13 @@
-#include <vulkan/vulkan.hpp>
 #include <iostream>
+#include <vulkan/vulkan.hpp>
 
 #include "Render/Renderer/VertexAttribute.h"
 
 using namespace Engine;
 
-void Print(const std::vector <vk::VertexInputAttributeDescription> & desc) {
+void Print(const std::vector<vk::VertexInputAttributeDescription> &desc) {
     for (size_t i = 0; i < desc.size(); i++) {
-        const auto & d = desc[i];
+        const auto &d = desc[i];
         std::cout << std::format(
             "Decription {}\n"
             "\tlocation\t{}\n"
@@ -23,9 +23,9 @@ void Print(const std::vector <vk::VertexInputAttributeDescription> & desc) {
     }
 }
 
-void Print(const std::vector <vk::VertexInputBindingDescription> & desc) {
+void Print(const std::vector<vk::VertexInputBindingDescription> &desc) {
     for (size_t i = 0; i < desc.size(); i++) {
-        const auto & d = desc[i];
+        const auto &d = desc[i];
         std::cout << std::format(
             "Description {}\n"
             "\tbinding\t\t{}\n"
@@ -52,12 +52,12 @@ int main() {
     Print(attribute.ToVkVertexInputBinding());
     Print(attribute.ToVkVertexAttribute());
 
-    std::cout << "Total size: " << attribute.GetTotalPerVertexSize() << std::endl ;
+    std::cout << "Total size: " << attribute.GetTotalPerVertexSize() << std::endl;
     auto offsets = attribute.EnumerateOffsetFactor();
 
     std::cout << "Offsets:";
     for (auto offset : offsets) {
-        std::cout << " " << offset ;
+        std::cout << " " << offset;
     }
-    std::cout << std::endl ;
+    std::cout << std::endl;
 }

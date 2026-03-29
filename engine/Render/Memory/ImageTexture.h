@@ -30,22 +30,17 @@ namespace Engine {
             bool is_cube_map;
         };
         using ITFormat = ImageTextureDesc::ImageTextureFormat;
-    protected:
-        ImageTexture(RenderSystem & system,
-            TextureDesc texture,
-            SamplerDesc sampler,
-            const std::string & name = ""
-        );
-    public:
 
-        static std::unique_ptr <ImageTexture> CreateUnique(RenderSystem & system,
-            ImageTextureDesc texture,
-            SamplerDesc sampler,
-            const std::string & name = ""
+    protected:
+        ImageTexture(RenderSystem &system, TextureDesc texture, SamplerDesc sampler, const std::string &name = "");
+
+    public:
+        static std::unique_ptr<ImageTexture> CreateUnique(
+            RenderSystem &system, ImageTextureDesc texture, SamplerDesc sampler, const std::string &name = ""
         );
-        static std::unique_ptr <ImageTexture> CreateUnique(RenderSystem & system, const Image2DTextureAsset &asset);
-        static std::unique_ptr <ImageTexture> CreateUnique(RenderSystem & system, const ImageCubemapAsset &asset);
+        static std::unique_ptr<ImageTexture> CreateUnique(RenderSystem &system, const Image2DTextureAsset &asset);
+        static std::unique_ptr<ImageTexture> CreateUnique(RenderSystem &system, const ImageCubemapAsset &asset);
     };
-}
+} // namespace Engine
 
 #endif // RENDER_MEMORY_IMAGETEXTURE_INCLUDED

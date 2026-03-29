@@ -68,10 +68,10 @@ namespace Engine {
 
     /**
      * @brief Asset class for `MaterialTemplate`.
-     * 
+     *
      * `MaterialTemplate` is designed to be an abstraction over a Vulkan
      * pipeline. As a result, the asset holds enough information to
-     * construct a single Vulkan pipeline. Refer to 
+     * construct a single Vulkan pipeline. Refer to
      * `MaterialTemplateSinglePassProperties` for more details.
      */
     class REFL_SER_CLASS(REFL_WHITELIST) MaterialTemplateAsset : public Asset {

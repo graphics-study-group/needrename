@@ -47,7 +47,7 @@ namespace Engine {
 
             // Filter mode.
             FilterMode min_filter{FilterMode::Point}, max_filter{FilterMode::Point}, mipmap_filter{FilterMode::Point};
-            
+
             // Address mode on three axis
             AddressMode u_address{AddressMode::Repeat}, v_address{AddressMode::Repeat}, w_address{AddressMode::Repeat};
 
@@ -58,11 +58,11 @@ namespace Engine {
             float max_anisotropy{0.0f};
 
             // Declare a default elementwise equality operator
-            bool operator== (const SamplerDesc&) const = default;
+            bool operator==(const SamplerDesc &) const = default;
 
             template <bool use_float_hash = false>
             struct Hasher {
-                size_t operator() (const SamplerDesc & s) const noexcept {
+                size_t operator()(const SamplerDesc &s) const noexcept {
                     size_t hash = static_cast<uint8_t>(s.min_filter);
                     hash = hash << 2 + static_cast<uint8_t>(s.max_filter);
                     hash = hash << 2 + static_cast<uint8_t>(s.mipmap_filter);
@@ -83,7 +83,7 @@ namespace Engine {
 
             private:
                 // Stolen from Boost
-                static void hash_combine(size_t& seed, float value) {
+                static void hash_combine(size_t &seed, float value) {
                     std::hash<float> hasher;
                     seed ^= hasher(value) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
                 }

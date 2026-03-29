@@ -21,10 +21,10 @@ namespace Engine {
     };
 
     /**
-     *  @brief A base class for textures with handles to 
+     *  @brief A base class for textures with handles to
      * allocated GPU resources. You should call named constructors
      * of its derived classes to obtain an instance.
-     * 
+     *
      * @note Movable but non-copyable.
      */
     class Texture {
@@ -33,39 +33,32 @@ namespace Engine {
         using SamplerDesc = ImageUtils::SamplerDesc;
 
     protected:
-
         struct impl;
-        std::unique_ptr <impl> pimpl;
-        
-        // Used in move operator for copy-and-swap
-        Texture ();
+        std::unique_ptr<impl> pimpl;
 
-        Texture(
-            RenderSystem & system,
-            TextureDesc texture,
-            SamplerDesc sampler,
-            const std::string & name = ""
-        );
+        // Used in move operator for copy-and-swap
+        Texture();
+
+        Texture(RenderSystem &system, TextureDesc texture, SamplerDesc sampler, const std::string &name = "");
 
     public:
+        Texture(const Texture &) = delete;
+        void operator=(const Texture &) = delete;
 
-        Texture (const Texture &) = delete;
-        void operator= (const Texture &) = delete;
-
-        Texture (Texture &&) noexcept;
+        Texture(Texture &&) noexcept;
         // I don't want to rewrite the whole reference mess, so just delete it.
-        Texture & operator = (Texture &&) noexcept = delete;
-        
+        Texture &operator=(Texture &&) noexcept = delete;
+
         virtual ~Texture();
         /**
          * @brief Get the description struct of this texture.
          */
-        const TextureDesc & GetTextureDescription() const noexcept;
+        const TextureDesc &GetTextureDescription() const noexcept;
 
         /**
          * @brief Get the description struct of the sampler of this texture.
          */
-        const SamplerDesc & GetSamplerDescription() const noexcept;
+        const SamplerDesc &GetSamplerDescription() const noexcept;
 
         /**
          * @brief Get the underlying handle of this texture.
@@ -81,12 +74,12 @@ namespace Engine {
          * @brief Get the underlying handle a texture slice.
          */
         vk::ImageView GetImageView() const;
-        vk::ImageView GetImageView(const TextureSubresourceRange & tsr) const;
+        vk::ImageView GetImageView(const TextureSubresourceRange &tsr) const;
 
         /**
          * @brief Acquire a buffer large enough to hold the whole texture.
          */
-        std::unique_ptr <DeviceBuffer> CreateStagingBuffer(const RenderSystemState::AllocatorState & allocator) const;
+        std::unique_ptr<DeviceBuffer> CreateStagingBuffer(const RenderSystemState::AllocatorState &allocator) const;
 
         /**
          * @brief Whether this texture supports random access (UAV

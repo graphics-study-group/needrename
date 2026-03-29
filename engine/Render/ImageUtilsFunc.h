@@ -38,9 +38,9 @@ namespace Engine {
         }
 
         constexpr vk::ImageAspectFlags GetVkAspect(ImageFormat format) {
-            return (HasColorAspect(format)  ? vk::ImageAspectFlagBits::eColor   : vk::ImageAspectFlagBits::eNone) |
-                (HasDepthAspect(format)     ? vk::ImageAspectFlagBits::eDepth   : vk::ImageAspectFlagBits::eNone) |
-                (HasStencilAspect(format)   ? vk::ImageAspectFlagBits::eStencil : vk::ImageAspectFlagBits::eNone);
+            return (HasColorAspect(format) ? vk::ImageAspectFlagBits::eColor : vk::ImageAspectFlagBits::eNone)
+                   | (HasDepthAspect(format) ? vk::ImageAspectFlagBits::eDepth : vk::ImageAspectFlagBits::eNone)
+                   | (HasStencilAspect(format) ? vk::ImageAspectFlagBits::eStencil : vk::ImageAspectFlagBits::eNone);
         }
 
         constexpr vk::ImageType GetVkTypeFromExtent(VkExtent3D extent) {
