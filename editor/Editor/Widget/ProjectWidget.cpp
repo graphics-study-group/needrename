@@ -83,7 +83,7 @@ namespace {
             tooltip += "Path: ";
             tooltip += info.path.generic_string();
             tooltip += "\nGUID: ";
-            tooltip += info.guid.toString();
+            tooltip += info.guid.string();
             tooltip += "\nType: ";
             tooltip += (info.type_name.empty() ? std::string("<unknown>") : info.type_name);
         }

@@ -15,6 +15,13 @@ namespace Engine {
     class Component;
     class TransformComponent;
 
+    /**
+     * @brief GameObject is a container for Components.
+     * GameObject represents the tree structure in the scene. It can have parent GameObject and child GameObject.
+     * Every GameObject must have a TransformComponent.
+     * GameObject can only be created by Scene's factory function.
+     * GameObject's reference or pointer can only be obtained from Scene via ObjectHandle.
+     */
     class REFL_SER_CLASS(REFL_WHITELIST) GameObject {
         REFL_SER_BODY(GameObject)
     protected:
@@ -31,26 +38,77 @@ namespace Engine {
         GameObject &operator=(const GameObject &other) = delete;
         GameObject &operator=(GameObject &&other) = delete;
 
-        /// @brief Add a component of type T to the GameObject.
-        /// @tparam T T must be derived from Component
-        /// @return The reference to the created component
+        /**
+         * @brief Add a component of type T to the GameObject.
+         * @tparam T T must be derived from Component
+         * @return The reference to the created component
+         */
         template <typename T>
         T &AddComponent() {
             static_assert(std::is_base_of_v<Component, T>, "T must be derived from Component");
             return m_scene->template CreateComponent<T>(*this);
         }
 
+        /**
+         * @brief Get the Transform from the TransformComponent of the GameObject.
+         * @return The reference to the Transform.
+         */
         REFL_ENABLE const Transform &GetTransform() const;
+
+        /**
+         * @brief Set the Transform to the TransformComponent of the GameObject.
+         * @param transform The new Transform.
+         */
         REFL_ENABLE void SetTransform(const Transform &transform);
+
+        /**
+         * @brief Get the reference to the Transform in the TransformComponent of the GameObject.
+         * @return The reference to the Transform.
+         */
         REFL_ENABLE Transform &GetTransformRef();
+
+        /**
+         * @brief Get the world Transform of the GameObject.
+         * This will traverse the parent GameObject tree to get the world Transform.
+         * @return The reference to the world Transform.
+         */
         REFL_ENABLE Transform GetWorldTransform();
+
+        /**
+         * @brief Set the parent GameObject of the GameObject.
+         * @param parent The parent GameObject handle.
+         */
         REFL_ENABLE void SetParent(ObjectHandle parent);
+
+        /**
+         * @brief Get the handle of the GameObject.
+         * @return The handle of the GameObject.
+         */
         REFL_ENABLE ObjectHandle GetHandle() const noexcept;
+
+        /**
+         * @brief Get the Scene that contains this GameObject.
+         * @return The pointer to the Scene.
+         */
         Scene *GetScene() const noexcept;
 
+        /**
+         * @brief Check if the GameObject's handle is the same as the other GameObject's handle.
+         * @param other The other GameObject to compare.
+         * @return True if the handles are the same, False otherwise.
+         */
         bool operator==(const GameObject &other) const noexcept;
 
+        /**
+         * @brief Custom serialization function for GameObject.
+         * Save the handle only.
+         */
         void save_to_archive(Serialization::Archive &archive) const;
+
+        /**
+         * @brief Custom deserialization function for GameObject.
+         * Load the handle only.
+         */
         void load_from_archive(Serialization::Archive &archive);
 
     public:

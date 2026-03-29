@@ -1,54 +1,137 @@
-#ifndef CORE_GUID_INCLUDED
-#define CORE_GUID_INCLUDED
+/*!
+    \file guid.h
+    \brief Universally unique identifier (UUID) definition
+    
+    Original Author: Ivan Shynkarenka
+    Original Date: 18.08.2016
+    
+    Modified by: Captain Harry Chen
+    Modified date: 24.03.2026
 
-#include <Reflection/macros.h>
+    \copyright MIT License
+*/
+#ifndef ENGINE_CORE_GUID_INCLUDED
+#define ENGINE_CORE_GUID_INCLUDED
+
+#include <array>
 #include <cstdint>
-#include <iomanip>
-#include <random>
-#include <sstream>
+#include <stdexcept>
 #include <string>
 
 namespace Engine {
-    class REFL_SER_CLASS(REFL_WHITELIST) GUID {
-        REFL_SER_BODY(GUID)
-    public:
-        uint64_t mostSigBits = 0;
-        uint64_t leastSigBits = 0;
 
-        REFL_ENABLE GUID() = default;
-        REFL_ENABLE GUID(const std::string &str);
-        virtual ~GUID() = default;
+//! Universally unique identifier (UUID)
+/*!
+    A universally unique identifier (UUID) is an identifier standard used
+    in software construction. This implementation generates the following
+    UUID types:
+    - Nil UUID0 (all bits set to zero)
+    - Sequential UUID1 (time based version)
+    - Random UUID4 (randomly or pseudo-randomly generated version)
 
-        bool operator==(const GUID &other) const;
+    A UUID is simply a 128-bit value: "123e4567-e89b-12d3-a456-426655440000"
 
-        REFL_ENABLE std::string toString() const;
-        REFL_ENABLE void fromString(const std::string &str);
-        REFL_ENABLE bool IsValid() const;
-        REFL_ENABLE void SetZero();
+    Not thread-safe.
 
-        void save_to_archive(Serialization::Archive &archive) const;
-        void load_from_archive(Serialization::Archive &archive);
-    };
+    https://en.wikipedia.org/wiki/Universally_unique_identifier
+    https://www.ietf.org/rfc/rfc4122.txt
+*/
+class GUID
+{
+public:
+    //! Default constructor
+    constexpr GUID() : _data() { _data.fill(0); }
+    //! Initialize UUID with a given string literal
+    /*!
+        \param uuid - UUID string literal
+    */
+    template<size_t N>
+    explicit constexpr GUID(const char(&uuid)[N]) : GUID(uuid, N) {}
+    //! Initialize UUID with a given string literal
+    /*!
+        \param uuid - UUID string literal
+        \param size - UUID string literal size
+    */
+    explicit constexpr GUID(const char* uuid, size_t size);
+    //! Initialize UUID with a given string
+    /*!
+        \param uuid - UUID string
+    */
+    explicit GUID(const std::string& uuid) : GUID(uuid.data(), uuid.size()) {}
+    //! Initialize UUID with a given 16 bytes data buffer
+    /*!
+        \param data - UUID 16 bytes data buffer
+    */
+    explicit GUID(const std::array<uint8_t, 16>& data) : _data(data) {}
+    GUID(const GUID&) = default;
+    GUID(GUID&&) noexcept = default;
+    ~GUID() = default;
 
-    template <typename Generator>
-    GUID generateGUID(Generator &gen) {
-        std::uniform_int_distribution<uint64_t> dis(0, 0xFFFFFFFFFFFFFFFF);
-        GUID guid;
-        guid.mostSigBits = dis(gen);
-        guid.leastSigBits = dis(gen);
-        return guid;
-    }
+    GUID& operator=(const std::string& uuid)
+    { _data = GUID(uuid).data(); return *this; }
+    GUID& operator=(const std::array<uint8_t, 16>& data)
+    { _data = data; return *this; }
+    GUID& operator=(const GUID&) = default;
+    GUID& operator=(GUID&&) noexcept = default;
+
+    // UUID comparison
+    friend bool operator==(const GUID& uuid1, const GUID& uuid2)
+    { return uuid1._data == uuid2._data; }
+    friend bool operator!=(const GUID& uuid1, const GUID& uuid2)
+    { return uuid1._data != uuid2._data; }
+    friend bool operator<(const GUID& uuid1, const GUID& uuid2)
+    { return uuid1._data < uuid2._data; }
+    friend bool operator>(const GUID& uuid1, const GUID& uuid2)
+    { return uuid1._data > uuid2._data; }
+    friend bool operator<=(const GUID& uuid1, const GUID& uuid2)
+    { return uuid1._data <= uuid2._data; }
+    friend bool operator>=(const GUID& uuid1, const GUID& uuid2)
+    { return uuid1._data >= uuid2._data; }
+
+    //! Check if the UUID is nil UUID0 (all bits set to zero)
+    explicit operator bool() const noexcept { return *this != Nil(); }
+
+    //! Get the UUID data buffer
+    std::array<uint8_t, 16>& data() noexcept { return _data; }
+    //! Get the UUID data buffer
+    const std::array<uint8_t, 16>& data() const noexcept { return _data; }
+
+    //! Get string from the current UUID in format "00000000-0000-0000-0000-000000000000"
+    std::string string() const;
+
+    //! Generate nil UUID0 (all bits set to zero)
+    static GUID Nil() { return GUID(); }
+    //! Generate sequential UUID1 (time based version)
+    static GUID Sequential();
+    //! Generate random UUID4 (randomly or pseudo-randomly generated version)
+    static GUID Random();
+
+    //! Output instance into the given output stream
+    friend std::ostream& operator<<(std::ostream& os, const GUID& uuid)
+    { os << uuid.string(); return os; }
+
+    //! Swap two instances
+    void swap(GUID& uuid) noexcept;
+    friend void swap(GUID& uuid1, GUID& uuid2) noexcept;
+
+private:
+    std::array<uint8_t, 16> _data;
+};
+
+/*! \example system_uuid.cpp Universally unique identifier (UUID) example */
+
 } // namespace Engine
 
-namespace std {
-    template <>
-    struct hash<Engine::GUID> {
-        size_t operator()(const Engine::GUID &p) const noexcept {
-            std::size_t h1 = std::hash<uint64_t>{}(p.mostSigBits);
-            std::size_t h2 = std::hash<uint64_t>{}(p.leastSigBits);
-            return h1 ^ (h2 << 1);
-        }
-    };
+//! Initialize UUID with a given string literal
+/*!
+    \param uuid - UUID string literal
+    \param size - UUID string literal size
+*/
+constexpr Engine::GUID operator ""_uuid(const char* uuid, size_t size)
+{
+    return Engine::GUID(uuid, size);
 }
 
-#endif // CORE_GUID_INCLUDED
+#include "guid.inl"
+
+#endif // ENGINE_CORE_GUID_INCLUDED

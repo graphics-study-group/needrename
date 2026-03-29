@@ -125,7 +125,7 @@ public:
 
         for (size_t i = 0; i < m_material_assets.size(); i++) {
             auto ptr = std::make_shared<Materials::BlinnPhongInstance>(
-                *system, system->GetMaterialRegistry().GetMaterial("Blinn-Phong Without Shadowmap")
+                *system, system->GetMaterialRegistry().GetMaterial("Blinn-Phong")
             );
             auto mat_asset = m_material_assets[i].as<MaterialAsset>();
             assert(mat_asset);
@@ -215,7 +215,7 @@ int main(int argc, char **argv) {
     auto adb = std::dynamic_pointer_cast<FileSystemDatabase>(cmc->GetAssetDatabase());
     cmc->LoadBuiltinAssets(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
 
-    auto test_asset = adb->GetNewAssetRef(AssetPath(*adb, "~/material_libraries/BlinnPhongWithoutShadowLibrary.asset"));
+    auto test_asset = adb->GetNewAssetRef(AssetPath(*adb, "~/material_libraries/BlinnPhongLibrary.asset"));
 
     auto rsys = cmc->GetRenderSystem();
     rsys->GetMaterialRegistry().AddMaterial(test_asset);

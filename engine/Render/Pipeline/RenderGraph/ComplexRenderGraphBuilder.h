@@ -7,6 +7,10 @@ namespace Engine {
     class AssetRef;
     class ComputeStage;
 
+    /**
+     * @brief A render graph that integrates all current rendering features (Shadow, PBR, Blinn-Phong, etc.)
+     * TODO: Need better way to manage the render graph.
+     */
     class ComplexRenderGraphBuilder : public RenderGraphBuilder {
         static const uint32_t SHADOWMAP_WIDTH = 2048;
         static const uint32_t SHADOWMAP_HEIGHT = 2048;

@@ -27,12 +27,6 @@ namespace Engine {
         AssetManager() = default;
         virtual ~AssetManager() = default;
 
-        /// @brief Generate a GUID
-        /// @return GUID
-        inline GUID GenerateGUID() {
-            return generateGUID(m_guid_gen);
-        }
-
         /**
          * @brief Add a loaded asset to the manager.
          * @param asset The asset to add.
@@ -115,8 +109,6 @@ namespace Engine {
         void DecrementRefCount(const GUID &guid);
 
     protected:
-        std::mt19937_64 m_guid_gen{std::random_device{}()};
-
         std::queue<GUID> m_loading_queue{};
         std::unordered_set<GUID> m_in_loading_queue{};
 

@@ -145,7 +145,7 @@ namespace Editor {
             auto pointer_type = std::dynamic_pointer_cast<const Engine::Reflection::PointerType>(var.GetType());
             if (pointer_type && pointer_type->GetPointedType()->GetName() == "Engine::AssetRef") {
                 Engine::GUID asset_guid = var.GetPointedVar().InvokeMethod("GetGUID").Get<Engine::GUID>();
-                ImGui::Text("%s: Asset GUID: %s", name.c_str(), asset_guid.toString().c_str());
+                ImGui::Text("%s: Asset GUID: %s", name.c_str(), asset_guid.string().c_str());
             }
         } else if (var.GetType()->GetTypeKind() == Engine::Reflection::Type::TypeKind::Enum) {
             auto enum_type = std::dynamic_pointer_cast<const Engine::Reflection::EnumType>(var.GetType());

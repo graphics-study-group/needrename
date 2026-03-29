@@ -519,7 +519,7 @@ namespace Engine {
              AttachmentUtils::StoreOperation::DontCare,
              AttachmentUtils::DepthClearValue{1.0f, 0U}},
             [this](Engine::GraphicsCommandBuffer &gcb, const RenderGraph &) {
-                gcb.DrawRenderers("", this->m_system.GetRendererManager().FilterAndSortRenderers({}));
+                gcb.DrawRenderers("Lit", this->m_system.GetRendererManager().FilterAndSortRenderers({}));
             }
         );
 

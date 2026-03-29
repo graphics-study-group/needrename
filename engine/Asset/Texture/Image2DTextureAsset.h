@@ -4,6 +4,7 @@
 #include "TextureAsset.h"
 #include <Reflection/macros.h>
 #include <Render/ImageUtils.h>
+#include <vector>
 
 namespace Engine {
     class REFL_SER_CLASS(REFL_WHITELIST) Image2DTextureAsset : public TextureAsset {
