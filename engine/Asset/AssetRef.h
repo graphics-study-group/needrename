@@ -38,10 +38,15 @@ namespace Engine {
 
         /**
          * @brief Acquire the asset (increment reference count).
-         * If the asset is not loaded, it will be loaded eagerly or asynchronously.
-         * @param async_load Whether to load the asset asynchronously.
+         * If the asset is not loaded, it will be loaded **eagerly**.
          */
-        REFL_ENABLE void Acquire(bool async_load);
+        REFL_ENABLE void Acquire();
+
+        /**
+         * @brief Acquire the asset (increment reference count) asynchronously.
+         * If the asset is not loaded, it will be loaded asynchronously.
+         */
+        REFL_ENABLE void AcquireAsync();
 
         /**
          * @brief Release the asset (decrement reference count).
@@ -103,7 +108,11 @@ namespace Engine {
     T *AssetRef::as(bool async_load) {
         if (!IsValid()) throw std::runtime_error("AssetRef::as: AssetRef is not valid");
         if (!IsAcquired()) {
-            Acquire(async_load);
+            if (async_load) {
+                AcquireAsync();
+            } else {
+                Acquire();
+            }
         }
         auto asset = TryGetAsset();
         if (!asset) return nullptr;

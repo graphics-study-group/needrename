@@ -37,11 +37,13 @@ The Asset Management system is responsible for handling various types of game as
 
 `AssetRef` uses explicit acquire/release semantics for reference counting:
 
-- **`AssetRef::Acquire(bool async_load)`**:
+- **`AssetRef::Acquire()`**:
   - Increments the reference count in `AssetManager`
-  - Loads the asset if not already loaded
-  - `async_load = true`: adds to loading queue for asynchronous loading
-  - `async_load = false`: loads immediately (blocking)
+  - Loads the asset eagerly if not already loaded
+
+- **`AssetRef::AcquireAsync()`**:
+  - Increments the reference count in `AssetManager`
+  - Adds the asset to the loading queue for asynchronous loading
 
 - **`AssetRef::Release()`**:
   - Decrements the reference count in `AssetManager`

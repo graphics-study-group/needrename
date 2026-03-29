@@ -48,7 +48,7 @@ namespace Engine {
     ) : pimpl(std::make_unique<impl>()) {
         pimpl->m_mesh_asset = mesh_asset;
         // eagerly load mesh asset (deprecated)
-        pimpl->m_mesh_asset.Acquire(false);
+        pimpl->m_mesh_asset.Acquire();
         pimpl->m_submesh_idx = submesh_idx;
         pimpl->m_buffer = nullptr;
 

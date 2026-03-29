@@ -44,15 +44,22 @@ namespace Engine {
         }
     }
 
-    void AssetRef::Acquire(bool async_load) {
+    void AssetRef::Acquire() {
         if (IsValid() && !IsAcquired()) {
             auto &amg = *MainClass::GetInstance()->GetAssetManager();
             if (!amg.IsAssetLoaded(m_guid)) {
-                if (async_load) {
-                    amg.AddToLoadingQueue(m_guid);
-                } else {
-                    amg.LoadAssetImmediately(m_guid);
-                }
+                amg.LoadAssetImmediately(m_guid);
+            }
+            m_is_acquired = true;
+            amg.IncrementRefCount(m_guid);
+        }
+    }
+
+    void AssetRef::AcquireAsync() {
+        if (IsValid() && !IsAcquired()) {
+            auto &amg = *MainClass::GetInstance()->GetAssetManager();
+            if (!amg.IsAssetLoaded(m_guid)) {
+                amg.AddToLoadingQueue(m_guid);
             }
             m_is_acquired = true;
             amg.IncrementRefCount(m_guid);
