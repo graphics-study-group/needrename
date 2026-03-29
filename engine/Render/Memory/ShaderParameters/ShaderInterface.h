@@ -1,10 +1,10 @@
 #ifndef MEMORY_SHADERPARAMETERS_SHADERPARAMETERINTERFACE_INCLUDED
 #define MEMORY_SHADERPARAMETERS_SHADERPARAMETERINTERFACE_INCLUDED
 
-#include <variant>
-#include <cstdint>
-#include <vector>
 #include "Core/flagbits.h"
+#include <cstdint>
+#include <variant>
+#include <vector>
 
 namespace Engine {
     class StructuredBufferPlacer;
@@ -14,15 +14,15 @@ namespace Engine {
          * Including opaque types and uniform or storage buffers.
          */
         struct SPInterface {
-            std::string name {};
-            uint32_t layout_set {~0U};
-            uint32_t layout_binding {~0U};
+            std::string name{};
+            uint32_t layout_set{~0U};
+            uint32_t layout_binding{~0U};
 
             virtual ~SPInterface() = default;
         };
 
         struct SPInterfaceOpaque : SPInterface {
-            uint32_t array_size {0};
+            uint32_t array_size{0};
         };
 
         struct SPInterfaceOpaqueImage : SPInterfaceOpaque {
@@ -35,7 +35,7 @@ namespace Engine {
                 d3D = 1 << 5,
                 CubeMap = 1 << 6
             };
-            using ImageFlags = Flags <ImageFlagBits>;
+            using ImageFlags = Flags<ImageFlagBits>;
             ImageFlags flags{};
         };
 
@@ -48,7 +48,7 @@ namespace Engine {
                 Unknown,
                 // Separate sampler (`sampler`)
                 Sampler
-            } type {Type::Unknown};
+            } type{Type::Unknown};
         };
 
         struct SPInterfaceBuffer : SPInterface {
@@ -58,13 +58,13 @@ namespace Engine {
                 UniformBuffer,
                 // SSBOs (`buffer StructName`)
                 StorageBuffer
-            } type {Type::Unknown};
+            } type{Type::Unknown};
         };
 
         struct SPInterfaceStructuredBuffer : SPInterfaceBuffer {
-            const StructuredBufferPlacer * buffer_placer {nullptr};
+            const StructuredBufferPlacer *buffer_placer{nullptr};
         };
-    }
-}
+    } // namespace ShdrRfl
+} // namespace Engine
 
 #endif // MEMORY_SHADERPARAMETERS_SHADERPARAMETERINTERFACE_INCLUDED

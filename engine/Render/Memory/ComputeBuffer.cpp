@@ -2,8 +2,7 @@
 
 namespace Engine {
 
-    ComputeBuffer::ComputeBuffer(BufferAllocation && alloc, size_t size) : DeviceBuffer(std::move(alloc), size){
-
+    ComputeBuffer::ComputeBuffer(BufferAllocation &&alloc, size_t size) : DeviceBuffer(std::move(alloc), size) {
     }
 
     std::unique_ptr<ComputeBuffer> ComputeBuffer::CreateUnique(
@@ -21,8 +20,6 @@ namespace Engine {
         if (as_vertex_buffer) type.Set(BufferTypeBits::Vertex), type.Set(BufferTypeBits::Index);
         if (as_indirect_draw_buffer) type.Set(BufferTypeBits::IndirectDrawCommand);
 
-        return std::unique_ptr<ComputeBuffer>(
-            new ComputeBuffer(allocator.AllocateBuffer(type, size, name), size)
-        );
+        return std::unique_ptr<ComputeBuffer>(new ComputeBuffer(allocator.AllocateBuffer(type, size, name), size));
     }
-}
+} // namespace Engine

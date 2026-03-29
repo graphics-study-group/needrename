@@ -28,5 +28,10 @@ BraceWrapping:
 BreakBeforeBinaryOperators: NonAssignment
 BreakConstructorInitializers: AfterColon
 BreakTemplateDeclarations: Yes
+# Enforce CRLF line ending.
 LineEnding: CRLF
 NamespaceIndentation: All
+# Ignore doxygen directives starting with an at symbol
+CommentPragmas:  '^@.+'
+# Don't break long comments
+ReflowComments: IndentOnly

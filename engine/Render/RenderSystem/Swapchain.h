@@ -12,7 +12,7 @@ namespace vk {
     struct ImageMemoryBarrier2;
 
     enum class Format;
-}
+} // namespace vk
 
 namespace Engine {
     class RenderSystem;
@@ -21,19 +21,16 @@ namespace Engine {
         class DeviceInterface;
         class Swapchain {
             struct impl;
-            std::unique_ptr <impl> pimpl;
+            std::unique_ptr<impl> pimpl;
 
         public:
             Swapchain() noexcept;
             ~Swapchain() noexcept;
 
-            void CreateSwapchain(
-                const DeviceInterface & device_interface,
-                vk::Extent2D expected_extent
-            );
+            void CreateSwapchain(const DeviceInterface &device_interface, vk::Extent2D expected_extent);
 
             vk::SwapchainKHR GetSwapchain() const noexcept;
-            const std::vector <vk::Image> & GetImages() const noexcept;
+            const std::vector<vk::Image> &GetImages() const noexcept;
 
             /**
              * @brief Get current format of the presentable surface.
@@ -52,7 +49,7 @@ namespace Engine {
 
             /**
              * @brief Get the color format of the presentable surface.
-             * 
+             *
              * Shorthand for `GetSurfaceFormat().format`.
              */
             vk::Format GetColorFormat() const noexcept;

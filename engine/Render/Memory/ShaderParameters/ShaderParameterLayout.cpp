@@ -8,25 +8,25 @@
 #pragma GCC diagnostic ignored "-Weffc++"
 #include "../../../../third_party/SPIRV-Cross/spirv_cross.hpp"
 #pragma GCC diagnostic pop
-#include <vulkan/vulkan.hpp>
 #include <SDL3/SDL.h>
+#include <vulkan/vulkan.hpp>
 
 namespace Engine::ShdrRfl {
     // Types are only added and never removed.
     // We will have no more than ~100 shaders, so this
     // might be Ok anyway.
     struct TypeStorage {
-        std::vector <std::unique_ptr<StructuredBufferPlacer>> structured_buffers;
+        std::vector<std::unique_ptr<StructuredBufferPlacer>> structured_buffers;
     };
     static TypeStorage type_storage;
-}
+} // namespace Engine::ShdrRfl
 
 namespace {
     void ReflectSimpleStruct(
-        Engine::ShdrRfl::SPLayout & layout,
-        Engine::ShdrRfl::SPInterfaceStructuredBuffer & root,
-        const spirv_cross::Resource & buffer,
-        const spirv_cross::Compiler & compiler
+        Engine::ShdrRfl::SPLayout &layout,
+        Engine::ShdrRfl::SPInterfaceStructuredBuffer &root,
+        const spirv_cross::Resource &buffer,
+        const spirv_cross::Compiler &compiler
     ) {
         using namespace Engine;
         using namespace Engine::ShdrRfl;
@@ -37,14 +37,13 @@ namespace {
         unsigned member_count = type.member_types.size();
 
         // For every member
-        for (unsigned i = 0; i < member_count; i++)
-        {
+        for (unsigned i = 0; i < member_count; i++) {
             auto &member_type = compiler.get_type(type.member_types[i]);
             assert(
-                (member_type.basetype == spirv_cross::SPIRType::Float 
-                || member_type.basetype == spirv_cross::SPIRType::Int 
-                || member_type.basetype == spirv_cross::SPIRType::UInt
-                ) && "Unsupported member type."
+                (member_type.basetype == spirv_cross::SPIRType::Float
+                 || member_type.basetype == spirv_cross::SPIRType::Int
+                 || member_type.basetype == spirv_cross::SPIRType::UInt)
+                && "Unsupported member type."
             );
 
             // Get member offset within this struct.
@@ -52,7 +51,7 @@ namespace {
             const auto &name = compiler.get_member_name(type.self, i);
 
             // Simple array
-            if (!member_type.array.empty()){
+            if (!member_type.array.empty()) {
                 assert(!"Support for array variables is unimplemented.");
             } else {
                 const auto qualified_name = root.name + "::" + name;
@@ -71,7 +70,7 @@ namespace {
                     placer->AddVariable<float[4]>(qualified_name, offset);
                 } else {
                     // This is a scalar
-                    switch(member_type.basetype) {
+                    switch (member_type.basetype) {
                     case spirv_cross::SPIRType::Float:
                         placer->AddVariable<float>(qualified_name, offset);
                         break;
@@ -86,16 +85,12 @@ namespace {
                     }
                 }
             }
-            
         }
         root.buffer_placer = placer.get();
         type_storage.structured_buffers.emplace_back(std::move(placer));
     }
 
-    void FillImageInfo(
-        Engine::ShdrRfl::SPInterfaceOpaqueImage & image, 
-        const spirv_cross::SPIRType & type
-    ) {
+    void FillImageInfo(Engine::ShdrRfl::SPInterfaceOpaqueImage &image, const spirv_cross::SPIRType &type) {
         if (!type.array.empty()) {
             assert(type.array.size() == 1);
             image.array_size = type.array[0];
@@ -126,7 +121,7 @@ namespace {
             SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Unidentified image dimension.");
         }
     }
-}
+} // namespace
 
 /**
  * @todo Differentiating whether a variable can be assigned directly by its type
@@ -152,9 +147,7 @@ namespace {
 namespace Engine::ShdrRfl {
 
     void SPLayout::PlaceBufferVariable(
-        std::vector<std::byte> &buffer,
-        const SPInterfaceStructuredBuffer & interface,
-        const StructuredBuffer & sb
+        std::vector<std::byte> &buffer, const SPInterfaceStructuredBuffer &interface, const StructuredBuffer &sb
     ) const noexcept {
         assert(interface.buffer_placer);
         interface.buffer_placer->WriteBuffer(sb, buffer);
@@ -162,53 +155,55 @@ namespace Engine::ShdrRfl {
 
     std::unordered_map<uint32_t, std::vector<vk::DescriptorSetLayoutBinding>> SPLayout::
         GenerateAllLayoutBindings() const {
-        std::unordered_map <uint32_t, std::vector <vk::DescriptorSetLayoutBinding>> sets;
+        std::unordered_map<uint32_t, std::vector<vk::DescriptorSetLayoutBinding>> sets;
 
-        for (const auto & interface : this->interfaces) {
+        for (const auto &interface : this->interfaces) {
             if (auto ptr = dynamic_cast<const SPInterfaceBuffer *>(interface.get())) {
                 if (ptr->type == SPInterfaceBuffer::Type::UniformBuffer) {
-                    sets[ptr->layout_set].emplace_back(vk::DescriptorSetLayoutBinding{
-                        ptr->layout_binding,
-                        vk::DescriptorType::eUniformBuffer,
-                        1,
-                        vk::ShaderStageFlagBits::eAll,
-                        {}
-                    });
-                } else if (ptr->type == SPInterfaceBuffer::Type::StorageBuffer) {
-                    sets[ptr->layout_set].emplace_back(vk::DescriptorSetLayoutBinding{
-                        ptr->layout_binding,
-                        vk::DescriptorType::eStorageBuffer,
-                        1,
-                        vk::ShaderStageFlagBits::eAll,
-                        {}
-                    });
-                } else {
-                    SDL_LogWarn(
-                        SDL_LOG_CATEGORY_RENDER,
-                        "Ignoring buffer with unknown type."
+                    sets[ptr->layout_set].emplace_back(
+                        vk::DescriptorSetLayoutBinding{
+                            ptr->layout_binding,
+                            vk::DescriptorType::eUniformBuffer,
+                            1,
+                            vk::ShaderStageFlagBits::eAll,
+                            {}
+                        }
                     );
+                } else if (ptr->type == SPInterfaceBuffer::Type::StorageBuffer) {
+                    sets[ptr->layout_set].emplace_back(
+                        vk::DescriptorSetLayoutBinding{
+                            ptr->layout_binding,
+                            vk::DescriptorType::eStorageBuffer,
+                            1,
+                            vk::ShaderStageFlagBits::eAll,
+                            {}
+                        }
+                    );
+                } else {
+                    SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Ignoring buffer with unknown type.");
                 }
             } else if (auto ptr = dynamic_cast<const SPInterfaceOpaqueImage *>(interface.get())) {
-                sets[ptr->layout_set].emplace_back(vk::DescriptorSetLayoutBinding{
-                    ptr->layout_binding,
-                    vk::DescriptorType::eCombinedImageSampler,
-                    std::max(ptr->array_size, 1u),
-                    vk::ShaderStageFlagBits::eAll,
-                    {}
-                });
-            } else if (auto ptr = dynamic_cast<const SPInterfaceOpaqueStorageImage *>(interface.get())) {
-                sets[ptr->layout_set].emplace_back(vk::DescriptorSetLayoutBinding{
-                    ptr->layout_binding,
-                    vk::DescriptorType::eStorageImage,
-                    std::max(ptr->array_size, 1u),
-                    vk::ShaderStageFlagBits::eAll,
-                    {}
-                });
-            } else {
-                SDL_LogWarn(
-                    SDL_LOG_CATEGORY_RENDER,
-                    "Ignoring interface with unknown type."
+                sets[ptr->layout_set].emplace_back(
+                    vk::DescriptorSetLayoutBinding{
+                        ptr->layout_binding,
+                        vk::DescriptorType::eCombinedImageSampler,
+                        std::max(ptr->array_size, 1u),
+                        vk::ShaderStageFlagBits::eAll,
+                        {}
+                    }
                 );
+            } else if (auto ptr = dynamic_cast<const SPInterfaceOpaqueStorageImage *>(interface.get())) {
+                sets[ptr->layout_set].emplace_back(
+                    vk::DescriptorSetLayoutBinding{
+                        ptr->layout_binding,
+                        vk::DescriptorType::eStorageImage,
+                        std::max(ptr->array_size, 1u),
+                        vk::ShaderStageFlagBits::eAll,
+                        {}
+                    }
+                );
+            } else {
+                SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Ignoring interface with unknown type.");
             }
         }
 
@@ -216,71 +211,67 @@ namespace Engine::ShdrRfl {
     }
 
     std::vector<vk::DescriptorSetLayoutBinding> SPLayout::GenerateLayoutBindings(
-        uint32_t set,
-        bool enforce_dynamic_uniform_buffer,
-        bool enforce_dynamic_storage_buffer
+        uint32_t set, bool enforce_dynamic_uniform_buffer, bool enforce_dynamic_storage_buffer
     ) const {
-        std::vector <vk::DescriptorSetLayoutBinding> bindings;
-        for (const auto & interface : this->interfaces) {
+        std::vector<vk::DescriptorSetLayoutBinding> bindings;
+        for (const auto &interface : this->interfaces) {
             if (auto ptr = dynamic_cast<const SPInterfaceBuffer *>(interface.get())) {
                 if (ptr->layout_set != set) continue;
 
                 if (ptr->type == SPInterfaceBuffer::Type::UniformBuffer) {
-                    bindings.emplace_back(vk::DescriptorSetLayoutBinding{
-                        ptr->layout_binding,
-                        enforce_dynamic_uniform_buffer ?
-                            vk::DescriptorType::eUniformBufferDynamic
-                            : vk::DescriptorType::eUniformBuffer,
-                        1,
-                        vk::ShaderStageFlagBits::eAll,
-                        {}
-                    });
-                } else if (ptr->type == SPInterfaceBuffer::Type::StorageBuffer) {
-                    bindings.emplace_back(vk::DescriptorSetLayoutBinding{
-                        ptr->layout_binding,
-                        enforce_dynamic_storage_buffer ?
-                            vk::DescriptorType::eStorageBufferDynamic
-                            : vk::DescriptorType::eStorageBuffer,
-                        1,
-                        vk::ShaderStageFlagBits::eAll,
-                        {}
-                    });
-                } else {
-                    SDL_LogWarn(
-                        SDL_LOG_CATEGORY_RENDER,
-                        "Ignoring buffer with unknown type."
+                    bindings.emplace_back(
+                        vk::DescriptorSetLayoutBinding{
+                            ptr->layout_binding,
+                            enforce_dynamic_uniform_buffer ? vk::DescriptorType::eUniformBufferDynamic
+                                                           : vk::DescriptorType::eUniformBuffer,
+                            1,
+                            vk::ShaderStageFlagBits::eAll,
+                            {}
+                        }
                     );
+                } else if (ptr->type == SPInterfaceBuffer::Type::StorageBuffer) {
+                    bindings.emplace_back(
+                        vk::DescriptorSetLayoutBinding{
+                            ptr->layout_binding,
+                            enforce_dynamic_storage_buffer ? vk::DescriptorType::eStorageBufferDynamic
+                                                           : vk::DescriptorType::eStorageBuffer,
+                            1,
+                            vk::ShaderStageFlagBits::eAll,
+                            {}
+                        }
+                    );
+                } else {
+                    SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Ignoring buffer with unknown type.");
                 }
             } else if (auto ptr = dynamic_cast<const SPInterfaceOpaqueImage *>(interface.get())) {
-                bindings.emplace_back(vk::DescriptorSetLayoutBinding{
-                    ptr->layout_binding,
-                    vk::DescriptorType::eCombinedImageSampler,
-                    std::max(ptr->array_size, 1u),
-                    vk::ShaderStageFlagBits::eAll,
-                    {}
-                });
-            } else if (auto ptr = dynamic_cast<const SPInterfaceOpaqueStorageImage *>(interface.get())) {
-                bindings.emplace_back(vk::DescriptorSetLayoutBinding{
-                    ptr->layout_binding,
-                    vk::DescriptorType::eStorageImage,
-                    std::max(ptr->array_size, 1u),
-                    vk::ShaderStageFlagBits::eAll,
-                    {}
-                });
-            } else {
-                SDL_LogWarn(
-                    SDL_LOG_CATEGORY_RENDER,
-                    "Ignoring interface with unknown type."
+                bindings.emplace_back(
+                    vk::DescriptorSetLayoutBinding{
+                        ptr->layout_binding,
+                        vk::DescriptorType::eCombinedImageSampler,
+                        std::max(ptr->array_size, 1u),
+                        vk::ShaderStageFlagBits::eAll,
+                        {}
+                    }
                 );
+            } else if (auto ptr = dynamic_cast<const SPInterfaceOpaqueStorageImage *>(interface.get())) {
+                bindings.emplace_back(
+                    vk::DescriptorSetLayoutBinding{
+                        ptr->layout_binding,
+                        vk::DescriptorType::eStorageImage,
+                        std::max(ptr->array_size, 1u),
+                        vk::ShaderStageFlagBits::eAll,
+                        {}
+                    }
+                );
+            } else {
+                SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Ignoring interface with unknown type.");
             }
         }
 
         std::sort(
             bindings.begin(),
             bindings.end(),
-            [](
-                const vk::DescriptorSetLayoutBinding & lhs,
-                const vk::DescriptorSetLayoutBinding & rhs) -> bool {
+            [](const vk::DescriptorSetLayoutBinding &lhs, const vk::DescriptorSetLayoutBinding &rhs) -> bool {
                 return lhs.binding < rhs.binding;
             }
         );
@@ -288,14 +279,10 @@ namespace Engine::ShdrRfl {
     }
 
     void SPLayout::Merge(SPLayout &&other) {
-        for (auto & kv : other.interface_name_mapping) {
-            const auto & name = kv.first;
+        for (auto &kv : other.interface_name_mapping) {
+            const auto &name = kv.first;
             if (this->interface_name_mapping.contains(name)) {
-                SDL_LogDebug(
-                    SDL_LOG_CATEGORY_RENDER,
-                    "Ignoring duplicated name %s.",
-                    name.c_str()
-                );
+                SDL_LogDebug(SDL_LOG_CATEGORY_RENDER, "Ignoring duplicated name %s.", name.c_str());
                 continue;
             }
 
@@ -305,7 +292,7 @@ namespace Engine::ShdrRfl {
                 auto ptr = dynamic_cast<const SPInterface *>(kv.second);
                 if (ptr) {
                     bool found = false;
-                    for (const auto & p : this->interfaces) {
+                    for (const auto &p : this->interfaces) {
                         if (p->layout_set == ptr->layout_set && p->layout_binding == ptr->layout_binding) {
                             SDL_LogWarn(
                                 SDL_LOG_CATEGORY_RENDER,
@@ -321,16 +308,13 @@ namespace Engine::ShdrRfl {
                         auto other_ptr = std::find_if(
                             other.interfaces.begin(),
                             other.interfaces.end(),
-                            [ptr] (const std::unique_ptr <SPInterface> & p) {
-                                return p.get() == ptr;
-                            }
+                            [ptr](const std::unique_ptr<SPInterface> &p) { return p.get() == ptr; }
                         );
                         assert(other_ptr != other.interfaces.end());
                         this->interfaces.push_back(std::move(*other_ptr));
                     }
                 }
             }
-            
         }
 
         other.interfaces.clear();
@@ -342,7 +326,7 @@ namespace Engine::ShdrRfl {
     ) {
         SPLayout layout{};
         spirv_cross::Compiler compiler(spirv_code);
-        
+
         // Get all interfaces (a.k.a. resources)
         auto shader_resources = compiler.get_shader_resources();
 
@@ -427,7 +411,7 @@ namespace Engine::ShdrRfl {
 
             buffer_interface_ptr->layout_set = desc_set;
             buffer_interface_ptr->layout_binding = compiler.get_decoration(ssbo.id, spv::DecorationBinding);
-            
+
             if (layout.interface_name_mapping.contains(ssbo.name)) {
                 SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Duplicated resource name: %s", ssbo.name.c_str());
             }
@@ -438,7 +422,7 @@ namespace Engine::ShdrRfl {
         std::sort(
             layout.interfaces.begin(),
             layout.interfaces.end(),
-            [](const std::unique_ptr <SPInterface> & lhs, const std::unique_ptr <SPInterface> & rhs) -> bool {
+            [](const std::unique_ptr<SPInterface> &lhs, const std::unique_ptr<SPInterface> &rhs) -> bool {
                 if (lhs->layout_set != rhs->layout_set) {
                     return lhs->layout_set < rhs->layout_set;
                 }
@@ -448,4 +432,4 @@ namespace Engine::ShdrRfl {
 
         return layout;
     }
-}
+} // namespace Engine::ShdrRfl

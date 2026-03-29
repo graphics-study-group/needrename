@@ -1,29 +1,22 @@
 #include "RenderGraph2.h"
 
-#include "RenderGraphStruct.hpp"
 #include "Render/Memory/MemoryAccessHelper.hpp"
+#include "RenderGraphStruct.hpp"
 
 namespace Engine {
     struct RenderGraph2::impl {
-        std::vector <RenderGraphCompiledPass> passes{};
+        std::vector<RenderGraphCompiledPass> passes{};
         RenderGraph2ExtraInfo extra_info{};
 
-        const PipelineRuntimeInfoPerRendering * pripr_ptr{nullptr};
+        const PipelineRuntimeInfoPerRendering *pripr_ptr{nullptr};
 
-        std::vector <
-            std::tuple<
-                const RenderTargetTexture *,
-                MemoryAccessTypeImageBits,
-                MemoryAccessTypeImageBits
-            >
-        > pre_barrier_info{}, post_barrier_info{};
+        std::vector<std::tuple<const RenderTargetTexture *, MemoryAccessTypeImageBits, MemoryAccessTypeImageBits>>
+            pre_barrier_info{}, post_barrier_info{};
 
-        vk::ImageMemoryBarrier2 GetImageBarrier (
-            const RenderTargetTexture & t,
-            MemoryAccessTypeImageBits src,
-            MemoryAccessTypeImageBits dst
+        vk::ImageMemoryBarrier2 GetImageBarrier(
+            const RenderTargetTexture &t, MemoryAccessTypeImageBits src, MemoryAccessTypeImageBits dst
         ) {
-            return vk::ImageMemoryBarrier2 {
+            return vk::ImageMemoryBarrier2{
                 vk::PipelineStageFlagBits2::eAllCommands,
                 GetAccessFlags({src}),
                 vk::PipelineStageFlagBits2::eAllCommands,
@@ -35,62 +28,46 @@ namespace Engine {
                 t.GetImage(),
                 vk::ImageSubresourceRange{
                     ImageUtils::GetVkAspect(t.GetTextureDescription().format),
-                    0, vk::RemainingMipLevels,
-                    0, vk::RemainingArrayLayers
+                    0,
+                    vk::RemainingMipLevels,
+                    0,
+                    vk::RemainingArrayLayers
                 }
             };
         }
     };
 
-    RenderGraph2::RenderGraph2(
-        std::vector<RenderGraphCompiledPass> &&passes,
-        RenderGraph2ExtraInfo &&extra
-    ) noexcept : pimpl(std::make_unique<impl>()) {
+    RenderGraph2::RenderGraph2(std::vector<RenderGraphCompiledPass> &&passes, RenderGraph2ExtraInfo &&extra) noexcept :
+        pimpl(std::make_unique<impl>()) {
         pimpl->passes = std::move(passes);
         pimpl->extra_info = std::move(extra);
     }
 
     RenderGraph2::~RenderGraph2() noexcept = default;
 
-    void RenderGraph2::AddExternalInputDependency(
-        RGTextureHandle rt_handle,
-        MemoryAccessTypeImageBits access
-    ) {
+    void RenderGraph2::AddExternalInputDependency(RGTextureHandle rt_handle, MemoryAccessTypeImageBits access) {
         auto itr = pimpl->extra_info.first_persistent_texture_access.find(rt_handle);
         if (itr == pimpl->extra_info.first_persistent_texture_access.end()) {
             throw std::invalid_argument("Cannot find render target texture.");
         }
 
         pimpl->pre_barrier_info.push_back(
-            std::make_tuple(
-                pimpl->extra_info.texture_mapping[rt_handle],
-                access,
-                itr->second
-            )
+            std::make_tuple(pimpl->extra_info.texture_mapping[rt_handle], access, itr->second)
         );
     }
 
-    void RenderGraph2::AddExternalOutputDependency(
-        RGTextureHandle rt_handle,
-        MemoryAccessTypeImageBits access
-    ) {
+    void RenderGraph2::AddExternalOutputDependency(RGTextureHandle rt_handle, MemoryAccessTypeImageBits access) {
         auto itr = pimpl->extra_info.last_persistent_texture_access.find(rt_handle);
         if (itr == pimpl->extra_info.last_persistent_texture_access.end()) {
             throw std::invalid_argument("Cannot find render target texture.");
         }
 
         pimpl->post_barrier_info.push_back(
-            std::make_tuple(
-                pimpl->extra_info.texture_mapping[rt_handle],
-                itr->second,
-                access
-            )
+            std::make_tuple(pimpl->extra_info.texture_mapping[rt_handle], itr->second, access)
         );
     }
 
-    RenderTargetTexture *RenderGraph2::GetInternalTextureResource(
-        RGTextureHandle handle
-    ) const noexcept {
+    RenderTargetTexture *RenderGraph2::GetInternalTextureResource(RGTextureHandle handle) const noexcept {
         auto itr = pimpl->extra_info.texture_mapping.find(handle);
         if (itr != pimpl->extra_info.texture_mapping.end()) {
             return itr->second;
@@ -98,41 +75,31 @@ namespace Engine {
         return nullptr;
     }
 
-    const PipelineRuntimeInfoPerRendering &
-    RenderGraph2::GetCurrentPassRuntimeInfo() const noexcept {
+    const PipelineRuntimeInfoPerRendering &RenderGraph2::GetCurrentPassRuntimeInfo() const noexcept {
         assert(pimpl->pripr_ptr);
         return *pimpl->pripr_ptr;
     }
 
-    void RenderGraph2::Record(
-        uint32_t pass,
-        vk::CommandBuffer cb
-    ) const {
+    void RenderGraph2::Record(uint32_t pass, vk::CommandBuffer cb) const {
         assert(pass < pimpl->passes.size());
 
-        std::vector <vk::ImageMemoryBarrier2> imb{};
-        std::vector <vk::MemoryBarrier2> bmb{};
-        for (const auto & subpass : pimpl->passes[pass].subpasses) {
+        std::vector<vk::ImageMemoryBarrier2> imb{};
+        std::vector<vk::MemoryBarrier2> bmb{};
+        for (const auto &subpass : pimpl->passes[pass].subpasses) {
             // Construct barriers.
             imb.clear();
             imb.reserve(subpass.image_barriers.size());
-            for (const auto & [r, b] : subpass.image_barriers) {
+            for (const auto &[r, b] : subpass.image_barriers) {
                 imb.push_back(b);
                 imb.back().image = this->GetInternalTextureResource(r)->GetImage();
             }
             bmb.clear();
             bmb.reserve(subpass.buffer_barriers.size());
-            for (const auto & [r, b] : subpass.buffer_barriers) {
-                bmb.push_back(vk::MemoryBarrier2{
-                    b.srcStageMask, b.srcAccessMask,
-                    b.dstStageMask, b.dstAccessMask
-                });
+            for (const auto &[r, b] : subpass.buffer_barriers) {
+                bmb.push_back(vk::MemoryBarrier2{b.srcStageMask, b.srcAccessMask, b.dstStageMask, b.dstAccessMask});
             }
 
-            cb.pipelineBarrier2(vk::DependencyInfo{
-                vk::DependencyFlags{},
-                bmb, {}, imb
-            });
+            cb.pipelineBarrier2(vk::DependencyInfo{vk::DependencyFlags{}, bmb, {}, imb});
             // Invoke pass function.
             pimpl->pripr_ptr = &subpass.per_rendering_info;
             std::invoke(subpass.pass_work, cb, *this);
@@ -141,7 +108,7 @@ namespace Engine {
     }
 
     void RenderGraph2::RecordPrePass(vk::CommandBuffer cb) {
-        std::vector <vk::ImageMemoryBarrier2> barriers{pimpl->pre_barrier_info.size()};
+        std::vector<vk::ImageMemoryBarrier2> barriers{pimpl->pre_barrier_info.size()};
         for (size_t i = 0; i < pimpl->pre_barrier_info.size(); i++) {
             auto [t, a1, a2] = pimpl->pre_barrier_info[i];
             barriers[i] = pimpl->GetImageBarrier(*t, a1, a2);
@@ -151,7 +118,7 @@ namespace Engine {
     }
 
     void RenderGraph2::RecordPostPass(vk::CommandBuffer cb) {
-        std::vector <vk::ImageMemoryBarrier2> barriers{pimpl->post_barrier_info.size()};
+        std::vector<vk::ImageMemoryBarrier2> barriers{pimpl->post_barrier_info.size()};
         for (size_t i = 0; i < pimpl->post_barrier_info.size(); i++) {
             auto [t, a1, a2] = pimpl->post_barrier_info[i];
             barriers[i] = pimpl->GetImageBarrier(*t, a1, a2);
@@ -161,9 +128,9 @@ namespace Engine {
     }
 
     void RenderGraph2::Execute(RenderSystem &system) {
-        auto & fm = system.GetFrameManager();
+        auto &fm = system.GetFrameManager();
         auto cb = fm.GetRawMainCommandBuffer();
-        
+
         cb.begin(vk::CommandBufferBeginInfo{});
         RecordPrePass(cb);
         for (size_t i = 0; i < pimpl->passes.size(); i++) {

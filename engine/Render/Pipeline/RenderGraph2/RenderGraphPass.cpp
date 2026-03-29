@@ -1,15 +1,14 @@
 #include "RenderGraphPass.h"
 
 #include "Render/DebugUtils.h"
-#include "Render/RenderSystem.h"
 #include "Render/Pipeline/RenderGraph2/RenderGraph2.h"
+#include "Render/RenderSystem.h"
 
 namespace Engine {
     RenderGraphPassBuilder &RenderGraphPassBuilder::SetRasterizerPassFunction(
         std::function<void(GraphicsCommandBuffer &, const RenderGraph2 &)> fn
     ) noexcept {
-        auto f = [system = &this->system,
-                fn](vk::CommandBuffer cb, const RenderGraph2 & rg) {
+        auto f = [system = &this->system, fn](vk::CommandBuffer cb, const RenderGraph2 &rg) {
             GraphicsCommandBuffer gcb{*system, cb, system->GetFrameManager().GetFrameInFlight()};
             gcb.SetRenderingInfo(rg.GetCurrentPassRuntimeInfo());
             std::invoke(fn, std::ref(gcb), std::cref(rg));
@@ -23,9 +22,7 @@ namespace Engine {
     RenderGraphPassBuilder &RenderGraphPassBuilder::SetComputePassFunction(
         std::function<void(ComputeCommandBuffer &, const RenderGraph2 &)> fn
     ) noexcept {
-        auto f = [name = pass.name, system = &this->system,
-                fn](vk::CommandBuffer cb, const RenderGraph2 & rg) {
-
+        auto f = [name = pass.name, system = &this->system, fn](vk::CommandBuffer cb, const RenderGraph2 &rg) {
             ComputeCommandBuffer ccb{cb, system->GetFrameManager().GetFrameInFlight()};
             DEBUG_CMD_START_LABEL(cb, std::format("{} (Compute)", name).c_str());
             std::invoke(fn, std::ref(ccb), std::cref(rg));
@@ -41,19 +38,17 @@ namespace Engine {
         assert(pass.color_attachments.size() > 0 || static_cast<int32_t>(pass.depth_attachment.rt_handle) != 0);
 
         auto f = [
-            // These values are all copied
-            ca = pass.color_attachments,
-            da = pass.depth_attachment,
-            name = pass.name,
-            wrapped = pass.pass_function
-        ](vk::CommandBuffer cb, const RenderGraph2 & rg) {
+                     // These values are all copied
+                     ca = pass.color_attachments,
+                     da = pass.depth_attachment,
+                     name = pass.name,
+                     wrapped = pass.pass_function](vk::CommandBuffer cb, const RenderGraph2 &rg) {
             // Construct rendering info
 
             vk::Rect2D rendering_area{
-                {0, 0},
-                {std::numeric_limits<uint32_t>::max(), std::numeric_limits<uint32_t>::max()}
+                {0, 0}, {std::numeric_limits<uint32_t>::max(), std::numeric_limits<uint32_t>::max()}
             };
-            std::vector <vk::RenderingAttachmentInfo> cai{ca.size()};
+            std::vector<vk::RenderingAttachmentInfo> cai{ca.size()};
             vk::RenderingAttachmentInfo dai{}, sai{};
 
             // Fill up color attachment info.
@@ -69,14 +64,9 @@ namespace Engine {
                     AttachmentUtils::GetVkStoreOp(ca[i].store_op),
                     AttachmentUtils::GetVkClearValue(ca[i].clear_value)
                 };
-                rendering_area.extent.width = std::min(
-                    t->GetTextureDescription().width,
-                    rendering_area.extent.width
-                );
-                rendering_area.extent.height = std::min(
-                    t->GetTextureDescription().height,
-                    rendering_area.extent.height
-                );
+                rendering_area.extent.width = std::min(t->GetTextureDescription().width, rendering_area.extent.width);
+                rendering_area.extent.height =
+                    std::min(t->GetTextureDescription().height, rendering_area.extent.height);
             }
 
             if (static_cast<int32_t>(da.rt_handle) != 0) {
@@ -103,14 +93,7 @@ namespace Engine {
             }
 
             DEBUG_CMD_START_LABEL(cb, std::format("{} (Rasterizer)", name).c_str());
-            cb.beginRendering(vk::RenderingInfo{
-                vk::RenderingFlags{},
-                rendering_area,
-                1, 0,
-                cai,
-                &dai,
-                &sai
-            });
+            cb.beginRendering(vk::RenderingInfo{vk::RenderingFlags{}, rendering_area, 1, 0, cai, &dai, &sai});
             wrapped(cb, rg);
             cb.endRendering();
             DEBUG_CMD_END_LABEL(cb);

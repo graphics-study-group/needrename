@@ -10,11 +10,9 @@
 namespace Engine {
     namespace Reflection {
         template <typename T>
-        static void InitBuiltinType(const char* name) {
+        static void InitBuiltinType(const char *name) {
             Type *type = new Type(name, sizeof(T), false);
-            type->SetDeleter([](void *obj) {
-                delete static_cast<std::add_pointer_t<T>>(obj);
-            });
+            type->SetDeleter([](void *obj) { delete static_cast<std::add_pointer_t<T>>(obj); });
             Type::s_index_type_map[std::type_index(typeid(T))] = std::shared_ptr<const Type>(type);
             PointerType::RegisterSmartPointerGetFunc<T>();
             Type::s_name_index_map.emplace(name, std::type_index(typeid(T)));

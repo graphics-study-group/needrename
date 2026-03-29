@@ -11,12 +11,12 @@
 using namespace Engine;
 
 auto BuildRenderGraph(
-    RenderSystem & rsys,
-    RenderTargetTexture & color_in,
-    RenderTargetTexture & color_out,
-    RenderTargetTexture & color_present,
-    ComputeStage & compute,
-    ComputeResourceBinding & cbinding
+    RenderSystem &rsys,
+    RenderTargetTexture &color_in,
+    RenderTargetTexture &color_out,
+    RenderTargetTexture &color_present,
+    ComputeStage &compute,
+    ComputeResourceBinding &cbinding
 ) {
     RenderGraphBuilder rgb{rsys};
     auto ci = rgb.ImportExternalResource(color_in, MemoryAccessTypeImageBits::TransferWrite);
@@ -25,7 +25,7 @@ auto BuildRenderGraph(
     rgb.UseImage(ci, MemoryAccessTypeImageBits::ShaderRandomRead);
     rgb.UseImage(co, MemoryAccessTypeImageBits::ShaderRandomWrite);
     rgb.UseImage(cp, MemoryAccessTypeImageBits::ShaderRandomWrite);
-    rgb.RecordComputePass([&] (ComputeCommandBuffer & ccb, const RenderGraph & rg) -> void {
+    rgb.RecordComputePass([&](ComputeCommandBuffer &ccb, const RenderGraph &rg) -> void {
         ccb.BindComputeStage(compute);
         ccb.BindComputeResource(cbinding);
         ccb.DispatchCompute(1280 / 16 + 1, 720 / 16 + 1, 1);
@@ -33,7 +33,7 @@ auto BuildRenderGraph(
 
     rgb.UseImage(ci, MemoryAccessTypeImageBits::TransferWrite);
     rgb.UseImage(co, MemoryAccessTypeImageBits::TransferRead);
-    rgb.RecordTransferPass([&] (TransferCommandBuffer & tcb, const RenderGraph &) -> void {
+    rgb.RecordTransferPass([&](TransferCommandBuffer &tcb, const RenderGraph &) -> void {
         tcb.BlitColorImage(color_out, color_in);
     });
 
@@ -57,7 +57,9 @@ int main(int argc, char *argv[]) {
     cmc->LoadBuiltinAssets(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
 
     auto cs = std::make_shared<ShaderAsset>();
-    cs->LoadFromFile(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "shaders/fluid.comp.0.glsl", ShaderAsset::ShaderType::Compute);
+    cs->LoadFromFile(
+        std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "shaders/fluid.comp.0.glsl", ShaderAsset::ShaderType::Compute
+    );
 
     auto rsys = cmc->GetRenderSystem();
 
@@ -73,26 +75,22 @@ int main(int argc, char *argv[]) {
         .is_cube_map = false
     };
 
-    std::shared_ptr color_input = Engine::RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Color Compute Input");
-    std::shared_ptr color_output = Engine::RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Color Compute Output");
+    std::shared_ptr color_input =
+        Engine::RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Color Compute Input");
+    std::shared_ptr color_output =
+        Engine::RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Color Compute Output");
     desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R8G8B8A8UNorm;
-    std::shared_ptr color_present = Engine::RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Color Present");
-    
+    std::shared_ptr color_present =
+        Engine::RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Color Present");
+
     ComputeStage cstage{*rsys};
     cstage.Instantiate(*cs);
-    auto & cbinding = cstage.AllocateResourceBinding();
+    auto &cbinding = cstage.AllocateResourceBinding();
     cbinding.GetShaderResourceBinding().BindTexture("outputImage", *color_output);
     cbinding.GetShaderResourceBinding().BindTexture("inputImage", *color_input);
     cbinding.GetShaderResourceBinding().BindTexture("outputColorImage", *color_present);
 
-    auto rg = BuildRenderGraph(
-        *rsys,
-        *color_input,
-        *color_output,
-        *color_present,
-        cstage,
-        cbinding
-    );
+    auto rg = BuildRenderGraph(*rsys, *color_input, *color_output, *color_present, cstage, cbinding);
 
     uint64_t frame_count = 0;
     while (++frame_count) {
@@ -108,9 +106,7 @@ int main(int argc, char *argv[]) {
         }
 
         rsys->StartFrame();
-        cbinding.GetStructuredBuffer().SetVariable<uint32_t>(
-            "UBO::frame_count", static_cast<uint32_t>(frame_count)
-        );
+        cbinding.GetStructuredBuffer().SetVariable<uint32_t>("UBO::frame_count", static_cast<uint32_t>(frame_count));
 
         if (frame_count == 1) rg->AddExternalInputDependency(*color_input, MemoryAccessTypeImageBits::None);
         rg->Execute();
@@ -118,7 +114,7 @@ int main(int argc, char *argv[]) {
         rsys->CompleteFrame(
             *color_present,
             MemoryAccessTypeImageBits::ShaderRandomWrite,
-            color_present->GetTextureDescription().width, 
+            color_present->GetTextureDescription().width,
             color_present->GetTextureDescription().height
         );
 

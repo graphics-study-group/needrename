@@ -3,11 +3,11 @@
 #include <chrono>
 #include <fstream>
 
-#include "Framework/component/RenderComponent/MeshComponent.h"
 #include "Core/Functional/SDLWindow.h"
-#include "UserInterface/GUISystem.h"
+#include "Framework/component/RenderComponent/MeshComponent.h"
 #include "MainClass.h"
 #include "Render/FullRenderSystem.h"
+#include "UserInterface/GUISystem.h"
 
 using namespace Engine;
 namespace sch = std::chrono;
@@ -44,23 +44,19 @@ int main(int argc, char **argv) {
     };
     auto c = rgb.RequestRenderTargetTexture(desc, {});
     rgb.UseImage(c, MemoryAccessTypeImageBits::ColorAttachmentDefault);
-    rgb.RecordRasterizerPassWithoutRT(
-        [&] (GraphicsCommandBuffer & gcb, const RenderGraph & rg) -> void {
-            auto color = rg.GetInternalTextureResource(c);
-            gsys->DrawGUI(
-                AttachmentUtils::AttachmentDescription{
-                    color, TextureSubresourceRange::GetSingleRange(),
-                    AttachmentUtils::LoadOperation::Clear,
-                    AttachmentUtils::StoreOperation::Store,
-                },
-                vk::Extent2D{
-                    color->GetTextureDescription().width, 
-                    color->GetTextureDescription().height
-                },
-                gcb
-            );
-        }
-    );
+    rgb.RecordRasterizerPassWithoutRT([&](GraphicsCommandBuffer &gcb, const RenderGraph &rg) -> void {
+        auto color = rg.GetInternalTextureResource(c);
+        gsys->DrawGUI(
+            AttachmentUtils::AttachmentDescription{
+                color,
+                TextureSubresourceRange::GetSingleRange(),
+                AttachmentUtils::LoadOperation::Clear,
+                AttachmentUtils::StoreOperation::Store,
+            },
+            vk::Extent2D{color->GetTextureDescription().width, color->GetTextureDescription().height},
+            gcb
+        );
+    });
     auto rg = rgb.BuildRenderGraph();
 
     bool quited = false;

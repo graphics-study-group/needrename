@@ -21,16 +21,16 @@ namespace {
         if (!stream) {
             throw std::ios_base::failure("file does not exist");
         }
-        
+
         auto out = std::string();
         auto buf = std::string(read_size, '\0');
-        while (stream.read(& buf[0], read_size)) {
+        while (stream.read(&buf[0], read_size)) {
             out.append(buf, 0, stream.gcount());
         }
         out.append(buf, 0, stream.gcount());
         return out;
     }
-}
+} // namespace
 
 namespace Engine {
     ShaderCompiler::ShaderCompiler() {
@@ -85,20 +85,18 @@ namespace Engine {
         return true;
     }
     bool ShaderCompiler::CompileGLSLtoSPV(
-        std::vector<uint32_t> &spirv,
-        const std::filesystem::path &shader_abs_path,
-        bool emit_debug_info
+        std::vector<uint32_t> &spirv, const std::filesystem::path &shader_abs_path, bool emit_debug_info
     ) {
         assert(shader_abs_path.is_absolute());
 
         std::string shader_code = read_file(shader_abs_path);
 
-        std::array <const char *, 1> shader_codes = {shader_code.c_str()};
+        std::array<const char *, 1> shader_codes = {shader_code.c_str()};
         auto shader_abs_path_str = shader_abs_path.generic_string();
-        std::array <const char *, 1> shader_filename = {shader_abs_path_str.c_str()};
+        std::array<const char *, 1> shader_filename = {shader_abs_path_str.c_str()};
 
         auto filename = shader_abs_path.filename().generic_string();
-        
+
         EShLanguage shader_type;
         if (filename.find("vert") != filename.npos) {
             shader_type = EShLangVertex;

@@ -7,14 +7,14 @@
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include <Asset/AssetManager/AssetManager.h>
 #include <Core/Delegate/FuncDelegate.h>
-#include <Framework/world/WorldSystem.h>
 #include <Core/Functional/EventQueue.h>
 #include <Core/Functional/SDLWindow.h>
 #include <Core/Functional/Time.h>
-#include <UserInterface/GUISystem.h>
-#include <UserInterface/Input.h>
+#include <Framework/world/WorldSystem.h>
 #include <MainClass.h>
 #include <SDL3/SDL.h>
+#include <UserInterface/GUISystem.h>
+#include <UserInterface/Input.h>
 #include <cmake_config.h>
 
 #include <Editor/Widget/GameWidget.h>
@@ -131,11 +131,7 @@ int main() {
 
         cb.End();
         rsys->GetFrameManager().SubmitMainCommandBuffer();
-        rsys->CompleteFrame(
-            *window->GetColorTexture(),
-            window->GetExtent().width,
-            window->GetExtent().height
-        );
+        rsys->CompleteFrame(*window->GetColorTexture(), window->GetExtent().width, window->GetExtent().height);
     }
     rsys->WaitForIdle();
 

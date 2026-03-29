@@ -5,54 +5,54 @@
 
 namespace Engine {
     enum class MemoryAccessTypeBufferBits {
-        None                    = 0,
+        None = 0,
         // Read as indirect draw command buffer.
-        IndirectDrawRead        = 1 << 0,
+        IndirectDrawRead = 1 << 0,
         // Read as index buffer.
-        IndexRead               = 1 << 1,
+        IndexRead = 1 << 1,
         // Read as vertex attribute buffer.
-        VertexRead              = 1 << 2,
+        VertexRead = 1 << 2,
         // Read as uniform buffer.
-        ShaderRead              = 1 << 3,
+        ShaderRead = 1 << 3,
         // Read as texel uniform buffer via a sampler.
         // Unused.
-        ShaderSampled           = 1 << 4,
+        ShaderSampled = 1 << 4,
         // Read as storage buffer.
-        ShaderRandomRead        = 1 << 5,
+        ShaderRandomRead = 1 << 5,
         // Write as storage buffer.
-        ShaderRandomWrite       = 1 << 6,
+        ShaderRandomWrite = 1 << 6,
         // Read by transfer (i.e. copy) operations.
-        TransferRead            = 1 << 7,
+        TransferRead = 1 << 7,
         // Write by transfer (i.e. copy) operations.
-        TransferWrite           = 1 << 8,
+        TransferWrite = 1 << 8,
         // Access by the CPU side.
         // Basically unused.
-        HostAccess              = 1 << 9
+        HostAccess = 1 << 9
     };
     using MemoryAccessTypeBuffer = Flags<MemoryAccessTypeBufferBits>;
 
     enum class MemoryAccessTypeImageBits {
-        None                            = 0,
+        None = 0,
         // Color attachment read, performed during loading, blending, etc.
-        ColorAttachmentRead             = 1 << 0,
+        ColorAttachmentRead = 1 << 0,
         // Color attachment write.
-        ColorAttachmentWrite            = 1 << 1,
-        DepthStencilAttachmentRead      = 1 << 2,
-        DepthStencilAttachmentWrite     = 1 << 3,
-        TransferRead                    = 1 << 4,
-        TransferWrite                   = 1 << 5,
+        ColorAttachmentWrite = 1 << 1,
+        DepthStencilAttachmentRead = 1 << 2,
+        DepthStencilAttachmentWrite = 1 << 3,
+        TransferRead = 1 << 4,
+        TransferWrite = 1 << 5,
         // Read as being sampled by a sampler.
-        ShaderSampledRead               = 1 << 6,
+        ShaderSampledRead = 1 << 6,
         // Random read as a storage image.
-        ShaderRandomRead                = 1 << 7,
+        ShaderRandomRead = 1 << 7,
         // Random write as a storage image.
-        ShaderRandomWrite               = 1 << 8,
+        ShaderRandomWrite = 1 << 8,
 
-        DepthStencilAttachmentDefault   = (DepthStencilAttachmentRead | DepthStencilAttachmentWrite),
-        ColorAttachmentDefault          = (ColorAttachmentRead | ColorAttachmentWrite),
-        ShaderRandomDefault             = (ShaderRandomRead | ShaderRandomWrite)
+        DepthStencilAttachmentDefault = (DepthStencilAttachmentRead | DepthStencilAttachmentWrite),
+        ColorAttachmentDefault = (ColorAttachmentRead | ColorAttachmentWrite),
+        ShaderRandomDefault = (ShaderRandomRead | ShaderRandomWrite)
     };
     using MemoryAccessTypeImage = Flags<MemoryAccessTypeImageBits>;
-}
+} // namespace Engine
 
 #endif // RENDER_MEMORY_MEMORYACCESSTYPES_INCLUDED

@@ -10,7 +10,7 @@ namespace Engine {
      * The buffer is separated into multiple slices of the same
      * size, and
      * each slice can be indexed for a slice pointer.
-     * 
+     *
      * The slice pointer is guaranteed to
      * be aligned accordingly, making the
      * buffer suitable to use for dynamic buffer descriptors.
@@ -20,7 +20,7 @@ namespace Engine {
         std::unique_ptr<impl> pimpl;
 
         IndexedBuffer(
-            BufferAllocation && alloc, 
+            BufferAllocation &&alloc,
             size_t size,
             size_t slice_size,
             size_t slice_alignment,
@@ -29,17 +29,17 @@ namespace Engine {
         );
 
     public:
-        IndexedBuffer (const IndexedBuffer &) = delete;
-        void operator= (const IndexedBuffer &) = delete;
+        IndexedBuffer(const IndexedBuffer &) = delete;
+        void operator=(const IndexedBuffer &) = delete;
 
         IndexedBuffer(IndexedBuffer &&) noexcept;
-        IndexedBuffer & operator= (IndexedBuffer &&) noexcept;
+        IndexedBuffer &operator=(IndexedBuffer &&) noexcept;
 
         virtual ~IndexedBuffer();
 
         /**
          * @brief Create a buffer that is large enough to hold aligned slices.
-         * 
+         *
          * @param
          * type Type of the buffer. Currently only uniform is supported.
          * @param slice_size Actual size of
@@ -49,15 +49,15 @@ namespace Engine {
          * @param name Name of the buffer.
          */
         static IndexedBuffer Create(
-            const RenderSystemState::AllocatorState & allocator,
+            const RenderSystemState::AllocatorState &allocator,
             BufferType type,
             size_t slice_size,
             size_t slice_alignment,
             uint32_t slices,
             const std::string &name = ""
         );
-        static std::unique_ptr <IndexedBuffer> CreateUnique(
-            const RenderSystemState::AllocatorState & allocator,
+        static std::unique_ptr<IndexedBuffer> CreateUnique(
+            const RenderSystemState::AllocatorState &allocator,
             BufferType type,
             size_t slice_size,
             size_t slice_alignment,
@@ -77,11 +77,11 @@ namespace Engine {
 
         /**
          * @brief Get the pointer to the slice.
-         * 
+         *
          * The slice pointer is aligned to
          * guarantee that
          * `GetSlicePtr(slice) % slice_alignment == 0`.
-         * 
+         *
          * The pointer is
          * already offset, and you do not need to offset it again.
          */
@@ -89,7 +89,7 @@ namespace Engine {
 
         /**
          * @brief Get the offset of the slice to the base pointer mapped.
-         * 
+         *
          * The slice
          * pointer is aligned to guarantee that
          * `GetSliceOffset(slice) % slice_alignment == 0`.
@@ -98,7 +98,7 @@ namespace Engine {
 
         /**
          * @brief Flush the slice write to be visible on device.
-         * 
+         *
          * Generally you don't
          * need to manually call this member, as memories that
          * need to be flushed are usually coherent.
@@ -107,7 +107,7 @@ namespace Engine {
 
         /**
          * @brief Invalidate the slice so that device write are visible on host.
-         * 
+         *
          *
          * Generally you don't need to manually call this member, as memories that
          * need to be invalidated are

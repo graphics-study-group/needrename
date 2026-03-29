@@ -1,10 +1,10 @@
 #ifndef RENDER_RENDERSYSTEM_DEVICEINTERFACE_INCLUDED
 #define RENDER_RENDERSYSTEM_DEVICEINTERFACE_INCLUDED
 
-#include <memory>
-#include <string>
 #include <cstdint>
+#include <memory>
 #include <optional>
+#include <string>
 
 struct SDL_Window;
 
@@ -16,7 +16,7 @@ namespace vk {
     namespace detail {
         class DispatchLoaderBase;
     }
-}
+} // namespace vk
 
 namespace Engine {
     namespace RenderSystemState {
@@ -32,19 +32,18 @@ namespace Engine {
          */
         class DeviceInterface {
             struct impl;
-            std::unique_ptr <impl> pimpl;
+            std::unique_ptr<impl> pimpl;
 
         public:
-
             struct DeviceConfiguration {
                 // Parent window to create a surface from
-                SDL_Window * window;
+                SDL_Window *window;
                 // Arbitrary application name. Does not affect Vulkan behavior.
                 std::string application_name;
                 // Arbitrary application version. Does not affect Vulkan behavior.
                 uint32_t application_version;
                 // Vulkan-Hpp dynamic dispatcher, can be null, in which case uses the default one.
-                vk::detail::DispatchLoaderDynamic * dynamic_dispatcher;
+                vk::detail::DispatchLoaderDynamic *dynamic_dispatcher;
             };
 
             enum class PhysicalDeviceLimitInteger {
@@ -58,7 +57,6 @@ namespace Engine {
             };
 
             enum class PhysicalDeviceLimitFloat {
-
             };
 
             enum class QueueFamilyType {
@@ -86,7 +84,7 @@ namespace Engine {
             vk::PhysicalDevice GetPhysicalDevice() const;
             vk::Device GetDevice() const;
 
-            const QueueInfo & GetQueueInfo() const;
+            const QueueInfo &GetQueueInfo() const;
 
             /**
              * @brief Query information on swapchain supports (e.g. surface formats).
@@ -101,11 +99,10 @@ namespace Engine {
              */
             std::optional<uint32_t> GetQueueFamily(QueueFamilyType type) const noexcept;
 
-
             uint32_t QueryLimit(PhysicalDeviceLimitInteger limit) const;
             float QueryLimit(PhysicalDeviceLimitFloat limit) const;
         };
-    }
-}
+    } // namespace RenderSystemState
+} // namespace Engine
 
 #endif // RENDER_RENDERSYSTEM_DEVICEINTERFACE_INCLUDED

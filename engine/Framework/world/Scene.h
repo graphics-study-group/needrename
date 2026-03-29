@@ -22,15 +22,16 @@ namespace Engine {
      * The Scene manages the creation, storage, and lookup of all GameObject and Component instances.
      * The Scene contains a event queue, which manages the events of all Components in the scene.
      * Usually only the main scene in WorldSystem will process the events.
-     * 
+     *
      * A Scene can be gotten by its ID from WorldSystem.
-     * Creation and deletion operations about GameObjects and Components are queued and 
+     * Creation and deletion operations about GameObjects and Components are queued and
      * processed via Scene::FlushCmdQueue() for safe lifetime management.
      */
     class Scene {
     protected:
         friend class WorldSystem;
         Scene(uint32_t sceneID);
+
     public:
         virtual ~Scene();
 
@@ -140,7 +141,7 @@ namespace Engine {
          * @return The Component pointer.
          */
         template <typename T>
-        T *GetComponent(ComponentHandle handle) const{
+        T *GetComponent(ComponentHandle handle) const {
             return dynamic_cast<T *>(GetComponent(handle));
         }
 

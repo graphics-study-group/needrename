@@ -6,13 +6,13 @@
 #include "Render/Pipeline/Material/MaterialInstance.h"
 #include "Render/Pipeline/Material/MaterialLibrary.h"
 #include "Render/RenderSystem.h"
+#include "Render/RenderSystem/CameraManager.h"
 #include "Render/RenderSystem/FrameManager.h"
 #include "Render/RenderSystem/RendererManager.h"
 #include "Render/RenderSystem/Swapchain.h"
-#include "Render/RenderSystem/CameraManager.h"
 #include "Render/Renderer/Camera.h"
-#include "Render/Renderer/VertexAttribute.h"
 #include "Render/Renderer/IVertexBasedRenderer.h"
+#include "Render/Renderer/VertexAttribute.h"
 
 #include "Render/DebugUtils.h"
 
@@ -102,9 +102,7 @@ namespace Engine {
         cb.beginRendering(info);
     }
 
-    void GraphicsCommandBuffer::BindSceneResources(
-        const RenderSystemState::SceneDataManager & sdm
-    ) {
+    void GraphicsCommandBuffer::BindSceneResources(const RenderSystemState::SceneDataManager &sdm) {
         cb.bindDescriptorSets(
             vk::PipelineBindPoint::eGraphics,
             sdm.GetCommonPipelineLayout(),
@@ -114,9 +112,7 @@ namespace Engine {
         );
     }
 
-    void GraphicsCommandBuffer::BindCameraResources(
-        const RenderSystemState::CameraManager & cm
-    ) {
+    void GraphicsCommandBuffer::BindCameraResources(const RenderSystemState::CameraManager &cm) {
         cb.bindDescriptorSets(
             vk::PipelineBindPoint::eGraphics,
             cm.GetCommonPipelineLayout(),
@@ -126,10 +122,7 @@ namespace Engine {
         );
     }
 
-    void GraphicsCommandBuffer::BindMaterial(
-        MaterialInstance & material,
-        MaterialTemplate & tpl
-    ) {
+    void GraphicsCommandBuffer::BindMaterial(MaterialInstance &material, MaterialTemplate &tpl) {
         const auto &pipeline = tpl.GetPipeline();
         const auto &pipeline_layout = tpl.GetPipelineLayout();
 
@@ -151,11 +144,7 @@ namespace Engine {
         auto material_descriptor_set = material.GetDescriptor(tpl, m_inflight_frame_index);
         if (material_descriptor_set) {
             cb.bindDescriptorSets(
-                vk::PipelineBindPoint::eGraphics,
-                pipeline_layout,
-                2,
-                {material_descriptor_set},
-                dynamic_offsets
+                vk::PipelineBindPoint::eGraphics, pipeline_layout, 2, {material_descriptor_set}, dynamic_offsets
             );
         }
     }
@@ -178,8 +167,8 @@ namespace Engine {
         const IVertexBasedRenderer &mesh, const glm::mat4 &model_matrix, int32_t camera_index
     ) {
         auto bindings = mesh.GetVertexAttributeBufferBindings();
-        std::vector <vk::DeviceSize> offsets{};
-        std::vector <vk::Buffer> buffers{};
+        std::vector<vk::DeviceSize> offsets{};
+        std::vector<vk::Buffer> buffers{};
         offsets.resize(bindings.size());
         buffers.resize(bindings.size());
         for (size_t i = 0; i < bindings.size(); i++) {
@@ -194,32 +183,26 @@ namespace Engine {
         struct {
             glm::mat4 m;
             int32_t i;
-        } push_constants {.m = model_matrix, .i = camera_index};
+        } push_constants{.m = model_matrix, .i = camera_index};
 
         cb.pushConstants(
             m_bound_material_pipeline.value().second,
             vk::ShaderStageFlagBits::eAllGraphics,
             0,
-            sizeof (push_constants),
+            sizeof(push_constants),
             reinterpret_cast<const void *>(&push_constants)
         );
         cb.drawIndexed(mesh.GetIndexCount(), 1, 0, 0, 0);
     }
 
-    void GraphicsCommandBuffer::DrawRenderers(const std::string & tag, const RendererList &renderers) {
+    void GraphicsCommandBuffer::DrawRenderers(const std::string &tag, const RendererList &renderers) {
         this->DrawRenderers(
-            tag,
-            renderers,
-            m_system.GetCameraManager().GetActiveCameraIndex(),
-            m_system.GetSwapchain().GetExtent()
+            tag, renderers, m_system.GetCameraManager().GetActiveCameraIndex(), m_system.GetSwapchain().GetExtent()
         );
     }
 
     void GraphicsCommandBuffer::DrawRenderers(
-        const std::string & tag,
-        const RendererList &renderers,
-        int32_t camera_index,
-        vk::Extent2D extent
+        const std::string &tag, const RendererList &renderers, int32_t camera_index, vk::Extent2D extent
     ) {
         BindSceneResources(m_system.GetSceneDataManager());
         BindCameraResources(m_system.GetCameraManager());
@@ -227,18 +210,15 @@ namespace Engine {
         vk::Rect2D scissor{{0, 0}, extent};
         this->SetupViewport(extent.width, extent.height, scissor);
         for (const auto &rid : renderers) {
-            const auto & mesh = m_system.GetRendererManager().GetRendererData(rid);
-            glm::mat4 model_matrix = m_system.GetRendererManager().GetRendererComponent(rid)->GetWorldTransform().GetTransformMatrix();
+            const auto &mesh = m_system.GetRendererManager().GetRendererData(rid);
+            glm::mat4 model_matrix =
+                m_system.GetRendererManager().GetRendererComponent(rid)->GetWorldTransform().GetTransformMatrix();
             auto material_instance = m_system.GetRendererManager().GetMaterialInstance(rid);
 
             auto tpl = material_instance->GetLibrary().FindMaterialTemplate(
-                tag,
-                {
-                    {mesh->GetVertexAttributeFormat()},
-                    m_pripr
-                }
+                tag, {{mesh->GetVertexAttributeFormat()}, m_pripr}
             );
-            if (!tpl)   continue;
+            if (!tpl) continue;
 
             this->BindMaterial(*material_instance, *tpl);
             this->DrawMesh(*mesh, model_matrix, camera_index);

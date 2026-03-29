@@ -1,12 +1,12 @@
 #include "CameraManager.h"
 
-#include "Render/Renderer/Camera.h"
 #include "Render/DebugUtils.h"
-#include "Render/RenderSystem/DeviceInterface.h"
 #include "Render/Memory/IndexedBuffer.h"
+#include "Render/RenderSystem/DeviceInterface.h"
+#include "Render/Renderer/Camera.h"
+#include <SDL3/SDL.h>
 #include <glm.hpp>
 #include <vulkan/vulkan.h>
-#include <SDL3/SDL.h>
 
 namespace Engine::RenderSystemState {
     struct CameraManager::impl {
@@ -15,101 +15,82 @@ namespace Engine::RenderSystemState {
             glm::mat4 proj_matrix;
         };
 
-        static constexpr std::array<vk::DescriptorPoolSize, 1> CAMERA_DESCRIPTOR_POOL_SIZE {
-            vk::DescriptorPoolSize{
-                vk::DescriptorType::eUniformBuffer, 16
-            }
+        static constexpr std::array<vk::DescriptorPoolSize, 1> CAMERA_DESCRIPTOR_POOL_SIZE{
+            vk::DescriptorPoolSize{vk::DescriptorType::eUniformBuffer, 16}
         };
 
-        static constexpr std::array<vk::DescriptorSetLayoutBinding, 1> CAMERA_DESCRIPTOR_BINDINGS {
+        static constexpr std::array<vk::DescriptorSetLayoutBinding, 1> CAMERA_DESCRIPTOR_BINDINGS{
             vk::DescriptorSetLayoutBinding{
                 0, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eAllGraphics
             }
         };
 
-        vk::UniqueDescriptorPool camera_descriptor_pool {};
+        vk::UniqueDescriptorPool camera_descriptor_pool{};
 
         // Camera descriptor set layout, currently containing only one UBO.
-        vk::DescriptorSetLayout camera_descriptor_set_layout {};
+        vk::DescriptorSetLayout camera_descriptor_set_layout{};
 
         // Common pipeline layout for scene & camera.
-        vk::PipelineLayout camera_common_pipeline_layout {};
+        vk::PipelineLayout camera_common_pipeline_layout{};
 
         // A front buffer storing all camera data on the CPU side.
-        std::array <CameraData, MAX_CAMERAS> front_buffer {};
+        std::array<CameraData, MAX_CAMERAS> front_buffer{};
 
         // Back buffer for each frame in flight
-        std::unique_ptr <IndexedBuffer> back_buffer {};
+        std::unique_ptr<IndexedBuffer> back_buffer{};
 
         // Descriptors for each frame in flight
-        std::array <vk::DescriptorSet, FrameManager::FRAMES_IN_FLIGHT> descriptors {};
+        std::array<vk::DescriptorSet, FrameManager::FRAMES_IN_FLIGHT> descriptors{};
 
         // Registered cameras
-        std::array <std::weak_ptr<Camera>, MAX_CAMERAS> registered_cameras;
-
+        std::array<std::weak_ptr<Camera>, MAX_CAMERAS> registered_cameras;
     };
 
-    CameraManager::CameraManager(
-        RenderSystem & system
-    ) noexcept : m_system(system), pimpl(std::make_unique<impl>()) {
+    CameraManager::CameraManager(RenderSystem &system) noexcept : m_system(system), pimpl(std::make_unique<impl>()) {
     }
     CameraManager::~CameraManager() noexcept = default;
 
     void CameraManager::Create() {
-        const auto & allocator = m_system.GetAllocatorState();
+        const auto &allocator = m_system.GetAllocatorState();
         auto device = m_system.GetDevice();
 
-        vk::DescriptorPoolCreateInfo dpci {
-            vk::DescriptorPoolCreateFlagBits{},
-            pimpl->descriptors.size(),
-            impl::CAMERA_DESCRIPTOR_POOL_SIZE
+        vk::DescriptorPoolCreateInfo dpci{
+            vk::DescriptorPoolCreateFlagBits{}, pimpl->descriptors.size(), impl::CAMERA_DESCRIPTOR_POOL_SIZE
         };
         pimpl->camera_descriptor_pool = device.createDescriptorPoolUnique(dpci);
-        DEBUG_SET_NAME_TEMPLATE(
-            device, pimpl->camera_descriptor_pool.get(), "Camera Descriptor Pool"
-        );
+        DEBUG_SET_NAME_TEMPLATE(device, pimpl->camera_descriptor_pool.get(), "Camera Descriptor Pool");
 
         // Create decriptor set layout
         {
-            vk::DescriptorSetLayoutCreateInfo dslci {
-                vk::DescriptorSetLayoutCreateFlags{},
-                pimpl->CAMERA_DESCRIPTOR_BINDINGS
+            vk::DescriptorSetLayoutCreateInfo dslci{
+                vk::DescriptorSetLayoutCreateFlags{}, pimpl->CAMERA_DESCRIPTOR_BINDINGS
             };
-            pimpl->camera_descriptor_set_layout = m_system.GetIRCache().GetDescriptorSetLayout(
-                dslci, "Camera Descriptor Set Layout"
-            );
+            pimpl->camera_descriptor_set_layout =
+                m_system.GetIRCache().GetDescriptorSetLayout(dslci, "Camera Descriptor Set Layout");
         }
         // Create common pipeline layout
         {
             assert(m_system.GetSceneDataManager().GetLightDescriptorSetLayout());
             std::array pipeline_layout_descriptor_sets{
-                m_system.GetSceneDataManager().GetLightDescriptorSetLayout(),
-                pimpl->camera_descriptor_set_layout
+                m_system.GetSceneDataManager().GetLightDescriptorSetLayout(), pimpl->camera_descriptor_set_layout
             };
-            std::array pipeline_layout_pcr{
-                RendererManager::GetPushConstantRange()
-            };
+            std::array pipeline_layout_pcr{RendererManager::GetPushConstantRange()};
             vk::PipelineLayoutCreateInfo plci{
-                vk::PipelineLayoutCreateFlags{},
-                pipeline_layout_descriptor_sets,
-                pipeline_layout_pcr
+                vk::PipelineLayoutCreateFlags{}, pipeline_layout_descriptor_sets, pipeline_layout_pcr
             };
-            pimpl->camera_common_pipeline_layout =  m_system.GetIRCache().GetPipelineLayout(
-                plci, "Camera Common Pipeline Layout"
-            );
+            pimpl->camera_common_pipeline_layout =
+                m_system.GetIRCache().GetPipelineLayout(plci, "Camera Common Pipeline Layout");
         }
 
         // Allocate descriptors
-        std::vector <vk::DescriptorSetLayout> layouts(pimpl->descriptors.size(), pimpl->camera_descriptor_set_layout);
-        vk::DescriptorSetAllocateInfo dsai {pimpl->camera_descriptor_pool.get(), layouts};
+        std::vector<vk::DescriptorSetLayout> layouts(pimpl->descriptors.size(), pimpl->camera_descriptor_set_layout);
+        vk::DescriptorSetAllocateInfo dsai{pimpl->camera_descriptor_pool.get(), layouts};
         auto ret = device.allocateDescriptorSets(dsai);
         std::copy_n(ret.begin(), pimpl->descriptors.size(), pimpl->descriptors.begin());
 
 #ifndef NDEBUG
         for (uint32_t i = 0; i < pimpl->descriptors.size(); i++) {
-            DEBUG_SET_NAME_TEMPLATE(
-                device, pimpl->descriptors[i], std::format("Desc Set - Camera FIF {}", i)
-            );
+            DEBUG_SET_NAME_TEMPLATE(device, pimpl->descriptors[i], std::format("Desc Set - Camera FIF {}", i));
         }
 #endif
 
@@ -119,26 +100,22 @@ namespace Engine::RenderSystemState {
             allocator,
             {BufferTypeBits::HostAccessibleUniform},
             sizeof(impl::front_buffer),
-            m_system.GetDeviceInterface().QueryLimit(DeviceInterface::PhysicalDeviceLimitInteger::UniformBufferOffsetAlignment),
+            m_system.GetDeviceInterface().QueryLimit(
+                DeviceInterface::PhysicalDeviceLimitInteger::UniformBufferOffsetAlignment
+            ),
             pimpl->descriptors.size(),
             "Aggregated Camera Uniform Buffer"
         );
         assert(pimpl->back_buffer);
 
         // Write out descriptors
-        std::vector <vk::DescriptorBufferInfo> buffers(
+        std::vector<vk::DescriptorBufferInfo> buffers(
             pimpl->descriptors.size(),
-            vk::DescriptorBufferInfo{
-                pimpl->back_buffer->GetBuffer(),
-                0,
-                pimpl->back_buffer->GetSliceSize()
-            }
+            vk::DescriptorBufferInfo{pimpl->back_buffer->GetBuffer(), 0, pimpl->back_buffer->GetSliceSize()}
         );
-        std::vector <vk::WriteDescriptorSet> writes(
+        std::vector<vk::WriteDescriptorSet> writes(
             pimpl->descriptors.size(),
-            vk::WriteDescriptorSet{
-                nullptr, 0, 0, vk::DescriptorType::eUniformBuffer, {}, {}, {}
-            }
+            vk::WriteDescriptorSet{nullptr, 0, 0, vk::DescriptorType::eUniformBuffer, {}, {}, {}}
         );
         for (uint32_t i = 0; i < pimpl->descriptors.size(); i++) {
             buffers[i].offset = pimpl->back_buffer->GetSliceOffset(i);
@@ -159,9 +136,7 @@ namespace Engine::RenderSystemState {
     }
     void CameraManager::UploadCameraData(uint32_t frame_in_flight) const noexcept {
         std::memcpy(
-            pimpl->back_buffer->GetSlicePtr(frame_in_flight), 
-            pimpl->front_buffer.data(),
-            sizeof (pimpl->front_buffer)
+            pimpl->back_buffer->GetSlicePtr(frame_in_flight), pimpl->front_buffer.data(), sizeof(pimpl->front_buffer)
         );
         pimpl->back_buffer->FlushSlice(frame_in_flight);
     }
@@ -201,11 +176,11 @@ namespace Engine::RenderSystemState {
         assert(index < pimpl->registered_cameras.size());
         if (pimpl->registered_cameras[index].expired()) {
             SDL_LogWarn(
-                SDL_LOG_CATEGORY_RENDER, 
+                SDL_LOG_CATEGORY_RENDER,
                 std::format(
-                    "Camera {} is expired or not registered, but is set to be the active camera.", 
-                    m_active_camera_index
-                ).c_str()
+                    "Camera {} is expired or not registered, but is set to be the active camera.", m_active_camera_index
+                )
+                    .c_str()
             );
         }
         m_active_camera_index = index;
@@ -213,7 +188,7 @@ namespace Engine::RenderSystemState {
     uint32_t CameraManager::GetActiveCameraIndex() const noexcept {
         if (pimpl->registered_cameras[m_active_camera_index].expired()) {
             SDL_LogWarn(
-                SDL_LOG_CATEGORY_RENDER, 
+                SDL_LOG_CATEGORY_RENDER,
                 std::format("Currently active camera {} is expired or not registered.", m_active_camera_index).c_str()
             );
         }

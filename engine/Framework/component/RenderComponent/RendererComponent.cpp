@@ -25,9 +25,7 @@ namespace Engine {
     void RendererComponent::UnregisterFromRenderSystem() {
         auto system = m_system.lock();
         if (system) {
-            system->GetRendererManager().UnregisterRendererComponent(
-                GetHandle()
-            );
+            system->GetRendererManager().UnregisterRendererComponent(GetHandle());
         }
     }
 

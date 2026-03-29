@@ -2,9 +2,9 @@
 
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include <Asset/AssetManager/AssetManager.h>
+#include <Asset/Material/MaterialAsset.h>
 #include <Asset/Scene/LevelAsset.h>
 #include <Asset/Shader/ShaderCompiler.h>
-#include <Asset/Material/MaterialAsset.h>
 #include <Core/Functional/EventQueue.h>
 #include <Core/Functional/SDLWindow.h>
 #include <Core/Functional/Time.h>
@@ -13,9 +13,9 @@
 #include <UserInterface/GUISystem.h>
 #include <UserInterface/Input.h>
 
-#include <glslang/Public/ShaderLang.h>
 #include <exception>
 #include <fstream>
+#include <glslang/Public/ShaderLang.h>
 #include <nlohmann/json.hpp>
 
 namespace Engine {
@@ -145,7 +145,7 @@ namespace Engine {
         return shader_compiler;
     }
 
-     void MainClass::SetRenderGraph(std::unique_ptr<RenderGraph> &render_graph, uint32_t final_color_attachment_id) {
+    void MainClass::SetRenderGraph(std::unique_ptr<RenderGraph> &render_graph, uint32_t final_color_attachment_id) {
         this->render_graph = std::move(render_graph);
         this->m_final_color_attachment_id = final_color_attachment_id;
     }
@@ -186,7 +186,8 @@ namespace Engine {
         this->renderer->CompleteFrame(
             *this->render_graph->GetInternalTextureResource(this->m_final_color_attachment_id),
             MemoryAccessTypeImageBits::ShaderRandomWrite,
-            w, h
+            w,
+            h
         );
     }
 } // namespace Engine

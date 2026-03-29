@@ -11,7 +11,7 @@ namespace vk {
     class DescriptorBufferInfo;
 
     enum class DescriptorType;
-}
+} // namespace vk
 
 namespace Engine {
     struct StructuredBuffer;
@@ -20,8 +20,8 @@ namespace Engine {
 
         struct SPLayout {
             // Interfaces are guaranteed to be sorted by set and binding numbers
-            std::vector <std::unique_ptr<SPInterface>> interfaces;
-            std::unordered_map <std::string, const SPInterface *> interface_name_mapping;
+            std::vector<std::unique_ptr<SPInterface>> interfaces;
+            std::unordered_map<std::string, const SPInterface *> interface_name_mapping;
 
             /**
              * @brief Place all simple variables (i.e. scalars, arrays,
@@ -33,9 +33,9 @@ namespace Engine {
              * @see StructuredBufferPlacer::WriteBuffer() for actual implementation.
              */
             void PlaceBufferVariable(
-                std::vector <std::byte> & rbuffer,
-                const SPInterfaceStructuredBuffer & interface,
-                const StructuredBuffer & sbuffer
+                std::vector<std::byte> &rbuffer,
+                const SPInterfaceStructuredBuffer &interface,
+                const StructuredBuffer &sbuffer
             ) const noexcept;
 
             /**
@@ -44,19 +44,15 @@ namespace Engine {
              * @return an unordered map from descriptor set index to its
              * corresponding binding.
              */
-            std::unordered_map <uint32_t, std::vector <vk::DescriptorSetLayoutBinding>>
-            GenerateAllLayoutBindings() const;
+            std::unordered_map<uint32_t, std::vector<vk::DescriptorSetLayoutBinding>> GenerateAllLayoutBindings() const;
 
             /**
              * @brief Generate descriptor set layout binding for a given set.
              * 
              * These bindings are sorted by binding numbers.
              */
-            std::vector <vk::DescriptorSetLayoutBinding>
-            GenerateLayoutBindings(
-                uint32_t set,
-                bool enforce_dynamic_uniform_buffer = false,
-                bool enforce_dynamic_storage_buffer = false
+            std::vector<vk::DescriptorSetLayoutBinding> GenerateLayoutBindings(
+                uint32_t set, bool enforce_dynamic_uniform_buffer = false, bool enforce_dynamic_storage_buffer = false
             ) const;
 
             /**
@@ -66,7 +62,7 @@ namespace Engine {
              * corresponding to a name is found out to be an interface,
              * then the interface is also merged.
              */
-            void Merge(SPLayout && other);
+            void Merge(SPLayout &&other);
 
             /**
              * @brief Acquire a SPLayout by reflecting SPIR-V code.
@@ -74,12 +70,9 @@ namespace Engine {
              * @param filter_out_low_descriptors Ignore descriptors whose set
              * is lower than 2. Useful when processing material shaders.
              */
-            static SPLayout Reflect(
-                const std::vector <uint32_t> & spirv_code,
-                bool filter_out_low_descriptors = true
-            );
+            static SPLayout Reflect(const std::vector<uint32_t> &spirv_code, bool filter_out_low_descriptors = true);
         };
-    }
-}
+    } // namespace ShdrRfl
+} // namespace Engine
 
 #endif // MEMORY_SHADERPARAMETERS_SHADERPARAMETERLAYOUT_INCLUDED

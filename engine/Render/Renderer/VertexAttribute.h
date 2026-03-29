@@ -9,13 +9,13 @@ namespace vk {
 
     class VertexInputBindingDescription;
     class VertexInputAttributeDescription;
-}
+} // namespace vk
 
 namespace Engine {
     namespace RenderSystemState {
         class DeviceInterface;
         class AllocatorState;
-    }
+    } // namespace RenderSystemState
     /**
      * @brief Type of the vertex attribute.
      * Up to 16 types (incl. unused) are supported.
@@ -71,13 +71,13 @@ namespace Engine {
     struct VertexAttribute {
         uint64_t packed;
 
-        bool operator == (const VertexAttribute & rhs) const noexcept {
+        bool operator==(const VertexAttribute &rhs) const noexcept {
             return packed == rhs.packed;
         }
 
-        VertexAttribute & SetAttribute(VertexAttributeSemantic semantic, VertexAttributeType type) noexcept {
-            uint64_t type_bits {static_cast<uint8_t>(type)};
-            uint64_t mask {0xF};
+        VertexAttribute &SetAttribute(VertexAttributeSemantic semantic, VertexAttributeType type) noexcept {
+            uint64_t type_bits{static_cast<uint8_t>(type)};
+            uint64_t mask{0xF};
             mask <<= static_cast<uint8_t>(semantic) * 4;
             type_bits <<= static_cast<uint8_t>(semantic) * 4;
             packed = ((packed & ~mask) | type_bits);
@@ -102,7 +102,7 @@ namespace Engine {
          * The input rate is set to per vertex.
          * The binding numbers are guranteed to be contingous and increasing.
          */
-        std::vector <vk::VertexInputBindingDescription> ToVkVertexInputBinding() const noexcept;
+        std::vector<vk::VertexInputBindingDescription> ToVkVertexInputBinding() const noexcept;
 
         /**
          * @brief Generate a vertex input attribute description from the
@@ -117,8 +117,8 @@ namespace Engine {
          * @param allocator a pointer to the allocator to check format limits.
          * Pass null to ignore the checks.
          */
-        std::vector <vk::VertexInputAttributeDescription> ToVkVertexAttribute(
-            RenderSystemState::AllocatorState * allocator = nullptr
+        std::vector<vk::VertexInputAttributeDescription> ToVkVertexAttribute(
+            RenderSystemState::AllocatorState *allocator = nullptr
         ) const noexcept;
 
         /**
@@ -142,22 +142,22 @@ namespace Engine {
         /**
          * @brief Enumerate the offset factor of all used attributes.
          */
-        std::vector <uint64_t> EnumerateOffsetFactor() const noexcept;
+        std::vector<uint64_t> EnumerateOffsetFactor() const noexcept;
 
         static constexpr VertexAttribute GetDefaultBasicVertexAttribute() {
             return VertexAttribute{
                 .packed =
                     // Position
-                    (static_cast<uint8_t>(VertexAttributeType::SFloat32x3)) |
-                    // Color
-                    (static_cast<uint8_t>(VertexAttributeType::SFloat32x3) << 4) |
-                    // Normal
-                    (static_cast<uint8_t>(VertexAttributeType::SFloat32x3) << 8) |
-                    // Texcoord0
-                    (static_cast<uint8_t>(VertexAttributeType::SFloat32x2) << 12)
+                (static_cast<uint8_t>(VertexAttributeType::SFloat32x3)) |
+                // Color
+                (static_cast<uint8_t>(VertexAttributeType::SFloat32x3) << 4) |
+                // Normal
+                (static_cast<uint8_t>(VertexAttributeType::SFloat32x3) << 8) |
+                // Texcoord0
+                (static_cast<uint8_t>(VertexAttributeType::SFloat32x2) << 12)
             };
         }
     };
-}
+} // namespace Engine
 
 #endif // RENDER_RENDERER_VERTEXATTRIBUTE_INCLUDED

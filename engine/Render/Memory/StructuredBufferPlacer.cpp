@@ -2,45 +2,45 @@
 
 #include "StructuredBuffer.h"
 
+#include <SDL3/SDL.h>
 #include <any>
 #include <unordered_map>
-#include <SDL3/SDL.h>
 
 #ifndef NDEBUG
 #include <cxxabi.h>
 namespace {
-    std::string DemangleTypeName(const char * p) {
-        char * demangled_name_buf = abi::__cxa_demangle(p, nullptr, nullptr, nullptr);
+    std::string DemangleTypeName(const char *p) {
+        char *demangled_name_buf = abi::__cxa_demangle(p, nullptr, nullptr, nullptr);
         std::string name{demangled_name_buf};
         free(demangled_name_buf);
         return name;
     }
-}
+} // namespace
 #else
 namespace {
-    std::string DemangleTypeName(const char * p) {
+    std::string DemangleTypeName(const char *p) {
         return std::string{p};
     }
-}
+} // namespace
 #endif
 
 namespace Engine {
     struct StructuredBufferPlacer::impl {
         struct TypeInfo {
             // type info is used for type checking only.
-            const std::type_info * info {nullptr};
-            size_t offset {};
+            const std::type_info *info{nullptr};
+            size_t offset{};
             // Size of the variable. If the variable is a buffer,
             // then is the maximal size of the buffer.
-            size_t size {};
+            size_t size{};
 
-            const StructuredBufferPlacer * subbuffer{nullptr};
+            const StructuredBufferPlacer *subbuffer{nullptr};
         };
 
         // TODO: replace `std::string` by a index and a string table for better performance.
-        std::unordered_map <std::string, TypeInfo> mapping {};
+        std::unordered_map<std::string, TypeInfo> mapping{};
 
-        struct SizeStatistic{
+        struct SizeStatistic {
             bool max_size_dirty{0};
             size_t max_size{0};
         };
@@ -53,41 +53,27 @@ namespace Engine {
     StructuredBufferPlacer::~StructuredBufferPlacer() noexcept = default;
 
     void StructuredBufferPlacer::AddVariable(
-        const std::string &name,
-        size_t offset,
-        size_t size,
-        const std::type_info *type
+        const std::string &name, size_t offset, size_t size, const std::type_info *type
     ) {
         pimpl->size.max_size_dirty = true;
 
-        pimpl->mapping[name] = impl::TypeInfo{
-            .info = type,
-            .offset = offset,
-            .size = size,
-            .subbuffer = nullptr
-        };
+        pimpl->mapping[name] = impl::TypeInfo{.info = type, .offset = offset, .size = size, .subbuffer = nullptr};
     }
 
     void StructuredBufferPlacer::AddStructuredBuffer(
-        const std::string &name,
-        size_t offset,
-        const StructuredBufferPlacer & buffer
+        const std::string &name, size_t offset, const StructuredBufferPlacer &buffer
     ) {
         pimpl->size.max_size_dirty = true;
 
-        pimpl->mapping[name] = impl::TypeInfo{
-            .info = &typeid(StructuredBuffer),
-            .offset = offset,
-            .size = 0,
-            .subbuffer = &buffer
-        };
+        pimpl->mapping[name] =
+            impl::TypeInfo{.info = &typeid(StructuredBuffer), .offset = offset, .size = 0, .subbuffer = &buffer};
     }
 
     size_t StructuredBufferPlacer::CalculateMaxSize() const noexcept {
-        if (!pimpl->size.max_size_dirty)    return pimpl->size.max_size;
+        if (!pimpl->size.max_size_dirty) return pimpl->size.max_size;
 
-        size_t max_size {0};
-        for (const auto & [k, v] : pimpl->mapping) {
+        size_t max_size{0};
+        for (const auto &[k, v] : pimpl->mapping) {
             size_t element_size{0};
             if (v.info == &typeid(StructuredBuffer)) {
                 assert(v.subbuffer);
@@ -103,7 +89,7 @@ namespace Engine {
     }
 
     void StructuredBufferPlacer::WriteBuffer(const StructuredBuffer &data, std::byte *buffer) const noexcept {
-        for (const auto & [name, info] : pimpl->mapping) {
+        for (const auto &[name, info] : pimpl->mapping) {
             auto varptr = data.GetVariable(name);
             if (varptr == nullptr) {
                 SDL_LogWarn(
@@ -133,11 +119,7 @@ namespace Engine {
             } else {
                 // For other standard-layout variables, just memcpy them.
                 assert(varptr->value.size() >= info.size);
-                std::memcpy(
-                    buffer + info.offset,
-                    varptr->value.data(),
-                    info.size
-                );
+                std::memcpy(buffer + info.offset, varptr->value.data(), info.size);
             }
         }
     }

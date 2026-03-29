@@ -7,8 +7,8 @@
 #include <Reflection/serialization.h>
 #include <Render/Memory/RenderTargetTexture.h>
 #include <Render/RenderSystem.h>
-#include <Render/RenderSystem/FrameManager.h>
 #include <Render/RenderSystem/CameraManager.h>
+#include <Render/RenderSystem/FrameManager.h>
 #include <Render/Renderer/Camera.h>
 
 #include <SDL3/SDL.h>
@@ -62,7 +62,8 @@ namespace Editor {
                 auto &adb = *std::dynamic_pointer_cast<Engine::FileSystemDatabase>(
                     Engine::MainClass::GetInstance()->GetAssetDatabase()
                 );
-                auto level_asset = adb.GetNewAssetRef(Engine::AssetPath{adb, "/default_level.asset"}).as<Engine::LevelAsset>();
+                auto level_asset =
+                    adb.GetNewAssetRef(Engine::AssetPath{adb, "/default_level.asset"}).as<Engine::LevelAsset>();
                 Engine::MainClass::GetInstance()->GetWorldSystem()->SaveLevelToAsset(*level_asset);
                 Engine::Serialization::Archive archive;
                 archive.prepare_save();

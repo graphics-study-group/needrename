@@ -38,11 +38,7 @@ int main(int argc, char **argv) {
     auto rgb = std::make_unique<ComplexRenderGraphBuilder>(*cmc->GetRenderSystem());
     auto [w, h] = cmc->GetWindow()->GetSize();
     int32_t final_color_id;
-    auto rg = rgb->BuildDefaultRenderGraph(
-        w,
-        h,
-        final_color_id
-    );
+    auto rg = rgb->BuildDefaultRenderGraph(w, h, final_color_id);
     cmc->SetRenderGraph(rg, final_color_id);
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Entering main loop");

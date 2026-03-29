@@ -5,14 +5,14 @@
 
 #include "Asset/InstantiatedFromAsset.h"
 #include "Asset/Material/MaterialLibraryAsset.h"
-#include "Render/Renderer/VertexAttribute.h"
 #include "Render/Pipeline/PipelineRuntimeInfo.h"
+#include "Render/Renderer/VertexAttribute.h"
 
 namespace Engine {
 
     class RenderSystem;
     class MaterialTemplate;
-    
+
     /**
      * @brief A bundle of materials organized by dispatcher.
      * 
@@ -25,12 +25,12 @@ namespace Engine {
      * and the type of the mesh.
      */
     class MaterialLibrary : public IInstantiatedFromAsset<MaterialLibraryAsset> {
-        RenderSystem & m_system;
+        RenderSystem &m_system;
         struct impl;
-        std::unique_ptr <impl> pimpl;
+        std::unique_ptr<impl> pimpl;
 
     public:
-        MaterialLibrary(RenderSystem & system);
+        MaterialLibrary(RenderSystem &system);
         ~MaterialLibrary();
 
         /**
@@ -46,22 +46,15 @@ namespace Engine {
          * @param tag The tag of the material. 
          * @param mesh_type vertex format of the mesh.
          */
-        const MaterialTemplate * FindMaterialTemplate(
-            const std::string & tag,
-            const PipelineRuntimeInfo & pri
+        const MaterialTemplate *FindMaterialTemplate(
+            const std::string &tag, const PipelineRuntimeInfo &pri
         ) const noexcept;
-        MaterialTemplate * FindMaterialTemplate(
-            const std::string & tag,
-            const PipelineRuntimeInfo & pri
-        ) noexcept;
+        MaterialTemplate *FindMaterialTemplate(const std::string &tag, const PipelineRuntimeInfo &pri) noexcept;
 
-        void PreheatMaterialTemplate(
-            const std::string & tag,
-            VertexAttribute mesh_type
-        ) noexcept;
+        void PreheatMaterialTemplate(const std::string &tag, VertexAttribute mesh_type) noexcept;
 
-        void Instantiate (MaterialLibraryAsset &) override;
+        void Instantiate(MaterialLibraryAsset &) override;
     };
-}
+} // namespace Engine
 
 #endif // PIPELINE_MATERIAL_MATERIALLIBRARY_INCLUDED

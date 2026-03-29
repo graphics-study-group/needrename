@@ -10,7 +10,8 @@ namespace Engine {
      * @brief A buffer dedicated for compute shader use (i.e. storage buffer).
      */
     class ComputeBuffer : public DeviceBuffer {
-        ComputeBuffer(BufferAllocation && alloc, size_t size);
+        ComputeBuffer(BufferAllocation &&alloc, size_t size);
+
     public:
         /**
          * @brief Create a new compute buffer.
@@ -21,7 +22,7 @@ namespace Engine {
          * @param as_indirect_draw_buffer Allows it to be used as indirect draw command buffer.
          */
         static std::unique_ptr<ComputeBuffer> CreateUnique(
-            const RenderSystemState::AllocatorState & allocator,
+            const RenderSystemState::AllocatorState &allocator,
             size_t size,
             bool allow_cpu_access,
             bool as_readonly_buffer,
@@ -33,7 +34,8 @@ namespace Engine {
 
     template <class T>
     class ComputeBufferTyped {
-        std::unique_ptr <ComputeBuffer> buffer {};
+        std::unique_ptr<ComputeBuffer> buffer{};
+
     public:
         /**
          * @brief Create a new compute buffer.
@@ -44,7 +46,7 @@ namespace Engine {
          * @param as_indirect_draw_buffer Allows it to be used as indirect draw command buffer.
          */
         static std::unique_ptr<ComputeBufferTyped<T>> CreateUniqueTyped(
-            const RenderSystemState::AllocatorState & allocator,
+            const RenderSystemState::AllocatorState &allocator,
             size_t count,
             bool allow_cpu_access,
             bool as_readonly_buffer,
@@ -73,10 +75,10 @@ namespace Engine {
             return std::span<T>(reinterpret_cast<T *>(buffer->GetVMAddress()), GetCount());
         }
 
-        const ComputeBuffer & GetComputeBuffer() {
+        const ComputeBuffer &GetComputeBuffer() {
             return *buffer;
         }
     };
-};
+}; // namespace Engine
 
 #endif // RENDER_MEMORY_COMPUTEBUFFER_INCLUDED
