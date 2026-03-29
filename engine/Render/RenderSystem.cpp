@@ -15,6 +15,7 @@
 #include "Render/RenderSystem/Structs.h"
 #include "Render/RenderSystem/Swapchain.h"
 #include "Render/RenderSystem/CameraManager.h"
+#include "Render/RenderSystem/ResizableRTTManager.h"
 #include "Render/Renderer/Camera.h"
 
 #include <Core/Functional/SDLWindow.h>
@@ -33,7 +34,8 @@ namespace Engine {
             m_material_registry(parent),
             m_renderer_manager(parent),
             m_scene_data_manager(parent),
-            m_camera_manager(parent) {
+            m_camera_manager(parent),
+            m_resizable_rtt_manger(parent) {
 
             };
 
@@ -54,6 +56,7 @@ namespace Engine {
         RenderSystemState::RendererManager m_renderer_manager;
         RenderSystemState::SceneDataManager m_scene_data_manager;
         RenderSystemState::CameraManager m_camera_manager;
+        RenderSystemState::ResizableRTTManager m_resizable_rtt_manger;
     };
 
     RenderSystem::RenderSystem(std::weak_ptr<SDLWindow> parent_window) : pimpl(std::make_unique<RenderSystem::impl>(*this, parent_window)) {
@@ -159,6 +162,10 @@ namespace Engine {
 
     RenderSystemState::SceneDataManager &RenderSystem::GetSceneDataManager() {
         return pimpl->m_scene_data_manager;
+    }
+
+    RenderSystemState::ResizableRTTManager &RenderSystem::GetResizableRTTManager() {
+        return pimpl->m_resizable_rtt_manger;
     }
 
     void RenderSystem::WaitForIdle() const {
