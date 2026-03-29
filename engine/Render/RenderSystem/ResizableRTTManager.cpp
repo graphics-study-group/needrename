@@ -36,7 +36,7 @@ namespace Engine::RenderSystemState {
             assert(itr != description_map.end());
             auto true_description = itr->second.desc;
             true_description.width = std::floor(reference_width * itr->second.scale_x);
-            true_description.height = std::floor(reference_width * itr->second.scale_y);
+            true_description.height = std::floor(reference_height * itr->second.scale_y);
 
             texture_map[itr->first] = RenderTargetTexture::CreateUnique(
                 system,
