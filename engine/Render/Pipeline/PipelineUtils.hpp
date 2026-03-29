@@ -287,17 +287,18 @@ namespace Engine::PipelineUtils {
      */
     inline std::vector<vk::PipelineColorBlendAttachmentState> ToVulkanColorBlendingOps(
         const std::vector<Engine::PipelineProperties::ColorBlendingProperties> &cbps,
-        vk::PipelineColorBlendAttachmentState default_state = vk::PipelineColorBlendAttachmentState{
-            vk::False,
-            vk::BlendFactor::eSrcAlpha,
-            vk::BlendFactor::eOneMinusSrcAlpha,
-            vk::BlendOp::eAdd,
-            vk::BlendFactor::eOne,
-            vk::BlendFactor::eZero,
-            vk::BlendOp::eAdd,
-            vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB
-                | vk::ColorComponentFlagBits::eA
-        }
+        vk::PipelineColorBlendAttachmentState default_state =
+            vk::PipelineColorBlendAttachmentState{
+                vk::False,
+                vk::BlendFactor::eSrcAlpha,
+                vk::BlendFactor::eOneMinusSrcAlpha,
+                vk::BlendOp::eAdd,
+                vk::BlendFactor::eOne,
+                vk::BlendFactor::eZero,
+                vk::BlendOp::eAdd,
+                vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB
+                    | vk::ColorComponentFlagBits::eA
+            }
     ) {
         std::vector<vk::PipelineColorBlendAttachmentState> ret;
         ret.reserve(cbps.size());
