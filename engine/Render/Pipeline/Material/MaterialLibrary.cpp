@@ -64,7 +64,7 @@ namespace Engine {
         void CompileShaderModules (
             PipelineBundle & b,
             vk::Device d,
-            const std::vector<AssetRef> & shader_refs
+            std::vector<AssetRef> & shader_refs
         ) {
             b.reflected.interfaces.clear();
             b.reflected.interface_name_mapping.clear();
@@ -75,7 +75,7 @@ namespace Engine {
             for (size_t i = 0; i < shader_refs.size(); i++) {
                 assert(shader_refs[i].IsValid() && "Invalid shader asset.");
 
-                auto shader_asset = shader_refs[i].cas<ShaderAsset>();
+                auto shader_asset = shader_refs[i].as<ShaderAsset>();
                 auto code = shader_asset->binary;
                 b.reflected.Merge(Engine::ShdrRfl::SPLayout::Reflect(code, true));
                 vk::ShaderModuleCreateInfo ci{
@@ -175,7 +175,7 @@ namespace Engine {
             assert(itr != pipeline_asset_table.end() && "Pipeline tag not found.");
             assert(itr->second.material_template_asset.IsValid() && "Invalid material template asset.");
             
-            const auto & asset = itr->second.material_template_asset.cas<const MaterialTemplateAsset>();
+            auto asset = itr->second.material_template_asset.as<MaterialTemplateAsset>();
 
             if (pipeline_table[tag].shader_modules.empty()) {
                 CompileShaderModules(
@@ -276,7 +276,7 @@ namespace Engine {
         return const_cast<MaterialTemplate *>(std::as_const(*this).FindMaterialTemplate(tag, pri));
     }
 
-    void MaterialLibrary::Instantiate(const MaterialLibraryAsset & asset) {
+    void MaterialLibrary::Instantiate(MaterialLibraryAsset & asset) {
         pimpl->pipeline_table.clear();
         for (auto & [tag, bundle] : asset.material_bundle) {
             pimpl->pipeline_asset_table[tag] = impl::PipelineAssetItem{

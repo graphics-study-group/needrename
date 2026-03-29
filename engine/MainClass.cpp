@@ -58,8 +58,7 @@ namespace Engine {
         }
         assert(project_config.contains("default_level"));
         GUID default_level_guid(project_config["default_level"].get<std::string>());
-        auto level_asset =
-            std::dynamic_pointer_cast<LevelAsset>(this->asset_manager->LoadAssetImmediately(default_level_guid));
+        auto level_asset = dynamic_cast<LevelAsset *>(this->asset_manager->LoadAssetImmediately(default_level_guid));
         level_asset->LoadToWorld();
     }
 

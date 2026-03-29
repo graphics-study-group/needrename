@@ -53,12 +53,13 @@ struct LowerPlaneMeshAsset : public PlaneMeshAsset {
     }
 };
 
-std::pair<std::shared_ptr<MaterialLibraryAsset>, std::shared_ptr<MaterialTemplateAsset>> ConstructMaterial() {
+std::pair<MaterialLibraryAsset *, MaterialTemplateAsset *> ConstructMaterial() {
     auto adb = std::dynamic_pointer_cast<FileSystemDatabase>(
         MainClass::GetInstance()->GetAssetDatabase()
     );
-    auto test_asset = std::make_shared<MaterialTemplateAsset>();
-    auto test_lib_asset = std::make_shared<MaterialLibraryAsset>();
+    auto am = MainClass::GetInstance()->GetAssetManager();
+    auto test_asset = am->CreateAsset<MaterialTemplateAsset>();
+    auto test_lib_asset = am->CreateAsset<MaterialLibraryAsset>();
     auto vs_ref = adb->GetNewAssetRef({*adb, "~/shaders/debug_writethrough.vert.asset"});
     auto fs_ref = adb->GetNewAssetRef({*adb, "~/shaders/debug_writethrough_mrt.frag.asset"});
 
@@ -181,16 +182,17 @@ int main(int argc, char **argv) {
     cmc->LoadBuiltinAssets(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
 
     auto rsys = cmc->GetRenderSystem();
+    auto amg = cmc->GetAssetManager();
 
     // Prepare material
     auto test_asset = ConstructMaterial();
     auto test_asset_ref = AssetRef(test_asset.first);
     auto test_library = std::make_shared<MaterialLibrary>(*rsys);
-    test_library->Instantiate(*test_asset_ref.cas<MaterialLibraryAsset>());
+    test_library->Instantiate(*test_asset_ref.as<MaterialLibraryAsset>());
     auto test_material_instance = std::make_shared<MaterialInstance>(*rsys, *test_library);
 
     // Prepare mesh
-    auto test_mesh_asset = std::make_shared<LowerPlaneMeshAsset>();
+    auto test_mesh_asset = amg->CreateAsset<LowerPlaneMeshAsset>();
     auto test_mesh_asset_ref = AssetRef(test_mesh_asset);
     HomogeneousMesh test_mesh{rsys->GetAllocatorState(), test_mesh_asset_ref, 0};
 
