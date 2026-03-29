@@ -47,7 +47,6 @@ namespace Engine {
         std::unique_ptr<impl> pimpl;
 
     public:
-
         RenderSystem(std::weak_ptr<SDLWindow> parent_window);
 
         RenderSystem(const RenderSystem &) = delete;
@@ -67,12 +66,12 @@ namespace Engine {
 
         /**
          * @brief Start the rendering of the next frame.
-         * 
-         * This method also submits necessary data to GPU, meaning that all logic 
-         * that might change these data must finish before calling it. 
+         *
+         * This method also submits necessary data to GPU, meaning that all logic
+         * that might change these data must finish before calling it.
          * If you start a frame by manually calling `FrameManager::StartFrame()`,
          * then you must make sure that these data are submitted correctly yourself.
-         * 
+         *
          * @todo buffer and texture submissions are completed by `FrameManager`.
          * Maybe we should unify these two data streams.
          */
@@ -80,13 +79,13 @@ namespace Engine {
 
         /**
          * @brief Complete the rendering of the current frame.
-         * 
+         *
          * This method also does resource (i.e. swapchain) recreation if necessary.
          * If you end a frame by manually calling `FrameManager::CompleteFrame()`,
          * then you must make sure that these resources are recreated correctly yourself.
          */
         void CompleteFrame(
-            const RenderTargetTexture & present_texture,
+            const RenderTargetTexture &present_texture,
             MemoryAccessTypeImageBits last_access,
             uint32_t width,
             uint32_t height,
@@ -94,7 +93,7 @@ namespace Engine {
             uint32_t offset_y = 0
         );
         void CompleteFrame(
-            const RenderTargetTexture & present_texture,
+            const RenderTargetTexture &present_texture,
             uint32_t width,
             uint32_t height,
             uint32_t offset_x = 0,
@@ -104,7 +103,7 @@ namespace Engine {
         /**
          * @brief Get a handle to the Vulkan logical device that the current Render
          * System runs on.
-         * 
+         *
          * Shorthand for `GetDeviceInterface().GetDevice()`
          */
         vk::Device GetDevice() const;
@@ -125,14 +124,13 @@ namespace Engine {
 
         RenderSystemState::RendererManager &GetRendererManager();
 
-        RenderSystemState::ImmutableResourceCache & GetIRCache();
+        RenderSystemState::ImmutableResourceCache &GetIRCache();
 
-        RenderSystemState::CameraManager & GetCameraManager();
+        RenderSystemState::CameraManager &GetCameraManager();
 
-        RenderSystemState::SceneDataManager & GetSceneDataManager();
+        RenderSystemState::SceneDataManager &GetSceneDataManager();
 
-        RenderSystemState::ResizableRTTManager & GetResizableRTTManager();
-
+        RenderSystemState::ResizableRTTManager &GetResizableRTTManager();
     };
 } // namespace Engine
 

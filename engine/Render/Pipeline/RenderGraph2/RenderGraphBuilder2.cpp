@@ -1,106 +1,94 @@
 #include "RenderGraphBuilder2.h"
 
-#include <unordered_set>
 #include <SDL3/SDL.h>
+#include <unordered_set>
 
 #include "Render/Memory/MemoryAccessHelper.hpp"
-#include "Render/RenderSystem/ResizableRTTManager.h"
 #include "Render/Pipeline/RenderGraph/RGAttachmentDesc.h"
 #include "Render/Pipeline/RenderGraph2/RenderGraph2.h"
 #include "Render/Pipeline/RenderGraph2/RenderGraphPass.h"
 #include "Render/Pipeline/RenderGraph2/RenderGraphStruct.hpp"
+#include "Render/RenderSystem/ResizableRTTManager.h"
 
 namespace {
-    constexpr vk::PipelineStageFlagBits2 AffinityToPipelineStage(
-        Engine::RenderGraphPassAffinity affinity
-    ) {
-        switch(affinity) {
+    constexpr vk::PipelineStageFlagBits2 AffinityToPipelineStage(Engine::RenderGraphPassAffinity affinity) {
+        switch (affinity) {
             using enum Engine::RenderGraphPassAffinity;
-            case Transfer:
-                return vk::PipelineStageFlagBits2::eAllTransfer;
-            case Graphics:
-                return vk::PipelineStageFlagBits2::eAllGraphics;
-            case Compute:
-                return vk::PipelineStageFlagBits2::eComputeShader;
-            default:
-                return vk::PipelineStageFlagBits2::eNone;
+        case Transfer:
+            return vk::PipelineStageFlagBits2::eAllTransfer;
+        case Graphics:
+            return vk::PipelineStageFlagBits2::eAllGraphics;
+        case Compute:
+            return vk::PipelineStageFlagBits2::eComputeShader;
+        default:
+            return vk::PipelineStageFlagBits2::eNone;
         }
     }
 
     constexpr vk::PipelineStageFlagBits2 GuessPipelineStageFromAccess(
-        Engine::RenderGraphPassAffinity work_type,
-        Engine::MemoryAccessTypeImageBits access
+        Engine::RenderGraphPassAffinity work_type, Engine::MemoryAccessTypeImageBits access
     ) {
-        switch(work_type) {
+        switch (work_type) {
             using enum Engine::RenderGraphPassAffinity;
 
-            case Transfer:
+        case Transfer:
+            return vk::PipelineStageFlagBits2::eAllTransfer;
+        case Graphics:
+            // While some transfer actions (e.g. blitting) requires working
+            // on graphics queue, they are classified as transfer for
+            // synchronization.
+            if (access == Engine::MemoryAccessTypeImageBits::TransferRead
+                || access == Engine::MemoryAccessTypeImageBits::TransferWrite) {
                 return vk::PipelineStageFlagBits2::eAllTransfer;
-            case Graphics:
-                // While some transfer actions (e.g. blitting) requires working
-                // on graphics queue, they are classified as transfer for
-                // synchronization.
-                if (
-                    access == Engine::MemoryAccessTypeImageBits::TransferRead ||
-                    access == Engine::MemoryAccessTypeImageBits::TransferWrite
-                ) {
-                    return vk::PipelineStageFlagBits2::eAllTransfer;
-                }
+            }
+            return vk::PipelineStageFlagBits2::eAllGraphics;
+        case Compute:
+            return vk::PipelineStageFlagBits2::eComputeShader;
+        default:
+            // If this pass does not have work load, then it should be a
+            // virtual pass. In this case, we have to guess its stage......
+            switch (access) {
+            case Engine::MemoryAccessTypeImageBits::TransferRead:
+            case Engine::MemoryAccessTypeImageBits::TransferWrite:
+                return vk::PipelineStageFlagBits2::eTransfer;
+            case Engine::MemoryAccessTypeImageBits::ColorAttachmentRead:
+            case Engine::MemoryAccessTypeImageBits::ColorAttachmentWrite:
+            case Engine::MemoryAccessTypeImageBits::DepthStencilAttachmentRead:
+            case Engine::MemoryAccessTypeImageBits::DepthStencilAttachmentWrite:
+            case Engine::MemoryAccessTypeImageBits::ColorAttachmentDefault:
+            case Engine::MemoryAccessTypeImageBits::DepthStencilAttachmentDefault:
                 return vk::PipelineStageFlagBits2::eAllGraphics;
-            case Compute:
-                return vk::PipelineStageFlagBits2::eComputeShader;
             default:
-                // If this pass does not have work load, then it should be a
-                // virtual pass. In this case, we have to guess its stage......
-                switch(access) { 
-                    case Engine::MemoryAccessTypeImageBits::TransferRead:
-                    case Engine::MemoryAccessTypeImageBits::TransferWrite:
-                        return vk::PipelineStageFlagBits2::eTransfer;
-                    case Engine::MemoryAccessTypeImageBits::ColorAttachmentRead:
-                    case Engine::MemoryAccessTypeImageBits::ColorAttachmentWrite:
-                    case Engine::MemoryAccessTypeImageBits::DepthStencilAttachmentRead:
-                    case Engine::MemoryAccessTypeImageBits::DepthStencilAttachmentWrite:
-                    case Engine::MemoryAccessTypeImageBits::ColorAttachmentDefault:
-                    case Engine::MemoryAccessTypeImageBits::DepthStencilAttachmentDefault:
-                        return vk::PipelineStageFlagBits2::eAllGraphics;
-                    default:
-                        // Being conservative here.
-                        return vk::PipelineStageFlagBits2::eAllCommands;
-                }
+                // Being conservative here.
+                return vk::PipelineStageFlagBits2::eAllCommands;
+            }
         }
     }
 
     struct UsageCache {
-        std::unordered_map<
-            Engine::RGBufferHandle,
-            std::vector<std::pair<uint32_t, Engine::MemoryAccessTypeBuffer>>
-        > buffer_usages {};
-        std::unordered_map<
-            Engine::RGTextureHandle,
-            std::vector<std::pair<uint32_t, Engine::MemoryAccessTypeImageBits>>
-        > image_usages {};
+        std::unordered_map<Engine::RGBufferHandle, std::vector<std::pair<uint32_t, Engine::MemoryAccessTypeBuffer>>>
+            buffer_usages{};
+        std::unordered_map<Engine::RGTextureHandle, std::vector<std::pair<uint32_t, Engine::MemoryAccessTypeImageBits>>>
+            image_usages{};
 
         template <typename T>
-        static bool less_by_pass_index (
-            const std::pair<uint32_t, T> & lhs,
-            const std::pair<uint32_t, T> & rhs
-        ) noexcept {
+        static bool less_by_pass_index(const std::pair<uint32_t, T> &lhs, const std::pair<uint32_t, T> &rhs) noexcept {
             return lhs.first < rhs.first;
         }
 
-        void SortByPassIndex () noexcept {
-            for (auto & [r, u] : buffer_usages) {
+        void SortByPassIndex() noexcept {
+            for (auto &[r, u] : buffer_usages) {
                 std::sort(u.begin(), u.end(), less_by_pass_index<Engine::MemoryAccessTypeBuffer>);
             }
-            for (auto & [r, u] : image_usages) {
+            for (auto &[r, u] : image_usages) {
                 std::sort(u.begin(), u.end(), less_by_pass_index<Engine::MemoryAccessTypeImageBits>);
             }
         }
     };
 
     struct DependencyGraph {
-        std::vector <std::unordered_set<uint32_t>> adjacent_list_out {};
-        std::vector <std::unordered_set<uint32_t>> adjacent_list_in {};
+        std::vector<std::unordered_set<uint32_t>> adjacent_list_out{};
+        std::vector<std::unordered_set<uint32_t>> adjacent_list_in{};
 
         DependencyGraph(size_t size) noexcept {
             adjacent_list_out.resize(size);
@@ -112,29 +100,28 @@ namespace {
             adjacent_list_in[to].insert(from);
         }
 
-        std::vector <uint32_t> TopologicalSort() const {
+        std::vector<uint32_t> TopologicalSort() const {
             std::vector<uint32_t> result;
             std::vector<uint32_t> in_degree; // work on a copy
             std::queue<uint32_t> q;
 
             in_degree.resize(adjacent_list_in.size());
             std::transform(
-                adjacent_list_in.begin(), adjacent_list_in.end(),
+                adjacent_list_in.begin(),
+                adjacent_list_in.end(),
                 in_degree.begin(),
-                [] (const std::unordered_set<uint32_t> & edges) -> uint32_t {
-                    return edges.size();
-                }
+                [](const std::unordered_set<uint32_t> &edges) -> uint32_t { return edges.size(); }
             );
 
             for (uint32_t i = 0; i < adjacent_list_out.size(); ++i) {
-                if (in_degree[i] == 0)  q.push(i);
+                if (in_degree[i] == 0) q.push(i);
             }
             while (!q.empty()) {
                 uint32_t u = q.front();
                 q.pop();
                 result.push_back(u);
                 for (uint32_t v : adjacent_list_out[u]) {
-                    if (--in_degree[v] == 0)    q.push(v);
+                    if (--in_degree[v] == 0) q.push(v);
                 }
             }
 
@@ -145,60 +132,43 @@ namespace {
             return result;
         }
     };
-}
+} // namespace
 
 namespace Engine {
     struct RenderGraphBuilder2::impl {
-        std::vector <RenderGraphPass> passes{};
+        std::vector<RenderGraphPass> passes{};
 
         // Imported and requested resources.
         struct ResourceStorage {
-            int32_t resource_counter {0};
+            int32_t resource_counter{0};
 
             struct TextureCreationInfo {
                 std::string name{};
-                RenderTargetTexture::RenderTargetTextureDesc t {};
-                RenderTargetTexture::SamplerDesc s {};
+                RenderTargetTexture::RenderTargetTextureDesc t{};
+                RenderTargetTexture::SamplerDesc s{};
 
                 // negative scales imply no resizable RTT.
                 float scale_x{-0.0f}, scale_y{-0.0f};
             };
-            std::unordered_map <RGTextureHandle, TextureCreationInfo> texture_creation_info;
-            std::unordered_map <
-                RGTextureHandle,
-                RenderTargetTextureVariant
-            > texture_mapping;
-            std::unordered_map <RGBufferHandle, const DeviceBuffer *> buffer_mapping;
+            std::unordered_map<RGTextureHandle, TextureCreationInfo> texture_creation_info;
+            std::unordered_map<RGTextureHandle, RenderTargetTextureVariant> texture_mapping;
+            std::unordered_map<RGBufferHandle, const DeviceBuffer *> buffer_mapping;
 
             /**
              * @brief Materialize render target textures from the
              * `texture_creation_info`.
              */
-            std::unordered_map <
-                RGTextureHandle,
-                OwnedRenderTargetTextureVariant
-            >
-            MaterializeRenderTargetTextures(RenderSystem & s) const {
-                std::unordered_map <RGTextureHandle, OwnedRenderTargetTextureVariant> ret{};
-                for (const auto & [k, v] : texture_creation_info) {
+            std::unordered_map<RGTextureHandle, OwnedRenderTargetTextureVariant> MaterializeRenderTargetTextures(
+                RenderSystem &s
+            ) const {
+                std::unordered_map<RGTextureHandle, OwnedRenderTargetTextureVariant> ret{};
+                for (const auto &[k, v] : texture_creation_info) {
 
                     if (v.scale_x < 0.0f || v.scale_y < 0.0f) {
-                        ret[k] = RenderTargetTexture::CreateUnique(
-                            s,
-                            v.t,
-                            v.s,
-                            v.name
-                        );
+                        ret[k] = RenderTargetTexture::CreateUnique(s, v.t, v.s, v.name);
                     } else {
-                        ret[k] = s.GetResizableRTTManager().RequestRTT(
-                            v.t,
-                            v.s,
-                            v.scale_x,
-                            v.scale_y,
-                            v.name
-                        );
+                        ret[k] = s.GetResizableRTTManager().RequestRTT(v.t, v.s, v.scale_x, v.scale_y, v.name);
                     }
-                    
                 }
                 return ret;
             }
@@ -210,11 +180,11 @@ namespace Engine {
         UsageCache AnalysisUsage() const {
             UsageCache uc{};
             for (size_t i = 0; i < passes.size(); i++) {
-                const auto & p = passes[i];
-                for (const auto & [r, a] : p.image_access) {
+                const auto &p = passes[i];
+                for (const auto &[r, a] : p.image_access) {
                     uc.image_usages[r].push_back(std::make_pair(i, a));
                 }
-                for (const auto & [r, a] : p.buffer_access) {
+                for (const auto &[r, a] : p.buffer_access) {
                     uc.buffer_usages[r].push_back(std::make_pair(i, a));
                 }
             }
@@ -225,11 +195,11 @@ namespace Engine {
          * @brief Discover dependencies carried by render graph passes, and
          * build a dependency graph.
          */
-        DependencyGraph AnalysisDependency(const UsageCache & usages) const {
+        DependencyGraph AnalysisDependency(const UsageCache &usages) const {
             DependencyGraph dg{passes.size()};
 
             // Discover dependency by texture
-            for (const auto & [r, u] : usages.image_usages) {
+            for (const auto &[r, u] : usages.image_usages) {
                 for (size_t i = 0; i < u.size(); i++) {
                     for (size_t j = i + 1; j < u.size(); j++) {
                         auto prev{u[i]}, next{u[j]};
@@ -249,7 +219,8 @@ namespace Engine {
                                         "Transient render target {} has read access before write access. "
                                         "Dependency chain is reversed for this access.",
                                         rid
-                                    ).c_str()
+                                    )
+                                        .c_str()
                                 );
                                 std::swap(prev, next);
                             }
@@ -261,7 +232,7 @@ namespace Engine {
             }
 
             // Discover dependency by buffer
-            for (const auto & [r, u] : usages.buffer_usages) {
+            for (const auto &[r, u] : usages.buffer_usages) {
                 for (size_t i = 0; i < u.size(); i++) {
                     for (size_t j = i + 1; j < u.size(); j++) {
                         auto prev{u[i]}, next{u[j]};
@@ -281,7 +252,8 @@ namespace Engine {
                                         "Transient buffer {} has read access before write access. "
                                         "Dependency chain is reversed for this access.",
                                         rid
-                                    ).c_str()
+                                    )
+                                        .c_str()
                                 );
                                 std::swap(prev, next);
                             }
@@ -296,41 +268,33 @@ namespace Engine {
         /**
          * @brief Build pipeline rendering info for a subpass
          */
-        PipelineRuntimeInfoPerRendering GetPerRenderingInfo (
-            const RenderGraphPass & subpass
-        ) const noexcept {
+        PipelineRuntimeInfoPerRendering GetPerRenderingInfo(const RenderGraphPass &subpass) const noexcept {
             PipelineRuntimeInfoPerRendering ret{};
 
-            std::fill(
-                ret.color_attachment_format,
-                ret.color_attachment_format + 8,
-                ImageUtils::ImageFormat::UNDEFINED
-            );
+            std::fill(ret.color_attachment_format, ret.color_attachment_format + 8, ImageUtils::ImageFormat::UNDEFINED);
             uint8_t multisample_count{0};
             for (int i = 0; i < subpass.color_attachments.size(); i++) {
                 ImageUtils::ImageFormat format;
                 auto rth = subpass.color_attachments[i].rt_handle;
                 // Imported external resource
                 if (static_cast<int32_t>(rth) < 0) {
-                    format = std::visit(
-                        RenderTargetTextureVariantVisitor{},
-                        rs.texture_mapping.at(rth)
-                    )->GetTextureDescription().format;
+                    format = std::visit(RenderTargetTextureVariantVisitor{}, rs.texture_mapping.at(rth))
+                                 ->GetTextureDescription()
+                                 .format;
                 } else {
-                    format = static_cast<ImageUtils::ImageFormat>(
-                        rs.texture_creation_info.at(rth).t.format
-                    );
+                    format = static_cast<ImageUtils::ImageFormat>(rs.texture_creation_info.at(rth).t.format);
                 }
                 ret.color_attachment_format[i] = format;
             }
             auto drth = subpass.depth_attachment.rt_handle;
             if (static_cast<int32_t>(drth) < 0) {
-                ret.depth_stencil_attachment_format = 
-                    std::visit(RenderTargetTextureVariantVisitor{}, rs.texture_mapping.at(drth))->GetTextureDescription().format;
+                ret.depth_stencil_attachment_format =
+                    std::visit(RenderTargetTextureVariantVisitor{}, rs.texture_mapping.at(drth))
+                        ->GetTextureDescription()
+                        .format;
             } else if (static_cast<int32_t>(drth) > 0) {
-                ret.depth_stencil_attachment_format = static_cast<ImageUtils::ImageFormat>(
-                    rs.texture_creation_info.at(drth).t.format
-                );
+                ret.depth_stencil_attachment_format =
+                    static_cast<ImageUtils::ImageFormat>(rs.texture_creation_info.at(drth).t.format);
             } else {
                 ret.depth_stencil_attachment_format = ImageUtils::ImageFormat::UNDEFINED;
             }
@@ -339,9 +303,7 @@ namespace Engine {
         }
     };
 
-    RenderGraphBuilder2::RenderGraphBuilder2(
-        RenderSystem &system
-    ) : system(system), pimpl(std::make_unique<impl>()) {
+    RenderGraphBuilder2::RenderGraphBuilder2(RenderSystem &system) : system(system), pimpl(std::make_unique<impl>()) {
         // Append a source pass.
         /* this->AddPass(
             RenderGraphPassBuilder{system}.SetName("Virtual Source").Get()
@@ -359,11 +321,7 @@ namespace Engine {
         if (prev_access != MemoryAccessTypeImageBits::None) {
             // Inject a virtual pass if previous access is not None
             if (pimpl->passes.empty()) {
-                this->AddPass(
-                    RenderGraphPassBuilder{system}
-                    .SetName("Virtual Source")
-                    .Get()
-                );
+                this->AddPass(RenderGraphPassBuilder{system}.SetName("Virtual Source").Get());
             }
             pimpl->passes.front().image_access[ret] = prev_access;
         }
@@ -380,11 +338,7 @@ namespace Engine {
         if (prev_access != MemoryAccessTypeImageBits::None) {
             // Inject a virtual pass if previous access is not None
             if (pimpl->passes.empty()) {
-                this->AddPass(
-                    RenderGraphPassBuilder{system}
-                    .SetName("Virtual Source")
-                    .Get()
-                );
+                this->AddPass(RenderGraphPassBuilder{system}.SetName("Virtual Source").Get());
             }
             pimpl->passes.front().image_access[ret] = prev_access;
         }
@@ -401,9 +355,7 @@ namespace Engine {
         if (prev_access != MemoryAccessTypeBuffer{MemoryAccessTypeBufferBits::None}) {
             // Inject a virtual pass if previous access is not None
             if (pimpl->passes.empty()) {
-                this->AddPass(
-                    RenderGraphPassBuilder{system}.SetName("Virtual Source").Get()
-                );
+                this->AddPass(RenderGraphPassBuilder{system}.SetName("Virtual Source").Get());
             }
             pimpl->passes.front().buffer_access[ret] = prev_access;
         }
@@ -461,11 +413,11 @@ namespace Engine {
             reordered_pass_lut[pass_order[i]] = i;
         }
         auto reordered_usage = usage;
-        for (auto & [r, u] : reordered_usage.image_usages) {
-            for (auto & ru : u) ru.first = reordered_pass_lut[ru.first];
+        for (auto &[r, u] : reordered_usage.image_usages) {
+            for (auto &ru : u) ru.first = reordered_pass_lut[ru.first];
         }
-        for (auto & [r, u] : reordered_usage.buffer_usages) {
-            for (auto & ru : u) ru.first = reordered_pass_lut[ru.first];
+        for (auto &[r, u] : reordered_usage.buffer_usages) {
+            for (auto &ru : u) ru.first = reordered_pass_lut[ru.first];
         }
         reordered_usage.SortByPassIndex();
 
@@ -473,16 +425,14 @@ namespace Engine {
         // These dependencies require semaphores to correctly synchronize.
         std::unordered_map<
             uint32_t,
-            std::unordered_map<uint32_t,
-                std::pair<vk::PipelineStageFlags2, vk::PipelineStageFlags2>
-            >
-        > cross_queue_dep;  // < all pass indices are reordered.
-        auto AnalysisCrossQueueDependency = [&, this] (const auto & usages) {
-            for (const auto & [r, u] : usages) {
+            std::unordered_map<uint32_t, std::pair<vk::PipelineStageFlags2, vk::PipelineStageFlags2>>>
+            cross_queue_dep; // < all pass indices are reordered.
+        auto AnalysisCrossQueueDependency = [&, this](const auto &usages) {
+            for (const auto &[r, u] : usages) {
                 auto last_affinity = pimpl->passes[pass_order[u.front().first]].affinity;
                 auto last_affinity_pass = u.front().first;
                 auto rid = static_cast<int32_t>(r);
-                for (const auto & usage : u) {
+                for (const auto &usage : u) {
                     if (pimpl->passes[pass_order[usage.first]].affinity != last_affinity) {
                         SDL_LogInfo(
                             SDL_LOG_CATEGORY_RENDER,
@@ -492,13 +442,14 @@ namespace Engine {
                                 pimpl->passes[pass_order[last_affinity_pass]].name,
                                 pimpl->passes[pass_order[usage.first]].name,
                                 rid
-                            ).c_str()
+                            )
+                                .c_str()
                         );
                         auto new_affinity = pimpl->passes[pass_order[usage.first]].affinity;
 
                         auto src{AffinityToPipelineStage(last_affinity)}, dst{AffinityToPipelineStage(new_affinity)};
                         cross_queue_dep[last_affinity_pass][usage.first] = std::make_pair(src, dst);
-                        
+
                         last_affinity = pimpl->passes[pass_order[usage.first]].affinity;
                         last_affinity_pass = usage.first;
                     }
@@ -509,13 +460,13 @@ namespace Engine {
         AnalysisCrossQueueDependency(reordered_usage.buffer_usages);
 
         // Merge passes that does not have cross queue dependencies.
-        std::unordered_set <uint32_t> affected_passes {};
-        std::vector <std::vector <uint32_t> > merged_passes {};
-        std::unordered_map <uint32_t, uint32_t> merged_pass_lut {};
-        
-        for (const auto & [p1, v] : cross_queue_dep) {
+        std::unordered_set<uint32_t> affected_passes{};
+        std::vector<std::vector<uint32_t>> merged_passes{};
+        std::unordered_map<uint32_t, uint32_t> merged_pass_lut{};
+
+        for (const auto &[p1, v] : cross_queue_dep) {
             affected_passes.insert(p1);
-            for (const auto & [p2, _] : v) {
+            for (const auto &[p2, _] : v) {
                 affected_passes.insert(p2);
             }
         }
@@ -530,12 +481,12 @@ namespace Engine {
         }
 
         // Rescan merged passes to obtain stages
-        std::vector <vk::PipelineStageFlags2> signal_stage{}, wait_stage{};
+        std::vector<vk::PipelineStageFlags2> signal_stage{}, wait_stage{};
         signal_stage.resize(merged_passes.size());
         wait_stage.resize(merged_passes.size());
         for (size_t i = 0; i < merged_passes.size(); i++) {
             for (auto src_pass : merged_passes[i]) {
-                for (const auto & cqd : cross_queue_dep[src_pass]) {
+                for (const auto &cqd : cross_queue_dep[src_pass]) {
                     auto dst_pass = cqd.first;
 
                     signal_stage[merged_pass_lut[src_pass]] |= cqd.second.first;
@@ -545,7 +496,7 @@ namespace Engine {
         }
 
         // Construct compiled passes
-        std::vector <RenderGraphCompiledPass> p{};
+        std::vector<RenderGraphCompiledPass> p{};
         p.resize(merged_passes.size());
         for (size_t i = 0; i < p.size(); i++) {
             p[i].wait_stage = wait_stage[i];
@@ -555,29 +506,24 @@ namespace Engine {
             SDL_LogDebug(
                 SDL_LOG_CATEGORY_RENDER,
                 std::format(
-                    "Pass {}: Wait {}, Signal {}",
-                    i,
-                    vk::to_string(wait_stage[i]),
-                    vk::to_string(signal_stage[i])
-                ).c_str()
+                    "Pass {}: Wait {}, Signal {}", i, vk::to_string(wait_stage[i]), vk::to_string(signal_stage[i])
+                )
+                    .c_str()
             );
 #endif
             for (auto subpass_id : merged_passes[i]) {
                 RenderGraphCompiledPass::Subpass subpass;
-                const auto & old_p = pimpl->passes[pass_order[subpass_id]];
+                const auto &old_p = pimpl->passes[pass_order[subpass_id]];
                 subpass.pass_work = old_p.pass_function;
 #ifndef NDEBUG
                 SDL_LogDebug(
                     SDL_LOG_CATEGORY_RENDER,
-                    std::format(
-                        "Processing subpass \"{}\" (merged into pass {})",
-                        old_p.name, i
-                    ).c_str()
+                    std::format("Processing subpass \"{}\" (merged into pass {})", old_p.name, i).c_str()
                 );
 #endif
                 // Build barriers for textures.
                 for (auto [r, a] : old_p.image_access) {
-                    const auto & u = reordered_usage.image_usages[r];
+                    const auto &u = reordered_usage.image_usages[r];
                     auto itr = std::lower_bound(
                         u.begin(),
                         u.end(),
@@ -598,8 +544,7 @@ namespace Engine {
                         itr = itr - 1;
                         src_access = GetAccessFlags({itr->second});
                         src_stage = GuessPipelineStageFromAccess(
-                            pimpl->passes[pass_order[itr->first]].actual_type,
-                            itr->second
+                            pimpl->passes[pass_order[itr->first]].actual_type, itr->second
                         );
                         src_layout = GetImageLayout({itr->second});
                     }
@@ -618,10 +563,9 @@ namespace Engine {
                     } else {
                         assert(pimpl->rs.texture_mapping.contains(r));
                         aspect = ImageUtils::GetVkAspect(
-                            std::visit(
-                                RenderTargetTextureVariantVisitor{},
-                                pimpl->rs.texture_mapping.at(r)
-                            )->GetTextureDescription().format
+                            std::visit(RenderTargetTextureVariantVisitor{}, pimpl->rs.texture_mapping.at(r))
+                                ->GetTextureDescription()
+                                .format
                         );
                     }
 #ifndef NDEBUG
@@ -640,23 +584,26 @@ namespace Engine {
                             vk::to_string(dst_stage),
                             vk::to_string(dst_access),
                             vk::to_string(dst_layout)
-                        ).c_str()
+                        )
+                            .c_str()
                     );
 #endif
                     subpass.image_barriers.push_back(
                         std::make_pair(
                             r,
                             vk::ImageMemoryBarrier2{
-                                src_stage, src_access,
-                                dst_stage, dst_access,
-                                src_layout, dst_layout,
+                                src_stage,
+                                src_access,
+                                dst_stage,
+                                dst_access,
+                                src_layout,
+                                dst_layout,
                                 // XXX: Need QFOT for exclusive sharing mode resources.
-                                vk::QueueFamilyIgnored, vk::QueueFamilyIgnored,
+                                vk::QueueFamilyIgnored,
+                                vk::QueueFamilyIgnored,
                                 nullptr,
                                 vk::ImageSubresourceRange{
-                                    aspect,
-                                    0, vk::RemainingMipLevels,
-                                    0, vk::RemainingArrayLayers
+                                    aspect, 0, vk::RemainingMipLevels, 0, vk::RemainingArrayLayers
                                 }
                             }
                         )
@@ -665,7 +612,7 @@ namespace Engine {
 
                 // Build barrier for buffers
                 for (auto [r, a] : old_p.buffer_access) {
-                    const auto & u = reordered_usage.buffer_usages[r];
+                    const auto &u = reordered_usage.buffer_usages[r];
                     auto itr = std::lower_bound(
                         u.begin(),
                         u.end(),
@@ -702,7 +649,8 @@ namespace Engine {
                             old_p.name,
                             vk::to_string(dst_stage),
                             vk::to_string(dst_access)
-                        ).c_str()
+                        )
+                            .c_str()
                     );
 #endif
 
@@ -710,12 +658,16 @@ namespace Engine {
                         std::make_pair(
                             r,
                             vk::BufferMemoryBarrier2{
-                                src_stage, src_access,
-                                dst_stage, dst_access,
+                                src_stage,
+                                src_access,
+                                dst_stage,
+                                dst_access,
                                 // XXX: Need QFOT for exclusive sharing mode resources.
-                                vk::QueueFamilyIgnored, vk::QueueFamilyIgnored,
+                                vk::QueueFamilyIgnored,
+                                vk::QueueFamilyIgnored,
                                 nullptr,
-                                0, vk::WholeSize
+                                0,
+                                vk::WholeSize
                             }
                         )
                     );
@@ -731,10 +683,10 @@ namespace Engine {
         e.buffer_mapping = std::move(pimpl->rs.buffer_mapping);
         e.texture_mapping = std::move(pimpl->rs.texture_mapping);
         e.transient_texture_storage = std::move(pimpl->rs.MaterializeRenderTargetTextures(system));
-        for (const auto & [k, v] : e.transient_texture_storage) {
+        for (const auto &[k, v] : e.transient_texture_storage) {
             assert(!e.texture_mapping.contains(k));
 
-            switch(v.index()) {
+            switch (v.index()) {
             case 0:
                 e.texture_mapping[k] = std::get<0>(v).get();
                 break;
@@ -742,8 +694,8 @@ namespace Engine {
                 e.texture_mapping[k] = std::get<1>(v);
             }
         }
-        for (const auto & [r, a] : usage.image_usages) {
-            if (static_cast<int32_t>(r) > 0)  continue;
+        for (const auto &[r, a] : usage.image_usages) {
+            if (static_cast<int32_t>(r) > 0) continue;
             e.first_persistent_texture_access[r] = a.front().second;
             e.last_persistent_texture_access[r] = a.back().second;
         }

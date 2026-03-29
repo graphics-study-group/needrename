@@ -7,10 +7,10 @@
 #include "Asset/AssetManager/AssetManager.h"
 #include "Asset/Material/MaterialTemplateAsset.h"
 #include "Asset/Texture/ImageCubemapAsset.h"
-#include "UserInterface/GUISystem.h"
-#include "MainClass.h"
 #include "Core/Math/Transform.h"
+#include "MainClass.h"
 #include "Render/FullRenderSystem.h"
+#include "UserInterface/GUISystem.h"
 
 #include "cmake_config.h"
 #include <ext/matrix_transform.hpp>
@@ -42,11 +42,8 @@ const std::array<std::filesystem::path, 6> CUBEMAP_FACES = {
     std::filesystem::path{ENGINE_ASSETS_DIR} / "skybox" / "skybox_D_tonemapped.png"
 };
 
-
 std::pair<MaterialLibraryAsset *, MaterialTemplateAsset *> ConstructMaterial() {
-    auto adb = std::dynamic_pointer_cast<FileSystemDatabase>(
-        MainClass::GetInstance()->GetAssetDatabase()
-    );
+    auto adb = std::dynamic_pointer_cast<FileSystemDatabase>(MainClass::GetInstance()->GetAssetDatabase());
     auto am = MainClass::GetInstance()->GetAssetManager();
     auto test_asset = am->CreateAsset<MaterialTemplateAsset>();
     auto lib_asset = am->CreateAsset<MaterialLibraryAsset>();
@@ -90,7 +87,7 @@ int main(int argc, char **argv) {
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
     cmc->LoadBuiltinAssets(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
     auto rsys = cmc->GetRenderSystem();
-    
+
     auto camera = std::make_shared<Camera>();
     camera->set_aspect_ratio(800.0 / 800.0);
     camera->m_clipping_far = 1e2;
@@ -138,9 +135,7 @@ int main(int argc, char **argv) {
 
         // cubemap->LoadFromFile(CUBEMAP_FACES);
         rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
-            *skybox_texture,
-            cubemap->GetPixelData(),
-            cubemap->GetPixelDataSize()
+            *skybox_texture, cubemap->GetPixelData(), cubemap->GetPixelDataSize()
         );
         rsys->GetFrameManager().GetSubmissionHelper().ExecuteSubmissionImmediately();
     }
@@ -156,7 +151,8 @@ int main(int argc, char **argv) {
             .mipmap_levels = 1,
             .array_layers = 1,
             .format = RenderTargetTexture::RTTFormat::R8G8B8A8UNorm
-        }, {}
+        },
+        {}
     );
     auto drt = rgb.RequestRenderTargetTexture(
         RenderTargetTexture::RenderTargetTextureDesc{
@@ -167,27 +163,32 @@ int main(int argc, char **argv) {
             .mipmap_levels = 1,
             .array_layers = 1,
             .format = RenderTargetTexture::RTTFormat::D32SFLOAT
-        }, {}
+        },
+        {}
     );
 
     rgb.AddPass(
-        RenderGraphPassBuilder{*rsys}.SetName("Main")
-        .AppendColorAttachment(
-            {crt, {}, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store}
-        ).SetDepthStencilAttachment(
-            {drt, {}, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::DontCare, AttachmentUtils::DepthClearValue{1.0f, 0U}}
-        ).SetRasterizerPassFunction(
-            [rsys, camera] (GraphicsCommandBuffer & cb, const RenderGraph2 &) -> void {
+        RenderGraphPassBuilder{*rsys}
+            .SetName("Main")
+            .AppendColorAttachment(
+                {crt, {}, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store}
+            )
+            .SetDepthStencilAttachment(
+                {drt,
+                 {},
+                 AttachmentUtils::LoadOperation::Clear,
+                 AttachmentUtils::StoreOperation::DontCare,
+                 AttachmentUtils::DepthClearValue{1.0f, 0U}}
+            )
+            .SetRasterizerPassFunction([rsys, camera](GraphicsCommandBuffer &cb, const RenderGraph2 &) -> void {
                 glm::mat3 view_matrix = glm::mat3(camera->GetViewMatrix());
                 glm::mat4 pv = camera->GetProjectionMatrix() * glm::mat4(view_matrix);
                 rsys->GetSceneDataManager().DrawSkybox(
-                    cb,
-                    rsys->GetFrameManager().GetFrameInFlight(),
-                    pv,
-                    rsys->GetSwapchain().GetExtent()
+                    cb, rsys->GetFrameManager().GetFrameInFlight(), pv, rsys->GetSwapchain().GetExtent()
                 );
-            }
-        ).WrapRenderPass().Get()
+            })
+            .WrapRenderPass()
+            .Get()
     );
     auto rg = rgb.BuildRenderGraph();
 
@@ -207,27 +208,27 @@ int main(int argc, char **argv) {
             case SDL_EVENT_KEY_UP:
                 auto keycode = event.key.key;
                 switch (keycode) {
-                    case SDLK_UP:
+                case SDLK_UP:
                     // Front
                     euler_angle_rotation = glm::vec3{0.0f, 0.0f, 0.0f};
                     break;
-                    case SDLK_DOWN:
+                case SDLK_DOWN:
                     // Back
                     euler_angle_rotation = glm::vec3{0.0f, 0.0f, M_PI};
                     break;
-                    case SDLK_LEFT:
+                case SDLK_LEFT:
                     // Left
                     euler_angle_rotation.z += M_PI_4;
                     break;
-                    case SDLK_RIGHT:
+                case SDLK_RIGHT:
                     // Right
                     euler_angle_rotation.z -= M_PI_4;
                     break;
-                    case SDLK_PAGEUP:
+                case SDLK_PAGEUP:
                     // Up
                     euler_angle_rotation.x += M_PI_4;
                     break;
-                    case SDLK_PAGEDOWN:
+                case SDLK_PAGEDOWN:
                     // Down
                     euler_angle_rotation.x -= M_PI_4;
                     break;
@@ -236,7 +237,7 @@ int main(int argc, char **argv) {
         }
 
         rsys->StartFrame();
-        
+
         Transform t;
         t.SetPosition({0.0f, 0.0f, 0.0f}).SetRotationEuler(euler_angle_rotation);
         camera->UpdateViewMatrix(t);

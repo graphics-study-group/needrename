@@ -3,17 +3,17 @@
 #include <chrono>
 #include <fstream>
 
-#include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include "Asset/AssetManager/AssetManager.h"
 #include "Asset/Material/MaterialTemplateAsset.h"
 #include "Asset/Mesh/PlaneMeshAsset.h"
 #include "Asset/Texture/Image2DTextureAsset.h"
-#include "Framework/component/RenderComponent/MeshComponent.h"
 #include "Core/Functional/SDLWindow.h"
-#include "UserInterface/GUISystem.h"
+#include "Framework/component/RenderComponent/MeshComponent.h"
 #include "MainClass.h"
 #include "Render/FullRenderSystem.h"
 #include "Render/Renderer/HomogeneousMesh.h"
+#include "UserInterface/GUISystem.h"
+#include <Asset/AssetDatabase/FileSystemDatabase.h>
 
 #include "cmake_config.h"
 
@@ -24,7 +24,7 @@ constexpr glm::mat4 EYE4 = glm::mat4(1.0f);
 
 struct LowerPlaneMeshAsset : public PlaneMeshAsset {
 
-    constexpr static std::array <float, 12> REPLACEMENT_POSITION = {
+    constexpr static std::array<float, 12> REPLACEMENT_POSITION = {
         1.0f, -1.0f, 0.5f, 1.0f, 1.0f, 0.5f, -1.0f, 1.0f, 0.5f, -1.0f, -1.0f, 0.5f
     };
 
@@ -33,30 +33,26 @@ struct LowerPlaneMeshAsset : public PlaneMeshAsset {
         // Replace position buffer
         std::memcpy(
             reinterpret_cast<std::byte *>(m_submeshes[0].m_vertex_attributes.data())
-            + this->m_submeshes[0].positions.buffer_offset,
+                + this->m_submeshes[0].positions.buffer_offset,
             reinterpret_cast<const std::byte *>(REPLACEMENT_POSITION.data()),
             this->m_submeshes[0].positions.buffer_size
         );
         // Reverse vertex normal
-        float * nb{reinterpret_cast<float *>(
-            m_submeshes[0].m_vertex_attributes.data() 
-            + m_submeshes[0].normal.buffer_offset
-        )};
-        float * ne{reinterpret_cast<float *>(
-            m_submeshes[0].m_vertex_attributes.data() 
-            + m_submeshes[0].normal.buffer_offset 
+        float *nb{
+            reinterpret_cast<float *>(m_submeshes[0].m_vertex_attributes.data() + m_submeshes[0].normal.buffer_offset)
+        };
+        float *ne{reinterpret_cast<float *>(
+            m_submeshes[0].m_vertex_attributes.data() + m_submeshes[0].normal.buffer_offset
             + m_submeshes[0].normal.buffer_size
         )};
-        for (float * i = nb; i < ne; i += 3) {
+        for (float *i = nb; i < ne; i += 3) {
             *(i + 2) = -1.0f;
         };
     }
 };
 
 std::pair<MaterialLibraryAsset *, MaterialTemplateAsset *> ConstructMaterial() {
-    auto adb = std::dynamic_pointer_cast<FileSystemDatabase>(
-        MainClass::GetInstance()->GetAssetDatabase()
-    );
+    auto adb = std::dynamic_pointer_cast<FileSystemDatabase>(MainClass::GetInstance()->GetAssetDatabase());
     auto am = MainClass::GetInstance()->GetAssetManager();
     auto test_asset = am->CreateAsset<MaterialTemplateAsset>();
     auto test_lib_asset = am->CreateAsset<MaterialLibraryAsset>();
@@ -90,7 +86,7 @@ std::pair<MaterialLibraryAsset *, MaterialTemplateAsset *> ConstructMaterial() {
     return std::make_pair(test_lib_asset, test_asset);
 }
 
-std::array <RGTextureHandle, 4> g_color_handles = {};
+std::array<RGTextureHandle, 4> g_color_handles = {};
 
 auto BuildRenderGraph(
     RenderSystem *rsys,
@@ -113,44 +109,42 @@ auto BuildRenderGraph(
     g_color_handles = {c1, c2, c3, c4};
 
     rgb.AddPass(
-        RenderGraphPassBuilder{*rsys}.SetName("Main")
-        .AppendColorAttachment(
-            {
-                c1,
-                Engine::TextureSubresourceRange::GetSingleRange(),
-                AttachmentUtils::LoadOperation::Clear,
-                AttachmentUtils::StoreOperation::Store
-            }
-        ).AppendColorAttachment(
-            {
-                c2,
-                Engine::TextureSubresourceRange::GetSingleRange(),
-                AttachmentUtils::LoadOperation::Clear,
-                AttachmentUtils::StoreOperation::Store
-            }
-        ).AppendColorAttachment(
-            {
-                c3,
-                Engine::TextureSubresourceRange::GetSingleRange(),
-                AttachmentUtils::LoadOperation::Clear,
-                AttachmentUtils::StoreOperation::Store
-            }
-        ).AppendColorAttachment(
-            {
-                c4,
-                Engine::TextureSubresourceRange::GetSingleRange(),
-                AttachmentUtils::LoadOperation::Clear,
-                AttachmentUtils::StoreOperation::Store
-            }
-        ).SetDepthStencilAttachment(
-            {
-                d0, {},
-                AttachmentUtils::LoadOperation::Clear,
-                AttachmentUtils::StoreOperation::DontCare,
-                AttachmentUtils::DepthClearValue{1.0f, 0U}
-            }
-        ).SetRasterizerPassFunction(
-            [rsys, color_1, color_2, color_3, color_4, depth, material, mesh](GraphicsCommandBuffer &gcb, const RenderGraph2 &) {
+        RenderGraphPassBuilder{*rsys}
+            .SetName("Main")
+            .AppendColorAttachment(
+                {c1,
+                 Engine::TextureSubresourceRange::GetSingleRange(),
+                 AttachmentUtils::LoadOperation::Clear,
+                 AttachmentUtils::StoreOperation::Store}
+            )
+            .AppendColorAttachment(
+                {c2,
+                 Engine::TextureSubresourceRange::GetSingleRange(),
+                 AttachmentUtils::LoadOperation::Clear,
+                 AttachmentUtils::StoreOperation::Store}
+            )
+            .AppendColorAttachment(
+                {c3,
+                 Engine::TextureSubresourceRange::GetSingleRange(),
+                 AttachmentUtils::LoadOperation::Clear,
+                 AttachmentUtils::StoreOperation::Store}
+            )
+            .AppendColorAttachment(
+                {c4,
+                 Engine::TextureSubresourceRange::GetSingleRange(),
+                 AttachmentUtils::LoadOperation::Clear,
+                 AttachmentUtils::StoreOperation::Store}
+            )
+            .SetDepthStencilAttachment(
+                {d0,
+                 {},
+                 AttachmentUtils::LoadOperation::Clear,
+                 AttachmentUtils::StoreOperation::DontCare,
+                 AttachmentUtils::DepthClearValue{1.0f, 0U}}
+            )
+            .SetRasterizerPassFunction([rsys, color_1, color_2, color_3, color_4, depth, material, mesh](
+                                           GraphicsCommandBuffer &gcb, const RenderGraph2 &
+                                       ) {
                 auto extent = rsys->GetSwapchain().GetExtent();
                 gcb.SetupViewport(extent.width, extent.height, {{0, 0}, extent});
                 gcb.BindSceneResources(rsys->GetSceneDataManager());
@@ -181,8 +175,9 @@ auto BuildRenderGraph(
                     reinterpret_cast<const void *>(&EYE4)
                 );
                 gcb.DrawMesh(*mesh);
-            }
-        ).WrapRenderPass().Get()
+            })
+            .WrapRenderPass()
+            .Get()
     );
 
     return rgb.BuildRenderGraph();
@@ -220,7 +215,9 @@ int main(int argc, char **argv) {
 
     // Submit scene data
     rsys->GetCameraManager().WriteCameraMatrices(glm::mat4{1.0f}, glm::mat4{1.0f});
-    rsys->GetSceneDataManager().SetLightDirectionalNonShadowCasting(0, glm::vec3{-5.0f, -5.0f, -5.0f}, glm::vec3{1.0, 1.0, 1.0});
+    rsys->GetSceneDataManager().SetLightDirectionalNonShadowCasting(
+        0, glm::vec3{-5.0f, -5.0f, -5.0f}, glm::vec3{1.0, 1.0, 1.0}
+    );
     rsys->GetSceneDataManager().SetLightCountNonShadowCasting(1);
 
     // Prepare attachments
@@ -237,7 +234,7 @@ int main(int argc, char **argv) {
     };
     auto depth = RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Depth Attachment");
     desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R8G8B8A8UNorm;
-    std::array colors {
+    std::array colors{
         RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Color Attachment (Position)"),
         RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Color Attachment (Vertex color)"),
         RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Color Attachment (Normal)"),
@@ -247,8 +244,15 @@ int main(int argc, char **argv) {
     auto asys = cmc->GetAssetManager();
 
     auto rg{BuildRenderGraph(
-        rsys.get(), colors[0].get(), colors[1].get(), colors[2].get(), colors[3].get(), depth.get(), test_material_instance.get(), &test_mesh)
-    };
+        rsys.get(),
+        colors[0].get(),
+        colors[1].get(),
+        colors[2].get(),
+        colors[3].get(),
+        depth.get(),
+        test_material_instance.get(),
+        &test_mesh
+    )};
 
     bool quited = false;
     int color = 0;
@@ -272,17 +276,13 @@ int main(int argc, char **argv) {
         auto index = rsys->StartFrame();
 
         // Test readback on the next color attachment for fixed layout
-        auto buf = rsys->GetFrameManager().EnqueuePostGraphicsImageReadback(
-            *colors[(color + 1) % 4], 0, 0
-        );
+        auto buf = rsys->GetFrameManager().EnqueuePostGraphicsImageReadback(*colors[(color + 1) % 4], 0, 0);
 
         rg.AddExternalOutputDependency(g_color_handles[(color + 1) % 4], MemoryAccessTypeImageBits::TransferRead);
         rg.Execute(*rsys);
 
         rsys->CompleteFrame(
-            *colors[color],
-            colors[color]->GetTextureDescription().width, 
-            colors[color]->GetTextureDescription().height
+            *colors[color], colors[color]->GetTextureDescription().width, colors[color]->GetTextureDescription().height
         );
 
         SDL_Delay(10);

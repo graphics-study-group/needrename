@@ -7,20 +7,14 @@ namespace Engine::RenderSystemState {
 
         struct Description {
             RenderTargetTexture::RenderTargetTextureDesc desc{};
-            RenderTargetTexture::SamplerDesc sdesc {};
+            RenderTargetTexture::SamplerDesc sdesc{};
             float scale_x{.0f}, scale_y{.0f};
             std::string name{};
         };
 
-        std::unordered_map <
-            RRTTHandleEnum,
-            Description
-        > description_map {};
+        std::unordered_map<RRTTHandleEnum, Description> description_map{};
 
-        std::unordered_map <
-            RRTTHandleEnum,
-            std::unique_ptr <RenderTargetTexture>
-        > texture_map {};
+        std::unordered_map<RRTTHandleEnum, std::unique_ptr<RenderTargetTexture>> texture_map{};
 
         uint32_t monotonic_counter{0};
         uint32_t reference_width{0}, reference_height{0};
@@ -28,28 +22,19 @@ namespace Engine::RenderSystemState {
         /**
          * @brief Replace or create the RTT referred to by the iterator.
          */
-        void ReplaceTexture(
-            RenderSystem & system,
-            decltype(description_map)::iterator itr
-        ) {
+        void ReplaceTexture(RenderSystem &system, decltype(description_map)::iterator itr) {
             assert(reference_width > 0 && reference_height > 0);
             assert(itr != description_map.end());
             auto true_description = itr->second.desc;
             true_description.width = std::floor(reference_width * itr->second.scale_x);
             true_description.height = std::floor(reference_height * itr->second.scale_y);
 
-            texture_map[itr->first] = RenderTargetTexture::CreateUnique(
-                system,
-                true_description,
-                itr->second.sdesc,
-                itr->second.name
-            );
+            texture_map[itr->first] =
+                RenderTargetTexture::CreateUnique(system, true_description, itr->second.sdesc, itr->second.name);
         }
     };
 
-    ResizableRTTManager::ResizableRTTManager(
-        RenderSystem &system
-    ) : m_system(system), pimpl(std::make_unique<impl>()) {
+    ResizableRTTManager::ResizableRTTManager(RenderSystem &system) : m_system(system), pimpl(std::make_unique<impl>()) {
     }
     ResizableRTTManager::~ResizableRTTManager() = default;
 
@@ -58,27 +43,18 @@ namespace Engine::RenderSystemState {
         RenderTargetTexture::SamplerDesc sampler_description,
         float width_factor,
         float height_factor,
-        const std::string & name
+        const std::string &name
     ) {
         pimpl->monotonic_counter++;
 
         auto handle = static_cast<RRTTHandleEnum>(pimpl->monotonic_counter);
 
-        pimpl->description_map[handle] = {
-            description,
-            sampler_description,
-            width_factor,
-            height_factor,
-            name
-        };
+        pimpl->description_map[handle] = {description, sampler_description, width_factor, height_factor, name};
 
         return RRTTHandle{*this, handle};
     }
 
-    void ResizableRTTManager::SetReferenceSize(
-        uint32_t width,
-        uint32_t height
-    ) noexcept {
+    void ResizableRTTManager::SetReferenceSize(uint32_t width, uint32_t height) noexcept {
         std::tie(pimpl->reference_width, pimpl->reference_height) = {width, height};
         this->RemoveAllCache();
     }
@@ -101,9 +77,9 @@ namespace Engine::RenderSystemState {
 
     RenderTargetTexture *ResizableRTTManager::ResolveHandleToPtr(RRTTHandleEnum handle) noexcept {
         const auto ditr = pimpl->description_map.find(handle);
-        if (ditr == pimpl->description_map.end())   return nullptr;
+        if (ditr == pimpl->description_map.end()) return nullptr;
 
-        auto & tptr = pimpl->texture_map[handle];
+        auto &tptr = pimpl->texture_map[handle];
         if (tptr) {
             return tptr.get();
         }
@@ -116,7 +92,7 @@ namespace Engine::RenderSystemState {
         RRTTHandleEnum handle
     ) const {
         auto itr = pimpl->description_map.find(handle);
-        if (itr == pimpl->description_map.end())    throw std::invalid_argument("Invalid handle");
+        if (itr == pimpl->description_map.end()) throw std::invalid_argument("Invalid handle");
         return itr->second.desc;
     }
 

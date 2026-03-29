@@ -5,36 +5,30 @@
 #include <unordered_set>
 
 #include "Framework/component/RenderComponent/RendererComponent.h"
-#include "Render/Pipeline/CommandBuffer.h"
 #include "Render/Memory/MemoryAccessTypes.h"
+#include "Render/Pipeline/CommandBuffer.h"
 #include "Render/RenderSystem/AllocatorState.h"
+#include "Render/RenderSystem/CameraManager.h"
+#include "Render/RenderSystem/DeviceInterface.h"
 #include "Render/RenderSystem/FrameManager.h"
 #include "Render/RenderSystem/MaterialRegistry.h"
-#include "Render/RenderSystem/DeviceInterface.h"
 #include "Render/RenderSystem/RendererManager.h"
+#include "Render/RenderSystem/ResizableRTTManager.h"
 #include "Render/RenderSystem/Structs.h"
 #include "Render/RenderSystem/Swapchain.h"
-#include "Render/RenderSystem/CameraManager.h"
-#include "Render/RenderSystem/ResizableRTTManager.h"
 #include "Render/Renderer/Camera.h"
 
 #include <Core/Functional/SDLWindow.h>
-#include <UserInterface/GUISystem.h>
 #include <MainClass.h>
+#include <UserInterface/GUISystem.h>
 
 #include <iostream>
 
 namespace Engine {
     struct RenderSystem::impl {
-        impl(
-            RenderSystem &parent, std::weak_ptr<SDLWindow> parent_window
-        ) : m_window(parent_window),
-            m_allocator_state(parent),
-            m_frame_manager(parent),
-            m_material_registry(parent),
-            m_renderer_manager(parent),
-            m_scene_data_manager(parent),
-            m_camera_manager(parent),
+        impl(RenderSystem &parent, std::weak_ptr<SDLWindow> parent_window) :
+            m_window(parent_window), m_allocator_state(parent), m_frame_manager(parent), m_material_registry(parent),
+            m_renderer_manager(parent), m_scene_data_manager(parent), m_camera_manager(parent),
             m_resizable_rtt_manger(parent) {
 
             };
@@ -44,10 +38,9 @@ namespace Engine {
 
         std::weak_ptr<SDLWindow> m_window;
 
-
         // Order of declaration effects destructing order!
-        std::unique_ptr <RenderSystemState::DeviceInterface> m_device_interface{};
-        std::unique_ptr <RenderSystemState::ImmutableResourceCache> m_immutable_resource_cache{};
+        std::unique_ptr<RenderSystemState::DeviceInterface> m_device_interface{};
+        std::unique_ptr<RenderSystemState::ImmutableResourceCache> m_immutable_resource_cache{};
 
         RenderSystemState::AllocatorState m_allocator_state;
         RenderSystemState::Swapchain m_swapchain{};
@@ -59,12 +52,13 @@ namespace Engine {
         RenderSystemState::ResizableRTTManager m_resizable_rtt_manger;
     };
 
-    RenderSystem::RenderSystem(std::weak_ptr<SDLWindow> parent_window) : pimpl(std::make_unique<RenderSystem::impl>(*this, parent_window)) {
+    RenderSystem::RenderSystem(std::weak_ptr<SDLWindow> parent_window) :
+        pimpl(std::make_unique<RenderSystem::impl>(*this, parent_window)) {
     }
 
     void RenderSystem::Create() {
         assert(!this->pimpl->m_device_interface.get() && "Recreating render system");
-        RenderSystemState::DeviceInterface::DeviceConfiguration cfg {
+        RenderSystemState::DeviceInterface::DeviceConfiguration cfg{
             .window = pimpl->m_window.lock()->GetWindow(),
             .application_name = "",
             .application_version = 0,
@@ -72,9 +66,7 @@ namespace Engine {
         };
         pimpl->m_device_interface = std::make_unique<RenderSystemState::DeviceInterface>(cfg);
         pimpl->m_immutable_resource_cache =
-            std::make_unique<RenderSystemState::ImmutableResourceCache>(
-                pimpl->m_device_interface->GetDevice()
-            );
+            std::make_unique<RenderSystemState::ImmutableResourceCache>(pimpl->m_device_interface->GetDevice());
 
         pimpl->CreateSwapchain();
 
@@ -102,11 +94,8 @@ namespace Engine {
         uint32_t offset_y
     ) {
         if (pimpl->m_frame_manager.PresentToFramebuffer(
-            present_texture.GetImage(),
-            last_access,
-            {width, height},
-            {(int32_t)offset_x, (int32_t)offset_y}
-        )) {
+                present_texture.GetImage(), last_access, {width, height}, {(int32_t)offset_x, (int32_t)offset_y}
+            )) {
             this->UpdateSwapchain();
         }
     }
@@ -119,9 +108,7 @@ namespace Engine {
         uint32_t offset_y
     ) {
         this->CompleteFrame(
-            present_texture,
-            MemoryAccessTypeImageBits::ColorAttachmentWrite,
-            width, height, offset_x, offset_y
+            present_texture, MemoryAccessTypeImageBits::ColorAttachmentWrite, width, height, offset_x, offset_y
         );
     }
 

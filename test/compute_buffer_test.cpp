@@ -1,14 +1,14 @@
+#include "Asset/Shader/ShaderCompiler.h"
 #include "MainClass.h"
 #include "Render/FullRenderSystem.h"
-#include "Asset/Shader/ShaderCompiler.h"
-#include <random>
 #include <SDL3/SDL.h>
 #include <iostream>
+#include <random>
 
 using namespace Engine;
 
 constexpr const char GLSL_CODE[] = {
-R"(
+    R"(
 #version 450 core
 
 layout(local_size_x = 16, local_size_y = 1, local_size_z = 1) in;
@@ -29,8 +29,8 @@ void main() {
 
 constexpr size_t BUFFER_SIZE = 32;
 
-std::vector <uint32_t> GetSpirvBinaryFromGLSL(const std::string & glsl_code, EShLanguage shaderType) {
-    std::vector <uint32_t> binary{};
+std::vector<uint32_t> GetSpirvBinaryFromGLSL(const std::string &glsl_code, EShLanguage shaderType) {
+    std::vector<uint32_t> binary{};
     Engine::ShaderCompiler compiler;
     compiler.CompileGLSLtoSPV(binary, glsl_code, shaderType);
     return binary;
@@ -50,22 +50,23 @@ int main(int argc, char *argv[]) {
 
     auto rsys = cmc->GetRenderSystem();
 
-    std::shared_ptr compbuf1 = ComputeBufferTyped<float>::CreateUniqueTyped(rsys->GetAllocatorState(), BUFFER_SIZE, true, false, false, false);
-    std::shared_ptr compbuf2 = ComputeBufferTyped<float>::CreateUniqueTyped(rsys->GetAllocatorState(), BUFFER_SIZE, true, false, false, false);
+    std::shared_ptr compbuf1 =
+        ComputeBufferTyped<float>::CreateUniqueTyped(rsys->GetAllocatorState(), BUFFER_SIZE, true, false, false, false);
+    std::shared_ptr compbuf2 =
+        ComputeBufferTyped<float>::CreateUniqueTyped(rsys->GetAllocatorState(), BUFFER_SIZE, true, false, false, false);
     std::random_device seed_rd{};
     std::mt19937 mt{seed_rd()};
     std::uniform_real_distribution<float> urd{};
-    for (auto & f : compbuf1->GetVMAddress()) {
+    for (auto &f : compbuf1->GetVMAddress()) {
         f = urd(mt);
         std::cout << f << " ";
     }
     std::cout << std::endl;
 
-
     auto spirv = GetSpirvBinaryFromGLSL(GLSL_CODE, EShLangCompute);
     auto cstage = ComputeStage{*rsys};
     cstage.Instantiate(spirv, "Test Compute Shader");
-    auto & cbinding = cstage.AllocateResourceBinding();
+    auto &cbinding = cstage.AllocateResourceBinding();
     cbinding.GetShaderResourceBinding().BindBuffer("Input", compbuf1->GetComputeBuffer());
     cbinding.GetShaderResourceBinding().BindBuffer("Output", compbuf2->GetComputeBuffer());
 
@@ -74,25 +75,21 @@ int main(int argc, char *argv[]) {
     auto cbi2 = rgb.ImportExternalResource(compbuf2->GetComputeBuffer());
 
     rgb.AddPass(
-        RenderGraphPassBuilder{*rsys}.SetName("Compute")
-        .UseBuffer(cbi1, {MemoryAccessTypeBufferBits::ShaderRandomRead})
-        .UseBuffer(cbi2, {MemoryAccessTypeBufferBits::ShaderRandomWrite})
-        .SetComputePassFunction(
-            [&cstage, &cbinding](ComputeCommandBuffer & ccb, const RenderGraph2 &) -> void {
+        RenderGraphPassBuilder{*rsys}
+            .SetName("Compute")
+            .UseBuffer(cbi1, {MemoryAccessTypeBufferBits::ShaderRandomRead})
+            .UseBuffer(cbi2, {MemoryAccessTypeBufferBits::ShaderRandomWrite})
+            .SetComputePassFunction([&cstage, &cbinding](ComputeCommandBuffer &ccb, const RenderGraph2 &) -> void {
                 ccb.BindComputeStage(cstage);
                 ccb.BindComputeResource(cbinding);
                 ccb.DispatchCompute(BUFFER_SIZE / 16 + 1, 1, 1);
-            }
-        ).Get()
+            })
+            .Get()
     );
     auto rg{rgb.BuildRenderGraph()};
 
-    const auto & queues = rsys->GetDeviceInterface().GetQueueInfo();
-    auto cbai = vk::CommandBufferAllocateInfo{
-        queues.graphicsPool.get(), 
-        vk::CommandBufferLevel::ePrimary,
-        1
-    };
+    const auto &queues = rsys->GetDeviceInterface().GetQueueInfo();
+    auto cbai = vk::CommandBufferAllocateInfo{queues.graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1};
     auto cb = rsys->GetDevice().allocateCommandBuffers(cbai);
     rg.RecordAllPasses(cb[0]);
 
@@ -100,7 +97,7 @@ int main(int argc, char *argv[]) {
     queues.graphicsQueue.submit(si);
     queues.graphicsQueue.waitIdle();
 
-    for (const auto & f : compbuf2->GetVMAddress()) {
+    for (const auto &f : compbuf2->GetVMAddress()) {
         std::cout << f << " ";
     }
     std::cout << std::endl;
