@@ -10,6 +10,7 @@ namespace Engine
     class RenderGraphPass;
     class RenderSystem;
     class DeviceBuffer;
+    class RRTTHandle;
 
     class RenderGraphBuilder2 {
         struct impl;
@@ -35,6 +36,11 @@ namespace Engine
         [[nodiscard]]
         RGTextureHandle ImportExternalResource (
             RenderTargetTexture & texture,
+            MemoryAccessTypeImageBits prev_access = MemoryAccessTypeImageBits::None
+        );
+        [[nodiscard]]
+        RGTextureHandle ImportExternalResource (
+            RRTTHandle texture,
             MemoryAccessTypeImageBits prev_access = MemoryAccessTypeImageBits::None
         );
 

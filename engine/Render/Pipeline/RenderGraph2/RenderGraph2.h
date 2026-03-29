@@ -54,6 +54,9 @@ namespace Engine {
         /**
          * @brief Get a internally managed render target texture.
          * 
+         * If the render target texture is managed by a `ResizableRTTManager`,
+         * it will be automatically resolved.
+         * 
          * @return nullptr if handle is not available.
          */
         RenderTargetTexture * GetInternalTextureResource(

@@ -4,6 +4,7 @@
 #include <SDL3/SDL.h>
 
 #include "Render/Memory/MemoryAccessHelper.hpp"
+#include "Render/RenderSystem/ResizableRTTManager.h"
 #include "Render/Pipeline/RenderGraph/RGAttachmentDesc.h"
 #include "Render/Pipeline/RenderGraph2/RenderGraph2.h"
 #include "Render/Pipeline/RenderGraph2/RenderGraphPass.h"
@@ -117,7 +118,10 @@ namespace Engine {
                 RenderTargetTexture::SamplerDesc s {};
             };
             std::unordered_map <RGTextureHandle, TextureCreationInfo> texture_creation_info;
-            std::unordered_map <RGTextureHandle, RenderTargetTexture *> texture_mapping;
+            std::unordered_map <
+                RGTextureHandle,
+                RenderTargetTextureVariant
+            > texture_mapping;
             std::unordered_map <RGBufferHandle, const DeviceBuffer *> buffer_mapping;
 
             /**
@@ -247,7 +251,10 @@ namespace Engine {
                 auto rth = subpass.color_attachments[i].rt_handle;
                 // Imported external resource
                 if (static_cast<int32_t>(rth) < 0) {
-                    format = rs.texture_mapping.at(rth)->GetTextureDescription().format;
+                    format = std::visit(
+                        RenderTargetTextureVariantVisitor{},
+                        rs.texture_mapping.at(rth)
+                    )->GetTextureDescription().format;
                 } else {
                     format = static_cast<ImageUtils::ImageFormat>(
                         rs.texture_creation_info.at(rth).t.format
@@ -257,7 +264,8 @@ namespace Engine {
             }
             auto drth = subpass.depth_attachment.rt_handle;
             if (static_cast<int32_t>(drth) < 0) {
-                ret.depth_stencil_attachment_format = rs.texture_mapping.at(drth)->GetTextureDescription().format;
+                ret.depth_stencil_attachment_format = 
+                    std::visit(RenderTargetTextureVariantVisitor{}, rs.texture_mapping.at(drth))->GetTextureDescription().format;
             } else if (static_cast<int32_t>(drth) > 0) {
                 ret.depth_stencil_attachment_format = static_cast<ImageUtils::ImageFormat>(
                     rs.texture_creation_info.at(drth).t.format
@@ -288,6 +296,12 @@ namespace Engine {
         pimpl->rs.texture_mapping[ret] = &texture;
         pimpl->passes.front().image_access[ret] = prev_access;
         return ret;
+    }
+
+    RGTextureHandle RenderGraphBuilder2::ImportExternalResource(
+        RRTTHandle texture, MemoryAccessTypeImageBits prev_access
+    ) {
+        return RGTextureHandle();
     }
 
     RGBufferHandle RenderGraphBuilder2::ImportExternalResource(
@@ -483,7 +497,10 @@ namespace Engine {
                     } else {
                         assert(pimpl->rs.texture_mapping.contains(r));
                         aspect = ImageUtils::GetVkAspect(
-                            pimpl->rs.texture_mapping[r]->GetTextureDescription().format
+                            std::visit(
+                                RenderTargetTextureVariantVisitor{},
+                                pimpl->rs.texture_mapping.at(r)
+                            )->GetTextureDescription().format
                         );
                     }
 #ifndef NDEBUG

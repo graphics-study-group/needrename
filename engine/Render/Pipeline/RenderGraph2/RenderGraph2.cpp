@@ -63,7 +63,10 @@ namespace Engine {
 
         pimpl->pre_barrier_info.push_back(
             std::make_tuple(
-                pimpl->extra_info.texture_mapping[rt_handle],
+                std::visit(
+                    RenderTargetTextureVariantVisitor{},
+                    pimpl->extra_info.texture_mapping[rt_handle]
+                ),
                 access,
                 itr->second
             )
@@ -81,7 +84,10 @@ namespace Engine {
 
         pimpl->post_barrier_info.push_back(
             std::make_tuple(
-                pimpl->extra_info.texture_mapping[rt_handle],
+                std::visit(
+                    RenderTargetTextureVariantVisitor{},
+                    pimpl->extra_info.texture_mapping[rt_handle]
+                ),
                 itr->second,
                 access
             )
@@ -93,7 +99,7 @@ namespace Engine {
     ) const noexcept {
         auto itr = pimpl->extra_info.texture_mapping.find(handle);
         if (itr != pimpl->extra_info.texture_mapping.end()) {
-            return itr->second;
+            return std::visit(RenderTargetTextureVariantVisitor{}, itr->second);
         }
         return nullptr;
     }

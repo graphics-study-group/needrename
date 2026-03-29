@@ -6,11 +6,26 @@
 #include <vulkan/vulkan.hpp>
 
 #include "Render/Memory/MemoryAccessTypes.h"
+#include "Render/RenderSystem/ResizableRTTManager.h"
 #include "Render/Pipeline/PipelineRuntimeInfo.h"
 
 namespace Engine {
     class RenderGraph2;
     class RenderTargetTexture;
+
+    using RenderTargetTextureVariant = std::variant<RenderTargetTexture *, RRTTHandle>;
+    /**
+     * @brief Visitor for render target textures.
+     */
+    struct RenderTargetTextureVariantVisitor {
+        RenderTargetTexture * operator() (RenderTargetTexture * p) {
+            return p;
+        }
+
+        RenderTargetTexture * operator() (RRTTHandle h) {
+            return &h.Resolve();
+        }
+    };
 
     /**
      * @brief Compiled render graph passes.
@@ -46,7 +61,7 @@ namespace Engine {
         > transient_texture_storage;
 
         std::unordered_map <
-            RGTextureHandle, RenderTargetTexture *
+            RGTextureHandle, RenderTargetTextureVariant
         > texture_mapping;
 
         std::unordered_map <
