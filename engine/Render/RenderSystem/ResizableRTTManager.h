@@ -119,7 +119,7 @@ namespace Engine {
      * @brief Handle to a Resizable RTT, associated with a manager class.
      */
     struct RRTTHandle {
-        RenderSystemState::ResizableRTTManager & manager;
+        std::reference_wrapper <RenderSystemState::ResizableRTTManager> manager;
         RenderSystemState::RRTTHandleEnum handle;
 
         /**
@@ -128,14 +128,14 @@ namespace Engine {
          * Refrain from caching this result.
          */
         auto & Resolve() {
-            return manager.ResolveHandle(handle);
+            return manager.get().ResolveHandle(handle);
         }
 
         /**
          * @brief See `ResizableRTTManager::Release()`.
          */
         auto Release() noexcept {
-            return manager.ReleaseRTT(handle);
+            return manager.get().ReleaseRTT(handle);
         }
     };
     
