@@ -225,7 +225,7 @@ int main(int argc, char **argv) {
     
 
     // Build Render Graph
-    RenderGraphBuilder rgb{*rsys};
+    RenderGraphBuilder2 rgb{*rsys};
     Engine::RenderTargetTexture::RenderTargetTextureDesc desc{
         .dimensions = 2, .width = 1920, .height = 1080,
         .depth = 1, .mipmap_levels = 1, .array_layers = 1,
@@ -243,54 +243,72 @@ int main(int argc, char **argv) {
     auto s = rgb.RequestRenderTargetTexture(desc, {});
 
     using IAT = MemoryAccessTypeImageBits;
-    rgb.UseImage(s, IAT::DepthStencilAttachmentWrite);
-    rgb.RecordRasterizerPassWithoutRT(
-        [rsys, s, test_library, object_material_instance](GraphicsCommandBuffer &gcb, const RenderGraph & rg) {
-            vk::Extent2D shadow_map_extent{2048, 2048};
-            vk::Rect2D shadow_map_scissor{{0, 0}, shadow_map_extent};
-            auto sm = rg.GetInternalTextureResource(s);
-            gcb.BeginRendering(
-                {nullptr},
-                {
-                    sm, 
-                    Engine::TextureSubresourceRange::GetSingleRange(), 
-                    AttachmentUtils::LoadOperation::Clear,
-                    AttachmentUtils::StoreOperation::Store,
-                    AttachmentUtils::DepthClearValue{1.0f, 0U}
-                },
-                shadow_map_extent,
-                "Shadowmap Pass"
-            );
-            gcb.SetupViewport(shadow_map_extent.width, shadow_map_extent.height, shadow_map_scissor);
-            gcb.DrawRenderers(
-                "Shadowmap",
-                rsys->GetRendererManager().FilterAndSortRenderers({}),
-                0,
-                vk::Extent2D{sm->GetTextureDescription().width, sm->GetTextureDescription().height}
-            );
-            gcb.EndRendering();
-        }
+
+    rgb.AddPass(
+        RenderGraphPassBuilder{*rsys}.SetName("Shadow Pass")
+        .SetDepthStencilAttachment(
+            {
+                s, {},
+                AttachmentUtils::LoadOperation::Clear,
+                AttachmentUtils::StoreOperation::Store,
+                AttachmentUtils::DepthClearValue{1.0f, 0U}
+            }
+        ).SetRasterizerPassFunction(
+            [rsys, s, test_library, object_material_instance](GraphicsCommandBuffer &gcb, const RenderGraph2 & rg) {
+                vk::Extent2D shadow_map_extent{2048, 2048};
+                vk::Rect2D shadow_map_scissor{{0, 0}, shadow_map_extent};
+                auto sm = rg.GetInternalTextureResource(s);
+                gcb.BeginRendering(
+                    {nullptr},
+                    {
+                        sm, 
+                        Engine::TextureSubresourceRange::GetSingleRange(), 
+                        AttachmentUtils::LoadOperation::Clear,
+                        AttachmentUtils::StoreOperation::Store,
+                        AttachmentUtils::DepthClearValue{1.0f, 0U}
+                    },
+                    shadow_map_extent,
+                    "Shadowmap Pass"
+                );
+                gcb.SetupViewport(shadow_map_extent.width, shadow_map_extent.height, shadow_map_scissor);
+                gcb.DrawRenderers(
+                    "Shadowmap",
+                    rsys->GetRendererManager().FilterAndSortRenderers({}),
+                    0,
+                    vk::Extent2D{sm->GetTextureDescription().width, sm->GetTextureDescription().height}
+                );
+                gcb.EndRendering();
+            }
+        ).Get()     // < Since `BeginRendering` is called manually, we don't need to wrap the render pass.
     );
 
-    rgb.UseImage(s, IAT::ShaderSampledRead);
-    rgb.UseImage(c, IAT::ColorAttachmentWrite);
-    rgb.UseImage(d, IAT::DepthStencilAttachmentWrite);
-    rgb.RecordRasterizerPass(
-        {c, {}, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store},
-        {d, {},
-         AttachmentUtils::LoadOperation::Clear,
-         AttachmentUtils::StoreOperation::DontCare,
-         AttachmentUtils::DepthClearValue{1.0f, 0U}},
-        [rsys, object_material_instance, test_library](GraphicsCommandBuffer &gcb, const RenderGraph &) {
-            vk::Extent2D extent{rsys->GetSwapchain().GetExtent()};
-            vk::Rect2D scissor{{0, 0}, extent};
-            gcb.SetupViewport(extent.width, extent.height, scissor);
-            gcb.DrawRenderers("Lit", rsys->GetRendererManager().FilterAndSortRenderers({}));
-        },
-        "Lit pass"
+    rgb.AddPass(
+        RenderGraphPassBuilder{*rsys}.SetName("Lit Pass")
+        .AppendColorAttachment(
+            {
+                c, {},
+                AttachmentUtils::LoadOperation::Clear,
+                AttachmentUtils::StoreOperation::Store
+            }
+        ).SetDepthStencilAttachment(
+            {
+                d, {},
+                AttachmentUtils::LoadOperation::Clear,
+                AttachmentUtils::StoreOperation::DontCare,
+                AttachmentUtils::DepthClearValue{1.0f, 0U}
+            }
+        ).UseImage(s, IAT::ShaderSampledRead).SetRasterizerPassFunction(
+            [rsys, object_material_instance, test_library](GraphicsCommandBuffer &gcb, const RenderGraph2 &) {
+                vk::Extent2D extent{rsys->GetSwapchain().GetExtent()};
+                vk::Rect2D scissor{{0, 0}, extent};
+                gcb.SetupViewport(extent.width, extent.height, scissor);
+                gcb.DrawRenderers("Lit", rsys->GetRendererManager().FilterAndSortRenderers({}));
+            }
+        ).WrapRenderPass().Get()
     );
+
     auto rg{rgb.BuildRenderGraph()};
-    auto sm = rg->GetInternalTextureResource(s);
+    auto sm = rg.GetInternalTextureResource(s);
     // Shadow map change must be effectuated before start of a frame.
     rsys->GetSceneDataManager().SetLightShadowMap(0, *sm);
 
@@ -310,8 +328,8 @@ int main(int argc, char **argv) {
         auto index = rsys->StartFrame();
         assert(index < 3);
 
-        rg->Execute();
-        auto color = rg->GetInternalTextureResource(c);
+        rg.Execute(*rsys);
+        auto color = rg.GetInternalTextureResource(c);
         rsys->CompleteFrame(*color, color->GetTextureDescription().width, color->GetTextureDescription().height);
 
         SDL_Delay(10);
