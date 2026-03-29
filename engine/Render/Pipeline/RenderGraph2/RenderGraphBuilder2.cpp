@@ -27,6 +27,49 @@ namespace {
         }
     }
 
+    constexpr vk::PipelineStageFlagBits2 GuessPipelineStageFromAccess(
+        Engine::RenderGraphPassAffinity work_type,
+        Engine::MemoryAccessTypeImageBits access
+    ) {
+        switch(work_type) {
+            using enum Engine::RenderGraphPassAffinity;
+
+            case Transfer:
+                return vk::PipelineStageFlagBits2::eAllTransfer;
+            case Graphics:
+                // While some transfer actions (e.g. blitting) requires working
+                // on graphics queue, they are classified as transfer for
+                // synchronization.
+                if (
+                    access == Engine::MemoryAccessTypeImageBits::TransferRead ||
+                    access == Engine::MemoryAccessTypeImageBits::TransferWrite
+                ) {
+                    return vk::PipelineStageFlagBits2::eAllTransfer;
+                }
+                return vk::PipelineStageFlagBits2::eAllGraphics;
+            case Compute:
+                return vk::PipelineStageFlagBits2::eComputeShader;
+            default:
+                // If this pass does not have work load, then it should be a
+                // virtual pass. In this case, we have to guess its stage......
+                switch(access) { 
+                    case Engine::MemoryAccessTypeImageBits::TransferRead:
+                    case Engine::MemoryAccessTypeImageBits::TransferWrite:
+                        return vk::PipelineStageFlagBits2::eTransfer;
+                    case Engine::MemoryAccessTypeImageBits::ColorAttachmentRead:
+                    case Engine::MemoryAccessTypeImageBits::ColorAttachmentWrite:
+                    case Engine::MemoryAccessTypeImageBits::DepthStencilAttachmentRead:
+                    case Engine::MemoryAccessTypeImageBits::DepthStencilAttachmentWrite:
+                    case Engine::MemoryAccessTypeImageBits::ColorAttachmentDefault:
+                    case Engine::MemoryAccessTypeImageBits::DepthStencilAttachmentDefault:
+                        return vk::PipelineStageFlagBits2::eAllGraphics;
+                    default:
+                        // Being conservative here.
+                        return vk::PipelineStageFlagBits2::eAllCommands;
+                }
+        }
+    }
+
     struct UsageCache {
         std::unordered_map<
             Engine::RGBufferHandle,
@@ -554,11 +597,14 @@ namespace Engine {
                     } else {
                         itr = itr - 1;
                         src_access = GetAccessFlags({itr->second});
-                        src_stage = AffinityToPipelineStage(pimpl->passes[pass_order[itr->first]].actual_type);
+                        src_stage = GuessPipelineStageFromAccess(
+                            pimpl->passes[pass_order[itr->first]].actual_type,
+                            itr->second
+                        );
                         src_layout = GetImageLayout({itr->second});
                     }
                     dst_access = GetAccessFlags({a});
-                    dst_stage = AffinityToPipelineStage(old_p.actual_type);
+                    dst_stage = GuessPipelineStageFromAccess(old_p.actual_type, a);
                     dst_layout = GetImageLayout({a});
                     vk::ImageAspectFlags aspect{};
                     if (pimpl->rs.texture_creation_info.contains(r)) {
