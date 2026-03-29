@@ -501,6 +501,11 @@ namespace Engine::RenderSystemState {
                 SDL_LogWarn(
                     SDL_LOG_CATEGORY_RENDER, "Presenting returned %s other than success.", vk::to_string(result).c_str()
                 );
+
+                // Suboptimal swapchain should be recreated after presenting.
+                if (result == vk::Result::eSuboptimalKHR) {
+                    needs_recreating = true;
+                }
             }
         } catch (vk::OutOfDateKHRError &e) {
             SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Swapchain out of date.");
