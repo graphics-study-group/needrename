@@ -1,8 +1,8 @@
 #ifndef RENDER_MEMORY_MEMORYACCESSHELPER
 #define RENDER_MEMORY_MEMORYACCESSHELPER
 
-#include <vulkan/vulkan.hpp>
 #include "MemoryAccessTypes.h"
+#include <vulkan/vulkan.hpp>
 
 namespace Engine {
     constexpr vk::AccessFlags2 GetAccessFlags(MemoryAccessTypeBuffer a) noexcept {
@@ -41,25 +41,18 @@ namespace Engine {
     }
 
     constexpr bool HasReadAccess(MemoryAccessTypeBuffer a) noexcept {
-        if (
-            a.Test(MemoryAccessTypeBufferBits::IndirectDrawRead) ||
-            a.Test(MemoryAccessTypeBufferBits::IndexRead) ||
-            a.Test(MemoryAccessTypeBufferBits::VertexRead) ||
-            a.Test(MemoryAccessTypeBufferBits::ShaderRead) ||
-            a.Test(MemoryAccessTypeBufferBits::ShaderSampled) ||
-            a.Test(MemoryAccessTypeBufferBits::ShaderRandomRead) ||
-            a.Test(MemoryAccessTypeBufferBits::TransferRead)
-        ) {
+        if (a.Test(MemoryAccessTypeBufferBits::IndirectDrawRead) || a.Test(MemoryAccessTypeBufferBits::IndexRead)
+            || a.Test(MemoryAccessTypeBufferBits::VertexRead) || a.Test(MemoryAccessTypeBufferBits::ShaderRead)
+            || a.Test(MemoryAccessTypeBufferBits::ShaderSampled) || a.Test(MemoryAccessTypeBufferBits::ShaderRandomRead)
+            || a.Test(MemoryAccessTypeBufferBits::TransferRead)) {
             return true;
         }
         return false;
     }
 
     constexpr bool HasWriteAccess(MemoryAccessTypeBuffer a) noexcept {
-        if (
-            a.Test(MemoryAccessTypeBufferBits::ShaderRandomWrite) ||
-            a.Test(MemoryAccessTypeBufferBits::TransferWrite)
-        ) {
+        if (a.Test(MemoryAccessTypeBufferBits::ShaderRandomWrite)
+            || a.Test(MemoryAccessTypeBufferBits::TransferWrite)) {
             return true;
         }
         return false;
@@ -98,66 +91,49 @@ namespace Engine {
     }
 
     constexpr vk::ImageLayout GetImageLayout(MemoryAccessTypeImage a) noexcept {
-        if (
-            a.Test(MemoryAccessTypeImageBits::ColorAttachmentRead) |
-            a.Test(MemoryAccessTypeImageBits::ColorAttachmentWrite)
-        ) {
+        if (a.Test(MemoryAccessTypeImageBits::ColorAttachmentRead)
+            | a.Test(MemoryAccessTypeImageBits::ColorAttachmentWrite)) {
             return vk::ImageLayout::eColorAttachmentOptimal;
         }
-        if (
-            a.Test(MemoryAccessTypeImageBits::DepthStencilAttachmentRead) |
-            a.Test(MemoryAccessTypeImageBits::DepthStencilAttachmentWrite)
-        ) {
+        if (a.Test(MemoryAccessTypeImageBits::DepthStencilAttachmentRead)
+            | a.Test(MemoryAccessTypeImageBits::DepthStencilAttachmentWrite)) {
             return vk::ImageLayout::eDepthStencilAttachmentOptimal;
         }
-        if (
-            a.Test(MemoryAccessTypeImageBits::TransferRead)
-        ) {
+        if (a.Test(MemoryAccessTypeImageBits::TransferRead)) {
             return vk::ImageLayout::eTransferSrcOptimal;
         }
-        if (
-            a.Test(MemoryAccessTypeImageBits::TransferWrite)
-        ) {
+        if (a.Test(MemoryAccessTypeImageBits::TransferWrite)) {
             return vk::ImageLayout::eTransferDstOptimal;
         }
-        if (
-            a.Test(MemoryAccessTypeImageBits::ShaderSampledRead)
-        ) {
+        if (a.Test(MemoryAccessTypeImageBits::ShaderSampledRead)) {
             return vk::ImageLayout::eReadOnlyOptimal;
         }
-        if (
-            a.Test(MemoryAccessTypeImageBits::ShaderRandomRead) |
-            a.Test(MemoryAccessTypeImageBits::ShaderRandomWrite)
-        ) {
+        if (a.Test(MemoryAccessTypeImageBits::ShaderRandomRead)
+            | a.Test(MemoryAccessTypeImageBits::ShaderRandomWrite)) {
             return vk::ImageLayout::eGeneral;
         }
         return vk::ImageLayout::eUndefined;
     }
 
     constexpr bool HasReadAccess(MemoryAccessTypeImage a) noexcept {
-        if (
-            a.Test(MemoryAccessTypeImageBits::ColorAttachmentRead) ||
-            a.Test(MemoryAccessTypeImageBits::DepthStencilAttachmentRead) ||
-            a.Test(MemoryAccessTypeImageBits::TransferRead) ||
-            a.Test(MemoryAccessTypeImageBits::ShaderSampledRead) ||
-            a.Test(MemoryAccessTypeImageBits::ShaderRandomRead)
-         ) {
+        if (a.Test(MemoryAccessTypeImageBits::ColorAttachmentRead)
+            || a.Test(MemoryAccessTypeImageBits::DepthStencilAttachmentRead)
+            || a.Test(MemoryAccessTypeImageBits::TransferRead) || a.Test(MemoryAccessTypeImageBits::ShaderSampledRead)
+            || a.Test(MemoryAccessTypeImageBits::ShaderRandomRead)) {
             return true;
         }
         return false;
     }
 
     constexpr bool HasWriteAccess(MemoryAccessTypeImage a) noexcept {
-        if (
-            a.Test(MemoryAccessTypeImageBits::ColorAttachmentWrite) ||
-            a.Test(MemoryAccessTypeImageBits::DepthStencilAttachmentWrite) ||
-            a.Test(MemoryAccessTypeImageBits::TransferWrite) ||
-            a.Test(MemoryAccessTypeImageBits::ShaderRandomWrite)
-         ) {
+        if (a.Test(MemoryAccessTypeImageBits::ColorAttachmentWrite)
+            || a.Test(MemoryAccessTypeImageBits::DepthStencilAttachmentWrite)
+            || a.Test(MemoryAccessTypeImageBits::TransferWrite)
+            || a.Test(MemoryAccessTypeImageBits::ShaderRandomWrite)) {
             return true;
         }
         return false;
     }
-}
+} // namespace Engine
 
 #endif // RENDER_MEMORY_MEMORYACCESSHELPER

@@ -21,8 +21,7 @@ namespace Engine {
         template <typename T>
         inline void binary_data(const T *data, size_t size) noexcept {
             size /= sizeof(*data);
-            for (size_t i = 0; i < size; i++)
-                s = (s * C) ^ data[i];
+            for (size_t i = 0; i < size; i++) s = (s * C) ^ data[i];
         }
 
         inline void u32(uint32_t value) noexcept {
@@ -32,11 +31,10 @@ namespace Engine {
         /**
          * @brief Hashing an enumeration.
          */
-        template <typename T> requires std::is_enum_v<T>
+        template <typename T>
+            requires std::is_enum_v<T>
         inline void e(T value) noexcept {
-            static_assert(
-                std::is_convertible_v<std::underlying_type_t<T>, uint32_t>
-            );
+            static_assert(std::is_convertible_v<std::underlying_type_t<T>, uint32_t>);
             u32(static_cast<uint32_t>(value));
         }
 
@@ -45,9 +43,7 @@ namespace Engine {
          */
         template <typename T>
         inline void f(vk::Flags<T> value) noexcept {
-            static_assert(
-                std::is_convertible_v<typename vk::Flags<T>::MaskType, uint32_t>
-            );
+            static_assert(std::is_convertible_v<typename vk::Flags<T>::MaskType, uint32_t>);
             u32(static_cast<vk::Flags<T>::MaskType>(value));
         }
 
@@ -71,11 +67,7 @@ namespace Engine {
 
         template <HashableVulkanHppHandle T>
         inline void handle(T h) {
-            u64(
-                std::bit_cast<uintptr_t>(
-                    static_cast<typename T::CType>(h)
-                )
-            );
+            u64(std::bit_cast<uintptr_t>(static_cast<typename T::CType>(h)));
         }
 
         /**
@@ -83,7 +75,7 @@ namespace Engine {
          * the converted integer.
          */
         template <typename T>
-        inline void any(const T & a) {
+        inline void any(const T &a) {
             if constexpr (sizeof(T) == sizeof(uint32_t)) {
                 u32(std::bit_cast<uint32_t>(a));
             } else if constexpr (sizeof(T) == sizeof(uint64_t)) {
@@ -96,20 +88,18 @@ namespace Engine {
         inline void string(const char *str) noexcept {
             char c;
             u32(0xff);
-            while ((c = *str++) != '\0')
-                u32(uint8_t(c));
+            while ((c = *str++) != '\0') u32(uint8_t(c));
         }
 
         inline void string(std::string_view str) noexcept {
             u32(0xff);
-            for (auto &c : str)
-                u32(uint8_t(c));
+            for (auto &c : str) u32(uint8_t(c));
         }
 
         inline auto get() const {
             return s;
         }
     };
-}
+} // namespace Engine
 
 #endif // ENGINE_RENDER_HASHER_INCLUDED
