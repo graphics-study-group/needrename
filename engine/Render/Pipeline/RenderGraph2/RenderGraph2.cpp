@@ -145,7 +145,13 @@ namespace Engine {
                 vk::DependencyFlags{},
                 bmb, {}, imb
             });
+
             // Invoke pass function.
+
+            // Skip empty work pass
+            if (!subpass.pass_work) {
+                continue;
+            }
             pimpl->pripr_ptr = &subpass.per_rendering_info;
             std::invoke(subpass.pass_work, cb, *this);
             pimpl->pripr_ptr = nullptr;
@@ -172,10 +178,7 @@ namespace Engine {
         pimpl->post_barrier_info.clear();
     }
 
-    void RenderGraph2::Execute(RenderSystem &system) {
-        auto & fm = system.GetFrameManager();
-        auto cb = fm.GetRawMainCommandBuffer();
-        
+    void RenderGraph2::RecordAllPasses(vk::CommandBuffer cb) {
         cb.begin(vk::CommandBufferBeginInfo{});
         RecordPrePass(cb);
         for (size_t i = 0; i < pimpl->passes.size(); i++) {
@@ -183,6 +186,13 @@ namespace Engine {
         }
         RecordPostPass(cb);
         cb.end();
+    }
+
+    void RenderGraph2::Execute(RenderSystem &system) {
+        auto & fm = system.GetFrameManager();
+        auto cb = fm.GetRawMainCommandBuffer();
+        
+        RecordAllPasses(cb);
         fm.SubmitMainCommandBuffer();
     }
 

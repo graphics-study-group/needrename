@@ -312,7 +312,18 @@ namespace Engine {
         pimpl->rs.resource_counter++;
         auto ret = static_cast<RGTextureHandle>(-pimpl->rs.resource_counter);
         pimpl->rs.texture_mapping[ret] = &texture;
-        pimpl->passes.front().image_access[ret] = prev_access;
+
+        if (prev_access != MemoryAccessTypeImageBits::None) {
+            // Inject a virtual pass if previous access is not None
+            if (pimpl->passes.empty()) {
+                this->AddPass(
+                    RenderGraphPassBuilder{system}
+                    .SetName("Virtual Source")
+                    .Get()
+                );
+            }
+            pimpl->passes.front().image_access[ret] = prev_access;
+        }
         return ret;
     }
 
@@ -322,7 +333,18 @@ namespace Engine {
         pimpl->rs.resource_counter++;
         auto ret = static_cast<RGTextureHandle>(-pimpl->rs.resource_counter);
         pimpl->rs.texture_mapping[ret] = texture;
-        pimpl->passes.front().image_access[ret] = prev_access;
+
+        if (prev_access != MemoryAccessTypeImageBits::None) {
+            // Inject a virtual pass if previous access is not None
+            if (pimpl->passes.empty()) {
+                this->AddPass(
+                    RenderGraphPassBuilder{system}
+                    .SetName("Virtual Source")
+                    .Get()
+                );
+            }
+            pimpl->passes.front().image_access[ret] = prev_access;
+        }
         return ret;
     }
 
@@ -332,7 +354,16 @@ namespace Engine {
         pimpl->rs.resource_counter++;
         auto ret = static_cast<RGBufferHandle>(-pimpl->rs.resource_counter);
         pimpl->rs.buffer_mapping[ret] = &buffer;
-        pimpl->passes.front().buffer_access[ret] = prev_access;
+
+        if (prev_access != MemoryAccessTypeBuffer{MemoryAccessTypeBufferBits::None}) {
+            // Inject a virtual pass if previous access is not None
+            if (pimpl->passes.empty()) {
+                this->AddPass(
+                    RenderGraphPassBuilder{system}.SetName("Virtual Source").Get()
+                );
+            }
+            pimpl->passes.front().buffer_access[ret] = prev_access;
+        }
         return ret;
     }
 
@@ -515,6 +546,7 @@ namespace Engine {
                     vk::PipelineStageFlags2 src_stage, dst_stage;
                     vk::ImageLayout src_layout, dst_layout;
 
+                    // If first use is the first pass...
                     if (itr == u.begin()) {
                         src_access = vk::AccessFlagBits2::eNone;
                         src_stage = vk::PipelineStageFlagBits2::eNone;
@@ -598,6 +630,7 @@ namespace Engine {
                     vk::AccessFlags2 src_access, dst_access;
                     vk::PipelineStageFlags2 src_stage, dst_stage;
 
+                    // If first use is the first pass...
                     if (itr == u.begin()) {
                         src_access = vk::AccessFlagBits2::eNone;
                         src_stage = vk::PipelineStageFlagBits2::eNone;
