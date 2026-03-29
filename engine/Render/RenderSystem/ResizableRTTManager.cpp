@@ -111,6 +111,14 @@ namespace Engine::RenderSystemState {
         return pimpl->texture_map[handle].get();
     }
 
+    const RenderTargetTexture::RenderTargetTextureDesc &ResizableRTTManager::GetTextureDescription(
+        RRTTHandleEnum handle
+    ) const {
+        auto itr = pimpl->description_map.find(handle);
+        if (itr == pimpl->description_map.end())    throw std::invalid_argument("Invalid handle");
+        return itr->second.desc;
+    }
+
     std::unique_ptr<RenderTargetTexture> ResizableRTTManager::ReleaseRTT(RRTTHandleEnum handle) noexcept {
         auto itr = pimpl->texture_map.find(handle);
         auto ptr = std::move(itr->second);

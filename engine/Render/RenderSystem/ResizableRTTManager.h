@@ -8,9 +8,10 @@
 #include <string>
 
 namespace Engine {
+    struct RRTTHandle;
+
     namespace RenderSystemState {
         enum class RRTTHandleEnum : uint32_t {};
-        struct RRTTHandle;
 
         /**
          * @brief A manager class for resizable render target textures.
@@ -90,6 +91,14 @@ namespace Engine {
             ) noexcept;
 
             /**
+             * @brief Get the description of a resizable RTT via handle.
+             * @exception Throws `std::invalid_argument` if the handle is not
+             * created by this manager.
+             */
+            const RenderTargetTexture::RenderTargetTextureDesc &
+            GetTextureDescription(RRTTHandleEnum handle) const;
+
+            /**
              * @brief Release a RTT, so that it will no longer be managed by
              * the manager.
              * 
@@ -104,31 +113,31 @@ namespace Engine {
                 RRTTHandleEnum handle
             ) noexcept;
         };
+    }
+
+    /**
+     * @brief Handle to a Resizable RTT, associated with a manager class.
+     */
+    struct RRTTHandle {
+        RenderSystemState::ResizableRTTManager & manager;
+        RenderSystemState::RRTTHandleEnum handle;
 
         /**
-         * @brief Handle to a Resizable RTT, associated with a manager class.
+         * @brief See `ResizableRTTManager::ResolveHandle()`
+         * 
+         * Refrain from caching this result.
          */
-        struct RRTTHandle {
-            ResizableRTTManager & manager;
-            RRTTHandleEnum handle;
+        auto & Resolve() {
+            return manager.ResolveHandle(handle);
+        }
 
-            /**
-             * @brief See `ResizableRTTManager::ResolveHandle()`
-             * 
-             * Refrain from caching this result.
-             */
-            auto & Resolve() {
-                return manager.ResolveHandle(handle);
-            }
-
-            /**
-             * @brief See `ResizableRTTManager::Release()`.
-             */
-            auto Release() noexcept {
-                return manager.ReleaseRTT(handle);
-            }
-        };
-    }
+        /**
+         * @brief See `ResizableRTTManager::Release()`.
+         */
+        auto Release() noexcept {
+            return manager.ReleaseRTT(handle);
+        }
+    };
     
 }
 
