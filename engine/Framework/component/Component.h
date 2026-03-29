@@ -25,7 +25,6 @@ namespace Engine {
 
     protected:
         friend class Scene;
-        friend class SceneAsset;
         Component() = delete;
         Component(const GameObject &parent);
 
