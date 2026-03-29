@@ -69,16 +69,22 @@ int main(int argc, char *argv[]) {
     cbinding.GetShaderResourceBinding().BindBuffer("Input", compbuf1->GetComputeBuffer());
     cbinding.GetShaderResourceBinding().BindBuffer("Output", compbuf2->GetComputeBuffer());
 
-    RenderGraphBuilder rgb{*rsys};
+    RenderGraphBuilder2 rgb{*rsys};
     auto cbi1 = rgb.ImportExternalResource(compbuf1->GetComputeBuffer());
     auto cbi2 = rgb.ImportExternalResource(compbuf2->GetComputeBuffer());
-    rgb.UseBuffer(cbi1, {MemoryAccessTypeBufferBits::ShaderRandomRead});
-    rgb.UseBuffer(cbi2, {MemoryAccessTypeBufferBits::ShaderRandomWrite});
-    rgb.RecordComputePass([&cstage, &cbinding](ComputeCommandBuffer & ccb, const RenderGraph &) -> void {
-        ccb.BindComputeStage(cstage);
-        ccb.BindComputeResource(cbinding);
-        ccb.DispatchCompute(BUFFER_SIZE / 16 + 1, 1, 1);
-    });
+
+    rgb.AddPass(
+        RenderGraphPassBuilder{*rsys}.SetName("Compute")
+        .UseBuffer(cbi1, {MemoryAccessTypeBufferBits::ShaderRandomRead})
+        .UseBuffer(cbi2, {MemoryAccessTypeBufferBits::ShaderRandomWrite})
+        .SetComputePassFunction(
+            [&cstage, &cbinding](ComputeCommandBuffer & ccb, const RenderGraph2 &) -> void {
+                ccb.BindComputeStage(cstage);
+                ccb.BindComputeResource(cbinding);
+                ccb.DispatchCompute(BUFFER_SIZE / 16 + 1, 1, 1);
+            }
+        ).Get()
+    );
     auto rg{rgb.BuildRenderGraph()};
 
     const auto & queues = rsys->GetDeviceInterface().GetQueueInfo();
@@ -88,7 +94,7 @@ int main(int argc, char *argv[]) {
         1
     };
     auto cb = rsys->GetDevice().allocateCommandBuffers(cbai);
-    rg->Record(cb[0]);
+    rg.RecordAllPasses(cb[0]);
 
     auto si = vk::SubmitInfo{{}, {}, {cb}, {}};
     queues.graphicsQueue.submit(si);
