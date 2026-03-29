@@ -2,12 +2,12 @@
 #define EDITOR_WIDGET_PROJECTWIDGET_INCLUDED
 
 #include "Widget.h"
+#include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include <filesystem>
 #include <memory>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-#include <Asset/AssetDatabase/FileSystemDatabase.h>
 
 namespace Engine {
     class GameObject;
@@ -66,7 +66,7 @@ namespace Editor {
             float wrap_width_used{-1.0f};
         };
         std::unordered_map<AssetPath, CachedDir, AssetPath::Hash> m_dir_cache{};
-        std::unordered_set<AssetPath, AssetPath::Hash> m_open_dirs{};            // dirs currently open in sidebar (this frame)
+        std::unordered_set<AssetPath, AssetPath::Hash> m_open_dirs{}; // dirs currently open in sidebar (this frame)
 
         // Rendering helpers
         void RenderBreadcrumb();

@@ -20,10 +20,10 @@
 #include <UserInterface/Input.h>
 #include <cmake_config.h>
 
+#include <Editor/Render/EditorRenderGraphBuilder.h>
 #include <Editor/Widget/GameWidget.h>
 #include <Editor/Widget/SceneWidget.h>
 #include <Editor/Window/MainWindow.h>
-#include <Editor/Render/EditorRenderGraphBuilder.h>
 
 #include "CustomComponent.h"
 #include <meta_editor_run_game_example/reflection_init.ipp>
@@ -96,8 +96,7 @@ int main() {
     }
     int screenWidth = displayMode->w;
     int screenHeight = displayMode->h;
-    SDL_Log("Screen Resolution: %dx%d @ %fHz", 
-            screenWidth, screenHeight, displayMode->refresh_rate);
+    SDL_Log("Screen Resolution: %dx%d @ %fHz", screenWidth, screenHeight, displayMode->refresh_rate);
     StartupOptions opt{.resol_x = (int)(screenWidth * 0.9), .resol_y = (int)(screenHeight * 0.9), .title = "Editor"};
 
     auto cmc = MainClass::GetInstance();
@@ -151,13 +150,7 @@ int main() {
     auto rgb = std::make_unique<Editor::EditorRenderGraphBuilder>(*cmc->GetRenderSystem());
     int32_t final_color_id, scene_color_id, game_color_id;
     auto rg = rgb->BuildEditorRenderGraph(
-        screenWidth,
-        screenHeight,
-        scene_widget.get(),
-        game_widget.get(),
-        scene_color_id,
-        game_color_id,
-        final_color_id
+        screenWidth, screenHeight, scene_widget.get(), game_widget.get(), scene_color_id, game_color_id, final_color_id
     );
 
     auto scene_texture = rg->GetInternalTextureResource(scene_color_id);

@@ -3,21 +3,21 @@
 #include <chrono>
 #include <fstream>
 
-#include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include "Asset/AssetManager/AssetManager.h"
 #include "Asset/Material/MaterialTemplateAsset.h"
 #include "Asset/Mesh/PlaneMeshAsset.h"
 #include "Asset/Texture/Image2DTextureAsset.h"
-#include "Framework/object/GameObject.h"
+#include "Core/Functional/SDLWindow.h"
 #include "Framework/component/RenderComponent/MeshComponent.h"
+#include "Framework/component/RenderComponent/ObjTestMeshComponent.h"
+#include "Framework/object/GameObject.h"
 #include "Framework/world/Scene.h"
 #include "Framework/world/WorldSystem.h"
-#include "Core/Functional/SDLWindow.h"
-#include "UserInterface/GUISystem.h"
 #include "MainClass.h"
 #include "Render/FullRenderSystem.h"
 #include "Render/Renderer/HomogeneousMesh.h"
-#include "Framework/component/RenderComponent/ObjTestMeshComponent.h"
+#include "UserInterface/GUISystem.h"
+#include <Asset/AssetDatabase/FileSystemDatabase.h>
 
 #include "cmake_config.h"
 
@@ -25,7 +25,7 @@ using namespace Engine;
 namespace sch = std::chrono;
 
 struct LowerPlaneMeshAsset : public PlaneMeshAsset {
-    constexpr static std::array <float, 12> REPLACEMENT_POSITION = {
+    constexpr static std::array<float, 12> REPLACEMENT_POSITION = {
         1.0f, -1.0f, 0.5f, 1.0f, 1.0f, 0.5f, -1.0f, 1.0f, 0.5f, -1.0f, -1.0f, 0.5f
     };
 
@@ -34,21 +34,19 @@ struct LowerPlaneMeshAsset : public PlaneMeshAsset {
         // Replace position buffer
         std::memcpy(
             reinterpret_cast<std::byte *>(m_submeshes[0].m_vertex_attributes.data())
-            + this->m_submeshes[0].positions.buffer_offset,
+                + this->m_submeshes[0].positions.buffer_offset,
             reinterpret_cast<const std::byte *>(REPLACEMENT_POSITION.data()),
             this->m_submeshes[0].positions.buffer_size
         );
         // Reverse vertex normal
-        float * nb{reinterpret_cast<float *>(
-            m_submeshes[0].m_vertex_attributes.data() 
-            + m_submeshes[0].normal.buffer_offset
-        )};
-        float * ne{reinterpret_cast<float *>(
-            m_submeshes[0].m_vertex_attributes.data() 
-            + m_submeshes[0].normal.buffer_offset 
+        float *nb{
+            reinterpret_cast<float *>(m_submeshes[0].m_vertex_attributes.data() + m_submeshes[0].normal.buffer_offset)
+        };
+        float *ne{reinterpret_cast<float *>(
+            m_submeshes[0].m_vertex_attributes.data() + m_submeshes[0].normal.buffer_offset
             + m_submeshes[0].normal.buffer_size
         )};
-        for (float * i = nb; i < ne; i += 3) {
+        for (float *i = nb; i < ne; i += 3) {
             *(i + 2) = -1.0f;
         };
     }
@@ -104,11 +102,9 @@ std::array<MaterialTemplateAsset *, 2> ConstructMaterialTemplate() {
     return templates;
 }
 
-MaterialLibraryAsset * ConstructMaterialLibrary(
-    std::array<MaterialTemplateAsset *, 2> &templates
-) {
+MaterialLibraryAsset *ConstructMaterialLibrary(std::array<MaterialTemplateAsset *, 2> &templates) {
     auto am = MainClass::GetInstance()->GetAssetManager();
-    auto * lib = am->CreateAsset<MaterialLibraryAsset>();
+    auto *lib = am->CreateAsset<MaterialLibraryAsset>();
     lib->m_name = "Blinn-Phong w. Shadowmap";
     MaterialLibraryAsset::MaterialTemplateReference ref;
     ref.expected_mesh_type = 0;
@@ -225,13 +221,16 @@ int main(int argc, char **argv) {
     // We cannot call `RenderInit()` because this component has no associated asset.
     rsys->GetRendererManager().RegisterRendererComponent(cube_mesh_comp.GetHandle());
     rsys->GetRendererManager().RegisterRendererComponent(sphere_mesh_comp.GetHandle());
-    
 
     // Build Render Graph
     RenderGraphBuilder rgb{*rsys};
     Engine::RenderTargetTexture::RenderTargetTextureDesc desc{
-        .dimensions = 2, .width = 1920, .height = 1080,
-        .depth = 1, .mipmap_levels = 1, .array_layers = 1,
+        .dimensions = 2,
+        .width = 1920,
+        .height = 1080,
+        .depth = 1,
+        .mipmap_levels = 1,
+        .array_layers = 1,
         .format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R8G8B8A8UNorm,
         .multisample = 1,
         .is_cube_map = false
@@ -248,19 +247,17 @@ int main(int argc, char **argv) {
     using IAT = MemoryAccessTypeImageBits;
     rgb.UseImage(s, IAT::DepthStencilAttachmentWrite);
     rgb.RecordRasterizerPassWithoutRT(
-        [rsys, s, test_library, object_material_instance](GraphicsCommandBuffer &gcb, const RenderGraph & rg) {
+        [rsys, s, test_library, object_material_instance](GraphicsCommandBuffer &gcb, const RenderGraph &rg) {
             vk::Extent2D shadow_map_extent{2048, 2048};
             vk::Rect2D shadow_map_scissor{{0, 0}, shadow_map_extent};
             auto sm = rg.GetInternalTextureResource(s);
             gcb.BeginRendering(
                 {nullptr},
-                {
-                    sm, 
-                    Engine::TextureSubresourceRange::GetSingleRange(), 
-                    AttachmentUtils::LoadOperation::Clear,
-                    AttachmentUtils::StoreOperation::Store,
-                    AttachmentUtils::DepthClearValue{1.0f, 0U}
-                },
+                {sm,
+                 Engine::TextureSubresourceRange::GetSingleRange(),
+                 AttachmentUtils::LoadOperation::Clear,
+                 AttachmentUtils::StoreOperation::Store,
+                 AttachmentUtils::DepthClearValue{1.0f, 0U}},
                 shadow_map_extent,
                 "Shadowmap Pass"
             );
@@ -280,7 +277,8 @@ int main(int argc, char **argv) {
     rgb.UseImage(d, IAT::DepthStencilAttachmentWrite);
     rgb.RecordRasterizerPass(
         {c, {}, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store},
-        {d, {},
+        {d,
+         {},
          AttachmentUtils::LoadOperation::Clear,
          AttachmentUtils::StoreOperation::DontCare,
          AttachmentUtils::DepthClearValue{1.0f, 0U}},

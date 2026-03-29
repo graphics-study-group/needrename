@@ -3,8 +3,8 @@
 #include <chrono>
 #include <fstream>
 
-#include "Framework/component/RenderComponent/MeshComponent.h"
 #include "Core/Functional/SDLWindow.h"
+#include "Framework/component/RenderComponent/MeshComponent.h"
 #include "MainClass.h"
 #include "Render/FullRenderSystem.h"
 

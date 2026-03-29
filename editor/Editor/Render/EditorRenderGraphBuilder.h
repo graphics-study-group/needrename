@@ -8,7 +8,7 @@
 namespace Engine {
     class AssetRef;
     class ComputeStage;
-}
+} // namespace Engine
 
 namespace Editor {
     class SceneWidget;
@@ -37,6 +37,6 @@ namespace Editor {
         std::shared_ptr<Engine::ComputeStage> m_game_bloom_compute_stage{};
         std::shared_ptr<Engine::ComputeStage> m_scene_bloom_compute_stage{};
     };
-} // namespace Engine
+} // namespace Editor
 
 #endif // EDITOR_RENDER_EDITORRENDERGRAPHBUILDER_INCLUDED
