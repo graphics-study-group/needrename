@@ -346,7 +346,9 @@ namespace Engine {
         pimpl->rs.texture_creation_info[ret] = {
             .name = std::string{name},
             .t = texture_description,
-            .s = sampler_description
+            .s = sampler_description,
+            .scale_x = -1.0f,
+            .scale_y = -1.0f
         };
         return ret;
     }
@@ -358,7 +360,16 @@ namespace Engine {
         float scale_y,
         std::string_view name
     ) {
-        return RGTextureHandle();
+        pimpl->rs.resource_counter++;
+        auto ret = static_cast<RGTextureHandle>(pimpl->rs.resource_counter);
+        pimpl->rs.texture_creation_info[ret] = {
+            .name = std::string{name},
+            .t = texture_description,
+            .s = sampler_description,
+            .scale_x = scale_x,
+            .scale_y = scale_y
+        };
+        return ret;
     }
 
     void RenderGraphBuilder2::AddPass(RenderGraphPass &&pass) noexcept {
