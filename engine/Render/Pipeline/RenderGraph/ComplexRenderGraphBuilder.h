@@ -20,9 +20,7 @@ namespace Engine {
         ~ComplexRenderGraphBuilder() = default;
 
         std::unique_ptr<RenderGraph> BuildDefaultRenderGraph(
-            uint32_t texture_width,
-            uint32_t texture_height,
-            int32_t &final_color_target_id
+            uint32_t texture_width, uint32_t texture_height, int32_t &final_color_target_id
         );
 
     protected:

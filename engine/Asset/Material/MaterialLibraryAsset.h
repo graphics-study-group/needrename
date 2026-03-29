@@ -1,11 +1,11 @@
 #ifndef ASSET_MATERIAL_MATERIALLIBRARYASSET_INCLUDED
 #define ASSET_MATERIAL_MATERIALLIBRARYASSET_INCLUDED
 
+#include <Asset/Asset.h>
+#include <Asset/AssetRef.h>
 #include <Reflection/macros.h>
 #include <Reflection/serialization_smart_pointer.h>
 #include <Reflection/serialization_unordered_map.h>
-#include <Asset/Asset.h>
-#include <Asset/AssetRef.h>
 
 #include <unordered_map>
 
@@ -22,14 +22,14 @@ namespace Engine {
     public:
         struct REFL_SER_CLASS(REFL_BLACKLIST) MaterialTemplateReference {
             REFL_SER_SIMPLE_STRUCT(MaterialTemplateReference)
-            uint32_t expected_mesh_type {};
-            AssetRef material_template {};
-            
+            uint32_t expected_mesh_type{};
+            AssetRef material_template{};
+
             /// Unused.
             // std::vector <uint32_t> preheat_mesh_types;
         };
 
-        using TagBundle = std::unordered_map <std::string, MaterialTemplateReference>;
+        using TagBundle = std::unordered_map<std::string, MaterialTemplateReference>;
 
         REFL_ENABLE MaterialLibraryAsset() = default;
         virtual ~MaterialLibraryAsset() = default;
@@ -37,6 +37,6 @@ namespace Engine {
         REFL_SER_ENABLE TagBundle material_bundle{};
         REFL_SER_ENABLE std::string m_name{};
     };
-}
+} // namespace Engine
 
 #endif // ASSET_MATERIAL_MATERIALLIBRARYASSET_INCLUDED

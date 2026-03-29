@@ -18,7 +18,7 @@ namespace Engine {
     class IVertexBasedRenderer : public IAsynchPrepared {
     public:
         struct BufferBindingInfo {
-            const DeviceBuffer * buffer;
+            const DeviceBuffer *buffer;
             size_t offset;
             // Size may be unused currently, as draw calls specifies vertex
             // and index counts.
@@ -56,15 +56,13 @@ namespace Engine {
          * @see VertexAttribute::ToVkVertexInputBinding() const noexcept
          * etc. for more details on how pipeline vertex input is constructed.
          */
-        virtual void FillVertexAttributeBufferBindings(
-            std::vector <BufferBindingInfo> & bindings
-        ) const noexcept = 0;
+        virtual void FillVertexAttributeBufferBindings(std::vector<BufferBindingInfo> &bindings) const noexcept = 0;
 
         /**
          * @brief Get vertex attribute buffer info for draw calls.
          */
-        std::vector <BufferBindingInfo> GetVertexAttributeBufferBindings() const noexcept {
-            std::vector <BufferBindingInfo> ret;
+        std::vector<BufferBindingInfo> GetVertexAttributeBufferBindings() const noexcept {
+            std::vector<BufferBindingInfo> ret;
             FillVertexAttributeBufferBindings(ret);
             return ret;
         };
@@ -74,6 +72,6 @@ namespace Engine {
          */
         virtual BufferBindingInfo GetIndexBufferBinding() const noexcept = 0;
     };
-}
+} // namespace Engine
 
 #endif // RENDER_RENDERER_IVERTEXBASEDRENDERER_INCLUDED

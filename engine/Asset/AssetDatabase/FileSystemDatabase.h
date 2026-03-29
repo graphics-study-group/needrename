@@ -41,13 +41,13 @@ namespace Engine {
         void from_absolute_path(const std::filesystem::path &absolute_path);
         AssetPath parent_path() const;
 
-        using std::filesystem::path::iterator;
         using std::filesystem::path::begin;
-        using std::filesystem::path::end;
-        using std::filesystem::path::lexically_normal;
         using std::filesystem::path::empty;
-        using std::filesystem::path::generic_string;
+        using std::filesystem::path::end;
         using std::filesystem::path::filename;
+        using std::filesystem::path::generic_string;
+        using std::filesystem::path::iterator;
+        using std::filesystem::path::lexically_normal;
     };
 
     /**

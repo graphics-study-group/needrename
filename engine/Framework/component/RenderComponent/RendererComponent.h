@@ -18,7 +18,7 @@ namespace Engine {
         REFL_SER_BODY(RendererComponent)
     protected:
         using RendererHandle = uint32_t;
-        
+
         std::vector<std::shared_ptr<MaterialInstance>> m_materials{};
         std::weak_ptr<RenderSystem> m_system{};
 
@@ -30,7 +30,7 @@ namespace Engine {
         /// to world coordinate (i.e. the model matrix)
         /// @return Transform
         virtual Transform GetWorldTransform() const;
-        
+
         virtual void UnregisterFromRenderSystem();
 
         virtual void RenderInit();

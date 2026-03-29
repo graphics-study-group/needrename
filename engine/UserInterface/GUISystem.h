@@ -21,10 +21,9 @@ namespace Engine {
     class GUISystem {
     protected:
         struct impl;
-        std::unique_ptr <impl> pimpl;
+        std::unique_ptr<impl> pimpl;
 
     public:
-
         GUISystem();
         ~GUISystem();
 
@@ -57,9 +56,7 @@ namespace Engine {
          * 
          * This method effectively only records draw calls onto the command buffer.
          */
-        void DrawGUI(
-            vk::CommandBuffer cb
-        ) const noexcept;
+        void DrawGUI(vk::CommandBuffer cb) const noexcept;
 
         /**
          * @brief Initialize GUISystem.
@@ -79,11 +76,7 @@ namespace Engine {
          * If UNDEFINED will use swapchain format.
          * @param samples Multisample state. Reserved for future use.
          */
-        void CreateVulkanBackend(
-            RenderSystem & render_system,
-            vk::Format color_attachment_format,
-            uint8_t samples = 1
-        );
+        void CreateVulkanBackend(RenderSystem &render_system, vk::Format color_attachment_format, uint8_t samples = 1);
 
         /**
          * @brief Get current ImGui context for drawing.
@@ -92,17 +85,14 @@ namespace Engine {
          * have to manually call `ImGui::SetCurrentContext()` before
          * building a GUI.
          */
-        ImGuiContext * GetCurrentContext() const;
+        ImGuiContext *GetCurrentContext() const;
 
         /**
          * @brief Reset the color attachment format.
          * 
          * This will recreate the rendering pipeline used by the Dear ImGui backend.
          */
-        void ResetColorAttachmentFormat(
-            vk::Format format,
-            uint8_t samples = 1
-        ) noexcept;
+        void ResetColorAttachmentFormat(vk::Format format, uint8_t samples = 1) noexcept;
     };
 } // namespace Engine
 

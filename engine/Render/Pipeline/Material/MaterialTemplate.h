@@ -34,11 +34,11 @@ namespace Engine {
     namespace ShdrRfl {
         class SPVariable;
         class SPLayout;
-    }
+    } // namespace ShdrRfl
 
     /**
      * @brief `MaterialTemplate` class holds a pipeline object for draw calls.
-     * 
+     *
      * They are generally stored and owned by a `MaterialLibrary` class.
      * It contains all public immutable data for a given pipeline, mainly
      * the layout configuration and a handle to the binary object.
@@ -53,28 +53,28 @@ namespace Engine {
         struct impl;
         std::unique_ptr<impl> pimpl;
 
-        MaterialTemplate(RenderSystem & system);
+        MaterialTemplate(RenderSystem &system);
 
     public:
         /**
          * @brief Construct a new Material Template object.
          */
         MaterialTemplate(
-            RenderSystem & system,
-            MaterialTemplateSinglePassProperties & properties,
-            const std::vector <vk::ShaderModule> & shaders,
+            RenderSystem &system,
+            MaterialTemplateSinglePassProperties &properties,
+            const std::vector<vk::ShaderModule> &shaders,
             vk::PipelineLayout layout,
             vk::DescriptorPool pool,
-            const ShdrRfl::SPLayout & reflected,
-            const PipelineRuntimeInfo & attribute,
-            const std::string & name = ""
+            const ShdrRfl::SPLayout &reflected,
+            const PipelineRuntimeInfo &attribute,
+            const std::string &name = ""
         );
 
         virtual ~MaterialTemplate();
 
         /**
          * @brief Get the pipeline for a specific pass index.
-         * 
+         *
          * @param pass_index The
          * index of the pass to retrieve the pipeline from.
          * @return vk::Pipeline The pipeline associated with
@@ -84,7 +84,7 @@ namespace Engine {
 
         /**
          * @brief Get the pipeline layout for a specific pass index.
-         * 
+         *
          * @return vk::PipelineLayout
          * The pipeline layout associated with the specified pass index.
          */
@@ -100,7 +100,7 @@ namespace Engine {
         /**
          * @brief Get all reflected shader info.
          */
-        const ShdrRfl::SPLayout & GetReflectedShaderInfo () const noexcept;
+        const ShdrRfl::SPLayout &GetReflectedShaderInfo() const noexcept;
 
         /**
          * @brief Query whether this material template has data to be submitted

@@ -3,8 +3,8 @@
 
 #include "Widget.h"
 #include <Core/Delegate/Event.h>
-#include <string>
 #include <Framework/world/Handle.h>
+#include <string>
 
 namespace Engine {
     class GameObject;

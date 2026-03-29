@@ -8,8 +8,8 @@
 #include <Asset/AssetManager/AssetManager.h>
 #include <Asset/AssetRef.h>
 #include <Asset/Loader/Importer.h>
-#include <Asset/Scene/SceneAsset.h>
 #include <Asset/Scene/LevelAsset.h>
+#include <Asset/Scene/SceneAsset.h>
 #include <Core/Functional/SDLWindow.h>
 #include <Core/Math/Transform.h>
 #include <Framework/component/RenderComponent/CameraComponent.h>
@@ -60,11 +60,7 @@ int main(int argc, char **argv) {
     auto rgb = std::make_unique<ComplexRenderGraphBuilder>(*cmc->GetRenderSystem());
     auto [w, h] = cmc->GetWindow()->GetSize();
     int32_t final_color_id;
-    auto rg = rgb->BuildDefaultRenderGraph(
-        w,
-        h,
-        final_color_id
-    );
+    auto rg = rgb->BuildDefaultRenderGraph(w, h, final_color_id);
     cmc->SetRenderGraph(rg, final_color_id);
 
     std::filesystem::path path_in_project = "/";

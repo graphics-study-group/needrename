@@ -50,7 +50,7 @@ namespace Engine {
         }
     }
 
-    Asset* AssetManager::LoadAssetImmediately(const GUID &guid) {
+    Asset *AssetManager::LoadAssetImmediately(const GUID &guid) {
         if (IsAssetLoaded(guid)) {
             return m_loaded_assets[guid].get();
         }
@@ -68,7 +68,7 @@ namespace Engine {
         return GetAsset(new_asset_guid);
     }
 
-    Asset* AssetManager::GetAsset(const GUID &guid) {
+    Asset *AssetManager::GetAsset(const GUID &guid) {
         auto it = m_loaded_assets.find(guid);
         if (it == m_loaded_assets.end()) {
             return nullptr;

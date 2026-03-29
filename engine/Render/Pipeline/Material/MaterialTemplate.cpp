@@ -7,12 +7,12 @@
 #include "Render/AttachmentUtilsFunc.h"
 #include "Render/DebugUtils.h"
 #include "Render/ImageUtilsFunc.h"
-#include "Render/Pipeline/PipelineRuntimeInfo.h"
 #include "Render/Pipeline/PipelineInfo.h"
+#include "Render/Pipeline/PipelineRuntimeInfo.h"
 #include "Render/Pipeline/PipelineUtils.hpp"
 #include "Render/RenderSystem.h"
-#include "Render/RenderSystem/Swapchain.h"
 #include "Render/RenderSystem/CameraManager.h"
+#include "Render/RenderSystem/Swapchain.h"
 
 #include "Render/Memory/ShaderParameters/ShaderParameterLayout.h"
 
@@ -28,16 +28,16 @@ namespace Engine {
             vk::DynamicState::eViewport, vk::DynamicState::eScissor
         };
 
-        vk::DescriptorPool desc_pool {};
-        vk::PipelineLayout pipeline_layout {};
-        const ShdrRfl::SPLayout * m_layout{};
+        vk::DescriptorPool desc_pool{};
+        vk::PipelineLayout pipeline_layout{};
+        const ShdrRfl::SPLayout *m_layout{};
 
-        vk::UniquePipeline pipeline {};
+        vk::UniquePipeline pipeline{};
         std::string m_name{};
 
         void CreatePipeline(
-            RenderSystem & system,
-            const std::vector <vk::ShaderModule> shader_modules,
+            RenderSystem &system,
+            const std::vector<vk::ShaderModule> shader_modules,
             MaterialTemplateSinglePassProperties &prop,
             const PipelineRuntimeInfo &pri
         ) {
@@ -45,14 +45,13 @@ namespace Engine {
 
             // Process shaders.
             vk::SpecializationInfo speci{};
-            std::vector <vk::PipelineShaderStageCreateInfo> psscis;
-            std::vector <vk::SpecializationMapEntry> sme;
-            std::vector <std::byte> specialization_constant_buffer;
+            std::vector<vk::PipelineShaderStageCreateInfo> psscis;
+            std::vector<vk::SpecializationMapEntry> sme;
+            std::vector<std::byte> specialization_constant_buffer;
             {
                 // Prepare specialization constants
                 speci = PipelineUtils::FillSpecializationInfo(
-                    prop.shaders.specialization_constants,
-                    sme, specialization_constant_buffer
+                    prop.shaders.specialization_constants, sme, specialization_constant_buffer
                 );
 
                 psscis.resize(prop.shaders.shaders.size());
@@ -71,9 +70,7 @@ namespace Engine {
             auto vertex_bindings = pri.va.ToVkVertexInputBinding();
             auto vertex_attribute = pri.va.ToVkVertexAttribute();
             auto vis = vk::PipelineVertexInputStateCreateInfo{
-                vk::PipelineVertexInputStateCreateFlags{},
-                vertex_bindings,
-                vertex_attribute
+                vk::PipelineVertexInputStateCreateFlags{}, vertex_bindings, vertex_attribute
             };
             auto iasi = vk::PipelineInputAssemblyStateCreateInfo{{}, vk::PrimitiveTopology::eTriangleList, vk::False};
             auto vsi = vk::PipelineViewportStateCreateInfo{{}, 1, nullptr, 1, nullptr};
@@ -87,8 +84,8 @@ namespace Engine {
 
             std::vector<vk::Format> color_attachment_formats{};
 
-            for (const auto & f : pri.color_attachment_format) {
-                if (f == ImageUtils::ImageFormat::UNDEFINED)    break;
+            for (const auto &f : pri.color_attachment_format) {
+                if (f == ImageUtils::ImageFormat::UNDEFINED) break;
                 color_attachment_formats.push_back(ImageUtils::GetVkFormat(f));
             }
 
@@ -147,9 +144,7 @@ namespace Engine {
 
             auto ret = device.createGraphicsPipelineUnique(nullptr, gpci);
             pipeline = std::move(ret.value);
-            SDL_LogInfo(
-                SDL_LOG_CATEGORY_RENDER, "Successfully created material %s.", m_name.c_str()
-            );
+            SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Successfully created material %s.", m_name.c_str());
         }
     };
 
@@ -173,7 +168,7 @@ namespace Engine {
         }
 
         pimpl->desc_pool = pool;
-        
+
         pimpl->pipeline_layout = layout;
         pimpl->m_layout = &reflected;
 

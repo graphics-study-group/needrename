@@ -10,7 +10,7 @@ namespace {
             extra_data.end(), reinterpret_cast<std::byte *>(data), reinterpret_cast<std::byte *>(data) + size
         );
     }
-}
+} // namespace
 
 namespace Engine {
     void Image2DTextureAsset::save_asset_to_archive(Serialization::Archive &archive) const {

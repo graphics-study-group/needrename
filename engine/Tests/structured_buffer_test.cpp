@@ -1,9 +1,9 @@
 #include "../Render/Memory/StructuredBuffer.h"
 #include "../Render/Memory/StructuredBufferPlacer.h"
-#include <glm.hpp>
-#include <iostream>
 #include <format>
+#include <glm.hpp>
 #include <gtc/type_ptr.hpp>
+#include <iostream>
 
 struct [[gnu::packed]] sub_buffer {
     uint32_t v1;
@@ -11,7 +11,7 @@ struct [[gnu::packed]] sub_buffer {
     float v3[3];
 };
 
-struct [[gnu::packed]] super_buffer{
+struct [[gnu::packed]] super_buffer {
     uint64_t v1;
     sub_buffer v2;
     float v3[16];
@@ -29,13 +29,15 @@ int main() {
     super_placer.AddStructuredBuffer("v2", offsetof(super_buffer, v2), sub_placer);
     super_placer.AddVariable<float[16]>("v3", offsetof(super_buffer, v3));
 
-    std::cout << std::format("sub placer size {}, expected {}", sub_placer.CalculateMaxSize(), sizeof(sub_buffer)) << std::endl;
-    std::cout << std::format("super placer size {}, expected {}", super_placer.CalculateMaxSize(), sizeof(super_buffer)) << std::endl;
+    std::cout << std::format("sub placer size {}, expected {}", sub_placer.CalculateMaxSize(), sizeof(sub_buffer))
+              << std::endl;
+    std::cout << std::format("super placer size {}, expected {}", super_placer.CalculateMaxSize(), sizeof(super_buffer))
+              << std::endl;
 
     assert(sub_placer.CalculateMaxSize() >= sizeof(sub_buffer));
     assert(super_placer.CalculateMaxSize() >= sizeof(super_buffer));
 
-    std::vector <std::byte> buffer;
+    std::vector<std::byte> buffer;
     buffer.resize(1024);
 
     StructuredBuffer subsb, supersb;
@@ -59,7 +61,7 @@ int main() {
         assert(sb.v2 == 1e9);
         assert(sb.v3[0] == 1.0f && sb.v3[1] == 2.0f && sb.v3[2] == 3.0f);
     }
-    
+
     {
         super_placer.WriteBuffer(supersb, buffer);
         super_buffer supb;

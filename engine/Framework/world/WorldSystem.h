@@ -20,7 +20,7 @@ namespace Engine {
      * @brief WorldSystem manages multiple Scene instances.
      * Each Scene can be accessed via a uint32_t scene ID.
      * A main Scene exists inside World, representing the active runtime scene.
-     * WorldSystem is responsible for organizing scene data (cameras, light sources, etc.) 
+     * WorldSystem is responsible for organizing scene data (cameras, light sources, etc.)
      * and renderer data in the game, and transmitting them to the rendering system every frame.
      */
     class WorldSystem {
@@ -78,7 +78,7 @@ namespace Engine {
         /**
          * @brief Clear all unused scenes.
          * This method is called every frame to ensure that only active scenes are kept in memory.
-         * 
+         *
          * TODO: Currently implement shared_ptr to manage scene memory. May need better management.
          */
         void ClearUnusedScenes();
@@ -95,6 +95,7 @@ namespace Engine {
 
         std::unordered_map<uint32_t, std::shared_ptr<Scene>> m_scene_map{};
         uint32_t m_scene_id_gen{1};
+
     public:
         AssetRef m_skybox_material{};
     };

@@ -230,7 +230,7 @@ int main(int argc, char **argv) {
     auto cs_ref = adb->GetNewAssetRef({*adb, "~/shaders/bloom.comp.asset"});
     auto bloom_compute_stage = std::make_shared<ComputeStage>(*rsys);
     bloom_compute_stage->Instantiate(*cs_ref.as<ShaderAsset>());
-    auto & bloom_compute_binding = bloom_compute_stage->AllocateResourceBinding();
+    auto &bloom_compute_binding = bloom_compute_stage->AllocateResourceBinding();
 
     // Build render graph.
     RenderGraphBuilder2 rgb{*rsys};
@@ -253,65 +253,60 @@ int main(int argc, char **argv) {
     // Color pass
     using IAT = MemoryAccessTypeImageBits;
     rgb.AddPass(
-        RenderGraphPassBuilder{*rsys}.SetName("Color Pass")
-        .AppendColorAttachment(
-            {
-                hc, {}, 
-                AttachmentUtils::LoadOperation::Clear,
-                AttachmentUtils::StoreOperation::Store
-            }
-        ).SetDepthStencilAttachment(
-            {
-                d, {},
-                AttachmentUtils::LoadOperation::Clear,
-                AttachmentUtils::StoreOperation::DontCare,
-                AttachmentUtils::DepthClearValue{1.0f, 0U}
-            }
-        ).SetRasterizerPassFunction(
-            [rsys](GraphicsCommandBuffer &gcb, const RenderGraph2 &) {
+        RenderGraphPassBuilder{*rsys}
+            .SetName("Color Pass")
+            .AppendColorAttachment(
+                {hc, {}, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store}
+            )
+            .SetDepthStencilAttachment(
+                {d,
+                 {},
+                 AttachmentUtils::LoadOperation::Clear,
+                 AttachmentUtils::StoreOperation::DontCare,
+                 AttachmentUtils::DepthClearValue{1.0f, 0U}}
+            )
+            .SetRasterizerPassFunction([rsys](GraphicsCommandBuffer &gcb, const RenderGraph2 &) {
                 gcb.DrawRenderers("", rsys->GetRendererManager().FilterAndSortRenderers({}));
-            }
-        ).WrapRenderPass().Get()
+            })
+            .WrapRenderPass()
+            .Get()
     );
 
     // Bloom pass
     rgb.AddPass(
-        RenderGraphPassBuilder{*rsys}.SetName("Bloom Fx Pass")
-        .UseImage(hc, IAT::ShaderRandomRead)
-        .UseImage(c, IAT::ShaderRandomWrite)
-        .SetComputePassFunction(
-            [bloom_compute_stage, &bloom_compute_binding, hc, c](
-                ComputeCommandBuffer &ccb,
-                const RenderGraph2 & rg
-            ) {
+        RenderGraphPassBuilder{*rsys}
+            .SetName("Bloom Fx Pass")
+            .UseImage(hc, IAT::ShaderRandomRead)
+            .UseImage(c, IAT::ShaderRandomWrite)
+            .SetComputePassFunction([bloom_compute_stage, &bloom_compute_binding, hc, c](
+                                        ComputeCommandBuffer &ccb, const RenderGraph2 &rg
+                                    ) {
                 // These descriptors should be cached, so there should be only one write.
                 bloom_compute_binding.GetShaderResourceBinding().BindTexture(
-                    "inputImage", *rg.GetInternalTextureResource(hc));
+                    "inputImage", *rg.GetInternalTextureResource(hc)
+                );
                 bloom_compute_binding.GetShaderResourceBinding().BindTexture(
-                    "outputImage", *rg.GetInternalTextureResource(c));
+                    "outputImage", *rg.GetInternalTextureResource(c)
+                );
                 ccb.BindComputeStage(*bloom_compute_stage);
                 ccb.BindComputeResource(bloom_compute_binding);
-                ccb.DispatchCompute(
-                    1920 / 16 + 1, 1080 / 16 + 1, 1
-                );
-            }
-        ).Get()
+                ccb.DispatchCompute(1920 / 16 + 1, 1080 / 16 + 1, 1);
+            })
+            .Get()
     );
 
     // GUI pass
     rgb.AddPass(
-        RenderGraphPassBuilder{*rsys}.SetName("GUI Pass")
-        .AppendColorAttachment(
-            {
-                c, {},
-                AttachmentUtils::LoadOperation::Load,
-                AttachmentUtils::StoreOperation::Store
-            }
-        ).SetRasterizerPassFunction(
-            [rsys, gsys](GraphicsCommandBuffer &gcb, const RenderGraph2 &) {
+        RenderGraphPassBuilder{*rsys}
+            .SetName("GUI Pass")
+            .AppendColorAttachment(
+                {c, {}, AttachmentUtils::LoadOperation::Load, AttachmentUtils::StoreOperation::Store}
+            )
+            .SetRasterizerPassFunction([rsys, gsys](GraphicsCommandBuffer &gcb, const RenderGraph2 &) {
                 gsys->DrawGUI(gcb.GetCommandBuffer());
-            }
-        ).WrapRenderPass().Get()
+            })
+            .WrapRenderPass()
+            .Get()
     );
 
     auto rg{rgb.BuildRenderGraph()};
@@ -345,11 +340,7 @@ int main(int argc, char **argv) {
 
         rg.Execute(*rsys);
         auto color = rg.GetInternalTextureResource(c);
-        rsys->CompleteFrame(
-            *color,
-            color->GetTextureDescription().width,
-            color->GetTextureDescription().height
-        );
+        rsys->CompleteFrame(*color, color->GetTextureDescription().width, color->GetTextureDescription().height);
 
         // SDL_Delay(5);
 

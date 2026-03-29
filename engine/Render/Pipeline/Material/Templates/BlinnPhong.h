@@ -2,8 +2,8 @@
 #define MATERIAL_TEMPLATES_BLINNPHONG_INCLUDED
 
 #include "Render/Pipeline/Material/MaterialInstance.h"
-#include "Render/Pipeline/Material/MaterialTemplate.h"
 #include "Render/Pipeline/Material/MaterialLibrary.h"
+#include "Render/Pipeline/Material/MaterialTemplate.h"
 #include <fwd.hpp>
 
 namespace Engine {
@@ -12,7 +12,7 @@ namespace Engine {
 
     namespace Materials {
         class BlinnPhongInstance : public MaterialInstance {
-            std::shared_ptr <Texture> base_texture{};
+            std::shared_ptr<Texture> base_texture{};
 
         public:
             BlinnPhongInstance(RenderSystem &system, std::shared_ptr<MaterialLibrary> tpl);

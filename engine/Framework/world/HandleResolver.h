@@ -1,9 +1,9 @@
 #ifndef FRAMEWORK_WORLD_HANDLERESOLVER_INCLUDED
 #define FRAMEWORK_WORLD_HANDLERESOLVER_INCLUDED
 
+#include "Handle.h"
 #include <Reflection/serialization.h>
 #include <unordered_map>
-#include "Handle.h"
 
 namespace Engine {
     /**

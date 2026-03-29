@@ -2,9 +2,9 @@
 #define RENDER_MEMORY_STRUCTUREDBUFFERPLACER_INCLUDED
 
 #include <memory>
-#include <vector>
 #include <type_traits>
 #include <typeinfo>
+#include <vector>
 
 namespace Engine {
 
@@ -15,7 +15,7 @@ namespace Engine {
      */
     class StructuredBufferPlacer {
         struct impl;
-        std::unique_ptr <impl> pimpl;
+        std::unique_ptr<impl> pimpl;
 
     public:
         StructuredBufferPlacer() noexcept;
@@ -30,18 +30,12 @@ namespace Engine {
          * @param size size of the variable.
          * @param type RTTI info for the type. Pass a `nullptr` to skip RTTI checks on this variable.
          */
-        void AddVariable(
-            const std::string & name,
-            size_t offset,
-            size_t size,
-            const std::type_info * type
-        );
+        void AddVariable(const std::string &name, size_t offset, size_t size, const std::type_info *type);
 
         template <typename T>
-        void AddVariable(
-            const std::string & name,
-            size_t offset
-        ) requires (std::is_standard_layout_v<T>) {
+        void AddVariable(const std::string &name, size_t offset)
+            requires(std::is_standard_layout_v<T>)
+        {
             // typeid returns static life-time variables, so taking is address should be fine.
             AddVariable(name, offset, sizeof(T), &typeid(T));
         };
@@ -54,27 +48,17 @@ namespace Engine {
          *          - Subbuffer outlives the main buffer;
          *          - No cycle exists in the chain of subbuffers.
          */
-        void AddStructuredBuffer (
-            const std::string & name,
-            size_t offset,
-            const StructuredBufferPlacer & buffer
-        );
+        void AddStructuredBuffer(const std::string &name, size_t offset, const StructuredBufferPlacer &buffer);
 
         /**
          * @brief Recursively determine the maximal size of this buffer.
          */
         size_t CalculateMaxSize() const noexcept;
 
-        void WriteBuffer(
-            const StructuredBuffer & data,
-            std::byte * buffer
-        ) const noexcept;
+        void WriteBuffer(const StructuredBuffer &data, std::byte *buffer) const noexcept;
 
-        void WriteBuffer(
-            const StructuredBuffer & data,
-            std::vector <std::byte> & buffer
-        ) const;
+        void WriteBuffer(const StructuredBuffer &data, std::vector<std::byte> &buffer) const;
     };
-}
+} // namespace Engine
 
 #endif // RENDER_MEMORY_STRUCTUREDBUFFERPLACER_INCLUDED

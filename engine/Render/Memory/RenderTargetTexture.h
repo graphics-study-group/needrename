@@ -32,38 +32,29 @@ namespace Engine {
             // an additional texture containing multisamples will be
             // created.
             // XXX: Not tested.
-            uint8_t multisample {1};
-            bool is_cube_map {false};
+            uint8_t multisample{1};
+            bool is_cube_map{false};
         };
         using RTTFormat = RenderTargetTextureDesc::RTTFormat;
-    
+
     protected:
         RenderTargetTexture(
-            RenderSystem & system,
-            TextureDesc texture,
-            SamplerDesc sampler,
-            const std::string & name = ""
+            RenderSystem &system, TextureDesc texture, SamplerDesc sampler, const std::string &name = ""
         );
 
         bool support_random_access{false}, support_atomic_access{false};
-    
+
     public:
         static RenderTargetTexture Create(
-            RenderSystem & system, 
-            RenderTargetTextureDesc texture, 
-            SamplerDesc sampler,
-            const std::string & name = ""
+            RenderSystem &system, RenderTargetTextureDesc texture, SamplerDesc sampler, const std::string &name = ""
         );
-        static std::unique_ptr <RenderTargetTexture> CreateUnique(
-            RenderSystem & system, 
-            RenderTargetTextureDesc texture, 
-            SamplerDesc sampler,
-            const std::string & name = ""
+        static std::unique_ptr<RenderTargetTexture> CreateUnique(
+            RenderSystem &system, RenderTargetTextureDesc texture, SamplerDesc sampler, const std::string &name = ""
         );
 
         bool SupportRandomAccess() const noexcept override;
         bool SupportAtomicOperation() const noexcept override;
     };
-}
+} // namespace Engine
 
 #endif // RENDER_MEMORY_RENDERTARGETTEXTURE_INCLUDED

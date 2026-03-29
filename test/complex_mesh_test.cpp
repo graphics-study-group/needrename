@@ -9,9 +9,9 @@
 #include "Asset/Material/MaterialAsset.h"
 #include "Core/Functional/SDLWindow.h"
 #include "Framework/component/RenderComponent/StaticMeshComponent.h"
-#include "Render/Renderer/HomogeneousMesh.h"
 #include "MainClass.h"
 #include "Render/FullRenderSystem.h"
+#include "Render/Renderer/HomogeneousMesh.h"
 #include "UserInterface/GUISystem.h"
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include <Asset/AssetManager/AssetManager.h>
@@ -19,8 +19,8 @@
 #include <Asset/Loader/ObjLoader.h>
 #include <Asset/Mesh/MeshAsset.h>
 #include <Framework/object/GameObject.h>
-#include <Framework/world/WorldSystem.h>
 #include <Framework/world/Scene.h>
+#include <Framework/world/WorldSystem.h>
 
 #include "cmake_config.h"
 
@@ -103,7 +103,9 @@ class MeshComponentFromFile : public StaticMeshComponent {
 
         // Read material assets
         for (const auto &material : materials) {
-            this->m_material_assets.push_back(AssetRef(MainClass::GetInstance()->GetAssetManager()->CreateAsset<MaterialAsset>()));
+            this->m_material_assets.push_back(
+                AssetRef(MainClass::GetInstance()->GetAssetManager()->CreateAsset<MaterialAsset>())
+            );
             loader.LoadMaterialAssetFromTinyObj(
                 *(this->m_material_assets.back().as<MaterialAsset>()), material, mesh.parent_path()
             );
@@ -113,8 +115,7 @@ class MeshComponentFromFile : public StaticMeshComponent {
     }
 
 public:
-    MeshComponentFromFile(const GameObject &parent) :
-        StaticMeshComponent(parent), transform() {
+    MeshComponentFromFile(const GameObject &parent) : StaticMeshComponent(parent), transform() {
     }
 
     void LoadFile(std::filesystem::path mesh_file_name) {
@@ -272,11 +273,7 @@ int main(int argc, char **argv) {
         auto index = rsys->StartFrame();
         rg->Execute();
         auto color = rg->GetInternalTextureResource(0);
-        rsys->CompleteFrame(
-            *color,
-            color->GetTextureDescription().width,
-            color->GetTextureDescription().height
-        );
+        rsys->CompleteFrame(*color, color->GetTextureDescription().width, color->GetTextureDescription().height);
 
         SDL_Delay(5);
 

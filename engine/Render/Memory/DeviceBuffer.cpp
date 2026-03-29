@@ -2,13 +2,12 @@
 #include "Render/RenderSystem.h"
 
 namespace Engine {
-    DeviceBuffer::DeviceBuffer(
-        BufferAllocation && alloc,
-        size_t size
-    ) : m_size(size), allocation(std::move(alloc)){
+    DeviceBuffer::DeviceBuffer(BufferAllocation &&alloc, size_t size) : m_size(size), allocation(std::move(alloc)) {
     }
 
-    DeviceBuffer DeviceBuffer::Create(const RenderSystemState::AllocatorState & allocator, BufferType type, size_t size, const std::string &name) {
+    DeviceBuffer DeviceBuffer::Create(
+        const RenderSystemState::AllocatorState &allocator, BufferType type, size_t size, const std::string &name
+    ) {
         return DeviceBuffer(allocator.AllocateBuffer(type, size, name), size);
     }
 

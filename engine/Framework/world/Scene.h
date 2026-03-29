@@ -31,6 +31,7 @@ namespace Engine {
     protected:
         friend class WorldSystem;
         Scene(uint32_t sceneID);
+
     public:
         virtual ~Scene();
 
@@ -140,7 +141,7 @@ namespace Engine {
          * @return The Component pointer.
          */
         template <typename T>
-        T *GetComponent(ComponentHandle handle) const{
+        T *GetComponent(ComponentHandle handle) const {
             return dynamic_cast<T *>(GetComponent(handle));
         }
 

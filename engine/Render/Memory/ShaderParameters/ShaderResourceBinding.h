@@ -13,10 +13,10 @@ namespace Engine {
     class DeviceBuffer;
     class Texture;
 
-    namespace RenderSystemState{
+    namespace RenderSystemState {
         class DeviceInterface;
         class ImmutableResourceCache;
-    };
+    }; // namespace RenderSystemState
 
     namespace ShdrRfl {
         class SPLayout;
@@ -39,13 +39,10 @@ namespace Engine {
      */
     class ShaderResourceBinding {
         struct impl;
-        std::unique_ptr <impl> pimpl;
+        std::unique_ptr<impl> pimpl;
 
     public:
-
-        ShaderResourceBinding(
-            RenderSystemState::ImmutableResourceCache & irc
-        );
+        ShaderResourceBinding(RenderSystemState::ImmutableResourceCache &irc);
         ~ShaderResourceBinding() noexcept;
 
         /**
@@ -56,19 +53,16 @@ namespace Engine {
          * offset on binding time.
          */
         void BindBuffer(
-            const std::string & name,
-            const DeviceBuffer & buf,
-            size_t offset = 0ULL, 
+            const std::string &name,
+            const DeviceBuffer &buf,
+            size_t offset = 0ULL,
             size_t size = std::numeric_limits<size_t>::max()
         ) noexcept;
 
         /**
          * @brief Point an interface to a texture for sampling or random access.
          */
-        void BindTexture(
-            const std::string & name,
-            Texture & texture
-        ) noexcept;
+        void BindTexture(const std::string &name, Texture &texture) noexcept;
 
         /**
          * @brief Point an interface to a subresource of a texture.
@@ -77,11 +71,7 @@ namespace Engine {
          * correctly sychronized, as currently the Render Graph operates on 
          * resource granularity.
          */
-        void BindTexture(
-            const std::string & name,
-            Texture & texture,
-            TextureSubresourceRange range
-        ) noexcept;
+        void BindTexture(const std::string &name, Texture &texture, TextureSubresourceRange range) noexcept;
 
         /**
          * @brief Get the current descriptor set, determined by bound buffers
@@ -92,13 +82,13 @@ namespace Engine {
          */
         vk::DescriptorSet GetDescriptorSet(
             uint32_t set_id,
-            const ShdrRfl::SPLayout & s,
+            const ShdrRfl::SPLayout &s,
             vk::Device d,
             vk::DescriptorPool pool,
             bool enforce_dynamic_uniform = false,
             bool enforce_dynamic_storage = false
         );
     };
-}
+} // namespace Engine
 
 #endif // MEMORY_SHADERPARAMETERS_SHADERRESOURCEBINDING_INCLUDED

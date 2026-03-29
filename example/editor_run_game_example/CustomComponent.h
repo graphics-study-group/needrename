@@ -25,7 +25,8 @@ public:
     REFL_SER_ENABLE float m_speed = 10.0f;
     REFL_SER_ENABLE std::vector<float> no_use = {1.0f, 8.0f, 2.0f, 3.0f, 7.0f, 6.0f};
     REFL_SER_ENABLE enum class REFL_SER_CLASS() TestEnum {
-        WOW, FURINA
+        WOW,
+        FURINA
     } no_use2 = TestEnum::WOW;
 
     REFL_ENABLE virtual void Init() override;

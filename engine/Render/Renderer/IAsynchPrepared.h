@@ -5,7 +5,7 @@ namespace Engine {
     namespace RenderSystemState {
         class SubmissionHelper;
         class AllocatorState;
-    }
+    } // namespace RenderSystemState
     /**
      * @brief A render resource that needs to be submitted to GPU asynchronously.
      */
@@ -28,11 +28,8 @@ namespace Engine {
         /**
          * @brief How to submit this resource to GPU.
          */
-        virtual void Submit(
-            const RenderSystemState::AllocatorState &,
-            RenderSystemState::SubmissionHelper &
-        ) = 0;
+        virtual void Submit(const RenderSystemState::AllocatorState &, RenderSystemState::SubmissionHelper &) = 0;
     };
-}
+} // namespace Engine
 
 #endif // RENDER_RENDERER_IASYCHPREPARED_INCLUDED

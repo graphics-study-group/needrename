@@ -5,8 +5,10 @@
 #include "Render/Memory/TextureSubresourceView.h"
 
 namespace Engine {
-    enum class RGTextureHandle : int32_t {};
-    enum class RGBufferHandle : int32_t {};
+    enum class RGTextureHandle : int32_t {
+    };
+    enum class RGBufferHandle : int32_t {
+    };
 
     template <class T>
     struct RGAttachmentDescTemplate {
@@ -24,6 +26,6 @@ namespace Engine {
 
     using RGAttachmentDesc = RGAttachmentDescTemplate<int32_t>;
     using RGAttachmentDesc2 = RGAttachmentDescTemplate<RGTextureHandle>;
-}
+} // namespace Engine
 
 #endif // PIPELINE_RENDERGRAPH_RGATTACHMENTDESC
