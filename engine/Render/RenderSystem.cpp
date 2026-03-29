@@ -198,5 +198,6 @@ namespace Engine {
         vk::Extent2D expected_extent{width, height};
 
         m_swapchain.CreateSwapchain(*m_device_interface, expected_extent);
+        m_resizable_rtt_manger.SetReferenceSize(w, h);
     }
 } // namespace Engine

@@ -32,6 +32,7 @@ namespace Engine::RenderSystemState {
             RenderSystem & system,
             decltype(description_map)::iterator itr
         ) {
+            assert(reference_width > 0 && reference_height > 0);
             assert(itr != description_map.end());
             auto true_description = itr->second.desc;
             true_description.width = std::floor(reference_width * itr->second.scale_x);
