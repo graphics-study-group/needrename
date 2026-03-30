@@ -9,6 +9,7 @@ namespace Engine {
     class RenderGraphPass;
     class RenderSystem;
     class DeviceBuffer;
+    class RRTTHandle;
 
     class RenderGraphBuilder2 {
         struct impl;
@@ -35,6 +36,10 @@ namespace Engine {
         [[nodiscard]]
         RGTextureHandle ImportExternalResource(
             RenderTargetTexture &texture, MemoryAccessTypeImageBits prev_access = MemoryAccessTypeImageBits::None
+        );
+        [[nodiscard]]
+        RGTextureHandle ImportExternalResource(
+            RRTTHandle texture, MemoryAccessTypeImageBits prev_access = MemoryAccessTypeImageBits::None
         );
 
         /**
@@ -67,6 +72,27 @@ namespace Engine {
             RenderTargetTexture::SamplerDesc sampler_description,
             std::string_view name = ""
         ) noexcept;
+
+        /**
+         * @brief Request a new render target texture to be created when
+         * compiling the render graph.
+         *
+         * This render target texture will be resizable and managed by the
+         * manager attached to the current render system. However, its
+         * ownership is mantained by the built render graph, and will be release
+         * when destructing.
+         *
+         * @return a handle to the managed resource, used in the render graph
+         * internally. Internal resouces will have positive handles.
+         */
+        [[nodiscard]]
+        RGTextureHandle RequestResizableRenderTargetTexture(
+            RenderTargetTexture::RenderTargetTextureDesc texture_description,
+            RenderTargetTexture::SamplerDesc sampler_description,
+            float scale_x = 1.0f,
+            float scale_y = 1.0f,
+            std::string_view name = ""
+        );
 
         /**
          * @brief Add a pass to this render graph.

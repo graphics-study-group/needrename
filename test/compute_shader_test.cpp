@@ -10,6 +10,8 @@
 
 using namespace Engine;
 
+RGTextureHandle g_color_in_handle;
+
 auto BuildRenderGraph(
     RenderSystem &rsys,
     RenderTargetTexture &color_in,
@@ -18,25 +20,35 @@ auto BuildRenderGraph(
     ComputeStage &compute,
     ComputeResourceBinding &cbinding
 ) {
-    RenderGraphBuilder rgb{rsys};
+    RenderGraphBuilder2 rgb{rsys};
     auto ci = rgb.ImportExternalResource(color_in, MemoryAccessTypeImageBits::TransferWrite);
     auto co = rgb.ImportExternalResource(color_out);
     auto cp = rgb.ImportExternalResource(color_present);
-    rgb.UseImage(ci, MemoryAccessTypeImageBits::ShaderRandomRead);
-    rgb.UseImage(co, MemoryAccessTypeImageBits::ShaderRandomWrite);
-    rgb.UseImage(cp, MemoryAccessTypeImageBits::ShaderRandomWrite);
-    rgb.RecordComputePass([&](ComputeCommandBuffer &ccb, const RenderGraph &rg) -> void {
-        ccb.BindComputeStage(compute);
-        ccb.BindComputeResource(cbinding);
-        ccb.DispatchCompute(1280 / 16 + 1, 720 / 16 + 1, 1);
-    });
+    rgb.AddPass(
+        RenderGraphPassBuilder{rsys}
+            .SetName("Fluid simulation")
+            .UseImage(ci, MemoryAccessTypeImageBits::ShaderRandomRead)
+            .UseImage(co, MemoryAccessTypeImageBits::ShaderRandomWrite)
+            .UseImage(cp, MemoryAccessTypeImageBits::ShaderRandomWrite)
+            .SetComputePassFunction([&](ComputeCommandBuffer &ccb, const RenderGraph2 &rg) -> void {
+                ccb.BindComputeStage(compute);
+                ccb.BindComputeResource(cbinding);
+                ccb.DispatchCompute(1280 / 16 + 1, 720 / 16 + 1, 1);
+            })
+            .Get()
+    );
 
-    rgb.UseImage(ci, MemoryAccessTypeImageBits::TransferWrite);
-    rgb.UseImage(co, MemoryAccessTypeImageBits::TransferRead);
-    rgb.RecordTransferPass([&](TransferCommandBuffer &tcb, const RenderGraph &) -> void {
-        tcb.BlitColorImage(color_out, color_in);
-    });
-
+    rgb.AddPass(
+        RenderGraphPassBuilder{rsys}
+            .SetName("Blitting")
+            .UseImage(ci, MemoryAccessTypeImageBits::TransferWrite)
+            .UseImage(co, MemoryAccessTypeImageBits::TransferRead)
+            .SetRasterizerPassFunction([&](GraphicsCommandBuffer &tcb, const RenderGraph2 &) -> void {
+                tcb.BlitColorImage(color_out, color_in);
+            })
+            .Get()
+    );
+    g_color_in_handle = ci;
     return rgb.BuildRenderGraph();
 }
 
@@ -108,8 +120,8 @@ int main(int argc, char *argv[]) {
         rsys->StartFrame();
         cbinding.GetStructuredBuffer().SetVariable<uint32_t>("UBO::frame_count", static_cast<uint32_t>(frame_count));
 
-        if (frame_count == 1) rg->AddExternalInputDependency(*color_input, MemoryAccessTypeImageBits::None);
-        rg->Execute();
+        if (frame_count == 1) rg.AddExternalInputDependency(g_color_in_handle, MemoryAccessTypeImageBits::None);
+        rg.Execute(*rsys);
 
         rsys->CompleteFrame(
             *color_present,

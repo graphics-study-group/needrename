@@ -14,6 +14,7 @@
 #include "Render/RenderSystem/ImmutableResourceCache.h"
 #include "Render/RenderSystem/MaterialRegistry.h"
 #include "Render/RenderSystem/RendererManager.h"
+#include "Render/RenderSystem/ResizableRTTManager.h"
 #include "Render/RenderSystem/SceneDataManager.h"
 #include "Render/RenderSystem/Structs.h"
 #include "Render/RenderSystem/SubmissionHelper.h"

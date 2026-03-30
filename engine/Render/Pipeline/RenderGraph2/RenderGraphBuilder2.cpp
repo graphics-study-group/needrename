@@ -8,6 +8,7 @@
 #include "Render/Pipeline/RenderGraph2/RenderGraph2.h"
 #include "Render/Pipeline/RenderGraph2/RenderGraphPass.h"
 #include "Render/Pipeline/RenderGraph2/RenderGraphStruct.hpp"
+#include "Render/RenderSystem/ResizableRTTManager.h"
 
 namespace {
     constexpr vk::PipelineStageFlagBits2 AffinityToPipelineStage(Engine::RenderGraphPassAffinity affinity) {
@@ -21,6 +22,46 @@ namespace {
             return vk::PipelineStageFlagBits2::eComputeShader;
         default:
             return vk::PipelineStageFlagBits2::eNone;
+        }
+    }
+
+    constexpr vk::PipelineStageFlagBits2 GuessPipelineStageFromAccess(
+        Engine::RenderGraphPassAffinity work_type, Engine::MemoryAccessTypeImageBits access
+    ) {
+        switch (work_type) {
+            using enum Engine::RenderGraphPassAffinity;
+
+        case Transfer:
+            return vk::PipelineStageFlagBits2::eAllTransfer;
+        case Graphics:
+            // While some transfer actions (e.g. blitting) requires working
+            // on graphics queue, they are classified as transfer for
+            // synchronization.
+            if (access == Engine::MemoryAccessTypeImageBits::TransferRead
+                || access == Engine::MemoryAccessTypeImageBits::TransferWrite) {
+                return vk::PipelineStageFlagBits2::eAllTransfer;
+            }
+            return vk::PipelineStageFlagBits2::eAllGraphics;
+        case Compute:
+            return vk::PipelineStageFlagBits2::eComputeShader;
+        default:
+            // If this pass does not have work load, then it should be a
+            // virtual pass. In this case, we have to guess its stage......
+            switch (access) {
+            case Engine::MemoryAccessTypeImageBits::TransferRead:
+            case Engine::MemoryAccessTypeImageBits::TransferWrite:
+                return vk::PipelineStageFlagBits2::eTransfer;
+            case Engine::MemoryAccessTypeImageBits::ColorAttachmentRead:
+            case Engine::MemoryAccessTypeImageBits::ColorAttachmentWrite:
+            case Engine::MemoryAccessTypeImageBits::DepthStencilAttachmentRead:
+            case Engine::MemoryAccessTypeImageBits::DepthStencilAttachmentWrite:
+            case Engine::MemoryAccessTypeImageBits::ColorAttachmentDefault:
+            case Engine::MemoryAccessTypeImageBits::DepthStencilAttachmentDefault:
+                return vk::PipelineStageFlagBits2::eAllGraphics;
+            default:
+                // Being conservative here.
+                return vk::PipelineStageFlagBits2::eAllCommands;
+            }
         }
     }
 
@@ -105,21 +146,29 @@ namespace Engine {
                 std::string name{};
                 RenderTargetTexture::RenderTargetTextureDesc t{};
                 RenderTargetTexture::SamplerDesc s{};
+
+                // negative scales imply no resizable RTT.
+                float scale_x{-0.0f}, scale_y{-0.0f};
             };
             std::unordered_map<RGTextureHandle, TextureCreationInfo> texture_creation_info;
-            std::unordered_map<RGTextureHandle, RenderTargetTexture *> texture_mapping;
+            std::unordered_map<RGTextureHandle, RenderTargetTextureVariant> texture_mapping;
             std::unordered_map<RGBufferHandle, const DeviceBuffer *> buffer_mapping;
 
             /**
              * @brief Materialize render target textures from the
              * `texture_creation_info`.
              */
-            std::unordered_map<RGTextureHandle, std::unique_ptr<RenderTargetTexture>> MaterializeRenderTargetTextures(
+            std::unordered_map<RGTextureHandle, OwnedRenderTargetTextureVariant> MaterializeRenderTargetTextures(
                 RenderSystem &s
             ) const {
-                std::unordered_map<RGTextureHandle, std::unique_ptr<RenderTargetTexture>> ret{};
+                std::unordered_map<RGTextureHandle, OwnedRenderTargetTextureVariant> ret{};
                 for (const auto &[k, v] : texture_creation_info) {
-                    ret[k] = RenderTargetTexture::CreateUnique(s, v.t, v.s, v.name);
+
+                    if (v.scale_x < 0.0f || v.scale_y < 0.0f) {
+                        ret[k] = RenderTargetTexture::CreateUnique(s, v.t, v.s, v.name);
+                    } else {
+                        ret[k] = s.GetResizableRTTManager().RequestRTT(v.t, v.s, v.scale_x, v.scale_y, v.name);
+                    }
                 }
                 return ret;
             }
@@ -229,7 +278,9 @@ namespace Engine {
                 auto rth = subpass.color_attachments[i].rt_handle;
                 // Imported external resource
                 if (static_cast<int32_t>(rth) < 0) {
-                    format = rs.texture_mapping.at(rth)->GetTextureDescription().format;
+                    format = std::visit(RenderTargetTextureVariantVisitor{}, rs.texture_mapping.at(rth))
+                                 ->GetTextureDescription()
+                                 .format;
                 } else {
                     format = static_cast<ImageUtils::ImageFormat>(rs.texture_creation_info.at(rth).t.format);
                 }
@@ -237,7 +288,10 @@ namespace Engine {
             }
             auto drth = subpass.depth_attachment.rt_handle;
             if (static_cast<int32_t>(drth) < 0) {
-                ret.depth_stencil_attachment_format = rs.texture_mapping.at(drth)->GetTextureDescription().format;
+                ret.depth_stencil_attachment_format =
+                    std::visit(RenderTargetTextureVariantVisitor{}, rs.texture_mapping.at(drth))
+                        ->GetTextureDescription()
+                        .format;
             } else if (static_cast<int32_t>(drth) > 0) {
                 ret.depth_stencil_attachment_format =
                     static_cast<ImageUtils::ImageFormat>(rs.texture_creation_info.at(drth).t.format);
@@ -263,7 +317,31 @@ namespace Engine {
         pimpl->rs.resource_counter++;
         auto ret = static_cast<RGTextureHandle>(-pimpl->rs.resource_counter);
         pimpl->rs.texture_mapping[ret] = &texture;
-        pimpl->passes.front().image_access[ret] = prev_access;
+
+        if (prev_access != MemoryAccessTypeImageBits::None) {
+            // Inject a virtual pass if previous access is not None
+            if (pimpl->passes.empty()) {
+                this->AddPass(RenderGraphPassBuilder{system}.SetName("Virtual Source").Get());
+            }
+            pimpl->passes.front().image_access[ret] = prev_access;
+        }
+        return ret;
+    }
+
+    RGTextureHandle RenderGraphBuilder2::ImportExternalResource(
+        RRTTHandle texture, MemoryAccessTypeImageBits prev_access
+    ) {
+        pimpl->rs.resource_counter++;
+        auto ret = static_cast<RGTextureHandle>(-pimpl->rs.resource_counter);
+        pimpl->rs.texture_mapping[ret] = texture;
+
+        if (prev_access != MemoryAccessTypeImageBits::None) {
+            // Inject a virtual pass if previous access is not None
+            if (pimpl->passes.empty()) {
+                this->AddPass(RenderGraphPassBuilder{system}.SetName("Virtual Source").Get());
+            }
+            pimpl->passes.front().image_access[ret] = prev_access;
+        }
         return ret;
     }
 
@@ -273,7 +351,14 @@ namespace Engine {
         pimpl->rs.resource_counter++;
         auto ret = static_cast<RGBufferHandle>(-pimpl->rs.resource_counter);
         pimpl->rs.buffer_mapping[ret] = &buffer;
-        pimpl->passes.front().buffer_access[ret] = prev_access;
+
+        if (prev_access != MemoryAccessTypeBuffer{MemoryAccessTypeBufferBits::None}) {
+            // Inject a virtual pass if previous access is not None
+            if (pimpl->passes.empty()) {
+                this->AddPass(RenderGraphPassBuilder{system}.SetName("Virtual Source").Get());
+            }
+            pimpl->passes.front().buffer_access[ret] = prev_access;
+        }
         return ret;
     }
 
@@ -285,7 +370,30 @@ namespace Engine {
         pimpl->rs.resource_counter++;
         auto ret = static_cast<RGTextureHandle>(pimpl->rs.resource_counter);
         pimpl->rs.texture_creation_info[ret] = {
-            .name = std::string{name}, .t = texture_description, .s = sampler_description
+            .name = std::string{name},
+            .t = texture_description,
+            .s = sampler_description,
+            .scale_x = -1.0f,
+            .scale_y = -1.0f
+        };
+        return ret;
+    }
+
+    RGTextureHandle RenderGraphBuilder2::RequestResizableRenderTargetTexture(
+        RenderTargetTexture::RenderTargetTextureDesc texture_description,
+        RenderTargetTexture::SamplerDesc sampler_description,
+        float scale_x,
+        float scale_y,
+        std::string_view name
+    ) {
+        pimpl->rs.resource_counter++;
+        auto ret = static_cast<RGTextureHandle>(pimpl->rs.resource_counter);
+        pimpl->rs.texture_creation_info[ret] = {
+            .name = std::string{name},
+            .t = texture_description,
+            .s = sampler_description,
+            .scale_x = scale_x,
+            .scale_y = scale_y
         };
         return ret;
     }
@@ -427,6 +535,7 @@ namespace Engine {
                     vk::PipelineStageFlags2 src_stage, dst_stage;
                     vk::ImageLayout src_layout, dst_layout;
 
+                    // If first use is the first pass...
                     if (itr == u.begin()) {
                         src_access = vk::AccessFlagBits2::eNone;
                         src_stage = vk::PipelineStageFlagBits2::eNone;
@@ -434,11 +543,13 @@ namespace Engine {
                     } else {
                         itr = itr - 1;
                         src_access = GetAccessFlags({itr->second});
-                        src_stage = AffinityToPipelineStage(pimpl->passes[pass_order[itr->first]].actual_type);
+                        src_stage = GuessPipelineStageFromAccess(
+                            pimpl->passes[pass_order[itr->first]].actual_type, itr->second
+                        );
                         src_layout = GetImageLayout({itr->second});
                     }
                     dst_access = GetAccessFlags({a});
-                    dst_stage = AffinityToPipelineStage(old_p.actual_type);
+                    dst_stage = GuessPipelineStageFromAccess(old_p.actual_type, a);
                     dst_layout = GetImageLayout({a});
                     vk::ImageAspectFlags aspect{};
                     if (pimpl->rs.texture_creation_info.contains(r)) {
@@ -451,7 +562,11 @@ namespace Engine {
                         );
                     } else {
                         assert(pimpl->rs.texture_mapping.contains(r));
-                        aspect = ImageUtils::GetVkAspect(pimpl->rs.texture_mapping[r]->GetTextureDescription().format);
+                        aspect = ImageUtils::GetVkAspect(
+                            std::visit(RenderTargetTextureVariantVisitor{}, pimpl->rs.texture_mapping.at(r))
+                                ->GetTextureDescription()
+                                .format
+                        );
                     }
 #ifndef NDEBUG
                     SDL_LogDebug(
@@ -508,6 +623,7 @@ namespace Engine {
                     vk::AccessFlags2 src_access, dst_access;
                     vk::PipelineStageFlags2 src_stage, dst_stage;
 
+                    // If first use is the first pass...
                     if (itr == u.begin()) {
                         src_access = vk::AccessFlagBits2::eNone;
                         src_stage = vk::PipelineStageFlagBits2::eNone;
@@ -569,7 +685,14 @@ namespace Engine {
         e.transient_texture_storage = std::move(pimpl->rs.MaterializeRenderTargetTextures(system));
         for (const auto &[k, v] : e.transient_texture_storage) {
             assert(!e.texture_mapping.contains(k));
-            e.texture_mapping[k] = v.get();
+
+            switch (v.index()) {
+            case 0:
+                e.texture_mapping[k] = std::get<0>(v).get();
+                break;
+            case 1:
+                e.texture_mapping[k] = std::get<1>(v);
+            }
         }
         for (const auto &[r, a] : usage.image_usages) {
             if (static_cast<int32_t>(r) > 0) continue;

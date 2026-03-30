@@ -1,8 +1,8 @@
 #ifndef PIPELINE_RENDERGRAPH_RENDERGRAPHUTILS_INCLUDED
 #define PIPELINE_RENDERGRAPH_RENDERGRAPHUTILS_INCLUDED
 
-#include "Render/Memory/MemoryAccessTypes.h"
 #include "Render/Memory/MemoryAccessHelper.hpp"
+#include "Render/Memory/MemoryAccessTypes.h"
 
 #include <SDL3/SDL.h>
 #include <tuple>
@@ -42,8 +42,8 @@ namespace Engine {
              */
             void UpdateLastAccess(int32_t t, int32_t pass_index, MemoryAccessTypeImage access) {
                 EnsureRecordExists(t);
-                auto & v = accesses[t];
-                if(v.empty()) {
+                auto &v = accesses[t];
+                if (v.empty()) {
                     v.push_back({pass_index, access});
                 } else {
                     auto itr = v.begin();
@@ -57,26 +57,20 @@ namespace Engine {
 
             static constexpr vk::PipelineStageFlags2 GetPipelineStage(PassType p, MemoryAccessTypeImage a) noexcept {
                 vk::PipelineStageFlags2 ret{};
-                if (
-                    a.Test(MemoryAccessTypeImageBits::ColorAttachmentRead) |
-                    a.Test(MemoryAccessTypeImageBits::ColorAttachmentWrite) |
-                    a.Test(MemoryAccessTypeImageBits::DepthStencilAttachmentRead) |
-                    a.Test(MemoryAccessTypeImageBits::DepthStencilAttachmentWrite)
-                ) {
-                    if (p == PassType::Graphics)    ret |= vk::PipelineStageFlagBits2::eAllGraphics;
-                    else    SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Ignoring invaild access pattern.");
+                if (a.Test(MemoryAccessTypeImageBits::ColorAttachmentRead)
+                    | a.Test(MemoryAccessTypeImageBits::ColorAttachmentWrite)
+                    | a.Test(MemoryAccessTypeImageBits::DepthStencilAttachmentRead)
+                    | a.Test(MemoryAccessTypeImageBits::DepthStencilAttachmentWrite)) {
+                    if (p == PassType::Graphics) ret |= vk::PipelineStageFlagBits2::eAllGraphics;
+                    else SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Ignoring invaild access pattern.");
                 }
-                if (
-                    a.Test(MemoryAccessTypeImageBits::TransferRead) |
-                    a.Test(MemoryAccessTypeImageBits::TransferWrite)
-                ) {
+                if (a.Test(MemoryAccessTypeImageBits::TransferRead)
+                    | a.Test(MemoryAccessTypeImageBits::TransferWrite)) {
                     ret |= vk::PipelineStageFlagBits2::eAllTransfer;
                 }
-                if (
-                    a.Test(MemoryAccessTypeImageBits::ShaderSampledRead) |
-                    a.Test(MemoryAccessTypeImageBits::ShaderRandomRead) |
-                    a.Test(MemoryAccessTypeImageBits::ShaderRandomWrite)
-                ) {
+                if (a.Test(MemoryAccessTypeImageBits::ShaderSampledRead)
+                    | a.Test(MemoryAccessTypeImageBits::ShaderRandomRead)
+                    | a.Test(MemoryAccessTypeImageBits::ShaderRandomWrite)) {
                     if (p == PassType::Graphics) {
                         ret |= vk::PipelineStageFlagBits2::eAllGraphics;
                     } else if (p == PassType::Compute) {
@@ -100,7 +94,7 @@ namespace Engine {
                 uint32_t array_layer_base = 0,
                 uint32_t array_layer_range = vk::RemainingArrayLayers
             ) {
-                return vk::ImageMemoryBarrier2 {
+                return vk::ImageMemoryBarrier2{
                     GetPipelineStage(prev_pass_type, prev_access),
                     GetAccessFlags(prev_access),
                     GetPipelineStage(curr_pass_type, curr_access),
@@ -110,24 +104,16 @@ namespace Engine {
                     vk::QueueFamilyIgnored,
                     vk::QueueFamilyIgnored,
                     image,
-                    vk::ImageSubresourceRange {
-                        aspect,
-                        mipmap_base, mipmap_range,
-                        array_layer_base, array_layer_range
-                    }
+                    vk::ImageSubresourceRange{aspect, mipmap_base, mipmap_range, array_layer_base, array_layer_range}
                 };
             }
         };
 
         struct RenderGraphExtraInfo {
-            std::unordered_map<
-                const Texture *,
-                std::pair<RenderGraphImpl::PassType, MemoryAccessTypeImage>
-            > m_initial_image_access;
-            std::unordered_map<
-                const Texture *,
-                std::pair<RenderGraphImpl::PassType, MemoryAccessTypeImage>
-            > m_final_image_access;
+            std::unordered_map<const Texture *, std::pair<RenderGraphImpl::PassType, MemoryAccessTypeImage>>
+                m_initial_image_access;
+            std::unordered_map<const Texture *, std::pair<RenderGraphImpl::PassType, MemoryAccessTypeImage>>
+                m_final_image_access;
 
             std::unordered_map<int32_t, std::unique_ptr<RenderTargetTexture>> internal_texture_cache;
         };
@@ -138,7 +124,7 @@ namespace Engine {
                 MemoryAccessTypeBuffer access;
             };
 
-            using Memo = std::unordered_map <int32_t, std::vector<Access>>;
+            using Memo = std::unordered_map<int32_t, std::vector<Access>>;
             Memo accesses;
 
             void EnsureRecordExists(int32_t b) {
@@ -152,8 +138,8 @@ namespace Engine {
              */
             void UpdateLastAccess(int32_t b, int32_t pass_index, MemoryAccessTypeBuffer access) {
                 EnsureRecordExists(b);
-                auto & v = accesses[b];
-                if(v.empty()) {
+                auto &v = accesses[b];
+                if (v.empty()) {
                     v.push_back({pass_index, access});
                 } else {
                     auto itr = v.begin();
@@ -168,12 +154,9 @@ namespace Engine {
             static constexpr vk::PipelineStageFlags2 GetPipelineStage(PassType p, MemoryAccessTypeBuffer a) noexcept {
                 vk::PipelineStageFlags2 ret{};
 
-                if (
-                    a.Test(MemoryAccessTypeBufferBits::ShaderRead) |
-                    a.Test(MemoryAccessTypeBufferBits::ShaderSampled) |
-                    a.Test(MemoryAccessTypeBufferBits::ShaderRandomRead) |
-                    a.Test(MemoryAccessTypeBufferBits::ShaderRandomWrite)
-                ) {
+                if (a.Test(MemoryAccessTypeBufferBits::ShaderRead) | a.Test(MemoryAccessTypeBufferBits::ShaderSampled)
+                    | a.Test(MemoryAccessTypeBufferBits::ShaderRandomRead)
+                    | a.Test(MemoryAccessTypeBufferBits::ShaderRandomWrite)) {
                     if (p == PassType::Graphics) {
                         ret |= vk::PipelineStageFlagBits2::eAllGraphics;
                     } else if (p == PassType::Compute) {
@@ -182,32 +165,23 @@ namespace Engine {
                         SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Ignoring invaild access pattern.");
                     }
                 }
-                if (
-                    a.Test(MemoryAccessTypeBufferBits::IndexRead) |
-                    a.Test(MemoryAccessTypeBufferBits::VertexRead)
-                ) {
+                if (a.Test(MemoryAccessTypeBufferBits::IndexRead) | a.Test(MemoryAccessTypeBufferBits::VertexRead)) {
 
-                    if (p == PassType::Graphics)   ret |= vk::PipelineStageFlagBits2::eVertexInput;
-                    else    SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Ignoring invaild access pattern.");
-                }
-                if (
-                    a.Test(MemoryAccessTypeBufferBits::IndirectDrawRead)
-                ) {
-                    if (p == PassType::Graphics)   ret |= vk::PipelineStageFlagBits2::eDrawIndirect;
+                    if (p == PassType::Graphics) ret |= vk::PipelineStageFlagBits2::eVertexInput;
                     else SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Ignoring invaild access pattern.");
                 }
-                if (
-                    a.Test(MemoryAccessTypeBufferBits::TransferRead) |
-                    a.Test(MemoryAccessTypeBufferBits::TransferWrite)
-                ) {
+                if (a.Test(MemoryAccessTypeBufferBits::IndirectDrawRead)) {
+                    if (p == PassType::Graphics) ret |= vk::PipelineStageFlagBits2::eDrawIndirect;
+                    else SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Ignoring invaild access pattern.");
+                }
+                if (a.Test(MemoryAccessTypeBufferBits::TransferRead)
+                    | a.Test(MemoryAccessTypeBufferBits::TransferWrite)) {
                     ret |= vk::PipelineStageFlagBits2::eAllTransfer;
                 }
-                if (
-                    a.Test(MemoryAccessTypeBufferBits::HostAccess)
-                ) {
+                if (a.Test(MemoryAccessTypeBufferBits::HostAccess)) {
                     ret |= vk::PipelineStageFlagBits2::eHost;
                 }
-                
+
                 return ret;
             }
 
@@ -218,7 +192,7 @@ namespace Engine {
                 MemoryAccessTypeBuffer curr_access,
                 PassType curr_pass_type
             ) {
-                return vk::BufferMemoryBarrier2 {
+                return vk::BufferMemoryBarrier2{
                     GetPipelineStage(prev_pass_type, prev_access),
                     GetAccessFlags(prev_access),
                     GetPipelineStage(curr_pass_type, curr_access),
@@ -226,11 +200,12 @@ namespace Engine {
                     vk::QueueFamilyIgnored,
                     vk::QueueFamilyIgnored,
                     buffer,
-                    0, vk::WholeSize
+                    0,
+                    vk::WholeSize
                 };
             }
         };
-    }
-}
+    } // namespace RenderGraphImpl
+} // namespace Engine
 
 #endif // PIPELINE_RENDERGRAPH_RENDERGRAPHUTILS_INCLUDED

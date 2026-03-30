@@ -38,6 +38,7 @@ namespace Engine {
         class ImmutableResourceCache;
         class CameraManager;
         class SceneDataManager;
+        class ResizableRTTManager;
     }; // namespace RenderSystemState
 
     class RenderSystem : public std::enable_shared_from_this<RenderSystem> {
@@ -128,6 +129,8 @@ namespace Engine {
         RenderSystemState::CameraManager &GetCameraManager();
 
         RenderSystemState::SceneDataManager &GetSceneDataManager();
+
+        RenderSystemState::ResizableRTTManager &GetResizableRTTManager();
     };
 } // namespace Engine
 

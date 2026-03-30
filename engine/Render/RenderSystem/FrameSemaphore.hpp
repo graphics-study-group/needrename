@@ -1,8 +1,8 @@
 #ifndef RENDER_RENDERSYSTEM_FRAMESEMAPHORE_INCLUDED
 #define RENDER_RENDERSYSTEM_FRAMESEMAPHORE_INCLUDED
 
-#include <vulkan/vulkan.hpp>
 #include <cstdint>
+#include <vulkan/vulkan.hpp>
 
 namespace Engine::RenderSystemState {
     struct FrameSemaphore final {
@@ -31,19 +31,15 @@ namespace Engine::RenderSystemState {
         }
 
         uint64_t GetTimepointValue(TimePoint timepoint) const noexcept {
-            return frame_count * std::underlying_type_t<TimePoint>(TimePoint::MAX_TIME_POINTS) 
-                    + std::underlying_type_t<TimePoint>(timepoint);
+            return frame_count * std::underlying_type_t<TimePoint>(TimePoint::MAX_TIME_POINTS)
+                   + std::underlying_type_t<TimePoint>(timepoint);
         }
 
         vk::SemaphoreSubmitInfo GetSubmitInfo(TimePoint timepoint, vk::PipelineStageFlags2 stage) const noexcept {
             assert(timeline_semaphore);
-            return vk::SemaphoreSubmitInfo{
-                timeline_semaphore.get(), 
-                GetTimepointValue(timepoint),
-                stage
-            };
+            return vk::SemaphoreSubmitInfo{timeline_semaphore.get(), GetTimepointValue(timepoint), stage};
         }
     };
-}
+} // namespace Engine::RenderSystemState
 
 #endif // RENDER_RENDERSYSTEM_FRAMESEMAPHORE_INCLUDED

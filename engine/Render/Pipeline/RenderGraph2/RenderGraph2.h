@@ -45,6 +45,9 @@ namespace Engine {
         /**
          * @brief Get a internally managed render target texture.
          *
+         * If the render target texture is managed by a `ResizableRTTManager`,
+         * it will be automatically resolved.
+         *
          * @return nullptr if handle is not available.
          */
         RenderTargetTexture *GetInternalTextureResource(RGTextureHandle handle) const noexcept;
@@ -80,11 +83,19 @@ namespace Engine {
         void RecordPostPass(vk::CommandBuffer);
 
         /**
+         * @brief Record all passes onto the same command buffer.
+         *
+         * This method disregards task affinities, and enforces serialized
+         * start of execution on GPU.
+         */
+        void RecordAllPasses(vk::CommandBuffer);
+
+        /**
          * @brief Execute the render graph by recording all commands onto the
          * main command buffer and submitting it for execution.
          *
          * This method disregards task affinities, and enforces serialized
-         * execution on GPU.
+         * start of execution on GPU.
          */
         void Execute(RenderSystem &system);
     };

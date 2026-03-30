@@ -141,7 +141,7 @@ int main(int argc, char **argv) {
     }
 
     // Dummy texture for presenting
-    RenderGraphBuilder rgb{*rsys};
+    RenderGraphBuilder2 rgb{*rsys};
     auto crt = rgb.RequestRenderTargetTexture(
         RenderTargetTexture::RenderTargetTextureDesc{
             .dimensions = 2,
@@ -166,22 +166,29 @@ int main(int argc, char **argv) {
         },
         {}
     );
-    rgb.UseImage(crt, MemoryAccessTypeImageBits::ColorAttachmentDefault);
-    rgb.UseImage(drt, MemoryAccessTypeImageBits::DepthStencilAttachmentDefault);
-    rgb.RecordRasterizerPass(
-        {crt, {}, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store},
-        {drt,
-         {},
-         AttachmentUtils::LoadOperation::Clear,
-         AttachmentUtils::StoreOperation::DontCare,
-         AttachmentUtils::DepthClearValue{1.0f, 0U}},
-        [rsys, camera](GraphicsCommandBuffer &cb, const RenderGraph &) -> void {
-            glm::mat3 view_matrix = glm::mat3(camera->GetViewMatrix());
-            glm::mat4 pv = camera->GetProjectionMatrix() * glm::mat4(view_matrix);
-            rsys->GetSceneDataManager().DrawSkybox(
-                cb, rsys->GetFrameManager().GetFrameInFlight(), pv, rsys->GetSwapchain().GetExtent()
-            );
-        }
+
+    rgb.AddPass(
+        RenderGraphPassBuilder{*rsys}
+            .SetName("Main")
+            .AppendColorAttachment(
+                {crt, {}, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store}
+            )
+            .SetDepthStencilAttachment(
+                {drt,
+                 {},
+                 AttachmentUtils::LoadOperation::Clear,
+                 AttachmentUtils::StoreOperation::DontCare,
+                 AttachmentUtils::DepthClearValue{1.0f, 0U}}
+            )
+            .SetRasterizerPassFunction([rsys, camera](GraphicsCommandBuffer &cb, const RenderGraph2 &) -> void {
+                glm::mat3 view_matrix = glm::mat3(camera->GetViewMatrix());
+                glm::mat4 pv = camera->GetProjectionMatrix() * glm::mat4(view_matrix);
+                rsys->GetSceneDataManager().DrawSkybox(
+                    cb, rsys->GetFrameManager().GetFrameInFlight(), pv, rsys->GetSwapchain().GetExtent()
+                );
+            })
+            .WrapRenderPass()
+            .Get()
     );
     auto rg = rgb.BuildRenderGraph();
 
@@ -234,8 +241,8 @@ int main(int argc, char **argv) {
         Transform t;
         t.SetPosition({0.0f, 0.0f, 0.0f}).SetRotationEuler(euler_angle_rotation);
         camera->UpdateViewMatrix(t);
-        rg->Execute();
-        rsys->CompleteFrame(*rg->GetInternalTextureResource(crt), 800, 800);
+        rg.Execute(*rsys);
+        rsys->CompleteFrame(*rg.GetInternalTextureResource(crt), 800, 800);
 
         SDL_Delay(10);
 

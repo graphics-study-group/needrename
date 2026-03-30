@@ -13,6 +13,7 @@
 #include "Render/RenderSystem/FrameManager.h"
 #include "Render/RenderSystem/MaterialRegistry.h"
 #include "Render/RenderSystem/RendererManager.h"
+#include "Render/RenderSystem/ResizableRTTManager.h"
 #include "Render/RenderSystem/Structs.h"
 #include "Render/RenderSystem/Swapchain.h"
 #include "Render/Renderer/Camera.h"
@@ -27,7 +28,8 @@ namespace Engine {
     struct RenderSystem::impl {
         impl(RenderSystem &parent, std::weak_ptr<SDLWindow> parent_window) :
             m_window(parent_window), m_allocator_state(parent), m_frame_manager(parent), m_material_registry(parent),
-            m_renderer_manager(parent), m_scene_data_manager(parent), m_camera_manager(parent) {
+            m_renderer_manager(parent), m_scene_data_manager(parent), m_camera_manager(parent),
+            m_resizable_rtt_manger(parent) {
 
             };
 
@@ -47,6 +49,7 @@ namespace Engine {
         RenderSystemState::RendererManager m_renderer_manager;
         RenderSystemState::SceneDataManager m_scene_data_manager;
         RenderSystemState::CameraManager m_camera_manager;
+        RenderSystemState::ResizableRTTManager m_resizable_rtt_manger;
     };
 
     RenderSystem::RenderSystem(std::weak_ptr<SDLWindow> parent_window) :
@@ -148,6 +151,10 @@ namespace Engine {
         return pimpl->m_scene_data_manager;
     }
 
+    RenderSystemState::ResizableRTTManager &RenderSystem::GetResizableRTTManager() {
+        return pimpl->m_resizable_rtt_manger;
+    }
+
     void RenderSystem::WaitForIdle() const {
         pimpl->m_device_interface->GetDevice().waitIdle();
     }
@@ -178,5 +185,6 @@ namespace Engine {
         vk::Extent2D expected_extent{width, height};
 
         m_swapchain.CreateSwapchain(*m_device_interface, expected_extent);
+        m_resizable_rtt_manger.SetReferenceSize(w, h);
     }
 } // namespace Engine

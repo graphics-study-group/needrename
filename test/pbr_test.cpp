@@ -245,11 +245,11 @@ int main(int argc, char **argv) {
         .multisample = 1,
         .is_cube_map = false
     };
-    auto hc = rgb.RequestRenderTargetTexture(rtt_desc, Texture::SamplerDesc{});
+    auto hc = rgb.RequestResizableRenderTargetTexture(rtt_desc, Texture::SamplerDesc{});
     rtt_desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::D32SFLOAT;
-    auto d = rgb.RequestRenderTargetTexture(rtt_desc, Texture::SamplerDesc{});
+    auto d = rgb.RequestResizableRenderTargetTexture(rtt_desc, Texture::SamplerDesc{});
     rtt_desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R8G8B8A8UNorm;
-    auto c = rgb.RequestRenderTargetTexture(rtt_desc, Texture::SamplerDesc{});
+    auto c = rgb.RequestResizableRenderTargetTexture(rtt_desc, Texture::SamplerDesc{});
     // Color pass
     using IAT = MemoryAccessTypeImageBits;
     rgb.AddPass(
@@ -299,8 +299,7 @@ int main(int argc, char **argv) {
     rgb.AddPass(
         RenderGraphPassBuilder{*rsys}
             .SetName("GUI Pass")
-            .AppendColorAttachment(
-                {c, {}, AttachmentUtils::LoadOperation::Load, AttachmentUtils::StoreOperation::Store}
+            .AppendColorAttachment({c, {}, AttachmentUtils::LoadOperation::Load, AttachmentUtils::StoreOperation::Store}
             )
             .SetRasterizerPassFunction([rsys, gsys](GraphicsCommandBuffer &gcb, const RenderGraph2 &) {
                 gsys->DrawGUI(gcb.GetCommandBuffer());

@@ -43,7 +43,13 @@ namespace Engine {
         pimpl->extra_info = std::move(extra);
     }
 
-    RenderGraph2::~RenderGraph2() noexcept = default;
+    RenderGraph2::~RenderGraph2() noexcept {
+        for (auto &[k, v] : pimpl->extra_info.transient_texture_storage) {
+            if (auto handle = std::get_if<RRTTHandle>(&v)) {
+                handle->Release();
+            }
+        }
+    };
 
     void RenderGraph2::AddExternalInputDependency(RGTextureHandle rt_handle, MemoryAccessTypeImageBits access) {
         auto itr = pimpl->extra_info.first_persistent_texture_access.find(rt_handle);
@@ -52,7 +58,11 @@ namespace Engine {
         }
 
         pimpl->pre_barrier_info.push_back(
-            std::make_tuple(pimpl->extra_info.texture_mapping[rt_handle], access, itr->second)
+            std::make_tuple(
+                std::visit(RenderTargetTextureVariantVisitor{}, pimpl->extra_info.texture_mapping[rt_handle]),
+                access,
+                itr->second
+            )
         );
     }
 
@@ -63,14 +73,18 @@ namespace Engine {
         }
 
         pimpl->post_barrier_info.push_back(
-            std::make_tuple(pimpl->extra_info.texture_mapping[rt_handle], itr->second, access)
+            std::make_tuple(
+                std::visit(RenderTargetTextureVariantVisitor{}, pimpl->extra_info.texture_mapping[rt_handle]),
+                itr->second,
+                access
+            )
         );
     }
 
     RenderTargetTexture *RenderGraph2::GetInternalTextureResource(RGTextureHandle handle) const noexcept {
         auto itr = pimpl->extra_info.texture_mapping.find(handle);
         if (itr != pimpl->extra_info.texture_mapping.end()) {
-            return itr->second;
+            return std::visit(RenderTargetTextureVariantVisitor{}, itr->second);
         }
         return nullptr;
     }
@@ -100,7 +114,13 @@ namespace Engine {
             }
 
             cb.pipelineBarrier2(vk::DependencyInfo{vk::DependencyFlags{}, bmb, {}, imb});
+
             // Invoke pass function.
+
+            // Skip empty work pass
+            if (!subpass.pass_work) {
+                continue;
+            }
             pimpl->pripr_ptr = &subpass.per_rendering_info;
             std::invoke(subpass.pass_work, cb, *this);
             pimpl->pripr_ptr = nullptr;
@@ -127,10 +147,7 @@ namespace Engine {
         pimpl->post_barrier_info.clear();
     }
 
-    void RenderGraph2::Execute(RenderSystem &system) {
-        auto &fm = system.GetFrameManager();
-        auto cb = fm.GetRawMainCommandBuffer();
-
+    void RenderGraph2::RecordAllPasses(vk::CommandBuffer cb) {
         cb.begin(vk::CommandBufferBeginInfo{});
         RecordPrePass(cb);
         for (size_t i = 0; i < pimpl->passes.size(); i++) {
@@ -138,6 +155,13 @@ namespace Engine {
         }
         RecordPostPass(cb);
         cb.end();
+    }
+
+    void RenderGraph2::Execute(RenderSystem &system) {
+        auto &fm = system.GetFrameManager();
+        auto cb = fm.GetRawMainCommandBuffer();
+
+        RecordAllPasses(cb);
         fm.SubmitMainCommandBuffer();
     }
 
