@@ -37,7 +37,7 @@ namespace Engine {
         struct SamplerDesc {
             /**
              * @brief Address mode of the sampler.
-             * 
+             *
              * If clamp to border is enabled for one texture coordinate,
              * then all coordinate that clamp to border
              * must clamp to the same border color.
@@ -79,7 +79,7 @@ namespace Engine {
 
             /**
              * @brief Comparator used for depth comparison.
-             * 
+             *
              * Depth comparison is enabled only if this enum is set to other
              * values than `Always`. It is pertient to the sampling only if
              * SPIR-V inst `OpImage*Dref*` (e.g. via GLSL `samplerXShadow` type)

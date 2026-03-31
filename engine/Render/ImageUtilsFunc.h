@@ -153,10 +153,7 @@ namespace Engine {
             __builtin_unreachable();
         }
 
-        constexpr vk::BorderColor TovkBorderColor(
-            SamplerDesc::AddressMode addr,
-            bool integer_variant = false
-        ) {
+        constexpr vk::BorderColor TovkBorderColor(SamplerDesc::AddressMode addr, bool integer_variant = false) {
             using Mode = SamplerDesc::AddressMode;
             switch (addr) {
             case Mode::Repeat:
@@ -164,7 +161,8 @@ namespace Engine {
             case Mode::ClampToEdge:
                 return vk::BorderColor::eFloatOpaqueBlack;
             case Mode::ClampToBorder_TransparentBlack:
-                return integer_variant ? vk::BorderColor::eIntTransparentBlack : vk::BorderColor::eFloatTransparentBlack;
+                return integer_variant ? vk::BorderColor::eIntTransparentBlack
+                                       : vk::BorderColor::eFloatTransparentBlack;
             case Mode::ClampToBorder_OpaqueBlack:
                 return integer_variant ? vk::BorderColor::eIntOpaqueBlack : vk::BorderColor::eFloatOpaqueBlack;
             case Mode::ClampToBorder_OpaqueWhite:

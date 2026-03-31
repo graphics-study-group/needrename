@@ -11,7 +11,7 @@ namespace {
     using Hasher = Engine::RenderResourceHasher;
 
     struct sampler_hasher {
-        size_t operator() (const vk::SamplerCreateInfo &sci) const noexcept {
+        size_t operator()(const vk::SamplerCreateInfo &sci) const noexcept {
             assert(sci.pNext == nullptr);
 
             Hasher h{};
@@ -38,7 +38,7 @@ namespace {
     };
 
     struct descriptor_set_layout_hasher {
-        size_t operator() (const vk::DescriptorSetLayoutCreateInfo &dsli) const noexcept {
+        size_t operator()(const vk::DescriptorSetLayoutCreateInfo &dsli) const noexcept {
             assert(dsli.pNext == nullptr);
 
             Hasher h;
@@ -64,7 +64,7 @@ namespace {
     };
 
     struct pipeline_layout_hasher {
-        size_t operator() (const vk::PipelineLayoutCreateInfo & plci) const noexcept {
+        size_t operator()(const vk::PipelineLayoutCreateInfo &plci) const noexcept {
             Hasher h;
             h.u32(plci.setLayoutCount);
             for (uint32_t i = 0; i < plci.setLayoutCount; i++) {
@@ -85,7 +85,7 @@ namespace {
             return h.get();
         }
     };
-}
+} // namespace
 
 namespace Engine::RenderSystemState {
 

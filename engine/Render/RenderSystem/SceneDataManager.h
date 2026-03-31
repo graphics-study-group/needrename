@@ -64,7 +64,7 @@ namespace Engine {
              * and takes the layout `VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL` before
              * sampling from it. You should use `UseImage(*shadow, ShaderRead)`
              * or similar to synchronize its access.
-             * 
+             *
              * The sampler attached to this RTT is ignored, and an immutable
              * sampler is used instead.
              */

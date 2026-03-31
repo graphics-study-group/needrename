@@ -19,7 +19,7 @@ namespace Engine {
         /**
          * @brief Cache for immutable resources such as samplers, descriptor set
          * layouts and so on.
-         * 
+         *
          * @see Fossilze library by VALVE. Hashing of Vulkan create info
          * structures are largely based on it.
          */
@@ -33,7 +33,7 @@ namespace Engine {
 
             /**
              * @brief Request a sampler from a sampler description
-             * 
+             *
              * If multiple border colors are specified in the descriptor,
              * the first one will be used.
              */
