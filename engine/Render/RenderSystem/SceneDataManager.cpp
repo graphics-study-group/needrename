@@ -95,9 +95,9 @@ namespace Engine::RenderSystemState {
                         immutable_samplers.end(),
                         system.GetIRCache().GetSampler(
                             ImageUtils::SamplerDesc{
-                                .u_address = ImageUtils::SamplerDesc::AddressMode::ClampToEdge,
-                                .v_address = ImageUtils::SamplerDesc::AddressMode::ClampToEdge,
-                                .w_address = ImageUtils::SamplerDesc::AddressMode::ClampToEdge
+                                .u_address = ImageUtils::SamplerDesc::AddressMode::ClampToBorder_OpaqueWhite,
+                                .v_address = ImageUtils::SamplerDesc::AddressMode::ClampToBorder_OpaqueWhite,
+                                .w_address = ImageUtils::SamplerDesc::AddressMode::ClampToBorder_OpaqueWhite
                             }
                         )
                     );
