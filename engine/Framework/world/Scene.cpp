@@ -45,10 +45,11 @@ namespace Engine {
     Component &Scene::CreateComponent(GameObject &parent, const Reflection::Type &type) {
         auto comp_var = type.CreateInstance(parent);
         comp_var.SetNeedFree(false);
-        return AddComponent(parent.GetHandle(), static_cast<Component *>(comp_var.GetDataPtr()));
+        return AddComponent(parent, static_cast<Component *>(comp_var.GetDataPtr()));
     }
 
-    Component &Scene::AddComponent(ObjectHandle objectHandle, Component *ptr) {
+    Component &Scene::AddComponent(GameObject &parent, Component *ptr) {
+        auto objectHandle = parent.GetHandle();
         auto comp_ptr = std::unique_ptr<Component>(static_cast<Component *>(ptr));
         comp_ptr->m_scene = this;
         comp_ptr->m_parentGameObject = objectHandle;

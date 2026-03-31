@@ -22,9 +22,9 @@ namespace Engine {
      * The Scene manages the creation, storage, and lookup of all GameObject and Component instances.
      * The Scene contains a event queue, which manages the events of all Components in the scene.
      * Usually only the main scene in WorldSystem will process the events.
-     * 
+     *
      * A Scene can be gotten by its ID from WorldSystem.
-     * Creation and deletion operations about GameObjects and Components are queued and 
+     * Creation and deletion operations about GameObjects and Components are queued and
      * processed via Scene::FlushCmdQueue() for safe lifetime management.
      */
     class Scene {
@@ -89,7 +89,7 @@ namespace Engine {
         template <typename T>
         T &CreateComponent(GameObject &parent) {
             static_assert(std::is_base_of<Component, T>::value, "T must be derived from Component");
-            return static_cast<T &>(AddComponent(parent.GetHandle(), new T(parent)));
+            return static_cast<T &>(AddComponent(parent, new T(parent)));
         }
 
         /**
@@ -192,8 +192,6 @@ namespace Engine {
         void Clear();
 
     protected:
-        friend class SceneAsset;
-
         uint32_t m_sceneID;
 
         std::vector<std::unique_ptr<GameObject>> m_go_add_queue{};
@@ -213,13 +211,16 @@ namespace Engine {
         uint32_t m_go_id_gen{0};
 
     protected:
+        // GameObject need to access AddComponent function
+        friend class GameObject;
+
         /**
          * @brief Add a Component to the GameObject.
-         * @param objectHandle The GameObject handle.
+         * @param parent The parent GameObject of the Component.
          * @param ptr The Component pointer.
          * @return The reference to the created Component.
          */
-        Component &AddComponent(ObjectHandle objectHandle, Component *ptr);
+        Component &AddComponent(GameObject &parent, Component *ptr);
 
         /**
          * @brief Get the next available Component handle of this scene.

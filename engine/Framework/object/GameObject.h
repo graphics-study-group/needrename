@@ -26,8 +26,6 @@ namespace Engine {
         REFL_SER_BODY(GameObject)
     protected:
         friend class Scene;
-        friend class SceneAsset;
-        friend class Component;
         // GameObject must be created by Scene's factory function
         GameObject(Scene *scene);
 
@@ -46,7 +44,7 @@ namespace Engine {
         template <typename T>
         T &AddComponent() {
             static_assert(std::is_base_of_v<Component, T>, "T must be derived from Component");
-            return m_scene->template CreateComponent<T>(*this);
+            return static_cast<T &>(AddComponent(new T(*this)));
         }
 
         /**
@@ -118,6 +116,13 @@ namespace Engine {
 
         REFL_SER_ENABLE ComponentHandle m_transformComponent{};
         REFL_SER_ENABLE std::vector<ComponentHandle> m_components{};
+
+        /**
+         * @brief Add a Component to the GameObject.
+         * @param comp_ptr The Component pointer.
+         * @return The reference to the created Component.
+         */
+        Component &AddComponent(Component *comp_ptr);
 
     private:
         Scene *m_scene{};

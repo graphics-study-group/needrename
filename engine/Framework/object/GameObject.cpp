@@ -57,4 +57,9 @@ namespace Engine {
         Serialization::deserialize(m_handle, temp_archive);
         this->_SERIALIZATION_LOAD_(archive);
     }
+
+    Component &GameObject::AddComponent(Component *comp_ptr) {
+        m_scene->AddComponent(*this, comp_ptr);
+        return *comp_ptr;
+    }
 } // namespace Engine
