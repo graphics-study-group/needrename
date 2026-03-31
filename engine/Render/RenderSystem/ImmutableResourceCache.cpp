@@ -2,6 +2,7 @@
 
 #include "Render/DebugUtils.h"
 #include "Render/Hasher.hpp"
+#include "Render/Pipeline/PipelineUtils.hpp"
 
 #include <unordered_map>
 #include <vulkan/vulkan.hpp>
@@ -93,8 +94,8 @@ namespace Engine::RenderSystemState {
         vk::Device dvc;
 
         std::unordered_map<vk::SamplerCreateInfo, vk::UniqueSampler, sampler_hasher> sampler_cache;
-        std::unordered_map<vk::DescriptorSetLayoutCreateInfo, vk::UniqueDescriptorSetLayout, descriptor_set_layout_hasher> descriptor_set_layout_cache;
-        std::unordered_map<vk::PipelineLayoutCreateInfo, vk::UniquePipelineLayout, pipeline_layout_hasher> pipeline_layout_cache;
+        std::unordered_map<size_t, vk::UniqueDescriptorSetLayout> descriptor_set_layout_cache;
+        std::unordered_map<size_t, vk::UniquePipelineLayout> pipeline_layout_cache;
     };
 
     ImmutableResourceCache::ImmutableResourceCache(vk::Device dvc) : pimpl(std::make_unique<impl>()) {
@@ -115,8 +116,8 @@ namespace Engine::RenderSystemState {
             desc.bias_lod,
             false,
             0.0,
-            false,
-            vk::CompareOp::eNever,
+            (desc.comparator != ImageUtils::SamplerDesc::DepthComparator::Always),
+            PipelineUtils::ToVkCompareOp(desc.comparator),
             desc.min_lod,
             desc.max_lod,
             vk::BorderColor::eFloatTransparentBlack,
@@ -147,10 +148,11 @@ namespace Engine::RenderSystemState {
     vk::DescriptorSetLayout ImmutableResourceCache::GetDescriptorSetLayout(
         const vk::DescriptorSetLayoutCreateInfo &dlci, const char *name
     ) {
-        auto itr = pimpl->descriptor_set_layout_cache.find(dlci);
+        auto h = descriptor_set_layout_hasher{}(dlci);
+        auto itr = pimpl->descriptor_set_layout_cache.find(h);
 
         if (itr == pimpl->descriptor_set_layout_cache.end()) {
-            auto &r = pimpl->descriptor_set_layout_cache[dlci];
+            auto &r = pimpl->descriptor_set_layout_cache[h];
             r = pimpl->dvc.createDescriptorSetLayoutUnique(dlci);
 
             if (name) {
@@ -163,10 +165,11 @@ namespace Engine::RenderSystemState {
     vk::PipelineLayout ImmutableResourceCache::GetPipelineLayout(
         const vk::PipelineLayoutCreateInfo &plci, const char *name
     ) {
-        auto itr = pimpl->pipeline_layout_cache.find(plci);
+        auto h = pipeline_layout_hasher{}(plci);
+        auto itr = pimpl->pipeline_layout_cache.find(h);
 
         if (itr == pimpl->pipeline_layout_cache.end()) {
-            auto &r = pimpl->pipeline_layout_cache[plci];
+            auto &r = pimpl->pipeline_layout_cache[h];
             r = pimpl->dvc.createPipelineLayoutUnique(plci);
 
             if (name) {
