@@ -123,6 +123,15 @@ namespace Engine::RenderSystemState {
             false,
             nullptr
         };
+
+        if (ImageUtils::ToVkSamplerAddressMode(desc.u_address) == vk::SamplerAddressMode::eClampToBorder) {
+            sci.borderColor = ImageUtils::TovkBorderColor(desc.u_address);
+        } else if (ImageUtils::ToVkSamplerAddressMode(desc.v_address) == vk::SamplerAddressMode::eClampToBorder) {
+            sci.borderColor = ImageUtils::TovkBorderColor(desc.v_address);
+        } else if (ImageUtils::ToVkSamplerAddressMode(desc.w_address) == vk::SamplerAddressMode::eClampToBorder) {
+            sci.borderColor = ImageUtils::TovkBorderColor(desc.w_address);
+        }
+
         return GetSampler(sci);
     }
     vk::Sampler ImmutableResourceCache::GetSampler(const vk::SamplerCreateInfo &sci) {
