@@ -76,35 +76,6 @@ namespace Engine {
 
             // Declare a default elementwise equality operator
             bool operator==(const SamplerDesc &) const = default;
-
-            template <bool use_float_hash = false>
-            struct Hasher {
-                size_t operator()(const SamplerDesc &s) const noexcept {
-                    size_t hash = static_cast<uint8_t>(s.min_filter);
-                    hash = hash << 2 + static_cast<uint8_t>(s.max_filter);
-                    hash = hash << 2 + static_cast<uint8_t>(s.mipmap_filter);
-                    hash = hash << 2 + static_cast<uint8_t>(s.u_address);
-                    hash = hash << 2 + static_cast<uint8_t>(s.v_address);
-                    hash = hash << 2 + static_cast<uint8_t>(s.w_address);
-
-                    if constexpr (use_float_hash) {
-                        // Maybe we should not hash fp numbers...
-                        hash_combine(hash, s.bias_lod);
-                        hash_combine(hash, s.min_lod);
-                        hash_combine(hash, s.max_lod);
-                        hash_combine(hash, s.max_anisotropy < 1.0f ? 0.0f : s.max_anisotropy);
-                    }
-
-                    return hash;
-                };
-
-            private:
-                // Stolen from Boost
-                static void hash_combine(size_t &seed, float value) {
-                    std::hash<float> hasher;
-                    seed ^= hasher(value) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-                }
-            };
         };
     } // namespace ImageUtils
 } // namespace Engine
