@@ -22,7 +22,7 @@ layout(set = 0, binding = 0) uniform PerSceneUniform {
     LightAttributeStruct casting_lights;
     NonCastingLightAttributeStruct noncasting_lights;
 } scene;
-layout(set = 0, binding = 1) uniform sampler2D light_shadowmaps[MAX_SHADOW_CASTING_LIGHTS];
+layout(set = 0, binding = 1) uniform sampler2DShadow light_shadowmaps[MAX_SHADOW_CASTING_LIGHTS];
 
 struct CameraBufferStruct {
     mat4 view;
