@@ -2,6 +2,7 @@
 #define ENGINE_RENDER_IMAGEUTILS_INCLUDED
 
 #include "Render/Memory/MemoryTypes.h"
+#include "Render/Pipeline/PipelineEnums.h"
 #include <Reflection/macros.h>
 
 namespace Engine {
@@ -58,6 +59,8 @@ namespace Engine {
                 Linear
             };
 
+            using DepthComparator = PipelineUtils::DSComparator;
+
             // Filter mode.
             FilterMode min_filter{FilterMode::Point};
             FilterMode max_filter{FilterMode::Point};
@@ -73,6 +76,16 @@ namespace Engine {
 
             // Anisotropy value clamp. Use any value less than 1.0 to disable anisotropic filtering.
             float max_anisotropy{0.0f};
+
+            /**
+             * @brief Comparator used for depth comparison.
+             * 
+             * Depth comparison is enabled only if this enum is set to other
+             * values than `Always`. It is pertient to the sampling only if
+             * SPIR-V inst `OpImage*Dref*` (e.g. via GLSL `samplerXShadow` type)
+             * is used in the shader.
+             */
+            DepthComparator comparator{DepthComparator::Always};
 
             // Declare a default elementwise equality operator
             bool operator==(const SamplerDesc &) const = default;
