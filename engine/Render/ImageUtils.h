@@ -34,10 +34,23 @@ namespace Engine {
         };
 
         struct SamplerDesc {
+            /**
+             * @brief Address mode of the sampler.
+             * 
+             * If clamp to border is enabled for one texture coordinate,
+             * then all coordinate that clamp to border
+             * must clamp to the same border color.
+             */
             enum class REFL_SER_CLASS() AddressMode : uint8_t {
                 Repeat,
                 MirroredRepeat,
-                ClampToEdge
+                ClampToEdge,
+                // Clamp to [1.0, 1.0, 1.0, 1.0]
+                ClampToBorder_TransparentBlack,
+                // Clamp to [1.0, 1.0, 1.0, 0.0]
+                ClampToBorder_OpaqueBlack,
+                // Clamp to [0.0, 0.0, 0.0, 0.0]
+                ClampToBorder_OpaqueWhite
             };
 
             enum class REFL_SER_CLASS() FilterMode : uint8_t {
@@ -46,10 +59,14 @@ namespace Engine {
             };
 
             // Filter mode.
-            FilterMode min_filter{FilterMode::Point}, max_filter{FilterMode::Point}, mipmap_filter{FilterMode::Point};
+            FilterMode min_filter{FilterMode::Point};
+            FilterMode max_filter{FilterMode::Point};
+            FilterMode mipmap_filter{FilterMode::Point};
 
             // Address mode on three axis
-            AddressMode u_address{AddressMode::Repeat}, v_address{AddressMode::Repeat}, w_address{AddressMode::Repeat};
+            AddressMode u_address{AddressMode::Repeat};
+            AddressMode v_address{AddressMode::Repeat};
+            AddressMode w_address{AddressMode::Repeat};
 
             // Bias and clamps on LoD (mipmaps).
             float bias_lod{0.0f}, min_lod{0.0f}, max_lod{0.0f};

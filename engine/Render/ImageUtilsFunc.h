@@ -122,8 +122,7 @@ namespace Engine {
             case Mode::Point:
                 return vk::Filter::eNearest;
             }
-            assert(false);
-            return {};
+            __builtin_unreachable();
         }
 
         constexpr vk::SamplerMipmapMode ToVkSamplerMipmapMode(SamplerDesc::FilterMode filter) {
@@ -134,8 +133,7 @@ namespace Engine {
             case Mode::Point:
                 return vk::SamplerMipmapMode::eNearest;
             }
-            assert(false);
-            return {};
+            __builtin_unreachable();
         }
 
         constexpr vk::SamplerAddressMode ToVkSamplerAddressMode(SamplerDesc::AddressMode addr) {
@@ -147,9 +145,32 @@ namespace Engine {
                 return vk::SamplerAddressMode::eMirroredRepeat;
             case Mode::ClampToEdge:
                 return vk::SamplerAddressMode::eClampToEdge;
+            case Mode::ClampToBorder_TransparentBlack:
+            case Mode::ClampToBorder_OpaqueBlack:
+            case Mode::ClampToBorder_OpaqueWhite:
+                return vk::SamplerAddressMode::eClampToBorder;
             }
-            assert(false);
-            return {};
+            __builtin_unreachable();
+        }
+
+        constexpr vk::BorderColor TovkBorderColor(
+            SamplerDesc::AddressMode addr,
+            bool integer_variant = false
+        ) {
+            using Mode = SamplerDesc::AddressMode;
+            switch (addr) {
+            case Mode::Repeat:
+            case Mode::MirroredRepeat:
+            case Mode::ClampToEdge:
+                return vk::BorderColor::eFloatOpaqueBlack;
+            case Mode::ClampToBorder_TransparentBlack:
+                return integer_variant ? vk::BorderColor::eIntTransparentBlack : vk::BorderColor::eFloatTransparentBlack;
+            case Mode::ClampToBorder_OpaqueBlack:
+                return integer_variant ? vk::BorderColor::eIntOpaqueBlack : vk::BorderColor::eFloatOpaqueBlack;
+            case Mode::ClampToBorder_OpaqueWhite:
+                return integer_variant ? vk::BorderColor::eIntOpaqueWhite : vk::BorderColor::eFloatOpaqueWhite;
+            }
+            __builtin_unreachable();
         }
     } // namespace ImageUtils
 } // namespace Engine
