@@ -47,34 +47,32 @@ Ensure that you have killed all background VSCode processes before restarting, o
 ## Project Structure
 
 ```
-assets/                   # Some raw resources
-builtin_assets/           # Some assets frequently-used in any games
-editor/                   # Code of engine editor
-engine/                   
-├── __generated__/        # Auto-generated reflection code of the engine
-├── Asset/                # Asset management
-├── Core/                 # Core features such as Math
-├── Exception             # Engine exceptions
-├── Framework             # Main framework such as GameObject, Component
-├── Functional            # Some small functional systems
-├── Input                 # Input systems (mouse, keyboard, gamepad)
-├── Reflection            # Reflection and serialization
-├── Render                # Render systems
-└── Docs/                 # Engine documents
-example/                  # Some runable game examples
-projects/                 # Some example game project (Can be opened by the engine)
-reflection_parser/        # Python codes of the parser for C++ reflection and serialization
-shader/                   # Shader codes
-test/                     # Some runable test
-thirdparty/               # External dependencies
+docs/                     # Contribution guidelines and code style
+wiki/                    # Technical documentation
+assets/                  # Raw resources
+builtin_assets/          # Built-in assets used across all projects
+editor/                  # Engine editor code
+engine/
+    Asset/               # Asset management
+    Core/                # Core features (Math, Functional)
+    Framework/           # GameObject, Component, Scene
+    Reflection/          # Reflection and serialization
+    Render/              # Vulkan rendering systems
+    UserInterface/       # GUI system
+example/                 # Runnable game examples
+projects/                # Example game projects
+reflection_parser/       # Python parser for C++ reflection
+shader/                  # GLSL shader code
+test/                    # Test executables
+third_party/             # External dependencies (glm, SPIRV-Cross)
 ```
 
 ## Build Targets
 
-- **editor**: Executable (in `/editor`) that runs the engine editor interface
-- **engine**: Static library (in `/engine`) containing core engine functionality  
-- **tests**: Executable demos and test cases (runnable directly or via CTest)  
-- **third_party**: Static third party libraries linked to `engine` containing dependencies  
+- **editor**: Executable that runs the engine editor interface
+- **engine**: Static library containing core engine functionality
+- **tests**: Executable demos and test cases (runnable via CTest)
+- **third_party**: Static libraries for dependencies
 
 ## Key Features
 
@@ -105,3 +103,13 @@ thirdparty/               # External dependencies
 - Hierarchical object system with parent-child relationships
 - Component-based architecture for game logic
 - World management with controlled instantiation
+
+## Documentation
+
+- [Code Style Guide](./docs/CODE_STYLE.md) - Coding conventions and best practices
+- [Contributing Guide](./docs/CONTRIBUTING.md) - How to contribute to this project
+- [Technical Wiki](./wiki/) - Architecture and API documentation
+
+## License
+
+This project is licensed under the MIT License. See [LICENSE](./LICENSE) for details.
