@@ -67,8 +67,7 @@ float calculateShadow(int lightIndex)
     frag_position_ls.xy += 0.5;
     
     float shadow = texture(light_shadowmaps[lightIndex], vec3(frag_position_ls.xy, frag_position_ls.z - SHADOW_BIAS));
-    // Convert to shadow coefficient (0.0 = fully in shadow, 1.0 = fully lit)
-    return 1.0 - shadow;
+    return shadow;
 }
 
 void main()

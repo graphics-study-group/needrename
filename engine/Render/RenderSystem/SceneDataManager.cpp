@@ -101,7 +101,7 @@ namespace Engine::RenderSystemState {
                                 .u_address = ImageUtils::SamplerDesc::AddressMode::ClampToBorder_OpaqueWhite,
                                 .v_address = ImageUtils::SamplerDesc::AddressMode::ClampToBorder_OpaqueWhite,
                                 .w_address = ImageUtils::SamplerDesc::AddressMode::ClampToBorder_OpaqueWhite,
-                                .comparator = PipelineUtils::DSComparator::Greater
+                                .comparator = PipelineUtils::DSComparator::Less
                             }
                         )
                     );
