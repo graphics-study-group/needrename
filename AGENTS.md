@@ -58,7 +58,8 @@ World (WorldSystem)
   - Member variables: `m_` prefix + snake\_case (`m_position`)
   - Local variables: snake\_case (`delta_time`)
   - Constants/Macros: ALL\_CAPS
-- **Namespace**: lowercase (`namespace Engine`)
+- **Namespace**: PascalCase (`Engine`, `Serialization`) except `detail` (lowercase, internal)
+- **Anonymous namespace**: file-local symbols via `namespace { ... }`
 - **Order**: public → protected → private
 
 ## Key Directories
@@ -88,4 +89,3 @@ JSON-based with type tracking:
 ```
 
 <br />
-

@@ -40,8 +40,28 @@ find . -name "*.cpp" -o -name "*.h" | xargs clang-format -i
 
 ### 2.5 命名空间
 
-- 使用全小写命名空间
-- 示例：`namespace Engine`
+- **常规命名空间**：PascalCase
+  - 示例：`namespace Engine`, `namespace Serialization`
+- **`detail` 命名空间**：全小写，用于内部实现细节
+  - 用于不属于公共 API 的辅助类型/函数
+- **匿名命名空间**：文件本地符号
+  - 使用 `namespace { ... }` 声明不希望外部链接的函数/变量
+
+```cpp
+namespace Engine {
+
+    namespace detail {      // 内部实现细节
+        class HelperClass { ... };
+    }
+
+    class PublicClass { ... };
+
+} // namespace Engine
+
+namespace {                  // 文件本地，内部链接
+    void helper() { ... }
+}
+```
 
 ## 3. 注释规范
 

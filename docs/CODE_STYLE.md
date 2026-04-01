@@ -40,8 +40,28 @@ find . -name "*.cpp" -o -name "*.h" | xargs clang-format -i
 
 ### 2.5 Namespaces
 
-- Use lowercase names
-- Examples: `namespace Engine`
+- **Regular namespaces**: PascalCase
+  - Examples: `namespace Engine`, `namespace Serialization`
+- **`detail` namespace**: lowercase, reserved for internal implementation details
+  - Used for helper types/functions not part of public API
+- **Anonymous namespaces**: file-local symbols
+  - Use `namespace { ... }` for functions/variables that should not be externally linked
+
+```cpp
+namespace Engine {
+
+    namespace detail {      // Internal implementation details
+        class HelperClass { ... };
+    }
+
+    class PublicClass { ... };
+
+} // namespace Engine
+
+namespace {                  // File-local, internal linkage
+    void helper() { ... }
+}
+```
 
 ## 3. Commenting Guidelines
 
