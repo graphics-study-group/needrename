@@ -114,7 +114,7 @@ namespace Engine::RenderSystemState {
             ImageUtils::ToVkSamplerAddressMode(desc.v_address),
             ImageUtils::ToVkSamplerAddressMode(desc.w_address),
             desc.bias_lod,
-            (desc.max_anisotropy < 1.0f),
+            (desc.max_anisotropy > 1.0f),
             desc.max_anisotropy,
             (desc.comparator != ImageUtils::SamplerDesc::DepthComparator::Always),
             PipelineUtils::ToVkCompareOp(desc.comparator),
