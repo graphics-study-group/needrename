@@ -4,8 +4,6 @@
 
 layout(constant_id = 0) const int SPECULAR_SHADING_MODE = 2;
 layout(constant_id = 1) const float SHADOW_BIAS = 0.005;
-layout(constant_id = 2) const float SHADOW_SAMPLES = 3.0;
-layout(constant_id = 3) const float SHADOW_OFFSET = 0.001;
 
 layout(location = 0) in vec3 frag_color;
 layout(location = 1) in vec2 frag_uv;
@@ -30,24 +28,8 @@ float calculateShadow(int lightIndex)
     frag_position_ls.xy *= 0.5;
     frag_position_ls.xy += 0.5;
     
-    float shadow = 0.0;
-    int norm = 0;
-    
-    for (float x = -SHADOW_OFFSET; x < SHADOW_OFFSET; x += SHADOW_OFFSET / (SHADOW_SAMPLES * 0.5))
-    {
-        for (float y = -SHADOW_OFFSET; y < SHADOW_OFFSET; y += SHADOW_OFFSET / (SHADOW_SAMPLES * 0.5))
-        {
-            float light_map_depth = texture(light_shadowmaps[lightIndex], frag_position_ls.xy + vec2(x, y)).x;
-            if (frag_position_ls.z - SHADOW_BIAS > light_map_depth)
-                shadow += 1.0;
-            ++norm;
-        }
-    }
-    
-    // Average the shadow samples
-    shadow /= float(norm);
-    // Convert to shadow coefficient (0.0 = fully in shadow, 1.0 = fully lit)
-    return 1.0 - shadow;
+    float shadow = texture(light_shadowmaps[lightIndex], vec3(frag_position_ls.xy, frag_position_ls.z - SHADOW_BIAS));
+    return shadow;
 }
 
 void main() {

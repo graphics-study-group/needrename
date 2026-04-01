@@ -95,9 +95,13 @@ namespace Engine::RenderSystemState {
                         immutable_samplers.end(),
                         system.GetIRCache().GetSampler(
                             ImageUtils::SamplerDesc{
-                                .u_address = ImageUtils::SamplerDesc::AddressMode::ClampToEdge,
-                                .v_address = ImageUtils::SamplerDesc::AddressMode::ClampToEdge,
-                                .w_address = ImageUtils::SamplerDesc::AddressMode::ClampToEdge
+                                .min_filter = ImageUtils::SamplerDesc::FilterMode::Linear,
+                                .max_filter = ImageUtils::SamplerDesc::FilterMode::Linear,
+                                .mipmap_filter = ImageUtils::SamplerDesc::FilterMode::Point,
+                                .u_address = ImageUtils::SamplerDesc::AddressMode::ClampToBorder_OpaqueWhite,
+                                .v_address = ImageUtils::SamplerDesc::AddressMode::ClampToBorder_OpaqueWhite,
+                                .w_address = ImageUtils::SamplerDesc::AddressMode::ClampToBorder_OpaqueWhite,
+                                .comparator = PipelineUtils::DSComparator::Less
                             }
                         )
                     );

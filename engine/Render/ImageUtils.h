@@ -2,6 +2,7 @@
 #define ENGINE_RENDER_IMAGEUTILS_INCLUDED
 
 #include "Render/Memory/MemoryTypes.h"
+#include "Render/Pipeline/PipelineEnums.h"
 #include <Reflection/macros.h>
 
 namespace Engine {
@@ -34,10 +35,23 @@ namespace Engine {
         };
 
         struct SamplerDesc {
+            /**
+             * @brief Address mode of the sampler.
+             *
+             * If clamp to border is enabled for one texture coordinate,
+             * then all coordinate that clamp to border
+             * must clamp to the same border color.
+             */
             enum class REFL_SER_CLASS() AddressMode : uint8_t {
                 Repeat,
                 MirroredRepeat,
-                ClampToEdge
+                ClampToEdge,
+                // Clamp to [0.0, 0.0, 0.0, 0.0]
+                ClampToBorder_TransparentBlack,
+                // Clamp to [0.0, 0.0, 0.0, 1.0]
+                ClampToBorder_OpaqueBlack,
+                // Clamp to [1.0, 1.0, 1.0, 1.0]
+                ClampToBorder_OpaqueWhite
             };
 
             enum class REFL_SER_CLASS() FilterMode : uint8_t {
@@ -45,11 +59,17 @@ namespace Engine {
                 Linear
             };
 
+            using DepthComparator = PipelineUtils::DSComparator;
+
             // Filter mode.
-            FilterMode min_filter{FilterMode::Point}, max_filter{FilterMode::Point}, mipmap_filter{FilterMode::Point};
+            FilterMode min_filter{FilterMode::Point};
+            FilterMode max_filter{FilterMode::Point};
+            FilterMode mipmap_filter{FilterMode::Point};
 
             // Address mode on three axis
-            AddressMode u_address{AddressMode::Repeat}, v_address{AddressMode::Repeat}, w_address{AddressMode::Repeat};
+            AddressMode u_address{AddressMode::Repeat};
+            AddressMode v_address{AddressMode::Repeat};
+            AddressMode w_address{AddressMode::Repeat};
 
             // Bias and clamps on LoD (mipmaps).
             float bias_lod{0.0f}, min_lod{0.0f}, max_lod{0.0f};
@@ -57,37 +77,18 @@ namespace Engine {
             // Anisotropy value clamp. Use any value less than 1.0 to disable anisotropic filtering.
             float max_anisotropy{0.0f};
 
+            /**
+             * @brief Comparator used for depth comparison.
+             *
+             * Depth comparison is enabled only if this enum is set to other
+             * values than `Always`. It is pertient to the sampling only if
+             * SPIR-V inst `OpImage*Dref*` (e.g. via GLSL `samplerXShadow` type)
+             * is used in the shader.
+             */
+            DepthComparator comparator{DepthComparator::Always};
+
             // Declare a default elementwise equality operator
             bool operator==(const SamplerDesc &) const = default;
-
-            template <bool use_float_hash = false>
-            struct Hasher {
-                size_t operator()(const SamplerDesc &s) const noexcept {
-                    size_t hash = static_cast<uint8_t>(s.min_filter);
-                    hash = hash << 2 + static_cast<uint8_t>(s.max_filter);
-                    hash = hash << 2 + static_cast<uint8_t>(s.mipmap_filter);
-                    hash = hash << 2 + static_cast<uint8_t>(s.u_address);
-                    hash = hash << 2 + static_cast<uint8_t>(s.v_address);
-                    hash = hash << 2 + static_cast<uint8_t>(s.w_address);
-
-                    if constexpr (use_float_hash) {
-                        // Maybe we should not hash fp numbers...
-                        hash_combine(hash, s.bias_lod);
-                        hash_combine(hash, s.min_lod);
-                        hash_combine(hash, s.max_lod);
-                        hash_combine(hash, s.max_anisotropy < 1.0f ? 0.0f : s.max_anisotropy);
-                    }
-
-                    return hash;
-                };
-
-            private:
-                // Stolen from Boost
-                static void hash_combine(size_t &seed, float value) {
-                    std::hash<float> hasher;
-                    seed ^= hasher(value) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-                }
-            };
         };
     } // namespace ImageUtils
 } // namespace Engine
