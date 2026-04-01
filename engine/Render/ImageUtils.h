@@ -46,11 +46,11 @@ namespace Engine {
                 Repeat,
                 MirroredRepeat,
                 ClampToEdge,
-                // Clamp to [1.0, 1.0, 1.0, 1.0]
-                ClampToBorder_TransparentBlack,
-                // Clamp to [1.0, 1.0, 1.0, 0.0]
-                ClampToBorder_OpaqueBlack,
                 // Clamp to [0.0, 0.0, 0.0, 0.0]
+                ClampToBorder_TransparentBlack,
+                // Clamp to [0.0, 0.0, 0.0, 1.0]
+                ClampToBorder_OpaqueBlack,
+                // Clamp to [1.0, 1.0, 1.0, 1.0]
                 ClampToBorder_OpaqueWhite
             };
 

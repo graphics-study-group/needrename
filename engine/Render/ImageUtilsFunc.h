@@ -153,7 +153,7 @@ namespace Engine {
             __builtin_unreachable();
         }
 
-        constexpr vk::BorderColor TovkBorderColor(SamplerDesc::AddressMode addr, bool integer_variant = false) {
+        constexpr vk::BorderColor ToVkBorderColor(SamplerDesc::AddressMode addr, bool integer_variant = false) {
             using Mode = SamplerDesc::AddressMode;
             switch (addr) {
             case Mode::Repeat:

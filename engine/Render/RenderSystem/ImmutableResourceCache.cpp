@@ -126,11 +126,11 @@ namespace Engine::RenderSystemState {
         };
 
         if (ImageUtils::ToVkSamplerAddressMode(desc.u_address) == vk::SamplerAddressMode::eClampToBorder) {
-            sci.borderColor = ImageUtils::TovkBorderColor(desc.u_address);
+            sci.borderColor = ImageUtils::ToVkBorderColor(desc.u_address);
         } else if (ImageUtils::ToVkSamplerAddressMode(desc.v_address) == vk::SamplerAddressMode::eClampToBorder) {
-            sci.borderColor = ImageUtils::TovkBorderColor(desc.v_address);
+            sci.borderColor = ImageUtils::ToVkBorderColor(desc.v_address);
         } else if (ImageUtils::ToVkSamplerAddressMode(desc.w_address) == vk::SamplerAddressMode::eClampToBorder) {
-            sci.borderColor = ImageUtils::TovkBorderColor(desc.w_address);
+            sci.borderColor = ImageUtils::ToVkBorderColor(desc.w_address);
         }
 
         return GetSampler(sci);
