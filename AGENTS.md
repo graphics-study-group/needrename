@@ -62,19 +62,6 @@ World (WorldSystem)
 - **Anonymous namespace**: file-local symbols via `namespace { ... }`
 - **Order**: public → protected → private
 
-## Key Directories
-
-| Directory            | Purpose                                                       |
-| -------------------- | ------------------------------------------------------------- |
-| `engine/`            | Core engine code (Asset, Core, Framework, Reflection, Render) |
-| `editor/`            | Editor application                                            |
-| `reflection_parser/` | Python parser for C++ reflection code generation              |
-| `shader/`            | GLSL shader sources                                           |
-| `test/`              | Test executables                                              |
-| `third_party/`       | External dependencies (glm, SPIRV-Cross)                      |
-| `docs/`              | Contributing guidelines, code style                           |
-| `wiki/`              | Technical documentation                                       |
-
 ## Serialization Format
 
 JSON-based with type tracking:
@@ -84,8 +71,7 @@ JSON-based with type tracking:
     "%main_data": {
         "%type": "Engine::GameObject",
         "GameObject::m_handle": 1
-    }
+    },
+    "%extra_data": []
 }
 ```
-
-<br />
