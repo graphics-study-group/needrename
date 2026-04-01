@@ -1,3 +1,5 @@
+> 🇨🇳 [中文版](./README_CN.md) | 🇺🇸 English
+
 An unnamed game engine with advanced features including Vulkan-based rendering, Python-powered reflection/serialization, and a flexible component-based game framework.
 
 ![engine_editor](./assets/engine_editor.png)
