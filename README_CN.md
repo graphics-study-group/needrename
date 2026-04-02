@@ -64,7 +64,6 @@ engine/
 example/                 # 可运行的示例游戏
 projects/                # 示例游戏项目
 reflection_parser/       # C++ 反射的 Python 解析器
-shader/                  # GLSL 着色器代码
 test/                    # 测试程序
 third_party/             # 第三方依赖（glm、SPIRV-Cross 等）
 ```

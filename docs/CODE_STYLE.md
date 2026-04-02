@@ -1,5 +1,10 @@
 # Code Style Guide
 
+This project references and adheres to the **[C++ Core Guidelines](https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines)**.
+
+* **Principle**: For scenarios not explicitly covered in this guide, follow the modern C++ best practices outlined in the Core Guidelines.
+* **Precedence**: This Project Guide > C++ Core Guidelines.
+
 ## 1. Code Formatting
 
 All code must be formatted using the `.clang-format` configuration file. Before committing, run:
@@ -11,7 +16,7 @@ clang-format -i <file>.cpp
 Or for an entire directory:
 
 ```bash
-find . -name "*.cpp" -o -name "*.h" | xargs clang-format -i
+find . -name "*.cpp" -o -name "*.h" -o -name "*.hpp" | xargs clang-format -i 
 ```
 
 ## 2. Naming Conventions
@@ -83,10 +88,6 @@ namespace {                  // File-local, internal linkage
 - Use `//` prefix
 - Comments should explain intent, avoid redundancy
 
-### 3.3 Special Markers
-
-- Use `[[deprecated]]` to mark deprecated functions
-
 ## 4. Code Organization
 
 ### 4.1 Header File Structure
@@ -108,7 +109,6 @@ namespace Engine {
 
 ### 4.2 Class Structure Order
 
-- public -> protected -> private
 - Constructor/destructor -> member functions -> member variables
 
 ### 4.3 Header Dependencies and Build Optimization
@@ -117,6 +117,7 @@ namespace Engine {
 - Prefer Forward Declaration to avoid unnecessary `#include`
 - Only include headers when full type information is required (e.g., template instantiation)
 - Consider using **Pimpl idiom** (Pointer to Implementation) to hide implementation details in `.cpp` files
+- Internal headers that are not a part of the interface and are only included in `cpp` implementation files should have a `.hpp` extension
 - Examples:
 
   ```cpp

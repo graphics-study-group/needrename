@@ -1,5 +1,10 @@
 # 代码规范
 
+本规范参考并遵循 **[C++ Core Guidelines](https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines)**。
+
+* **原则**：若本指南未明确规定，请优先参考 Core Guidelines 的现代 C++ 最佳实践。
+* **优先级**：本项目规范 > C++ Core Guidelines。
+
 ## 1. 代码格式化
 
 所有代码必须通过 `.clang-format` 配置文件进行格式化。提交代码前请运行：
@@ -11,7 +16,7 @@ clang-format -i <file>.cpp
 或对整个目录：
 
 ```bash
-find . -name "*.cpp" -o -name "*.h" | xargs clang-format -i
+find . -name "*.cpp" -o -name "*.h" -o -name "*.hpp" | xargs clang-format -i 
 ```
 
 ## 2. 命名规范
@@ -83,10 +88,6 @@ namespace {                  // 文件本地，内部链接
 - 使用 `//` 开头
 - 注释应解释代码意图，避免冗余
 
-### 3.3 特殊标记
-
-- 使用 `[[deprecated]]` 标记废弃函数
-
 ## 4. 代码组织
 
 ### 4.1 头文件结构
@@ -108,7 +109,6 @@ namespace Engine {
 
 ### 4.2 类结构顺序
 
-- public -> protected -> private
 - 构造函数/析构函数 -> 成员函数 -> 成员变量
 
 ### 4.3 头文件依赖与编译优化
@@ -117,6 +117,7 @@ namespace Engine {
 - 优先使用前向声明（Forward Declaration），避免不必要的 `#include`
 - 仅在必须时（如需要完整类型信息、模板实例化等）才包含头文件
 - 必要时可使用 **Pimpl idiom**（Pointer to Implementation）将实现细节隐藏到 `.cpp` 文件中
+- 仅包含在`cpp`实现文件中的非接口部分的内部头文件，应使用`.hpp`扩展名
 - 示例：
 
   ```cpp

@@ -64,7 +64,6 @@ engine/
 example/                 # Runnable game examples
 projects/                # Example game projects
 reflection_parser/       # Python parser for C++ reflection
-shader/                  # GLSL shader code
 test/                    # Test executables
 third_party/             # External dependencies (glm, SPIRV-Cross)
 ```
