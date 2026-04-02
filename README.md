@@ -1,4 +1,4 @@
-> 🇨🇳 [中文版](./README_CN.md) | 🇺🇸 English
+> 🇨🇳 [中文版](./docs/README_CN.md) | 🇺🇸 English
 
 An unnamed game engine with advanced features including Vulkan-based rendering, Python-powered reflection/serialization, and a flexible component-based game framework.
 
@@ -107,8 +107,8 @@ third_party/             # External dependencies (glm, SPIRV-Cross)
 
 ## Documentation
 
-- [Code Style Guide](./docs/CODE_STYLE.md) - Coding conventions and best practices
-- [Contributing Guide](./docs/CONTRIBUTING.md) - How to contribute to this project
+- [Code Style Guide](./CODE_STYLE.md) - Coding conventions and best practices
+- [Contributing Guide](./CONTRIBUTING.md) - How to contribute to this project
 - [Technical Wiki](./wiki/) - Architecture and API documentation
 
 ## License

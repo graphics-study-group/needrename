@@ -1,4 +1,4 @@
-> 🇨🇳 中文版 | 🇺🇸 [English](./README.md)
+> 🇨🇳 中文版 | 🇺🇸 [English](../README.md)
 
 一款游戏引擎，包含基于 Vulkan 的渲染系统、Python 驱动的反射/序列化机制，以及灵活的组件化游戏框架。
 
@@ -107,10 +107,10 @@ third_party/             # 第三方依赖（glm、SPIRV-Cross 等）
 
 ## 文档
 
-- [代码规范](./docs/CODE_STYLE_CN.md) - 编码约定和最佳实践
-- [贡献指南](./docs/CONTRIBUTING_CN.md) - 如何参与项目贡献
-- [技术维基](./wiki/) - 架构和 API 文档
+- [代码规范](./CODE_STYLE_CN.md) - 编码约定和最佳实践
+- [贡献指南](./CONTRIBUTING_CN.md) - 如何参与项目贡献
+- [技术维基](../wiki/) - 架构和 API 文档
 
 ## 许可证
 
-本项目采用 MIT 许可证。详见 [LICENSE](./LICENSE)。
+本项目采用 MIT 许可证。详见 [LICENSE](../LICENSE)。

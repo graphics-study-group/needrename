@@ -68,9 +68,9 @@ main branch (stable) <- feature branches <- your work
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the project's [LICENSE](../LICENSE).
+By contributing, you agree that your contributions will be licensed under the project's [LICENSE](./LICENSE).
 
 ## Questions?
 
 - Open an issue for bugs or feature requests
-- Check the [wiki](../wiki) for technical documentation
+- Check the [wiki](./wiki) for technical documentation
