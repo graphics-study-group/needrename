@@ -95,7 +95,7 @@ namespace Engine {
             m_materials.clear();
         }
 
-        virtual void RenderInit() override {
+        virtual void Awake() override {
             assert(!"This component has no mesh nor material asset to load from.");
         }
     };

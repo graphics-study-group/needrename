@@ -22,7 +22,7 @@ namespace Engine {
         auto GetSubmeshes() const -> const decltype(m_submeshes) &;
 
         /// @brief Materialize a runtime mesh component from a mesh asset
-        virtual void RenderInit() override;
+        virtual void Awake() override;
         virtual void Tick() override;
 
         REFL_SER_ENABLE AssetRef m_mesh_asset{};

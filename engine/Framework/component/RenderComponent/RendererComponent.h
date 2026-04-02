@@ -33,7 +33,7 @@ namespace Engine {
 
         virtual void UnregisterFromRenderSystem();
 
-        virtual void RenderInit();
+        virtual void Awake() override;
         virtual void Tick() override;
 
         std::shared_ptr<MaterialInstance> GetMaterial(uint32_t slot) const;

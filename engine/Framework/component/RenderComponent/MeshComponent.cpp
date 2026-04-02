@@ -23,8 +23,8 @@ namespace Engine {
         return m_submeshes;
     }
 
-    void MeshComponent::RenderInit() {
-        RendererComponent::RenderInit();
+    void MeshComponent::Awake() {
+        RendererComponent::Awake();
 
         // Create submeshes from mesh assets
         assert(m_mesh_asset.IsValid());

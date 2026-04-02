@@ -202,7 +202,7 @@ int main(int argc, char **argv) {
     floor_mesh_comp.m_mesh_asset = floor_mesh_asset_ref;
     floor_mesh_comp.GetMaterials().resize(1);
     floor_mesh_comp.GetMaterials()[0] = floor_material_instance;
-    floor_mesh_comp.RenderInit();
+    floor_mesh_comp.Awake();
     assert(floor_mesh_comp.GetSubmesh(0)->GetVertexAttributeFormat().HasAttribute(VertexAttributeSemantic::Texcoord0));
 
     auto &cube_go = scene.CreateGameObject();
