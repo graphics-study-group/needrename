@@ -29,7 +29,12 @@ add_subdirectory(Reflection)
 add_subdirectory(Render)
 add_subdirectory(UserInterface)
 
-add_library(engine SHARED 
+set(ENGINE_LIBRARY_TYPE STATIC)
+if(ENGINE_BUILD_SHARED)
+    set(ENGINE_LIBRARY_TYPE SHARED)
+endif()
+
+add_library(engine ${ENGINE_LIBRARY_TYPE}
     "MainClass.cpp"
     $<TARGET_OBJECTS:imgui>
     $<TARGET_OBJECTS:EngineLibAsset>
@@ -39,6 +44,16 @@ add_library(engine SHARED
     $<TARGET_OBJECTS:EngineLibRender>
     $<TARGET_OBJECTS:EngineLibUserInterface>
 )
+
+if(ENGINE_BUILD_SHARED)
+    set_target_properties(engine PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
+
+    if(WIN32 AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        # `WINDOWS_EXPORT_ALL_SYMBOLS` is not reflected into the GNU-on-Windows link line here,
+        # so the generated import library misses many C++ symbols used by tests/examples.
+        target_link_options(engine PRIVATE "-Wl,--export-all-symbols")
+    endif()
+endif()
 
 add_dependencies(engine shader)
 

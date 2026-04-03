@@ -1,4 +1,4 @@
-file(GLOB_RECURSE SOURCE "./*.cpp")
+file(GLOB_RECURSE SOURCE CONFIGURE_DEPENDS "./*.cpp")
 
 add_library(EngineLibAsset
     OBJECT
@@ -11,6 +11,7 @@ target_link_libraries(EngineLibAsset
 )
 target_link_libraries(EngineLibAsset
     PUBLIC
+    assimp::assimp
     tinyobjloader
     stb
 )

@@ -5,7 +5,12 @@ file(GLOB_RECURSE HEADER "./*.h")
 list(FILTER SOURCE EXCLUDE REGEX "__generated__/.*")
 list(FILTER HEADER EXCLUDE REGEX "__generated__/.*")
 
-add_library(editor SHARED ${SOURCE})
+set(EDITOR_LIBRARY_TYPE STATIC)
+if(ENGINE_BUILD_SHARED)
+    set(EDITOR_LIBRARY_TYPE SHARED)
+endif()
+
+add_library(editor ${EDITOR_LIBRARY_TYPE} ${SOURCE})
 target_include_directories(editor PUBLIC ${ENGINE_EDITOR_DIR})
 target_link_libraries(editor PUBLIC engine)
 

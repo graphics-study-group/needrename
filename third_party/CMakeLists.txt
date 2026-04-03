@@ -13,6 +13,25 @@ set_target_properties(tinyobjloader PROPERTIES FOLDER third_party)
 add_subdirectory(vma EXCLUDE_FROM_ALL)
 set_target_properties(vma PROPERTIES FOLDER third_party)
 
+set(_THIRD_PARTY_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
+set(BUILD_SHARED_LIBS OFF)
+
+set(ASSIMP_BUILD_TESTS OFF)
+set(ASSIMP_INSTALL OFF)
+set(ASSIMP_BUILD_ASSIMP_TOOLS OFF)
+set(ASSIMP_BUILD_SAMPLES OFF)
+set(ASSIMP_WARNINGS_AS_ERRORS OFF)
+set(ASSIMP_NO_EXPORT ON)
+set(ASSIMP_BUILD_ZLIB ON)
+add_subdirectory(assimp EXCLUDE_FROM_ALL)
+set(BUILD_SHARED_LIBS ${_THIRD_PARTY_BUILD_SHARED_LIBS})
+unset(_THIRD_PARTY_BUILD_SHARED_LIBS)
+
+set_target_properties(assimp PROPERTIES FOLDER third_party)
+if(TARGET zlibstatic)
+    set_target_properties(zlibstatic PROPERTIES FOLDER third_party)
+endif()
+
 # For some reasons the SPIRV-Cross in Vulkan SDK cannot be found by CMake...
 set(SPIRV_CROSS_CLI OFF CACHE BOOL "Build the CLI binary. Requires SPIRV_CROSS_STATIC." FORCE)
 set(SPIRV_CROSS_ENABLE_TESTS OFF CACHE BOOL "Enable SPIRV-Cross tests." FORCE)
