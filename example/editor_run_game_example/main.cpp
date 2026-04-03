@@ -1,10 +1,16 @@
 #include <SDL3/SDL.h>
 #include <cassert>
+#include <charconv>
 #include <fstream>
 #include <iostream>
+#include <limits>
+#include <stdexcept>
+#include <string_view>
 
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include <Asset/AssetManager/AssetManager.h>
+#include <Asset/Loader/Importer.h>
+#include <Asset/Scene/SceneAsset.h>
 #include <Core/Delegate/FuncDelegate.h>
 #include <Core/Functional/EventQueue.h>
 #include <Core/Functional/SDLWindow.h>
@@ -29,6 +35,124 @@
 #include <meta_editor_run_game_example/reflection_init.ipp>
 
 using namespace Engine;
+
+namespace {
+    struct ExampleOptions {
+        int64_t max_frame_count = std::numeric_limits<int64_t>::max();
+        bool keep_project = false;
+        std::filesystem::path import_source = std::filesystem::path(ENGINE_ASSETS_DIR) / "fbx" / "phong_cube.fbx";
+    };
+
+    std::filesystem::path ResolveImportPath(const std::filesystem::path &input_path) {
+        if (input_path.is_absolute()) {
+            return input_path;
+        }
+
+        std::error_code ec;
+        auto from_cwd = std::filesystem::weakly_canonical(std::filesystem::current_path() / input_path, ec);
+        if (!ec && std::filesystem::exists(from_cwd)) {
+            return from_cwd;
+        }
+
+        ec.clear();
+        return std::filesystem::weakly_canonical(std::filesystem::path(ENGINE_ROOT_DIR) / input_path, ec);
+    }
+
+    ExampleOptions ParseArguments(int argc, char **argv) {
+        ExampleOptions options{};
+        bool frame_count_set = false;
+        bool import_source_set = false;
+
+        for (int arg_index = 1; arg_index < argc; ++arg_index) {
+            std::string_view arg(argv[arg_index]);
+            if (arg == "--keep-project") {
+                options.keep_project = true;
+                continue;
+            }
+            if (!frame_count_set) {
+                int64_t parsed_value = 0;
+                const auto [ptr, ec] = std::from_chars(arg.data(), arg.data() + arg.size(), parsed_value);
+                if (ec == std::errc{} && ptr == arg.data() + arg.size() && parsed_value > 0) {
+                    options.max_frame_count = parsed_value;
+                    frame_count_set = true;
+                    continue;
+                }
+            }
+            if (!import_source_set) {
+                options.import_source = ResolveImportPath(std::filesystem::path(arg));
+                import_source_set = true;
+                continue;
+            }
+            throw std::runtime_error("Too many positional arguments.");
+        }
+
+        return options;
+    }
+
+    void ResetExampleProject(
+        const std::filesystem::path &project_template_path, const std::filesystem::path &project_path
+    ) {
+        std::error_code ec;
+        std::filesystem::remove_all(project_path, ec);
+        ec.clear();
+        std::filesystem::copy(project_template_path, project_path, std::filesystem::copy_options::recursive);
+    }
+
+    void CleanupProject(const std::filesystem::path &project_path, bool keep_project) {
+        if (keep_project) {
+            SDL_LogInfo(
+                SDL_LOG_CATEGORY_APPLICATION,
+                "Keeping imported project directory for inspection: %s",
+                project_path.string().c_str()
+            );
+            return;
+        }
+
+        std::error_code ec;
+        std::filesystem::remove_all(project_path, ec);
+        if (ec) {
+            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "Failed to clean temp project: %s", ec.message().c_str());
+        }
+    }
+
+    void RemoveGameObjectsByName(Scene &scene, std::string_view name) {
+        std::vector<ObjectHandle> handles_to_remove;
+        for (const auto &go : scene.GetGameObjects()) {
+            if (go && go->m_name == name) {
+                handles_to_remove.push_back(go->GetHandle());
+            }
+        }
+
+        for (auto handle : handles_to_remove) {
+            scene.RemoveGameObject(handle);
+        }
+        scene.FlushCmdQueue();
+    }
+
+    void ImportModelPrefab(
+        const ExampleOptions &options,
+        FileSystemDatabase &database,
+        Scene &main_scene,
+        const std::filesystem::path &path_in_project
+    ) {
+        if (!path_in_project.empty()) {
+            std::filesystem::create_directories(database.GetProjectAssetsPath() / path_in_project);
+        }
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Import source: %s", options.import_source.string().c_str());
+        SDL_LogInfo(
+            SDL_LOG_CATEGORY_APPLICATION, "Import extension: %s", options.import_source.extension().string().c_str()
+        );
+        Importer::ImportExternalResource(options.import_source, path_in_project);
+
+        RemoveGameObjectsByName(main_scene, "four_bunny");
+
+        const std::string prefab_name = "GO_" + options.import_source.stem().string() + ".asset";
+        AssetPath prefab_path{database, path_in_project / prefab_name};
+        auto prefab_ref = database.GetNewAssetRef(prefab_path);
+        prefab_ref.as<SceneAsset>()->AddToScene(main_scene);
+        main_scene.FlushCmdQueue();
+    }
+} // namespace
 
 SpinningComponent::SpinningComponent(const GameObject &parent) : Component(parent) {
 }
@@ -81,9 +205,14 @@ void Start() {
     scene.AddInitEvent();
 }
 
-int main() {
-    std::filesystem::path project_path(ENGINE_PROJECTS_DIR);
-    project_path = project_path / "test_project";
+int main(int argc, char **argv) {
+    const ExampleOptions options = ParseArguments(argc, argv);
+
+    std::filesystem::path project_template_path(ENGINE_PROJECTS_DIR);
+    project_template_path = project_template_path / "test_project";
+
+    std::filesystem::path project_path(ENGINE_EXAMPLES_DIR);
+    project_path = project_path / "editor_run_game_example" / "temp_project";
 
     SDL_Init(SDL_INIT_VIDEO);
 
@@ -99,6 +228,8 @@ int main() {
     SDL_Log("Screen Resolution: %dx%d @ %fHz", screenWidth, screenHeight, displayMode->refresh_rate);
     StartupOptions opt{.resol_x = (int)(screenWidth * 0.9), .resol_y = (int)(screenHeight * 0.9), .title = "Editor"};
 
+    ResetExampleProject(project_template_path, project_path);
+
     auto cmc = MainClass::GetInstance();
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
     RegisterAllTypes();
@@ -108,12 +239,13 @@ int main() {
     auto adb = std::dynamic_pointer_cast<FileSystemDatabase>(cmc->GetAssetDatabase());
     auto world = cmc->GetWorldSystem();
     auto gui = cmc->GetGUISystem();
-    auto window = cmc->GetWindow();
     auto &main_scene = world->GetMainSceneRef();
     gui->CreateVulkanBackend(*rsys, ImageUtils::GetVkFormat(Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm));
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading project");
     cmc->LoadProject(project_path);
+
+    ImportModelPrefab(options, *adb, main_scene, std::filesystem::path("imported_preview"));
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Add extra objects");
     auto input = MainClass::GetInstance()->GetInputSystem();
@@ -127,18 +259,6 @@ int main() {
     input->AddAxis(
         Input::MotionAxis("look y", Input::AxisType::TypeMouseMotion, "y", 0.3f, 3.0f, 0.001f, 3.0f, false, true)
     );
-
-    // auto &camera_go = main_scene.CreateGameObject();
-    // camera_go.m_name = "Controled Camera";
-    // Transform transform{};
-    // transform.SetPosition({0.0f, -0.7f, 0.5f});
-    // transform.SetRotationEuler(glm::vec3{glm::radians(-30.0f), 0.0, 0.0});
-    // transform.SetScale({1.0f, 1.0f, 1.0f});
-    // camera_go.SetTransform(transform);
-    // auto &camera_comp = camera_go.template AddComponent<CameraComponent>();
-    // camera_comp.m_camera->set_aspect_ratio(1.0 * opt.resol_x / opt.resol_y);
-    // camera_go.template AddComponent<ControlComponent>();
-    // world->SetActiveCamera(camera_comp.GetHandle(), &cmc->GetRenderSystem()->GetCameraManager());
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Create Editor Window");
     Editor::MainWindow main_window;
@@ -163,7 +283,9 @@ int main() {
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Entering main loop");
 
     bool onQuit = false;
-    while (!onQuit) {
+    int64_t frame_count = 0;
+    while (!onQuit && frame_count < options.max_frame_count) {
+        ++frame_count;
         cmc->GetTimeSystem()->NextFrame();
 
         asys->LoadAssetsInQueue();
@@ -199,6 +321,6 @@ int main() {
     rsys->WaitForIdle();
 
     SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "Unloading Main-class");
-
+    CleanupProject(project_path, options.keep_project);
     return 0;
 }
