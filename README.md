@@ -28,7 +28,7 @@ It is suggested that SDL3 should also be installed manually.
 You can fetch it from [its release page](https://github.com/libsdl-org/SDL/releases/).
 Pick `SDL3-devel-3.X.XX-mingw.tar.gz`, extract it somewhere, and:
 - Add a new environment variable `SDL3_DIR` pointing to `SDL3-3.X.XX\cmake`.
-- Add a `PATH` entry pointing to `SDL3-3.X.XX\x86_64-w64-mingw32\bin`.
+- Add a `PATH` entry pointing to `SDL3-3.X.XX\x86_64-w64-mingw32\bin`.  
 CMake should be able to detect it automatically.
 
 ### Build Steps
