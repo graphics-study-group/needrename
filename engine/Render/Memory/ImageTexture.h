@@ -13,6 +13,10 @@ namespace Engine {
      */
     class ImageTexture : public Texture {
     public:
+        
+        /**
+         * @brief Description of an image texture.
+         */
         struct ImageTextureDesc {
 #define COPY_ENUM_VALUE(x) x = (int)ImageUtils::ImageFormat::x
             enum class ImageTextureFormat {
@@ -35,10 +39,28 @@ namespace Engine {
         ImageTexture(RenderSystem &system, TextureDesc texture, SamplerDesc sampler, const std::string &name = "");
 
     public:
+
+        /**
+         * @brief Create a texture from descriptions.
+         */
         static std::unique_ptr<ImageTexture> CreateUnique(
             RenderSystem &system, ImageTextureDesc texture, SamplerDesc sampler, const std::string &name = ""
         );
+
+        /**
+         * @brief Create a texture from an asset.
+         * 
+         * Width and height will be read from the asset. Its format will be
+         * defaulted to R8G8B8A8 SRGB. Its attached sampler will be defaulted.
+         */
         static std::unique_ptr<ImageTexture> CreateUnique(RenderSystem &system, const Image2DTextureAsset &asset);
+
+        /**
+         * @brief Create a cubemap from an asset.
+         * 
+         * Width and height will be read from the asset. Its format will be
+         * defaulted to R8G8B8A8 SRGB.
+         */
         static std::unique_ptr<ImageTexture> CreateUnique(RenderSystem &system, const ImageCubemapAsset &asset);
     };
 } // namespace Engine

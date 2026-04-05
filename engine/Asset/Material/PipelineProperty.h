@@ -14,7 +14,8 @@
 
 namespace Engine {
     namespace PipelineProperties {
-        /// @brief C.f. `vkPipelineRasterizationStateCreateInfo`
+        /// Rasterizer configuration of the pipeline
+        /// @see https://docs.vulkan.org/refpages/latest/refpages/source/VkPipelineRasterizationStateCreateInfo.html
         struct REFL_SER_CLASS(REFL_BLACKLIST) RasterizerProperties {
             REFL_SER_SIMPLE_STRUCT(RasterizerProperties)
 
@@ -22,9 +23,14 @@ namespace Engine {
             using CullingMode = PipelineUtils::CullingMode;
             using FrontFace = PipelineUtils::FrontFace;
 
+            /// Filling mode of the rasterizer.
             FillingMode filling{FillingMode::Fill};
+            /// Line width of the rasterizer.
+            /// This configuration might be ignored due to hardware limitations.
             float line_width{1.0f};
+            /// Culling mode of the rasterizer.
             CullingMode culling{CullingMode::None};
+            /// How the front face of a polygon is determined.
             FrontFace front{FrontFace::Counterclockwise};
 
             /**
@@ -48,6 +54,7 @@ namespace Engine {
             float depth_bias_constant{0.0f};
         };
 
+        /// @brief Stencil test state of a pipeline
         struct REFL_SER_CLASS(REFL_BLACKLIST) StencilState {
             REFL_SER_SIMPLE_STRUCT(StencilState)
 
@@ -73,30 +80,39 @@ namespace Engine {
             uint8_t reference{0x00};
         };
 
-        /// @brief C.f. `vkPipelineDepthStencilStateCreateInfo`
+        /// Depth stencil configuration of the pipeline
+        /// @see https://docs.vulkan.org/refpages/latest/refpages/source/VkPipelineDepthStencilStateCreateInfo.html
         struct REFL_SER_CLASS(REFL_BLACKLIST) DSProperties {
             REFL_SER_SIMPLE_STRUCT(DSProperties)
 
             using DSComparator = PipelineUtils::DSComparator;
 
+            /// @brief Whether depth values of fragments can be written into the depth buffer.
             bool depth_write_enable{true};
+            /// @brief Whether depth test is enabled
             bool depth_test_enable{true};
             /// @brief Depth comparator used in depth test.
             /// Defaults to LESS operation, which means less depth => closer.
             DSComparator depth_comparator{DSComparator::Less};
 
+            /// @brief Whether stencil test is enabled
             bool stencil_test_enable{false};
             /// @brief Stencil operation state used by front-facing polygons.
             StencilState stencil_front{};
             /// @brief Stencil operation state used by back-facing polygons.
             StencilState stencil_back{};
 
+            /// @brief Whether depth bound test is enable for the fragment samples.
+            /// @see https://docs.vulkan.org/spec/latest/chapters/fragops.html#fragops-dbt
             bool depth_bound_test_enable{false};
+            /// @brief minimal depth of depth bound test
             float min_depth{0.0f};
+            /// @brief maximal depth of depth bound test
             float max_depth{1.0f};
         };
 
-        /// @brief C.f. `vkPipelineShaderStageCreateInfo`
+        /// @brief Shaders used by the pipeline
+        /// @see https://docs.vulkan.org/refpages/latest/refpages/source/VkPipelineShaderStageCreateInfo.html
         struct REFL_SER_CLASS(REFL_BLACKLIST) Shaders {
             REFL_SER_SIMPLE_STRUCT(Shaders)
 
@@ -110,8 +126,8 @@ namespace Engine {
             std::unordered_map<uint32_t, int32_t> specialization_constants{};
         };
 
-        /// @brief C.f.
-        /// https://registry.khronos.org/vulkan/specs/latest/man/html/VkPipelineColorBlendAttachmentState.html
+        /// @brief Color blending operation of the color attachments
+        /// @see https://registry.khronos.org/vulkan/specs/latest/man/html/VkPipelineColorBlendAttachmentState.html
         struct REFL_SER_CLASS(REFL_BLACKLIST) ColorBlendingProperties {
             REFL_SER_SIMPLE_STRUCT(ColorBlendingProperties)
 
@@ -161,11 +177,17 @@ namespace Engine {
              */
             BlendFactor dst_alpha{BlendFactor::Zero};
 
+            /**
+             * @brief Which color channels can be written by this operation.
+             * 
+             * @todo Automatically set this mask to zero when no color 
+             * attachment is set to avoid UB.
+             */
             ColorChannelMask color_write_mask{ColorChannelMask::All};
         };
 
-        /// @brief C.f. `vkPipelineRenderingCreateInfo`
-        /// Use UNDEFINED image format to adapt to swapchain.
+        /// @brief Attachment information for the pipeline.
+        /// @see https://docs.vulkan.org/refpages/latest/refpages/source/VkPipelineRenderingCreateInfo.html
         struct REFL_SER_CLASS(REFL_BLACKLIST) Attachments {
             REFL_SER_SIMPLE_STRUCT(Attachments)
 
@@ -184,24 +206,28 @@ namespace Engine {
             /// @brief Depth attachment format. If color attachments and it are all left empty,
             /// the pipeline will be configured to use the current swapchain as attachments.
             ImageUtils::ImageFormat depth{};
+
+            /// @brief Stencial attachment format.
+            /// @deprecated Inferred from the depth attachment format and unused.
             ImageUtils::ImageFormat stencil{};
         };
 
         /**
-         * @brief c.f. `vkPipelineMultisampleStateCreateInfo`
-         * While how many samples are used are determined at run-time, this
-         * struct controls how some techniques are used. If multisampling are
-         * not actually used, how these techniques perform is
+         * @brief While how many samples are used are determined at run-time,
+         * this struct controls how some techniques are used. If multisampling
+         * are not actually used, how these techniques perform is
          * implementation-defined.
+         * 
+         * @see https://docs.vulkan.org/refpages/latest/refpages/source/VkPipelineMultisampleStateCreateInfo.html
          */
         struct REFL_SER_CLASS(REFL_BLACKLIST) Multisampling {
             REFL_SER_SIMPLE_STRUCT(Multisampling)
             /**
-             * Enable alpha-to-coverage technique for multisampling.
+             * @brief Enable alpha-to-coverage technique for multisampling.
              */
             bool alpha_to_coverage_enable{false};
             /**
-             * Write one to alpha channel after multisampling.
+             * @brief Write one to alpha channel after multisampling.
              * It should be combined with alpha-to-coverage technique.
              */
             bool alpha_to_one_enable{false};

@@ -19,8 +19,9 @@ namespace Engine {
         /**
          * @brief Compile GLSL to SPIR-V representation via source code.
          * 
-         * Due to the way glslang handles inclusion and debug info, non-semantic debug information
-         * may be incorrect. Therefore, it is recommended to use the file name instead.
+         * Due to the way glslang handles inclusion and debug info, non-semantic
+         * debug information may be incorrect. Therefore, it is recommended to
+         * use the file name overload instead.
          */
         bool CompileGLSLtoSPV(
             std::vector<uint32_t> &spirv,
@@ -32,10 +33,15 @@ namespace Engine {
         /**
          * @brief Compile GLSL to SPIR-V representation via its absolute path.
          * 
-         * Shader type is inferred from the filename
+         * Shader type is inferred from the filename.
+         * 
+         * This overload is tested to generate non-semantic debug information
+         * correctly if asked to do so.
          */
         bool CompileGLSLtoSPV(
-            std::vector<uint32_t> &spirv, const std::filesystem::path &shader_abs_path, bool emit_debug_info = true
+            std::vector<uint32_t> &spirv,
+            const std::filesystem::path &shader_abs_path,
+            bool emit_debug_info = true
         );
 
     protected:

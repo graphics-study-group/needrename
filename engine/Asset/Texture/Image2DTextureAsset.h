@@ -7,6 +7,9 @@
 #include <vector>
 
 namespace Engine {
+    /**
+     * @brief An asset for a 2D texture.
+     */
     class REFL_SER_CLASS(REFL_WHITELIST) Image2DTextureAsset : public TextureAsset {
         REFL_SER_BODY(Image2DTextureAsset)
     public:
@@ -16,14 +19,45 @@ namespace Engine {
         virtual void save_asset_to_archive(Serialization::Archive &archive) const override;
         virtual void load_asset_from_archive(Serialization::Archive &archive) override;
 
+        /// @brief Width in pixel of the texture.
         REFL_SER_ENABLE int m_width{};
+        /// @brief Height in pixel of the texture.
         REFL_SER_ENABLE int m_height{};
+        /// @brief Channels of the texture.
         REFL_SER_ENABLE int m_channel{};
+
+        /**
+         * @brief Expected memory format of the texture.
+         * 
+         * This member affects only how the image should be represented on the
+         * GPU memory. It does not reflect its actual format on the desk.
+         */
         REFL_SER_ENABLE ImageUtils::ImageFormat m_format{};
+
+        /***
+         * @brief Expected mipmap level of the texture.
+         * 
+         * Unused.
+         */
         REFL_SER_ENABLE unsigned m_mip_level{};
 
+        /**
+         * @brief Load the asset from a disk file.
+         * 
+         * Currently implemented via the `stbi_image` library.
+         * Reads only the the first mipmap level.
+         * Does not support compressed format (e.g. ATSC). Such textures will
+         * be uncompressed first via the `stbi_image` library.
+         * 
+         * @param path Path of the image.
+         * @param gamma_to_linear Enforce a gamma-to-linear transform while
+         * reading the file.
+         */
         void LoadFromFile(const std::filesystem::path &path, bool gamma_to_linear = false);
+
+        /// @brief Get pixel data.
         const std::byte *GetPixelData() const;
+        /// @brief Get the size of all pixel data
         size_t GetPixelDataSize() const;
 
     protected:

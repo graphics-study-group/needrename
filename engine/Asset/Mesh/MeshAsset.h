@@ -12,6 +12,12 @@ namespace Engine {
     class ObjLoader;
     class VertexAttribute;
 
+    /**
+     * @brief An asset containing a mesh to be rendered.
+     * 
+     * It can have multiple submeshes. Each submesh has a dedicated binary
+     * buffer that contains all vertex information.
+     */
     class REFL_SER_CLASS(REFL_WHITELIST) MeshAsset : public Asset {
         REFL_SER_BODY(MeshAsset)
 
@@ -21,20 +27,34 @@ namespace Engine {
 
         friend class ObjLoader;
 
+        /**
+         * @brief A submesh.
+         * 
+         * It contains an index buffer and a vertex buffer, along with
+         * specifications of the vertex attributes.
+         */
         struct Submesh {
+            /// @brief Index buffer.
+            /// @remark It should be guaranteed that its values are smaller than
+            /// `vertex_count`. Otherwise illegal memory accesses might happen.
             std::vector<uint32_t> m_indices{};
 
-            // Raw buffer containing all vertex attribute data
+            /// @brief Raw buffer containing all vertex attribute data
             std::vector<std::byte> m_vertex_attributes{};
 
+            /// @brief Vertex attribute specification. 
             struct Attributes {
+                /// @brief Type of the vertex attribute
                 VertexAttributeType type{VertexAttributeType::Unused};
-                // Offset of this attribute into the buffer in bytes.
+                /// @brief Offset of this attribute into the buffer in bytes.
                 size_t buffer_offset{0};
-                // Size of this attribute in bytes.
+                /// @brief Size of this attribute in bytes.
                 size_t buffer_size{0};
             };
 
+            /// @brief How many vertices are in this submesh.
+            /// It does not reflect actual drawing process as vertices are
+            /// first indexed by the index buffer.
             uint32_t vertex_count{};
             Attributes positions{};
             Attributes color{}, normal{}, texcoord0{};
@@ -70,8 +90,19 @@ namespace Engine {
             }
         };
 
+        /**
+         * @brief Get the number of submeshes.
+         */
         REFL_ENABLE size_t GetSubmeshCount() const;
+        
+        /**
+         * @brief Get the index count of a submesh.
+         */
         REFL_ENABLE uint32_t GetSubmeshVertexIndexCount(size_t submesh_idx) const;
+
+        /**
+         * @brief Get the vertex count of a submesh.
+         */
         REFL_ENABLE uint32_t GetSubmeshVertexCount(size_t submesh_idx) const;
 
         virtual void save_asset_to_archive(Serialization::Archive &archive) const override;
