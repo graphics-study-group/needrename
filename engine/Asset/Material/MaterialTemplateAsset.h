@@ -44,7 +44,7 @@ namespace Engine {
         using Shaders = PipelineProperties::Shaders;
         using Attachments = PipelineProperties::Attachments;
         using Multisampling = PipelineProperties::Multisampling;
-        
+
         /// Rasterizer configuration of the pipeline of the material
         /// @see https://docs.vulkan.org/refpages/latest/refpages/source/VkPipelineRasterizationStateCreateInfo.html
         REFL_SER_ENABLE RasterizerProperties rasterizer{};
@@ -52,7 +52,7 @@ namespace Engine {
         /// Depth stencil configuration of the pipeline
         /// @see https://docs.vulkan.org/refpages/latest/refpages/source/VkPipelineDepthStencilStateCreateInfo.html
         REFL_SER_ENABLE DSProperties depth_stencil{};
-        
+
         /// Shaders of the pipeline
         /// @see https://docs.vulkan.org/refpages/latest/refpages/source/VkPipelineShaderStageCreateInfo.html
         REFL_SER_ENABLE Shaders shaders{};

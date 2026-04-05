@@ -13,7 +13,7 @@ namespace Engine {
     /**
      *  @brief A buffer with allocated memory, which could be directly used by the device.
      * Call named constructors to get an instance.
-     * 
+     *
      * @note Movable but non-copyable.
      */
     class DeviceBuffer {
@@ -41,7 +41,7 @@ namespace Engine {
         /**
          * @brief Create a buffer with host side details on heap,
          * and return a uniquely owning pointer to the buffer.
-         * 
+         *
          * Cast the `unique_ptr` to `shared_ptr` if necessary.
          */
         static std::unique_ptr<DeviceBuffer> CreateUnique(
@@ -58,9 +58,9 @@ namespace Engine {
         size_t GetSize() const;
 
         /**
-         * @brief Get the pointer to the mapped address in the 
+         * @brief Get the pointer to the mapped address in the
          * virtual memory of this process.
-         * 
+         *
          * The pointer is automatically unmapped on deconstruction.
          * You don't need to match `Unmap()` manually before
          * cleaning up.
@@ -69,7 +69,7 @@ namespace Engine {
 
         /**
          * @brief Flush the memory write to be visible on device.
-         * 
+         *
          * Generally you don't need to manually call this member, as memories
          * that need to be flushed are usually coherent.
          *
@@ -81,11 +81,11 @@ namespace Engine {
 
         /**
          * @brief Invalidate the memory so that device write are visible on host.
-         * 
+         *
          *
          * Generally you don't need to manually call this member, as memories that
          * need to be invalidated are usually coherent.
-         * 
+         *
          * @param offset Offset of the region to be invalidated
          *
          * @param size Size of the region to be invalidated, or whole region if 0.

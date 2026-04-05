@@ -9,7 +9,7 @@ namespace Engine {
     /**
      * @brief Runtime information for graphics pipelines that is determined on
      * per draw basis.
-     * 
+     *
      * Mainly includes mesh vertex attributes.
      */
     struct PipelineRuntimeInfoPerDraw {
@@ -41,12 +41,12 @@ namespace Engine {
     /**
      * @brief Runtime information for graphics pipelines that is determined on
      * per rendering pass basis.
-     * 
+     *
      * Mainly includes attachment information and multisample counts.
      */
     struct PipelineRuntimeInfoPerRendering : PipelineRuntimeInfoPerRenderingHeader {
         /**
-         * 
+         *
          * Color attachment format, terminated by UNDEFINED.
          */
         ImageUtils::ImageFormat color_attachment_format[8];

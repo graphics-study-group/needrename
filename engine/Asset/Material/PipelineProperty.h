@@ -188,8 +188,8 @@ namespace Engine {
 
             /**
              * @brief Which color channels can be written by this operation.
-             * 
-             * @todo Automatically set this mask to zero when no color 
+             *
+             * @todo Automatically set this mask to zero when no color
              * attachment is set to avoid UB.
              */
             ColorChannelMask color_write_mask{ColorChannelMask::All};
@@ -226,7 +226,7 @@ namespace Engine {
          * this struct controls how some techniques are used. If multisampling
          * are not actually used, how these techniques perform is
          * implementation-defined.
-         * 
+         *
          * @see https://docs.vulkan.org/refpages/latest/refpages/source/VkPipelineMultisampleStateCreateInfo.html
          */
         struct REFL_SER_CLASS(REFL_BLACKLIST) Multisampling {

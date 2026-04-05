@@ -16,7 +16,7 @@ namespace Engine {
 
     /**
      * @brief Render Graph 2.
-     * 
+     *
      * Contains a list of passes compiled by the builder.
      * It holds ownerships of transient render target textures, and compiles
      * image barriers accordingly.

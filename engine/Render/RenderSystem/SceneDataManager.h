@@ -127,7 +127,7 @@ namespace Engine {
 
             /**
              * @brief Upload the current scene data to GPU.
-             * 
+             *
              * Should be called only once before any draw calls.
              */
             void UploadSceneData(uint32_t frame_in_flight) const noexcept;
@@ -135,7 +135,7 @@ namespace Engine {
             /**
              * @brief Inform the manager to fetch all light data from registered
              * components.
-             * 
+             *
              * @todo Unimplemented.
              */
             void FetchLightData() noexcept;

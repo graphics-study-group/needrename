@@ -26,7 +26,7 @@ namespace Engine {
         /**
          * @brief A monolithic class for manage Vulkan enabled hardware.
          * Including instance, surface, physical device and device management.
-         * 
+         *
          * All returned handles from this class can be assumed to be invariant
          * across a session, meaning that you are free to cache these results.
          */
@@ -82,7 +82,7 @@ namespace Engine {
 
             /**
              * @brief Construct the device interface by the configuration.
-             * 
+             *
              * It sets up Vulkan instance, surface, physical device and
              * logical device accordingly. Queues and command pools are also
              * created.
@@ -96,11 +96,11 @@ namespace Engine {
             vk::SurfaceKHR GetSurface() const;
             /// @brief Get the current selected physical device.
             vk::PhysicalDevice GetPhysicalDevice() const;
-            /// @brief Get the current logical device. 
+            /// @brief Get the current logical device.
             vk::Device GetDevice() const;
             /**
              * @brief Get the queue information of current logical device.
-             * 
+             *
              * @note Queue and Queue Families are two distinct notions in
              * Vulkan. They should not be confused.
              */
@@ -113,10 +113,10 @@ namespace Engine {
 
             /**
              * @brief Query information on queue family indices of different type.
-             * 
+             *
              * Queries for graphics and graphics present queue family are guaranteed
              * to return a non-null optional.
-             * 
+             *
              * @note Queue and Queue Families are two distinct notions in
              * Vulkan. They should not be confused.
              */

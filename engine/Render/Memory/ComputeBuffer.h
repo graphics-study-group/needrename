@@ -15,7 +15,7 @@ namespace Engine {
     public:
         /**
          * @brief Create a new compute buffer.
-         * 
+         *
          * @param allow_cpu_access Enables CPU access. Guarantees that `GetVMAddress()` can be used.
          * @param as_readonly_buffer Allows it to be used as uniform buffer.
          * @param as_vertex_buffer Allows it to be used as vertex and index buffer.
@@ -40,7 +40,7 @@ namespace Engine {
     public:
         /**
          * @brief Create a new compute buffer.
-         * 
+         *
          * @param allow_cpu_access Enables CPU access. Guarantees that `GetVMAddress()` can be used.
          * @param as_readonly_buffer Allows it to be used as uniform buffer.
          * @param as_vertex_buffer Allows it to be used as vertex and index buffer.

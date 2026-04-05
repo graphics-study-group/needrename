@@ -67,7 +67,7 @@ namespace Engine {
             } type{Type::Unknown};
         };
 
-        /// @brief Structured buffer. Generally uniform buffer for materials.   
+        /// @brief Structured buffer. Generally uniform buffer for materials.
         struct SPInterfaceStructuredBuffer : SPInterfaceBuffer {
             const StructuredBufferPlacer *buffer_placer{nullptr};
         };

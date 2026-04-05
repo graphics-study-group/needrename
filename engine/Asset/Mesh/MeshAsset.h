@@ -14,7 +14,7 @@ namespace Engine {
 
     /**
      * @brief An asset containing a mesh to be rendered.
-     * 
+     *
      * It can have multiple submeshes. Each submesh has a dedicated binary
      * buffer that contains all vertex information.
      */
@@ -29,7 +29,7 @@ namespace Engine {
 
         /**
          * @brief A submesh.
-         * 
+         *
          * It contains an index buffer and a vertex buffer, along with
          * specifications of the vertex attributes.
          */
@@ -42,7 +42,7 @@ namespace Engine {
             /// @brief Raw buffer containing all vertex attribute data
             std::vector<std::byte> m_vertex_attributes{};
 
-            /// @brief Vertex attribute specification. 
+            /// @brief Vertex attribute specification.
             struct Attributes {
                 /// @brief Type of the vertex attribute
                 VertexAttributeType type{VertexAttributeType::Unused};
@@ -94,7 +94,7 @@ namespace Engine {
          * @brief Get the number of submeshes.
          */
         REFL_ENABLE size_t GetSubmeshCount() const;
-        
+
         /**
          * @brief Get the index count of a submesh.
          */

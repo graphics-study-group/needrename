@@ -24,7 +24,7 @@ namespace Engine {
      * Contains a list of `vk::CommandBuffer` method calls.
      *
      * Dependencies should be resolved when building the render graph.
-     * 
+     *
      * @deprecated Use new `Engine::RenderGraph2` instead.
      */
     class RenderGraph {

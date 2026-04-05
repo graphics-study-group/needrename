@@ -9,7 +9,7 @@ namespace Engine {
 
     /**
      * @brief A component for static mesh that cannot be animated.
-     * 
+     *
      * All static mesh components that are instantiated by the same asset will
      * share their memory for vertex and index buffers.
      */

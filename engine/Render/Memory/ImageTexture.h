@@ -13,10 +13,9 @@ namespace Engine {
      */
     class ImageTexture : public Texture {
     public:
-        
         /**
          * @brief Description of an image texture.
-         * 
+         *
          * @see `Engine::ImageUtils::TextureDesc`
          */
         struct ImageTextureDesc {
@@ -41,7 +40,6 @@ namespace Engine {
         ImageTexture(RenderSystem &system, TextureDesc texture, SamplerDesc sampler, const std::string &name = "");
 
     public:
-
         /**
          * @brief Create a texture from descriptions.
          */
@@ -51,7 +49,7 @@ namespace Engine {
 
         /**
          * @brief Create a texture from an asset.
-         * 
+         *
          * Width and height will be read from the asset. Its format will be
          * defaulted to R8G8B8A8 SRGB. Its attached sampler will be defaulted.
          */
@@ -59,7 +57,7 @@ namespace Engine {
 
         /**
          * @brief Create a cubemap from an asset.
-         * 
+         *
          * Width and height will be read from the asset. Its format will be
          * defaulted to R8G8B8A8 SRGB.
          */

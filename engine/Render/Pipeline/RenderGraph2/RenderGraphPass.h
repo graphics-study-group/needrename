@@ -25,7 +25,7 @@ namespace Engine {
 
     /**
      * @brief A pass in RenderGraph2.
-     * 
+     *
      * @see `Engine::RenderGraphPassBuilder`
      * The builder should be used instead of manually constructing this struct.
      */

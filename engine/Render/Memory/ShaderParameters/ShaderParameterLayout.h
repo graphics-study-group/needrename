@@ -20,7 +20,7 @@ namespace Engine {
 
         /**
          * @brief Reflected information of shaders.
-         * 
+         *
          * Contains detailed information on descriptor set layouts and memory
          * layouts of uniform buffers.
          */
@@ -32,10 +32,10 @@ namespace Engine {
             /**
              * @brief Place all simple variables (i.e. scalars, arrays,
              * vectors and matrices) into their corresponding buffers.
-             * 
+             *
              * @param buffer a CPU buffer to be copied to GPU.
              * Will be resized if necessary.
-             * 
+             *
              * @see StructuredBufferPlacer::WriteBuffer() for actual implementation.
              */
             void PlaceBufferVariable(
@@ -46,7 +46,7 @@ namespace Engine {
 
             /**
              * @brief Generate all descriptor set layout bindings.
-             * 
+             *
              * @return an unordered map from descriptor set index to its
              * corresponding binding.
              */
@@ -54,7 +54,7 @@ namespace Engine {
 
             /**
              * @brief Generate descriptor set layout binding for a given set.
-             * 
+             *
              * These bindings are sorted by binding numbers.
              */
             std::vector<vk::DescriptorSetLayoutBinding> GenerateLayoutBindings(
@@ -63,7 +63,7 @@ namespace Engine {
 
             /**
              * @brief Merge a SPLayout from another shader.
-             * 
+             *
              * Merging is done by considering only names. If a variable
              * corresponding to a name is found out to be an interface,
              * then the interface is also merged.
@@ -72,7 +72,7 @@ namespace Engine {
 
             /**
              * @brief Acquire a SPLayout by reflecting SPIR-V code.
-             * 
+             *
              * @param filter_out_low_descriptors Ignore descriptors whose set
              * is lower than 2. Useful when processing material shaders.
              */

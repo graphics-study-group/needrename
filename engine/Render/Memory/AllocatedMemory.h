@@ -78,7 +78,7 @@ namespace Engine {
         /**
          * @brief Get the memory address on the host virtual memory
          * that maps to the buffer.
-         * 
+         *
          * @exception Throws if the buffer cannot be mapped to host VM.
          * @return pointer to the content of the buffer
          */
@@ -86,7 +86,7 @@ namespace Engine {
 
         /**
          * @brief Flush the memory so that host writes are visible on the device
-         * 
+         *
          * @exception Rethrows all exception if the underlying Vulkan call fails
          */
         void FlushMemory(size_t offset = 0, size_t size = 0) const;
@@ -94,7 +94,7 @@ namespace Engine {
         /**
          * @brief Invalidate the memory so that device writes are visible on
          * the host.
-         * 
+         *
          * @exception Rethrows all exception if the underlying Vulkan call fails
          */
         void InvalidateMemory(size_t offset = 0, size_t size = 0) const;

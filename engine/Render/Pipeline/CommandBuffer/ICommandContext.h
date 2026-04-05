@@ -36,7 +36,7 @@ namespace Engine {
          * array layers) of the image is marked for use.
          * The actual recording of barriers are defered until
          * `PrepareCommandBuffer` is called.
-         * 
+         *
          * @param currentAccess Intended access type of the
          * image.
          * @param previousAccess The last access type of the image. This is supposed to be

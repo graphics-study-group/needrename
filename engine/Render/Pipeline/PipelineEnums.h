@@ -10,19 +10,19 @@ namespace Engine {
          * @brief Filling mode of the rasterizer
          */
         enum class REFL_SER_CLASS() FillingMode {
-            Fill,   ///< Fill the polygon
-            Line,   ///< Draw only the lines of the polygon
-            Point   ///< Draw only the vertices of the polygon
+            Fill, ///< Fill the polygon
+            Line, ///< Draw only the lines of the polygon
+            Point ///< Draw only the vertices of the polygon
         };
 
         /**
          * @brief Culling mode of the rasterizer
          */
         enum class REFL_SER_CLASS() CullingMode {
-            None,       ///< No faces are culled
-            Front,      ///< Front faces are culled
-            Back,       ///< Back faces are culled
-            All         ///< All faces are culled
+            None,  ///< No faces are culled
+            Front, ///< Front faces are culled
+            Back,  ///< Back faces are culled
+            All    ///< All faces are culled
         };
         enum class REFL_SER_CLASS() FrontFace {
             // Counterclockwise faces are counted as front face.

@@ -38,7 +38,7 @@ namespace Engine {
              * call.
              *
              * @param description,sampler_descripton Description of the render
-             * target texture. 
+             * target texture.
              * Dimension parameters (i.e. width and height) are ignored.
              * @param width_factor,height_factor Relative size of the RTT to
              * the reference size.

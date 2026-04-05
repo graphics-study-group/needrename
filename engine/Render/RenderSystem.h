@@ -80,7 +80,7 @@ namespace Engine {
 
         /**
          * @brief Complete the rendering of the current frame.
-         * 
+         *
          * Blits the present_texture to the swapchain image that is currently
          * allocated for the frame (via `FrameManager::GetFramebuffer()`).
          * This is the only time in a frame that the swapchain image is written
@@ -101,7 +101,7 @@ namespace Engine {
 
         /**
          * last_access defaulted to color attachment write.
-         * 
+         *
          * @overload void CompleteFrame(
          * const RenderTargetTexture &present_texture,
          * MemoryAccessTypeImageBits last_access,

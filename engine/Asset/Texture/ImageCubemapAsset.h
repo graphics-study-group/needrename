@@ -27,7 +27,7 @@ namespace Engine {
         /**
          * @brief Load a cubemap from six separate image files of the same size and format.
          * Accepts gamma corrected sRGB SDR image of only RGB channels.
-         * 
+         *
          * @param paths Paths to six images representing each face, in the order of:
          * X+, X-, Y+, Y-, Z+, Z-. Physical meaning of the orientation (e.g. front or back)
          * is determined in the shader code which samples the image.
@@ -36,7 +36,7 @@ namespace Engine {
 
         /**
          * @brief Get pixel data of the cubemap.
-         * 
+         *
          * @return Data of the cubemap.
          * Its layout conforms to the Vulkan spec: six layers of 2D images of
          * the same size, in the order of +X, -X, +Y, -Y, +Z, -Z.

@@ -26,7 +26,7 @@ namespace Engine {
 
         /**
          * @brief State of the underlying memory allocator.
-         * 
+         *
          * Currently the allocator is implemented via the VMA library.
          */
         class AllocatorState {

@@ -28,7 +28,7 @@ namespace Engine {
 
         /**
          * @brief Expected memory format of the texture.
-         * 
+         *
          * This member affects only how the image should be represented on the
          * GPU memory. It does not reflect its actual format on the desk.
          */
@@ -36,19 +36,19 @@ namespace Engine {
 
         /***
          * @brief Expected mipmap level of the texture.
-         * 
+         *
          * Unused.
          */
         REFL_SER_ENABLE unsigned m_mip_level{};
 
         /**
          * @brief Load the asset from a disk file.
-         * 
+         *
          * Currently implemented via the `stbi_image` library.
          * Reads only the the first mipmap level.
          * Does not support compressed format (e.g. ATSC). Such textures will
          * be uncompressed first via the `stbi_image` library.
-         * 
+         *
          * @param path Path of the image.
          * @param gamma_to_linear Enforce a gamma-to-linear transform while
          * reading the file.

@@ -40,7 +40,7 @@ namespace Engine {
 
             /**
              * @brief Get the current free image index in the swapchain.
-             * 
+             *
              * @note This method is in general only used by render system
              * internally when presenting & interacting with the OS.
              * You might be looking for `GetFrameInFlight()`.
@@ -54,7 +54,7 @@ namespace Engine {
              */
             [[deprecated]]
             GraphicsCommandBuffer GetCommandBuffer();
-            
+
             /// @deprecated
             [[deprecated]]
             GraphicsContext GetGraphicsContext();

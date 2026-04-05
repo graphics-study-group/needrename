@@ -112,9 +112,9 @@ namespace Engine {
          * store vertex attribute.
          * The location of each attribute will be identical to its underlying
          * enum integer (i.e 1 for `Normal`), and its bindings will be contingous
-         * and increasing, corresponding to the ones returned by 
+         * and increasing, corresponding to the ones returned by
          * `ToVkVertexInputBinding`.
-         * Offsets are set to zero, and true offsets of the attributes into the 
+         * Offsets are set to zero, and true offsets of the attributes into the
          * underlying buffer will be determined at bind time.
          *
          * @param allocator a pointer to the allocator to check format limits.

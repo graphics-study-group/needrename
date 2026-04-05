@@ -12,7 +12,7 @@
 namespace Engine {
     /**
      * @brief Asset class for `MaterialLibrary`.
-     * 
+     *
      * `MaterialLibrary` acts as a bundle of different materials
      * (i.e. pipelines) that can be dispatched by tags and the type
      * of the mesh to be drawn.
