@@ -22,10 +22,15 @@ namespace Engine {
 #define COPY_ENUM_VALUE(x) x = (int)ImageUtils::ImageFormat::x
             /**
              * Formats available for Image Textures.
+             * 
+             * @see Engine::ImageUtils::ImageFormat
              */
             enum class ImageTextureFormat {
+                /// @copydoc Engine::ImageUtils::ImageFormat::R8G8B8A8SNorm
                 COPY_ENUM_VALUE(R8G8B8A8SNorm),
+                /// @copydoc Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm
                 COPY_ENUM_VALUE(R8G8B8A8UNorm),
+                /// @copydoc Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB
                 COPY_ENUM_VALUE(R8G8B8A8SRGB),
             };
 #undef COPY_ENUM_VALUE

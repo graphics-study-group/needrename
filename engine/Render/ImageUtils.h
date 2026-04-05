@@ -6,15 +6,34 @@
 #include <Reflection/macros.h>
 
 namespace Engine {
+    /**
+     * @brief Utility for image operations
+     */
     namespace ImageUtils {
+        /**
+         * @brief Available formats for images.
+         * 
+         * Not all image formats supports all operations. For example, SRGB
+         * images in general does not support storage (UAV) operation. Use 
+         * `Engine::RenderSystemState::AllocatorState::QueryFormatFeatures()`
+         * to determine whether your use case is supported.
+         */
         enum class REFL_SER_CLASS() ImageFormat {
+            /// Undefined image format.
             UNDEFINED,
+            /// R8-G8-B8-A8 image as signed normalized real numbers.
             R8G8B8A8SNorm,
+            /// R8-G8-B8-A8 image as unsigned normalized real numbers.
             R8G8B8A8UNorm,
+            /// R8-G8-B8-A8 image in sRGB space.
+            /// Unordered access on this type of image is rarely supported.
             R8G8B8A8SRGB,
-            // 32-bit packed float for HDR rendering. In Vulkan, it is actually B10-G11-R11.
+            /// 32-bit packed float for HDR rendering.
+            /// In Vulkan, it is actually B10-G11-R11.
             R11G11B10UFloat,
+            /// R32-G32-B32-A32 image as single precision floating points.
             R32G32B32A32SFloat,
+            /// 32 bit floating point depth buffer.
             D32SFLOAT,
         };
 

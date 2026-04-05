@@ -57,6 +57,9 @@ if(Doxygen_FOUND)
         "REFL_SER_BODY(...)="
         "REFL_SER_SIMPLE_STRUCT(...)="
     )
+    set(DOXYGEN_EXPAND_AS_DEFINED
+        "COPY_ENUM_VALUE"
+    )
 
     doxygen_add_docs(
         engine_doxygen_doc

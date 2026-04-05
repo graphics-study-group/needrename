@@ -17,12 +17,19 @@ namespace Engine {
 #define COPY_ENUM_VALUE(x) x = (int)ImageUtils::ImageFormat::x
             /**
              * Formats available for Render Target Textures.
+             * 
+             * @see Engine::ImageUtils::ImageFormat
              */
             enum class RTTFormat {
+                /// @copydoc Engine::ImageUtils::ImageFormat::R8G8B8A8SNorm
                 COPY_ENUM_VALUE(R8G8B8A8SNorm),
+                /// @copydoc Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm
                 COPY_ENUM_VALUE(R8G8B8A8UNorm),
+                /// @copydoc Engine::ImageUtils::ImageFormat::R11G11B10UFloat
                 COPY_ENUM_VALUE(R11G11B10UFloat),
+                /// @copydoc Engine::ImageUtils::ImageFormat::R32G32B32A32SFloat
                 COPY_ENUM_VALUE(R32G32B32A32SFloat),
+                /// @copydoc Engine::ImageUtils::ImageFormat::D32SFLOAT
                 COPY_ENUM_VALUE(D32SFLOAT),
             };
 #undef COPY_ENUM_VALUE
