@@ -10,6 +10,9 @@ namespace Engine {
     class RenderTargetTexture;
     class SlicedTextureView;
 
+    /**
+     * @brief Utility classes for attachment manipulation.
+     */
     namespace AttachmentUtils {
         /**
          * @brief How the attachment is loaded.

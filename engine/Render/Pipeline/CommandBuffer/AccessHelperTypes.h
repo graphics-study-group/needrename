@@ -2,7 +2,14 @@
 #define PIPELINE_COMMANDBUFFER_ACCESSHELPER_INCLUDED
 
 namespace Engine {
+    /**
+     * @brief Utility for simplify memory access synchronization.
+     */
     namespace AccessHelper {
+        /**
+         * @brief Access type of images.
+         * @deprecated Use `Engine::MemoryAccessTypeImageBits` instead.
+         */
         enum class ImageAccessType {
             None,
             /// Read by transfer command, in transfer source layout.
@@ -29,6 +36,10 @@ namespace Engine {
             ShaderReadRandomWrite
         };
 
+        /**
+         * @brief Access type of images in rasterization pipeline.
+         * @deprecated Use `Engine::MemoryAccessTypeImageBits` instead.
+         */
         enum class ImageGraphicsAccessType {
             /// Read by rasterization pipeline in attachment load operation, in color attachment layout.
             /// @warning Disregarded for now.
@@ -46,11 +57,19 @@ namespace Engine {
             DepthAttachmentWrite,
         };
 
+        /**
+         * @brief Access type of images in transfer operation.
+         * @deprecated Use `Engine::MemoryAccessTypeImageBits` instead.
+         */
         enum class ImageTransferAccessType {
             TransferRead,
             TransferWrite
         };
 
+        /**
+         * @brief Access type of images in compute pipeline.
+         * @deprecated Use `Engine::MemoryAccessTypeImageBits` instead.
+         */
         enum class ImageComputeAccessType {
             /// Read by shader as texture with a sampler, in read-only layout.
             ShaderRead,
@@ -60,6 +79,10 @@ namespace Engine {
             ShaderReadRandomWrite
         };
 
+        /**
+         * @brief Access type of buffer
+         * @deprecated Use `Engine::MemoryAccessTypeBufferBits` instead.
+         */
         enum class BufferAccessType {
             None
         };
