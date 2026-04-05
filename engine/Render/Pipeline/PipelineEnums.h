@@ -31,8 +31,8 @@ namespace Engine {
          * @brief How front faces are determined via the winding of vertices
          */
         enum class REFL_SER_CLASS() FrontFace {
-            Counterclockwise,       ///< Counterclockwise faces are counted as front face
-            Clockwise               ///< Clockwise faces are counted as front face
+            Counterclockwise, ///< Counterclockwise faces are counted as front face
+            Clockwise         ///< Clockwise faces are counted as front face
         };
 
         /**

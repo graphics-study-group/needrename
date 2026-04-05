@@ -40,9 +40,16 @@ namespace Engine {
             Swapchain() noexcept;
             ~Swapchain() noexcept;
 
+            /**
+             * @brief Create or recreate the swapchain on a given device and
+             * surface with a expected extent.
+             */
             void CreateSwapchain(const DeviceInterface &device_interface, vk::Extent2D expected_extent);
 
+            /// @brief Get the underlying swapchain object.
             vk::SwapchainKHR GetSwapchain() const noexcept;
+
+            /// @brief Get all swapchain images.
             const std::vector<vk::Image> &GetImages() const noexcept;
 
             /**

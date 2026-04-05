@@ -21,11 +21,15 @@ namespace Engine {
         std::unique_ptr<impl> pimpl;
 
     public:
+        /// @brief An entry for a variable in the structured buffer
         struct VariableEntry {
+            /// RTTI information of the type.
             const std::type_info *type{nullptr};
+            /// Size of the variable in bytes.
             size_t size{0};
 
-            // Maybe we can use small vector or memory pool here.
+            /// Actual byte content of the variable.
+            /// @todo Maybe we can use small vector or memory pool here.
             std::vector<std::byte> value{0};
         };
 

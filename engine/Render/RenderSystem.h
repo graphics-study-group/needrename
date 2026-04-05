@@ -1,5 +1,5 @@
-#ifndef ENGINE_RENDER_RENDERSYSTEM_INCLUDED
-#define ENGINE_RENDER_RENDERSYSTEM_INCLUDED
+#ifndef RENDER_RENDERSYSTEM
+#define RENDER_RENDERSYSTEM
 
 #include <glm.hpp>
 #include <memory>
@@ -41,6 +41,9 @@ namespace Engine {
         class ResizableRTTManager;
     }; // namespace RenderSystemState
 
+    /**
+     * @brief Main locator for the rendering system services.
+     */
     class RenderSystem : public std::enable_shared_from_this<RenderSystem> {
     private:
         class impl;
@@ -54,6 +57,12 @@ namespace Engine {
         void operator=(const RenderSystem &) = delete;
         void operator=(RenderSystem &&) = delete;
 
+        /**
+         * @brief Create the render system and initialize all subsystems.
+         *
+         * @see RenderSystemState::DeviceInterface
+         * for details on how the Vulkan abstraction layer is initialized.
+         */
         void Create();
 
         ~RenderSystem();
@@ -100,13 +109,8 @@ namespace Engine {
         );
 
         /**
-         * last_access defaulted to color attachment write.
-         *
-         * @overload void CompleteFrame(
-         * const RenderTargetTexture &present_texture,
-         * MemoryAccessTypeImageBits last_access,
-         * uint32_t width, uint32_t height,
-         * uint32_t offset_x = 0, uint32_t offset_y = 0);
+         * @brief Complete the rendering of the current frame.
+         * Defaults last_access to color attachment write.
          */
         void CompleteFrame(
             const RenderTargetTexture &present_texture,
@@ -130,26 +134,29 @@ namespace Engine {
          */
         const RenderSystemState::DeviceInterface &GetDeviceInterface() const;
 
+        /// @brief Get the allocator service
         const RenderSystemState::AllocatorState &GetAllocatorState() const;
-
+        /// @brief Get the swapchain manager
         const RenderSystemState::Swapchain &GetSwapchain() const;
-
+        /// @brief Get the material registry
+        /// @deprecated Pending for rewrite
         RenderSystemState::MaterialRegistry &GetMaterialRegistry();
-
+        /// @brief Get the frame manager
         RenderSystemState::FrameManager &GetFrameManager();
-
+        /// @brief Get the renderer manager
+        /// @deprecated Pending for rewrite
         RenderSystemState::RendererManager &GetRendererManager();
-
+        /// @brief Get the immutable resource cache
         RenderSystemState::ImmutableResourceCache &GetIRCache();
-
+        /// @brief Get the camera manager
         RenderSystemState::CameraManager &GetCameraManager();
-
+        /// @brief Get the manager for scene data (e.g lightings)
         RenderSystemState::SceneDataManager &GetSceneDataManager();
-
+        /// @brief Get the manager for resizable render target textures
         RenderSystemState::ResizableRTTManager &GetResizableRTTManager();
     };
 } // namespace Engine
 
 #pragma GCC diagnostic pop
 
-#endif // ENGINE_RENDER_RENDERSYSTEM_INCLUDED
+#endif // RENDER_RENDERSYSTEM

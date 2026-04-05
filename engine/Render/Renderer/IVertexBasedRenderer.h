@@ -12,16 +12,20 @@ namespace Engine {
 
     /**
      * @brief A base interface class for all vertex-based renderers.
-     * 
+     *
      * Supplies necessary interfaces for vertex based draw calls.
      */
     class IVertexBasedRenderer : public IAsynchPrepared {
     public:
+        /// @brief How this vertex renderer is bound to vertex buffers
         struct BufferBindingInfo {
+            /// Buffer object pointer
             const DeviceBuffer *buffer;
+            /// Offset into the buffer
             size_t offset;
-            // Size may be unused currently, as draw calls specifies vertex
-            // and index counts.
+            /// Size of the vertex buffer
+            /// Size may be unused currently, as draw calls specifies vertex
+            /// and index counts.
             size_t size;
         };
 
@@ -47,12 +51,12 @@ namespace Engine {
 
         /**
          * @brief Fetch vertex attribute buffer info for draw calls.
-         * 
+         *
          * The binding info is explained as follows:
          * the n-th item of this vector corresponds to the n-th used vertex
          * attribute slots, regardless of the actual location specified by
          * `layout(location = N)` in the shader.
-         * 
+         *
          * @see VertexAttribute::ToVkVertexInputBinding() const noexcept
          * etc. for more details on how pipeline vertex input is constructed.
          */

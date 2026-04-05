@@ -28,6 +28,7 @@ namespace Engine {
             std::unique_ptr<impl> pimpl;
 
         public:
+            /// @brief Create the cache on the given device.
             ImmutableResourceCache(vk::Device dvc);
             ~ImmutableResourceCache() noexcept;
 

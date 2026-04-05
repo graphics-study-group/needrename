@@ -14,8 +14,11 @@ namespace Engine {
          * Including opaque types and uniform or storage buffers.
          */
         struct SPInterface {
+            /// @brief Name of the interface
             std::string name{};
+            /// @brief Descriptor set specified by the layout
             uint32_t layout_set{~0U};
+            /// @brief Descriptor binding specified by the layout
             uint32_t layout_binding{~0U};
 
             virtual ~SPInterface() = default;
@@ -49,6 +52,7 @@ namespace Engine {
 
         /// @brief Other opaque interfaces such as samplers.
         struct SPInterfaceOpaqueOther : SPInterfaceOpaque {
+            /// @brief Type of the interface.
             enum class Type {
                 Unknown,
                 // Separate sampler (`sampler`)
@@ -58,6 +62,7 @@ namespace Engine {
 
         /// @brief Buffers
         struct SPInterfaceBuffer : SPInterface {
+            /// @brief Type of the interface.
             enum class Type {
                 Unknown,
                 // UBOs (`uniform StructName`)

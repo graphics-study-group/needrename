@@ -123,8 +123,10 @@ namespace Engine {
                 vk::Filter filter = vk::Filter::eLinear
             );
 
+            /// @brief Get the submission helper.
             SubmissionHelper &GetSubmissionHelper();
 
+            /// @brief Get the current frame semaphore.
             const FrameSemaphore &GetFrameSemaphore() const noexcept;
 
             /// Buffer Readback operations

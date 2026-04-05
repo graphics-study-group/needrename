@@ -39,8 +39,10 @@ namespace Engine {
              */
             void SetLightDirectional(uint32_t index, glm::vec3 direction, glm::vec3 intensity) noexcept;
 
+            /// @todo unimplemented
             void SetLightPoint(uint32_t index, glm::vec3 direction, glm::vec3 intensity, float radius) noexcept;
 
+            /// @todo unimplemented
             void SetLightCone(
                 uint32_t index, glm::vec3 direction, glm::vec3 intensity, float inner_angle, float outer_angle
             ) noexcept;

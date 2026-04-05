@@ -37,7 +37,7 @@ namespace Engine {
              * created by a `ResolveHandle` call, or a `RebuildCacheImmediately`
              * call.
              *
-             * @param description,sampler_descripton Description of the render
+             * @param description,sampler_description Description of the render
              * target texture.
              * Dimension parameters (i.e. width and height) are ignored.
              * @param width_factor,height_factor Relative size of the RTT to

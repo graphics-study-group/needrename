@@ -87,7 +87,7 @@ namespace Engine {
         /**
          * @brief Flush the memory so that host writes are visible on the device
          *
-         * @exception Rethrows all exception if the underlying Vulkan call fails
+         * @exception std::runtime_error Rethrows all exception if the underlying Vulkan call fails
          */
         void FlushMemory(size_t offset = 0, size_t size = 0) const;
 
@@ -95,7 +95,7 @@ namespace Engine {
          * @brief Invalidate the memory so that device writes are visible on
          * the host.
          *
-         * @exception Rethrows all exception if the underlying Vulkan call fails
+         * @exception std::runtime_error Rethrows all exception if the underlying Vulkan call fails
          */
         void InvalidateMemory(size_t offset = 0, size_t size = 0) const;
 

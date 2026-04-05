@@ -44,14 +44,19 @@ namespace Engine {
             AllocatorState &operator=(AllocatorState &) = default;
 
             ~AllocatorState();
-
+            /// @brief Create the allocator state by initializing the VMA library.
             void Create();
+            /// @brief Get the underlying allocator state.
             VmaAllocator GetAllocator() const;
 
             /**
              * @brief Allocate the memory for buffer of a given type, name and size.
              */
             BufferAllocation AllocateBuffer(BufferType type, size_t size, const std::string &name = "") const;
+
+            /**
+             * @overload BufferAllocation AllocatorState::AllocateBuffer()
+             */
             std::unique_ptr<BufferAllocation> AllocateBufferUnique(
                 BufferType type, size_t size, const std::string &name = ""
             ) const noexcept;
@@ -70,6 +75,10 @@ namespace Engine {
                 vk::SampleCountFlagBits samples,
                 const std::string &name = ""
             ) const;
+
+            /**
+             * @overload ImageAllocation AllocatorState::AllocateImage()
+             */
             std::unique_ptr<ImageAllocation> AllocateImageUnique(
                 ImageMemoryType type,
                 vk::ImageType dimension,

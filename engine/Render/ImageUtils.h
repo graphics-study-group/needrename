@@ -22,8 +22,12 @@ namespace Engine {
         struct TextureDesc {
             /// An integer between 1 and 3 for dimension.
             uint32_t dimensions;
-            /// Integers at least 1 for sizes.
-            uint32_t width, height, depth;
+            /// Integers at least 1 for width in pixel.
+            uint32_t width;
+            /// Integers at least 1 for height in pixel.
+            uint32_t height;
+            /// Integers at least 1 for depth in pixel.
+            uint32_t depth;
             /// Format of this image
             ImageFormat format;
             /// Allowed memory access on this image.
@@ -51,12 +55,9 @@ namespace Engine {
                 Repeat,
                 MirroredRepeat,
                 ClampToEdge,
-                // Clamp to [0.0, 0.0, 0.0, 0.0]
-                ClampToBorder_TransparentBlack,
-                // Clamp to [0.0, 0.0, 0.0, 1.0]
-                ClampToBorder_OpaqueBlack,
-                // Clamp to [1.0, 1.0, 1.0, 1.0]
-                ClampToBorder_OpaqueWhite
+                ClampToBorder_TransparentBlack, ///< Clamp to [0.0, 0.0, 0.0, 0.0]
+                ClampToBorder_OpaqueBlack,      ///< Clamp to [0.0, 0.0, 0.0, 1.0]
+                ClampToBorder_OpaqueWhite       ///< Clamp to [1.0, 1.0, 1.0, 1.0]
             };
 
             /**
@@ -67,6 +68,7 @@ namespace Engine {
                 Linear
             };
 
+            /// @brief Comparator for depth sampling
             using DepthComparator = PipelineUtils::DSComparator;
 
             /// Filter mode if the texel is minified.
@@ -76,9 +78,11 @@ namespace Engine {
             /// Filter mode between mipmap levels.
             FilterMode mipmap_filter{FilterMode::Point};
 
-            /// Address mode on three axis
+            /// Address mode on u (width) axis
             AddressMode u_address{AddressMode::Repeat};
+            /// Address mode on v (height) axis
             AddressMode v_address{AddressMode::Repeat};
+            /// Address mode on w (depth) axis
             AddressMode w_address{AddressMode::Repeat};
 
             /// Bias and clamps on LoD (mipmaps).
