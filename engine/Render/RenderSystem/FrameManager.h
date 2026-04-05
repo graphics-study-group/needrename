@@ -33,10 +33,18 @@ namespace Engine {
 
             void Create();
 
+            /// @brief Get the current frame-in-flight count.
             uint32_t GetFrameInFlight() const noexcept;
-
+            /// @brief Get the current frame count.
             uint64_t GetTotalFrame() const noexcept;
 
+            /**
+             * @brief Get the current free image index in the swapchain.
+             * 
+             * @note This method is in general only used by render system
+             * internally when presenting & interacting with the OS.
+             * You might be looking for `GetFrameInFlight()`.
+             */
             uint32_t GetFramebuffer() const noexcept;
 
             /**
@@ -46,11 +54,18 @@ namespace Engine {
              */
             [[deprecated]]
             GraphicsCommandBuffer GetCommandBuffer();
-
+            
+            /// @deprecated
+            [[deprecated]]
             GraphicsContext GetGraphicsContext();
 
+            /// @deprecated
+            [[deprecated]]
             ComputeContext GetComputeContext();
 
+            /**
+             * @brief Request the current main command buffer
+             */
             vk::CommandBuffer GetRawMainCommandBuffer();
 
             /**

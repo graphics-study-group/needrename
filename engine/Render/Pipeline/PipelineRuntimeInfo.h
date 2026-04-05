@@ -13,6 +13,8 @@ namespace Engine {
      * Mainly includes mesh vertex attributes.
      */
     struct PipelineRuntimeInfoPerDraw {
+
+        /// @brief Vertex attribute expectation of the draw call.
         VertexAttribute va;
 
         bool operator==(const PipelineRuntimeInfoPerDraw &) const noexcept = default;

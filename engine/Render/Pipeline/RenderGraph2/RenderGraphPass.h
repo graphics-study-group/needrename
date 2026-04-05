@@ -23,6 +23,12 @@ namespace Engine {
         Transfer
     };
 
+    /**
+     * @brief A pass in RenderGraph2.
+     * 
+     * @see `Engine::RenderGraphPassBuilder`
+     * The builder should be used instead of manually constructing this struct.
+     */
     struct RenderGraphPass {
         // Metadata
         std::string name{};
@@ -43,6 +49,9 @@ namespace Engine {
         RGAttachmentDesc2 depth_attachment;
     };
 
+    /**
+     * @brief Helper for building a pass of the render graph.
+     */
     class RenderGraphPassBuilder {
         RenderSystem &system;
         RenderGraphPass pass{};

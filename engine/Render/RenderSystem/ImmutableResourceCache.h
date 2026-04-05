@@ -38,12 +38,26 @@ namespace Engine {
              * the first one will be used.
              */
             vk::Sampler GetSampler(const ImageUtils::SamplerDesc &);
+            /// @overload vk::Sampler GetSampler(const ImageUtils::SamplerDesc &)
             vk::Sampler GetSampler(const vk::SamplerCreateInfo &);
 
+            /**
+             * @brief Request a descriptor set layout.
+             * 
+             * Immutable samplers will be hashed directly. This should be fine
+             * so long as all samplers are managed by this cache.
+             */
             vk::DescriptorSetLayout GetDescriptorSetLayout(
                 const vk::DescriptorSetLayoutCreateInfo &, const char *name = nullptr
             );
 
+            /**
+             * @brief Request a pipeline layout.
+             * 
+             * Descriptor set layouts will be hashed directly. This should be
+             * fine so long as all descriptor set layouts are managed by this
+             * cache.
+             */
             vk::PipelineLayout GetPipelineLayout(const vk::PipelineLayoutCreateInfo &, const char *name = nullptr);
         };
     } // namespace RenderSystemState

@@ -38,6 +38,7 @@ namespace Engine {
         VmaAllocationInfo QueryAllocationInfo() const noexcept;
     };
 
+    /// @brief A piece of memory allocation for images.
     class ImageAllocation : private AllocatedMemory {
         struct impl;
         std::unique_ptr<impl> pimpl;
@@ -57,6 +58,7 @@ namespace Engine {
         ImageMemoryType GetMemoryType() const noexcept;
     };
 
+    /// @brief A piece of memory allocation for buffers.
     class BufferAllocation : private AllocatedMemory {
         struct impl;
         std::unique_ptr<impl> pimpl;
@@ -73,11 +75,31 @@ namespace Engine {
 
         const vk::Buffer &GetBuffer() const noexcept;
 
+        /**
+         * @brief Get the memory address on the host virtual memory
+         * that maps to the buffer.
+         * 
+         * @exception Throws if the buffer cannot be mapped to host VM.
+         * @return pointer to the content of the buffer
+         */
         std::byte *GetVMAddress();
 
+        /**
+         * @brief Flush the memory so that host writes are visible on the device
+         * 
+         * @exception Rethrows all exception if the underlying Vulkan call fails
+         */
         void FlushMemory(size_t offset = 0, size_t size = 0) const;
+
+        /**
+         * @brief Invalidate the memory so that device writes are visible on
+         * the host.
+         * 
+         * @exception Rethrows all exception if the underlying Vulkan call fails
+         */
         void InvalidateMemory(size_t offset = 0, size_t size = 0) const;
 
+        /// @brief Query the memory type specified on creation.
         BufferType GetMemoryType() const noexcept;
     };
 } // namespace Engine

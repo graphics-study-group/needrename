@@ -55,8 +55,10 @@ namespace Engine {
          */
         size_t CalculateMaxSize() const noexcept;
 
+        /**
+         * @brief Write the structured buffer into memory.
+         */
         void WriteBuffer(const StructuredBuffer &data, std::byte *buffer) const noexcept;
-
         void WriteBuffer(const StructuredBuffer &data, std::vector<std::byte> &buffer) const;
     };
 } // namespace Engine

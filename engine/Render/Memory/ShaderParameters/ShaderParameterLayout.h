@@ -18,6 +18,12 @@ namespace Engine {
 
     namespace ShdrRfl {
 
+        /**
+         * @brief Reflected information of shaders.
+         * 
+         * Contains detailed information on descriptor set layouts and memory
+         * layouts of uniform buffers.
+         */
         struct SPLayout {
             // Interfaces are guaranteed to be sorted by set and binding numbers
             std::vector<std::unique_ptr<SPInterface>> interfaces;

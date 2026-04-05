@@ -16,6 +16,8 @@ namespace Engine {
         
         /**
          * @brief Description of an image texture.
+         * 
+         * @see `Engine::ImageUtils::TextureDesc`
          */
         struct ImageTextureDesc {
 #define COPY_ENUM_VALUE(x) x = (int)ImageUtils::ImageFormat::x

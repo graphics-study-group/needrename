@@ -32,6 +32,7 @@ namespace Engine {
         );
     };
 
+    /// @brief Typed adaptor of the `ComputeBuffer` class.
     template <class T>
     class ComputeBufferTyped {
         std::unique_ptr<ComputeBuffer> buffer{};
@@ -67,14 +68,23 @@ namespace Engine {
             return self;
         }
 
+        /**
+         * @brief Get the count of elements in the buffer.
+         */
         size_t GetCount() const noexcept {
             return buffer->GetSize() / sizeof(T);
         }
 
+        /**
+         * @brief Get a span of all elements in the buffer.
+         */
         std::span<T> GetVMAddress() {
             return std::span<T>(reinterpret_cast<T *>(buffer->GetVMAddress()), GetCount());
         }
 
+        /**
+         * @brief Get the underlying compute buffer.
+         */
         const ComputeBuffer &GetComputeBuffer() {
             return *buffer;
         }

@@ -10,6 +10,8 @@ namespace Engine {
      */
     class RenderTargetTexture : public Texture {
     public:
+        /// @brief Description of a render target texture.
+        /// @see `Engine::ImageUtils::TextureDesc`
         struct RenderTargetTextureDesc {
 
 #define COPY_ENUM_VALUE(x) x = (int)ImageUtils::ImageFormat::x
@@ -28,10 +30,6 @@ namespace Engine {
             uint32_t array_layers;
             RTTFormat format;
 
-            // Multisample level. If set to a value higher than One,
-            // an additional texture containing multisamples will be
-            // created.
-            // XXX: Not tested.
             uint8_t multisample{1};
             bool is_cube_map{false};
         };

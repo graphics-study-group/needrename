@@ -19,8 +19,11 @@ namespace Engine {
         struct REFL_SER_CLASS(REFL_BLACKLIST) RasterizerProperties {
             REFL_SER_SIMPLE_STRUCT(RasterizerProperties)
 
+            /// Filling mode of the rasterizer
             using FillingMode = PipelineUtils::FillingMode;
+            /// Culling mode of the rasterizer.
             using CullingMode = PipelineUtils::CullingMode;
+            /// How the front face of a polygon is determined.
             using FrontFace = PipelineUtils::FrontFace;
 
             /// Filling mode of the rasterizer.
@@ -58,7 +61,9 @@ namespace Engine {
         struct REFL_SER_CLASS(REFL_BLACKLIST) StencilState {
             REFL_SER_SIMPLE_STRUCT(StencilState)
 
+            /// @brief Stencil operation that can be used.
             using StencilOperation = PipelineUtils::StencilOperation;
+            /// @brief Comparator that can be used.
             using DSComparator = PipelineUtils::DSComparator;
 
             /// @brief Operation used if stencil test is failed.
@@ -85,6 +90,7 @@ namespace Engine {
         struct REFL_SER_CLASS(REFL_BLACKLIST) DSProperties {
             REFL_SER_SIMPLE_STRUCT(DSProperties)
 
+            /// @brief Comparator that can be used.
             using DSComparator = PipelineUtils::DSComparator;
 
             /// @brief Whether depth values of fragments can be written into the depth buffer.
@@ -131,8 +137,11 @@ namespace Engine {
         struct REFL_SER_CLASS(REFL_BLACKLIST) ColorBlendingProperties {
             REFL_SER_SIMPLE_STRUCT(ColorBlendingProperties)
 
+            /// Blending operation.
             using BlendOperation = PipelineUtils::BlendOperation;
+            /// Blending factor.
             using BlendFactor = PipelineUtils::BlendFactor;
+            /// Mask of color channel for color writes.
             using ColorChannelMask = PipelineUtils::ColorChannelMask;
 
             /**

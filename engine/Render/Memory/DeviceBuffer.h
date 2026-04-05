@@ -51,16 +51,17 @@ namespace Engine {
             const std::string &name = ""
         );
 
+        /// @brief Get the underlying Vulkan buffer object.
         vk::Buffer GetBuffer() const;
 
+        /// @brief Get the actual size of the buffer.
         size_t GetSize() const;
 
         /**
          * @brief Get the pointer to the mapped address in the 
          * virtual memory of this process.
          * 
-         * The pointer is
-         * automatically unmapped on deconstruction.
+         * The pointer is automatically unmapped on deconstruction.
          * You don't need to match `Unmap()` manually before
          * cleaning up.
          */
@@ -69,9 +70,8 @@ namespace Engine {
         /**
          * @brief Flush the memory write to be visible on device.
          * 
-         * Generally you don't
-         * need to manually call this member, as memories that
-         * need to be flushed are usually coherent.
+         * Generally you don't need to manually call this member, as memories
+         * that need to be flushed are usually coherent.
          *
          * @param offset Offset of the region to be flushed
          * @param size Size of the region to be flushed,
@@ -84,8 +84,7 @@ namespace Engine {
          * 
          *
          * Generally you don't need to manually call this member, as memories that
-         * need to be invalidated are
-         * usually coherent.
+         * need to be invalidated are usually coherent.
          * 
          * @param offset Offset of the region to be invalidated
          *

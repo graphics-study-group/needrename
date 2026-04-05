@@ -21,11 +21,15 @@ namespace Engine {
             virtual ~SPInterface() = default;
         };
 
+        /// @brief Opaque types such as images or samplers.
         struct SPInterfaceOpaque : SPInterface {
             uint32_t array_size{0};
         };
 
+        /// @brief Image type.
         struct SPInterfaceOpaqueImage : SPInterfaceOpaque {
+
+            /// @brief Special attributes for images.
             enum class ImageFlagBits : uint32_t {
                 HasSampler = 1 << 0,
                 Arrayed = 1 << 1,
@@ -43,6 +47,7 @@ namespace Engine {
             // vk::Format format;
         };
 
+        /// @brief Other opaque interfaces such as samplers.
         struct SPInterfaceOpaqueOther : SPInterfaceOpaque {
             enum class Type {
                 Unknown,
@@ -51,6 +56,7 @@ namespace Engine {
             } type{Type::Unknown};
         };
 
+        /// @brief Buffers
         struct SPInterfaceBuffer : SPInterface {
             enum class Type {
                 Unknown,
@@ -61,6 +67,7 @@ namespace Engine {
             } type{Type::Unknown};
         };
 
+        /// @brief Structured buffer. Generally uniform buffer for materials.   
         struct SPInterfaceStructuredBuffer : SPInterfaceBuffer {
             const StructuredBufferPlacer *buffer_placer{nullptr};
         };

@@ -51,7 +51,7 @@ namespace Engine {
              */
             void EnqueueBufferSubmissionVertex(const DeviceBuffer &vertex_buffer, const std::vector<std::byte> &data);
 
-            /***
+            /**
              * @brief Enqueue a vertex buffer uploading.
              * Record corresponding memory
              * barriers and buffer writes to a disposable command buffer at the beginning of a frame.
@@ -66,7 +66,7 @@ namespace Engine {
             [[deprecated("Use EnqueueBufferSubmissionVertex() method instead.")]]
             void EnqueueVertexBufferSubmission(const HomogeneousMesh &mesh);
 
-            /***
+            /**
              * @brief Enqueue a texture buffer submission. Record corresponding image
              * barriers and buffer writes to a disposable command buffer.
              *
@@ -98,13 +98,13 @@ namespace Engine {
              * Only color aspect is cleared. All mipmap levels and arrays are cleared.
              *
              * @param texture
-             * @param color
+             * @param color_rgba
              */
             void EnqueueTextureClear(const Texture &texture, std::tuple<float, float, float, float> color_rgba);
             void EnqueueTextureClear(const Texture &texture, float depth);
             // void EnqueueTextureClear(const Texture &texture, std::tuple<float, uint8_t> depth_stencil);
 
-            /***
+            /**
              * @brief Execute staged submissions.
              *
              * Allocated a new command buffer if needed, record all pending operations, and

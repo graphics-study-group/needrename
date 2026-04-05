@@ -19,6 +19,19 @@ namespace Engine {
 
     namespace RenderSystemState {
         class DeviceInterface;
+
+        /**
+         * @brief Manages swapchain images for the render system.
+         * 
+         * Swapchain images are special images shared by the OS and the engine.
+         * They are the only images that can be presented to the window manager
+         * of the OS.
+         * 
+         * In our engine, swapchain images are only copied to on the final step
+         * of a frame via `Engine::RenderSystem::CompleteFrame()`.
+         * They cannot be used for any other purposes such as attachments
+         * or storage images.
+         */
         class Swapchain {
             struct impl;
             std::unique_ptr<impl> pimpl;

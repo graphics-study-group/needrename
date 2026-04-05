@@ -18,22 +18,27 @@ namespace Engine {
             D32SFLOAT,
         };
 
+        /// @brief Description of a texture
         struct TextureDesc {
-            // An integer between 1 and 3 for dimension.
+            /// An integer between 1 and 3 for dimension.
             uint32_t dimensions;
-            // Integers at least 1 for sizes.
+            /// Integers at least 1 for sizes.
             uint32_t width, height, depth;
-            // Format of this image
+            /// Format of this image
             ImageFormat format;
-            // Allowed memory access on this image.
+            /// Allowed memory access on this image.
             ImageMemoryType memory_type;
-            // Use zero to automatically determine mipmap levels
-            // by `max(log(width), log(height), log(depth))`
+            /// @brief Mipmap levels of the texture.
+            /// Use zero to automatically determine mipmap levels
+            /// by `max(log(width), log(height), log(depth))`
             uint32_t mipmap_levels;
+            /// @brief Array layers of the texture.
             uint32_t array_layers;
+            /// @brief Whether the texture is a cubemap.
             bool is_cube_map;
         };
 
+        /// @brief Description of a sampler.
         struct SamplerDesc {
             /**
              * @brief Address mode of the sampler.
@@ -54,6 +59,9 @@ namespace Engine {
                 ClampToBorder_OpaqueWhite
             };
 
+            /**
+             * @brief Filter mode of the sampler.
+             */
             enum class REFL_SER_CLASS() FilterMode : uint8_t {
                 Point,
                 Linear
@@ -61,20 +69,23 @@ namespace Engine {
 
             using DepthComparator = PipelineUtils::DSComparator;
 
-            // Filter mode.
+            /// Filter mode if the texel is minified.
             FilterMode min_filter{FilterMode::Point};
+            /// Filter mode if the texel is magnified.
             FilterMode max_filter{FilterMode::Point};
+            /// Filter mode between mipmap levels.
             FilterMode mipmap_filter{FilterMode::Point};
 
-            // Address mode on three axis
+            /// Address mode on three axis
             AddressMode u_address{AddressMode::Repeat};
             AddressMode v_address{AddressMode::Repeat};
             AddressMode w_address{AddressMode::Repeat};
 
-            // Bias and clamps on LoD (mipmaps).
+            /// Bias and clamps on LoD (mipmaps).
             float bias_lod{0.0f}, min_lod{0.0f}, max_lod{0.0f};
 
-            // Anisotropy value clamp. Use any value less than 1.0 to disable anisotropic filtering.
+            /// Anisotropy value clamp.
+            /// Use any value less than 1.0 to disable anisotropic filtering.
             float max_anisotropy{0.0f};
 
             /**
@@ -87,7 +98,7 @@ namespace Engine {
              */
             DepthComparator comparator{DepthComparator::Always};
 
-            // Declare a default elementwise equality operator
+            /// Default elementwise equality operator
             bool operator==(const SamplerDesc &) const = default;
         };
     } // namespace ImageUtils

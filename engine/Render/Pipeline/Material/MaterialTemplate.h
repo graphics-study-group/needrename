@@ -75,8 +75,6 @@ namespace Engine {
         /**
          * @brief Get the pipeline for a specific pass index.
          *
-         * @param pass_index The
-         * index of the pass to retrieve the pipeline from.
          * @return vk::Pipeline The pipeline associated with
          * the specified pass index.
          */

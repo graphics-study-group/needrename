@@ -10,6 +10,8 @@ namespace vk {
 namespace Engine {
     class ICommandBuffer;
     class Texture;
+
+    /// @deprecated
     class ICommandContext {
     public:
         using ImageAccessType = AccessHelper::ImageAccessType;

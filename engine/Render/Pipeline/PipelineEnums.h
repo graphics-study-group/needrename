@@ -6,20 +6,23 @@
 namespace Engine {
     namespace PipelineUtils {
 
+        /**
+         * @brief Filling mode of the rasterizer
+         */
         enum class REFL_SER_CLASS() FillingMode {
-            Fill,
-            Line,
-            Point
+            Fill,   ///< Fill the polygon
+            Line,   ///< Draw only the lines of the polygon
+            Point   ///< Draw only the vertices of the polygon
         };
+
+        /**
+         * @brief Culling mode of the rasterizer
+         */
         enum class REFL_SER_CLASS() CullingMode {
-            // No faces are culled
-            None,
-            // Front faces are culled
-            Front,
-            // Back faces are culled
-            Back,
-            // All faces are culled
-            All
+            None,       ///< No faces are culled
+            Front,      ///< Front faces are culled
+            Back,       ///< Back faces are culled
+            All         ///< All faces are culled
         };
         enum class REFL_SER_CLASS() FrontFace {
             // Counterclockwise faces are counted as front face.
@@ -28,7 +31,10 @@ namespace Engine {
             Clockwise
         };
 
-        /// @brief C.f. https://registry.khronos.org/vulkan/specs/latest/man/html/VkCompareOp.html
+        /**
+         * @brief Comparator used for depth test etc.
+         * @see https://registry.khronos.org/vulkan/specs/latest/man/html/VkCompareOp.html
+         */
         enum class REFL_SER_CLASS() DSComparator {
             Never,
             Less,
@@ -40,7 +46,10 @@ namespace Engine {
             Always
         };
 
-        /// @brief C.f. https://registry.khronos.org/vulkan/specs/latest/man/html/VkStencilOp.html
+        /**
+         * @brief Stencil operations
+         * @see https://registry.khronos.org/vulkan/specs/latest/man/html/VkStencilOp.html
+         */
         enum class REFL_SER_CLASS() StencilOperation {
             Keep,
             Zero,
@@ -52,6 +61,10 @@ namespace Engine {
             DecrWrap
         };
 
+        /**
+         * @brief Mask for color channels for attachments
+         * @see https://docs.vulkan.org/refpages/latest/refpages/source/VkColorComponentFlagBits.html
+         */
         enum class ColorChannelMask : int {
             None = 0x0,
 
@@ -75,7 +88,10 @@ namespace Engine {
             All = RGBA
         };
 
-        /// @brief C.f. https://registry.khronos.org/vulkan/specs/latest/man/html/VkBlendOp.html
+        /**
+         * @brief Blending operations
+         * @see https://registry.khronos.org/vulkan/specs/latest/man/html/VkBlendOp.html
+         */
         enum class REFL_SER_CLASS() BlendOperation {
             None,
             Add,
@@ -85,7 +101,10 @@ namespace Engine {
             Max
         };
 
-        /// @brief C.f. https://registry.khronos.org/vulkan/specs/latest/man/html/VkBlendFactor.html
+        /**
+         * @brief Blending factors
+         * @see https://registry.khronos.org/vulkan/specs/latest/man/html/VkBlendFactor.html
+         */
         enum class REFL_SER_CLASS() BlendFactor {
             Zero,
             One,

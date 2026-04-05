@@ -23,6 +23,12 @@ namespace vk {
 namespace Engine {
     class RenderSystem;
     namespace RenderSystemState {
+
+        /**
+         * @brief State of the underlying memory allocator.
+         * 
+         * Currently the allocator is implemented via the VMA library.
+         */
         class AllocatorState {
             struct impl;
             std::unique_ptr<impl> pimpl;
@@ -42,12 +48,17 @@ namespace Engine {
             void Create();
             VmaAllocator GetAllocator() const;
 
+            /**
+             * @brief Allocate the memory for buffer of a given type, name and size.
+             */
             BufferAllocation AllocateBuffer(BufferType type, size_t size, const std::string &name = "") const;
-
             std::unique_ptr<BufferAllocation> AllocateBufferUnique(
                 BufferType type, size_t size, const std::string &name = ""
             ) const noexcept;
 
+            /**
+             * @brief Allocate the memory for a given image.
+             */
             ImageAllocation AllocateImage(
                 ImageMemoryType type,
                 vk::ImageType dimension,
@@ -59,7 +70,6 @@ namespace Engine {
                 vk::SampleCountFlagBits samples,
                 const std::string &name = ""
             ) const;
-
             std::unique_ptr<ImageAllocation> AllocateImageUnique(
                 ImageMemoryType type,
                 vk::ImageType dimension,
@@ -72,6 +82,9 @@ namespace Engine {
                 const std::string &name = ""
             ) const noexcept;
 
+            /**
+             * @brief Query whether a given format supports intended usage feature.
+             */
             bool QueryFormatFeatures(vk::Format format, vk::FormatFeatureFlagBits feature) const noexcept;
         };
     } // namespace RenderSystemState

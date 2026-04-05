@@ -69,12 +69,15 @@ namespace Engine {
      * bitset, with each contingous 8 bits representing a semantic.
      */
     struct VertexAttribute {
+
         uint64_t packed;
 
         bool operator==(const VertexAttribute &rhs) const noexcept {
             return packed == rhs.packed;
         }
 
+        /// @brief Set the attribute of a given semantic
+        /// @return this for method chaining.
         VertexAttribute &SetAttribute(VertexAttributeSemantic semantic, VertexAttributeType type) noexcept {
             uint64_t type_bits{static_cast<uint8_t>(type)};
             uint64_t mask{0xF};
@@ -83,12 +86,12 @@ namespace Engine {
             packed = ((packed & ~mask) | type_bits);
             return *this;
         }
-
+        /// @brief Get the attribute type of a semantic.
         VertexAttributeType GetAttribute(VertexAttributeSemantic semantic) const noexcept {
             auto shifted = packed >> static_cast<uint8_t>(semantic) * 4;
             return static_cast<VertexAttributeType>(shifted & 0xF);
         }
-
+        /// @brief Query whether this attribute has a semantic set.
         bool HasAttribute(VertexAttributeSemantic semantic) const noexcept {
             return GetAttribute(semantic) != VertexAttributeType::Unused;
         }

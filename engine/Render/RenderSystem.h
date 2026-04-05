@@ -58,6 +58,7 @@ namespace Engine {
 
         ~RenderSystem();
 
+        /// @brief Halt the execution of the current thread and wait for GPU to be idle.
         void WaitForIdle() const;
 
         /// @brief Update the swapchain in response of a window resize etc.
@@ -79,6 +80,11 @@ namespace Engine {
 
         /**
          * @brief Complete the rendering of the current frame.
+         * 
+         * Blits the present_texture to the swapchain image that is currently
+         * allocated for the frame (via `FrameManager::GetFramebuffer()`).
+         * This is the only time in a frame that the swapchain image is written
+         * to.
          *
          * This method also does resource (i.e. swapchain) recreation if necessary.
          * If you end a frame by manually calling `FrameManager::CompleteFrame()`,
@@ -92,6 +98,16 @@ namespace Engine {
             uint32_t offset_x = 0,
             uint32_t offset_y = 0
         );
+
+        /**
+         * last_access defaulted to color attachment write.
+         * 
+         * @overload void CompleteFrame(
+         * const RenderTargetTexture &present_texture,
+         * MemoryAccessTypeImageBits last_access,
+         * uint32_t width, uint32_t height,
+         * uint32_t offset_x = 0, uint32_t offset_y = 0);
+         */
         void CompleteFrame(
             const RenderTargetTexture &present_texture,
             uint32_t width,

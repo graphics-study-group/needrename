@@ -8,6 +8,14 @@
 #include <vector>
 
 namespace Engine {
+
+    /**
+     * @brief A structured buffer that every contained variable is named.
+     * 
+     * It is implemented via a mapping from name to bitwise content of the
+     * variable. To actually write these variables onto a buffer, use
+     * `Engine::StructuredBufferPlacer`
+     */
     class StructuredBuffer {
         struct impl;
         std::unique_ptr<impl> pimpl;
@@ -49,6 +57,11 @@ namespace Engine {
             SetVariable(name, &val, sizeof(ActualType), typeid(ActualType));
         }
 
+        /**
+         * @brief Set the variable of name to a value by an array.
+         * 
+         * Safer alternative to the `void *` version.
+         */
         template <typename T, size_t extent>
         void SetVariable(const std::string &name, std::type_identity<std::span<T, extent>>::type spn) noexcept
             requires(

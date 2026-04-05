@@ -44,14 +44,23 @@ namespace Engine {
          *  - `SKYBOX`: reserved for skybox rendering.
          * 
          * @param tag The tag of the material. 
-         * @param mesh_type vertex format of the mesh.
+         * @param pri Runtime information needed for the pipeline.
          */
         const MaterialTemplate *FindMaterialTemplate(
             const std::string &tag, const PipelineRuntimeInfo &pri
         ) const noexcept;
+
+        /**
+         * @brief Search for a material template via its tag and runtime information.
+         */
         MaterialTemplate *FindMaterialTemplate(const std::string &tag, const PipelineRuntimeInfo &pri) noexcept;
 
-        void PreheatMaterialTemplate(const std::string &tag, VertexAttribute mesh_type) noexcept;
+        /**
+         * @brief Preheat a certain pipeline.
+         * 
+         * @todo unimplemented.
+         */
+        void PreheatMaterialTemplate(const std::string &tag, const PipelineRuntimeInfo &pri) noexcept;
 
         void Instantiate(MaterialLibraryAsset &) override;
     };

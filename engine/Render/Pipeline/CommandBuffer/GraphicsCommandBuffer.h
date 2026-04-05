@@ -1,5 +1,5 @@
-#ifndef PIPELINE_COMMANDBUFFER_GRAPHICSCOMMANDBUFFER_INCLUDED
-#define PIPELINE_COMMANDBUFFER_GRAPHICSCOMMANDBUFFER_INCLUDED
+#ifndef PIPELINE_COMMANDBUFFER_GRAPHICSCOMMANDBUFFER
+#define PIPELINE_COMMANDBUFFER_GRAPHICSCOMMANDBUFFER
 
 #include "Render/Pipeline/CommandBuffer/TransferCommandBuffer.h"
 #include "Render/Pipeline/PipelineRuntimeInfo.h"
@@ -127,9 +127,10 @@ namespace Engine {
          * Write per-mesh data, and send draw call to GPU.
          * Does not do any extra stuff such as setting up viewports.
          */
-        void DrawMesh(const IVertexBasedRenderer &mesh);
-        void DrawMesh(const IVertexBasedRenderer &mesh, const glm::mat4 &model_matrix);
         void DrawMesh(const IVertexBasedRenderer &mesh, const glm::mat4 &model_matrix, int32_t camera_index);
+        void DrawMesh(const IVertexBasedRenderer &mesh, const glm::mat4 &model_matrix);
+        void DrawMesh(const IVertexBasedRenderer &mesh);
+        
 
         /**
          * @brief Draw renderers in the RendererList with specified pass index.
@@ -148,6 +149,7 @@ namespace Engine {
         /// @brief End the render pass
         void EndRendering();
 
+        /// @brief Reset the command buffer.
         void Reset() noexcept override;
 
     protected:
@@ -160,4 +162,4 @@ namespace Engine {
     };
 } // namespace Engine
 
-#endif // PIPELINE_COMMANDBUFFER_GRAPHICSCOMMANDBUFFER_INCLUDED
+#endif // PIPELINE_COMMANDBUFFER_GRAPHICSCOMMANDBUFFER

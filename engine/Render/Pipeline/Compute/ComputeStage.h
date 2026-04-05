@@ -15,6 +15,9 @@ namespace Engine {
         class SPLayout;
     }
 
+    /**
+     * @brief Compute pipeline used for compute kernel dispatches.
+     */
     class ComputeStage : public IInstantiatedFromAsset<ShaderAsset> {
         using PassInfo = PipelineInfo::ComputePassInfo;
 
