@@ -17,7 +17,7 @@ namespace Engine {
 #define COPY_ENUM_VALUE(x) x = (int)ImageUtils::ImageFormat::x
             /**
              * Formats available for Render Target Textures.
-             * 
+             *
              * @see Engine::ImageUtils::ImageFormat
              */
             enum class RTTFormat {
@@ -50,7 +50,7 @@ namespace Engine {
             RTTFormat format;
             /**
              * @brief Sample count of this render target texture.
-             * 
+             *
              * Use values other than 1 enables multisample for the texture.
              * If a multisampled texture is used as an attachment, the graphics
              * pipeline might have multisampling enabled.
@@ -71,7 +71,7 @@ namespace Engine {
     public:
         /**
          * @brief Create a render target texture by description.
-         * 
+         *
          * @deprecated Using the unique_ptr variant is recommended.
          */
         static RenderTargetTexture Create(

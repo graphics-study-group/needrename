@@ -28,19 +28,19 @@ namespace Engine {
          * @brief Type of the vertex attribute.
          * Up to 16 types (incl. unused) are supported.
          * Currently there are only 8 types.
-         * 
+         *
          * @internal Doxygen only generate doc for scoped enums if they are
          * in a documented namespace or a documented class.
          */
         enum class VertexAttributeType : uint8_t {
-            Unused,                 ///< This vertex attribute has no data.
-            SFloat32x1,             ///< This vertex attribute one 32-bit floating point data.
-            SFloat32x2,             ///< This vertex attribute one 32-bit floating point data (i.e. `vec2`).
-            SFloat32x3,             ///< This vertex attribute one 32-bit floating point data (i.e. `vec3`).
-            SFloat32x4,             ///< This vertex attribute one 32-bit floating point data (i.e. `vec4`).
-            Uint8x4,                ///< This vertex attribute four 8-bit unsigned integer data (i.e. `uvec4`).
-            Uint16x2,               ///< This vertex attribute two 16-bit unsigned integer data (i.e. `uvec2`).
-            Uint32x1,               ///< This vertex attribute one 32-bit unsigned integer data.
+            Unused,     ///< This vertex attribute has no data.
+            SFloat32x1, ///< This vertex attribute one 32-bit floating point data.
+            SFloat32x2, ///< This vertex attribute one 32-bit floating point data (i.e. `vec2`).
+            SFloat32x3, ///< This vertex attribute one 32-bit floating point data (i.e. `vec3`).
+            SFloat32x4, ///< This vertex attribute one 32-bit floating point data (i.e. `vec4`).
+            Uint8x4,    ///< This vertex attribute four 8-bit unsigned integer data (i.e. `uvec4`).
+            Uint16x2,   ///< This vertex attribute two 16-bit unsigned integer data (i.e. `uvec2`).
+            Uint32x1,   ///< This vertex attribute one 32-bit unsigned integer data.
             Reserved0,
             Reserved1,
             Reserved2,
@@ -54,7 +54,7 @@ namespace Engine {
         /**
          * @brief Semantic of the vertex attribute.
          * Up to 16 semantics are supported.
-         * 
+         *
          * @internal Doxygen only generate doc for scoped enums if they are
          * in a documented namespace or a documented class.
          */
@@ -106,7 +106,7 @@ namespace Engine {
         /**
          * @brief Generate a vertex input binding description from the
          * stored vertex attribute.
-         * 
+         *
          * Each vertex attibute corresponds to exactly one binding, and
          * the stride of the binding is exactly the same as the size
          * occupied by one item of the attribute (i.e. 128 for `SFloat32x4`).
@@ -118,7 +118,7 @@ namespace Engine {
         /**
          * @brief Generate a vertex input attribute description from the
          * store vertex attribute.
-         * 
+         *
          * The location of each attribute will be identical to its underlying
          * enum integer (i.e 1 for `Normal`), and its bindings will be contingous
          * and increasing, corresponding to the ones returned by

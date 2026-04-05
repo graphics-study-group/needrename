@@ -12,9 +12,9 @@ namespace Engine {
     namespace ImageUtils {
         /**
          * @brief Available formats for images.
-         * 
+         *
          * Not all image formats supports all operations. For example, SRGB
-         * images in general does not support storage (UAV) operation. Use 
+         * images in general does not support storage (UAV) operation. Use
          * `Engine::RenderSystemState::AllocatorState::QueryFormatFeatures()`
          * to determine whether your use case is supported.
          */

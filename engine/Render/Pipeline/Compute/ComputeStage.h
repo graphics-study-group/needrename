@@ -17,7 +17,7 @@ namespace Engine {
 
     /**
      * @brief Compute pipeline used for compute kernel dispatches.
-     * 
+     *
      * It maintains a pipeline layout, a descriptor set layout, a pipeline
      * and a decriptor pool.
      */

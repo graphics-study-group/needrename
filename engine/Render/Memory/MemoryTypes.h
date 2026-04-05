@@ -78,8 +78,8 @@ namespace Engine {
             /// Short-hand for `CopyTo | ShaderSampled`.
             DefaultTexture = CopyTo | ShaderSampled
         };
-    }
-    
+    } // namespace MemoryTypes
+
     using BufferTypeBits = MemoryTypes::BufferTypeBits;
     using ImageMemoryTypeBits = MemoryTypes::ImageMemoryTypeBits;
     /// Bit flags for `BufferTypeBits`.

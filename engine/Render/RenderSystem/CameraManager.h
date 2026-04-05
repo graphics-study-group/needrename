@@ -36,7 +36,7 @@ namespace Engine {
 
             /**
              * @brief Create the camera manager.
-             * 
+             *
              * Allocates uniform buffer, descriptor set layout, pipeline layout
              * and descriptor sets.
              */

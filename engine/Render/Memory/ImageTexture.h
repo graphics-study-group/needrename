@@ -22,7 +22,7 @@ namespace Engine {
 #define COPY_ENUM_VALUE(x) x = (int)ImageUtils::ImageFormat::x
             /**
              * Formats available for Image Textures.
-             * 
+             *
              * @see Engine::ImageUtils::ImageFormat
              */
             enum class ImageTextureFormat {

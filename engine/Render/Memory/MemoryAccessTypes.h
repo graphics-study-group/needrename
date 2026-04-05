@@ -70,8 +70,8 @@ namespace Engine {
         using MemoryAccessTypeBuffer = Flags<MemoryAccessTypeBufferBits>;
         /// Bit flags for `MemoryAccessTypeImageBits`.
         using MemoryAccessTypeImage = Flags<MemoryAccessTypeImageBits>;
-    }
-    
+    } // namespace MemoryAccessTypes
+
     using MemoryAccessTypeBufferBits = MemoryAccessTypes::MemoryAccessTypeBufferBits;
     using MemoryAccessTypeImageBits = MemoryAccessTypes::MemoryAccessTypeImageBits;
     /// Bit flags for `MemoryAccessTypeBufferBits`.

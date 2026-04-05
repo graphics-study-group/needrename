@@ -23,9 +23,9 @@ namespace Engine {
         public:
             /**
              * @brief Maximal shadow casting lights available to the shader.
-             * 
+             *
              * Affects uniform buffer size and shadow map slots.
-             * 
+             *
              * `builtin_assets/shaders/include/engine/interface.glsl` should
              * be modified accordingly if this constant is changed.
              */
@@ -33,9 +33,9 @@ namespace Engine {
 
             /**
              * @brief Maximal non-casting lights available to the shader.
-             * 
+             *
              * Affects uniform buffer size.
-             * 
+             *
              * `builtin_assets/shaders/include/engine/interface.glsl` should
              * be modified accordingly if this constant is changed.
              */
