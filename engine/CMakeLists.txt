@@ -47,6 +47,17 @@ if(Doxygen_FOUND)
     set(DOXYGEN_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/docs)
     # Only *.h files contain public interfaces
     set(DOXYGEN_FILE_PATTERNS *.h)
+    # Expand reflection and attribute macros
+    set(DOXYGEN_MACRO_EXPANSION YES)
+    set(DOXYGEN_EXPAND_ONLY_PREDEF YES)
+    set(DOXYGEN_PREDEFINED
+        "__declspec(x)="
+        "__attribute__(x)="
+        "REFL_SER_CLASS(...)="
+        "REFL_SER_BODY(...)="
+        "REFL_SER_SIMPLE_STRUCT(...)="
+    )
+
     doxygen_add_docs(
         engine_doxygen_doc
         ${CMAKE_CURRENT_SOURCE_DIR}/Asset/
