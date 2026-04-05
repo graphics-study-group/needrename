@@ -19,8 +19,11 @@ namespace Engine {
      */
     template <class T>
     struct RGAttachmentDescTemplate {
+        /// Load operation of the attachment.
         using LoadOp = AttachmentUtils::LoadOperation;
+        /// Store operation of the attachment.
         using StoreOp = AttachmentUtils::StoreOperation;
+        /// Clear value of the attachment.
         using ClearValue = AttachmentUtils::ClearValue;
 
         /// @brief Which RTT to be written to.

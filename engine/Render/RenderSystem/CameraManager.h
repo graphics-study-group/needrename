@@ -34,6 +34,12 @@ namespace Engine {
             CameraManager(RenderSystem &system) noexcept;
             ~CameraManager() noexcept;
 
+            /**
+             * @brief Create the camera manager.
+             * 
+             * Allocates uniform buffer, descriptor set layout, pipeline layout
+             * and descriptor sets.
+             */
             void Create();
 
             /**
@@ -64,7 +70,14 @@ namespace Engine {
              */
             void FetchCameraData();
 
+            /**
+             * @brief Get the descriptor set containing camera information.
+             */
             vk::DescriptorSet GetDescriptorSet(uint32_t frame_in_flight) const noexcept;
+
+            /**
+             * @brief Get the descriptor set layout for camera information.
+             */
             vk::DescriptorSetLayout GetDescriptorSetLayout() const noexcept;
 
             /**

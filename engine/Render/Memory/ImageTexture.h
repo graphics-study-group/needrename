@@ -20,18 +20,30 @@ namespace Engine {
          */
         struct ImageTextureDesc {
 #define COPY_ENUM_VALUE(x) x = (int)ImageUtils::ImageFormat::x
+            /**
+             * Formats available for Image Textures.
+             */
             enum class ImageTextureFormat {
                 COPY_ENUM_VALUE(R8G8B8A8SNorm),
                 COPY_ENUM_VALUE(R8G8B8A8UNorm),
                 COPY_ENUM_VALUE(R8G8B8A8SRGB),
             };
 #undef COPY_ENUM_VALUE
-
+            /// An integer between 1 and 3 for dimension.
             uint32_t dimensions;
-            uint32_t width, height, depth;
+            /// Integers at least 1 for width in pixel.
+            uint32_t width;
+            /// Integers at least 1 for height in pixel.
+            uint32_t height;
+            /// Integers at least 1 for depth in pixel.
+            uint32_t depth;
+            /// Mipmap levels of the texture.
             uint32_t mipmap_levels;
+            /// Array layers of the texture.
             uint32_t array_layers;
+            /// Format of this image
             ImageTextureFormat format;
+            /// Whether the texture is a cubemap.
             bool is_cube_map;
         };
         using ITFormat = ImageTextureDesc::ImageTextureFormat;

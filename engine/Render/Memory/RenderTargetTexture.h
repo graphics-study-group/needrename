@@ -1,5 +1,5 @@
-#ifndef RENDER_MEMORY_RENDERTARGETTEXTURE_INCLUDED
-#define RENDER_MEMORY_RENDERTARGETTEXTURE_INCLUDED
+#ifndef RENDER_MEMORY_RENDERTARGETTEXTURE
+#define RENDER_MEMORY_RENDERTARGETTEXTURE
 
 #include "Texture.h"
 
@@ -15,6 +15,9 @@ namespace Engine {
         struct RenderTargetTextureDesc {
 
 #define COPY_ENUM_VALUE(x) x = (int)ImageUtils::ImageFormat::x
+            /**
+             * Formats available for Render Target Textures.
+             */
             enum class RTTFormat {
                 COPY_ENUM_VALUE(R8G8B8A8SNorm),
                 COPY_ENUM_VALUE(R8G8B8A8UNorm),
@@ -24,13 +27,29 @@ namespace Engine {
             };
 #undef COPY_ENUM_VALUE
 
+            /// An integer between 1 and 3 for dimension.
             uint32_t dimensions;
-            uint32_t width, height, depth;
+            /// Integers at least 1 for width in pixel.
+            uint32_t width;
+            /// Integers at least 1 for height in pixel.
+            uint32_t height;
+            /// Integers at least 1 for depth in pixel.
+            uint32_t depth;
+            /// Mipmap levels of the texture.
             uint32_t mipmap_levels;
+            /// Array layers of the texture.
             uint32_t array_layers;
+            /// Format of this image
             RTTFormat format;
-
+            /**
+             * @brief Sample count of this render target texture.
+             * 
+             * Use values other than 1 enables multisample for the texture.
+             * If a multisampled texture is used as an attachment, the graphics
+             * pipeline might have multisampling enabled.
+             */
             uint8_t multisample{1};
+            /// Whether the texture is a cubemap.
             bool is_cube_map{false};
         };
         using RTTFormat = RenderTargetTextureDesc::RTTFormat;
@@ -43,9 +62,17 @@ namespace Engine {
         bool support_random_access{false}, support_atomic_access{false};
 
     public:
+        /**
+         * @brief Create a render target texture by description.
+         * 
+         * @deprecated Using the unique_ptr variant is recommended.
+         */
         static RenderTargetTexture Create(
             RenderSystem &system, RenderTargetTextureDesc texture, SamplerDesc sampler, const std::string &name = ""
         );
+        /**
+         * @brief Create a render target texture by description.
+         */
         static std::unique_ptr<RenderTargetTexture> CreateUnique(
             RenderSystem &system, RenderTargetTextureDesc texture, SamplerDesc sampler, const std::string &name = ""
         );
@@ -55,4 +82,4 @@ namespace Engine {
     };
 } // namespace Engine
 
-#endif // RENDER_MEMORY_RENDERTARGETTEXTURE_INCLUDED
+#endif // RENDER_MEMORY_RENDERTARGETTEXTURE

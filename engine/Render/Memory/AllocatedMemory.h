@@ -53,8 +53,9 @@ namespace Engine {
         ImageAllocation(ImageAllocation &&other) noexcept;
         ImageAllocation &operator=(ImageAllocation &&other) noexcept;
 
+        /// @brief Get the underlying Vulkan image object.
         const vk::Image &GetImage() const noexcept;
-
+        /// @brief Query the memory type specified on creation.
         ImageMemoryType GetMemoryType() const noexcept;
     };
 
@@ -73,8 +74,8 @@ namespace Engine {
         BufferAllocation(BufferAllocation &&other) noexcept;
         BufferAllocation &operator=(BufferAllocation &&other) noexcept;
 
+        /// @brief Get the underlying Vulkan buffer object.
         const vk::Buffer &GetBuffer() const noexcept;
-
         /**
          * @brief Get the memory address on the host virtual memory
          * that maps to the buffer.

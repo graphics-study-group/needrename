@@ -21,6 +21,16 @@ namespace Engine {
         /// @brief Multiple frame in flight manager
         class FrameManager final {
         public:
+            /**
+             * @brief Expected frames-in-flight of the current application.
+             * 
+             * Controls to what degree CPU codes can _overtake_ GPU codes. For
+             * a default setting of 3, CPU can record commands 3 frames ahead
+             * of the GPU. In general, higher value improves throughput but
+             * makes latency larger.
+             * 
+             * This number may be different from the swapchain image counts.
+             */
             static constexpr uint32_t FRAMES_IN_FLIGHT = 3;
 
         private:
@@ -31,6 +41,12 @@ namespace Engine {
             FrameManager(RenderSystem &sys);
             ~FrameManager();
 
+            /**
+             * @brief Create the frame manager.
+             * 
+             * Allocate synchronization primitives such as fences and semaphores.
+             * Also allocates reused command buffers (i.e main command buffers).
+             */
             void Create();
 
             /// @brief Get the current frame-in-flight count.

@@ -8,6 +8,9 @@
 
 namespace Engine {
     namespace RenderSystemState {
+        /**
+         * @deprecated Pending for rewrite.
+         */
         class MaterialRegistry final : protected std::unordered_map<std::string, std::shared_ptr<MaterialLibrary>> {
             RenderSystem &m_system;
 
