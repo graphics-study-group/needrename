@@ -4,8 +4,10 @@
 #include <Reflection/macros.h>
 
 namespace Engine {
+    /**
+     * @brief Utility definitions for graphics pipelines
+     */
     namespace PipelineUtils {
-
         /**
          * @brief Filling mode of the rasterizer
          */
@@ -24,11 +26,13 @@ namespace Engine {
             Back,  ///< Back faces are culled
             All    ///< All faces are culled
         };
+
+        /**
+         * @brief How front faces are determined via the winding of vertices
+         */
         enum class REFL_SER_CLASS() FrontFace {
-            // Counterclockwise faces are counted as front face.
-            Counterclockwise,
-            // Clockwise faces are counted as front face.
-            Clockwise
+            Counterclockwise,       ///< Counterclockwise faces are counted as front face
+            Clockwise               ///< Clockwise faces are counted as front face
         };
 
         /**
