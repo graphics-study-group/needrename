@@ -9,7 +9,6 @@ namespace Engine {
     class RenderSystem;
     class Texture;
     class DeviceBuffer;
-    class HomogeneousMesh;
 
     namespace RenderSystemState {
         /// @brief A helper for submitting data to GPU.
@@ -50,21 +49,6 @@ namespace Engine {
              * buffer, and is synchronized as such.
              */
             void EnqueueBufferSubmissionVertex(const DeviceBuffer &vertex_buffer, const std::vector<std::byte> &data);
-
-            /***
-             * @brief Enqueue a vertex buffer uploading.
-             * Record corresponding memory
-             * barriers and buffer writes to a disposable command buffer at the beginning of a frame.
-             * A staging buffer is created, and will be de-allocated at the end of the frame.
-             *
-             * Vertex data are copied into the staging buffer immediately.
-             * You can free the underlying vertex asset after calling this method,
-             * so long as you are sure that it will not be evicted from GPU memory.
-             *
-             * @param mesh A homogeneous mesh whose vertex buffer is to be updated.
-             */
-            [[deprecated("Use EnqueueBufferSubmissionVertex() method instead.")]]
-            void EnqueueVertexBufferSubmission(const HomogeneousMesh &mesh);
 
             /***
              * @brief Enqueue a texture buffer submission. Record corresponding image

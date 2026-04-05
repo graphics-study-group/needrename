@@ -26,7 +26,7 @@ namespace Engine {
          * The second low-level one faces `RendererHandle`s, and is used to sort draws, and obtain draw calls and their
          * information.
          *
-         * `RendererHandle`s are provided on a submesh (i.e. `HomogeneousMesh`) granularity, and one `RendererComponent`
+         * `RendererHandle`s are provided on a submesh (i.e. `StaticHomogeneousMesh`) granularity, and one `RendererComponent`
          * can therefore have multipled `RendererHandle`s.
          * They directly interfaces with low level Vulkan functionalities.
          *

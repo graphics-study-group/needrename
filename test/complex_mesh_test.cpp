@@ -11,7 +11,6 @@
 #include "Framework/component/RenderComponent/StaticMeshComponent.h"
 #include "MainClass.h"
 #include "Render/FullRenderSystem.h"
-#include "Render/Renderer/HomogeneousMesh.h"
 #include "UserInterface/GUISystem.h"
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include <Asset/AssetManager/AssetManager.h>

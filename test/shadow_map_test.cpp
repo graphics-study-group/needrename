@@ -8,14 +8,13 @@
 #include "Asset/Mesh/PlaneMeshAsset.h"
 #include "Asset/Texture/Image2DTextureAsset.h"
 #include "Core/Functional/SDLWindow.h"
-#include "Framework/component/RenderComponent/MeshComponent.h"
+#include "Framework/component/RenderComponent/StaticMeshComponent.h"
 #include "Framework/component/RenderComponent/ObjTestMeshComponent.h"
 #include "Framework/object/GameObject.h"
 #include "Framework/world/Scene.h"
 #include "Framework/world/WorldSystem.h"
 #include "MainClass.h"
 #include "Render/FullRenderSystem.h"
-#include "Render/Renderer/HomogeneousMesh.h"
 #include "UserInterface/GUISystem.h"
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 
@@ -198,12 +197,11 @@ int main(int argc, char **argv) {
     floor_go.GetTransformRef().SetScale({5.0f, 5.0f, 1.0f}).SetPosition({0.0f, 0.0f, 0.5f});
     auto floor_mesh_asset = am->CreateAsset<LowerPlaneMeshAsset>();
     auto floor_mesh_asset_ref = AssetRef(floor_mesh_asset);
-    auto &floor_mesh_comp = scene.CreateComponent<MeshComponent>(floor_go);
+    auto &floor_mesh_comp = scene.CreateComponent<StaticMeshComponent>(floor_go);
     floor_mesh_comp.m_mesh_asset = floor_mesh_asset_ref;
     floor_mesh_comp.GetMaterials().resize(1);
     floor_mesh_comp.GetMaterials()[0] = floor_material_instance;
     floor_mesh_comp.Awake();
-    assert(floor_mesh_comp.GetSubmesh(0)->GetVertexAttributeFormat().HasAttribute(VertexAttributeSemantic::Texcoord0));
 
     auto &cube_go = scene.CreateGameObject();
     cube_go.GetTransformRef().SetScale({0.5f, 0.5f, 0.5f});

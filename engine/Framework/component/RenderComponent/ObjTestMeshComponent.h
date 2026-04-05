@@ -5,7 +5,6 @@
 #include "Asset/Loader/ObjLoader.h"
 #include "Framework/component/RenderComponent/StaticMeshComponent.h"
 #include "MainClass.h"
-#include "Render/Renderer/HomogeneousMesh.h"
 
 namespace Engine {
     /**

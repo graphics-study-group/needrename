@@ -1,7 +1,6 @@
 #include "RendererManager.h"
 #include "Asset/Mesh/MeshAsset.h"
 #include "Core/flagbits.h"
-#include "Framework/component/RenderComponent/MeshComponent.h"
 #include "Framework/component/RenderComponent/StaticMeshComponent.h"
 #include "Framework/world/Handle.h"
 #include "Framework/world/Scene.h"
@@ -10,7 +9,6 @@
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/FrameManager.h"
 #include "Render/RenderSystem/SubmissionHelper.h"
-#include "Render/Renderer/HomogeneousMesh.h"
 #include "Render/Renderer/StaticHomogeneousMesh.h"
 
 #include <SDL3/SDL.h>
@@ -44,33 +42,6 @@ namespace Engine::RenderSystemState {
             std::unique_ptr<IVertexBasedRenderer> renderer;
         };
         std::unordered_map<RendererHandle, RendererDataBlock> m_data;
-
-        RendererList CreateHomogeousMeshFromAsset(MeshComponent *rc, AssetRef &asset, RenderSystem &s) {
-            RendererList rl{};
-            auto masset = asset.as<MeshAsset>();
-            assert(masset);
-
-            rl.reserve(masset->GetSubmeshCount());
-            for (size_t i = 0; i < masset->GetSubmeshCount(); i++) {
-                auto &d = m_data[total_renderer_count];
-                d.pending_deallocation_countdown = -1;
-                d.renderer = std::make_unique<HomogeneousMesh>(s.GetAllocatorState(), asset, i);
-                d.material = rc->GetMaterial(i).get();
-                d.component = rc;
-                d.submesh = &masset->m_submeshes[i];
-                rl.push_back(total_renderer_count);
-
-                if (rc->m_is_eagerly_loaded) {
-                    m_data[total_renderer_count].renderer->Submit(
-                        s.GetAllocatorState(), s.GetFrameManager().GetSubmissionHelper()
-                    );
-                }
-
-                total_renderer_count++;
-            }
-            rl.shrink_to_fit();
-            return rl;
-        }
 
         RendererList CreateStaticHMesh(StaticMeshComponent *rc, AssetRef &asset, RenderSystem &s) {
             auto masset = asset.as<MeshAsset>();
@@ -117,16 +88,10 @@ namespace Engine::RenderSystemState {
             comp_handle.GetSceneID()
         );
         auto component = comp_handle.GetComponent();
-        // Legacy mesh component
-        if (auto mc = dynamic_cast<MeshComponent *>(component)) {
-            auto rl = pimpl->CreateHomogeousMeshFromAsset(mc, mc->m_mesh_asset, m_system);
-            pimpl->renderer_components[comp_handle] = rl;
-        } else if (auto smc = dynamic_cast<StaticMeshComponent *>(component)) {
+        if (auto smc = dynamic_cast<StaticMeshComponent *>(component)) {
             auto rl = pimpl->CreateStaticHMesh(smc, smc->m_mesh_asset, m_system);
             pimpl->renderer_components[comp_handle] = rl;
-        }
-        // Unknown component
-        else {
+        } else {
             SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Unknown renderer component type");
         }
     }
