@@ -20,6 +20,10 @@ namespace Engine {
      *
      * It maintains a pipeline layout, a descriptor set layout, a pipeline
      * and a decriptor pool.
+     *
+     * Its descriptor set layout is reflected from the compute shader, and
+     * follows the same restrictions specified in the @ref material_descriptor
+     * "(`Engine::MaterialTemplate` documentation)".
      */
     class ComputeStage : public IInstantiatedFromAsset<ShaderAsset> {
         using PassInfo = PipelineInfo::ComputePassInfo;

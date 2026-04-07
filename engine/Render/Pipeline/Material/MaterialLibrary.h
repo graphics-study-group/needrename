@@ -22,7 +22,7 @@ namespace Engine {
      *
      * This class acts as a dispatcher that dispatches draw calls
      * of renders to their corresponding pipeline based on the tag
-     * and the type of the mesh.
+     * and other runtime configurations such as vertex attributes.
      */
     class MaterialLibrary : public IInstantiatedFromAsset<MaterialLibraryAsset> {
         RenderSystem &m_system;
