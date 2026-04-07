@@ -4,6 +4,8 @@
 // May be safe to include here as this header is not included in other headers.
 #include <vulkan/vulkan.hpp>
 
+#include "Render/Memory/MemoryAccessTypes.h"
+
 namespace Engine {
     class RenderSystem;
     class Texture;
@@ -11,8 +13,6 @@ namespace Engine {
     class GraphicsCommandBuffer;
     class GraphicsContext;
     class ComputeContext;
-
-    enum class MemoryAccessTypeImageBits;
 
     namespace RenderSystemState {
         class SubmissionHelper;

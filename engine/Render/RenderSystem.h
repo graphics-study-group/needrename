@@ -4,6 +4,8 @@
 #include <glm.hpp>
 #include <memory>
 
+#include "Render/Memory/MemoryAccessTypes.h"
+
 // Suppress warning from std::enable_shared_from_this
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wnon-virtual-dtor"
@@ -21,8 +23,6 @@ namespace Engine {
     class Camera;
     class GraphicsCommandBuffer;
     class RenderTargetTexture;
-
-    enum class MemoryAccessTypeImageBits;
 
     namespace ConstantData {
         struct PerCameraStruct;
