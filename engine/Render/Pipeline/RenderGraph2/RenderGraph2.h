@@ -14,6 +14,13 @@ namespace Engine {
     enum class RGTextureHandle : int32_t;
     enum class RGBufferHandle : int32_t;
 
+    /**
+     * @brief Render Graph 2.
+     *
+     * Contains a list of passes compiled by the builder.
+     * It holds ownerships of transient render target textures, and compiles
+     * image barriers accordingly.
+     */
     class RenderGraph2 {
         struct impl;
         std::unique_ptr<impl> pimpl;
