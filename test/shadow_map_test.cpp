@@ -155,21 +155,14 @@ int main(int argc, char **argv) {
 
     auto test_template_assets = ConstructMaterialTemplate();
     auto test_library_asset = ConstructMaterialLibrary(test_template_assets);
-
     auto test_library_asset_ref = AssetRef(test_library_asset);
-    auto test_library = std::make_shared<MaterialLibrary>(*rsys);
-    test_library->Instantiate(*test_library_asset_ref.as<MaterialLibraryAsset>());
-    auto object_material_instance = std::make_shared<MaterialInstance>(*rsys, *test_library);
-    object_material_instance->AssignVectorVariable("ambient_color", glm::vec4(0.0, 0.0, 0.0, 0.0));
-    object_material_instance->AssignVectorVariable("specular_color", glm::vec4(1.0, 1.0, 1.0, 64.0));
-    object_material_instance->AssignTexture("base_tex", blank_color_red);
-    auto floor_material_instance = std::make_shared<MaterialInstance>(*rsys, *test_library);
-    floor_material_instance->AssignVectorVariable("ambient_color", glm::vec4(0.0, 0.0, 0.0, 0.0));
-    floor_material_instance->AssignVectorVariable("specular_color", glm::vec4(1.0, 1.0, 1.0, 64.0));
-    floor_material_instance->AssignTexture("base_tex", blank_color_gray);
 
     auto &scene = cmc->GetWorldSystem()->GetMainSceneRef();
-    // Prepare floor mesh
+
+    auto floor_mat_asset = am->CreateAsset<MaterialAsset>();
+    floor_mat_asset->m_library = test_library_asset_ref;
+    auto floor_mat_asset_ref = AssetRef(floor_mat_asset);
+
     auto &floor_go = scene.CreateGameObject();
     floor_go.GetTransformRef().SetScale({5.0f, 5.0f, 1.0f}).SetPosition({0.0f, 0.0f, 0.5f});
     auto floor_mesh_asset = am->CreateAsset<LowerPlaneMeshAsset>();
@@ -177,37 +170,51 @@ int main(int argc, char **argv) {
     auto &floor_mesh_comp = scene.CreateComponent<StaticMeshComponent>(floor_go);
     floor_mesh_comp.m_mesh_asset = floor_mesh_asset_ref;
     floor_mesh_comp.m_material_assets.resize(1);
-    // Create a material asset for the floor and assign it via GUID path
-    auto floor_mat_asset = am->CreateAsset<MaterialAsset>();
-    floor_mat_asset->m_library = test_library_asset_ref;
-    floor_mesh_comp.m_material_assets[0] = AssetRef(floor_mat_asset);
+    floor_mesh_comp.m_material_assets[0] = floor_mat_asset_ref;
     floor_mesh_comp.Awake();
-    // Override the material instance with our manually configured one
-    rsys->GetMaterialRegistry().GetOrCreateInstance(floor_mesh_comp.m_material_assets[0].GetGUID());
+    {
+        auto floor_inst = rsys->GetMaterialRegistry().GetOrCreateInstance(floor_mat_asset_ref.GetGUID());
+        floor_inst->AssignVectorVariable("ambient_color", glm::vec4(0.0, 0.0, 0.0, 0.0));
+        floor_inst->AssignVectorVariable("specular_color", glm::vec4(1.0, 1.0, 1.0, 64.0));
+        floor_inst->AssignTexture("base_tex", blank_color_gray);
+    }
 
-    // Prepare cube mesh
+    auto cube_mat_asset = am->CreateAsset<MaterialAsset>();
+    cube_mat_asset->m_library = test_library_asset_ref;
+    auto cube_mat_asset_ref = AssetRef(cube_mat_asset);
+
     auto &cube_go = scene.CreateGameObject();
     cube_go.GetTransformRef().SetScale({0.5f, 0.5f, 0.5f});
     auto &cube_mesh_comp = scene.CreateComponent<ShadowMapMeshComponent>(cube_go);
     cube_mesh_comp.LoadData(std::filesystem::path{std::string(ENGINE_ASSETS_DIR) + "/meshes/cube.obj"});
-    auto cube_mat_asset = am->CreateAsset<MaterialAsset>();
-    cube_mat_asset->m_library = test_library_asset_ref;
     cube_mesh_comp.m_material_assets.resize(1);
-    cube_mesh_comp.m_material_assets[0] = AssetRef(cube_mat_asset);
+    cube_mesh_comp.m_material_assets[0] = cube_mat_asset_ref;
     cube_mesh_comp.Awake();
+    {
+        auto cube_inst = rsys->GetMaterialRegistry().GetOrCreateInstance(cube_mat_asset_ref.GetGUID());
+        cube_inst->AssignVectorVariable("ambient_color", glm::vec4(0.0, 0.0, 0.0, 0.0));
+        cube_inst->AssignVectorVariable("specular_color", glm::vec4(1.0, 1.0, 1.0, 64.0));
+        cube_inst->AssignTexture("base_tex", blank_color_red);
+    }
 
-    // Prepare sphere mesh
-    auto &shpere_go = scene.CreateGameObject();
-    shpere_go.GetTransformRef().SetScale({0.5f, 0.5f, 0.5f}).SetPosition({1.0f, 2.0f, 0.0f});
-    auto &sphere_mesh_comp = scene.CreateComponent<ShadowMapMeshComponent>(shpere_go);
-    sphere_mesh_comp.LoadData(std::filesystem::path{std::string(ENGINE_ASSETS_DIR) + "/meshes/sphere.obj"});
     auto sphere_mat_asset = am->CreateAsset<MaterialAsset>();
     sphere_mat_asset->m_library = test_library_asset_ref;
-    sphere_mesh_comp.m_material_assets.resize(1);
-    sphere_mesh_comp.m_material_assets[0] = AssetRef(sphere_mat_asset);
-    sphere_mesh_comp.Awake();
+    auto sphere_mat_asset_ref = AssetRef(sphere_mat_asset);
 
-    // Build Render Graph
+    auto &sphere_go = scene.CreateGameObject();
+    sphere_go.GetTransformRef().SetScale({0.5f, 0.5f, 0.5f}).SetPosition({1.0f, 2.0f, 0.0f});
+    auto &sphere_mesh_comp = scene.CreateComponent<ShadowMapMeshComponent>(sphere_go);
+    sphere_mesh_comp.LoadData(std::filesystem::path{std::string(ENGINE_ASSETS_DIR) + "/meshes/sphere.obj"});
+    sphere_mesh_comp.m_material_assets.resize(1);
+    sphere_mesh_comp.m_material_assets[0] = sphere_mat_asset_ref;
+    sphere_mesh_comp.Awake();
+    {
+        auto sphere_inst = rsys->GetMaterialRegistry().GetOrCreateInstance(sphere_mat_asset_ref.GetGUID());
+        sphere_inst->AssignVectorVariable("ambient_color", glm::vec4(0.0, 0.0, 0.0, 0.0));
+        sphere_inst->AssignVectorVariable("specular_color", glm::vec4(1.0, 1.0, 1.0, 64.0));
+        sphere_inst->AssignTexture("base_tex", blank_color_red);
+    }
+
     RenderGraphBuilder2 rgb{*rsys};
     Engine::RenderTargetTexture::RenderTargetTextureDesc desc{
         .dimensions = 2,
@@ -238,31 +245,29 @@ int main(int argc, char **argv) {
                  AttachmentUtils::StoreOperation::Store,
                  AttachmentUtils::DepthClearValue{1.0f, 0U}}
             )
-            .SetRasterizerPassFunction(
-                [rsys, s, test_library, object_material_instance](GraphicsCommandBuffer &gcb, const RenderGraph2 &rg) {
-                    vk::Extent2D shadow_map_extent{2048, 2048};
-                    vk::Rect2D shadow_map_scissor{{0, 0}, shadow_map_extent};
-                    auto sm = rg.GetInternalTextureResource(s);
-                    gcb.BeginRendering(
-                        {nullptr},
-                        {sm,
-                         Engine::TextureSubresourceRange::GetSingleRange(),
-                         AttachmentUtils::LoadOperation::Clear,
-                         AttachmentUtils::StoreOperation::Store,
-                         AttachmentUtils::DepthClearValue{1.0f, 0U}},
-                        shadow_map_extent,
-                        "Shadowmap Pass"
-                    );
-                    gcb.SetupViewport(shadow_map_extent.width, shadow_map_extent.height, shadow_map_scissor);
-                    gcb.DrawRenderers(
-                        "Shadowmap",
-                        rsys->GetRendererManager().FilterAndSortRenderers({}),
-                        0,
-                        vk::Extent2D{sm->GetTextureDescription().width, sm->GetTextureDescription().height}
-                    );
-                    gcb.EndRendering();
-                }
-            )
+            .SetRasterizerPassFunction([rsys, s](GraphicsCommandBuffer &gcb, const RenderGraph2 &rg) {
+                vk::Extent2D shadow_map_extent{2048, 2048};
+                vk::Rect2D shadow_map_scissor{{0, 0}, shadow_map_extent};
+                auto sm = rg.GetInternalTextureResource(s);
+                gcb.BeginRendering(
+                    {nullptr},
+                    {sm,
+                     Engine::TextureSubresourceRange::GetSingleRange(),
+                     AttachmentUtils::LoadOperation::Clear,
+                     AttachmentUtils::StoreOperation::Store,
+                     AttachmentUtils::DepthClearValue{1.0f, 0U}},
+                    shadow_map_extent,
+                    "Shadowmap Pass"
+                );
+                gcb.SetupViewport(shadow_map_extent.width, shadow_map_extent.height, shadow_map_scissor);
+                gcb.DrawRenderers(
+                    "Shadowmap",
+                    rsys->GetRendererManager().FilterAndSortRenderers({}),
+                    0,
+                    vk::Extent2D{sm->GetTextureDescription().width, sm->GetTextureDescription().height}
+                );
+                gcb.EndRendering();
+            })
             .Get()
     );
 
@@ -280,14 +285,12 @@ int main(int argc, char **argv) {
                  AttachmentUtils::DepthClearValue{1.0f, 0U}}
             )
             .UseImage(s, IAT::ShaderSampledRead)
-            .SetRasterizerPassFunction(
-                [rsys, object_material_instance, test_library](GraphicsCommandBuffer &gcb, const RenderGraph2 &) {
-                    vk::Extent2D extent{rsys->GetSwapchain().GetExtent()};
-                    vk::Rect2D scissor{{0, 0}, extent};
-                    gcb.SetupViewport(extent.width, extent.height, scissor);
-                    gcb.DrawRenderers("Lit", rsys->GetRendererManager().FilterAndSortRenderers({}));
-                }
-            )
+            .SetRasterizerPassFunction([rsys](GraphicsCommandBuffer &gcb, const RenderGraph2 &) {
+                vk::Extent2D extent{rsys->GetSwapchain().GetExtent()};
+                vk::Rect2D scissor{{0, 0}, extent};
+                gcb.SetupViewport(extent.width, extent.height, scissor);
+                gcb.DrawRenderers("Lit", rsys->GetRendererManager().FilterAndSortRenderers({}));
+            })
             .WrapRenderPass()
             .Get()
     );
@@ -312,7 +315,6 @@ int main(int argc, char **argv) {
         auto index = rsys->StartFrame();
         assert(index < 3);
 
-        // Push model matrices before drawing
         floor_mesh_comp.PreRenderUpdate();
         cube_mesh_comp.PreRenderUpdate();
         sphere_mesh_comp.PreRenderUpdate();
