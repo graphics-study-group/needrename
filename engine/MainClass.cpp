@@ -178,7 +178,7 @@ namespace Engine {
 
         this->world->GetMainSceneRef().ProcessEvents();
 
-        this->world->UpdateLightData(this->renderer->GetSceneDataManager());
+        this->world->UpdateRendererData(*this->renderer);
 
         this->renderer->StartFrame();
         this->render_graph->Execute();
