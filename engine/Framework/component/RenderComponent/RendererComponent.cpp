@@ -1,19 +1,16 @@
 #include "RendererComponent.h"
 
-#include "Asset/Material/MaterialTemplateAsset.h"
-
+#include "Framework/object/GameObject.h"
+#include "MainClass.h"
 #include "Render/RenderSystem.h"
-#include "Render/RenderSystem/MaterialRegistry.h"
 #include "Render/RenderSystem/RendererManager.h"
-#include <Asset/Material/MaterialAsset.h>
-#include <Framework/component/RenderComponent/CameraComponent.h>
-#include <Framework/object/GameObject.h>
-#include <MainClass.h>
-#include <Render/Pipeline/Material/MaterialInstance.h>
 
 namespace Engine {
     RendererComponent::RendererComponent(const GameObject &parent) : Component(parent) {
-        m_system = MainClass::GetInstance()->GetRenderSystem();
+    }
+
+    RendererComponent::~RendererComponent() {
+        UnregisterFromRenderSystem();
     }
 
     Transform RendererComponent::GetWorldTransform() const {
@@ -23,52 +20,27 @@ namespace Engine {
     }
 
     void RendererComponent::UnregisterFromRenderSystem() {
-        auto system = m_system.lock();
-        if (system) {
-            system->GetRendererManager().UnregisterRendererComponent(GetHandle());
+        auto mc = MainClass::GetInstance();
+        if (!mc) return;
+        auto rs = mc->GetRenderSystem();
+        if (!rs) return;
+        for (auto h : m_renderer_handles) {
+            rs->GetRendererManager().Unregister(h);
         }
     }
 
     void RendererComponent::Awake() {
-        m_system = MainClass::GetInstance()->GetRenderSystem();
-        auto system = m_system.lock();
-
-        for (size_t i = 0; i < m_material_assets.size(); i++) {
-            // XXX: This is a temporary solution: It simply check the m_name in material assets and add it to the
-            // registry. We should reconsider the relationship between MaterialRegistry and MaterialTemplateAsset.
-            auto lib = m_material_assets[i].as<MaterialAsset>()->m_library;
-            m_system.lock()->GetMaterialRegistry().AddMaterial(lib);
-            auto ptr = std::make_shared<MaterialInstance>(
-                *(m_system.lock()),
-                *m_system.lock()->GetMaterialRegistry().GetMaterial(lib.as<MaterialLibraryAsset>()->m_name)
-            );
-            m_materials.push_back(ptr);
-        }
-
-        for (size_t i = 0; i < m_material_assets.size(); i++) {
-            auto mat_ptr = std::dynamic_pointer_cast<MaterialInstance>(m_materials[i]);
-            auto mat_asset = (m_material_assets[i].as<MaterialAsset>());
-            assert(mat_ptr && mat_asset);
-            mat_ptr->Instantiate(*mat_asset);
-        }
-
-        // We should do some check maybe to avoid repetition.
-        system->GetRendererManager().RegisterRendererComponent(GetHandle());
     }
 
     void RendererComponent::Tick() {
     }
 
-    std::shared_ptr<MaterialInstance> RendererComponent::GetMaterial(uint32_t slot) const {
-        assert(slot < m_materials.size());
-        return m_materials[slot];
-    }
-
-    auto RendererComponent::GetMaterials() -> decltype(m_materials) & {
-        return m_materials;
-    }
-
-    auto RendererComponent::GetMaterials() const -> const decltype(m_materials) & {
-        return m_materials;
+    void RendererComponent::PreRenderUpdate() {
+        if (m_renderer_handles.empty()) return;
+        glm::mat4 model = GetWorldTransform().GetTransformMatrix();
+        auto *rm = &MainClass::GetInstance()->GetRenderSystem()->GetRendererManager();
+        for (auto h : m_renderer_handles) {
+            rm->UpdateModelMatrix(h, model);
+        }
     }
 } // namespace Engine

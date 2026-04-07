@@ -35,12 +35,11 @@ class MeshComponentFromFile : public StaticMeshComponent {
     };
 
     UniformData m_uniform_data{glm::vec4{0.5, 0.5, 0.5, 4.0}, glm::vec4{0.1, 0.1, 0.1, 1.0}};
+    std::vector<GUID> m_material_guids{};
 
     void LoadMesh(std::filesystem::path mesh) {
         tinyobj::ObjReaderConfig reader_config{};
         tinyobj::ObjReader reader{};
-
-        m_materials.clear();
 
         if (!reader.ParseFromFile(mesh.string(), reader_config)) {
             SDL_LogCritical(0, "Failed to load OBJ file %s", mesh.string().c_str());
@@ -61,7 +60,6 @@ class MeshComponentFromFile : public StaticMeshComponent {
         const auto &origin_materials = reader.GetMaterials();
         std::vector<tinyobj::material_t> materials;
 
-        // Split the subshapes by material
         for (size_t shp = 0; shp < origin_shapes.size(); shp++) {
             const auto &shape = origin_shapes[shp];
             auto shape_vertices_size = shape.mesh.num_face_vertices.size();
@@ -100,7 +98,7 @@ class MeshComponentFromFile : public StaticMeshComponent {
         ObjLoader loader;
         loader.LoadMeshAssetFromTinyObj(*(this->m_mesh_asset.as<MeshAsset>()), attrib, shapes);
 
-        // Read material assets
+        m_material_guids.clear();
         for (const auto &material : materials) {
             this->m_material_assets.push_back(
                 AssetRef(MainClass::GetInstance()->GetAssetManager()->CreateAsset<MaterialAsset>())
@@ -108,6 +106,7 @@ class MeshComponentFromFile : public StaticMeshComponent {
             loader.LoadMaterialAssetFromTinyObj(
                 *(this->m_material_assets.back().as<MaterialAsset>()), material, mesh.parent_path()
             );
+            m_material_guids.push_back(m_material_assets.back().GetGUID());
         }
 
         assert(m_mesh_asset.IsValid());
@@ -119,23 +118,6 @@ public:
 
     void LoadFile(std::filesystem::path mesh_file_name) {
         LoadMesh(mesh_file_name);
-
-        auto system = m_system.lock();
-        auto &helper = system->GetFrameManager().GetSubmissionHelper();
-
-        for (size_t i = 0; i < m_material_assets.size(); i++) {
-            auto ptr = std::make_shared<Materials::BlinnPhongInstance>(
-                *system, system->GetMaterialRegistry().GetMaterial("Blinn-Phong")
-            );
-            auto mat_asset = m_material_assets[i].as<MaterialAsset>();
-            assert(mat_asset);
-            ptr->Instantiate(*mat_asset);
-            m_materials.push_back(ptr);
-        }
-    }
-
-    ~MeshComponentFromFile() {
-        m_materials.clear();
     }
 
     Transform GetWorldTransform() const override {
@@ -149,11 +131,14 @@ public:
         if (identity == 4) return;
 
         m_uniform_data.specular = glm::vec4{spec_r, spec_g, spec_b, spec_coef};
-        for (auto &material : m_materials) {
-            auto mat_ptr = std::dynamic_pointer_cast<Materials::BlinnPhongInstance>(material);
-            assert(mat_ptr);
-            mat_ptr->SetAmbient(m_uniform_data.ambient);
-            mat_ptr->SetSpecular(m_uniform_data.specular);
+        auto *rsys = MainClass::GetInstance()->GetRenderSystem().get();
+        for (auto guid : m_material_guids) {
+            auto *inst = rsys->GetMaterialRegistry().GetOrCreateInstance(guid).get();
+            auto *mat_ptr = dynamic_cast<Materials::BlinnPhongInstance *>(inst);
+            if (mat_ptr) {
+                mat_ptr->SetAmbient(m_uniform_data.ambient);
+                mat_ptr->SetSpecular(m_uniform_data.specular);
+            }
         }
     }
 };
@@ -215,10 +200,7 @@ int main(int argc, char **argv) {
     auto adb = std::dynamic_pointer_cast<FileSystemDatabase>(cmc->GetAssetDatabase());
     cmc->LoadBuiltinAssets(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
 
-    auto test_asset = adb->GetNewAssetRef(AssetPath(*adb, "~/material_libraries/BlinnPhongLibrary.asset"));
-
     auto rsys = cmc->GetRenderSystem();
-    rsys->GetMaterialRegistry().AddMaterial(test_asset);
 
     auto gsys = cmc->GetGUISystem();
     gsys->CreateVulkanBackend(*rsys, ImageUtils::GetVkFormat(Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm));
@@ -232,7 +214,7 @@ int main(int argc, char **argv) {
     auto &go = scene.CreateGameObject();
     auto &tmc = scene.CreateComponent<MeshComponentFromFile>(go);
     tmc.LoadFile(mesh_path);
-    rsys->GetRendererManager().RegisterRendererComponent(tmc.GetHandle());
+    tmc.Awake();
 
     // Setup camera
     Transform transform{};
@@ -261,14 +243,13 @@ int main(int argc, char **argv) {
 
         gsys->PrepareGUI();
 
-        // Draw GUI and gather data
         PrepareGui();
 
-        // Submit data
         SubmitSceneData(rsys, rsys->GetFrameManager().GetFrameInFlight());
         SubmitMaterialData(&tmc);
 
-        // Draw
+        tmc.PreRenderUpdate();
+
         auto index = rsys->StartFrame();
         rg->Execute();
         auto color = rg->GetInternalTextureResource(0);

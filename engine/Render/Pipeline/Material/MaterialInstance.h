@@ -5,6 +5,7 @@
 #include "MaterialTemplate.h"
 #include "Render/Memory/DeviceBuffer.h"
 
+#include <glm.hpp>
 #include <any>
 
 namespace Engine {

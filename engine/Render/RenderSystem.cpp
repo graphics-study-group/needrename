@@ -73,7 +73,6 @@ namespace Engine {
         pimpl->m_allocator_state.Create();
 
         pimpl->m_frame_manager.Create();
-        pimpl->m_material_registry.Create();
         pimpl->m_scene_data_manager.Create();
         pimpl->m_camera_manager.Create();
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Vulkan initialization finished.");

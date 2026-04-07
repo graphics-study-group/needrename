@@ -4,12 +4,13 @@
 #include <fstream>
 
 #include "Asset/AssetManager/AssetManager.h"
+#include "Asset/Material/MaterialAsset.h"
 #include "Asset/Material/MaterialTemplateAsset.h"
 #include "Asset/Mesh/PlaneMeshAsset.h"
 #include "Asset/Texture/Image2DTextureAsset.h"
 #include "Core/Functional/SDLWindow.h"
-#include "Framework/component/RenderComponent/StaticMeshComponent.h"
 #include "Framework/component/RenderComponent/ObjTestMeshComponent.h"
+#include "Framework/component/RenderComponent/StaticMeshComponent.h"
 #include "Framework/object/GameObject.h"
 #include "Framework/world/Scene.h"
 #include "Framework/world/WorldSystem.h"
@@ -30,14 +31,12 @@ struct LowerPlaneMeshAsset : public PlaneMeshAsset {
 
     LowerPlaneMeshAsset() : PlaneMeshAsset() {
         assert(this->m_submeshes[0].positions.buffer_size == REPLACEMENT_POSITION.size() * sizeof(float));
-        // Replace position buffer
         std::memcpy(
             reinterpret_cast<std::byte *>(m_submeshes[0].m_vertex_attributes.data())
                 + this->m_submeshes[0].positions.buffer_offset,
             reinterpret_cast<const std::byte *>(REPLACEMENT_POSITION.data()),
             this->m_submeshes[0].positions.buffer_size
         );
-        // Reverse vertex normal
         float *nb{
             reinterpret_cast<float *>(m_submeshes[0].m_vertex_attributes.data() + m_submeshes[0].normal.buffer_offset)
         };
@@ -56,14 +55,8 @@ public:
     ShadowMapMeshComponent(const GameObject &parent) : ObjTestMeshComponent(parent) {
     }
 
-    void LoadData(std::filesystem::path mesh_file_name, std::shared_ptr<MaterialInstance> instance) {
+    void LoadData(std::filesystem::path mesh_file_name) {
         this->LoadMesh(mesh_file_name);
-        auto system = m_system.lock();
-
-        auto masset = m_mesh_asset.as<MeshAsset>();
-        for (size_t i = 0; i < masset->GetSubmeshCount(); i++) {
-            m_materials.push_back(instance);
-        }
     }
 };
 
@@ -74,7 +67,6 @@ std::array<MaterialTemplateAsset *, 2> ConstructMaterialTemplate() {
     };
 
     auto adb = std::dynamic_pointer_cast<FileSystemDatabase>(MainClass::GetInstance()->GetAssetDatabase());
-    auto asys = MainClass::GetInstance()->GetAssetManager();
 
     auto shadow_map_vs_ref = adb->GetNewAssetRef({*adb, "~/shaders/shadowmap.vert.asset"});
     auto vs_ref = adb->GetNewAssetRef({*adb, "~/shaders/blinn_phong.vert.asset"});
@@ -89,7 +81,6 @@ std::array<MaterialTemplateAsset *, 2> ConstructMaterialTemplate() {
     shadow_map_pass.rasterizer.depth_bias_constant = 0.05f;
     shadow_map_pass.rasterizer.depth_bias_slope = 1.0f;
 
-    // shadow_map_pass.rasterizer.culling = PipelineProperties::RasterizerProperties::CullingMode::Front;
     lit_pass.shaders.shaders = std::vector{vs_ref, fs_ref};
     lit_pass.attachments.color = std::vector{ImageUtils::ImageFormat::R8G8B8A8UNorm};
     lit_pass.attachments.color_blending = std::vector{PipelineProperties::ColorBlendingProperties{}};
@@ -134,7 +125,6 @@ int main(int argc, char **argv) {
     auto rsys = cmc->GetRenderSystem();
     auto am = cmc->GetAssetManager();
 
-    // Submit scene data
     Transform transform{};
     transform.SetPosition({0.0f, 0.0f, -5.0f}).SetRotationEuler(glm::vec3{M_PI_2, 0.0f, 0.0f});
     auto camera = std::make_shared<Camera>();
@@ -163,21 +153,8 @@ int main(int argc, char **argv) {
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*blank_color_red, {1.0f, 0.0f, 0.0f, 0.0f});
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*blank_color_gray, {0.5f, 0.5f, 0.5f, 0.0f});
 
-    // Prepare material
     auto test_template_assets = ConstructMaterialTemplate();
     auto test_library_asset = ConstructMaterialLibrary(test_template_assets);
-
-    // Engine::Serialization::Archive archive;
-    // archive.prepare_save();
-    // test_template_assets[0]->save_asset_to_archive(archive);
-    // archive.save_to_file(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "material_templates" /
-    // "BlinnPhongTemplate"); archive.clear(); archive.prepare_save();
-    // test_template_assets[1]->save_asset_to_archive(archive);
-    // archive.save_to_file(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "material_templates" /
-    // "ShadowMapTemplate"); archive.clear(); archive.prepare_save();
-    // test_library_asset->save_asset_to_archive(archive);
-    // archive.save_to_file(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR) / "material_libraries" /
-    // "BlinnPhongWithShadowMapLibrary");
 
     auto test_library_asset_ref = AssetRef(test_library_asset);
     auto test_library = std::make_shared<MaterialLibrary>(*rsys);
@@ -192,33 +169,43 @@ int main(int argc, char **argv) {
     floor_material_instance->AssignTexture("base_tex", blank_color_gray);
 
     auto &scene = cmc->GetWorldSystem()->GetMainSceneRef();
-    // Prepare mesh
+    // Prepare floor mesh
     auto &floor_go = scene.CreateGameObject();
     floor_go.GetTransformRef().SetScale({5.0f, 5.0f, 1.0f}).SetPosition({0.0f, 0.0f, 0.5f});
     auto floor_mesh_asset = am->CreateAsset<LowerPlaneMeshAsset>();
     auto floor_mesh_asset_ref = AssetRef(floor_mesh_asset);
     auto &floor_mesh_comp = scene.CreateComponent<StaticMeshComponent>(floor_go);
     floor_mesh_comp.m_mesh_asset = floor_mesh_asset_ref;
-    floor_mesh_comp.GetMaterials().resize(1);
-    floor_mesh_comp.GetMaterials()[0] = floor_material_instance;
+    floor_mesh_comp.m_material_assets.resize(1);
+    // Create a material asset for the floor and assign it via GUID path
+    auto floor_mat_asset = am->CreateAsset<MaterialAsset>();
+    floor_mat_asset->m_library = test_library_asset_ref;
+    floor_mesh_comp.m_material_assets[0] = AssetRef(floor_mat_asset);
     floor_mesh_comp.Awake();
+    // Override the material instance with our manually configured one
+    rsys->GetMaterialRegistry().GetOrCreateInstance(floor_mesh_comp.m_material_assets[0].GetGUID());
 
+    // Prepare cube mesh
     auto &cube_go = scene.CreateGameObject();
     cube_go.GetTransformRef().SetScale({0.5f, 0.5f, 0.5f});
     auto &cube_mesh_comp = scene.CreateComponent<ShadowMapMeshComponent>(cube_go);
-    cube_mesh_comp.LoadData(
-        std::filesystem::path{std::string(ENGINE_ASSETS_DIR) + "/meshes/cube.obj"}, object_material_instance
-    );
+    cube_mesh_comp.LoadData(std::filesystem::path{std::string(ENGINE_ASSETS_DIR) + "/meshes/cube.obj"});
+    auto cube_mat_asset = am->CreateAsset<MaterialAsset>();
+    cube_mat_asset->m_library = test_library_asset_ref;
+    cube_mesh_comp.m_material_assets.resize(1);
+    cube_mesh_comp.m_material_assets[0] = AssetRef(cube_mat_asset);
+    cube_mesh_comp.Awake();
 
+    // Prepare sphere mesh
     auto &shpere_go = scene.CreateGameObject();
     shpere_go.GetTransformRef().SetScale({0.5f, 0.5f, 0.5f}).SetPosition({1.0f, 2.0f, 0.0f});
     auto &sphere_mesh_comp = scene.CreateComponent<ShadowMapMeshComponent>(shpere_go);
-    sphere_mesh_comp.LoadData(
-        std::filesystem::path{std::string(ENGINE_ASSETS_DIR) + "/meshes/sphere.obj"}, object_material_instance
-    );
-    // We cannot call `RenderInit()` because this component has no associated asset.
-    rsys->GetRendererManager().RegisterRendererComponent(cube_mesh_comp.GetHandle());
-    rsys->GetRendererManager().RegisterRendererComponent(sphere_mesh_comp.GetHandle());
+    sphere_mesh_comp.LoadData(std::filesystem::path{std::string(ENGINE_ASSETS_DIR) + "/meshes/sphere.obj"});
+    auto sphere_mat_asset = am->CreateAsset<MaterialAsset>();
+    sphere_mat_asset->m_library = test_library_asset_ref;
+    sphere_mesh_comp.m_material_assets.resize(1);
+    sphere_mesh_comp.m_material_assets[0] = AssetRef(sphere_mat_asset);
+    sphere_mesh_comp.Awake();
 
     // Build Render Graph
     RenderGraphBuilder2 rgb{*rsys};
@@ -233,13 +220,10 @@ int main(int argc, char **argv) {
         .multisample = 1,
         .is_cube_map = false
     };
-    // Color attachment
     auto c = rgb.RequestRenderTargetTexture(desc, {});
     desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::D32SFLOAT;
-    // Depth attachment
     auto d = rgb.RequestRenderTargetTexture(desc, {});
     desc.width = desc.height = 2048;
-    // Shadowmap
     auto s = rgb.RequestRenderTargetTexture(desc, {});
 
     using IAT = MemoryAccessTypeImageBits;
@@ -279,7 +263,7 @@ int main(int argc, char **argv) {
                     gcb.EndRendering();
                 }
             )
-            .Get() // < Since `BeginRendering` is called manually, we don't need to wrap the render pass.
+            .Get()
     );
 
     rgb.AddPass(
@@ -310,7 +294,6 @@ int main(int argc, char **argv) {
 
     auto rg{rgb.BuildRenderGraph()};
     auto sm = rg.GetInternalTextureResource(s);
-    // Shadow map change must be effectuated before start of a frame.
     rsys->GetSceneDataManager().SetLightShadowMap(0, *sm);
 
     bool quited = false;
@@ -328,6 +311,11 @@ int main(int argc, char **argv) {
 
         auto index = rsys->StartFrame();
         assert(index < 3);
+
+        // Push model matrices before drawing
+        floor_mesh_comp.PreRenderUpdate();
+        cube_mesh_comp.PreRenderUpdate();
+        sphere_mesh_comp.PreRenderUpdate();
 
         rg.Execute(*rsys);
         auto color = rg.GetInternalTextureResource(c);

@@ -13,6 +13,7 @@
 #include "Asset/Mesh/MeshAsset.h"
 #include "Asset/Texture/Image2DTextureAsset.h"
 #include "Core/Functional/SDLWindow.h"
+#include "Core/guid.h"
 #include "Framework/component/RenderComponent/ObjTestMeshComponent.h"
 #include "Framework/object/GameObject.h"
 #include "Framework/world/Scene.h"
@@ -60,6 +61,7 @@ class PBRMeshComponent : public ObjTestMeshComponent {
         float roughness;
     };
     UniformData m_uniform_data{1.0, 1.0};
+    std::vector<GUID> m_material_guids{};
 
 public:
     PBRMeshComponent(const GameObject &parentObject) : ObjTestMeshComponent(parentObject), transform() {
@@ -67,26 +69,26 @@ public:
 
     void LoadData(
         std::filesystem::path mesh_file_name,
-        std::shared_ptr<MaterialLibrary> library,
+        AssetRef lib_asset_ref,
         std::shared_ptr<Texture> albedo,
         std::shared_ptr<Texture> MRAO
     ) {
         this->LoadMesh(mesh_file_name);
 
-        auto system = m_system.lock();
-
+        auto am = MainClass::GetInstance()->GetAssetManager();
+        auto rsys = MainClass::GetInstance()->GetRenderSystem();
         auto masset = m_mesh_asset.as<MeshAsset>();
         for (size_t i = 0; i < masset->GetSubmeshCount(); i++) {
-            auto ptr = std::make_shared<MaterialInstance>(*system, *library);
+            this->m_material_assets.push_back(AssetRef(am->CreateAsset<MaterialAsset>()));
+            this->m_material_assets.back().as<MaterialAsset>()->m_library = lib_asset_ref;
+            auto ptr = rsys->GetMaterialRegistry().GetOrCreateInstance(this->m_material_assets.back().GetGUID());
             ptr->AssignTexture("albedoSampler", albedo);
             ptr->AssignTexture("MRAOSampler", MRAO);
-            m_materials.push_back(ptr);
+            m_material_guids.push_back(this->m_material_assets.back().GetGUID());
         }
     }
 
-    ~PBRMeshComponent() {
-        m_materials.clear();
-    }
+    ~PBRMeshComponent() = default;
 
     Transform GetWorldTransform() const override {
         return transform;
@@ -98,9 +100,11 @@ public:
         if (identity == 2) return;
         m_uniform_data = {.metalness = metalness, .roughness = roughness};
 
-        for (auto &material : m_materials) {
-            material->AssignScalarVariable("Material::metalness_scale", metalness);
-            material->AssignScalarVariable("Material::roughness_scale", roughness);
+        auto *rsys = MainClass::GetInstance()->GetRenderSystem().get();
+        for (auto guid : m_material_guids) {
+            auto *inst = rsys->GetMaterialRegistry().GetOrCreateInstance(guid).get();
+            inst->AssignScalarVariable("Material::metalness_scale", metalness);
+            inst->AssignScalarVariable("Material::roughness_scale", roughness);
         }
     }
 };
@@ -213,8 +217,8 @@ int main(int argc, char **argv) {
     std::filesystem::path mesh_path{std::string(ENGINE_ASSETS_DIR) + "/meshes/sphere.obj"};
     auto &go = scene.CreateGameObject();
     auto tmc = &scene.CreateComponent<PBRMeshComponent>(go);
-    tmc->LoadData(mesh_path, pbr_material, red_texture, MRAO_texture);
-    rsys->GetRendererManager().RegisterRendererComponent(tmc->GetHandle());
+    tmc->LoadData(mesh_path, pbr_material_asset_ref, red_texture, MRAO_texture);
+    tmc->Awake();
 
     // Setup camera
     Transform transform{};
@@ -299,7 +303,8 @@ int main(int argc, char **argv) {
     rgb.AddPass(
         RenderGraphPassBuilder{*rsys}
             .SetName("GUI Pass")
-            .AppendColorAttachment({c, {}, AttachmentUtils::LoadOperation::Load, AttachmentUtils::StoreOperation::Store}
+            .AppendColorAttachment(
+                {c, {}, AttachmentUtils::LoadOperation::Load, AttachmentUtils::StoreOperation::Store}
             )
             .SetRasterizerPassFunction([rsys, gsys](GraphicsCommandBuffer &gcb, const RenderGraph2 &) {
                 gsys->DrawGUI(gcb.GetCommandBuffer());
@@ -333,6 +338,7 @@ int main(int argc, char **argv) {
         // Submit data
         SubmitSceneData(rsys, rsys->GetFrameManager().GetFrameInFlight());
         SubmitMaterialData(tmc);
+        tmc->PreRenderUpdate();
 
         // Draw
         auto index = rsys->StartFrame();

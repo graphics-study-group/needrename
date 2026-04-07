@@ -1,7 +1,6 @@
 #include "LevelAsset.h"
 
 // Load to World use
-#include <Asset/Material/MaterialAsset.h>
 #include <Framework/world/HandleResolver.h>
 #include <Framework/world/Scene.h>
 #include <Framework/world/WorldSystem.h>
@@ -34,13 +33,7 @@ namespace Engine {
         world->GetMainSceneRef().Clear();
         this->AddToScene(world->GetMainSceneRef());
         if (m_skybox_material.IsValid()) {
-            // XXX: like RendererComponent.cpp, this is a temporary solution. simply check the m_name
-            auto lib = m_skybox_material.as<MaterialAsset>()->m_library;
-            rsys->GetMaterialRegistry().AddMaterial(lib);
-            auto material_instance = std::make_shared<MaterialInstance>(
-                *(rsys), *rsys->GetMaterialRegistry().GetMaterial(lib.as<MaterialLibraryAsset>()->m_name)
-            );
-            material_instance->Instantiate(*m_skybox_material.as<MaterialAsset>());
+            auto material_instance = rsys->GetMaterialRegistry().GetOrCreateInstance(m_skybox_material.GetGUID());
             rsys->GetSceneDataManager().SetSkyboxMaterial(material_instance);
             world->m_skybox_material = m_skybox_material;
         }

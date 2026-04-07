@@ -211,8 +211,7 @@ namespace Engine {
         this->SetupViewport(extent.width, extent.height, scissor);
         for (const auto &rid : renderers) {
             const auto &mesh = m_system.GetRendererManager().GetRendererData(rid);
-            glm::mat4 model_matrix =
-                m_system.GetRendererManager().GetRendererComponent(rid)->GetWorldTransform().GetTransformMatrix();
+            const glm::mat4 &model_matrix = m_system.GetRendererManager().GetModelMatrix(rid);
             auto material_instance = m_system.GetRendererManager().GetMaterialInstance(rid);
 
             auto tpl = material_instance->GetLibrary().FindMaterialTemplate(
