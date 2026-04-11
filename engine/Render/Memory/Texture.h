@@ -71,9 +71,13 @@ namespace Engine {
         vk::Sampler GetSampler() const noexcept;
 
         /**
-         * @brief Get the underlying handle a texture slice.
+         * @brief Get the underlying handle of the full texture subresource view.
          */
         vk::ImageView GetImageView() const;
+
+        /**
+         * @brief Get the underlying handle of a texture subresource view.
+         */
         vk::ImageView GetImageView(const TextureSubresourceRange &tsr) const;
 
         /**

@@ -4,6 +4,7 @@
 #include "Render/Pipeline/CommandBuffer/ICommandContext.h"
 
 namespace Engine {
+    /// @deprecated
     class TransferContext : public ICommandContext {
         struct impl;
         std::unique_ptr<impl> pimpl;

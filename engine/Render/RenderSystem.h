@@ -1,8 +1,10 @@
-#ifndef ENGINE_RENDER_RENDERSYSTEM_INCLUDED
-#define ENGINE_RENDER_RENDERSYSTEM_INCLUDED
+#ifndef RENDER_RENDERSYSTEM
+#define RENDER_RENDERSYSTEM
 
 #include <glm.hpp>
 #include <memory>
+
+#include "Render/Memory/MemoryAccessTypes.h"
 
 // Suppress warning from std::enable_shared_from_this
 #pragma GCC diagnostic push
@@ -22,8 +24,6 @@ namespace Engine {
     class GraphicsCommandBuffer;
     class RenderTargetTexture;
 
-    enum class MemoryAccessTypeImageBits;
-
     namespace ConstantData {
         struct PerCameraStruct;
     };
@@ -41,6 +41,9 @@ namespace Engine {
         class ResizableRTTManager;
     }; // namespace RenderSystemState
 
+    /**
+     * @brief Main locator for the rendering system services.
+     */
     class RenderSystem : public std::enable_shared_from_this<RenderSystem> {
     private:
         class impl;
@@ -54,10 +57,17 @@ namespace Engine {
         void operator=(const RenderSystem &) = delete;
         void operator=(RenderSystem &&) = delete;
 
+        /**
+         * @brief Create the render system and initialize all subsystems.
+         *
+         * @see RenderSystemState::DeviceInterface
+         * for details on how the Vulkan abstraction layer is initialized.
+         */
         void Create();
 
         ~RenderSystem();
 
+        /// @brief Halt the execution of the current thread and wait for GPU to be idle.
         void WaitForIdle() const;
 
         /// @brief Update the swapchain in response of a window resize etc.
@@ -80,6 +90,11 @@ namespace Engine {
         /**
          * @brief Complete the rendering of the current frame.
          *
+         * Blits the present_texture to the swapchain image that is currently
+         * allocated for the frame (via `FrameManager::GetFramebuffer()`).
+         * This is the only time in a frame that the swapchain image is written
+         * to.
+         *
          * This method also does resource (i.e. swapchain) recreation if necessary.
          * If you end a frame by manually calling `FrameManager::CompleteFrame()`,
          * then you must make sure that these resources are recreated correctly yourself.
@@ -92,6 +107,11 @@ namespace Engine {
             uint32_t offset_x = 0,
             uint32_t offset_y = 0
         );
+
+        /**
+         * @brief Complete the rendering of the current frame.
+         * Defaults last_access to color attachment write.
+         */
         void CompleteFrame(
             const RenderTargetTexture &present_texture,
             uint32_t width,
@@ -114,26 +134,29 @@ namespace Engine {
          */
         const RenderSystemState::DeviceInterface &GetDeviceInterface() const;
 
+        /// @brief Get the allocator service
         const RenderSystemState::AllocatorState &GetAllocatorState() const;
-
+        /// @brief Get the swapchain manager
         const RenderSystemState::Swapchain &GetSwapchain() const;
-
+        /// @brief Get the material registry
+        /// @deprecated Pending for rewrite
         RenderSystemState::MaterialRegistry &GetMaterialRegistry();
-
+        /// @brief Get the frame manager
         RenderSystemState::FrameManager &GetFrameManager();
-
+        /// @brief Get the renderer manager
+        /// @deprecated Pending for rewrite
         RenderSystemState::RendererManager &GetRendererManager();
-
+        /// @brief Get the immutable resource cache
         RenderSystemState::ImmutableResourceCache &GetIRCache();
-
+        /// @brief Get the camera manager
         RenderSystemState::CameraManager &GetCameraManager();
-
+        /// @brief Get the manager for scene data (e.g lightings)
         RenderSystemState::SceneDataManager &GetSceneDataManager();
-
+        /// @brief Get the manager for resizable render target textures
         RenderSystemState::ResizableRTTManager &GetResizableRTTManager();
     };
 } // namespace Engine
 
 #pragma GCC diagnostic pop
 
-#endif // ENGINE_RENDER_RENDERSYSTEM_INCLUDED
+#endif // RENDER_RENDERSYSTEM

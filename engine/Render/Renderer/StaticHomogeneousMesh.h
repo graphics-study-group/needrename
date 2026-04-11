@@ -14,12 +14,14 @@ namespace Engine {
 
     /**
      * @brief A static vertex-based mesh renderer that cannot be animated.
-     * 
+     *
      * This class of renderer does not own any buffers.
-     * 
+     *
      * All static homogeneous meshes from the same submesh of the same asset
      * shares their index and vertex attribute buffer. The life-time and
      * content of such buffer are managed by the `RendererManager`.
+     *
+     * @deprecated Pending for rewrite.
      */
     class StaticHomogeneousMesh : public IVertexBasedRenderer {
     public:

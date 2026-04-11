@@ -42,6 +42,38 @@ add_library(engine SHARED
 
 add_dependencies(engine shader)
 
+find_package(doxygen)
+if(Doxygen_FOUND)
+    set(DOXYGEN_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/docs)
+    # Only *.h files contain public interfaces
+    set(DOXYGEN_FILE_PATTERNS *.h)
+    # Expand reflection and attribute macros
+    set(DOXYGEN_MACRO_EXPANSION YES)
+    set(DOXYGEN_EXPAND_ONLY_PREDEF YES)
+    set(DOXYGEN_PREDEFINED
+        "__declspec(x)="
+        "__attribute__(x)="
+        "REFL_SER_CLASS(...)="
+        "REFL_SER_BODY(...)="
+        "REFL_SER_SIMPLE_STRUCT(...)="
+    )
+    set(DOXYGEN_EXPAND_AS_DEFINED
+        "COPY_ENUM_VALUE"
+    )
+
+    doxygen_add_docs(
+        engine_doxygen_doc
+        ${CMAKE_CURRENT_SOURCE_DIR}/Asset/
+        ${CMAKE_CURRENT_SOURCE_DIR}/Core/
+        ${CMAKE_CURRENT_SOURCE_DIR}/Framework/
+        ${CMAKE_CURRENT_SOURCE_DIR}/Reflection/
+        ${CMAKE_CURRENT_SOURCE_DIR}/Render/
+        ${CMAKE_CURRENT_SOURCE_DIR}/UserInterface/
+    )
+else()
+    message("Doxygen need to be installed to generate the doxygen documentation")
+endif()
+
 # Widely used dependencies such as SDL and Vulkan are marked as public
 target_link_libraries(engine
     PUBLIC

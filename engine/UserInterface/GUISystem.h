@@ -32,18 +32,40 @@ namespace Engine {
         void operator=(const GUISystem &) = delete;
         void operator=(GUISystem &&) = delete;
 
+        /**
+         * @brief Check whether the GUI system will capture mouse events instead
+         * of the main application.
+         *
+         * @retval true If the mouse event should be intercepted by the GUI system
+         */
         bool WantCaptureMouse() const;
+
+        /**
+         * @brief Check whether the GUI system will capture key events instead
+         * of the main application.
+         *
+         * @retval true If the keyboard event should be intercepted by the GUI system
+         */
         bool WantCaptureKeyboard() const;
+
+        /**
+         * @brief Let the GUI system process an event.
+         */
         void ProcessEvent(SDL_Event *event) const;
 
+        /**
+         * @brief Prepare the GUI for state updates and rendering.
+         *
+         * Call this function once before any operations are performed via ImGUI
+         */
         void PrepareGUI() const;
 
         /**
          * @brief Record GUI rendering code on the given command buffer.
          * This member records a
-         * new render pass on the given command buffer with a single color attachment 
+         * new render pass on the given command buffer with a single color attachment
          * specified by the
-         * `color_attachment_format` parameter of `CreateVulkanBackend()` call. If a previously 
+         * `color_attachment_format` parameter of `CreateVulkanBackend()` call. If a previously
          * used
          * attachment is used again, synchronization barriers must be set up correctly.
          */
@@ -53,7 +75,7 @@ namespace Engine {
 
         /**
          * @brief Record GUI rendering code on the given command buffer.
-         * 
+         *
          * This method effectively only records draw calls onto the command buffer.
          */
         void DrawGUI(vk::CommandBuffer cb) const noexcept;
@@ -71,7 +93,7 @@ namespace Engine {
          * @brief Update the attachment formats for GUI rendering pipeline
          * by re-initializing the
          * ImGUI Vulkan backend.
-         * 
+         *
          * @param color_attachment_format Format of the color attachment.
          * If UNDEFINED will use swapchain format.
          * @param samples Multisample state. Reserved for future use.
@@ -80,7 +102,7 @@ namespace Engine {
 
         /**
          * @brief Get current ImGui context for drawing.
-         * 
+         *
          * As the context is not shared across DLL boundaries, you might
          * have to manually call `ImGui::SetCurrentContext()` before
          * building a GUI.
@@ -89,7 +111,7 @@ namespace Engine {
 
         /**
          * @brief Reset the color attachment format.
-         * 
+         *
          * This will recreate the rendering pipeline used by the Dear ImGui backend.
          */
         void ResetColorAttachmentFormat(vk::Format format, uint8_t samples = 1) noexcept;

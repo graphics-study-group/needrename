@@ -7,11 +7,17 @@
 #include <vector>
 
 namespace Engine {
+    /**
+     * @brief An asset that refers to a shader.
+     */
     class REFL_SER_CLASS(REFL_WHITELIST) ShaderAsset : public Asset {
         REFL_SER_BODY(ShaderAsset)
     public:
         REFL_ENABLE ShaderAsset() = default;
 
+        /**
+         * @brief Type of the shader.
+         */
         REFL_SER_ENABLE enum class REFL_SER_CLASS() ShaderType {
             None,
             Vertex,
@@ -38,12 +44,20 @@ namespace Engine {
         virtual void save_asset_to_archive(Serialization::Archive &archive) const override;
         virtual void load_asset_from_archive(Serialization::Archive &archive) override;
 
+        /**
+         * @brief Load a shader from a disk file.
+         * @note For debug proposes only.
+         */
         void LoadFromFile(
             const std::filesystem::path &path,
             ShaderType type,
             const std::string &name = "",
             const std::string &entry_point = "main"
         );
+
+        /**
+         * @brief Compile a shader via the compiled provided by the MainClass.
+         */
         bool Compile(std::filesystem::path shader_path_abs = std::filesystem::path{});
     };
 } // namespace Engine

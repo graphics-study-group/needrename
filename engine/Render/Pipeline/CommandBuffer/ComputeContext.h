@@ -6,6 +6,8 @@
 
 namespace Engine {
     class Texture;
+
+    /// @deprecated
     class ComputeContext : public ICommandContext {
         struct impl;
         std::unique_ptr<impl> pimpl;

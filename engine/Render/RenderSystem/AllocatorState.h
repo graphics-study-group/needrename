@@ -23,6 +23,12 @@ namespace vk {
 namespace Engine {
     class RenderSystem;
     namespace RenderSystemState {
+
+        /**
+         * @brief State of the underlying memory allocator.
+         *
+         * Currently the allocator is implemented via the VMA library.
+         */
         class AllocatorState {
             struct impl;
             std::unique_ptr<impl> pimpl;
@@ -38,16 +44,26 @@ namespace Engine {
             AllocatorState &operator=(AllocatorState &) = default;
 
             ~AllocatorState();
-
+            /// @brief Create the allocator state by initializing the VMA library.
             void Create();
+            /// @brief Get the underlying allocator state.
             VmaAllocator GetAllocator() const;
 
+            /**
+             * @brief Allocate the memory for buffer of a given type, name and size.
+             */
             BufferAllocation AllocateBuffer(BufferType type, size_t size, const std::string &name = "") const;
 
+            /**
+             * @overload BufferAllocation AllocatorState::AllocateBuffer()
+             */
             std::unique_ptr<BufferAllocation> AllocateBufferUnique(
                 BufferType type, size_t size, const std::string &name = ""
             ) const noexcept;
 
+            /**
+             * @brief Allocate the memory for a given image.
+             */
             ImageAllocation AllocateImage(
                 ImageMemoryType type,
                 vk::ImageType dimension,
@@ -60,6 +76,9 @@ namespace Engine {
                 const std::string &name = ""
             ) const;
 
+            /**
+             * @overload ImageAllocation AllocatorState::AllocateImage()
+             */
             std::unique_ptr<ImageAllocation> AllocateImageUnique(
                 ImageMemoryType type,
                 vk::ImageType dimension,
@@ -72,6 +91,9 @@ namespace Engine {
                 const std::string &name = ""
             ) const noexcept;
 
+            /**
+             * @brief Query whether a given format supports intended usage feature.
+             */
             bool QueryFormatFeatures(vk::Format format, vk::FormatFeatureFlagBits feature) const noexcept;
         };
     } // namespace RenderSystemState

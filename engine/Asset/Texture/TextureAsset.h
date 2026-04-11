@@ -6,6 +6,7 @@
 #include <string>
 
 namespace Engine {
+    /// @brief Base class of all texture assets.
     class REFL_SER_CLASS(REFL_WHITELIST) TextureAsset : public Asset {
         REFL_SER_BODY(TextureAsset)
     public:
