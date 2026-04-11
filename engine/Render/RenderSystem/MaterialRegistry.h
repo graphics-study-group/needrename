@@ -28,6 +28,9 @@ namespace Engine {
              */
             MaterialLibrary *GetOrCreateLibrary(GUID library_guid);
 
+            /// @brief Shared ownership variant used by the new resource hub providers.
+            std::shared_ptr<MaterialLibrary> GetOrCreateLibraryShared(GUID library_guid);
+
             /**
              * @brief Get or create a MaterialInstance for the given MaterialAsset GUID.
              *

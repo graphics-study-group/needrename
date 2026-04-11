@@ -7,6 +7,10 @@
 #include "Framework/component/RenderComponent/RendererComponent.h"
 #include "Render/Memory/MemoryAccessTypes.h"
 #include "Render/Pipeline/CommandBuffer.h"
+#include "Render/Pipeline/Material/MaterialInstance.h"
+#include "Render/Pipeline/Material/MaterialLibrary.h"
+#include "Render/Resource/BuiltInResourceProviders.h"
+#include "Render/Resource/RenderResourceHub.h"
 #include "Render/RenderSystem/AllocatorState.h"
 #include "Render/RenderSystem/CameraManager.h"
 #include "Render/RenderSystem/DeviceInterface.h"
@@ -27,9 +31,12 @@
 namespace Engine {
     struct RenderSystem::impl {
         impl(RenderSystem &parent, std::weak_ptr<SDLWindow> parent_window) :
-            m_window(parent_window), m_allocator_state(parent), m_frame_manager(parent), m_material_registry(parent),
-            m_renderer_manager(parent), m_scene_data_manager(parent), m_camera_manager(parent),
-            m_resizable_rtt_manger(parent) {
+            m_window(parent_window), m_allocator_state(parent), m_frame_manager(parent), m_resource_hub(parent),
+            m_material_registry(parent), m_renderer_manager(parent), m_scene_data_manager(parent),
+            m_camera_manager(parent), m_resizable_rtt_manger(parent) {
+                m_resource_hub.SetDeferredReleaseFrames(RenderSystemState::FrameManager::FRAMES_IN_FLIGHT);
+                m_resource_hub.RegisterProvider<MaterialLibrary>(&m_material_library_provider);
+                m_resource_hub.RegisterProvider<MaterialInstance>(&m_material_instance_provider);
 
             };
 
@@ -45,7 +52,10 @@ namespace Engine {
         RenderSystemState::AllocatorState m_allocator_state;
         RenderSystemState::Swapchain m_swapchain{};
         RenderSystemState::FrameManager m_frame_manager;
+        RenderSystemState::RenderResourceHub m_resource_hub;
         RenderSystemState::MaterialRegistry m_material_registry;
+        RenderSystemState::MaterialLibraryProvider m_material_library_provider;
+        RenderSystemState::MaterialInstanceProvider m_material_instance_provider;
         RenderSystemState::RendererManager m_renderer_manager;
         RenderSystemState::SceneDataManager m_scene_data_manager;
         RenderSystemState::CameraManager m_camera_manager;
@@ -120,6 +130,10 @@ namespace Engine {
 
     const RenderSystemState::AllocatorState &RenderSystem::GetAllocatorState() const {
         return pimpl->m_allocator_state;
+    }
+
+    RenderSystemState::RenderResourceHub &RenderSystem::GetResourceHub() {
+        return pimpl->m_resource_hub;
     }
 
     const RenderSystemState::Swapchain &RenderSystem::GetSwapchain() const {

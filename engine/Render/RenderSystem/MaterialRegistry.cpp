@@ -9,9 +9,13 @@
 
 namespace Engine::RenderSystemState {
     MaterialLibrary *MaterialRegistry::GetOrCreateLibrary(GUID library_guid) {
+        return GetOrCreateLibraryShared(library_guid).get();
+    }
+
+    std::shared_ptr<MaterialLibrary> MaterialRegistry::GetOrCreateLibraryShared(GUID library_guid) {
         auto it = m_libraries.find(library_guid);
         if (it != m_libraries.end()) {
-            return it->second.get();
+            return it->second;
         }
 
         auto am = MainClass::GetInstance()->GetAssetManager();
@@ -23,7 +27,7 @@ namespace Engine::RenderSystemState {
         auto ptr = std::make_shared<MaterialLibrary>(m_system);
         ptr->Instantiate(*asset);
         m_libraries[library_guid] = ptr;
-        return ptr.get();
+        return ptr;
     }
 
     std::shared_ptr<MaterialInstance> MaterialRegistry::GetOrCreateInstance(GUID material_guid) {
@@ -39,9 +43,9 @@ namespace Engine::RenderSystemState {
         assert(mat_asset);
 
         GUID library_guid = mat_asset->m_library.GetGUID();
-        GetOrCreateLibrary(library_guid);
+        auto library = GetOrCreateLibraryShared(library_guid);
 
-        auto inst = std::make_shared<MaterialInstance>(m_system, *m_libraries[library_guid]);
+        auto inst = std::make_shared<MaterialInstance>(m_system, *library);
         inst->Instantiate(*mat_asset);
         m_instances[material_guid] = inst;
         return inst;

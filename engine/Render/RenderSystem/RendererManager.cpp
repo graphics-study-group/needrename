@@ -2,6 +2,7 @@
 #include "Asset/Mesh/MeshAsset.h"
 #include "Core/flagbits.h"
 #include "MainClass.h"
+#include "Render/Resource/RenderResourceHub.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/FrameManager.h"
 #include "Render/RenderSystem/SubmissionHelper.h"
@@ -124,6 +125,7 @@ namespace Engine::RenderSystemState {
             }
         }
         pimpl->ScanForDeallocation();
+        m_system.GetResourceHub().CollectGarbage();
     }
 
     RendererList RendererManager::FilterAndSortRenderers(FilterCriteria fc, SortingCriterion sc) {

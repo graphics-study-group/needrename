@@ -1,5 +1,5 @@
-file(GLOB_RECURSE SOURCE "./*.cpp")
-file(GLOB_RECURSE HEADER_PRIVATE "./*.hpp")
+file(GLOB_RECURSE SOURCE CONFIGURE_DEPENDS "./*.cpp")
+file(GLOB_RECURSE HEADER_PRIVATE CONFIGURE_DEPENDS "./*.hpp")
 
 add_library(EngineLibRender
     OBJECT
