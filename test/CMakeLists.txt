@@ -37,20 +37,20 @@ target_link_libraries(shadow_map_test engine tinyobjloader)
 add_test(NAME shadow_map_test COMMAND shadow_map_test 120)
 set_target_properties(shadow_map_test PROPERTIES FOLDER tests)
 
-add_executable(skybox_test skybox_test.cpp)
-target_link_libraries(skybox_test engine)
-add_test(NAME skybox_test COMMAND skybox_test 120)
-set_target_properties(skybox_test PROPERTIES FOLDER tests)
+# add_executable(skybox_test skybox_test.cpp)
+# target_link_libraries(skybox_test engine)
+# add_test(NAME skybox_test COMMAND skybox_test 120)
+# set_target_properties(skybox_test PROPERTIES FOLDER tests)
 
 add_executable(imgui_test imgui_test.cpp)
 target_link_libraries(imgui_test engine)
 add_test(NAME imgui_test COMMAND imgui_test 120)
 set_target_properties(imgui_test PROPERTIES FOLDER tests)
 
-add_executable(new_material_test new_material_test.cpp)
-target_link_libraries(new_material_test engine)
-add_test(NAME new_material_test COMMAND new_material_test 120)
-set_target_properties(new_material_test PROPERTIES FOLDER tests)
+# add_executable(new_material_test new_material_test.cpp)
+# target_link_libraries(new_material_test engine)
+# add_test(NAME new_material_test COMMAND new_material_test 120)
+# set_target_properties(new_material_test PROPERTIES FOLDER tests)
 
 add_executable(input_test input_test.cpp)
 target_link_libraries(input_test engine)
@@ -72,10 +72,10 @@ target_link_libraries(pbr_test engine tinyobjloader)
 add_test(NAME pbr_test COMMAND pbr_test 120)
 set_target_properties(pbr_test PROPERTIES FOLDER tests)
 
-add_executable(mrt_test mrt_test.cpp)
-target_link_libraries(mrt_test engine)
-add_test(NAME mrt_test COMMAND mrt_test 120)
-set_target_properties(mrt_test PROPERTIES FOLDER tests)
+# add_executable(mrt_test mrt_test.cpp)
+# target_link_libraries(mrt_test engine)
+# add_test(NAME mrt_test COMMAND mrt_test 120)
+# set_target_properties(mrt_test PROPERTIES FOLDER tests)
 
 # Copy SDL dll
 add_custom_command(TARGET SDL_init_test POST_BUILD

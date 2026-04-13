@@ -1,6 +1,7 @@
 #ifndef RENDERSYSTEM_SCENEDATAMANAGER
 #define RENDERSYSTEM_SCENEDATAMANAGER
 
+#include <Core/guid.h>
 #include <fwd.hpp>
 #include <memory>
 
@@ -147,7 +148,7 @@ namespace Engine {
              * The manager assumes that the material instance contains a MaterialLibrary which set a MaterialTemplate
              * with tag `SKYBOX`. The shader should not use any scene descriptor set.
              */
-            void SetSkyboxMaterial(std::shared_ptr<MaterialInstance> material) noexcept;
+            void SetSkyboxMaterial(const GUID &material_guid) noexcept;
 
             /**
              * @brief Upload the current scene data to GPU.

@@ -15,7 +15,7 @@ namespace Engine::RenderSystemState {
         std::type_index type_key(resource_type);
         auto [it, inserted] = m_providers.emplace(type_key, provider);
         assert(inserted && "Duplicate provider registration.");
-        (void) it;
+        (void)it;
     }
 
     bool RenderResourceHub::HasProvider(const std::type_info &resource_type) const noexcept {
@@ -39,7 +39,7 @@ namespace Engine::RenderSystemState {
         auto &owner_set = m_owner_index[owner];
         auto [owner_it, inserted] = owner_set.insert(key);
         if (!inserted) {
-            (void) owner_it;
+            (void)owner_it;
             auto slot_it = m_slots.find(key);
             assert(slot_it != m_slots.end() && "Owner index and slot index are inconsistent.");
             return slot_it->second.resource;
@@ -47,7 +47,10 @@ namespace Engine::RenderSystemState {
 
         auto &slot = m_slots[key];
         if (!slot.resource) {
-            slot.resource = provider->Create(m_system, guid);
+            if (slot.dependency_owner == 0) {
+                slot.dependency_owner = m_next_dependency_owner++;
+            }
+            slot.resource = provider->Create(m_system, *this, slot.dependency_owner, guid);
             assert(slot.resource && "Provider returned null resource.");
         }
 
@@ -120,7 +123,7 @@ namespace Engine::RenderSystemState {
             if (slot.resource) {
                 auto provider_it = m_providers.find(it->first.type);
                 assert(provider_it != m_providers.end() && "No provider registered for requested resource type.");
-                provider_it->second->Destroy(m_system, it->first.guid, slot.resource);
+                provider_it->second->Destroy(m_system, *this, slot.dependency_owner, it->first.guid, slot.resource);
                 slot.resource.reset();
             }
             it = m_slots.erase(it);

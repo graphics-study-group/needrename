@@ -11,6 +11,7 @@
 #include "Render/Pipeline/Material/MaterialLibrary.h"
 #include "Render/Resource/BuiltInResourceProviders.h"
 #include "Render/Resource/RenderResourceHub.h"
+#include "Render/Resource/StaticMeshResource.h"
 #include "Render/RenderSystem/AllocatorState.h"
 #include "Render/RenderSystem/CameraManager.h"
 #include "Render/RenderSystem/DeviceInterface.h"
@@ -31,12 +32,22 @@
 namespace Engine {
     struct RenderSystem::impl {
         impl(RenderSystem &parent, std::weak_ptr<SDLWindow> parent_window) :
-            m_window(parent_window), m_allocator_state(parent), m_frame_manager(parent), m_resource_hub(parent),
-            m_material_registry(parent), m_renderer_manager(parent), m_scene_data_manager(parent),
-            m_camera_manager(parent), m_resizable_rtt_manger(parent) {
+            m_window(parent_window),
+            m_allocator_state(parent),
+            m_frame_manager(parent),
+            m_resource_hub(parent),
+            m_material_registry(parent),
+            m_material_library_provider(),
+            m_material_instance_provider(),
+            m_static_mesh_provider(),
+            m_renderer_manager(parent),
+            m_scene_data_manager(parent),
+            m_camera_manager(parent),
+            m_resizable_rtt_manger(parent) {
                 m_resource_hub.SetDeferredReleaseFrames(RenderSystemState::FrameManager::FRAMES_IN_FLIGHT);
                 m_resource_hub.RegisterProvider<MaterialLibrary>(&m_material_library_provider);
                 m_resource_hub.RegisterProvider<MaterialInstance>(&m_material_instance_provider);
+                m_resource_hub.RegisterProvider<RenderSystemState::StaticMeshResource>(&m_static_mesh_provider);
 
             };
 
@@ -56,6 +67,7 @@ namespace Engine {
         RenderSystemState::MaterialRegistry m_material_registry;
         RenderSystemState::MaterialLibraryProvider m_material_library_provider;
         RenderSystemState::MaterialInstanceProvider m_material_instance_provider;
+        RenderSystemState::StaticMeshProvider m_static_mesh_provider;
         RenderSystemState::RendererManager m_renderer_manager;
         RenderSystemState::SceneDataManager m_scene_data_manager;
         RenderSystemState::CameraManager m_camera_manager;

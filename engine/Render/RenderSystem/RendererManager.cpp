@@ -1,44 +1,40 @@
 #include "RendererManager.h"
 #include "Asset/Mesh/MeshAsset.h"
 #include "Core/flagbits.h"
-#include "MainClass.h"
-#include "Render/Resource/RenderResourceHub.h"
+#include "Render/Pipeline/Material/MaterialInstance.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/FrameManager.h"
 #include "Render/RenderSystem/SubmissionHelper.h"
 #include "Render/Renderer/StaticHomogeneousMesh.h"
+#include "Render/Resource/RenderResourceHub.h"
+#include "Render/Resource/StaticMeshResource.h"
 
 #include <SDL3/SDL.h>
 #include <unordered_set>
 
 namespace Engine::RenderSystemState {
     struct RendererManager::impl {
-        std::unordered_map<GUID, StaticHomogeneousMesh::StaticHMeshSharedDataBlock> static_mesh_asset_data_cache;
-
         struct RendererEntry {
-            int32_t pending_deallocation_countdown = -1;
-
             std::unique_ptr<IVertexBasedRenderer> renderer;
-            MaterialInstance *material = nullptr;
+            std::shared_ptr<StaticMeshResource> mesh_resource;
+            std::shared_ptr<MaterialInstance> material;
 
-            uint32_t layer = 0xFFFFFFFF;
-            bool cast_shadow = false;
-            bool is_eagerly_loaded = false;
+            int32_t pending_deallocation_countdown;
+            uint32_t layer;
+            bool cast_shadow;
+            bool is_eagerly_loaded;
+            glm::mat4 model_matrix;
 
-            glm::mat4 model_matrix{1.0f};
+            RendererEntry() :
+                renderer(), mesh_resource(), material(), pending_deallocation_countdown(-1), layer(0xFFFFFFFF),
+                cast_shadow(false), is_eagerly_loaded(false), model_matrix(1.0f) {
+            }
         };
 
-        uint32_t next_handle = 0;
+        uint32_t next_handle;
         std::unordered_map<RendererHandle, RendererEntry> m_data;
 
-        void ScanForDeallocation() {
-            for (auto it = static_mesh_asset_data_cache.begin(); it != static_mesh_asset_data_cache.end();) {
-                if (it->second.refcnt == 0) {
-                    it = static_mesh_asset_data_cache.erase(it);
-                } else {
-                    ++it;
-                }
-            }
+        impl() : next_handle(0), m_data() {
         }
 
         RendererList CreateRenderers(
@@ -52,22 +48,17 @@ namespace Engine::RenderSystemState {
             auto *masset = mesh_asset_ref.as<MeshAsset>();
             assert(masset);
 
-            if (!static_mesh_asset_data_cache.contains(mesh_asset_ref.GetGUID())) {
-                auto &entry = static_mesh_asset_data_cache[mesh_asset_ref.GetGUID()];
-                entry.submeshes.resize(masset->GetSubmeshCount());
-            }
-
-            auto &cache_entry = static_mesh_asset_data_cache[mesh_asset_ref.GetGUID()];
-            cache_entry.refcnt += 1;
-
             RendererList rl{};
             rl.reserve(masset->GetSubmeshCount());
 
             for (size_t i = 0; i < masset->GetSubmeshCount(); i++) {
-                auto &d = m_data[next_handle];
+                const auto handle = next_handle++;
+                auto &d = m_data[handle];
                 d.pending_deallocation_countdown = -1;
-                d.renderer = std::make_unique<StaticHomogeneousMesh>(i, *masset, cache_entry);
-                d.material = system.GetMaterialRegistry().GetOrCreateInstance(material_asset_refs[i].GetGUID()).get();
+                d.mesh_resource = system.GetResourceHub().Acquire<StaticMeshResource>(mesh_asset_ref.GetGUID(), handle);
+                d.material =
+                    system.GetResourceHub().Acquire<MaterialInstance>(material_asset_refs[i].GetGUID(), handle);
+                d.renderer = std::make_unique<StaticHomogeneousMesh>(static_cast<uint32_t>(i), d.mesh_resource);
                 d.layer = layer;
                 d.cast_shadow = cast_shadow;
                 d.is_eagerly_loaded = eagerly_loaded;
@@ -76,7 +67,7 @@ namespace Engine::RenderSystemState {
                     d.renderer->Submit(system.GetAllocatorState(), system.GetFrameManager().GetSubmissionHelper());
                 }
 
-                rl.push_back(next_handle++);
+                rl.push_back(handle);
             }
             rl.shrink_to_fit();
             return rl;
@@ -119,12 +110,12 @@ namespace Engine::RenderSystemState {
             }
             it->second.pending_deallocation_countdown -= 1;
             if (it->second.pending_deallocation_countdown == 0) {
+                m_system.GetResourceHub().ReleaseOwner(it->first);
                 it = pimpl->m_data.erase(it);
             } else {
                 ++it;
             }
         }
-        pimpl->ScanForDeallocation();
         m_system.GetResourceHub().CollectGarbage();
     }
 
@@ -161,7 +152,7 @@ namespace Engine::RenderSystemState {
     MaterialInstance *RendererManager::GetMaterialInstance(RendererHandle handle) const noexcept {
         auto it = pimpl->m_data.find(handle);
         assert(it != pimpl->m_data.end());
-        return it->second.material;
+        return it->second.material.get();
     }
 
     const glm::mat4 &RendererManager::GetModelMatrix(RendererHandle handle) const noexcept {

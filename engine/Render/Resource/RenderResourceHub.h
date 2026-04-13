@@ -15,6 +15,8 @@ namespace Engine {
     class RenderSystem;
 
     namespace RenderSystemState {
+        class RenderResourceHub;
+
         struct ResourceToken {
             std::type_index type{typeid(void)};
             GUID guid{};
@@ -26,15 +28,17 @@ namespace Engine {
             virtual ~IResourceProvider() = default;
 
             virtual const std::type_info &GetResourceType() const noexcept = 0;
-            virtual std::shared_ptr<void> Create(RenderSystem &system, const GUID &guid) = 0;
-            virtual void Destroy(RenderSystem &, const GUID &, std::shared_ptr<void> &) {
+            virtual std::shared_ptr<void> Create(
+                RenderSystem &system, RenderResourceHub &hub, uint64_t dependency_owner, const GUID &guid
+            ) = 0;
+            virtual void Destroy(RenderSystem &, RenderResourceHub &, uint64_t, const GUID &, std::shared_ptr<void> &) {
             }
             virtual const char *GetDebugName() const noexcept = 0;
         };
 
         class RenderResourceHub final {
         public:
-            using OwnerHandle = uint32_t;
+            using OwnerHandle = uint64_t;
 
             explicit RenderResourceHub(RenderSystem &system);
 
@@ -104,10 +108,12 @@ namespace Engine {
                 uint32_t ref_count{0};
                 int32_t pending_release_countdown{-1};
                 uint32_t generation{1};
+                OwnerHandle dependency_owner{0};
             };
 
             RenderSystem &m_system;
             uint32_t m_deferred_release_frames{0};
+            OwnerHandle m_next_dependency_owner{1ull << 32};
 
             std::unordered_map<std::type_index, IResourceProvider *> m_providers;
             std::unordered_map<ResourceKey, ResourceSlot, ResourceKeyHash> m_slots;

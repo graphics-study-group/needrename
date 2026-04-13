@@ -2,6 +2,9 @@
 
 #include "Render/DebugUtils.h"
 #include "Render/Memory/IndexedBuffer.h"
+#include "Render/Pipeline/Material/MaterialInstance.h"
+#include "Render/RenderSystem.h"
+#include "Render/Resource/RenderResourceHub.h"
 #include <SDL3/SDL.h>
 #include <ext/matrix_clip_space.hpp>
 #include <ext/matrix_transform.hpp>
@@ -9,6 +12,10 @@
 #include <vulkan/vulkan.hpp>
 
 namespace Engine::RenderSystemState {
+    namespace {
+        constexpr RenderResourceHub::OwnerHandle SKYBOX_MATERIAL_OWNER = (1ull << 32) - 1;
+    }
+
     struct SceneDataManager::impl {
         vk::Device device{};
         vk::UniqueDescriptorPool scene_descriptor_pool{};
@@ -297,8 +304,16 @@ namespace Engine::RenderSystemState {
         pimpl->scene.light_front_buffer.non_shadow_casting_light_count = count;
     }
 
-    void SceneDataManager::SetSkyboxMaterial(std::shared_ptr<MaterialInstance> material) noexcept {
-        pimpl->skybox.skybox_material = material;
+    void SceneDataManager::SetSkyboxMaterial(const GUID &material_guid) noexcept {
+        m_system.GetResourceHub().ReleaseOwner(SKYBOX_MATERIAL_OWNER);
+        pimpl->skybox.skybox_material.reset();
+
+        if (!material_guid) {
+            return;
+        }
+
+        pimpl->skybox.skybox_material =
+            m_system.GetResourceHub().Acquire<MaterialInstance>(material_guid, SKYBOX_MATERIAL_OWNER);
     }
 
     void SceneDataManager::UploadSceneData(uint32_t frame_in_flight) const noexcept {
