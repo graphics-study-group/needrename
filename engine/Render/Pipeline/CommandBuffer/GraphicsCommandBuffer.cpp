@@ -129,8 +129,10 @@ namespace Engine {
         bool bind_new_pipeline = false;
         if (!m_bound_material_pipeline.has_value()) {
             bind_new_pipeline = true;
-        } else if (pipeline != m_bound_material_pipeline.value().first
-                   || pipeline_layout != m_bound_material_pipeline.value().second) {
+        } else if (
+            pipeline != m_bound_material_pipeline.value().first
+            || pipeline_layout != m_bound_material_pipeline.value().second
+        ) {
             bind_new_pipeline = true;
         }
         if (bind_new_pipeline) {
@@ -204,15 +206,22 @@ namespace Engine {
     void GraphicsCommandBuffer::DrawRenderers(
         const std::string &tag, const RendererList &renderers, int32_t camera_index, vk::Extent2D extent
     ) {
+        auto &renderer_manager = m_system.GetRendererManager();
+        auto &resource_manager = m_system.GetRenderResourceManager();
+
         BindSceneResources(m_system.GetSceneDataManager());
         BindCameraResources(m_system.GetCameraManager());
 
         vk::Rect2D scissor{{0, 0}, extent};
         this->SetupViewport(extent.width, extent.height, scissor);
         for (const auto &rid : renderers) {
-            const auto &mesh = m_system.GetRendererManager().GetRendererData(rid);
-            const glm::mat4 &model_matrix = m_system.GetRendererManager().GetModelMatrix(rid);
-            auto material_instance = m_system.GetRendererManager().GetMaterialInstance(rid);
+            auto mesh_handle = renderer_manager.GetRendererResourceHandle(rid);
+            auto material_handle = renderer_manager.GetMaterialResourceHandle(rid);
+            auto *mesh = resource_manager.ResolveRenderer(mesh_handle);
+            auto *material_instance = resource_manager.ResolveMaterialInstance(material_handle);
+            if (!mesh || !material_instance) continue;
+
+            const glm::mat4 &model_matrix = renderer_manager.GetModelMatrix(rid);
 
             auto tpl = material_instance->GetLibrary().FindMaterialTemplate(
                 tag, {{mesh->GetVertexAttributeFormat()}, m_pripr}

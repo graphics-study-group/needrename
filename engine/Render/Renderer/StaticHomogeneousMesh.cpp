@@ -3,7 +3,7 @@
 #include "Asset/Mesh/MeshAsset.h"
 
 namespace Engine {
-    void StaticHomogeneousMesh::Submit(
+    void StaticHomogeneousMesh::EnsurePrepared(
         const RenderSystemState::AllocatorState &allocator, RenderSystemState::SubmissionHelper &helper
     ) {
         // XXX: be careful about multithread synch here.

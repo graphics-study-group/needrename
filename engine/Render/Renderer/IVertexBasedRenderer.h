@@ -4,8 +4,6 @@
 #include <cstdint>
 #include <vector>
 
-#include "IAsynchPrepared.h"
-
 namespace Engine {
     class VertexAttribute;
     class DeviceBuffer;
@@ -15,7 +13,7 @@ namespace Engine {
      *
      * Supplies necessary interfaces for vertex based draw calls.
      */
-    class IVertexBasedRenderer : public IAsynchPrepared {
+    class IVertexBasedRenderer {
     public:
         /// @brief How this vertex renderer is bound to vertex buffers
         struct BufferBindingInfo {
@@ -31,6 +29,9 @@ namespace Engine {
 
         IVertexBasedRenderer() noexcept = default;
         virtual ~IVertexBasedRenderer() noexcept = default;
+
+        /// @brief Whether the renderer has prepared GPU resources.
+        virtual bool IsReady() const noexcept = 0;
 
         /**
          * @brief Get the count of indices (i.e. actual number of

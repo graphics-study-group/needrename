@@ -10,7 +10,8 @@ namespace Engine {
     class MeshAsset;
     namespace RenderSystemState {
         class AllocatorState;
-    }
+        class SubmissionHelper;
+    } // namespace RenderSystemState
 
     /**
      * @brief A static vertex-based mesh renderer that cannot be animated.
@@ -99,11 +100,7 @@ namespace Engine {
             return static_cast<bool>(data_block_ref.submeshes[submesh_index].vi_buffer);
         }
 
-        void Remove() noexcept override {
-            // Do nothing.
-            // Its resource's lifetime is managed by the Renderer Manager.
-        }
-        void Submit(const RenderSystemState::AllocatorState &, RenderSystemState::SubmissionHelper &) override;
+        void EnsurePrepared(const RenderSystemState::AllocatorState &, RenderSystemState::SubmissionHelper &);
     };
 } // namespace Engine
 

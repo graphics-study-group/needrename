@@ -131,18 +131,6 @@ namespace Engine::RenderSystemState {
         return ret;
     }
 
-    const IVertexBasedRenderer *RendererManager::GetRendererData(RendererHandle handle) const noexcept {
-        auto it = pimpl->m_data.find(handle);
-        assert(it != pimpl->m_data.end());
-        return m_system.GetRenderResourceManager().ResolveRenderer(it->second.renderer_resource);
-    }
-
-    MaterialInstance *RendererManager::GetMaterialInstance(RendererHandle handle) const noexcept {
-        auto it = pimpl->m_data.find(handle);
-        assert(it != pimpl->m_data.end());
-        return m_system.GetRenderResourceManager().ResolveMaterialInstance(it->second.material_resource);
-    }
-
     RenderResourceHandle RendererManager::GetRendererResourceHandle(RendererHandle handle) const noexcept {
         auto it = pimpl->m_data.find(handle);
         assert(it != pimpl->m_data.end());

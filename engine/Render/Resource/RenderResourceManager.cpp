@@ -306,7 +306,9 @@ namespace Engine::RenderSystemState {
         if (!resource || !resource->renderer) return false;
 
         if (!resource->renderer->IsReady()) {
-            resource->renderer->Submit(m_system.GetAllocatorState(), m_system.GetFrameManager().GetSubmissionHelper());
+            resource->renderer->EnsurePrepared(
+                m_system.GetAllocatorState(), m_system.GetFrameManager().GetSubmissionHelper()
+            );
         }
         return resource->renderer->IsReady();
     }

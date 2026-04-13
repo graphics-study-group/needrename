@@ -14,8 +14,6 @@ namespace vk {
 namespace Engine {
     class AssetRef;
     class RenderSystem;
-    class MaterialInstance;
-    class IVertexBasedRenderer;
 
     namespace RenderSystemState {
         /**
@@ -97,16 +95,6 @@ namespace Engine {
              * @brief Filter and sort all live renderers by given criteria.
              */
             RendererList FilterAndSortRenderers(FilterCriteria fc, SortingCriterion sc = SortingCriterion::None);
-
-            /**
-             * @brief Get the renderer data used for draw calls.
-             */
-            const IVertexBasedRenderer *GetRendererData(RendererHandle handle) const noexcept;
-
-            /**
-             * @brief Get the material instance that the renderer uses.
-             */
-            MaterialInstance *GetMaterialInstance(RendererHandle handle) const noexcept;
 
             /// @brief Get the resource handle of the renderer payload.
             RenderResourceHandle GetRendererResourceHandle(RendererHandle handle) const noexcept;

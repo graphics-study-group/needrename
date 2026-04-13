@@ -217,7 +217,7 @@ int main(int argc, char **argv) {
         data_block.submeshes.emplace_back();
     }
     StaticHomogeneousMesh test_mesh{0, *masset, data_block};
-    test_mesh.Submit(rsys->GetAllocatorState(), rsys->GetFrameManager().GetSubmissionHelper());
+    test_mesh.EnsurePrepared(rsys->GetAllocatorState(), rsys->GetFrameManager().GetSubmissionHelper());
 
     // Submit scene data
     rsys->GetCameraManager().WriteCameraMatrices(glm::mat4{1.0f}, glm::mat4{1.0f});
