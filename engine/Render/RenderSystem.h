@@ -143,7 +143,6 @@ namespace Engine {
         /// @brief Get the frame manager
         RenderSystemState::FrameManager &GetFrameManager();
         /// @brief Get the renderer manager
-        /// @deprecated Pending for rewrite
         RenderSystemState::RendererManager &GetRendererManager();
         /// @brief Get the immutable resource cache
         RenderSystemState::ImmutableResourceCache &GetIRCache();

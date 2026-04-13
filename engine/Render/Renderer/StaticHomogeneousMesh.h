@@ -20,9 +20,7 @@ namespace Engine {
      *
      * All static homogeneous meshes from the same submesh of the same asset
      * shares their index and vertex attribute buffer. The life-time and
-     * content of such buffer are managed by the `RendererManager`.
-     *
-     * @deprecated Pending for rewrite.
+     * content of such static mesh are managed by the RenderResourceManager.
      */
     class StaticHomogeneousMesh : public IVertexBasedRenderer {
     public:
