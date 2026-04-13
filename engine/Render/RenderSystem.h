@@ -32,7 +32,7 @@ namespace Engine {
         class DeviceInterface;
         class Swapchain;
         class AllocatorState;
-        class MaterialRegistry;
+        class RenderResourceManager;
         class FrameManager;
         class RendererManager;
         class ImmutableResourceCache;
@@ -138,9 +138,8 @@ namespace Engine {
         const RenderSystemState::AllocatorState &GetAllocatorState() const;
         /// @brief Get the swapchain manager
         const RenderSystemState::Swapchain &GetSwapchain() const;
-        /// @brief Get the material registry
-        /// @deprecated Pending for rewrite
-        RenderSystemState::MaterialRegistry &GetMaterialRegistry();
+        /// @brief Get the unified render resource manager.
+        RenderSystemState::RenderResourceManager &GetRenderResourceManager();
         /// @brief Get the frame manager
         RenderSystemState::FrameManager &GetFrameManager();
         /// @brief Get the renderer manager

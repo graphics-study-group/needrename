@@ -1,24 +1,19 @@
 #include "RendererManager.h"
+
 #include "Asset/Mesh/MeshAsset.h"
-#include "Core/flagbits.h"
-#include "MainClass.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/FrameManager.h"
-#include "Render/RenderSystem/SubmissionHelper.h"
-#include "Render/Renderer/StaticHomogeneousMesh.h"
 
 #include <SDL3/SDL.h>
 #include <unordered_set>
 
 namespace Engine::RenderSystemState {
     struct RendererManager::impl {
-        std::unordered_map<GUID, StaticHomogeneousMesh::StaticHMeshSharedDataBlock> static_mesh_asset_data_cache;
-
         struct RendererEntry {
             int32_t pending_deallocation_countdown = -1;
 
-            std::unique_ptr<IVertexBasedRenderer> renderer;
-            MaterialInstance *material = nullptr;
+            RenderResourceHandle renderer_resource{};
+            RenderResourceHandle material_resource{};
 
             uint32_t layer = 0xFFFFFFFF;
             bool cast_shadow = false;
@@ -29,16 +24,6 @@ namespace Engine::RenderSystemState {
 
         uint32_t next_handle = 0;
         std::unordered_map<RendererHandle, RendererEntry> m_data;
-
-        void ScanForDeallocation() {
-            for (auto it = static_mesh_asset_data_cache.begin(); it != static_mesh_asset_data_cache.end();) {
-                if (it->second.refcnt == 0) {
-                    it = static_mesh_asset_data_cache.erase(it);
-                } else {
-                    ++it;
-                }
-            }
-        }
 
         RendererList CreateRenderers(
             RenderSystem &system,
@@ -51,28 +36,23 @@ namespace Engine::RenderSystemState {
             auto *masset = mesh_asset_ref.as<MeshAsset>();
             assert(masset);
 
-            if (!static_mesh_asset_data_cache.contains(mesh_asset_ref.GetGUID())) {
-                auto &entry = static_mesh_asset_data_cache[mesh_asset_ref.GetGUID()];
-                entry.submeshes.resize(masset->GetSubmeshCount());
-            }
-
-            auto &cache_entry = static_mesh_asset_data_cache[mesh_asset_ref.GetGUID()];
-            cache_entry.refcnt += 1;
-
             RendererList rl{};
             rl.reserve(masset->GetSubmeshCount());
 
+            auto &resource_manager = system.GetRenderResourceManager();
             for (size_t i = 0; i < masset->GetSubmeshCount(); i++) {
                 auto &d = m_data[next_handle];
                 d.pending_deallocation_countdown = -1;
-                d.renderer = std::make_unique<StaticHomogeneousMesh>(i, *masset, cache_entry);
-                d.material = system.GetMaterialRegistry().GetOrCreateInstance(material_asset_refs[i].GetGUID()).get();
+                d.renderer_resource = resource_manager.AcquireStaticMeshRenderer(
+                    mesh_asset_ref.GetGUID(), static_cast<uint32_t>(i), eagerly_loaded
+                );
+                d.material_resource = resource_manager.AcquireMaterialInstance(material_asset_refs[i].GetGUID());
                 d.layer = layer;
                 d.cast_shadow = cast_shadow;
                 d.is_eagerly_loaded = eagerly_loaded;
 
                 if (eagerly_loaded) {
-                    d.renderer->Submit(system.GetAllocatorState(), system.GetFrameManager().GetSubmissionHelper());
+                    resource_manager.EnsureRendererReady(d.renderer_resource);
                 }
 
                 rl.push_back(next_handle++);
@@ -111,6 +91,7 @@ namespace Engine::RenderSystemState {
     }
 
     void RendererManager::PerformPendingCleanUp() {
+        auto &resource_manager = m_system.GetRenderResourceManager();
         for (auto it = pimpl->m_data.begin(); it != pimpl->m_data.end();) {
             if (it->second.pending_deallocation_countdown < 0) {
                 ++it;
@@ -118,18 +99,20 @@ namespace Engine::RenderSystemState {
             }
             it->second.pending_deallocation_countdown -= 1;
             if (it->second.pending_deallocation_countdown == 0) {
+                resource_manager.Release(it->second.renderer_resource);
+                resource_manager.Release(it->second.material_resource);
                 it = pimpl->m_data.erase(it);
             } else {
                 ++it;
             }
         }
-        pimpl->ScanForDeallocation();
     }
 
     RendererList RendererManager::FilterAndSortRenderers(FilterCriteria fc, SortingCriterion sc) {
         assert(sc == SortingCriterion::None && "Unimplemented");
         std::unordered_set<uint32_t> filtered_renderers{};
 
+        auto &resource_manager = m_system.GetRenderResourceManager();
         for (const auto &[handle, entry] : pimpl->m_data) {
             if (entry.pending_deallocation_countdown >= 0) continue;
 
@@ -138,9 +121,7 @@ namespace Engine::RenderSystemState {
                 if (entry.cast_shadow != static_cast<int>(fc.is_shadow_caster)) continue;
             }
 
-            if (!entry.renderer->IsReady()) {
-                entry.renderer->Submit(m_system.GetAllocatorState(), m_system.GetFrameManager().GetSubmissionHelper());
-            }
+            if (!resource_manager.EnsureRendererReady(entry.renderer_resource)) continue;
             filtered_renderers.insert(handle);
         }
 
@@ -153,13 +134,25 @@ namespace Engine::RenderSystemState {
     const IVertexBasedRenderer *RendererManager::GetRendererData(RendererHandle handle) const noexcept {
         auto it = pimpl->m_data.find(handle);
         assert(it != pimpl->m_data.end());
-        return it->second.renderer.get();
+        return m_system.GetRenderResourceManager().ResolveRenderer(it->second.renderer_resource);
     }
 
     MaterialInstance *RendererManager::GetMaterialInstance(RendererHandle handle) const noexcept {
         auto it = pimpl->m_data.find(handle);
         assert(it != pimpl->m_data.end());
-        return it->second.material;
+        return m_system.GetRenderResourceManager().ResolveMaterialInstance(it->second.material_resource);
+    }
+
+    RenderResourceHandle RendererManager::GetRendererResourceHandle(RendererHandle handle) const noexcept {
+        auto it = pimpl->m_data.find(handle);
+        assert(it != pimpl->m_data.end());
+        return it->second.renderer_resource;
+    }
+
+    RenderResourceHandle RendererManager::GetMaterialResourceHandle(RendererHandle handle) const noexcept {
+        auto it = pimpl->m_data.find(handle);
+        assert(it != pimpl->m_data.end());
+        return it->second.material_resource;
     }
 
     const glm::mat4 &RendererManager::GetModelMatrix(RendererHandle handle) const noexcept {

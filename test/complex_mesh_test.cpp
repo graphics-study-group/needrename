@@ -133,12 +133,14 @@ public:
         m_uniform_data.specular = glm::vec4{spec_r, spec_g, spec_b, spec_coef};
         auto *rsys = MainClass::GetInstance()->GetRenderSystem().get();
         for (auto guid : m_material_guids) {
-            auto *inst = rsys->GetMaterialRegistry().GetOrCreateInstance(guid).get();
+            auto handle = rsys->GetRenderResourceManager().AcquireMaterialInstance(guid);
+            auto *inst = rsys->GetRenderResourceManager().ResolveMaterialInstance(handle);
             auto *mat_ptr = dynamic_cast<Materials::BlinnPhongInstance *>(inst);
             if (mat_ptr) {
                 mat_ptr->SetAmbient(m_uniform_data.ambient);
                 mat_ptr->SetSpecular(m_uniform_data.specular);
             }
+            rsys->GetRenderResourceManager().Release(handle);
         }
     }
 };

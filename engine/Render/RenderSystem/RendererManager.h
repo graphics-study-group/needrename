@@ -1,6 +1,8 @@
 #ifndef RENDER_RENDERSYSTEM_RENDERERMANAGER_INCLUDED
 #define RENDER_RENDERSYSTEM_RENDERERMANAGER_INCLUDED
 
+#include "Render/Resource/RenderResourceManager.h"
+
 #include <Framework/world/Handle.h>
 #include <glm.hpp>
 #include <vector>
@@ -105,6 +107,12 @@ namespace Engine {
              * @brief Get the material instance that the renderer uses.
              */
             MaterialInstance *GetMaterialInstance(RendererHandle handle) const noexcept;
+
+            /// @brief Get the resource handle of the renderer payload.
+            RenderResourceHandle GetRendererResourceHandle(RendererHandle handle) const noexcept;
+
+            /// @brief Get the resource handle of the material payload.
+            RenderResourceHandle GetMaterialResourceHandle(RendererHandle handle) const noexcept;
 
             /**
              * @brief Get the cached model matrix for a renderer.

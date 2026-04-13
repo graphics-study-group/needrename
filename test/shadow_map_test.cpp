@@ -173,10 +173,12 @@ int main(int argc, char **argv) {
     floor_mesh_comp.m_material_assets[0] = floor_mat_asset_ref;
     floor_mesh_comp.Awake();
     {
-        auto floor_inst = rsys->GetMaterialRegistry().GetOrCreateInstance(floor_mat_asset_ref.GetGUID());
+        auto floor_handle = rsys->GetRenderResourceManager().AcquireMaterialInstance(floor_mat_asset_ref.GetGUID());
+        auto floor_inst = rsys->GetRenderResourceManager().ResolveMaterialInstance(floor_handle);
         floor_inst->AssignVectorVariable("ambient_color", glm::vec4(0.0, 0.0, 0.0, 0.0));
         floor_inst->AssignVectorVariable("specular_color", glm::vec4(1.0, 1.0, 1.0, 64.0));
         floor_inst->AssignTexture("base_tex", blank_color_gray);
+        rsys->GetRenderResourceManager().Release(floor_handle);
     }
 
     auto cube_mat_asset = am->CreateAsset<MaterialAsset>();
@@ -191,10 +193,12 @@ int main(int argc, char **argv) {
     cube_mesh_comp.m_material_assets[0] = cube_mat_asset_ref;
     cube_mesh_comp.Awake();
     {
-        auto cube_inst = rsys->GetMaterialRegistry().GetOrCreateInstance(cube_mat_asset_ref.GetGUID());
+        auto cube_handle = rsys->GetRenderResourceManager().AcquireMaterialInstance(cube_mat_asset_ref.GetGUID());
+        auto cube_inst = rsys->GetRenderResourceManager().ResolveMaterialInstance(cube_handle);
         cube_inst->AssignVectorVariable("ambient_color", glm::vec4(0.0, 0.0, 0.0, 0.0));
         cube_inst->AssignVectorVariable("specular_color", glm::vec4(1.0, 1.0, 1.0, 64.0));
         cube_inst->AssignTexture("base_tex", blank_color_red);
+        rsys->GetRenderResourceManager().Release(cube_handle);
     }
 
     auto sphere_mat_asset = am->CreateAsset<MaterialAsset>();
@@ -209,10 +213,12 @@ int main(int argc, char **argv) {
     sphere_mesh_comp.m_material_assets[0] = sphere_mat_asset_ref;
     sphere_mesh_comp.Awake();
     {
-        auto sphere_inst = rsys->GetMaterialRegistry().GetOrCreateInstance(sphere_mat_asset_ref.GetGUID());
+        auto sphere_handle = rsys->GetRenderResourceManager().AcquireMaterialInstance(sphere_mat_asset_ref.GetGUID());
+        auto sphere_inst = rsys->GetRenderResourceManager().ResolveMaterialInstance(sphere_handle);
         sphere_inst->AssignVectorVariable("ambient_color", glm::vec4(0.0, 0.0, 0.0, 0.0));
         sphere_inst->AssignVectorVariable("specular_color", glm::vec4(1.0, 1.0, 1.0, 64.0));
         sphere_inst->AssignTexture("base_tex", blank_color_red);
+        rsys->GetRenderResourceManager().Release(sphere_handle);
     }
 
     RenderGraphBuilder2 rgb{*rsys};

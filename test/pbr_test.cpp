@@ -81,7 +81,9 @@ public:
         for (size_t i = 0; i < masset->GetSubmeshCount(); i++) {
             this->m_material_assets.push_back(AssetRef(am->CreateAsset<MaterialAsset>()));
             this->m_material_assets.back().as<MaterialAsset>()->m_library = lib_asset_ref;
-            auto ptr = rsys->GetMaterialRegistry().GetOrCreateInstance(this->m_material_assets.back().GetGUID());
+            auto handle =
+                rsys->GetRenderResourceManager().AcquireMaterialInstance(this->m_material_assets.back().GetGUID());
+            auto ptr = rsys->GetRenderResourceManager().ResolveMaterialInstance(handle);
             ptr->AssignTexture("albedoSampler", albedo);
             ptr->AssignTexture("MRAOSampler", MRAO);
             m_material_guids.push_back(this->m_material_assets.back().GetGUID());
@@ -102,9 +104,11 @@ public:
 
         auto *rsys = MainClass::GetInstance()->GetRenderSystem().get();
         for (auto guid : m_material_guids) {
-            auto *inst = rsys->GetMaterialRegistry().GetOrCreateInstance(guid).get();
+            auto handle = rsys->GetRenderResourceManager().AcquireMaterialInstance(guid);
+            auto *inst = rsys->GetRenderResourceManager().ResolveMaterialInstance(handle);
             inst->AssignScalarVariable("Material::metalness_scale", metalness);
             inst->AssignScalarVariable("Material::roughness_scale", roughness);
+            rsys->GetRenderResourceManager().Release(handle);
         }
     }
 };

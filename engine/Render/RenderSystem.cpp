@@ -11,12 +11,12 @@
 #include "Render/RenderSystem/CameraManager.h"
 #include "Render/RenderSystem/DeviceInterface.h"
 #include "Render/RenderSystem/FrameManager.h"
-#include "Render/RenderSystem/MaterialRegistry.h"
 #include "Render/RenderSystem/RendererManager.h"
 #include "Render/RenderSystem/ResizableRTTManager.h"
 #include "Render/RenderSystem/Structs.h"
 #include "Render/RenderSystem/Swapchain.h"
 #include "Render/Renderer/Camera.h"
+#include "Render/Resource/RenderResourceManager.h"
 
 #include <Core/Functional/SDLWindow.h>
 #include <MainClass.h>
@@ -27,9 +27,9 @@
 namespace Engine {
     struct RenderSystem::impl {
         impl(RenderSystem &parent, std::weak_ptr<SDLWindow> parent_window) :
-            m_window(parent_window), m_allocator_state(parent), m_frame_manager(parent), m_material_registry(parent),
-            m_renderer_manager(parent), m_scene_data_manager(parent), m_camera_manager(parent),
-            m_resizable_rtt_manger(parent) {
+            m_window(parent_window), m_allocator_state(parent), m_frame_manager(parent),
+            m_render_resource_manager(parent), m_renderer_manager(parent), m_scene_data_manager(parent),
+            m_camera_manager(parent), m_resizable_rtt_manger(parent) {
 
             };
 
@@ -45,7 +45,7 @@ namespace Engine {
         RenderSystemState::AllocatorState m_allocator_state;
         RenderSystemState::Swapchain m_swapchain{};
         RenderSystemState::FrameManager m_frame_manager;
-        RenderSystemState::MaterialRegistry m_material_registry;
+        RenderSystemState::RenderResourceManager m_render_resource_manager;
         RenderSystemState::RendererManager m_renderer_manager;
         RenderSystemState::SceneDataManager m_scene_data_manager;
         RenderSystemState::CameraManager m_camera_manager;
@@ -97,6 +97,7 @@ namespace Engine {
             )) {
             this->UpdateSwapchain();
         }
+        pimpl->m_render_resource_manager.TickFrame();
     }
 
     void RenderSystem::CompleteFrame(
@@ -126,8 +127,8 @@ namespace Engine {
         return pimpl->m_swapchain;
     }
 
-    RenderSystemState::MaterialRegistry &RenderSystem::GetMaterialRegistry() {
-        return pimpl->m_material_registry;
+    RenderSystemState::RenderResourceManager &RenderSystem::GetRenderResourceManager() {
+        return pimpl->m_render_resource_manager;
     }
 
     RenderSystemState::FrameManager &RenderSystem::GetFrameManager() {

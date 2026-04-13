@@ -186,7 +186,7 @@ namespace Engine::RenderSystemState {
         } scene{};
 
         struct Skybox {
-            std::shared_ptr<MaterialInstance> skybox_material{};
+            RenderResourceHandle skybox_material{};
         } skybox{};
 
         void Create(RenderSystem &system) {
@@ -297,7 +297,11 @@ namespace Engine::RenderSystemState {
         pimpl->scene.light_front_buffer.non_shadow_casting_light_count = count;
     }
 
-    void SceneDataManager::SetSkyboxMaterial(std::shared_ptr<MaterialInstance> material) noexcept {
+    void SceneDataManager::SetSkyboxMaterial(RenderResourceHandle material) noexcept {
+        auto &resource_manager = m_system.GetRenderResourceManager();
+        if (pimpl->skybox.skybox_material.IsValid()) {
+            resource_manager.Release(pimpl->skybox.skybox_material);
+        }
         pimpl->skybox.skybox_material = material;
     }
 
@@ -361,18 +365,21 @@ namespace Engine::RenderSystemState {
     void SceneDataManager::DrawSkybox(
         GraphicsCommandBuffer &cb, uint32_t frame_in_flight, glm::mat4 pv_mat, const vk::Extent2D &extent
     ) const {
-        if (!pimpl->skybox.skybox_material) return;
+        if (!pimpl->skybox.skybox_material.IsValid()) return;
+
+        auto *material = m_system.GetRenderResourceManager().ResolveMaterialInstance(pimpl->skybox.skybox_material);
+        if (!material) return;
 
         vk::Rect2D scissor{{0, 0}, extent};
         cb.SetupViewport(extent.width, extent.height, scissor);
 
-        auto tpl =
-            pimpl->skybox.skybox_material->GetLibrary().FindMaterialTemplate("SKYBOX", {{0}, cb.GetRenderingInfo()});
-        pimpl->skybox.skybox_material->UpdateGPUInfo(*tpl, frame_in_flight);
+        auto tpl = material->GetLibrary().FindMaterialTemplate("SKYBOX", {{0}, cb.GetRenderingInfo()});
+        if (!tpl) return;
+        material->UpdateGPUInfo(*tpl, frame_in_flight);
 
         auto rcb = cb.GetCommandBuffer();
         rcb.bindPipeline(vk::PipelineBindPoint::eGraphics, tpl->GetPipeline());
-        const auto &sky_box_descriptor_set = pimpl->skybox.skybox_material->GetDescriptor(*tpl, frame_in_flight);
+        const auto &sky_box_descriptor_set = material->GetDescriptor(*tpl, frame_in_flight);
         rcb.bindDescriptorSets(
             vk::PipelineBindPoint::eGraphics, tpl->GetPipelineLayout(), 2, {sky_box_descriptor_set}, {}
         );
