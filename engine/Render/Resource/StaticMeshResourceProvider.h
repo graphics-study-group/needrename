@@ -1,5 +1,5 @@
-#ifndef RENDER_RESOURCE_STATICMESHRENDERERPROVIDER_INCLUDED
-#define RENDER_RESOURCE_STATICMESHRENDERERPROVIDER_INCLUDED
+#ifndef RENDER_RESOURCE_STATICMESHRESOURCEPROVIDER_INCLUDED
+#define RENDER_RESOURCE_STATICMESHRESOURCEPROVIDER_INCLUDED
 
 #include "IRenderResourceProvider.h"
 #include "StaticMeshResource.h"
@@ -8,7 +8,7 @@
 
 namespace Engine {
     namespace RenderSystemState {
-        class StaticMeshRendererProvider final : public IRenderResourceProvider {
+        class StaticMeshResourceProvider final : public IRenderResourceProvider {
             std::unordered_map<GUID, uint32_t> m_records{};
 
         public:
@@ -21,4 +21,4 @@ namespace Engine {
     } // namespace RenderSystemState
 } // namespace Engine
 
-#endif // RENDER_RESOURCE_STATICMESHRENDERERPROVIDER_INCLUDED
+#endif // RENDER_RESOURCE_STATICMESHRESOURCEPROVIDER_INCLUDED

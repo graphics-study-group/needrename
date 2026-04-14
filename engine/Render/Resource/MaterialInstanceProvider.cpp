@@ -46,6 +46,9 @@ namespace Engine::RenderSystemState {
     bool MaterialInstanceProvider::EnsureReady(
         RenderResourceManager &manager, RenderSystem &, RenderResourceHandle handle
     ) {
+        // Material instance descriptor allocation and UBO updates still happen
+        // lazily during BindMaterial -> UpdateGPUInfo. Provider readiness is
+        // therefore only a lightweight payload-validity check.
         return Resolve(manager, handle) != nullptr;
     }
 

@@ -6,28 +6,21 @@
 
 namespace Engine {
     StaticMeshResource::StaticMeshResource(
-        const MeshAsset &asset, std::unique_ptr<StaticHMeshSharedDataBlock> data_block
-    ) : m_mesh_asset(asset), m_data_block(std::move(data_block)) {
+        AssetRef mesh_asset_ref, std::unique_ptr<StaticHMeshSharedDataBlock> data_block
+    ) : m_mesh_asset_ref(std::move(mesh_asset_ref)), m_data_block(std::move(data_block)) {
         if (!m_data_block) {
             m_data_block = std::make_unique<StaticHMeshSharedDataBlock>();
         }
-        m_data_block->submeshes.resize(m_mesh_asset.GetSubmeshCount());
-    }
 
-    size_t StaticMeshResource::GetSubmeshCount() const noexcept {
-        return m_mesh_asset.GetSubmeshCount();
+        m_mesh_asset_ref.AcquireAsync();
     }
 
     bool StaticMeshResource::IsReady() const noexcept {
+        if (m_data_block->submeshes.empty()) return false;
         for (uint32_t i = 0; i < m_data_block->submeshes.size(); ++i) {
-            if (!IsSubmeshReady(i)) return false;
+            if (!static_cast<bool>(m_data_block->submeshes[i].vi_buffer)) return false;
         }
         return true;
-    }
-
-    bool StaticMeshResource::IsSubmeshReady(uint32_t submesh_index) const noexcept {
-        assert(submesh_index < m_data_block->submeshes.size());
-        return static_cast<bool>(m_data_block->submeshes[submesh_index].vi_buffer);
     }
 
     const StaticMeshResource::StaticHMeshSharedDataBlock::PerSubmeshData &StaticMeshResource::GetSubmeshData(
@@ -40,13 +33,17 @@ namespace Engine {
     void StaticMeshResource::EnsurePrepared(
         const RenderSystemState::AllocatorState &allocator, RenderSystemState::SubmissionHelper &helper
     ) {
-        for (uint32_t submesh_index = 0; submesh_index < m_mesh_asset.GetSubmeshCount(); ++submesh_index) {
+        auto *mesh_asset = m_mesh_asset_ref.as<MeshAsset>();
+        assert(mesh_asset);
+        m_data_block->submeshes.resize(mesh_asset->GetSubmeshCount());
+
+        for (uint32_t submesh_index = 0; submesh_index < mesh_asset->GetSubmeshCount(); ++submesh_index) {
             auto &submesh_ref = m_data_block->submeshes[submesh_index];
             if (submesh_ref.vi_buffer) {
                 continue;
             }
 
-            const auto &smi = m_mesh_asset.m_submeshes[submesh_index];
+            const auto &smi = mesh_asset->m_submeshes[submesh_index];
             submesh_ref.attributes = smi.ToVertexAttributeFormat();
             submesh_ref.index_count = static_cast<uint32_t>(smi.m_indices.size());
             submesh_ref.vertex_attribute_count = smi.vertex_count;
@@ -76,5 +73,7 @@ namespace Engine {
 
             helper.EnqueueBufferSubmissionVertex(*submesh_ref.vi_buffer, buf);
         }
+
+        m_mesh_asset_ref.Release();
     }
 } // namespace Engine

@@ -1,6 +1,7 @@
 #ifndef RENDER_RESOURCE_STATICMESHRESOURCE_INCLUDED
 #define RENDER_RESOURCE_STATICMESHRESOURCE_INCLUDED
 
+#include "Asset/AssetRef.h"
 #include "Render/Memory/DeviceBuffer.h"
 #include "Render/Renderer/VertexAttribute.h"
 
@@ -8,8 +9,6 @@
 #include <vector>
 
 namespace Engine {
-    class MeshAsset;
-
     namespace RenderSystemState {
         class AllocatorState;
         class SubmissionHelper;
@@ -37,32 +36,17 @@ namespace Engine {
         };
 
     private:
-        const MeshAsset &m_mesh_asset;
+        AssetRef m_mesh_asset_ref{};
         std::unique_ptr<StaticHMeshSharedDataBlock> m_data_block;
 
     public:
-        explicit StaticMeshResource(
-            const MeshAsset &asset, std::unique_ptr<StaticHMeshSharedDataBlock> data_block = nullptr
-        );
-
-        /**
-         * @brief Get the count of submeshes in this resource.
-         *
-         * This is the same as the submesh count of the source mesh asset.
-         */
-        size_t GetSubmeshCount() const noexcept;
+        explicit StaticMeshResource(AssetRef mesh_asset_ref, std::unique_ptr<StaticHMeshSharedDataBlock> data_block = nullptr);
 
         /**
          * @brief Whether all submeshes in this resource are ready for rendering.
          * A submesh is ready if its vertex/index buffer is prepared and valid.
          */
         bool IsReady() const noexcept;
-
-        /**
-         * @brief Whether a specific submesh in this resource is ready for rendering.
-         * A submesh is ready if its vertex/index buffer is prepared and valid.
-         */
-        bool IsSubmeshReady(uint32_t submesh_index) const noexcept;
 
         /**
          * @brief Get the prepared data of a specific submesh in this resource.
@@ -75,6 +59,11 @@ namespace Engine {
 
         /**
          * @brief Ensure that all submeshes in this resource are prepared for rendering.
+         *
+         * The source MeshAsset is intentionally kept alive by AssetRef until GPU
+         * upload has completed. After preparation succeeds, the asset reference
+         * is released so CPU-side mesh memory may be reclaimed independently of
+         * the lifetime of the GPU buffers stored by this resource.
          *
          * @param allocator_state The allocator state to use for preparing the submeshes.
          * @param submission_helper The submission helper to use for preparing the submeshes.

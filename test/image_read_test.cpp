@@ -44,9 +44,8 @@ int main(int, char *[]) {
 
     auto test_mesh_asset = cmc->GetAssetManager()->CreateAsset<LowerPlaneMeshAsset>();
     auto test_mesh_asset_ref = AssetRef(test_mesh_asset);
-    auto *masset = test_mesh_asset_ref.as<MeshAsset>();
-    auto mesh_resource = std::make_shared<StaticMeshResource>(*masset);
-    StaticHomogeneousMesh test_mesh{0, mesh_resource};
+    auto mesh_resource = std::make_shared<StaticMeshResource>(test_mesh_asset_ref);
+    StaticHomogeneousMesh test_mesh{0, mesh_resource.get()};
 
     int tex_width, tex_height, tex_channel;
     std::filesystem::path image_path{ENGINE_ROOT_DIR};

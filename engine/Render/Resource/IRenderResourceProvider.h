@@ -19,10 +19,13 @@ namespace Engine {
 
             virtual void *Resolve(RenderResourceManager &manager, RenderResourceHandle handle) const noexcept = 0;
 
+            /**
+             * @brief Ensure the resource is consumable by the render path.
+             *
+             * Some resource types, such as StaticMeshResource, perform a true GPU upload or residency step here. 
+             */
             virtual bool EnsureReady(
-                RenderResourceManager &manager,
-                RenderSystem &system,
-                RenderResourceHandle handle
+                RenderResourceManager &manager, RenderSystem &system, RenderResourceHandle handle
             ) = 0;
 
             virtual void OnRecordDestroy(GUID guid) noexcept = 0;

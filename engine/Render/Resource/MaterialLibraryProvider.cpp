@@ -39,6 +39,9 @@ namespace Engine::RenderSystemState {
     bool MaterialLibraryProvider::EnsureReady(
         RenderResourceManager &manager, RenderSystem &, RenderResourceHandle handle
     ) {
+        // Material library pipelines are still created lazily in
+        // MaterialLibrary::FindMaterialTemplate, so provider readiness only
+        // verifies that the instantiated payload still exists.
         return Resolve(manager, handle) != nullptr;
     }
 

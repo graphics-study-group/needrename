@@ -5,7 +5,7 @@
 #include "MaterialLibraryProvider.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/FrameManager.h"
-#include "StaticMeshRendererProvider.h"
+#include "StaticMeshResourceProvider.h"
 
 #include <unordered_map>
 #include <utility>
@@ -57,7 +57,7 @@ namespace Engine::RenderSystemState {
         auto material_instance_provider = std::make_unique<MaterialInstanceProvider>();
         pimpl->providers.emplace(material_instance_provider->GetTypeID(), std::move(material_instance_provider));
 
-        auto static_mesh_provider = std::make_unique<StaticMeshRendererProvider>();
+        auto static_mesh_provider = std::make_unique<StaticMeshResourceProvider>();
         pimpl->providers.emplace(static_mesh_provider->GetTypeID(), std::move(static_mesh_provider));
     }
 
