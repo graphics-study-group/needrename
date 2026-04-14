@@ -6,6 +6,7 @@
 #include <Framework/world/WorldSystem.h>
 #include <MainClass.h>
 #include <Reflection/serialization.h>
+#include <Render/Pipeline/Material/MaterialInstance.h>
 #include <Render/RenderSystem.h>
 #include <Render/RenderSystem/CameraManager.h>
 #include <Render/RenderSystem/SceneDataManager.h>
@@ -33,7 +34,7 @@ namespace Engine {
         this->AddToScene(world->GetMainSceneRef());
         if (m_skybox_material.IsValid()) {
             auto material_handle =
-                rsys->GetRenderResourceManager().AcquireMaterialInstance(m_skybox_material.GetGUID());
+                rsys->GetRenderResourceManager().Acquire<MaterialInstance>(m_skybox_material.GetGUID());
             rsys->GetSceneDataManager().SetSkyboxMaterial(material_handle);
             world->m_skybox_material = m_skybox_material;
         }

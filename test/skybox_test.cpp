@@ -123,8 +123,8 @@ int main(int argc, char **argv) {
     skybox_material_asset->m_library = lib_asset_ref;
     AssetRef skybox_material_asset_ref(skybox_material_asset);
     auto skybox_material_handle =
-        rsys->GetRenderResourceManager().AcquireMaterialInstance(skybox_material_asset_ref.GetGUID());
-    auto *skybox_material = rsys->GetRenderResourceManager().ResolveMaterialInstance(skybox_material_handle);
+        rsys->GetRenderResourceManager().Acquire<MaterialInstance>(skybox_material_asset_ref.GetGUID());
+    auto *skybox_material = rsys->GetRenderResourceManager().Resolve<MaterialInstance>(skybox_material_handle);
     skybox_material->AssignTexture("skybox", skybox_texture);
     rsys->GetSceneDataManager().SetSkyboxMaterial(skybox_material_handle);
 

@@ -217,8 +217,8 @@ namespace Engine {
         for (const auto &rid : renderers) {
             auto mesh_handle = renderer_manager.GetRendererResourceHandle(rid);
             auto material_handle = renderer_manager.GetMaterialResourceHandle(rid);
-            auto *mesh = resource_manager.ResolveRenderer(mesh_handle);
-            auto *material_instance = resource_manager.ResolveMaterialInstance(material_handle);
+            auto *mesh = resource_manager.Resolve<IVertexBasedRenderer>(mesh_handle);
+            auto *material_instance = resource_manager.Resolve<MaterialInstance>(material_handle);
             if (!mesh || !material_instance) continue;
 
             const glm::mat4 &model_matrix = renderer_manager.GetModelMatrix(rid);

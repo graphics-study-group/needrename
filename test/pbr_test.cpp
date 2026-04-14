@@ -82,8 +82,8 @@ public:
             this->m_material_assets.push_back(AssetRef(am->CreateAsset<MaterialAsset>()));
             this->m_material_assets.back().as<MaterialAsset>()->m_library = lib_asset_ref;
             auto handle =
-                rsys->GetRenderResourceManager().AcquireMaterialInstance(this->m_material_assets.back().GetGUID());
-            auto ptr = rsys->GetRenderResourceManager().ResolveMaterialInstance(handle);
+                rsys->GetRenderResourceManager().Acquire<MaterialInstance>(this->m_material_assets.back().GetGUID());
+            auto ptr = rsys->GetRenderResourceManager().Resolve<MaterialInstance>(handle);
             ptr->AssignTexture("albedoSampler", albedo);
             ptr->AssignTexture("MRAOSampler", MRAO);
             m_material_guids.push_back(this->m_material_assets.back().GetGUID());
@@ -104,8 +104,8 @@ public:
 
         auto *rsys = MainClass::GetInstance()->GetRenderSystem().get();
         for (auto guid : m_material_guids) {
-            auto handle = rsys->GetRenderResourceManager().AcquireMaterialInstance(guid);
-            auto *inst = rsys->GetRenderResourceManager().ResolveMaterialInstance(handle);
+            auto handle = rsys->GetRenderResourceManager().Acquire<MaterialInstance>(guid);
+            auto *inst = rsys->GetRenderResourceManager().Resolve<MaterialInstance>(handle);
             inst->AssignScalarVariable("Material::metalness_scale", metalness);
             inst->AssignScalarVariable("Material::roughness_scale", roughness);
             rsys->GetRenderResourceManager().Release(handle);

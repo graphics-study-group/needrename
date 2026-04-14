@@ -367,7 +367,7 @@ namespace Engine::RenderSystemState {
     ) const {
         if (!pimpl->skybox.skybox_material.IsValid()) return;
 
-        auto *material = m_system.GetRenderResourceManager().ResolveMaterialInstance(pimpl->skybox.skybox_material);
+        auto *material = m_system.GetRenderResourceManager().Resolve<MaterialInstance>(pimpl->skybox.skybox_material);
         if (!material) return;
 
         vk::Rect2D scissor{{0, 0}, extent};

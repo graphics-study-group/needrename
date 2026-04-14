@@ -43,16 +43,17 @@ namespace Engine::RenderSystemState {
             for (size_t i = 0; i < masset->GetSubmeshCount(); i++) {
                 auto &d = m_data[next_handle];
                 d.pending_deallocation_countdown = -1;
-                d.renderer_resource = resource_manager.AcquireStaticMeshRenderer(
-                    mesh_asset_ref.GetGUID(), static_cast<uint32_t>(i), eagerly_loaded
+                d.renderer_resource = resource_manager.Acquire<IVertexBasedRenderer>(
+                    mesh_asset_ref.GetGUID(),
+                    {.submesh_index = static_cast<uint32_t>(i), .eagerly_loaded = eagerly_loaded}
                 );
-                d.material_resource = resource_manager.AcquireMaterialInstance(material_asset_refs[i].GetGUID());
+                d.material_resource = resource_manager.Acquire<MaterialInstance>(material_asset_refs[i].GetGUID());
                 d.layer = layer;
                 d.cast_shadow = cast_shadow;
                 d.is_eagerly_loaded = eagerly_loaded;
 
                 if (eagerly_loaded) {
-                    resource_manager.EnsureRendererReady(d.renderer_resource);
+                    resource_manager.EnsureReady<IVertexBasedRenderer>(d.renderer_resource);
                 }
 
                 rl.push_back(next_handle++);
@@ -121,7 +122,7 @@ namespace Engine::RenderSystemState {
                 if (entry.cast_shadow != static_cast<int>(fc.is_shadow_caster)) continue;
             }
 
-            if (!resource_manager.EnsureRendererReady(entry.renderer_resource)) continue;
+            if (!resource_manager.EnsureReady<IVertexBasedRenderer>(entry.renderer_resource)) continue;
             filtered_renderers.insert(handle);
         }
 

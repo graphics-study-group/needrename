@@ -3,8 +3,10 @@
 
 #include "Core/guid.h"
 
-#include <cstdint>
 #include <memory>
+#include <typeindex>
+#include <utility>
+#include <vector>
 
 namespace Engine {
     class IVertexBasedRenderer;
@@ -14,37 +16,33 @@ namespace Engine {
 
     namespace RenderSystemState {
         /**
-         * @brief Runtime kind tag for resources stored in RenderResourceManager.
+         * @brief Extra acquire options shared by all providers.
          */
-        enum class RenderResourceKind : uint8_t {
-            /// Invalid or empty handle.
-            Invalid = 0,
-            /// Material library resource created from MaterialLibraryAsset.
-            MaterialLibrary,
-            /// Material instance resource created from MaterialAsset.
-            MaterialInstance,
-            /// Static mesh renderer resource created from MeshAsset submesh.
-            StaticMeshRenderer,
+        struct RenderResourceAcquireContext {
+            /// Optional submesh index for mesh-like resources.
+            uint32_t submesh_index{0};
+            /// Whether provider should eagerly prepare resource.
+            bool eagerly_loaded{false};
         };
 
         /**
          * @brief Opaque handle for resources managed by RenderResourceManager.
          *
-         * A handle is valid only if index/generation/kind matches a live record.
+         * A handle is valid only if index/generation/type_id matches a live record.
          */
         struct RenderResourceHandle {
             /// Index into resource record storage.
             uint32_t index{0xFFFFFFFFu};
             /// Generation used to detect stale handles.
             uint32_t generation{0};
-            /// Runtime type tag for safe resolve.
-            RenderResourceKind kind{RenderResourceKind::Invalid};
+            /// Runtime provider type id for safe resolve.
+            std::type_index type_id{typeid(void)};
 
             /**
              * @brief Check whether this handle is structurally valid.
              */
             bool IsValid() const noexcept {
-                return kind != RenderResourceKind::Invalid && index != 0xFFFFFFFFu;
+                return type_id != std::type_index(typeid(void)) && index != 0xFFFFFFFFu;
             }
         };
 
@@ -56,8 +54,9 @@ namespace Engine {
          * from RenderResourceHandle.
          */
         class RenderResourceManager final {
-            RenderSystem &m_system;
+        private:
             struct impl;
+            RenderSystem &m_system;
             std::unique_ptr<impl> pimpl;
 
         public:
@@ -68,27 +67,28 @@ namespace Engine {
             ~RenderResourceManager();
 
             /**
-             * @brief Acquire or create a material library resource by asset GUID.
-             * @param library_guid GUID of MaterialLibraryAsset.
-             * @return Handle to a MaterialLibrary resource.
+             * @brief Acquire/create resource by type and GUID.
              */
-            RenderResourceHandle AcquireMaterialLibrary(GUID library_guid);
+            template <typename T>
+            RenderResourceHandle Acquire(GUID guid, RenderResourceAcquireContext context = {}) {
+                return AcquireByType(typeid(T), guid, context);
+            }
 
             /**
-             * @brief Acquire or create a material instance resource by asset GUID.
-             * @param material_guid GUID of MaterialAsset.
-             * @return Handle to a MaterialInstance resource.
+             * @brief Resolve typed resource pointer from handle.
              */
-            RenderResourceHandle AcquireMaterialInstance(GUID material_guid);
+            template <typename T>
+            T *Resolve(RenderResourceHandle handle) const noexcept {
+                return static_cast<T *>(ResolveByType(handle, typeid(T)));
+            }
 
             /**
-             * @brief Acquire or create a static mesh renderer resource.
-             * @param mesh_guid GUID of MeshAsset.
-             * @param submesh_index Submesh index inside the mesh asset.
-             * @param eagerly_loaded If true, schedule/perform preparation immediately.
-             * @return Handle to a static mesh renderer resource.
+             * @brief Ensure typed resource is ready for runtime use.
              */
-            RenderResourceHandle AcquireStaticMeshRenderer(GUID mesh_guid, uint32_t submesh_index, bool eagerly_loaded);
+            template <typename T>
+            bool EnsureReady(RenderResourceHandle handle) {
+                return EnsureReadyByType(handle, typeid(T));
+            }
 
             /**
              * @brief Decrease strong reference count of a resource handle.
@@ -103,28 +103,34 @@ namespace Engine {
             void TickFrame();
 
             /**
-             * @brief Resolve a material library pointer from handle.
-             * @return Pointer on success, nullptr if type or lifetime check fails.
+             * @brief Try to reuse an existing record known by a provider.
+             *
+             * Returns an invalid handle if the record is stale or type mismatched.
              */
-            MaterialLibrary *ResolveMaterialLibrary(RenderResourceHandle handle) const noexcept;
+            RenderResourceHandle TryReuseRecord(std::type_index type_id, uint32_t index) noexcept;
 
             /**
-             * @brief Resolve a material instance pointer from handle.
-             * @return Pointer on success, nullptr if type or lifetime check fails.
+             * @brief Create a new resource record for a provider.
              */
-            MaterialInstance *ResolveMaterialInstance(RenderResourceHandle handle) const noexcept;
+            RenderResourceHandle CreateRecord(
+                std::type_index type_id,
+                GUID guid,
+                uint32_t submesh_index,
+                std::shared_ptr<void> payload,
+                std::vector<RenderResourceHandle> dependencies = {}
+            );
 
             /**
-             * @brief Resolve a renderer pointer from handle.
-             * @return Pointer on success, nullptr if type or lifetime check fails.
+             * @brief Resolve the stored payload for a provider after type validation.
              */
-            IVertexBasedRenderer *ResolveRenderer(RenderResourceHandle handle) const noexcept;
+            void *ResolvePayload(RenderResourceHandle handle, std::type_index expected_type_id) const noexcept;
 
-            /**
-             * @brief Ensure static mesh renderer resource is prepared for drawing.
-             * @return True if renderer is ready after the call.
-             */
-            bool EnsureRendererReady(RenderResourceHandle handle);
+        private:
+            RenderResourceHandle AcquireByType(
+                std::type_index type_id, GUID guid, const RenderResourceAcquireContext &context
+            );
+            void *ResolveByType(RenderResourceHandle handle, std::type_index type_id) const noexcept;
+            bool EnsureReadyByType(RenderResourceHandle handle, std::type_index type_id);
         };
     } // namespace RenderSystemState
 } // namespace Engine
