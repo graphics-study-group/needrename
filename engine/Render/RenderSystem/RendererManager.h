@@ -5,6 +5,7 @@
 
 #include <Framework/world/Handle.h>
 #include <glm.hpp>
+#include <memory>
 #include <vector>
 
 namespace vk {
@@ -13,6 +14,7 @@ namespace vk {
 
 namespace Engine {
     class AssetRef;
+    class IVertexBasedRenderer;
     class RenderSystem;
 
     namespace RenderSystemState {
@@ -96,8 +98,8 @@ namespace Engine {
              */
             RendererList FilterAndSortRenderers(FilterCriteria fc, SortingCriterion sc = SortingCriterion::None);
 
-            /// @brief Get the resource handle of the renderer payload.
-            RenderResourceHandle GetRendererResourceHandle(RendererHandle handle) const noexcept;
+            /// @brief Get the renderer view used for draw submission.
+            const IVertexBasedRenderer *GetRenderer(RendererHandle handle) const noexcept;
 
             /// @brief Get the resource handle of the material payload.
             RenderResourceHandle GetMaterialResourceHandle(RendererHandle handle) const noexcept;

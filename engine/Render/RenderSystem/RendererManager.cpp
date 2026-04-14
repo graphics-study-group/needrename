@@ -1,10 +1,13 @@
 #include "RendererManager.h"
 
 #include "Asset/Mesh/MeshAsset.h"
+#include "Render/Renderer/StaticHomogeneousMesh.h"
+#include "Render/Resource/StaticMeshResource.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/FrameManager.h"
 
 #include <SDL3/SDL.h>
+#include <memory>
 #include <unordered_set>
 
 namespace Engine::RenderSystemState {
@@ -12,8 +15,9 @@ namespace Engine::RenderSystemState {
         struct RendererEntry {
             int32_t pending_deallocation_countdown = -1;
 
-            RenderResourceHandle renderer_resource{};
+            RenderResourceHandle mesh_resource{};
             RenderResourceHandle material_resource{};
+            std::unique_ptr<IVertexBasedRenderer> renderer{};
 
             uint32_t layer = 0xFFFFFFFF;
             bool cast_shadow = false;
@@ -40,21 +44,23 @@ namespace Engine::RenderSystemState {
             rl.reserve(masset->GetSubmeshCount());
 
             auto &resource_manager = system.GetRenderResourceManager();
+            auto mesh_resource = resource_manager.Acquire<StaticMeshResource>(mesh_asset_ref.GetGUID());
+            auto *mesh = resource_manager.Resolve<StaticMeshResource>(mesh_resource);
+            assert(mesh);
+
+            if (eagerly_loaded) {
+                resource_manager.EnsureReady<StaticMeshResource>(mesh_resource);
+            }
+
             for (size_t i = 0; i < masset->GetSubmeshCount(); i++) {
                 auto &d = m_data[next_handle];
                 d.pending_deallocation_countdown = -1;
-                d.renderer_resource = resource_manager.Acquire<IVertexBasedRenderer>(
-                    mesh_asset_ref.GetGUID(),
-                    {.submesh_index = static_cast<uint32_t>(i), .eagerly_loaded = eagerly_loaded}
-                );
+                d.mesh_resource = mesh_resource;
                 d.material_resource = resource_manager.Acquire<MaterialInstance>(material_asset_refs[i].GetGUID());
+                d.renderer = std::make_unique<StaticHomogeneousMesh>(static_cast<uint32_t>(i), mesh);
                 d.layer = layer;
                 d.cast_shadow = cast_shadow;
                 d.is_eagerly_loaded = eagerly_loaded;
-
-                if (eagerly_loaded) {
-                    resource_manager.EnsureReady<IVertexBasedRenderer>(d.renderer_resource);
-                }
 
                 rl.push_back(next_handle++);
             }
@@ -100,7 +106,7 @@ namespace Engine::RenderSystemState {
             }
             it->second.pending_deallocation_countdown -= 1;
             if (it->second.pending_deallocation_countdown == 0) {
-                resource_manager.Release(it->second.renderer_resource);
+                resource_manager.Release(it->second.mesh_resource);
                 resource_manager.Release(it->second.material_resource);
                 it = pimpl->m_data.erase(it);
             } else {
@@ -122,7 +128,7 @@ namespace Engine::RenderSystemState {
                 if (entry.cast_shadow != static_cast<int>(fc.is_shadow_caster)) continue;
             }
 
-            if (!resource_manager.EnsureReady<IVertexBasedRenderer>(entry.renderer_resource)) continue;
+            if (!resource_manager.EnsureReady<StaticMeshResource>(entry.mesh_resource)) continue;
             filtered_renderers.insert(handle);
         }
 
@@ -132,10 +138,10 @@ namespace Engine::RenderSystemState {
         return ret;
     }
 
-    RenderResourceHandle RendererManager::GetRendererResourceHandle(RendererHandle handle) const noexcept {
+    const IVertexBasedRenderer *RendererManager::GetRenderer(RendererHandle handle) const noexcept {
         auto it = pimpl->m_data.find(handle);
         assert(it != pimpl->m_data.end());
-        return it->second.renderer_resource;
+        return it->second.renderer.get();
     }
 
     RenderResourceHandle RendererManager::GetMaterialResourceHandle(RendererHandle handle) const noexcept {

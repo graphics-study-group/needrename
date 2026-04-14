@@ -215,9 +215,8 @@ namespace Engine {
         vk::Rect2D scissor{{0, 0}, extent};
         this->SetupViewport(extent.width, extent.height, scissor);
         for (const auto &rid : renderers) {
-            auto mesh_handle = renderer_manager.GetRendererResourceHandle(rid);
             auto material_handle = renderer_manager.GetMaterialResourceHandle(rid);
-            auto *mesh = resource_manager.Resolve<IVertexBasedRenderer>(mesh_handle);
+            auto *mesh = renderer_manager.GetRenderer(rid);
             auto *material_instance = resource_manager.Resolve<MaterialInstance>(material_handle);
             if (!mesh || !material_instance) continue;
 

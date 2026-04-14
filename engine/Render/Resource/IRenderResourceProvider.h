@@ -15,12 +15,7 @@ namespace Engine {
             virtual ~IRenderResourceProvider() noexcept = default;
 
             virtual std::type_index GetTypeID() const noexcept = 0;
-            virtual RenderResourceHandle Acquire(
-                RenderResourceManager &manager,
-                RenderSystem &system,
-                GUID guid,
-                const RenderResourceAcquireContext &context
-            ) = 0;
+            virtual RenderResourceHandle Acquire(RenderResourceManager &manager, RenderSystem &system, GUID guid) = 0;
 
             virtual void *Resolve(RenderResourceManager &manager, RenderResourceHandle handle) const noexcept = 0;
 
@@ -30,7 +25,7 @@ namespace Engine {
                 RenderResourceHandle handle
             ) = 0;
 
-            virtual void OnRecordDestroy(GUID guid, uint32_t submesh_index) noexcept = 0;
+            virtual void OnRecordDestroy(GUID guid) noexcept = 0;
         };
     } // namespace RenderSystemState
 } // namespace Engine

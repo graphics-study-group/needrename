@@ -20,10 +20,9 @@ namespace Engine::RenderSystemState {
             int32_t pending_deallocation_countdown{-1};
 
             GUID guid{};
-            uint32_t submesh_index{0};
 
-            std::vector<RenderResourceHandle> dependencies;
-            std::shared_ptr<void> payload;
+            std::vector<RenderResourceHandle> dependencies{};
+            std::shared_ptr<void> payload{};
         };
 
         std::vector<ResourceRecord> records{};
@@ -64,12 +63,10 @@ namespace Engine::RenderSystemState {
 
     RenderResourceManager::~RenderResourceManager() = default;
 
-    RenderResourceHandle RenderResourceManager::AcquireByType(
-        std::type_index type_id, GUID guid, const RenderResourceAcquireContext &context
-    ) {
+    RenderResourceHandle RenderResourceManager::AcquireByType(std::type_index type_id, GUID guid) {
         auto provider_it = pimpl->providers.find(type_id);
         if (provider_it == pimpl->providers.end()) return {};
-        return provider_it->second->Acquire(*this, m_system, guid, context);
+        return provider_it->second->Acquire(*this, m_system, guid);
     }
 
     void RenderResourceManager::Release(RenderResourceHandle handle) {
@@ -103,7 +100,7 @@ namespace Engine::RenderSystemState {
 
             auto provider_it = pimpl->providers.find(record.type_id);
             if (provider_it != pimpl->providers.end()) {
-                provider_it->second->OnRecordDestroy(record.guid, record.submesh_index);
+                provider_it->second->OnRecordDestroy(record.guid);
             }
 
             record.payload.reset();
@@ -112,7 +109,6 @@ namespace Engine::RenderSystemState {
             record.refcount = 0;
             record.pending_deallocation_countdown = -1;
             record.type_id = typeid(void);
-            record.submesh_index = 0;
             record.generation += 1;
 
             pimpl->free_indices.push_back(i);
@@ -149,7 +145,6 @@ namespace Engine::RenderSystemState {
     RenderResourceHandle RenderResourceManager::CreateRecord(
         std::type_index type_id,
         GUID guid,
-        uint32_t submesh_index,
         std::shared_ptr<void> payload,
         std::vector<RenderResourceHandle> dependencies
     ) {
@@ -168,7 +163,6 @@ namespace Engine::RenderSystemState {
         record.type_id = type_id;
         record.generation = generation;
         record.guid = guid;
-        record.submesh_index = submesh_index;
         record.refcount = 1;
         record.pending_deallocation_countdown = -1;
         record.dependencies = std::move(dependencies);

@@ -10,15 +10,10 @@
 
 namespace Engine::RenderSystemState {
     std::type_index MaterialInstanceProvider::GetTypeID() const noexcept {
-        return typeid(MaterialInstance);
+        return typeid(MaterialInstance *);
     }
 
-    RenderResourceHandle MaterialInstanceProvider::Acquire(
-        RenderResourceManager &manager,
-        RenderSystem &system,
-        GUID guid,
-        const RenderResourceAcquireContext &
-    ) {
+    RenderResourceHandle MaterialInstanceProvider::Acquire(RenderResourceManager &manager, RenderSystem &system, GUID guid) {
         auto it = m_records.find(guid);
         if (it != m_records.end()) {
             auto handle = manager.TryReuseRecord(GetTypeID(), it->second);
@@ -39,7 +34,7 @@ namespace Engine::RenderSystemState {
 
         std::vector<RenderResourceHandle> dependencies;
         dependencies.push_back(library_handle);
-        auto handle = manager.CreateRecord(GetTypeID(), guid, 0, instance, std::move(dependencies));
+        auto handle = manager.CreateRecord(GetTypeID(), guid, instance, std::move(dependencies));
         m_records[guid] = handle.index;
         return handle;
     }
@@ -54,7 +49,7 @@ namespace Engine::RenderSystemState {
         return Resolve(manager, handle) != nullptr;
     }
 
-    void MaterialInstanceProvider::OnRecordDestroy(GUID guid, uint32_t) noexcept {
+    void MaterialInstanceProvider::OnRecordDestroy(GUID guid) noexcept {
         m_records.erase(guid);
     }
 } // namespace Engine::RenderSystemState

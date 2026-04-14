@@ -45,9 +45,8 @@ int main(int, char *[]) {
     auto test_mesh_asset = cmc->GetAssetManager()->CreateAsset<LowerPlaneMeshAsset>();
     auto test_mesh_asset_ref = AssetRef(test_mesh_asset);
     auto *masset = test_mesh_asset_ref.as<MeshAsset>();
-    StaticHomogeneousMesh::StaticHMeshSharedDataBlock data_block{};
-    data_block.submeshes.resize(masset->GetSubmeshCount());
-    StaticHomogeneousMesh test_mesh{0, *masset, data_block};
+    auto mesh_resource = std::make_shared<StaticMeshResource>(*masset);
+    StaticHomogeneousMesh test_mesh{0, mesh_resource};
 
     int tex_width, tex_height, tex_channel;
     std::filesystem::path image_path{ENGINE_ROOT_DIR};
@@ -62,7 +61,9 @@ int main(int, char *[]) {
     do {
 
         if (!test_mesh.IsReady()) {
-            test_mesh.Submit(render_system->GetAllocatorState(), render_system->GetFrameManager().GetSubmissionHelper());
+            mesh_resource->EnsurePrepared(
+                render_system->GetAllocatorState(), render_system->GetFrameManager().GetSubmissionHelper()
+            );
         }
 
         render_system->WaitForFrameBegin(in_flight_frame_id);

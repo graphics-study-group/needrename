@@ -13,18 +13,9 @@ namespace Engine {
     class MaterialInstance;
     class MaterialLibrary;
     class RenderSystem;
+    class StaticMeshResource;
 
     namespace RenderSystemState {
-        /**
-         * @brief Extra acquire options shared by all providers.
-         */
-        struct RenderResourceAcquireContext {
-            /// Optional submesh index for mesh-like resources.
-            uint32_t submesh_index{0};
-            /// Whether provider should eagerly prepare resource.
-            bool eagerly_loaded{false};
-        };
-
         /**
          * @brief Opaque handle for resources managed by RenderResourceManager.
          *
@@ -70,8 +61,8 @@ namespace Engine {
              * @brief Acquire/create resource by type and GUID.
              */
             template <typename T>
-            RenderResourceHandle Acquire(GUID guid, RenderResourceAcquireContext context = {}) {
-                return AcquireByType(typeid(T), guid, context);
+            RenderResourceHandle Acquire(GUID guid) {
+                return AcquireByType(typeid(T *), guid);
             }
 
             /**
@@ -79,7 +70,7 @@ namespace Engine {
              */
             template <typename T>
             T *Resolve(RenderResourceHandle handle) const noexcept {
-                return static_cast<T *>(ResolveByType(handle, typeid(T)));
+                return static_cast<T *>(ResolveByType(handle, typeid(T *)));
             }
 
             /**
@@ -87,7 +78,7 @@ namespace Engine {
              */
             template <typename T>
             bool EnsureReady(RenderResourceHandle handle) {
-                return EnsureReadyByType(handle, typeid(T));
+                return EnsureReadyByType(handle, typeid(T *));
             }
 
             /**
@@ -115,7 +106,6 @@ namespace Engine {
             RenderResourceHandle CreateRecord(
                 std::type_index type_id,
                 GUID guid,
-                uint32_t submesh_index,
                 std::shared_ptr<void> payload,
                 std::vector<RenderResourceHandle> dependencies = {}
             );
@@ -126,9 +116,7 @@ namespace Engine {
             void *ResolvePayload(RenderResourceHandle handle, std::type_index expected_type_id) const noexcept;
 
         private:
-            RenderResourceHandle AcquireByType(
-                std::type_index type_id, GUID guid, const RenderResourceAcquireContext &context
-            );
+            RenderResourceHandle AcquireByType(std::type_index type_id, GUID guid);
             void *ResolveByType(RenderResourceHandle handle, std::type_index type_id) const noexcept;
             bool EnsureReadyByType(RenderResourceHandle handle, std::type_index type_id);
         };

@@ -212,12 +212,9 @@ int main(int argc, char **argv) {
     auto test_mesh_asset = amg->CreateAsset<LowerPlaneMeshAsset>();
     auto test_mesh_asset_ref = AssetRef(test_mesh_asset);
     auto *masset = test_mesh_asset_ref.as<MeshAsset>();
-    StaticHomogeneousMesh::StaticHMeshSharedDataBlock data_block{};
-    for (size_t i = 0; i < masset->GetSubmeshCount(); i++) {
-        data_block.submeshes.emplace_back();
-    }
-    StaticHomogeneousMesh test_mesh{0, *masset, data_block};
-    test_mesh.EnsurePrepared(rsys->GetAllocatorState(), rsys->GetFrameManager().GetSubmissionHelper());
+    auto mesh_resource = std::make_shared<StaticMeshResource>(*masset);
+    StaticHomogeneousMesh test_mesh{0, mesh_resource.get()};
+    mesh_resource->EnsurePrepared(rsys->GetAllocatorState(), rsys->GetFrameManager().GetSubmissionHelper());
 
     // Submit scene data
     rsys->GetCameraManager().WriteCameraMatrices(glm::mat4{1.0f}, glm::mat4{1.0f});

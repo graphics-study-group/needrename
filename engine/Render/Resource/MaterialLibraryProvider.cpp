@@ -9,15 +9,10 @@
 
 namespace Engine::RenderSystemState {
     std::type_index MaterialLibraryProvider::GetTypeID() const noexcept {
-        return typeid(MaterialLibrary);
+        return typeid(MaterialLibrary *);
     }
 
-    RenderResourceHandle MaterialLibraryProvider::Acquire(
-        RenderResourceManager &manager,
-        RenderSystem &system,
-        GUID guid,
-        const RenderResourceAcquireContext &
-    ) {
+    RenderResourceHandle MaterialLibraryProvider::Acquire(RenderResourceManager &manager, RenderSystem &system, GUID guid) {
         auto it = m_records.find(guid);
         if (it != m_records.end()) {
             auto handle = manager.TryReuseRecord(GetTypeID(), it->second);
@@ -32,7 +27,7 @@ namespace Engine::RenderSystemState {
         auto library = std::make_shared<MaterialLibrary>(system);
         library->Instantiate(*asset);
 
-        auto handle = manager.CreateRecord(GetTypeID(), guid, 0, library);
+        auto handle = manager.CreateRecord(GetTypeID(), guid, library);
         m_records[guid] = handle.index;
         return handle;
     }
@@ -47,7 +42,7 @@ namespace Engine::RenderSystemState {
         return Resolve(manager, handle) != nullptr;
     }
 
-    void MaterialLibraryProvider::OnRecordDestroy(GUID guid, uint32_t) noexcept {
+    void MaterialLibraryProvider::OnRecordDestroy(GUID guid) noexcept {
         m_records.erase(guid);
     }
 } // namespace Engine::RenderSystemState
