@@ -216,6 +216,7 @@ namespace Engine {
         this->SetupViewport(extent.width, extent.height, scissor);
         for (const auto &rid : renderers) {
             auto material_handle = renderer_manager.GetMaterialResourceHandle(rid);
+            resource_manager.EnsureReady<MaterialInstance>(material_handle);
             auto *mesh = renderer_manager.GetRenderer(rid);
             auto *material_instance = resource_manager.Resolve<MaterialInstance>(material_handle);
             if (!mesh || !material_instance) continue;

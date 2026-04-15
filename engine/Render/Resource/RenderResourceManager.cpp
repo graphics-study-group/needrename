@@ -34,8 +34,7 @@ namespace Engine::RenderSystemState {
         }
 
         bool IsHandleValid(
-            RenderResourceHandle handle,
-            std::type_index expected_type_id = typeid(void)
+            RenderResourceHandle handle, std::type_index expected_type_id = typeid(void)
         ) const noexcept {
             if (!handle.IsValid()) return false;
             if (handle.index >= records.size()) return false;
@@ -121,12 +120,16 @@ namespace Engine::RenderSystemState {
         }
     }
 
-    void *RenderResourceManager::ResolveByType(
-        RenderResourceHandle handle, std::type_index type_id
-    ) const noexcept {
+    void *RenderResourceManager::ResolveByType(RenderResourceHandle handle, std::type_index type_id) const noexcept {
         auto provider_it = pimpl->providers.find(type_id);
         if (provider_it == pimpl->providers.end()) return nullptr;
         return provider_it->second->Resolve(const_cast<RenderResourceManager &>(*this), handle);
+    }
+
+    bool RenderResourceManager::IsReadyByType(RenderResourceHandle handle, std::type_index type_id) const noexcept {
+        auto provider_it = pimpl->providers.find(type_id);
+        if (provider_it == pimpl->providers.end()) return false;
+        return provider_it->second->IsReady(const_cast<RenderResourceManager &>(*this), m_system, handle);
     }
 
     void RenderResourceManager::EnsureReadyByType(RenderResourceHandle handle, std::type_index type_id) {
@@ -135,9 +138,7 @@ namespace Engine::RenderSystemState {
         provider_it->second->EnsureReady(*this, m_system, handle);
     }
 
-    RenderResourceHandle RenderResourceManager::TryReuseRecord(
-        std::type_index type_id, uint32_t index
-    ) noexcept {
+    RenderResourceHandle RenderResourceManager::TryReuseRecord(std::type_index type_id, uint32_t index) noexcept {
         if (index >= pimpl->records.size()) return {};
 
         auto &record = pimpl->records[index];

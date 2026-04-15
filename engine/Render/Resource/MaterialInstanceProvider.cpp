@@ -26,7 +26,9 @@ namespace Engine::RenderSystemState {
         return typeid(MaterialInstance *);
     }
 
-    RenderResourceHandle MaterialInstanceProvider::Acquire(RenderResourceManager &manager, RenderSystem &system, GUID guid) {
+    RenderResourceHandle MaterialInstanceProvider::Acquire(
+        RenderResourceManager &manager, RenderSystem &system, GUID guid
+    ) {
         auto it = m_records.find(guid);
         if (it != m_records.end()) {
             auto handle = manager.TryReuseRecord(GetTypeID(), it->second);
@@ -35,7 +37,7 @@ namespace Engine::RenderSystemState {
         }
 
         AssetRef mat_ref(guid);
-    auto *mat_asset = ResolveMaterialAsset(mat_ref, false);
+        auto *mat_asset = ResolveMaterialAsset(mat_ref, false);
         assert(mat_asset);
 
         auto library_handle = manager.Acquire<MaterialLibrary>(mat_asset->m_library.GetGUID());
@@ -82,8 +84,16 @@ namespace Engine::RenderSystemState {
         return handle;
     }
 
-    void *MaterialInstanceProvider::Resolve(RenderResourceManager &manager, RenderResourceHandle handle) const noexcept {
+    void *MaterialInstanceProvider::Resolve(
+        RenderResourceManager &manager, RenderResourceHandle handle
+    ) const noexcept {
         return manager.ResolvePayload(handle, GetTypeID());
+    }
+
+    bool MaterialInstanceProvider::IsReady(
+        RenderResourceManager &manager, RenderSystem &, RenderResourceHandle handle
+    ) const noexcept {
+        return Resolve(manager, handle) != nullptr;
     }
 
     void MaterialInstanceProvider::EnsureReady(
@@ -93,7 +103,7 @@ namespace Engine::RenderSystemState {
         // lazily during BindMaterial -> UpdateGPUInfo. Provider readiness here
         // guarantees only that the instance object and its immediate
         // dependencies exist now.
-        Resolve(manager, handle);
+        (void)Resolve(manager, handle);
     }
 
     void MaterialInstanceProvider::OnRecordDestroy(GUID guid) noexcept {

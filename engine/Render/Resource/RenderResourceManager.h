@@ -82,6 +82,14 @@ namespace Engine {
             }
 
             /**
+             * @brief Check whether a typed resource is already ready.
+             */
+            template <typename T>
+            bool IsReady(RenderResourceHandle handle) const noexcept {
+                return IsReadyByType(handle, typeid(T *));
+            }
+
+            /**
              * @brief Ensure typed resource is ready for runtime use.
              */
             template <typename T>
@@ -127,6 +135,7 @@ namespace Engine {
             RenderResourceHandle AcquireByType(std::type_index type_id, GUID guid);
             RenderResourceHandle AcquireAsyncByType(std::type_index type_id, GUID guid);
             void *ResolveByType(RenderResourceHandle handle, std::type_index type_id) const noexcept;
+            bool IsReadyByType(RenderResourceHandle handle, std::type_index type_id) const noexcept;
             void EnsureReadyByType(RenderResourceHandle handle, std::type_index type_id);
         };
     } // namespace RenderSystemState

@@ -1,10 +1,10 @@
 #include "RendererManager.h"
 
 #include "Asset/Mesh/MeshAsset.h"
-#include "Render/Renderer/StaticHomogeneousMesh.h"
-#include "Render/Resource/StaticMeshResource.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/FrameManager.h"
+#include "Render/Renderer/StaticHomogeneousMesh.h"
+#include "Render/Resource/StaticMeshResource.h"
 
 #include <SDL3/SDL.h>
 #include <memory>
@@ -29,23 +29,19 @@ namespace Engine::RenderSystemState {
         uint32_t next_handle = 0;
         std::unordered_map<RendererHandle, RendererEntry> m_data;
 
-        RendererList CreateRenderers(
+        RendererHandle CreateRenderer(
             RenderSystem &system,
             AssetRef &mesh_asset_ref,
-            const std::vector<AssetRef> &material_asset_refs,
+            AssetRef &material_asset_ref,
+            uint32_t submesh_index,
             uint32_t layer,
             bool cast_shadow,
             bool eagerly_loaded
         ) {
-            auto *masset = mesh_asset_ref.as<MeshAsset>();
-            assert(masset);
-
-            RendererList rl{};
-            rl.reserve(masset->GetSubmeshCount());
-
             auto &resource_manager = system.GetRenderResourceManager();
-            auto mesh_resource = eagerly_loaded ? resource_manager.Acquire<StaticMeshResource>(mesh_asset_ref.GetGUID())
-                                               : resource_manager.AcquireAsync<StaticMeshResource>(mesh_asset_ref.GetGUID());
+            auto mesh_resource = eagerly_loaded
+                                     ? resource_manager.Acquire<StaticMeshResource>(mesh_asset_ref.GetGUID())
+                                     : resource_manager.AcquireAsync<StaticMeshResource>(mesh_asset_ref.GetGUID());
             auto *mesh = resource_manager.Resolve<StaticMeshResource>(mesh_resource);
             assert(mesh);
 
@@ -53,22 +49,19 @@ namespace Engine::RenderSystemState {
                 resource_manager.EnsureReady<StaticMeshResource>(mesh_resource);
             }
 
-            for (size_t i = 0; i < masset->GetSubmeshCount(); i++) {
-                auto &d = m_data[next_handle];
-                d.pending_deallocation_countdown = -1;
-                d.mesh_resource = mesh_resource;
-                d.material_resource = eagerly_loaded
-                                          ? resource_manager.Acquire<MaterialInstance>(material_asset_refs[i].GetGUID())
-                                          : resource_manager.AcquireAsync<MaterialInstance>(material_asset_refs[i].GetGUID());
-                d.renderer = std::make_unique<StaticHomogeneousMesh>(static_cast<uint32_t>(i), mesh);
-                d.layer = layer;
-                d.cast_shadow = cast_shadow;
-                d.is_eagerly_loaded = eagerly_loaded;
+            auto &d = m_data[next_handle];
+            d.pending_deallocation_countdown = -1;
+            d.mesh_resource = mesh_resource;
+            d.material_resource = eagerly_loaded
+                                      ? resource_manager.Acquire<MaterialInstance>(material_asset_ref.GetGUID())
+                                      : resource_manager.AcquireAsync<MaterialInstance>(material_asset_ref.GetGUID());
+            d.renderer = std::make_unique<StaticHomogeneousMesh>(submesh_index, mesh);
+            d.layer = layer;
+            d.cast_shadow = cast_shadow;
+            d.is_eagerly_loaded = eagerly_loaded;
 
-                rl.push_back(next_handle++);
-            }
-            rl.shrink_to_fit();
-            return rl;
+            auto ret = next_handle++;
+            return ret;
         }
     };
 
@@ -76,15 +69,16 @@ namespace Engine::RenderSystemState {
     }
     RendererManager::~RendererManager() = default;
 
-    RendererList RendererManager::RegisterRenderer(
+    RendererHandle RendererManager::RegisterRenderer(
         AssetRef mesh_asset_ref,
-        const std::vector<AssetRef> &material_asset_refs,
+        AssetRef material_asset_ref,
+        uint32_t submesh_index,
         uint32_t layer,
         bool cast_shadow,
         bool eagerly_loaded
     ) {
-        return pimpl->CreateRenderers(
-            m_system, mesh_asset_ref, material_asset_refs, layer, cast_shadow, eagerly_loaded
+        return pimpl->CreateRenderer(
+            m_system, mesh_asset_ref, material_asset_ref, submesh_index, layer, cast_shadow, eagerly_loaded
         );
     }
 
@@ -131,7 +125,11 @@ namespace Engine::RenderSystemState {
                 if (entry.cast_shadow != static_cast<int>(fc.is_shadow_caster)) continue;
             }
 
-            resource_manager.EnsureReady<StaticMeshResource>(entry.mesh_resource);
+            if (!resource_manager.IsReady<StaticMeshResource>(entry.mesh_resource)) {
+                // TODO: After asynchronous resource loading is implemented, we should not 'EnsureReady' renderers with non-ready resources. 
+                // Instead, we should trigger their resource loading and include them in the filtered list, so that they can be rendered as soon as they are ready.
+                resource_manager.EnsureReady<StaticMeshResource>(entry.mesh_resource);
+            }
             filtered_renderers.insert(handle);
         }
 

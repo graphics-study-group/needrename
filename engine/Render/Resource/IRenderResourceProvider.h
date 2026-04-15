@@ -16,9 +16,22 @@ namespace Engine {
 
             virtual std::type_index GetTypeID() const noexcept = 0;
             virtual RenderResourceHandle Acquire(RenderResourceManager &manager, RenderSystem &system, GUID guid) = 0;
-            virtual RenderResourceHandle AcquireAsync(RenderResourceManager &manager, RenderSystem &system, GUID guid) = 0;
+            virtual RenderResourceHandle AcquireAsync(
+                RenderResourceManager &manager, RenderSystem &system, GUID guid
+            ) = 0;
 
             virtual void *Resolve(RenderResourceManager &manager, RenderResourceHandle handle) const noexcept = 0;
+
+            /**
+             * @brief Query whether the resource is ready for immediate consumption.
+             *
+             * Unlike EnsureReady, this method must not trigger loading or GPU
+             * submission side effects. It is intended for polling async-loaded
+             * resources and skipping work until they become ready.
+             */
+            virtual bool IsReady(
+                RenderResourceManager &manager, RenderSystem &system, RenderResourceHandle handle
+            ) const noexcept = 0;
 
             /**
              * @brief Ensure the resource is consumable by the render path.

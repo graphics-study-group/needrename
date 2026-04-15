@@ -25,7 +25,9 @@ namespace Engine::RenderSystemState {
         return typeid(MaterialLibrary *);
     }
 
-    RenderResourceHandle MaterialLibraryProvider::Acquire(RenderResourceManager &manager, RenderSystem &system, GUID guid) {
+    RenderResourceHandle MaterialLibraryProvider::Acquire(
+        RenderResourceManager &manager, RenderSystem &system, GUID guid
+    ) {
         auto it = m_records.find(guid);
         if (it != m_records.end()) {
             auto handle = manager.TryReuseRecord(GetTypeID(), it->second);
@@ -34,7 +36,7 @@ namespace Engine::RenderSystemState {
         }
 
         AssetRef ref(guid);
-    auto *asset = ResolveMaterialLibraryAsset(ref, false);
+        auto *asset = ResolveMaterialLibraryAsset(ref, false);
         assert(asset);
 
         auto library = std::make_shared<MaterialLibrary>(system);
@@ -73,13 +75,19 @@ namespace Engine::RenderSystemState {
         return manager.ResolvePayload(handle, GetTypeID());
     }
 
+    bool MaterialLibraryProvider::IsReady(
+        RenderResourceManager &manager, RenderSystem &, RenderResourceHandle handle
+    ) const noexcept {
+        return Resolve(manager, handle) != nullptr;
+    }
+
     void MaterialLibraryProvider::EnsureReady(
         RenderResourceManager &manager, RenderSystem &, RenderResourceHandle handle
     ) {
         // Material library pipelines are still created lazily in
         // MaterialLibrary::FindMaterialTemplate, but provider readiness still
         // guarantees that the library object itself is instantiated now.
-        Resolve(manager, handle);
+        (void)Resolve(manager, handle);
     }
 
     void MaterialLibraryProvider::OnRecordDestroy(GUID guid) noexcept {

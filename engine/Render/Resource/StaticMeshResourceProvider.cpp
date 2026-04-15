@@ -55,6 +55,13 @@ namespace Engine {
             return manager.ResolvePayload(handle, GetTypeID());
         }
 
+        bool StaticMeshResourceProvider::IsReady(
+            RenderResourceManager &manager, RenderSystem &, RenderResourceHandle handle
+        ) const noexcept {
+            auto *payload = static_cast<StaticMeshResource *>(manager.ResolvePayload(handle, GetTypeID()));
+            return payload != nullptr && payload->IsReady();
+        }
+
         void StaticMeshResourceProvider::EnsureReady(
             RenderResourceManager &manager, RenderSystem &system, RenderResourceHandle handle
         ) {

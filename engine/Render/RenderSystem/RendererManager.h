@@ -68,9 +68,10 @@ namespace Engine {
              * The caller MUST call Unregister() for each handle when done
              * (typically in destructor).
              */
-            RendererList RegisterRenderer(
+            RendererHandle RegisterRenderer(
                 AssetRef mesh_asset_ref,
-                const std::vector<AssetRef> &material_asset_refs,
+                AssetRef material_asset_ref,
+                uint32_t submesh_index,
                 uint32_t layer,
                 bool cast_shadow,
                 bool eagerly_loaded
