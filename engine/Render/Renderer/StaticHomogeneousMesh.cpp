@@ -46,7 +46,7 @@ namespace Engine {
     }
 
     bool StaticHomogeneousMesh::IsReady() const noexcept {
-        return m_resource && m_resource->IsReady();
+        return m_resource && m_resource->IsSubmeshReady(m_submesh_index);
     }
 
 } // namespace Engine

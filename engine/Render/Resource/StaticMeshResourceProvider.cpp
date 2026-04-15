@@ -12,7 +12,27 @@ namespace Engine {
         }
 
         RenderResourceHandle StaticMeshResourceProvider::Acquire(
-            RenderResourceManager &manager, RenderSystem &, GUID guid
+            RenderResourceManager &manager, RenderSystem &system, GUID guid
+        ) {
+            auto it = m_records.find(guid);
+            if (it != m_records.end()) {
+                auto handle = manager.TryReuseRecord(GetTypeID(), it->second);
+                if (handle.IsValid()) {
+                    EnsureReady(manager, system, handle);
+                    return handle;
+                }
+                m_records.erase(it);
+            }
+
+            auto resource = std::make_shared<StaticMeshResource>(AssetRef(guid));
+            auto handle = manager.CreateRecord(GetTypeID(), guid, resource);
+            m_records[guid] = handle.index;
+            EnsureReady(manager, system, handle);
+            return handle;
+        }
+
+        RenderResourceHandle StaticMeshResourceProvider::AcquireAsync(
+            RenderResourceManager &manager, RenderSystem &system, GUID guid
         ) {
             auto it = m_records.find(guid);
             if (it != m_records.end()) {
@@ -24,6 +44,8 @@ namespace Engine {
             auto resource = std::make_shared<StaticMeshResource>(AssetRef(guid));
             auto handle = manager.CreateRecord(GetTypeID(), guid, resource);
             m_records[guid] = handle.index;
+            // TODO: kick asynchronous GPU upload/background submit once the engine has a dedicated render-resource background job path.
+            resource->Submit(system.GetAllocatorState(), system.GetFrameManager().GetSubmissionHelper(), true);
             return handle;
         }
 
@@ -33,16 +55,15 @@ namespace Engine {
             return manager.ResolvePayload(handle, GetTypeID());
         }
 
-        bool StaticMeshResourceProvider::EnsureReady(
+        void StaticMeshResourceProvider::EnsureReady(
             RenderResourceManager &manager, RenderSystem &system, RenderResourceHandle handle
         ) {
             auto *payload = static_cast<StaticMeshResource *>(manager.ResolvePayload(handle, GetTypeID()));
-            if (!payload) return false;
+            assert(payload && "Payload should never be null for a valid handle");
 
             if (!payload->IsReady()) {
-                payload->EnsurePrepared(system.GetAllocatorState(), system.GetFrameManager().GetSubmissionHelper());
+                payload->Submit(system.GetAllocatorState(), system.GetFrameManager().GetSubmissionHelper());
             }
-            return payload->IsReady();
         }
 
         void StaticMeshResourceProvider::OnRecordDestroy(GUID guid) noexcept {

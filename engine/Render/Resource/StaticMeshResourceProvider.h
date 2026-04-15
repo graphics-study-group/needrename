@@ -14,8 +14,9 @@ namespace Engine {
         public:
             std::type_index GetTypeID() const noexcept override;
             RenderResourceHandle Acquire(RenderResourceManager &manager, RenderSystem &system, GUID guid) override;
+            RenderResourceHandle AcquireAsync(RenderResourceManager &manager, RenderSystem &system, GUID guid) override;
             void *Resolve(RenderResourceManager &manager, RenderResourceHandle handle) const noexcept override;
-            bool EnsureReady(RenderResourceManager &manager, RenderSystem &system, RenderResourceHandle handle) override;
+            void EnsureReady(RenderResourceManager &manager, RenderSystem &system, RenderResourceHandle handle) override;
             void OnRecordDestroy(GUID guid) noexcept override;
         };
     } // namespace RenderSystemState

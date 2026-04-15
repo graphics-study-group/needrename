@@ -40,13 +40,20 @@ namespace Engine {
         std::unique_ptr<StaticHMeshSharedDataBlock> m_data_block;
 
     public:
-        explicit StaticMeshResource(AssetRef mesh_asset_ref, std::unique_ptr<StaticHMeshSharedDataBlock> data_block = nullptr);
+        explicit StaticMeshResource(
+            AssetRef mesh_asset_ref, std::unique_ptr<StaticHMeshSharedDataBlock> data_block = nullptr
+        );
 
         /**
          * @brief Whether all submeshes in this resource are ready for rendering.
          * A submesh is ready if its vertex/index buffer is prepared and valid.
          */
         bool IsReady() const noexcept;
+
+        /**
+         * @brief Whether a specific submesh has already been submitted to GPU.
+         */
+        bool IsSubmeshReady(uint32_t submesh_index) const noexcept;
 
         /**
          * @brief Get the prepared data of a specific submesh in this resource.
@@ -67,8 +74,12 @@ namespace Engine {
          *
          * @param allocator_state The allocator state to use for preparing the submeshes.
          * @param submission_helper The submission helper to use for preparing the submeshes.
+         * @param async_load Whether the resource is loaded asynchronously.
+         * @return Whether the submission is successful. If false is returned, the submission will be attempted again in the next frame. This can only happen when async_load is true and the asset is not ready yet.
          */
-        void EnsurePrepared(const RenderSystemState::AllocatorState &, RenderSystemState::SubmissionHelper &);
+        bool Submit(
+            const RenderSystemState::AllocatorState &, RenderSystemState::SubmissionHelper &, bool async_load = false
+        );
     };
 } // namespace Engine
 

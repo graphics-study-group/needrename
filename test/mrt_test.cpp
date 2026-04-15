@@ -213,7 +213,7 @@ int main(int argc, char **argv) {
     auto test_mesh_asset_ref = AssetRef(test_mesh_asset);
     auto mesh_resource = std::make_shared<StaticMeshResource>(test_mesh_asset_ref);
     StaticHomogeneousMesh test_mesh{0, mesh_resource.get()};
-    mesh_resource->EnsurePrepared(rsys->GetAllocatorState(), rsys->GetFrameManager().GetSubmissionHelper());
+    mesh_resource->Submit(rsys->GetAllocatorState(), rsys->GetFrameManager().GetSubmissionHelper());
 
     // Submit scene data
     rsys->GetCameraManager().WriteCameraMatrices(glm::mat4{1.0f}, glm::mat4{1.0f});

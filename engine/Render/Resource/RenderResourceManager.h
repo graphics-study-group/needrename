@@ -66,6 +66,14 @@ namespace Engine {
             }
 
             /**
+             * @brief Acquire/create resource by type and GUID asynchronously.
+             */
+            template <typename T>
+            RenderResourceHandle AcquireAsync(GUID guid) {
+                return AcquireAsyncByType(typeid(T *), guid);
+            }
+
+            /**
              * @brief Resolve typed resource pointer from handle.
              */
             template <typename T>
@@ -77,8 +85,8 @@ namespace Engine {
              * @brief Ensure typed resource is ready for runtime use.
              */
             template <typename T>
-            bool EnsureReady(RenderResourceHandle handle) {
-                return EnsureReadyByType(handle, typeid(T *));
+            void EnsureReady(RenderResourceHandle handle) {
+                EnsureReadyByType(handle, typeid(T *));
             }
 
             /**
@@ -117,8 +125,9 @@ namespace Engine {
 
         private:
             RenderResourceHandle AcquireByType(std::type_index type_id, GUID guid);
+            RenderResourceHandle AcquireAsyncByType(std::type_index type_id, GUID guid);
             void *ResolveByType(RenderResourceHandle handle, std::type_index type_id) const noexcept;
-            bool EnsureReadyByType(RenderResourceHandle handle, std::type_index type_id);
+            void EnsureReadyByType(RenderResourceHandle handle, std::type_index type_id);
         };
     } // namespace RenderSystemState
 } // namespace Engine

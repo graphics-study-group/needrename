@@ -11,16 +11,19 @@ namespace Engine {
         if (!m_data_block) {
             m_data_block = std::make_unique<StaticHMeshSharedDataBlock>();
         }
-
-        m_mesh_asset_ref.AcquireAsync();
     }
 
     bool StaticMeshResource::IsReady() const noexcept {
         if (m_data_block->submeshes.empty()) return false;
         for (uint32_t i = 0; i < m_data_block->submeshes.size(); ++i) {
-            if (!static_cast<bool>(m_data_block->submeshes[i].vi_buffer)) return false;
+            if (!IsSubmeshReady(i)) return false;
         }
         return true;
+    }
+
+    bool StaticMeshResource::IsSubmeshReady(uint32_t submesh_index) const noexcept {
+        assert(submesh_index < m_data_block->submeshes.size());
+        return static_cast<bool>(m_data_block->submeshes[submesh_index].vi_buffer);
     }
 
     const StaticMeshResource::StaticHMeshSharedDataBlock::PerSubmeshData &StaticMeshResource::GetSubmeshData(
@@ -30,10 +33,14 @@ namespace Engine {
         return m_data_block->submeshes[submesh_index];
     }
 
-    void StaticMeshResource::EnsurePrepared(
-        const RenderSystemState::AllocatorState &allocator, RenderSystemState::SubmissionHelper &helper
+    bool StaticMeshResource::Submit(
+        const RenderSystemState::AllocatorState &allocator, RenderSystemState::SubmissionHelper &helper, bool async_load
     ) {
-        auto *mesh_asset = m_mesh_asset_ref.as<MeshAsset>();
+        auto *mesh_asset = m_mesh_asset_ref.as<MeshAsset>(async_load);
+        if (async_load && !mesh_asset) {
+            // Asset is not ready yet. Submission will be attempted again in the next frame.
+            return false;
+        }
         assert(mesh_asset);
         m_data_block->submeshes.resize(mesh_asset->GetSubmeshCount());
 
@@ -75,5 +82,6 @@ namespace Engine {
         }
 
         m_mesh_asset_ref.Release();
+        return true;
     }
 } // namespace Engine

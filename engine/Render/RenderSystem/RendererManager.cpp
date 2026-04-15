@@ -44,7 +44,8 @@ namespace Engine::RenderSystemState {
             rl.reserve(masset->GetSubmeshCount());
 
             auto &resource_manager = system.GetRenderResourceManager();
-            auto mesh_resource = resource_manager.Acquire<StaticMeshResource>(mesh_asset_ref.GetGUID());
+            auto mesh_resource = eagerly_loaded ? resource_manager.Acquire<StaticMeshResource>(mesh_asset_ref.GetGUID())
+                                               : resource_manager.AcquireAsync<StaticMeshResource>(mesh_asset_ref.GetGUID());
             auto *mesh = resource_manager.Resolve<StaticMeshResource>(mesh_resource);
             assert(mesh);
 
@@ -56,7 +57,9 @@ namespace Engine::RenderSystemState {
                 auto &d = m_data[next_handle];
                 d.pending_deallocation_countdown = -1;
                 d.mesh_resource = mesh_resource;
-                d.material_resource = resource_manager.Acquire<MaterialInstance>(material_asset_refs[i].GetGUID());
+                d.material_resource = eagerly_loaded
+                                          ? resource_manager.Acquire<MaterialInstance>(material_asset_refs[i].GetGUID())
+                                          : resource_manager.AcquireAsync<MaterialInstance>(material_asset_refs[i].GetGUID());
                 d.renderer = std::make_unique<StaticHomogeneousMesh>(static_cast<uint32_t>(i), mesh);
                 d.layer = layer;
                 d.cast_shadow = cast_shadow;
@@ -128,7 +131,7 @@ namespace Engine::RenderSystemState {
                 if (entry.cast_shadow != static_cast<int>(fc.is_shadow_caster)) continue;
             }
 
-            if (!resource_manager.EnsureReady<StaticMeshResource>(entry.mesh_resource)) continue;
+            resource_manager.EnsureReady<StaticMeshResource>(entry.mesh_resource);
             filtered_renderers.insert(handle);
         }
 

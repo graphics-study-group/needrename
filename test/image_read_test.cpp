@@ -60,7 +60,7 @@ int main(int, char *[]) {
     do {
 
         if (!test_mesh.IsReady()) {
-            mesh_resource->EnsurePrepared(
+            mesh_resource->Submit(
                 render_system->GetAllocatorState(), render_system->GetFrameManager().GetSubmissionHelper()
             );
         }

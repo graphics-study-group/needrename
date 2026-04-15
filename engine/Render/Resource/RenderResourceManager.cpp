@@ -69,6 +69,12 @@ namespace Engine::RenderSystemState {
         return provider_it->second->Acquire(*this, m_system, guid);
     }
 
+    RenderResourceHandle RenderResourceManager::AcquireAsyncByType(std::type_index type_id, GUID guid) {
+        auto provider_it = pimpl->providers.find(type_id);
+        if (provider_it == pimpl->providers.end()) return {};
+        return provider_it->second->AcquireAsync(*this, m_system, guid);
+    }
+
     void RenderResourceManager::Release(RenderResourceHandle handle) {
         if (!pimpl->IsHandleValid(handle)) {
             return;
@@ -123,10 +129,10 @@ namespace Engine::RenderSystemState {
         return provider_it->second->Resolve(const_cast<RenderResourceManager &>(*this), handle);
     }
 
-    bool RenderResourceManager::EnsureReadyByType(RenderResourceHandle handle, std::type_index type_id) {
+    void RenderResourceManager::EnsureReadyByType(RenderResourceHandle handle, std::type_index type_id) {
         auto provider_it = pimpl->providers.find(type_id);
-        if (provider_it == pimpl->providers.end()) return false;
-        return provider_it->second->EnsureReady(*this, m_system, handle);
+        if (provider_it == pimpl->providers.end()) return;
+        provider_it->second->EnsureReady(*this, m_system, handle);
     }
 
     RenderResourceHandle RenderResourceManager::TryReuseRecord(

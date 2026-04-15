@@ -16,15 +16,19 @@ namespace Engine {
 
             virtual std::type_index GetTypeID() const noexcept = 0;
             virtual RenderResourceHandle Acquire(RenderResourceManager &manager, RenderSystem &system, GUID guid) = 0;
+            virtual RenderResourceHandle AcquireAsync(RenderResourceManager &manager, RenderSystem &system, GUID guid) = 0;
 
             virtual void *Resolve(RenderResourceManager &manager, RenderResourceHandle handle) const noexcept = 0;
 
             /**
              * @brief Ensure the resource is consumable by the render path.
              *
-             * Some resource types, such as StaticMeshResource, perform a true GPU upload or residency step here. 
+             * This operation is the synchronous fallback that forces all
+             * provider-owned prerequisites to become available immediately.
+             * For example, a provider may need to force AssetRef to complete a
+             * load and then submit GPU uploads before returning.
              */
-            virtual bool EnsureReady(
+            virtual void EnsureReady(
                 RenderResourceManager &manager, RenderSystem &system, RenderResourceHandle handle
             ) = 0;
 
