@@ -13,8 +13,7 @@ namespace vk {
 }
 
 namespace Engine {
-    class AssetRef;
-    class IVertexBasedRenderer;
+    class RuntimeRenderer;
     class RenderSystem;
 
     namespace RenderSystemState {
@@ -63,19 +62,12 @@ namespace Engine {
             ~RendererManager();
 
             /**
-             * @brief Register a new renderer. Returns handles for the caller to manage.
+             * @brief Register a runtime renderer object and transfer ownership.
              *
-             * The caller MUST call Unregister() for each handle when done
+             * The caller MUST call Unregister() for returned handle when done
              * (typically in destructor).
              */
-            RendererHandle RegisterRenderer(
-                AssetRef mesh_asset_ref,
-                AssetRef material_asset_ref,
-                uint32_t submesh_index,
-                uint32_t layer,
-                bool cast_shadow,
-                bool eagerly_loaded
-            );
+            RendererHandle RegisterRenderer(std::unique_ptr<RuntimeRenderer> renderer);
 
             /**
              * @brief Mark a renderer for deferred deallocation.
@@ -99,8 +91,8 @@ namespace Engine {
              */
             RendererList FilterAndSortRenderers(FilterCriteria fc, SortingCriterion sc = SortingCriterion::None);
 
-            /// @brief Get the renderer view used for draw submission.
-            const IVertexBasedRenderer *GetRenderer(RendererHandle handle) const noexcept;
+            /// @brief Get runtime renderer used for draw submission.
+            const RuntimeRenderer *GetRenderer(RendererHandle handle) const noexcept;
 
             /// @brief Get the resource handle of the material payload.
             RenderResourceHandle GetMaterialResourceHandle(RendererHandle handle) const noexcept;

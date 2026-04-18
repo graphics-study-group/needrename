@@ -9,7 +9,6 @@
 #include <vector>
 
 namespace Engine {
-    class IVertexBasedRenderer;
     class MaterialInstance;
     class MaterialLibrary;
     class RenderSystem;

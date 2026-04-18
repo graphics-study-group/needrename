@@ -11,7 +11,7 @@
 #include "Render/RenderSystem/RendererManager.h"
 #include "Render/RenderSystem/Swapchain.h"
 #include "Render/Renderer/Camera.h"
-#include "Render/Renderer/IVertexBasedRenderer.h"
+#include "Render/Renderer/RuntimeRenderer.h"
 #include "Render/Renderer/VertexAttribute.h"
 
 #include "Render/DebugUtils.h"
@@ -161,12 +161,12 @@ namespace Engine {
         cb.setScissor(0, 1, &scissor);
     }
 
-    void GraphicsCommandBuffer::DrawMesh(const IVertexBasedRenderer &mesh, const glm::mat4 &model_matrix) {
+    void GraphicsCommandBuffer::DrawMesh(const RuntimeRenderer &mesh, const glm::mat4 &model_matrix) {
         this->DrawMesh(mesh, model_matrix, m_system.GetCameraManager().GetActiveCameraIndex());
     }
 
     void GraphicsCommandBuffer::DrawMesh(
-        const IVertexBasedRenderer &mesh, const glm::mat4 &model_matrix, int32_t camera_index
+        const RuntimeRenderer &mesh, const glm::mat4 &model_matrix, int32_t camera_index
     ) {
         auto bindings = mesh.GetVertexAttributeBufferBindings();
         std::vector<vk::DeviceSize> offsets{};
@@ -240,7 +240,7 @@ namespace Engine {
         m_pripr = {};
     }
 
-    void GraphicsCommandBuffer::DrawMesh(const IVertexBasedRenderer &mesh) {
+    void GraphicsCommandBuffer::DrawMesh(const RuntimeRenderer &mesh) {
         this->DrawMesh(mesh, glm::mat4{1.0f});
     }
 

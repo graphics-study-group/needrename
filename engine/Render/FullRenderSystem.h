@@ -42,7 +42,6 @@
 #include "Render/Pipeline/Material/Templates/BlinnPhong.h"
 
 #include "Render/Renderer/Camera.h"
-#include "Render/Renderer/StaticHomogeneousMesh.h"
 #include "Render/Renderer/VertexAttribute.h"
 
 #include "Render/Memory/MemoryAccessTypes.h"

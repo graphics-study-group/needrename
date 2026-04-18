@@ -11,7 +11,7 @@
 #include "Framework/component/RenderComponent/StaticMeshComponent.h"
 #include "MainClass.h"
 #include "Render/FullRenderSystem.h"
-#include "Render/Renderer/StaticHomogeneousMesh.h"
+#include "Render/Renderer/AssetSubmeshRenderer.h"
 #include "UserInterface/GUISystem.h"
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 
@@ -90,7 +90,7 @@ auto BuildRenderGraph(
     RenderTargetTexture *color,
     RenderTargetTexture *depth,
     MaterialInstance *material,
-    IVertexBasedRenderer *mesh,
+    RuntimeRenderer *mesh,
     RenderTargetTexture *blurred = nullptr,
     ComputeStage *kernel = nullptr,
     ComputeResourceBinding *kbinding = nullptr
@@ -216,8 +216,8 @@ int main(int argc, char **argv) {
     auto test_mesh_asset = am->CreateAsset<LowerPlaneMeshAsset>();
     auto test_mesh_asset_ref = AssetRef(test_mesh_asset);
     auto mesh_resource = std::make_shared<StaticMeshResource>(test_mesh_asset_ref);
-    StaticHomogeneousMesh test_mesh{0, mesh_resource.get()};
     mesh_resource->Submit(rsys->GetAllocatorState(), rsys->GetFrameManager().GetSubmissionHelper());
+    AssetSubmeshRenderer test_mesh{0, mesh_resource.get()};
 
     // Submit scene data
     rsys->GetCameraManager().WriteCameraMatrices(glm::mat4{1.0f}, glm::mat4{1.0f});

@@ -20,7 +20,7 @@ namespace Engine {
     class MaterialInstance;
     class DeviceBuffer;
     class VertexAttribute;
-    class IVertexBasedRenderer;
+    class RuntimeRenderer;
 
     namespace RenderSystemState {
         class SceneDataManager;
@@ -127,9 +127,9 @@ namespace Engine {
          * Write per-mesh data, and send draw call to GPU.
          * Does not do any extra stuff such as setting up viewports.
          */
-        void DrawMesh(const IVertexBasedRenderer &mesh, const glm::mat4 &model_matrix, int32_t camera_index);
-        void DrawMesh(const IVertexBasedRenderer &mesh, const glm::mat4 &model_matrix);
-        void DrawMesh(const IVertexBasedRenderer &mesh);
+        void DrawMesh(const RuntimeRenderer &mesh, const glm::mat4 &model_matrix, int32_t camera_index);
+        void DrawMesh(const RuntimeRenderer &mesh, const glm::mat4 &model_matrix);
+        void DrawMesh(const RuntimeRenderer &mesh);
 
         /**
          * @brief Draw renderers in the RendererList with specified pass index.

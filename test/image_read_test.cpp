@@ -16,6 +16,7 @@
 #include "Asset/Mesh/PlaneMeshAsset.h"
 
 #include "Render/FullRenderSystem.h"
+#include "Render/Renderer/AssetSubmeshRenderer.h"
 
 using namespace Engine;
 
@@ -45,7 +46,8 @@ int main(int, char *[]) {
     auto test_mesh_asset = cmc->GetAssetManager()->CreateAsset<LowerPlaneMeshAsset>();
     auto test_mesh_asset_ref = AssetRef(test_mesh_asset);
     auto mesh_resource = std::make_shared<StaticMeshResource>(test_mesh_asset_ref);
-    StaticHomogeneousMesh test_mesh{0, mesh_resource.get()};
+    mesh_resource->Submit(render_system->GetAllocatorState(), render_system->GetFrameManager().GetSubmissionHelper());
+    AssetSubmeshRenderer test_mesh{0, mesh_resource.get()};
 
     int tex_width, tex_height, tex_channel;
     std::filesystem::path image_path{ENGINE_ROOT_DIR};
@@ -60,9 +62,7 @@ int main(int, char *[]) {
     do {
 
         if (!test_mesh.IsReady()) {
-            mesh_resource->Submit(
-                render_system->GetAllocatorState(), render_system->GetFrameManager().GetSubmissionHelper()
-            );
+            continue;
         }
 
         render_system->WaitForFrameBegin(in_flight_frame_id);
