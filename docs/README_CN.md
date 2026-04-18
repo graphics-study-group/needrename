@@ -13,6 +13,7 @@
 - Python 3
 - Vulkan SDK 1.3 或更高版本（已在 1.4.313 上测试）
 - SDL3（已在 3.2.18 上测试）
+- clang-format 20
 
 其他第三方依赖可在 `third_party` 目录中找到。
 
@@ -30,6 +31,16 @@ SDL3 也建议手动安装。
 - 新增环境变量 `SDL3_DIR`，指向 `SDL3-3.X.XX\cmake`
 - 在 `PATH` 中添加 `SDL3-3.X.XX\x86_64-w64-mingw32\bin`
 CMake 应能自动检测。
+
+### Git 配置
+
+克隆前，请禁用 Git 的自动换行符转换，以避免 CI 格式检查失败：
+
+```sh
+git config --global core.autocrlf false
+```
+
+此存储库存储了所有以 CRLF 行尾格式存储的源文件。在Windows上启用 `core.autocrlf` 会导致开发人员无法识别存储库中以 LF 格式错误存储的文件，从而导致 `clang-format` 检测不通过。
 
 ### 构建步骤
 
