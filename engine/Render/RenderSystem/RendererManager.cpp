@@ -126,7 +126,7 @@ namespace Engine::RenderSystemState {
             }
 
             if (!resource_manager.IsReady<StaticMeshResource>(entry.mesh_resource)) {
-                // TODO: After asynchronous resource loading is implemented, we should not 'EnsureReady' renderers with non-ready resources. 
+                // TODO: After asynchronous resource loading is implemented, we should not 'EnsureReady' renderers with non-ready resources.
                 // Instead, we should trigger their resource loading and include them in the filtered list, so that they can be rendered as soon as they are ready.
                 resource_manager.EnsureReady<StaticMeshResource>(entry.mesh_resource);
             }
