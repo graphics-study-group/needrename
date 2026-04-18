@@ -5,8 +5,8 @@
 #include "MaterialTemplate.h"
 #include "Render/Memory/DeviceBuffer.h"
 
-#include <glm.hpp>
 #include <any>
+#include <glm.hpp>
 
 namespace Engine {
     class Texture;

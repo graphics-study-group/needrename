@@ -99,7 +99,7 @@ namespace Engine {
 
     public:
         AssetRef m_skybox_material{};
-    
+
     private:
         /// @brief Filter light components and update the light data.
         /// TODO: need futher discussion. Did not use the light manager in scene data manager for now.
