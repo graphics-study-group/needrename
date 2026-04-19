@@ -33,6 +33,15 @@ namespace Engine::RenderSystemState {
             return RenderResourceHandle{index, record.generation, record.type_id};
         }
 
+        /**
+         * @brief Check whether a handle is valid and optionally matches expected provider type.
+         * Validation goals:
+         * 1) reject structurally invalid/sentinel handles,
+         * 2) reject out-of-range slot access,
+         * 3) reject stale handles after slot reuse (generation check),
+         * 4) reject type confusion across providers,
+         * 5) ensure payload is still alive.
+         */
         bool IsHandleValid(
             RenderResourceHandle handle, std::type_index expected_type_id = typeid(void)
         ) const noexcept {
@@ -40,9 +49,13 @@ namespace Engine::RenderSystemState {
             if (handle.index >= records.size()) return false;
 
             const auto &record = records[handle.index];
+            // Handle and record must agree on provider identity.
             if (record.type_id != handle.type_id) return false;
+            // Critical stale-handle guard: same index is insufficient when slots are recycled.
             if (record.generation != handle.generation) return false;
+            // Null payload means record is retired/uninitialized and cannot be resolved.
             if (record.payload == nullptr) return false;
+            // Optional call-site type contract (e.g. Resolve<T>/IsReady<T> expected provider).
             if (expected_type_id != typeid(void) && record.type_id != expected_type_id) return false;
             return true;
         }
@@ -72,6 +85,12 @@ namespace Engine::RenderSystemState {
         auto provider_it = pimpl->providers.find(type_id);
         if (provider_it == pimpl->providers.end()) return {};
         return provider_it->second->AcquireAsync(*this, m_system, guid);
+    }
+
+    bool RenderResourceManager::IsHandleValid(
+        RenderResourceHandle handle, std::type_index expected_type_id
+    ) const noexcept {
+        return pimpl->IsHandleValid(handle, expected_type_id);
     }
 
     void RenderResourceManager::Release(RenderResourceHandle handle) {

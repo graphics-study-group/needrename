@@ -20,17 +20,31 @@ namespace Engine {
          * @brief Opaque handle for resources managed by RenderResourceManager.
          *
          * A handle is valid only if index/generation/type_id matches a live record.
+         *
+         * Design rationale:
+         * - index identifies the slot in manager-owned record storage for O(1) lookup.
+         * - generation is a per-slot version to reject stale handles after slot reuse.
+         * - type_id prevents resolving a handle through the wrong provider/payload type.
+         *
+         * Why index + generation are both needed:
+         * - Slots are recycled after deferred reclamation.
+         * - A stale handle may still carry a valid historical index.
+         * - generation mismatch lets us distinguish "same slot" from "same resource".
          */
         struct RenderResourceHandle {
             /// Index into resource record storage.
             uint32_t index{0xFFFFFFFFu};
-            /// Generation used to detect stale handles.
+            /// Slot version used to detect stale handles after slot reuse.
             uint32_t generation{0};
-            /// Runtime provider type id for safe resolve.
+            /// Runtime provider/payload identity for type-safe resolve.
             std::type_index type_id{typeid(void)};
 
             /**
              * @brief Check whether this handle is structurally valid.
+             *
+             * This only validates local sentinel state (not liveness).
+             * Full liveness/type/version validation is performed by
+             * RenderResourceManager::IsHandleValid.
              */
             bool IsValid() const noexcept {
                 return type_id != std::type_index(typeid(void)) && index != 0xFFFFFFFFu;
@@ -155,6 +169,25 @@ namespace Engine {
             void EnsureReady(RenderResourceHandle handle) {
                 EnsureReadyByType(handle, typeid(T *));
             }
+
+            /**
+             * @brief Validate whether a handle currently points to a live record.
+             *
+             * Validation includes:
+             * - structural handle validity,
+             * - index range check,
+             * - provider/type identity match,
+             * - generation match to reject stale handles,
+             * - non-null payload liveness.
+             *
+             * @param handle Resource handle to validate.
+             * @param expected_type_id Optional call-site expected provider type.
+             *        Pass typeid(void) to skip expected-type constraint.
+             * @return True when handle resolves to a currently live record.
+             */
+            bool IsHandleValid(
+                RenderResourceHandle handle, std::type_index expected_type_id = typeid(void)
+            ) const noexcept;
 
             /**
              * @brief Decrease strong reference count of a resource handle.
