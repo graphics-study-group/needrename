@@ -13,14 +13,15 @@ An unnamed game engine with advanced features including Vulkan-based rendering, 
 - Python 3
 - Vulkan SDK 1.3 or greater (Tested on 1.4.313)
 - SDL3 (Tested on 3.2.18)
-- clang-format 18 or greater (required for code formatting; must be on `PATH`)
 
 Other vendored dependencies can be found in the `third_party` directory.
 
 When working on Windows, use of MSYS2 is suggested. You can set up the environment with
+
 ```sh
 pacman -S mingw-w64-ucrt-x86_64-toolchain mingw-w64-ucrt-x86_64-cmake
 ```
+
 which installs GCC and CMake for the UCRT64 subsystem.
 
 Vulkan SDK should be downloaded and installed from LunarG, but *not* from MSYS2 repo with `pacman`, which misses some components and is difficult to integrate with CMake.
@@ -28,24 +29,17 @@ Vulkan SDK should be downloaded and installed from LunarG, but *not* from MSYS2 
 It is suggested that SDL3 should also be installed manually.
 You can fetch it from [its release page](https://github.com/libsdl-org/SDL/releases/).
 Pick `SDL3-devel-3.X.XX-mingw.tar.gz`, extract it somewhere, and:
+
 - Add a new environment variable `SDL3_DIR` pointing to `SDL3-3.X.XX\cmake`.
 - Add a `PATH` entry pointing to `SDL3-3.X.XX\x86_64-w64-mingw32\bin`.
+
 CMake should be able to detect it automatically.
-
-### Git Configuration
-
-Before cloning, disable Git's automatic line-ending conversion to avoid CI formatting failures:
-
-```sh
-git config --global core.autocrlf false
-```
-
-This repository stores all source files with CRLF line endings. Enabling `core.autocrlf` on Windows makes developers failed to recognizing files that are incorrectly stored in LF format in the repository, which will cause `clang-format` checks to fail.
 
 ### Build Steps
 
 1. `git clone` this repository (with `--recursive` flag)
 2. Configure and build project (with Vulkan SDK installed) using cmake. Out-of-source build is preferred:
+
 ```sh
 mkdir build
 cd build
