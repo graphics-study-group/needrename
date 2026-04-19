@@ -6,7 +6,7 @@
 #include "Render/Memory/DeviceBuffer.h"
 
 #include <any>
-#include <glm.hpp>
+#include <fwd.hpp>
 
 namespace Engine {
     class Texture;
