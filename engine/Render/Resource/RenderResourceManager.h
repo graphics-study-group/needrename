@@ -53,6 +53,21 @@ namespace Engine {
          *
          * Handles are opaque tokens; payload ownership and type-specific
          * readiness logic stay inside each provider.
+         *
+         * Garbage collection model (deferred reference-count reclamation):
+         * - Records use strong refcount semantics.
+         * - Release() only marks records for retirement when refcount reaches 0;
+         *   actual destruction is delayed by FrameManager::FRAMES_IN_FLIGHT.
+         * - TickFrame() performs deferred reclamation once countdown reaches 0,
+         *   releases dependency handles, notifies provider via OnRecordDestroy,
+         *   clears payload, and recycles the slot index.
+         * - If a record is reused before reclamation (TryReuseRecord), pending
+         *   retirement is canceled and the record becomes live again.
+         *
+         * Why deferred reclamation is required:
+         * command buffers submitted in previous frames may still reference
+         * provider-owned GPU resources. Delaying destruction avoids use-after-free
+         * against in-flight GPU work.
          */
         class RenderResourceManager final {
         private:
@@ -144,12 +159,24 @@ namespace Engine {
             /**
              * @brief Decrease strong reference count of a resource handle.
              *
-             * Actual destruction is delayed by frame-in-flight policy.
+             * Semantics:
+             * - Invalid/stale handles are ignored.
+             * - When refcount reaches 0, the record enters pending-retirement
+             *   state with a countdown of FrameManager::FRAMES_IN_FLIGHT.
+             * - Payload is not destroyed immediately; final reclamation happens
+             *   in TickFrame().
              */
             void Release(RenderResourceHandle handle);
 
             /**
-             * @brief Advance one frame for deferred reclamation.
+             * @brief Advance one frame for deferred garbage collection.
+             *
+             * This function should be called once per frame by RenderSystem.
+             * For each pending-retirement record whose countdown reaches 0:
+             * - release dependency handles,
+             * - notify provider to clear its GUID->record mapping,
+             * - clear record payload/state,
+             * - increment generation and recycle slot index.
              */
             void TickFrame();
 
@@ -157,6 +184,8 @@ namespace Engine {
              * @brief Try to reuse an existing record known by a provider.
              *
              * Returns an invalid handle if the record is stale or type mismatched.
+             * When reuse succeeds, refcount is incremented and any pending
+             * retirement countdown is canceled.
              */
             RenderResourceHandle TryReuseRecord(std::type_index type_id, uint32_t index) noexcept;
 

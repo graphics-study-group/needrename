@@ -52,7 +52,7 @@ namespace Engine {
              */
             void EnqueueBufferSubmissionVertex(const DeviceBuffer &vertex_buffer, const std::vector<std::byte> &data);
 
-            /***
+            /**
              * @brief Enqueue a texture buffer submission. Record corresponding image
              * barriers and buffer writes to a disposable command buffer.
              *

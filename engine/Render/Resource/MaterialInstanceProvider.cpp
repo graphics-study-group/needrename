@@ -96,10 +96,6 @@ namespace Engine::RenderSystemState {
     void MaterialInstanceProvider::EnsureReady(
         RenderResourceManager &manager, RenderSystem &, RenderResourceHandle handle
     ) {
-        // Material instance descriptor allocation and UBO updates still happen
-        // lazily during BindMaterial -> UpdateGPUInfo. Provider readiness here
-        // guarantees only that the instance object and its immediate
-        // dependencies exist now.
         (void)Resolve(manager, handle);
     }
 

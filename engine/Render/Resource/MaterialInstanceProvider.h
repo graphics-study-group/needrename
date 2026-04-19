@@ -53,8 +53,8 @@ namespace Engine::RenderSystemState {
         /**
          * @brief Synchronous readiness barrier for instance object.
          *
-         * Descriptor updates and some GPU-facing state can still be lazily
-         * materialized during BindMaterial path.
+         * Material instance descriptor allocation and UBO updates still happen lazily during BindMaterial -> UpdateGPUInfo. 
+         * Provider readiness here guarantees only that the instance object and its immediate dependencies exist now.
          */
         void EnsureReady(RenderResourceManager &manager, RenderSystem &system, RenderResourceHandle handle) override;
 
