@@ -14,9 +14,6 @@ namespace Engine::RenderSystemState {
             auto *asset = ref.as<MaterialAsset>(async_load);
             if (asset || !async_load) return asset;
 
-            if (ref.IsAcquired()) {
-                ref.Release();
-            }
             ref.Acquire();
             return ref.as<MaterialAsset>(false);
         }
