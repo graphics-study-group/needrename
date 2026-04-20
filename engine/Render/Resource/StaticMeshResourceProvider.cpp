@@ -14,19 +14,14 @@ namespace Engine {
         RenderResourceHandle StaticMeshResourceProvider::Acquire(
             RenderResourceManager &manager, RenderSystem &system, GUID guid
         ) {
-            auto it = m_records.find(guid);
-            if (it != m_records.end()) {
-                auto handle = manager.TryReuseRecord(GetTypeID(), it->second);
-                if (handle.IsValid()) {
-                    EnsureReady(manager, system, handle);
-                    return handle;
-                }
-                m_records.erase(it);
+            auto handle = manager.TryReuseRecordByGUID(GetTypeID(), guid);
+            if (handle.IsValid()) {
+                EnsureReady(manager, system, handle);
+                return handle;
             }
 
             auto resource = std::make_shared<StaticMeshResource>(AssetRef(guid));
-            auto handle = manager.CreateRecord(GetTypeID(), guid, resource);
-            m_records[guid] = handle.index;
+            handle = manager.CreateRecord(GetTypeID(), guid, resource);
             EnsureReady(manager, system, handle);
             return handle;
         }
@@ -34,16 +29,11 @@ namespace Engine {
         RenderResourceHandle StaticMeshResourceProvider::AcquireAsync(
             RenderResourceManager &manager, RenderSystem &system, GUID guid
         ) {
-            auto it = m_records.find(guid);
-            if (it != m_records.end()) {
-                auto handle = manager.TryReuseRecord(GetTypeID(), it->second);
-                if (handle.IsValid()) return handle;
-                m_records.erase(it);
-            }
+            auto handle = manager.TryReuseRecordByGUID(GetTypeID(), guid);
+            if (handle.IsValid()) return handle;
 
             auto resource = std::make_shared<StaticMeshResource>(AssetRef(guid));
-            auto handle = manager.CreateRecord(GetTypeID(), guid, resource);
-            m_records[guid] = handle.index;
+            handle = manager.CreateRecord(GetTypeID(), guid, resource);
             // TODO: kick asynchronous GPU upload/background submit once the engine has a dedicated render-resource background job path.
             resource->Submit(system.GetAllocatorState(), system.GetFrameManager().GetSubmissionHelper(), true);
             return handle;
@@ -73,8 +63,7 @@ namespace Engine {
             }
         }
 
-        void StaticMeshResourceProvider::OnRecordDestroy(GUID guid) noexcept {
-            m_records.erase(guid);
+        void StaticMeshResourceProvider::OnRecordDestroy(RenderResourceManager &, RenderResourceHandle) noexcept {
         }
     } // namespace RenderSystemState
 } // namespace Engine

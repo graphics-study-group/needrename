@@ -3,19 +3,13 @@
 
 #include "IRenderResourceProvider.h"
 
-#include <unordered_map>
-
 namespace Engine::RenderSystemState {
     /**
      * @brief Provider for MaterialLibrary render resources.
      *
-     * GUID maps to a MaterialLibraryAsset; payload is an instantiated
-     * MaterialLibrary object. Internal m_records caches GUID -> record index
-     * for fast reuse.
+     * GUID maps to a MaterialLibraryAsset; payload is an instantiated MaterialLibrary object.
      */
     class MaterialLibraryProvider final : public IRenderResourceProvider {
-        std::unordered_map<GUID, uint32_t> m_records{};
-
     public:
         /**
          * @brief Provider dispatch key, typeid(MaterialLibrary*).
@@ -59,9 +53,9 @@ namespace Engine::RenderSystemState {
         void EnsureReady(RenderResourceManager &manager, RenderSystem &system, RenderResourceHandle handle) override;
 
         /**
-         * @brief Forget GUID mapping after record destruction.
+         * @brief Hook for provider-specific cleanup before record reclamation.
          */
-        void OnRecordDestroy(GUID guid) noexcept override;
+        void OnRecordDestroy(RenderResourceManager &manager, RenderResourceHandle handle) noexcept override;
     };
 } // namespace Engine::RenderSystemState
 

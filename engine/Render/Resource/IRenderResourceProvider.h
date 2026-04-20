@@ -17,7 +17,7 @@ namespace Engine {
          * - resolve payload pointers
          * - report readiness without side effects
          * - synchronously force readiness when requested
-         * - clear internal GUID -> record bookkeeping on destruction
+         * - release provider-owned dependencies on destruction
          */
         class IRenderResourceProvider {
         public:
@@ -80,11 +80,12 @@ namespace Engine {
             ) = 0;
 
             /**
-             * @brief Notify provider that a GUID record was destroyed.
+             * @brief Notify provider that a record is being destroyed.
              *
-             * Providers should use this to remove stale internal lookup state.
+             * Called before manager clears payload and recycles slot so provider
+             * can release provider-owned dependency handles.
              */
-            virtual void OnRecordDestroy(GUID guid) noexcept = 0;
+            virtual void OnRecordDestroy(RenderResourceManager &manager, RenderResourceHandle handle) noexcept = 0;
         };
     } // namespace RenderSystemState
 } // namespace Engine

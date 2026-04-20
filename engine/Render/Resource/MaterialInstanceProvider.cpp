@@ -26,12 +26,8 @@ namespace Engine::RenderSystemState {
     RenderResourceHandle MaterialInstanceProvider::Acquire(
         RenderResourceManager &manager, RenderSystem &system, GUID guid
     ) {
-        auto it = m_records.find(guid);
-        if (it != m_records.end()) {
-            auto handle = manager.TryReuseRecord(GetTypeID(), it->second);
-            if (handle.IsValid()) return handle;
-            m_records.erase(it);
-        }
+        auto handle = manager.TryReuseRecordByGUID(GetTypeID(), guid);
+        if (handle.IsValid()) return handle;
 
         AssetRef mat_ref(guid);
         auto *mat_asset = ResolveMaterialAsset(mat_ref, false);
@@ -44,22 +40,16 @@ namespace Engine::RenderSystemState {
         auto instance = std::make_shared<MaterialInstance>(system, *library);
         instance->Instantiate(*mat_asset);
 
-        std::vector<RenderResourceHandle> dependencies;
-        dependencies.push_back(library_handle);
-        auto handle = manager.CreateRecord(GetTypeID(), guid, instance, std::move(dependencies));
-        m_records[guid] = handle.index;
+        handle = manager.CreateRecord(GetTypeID(), guid, instance);
+        m_dependencies[handle.index] = {library_handle};
         return handle;
     }
 
     RenderResourceHandle MaterialInstanceProvider::AcquireAsync(
         RenderResourceManager &manager, RenderSystem &system, GUID guid
     ) {
-        auto it = m_records.find(guid);
-        if (it != m_records.end()) {
-            auto handle = manager.TryReuseRecord(GetTypeID(), it->second);
-            if (handle.IsValid()) return handle;
-            m_records.erase(it);
-        }
+        auto handle = manager.TryReuseRecordByGUID(GetTypeID(), guid);
+        if (handle.IsValid()) return handle;
 
         AssetRef mat_ref(guid);
         auto *mat_asset = ResolveMaterialAsset(mat_ref, true);
@@ -74,10 +64,8 @@ namespace Engine::RenderSystemState {
         auto instance = std::make_shared<MaterialInstance>(system, *library);
         instance->Instantiate(*mat_asset);
 
-        std::vector<RenderResourceHandle> dependencies;
-        dependencies.push_back(library_handle);
-        auto handle = manager.CreateRecord(GetTypeID(), guid, instance, std::move(dependencies));
-        m_records[guid] = handle.index;
+        handle = manager.CreateRecord(GetTypeID(), guid, instance);
+        m_dependencies[handle.index] = {library_handle};
         return handle;
     }
 
@@ -99,7 +87,15 @@ namespace Engine::RenderSystemState {
         (void)Resolve(manager, handle);
     }
 
-    void MaterialInstanceProvider::OnRecordDestroy(GUID guid) noexcept {
-        m_records.erase(guid);
+    void MaterialInstanceProvider::OnRecordDestroy(
+        RenderResourceManager &manager, RenderResourceHandle handle
+    ) noexcept {
+        auto it = m_dependencies.find(handle.index);
+        if (it == m_dependencies.end()) return;
+
+        for (auto dep : it->second) {
+            manager.Release(dep);
+        }
+        m_dependencies.erase(it);
     }
 } // namespace Engine::RenderSystemState

@@ -7,6 +7,7 @@
 #include "Render/RenderSystem/FrameManager.h"
 #include "StaticMeshResourceProvider.h"
 
+#include <cassert>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -21,12 +22,12 @@ namespace Engine::RenderSystemState {
 
             GUID guid{};
 
-            std::vector<RenderResourceHandle> dependencies{};
             std::shared_ptr<void> payload{};
         };
 
         std::vector<ResourceRecord> records{};
         std::vector<uint32_t> free_indices{};
+        std::unordered_map<GUID, uint32_t> guid_to_record_index{};
         std::unordered_map<std::type_index, std::unique_ptr<IRenderResourceProvider>> providers{};
 
         RenderResourceHandle MakeHandle(uint32_t index, const ResourceRecord &record) const noexcept {
@@ -118,17 +119,20 @@ namespace Engine::RenderSystemState {
             record.pending_deallocation_countdown -= 1;
             if (record.pending_deallocation_countdown > 0) continue;
 
-            for (auto dep : record.dependencies) {
-                Release(dep);
-            }
+            const auto handle = pimpl->MakeHandle(i, record);
+            const auto guid = record.guid;
 
             auto provider_it = pimpl->providers.find(record.type_id);
             if (provider_it != pimpl->providers.end()) {
-                provider_it->second->OnRecordDestroy(record.guid);
+                provider_it->second->OnRecordDestroy(*this, handle);
+            }
+
+            auto guid_it = pimpl->guid_to_record_index.find(guid);
+            if (guid_it != pimpl->guid_to_record_index.end() && guid_it->second == i) {
+                pimpl->guid_to_record_index.erase(guid_it);
             }
 
             record.payload.reset();
-            record.dependencies.clear();
             record.guid = GUID{};
             record.refcount = 0;
             record.pending_deallocation_countdown = -1;
@@ -168,11 +172,19 @@ namespace Engine::RenderSystemState {
         return pimpl->MakeHandle(index, record);
     }
 
+    RenderResourceHandle RenderResourceManager::TryReuseRecordByGUID(std::type_index type_id, GUID guid) noexcept {
+        auto it = pimpl->guid_to_record_index.find(guid);
+        if (it == pimpl->guid_to_record_index.end()) return {};
+
+        auto handle = TryReuseRecord(type_id, it->second);
+        if (handle.IsValid()) return handle;
+
+        pimpl->guid_to_record_index.erase(it);
+        return {};
+    }
+
     RenderResourceHandle RenderResourceManager::CreateRecord(
-        std::type_index type_id,
-        GUID guid,
-        std::shared_ptr<void> payload,
-        std::vector<RenderResourceHandle> dependencies
+        std::type_index type_id, GUID guid, std::shared_ptr<void> payload
     ) {
         uint32_t index = 0;
         if (!pimpl->free_indices.empty()) {
@@ -191,8 +203,15 @@ namespace Engine::RenderSystemState {
         record.guid = guid;
         record.refcount = 1;
         record.pending_deallocation_countdown = -1;
-        record.dependencies = std::move(dependencies);
         record.payload = std::move(payload);
+
+        auto guid_it = pimpl->guid_to_record_index.find(guid);
+        assert(
+            (guid_it == pimpl->guid_to_record_index.end() || guid_it->second == index)
+            && "GUID index collision detected in RenderResourceManager"
+        );
+        pimpl->guid_to_record_index[guid] = index;
+
         return pimpl->MakeHandle(index, record);
     }
 

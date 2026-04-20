@@ -28,12 +28,8 @@ namespace Engine::RenderSystemState {
     RenderResourceHandle MaterialLibraryProvider::Acquire(
         RenderResourceManager &manager, RenderSystem &system, GUID guid
     ) {
-        auto it = m_records.find(guid);
-        if (it != m_records.end()) {
-            auto handle = manager.TryReuseRecord(GetTypeID(), it->second);
-            if (handle.IsValid()) return handle;
-            m_records.erase(it);
-        }
+        auto handle = manager.TryReuseRecordByGUID(GetTypeID(), guid);
+        if (handle.IsValid()) return handle;
 
         AssetRef ref(guid);
         auto *asset = ResolveMaterialLibraryAsset(ref, false);
@@ -42,20 +38,15 @@ namespace Engine::RenderSystemState {
         auto library = std::make_shared<MaterialLibrary>(system);
         library->Instantiate(*asset);
 
-        auto handle = manager.CreateRecord(GetTypeID(), guid, library);
-        m_records[guid] = handle.index;
+        handle = manager.CreateRecord(GetTypeID(), guid, library);
         return handle;
     }
 
     RenderResourceHandle MaterialLibraryProvider::AcquireAsync(
         RenderResourceManager &manager, RenderSystem &system, GUID guid
     ) {
-        auto it = m_records.find(guid);
-        if (it != m_records.end()) {
-            auto handle = manager.TryReuseRecord(GetTypeID(), it->second);
-            if (handle.IsValid()) return handle;
-            m_records.erase(it);
-        }
+        auto handle = manager.TryReuseRecordByGUID(GetTypeID(), guid);
+        if (handle.IsValid()) return handle;
 
         AssetRef ref(guid);
         auto *asset = ResolveMaterialLibraryAsset(ref, true);
@@ -66,8 +57,7 @@ namespace Engine::RenderSystemState {
         auto library = std::make_shared<MaterialLibrary>(system);
         library->Instantiate(*asset);
 
-        auto handle = manager.CreateRecord(GetTypeID(), guid, library);
-        m_records[guid] = handle.index;
+        handle = manager.CreateRecord(GetTypeID(), guid, library);
         return handle;
     }
 
@@ -90,7 +80,6 @@ namespace Engine::RenderSystemState {
         (void)Resolve(manager, handle);
     }
 
-    void MaterialLibraryProvider::OnRecordDestroy(GUID guid) noexcept {
-        m_records.erase(guid);
+    void MaterialLibraryProvider::OnRecordDestroy(RenderResourceManager &, RenderResourceHandle) noexcept {
     }
 } // namespace Engine::RenderSystemState

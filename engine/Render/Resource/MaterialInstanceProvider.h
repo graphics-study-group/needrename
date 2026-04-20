@@ -10,11 +10,11 @@ namespace Engine::RenderSystemState {
      * @brief Provider for MaterialInstance render resources.
      *
      * GUID maps to a MaterialAsset; payload is an instantiated
-     * MaterialInstance. This provider also acquires the corresponding
-     * MaterialLibrary resource as a dependency record.
+     * MaterialInstance. This provider also tracks and releases
+     * MaterialLibrary dependency handles when records are destroyed.
      */
     class MaterialInstanceProvider final : public IRenderResourceProvider {
-        std::unordered_map<GUID, uint32_t> m_records{};
+        std::unordered_map<uint32_t, std::vector<RenderResourceHandle>> m_dependencies{};
 
     public:
         /**
@@ -25,8 +25,8 @@ namespace Engine::RenderSystemState {
         /**
          * @brief Synchronously acquire or create a MaterialInstance record.
          *
-         * Ensures MaterialAsset is available and creates/retains dependent
-         * MaterialLibrary handle in the record dependency list.
+         * Ensures MaterialAsset is available and tracks dependent
+         * MaterialLibrary handle in provider-owned dependency table.
          */
         RenderResourceHandle Acquire(RenderResourceManager &manager, RenderSystem &system, GUID guid) override;
 
@@ -59,9 +59,9 @@ namespace Engine::RenderSystemState {
         void EnsureReady(RenderResourceManager &manager, RenderSystem &system, RenderResourceHandle handle) override;
 
         /**
-         * @brief Forget GUID mapping after record destruction.
+         * @brief Release tracked dependency handles for destroyed record.
          */
-        void OnRecordDestroy(GUID guid) noexcept override;
+        void OnRecordDestroy(RenderResourceManager &manager, RenderResourceHandle handle) noexcept override;
     };
 } // namespace Engine::RenderSystemState
 

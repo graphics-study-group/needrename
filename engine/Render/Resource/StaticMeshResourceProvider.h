@@ -4,8 +4,6 @@
 #include "IRenderResourceProvider.h"
 #include "StaticMeshResource.h"
 
-#include <unordered_map>
-
 namespace Engine {
     namespace RenderSystemState {
         /**
@@ -15,8 +13,6 @@ namespace Engine {
          * GPU-side mesh buffers (possibly prepared later in async flow).
          */
         class StaticMeshResourceProvider final : public IRenderResourceProvider {
-            std::unordered_map<GUID, uint32_t> m_records{};
-
         public:
             /**
              * @brief Provider dispatch key, typeid(StaticMeshResource*).
@@ -57,9 +53,9 @@ namespace Engine {
             ) override;
 
             /**
-             * @brief Forget GUID mapping after record destruction.
+             * @brief Hook for provider-specific cleanup before record reclamation.
              */
-            void OnRecordDestroy(GUID guid) noexcept override;
+            void OnRecordDestroy(RenderResourceManager &manager, RenderResourceHandle handle) noexcept override;
         };
     } // namespace RenderSystemState
 } // namespace Engine

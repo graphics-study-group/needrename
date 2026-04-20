@@ -73,7 +73,8 @@ namespace Engine {
          * - Release() only marks records for retirement when refcount reaches 0;
          *   actual destruction is delayed by FrameManager::FRAMES_IN_FLIGHT.
          * - TickFrame() performs deferred reclamation once countdown reaches 0,
-         *   releases dependency handles, notifies provider via OnRecordDestroy,
+         *   notifies provider via OnRecordDestroy to release provider-owned
+         *   dependencies, clears unified GUID bookkeeping,
          *   clears payload, and recycles the slot index.
          * - If a record is reused before reclamation (TryReuseRecord), pending
          *   retirement is canceled and the record becomes live again.
@@ -206,8 +207,8 @@ namespace Engine {
              *
              * This function should be called once per frame by RenderSystem.
              * For each pending-retirement record whose countdown reaches 0:
-             * - release dependency handles,
-             * - notify provider to clear its GUID->record mapping,
+             * - notify provider to release provider-owned dependencies,
+             * - clear unified GUID->record mapping entry,
              * - clear record payload/state,
              * - increment generation and recycle slot index.
              */
@@ -223,19 +224,21 @@ namespace Engine {
             RenderResourceHandle TryReuseRecord(std::type_index type_id, uint32_t index) noexcept;
 
             /**
+             * @brief Try to reuse a record by GUID via manager-owned GUID index.
+             *
+             * Returns an invalid handle when GUID is unknown or mapped entry is
+             * stale/type-mismatched. Stale mappings are removed automatically.
+             */
+            RenderResourceHandle TryReuseRecordByGUID(std::type_index type_id, GUID guid) noexcept;
+
+            /**
              * @brief Create a new resource record for a provider.
              *
              * @param type_id Provider type id.
              * @param guid Resource key.
              * @param payload Shared payload owned by record.
-             * @param dependencies Handles retained while this record is alive.
              */
-            RenderResourceHandle CreateRecord(
-                std::type_index type_id,
-                GUID guid,
-                std::shared_ptr<void> payload,
-                std::vector<RenderResourceHandle> dependencies = {}
-            );
+            RenderResourceHandle CreateRecord(std::type_index type_id, GUID guid, std::shared_ptr<void> payload);
 
             /**
              * @brief Resolve the stored payload for a provider after type validation.
