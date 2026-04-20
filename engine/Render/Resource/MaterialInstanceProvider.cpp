@@ -2,6 +2,7 @@
 
 #include "Asset/AssetRef.h"
 #include "Asset/Material/MaterialAsset.h"
+#include "MaterialLibraryProvider.h"
 #include "Render/Pipeline/Material/MaterialInstance.h"
 #include "Render/Pipeline/Material/MaterialLibrary.h"
 #include "Render/RenderSystem.h"
@@ -9,93 +10,50 @@
 #include <cassert>
 
 namespace Engine::RenderSystemState {
-    namespace {
-        MaterialAsset *ResolveMaterialAsset(AssetRef &ref, bool async_load) {
-            auto *asset = ref.as<MaterialAsset>(async_load);
-            if (asset || !async_load) return asset;
-
-            ref.Acquire();
-            return ref.as<MaterialAsset>(false);
-        }
-    } // namespace
-
-    std::type_index MaterialInstanceProvider::GetTypeID() const noexcept {
-        return typeid(MaterialInstance *);
+    MaterialInstanceProvider::MaterialInstanceProvider(RenderSystem &system) : IRenderResourceProvider(system) {
     }
 
-    RenderResourceHandle MaterialInstanceProvider::Acquire(
-        RenderResourceManager &manager, RenderSystem &system, GUID guid
-    ) {
-        auto handle = manager.TryReuseRecordByGUID(GetTypeID(), guid);
-        if (handle.IsValid()) return handle;
-
+    MaterialInstanceHandle MaterialInstanceProvider::CreateFromAssetImpl(GUID guid) {
         AssetRef mat_ref(guid);
-        auto *mat_asset = ResolveMaterialAsset(mat_ref, false);
+        // MaterialInstance always load eagerly
+        mat_ref.Acquire();
+        auto *mat_asset = mat_ref.as<MaterialAsset>(false);
         assert(mat_asset);
 
-        auto library_handle = manager.Acquire<MaterialLibrary>(mat_asset->m_library.GetGUID());
-        auto *library = manager.Resolve<MaterialLibrary>(library_handle);
+        auto library_handle = m_system.GetRenderResourceManager<MaterialLibraryProvider>().CreateOrReuseFromAsset(
+            mat_asset->m_library.GetGUID()
+        );
+        auto *library = m_system.GetRenderResourceManager<MaterialLibraryProvider>().Resolve(library_handle);
         assert(library);
 
-        auto instance = std::make_shared<MaterialInstance>(system, *library);
+        auto instance = std::make_unique<MaterialInstance>(m_system, library_handle);
         instance->Instantiate(*mat_asset);
 
-        handle = manager.CreateRecord(GetTypeID(), guid, instance);
-        m_dependencies[handle.index] = {library_handle};
-        return handle;
+        return Create(std::move(instance));
     }
 
-    RenderResourceHandle MaterialInstanceProvider::AcquireAsync(
-        RenderResourceManager &manager, RenderSystem &system, GUID guid
-    ) {
-        auto handle = manager.TryReuseRecordByGUID(GetTypeID(), guid);
-        if (handle.IsValid()) return handle;
-
-        AssetRef mat_ref(guid);
-        auto *mat_asset = ResolveMaterialAsset(mat_ref, true);
-        // TODO: support a true pending async MaterialInstance resource instead
-        // of falling back to a forced synchronous load here.
-        assert(mat_asset);
-
-        auto library_handle = manager.AcquireAsync<MaterialLibrary>(mat_asset->m_library.GetGUID());
-        auto *library = manager.Resolve<MaterialLibrary>(library_handle);
-        assert(library);
-
-        auto instance = std::make_shared<MaterialInstance>(system, *library);
-        instance->Instantiate(*mat_asset);
-
-        handle = manager.CreateRecord(GetTypeID(), guid, instance);
-        m_dependencies[handle.index] = {library_handle};
-        return handle;
+    void MaterialInstanceProvider::AcquireImpl(MaterialInstanceHandle handle) {
+        // MaterialInstance is always loaded eagerly in CreateFromAssetImpl, so no need to do anything here.
     }
 
-    void *MaterialInstanceProvider::Resolve(
-        RenderResourceManager &manager, RenderResourceHandle handle
-    ) const noexcept {
-        return manager.ResolvePayload(handle, GetTypeID());
+    void MaterialInstanceProvider::AcquireAsyncImpl(MaterialInstanceHandle handle) {
+        // MaterialInstance is always loaded eagerly in CreateFromAssetImpl, so no need to do anything here.
     }
 
-    bool MaterialInstanceProvider::IsReady(
-        RenderResourceManager &manager, RenderSystem &, RenderResourceHandle handle
-    ) const noexcept {
-        return Resolve(manager, handle) != nullptr;
+    void MaterialInstanceProvider::ReleaseImpl(MaterialInstanceHandle handle) {
+        // No-op since we don't have reference counting for MaterialInstance payloads. The provider relies on the manager to call OnDestroyImpl when the record is destroyed, which will release the dependency handles.
     }
 
-    void MaterialInstanceProvider::EnsureReady(
-        RenderResourceManager &manager, RenderSystem &, RenderResourceHandle handle
-    ) {
-        (void)Resolve(manager, handle);
+    bool MaterialInstanceProvider::IsReadyImpl(MaterialInstanceHandle handle) const noexcept {
+        // MaterialInstance is always loaded eagerly in CreateFromAssetImpl, so if the handle is valid, we consider it ready.
+        return true;
     }
 
-    void MaterialInstanceProvider::OnRecordDestroy(
-        RenderResourceManager &manager, RenderResourceHandle handle
-    ) noexcept {
-        auto it = m_dependencies.find(handle.index);
-        if (it == m_dependencies.end()) return;
+    void MaterialInstanceProvider::EnsureReadyImpl(MaterialInstanceHandle handle) {
+        // MaterialInstance is always loaded eagerly in CreateFromAssetImpl, so if the handle is valid, we consider it ready. No additional action is needed here.
+    }
 
-        for (auto dep : it->second) {
-            manager.Release(dep);
-        }
-        m_dependencies.erase(it);
+    void MaterialInstanceProvider::OnDestroyImpl(MaterialInstanceHandle handle) noexcept {
+        // dependencies will be released in ~MaterialInstance(), so no need to do anything here.
     }
 } // namespace Engine::RenderSystemState

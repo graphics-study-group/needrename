@@ -5,6 +5,11 @@
 
 #include <unordered_map>
 
+namespace Engine {
+    class RenderSystem;
+    class MaterialInstance;
+}
+
 namespace Engine::RenderSystemState {
     /**
      * @brief Provider for MaterialInstance render resources.
@@ -13,22 +18,20 @@ namespace Engine::RenderSystemState {
      * MaterialInstance. This provider also tracks and releases
      * MaterialLibrary dependency handles when records are destroyed.
      */
-    class MaterialInstanceProvider final : public IRenderResourceProvider {
-        std::unordered_map<uint32_t, std::vector<RenderResourceHandle>> m_dependencies{};
-
+    class MaterialInstanceProvider final : public IRenderResourceProvider<MaterialInstance> {
     public:
-        /**
-         * @brief Provider dispatch key, typeid(MaterialInstance*).
-         */
-        std::type_index GetTypeID() const noexcept override;
+        using IRenderResourceProvider<MaterialInstance>::IRenderResourceProvider;
 
+        MaterialInstanceProvider(RenderSystem &system);
+
+        MaterialInstanceHandle CreateFromAssetImpl(GUID guid);
         /**
          * @brief Synchronously acquire or create a MaterialInstance record.
          *
          * Ensures MaterialAsset is available and tracks dependent
          * MaterialLibrary handle in provider-owned dependency table.
          */
-        RenderResourceHandle Acquire(RenderResourceManager &manager, RenderSystem &system, GUID guid) override;
+        void AcquireImpl(MaterialInstanceHandle handle);
 
         /**
          * @brief Acquire through async-friendly path.
@@ -36,19 +39,17 @@ namespace Engine::RenderSystemState {
          * Current implementation may fallback to synchronous completion and
          * acquires MaterialLibrary via manager async entry.
          */
-        RenderResourceHandle AcquireAsync(RenderResourceManager &manager, RenderSystem &system, GUID guid) override;
+        void AcquireAsyncImpl(MaterialInstanceHandle handle);
 
         /**
          * @brief Resolve payload pointer as MaterialInstance.
          */
-        void *Resolve(RenderResourceManager &manager, RenderResourceHandle handle) const noexcept override;
+        void ReleaseImpl(MaterialInstanceHandle handle);
 
         /**
          * @brief Check whether MaterialInstance payload exists.
          */
-        bool IsReady(
-            RenderResourceManager &manager, RenderSystem &system, RenderResourceHandle handle
-        ) const noexcept override;
+        bool IsReadyImpl(MaterialInstanceHandle handle) const noexcept;
 
         /**
          * @brief Synchronous readiness barrier for instance object.
@@ -56,12 +57,12 @@ namespace Engine::RenderSystemState {
          * Material instance descriptor allocation and UBO updates still happen lazily during BindMaterial -> UpdateGPUInfo.
          * Provider readiness here guarantees only that the instance object and its immediate dependencies exist now.
          */
-        void EnsureReady(RenderResourceManager &manager, RenderSystem &system, RenderResourceHandle handle) override;
+        void EnsureReadyImpl(MaterialInstanceHandle handle);
 
         /**
          * @brief Release tracked dependency handles for destroyed record.
          */
-        void OnRecordDestroy(RenderResourceManager &manager, RenderResourceHandle handle) noexcept override;
+        void OnDestroyImpl(MaterialInstanceHandle handle) noexcept;
     };
 } // namespace Engine::RenderSystemState
 

@@ -15,8 +15,8 @@ namespace Engine::RenderSystemState {
         struct RendererEntry {
             int32_t pending_deallocation_countdown = -1;
 
-            RenderResourceHandle mesh_resource{};
-            RenderResourceHandle material_resource{};
+            StaticMeshResourceHandle mesh_resource{};
+            MaterialInstanceHandle material_resource{};
             std::unique_ptr<IVertexBasedRenderer> renderer{};
 
             uint32_t layer = 0xFFFFFFFF;
@@ -38,23 +38,25 @@ namespace Engine::RenderSystemState {
             bool cast_shadow,
             bool eagerly_loaded
         ) {
-            auto &resource_manager = system.GetRenderResourceManager();
-            auto mesh_resource = eagerly_loaded
-                                     ? resource_manager.Acquire<StaticMeshResource>(mesh_asset_ref.GetGUID())
-                                     : resource_manager.AcquireAsync<StaticMeshResource>(mesh_asset_ref.GetGUID());
-            auto *mesh = resource_manager.Resolve<StaticMeshResource>(mesh_resource);
+            auto &mesh_manager = system.GetRenderResourceManager<RenderSystemState::StaticMeshResourceProvider>();
+            auto &material_manager = system.GetRenderResourceManager<RenderSystemState::MaterialInstanceProvider>();
+
+            auto mesh_handle = mesh_manager.CreateOrReuseFromAsset(mesh_asset_ref.GetGUID());
+            if (eagerly_loaded) {
+                mesh_manager.Acquire(mesh_handle);
+            }
+            auto *mesh = mesh_manager.Resolve(mesh_handle);
             assert(mesh);
 
+            auto material_handle = material_manager.CreateOrReuseFromAsset(material_asset_ref.GetGUID());
             if (eagerly_loaded) {
-                resource_manager.EnsureReady<StaticMeshResource>(mesh_resource);
+                material_manager.Acquire(material_handle);
             }
 
             auto &d = m_data[next_handle];
             d.pending_deallocation_countdown = -1;
-            d.mesh_resource = mesh_resource;
-            d.material_resource = eagerly_loaded
-                                      ? resource_manager.Acquire<MaterialInstance>(material_asset_ref.GetGUID())
-                                      : resource_manager.AcquireAsync<MaterialInstance>(material_asset_ref.GetGUID());
+            d.mesh_resource = mesh_handle;
+            d.material_resource = material_handle;
             d.renderer = std::make_unique<StaticHomogeneousMesh>(submesh_index, mesh);
             d.layer = layer;
             d.cast_shadow = cast_shadow;
@@ -95,7 +97,8 @@ namespace Engine::RenderSystemState {
     }
 
     void RendererManager::PerformPendingCleanUp() {
-        auto &resource_manager = m_system.GetRenderResourceManager();
+        auto &mesh_manager = m_system.GetRenderResourceManager<RenderSystemState::StaticMeshResourceProvider>();
+        auto &material_manager = m_system.GetRenderResourceManager<RenderSystemState::MaterialInstanceProvider>();
         for (auto it = pimpl->m_data.begin(); it != pimpl->m_data.end();) {
             if (it->second.pending_deallocation_countdown < 0) {
                 ++it;
@@ -103,8 +106,8 @@ namespace Engine::RenderSystemState {
             }
             it->second.pending_deallocation_countdown -= 1;
             if (it->second.pending_deallocation_countdown == 0) {
-                resource_manager.Release(it->second.mesh_resource);
-                resource_manager.Release(it->second.material_resource);
+                mesh_manager.Release(it->second.mesh_resource);
+                material_manager.Release(it->second.material_resource);
                 it = pimpl->m_data.erase(it);
             } else {
                 ++it;
@@ -116,7 +119,7 @@ namespace Engine::RenderSystemState {
         assert(sc == SortingCriterion::None && "Unimplemented");
         std::unordered_set<uint32_t> filtered_renderers{};
 
-        auto &resource_manager = m_system.GetRenderResourceManager();
+        auto &mesh_manager = m_system.GetRenderResourceManager<RenderSystemState::StaticMeshResourceProvider>();
         for (const auto &[handle, entry] : pimpl->m_data) {
             if (entry.pending_deallocation_countdown >= 0) continue;
 
@@ -125,10 +128,10 @@ namespace Engine::RenderSystemState {
                 if (entry.cast_shadow != static_cast<int>(fc.is_shadow_caster)) continue;
             }
 
-            if (!resource_manager.IsReady<StaticMeshResource>(entry.mesh_resource)) {
+            if (!mesh_manager.IsReady(entry.mesh_resource)) {
                 // TODO: After asynchronous resource loading is implemented, we should not 'EnsureReady' renderers with non-ready resources.
                 // Instead, we should trigger their resource loading and include them in the filtered list, so that they can be rendered as soon as they are ready.
-                resource_manager.EnsureReady<StaticMeshResource>(entry.mesh_resource);
+                mesh_manager.EnsureReady(entry.mesh_resource);
             }
             filtered_renderers.insert(handle);
         }
@@ -145,7 +148,7 @@ namespace Engine::RenderSystemState {
         return it->second.renderer.get();
     }
 
-    RenderResourceHandle RendererManager::GetMaterialResourceHandle(RendererHandle handle) const noexcept {
+    MaterialInstanceHandle RendererManager::GetMaterialResourceHandle(RendererHandle handle) const noexcept {
         auto it = pimpl->m_data.find(handle);
         assert(it != pimpl->m_data.end());
         return it->second.material_resource;

@@ -10,7 +10,7 @@
 #include <Render/RenderSystem.h>
 #include <Render/RenderSystem/CameraManager.h>
 #include <Render/RenderSystem/SceneDataManager.h>
-#include <Render/Resource/RenderResourceManager.h>
+#include <Render/Resource/AllRenderResourceManagers.h>
 
 namespace Engine {
     void LevelAsset::save_asset_to_archive(Serialization::Archive &archive) const {
@@ -34,7 +34,9 @@ namespace Engine {
         this->AddToScene(world->GetMainSceneRef());
         if (m_skybox_material.IsValid()) {
             auto material_handle =
-                rsys->GetRenderResourceManager().Acquire<MaterialInstance>(m_skybox_material.GetGUID());
+                rsys->GetRenderResourceManager<RenderSystemState::MaterialInstanceProvider>().CreateOrReuseFromAsset(
+                    m_skybox_material.GetGUID()
+                );
             rsys->GetSceneDataManager().SetSkyboxMaterial(material_handle);
             world->m_skybox_material = m_skybox_material;
         }

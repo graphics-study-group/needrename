@@ -18,7 +18,7 @@
 #include "Render/RenderSystem/Structs.h"
 #include "Render/RenderSystem/SubmissionHelper.h"
 #include "Render/RenderSystem/Swapchain.h"
-#include "Render/Resource/RenderResourceManager.h"
+#include "Render/Resource/AllRenderResourceManagers.h"
 #include "Render/Resource/StaticMeshResource.h"
 
 #include "Render/Pipeline/CommandBuffer.h"

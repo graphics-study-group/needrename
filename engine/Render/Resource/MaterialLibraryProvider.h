@@ -3,59 +3,52 @@
 
 #include "IRenderResourceProvider.h"
 
+namespace Engine {
+    class MaterialLibrary;
+}
+
 namespace Engine::RenderSystemState {
     /**
      * @brief Provider for MaterialLibrary render resources.
      *
-     * GUID maps to a MaterialLibraryAsset; payload is an instantiated MaterialLibrary object.
+     * GUID maps to a MaterialLibraryAsset; payload is an instantiated
+     * MaterialLibrary object. Pipelines inside the library are still
+     * created lazily by MaterialLibrary::FindMaterialTemplate.
      */
-    class MaterialLibraryProvider final : public IRenderResourceProvider {
+    class MaterialLibraryProvider final : public IRenderResourceProvider<MaterialLibrary> {
     public:
-        /**
-         * @brief Provider dispatch key, typeid(MaterialLibrary*).
-         */
-        std::type_index GetTypeID() const noexcept override;
+        using IRenderResourceProvider<MaterialLibrary>::IRenderResourceProvider;
 
         /**
-         * @brief Synchronously acquire or create a MaterialLibrary record.
+         * @brief Create a MaterialLibrary from the given asset GUID and register it.
          *
-         * This path guarantees underlying MaterialLibraryAsset availability
-         * before instantiating MaterialLibrary.
+         * Loads the asset synchronously, instantiates the library, and stores the
+         * resulting handle in the GUID cache for future reuse.
          */
-        RenderResourceHandle Acquire(RenderResourceManager &manager, RenderSystem &system, GUID guid) override;
+        MaterialLibraryHandle CreateFromAssetImpl(GUID guid);
+
+        /// @brief No-op: library is fully instantiated inside CreateFromAssetImpl.
+        void AcquireImpl(MaterialLibraryHandle handle);
+
+        /// @brief No-op: async path falls back to synchronous creation for now.
+        void AcquireAsyncImpl(MaterialLibraryHandle handle);
+
+        /// @brief No-op: deferred reclamation is driven by TickFrame countdown.
+        void ReleaseImpl(MaterialLibraryHandle handle);
 
         /**
-         * @brief Acquire through async-friendly path.
+         * @brief Returns true whenever the handle resolves to a live library object.
          *
-         * Current implementation first tries async asset query and may
-         * fallback to synchronous completion when required.
+         * Pipeline creation inside MaterialLibrary is still lazy; provider
+         * readiness only guarantees the library object itself exists.
          */
-        RenderResourceHandle AcquireAsync(RenderResourceManager &manager, RenderSystem &system, GUID guid) override;
+        bool IsReadyImpl(MaterialLibraryHandle handle) const noexcept;
 
-        /**
-         * @brief Resolve payload pointer as MaterialLibrary.
-         */
-        void *Resolve(RenderResourceManager &manager, RenderResourceHandle handle) const noexcept override;
+        /// @brief No additional action required beyond object existence.
+        void EnsureReadyImpl(MaterialLibraryHandle handle);
 
-        /**
-         * @brief Check whether MaterialLibrary payload exists.
-         */
-        bool IsReady(
-            RenderResourceManager &manager, RenderSystem &system, RenderResourceHandle handle
-        ) const noexcept override;
-
-        /**
-         * @brief Synchronous readiness barrier for library object.
-         *
-         * Keeps semantics aligned with manager API. Library pipelines may
-         * still be lazily created later by MaterialLibrary internals.
-         */
-        void EnsureReady(RenderResourceManager &manager, RenderSystem &system, RenderResourceHandle handle) override;
-
-        /**
-         * @brief Hook for provider-specific cleanup before record reclamation.
-         */
-        void OnRecordDestroy(RenderResourceManager &manager, RenderResourceHandle handle) noexcept override;
+        /// @brief No provider-owned dependencies to release for MaterialLibrary.
+        void OnDestroyImpl(MaterialLibraryHandle handle) noexcept;
     };
 } // namespace Engine::RenderSystemState
 

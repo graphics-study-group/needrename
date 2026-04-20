@@ -8,8 +8,8 @@
 #include <SDL3/SDL.h>
 
 namespace Engine::Materials {
-    BlinnPhongInstance::BlinnPhongInstance(RenderSystem &system, std::shared_ptr<MaterialLibrary> lib) :
-        MaterialInstance(system, *lib) {
+    BlinnPhongInstance::BlinnPhongInstance(RenderSystem &system, RenderSystemState::MaterialLibraryHandle library) :
+        MaterialInstance(system, library) {
     }
     void BlinnPhongInstance::SetBaseTexture(std::shared_ptr<Texture> image) {
         this->base_texture = std::const_pointer_cast<Texture>(image);

@@ -2,6 +2,9 @@
 
 #include "Render/DebugUtils.h"
 #include "Render/Memory/IndexedBuffer.h"
+#include "Render/Resource/MaterialInstanceProvider.h"
+#include "Render/Resource/RenderResourceHandle.h"
+
 #include <SDL3/SDL.h>
 #include <ext/matrix_clip_space.hpp>
 #include <ext/matrix_transform.hpp>
@@ -186,7 +189,7 @@ namespace Engine::RenderSystemState {
         } scene{};
 
         struct Skybox {
-            RenderResourceHandle skybox_material{};
+            MaterialInstanceHandle skybox_material{};
         } skybox{};
 
         void Create(RenderSystem &system) {
@@ -297,10 +300,10 @@ namespace Engine::RenderSystemState {
         pimpl->scene.light_front_buffer.non_shadow_casting_light_count = count;
     }
 
-    void SceneDataManager::SetSkyboxMaterial(RenderResourceHandle material) noexcept {
-        auto &resource_manager = m_system.GetRenderResourceManager();
+    void SceneDataManager::SetSkyboxMaterial(MaterialInstanceHandle material) noexcept {
+        auto &material_manager = m_system.GetRenderResourceManager<MaterialInstanceProvider>();
         if (pimpl->skybox.skybox_material.IsValid()) {
-            resource_manager.Release(pimpl->skybox.skybox_material);
+            material_manager.Release(pimpl->skybox.skybox_material);
         }
         pimpl->skybox.skybox_material = material;
     }
@@ -367,7 +370,8 @@ namespace Engine::RenderSystemState {
     ) const {
         if (!pimpl->skybox.skybox_material.IsValid()) return;
 
-        auto *material = m_system.GetRenderResourceManager().Resolve<MaterialInstance>(pimpl->skybox.skybox_material);
+        auto *material =
+            m_system.GetRenderResourceManager<MaterialInstanceProvider>().Resolve(pimpl->skybox.skybox_material);
         if (!material) return;
 
         vk::Rect2D scissor{{0, 0}, extent};

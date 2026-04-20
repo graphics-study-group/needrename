@@ -13,6 +13,7 @@
 #include "Render/Renderer/Camera.h"
 #include "Render/Renderer/IVertexBasedRenderer.h"
 #include "Render/Renderer/VertexAttribute.h"
+#include "Render/Resource/MaterialInstanceProvider.h"
 
 #include "Render/DebugUtils.h"
 
@@ -129,8 +130,10 @@ namespace Engine {
         bool bind_new_pipeline = false;
         if (!m_bound_material_pipeline.has_value()) {
             bind_new_pipeline = true;
-        } else if (pipeline != m_bound_material_pipeline.value().first
-                   || pipeline_layout != m_bound_material_pipeline.value().second) {
+        } else if (
+            pipeline != m_bound_material_pipeline.value().first
+            || pipeline_layout != m_bound_material_pipeline.value().second
+        ) {
             bind_new_pipeline = true;
         }
         if (bind_new_pipeline) {
@@ -205,7 +208,7 @@ namespace Engine {
         const std::string &tag, const RendererList &renderers, int32_t camera_index, vk::Extent2D extent
     ) {
         auto &renderer_manager = m_system.GetRendererManager();
-        auto &resource_manager = m_system.GetRenderResourceManager();
+        auto &material_manager = m_system.GetRenderResourceManager<RenderSystemState::MaterialInstanceProvider>();
 
         BindSceneResources(m_system.GetSceneDataManager());
         BindCameraResources(m_system.GetCameraManager());
@@ -214,9 +217,9 @@ namespace Engine {
         this->SetupViewport(extent.width, extent.height, scissor);
         for (const auto &rid : renderers) {
             auto material_handle = renderer_manager.GetMaterialResourceHandle(rid);
-            resource_manager.EnsureReady<MaterialInstance>(material_handle);
+            material_manager.EnsureReady(material_handle);
             auto *mesh = renderer_manager.GetRenderer(rid);
-            auto *material_instance = resource_manager.Resolve<MaterialInstance>(material_handle);
+            auto *material_instance = material_manager.Resolve(material_handle);
             if (!mesh || !material_instance) continue;
 
             const glm::mat4 &model_matrix = renderer_manager.GetModelMatrix(rid);

@@ -21,65 +21,42 @@ namespace Engine::RenderSystemState {
         }
     } // namespace
 
-    std::type_index MaterialLibraryProvider::GetTypeID() const noexcept {
-        return typeid(MaterialLibrary *);
-    }
-
-    RenderResourceHandle MaterialLibraryProvider::Acquire(
-        RenderResourceManager &manager, RenderSystem &system, GUID guid
-    ) {
-        auto handle = manager.TryReuseRecordByGUID(GetTypeID(), guid);
-        if (handle.IsValid()) return handle;
-
+    MaterialLibraryHandle MaterialLibraryProvider::CreateFromAssetImpl(GUID guid) {
         AssetRef ref(guid);
         auto *asset = ResolveMaterialLibraryAsset(ref, false);
         assert(asset);
 
-        auto library = std::make_shared<MaterialLibrary>(system);
+        auto library = std::make_unique<MaterialLibrary>(m_system);
         library->Instantiate(*asset);
 
-        handle = manager.CreateRecord(GetTypeID(), guid, library);
+        auto handle = Create(std::move(library));
+        m_guid_to_handle[guid] = handle;
         return handle;
     }
 
-    RenderResourceHandle MaterialLibraryProvider::AcquireAsync(
-        RenderResourceManager &manager, RenderSystem &system, GUID guid
-    ) {
-        auto handle = manager.TryReuseRecordByGUID(GetTypeID(), guid);
-        if (handle.IsValid()) return handle;
-
-        AssetRef ref(guid);
-        auto *asset = ResolveMaterialLibraryAsset(ref, true);
-        // TODO: support a true pending async MaterialLibrary resource instead
-        // of falling back to a forced synchronous load here.
-        assert(asset);
-
-        auto library = std::make_shared<MaterialLibrary>(system);
-        library->Instantiate(*asset);
-
-        handle = manager.CreateRecord(GetTypeID(), guid, library);
-        return handle;
+    void MaterialLibraryProvider::AcquireImpl(MaterialLibraryHandle) {
+        // MaterialLibrary is always loaded eagerly in CreateFromAssetImpl; no action needed.
     }
 
-    void *MaterialLibraryProvider::Resolve(RenderResourceManager &manager, RenderResourceHandle handle) const noexcept {
-        return manager.ResolvePayload(handle, GetTypeID());
+    void MaterialLibraryProvider::AcquireAsyncImpl(MaterialLibraryHandle) {
+        // TODO: support true async MaterialLibrary loading; falls back to synchronous creation for now.
     }
 
-    bool MaterialLibraryProvider::IsReady(
-        RenderResourceManager &manager, RenderSystem &, RenderResourceHandle handle
-    ) const noexcept {
-        return Resolve(manager, handle) != nullptr;
+    void MaterialLibraryProvider::ReleaseImpl(MaterialLibraryHandle) {
+        // No-op; deferred reclamation countdown is managed by TickFrame.
     }
 
-    void MaterialLibraryProvider::EnsureReady(
-        RenderResourceManager &manager, RenderSystem &, RenderResourceHandle handle
-    ) {
-        // Material library pipelines are still created lazily in
-        // MaterialLibrary::FindMaterialTemplate, but provider readiness still
-        // guarantees that the library object itself is instantiated now.
-        (void)Resolve(manager, handle);
+    bool MaterialLibraryProvider::IsReadyImpl(MaterialLibraryHandle) const noexcept {
+        // MaterialLibrary is always instantiated synchronously; a valid handle implies readiness.
+        return true;
     }
 
-    void MaterialLibraryProvider::OnRecordDestroy(RenderResourceManager &, RenderResourceHandle) noexcept {
+    void MaterialLibraryProvider::EnsureReadyImpl(MaterialLibraryHandle) {
+        // Library pipelines are still created lazily inside MaterialLibrary::FindMaterialTemplate.
+        // Provider readiness guarantees only that the library object itself is instantiated.
+    }
+
+    void MaterialLibraryProvider::OnDestroyImpl(MaterialLibraryHandle) noexcept {
+        // No provider-owned dependencies to release for MaterialLibrary.
     }
 } // namespace Engine::RenderSystemState

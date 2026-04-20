@@ -1,93 +1,68 @@
 #ifndef RENDER_RESOURCE_IRENDERRESOURCEPROVIDER_INCLUDED
 #define RENDER_RESOURCE_IRENDERRESOURCEPROVIDER_INCLUDED
 
-#include "RenderResourceManager.h"
+#include "Core/guid.h"
+#include "RenderResourceHandle.h"
+
+#include <cstdint>
+#include <memory>
+#include <unordered_map>
+#include <vector>
 
 namespace Engine {
     class RenderSystem;
 
     namespace RenderSystemState {
-        /**
-         * @brief Pluggable backend for one concrete render resource type.
-         *
-         * RenderResourceManager routes all typed operations to a matching
-         * provider by runtime type id. Each provider is responsible for the
-         * full lifecycle of one payload type:
-         * - create/reuse records in Acquire / AcquireAsync
-         * - resolve payload pointers
-         * - report readiness without side effects
-         * - synchronously force readiness when requested
-         * - release provider-owned dependencies on destruction
-         */
+        template <typename ResourceType>
         class IRenderResourceProvider {
         public:
-            virtual ~IRenderResourceProvider() noexcept = default;
+            using HandleType = typename ResourceTraits<ResourceType>::HandleType;
+            using ProviderType = typename ResourceTraits<ResourceType>::ProviderType;
 
-            /**
-             * @brief Runtime key used by RenderResourceManager dispatch.
-             */
-            virtual std::type_index GetTypeID() const noexcept = 0;
+            IRenderResourceProvider(RenderSystem &system) : m_system(system) {
+            }
+            ~IRenderResourceProvider() noexcept = default;
 
-            /**
-             * @brief Acquire a resource and guarantee synchronous creation path.
-             *
-             * Implementations should return a reusable handle when possible,
-             * otherwise create a new record. This path is expected to perform
-             * immediate work needed by provider policy.
-             */
-            virtual RenderResourceHandle Acquire(RenderResourceManager &manager, RenderSystem &system, GUID guid) = 0;
+            HandleType Create(std::unique_ptr<ResourceType> resource);
 
-            /**
-             * @brief Acquire a resource using asynchronous-friendly path.
-             *
-             * Implementations may start async work and return a handle whose
-             * payload is not fully ready yet. Callers can poll IsReady or use
-             * EnsureReady as a synchronous fallback.
-             */
-            virtual RenderResourceHandle AcquireAsync(
-                RenderResourceManager &manager, RenderSystem &system, GUID guid
-            ) = 0;
+            HandleType CreateOrReuseFromAsset(GUID guid);
 
-            /**
-             * @brief Resolve raw payload pointer for a typed handle.
-             *
-             * Returns nullptr when handle is stale, type-mismatched, or record
-             * payload is no longer available.
-             */
-            virtual void *Resolve(RenderResourceManager &manager, RenderResourceHandle handle) const noexcept = 0;
+            ResourceType *Resolve(HandleType handle);
 
-            /**
-             * @brief Query whether the resource is ready for immediate consumption.
-             *
-             * Unlike EnsureReady, this method must not trigger loading or GPU
-             * submission side effects. It is intended for polling async-loaded
-             * resources and skipping work until they become ready.
-             */
-            virtual bool IsReady(
-                RenderResourceManager &manager, RenderSystem &system, RenderResourceHandle handle
-            ) const noexcept = 0;
+            bool IsHandleValid(HandleType handle) const noexcept;
 
-            /**
-             * @brief Ensure the resource is consumable by the render path.
-             *
-             * This operation is the synchronous fallback that forces all
-             * provider-owned prerequisites to become available immediately.
-             * For example, a provider may need to force AssetRef to complete a
-             * load and then submit GPU uploads before returning.
-             */
-            virtual void EnsureReady(
-                RenderResourceManager &manager, RenderSystem &system, RenderResourceHandle handle
-            ) = 0;
+            void Acquire(HandleType handle);
 
-            /**
-             * @brief Notify provider that a record is being destroyed.
-             *
-             * Called before manager clears payload and recycles slot so provider
-             * can release provider-owned dependency handles.
-             */
-            virtual void OnRecordDestroy(RenderResourceManager &manager, RenderResourceHandle handle) noexcept = 0;
+            void AcquireAsync(HandleType handle);
+
+            void Release(HandleType handle);
+
+            bool IsReady(HandleType handle) const noexcept;
+
+            void EnsureReady(HandleType handle);
+
+            void OnDestroy(HandleType handle);
+
+            void TickFrame();
+
+        protected:
+            RenderSystem &m_system;
+
+            struct ResourceRecord {
+                uint32_t generation{1};
+                uint32_t refcount{0};
+                int32_t pending_deallocation_countdown{-1};
+
+                std::unique_ptr<ResourceType> payload{};
+            };
+
+            std::vector<ResourceRecord> m_records{};
+            std::vector<uint32_t> m_free_indices{};
+            std::unordered_map<GUID, HandleType> m_guid_to_handle{};
         };
     } // namespace RenderSystemState
 } // namespace Engine
+
+#include "IRenderResourceProvider.inl"
 
 #endif // RENDER_RESOURCE_IRENDERRESOURCEPROVIDER_INCLUDED

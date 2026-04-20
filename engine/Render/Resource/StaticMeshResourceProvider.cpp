@@ -1,69 +1,55 @@
 #include "StaticMeshResourceProvider.h"
 
+#include "StaticMeshResource.h"
 #include "Asset/AssetRef.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/AllocatorState.h"
 #include "Render/RenderSystem/FrameManager.h"
 
-namespace Engine {
-    namespace RenderSystemState {
-        std::type_index StaticMeshResourceProvider::GetTypeID() const noexcept {
-            return typeid(StaticMeshResource *);
+#include <cassert>
+
+namespace Engine::RenderSystemState {
+    StaticMeshResourceHandle StaticMeshResourceProvider::CreateFromAssetImpl(GUID guid) {
+        auto resource = std::make_unique<StaticMeshResource>(AssetRef(guid));
+        auto handle = Create(std::move(resource));
+        m_guid_to_handle[guid] = handle;
+        return handle;
+    }
+
+    void StaticMeshResourceProvider::AcquireImpl(StaticMeshResourceHandle handle) {
+        EnsureReadyImpl(handle);
+    }
+
+    void StaticMeshResourceProvider::AcquireAsyncImpl(StaticMeshResourceHandle handle) {
+        auto *resource = Resolve(handle);
+        if (!resource || resource->IsReady()) return;
+        // Best-effort async submission; returns false (deferred) if the asset is not yet loaded.
+        resource->Submit(
+            m_system.GetAllocatorState(),
+            m_system.GetFrameManager().GetSubmissionHelper(),
+            true
+        );
+    }
+
+    void StaticMeshResourceProvider::ReleaseImpl(StaticMeshResourceHandle) {
+        // No-op; deferred reclamation countdown is managed by TickFrame.
+    }
+
+    bool StaticMeshResourceProvider::IsReadyImpl(StaticMeshResourceHandle handle) const noexcept {
+        if (!IsHandleValid(handle)) return false;
+        const auto *resource = m_records[handle.index].payload.get();
+        return resource != nullptr && resource->IsReady();
+    }
+
+    void StaticMeshResourceProvider::EnsureReadyImpl(StaticMeshResourceHandle handle) {
+        auto *resource = Resolve(handle);
+        assert(resource && "Payload should never be null for a valid handle");
+        if (!resource->IsReady()) {
+            resource->Submit(m_system.GetAllocatorState(), m_system.GetFrameManager().GetSubmissionHelper());
         }
+    }
 
-        RenderResourceHandle StaticMeshResourceProvider::Acquire(
-            RenderResourceManager &manager, RenderSystem &system, GUID guid
-        ) {
-            auto handle = manager.TryReuseRecordByGUID(GetTypeID(), guid);
-            if (handle.IsValid()) {
-                EnsureReady(manager, system, handle);
-                return handle;
-            }
-
-            auto resource = std::make_shared<StaticMeshResource>(AssetRef(guid));
-            handle = manager.CreateRecord(GetTypeID(), guid, resource);
-            EnsureReady(manager, system, handle);
-            return handle;
-        }
-
-        RenderResourceHandle StaticMeshResourceProvider::AcquireAsync(
-            RenderResourceManager &manager, RenderSystem &system, GUID guid
-        ) {
-            auto handle = manager.TryReuseRecordByGUID(GetTypeID(), guid);
-            if (handle.IsValid()) return handle;
-
-            auto resource = std::make_shared<StaticMeshResource>(AssetRef(guid));
-            handle = manager.CreateRecord(GetTypeID(), guid, resource);
-            // TODO: kick asynchronous GPU upload/background submit once the engine has a dedicated render-resource background job path.
-            resource->Submit(system.GetAllocatorState(), system.GetFrameManager().GetSubmissionHelper(), true);
-            return handle;
-        }
-
-        void *StaticMeshResourceProvider::Resolve(
-            RenderResourceManager &manager, RenderResourceHandle handle
-        ) const noexcept {
-            return manager.ResolvePayload(handle, GetTypeID());
-        }
-
-        bool StaticMeshResourceProvider::IsReady(
-            RenderResourceManager &manager, RenderSystem &, RenderResourceHandle handle
-        ) const noexcept {
-            auto *payload = static_cast<StaticMeshResource *>(manager.ResolvePayload(handle, GetTypeID()));
-            return payload != nullptr && payload->IsReady();
-        }
-
-        void StaticMeshResourceProvider::EnsureReady(
-            RenderResourceManager &manager, RenderSystem &system, RenderResourceHandle handle
-        ) {
-            auto *payload = static_cast<StaticMeshResource *>(manager.ResolvePayload(handle, GetTypeID()));
-            assert(payload && "Payload should never be null for a valid handle");
-
-            if (!payload->IsReady()) {
-                payload->Submit(system.GetAllocatorState(), system.GetFrameManager().GetSubmissionHelper());
-            }
-        }
-
-        void StaticMeshResourceProvider::OnRecordDestroy(RenderResourceManager &, RenderResourceHandle) noexcept {
-        }
-    } // namespace RenderSystemState
-} // namespace Engine
+    void StaticMeshResourceProvider::OnDestroyImpl(StaticMeshResourceHandle) noexcept {
+        // GPU buffers are owned by StaticMeshResource and released in ~StaticMeshResource().
+    }
+} // namespace Engine::RenderSystemState

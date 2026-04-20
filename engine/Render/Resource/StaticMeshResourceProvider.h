@@ -2,62 +2,50 @@
 #define RENDER_RESOURCE_STATICMESHRESOURCEPROVIDER_INCLUDED
 
 #include "IRenderResourceProvider.h"
-#include "StaticMeshResource.h"
 
 namespace Engine {
-    namespace RenderSystemState {
+    class StaticMeshResource;
+}
+
+namespace Engine::RenderSystemState {
+    /**
+     * @brief Provider for StaticMeshResource render resources.
+     *
+     * GUID maps to mesh asset data; payload is a StaticMeshResource that owns
+     * GPU-side vertex/index buffers. GPU submission is driven by AcquireImpl
+     * (sync) or AcquireAsyncImpl (async, best-effort).
+     */
+    class StaticMeshResourceProvider final : public IRenderResourceProvider<StaticMeshResource> {
+    public:
+        using IRenderResourceProvider<StaticMeshResource>::IRenderResourceProvider;
+
         /**
-         * @brief Provider for StaticMeshResource render resources.
+         * @brief Create a StaticMeshResource record for the given asset GUID.
          *
-         * GUID maps to mesh asset data; payload is StaticMeshResource that owns
-         * GPU-side mesh buffers (possibly prepared later in async flow).
+         * Only allocates the resource object; GPU submission is left to
+         * AcquireImpl / AcquireAsyncImpl so the sync vs. async policy is
+         * decided at the call site.
          */
-        class StaticMeshResourceProvider final : public IRenderResourceProvider {
-        public:
-            /**
-             * @brief Provider dispatch key, typeid(StaticMeshResource*).
-             */
-            std::type_index GetTypeID() const noexcept override;
+        StaticMeshResourceHandle CreateFromAssetImpl(GUID guid);
 
-            /**
-             * @brief Synchronously acquire/create and force mesh readiness.
-             *
-             * This path guarantees GPU buffers are submitted before returning.
-             */
-            RenderResourceHandle Acquire(RenderResourceManager &manager, RenderSystem &system, GUID guid) override;
+        /// @brief Synchronous acquire: forces GPU buffer submission before returning.
+        void AcquireImpl(StaticMeshResourceHandle handle);
 
-            /**
-             * @brief Acquire/create mesh resource in async-friendly mode.
-             *
-             * Payload may be present while GPU preparation is still pending.
-             */
-            RenderResourceHandle AcquireAsync(RenderResourceManager &manager, RenderSystem &system, GUID guid) override;
+        /// @brief Async acquire: attempts a non-blocking GPU submission; may defer if asset is not yet ready.
+        void AcquireAsyncImpl(StaticMeshResourceHandle handle);
 
-            /**
-             * @brief Resolve payload pointer as StaticMeshResource.
-             */
-            void *Resolve(RenderResourceManager &manager, RenderResourceHandle handle) const noexcept override;
+        /// @brief No-op: deferred reclamation countdown is managed by TickFrame.
+        void ReleaseImpl(StaticMeshResourceHandle handle);
 
-            /**
-             * @brief Check whether StaticMeshResource is fully ready for draw.
-             */
-            bool IsReady(
-                RenderResourceManager &manager, RenderSystem &system, RenderResourceHandle handle
-            ) const noexcept override;
+        /// @brief Returns true when all submesh GPU buffers have been prepared.
+        bool IsReadyImpl(StaticMeshResourceHandle handle) const noexcept;
 
-            /**
-             * @brief Force immediate mesh submission if not ready.
-             */
-            void EnsureReady(
-                RenderResourceManager &manager, RenderSystem &system, RenderResourceHandle handle
-            ) override;
+        /// @brief Forces synchronous GPU submission if the resource is not yet ready.
+        void EnsureReadyImpl(StaticMeshResourceHandle handle);
 
-            /**
-             * @brief Hook for provider-specific cleanup before record reclamation.
-             */
-            void OnRecordDestroy(RenderResourceManager &manager, RenderResourceHandle handle) noexcept override;
-        };
-    } // namespace RenderSystemState
-} // namespace Engine
+        /// @brief GPU buffers are owned by StaticMeshResource and released in its destructor.
+        void OnDestroyImpl(StaticMeshResourceHandle handle) noexcept;
+    };
+} // namespace Engine::RenderSystemState
 
 #endif // RENDER_RESOURCE_STATICMESHRESOURCEPROVIDER_INCLUDED

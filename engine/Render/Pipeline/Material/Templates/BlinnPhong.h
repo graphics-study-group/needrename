@@ -4,6 +4,7 @@
 #include "Render/Pipeline/Material/MaterialInstance.h"
 #include "Render/Pipeline/Material/MaterialLibrary.h"
 #include "Render/Pipeline/Material/MaterialTemplate.h"
+#include "Render/Resource/RenderResourceHandle.h"
 #include <fwd.hpp>
 
 namespace Engine {
@@ -15,7 +16,7 @@ namespace Engine {
             std::shared_ptr<Texture> base_texture{};
 
         public:
-            BlinnPhongInstance(RenderSystem &system, std::shared_ptr<MaterialLibrary> tpl);
+            BlinnPhongInstance(RenderSystem &system, RenderSystemState::MaterialLibraryHandle library);
             void SetBaseTexture(std::shared_ptr<Texture> image);
             void SetSpecular(glm::vec4 spec);
             void SetAmbient(glm::vec4 spec);

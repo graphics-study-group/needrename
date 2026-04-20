@@ -12,6 +12,7 @@
 #include "Render/RenderSystem/FrameManager.h"
 #include "Render/RenderSystem/SubmissionHelper.h"
 #include "Render/Renderer/VertexAttribute.h"
+#include "Render/Resource/MaterialLibraryProvider.h"
 #include <Asset/Material/MaterialAsset.h>
 #include <Asset/Texture/Image2DTextureAsset.h>
 #include <Asset/Texture/ImageCubemapAsset.h>
@@ -101,13 +102,15 @@ namespace Engine {
         }
     };
 
-    MaterialInstance::MaterialInstance(RenderSystem &system, MaterialLibrary &library) :
+    MaterialInstance::MaterialInstance(RenderSystem &system, RenderSystemState::MaterialLibraryHandle library) :
         m_system(system), m_library(library), pimpl(std::make_unique<impl>()) {
         pimpl->p_srb = std::make_unique<ShaderResourceBinding>(m_system.GetIRCache());
         pimpl->p_buffer = std::make_unique<StructuredBuffer>();
     }
 
-    MaterialInstance::~MaterialInstance() = default;
+    MaterialInstance::~MaterialInstance() {
+        m_system.GetRenderResourceManager<RenderSystemState::MaterialLibraryProvider>().Release(m_library);
+    }
 
     void MaterialInstance::AssignScalarVariable(const std::string &name, std::variant<uint32_t, float> value) {
         this->pimpl->SetUboDirtyFlags();
@@ -282,9 +285,9 @@ namespace Engine {
             }
             case MaterialProperty::Type::CubeTexture: {
                 auto texture_asset = std::any_cast<AssetRef>(p.m_value).as<ImageCubemapAsset>();
-                auto texture =
-                    std::shared_ptr<ImageTexture>(std::move(ImageTexture::CreateUnique(this->m_system, *texture_asset))
-                    );
+                auto texture = std::shared_ptr<ImageTexture>(
+                    std::move(ImageTexture::CreateUnique(this->m_system, *texture_asset))
+                );
                 AssignTexture(prop.first, texture);
                 m_system.GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
                     *texture, texture_asset->GetPixelData(), texture_asset->GetPixelDataSize()
@@ -314,6 +317,6 @@ namespace Engine {
         }
     }
     MaterialLibrary &MaterialInstance::GetLibrary() const {
-        return m_library;
+        return *m_system.GetRenderResourceManager<RenderSystemState::MaterialLibraryProvider>().Resolve(m_library);
     }
 } // namespace Engine

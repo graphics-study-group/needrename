@@ -32,13 +32,16 @@ namespace Engine {
         class DeviceInterface;
         class Swapchain;
         class AllocatorState;
-        class RenderResourceManager;
         class FrameManager;
         class RendererManager;
         class ImmutableResourceCache;
         class CameraManager;
         class SceneDataManager;
         class ResizableRTTManager;
+
+        class MaterialInstanceProvider;
+        class MaterialLibraryProvider;
+        class StaticMeshResourceProvider;
     }; // namespace RenderSystemState
 
     /**
@@ -48,6 +51,12 @@ namespace Engine {
     private:
         class impl;
         std::unique_ptr<impl> pimpl;
+
+        std::tuple<
+            RenderSystemState::MaterialInstanceProvider *,
+            RenderSystemState::MaterialLibraryProvider *,
+            RenderSystemState::StaticMeshResourceProvider *>
+            m_resource_managers{};
 
     public:
         RenderSystem(std::weak_ptr<SDLWindow> parent_window);
@@ -138,8 +147,6 @@ namespace Engine {
         const RenderSystemState::AllocatorState &GetAllocatorState() const;
         /// @brief Get the swapchain manager
         const RenderSystemState::Swapchain &GetSwapchain() const;
-        /// @brief Get the unified render resource manager.
-        RenderSystemState::RenderResourceManager &GetRenderResourceManager();
         /// @brief Get the frame manager
         RenderSystemState::FrameManager &GetFrameManager();
         /// @brief Get the renderer manager
@@ -152,6 +159,11 @@ namespace Engine {
         RenderSystemState::SceneDataManager &GetSceneDataManager();
         /// @brief Get the manager for resizable render target textures
         RenderSystemState::ResizableRTTManager &GetResizableRTTManager();
+
+        template <typename ResourceManagerType>
+        ResourceManagerType &GetRenderResourceManager() {
+            return *std::get<ResourceManagerType *>(m_resource_managers);
+        }
     };
 } // namespace Engine
 
