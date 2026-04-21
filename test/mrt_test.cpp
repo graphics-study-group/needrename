@@ -202,11 +202,12 @@ int main(int argc, char **argv) {
     auto amg = cmc->GetAssetManager();
 
     // Prepare material
-    auto test_asset = ConstructMaterial();
-    auto test_asset_ref = AssetRef(test_asset.first);
-    auto test_library = std::make_shared<MaterialLibrary>(*rsys);
-    test_library->Instantiate(*test_asset_ref.as<MaterialLibraryAsset>());
-    auto test_material_instance = std::make_shared<MaterialInstance>(*rsys, *test_library);
+    auto [test_library_asset, test_template_asset] = ConstructMaterial();
+    auto &ml_mng = rsys->GetRenderResourceManager<RenderSystemState::MaterialLibraryProvider>();
+
+    auto test_library_handle = ml_mng.CreateOrReuseFromAsset(test_library_asset->GetGUID());
+    auto test_library = ml_mng.Resolve(test_library_handle);
+    auto test_material_instance = std::make_unique<MaterialInstance>(*rsys, test_library_handle);
 
     // Prepare mesh
     auto test_mesh_asset = amg->CreateAsset<LowerPlaneMeshAsset>();

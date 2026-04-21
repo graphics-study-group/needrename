@@ -88,6 +88,7 @@ int main(int argc, char **argv) {
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
     cmc->LoadBuiltinAssets(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
     auto rsys = cmc->GetRenderSystem();
+    auto &mi_mng = rsys->GetRenderResourceManager<RenderSystemState::MaterialInstanceProvider>();
 
     auto camera = std::make_shared<Camera>();
     camera->set_aspect_ratio(800.0 / 800.0);
@@ -122,9 +123,8 @@ int main(int argc, char **argv) {
     auto skybox_material_asset = MainClass::GetInstance()->GetAssetManager()->CreateAsset<MaterialAsset>();
     skybox_material_asset->m_library = lib_asset_ref;
     AssetRef skybox_material_asset_ref(skybox_material_asset);
-    auto skybox_material_handle =
-        rsys->GetRenderResourceManager().Acquire<MaterialInstance>(skybox_material_asset_ref.GetGUID());
-    auto *skybox_material = rsys->GetRenderResourceManager().Resolve<MaterialInstance>(skybox_material_handle);
+    auto skybox_material_handle = mi_mng.CreateOrReuseFromAsset(skybox_material_asset_ref.GetGUID());
+    auto skybox_material = mi_mng.Resolve(skybox_material_handle);
     skybox_material->AssignTexture("skybox", skybox_texture);
     rsys->GetSceneDataManager().SetSkyboxMaterial(skybox_material_handle);
 

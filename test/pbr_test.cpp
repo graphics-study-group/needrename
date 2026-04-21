@@ -77,13 +77,13 @@ public:
 
         auto am = MainClass::GetInstance()->GetAssetManager();
         auto rsys = MainClass::GetInstance()->GetRenderSystem();
+        auto &mi_mng = rsys->GetRenderResourceManager<RenderSystemState::MaterialInstanceProvider>();
         auto masset = m_mesh_asset.as<MeshAsset>();
         for (size_t i = 0; i < masset->GetSubmeshCount(); i++) {
             this->m_material_assets.push_back(AssetRef(am->CreateAsset<MaterialAsset>()));
             this->m_material_assets.back().as<MaterialAsset>()->m_library = lib_asset_ref;
-            auto handle =
-                rsys->GetRenderResourceManager().Acquire<MaterialInstance>(this->m_material_assets.back().GetGUID());
-            auto ptr = rsys->GetRenderResourceManager().Resolve<MaterialInstance>(handle);
+            auto handle = mi_mng.CreateOrReuseFromAsset(this->m_material_assets.back().GetGUID());
+            auto ptr = mi_mng.Resolve(handle);
             ptr->AssignTexture("albedoSampler", albedo);
             ptr->AssignTexture("MRAOSampler", MRAO);
             m_material_guids.push_back(this->m_material_assets.back().GetGUID());
@@ -103,12 +103,12 @@ public:
         m_uniform_data = {.metalness = metalness, .roughness = roughness};
 
         auto *rsys = MainClass::GetInstance()->GetRenderSystem().get();
+        auto &mat_mng = rsys->GetRenderResourceManager<RenderSystemState::MaterialInstanceProvider>();
         for (auto guid : m_material_guids) {
-            auto handle = rsys->GetRenderResourceManager().Acquire<MaterialInstance>(guid);
-            auto *inst = rsys->GetRenderResourceManager().Resolve<MaterialInstance>(handle);
+            auto handle = mat_mng.CreateOrReuseFromAsset(guid);
+            auto *inst = mat_mng.Resolve(handle);
             inst->AssignScalarVariable("Material::metalness_scale", metalness);
             inst->AssignScalarVariable("Material::roughness_scale", roughness);
-            rsys->GetRenderResourceManager().Release(handle);
         }
     }
 };
@@ -307,7 +307,8 @@ int main(int argc, char **argv) {
     rgb.AddPass(
         RenderGraphPassBuilder{*rsys}
             .SetName("GUI Pass")
-            .AppendColorAttachment({c, {}, AttachmentUtils::LoadOperation::Load, AttachmentUtils::StoreOperation::Store}
+            .AppendColorAttachment(
+                {c, {}, AttachmentUtils::LoadOperation::Load, AttachmentUtils::StoreOperation::Store}
             )
             .SetRasterizerPassFunction([rsys, gsys](GraphicsCommandBuffer &gcb, const RenderGraph2 &) {
                 gsys->DrawGUI(gcb.GetCommandBuffer());

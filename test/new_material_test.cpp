@@ -191,7 +191,7 @@ int main(int argc, char **argv) {
     std::shared_ptr allocated_image_texture = ImageTexture::CreateUnique(*rsys, *test_texture_asset);
 
     // Prepare material
-    auto test_asset = ConstructMaterial();
+    auto [test_library_asset, test_template_asset] = ConstructMaterial();
 
     // // Do not delete this code, it is a useful tool for generating asset files.
     // Engine::Serialization::Archive archive;
@@ -205,12 +205,14 @@ int main(int argc, char **argv) {
     // archive.save_to_file(std::string(ENGINE_ASSETS_DIR) + "/mta.asset");
     // SDL_Log("Saved MaterialTemplateAsset to %s", (std::string(ENGINE_ASSETS_DIR) + "/mta.asset").c_str());
 
-    auto test_library = std::make_shared<Materials::BlinnPhongLibrary>(*rsys);
-    test_library->Instantiate(*test_asset.first);
-    auto test_material_instance = std::make_shared<Materials::BlinnPhongInstance>(*rsys, test_library);
-    test_material_instance->SetAmbient(glm::vec4(0.0, 0.0, 0.0, 0.0));
-    test_material_instance->SetSpecular(glm::vec4(1.0, 1.0, 1.0, 64.0));
-    test_material_instance->SetBaseTexture(allocated_image_texture);
+    auto &ml_mng = rsys->GetRenderResourceManager<RenderSystemState::MaterialLibraryProvider>();
+
+    auto test_library_handle = ml_mng.CreateOrReuseFromAsset(test_library_asset->GetGUID());
+    auto test_library = ml_mng.Resolve(test_library_handle);
+    auto test_material_instance = std::make_unique<MaterialInstance>(*rsys, test_library_handle);
+    test_material_instance->AssignVectorVariable("Material::ambient_color", glm::vec4(0.0, 0.0, 0.0, 0.0));
+    test_material_instance->AssignVectorVariable("Material::specular_color", glm::vec4(1.0, 1.0, 1.0, 64.0));
+    test_material_instance->AssignTexture("base_texture", allocated_image_texture);
 
     // Prepare mesh
     auto test_mesh_asset = am->CreateAsset<LowerPlaneMeshAsset>();

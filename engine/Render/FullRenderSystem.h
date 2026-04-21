@@ -38,8 +38,8 @@
 #include "Render/Pipeline/RenderGraph2/RenderGraphPass.h"
 
 #include "Render/Pipeline/Material/MaterialInstance.h"
+#include "Render/Pipeline/Material/MaterialLibrary.h"
 #include "Render/Pipeline/Material/MaterialTemplate.h"
-#include "Render/Pipeline/Material/Templates/BlinnPhong.h"
 
 #include "Render/Renderer/Camera.h"
 #include "Render/Renderer/StaticHomogeneousMesh.h"
