@@ -120,7 +120,7 @@ namespace Engine::RenderSystemState {
         std::unordered_set<uint32_t> filtered_renderers{};
 
         auto &mesh_manager = m_system.GetRenderResourceManager<RenderSystemState::StaticMeshResourceManager>();
-        for (const auto &[handle, entry] : pimpl->m_data) {
+        for (auto &[handle, entry] : pimpl->m_data) {
             if (entry.pending_deallocation_countdown >= 0) continue;
 
             if ((fc.layer & entry.layer) == 0) continue;

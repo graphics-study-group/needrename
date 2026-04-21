@@ -40,13 +40,13 @@ namespace Engine::RenderSystemState {
     }
 
     template <typename ResourceType>
-    ResourceType *IRenderResourceManager<ResourceType>::Resolve(HandleType handle) {
+    ResourceType *IRenderResourceManager<ResourceType>::Resolve(const HandleType &handle) {
         if (!IsHandleValid(handle)) return nullptr;
         return m_records[handle.index].payload.get();
     }
 
     template <typename ResourceType>
-    bool IRenderResourceManager<ResourceType>::IsHandleValid(HandleType handle) const noexcept {
+    bool IRenderResourceManager<ResourceType>::IsHandleValid(const HandleType &handle) const noexcept {
         if (!handle.IsValid()) return false;
         if (handle.index >= m_records.size()) return false;
 
@@ -58,7 +58,7 @@ namespace Engine::RenderSystemState {
     }
 
     template <typename ResourceType>
-    void IRenderResourceManager<ResourceType>::Acquire(HandleType handle) {
+    void IRenderResourceManager<ResourceType>::Acquire(HandleType &handle) {
         static_cast<ManagerType *>(this)->AcquireImpl(handle);
         if (!handle.is_acquired) {
             auto &record = m_records[handle.index];
@@ -69,7 +69,7 @@ namespace Engine::RenderSystemState {
     }
 
     template <typename ResourceType>
-    void IRenderResourceManager<ResourceType>::AcquireAsync(HandleType handle) {
+    void IRenderResourceManager<ResourceType>::AcquireAsync(HandleType &handle) {
         static_cast<ManagerType *>(this)->AcquireAsyncImpl(handle);
         if (!handle.is_acquired) {
             auto &record = m_records[handle.index];
@@ -80,7 +80,7 @@ namespace Engine::RenderSystemState {
     }
 
     template <typename ResourceType>
-    void IRenderResourceManager<ResourceType>::Release(HandleType handle) {
+    void IRenderResourceManager<ResourceType>::Release(HandleType &handle) {
         static_cast<ManagerType *>(this)->ReleaseImpl(handle);
         if (handle.is_acquired) {
             auto &record = m_records[handle.index];
@@ -94,17 +94,17 @@ namespace Engine::RenderSystemState {
     }
 
     template <typename ResourceType>
-    bool IRenderResourceManager<ResourceType>::IsReady(HandleType handle) const noexcept {
+    bool IRenderResourceManager<ResourceType>::IsReady(const HandleType &handle) const noexcept {
         return static_cast<const ManagerType *>(this)->IsReadyImpl(handle);
     }
 
     template <typename ResourceType>
-    void IRenderResourceManager<ResourceType>::EnsureReady(HandleType handle) {
+    void IRenderResourceManager<ResourceType>::EnsureReady(HandleType &handle) {
         static_cast<ManagerType *>(this)->EnsureReadyImpl(handle);
     }
 
     template <typename ResourceType>
-    void IRenderResourceManager<ResourceType>::OnDestroy(HandleType handle) {
+    void IRenderResourceManager<ResourceType>::OnDestroy(HandleType &handle) {
         static_cast<ManagerType *>(this)->OnDestroyImpl(handle);
     }
 
@@ -118,7 +118,7 @@ namespace Engine::RenderSystemState {
             record.pending_deallocation_countdown -= 1;
             if (record.pending_deallocation_countdown > 0) continue;
 
-            const auto handle = typename ManagerType::HandleType{i, record.generation};
+            auto handle = typename ManagerType::HandleType{i, record.generation};
             OnDestroy(handle);
             record.payload.reset();
             m_free_indices.push_back(i);

@@ -27,21 +27,21 @@ namespace Engine {
 
             HandleType CreateOrReuseFromAsset(GUID guid, uint32_t deallocate_after_frames = 3u);
 
-            ResourceType *Resolve(HandleType handle);
+            ResourceType *Resolve(const HandleType &handle);
 
-            bool IsHandleValid(HandleType handle) const noexcept;
+            bool IsHandleValid(const HandleType &handle) const noexcept;
 
-            void Acquire(HandleType handle);
+            void Acquire(HandleType &handle);
 
-            void AcquireAsync(HandleType handle);
+            void AcquireAsync(HandleType &handle);
 
-            void Release(HandleType handle);
+            void Release(HandleType &handle);
 
-            bool IsReady(HandleType handle) const noexcept;
+            bool IsReady(const HandleType &handle) const noexcept;
 
-            void EnsureReady(HandleType handle);
+            void EnsureReady(HandleType &handle);
 
-            void OnDestroy(HandleType handle);
+            void OnDestroy(HandleType &handle);
 
             void TickFrame();
 

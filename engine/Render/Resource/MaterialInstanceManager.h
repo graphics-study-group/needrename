@@ -31,7 +31,7 @@ namespace Engine::RenderSystemState {
          * Ensures MaterialAsset is available and tracks dependent
          * MaterialLibrary handle in provider-owned dependency table.
          */
-        void AcquireImpl(MaterialInstanceHandle handle);
+        void AcquireImpl(MaterialInstanceHandle &handle);
 
         /**
          * @brief Acquire through async-friendly path.
@@ -39,17 +39,17 @@ namespace Engine::RenderSystemState {
          * Current implementation may fallback to synchronous completion and
          * acquires MaterialLibrary via manager async entry.
          */
-        void AcquireAsyncImpl(MaterialInstanceHandle handle);
+        void AcquireAsyncImpl(MaterialInstanceHandle &handle);
 
         /**
          * @brief Resolve payload pointer as MaterialInstance.
          */
-        void ReleaseImpl(MaterialInstanceHandle handle);
+        void ReleaseImpl(MaterialInstanceHandle &handle);
 
         /**
          * @brief Check whether MaterialInstance payload exists.
          */
-        bool IsReadyImpl(MaterialInstanceHandle handle) const noexcept;
+        bool IsReadyImpl(const MaterialInstanceHandle &handle) const noexcept;
 
         /**
          * @brief Synchronous readiness barrier for instance object.
@@ -57,12 +57,12 @@ namespace Engine::RenderSystemState {
          * Material instance descriptor allocation and UBO updates still happen lazily during BindMaterial -> UpdateGPUInfo.
          * Manager readiness here guarantees only that the instance object and its immediate dependencies exist now.
          */
-        void EnsureReadyImpl(MaterialInstanceHandle handle);
+        void EnsureReadyImpl(MaterialInstanceHandle &handle);
 
         /**
          * @brief Release tracked dependency handles for destroyed record.
          */
-        void OnDestroyImpl(MaterialInstanceHandle handle) noexcept;
+        void OnDestroyImpl(MaterialInstanceHandle &handle) noexcept;
     };
 } // namespace Engine::RenderSystemState
 

@@ -32,28 +32,28 @@ namespace Engine::RenderSystemState {
         return Create(std::move(instance), deallocate_after_frames);
     }
 
-    void MaterialInstanceManager::AcquireImpl(MaterialInstanceHandle handle) {
+    void MaterialInstanceManager::AcquireImpl(MaterialInstanceHandle &) {
         // MaterialInstance is always loaded eagerly in CreateFromAssetImpl, so no need to do anything here.
     }
 
-    void MaterialInstanceManager::AcquireAsyncImpl(MaterialInstanceHandle handle) {
+    void MaterialInstanceManager::AcquireAsyncImpl(MaterialInstanceHandle &) {
         // MaterialInstance is always loaded eagerly in CreateFromAssetImpl, so no need to do anything here.
     }
 
-    void MaterialInstanceManager::ReleaseImpl(MaterialInstanceHandle handle) {
+    void MaterialInstanceManager::ReleaseImpl(MaterialInstanceHandle &) {
         // No-op since refcounting and deallocation is handled by the base manager logic.
     }
 
-    bool MaterialInstanceManager::IsReadyImpl(MaterialInstanceHandle handle) const noexcept {
+    bool MaterialInstanceManager::IsReadyImpl(const MaterialInstanceHandle &) const noexcept {
         // MaterialInstance is always loaded eagerly in CreateFromAssetImpl, so if the handle is valid, we consider it ready.
         return true;
     }
 
-    void MaterialInstanceManager::EnsureReadyImpl(MaterialInstanceHandle handle) {
+    void MaterialInstanceManager::EnsureReadyImpl(MaterialInstanceHandle &) {
         // MaterialInstance is always loaded eagerly in CreateFromAssetImpl, so if the handle is valid, we consider it ready. No additional action is needed here.
     }
 
-    void MaterialInstanceManager::OnDestroyImpl(MaterialInstanceHandle handle) noexcept {
+    void MaterialInstanceManager::OnDestroyImpl(MaterialInstanceHandle &) noexcept {
         // dependencies will be released in ~MaterialInstance(), so no need to do anything here.
     }
 } // namespace Engine::RenderSystemState

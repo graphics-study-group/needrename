@@ -29,6 +29,10 @@ namespace Engine {
             /// Type index for quick runtime type checking during handle resolution.
             bool is_acquired{false};
 
+            ~RenderResourceHandle() {
+                assert(!is_acquired && "Handle should be released before destruction");
+            }
+
             bool IsValid() const noexcept {
                 return index != 0xFFFFFFFFu;
             }

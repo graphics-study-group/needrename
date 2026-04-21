@@ -29,22 +29,22 @@ namespace Engine::RenderSystemState {
         StaticMeshResourceHandle CreateFromAssetImpl(GUID guid, uint32_t deallocate_after_frames);
 
         /// @brief Synchronous acquire: forces GPU buffer submission before returning.
-        void AcquireImpl(StaticMeshResourceHandle handle);
+        void AcquireImpl(StaticMeshResourceHandle &handle);
 
         /// @brief Async acquire: attempts a non-blocking GPU submission; may defer if asset is not yet ready.
-        void AcquireAsyncImpl(StaticMeshResourceHandle handle);
+        void AcquireAsyncImpl(StaticMeshResourceHandle &handle);
 
         /// @brief No-op: deferred reclamation countdown is managed by TickFrame.
-        void ReleaseImpl(StaticMeshResourceHandle handle);
+        void ReleaseImpl(StaticMeshResourceHandle &handle);
 
         /// @brief Returns true when all submesh GPU buffers have been prepared.
-        bool IsReadyImpl(StaticMeshResourceHandle handle) const noexcept;
+        bool IsReadyImpl(const StaticMeshResourceHandle &handle) const noexcept;
 
         /// @brief Forces synchronous GPU submission if the resource is not yet ready.
-        void EnsureReadyImpl(StaticMeshResourceHandle handle);
+        void EnsureReadyImpl(StaticMeshResourceHandle &handle);
 
         /// @brief GPU buffers are owned by StaticMeshResource and released in its destructor.
-        void OnDestroyImpl(StaticMeshResourceHandle handle) noexcept;
+        void OnDestroyImpl(StaticMeshResourceHandle &handle) noexcept;
     };
 } // namespace Engine::RenderSystemState
 

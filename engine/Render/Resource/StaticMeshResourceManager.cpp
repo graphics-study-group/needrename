@@ -16,26 +16,26 @@ namespace Engine::RenderSystemState {
         return Create(std::move(resource), deallocate_after_frames);
     }
 
-    void StaticMeshResourceManager::AcquireImpl(StaticMeshResourceHandle handle) {
+    void StaticMeshResourceManager::AcquireImpl(StaticMeshResourceHandle &handle) {
         EnsureReady(handle);
     }
 
-    void StaticMeshResourceManager::AcquireAsyncImpl(StaticMeshResourceHandle handle) {
+    void StaticMeshResourceManager::AcquireAsyncImpl(StaticMeshResourceHandle &handle) {
         // TODO: Implement asynchronous GPU submission. For now, we fall back to synchronous submission to ensure correctness.
         EnsureReady(handle);
     }
 
-    void StaticMeshResourceManager::ReleaseImpl(StaticMeshResourceHandle) {
+    void StaticMeshResourceManager::ReleaseImpl(StaticMeshResourceHandle &) {
         // No-op; deferred reclamation countdown is managed by TickFrame.
     }
 
-    bool StaticMeshResourceManager::IsReadyImpl(StaticMeshResourceHandle handle) const noexcept {
+    bool StaticMeshResourceManager::IsReadyImpl(const StaticMeshResourceHandle &handle) const noexcept {
         if (!IsHandleValid(handle)) return false;
         const auto *resource = m_records[handle.index].payload.get();
         return resource != nullptr && resource->IsReady();
     }
 
-    void StaticMeshResourceManager::EnsureReadyImpl(StaticMeshResourceHandle handle) {
+    void StaticMeshResourceManager::EnsureReadyImpl(StaticMeshResourceHandle &handle) {
         auto *resource = Resolve(handle);
         assert(resource && "Payload should never be null for a valid handle");
         if (!resource->IsReady()) {
@@ -43,7 +43,7 @@ namespace Engine::RenderSystemState {
         }
     }
 
-    void StaticMeshResourceManager::OnDestroyImpl(StaticMeshResourceHandle handle) noexcept {
+    void StaticMeshResourceManager::OnDestroyImpl(StaticMeshResourceHandle &handle) noexcept {
         auto *resource = Resolve(handle);
         if (resource) {
             resource->Remove();

@@ -28,13 +28,13 @@ namespace Engine::RenderSystemState {
         MaterialLibraryHandle CreateFromAssetImpl(GUID guid, uint32_t deallocate_after_frames);
 
         /// @brief No-op: library is fully instantiated inside CreateFromAssetImpl.
-        void AcquireImpl(MaterialLibraryHandle handle);
+        void AcquireImpl(MaterialLibraryHandle &handle);
 
         /// @brief No-op: async path falls back to synchronous creation for now.
-        void AcquireAsyncImpl(MaterialLibraryHandle handle);
+        void AcquireAsyncImpl(MaterialLibraryHandle &handle);
 
         /// @brief No-op: deferred reclamation is driven by TickFrame countdown.
-        void ReleaseImpl(MaterialLibraryHandle handle);
+        void ReleaseImpl(MaterialLibraryHandle &handle);
 
         /**
          * @brief Returns true whenever the handle resolves to a live library object.
@@ -42,13 +42,13 @@ namespace Engine::RenderSystemState {
          * Pipeline creation inside MaterialLibrary is still lazy; provider
          * readiness only guarantees the library object itself exists.
          */
-        bool IsReadyImpl(MaterialLibraryHandle handle) const noexcept;
+        bool IsReadyImpl(const MaterialLibraryHandle &handle) const noexcept;
 
         /// @brief No additional action required beyond object existence.
-        void EnsureReadyImpl(MaterialLibraryHandle handle);
+        void EnsureReadyImpl(MaterialLibraryHandle &handle);
 
         /// @brief No provider-owned dependencies to release for MaterialLibrary.
-        void OnDestroyImpl(MaterialLibraryHandle handle) noexcept;
+        void OnDestroyImpl(MaterialLibraryHandle &handle) noexcept;
     };
 } // namespace Engine::RenderSystemState
 
