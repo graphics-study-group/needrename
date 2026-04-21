@@ -11,43 +11,100 @@ namespace Engine::RenderSystemState {
     /**
      * @brief Manager for MaterialLibrary render resources.
      *
-     * GUID maps to a MaterialLibraryAsset; payload is an instantiated
-     * MaterialLibrary object. Pipelines inside the library are still
-     * created lazily by MaterialLibrary::FindMaterialTemplate.
+     * @details
+     * Purpose and lifecycle:
+     * - GUID maps to a MaterialLibraryAsset.
+     * - Payload is a fully instantiated MaterialLibrary object that holds the library's
+     *   configuration (shader references, pipeline templates, etc.).
+     * - MaterialLibrary is refcounted by instances that depend on it; no explicit
+     *   provider-side tracking needed (instances hold handles).
+     *
+     * Preparation model (eager object, lazy pipelines):
+     * - CreateFromAssetImpl eagerly loads the MaterialLibraryAsset and immediately
+     *   instantiates the MaterialLibrary object via library->Instantiate(*asset).
+     * - AcquireImpl/AcquireAsyncImpl are no-ops; payload object is already constructed.
+     * - EnsureReadyImpl is a no-op; object existence is the readiness criterion.
+     * - Individual graphics pipelines (VkPipeline) are created lazily by
+     *   MaterialLibrary::FindMaterialTemplate() on first use, reducing startup overhead.
+     *
+     * Comparison to MaterialInstance:
+     * - MaterialLibrary is a shared resource dependency; many MaterialInstances may
+     *   reference the same MaterialLibrary (deduplication via CreateOrReuseFromAsset).
+     * - MaterialInstance holds a handle to MaterialLibrary to ensure it stays alive.
      */
     class MaterialLibraryManager final : public IRenderResourceManager<MaterialLibrary> {
     public:
         using IRenderResourceManager<MaterialLibrary>::IRenderResourceManager;
 
         /**
-         * @brief Create a MaterialLibrary from the given asset GUID and register it.
+         * @brief Create a MaterialLibrary from the given asset GUID.
          *
-         * Loads the asset synchronously, instantiates the library, and stores the
-         * resulting handle in the GUID cache for future reuse.
+         * @param guid GUID of the MaterialLibraryAsset to instantiate.
+         * @param deallocate_after_frames Frame countdown before deferred destruction.
+         * @return Newly allocated MaterialLibraryHandle.
+         *
+         * @details
+         * - Loads MaterialLibraryAsset eagerly via AssetRef::Acquire().
+         * - Instantiates MaterialLibrary object and populates its state via Instantiate(*asset).
+         * - Returns a handle with refcount=1.
+         * - The asset reference is released after instantiation; asset memory is independent
+         *   of library resource lifetime.
          */
         MaterialLibraryHandle CreateFromAssetImpl(GUID guid, uint32_t deallocate_after_frames);
 
-        /// @brief No-op: library is fully instantiated inside CreateFromAssetImpl.
+        /**
+         * @brief Synchronous acquire (no-op).
+         *
+         * @details
+         * Library object is already fully constructed in CreateFromAssetImpl.
+         */
         void AcquireImpl(MaterialLibraryHandle &handle);
 
-        /// @brief No-op: async path falls back to synchronous creation for now.
+        /**
+         * @brief Asynchronous acquire (no-op).
+         *
+         * @details
+         * Library object is already fully constructed in CreateFromAssetImpl.
+         */
         void AcquireAsyncImpl(MaterialLibraryHandle &handle);
 
-        /// @brief No-op: deferred reclamation is driven by TickFrame countdown.
+        /**
+         * @brief Release (no-op).
+         *
+         * @details
+         * Deferred reclamation countdown is managed entirely by base class TickFrame logic.
+         */
         void ReleaseImpl(MaterialLibraryHandle &handle);
 
         /**
-         * @brief Returns true whenever the handle resolves to a live library object.
+         * @brief Check whether MaterialLibrary payload exists and is ready.
          *
-         * Pipeline creation inside MaterialLibrary is still lazy; provider
-         * readiness only guarantees the library object itself exists.
+         * @param handle Target handle.
+         * @return True if handle is valid (and thus payload is guaranteed ready).
+         *
+         * @details
+         * Validity of the handle is sufficient; all pipelines inside the library
+         * are created lazily on demand (FindMaterialTemplate).
          */
         bool IsReadyImpl(const MaterialLibraryHandle &handle) const noexcept;
 
-        /// @brief No additional action required beyond object existence.
+        /**
+         * @brief Ensure MaterialLibrary is ready (no-op).
+         *
+         * @details
+         * Library object is already fully constructed in CreateFromAssetImpl.
+         * Individual pipelines are created lazily.
+         */
         void EnsureReadyImpl(MaterialLibraryHandle &handle);
 
-        /// @brief No provider-owned dependencies to release for MaterialLibrary.
+        /**
+         * @brief Cleanup upon final destruction (no-op).
+         *
+         * @details
+         * MaterialLibrary destructor handles cleanup of internal resources
+         * (e.g., VkPipelineLayout, descriptor set layouts).
+         * No provider-side dependencies to release.
+         */
         void OnDestroyImpl(MaterialLibraryHandle &handle) noexcept;
     };
 } // namespace Engine::RenderSystemState

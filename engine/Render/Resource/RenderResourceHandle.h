@@ -7,14 +7,14 @@
 namespace Engine {
     namespace RenderSystemState {
         /**
-         * @brief Opaque handle for resources managed by RenderResourceManager.
+         * @brief Non-owning typed handle payload for resources managed by render-resource managers.
          *
-         * A handle is valid only if index/generation/type_id matches a live record.
+         * A handle is valid only if index/generation matches a live manager record.
          *
          * Design rationale:
          * - index identifies the slot in manager-owned record storage for O(1) lookup.
          * - generation is a per-slot version to reject stale handles after slot reuse.
-         * - type_id prevents resolving a handle through the wrong provider/payload type.
+         * - is_acquired tracks whether this handle has participated in manager refcount.
          *
          * Why index + generation are both needed:
          * - Slots are recycled after deferred reclamation.
@@ -26,7 +26,7 @@ namespace Engine {
             uint32_t index{0xFFFFFFFFu};
             /// Slot version used to detect stale handles after slot reuse.
             uint32_t generation{0};
-            /// Type index for quick runtime type checking during handle resolution.
+            /// Whether this handle currently contributes one reference in manager refcount.
             bool is_acquired{false};
 
             ~RenderResourceHandle() {
@@ -42,21 +42,11 @@ namespace Engine {
         struct ResourceTraits;
     } // namespace RenderSystemState
 
-    /************************************************************************************
-     * Define specialized ResourceTraits for each resource type to provide type-specific
-     * information and behavior.
-     ************************************************************************************/
-
     class MaterialInstance;
     class MaterialLibrary;
     class StaticMeshResource;
 
     namespace RenderSystemState {
-        template <typename ResourceType>
-        concept SupportedRenderResource = requires {
-            std::is_same_v<ResourceType, MaterialInstance> || std::is_same_v<ResourceType, MaterialLibrary>
-                || std::is_same_v<ResourceType, StaticMeshResource>;
-        };
 
         class MaterialInstanceManager;
         struct MaterialInstanceHandle : public RenderResourceHandle {};

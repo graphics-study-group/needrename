@@ -8,7 +8,15 @@ namespace Engine {
     } // namespace RenderSystemState
 
     /**
-     * @brief A render resource that needs to be submitted to GPU asynchronously.
+     * @brief Interface for GPU resources that have an explicit preparation/removal lifecycle.
+     *
+     * @details
+     * A resource implementing this interface is managed by a render-resource manager.
+     * The manager owns lifetime bookkeeping (handle/refcount/deferred destroy), while the
+     * resource implements backend-specific work:
+     * - `Submit`: prepare GPU-visible data (sync or async scheduling model defined by caller).
+     * - `IsReady`: report whether the resource is currently usable by render passes.
+     * - `Remove`: release GPU-side allocations and reset internal prepared state.
      */
     class IAsynchPrepared {
     public:
@@ -16,20 +24,27 @@ namespace Engine {
         virtual ~IAsynchPrepared() noexcept = default;
 
         /**
-         * @brief Is this resource prepared, or scheduled to be prepared, so
-         * that it can be used directly?
+         * @brief Query whether the resource can be used directly by rendering code.
+         * @return True when resource is ready; otherwise false.
          */
         virtual bool IsReady() const noexcept = 0;
 
         /**
-         * @brief Flag this resource to be removed from GPU.
+         * @brief Release prepared GPU-side allocations and mark resource as not ready.
          */
         virtual void Remove() noexcept = 0;
 
         /**
-         * @brief How to submit this resource to GPU.
+         * @brief Submit/prepare resource data for GPU usage.
+         *
+         * @param allocator Allocator state used to create GPU allocations.
+         * @param submission_helper Submission helper used to enqueue copy/upload commands.
+         *
+         * @note Implementation may perform eager upload or only enqueue async operations, depending on resource/manager policy.
          */
-        virtual void Submit(const RenderSystemState::AllocatorState &, RenderSystemState::SubmissionHelper &) = 0;
+        virtual void Submit(
+            const RenderSystemState::AllocatorState &allocator, RenderSystemState::SubmissionHelper &submission_helper
+        ) = 0;
     };
 } // namespace Engine
 

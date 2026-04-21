@@ -11,39 +11,123 @@ namespace Engine::RenderSystemState {
     /**
      * @brief Manager for StaticMeshResource render resources.
      *
-     * GUID maps to mesh asset data; payload is a StaticMeshResource that owns
-     * GPU-side vertex/index buffers. GPU submission is driven by AcquireImpl
-     * (sync) or AcquireAsyncImpl (async, best-effort).
+     * @details
+     * Purpose and lifecycle:
+     * - GUID maps to a MeshAsset GUID (polygon data, vertex attributes, submesh info).
+     * - Payload is a StaticMeshResource object that owns GPU-side vertex/index buffers
+     *   for all submeshes.
+     * - StaticMeshResource implements the IAsynchPrepared interface; GPU submission is
+     *   intentionally deferred until Acquire*Impl triggers it.
+     *
+     * Preparation model (lazy GPU submission):
+     * - CreateFromAssetImpl creates the StaticMeshResource object but does NOT submit
+     *   data to GPU; this defers expensive buffer allocation until the resource is
+     *   actually needed (acquire time).
+     * - AcquireImpl (sync path): Calls EnsureReady, forcing immediate GPU submission.
+     * - AcquireAsyncImpl (async path): Currently falls back to EnsureReady (TODO: implement
+     *   true async submission without blocking).
+     * - IsReadyImpl queries StaticMeshResource::IsReady(), which checks whether all
+     *   submesh GPU buffers exist.
+     * - EnsureReadyImpl calls StaticMeshResource::Submit() if not yet ready, which
+     *   allocates GPU buffers and enqueues copy operations via SubmissionHelper.
+     *
+     * GPU resource ownership:
+     * - Each submesh's vertex/index buffer (DeviceBuffer) is owned by StaticMeshResource.
+     * - OnDestroyImpl calls StaticMeshResource::Remove(), which resets buffer unique_ptrs,
+     *   triggering RAII cleanup of the underlying GPU allocations.
+     *
+     * Use case and design intent:
+     * - This is the primary resource for mesh rendering; synchronous acquire ensures
+     *   GPU readiness before first use.
+     * - Deferred submission reduces startup cost when creating many meshes but only
+     *   using some.
      */
     class StaticMeshResourceManager final : public IRenderResourceManager<StaticMeshResource> {
     public:
         using IRenderResourceManager<StaticMeshResource>::IRenderResourceManager;
 
         /**
-         * @brief Create a StaticMeshResource record for the given asset GUID.
+         * @brief Create a StaticMeshResource record for the given mesh asset GUID.
          *
-         * Only allocates the resource object; GPU submission is left to
-         * AcquireImpl / AcquireAsyncImpl so the sync vs. async policy is
-         * decided at the call site.
+         * @param guid GUID of the MeshAsset to load.
+         * @param deallocate_after_frames Frame countdown before deferred destruction.
+         * @return Newly allocated StaticMeshResourceHandle.
+         *
+         * @details
+         * - Creates StaticMeshResource object with the given asset GUID.
+         * - Does NOT submit GPU data; submission is deferred to AcquireImpl/AcquireAsyncImpl.
+         * - Returns a handle with refcount=1.
          */
         StaticMeshResourceHandle CreateFromAssetImpl(GUID guid, uint32_t deallocate_after_frames);
 
-        /// @brief Synchronous acquire: forces GPU buffer submission before returning.
+        /**
+         * @brief Synchronous acquire: ensure GPU submission is complete before returning.
+         *
+         * @param handle Target handle.
+         *
+         * @details
+         * - Calls EnsureReady, which triggers StaticMeshResource::Submit() if needed.
+         * - Blocks until all submesh GPU buffers are allocated and uploaded.
+         * - Increments refcount in base class Acquire().
+         */
         void AcquireImpl(StaticMeshResourceHandle &handle);
 
-        /// @brief Async acquire: attempts a non-blocking GPU submission; may defer if asset is not yet ready.
+        /**
+         * @brief Asynchronous acquire: request GPU submission via async path.
+         *
+         * @param handle Target handle.
+         *
+         * @details
+         * - Currently implemented as fallback to EnsureReady (synchronous).
+         * - TODO: Implement true async submission that enqueues GPU work without blocking.
+         * - Increments refcount in base class AcquireAsync().
+         */
         void AcquireAsyncImpl(StaticMeshResourceHandle &handle);
 
-        /// @brief No-op: deferred reclamation countdown is managed by TickFrame.
+        /**
+         * @brief Release (no-op).
+         *
+         * @details
+         * Deferred reclamation countdown is managed entirely by base class TickFrame logic.
+         */
         void ReleaseImpl(StaticMeshResourceHandle &handle);
 
-        /// @brief Returns true when all submesh GPU buffers have been prepared.
+        /**
+         * @brief Check whether all submesh GPU buffers are ready.
+         *
+         * @param handle Target handle.
+         * @return True if handle is valid and StaticMeshResource::IsReady() is true.
+         *
+         * @details
+         * - Queries the underlying resource's readiness state.
+         * - Returns false if any submesh GPU buffer is not yet allocated.
+         */
         bool IsReadyImpl(const StaticMeshResourceHandle &handle) const noexcept;
 
-        /// @brief Forces synchronous GPU submission if the resource is not yet ready.
+        /**
+         * @brief Ensure all submesh GPU buffers are ready.
+         *
+         * @param handle Target handle.
+         *
+         * @details
+         * - If StaticMeshResource::IsReady() is false, calls Submit() to allocate and
+         *   upload all submesh GPU buffers.
+         * - Enqueues copy operations via SubmissionHelper; actual GPU work may be
+         *   deferred to later in the frame.
+         */
         void EnsureReadyImpl(StaticMeshResourceHandle &handle);
 
-        /// @brief GPU buffers are owned by StaticMeshResource and released in its destructor.
+        /**
+         * @brief Cleanup upon final destruction.
+         *
+         * @param handle Target handle.
+         *
+         * @details
+         * - Calls StaticMeshResource::Remove(), which:
+         *   - Resets each submesh's vi_buffer unique_ptr, triggering GPU buffer cleanup.
+         *   - Clears internal metadata (attribute offsets, vertex counts, etc.).
+         *   - Releases the mesh asset reference if held.
+         */
         void OnDestroyImpl(StaticMeshResourceHandle &handle) noexcept;
     };
 } // namespace Engine::RenderSystemState

@@ -8,59 +8,108 @@
 namespace Engine {
     class RenderSystem;
     class MaterialInstance;
-}
+} // namespace Engine
 
 namespace Engine::RenderSystemState {
     /**
      * @brief Manager for MaterialInstance render resources.
      *
-     * GUID maps to a MaterialAsset; payload is an instantiated
-     * MaterialInstance. This provider also tracks and releases
-     * MaterialLibrary dependency handles when records are destroyed.
+     * @details
+     * Purpose and lifecycle:
+     * - GUID maps to a MaterialAsset GUID (not directly loaded; derived from asset).
+     * - Payload is a fully instantiated MaterialInstance object.
+     * - MaterialInstance depends on a MaterialLibrary; this manager tracks the dependency
+     *   handle and ensures the library stays alive as long as any instance references it.
+     * - Upon destruction (`OnDestroyImpl`), no action needed: MaterialInstance destructor
+     *   releases the library dependency via its own ~MaterialInstance().
+     *
+     * Preparation model (eager):
+     * - CreateFromAssetImpl eagerly loads the MaterialAsset and immediately instantiates
+     *   the MaterialInstance object and its required MaterialLibrary.
+     * - AcquireImpl/AcquireAsyncImpl are no-ops; payload is already fully constructed.
+     * - EnsureReadyImpl is a no-op; if handle is valid, instance is ready by definition.
+     *
+     * GPU state and lazy updates:
+     * - The MaterialInstance descriptor set allocation and UBO/texture bindings are NOT
+     *   prepared by this manager; instead, they are created lazily the first time
+     *   MaterialInstance::UpdateGPUInfo() is called (typically during BindMaterial in rendering).
+     * - This defers GPU state setup until actually needed, reducing upfront overhead.
      */
     class MaterialInstanceManager final : public IRenderResourceManager<MaterialInstance> {
     public:
         using IRenderResourceManager<MaterialInstance>::IRenderResourceManager;
 
+        /**
+         * @brief Construct manager with owning render system reference.
+         */
         MaterialInstanceManager(RenderSystem &system);
 
-        MaterialInstanceHandle CreateFromAssetImpl(GUID guid, uint32_t deallocate_after_frames);
         /**
-         * @brief Synchronously acquire or create a MaterialInstance record.
+         * @brief Create a MaterialInstance from the given asset GUID.
          *
-         * Ensures MaterialAsset is available and tracks dependent
-         * MaterialLibrary handle in provider-owned dependency table.
+         * @param guid GUID of the MaterialAsset to instantiate.
+         * @param deallocate_after_frames Frame countdown before deferred destruction.
+         * @return Newly allocated MaterialInstanceHandle.
+         *
+         * @details
+         * - Loads MaterialAsset eagerly via AssetRef::Acquire().
+         * - Creates/reuses the required MaterialLibrary via CreateOrReuseFromAsset().
+         * - Calls instance->Instantiate(*asset) to populate instance state from asset.
+         * - Returns a handle with refcount=1.
+         */
+        MaterialInstanceHandle CreateFromAssetImpl(GUID guid, uint32_t deallocate_after_frames);
+
+        /**
+         * @brief Synchronous acquire (no-op).
+         *
+         * @details
+         * Instance is already fully constructed in CreateFromAssetImpl, so no action needed.
          */
         void AcquireImpl(MaterialInstanceHandle &handle);
 
         /**
-         * @brief Acquire through async-friendly path.
+         * @brief Asynchronous acquire (no-op).
          *
-         * Current implementation may fallback to synchronous completion and
-         * acquires MaterialLibrary via manager async entry.
+         * @details
+         * Instance is already fully constructed in CreateFromAssetImpl, so no action needed.
          */
         void AcquireAsyncImpl(MaterialInstanceHandle &handle);
 
         /**
-         * @brief Resolve payload pointer as MaterialInstance.
+         * @brief Release (no-op).
+         *
+         * @details
+         * Deferred reclamation countdown is managed entirely by base class TickFrame logic.
          */
         void ReleaseImpl(MaterialInstanceHandle &handle);
 
         /**
-         * @brief Check whether MaterialInstance payload exists.
+         * @brief Check whether MaterialInstance payload exists and is ready.
+         *
+         * @param handle Target handle.
+         * @return True if handle is valid (and thus payload is guaranteed ready).
+         *
+         * @details
+         * Since MaterialInstance is eagerly constructed, validity of the handle is
+         * sufficient to declare readiness.
          */
         bool IsReadyImpl(const MaterialInstanceHandle &handle) const noexcept;
 
         /**
-         * @brief Synchronous readiness barrier for instance object.
+         * @brief Ensure MaterialInstance is ready (no-op).
          *
-         * Material instance descriptor allocation and UBO updates still happen lazily during BindMaterial -> UpdateGPUInfo.
-         * Manager readiness here guarantees only that the instance object and its immediate dependencies exist now.
+         * @details
+         * Instance is already fully constructed in CreateFromAssetImpl.
+         * GPU descriptor/binding updates happen lazily during BindMaterial.
          */
         void EnsureReadyImpl(MaterialInstanceHandle &handle);
 
         /**
-         * @brief Release tracked dependency handles for destroyed record.
+         * @brief Cleanup upon final destruction (no-op).
+         *
+         * @details
+         * MaterialInstance destructor automatically releases the MaterialLibrary
+         * dependency handle, so no explicit action needed here.
          */
         void OnDestroyImpl(MaterialInstanceHandle &handle) noexcept;
     };

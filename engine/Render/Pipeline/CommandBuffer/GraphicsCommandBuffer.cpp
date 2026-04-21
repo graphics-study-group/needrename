@@ -130,10 +130,8 @@ namespace Engine {
         bool bind_new_pipeline = false;
         if (!m_bound_material_pipeline.has_value()) {
             bind_new_pipeline = true;
-        } else if (
-            pipeline != m_bound_material_pipeline.value().first
-            || pipeline_layout != m_bound_material_pipeline.value().second
-        ) {
+        } else if (pipeline != m_bound_material_pipeline.value().first
+                   || pipeline_layout != m_bound_material_pipeline.value().second) {
             bind_new_pipeline = true;
         }
         if (bind_new_pipeline) {

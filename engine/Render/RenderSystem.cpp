@@ -27,10 +27,10 @@
 namespace Engine {
     struct RenderSystem::impl {
         impl(RenderSystem &parent, std::weak_ptr<SDLWindow> parent_window) :
-            m_window(parent_window), m_allocator_state(parent), m_frame_manager(parent),
-            m_renderer_manager(parent), m_scene_data_manager(parent),
-            m_camera_manager(parent), m_resizable_rtt_manger(parent), m_material_instance_provider(parent),
-            m_material_library_provider(parent), m_static_mesh_resource_provider(parent) {
+            m_window(parent_window), m_allocator_state(parent), m_frame_manager(parent), m_renderer_manager(parent),
+            m_scene_data_manager(parent), m_camera_manager(parent), m_resizable_rtt_manger(parent),
+            m_material_instance_provider(parent), m_material_library_provider(parent),
+            m_static_mesh_resource_provider(parent) {
 
             };
 
