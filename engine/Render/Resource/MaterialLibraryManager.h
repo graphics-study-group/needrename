@@ -1,7 +1,7 @@
 #ifndef RENDER_RESOURCE_MATERIALLIBRARYPROVIDER_INCLUDED
 #define RENDER_RESOURCE_MATERIALLIBRARYPROVIDER_INCLUDED
 
-#include "IRenderResourceProvider.h"
+#include "IRenderResourceManager.h"
 
 namespace Engine {
     class MaterialLibrary;
@@ -9,15 +9,15 @@ namespace Engine {
 
 namespace Engine::RenderSystemState {
     /**
-     * @brief Provider for MaterialLibrary render resources.
+     * @brief Manager for MaterialLibrary render resources.
      *
      * GUID maps to a MaterialLibraryAsset; payload is an instantiated
      * MaterialLibrary object. Pipelines inside the library are still
      * created lazily by MaterialLibrary::FindMaterialTemplate.
      */
-    class MaterialLibraryProvider final : public IRenderResourceProvider<MaterialLibrary> {
+    class MaterialLibraryManager final : public IRenderResourceManager<MaterialLibrary> {
     public:
-        using IRenderResourceProvider<MaterialLibrary>::IRenderResourceProvider;
+        using IRenderResourceManager<MaterialLibrary>::IRenderResourceManager;
 
         /**
          * @brief Create a MaterialLibrary from the given asset GUID and register it.

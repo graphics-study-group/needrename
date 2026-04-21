@@ -77,7 +77,7 @@ public:
 
         auto am = MainClass::GetInstance()->GetAssetManager();
         auto rsys = MainClass::GetInstance()->GetRenderSystem();
-        auto &mi_mng = rsys->GetRenderResourceManager<RenderSystemState::MaterialInstanceProvider>();
+        auto &mi_mng = rsys->GetRenderResourceManager<RenderSystemState::MaterialInstanceManager>();
         auto masset = m_mesh_asset.as<MeshAsset>();
         for (size_t i = 0; i < masset->GetSubmeshCount(); i++) {
             this->m_material_assets.push_back(AssetRef(am->CreateAsset<MaterialAsset>()));
@@ -103,7 +103,7 @@ public:
         m_uniform_data = {.metalness = metalness, .roughness = roughness};
 
         auto *rsys = MainClass::GetInstance()->GetRenderSystem().get();
-        auto &mat_mng = rsys->GetRenderResourceManager<RenderSystemState::MaterialInstanceProvider>();
+        auto &mat_mng = rsys->GetRenderResourceManager<RenderSystemState::MaterialInstanceManager>();
         for (auto guid : m_material_guids) {
             auto handle = mat_mng.CreateOrReuseFromAsset(guid);
             auto *inst = mat_mng.Resolve(handle);

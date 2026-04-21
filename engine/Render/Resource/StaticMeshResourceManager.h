@@ -1,7 +1,7 @@
 #ifndef RENDER_RESOURCE_STATICMESHRESOURCEPROVIDER_INCLUDED
 #define RENDER_RESOURCE_STATICMESHRESOURCEPROVIDER_INCLUDED
 
-#include "IRenderResourceProvider.h"
+#include "IRenderResourceManager.h"
 
 namespace Engine {
     class StaticMeshResource;
@@ -9,15 +9,15 @@ namespace Engine {
 
 namespace Engine::RenderSystemState {
     /**
-     * @brief Provider for StaticMeshResource render resources.
+     * @brief Manager for StaticMeshResource render resources.
      *
      * GUID maps to mesh asset data; payload is a StaticMeshResource that owns
      * GPU-side vertex/index buffers. GPU submission is driven by AcquireImpl
      * (sync) or AcquireAsyncImpl (async, best-effort).
      */
-    class StaticMeshResourceProvider final : public IRenderResourceProvider<StaticMeshResource> {
+    class StaticMeshResourceManager final : public IRenderResourceManager<StaticMeshResource> {
     public:
-        using IRenderResourceProvider<StaticMeshResource>::IRenderResourceProvider;
+        using IRenderResourceManager<StaticMeshResource>::IRenderResourceManager;
 
         /**
          * @brief Create a StaticMeshResource record for the given asset GUID.

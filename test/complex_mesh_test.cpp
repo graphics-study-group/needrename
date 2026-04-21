@@ -132,7 +132,7 @@ public:
 
         m_uniform_data.specular = glm::vec4{spec_r, spec_g, spec_b, spec_coef};
         auto &rsys = *MainClass::GetInstance()->GetRenderSystem();
-        auto &mat_mng = rsys.GetRenderResourceManager<RenderSystemState::MaterialInstanceProvider>();
+        auto &mat_mng = rsys.GetRenderResourceManager<RenderSystemState::MaterialInstanceManager>();
         for (auto guid : m_material_guids) {
             auto handle = mat_mng.CreateOrReuseFromAsset(guid);
             auto mat_ptr = mat_mng.Resolve(handle);

@@ -38,8 +38,8 @@ namespace Engine::RenderSystemState {
             bool cast_shadow,
             bool eagerly_loaded
         ) {
-            auto &mesh_manager = system.GetRenderResourceManager<RenderSystemState::StaticMeshResourceProvider>();
-            auto &material_manager = system.GetRenderResourceManager<RenderSystemState::MaterialInstanceProvider>();
+            auto &mesh_manager = system.GetRenderResourceManager<RenderSystemState::StaticMeshResourceManager>();
+            auto &material_manager = system.GetRenderResourceManager<RenderSystemState::MaterialInstanceManager>();
 
             auto mesh_handle = mesh_manager.CreateOrReuseFromAsset(mesh_asset_ref.GetGUID());
             if (eagerly_loaded) {
@@ -97,8 +97,8 @@ namespace Engine::RenderSystemState {
     }
 
     void RendererManager::PerformPendingCleanUp() {
-        auto &mesh_manager = m_system.GetRenderResourceManager<RenderSystemState::StaticMeshResourceProvider>();
-        auto &material_manager = m_system.GetRenderResourceManager<RenderSystemState::MaterialInstanceProvider>();
+        auto &mesh_manager = m_system.GetRenderResourceManager<RenderSystemState::StaticMeshResourceManager>();
+        auto &material_manager = m_system.GetRenderResourceManager<RenderSystemState::MaterialInstanceManager>();
         for (auto it = pimpl->m_data.begin(); it != pimpl->m_data.end();) {
             if (it->second.pending_deallocation_countdown < 0) {
                 ++it;
@@ -119,7 +119,7 @@ namespace Engine::RenderSystemState {
         assert(sc == SortingCriterion::None && "Unimplemented");
         std::unordered_set<uint32_t> filtered_renderers{};
 
-        auto &mesh_manager = m_system.GetRenderResourceManager<RenderSystemState::StaticMeshResourceProvider>();
+        auto &mesh_manager = m_system.GetRenderResourceManager<RenderSystemState::StaticMeshResourceManager>();
         for (const auto &[handle, entry] : pimpl->m_data) {
             if (entry.pending_deallocation_countdown >= 0) continue;
 

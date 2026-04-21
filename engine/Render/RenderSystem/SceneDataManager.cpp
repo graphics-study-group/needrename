@@ -2,7 +2,7 @@
 
 #include "Render/DebugUtils.h"
 #include "Render/Memory/IndexedBuffer.h"
-#include "Render/Resource/MaterialInstanceProvider.h"
+#include "Render/Resource/MaterialInstanceManager.h"
 #include "Render/Resource/RenderResourceHandle.h"
 
 #include <SDL3/SDL.h>
@@ -301,7 +301,7 @@ namespace Engine::RenderSystemState {
     }
 
     void SceneDataManager::SetSkyboxMaterial(MaterialInstanceHandle material) noexcept {
-        auto &material_manager = m_system.GetRenderResourceManager<MaterialInstanceProvider>();
+        auto &material_manager = m_system.GetRenderResourceManager<MaterialInstanceManager>();
         if (pimpl->skybox.skybox_material.IsValid()) {
             material_manager.Release(pimpl->skybox.skybox_material);
         }
@@ -371,7 +371,7 @@ namespace Engine::RenderSystemState {
         if (!pimpl->skybox.skybox_material.IsValid()) return;
 
         auto *material =
-            m_system.GetRenderResourceManager<MaterialInstanceProvider>().Resolve(pimpl->skybox.skybox_material);
+            m_system.GetRenderResourceManager<MaterialInstanceManager>().Resolve(pimpl->skybox.skybox_material);
         if (!material) return;
 
         vk::Rect2D scissor{{0, 0}, extent};

@@ -205,7 +205,7 @@ int main(int argc, char **argv) {
     // archive.save_to_file(std::string(ENGINE_ASSETS_DIR) + "/mta.asset");
     // SDL_Log("Saved MaterialTemplateAsset to %s", (std::string(ENGINE_ASSETS_DIR) + "/mta.asset").c_str());
 
-    auto &ml_mng = rsys->GetRenderResourceManager<RenderSystemState::MaterialLibraryProvider>();
+    auto &ml_mng = rsys->GetRenderResourceManager<RenderSystemState::MaterialLibraryManager>();
 
     auto test_library_handle = ml_mng.CreateOrReuseFromAsset(test_library_asset->GetGUID());
     auto test_library = ml_mng.Resolve(test_library_handle);

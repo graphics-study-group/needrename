@@ -1,3 +1,3 @@
-#include "MaterialInstanceProvider.h"
-#include "MaterialLibraryProvider.h"
-#include "StaticMeshResourceProvider.h"
+#include "MaterialInstanceManager.h"
+#include "MaterialLibraryManager.h"
+#include "StaticMeshResourceManager.h"

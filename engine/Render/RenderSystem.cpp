@@ -51,9 +51,9 @@ namespace Engine {
         RenderSystemState::CameraManager m_camera_manager;
         RenderSystemState::ResizableRTTManager m_resizable_rtt_manger;
 
-        RenderSystemState::MaterialInstanceProvider m_material_instance_provider;
-        RenderSystemState::MaterialLibraryProvider m_material_library_provider;
-        RenderSystemState::StaticMeshResourceProvider m_static_mesh_resource_provider;
+        RenderSystemState::MaterialInstanceManager m_material_instance_provider;
+        RenderSystemState::MaterialLibraryManager m_material_library_provider;
+        RenderSystemState::StaticMeshResourceManager m_static_mesh_resource_provider;
     };
 
     RenderSystem::RenderSystem(std::weak_ptr<SDLWindow> parent_window) :

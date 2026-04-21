@@ -14,14 +14,14 @@ namespace Engine {
 
     namespace RenderSystemState {
         template <typename ResourceType>
-        class IRenderResourceProvider {
+        class IRenderResourceManager {
         public:
             using HandleType = typename ResourceTraits<ResourceType>::HandleType;
-            using ProviderType = typename ResourceTraits<ResourceType>::ProviderType;
+            using ManagerType = typename ResourceTraits<ResourceType>::ManagerType;
 
-            IRenderResourceProvider(RenderSystem &system) : m_system(system) {
+            IRenderResourceManager(RenderSystem &system) : m_system(system) {
             }
-            ~IRenderResourceProvider() noexcept = default;
+            ~IRenderResourceManager() noexcept = default;
 
             HandleType Create(std::unique_ptr<ResourceType> resource);
 
@@ -63,6 +63,6 @@ namespace Engine {
     } // namespace RenderSystemState
 } // namespace Engine
 
-#include "IRenderResourceProvider.inl"
+#include "IRenderResourceManager.inl"
 
 #endif // RENDER_RESOURCE_IRENDERRESOURCEPROVIDER_INCLUDED

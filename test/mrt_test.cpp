@@ -203,7 +203,7 @@ int main(int argc, char **argv) {
 
     // Prepare material
     auto [test_library_asset, test_template_asset] = ConstructMaterial();
-    auto &ml_mng = rsys->GetRenderResourceManager<RenderSystemState::MaterialLibraryProvider>();
+    auto &ml_mng = rsys->GetRenderResourceManager<RenderSystemState::MaterialLibraryManager>();
 
     auto test_library_handle = ml_mng.CreateOrReuseFromAsset(test_library_asset->GetGUID());
     auto test_library = ml_mng.Resolve(test_library_handle);

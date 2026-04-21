@@ -1,4 +1,4 @@
-#include "MaterialLibraryProvider.h"
+#include "MaterialLibraryManager.h"
 
 #include "Asset/AssetRef.h"
 #include "Asset/Material/MaterialLibraryAsset.h"
@@ -21,7 +21,7 @@ namespace Engine::RenderSystemState {
         }
     } // namespace
 
-    MaterialLibraryHandle MaterialLibraryProvider::CreateFromAssetImpl(GUID guid) {
+    MaterialLibraryHandle MaterialLibraryManager::CreateFromAssetImpl(GUID guid) {
         AssetRef ref(guid);
         auto *asset = ResolveMaterialLibraryAsset(ref, false);
         assert(asset);
@@ -34,29 +34,29 @@ namespace Engine::RenderSystemState {
         return handle;
     }
 
-    void MaterialLibraryProvider::AcquireImpl(MaterialLibraryHandle) {
+    void MaterialLibraryManager::AcquireImpl(MaterialLibraryHandle) {
         // MaterialLibrary is always loaded eagerly in CreateFromAssetImpl; no action needed.
     }
 
-    void MaterialLibraryProvider::AcquireAsyncImpl(MaterialLibraryHandle) {
+    void MaterialLibraryManager::AcquireAsyncImpl(MaterialLibraryHandle) {
         // TODO: support true async MaterialLibrary loading; falls back to synchronous creation for now.
     }
 
-    void MaterialLibraryProvider::ReleaseImpl(MaterialLibraryHandle) {
+    void MaterialLibraryManager::ReleaseImpl(MaterialLibraryHandle) {
         // No-op; deferred reclamation countdown is managed by TickFrame.
     }
 
-    bool MaterialLibraryProvider::IsReadyImpl(MaterialLibraryHandle) const noexcept {
+    bool MaterialLibraryManager::IsReadyImpl(MaterialLibraryHandle) const noexcept {
         // MaterialLibrary is always instantiated synchronously; a valid handle implies readiness.
         return true;
     }
 
-    void MaterialLibraryProvider::EnsureReadyImpl(MaterialLibraryHandle) {
+    void MaterialLibraryManager::EnsureReadyImpl(MaterialLibraryHandle) {
         // Library pipelines are still created lazily inside MaterialLibrary::FindMaterialTemplate.
-        // Provider readiness guarantees only that the library object itself is instantiated.
+        // Manager readiness guarantees only that the library object itself is instantiated.
     }
 
-    void MaterialLibraryProvider::OnDestroyImpl(MaterialLibraryHandle) noexcept {
+    void MaterialLibraryManager::OnDestroyImpl(MaterialLibraryHandle) noexcept {
         // No provider-owned dependencies to release for MaterialLibrary.
     }
 } // namespace Engine::RenderSystemState

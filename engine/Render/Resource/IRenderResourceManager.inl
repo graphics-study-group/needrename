@@ -1,8 +1,8 @@
-#include "IRenderResourceProvider.h"
+#include "IRenderResourceManager.h"
 
 namespace Engine::RenderSystemState {
     template <typename ResourceType>
-    typename IRenderResourceProvider<ResourceType>::HandleType IRenderResourceProvider<ResourceType>::Create(
+    typename IRenderResourceManager<ResourceType>::HandleType IRenderResourceManager<ResourceType>::Create(
         std::unique_ptr<ResourceType> resource
     ) {
         uint32_t index = 0;
@@ -26,24 +26,24 @@ namespace Engine::RenderSystemState {
     }
 
     template <typename ResourceType>
-    typename IRenderResourceProvider<ResourceType>::HandleType IRenderResourceProvider<
+    typename IRenderResourceManager<ResourceType>::HandleType IRenderResourceManager<
         ResourceType>::CreateOrReuseFromAsset(GUID guid) {
         if (m_guid_to_handle.find(guid) != m_guid_to_handle.end()) {
             auto handle = m_guid_to_handle[guid];
             if (IsHandleValid(handle)) return handle;
             m_guid_to_handle.erase(guid);
         }
-        return static_cast<ProviderType *>(this)->CreateFromAssetImpl(guid);
+        return static_cast<ManagerType *>(this)->CreateFromAssetImpl(guid);
     }
 
     template <typename ResourceType>
-    ResourceType *IRenderResourceProvider<ResourceType>::Resolve(HandleType handle) {
+    ResourceType *IRenderResourceManager<ResourceType>::Resolve(HandleType handle) {
         if (!IsHandleValid(handle)) return nullptr;
         return m_records[handle.index].payload.get();
     }
 
     template <typename ResourceType>
-    bool IRenderResourceProvider<ResourceType>::IsHandleValid(HandleType handle) const noexcept {
+    bool IRenderResourceManager<ResourceType>::IsHandleValid(HandleType handle) const noexcept {
         if (!handle.IsValid()) return false;
         if (handle.index >= m_records.size()) return false;
 
@@ -55,37 +55,37 @@ namespace Engine::RenderSystemState {
     }
 
     template <typename ResourceType>
-    void IRenderResourceProvider<ResourceType>::Acquire(HandleType handle) {
-        static_cast<ProviderType *>(this)->AcquireImpl(handle);
+    void IRenderResourceManager<ResourceType>::Acquire(HandleType handle) {
+        static_cast<ManagerType *>(this)->AcquireImpl(handle);
     }
 
     template <typename ResourceType>
-    void IRenderResourceProvider<ResourceType>::AcquireAsync(HandleType handle) {
-        static_cast<ProviderType *>(this)->AcquireAsyncImpl(handle);
+    void IRenderResourceManager<ResourceType>::AcquireAsync(HandleType handle) {
+        static_cast<ManagerType *>(this)->AcquireAsyncImpl(handle);
     }
 
     template <typename ResourceType>
-    void IRenderResourceProvider<ResourceType>::Release(HandleType handle) {
-        static_cast<ProviderType *>(this)->ReleaseImpl(handle);
+    void IRenderResourceManager<ResourceType>::Release(HandleType handle) {
+        static_cast<ManagerType *>(this)->ReleaseImpl(handle);
     }
 
     template <typename ResourceType>
-    bool IRenderResourceProvider<ResourceType>::IsReady(HandleType handle) const noexcept {
-        return static_cast<const ProviderType *>(this)->IsReadyImpl(handle);
+    bool IRenderResourceManager<ResourceType>::IsReady(HandleType handle) const noexcept {
+        return static_cast<const ManagerType *>(this)->IsReadyImpl(handle);
     }
 
     template <typename ResourceType>
-    void IRenderResourceProvider<ResourceType>::EnsureReady(HandleType handle) {
-        static_cast<ProviderType *>(this)->EnsureReadyImpl(handle);
+    void IRenderResourceManager<ResourceType>::EnsureReady(HandleType handle) {
+        static_cast<ManagerType *>(this)->EnsureReadyImpl(handle);
     }
 
     template <typename ResourceType>
-    void IRenderResourceProvider<ResourceType>::OnDestroy(HandleType handle) {
-        static_cast<ProviderType *>(this)->OnDestroyImpl(handle);
+    void IRenderResourceManager<ResourceType>::OnDestroy(HandleType handle) {
+        static_cast<ManagerType *>(this)->OnDestroyImpl(handle);
     }
 
     template <typename ResourceType>
-    void IRenderResourceProvider<ResourceType>::TickFrame() {
+    void IRenderResourceManager<ResourceType>::TickFrame() {
         for (uint32_t i = 0; i < m_records.size(); ++i) {
             auto &record = m_records[i];
             if (record.payload == nullptr) continue;
@@ -94,7 +94,7 @@ namespace Engine::RenderSystemState {
             record.pending_deallocation_countdown -= 1;
             if (record.pending_deallocation_countdown > 0) continue;
 
-            const auto handle = typename ProviderType::HandleType{i, record.generation};
+            const auto handle = typename ManagerType::HandleType{i, record.generation};
             OnDestroy(handle);
             record.payload.reset();
         }

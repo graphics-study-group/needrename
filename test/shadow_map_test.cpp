@@ -124,7 +124,7 @@ int main(int argc, char **argv) {
 
     auto rsys = cmc->GetRenderSystem();
     auto am = cmc->GetAssetManager();
-    auto &mi_mng = rsys->GetRenderResourceManager<RenderSystemState::MaterialInstanceProvider>();
+    auto &mi_mng = rsys->GetRenderResourceManager<RenderSystemState::MaterialInstanceManager>();
 
     Transform transform{};
     transform.SetPosition({0.0f, 0.0f, -5.0f}).SetRotationEuler(glm::vec3{M_PI_2, 0.0f, 0.0f});

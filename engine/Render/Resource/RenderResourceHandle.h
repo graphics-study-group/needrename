@@ -54,31 +54,31 @@ namespace Engine {
                 || std::is_same_v<ResourceType, StaticMeshResource>;
         };
 
-        class MaterialInstanceProvider;
+        class MaterialInstanceManager;
         struct MaterialInstanceHandle : public RenderResourceHandle {};
 
         template <>
         struct ResourceTraits<MaterialInstance> {
             using HandleType = MaterialInstanceHandle;
-            using ProviderType = MaterialInstanceProvider;
+            using ManagerType = MaterialInstanceManager;
         };
 
-        class MaterialLibraryProvider;
+        class MaterialLibraryManager;
         struct MaterialLibraryHandle : public RenderResourceHandle {};
 
         template <>
         struct ResourceTraits<MaterialLibrary> {
             using HandleType = MaterialLibraryHandle;
-            using ProviderType = MaterialLibraryProvider;
+            using ManagerType = MaterialLibraryManager;
         };
 
-        class StaticMeshResourceProvider;
+        class StaticMeshResourceManager;
         struct StaticMeshResourceHandle : public RenderResourceHandle {};
 
         template <>
         struct ResourceTraits<StaticMeshResource> {
             using HandleType = StaticMeshResourceHandle;
-            using ProviderType = StaticMeshResourceProvider;
+            using ManagerType = StaticMeshResourceManager;
         };
     } // namespace RenderSystemState
 } // namespace Engine

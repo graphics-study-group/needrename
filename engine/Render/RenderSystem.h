@@ -39,9 +39,9 @@ namespace Engine {
         class SceneDataManager;
         class ResizableRTTManager;
 
-        class MaterialInstanceProvider;
-        class MaterialLibraryProvider;
-        class StaticMeshResourceProvider;
+        class MaterialInstanceManager;
+        class MaterialLibraryManager;
+        class StaticMeshResourceManager;
     }; // namespace RenderSystemState
 
     /**
@@ -53,9 +53,9 @@ namespace Engine {
         std::unique_ptr<impl> pimpl;
 
         std::tuple<
-            RenderSystemState::MaterialInstanceProvider *,
-            RenderSystemState::MaterialLibraryProvider *,
-            RenderSystemState::StaticMeshResourceProvider *>
+            RenderSystemState::MaterialInstanceManager *,
+            RenderSystemState::MaterialLibraryManager *,
+            RenderSystemState::StaticMeshResourceManager *>
             m_resource_managers{};
 
     public:

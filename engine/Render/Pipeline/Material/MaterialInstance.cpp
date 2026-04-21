@@ -12,7 +12,7 @@
 #include "Render/RenderSystem/FrameManager.h"
 #include "Render/RenderSystem/SubmissionHelper.h"
 #include "Render/Renderer/VertexAttribute.h"
-#include "Render/Resource/MaterialLibraryProvider.h"
+#include "Render/Resource/MaterialLibraryManager.h"
 #include <Asset/Material/MaterialAsset.h>
 #include <Asset/Texture/Image2DTextureAsset.h>
 #include <Asset/Texture/ImageCubemapAsset.h>
@@ -109,7 +109,7 @@ namespace Engine {
     }
 
     MaterialInstance::~MaterialInstance() {
-        m_system.GetRenderResourceManager<RenderSystemState::MaterialLibraryProvider>().Release(m_library);
+        m_system.GetRenderResourceManager<RenderSystemState::MaterialLibraryManager>().Release(m_library);
     }
 
     void MaterialInstance::AssignScalarVariable(const std::string &name, std::variant<uint32_t, float> value) {
@@ -317,6 +317,6 @@ namespace Engine {
         }
     }
     MaterialLibrary &MaterialInstance::GetLibrary() const {
-        return *m_system.GetRenderResourceManager<RenderSystemState::MaterialLibraryProvider>().Resolve(m_library);
+        return *m_system.GetRenderResourceManager<RenderSystemState::MaterialLibraryManager>().Resolve(m_library);
     }
 } // namespace Engine

@@ -1,7 +1,7 @@
 #ifndef RENDER_RESOURCE_MATERIALINSTANCEPROVIDER_INCLUDED
 #define RENDER_RESOURCE_MATERIALINSTANCEPROVIDER_INCLUDED
 
-#include "IRenderResourceProvider.h"
+#include "IRenderResourceManager.h"
 
 #include <unordered_map>
 
@@ -12,17 +12,17 @@ namespace Engine {
 
 namespace Engine::RenderSystemState {
     /**
-     * @brief Provider for MaterialInstance render resources.
+     * @brief Manager for MaterialInstance render resources.
      *
      * GUID maps to a MaterialAsset; payload is an instantiated
      * MaterialInstance. This provider also tracks and releases
      * MaterialLibrary dependency handles when records are destroyed.
      */
-    class MaterialInstanceProvider final : public IRenderResourceProvider<MaterialInstance> {
+    class MaterialInstanceManager final : public IRenderResourceManager<MaterialInstance> {
     public:
-        using IRenderResourceProvider<MaterialInstance>::IRenderResourceProvider;
+        using IRenderResourceManager<MaterialInstance>::IRenderResourceManager;
 
-        MaterialInstanceProvider(RenderSystem &system);
+        MaterialInstanceManager(RenderSystem &system);
 
         MaterialInstanceHandle CreateFromAssetImpl(GUID guid);
         /**
@@ -55,7 +55,7 @@ namespace Engine::RenderSystemState {
          * @brief Synchronous readiness barrier for instance object.
          *
          * Material instance descriptor allocation and UBO updates still happen lazily during BindMaterial -> UpdateGPUInfo.
-         * Provider readiness here guarantees only that the instance object and its immediate dependencies exist now.
+         * Manager readiness here guarantees only that the instance object and its immediate dependencies exist now.
          */
         void EnsureReadyImpl(MaterialInstanceHandle handle);
 

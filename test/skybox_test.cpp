@@ -88,7 +88,7 @@ int main(int argc, char **argv) {
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
     cmc->LoadBuiltinAssets(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
     auto rsys = cmc->GetRenderSystem();
-    auto &mi_mng = rsys->GetRenderResourceManager<RenderSystemState::MaterialInstanceProvider>();
+    auto &mi_mng = rsys->GetRenderResourceManager<RenderSystemState::MaterialInstanceManager>();
 
     auto camera = std::make_shared<Camera>();
     camera->set_aspect_ratio(800.0 / 800.0);

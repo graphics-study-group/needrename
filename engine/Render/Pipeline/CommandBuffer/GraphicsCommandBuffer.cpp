@@ -13,7 +13,7 @@
 #include "Render/Renderer/Camera.h"
 #include "Render/Renderer/IVertexBasedRenderer.h"
 #include "Render/Renderer/VertexAttribute.h"
-#include "Render/Resource/MaterialInstanceProvider.h"
+#include "Render/Resource/MaterialInstanceManager.h"
 
 #include "Render/DebugUtils.h"
 
@@ -208,7 +208,7 @@ namespace Engine {
         const std::string &tag, const RendererList &renderers, int32_t camera_index, vk::Extent2D extent
     ) {
         auto &renderer_manager = m_system.GetRendererManager();
-        auto &material_manager = m_system.GetRenderResourceManager<RenderSystemState::MaterialInstanceProvider>();
+        auto &material_manager = m_system.GetRenderResourceManager<RenderSystemState::MaterialInstanceManager>();
 
         BindSceneResources(m_system.GetSceneDataManager());
         BindCameraResources(m_system.GetCameraManager());
