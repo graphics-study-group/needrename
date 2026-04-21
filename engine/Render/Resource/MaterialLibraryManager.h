@@ -25,7 +25,7 @@ namespace Engine::RenderSystemState {
          * Loads the asset synchronously, instantiates the library, and stores the
          * resulting handle in the GUID cache for future reuse.
          */
-        MaterialLibraryHandle CreateFromAssetImpl(GUID guid);
+        MaterialLibraryHandle CreateFromAssetImpl(GUID guid, uint32_t deallocate_after_frames);
 
         /// @brief No-op: library is fully instantiated inside CreateFromAssetImpl.
         void AcquireImpl(MaterialLibraryHandle handle);

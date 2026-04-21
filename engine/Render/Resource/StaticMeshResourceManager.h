@@ -26,7 +26,7 @@ namespace Engine::RenderSystemState {
          * AcquireImpl / AcquireAsyncImpl so the sync vs. async policy is
          * decided at the call site.
          */
-        StaticMeshResourceHandle CreateFromAssetImpl(GUID guid);
+        StaticMeshResourceHandle CreateFromAssetImpl(GUID guid, uint32_t deallocate_after_frames);
 
         /// @brief Synchronous acquire: forces GPU buffer submission before returning.
         void AcquireImpl(StaticMeshResourceHandle handle);

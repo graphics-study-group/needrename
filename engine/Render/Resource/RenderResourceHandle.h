@@ -27,7 +27,7 @@ namespace Engine {
             /// Slot version used to detect stale handles after slot reuse.
             uint32_t generation{0};
             /// Type index for quick runtime type checking during handle resolution.
-            bool is_acuired{false};
+            bool is_acquired{false};
 
             bool IsValid() const noexcept {
                 return index != 0xFFFFFFFFu;

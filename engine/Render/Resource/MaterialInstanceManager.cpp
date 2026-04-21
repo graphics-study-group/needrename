@@ -13,7 +13,7 @@ namespace Engine::RenderSystemState {
     MaterialInstanceManager::MaterialInstanceManager(RenderSystem &system) : IRenderResourceManager(system) {
     }
 
-    MaterialInstanceHandle MaterialInstanceManager::CreateFromAssetImpl(GUID guid) {
+    MaterialInstanceHandle MaterialInstanceManager::CreateFromAssetImpl(GUID guid, uint32_t deallocate_after_frames) {
         AssetRef mat_ref(guid);
         // MaterialInstance always load eagerly
         mat_ref.Acquire();
@@ -29,7 +29,7 @@ namespace Engine::RenderSystemState {
         auto instance = std::make_unique<MaterialInstance>(m_system, library_handle);
         instance->Instantiate(*mat_asset);
 
-        return Create(std::move(instance));
+        return Create(std::move(instance), deallocate_after_frames);
     }
 
     void MaterialInstanceManager::AcquireImpl(MaterialInstanceHandle handle) {
@@ -41,7 +41,7 @@ namespace Engine::RenderSystemState {
     }
 
     void MaterialInstanceManager::ReleaseImpl(MaterialInstanceHandle handle) {
-        // No-op since we don't have reference counting for MaterialInstance payloads. The provider relies on the manager to call OnDestroyImpl when the record is destroyed, which will release the dependency handles.
+        // No-op since refcounting and deallocation is handled by the base manager logic.
     }
 
     bool MaterialInstanceManager::IsReadyImpl(MaterialInstanceHandle handle) const noexcept {

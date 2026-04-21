@@ -8,30 +8,15 @@
 #include <cassert>
 
 namespace Engine::RenderSystemState {
-    namespace {
-        MaterialLibraryAsset *ResolveMaterialLibraryAsset(AssetRef &ref, bool async_load) {
-            auto *asset = ref.as<MaterialLibraryAsset>(async_load);
-            if (asset || !async_load) return asset;
-
-            if (ref.IsAcquired()) {
-                ref.Release();
-            }
-            ref.Acquire();
-            return ref.as<MaterialLibraryAsset>(false);
-        }
-    } // namespace
-
-    MaterialLibraryHandle MaterialLibraryManager::CreateFromAssetImpl(GUID guid) {
+    MaterialLibraryHandle MaterialLibraryManager::CreateFromAssetImpl(GUID guid, uint32_t deallocate_after_frames) {
         AssetRef ref(guid);
-        auto *asset = ResolveMaterialLibraryAsset(ref, false);
+        // MaterialLibrary always load eagerly
+        ref.Acquire();
+        auto *asset = ref.as<MaterialLibraryAsset>(false);
         assert(asset);
-
         auto library = std::make_unique<MaterialLibrary>(m_system);
         library->Instantiate(*asset);
-
-        auto handle = Create(std::move(library));
-        m_guid_to_handle[guid] = handle;
-        return handle;
+        return Create(std::move(library), deallocate_after_frames);;
     }
 
     void MaterialLibraryManager::AcquireImpl(MaterialLibraryHandle) {
@@ -39,24 +24,23 @@ namespace Engine::RenderSystemState {
     }
 
     void MaterialLibraryManager::AcquireAsyncImpl(MaterialLibraryHandle) {
-        // TODO: support true async MaterialLibrary loading; falls back to synchronous creation for now.
+        // MaterialLibrary is always loaded eagerly in CreateFromAssetImpl; no action needed.
     }
 
     void MaterialLibraryManager::ReleaseImpl(MaterialLibraryHandle) {
-        // No-op; deferred reclamation countdown is managed by TickFrame.
+        // No-op since refcounting and deallocation is handled by the base manager logic.
     }
 
     bool MaterialLibraryManager::IsReadyImpl(MaterialLibraryHandle) const noexcept {
-        // MaterialLibrary is always instantiated synchronously; a valid handle implies readiness.
+        // MaterialLibrary is always loaded eagerly in CreateFromAssetImpl, so if the handle is valid, we consider it ready.
         return true;
     }
 
     void MaterialLibraryManager::EnsureReadyImpl(MaterialLibraryHandle) {
-        // Library pipelines are still created lazily inside MaterialLibrary::FindMaterialTemplate.
-        // Manager readiness guarantees only that the library object itself is instantiated.
+        // MaterialLibrary is always loaded eagerly in CreateFromAssetImpl, so if the handle is valid, we consider it ready. No additional action is needed here.
     }
 
     void MaterialLibraryManager::OnDestroyImpl(MaterialLibraryHandle) noexcept {
-        // No provider-owned dependencies to release for MaterialLibrary.
+        // dependencies will be released in ~MaterialLibrary(), so no need to do anything here.
     }
 } // namespace Engine::RenderSystemState

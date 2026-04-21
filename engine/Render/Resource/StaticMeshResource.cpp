@@ -6,8 +6,8 @@
 
 namespace Engine {
     StaticMeshResource::StaticMeshResource(
-        AssetRef mesh_asset_ref, std::unique_ptr<StaticHMeshSharedDataBlock> data_block
-    ) : m_mesh_asset_ref(std::move(mesh_asset_ref)), m_data_block(std::move(data_block)) {
+        GUID mesh_asset_guid, std::unique_ptr<StaticHMeshSharedDataBlock> data_block
+    ) : m_mesh_asset_ref(mesh_asset_guid), m_data_block(std::move(data_block)) {
         if (!m_data_block) {
             m_data_block = std::make_unique<StaticHMeshSharedDataBlock>();
         }
@@ -16,14 +16,9 @@ namespace Engine {
     bool StaticMeshResource::IsReady() const noexcept {
         if (m_data_block->submeshes.empty()) return false;
         for (uint32_t i = 0; i < m_data_block->submeshes.size(); ++i) {
-            if (!IsSubmeshReady(i)) return false;
+            if (!static_cast<bool>(m_data_block->submeshes[i].vi_buffer)) return false;
         }
         return true;
-    }
-
-    bool StaticMeshResource::IsSubmeshReady(uint32_t submesh_index) const noexcept {
-        assert(submesh_index < m_data_block->submeshes.size());
-        return static_cast<bool>(m_data_block->submeshes[submesh_index].vi_buffer);
     }
 
     const StaticMeshResource::StaticHMeshSharedDataBlock::PerSubmeshData &StaticMeshResource::GetSubmeshData(
@@ -33,14 +28,18 @@ namespace Engine {
         return m_data_block->submeshes[submesh_index];
     }
 
-    bool StaticMeshResource::Submit(
-        const RenderSystemState::AllocatorState &allocator, RenderSystemState::SubmissionHelper &helper, bool async_load
+    void StaticMeshResource::Remove() noexcept {
+        m_mesh_asset_ref.Release();
+        m_data_block->submeshes.clear();
+    }
+
+    void StaticMeshResource::Submit(
+        const RenderSystemState::AllocatorState &allocator, RenderSystemState::SubmissionHelper &helper
     ) {
-        auto *mesh_asset = m_mesh_asset_ref.as<MeshAsset>(async_load);
-        if (async_load && !mesh_asset) {
-            // Asset is not ready yet. Submission will be attempted again in the next frame.
-            return false;
-        }
+        // Eagerly load the mesh asset.
+        // TODO: Use memory mapping after implementing it in AssetManager, and avoid loading the whole asset into memory at once.
+        m_mesh_asset_ref.Acquire();
+        auto *mesh_asset = m_mesh_asset_ref.as<MeshAsset>();
         assert(mesh_asset);
         m_data_block->submeshes.resize(mesh_asset->GetSubmeshCount());
 
@@ -82,6 +81,5 @@ namespace Engine {
         }
 
         m_mesh_asset_ref.Release();
-        return true;
     }
 } // namespace Engine

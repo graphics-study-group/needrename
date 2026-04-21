@@ -3,7 +3,7 @@
 namespace Engine::RenderSystemState {
     template <typename ResourceType>
     typename IRenderResourceManager<ResourceType>::HandleType IRenderResourceManager<ResourceType>::Create(
-        std::unique_ptr<ResourceType> resource
+        std::unique_ptr<ResourceType> resource, uint32_t deallocate_after_frames
     ) {
         uint32_t index = 0;
         if (!m_free_indices.empty()) {
@@ -15,11 +15,12 @@ namespace Engine::RenderSystemState {
         }
 
         auto &record = m_records[index];
-        auto generation = record.generation == 0 ? 1u : record.generation;
+        auto generation = record.generation + 1;
         record = {};
         record.generation = generation;
         record.refcount = 1;
         record.pending_deallocation_countdown = -1;
+        record.deallocate_after_frames = deallocate_after_frames;
         record.payload = std::move(resource);
 
         return HandleType{index, generation};
@@ -27,13 +28,15 @@ namespace Engine::RenderSystemState {
 
     template <typename ResourceType>
     typename IRenderResourceManager<ResourceType>::HandleType IRenderResourceManager<
-        ResourceType>::CreateOrReuseFromAsset(GUID guid) {
+        ResourceType>::CreateOrReuseFromAsset(GUID guid, uint32_t deallocate_after_frames) {
         if (m_guid_to_handle.find(guid) != m_guid_to_handle.end()) {
             auto handle = m_guid_to_handle[guid];
             if (IsHandleValid(handle)) return handle;
             m_guid_to_handle.erase(guid);
         }
-        return static_cast<ManagerType *>(this)->CreateFromAssetImpl(guid);
+        auto handle = static_cast<ManagerType *>(this)->CreateFromAssetImpl(guid, deallocate_after_frames);
+        m_guid_to_handle[guid] = handle;
+        return handle;
     }
 
     template <typename ResourceType>
@@ -57,16 +60,37 @@ namespace Engine::RenderSystemState {
     template <typename ResourceType>
     void IRenderResourceManager<ResourceType>::Acquire(HandleType handle) {
         static_cast<ManagerType *>(this)->AcquireImpl(handle);
+        if (!handle.is_acquired) {
+            auto &record = m_records[handle.index];
+            record.refcount += 1;
+            record.pending_deallocation_countdown = -1;
+            handle.is_acquired = true;
+        }
     }
 
     template <typename ResourceType>
     void IRenderResourceManager<ResourceType>::AcquireAsync(HandleType handle) {
         static_cast<ManagerType *>(this)->AcquireAsyncImpl(handle);
+        if (!handle.is_acquired) {
+            auto &record = m_records[handle.index];
+            record.refcount += 1;
+            record.pending_deallocation_countdown = -1;
+            handle.is_acquired = true;
+        }
     }
 
     template <typename ResourceType>
     void IRenderResourceManager<ResourceType>::Release(HandleType handle) {
         static_cast<ManagerType *>(this)->ReleaseImpl(handle);
+        if (handle.is_acquired) {
+            auto &record = m_records[handle.index];
+            assert(record.refcount > 0);
+            record.refcount -= 1;
+            if (record.refcount == 0) {
+                record.pending_deallocation_countdown = record.deallocate_after_frames;
+            }
+        }
+        handle.is_acquired = false;
     }
 
     template <typename ResourceType>
@@ -97,6 +121,7 @@ namespace Engine::RenderSystemState {
             const auto handle = typename ManagerType::HandleType{i, record.generation};
             OnDestroy(handle);
             record.payload.reset();
+            m_free_indices.push_back(i);
         }
     }
 } // namespace Engine::RenderSystemState

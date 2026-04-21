@@ -21,11 +21,11 @@ namespace Engine {
 
             IRenderResourceManager(RenderSystem &system) : m_system(system) {
             }
-            ~IRenderResourceManager() noexcept = default;
+            ~IRenderResourceManager() = default;
 
-            HandleType Create(std::unique_ptr<ResourceType> resource);
+            HandleType Create(std::unique_ptr<ResourceType> resource, uint32_t deallocate_after_frames = 3u);
 
-            HandleType CreateOrReuseFromAsset(GUID guid);
+            HandleType CreateOrReuseFromAsset(GUID guid, uint32_t deallocate_after_frames = 3u);
 
             ResourceType *Resolve(HandleType handle);
 
@@ -52,6 +52,7 @@ namespace Engine {
                 uint32_t generation{1};
                 uint32_t refcount{0};
                 int32_t pending_deallocation_countdown{-1};
+                uint32_t deallocate_after_frames{3};
 
                 std::unique_ptr<ResourceType> payload{};
             };

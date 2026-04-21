@@ -1,34 +1,28 @@
 #include "StaticMeshResourceManager.h"
 
-#include "StaticMeshResource.h"
 #include "Asset/AssetRef.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/AllocatorState.h"
 #include "Render/RenderSystem/FrameManager.h"
+#include "StaticMeshResource.h"
 
 #include <cassert>
 
 namespace Engine::RenderSystemState {
-    StaticMeshResourceHandle StaticMeshResourceManager::CreateFromAssetImpl(GUID guid) {
-        auto resource = std::make_unique<StaticMeshResource>(AssetRef(guid));
-        auto handle = Create(std::move(resource));
-        m_guid_to_handle[guid] = handle;
-        return handle;
+    StaticMeshResourceHandle StaticMeshResourceManager::CreateFromAssetImpl(
+        GUID guid, uint32_t deallocate_after_frames
+    ) {
+        auto resource = std::make_unique<StaticMeshResource>(guid);
+        return Create(std::move(resource), deallocate_after_frames);
     }
 
     void StaticMeshResourceManager::AcquireImpl(StaticMeshResourceHandle handle) {
-        EnsureReadyImpl(handle);
+        EnsureReady(handle);
     }
 
     void StaticMeshResourceManager::AcquireAsyncImpl(StaticMeshResourceHandle handle) {
-        auto *resource = Resolve(handle);
-        if (!resource || resource->IsReady()) return;
-        // Best-effort async submission; returns false (deferred) if the asset is not yet loaded.
-        resource->Submit(
-            m_system.GetAllocatorState(),
-            m_system.GetFrameManager().GetSubmissionHelper(),
-            true
-        );
+        // TODO: Implement asynchronous GPU submission. For now, we fall back to synchronous submission to ensure correctness.
+        EnsureReady(handle);
     }
 
     void StaticMeshResourceManager::ReleaseImpl(StaticMeshResourceHandle) {
@@ -49,7 +43,10 @@ namespace Engine::RenderSystemState {
         }
     }
 
-    void StaticMeshResourceManager::OnDestroyImpl(StaticMeshResourceHandle) noexcept {
-        // GPU buffers are owned by StaticMeshResource and released in ~StaticMeshResource().
+    void StaticMeshResourceManager::OnDestroyImpl(StaticMeshResourceHandle handle) noexcept {
+        auto *resource = Resolve(handle);
+        if (resource) {
+            resource->Remove();
+        }
     }
 } // namespace Engine::RenderSystemState

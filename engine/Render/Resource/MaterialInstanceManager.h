@@ -24,7 +24,7 @@ namespace Engine::RenderSystemState {
 
         MaterialInstanceManager(RenderSystem &system);
 
-        MaterialInstanceHandle CreateFromAssetImpl(GUID guid);
+        MaterialInstanceHandle CreateFromAssetImpl(GUID guid, uint32_t deallocate_after_frames);
         /**
          * @brief Synchronously acquire or create a MaterialInstance record.
          *

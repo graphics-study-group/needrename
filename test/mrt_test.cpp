@@ -212,7 +212,7 @@ int main(int argc, char **argv) {
     // Prepare mesh
     auto test_mesh_asset = amg->CreateAsset<LowerPlaneMeshAsset>();
     auto test_mesh_asset_ref = AssetRef(test_mesh_asset);
-    auto mesh_resource = std::make_shared<StaticMeshResource>(test_mesh_asset_ref);
+    auto mesh_resource = std::make_shared<StaticMeshResource>(test_mesh_asset->GetGUID());
     StaticHomogeneousMesh test_mesh{0, mesh_resource.get()};
     mesh_resource->Submit(rsys->GetAllocatorState(), rsys->GetFrameManager().GetSubmissionHelper());
 
