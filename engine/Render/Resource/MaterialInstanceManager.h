@@ -14,7 +14,6 @@ namespace Engine::RenderSystemState {
     /**
      * @brief Manager for MaterialInstance render resources.
      *
-     * @details
      * Purpose and lifecycle:
      * - GUID maps to a MaterialAsset GUID (not directly loaded; derived from asset).
      * - Payload is a fully instantiated MaterialInstance object.
@@ -47,22 +46,20 @@ namespace Engine::RenderSystemState {
         /**
          * @brief Create a MaterialInstance from the given asset GUID.
          *
+         * Loads MaterialAsset eagerly via AssetRef::Acquire().
+         * Creates/reuses the required MaterialLibrary via CreateOrReuseFromAsset().
+         * Calls instance->Instantiate(*asset) to populate instance state from asset.
+         * Returns a handle with refcount=1.
+         *
          * @param guid GUID of the MaterialAsset to instantiate.
          * @param deallocate_after_frames Frame countdown before deferred destruction.
          * @return Newly allocated MaterialInstanceHandle.
-         *
-         * @details
-         * - Loads MaterialAsset eagerly via AssetRef::Acquire().
-         * - Creates/reuses the required MaterialLibrary via CreateOrReuseFromAsset().
-         * - Calls instance->Instantiate(*asset) to populate instance state from asset.
-         * - Returns a handle with refcount=1.
          */
         MaterialInstanceHandle CreateFromAssetImpl(GUID guid, uint32_t deallocate_after_frames);
 
         /**
          * @brief Synchronous acquire (no-op).
          *
-         * @details
          * Instance is already fully constructed in CreateFromAssetImpl, so no action needed.
          */
         void AcquireImpl(MaterialInstanceHandle &handle);
@@ -70,7 +67,6 @@ namespace Engine::RenderSystemState {
         /**
          * @brief Asynchronous acquire (no-op).
          *
-         * @details
          * Instance is already fully constructed in CreateFromAssetImpl, so no action needed.
          */
         void AcquireAsyncImpl(MaterialInstanceHandle &handle);
@@ -78,7 +74,6 @@ namespace Engine::RenderSystemState {
         /**
          * @brief Release (no-op).
          *
-         * @details
          * Deferred reclamation countdown is managed entirely by base class TickFrame logic.
          */
         void ReleaseImpl(MaterialInstanceHandle &handle);
@@ -86,19 +81,17 @@ namespace Engine::RenderSystemState {
         /**
          * @brief Check whether MaterialInstance payload exists and is ready.
          *
-         * @param handle Target handle.
-         * @return True if handle is valid (and thus payload is guaranteed ready).
-         *
-         * @details
          * Since MaterialInstance is eagerly constructed, validity of the handle is
          * sufficient to declare readiness.
+         *
+         * @param handle Target handle.
+         * @return True if handle is valid (and thus payload is guaranteed ready).
          */
         bool IsReadyImpl(const MaterialInstanceHandle &handle) const noexcept;
 
         /**
          * @brief Ensure MaterialInstance is ready (no-op).
          *
-         * @details
          * Instance is already fully constructed in CreateFromAssetImpl.
          * GPU descriptor/binding updates happen lazily during BindMaterial.
          */
@@ -107,7 +100,6 @@ namespace Engine::RenderSystemState {
         /**
          * @brief Cleanup upon final destruction (no-op).
          *
-         * @details
          * MaterialInstance destructor automatically releases the MaterialLibrary
          * dependency handle, so no explicit action needed here.
          */

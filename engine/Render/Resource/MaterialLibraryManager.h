@@ -11,7 +11,6 @@ namespace Engine::RenderSystemState {
     /**
      * @brief Manager for MaterialLibrary render resources.
      *
-     * @details
      * Purpose and lifecycle:
      * - GUID maps to a MaterialLibraryAsset.
      * - Payload is a fully instantiated MaterialLibrary object that holds the library's
@@ -39,23 +38,21 @@ namespace Engine::RenderSystemState {
         /**
          * @brief Create a MaterialLibrary from the given asset GUID.
          *
+         * Loads MaterialLibraryAsset eagerly via AssetRef::Acquire().
+         * Instantiates MaterialLibrary object and populates its state via Instantiate(*asset).
+         * Returns a handle with refcount=1.
+         * The asset reference is released after instantiation; asset memory is independent
+         * of library resource lifetime.
+         *
          * @param guid GUID of the MaterialLibraryAsset to instantiate.
          * @param deallocate_after_frames Frame countdown before deferred destruction.
          * @return Newly allocated MaterialLibraryHandle.
-         *
-         * @details
-         * - Loads MaterialLibraryAsset eagerly via AssetRef::Acquire().
-         * - Instantiates MaterialLibrary object and populates its state via Instantiate(*asset).
-         * - Returns a handle with refcount=1.
-         * - The asset reference is released after instantiation; asset memory is independent
-         *   of library resource lifetime.
          */
         MaterialLibraryHandle CreateFromAssetImpl(GUID guid, uint32_t deallocate_after_frames);
 
         /**
          * @brief Synchronous acquire (no-op).
          *
-         * @details
          * Library object is already fully constructed in CreateFromAssetImpl.
          */
         void AcquireImpl(MaterialLibraryHandle &handle);
@@ -63,7 +60,6 @@ namespace Engine::RenderSystemState {
         /**
          * @brief Asynchronous acquire (no-op).
          *
-         * @details
          * Library object is already fully constructed in CreateFromAssetImpl.
          */
         void AcquireAsyncImpl(MaterialLibraryHandle &handle);
@@ -71,7 +67,6 @@ namespace Engine::RenderSystemState {
         /**
          * @brief Release (no-op).
          *
-         * @details
          * Deferred reclamation countdown is managed entirely by base class TickFrame logic.
          */
         void ReleaseImpl(MaterialLibraryHandle &handle);
@@ -79,19 +74,17 @@ namespace Engine::RenderSystemState {
         /**
          * @brief Check whether MaterialLibrary payload exists and is ready.
          *
-         * @param handle Target handle.
-         * @return True if handle is valid (and thus payload is guaranteed ready).
-         *
-         * @details
          * Validity of the handle is sufficient; all pipelines inside the library
          * are created lazily on demand (FindMaterialTemplate).
+         *
+         * @param handle Target handle.
+         * @return True if handle is valid (and thus payload is guaranteed ready).
          */
         bool IsReadyImpl(const MaterialLibraryHandle &handle) const noexcept;
 
         /**
          * @brief Ensure MaterialLibrary is ready (no-op).
          *
-         * @details
          * Library object is already fully constructed in CreateFromAssetImpl.
          * Individual pipelines are created lazily.
          */
@@ -100,7 +93,6 @@ namespace Engine::RenderSystemState {
         /**
          * @brief Cleanup upon final destruction (no-op).
          *
-         * @details
          * MaterialLibrary destructor handles cleanup of internal resources
          * (e.g., VkPipelineLayout, descriptor set layouts).
          * No provider-side dependencies to release.

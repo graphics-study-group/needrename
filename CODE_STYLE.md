@@ -81,10 +81,18 @@ namespace {                  // File-local, internal linkage
 ### 3.1 Documentation Comments
 
 - Use Doxygen style with `/** */` format
+- Prefer `@brief` with one blank line, then continue detailed description as plain text.
+- Do not use `@details` in this project unless explicitly required by special tooling.
+- Tag order for function comments must be:
+  - `@brief` (with any extended description right below it)
+  - `@param` (all parameters)
+  - `@return` (if non-void)
 - Example:
   ```cpp
   /**
    * @brief Get the transform matrix
+   *
+   * Convert the input transform to a world matrix.
    * @param transform The transform object
    * @return The transformed matrix
    */

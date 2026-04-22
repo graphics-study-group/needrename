@@ -18,7 +18,6 @@ namespace Engine {
          *
          * @tparam ResourceType GPU-side resource payload type managed by this manager.
          *
-         * @details
          * Design overview:
          * - Each render resource is referenced by a typed handle (`HandleType`) instead of raw pointer.
          * - Manager stores records in a slot array (`m_records`) and uses index + generation to validate handles.
@@ -52,22 +51,22 @@ namespace Engine {
             /**
              * @brief Create a managed render resource from an existing payload instance.
              *
+             * Initial record refcount is 1 for the returned handle owner.
+             *
              * @param resource Unique payload object to be owned by manager.
              * @param deallocate_after_frames Frame countdown before final destroy after refcount reaches 0.
              * @return Newly allocated typed handle.
-             *
-             * @note Initial record refcount is 1 for the returned handle owner.
              */
             HandleType Create(std::unique_ptr<ResourceType> resource, uint32_t deallocate_after_frames = 3u);
 
             /**
              * @brief Create resource from asset GUID, or reuse existing live one for the same GUID.
              *
+             * Deduplication map is maintained in `m_guid_to_handle`.
+             *
              * @param guid Source asset GUID.
              * @param deallocate_after_frames Frame countdown before final destroy after refcount reaches 0.
              * @return Existing or newly created typed handle.
-             *
-             * @note Deduplication map is maintained in `m_guid_to_handle`.
              */
             HandleType CreateOrReuseFromAsset(GUID guid, uint32_t deallocate_after_frames = 3u);
 
@@ -89,33 +88,30 @@ namespace Engine {
             /**
              * @brief Mark handle as acquired and ensure resource becomes ready (synchronous policy by impl).
              *
-             * @param handle Handle to acquire.
-             *
-             * @details
              * Calls derived `AcquireImpl`, increments refcount once per handle acquire state,
              * and cancels any pending deallocation countdown.
+             *
+             * @param handle Handle to acquire.
              */
             void Acquire(HandleType &handle);
 
             /**
              * @brief Mark handle as acquired and request asynchronous readiness path.
              *
-             * @param handle Handle to acquire.
-             *
-             * @details
              * Calls derived `AcquireAsyncImpl`, increments refcount once per handle acquire state,
              * and cancels any pending deallocation countdown.
+             *
+             * @param handle Handle to acquire.
              */
             void AcquireAsync(HandleType &handle);
 
             /**
              * @brief Release a previously acquired handle.
              *
-             * @param handle Handle to release.
-             *
-             * @details
              * Calls derived `ReleaseImpl`, decrements refcount when handle is in acquired state.
              * If refcount becomes 0, starts deferred destroy countdown.
+             *
+             * @param handle Handle to release.
              */
             void Release(HandleType &handle);
 
@@ -134,16 +130,16 @@ namespace Engine {
 
             /**
              * @brief Final destruction callback for a record about to be reclaimed.
-             * @param handle Target handle.
              *
-             * @note Derived implementation should release resource-specific GPU/CPU side dependencies.
+             * Derived implementation should release resource-specific GPU/CPU side dependencies.
+             *
+             * @param handle Target handle.
              */
             void OnDestroy(HandleType &handle);
 
             /**
              * @brief Advance one frame for deferred reclamation bookkeeping.
              *
-             * @details
              * For every record with `pending_deallocation_countdown >= 0`, countdown is decreased.
              * When it reaches 0, `OnDestroy` is called, payload is reset, and slot is recycled.
              */

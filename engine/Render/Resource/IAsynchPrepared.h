@@ -10,7 +10,6 @@ namespace Engine {
     /**
      * @brief Interface for GPU resources that have an explicit preparation/removal lifecycle.
      *
-     * @details
      * A resource implementing this interface is managed by a render-resource manager.
      * The manager owns lifetime bookkeeping (handle/refcount/deferred destroy), while the
      * resource implements backend-specific work:
