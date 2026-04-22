@@ -12,7 +12,6 @@ namespace vk {
 
 namespace Engine {
     class RenderSystem;
-    class MaterialInstance;
     class GraphicsCommandBuffer;
 
     namespace RenderSystemState {
@@ -147,7 +146,7 @@ namespace Engine {
              * The manager assumes that the material instance contains a MaterialLibrary which set a MaterialTemplate
              * with tag `SKYBOX`. The shader should not use any scene descriptor set.
              */
-            void SetSkyboxMaterial(std::shared_ptr<MaterialInstance> material) noexcept;
+            void SetSkyboxMaterial(MaterialInstanceHandle material) noexcept;
 
             /**
              * @brief Upload the current scene data to GPU.

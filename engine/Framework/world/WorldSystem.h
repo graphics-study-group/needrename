@@ -11,6 +11,7 @@ namespace Engine {
     class Camera;
     class Scene;
     class LevelAsset;
+    class RenderSystem;
     namespace RenderSystemState {
         class CameraManager;
         class SceneDataManager;
@@ -28,9 +29,9 @@ namespace Engine {
         WorldSystem();
         ~WorldSystem();
 
-        /// @brief Filter light components and update the light data.
-        /// TODO: need futher discussion. Did not use the light manager in scene data manager for now.
-        void UpdateLightData(RenderSystemState::SceneDataManager &scene_data_manager);
+        /// @brief Update all renderer-related data before rendering.
+        /// This includes model matrices (RendererComponent) and light data (LightComponent).
+        void UpdateRendererData(RenderSystem &render_system);
 
         /**
          * @brief Get the active camera.
@@ -98,6 +99,11 @@ namespace Engine {
 
     public:
         AssetRef m_skybox_material{};
+
+    private:
+        /// @brief Filter light components and update the light data.
+        /// TODO: need futher discussion. Did not use the light manager in scene data manager for now.
+        void UpdateLightData(RenderSystemState::SceneDataManager &scene_data_manager);
     };
 } // namespace Engine
 #endif // WORLD_WORLDSYSTEM

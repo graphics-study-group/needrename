@@ -19,6 +19,8 @@ namespace Engine {
         REFL_ENABLE StaticMeshComponent(const GameObject &parent) : RendererComponent(parent) {};
         virtual ~StaticMeshComponent() = default;
 
+        void Awake() override;
+
         REFL_SER_ENABLE AssetRef m_mesh_asset{};
     };
 } // namespace Engine

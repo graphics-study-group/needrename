@@ -8,6 +8,9 @@ namespace Engine {
         m_parentGameObject(parent.GetHandle()), m_scene(parent.GetScene()) {
     }
 
+    void Component::Awake() {
+    }
+
     void Component::Init() {
     }
 

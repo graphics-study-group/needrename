@@ -7,6 +7,14 @@ This project references and adheres to the **[C++ Core Guidelines](https://isocp
 
 ## 1. Code Formatting
 
+Before cloning, disable Git's automatic line-ending conversion to avoid CI formatting failures:
+
+```sh
+git config --global core.autocrlf false
+```
+
+This repository stores all source files with CRLF line endings. Enabling `core.autocrlf` on Windows makes developers failed to recognizing files that are incorrectly stored in LF format in the repository, which will cause `clang-format` checks to fail.
+
 All code must be formatted using the `.clang-format` configuration file. Before committing, run:
 
 ```bash
@@ -73,10 +81,18 @@ namespace {                  // File-local, internal linkage
 ### 3.1 Documentation Comments
 
 - Use Doxygen style with `/** */` format
+- Prefer `@brief` with one blank line, then continue detailed description as plain text.
+- Do not use `@details` in this project unless explicitly required by special tooling.
+- Tag order for function comments must be:
+  - `@brief` (with any extended description right below it)
+  - `@param` (all parameters)
+  - `@return` (if non-void)
 - Example:
   ```cpp
   /**
    * @brief Get the transform matrix
+   *
+   * Convert the input transform to a world matrix.
    * @param transform The transform object
    * @return The transformed matrix
    */

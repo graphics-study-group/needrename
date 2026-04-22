@@ -8,10 +8,10 @@
 #include "Asset/Mesh/PlaneMeshAsset.h"
 #include "Asset/Texture/Image2DTextureAsset.h"
 #include "Core/Functional/SDLWindow.h"
-#include "Framework/component/RenderComponent/MeshComponent.h"
+#include "Framework/component/RenderComponent/StaticMeshComponent.h"
 #include "MainClass.h"
 #include "Render/FullRenderSystem.h"
-#include "Render/Renderer/HomogeneousMesh.h"
+#include "Render/Renderer/StaticHomogeneousMesh.h"
 #include "UserInterface/GUISystem.h"
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 
@@ -96,7 +96,7 @@ auto BuildRenderGraph(
     RenderTargetTexture *color_4,
     RenderTargetTexture *depth,
     MaterialInstance *material,
-    HomogeneousMesh *mesh
+    IVertexBasedRenderer *mesh
 ) {
     using IAT = Engine::MemoryAccessTypeImageBits;
     RenderGraphBuilder2 rgb{*rsys};
@@ -202,16 +202,19 @@ int main(int argc, char **argv) {
     auto amg = cmc->GetAssetManager();
 
     // Prepare material
-    auto test_asset = ConstructMaterial();
-    auto test_asset_ref = AssetRef(test_asset.first);
-    auto test_library = std::make_shared<MaterialLibrary>(*rsys);
-    test_library->Instantiate(*test_asset_ref.as<MaterialLibraryAsset>());
-    auto test_material_instance = std::make_shared<MaterialInstance>(*rsys, *test_library);
+    auto [test_library_asset, test_template_asset] = ConstructMaterial();
+    auto &ml_mng = rsys->GetRenderResourceManager<RenderSystemState::MaterialLibraryManager>();
+
+    auto test_library_handle = ml_mng.CreateOrReuseFromAsset(test_library_asset->GetGUID());
+    auto test_library = ml_mng.Resolve(test_library_handle);
+    auto test_material_instance = std::make_unique<MaterialInstance>(*rsys, test_library_handle);
 
     // Prepare mesh
     auto test_mesh_asset = amg->CreateAsset<LowerPlaneMeshAsset>();
     auto test_mesh_asset_ref = AssetRef(test_mesh_asset);
-    HomogeneousMesh test_mesh{rsys->GetAllocatorState(), test_mesh_asset_ref, 0};
+    auto mesh_resource = std::make_shared<StaticMeshResource>(test_mesh_asset->GetGUID());
+    StaticHomogeneousMesh test_mesh{0, mesh_resource.get()};
+    mesh_resource->Submit(rsys->GetAllocatorState(), rsys->GetFrameManager().GetSubmissionHelper());
 
     // Submit scene data
     rsys->GetCameraManager().WriteCameraMatrices(glm::mat4{1.0f}, glm::mat4{1.0f});
@@ -269,9 +272,6 @@ int main(int argc, char **argv) {
                 }
             }
         }
-
-        // Repeat submission to test for synchronization problems
-        rsys->GetFrameManager().GetSubmissionHelper().EnqueueVertexBufferSubmission(test_mesh);
 
         auto index = rsys->StartFrame();
 

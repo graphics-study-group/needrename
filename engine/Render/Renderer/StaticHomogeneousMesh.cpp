@@ -1,46 +1,52 @@
 #include "StaticHomogeneousMesh.h"
 
-#include "Asset/Mesh/MeshAsset.h"
-
 namespace Engine {
-    void StaticHomogeneousMesh::Submit(
-        const RenderSystemState::AllocatorState &allocator, RenderSystemState::SubmissionHelper &helper
-    ) {
-        // XXX: be careful about multithread synch here.
-        auto &submesh_ref = data_block_ref.submeshes[submesh_index];
-        if (submesh_ref.vi_buffer) {
-            return;
+
+    StaticHomogeneousMesh::StaticHomogeneousMesh(uint32_t index, StaticMeshResource *resource) :
+        m_submesh_index(index), m_resource(resource) {
+    }
+
+    StaticHomogeneousMesh::~StaticHomogeneousMesh() noexcept = default;
+
+    uint32_t StaticHomogeneousMesh::GetIndexCount() const noexcept {
+        const auto &submesh = m_resource->GetSubmeshData(m_submesh_index);
+        assert(submesh.vi_buffer);
+        return submesh.index_count;
+    }
+
+    uint32_t StaticHomogeneousMesh::GetVertexAttributeCount() const noexcept {
+        const auto &submesh = m_resource->GetSubmeshData(m_submesh_index);
+        assert(submesh.vi_buffer);
+        return submesh.vertex_attribute_count;
+    }
+
+    VertexAttribute StaticHomogeneousMesh::GetVertexAttributeFormat() const noexcept {
+        const auto &submesh = m_resource->GetSubmeshData(m_submesh_index);
+        assert(submesh.vi_buffer);
+        return submesh.attributes;
+    }
+
+    void StaticHomogeneousMesh::FillVertexAttributeBufferBindings(
+        std::vector<BufferBindingInfo> &bindings
+    ) const noexcept {
+        const auto &submesh_ref = m_resource->GetSubmeshData(m_submesh_index);
+        assert(submesh_ref.vi_buffer);
+        bindings.reserve(submesh_ref.attribute_offsets.size());
+        for (auto offset : submesh_ref.attribute_offsets) {
+            bindings.push_back({submesh_ref.vi_buffer.get(), offset, 0});
         }
+        // Last offset is for indices.
+        bindings.pop_back();
+    }
 
-        // First load submesh info from asset...
-        const auto &smi = mesh_asset.m_submeshes[submesh_index];
+    IVertexBasedRenderer::BufferBindingInfo StaticHomogeneousMesh::GetIndexBufferBinding() const noexcept {
+        const auto &submesh = m_resource->GetSubmeshData(m_submesh_index);
+        assert(submesh.vi_buffer);
+        return {submesh.vi_buffer.get(), submesh.attribute_offsets.back(), 0};
+    }
 
-        submesh_ref.attributes = smi.ToVertexAttributeFormat();
-        submesh_ref.index_count = smi.m_indices.size();
-        submesh_ref.vertex_attribute_count = smi.vertex_count;
-        auto vec = submesh_ref.attributes.EnumerateOffsetFactor();
-        for (auto f : vec) {
-            submesh_ref.attribute_offsets.push_back(f * submesh_ref.vertex_attribute_count);
-        }
-        submesh_ref.attribute_offsets.push_back(
-            submesh_ref.vertex_attribute_count * submesh_ref.attributes.GetTotalPerVertexSize()
-        );
-
-        auto buffer_size = submesh_ref.vertex_attribute_count * submesh_ref.attributes.GetTotalPerVertexSize()
-                           + submesh_ref.index_count * sizeof(uint32_t);
-
-        submesh_ref.vi_buffer = DeviceBuffer::CreateUnique(
-            allocator, {BufferTypeBits::Vertex, BufferTypeBits::Index, BufferTypeBits::CopyTo}, buffer_size
-        );
-
-        std::vector<std::byte> buf;
-        buf.resize(buffer_size);
-        mesh_asset.m_submeshes[submesh_index].WriteVertexAttributeBuffer(buf.data());
-        mesh_asset.m_submeshes[submesh_index].WriteIndexBuffer(
-            buf.data() + submesh_ref.vertex_attribute_count * submesh_ref.attributes.GetTotalPerVertexSize()
-        );
-
-        helper.EnqueueBufferSubmissionVertex(*submesh_ref.vi_buffer, buf);
+    bool StaticHomogeneousMesh::IsReady() const noexcept {
+        return m_resource && m_resource->IsReady();
     }
 
 } // namespace Engine

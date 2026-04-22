@@ -5,6 +5,7 @@
 
 #include "Asset/AssetDatabase/FileSystemDatabase.h"
 #include "Asset/AssetManager/AssetManager.h"
+#include "Asset/Material/MaterialAsset.h"
 #include "Asset/Material/MaterialTemplateAsset.h"
 #include "Asset/Texture/ImageCubemapAsset.h"
 #include "Core/Math/Transform.h"
@@ -21,10 +22,10 @@ namespace sch = std::chrono;
 
 /**
  * We will align the system to the world system for now, which means that
- * X+ -> right, Y+ -> front, Z+ -> up, etc. Refer to 
+ * X+ -> right, Y+ -> front, Z+ -> up, etc. Refer to
  * https://docs.vulkan.org/spec/latest/chapters/textures.html#_cube_map_face_selection
  * for how to organize the cubemap faces.
- * 
+ *
  * For short, assuming your faces are generated with the `split.py` from an ERP image:
  * - Front face (Y+): no adjustment;
  * - Back face (Y-): rotated for 180 degrees;
@@ -87,14 +88,14 @@ int main(int argc, char **argv) {
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
     cmc->LoadBuiltinAssets(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
     auto rsys = cmc->GetRenderSystem();
+    auto &mi_mng = rsys->GetRenderResourceManager<RenderSystemState::MaterialInstanceManager>();
 
     auto camera = std::make_shared<Camera>();
     camera->set_aspect_ratio(800.0 / 800.0);
     camera->m_clipping_far = 1e2;
 
     auto [lib_asset, tpl_asset] = ConstructMaterial();
-    auto lib = std::make_shared<MaterialLibrary>(*rsys);
-    lib->Instantiate(*lib_asset);
+    auto lib_asset_ref = AssetRef(lib_asset);
 
     uint32_t width = 1024;
     uint32_t height = 1024;
@@ -119,9 +120,13 @@ int main(int argc, char **argv) {
         "Skybox"
     );
 
-    auto skybox_material = std::make_shared<MaterialInstance>(*rsys, *lib);
+    auto skybox_material_asset = MainClass::GetInstance()->GetAssetManager()->CreateAsset<MaterialAsset>();
+    skybox_material_asset->m_library = lib_asset_ref;
+    AssetRef skybox_material_asset_ref(skybox_material_asset);
+    auto skybox_material_handle = mi_mng.CreateOrReuseFromAsset(skybox_material_asset_ref.GetGUID());
+    auto skybox_material = mi_mng.Resolve(skybox_material_handle);
     skybox_material->AssignTexture("skybox", skybox_texture);
-    rsys->GetSceneDataManager().SetSkyboxMaterial(skybox_material);
+    rsys->GetSceneDataManager().SetSkyboxMaterial(skybox_material_handle);
 
     {
         // Load skybox cubemap

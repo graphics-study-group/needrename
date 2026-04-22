@@ -7,6 +7,14 @@
 
 ## 1. 代码格式化
 
+在克隆本仓库前，请关闭 Git 的自动换行符转换，以避免 CI 格式化检查失败：
+
+```sh
+git config --global core.autocrlf false
+```
+
+本仓库所有源码均以 CRLF 行结尾存储。如果在 Windows 上启用 `core.autocrlf`，开发者将无法识别仓库中被错误存储为 LF 格式的文件，这会导致 `clang-format` 检查失败。
+
 所有代码必须通过 `.clang-format` 配置文件进行格式化。提交代码前请运行：
 
 ```bash
@@ -73,10 +81,18 @@ namespace {                  // 文件本地，内部链接
 ### 3.1 文档注释
 
 - 使用 Doxygen 风格，`/** */` 格式
+- 优先使用 `@brief`，并在其后空一行继续写详细说明文本。
+- 除非工具链有特殊要求，本项目不使用 `@details`。
+- 函数注释标签顺序必须为：
+  - `@brief`（其后的扩展说明仍属于这一部分）
+  - `@param`（列出所有参数）
+  - `@return`（仅非 `void` 函数）
 - 示例：
   ```cpp
   /**
    * @brief 获取变换矩阵
+   *
+   * 将输入的变换对象转换为世界矩阵。
    * @param transform 变换对象
    * @return 变换后的矩阵
    */

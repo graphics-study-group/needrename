@@ -5,6 +5,8 @@
 #include "Render/Pipeline/PipelineEnums.h"
 #include <Reflection/macros.h>
 
+#include <cstdint>
+
 namespace Engine {
     /**
      * @brief Utility for image operations

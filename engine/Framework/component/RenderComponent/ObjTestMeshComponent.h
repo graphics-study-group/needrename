@@ -3,9 +3,9 @@
 
 #include "Asset/AssetManager/AssetManager.h"
 #include "Asset/Loader/ObjLoader.h"
+#include "Asset/Material/MaterialAsset.h"
 #include "Framework/component/RenderComponent/StaticMeshComponent.h"
 #include "MainClass.h"
-#include "Render/Renderer/HomogeneousMesh.h"
 
 namespace Engine {
     /**
@@ -19,8 +19,6 @@ namespace Engine {
         void LoadMesh(std::filesystem::path mesh) {
             tinyobj::ObjReaderConfig reader_config{};
             tinyobj::ObjReader reader{};
-
-            m_materials.clear();
 
             if (!reader.ParseFromFile(mesh.string(), reader_config)) {
                 SDL_LogCritical(0, "Failed to load OBJ file %s", mesh.string().c_str());
@@ -91,13 +89,7 @@ namespace Engine {
         ObjTestMeshComponent(const GameObject &parent) : StaticMeshComponent(parent) {
         }
 
-        ~ObjTestMeshComponent() {
-            m_materials.clear();
-        }
-
-        virtual void RenderInit() override {
-            assert(!"This component has no mesh nor material asset to load from.");
-        }
+        ~ObjTestMeshComponent() = default;
     };
 } // namespace Engine
 

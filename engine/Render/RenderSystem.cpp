@@ -11,12 +11,12 @@
 #include "Render/RenderSystem/CameraManager.h"
 #include "Render/RenderSystem/DeviceInterface.h"
 #include "Render/RenderSystem/FrameManager.h"
-#include "Render/RenderSystem/MaterialRegistry.h"
 #include "Render/RenderSystem/RendererManager.h"
 #include "Render/RenderSystem/ResizableRTTManager.h"
 #include "Render/RenderSystem/Structs.h"
 #include "Render/RenderSystem/Swapchain.h"
 #include "Render/Renderer/Camera.h"
+#include "Render/Resource/AllRenderResourceManagers.h"
 
 #include <Core/Functional/SDLWindow.h>
 #include <MainClass.h>
@@ -27,9 +27,10 @@
 namespace Engine {
     struct RenderSystem::impl {
         impl(RenderSystem &parent, std::weak_ptr<SDLWindow> parent_window) :
-            m_window(parent_window), m_allocator_state(parent), m_frame_manager(parent), m_material_registry(parent),
-            m_renderer_manager(parent), m_scene_data_manager(parent), m_camera_manager(parent),
-            m_resizable_rtt_manger(parent) {
+            m_window(parent_window), m_allocator_state(parent), m_frame_manager(parent), m_renderer_manager(parent),
+            m_scene_data_manager(parent), m_camera_manager(parent), m_resizable_rtt_manger(parent),
+            m_material_instance_provider(parent), m_material_library_provider(parent),
+            m_static_mesh_resource_provider(parent) {
 
             };
 
@@ -45,15 +46,22 @@ namespace Engine {
         RenderSystemState::AllocatorState m_allocator_state;
         RenderSystemState::Swapchain m_swapchain{};
         RenderSystemState::FrameManager m_frame_manager;
-        RenderSystemState::MaterialRegistry m_material_registry;
         RenderSystemState::RendererManager m_renderer_manager;
         RenderSystemState::SceneDataManager m_scene_data_manager;
         RenderSystemState::CameraManager m_camera_manager;
         RenderSystemState::ResizableRTTManager m_resizable_rtt_manger;
+
+        RenderSystemState::MaterialInstanceManager m_material_instance_provider;
+        RenderSystemState::MaterialLibraryManager m_material_library_provider;
+        RenderSystemState::StaticMeshResourceManager m_static_mesh_resource_provider;
     };
 
     RenderSystem::RenderSystem(std::weak_ptr<SDLWindow> parent_window) :
-        pimpl(std::make_unique<RenderSystem::impl>(*this, parent_window)) {
+        pimpl(std::make_unique<RenderSystem::impl>(*this, parent_window)), m_resource_managers{
+                                                                               &pimpl->m_material_instance_provider,
+                                                                               &pimpl->m_material_library_provider,
+                                                                               &pimpl->m_static_mesh_resource_provider
+                                                                           } {
     }
 
     void RenderSystem::Create() {
@@ -73,7 +81,6 @@ namespace Engine {
         pimpl->m_allocator_state.Create();
 
         pimpl->m_frame_manager.Create();
-        pimpl->m_material_registry.Create();
         pimpl->m_scene_data_manager.Create();
         pimpl->m_camera_manager.Create();
         SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Vulkan initialization finished.");
@@ -98,6 +105,10 @@ namespace Engine {
             )) {
             this->UpdateSwapchain();
         }
+
+        pimpl->m_material_instance_provider.TickFrame();
+        pimpl->m_material_library_provider.TickFrame();
+        pimpl->m_static_mesh_resource_provider.TickFrame();
     }
 
     void RenderSystem::CompleteFrame(
@@ -125,10 +136,6 @@ namespace Engine {
 
     const RenderSystemState::Swapchain &RenderSystem::GetSwapchain() const {
         return pimpl->m_swapchain;
-    }
-
-    RenderSystemState::MaterialRegistry &RenderSystem::GetMaterialRegistry() {
-        return pimpl->m_material_registry;
     }
 
     RenderSystemState::FrameManager &RenderSystem::GetFrameManager() {

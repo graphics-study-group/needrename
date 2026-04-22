@@ -80,6 +80,18 @@ namespace Engine {
         }
     }
 
+    void WorldSystem::UpdateRendererData(RenderSystem &render_system) {
+        auto &scene = GetMainSceneRef();
+
+        for (auto &comp : scene.GetComponents()) {
+            if (auto *renderer_comp = dynamic_cast<RendererComponent *>(comp.get())) {
+                renderer_comp->PreRenderUpdate();
+            }
+        }
+
+        UpdateLightData(render_system.GetSceneDataManager());
+    }
+
     std::shared_ptr<Camera> WorldSystem::GetActiveCamera() const noexcept {
         auto camera_comp = m_main_scene->GetComponent<CameraComponent>(m_active_camera);
         if (camera_comp) return camera_comp->m_camera;

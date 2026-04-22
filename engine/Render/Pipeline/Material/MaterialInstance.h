@@ -4,8 +4,10 @@
 #include "Asset/InstantiatedFromAsset.h"
 #include "MaterialTemplate.h"
 #include "Render/Memory/DeviceBuffer.h"
+#include "Render/Resource/RenderResourceHandle.h"
 
 #include <any>
+#include <fwd.hpp>
 
 namespace Engine {
     class Texture;
@@ -32,13 +34,13 @@ namespace Engine {
     class MaterialInstance : public IInstantiatedFromAsset<MaterialAsset> {
     protected:
         RenderSystem &m_system;
-        MaterialLibrary &m_library;
+        RenderSystemState::MaterialLibraryHandle m_library;
 
         struct impl;
         std::unique_ptr<impl> pimpl;
 
     public:
-        MaterialInstance(RenderSystem &system, MaterialLibrary &library);
+        MaterialInstance(RenderSystem &system, RenderSystemState::MaterialLibraryHandle library);
         virtual ~MaterialInstance();
 
         /// @brief Assign values to a variable.

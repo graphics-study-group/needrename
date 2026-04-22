@@ -12,13 +12,14 @@
 #include "Render/RenderSystem/DeviceInterface.h"
 #include "Render/RenderSystem/FrameManager.h"
 #include "Render/RenderSystem/ImmutableResourceCache.h"
-#include "Render/RenderSystem/MaterialRegistry.h"
 #include "Render/RenderSystem/RendererManager.h"
 #include "Render/RenderSystem/ResizableRTTManager.h"
 #include "Render/RenderSystem/SceneDataManager.h"
 #include "Render/RenderSystem/Structs.h"
 #include "Render/RenderSystem/SubmissionHelper.h"
 #include "Render/RenderSystem/Swapchain.h"
+#include "Render/Resource/AllRenderResourceManagers.h"
+#include "Render/Resource/StaticMeshResource.h"
 
 #include "Render/Pipeline/CommandBuffer.h"
 #include "Render/Pipeline/CommandBuffer/ComputeCommandBuffer.h"
@@ -37,8 +38,8 @@
 #include "Render/Pipeline/RenderGraph2/RenderGraphPass.h"
 
 #include "Render/Pipeline/Material/MaterialInstance.h"
+#include "Render/Pipeline/Material/MaterialLibrary.h"
 #include "Render/Pipeline/Material/MaterialTemplate.h"
-#include "Render/Pipeline/Material/Templates/BlinnPhong.h"
 
 #include "Render/Renderer/Camera.h"
 #include "Render/Renderer/StaticHomogeneousMesh.h"

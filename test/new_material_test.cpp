@@ -8,10 +8,10 @@
 #include "Asset/Mesh/PlaneMeshAsset.h"
 #include "Asset/Texture/Image2DTextureAsset.h"
 #include "Core/Functional/SDLWindow.h"
-#include "Framework/component/RenderComponent/MeshComponent.h"
+#include "Framework/component/RenderComponent/StaticMeshComponent.h"
 #include "MainClass.h"
 #include "Render/FullRenderSystem.h"
-#include "Render/Renderer/HomogeneousMesh.h"
+#include "Render/Renderer/StaticHomogeneousMesh.h"
 #include "UserInterface/GUISystem.h"
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 
@@ -90,7 +90,7 @@ auto BuildRenderGraph(
     RenderTargetTexture *color,
     RenderTargetTexture *depth,
     MaterialInstance *material,
-    HomogeneousMesh *mesh,
+    IVertexBasedRenderer *mesh,
     RenderTargetTexture *blurred = nullptr,
     ComputeStage *kernel = nullptr,
     ComputeResourceBinding *kbinding = nullptr
@@ -191,7 +191,7 @@ int main(int argc, char **argv) {
     std::shared_ptr allocated_image_texture = ImageTexture::CreateUnique(*rsys, *test_texture_asset);
 
     // Prepare material
-    auto test_asset = ConstructMaterial();
+    auto [test_library_asset, test_template_asset] = ConstructMaterial();
 
     // // Do not delete this code, it is a useful tool for generating asset files.
     // Engine::Serialization::Archive archive;
@@ -205,17 +205,21 @@ int main(int argc, char **argv) {
     // archive.save_to_file(std::string(ENGINE_ASSETS_DIR) + "/mta.asset");
     // SDL_Log("Saved MaterialTemplateAsset to %s", (std::string(ENGINE_ASSETS_DIR) + "/mta.asset").c_str());
 
-    auto test_library = std::make_shared<Materials::BlinnPhongLibrary>(*rsys);
-    test_library->Instantiate(*test_asset.first);
-    auto test_material_instance = std::make_shared<Materials::BlinnPhongInstance>(*rsys, test_library);
-    test_material_instance->SetAmbient(glm::vec4(0.0, 0.0, 0.0, 0.0));
-    test_material_instance->SetSpecular(glm::vec4(1.0, 1.0, 1.0, 64.0));
-    test_material_instance->SetBaseTexture(allocated_image_texture);
+    auto &ml_mng = rsys->GetRenderResourceManager<RenderSystemState::MaterialLibraryManager>();
+
+    auto test_library_handle = ml_mng.CreateOrReuseFromAsset(test_library_asset->GetGUID());
+    auto test_library = ml_mng.Resolve(test_library_handle);
+    auto test_material_instance = std::make_unique<MaterialInstance>(*rsys, test_library_handle);
+    test_material_instance->AssignVectorVariable("Material::ambient_color", glm::vec4(0.0, 0.0, 0.0, 0.0));
+    test_material_instance->AssignVectorVariable("Material::specular_color", glm::vec4(1.0, 1.0, 1.0, 64.0));
+    test_material_instance->AssignTexture("base_texture", allocated_image_texture);
 
     // Prepare mesh
     auto test_mesh_asset = am->CreateAsset<LowerPlaneMeshAsset>();
     auto test_mesh_asset_ref = AssetRef(test_mesh_asset);
-    HomogeneousMesh test_mesh{rsys->GetAllocatorState(), test_mesh_asset_ref, 0};
+    auto mesh_resource = std::make_shared<StaticMeshResource>(test_mesh_asset_ref.GetGUID());
+    StaticHomogeneousMesh test_mesh{0, mesh_resource.get()};
+    mesh_resource->Submit(rsys->GetAllocatorState(), rsys->GetFrameManager().GetSubmissionHelper());
 
     // Submit scene data
     rsys->GetCameraManager().WriteCameraMatrices(glm::mat4{1.0f}, glm::mat4{1.0f});
@@ -281,8 +285,6 @@ int main(int argc, char **argv) {
             }
         }
 
-        // Repeat submission to test for synchronization problems
-        rsys->GetFrameManager().GetSubmissionHelper().EnqueueVertexBufferSubmission(test_mesh);
         rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
             *allocated_image_texture, test_texture_asset->GetPixelData(), test_texture_asset->GetPixelDataSize()
         );
