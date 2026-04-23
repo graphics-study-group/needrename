@@ -1,4 +1,4 @@
-file(GLOB_RECURSE SOURCE CONFIGURE_DEPENDS "./*.cpp")
+file(GLOB_RECURSE SOURCE "./*.cpp")
 
 add_library(EngineLibAsset
     OBJECT

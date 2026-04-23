@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.25)
+cmake_minimum_required(VERSION 3.16)
 
 project(hello_sdl3)
 set(CMAKE_CXX_STANDARD 20)
@@ -15,16 +15,9 @@ set(TESTS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/test)
 set(PROJECTS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/projects)
 set(BUILD_SHARED_LIBS ON)
 
-set(ENGINE_BUILD_SHARED_DEFAULT ON)
-if(WIN32 AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    set(ENGINE_BUILD_SHARED_DEFAULT OFF)
-endif()
-option(ENGINE_BUILD_SHARED "Build engine/editor as shared libraries" ${ENGINE_BUILD_SHARED_DEFAULT})
-
 find_package(Vulkan REQUIRED COMPONENTS glslangValidator)
 find_package(SDL3 REQUIRED CONFIG REQUIRED COMPONENTS SDL3-shared)
 message(STATUS "Vulkan version: ${Vulkan_VERSION}")
-message(STATUS "ENGINE_BUILD_SHARED: ${ENGINE_BUILD_SHARED}")
 
 if (NOT(CMAKE_CXX_COMPILER_ID STREQUAL "GNU"))
     Message(FATAL_ERROR "This project supports GCC only.")

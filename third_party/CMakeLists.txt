@@ -13,9 +13,6 @@ set_target_properties(tinyobjloader PROPERTIES FOLDER third_party)
 add_subdirectory(vma EXCLUDE_FROM_ALL)
 set_target_properties(vma PROPERTIES FOLDER third_party)
 
-set(_THIRD_PARTY_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
-set(BUILD_SHARED_LIBS OFF)
-
 set(ASSIMP_BUILD_TESTS OFF)
 set(ASSIMP_INSTALL OFF)
 set(ASSIMP_BUILD_ASSIMP_TOOLS OFF)
@@ -24,8 +21,6 @@ set(ASSIMP_WARNINGS_AS_ERRORS OFF)
 set(ASSIMP_NO_EXPORT ON)
 set(ASSIMP_BUILD_ZLIB ON)
 add_subdirectory(assimp EXCLUDE_FROM_ALL)
-set(BUILD_SHARED_LIBS ${_THIRD_PARTY_BUILD_SHARED_LIBS})
-unset(_THIRD_PARTY_BUILD_SHARED_LIBS)
 
 set_target_properties(assimp PROPERTIES FOLDER third_party)
 if(TARGET zlibstatic)

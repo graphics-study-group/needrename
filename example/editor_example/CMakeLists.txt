@@ -9,6 +9,7 @@ add_custom_command(TARGET ${ProjectId} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
     $<TARGET_FILE:SDL3::SDL3>
     $<TARGET_FILE:glslang>
+    $<TARGET_FILE:assimp::assimp>
     $<TARGET_FILE:engine>
     $<TARGET_FILE:editor>
     $<TARGET_FILE_DIR:${ProjectId}>

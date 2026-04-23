@@ -77,24 +77,13 @@ target_link_libraries(mrt_test engine)
 add_test(NAME mrt_test COMMAND mrt_test 120)
 set_target_properties(mrt_test PROPERTIES FOLDER tests)
 
-# Copy SDL dll
+# Copy dlls
 add_custom_command(TARGET SDL_init_test POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
     $<TARGET_FILE:SDL3::SDL3-shared>
-    $<TARGET_FILE_DIR:SDL_init_test>
-    COMMENT "Copying SDL DLLs"
-)
-
-add_custom_command(TARGET complex_mesh_test POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
     $<TARGET_FILE:engine>
-    $<TARGET_FILE_DIR:complex_mesh_test>
-    COMMENT "Copying Engine DLLs"
-)
-
-add_custom_command(TARGET complex_mesh_test POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
     $<TARGET_FILE:glslang>
-    $<TARGET_FILE_DIR:complex_mesh_test>
-    COMMENT "Copying glslang DLLs"
+    $<TARGET_FILE:assimp::assimp>
+    $<TARGET_FILE_DIR:SDL_init_test>
+    COMMENT "Copying DLLs"
 )

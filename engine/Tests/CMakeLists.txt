@@ -51,6 +51,7 @@ add_custom_command(TARGET transform_test POST_BUILD
     $<TARGET_FILE:SDL3::SDL3-shared>
     $<TARGET_FILE:engine>
     $<TARGET_FILE:glslang>
+    $<TARGET_FILE:assimp::assimp>
     $<TARGET_FILE_DIR:transform_test>
     COMMENT "Copying SDL DLLs"
 )
