@@ -30,6 +30,7 @@ namespace Engine {
             uint32_t mip_level;
             uint32_t array_layer_base;
             uint32_t array_layer_count;
+            /// @brief 3D cube coordiate of the area.
             int32_t x0, y0, z0, x1, y1, z1;
         };
 

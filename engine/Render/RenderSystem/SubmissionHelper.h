@@ -9,7 +9,6 @@ namespace Engine {
     class RenderSystem;
     class Texture;
     class DeviceBuffer;
-    class HomogeneousMesh;
 
     namespace RenderSystemState {
         /// @brief A helper for submitting data to GPU.
@@ -29,6 +28,7 @@ namespace Engine {
             /**
              * @brief Enqueue a buffer uploading.
              *
+             * @param buffer buffer to be uploaded
              * @param data Host-side buffer containing all data.
              */
             void EnqueueBufferSubmission(const DeviceBuffer &buffer, std::vector<std::byte> &&data);
@@ -36,6 +36,7 @@ namespace Engine {
             /**
              * @brief Enqueue a buffer uploading.
              *
+             * @param buffer buffer to be uploaded
              * @param data Host-side buffer containing all data.
              * Data are immediately copied to a staging buffer.
              * It is safe to free this buffer after calling this method.
@@ -51,22 +52,7 @@ namespace Engine {
              */
             void EnqueueBufferSubmissionVertex(const DeviceBuffer &vertex_buffer, const std::vector<std::byte> &data);
 
-            /***
-             * @brief Enqueue a vertex buffer uploading.
-             * Record corresponding memory
-             * barriers and buffer writes to a disposable command buffer at the beginning of a frame.
-             * A staging buffer is created, and will be de-allocated at the end of the frame.
-             *
-             * Vertex data are copied into the staging buffer immediately.
-             * You can free the underlying vertex asset after calling this method,
-             * so long as you are sure that it will not be evicted from GPU memory.
-             *
-             * @param mesh A homogeneous mesh whose vertex buffer is to be updated.
-             */
-            [[deprecated("Use EnqueueBufferSubmissionVertex() method instead.")]]
-            void EnqueueVertexBufferSubmission(const HomogeneousMesh &mesh);
-
-            /***
+            /**
              * @brief Enqueue a texture buffer submission. Record corresponding image
              * barriers and buffer writes to a disposable command buffer.
              *
@@ -97,14 +83,27 @@ namespace Engine {
              * Useful for creating a blank default texture.
              * Only color aspect is cleared. All mipmap levels and arrays are cleared.
              *
-             * @param texture
-             * @param color
+             * @param texture texture to be cleared
+             * @param color_rgba clear color
              */
             void EnqueueTextureClear(const Texture &texture, std::tuple<float, float, float, float> color_rgba);
+
+            /**
+             * @brief Enqueue a texture clear operation.
+             * Record corresponding image barriers to a disposable command buffer, and issue a clear
+             * operation. The layout of the image will be transferred to optimal for shader read
+             * after clear operation.
+             *
+             * Useful for creating a blank default texture.
+             * Only depth aspect is cleared. All mipmap levels and arrays are cleared.
+             *
+             * @param texture texture to be cleared
+             * @param depth clear depth
+             */
             void EnqueueTextureClear(const Texture &texture, float depth);
             // void EnqueueTextureClear(const Texture &texture, std::tuple<float, uint8_t> depth_stencil);
 
-            /***
+            /**
              * @brief Execute staged submissions.
              *
              * Allocated a new command buffer if needed, record all pending operations, and
@@ -123,10 +122,15 @@ namespace Engine {
              */
             void ExecuteSubmissionImmediately();
 
+            /**
+             * @brief Execute the submission commandbuffer before the main CB.
+             */
             void OnPreMainCbSubmission();
 
-            /***
-             * @brief Complete the frame. Wait for execution of the disposable command buffer,
+            /**
+             * @brief Complete the frame.
+             *
+             * Wait for execution of the disposable command buffer,
              * de-allocate staging buffers,
              * reset the fence, and remove the command buffer.
              */

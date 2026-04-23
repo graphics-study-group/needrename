@@ -13,6 +13,7 @@
 #include "Render/Renderer/Camera.h"
 #include "Render/Renderer/IVertexBasedRenderer.h"
 #include "Render/Renderer/VertexAttribute.h"
+#include "Render/Resource/MaterialInstanceManager.h"
 
 #include "Render/DebugUtils.h"
 
@@ -204,16 +205,22 @@ namespace Engine {
     void GraphicsCommandBuffer::DrawRenderers(
         const std::string &tag, const RendererList &renderers, int32_t camera_index, vk::Extent2D extent
     ) {
+        auto &renderer_manager = m_system.GetRendererManager();
+        auto &material_manager = m_system.GetRenderResourceManager<RenderSystemState::MaterialInstanceManager>();
+
         BindSceneResources(m_system.GetSceneDataManager());
         BindCameraResources(m_system.GetCameraManager());
 
         vk::Rect2D scissor{{0, 0}, extent};
         this->SetupViewport(extent.width, extent.height, scissor);
         for (const auto &rid : renderers) {
-            const auto &mesh = m_system.GetRendererManager().GetRendererData(rid);
-            glm::mat4 model_matrix =
-                m_system.GetRendererManager().GetRendererComponent(rid)->GetWorldTransform().GetTransformMatrix();
-            auto material_instance = m_system.GetRendererManager().GetMaterialInstance(rid);
+            auto material_handle = renderer_manager.GetMaterialResourceHandle(rid);
+            material_manager.EnsureReady(material_handle);
+            auto *mesh = renderer_manager.GetRenderer(rid);
+            auto *material_instance = material_manager.Resolve(material_handle);
+            if (!mesh || !material_instance) continue;
+
+            const glm::mat4 &model_matrix = renderer_manager.GetModelMatrix(rid);
 
             auto tpl = material_instance->GetLibrary().FindMaterialTemplate(
                 tag, {{mesh->GetVertexAttributeFormat()}, m_pripr}

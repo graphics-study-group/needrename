@@ -13,29 +13,14 @@
 
 #include "Asset/AssetManager/AssetManager.h"
 #include "Asset/Mesh/MeshAsset.h"
-#include "Framework/component/RenderComponent/MeshComponent.h"
-#include <Framework/object/GameObject.h>
+#include "Asset/Mesh/PlaneMeshAsset.h"
 
 #include "Render/FullRenderSystem.h"
 
 using namespace Engine;
 
-class TestHomoMesh : public HomogeneousMesh {
-public:
-    TestHomoMesh(std::weak_ptr<RenderSystem> system) : HomogeneousMesh(system) {
-        this->m_positions = {{-0.5f, -0.5f, 0.0f}, {-0.5f, 0.5f, 0.0f}, {0.5f, 0.5f, 0.0f}, {0.5f, -0.5f, 0.0f}};
-        this->m_attributes = {
-            {.color = {1.0f, 0.0f, 0.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord0 = {0.0f, 0.0f}},
-            {.color = {0.0f, 1.0f, 0.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord0 = {0.0f, 1.0f}},
-            {.color = {0.0f, 0.0f, 1.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord0 = {1.0f, 1.0f}},
-            {.color = {1.0f, 0.0f, 1.0f}, .normal = {0.0f, 0.0f, 0.0f}, .texcoord0 = {1.0f, 0.0f}}
-        };
-        this->m_indices = {2, 1, 0, 3, 2, 0};
-    }
-};
-
 int main(int, char *[]) {
-    SDL_Init(SDL_INIT_VIDEO);
+    SDL_Init(SDL_VIDEO);
     SDL_LogInfo(0, "Loading mesh...");
 
     StartupOptions opt;
@@ -57,7 +42,10 @@ int main(int, char *[]) {
     uint32_t in_flight_frame_id = 0;
     uint32_t total_test_frame = 144;
 
-    TestHomoMesh mesh{render_system};
+    auto test_mesh_asset = cmc->GetAssetManager()->CreateAsset<LowerPlaneMeshAsset>();
+    auto test_mesh_asset_ref = AssetRef(test_mesh_asset);
+    auto mesh_resource = std::make_shared<StaticMeshResource>(test_mesh_asset_ref);
+    StaticHomogeneousMesh test_mesh{0, mesh_resource.get()};
 
     int tex_width, tex_height, tex_channel;
     std::filesystem::path image_path{ENGINE_ROOT_DIR};
@@ -70,6 +58,12 @@ int main(int, char *[]) {
     TestMaterialWithSampler material{render_system, texture};
 
     do {
+
+        if (!test_mesh.IsReady()) {
+            mesh_resource->Submit(
+                render_system->GetAllocatorState(), render_system->GetFrameManager().GetSubmissionHelper()
+            );
+        }
 
         render_system->WaitForFrameBegin(in_flight_frame_id);
         GraphicsCommandBuffer &cb = render_system->GetGraphicsCommandBuffer(in_flight_frame_id);
@@ -89,7 +83,7 @@ int main(int, char *[]) {
         cb.BindMaterial(material, 0);
         vk::Rect2D scissor{{0, 0}, render_system->GetSwapchain().GetExtent()};
         cb.SetupViewport(extent.width, extent.height, scissor);
-        cb.DrawMesh(mesh, glm::mat4{1.0f});
+        cb.DrawMesh(test_mesh, glm::mat4{1.0f});
         cb.EndRendering();
         cb.End();
 

@@ -1,11 +1,13 @@
-#ifndef PIPELINE_MATERIAL_MATERIALINSTANCE_INCLUDED
-#define PIPELINE_MATERIAL_MATERIALINSTANCE_INCLUDED
+#ifndef PIPELINE_MATERIAL_MATERIALINSTANCE
+#define PIPELINE_MATERIAL_MATERIALINSTANCE
 
 #include "Asset/InstantiatedFromAsset.h"
 #include "MaterialTemplate.h"
 #include "Render/Memory/DeviceBuffer.h"
+#include "Render/Resource/RenderResourceHandle.h"
 
 #include <any>
+#include <fwd.hpp>
 
 namespace Engine {
     class Texture;
@@ -32,18 +34,22 @@ namespace Engine {
     class MaterialInstance : public IInstantiatedFromAsset<MaterialAsset> {
     protected:
         RenderSystem &m_system;
-        MaterialLibrary &m_library;
+        RenderSystemState::MaterialLibraryHandle m_library;
 
         struct impl;
         std::unique_ptr<impl> pimpl;
 
     public:
-        MaterialInstance(RenderSystem &system, MaterialLibrary &library);
+        MaterialInstance(RenderSystem &system, RenderSystemState::MaterialLibraryHandle library);
         virtual ~MaterialInstance();
 
+        /// @brief Assign values to a variable.
         void AssignScalarVariable(const std::string &name, std::variant<uint32_t, float> value);
+        /// @overload void MaterialInstance::AssignScalarVariable(const std::string &name, std::variant<uint32_t, float> value)
         void AssignVectorVariable(const std::string &name, std::variant<glm::vec4, glm::mat4> value);
+        /// @brief Assign Texture reference to a variable.
         void AssignTexture(const std::string &name, std::shared_ptr<Texture> texture);
+        /// @brief Assign buffer reference to a variable.
         void AssignBuffer(const std::string &name, std::shared_ptr<const DeviceBuffer> buffer);
 
         /**
@@ -60,6 +66,8 @@ namespace Engine {
          * per-material data.
          */
         std::vector<uint32_t> UpdateGPUInfo(MaterialTemplate &tpl, uint32_t backbuffer);
+
+        /// @overload std::vector<uint32_t> MaterialInstance::UpdateGPUInfo(MaterialTemplate &tpl, uint32_t backbuffer);
         std::vector<uint32_t> UpdateGPUInfo(
             const std::string &tag, const PipelineRuntimeInfo &pri, uint32_t backbuffer
         );
@@ -79,6 +87,8 @@ namespace Engine {
          * will be returned.
          */
         vk::DescriptorSet GetDescriptor(const MaterialTemplate &tpl, uint32_t backbuffer) const noexcept;
+
+        /// @overload vk::DescriptorSet MaterialInstance::GetDescriptor(const MaterialTemplate &tpl, uint32_t backbuffer) const noexcept
         vk::DescriptorSet GetDescriptor(
             const std::string &tag, const PipelineRuntimeInfo &pri, uint32_t backbuffer
         ) const noexcept;
@@ -98,4 +108,4 @@ namespace Engine {
     };
 } // namespace Engine
 
-#endif // PIPELINE_MATERIAL_MATERIALINSTANCE_INCLUDED
+#endif // PIPELINE_MATERIAL_MATERIALINSTANCE

@@ -24,17 +24,17 @@ namespace Engine {
 
     /**
      * @brief A class that offers aggregated binding for shader resouces.
-     * 
+     *
      * Includes:
      * - hash map mapping names to textures or buffers;
      * - descriptor set, cached to avoid additional writes.
-     * 
+     *
      * As per Vulkan best practice, descriptor sets are not de-allocated. So
      * changes to descriptor sets (i.e. resetting texture or buffer references)
      * can lead to memory leak if too frequent.
-     * 
+     *
      * Using this class with `StructuredBuffer` together is recommended.
-     * The other class handles trivial uniform buffer variables (e.g. floats, 
+     * The other class handles trivial uniform buffer variables (e.g. floats,
      * vectors and matrics).
      */
     class ShaderResourceBinding {
@@ -47,7 +47,7 @@ namespace Engine {
 
         /**
          * @brief Point an interface to a storage or uniform buffer.
-         * 
+         *
          * @param offset Offset must meet the requirement specified by the
          * backend. For dynamic buffers, this offset is added to the dynamic
          * offset on binding time.
@@ -66,9 +66,9 @@ namespace Engine {
 
         /**
          * @brief Point an interface to a subresource of a texture.
-         * 
+         *
          * @note While you can operate on a subresource, it might not be
-         * correctly sychronized, as currently the Render Graph operates on 
+         * correctly sychronized, as currently the Render Graph operates on
          * resource granularity.
          */
         void BindTexture(const std::string &name, Texture &texture, TextureSubresourceRange range) noexcept;

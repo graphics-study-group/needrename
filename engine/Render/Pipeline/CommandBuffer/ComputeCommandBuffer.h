@@ -8,6 +8,9 @@ namespace Engine {
     class ComputeStage;
     class ComputeResourceBinding;
 
+    /**
+     * @brief Compute command buffer supporting compute shader kernel dispatches.
+     */
     class ComputeCommandBuffer : public ICommandBuffer {
     public:
         ComputeCommandBuffer(vk::CommandBuffer cb, uint32_t frame_in_flight);

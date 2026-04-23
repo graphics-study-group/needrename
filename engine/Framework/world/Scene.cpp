@@ -2,14 +2,10 @@
 #include <Asset/Scene/SceneAsset.h>
 #include <Core/Delegate/Delegate.h>
 #include <Core/Functional/EventQueue.h>
-#include <Framework/component/RenderComponent/LightComponent.h>
-#include <Framework/component/RenderComponent/RendererComponent.h>
 #include <Framework/component/TransformComponent/TransformComponent.h>
 #include <Framework/object/GameObject.h>
 #include <Framework/world/WorldSystem.h>
-#include <MainClass.h>
 #include <Reflection/Type.h>
-#include <Render/RenderSystem.h>
 
 namespace Engine {
     Scene::Scene(uint32_t sceneID) : m_sceneID(sceneID) {
@@ -95,14 +91,7 @@ namespace Engine {
         m_go_remove_queue.clear();
 
         for (auto &comp_ptr : m_comp_add_queue) {
-            // XXX: should not render init here
-            if (this == &MainClass::GetInstance()->GetWorldSystem()->GetMainSceneRef()) {
-                auto render_comp = dynamic_cast<RendererComponent *>(comp_ptr.get());
-                if (render_comp) {
-                    render_comp->RenderInit();
-                }
-            }
-
+            comp_ptr->Awake();
             m_event_queue->AddEvent(comp_ptr->GetHandle(), &Component::Init);
             m_components.push_back(std::move(comp_ptr));
         }

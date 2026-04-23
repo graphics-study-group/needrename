@@ -92,6 +92,7 @@ namespace Engine {
         GUID m_guid{};
 
         Asset *TryGetAsset() const;
+        void LoadEagerly() const;
     };
 
     template <AssetClass T>
@@ -107,12 +108,11 @@ namespace Engine {
     template <AssetClass T>
     T *AssetRef::as(bool async_load) {
         if (!IsValid()) throw std::runtime_error("AssetRef::as: AssetRef is not valid");
-        if (!IsAcquired()) {
-            if (async_load) {
-                AcquireAsync();
-            } else {
-                Acquire();
-            }
+        if (async_load) {
+            AcquireAsync();
+        } else {
+            Acquire();
+            LoadEagerly();
         }
         auto asset = TryGetAsset();
         if (!asset) return nullptr;

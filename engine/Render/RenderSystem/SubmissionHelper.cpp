@@ -6,7 +6,6 @@
 #include "Render/RenderSystem/DeviceInterface.h"
 #include "Render/RenderSystem/FrameSemaphore.hpp"
 #include "Render/RenderSystem/Structs.h"
-#include "Render/Renderer/HomogeneousMesh.h"
 
 #include "Render/DebugUtils.h"
 
@@ -290,23 +289,6 @@ namespace Engine::RenderSystemState {
                 cb.pipelineBarrier2(vk::DependencyInfo{{}, {}, barriers, {}});
             };
         pimpl->m_pending_dellocations.push_back(std::move(staging_buffer));
-        pimpl->m_pending_operations.push(enqueued);
-    }
-
-    void SubmissionHelper::EnqueueVertexBufferSubmission(const HomogeneousMesh &mesh) {
-        auto buffer{mesh.CreateStagingBuffer(m_system.GetAllocatorState())};
-
-        auto enqueued = [&mesh, this, pbuf = buffer.get()](vk::CommandBuffer cb) {
-            std::array<vk::MemoryBarrier2, 1> barriers = {GetBufferBarrier(BufferTransferType::VertexBefore)};
-            cb.pipelineBarrier2(vk::DependencyInfo{{}, barriers, {}, {}});
-
-            vk::BufferCopy copy{0, 0, static_cast<vk::DeviceSize>(mesh.GetExpectedBufferSize())};
-            cb.copyBuffer(pbuf->GetBuffer(), mesh.GetBuffer().GetBuffer(), {copy});
-
-            barriers[0] = GetBufferBarrier(BufferTransferType::VertexAfter);
-            cb.pipelineBarrier2(vk::DependencyInfo{{}, barriers, {}, {}});
-        };
-        pimpl->m_pending_dellocations.push_back(std::move(buffer));
         pimpl->m_pending_operations.push(enqueued);
     }
 

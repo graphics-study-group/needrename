@@ -9,7 +9,7 @@
 namespace Engine {
     /**
      * @brief A mesh asset containing a XY-plane facing Z-positive for testing.
-     * 
+     *
      * This asset should not be serialized or deserialized.
      */
     class REFL_SER_CLASS(REFL_WHITELIST) PlaneMeshAsset : public MeshAsset {

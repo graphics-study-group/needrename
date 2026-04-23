@@ -26,7 +26,7 @@ namespace Engine {
         /**
          * @brief A monolithic class for manage Vulkan enabled hardware.
          * Including instance, surface, physical device and device management.
-         * 
+         *
          * All returned handles from this class can be assumed to be invariant
          * across a session, meaning that you are free to cache these results.
          */
@@ -35,17 +35,19 @@ namespace Engine {
             std::unique_ptr<impl> pimpl;
 
         public:
+            /// @brief Configuration for creating the underlying Vulkan device.
             struct DeviceConfiguration {
-                // Parent window to create a surface from
+                /// Parent window to create a surface from
                 SDL_Window *window;
-                // Arbitrary application name. Does not affect Vulkan behavior.
+                /// Arbitrary application name. Does not affect Vulkan behavior.
                 std::string application_name;
-                // Arbitrary application version. Does not affect Vulkan behavior.
+                /// Arbitrary application version. Does not affect Vulkan behavior.
                 uint32_t application_version;
-                // Vulkan-Hpp dynamic dispatcher, can be null, in which case uses the default one.
+                /// Vulkan-Hpp dynamic dispatcher, can be null, in which case uses the default one.
                 vk::detail::DispatchLoaderDynamic *dynamic_dispatcher;
             };
 
+            /// @brief Types of integer limits that can be queried for.
             enum class PhysicalDeviceLimitInteger {
                 MaxUniformBufferSize,
                 MaxStorageBufferSize,
@@ -56,9 +58,11 @@ namespace Engine {
                 AsyncTransferImageGranularityDepth
             };
 
+            /// @brief Types of floating point limits that can be queried for.
             enum class PhysicalDeviceLimitFloat {
             };
 
+            /// @brief Types of queue families.
             enum class QueueFamilyType {
                 // Main graphics queue family that supports all operations.
                 GraphicsMain,
@@ -76,14 +80,30 @@ namespace Engine {
                 AsynchronousTransfer,
             };
 
+            /**
+             * @brief Construct the device interface by the configuration.
+             *
+             * It sets up Vulkan instance, surface, physical device and
+             * logical device accordingly. Queues and command pools are also
+             * created.
+             */
             DeviceInterface(DeviceConfiguration cfg);
             ~DeviceInterface();
 
+            /// @brief Get the current unique instance of Vulkan.
             vk::Instance GetInstance() const;
+            /// @brief Get the current unique surface of the OS.
             vk::SurfaceKHR GetSurface() const;
+            /// @brief Get the current selected physical device.
             vk::PhysicalDevice GetPhysicalDevice() const;
+            /// @brief Get the current logical device.
             vk::Device GetDevice() const;
-
+            /**
+             * @brief Get the queue information of current logical device.
+             *
+             * @note Queue and Queue Families are two distinct notions in
+             * Vulkan. They should not be confused.
+             */
             const QueueInfo &GetQueueInfo() const;
 
             /**
@@ -93,13 +113,20 @@ namespace Engine {
 
             /**
              * @brief Query information on queue family indices of different type.
-             * 
+             *
              * Queries for graphics and graphics present queue family are guaranteed
-             * to return non-null optional.
+             * to return a non-null optional.
+             *
+             * @note Queue and Queue Families are two distinct notions in
+             * Vulkan. They should not be confused.
              */
             std::optional<uint32_t> GetQueueFamily(QueueFamilyType type) const noexcept;
 
+            /**
+             * @brief Query the limit of current selected physical device.
+             */
             uint32_t QueryLimit(PhysicalDeviceLimitInteger limit) const;
+            /// @overload uint32_t DeviceInterface::QueryLimit(PhysicalDeviceLimitInteger limit) const
             float QueryLimit(PhysicalDeviceLimitFloat limit) const;
         };
     } // namespace RenderSystemState

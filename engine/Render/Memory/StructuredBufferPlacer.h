@@ -24,7 +24,7 @@ namespace Engine {
         /**
          * @brief Add a name-type entry to the structure mapping.
          * Overrides previous type info of the same name.
-         * 
+         *
          * @param name name of the variable.
          * @param offset offset of the variable into the buffer.
          * @param size size of the variable.
@@ -43,7 +43,7 @@ namespace Engine {
         /**
          * @brief Mark a variable as a structured buffer.
          * Use this to place another structured buffer into it.
-         * 
+         *
          * @param buffer The subbuffer. It is up to the caller to ensure:
          *          - Subbuffer outlives the main buffer;
          *          - No cycle exists in the chain of subbuffers.
@@ -55,8 +55,10 @@ namespace Engine {
          */
         size_t CalculateMaxSize() const noexcept;
 
+        /**
+         * @brief Write the structured buffer into memory.
+         */
         void WriteBuffer(const StructuredBuffer &data, std::byte *buffer) const noexcept;
-
         void WriteBuffer(const StructuredBuffer &data, std::vector<std::byte> &buffer) const;
     };
 } // namespace Engine

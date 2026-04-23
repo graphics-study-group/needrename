@@ -1,8 +1,11 @@
 #ifndef RENDER_RENDERSYSTEM_RENDERERMANAGER_INCLUDED
 #define RENDER_RENDERSYSTEM_RENDERERMANAGER_INCLUDED
 
-#include <Framework/world/Handle.h>
+#include "Framework/world/Handle.h"
+#include "Render/Resource/RenderResourceHandle.h"
+
 #include <glm.hpp>
+#include <memory>
 #include <vector>
 
 namespace vk {
@@ -10,27 +13,31 @@ namespace vk {
 }
 
 namespace Engine {
-    class RenderSystem;
-    class RendererComponent;
-    class MaterialInstance;
+    class AssetRef;
     class IVertexBasedRenderer;
-    class ComponentHandle;
+    class RenderSystem;
 
     namespace RenderSystemState {
         /**
-         * @brief This class manages run-time data and their lifetime of renderers (i.e. meshes).
+         * @brief Runtime draw-entry registry for mesh/material rendering.
          *
-         * Two sets of interfaces are provided in this class.
-         * The first high-level one faces `RendererComponent`s and their derivatives, controls lifetime of the
-         * actual renderers, and how draws are filtered.
-         * The second low-level one faces `RendererHandle`s, and is used to sort draws, and obtain draw calls and their
-         * information.
+         * Top-level design:
+         * - This class owns draw entries addressed by RendererHandle.
+         * - One draw entry corresponds to one submesh draw unit, bound with:
+         *   a mesh resource handle, a material resource handle, and a renderer view.
+         * - Asset/GPU resource lifetime is delegated to RenderResourceManager;
+         *   this class only retains/release resource handles per entry.
+         * - Destruction is deferred by frame-in-flight policy to avoid releasing
+         *   resources still referenced by in-flight command buffers.
          *
-         * `RendererHandle`s are provided on a submesh (i.e. `HomogeneousMesh`) granularity, and one `RendererComponent`
-         * can therefore have multipled `RendererHandle`s.
-         * They directly interfaces with low level Vulkan functionalities.
+         * "Caller" in this interface means upper-layer runtime owners of render
+         * entries (for example renderer-related components/systems) that:
+         * 1) create entries via RegisterRenderer,
+         * 2) update per-frame data (model matrix),
+         * 3) explicitly Unregister when entries are no longer needed.
          *
-         * @note This class does not handles Asset lifetime. It simply assumes that all used assets are available.
+         * This class intentionally stores no Component pointers/references and
+         * acts as a pure runtime data/service layer.
          */
         class RendererManager {
             RenderSystem &m_system;
@@ -39,14 +46,16 @@ namespace Engine {
 
         public:
             /**
-             * @brief A small struct holding all renderer data pushed
-             * to the GPU.
+             * @brief A small struct holding all renderer data pushed to the GPU.
              */
             struct RendererDataStruct {
                 glm::mat4 model_matrix;
                 int32_t camera_index;
             };
 
+            /**
+             * @brief Filter options applied in FilterAndSortRenderers.
+             */
             struct FilterCriteria {
                 enum class BinaryCriterion : uint8_t {
                     No,
@@ -58,6 +67,11 @@ namespace Engine {
                 uint32_t layer{0xFFFFFFFF};
             };
 
+            /**
+             * @brief Sorting modes for filtered renderers.
+             *
+             * Only None is currently implemented.
+             */
             enum class SortingCriterion {
                 None,
                 ByPriority,
@@ -72,67 +86,87 @@ namespace Engine {
             ~RendererManager();
 
             /**
-             * @brief Register a renderer component to the renderer manager.
+             * @brief Register one submesh draw entry and return its handle.
              *
-             * This manager will hereafter hold a ComponentHandle to the
-             * component until it being unregistered.
+             * Behavior:
+             * - Acquires mesh/material render resources from RenderResourceManager.
+             * - Builds a renderer view for the specified submesh_index.
+             * - Stores layer/shadow flags and initial model matrix.
              *
-             * Underlying resource of this renderer component will be allocated
-             * if necessary, and in the process related assets may be accessed.
-             * But its data will not be submitted to GPU until it is used unless
-             * it is explicitly specified to be eagerly loaded.
+             * Ownership contract:
+             * - Caller owns the returned handle usage lifecycle.
+             * - Caller must eventually call Unregister(handle).
+             *
+             * @param mesh_asset_ref Mesh asset reference.
+             * @param material_asset_ref Material asset reference.
+             * @param submesh_index Submesh index inside mesh asset.
+             * @param layer Bitmask layer for filtering.
+             * @param cast_shadow Whether this entry participates in shadow passes.
+             * @param eagerly_loaded True for synchronous resource path, false for async-friendly path.
+             * @return RendererHandle for subsequent update/filter/draw operations.
              */
-            void RegisterRendererComponent(const ComponentHandle &component);
+            RendererHandle RegisterRenderer(
+                AssetRef mesh_asset_ref,
+                AssetRef material_asset_ref,
+                uint32_t submesh_index,
+                uint32_t layer,
+                bool cast_shadow,
+                bool eagerly_loaded
+            );
 
             /**
-             * @brief Fetch the underlying renderers of this renderer.
+             * @brief Mark a renderer for deferred deallocation.
+             *
+             * The entry is not removed immediately. Actual cleanup happens in
+             * PerformPendingCleanUp after frame countdown reaches zero.
              */
-            RendererList GetRendererListsFromComponent(const ComponentHandle &component) const noexcept;
+            void Unregister(RendererHandle handle);
 
             /**
-             * @brief Unregister a component from the manager.
-             * It will no longer be present in the `RendererList` returned by the manager.
-             * Actual clean up of left-over GPU resources are not performed until
-             * `PerformPendingCleanUp()` call, to avoid destroying
-             * resources that is still used by GPU.
+             * @brief Update the model matrix for a renderer.
+             *
+             * Caller should update this per frame before issuing draw submission.
              */
-            void UnregisterRendererComponent(const ComponentHandle &component);
+            void UpdateModelMatrix(RendererHandle handle, const glm::mat4 &matrix);
 
             /**
-             * @brief Clear up unregistered renderers from internal data structure, and
-             * cosolidate internal memory to avoid fragmentation.
+             * @brief Advance deferred cleanup and release fully retired entries.
+             *
+             * For each retired entry whose countdown reaches zero, this method
+             * releases mesh/material resource handles and removes the entry.
              */
             void PerformPendingCleanUp();
 
             /**
-             * @brief Filter and sort renderers based on given criteria.
-             * All returned renderers that are not loaded to GPU (i.e. lazily loaded) will
-             * be prepared to be submitted.
+             * @brief Build draw list by filtering (and optional sorting).
              *
-             * Actual uploading is performed by `FrameManager`.
+             * Current behavior:
+             * - skips retired entries,
+             * - applies layer and shadow-caster criteria,
+             * - checks mesh resource readiness through RenderResourceManager.
              *
-             * @note You should not cache the result of this method across frames,
-             * as renderers could be deallocated.
+             * @note Sorting modes other than None are currently unimplemented.
              */
             RendererList FilterAndSortRenderers(FilterCriteria fc, SortingCriterion sc = SortingCriterion::None);
 
             /**
-             * @brief Get the renderer data used for draw calls.
+             * @brief Get renderer geometry view for a draw entry.
+             * @return Non-owning pointer valid while the entry is alive.
              */
-            const IVertexBasedRenderer *GetRendererData(RendererHandle handle) const noexcept;
+            const IVertexBasedRenderer *GetRenderer(RendererHandle handle) const noexcept;
 
             /**
-             * @brief Get the component that the renderer is attached to.
+             * @brief Get material resource handle bound to a draw entry.
              */
-            const RendererComponent *GetRendererComponent(RendererHandle handle) const noexcept;
+            MaterialInstanceHandle GetMaterialResourceHandle(RendererHandle handle) const noexcept;
 
             /**
-             * @brief Get the material that the renderer uses.
+             * @brief Get the cached model matrix for a renderer.
              */
-            MaterialInstance *GetMaterialInstance(RendererHandle handle) const noexcept;
+            const glm::mat4 &GetModelMatrix(RendererHandle handle) const noexcept;
 
             /**
-             * @brief Get the push constant range for renderers.
+             * @brief Return push-constant range definition for draw data.
              */
             static vk::PushConstantRange GetPushConstantRange();
         };

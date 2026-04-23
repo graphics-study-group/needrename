@@ -4,7 +4,6 @@
 #include <fstream>
 
 #include "Core/Functional/SDLWindow.h"
-#include "Framework/component/RenderComponent/MeshComponent.h"
 #include "MainClass.h"
 #include "Render/FullRenderSystem.h"
 #include "UserInterface/GUISystem.h"

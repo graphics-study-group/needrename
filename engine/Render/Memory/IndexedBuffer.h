@@ -40,12 +40,10 @@ namespace Engine {
         /**
          * @brief Create a buffer that is large enough to hold aligned slices.
          *
-         * @param
-         * type Type of the buffer. Currently only uniform is supported.
-         * @param slice_size Actual size of
-         * each slice, ignoring alignment requirement.
-         * @param slice_alignment Alignment requirement of each
-         * slice.
+         * @param type Type of the buffer. Currently only uniform is supported.
+         * @param slice_size Actual size of each slice, ignoring alignment requirement.
+         * @param slice_alignment Alignment requirement of each slice.
+         * @param slices How many slices are request for the buffer.
          * @param name Name of the buffer.
          */
         static IndexedBuffer Create(
@@ -56,6 +54,15 @@ namespace Engine {
             uint32_t slices,
             const std::string &name = ""
         );
+        /**
+         * @brief Create a buffer that is large enough to hold aligned slices.
+         *
+         * @param type Type of the buffer. Currently only uniform is supported.
+         * @param slice_size Actual size of each slice, ignoring alignment requirement.
+         * @param slice_alignment Alignment requirement of each slice.
+         * @param slices How many slices are request for the buffer.
+         * @param name Name of the buffer.
+         */
         static std::unique_ptr<IndexedBuffer> CreateUnique(
             const RenderSystemState::AllocatorState &allocator,
             BufferType type,

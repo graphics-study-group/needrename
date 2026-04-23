@@ -14,18 +14,25 @@ namespace Engine {
          * Including opaque types and uniform or storage buffers.
          */
         struct SPInterface {
+            /// @brief Name of the interface
             std::string name{};
+            /// @brief Descriptor set specified by the layout
             uint32_t layout_set{~0U};
+            /// @brief Descriptor binding specified by the layout
             uint32_t layout_binding{~0U};
 
             virtual ~SPInterface() = default;
         };
 
+        /// @brief Opaque types such as images or samplers.
         struct SPInterfaceOpaque : SPInterface {
             uint32_t array_size{0};
         };
 
+        /// @brief Image type.
         struct SPInterfaceOpaqueImage : SPInterfaceOpaque {
+
+            /// @brief Special attributes for images.
             enum class ImageFlagBits : uint32_t {
                 HasSampler = 1 << 0,
                 Arrayed = 1 << 1,
@@ -43,7 +50,9 @@ namespace Engine {
             // vk::Format format;
         };
 
+        /// @brief Other opaque interfaces such as samplers.
         struct SPInterfaceOpaqueOther : SPInterfaceOpaque {
+            /// @brief Type of the interface.
             enum class Type {
                 Unknown,
                 // Separate sampler (`sampler`)
@@ -51,7 +60,9 @@ namespace Engine {
             } type{Type::Unknown};
         };
 
+        /// @brief Buffers
         struct SPInterfaceBuffer : SPInterface {
+            /// @brief Type of the interface.
             enum class Type {
                 Unknown,
                 // UBOs (`uniform StructName`)
@@ -61,6 +72,7 @@ namespace Engine {
             } type{Type::Unknown};
         };
 
+        /// @brief Structured buffer. Generally uniform buffer for materials.
         struct SPInterfaceStructuredBuffer : SPInterfaceBuffer {
             const StructuredBufferPlacer *buffer_placer{nullptr};
         };

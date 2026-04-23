@@ -15,14 +15,14 @@ namespace Engine {
 
     /**
      * @brief A bundle of materials organized by dispatcher.
-     * 
+     *
      * `MaterialLibrary` acts as a bundle of different materials
      * (i.e. pipelines) that can be dispatched by tags and the type
      * of the mesh to be drawn.
-     * 
+     *
      * This class acts as a dispatcher that dispatches draw calls
      * of renders to their corresponding pipeline based on the tag
-     * and the type of the mesh.
+     * and other runtime configurations such as vertex attributes.
      */
     class MaterialLibrary : public IInstantiatedFromAsset<MaterialLibraryAsset> {
         RenderSystem &m_system;
@@ -35,23 +35,32 @@ namespace Engine {
 
         /**
          * @brief Dispatch a material template by tag and mesh type.
-         * 
+         *
          * The pipeline is first by tags, and then by mesh type.
          * It is selected to guarantee that no mesh vertex attributes
          * are left out by the vertex shader input.
-         * 
+         *
          * @note The following tags are reserved:
          *  - `SKYBOX`: reserved for skybox rendering.
-         * 
-         * @param tag The tag of the material. 
-         * @param mesh_type vertex format of the mesh.
+         *
+         * @param tag The tag of the material.
+         * @param pri Runtime information needed for the pipeline.
          */
         const MaterialTemplate *FindMaterialTemplate(
             const std::string &tag, const PipelineRuntimeInfo &pri
         ) const noexcept;
+
+        /**
+         * @brief Search for a material template via its tag and runtime information.
+         */
         MaterialTemplate *FindMaterialTemplate(const std::string &tag, const PipelineRuntimeInfo &pri) noexcept;
 
-        void PreheatMaterialTemplate(const std::string &tag, VertexAttribute mesh_type) noexcept;
+        /**
+         * @brief Preheat a certain pipeline.
+         *
+         * @todo unimplemented.
+         */
+        void PreheatMaterialTemplate(const std::string &tag, const PipelineRuntimeInfo &pri) noexcept;
 
         void Instantiate(MaterialLibraryAsset &) override;
     };

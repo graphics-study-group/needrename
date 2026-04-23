@@ -308,7 +308,7 @@ int main(int argc, char **argv) {
             world->GetMainSceneRef().AddTickEvent();
             world->GetMainSceneRef().ProcessEvents();
         }
-        world->UpdateLightData(rsys->GetSceneDataManager());
+        world->UpdateRendererData(*rsys);
 
         gui->PrepareGUI();
         main_window.Render();

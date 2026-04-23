@@ -6,6 +6,7 @@
 namespace Engine {
     class GraphicsCommandBuffer;
 
+    /// @deprecated
     class GraphicsContext : public TransferContext {
         struct impl;
         std::unique_ptr<impl> pimpl;

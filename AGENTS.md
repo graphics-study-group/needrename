@@ -52,6 +52,7 @@ World (WorldSystem)
 
 ## Code Style
 
+- **Primary references**: Always follow `CODE_STYLE.md` and `docs/CODE_STYLE_CN.md` when writing or updating code/comments.
 - **Format**: Use `.clang-format` (run `clang-format -i <file>` before commit)
 - **Naming**:
   - Types/Functions: PascalCase (`GameObject`, `GetTransform`)
@@ -61,6 +62,7 @@ World (WorldSystem)
 - **Namespace**: PascalCase (`Engine`, `Serialization`) except `detail` (lowercase, internal)
 - **Anonymous namespace**: file-local symbols via `namespace { ... }`
 - **Order**: public → protected → private
+- **Doxygen order**: Use `@brief` + blank line + detailed text, then `@param`, then `@return`; avoid `@details`.
 
 ## Serialization Format
 

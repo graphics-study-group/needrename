@@ -4,6 +4,8 @@
 // May be safe to include here as this header is not included in other headers.
 #include <vulkan/vulkan.hpp>
 
+#include "Render/Memory/MemoryAccessTypes.h"
+
 namespace Engine {
     class RenderSystem;
     class Texture;
@@ -12,8 +14,6 @@ namespace Engine {
     class GraphicsContext;
     class ComputeContext;
 
-    enum class MemoryAccessTypeImageBits;
-
     namespace RenderSystemState {
         class SubmissionHelper;
         class FrameSemaphore;
@@ -21,6 +21,16 @@ namespace Engine {
         /// @brief Multiple frame in flight manager
         class FrameManager final {
         public:
+            /**
+             * @brief Expected frames-in-flight of the current application.
+             *
+             * Controls to what degree CPU codes can _overtake_ GPU codes. For
+             * a default setting of 3, CPU can record commands 3 frames ahead
+             * of the GPU. In general, higher value improves throughput but
+             * makes latency larger.
+             *
+             * This number may be different from the swapchain image counts.
+             */
             static constexpr uint32_t FRAMES_IN_FLIGHT = 3;
 
         private:
@@ -31,12 +41,26 @@ namespace Engine {
             FrameManager(RenderSystem &sys);
             ~FrameManager();
 
+            /**
+             * @brief Create the frame manager.
+             *
+             * Allocate synchronization primitives such as fences and semaphores.
+             * Also allocates reused command buffers (i.e main command buffers).
+             */
             void Create();
 
+            /// @brief Get the current frame-in-flight count.
             uint32_t GetFrameInFlight() const noexcept;
-
+            /// @brief Get the current frame count.
             uint64_t GetTotalFrame() const noexcept;
 
+            /**
+             * @brief Get the current free image index in the swapchain.
+             *
+             * @note This method is in general only used by render system
+             * internally when presenting & interacting with the OS.
+             * You might be looking for `GetFrameInFlight()`.
+             */
             uint32_t GetFramebuffer() const noexcept;
 
             /**
@@ -47,10 +71,17 @@ namespace Engine {
             [[deprecated]]
             GraphicsCommandBuffer GetCommandBuffer();
 
+            /// @deprecated
+            [[deprecated]]
             GraphicsContext GetGraphicsContext();
 
+            /// @deprecated
+            [[deprecated]]
             ComputeContext GetComputeContext();
 
+            /**
+             * @brief Request the current main command buffer
+             */
             vk::CommandBuffer GetRawMainCommandBuffer();
 
             /**
@@ -108,8 +139,10 @@ namespace Engine {
                 vk::Filter filter = vk::Filter::eLinear
             );
 
+            /// @brief Get the submission helper.
             SubmissionHelper &GetSubmissionHelper();
 
+            /// @brief Get the current frame semaphore.
             const FrameSemaphore &GetFrameSemaphore() const noexcept;
 
             /// Buffer Readback operations

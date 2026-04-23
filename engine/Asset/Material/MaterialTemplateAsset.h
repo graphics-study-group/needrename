@@ -45,20 +45,24 @@ namespace Engine {
         using Attachments = PipelineProperties::Attachments;
         using Multisampling = PipelineProperties::Multisampling;
 
-        /// @brief C.f. `vkPipelineRasterizationStateCreateInfo`
+        /// Rasterizer configuration of the pipeline of the material
+        /// @see https://docs.vulkan.org/refpages/latest/refpages/source/VkPipelineRasterizationStateCreateInfo.html
         REFL_SER_ENABLE RasterizerProperties rasterizer{};
 
-        /// @brief C.f. `vkPipelineDepthStencilStateCreateInfo`
+        /// Depth stencil configuration of the pipeline
+        /// @see https://docs.vulkan.org/refpages/latest/refpages/source/VkPipelineDepthStencilStateCreateInfo.html
         REFL_SER_ENABLE DSProperties depth_stencil{};
 
-        /// @brief C.f. `vkPipelineShaderStageCreateInfo`
+        /// Shaders of the pipeline
+        /// @see https://docs.vulkan.org/refpages/latest/refpages/source/VkPipelineShaderStageCreateInfo.html
         REFL_SER_ENABLE Shaders shaders{};
 
-        /// @brief C.f. `vkPipelineRenderingCreateInfo`
-        /// Use UNDEFINED image format to adapt to swapchain.
+        /// Color and depth-stencil attachments of the pipeline
+        /// @see https://docs.vulkan.org/refpages/latest/refpages/source/VkPipelineRenderingCreateInfo.html
         REFL_SER_ENABLE Attachments attachments{};
 
-        /// @brief C.f. `vkPipelineMultisampleStateCreateInfo`
+        /// Multisampling state of the pipeline
+        /// @see https://docs.vulkan.org/refpages/latest/refpages/source/VkPipelineMultisampleStateCreateInfo.html
         REFL_SER_ENABLE Multisampling multisampling{};
 
         // XXX: We had better support pipeline caches to speed up loading...

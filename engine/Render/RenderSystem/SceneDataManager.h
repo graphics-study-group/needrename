@@ -12,7 +12,6 @@ namespace vk {
 
 namespace Engine {
     class RenderSystem;
-    class MaterialInstance;
     class GraphicsCommandBuffer;
 
     namespace RenderSystemState {
@@ -21,7 +20,24 @@ namespace Engine {
          */
         class SceneDataManager {
         public:
+            /**
+             * @brief Maximal shadow casting lights available to the shader.
+             *
+             * Affects uniform buffer size and shadow map slots.
+             *
+             * `builtin_assets/shaders/include/engine/interface.glsl` should
+             * be modified accordingly if this constant is changed.
+             */
             static constexpr uint32_t MAX_SHADOW_CASTING_LIGHTS = 8;
+
+            /**
+             * @brief Maximal non-casting lights available to the shader.
+             *
+             * Affects uniform buffer size.
+             *
+             * `builtin_assets/shaders/include/engine/interface.glsl` should
+             * be modified accordingly if this constant is changed.
+             */
             static constexpr uint32_t MAX_NON_SHADOW_CASTING_LIGHTS = 16;
 
         private:
@@ -32,6 +48,11 @@ namespace Engine {
         public:
             SceneDataManager(RenderSystem &system) noexcept;
             ~SceneDataManager() noexcept;
+
+            /**
+             * @brief Create the manager by allocating uniform buffers,
+             * descriptor set layouts and pipeline layouts.
+             */
             void Create();
 
             /**
@@ -39,8 +60,10 @@ namespace Engine {
              */
             void SetLightDirectional(uint32_t index, glm::vec3 direction, glm::vec3 intensity) noexcept;
 
+            /// @todo unimplemented
             void SetLightPoint(uint32_t index, glm::vec3 direction, glm::vec3 intensity, float radius) noexcept;
 
+            /// @todo unimplemented
             void SetLightCone(
                 uint32_t index, glm::vec3 direction, glm::vec3 intensity, float inner_angle, float outer_angle
             ) noexcept;
@@ -123,10 +146,21 @@ namespace Engine {
              * The manager assumes that the material instance contains a MaterialLibrary which set a MaterialTemplate
              * with tag `SKYBOX`. The shader should not use any scene descriptor set.
              */
-            void SetSkyboxMaterial(std::shared_ptr<MaterialInstance> material) noexcept;
+            void SetSkyboxMaterial(MaterialInstanceHandle material) noexcept;
 
+            /**
+             * @brief Upload the current scene data to GPU.
+             *
+             * Should be called only once before any draw calls.
+             */
             void UploadSceneData(uint32_t frame_in_flight) const noexcept;
 
+            /**
+             * @brief Inform the manager to fetch all light data from registered
+             * components.
+             *
+             * @todo Unimplemented.
+             */
             void FetchLightData() noexcept;
 
             /**
@@ -147,7 +181,16 @@ namespace Engine {
                 GraphicsCommandBuffer &cb, uint32_t frame_in_flight, glm::mat4 pv_mat, const vk::Extent2D &extent
             ) const;
 
+            /**
+             * @brief Get the descriptor set pointing to the resources
+             * of the current frame-in-flight.
+             */
             vk::DescriptorSet GetLightDescriptorSet(uint32_t frame_in_flight) const noexcept;
+
+            /**
+             * @brief Get the descriptor set layout containing lighting
+             * information.
+             */
             vk::DescriptorSetLayout GetLightDescriptorSetLayout() const noexcept;
 
             /**

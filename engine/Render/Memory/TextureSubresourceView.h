@@ -20,6 +20,10 @@ namespace Engine {
      * @see `VkImageSubresourceRange`.
      */
     struct TextureSubresourceRange {
+        /**
+         * @brief Base array layer that is considered as the first layer for
+         * this view.
+         */
         uint32_t array_layer_base{0};
         /**
          * @brief How many array layers are visible in this view.
@@ -27,6 +31,10 @@ namespace Engine {
          * all array layers.
          */
         uint32_t array_layer_size{std::numeric_limits<uint32_t>::max()};
+        /**
+         * @brief Base mipmap level that is considered as the first level for
+         * this view.
+         */
         uint32_t mip_level_base{0};
         /**
          * @brief How mipmap layers are visible in this view.

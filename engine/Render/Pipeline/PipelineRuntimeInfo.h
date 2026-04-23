@@ -9,10 +9,12 @@ namespace Engine {
     /**
      * @brief Runtime information for graphics pipelines that is determined on
      * per draw basis.
-     * 
+     *
      * Mainly includes mesh vertex attributes.
      */
     struct PipelineRuntimeInfoPerDraw {
+
+        /// @brief Vertex attribute expectation of the draw call.
         VertexAttribute va;
 
         bool operator==(const PipelineRuntimeInfoPerDraw &) const noexcept = default;
@@ -39,12 +41,12 @@ namespace Engine {
     /**
      * @brief Runtime information for graphics pipelines that is determined on
      * per rendering pass basis.
-     * 
+     *
      * Mainly includes attachment information and multisample counts.
      */
     struct PipelineRuntimeInfoPerRendering : PipelineRuntimeInfoPerRenderingHeader {
         /**
-         * 
+         *
          * Color attachment format, terminated by UNDEFINED.
          */
         ImageUtils::ImageFormat color_attachment_format[8];

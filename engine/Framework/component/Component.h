@@ -36,6 +36,12 @@ namespace Engine {
         Component &operator=(Component &&other) = delete;
 
         /**
+         * @brief Called when the component becomes active in the scene.
+         * This is called before Init() when the component is loaded or added.
+         */
+        REFL_ENABLE virtual void Awake();
+
+        /**
          * @brief Initialize the component.
          * Called when the parent GameObject is added to a running scene.
          */

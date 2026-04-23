@@ -71,57 +71,69 @@ namespace Engine {
             m_flags &= static_cast<UnderlyingType>(bit);
         }
 
+        /// @brief Perform bitwise logical operation on the flag.
         friend constexpr Flags operator|(Flags lhs, T rhs) noexcept {
             return Flags(lhs.m_flags | static_cast<UnderlyingType>(rhs));
         }
+        /// @brief Perform bitwise logical operation on the flag.
         friend constexpr Flags operator|(Flags lhs, Flags rhs) noexcept {
             return Flags(lhs.m_flags | rhs.m_flags);
         }
+        /// @brief Perform bitwise logical operation on the flag.
         friend constexpr Flags operator&(Flags lhs, T rhs) noexcept {
             return Flags(lhs.m_flags & static_cast<UnderlyingType>(rhs));
         }
+        /// @brief Perform bitwise logical operation on the flag.
         friend constexpr Flags operator&(Flags lhs, Flags rhs) noexcept {
             return Flags(lhs.m_flags & rhs.m_flags);
         }
+        /// @brief Perform bitwise logical operation on the flag.
         friend constexpr Flags operator^(Flags lhs, T rhs) noexcept {
             return Flags(lhs.m_flags ^ static_cast<UnderlyingType>(rhs));
         }
+        /// @brief Perform bitwise logical operation on the flag.
         friend constexpr Flags operator^(Flags lhs, Flags rhs) noexcept {
             return Flags(lhs.m_flags ^ rhs.m_flags);
         }
-
+        /// @brief Perform bitwise logical operation on the flag.
         friend constexpr Flags &operator|=(Flags &lhs, T rhs) noexcept {
             lhs.m_flags |= static_cast<UnderlyingType>(rhs);
             return lhs;
         }
+        /// @brief Perform bitwise logical operation on the flag.
         friend constexpr Flags &operator|=(Flags &lhs, Flags rhs) noexcept {
             lhs.m_flags |= rhs.m_flags;
             return lhs;
         }
+        /// @brief Perform bitwise logical operation on the flag.
         friend constexpr Flags &operator&=(Flags &lhs, T rhs) noexcept {
             lhs.m_flags &= static_cast<UnderlyingType>(rhs);
             return lhs;
         }
+        /// @brief Perform bitwise logical operation on the flag.
         friend constexpr Flags &operator&=(Flags &lhs, Flags rhs) noexcept {
             lhs.m_flags &= rhs.m_flags;
             return lhs;
         }
+        /// @brief Perform bitwise logical operation on the flag.
         friend constexpr Flags &operator^=(Flags &lhs, T rhs) noexcept {
             lhs.m_flags ^= static_cast<UnderlyingType>(rhs);
             return lhs;
         }
+        /// @brief Perform bitwise logical operation on the flag.
         friend constexpr Flags &operator^=(Flags &lhs, Flags rhs) noexcept {
             lhs.m_flags ^= rhs.m_flags;
             return lhs;
         }
-
+        /// @brief Perform bitwise negation on the flag.
         friend constexpr Flags operator~(const Flags &bf) noexcept {
             return Flags(~bf.m_flags);
         }
-
+        /// @brief Perform bitwise equality test on the flag.
         friend constexpr bool operator==(const Flags &lhs, const Flags &rhs) noexcept {
             return lhs.m_flags == rhs.m_flags;
         }
+        /// @brief Perform bitwise inequality test on the flag.
         friend constexpr bool operator!=(const Flags &lhs, const Flags &rhs) noexcept {
             return lhs.m_flags != rhs.m_flags;
         }

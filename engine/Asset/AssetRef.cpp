@@ -97,4 +97,12 @@ namespace Engine {
         return amg.GetAsset(m_guid);
     }
 
+    void AssetRef::LoadEagerly() const {
+        if (IsValid()) {
+            auto &amg = *MainClass::GetInstance()->GetAssetManager();
+            if (!amg.IsAssetLoaded(m_guid)) {
+                amg.LoadAssetImmediately(m_guid);
+            }
+        }
+    }
 } // namespace Engine
