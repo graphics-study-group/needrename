@@ -2,9 +2,9 @@
 #define PIPELINE_COMMANDBUFFER_ACCESSHELPERFUNCS_INCLUDED
 
 /**
- * @file This header contains function implementation for AccessHelper classes. 
+ * @file This header contains function implementation for AccessHelper classes.
  * Do not include it in other
- * headers. 
+ * headers.
  */
 
 #include "AccessHelperTypes.h"

@@ -31,8 +31,8 @@ namespace Engine::RenderSystemState {
 
             /**
              * Only async transfer needs this.
-             * > Queues supporting graphics and/or compute operations must report (1,1,1) 
-             * > in minImageTransferGranularity, meaning that there are no additional 
+             * > Queues supporting graphics and/or compute operations must report (1,1,1)
+             * > in minImageTransferGranularity, meaning that there are no additional
              * > restrictions on the granularity of image transfer operations for these queues.
              */
             std::tuple<uint32_t, uint32_t, uint32_t> async_transfer_granularity{};
