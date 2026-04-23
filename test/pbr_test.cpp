@@ -307,7 +307,8 @@ int main(int argc, char **argv) {
     rgb.AddPass(
         RenderGraphPassBuilder{*rsys}
             .SetName("GUI Pass")
-            .AppendColorAttachment({c, {}, AttachmentUtils::LoadOperation::Load, AttachmentUtils::StoreOperation::Store}
+            .AppendColorAttachment(
+                {c, {}, AttachmentUtils::LoadOperation::Load, AttachmentUtils::StoreOperation::Store}
             )
             .SetRasterizerPassFunction([rsys, gsys](GraphicsCommandBuffer &gcb, const RenderGraph2 &) {
                 gsys->DrawGUI(gcb.GetCommandBuffer());
