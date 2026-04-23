@@ -7,14 +7,6 @@ This project references and adheres to the **[C++ Core Guidelines](https://isocp
 
 ## 1. Code Formatting
 
-Before cloning, disable Git's automatic line-ending conversion to avoid CI formatting failures:
-
-```sh
-git config --global core.autocrlf false
-```
-
-This repository stores all source files with CRLF line endings. Enabling `core.autocrlf` on Windows makes developers failed to recognizing files that are incorrectly stored in LF format in the repository, which will cause `clang-format` checks to fail.
-
 All code must be formatted using the `.clang-format` configuration file. Before committing, run:
 
 ```bash

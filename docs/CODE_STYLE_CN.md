@@ -7,14 +7,6 @@
 
 ## 1. 代码格式化
 
-在克隆本仓库前，请关闭 Git 的自动换行符转换，以避免 CI 格式化检查失败：
-
-```sh
-git config --global core.autocrlf false
-```
-
-本仓库所有源码均以 CRLF 行结尾存储。如果在 Windows 上启用 `core.autocrlf`，开发者将无法识别仓库中被错误存储为 LF 格式的文件，这会导致 `clang-format` 检查失败。
-
 所有代码必须通过 `.clang-format` 配置文件进行格式化。提交代码前请运行：
 
 ```bash
