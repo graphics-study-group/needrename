@@ -1,6 +1,5 @@
 #include "Importer.h"
-#include "FbxLoader.h"
-#include "ObjLoader.h"
+#include "AssimpLoader.h"
 #include <algorithm>
 #include <cctype>
 #include <memory>
@@ -14,12 +13,9 @@ namespace Engine::Importer {
             extension.begin(),
             [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); }
         );
-        if (extension == ".obj") {
-            auto loader = std::make_unique<ObjLoader>();
-            loader->LoadObjResource(resourcePath, path_in_project);
-        } else if (extension == ".fbx") {
-            auto loader = std::make_unique<FbxLoader>();
-            loader->LoadFbxResource(resourcePath, path_in_project);
+        if (extension == ".obj" || extension == ".fbx") {
+            auto loader = std::make_unique<AssimpLoader>();
+            loader->LoadResource(resourcePath, path_in_project);
         } else {
             throw std::runtime_error("Unsupported file format: " + extension);
         }

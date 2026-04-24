@@ -9,6 +9,7 @@
 
 #include "Asset/AssetManager/AssetManager.h"
 #include "Asset/Loader/ObjLoader.h"
+#include "Asset/Material/MaterialAsset.h"
 #include "Asset/Material/MaterialTemplateAsset.h"
 #include "Asset/Mesh/MeshAsset.h"
 #include "Asset/Texture/Image2DTextureAsset.h"
@@ -80,7 +81,7 @@ public:
         auto &mi_mng = rsys->GetRenderResourceManager<RenderSystemState::MaterialInstanceManager>();
         auto masset = m_mesh_asset.as<MeshAsset>();
         for (size_t i = 0; i < masset->GetSubmeshCount(); i++) {
-            this->m_material_assets.push_back(AssetRef(am->CreateAsset<MaterialAsset>()));
+            this->m_material_assets.push_back(AssetRef(am->CreateAsset<MaterialAsset>()->GetGUID()));
             this->m_material_assets.back().as<MaterialAsset>()->m_library = lib_asset_ref;
             auto handle = mi_mng.CreateOrReuseFromAsset(this->m_material_assets.back().GetGUID());
             auto ptr = mi_mng.Resolve(handle);

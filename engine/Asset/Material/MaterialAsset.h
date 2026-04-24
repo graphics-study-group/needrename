@@ -14,8 +14,6 @@
 #include <unordered_map>
 
 namespace Engine {
-    class ObjLoader;
-
     /**
      * @brief A single property of the material.
      * Can be a variable (e.g. vec4) or a reference to an object (e.g. texture)
@@ -84,8 +82,6 @@ namespace Engine {
         REFL_SER_ENABLE AssetRef m_library{};
         /// @brief Name to property mapping
         REFL_SER_ENABLE std::unordered_map<std::string, MaterialProperty> m_properties{};
-
-        friend class ObjLoader;
     };
 } // namespace Engine
 

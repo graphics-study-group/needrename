@@ -2,10 +2,9 @@
 #define COMPONENT_RENDERCOMPONENT_OBJTESTMESHCOMPONENT_INCLUDED
 
 #include "Asset/AssetManager/AssetManager.h"
-#include "Asset/Loader/ObjLoader.h"
-#include "Asset/Material/MaterialAsset.h"
 #include "Framework/component/RenderComponent/StaticMeshComponent.h"
 #include "MainClass.h"
+#include <tiny_obj_loader.h>
 
 namespace Engine {
     /**
@@ -16,6 +15,93 @@ namespace Engine {
      */
     class ObjTestMeshComponent : public StaticMeshComponent {
     public:
+        static void LoadMeshAssetFromTinyObj(
+            MeshAsset &mesh_asset, const tinyobj::attrib_t &attrib, const std::vector<tinyobj::shape_t> &shapes
+        ) {
+            mesh_asset.m_submeshes.clear();
+
+            const auto &positions = attrib.vertices;
+            const auto &normals = attrib.normals;
+            const auto &uvs = attrib.texcoords;
+            const auto &colors = attrib.colors;
+
+            for (const auto &shape : shapes) {
+                mesh_asset.m_submeshes.emplace_back();
+                auto &submesh = mesh_asset.m_submeshes.back();
+                uint32_t vertex_id = 0;
+                std::map<std::tuple<int, int, int>, uint32_t> vertex_id_map;
+
+                std::vector<float> position, color, normal, texcoord0;
+
+                for (const auto &index : shape.mesh.indices) {
+                    std::tuple<int, int, int> key(index.vertex_index, index.normal_index, index.texcoord_index);
+                    if (vertex_id_map.find(key) == vertex_id_map.end()) {
+                        vertex_id_map[key] = vertex_id++;
+                        submesh.positions.type = VertexAttributeType::SFloat32x3;
+                        position.push_back(positions[index.vertex_index * 3]);
+                        position.push_back(positions[index.vertex_index * 3 + 1]);
+                        position.push_back(positions[index.vertex_index * 3 + 2]);
+
+                        if (colors.size() > 0) {
+                            submesh.color.type = VertexAttributeType::SFloat32x3;
+                            color.push_back(colors[index.vertex_index * 3]);
+                            color.push_back(colors[index.vertex_index * 3 + 1]);
+                            color.push_back(colors[index.vertex_index * 3 + 2]);
+                        }
+                        if (index.normal_index >= 0) {
+                            submesh.normal.type = VertexAttributeType::SFloat32x3;
+                            normal.push_back(normals[index.normal_index * 3]);
+                            normal.push_back(normals[index.normal_index * 3 + 1]);
+                            normal.push_back(normals[index.normal_index * 3 + 2]);
+                        }
+                        if (index.texcoord_index >= 0) {
+                            submesh.texcoord0.type = VertexAttributeType::SFloat32x2;
+                            texcoord0.push_back(uvs[index.texcoord_index * 2]);
+                            texcoord0.push_back(uvs[index.texcoord_index * 2 + 1]);
+                        }
+                    }
+                    submesh.m_indices.push_back(vertex_id_map[key]);
+                }
+                submesh.vertex_count = vertex_id;
+                submesh.m_vertex_attributes.reserve(
+                    position.size() * sizeof(float) + color.size() * sizeof(float) + normal.size() * sizeof(float)
+                    + texcoord0.size() * sizeof(float)
+                );
+
+                submesh.positions.buffer_offset = submesh.m_vertex_attributes.size();
+                submesh.m_vertex_attributes.insert(
+                    submesh.m_vertex_attributes.end(),
+                    reinterpret_cast<const std::byte *>(position.data()),
+                    reinterpret_cast<const std::byte *>(position.data() + position.size())
+                );
+                submesh.positions.buffer_size = position.size() * sizeof(float);
+
+                submesh.color.buffer_offset = submesh.m_vertex_attributes.size();
+                submesh.m_vertex_attributes.insert(
+                    submesh.m_vertex_attributes.end(),
+                    reinterpret_cast<const std::byte *>(color.data()),
+                    reinterpret_cast<const std::byte *>(color.data() + color.size())
+                );
+                submesh.color.buffer_size = color.size() * sizeof(float);
+
+                submesh.normal.buffer_offset = submesh.m_vertex_attributes.size();
+                submesh.m_vertex_attributes.insert(
+                    submesh.m_vertex_attributes.end(),
+                    reinterpret_cast<const std::byte *>(normal.data()),
+                    reinterpret_cast<const std::byte *>(normal.data() + normal.size())
+                );
+                submesh.normal.buffer_size = normal.size() * sizeof(float);
+
+                submesh.texcoord0.buffer_offset = submesh.m_vertex_attributes.size();
+                submesh.m_vertex_attributes.insert(
+                    submesh.m_vertex_attributes.end(),
+                    reinterpret_cast<const std::byte *>(texcoord0.data()),
+                    reinterpret_cast<const std::byte *>(texcoord0.data() + texcoord0.size())
+                );
+                submesh.texcoord0.buffer_size = texcoord0.size() * sizeof(float);
+            }
+        }
+
         void LoadMesh(std::filesystem::path mesh) {
             tinyobj::ObjReaderConfig reader_config{};
             tinyobj::ObjReader reader{};
@@ -81,8 +167,11 @@ namespace Engine {
 
             auto am = MainClass::GetInstance()->GetAssetManager();
             this->m_mesh_asset = AssetRef(am->CreateAsset<MeshAsset>());
-            ObjLoader loader;
-            loader.LoadMeshAssetFromTinyObj(*(this->m_mesh_asset.as<MeshAsset>()), attrib, shapes);
+            LoadMeshAssetFromTinyObj(*(this->m_mesh_asset.as<MeshAsset>()), attrib, shapes);
+
+            if (this->m_mesh_asset.as<MeshAsset>()->m_submeshes.empty()) {
+                throw std::runtime_error("No valid submesh is generated from file.");
+            }
         }
 
     public:
