@@ -86,12 +86,12 @@ namespace Engine {
         std::unordered_map<std::string, size_t> material_name_to_index;
 
         for (const auto &material : materials) {
-            std::shared_ptr<MaterialAsset> m_material_asset = std::make_shared<MaterialAsset>();
+            auto m_material_asset = am->CreateAsset<MaterialAsset>();
             auto it = material_name_to_index.find(material.name);
             if (it == material_name_to_index.end()) {
                 material_name_to_index[material.name] = m_material_assets.size();
                 LoadMaterialAssetFromTinyObj(*m_material_asset, material, path.parent_path());
-                m_material_assets.push_back(m_material_asset.get());
+                m_material_assets.push_back(m_material_asset);
                 for (const auto &[name, property] : m_material_asset->m_properties) {
                     if (property.m_type == MaterialProperty::Type::Texture) {
                         auto ref = std::any_cast<AssetRef>(property.m_value);
@@ -280,99 +280,99 @@ namespace Engine {
             material_asset.m_properties["ior"] = (float)material.ior;
             material_asset.m_properties["dissolve"] = (float)material.dissolve;
             if (!material.ambient_texname.empty()) {
-                auto texture = std::make_shared<Image2DTextureAsset>();
+                auto texture = am->CreateAsset<Image2DTextureAsset>();
                 texture->LoadFromFile(base_path / material.ambient_texname);
                 texture->m_name += "_tex_ambient";
                 material_asset.m_properties["ambient_texture"] = {
-                    AssetRef(texture.get()), MaterialProperty::Type::Texture
+                    AssetRef(texture), MaterialProperty::Type::Texture
                 };
             }
             if (!material.diffuse_texname.empty()) {
-                auto texture = std::make_shared<Image2DTextureAsset>();
+                auto texture = am->CreateAsset<Image2DTextureAsset>();
                 texture->LoadFromFile(base_path / material.diffuse_texname);
                 texture->m_name += "_tex_diffuse";
                 material_asset.m_properties["diffuse_texture"] = {
-                    AssetRef(texture.get()), MaterialProperty::Type::Texture
+                    AssetRef(texture), MaterialProperty::Type::Texture
                 };
             }
             if (!material.specular_texname.empty()) {
-                auto texture = std::make_shared<Image2DTextureAsset>();
+                auto texture = am->CreateAsset<Image2DTextureAsset>();
                 texture->LoadFromFile(base_path / material.specular_texname);
                 texture->m_name += "_tex_specular";
                 material_asset.m_properties["specular_texture"] = {
-                    AssetRef(texture.get()), MaterialProperty::Type::Texture
+                    AssetRef(texture), MaterialProperty::Type::Texture
                 };
             }
             if (!material.specular_highlight_texname.empty()) {
-                auto texture = std::make_shared<Image2DTextureAsset>();
+                auto texture = am->CreateAsset<Image2DTextureAsset>();
                 texture->LoadFromFile(base_path / material.specular_highlight_texname);
                 texture->m_name += "_tex_specular_highlight";
                 material_asset.m_properties["specular_highlight_texture"] = {
-                    AssetRef(texture.get()), MaterialProperty::Type::Texture
+                    AssetRef(texture), MaterialProperty::Type::Texture
                 };
             }
             if (!material.bump_texname.empty()) {
-                auto texture = std::make_shared<Image2DTextureAsset>();
+                auto texture = am->CreateAsset<Image2DTextureAsset>();
                 texture->LoadFromFile(base_path / material.bump_texname);
                 texture->m_name += "_tex_bump";
                 material_asset.m_properties["bump_texture"] = {
-                    AssetRef(texture.get()), MaterialProperty::Type::Texture
+                    AssetRef(texture), MaterialProperty::Type::Texture
                 };
             }
             if (!material.displacement_texname.empty()) {
-                auto texture = std::make_shared<Image2DTextureAsset>();
+                auto texture = am->CreateAsset<Image2DTextureAsset>();
                 texture->LoadFromFile(base_path / material.displacement_texname);
                 texture->m_name += "_tex_displacement";
                 material_asset.m_properties["displacement_texture"] = {
-                    AssetRef(texture.get()), MaterialProperty::Type::Texture
+                    AssetRef(texture), MaterialProperty::Type::Texture
                 };
             }
             if (!material.alpha_texname.empty()) {
-                auto texture = std::make_shared<Image2DTextureAsset>();
+                auto texture = am->CreateAsset<Image2DTextureAsset>();
                 texture->LoadFromFile(base_path / material.alpha_texname);
                 texture->m_name += "_tex_alpha";
                 material_asset.m_properties["alpha_texture"] = {
-                    AssetRef(texture.get()), MaterialProperty::Type::Texture
+                    AssetRef(texture), MaterialProperty::Type::Texture
                 };
             }
             if (!material.roughness_texname.empty()) {
-                auto texture = std::make_shared<Image2DTextureAsset>();
+                auto texture = am->CreateAsset<Image2DTextureAsset>();
                 texture->LoadFromFile(base_path / material.roughness_texname);
                 texture->m_name += "_tex_roughness";
                 material_asset.m_properties["roughness_texture"] = {
-                    AssetRef(texture.get()), MaterialProperty::Type::Texture
+                    AssetRef(texture), MaterialProperty::Type::Texture
                 };
             }
             if (!material.metallic_texname.empty()) {
-                auto texture = std::make_shared<Image2DTextureAsset>();
+                auto texture = am->CreateAsset<Image2DTextureAsset>();
                 texture->LoadFromFile(base_path / material.metallic_texname);
                 texture->m_name += "_tex_metallic";
                 material_asset.m_properties["metallic_texture"] = {
-                    AssetRef(texture.get()), MaterialProperty::Type::Texture
+                    AssetRef(texture), MaterialProperty::Type::Texture
                 };
             }
             if (!material.sheen_texname.empty()) {
-                auto texture = std::make_shared<Image2DTextureAsset>();
+                auto texture = am->CreateAsset<Image2DTextureAsset>();
                 texture->LoadFromFile(base_path / material.sheen_texname);
                 texture->m_name += "_tex_sheen";
                 material_asset.m_properties["sheen_texture"] = {
-                    AssetRef(texture.get()), MaterialProperty::Type::Texture
+                    AssetRef(texture), MaterialProperty::Type::Texture
                 };
             }
             if (!material.emissive_texname.empty()) {
-                auto texture = std::make_shared<Image2DTextureAsset>();
+                auto texture = am->CreateAsset<Image2DTextureAsset>();
                 texture->LoadFromFile(base_path / material.emissive_texname);
                 texture->m_name += "_tex_emissive";
                 material_asset.m_properties["emissive_texture"] = {
-                    AssetRef(texture.get()), MaterialProperty::Type::Texture
+                    AssetRef(texture), MaterialProperty::Type::Texture
                 };
             }
             if (!material.normal_texname.empty()) {
-                auto texture = std::make_shared<Image2DTextureAsset>();
+                auto texture = am->CreateAsset<Image2DTextureAsset>();
                 texture->LoadFromFile(base_path / material.normal_texname);
                 texture->m_name += "_tex_normal";
                 material_asset.m_properties["normal_texture"] = {
-                    AssetRef(texture.get()), MaterialProperty::Type::Texture
+                    AssetRef(texture), MaterialProperty::Type::Texture
                 };
             }
             break;
