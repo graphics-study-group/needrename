@@ -40,7 +40,7 @@ namespace {
     struct ExampleOptions {
         int64_t max_frame_count = std::numeric_limits<int64_t>::max();
         bool keep_project = false;
-        std::filesystem::path import_source = std::filesystem::path(ENGINE_ASSETS_DIR) / "fbx" / "phong_cube.fbx";
+        std::filesystem::path import_source = std::filesystem::path(ENGINE_ASSETS_DIR) / "pp-19-01_vityaz" / "pp-19-01_vityaz.fbx";
     };
 
     std::filesystem::path ResolveImportPath(const std::filesystem::path &input_path) {
@@ -115,20 +115,6 @@ namespace {
         }
     }
 
-    void RemoveGameObjectsByName(Scene &scene, std::string_view name) {
-        std::vector<ObjectHandle> handles_to_remove;
-        for (const auto &go : scene.GetGameObjects()) {
-            if (go && go->m_name == name) {
-                handles_to_remove.push_back(go->GetHandle());
-            }
-        }
-
-        for (auto handle : handles_to_remove) {
-            scene.RemoveGameObject(handle);
-        }
-        scene.FlushCmdQueue();
-    }
-
     void ImportModelPrefab(
         const ExampleOptions &options,
         FileSystemDatabase &database,
@@ -143,8 +129,6 @@ namespace {
             SDL_LOG_CATEGORY_APPLICATION, "Import extension: %s", options.import_source.extension().string().c_str()
         );
         Importer::ImportExternalResource(options.import_source, path_in_project);
-
-        RemoveGameObjectsByName(main_scene, "four_bunny");
 
         const std::string prefab_name = "GO_" + options.import_source.stem().string() + ".asset";
         AssetPath prefab_path{database, path_in_project / prefab_name};

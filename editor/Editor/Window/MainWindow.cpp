@@ -95,8 +95,8 @@ namespace Editor {
                 ImGui::PopStyleColor();
             }
             current_height = ImGui::GetWindowSize().y;
-            ImGui::End();
         }
+        ImGui::End();
         ImGui::PopStyleVar(2);
 
         // Create a dockspace if it doesn't exist yet
@@ -139,8 +139,8 @@ namespace Editor {
         ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
         if (ImGui::BeginChild(k_main_dockspace_name, dockspace_size, ImGuiChildFlags_None, dockspace_widget_flag)) {
             ImGui::DockSpace(main_dockspace_id);
-            ImGui::EndChild();
         }
+        ImGui::EndChild();
         ImGui::PopStyleVar(3);
 
         ImGui::End(); // main window
