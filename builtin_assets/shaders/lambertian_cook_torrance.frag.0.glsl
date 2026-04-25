@@ -93,9 +93,9 @@ void main()
     {
         vec3 Li = vec3(0.0f);
         if (scene.noncasting_lights.light_source[i].w == 0.0) // 0: directional light
-            Li = normalize(mat3(camera.cameras[pc.camera_id].view) * scene.noncasting_lights.light_source[i].xyz);
+            Li = normalize(mat3(camera.cameras[pc.camera_id].view) * -scene.noncasting_lights.light_source[i].xyz);
         else if (scene.noncasting_lights.light_source[i].w != 0.0) // 1: point light
-            Li = normalize((camera.cameras[pc.camera_id].view * vec4(frag_position - scene.noncasting_lights.light_source[i].xyz, 0.0)).xyz);
+            Li = normalize((camera.cameras[pc.camera_id].view * vec4(scene.noncasting_lights.light_source[i].xyz - frag_position, 0.0)).xyz);
         vec3 Lradiance = scene.noncasting_lights.light_color[i].rgb;
         vec3 Lh = normalize(Li + Lo);
 
