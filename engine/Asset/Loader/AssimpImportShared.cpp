@@ -1,21 +1,21 @@
-#include "AssimpLoader.h"
+#include "AssimpImportShared.h"
 
-#include "Asset/AssetDatabase/FileSystemDatabase.h"
-#include "Asset/AssetManager/AssetManager.h"
-#include "Asset/AssetRef.h"
-#include "Asset/Material/MaterialAsset.h"
-#include "Asset/Mesh/MeshAsset.h"
-#include "Asset/Scene/SceneAsset.h"
-#include "Asset/Texture/Image2DTextureAsset.h"
-#include "Asset/Texture/SolidColorTextureAsset.h"
-#include "Core/Math/Transform.h"
-#include "Framework/component/RenderComponent/LightComponent.h"
-#include "Framework/component/RenderComponent/StaticMeshComponent.h"
-#include "Framework/object/GameObject.h"
-#include "Framework/world/Scene.h"
-#include "Framework/world/WorldSystem.h"
-#include "MainClass.h"
-#include "Reflection/Archive.h"
+#include <Asset/AssetDatabase/FileSystemDatabase.h>
+#include <Asset/AssetManager/AssetManager.h>
+#include <Asset/AssetRef.h>
+#include <Asset/Material/MaterialAsset.h>
+#include <Asset/Mesh/MeshAsset.h>
+#include <Asset/Scene/SceneAsset.h>
+#include <Asset/Texture/Image2DTextureAsset.h>
+#include <Asset/Texture/SolidColorTextureAsset.h>
+#include <Core/Math/Transform.h>
+#include <Framework/component/RenderComponent/LightComponent.h>
+#include <Framework/component/RenderComponent/StaticMeshComponent.h>
+#include <Framework/object/GameObject.h>
+#include <Framework/world/Scene.h>
+#include <Framework/world/WorldSystem.h>
+#include <MainClass.h>
+#include <Reflection/Archive.h>
 
 #include <SDL3/SDL.h>
 #include <assimp/Importer.hpp>
@@ -117,7 +117,7 @@ namespace {
     }
 } // namespace
 
-namespace Engine {
+namespace Engine::detail {
     namespace {
         AssetPath MakeAssetPath(
             FileSystemDatabase &database, const std::filesystem::path &path_in_project, const std::string &asset_name
@@ -159,21 +159,17 @@ namespace Engine {
         }
     } // namespace
 
-    AssimpLoader::AssimpLoader() {
-        m_asset_manager = MainClass::GetInstance()->GetAssetManager();
-        m_database = std::dynamic_pointer_cast<FileSystemDatabase>(MainClass::GetInstance()->GetAssetDatabase());
-    }
-
-    void AssimpLoader::LoadResource(const std::filesystem::path &path, const std::filesystem::path &path_in_project) {
-        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Entering Assimp loader: %s", path.string().c_str());
-
-        std::string extension = path.extension().string();
-        std::transform(extension.begin(), extension.end(), extension.begin(), [](unsigned char ch) {
-            return static_cast<char>(std::tolower(ch));
-        });
+    void LoadResourceWithAssimp(
+        const std::filesystem::path &path,
+        const std::filesystem::path &path_in_project,
+        const std::weak_ptr<AssetManager> &asset_manager,
+        const std::weak_ptr<FileSystemDatabase> &database,
+        const AssimpImportOptions &options
+    ) {
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Entering %s loader: %s", options.source_name, path.string().c_str());
 
         Assimp::Importer importer;
-        if (extension == ".fbx") {
+        if (options.enable_fbx_compat) {
             importer.SetPropertyBool(AI_CONFIG_IMPORT_FBX_PRESERVE_PIVOTS, false);
         }
 
@@ -224,9 +220,9 @@ namespace Engine {
             throw std::runtime_error("Imported scene does not contain any mesh.");
         }
 
-        auto database = m_database.lock();
-        assert(database);
-        auto am = m_asset_manager.lock();
+        auto db = database.lock();
+        assert(db);
+        auto am = asset_manager.lock();
         assert(am);
 
         std::unordered_map<std::string, uint32_t> name_counters;
@@ -329,12 +325,18 @@ namespace Engine {
                 submesh.normal.type = VertexAttributeType::SFloat32x3;
                 AppendVertexAttribute(submesh.m_vertex_attributes, normals.data(), normals.size(), submesh.normal);
             } else {
-                SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Mesh %u does not have normals", mesh_index);
+                throw std::runtime_error("Mesh does not have normals.");
             }
             if (!texcoord0.empty()) {
                 submesh.texcoord0.type = VertexAttributeType::SFloat32x2;
                 AppendVertexAttribute(
                     submesh.m_vertex_attributes, texcoord0.data(), texcoord0.size(), submesh.texcoord0
+                );
+            } else {
+                std::vector<float> default_uvs(static_cast<size_t>(ai_mesh->mNumVertices) * 2, 0.0f);
+                submesh.texcoord0.type = VertexAttributeType::SFloat32x2;
+                AppendVertexAttribute(
+                    submesh.m_vertex_attributes, default_uvs.data(), default_uvs.size(), submesh.texcoord0
                 );
             }
         }
@@ -343,17 +345,17 @@ namespace Engine {
             throw std::runtime_error("No valid static mesh could be extracted from scene.");
         }
 
-        std::unordered_map<uint32_t, MaterialAsset*> material_assets;
+        std::unordered_map<uint32_t, MaterialAsset *> material_assets;
         std::unordered_map<uint32_t, AssetRef> material_refs;
         std::vector<TextureAsset *> texture_assets;
         std::unordered_map<std::string, AssetRef> texture_refs_by_path;
-        const AssetRef default_blinn_material = database->GetNewAssetRef(
-            AssetPath(*database, std::filesystem::path("~/materials/solid_color_dark_grey_blinn_phong.asset"))
+        const AssetRef default_blinn_material = db->GetNewAssetRef(
+            AssetPath(*db, std::filesystem::path("~/materials/solid_color_dark_grey_blinn_phong.asset"))
         );
         const AssetRef default_pbr_albedo =
-            database->GetNewAssetRef(AssetPath(*database, std::filesystem::path("~/textures/dark_grey.asset")));
+            db->GetNewAssetRef(AssetPath(*db, std::filesystem::path("~/textures/dark_grey.asset")));
         const AssetRef default_pbr_mrao =
-            database->GetNewAssetRef(AssetPath(*database, std::filesystem::path("~/textures/white.asset")));
+            db->GetNewAssetRef(AssetPath(*db, std::filesystem::path("~/textures/white.asset")));
 
         for (uint32_t material_index : submesh_material_indices) {
             if (material_refs.contains(material_index)) {
@@ -450,8 +452,8 @@ namespace Engine {
 
             const bool use_pbr = ShouldUsePBR(source_material);
             if (use_pbr) {
-                material_asset->m_library = database->GetNewAssetRef(
-                    AssetPath(*database, std::filesystem::path("~/material_libraries/PBRLibrary.asset"))
+                material_asset->m_library = db->GetNewAssetRef(
+                    AssetPath(*db, std::filesystem::path("~/material_libraries/PBRLibrary.asset"))
                 );
 
                 aiColor4D base_color(0.2f, 0.2f, 0.2f, 1.0f);
@@ -501,8 +503,8 @@ namespace Engine {
                     );
                 }
             } else {
-                material_asset->m_library = database->GetNewAssetRef(
-                    AssetPath(*database, std::filesystem::path("~/material_libraries/BlinnPhongLibrary.asset"))
+                material_asset->m_library = db->GetNewAssetRef(
+                    AssetPath(*db, std::filesystem::path("~/material_libraries/BlinnPhongLibrary.asset"))
                 );
 
                 aiColor4D diffuse_color(1.0f, 1.0f, 1.0f, 1.0f);
@@ -543,12 +545,12 @@ namespace Engine {
             material_assets.emplace(material_index, material_asset);
         }
 
-        SaveAsset(*database, *mesh_asset, path_in_project, mesh_asset->m_name);
+        SaveAsset(*db, *mesh_asset, path_in_project, mesh_asset->m_name);
         for (const auto &[_, material_asset] : material_assets) {
-            SaveAsset(*database, *material_asset, path_in_project, material_asset->m_name);
+            SaveAsset(*db, *material_asset, path_in_project, material_asset->m_name);
         }
         for (const auto &texture_asset : texture_assets) {
-            SaveAsset(*database, *texture_asset, path_in_project, texture_asset->m_name);
+            SaveAsset(*db, *texture_asset, path_in_project, texture_asset->m_name);
         }
 
         auto &temp_scene = MainClass::GetInstance()->GetWorldSystem()->CreateScene();
@@ -602,6 +604,6 @@ namespace Engine {
 
         auto scene_asset = std::make_unique<SceneAsset>();
         scene_asset->SaveFromScene(temp_scene);
-        SaveAsset(*database, *scene_asset, path_in_project, "GO_" + mesh_asset->m_name);
+        SaveAsset(*db, *scene_asset, path_in_project, "GO_" + mesh_asset->m_name);
     }
-} // namespace Engine
+} // namespace Engine::detail
