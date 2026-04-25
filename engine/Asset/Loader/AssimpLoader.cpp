@@ -343,7 +343,7 @@ namespace Engine {
             throw std::runtime_error("No valid static mesh could be extracted from scene.");
         }
 
-        std::unordered_map<uint32_t, std::shared_ptr<MaterialAsset>> material_assets;
+        std::unordered_map<uint32_t, MaterialAsset*> material_assets;
         std::unordered_map<uint32_t, AssetRef> material_refs;
         std::vector<TextureAsset *> texture_assets;
         std::unordered_map<std::string, AssetRef> texture_refs_by_path;

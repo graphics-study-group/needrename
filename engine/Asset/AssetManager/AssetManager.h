@@ -10,6 +10,9 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include <Asset/Asset.h>
+#include <SDL3/SDL.h>
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wnon-virtual-dtor"
 

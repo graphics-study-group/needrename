@@ -8,7 +8,7 @@
 #include <Reflection/Type.h>
 
 namespace Engine {
-    Scene::Scene(uint32_t sceneID) : m_sceneID(sceneID) {
+    Scene::Scene(uint32_t sceneID, bool enable_rendering) : m_sceneID(sceneID), m_enable_rendering(enable_rendering) {
         m_event_queue = std::make_unique<EventQueue>(*this);
     }
 
@@ -180,6 +180,10 @@ namespace Engine {
         m_go_remove_queue.clear();
         m_comp_add_queue.clear();
         m_comp_remove_queue.clear();
+    }
+
+    bool Scene::IsRenderingEnabled() const noexcept {
+        return m_enable_rendering;
     }
 
     ComponentHandle Scene::NextAvailableComponentHandle() {

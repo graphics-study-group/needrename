@@ -30,7 +30,7 @@ namespace Engine {
     class Scene {
     protected:
         friend class WorldSystem;
-        Scene(uint32_t sceneID);
+        Scene(uint32_t sceneID, bool enable_rendering);
 
     public:
         virtual ~Scene();
@@ -191,6 +191,12 @@ namespace Engine {
          */
         void Clear();
 
+        /**
+         * @brief Check if rendering is enabled for the scene.
+         * @return True if rendering is enabled, False otherwise.
+         */
+        bool IsRenderingEnabled() const noexcept;
+
     protected:
         uint32_t m_sceneID;
 
@@ -209,6 +215,10 @@ namespace Engine {
 
         uint32_t m_comp_id_gen{0};
         uint32_t m_go_id_gen{0};
+
+        // Determine whether the components in the scene should be registered to the render system and processed in the rendering pipeline.
+        // Currently only main scene in WorldSystem can enable rendering.
+        bool m_enable_rendering{false};
 
     protected:
         // GameObject need to access AddComponent function
