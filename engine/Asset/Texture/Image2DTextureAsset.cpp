@@ -48,6 +48,7 @@ namespace Engine {
         m_name = path.stem().string();
         stbi_set_flip_vertically_on_load(true); // this is a static variable, so we need to reset it every time
         stbi_uc *raw_image_data = stbi_load(path.string().c_str(), &m_width, &m_height, &m_channel, 4);
+        m_channel = 4; // force RGBA since we set desired channels to 4 in stbi_load
         assert(raw_image_data);
         m_data.resize(m_width * m_height * m_channel);
         std::memcpy(m_data.data(), raw_image_data, m_width * m_height * m_channel);
