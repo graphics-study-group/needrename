@@ -99,6 +99,18 @@ namespace Editor {
     ProjectWidget::~ProjectWidget() {
     }
 
+    bool ProjectWidget::IsContentHovered() const {
+        return m_is_content_hovered;
+    }
+
+    const ProjectWidget::AssetPath &ProjectWidget::GetCurrentPath() const {
+        return m_current_path;
+    }
+
+    void ProjectWidget::RefreshCurrentDirectory() {
+        m_dir_cache.erase(m_current_path);
+    }
+
     void ProjectWidget::Render() {
         if (ImGui::Begin(m_name.c_str())) {
             // Left sidebar
@@ -237,6 +249,7 @@ namespace Editor {
 
     void ProjectWidget::RenderContent() {
         ImGui::BeginChild("ProjectWidgetContent", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
+        m_is_content_hovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem);
 
         // Ctrl + Mouse Wheel: adjust icon size when hovering the content area
         {
@@ -354,6 +367,13 @@ namespace Editor {
         ImGui::InvisibleButton("tile", ImVec2(tile_w, tile_h));
         bool hovered = ImGui::IsItemHovered();
         bool double_clicked = hovered && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left);
+
+        if (!is_folder && !is_up && ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
+            std::string payload_path = target_path.generic_string();
+            ImGui::SetDragDropPayload("ASSET_PATH", payload_path.c_str(), payload_path.size() + 1);
+            ImGui::TextUnformatted(display_name.c_str());
+            ImGui::EndDragDropSource();
+        }
 
         // Tooltip on hover after a short delay
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {

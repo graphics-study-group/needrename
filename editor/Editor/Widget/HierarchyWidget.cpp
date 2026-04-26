@@ -1,5 +1,6 @@
 #include "HierarchyWidget.h"
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
+#include <Asset/Scene/SceneAsset.h>
 #include <Framework/object/GameObject.h>
 #include <Framework/world/Scene.h>
 #include <Framework/world/WorldSystem.h>
@@ -28,6 +29,33 @@ namespace Editor {
         ObjectHandle need_rename_go;
 
         if (ImGui::Begin(m_name.c_str())) {
+            if (ImGui::BeginDragDropTarget()) {
+                if (const ImGuiPayload *payload = ImGui::AcceptDragDropPayload("ASSET_PATH")) {
+                    const char *raw = static_cast<const char *>(payload->Data);
+                    if (raw && raw[0] != '\0') {
+                        try {
+                            auto asset_ref = adb.GetNewAssetRef(Engine::AssetPath(adb, std::filesystem::path(raw)));
+                            auto *scene_asset = asset_ref.as<Engine::SceneAsset>();
+                            scene_asset->AddToScene(scene);
+                            scene.FlushCmdQueue();
+                            SDL_LogInfo(
+                                SDL_LOG_CATEGORY_APPLICATION,
+                                "Dropped SceneAsset added from Hierarchy widget: %s",
+                                raw
+                            );
+                        } catch (const std::exception &e) {
+                            SDL_LogWarn(
+                                SDL_LOG_CATEGORY_APPLICATION,
+                                "Dropped asset ignored on Hierarchy widget (%s): %s",
+                                raw,
+                                e.what()
+                            );
+                        }
+                    }
+                }
+                ImGui::EndDragDropTarget();
+            }
+
             // Top toolbar: add-button (opens popup) + search box
             if (ImGui::Button("+")) {
                 ImGui::OpenPopup("HierarchyAddMenu");

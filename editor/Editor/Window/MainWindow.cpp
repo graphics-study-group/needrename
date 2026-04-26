@@ -153,4 +153,13 @@ namespace Editor {
     void MainWindow::AddWidget(std::shared_ptr<Widget> widget) {
         m_widgets.push_back(widget);
     }
+
+    std::shared_ptr<Widget> MainWindow::FindWidget(const std::string &name) const {
+        for (const auto &widget : m_widgets) {
+            if (widget && widget->m_name == name) {
+                return widget;
+            }
+        }
+        return nullptr;
+    }
 } // namespace Editor

@@ -44,6 +44,10 @@ namespace Editor {
 
         virtual void Render() override;
 
+        bool IsContentHovered() const;
+        const AssetPath &GetCurrentPath() const;
+        void RefreshCurrentDirectory();
+
     protected:
         Engine::FileSystemDatabase &m_database;
         AssetPath m_current_path;
@@ -88,6 +92,8 @@ namespace Editor {
         void EnsureDirCache(const AssetPath &dir, float wrap_width);
         // Remove caches for directories that are not open in sidebar and not current content dir
         void PruneDirCacheAfterSidebar();
+
+        bool m_is_content_hovered{false};
     };
 } // namespace Editor
 

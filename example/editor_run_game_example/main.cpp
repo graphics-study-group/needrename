@@ -1,21 +1,19 @@
 #include <SDL3/SDL.h>
 #include <cassert>
 #include <charconv>
-#include <fstream>
-#include <iostream>
+#include <filesystem>
 #include <limits>
 #include <stdexcept>
+#include <string>
 #include <string_view>
 
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include <Asset/AssetManager/AssetManager.h>
 #include <Asset/Loader/Importer.h>
-#include <Asset/Scene/SceneAsset.h>
 #include <Core/Delegate/FuncDelegate.h>
 #include <Core/Functional/EventQueue.h>
 #include <Core/Functional/SDLWindow.h>
 #include <Core/Functional/Time.h>
-#include <Framework/component/Component.h>
 #include <Framework/component/RenderComponent/CameraComponent.h>
 #include <Framework/object/GameObject.h>
 #include <Framework/world/WorldSystem.h>
@@ -28,6 +26,7 @@
 
 #include <Editor/Render/EditorRenderGraphBuilder.h>
 #include <Editor/Widget/GameWidget.h>
+#include <Editor/Widget/ProjectWidget.h>
 #include <Editor/Widget/SceneWidget.h>
 #include <Editor/Window/MainWindow.h>
 
@@ -40,28 +39,11 @@ namespace {
     struct ExampleOptions {
         int64_t max_frame_count = std::numeric_limits<int64_t>::max();
         bool keep_project = false;
-        std::filesystem::path import_source = std::filesystem::path(ENGINE_ASSETS_DIR) / "hussar_half-armour" / "hussar_half-armour.fbx";
     };
-
-    std::filesystem::path ResolveImportPath(const std::filesystem::path &input_path) {
-        if (input_path.is_absolute()) {
-            return input_path;
-        }
-
-        std::error_code ec;
-        auto from_cwd = std::filesystem::weakly_canonical(std::filesystem::current_path() / input_path, ec);
-        if (!ec && std::filesystem::exists(from_cwd)) {
-            return from_cwd;
-        }
-
-        ec.clear();
-        return std::filesystem::weakly_canonical(std::filesystem::path(ENGINE_ROOT_DIR) / input_path, ec);
-    }
 
     ExampleOptions ParseArguments(int argc, char **argv) {
         ExampleOptions options{};
         bool frame_count_set = false;
-        bool import_source_set = false;
 
         for (int arg_index = 1; arg_index < argc; ++arg_index) {
             std::string_view arg(argv[arg_index]);
@@ -78,12 +60,7 @@ namespace {
                     continue;
                 }
             }
-            if (!import_source_set) {
-                options.import_source = ResolveImportPath(std::filesystem::path(arg));
-                import_source_set = true;
-                continue;
-            }
-            throw std::runtime_error("Too many positional arguments.");
+            throw std::runtime_error("Unknown argument: " + std::string(arg));
         }
 
         return options;
@@ -115,72 +92,7 @@ namespace {
         }
     }
 
-    void ImportModelPrefab(
-        const ExampleOptions &options,
-        FileSystemDatabase &database,
-        Scene &main_scene,
-        const std::filesystem::path &path_in_project
-    ) {
-        if (!path_in_project.empty()) {
-            std::filesystem::create_directories(database.GetProjectAssetsPath() / path_in_project);
-        }
-        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Import source: %s", options.import_source.string().c_str());
-        SDL_LogInfo(
-            SDL_LOG_CATEGORY_APPLICATION, "Import extension: %s", options.import_source.extension().string().c_str()
-        );
-        Importer::ImportExternalResource(options.import_source, path_in_project);
-
-        const std::string prefab_name = "GO_" + options.import_source.stem().string() + ".asset";
-        AssetPath prefab_path{database, path_in_project / prefab_name};
-        auto prefab_ref = database.GetNewAssetRef(prefab_path);
-        prefab_ref.as<SceneAsset>()->AddToScene(main_scene);
-        main_scene.FlushCmdQueue();
-    }
 } // namespace
-
-SpinningComponent::SpinningComponent(const GameObject &parent) : Component(parent) {
-}
-
-void SpinningComponent::Init() {
-    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "SpinningComponent Init");
-}
-
-void SpinningComponent::Tick() {
-    float dt = MainClass::GetInstance()->GetTimeSystem()->GetDeltaTimeInSeconds();
-    auto go = GetParentGameObject();
-    if (go) {
-        auto &transform = go->GetTransformRef();
-        transform.SetRotation(
-            transform.GetRotation() * glm::angleAxis(glm::radians(m_speed * dt), glm::vec3(0.0f, 0.0f, 1.0f))
-        );
-    }
-}
-
-ControlComponent::ControlComponent(const GameObject &parent) : Component(parent) {
-}
-
-void ControlComponent::Tick() {
-    auto input = MainClass::GetInstance()->GetInputSystem();
-    auto move_forward = input->GetAxis("move forward");
-    auto move_backward = input->GetAxis("move backward");
-    auto move_right = input->GetAxis("move right");
-    auto move_up = input->GetAxis("move up");
-    auto roll_right = input->GetAxisRaw("roll right");
-    auto look_x = input->GetAxisRaw("look x");
-    auto look_y = input->GetAxisRaw("look y");
-    Transform &transform = GetParentGameObject()->GetTransformRef();
-    float dt = MainClass::GetInstance()->GetTimeSystem()->GetDeltaTimeInSeconds();
-    transform.SetRotation(
-        transform.GetRotation()
-        * glm::quat(
-            glm::vec3{look_y * m_rotation_speed * dt, roll_right * m_roll_speed * dt, look_x * m_rotation_speed * dt}
-        )
-    );
-    transform.SetPosition(
-        transform.GetPosition()
-        + transform.GetRotation() * glm::vec3{move_right, move_forward + move_backward, move_up} * m_move_speed * dt
-    );
-}
 
 void Start() {
     auto cmc = MainClass::GetInstance();
@@ -220,16 +132,12 @@ int main(int argc, char **argv) {
     cmc->LoadBuiltinAssets(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
     auto rsys = cmc->GetRenderSystem();
     auto asys = cmc->GetAssetManager();
-    auto adb = std::dynamic_pointer_cast<FileSystemDatabase>(cmc->GetAssetDatabase());
     auto world = cmc->GetWorldSystem();
     auto gui = cmc->GetGUISystem();
-    auto &main_scene = world->GetMainSceneRef();
     gui->CreateVulkanBackend(*rsys, ImageUtils::GetVkFormat(Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm));
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading project");
     cmc->LoadProject(project_path);
-
-    ImportModelPrefab(options, *adb, main_scene, std::filesystem::path("imported_preview"));
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Add extra objects");
     auto input = MainClass::GetInstance()->GetInputSystem();
@@ -250,6 +158,7 @@ int main(int argc, char **argv) {
     main_window.AddWidget(scene_widget);
     auto game_widget = std::make_shared<Editor::GameWidget>(Editor::MainWindow::k_game_widget_name);
     main_window.AddWidget(game_widget);
+    auto project_widget = main_window.FindWidgetAs<Editor::ProjectWidget>(Editor::MainWindow::k_project_widget_name);
 
     auto rgb = std::make_unique<Editor::EditorRenderGraphBuilder>(*cmc->GetRenderSystem());
     int32_t final_color_id, scene_color_id, game_color_id;
@@ -280,6 +189,28 @@ int main(int argc, char **argv) {
                 onQuit = true;
                 break;
             }
+
+            if (event.type == SDL_EVENT_DROP_FILE) {
+                const char *dropped = event.drop.data;
+                if (dropped && project_widget && project_widget->IsContentHovered()) {
+                    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "File dropped: %s", event.drop.data);
+                    try {
+                        const std::filesystem::path source_path(dropped);
+                        const std::filesystem::path target_dir(project_widget->GetCurrentPath().generic_string());
+                        Importer::ImportExternalResource(source_path, target_dir);
+                        project_widget->RefreshCurrentDirectory();
+                        SDL_LogInfo(
+                            SDL_LOG_CATEGORY_APPLICATION,
+                            "Imported dropped file %s into %s",
+                            source_path.string().c_str(),
+                            target_dir.string().c_str()
+                        );
+                    } catch (const std::exception &e) {
+                        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "Failed to import dropped file: %s", e.what());
+                    }
+                }
+            }
+
             gui->ProcessEvent(&event);
             if (game_widget->m_accept_input) cmc->GetInputSystem()->ProcessEvent(&event);
         }
