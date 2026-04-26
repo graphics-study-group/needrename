@@ -53,6 +53,26 @@ namespace {
         }
         return success;
     }
+
+    bool IsBuiltinAssetPath(const Engine::AssetPath &path) {
+        auto it = path.begin();
+        return it != path.end() && it->string() == "~";
+    }
+
+    bool IsPathInside(const std::filesystem::path &parent, const std::filesystem::path &child) {
+        std::error_code ec;
+        const auto canonical_parent = std::filesystem::weakly_canonical(parent, ec);
+        if (ec) return false;
+        ec.clear();
+        const auto canonical_child = std::filesystem::weakly_canonical(child, ec);
+        if (ec) return false;
+        ec.clear();
+        auto rel = std::filesystem::relative(canonical_child, canonical_parent, ec);
+        if (ec) return false;
+        if (rel.empty()) return true;
+        const std::string rel_str = rel.generic_string();
+        return rel_str != "." && !(rel_str.size() >= 2 && rel_str[0] == '.' && rel_str[1] == '.');
+    }
 } // namespace
 
 namespace Engine {
@@ -177,6 +197,120 @@ namespace Engine {
             }
         }
         return assets;
+    }
+
+    bool FileSystemDatabase::CreateDirectory(const AssetPath &path) {
+        if (IsBuiltinAssetPath(path)) {
+            return false;
+        }
+        std::error_code ec;
+        std::filesystem::create_directories(path.to_absolute_path(), ec);
+        if (ec) {
+            return false;
+        }
+        return std::filesystem::exists(path.to_absolute_path());
+    }
+
+    bool FileSystemDatabase::MovePath(const AssetPath &from, const AssetPath &to) {
+        if (IsBuiltinAssetPath(from) || IsBuiltinAssetPath(to)) {
+            return false;
+        }
+
+        const auto from_abs = from.to_absolute_path();
+        const auto to_abs = to.to_absolute_path();
+        std::error_code ec;
+        if (!std::filesystem::exists(from_abs, ec)) {
+            return false;
+        }
+        ec.clear();
+        if (std::filesystem::exists(to_abs, ec)) {
+            return false;
+        }
+        ec.clear();
+
+        if (std::filesystem::is_directory(from_abs, ec) && IsPathInside(from_abs, to_abs)) {
+            return false;
+        }
+
+        std::vector<std::pair<GUID, AssetPath>> remapped_assets;
+        remapped_assets.reserve(m_assets_map.size());
+        for (const auto &[guid, path] : m_assets_map) {
+            const auto old_abs = path.to_absolute_path();
+            if (IsPathInside(from_abs, old_abs)) {
+                auto rel = std::filesystem::relative(old_abs, from_abs, ec);
+                if (ec) {
+                    continue;
+                }
+                AssetPath new_path(*this);
+                new_path.from_absolute_path(to_abs / rel);
+                remapped_assets.emplace_back(guid, new_path);
+            }
+            ec.clear();
+        }
+
+        std::filesystem::create_directories(to_abs.parent_path(), ec);
+        ec.clear();
+        std::filesystem::rename(from_abs, to_abs, ec);
+        if (ec) {
+            return false;
+        }
+
+        for (const auto &[guid, new_path] : remapped_assets) {
+            auto old_it = m_assets_map.find(guid);
+            if (old_it == m_assets_map.end()) {
+                continue;
+            }
+            m_path_to_guid.erase(old_it->second);
+            old_it->second = new_path;
+            m_path_to_guid[new_path] = guid;
+        }
+
+        return true;
+    }
+
+    bool FileSystemDatabase::DeletePath(const AssetPath &path) {
+        if (IsBuiltinAssetPath(path)) {
+            return false;
+        }
+
+        const auto abs_path = path.to_absolute_path();
+        std::error_code ec;
+        if (!std::filesystem::exists(abs_path, ec)) {
+            return false;
+        }
+
+        std::vector<GUID> to_remove;
+        if (std::filesystem::is_directory(abs_path, ec)) {
+            for (const auto &[guid, asset_path] : m_assets_map) {
+                if (IsPathInside(abs_path, asset_path.to_absolute_path())) {
+                    to_remove.push_back(guid);
+                }
+            }
+            std::filesystem::remove_all(abs_path, ec);
+        } else {
+            if (abs_path.extension() == k_asset_file_extension) {
+                GUID guid;
+                if (GetGUID(abs_path, guid)) {
+                    to_remove.push_back(guid);
+                }
+            }
+            std::filesystem::remove(abs_path, ec);
+        }
+
+        if (ec) {
+            return false;
+        }
+
+        for (const auto &guid : to_remove) {
+            auto it = m_assets_map.find(guid);
+            if (it == m_assets_map.end()) {
+                continue;
+            }
+            m_path_to_guid.erase(it->second);
+            m_assets_map.erase(it);
+        }
+
+        return true;
     }
 
     const std::filesystem::path &FileSystemDatabase::GetProjectAssetsPath() const {

@@ -192,7 +192,7 @@ int main(int argc, char **argv) {
 
             if (event.type == SDL_EVENT_DROP_FILE) {
                 const char *dropped = event.drop.data;
-                if (dropped && project_widget && project_widget->IsContentHovered()) {
+                if (dropped && project_widget) {
                     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "File dropped: %s", event.drop.data);
                     try {
                         const std::filesystem::path source_path(dropped);

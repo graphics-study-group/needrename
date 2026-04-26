@@ -101,6 +101,22 @@ namespace Engine {
          */
         std::vector<AssetInfo> ListDirectory(const AssetPath &path) const;
 
+        /// @brief Create a directory recursively under project assets.
+        /// @param path Target directory path.
+        /// @return True when the directory exists after this call.
+        bool CreateDirectory(const AssetPath &path);
+
+        /// @brief Move or rename an asset path inside project assets.
+        /// @param from Source path to move.
+        /// @param to Destination path.
+        /// @return True if move succeeds.
+        bool MovePath(const AssetPath &from, const AssetPath &to);
+
+        /// @brief Delete an asset file or directory recursively from project assets.
+        /// @param path Target path to remove.
+        /// @return True if deletion succeeds.
+        bool DeletePath(const AssetPath &path);
+
         const std::filesystem::path &GetProjectAssetsPath() const;
         const std::filesystem::path &GetBuiltinAssetsPath() const;
         void LoadBuiltinAssets(const std::filesystem::path &path);
