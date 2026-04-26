@@ -4,7 +4,6 @@
 #include <filesystem>
 #include <fstream>
 #include <stb_image.h>
-#include <tiny_obj_loader.h>
 
 #include "Asset/Material/MaterialAsset.h"
 #include "Core/Functional/SDLWindow.h"
@@ -12,7 +11,6 @@
 #include "MainClass.h"
 #include "Render/FullRenderSystem.h"
 #include "UserInterface/GUISystem.h"
-#include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include <Asset/AssetManager/AssetManager.h>
 #include <Asset/AssetRef.h>
 #include <Asset/Loader/ObjLoader.h>
@@ -38,75 +36,16 @@ class MeshComponentFromFile : public StaticMeshComponent {
     std::vector<GUID> m_material_guids{};
 
     void LoadMesh(std::filesystem::path mesh) {
-        tinyobj::ObjReaderConfig reader_config{};
-        tinyobj::ObjReader reader{};
-
-        if (!reader.ParseFromFile(mesh.string(), reader_config)) {
-            SDL_LogCritical(0, "Failed to load OBJ file %s", mesh.string().c_str());
-            if (!reader.Error().empty()) {
-                SDL_LogCritical(0, "TinyObjLoader reports: %s", reader.Error().c_str());
-            }
-            throw std::runtime_error("Cannot load OBJ file");
+        ObjLoader loader{};
+        ImportResult imported = loader.LoadObjInMemory(mesh);
+        if (!imported.mesh_asset.IsValid()) {
+            throw std::runtime_error("ObjLoader did not return a valid mesh asset.");
         }
-
-        SDL_LogInfo(0, "Loaded OBJ file %s", mesh.string().c_str());
-        if (!reader.Warning().empty()) {
-            SDL_LogWarn(0, "TinyObjLoader reports: %s", reader.Warning().c_str());
-        }
-
-        const auto &attrib = reader.GetAttrib();
-        const auto &origin_shapes = reader.GetShapes();
-        std::vector<tinyobj::shape_t> shapes;
-        const auto &origin_materials = reader.GetMaterials();
-        std::vector<tinyobj::material_t> materials;
-
-        for (size_t shp = 0; shp < origin_shapes.size(); shp++) {
-            const auto &shape = origin_shapes[shp];
-            auto shape_vertices_size = shape.mesh.num_face_vertices.size();
-            std::map<int, tinyobj::shape_t> material_id_map;
-            int shape_id = 0;
-            for (size_t fc = 0; fc < shape_vertices_size; fc++) {
-                auto &material_id = shape.mesh.material_ids[fc];
-                if (material_id_map.find(material_id) == material_id_map.end()) {
-                    material_id_map[material_id] = tinyobj::shape_t{
-                        .name = shape.name + "_" + std::to_string(shape_id++),
-                        .mesh = tinyobj::mesh_t{},
-                        .lines = tinyobj::lines_t{},
-                        .points = tinyobj::points_t{}
-                    };
-                }
-                auto &new_shape = material_id_map[material_id];
-                unsigned int face_vertex_count = shape.mesh.num_face_vertices[fc];
-                assert(face_vertex_count == 3);
-                new_shape.mesh.num_face_vertices.push_back(face_vertex_count);
-                new_shape.mesh.material_ids.push_back(material_id);
-                new_shape.mesh.smoothing_group_ids.push_back(shape.mesh.smoothing_group_ids[fc]);
-                for (unsigned int vrtx = 0; vrtx < face_vertex_count; vrtx++) {
-                    new_shape.mesh.indices.push_back(shape.mesh.indices[fc * 3 + vrtx]);
-                }
-            }
-            for (const auto &[_, new_shape] : material_id_map) {
-                shapes.push_back(new_shape);
-                materials.push_back(origin_materials[new_shape.mesh.material_ids[0]]);
-                std::fill(
-                    shapes.back().mesh.material_ids.begin(), shapes.back().mesh.material_ids.end(), materials.size() - 1
-                );
-            }
-        }
-
-        this->m_mesh_asset = AssetRef(MainClass::GetInstance()->GetAssetManager()->CreateAsset<MeshAsset>());
-        ObjLoader loader;
-        loader.LoadMeshAssetFromTinyObj(*(this->m_mesh_asset.as<MeshAsset>()), attrib, shapes);
-
+        m_mesh_asset = imported.mesh_asset;
+        m_material_assets = imported.mesh_material_assets;
         m_material_guids.clear();
-        for (const auto &material : materials) {
-            this->m_material_assets.push_back(
-                AssetRef(MainClass::GetInstance()->GetAssetManager()->CreateAsset<MaterialAsset>())
-            );
-            loader.LoadMaterialAssetFromTinyObj(
-                *(this->m_material_assets.back().as<MaterialAsset>()), material, mesh.parent_path()
-            );
-            m_material_guids.push_back(m_material_assets.back().GetGUID());
+        for (const auto &mat_ref : m_material_assets) {
+            m_material_guids.push_back(mat_ref.GetGUID());
         }
 
         assert(m_mesh_asset.IsValid());
@@ -198,7 +137,6 @@ int main(int argc, char **argv) {
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
 
     auto asys = cmc->GetAssetManager();
-    auto adb = std::dynamic_pointer_cast<FileSystemDatabase>(cmc->GetAssetDatabase());
     cmc->LoadBuiltinAssets(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
 
     auto rsys = cmc->GetRenderSystem();

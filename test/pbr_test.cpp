@@ -3,8 +3,6 @@
 #include <chrono>
 #include <fstream>
 
-#include <tiny_obj_loader.h>
-
 #include "Render/FullRenderSystem.h"
 
 #include "Asset/AssetManager/AssetManager.h"
@@ -80,6 +78,7 @@ public:
         auto rsys = MainClass::GetInstance()->GetRenderSystem();
         auto &mi_mng = rsys->GetRenderResourceManager<RenderSystemState::MaterialInstanceManager>();
         auto masset = m_mesh_asset.as<MeshAsset>();
+        this->m_material_assets.clear();
         for (size_t i = 0; i < masset->GetSubmeshCount(); i++) {
             this->m_material_assets.push_back(AssetRef(am->CreateAsset<MaterialAsset>()->GetGUID()));
             this->m_material_assets.back().as<MaterialAsset>()->m_library = lib_asset_ref;
@@ -117,7 +116,7 @@ public:
 struct {
     float zenith, azimuth;
     float metalness, roughness;
-} g_SceneData{M_PI_2, M_PI_2, 0.5f, 0.5f};
+} g_SceneData{M_PI_2, M_PI_2 * 3, 0.5f, 0.5f};
 
 glm::vec3 GetCartesian(float zenith, float azimuth) {
     static constexpr float RADIUS = 2.0f;

@@ -12,6 +12,5 @@ target_link_libraries(EngineLibAsset
 target_link_libraries(EngineLibAsset
     PUBLIC
     assimp::assimp
-    tinyobjloader
     stb
 )

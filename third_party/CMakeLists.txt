@@ -7,9 +7,6 @@ set_target_properties(json PROPERTIES FOLDER third_party)
 add_subdirectory(stb EXCLUDE_FROM_ALL)
 set_target_properties(stb PROPERTIES FOLDER third_party)
 
-add_subdirectory(tinyobjloader EXCLUDE_FROM_ALL)
-set_target_properties(tinyobjloader PROPERTIES FOLDER third_party)
-
 add_subdirectory(vma EXCLUDE_FROM_ALL)
 set_target_properties(vma PROPERTIES FOLDER third_party)
 

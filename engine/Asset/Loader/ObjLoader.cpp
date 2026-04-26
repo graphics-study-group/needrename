@@ -14,8 +14,15 @@ namespace Engine {
 
     void ObjLoader::LoadObjResource(const std::filesystem::path &path, const std::filesystem::path &path_in_project) {
         detail::AssimpImportOptions options{};
-        options.enable_fbx_compat = false;
         options.source_name = "OBJ";
         detail::LoadResourceWithAssimp(path, path_in_project, m_asset_manager, m_database, options);
+    }
+
+    ImportResult ObjLoader::LoadObjInMemory(const std::filesystem::path &path) {
+        detail::AssimpImportOptions options{};
+        options.source_name = "OBJ";
+        options.persist_assets = false;
+        options.create_scene_asset = false;
+        return detail::ImportWithAssimp(path, std::nullopt, m_asset_manager, m_database, options);
     }
 } // namespace Engine

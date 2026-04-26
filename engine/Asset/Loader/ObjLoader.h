@@ -1,6 +1,8 @@
 #ifndef ASSET_LOADER_OBJLOADER_INCLUDED
 #define ASSET_LOADER_OBJLOADER_INCLUDED
 
+#include "AssimpImportShared.h"
+
 #include <filesystem>
 #include <memory>
 
@@ -14,10 +16,19 @@ namespace Engine {
         virtual ~ObjLoader() = default;
 
     public:
-        /// @brief Load an external obj resource, copy to the project asset directory, and create a meta file
-        /// @param path path to the external obj resource
-        /// @param path_in_project path to the output asset directory relative to the project asset directory
+        /**
+         * @brief Load an external obj resource, copy to the project asset directory, and create a meta file
+         * @param path path to the external obj resource
+         * @param path_in_project path to the output asset directory relative to the project asset directory
+         */
         void LoadObjResource(const std::filesystem::path &path, const std::filesystem::path &path_in_project);
+
+        /**
+         * @brief Load an obj resource to runtime assets only (no asset fi
+         * @param path path to the external obj resource
+         * @return Import result that contains created runtime asset refs.
+         */
+        ImportResult LoadObjInMemory(const std::filesystem::path &path);
 
     private:
         std::weak_ptr<AssetManager> m_asset_manager{};

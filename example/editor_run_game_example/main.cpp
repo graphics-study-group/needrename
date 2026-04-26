@@ -40,7 +40,7 @@ namespace {
     struct ExampleOptions {
         int64_t max_frame_count = std::numeric_limits<int64_t>::max();
         bool keep_project = false;
-        std::filesystem::path import_source = std::filesystem::path(ENGINE_ASSETS_DIR) / "pp-19-01_vityaz" / "pp-19-01_vityaz.fbx";
+        std::filesystem::path import_source = std::filesystem::path(ENGINE_ASSETS_DIR) / "hussar_half-armour" / "hussar_half-armour.fbx";
     };
 
     std::filesystem::path ResolveImportPath(const std::filesystem::path &input_path) {

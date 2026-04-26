@@ -28,12 +28,12 @@ set_target_properties(project_loading_test PROPERTIES FOLDER tests)
 # set_target_properties(image_read_test PROPERTIES FOLDER tests)
 
 add_executable(complex_mesh_test complex_mesh_test.cpp)
-target_link_libraries(complex_mesh_test engine stb tinyobjloader)
+target_link_libraries(complex_mesh_test engine stb)
 add_test(NAME complex_mesh_test COMMAND complex_mesh_test 120)
 set_target_properties(complex_mesh_test PROPERTIES FOLDER tests)
 
 add_executable(shadow_map_test shadow_map_test.cpp)
-target_link_libraries(shadow_map_test engine tinyobjloader)
+target_link_libraries(shadow_map_test engine)
 add_test(NAME shadow_map_test COMMAND shadow_map_test 120)
 set_target_properties(shadow_map_test PROPERTIES FOLDER tests)
 
@@ -68,7 +68,7 @@ add_test(NAME compute_buffer_test COMMAND compute_buffer_test)
 set_target_properties(compute_buffer_test PROPERTIES FOLDER tests)
 
 add_executable(pbr_test pbr_test.cpp)
-target_link_libraries(pbr_test engine tinyobjloader)
+target_link_libraries(pbr_test engine)
 add_test(NAME pbr_test COMMAND pbr_test 120)
 set_target_properties(pbr_test PROPERTIES FOLDER tests)
 

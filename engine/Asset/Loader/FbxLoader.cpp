@@ -14,8 +14,15 @@ namespace Engine {
 
     void FbxLoader::LoadFbxResource(const std::filesystem::path &path, const std::filesystem::path &path_in_project) {
         detail::AssimpImportOptions options{};
-        options.enable_fbx_compat = true;
         options.source_name = "FBX";
         detail::LoadResourceWithAssimp(path, path_in_project, m_asset_manager, m_database, options);
+    }
+
+    ImportResult FbxLoader::LoadFbxInMemory(const std::filesystem::path &path) {
+        detail::AssimpImportOptions options{};
+        options.source_name = "FBX";
+        options.persist_assets = false;
+        options.create_scene_asset = false;
+        return detail::ImportWithAssimp(path, std::nullopt, m_asset_manager, m_database, options);
     }
 } // namespace Engine
