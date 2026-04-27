@@ -147,6 +147,40 @@ namespace {
 
 namespace Engine::detail {
     namespace {
+        /**
+         * @brief Convert source-space vector to engine-space vector.
+         *
+         * FBX source basis: right-handed, Y-up, -Z forward.
+         * Engine basis: right-handed, Z-up, Y forward.
+         */
+        glm::vec3 ConvertAxisToEngine(const glm::vec3 &value, const AssimpImportOptions &options) {
+            if (!options.convert_coordinate_system) {
+                return value;
+            }
+            return glm::vec3{value.x, -value.z, value.y};
+        }
+
+        /**
+         * @brief Transform source-space position with import scale and axis conversion.
+         */
+        glm::vec3 TransformPosition(const aiVector3D &value, const AssimpImportOptions &options) {
+            glm::vec3 transformed{value.x, value.y, value.z};
+            transformed *= options.scale_factor;
+            return ConvertAxisToEngine(transformed, options);
+        }
+
+        /**
+         * @brief Transform source-space direction with optional axis conversion.
+         */
+        glm::vec3 TransformDirection(const aiVector3D &value, const AssimpImportOptions &options) {
+            glm::vec3 transformed{value.x, value.y, value.z};
+            transformed = ConvertAxisToEngine(transformed, options);
+            if (glm::length(transformed) > 1e-5f) {
+                transformed = glm::normalize(transformed);
+            }
+            return transformed;
+        }
+
         struct MeshBuildOutput {
             MeshAsset *mesh_asset{nullptr};
             std::vector<uint32_t> submesh_material_indices{};
@@ -286,7 +320,9 @@ namespace Engine::detail {
          * fills defaults for missing optional channels (color/uv), and requires normals.
          * Also records per-submesh material index mapping for later material binding.
          */
-        MeshBuildOutput BuildMeshAssetFromScene(const aiScene &scene, AssetManager &am, const std::string &model_name) {
+        MeshBuildOutput BuildMeshAssetFromScene(
+            const aiScene &scene, AssetManager &am, const std::string &model_name, const AssimpImportOptions &options
+        ) {
             auto *mesh_asset = am.CreateAsset<MeshAsset>();
             mesh_asset->m_name = model_name;
 
@@ -317,13 +353,13 @@ namespace Engine::detail {
 
                 submesh.positions.type = VertexAttributeType::SFloat32x3;
                 for (unsigned int vertex_index = 0; vertex_index < ai_mesh->mNumVertices; ++vertex_index) {
-                    const aiVector3D &position = ai_mesh->mVertices[vertex_index];
+                    const glm::vec3 position = TransformPosition(ai_mesh->mVertices[vertex_index], options);
                     positions.push_back(position.x);
                     positions.push_back(position.y);
                     positions.push_back(position.z);
 
                     if (ai_mesh->HasNormals()) {
-                        const aiVector3D &normal = ai_mesh->mNormals[vertex_index];
+                        const glm::vec3 normal = TransformDirection(ai_mesh->mNormals[vertex_index], options);
                         normals.push_back(normal.x);
                         normals.push_back(normal.y);
                         normals.push_back(normal.z);
@@ -642,7 +678,9 @@ namespace Engine::detail {
          * Currently supports directional and point lights. Unsupported light types
          * are logged and skipped. Returns number of successfully imported lights.
          */
-        uint32_t AppendLightsToScene(const aiScene &scene, Scene &temp_scene, const std::string &model_name) {
+        uint32_t AppendLightsToScene(
+            const aiScene &scene, Scene &temp_scene, const std::string &model_name, const AssimpImportOptions &options
+        ) {
             uint32_t imported_light_count = 0;
             for (unsigned int light_index = 0; light_index < scene.mNumLights; ++light_index) {
                 const aiLight *ai_light = scene.mLights[light_index];
@@ -661,18 +699,15 @@ namespace Engine::detail {
                 Transform transform{};
                 if (ai_light->mType == aiLightSource_DIRECTIONAL) {
                     light_component.m_type = LightType::Directional;
-                    glm::vec3 direction{ai_light->mDirection.x, ai_light->mDirection.y, ai_light->mDirection.z};
+                    glm::vec3 direction = TransformDirection(ai_light->mDirection, options);
                     if (glm::length(direction) > 1e-5f) {
-                        direction = glm::normalize(direction);
                         transform.SetRotation(glm::rotation(glm::vec3{0.0f, 1.0f, 0.0f}, direction));
                     }
                     light_go.SetTransform(transform);
                     ++imported_light_count;
                 } else if (ai_light->mType == aiLightSource_POINT) {
                     light_component.m_type = LightType::Point;
-                    transform.SetPosition(
-                        glm::vec3{ai_light->mPosition.x, ai_light->mPosition.y, ai_light->mPosition.z}
-                    );
+                    transform.SetPosition(TransformPosition(ai_light->mPosition, options));
                     light_go.SetTransform(transform);
                     ++imported_light_count;
                 } else {
@@ -709,6 +744,12 @@ namespace Engine::detail {
 
         // 1) Resolve context objects and load source scene through Assimp.
         SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Entering %s loader: %s", options.source_name, path.string().c_str());
+        SDL_LogInfo(
+            SDL_LOG_CATEGORY_APPLICATION,
+            "Import transform options: scale_factor=%.6f convert_coordinate_system=%s",
+            options.scale_factor,
+            options.convert_coordinate_system ? "true" : "false"
+        );
 
         auto db = database.lock();
         assert(db);
@@ -723,7 +764,7 @@ namespace Engine::detail {
         const std::string model_name = path.stem().string();
 
         // 2) Build mesh/material/texture assets from scene data.
-        const MeshBuildOutput mesh_output = BuildMeshAssetFromScene(*scene, *am, model_name);
+        const MeshBuildOutput mesh_output = BuildMeshAssetFromScene(*scene, *am, model_name, options);
         MaterialBuildOutput material_output = BuildMaterialsFromScene(
             *scene, path, *am, *db, model_name, mesh_output.submesh_material_indices, name_counters
         );
@@ -765,7 +806,7 @@ namespace Engine::detail {
             mesh_component.m_mesh_asset = result.mesh_asset;
             mesh_component.m_material_assets = result.mesh_material_assets;
 
-            result.imported_light_count = AppendLightsToScene(*scene, temp_scene, model_name);
+            result.imported_light_count = AppendLightsToScene(*scene, temp_scene, model_name, options);
 
             temp_scene.FlushCmdQueue();
 

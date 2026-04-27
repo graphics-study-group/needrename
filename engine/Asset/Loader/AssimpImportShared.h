@@ -41,6 +41,8 @@ namespace Engine {
             const char *source_name{"Model"};
             bool persist_assets{true};
             bool create_scene_asset{true};
+            float scale_factor{1.0f};
+            bool convert_coordinate_system{false};
         };
 
         /**
