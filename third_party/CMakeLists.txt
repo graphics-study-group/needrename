@@ -24,6 +24,14 @@ if(TARGET zlibstatic)
     set_target_properties(zlibstatic PROPERTIES FOLDER third_party)
 endif()
 
+set(FASTGLTF_COMPILE_AS_CPP20 ON CACHE BOOL "Compile fastgltf as C++20" FORCE)
+set(FASTGLTF_ENABLE_TESTS OFF CACHE BOOL "Disable fastgltf tests" FORCE)
+set(FASTGLTF_ENABLE_EXAMPLES OFF CACHE BOOL "Disable fastgltf examples" FORCE)
+set(FASTGLTF_ENABLE_DOCS OFF CACHE BOOL "Disable fastgltf docs" FORCE)
+set(FASTGLTF_ENABLE_INSTALL OFF CACHE BOOL "Disable fastgltf install targets" FORCE)
+add_subdirectory(fastgltf EXCLUDE_FROM_ALL)
+set_target_properties(fastgltf PROPERTIES FOLDER third_party)
+
 # For some reasons the SPIRV-Cross in Vulkan SDK cannot be found by CMake...
 set(SPIRV_CROSS_CLI OFF CACHE BOOL "Build the CLI binary. Requires SPIRV_CROSS_STATIC." FORCE)
 set(SPIRV_CROSS_ENABLE_TESTS OFF CACHE BOOL "Enable SPIRV-Cross tests." FORCE)

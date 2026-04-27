@@ -43,7 +43,7 @@ int main(int argc, char **argv) {
     // mesh_path = mesh_path / "meshes" / "sphere.obj";
     // mesh_path = mesh_path / "meshes" / "cube.obj";
     // mesh_path = mesh_path / "bunny" / "bunny.obj";
-    mesh_path = mesh_path / "four_bunny" / "four_bunny.obj";
+    mesh_path = "D:\\cch\\datasets\\model\\robot\\scene.gltf";
 
     SDL_Init(SDL_INIT_VIDEO);
 

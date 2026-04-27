@@ -55,6 +55,17 @@ namespace Engine {
          */
         void LoadFromFile(const std::filesystem::path &path, bool gamma_to_linear = false);
 
+        /**
+         * @brief Load the asset from encoded image bytes in memory.
+         *
+         * The input should be encoded image content such as PNG/JPEG bytes.
+         *
+         * @param bytes Pointer to encoded image bytes.
+         * @param size Byte size of encoded image content.
+         * @param gamma_to_linear Enforce a gamma-to-linear transform while decoding.
+         */
+        void LoadFromMemory(const std::byte *bytes, size_t size, bool gamma_to_linear = false);
+
         /// @brief Get pixel data.
         const std::byte *GetPixelData() const;
         /// @brief Get the size of all pixel data

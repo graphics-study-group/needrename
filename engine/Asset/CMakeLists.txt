@@ -13,4 +13,5 @@ target_link_libraries(EngineLibAsset
     PUBLIC
     assimp::assimp
     stb
+    fastgltf::fastgltf
 )

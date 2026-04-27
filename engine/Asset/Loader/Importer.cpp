@@ -1,5 +1,6 @@
 #include "Importer.h"
 #include "FbxLoader.h"
+#include "GltfLoader.h"
 #include "ObjLoader.h"
 #include <algorithm>
 #include <cctype>
@@ -20,6 +21,9 @@ namespace Engine::Importer {
         } else if (extension == ".fbx") {
             auto loader = std::make_unique<FbxLoader>();
             loader->LoadFbxResource(resourcePath, path_in_project);
+        } else if (extension == ".gltf" || extension == ".glb") {
+            auto loader = std::make_unique<GltfLoader>();
+            loader->LoadGltfResource(resourcePath, path_in_project);
         } else {
             throw std::runtime_error("Unsupported file format: " + extension);
         }
