@@ -50,10 +50,8 @@ namespace Engine {
          * be uncompressed first via the `stbi_image` library.
          *
          * @param path Path of the image.
-         * @param gamma_to_linear Enforce a gamma-to-linear transform while
-         * reading the file.
          */
-        void LoadFromFile(const std::filesystem::path &path, bool gamma_to_linear = false);
+        void LoadFromFile(const std::filesystem::path &path);
 
         /**
          * @brief Load the asset from encoded image bytes in memory.
@@ -62,9 +60,8 @@ namespace Engine {
          *
          * @param bytes Pointer to encoded image bytes.
          * @param size Byte size of encoded image content.
-         * @param gamma_to_linear Enforce a gamma-to-linear transform while decoding.
          */
-        void LoadFromMemory(const std::byte *bytes, size_t size, bool gamma_to_linear = false);
+        void LoadFromMemory(const std::byte *bytes, size_t size);
 
         /// @brief Get pixel data.
         const std::byte *GetPixelData() const;
