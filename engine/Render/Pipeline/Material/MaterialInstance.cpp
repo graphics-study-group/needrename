@@ -255,8 +255,8 @@ namespace Engine {
                 auto texture_asset = dynamic_cast<Image2DTextureAsset *>(t_asset);
                 if (texture_asset) {
                     // TODO: We should allocate texture from assets in a pool.
-                    auto texture = std::shared_ptr<ImageTexture>(
-                        std::move(ImageTexture::CreateUnique(this->m_system, *texture_asset))
+                    auto texture =
+                    std::shared_ptr<ImageTexture>(std::move(ImageTexture::CreateUnique(this->m_system, *texture_asset))
                     );
                     AssignTexture(prop.first, texture);
                     m_system.GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
