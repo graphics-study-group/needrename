@@ -17,16 +17,16 @@ namespace vk {
 namespace Engine {
     /**
      * @brief A piece of memory allocated by Vulkan via Vulkan Memory Allocator.
-     * 
+     *
      * Memory allocation is a complex topic in Vulkan programming. In short,
      * this class represents a typeless memory allocation in Vulkan, on device
      * or on host, over which an image or a buffer can be created on.
-     * 
+     *
      * This class should not be visible to users. Use `ImageAllocation` for
      * images and `BufferAllocation` for buffers.
-     * 
+     *
      * Use `Engine::RenderSystemState::AllocatorState` to allocate memory.
-     * 
+     *
      * @invariant This class, once created, is guaranteed to hold a vaild memory
      * allocation until moved or destructed.
      */
@@ -35,14 +35,15 @@ namespace Engine {
         VmaAllocator m_allocator;
 
     public:
-        VmaMemoryAllocation() : m_allocation(nullptr), m_allocator(nullptr) {}
+        VmaMemoryAllocation() : m_allocation(nullptr), m_allocator(nullptr) {
+        }
 
         /// @brief Create an allocation, called from `Engine::RenderSystemState::AllocatorState`.
-        VmaMemoryAllocation(
-            VmaAllocation allocation,
-            VmaAllocator allocator
-        ) : m_allocation(allocation), m_allocator(allocator) {}
-        ~VmaMemoryAllocation() {}
+        VmaMemoryAllocation(VmaAllocation allocation, VmaAllocator allocator) :
+            m_allocation(allocation), m_allocator(allocator) {
+        }
+        ~VmaMemoryAllocation() {
+        }
 
         VmaMemoryAllocation(const VmaMemoryAllocation &) = delete;
         VmaMemoryAllocation &operator=(const VmaMemoryAllocation &) = delete;
@@ -64,10 +65,10 @@ namespace Engine {
 
     /**
      * @brief A piece of memory allocation for images.
-     * 
+     *
      * Use `Engine::RenderSystemState::AllocatorState` to perform memory
      * allocation.
-     * 
+     *
      * @invariant This class, once created, is guaranteed to hold a vaild image
      * allocation until moved or destructed.
      */
@@ -89,7 +90,7 @@ namespace Engine {
 
         /**
          * @brief Construct an allocation from another allocation.
-         * 
+         *
          * The other allocation will be invaild after moving. Calling any method
          * invokes undefined behavior.
          */
@@ -97,7 +98,7 @@ namespace Engine {
 
         /**
          * @brief Acquire an allocation from another allocation.
-         * 
+         *
          * The other allocation will be invaild after moving. Calling any method
          * invokes undefined behavior.
          */
@@ -111,14 +112,14 @@ namespace Engine {
 
     /**
      * @brief A piece of memory allocation for buffer.
-     * 
+     *
      * This class represents a low-level memory interface for buffer memory.
      * Users should prefer to use `Engine::DeviceBuffer` or related classes
      * to manipulate data.
-     * 
+     *
      * Use `Engine::RenderSystemState::AllocatorState` to perform memory
      * allocation.
-     * 
+     *
      * @invariant This class, once created, is guaranteed to hold a vaild buffer
      * allocation until moved or destructed.
      */
@@ -139,7 +140,7 @@ namespace Engine {
 
         /**
          * @brief Construct an allocation from another allocation.
-         * 
+         *
          * The other allocation will be invaild after moving. Calling any method
          * invokes undefined behavior.
          */
@@ -147,7 +148,7 @@ namespace Engine {
 
         /**
          * @brief Acquire an allocation from another allocation.
-         * 
+         *
          * The other allocation will be invaild after moving. Calling any method
          * invokes undefined behavior.
          */

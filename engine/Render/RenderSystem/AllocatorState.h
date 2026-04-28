@@ -48,10 +48,10 @@ namespace Engine {
 
             /**
              * @overload BufferAllocation AllocatorState::AllocateBufferUnique()
-             * 
+             *
              * This variant creates a unique pointer instead, and does not throw
              * exceptions.
-             * 
+             *
              * @see ImageAllocation AllocatorState::AllocateBuffer()
              */
             std::unique_ptr<BufferAllocation> AllocateBufferUnique(
@@ -62,35 +62,31 @@ namespace Engine {
              * @brief Description of image allocation request.
              */
             struct ImageAllocationDescription {
-                ImageMemoryType type;               ///< Supported memory access pattern of the image.
-                vk::ImageType dimension;            ///< Dimension of the image. 1D, 2D or 3D are supported.
-                vk::Extent3D extent;                ///< Extent of the image. Must be non-zero integers.
-                vk::Format format;                  ///< Format of the image.
-                uint32_t miplevel;                  ///< Mipmap levels of the image.
-                uint32_t array_layers;              ///< Array layers of the image. 3D arrays are not supported.
-                bool is_cube_map;                   ///< Whether the array allocation should be compatible to cubemaps.
-                vk::SampleCountFlagBits samples;    ///< Multisample counts of the image.
+                ImageMemoryType type;            ///< Supported memory access pattern of the image.
+                vk::ImageType dimension;         ///< Dimension of the image. 1D, 2D or 3D are supported.
+                vk::Extent3D extent;             ///< Extent of the image. Must be non-zero integers.
+                vk::Format format;               ///< Format of the image.
+                uint32_t miplevel;               ///< Mipmap levels of the image.
+                uint32_t array_layers;           ///< Array layers of the image. 3D arrays are not supported.
+                bool is_cube_map;                ///< Whether the array allocation should be compatible to cubemaps.
+                vk::SampleCountFlagBits samples; ///< Multisample counts of the image.
             };
 
             /**
              * @brief Allocate the memory for a given image.
              */
-            ImageAllocation AllocateImage(
-                const ImageAllocationDescription & desc,
-                const std::string &name = ""
-            ) const;
+            ImageAllocation AllocateImage(const ImageAllocationDescription &desc, const std::string &name = "") const;
 
             /**
              * @overload ImageAllocation AllocatorState::AllocateImageUnique()
-             * 
+             *
              * This variant creates a unique pointer instead, and does not throw
              * exceptions.
-             * 
+             *
              * @see ImageAllocation AllocatorState::AllocateImage()
              */
             std::unique_ptr<ImageAllocation> AllocateImageUnique(
-                const ImageAllocationDescription & desc,
-                const std::string &name = ""
+                const ImageAllocationDescription &desc, const std::string &name = ""
             ) const noexcept;
 
             /**
