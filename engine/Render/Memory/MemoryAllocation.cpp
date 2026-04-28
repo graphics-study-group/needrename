@@ -73,8 +73,7 @@ namespace Engine {
         Destroy();
     }
     BufferAllocation::BufferAllocation(BufferAllocation &&other) noexcept :
-        VmaMemoryAllocation(std::move(other)),
-        pimpl(nullptr) {
+        VmaMemoryAllocation(std::move(other)), pimpl(nullptr) {
         std::swap(pimpl, other.pimpl);
     }
     BufferAllocation &BufferAllocation::operator=(BufferAllocation &&other) noexcept {

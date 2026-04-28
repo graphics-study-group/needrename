@@ -63,11 +63,12 @@ namespace {
     }
 
     bool CheckImageFormatSupport(
-        const Engine::RenderSystemState::AllocatorState::ImageAllocationDescription & desc,
-        const vk::ImageFormatProperties2 & ifp
+        const Engine::RenderSystemState::AllocatorState::ImageAllocationDescription &desc,
+        const vk::ImageFormatProperties2 &ifp
     ) {
         const auto &max_extent = ifp.imageFormatProperties.maxExtent;
-        if (desc.extent.width > max_extent.width || desc.extent.height > max_extent.height || desc.extent.depth > max_extent.depth) {
+        if (desc.extent.width > max_extent.width || desc.extent.height > max_extent.height
+            || desc.extent.depth > max_extent.depth) {
             SDL_LogError(
                 SDL_LOG_CATEGORY_RENDER,
                 std::format(
@@ -87,9 +88,7 @@ namespace {
             SDL_LogError(
                 SDL_LOG_CATEGORY_RENDER,
                 std::format(
-                    "Image miplevel exceeded capability: {} > {}",
-                    desc.miplevel,
-                    ifp.imageFormatProperties.maxMipLevels
+                    "Image miplevel exceeded capability: {} > {}", desc.miplevel, ifp.imageFormatProperties.maxMipLevels
                 )
                     .c_str()
             );
@@ -294,8 +293,7 @@ namespace Engine::RenderSystemState {
     }
 
     std::unique_ptr<ImageAllocation> AllocatorState::AllocateImageUnique(
-        const ImageAllocationDescription & desc,
-        const std::string &name
+        const ImageAllocationDescription &desc, const std::string &name
     ) const noexcept try {
         return std::make_unique<ImageAllocation>(AllocateImage(desc, name));
     } catch (std::exception &e) {
@@ -309,11 +307,11 @@ namespace Engine::RenderSystemState {
     }
 
     ImageAllocation AllocatorState::AllocateImage(
-        const ImageAllocationDescription & desc,
-        const std::string &name
+        const ImageAllocationDescription &desc, const std::string &name
     ) const {
         const auto [iusage, musage] = GetImageFlags(desc.type);
-        auto fsupport = pimpl->QueryFormatSupport(m_system.GetDeviceInterface().GetPhysicalDevice(), desc.format, desc.type);
+        auto fsupport =
+            pimpl->QueryFormatSupport(m_system.GetDeviceInterface().GetPhysicalDevice(), desc.format, desc.type);
         if (fsupport.first <= 0) {
             SDL_LogError(
                 SDL_LOG_CATEGORY_RENDER,
@@ -329,9 +327,14 @@ namespace Engine::RenderSystemState {
         }
 
         auto ifsupport = pimpl->UpdateImageFormatSupportInfo(
-            m_system.GetDeviceInterface().GetPhysicalDevice(), desc.format, desc.dimension, vk::ImageTiling::eOptimal, iusage
+            m_system.GetDeviceInterface().GetPhysicalDevice(),
+            desc.format,
+            desc.dimension,
+            vk::ImageTiling::eOptimal,
+            iusage
         );
-        if (!CheckImageFormatSupport(desc, ifsupport))  throw std::invalid_argument("Requested size or multisample count unsupported.");
+        if (!CheckImageFormatSupport(desc, ifsupport))
+            throw std::invalid_argument("Requested size or multisample count unsupported.");
 
         vk::ImageCreateFlags icf{};
         if (desc.is_cube_map) icf |= vk::ImageCreateFlagBits::eCubeCompatible;

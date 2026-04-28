@@ -2,8 +2,8 @@
 
 #include "Render/Hasher.hpp"
 #include "Render/ImageUtilsFunc.h"
-#include "Render/Memory/MemoryAllocation.h"
 #include "Render/Memory/DeviceBuffer.h"
+#include "Render/Memory/MemoryAllocation.h"
 #include "Render/Memory/TextureSubresourceView.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/AllocatorState.h"
@@ -50,9 +50,11 @@ namespace {
         }
     }
 
-    constexpr vk::ComponentSwizzle ToVkComponentSwizzle(const Engine::TextureSubresourceRange::SwizzleAndSrgb::ColorSwizzle cs) {
-        switch(cs) {
-        using enum Engine::TextureSubresourceRange::SwizzleAndSrgb::ColorSwizzle;
+    constexpr vk::ComponentSwizzle ToVkComponentSwizzle(
+        const Engine::TextureSubresourceRange::SwizzleAndSrgb::ColorSwizzle cs
+    ) {
+        switch (cs) {
+            using enum Engine::TextureSubresourceRange::SwizzleAndSrgb::ColorSwizzle;
         case Identity:
             return vk::ComponentSwizzle::eIdentity;
         case Zero:
@@ -71,7 +73,7 @@ namespace {
         __builtin_unreachable();
     }
 
-    constexpr vk::ComponentMapping ToVkComponentMapping(const Engine::TextureSubresourceRange::SwizzleAndSrgb & sas) {
+    constexpr vk::ComponentMapping ToVkComponentMapping(const Engine::TextureSubresourceRange::SwizzleAndSrgb &sas) {
         return vk::ComponentMapping{
             ToVkComponentSwizzle(sas.r),
             ToVkComponentSwizzle(sas.g),
@@ -80,9 +82,11 @@ namespace {
         };
     }
 
-    constexpr vk::Format ConvertSrgbFormat(vk::Format original, const Engine::TextureSubresourceRange::SwizzleAndSrgb & sc) {
+    constexpr vk::Format ConvertSrgbFormat(
+        vk::Format original, const Engine::TextureSubresourceRange::SwizzleAndSrgb &sc
+    ) {
         if (sc.srgb == Engine::TextureSubresourceRange::SwizzleAndSrgb::SrgbConversion::ForceSrgb) {
-            switch(original) {
+            switch (original) {
                 using enum vk::Format;
             case eR8G8B8A8Unorm:
                 return eR8G8B8A8Srgb;
@@ -90,7 +94,7 @@ namespace {
                 return original;
             }
         } else if (sc.srgb == Engine::TextureSubresourceRange::SwizzleAndSrgb::SrgbConversion::ForceUnorm) {
-            switch(original) {
+            switch (original) {
                 using enum vk::Format;
             case eR8G8B8A8Srgb:
                 return eR8G8B8A8Unorm;
