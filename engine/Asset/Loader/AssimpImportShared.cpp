@@ -83,10 +83,10 @@ namespace Engine::detail {
             Assimp::Importer &importer, const std::filesystem::path &path, const AssimpImportOptions &options
         ) {
             // Configure Assimp post-process steps for stable static mesh import output.
-            constexpr unsigned int k_postprocess_flags = aiProcess_Triangulate | aiProcess_JoinIdenticalVertices
-                                                         | aiProcess_GenSmoothNormals | aiProcess_ImproveCacheLocality
-                                                         | aiProcess_FindInvalidData | aiProcess_ValidateDataStructure
-                                                         | aiProcess_PreTransformVertices;
+            constexpr unsigned int k_postprocess_flags =
+                aiProcess_Triangulate | aiProcess_JoinIdenticalVertices | aiProcess_GenSmoothNormals
+                | aiProcess_ImproveCacheLocality | aiProcess_FindInvalidData | aiProcess_FlipUVs
+                | aiProcess_ValidateDataStructure | aiProcess_PreTransformVertices;
 
             const aiScene *scene = importer.ReadFile(path.string(), k_postprocess_flags);
             if (!scene) {
