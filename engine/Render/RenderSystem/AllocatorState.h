@@ -2,7 +2,7 @@
 #define RENDER_RENDERSYSTEM_ALLOCATORSTATE_INCLUDED
 
 #include "Render/ImageUtils.h"
-#include "Render/Memory/AllocatedMemory.h"
+#include "Render/Memory/MemoryAllocation.h"
 #include "Render/Memory/MemoryTypes.h"
 #include <memory>
 #include <vulkan/vulkan.h>

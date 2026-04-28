@@ -2,7 +2,7 @@
 
 #include "Render/Hasher.hpp"
 #include "Render/ImageUtilsFunc.h"
-#include "Render/Memory/AllocatedMemory.h"
+#include "Render/Memory/MemoryAllocation.h"
 #include "Render/Memory/DeviceBuffer.h"
 #include "Render/Memory/TextureSubresourceView.h"
 #include "Render/RenderSystem.h"
