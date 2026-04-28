@@ -1,5 +1,6 @@
 #include <SDL3/SDL.h>
 #include <cassert>
+#include <chrono>
 #include <fstream>
 #include <iostream>
 #include <nlohmann/json.hpp>
@@ -43,7 +44,7 @@ int main(int argc, char **argv) {
     // mesh_path = mesh_path / "meshes" / "sphere.obj";
     // mesh_path = mesh_path / "meshes" / "cube.obj";
     // mesh_path = mesh_path / "bunny" / "bunny.obj";
-    mesh_path = "D:\\cch\\datasets\\model\\robot\\scene.gltf";
+    mesh_path = mesh_path / "four_bunny" / "four_bunny.obj";
 
     SDL_Init(SDL_INIT_VIDEO);
 
@@ -64,7 +65,13 @@ int main(int argc, char **argv) {
     cmc->SetRenderGraph(rg, final_color_id);
 
     std::filesystem::path path_in_project = "/";
+    const auto import_begin = std::chrono::steady_clock::now();
     Engine::Importer::ImportExternalResource(mesh_path, path_in_project);
+    const auto import_end = std::chrono::steady_clock::now();
+    const auto import_ms = std::chrono::duration_cast<std::chrono::milliseconds>(import_end - import_begin).count();
+    SDL_LogInfo(
+        SDL_LOG_CATEGORY_APPLICATION, "ImportExternalResource took %lld ms.", static_cast<long long>(import_ms)
+    );
 
     auto &main_scene = cmc->GetWorldSystem()->GetMainSceneRef();
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading the prefab which has just imported");

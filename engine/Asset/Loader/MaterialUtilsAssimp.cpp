@@ -83,6 +83,7 @@ namespace Engine::detail {
     ) {
         MaterialBuildOutput output{};
         std::unordered_map<std::string, AssetRef> texture_refs_by_path;
+        std::unordered_map<std::string, std::optional<std::filesystem::path>> resolved_texture_path_cache;
 
         const AssetRef default_blinn_material = db.GetNewAssetRef(
             AssetPath(db, std::filesystem::path("~/materials/solid_color_dark_grey_blinn_phong.asset"))
@@ -160,7 +161,15 @@ namespace Engine::detail {
                     return false;
                 }
 
-                auto resolved_texture_path = ResolveTexturePath(path, texture_path);
+                const std::string raw_texture_key = texture_path.C_Str();
+                std::optional<std::filesystem::path> resolved_texture_path;
+                auto cache_it = resolved_texture_path_cache.find(raw_texture_key);
+                if (cache_it != resolved_texture_path_cache.end()) {
+                    resolved_texture_path = cache_it->second;
+                } else {
+                    resolved_texture_path = ResolveTexturePath(path, texture_path);
+                    resolved_texture_path_cache.emplace(raw_texture_key, resolved_texture_path);
+                }
                 if (!resolved_texture_path) {
                     SDL_LogWarn(
                         SDL_LOG_CATEGORY_APPLICATION,

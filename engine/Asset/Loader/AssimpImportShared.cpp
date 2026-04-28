@@ -152,6 +152,7 @@ namespace Engine::detail {
         ) {
             auto *mesh_asset = am.CreateAsset<MeshAsset>();
             mesh_asset->m_name = model_name;
+            mesh_asset->m_submeshes.reserve(scene.mNumMeshes);
 
             std::vector<uint32_t> submesh_material_indices;
             submesh_material_indices.reserve(scene.mNumMeshes);
@@ -168,41 +169,52 @@ namespace Engine::detail {
                 mesh_asset->m_submeshes.emplace_back();
                 auto &submesh = mesh_asset->m_submeshes.back();
                 submesh.vertex_count = ai_mesh->mNumVertices;
+                const size_t vertex_count = static_cast<size_t>(ai_mesh->mNumVertices);
+
+                const bool has_normals = ai_mesh->HasNormals();
+                const bool has_colors = ai_mesh->HasVertexColors(0);
+                const bool has_texcoord0 = ai_mesh->HasTextureCoords(0);
+                if (!has_normals) {
+                    throw std::runtime_error("Mesh does not have normals.");
+                }
 
                 std::vector<float> positions;
-                positions.reserve(static_cast<size_t>(ai_mesh->mNumVertices) * 3);
+                positions.resize(vertex_count * 3);
                 std::vector<float> normals;
-                normals.reserve(static_cast<size_t>(ai_mesh->mNumVertices) * 3);
+                normals.resize(vertex_count * 3);
                 std::vector<float> colors;
-                colors.reserve(static_cast<size_t>(ai_mesh->mNumVertices) * 3);
+                if (has_colors) {
+                    colors.resize(vertex_count * 3);
+                }
                 std::vector<float> texcoord0;
-                texcoord0.reserve(static_cast<size_t>(ai_mesh->mNumVertices) * 2);
+                if (has_texcoord0) {
+                    texcoord0.resize(vertex_count * 2);
+                }
 
                 submesh.positions.type = VertexAttributeType::SFloat32x3;
                 for (unsigned int vertex_index = 0; vertex_index < ai_mesh->mNumVertices; ++vertex_index) {
+                    const size_t v = static_cast<size_t>(vertex_index);
                     const glm::vec3 position = TransformPosition(ai_mesh->mVertices[vertex_index], options);
-                    positions.push_back(position.x);
-                    positions.push_back(position.y);
-                    positions.push_back(position.z);
+                    positions[v * 3] = position.x;
+                    positions[v * 3 + 1] = position.y;
+                    positions[v * 3 + 2] = position.z;
 
-                    if (ai_mesh->HasNormals()) {
-                        const glm::vec3 normal = TransformDirection(ai_mesh->mNormals[vertex_index], options);
-                        normals.push_back(normal.x);
-                        normals.push_back(normal.y);
-                        normals.push_back(normal.z);
-                    }
+                    const glm::vec3 normal = TransformDirection(ai_mesh->mNormals[vertex_index], options);
+                    normals[v * 3] = normal.x;
+                    normals[v * 3 + 1] = normal.y;
+                    normals[v * 3 + 2] = normal.z;
 
-                    if (ai_mesh->HasVertexColors(0)) {
+                    if (has_colors) {
                         const aiColor4D &color = ai_mesh->mColors[0][vertex_index];
-                        colors.push_back(color.r);
-                        colors.push_back(color.g);
-                        colors.push_back(color.b);
+                        colors[v * 3] = color.r;
+                        colors[v * 3 + 1] = color.g;
+                        colors[v * 3 + 2] = color.b;
                     }
 
-                    if (ai_mesh->HasTextureCoords(0)) {
+                    if (has_texcoord0) {
                         const aiVector3D &uv = ai_mesh->mTextureCoords[0][vertex_index];
-                        texcoord0.push_back(uv.x);
-                        texcoord0.push_back(uv.y);
+                        texcoord0[v * 2] = uv.x;
+                        texcoord0[v * 2 + 1] = uv.y;
                     }
                 }
 
@@ -248,14 +260,10 @@ namespace Engine::detail {
                         submesh.m_vertex_attributes, default_colors.data(), default_colors.size(), submesh.color
                     );
                 }
-                if (!normals.empty()) {
-                    submesh.normal.type = VertexAttributeType::SFloat32x3;
-                    import_shared::AppendVertexAttribute(
-                        submesh.m_vertex_attributes, normals.data(), normals.size(), submesh.normal
-                    );
-                } else {
-                    throw std::runtime_error("Mesh does not have normals.");
-                }
+                submesh.normal.type = VertexAttributeType::SFloat32x3;
+                import_shared::AppendVertexAttribute(
+                    submesh.m_vertex_attributes, normals.data(), normals.size(), submesh.normal
+                );
                 if (!texcoord0.empty()) {
                     submesh.texcoord0.type = VertexAttributeType::SFloat32x2;
                     import_shared::AppendVertexAttribute(
@@ -370,6 +378,7 @@ namespace Engine::detail {
 
         std::unordered_map<std::string, uint32_t> name_counters;
         const std::string model_name = path.stem().string();
+        name_counters.reserve(scene->mNumMaterials + scene->mNumMeshes + 16);
 
         // 2) Build mesh/material/texture assets from scene data.
         const MeshBuildOutput mesh_output = BuildMeshAssetFromScene(*scene, *am, model_name, options);
@@ -380,6 +389,9 @@ namespace Engine::detail {
         // 3) Assemble import result references used by runtime or caller-side tests.
         ImportResult result{};
         result.mesh_asset = AssetRef(mesh_output.mesh_asset->GetGUID());
+        result.mesh_material_assets.reserve(mesh_output.submesh_material_indices.size());
+        result.created_material_assets.reserve(material_output.created_material_assets.size());
+        result.created_texture_assets.reserve(material_output.created_texture_assets.size());
         for (uint32_t material_index : mesh_output.submesh_material_indices) {
             auto it = material_output.material_refs.find(static_cast<size_t>(material_index));
             result.mesh_material_assets.push_back(
