@@ -209,19 +209,10 @@ namespace Engine::detail {
             db.GetNewAssetRef(AssetPath(db, std::filesystem::path("~/textures/dark_grey.asset")));
         const AssetRef default_pbr_mrao =
             db.GetNewAssetRef(AssetPath(db, std::filesystem::path("~/textures/white.asset")));
-
-        auto *default_material = am.CreateAsset<MaterialAsset>();
-        default_material->m_name = import_shared::MakeUniqueAssetName(model_name + "_default_pbr", name_counters);
-        default_material->m_library =
-            db.GetNewAssetRef(AssetPath(db, std::filesystem::path("~/material_libraries/PBRLibrary.asset")));
-        default_material->m_properties["albedoSampler"] =
-            MaterialProperty(default_pbr_albedo, MaterialProperty::Type::Texture);
-        default_material->m_properties["MRAOSampler"] =
-            MaterialProperty(default_pbr_mrao, MaterialProperty::Type::Texture);
-        default_material->m_properties["metalness_scale"] = 1.0f;
-        default_material->m_properties["roughness_scale"] = 1.0f;
-        output.created_material_assets.push_back(default_material);
-        output.default_pbr_material = AssetRef(default_material->GetGUID());
+        const AssetRef default_pbr_normal =
+            db.GetNewAssetRef(AssetPath(db, std::filesystem::path("~/textures/green.asset")));
+        const AssetRef default_pbr_emissive =
+            db.GetNewAssetRef(AssetPath(db, std::filesystem::path("~/textures/white.asset")));
 
         // Lambda: create a solid-color texture fallback from baseColorFactor when albedo map is missing.
         auto create_solid_color_texture = [&](const glm::vec4 &color, const std::string &name_suffix) -> AssetRef {
@@ -232,17 +223,36 @@ namespace Engine::detail {
             return AssetRef(solid_color->GetGUID());
         };
 
+        auto *default_material = am.CreateAsset<MaterialAsset>();
+        default_material->m_name = import_shared::MakeUniqueAssetName(model_name + "_default_pbr", name_counters);
+        default_material->m_library =
+            db.GetNewAssetRef(AssetPath(db, std::filesystem::path("~/material_libraries/PBRLibrary.asset")));
+        default_material->m_properties["albedoSampler"] =
+            MaterialProperty(default_pbr_albedo, MaterialProperty::Type::Texture);
+        default_material->m_properties["MRAOSampler"] =
+            MaterialProperty(default_pbr_mrao, MaterialProperty::Type::Texture);
+        default_material->m_properties["normalSampler"] =
+            MaterialProperty(default_pbr_normal, MaterialProperty::Type::Texture);
+        default_material->m_properties["emissiveSampler"] =
+            MaterialProperty(default_pbr_emissive, MaterialProperty::Type::Texture);
+        default_material->m_properties["metalnessFactor"] = 1.0f;
+        default_material->m_properties["roughnessFactor"] = 1.0f;
+        default_material->m_properties["emissiveFactor"] = glm::vec4{0.0f, 0.0f, 0.0f, 1.0f};
+        output.created_material_assets.push_back(default_material);
+        output.default_pbr_material = AssetRef(default_material->GetGUID());
+
         // Lambda: validate glTF texture info, enforce UV0, then load/cache image-backed texture.
-        auto try_load_texture_ref = [&](const fastgltf::Optional<fastgltf::TextureInfo> &texture_info,
-                                        MaterialProperty &out_prop,
-                                        const char *purpose) -> bool {
+        auto try_load_texture_ref =
+            [&](const auto &texture_info, MaterialProperty &out_prop, const char *purpose) -> bool {
             if (!texture_info.has_value()) {
                 return false;
             }
 
             size_t texcoord_index = texture_info->texCoordIndex;
-            if (texture_info->transform && texture_info->transform->texCoordIndex.has_value()) {
-                texcoord_index = texture_info->transform->texCoordIndex.value();
+            if constexpr (requires { texture_info->transform; }) {
+                if (texture_info->transform && texture_info->transform->texCoordIndex.has_value()) {
+                    texcoord_index = texture_info->transform->texCoordIndex.value();
+                }
             }
             if (texcoord_index != 0) {
                 SDL_LogWarn(
@@ -364,25 +374,29 @@ namespace Engine::detail {
                 );
             }
 
-            material_asset->m_properties["metalness_scale"] =
+            material_asset->m_properties["metalnessFactor"] =
                 static_cast<float>(source_material.pbrData.metallicFactor);
-            material_asset->m_properties["roughness_scale"] =
+            material_asset->m_properties["roughnessFactor"] =
                 static_cast<float>(source_material.pbrData.roughnessFactor);
 
-            if (source_material.normalTexture.has_value()) {
-                SDL_LogWarn(
-                    SDL_LOG_CATEGORY_APPLICATION,
-                    "Material %s has normalTexture, but current PBR path does not support it yet.",
-                    material_asset->m_name.c_str()
-                );
-            }
-            if (source_material.emissiveTexture.has_value()) {
-                SDL_LogWarn(
-                    SDL_LOG_CATEGORY_APPLICATION,
-                    "Material %s has emissiveTexture, but current PBR path does not support it yet.",
-                    material_asset->m_name.c_str()
-                );
-            }
+            MaterialProperty normal_prop;
+            const bool has_normal = try_load_texture_ref(source_material.normalTexture, normal_prop, "normalTexture");
+            material_asset->m_properties["normalSampler"] =
+                has_normal ? normal_prop : MaterialProperty(default_pbr_normal, MaterialProperty::Type::Texture);
+
+            MaterialProperty emissive_prop;
+            const bool has_emissive =
+                try_load_texture_ref(source_material.emissiveTexture, emissive_prop, "emissiveTexture");
+            material_asset->m_properties["emissiveSampler"] =
+                has_emissive ? emissive_prop : MaterialProperty(default_pbr_emissive, MaterialProperty::Type::Texture);
+            material_asset->m_properties["emissiveFactor"] = has_emissive
+                                                                    ? glm::vec4{
+                                                                          static_cast<float>(source_material.emissiveFactor.x()),
+                                                                          static_cast<float>(source_material.emissiveFactor.y()),
+                                                                          static_cast<float>(source_material.emissiveFactor.z()),
+                                                                          1.0f
+                                                                      }
+                                                                    : glm::vec4{0.0f, 0.0f, 0.0f, 1.0f};
             if (source_material.clearcoat || source_material.specular || source_material.transmission
                 || source_material.sheen || source_material.iridescence || source_material.anisotropy
                 || source_material.specularGlossiness || source_material.volume

@@ -13,15 +13,33 @@
                 "m_type": "Texture",
                 "m_value": "24EF50B82AB1DC9793F60A50DBE77719"
             },
-            "metalness_scale": {
+            "normalSampler": {
+                "m_type": "Texture",
+                "m_value": "94217893-712f-43e7-a20b-598fd3a90c0c"
+            },
+            "normalSampler": {
+                "m_type": "Texture",
+                "m_value": "24EF50B82AB1DC9793F60A50DBE77719"
+            },
+            "metalnessFactor": {
                 "m_type": "Simple",
                 "m_ubo_type": "Float",
                 "m_value": 0.5
             },
-            "roughness_scale": {
+            "roughnessFactor": {
                 "m_type": "Simple",
                 "m_ubo_type": "Float",
                 "m_value": 0.2
+            },
+            "emissiveFactor": {
+                "m_type": "Simple",
+                "m_ubo_type": "Vec4",
+                "m_value": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0
+                ]
             }
         }
     },

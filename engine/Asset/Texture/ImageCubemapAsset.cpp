@@ -92,7 +92,6 @@ namespace {
 
 namespace Engine {
     void ImageCubemapAsset::LoadFromFile(const std::filesystem::path &paths, int width, int height) {
-        stbi_set_flip_vertically_on_load(true);
         int srcW, srcH, channels;
         auto raw_image_data = stbi_load(paths.string().c_str(), &srcW, &srcH, &channels, 4);
         assert(raw_image_data);
@@ -105,7 +104,6 @@ namespace Engine {
 
     void ImageCubemapAsset::LoadFromFile(const std::array<std::filesystem::path, 6> &paths) {
         int width, height, channels;
-        stbi_set_flip_vertically_on_load(true);
         auto first_image = stbi_load(paths[0].string().c_str(), &width, &height, &channels, 4);
         assert(first_image);
         m_width = width;
@@ -119,7 +117,6 @@ namespace Engine {
 
         for (int i = 1; i < 6; i++) {
             int nw, nh, nc;
-            stbi_set_flip_vertically_on_load(true);
             auto image = stbi_load(paths[i].string().c_str(), &nw, &nh, &nc, 4);
             assert(image);
             assert(nw == width && nh == height && nc == channels);
@@ -170,7 +167,6 @@ namespace Engine {
             }
         }
 
-        stbi_flip_vertically_on_write(false);
         stbi_write_png_to_func(
             write_png_to_mem, &data, combined_width, combined_height, m_channel, combined_image.data(), 0
         );
@@ -182,7 +178,6 @@ namespace Engine {
         auto &json = *archive.m_cursor;
         auto &data = archive.m_context->extra_data[json["%extra_data_id"].get<size_t>()];
 
-        stbi_set_flip_vertically_on_load(false);
         int combined_width, combined_height, channel;
         stbi_uc *raw_image_data = stbi_load_from_memory(
             reinterpret_cast<const stbi_uc *>(data.data()), data.size(), &combined_width, &combined_height, &channel, 0

@@ -107,8 +107,8 @@ public:
         for (auto guid : m_material_guids) {
             auto handle = mat_mng.CreateOrReuseFromAsset(guid);
             auto *inst = mat_mng.Resolve(handle);
-            inst->AssignScalarVariable("Material::metalness_scale", metalness);
-            inst->AssignScalarVariable("Material::roughness_scale", roughness);
+            inst->AssignScalarVariable("Material::metalnessFactor", metalness);
+            inst->AssignScalarVariable("Material::roughnessFactor", roughness);
         }
     }
 };

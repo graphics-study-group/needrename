@@ -240,8 +240,8 @@ namespace Engine::detail {
                 source_material.Get(AI_MATKEY_METALLIC_FACTOR, metallic_factor);
                 source_material.Get(AI_MATKEY_ROUGHNESS_FACTOR, roughness_factor);
 
-                material_asset->m_properties["metalness_scale"] = metallic_factor;
-                material_asset->m_properties["roughness_scale"] = roughness_factor;
+                material_asset->m_properties["metalnessFactor"] = metallic_factor;
+                material_asset->m_properties["roughnessFactor"] = roughness_factor;
 
                 if (source_material.GetTextureCount(aiTextureType_NORMALS) > 0
                     || source_material.GetTextureCount(aiTextureType_EMISSIVE) > 0

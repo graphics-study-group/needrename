@@ -19,7 +19,6 @@ namespace Engine {
         json["%extra_data_id"] = extra_data_id;
         auto &data = archive.m_context->extra_data[extra_data_id];
 
-        stbi_flip_vertically_on_write(false); // this is a static variable, so we need to reset it every time
         stbi_write_png_to_func(write_png_to_mem, &data, m_width, m_height, m_channel, m_data.data(), 0);
 
         Asset::save_asset_to_archive(archive);
@@ -29,7 +28,6 @@ namespace Engine {
         auto &json = *archive.m_cursor;
         auto &data = archive.m_context->extra_data[json["%extra_data_id"].get<size_t>()];
 
-        stbi_set_flip_vertically_on_load(false); // this is a static variable, so we need to reset it every time
         int width, height, channel;
         stbi_uc *raw_image_data = stbi_load_from_memory(
             reinterpret_cast<const stbi_uc *>(data.data()), data.size(), &width, &height, &channel, 0
@@ -46,7 +44,6 @@ namespace Engine {
 
     void Image2DTextureAsset::LoadFromFile(const std::filesystem::path &path) {
         m_name = path.stem().string();
-        stbi_set_flip_vertically_on_load(true); // this is a static variable, so we need to reset it every time
         stbi_uc *raw_image_data = stbi_load(path.string().c_str(), &m_width, &m_height, &m_channel, 4);
         m_channel = 4; // force RGBA since we set desired channels to 4 in stbi_load
         assert(raw_image_data);
@@ -59,7 +56,6 @@ namespace Engine {
     }
 
     void Image2DTextureAsset::LoadFromMemory(const std::byte *bytes, size_t size) {
-        stbi_set_flip_vertically_on_load(true); // this is a static variable, so we need to reset it every time
         stbi_uc *raw_image_data = stbi_load_from_memory(
             reinterpret_cast<const stbi_uc *>(bytes), static_cast<int>(size), &m_width, &m_height, &m_channel, 4
         );
