@@ -1,5 +1,7 @@
 #include "IndexedBuffer.h"
 
+#include "Render/RenderSystem/AllocatorState.h"
+
 namespace Engine {
 
     struct IndexedBuffer::impl {

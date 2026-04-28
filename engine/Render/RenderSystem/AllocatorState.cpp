@@ -9,7 +9,6 @@
 #include <vulkan/vulkan_hash.hpp>
 
 namespace {
-
     constexpr std::tuple<vk::ImageUsageFlags, VmaMemoryUsage> GetImageFlags(Engine::ImageMemoryType type) {
         using namespace Engine;
         vk::ImageUsageFlags iuf;
@@ -61,6 +60,60 @@ namespace {
             fff |= vk::FormatFeatureFlagBits::eDepthStencilAttachment;
         }
         return fff;
+    }
+
+    bool CheckImageFormatSupport(
+        const Engine::RenderSystemState::AllocatorState::ImageAllocationDescription &desc,
+        const vk::ImageFormatProperties2 &ifp
+    ) {
+        const auto &max_extent = ifp.imageFormatProperties.maxExtent;
+        if (desc.extent.width > max_extent.width || desc.extent.height > max_extent.height
+            || desc.extent.depth > max_extent.depth) {
+            SDL_LogError(
+                SDL_LOG_CATEGORY_RENDER,
+                std::format(
+                    "Image extent exceeded capability: {}x{}x{} > {}x{}x{}",
+                    desc.extent.width,
+                    desc.extent.height,
+                    desc.extent.depth,
+                    max_extent.width,
+                    max_extent.height,
+                    max_extent.depth
+                )
+                    .c_str()
+            );
+            return false;
+        }
+        if (desc.miplevel > ifp.imageFormatProperties.maxMipLevels) {
+            SDL_LogError(
+                SDL_LOG_CATEGORY_RENDER,
+                std::format(
+                    "Image miplevel exceeded capability: {} > {}", desc.miplevel, ifp.imageFormatProperties.maxMipLevels
+                )
+                    .c_str()
+            );
+            return false;
+        }
+        if (desc.array_layers > ifp.imageFormatProperties.maxArrayLayers) {
+            SDL_LogError(
+                SDL_LOG_CATEGORY_RENDER,
+                std::format(
+                    "Image array layer exceeded capability: {} > {}",
+                    desc.array_layers,
+                    ifp.imageFormatProperties.maxArrayLayers
+                )
+                    .c_str()
+            );
+            return false;
+        }
+        if (!(desc.samples & ifp.imageFormatProperties.sampleCounts)) {
+            SDL_LogError(
+                SDL_LOG_CATEGORY_RENDER,
+                std::format("Requested multisample not supported: {}", to_string(desc.samples)).c_str()
+            );
+            return false;
+        }
+        return true;
     }
 } // namespace
 
@@ -240,95 +293,59 @@ namespace Engine::RenderSystemState {
     }
 
     std::unique_ptr<ImageAllocation> AllocatorState::AllocateImageUnique(
-        ImageMemoryType type,
-        vk::ImageType dimension,
-        vk::Extent3D extent,
-        vk::Format format,
-        uint32_t miplevel,
-        uint32_t array_layers,
-        bool is_cube_map,
-        vk::SampleCountFlagBits samples,
-        const std::string &name
+        const ImageAllocationDescription &desc, const std::string &name
     ) const noexcept try {
-        const auto [iusage, musage] = GetImageFlags(type);
-        auto fsupport = pimpl->QueryFormatSupport(m_system.GetDeviceInterface().GetPhysicalDevice(), format, type);
+        return std::make_unique<ImageAllocation>(AllocateImage(desc, name));
+    } catch (std::exception &e) {
+        SDL_LogError(SDL_LOG_CATEGORY_RENDER, e.what());
+        return nullptr;
+    }
+
+    bool AllocatorState::QueryFormatFeatures(vk::Format format, vk::FormatFeatureFlagBits feature) const noexcept {
+        auto ret = pimpl->UpdateFormatSupportInfo(m_system.GetDeviceInterface().GetPhysicalDevice(), format);
+        return static_cast<bool>(vk::FormatFeatureFlags{ret.formatProperties.optimalTilingFeatures & feature});
+    }
+
+    ImageAllocation AllocatorState::AllocateImage(
+        const ImageAllocationDescription &desc, const std::string &name
+    ) const {
+        const auto [iusage, musage] = GetImageFlags(desc.type);
+        auto fsupport =
+            pimpl->QueryFormatSupport(m_system.GetDeviceInterface().GetPhysicalDevice(), desc.format, desc.type);
         if (fsupport.first <= 0) {
             SDL_LogError(
                 SDL_LOG_CATEGORY_RENDER,
                 std::format(
                     "Format {} does not support requested features. We requested: {} but only {} are supported.",
-                    to_string(format),
-                    to_string(GetFormatFeatures(type)),
+                    to_string(desc.format),
+                    to_string(GetFormatFeatures(desc.type)),
                     to_string(fsupport.second)
                 )
                     .c_str()
             );
-            return nullptr;
+            throw std::invalid_argument("Requested format does not support specified features.");
         }
 
         auto ifsupport = pimpl->UpdateImageFormatSupportInfo(
-            m_system.GetDeviceInterface().GetPhysicalDevice(), format, dimension, vk::ImageTiling::eOptimal, iusage
+            m_system.GetDeviceInterface().GetPhysicalDevice(),
+            desc.format,
+            desc.dimension,
+            vk::ImageTiling::eOptimal,
+            iusage
         );
-        const auto &max_extent = ifsupport.imageFormatProperties.maxExtent;
-        if (extent.width > max_extent.width || extent.height > max_extent.height || extent.depth > max_extent.depth) {
-            SDL_LogError(
-                SDL_LOG_CATEGORY_RENDER,
-                std::format(
-                    "Image extent exceeded capability: {}x{}x{} > {}x{}x{}",
-                    extent.width,
-                    extent.height,
-                    extent.depth,
-                    max_extent.width,
-                    max_extent.height,
-                    max_extent.depth
-                )
-                    .c_str()
-            );
-            return nullptr;
-        }
-        if (miplevel > ifsupport.imageFormatProperties.maxMipLevels) {
-            SDL_LogError(
-                SDL_LOG_CATEGORY_RENDER,
-                std::format(
-                    "Image miplevel exceeded capability: {} > {}",
-                    miplevel,
-                    ifsupport.imageFormatProperties.maxMipLevels
-                )
-                    .c_str()
-            );
-            return nullptr;
-        }
-        if (array_layers > ifsupport.imageFormatProperties.maxArrayLayers) {
-            SDL_LogError(
-                SDL_LOG_CATEGORY_RENDER,
-                std::format(
-                    "Image array layer exceeded capability: {} > {}",
-                    array_layers,
-                    ifsupport.imageFormatProperties.maxArrayLayers
-                )
-                    .c_str()
-            );
-            return nullptr;
-        }
-        if (!(samples & ifsupport.imageFormatProperties.sampleCounts)) {
-            SDL_LogError(
-                SDL_LOG_CATEGORY_RENDER,
-                std::format("Requested multisample not supported: {}", to_string(samples)).c_str()
-            );
-            return nullptr;
-        }
+        if (!CheckImageFormatSupport(desc, ifsupport))
+            throw std::invalid_argument("Requested size or multisample count unsupported.");
 
-        // VkImageCreateInfo iinfo {};
         vk::ImageCreateFlags icf{};
-        if (is_cube_map) icf |= vk::ImageCreateFlagBits::eCubeCompatible;
+        if (desc.is_cube_map) icf |= vk::ImageCreateFlagBits::eCubeCompatible;
         vk::ImageCreateInfo iinfo{
             icf,
-            dimension,
-            format,
-            extent,
-            miplevel,
-            array_layers,
-            samples,
+            desc.dimension,
+            desc.format,
+            desc.extent,
+            desc.miplevel,
+            desc.array_layers,
+            desc.samples,
             vk::ImageTiling::eOptimal,
             iusage,
             vk::SharingMode::eExclusive,
@@ -346,30 +363,6 @@ namespace Engine::RenderSystemState {
         VmaAllocation allocation;
         vmaCreateImage(pimpl->m_allocator, &iinfo2, &ainfo, &image, &allocation, nullptr);
         DEBUG_SET_NAME_TEMPLATE(m_system.GetDevice(), static_cast<vk::Image>(image), name);
-        return std::unique_ptr<ImageAllocation>(
-            new ImageAllocation(static_cast<vk::Image>(image), allocation, pimpl->m_allocator, type)
-        );
-    } catch (std::exception &e) {
-        SDL_LogError(SDL_LOG_CATEGORY_RENDER, e.what());
-        return nullptr;
-    }
-
-    bool AllocatorState::QueryFormatFeatures(vk::Format format, vk::FormatFeatureFlagBits feature) const noexcept {
-        auto ret = pimpl->UpdateFormatSupportInfo(m_system.GetDeviceInterface().GetPhysicalDevice(), format);
-        return static_cast<bool>(vk::FormatFeatureFlags{ret.formatProperties.optimalTilingFeatures & feature});
-    }
-
-    ImageAllocation AllocatorState::AllocateImage(
-        ImageMemoryType type,
-        vk::ImageType dimension,
-        vk::Extent3D extent,
-        vk::Format format,
-        uint32_t miplevel,
-        uint32_t array_layers,
-        bool is_cube_map,
-        vk::SampleCountFlagBits samples,
-        const std::string &name
-    ) const {
-        assert(!"Unimplemented");
+        return ImageAllocation(static_cast<vk::Image>(image), allocation, pimpl->m_allocator, desc.type);
     }
 } // namespace Engine::RenderSystemState

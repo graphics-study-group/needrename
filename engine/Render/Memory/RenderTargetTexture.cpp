@@ -1,5 +1,7 @@
 #include "RenderTargetTexture.h"
 
+#include "Render/RenderSystem/AllocatorState.h"
+
 namespace Engine {
     RenderTargetTexture::RenderTargetTexture(
         RenderSystem &system, TextureDesc texture, SamplerDesc sampler, const std::string &name

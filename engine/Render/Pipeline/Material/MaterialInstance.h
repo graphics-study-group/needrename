@@ -15,6 +15,7 @@ namespace Engine {
     class MaterialAsset;
     class MaterialLibrary;
     class VertexAttribute;
+    class TextureSubresourceRange;
 
     /**
      * @brief A light-weight instance of a given material library.
@@ -47,8 +48,11 @@ namespace Engine {
         void AssignScalarVariable(const std::string &name, std::variant<uint32_t, float> value);
         /// @overload void MaterialInstance::AssignScalarVariable(const std::string &name, std::variant<uint32_t, float> value)
         void AssignVectorVariable(const std::string &name, std::variant<glm::vec4, glm::mat4> value);
-        /// @brief Assign Texture reference to a variable.
+        /// @overload void MaterialInstance::AssignTexture()
+        /// Defaults to the full subresource range with no swizzling.
         void AssignTexture(const std::string &name, std::shared_ptr<Texture> texture);
+        /// @brief Assign Texture reference to a variable.
+        void AssignTexture(const std::string &name, std::shared_ptr<Texture> texture, TextureSubresourceRange range);
         /// @brief Assign buffer reference to a variable.
         void AssignBuffer(const std::string &name, std::shared_ptr<const DeviceBuffer> buffer);
 

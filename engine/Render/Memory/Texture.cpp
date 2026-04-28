@@ -2,8 +2,8 @@
 
 #include "Render/Hasher.hpp"
 #include "Render/ImageUtilsFunc.h"
-#include "Render/Memory/AllocatedMemory.h"
 #include "Render/Memory/DeviceBuffer.h"
+#include "Render/Memory/MemoryAllocation.h"
 #include "Render/Memory/TextureSubresourceView.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/AllocatorState.h"
@@ -49,6 +49,62 @@ namespace {
             }
         }
     }
+
+    constexpr vk::ComponentSwizzle ToVkComponentSwizzle(
+        const Engine::TextureSubresourceRange::SwizzleAndSrgb::ColorSwizzle cs
+    ) {
+        switch (cs) {
+            using enum Engine::TextureSubresourceRange::SwizzleAndSrgb::ColorSwizzle;
+        case Identity:
+            return vk::ComponentSwizzle::eIdentity;
+        case Zero:
+            return vk::ComponentSwizzle::eZero;
+        case One:
+            return vk::ComponentSwizzle::eOne;
+        case Red:
+            return vk::ComponentSwizzle::eR;
+        case Green:
+            return vk::ComponentSwizzle::eG;
+        case Blue:
+            return vk::ComponentSwizzle::eB;
+        case Alpha:
+            return vk::ComponentSwizzle::eA;
+        }
+        __builtin_unreachable();
+    }
+
+    constexpr vk::ComponentMapping ToVkComponentMapping(const Engine::TextureSubresourceRange::SwizzleAndSrgb &sas) {
+        return vk::ComponentMapping{
+            ToVkComponentSwizzle(sas.r),
+            ToVkComponentSwizzle(sas.g),
+            ToVkComponentSwizzle(sas.b),
+            ToVkComponentSwizzle(sas.a)
+        };
+    }
+
+    constexpr vk::Format ConvertSrgbFormat(
+        vk::Format original, const Engine::TextureSubresourceRange::SwizzleAndSrgb &sc
+    ) {
+        if (sc.srgb == Engine::TextureSubresourceRange::SwizzleAndSrgb::SrgbConversion::ForceSrgb) {
+            switch (original) {
+                using enum vk::Format;
+            case eR8G8B8A8Unorm:
+                return eR8G8B8A8Srgb;
+            default:
+                return original;
+            }
+        } else if (sc.srgb == Engine::TextureSubresourceRange::SwizzleAndSrgb::SrgbConversion::ForceUnorm) {
+            switch (original) {
+                using enum vk::Format;
+            case eR8G8B8A8Srgb:
+                return eR8G8B8A8Unorm;
+            default:
+                return original;
+            }
+        }
+
+        return original;
+    }
 } // namespace
 
 namespace Engine {
@@ -67,6 +123,7 @@ namespace Engine {
                 h.u32(r.array_layer_size);
                 h.u32(r.mip_level_base);
                 h.u32(r.mip_level_size);
+                h.any(r.swizzle_and_srgb);
                 return h.get();
             };
         };
@@ -101,14 +158,16 @@ namespace Engine {
         auto dim = dimension == 1 ? vk::ImageType::e1D : (dimension == 2 ? vk::ImageType::e2D : vk::ImageType::e3D);
         pimpl->device = system.GetDevice();
         pimpl->m_image = allocator.AllocateImageUnique(
-            texture.memory_type,
-            dim,
-            vk::Extent3D{width, height, depth},
-            ImageUtils::GetVkFormat(texture.format),
-            mipLevels,
-            arrayLayers,
-            texture.is_cube_map,
-            vk::SampleCountFlagBits::e1,
+            RenderSystemState::AllocatorState::ImageAllocationDescription{
+                texture.memory_type,
+                dim,
+                vk::Extent3D{width, height, depth},
+                ImageUtils::GetVkFormat(texture.format),
+                mipLevels,
+                arrayLayers,
+                texture.is_cube_map,
+                vk::SampleCountFlagBits::e1
+            },
             name
         );
         pimpl->m_tdesc = texture;
@@ -149,8 +208,8 @@ namespace Engine {
             vk::ImageViewCreateFlags{},
             pimpl->m_image->GetImage(),
             GetImageViewType(pimpl->m_tdesc, tsv),
-            ImageUtils::GetVkFormat(pimpl->m_tdesc.format),
-            vk::ComponentMapping{},
+            ConvertSrgbFormat(ImageUtils::GetVkFormat(pimpl->m_tdesc.format), tsv.swizzle_and_srgb),
+            ToVkComponentMapping(tsv.swizzle_and_srgb),
             vk::ImageSubresourceRange{
                 ImageUtils::GetVkAspect(pimpl->m_tdesc.format),
                 tsv.mip_level_base,

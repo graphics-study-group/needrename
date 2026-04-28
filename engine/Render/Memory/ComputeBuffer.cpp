@@ -1,5 +1,7 @@
 #include "ComputeBuffer.h"
 
+#include "Render/RenderSystem/AllocatorState.h"
+
 namespace Engine {
 
     ComputeBuffer::ComputeBuffer(BufferAllocation &&alloc, size_t size) : DeviceBuffer(std::move(alloc), size) {

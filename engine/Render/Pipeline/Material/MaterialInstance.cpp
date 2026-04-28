@@ -4,6 +4,7 @@
 #include "Render/Memory/ShaderParameters/ShaderParameterLayout.h"
 #include "Render/Memory/ShaderParameters/ShaderResourceBinding.h"
 #include "Render/Memory/StructuredBufferPlacer.h"
+#include "Render/Memory/TextureSubresourceView.h"
 #include "Render/Pipeline/Material/MaterialLibrary.h"
 #include "Render/Pipeline/PipelineInfo.h"
 #include "Render/Pipeline/PipelineUtils.hpp"
@@ -155,6 +156,13 @@ namespace Engine {
         this->pimpl->p_srb->BindTexture(name, *texture);
     }
 
+    void MaterialInstance::AssignTexture(
+        const std::string &name, std::shared_ptr<Texture> texture, TextureSubresourceRange range
+    ) {
+        this->pimpl->owned_resources[name] = texture;
+        this->pimpl->p_srb->BindTexture(name, *texture, range);
+    }
+
     void MaterialInstance::AssignBuffer(const std::string &name, std::shared_ptr<const DeviceBuffer> buffer) {
         this->pimpl->owned_resources[name] = buffer;
         this->pimpl->p_srb->BindBuffer(name, *buffer);
@@ -285,9 +293,9 @@ namespace Engine {
             }
             case MaterialProperty::Type::CubeTexture: {
                 auto texture_asset = std::any_cast<AssetRef>(p.m_value).as<ImageCubemapAsset>();
-                auto texture = std::shared_ptr<ImageTexture>(
-                    std::move(ImageTexture::CreateUnique(this->m_system, *texture_asset))
-                );
+                auto texture =
+                    std::shared_ptr<ImageTexture>(std::move(ImageTexture::CreateUnique(this->m_system, *texture_asset))
+                    );
                 AssignTexture(prop.first, texture);
                 m_system.GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
                     *texture, texture_asset->GetPixelData(), texture_asset->GetPixelDataSize()

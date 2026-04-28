@@ -1,5 +1,6 @@
 #include "VertexAttribute.h"
 
+#include "Render/RenderSystem/AllocatorState.h"
 #include <vulkan/vulkan.hpp>
 
 namespace {

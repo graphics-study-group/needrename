@@ -1,14 +1,22 @@
-#ifndef RENDER_MEMORY_BUFFER_INCLUDED
-#define RENDER_MEMORY_BUFFER_INCLUDED
+#ifndef RENDER_MEMORY_DEVICEBUFFER_INCLUDED
+#define RENDER_MEMORY_DEVICEBUFFER_INCLUDED
 
 #include <memory>
 
+#include "Render/Memory/MemoryAllocation.h"
 #include "Render/Memory/MemoryTypes.h"
-#include "Render/RenderSystem/AllocatorState.h"
+
+namespace vk {
+    class Buffer;
+}
 
 namespace Engine {
 
     class RenderSystem;
+    class BufferAllocation;
+    namespace RenderSystemState {
+        class AllocatorState;
+    }
 
     /**
      *  @brief A buffer with allocated memory, which could be directly used by the device.
@@ -103,4 +111,4 @@ namespace Engine {
     };
 } // namespace Engine
 
-#endif // RENDER_MEMORY_BUFFER_INCLUDED
+#endif // RENDER_MEMORY_DEVICEBUFFER_INCLUDED
