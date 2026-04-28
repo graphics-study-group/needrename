@@ -1,4 +1,5 @@
 #include "GameObject.h"
+#include <algorithm>
 #include <Framework/component/Component.h>
 #include <Framework/component/TransformComponent/TransformComponent.h>
 #include <Framework/object/GameObject.h>
@@ -28,8 +29,41 @@ namespace Engine {
     }
 
     void GameObject::SetParent(ObjectHandle parent) {
+        GameObject *new_parent_go = nullptr;
+        if (parent.IsValid()) {
+            new_parent_go = m_scene->GetGameObject(parent);
+            if (new_parent_go == nullptr) {
+                return;
+            }
+        }
+
+        // Detach from old parent first to keep parent/children relationship consistent.
+        if (m_parentGameObject.IsValid()) {
+            if (GameObject *old_parent_go = m_scene->GetGameObject(m_parentGameObject)) {
+                auto &old_children = old_parent_go->m_childGameObject;
+                old_children.erase(
+                    std::remove(old_children.begin(), old_children.end(), m_handle),
+                    old_children.end()
+                );
+            }
+        }
+
         m_parentGameObject = parent;
-        m_scene->GetGameObject(parent)->m_childGameObject.push_back(m_handle);
+        if (new_parent_go != nullptr) {
+            // Avoid duplicate child handles when setting the same parent repeatedly.
+            auto &new_children = new_parent_go->m_childGameObject;
+            if (std::find(new_children.begin(), new_children.end(), m_handle) == new_children.end()) {
+                new_children.push_back(m_handle);
+            }
+        }
+    }
+
+    ObjectHandle GameObject::GetParent() const noexcept {
+        return m_parentGameObject;
+    }
+
+    const std::vector<ObjectHandle> &GameObject::GetChildren() const noexcept {
+        return m_childGameObject;
     }
 
     ObjectHandle GameObject::GetHandle() const noexcept {

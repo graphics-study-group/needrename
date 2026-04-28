@@ -6,6 +6,7 @@
 #include <Framework/object/GameObject.h>
 #include <Framework/world/WorldSystem.h>
 #include <Reflection/Type.h>
+#include <algorithm>
 
 namespace Engine {
     Scene::Scene(uint32_t sceneID, bool enable_rendering) : m_sceneID(sceneID), m_enable_rendering(enable_rendering) {
@@ -75,6 +76,25 @@ namespace Engine {
         m_go_add_queue.clear();
         for (auto handle : m_go_remove_queue) {
             auto go_ptr = this->GetGameObject(handle);
+            if (go_ptr == nullptr) {
+                continue;
+            }
+
+            // Remove deleted node from its parent's child list.
+            if (go_ptr->m_parentGameObject.IsValid()) {
+                if (auto *parent_go = this->GetGameObject(go_ptr->m_parentGameObject)) {
+                    auto &children = parent_go->m_childGameObject;
+                    children.erase(std::remove(children.begin(), children.end(), handle), children.end());
+                }
+            }
+
+            // Promote direct children to roots when parent is removed.
+            for (auto child_handle : go_ptr->m_childGameObject) {
+                if (auto *child_go = this->GetGameObject(child_handle)) {
+                    child_go->m_parentGameObject.Reset();
+                }
+            }
+
             for (auto comp : go_ptr->m_components) {
                 this->RemoveComponent(comp);
             }
