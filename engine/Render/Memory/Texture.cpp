@@ -49,6 +49,58 @@ namespace {
             }
         }
     }
+
+    constexpr vk::ComponentSwizzle ToVkComponentSwizzle(const Engine::TextureSubresourceRange::SwizzleAndSrgb::ColorSwizzle cs) {
+        switch(cs) {
+        using enum Engine::TextureSubresourceRange::SwizzleAndSrgb::ColorSwizzle;
+        case Identity:
+            return vk::ComponentSwizzle::eIdentity;
+        case Zero:
+            return vk::ComponentSwizzle::eZero;
+        case One:
+            return vk::ComponentSwizzle::eOne;
+        case Red:
+            return vk::ComponentSwizzle::eR;
+        case Green:
+            return vk::ComponentSwizzle::eG;
+        case Blue:
+            return vk::ComponentSwizzle::eB;
+        case Alpha:
+            return vk::ComponentSwizzle::eA;
+        }
+        __builtin_unreachable();
+    }
+
+    constexpr vk::ComponentMapping ToVkComponentMapping(const Engine::TextureSubresourceRange::SwizzleAndSrgb & sas) {
+        return vk::ComponentMapping{
+            ToVkComponentSwizzle(sas.r),
+            ToVkComponentSwizzle(sas.g),
+            ToVkComponentSwizzle(sas.b),
+            ToVkComponentSwizzle(sas.a)
+        };
+    }
+
+    constexpr vk::Format ConvertSrgbFormat(vk::Format original, const Engine::TextureSubresourceRange::SwizzleAndSrgb & sc) {
+        if (sc.srgb == Engine::TextureSubresourceRange::SwizzleAndSrgb::SrgbConversion::ForceSrgb) {
+            switch(original) {
+                using enum vk::Format;
+            case eR8G8B8A8Unorm:
+                return eR8G8B8A8Srgb;
+            default:
+                return original;
+            }
+        } else if (sc.srgb == Engine::TextureSubresourceRange::SwizzleAndSrgb::SrgbConversion::ForceUnorm) {
+            switch(original) {
+                using enum vk::Format;
+            case eR8G8B8A8Srgb:
+                return eR8G8B8A8Unorm;
+            default:
+                return original;
+            }
+        }
+
+        return original;
+    }
 } // namespace
 
 namespace Engine {
@@ -67,6 +119,7 @@ namespace Engine {
                 h.u32(r.array_layer_size);
                 h.u32(r.mip_level_base);
                 h.u32(r.mip_level_size);
+                h.any(r.swizzle_and_srgb);
                 return h.get();
             };
         };
@@ -151,8 +204,8 @@ namespace Engine {
             vk::ImageViewCreateFlags{},
             pimpl->m_image->GetImage(),
             GetImageViewType(pimpl->m_tdesc, tsv),
-            ImageUtils::GetVkFormat(pimpl->m_tdesc.format),
-            vk::ComponentMapping{},
+            ConvertSrgbFormat(ImageUtils::GetVkFormat(pimpl->m_tdesc.format), tsv.swizzle_and_srgb),
+            ToVkComponentMapping(tsv.swizzle_and_srgb),
             vk::ImageSubresourceRange{
                 ImageUtils::GetVkAspect(pimpl->m_tdesc.format),
                 tsv.mip_level_base,
