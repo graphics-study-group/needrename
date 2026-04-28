@@ -2,7 +2,6 @@
 #define RENDER_MEMORY_MEMORYALLOCATION_INCLUDED
 
 #include "MemoryTypes.h"
-#include <variant>
 
 class VmaAllocation_T;
 class VmaAllocator_T;

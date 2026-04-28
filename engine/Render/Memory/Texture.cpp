@@ -101,14 +101,16 @@ namespace Engine {
         auto dim = dimension == 1 ? vk::ImageType::e1D : (dimension == 2 ? vk::ImageType::e2D : vk::ImageType::e3D);
         pimpl->device = system.GetDevice();
         pimpl->m_image = allocator.AllocateImageUnique(
-            texture.memory_type,
-            dim,
-            vk::Extent3D{width, height, depth},
-            ImageUtils::GetVkFormat(texture.format),
-            mipLevels,
-            arrayLayers,
-            texture.is_cube_map,
-            vk::SampleCountFlagBits::e1,
+            RenderSystemState::AllocatorState::ImageAllocationDescription{
+                texture.memory_type,
+                dim,
+                vk::Extent3D{width, height, depth},
+                ImageUtils::GetVkFormat(texture.format),
+                mipLevels,
+                arrayLayers,
+                texture.is_cube_map,
+                vk::SampleCountFlagBits::e1
+            },
             name
         );
         pimpl->m_tdesc = texture;
