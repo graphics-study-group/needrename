@@ -9,12 +9,9 @@
 namespace Engine::Importer {
     void ImportExternalResource(std::filesystem::path resourcePath, std::filesystem::path path_in_project) {
         std::string extension = resourcePath.extension().string();
-        std::transform(
-            extension.begin(),
-            extension.end(),
-            extension.begin(),
-            [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); }
-        );
+        std::transform(extension.begin(), extension.end(), extension.begin(), [](unsigned char ch) {
+            return static_cast<char>(std::tolower(ch));
+        });
         if (extension == ".obj") {
             auto loader = std::make_unique<ObjLoader>();
             loader->LoadObjResource(resourcePath, path_in_project);

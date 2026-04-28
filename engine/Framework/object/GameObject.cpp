@@ -1,10 +1,11 @@
 #include "GameObject.h"
-#include <algorithm>
 #include <Framework/component/Component.h>
 #include <Framework/component/TransformComponent/TransformComponent.h>
 #include <Framework/object/GameObject.h>
 #include <Framework/world/Scene.h>
 #include <MainClass.h>
+
+#include <algorithm>
 
 namespace Engine {
     GameObject::GameObject(Scene *scene) : m_scene(scene) {
@@ -41,10 +42,7 @@ namespace Engine {
         if (m_parentGameObject.IsValid()) {
             if (GameObject *old_parent_go = m_scene->GetGameObject(m_parentGameObject)) {
                 auto &old_children = old_parent_go->m_childGameObject;
-                old_children.erase(
-                    std::remove(old_children.begin(), old_children.end(), m_handle),
-                    old_children.end()
-                );
+                old_children.erase(std::remove(old_children.begin(), old_children.end(), m_handle), old_children.end());
             }
         }
 
