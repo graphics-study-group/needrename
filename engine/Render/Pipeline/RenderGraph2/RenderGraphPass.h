@@ -1,5 +1,5 @@
-#ifndef PIPELINE_RENDERGRAPH2_RENDERGRAPHPASS
-#define PIPELINE_RENDERGRAPH2_RENDERGRAPHPASS
+#ifndef PIPELINE_RENDERGRAPH2_RENDERGRAPHPASS_INCLUDED
+#define PIPELINE_RENDERGRAPH2_RENDERGRAPHPASS_INCLUDED
 
 #include <functional>
 #include <unordered_map>
@@ -141,9 +141,16 @@ namespace Engine {
         /**
          * @brief Append a new color attachment.
          *
+         * Swizzle of the subresource view will be set to identity.
+         * sRGB colorspace conversion is respected.
+         *
          * This attachment will be automatically marked for read and write.
          */
         RenderGraphPassBuilder &AppendColorAttachment(RGAttachmentDesc2 attachment) noexcept {
+            attachment.range.swizzle_and_srgb.r = TextureSubresourceRange::SwizzleAndSrgb::ColorSwizzle::Identity;
+            attachment.range.swizzle_and_srgb.g = TextureSubresourceRange::SwizzleAndSrgb::ColorSwizzle::Identity;
+            attachment.range.swizzle_and_srgb.b = TextureSubresourceRange::SwizzleAndSrgb::ColorSwizzle::Identity;
+            attachment.range.swizzle_and_srgb.a = TextureSubresourceRange::SwizzleAndSrgb::ColorSwizzle::Identity;
             pass.color_attachments.push_back(attachment);
             pass.image_access[attachment.rt_handle] = MemoryAccessTypeImageBits::ColorAttachmentDefault;
             return *this;
@@ -152,9 +159,16 @@ namespace Engine {
         /**
          * @brief Set depth stencil attachment.
          *
+         * Swizzle of the subresource view will be set to identity.
+         * sRGB colorspace conversion is respected.
+         *
          * This attachment will be automatically marked for read and write.
          */
         RenderGraphPassBuilder &SetDepthStencilAttachment(RGAttachmentDesc2 attachment) noexcept {
+            attachment.range.swizzle_and_srgb.r = TextureSubresourceRange::SwizzleAndSrgb::ColorSwizzle::Identity;
+            attachment.range.swizzle_and_srgb.g = TextureSubresourceRange::SwizzleAndSrgb::ColorSwizzle::Identity;
+            attachment.range.swizzle_and_srgb.b = TextureSubresourceRange::SwizzleAndSrgb::ColorSwizzle::Identity;
+            attachment.range.swizzle_and_srgb.a = TextureSubresourceRange::SwizzleAndSrgb::ColorSwizzle::Identity;
             pass.depth_attachment = attachment;
             pass.image_access[attachment.rt_handle] = MemoryAccessTypeImageBits::DepthStencilAttachmentDefault;
             return *this;
@@ -179,4 +193,4 @@ namespace Engine {
     };
 } // namespace Engine
 
-#endif // PIPELINE_RENDERGRAPH2_RENDERGRAPHPASS
+#endif // PIPELINE_RENDERGRAPH2_RENDERGRAPHPASS_INCLUDED

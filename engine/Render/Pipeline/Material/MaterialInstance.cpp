@@ -4,6 +4,7 @@
 #include "Render/Memory/ShaderParameters/ShaderParameterLayout.h"
 #include "Render/Memory/ShaderParameters/ShaderResourceBinding.h"
 #include "Render/Memory/StructuredBufferPlacer.h"
+#include "Render/Memory/TextureSubresourceView.h"
 #include "Render/Pipeline/Material/MaterialLibrary.h"
 #include "Render/Pipeline/PipelineInfo.h"
 #include "Render/Pipeline/PipelineUtils.hpp"
@@ -153,6 +154,13 @@ namespace Engine {
     void MaterialInstance::AssignTexture(const std::string &name, std::shared_ptr<Texture> texture) {
         this->pimpl->owned_resources[name] = texture;
         this->pimpl->p_srb->BindTexture(name, *texture);
+    }
+
+    void MaterialInstance::AssignTexture(
+        const std::string &name, std::shared_ptr<Texture> texture, TextureSubresourceRange range
+    ) {
+        this->pimpl->owned_resources[name] = texture;
+        this->pimpl->p_srb->BindTexture(name, *texture, range);
     }
 
     void MaterialInstance::AssignBuffer(const std::string &name, std::shared_ptr<const DeviceBuffer> buffer) {

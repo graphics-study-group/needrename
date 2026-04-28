@@ -29,6 +29,9 @@ namespace Engine {
      * - hash map mapping names to textures or buffers;
      * - descriptor set, cached to avoid additional writes.
      *
+     * As indicated by the interface, this class holds no ownership of
+     * resources.
+     *
      * As per Vulkan best practice, descriptor sets are not de-allocated. So
      * changes to descriptor sets (i.e. resetting texture or buffer references)
      * can lead to memory leak if too frequent.
