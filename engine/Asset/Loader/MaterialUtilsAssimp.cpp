@@ -92,6 +92,10 @@ namespace Engine::detail {
             db.GetNewAssetRef(AssetPath(db, std::filesystem::path("~/textures/dark_grey.asset")));
         const AssetRef default_pbr_mrao =
             db.GetNewAssetRef(AssetPath(db, std::filesystem::path("~/textures/white.asset")));
+        const AssetRef default_pbr_normal =
+            db.GetNewAssetRef(AssetPath(db, std::filesystem::path("~/textures/green.asset")));
+        const AssetRef default_pbr_emissive =
+            db.GetNewAssetRef(AssetPath(db, std::filesystem::path("~/textures/white.asset")));
         output.default_blinn_material = default_blinn_material;
 
         // Iterate material slots referenced by imported submeshes and build each material once.
@@ -240,16 +244,36 @@ namespace Engine::detail {
                 source_material.Get(AI_MATKEY_METALLIC_FACTOR, metallic_factor);
                 source_material.Get(AI_MATKEY_ROUGHNESS_FACTOR, roughness_factor);
 
-                material_asset->m_properties["metalnessFactor"] = metallic_factor;
-                material_asset->m_properties["roughnessFactor"] = roughness_factor;
+                material_asset->m_properties["metalness_scale"] = metallic_factor;
+                material_asset->m_properties["roughness_scale"] = roughness_factor;
 
-                if (source_material.GetTextureCount(aiTextureType_NORMALS) > 0
-                    || source_material.GetTextureCount(aiTextureType_EMISSIVE) > 0
-                    || source_material.GetTextureCount(aiTextureType_OPACITY) > 0
+                MaterialProperty normal_prop;
+                const bool has_normal = try_load_texture_ref(aiTextureType_NORMALS, normal_prop)
+                                        || try_load_texture_ref(aiTextureType_HEIGHT, normal_prop);
+                material_asset->m_properties["normalSampler"] =
+                    has_normal ? normal_prop : MaterialProperty(default_pbr_normal, MaterialProperty::Type::Texture);
+
+                float normal_scale = 1.0f;
+                source_material.Get(AI_MATKEY_BUMPSCALING, normal_scale);
+                material_asset->m_properties["normalScale"] = normal_scale;
+
+                MaterialProperty emissive_prop;
+                const bool has_emissive = try_load_texture_ref(aiTextureType_EMISSIVE, emissive_prop);
+                material_asset->m_properties["emissiveSampler"] =
+                    has_emissive ? emissive_prop
+                                 : MaterialProperty(default_pbr_emissive, MaterialProperty::Type::Texture);
+
+                aiColor4D emissive_color(1.0f, 1.0f, 1.0f, 1.0f);
+                source_material.Get(AI_MATKEY_COLOR_EMISSIVE, emissive_color);
+                material_asset->m_properties["emissiveFactor"] =
+                    has_emissive ? glm::vec4{emissive_color.r, emissive_color.g, emissive_color.b, 1.0f}
+                                 : glm::vec4{0.0f, 0.0f, 0.0f, 1.0f};
+
+                if (source_material.GetTextureCount(aiTextureType_OPACITY) > 0
                     || source_material.GetTextureCount(aiTextureType_HEIGHT) > 0) {
                     SDL_LogWarn(
                         SDL_LOG_CATEGORY_APPLICATION,
-                        "Material %s contains textures beyond current PBR support (normal/emissive/opacity/height).",
+                        "Material %s contains textures beyond current PBR support (opacity/height).",
                         material_asset->m_name.c_str()
                     );
                 }
