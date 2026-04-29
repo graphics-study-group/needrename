@@ -93,7 +93,7 @@ namespace Engine::detail {
         const AssetRef default_pbr_mrao =
             db.GetNewAssetRef(AssetPath(db, std::filesystem::path("~/textures/white.asset")));
         const AssetRef default_pbr_normal =
-            db.GetNewAssetRef(AssetPath(db, std::filesystem::path("~/textures/green.asset")));
+            db.GetNewAssetRef(AssetPath(db, std::filesystem::path("~/textures/blue.asset")));
         const AssetRef default_pbr_emissive =
             db.GetNewAssetRef(AssetPath(db, std::filesystem::path("~/textures/white.asset")));
         output.default_blinn_material = default_blinn_material;

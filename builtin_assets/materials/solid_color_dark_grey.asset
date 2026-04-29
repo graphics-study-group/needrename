@@ -17,7 +17,7 @@
                 "m_type": "Texture",
                 "m_value": "94217893-712f-43e7-a20b-598fd3a90c0c"
             },
-            "normalSampler": {
+            "emissiveSampler": {
                 "m_type": "Texture",
                 "m_value": "24EF50B82AB1DC9793F60A50DBE77719"
             },
