@@ -62,5 +62,22 @@ target_include_directories(
     "${THIRD_PARTY_DIR}/imgui/backends/"
 )
 
+set(KTX_FEATURE_DOC OFF CACHE BOOL "Disable libktx docs" FORCE)
+set(KTX_FEATURE_JNI OFF CACHE BOOL "Disable libktx JNI" FORCE)
+set(KTX_FEATURE_PY OFF CACHE BOOL "Disable libktx python" FORCE)
+set(KTX_FEATURE_TESTS OFF CACHE BOOL "Disable libktx tests" FORCE)
+set(KTX_FEATURE_TOOLS OFF CACHE BOOL "Disable libktx tools" FORCE)
+set(KTX_FEATURE_LOADTEST_APPS OFF CACHE STRING "Disable libktx load test apps" FORCE)
+set(LIBKTX_VERSION_FULL ON CACHE BOOL "Enable full libktx" FORCE)
+set(LIBKTX_VERSION_READ_ONLY OFF CACHE BOOL "Disable read-only libktx" FORCE)
+set(_OLD_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
+set(BUILD_SHARED_LIBS OFF)
+add_subdirectory(libktx EXCLUDE_FROM_ALL)
+set(BUILD_SHARED_LIBS ${_OLD_BUILD_SHARED_LIBS})
+unset(_OLD_BUILD_SHARED_LIBS)
+if(TARGET ktx)
+    set_target_properties(ktx PROPERTIES FOLDER third_party)
+endif()
+
 set(ENABLE_OPT OFF CACHE BOOL "Enable optimizations" FORCE)
 add_subdirectory(glslang EXCLUDE_FROM_ALL SYSTEM)

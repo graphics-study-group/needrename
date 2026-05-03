@@ -1,12 +1,18 @@
 #include "ImageCubemapAsset.h"
 
+#include <Render/ImageUtilsFunc.h>
+#include <SDL3/SDL_log.h>
+#include <algorithm>
 #include <array>
 #include <assert.h>
+#include <cstdlib>
 #include <cstring>
 #include <glm.hpp>
+#include <ktx.h>
 #include <numbers>
 #include <stb_image.h>
-#include <stb_image_write.h>
+
+#include <memory>
 
 #include <Reflection/serialization.h>
 
@@ -82,12 +88,6 @@ namespace {
             std::memcpy(&out[face * faceSize * faceSize * channels], dst.data(), dst.size());
         }
     }
-    void write_png_to_mem(void *context, void *data, int size) {
-        auto &extra_data = *reinterpret_cast<std::vector<std::byte> *>(context);
-        extra_data.insert(
-            extra_data.end(), reinterpret_cast<std::byte *>(data), reinterpret_cast<std::byte *>(data) + size
-        );
-    }
 } // namespace
 
 namespace Engine {
@@ -134,42 +134,49 @@ namespace Engine {
 
     void ImageCubemapAsset::save_asset_to_archive(Serialization::Archive &archive) const {
         auto &json = *archive.m_cursor;
-        size_t extra_data_id = archive.create_new_extra_data_buffer(".png");
+        size_t extra_data_id = archive.create_new_extra_data_buffer(".ktx2");
         json["%extra_data_id"] = extra_data_id;
         auto &data = archive.m_context->extra_data[extra_data_id];
 
-        // Create a 3x2 layout image from 6 cubemap faces
-        int combined_width = m_width * 3;
-        int combined_height = m_height * 2;
-        std::vector<std::byte> combined_image(combined_width * combined_height * m_channel);
+        ktxTextureCreateInfo create_info{};
+        create_info.vkFormat =
+            static_cast<ktx_uint32_t>(ImageUtils::GetVkFormat(ImageUtils::ImageFormat::R8G8B8A8SRGB));
+        create_info.baseWidth = static_cast<ktx_uint32_t>(m_width);
+        create_info.baseHeight = static_cast<ktx_uint32_t>(m_height);
+        create_info.baseDepth = 1;
+        create_info.numDimensions = 2;
+        create_info.numLevels = 1;
+        create_info.numLayers = 1;
+        create_info.numFaces = 6;
+        create_info.isArray = KTX_FALSE;
+        create_info.generateMipmaps = KTX_FALSE;
 
-        // Face layout:
-        // [0] [1] [2]
-        // [3] [4] [5]
-        const int faces[6][2] = {{0, 0}, {1, 0}, {2, 0}, {0, 1}, {1, 1}, {2, 1}};
+        ktxTexture2 *texture = nullptr;
+        const auto create_error = ktxTexture2_Create(&create_info, KTX_TEXTURE_CREATE_ALLOC_STORAGE, &texture);
+        assert(create_error == KTX_SUCCESS && texture != nullptr);
+        std::unique_ptr<ktxTexture2, void (*)(ktxTexture2 *)> texture_guard(texture, ktxTexture2_Destroy);
 
+        const size_t face_data_size = m_data.size() / 6;
         for (int face = 0; face < 6; ++face) {
-            int grid_x = faces[face][0];
-            int grid_y = faces[face][1];
-
-            const std::byte *src_face = m_data.data() + face * m_width * m_height * m_channel;
-
-            for (int y = 0; y < m_height; ++y) {
-                for (int x = 0; x < m_width; ++x) {
-                    int dst_x = grid_x * m_width + x;
-                    int dst_y = grid_y * m_height + y;
-
-                    int src_idx = (y * m_width + x) * m_channel;
-                    int dst_idx = (dst_y * combined_width + dst_x) * m_channel;
-
-                    std::memcpy(combined_image.data() + dst_idx, src_face + src_idx, m_channel);
-                }
-            }
+            const auto set_image_error = ktxTexture_SetImageFromMemory(
+                ktxTexture(texture),
+                0,
+                0,
+                static_cast<ktx_uint32_t>(face),
+                reinterpret_cast<const ktx_uint8_t *>(m_data.data() + face * face_data_size),
+                static_cast<ktx_size_t>(face_data_size)
+            );
+            assert(set_image_error == KTX_SUCCESS);
         }
 
-        stbi_write_png_to_func(
-            write_png_to_mem, &data, combined_width, combined_height, m_channel, combined_image.data(), 0
-        );
+        ktx_uint8_t *raw_ktx_data = nullptr;
+        ktx_size_t raw_ktx_size = 0;
+        const auto write_error = ktxTexture_WriteToMemory(ktxTexture(texture), &raw_ktx_data, &raw_ktx_size);
+        assert(write_error == KTX_SUCCESS && raw_ktx_data != nullptr);
+
+        data.resize(static_cast<size_t>(raw_ktx_size));
+        std::memcpy(data.data(), raw_ktx_data, static_cast<size_t>(raw_ktx_size));
+        std::free(raw_ktx_data);
 
         TextureAsset::save_asset_to_archive(archive);
     }
@@ -178,46 +185,47 @@ namespace Engine {
         auto &json = *archive.m_cursor;
         auto &data = archive.m_context->extra_data[json["%extra_data_id"].get<size_t>()];
 
-        int combined_width, combined_height, channel;
-        stbi_uc *raw_image_data = stbi_load_from_memory(
-            reinterpret_cast<const stbi_uc *>(data.data()), data.size(), &combined_width, &combined_height, &channel, 0
+        ktxTexture2 *texture = nullptr;
+        const auto create_error = ktxTexture2_CreateFromMemory(
+            reinterpret_cast<const ktx_uint8_t *>(data.data()),
+            static_cast<ktx_size_t>(data.size()),
+            KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT,
+            &texture
         );
-        assert(raw_image_data);
+        assert(create_error == KTX_SUCCESS && texture != nullptr);
+        std::unique_ptr<ktxTexture2, void (*)(ktxTexture2 *)> texture_guard(texture, ktxTexture2_Destroy);
 
-        // Extract 6 cubemap faces from 3x2 layout image
-        int face_width = combined_width / 3;
-        int face_height = combined_height / 2;
-
-        m_width = face_width;
-        m_height = face_height;
-        m_channel = channel;
-
-        m_data.resize(face_width * face_height * channel * 6);
-
-        const int faces[6][2] = {{0, 0}, {1, 0}, {2, 0}, {0, 1}, {1, 1}, {2, 1}};
-
-        for (int face = 0; face < 6; ++face) {
-            int grid_x = faces[face][0];
-            int grid_y = faces[face][1];
-
-            std::byte *dst_face = m_data.data() + face * face_width * face_height * channel;
-
-            for (int y = 0; y < face_height; ++y) {
-                for (int x = 0; x < face_width; ++x) {
-                    int src_x = grid_x * face_width + x;
-                    int src_y = grid_y * face_height + y;
-
-                    int src_idx = (src_y * combined_width + src_x) * channel;
-                    int dst_idx = (y * face_width + x) * channel;
-
-                    std::memcpy(
-                        dst_face + dst_idx, reinterpret_cast<const std::byte *>(raw_image_data) + src_idx, channel
-                    );
-                }
+        if (ktxTexture2_NeedsTranscoding(texture)) {
+            auto transcode_error = ktxTexture2_TranscodeBasis(texture, KTX_TTF_RGBA32, 0);
+            if (transcode_error != KTX_SUCCESS) {
+                SDL_LogWarn(
+                    SDL_LOG_CATEGORY_APPLICATION, "Cubemap transcode failed (%s).", ktxErrorString(transcode_error)
+                );
             }
+            assert(transcode_error == KTX_SUCCESS);
         }
 
-        stbi_image_free(raw_image_data);
+        assert(texture->numFaces == 6 && "KTX cubemap must have six faces.");
+        m_width = static_cast<int>(texture->baseWidth);
+        m_height = static_cast<int>(texture->baseHeight);
+        m_channel = static_cast<int>(std::max(1u, ktxTexture2_GetNumComponents(texture)));
+
+        const ktx_size_t image_size = ktxTexture_GetImageSize(ktxTexture(texture), 0);
+        const ktx_uint8_t *raw_ktx_data = ktxTexture_GetData(ktxTexture(texture));
+        m_data.resize(static_cast<size_t>(image_size) * 6);
+
+        for (int face = 0; face < 6; ++face) {
+            ktx_size_t image_offset = 0;
+            const auto offset_error =
+                ktxTexture_GetImageOffset(ktxTexture(texture), 0, 0, static_cast<ktx_uint32_t>(face), &image_offset);
+            assert(offset_error == KTX_SUCCESS);
+
+            std::memcpy(
+                m_data.data() + static_cast<size_t>(face) * static_cast<size_t>(image_size),
+                raw_ktx_data + image_offset,
+                static_cast<size_t>(image_size)
+            );
+        }
 
         TextureAsset::load_asset_from_archive(archive);
     }

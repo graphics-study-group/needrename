@@ -50,8 +50,11 @@ namespace Engine {
          * be uncompressed first via the `stbi_image` library.
          *
          * @param path Path of the image.
+         * @param format Desired image format. Usually a color texture should be loaded as sRGB format. A texture used for data storage (e.g. G-buffer) should be loaded as UNorm format.
          */
-        void LoadFromFile(const std::filesystem::path &path);
+        void LoadFromFile(
+            const std::filesystem::path &path, ImageUtils::ImageFormat format = ImageUtils::ImageFormat::R8G8B8A8SRGB
+        );
 
         /**
          * @brief Load the asset from encoded image bytes in memory.
@@ -60,8 +63,11 @@ namespace Engine {
          *
          * @param bytes Pointer to encoded image bytes.
          * @param size Byte size of encoded image content.
+         * @param format Desired image format. Usually a color texture should be loaded as sRGB format. A texture used for data storage (e.g. G-buffer) should be loaded as UNorm format.
          */
-        void LoadFromMemory(const std::byte *bytes, size_t size);
+        void LoadFromMemory(
+            const std::byte *bytes, size_t size, ImageUtils::ImageFormat format = ImageUtils::ImageFormat::R8G8B8A8SRGB
+        );
 
         /// @brief Get pixel data.
         const std::byte *GetPixelData() const;

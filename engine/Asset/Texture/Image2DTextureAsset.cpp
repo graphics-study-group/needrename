@@ -1,25 +1,124 @@
 #include "Image2DTextureAsset.h"
+
 #include <Reflection/serialization.h>
+#include <Render/ImageUtilsFunc.h>
+#include <SDL3/SDL_log.h>
+#include <ktx.h>
 #include <stb_image.h>
-#include <stb_image_write.h>
+
+#include <algorithm>
+#include <cstdlib>
+#include <cstring>
+#include <memory>
+#include <thread>
 
 namespace {
-    void write_png_to_mem(void *context, void *data, int size) {
-        auto &extra_data = *reinterpret_cast<std::vector<std::byte> *>(context);
-        extra_data.insert(
-            extra_data.end(), reinterpret_cast<std::byte *>(data), reinterpret_cast<std::byte *>(data) + size
-        );
+    constexpr bool CanCompressToBc7(Engine::ImageUtils::ImageFormat format) {
+        return format == Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm
+               || format == Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB;
+    }
+
+    Engine::ImageUtils::ImageFormat FromVkFormat(vk::Format format) {
+        switch (format) {
+        case vk::Format::eR8G8B8A8Snorm:
+            return Engine::ImageUtils::ImageFormat::R8G8B8A8SNorm;
+        case vk::Format::eR8G8B8A8Unorm:
+            return Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm;
+        case vk::Format::eR8G8B8A8Srgb:
+            return Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB;
+        case vk::Format::eBc7UnormBlock:
+            return Engine::ImageUtils::ImageFormat::BC7UNorm;
+        case vk::Format::eBc7SrgbBlock:
+            return Engine::ImageUtils::ImageFormat::BC7SRGB;
+        case vk::Format::eB10G11R11UfloatPack32:
+            return Engine::ImageUtils::ImageFormat::R11G11B10UFloat;
+        case vk::Format::eR32G32B32A32Sfloat:
+            return Engine::ImageUtils::ImageFormat::R32G32B32A32SFloat;
+        case vk::Format::eD32Sfloat:
+            return Engine::ImageUtils::ImageFormat::D32SFLOAT;
+        default:
+            return Engine::ImageUtils::ImageFormat::UNDEFINED;
+        }
+    }
+
+    void TryCompressTextureToBc7(ktxTexture2 *texture) {
+        ktxBasisParams params{};
+        params.structSize = sizeof(params);
+        params.codec = KTX_BASIS_CODEC_UASTC_LDR_4x4;
+        params.uastcFlags = static_cast<ktx_pack_uastc_flags>(KTX_PACK_UASTC_LEVEL_DEFAULT);
+        params.uastcRDO = KTX_TRUE;
+        params.threadCount = std::max(1u, std::thread::hardware_concurrency());
+
+        const auto compress_error = ktxTexture2_CompressBasisEx(texture, &params);
+        if (compress_error != KTX_SUCCESS) {
+            SDL_LogWarn(
+                SDL_LOG_CATEGORY_APPLICATION,
+                "ktxTexture2_CompressBasisEx failed (%s). Falling back to uncompressed KTX2.",
+                ktxErrorString(compress_error)
+            );
+            return;
+        }
+
+        const auto transcode_error = ktxTexture2_TranscodeBasis(texture, KTX_TTF_BC7_RGBA, KTX_TF_HIGH_QUALITY);
+        if (transcode_error != KTX_SUCCESS) {
+            SDL_LogWarn(
+                SDL_LOG_CATEGORY_APPLICATION,
+                "ktxTexture2_TranscodeBasis failed (%s). Falling back to uncompressed KTX2.",
+                ktxErrorString(transcode_error)
+            );
+        }
     }
 } // namespace
 
 namespace Engine {
     void Image2DTextureAsset::save_asset_to_archive(Serialization::Archive &archive) const {
         auto &json = *archive.m_cursor;
-        size_t extra_data_id = archive.create_new_extra_data_buffer(".png");
+        size_t extra_data_id = archive.create_new_extra_data_buffer(".ktx2");
         json["%extra_data_id"] = extra_data_id;
         auto &data = archive.m_context->extra_data[extra_data_id];
 
-        stbi_write_png_to_func(write_png_to_mem, &data, m_width, m_height, m_channel, m_data.data(), 0);
+        const vk::Format vk_format = ImageUtils::GetVkFormat(m_format);
+        assert(vk_format != vk::Format::eUndefined);
+
+        ktxTextureCreateInfo create_info{};
+        create_info.vkFormat = static_cast<ktx_uint32_t>(vk_format);
+        create_info.baseWidth = static_cast<ktx_uint32_t>(m_width);
+        create_info.baseHeight = static_cast<ktx_uint32_t>(m_height);
+        create_info.baseDepth = 1;
+        create_info.numDimensions = 2;
+        create_info.numLevels = 1;
+        create_info.numLayers = 1;
+        create_info.numFaces = 1;
+        create_info.isArray = KTX_FALSE;
+        create_info.generateMipmaps = KTX_FALSE;
+
+        ktxTexture2 *texture = nullptr;
+        const auto create_error = ktxTexture2_Create(&create_info, KTX_TEXTURE_CREATE_ALLOC_STORAGE, &texture);
+        assert(create_error == KTX_SUCCESS && texture != nullptr);
+        std::unique_ptr<ktxTexture2, void (*)(ktxTexture2 *)> texture_guard(texture, ktxTexture2_Destroy);
+
+        const auto set_image_error = ktxTexture_SetImageFromMemory(
+            ktxTexture(texture),
+            0,
+            0,
+            0,
+            reinterpret_cast<const ktx_uint8_t *>(m_data.data()),
+            static_cast<ktx_size_t>(m_data.size())
+        );
+        assert(set_image_error == KTX_SUCCESS);
+
+        // if (CanCompressToBc7(m_format)) {
+        //     TryCompressTextureToBc7(texture);
+        // }
+
+        ktx_uint8_t *raw_ktx_data = nullptr;
+        ktx_size_t raw_ktx_size = 0;
+        const auto write_error = ktxTexture_WriteToMemory(ktxTexture(texture), &raw_ktx_data, &raw_ktx_size);
+        assert(write_error == KTX_SUCCESS && raw_ktx_data != nullptr);
+
+        data.resize(static_cast<size_t>(raw_ktx_size));
+        std::memcpy(data.data(), raw_ktx_data, static_cast<size_t>(raw_ktx_size));
+        std::free(raw_ktx_data);
 
         Asset::save_asset_to_archive(archive);
     }
@@ -28,21 +127,56 @@ namespace Engine {
         auto &json = *archive.m_cursor;
         auto &data = archive.m_context->extra_data[json["%extra_data_id"].get<size_t>()];
 
-        int width, height, channel;
-        stbi_uc *raw_image_data = stbi_load_from_memory(
-            reinterpret_cast<const stbi_uc *>(data.data()), data.size(), &width, &height, &channel, 0
+        ktxTexture2 *texture = nullptr;
+        const auto create_error = ktxTexture2_CreateFromMemory(
+            reinterpret_cast<const ktx_uint8_t *>(data.data()),
+            static_cast<ktx_size_t>(data.size()),
+            KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT,
+            &texture
         );
-        assert(raw_image_data);
+        assert(create_error == KTX_SUCCESS && texture != nullptr);
+        std::unique_ptr<ktxTexture2, void (*)(ktxTexture2 *)> texture_guard(texture, ktxTexture2_Destroy);
 
-        m_data.resize(width * height * channel);
-        std::memcpy(m_data.data(), raw_image_data, width * height * channel);
-        stbi_image_free(raw_image_data);
+        if (ktxTexture2_NeedsTranscoding(texture)) {
+            auto transcode_error = ktxTexture2_TranscodeBasis(texture, KTX_TTF_BC7_RGBA, KTX_TF_HIGH_QUALITY);
+            if (transcode_error != KTX_SUCCESS) {
+                SDL_LogWarn(
+                    SDL_LOG_CATEGORY_APPLICATION,
+                    "BC7 transcode failed (%s). Fallback to RGBA32.",
+                    ktxErrorString(transcode_error)
+                );
+                transcode_error = ktxTexture2_TranscodeBasis(texture, KTX_TTF_RGBA32, 0);
+                assert(transcode_error == KTX_SUCCESS);
+            }
+        }
+
+        const int width = static_cast<int>(texture->baseWidth);
+        const int height = static_cast<int>(texture->baseHeight);
+        const int channel = static_cast<int>(std::max(1u, ktxTexture2_GetNumComponents(texture)));
+
+        ktx_size_t image_offset = 0;
+        const auto offset_error = ktxTexture_GetImageOffset(ktxTexture(texture), 0, 0, 0, &image_offset);
+        assert(offset_error == KTX_SUCCESS);
+
+        const ktx_size_t image_size = ktxTexture_GetImageSize(ktxTexture(texture), 0);
+        const ktx_uint8_t *raw_ktx_data = ktxTexture_GetData(ktxTexture(texture));
+        m_data.resize(static_cast<size_t>(image_size));
+        std::memcpy(m_data.data(), raw_ktx_data + image_offset, static_cast<size_t>(image_size));
+
+        m_width = width;
+        m_height = height;
+        m_channel = channel;
+        m_mip_level = 1;
+        m_format = FromVkFormat(static_cast<vk::Format>(texture->vkFormat));
+        if (m_format == ImageUtils::ImageFormat::UNDEFINED) {
+            m_format = ImageUtils::ImageFormat::R8G8B8A8UNorm;
+        }
 
         Asset::load_asset_from_archive(archive);
         assert(width == m_width && height == m_height && channel == m_channel);
     }
 
-    void Image2DTextureAsset::LoadFromFile(const std::filesystem::path &path) {
+    void Image2DTextureAsset::LoadFromFile(const std::filesystem::path &path, ImageUtils::ImageFormat format) {
         m_name = path.stem().string();
         stbi_uc *raw_image_data = stbi_load(path.string().c_str(), &m_width, &m_height, &m_channel, 4);
         m_channel = 4; // force RGBA since we set desired channels to 4 in stbi_load
@@ -51,11 +185,11 @@ namespace Engine {
         std::memcpy(m_data.data(), raw_image_data, m_width * m_height * m_channel);
 
         stbi_image_free(raw_image_data);
-        m_format = ImageUtils::ImageFormat::R8G8B8A8UNorm;
+        m_format = format;
         m_mip_level = 1;
     }
 
-    void Image2DTextureAsset::LoadFromMemory(const std::byte *bytes, size_t size) {
+    void Image2DTextureAsset::LoadFromMemory(const std::byte *bytes, size_t size, ImageUtils::ImageFormat format) {
         stbi_uc *raw_image_data = stbi_load_from_memory(
             reinterpret_cast<const stbi_uc *>(bytes), static_cast<int>(size), &m_width, &m_height, &m_channel, 4
         );
@@ -66,7 +200,7 @@ namespace Engine {
         std::memcpy(m_data.data(), raw_image_data, m_width * m_height * m_channel);
 
         stbi_image_free(raw_image_data);
-        m_format = ImageUtils::ImageFormat::R8G8B8A8UNorm;
+        m_format = format;
         m_mip_level = 1;
     }
 

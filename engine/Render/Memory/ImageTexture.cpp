@@ -37,7 +37,7 @@ namespace Engine {
                 .width = static_cast<uint32_t>(asset.m_width),
                 .height = static_cast<uint32_t>(asset.m_height),
                 .depth = 1,
-                .format = ImageUtils::ImageFormat::R8G8B8A8SRGB,
+                .format = asset.m_format,
                 .memory_type = {ImageMemoryTypeBits::DefaultTexture},
                 .mipmap_levels = asset.m_mip_level,
                 .array_layers = 1,

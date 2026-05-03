@@ -15,3 +15,6 @@
 	path = third_party/fastgltf
 	url = https://github.com/graphics-study-group/fastgltf.git
 	branch = no-download
+[submodule "third_party/libktx"]
+	path = third_party/libktx
+	url = https://github.com/KhronosGroup/KTX-Software.git

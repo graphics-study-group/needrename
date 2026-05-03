@@ -13,6 +13,8 @@ namespace Engine {
             case ImageFormat::R8G8B8A8SNorm:
             case ImageFormat::R8G8B8A8UNorm:
             case ImageFormat::R8G8B8A8SRGB:
+            case ImageFormat::BC7UNorm:
+            case ImageFormat::BC7SRGB:
             case ImageFormat::R11G11B10UFloat:
             case ImageFormat::R32G32B32A32SFloat:
                 return true;
@@ -64,6 +66,10 @@ namespace Engine {
                 return vk::Format::eR8G8B8A8Unorm;
             case ImageFormat::R8G8B8A8SRGB:
                 return vk::Format::eR8G8B8A8Srgb;
+            case ImageFormat::BC7UNorm:
+                return vk::Format::eBc7UnormBlock;
+            case ImageFormat::BC7SRGB:
+                return vk::Format::eBc7SrgbBlock;
             case ImageFormat::R11G11B10UFloat:
                 return vk::Format::eB10G11R11UfloatPack32;
             case ImageFormat::R32G32B32A32SFloat:
@@ -84,9 +90,37 @@ namespace Engine {
                 return 4;
             case ImageFormat::R32G32B32A32SFloat:
                 return 16;
+            case ImageFormat::BC7UNorm:
+            case ImageFormat::BC7SRGB:
+                return 0;
             default:
                 return 0;
             }
+        }
+
+        constexpr bool IsBlockCompressed(ImageFormat format) {
+            switch (format) {
+            case ImageFormat::BC7UNorm:
+            case ImageFormat::BC7SRGB:
+                return true;
+            default:
+                return false;
+            }
+        }
+
+        constexpr uint64_t GetImageDataSize(
+            ImageFormat format, uint32_t width, uint32_t height, uint32_t depth, uint32_t array_layers
+        ) {
+            if (IsBlockCompressed(format)) {
+                const uint64_t block_width = (static_cast<uint64_t>(width) + 3ull) / 4ull;
+                const uint64_t block_height = (static_cast<uint64_t>(height) + 3ull) / 4ull;
+                constexpr uint64_t block_byte_size = 16ull;
+                return block_width * block_height * static_cast<uint64_t>(depth) * static_cast<uint64_t>(array_layers)
+                       * block_byte_size;
+            }
+
+            return static_cast<uint64_t>(width) * static_cast<uint64_t>(height) * static_cast<uint64_t>(depth)
+                   * static_cast<uint64_t>(array_layers) * static_cast<uint64_t>(GetPixelSize(format));
         }
 
         constexpr vk::ImageViewType InferImageViewType(const TextureDesc &desc) {

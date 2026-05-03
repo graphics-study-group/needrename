@@ -13,5 +13,6 @@ target_link_libraries(EngineLibAsset
     PUBLIC
     assimp::assimp
     stb
+    ktx
     fastgltf::fastgltf
 )

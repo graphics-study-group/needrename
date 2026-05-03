@@ -296,9 +296,14 @@ namespace Engine::RenderSystemState {
         const Texture &texture, const std::byte *data, size_t length
     ) {
         assert(ImageUtils::GetVkAspect(texture.GetTextureDescription().format) & vk::ImageAspectFlagBits::eColor);
+        assert(length > 0);
 
-        auto staging_buffer{texture.CreateStagingBuffer(m_system.GetAllocatorState())};
-        assert(length <= staging_buffer->GetSize());
+        auto staging_buffer = DeviceBuffer::CreateUnique(
+            m_system.GetAllocatorState(),
+            {BufferTypeBits::StagingToDevice},
+            static_cast<uint64_t>(length),
+            "Buffer - texture staging"
+        );
         std::byte *mapped_ptr = staging_buffer->GetVMAddress();
         std::memcpy(mapped_ptr, data, length);
         staging_buffer->Flush();

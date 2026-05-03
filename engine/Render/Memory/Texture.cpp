@@ -229,8 +229,13 @@ namespace Engine {
     std::unique_ptr<DeviceBuffer> Engine::Texture::CreateStagingBuffer(
         const RenderSystemState::AllocatorState &allocator
     ) const {
-        uint64_t buffer_size = pimpl->m_tdesc.height * pimpl->m_tdesc.width * pimpl->m_tdesc.depth
-                               * pimpl->m_tdesc.array_layers * ImageUtils::GetPixelSize(pimpl->m_tdesc.format);
+        uint64_t buffer_size = ImageUtils::GetImageDataSize(
+            pimpl->m_tdesc.format,
+            pimpl->m_tdesc.width,
+            pimpl->m_tdesc.height,
+            pimpl->m_tdesc.depth,
+            pimpl->m_tdesc.array_layers
+        );
         assert(buffer_size > 0);
 
         return DeviceBuffer::CreateUnique(

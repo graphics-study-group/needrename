@@ -1,6 +1,7 @@
 #include "FrameManager.h"
 
 #include "Render/DebugUtils.h"
+#include "Render/ImageUtilsFunc.h"
 #include "Render/Memory/DeviceBuffer.h"
 #include "Render/Memory/MemoryAccessHelper.hpp"
 #include "Render/Pipeline/CommandBuffer.h"
@@ -536,8 +537,9 @@ namespace Engine::RenderSystemState {
         std::shared_ptr staging_buffer = DeviceBuffer::CreateUnique(
             pimpl->m_system.GetAllocatorState(),
             {BufferTypeBits::ReadbackFromDevice},
-            texture_desc.width * texture_desc.height * texture_desc.depth
-                * ImageUtils::GetPixelSize(texture_desc.format)
+            ImageUtils::GetImageDataSize(
+                texture_desc.format, texture_desc.width, texture_desc.height, texture_desc.depth, 1
+            )
         );
 
         auto enqueued = [=, &image](vk::CommandBuffer cb) -> void {
