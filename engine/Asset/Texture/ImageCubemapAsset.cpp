@@ -7,10 +7,41 @@
 #include <cstdlib>
 #include <cstring>
 #include <ktx.h>
+#include <thread>
 
 #include <memory>
 
 #include <Reflection/serialization.h>
+
+namespace {
+    void TryCompressTextureToBc7(ktxTexture2 *texture) {
+        ktxBasisParams params{};
+        params.structSize = sizeof(params);
+        params.codec = KTX_BASIS_CODEC_UASTC_LDR_4x4;
+        params.uastcFlags = static_cast<ktx_pack_uastc_flags>(KTX_PACK_UASTC_LEVEL_FASTEST);
+        params.uastcRDO = KTX_FALSE;
+        params.threadCount = std::max(1u, std::thread::hardware_concurrency());
+
+        const auto compress_error = ktxTexture2_CompressBasisEx(texture, &params);
+        if (compress_error != KTX_SUCCESS) {
+            SDL_LogWarn(
+                SDL_LOG_CATEGORY_APPLICATION,
+                "ktxTexture2_CompressBasisEx failed (%s). Falling back to uncompressed KTX2.",
+                ktxErrorString(compress_error)
+            );
+            return;
+        }
+
+        const auto transcode_error = ktxTexture2_TranscodeBasis(texture, KTX_TTF_BC7_RGBA, KTX_TF_HIGH_QUALITY);
+        if (transcode_error != KTX_SUCCESS) {
+            SDL_LogWarn(
+                SDL_LOG_CATEGORY_APPLICATION,
+                "ktxTexture2_TranscodeBasis failed (%s). Falling back to uncompressed KTX2.",
+                ktxErrorString(transcode_error)
+            );
+        }
+    }
+} // namespace
 
 namespace Engine {
     const std::byte *ImageCubemapAsset::GetPixelData() const {
@@ -26,9 +57,11 @@ namespace Engine {
         json["%extra_data_id"] = extra_data_id;
         auto &data = archive.m_context->extra_data[extra_data_id];
 
+        const vk::Format vk_format = ImageUtils::GetVkFormat(m_format);
+        assert(vk_format != vk::Format::eUndefined);
+
         ktxTextureCreateInfo create_info{};
-        create_info.vkFormat =
-            static_cast<ktx_uint32_t>(ImageUtils::GetVkFormat(ImageUtils::ImageFormat::R8G8B8A8SRGB));
+        create_info.vkFormat = static_cast<ktx_uint32_t>(vk_format);
         create_info.baseWidth = static_cast<ktx_uint32_t>(m_width);
         create_info.baseHeight = static_cast<ktx_uint32_t>(m_height);
         create_info.baseDepth = 1;
@@ -55,6 +88,10 @@ namespace Engine {
                 static_cast<ktx_size_t>(face_data_size)
             );
             assert(set_image_error == KTX_SUCCESS);
+        }
+
+        if (ImageUtils::CanCompressToBc7(m_format)) {
+            TryCompressTextureToBc7(texture);
         }
 
         ktx_uint8_t *raw_ktx_data = nullptr;
@@ -97,6 +134,7 @@ namespace Engine {
         m_width = static_cast<int>(texture->baseWidth);
         m_height = static_cast<int>(texture->baseHeight);
         m_channel = static_cast<int>(std::max(1u, ktxTexture2_GetNumComponents(texture)));
+        m_format = ImageUtils::FromVkFormat(static_cast<vk::Format>(texture->vkFormat));
 
         const ktx_size_t image_size = ktxTexture_GetImageSize(ktxTexture(texture), 0);
         const ktx_uint8_t *raw_ktx_data = ktxTexture_GetData(ktxTexture(texture));

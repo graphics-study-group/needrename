@@ -3,6 +3,7 @@
 
 #include "Asset/Texture/TextureAsset.h"
 #include "Reflection/macros.h"
+#include <Render/ImageUtils.h>
 #include <vector>
 
 namespace Engine {
@@ -35,6 +36,14 @@ namespace Engine {
         REFL_SER_ENABLE int m_height{};
         /// @brief Channel count of each face of the cubemap.
         REFL_SER_ENABLE int m_channel{};
+
+        /**
+         * @brief Expected memory format of the cubemap.
+         *
+         * This member affects only how the image should be represented on the
+         * GPU memory. It does not reflect its actual format on the desk.
+         */
+        REFL_SER_ENABLE ImageUtils::ImageFormat m_format{};
 
         virtual void save_asset_to_archive(Serialization::Archive &archive) const override;
         virtual void load_asset_from_archive(Serialization::Archive &archive) override;

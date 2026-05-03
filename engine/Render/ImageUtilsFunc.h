@@ -39,6 +39,11 @@ namespace Engine {
             }
         }
 
+        constexpr bool CanCompressToBc7(ImageFormat format) {
+            return format == ImageFormat::R8G8B8A8UNorm
+                   || format == ImageFormat::R8G8B8A8SRGB;
+        }
+
         constexpr vk::ImageAspectFlags GetVkAspect(ImageFormat format) {
             return (HasColorAspect(format) ? vk::ImageAspectFlagBits::eColor : vk::ImageAspectFlagBits::eNone)
                    | (HasDepthAspect(format) ? vk::ImageAspectFlagBits::eDepth : vk::ImageAspectFlagBits::eNone)
@@ -78,6 +83,29 @@ namespace Engine {
                 return vk::Format::eD32Sfloat;
             }
             return vk::Format::eUndefined;
+        }
+
+        constexpr ImageFormat FromVkFormat(vk::Format format) {
+            switch (format) {
+            case vk::Format::eR8G8B8A8Snorm:
+                return ImageFormat::R8G8B8A8SNorm;
+            case vk::Format::eR8G8B8A8Unorm:
+                return ImageFormat::R8G8B8A8UNorm;
+            case vk::Format::eR8G8B8A8Srgb:
+                return ImageFormat::R8G8B8A8SRGB;
+            case vk::Format::eBc7UnormBlock:
+                return ImageFormat::BC7UNorm;
+            case vk::Format::eBc7SrgbBlock:
+                return ImageFormat::BC7SRGB;
+            case vk::Format::eB10G11R11UfloatPack32:
+                return ImageFormat::R11G11B10UFloat;
+            case vk::Format::eR32G32B32A32Sfloat:
+                return ImageFormat::R32G32B32A32SFloat;
+            case vk::Format::eD32Sfloat:
+                return ImageFormat::D32SFLOAT;
+            default:
+                return ImageFormat::UNDEFINED;
+            }
         }
 
         constexpr uint16_t GetPixelSize(ImageFormat format) {

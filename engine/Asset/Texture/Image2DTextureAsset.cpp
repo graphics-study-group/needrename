@@ -11,34 +11,6 @@
 #include <thread>
 
 namespace {
-    constexpr bool CanCompressToBc7(Engine::ImageUtils::ImageFormat format) {
-        return format == Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm
-               || format == Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB;
-    }
-
-    Engine::ImageUtils::ImageFormat FromVkFormat(vk::Format format) {
-        switch (format) {
-        case vk::Format::eR8G8B8A8Snorm:
-            return Engine::ImageUtils::ImageFormat::R8G8B8A8SNorm;
-        case vk::Format::eR8G8B8A8Unorm:
-            return Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm;
-        case vk::Format::eR8G8B8A8Srgb:
-            return Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB;
-        case vk::Format::eBc7UnormBlock:
-            return Engine::ImageUtils::ImageFormat::BC7UNorm;
-        case vk::Format::eBc7SrgbBlock:
-            return Engine::ImageUtils::ImageFormat::BC7SRGB;
-        case vk::Format::eB10G11R11UfloatPack32:
-            return Engine::ImageUtils::ImageFormat::R11G11B10UFloat;
-        case vk::Format::eR32G32B32A32Sfloat:
-            return Engine::ImageUtils::ImageFormat::R32G32B32A32SFloat;
-        case vk::Format::eD32Sfloat:
-            return Engine::ImageUtils::ImageFormat::D32SFLOAT;
-        default:
-            return Engine::ImageUtils::ImageFormat::UNDEFINED;
-        }
-    }
-
     void TryCompressTextureToBc7(ktxTexture2 *texture) {
         ktxBasisParams params{};
         params.structSize = sizeof(params);
@@ -165,7 +137,7 @@ namespace Engine {
         m_height = height;
         m_channel = channel;
         m_mip_level = 1;
-        m_format = FromVkFormat(static_cast<vk::Format>(texture->vkFormat));
+        m_format = ImageUtils::FromVkFormat(static_cast<vk::Format>(texture->vkFormat));
         if (m_format == ImageUtils::ImageFormat::UNDEFINED) {
             m_format = ImageUtils::ImageFormat::R8G8B8A8UNorm;
         }
