@@ -7,6 +7,10 @@
 #include <vector>
 
 namespace Engine {
+    namespace detail::texture_import {
+        struct Access;
+    }
+
     /**
      * @brief An asset for a 2D texture.
      */
@@ -41,40 +45,13 @@ namespace Engine {
          */
         REFL_SER_ENABLE unsigned m_mip_level{};
 
-        /**
-         * @brief Load the asset from a disk file.
-         *
-         * Currently implemented via the `stbi_image` library.
-         * Reads only the the first mipmap level.
-         * Does not support compressed format (e.g. ATSC). Such textures will
-         * be uncompressed first via the `stbi_image` library.
-         *
-         * @param path Path of the image.
-         * @param format Desired image format. Usually a color texture should be loaded as sRGB format. A texture used for data storage (e.g. G-buffer) should be loaded as UNorm format.
-         */
-        void LoadFromFile(
-            const std::filesystem::path &path, ImageUtils::ImageFormat format = ImageUtils::ImageFormat::R8G8B8A8SRGB
-        );
-
-        /**
-         * @brief Load the asset from encoded image bytes in memory.
-         *
-         * The input should be encoded image content such as PNG/JPEG bytes.
-         *
-         * @param bytes Pointer to encoded image bytes.
-         * @param size Byte size of encoded image content.
-         * @param format Desired image format. Usually a color texture should be loaded as sRGB format. A texture used for data storage (e.g. G-buffer) should be loaded as UNorm format.
-         */
-        void LoadFromMemory(
-            const std::byte *bytes, size_t size, ImageUtils::ImageFormat format = ImageUtils::ImageFormat::R8G8B8A8SRGB
-        );
-
         /// @brief Get pixel data.
         const std::byte *GetPixelData() const;
         /// @brief Get the size of all pixel data
         size_t GetPixelDataSize() const;
 
     protected:
+        friend struct detail::texture_import::Access;
         std::vector<std::byte> m_data{};
     };
 } // namespace Engine

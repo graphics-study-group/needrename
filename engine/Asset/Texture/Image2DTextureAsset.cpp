@@ -4,20 +4,12 @@
 #include <Render/ImageUtilsFunc.h>
 #include <SDL3/SDL_log.h>
 #include <ktx.h>
-#include <stb_image.h>
 
-#include <algorithm>
 #include <cstdlib>
 #include <cstring>
 #include <memory>
-#include <thread>
 
 namespace {
-    constexpr bool CanCompressToBc7(Engine::ImageUtils::ImageFormat format) {
-        return format == Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm
-               || format == Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB;
-    }
-
     Engine::ImageUtils::ImageFormat FromVkFormat(vk::Format format) {
         switch (format) {
         case vk::Format::eR8G8B8A8Snorm:
@@ -38,34 +30,6 @@ namespace {
             return Engine::ImageUtils::ImageFormat::D32SFLOAT;
         default:
             return Engine::ImageUtils::ImageFormat::UNDEFINED;
-        }
-    }
-
-    void TryCompressTextureToBc7(ktxTexture2 *texture) {
-        ktxBasisParams params{};
-        params.structSize = sizeof(params);
-        params.codec = KTX_BASIS_CODEC_UASTC_LDR_4x4;
-        params.uastcFlags = static_cast<ktx_pack_uastc_flags>(KTX_PACK_UASTC_LEVEL_DEFAULT);
-        params.uastcRDO = KTX_TRUE;
-        params.threadCount = std::max(1u, std::thread::hardware_concurrency());
-
-        const auto compress_error = ktxTexture2_CompressBasisEx(texture, &params);
-        if (compress_error != KTX_SUCCESS) {
-            SDL_LogWarn(
-                SDL_LOG_CATEGORY_APPLICATION,
-                "ktxTexture2_CompressBasisEx failed (%s). Falling back to uncompressed KTX2.",
-                ktxErrorString(compress_error)
-            );
-            return;
-        }
-
-        const auto transcode_error = ktxTexture2_TranscodeBasis(texture, KTX_TTF_BC7_RGBA, KTX_TF_HIGH_QUALITY);
-        if (transcode_error != KTX_SUCCESS) {
-            SDL_LogWarn(
-                SDL_LOG_CATEGORY_APPLICATION,
-                "ktxTexture2_TranscodeBasis failed (%s). Falling back to uncompressed KTX2.",
-                ktxErrorString(transcode_error)
-            );
         }
     }
 } // namespace
@@ -106,10 +70,6 @@ namespace Engine {
             static_cast<ktx_size_t>(m_data.size())
         );
         assert(set_image_error == KTX_SUCCESS);
-
-        // if (CanCompressToBc7(m_format)) {
-        //     TryCompressTextureToBc7(texture);
-        // }
 
         ktx_uint8_t *raw_ktx_data = nullptr;
         ktx_size_t raw_ktx_size = 0;
@@ -174,34 +134,6 @@ namespace Engine {
 
         Asset::load_asset_from_archive(archive);
         assert(width == m_width && height == m_height && channel == m_channel);
-    }
-
-    void Image2DTextureAsset::LoadFromFile(const std::filesystem::path &path, ImageUtils::ImageFormat format) {
-        m_name = path.stem().string();
-        stbi_uc *raw_image_data = stbi_load(path.string().c_str(), &m_width, &m_height, &m_channel, 4);
-        m_channel = 4; // force RGBA since we set desired channels to 4 in stbi_load
-        assert(raw_image_data);
-        m_data.resize(m_width * m_height * m_channel);
-        std::memcpy(m_data.data(), raw_image_data, m_width * m_height * m_channel);
-
-        stbi_image_free(raw_image_data);
-        m_format = format;
-        m_mip_level = 1;
-    }
-
-    void Image2DTextureAsset::LoadFromMemory(const std::byte *bytes, size_t size, ImageUtils::ImageFormat format) {
-        stbi_uc *raw_image_data = stbi_load_from_memory(
-            reinterpret_cast<const stbi_uc *>(bytes), static_cast<int>(size), &m_width, &m_height, &m_channel, 4
-        );
-        m_channel = 4;
-        assert(raw_image_data);
-
-        m_data.resize(m_width * m_height * m_channel);
-        std::memcpy(m_data.data(), raw_image_data, m_width * m_height * m_channel);
-
-        stbi_image_free(raw_image_data);
-        m_format = format;
-        m_mip_level = 1;
     }
 
     const std::byte *Image2DTextureAsset::GetPixelData() const {

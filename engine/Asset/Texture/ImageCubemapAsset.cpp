@@ -3,128 +3,16 @@
 #include <Render/ImageUtilsFunc.h>
 #include <SDL3/SDL_log.h>
 #include <algorithm>
-#include <array>
 #include <assert.h>
 #include <cstdlib>
 #include <cstring>
-#include <glm.hpp>
 #include <ktx.h>
-#include <numbers>
-#include <stb_image.h>
 
 #include <memory>
 
 #include <Reflection/serialization.h>
 
-namespace {
-    void sampleBilinear(const std::byte *src, int w, int h, int c, float x, float y, std::byte *out) {
-        int x0 = (int)std::floor(x);
-        int y0 = (int)std::floor(y);
-        int x1 = (x0 + 1) % w;
-        int y1 = std::min(y0 + 1, h - 1);
-
-        float tx = x - x0;
-        float ty = y - y0;
-
-        for (int k = 0; k < c; ++k) {
-            float c00 = (float)src[(y0 * w + x0) * c + k];
-            float c10 = (float)src[(y0 * w + x1) * c + k];
-            float c01 = (float)src[(y1 * w + x0) * c + k];
-            float c11 = (float)src[(y1 * w + x1) * c + k];
-
-            float c0 = glm::mix(c00, c10, tx);
-            float c1 = glm::mix(c01, c11, tx);
-
-            out[k] = (std::byte)glm::mix(c0, c1, ty);
-        }
-    }
-    void convertEquirectToCubemap(
-        const std::byte *src, int srcW, int srcH, int channels, int faceSize, std::vector<std::byte> &out
-    ) {
-        out.resize(faceSize * faceSize * channels * 6);
-        for (int face = 0; face < 6; ++face) {
-            std::vector<std::byte> dst(faceSize * faceSize * channels);
-
-            for (int y = 0; y < faceSize; ++y) {
-                for (int x = 0; x < faceSize; ++x) {
-
-                    float u = 2.0f * (x + 0.5f) / faceSize - 1.0f;
-                    float v = 2.0f * (y + 0.5f) / faceSize - 1.0f;
-
-                    glm::vec3 dir;
-                    switch (face) {
-                    case 0:
-                        dir = {1, -v, -u};
-                        break; // +X
-                    case 1:
-                        dir = {-1, -v, u};
-                        break; // -X
-                    case 2:
-                        dir = {u, 1, v};
-                        break; // +Y
-                    case 3:
-                        dir = {u, -1, -v};
-                        break; // -Y
-                    case 4:
-                        dir = {u, -v, 1};
-                        break; // +Z
-                    case 5:
-                        dir = {-u, -v, -1};
-                        break; // -Z
-                    }
-
-                    dir = glm::normalize(dir);
-                    float lon = std::atan2(dir.y, dir.x);
-                    float lat = -std::asin(dir.z);
-
-                    float srcX = (lon + std::numbers::pi_v<float>) / (2.0f * std::numbers::pi_v<float>)*srcW;
-                    float srcY = (std::numbers::pi_v<float> / 2.0f - lat) / std::numbers::pi_v<float> * srcH;
-
-                    std::byte *pixel = &dst[(y * faceSize + x) * channels];
-
-                    sampleBilinear(src, srcW, srcH, channels, srcX, srcY, pixel);
-                }
-            }
-            std::memcpy(&out[face * faceSize * faceSize * channels], dst.data(), dst.size());
-        }
-    }
-} // namespace
-
 namespace Engine {
-    void ImageCubemapAsset::LoadFromFile(const std::filesystem::path &paths, int width, int height) {
-        int srcW, srcH, channels;
-        auto raw_image_data = stbi_load(paths.string().c_str(), &srcW, &srcH, &channels, 4);
-        assert(raw_image_data);
-        m_width = width;
-        m_height = height;
-        m_channel = 4;
-        convertEquirectToCubemap(reinterpret_cast<const std::byte *>(raw_image_data), srcW, srcH, 4, width, m_data);
-        stbi_image_free(raw_image_data);
-    }
-
-    void ImageCubemapAsset::LoadFromFile(const std::array<std::filesystem::path, 6> &paths) {
-        int width, height, channels;
-        auto first_image = stbi_load(paths[0].string().c_str(), &width, &height, &channels, 4);
-        assert(first_image);
-        m_width = width;
-        m_height = height;
-        m_channel = 4;
-
-        auto image_size = width * height * 4;
-        m_data.resize(image_size * 6);
-        std::memcpy(m_data.data(), first_image, image_size);
-        stbi_image_free(first_image);
-
-        for (int i = 1; i < 6; i++) {
-            int nw, nh, nc;
-            auto image = stbi_load(paths[i].string().c_str(), &nw, &nh, &nc, 4);
-            assert(image);
-            assert(nw == width && nh == height && nc == channels);
-
-            std::memcpy(m_data.data() + image_size * i, image, image_size);
-            stbi_image_free(image);
-        }
-    }
     const std::byte *ImageCubemapAsset::GetPixelData() const {
         return m_data.data();
     }

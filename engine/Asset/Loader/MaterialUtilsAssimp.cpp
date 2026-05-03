@@ -1,5 +1,6 @@
 #include "ImportSharedUtil.h"
 #include "MaterialUtils.h"
+#include "TextureImportUtils.h"
 
 #include "Asset/AssetDatabase/FileSystemDatabase.h"
 #include "Asset/AssetManager/AssetManager.h"
@@ -134,7 +135,8 @@ namespace Engine::detail {
             };
 
             // Lambda: resolve, cache and build external texture referenced by one Assimp texture semantic.
-            auto try_load_texture_ref = [&](aiTextureType texture_type, MaterialProperty &out_prop) -> bool {
+            auto try_load_texture_ref =
+                [&](aiTextureType texture_type, MaterialProperty &out_prop, ImageUtils::ImageFormat format) -> bool {
                 if (source_material.GetTextureCount(texture_type) == 0) {
                     return false;
                 }
@@ -184,7 +186,8 @@ namespace Engine::detail {
                     return false;
                 }
 
-                const std::string resolved_key = resolved_texture_path->generic_string();
+                const std::string resolved_key =
+                    resolved_texture_path->generic_string() + ":" + std::to_string(static_cast<int>(format));
                 auto cached = texture_refs_by_path.find(resolved_key);
                 if (cached != texture_refs_by_path.end()) {
                     out_prop = MaterialProperty(cached->second, MaterialProperty::Type::Texture);
@@ -192,7 +195,7 @@ namespace Engine::detail {
                 }
 
                 auto *image_texture = am.CreateAsset<Image2DTextureAsset>();
-                image_texture->LoadFromFile(*resolved_texture_path);
+                texture_import::LoadImage2DTextureAssetFromFile(*image_texture, *resolved_texture_path, format);
                 image_texture->m_name = import_shared::MakeUniqueAssetName(
                     model_name + "_" + resolved_texture_path->stem().string(), name_counters
                 );
@@ -215,8 +218,10 @@ namespace Engine::detail {
 
                 // Blinn-Phong branch: build legacy shading properties and diffuse texture path.
                 MaterialProperty albedo_prop;
-                if (!try_load_texture_ref(aiTextureType_BASE_COLOR, albedo_prop)
-                    && !try_load_texture_ref(aiTextureType_DIFFUSE, albedo_prop)) {
+                if (!try_load_texture_ref(aiTextureType_BASE_COLOR, albedo_prop, ImageUtils::ImageFormat::R8G8B8A8SRGB)
+                    && !try_load_texture_ref(
+                        aiTextureType_DIFFUSE, albedo_prop, ImageUtils::ImageFormat::R8G8B8A8SRGB
+                    )) {
                     if (source_material.GetTextureCount(aiTextureType_BASE_COLOR) == 0
                         && source_material.GetTextureCount(aiTextureType_DIFFUSE) == 0) {
                         const AssetRef fallback_ref =
@@ -232,10 +237,15 @@ namespace Engine::detail {
                         : MaterialProperty(default_pbr_albedo, MaterialProperty::Type::Texture);
 
                 MaterialProperty mrao_prop;
-                const bool has_mrao = try_load_texture_ref(aiTextureType_UNKNOWN, mrao_prop)
-                                      || try_load_texture_ref(aiTextureType_METALNESS, mrao_prop)
-                                      || try_load_texture_ref(aiTextureType_DIFFUSE_ROUGHNESS, mrao_prop)
-                                      || try_load_texture_ref(aiTextureType_AMBIENT_OCCLUSION, mrao_prop);
+                const bool has_mrao =
+                    try_load_texture_ref(aiTextureType_UNKNOWN, mrao_prop, ImageUtils::ImageFormat::R8G8B8A8UNorm)
+                    || try_load_texture_ref(aiTextureType_METALNESS, mrao_prop, ImageUtils::ImageFormat::R8G8B8A8UNorm)
+                    || try_load_texture_ref(
+                        aiTextureType_DIFFUSE_ROUGHNESS, mrao_prop, ImageUtils::ImageFormat::R8G8B8A8UNorm
+                    )
+                    || try_load_texture_ref(
+                        aiTextureType_AMBIENT_OCCLUSION, mrao_prop, ImageUtils::ImageFormat::R8G8B8A8UNorm
+                    );
                 material_asset->m_properties["MRAOSampler"] =
                     has_mrao ? mrao_prop : MaterialProperty(default_pbr_mrao, MaterialProperty::Type::Texture);
 
@@ -248,8 +258,9 @@ namespace Engine::detail {
                 material_asset->m_properties["roughness_scale"] = roughness_factor;
 
                 MaterialProperty normal_prop;
-                const bool has_normal = try_load_texture_ref(aiTextureType_NORMALS, normal_prop)
-                                        || try_load_texture_ref(aiTextureType_HEIGHT, normal_prop);
+                const bool has_normal =
+                    try_load_texture_ref(aiTextureType_NORMALS, normal_prop, ImageUtils::ImageFormat::R8G8B8A8UNorm)
+                    || try_load_texture_ref(aiTextureType_HEIGHT, normal_prop, ImageUtils::ImageFormat::R8G8B8A8UNorm);
                 material_asset->m_properties["normalSampler"] =
                     has_normal ? normal_prop : MaterialProperty(default_pbr_normal, MaterialProperty::Type::Texture);
 
@@ -258,7 +269,8 @@ namespace Engine::detail {
                 material_asset->m_properties["normalScale"] = normal_scale;
 
                 MaterialProperty emissive_prop;
-                const bool has_emissive = try_load_texture_ref(aiTextureType_EMISSIVE, emissive_prop);
+                const bool has_emissive =
+                    try_load_texture_ref(aiTextureType_EMISSIVE, emissive_prop, ImageUtils::ImageFormat::R8G8B8A8SRGB);
                 material_asset->m_properties["emissiveSampler"] =
                     has_emissive ? emissive_prop
                                  : MaterialProperty(default_pbr_emissive, MaterialProperty::Type::Texture);
@@ -297,8 +309,12 @@ namespace Engine::detail {
                     glm::vec4{specular_color.r, specular_color.g, specular_color.b, shininess};
 
                 MaterialProperty base_tex_prop;
-                if (!try_load_texture_ref(aiTextureType_BASE_COLOR, base_tex_prop)
-                    && !try_load_texture_ref(aiTextureType_DIFFUSE, base_tex_prop)) {
+                if (!try_load_texture_ref(
+                        aiTextureType_BASE_COLOR, base_tex_prop, ImageUtils::ImageFormat::R8G8B8A8SRGB
+                    )
+                    && !try_load_texture_ref(
+                        aiTextureType_DIFFUSE, base_tex_prop, ImageUtils::ImageFormat::R8G8B8A8SRGB
+                    )) {
                     base_tex_prop = MaterialProperty(
                         create_solid_color_texture(diffuse_color, "_base_color"), MaterialProperty::Type::Texture
                     );

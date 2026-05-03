@@ -5,6 +5,7 @@
 
 #include "Asset/AssetDatabase/FileSystemDatabase.h"
 #include "Asset/AssetManager/AssetManager.h"
+#include "Asset/Loader/TextureImportUtils.h"
 #include "Asset/Material/MaterialAsset.h"
 #include "Asset/Material/MaterialTemplateAsset.h"
 #include "Asset/Texture/ImageCubemapAsset.h"
@@ -130,15 +131,17 @@ int main(int argc, char **argv) {
 
     {
         // Load skybox cubemap
-        auto cubemap = std::make_shared<ImageCubemapAsset>();
-        cubemap->LoadFromFile(std::filesystem::path{ENGINE_ASSETS_DIR} / "skybox" / "sky_cloudy.png", width, height);
+        auto cubemap = MainClass::GetInstance()->GetAssetManager()->CreateAsset<ImageCubemapAsset>();
+        Engine::detail::texture_import::LoadImageCubemapAssetFromEquirectangularFile(
+            *cubemap, std::filesystem::path{ENGINE_ASSETS_DIR} / "skybox" / "sky_cloudy.png", width, height
+        );
 
         // Engine::Serialization::Archive archive;
         // archive.prepare_save();
         // cubemap->save_asset_to_archive(archive);
         // archive.save_to_file(std::string(ENGINE_ASSETS_DIR) + "/skybox.asset");
 
-        // cubemap->LoadFromFile(CUBEMAP_FACES);
+        // texture_import::LoadImageCubemapAssetFromSixFiles(*cubemap, CUBEMAP_FACES);
         rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
             *skybox_texture, cubemap->GetPixelData(), cubemap->GetPixelDataSize()
         );

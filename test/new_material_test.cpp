@@ -4,6 +4,7 @@
 #include <fstream>
 
 #include "Asset/AssetManager/AssetManager.h"
+#include "Asset/Loader/TextureImportUtils.h"
 #include "Asset/Material/MaterialTemplateAsset.h"
 #include "Asset/Mesh/PlaneMeshAsset.h"
 #include "Asset/Texture/Image2DTextureAsset.h"
@@ -187,7 +188,9 @@ int main(int argc, char **argv) {
     auto am = cmc->GetAssetManager();
     // Prepare texture
     auto test_texture_asset = std::make_shared<Image2DTextureAsset>();
-    test_texture_asset->LoadFromFile(std::string(ENGINE_ASSETS_DIR) + "/bunny/bunny.png");
+    Engine::detail::texture_import::LoadImage2DTextureAssetFromFile(
+        *test_texture_asset, std::string(ENGINE_ASSETS_DIR) + "/bunny/bunny.png", ImageUtils::ImageFormat::R8G8B8A8SRGB
+    );
     std::shared_ptr allocated_image_texture = ImageTexture::CreateUnique(*rsys, *test_texture_asset);
 
     // Prepare material

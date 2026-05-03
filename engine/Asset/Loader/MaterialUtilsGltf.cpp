@@ -1,5 +1,6 @@
 #include "ImportSharedUtil.h"
 #include "MaterialUtils.h"
+#include "TextureImportUtils.h"
 
 #include "Asset/AssetDatabase/FileSystemDatabase.h"
 #include "Asset/AssetManager/AssetManager.h"
@@ -74,6 +75,7 @@ namespace Engine::detail {
             const fastgltf::Asset &asset,
             const fastgltf::Image &image,
             size_t image_index,
+            ImageUtils::ImageFormat format,
             const std::filesystem::path &model_path,
             AssetManager &am,
             std::unordered_map<std::string, uint32_t> &name_counters,
@@ -102,22 +104,28 @@ namespace Engine::detail {
                             );
                             return;
                         }
-                        image_texture->LoadFromFile(*resolved_path);
+                        texture_import::LoadImage2DTextureAssetFromFile(*image_texture, *resolved_path, format);
                         loaded = true;
                     },
                     [&](const fastgltf::sources::Array &array_source) {
                         // Embedded byte array branch.
-                        image_texture->LoadFromMemory(array_source.bytes.data(), array_source.bytes.size());
+                        texture_import::LoadImage2DTextureAssetFromMemory(
+                            *image_texture, array_source.bytes.data(), array_source.bytes.size(), format
+                        );
                         loaded = true;
                     },
                     [&](const fastgltf::sources::Vector &vector_source) {
                         // Embedded byte vector branch.
-                        image_texture->LoadFromMemory(vector_source.bytes.data(), vector_source.bytes.size());
+                        texture_import::LoadImage2DTextureAssetFromMemory(
+                            *image_texture, vector_source.bytes.data(), vector_source.bytes.size(), format
+                        );
                         loaded = true;
                     },
                     [&](const fastgltf::sources::ByteView &byte_view_source) {
                         // Embedded byte-view branch.
-                        image_texture->LoadFromMemory(byte_view_source.bytes.data(), byte_view_source.bytes.size());
+                        texture_import::LoadImage2DTextureAssetFromMemory(
+                            *image_texture, byte_view_source.bytes.data(), byte_view_source.bytes.size(), format
+                        );
                         loaded = true;
                     },
                     [&](const fastgltf::sources::BufferView &buffer_view_source) {
@@ -160,7 +168,9 @@ namespace Engine::detail {
                             return;
                         }
                         const std::byte *begin = buffer_data->data + buffer_view.byteOffset;
-                        image_texture->LoadFromMemory(begin, buffer_view.byteLength);
+                        texture_import::LoadImage2DTextureAssetFromMemory(
+                            *image_texture, begin, buffer_view.byteLength, format
+                        );
                         loaded = true;
                     },
                     [&](const fastgltf::sources::CustomBuffer &) {
@@ -203,7 +213,7 @@ namespace Engine::detail {
         std::unordered_map<std::string, uint32_t> &name_counters
     ) {
         MaterialBuildOutput output{};
-        std::unordered_map<size_t, AssetRef> texture_refs_by_image;
+        std::unordered_map<std::string, AssetRef> texture_refs_by_image;
 
         const AssetRef default_pbr_albedo =
             db.GetNewAssetRef(AssetPath(db, std::filesystem::path("~/textures/dark_grey.asset")));
@@ -242,8 +252,10 @@ namespace Engine::detail {
         output.default_pbr_material = AssetRef(default_material->GetGUID());
 
         // Lambda: validate glTF texture info, enforce UV0, then load/cache image-backed texture.
-        auto try_load_texture_ref =
-            [&](const auto &texture_info, MaterialProperty &out_prop, const char *purpose) -> bool {
+        auto try_load_texture_ref = [&](const auto &texture_info,
+                                        MaterialProperty &out_prop,
+                                        const char *purpose,
+                                        ImageUtils::ImageFormat format) -> bool {
             if (!texture_info.has_value()) {
                 return false;
             }
@@ -286,7 +298,8 @@ namespace Engine::detail {
             }
 
             const size_t image_index = texture.imageIndex.value();
-            auto cached = texture_refs_by_image.find(image_index);
+            const std::string cache_key = std::to_string(image_index) + ":" + std::to_string(static_cast<int>(format));
+            auto cached = texture_refs_by_image.find(cache_key);
             if (cached != texture_refs_by_image.end()) {
                 out_prop = MaterialProperty(cached->second, MaterialProperty::Type::Texture);
                 return true;
@@ -306,6 +319,7 @@ namespace Engine::detail {
                 asset,
                 asset.images[image_index],
                 image_index,
+                format,
                 path,
                 am,
                 name_counters,
@@ -316,7 +330,7 @@ namespace Engine::detail {
                 return false;
             }
 
-            texture_refs_by_image.emplace(image_index, texture_ref.value());
+            texture_refs_by_image.emplace(cache_key, texture_ref.value());
             out_prop = MaterialProperty(texture_ref.value(), MaterialProperty::Type::Texture);
             return true;
         };
@@ -345,7 +359,12 @@ namespace Engine::detail {
             };
 
             MaterialProperty albedo_prop;
-            if (!try_load_texture_ref(source_material.pbrData.baseColorTexture, albedo_prop, "baseColorTexture")) {
+            if (!try_load_texture_ref(
+                    source_material.pbrData.baseColorTexture,
+                    albedo_prop,
+                    "baseColorTexture",
+                    ImageUtils::ImageFormat::R8G8B8A8SRGB
+                )) {
                 // Albedo fallback branch: default builtin texture or generated solid color texture.
                 const float eps = 1e-5f;
                 const bool is_default_base =
@@ -359,7 +378,10 @@ namespace Engine::detail {
 
             MaterialProperty mrao_prop;
             const bool has_mrao = try_load_texture_ref(
-                source_material.pbrData.metallicRoughnessTexture, mrao_prop, "metallicRoughnessTexture"
+                source_material.pbrData.metallicRoughnessTexture,
+                mrao_prop,
+                "metallicRoughnessTexture",
+                ImageUtils::ImageFormat::R8G8B8A8UNorm
             );
             // MRAO fallback branch: use builtin white texture when map is missing.
             material_asset->m_properties["MRAOSampler"] =
@@ -380,13 +402,16 @@ namespace Engine::detail {
                 static_cast<float>(source_material.pbrData.roughnessFactor);
 
             MaterialProperty normal_prop;
-            const bool has_normal = try_load_texture_ref(source_material.normalTexture, normal_prop, "normalTexture");
+            const bool has_normal = try_load_texture_ref(
+                source_material.normalTexture, normal_prop, "normalTexture", ImageUtils::ImageFormat::R8G8B8A8UNorm
+            );
             material_asset->m_properties["normalSampler"] =
                 has_normal ? normal_prop : MaterialProperty(default_pbr_normal, MaterialProperty::Type::Texture);
 
             MaterialProperty emissive_prop;
-            const bool has_emissive =
-                try_load_texture_ref(source_material.emissiveTexture, emissive_prop, "emissiveTexture");
+            const bool has_emissive = try_load_texture_ref(
+                source_material.emissiveTexture, emissive_prop, "emissiveTexture", ImageUtils::ImageFormat::R8G8B8A8SRGB
+            );
             material_asset->m_properties["emissiveSampler"] =
                 has_emissive ? emissive_prop : MaterialProperty(default_pbr_emissive, MaterialProperty::Type::Texture);
             material_asset->m_properties["emissiveFactor"] = has_emissive

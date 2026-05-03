@@ -6,6 +6,9 @@
 #include <vector>
 
 namespace Engine {
+    namespace detail::texture_import {
+        struct Access;
+    }
 
     /**
      * @brief An asset for a cubemap
@@ -15,24 +18,6 @@ namespace Engine {
     public:
         REFL_ENABLE ImageCubemapAsset() = default;
         virtual ~ImageCubemapAsset() = default;
-
-        /**
-         * @brief Load a cubemap from a single 2:1 Equirectangular Projection image file.
-         * @param paths Path to the image file.
-         * @param width Desired width of the cubemap faces.
-         * @param height Desired height of the cubemap faces.
-         */
-        void LoadFromFile(const std::filesystem::path &paths, int width, int height);
-
-        /**
-         * @brief Load a cubemap from six separate image files of the same size and format.
-         * Accepts gamma corrected sRGB SDR image of only RGB channels.
-         *
-         * @param paths Paths to six images representing each face, in the order of:
-         * X+, X-, Y+, Y-, Z+, Z-. Physical meaning of the orientation (e.g. front or back)
-         * is determined in the shader code which samples the image.
-         */
-        void LoadFromFile(const std::array<std::filesystem::path, 6> &paths);
 
         /**
          * @brief Get pixel data of the cubemap.
@@ -55,6 +40,7 @@ namespace Engine {
         virtual void load_asset_from_archive(Serialization::Archive &archive) override;
 
     protected:
+        friend struct detail::texture_import::Access;
         std::vector<std::byte> m_data{};
     };
 } // namespace Engine
