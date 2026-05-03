@@ -8,8 +8,14 @@
 #include <cstdlib>
 #include <cstring>
 #include <memory>
+#include <thread>
 
 namespace {
+    constexpr bool CanCompressToBc7(Engine::ImageUtils::ImageFormat format) {
+        return format == Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm
+               || format == Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB;
+    }
+
     Engine::ImageUtils::ImageFormat FromVkFormat(vk::Format format) {
         switch (format) {
         case vk::Format::eR8G8B8A8Snorm:
@@ -30,6 +36,34 @@ namespace {
             return Engine::ImageUtils::ImageFormat::D32SFLOAT;
         default:
             return Engine::ImageUtils::ImageFormat::UNDEFINED;
+        }
+    }
+
+    void TryCompressTextureToBc7(ktxTexture2 *texture) {
+        ktxBasisParams params{};
+        params.structSize = sizeof(params);
+        params.codec = KTX_BASIS_CODEC_UASTC_LDR_4x4;
+        params.uastcFlags = static_cast<ktx_pack_uastc_flags>(KTX_PACK_UASTC_LEVEL_FASTEST);
+        params.uastcRDO = KTX_FALSE;
+        params.threadCount = std::max(1u, std::thread::hardware_concurrency());
+
+        const auto compress_error = ktxTexture2_CompressBasisEx(texture, &params);
+        if (compress_error != KTX_SUCCESS) {
+            SDL_LogWarn(
+                SDL_LOG_CATEGORY_APPLICATION,
+                "ktxTexture2_CompressBasisEx failed (%s). Falling back to uncompressed KTX2.",
+                ktxErrorString(compress_error)
+            );
+            return;
+        }
+
+        const auto transcode_error = ktxTexture2_TranscodeBasis(texture, KTX_TTF_BC7_RGBA, KTX_TF_HIGH_QUALITY);
+        if (transcode_error != KTX_SUCCESS) {
+            SDL_LogWarn(
+                SDL_LOG_CATEGORY_APPLICATION,
+                "ktxTexture2_TranscodeBasis failed (%s). Falling back to uncompressed KTX2.",
+                ktxErrorString(transcode_error)
+            );
         }
     }
 } // namespace
@@ -70,6 +104,10 @@ namespace Engine {
             static_cast<ktx_size_t>(m_data.size())
         );
         assert(set_image_error == KTX_SUCCESS);
+
+        if (CanCompressToBc7(m_format)) {
+            TryCompressTextureToBc7(texture);
+        }
 
         ktx_uint8_t *raw_ktx_data = nullptr;
         ktx_size_t raw_ktx_size = 0;
