@@ -2,23 +2,23 @@
     "%extra_data": [],
     "%main_data": {
         "%type": "Engine::MaterialAsset",
-        "Asset::m_guid": "61DC73F3C56890B90ADA56EF57FB6033",
-        "MaterialAsset::m_library": "E335281ABE3F1FA9788F074FF218FF71",
+        "Asset::m_guid": "c2a5d077-2bf8-47bc-a22f-682b90d2d5a9",
+        "MaterialAsset::m_library": "e335281a-be3f-1fa9-788f-074ff218ff71",
         "MaterialAsset::m_name": "Bunny_Material.005",
         "MaterialAsset::m_properties": {
             "ambient_color": {
                 "m_type": "Simple",
                 "m_ubo_type": "Vec4",
                 "m_value": [
-                    0.05000000074505806,
-                    0.05000000074505806,
-                    0.05000000074505806,
+                    0.6000000238418579,
+                    0.6000000238418579,
+                    0.6000000238418579,
                     1.0
                 ]
             },
             "base_tex": {
                 "m_type": "Texture",
-                "m_value": "429A6DBC64389AA8F6469393DD43B617"
+                "m_value": "0beae2e7-88e6-4d0d-a7c1-73b538608317"
             },
             "specular_color": {
                 "m_type": "Simple",

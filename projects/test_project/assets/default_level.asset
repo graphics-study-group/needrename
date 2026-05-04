@@ -2,9 +2,9 @@
     "%extra_data": [],
     "%main_data": {
         "%type": "Engine::LevelAsset",
-        "Asset::m_guid": "FF182376000000000000000000000000",
-        "LevelAsset::m_default_camera": 7,
-        "LevelAsset::m_skybox_material": "07BF9F33F68CCAB150A6078964D33EF1",
+        "Asset::m_guid": "ff182376-0000-0000-0000-000000000000",
+        "LevelAsset::m_default_camera": 0,
+        "LevelAsset::m_skybox_material": "07bf9f33-f68c-cab1-50a6-078964d33ef1",
         "SceneAsset::components": [
             {
                 "%type": "Engine::TransformComponent",
@@ -13,8 +13,8 @@
                 "TransformComponent::m_transform": {
                     "%type": "Engine::Transform",
                     "Transform::m_position": [
-                        0.0,
-                        0.0,
+                        -0.10000000149011612,
+                        -0.4000000059604645,
                         0.0
                     ],
                     "Transform::m_rotation": [
@@ -27,128 +27,98 @@
                         1.0,
                         1.0,
                         1.0
-                    ]
-                }
-            },
-            {
-                "%type": "Engine::TransformComponent",
-                "Component::m_handle": 2,
-                "Component::m_parentGameObject": 2,
-                "TransformComponent::m_transform": {
-                    "%type": "Engine::Transform",
-                    "Transform::m_position": [
-                        0.0,
-                        -0.699999988079071,
-                        0.5
-                    ],
-                    "Transform::m_rotation": [
-                        -0.258819043636322,
-                        0.0,
-                        0.0,
-                        0.9659258127212524
-                    ],
-                    "Transform::m_scale": [
-                        1.0,
-                        1.0,
-                        1.0
-                    ]
-                }
-            },
-            {
-                "%type": "Engine::TransformComponent",
-                "Component::m_handle": 4,
-                "Component::m_parentGameObject": 4,
-                "TransformComponent::m_transform": {
-                    "%type": "Engine::Transform",
-                    "Transform::m_position": [
-                        0.0,
-                        0.0,
-                        0.0
-                    ],
-                    "Transform::m_rotation": [
-                        -0.8802588582038879,
-                        0.0,
-                        0.0,
-                        0.4744938313961029
-                    ],
-                    "Transform::m_scale": [
-                        1.0,
-                        1.0,
-                        1.0
-                    ]
-                }
-            },
-            {
-                "%type": "Engine::TransformComponent",
-                "Component::m_handle": 5,
-                "Component::m_parentGameObject": 5,
-                "TransformComponent::m_transform": {
-                    "%type": "Engine::Transform",
-                    "Transform::m_position": [
-                        0.0,
-                        0.0,
-                        -0.4000000059604645
-                    ],
-                    "Transform::m_rotation": [
-                        0.0,
-                        0.0,
-                        0.0,
-                        1.0
-                    ],
-                    "Transform::m_scale": [
-                        1.0,
-                        1.0,
-                        0.05000000074505806
                     ]
                 }
             },
             {
                 "%type": "Engine::StaticMeshComponent",
-                "Component::m_handle": 6,
+                "Component::m_handle": 2,
                 "Component::m_parentGameObject": 1,
                 "RendererComponent::m_cast_shadow": false,
                 "RendererComponent::m_is_eagerly_loaded": false,
                 "RendererComponent::m_layer": 4294967295,
                 "RendererComponent::m_material_assets": [
-                    "5CA53C55F3CAB35883C13A0C49B45EF2",
-                    "610197E0BA48EA77EC0F34E77B9048B4",
-                    "527B2AF10E89DC580133DAC3E20FDDD3",
-                    "61DC73F3C56890B90ADA56EF57FB6033"
+                    "046089b5-04d4-468f-9be9-8b4bab76d175",
+                    "48b203cb-8c20-46e8-b48c-6bd7c2065c02",
+                    "c0f8370d-a9f6-4ce1-b2c7-6b956cbbbd60",
+                    "c2a5d077-2bf8-47bc-a22f-682b90d2d5a9"
                 ],
                 "RendererComponent::m_priority": 0,
-                "StaticMeshComponent::m_mesh_asset": "2F64399226C20D8B76E40F1E8B80AFCA"
+                "StaticMeshComponent::m_mesh_asset": "abef1c35-109e-49a1-8550-6816eb52f1cf"
             },
             {
-                "%type": "Engine::CameraComponent",
-                "CameraComponent::m_camera": "&1",
-                "Component::m_handle": 7,
-                "Component::m_parentGameObject": 2
+                "%type": "Engine::TransformComponent",
+                "Component::m_handle": 3,
+                "Component::m_parentGameObject": 2,
+                "TransformComponent::m_transform": {
+                    "%type": "Engine::Transform",
+                    "Transform::m_position": [
+                        0.0,
+                        0.0,
+                        -0.20000000298023224
+                    ],
+                    "Transform::m_rotation": [
+                        0.0,
+                        0.0,
+                        0.0,
+                        1.0
+                    ],
+                    "Transform::m_scale": [
+                        1.0,
+                        1.0,
+                        0.009999999776482582
+                    ]
+                }
+            },
+            {
+                "%type": "Engine::StaticMeshComponent",
+                "Component::m_handle": 4,
+                "Component::m_parentGameObject": 2,
+                "RendererComponent::m_cast_shadow": false,
+                "RendererComponent::m_is_eagerly_loaded": false,
+                "RendererComponent::m_layer": 4294967295,
+                "RendererComponent::m_material_assets": [
+                    "b24f0192-de71-de03-91d4-4c379471f141"
+                ],
+                "RendererComponent::m_priority": 0,
+                "StaticMeshComponent::m_mesh_asset": "a63f96cb-a983-6979-9c0e-5259b03bbece"
+            },
+            {
+                "%type": "Engine::TransformComponent",
+                "Component::m_handle": 5,
+                "Component::m_parentGameObject": 3,
+                "TransformComponent::m_transform": {
+                    "%type": "Engine::Transform",
+                    "Transform::m_position": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ],
+                    "Transform::m_rotation": [
+                        -0.543132483959198,
+                        0.0,
+                        0.0,
+                        0.839647114276886
+                    ],
+                    "Transform::m_scale": [
+                        1.0,
+                        1.0,
+                        1.0
+                    ]
+                }
             },
             {
                 "%type": "Engine::LightComponent",
-                "Component::m_handle": 10,
-                "Component::m_parentGameObject": 4,
+                "Component::m_handle": 6,
+                "Component::m_parentGameObject": 3,
                 "LightComponent::m_cast_shadow": true,
                 "LightComponent::m_color": [
                     1.0,
                     1.0,
                     1.0
                 ],
-                "LightComponent::m_intensity": 1.0,
+                "LightComponent::m_intensity": 2.0,
                 "LightComponent::m_type": "Directional"
-            },
-            {
-                "%type": "Engine::StaticMeshComponent",
-                "Component::m_handle": 11,
-                "Component::m_parentGameObject": 5,
-                "RendererComponent::m_cast_shadow": false,
-                "RendererComponent::m_is_eagerly_loaded": false,
-                "RendererComponent::m_layer": 4294967295,
-                "RendererComponent::m_material_assets": [
-                    "B24F0192DE71DE0391D44C379471F141"
-                ],
-                "RendererComponent::m_priority": 0,
-                "StaticMeshComponent::m_mesh_asset": "A63F96CBA98369799C0E5259B03BBECE"
             }
         ],
         "SceneAsset::objects": [
@@ -157,7 +127,7 @@
                 "GameObject::m_childGameObject": [],
                 "GameObject::m_components": [
                     1,
-                    6
+                    2
                 ],
                 "GameObject::m_handle": 1,
                 "GameObject::m_name": "four_bunny",
@@ -168,56 +138,26 @@
                 "%type": "Engine::GameObject",
                 "GameObject::m_childGameObject": [],
                 "GameObject::m_components": [
-                    2,
-                    7
+                    3,
+                    4
                 ],
                 "GameObject::m_handle": 2,
-                "GameObject::m_name": "fixed camera",
+                "GameObject::m_name": "Cube",
                 "GameObject::m_parentGameObject": 0,
-                "GameObject::m_transformComponent": 2
-            },
-            {
-                "%type": "Engine::GameObject",
-                "GameObject::m_childGameObject": [],
-                "GameObject::m_components": [
-                    4,
-                    10
-                ],
-                "GameObject::m_handle": 4,
-                "GameObject::m_name": "Directional Light",
-                "GameObject::m_parentGameObject": 0,
-                "GameObject::m_transformComponent": 4
+                "GameObject::m_transformComponent": 3
             },
             {
                 "%type": "Engine::GameObject",
                 "GameObject::m_childGameObject": [],
                 "GameObject::m_components": [
                     5,
-                    11
+                    6
                 ],
-                "GameObject::m_handle": 5,
-                "GameObject::m_name": "Floor",
+                "GameObject::m_handle": 3,
+                "GameObject::m_name": "Directional Light",
                 "GameObject::m_parentGameObject": 0,
                 "GameObject::m_transformComponent": 5
             }
         ]
-    },
-    "%smart_pointer_data": {
-        "&1": {
-            "%type": "Engine::Camera",
-            "Camera::m_aspect_ratio": 1.7777777910232544,
-            "Camera::m_clipping_far": 1000.0,
-            "Camera::m_clipping_near": 0.0010000000474974513,
-            "Camera::m_display_id": 0,
-            "Camera::m_fov_vertical": 45.0
-        },
-        "&2": {
-            "%type": "Engine::Camera",
-            "Camera::m_aspect_ratio": 1.7777777910232544,
-            "Camera::m_clipping_far": 1000.0,
-            "Camera::m_clipping_near": 0.0010000000474974513,
-            "Camera::m_display_id": 0,
-            "Camera::m_fov_vertical": 45.0
-        }
     }
 }
