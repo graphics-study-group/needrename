@@ -32,10 +32,6 @@ namespace Engine {
                 COPY_ENUM_VALUE(R8G8B8A8UNorm),
                 /// @copydoc Engine::ImageUtils::ImageFormat::R8G8B8A8SRGB
                 COPY_ENUM_VALUE(R8G8B8A8SRGB),
-                /// @copydoc Engine::ImageUtils::ImageFormat::BC7UNorm
-                COPY_ENUM_VALUE(BC7UNorm),
-                /// @copydoc Engine::ImageUtils::ImageFormat::BC7SRGB
-                COPY_ENUM_VALUE(BC7SRGB),
             };
 #undef COPY_ENUM_VALUE
             /// An integer between 1 and 3 for dimension.

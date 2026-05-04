@@ -143,12 +143,7 @@ namespace Engine::detail::texture_import {
             ImageUtils::ImageFormat format,
             unsigned mip_level
         ) {
-            asset.m_width = width;
-            asset.m_height = height;
-            asset.m_channel = channel;
-            asset.m_data = std::move(data);
-            asset.m_format = format;
-            asset.m_mip_level = mip_level;
+            asset.SetDecodedData(width, height, channel, std::move(data), format, mip_level);
         }
 
         static void SetCubemapDecodedData(
@@ -159,11 +154,7 @@ namespace Engine::detail::texture_import {
             std::vector<std::byte> data,
             ImageUtils::ImageFormat format
         ) {
-            asset.m_width = width;
-            asset.m_height = height;
-            asset.m_channel = channel;
-            asset.m_data = std::move(data);
-            asset.m_format = format;
+            asset.SetDecodedData(width, height, channel, std::move(data), format);
         }
     };
 

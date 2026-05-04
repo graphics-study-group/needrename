@@ -5,13 +5,14 @@
 #include <SDL3/SDL_log.h>
 #include <ktx.h>
 
+#include <cassert>
 #include <cstdlib>
 #include <cstring>
 #include <memory>
 #include <thread>
 
 namespace {
-    void TryCompressTextureToBc7(ktxTexture2 *texture) {
+    bool TryCompressTextureToBasis(ktxTexture2 *texture) {
         ktxBasisParams params{};
         params.structSize = sizeof(params);
         params.codec = KTX_BASIS_CODEC_UASTC_LDR_4x4;
@@ -26,34 +27,19 @@ namespace {
                 "ktxTexture2_CompressBasisEx failed (%s). Falling back to uncompressed KTX2.",
                 ktxErrorString(compress_error)
             );
-            return;
+            return false;
         }
 
-        const auto transcode_error = ktxTexture2_TranscodeBasis(texture, KTX_TTF_BC7_RGBA, KTX_TF_HIGH_QUALITY);
-        if (transcode_error != KTX_SUCCESS) {
-            SDL_LogWarn(
-                SDL_LOG_CATEGORY_APPLICATION,
-                "ktxTexture2_TranscodeBasis failed (%s). Falling back to uncompressed KTX2.",
-                ktxErrorString(transcode_error)
-            );
-        }
+        return true;
     }
-} // namespace
 
-namespace Engine {
-    void Image2DTextureAsset::save_asset_to_archive(Serialization::Archive &archive) const {
-        auto &json = *archive.m_cursor;
-        size_t extra_data_id = archive.create_new_extra_data_buffer(".ktx2");
-        json["%extra_data_id"] = extra_data_id;
-        auto &data = archive.m_context->extra_data[extra_data_id];
-
-        const vk::Format vk_format = ImageUtils::GetVkFormat(m_format);
-        assert(vk_format != vk::Format::eUndefined);
-
+    ktxTexture2 *Create2DTextureFromMemory(
+        int width, int height, vk::Format format, const std::byte *data, size_t size
+    ) {
         ktxTextureCreateInfo create_info{};
-        create_info.vkFormat = static_cast<ktx_uint32_t>(vk_format);
-        create_info.baseWidth = static_cast<ktx_uint32_t>(m_width);
-        create_info.baseHeight = static_cast<ktx_uint32_t>(m_height);
+        create_info.vkFormat = static_cast<ktx_uint32_t>(format);
+        create_info.baseWidth = static_cast<ktx_uint32_t>(width);
+        create_info.baseHeight = static_cast<ktx_uint32_t>(height);
         create_info.baseDepth = 1;
         create_info.numDimensions = 2;
         create_info.numLevels = 1;
@@ -64,26 +50,74 @@ namespace Engine {
 
         ktxTexture2 *texture = nullptr;
         const auto create_error = ktxTexture2_Create(&create_info, KTX_TEXTURE_CREATE_ALLOC_STORAGE, &texture);
-        assert(create_error == KTX_SUCCESS && texture != nullptr);
-        std::unique_ptr<ktxTexture2, void (*)(ktxTexture2 *)> texture_guard(texture, ktxTexture2_Destroy);
+        if (create_error != KTX_SUCCESS || texture == nullptr) {
+            return nullptr;
+        }
 
         const auto set_image_error = ktxTexture_SetImageFromMemory(
-            ktxTexture(texture),
-            0,
-            0,
-            0,
-            reinterpret_cast<const ktx_uint8_t *>(m_data.data()),
-            static_cast<ktx_size_t>(m_data.size())
+            ktxTexture(texture), 0, 0, 0, reinterpret_cast<const ktx_uint8_t *>(data), static_cast<ktx_size_t>(size)
         );
-        assert(set_image_error == KTX_SUCCESS);
+        if (set_image_error != KTX_SUCCESS) {
+            ktxTexture2_Destroy(texture);
+            return nullptr;
+        }
 
-        if (CanCompressToBc7(m_format)) {
-            TryCompressTextureToBc7(texture);
+        return texture;
+    }
+} // namespace
+
+namespace Engine {
+    Image2DTextureAsset::Image2DTextureAsset() {
+    }
+
+    Image2DTextureAsset::~Image2DTextureAsset() {
+        if (m_texture != nullptr) {
+            ktxTexture2_Destroy(m_texture);
+        }
+    }
+
+    void Image2DTextureAsset::SetDecodedData(
+        int width,
+        int height,
+        int channel,
+        std::vector<std::byte> data,
+        ImageUtils::ImageFormat format,
+        unsigned mip_level
+    ) {
+        const vk::Format vk_format = ImageUtils::GetVkFormat(format);
+        assert(vk_format != vk::Format::eUndefined);
+
+        ktxTexture2 *texture = Create2DTextureFromMemory(width, height, vk_format, data.data(), data.size());
+        assert(texture != nullptr);
+
+        ResetTexture(texture);
+        m_width = width;
+        m_height = height;
+        m_channel = channel;
+        m_format = format;
+        m_mip_level = mip_level;
+    }
+
+    void Image2DTextureAsset::save_asset_to_archive(Serialization::Archive &archive) const {
+        assert(m_texture != nullptr);
+
+        auto &json = *archive.m_cursor;
+        size_t extra_data_id = archive.create_new_extra_data_buffer(".ktx2");
+        json["%extra_data_id"] = extra_data_id;
+        auto &data = archive.m_context->extra_data[extra_data_id];
+
+        auto saved_texture = Create2DTextureFromMemory(
+            m_width, m_height, ImageUtils::GetVkFormat(m_format), GetPixelData(), GetPixelDataSize()
+        );
+        std::unique_ptr<ktxTexture2, void (*)(ktxTexture2 *)> texture_guard(saved_texture, ktxTexture2_Destroy);
+
+        if (ImageUtils::CanCompressToBc7(m_format)) {
+            TryCompressTextureToBasis(saved_texture);
         }
 
         ktx_uint8_t *raw_ktx_data = nullptr;
         ktx_size_t raw_ktx_size = 0;
-        const auto write_error = ktxTexture_WriteToMemory(ktxTexture(texture), &raw_ktx_data, &raw_ktx_size);
+        const auto write_error = ktxTexture_WriteToMemory(ktxTexture(saved_texture), &raw_ktx_data, &raw_ktx_size);
         assert(write_error == KTX_SUCCESS && raw_ktx_data != nullptr);
 
         data.resize(static_cast<size_t>(raw_ktx_size));
@@ -95,62 +129,40 @@ namespace Engine {
 
     void Image2DTextureAsset::load_asset_from_archive(Serialization::Archive &archive) {
         auto &json = *archive.m_cursor;
+        Asset::load_asset_from_archive(archive);
         auto &data = archive.m_context->extra_data[json["%extra_data_id"].get<size_t>()];
-
-        ktxTexture2 *texture = nullptr;
-        const auto create_error = ktxTexture2_CreateFromMemory(
-            reinterpret_cast<const ktx_uint8_t *>(data.data()),
-            static_cast<ktx_size_t>(data.size()),
-            KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT,
-            &texture
+        SetDecodedData(
+            m_width, m_height, m_channel, std::vector<std::byte>(data.begin(), data.end()), m_format, m_mip_level
         );
-        assert(create_error == KTX_SUCCESS && texture != nullptr);
-        std::unique_ptr<ktxTexture2, void (*)(ktxTexture2 *)> texture_guard(texture, ktxTexture2_Destroy);
 
-        if (ktxTexture2_NeedsTranscoding(texture)) {
-            auto transcode_error = ktxTexture2_TranscodeBasis(texture, KTX_TTF_BC7_RGBA, KTX_TF_HIGH_QUALITY);
+        if (ktxTexture2_NeedsTranscoding(m_texture)) {
+            const auto transcode_error = ktxTexture2_TranscodeBasis(m_texture, KTX_TTF_RGBA32, 0);
             if (transcode_error != KTX_SUCCESS) {
                 SDL_LogWarn(
                     SDL_LOG_CATEGORY_APPLICATION,
-                    "BC7 transcode failed (%s). Fallback to RGBA32.",
+                    "Texture transcode to RGBA32 failed (%s).",
                     ktxErrorString(transcode_error)
                 );
-                transcode_error = ktxTexture2_TranscodeBasis(texture, KTX_TTF_RGBA32, 0);
-                assert(transcode_error == KTX_SUCCESS);
             }
+            assert(transcode_error == KTX_SUCCESS);
         }
-
-        const int width = static_cast<int>(texture->baseWidth);
-        const int height = static_cast<int>(texture->baseHeight);
-        const int channel = static_cast<int>(std::max(1u, ktxTexture2_GetNumComponents(texture)));
-
-        ktx_size_t image_offset = 0;
-        const auto offset_error = ktxTexture_GetImageOffset(ktxTexture(texture), 0, 0, 0, &image_offset);
-        assert(offset_error == KTX_SUCCESS);
-
-        const ktx_size_t image_size = ktxTexture_GetImageSize(ktxTexture(texture), 0);
-        const ktx_uint8_t *raw_ktx_data = ktxTexture_GetData(ktxTexture(texture));
-        m_data.resize(static_cast<size_t>(image_size));
-        std::memcpy(m_data.data(), raw_ktx_data + image_offset, static_cast<size_t>(image_size));
-
-        m_width = width;
-        m_height = height;
-        m_channel = channel;
-        m_mip_level = 1;
-        m_format = ImageUtils::FromVkFormat(static_cast<vk::Format>(texture->vkFormat));
-        if (m_format == ImageUtils::ImageFormat::UNDEFINED) {
-            m_format = ImageUtils::ImageFormat::R8G8B8A8UNorm;
-        }
-
-        Asset::load_asset_from_archive(archive);
-        assert(width == m_width && height == m_height && channel == m_channel);
     }
 
     const std::byte *Image2DTextureAsset::GetPixelData() const {
-        return m_data.data();
+        return reinterpret_cast<const std::byte *>(ktxTexture_GetData(ktxTexture(m_texture)));
     }
 
     size_t Image2DTextureAsset::GetPixelDataSize() const {
-        return m_data.size();
+        if (m_texture == nullptr) {
+            return 0;
+        }
+        return ktxTexture_GetDataSize(ktxTexture(m_texture));
+    }
+
+    void Image2DTextureAsset::ResetTexture(ktxTexture2 *texture) {
+        if (m_texture != nullptr) {
+            ktxTexture2_Destroy(m_texture);
+        }
+        m_texture = texture;
     }
 } // namespace Engine

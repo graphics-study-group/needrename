@@ -4,7 +4,10 @@
 #include "TextureAsset.h"
 #include <Reflection/macros.h>
 #include <Render/ImageUtils.h>
+#include <memory>
 #include <vector>
+
+struct ktxTexture2;
 
 namespace Engine {
     namespace detail::texture_import {
@@ -17,8 +20,8 @@ namespace Engine {
     class REFL_SER_CLASS(REFL_WHITELIST) Image2DTextureAsset : public TextureAsset {
         REFL_SER_BODY(Image2DTextureAsset)
     public:
-        REFL_ENABLE Image2DTextureAsset() = default;
-        virtual ~Image2DTextureAsset() = default;
+        REFL_ENABLE Image2DTextureAsset();
+        virtual ~Image2DTextureAsset() override;
 
         virtual void save_asset_to_archive(Serialization::Archive &archive) const override;
         virtual void load_asset_from_archive(Serialization::Archive &archive) override;
@@ -52,7 +55,22 @@ namespace Engine {
 
     protected:
         friend struct detail::texture_import::Access;
-        std::vector<std::byte> m_data{};
+        void SetDecodedData(
+            int width,
+            int height,
+            int channel,
+            std::vector<std::byte> data,
+            ImageUtils::ImageFormat format,
+            unsigned mip_level
+        );
+
+    private:
+        ktxTexture2 *m_texture{};
+
+        /**
+         * @brief Reset the texture with a new ktxTexture2 object. The old texture will be destroyed.
+         */
+        void ResetTexture(ktxTexture2 *texture);
     };
 } // namespace Engine
 

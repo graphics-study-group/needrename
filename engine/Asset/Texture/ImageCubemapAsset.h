@@ -6,6 +6,8 @@
 #include <Render/ImageUtils.h>
 #include <vector>
 
+struct ktxTexture2;
+
 namespace Engine {
     namespace detail::texture_import {
         struct Access;
@@ -17,8 +19,8 @@ namespace Engine {
     class REFL_SER_CLASS(REFL_WHITELIST) ImageCubemapAsset : public TextureAsset {
         REFL_SER_BODY(ImageCubemapAsset)
     public:
-        REFL_ENABLE ImageCubemapAsset() = default;
-        virtual ~ImageCubemapAsset() = default;
+        REFL_ENABLE ImageCubemapAsset();
+        virtual ~ImageCubemapAsset() override;
 
         /**
          * @brief Get pixel data of the cubemap.
@@ -50,7 +52,17 @@ namespace Engine {
 
     protected:
         friend struct detail::texture_import::Access;
-        std::vector<std::byte> m_data{};
+        void SetDecodedData(
+            int width, int height, int channel, std::vector<std::byte> data, ImageUtils::ImageFormat format
+        );
+
+    private:
+        ktxTexture2 *m_texture{};
+
+        /**
+         * @brief Reset the texture with a new ktxTexture2 object. The old texture will be destroyed.
+         */
+        void ResetTexture(ktxTexture2 *texture);
     };
 } // namespace Engine
 

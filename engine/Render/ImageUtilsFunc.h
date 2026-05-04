@@ -13,8 +13,6 @@ namespace Engine {
             case ImageFormat::R8G8B8A8SNorm:
             case ImageFormat::R8G8B8A8UNorm:
             case ImageFormat::R8G8B8A8SRGB:
-            case ImageFormat::BC7UNorm:
-            case ImageFormat::BC7SRGB:
             case ImageFormat::R11G11B10UFloat:
             case ImageFormat::R32G32B32A32SFloat:
                 return true;
@@ -71,10 +69,6 @@ namespace Engine {
                 return vk::Format::eR8G8B8A8Unorm;
             case ImageFormat::R8G8B8A8SRGB:
                 return vk::Format::eR8G8B8A8Srgb;
-            case ImageFormat::BC7UNorm:
-                return vk::Format::eBc7UnormBlock;
-            case ImageFormat::BC7SRGB:
-                return vk::Format::eBc7SrgbBlock;
             case ImageFormat::R11G11B10UFloat:
                 return vk::Format::eB10G11R11UfloatPack32;
             case ImageFormat::R32G32B32A32SFloat:
@@ -93,10 +87,6 @@ namespace Engine {
                 return ImageFormat::R8G8B8A8UNorm;
             case vk::Format::eR8G8B8A8Srgb:
                 return ImageFormat::R8G8B8A8SRGB;
-            case vk::Format::eBc7UnormBlock:
-                return ImageFormat::BC7UNorm;
-            case vk::Format::eBc7SrgbBlock:
-                return ImageFormat::BC7SRGB;
             case vk::Format::eB10G11R11UfloatPack32:
                 return ImageFormat::R11G11B10UFloat;
             case vk::Format::eR32G32B32A32Sfloat:
@@ -118,9 +108,6 @@ namespace Engine {
                 return 4;
             case ImageFormat::R32G32B32A32SFloat:
                 return 16;
-            case ImageFormat::BC7UNorm:
-            case ImageFormat::BC7SRGB:
-                return 0;
             default:
                 return 0;
             }
@@ -128,9 +115,6 @@ namespace Engine {
 
         constexpr bool IsBlockCompressed(ImageFormat format) {
             switch (format) {
-            case ImageFormat::BC7UNorm:
-            case ImageFormat::BC7SRGB:
-                return true;
             default:
                 return false;
             }

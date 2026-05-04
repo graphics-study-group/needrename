@@ -30,10 +30,6 @@ namespace Engine {
             /// R8-G8-B8-A8 image in sRGB space.
             /// Unordered access on this type of image is rarely supported.
             R8G8B8A8SRGB,
-            /// BC7 compressed UNorm color block format.
-            BC7UNorm,
-            /// BC7 compressed sRGB color block format.
-            BC7SRGB,
             /// 32-bit packed float for HDR rendering.
             /// In Vulkan, it is actually B10-G11-R11.
             R11G11B10UFloat,
