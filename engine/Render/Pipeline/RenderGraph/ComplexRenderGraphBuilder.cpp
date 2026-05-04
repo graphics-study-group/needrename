@@ -108,7 +108,12 @@ namespace Engine {
                 vk::Extent2D extent{system.GetSwapchain().GetExtent()};
                 vk::Rect2D scissor{{0, 0}, extent};
                 gcb.SetupViewport(extent.width, extent.height, scissor);
-                system.GetCameraManager().SetActiveCameraIndex(world_system->GetActiveCamera()->m_display_id);
+                auto active_camera = world_system->GetActiveCamera();
+                if (active_camera == nullptr) {
+                    // No active camera, skip rendering.
+                    return;
+                }
+                system.GetCameraManager().SetActiveCameraIndex(active_camera->m_display_id);
                 gcb.DrawRenderers(
                     "Lit",
                     system.GetRendererManager().FilterAndSortRenderers({}),
