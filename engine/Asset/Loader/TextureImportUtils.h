@@ -10,7 +10,7 @@
 namespace Engine {
     class Image2DTextureAsset;
     class ImageCubemapAsset;
-}
+} // namespace Engine
 
 namespace Engine::detail::texture_import {
     void LoadImage2DTextureAssetFromFile(
@@ -30,12 +30,14 @@ namespace Engine::detail::texture_import {
         Engine::ImageCubemapAsset &asset,
         const std::filesystem::path &path,
         int width,
-        int height
+        int height,
+        ImageUtils::ImageFormat format = ImageUtils::ImageFormat::R8G8B8A8SRGB
     );
 
     void LoadImageCubemapAssetFromSixFiles(
         Engine::ImageCubemapAsset &asset,
-        const std::array<std::filesystem::path, 6> &paths
+        const std::array<std::filesystem::path, 6> &paths,
+        ImageUtils::ImageFormat format = ImageUtils::ImageFormat::R8G8B8A8SRGB
     );
 
     void LoadImageCubemapAssetFromEquirectangularMemory(
@@ -43,13 +45,15 @@ namespace Engine::detail::texture_import {
         const std::byte *bytes,
         size_t size,
         int width,
-        int height
+        int height,
+        ImageUtils::ImageFormat format = ImageUtils::ImageFormat::R8G8B8A8SRGB
     );
 
     void LoadImageCubemapAssetFromSixMemory(
         Engine::ImageCubemapAsset &asset,
         const std::array<const std::byte *, 6> &bytes,
-        const std::array<size_t, 6> &sizes
+        const std::array<size_t, 6> &sizes,
+        ImageUtils::ImageFormat format = ImageUtils::ImageFormat::R8G8B8A8SRGB
     );
 } // namespace Engine::detail::texture_import
 

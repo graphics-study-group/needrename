@@ -112,7 +112,7 @@ namespace {
                     float lat = -std::asin(dir.z);
 
                     float src_x = (lon + std::numbers::pi_v<float>) / (2.0f * std::numbers::pi_v<float>)*src_w;
-                    float src_y = (std::numbers::pi_v<float> / 2.0f - lat) / std::numbers::pi_v<float> * src_h;
+                    float src_y = (std::numbers::pi_v<float> / 2.0f + lat) / std::numbers::pi_v<float> * src_h;
 
                     std::byte *pixel = &dst[(y * face_size + x) * channels];
                     SampleBilinear(src, src_w, src_h, channels, src_x, src_y, pixel);
@@ -152,12 +152,18 @@ namespace Engine::detail::texture_import {
         }
 
         static void SetCubemapDecodedData(
-            ImageCubemapAsset &asset, int width, int height, int channel, std::vector<std::byte> data
+            ImageCubemapAsset &asset,
+            int width,
+            int height,
+            int channel,
+            std::vector<std::byte> data,
+            ImageUtils::ImageFormat format
         ) {
             asset.m_width = width;
             asset.m_height = height;
             asset.m_channel = channel;
             asset.m_data = std::move(data);
+            asset.m_format = format;
         }
     };
 
@@ -188,7 +194,11 @@ namespace Engine::detail::texture_import {
     }
 
     void LoadImageCubemapAssetFromEquirectangularFile(
-        ImageCubemapAsset &asset, const std::filesystem::path &path, int width, int height
+        ImageCubemapAsset &asset,
+        const std::filesystem::path &path,
+        int width,
+        int height,
+        ImageUtils::ImageFormat format
     ) {
         int src_w = 0;
         int src_h = 0;
@@ -200,11 +210,11 @@ namespace Engine::detail::texture_import {
             ConvertEquirectToCubemap(reinterpret_cast<const std::byte *>(raw_image_data), src_w, src_h, 4, width);
         stbi_image_free(raw_image_data);
 
-        Access::SetCubemapDecodedData(asset, width, height, 4, std::move(data));
+        Access::SetCubemapDecodedData(asset, width, height, 4, std::move(data), format);
     }
 
     void LoadImageCubemapAssetFromSixFiles(
-        ImageCubemapAsset &asset, const std::array<std::filesystem::path, 6> &paths
+        ImageCubemapAsset &asset, const std::array<std::filesystem::path, 6> &paths, ImageUtils::ImageFormat format
     ) {
         int width = 0;
         int height = 0;
@@ -229,20 +239,28 @@ namespace Engine::detail::texture_import {
             stbi_image_free(image);
         }
 
-        Access::SetCubemapDecodedData(asset, width, height, 4, std::move(data));
+        Access::SetCubemapDecodedData(asset, width, height, 4, std::move(data), format);
     }
 
     void LoadImageCubemapAssetFromEquirectangularMemory(
-        ImageCubemapAsset &asset, const std::byte *bytes, size_t size, int width, int height
+        ImageCubemapAsset &asset,
+        const std::byte *bytes,
+        size_t size,
+        int width,
+        int height,
+        ImageUtils::ImageFormat format
     ) {
         DecodedImage2D image = DecodeImage2DFromMemory(bytes, size);
         std::vector<std::byte> data =
             ConvertEquirectToCubemap(image.data.data(), image.width, image.height, image.channel, width);
-        Access::SetCubemapDecodedData(asset, width, height, 4, std::move(data));
+        Access::SetCubemapDecodedData(asset, width, height, 4, std::move(data), format);
     }
 
     void LoadImageCubemapAssetFromSixMemory(
-        ImageCubemapAsset &asset, const std::array<const std::byte *, 6> &bytes, const std::array<size_t, 6> &sizes
+        ImageCubemapAsset &asset,
+        const std::array<const std::byte *, 6> &bytes,
+        const std::array<size_t, 6> &sizes,
+        ImageUtils::ImageFormat format
     ) {
         std::array<DecodedImage2D, 6> images{};
         for (int i = 0; i < 6; ++i) {
@@ -266,6 +284,6 @@ namespace Engine::detail::texture_import {
             std::memcpy(data.data() + image_size * static_cast<size_t>(i), images[i].data.data(), image_size);
         }
 
-        Access::SetCubemapDecodedData(asset, width, height, channel, std::move(data));
+        Access::SetCubemapDecodedData(asset, width, height, channel, std::move(data), format);
     }
 } // namespace Engine::detail::texture_import
