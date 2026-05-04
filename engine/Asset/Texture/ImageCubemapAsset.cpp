@@ -35,7 +35,7 @@ namespace {
         return true;
     }
 
-    ktxTexture2 *CreateCubemapTextureFromMemory(
+    ktxTexture2 *CreateCubemapTextureData(
         int width, int height, vk::Format format, const std::byte *data, size_t size
     ) {
         assert(size % 6 == 0);
@@ -94,7 +94,7 @@ namespace Engine {
         const vk::Format vk_format = ImageUtils::GetVkFormat(format);
         assert(vk_format != vk::Format::eUndefined);
 
-        ktxTexture2 *texture = CreateCubemapTextureFromMemory(width, height, vk_format, data.data(), data.size());
+        ktxTexture2 *texture = CreateCubemapTextureData(width, height, vk_format, data.data(), data.size());
         assert(texture != nullptr);
 
         ResetTexture(texture);
@@ -126,9 +126,9 @@ namespace Engine {
         json["%extra_data_id"] = extra_data_id;
         auto &data = archive.m_context->extra_data[extra_data_id];
 
-        auto saved_texture = CreateCubemapTextureFromMemory(
-            m_width, m_height, ImageUtils::GetVkFormat(m_format), GetPixelData(), GetPixelDataSize()
-        );
+        ktxTexture2 *saved_texture = nullptr;
+        auto create_error = ktxTexture2_CreateCopy(m_texture, &saved_texture);
+        assert(create_error == KTX_SUCCESS && saved_texture != nullptr);
         std::unique_ptr<ktxTexture2, void (*)(ktxTexture2 *)> texture_guard(saved_texture, ktxTexture2_Destroy);
 
         if (ImageUtils::CanCompressToBc7(m_format)) {
@@ -151,7 +151,12 @@ namespace Engine {
         auto &json = *archive.m_cursor;
         TextureAsset::load_asset_from_archive(archive);
         auto &data = archive.m_context->extra_data[json["%extra_data_id"].get<size_t>()];
-        SetDecodedData(m_width, m_height, m_channel, std::vector<std::byte>(data.begin(), data.end()), m_format);
+        ktxTexture2 *loaded_texture = nullptr;
+        auto create_error = ktxTexture2_CreateFromMemory(
+            reinterpret_cast<const ktx_uint8_t *>(data.data()), data.size(), 0, &loaded_texture
+        );
+        assert(create_error == KTX_SUCCESS && loaded_texture != nullptr);
+        ResetTexture(loaded_texture);
 
         if (ktxTexture2_NeedsTranscoding(m_texture)) {
             const auto transcode_error = ktxTexture2_TranscodeBasis(m_texture, KTX_TTF_RGBA32, 0);
