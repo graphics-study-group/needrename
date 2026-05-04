@@ -139,9 +139,8 @@ int main(int argc, char **argv) {
         // Engine::Serialization::Archive archive;
         // archive.prepare_save();
         // cubemap->save_asset_to_archive(archive);
-        // archive.save_to_file(std::string(ENGINE_ASSETS_DIR) + "/skybox.asset");
+        // archive.save_to_file(std::string(ENGINE_ASSETS_DIR) + "/skybox");
 
-        // texture_import::LoadImageCubemapAssetFromSixFiles(*cubemap, CUBEMAP_FACES);
         rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
             *skybox_texture, cubemap->GetPixelData(), cubemap->GetPixelDataSize()
         );

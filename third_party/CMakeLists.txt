@@ -77,6 +77,11 @@ set(BUILD_SHARED_LIBS ${_OLD_BUILD_SHARED_LIBS})
 unset(_OLD_BUILD_SHARED_LIBS)
 if(TARGET ktx)
     set_target_properties(ktx PROPERTIES FOLDER third_party)
+    if(NOT MSVC)
+        # libktx has a bug in `writer2.c` which causes a 64-bit ktx_size_t is writen as a 32-bit off_t.
+        # So force 64-bit file offsets to avoid the issue.
+        target_compile_definitions(ktx PUBLIC _FILE_OFFSET_BITS=64)
+    endif()
 endif()
 
 set(ENABLE_OPT OFF CACHE BOOL "Enable optimizations" FORCE)
