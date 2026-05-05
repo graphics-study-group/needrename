@@ -29,6 +29,7 @@ namespace Engine {
         /// @brief Which RTT to be written to.
         T rt_handle{};
         /// @brief What subresources are used by the rendering pass.
+        /// Component swizzles of the subresource range is ignored.
         TextureSubresourceRange range{};
         /// @brief Load operation of the attachment.
         LoadOp load_op{};
