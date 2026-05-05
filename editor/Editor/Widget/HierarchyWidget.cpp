@@ -56,9 +56,9 @@ namespace Editor {
     }
 
     void HierarchyWidget::Render() {
-        auto &adb = *std::dynamic_pointer_cast<Engine::FileSystemDatabase>(
-            Engine::MainClass::GetInstance()->GetAssetDatabase()
-        );
+        auto &adb =
+            *std::dynamic_pointer_cast<Engine::FileSystemDatabase>(Engine::MainClass::GetInstance()->GetAssetDatabase()
+            );
         auto &scene = Engine::MainClass::GetInstance()->GetWorldSystem()->GetMainSceneRef();
         bool selected_changed = false;
         ObjectHandle need_remove_go;
@@ -233,7 +233,9 @@ namespace Editor {
                     }
                 }
                 std::sort(
-                    matches.begin(), matches.end(), [](const Engine::GameObject *lhs, const Engine::GameObject *rhs) {
+                    matches.begin(),
+                    matches.end(),
+                    [](const Engine::GameObject *lhs, const Engine::GameObject *rhs) {
                         return LessCaseInsensitive(lhs->m_name, rhs->m_name);
                     }
                 );
