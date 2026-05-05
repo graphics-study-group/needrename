@@ -84,6 +84,7 @@ add_custom_command(TARGET SDL_init_test POST_BUILD
     $<TARGET_FILE:engine>
     $<TARGET_FILE:glslang>
     $<TARGET_FILE:assimp::assimp>
+    $<TARGET_FILE:ktx>
     $<TARGET_FILE:fastgltf>
     $<TARGET_FILE_DIR:SDL_init_test>
     COMMENT "Copying DLLs"
