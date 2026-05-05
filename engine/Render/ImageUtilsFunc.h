@@ -38,8 +38,7 @@ namespace Engine {
         }
 
         constexpr bool CanCompressToBasis(ImageFormat format) {
-            return format == ImageFormat::R8G8B8A8UNorm
-                   || format == ImageFormat::R8G8B8A8SRGB;
+            return format == ImageFormat::R8G8B8A8UNorm || format == ImageFormat::R8G8B8A8SRGB;
         }
 
         constexpr vk::ImageAspectFlags GetVkAspect(ImageFormat format) {

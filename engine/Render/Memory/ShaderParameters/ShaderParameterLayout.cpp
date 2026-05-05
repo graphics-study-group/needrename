@@ -153,8 +153,8 @@ namespace Engine::ShdrRfl {
         interface.buffer_placer->WriteBuffer(sb, buffer);
     }
 
-    std::unordered_map<uint32_t, std::vector<vk::DescriptorSetLayoutBinding>> SPLayout::
-        GenerateAllLayoutBindings() const {
+    std::unordered_map<uint32_t, std::vector<vk::DescriptorSetLayoutBinding>> SPLayout::GenerateAllLayoutBindings(
+    ) const {
         std::unordered_map<uint32_t, std::vector<vk::DescriptorSetLayoutBinding>> sets;
 
         for (const auto &interface : this->interfaces) {
