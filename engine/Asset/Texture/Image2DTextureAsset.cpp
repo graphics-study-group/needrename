@@ -109,7 +109,7 @@ namespace Engine {
         assert(create_error == KTX_SUCCESS && saved_texture != nullptr);
         std::unique_ptr<ktxTexture2, void (*)(ktxTexture2 *)> texture_guard(saved_texture, ktxTexture2_Destroy);
 
-        if (ImageUtils::CanCompressToBc7(m_format)) {
+        if (ImageUtils::CanCompressToBasis(m_format)) {
             TryCompressTextureToBasis(saved_texture);
         }
 

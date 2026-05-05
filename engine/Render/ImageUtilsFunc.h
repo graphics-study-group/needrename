@@ -37,7 +37,7 @@ namespace Engine {
             }
         }
 
-        constexpr bool CanCompressToBc7(ImageFormat format) {
+        constexpr bool CanCompressToBasis(ImageFormat format) {
             return format == ImageFormat::R8G8B8A8UNorm
                    || format == ImageFormat::R8G8B8A8SRGB;
         }
