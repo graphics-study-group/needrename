@@ -1,10 +1,16 @@
 #include "HierarchyWidget.h"
-#include <Asset/AssetDatabase/FileSystemDatabase.h>
-#include <Asset/Scene/SceneAsset.h>
-#include <Framework/object/GameObject.h>
-#include <Framework/world/Scene.h>
-#include <Framework/world/WorldSystem.h>
-#include <MainClass.h>
+
+#include "Asset/AssetDatabase/FileSystemDatabase.h"
+#include "Asset/Scene/SceneAsset.h"
+#include "Framework/component/RenderComponent/CameraComponent.h"
+#include "Framework/component/RenderComponent/LightComponent.h"
+#include "Framework/component/RenderComponent/StaticMeshComponent.h"
+#include "Framework/object/GameObject.h"
+#include "Framework/world/Scene.h"
+#include "Framework/world/WorldSystem.h"
+#include "MainClass.h"
+#include "Render/RenderSystem.h"
+
 #include <algorithm>
 #include <cctype>
 #include <cstdio>
@@ -14,9 +20,6 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-
-#include <Framework/component/RenderComponent/LightComponent.h>
-#include <Framework/component/RenderComponent/StaticMeshComponent.h>
 
 namespace {
     bool ContainsCaseInsensitive(const std::string &text, const std::string &pattern) {
@@ -112,6 +115,15 @@ namespace Editor {
                         comp.m_cast_shadow = false;
                     }
                     ImGui::EndMenu();
+                }
+                if (ImGui::MenuItem("Create Camera")) {
+                    auto &go = scene.CreateGameObject();
+                    go.m_name = "Camera";
+                    auto &camera_comp = go.AddComponent<Engine::CameraComponent>();
+                    Engine::MainClass::GetInstance()->GetWorldSystem()->SetActiveCamera(
+                        camera_comp.GetHandle(),
+                        &Engine::MainClass::GetInstance()->GetRenderSystem()->GetCameraManager()
+                    );
                 }
                 if (ImGui::BeginMenu("Create Mesh")) {
                     if (ImGui::MenuItem("Cube")) {
