@@ -14,6 +14,11 @@
 #include <Reflection/serialization.h>
 
 namespace {
+    /**
+     * @brief Try to compress the texture to Basis Universal format.
+     * 
+     * If the compression fails, it will log a warning and keep the original uncompressed texture.
+     */
     bool TryCompressTextureToBasis(ktxTexture2 *texture) {
         ktxBasisParams params{};
         params.structSize = sizeof(params);
@@ -35,6 +40,11 @@ namespace {
         return true;
     }
 
+    /**
+     * @brief Create a ktxTexture2 from raw pixel data.
+     * 
+     * The data should be the image pixel data decoded from an image file, without any header, metadata or compression.
+     */
     ktxTexture2 *CreateCubemapTextureData(
         int width, int height, vk::Format format, const std::byte *data, size_t size
     ) {

@@ -52,6 +52,11 @@ namespace Engine {
 
     protected:
         friend struct detail::texture_import::Access;
+        /**
+         * @brief Set the decoded pixel data of the cubemap.
+         *
+         * The data should be the image pixel data decoded from an image file, without any header, metadata or compression.
+         */
         void SetDecodedData(
             int width, int height, int channel, std::vector<std::byte> data, ImageUtils::ImageFormat format
         );
