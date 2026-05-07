@@ -55,6 +55,26 @@ namespace {
         return transformed;
     }
 
+    // Build a stable tangent from normal when source mesh does not provide one.
+    glm::vec4 BuildFallbackTangentFromNormal(const glm::vec3 &normal) {
+        if (glm::length(normal) <= 1e-6f) {
+            return glm::vec4{1.0f, 0.0f, 0.0f, 1.0f};
+        }
+
+        const glm::vec3 n = glm::normalize(normal);
+        const float abs_nz = n.z >= 0.0f ? n.z : -n.z;
+        const glm::vec3 reference = abs_nz < 0.999f ? glm::vec3{0.0f, 0.0f, 1.0f} : glm::vec3{0.0f, 1.0f, 0.0f};
+
+        glm::vec3 tangent = glm::cross(reference, n);
+        if (glm::length(tangent) <= 1e-6f) {
+            tangent = glm::vec3{1.0f, 0.0f, 0.0f};
+        } else {
+            tangent = glm::normalize(tangent);
+        }
+
+        return glm::vec4{tangent, 1.0f};
+    }
+
     // Returns the constant basis transform matrix used for glTF->engine matrix conversion.
     glm::mat4 GetBasisTransformMatrix() {
         static const glm::mat4 basis(
@@ -163,8 +183,8 @@ namespace {
         }
 
         const auto *tangent_it = primitive.findAttribute("TANGENT");
+        tangents.assign(vertex_count * 4, 0.0f);
         if (tangent_it != primitive.attributes.end()) {
-            tangents.assign(vertex_count * 4, 0.0f);
             const auto &tangent_accessor = asset.accessors[tangent_it->accessorIndex];
             // Tangent xyz follows basis conversion; w keeps handedness sign from source.
             fastgltf::iterateAccessorWithIndex<fastgltf::math::fvec4>(asset, tangent_accessor, [&](auto t, size_t idx) {
@@ -174,6 +194,15 @@ namespace {
                 tangents[idx * 4 + 2] = transformed.z;
                 tangents[idx * 4 + 3] = t.w();
             });
+        } else {
+            for (size_t idx = 0; idx < vertex_count; ++idx) {
+                const glm::vec3 normal = glm::vec3{normals[idx * 3 + 0], normals[idx * 3 + 1], normals[idx * 3 + 2]};
+                const glm::vec4 fallback_tangent = BuildFallbackTangentFromNormal(normal);
+                tangents[idx * 4 + 0] = fallback_tangent.x;
+                tangents[idx * 4 + 1] = fallback_tangent.y;
+                tangents[idx * 4 + 2] = fallback_tangent.z;
+                tangents[idx * 4 + 3] = fallback_tangent.w;
+            }
         }
 
         if (primitive.indicesAccessor.has_value()) {
@@ -211,16 +240,14 @@ namespace {
             submesh.m_vertex_attributes, normals.data(), normals.size(), submesh.normal
         );
 
-        if (!tangents.empty()) {
-            submesh.tangent.type = Engine::VertexAttributeType::SFloat32x4;
-            Engine::detail::import_shared::AppendVertexAttribute(
-                submesh.m_vertex_attributes, tangents.data(), tangents.size(), submesh.tangent
-            );
-        }
-
         submesh.texcoord0.type = Engine::VertexAttributeType::SFloat32x2;
         Engine::detail::import_shared::AppendVertexAttribute(
             submesh.m_vertex_attributes, texcoord0.data(), texcoord0.size(), submesh.texcoord0
+        );
+
+        submesh.tangent.type = Engine::VertexAttributeType::SFloat32x4;
+        Engine::detail::import_shared::AppendVertexAttribute(
+            submesh.m_vertex_attributes, tangents.data(), tangents.size(), submesh.tangent
         );
 
         return submesh;

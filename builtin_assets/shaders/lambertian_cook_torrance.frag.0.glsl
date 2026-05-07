@@ -15,6 +15,7 @@ layout(location = 0) in vec3 frag_color;
 layout(location = 1) in vec2 frag_uv;
 layout(location = 2) in vec3 frag_normal;
 layout(location = 3) in vec3 frag_position;
+layout(location = 4) in vec4 frag_tangent;
 
 layout(location = 0) out vec4 out_color;
 
@@ -28,29 +29,14 @@ layout (set=2, binding=2) uniform sampler2D MRAOSampler;
 layout (set=2, binding=3) uniform sampler2D normalSampler;
 layout (set=2, binding=4) uniform sampler2D emissiveSampler;
 
-// Reconstruct TBN basis from screen-space derivatives for tangent-space normal mapping.
-mat3 cotangentFrame(vec3 N, vec3 position, vec2 uv)
-{
-    vec3 dp1 = dFdx(position);
-    vec3 dp2 = dFdy(position);
-    vec2 duv1 = dFdx(uv);
-    vec2 duv2 = dFdy(uv);
-
-    vec3 dp2perp = cross(dp2, N);
-    vec3 dp1perp = cross(N, dp1);
-    vec3 T = dp2perp * duv1.x + dp1perp * duv2.x;
-    vec3 B = dp2perp * duv1.y + dp1perp * duv2.y;
-
-    float scale = inversesqrt(max(M_EPS, max(dot(T, T), dot(B, B))));
-    return mat3(T * scale, B * scale, N);
-}
-
 vec3 sampleWorldNormal()
 {
     vec3 geometric_normal = normalize(frag_normal);
+    vec3 tangent = normalize(frag_tangent.xyz);
+    vec3 bitangent = normalize(cross(geometric_normal, tangent)) * frag_tangent.w;
     vec3 tangent_normal = texture(normalSampler, frag_uv).xyz * 2.0 - 1.0;
 
-    mat3 TBN = cotangentFrame(geometric_normal, frag_position, frag_uv);
+    mat3 TBN = mat3(tangent, bitangent, geometric_normal);
     return normalize(TBN * tangent_normal);
 }
 

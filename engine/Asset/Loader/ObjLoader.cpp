@@ -30,6 +30,25 @@ namespace Engine {
             std::vector<tinyobj::material_t> materials{};
         };
 
+        glm::vec4 BuildFallbackTangentFromNormal(const glm::vec3 &normal) {
+            if (glm::length(normal) <= 1e-6f) {
+                return glm::vec4{1.0f, 0.0f, 0.0f, 1.0f};
+            }
+
+            const glm::vec3 n = glm::normalize(normal);
+            const float abs_nz = n.z >= 0.0f ? n.z : -n.z;
+            const glm::vec3 reference = abs_nz < 0.999f ? glm::vec3{0.0f, 0.0f, 1.0f} : glm::vec3{0.0f, 1.0f, 0.0f};
+
+            glm::vec3 tangent = glm::cross(reference, n);
+            if (glm::length(tangent) <= 1e-6f) {
+                tangent = glm::vec3{1.0f, 0.0f, 0.0f};
+            } else {
+                tangent = glm::normalize(tangent);
+            }
+
+            return glm::vec4{tangent, 1.0f};
+        }
+
         void LoadMeshAssetFromTinyObj(
             MeshAsset &mesh_asset, const tinyobj::attrib_t &attrib, const std::vector<tinyobj::shape_t> &shapes
         );
@@ -231,7 +250,9 @@ namespace Engine {
                 std::vector<float> position{};
                 std::vector<float> color{};
                 std::vector<float> normal{};
+                std::vector<float> tangent{};
                 std::vector<float> texcoord0{};
+                submesh.tangent.type = VertexAttributeType::SFloat32x4;
 
                 for (const auto &index : shape.mesh.indices) {
                     const std::tuple<int, int, int> key(index.vertex_index, index.normal_index, index.texcoord_index);
@@ -250,9 +271,26 @@ namespace Engine {
                         }
                         if (index.normal_index >= 0) {
                             submesh.normal.type = VertexAttributeType::SFloat32x3;
-                            normal.push_back(normals[index.normal_index * 3]);
-                            normal.push_back(normals[index.normal_index * 3 + 1]);
-                            normal.push_back(normals[index.normal_index * 3 + 2]);
+                            const glm::vec3 n{
+                                normals[index.normal_index * 3],
+                                normals[index.normal_index * 3 + 1],
+                                normals[index.normal_index * 3 + 2]
+                            };
+                            normal.push_back(n.x);
+                            normal.push_back(n.y);
+                            normal.push_back(n.z);
+
+                            const glm::vec4 fallback_tangent = BuildFallbackTangentFromNormal(n);
+                            tangent.push_back(fallback_tangent.x);
+                            tangent.push_back(fallback_tangent.y);
+                            tangent.push_back(fallback_tangent.z);
+                            tangent.push_back(fallback_tangent.w);
+                        } else {
+                            const glm::vec4 fallback_tangent = glm::vec4{1.0f, 0.0f, 0.0f, 1.0f};
+                            tangent.push_back(fallback_tangent.x);
+                            tangent.push_back(fallback_tangent.y);
+                            tangent.push_back(fallback_tangent.z);
+                            tangent.push_back(fallback_tangent.w);
                         }
                         if (index.texcoord_index >= 0) {
                             submesh.texcoord0.type = VertexAttributeType::SFloat32x2;
@@ -265,7 +303,7 @@ namespace Engine {
 
                 submesh.vertex_count = vertex_id;
                 submesh.m_vertex_attributes.reserve(
-                    (position.size() + color.size() + normal.size() + texcoord0.size()) * sizeof(float)
+                    (position.size() + color.size() + normal.size() + texcoord0.size() + tangent.size()) * sizeof(float)
                 );
                 detail::import_shared::AppendVertexAttribute(
                     submesh.m_vertex_attributes, position.data(), position.size(), submesh.positions
@@ -278,6 +316,9 @@ namespace Engine {
                 );
                 detail::import_shared::AppendVertexAttribute(
                     submesh.m_vertex_attributes, texcoord0.data(), texcoord0.size(), submesh.texcoord0
+                );
+                detail::import_shared::AppendVertexAttribute(
+                    submesh.m_vertex_attributes, tangent.data(), tangent.size(), submesh.tangent
                 );
             }
         }
