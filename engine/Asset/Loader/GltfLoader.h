@@ -1,7 +1,7 @@
 #ifndef ASSET_LOADER_GLTFLOADER_INCLUDED
 #define ASSET_LOADER_GLTFLOADER_INCLUDED
 
-#include "AssimpImportShared.h"
+#include "ImportTypes.h"
 
 #include <filesystem>
 #include <memory>

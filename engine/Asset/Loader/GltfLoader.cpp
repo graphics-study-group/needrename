@@ -134,9 +134,7 @@ namespace {
             if (color_accessor.type == fastgltf::AccessorType::Vec4) {
                 // Vec4 vertex color: keep RGB and ignore alpha for current vertex format.
                 fastgltf::iterateAccessorWithIndex<fastgltf::math::fvec4>(
-                    asset,
-                    color_accessor,
-                    [&](auto c, size_t idx) {
+                    asset, color_accessor, [&](auto c, size_t idx) {
                         colors[idx * 3 + 0] = c.x();
                         colors[idx * 3 + 1] = c.y();
                         colors[idx * 3 + 2] = c.z();
@@ -145,9 +143,7 @@ namespace {
             } else {
                 // Vec3 vertex color: copy RGB directly.
                 fastgltf::iterateAccessorWithIndex<fastgltf::math::fvec3>(
-                    asset,
-                    color_accessor,
-                    [&](auto c, size_t idx) {
+                    asset, color_accessor, [&](auto c, size_t idx) {
                         colors[idx * 3 + 0] = c.x();
                         colors[idx * 3 + 1] = c.y();
                         colors[idx * 3 + 2] = c.z();
