@@ -1,23 +1,28 @@
 # Git LFS
+
 # Image files
-*.jpg filter=lfs diff=lfs merge=lfs
-*.jpeg filter=lfs diff=lfs merge=lfs
-*.png filter=lfs diff=lfs merge=lfs
-*.svg filter=lfs diff=lfs merge=lfs
-*.psd filter=lfs diff=lfs merge=lfs
+*.jpg filter=lfs diff=lfs merge=lfs -text
+*.jpeg filter=lfs diff=lfs merge=lfs -text
+*.png filter=lfs diff=lfs merge=lfs -text
+*.svg filter=lfs diff=lfs merge=lfs -text
+*.psd filter=lfs diff=lfs merge=lfs -text
+*.ktx filter=lfs diff=lfs merge=lfs -text
+*.ktx2 filter=lfs diff=lfs merge=lfs -text
 
 # mesh files
-*.obj filter=lfs diff=lfs merge=lfs
-*.mtl filter=lfs diff=lfs merge=lfs
-*.fbx filter=lfs diff=lfs merge=lfs
-*.blend filter=lfs diff=lfs merge=lfs
+*.obj filter=lfs diff=lfs merge=lfs -text
+*.mtl filter=lfs diff=lfs merge=lfs -text
+*.fbx filter=lfs diff=lfs merge=lfs -text
+*.blend filter=lfs diff=lfs merge=lfs -text
+*.gltf filter=lfs diff=lfs merge=lfs -text
+*.glb filter=lfs diff=lfs merge=lfs -text
+
 # binary files
-*.mesh_data filter=lfs diff=lfs merge=lfs
-*.mesh filter=lfs diff=lfs merge=lfs
-*.exe filter=lfs diff=lfs merge=lfs
-*.dll filter=lfs diff=lfs merge=lfs
-*.so filter=lfs diff=lfs merge=lfs
-*.lib filter=lfs diff=lfs merge=lfs
-*.a filter=lfs diff=lfs merge=lfs
-*.spv filter=lfs diff=lfs merge=lfs
-*.ktx2 filter=lfs diff=lfs merge=lfs -text
+*.mesh_data filter=lfs diff=lfs merge=lfs -text
+*.mesh filter=lfs diff=lfs merge=lfs -text
+*.exe filter=lfs diff=lfs merge=lfs -text
+*.dll filter=lfs diff=lfs merge=lfs -text
+*.so filter=lfs diff=lfs merge=lfs -text
+*.lib filter=lfs diff=lfs merge=lfs -text
+*.a filter=lfs diff=lfs merge=lfs -text
+*.spv filter=lfs diff=lfs merge=lfs -text
