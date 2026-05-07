@@ -257,7 +257,7 @@ namespace Engine {
                         if (index.texcoord_index >= 0) {
                             submesh.texcoord0.type = VertexAttributeType::SFloat32x2;
                             texcoord0.push_back(uvs[index.texcoord_index * 2]);
-                            texcoord0.push_back(uvs[index.texcoord_index * 2 + 1]);
+                            texcoord0.push_back(1.0f - uvs[index.texcoord_index * 2 + 1]); // Obj needs v flipped
                         }
                     }
                     submesh.m_indices.push_back(vertex_id_map[key]);
