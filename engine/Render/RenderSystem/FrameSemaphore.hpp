@@ -5,39 +5,73 @@
 #include <vulkan/vulkan.hpp>
 
 namespace Engine::RenderSystemState {
-    struct FrameSemaphore final {
-        vk::UniqueSemaphore timeline_semaphore;
-        uint64_t frame_count;
+    /**
+     * @brief Simple, frame-based wrapper around Vulkan timeline semaphore.
+     */
+    class FrameSemaphore {
+        vk::UniqueSemaphore timeline_semaphore {nullptr};
+        uint32_t current_frame_expected_timepoints {0};
+        uint64_t total_elapsed_timepoints {0};
+    
+    public:
+        void SetSemaphore(vk::UniqueSemaphore && s) noexcept { timeline_semaphore = std::move(s); }
+        vk::Semaphore GetSemaphore() const noexcept { return timeline_semaphore.get(); }
+        uint32_t GetExpectedTimepoints() const noexcept { return current_frame_expected_timepoints; }
+        uint64_t GetTotalElapsedTimepoints() const noexcept { return total_elapsed_timepoints; }
 
-        enum class TimePoint {
-            Pending,
-            PreTransferFinished,
-            PreComputeFinished,
-            // XXX: investigate possible optimization opportunity.
-            // maybe we should split GUI drawing from main graphics and run GUI in parallel with post compute.
-            // (See https://docs.vulkan.org/samples/latest/samples/performance/async_compute/README.html)
-            // in that case the post compute finished semaphore should be renamed to `GUIFinished`,
-            // as dependency in the same async compute queue can be expressed by barriers instead of semaphores.
-            // Or we can run post-process compute in main graphics queue and leave post compute for composition only.
-            GraphicFinished,
-            PostComputeFinished,
-            // While `VkPresentInfoKHR` only accepts binary semaphore, we still need this to prevent writing on textures being copied to present.
-            CopyToPresentFinished,
-            MAX_TIME_POINTS
-        };
-
-        void StepFrame() {
-            frame_count++;
+        /**
+         * @brief Step the frame by adding expected timepoints to the elapsed
+         * counter.
+         * 
+         * The expected timepoints of the previous frame is not zeroed. You can
+         * use `GetExpectedTimepoints()` to query this value until the next call
+         * of `SetExpectedTimepoints()`.
+         */
+        void EndFrame() noexcept {
+            assert(current_frame_expected_timepoints > 0 && "Expected timepoints of the current frame is not set yet.");
+            total_elapsed_timepoints += current_frame_expected_timepoints;
         }
 
-        uint64_t GetTimepointValue(TimePoint timepoint) const noexcept {
-            return frame_count * std::underlying_type_t<TimePoint>(TimePoint::MAX_TIME_POINTS)
-                   + std::underlying_type_t<TimePoint>(timepoint);
+        /**
+         * @brief Set the expected synchronization timepoint of the current
+         * frame.
+         * 
+         * Depending on the render process of the current frame, multiple
+         * synchronization timepoints might be necessary. Typically, following
+         * procedures needs its timepoint:
+         * 
+         * - Start of the frame;
+         * - Submission of host data to device;
+         * - Pre-rendering compute, if it is distributed to another queue;
+         * - Rendering passes;
+         * - Post-processing compute, if it is distributed to another queue;
+         * - Presenting.
+         * 
+         * Start of the frame is needed to kickstart the frame without the
+         * validation layer complaining.
+         * Synchronization within rendering passes are managed by barriers.
+         * Therefore, no timepoints are needed.
+         */
+        void SetExpectedTimepoints(uint32_t timepoints) {
+            assert(timepoints > 0 && "Timepoints of any frame should be greater than zero.");
+            current_frame_expected_timepoints = timepoints;
         }
 
-        vk::SemaphoreSubmitInfo GetSubmitInfo(TimePoint timepoint, vk::PipelineStageFlags2 stage) const noexcept {
+        uint64_t GetTimepointValue(uint32_t timepoint) const noexcept {
+            assert(timepoint <= current_frame_expected_timepoints && "Timepoint out of range.");
+            return total_elapsed_timepoints + timepoint;
+        }
+
+        vk::SemaphoreSubmitInfo GetSubmitInfo(uint32_t timepoint, vk::PipelineStageFlags2 stage) const noexcept {
             assert(timeline_semaphore);
+            assert(timepoint <= current_frame_expected_timepoints && "Timepoint out of range.");
             return vk::SemaphoreSubmitInfo{timeline_semaphore.get(), GetTimepointValue(timepoint), stage};
+        }
+
+        vk::SemaphoreSignalInfo GetSignalInfo(uint32_t timepoint) const noexcept {
+            assert(timeline_semaphore);
+            assert(timepoint <= current_frame_expected_timepoints && "Timepoint out of range.");
+            return vk::SemaphoreSignalInfo{timeline_semaphore.get(), GetTimepointValue(timepoint)};
         }
     };
 } // namespace Engine::RenderSystemState

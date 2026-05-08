@@ -196,10 +196,10 @@ namespace Engine::RenderSystemState {
 
         stcinfo.semaphoreType = vk::SemaphoreType::eTimeline;
         for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; i++) {
-            timeline_semaphores[i].timeline_semaphore = device.createSemaphoreUnique(scinfo);
+            timeline_semaphores[i].SetSemaphore(device.createSemaphoreUnique(scinfo));
             DEBUG_SET_NAME_TEMPLATE(
                 device,
-                timeline_semaphores[i].timeline_semaphore.get(),
+                timeline_semaphores[i].GetSemaphore(),
                 std::format("Semaphore - timeline semaphore {}", i)
             );
         }
@@ -305,14 +305,11 @@ namespace Engine::RenderSystemState {
         pimpl->command_buffers[fif]->reset();
         device.resetFences({fence});
 
-        // Signal start of this frame
+        // Kickstart of this frame
         // Prevent validation layer from complaining
-        if (pimpl->timeline_semaphores[fif].frame_count > 0) {
+        if (pimpl->timeline_semaphores[fif].GetTotalElapsedTimepoints() > 0) {
             device.signalSemaphore(
-                vk::SemaphoreSignalInfo{
-                    pimpl->timeline_semaphores[fif].timeline_semaphore.get(),
-                    pimpl->timeline_semaphores[fif].GetTimepointValue(FrameSemaphore::TimePoint::Pending)
-                }
+                pimpl->timeline_semaphores[fif].GetSignalInfo(1)
             );
         }
 
@@ -336,71 +333,45 @@ namespace Engine::RenderSystemState {
     }
 
     void FrameManager::SubmitMainCommandBuffer() {
+        const uint32_t fif = GetFrameInFlight();
+        auto &this_timeline_semaphore = pimpl->timeline_semaphores[fif];
+        auto &prev_timeline_semaphore = pimpl->timeline_semaphores[(fif + (FRAMES_IN_FLIGHT - 1)) % FRAMES_IN_FLIGHT];
+        // TODO: we currently hardcode expected timepoints to be 3, namely: start(1), transfer(2) and render(3).
+        // This start timepoint is not actually needed other than scilencing the validation layer.
+        this_timeline_semaphore.SetExpectedTimepoints(3);
+
         pimpl->m_submission_helper->OnPreMainCbSubmission();
 
-        uint32_t fif = GetFrameInFlight();
-
         vk::CommandBufferSubmitInfo cbsi{pimpl->command_buffers[fif].get()};
-
         std::array<vk::SemaphoreSubmitInfo, 2> wait_infos{};
         vk::SemaphoreSubmitInfo signal_info{};
-
-        wait_infos[0] = pimpl->timeline_semaphores[fif].GetSubmitInfo(
-            // Currently we wait for transfer finish as there is no pre-compute stage.
-            FrameSemaphore::TimePoint::PreTransferFinished,
+        wait_infos[0] = this_timeline_semaphore.GetSubmitInfo(
+            2,
             // Wait before any command starts.
             vk::PipelineStageFlagBits2::eAllCommands
         );
-        auto &prev_timeline_semaphore = pimpl->timeline_semaphores[(fif + (FRAMES_IN_FLIGHT - 1)) % FRAMES_IN_FLIGHT];
         wait_infos[1] = prev_timeline_semaphore.GetSubmitInfo(
-            FrameSemaphore::TimePoint::CopyToPresentFinished, vk::PipelineStageFlagBits2::eAllCommands
+            prev_timeline_semaphore.GetExpectedTimepoints(),
+            vk::PipelineStageFlagBits2::eAllCommands
         );
-        // Ugly workaround for deadlock on the first frame.
+        // special consideration for deadlock on the first frame.
         if (GetTotalFrame() == 0) {
+            prev_timeline_semaphore.SetExpectedTimepoints(1);
             this->pimpl->m_system.GetDevice().signalSemaphore(
-                vk::SemaphoreSignalInfo{
-                    prev_timeline_semaphore.timeline_semaphore.get(),
-                    prev_timeline_semaphore.GetTimepointValue(FrameSemaphore::TimePoint::CopyToPresentFinished)
-                }
+                prev_timeline_semaphore.GetSignalInfo(prev_timeline_semaphore.GetExpectedTimepoints())
             );
         }
         // We must step frame after wait info is recorded to avoid deadlock.
-        prev_timeline_semaphore.StepFrame();
+        prev_timeline_semaphore.EndFrame();
 
-        signal_info = pimpl->timeline_semaphores[fif].GetSubmitInfo(
-            // Currently we signal directly for the post-compute as there is no post-compute stage.
-            FrameSemaphore::TimePoint::PostComputeFinished,
+        signal_info = this_timeline_semaphore.GetSubmitInfo(
+            this_timeline_semaphore.GetExpectedTimepoints(),
             // Signal after all commands are finished.
             vk::PipelineStageFlagBits2::eAllCommands
         );
 
         this->pimpl->m_system.GetDeviceInterface().GetQueueInfo().graphicsQueue.submit2(
             vk::SubmitInfo2{vk::SubmitFlags{}, wait_infos, {cbsi}, {signal_info}}, nullptr
-        );
-
-        // Record readback commands
-        if (pimpl->readback.post_graphics_commands.empty()) return;
-
-        assert(!pimpl->readback.has_post_graphics_rb[fif]);
-        pimpl->readback.has_post_graphics_rb.set(fif);
-
-        auto rbcb = pimpl->readback.post_graphics_rb_cbs[fif].get();
-        rbcb.begin(vk::CommandBufferBeginInfo{vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
-        while (!pimpl->readback.post_graphics_commands.empty()) {
-            std::invoke(pimpl->readback.post_graphics_commands.front(), rbcb);
-            pimpl->readback.post_graphics_commands.pop();
-        }
-        rbcb.end();
-
-        wait_infos[0] = pimpl->timeline_semaphores[fif].GetSubmitInfo(
-            FrameSemaphore::TimePoint::PostComputeFinished, vk::PipelineStageFlagBits2::eAllTransfer
-        );
-        cbsi.commandBuffer = rbcb;
-
-        pimpl->m_system.GetDevice().resetFences({pimpl->readback.post_graphics_rb_fences[fif].get()});
-        this->pimpl->m_system.GetDeviceInterface().GetQueueInfo().graphicsQueue.submit2(
-            vk::SubmitInfo2{vk::SubmitFlags{}, {wait_infos[0]}, {cbsi}, {}},
-            pimpl->readback.post_graphics_rb_fences[fif].get()
         );
     }
 
@@ -431,11 +402,12 @@ namespace Engine::RenderSystemState {
         // Prepare submit info for copy commandbuffer
         vk::CommandBufferSubmitInfo cbsi{copy_cb};
         std::array<vk::SemaphoreSubmitInfo, 2> wait_infos{};
-        std::array<vk::SemaphoreSubmitInfo, 2> signal_infos{};
+        std::array<vk::SemaphoreSubmitInfo, 1> signal_infos{};
 
-        // Wait for post compute
-        wait_infos[0] = pimpl->timeline_semaphores[fif].GetSubmitInfo(
-            FrameSemaphore::TimePoint::PostComputeFinished, vk::PipelineStageFlagBits2::eAllTransfer
+        // Wait for the last timepoint
+        auto &this_frame_semaphore = pimpl->timeline_semaphores[fif];
+        wait_infos[0] = this_frame_semaphore.GetSubmitInfo(
+            this_frame_semaphore.GetExpectedTimepoints(), vk::PipelineStageFlagBits2::eAllTransfer
         );
         // Wait for image acquisition (this is binary).
         wait_infos[1] = vk::SemaphoreSubmitInfo{
@@ -448,9 +420,6 @@ namespace Engine::RenderSystemState {
             0,
             vk::PipelineStageFlagBits2::eAllTransfer
         };
-        signal_infos[1] = pimpl->timeline_semaphores[fif].GetSubmitInfo(
-            FrameSemaphore::TimePoint::CopyToPresentFinished, vk::PipelineStageFlagBits2::eAllCommands
-        );
 
         vk::SubmitInfo2 sinfo{vk::SubmitFlags{}, wait_infos, {cbsi}, signal_infos};
         const auto &queueInfo = pimpl->m_system.GetDeviceInterface().GetQueueInfo();

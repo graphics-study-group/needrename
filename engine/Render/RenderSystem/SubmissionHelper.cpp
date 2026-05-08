@@ -412,10 +412,7 @@ namespace Engine::RenderSystemState {
             // We do not need to worry about synchronization too much
             // as timeline semaphores are guaranteed to be monotonically increasing.
             m_system.GetDevice().signalSemaphore(
-                vk::SemaphoreSignalInfo{
-                    frame_semaphore.timeline_semaphore.get(),
-                    frame_semaphore.GetTimepointValue(FrameSemaphore::TimePoint::PreTransferFinished)
-                }
+                frame_semaphore.GetSignalInfo(2)
             );
             return;
         }
@@ -442,14 +439,13 @@ namespace Engine::RenderSystemState {
         DEBUG_CMD_END_LABEL(pimpl->m_one_time_cb.get());
         pimpl->m_one_time_cb->end();
 
-        vk::SemaphoreSubmitInfo wait_info{}, signal_info{};
-        wait_info =
-            frame_semaphore.GetSubmitInfo(FrameSemaphore::TimePoint::Pending, vk::PipelineStageFlagBits2::eAllCommands);
+        vk::SemaphoreSubmitInfo signal_info{};
         signal_info = frame_semaphore.GetSubmitInfo(
-            FrameSemaphore::TimePoint::PreTransferFinished, vk::PipelineStageFlagBits2::eAllTransfer
+            2, vk::PipelineStageFlagBits2::eAllTransfer
         );
         vk::CommandBufferSubmitInfo cbsinfo{pimpl->m_one_time_cb.get()};
-        vk::SubmitInfo2 sinfo{vk::SubmitFlags{}, {wait_info}, {cbsinfo}, {signal_info}};
+        // We don't need to wait for anything thanks to fences in the frame manager.
+        vk::SubmitInfo2 sinfo{vk::SubmitFlags{}, {}, {cbsinfo}, {signal_info}};
         queue_info.graphicsQueue.submit2(sinfo, pimpl->m_completion_fence.get());
     }
 
