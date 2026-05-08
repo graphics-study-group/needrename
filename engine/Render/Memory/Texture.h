@@ -83,7 +83,7 @@ namespace Engine {
         /**
          * @brief Calculate the size of staging buffer required to hold the
          * entire texture.
-         * 
+         *
          * It does not consider mipmap levels of the texture. Only the first
          * level is considered.
          */

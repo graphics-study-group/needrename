@@ -112,25 +112,23 @@ namespace Engine::RenderSystemState {
                 // TODO: reuse fences and command buffers to avoid frequent reallocation.
                 vk::UniqueFence fence;
                 vk::UniqueCommandBuffer combuf;
-                std::deque <
-                    std::pair<ReadbackCallback, std::unique_ptr<DeviceBuffer>>
-                > callbacks;
+                std::deque<std::pair<ReadbackCallback, std::unique_ptr<DeviceBuffer>>> callbacks;
             };
 
             ReadbackRegistry current_registry;
 
-            std::deque <ReadbackRegistry> registry;
+            std::deque<ReadbackRegistry> registry;
 
-            bool HasReadback() const { return static_cast<bool>(current_registry.fence); }
+            bool HasReadback() const {
+                return static_cast<bool>(current_registry.fence);
+            }
 
-            void InitializeRegistry(const RenderSystemState::DeviceInterface & di) {
+            void InitializeRegistry(const RenderSystemState::DeviceInterface &di) {
                 assert(!current_registry.fence && "Reinitializing readback registry");
                 current_registry.fence = di.GetDevice().createFenceUnique(vk::FenceCreateInfo{});
 
                 auto cbai = vk::CommandBufferAllocateInfo{
-                    di.GetQueueInfo().graphicsOneTimePool.get(),
-                    vk::CommandBufferLevel::ePrimary,
-                    1
+                    di.GetQueueInfo().graphicsOneTimePool.get(), vk::CommandBufferLevel::ePrimary, 1
                 };
                 auto onetime_cb = di.GetDevice().allocateCommandBuffersUnique(cbai);
                 current_registry.combuf = std::move(onetime_cb[0]);
@@ -211,9 +209,7 @@ namespace Engine::RenderSystemState {
         for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; i++) {
             timeline_semaphores[i].SetSemaphore(device.createSemaphoreUnique(scinfo));
             DEBUG_SET_NAME_TEMPLATE(
-                device,
-                timeline_semaphores[i].GetSemaphore(),
-                std::format("Semaphore - timeline semaphore {}", i)
+                device, timeline_semaphores[i].GetSemaphore(), std::format("Semaphore - timeline semaphore {}", i)
             );
         }
 
@@ -300,9 +296,7 @@ namespace Engine::RenderSystemState {
         // Kickstart of this frame
         // Prevent validation layer from complaining
         if (pimpl->timeline_semaphores[fif].GetTotalElapsedTimepoints() > 0) {
-            device.signalSemaphore(
-                pimpl->timeline_semaphores[fif].GetSignalInfo(1)
-            );
+            device.signalSemaphore(pimpl->timeline_semaphores[fif].GetSignalInfo(1));
         }
 
         // Acquire new image
@@ -345,8 +339,7 @@ namespace Engine::RenderSystemState {
             vk::PipelineStageFlagBits2::eAllCommands
         );
         wait_infos[1] = prev_timeline_semaphore.GetSubmitInfo(
-            prev_timeline_semaphore.GetExpectedTimepoints(),
-            vk::PipelineStageFlagBits2::eAllCommands
+            prev_timeline_semaphore.GetExpectedTimepoints(), vk::PipelineStageFlagBits2::eAllCommands
         );
         // special consideration for deadlock on the first frame.
         if (GetTotalFrame() == 0) {
@@ -465,15 +458,7 @@ namespace Engine::RenderSystemState {
 
             const auto &gqueue = m_system.GetDeviceInterface().GetQueueInfo().graphicsQueue;
             gqueue.submit2(
-                {
-                    vk::SubmitInfo2{
-                        vk::SubmitFlags{},
-                        wait_infos,
-                        {cbsi},
-                        {}
-                    }
-                },
-                readback.current_registry.fence.get()
+                {vk::SubmitInfo2{vk::SubmitFlags{}, wait_infos, {cbsi}, {}}}, readback.current_registry.fence.get()
             );
 
             readback.AddRegistery();
@@ -481,14 +466,14 @@ namespace Engine::RenderSystemState {
 
         // call previous readbacks.
         while (!readback.registry.empty()) {
-            auto & fnt = readback.registry.front();
+            auto &fnt = readback.registry.front();
             auto ret = m_system.GetDevice().getFenceStatus(fnt.fence.get());
-            if (ret == vk::Result::eNotReady)    break;
+            if (ret == vk::Result::eNotReady) break;
             if (ret != vk::Result::eSuccess) {
                 throw std::runtime_error(vk::to_string(ret) + " happened when querying status of readback fence.");
             }
 
-            for (auto & itr : fnt.callbacks) {
+            for (auto &itr : fnt.callbacks) {
                 std::invoke(itr.first, std::move(itr.second));
             }
 
@@ -511,15 +496,9 @@ namespace Engine::RenderSystemState {
         return pimpl->timeline_semaphores[GetFrameInFlight()];
     }
 
-    bool FrameManager::RegisterReadbackCallback(
-        const DeviceBuffer & buffer,
-        ReadbackCallback cb
-    ) {
+    bool FrameManager::RegisterReadbackCallback(const DeviceBuffer &buffer, ReadbackCallback cb) {
         if (pimpl->readback.registry.size() >= FRAMES_IN_FLIGHT) {
-            SDL_LogWarn(
-                SDL_LOG_CATEGORY_RENDER,
-                "Too many uncalled callback registry. New request is ignored."
-            );
+            SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Too many uncalled callback registry. New request is ignored.");
             return false;
         }
 
@@ -528,15 +507,11 @@ namespace Engine::RenderSystemState {
         }
 
         auto staging_buffer = DeviceBuffer::CreateUnique(
-            pimpl->m_system.GetAllocatorState(),
-            BufferType{BufferTypeBits::ReadbackFromDevice},
-            buffer.GetSize()
+            pimpl->m_system.GetAllocatorState(), BufferType{BufferTypeBits::ReadbackFromDevice}, buffer.GetSize()
         );
 
         ReadbackCommand(pimpl->readback.current_registry.combuf.get(), buffer, *staging_buffer);
-        pimpl->readback.current_registry.callbacks.push_back(
-            std::make_pair(cb, std::move(staging_buffer))
-        );
+        pimpl->readback.current_registry.callbacks.push_back(std::make_pair(cb, std::move(staging_buffer)));
         return true;
     }
 } // namespace Engine::RenderSystemState

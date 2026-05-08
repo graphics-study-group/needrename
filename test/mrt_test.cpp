@@ -184,14 +184,16 @@ auto BuildRenderGraph(
     );
 
     rgb.AddPass(
-        RenderGraphPassBuilder{*rsys}.SetName("Transfer")
-        .UseBuffer(b1, {MemoryAccessTypeBufferBits::TransferWrite})
-        .UseImage(c1, MemoryAccessTypeImageBits::TransferRead)
-        .SetTransferPassFunction([readback, c1](TransferCommandBuffer &tcb, const RenderGraph2 & rg) {
-            auto rt = rg.GetInternalTextureResource(c1);
-            std::array image_copies = {
-                vk::BufferImageCopy{
-                    0, 0, 0,
+        RenderGraphPassBuilder{*rsys}
+            .SetName("Transfer")
+            .UseBuffer(b1, {MemoryAccessTypeBufferBits::TransferWrite})
+            .UseImage(c1, MemoryAccessTypeImageBits::TransferRead)
+            .SetTransferPassFunction([readback, c1](TransferCommandBuffer &tcb, const RenderGraph2 &rg) {
+                auto rt = rg.GetInternalTextureResource(c1);
+                std::array image_copies = {vk::BufferImageCopy{
+                    0,
+                    0,
+                    0,
                     vk::ImageSubresourceLayers{vk::ImageAspectFlagBits::eColor, 0, 0, 1},
                     vk::Offset3D{0, 0, 0},
                     vk::Extent3D{
@@ -199,16 +201,12 @@ auto BuildRenderGraph(
                         rt->GetTextureDescription().height,
                         rt->GetTextureDescription().depth
                     }
-                }
-            };
-            tcb.GetCommandBuffer().copyImageToBuffer(
-                rt->GetImage(),
-                vk::ImageLayout::eTransferSrcOptimal,
-                readback->GetBuffer(),
-                image_copies
-            );
-        })
-        .Get()
+                }};
+                tcb.GetCommandBuffer().copyImageToBuffer(
+                    rt->GetImage(), vk::ImageLayout::eTransferSrcOptimal, readback->GetBuffer(), image_copies
+                );
+            })
+            .Get()
     );
 
     return rgb.BuildRenderGraph();
@@ -312,19 +310,16 @@ int main(int argc, char **argv) {
 
         auto index = rsys->StartFrame();
 
-        rsys->GetFrameManager().RegisterReadbackCallback(
-            *readback_buffer,
-            [] (std::unique_ptr <DeviceBuffer> in) {
-                auto byte = in->GetVMAddress();
-                
-                for (int i = 0; i < 16; i++) {
-                    for (int j = 0; j < 16; j++) {
-                        std::cout << (int)byte[i * 16 + j] << " ";
-                    }
-                    std::cout << "\n";
+        rsys->GetFrameManager().RegisterReadbackCallback(*readback_buffer, [](std::unique_ptr<DeviceBuffer> in) {
+            auto byte = in->GetVMAddress();
+
+            for (int i = 0; i < 16; i++) {
+                for (int j = 0; j < 16; j++) {
+                    std::cout << (int)byte[i * 16 + j] << " ";
                 }
+                std::cout << "\n";
             }
-        );
+        });
 
         rg.Execute(*rsys);
 

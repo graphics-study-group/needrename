@@ -156,9 +156,7 @@ namespace Engine::RenderSystemState {
     SubmissionHelper::~SubmissionHelper() = default;
 
     void SubmissionHelper::EnqueueBufferSubmission(
-        const DeviceBuffer &buffer,
-        std::span<const std::byte> data,
-        size_t buffer_offset
+        const DeviceBuffer &buffer, std::span<const std::byte> data, size_t buffer_offset
     ) {
         if (buffer_offset + data.size_bytes() > buffer.GetSize()) {
             throw std::invalid_argument("Too many bytes of data are submitted to the buffer.");
@@ -207,18 +205,17 @@ namespace Engine::RenderSystemState {
         pimpl->m_pending_operations.push(enqueued);
     }
 
-    void SubmissionHelper::EnqueueTextureBufferSubmission(
-        const Texture &texture, std::span<const std::byte> data
-    ) {
-        if(!(ImageUtils::GetVkAspect(texture.GetTextureDescription().format) & vk::ImageAspectFlagBits::eColor)) {
+    void SubmissionHelper::EnqueueTextureBufferSubmission(const Texture &texture, std::span<const std::byte> data) {
+        if (!(ImageUtils::GetVkAspect(texture.GetTextureDescription().format) & vk::ImageAspectFlagBits::eColor)) {
             throw std::invalid_argument("Selected texture does not contain color aspect.");
         }
         auto staging_buffer = DeviceBuffer::CreateUnique(
             this->m_system.GetAllocatorState(),
-            {BufferTypeBits::StagingToDevice}, texture.CalculateStagingBufferSizeNoMipmap(),
+            {BufferTypeBits::StagingToDevice},
+            texture.CalculateStagingBufferSizeNoMipmap(),
             "Staging buffer"
         );
-        if(data.size_bytes() > staging_buffer->GetSize()) {
+        if (data.size_bytes() > staging_buffer->GetSize()) {
             throw std::invalid_argument("Too many data to be uploaded to texture.");
         }
 
@@ -270,7 +267,7 @@ namespace Engine::RenderSystemState {
     }
 
     void SubmissionHelper::EnqueueTextureClear(const Texture &texture, std::tuple<float, float, float, float> color) {
-        if(!(ImageUtils::GetVkAspect(texture.GetTextureDescription().format) & vk::ImageAspectFlagBits::eColor)) {
+        if (!(ImageUtils::GetVkAspect(texture.GetTextureDescription().format) & vk::ImageAspectFlagBits::eColor)) {
             throw std::invalid_argument("Selected texture does not contain color aspect.");
         }
 
@@ -305,7 +302,7 @@ namespace Engine::RenderSystemState {
         if (!(0.0f <= depth && depth <= 1.0f)) {
             SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Depth clear value %f is not in the range of [0.0, 1.0].", depth);
         }
-        if(!(ImageUtils::GetVkAspect(texture.GetTextureDescription().format) & vk::ImageAspectFlagBits::eDepth)) {
+        if (!(ImageUtils::GetVkAspect(texture.GetTextureDescription().format) & vk::ImageAspectFlagBits::eDepth)) {
             throw std::invalid_argument("Selected texture does not contain depth aspect.");
         }
 
@@ -340,9 +337,7 @@ namespace Engine::RenderSystemState {
         if (pimpl->m_pending_operations.empty()) {
             // We do not need to worry about synchronization too much
             // as timeline semaphores are guaranteed to be monotonically increasing.
-            m_system.GetDevice().signalSemaphore(
-                frame_semaphore.GetSignalInfo(2)
-            );
+            m_system.GetDevice().signalSemaphore(frame_semaphore.GetSignalInfo(2));
             return;
         }
 
@@ -369,9 +364,7 @@ namespace Engine::RenderSystemState {
         pimpl->m_one_time_cb->end();
 
         vk::SemaphoreSubmitInfo signal_info{};
-        signal_info = frame_semaphore.GetSubmitInfo(
-            2, vk::PipelineStageFlagBits2::eAllTransfer
-        );
+        signal_info = frame_semaphore.GetSubmitInfo(2, vk::PipelineStageFlagBits2::eAllTransfer);
         vk::CommandBufferSubmitInfo cbsinfo{pimpl->m_one_time_cb.get()};
         // We don't need to wait for anything thanks to fences in the frame manager.
         vk::SubmitInfo2 sinfo{vk::SubmitFlags{}, {}, {cbsinfo}, {signal_info}};

@@ -260,8 +260,7 @@ namespace Engine {
                     );
                     AssignTexture(prop.first, texture);
                     m_system.GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
-                        *texture, 
-                        std::span{texture_asset->GetPixelData(), texture_asset->GetPixelDataSize()}
+                        *texture, std::span{texture_asset->GetPixelData(), texture_asset->GetPixelDataSize()}
                     );
                 }
                 auto solid_color_asset = dynamic_cast<SolidColorTextureAsset *>(t_asset);
@@ -294,13 +293,12 @@ namespace Engine {
             }
             case MaterialProperty::Type::CubeTexture: {
                 auto texture_asset = std::any_cast<AssetRef>(p.m_value).as<ImageCubemapAsset>();
-                auto texture =
-                    std::shared_ptr<ImageTexture>(std::move(ImageTexture::CreateUnique(this->m_system, *texture_asset))
-                    );
+                auto texture = std::shared_ptr<ImageTexture>(
+                    std::move(ImageTexture::CreateUnique(this->m_system, *texture_asset))
+                );
                 AssignTexture(prop.first, texture);
                 m_system.GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
-                    *texture, 
-                    std::span{texture_asset->GetPixelData(), texture_asset->GetPixelDataSize()}
+                    *texture, std::span{texture_asset->GetPixelData(), texture_asset->GetPixelDataSize()}
                 );
                 break;
             }

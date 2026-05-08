@@ -34,9 +34,7 @@ namespace Engine {
              * be freed after the invocation.
              */
             void EnqueueBufferSubmission(
-                const DeviceBuffer &buffer,
-                std::span<const std::byte> data,
-                size_t buffer_offset = 0
+                const DeviceBuffer &buffer, std::span<const std::byte> data, size_t buffer_offset = 0
             );
 
             /**
@@ -59,10 +57,7 @@ namespace Engine {
              * It is safe to free this buffer after calling this method.
              * @param length
              */
-            void EnqueueTextureBufferSubmission(
-                const Texture &texture,
-                std::span<const std::byte> data
-            );
+            void EnqueueTextureBufferSubmission(const Texture &texture, std::span<const std::byte> data);
 
             /**
              * @brief Enqueue a texture clear operation.

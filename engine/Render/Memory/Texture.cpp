@@ -227,8 +227,8 @@ namespace Engine {
     }
 
     size_t Texture::CalculateStagingBufferSizeNoMipmap() const noexcept {
-        return pimpl->m_tdesc.height * pimpl->m_tdesc.width * pimpl->m_tdesc.depth
-                * pimpl->m_tdesc.array_layers * ImageUtils::GetPixelSize(pimpl->m_tdesc.format);
+        return pimpl->m_tdesc.height * pimpl->m_tdesc.width * pimpl->m_tdesc.depth * pimpl->m_tdesc.array_layers
+               * ImageUtils::GetPixelSize(pimpl->m_tdesc.format);
     }
 
     bool Texture::SupportRandomAccess() const noexcept {

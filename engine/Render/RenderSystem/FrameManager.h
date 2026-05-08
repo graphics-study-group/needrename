@@ -148,35 +148,32 @@ namespace Engine {
 
             /**
              * @brief Function type of callback of readback operations.
-             * 
+             *
              * Data retrieved from the device is stored in the device buffer.
              * This buffer can be mapped to the host VM for reading.
              */
-            using ReadbackCallback = std::function<void(std::unique_ptr <DeviceBuffer>)>;
+            using ReadbackCallback = std::function<void(std::unique_ptr<DeviceBuffer>)>;
             /**
              * @brief Register a callback for buffer or texture readback.
-             * 
+             *
              * The callback is associated with the current frame-in-flight.
              * After all command buffers in the current frame-in-flight are
              * completed, a special command buffer containing copying commands
              * will be executed.
-             * 
+             *
              * On completion of subsequent frames, registered callbacks will be
              * executed if the copying is completed.
              * Typically a delay of one to two frames can be expected.
-             * 
+             *
              * This readback supports buffer only to avoid dealing with layout
-             * transition problem. Issue a copy to buffer command in your 
+             * transition problem. Issue a copy to buffer command in your
              * rendering loop to copy your texture to a buffer first.
-             * 
+             *
              * @return Whether the callback can be added to current frame-in-flight.
              * If too many readback requests are not fulfilled, the registering
              * might fail.
              */
-            bool RegisterReadbackCallback(
-                const DeviceBuffer & buffer,
-                ReadbackCallback cb
-            );
+            bool RegisterReadbackCallback(const DeviceBuffer &buffer, ReadbackCallback cb);
         };
     } // namespace RenderSystemState
 } // namespace Engine
