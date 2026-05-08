@@ -1,6 +1,7 @@
 #ifndef RENDER_RENDERSYSTEM_FRAMEMANAGER_INCLUDED
 #define RENDER_RENDERSYSTEM_FRAMEMANAGER_INCLUDED
 
+#include <functional>
 // May be safe to include here as this header is not included in other headers.
 #include <vulkan/vulkan.hpp>
 
@@ -144,6 +145,34 @@ namespace Engine {
 
             /// @brief Get the current frame semaphore.
             const FrameSemaphore &GetFrameSemaphore() const noexcept;
+
+            /**
+             * @brief Function type of callback of readback operations.
+             * 
+             * Data retrieved from the device is stored in the device buffer.
+             * This buffer can be mapped to the host VM for reading.
+             */
+            using ReadbackCallback = std::function<void(std::unique_ptr <DeviceBuffer>)>;
+            /**
+             * @brief Register a callback for buffer or texture readback.
+             * 
+             * The callback is associated with the current frame-in-flight.
+             * After all command buffers in the current frame-in-flight are
+             * completed, a special command buffer containing copying commands
+             * will be executed.
+             * 
+             * On completion of subsequent frames, registered callbacks will be
+             * executed if the copying is completed.
+             * Typically a delay of one to two frames can be expected.
+             * 
+             * This readback supports buffer only to avoid dealing with layout
+             * transition problem. Issue a copy to buffer command in your 
+             * rendering loop to copy your texture to a buffer first.
+             */
+            void RegisterReadbackCallback(
+                const DeviceBuffer & buffer,
+                ReadbackCallback cb
+            );
         };
     } // namespace RenderSystemState
 } // namespace Engine
