@@ -108,6 +108,7 @@ namespace Engine::RenderSystemState {
         // Data and handles used by readback routines.
         struct {
             struct ReadbackRegistry {
+                // TODO: reuse fences and command buffers to avoid frequent reallocation.
                 vk::UniqueFence fence;
                 vk::UniqueCommandBuffer combuf;
                 std::deque <
@@ -450,7 +451,17 @@ namespace Engine::RenderSystemState {
     void FrameManager::impl::CompleteFrame() {
 
         // Record current readbacks.
-        if (readback.HasReadback()) readback.AddRegistery();
+        if (readback.HasReadback()) {
+
+            if (readback.registry.size() >= FRAMES_IN_FLIGHT) {
+                SDL_LogWarn(
+                    SDL_LOG_CATEGORY_RENDER,
+                    "Too many uncalled callback registry. Oldest one will be removed."
+                );
+                readback.registry.pop_front();
+            }
+            readback.AddRegistery();
+        }
 
         // call previous readbacks.
         while (!readback.registry.empty()) {
