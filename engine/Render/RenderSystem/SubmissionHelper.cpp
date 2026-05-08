@@ -213,7 +213,11 @@ namespace Engine::RenderSystemState {
         if(!(ImageUtils::GetVkAspect(texture.GetTextureDescription().format) & vk::ImageAspectFlagBits::eColor)) {
             throw std::invalid_argument("Selected texture does not contain color aspect.");
         }
-        auto staging_buffer{texture.CreateStagingBuffer(m_system.GetAllocatorState())};
+        auto staging_buffer = DeviceBuffer::CreateUnique(
+            this->m_system.GetAllocatorState(),
+            {BufferTypeBits::StagingToDevice}, texture.CalculateStagingBufferSizeNoMipmap(),
+            "Staging buffer"
+        );
         if(data.size_bytes() > staging_buffer->GetSize()) {
             throw std::invalid_argument("Too many data to be uploaded to texture.");
         }

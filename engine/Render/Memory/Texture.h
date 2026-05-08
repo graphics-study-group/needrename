@@ -81,9 +81,13 @@ namespace Engine {
         vk::ImageView GetImageView(const TextureSubresourceRange &tsr) const;
 
         /**
-         * @brief Acquire a buffer large enough to hold the whole texture.
+         * @brief Calculate the size of staging buffer required to hold the
+         * entire texture.
+         * 
+         * It does not consider mipmap levels of the texture. Only the first
+         * level is considered.
          */
-        std::unique_ptr<DeviceBuffer> CreateStagingBuffer(const RenderSystemState::AllocatorState &allocator) const;
+        size_t CalculateStagingBufferSizeNoMipmap() const noexcept;
 
         /**
          * @brief Whether this texture supports random access (UAV
