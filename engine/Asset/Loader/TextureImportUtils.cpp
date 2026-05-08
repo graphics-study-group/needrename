@@ -12,6 +12,7 @@
 #include <cassert>
 #include <cmath>
 #include <cstring>
+#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
@@ -31,7 +32,9 @@ namespace {
         stbi_uc *raw_image_data = stbi_load_from_memory(
             reinterpret_cast<const stbi_uc *>(bytes), static_cast<int>(size), &width, &height, &channel, 4
         );
-        assert(raw_image_data);
+        if (raw_image_data == nullptr) {
+            throw std::runtime_error(std::string("Failed to decode image from memory: ") + stbi_failure_reason());
+        }
 
         DecodedImage2D image{};
         image.width = width;
@@ -165,7 +168,11 @@ namespace Engine::detail::texture_import {
         int height = 0;
         int channel = 0;
         stbi_uc *raw_image_data = stbi_load(path.string().c_str(), &width, &height, &channel, 4);
-        assert(raw_image_data);
+        if (raw_image_data == nullptr) {
+            throw std::runtime_error(
+                std::string("Failed to load image '") + path.string() + "': " + stbi_failure_reason()
+            );
+        }
 
         std::vector<std::byte> data(static_cast<size_t>(width) * static_cast<size_t>(height) * 4);
         std::memcpy(data.data(), raw_image_data, data.size());
@@ -195,7 +202,11 @@ namespace Engine::detail::texture_import {
         int src_h = 0;
         int channels = 0;
         stbi_uc *raw_image_data = stbi_load(path.string().c_str(), &src_w, &src_h, &channels, 4);
-        assert(raw_image_data);
+        if (raw_image_data == nullptr) {
+            throw std::runtime_error(
+                std::string("Failed to load equirectangular image '") + path.string() + "': " + stbi_failure_reason()
+            );
+        }
 
         std::vector<std::byte> data =
             ConvertEquirectToCubemap(reinterpret_cast<const std::byte *>(raw_image_data), src_w, src_h, 4, width);
@@ -211,7 +222,11 @@ namespace Engine::detail::texture_import {
         int height = 0;
         int channels = 0;
         stbi_uc *first_image = stbi_load(paths[0].string().c_str(), &width, &height, &channels, 4);
-        assert(first_image);
+        if (first_image == nullptr) {
+            throw std::runtime_error(
+                std::string("Failed to load cubemap face 0 '") + paths[0].string() + "': " + stbi_failure_reason()
+            );
+        }
 
         const size_t image_size = static_cast<size_t>(width) * static_cast<size_t>(height) * 4;
         std::vector<std::byte> data(image_size * 6);
@@ -223,8 +238,16 @@ namespace Engine::detail::texture_import {
             int next_height = 0;
             int next_channels = 0;
             stbi_uc *image = stbi_load(paths[i].string().c_str(), &next_width, &next_height, &next_channels, 4);
-            assert(image);
-            assert(next_width == width && next_height == height && next_channels == channels);
+            if (image == nullptr) {
+                throw std::runtime_error(
+                    std::string("Failed to load cubemap face ") + std::to_string(i) + " '" + paths[i].string()
+                    + "': " + stbi_failure_reason()
+                );
+            }
+            if (next_width != width || next_height != height || next_channels != channels) {
+                stbi_image_free(image);
+                throw std::runtime_error(std::string("Cubemap face ") + std::to_string(i) + " dimensions mismatch.");
+            }
 
             std::memcpy(data.data() + image_size * static_cast<size_t>(i), image, image_size);
             stbi_image_free(image);
@@ -263,9 +286,9 @@ namespace Engine::detail::texture_import {
         const int channel = images[0].channel;
 
         for (int i = 1; i < 6; ++i) {
-            assert(images[i].width == width);
-            assert(images[i].height == height);
-            assert(images[i].channel == channel);
+            if (images[i].width != width || images[i].height != height || images[i].channel != channel) {
+                throw std::runtime_error(std::string("Cubemap face ") + std::to_string(i) + " dimensions mismatch.");
+            }
         }
 
         const size_t image_size =

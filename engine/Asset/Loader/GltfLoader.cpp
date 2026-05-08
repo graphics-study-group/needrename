@@ -21,7 +21,6 @@
 #include <fastgltf/tools.hpp>
 
 #include <array>
-#include <cassert>
 #include <cstdint>
 #include <filesystem>
 #include <limits>
@@ -369,9 +368,13 @@ namespace Engine {
             }
 
             auto db = database.lock();
-            assert(db);
+            if (!db) {
+                throw std::runtime_error("GltfLoader: AssetDatabase has been destroyed.");
+            }
             auto am = asset_manager.lock();
-            assert(am);
+            if (!am) {
+                throw std::runtime_error("GltfLoader: AssetManager has been destroyed.");
+            }
 
             SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Entering glTF loader: %s", path.string().c_str());
 

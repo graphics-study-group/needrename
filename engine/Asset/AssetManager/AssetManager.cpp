@@ -10,6 +10,7 @@
 #include <cassert>
 #include <fstream>
 #include <nlohmann/json.hpp>
+#include <stdexcept>
 
 namespace Engine {
     void AssetManager::AddLoadedAsset(std::unique_ptr<Asset> asset) {
@@ -38,7 +39,12 @@ namespace Engine {
             archive.prepare_load();
 
             auto asset_type = Reflection::GetType(archive.GetMainDataProperty("%type").get<std::string>());
-            assert(asset_type->IsReflectable());
+            if (!asset_type || !asset_type->IsReflectable()) {
+                throw std::runtime_error(
+                    "Asset type from archive is not reflectable: "
+                    + archive.GetMainDataProperty("%type").get<std::string>()
+                );
+            }
             // TODO: asset memory management
             auto var = asset_type->CreateInstance(Serialization::SerializationMarker{});
             auto asset_ptr = std::unique_ptr<Asset>(static_cast<Asset *>(var.GetDataPtr()));
@@ -57,7 +63,11 @@ namespace Engine {
         Serialization::Archive archive;
         MainClass::GetInstance()->GetAssetDatabase()->LoadArchive(archive, guid);
         auto type = Reflection::GetType(archive.GetMainDataProperty("%type").get<std::string>());
-        assert(type->IsReflectable());
+        if (!type || !type->IsReflectable()) {
+            throw std::runtime_error(
+                "Asset type from archive is not reflectable: " + archive.GetMainDataProperty("%type").get<std::string>()
+            );
+        }
         auto var = type->CreateInstance(Serialization::SerializationMarker{});
         std::unique_ptr<Asset> new_asset = std::unique_ptr<Asset>(static_cast<Asset *>(var.GetDataPtr()));
         var.SetNeedFree(false);

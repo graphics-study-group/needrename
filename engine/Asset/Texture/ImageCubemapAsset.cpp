@@ -3,10 +3,10 @@
 #include <Render/ImageUtilsFunc.h>
 #include <SDL3/SDL_log.h>
 #include <algorithm>
-#include <cassert>
 #include <cstdlib>
 #include <cstring>
 #include <ktx.h>
+#include <stdexcept>
 #include <thread>
 
 #include <memory>
@@ -48,7 +48,9 @@ namespace {
     ktxTexture2 *CreateCubemapTextureData(
         int width, int height, vk::Format format, const std::byte *data, size_t size
     ) {
-        assert(size % 6 == 0);
+        if (size % 6 != 0) {
+            throw std::runtime_error("Cubemap data size must be divisible by 6.");
+        }
 
         ktxTextureCreateInfo create_info{};
         create_info.vkFormat = static_cast<ktx_uint32_t>(format);
@@ -102,10 +104,14 @@ namespace Engine {
         int width, int height, int channel, std::vector<std::byte> data, ImageUtils::ImageFormat format
     ) {
         const vk::Format vk_format = ImageUtils::GetVkFormat(format);
-        assert(vk_format != vk::Format::eUndefined);
+        if (vk_format == vk::Format::eUndefined) {
+            throw std::runtime_error("Unsupported image format for cubemap.");
+        }
 
         ktxTexture2 *texture = CreateCubemapTextureData(width, height, vk_format, data.data(), data.size());
-        assert(texture != nullptr);
+        if (texture == nullptr) {
+            throw std::runtime_error("Failed to create KTX2 cubemap from decoded data.");
+        }
 
         ResetTexture(texture);
         m_width = width;
@@ -129,7 +135,9 @@ namespace Engine {
     }
 
     void ImageCubemapAsset::save_asset_to_archive(Serialization::Archive &archive) const {
-        assert(m_texture != nullptr);
+        if (m_texture == nullptr) {
+            throw std::runtime_error("Cannot save ImageCubemapAsset: texture data is not set.");
+        }
 
         auto &json = *archive.m_cursor;
         size_t extra_data_id = archive.create_new_extra_data_buffer(".ktx2");
@@ -138,7 +146,11 @@ namespace Engine {
 
         ktxTexture2 *saved_texture = nullptr;
         auto create_error = ktxTexture2_CreateCopy(m_texture, &saved_texture);
-        assert(create_error == KTX_SUCCESS && saved_texture != nullptr);
+        if (create_error != KTX_SUCCESS || saved_texture == nullptr) {
+            throw std::runtime_error(
+                std::string("Failed to copy KTX2 cubemap for saving: ") + ktxErrorString(create_error)
+            );
+        }
         std::unique_ptr<ktxTexture2, void (*)(ktxTexture2 *)> texture_guard(saved_texture, ktxTexture2_Destroy);
 
         if (ImageUtils::CanCompressToBasis(m_format)) {
@@ -148,7 +160,11 @@ namespace Engine {
         ktx_uint8_t *raw_ktx_data = nullptr;
         ktx_size_t raw_ktx_size = 0;
         const auto write_error = ktxTexture_WriteToMemory(ktxTexture(saved_texture), &raw_ktx_data, &raw_ktx_size);
-        assert(write_error == KTX_SUCCESS && raw_ktx_data != nullptr);
+        if (write_error != KTX_SUCCESS || raw_ktx_data == nullptr) {
+            throw std::runtime_error(
+                std::string("Failed to serialize KTX2 cubemap to memory: ") + ktxErrorString(write_error)
+            );
+        }
 
         data.resize(static_cast<size_t>(raw_ktx_size));
         std::memcpy(data.data(), raw_ktx_data, static_cast<size_t>(raw_ktx_size));
@@ -165,21 +181,24 @@ namespace Engine {
         auto create_error = ktxTexture2_CreateFromMemory(
             reinterpret_cast<const ktx_uint8_t *>(data.data()), data.size(), 0, &loaded_texture
         );
-        assert(create_error == KTX_SUCCESS && loaded_texture != nullptr);
+        if (create_error != KTX_SUCCESS || loaded_texture == nullptr) {
+            throw std::runtime_error(
+                std::string("Failed to load KTX2 cubemap from archive: ") + ktxErrorString(create_error)
+            );
+        }
         ResetTexture(loaded_texture);
 
         if (ktxTexture2_NeedsTranscoding(m_texture)) {
             const auto transcode_error = ktxTexture2_TranscodeBasis(m_texture, KTX_TTF_RGBA32, 0);
             if (transcode_error != KTX_SUCCESS) {
-                SDL_LogWarn(
-                    SDL_LOG_CATEGORY_APPLICATION,
-                    "Cubemap transcode to RGBA32 failed (%s).",
-                    ktxErrorString(transcode_error)
+                throw std::runtime_error(
+                    std::string("Cubemap transcode to RGBA32 failed: ") + ktxErrorString(transcode_error)
                 );
             }
-            assert(transcode_error == KTX_SUCCESS);
         }
-        assert(m_texture->numFaces == 6 && "KTX cubemap must have six faces.");
+        if (m_texture->numFaces != 6) {
+            throw std::runtime_error("Loaded KTX cubemap does not have 6 faces.");
+        }
     }
 
     void ImageCubemapAsset::ResetTexture(ktxTexture2 *texture) {
