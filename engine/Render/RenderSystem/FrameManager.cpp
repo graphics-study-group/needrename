@@ -86,7 +86,8 @@ namespace {
 
     void ReadbackCommand(vk::CommandBuffer cb, const Engine::DeviceBuffer &src, const Engine::DeviceBuffer &dst) {
         using namespace Engine;
-        cb.copyBuffer(src.GetBuffer(), dst.GetBuffer(), vk::BufferCopy{0, 0, vk::WholeSize});
+        assert(src.GetSize() == dst.GetSize());
+        cb.copyBuffer(src.GetBuffer(), dst.GetBuffer(), vk::BufferCopy{0, 0, dst.GetSize()});
     }
 } // namespace
 
@@ -123,7 +124,7 @@ namespace Engine::RenderSystemState {
             bool HasReadback() const { return static_cast<bool>(current_registry.fence); }
 
             void InitializeRegistry(const RenderSystemState::DeviceInterface & di) {
-                if(!current_registry.fence && "Reinitializing readback registry");
+                assert(!current_registry.fence && "Reinitializing readback registry");
                 current_registry.fence = di.GetDevice().createFenceUnique(vk::FenceCreateInfo{});
 
                 auto cbai = vk::CommandBufferAllocateInfo{
@@ -449,17 +450,32 @@ namespace Engine::RenderSystemState {
     }
 
     void FrameManager::impl::CompleteFrame() {
-
         // Record current readbacks.
         if (readback.HasReadback()) {
+            readback.current_registry.combuf->end();
+            // Submit this commandbuffer
+            vk::CommandBufferSubmitInfo cbsi{readback.current_registry.combuf.get()};
+            std::array<vk::SemaphoreSubmitInfo, 1> wait_infos{};
 
-            if (readback.registry.size() >= FRAMES_IN_FLIGHT) {
-                SDL_LogWarn(
-                    SDL_LOG_CATEGORY_RENDER,
-                    "Too many uncalled callback registry. Oldest one will be removed."
-                );
-                readback.registry.pop_front();
-            }
+            // Wait for the last timepoint
+            auto &this_frame_semaphore = timeline_semaphores[current_frame_in_flight];
+            wait_infos[0] = this_frame_semaphore.GetSubmitInfo(
+                this_frame_semaphore.GetExpectedTimepoints(), vk::PipelineStageFlagBits2::eAllCommands
+            );
+
+            const auto &gqueue = m_system.GetDeviceInterface().GetQueueInfo().graphicsQueue;
+            gqueue.submit2(
+                {
+                    vk::SubmitInfo2{
+                        vk::SubmitFlags{},
+                        wait_infos,
+                        {cbsi},
+                        {}
+                    }
+                },
+                readback.current_registry.fence.get()
+            );
+
             readback.AddRegistery();
         }
 
@@ -495,10 +511,18 @@ namespace Engine::RenderSystemState {
         return pimpl->timeline_semaphores[GetFrameInFlight()];
     }
 
-    void FrameManager::RegisterReadbackCallback(
+    bool FrameManager::RegisterReadbackCallback(
         const DeviceBuffer & buffer,
         ReadbackCallback cb
     ) {
+        if (pimpl->readback.registry.size() >= FRAMES_IN_FLIGHT) {
+            SDL_LogWarn(
+                SDL_LOG_CATEGORY_RENDER,
+                "Too many uncalled callback registry. New request is ignored."
+            );
+            return false;
+        }
+
         if (!pimpl->readback.HasReadback()) {
             pimpl->readback.InitializeRegistry(pimpl->m_system.GetDeviceInterface());
         }
@@ -513,5 +537,6 @@ namespace Engine::RenderSystemState {
         pimpl->readback.current_registry.callbacks.push_back(
             std::make_pair(cb, std::move(staging_buffer))
         );
+        return true;
     }
 } // namespace Engine::RenderSystemState

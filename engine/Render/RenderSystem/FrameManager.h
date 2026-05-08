@@ -168,8 +168,12 @@ namespace Engine {
              * This readback supports buffer only to avoid dealing with layout
              * transition problem. Issue a copy to buffer command in your 
              * rendering loop to copy your texture to a buffer first.
+             * 
+             * @return Whether the callback can be added to current frame-in-flight.
+             * If too many readback requests are not fulfilled, the registering
+             * might fail.
              */
-            void RegisterReadbackCallback(
+            bool RegisterReadbackCallback(
                 const DeviceBuffer & buffer,
                 ReadbackCallback cb
             );
