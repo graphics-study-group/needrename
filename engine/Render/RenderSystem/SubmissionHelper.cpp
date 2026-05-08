@@ -155,17 +155,22 @@ namespace Engine::RenderSystemState {
 
     SubmissionHelper::~SubmissionHelper() = default;
 
-    void SubmissionHelper::EnqueueBufferSubmission(const DeviceBuffer &buffer, std::vector<std::byte> &&data) {
-        assert(data.size() >= buffer.GetSize());
+    void SubmissionHelper::EnqueueBufferSubmission(
+        const DeviceBuffer &buffer,
+        std::span<const std::byte> data,
+        size_t buffer_offset
+    ) {
+        if (buffer_offset + data.size_bytes() > buffer.GetSize()) {
+            throw std::invalid_argument("Too many bytes of data are submitted to the buffer.");
+        }
 
         auto staging_buffer = DeviceBuffer::CreateUnique(
             this->m_system.GetAllocatorState(), {BufferTypeBits::StagingToDevice}, buffer.GetSize(), "Staging buffer"
         );
         std::memcpy(staging_buffer->GetVMAddress(), data.data(), buffer.GetSize());
         staging_buffer->Flush();
-        data.clear();
 
-        auto enqueued = [data = std::move(data), &buffer, this, pbuf = staging_buffer.get()](vk::CommandBuffer cb) {
+        auto enqueued = [data, &buffer, this, pbuf = staging_buffer.get(), buffer_offset](vk::CommandBuffer cb) {
             auto mbarrier = GetBufferBarrier(BufferTransferType::GeneralTransferBefore);
             std::array<vk::BufferMemoryBarrier2, 1> barriers{};
             barriers[0] = {
@@ -176,11 +181,12 @@ namespace Engine::RenderSystemState {
                 vk::QueueFamilyIgnored,
                 vk::QueueFamilyIgnored,
                 buffer.GetBuffer(),
-                buffer.GetSize()
+                buffer_offset,
+                data.size_bytes()
             };
 
             cb.pipelineBarrier2(vk::DependencyInfo{{}, {}, barriers, {}});
-            vk::BufferCopy copy{0, 0, static_cast<vk::DeviceSize>(buffer.GetSize())};
+            vk::BufferCopy copy{0, buffer_offset, static_cast<vk::DeviceSize>(data.size_bytes())};
             cb.copyBuffer(pbuf->GetBuffer(), buffer.GetBuffer(), {copy});
 
             mbarrier = GetBufferBarrier(BufferTransferType::GeneralTransferAfter);
@@ -192,49 +198,8 @@ namespace Engine::RenderSystemState {
                 vk::QueueFamilyIgnored,
                 vk::QueueFamilyIgnored,
                 buffer.GetBuffer(),
-                buffer.GetSize()
-            };
-            cb.pipelineBarrier2(vk::DependencyInfo{{}, {}, barriers, {}});
-        };
-        pimpl->m_pending_dellocations.push_back(std::move(staging_buffer));
-        pimpl->m_pending_operations.push(enqueued);
-    }
-
-    void SubmissionHelper::EnqueueBufferSubmission(const DeviceBuffer &buffer, const std::vector<std::byte> &data) {
-        auto staging_buffer = DeviceBuffer::CreateUnique(
-            this->m_system.GetAllocatorState(), {BufferTypeBits::StagingToDevice}, buffer.GetSize(), "Staging buffer"
-        );
-        std::memcpy(staging_buffer->GetVMAddress(), data.data(), buffer.GetSize());
-        staging_buffer->Flush();
-
-        auto enqueued = [data = std::move(data), &buffer, this, pbuf = staging_buffer.get()](vk::CommandBuffer cb) {
-            auto mbarrier = GetBufferBarrier(BufferTransferType::GeneralTransferBefore);
-            std::array<vk::BufferMemoryBarrier2, 1> barriers{};
-            barriers[0] = {
-                mbarrier.srcStageMask,
-                mbarrier.srcAccessMask,
-                mbarrier.dstStageMask,
-                mbarrier.dstAccessMask,
-                vk::QueueFamilyIgnored,
-                vk::QueueFamilyIgnored,
-                buffer.GetBuffer(),
-                buffer.GetSize()
-            };
-
-            cb.pipelineBarrier2(vk::DependencyInfo{{}, {}, barriers, {}});
-            vk::BufferCopy copy{0, 0, static_cast<vk::DeviceSize>(buffer.GetSize())};
-            cb.copyBuffer(pbuf->GetBuffer(), buffer.GetBuffer(), {copy});
-
-            mbarrier = GetBufferBarrier(BufferTransferType::GeneralTransferAfter);
-            barriers[0] = {
-                mbarrier.srcStageMask,
-                mbarrier.srcAccessMask,
-                mbarrier.dstStageMask,
-                mbarrier.dstAccessMask,
-                vk::QueueFamilyIgnored,
-                vk::QueueFamilyIgnored,
-                buffer.GetBuffer(),
-                buffer.GetSize()
+                buffer_offset,
+                data.size_bytes()
             };
             cb.pipelineBarrier2(vk::DependencyInfo{{}, {}, barriers, {}});
         };
@@ -243,17 +208,21 @@ namespace Engine::RenderSystemState {
     }
 
     void SubmissionHelper::EnqueueTextureBufferSubmission(
-        const Texture &texture, const std::byte *data, size_t length
+        const Texture &texture, std::span<const std::byte> data
     ) {
-        assert(ImageUtils::GetVkAspect(texture.GetTextureDescription().format) & vk::ImageAspectFlagBits::eColor);
-
+        if(!(ImageUtils::GetVkAspect(texture.GetTextureDescription().format) & vk::ImageAspectFlagBits::eColor)) {
+            throw std::invalid_argument("Selected texture does not contain color aspect.");
+        }
         auto staging_buffer{texture.CreateStagingBuffer(m_system.GetAllocatorState())};
-        assert(length <= staging_buffer->GetSize());
+        if(data.size_bytes() > staging_buffer->GetSize()) {
+            throw std::invalid_argument("Too many data to be uploaded to texture.");
+        }
+
         std::byte *mapped_ptr = staging_buffer->GetVMAddress();
-        std::memcpy(mapped_ptr, data, length);
+        std::memcpy(mapped_ptr, data.data(), data.size_bytes());
         staging_buffer->Flush();
 
-        auto enqueued = [&texture, pbuf = staging_buffer.get(), data, length, this](vk::CommandBuffer cb) {
+        auto enqueued = [&texture, pbuf = staging_buffer.get(), data, this](vk::CommandBuffer cb) {
             // Transit layout to TransferDstOptimal
             std::array<vk::ImageMemoryBarrier2, 1> barriers = {GetTextureBarrier(
                 TextureTransferType::TextureUploadBefore,
@@ -297,7 +266,9 @@ namespace Engine::RenderSystemState {
     }
 
     void SubmissionHelper::EnqueueTextureClear(const Texture &texture, std::tuple<float, float, float, float> color) {
-        assert(ImageUtils::GetVkAspect(texture.GetTextureDescription().format) & vk::ImageAspectFlagBits::eColor);
+        if(!(ImageUtils::GetVkAspect(texture.GetTextureDescription().format) & vk::ImageAspectFlagBits::eColor)) {
+            throw std::invalid_argument("Selected texture does not contain color aspect.");
+        }
 
         auto enqueued = [&texture, color, this](vk::CommandBuffer cb) {
             // Transit layout to TransferDstOptimal
@@ -327,8 +298,12 @@ namespace Engine::RenderSystemState {
     }
 
     void SubmissionHelper::EnqueueTextureClear(const Texture &texture, float depth) {
-        assert(0.0f <= depth && depth <= 1.0f);
-        assert(ImageUtils::GetVkAspect(texture.GetTextureDescription().format) & vk::ImageAspectFlagBits::eDepth);
+        if (!(0.0f <= depth && depth <= 1.0f)) {
+            SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Depth clear value %f is not in the range of [0.0, 1.0].", depth);
+        }
+        if(!(ImageUtils::GetVkAspect(texture.GetTextureDescription().format) & vk::ImageAspectFlagBits::eDepth)) {
+            throw std::invalid_argument("Selected texture does not contain depth aspect.");
+        }
 
         auto enqueued = [&texture, depth, this](vk::CommandBuffer cb) {
             // Transit layout to TransferDstOptimal

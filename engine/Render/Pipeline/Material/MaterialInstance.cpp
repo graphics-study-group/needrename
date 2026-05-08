@@ -260,7 +260,8 @@ namespace Engine {
                     );
                     AssignTexture(prop.first, texture);
                     m_system.GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
-                        *texture, texture_asset->GetPixelData(), texture_asset->GetPixelDataSize()
+                        *texture, 
+                        std::span{texture_asset->GetPixelData(), texture_asset->GetPixelDataSize()}
                     );
                 }
                 auto solid_color_asset = dynamic_cast<SolidColorTextureAsset *>(t_asset);
@@ -298,7 +299,8 @@ namespace Engine {
                     );
                 AssignTexture(prop.first, texture);
                 m_system.GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
-                    *texture, texture_asset->GetPixelData(), texture_asset->GetPixelDataSize()
+                    *texture, 
+                    std::span{texture_asset->GetPixelData(), texture_asset->GetPixelDataSize()}
                 );
                 break;
             }

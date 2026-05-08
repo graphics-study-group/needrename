@@ -3,7 +3,7 @@
 
 #include <functional>
 #include <queue>
-#include <vector>
+#include <span>
 
 namespace Engine {
     class RenderSystem;
@@ -30,23 +30,13 @@ namespace Engine {
              *
              * @param buffer buffer to be uploaded
              * @param data Host-side buffer containing all data.
+             * These data are immediately copied to a staging buffer, and can
+             * be freed after the invocation.
              */
             void EnqueueBufferSubmission(
                 const DeviceBuffer &buffer,
-                std::vector<std::byte> &&data
-            );
-
-            /**
-             * @brief Enqueue a buffer uploading.
-             *
-             * @param buffer buffer to be uploaded
-             * @param data Host-side buffer containing all data.
-             * Data are immediately copied to a staging buffer.
-             * It is safe to free this buffer after calling this method.
-             */
-            void EnqueueBufferSubmission(
-                const DeviceBuffer &buffer,
-                const std::vector<std::byte> &data
+                std::span<const std::byte> data,
+                size_t buffer_offset = 0
             );
 
             /**
@@ -69,7 +59,10 @@ namespace Engine {
              * It is safe to free this buffer after calling this method.
              * @param length
              */
-            void EnqueueTextureBufferSubmission(const Texture &texture, const std::byte *data, size_t length);
+            void EnqueueTextureBufferSubmission(
+                const Texture &texture,
+                std::span<const std::byte> data
+            );
 
             /**
              * @brief Enqueue a texture clear operation.
