@@ -1,18 +1,18 @@
 {
     "%main_data": {
         "%type": "Engine::MaterialLibraryAsset",
-        "Asset::m_guid": "E335281ABE3F1FA9788F074FF218FF71",
+        "Asset::m_guid": "e335281a-be3f-1fa9-788f-074ff218ff71",
         "MaterialLibraryAsset::m_name": "Blinn-Phong",
         "MaterialLibraryAsset::material_bundle": {
             "Lit": {
                 "%type": "Engine::MaterialLibraryAsset::MaterialTemplateReference",
                 "MaterialTemplateReference::expected_mesh_type": 0,
-                "MaterialTemplateReference::material_template": "8343954977BA6A7CF658BFEE421AD515"
+                "MaterialTemplateReference::material_template": "83439549-77ba-6a7c-f658-bfee421ad515"
             },
             "Shadowmap": {
                 "%type": "Engine::MaterialLibraryAsset::MaterialTemplateReference",
                 "MaterialTemplateReference::expected_mesh_type": 0,
-                "MaterialTemplateReference::material_template": "0A31C596A3B9DB54881FA9550A82311C"
+                "MaterialTemplateReference::material_template": "0a31c596-a3b9-db54-881f-a9550a82311c"
             }
         }
     },

@@ -1,7 +1,7 @@
 {
     "%main_data": {
         "%type": "Engine::ShaderAsset",
-        "Asset::m_guid": "EC591BB43CF6474D8FFECFD9F61D71CB",
+        "Asset::m_guid": "ec591bb4-3cf6-474d-8ffe-cfd9f61d71cb",
         "ShaderAsset::m_name": "fluid.comp",
         "ShaderAsset::m_entry_point": "main",
         "ShaderAsset::shaderType": "Compute",

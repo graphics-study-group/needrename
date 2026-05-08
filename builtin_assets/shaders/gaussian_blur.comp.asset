@@ -1,7 +1,7 @@
 {
     "%main_data": {
         "%type": "Engine::ShaderAsset",
-        "Asset::m_guid": "5A6BAC1050004EB19BE406A9FA40A8CC",
+        "Asset::m_guid": "5a6bac10-5000-4eb1-9be4-06a9fa40a8cc",
         "ShaderAsset::m_name": "gaussian_blur.comp",
         "ShaderAsset::m_entry_point": "main",
         "ShaderAsset::shaderType": "Compute",

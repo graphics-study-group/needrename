@@ -1,7 +1,7 @@
 {
     "%main_data": {
         "%type": "Engine::ShaderAsset",
-        "Asset::m_guid": "2191CAAF586849B8B5565ED808897D7E",
+        "Asset::m_guid": "2191caaf-5868-49b8-b556-5ed808897d7e",
         "ShaderAsset::m_name": "shadowmap.vert",
         "ShaderAsset::m_entry_point": "main",
         "ShaderAsset::shaderType": "Vertex",

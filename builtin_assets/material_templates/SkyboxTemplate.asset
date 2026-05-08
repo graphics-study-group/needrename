@@ -1,7 +1,7 @@
 {
     "%main_data": {
         "%type": "Engine::MaterialTemplateAsset",
-        "Asset::m_guid": "40D0558818344762D670519B835BEA89",
+        "Asset::m_guid": "40d05588-1834-4762-d670-519b835bea89",
         "MaterialTemplateAsset::name": "Skybox",
         "MaterialTemplateAsset::properties": {
             "%type": "Engine::MaterialTemplateSinglePassProperties",
@@ -67,8 +67,8 @@
             "MaterialTemplateSinglePassProperties::shaders": {
                 "%type": "Engine::PipelineProperties::Shaders",
                 "Shaders::shaders": [
-                    "917745CBDD3448B099C6CFE19BAF2BA0",
-                    "63FF8228AEF8415D8CA842798532486D"
+                    "917745cb-dd34-48b0-99c6-cfe19baf2ba0",
+                    "63ff8228-aef8-415d-8ca8-42798532486d"
                 ],
                 "Shaders::specialization_constants": []
             }

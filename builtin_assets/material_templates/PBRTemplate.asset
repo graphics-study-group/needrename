@@ -1,7 +1,7 @@
 {
     "%main_data": {
         "%type": "Engine::MaterialTemplateAsset",
-        "Asset::m_guid": "6D638EF97A23CBEDE1236A31ECAF2ACF",
+        "Asset::m_guid": "6d638ef9-7a23-cbed-e123-6a31ecaf2acf",
         "MaterialTemplateAsset::name": "LambertianCookTorrancePBR",
         "MaterialTemplateAsset::properties": {
             "%type": "Engine::MaterialTemplateSinglePassProperties",
@@ -67,8 +67,8 @@
             "MaterialTemplateSinglePassProperties::shaders": {
                 "%type": "Engine::PipelineProperties::Shaders",
                 "Shaders::shaders": [
-                    "A49ED5569C1C47859DA5AA85C4CC6D15",
-                    "A9BE0A978CB44D7D96C9FC525E4EC6A1"
+                    "a49ed556-9c1c-4785-9da5-aa85c4cc6d15",
+                    "a9be0a97-8cb4-4d7d-96c9-fc525e4ec6a1"
                 ],
                 "Shaders::specialization_constants": []
             }

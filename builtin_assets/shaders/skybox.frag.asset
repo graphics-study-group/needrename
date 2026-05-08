@@ -1,7 +1,7 @@
 {
     "%main_data": {
         "%type": "Engine::ShaderAsset",
-        "Asset::m_guid": "63FF8228AEF8415D8CA842798532486D",
+        "Asset::m_guid": "63ff8228-aef8-415d-8ca8-42798532486d",
         "ShaderAsset::m_name": "skybox.frag",
         "ShaderAsset::m_entry_point": "main",
         "ShaderAsset::shaderType": "Fragment",

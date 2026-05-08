@@ -1,7 +1,7 @@
 {
     "%main_data": {
         "%type": "Engine::ShaderAsset",
-        "Asset::m_guid": "9B381210B6EF92D084CBEB4E09F3D652",
+        "Asset::m_guid": "9b381210-b6ef-92d0-84cb-eb4e09f3d652",
         "ShaderAsset::m_name": "blinn_phong.frag",
         "ShaderAsset::m_entry_point": "main",
         "ShaderAsset::shaderType": "Fragment",

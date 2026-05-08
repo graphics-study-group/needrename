@@ -1,8 +1,8 @@
 {
     "%main_data": {
         "%type": "Engine::MaterialAsset",
-        "Asset::m_guid": "622D0097A1291FCC44CBBF6F1F762E35",
-        "MaterialAsset::m_library": "E335281ABE3F1FA9788F074FF218FF71",
+        "Asset::m_guid": "622d0097-a129-1fcc-44cb-bf6f1f762e35",
+        "MaterialAsset::m_library": "e335281a-be3f-1fa9-788f-074ff218ff71",
         "MaterialAsset::m_name": "Solid Color Dark Grey Blinn Phong",
         "MaterialAsset::m_properties": {
             "ambient_color": {
@@ -17,7 +17,7 @@
             },
             "base_tex": {
                 "m_type": "Texture",
-                "m_value": "1D73E8C7640A3DF77B503B3F5E97DBE5"
+                "m_value": "1d73e8c7-640a-3df7-7b50-3b3f5e97dbe5"
             },
             "specular_color": {
                 "m_type": "Simple",

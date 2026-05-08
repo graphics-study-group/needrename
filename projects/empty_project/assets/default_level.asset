@@ -2,7 +2,7 @@
     "%extra_data": [],
     "%main_data": {
         "LevelAsset::m_gameobjects": [],
-        "Asset::m_guid": "FF182376000000000000000000000000",
+        "Asset::m_guid": "ff182376-0000-0000-0000-000000000000",
         "%type": "Engine::LevelAsset"
     }
 }
