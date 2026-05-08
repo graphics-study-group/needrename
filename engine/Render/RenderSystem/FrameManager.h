@@ -144,40 +144,6 @@ namespace Engine {
 
             /// @brief Get the current frame semaphore.
             const FrameSemaphore &GetFrameSemaphore() const noexcept;
-
-            /// Buffer Readback operations
-
-            /**
-             * @brief Enqueue a post graphics readback from GPU to CPU host memory.
-             *
-             * While readback commands are submitted to GPU on main commandbuffer submission,
-             * data will not be available until the frame has completed.
-             *
-             * This method performs no sychronization operation apart from the semaphore
-             * wait on the submission of the readback commandbuffer.
-             *
-             * @return a staging buffer, whose content is undetermined until
-             * this frame has completed.
-             */
-            std::shared_ptr<DeviceBuffer> EnqueuePostGraphicsBufferReadback(const DeviceBuffer &device_buffer);
-
-            /**
-             * @brief Enqueue a post graphics readback from GPU to CPU host memory.
-             *
-             * While readback commands are submitted to GPU on main commandbuffer submission,
-             * data will not be available until the frame has completed.
-             *
-             * This method performs no sychronization operation apart from the semaphore
-             * wait on the submission of the readback commandbuffer.
-             * The texture is assumed to be in `GENERAL` layout.
-             * Only color aspect is read back.
-             *
-             * @return a staging buffer, whose content is undetermined until
-             * this frame has completed.
-             */
-            std::shared_ptr<DeviceBuffer> EnqueuePostGraphicsImageReadback(
-                const Texture &image, uint32_t array_layer, uint32_t miplevel
-            );
         };
     } // namespace RenderSystemState
 } // namespace Engine

@@ -275,9 +275,6 @@ int main(int argc, char **argv) {
 
         auto index = rsys->StartFrame();
 
-        // Test readback on the next color attachment for fixed layout
-        auto buf = rsys->GetFrameManager().EnqueuePostGraphicsImageReadback(*colors[(color + 1) % 4], 0, 0);
-
         rg.AddExternalOutputDependency(g_color_handles[(color + 1) % 4], MemoryAccessTypeImageBits::TransferRead);
         rg.Execute(*rsys);
 

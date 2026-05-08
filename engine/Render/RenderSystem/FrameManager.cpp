@@ -512,47 +512,4 @@ namespace Engine::RenderSystemState {
     const FrameSemaphore &FrameManager::GetFrameSemaphore() const noexcept {
         return pimpl->timeline_semaphores[GetFrameInFlight()];
     }
-
-    std::shared_ptr<DeviceBuffer> FrameManager::EnqueuePostGraphicsBufferReadback(const DeviceBuffer &device_buffer) {
-        // This has to be a shared pointer as release time is undetermined.
-        std::shared_ptr staging_buffer = DeviceBuffer::CreateUnique(
-            pimpl->m_system.GetAllocatorState(), {BufferTypeBits::ReadbackFromDevice}, device_buffer.GetSize()
-        );
-
-        auto enqueued = [&device_buffer, staging_buffer](vk::CommandBuffer cb) -> void {
-            ReadbackCommand(cb, device_buffer, *staging_buffer);
-        };
-        pimpl->readback.post_graphics_commands.push(enqueued);
-
-        return staging_buffer;
-    }
-    std::shared_ptr<DeviceBuffer> FrameManager::EnqueuePostGraphicsImageReadback(
-        const Texture &image, uint32_t array_layer, uint32_t miplevel
-    ) {
-        auto texture_desc = image.GetTextureDescription();
-        assert(array_layer <= texture_desc.array_layers);
-        assert(miplevel <= texture_desc.mipmap_levels);
-        // This has to be a shared pointer as release time is undetermined.
-        std::shared_ptr staging_buffer = DeviceBuffer::CreateUnique(
-            pimpl->m_system.GetAllocatorState(),
-            {BufferTypeBits::ReadbackFromDevice},
-            texture_desc.width * texture_desc.height * texture_desc.depth
-                * ImageUtils::GetPixelSize(texture_desc.format)
-        );
-
-        auto enqueued = [=, &image](vk::CommandBuffer cb) -> void {
-            ReadbackCommand(
-                cb,
-                image,
-                vk::ImageAspectFlagBits::eColor,
-                miplevel,
-                array_layer,
-                vk::Extent3D{texture_desc.width, texture_desc.height, texture_desc.depth},
-                *staging_buffer
-            );
-        };
-        pimpl->readback.post_graphics_commands.push(enqueued);
-
-        return staging_buffer;
-    }
 } // namespace Engine::RenderSystemState
