@@ -33,6 +33,22 @@ namespace Engine {
         pass.affinity = RenderGraphPassAffinity::Graphics;
         return *this;
     }
+
+    RenderGraphPassBuilder &RenderGraphPassBuilder::SetTransferPassFunction(
+        std::function<void(TransferCommandBuffer &, const RenderGraph2 &)> fn
+    ) noexcept {
+        auto f = [name = pass.name, system = &this->system, fn](vk::CommandBuffer cb, const RenderGraph2 &rg) {
+            TransferCommandBuffer ccb{cb};
+            DEBUG_CMD_START_LABEL(cb, std::format("{} (Compute)", name).c_str());
+            std::invoke(fn, std::ref(ccb), std::cref(rg));
+            DEBUG_CMD_END_LABEL(cb);
+        };
+        pass.pass_function = f;
+        pass.actual_type = RenderGraphPassAffinity::Transfer;
+        pass.affinity = RenderGraphPassAffinity::Graphics;
+        return *this;
+    }
+
     RenderGraphPassBuilder &RenderGraphPassBuilder::WrapRenderPass() noexcept {
         assert(pass.actual_type == RenderGraphPassAffinity::Graphics);
         assert(pass.color_attachments.size() > 0 || static_cast<int32_t>(pass.depth_attachment.rt_handle) != 0);
