@@ -479,7 +479,10 @@ namespace Engine::RenderSystemState {
         vk::CommandBufferSubmitInfo cbsinfo{cb.get()};
         vk::SubmitInfo2 sinfo{vk::SubmitFlags{}, {}, {cbsinfo}, {}};
         queue_info.graphicsQueue.submit2(sinfo, fence.get());
-        m_system.GetDevice().waitForFences({fence.get()}, true, std::numeric_limits<uint64_t>::max());
+        auto ret = m_system.GetDevice().waitForFences({fence.get()}, true, std::numeric_limits<uint64_t>::max());
+        if (ret != vk::Result::eSuccess) {
+            throw std::runtime_error(vk::to_string(ret) + " happened when waiting for immediate submission fences.");
+        }
         pimpl->m_pending_dellocations.clear();
     }
 
@@ -494,7 +497,7 @@ namespace Engine::RenderSystemState {
             {pimpl->m_completion_fence.get()}, true, std::numeric_limits<uint64_t>::max()
         );
         if (wfresult != vk::Result::eSuccess) {
-            SDL_LogError(SDL_LOG_CATEGORY_RENDER, "An error occured when waiting for submission fence.");
+            throw std::runtime_error(vk::to_string(wfresult) + " happened when waiting for submission fences.");
         }
 
         m_system.GetDevice().resetFences({pimpl->m_completion_fence.get()});

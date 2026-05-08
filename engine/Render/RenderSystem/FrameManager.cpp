@@ -299,8 +299,8 @@ namespace Engine::RenderSystemState {
         // Wait for command buffer execution.
         vk::Fence fence = pimpl->command_executed_fences[fif].get();
         vk::Result wait_result = device.waitForFences({fence}, vk::True, timeout);
-        if (wait_result == vk::Result::eTimeout) {
-            SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Timed out waiting for fence for frame id %u.", fif);
+        if (wait_result != vk::Result::eSuccess) {
+            throw std::runtime_error(vk::to_string(wait_result) + " happened when waiting for frame fences.");
         }
         pimpl->command_buffers[fif]->reset();
         device.resetFences({fence});
@@ -383,7 +383,6 @@ namespace Engine::RenderSystemState {
         vk::Filter filter
     ) {
         const auto fif = GetFrameInFlight();
-        const auto framebuffer_image = this->pimpl->m_system.GetSwapchain().GetImages()[GetFramebuffer()];
         const auto &copy_cb = pimpl->copy_to_swapchain_command_buffers[fif].get();
 
         RecordCopyCommand(
@@ -457,11 +456,14 @@ namespace Engine::RenderSystemState {
     void FrameManager::impl::CompleteFrame() {
 
         if (readback.has_post_graphics_rb[current_frame_in_flight]) {
-            m_system.GetDevice().waitForFences(
+            auto ret = m_system.GetDevice().waitForFences(
                 {readback.post_graphics_rb_fences[current_frame_in_flight].get()},
                 true,
                 std::numeric_limits<uint64_t>::max()
             );
+            if (ret != vk::Result::eSuccess) {
+                throw std::runtime_error(vk::to_string(ret) + " happened when waiting for readback fences.");
+            }
             readback.has_post_graphics_rb.reset(current_frame_in_flight);
             readback.post_graphics_rb_cbs[current_frame_in_flight]->reset();
         }
