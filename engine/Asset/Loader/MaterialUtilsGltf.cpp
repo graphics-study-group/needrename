@@ -220,7 +220,7 @@ namespace Engine::detail {
         const AssetRef default_pbr_mrao =
             db.GetNewAssetRef(AssetPath(db, std::filesystem::path("~/textures/white.asset")));
         const AssetRef default_pbr_normal =
-            db.GetNewAssetRef(AssetPath(db, std::filesystem::path("~/textures/blue.asset")));
+            db.GetNewAssetRef(AssetPath(db, std::filesystem::path("~/textures/default_normal.asset")));
         const AssetRef default_pbr_emissive =
             db.GetNewAssetRef(AssetPath(db, std::filesystem::path("~/textures/white.asset")));
 
