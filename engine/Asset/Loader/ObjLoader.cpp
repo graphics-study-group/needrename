@@ -337,9 +337,9 @@ namespace Engine {
             }
 
             material_asset.m_name = material.name.empty() ? "material" : material.name;
-            material_asset.m_library = db->GetNewAssetRef(
-                AssetPath(*db, std::filesystem::path("~/material_libraries/BlinnPhongLibrary.asset"))
-            );
+            material_asset.m_library =
+                db->GetNewAssetRef(AssetPath(*db, std::filesystem::path("~/material_libraries/BlinnPhongLibrary.asset"))
+                );
 
             auto load_texture =
                 [&](const std::string &texture_name, const std::string &suffix, const char *property_name) {
