@@ -324,9 +324,10 @@ namespace Engine::RenderSystemState {
         const uint32_t fif = GetFrameInFlight();
         auto &this_timeline_semaphore = pimpl->timeline_semaphores[fif];
         auto &prev_timeline_semaphore = pimpl->timeline_semaphores[(fif + (FRAMES_IN_FLIGHT - 1)) % FRAMES_IN_FLIGHT];
-        // TODO: we currently hardcode expected timepoints to be 3, namely: start(1), transfer(2) and render(3).
+        // TODO: we currently hardcode expected timepoints to be 4, namely: start(1), transfer(2), render(3) and presenting(4).
         // This start timepoint is not actually needed other than scilencing the validation layer.
-        this_timeline_semaphore.SetExpectedTimepoints(3);
+        // The presenting timepoint is currently not needed actually as all operations happen on one queue.
+        this_timeline_semaphore.SetExpectedTimepoints(4);
 
         pimpl->m_submission_helper->OnPreMainCbSubmission();
 
@@ -338,6 +339,7 @@ namespace Engine::RenderSystemState {
             // Wait before any command starts.
             vk::PipelineStageFlagBits2::eAllCommands
         );
+        // Wait for total completion of the last frame
         wait_infos[1] = prev_timeline_semaphore.GetSubmitInfo(
             prev_timeline_semaphore.GetExpectedTimepoints(), vk::PipelineStageFlagBits2::eAllCommands
         );
@@ -390,12 +392,12 @@ namespace Engine::RenderSystemState {
         // Prepare submit info for copy commandbuffer
         vk::CommandBufferSubmitInfo cbsi{copy_cb};
         std::array<vk::SemaphoreSubmitInfo, 2> wait_infos{};
-        std::array<vk::SemaphoreSubmitInfo, 1> signal_infos{};
+        std::array<vk::SemaphoreSubmitInfo, 2> signal_infos{};
 
-        // Wait for the last timepoint
+        // Wait for the second-to-last timepoint
         auto &this_frame_semaphore = pimpl->timeline_semaphores[fif];
         wait_infos[0] = this_frame_semaphore.GetSubmitInfo(
-            this_frame_semaphore.GetExpectedTimepoints(), vk::PipelineStageFlagBits2::eAllTransfer
+            this_frame_semaphore.GetExpectedTimepoints() - 1, vk::PipelineStageFlagBits2::eAllTransfer
         );
         // Wait for image acquisition (this is binary).
         wait_infos[1] = vk::SemaphoreSubmitInfo{
@@ -408,6 +410,9 @@ namespace Engine::RenderSystemState {
             0,
             vk::PipelineStageFlagBits2::eAllTransfer
         };
+        signal_infos[1] = this_frame_semaphore.GetSubmitInfo(
+            this_frame_semaphore.GetExpectedTimepoints(), vk::PipelineStageFlagBits2::eAllTransfer
+        );
 
         vk::SubmitInfo2 sinfo{vk::SubmitFlags{}, wait_infos, {cbsi}, signal_infos};
         const auto &queueInfo = pimpl->m_system.GetDeviceInterface().GetQueueInfo();
