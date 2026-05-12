@@ -140,7 +140,7 @@ int main(int argc, char **argv) {
 
         // cubemap->LoadFromFile(CUBEMAP_FACES);
         rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
-            *skybox_texture, cubemap->GetPixelData(), cubemap->GetPixelDataSize()
+            *skybox_texture, std::span{cubemap->GetPixelData(), cubemap->GetPixelDataSize()}
         );
         rsys->GetFrameManager().GetSubmissionHelper().ExecuteSubmissionImmediately();
     }
