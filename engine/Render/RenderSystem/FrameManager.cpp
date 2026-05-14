@@ -355,7 +355,7 @@ namespace Engine::RenderSystemState {
         prev_timeline_semaphore.EndFrame();
 
         signal_info = this_timeline_semaphore.GetSubmitInfo(
-            this_timeline_semaphore.GetExpectedTimepoints(),
+            3,
             // Signal after all commands are finished.
             vk::PipelineStageFlagBits2::eAllCommands
         );
