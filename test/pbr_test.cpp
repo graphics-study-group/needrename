@@ -58,8 +58,9 @@ class PBRMeshComponent : public ObjTestMeshComponent {
     struct UniformData {
         float metalness;
         float roughness;
+        glm::vec4 emissive;
     };
-    UniformData m_uniform_data{1.0, 1.0};
+    UniformData m_uniform_data{1.0, 1.0, glm::vec4{0.0f, 0.0f, 0.0f, 1.0f}};
     std::vector<GUID> m_material_guids{};
 
 public:
@@ -70,7 +71,9 @@ public:
         std::filesystem::path mesh_file_name,
         AssetRef lib_asset_ref,
         std::shared_ptr<Texture> albedo,
-        std::shared_ptr<Texture> MRAO
+        std::shared_ptr<Texture> MRAO,
+        std::shared_ptr<Texture> normal,
+        std::shared_ptr<Texture> emissive
     ) {
         this->LoadMesh(mesh_file_name);
 
@@ -86,6 +89,8 @@ public:
             auto ptr = mi_mng.Resolve(handle);
             ptr->AssignTexture("albedoSampler", albedo);
             ptr->AssignTexture("MRAOSampler", MRAO);
+            ptr->AssignTexture("normalSampler", normal);
+            ptr->AssignTexture("emissiveSampler", emissive);
             m_material_guids.push_back(this->m_material_assets.back().GetGUID());
         }
     }
@@ -96,11 +101,11 @@ public:
         return transform;
     }
 
-    void UpdateUniformData(float metalness, float roughness) {
+    void UpdateUniformData(float metalness, float roughness, glm::vec4 emissive) {
         uint8_t identity =
-            (fabs(metalness - m_uniform_data.metalness) < 1e-3) + (fabs(roughness - m_uniform_data.roughness) < 1e-3);
-        if (identity == 2) return;
-        m_uniform_data = {.metalness = metalness, .roughness = roughness};
+            (fabs(metalness - m_uniform_data.metalness) < 1e-3) + (fabs(roughness - m_uniform_data.roughness) < 1e-3) + (glm::length(emissive - m_uniform_data.emissive) < 1e-3);
+        if (identity == 3) return;
+        m_uniform_data = {.metalness = metalness, .roughness = roughness, .emissive = emissive};
 
         auto *rsys = MainClass::GetInstance()->GetRenderSystem().get();
         auto &mat_mng = rsys->GetRenderResourceManager<RenderSystemState::MaterialInstanceManager>();
@@ -109,6 +114,7 @@ public:
             auto *inst = mat_mng.Resolve(handle);
             inst->AssignScalarVariable("Material::metalnessFactor", metalness);
             inst->AssignScalarVariable("Material::roughnessFactor", roughness);
+            inst->AssignVectorVariable("Material::emissiveFactor", emissive);
         }
     }
 };
@@ -116,7 +122,8 @@ public:
 struct {
     float zenith, azimuth;
     float metalness, roughness;
-} g_SceneData{M_PI_2, M_PI_2 * 3, 0.5f, 0.5f};
+    glm::vec4 emissive;
+} g_SceneData{M_PI_2, M_PI_2 * 3, 0.5f, 0.5f, glm::vec4{0.0f, 0.0f, 0.0f, 1.0f}};
 
 glm::vec3 GetCartesian(float zenith, float azimuth) {
     static constexpr float RADIUS = 2.0f;
@@ -138,6 +145,7 @@ void PrepareGui() {
 
     ImGui::SliderFloat("Metalness", &g_SceneData.metalness, 0.0f, 1.0f);
     ImGui::SliderFloat("Roughness", &g_SceneData.roughness, 0.0f, 1.0f);
+    ImGui::ColorEdit3("Emissive", &g_SceneData.emissive[0]);
     ImGui::End();
 }
 
@@ -149,7 +157,7 @@ void SubmitSceneData(std::shared_ptr<RenderSystem> rsys, uint32_t id) {
 }
 
 void SubmitMaterialData(PBRMeshComponent *mesh) {
-    mesh->UpdateUniformData(g_SceneData.metalness, g_SceneData.roughness);
+    mesh->UpdateUniformData(g_SceneData.metalness, g_SceneData.roughness, g_SceneData.emissive);
 }
 
 int main(int argc, char **argv) {
@@ -215,13 +223,19 @@ int main(int argc, char **argv) {
     std::shared_ptr MRAO_texture =
         ImageTexture::CreateUnique(*rsys, empty_desc, Texture::SamplerDesc{}, "Sampled MRAO");
     rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*MRAO_texture, {1.0, 1.0, 1.0, 1.0});
+    std::shared_ptr normal_texture =
+        ImageTexture::CreateUnique(*rsys, empty_desc, Texture::SamplerDesc{}, "Sampled Normal");
+    rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*normal_texture, {0.5, 0.5, 1.0, 1.0});
+    std::shared_ptr emissive_texture =
+        ImageTexture::CreateUnique(*rsys, empty_desc, Texture::SamplerDesc{}, "Sampled Emissive");
+    rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureClear(*emissive_texture, {1.0, 1.0, 1.0, 1.0});
 
     auto &scene = cmc->GetWorldSystem()->GetMainSceneRef();
     // Setup mesh
     std::filesystem::path mesh_path{std::string(ENGINE_ASSETS_DIR) + "/meshes/sphere.obj"};
     auto &go = scene.CreateGameObject();
     auto tmc = &scene.CreateComponent<PBRMeshComponent>(go);
-    tmc->LoadData(mesh_path, pbr_material_asset_ref, red_texture, MRAO_texture);
+    tmc->LoadData(mesh_path, pbr_material_asset_ref, red_texture, MRAO_texture, normal_texture, emissive_texture);
     tmc->Awake();
 
     // Setup camera
