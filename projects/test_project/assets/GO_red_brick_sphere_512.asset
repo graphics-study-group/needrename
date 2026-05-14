@@ -2,7 +2,7 @@
     "%extra_data": [],
     "%main_data": {
         "%type": "Engine::SceneAsset",
-        "Asset::m_guid": "ac80377b-839f-41d0-8c95-6f932b21c7d3",
+        "Asset::m_guid": "d43cff4e-7caa-494b-9b6e-270bab82c10d",
         "SceneAsset::components": [
             {
                 "%type": "Engine::TransformComponent",
@@ -36,13 +36,10 @@
                 "RendererComponent::m_is_eagerly_loaded": false,
                 "RendererComponent::m_layer": 4294967295,
                 "RendererComponent::m_material_assets": [
-                    "046089b5-04d4-468f-9be9-8b4bab76d175",
-                    "48b203cb-8c20-46e8-b48c-6bd7c2065c02",
-                    "c0f8370d-a9f6-4ce1-b2c7-6b956cbbbd60",
-                    "c2a5d077-2bf8-47bc-a22f-682b90d2d5a9"
+                    "e4d9820c-f01d-4627-8daf-1182e54e1401"
                 ],
                 "RendererComponent::m_priority": 0,
-                "StaticMeshComponent::m_mesh_asset": "abef1c35-109e-49a1-8550-6816eb52f1cf"
+                "StaticMeshComponent::m_mesh_asset": "145431a2-3c39-4a30-9088-26a4a1d49b36"
             }
         ],
         "SceneAsset::objects": [
@@ -54,7 +51,7 @@
                     2
                 ],
                 "GameObject::m_handle": 1,
-                "GameObject::m_name": "four_bunny",
+                "GameObject::m_name": "Sphere",
                 "GameObject::m_parentGameObject": 0,
                 "GameObject::m_transformComponent": 1
             }

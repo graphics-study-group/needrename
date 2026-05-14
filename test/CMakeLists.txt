@@ -22,11 +22,6 @@ target_link_libraries(project_loading_test engine)
 add_test(NAME project_loading_test COMMAND project_loading_test 120)
 set_target_properties(project_loading_test PROPERTIES FOLDER tests)
 
-# add_executable(image_read_test image_read_test.cpp)
-# target_link_libraries(image_read_test engine)
-# add_test(NAME image_read_test COMMAND image_read_test)
-# set_target_properties(image_read_test PROPERTIES FOLDER tests)
-
 add_executable(complex_mesh_test complex_mesh_test.cpp)
 target_link_libraries(complex_mesh_test engine stb)
 add_test(NAME complex_mesh_test COMMAND complex_mesh_test 120)

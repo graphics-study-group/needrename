@@ -73,6 +73,24 @@ namespace {
         const std::string rel_str = rel.generic_string();
         return rel_str != "." && !(rel_str.size() >= 2 && rel_str[0] == '.' && rel_str[1] == '.');
     }
+
+    bool EnsurePathExists(const std::filesystem::path &path) {
+        std::filesystem::path path_obj = path;
+        if (std::filesystem::exists(path_obj)) {
+            return true;
+        }
+        std::filesystem::path dir_path = path_obj.parent_path();
+
+        if (!dir_path.empty() && !std::filesystem::exists(dir_path)) {
+            std::error_code ec;
+            if (std::filesystem::create_directories(dir_path, ec)) {
+                return true;
+            } else if (ec) {
+                return false;
+            }
+        }
+        return true;
+    }
 } // namespace
 
 namespace Engine {
@@ -172,6 +190,7 @@ namespace Engine {
             AddAsset(guid, path);
         }
         auto json_path = path.to_absolute_path();
+        EnsurePathExists(json_path);
         archive.save_to_file(json_path.replace_extension(""));
     }
 

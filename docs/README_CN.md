@@ -2,7 +2,7 @@
 
 一款游戏引擎，包含基于 Vulkan 的渲染系统、Python 驱动的反射/序列化机制，以及灵活的组件化游戏框架。
 
-![engine_editor](./assets/engine_editor.png)
+![engine_editor](../assets/img/engine_editor.png)
 
 ## 构建引擎
 

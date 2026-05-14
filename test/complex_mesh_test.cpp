@@ -86,7 +86,7 @@ public:
 struct {
     float zenith, azimuth;
     float r, g, b, coef;
-} g_SceneData{M_PI_2, M_PI_2, 0.5f, 0.5f, 0.5f, 4.0f};
+} g_SceneData{M_PI_2, M_PI_2 * 2, 0.5f, 0.5f, 0.5f, 4.0f};
 
 glm::vec3 GetCartesian(float zenith, float azimuth) {
     static constexpr float RADIUS = 2.0f;
@@ -149,7 +149,7 @@ int main(int argc, char **argv) {
 
     auto &scene = cmc->GetWorldSystem()->GetMainSceneRef();
     // Setup mesh
-    std::filesystem::path mesh_path{std::string(ENGINE_ASSETS_DIR) + "/four_bunny/four_bunny.obj"};
+    std::filesystem::path mesh_path{std::string(ENGINE_ASSETS_DIR) + "/red_brick_sphere/red_brick_sphere.obj"};
     auto &go = scene.CreateGameObject();
     auto &tmc = scene.CreateComponent<MeshComponentFromFile>(go);
     tmc.LoadFile(mesh_path);
@@ -157,7 +157,7 @@ int main(int argc, char **argv) {
 
     // Setup camera
     Transform transform{};
-    transform.SetPosition({0.0f, 1.0f, 0.0f});
+    transform.SetPosition({0.0f, 3.0f, 0.0f});
     transform.SetRotationEuler(glm::vec3{0.0, 0.0, 3.1415926});
     auto camera = std::make_shared<Camera>();
     camera->set_aspect_ratio(1920.0 / 1080.0);

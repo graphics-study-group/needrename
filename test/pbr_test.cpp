@@ -102,8 +102,9 @@ public:
     }
 
     void UpdateUniformData(float metalness, float roughness, glm::vec4 emissive) {
-        uint8_t identity =
-            (fabs(metalness - m_uniform_data.metalness) < 1e-3) + (fabs(roughness - m_uniform_data.roughness) < 1e-3) + (glm::length(emissive - m_uniform_data.emissive) < 1e-3);
+        uint8_t identity = (fabs(metalness - m_uniform_data.metalness) < 1e-3)
+                           + (fabs(roughness - m_uniform_data.roughness) < 1e-3)
+                           + (glm::length(emissive - m_uniform_data.emissive) < 1e-3);
         if (identity == 3) return;
         m_uniform_data = {.metalness = metalness, .roughness = roughness, .emissive = emissive};
 

@@ -189,7 +189,9 @@ int main(int argc, char **argv) {
     // Prepare texture
     auto test_texture_asset = std::make_shared<Image2DTextureAsset>();
     Engine::detail::texture_import::LoadImage2DTextureAssetFromFile(
-        *test_texture_asset, std::string(ENGINE_ASSETS_DIR) + "/bunny/bunny.png", ImageUtils::ImageFormat::R8G8B8A8SRGB
+        *test_texture_asset,
+        std::string(ENGINE_ASSETS_DIR) + "/skybox/sky_cloudy.png",
+        ImageUtils::ImageFormat::R8G8B8A8SRGB
     );
     std::shared_ptr allocated_image_texture = ImageTexture::CreateUnique(*rsys, *test_texture_asset);
 
