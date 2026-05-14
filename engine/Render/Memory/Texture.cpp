@@ -226,25 +226,11 @@ namespace Engine {
         return pimpl->m_sampler;
     }
 
-    std::unique_ptr<DeviceBuffer> Engine::Texture::CreateStagingBuffer(
-        const RenderSystemState::AllocatorState &allocator
-    ) const {
-        uint64_t buffer_size = ImageUtils::GetImageDataSize(
-            pimpl->m_tdesc.format,
-            pimpl->m_tdesc.width,
-            pimpl->m_tdesc.height,
-            pimpl->m_tdesc.depth,
-            pimpl->m_tdesc.array_layers
-        );
-        assert(buffer_size > 0);
-
-        return DeviceBuffer::CreateUnique(
-            allocator,
-            {BufferTypeBits::StagingToDevice},
-            buffer_size,
-            std::format("Buffer - texture ({}) staging", pimpl->m_name)
-        );
+    size_t Texture::CalculateStagingBufferSizeNoMipmap() const noexcept {
+        return pimpl->m_tdesc.height * pimpl->m_tdesc.width * pimpl->m_tdesc.depth * pimpl->m_tdesc.array_layers
+               * ImageUtils::GetPixelSize(pimpl->m_tdesc.format);
     }
+
     bool Texture::SupportRandomAccess() const noexcept {
         return false;
     }

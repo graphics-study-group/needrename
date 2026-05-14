@@ -77,7 +77,7 @@ namespace Engine {
                 buf.data() + submesh_ref.vertex_attribute_count * submesh_ref.attributes.GetTotalPerVertexSize()
             );
 
-            helper.EnqueueBufferSubmissionVertex(*submesh_ref.vi_buffer, buf);
+            helper.EnqueueBufferSubmission(*submesh_ref.vi_buffer, buf);
         }
 
         m_mesh_asset_ref.Release();

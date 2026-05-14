@@ -142,7 +142,7 @@ int main(int argc, char **argv) {
         // archive.save_to_file(std::string(ENGINE_ASSETS_DIR) + "/skybox");
 
         rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
-            *skybox_texture, cubemap->GetPixelData(), cubemap->GetPixelDataSize()
+            *skybox_texture, std::span{cubemap->GetPixelData(), cubemap->GetPixelDataSize()}
         );
         rsys->GetFrameManager().GetSubmissionHelper().ExecuteSubmissionImmediately();
     }

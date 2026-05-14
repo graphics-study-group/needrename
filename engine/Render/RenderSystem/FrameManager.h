@@ -1,6 +1,7 @@
 #ifndef RENDER_RENDERSYSTEM_FRAMEMANAGER_INCLUDED
 #define RENDER_RENDERSYSTEM_FRAMEMANAGER_INCLUDED
 
+#include <functional>
 // May be safe to include here as this header is not included in other headers.
 #include <vulkan/vulkan.hpp>
 
@@ -145,39 +146,34 @@ namespace Engine {
             /// @brief Get the current frame semaphore.
             const FrameSemaphore &GetFrameSemaphore() const noexcept;
 
-            /// Buffer Readback operations
-
             /**
-             * @brief Enqueue a post graphics readback from GPU to CPU host memory.
+             * @brief Function type of callback of readback operations.
              *
-             * While readback commands are submitted to GPU on main commandbuffer submission,
-             * data will not be available until the frame has completed.
-             *
-             * This method performs no sychronization operation apart from the semaphore
-             * wait on the submission of the readback commandbuffer.
-             *
-             * @return a staging buffer, whose content is undetermined until
-             * this frame has completed.
+             * Data retrieved from the device is stored in the device buffer.
+             * This buffer can be mapped to the host VM for reading.
              */
-            std::shared_ptr<DeviceBuffer> EnqueuePostGraphicsBufferReadback(const DeviceBuffer &device_buffer);
-
+            using ReadbackCallback = std::function<void(std::unique_ptr<DeviceBuffer>)>;
             /**
-             * @brief Enqueue a post graphics readback from GPU to CPU host memory.
+             * @brief Register a callback for buffer or texture readback.
              *
-             * While readback commands are submitted to GPU on main commandbuffer submission,
-             * data will not be available until the frame has completed.
+             * The callback is associated with the current frame-in-flight.
+             * After all command buffers in the current frame-in-flight are
+             * completed, a special command buffer containing copying commands
+             * will be executed.
              *
-             * This method performs no sychronization operation apart from the semaphore
-             * wait on the submission of the readback commandbuffer.
-             * The texture is assumed to be in `GENERAL` layout.
-             * Only color aspect is read back.
+             * On completion of subsequent frames, registered callbacks will be
+             * executed if the copying is completed.
+             * Typically a delay of one to two frames can be expected.
              *
-             * @return a staging buffer, whose content is undetermined until
-             * this frame has completed.
+             * This readback supports buffer only to avoid dealing with layout
+             * transition problem. Issue a copy to buffer command in your
+             * rendering loop to copy your texture to a buffer first.
+             *
+             * @return Whether the callback can be added to current frame-in-flight.
+             * If too many readback requests are not fulfilled, the registering
+             * might fail.
              */
-            std::shared_ptr<DeviceBuffer> EnqueuePostGraphicsImageReadback(
-                const Texture &image, uint32_t array_layer, uint32_t miplevel
-            );
+            bool RegisterReadbackCallback(const DeviceBuffer &buffer, ReadbackCallback cb);
         };
     } // namespace RenderSystemState
 } // namespace Engine

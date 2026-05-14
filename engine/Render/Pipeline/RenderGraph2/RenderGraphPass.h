@@ -85,6 +85,17 @@ namespace Engine {
         ) noexcept;
 
         /**
+         * @brief Set up a pass function for transfer invocations.
+         *
+         * Actual type of the pass is set to Transfer.
+         * Affinity is set to Graphics. See `SetAffinity()` for more
+         * details.
+         */
+        RenderGraphPassBuilder &SetTransferPassFunction(
+            std::function<void(TransferCommandBuffer &, const RenderGraph2 &)> f
+        ) noexcept;
+
+        /**
          * @brief Set affinity of the pass.
          *
          * Affinity determines whether the workload will be redistributed to

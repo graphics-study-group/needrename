@@ -87,28 +87,8 @@ namespace {
 
     void ReadbackCommand(vk::CommandBuffer cb, const Engine::DeviceBuffer &src, const Engine::DeviceBuffer &dst) {
         using namespace Engine;
-        cb.copyBuffer(src.GetBuffer(), dst.GetBuffer(), vk::BufferCopy{0, 0, vk::WholeSize});
-    }
-
-    void ReadbackCommand(
-        vk::CommandBuffer cb,
-        const Engine::Texture &src,
-        vk::ImageAspectFlagBits aspect,
-        uint32_t level,
-        uint32_t layer,
-        vk::Extent3D extent,
-        const Engine::DeviceBuffer &dst
-    ) {
-        using namespace Engine;
-
-        cb.copyImageToBuffer(
-            src.GetImage(),
-            vk::ImageLayout::eTransferSrcOptimal,
-            dst.GetBuffer(),
-            vk::BufferImageCopy{
-                0, 0, 0, vk::ImageSubresourceLayers{aspect, level, layer, 1}, vk::Offset3D{0, 0, 0}, extent
-            }
-        );
+        assert(src.GetSize() == dst.GetSize());
+        cb.copyBuffer(src.GetBuffer(), dst.GetBuffer(), vk::BufferCopy{0, 0, dst.GetSize()});
     }
 } // namespace
 
@@ -129,10 +109,42 @@ namespace Engine::RenderSystemState {
 
         // Data and handles used by readback routines.
         struct {
-            std::bitset<FRAMES_IN_FLIGHT> has_post_graphics_rb{};
-            std::array<vk::UniqueFence, FRAMES_IN_FLIGHT> post_graphics_rb_fences{};
-            std::array<vk::UniqueCommandBuffer, FRAMES_IN_FLIGHT> post_graphics_rb_cbs{};
-            std::queue<std::function<void(vk::CommandBuffer)>> post_graphics_commands{};
+            struct ReadbackRegistry {
+                // TODO: reuse fences and command buffers to avoid frequent reallocation.
+                vk::UniqueFence fence;
+                vk::UniqueCommandBuffer combuf;
+                std::deque<std::pair<ReadbackCallback, std::unique_ptr<DeviceBuffer>>> callbacks;
+            };
+
+            ReadbackRegistry current_registry;
+
+            std::deque<ReadbackRegistry> registry;
+
+            bool HasReadback() const {
+                return static_cast<bool>(current_registry.fence);
+            }
+
+            void InitializeRegistry(const RenderSystemState::DeviceInterface &di) {
+                assert(!current_registry.fence && "Reinitializing readback registry");
+                current_registry.fence = di.GetDevice().createFenceUnique(vk::FenceCreateInfo{});
+
+                auto cbai = vk::CommandBufferAllocateInfo{
+                    di.GetQueueInfo().graphicsOneTimePool.get(), vk::CommandBufferLevel::ePrimary, 1
+                };
+                auto onetime_cb = di.GetDevice().allocateCommandBuffersUnique(cbai);
+                current_registry.combuf = std::move(onetime_cb[0]);
+                current_registry.combuf.get().begin(
+                    vk::CommandBufferBeginInfo{vk::CommandBufferUsageFlagBits::eOneTimeSubmit}
+                );
+            }
+
+            void AddRegistery() {
+                registry.push_back(std::move(current_registry));
+
+                current_registry.fence.reset();
+                current_registry.combuf.reset();
+                current_registry.callbacks.clear();
+            }
         } readback{};
 
         uint32_t current_frame_in_flight{std::numeric_limits<uint32_t>::max()};
@@ -144,6 +156,12 @@ namespace Engine::RenderSystemState {
         RenderSystem &m_system;
 
         std::unique_ptr<SubmissionHelper> m_submission_helper{};
+
+        void assert_in_frame() const {
+            if (current_framebuffer == std::numeric_limits<uint32_t>::max()) {
+                throw std::runtime_error("This method must be called between StartFrame and CompleteFrame");
+            }
+        }
 
         /// @brief Progress the frame state machine.
         void CompleteFrame();
@@ -177,13 +195,6 @@ namespace Engine::RenderSystemState {
             DEBUG_SET_NAME_TEMPLATE(
                 device, command_executed_fences[i].get(), std::format("Fence - all commands executed {}", i)
             );
-
-            readback.post_graphics_rb_fences[i] = device.createFenceUnique(finfo);
-            DEBUG_SET_NAME_TEMPLATE(
-                device,
-                readback.post_graphics_rb_fences[i].get(),
-                std::format("Fence - post graphics readback executed {}", i)
-            );
         }
         copy_to_swapchain_completed_semaphores.resize(m_system.GetSwapchain().GetFrameCount());
         for (size_t i = 0; i < copy_to_swapchain_completed_semaphores.size(); i++) {
@@ -197,11 +208,9 @@ namespace Engine::RenderSystemState {
 
         stcinfo.semaphoreType = vk::SemaphoreType::eTimeline;
         for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; i++) {
-            timeline_semaphores[i].timeline_semaphore = device.createSemaphoreUnique(scinfo);
+            timeline_semaphores[i].SetSemaphore(device.createSemaphoreUnique(scinfo));
             DEBUG_SET_NAME_TEMPLATE(
-                device,
-                timeline_semaphores[i].timeline_semaphore.get(),
-                std::format("Semaphore - timeline semaphore {}", i)
+                device, timeline_semaphores[i].GetSemaphore(), std::format("Semaphore - timeline semaphore {}", i)
             );
         }
 
@@ -232,21 +241,6 @@ namespace Engine::RenderSystemState {
             );
         }
 
-        // Readback command buffers
-        new_command_buffers = device.allocateCommandBuffersUnique(
-            vk::CommandBufferAllocateInfo{
-                queue_info.graphicsPool.get(), vk::CommandBufferLevel::ePrimary, FRAMES_IN_FLIGHT
-            }
-        );
-        for (uint32_t i = 0; i < FRAMES_IN_FLIGHT; i++) {
-            readback.post_graphics_rb_cbs[i] = std::move(new_command_buffers[i]);
-            DEBUG_SET_NAME_TEMPLATE(
-                device,
-                readback.post_graphics_rb_cbs[i].get(),
-                std::format("Command buffer - post graphics readback {}", i)
-            );
-        }
-
         current_frame_in_flight = 0;
         m_submission_helper = std::make_unique<SubmissionHelper>(m_system);
     }
@@ -265,18 +259,12 @@ namespace Engine::RenderSystemState {
     }
 
     uint32_t FrameManager::GetFramebuffer() const noexcept {
-        assert(
-            this->pimpl->current_framebuffer < std::numeric_limits<uint32_t>::max()
-            && "Frame Manager is in invalid state."
-        );
+        pimpl->assert_in_frame();
         return this->pimpl->current_framebuffer;
     }
 
     GraphicsCommandBuffer FrameManager::GetCommandBuffer() {
-        assert(
-            this->pimpl->current_framebuffer < std::numeric_limits<uint32_t>::max()
-            && "Frame Manager is in invalid state."
-        );
+        pimpl->assert_in_frame();
         return GraphicsCommandBuffer(pimpl->m_system, GetRawMainCommandBuffer(), GetFrameInFlight());
     }
 
@@ -300,21 +288,16 @@ namespace Engine::RenderSystemState {
         // Wait for command buffer execution.
         vk::Fence fence = pimpl->command_executed_fences[fif].get();
         vk::Result wait_result = device.waitForFences({fence}, vk::True, timeout);
-        if (wait_result == vk::Result::eTimeout) {
-            SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Timed out waiting for fence for frame id %u.", fif);
+        if (wait_result != vk::Result::eSuccess) {
+            throw std::runtime_error(vk::to_string(wait_result) + " happened when waiting for frame fences.");
         }
         pimpl->command_buffers[fif]->reset();
         device.resetFences({fence});
 
-        // Signal start of this frame
+        // Kickstart of this frame
         // Prevent validation layer from complaining
-        if (pimpl->timeline_semaphores[fif].frame_count > 0) {
-            device.signalSemaphore(
-                vk::SemaphoreSignalInfo{
-                    pimpl->timeline_semaphores[fif].timeline_semaphore.get(),
-                    pimpl->timeline_semaphores[fif].GetTimepointValue(FrameSemaphore::TimePoint::Pending)
-                }
-            );
+        if (pimpl->timeline_semaphores[fif].GetTotalElapsedTimepoints() > 0) {
+            device.signalSemaphore(pimpl->timeline_semaphores[fif].GetSignalInfo(1));
         }
 
         // Acquire new image
@@ -337,71 +320,48 @@ namespace Engine::RenderSystemState {
     }
 
     void FrameManager::SubmitMainCommandBuffer() {
+        pimpl->assert_in_frame();
+
+        const uint32_t fif = GetFrameInFlight();
+        auto &this_timeline_semaphore = pimpl->timeline_semaphores[fif];
+        auto &prev_timeline_semaphore = pimpl->timeline_semaphores[(fif + (FRAMES_IN_FLIGHT - 1)) % FRAMES_IN_FLIGHT];
+        // TODO: we currently hardcode expected timepoints to be 4, namely: start(1), transfer(2), render(3) and presenting(4).
+        // This start timepoint is not actually needed other than scilencing the validation layer.
+        // The presenting timepoint is currently not needed actually as all operations happen on one queue.
+        this_timeline_semaphore.SetExpectedTimepoints(4);
+
         pimpl->m_submission_helper->OnPreMainCbSubmission();
 
-        uint32_t fif = GetFrameInFlight();
-
         vk::CommandBufferSubmitInfo cbsi{pimpl->command_buffers[fif].get()};
-
         std::array<vk::SemaphoreSubmitInfo, 2> wait_infos{};
         vk::SemaphoreSubmitInfo signal_info{};
-
-        wait_infos[0] = pimpl->timeline_semaphores[fif].GetSubmitInfo(
-            // Currently we wait for transfer finish as there is no pre-compute stage.
-            FrameSemaphore::TimePoint::PreTransferFinished,
+        wait_infos[0] = this_timeline_semaphore.GetSubmitInfo(
+            2,
             // Wait before any command starts.
             vk::PipelineStageFlagBits2::eAllCommands
         );
-        auto &prev_timeline_semaphore = pimpl->timeline_semaphores[(fif + (FRAMES_IN_FLIGHT - 1)) % FRAMES_IN_FLIGHT];
+        // Wait for total completion of the last frame
         wait_infos[1] = prev_timeline_semaphore.GetSubmitInfo(
-            FrameSemaphore::TimePoint::CopyToPresentFinished, vk::PipelineStageFlagBits2::eAllCommands
+            prev_timeline_semaphore.GetExpectedTimepoints(), vk::PipelineStageFlagBits2::eAllCommands
         );
-        // Ugly workaround for deadlock on the first frame.
+        // special consideration for deadlock on the first frame.
         if (GetTotalFrame() == 0) {
+            prev_timeline_semaphore.SetExpectedTimepoints(1);
             this->pimpl->m_system.GetDevice().signalSemaphore(
-                vk::SemaphoreSignalInfo{
-                    prev_timeline_semaphore.timeline_semaphore.get(),
-                    prev_timeline_semaphore.GetTimepointValue(FrameSemaphore::TimePoint::CopyToPresentFinished)
-                }
+                prev_timeline_semaphore.GetSignalInfo(prev_timeline_semaphore.GetExpectedTimepoints())
             );
         }
         // We must step frame after wait info is recorded to avoid deadlock.
-        prev_timeline_semaphore.StepFrame();
+        prev_timeline_semaphore.EndFrame();
 
-        signal_info = pimpl->timeline_semaphores[fif].GetSubmitInfo(
-            // Currently we signal directly for the post-compute as there is no post-compute stage.
-            FrameSemaphore::TimePoint::PostComputeFinished,
+        signal_info = this_timeline_semaphore.GetSubmitInfo(
+            this_timeline_semaphore.GetExpectedTimepoints(),
             // Signal after all commands are finished.
             vk::PipelineStageFlagBits2::eAllCommands
         );
 
         this->pimpl->m_system.GetDeviceInterface().GetQueueInfo().graphicsQueue.submit2(
             vk::SubmitInfo2{vk::SubmitFlags{}, wait_infos, {cbsi}, {signal_info}}, nullptr
-        );
-
-        // Record readback commands
-        if (pimpl->readback.post_graphics_commands.empty()) return;
-
-        assert(!pimpl->readback.has_post_graphics_rb[fif]);
-        pimpl->readback.has_post_graphics_rb.set(fif);
-
-        auto rbcb = pimpl->readback.post_graphics_rb_cbs[fif].get();
-        rbcb.begin(vk::CommandBufferBeginInfo{vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
-        while (!pimpl->readback.post_graphics_commands.empty()) {
-            std::invoke(pimpl->readback.post_graphics_commands.front(), rbcb);
-            pimpl->readback.post_graphics_commands.pop();
-        }
-        rbcb.end();
-
-        wait_infos[0] = pimpl->timeline_semaphores[fif].GetSubmitInfo(
-            FrameSemaphore::TimePoint::PostComputeFinished, vk::PipelineStageFlagBits2::eAllTransfer
-        );
-        cbsi.commandBuffer = rbcb;
-
-        pimpl->m_system.GetDevice().resetFences({pimpl->readback.post_graphics_rb_fences[fif].get()});
-        this->pimpl->m_system.GetDeviceInterface().GetQueueInfo().graphicsQueue.submit2(
-            vk::SubmitInfo2{vk::SubmitFlags{}, {wait_infos[0]}, {cbsi}, {}},
-            pimpl->readback.post_graphics_rb_fences[fif].get()
         );
     }
 
@@ -412,8 +372,9 @@ namespace Engine::RenderSystemState {
         vk::Offset2D offsetSrc,
         vk::Filter filter
     ) {
+        pimpl->assert_in_frame();
+
         const auto fif = GetFrameInFlight();
-        const auto framebuffer_image = this->pimpl->m_system.GetSwapchain().GetImages()[GetFramebuffer()];
         const auto &copy_cb = pimpl->copy_to_swapchain_command_buffers[fif].get();
 
         RecordCopyCommand(
@@ -434,9 +395,10 @@ namespace Engine::RenderSystemState {
         std::array<vk::SemaphoreSubmitInfo, 2> wait_infos{};
         std::array<vk::SemaphoreSubmitInfo, 2> signal_infos{};
 
-        // Wait for post compute
-        wait_infos[0] = pimpl->timeline_semaphores[fif].GetSubmitInfo(
-            FrameSemaphore::TimePoint::PostComputeFinished, vk::PipelineStageFlagBits2::eAllTransfer
+        // Wait for the second-to-last timepoint
+        auto &this_frame_semaphore = pimpl->timeline_semaphores[fif];
+        wait_infos[0] = this_frame_semaphore.GetSubmitInfo(
+            this_frame_semaphore.GetExpectedTimepoints() - 1, vk::PipelineStageFlagBits2::eAllTransfer
         );
         // Wait for image acquisition (this is binary).
         wait_infos[1] = vk::SemaphoreSubmitInfo{
@@ -449,8 +411,8 @@ namespace Engine::RenderSystemState {
             0,
             vk::PipelineStageFlagBits2::eAllTransfer
         };
-        signal_infos[1] = pimpl->timeline_semaphores[fif].GetSubmitInfo(
-            FrameSemaphore::TimePoint::CopyToPresentFinished, vk::PipelineStageFlagBits2::eAllCommands
+        signal_infos[1] = this_frame_semaphore.GetSubmitInfo(
+            this_frame_semaphore.GetExpectedTimepoints(), vk::PipelineStageFlagBits2::eAllTransfer
         );
 
         vk::SubmitInfo2 sinfo{vk::SubmitFlags{}, wait_infos, {cbsi}, signal_infos};
@@ -487,15 +449,41 @@ namespace Engine::RenderSystemState {
     }
 
     void FrameManager::impl::CompleteFrame() {
+        // Record current readbacks.
+        if (readback.HasReadback()) {
+            readback.current_registry.combuf->end();
+            // Submit this commandbuffer
+            vk::CommandBufferSubmitInfo cbsi{readback.current_registry.combuf.get()};
+            std::array<vk::SemaphoreSubmitInfo, 1> wait_infos{};
 
-        if (readback.has_post_graphics_rb[current_frame_in_flight]) {
-            m_system.GetDevice().waitForFences(
-                {readback.post_graphics_rb_fences[current_frame_in_flight].get()},
-                true,
-                std::numeric_limits<uint64_t>::max()
+            // Wait for the last timepoint
+            auto &this_frame_semaphore = timeline_semaphores[current_frame_in_flight];
+            wait_infos[0] = this_frame_semaphore.GetSubmitInfo(
+                this_frame_semaphore.GetExpectedTimepoints(), vk::PipelineStageFlagBits2::eAllCommands
             );
-            readback.has_post_graphics_rb.reset(current_frame_in_flight);
-            readback.post_graphics_rb_cbs[current_frame_in_flight]->reset();
+
+            const auto &gqueue = m_system.GetDeviceInterface().GetQueueInfo().graphicsQueue;
+            gqueue.submit2(
+                {vk::SubmitInfo2{vk::SubmitFlags{}, wait_infos, {cbsi}, {}}}, readback.current_registry.fence.get()
+            );
+
+            readback.AddRegistery();
+        }
+
+        // call previous readbacks.
+        while (!readback.registry.empty()) {
+            auto &fnt = readback.registry.front();
+            auto ret = m_system.GetDevice().getFenceStatus(fnt.fence.get());
+            if (ret == vk::Result::eNotReady) break;
+            if (ret != vk::Result::eSuccess) {
+                throw std::runtime_error(vk::to_string(ret) + " happened when querying status of readback fence.");
+            }
+
+            for (auto &itr : fnt.callbacks) {
+                std::invoke(itr.first, std::move(itr.second));
+            }
+
+            readback.registry.pop_front();
         }
 
         // Increment FIF counter, reset framebuffer index
@@ -514,47 +502,22 @@ namespace Engine::RenderSystemState {
         return pimpl->timeline_semaphores[GetFrameInFlight()];
     }
 
-    std::shared_ptr<DeviceBuffer> FrameManager::EnqueuePostGraphicsBufferReadback(const DeviceBuffer &device_buffer) {
-        // This has to be a shared pointer as release time is undetermined.
-        std::shared_ptr staging_buffer = DeviceBuffer::CreateUnique(
-            pimpl->m_system.GetAllocatorState(), {BufferTypeBits::ReadbackFromDevice}, device_buffer.GetSize()
+    bool FrameManager::RegisterReadbackCallback(const DeviceBuffer &buffer, ReadbackCallback cb) {
+        if (pimpl->readback.registry.size() >= FRAMES_IN_FLIGHT) {
+            SDL_LogWarn(SDL_LOG_CATEGORY_RENDER, "Too many uncalled callback registry. New request is ignored.");
+            return false;
+        }
+
+        if (!pimpl->readback.HasReadback()) {
+            pimpl->readback.InitializeRegistry(pimpl->m_system.GetDeviceInterface());
+        }
+
+        auto staging_buffer = DeviceBuffer::CreateUnique(
+            pimpl->m_system.GetAllocatorState(), BufferType{BufferTypeBits::ReadbackFromDevice}, buffer.GetSize()
         );
 
-        auto enqueued = [&device_buffer, staging_buffer](vk::CommandBuffer cb) -> void {
-            ReadbackCommand(cb, device_buffer, *staging_buffer);
-        };
-        pimpl->readback.post_graphics_commands.push(enqueued);
-
-        return staging_buffer;
-    }
-    std::shared_ptr<DeviceBuffer> FrameManager::EnqueuePostGraphicsImageReadback(
-        const Texture &image, uint32_t array_layer, uint32_t miplevel
-    ) {
-        auto texture_desc = image.GetTextureDescription();
-        assert(array_layer <= texture_desc.array_layers);
-        assert(miplevel <= texture_desc.mipmap_levels);
-        // This has to be a shared pointer as release time is undetermined.
-        std::shared_ptr staging_buffer = DeviceBuffer::CreateUnique(
-            pimpl->m_system.GetAllocatorState(),
-            {BufferTypeBits::ReadbackFromDevice},
-            ImageUtils::GetImageDataSize(
-                texture_desc.format, texture_desc.width, texture_desc.height, texture_desc.depth, 1
-            )
-        );
-
-        auto enqueued = [=, &image](vk::CommandBuffer cb) -> void {
-            ReadbackCommand(
-                cb,
-                image,
-                vk::ImageAspectFlagBits::eColor,
-                miplevel,
-                array_layer,
-                vk::Extent3D{texture_desc.width, texture_desc.height, texture_desc.depth},
-                *staging_buffer
-            );
-        };
-        pimpl->readback.post_graphics_commands.push(enqueued);
-
-        return staging_buffer;
+        ReadbackCommand(pimpl->readback.current_registry.combuf.get(), buffer, *staging_buffer);
+        pimpl->readback.current_registry.callbacks.push_back(std::make_pair(cb, std::move(staging_buffer)));
+        return true;
     }
 } // namespace Engine::RenderSystemState

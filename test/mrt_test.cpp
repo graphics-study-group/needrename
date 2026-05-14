@@ -16,6 +16,7 @@
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 
 #include "cmake_config.h"
+#include <iostream>
 
 using namespace Engine;
 namespace sch = std::chrono;
@@ -90,6 +91,7 @@ std::array<RGTextureHandle, 4> g_color_handles = {};
 
 auto BuildRenderGraph(
     RenderSystem *rsys,
+    DeviceBuffer *readback,
     RenderTargetTexture *color_1,
     RenderTargetTexture *color_2,
     RenderTargetTexture *color_3,
@@ -104,6 +106,7 @@ auto BuildRenderGraph(
     auto c2 = rgb.ImportExternalResource(*color_2);
     auto c3 = rgb.ImportExternalResource(*color_3);
     auto c4 = rgb.ImportExternalResource(*color_4);
+    auto b1 = rgb.ImportExternalResource(*readback);
     auto d0 = rgb.ImportExternalResource(*depth);
 
     g_color_handles = {c1, c2, c3, c4};
@@ -180,6 +183,32 @@ auto BuildRenderGraph(
             .Get()
     );
 
+    rgb.AddPass(
+        RenderGraphPassBuilder{*rsys}
+            .SetName("Transfer")
+            .UseBuffer(b1, {MemoryAccessTypeBufferBits::TransferWrite})
+            .UseImage(c1, MemoryAccessTypeImageBits::TransferRead)
+            .SetTransferPassFunction([readback, c1](TransferCommandBuffer &tcb, const RenderGraph2 &rg) {
+                auto rt = rg.GetInternalTextureResource(c1);
+                std::array image_copies = {vk::BufferImageCopy{
+                    0,
+                    0,
+                    0,
+                    vk::ImageSubresourceLayers{vk::ImageAspectFlagBits::eColor, 0, 0, 1},
+                    vk::Offset3D{0, 0, 0},
+                    vk::Extent3D{
+                        rt->GetTextureDescription().width,
+                        rt->GetTextureDescription().height,
+                        rt->GetTextureDescription().depth
+                    }
+                }};
+                tcb.GetCommandBuffer().copyImageToBuffer(
+                    rt->GetImage(), vk::ImageLayout::eTransferSrcOptimal, readback->GetBuffer(), image_copies
+                );
+            })
+            .Get()
+    );
+
     return rgb.BuildRenderGraph();
 }
 
@@ -243,11 +272,17 @@ int main(int argc, char **argv) {
         RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Color Attachment (Normal)"),
         RenderTargetTexture::CreateUnique(*rsys, desc, Texture::SamplerDesc{}, "Color Attachment (Texcoord)")
     };
+    auto readback_buffer = DeviceBuffer::CreateUnique(
+        rsys->GetAllocatorState(),
+        Engine::BufferType{Engine::BufferTypeBits::CopyTo, Engine::BufferTypeBits::CopyFrom},
+        colors[0]->CalculateStagingBufferSizeNoMipmap()
+    );
 
     auto asys = cmc->GetAssetManager();
 
     auto rg{BuildRenderGraph(
         rsys.get(),
+        readback_buffer.get(),
         colors[0].get(),
         colors[1].get(),
         colors[2].get(),
@@ -275,14 +310,24 @@ int main(int argc, char **argv) {
 
         auto index = rsys->StartFrame();
 
-        // Test readback on the next color attachment for fixed layout
-        auto buf = rsys->GetFrameManager().EnqueuePostGraphicsImageReadback(*colors[(color + 1) % 4], 0, 0);
+        rsys->GetFrameManager().RegisterReadbackCallback(*readback_buffer, [](std::unique_ptr<DeviceBuffer> in) {
+            auto byte = in->GetVMAddress();
 
-        rg.AddExternalOutputDependency(g_color_handles[(color + 1) % 4], MemoryAccessTypeImageBits::TransferRead);
+            for (int i = 0; i < 16; i++) {
+                for (int j = 0; j < 16; j++) {
+                    std::cout << (int)byte[i * 16 + j] << " ";
+                }
+                std::cout << "\n";
+            }
+        });
+
         rg.Execute(*rsys);
 
         rsys->CompleteFrame(
-            *colors[color], colors[color]->GetTextureDescription().width, colors[color]->GetTextureDescription().height
+            *colors[color],
+            color == 0 ? MemoryAccessTypeImageBits::TransferRead : MemoryAccessTypeImageBits::ColorAttachmentWrite,
+            colors[color]->GetTextureDescription().width,
+            colors[color]->GetTextureDescription().height
         );
 
         SDL_Delay(10);

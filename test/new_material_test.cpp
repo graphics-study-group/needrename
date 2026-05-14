@@ -289,7 +289,8 @@ int main(int argc, char **argv) {
         }
 
         rsys->GetFrameManager().GetSubmissionHelper().EnqueueTextureBufferSubmission(
-            *allocated_image_texture, test_texture_asset->GetPixelData(), test_texture_asset->GetPixelDataSize()
+            *allocated_image_texture,
+            std::span{test_texture_asset->GetPixelData(), test_texture_asset->GetPixelDataSize()}
         );
 
         auto index = rsys->StartFrame();
