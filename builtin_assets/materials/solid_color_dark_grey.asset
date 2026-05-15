@@ -1,27 +1,45 @@
 {
     "%main_data": {
         "%type": "Engine::MaterialAsset",
-        "Asset::m_guid": "B24F0192DE71DE0391D44C379471F141",
-        "MaterialAsset::m_library": "D3364AE928621310CF1EE68F8D5EDB0A",
+        "Asset::m_guid": "b24f0192-de71-de03-91d4-4c379471f141",
+        "MaterialAsset::m_library": "d3364ae9-2862-1310-cf1e-e68f8d5edb0a",
         "MaterialAsset::m_name": "Solid Color Dark Grey",
         "MaterialAsset::m_properties": {
             "albedoSampler": {
                 "m_type": "Texture",
-                "m_value": "1D73E8C7640A3DF77B503B3F5E97DBE5"
+                "m_value": "1d73e8c7-640a-3df7-7b50-3b3f5e97dbe5"
             },
             "MRAOSampler": {
                 "m_type": "Texture",
-                "m_value": "24EF50B82AB1DC9793F60A50DBE77719"
+                "m_value": "24ef50b8-2ab1-dc97-93f6-0a50dbe77719"
             },
-            "metalness_scale": {
+            "normalSampler": {
+                "m_type": "Texture",
+                "m_value": "94217893-712f-43e7-a20b-598fd3a90c0c"
+            },
+            "emissiveSampler": {
+                "m_type": "Texture",
+                "m_value": "24ef50b8-2ab1-dc97-93f6-0a50dbe77719"
+            },
+            "metalnessFactor": {
                 "m_type": "Simple",
                 "m_ubo_type": "Float",
                 "m_value": 0.5
             },
-            "roughness_scale": {
+            "roughnessFactor": {
                 "m_type": "Simple",
                 "m_ubo_type": "Float",
                 "m_value": 0.2
+            },
+            "emissiveFactor": {
+                "m_type": "Simple",
+                "m_ubo_type": "Vec4",
+                "m_value": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0
+                ]
             }
         }
     },

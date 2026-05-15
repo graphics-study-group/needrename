@@ -1,229 +1,210 @@
 #include "ImageCubemapAsset.h"
 
-#include <array>
-#include <assert.h>
+#include <Render/ImageUtilsFunc.h>
+#include <SDL3/SDL_log.h>
+#include <algorithm>
+#include <cstdlib>
 #include <cstring>
-#include <glm.hpp>
-#include <numbers>
-#include <stb_image.h>
-#include <stb_image_write.h>
+#include <ktx.h>
+#include <stdexcept>
+#include <thread>
+
+#include <memory>
 
 #include <Reflection/serialization.h>
 
 namespace {
-    void sampleBilinear(const std::byte *src, int w, int h, int c, float x, float y, std::byte *out) {
-        int x0 = (int)std::floor(x);
-        int y0 = (int)std::floor(y);
-        int x1 = (x0 + 1) % w;
-        int y1 = std::min(y0 + 1, h - 1);
+    /**
+     * @brief Try to compress the texture to Basis Universal format.
+     *
+     * If the compression fails, it will log a warning and keep the original uncompressed texture.
+     */
+    bool TryCompressTextureToBasis(ktxTexture2 *texture) {
+        ktxBasisParams params{};
+        params.structSize = sizeof(params);
+        params.codec = KTX_BASIS_CODEC_UASTC_LDR_4x4;
+        params.uastcFlags = static_cast<ktx_pack_uastc_flags>(KTX_PACK_UASTC_LEVEL_FASTEST);
+        params.uastcRDO = KTX_FALSE;
+        params.threadCount = std::max(1u, std::thread::hardware_concurrency());
 
-        float tx = x - x0;
-        float ty = y - y0;
-
-        for (int k = 0; k < c; ++k) {
-            float c00 = (float)src[(y0 * w + x0) * c + k];
-            float c10 = (float)src[(y0 * w + x1) * c + k];
-            float c01 = (float)src[(y1 * w + x0) * c + k];
-            float c11 = (float)src[(y1 * w + x1) * c + k];
-
-            float c0 = glm::mix(c00, c10, tx);
-            float c1 = glm::mix(c01, c11, tx);
-
-            out[k] = (std::byte)glm::mix(c0, c1, ty);
+        const auto compress_error = ktxTexture2_CompressBasisEx(texture, &params);
+        if (compress_error != KTX_SUCCESS) {
+            SDL_LogWarn(
+                SDL_LOG_CATEGORY_APPLICATION,
+                "ktxTexture2_CompressBasisEx failed (%s). Falling back to uncompressed KTX2.",
+                ktxErrorString(compress_error)
+            );
+            return false;
         }
+
+        return true;
     }
-    void convertEquirectToCubemap(
-        const std::byte *src, int srcW, int srcH, int channels, int faceSize, std::vector<std::byte> &out
+
+    /**
+     * @brief Create a ktxTexture2 from raw pixel data.
+     *
+     * The data should be the image pixel data decoded from an image file, without any header, metadata or compression.
+     */
+    ktxTexture2 *CreateCubemapTextureData(
+        int width, int height, vk::Format format, const std::byte *data, size_t size
     ) {
-        out.resize(faceSize * faceSize * channels * 6);
-        for (int face = 0; face < 6; ++face) {
-            std::vector<std::byte> dst(faceSize * faceSize * channels);
-
-            for (int y = 0; y < faceSize; ++y) {
-                for (int x = 0; x < faceSize; ++x) {
-
-                    float u = 2.0f * (x + 0.5f) / faceSize - 1.0f;
-                    float v = 2.0f * (y + 0.5f) / faceSize - 1.0f;
-
-                    glm::vec3 dir;
-                    switch (face) {
-                    case 0:
-                        dir = {1, -v, -u};
-                        break; // +X
-                    case 1:
-                        dir = {-1, -v, u};
-                        break; // -X
-                    case 2:
-                        dir = {u, 1, v};
-                        break; // +Y
-                    case 3:
-                        dir = {u, -1, -v};
-                        break; // -Y
-                    case 4:
-                        dir = {u, -v, 1};
-                        break; // +Z
-                    case 5:
-                        dir = {-u, -v, -1};
-                        break; // -Z
-                    }
-
-                    dir = glm::normalize(dir);
-                    float lon = std::atan2(dir.y, dir.x);
-                    float lat = -std::asin(dir.z);
-
-                    float srcX = (lon + std::numbers::pi_v<float>) / (2.0f * std::numbers::pi_v<float>)*srcW;
-                    float srcY = (std::numbers::pi_v<float> / 2.0f - lat) / std::numbers::pi_v<float> * srcH;
-
-                    std::byte *pixel = &dst[(y * faceSize + x) * channels];
-
-                    sampleBilinear(src, srcW, srcH, channels, srcX, srcY, pixel);
-                }
-            }
-            std::memcpy(&out[face * faceSize * faceSize * channels], dst.data(), dst.size());
+        if (size % 6 != 0) {
+            throw std::runtime_error("Cubemap data size must be divisible by 6.");
         }
-    }
-    void write_png_to_mem(void *context, void *data, int size) {
-        auto &extra_data = *reinterpret_cast<std::vector<std::byte> *>(context);
-        extra_data.insert(
-            extra_data.end(), reinterpret_cast<std::byte *>(data), reinterpret_cast<std::byte *>(data) + size
-        );
+
+        ktxTextureCreateInfo create_info{};
+        create_info.vkFormat = static_cast<ktx_uint32_t>(format);
+        create_info.baseWidth = static_cast<ktx_uint32_t>(width);
+        create_info.baseHeight = static_cast<ktx_uint32_t>(height);
+        create_info.baseDepth = 1;
+        create_info.numDimensions = 2;
+        create_info.numLevels = 1;
+        create_info.numLayers = 1;
+        create_info.numFaces = 6;
+        create_info.isArray = KTX_FALSE;
+        create_info.generateMipmaps = KTX_FALSE;
+
+        ktxTexture2 *texture = nullptr;
+        const auto create_error = ktxTexture2_Create(&create_info, KTX_TEXTURE_CREATE_ALLOC_STORAGE, &texture);
+        if (create_error != KTX_SUCCESS || texture == nullptr) {
+            return nullptr;
+        }
+
+        const size_t face_size = size / 6;
+        for (int face = 0; face < 6; ++face) {
+            const auto set_image_error = ktxTexture_SetImageFromMemory(
+                ktxTexture(texture),
+                0,
+                0,
+                static_cast<ktx_uint32_t>(face),
+                reinterpret_cast<const ktx_uint8_t *>(data + face * face_size),
+                static_cast<ktx_size_t>(face_size)
+            );
+            if (set_image_error != KTX_SUCCESS) {
+                ktxTexture2_Destroy(texture);
+                return nullptr;
+            }
+        }
+
+        return texture;
     }
 } // namespace
 
 namespace Engine {
-    void ImageCubemapAsset::LoadFromFile(const std::filesystem::path &paths, int width, int height) {
-        stbi_set_flip_vertically_on_load(true);
-        int srcW, srcH, channels;
-        auto raw_image_data = stbi_load(paths.string().c_str(), &srcW, &srcH, &channels, 4);
-        assert(raw_image_data);
-        m_width = width;
-        m_height = height;
-        m_channel = 4;
-        convertEquirectToCubemap(reinterpret_cast<const std::byte *>(raw_image_data), srcW, srcH, 4, width, m_data);
-        stbi_image_free(raw_image_data);
+    ImageCubemapAsset::ImageCubemapAsset() {
     }
 
-    void ImageCubemapAsset::LoadFromFile(const std::array<std::filesystem::path, 6> &paths) {
-        int width, height, channels;
-        stbi_set_flip_vertically_on_load(true);
-        auto first_image = stbi_load(paths[0].string().c_str(), &width, &height, &channels, 4);
-        assert(first_image);
-        m_width = width;
-        m_height = height;
-        m_channel = 4;
-
-        auto image_size = width * height * 4;
-        m_data.resize(image_size * 6);
-        std::memcpy(m_data.data(), first_image, image_size);
-        stbi_image_free(first_image);
-
-        for (int i = 1; i < 6; i++) {
-            int nw, nh, nc;
-            stbi_set_flip_vertically_on_load(true);
-            auto image = stbi_load(paths[i].string().c_str(), &nw, &nh, &nc, 4);
-            assert(image);
-            assert(nw == width && nh == height && nc == channels);
-
-            std::memcpy(m_data.data() + image_size * i, image, image_size);
-            stbi_image_free(image);
+    ImageCubemapAsset::~ImageCubemapAsset() {
+        if (m_texture != nullptr) {
+            ktxTexture2_Destroy(m_texture);
         }
     }
-    const std::byte *ImageCubemapAsset::GetPixelData() const {
-        return m_data.data();
+
+    void ImageCubemapAsset::SetDecodedData(
+        int width, int height, int channel, std::vector<std::byte> data, ImageUtils::ImageFormat format
+    ) {
+        const vk::Format vk_format = ImageUtils::GetVkFormat(format);
+        if (vk_format == vk::Format::eUndefined) {
+            throw std::runtime_error("Unsupported image format for cubemap.");
+        }
+
+        ktxTexture2 *texture = CreateCubemapTextureData(width, height, vk_format, data.data(), data.size());
+        if (texture == nullptr) {
+            throw std::runtime_error("Failed to create KTX2 cubemap from decoded data.");
+        }
+
+        ResetTexture(texture);
+        m_width = width;
+        m_height = height;
+        m_channel = channel;
+        m_format = format;
     }
+
+    const std::byte *ImageCubemapAsset::GetPixelData() const {
+        if (m_texture == nullptr) {
+            return nullptr;
+        }
+        return reinterpret_cast<const std::byte *>(ktxTexture_GetData(ktxTexture(m_texture)));
+    }
+
     size_t ImageCubemapAsset::GetPixelDataSize() const {
-        return m_data.size();
+        if (m_texture == nullptr) {
+            return 0;
+        }
+        return ktxTexture_GetDataSize(ktxTexture(m_texture));
     }
 
     void ImageCubemapAsset::save_asset_to_archive(Serialization::Archive &archive) const {
+        if (m_texture == nullptr) {
+            throw std::runtime_error("Cannot save ImageCubemapAsset: texture data is not set.");
+        }
+
         auto &json = *archive.m_cursor;
-        size_t extra_data_id = archive.create_new_extra_data_buffer(".png");
+        size_t extra_data_id = archive.create_new_extra_data_buffer(".ktx2");
         json["%extra_data_id"] = extra_data_id;
         auto &data = archive.m_context->extra_data[extra_data_id];
 
-        // Create a 3x2 layout image from 6 cubemap faces
-        int combined_width = m_width * 3;
-        int combined_height = m_height * 2;
-        std::vector<std::byte> combined_image(combined_width * combined_height * m_channel);
+        ktxTexture2 *saved_texture = nullptr;
+        auto create_error = ktxTexture2_CreateCopy(m_texture, &saved_texture);
+        if (create_error != KTX_SUCCESS || saved_texture == nullptr) {
+            throw std::runtime_error(
+                std::string("Failed to copy KTX2 cubemap for saving: ") + ktxErrorString(create_error)
+            );
+        }
+        std::unique_ptr<ktxTexture2, void (*)(ktxTexture2 *)> texture_guard(saved_texture, ktxTexture2_Destroy);
 
-        // Face layout:
-        // [0] [1] [2]
-        // [3] [4] [5]
-        const int faces[6][2] = {{0, 0}, {1, 0}, {2, 0}, {0, 1}, {1, 1}, {2, 1}};
-
-        for (int face = 0; face < 6; ++face) {
-            int grid_x = faces[face][0];
-            int grid_y = faces[face][1];
-
-            const std::byte *src_face = m_data.data() + face * m_width * m_height * m_channel;
-
-            for (int y = 0; y < m_height; ++y) {
-                for (int x = 0; x < m_width; ++x) {
-                    int dst_x = grid_x * m_width + x;
-                    int dst_y = grid_y * m_height + y;
-
-                    int src_idx = (y * m_width + x) * m_channel;
-                    int dst_idx = (dst_y * combined_width + dst_x) * m_channel;
-
-                    std::memcpy(combined_image.data() + dst_idx, src_face + src_idx, m_channel);
-                }
-            }
+        if (ImageUtils::CanCompressToBasis(m_format)) {
+            TryCompressTextureToBasis(saved_texture);
         }
 
-        stbi_flip_vertically_on_write(false);
-        stbi_write_png_to_func(
-            write_png_to_mem, &data, combined_width, combined_height, m_channel, combined_image.data(), 0
-        );
+        ktx_uint8_t *raw_ktx_data = nullptr;
+        ktx_size_t raw_ktx_size = 0;
+        const auto write_error = ktxTexture_WriteToMemory(ktxTexture(saved_texture), &raw_ktx_data, &raw_ktx_size);
+        if (write_error != KTX_SUCCESS || raw_ktx_data == nullptr) {
+            throw std::runtime_error(
+                std::string("Failed to serialize KTX2 cubemap to memory: ") + ktxErrorString(write_error)
+            );
+        }
+
+        data.resize(static_cast<size_t>(raw_ktx_size));
+        std::memcpy(data.data(), raw_ktx_data, static_cast<size_t>(raw_ktx_size));
+        std::free(raw_ktx_data);
 
         TextureAsset::save_asset_to_archive(archive);
     }
 
     void ImageCubemapAsset::load_asset_from_archive(Serialization::Archive &archive) {
         auto &json = *archive.m_cursor;
+        TextureAsset::load_asset_from_archive(archive);
         auto &data = archive.m_context->extra_data[json["%extra_data_id"].get<size_t>()];
-
-        stbi_set_flip_vertically_on_load(false);
-        int combined_width, combined_height, channel;
-        stbi_uc *raw_image_data = stbi_load_from_memory(
-            reinterpret_cast<const stbi_uc *>(data.data()), data.size(), &combined_width, &combined_height, &channel, 0
+        ktxTexture2 *loaded_texture = nullptr;
+        auto create_error = ktxTexture2_CreateFromMemory(
+            reinterpret_cast<const ktx_uint8_t *>(data.data()), data.size(), 0, &loaded_texture
         );
-        assert(raw_image_data);
+        if (create_error != KTX_SUCCESS || loaded_texture == nullptr) {
+            throw std::runtime_error(
+                std::string("Failed to load KTX2 cubemap from archive: ") + ktxErrorString(create_error)
+            );
+        }
+        ResetTexture(loaded_texture);
 
-        // Extract 6 cubemap faces from 3x2 layout image
-        int face_width = combined_width / 3;
-        int face_height = combined_height / 2;
-
-        m_width = face_width;
-        m_height = face_height;
-        m_channel = channel;
-
-        m_data.resize(face_width * face_height * channel * 6);
-
-        const int faces[6][2] = {{0, 0}, {1, 0}, {2, 0}, {0, 1}, {1, 1}, {2, 1}};
-
-        for (int face = 0; face < 6; ++face) {
-            int grid_x = faces[face][0];
-            int grid_y = faces[face][1];
-
-            std::byte *dst_face = m_data.data() + face * face_width * face_height * channel;
-
-            for (int y = 0; y < face_height; ++y) {
-                for (int x = 0; x < face_width; ++x) {
-                    int src_x = grid_x * face_width + x;
-                    int src_y = grid_y * face_height + y;
-
-                    int src_idx = (src_y * combined_width + src_x) * channel;
-                    int dst_idx = (y * face_width + x) * channel;
-
-                    std::memcpy(
-                        dst_face + dst_idx, reinterpret_cast<const std::byte *>(raw_image_data) + src_idx, channel
-                    );
-                }
+        if (ktxTexture2_NeedsTranscoding(m_texture)) {
+            const auto transcode_error = ktxTexture2_TranscodeBasis(m_texture, KTX_TTF_RGBA32, 0);
+            if (transcode_error != KTX_SUCCESS) {
+                throw std::runtime_error(
+                    std::string("Cubemap transcode to RGBA32 failed: ") + ktxErrorString(transcode_error)
+                );
             }
         }
+        if (m_texture->numFaces != 6) {
+            throw std::runtime_error("Loaded KTX cubemap does not have 6 faces.");
+        }
+    }
 
-        stbi_image_free(raw_image_data);
-
-        TextureAsset::load_asset_from_archive(archive);
+    void ImageCubemapAsset::ResetTexture(ktxTexture2 *texture) {
+        if (m_texture != nullptr) {
+            ktxTexture2_Destroy(m_texture);
+        }
+        m_texture = texture;
     }
 } // namespace Engine

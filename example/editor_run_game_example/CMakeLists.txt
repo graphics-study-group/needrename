@@ -2,7 +2,7 @@ include(${REFLECTION_PARSER_DIR}/parser.cmake)
 
 get_filename_component(ProjectId ${CMAKE_CURRENT_LIST_DIR} NAME)
 project(${ProjectId} LANGUAGES CXX)
-add_executable(${ProjectId} main.cpp)
+add_executable(${ProjectId} main.cpp CustomComponent.cpp)
 
 # There seems to be some bugs hiding, as only PUBLIC dependencies are scanned
 # by the reflection parser.
@@ -27,6 +27,8 @@ add_custom_command(TARGET ${ProjectId} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
     $<TARGET_FILE:SDL3::SDL3>
     $<TARGET_FILE:glslang>
+    $<TARGET_FILE:ktx>
+    $<TARGET_FILE:fastgltf>
     $<TARGET_FILE:engine>
     $<TARGET_FILE:editor>
     $<TARGET_FILE_DIR:${ProjectId}>

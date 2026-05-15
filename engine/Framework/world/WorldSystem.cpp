@@ -19,8 +19,9 @@
 
 namespace Engine {
     WorldSystem::WorldSystem() {
-        auto &scene = CreateScene();
-        m_main_scene = m_scene_map[scene.GetID()];
+        uint32_t sceneID = m_scene_id_gen++;
+        m_scene_map[sceneID] = std::shared_ptr<Scene>(new Scene(sceneID, true));
+        m_main_scene = m_scene_map[sceneID];
     }
 
     WorldSystem::~WorldSystem() {
@@ -119,7 +120,7 @@ namespace Engine {
     }
     Scene &WorldSystem::CreateScene() {
         uint32_t sceneID = m_scene_id_gen++;
-        m_scene_map[sceneID] = std::shared_ptr<Scene>(new Scene(sceneID));
+        m_scene_map[sceneID] = std::shared_ptr<Scene>(new Scene(sceneID, false));
         return *m_scene_map[sceneID];
     }
     void WorldSystem::ClearUnusedScenes() {

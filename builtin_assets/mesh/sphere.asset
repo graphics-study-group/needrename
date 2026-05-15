@@ -7,6 +7,6 @@
     "%main_data": {
         "%extra_data_id": 0,
         "%type": "Engine::MeshAsset",
-        "Asset::m_guid": "302A5A47A27962C1577017BE708D78F6"
+        "Asset::m_guid": "302a5a47-a279-62c1-5770-17be708d78f6"
     }
 }

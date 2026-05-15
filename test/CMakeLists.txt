@@ -22,18 +22,13 @@ target_link_libraries(project_loading_test engine)
 add_test(NAME project_loading_test COMMAND project_loading_test 120)
 set_target_properties(project_loading_test PROPERTIES FOLDER tests)
 
-# add_executable(image_read_test image_read_test.cpp)
-# target_link_libraries(image_read_test engine)
-# add_test(NAME image_read_test COMMAND image_read_test)
-# set_target_properties(image_read_test PROPERTIES FOLDER tests)
-
 add_executable(complex_mesh_test complex_mesh_test.cpp)
-target_link_libraries(complex_mesh_test engine stb tinyobjloader)
+target_link_libraries(complex_mesh_test engine stb)
 add_test(NAME complex_mesh_test COMMAND complex_mesh_test 120)
 set_target_properties(complex_mesh_test PROPERTIES FOLDER tests)
 
 add_executable(shadow_map_test shadow_map_test.cpp)
-target_link_libraries(shadow_map_test engine tinyobjloader)
+target_link_libraries(shadow_map_test engine)
 add_test(NAME shadow_map_test COMMAND shadow_map_test 120)
 set_target_properties(shadow_map_test PROPERTIES FOLDER tests)
 
@@ -68,7 +63,7 @@ add_test(NAME compute_buffer_test COMMAND compute_buffer_test)
 set_target_properties(compute_buffer_test PROPERTIES FOLDER tests)
 
 add_executable(pbr_test pbr_test.cpp)
-target_link_libraries(pbr_test engine tinyobjloader)
+target_link_libraries(pbr_test engine)
 add_test(NAME pbr_test COMMAND pbr_test 120)
 set_target_properties(pbr_test PROPERTIES FOLDER tests)
 
@@ -77,24 +72,14 @@ target_link_libraries(mrt_test engine)
 add_test(NAME mrt_test COMMAND mrt_test 120)
 set_target_properties(mrt_test PROPERTIES FOLDER tests)
 
-# Copy SDL dll
+# Copy dlls
 add_custom_command(TARGET SDL_init_test POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
     $<TARGET_FILE:SDL3::SDL3-shared>
-    $<TARGET_FILE_DIR:SDL_init_test>
-    COMMENT "Copying SDL DLLs"
-)
-
-add_custom_command(TARGET complex_mesh_test POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
     $<TARGET_FILE:engine>
-    $<TARGET_FILE_DIR:complex_mesh_test>
-    COMMENT "Copying Engine DLLs"
-)
-
-add_custom_command(TARGET complex_mesh_test POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
     $<TARGET_FILE:glslang>
-    $<TARGET_FILE_DIR:complex_mesh_test>
-    COMMENT "Copying glslang DLLs"
+    $<TARGET_FILE:ktx>
+    $<TARGET_FILE:fastgltf>
+    $<TARGET_FILE_DIR:SDL_init_test>
+    COMMENT "Copying DLLs"
 )

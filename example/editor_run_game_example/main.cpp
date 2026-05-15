@@ -1,15 +1,19 @@
 #include <SDL3/SDL.h>
 #include <cassert>
-#include <fstream>
-#include <iostream>
+#include <charconv>
+#include <filesystem>
+#include <limits>
+#include <stdexcept>
+#include <string>
+#include <string_view>
 
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include <Asset/AssetManager/AssetManager.h>
+#include <Asset/Loader/Importer.h>
 #include <Core/Delegate/FuncDelegate.h>
 #include <Core/Functional/EventQueue.h>
 #include <Core/Functional/SDLWindow.h>
 #include <Core/Functional/Time.h>
-#include <Framework/component/Component.h>
 #include <Framework/component/RenderComponent/CameraComponent.h>
 #include <Framework/object/GameObject.h>
 #include <Framework/world/WorldSystem.h>
@@ -22,6 +26,7 @@
 
 #include <Editor/Render/EditorRenderGraphBuilder.h>
 #include <Editor/Widget/GameWidget.h>
+#include <Editor/Widget/ProjectWidget.h>
 #include <Editor/Widget/SceneWidget.h>
 #include <Editor/Window/MainWindow.h>
 
@@ -30,49 +35,64 @@
 
 using namespace Engine;
 
-SpinningComponent::SpinningComponent(const GameObject &parent) : Component(parent) {
-}
+namespace {
+    struct ExampleOptions {
+        int64_t max_frame_count = std::numeric_limits<int64_t>::max();
+        bool keep_project = false;
+    };
 
-void SpinningComponent::Init() {
-    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "SpinningComponent Init");
-}
+    ExampleOptions ParseArguments(int argc, char **argv) {
+        ExampleOptions options{};
+        bool frame_count_set = false;
 
-void SpinningComponent::Tick() {
-    float dt = MainClass::GetInstance()->GetTimeSystem()->GetDeltaTimeInSeconds();
-    auto go = GetParentGameObject();
-    if (go) {
-        auto &transform = go->GetTransformRef();
-        transform.SetRotation(
-            transform.GetRotation() * glm::angleAxis(glm::radians(m_speed * dt), glm::vec3(0.0f, 0.0f, 1.0f))
-        );
+        for (int arg_index = 1; arg_index < argc; ++arg_index) {
+            std::string_view arg(argv[arg_index]);
+            if (arg == "--keep-project") {
+                options.keep_project = true;
+                continue;
+            }
+            if (!frame_count_set) {
+                int64_t parsed_value = 0;
+                const auto [ptr, ec] = std::from_chars(arg.data(), arg.data() + arg.size(), parsed_value);
+                if (ec == std::errc{} && ptr == arg.data() + arg.size() && parsed_value > 0) {
+                    options.max_frame_count = parsed_value;
+                    frame_count_set = true;
+                    continue;
+                }
+            }
+            throw std::runtime_error("Unknown argument: " + std::string(arg));
+        }
+
+        return options;
     }
-}
 
-ControlComponent::ControlComponent(const GameObject &parent) : Component(parent) {
-}
+    void ResetExampleProject(
+        const std::filesystem::path &project_template_path, const std::filesystem::path &project_path
+    ) {
+        std::error_code ec;
+        std::filesystem::remove_all(project_path, ec);
+        ec.clear();
+        std::filesystem::copy(project_template_path, project_path, std::filesystem::copy_options::recursive);
+    }
 
-void ControlComponent::Tick() {
-    auto input = MainClass::GetInstance()->GetInputSystem();
-    auto move_forward = input->GetAxis("move forward");
-    auto move_backward = input->GetAxis("move backward");
-    auto move_right = input->GetAxis("move right");
-    auto move_up = input->GetAxis("move up");
-    auto roll_right = input->GetAxisRaw("roll right");
-    auto look_x = input->GetAxisRaw("look x");
-    auto look_y = input->GetAxisRaw("look y");
-    Transform &transform = GetParentGameObject()->GetTransformRef();
-    float dt = MainClass::GetInstance()->GetTimeSystem()->GetDeltaTimeInSeconds();
-    transform.SetRotation(
-        transform.GetRotation()
-        * glm::quat(
-            glm::vec3{look_y * m_rotation_speed * dt, roll_right * m_roll_speed * dt, look_x * m_rotation_speed * dt}
-        )
-    );
-    transform.SetPosition(
-        transform.GetPosition()
-        + transform.GetRotation() * glm::vec3{move_right, move_forward + move_backward, move_up} * m_move_speed * dt
-    );
-}
+    void CleanupProject(const std::filesystem::path &project_path, bool keep_project) {
+        if (keep_project) {
+            SDL_LogInfo(
+                SDL_LOG_CATEGORY_APPLICATION,
+                "Keeping imported project directory for inspection: %s",
+                project_path.string().c_str()
+            );
+            return;
+        }
+
+        std::error_code ec;
+        std::filesystem::remove_all(project_path, ec);
+        if (ec) {
+            SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "Failed to clean temp project: %s", ec.message().c_str());
+        }
+    }
+
+} // namespace
 
 void Start() {
     auto cmc = MainClass::GetInstance();
@@ -81,9 +101,14 @@ void Start() {
     scene.AddInitEvent();
 }
 
-int main() {
-    std::filesystem::path project_path(ENGINE_PROJECTS_DIR);
-    project_path = project_path / "test_project";
+int main(int argc, char **argv) {
+    const ExampleOptions options = ParseArguments(argc, argv);
+
+    std::filesystem::path project_template_path(ENGINE_PROJECTS_DIR);
+    project_template_path = project_template_path / "test_project";
+
+    std::filesystem::path project_path(ENGINE_EXAMPLES_DIR);
+    project_path = project_path / "editor_run_game_example" / "temp_project";
 
     SDL_Init(SDL_INIT_VIDEO);
 
@@ -99,17 +124,16 @@ int main() {
     SDL_Log("Screen Resolution: %dx%d @ %fHz", screenWidth, screenHeight, displayMode->refresh_rate);
     StartupOptions opt{.resol_x = (int)(screenWidth * 0.9), .resol_y = (int)(screenHeight * 0.9), .title = "Editor"};
 
+    ResetExampleProject(project_template_path, project_path);
+
     auto cmc = MainClass::GetInstance();
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
     RegisterAllTypes();
     cmc->LoadBuiltinAssets(std::filesystem::path(ENGINE_BUILTIN_ASSETS_DIR));
     auto rsys = cmc->GetRenderSystem();
     auto asys = cmc->GetAssetManager();
-    auto adb = std::dynamic_pointer_cast<FileSystemDatabase>(cmc->GetAssetDatabase());
     auto world = cmc->GetWorldSystem();
     auto gui = cmc->GetGUISystem();
-    auto window = cmc->GetWindow();
-    auto &main_scene = world->GetMainSceneRef();
     gui->CreateVulkanBackend(*rsys, ImageUtils::GetVkFormat(Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm));
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading project");
@@ -128,24 +152,13 @@ int main() {
         Input::MotionAxis("look y", Input::AxisType::TypeMouseMotion, "y", 0.3f, 3.0f, 0.001f, 3.0f, false, true)
     );
 
-    // auto &camera_go = main_scene.CreateGameObject();
-    // camera_go.m_name = "Controled Camera";
-    // Transform transform{};
-    // transform.SetPosition({0.0f, -0.7f, 0.5f});
-    // transform.SetRotationEuler(glm::vec3{glm::radians(-30.0f), 0.0, 0.0});
-    // transform.SetScale({1.0f, 1.0f, 1.0f});
-    // camera_go.SetTransform(transform);
-    // auto &camera_comp = camera_go.template AddComponent<CameraComponent>();
-    // camera_comp.m_camera->set_aspect_ratio(1.0 * opt.resol_x / opt.resol_y);
-    // camera_go.template AddComponent<ControlComponent>();
-    // world->SetActiveCamera(camera_comp.GetHandle(), &cmc->GetRenderSystem()->GetCameraManager());
-
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Create Editor Window");
     Editor::MainWindow main_window;
     auto scene_widget = std::make_shared<Editor::SceneWidget>(Editor::MainWindow::k_scene_widget_name);
     main_window.AddWidget(scene_widget);
     auto game_widget = std::make_shared<Editor::GameWidget>(Editor::MainWindow::k_game_widget_name);
     main_window.AddWidget(game_widget);
+    auto project_widget = main_window.FindWidgetAs<Editor::ProjectWidget>(Editor::MainWindow::k_project_widget_name);
 
     auto rgb = std::make_unique<Editor::EditorRenderGraphBuilder>(*cmc->GetRenderSystem());
     int32_t final_color_id, scene_color_id, game_color_id;
@@ -163,7 +176,9 @@ int main() {
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Entering main loop");
 
     bool onQuit = false;
-    while (!onQuit) {
+    int64_t frame_count = 0;
+    while (!onQuit && frame_count < options.max_frame_count) {
+        ++frame_count;
         cmc->GetTimeSystem()->NextFrame();
 
         asys->LoadAssetsInQueue();
@@ -174,6 +189,28 @@ int main() {
                 onQuit = true;
                 break;
             }
+
+            if (event.type == SDL_EVENT_DROP_FILE) {
+                const char *dropped = event.drop.data;
+                if (dropped && project_widget) {
+                    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "File dropped: %s", event.drop.data);
+                    try {
+                        const std::filesystem::path source_path(dropped);
+                        const std::filesystem::path target_dir(project_widget->GetCurrentPath().generic_string());
+                        Importer::ImportExternalResource(source_path, target_dir);
+                        project_widget->RefreshCurrentDirectory();
+                        SDL_LogInfo(
+                            SDL_LOG_CATEGORY_APPLICATION,
+                            "Imported dropped file %s into %s",
+                            source_path.string().c_str(),
+                            target_dir.string().c_str()
+                        );
+                    } catch (const std::exception &e) {
+                        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "Failed to import dropped file: %s", e.what());
+                    }
+                }
+            }
+
             gui->ProcessEvent(&event);
             if (game_widget->m_accept_input) cmc->GetInputSystem()->ProcessEvent(&event);
         }
@@ -199,6 +236,6 @@ int main() {
     rsys->WaitForIdle();
 
     SDL_LogVerbose(SDL_LOG_CATEGORY_APPLICATION, "Unloading Main-class");
-
+    CleanupProject(project_path, options.keep_project);
     return 0;
 }

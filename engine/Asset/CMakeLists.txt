@@ -13,4 +13,6 @@ target_link_libraries(EngineLibAsset
     PUBLIC
     tinyobjloader
     stb
+    ktx
+    fastgltf::fastgltf
 )

@@ -1,0 +1,14 @@
+{
+    "%main_data": {
+        "%type": "Engine::SolidColorTextureAsset",
+        "Asset::m_guid": "94217893-712f-43e7-a20b-598fd3a90c0c",
+        "SolidColorTextureAsset::m_color": [
+            0.5,
+            0.5,
+            1.0,
+            1.0
+        ],
+        "TextureAsset::m_name": "blue"
+    },
+    "%extra_data": []
+}

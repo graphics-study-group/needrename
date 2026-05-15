@@ -79,6 +79,18 @@ namespace Engine {
         REFL_ENABLE void SetParent(ObjectHandle parent);
 
         /**
+         * @brief Get the parent GameObject handle.
+         * @return The parent GameObject handle.
+         */
+        REFL_ENABLE ObjectHandle GetParent() const noexcept;
+
+        /**
+         * @brief Get the child GameObject handles.
+         * @return The child GameObject handles.
+         */
+        REFL_ENABLE const std::vector<ObjectHandle> &GetChildren() const noexcept;
+
+        /**
          * @brief Get the handle of the GameObject.
          * @return The handle of the GameObject.
          */

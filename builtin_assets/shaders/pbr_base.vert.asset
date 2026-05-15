@@ -1,7 +1,7 @@
 {
     "%main_data": {
         "%type": "Engine::ShaderAsset",
-        "Asset::m_guid": "A49ED5569C1C47859DA5AA85C4CC6D15",
+        "Asset::m_guid": "a49ed556-9c1c-4785-9da5-aa85c4cc6d15",
         "ShaderAsset::m_name": "pbr_base.vert",
         "ShaderAsset::m_entry_point": "main",
         "ShaderAsset::shaderType": "Vertex",

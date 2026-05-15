@@ -2,7 +2,7 @@
 
 An unnamed game engine with advanced features including Vulkan-based rendering, Python-powered reflection/serialization, and a flexible component-based game framework.
 
-![engine_editor](./assets/engine_editor.png)
+![engine_editor](./assets/img/engine_editor.png)
 
 ## Building the Engine
 

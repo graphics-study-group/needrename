@@ -1,7 +1,7 @@
 {
     "%main_data": {
         "%type": "Engine::MaterialTemplateAsset",
-        "Asset::m_guid": "0A31C596A3B9DB54881FA9550A82311C",
+        "Asset::m_guid": "0a31c596-a3b9-db54-881f-a9550a82311c",
         "MaterialTemplateAsset::name": "Shadow map pass",
         "MaterialTemplateAsset::properties": {
             "%type": "Engine::MaterialTemplateSinglePassProperties",
@@ -54,7 +54,7 @@
             "MaterialTemplateSinglePassProperties::shaders": {
                 "%type": "Engine::PipelineProperties::Shaders",
                 "Shaders::shaders": [
-                    "2191CAAF586849B8B5565ED808897D7E"
+                    "2191caaf-5868-49b8-b556-5ed808897d7e"
                 ],
                 "Shaders::specialization_constants": []
             }

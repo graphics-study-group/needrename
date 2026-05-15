@@ -1,13 +1,13 @@
 {
     "%main_data": {
         "%type": "Engine::MaterialLibraryAsset",
-        "Asset::m_guid": "E1444D76F4A1CF7F7EEC0650886B827B",
+        "Asset::m_guid": "e1444d76-f4a1-cf7f-7eec-0650886b827b",
         "MaterialLibraryAsset::m_name": "Skybox",
         "MaterialLibraryAsset::material_bundle": {
             "SKYBOX": {
                 "%type": "Engine::MaterialLibraryAsset::MaterialTemplateReference",
                 "MaterialTemplateReference::expected_mesh_type": 0,
-                "MaterialTemplateReference::material_template": "40D0558818344762D670519B835BEA89"
+                "MaterialTemplateReference::material_template": "40d05588-1834-4762-d670-519b835bea89"
             }
         }
     },

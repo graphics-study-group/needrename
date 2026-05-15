@@ -8,3 +8,10 @@
 [submodule "third_party/glslang"]
 	path = third_party/glslang
 	url = https://github.com/KhronosGroup/glslang.git
+[submodule "third_party/fastgltf"]
+	path = third_party/fastgltf
+	url = https://github.com/graphics-study-group/fastgltf.git
+	branch = no-download
+[submodule "third_party/libktx"]
+	path = third_party/libktx
+	url = https://github.com/KhronosGroup/KTX-Software.git

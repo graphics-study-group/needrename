@@ -5,6 +5,7 @@
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include <filesystem>
 #include <memory>
+#include <optional>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -43,6 +44,9 @@ namespace Editor {
         virtual ~ProjectWidget();
 
         virtual void Render() override;
+
+        const AssetPath &GetCurrentPath() const;
+        void RefreshCurrentDirectory();
 
     protected:
         Engine::FileSystemDatabase &m_database;
@@ -88,6 +92,13 @@ namespace Editor {
         void EnsureDirCache(const AssetPath &dir, float wrap_width);
         // Remove caches for directories that are not open in sidebar and not current content dir
         void PruneDirCacheAfterSidebar();
+        void RequestCreateFolder(const AssetPath &parent_path);
+        void ApplyPendingFileOperations();
+
+        std::optional<AssetPath> m_create_folder_parent{};
+        std::optional<AssetPath> m_pending_delete_path{};
+        char m_create_folder_name[128] = "NewFolder";
+        bool m_open_create_folder_popup{false};
     };
 } // namespace Editor
 

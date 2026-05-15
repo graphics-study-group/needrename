@@ -1,7 +1,7 @@
 {
     "%main_data": {
         "%type": "Engine::SolidColorTextureAsset",
-        "Asset::m_guid": "1D73E8C7640A3DF77B503B3F5E97DBE5",
+        "Asset::m_guid": "1d73e8c7-640a-3df7-7b50-3b3f5e97dbe5",
         "SolidColorTextureAsset::m_color": [
             0.2,
             0.2,

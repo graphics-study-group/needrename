@@ -51,6 +51,8 @@ add_custom_command(TARGET transform_test POST_BUILD
     $<TARGET_FILE:SDL3::SDL3-shared>
     $<TARGET_FILE:engine>
     $<TARGET_FILE:glslang>
+    $<TARGET_FILE:ktx>
+    $<TARGET_FILE:fastgltf>
     $<TARGET_FILE_DIR:transform_test>
     COMMENT "Copying SDL DLLs"
 )

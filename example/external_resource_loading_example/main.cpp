@@ -1,5 +1,6 @@
 #include <SDL3/SDL.h>
 #include <cassert>
+#include <chrono>
 #include <fstream>
 #include <iostream>
 #include <nlohmann/json.hpp>
@@ -34,7 +35,7 @@ int main(int argc, char **argv) {
     project_path = project_path / "external_resource_loading_example" / "temp_project";
     if (std::filesystem::exists(project_path)) std::filesystem::remove_all(project_path);
     std::filesystem::copy(
-        std::filesystem::path(ENGINE_PROJECTS_DIR) / "empty_project",
+        std::filesystem::path(ENGINE_PROJECTS_DIR) / "test_project",
         project_path,
         std::filesystem::copy_options::recursive
     );
@@ -42,8 +43,8 @@ int main(int argc, char **argv) {
     std::filesystem::path mesh_path(ENGINE_ASSETS_DIR);
     // mesh_path = mesh_path / "meshes" / "sphere.obj";
     // mesh_path = mesh_path / "meshes" / "cube.obj";
-    // mesh_path = mesh_path / "bunny" / "bunny.obj";
-    mesh_path = mesh_path / "four_bunny" / "four_bunny.obj";
+    // mesh_path = mesh_path / "red_brick_sphere" / "red_brick_sphere.obj";
+    mesh_path = mesh_path / "red_brick_sphere" / "red_brick_sphere_512.glb";
 
     SDL_Init(SDL_INIT_VIDEO);
 
@@ -63,8 +64,14 @@ int main(int argc, char **argv) {
     auto rg = rgb->BuildDefaultRenderGraph(w, h, final_color_id);
     cmc->SetRenderGraph(rg, final_color_id);
 
-    std::filesystem::path path_in_project = "/";
+    std::filesystem::path path_in_project = "/imported_resources";
+    const auto import_begin = std::chrono::steady_clock::now();
     Engine::Importer::ImportExternalResource(mesh_path, path_in_project);
+    const auto import_end = std::chrono::steady_clock::now();
+    const auto import_ms = std::chrono::duration_cast<std::chrono::milliseconds>(import_end - import_begin).count();
+    SDL_LogInfo(
+        SDL_LOG_CATEGORY_APPLICATION, "ImportExternalResource took %lld ms.", static_cast<long long>(import_ms)
+    );
 
     auto &main_scene = cmc->GetWorldSystem()->GetMainSceneRef();
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading the prefab which has just imported");
@@ -76,8 +83,7 @@ int main(int argc, char **argv) {
     auto &camera_go = main_scene.CreateGameObject();
     camera_go.m_name = "fixed camera";
     Transform transform{};
-    transform.SetPosition({0.0f, -0.7f, 0.5f});
-    // transform.SetPosition({0.0f, -3.7f, 2.5f});
+    transform.SetPosition({0.0f, -3.7f, 2.5f});
     transform.SetRotationEuler(glm::vec3{glm::radians(-30.0f), 0.0f, 0.0f});
     camera_go.SetTransform(transform);
     auto &camera_comp = camera_go.AddComponent<CameraComponent>();

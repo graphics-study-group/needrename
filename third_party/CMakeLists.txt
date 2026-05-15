@@ -7,11 +7,19 @@ set_target_properties(json PROPERTIES FOLDER third_party)
 add_subdirectory(stb EXCLUDE_FROM_ALL)
 set_target_properties(stb PROPERTIES FOLDER third_party)
 
+add_subdirectory(vma EXCLUDE_FROM_ALL)
+set_target_properties(vma PROPERTIES FOLDER third_party)
+
 add_subdirectory(tinyobjloader EXCLUDE_FROM_ALL)
 set_target_properties(tinyobjloader PROPERTIES FOLDER third_party)
 
-add_subdirectory(vma EXCLUDE_FROM_ALL)
-set_target_properties(vma PROPERTIES FOLDER third_party)
+set(FASTGLTF_COMPILE_AS_CPP20 ON CACHE BOOL "Compile fastgltf as C++20" FORCE)
+set(FASTGLTF_ENABLE_TESTS OFF CACHE BOOL "Disable fastgltf tests" FORCE)
+set(FASTGLTF_ENABLE_EXAMPLES OFF CACHE BOOL "Disable fastgltf examples" FORCE)
+set(FASTGLTF_ENABLE_DOCS OFF CACHE BOOL "Disable fastgltf docs" FORCE)
+set(FASTGLTF_ENABLE_INSTALL OFF CACHE BOOL "Disable fastgltf install targets" FORCE)
+add_subdirectory(fastgltf EXCLUDE_FROM_ALL)
+set_target_properties(fastgltf PROPERTIES FOLDER third_party)
 
 # For some reasons the SPIRV-Cross in Vulkan SDK cannot be found by CMake...
 set(SPIRV_CROSS_CLI OFF CACHE BOOL "Build the CLI binary. Requires SPIRV_CROSS_STATIC." FORCE)
@@ -42,6 +50,24 @@ target_include_directories(
     "${THIRD_PARTY_DIR}/imgui/"
     "${THIRD_PARTY_DIR}/imgui/backends/"
 )
+
+set(KTX_FEATURE_DOC OFF CACHE BOOL "Disable libktx docs" FORCE)
+set(KTX_FEATURE_JNI OFF CACHE BOOL "Disable libktx JNI" FORCE)
+set(KTX_FEATURE_PY OFF CACHE BOOL "Disable libktx python" FORCE)
+set(KTX_FEATURE_TESTS OFF CACHE BOOL "Disable libktx tests" FORCE)
+set(KTX_FEATURE_TOOLS OFF CACHE BOOL "Disable libktx tools" FORCE)
+set(KTX_FEATURE_LOADTEST_APPS OFF CACHE STRING "Disable libktx load test apps" FORCE)
+set(LIBKTX_VERSION_FULL ON CACHE BOOL "Enable full libktx" FORCE)
+set(LIBKTX_VERSION_READ_ONLY OFF CACHE BOOL "Disable read-only libktx" FORCE)
+add_subdirectory(libktx EXCLUDE_FROM_ALL)
+if(TARGET ktx)
+    set_target_properties(ktx PROPERTIES FOLDER third_party)
+    if(NOT MSVC)
+        # libktx has a bug in `writer2.c` which causes a 64-bit ktx_size_t is writen as a 32-bit off_t.
+        # So force 64-bit file offsets to avoid the issue.
+        target_compile_definitions(ktx PUBLIC _FILE_OFFSET_BITS=64)
+    endif()
+endif()
 
 set(ENABLE_OPT OFF CACHE BOOL "Enable optimizations" FORCE)
 add_subdirectory(glslang EXCLUDE_FROM_ALL SYSTEM)

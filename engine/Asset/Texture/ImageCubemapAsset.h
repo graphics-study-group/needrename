@@ -3,9 +3,15 @@
 
 #include "Asset/Texture/TextureAsset.h"
 #include "Reflection/macros.h"
+#include <Render/ImageUtils.h>
 #include <vector>
 
+struct ktxTexture2;
+
 namespace Engine {
+    namespace detail::texture_import {
+        struct Access;
+    }
 
     /**
      * @brief An asset for a cubemap
@@ -13,26 +19,8 @@ namespace Engine {
     class REFL_SER_CLASS(REFL_WHITELIST) ImageCubemapAsset : public TextureAsset {
         REFL_SER_BODY(ImageCubemapAsset)
     public:
-        REFL_ENABLE ImageCubemapAsset() = default;
-        virtual ~ImageCubemapAsset() = default;
-
-        /**
-         * @brief Load a cubemap from a single 2:1 Equirectangular Projection image file.
-         * @param paths Path to the image file.
-         * @param width Desired width of the cubemap faces.
-         * @param height Desired height of the cubemap faces.
-         */
-        void LoadFromFile(const std::filesystem::path &paths, int width, int height);
-
-        /**
-         * @brief Load a cubemap from six separate image files of the same size and format.
-         * Accepts gamma corrected sRGB SDR image of only RGB channels.
-         *
-         * @param paths Paths to six images representing each face, in the order of:
-         * X+, X-, Y+, Y-, Z+, Z-. Physical meaning of the orientation (e.g. front or back)
-         * is determined in the shader code which samples the image.
-         */
-        void LoadFromFile(const std::array<std::filesystem::path, 6> &paths);
+        REFL_ENABLE ImageCubemapAsset();
+        virtual ~ImageCubemapAsset() override;
 
         /**
          * @brief Get pixel data of the cubemap.
@@ -51,11 +39,35 @@ namespace Engine {
         /// @brief Channel count of each face of the cubemap.
         REFL_SER_ENABLE int m_channel{};
 
+        /**
+         * @brief Expected memory format of the cubemap.
+         *
+         * This member affects only how the image should be represented on the
+         * GPU memory. It does not reflect its actual format on the desk.
+         */
+        REFL_SER_ENABLE ImageUtils::ImageFormat m_format{};
+
         virtual void save_asset_to_archive(Serialization::Archive &archive) const override;
         virtual void load_asset_from_archive(Serialization::Archive &archive) override;
 
     protected:
-        std::vector<std::byte> m_data{};
+        friend struct detail::texture_import::Access;
+        /**
+         * @brief Set the decoded pixel data of the cubemap.
+         *
+         * The data should be the image pixel data decoded from an image file, without any header, metadata or compression.
+         */
+        void SetDecodedData(
+            int width, int height, int channel, std::vector<std::byte> data, ImageUtils::ImageFormat format
+        );
+
+    private:
+        ktxTexture2 *m_texture{};
+
+        /**
+         * @brief Reset the texture with a new ktxTexture2 object. The old texture will be destroyed.
+         */
+        void ResetTexture(ktxTexture2 *texture);
     };
 } // namespace Engine
 

@@ -1,0 +1,47 @@
+{
+    "%extra_data": [],
+    "%main_data": {
+        "%type": "Engine::MaterialAsset",
+        "Asset::m_guid": "e4d9820c-f01d-4627-8daf-1182e54e1401",
+        "MaterialAsset::m_library": "d3364ae9-2862-1310-cf1e-e68f8d5edb0a",
+        "MaterialAsset::m_name": "red_brick",
+        "MaterialAsset::m_properties": {
+            "MRAOSampler": {
+                "m_type": "Texture",
+                "m_value": "73485109-5557-49b9-ac4a-cad7fb0b2028"
+            },
+            "albedoSampler": {
+                "m_type": "Texture",
+                "m_value": "a851ba98-cb1f-45f9-bd16-a0ec181f80b7"
+            },
+            "emissiveFactor": {
+                "m_type": "Simple",
+                "m_ubo_type": "Vec4",
+                "m_value": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0
+                ]
+            },
+            "emissiveSampler": {
+                "m_type": "Texture",
+                "m_value": "24ef50b8-2ab1-dc97-93f6-0a50dbe77719"
+            },
+            "metalnessFactor": {
+                "m_type": "Simple",
+                "m_ubo_type": "Float",
+                "m_value": 0.0
+            },
+            "normalSampler": {
+                "m_type": "Texture",
+                "m_value": "8b418489-6b52-4057-9741-4df0850755e8"
+            },
+            "roughnessFactor": {
+                "m_type": "Simple",
+                "m_ubo_type": "Float",
+                "m_value": 1.0
+            }
+        }
+    }
+}

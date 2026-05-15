@@ -1,6 +1,7 @@
 #include "ProjectWidget.h"
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include <MainClass.h>
+#include <SDL3/SDL.h>
 #include <algorithm>
 #include <imgui.h>
 #include <string>
@@ -99,6 +100,70 @@ namespace Editor {
     ProjectWidget::~ProjectWidget() {
     }
 
+    const ProjectWidget::AssetPath &ProjectWidget::GetCurrentPath() const {
+        return m_current_path;
+    }
+
+    void ProjectWidget::RefreshCurrentDirectory() {
+        m_dir_cache.erase(m_current_path);
+    }
+
+    void ProjectWidget::RequestCreateFolder(const AssetPath &parent_path) {
+        m_create_folder_parent = parent_path;
+        std::snprintf(m_create_folder_name, sizeof(m_create_folder_name), "NewFolder");
+        m_open_create_folder_popup = true;
+    }
+
+    void ProjectWidget::ApplyPendingFileOperations() {
+        if (m_open_create_folder_popup) {
+            ImGui::OpenPopup("ProjectCreateFolderPopup");
+            m_open_create_folder_popup = false;
+        }
+
+        if (ImGui::BeginPopupModal("ProjectCreateFolderPopup", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+            ImGui::TextUnformatted("Create folder in current project directory");
+            ImGui::InputText("Folder Name", m_create_folder_name, sizeof(m_create_folder_name));
+
+            if (ImGui::Button("Create")) {
+                if (m_create_folder_parent.has_value()) {
+                    const std::string folder_name = m_create_folder_name;
+                    if (!folder_name.empty() && folder_name.find('/') == std::string::npos
+                        && folder_name.find('\\') == std::string::npos) {
+                        const std::filesystem::path base_parent(m_create_folder_parent->generic_string());
+                        const AssetPath target_path(m_database, base_parent / folder_name);
+                        if (!m_database.CreateDirectory(target_path)) {
+                            SDL_LogWarn(
+                                SDL_LOG_CATEGORY_APPLICATION,
+                                "Failed to create folder: %s",
+                                target_path.generic_string().c_str()
+                            );
+                        }
+                        m_dir_cache.clear();
+                    }
+                }
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Cancel")) {
+                ImGui::CloseCurrentPopup();
+            }
+
+            ImGui::EndPopup();
+        }
+
+        if (m_pending_delete_path.has_value()) {
+            if (!m_database.DeletePath(*m_pending_delete_path)) {
+                SDL_LogWarn(
+                    SDL_LOG_CATEGORY_APPLICATION,
+                    "Failed to delete path: %s",
+                    m_pending_delete_path->generic_string().c_str()
+                );
+            }
+            m_pending_delete_path.reset();
+            m_dir_cache.clear();
+        }
+    }
+
     void ProjectWidget::Render() {
         if (ImGui::Begin(m_name.c_str())) {
             // Left sidebar
@@ -143,6 +208,8 @@ namespace Editor {
             ImGui::EndChild();
 
             ImGui::EndChild(); // RightPane
+
+            ApplyPendingFileOperations();
         }
         ImGui::End();
     }
@@ -237,6 +304,13 @@ namespace Editor {
 
     void ProjectWidget::RenderContent() {
         ImGui::BeginChild("ProjectWidgetContent", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
+
+        if (ImGui::BeginPopupContextWindow("ProjectContentContext", ImGuiPopupFlags_NoOpenOverItems)) {
+            if (ImGui::MenuItem("Create Folder")) {
+                RequestCreateFolder(m_current_path);
+            }
+            ImGui::EndPopup();
+        }
 
         // Ctrl + Mouse Wheel: adjust icon size when hovering the content area
         {
@@ -354,6 +428,48 @@ namespace Editor {
         ImGui::InvisibleButton("tile", ImVec2(tile_w, tile_h));
         bool hovered = ImGui::IsItemHovered();
         bool double_clicked = hovered && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left);
+
+        if (!is_up && ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
+            std::string payload_path = target_path.generic_string();
+            ImGui::SetDragDropPayload("ASSET_PATH", payload_path.c_str(), payload_path.size() + 1);
+            ImGui::TextUnformatted(display_name.c_str());
+            ImGui::EndDragDropSource();
+        }
+
+        if (is_folder && !is_up && ImGui::BeginDragDropTarget()) {
+            if (const ImGuiPayload *payload = ImGui::AcceptDragDropPayload("ASSET_PATH")) {
+                const char *raw_path = static_cast<const char *>(payload->Data);
+                if (raw_path && raw_path[0] != '\0') {
+                    const AssetPath source_path(m_database, std::filesystem::path(raw_path));
+                    if (!(source_path == target_path)) {
+                        const std::filesystem::path target_dir(target_path.generic_string());
+                        const std::filesystem::path source_name(source_path.filename().generic_string());
+                        const AssetPath destination_path(m_database, target_dir / source_name);
+                        if (!m_database.MovePath(source_path, destination_path)) {
+                            SDL_LogWarn(
+                                SDL_LOG_CATEGORY_APPLICATION,
+                                "Failed to move asset from %s to %s",
+                                source_path.generic_string().c_str(),
+                                destination_path.generic_string().c_str()
+                            );
+                        }
+                        m_dir_cache.clear();
+                    }
+                }
+            }
+            ImGui::EndDragDropTarget();
+        }
+
+        std::string popup_id = "ProjectTileContext##" + target_path.generic_string();
+        if (ImGui::BeginPopupContextItem(popup_id.c_str())) {
+            if (is_folder && ImGui::MenuItem("Create Folder")) {
+                RequestCreateFolder(target_path);
+            }
+            if (!is_up && ImGui::MenuItem("Delete")) {
+                m_pending_delete_path = target_path;
+            }
+            ImGui::EndPopup();
+        }
 
         // Tooltip on hover after a short delay
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {

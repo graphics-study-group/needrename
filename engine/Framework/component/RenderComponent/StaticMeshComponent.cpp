@@ -1,10 +1,14 @@
 #include "StaticMeshComponent.h"
 
+#include "Framework/world/Scene.h"
 #include "MainClass.h"
 #include "Render/RenderSystem.h"
 
 namespace Engine {
     void StaticMeshComponent::Awake() {
+        if (!GetScene()->IsRenderingEnabled()) {
+            return;
+        }
         RendererComponent::Awake();
         auto system = MainClass::GetInstance()->GetRenderSystem();
         m_renderer_handles.clear();

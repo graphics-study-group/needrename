@@ -200,7 +200,11 @@ namespace Editor {
                 };
                 vk::Rect2D scissor{{0, 0}, extent};
                 gcb.SetupViewport(extent.width, extent.height, scissor);
-                system.GetCameraManager().SetActiveCameraIndex(world_system->GetActiveCamera()->m_display_id);
+                auto camera = world_system->GetActiveCamera();
+                if (camera == nullptr) {
+                    return;
+                }
+                system.GetCameraManager().SetActiveCameraIndex(camera->m_display_id);
                 gcb.DrawRenderers(
                     "Lit",
                     system.GetRendererManager().FilterAndSortRenderers({}),

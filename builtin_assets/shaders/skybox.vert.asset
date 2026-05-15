@@ -1,7 +1,7 @@
 {
     "%main_data": {
         "%type": "Engine::ShaderAsset",
-        "Asset::m_guid": "917745CBDD3448B099C6CFE19BAF2BA0",
+        "Asset::m_guid": "917745cb-dd34-48b0-99c6-cfe19baf2ba0",
         "ShaderAsset::m_name": "skybox.vert",
         "ShaderAsset::m_entry_point": "main",
         "ShaderAsset::shaderType": "Vertex",

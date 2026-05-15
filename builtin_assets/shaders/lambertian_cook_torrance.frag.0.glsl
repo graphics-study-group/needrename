@@ -15,15 +15,30 @@ layout(location = 0) in vec3 frag_color;
 layout(location = 1) in vec2 frag_uv;
 layout(location = 2) in vec3 frag_normal;
 layout(location = 3) in vec3 frag_position;
+layout(location = 4) in vec4 frag_tangent;
 
 layout(location = 0) out vec4 out_color;
 
 layout(std140, set = 2, binding = 0) uniform Material {
-    float metalness_scale;
-    float roughness_scale;
+    float metalnessFactor;
+    float roughnessFactor;
+    vec4 emissiveFactor;
 } material;
 layout (set=2, binding=1) uniform sampler2D albedoSampler;
 layout (set=2, binding=2) uniform sampler2D MRAOSampler;
+layout (set=2, binding=3) uniform sampler2D normalSampler;
+layout (set=2, binding=4) uniform sampler2D emissiveSampler;
+
+vec3 sampleWorldNormal()
+{
+    vec3 geometric_normal = normalize(frag_normal);
+    vec3 tangent = normalize(frag_tangent.xyz);
+    vec3 bitangent = normalize(cross(geometric_normal, tangent)) * frag_tangent.w;
+    vec3 tangent_normal = texture(normalSampler, frag_uv).xyz * 2.0 - 1.0;
+
+    mat3 TBN = mat3(tangent, bitangent, geometric_normal);
+    return normalize(TBN * tangent_normal);
+}
 
 // GGX/Towbridge-Reitz normal distribution function.
 // Uses Disney's reparametrization of alpha = roughness^2.
@@ -74,12 +89,14 @@ void main()
 {
     vec3 albedo = texture(albedoSampler, frag_uv).rgb;
 
-    const float metalness = texture(MRAOSampler, frag_uv).r * material.metalness_scale;
-    const float roughness = texture(MRAOSampler, frag_uv).g * material.roughness_scale;
+    const float metalness = texture(MRAOSampler, frag_uv).r * material.metalnessFactor;
+    const float roughness = texture(MRAOSampler, frag_uv).g * material.roughnessFactor;
+
+    vec3 emissive = texture(emissiveSampler, frag_uv).rgb * material.emissiveFactor.rgb;
 
     // Remember that we are in view space, and the camera is at exactly (0,0,0).
     vec3 Lo = normalize((- camera.cameras[pc.camera_id].view * vec4(frag_position, 1.0)).xyz);
-    vec3 N = normalize((camera.cameras[pc.camera_id].view * vec4(frag_normal, 0.0)).xyz);
+    vec3 N = normalize((camera.cameras[pc.camera_id].view * vec4(sampleWorldNormal(), 0.0)).xyz);
     float cosLo = max(0.0, dot(N, Lo));
         
     // Specular reflection vector.
@@ -93,9 +110,9 @@ void main()
     {
         vec3 Li = vec3(0.0f);
         if (scene.noncasting_lights.light_source[i].w == 0.0) // 0: directional light
-            Li = normalize(mat3(camera.cameras[pc.camera_id].view) * scene.noncasting_lights.light_source[i].xyz);
+            Li = normalize(mat3(camera.cameras[pc.camera_id].view) * -scene.noncasting_lights.light_source[i].xyz);
         else if (scene.noncasting_lights.light_source[i].w != 0.0) // 1: point light
-            Li = normalize((camera.cameras[pc.camera_id].view * vec4(frag_position - scene.noncasting_lights.light_source[i].xyz, 0.0)).xyz);
+            Li = normalize((camera.cameras[pc.camera_id].view * vec4(scene.noncasting_lights.light_source[i].xyz - frag_position, 0.0)).xyz);
         vec3 Lradiance = scene.noncasting_lights.light_color[i].rgb;
         vec3 Lh = normalize(Li + Lo);
 
@@ -155,5 +172,5 @@ void main()
         directLighting += shadowCoef * (diffuseBRDF + specularBRDF) * Lradiance * cosLi;
     }
 
-    out_color = vec4(directLighting, 1.0);
+    out_color = vec4(directLighting + emissive, 1.0);
 }

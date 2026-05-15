@@ -1,7 +1,7 @@
 {
     "%main_data": {
         "%type": "Engine::MaterialTemplateAsset",
-        "Asset::m_guid": "8343954977BA6A7CF658BFEE421AD515",
+        "Asset::m_guid": "83439549-77ba-6a7c-f658-bfee421ad515",
         "MaterialTemplateAsset::name": "Blinn-Phong",
         "MaterialTemplateAsset::properties": {
             "%type": "Engine::MaterialTemplateSinglePassProperties",
@@ -67,8 +67,8 @@
             "MaterialTemplateSinglePassProperties::shaders": {
                 "%type": "Engine::PipelineProperties::Shaders",
                 "Shaders::shaders": [
-                    "5ACA54938E17F42BC293F502932155A2",
-                    "9B381210B6EF92D084CBEB4E09F3D652"
+                    "5aca5493-8e17-f42b-c293-f502932155a2",
+                    "9b381210-b6ef-92d0-84cb-eb4e09f3d652"
                 ],
                 "Shaders::specialization_constants": []
             }

@@ -1,7 +1,7 @@
 {
     "%main_data": {
         "%type": "Engine::ShaderAsset",
-        "Asset::m_guid": "A9BE0A978CB44D7D96C9FC525E4EC6A1",
+        "Asset::m_guid": "a9be0a97-8cb4-4d7d-96c9-fc525e4ec6a1",
         "ShaderAsset::m_name": "lambertian_cook_torrance.frag",
         "ShaderAsset::m_entry_point": "main",
         "ShaderAsset::shaderType": "Fragment",

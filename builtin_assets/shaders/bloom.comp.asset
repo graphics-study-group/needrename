@@ -1,7 +1,7 @@
 {
     "%main_data": {
         "%type": "Engine::ShaderAsset",
-        "Asset::m_guid": "6F507D1CAEE04798BBC61BB30BE818DF",
+        "Asset::m_guid": "6f507d1c-aee0-4798-bbc6-1bb30be818df",
         "ShaderAsset::m_name": "bloom.comp",
         "ShaderAsset::m_entry_point": "main",
         "ShaderAsset::shaderType": "Compute",

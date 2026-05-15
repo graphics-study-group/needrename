@@ -1,6 +1,7 @@
 #include "FrameManager.h"
 
 #include "Render/DebugUtils.h"
+#include "Render/ImageUtilsFunc.h"
 #include "Render/Memory/DeviceBuffer.h"
 #include "Render/Memory/MemoryAccessHelper.hpp"
 #include "Render/Pipeline/CommandBuffer.h"
@@ -354,7 +355,7 @@ namespace Engine::RenderSystemState {
         prev_timeline_semaphore.EndFrame();
 
         signal_info = this_timeline_semaphore.GetSubmitInfo(
-            this_timeline_semaphore.GetExpectedTimepoints(),
+            3,
             // Signal after all commands are finished.
             vk::PipelineStageFlagBits2::eAllCommands
         );

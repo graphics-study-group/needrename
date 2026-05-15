@@ -1,7 +1,9 @@
 #include "SceneWidget.h"
 #include <Asset/AssetDatabase/FileSystemDatabase.h>
 #include <Asset/Scene/LevelAsset.h>
+#include <Asset/Scene/SceneAsset.h>
 #include <Core/Functional/SDLWindow.h>
+#include <Framework/world/Scene.h>
 #include <Framework/world/WorldSystem.h>
 #include <MainClass.h>
 #include <Reflection/serialization.h>
@@ -41,6 +43,33 @@ namespace Editor {
                 ImVec2(0, 0),
                 ImVec2(m_viewport_size.x / m_texture_size.x, m_viewport_size.y / m_texture_size.y)
             );
+
+            if (ImGui::BeginDragDropTarget()) {
+                if (const ImGuiPayload *payload = ImGui::AcceptDragDropPayload("ASSET_PATH")) {
+                    const char *raw = static_cast<const char *>(payload->Data);
+                    if (raw && raw[0] != '\0') {
+                        try {
+                            auto db = std::dynamic_pointer_cast<Engine::FileSystemDatabase>(
+                                Engine::MainClass::GetInstance()->GetAssetDatabase()
+                            );
+                            auto &scene = Engine::MainClass::GetInstance()->GetWorldSystem()->GetMainSceneRef();
+                            auto asset_ref = db->GetNewAssetRef(Engine::AssetPath(*db, std::filesystem::path(raw)));
+                            auto *scene_asset = asset_ref.as<Engine::SceneAsset>();
+                            scene_asset->AddToScene(scene);
+                            scene.FlushCmdQueue();
+                            SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Dropped SceneAsset added to scene from %s", raw);
+                        } catch (const std::exception &e) {
+                            SDL_LogWarn(
+                                SDL_LOG_CATEGORY_APPLICATION,
+                                "Dropped asset ignored on Scene widget (%s): %s",
+                                raw,
+                                e.what()
+                            );
+                        }
+                    }
+                }
+                ImGui::EndDragDropTarget();
+            }
 
             if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
                 m_camera_control_on = true;

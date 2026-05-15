@@ -26,6 +26,13 @@ namespace Editor {
 
         void AddWidget(std::shared_ptr<Widget> widget);
 
+        std::shared_ptr<Widget> FindWidget(const std::string &name) const;
+
+        template <typename T>
+        std::shared_ptr<T> FindWidgetAs(const std::string &name) const {
+            return std::dynamic_pointer_cast<T>(FindWidget(name));
+        }
+
     public:
         Engine::Event<> m_OnStart{};
         Engine::Event<> m_OnStop{};
