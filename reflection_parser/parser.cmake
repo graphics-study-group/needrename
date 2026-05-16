@@ -167,10 +167,20 @@ function(add_reflection_parser)
         DEPENDS ${TASK_STAMPED_FILE}
         DEPENDS ${parent_projects} # ensure parent projects are built before this target
     )
+
+    # Clean main meta output and all per-header wrapper output folders.
+    set(clean_generated_paths ${generated_code_dir} ${CONFIG_GENERATED_CODE_DIR})
+    foreach(file ${reflection_search_files})
+        get_filename_component(file_dir ${file} DIRECTORY)
+        get_filename_component(file_dir ${file_dir} ABSOLUTE)
+        list(APPEND clean_generated_paths ${file_dir}/__generated__)
+    endforeach()
+    list(REMOVE_DUPLICATES clean_generated_paths)
+
     set_property(
         TARGET ${target_name}_generation
         APPEND
-        PROPERTY ADDITIONAL_CLEAN_FILES ${generated_code_dir}
+        PROPERTY ADDITIONAL_CLEAN_FILES ${clean_generated_paths}
     )
     set_property(
         TARGET ${target_name}_generation
