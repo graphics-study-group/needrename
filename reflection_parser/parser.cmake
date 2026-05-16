@@ -44,17 +44,21 @@ function(generate_cpp_names reflection_search_files)
     set(index 1)
     foreach(file ${reflection_search_files})
         get_filename_component(filename ${file} NAME)
-        set(registrar_impl "${index}_registrar_impl_${filename}.cpp")
-        set(serialization_impl "${index}_serialization_impl_${filename}.cpp")
+        set(registrar_impl "${index}_registrar_impl_${filename}.inc")
+        set(serialization_impl "${index}_serialization_impl_${filename}.inc")
+        get_filename_component(dir_name ${file} DIRECTORY)
+        set(wrapper_impl "${dir_name}/__generated__/${filename}.inc")
         list(APPEND generated_files "${registrar_impl}")
         list(APPEND generated_files "${serialization_impl}")
+        list(APPEND generated_files "${wrapper_impl}")
         set(config_json "${config_json}
         \{
             \"input_path\": \"${file}\",
             \"output_impl_file\":
             \{
                 \"registrar\": \"${registrar_impl}\",
-                \"serialization\": \"${serialization_impl}\"
+                \"serialization\": \"${serialization_impl}\",
+                \"wrapper\": \"${wrapper_impl}\"
             \}
         \},")
         math(EXPR index "${index} + 1")
@@ -63,7 +67,6 @@ function(generate_cpp_names reflection_search_files)
     math(EXPR new_length "${str_length} - 1") # strip the last comma
     string(SUBSTRING "${config_json}" 0 ${new_length} config_json)
 
-    set(GENERATED_CPPS ${generated_files} PARENT_SCOPE)
     set(CONFIG_TARGET_FILES ${config_json} PARENT_SCOPE)
 endfunction()
 
@@ -134,13 +137,6 @@ function(add_reflection_parser)
     # set up the generated filenames of the file to be parsed
     set(CONFIG_GENERATED_CODE_DIR ${generated_code_dir}/${target_name})
     generate_cpp_names("${reflection_search_files}")
-    list(TRANSFORM GENERATED_CPPS PREPEND "${CONFIG_GENERATED_CODE_DIR}/")
-    foreach(cpp_file ${GENERATED_CPPS})
-        if (NOT EXISTS ${cpp_file})
-            # generate empty file, used in cmake configuration
-            configure_file(${REFLECTION_PARSER_DIR}/template/empty.template ${cpp_file})
-        endif()
-    endforeach()
 
     if (parent_projects)
         generate_pkl_file_list(${parent_projects})
@@ -183,7 +179,6 @@ function(add_reflection_parser)
     set_target_properties(${target_name}_generation PROPERTIES FOLDER parser_generated)
 
     add_library(${target_name} INTERFACE)
-    target_sources(${target_name} INTERFACE ${GENERATED_CPPS})
     target_include_directories(${target_name} INTERFACE ${generated_code_dir})
     target_link_libraries(${target_name} INTERFACE json)
     add_dependencies(${target_name} ${target_name}_generation)

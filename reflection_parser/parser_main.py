@@ -31,7 +31,7 @@ def main():
     
     # process the reflection
     print("[parser] processing all reflection files and generating reflection code")
-    config["generated_code_dir"] = temp_gen_dir # change the generated code directory to the temp directory
+    config["generated_temp_dir"] = temp_gen_dir
     process(config, args.verbose)
     
     # copy the result when the generated files are different

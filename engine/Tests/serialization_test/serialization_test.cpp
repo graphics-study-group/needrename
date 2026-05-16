@@ -1,5 +1,5 @@
 #include "serialization_test.h"
-#include "meta_serialization_test/reflection_init.ipp"
+#include "meta_serialization_test/reflection_init.inc"
 #include <Reflection/reflection.h>
 #include <Reflection/serialization.h>
 #include <iostream>
@@ -244,3 +244,5 @@ int main() {
 
     return 0;
 }
+
+#include "__generated__/serialization_test.h.inc"

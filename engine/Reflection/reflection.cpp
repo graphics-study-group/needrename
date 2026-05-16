@@ -1,6 +1,6 @@
 #include "reflection.h"
 #include "Type.h"
-#include "meta_engine/reflection_init.ipp"
+#include "meta_engine/reflection_init.inc"
 #include <cassert>
 #include <cstdint>
 #include <glm.hpp>

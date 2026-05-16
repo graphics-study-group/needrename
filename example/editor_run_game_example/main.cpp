@@ -31,7 +31,7 @@
 #include <Editor/Window/MainWindow.h>
 
 #include "CustomComponent.h"
-#include <meta_editor_run_game_example/reflection_init.ipp>
+#include "meta_editor_run_game_example/reflection_init.inc"
 
 using namespace Engine;
 

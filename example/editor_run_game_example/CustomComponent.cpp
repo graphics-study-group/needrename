@@ -53,3 +53,5 @@ void ControlComponent::Tick() {
         + transform.GetRotation() * glm::vec3{move_right, move_forward + move_backward, move_up} * m_move_speed * dt
     );
 }
+
+#include "__generated__/CustomComponent.h.inc"

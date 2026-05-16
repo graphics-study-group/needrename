@@ -192,3 +192,5 @@ namespace Engine {
         m_texture = texture;
     }
 } // namespace Engine
+
+#include "__generated__/Image2DTextureAsset.h.inc"

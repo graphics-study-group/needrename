@@ -1,5 +1,5 @@
 #include "reflection_test.h"
-#include "meta_reflection_test/reflection_init.ipp"
+#include "meta_reflection_test/reflection_init.inc"
 #include <Reflection/reflection.h>
 #include <cassert>
 #include <iostream>
@@ -535,3 +535,5 @@ int main() {
 
     return 0;
 }
+
+#include "__generated__/reflection_test.h.inc"

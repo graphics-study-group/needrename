@@ -106,3 +106,5 @@ namespace Engine {
         }
     }
 } // namespace Engine
+
+#include "__generated__/AssetRef.h.inc"
