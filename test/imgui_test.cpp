@@ -81,8 +81,6 @@ int main(int argc, char **argv) {
         ImGui::ShowDemoWindow();
 
         auto index = rsys->StartFrame();
-        auto context = rsys->GetFrameManager().GetGraphicsContext();
-
         assert(index < 3);
         rg.Execute(*rsys);
         auto color = rg.GetInternalTextureResource(c);

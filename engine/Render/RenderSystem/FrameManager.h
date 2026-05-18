@@ -12,8 +12,6 @@ namespace Engine {
     class Texture;
     class DeviceBuffer;
     class GraphicsCommandBuffer;
-    class GraphicsContext;
-    class ComputeContext;
 
     namespace RenderSystemState {
         class SubmissionHelper;
@@ -71,14 +69,6 @@ namespace Engine {
              */
             [[deprecated]]
             GraphicsCommandBuffer GetCommandBuffer();
-
-            /// @deprecated
-            [[deprecated]]
-            GraphicsContext GetGraphicsContext();
-
-            /// @deprecated
-            [[deprecated]]
-            ComputeContext GetComputeContext();
 
             /**
              * @brief Request the current main command buffer

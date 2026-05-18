@@ -5,8 +5,6 @@
 #include "Render/Memory/DeviceBuffer.h"
 #include "Render/Memory/MemoryAccessHelper.hpp"
 #include "Render/Pipeline/CommandBuffer.h"
-#include "Render/Pipeline/CommandBuffer/ComputeContext.h"
-#include "Render/Pipeline/CommandBuffer/GraphicsContext.h"
 #include "Render/RenderSystem.h"
 #include "Render/RenderSystem/DeviceInterface.h"
 #include "Render/RenderSystem/Structs.h"
@@ -266,14 +264,6 @@ namespace Engine::RenderSystemState {
     GraphicsCommandBuffer FrameManager::GetCommandBuffer() {
         pimpl->assert_in_frame();
         return GraphicsCommandBuffer(pimpl->m_system, GetRawMainCommandBuffer(), GetFrameInFlight());
-    }
-
-    GraphicsContext FrameManager::GetGraphicsContext() {
-        return GraphicsContext(pimpl->m_system, GetRawMainCommandBuffer(), GetFrameInFlight());
-    }
-
-    ComputeContext FrameManager::GetComputeContext() {
-        return ComputeContext(pimpl->m_system, GetRawMainCommandBuffer(), GetFrameInFlight());
     }
 
     vk::CommandBuffer FrameManager::GetRawMainCommandBuffer() {
