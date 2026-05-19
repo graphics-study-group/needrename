@@ -131,3 +131,5 @@ namespace Engine {
         }
     }
 } // namespace Engine
+
+#include "__generated__/MaterialAsset.h.inc"

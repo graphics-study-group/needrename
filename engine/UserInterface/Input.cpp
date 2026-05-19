@@ -326,3 +326,5 @@ namespace Engine {
         }
     }
 } // namespace Engine
+
+#include "__generated__/Input.h.inc"

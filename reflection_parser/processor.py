@@ -4,7 +4,6 @@ import clang.cindex as CX
 from pathlib import Path
 from mako.template import Template
 from reflection.Type import Type, Enum, Method, Field
-from reflection.utils import find_smart_pointer_type_from_template
 
 
 class ReflectionParser:
@@ -112,8 +111,6 @@ class ReflectionParser:
                     print(f"[parser] Warning: detect const qualified field: {current_type.name}.{field.name}, which is not supported.")
                     continue
                 current_type.fields.append(field)
-                # reflection for smart pointer requires extra headers
-                find_smart_pointer_type_from_template(field.type.cx_type, current_type.reflection_smart_pointer_typenames)
                 flag = True
             elif child.kind == CX.CursorKind.CONSTRUCTOR:
                 current_type.constructors.append(Method(child))
@@ -127,9 +124,7 @@ class ReflectionParser:
                 if not self.is_serialized(child, mode):
                     continue
                 if child.kind == CX.CursorKind.FIELD_DECL:
-                    # smart pointer serialization requires extra headers, so we should record them
                     field = Field(child)
-                    find_smart_pointer_type_from_template(field.type.cx_type, current_type.serialization_smart_pointer_typenames)
                     current_type.serialized_fields.append(field)
                     flag = True
 
@@ -176,36 +171,54 @@ class ReflectionParser:
             self.traverse(child)
 
 
-    def generate_code(self, generated_code_dir: str, output_files: list):
+    def generate_code(self, config):
+        generated_temp_dir = config["generated_temp_dir"]
+        output_files = config["target_files"]
         with open("template/registrar_declare.hpp.template", "r") as f:
             template_declare = Template(f.read())
-        with open(os.path.join(generated_code_dir, "registrar_declare.hpp"), "w") as f:
+        with open(os.path.join(generated_temp_dir, "registrar_declare.hpp"), "w") as f:
             f.write(template_declare.render(parser=self))
             
         with open("template/reflection_init.ipp.template", "r") as f:
             template_init = Template(f.read())
-        with open(os.path.join(generated_code_dir, "reflection_init.ipp"), "w") as f:
+        with open(os.path.join(generated_temp_dir, "reflection_init.inc"), "w") as f:
             f.write(template_init.render(parser=self))
         
         with open("template/registrar_impl.ipp.template", "r") as f:
             template_impl = Template(f.read())
-        for file in output_files:
-            input_path = str(Path(file["input_path"]).resolve())
-            if input_path not in self.file_type_map.keys() and input_path not in self.file_enum_map.keys():
-                continue
-            output_path = os.path.join(generated_code_dir, file["output_impl_file"]["registrar"])
-            with open(output_path, "w") as out:
-                out.write(template_impl.render(file_path=input_path, parser=self))
-                
         with open("template/serialization_impl.ipp.template", "r") as f:
             template_gs_ipp = Template(f.read())
+        with open("template/wrapper.inc.template", "r") as f:
+            template_wrapper = Template(f.read())
+
         for file in output_files:
             input_path = str(Path(file["input_path"]).resolve())
-            if input_path not in self.file_type_map.keys():
+            has_registrar = input_path in self.file_type_map.keys() or input_path in self.file_enum_map.keys()
+            has_serialization = input_path in self.file_type_map.keys()
+
+            if not has_registrar:
                 continue
-            output_path = os.path.join(generated_code_dir, file["output_impl_file"]["serialization"])
-            with open(output_path, "w") as out:
-                out.write(template_gs_ipp.render(file_path=input_path, parser=self))
+
+            registrar_output_path = os.path.join(generated_temp_dir, file["output_impl_file"]["registrar"])
+            with open(registrar_output_path, "w") as out:
+                out.write(template_impl.render(file_path=input_path, parser=self))
+
+            if has_serialization:
+                serialization_output_path = os.path.join(generated_temp_dir, file["output_impl_file"]["serialization"])
+                with open(serialization_output_path, "w") as out:
+                    out.write(template_gs_ipp.render(file_path=input_path, parser=self))
+
+            wrapper_output_path = os.path.join(generated_temp_dir, file["output_impl_file"]["wrapper"])
+            dir_name = os.path.dirname(wrapper_output_path)
+            if dir_name:
+                os.makedirs(dir_name, exist_ok=True)
+            with open(wrapper_output_path, "w") as out:
+                out.write(
+                    template_wrapper.render(
+                        registrar=config["generated_code_dir"] + "/" + file["output_impl_file"]["registrar"],
+                        serialization=config["generated_code_dir"] + "/" + file["output_impl_file"]["serialization"] if has_serialization else None,
+                    )
+                )
 
 
 def clang_parse(file, config, verbose):
@@ -272,7 +285,7 @@ def clang_parse(file, config, verbose):
 def process(config, verbose: bool = False):
     # generate the all reflection file header
     target_files = [str(Path(target["input_path"]).resolve()) for target in config["target_files"]]
-    all_reflection_file_header_path = str(Path(os.path.join(config["generated_code_dir"], "all_reflection_files.hpp")).resolve())
+    all_reflection_file_header_path = str(Path(os.path.join(config["generated_temp_dir"], "all_reflection_files.hpp")).resolve())
     with open(all_reflection_file_header_path, "w") as f:
         for file_path in target_files:
             f.write('#include "%s"\n' % file_path)
@@ -285,6 +298,6 @@ def process(config, verbose: bool = False):
         with open(cache_file_path, "rb") as f:
             Parser.type_file_map.update(pickle.load(f))
     Parser.traverse(tu.cursor)
-    Parser.generate_code(config["generated_code_dir"], config["target_files"])
-    with open(os.path.join(config["generated_code_dir"], "reflection_data.pkl"), "wb") as f:
+    Parser.generate_code(config)
+    with open(os.path.join(config["generated_temp_dir"], "reflection_data.pkl"), "wb") as f:
         pickle.dump(Parser.type_file_map, f, protocol=pickle.HIGHEST_PROTOCOL)

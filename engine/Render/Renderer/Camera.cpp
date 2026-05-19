@@ -65,3 +65,5 @@ namespace Engine {
         m_view_matrix = glm::lookAtRH(glm::vec3{origin}, glm::vec3{center}, glm::vec3{up});
     }
 } // namespace Engine
+
+#include "__generated__/Camera.h.inc"

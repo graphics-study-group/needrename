@@ -188,3 +188,5 @@ namespace Engine {
         std::memcpy(buf, m_indices.data(), sizeof(uint32_t) * m_indices.size());
     }
 } // namespace Engine
+
+#include "__generated__/MeshAsset.h.inc"

@@ -41,6 +41,7 @@ add_library(engine SHARED
 )
 
 add_dependencies(engine shader)
+add_dependencies(engine meta_engine)
 
 find_package(doxygen)
 if(Doxygen_FOUND)

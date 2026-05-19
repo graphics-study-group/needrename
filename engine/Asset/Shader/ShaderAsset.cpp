@@ -127,3 +127,5 @@ namespace Engine {
         return MainClass::GetInstance()->GetShaderCompiler()->CompileGLSLtoSPV(binary, shader_path_abs);
     }
 } // namespace Engine
+
+#include "__generated__/ShaderAsset.h.inc"

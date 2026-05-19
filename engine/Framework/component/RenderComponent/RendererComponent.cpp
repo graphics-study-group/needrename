@@ -44,3 +44,5 @@ namespace Engine {
         }
     }
 } // namespace Engine
+
+#include "__generated__/RendererComponent.h.inc"

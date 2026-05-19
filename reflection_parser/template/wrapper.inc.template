@@ -1,0 +1,4 @@
+#include "${registrar}"
+% if serialization is not None:
+#include "${serialization}"
+% endif

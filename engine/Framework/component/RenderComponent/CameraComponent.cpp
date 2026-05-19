@@ -32,3 +32,5 @@ namespace Engine {
         m_camera->UpdateViewMatrix(parent->GetWorldTransform());
     }
 }; // namespace Engine
+
+#include "__generated__/CameraComponent.h.inc"

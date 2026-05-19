@@ -48,3 +48,5 @@ namespace Engine {
         this->_SERIALIZATION_LOAD_(archive);
     }
 } // namespace Engine
+
+#include "__generated__/Component.h.inc"

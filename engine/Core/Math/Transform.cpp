@@ -89,3 +89,5 @@ namespace Engine {
         return m_scale;
     }
 } // namespace Engine
+
+#include "__generated__/Transform.h.inc"

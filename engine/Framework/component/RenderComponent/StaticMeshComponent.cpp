@@ -19,3 +19,5 @@ namespace Engine {
         }
     }
 } // namespace Engine
+
+#include "__generated__/StaticMeshComponent.h.inc"
