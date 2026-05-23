@@ -25,6 +25,7 @@ target_compile_definitions(EngineLibExternalDependency INTERFACE GLM_FORCE_DEPTH
 add_subdirectory(Asset)
 add_subdirectory(Core)
 add_subdirectory(Framework)
+add_subdirectory(Physics)
 add_subdirectory(Reflection)
 add_subdirectory(Render)
 add_subdirectory(UserInterface)
@@ -35,6 +36,7 @@ add_library(engine SHARED
     $<TARGET_OBJECTS:EngineLibAsset>
     $<TARGET_OBJECTS:EngineLibCore>
     $<TARGET_OBJECTS:EngineLibFramework>
+    $<TARGET_OBJECTS:EngineLibPhysics>
     $<TARGET_OBJECTS:EngineLibReflection>
     $<TARGET_OBJECTS:EngineLibRender>
     $<TARGET_OBJECTS:EngineLibUserInterface>
@@ -88,6 +90,7 @@ target_link_libraries(engine
     EngineLibAsset
     EngineLibCore
     EngineLibFramework
+    EngineLibPhysics
     EngineLibReflection
     EngineLibRender
     EngineLibUserInterface

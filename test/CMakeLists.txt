@@ -72,6 +72,11 @@ target_link_libraries(mrt_test engine)
 add_test(NAME mrt_test COMMAND mrt_test 120)
 set_target_properties(mrt_test PROPERTIES FOLDER tests)
 
+add_executable(physics_registration_test physics_registration_test.cpp)
+target_link_libraries(physics_registration_test engine)
+add_test(NAME physics_registration_test COMMAND physics_registration_test)
+set_target_properties(physics_registration_test PROPERTIES FOLDER tests)
+
 # Copy dlls
 add_custom_command(TARGET SDL_init_test POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
