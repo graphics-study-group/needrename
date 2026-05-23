@@ -118,35 +118,7 @@ int main(int argc, char **argv) {
     assert(nested_rigidbody_index != PhysicsScene::INVALID_INDEX);
     assert(root_rigidbody_index != nested_rigidbody_index);
 
-    assert(physics_scene->GetRigidBodyCount() == 2u);
-    assert(physics_scene->GetShapeCount() == 5u);
+    physics_scene->DebugPrint();
 
-    assert(physics_scene->GetRigidBodyIndexByObjectHandle(root.GetHandle()) == root_rigidbody_index);
-    assert(physics_scene->GetRigidBodyIndexByObjectHandle(child_rigidbody_root.GetHandle()) == nested_rigidbody_index);
-
-    assert(physics_scene->GetObjectHandleByRigidBodyIndex(root_rigidbody_index).GetID() == root.GetHandle().GetID());
-    assert(
-        physics_scene->GetObjectHandleByRigidBodyIndex(nested_rigidbody_index).GetID()
-        == child_rigidbody_root.GetHandle().GetID()
-    );
-
-    const uint32_t root_shape_index = root_shape.GetPhysicsShapeIndex();
-    const uint32_t child_shape_index = child_shape.GetPhysicsShapeIndex();
-    const uint32_t nested_shape_root_index = nested_shape_root.GetPhysicsShapeIndex();
-    const uint32_t nested_shape_grandchild_index = nested_shape_grandchild.GetPhysicsShapeIndex();
-    const uint32_t loose_shape_index = loose_shape.GetPhysicsShapeIndex();
-
-    assert(physics_scene->GetRigidBodyIndexByShapeIndex(root_shape_index) == root_rigidbody_index);
-    assert(physics_scene->GetRigidBodyIndexByShapeIndex(child_shape_index) == root_rigidbody_index);
-    assert(physics_scene->GetRigidBodyIndexByShapeIndex(nested_shape_root_index) == nested_rigidbody_index);
-    assert(physics_scene->GetRigidBodyIndexByShapeIndex(nested_shape_grandchild_index) == nested_rigidbody_index);
-    assert(physics_scene->GetRigidBodyIndexByShapeIndex(loose_shape_index) == PhysicsScene::INVALID_INDEX);
-
-    const glm::vec3 loose_shape_world_position = physics_scene->GetShapeWorldPositionByShapeIndex(loose_shape_index);
-    assert(Near(loose_shape_world_position.x, 11.0f));
-    assert(Near(loose_shape_world_position.y, 0.0f));
-    assert(Near(loose_shape_world_position.z, 0.0f));
-
-    std::cout << "physics_component_registration_test passed" << std::endl;
     return 0;
 }

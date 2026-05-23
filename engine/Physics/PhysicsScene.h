@@ -33,7 +33,7 @@ namespace Engine {
 
         REFL_SER_ENABLE glm::vec3 m_half_extents{0.5f, 0.5f, 0.5f};
         REFL_SER_ENABLE glm::vec3 m_center{0.0f, 0.0f, 0.0f};
-        REFL_SER_ENABLE glm::quat m_rotation{1.0f, 0.0f, 0.0f, 0.0f};
+        REFL_SER_ENABLE glm::quat m_rotation{0.0f, 0.0f, 0.0f, 1.0f};
     };
 
     /**
@@ -242,66 +242,9 @@ namespace Engine {
         uint32_t FindShapeByComponentHandle(ComponentHandle component_handle) const;
 
         /**
-         * @brief Get total rigid body slot count.
-         *
-         * @return Number of rigid body slots allocated.
+         * @brief Log all internal state for debugging.
          */
-        uint32_t GetRigidBodyCount() const noexcept;
-
-        /**
-         * @brief Get total shape slot count.
-         *
-         * @return Number of shape slots allocated.
-         */
-        uint32_t GetShapeCount() const noexcept;
-
-        /**
-         * @brief Query engine object handle by rigid body index.
-         *
-         * @param rigid_body_index Rigid body index.
-         * @return Object handle, or null handle if invalid.
-         */
-        ObjectHandle GetObjectHandleByRigidBodyIndex(uint32_t rigid_body_index) const;
-
-        /**
-         * @brief Query rigid body index by engine object handle.
-         *
-         * @param object_handle Engine object handle.
-         * @return Rigid body index, or INVALID_INDEX if not found.
-         */
-        uint32_t GetRigidBodyIndexByObjectHandle(ObjectHandle object_handle) const;
-
-        /**
-         * @brief Query owning rigid body index by shape index.
-         *
-         * @param shape_index Shape index.
-         * @return Rigid body index, or INVALID_INDEX if unbound.
-         */
-        uint32_t GetRigidBodyIndexByShapeIndex(uint32_t shape_index) const;
-
-        /**
-         * @brief Get shape type by shape index.
-         *
-         * @param shape_index Shape index.
-         * @return Stored shape type.
-         */
-        CollisionShapeType GetShapeTypeByShapeIndex(uint32_t shape_index) const;
-
-        /**
-         * @brief Get fallback world position by shape index.
-         *
-         * @param shape_index Shape index.
-         * @return Shape world position.
-         */
-        glm::vec3 GetShapeWorldPositionByShapeIndex(uint32_t shape_index) const;
-
-        /**
-         * @brief Get fallback world rotation by shape index.
-         *
-         * @param shape_index Shape index.
-         * @return Shape world rotation quaternion.
-         */
-        glm::quat GetShapeWorldRotationByShapeIndex(uint32_t shape_index) const;
+        void DebugPrint() const;
 
     private:
         uint32_t m_scene_id{0};

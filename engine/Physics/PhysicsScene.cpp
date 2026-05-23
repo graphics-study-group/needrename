@@ -206,49 +206,68 @@ namespace Engine {
         return iter->second;
     }
 
-    uint32_t PhysicsScene::GetRigidBodyCount() const noexcept {
-        return static_cast<uint32_t>(m_rigid_body_alive.size());
-    }
-
-    uint32_t PhysicsScene::GetShapeCount() const noexcept {
-        return static_cast<uint32_t>(m_shape_alive.size());
-    }
-
-    ObjectHandle PhysicsScene::GetObjectHandleByRigidBodyIndex(uint32_t rigid_body_index) const {
-        if (!IsRigidBodyIndexValid(rigid_body_index)) {
-            return ObjectHandle();
+    void PhysicsScene::DebugPrint() const {
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "PhysicsScene %u:", m_scene_id);
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "  Rigid bodies:");
+        for (size_t i = 0; i < m_rigid_body_alive.size(); i++) {
+            if (!m_rigid_body_alive[i]) {
+                continue;
+            }
+            SDL_LogInfo(
+                SDL_LOG_CATEGORY_APPLICATION,
+                "    [%02u] object=%02u properties={mass=%.2f, static_friction=%.2f, dynamic_friction=%.2f, "
+                "restitution=%.2f, is_kinematic=%s\n"
+                "       pos=(%.2f, %.2f, %.2f) rot=(%.2f, %.2f, %.2f, %.2f)\n"
+                "       local_pos_offset=(%.2f, %.2f, %.2f) local_rot_offset=(%.2f, %.2f, %.2f, %.2f)}",
+                static_cast<unsigned int>(i),
+                m_rigid_body_to_object[i].GetID(),
+                m_rigid_body_properties[i].m_mass,
+                m_rigid_body_properties[i].m_static_friction,
+                m_rigid_body_properties[i].m_dynamic_friction,
+                m_rigid_body_properties[i].m_restitution,
+                m_rigid_body_properties[i].m_is_kinematic ? "true" : "false",
+                m_rigid_body_center_world_position[i].x,
+                m_rigid_body_center_world_position[i].y,
+                m_rigid_body_center_world_position[i].z,
+                m_rigid_body_center_world_rotation[i].x,
+                m_rigid_body_center_world_rotation[i].y,
+                m_rigid_body_center_world_rotation[i].z,
+                m_rigid_body_center_world_rotation[i].w,
+                m_rigid_body_center_local_position_offset[i].x,
+                m_rigid_body_center_local_position_offset[i].y,
+                m_rigid_body_center_local_position_offset[i].z,
+                m_rigid_body_center_local_rotation_offset[i].x,
+                m_rigid_body_center_local_rotation_offset[i].y,
+                m_rigid_body_center_local_rotation_offset[i].z,
+                m_rigid_body_center_local_rotation_offset[i].w
+            );
         }
-        return m_rigid_body_to_object[rigid_body_index];
-    }
-
-    uint32_t PhysicsScene::GetRigidBodyIndexByObjectHandle(ObjectHandle object_handle) const {
-        return FindRigidBodyByObjectHandle(object_handle);
-    }
-
-    uint32_t PhysicsScene::GetRigidBodyIndexByShapeIndex(uint32_t shape_index) const {
-        if (!IsShapeIndexValid(shape_index)) {
-            return INVALID_INDEX;
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "  Collision shapes:");
+        for (size_t i = 0; i < m_shape_alive.size(); i++) {
+            if (!m_shape_alive[i]) {
+                continue;
+            }
+            SDL_LogInfo(
+                SDL_LOG_CATEGORY_APPLICATION,
+                "    [%02u] component=%02u type=%d belong_to_rigidbody=%d\n"
+                "           box_feature={size=(%.2f, %.2f, %.2f), center=(%.2f, %.2f, %.2f), "
+                "rotation=(%.2f, %.2f, %.2f, %.2f)}",
+                static_cast<unsigned int>(i),
+                m_shape_index_to_component[i].GetID(),
+                static_cast<int>(m_shape_type[i]),
+                m_shape_to_rigid_body[i],
+                m_shape_box_feature[i].m_half_extents.x,
+                m_shape_box_feature[i].m_half_extents.y,
+                m_shape_box_feature[i].m_half_extents.z,
+                m_shape_box_feature[i].m_center.x,
+                m_shape_box_feature[i].m_center.y,
+                m_shape_box_feature[i].m_center.z,
+                m_shape_box_feature[i].m_rotation.x,
+                m_shape_box_feature[i].m_rotation.y,
+                m_shape_box_feature[i].m_rotation.z,
+                m_shape_box_feature[i].m_rotation.w
+            );
         }
-        return m_shape_to_rigid_body[shape_index];
-    }
-
-    CollisionShapeType PhysicsScene::GetShapeTypeByShapeIndex(uint32_t shape_index) const {
-        assert(IsShapeIndexValid(shape_index));
-        return m_shape_type[shape_index];
-    }
-
-    glm::vec3 PhysicsScene::GetShapeWorldPositionByShapeIndex(uint32_t shape_index) const {
-        if (!IsShapeIndexValid(shape_index)) {
-            return glm::vec3(0.0f, 0.0f, 0.0f);
-        }
-        return m_shape_world_position[shape_index];
-    }
-
-    glm::quat PhysicsScene::GetShapeWorldRotationByShapeIndex(uint32_t shape_index) const {
-        if (!IsShapeIndexValid(shape_index)) {
-            return glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
-        }
-        return m_shape_world_rotation[shape_index];
     }
 } // namespace Engine
 
