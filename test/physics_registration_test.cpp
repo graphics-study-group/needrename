@@ -18,12 +18,6 @@
 
 using namespace Engine;
 
-namespace {
-    bool Near(float lhs, float rhs, float eps = 1e-4f) {
-        return std::fabs(lhs - rhs) <= eps;
-    }
-} // namespace
-
 int main(int argc, char **argv) {
     int64_t max_frame_count = std::numeric_limits<int64_t>::max();
     if (argc > 1) {
@@ -109,14 +103,12 @@ int main(int argc, char **argv) {
     scene.FlushCmdQueue();
 
     PhysicsScene *physics_scene = scene.GetPhysicsScene();
-    assert(physics_scene != nullptr);
+    if (physics_scene == nullptr) {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "PhysicsScene is null.");
+        return -1;
+    }
 
-    const uint32_t root_rigidbody_index = root_rigidbody.GetPhysicsRigidBodyIndex();
-    const uint32_t nested_rigidbody_index = nested_rigidbody.GetPhysicsRigidBodyIndex();
-
-    assert(root_rigidbody_index != PhysicsScene::INVALID_INDEX);
-    assert(nested_rigidbody_index != PhysicsScene::INVALID_INDEX);
-    assert(root_rigidbody_index != nested_rigidbody_index);
+    physics_scene->InitializePendingRigidBodies();
 
     physics_scene->DebugPrint();
 

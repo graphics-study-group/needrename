@@ -8,6 +8,7 @@
 #include <glm.hpp>
 #include <gtc/quaternion.hpp>
 
+#include <deque>
 #include <unordered_map>
 #include <vector>
 
@@ -20,40 +21,6 @@ namespace Engine {
      */
     enum class REFL_SER_CLASS() CollisionShapeType {
         Box = 0
-    };
-
-    /**
-     * @brief Box collision feature data.
-     *
-     * The box is represented by half extents and a local pose relative to the
-     * owning shape transform frame.
-     */
-    struct REFL_SER_CLASS(REFL_WHITELIST) CollisionBoxFeature {
-        REFL_SER_SIMPLE_STRUCT(CollisionBoxFeature)
-
-        REFL_SER_ENABLE glm::vec3 m_half_extents{0.5f, 0.5f, 0.5f};
-        REFL_SER_ENABLE glm::vec3 m_center{0.0f, 0.0f, 0.0f};
-        REFL_SER_ENABLE glm::quat m_rotation{0.0f, 0.0f, 0.0f, 1.0f};
-    };
-
-    /**
-     * @brief Editable rigid body simulation properties.
-     *
-     * This struct stores material and motion related fields that are mirrored
-     * from RigidBodyComponent into PhysicsScene arrays.
-     */
-    struct REFL_SER_CLASS(REFL_WHITELIST) RigidBodyPhysicsProperties {
-        REFL_SER_SIMPLE_STRUCT(RigidBodyPhysicsProperties)
-
-        REFL_SER_ENABLE float m_mass{1.0f};
-        REFL_SER_ENABLE float m_static_friction{0.5f};
-        REFL_SER_ENABLE float m_dynamic_friction{0.5f};
-        REFL_SER_ENABLE float m_restitution{0.0f};
-        REFL_SER_ENABLE bool m_is_kinematic{false};
-        REFL_SER_ENABLE glm::vec3 m_linear_velocity{0.0f, 0.0f, 0.0f};
-        REFL_SER_ENABLE glm::vec3 m_angular_velocity_axis_angle{0.0f, 0.0f, 0.0f};
-        REFL_SER_ENABLE glm::vec3 m_external_force{0.0f, 0.0f, 0.0f};
-        REFL_SER_ENABLE glm::vec3 m_external_torque{0.0f, 0.0f, 0.0f};
     };
 
     /**
@@ -121,10 +88,29 @@ namespace Engine {
          * @brief Register one rigid body slot.
          *
          * @param owner_object Engine object handle of this rigid body.
-         * @param props Initial rigid body properties.
+         * @param mass Rigid body mass.
+         * @param static_friction Static friction coefficient.
+         * @param dynamic_friction Dynamic friction coefficient.
+         * @param restitution Restitution coefficient.
+         * @param is_kinematic Whether this rigid body is kinematic.
+         * @param linear_velocity Initial linear velocity.
+         * @param angular_velocity_axis_angle Initial angular velocity (axis-angle vector).
+         * @param external_force External force accumulator.
+         * @param external_torque External torque accumulator.
          * @return Allocated rigid body index.
          */
-        uint32_t RegisterRigidBody(ObjectHandle owner_object, const RigidBodyPhysicsProperties &props);
+        uint32_t RegisterRigidBody(
+            ObjectHandle owner_object,
+            float mass,
+            float static_friction,
+            float dynamic_friction,
+            float restitution,
+            bool is_kinematic,
+            const glm::vec3 &linear_velocity,
+            const glm::vec3 &angular_velocity_axis_angle,
+            const glm::vec3 &external_force,
+            const glm::vec3 &external_torque
+        );
 
         /**
          * @brief Unregister one rigid body slot.
@@ -138,17 +124,17 @@ namespace Engine {
          *
          * @param component_handle Engine component handle of this shape.
          * @param shape_type Shape type enum.
-         * @param box_feature Box feature payload.
-         * @param world_position World-space shape position fallback.
-         * @param world_rotation World-space shape rotation fallback.
+         * @param half_extents Box half extents.
+         * @param shape_world_position Shape world position.
+         * @param shape_world_rotation Shape world rotation.
          * @return Allocated shape index.
          */
         uint32_t RegisterCollisionShape(
             ComponentHandle component_handle,
             CollisionShapeType shape_type,
-            const CollisionBoxFeature &box_feature,
-            const glm::vec3 &world_position,
-            const glm::quat &world_rotation
+            const glm::vec3 &half_extents,
+            const glm::vec3 &shape_world_position,
+            const glm::quat &shape_world_rotation
         );
 
         /**
@@ -167,47 +153,67 @@ namespace Engine {
         void SetCollisionShapeRigidBody(uint32_t shape_index, uint32_t rigid_body_index);
 
         /**
-         * @brief Set shape local pose in rigid body center frame.
+         * @brief Update shape geometry and world pose.
+         *
+         * This is called by component-side editable data sync. If the shape is
+         * currently bound to a rigid body, that rigid body will be marked for
+         * reinitialization.
          *
          * @param shape_index Shape index.
-         * @param position Local position relative to center frame.
-         * @param rotation Local rotation relative to center frame.
+         * @param shape_type Shape type enum.
+         * @param half_extents Box half extents.
+         * @param shape_world_position Shape world position.
+         * @param shape_world_rotation Shape world rotation.
          */
-        void SetCollisionShapeLocalToCenter(uint32_t shape_index, const glm::vec3 &position, const glm::quat &rotation);
-
-        /**
-         * @brief Set rigid body center-of-mass state.
-         *
-         * @param rigid_body_index Rigid body index.
-         * @param center_world_position Center world position.
-         * @param center_world_rotation Center world rotation.
-         * @param center_local_position_offset Center offset in root-local space.
-         * @param center_local_rotation_offset Center rotation offset in root-local space.
-         */
-        void SetRigidBodyCenterState(
-            uint32_t rigid_body_index,
-            const glm::vec3 &center_world_position,
-            const glm::quat &center_world_rotation,
-            const glm::vec3 &center_local_position_offset,
-            const glm::quat &center_local_rotation_offset
+        void UpdateCollisionShapeGeometry(
+            uint32_t shape_index,
+            CollisionShapeType shape_type,
+            const glm::vec3 &half_extents,
+            const glm::vec3 &shape_world_position,
+            const glm::quat &shape_world_rotation
         );
-
-        /**
-         * @brief Set shape index range metadata for one rigid body.
-         *
-         * @param rigid_body_index Rigid body index.
-         * @param shape_start Minimum shape index in this body.
-         * @param shape_count Number of shapes associated with this body.
-         */
-        void SetRigidBodyShapeRange(uint32_t rigid_body_index, uint32_t shape_start, uint32_t shape_count);
 
         /**
          * @brief Update stored rigid body properties.
          *
          * @param rigid_body_index Rigid body index.
-         * @param props New property values.
+         * @param mass Rigid body mass.
+         * @param static_friction Static friction coefficient.
+         * @param dynamic_friction Dynamic friction coefficient.
+         * @param restitution Restitution coefficient.
+         * @param is_kinematic Whether this rigid body is kinematic.
+         * @param linear_velocity Linear velocity.
+         * @param angular_velocity_axis_angle Angular velocity (axis-angle vector).
+         * @param external_force External force accumulator.
+         * @param external_torque External torque accumulator.
          */
-        void SetRigidBodyProperties(uint32_t rigid_body_index, const RigidBodyPhysicsProperties &props);
+        void SetRigidBodyProperties(
+            uint32_t rigid_body_index,
+            float mass,
+            float static_friction,
+            float dynamic_friction,
+            float restitution,
+            bool is_kinematic,
+            const glm::vec3 &linear_velocity,
+            const glm::vec3 &angular_velocity_axis_angle,
+            const glm::vec3 &external_force,
+            const glm::vec3 &external_torque
+        );
+
+        /**
+         * @brief Queue one rigid body for deferred initialization.
+         *
+         * @param rigid_body_index Rigid body index.
+         */
+        void EnqueueRigidBodyInitialization(uint32_t rigid_body_index);
+
+        /**
+         * @brief Initialize all queued rigid bodies.
+         *
+         * This recalculates center of mass, inertia tensor, and shape local
+         * poses for affected rigid bodies.
+         */
+        void InitializePendingRigidBodies();
 
         /**
          * @brief Check whether a rigid body index is alive.
@@ -247,6 +253,10 @@ namespace Engine {
         void DebugPrint() const;
 
     private:
+        void AddShapeToRigidBodyMap(uint32_t rigid_body_index, uint32_t shape_index);
+        void RemoveShapeFromRigidBodyMap(uint32_t rigid_body_index, uint32_t shape_index);
+        void RecalculateRigidBodyState(uint32_t rigid_body_index);
+
         uint32_t m_scene_id{0};
 
         std::vector<bool> m_rigid_body_alive{};
@@ -258,29 +268,30 @@ namespace Engine {
         std::unordered_map<ComponentHandle, uint32_t> m_shape_component_to_index{};
         std::vector<ComponentHandle> m_shape_index_to_component{};
 
-        std::vector<RigidBodyPhysicsProperties> m_rigid_body_properties{};
+        std::vector<float> m_rigid_body_mass{};
+        std::vector<float> m_rigid_body_static_friction{};
+        std::vector<float> m_rigid_body_dynamic_friction{};
+        std::vector<float> m_rigid_body_restitution{};
+        std::vector<bool> m_rigid_body_is_kinematic{};
         std::vector<glm::vec3> m_rigid_body_center_world_position{};
         std::vector<glm::quat> m_rigid_body_center_world_rotation{};
-        std::vector<glm::vec3> m_rigid_body_center_local_position_offset{};
-        std::vector<glm::quat> m_rigid_body_center_local_rotation_offset{};
+        std::vector<glm::vec3> m_rigid_body_center_offset_local_position{};
+        std::vector<glm::mat3> m_rigid_body_inertia_tensor_local{};
         std::vector<glm::vec3> m_rigid_body_linear_velocity{};
         std::vector<glm::vec3> m_rigid_body_angular_velocity_axis_angle{};
         std::vector<glm::vec3> m_rigid_body_external_force{};
         std::vector<glm::vec3> m_rigid_body_external_torque{};
-        std::vector<uint32_t> m_rigid_body_shape_start{};
-        std::vector<uint32_t> m_rigid_body_shape_count{};
+        std::vector<bool> m_rigid_body_need_init{};
+        std::deque<uint32_t> m_rigid_body_init_queue{};
+        std::unordered_map<uint32_t, std::vector<uint32_t>> m_rigid_body_to_shapes{};
 
         std::vector<uint32_t> m_shape_to_rigid_body{};
         std::vector<CollisionShapeType> m_shape_type{};
-        std::vector<CollisionBoxFeature> m_shape_box_feature{};
-
-        // When a shape is not attached to a rigid body, cache world pose.
+        std::vector<glm::vec3> m_shape_half_extents{};
+        std::vector<glm::vec3> m_shape_position{};
+        std::vector<glm::quat> m_shape_rotation{};
         std::vector<glm::vec3> m_shape_world_position{};
         std::vector<glm::quat> m_shape_world_rotation{};
-
-        // Relative pose from rigid body center of mass frame.
-        std::vector<glm::vec3> m_shape_local_to_center_position{};
-        std::vector<glm::quat> m_shape_local_to_center_rotation{};
     };
 } // namespace Engine
 

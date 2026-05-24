@@ -63,31 +63,11 @@ namespace Engine {
         REFL_SER_ENABLE glm::vec3 m_external_torque{0.0f, 0.0f, 0.0f};
 
     private:
-        /**
-         * @brief Temporary per-shape record used during hierarchy collection.
-         *
-         * This carries intermediate geometry and transform data for a shape
-         * before final mapping to the rigid body center frame.
-         */
-        struct ShapeCollectRecord {
-            CollisionShapeComponent *shape_component{nullptr};
-            GameObject *owner_object{nullptr};
-            glm::vec3 local_center_in_root{0.0f, 0.0f, 0.0f};
-            glm::quat local_rotation_in_root{1.0f, 0.0f, 0.0f, 0.0f};
-            float volume{0.0f};
-            uint32_t shape_index{PhysicsScene::INVALID_INDEX};
-        };
-
         uint32_t m_rigid_body_index{PhysicsScene::INVALID_INDEX};
 
         void CollectShapesRecursively(
-            GameObject *node,
-            GameObject *root,
-            std::vector<ShapeCollectRecord> &records,
-            bool skip_rigidbody_check_on_node
+            GameObject *node, std::vector<CollisionShapeComponent *> &shapes, bool skip_rigidbody_check_on_node
         );
-
-        RigidBodyPhysicsProperties BuildPhysicsProperties() const;
     };
 } // namespace Engine
 

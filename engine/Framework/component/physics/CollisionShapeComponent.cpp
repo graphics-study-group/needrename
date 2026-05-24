@@ -37,23 +37,20 @@ namespace Engine {
             return;
         }
 
-        const uint32_t existing_index = physics_scene->FindShapeByComponentHandle(GetHandle());
-        if (existing_index != PhysicsScene::INVALID_INDEX) {
-            m_shape_index = existing_index;
-            return;
-        }
-
-        CollisionBoxFeature box_feature{};
-        box_feature.m_half_extents = m_box_size * 0.5f;
-        box_feature.m_center = m_box_center;
-        box_feature.m_rotation = m_box_rotation;
-
         Transform world_transform = owner->GetWorldTransform();
         glm::vec3 world_center = world_transform.GetPosition() + world_transform.GetRotation() * m_box_center;
         glm::quat world_rotation = glm::normalize(world_transform.GetRotation() * m_box_rotation);
-
-        m_shape_index =
-            physics_scene->RegisterCollisionShape(GetHandle(), m_shape_type, box_feature, world_center, world_rotation);
+        const uint32_t existing_index = physics_scene->FindShapeByComponentHandle(GetHandle());
+        if (existing_index != PhysicsScene::INVALID_INDEX) {
+            m_shape_index = existing_index;
+            physics_scene->UpdateCollisionShapeGeometry(
+                m_shape_index, m_shape_type, m_box_size * 0.5f, world_center, world_rotation
+            );
+        } else {
+            m_shape_index = physics_scene->RegisterCollisionShape(
+                GetHandle(), m_shape_type, m_box_size * 0.5f, world_center, world_rotation
+            );
+        }
 
         TryAttachToAncestorRigidBody();
     }
@@ -98,6 +95,7 @@ namespace Engine {
                     const uint32_t rigid_body_index = rigid->GetPhysicsRigidBodyIndex();
                     if (rigid_body_index != PhysicsScene::INVALID_INDEX) {
                         physics_scene->SetCollisionShapeRigidBody(m_shape_index, rigid_body_index);
+                        physics_scene->EnqueueRigidBodyInitialization(rigid_body_index);
                         return true;
                     }
                 }
