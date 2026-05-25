@@ -12,7 +12,7 @@ namespace {
         Engine::RenderServiceQueue & queue
     ) {
         while(true) {
-            auto cur = state.control.state.load(std::memory_order::acq_rel);
+            auto cur = state.control.state.load(std::memory_order::acquire);
 
             if (cur == Engine::RenderThreadState::State::HALTED) {
                 if (state.render_system) {
@@ -22,17 +22,17 @@ namespace {
                 break;
             } else if (cur == Engine::RenderThreadState::State::WAITING) {
                 std::unique_lock ul{state.control.mtx};
-                state.control.suspended.test_and_set(std::memory_order::acq_rel);
+                state.control.suspended.test_and_set(std::memory_order::release);
                 state.control.suspended.notify_all();
                 state.control.cv.wait(ul, [&] {
-                    return state.control.state.load(std::memory_order::acq_rel) != Engine::RenderThreadState::State::WAITING;
+                    return state.control.state.load(std::memory_order::acquire) != Engine::RenderThreadState::State::WAITING;
                 });
-                state.control.suspended.clear(std::memory_order::acq_rel);
+                state.control.suspended.clear(std::memory_order::release);
             } else {
                 while(!queue.empty()) {
                     auto f = queue.pop();
                     f->Execute(state);
-                    if (state.control.state.load(std::memory_order::acq_rel) != Engine::RenderThreadState::State::RUNNING) {
+                    if (state.control.state.load(std::memory_order::acquire) != Engine::RenderThreadState::State::RUNNING) {
                         break;
                     }
                 }
@@ -58,10 +58,11 @@ namespace Engine {
             std::ref(pimpl->queue)
         };
 
-        pimpl->queue.push(
+        auto initialization_future = pimpl->queue.push(
             std::make_unique<RenderTasks::RenderTaskInitialize>(window)
         );
         this->Resume();
+        initialization_future.wait();
     }
 
     RenderThread::~RenderThread() noexcept {

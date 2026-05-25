@@ -2,6 +2,8 @@
 #define RENDER_RENDERTHREAD_RENDERTHREADSTATE_INCLUDED
 
 #include <memory>
+#include <atomic>
+#include <condition_variable>
 
 namespace Engine {
     class RenderSystem;
@@ -29,10 +31,10 @@ namespace Engine {
 
         struct {
             std::atomic <State> state{State::WAITING};
-            std::atomic_flag suspended = ATOMIC_FLAG_INIT;
-
             std::mutex mtx{};
             std::condition_variable cv{};
+
+            std::atomic_flag suspended = ATOMIC_FLAG_INIT;
         } control;
         
     };

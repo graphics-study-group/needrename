@@ -30,6 +30,8 @@ namespace Engine {
          * 
          * The initialization of the rendering system is also performed in the
          * constructor.
+         * 
+         * It blocks until the initialization of the render system is completed.
          */
         RenderThread(
             std::weak_ptr<SDLWindow> window
