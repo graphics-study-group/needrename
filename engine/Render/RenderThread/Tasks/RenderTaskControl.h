@@ -9,7 +9,7 @@ namespace Engine::RenderTasks {
     struct RenderTaskControl : public RenderTaskBase {
         typedef void result_type;
 
-        std::promise<result_type> p;
+        std::promise<result_type> p{};
         auto GetFuture() noexcept { return p.get_future(); }
     };
 
@@ -26,21 +26,9 @@ namespace Engine::RenderTasks {
 
             rts.render_system = std::make_unique<RenderSystem>(this->window);
             rts.render_system->Create();
-            rts.state = RenderThreadState::State::RUNNING;
 
             p.set_value();
         };
-    };
-
-    /**
-     * @brief Signal the render thread to finish all tasks and end gracefully.
-     */
-    struct RenderTaskFinish : public RenderTaskControl {
-        void Execute(RenderThreadState & rts) override {
-            rts.state = RenderThreadState::State::HALTED;
-
-            p.set_value();
-        }
     };
 }
 

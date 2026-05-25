@@ -57,6 +57,39 @@ namespace Engine {
          * it.
          */
         const RenderThreadState & GetThreadState() const noexcept;
+
+        /**
+         * @brief Acquires the render thread state and all resources of the
+         * thread.
+         * 
+         * To ensure correct synchronization, the render thread will be
+         * suspended before any resources can be acquired by other threads.
+         * This function therefore blocks until the render thread has completed
+         * its current task, and suspends the thread.
+         * Call `Resume()` manually after you have finished manipulating the
+         * state.
+         * 
+         * @warning This is intended as an escape hatch to access the render
+         * system. Do not abuse it!
+         */
+        RenderThreadState & BlockAndAcquireThreadState() noexcept;
+
+        /**
+         * @brief Resume the rendering thread.
+         * 
+         * Has no effect if the thread is already waiting or terminated.
+         */
+        void Resume() const noexcept;
+
+        /**
+         * @brief Suspend the rendering thread.
+         * 
+         * Has no effect if the thread is already suspended or terminated.
+         * 
+         * This method will block until the current task submitted to the
+         * rendering thread is completed, and the thread is actually sleeping.
+         */
+        void Suspend() const noexcept;
     };
 }
 
