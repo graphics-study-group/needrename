@@ -321,7 +321,7 @@ namespace Engine {
         if (prev_access != MemoryAccessTypeImageBits::None) {
             // Inject a virtual pass if previous access is not None
             if (pimpl->passes.empty()) {
-                this->AddPass(RenderGraphPassBuilder{system}.SetName("Virtual Source").Get());
+                this->AddPass(RenderGraphPassBuilder{}.SetName("Virtual Source").Get());
             }
             pimpl->passes.front().image_access[ret] = prev_access;
         }
@@ -338,7 +338,7 @@ namespace Engine {
         if (prev_access != MemoryAccessTypeImageBits::None) {
             // Inject a virtual pass if previous access is not None
             if (pimpl->passes.empty()) {
-                this->AddPass(RenderGraphPassBuilder{system}.SetName("Virtual Source").Get());
+                this->AddPass(RenderGraphPassBuilder{}.SetName("Virtual Source").Get());
             }
             pimpl->passes.front().image_access[ret] = prev_access;
         }
@@ -355,7 +355,7 @@ namespace Engine {
         if (prev_access != MemoryAccessTypeBuffer{MemoryAccessTypeBufferBits::None}) {
             // Inject a virtual pass if previous access is not None
             if (pimpl->passes.empty()) {
-                this->AddPass(RenderGraphPassBuilder{system}.SetName("Virtual Source").Get());
+                this->AddPass(RenderGraphPassBuilder{}.SetName("Virtual Source").Get());
             }
             pimpl->passes.front().buffer_access[ret] = prev_access;
         }

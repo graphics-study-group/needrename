@@ -94,7 +94,8 @@ namespace Engine {
         return *pimpl->pripr_ptr;
     }
 
-    void RenderGraph2::Record(uint32_t pass, vk::CommandBuffer cb) const {
+    void RenderGraph2::Record(uint32_t pass, vk::CommandBuffer cb, const RenderGraph2Context & ctx) const {
+
         assert(pass < pimpl->passes.size());
 
         std::vector<vk::ImageMemoryBarrier2> imb{};
@@ -122,7 +123,7 @@ namespace Engine {
                 continue;
             }
             pimpl->pripr_ptr = &subpass.per_rendering_info;
-            std::invoke(subpass.pass_work, cb, *this);
+            std::invoke(subpass.pass_work, cb, ctx);
             pimpl->pripr_ptr = nullptr;
         }
     }
@@ -147,11 +148,11 @@ namespace Engine {
         pimpl->post_barrier_info.clear();
     }
 
-    void RenderGraph2::RecordAllPasses(vk::CommandBuffer cb) {
+    void RenderGraph2::RecordAllPasses(vk::CommandBuffer cb, RenderSystem &system) {
         cb.begin(vk::CommandBufferBeginInfo{});
         RecordPrePass(cb);
         for (size_t i = 0; i < pimpl->passes.size(); i++) {
-            this->Record(i, cb);
+            this->Record(i, cb, {&system, this, system.GetFrameManager().GetFrameInFlight()});
         }
         RecordPostPass(cb);
         cb.end();
@@ -161,7 +162,7 @@ namespace Engine {
         auto &fm = system.GetFrameManager();
         auto cb = fm.GetRawMainCommandBuffer();
 
-        RecordAllPasses(cb);
+        RecordAllPasses(cb, system);
         fm.SubmitMainCommandBuffer();
     }
 

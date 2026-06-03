@@ -2,16 +2,17 @@
 
 #include "Render/DebugUtils.h"
 #include "Render/Pipeline/RenderGraph2/RenderGraph2.h"
+#include "Render/Pipeline/RenderGraph2/RenderGraphStruct.hpp"
 #include "Render/RenderSystem.h"
 
 namespace Engine {
     RenderGraphPassBuilder &RenderGraphPassBuilder::SetRasterizerPassFunction(
         std::function<void(GraphicsCommandBuffer &, const RenderGraph2 &)> fn
     ) noexcept {
-        auto f = [system = &this->system, fn](vk::CommandBuffer cb, const RenderGraph2 &rg) {
-            GraphicsCommandBuffer gcb{*system, cb, system->GetFrameManager().GetFrameInFlight()};
-            gcb.SetRenderingInfo(rg.GetCurrentPassRuntimeInfo());
-            std::invoke(fn, std::ref(gcb), std::cref(rg));
+        auto f = [fn](vk::CommandBuffer cb, const RenderGraph2Context &ctx) {
+            GraphicsCommandBuffer gcb{*ctx.render_system, cb, ctx.frame_in_flight};
+            gcb.SetRenderingInfo(ctx.render_graph->GetCurrentPassRuntimeInfo());
+            std::invoke(fn, std::ref(gcb), std::cref(*ctx.render_graph));
         };
         pass.pass_function = f;
         pass.actual_type = RenderGraphPassAffinity::Graphics;
@@ -22,10 +23,10 @@ namespace Engine {
     RenderGraphPassBuilder &RenderGraphPassBuilder::SetComputePassFunction(
         std::function<void(ComputeCommandBuffer &, const RenderGraph2 &)> fn
     ) noexcept {
-        auto f = [name = pass.name, system = &this->system, fn](vk::CommandBuffer cb, const RenderGraph2 &rg) {
-            ComputeCommandBuffer ccb{cb, system->GetFrameManager().GetFrameInFlight()};
+        auto f = [name = pass.name, fn](vk::CommandBuffer cb, const RenderGraph2Context &ctx) {
+            ComputeCommandBuffer ccb{cb, ctx.frame_in_flight};
             DEBUG_CMD_START_LABEL(cb, std::format("{} (Compute)", name).c_str());
-            std::invoke(fn, std::ref(ccb), std::cref(rg));
+            std::invoke(fn, std::ref(ccb), std::cref(*ctx.render_graph));
             DEBUG_CMD_END_LABEL(cb);
         };
         pass.pass_function = f;
@@ -37,10 +38,10 @@ namespace Engine {
     RenderGraphPassBuilder &RenderGraphPassBuilder::SetTransferPassFunction(
         std::function<void(TransferCommandBuffer &, const RenderGraph2 &)> fn
     ) noexcept {
-        auto f = [name = pass.name, system = &this->system, fn](vk::CommandBuffer cb, const RenderGraph2 &rg) {
+        auto f = [name = pass.name, fn](vk::CommandBuffer cb, const RenderGraph2Context &ctx) {
             TransferCommandBuffer ccb{cb};
             DEBUG_CMD_START_LABEL(cb, std::format("{} (Compute)", name).c_str());
-            std::invoke(fn, std::ref(ccb), std::cref(rg));
+            std::invoke(fn, std::ref(ccb), std::cref(*ctx.render_graph));
             DEBUG_CMD_END_LABEL(cb);
         };
         pass.pass_function = f;
@@ -58,7 +59,7 @@ namespace Engine {
                      ca = pass.color_attachments,
                      da = pass.depth_attachment,
                      name = pass.name,
-                     wrapped = pass.pass_function](vk::CommandBuffer cb, const RenderGraph2 &rg) {
+                     wrapped = pass.pass_function](vk::CommandBuffer cb, const RenderGraph2Context &ctx) {
             // Construct rendering info
 
             vk::Rect2D rendering_area{
@@ -69,7 +70,7 @@ namespace Engine {
 
             // Fill up color attachment info.
             for (size_t i = 0; i < ca.size(); i++) {
-                auto t = rg.GetInternalTextureResource(ca[i].rt_handle);
+                auto t = ctx.render_graph->GetInternalTextureResource(ca[i].rt_handle);
                 cai[i] = vk::RenderingAttachmentInfo{
                     t->GetImageView(ca[i].range),
                     vk::ImageLayout::eColorAttachmentOptimal,
@@ -86,7 +87,7 @@ namespace Engine {
             }
 
             if (static_cast<int32_t>(da.rt_handle) != 0) {
-                auto t = rg.GetInternalTextureResource(da.rt_handle);
+                auto t = ctx.render_graph->GetInternalTextureResource(da.rt_handle);
                 dai = vk::RenderingAttachmentInfo{
                     t->GetImageView(da.range),
                     vk::ImageLayout::eDepthStencilAttachmentOptimal,
@@ -110,7 +111,7 @@ namespace Engine {
 
             DEBUG_CMD_START_LABEL(cb, std::format("{} (Rasterizer)", name).c_str());
             cb.beginRendering(vk::RenderingInfo{vk::RenderingFlags{}, rendering_area, 1, 0, cai, &dai, &sai});
-            wrapped(cb, rg);
+            wrapped(cb, ctx);
             cb.endRendering();
             DEBUG_CMD_END_LABEL(cb);
         };

@@ -12,6 +12,7 @@ namespace vk {
 }
 
 namespace Engine {
+    struct RenderGraph2Context;
     class RenderGraph2;
     class GraphicsCommandBuffer;
     class ComputeCommandBuffer;
@@ -38,7 +39,7 @@ namespace Engine {
         RenderGraphPassAffinity affinity{}, actual_type{};
 
         // Actual pass function
-        std::function<void(vk::CommandBuffer, const RenderGraph2 &)> pass_function{};
+        std::function<void(vk::CommandBuffer, const RenderGraph2Context &)> pass_function{};
 
         // Access registry
         std::unordered_map<RGTextureHandle, MemoryAccessTypeImageBits> image_access{};
@@ -53,12 +54,8 @@ namespace Engine {
      * @brief Helper for building a pass of the render graph.
      */
     class RenderGraphPassBuilder {
-        RenderSystem &system;
         RenderGraphPass pass{};
-
     public:
-        RenderGraphPassBuilder(RenderSystem &system) : system(system) {};
-
         RenderGraphPassBuilder &SetName(std::string name) noexcept {
             pass.name = name;
             return *this;

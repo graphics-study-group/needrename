@@ -1,5 +1,5 @@
-#ifndef PIPELINE_RENDERGRAPH2_RENDERGRAPHSTRUCT
-#define PIPELINE_RENDERGRAPH2_RENDERGRAPHSTRUCT
+#ifndef PIPELINE_RENDERGRAPH2_RENDERGRAPHSTRUCT_INCLUDED
+#define PIPELINE_RENDERGRAPH2_RENDERGRAPHSTRUCT_INCLUDED
 
 #include <functional>
 #include <vector>
@@ -15,6 +15,15 @@ namespace Engine {
 
     using RenderTargetTextureVariant = std::variant<RenderTargetTexture *, RRTTHandle>;
     using OwnedRenderTargetTextureVariant = std::variant<std::unique_ptr<RenderTargetTexture>, RRTTHandle>;
+
+    /**
+     * @brief Contextual data used in a render pass
+     */
+    struct RenderGraph2Context {
+        RenderSystem * render_system;
+        RenderGraph2 * render_graph;
+        uint32_t frame_in_flight;
+    };
 
     /**
      * @brief Visitor for render target textures.
@@ -45,7 +54,7 @@ namespace Engine {
 
             PipelineRuntimeInfoPerRendering per_rendering_info{};
 
-            std::function<void(vk::CommandBuffer, const RenderGraph2 &rg)> pass_work{};
+            std::function<void(vk::CommandBuffer, const RenderGraph2Context)> pass_work{};
         };
         std::vector<Subpass> subpasses{};
     };
@@ -65,4 +74,4 @@ namespace Engine {
     };
 } // namespace Engine
 
-#endif // PIPELINE_RENDERGRAPH2_RENDERGRAPHSTRUCT
+#endif // PIPELINE_RENDERGRAPH2_RENDERGRAPHSTRUCT_INCLUDED

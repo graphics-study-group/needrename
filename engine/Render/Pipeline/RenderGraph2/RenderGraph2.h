@@ -6,7 +6,7 @@ namespace vk {
 }
 
 namespace Engine {
-
+    struct RenderGraph2Context;
     class RenderGraphCompiledPass;
     class RenderGraph2ExtraInfo;
     class PipelineRuntimeInfoPerRendering;
@@ -69,7 +69,7 @@ namespace Engine {
          * @brief Record all operations of a given pass onto the specified
          * command buffer.
          */
-        void Record(uint32_t pass, vk::CommandBuffer cb) const;
+        void Record(uint32_t pass, vk::CommandBuffer cb, const RenderGraph2Context &) const;
 
         /**
          * @brief Record synchronization prior to any passes.
@@ -95,7 +95,7 @@ namespace Engine {
          * This method disregards task affinities, and enforces serialized
          * start of execution on GPU.
          */
-        void RecordAllPasses(vk::CommandBuffer);
+        void RecordAllPasses(vk::CommandBuffer, RenderSystem &);
 
         /**
          * @brief Execute the render graph by recording all commands onto the
