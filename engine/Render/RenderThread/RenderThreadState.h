@@ -40,10 +40,19 @@ namespace Engine {
         /// @brief Active render graph for the frame.
         std::unique_ptr <RenderGraph2> active_render_graph{};
 
-        /// @brief Indicates whether the current thread is suspended due to command.
-        std::atomic_flag suspending = ATOMIC_FLAG_INIT;
-        /// @brief Indicates whether the current thread is waiting for GPU work,
-        std::atomic_flag waiting = ATOMIC_FLAG_INIT;
+        /// @brief State of the render thread.
+        enum class State {
+            /// @brief Suspended due to command of other threads.
+            SUSPENDING,
+            /// @brief Running normally.
+            RUNNING,
+            /// @brief Waiting for GPU work.
+            WAITING_FOR_GPU
+        };
+
+        std::atomic <State> state{State::SUSPENDING};
+        mutable std::mutex state_mtx{};
+        mutable std::condition_variable state_cv{};
     };
 }
 

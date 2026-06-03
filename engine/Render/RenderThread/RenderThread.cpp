@@ -23,13 +23,14 @@ namespace {
                 break;
             } else if (cur == Engine::RenderThreadControlBlock::Command::WAIT) {
                 std::unique_lock ul{control.mtx};
-                state.suspending.test_and_set(std::memory_order::release);
-                state.suspending.notify_all();
+                state.state.store(Engine::RenderThreadState::State::SUSPENDING, std::memory_order::release);
+                state.state_cv.notify_all();
                 control.cv.wait(ul, [&] {
                     return control.state.load(std::memory_order::acquire) != Engine::RenderThreadControlBlock::Command::WAIT;
                 });
-                state.suspending.clear(std::memory_order::release);
-            } else {
+            } else if (cur == Engine::RenderThreadControlBlock::Command::CONTINUE) {
+                state.state.store(Engine::RenderThreadState::State::RUNNING, std::memory_order::release);
+                state.state_cv.notify_all();
                 while(!queue.empty()) {
                     auto f = queue.pop();
                     (*f)(state);
@@ -89,18 +90,33 @@ namespace Engine {
         return pimpl->state;
     }
 
-    void RenderThread::Resume() const noexcept {
-        if (pimpl->control.state == RenderThreadControlBlock::Command::WAIT) {
-            pimpl->control.state = RenderThreadControlBlock::Command::CONTINUE;
+    void RenderThread::WaitForRenderThread() const noexcept {
+        if (pimpl->state.state.load(std::memory_order_acquire) == RenderThreadState::State::WAITING_FOR_GPU) {
+            std::unique_lock ul{pimpl->state.state_mtx};
+            pimpl->state.state_cv.wait(ul, [&]{
+                return pimpl->state.state.load(std::memory_order::acquire) != RenderThreadState::State::WAITING_FOR_GPU;
+            });
+        }
+    }
+
+    void RenderThread::Resume() noexcept {
+        if (pimpl->state.state.load(std::memory_order_acquire) == RenderThreadState::State::SUSPENDING) {
+            pimpl->control.state.store(RenderThreadControlBlock::Command::CONTINUE, std::memory_order::release);
             pimpl->control.cv.notify_all();
         }
     }
 
-    void RenderThread::Suspend() const noexcept {
-        if (pimpl->control.state == RenderThreadControlBlock::Command::CONTINUE) {
-            pimpl->control.state = RenderThreadControlBlock::Command::WAIT;
+    void RenderThread::Suspend() noexcept {
+        if (pimpl->state.state.load(std::memory_order_acquire) != RenderThreadState::State::SUSPENDING) {
+            pimpl->control.state.store(RenderThreadControlBlock::Command::WAIT, std::memory_order::release);
             pimpl->control.cv.notify_all();
-            pimpl->state.suspending.wait(false);
+
+            {
+                std::unique_lock ul{pimpl->state.state_mtx};
+                pimpl->state.state_cv.wait(ul, [&]{
+                    return pimpl->state.state.load(std::memory_order::acquire) == RenderThreadState::State::SUSPENDING;
+                });
+            }
         }
     }
 }

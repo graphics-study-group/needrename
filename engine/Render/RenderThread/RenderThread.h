@@ -77,21 +77,40 @@ namespace Engine {
         RenderThreadState & BlockAndAcquireThreadState() noexcept;
 
         /**
+         * @brief Wait for the render thread to be available.
+         * 
+         * To maximize throughput, the render thread runs ahead of the GPU for
+         * a few limited frames. If all these frames have been reserved for
+         * works, the render thread will block and wait, and will not take more
+         * works from other threads. The job queue may therefore get coagulated.
+         * 
+         * This method blocks the calling thread until the render thread can
+         * take more work, and helps to keep the job queue in check.
+         * 
+         * Has no effect if the thread is not waiting for GPU.
+         */
+        void WaitForRenderThread() const noexcept;
+
+        /**
          * @brief Resume the rendering thread.
          * 
-         * Has no effect if the thread is already waiting or terminated.
+         * Has no effect if the thread is not already suspended.
+         * 
+         * Not thread-safe and requires external synchronization.
          */
-        void Resume() const noexcept;
+        void Resume() noexcept;
 
         /**
          * @brief Suspend the rendering thread.
          * 
-         * Has no effect if the thread is already suspended or terminated.
+         * Has no effect if the thread is already suspended.
          * 
          * This method will block until the current task submitted to the
          * rendering thread is completed, and the thread is actually sleeping.
+         * 
+         * Not thread-safe and requires external synchronization.
          */
-        void Suspend() const noexcept;
+        void Suspend() noexcept;
     };
 }
 
