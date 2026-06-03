@@ -219,7 +219,7 @@ int main(int argc, char **argv) {
         sphere_inst->AssignTexture("base_tex", blank_color_red);
     }
 
-    RenderGraphBuilder2 rgb{*rsys};
+    RenderGraphBuilder2 rgb{};
     Engine::RenderTargetTexture::RenderTargetTextureDesc desc{
         .dimensions = 2,
         .width = 1920,
@@ -240,7 +240,7 @@ int main(int argc, char **argv) {
     using IAT = MemoryAccessTypeImageBits;
 
     rgb.AddPass(
-        RenderGraphPassBuilder{*rsys}
+        RenderGraphPassBuilder{}
             .SetName("Shadow Pass")
             .SetDepthStencilAttachment(
                 {s,
@@ -276,7 +276,7 @@ int main(int argc, char **argv) {
     );
 
     rgb.AddPass(
-        RenderGraphPassBuilder{*rsys}
+        RenderGraphPassBuilder{}
             .SetName("Lit Pass")
             .AppendColorAttachment(
                 {c, {}, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store}
@@ -299,7 +299,7 @@ int main(int argc, char **argv) {
             .Get()
     );
 
-    auto rg{rgb.BuildRenderGraph()};
+    auto rg{rgb.BuildRenderGraph(*rsys)};
     auto sm = rg.GetInternalTextureResource(s);
     rsys->GetSceneDataManager().SetLightShadowMap(0, *sm);
 

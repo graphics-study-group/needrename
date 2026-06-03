@@ -13,7 +13,7 @@ int main() {
     auto cmc = MainClass::GetInstance();
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
 
-    auto rgb = RenderGraphBuilder2{*cmc->GetRenderSystem()};
+    auto rgb = RenderGraphBuilder2{};
 
     auto rttd = RenderTargetTexture::RenderTargetTextureDesc{
         .dimensions = 2,
@@ -29,7 +29,7 @@ int main() {
     auto fbuffer = rgb.RequestRenderTargetTexture(rttd, {}, "Main buffer");
 
     rgb.AddPass(
-        RenderGraphPassBuilder{*cmc->GetRenderSystem()}
+        RenderGraphPassBuilder{}
             .SetName("Compute pass")
             .SetGlobalAccess({MemoryAccessTypeBufferBits::ShaderRandomWrite})
             .SetComputePassFunction(dummy_compute_pass)
@@ -37,7 +37,7 @@ int main() {
     );
 
     rgb.AddPass(
-        RenderGraphPassBuilder{*cmc->GetRenderSystem()}
+        RenderGraphPassBuilder{}
             .SetName("Main pass")
             .UseImage(gbuffer, MemoryAccessTypeImageBits::ShaderSampledRead)
             .AppendColorAttachment(
@@ -49,7 +49,7 @@ int main() {
     );
 
     rgb.AddPass(
-        RenderGraphPassBuilder{*cmc->GetRenderSystem()}
+        RenderGraphPassBuilder{}
             .SetName("GBuffer pass")
             .SetGlobalAccess({MemoryAccessTypeBufferBits::IndexRead, MemoryAccessTypeBufferBits::VertexRead})
             .AppendColorAttachment(
@@ -61,12 +61,12 @@ int main() {
     );
 
     rgb.AddPass(
-        RenderGraphPassBuilder{*cmc->GetRenderSystem()}
+        RenderGraphPassBuilder{}
             .SetName("Post processing compute")
             .UseImage(fbuffer, MemoryAccessTypeImageBits::ShaderRandomRead)
             .SetComputePassFunction(dummy_compute_pass)
             .Get()
     );
 
-    auto rg = rgb.BuildRenderGraph();
+    auto rg = rgb.BuildRenderGraph(*cmc->GetRenderSystem());
 }

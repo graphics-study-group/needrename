@@ -29,7 +29,7 @@ int main(int argc, char **argv) {
     auto gsys = cmc->GetGUISystem();
     gsys->CreateVulkanBackend(*rsys, ImageUtils::GetVkFormat(Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm));
 
-    RenderGraphBuilder2 rgb{*rsys};
+    RenderGraphBuilder2 rgb{};
     Engine::RenderTargetTexture::RenderTargetTextureDesc desc{
         .dimensions = 2,
         .width = 1920,
@@ -43,7 +43,7 @@ int main(int argc, char **argv) {
     };
     auto c = rgb.RequestRenderTargetTexture(desc, {});
     rgb.AddPass(
-        RenderGraphPassBuilder{*rsys}
+        RenderGraphPassBuilder{}
             .AppendColorAttachment(
                 {c, {}, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store}
             )
@@ -62,7 +62,7 @@ int main(int argc, char **argv) {
             })
             .Get()
     );
-    auto rg = rgb.BuildRenderGraph();
+    auto rg = rgb.BuildRenderGraph(*rsys);
 
     bool quited = false;
     while (max_frame_count--) {

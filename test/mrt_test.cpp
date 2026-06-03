@@ -101,7 +101,7 @@ auto BuildRenderGraph(
     IVertexBasedRenderer *mesh
 ) {
     using IAT = Engine::MemoryAccessTypeImageBits;
-    RenderGraphBuilder2 rgb{*rsys};
+    RenderGraphBuilder2 rgb{};
     auto c1 = rgb.ImportExternalResource(*color_1);
     auto c2 = rgb.ImportExternalResource(*color_2);
     auto c3 = rgb.ImportExternalResource(*color_3);
@@ -112,7 +112,7 @@ auto BuildRenderGraph(
     g_color_handles = {c1, c2, c3, c4};
 
     rgb.AddPass(
-        RenderGraphPassBuilder{*rsys}
+        RenderGraphPassBuilder{}
             .SetName("Main")
             .AppendColorAttachment(
                 {c1,
@@ -184,7 +184,7 @@ auto BuildRenderGraph(
     );
 
     rgb.AddPass(
-        RenderGraphPassBuilder{*rsys}
+        RenderGraphPassBuilder{}
             .SetName("Transfer")
             .UseBuffer(b1, {MemoryAccessTypeBufferBits::TransferWrite})
             .UseImage(c1, MemoryAccessTypeImageBits::TransferRead)
@@ -209,7 +209,7 @@ auto BuildRenderGraph(
             .Get()
     );
 
-    return rgb.BuildRenderGraph();
+    return rgb.BuildRenderGraph(*rsys);
 }
 
 int main(int argc, char **argv) {

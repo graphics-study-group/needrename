@@ -148,7 +148,7 @@ int main(int argc, char **argv) {
     }
 
     // Dummy texture for presenting
-    RenderGraphBuilder2 rgb{*rsys};
+    RenderGraphBuilder2 rgb{};
     auto crt = rgb.RequestRenderTargetTexture(
         RenderTargetTexture::RenderTargetTextureDesc{
             .dimensions = 2,
@@ -175,7 +175,7 @@ int main(int argc, char **argv) {
     );
 
     rgb.AddPass(
-        RenderGraphPassBuilder{*rsys}
+        RenderGraphPassBuilder{}
             .SetName("Main")
             .AppendColorAttachment(
                 {crt, {}, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store}
@@ -197,7 +197,7 @@ int main(int argc, char **argv) {
             .WrapRenderPass()
             .Get()
     );
-    auto rg = rgb.BuildRenderGraph();
+    auto rg = rgb.BuildRenderGraph(*rsys);
 
     bool quited{false};
     glm::vec3 euler_angle_rotation{};

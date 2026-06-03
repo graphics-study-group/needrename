@@ -256,7 +256,7 @@ int main(int argc, char **argv) {
     auto &bloom_compute_binding = bloom_compute_stage->AllocateResourceBinding();
 
     // Build render graph.
-    RenderGraphBuilder2 rgb{*rsys};
+    RenderGraphBuilder2 rgb{};
     RenderTargetTexture::RenderTargetTextureDesc rtt_desc{
         .dimensions = 2,
         .width = 1920,
@@ -276,7 +276,7 @@ int main(int argc, char **argv) {
     // Color pass
     using IAT = MemoryAccessTypeImageBits;
     rgb.AddPass(
-        RenderGraphPassBuilder{*rsys}
+        RenderGraphPassBuilder{}
             .SetName("Color Pass")
             .AppendColorAttachment(
                 {hc, {}, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store}
@@ -297,7 +297,7 @@ int main(int argc, char **argv) {
 
     // Bloom pass
     rgb.AddPass(
-        RenderGraphPassBuilder{*rsys}
+        RenderGraphPassBuilder{}
             .SetName("Bloom Fx Pass")
             .UseImage(hc, IAT::ShaderRandomRead)
             .UseImage(c, IAT::ShaderRandomWrite)
@@ -320,7 +320,7 @@ int main(int argc, char **argv) {
 
     // GUI pass
     rgb.AddPass(
-        RenderGraphPassBuilder{*rsys}
+        RenderGraphPassBuilder{}
             .SetName("GUI Pass")
             .AppendColorAttachment({c, {}, AttachmentUtils::LoadOperation::Load, AttachmentUtils::StoreOperation::Store}
             )
@@ -331,7 +331,7 @@ int main(int argc, char **argv) {
             .Get()
     );
 
-    auto rg{rgb.BuildRenderGraph()};
+    auto rg{rgb.BuildRenderGraph(*rsys)};
 
     uint64_t frame_count = 0;
     uint64_t start_timer = SDL_GetPerformanceCounter();

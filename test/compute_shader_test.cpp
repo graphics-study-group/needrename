@@ -20,12 +20,12 @@ auto BuildRenderGraph(
     ComputeStage &compute,
     ComputeResourceBinding &cbinding
 ) {
-    RenderGraphBuilder2 rgb{rsys};
+    RenderGraphBuilder2 rgb{};
     auto ci = rgb.ImportExternalResource(color_in, MemoryAccessTypeImageBits::TransferWrite);
     auto co = rgb.ImportExternalResource(color_out);
     auto cp = rgb.ImportExternalResource(color_present);
     rgb.AddPass(
-        RenderGraphPassBuilder{rsys}
+        RenderGraphPassBuilder{}
             .SetName("Fluid simulation")
             .UseImage(ci, MemoryAccessTypeImageBits::ShaderRandomRead)
             .UseImage(co, MemoryAccessTypeImageBits::ShaderRandomWrite)
@@ -39,7 +39,7 @@ auto BuildRenderGraph(
     );
 
     rgb.AddPass(
-        RenderGraphPassBuilder{rsys}
+        RenderGraphPassBuilder{}
             .SetName("Blitting")
             .UseImage(ci, MemoryAccessTypeImageBits::TransferWrite)
             .UseImage(co, MemoryAccessTypeImageBits::TransferRead)
@@ -49,7 +49,7 @@ auto BuildRenderGraph(
             .Get()
     );
     g_color_in_handle = ci;
-    return rgb.BuildRenderGraph();
+    return rgb.BuildRenderGraph(rsys);
 }
 
 int main(int argc, char *argv[]) {

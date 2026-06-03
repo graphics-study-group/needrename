@@ -97,12 +97,12 @@ auto BuildRenderGraph(
     ComputeResourceBinding *kbinding = nullptr
 ) {
     using IAT = Engine::MemoryAccessTypeImageBits;
-    RenderGraphBuilder2 rgb{*rsys};
+    RenderGraphBuilder2 rgb{};
     auto c = rgb.ImportExternalResource(*color);
     auto d = rgb.ImportExternalResource(*depth);
 
     rgb.AddPass(
-        RenderGraphPassBuilder{*rsys}
+        RenderGraphPassBuilder{}
             .SetName("Main")
             .AppendColorAttachment(
                 {c, {}, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store}
@@ -150,7 +150,7 @@ auto BuildRenderGraph(
         auto gb = rgb.ImportExternalResource(*blurred);
 
         rgb.AddPass(
-            RenderGraphPassBuilder{*rsys}
+            RenderGraphPassBuilder{}
                 .SetName("FX")
                 .UseImage(c, IAT::ShaderRandomRead)
                 .UseImage(gb, IAT::ShaderRandomWrite)
@@ -166,7 +166,7 @@ auto BuildRenderGraph(
                 .Get()
         );
     }
-    return rgb.BuildRenderGraph();
+    return rgb.BuildRenderGraph(*rsys);
 }
 
 int main(int argc, char **argv) {
