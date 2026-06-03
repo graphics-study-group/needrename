@@ -92,7 +92,9 @@ namespace Engine {
                 if (acc.size() < 2) continue;
 
                 auto itr = std::find_if(
-                    acc.begin(), acc.end(), [pass_index](const RenderGraphImpl::BufferAccessMemo::Access &access) {
+                    acc.begin(),
+                    acc.end(),
+                    [pass_index](const RenderGraphImpl::BufferAccessMemo::Access &access) {
                         return access.pass_index == pass_index;
                     }
                 );
