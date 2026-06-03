@@ -2,7 +2,6 @@
 #define RENDERTHREAD_TASKS_RENDERTASKCONTROL_INCLUDED
 
 #include "Render/RenderThread/Tasks/RenderTaskBase.h"
-#include "Render/RenderThread/RenderThreadState.h"
 
 namespace Engine::RenderTasks {
 
@@ -21,14 +20,25 @@ namespace Engine::RenderTasks {
 
         RenderTaskInitialize(std::weak_ptr <SDLWindow> window) : window(window) {}
 
-        void operator() (RenderThreadState & rts) override {
-            assert(!rts.render_system);
+        void do_execute(RenderThreadState & rts) override;
+    };
 
-            rts.render_system = std::make_unique<RenderSystem>(this->window);
-            rts.render_system->Create();
+    /**
+     * @brief Render one frame with the rendering thread, if a render graph is
+     * active.
+     */
+    struct RenderTaskRenderOneFrameWithActiveGraph : RenderTaskControl {
+        RGTextureHandle presenting_texture;
+        void do_execute(RenderThreadState & rts) override;
+    };
 
-            p.set_value();
-        };
+    /**
+     * @brief Build a render graph and set it as the current active one.
+     */
+    struct RenderTaskBuildActiveRenderGraph : RenderTaskControl {
+        std::unique_ptr <RenderGraphBuilder2> builder_;
+        RenderTaskBuildActiveRenderGraph(std::unique_ptr <RenderGraphBuilder2> builder) : builder_(std::move(builder)) {}
+        void do_execute(RenderThreadState & rts) override;
     };
 }
 

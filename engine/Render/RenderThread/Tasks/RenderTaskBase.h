@@ -21,7 +21,12 @@ namespace Engine {
              * This method should also invoke a `std::promise::set_value()`
              * method to notify the caller that an operation is completed.
              */
-            virtual void operator() (RenderThreadState & rts) = 0;
+            void operator() (RenderThreadState & rts) {
+                this->do_execute(rts);
+            };
+        
+        private:
+            virtual void do_execute(RenderThreadState & rts) = 0;
         };
 
         template <class T>
