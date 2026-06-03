@@ -41,7 +41,7 @@ namespace Engine {
         std::unique_ptr <RenderGraph2> active_render_graph{};
 
         /// @brief Indicates whether the current thread is suspended due to command.
-        std::atomic_flag suspended = ATOMIC_FLAG_INIT;
+        std::atomic_flag suspending = ATOMIC_FLAG_INIT;
         /// @brief Indicates whether the current thread is waiting for GPU work,
         std::atomic_flag waiting = ATOMIC_FLAG_INIT;
     };

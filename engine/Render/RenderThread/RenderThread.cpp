@@ -23,16 +23,16 @@ namespace {
                 break;
             } else if (cur == Engine::RenderThreadControlBlock::Command::WAIT) {
                 std::unique_lock ul{control.mtx};
-                state.suspended.test_and_set(std::memory_order::release);
-                state.suspended.notify_all();
+                state.suspending.test_and_set(std::memory_order::release);
+                state.suspending.notify_all();
                 control.cv.wait(ul, [&] {
                     return control.state.load(std::memory_order::acquire) != Engine::RenderThreadControlBlock::Command::WAIT;
                 });
-                state.suspended.clear(std::memory_order::release);
+                state.suspending.clear(std::memory_order::release);
             } else {
                 while(!queue.empty()) {
                     auto f = queue.pop();
-                    f->Execute(state);
+                    (*f)(state);
                     if (control.state.load(std::memory_order::acquire) != Engine::RenderThreadControlBlock::Command::CONTINUE) {
                         break;
                     }
@@ -100,7 +100,7 @@ namespace Engine {
         if (pimpl->control.state == RenderThreadControlBlock::Command::CONTINUE) {
             pimpl->control.state = RenderThreadControlBlock::Command::WAIT;
             pimpl->control.cv.notify_all();
-            pimpl->state.suspended.wait(false);
+            pimpl->state.suspending.wait(false);
         }
     }
 }

@@ -30,8 +30,8 @@ namespace Engine {
         template <class T> requires RenderTasks::is_render_task<T>
         auto push(
             std::unique_ptr <T> task
-        ) const noexcept -> decltype(task->GetFuture()) {
-            auto f = task->GetFuture();
+        ) const noexcept -> decltype(task->get_future()) {
+            auto f = task->get_future();
             this->push_in_queue(std::move(task));
             return f;
         }

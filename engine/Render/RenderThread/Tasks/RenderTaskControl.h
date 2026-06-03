@@ -10,7 +10,7 @@ namespace Engine::RenderTasks {
         typedef void result_type;
 
         std::promise<result_type> p{};
-        auto GetFuture() noexcept { return p.get_future(); }
+        auto get_future() noexcept { return p.get_future(); }
     };
 
     /**
@@ -21,7 +21,7 @@ namespace Engine::RenderTasks {
 
         RenderTaskInitialize(std::weak_ptr <SDLWindow> window) : window(window) {}
 
-        void Execute(RenderThreadState & rts) override {
+        void operator() (RenderThreadState & rts) override {
             assert(!rts.render_system);
 
             rts.render_system = std::make_unique<RenderSystem>(this->window);
