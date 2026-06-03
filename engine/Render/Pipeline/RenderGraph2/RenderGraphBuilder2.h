@@ -13,11 +13,10 @@ namespace Engine {
 
     class RenderGraphBuilder2 {
         struct impl;
-        RenderSystem &system;
         std::unique_ptr<impl> pimpl;
 
     public:
-        RenderGraphBuilder2(RenderSystem &system);
+        RenderGraphBuilder2();
         ~RenderGraphBuilder2();
 
         /**
@@ -104,7 +103,7 @@ namespace Engine {
         /**
          * @brief Construct a render graph according to the passes.
          */
-        RenderGraph2 BuildRenderGraph();
+        RenderGraph2 BuildRenderGraph(RenderSystem & system);
     };
 } // namespace Engine
 

@@ -303,11 +303,7 @@ namespace Engine {
         }
     };
 
-    RenderGraphBuilder2::RenderGraphBuilder2(RenderSystem &system) : system(system), pimpl(std::make_unique<impl>()) {
-        // Append a source pass.
-        /* this->AddPass(
-            RenderGraphPassBuilder{system}.SetName("Virtual Source").Get()
-        ); */
+    RenderGraphBuilder2::RenderGraphBuilder2() : pimpl(std::make_unique<impl>()) {
     }
     RenderGraphBuilder2::~RenderGraphBuilder2() = default;
 
@@ -402,7 +398,7 @@ namespace Engine {
         pimpl->passes.push_back(std::move(pass));
     }
 
-    RenderGraph2 RenderGraphBuilder2::BuildRenderGraph() {
+    RenderGraph2 RenderGraphBuilder2::BuildRenderGraph(RenderSystem & system) {
         auto usage = pimpl->AnalysisUsage();
         auto dg = pimpl->AnalysisDependency(usage);
         // Maps reordered pass indices to original pass indices.
