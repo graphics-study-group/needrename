@@ -19,6 +19,7 @@ namespace {
                 if (state.render_system) {
                     state.render_system->WaitForIdle();
                 }
+                state.active_render_graph.reset();
                 state.render_system.reset();
                 break;
             } else if (cur == Engine::RenderThreadControlBlock::Command::WAIT) {
