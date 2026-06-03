@@ -103,7 +103,7 @@ namespace Engine {
         /**
          * @brief Construct a render graph according to the passes.
          */
-        RenderGraph2 BuildRenderGraph(RenderSystem & system);
+        std::unique_ptr <RenderGraph2> BuildRenderGraph(RenderSystem & system);
     };
 } // namespace Engine
 

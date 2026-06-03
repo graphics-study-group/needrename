@@ -321,7 +321,7 @@ int main(int argc, char **argv) {
             }
         });
 
-        rg.Execute(*rsys);
+        rg->Execute(*rsys);
 
         rsys->CompleteFrame(
             *colors[color],

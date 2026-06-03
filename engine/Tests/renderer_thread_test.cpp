@@ -4,6 +4,7 @@
 #include "Render/FullRenderSystem.h"
 #include "Render/RenderThread/RenderThread.h"
 #include "Render/RenderThread/RenderThreadState.h"
+#include "Render/RenderThread/Tasks/RenderTasks.h"
 
 using namespace Engine;
 

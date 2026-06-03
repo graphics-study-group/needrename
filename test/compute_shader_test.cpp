@@ -120,8 +120,8 @@ int main(int argc, char *argv[]) {
         rsys->StartFrame();
         cbinding.GetStructuredBuffer().SetVariable<uint32_t>("UBO::frame_count", static_cast<uint32_t>(frame_count));
 
-        if (frame_count == 1) rg.AddExternalInputDependency(g_color_in_handle, MemoryAccessTypeImageBits::None);
-        rg.Execute(*rsys);
+        if (frame_count == 1) rg->AddExternalInputDependency(g_color_in_handle, MemoryAccessTypeImageBits::None);
+        rg->Execute(*rsys);
 
         rsys->CompleteFrame(
             *color_present,
