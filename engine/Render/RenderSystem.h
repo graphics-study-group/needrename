@@ -91,7 +91,7 @@ namespace Engine {
          * If you start a frame by manually calling
          * `FrameManager::WaitForAvailableFrame()`, then you must make sure that
          * these data are submitted correctly yourself.
-         * 
+         *
          * @b Blocks until the next frame is available for CPU side work.
          *
          * @todo buffer and texture submissions are completed by `FrameManager`.

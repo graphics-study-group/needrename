@@ -2,17 +2,18 @@
 
 namespace Engine {
     struct RenderServiceQueue::impl {
-        std::deque <std::unique_ptr<RenderTasks::RenderTaskBase>> queue;
+        std::deque<std::unique_ptr<RenderTasks::RenderTaskBase>> queue;
         mutable std::mutex mtx;
     };
 
-    RenderServiceQueue::RenderServiceQueue() : pimpl(std::make_unique<impl>()) {
+    RenderServiceQueue::RenderServiceQueue() :
+        pimpl(std::make_unique<impl>()) {
 
-    };
+        };
 
     RenderServiceQueue::~RenderServiceQueue() noexcept = default;
 
-    void RenderServiceQueue::push_in_queue(std::unique_ptr <RenderTasks::RenderTaskBase> t) const noexcept {
+    void RenderServiceQueue::push_in_queue(std::unique_ptr<RenderTasks::RenderTaskBase> t) const noexcept {
         std::lock_guard _{pimpl->mtx};
         pimpl->queue.push_back(std::move(t));
     }
@@ -25,11 +26,10 @@ namespace Engine {
         return pimpl->queue.empty();
     }
 
-    std::unique_ptr<RenderTasks::RenderTaskBase>
-    RenderServiceQueue::pop() noexcept {
+    std::unique_ptr<RenderTasks::RenderTaskBase> RenderServiceQueue::pop() noexcept {
         std::lock_guard _{pimpl->mtx};
         auto fnt = std::move(pimpl->queue.front());
         pimpl->queue.pop_front();
         return fnt;
     }
-}
+} // namespace Engine

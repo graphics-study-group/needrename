@@ -94,7 +94,7 @@ namespace Engine {
         return *pimpl->pripr_ptr;
     }
 
-    void RenderGraph2::Record(uint32_t pass, vk::CommandBuffer cb, const RenderGraph2Context & ctx) const {
+    void RenderGraph2::Record(uint32_t pass, vk::CommandBuffer cb, const RenderGraph2Context &ctx) const {
 
         assert(pass < pimpl->passes.size());
 

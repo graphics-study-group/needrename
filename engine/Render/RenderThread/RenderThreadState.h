@@ -1,9 +1,9 @@
 #ifndef RENDER_RENDERTHREAD_RENDERTHREADSTATE_INCLUDED
 #define RENDER_RENDERTHREAD_RENDERTHREADSTATE_INCLUDED
 
-#include <memory>
 #include <atomic>
 #include <condition_variable>
+#include <memory>
 
 namespace Engine {
     class RenderSystem;
@@ -23,22 +23,22 @@ namespace Engine {
             HALT
         };
 
-        std::atomic <Command> state{Command::WAIT};
+        std::atomic<Command> state{Command::WAIT};
         mutable std::mutex mtx{};
         mutable std::condition_variable cv{};
     };
 
     /**
      * @brief State of the rendering thread.
-     * 
+     *
      * Its contents except the state are only modified within the queue via tasks.
      * Therefore it is safe to not synchronize its access.
      */
     struct RenderThreadState {
         /// @brief Render system instance held by the thread.
-        std::unique_ptr <RenderSystem> render_system{};
+        std::unique_ptr<RenderSystem> render_system{};
         /// @brief Active render graph for the frame.
-        std::unique_ptr <RenderGraph2> active_render_graph{};
+        std::unique_ptr<RenderGraph2> active_render_graph{};
 
         /// @brief State of the render thread.
         enum class State {
@@ -50,10 +50,10 @@ namespace Engine {
             WAITING_FOR_GPU
         };
 
-        std::atomic <State> state{State::SUSPENDING};
+        std::atomic<State> state{State::SUSPENDING};
         mutable std::mutex state_mtx{};
         mutable std::condition_variable state_cv{};
     };
-}
+} // namespace Engine
 
 #endif // RENDER_RENDERTHREAD_RENDERTHREADSTATE_INCLUDED

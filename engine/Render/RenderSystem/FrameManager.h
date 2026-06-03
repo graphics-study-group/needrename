@@ -21,7 +21,7 @@ namespace Engine {
 
         /**
          * @brief Multiple frame in flight manager
-         * 
+         *
          * To maximize throughput of rendering pipelines, it is allowed for CPU
          * works to overtake GPU works for a few frames. This mechanism is
          * called "frames in flight."
@@ -102,7 +102,7 @@ namespace Engine {
              * flight counter to finish execution, reset corresponding
              * command buffer and fence and acquire a new image on the swapchain
              * that is ready for rendering.
-             * 
+             *
              * Sets up internal states of frame-in-flight tracking, which is
              * @b necessary for further rendering operations.
              *

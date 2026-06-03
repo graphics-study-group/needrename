@@ -1,11 +1,11 @@
 #include "RenderTaskControl.h"
 
-#include "Render/RenderThread/RenderThreadState.h"
 #include "Render/Pipeline/RenderGraph2/RenderGraphBuilder2.h"
+#include "Render/RenderThread/RenderThreadState.h"
 
 namespace Engine::RenderTasks {
 
-    void RenderTaskInitialize::do_execute(RenderThreadState & rts) {
+    void RenderTaskInitialize::do_execute(RenderThreadState &rts) {
         assert(!rts.render_system);
 
         rts.render_system = std::make_unique<RenderSystem>(this->window);
@@ -14,7 +14,7 @@ namespace Engine::RenderTasks {
         p.set_value();
     }
 
-    void RenderTaskRenderOneFrameWithActiveGraph::do_execute(RenderThreadState & rts) {
+    void RenderTaskRenderOneFrameWithActiveGraph::do_execute(RenderThreadState &rts) {
         assert(rts.render_system);
         if (rts.active_render_graph) {
             rts.state.store(RenderThreadState::State::WAITING_FOR_GPU, std::memory_order::release);
@@ -36,17 +36,15 @@ namespace Engine::RenderTasks {
             auto tx = rts.active_render_graph->GetInternalTextureResource(presenting_texture_);
             assert(tx);
             rts.render_system->CompleteFrame(
-                *tx,
-                tx->GetTextureDescription().width,
-                tx->GetTextureDescription().height
+                *tx, tx->GetTextureDescription().width, tx->GetTextureDescription().height
             );
         }
         p.set_value();
     }
 
-    void RenderTaskBuildActiveRenderGraph::do_execute(RenderThreadState & rts) {
+    void RenderTaskBuildActiveRenderGraph::do_execute(RenderThreadState &rts) {
         assert(rts.render_system);
         rts.active_render_graph = builder_->BuildRenderGraph(*rts.render_system);
         p.set_value();
     }
-}
+} // namespace Engine::RenderTasks

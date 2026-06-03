@@ -1,18 +1,18 @@
 #include "RenderThread.h"
 
-#include <thread>
 #include "RenderServiceQueue.h"
 #include "RenderThreadState.h"
+#include <thread>
 
 #include "Render/RenderThread/Tasks/RenderTaskControl.h"
 
 namespace {
     void render_thread_main_func(
-        const Engine::RenderThreadControlBlock & control,
-        Engine::RenderThreadState & state,
-        Engine::RenderServiceQueue & queue
+        const Engine::RenderThreadControlBlock &control,
+        Engine::RenderThreadState &state,
+        Engine::RenderServiceQueue &queue
     ) {
-        while(true) {
+        while (true) {
             auto cur = control.state.load(std::memory_order::acquire);
 
             if (cur == Engine::RenderThreadControlBlock::Command::HALT) {
@@ -27,23 +27,24 @@ namespace {
                 state.state.store(Engine::RenderThreadState::State::SUSPENDING, std::memory_order::release);
                 state.state_cv.notify_all();
                 control.cv.wait(ul, [&] {
-                    return control.state.load(std::memory_order::acquire) != Engine::RenderThreadControlBlock::Command::WAIT;
+                    return control.state.load(std::memory_order::acquire)
+                           != Engine::RenderThreadControlBlock::Command::WAIT;
                 });
             } else if (cur == Engine::RenderThreadControlBlock::Command::CONTINUE) {
                 state.state.store(Engine::RenderThreadState::State::RUNNING, std::memory_order::release);
                 state.state_cv.notify_all();
-                while(!queue.empty()) {
+                while (!queue.empty()) {
                     auto f = queue.pop();
                     (*f)(state);
-                    if (control.state.load(std::memory_order::acquire) != Engine::RenderThreadControlBlock::Command::CONTINUE) {
+                    if (control.state.load(std::memory_order::acquire)
+                        != Engine::RenderThreadControlBlock::Command::CONTINUE) {
                         break;
                     }
                 }
             }
         }
-        
     }
-}
+} // namespace
 
 namespace Engine {
     struct RenderThread::impl {
@@ -53,19 +54,12 @@ namespace Engine {
         RenderServiceQueue queue{};
     };
 
-    RenderThread::RenderThread(
-        std::weak_ptr <SDLWindow> window
-    ) : pimpl(std::make_unique<impl>()) {
+    RenderThread::RenderThread(std::weak_ptr<SDLWindow> window) : pimpl(std::make_unique<impl>()) {
         pimpl->thread = std::jthread{
-            render_thread_main_func,
-            std::cref(pimpl->control),
-            std::ref(pimpl->state),
-            std::ref(pimpl->queue)
+            render_thread_main_func, std::cref(pimpl->control), std::ref(pimpl->state), std::ref(pimpl->queue)
         };
 
-        auto initialization_future = pimpl->queue.push(
-            std::make_unique<RenderTasks::RenderTaskInitialize>(window)
-        );
+        auto initialization_future = pimpl->queue.push(std::make_unique<RenderTasks::RenderTaskInitialize>(window));
         this->Resume();
         initialization_future.wait();
     }
@@ -78,15 +72,15 @@ namespace Engine {
         pimpl->thread.join();
     };
 
-    const RenderServiceQueue & RenderThread::GetServiceQueue() const noexcept {
+    const RenderServiceQueue &RenderThread::GetServiceQueue() const noexcept {
         return pimpl->queue;
     }
 
-    const RenderThreadState & RenderThread::GetThreadState() const noexcept {
+    const RenderThreadState &RenderThread::GetThreadState() const noexcept {
         return pimpl->state;
     }
 
-    RenderThreadState & RenderThread::BlockAndAcquireThreadState() noexcept {
+    RenderThreadState &RenderThread::BlockAndAcquireThreadState() noexcept {
         this->Suspend();
         return pimpl->state;
     }
@@ -94,7 +88,7 @@ namespace Engine {
     void RenderThread::WaitForRenderThread() const noexcept {
         if (pimpl->state.state.load(std::memory_order_acquire) == RenderThreadState::State::WAITING_FOR_GPU) {
             std::unique_lock ul{pimpl->state.state_mtx};
-            pimpl->state.state_cv.wait(ul, [&]{
+            pimpl->state.state_cv.wait(ul, [&] {
                 return pimpl->state.state.load(std::memory_order::acquire) != RenderThreadState::State::WAITING_FOR_GPU;
             });
         }
@@ -114,10 +108,10 @@ namespace Engine {
 
             {
                 std::unique_lock ul{pimpl->state.state_mtx};
-                pimpl->state.state_cv.wait(ul, [&]{
+                pimpl->state.state_cv.wait(ul, [&] {
                     return pimpl->state.state.load(std::memory_order::acquire) == RenderThreadState::State::SUSPENDING;
                 });
             }
         }
     }
-}
+} // namespace Engine

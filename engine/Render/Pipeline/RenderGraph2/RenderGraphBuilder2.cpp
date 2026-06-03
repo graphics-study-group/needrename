@@ -398,7 +398,7 @@ namespace Engine {
         pimpl->passes.push_back(std::move(pass));
     }
 
-    std::unique_ptr <RenderGraph2> RenderGraphBuilder2::BuildRenderGraph(RenderSystem & system) {
+    std::unique_ptr<RenderGraph2> RenderGraphBuilder2::BuildRenderGraph(RenderSystem &system) {
         auto usage = pimpl->AnalysisUsage();
         auto dg = pimpl->AnalysisDependency(usage);
         // Maps reordered pass indices to original pass indices.

@@ -55,6 +55,7 @@ namespace Engine {
      */
     class RenderGraphPassBuilder {
         RenderGraphPass pass{};
+
     public:
         RenderGraphPassBuilder &SetName(std::string name) noexcept {
             pass.name = name;

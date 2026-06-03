@@ -20,8 +20,8 @@ namespace Engine {
      * @brief Contextual data used in a render pass
      */
     struct RenderGraph2Context {
-        RenderSystem * render_system;
-        RenderGraph2 * render_graph;
+        RenderSystem *render_system;
+        RenderGraph2 *render_graph;
         uint32_t frame_in_flight;
     };
 
