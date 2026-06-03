@@ -33,7 +33,7 @@ namespace Engine::RenderTasks {
 
             rts.active_render_graph->Execute(*rts.render_system);
 
-            auto tx = rts.active_render_graph->GetInternalTextureResource(presenting_texture);
+            auto tx = rts.active_render_graph->GetInternalTextureResource(presenting_texture_);
             assert(tx);
             rts.render_system->CompleteFrame(
                 *tx,

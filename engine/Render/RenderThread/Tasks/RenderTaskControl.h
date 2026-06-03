@@ -28,7 +28,8 @@ namespace Engine::RenderTasks {
      * active.
      */
     struct RenderTaskRenderOneFrameWithActiveGraph : RenderTaskControl {
-        RGTextureHandle presenting_texture;
+        RGTextureHandle presenting_texture_;
+        RenderTaskRenderOneFrameWithActiveGraph(RGTextureHandle presenting_texture) : presenting_texture_(presenting_texture) {}
         void do_execute(RenderThreadState & rts) override;
     };
 
