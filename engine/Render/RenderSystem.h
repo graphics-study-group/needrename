@@ -86,10 +86,13 @@ namespace Engine {
         /**
          * @brief Start the rendering of the next frame.
          *
-         * This method also submits necessary data to GPU, meaning that all logic
-         * that might change these data must finish before calling it.
-         * If you start a frame by manually calling `FrameManager::StartFrame()`,
-         * then you must make sure that these data are submitted correctly yourself.
+         * This method also submits necessary data to GPU, meaning that all
+         * logic that might change these data must finish before calling it.
+         * If you start a frame by manually calling
+         * `FrameManager::WaitForAvailableFrame()`, then you must make sure that
+         * these data are submitted correctly yourself.
+         * 
+         * @b Blocks until the next frame is available for CPU side work.
          *
          * @todo buffer and texture submissions are completed by `FrameManager`.
          * Maybe we should unify these two data streams.

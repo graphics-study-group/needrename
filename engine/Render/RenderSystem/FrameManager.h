@@ -19,14 +19,22 @@ namespace Engine {
         class SubmissionHelper;
         class FrameSemaphore;
 
-        /// @brief Multiple frame in flight manager
+        /**
+         * @brief Multiple frame in flight manager
+         * 
+         * To maximize throughput of rendering pipelines, it is allowed for CPU
+         * works to overtake GPU works for a few frames. This mechanism is
+         * called "frames in flight."
+         * Additional synchronization and indirection are required for it to
+         * work as expected, which is hidden behind this class.
+         */
         class FrameManager final {
         public:
             /**
              * @brief Expected frames-in-flight of the current application.
              *
              * Controls to what degree CPU codes can _overtake_ GPU codes. For
-             * a default setting of 3, CPU can record commands 3 frames ahead
+             * a default setting of 3, CPU can record commands 2 frames ahead
              * of the GPU. In general, higher value improves throughput but
              * makes latency larger.
              *
@@ -81,28 +89,32 @@ namespace Engine {
             ComputeContext GetComputeContext();
 
             /**
-             * @brief Request the current main command buffer
+             * @brief Request the main command buffer of the current frame in
+             * flight.
              */
             vk::CommandBuffer GetRawMainCommandBuffer();
 
             /**
-             * @brief Start the rendering of a new frame.
+             * @brief Wait for the next available frame and setup internal
+             * states accordingly.
              *
-             * Wait for the
-             * previous _copy_ command buffer of the same frame in flight counter to finish execution,
+             * Wait for the previous _copy_ command buffer of the same frame in
+             * flight counter to finish execution, reset corresponding
+             * command buffer and fence and acquire a new image on the swapchain
+             * that is ready for rendering.
+             * 
+             * Sets up internal states of frame-in-flight tracking, which is
+             * @b necessary for further rendering operations.
              *
-             * reset corresponding command buffer and fence and acquire a new image on the swapchain that
-             * is ready for rendering.
-             *
-             * @param timeout timeout in milliseconds
+             * @param timeout timeout in milliseconds.
+             * Defaults to watit indefinitely.
              *
              * @return The index of the available image on the swapchain,
-             * which is used to determine
-             * which framebuffer to render to.
+             * which is used to determine which framebuffer to render to.
              * @note The index of the available image might be different
              * from the counter of the current frame in flight.
              */
-            uint32_t StartFrame(uint64_t timeout = std::numeric_limits<uint64_t>::max());
+            uint32_t WaitForAvailableFrame(uint64_t timeout = std::numeric_limits<uint64_t>::max());
 
             /**
              * @brief Submit the main command buffer to the graphics queue for execution.

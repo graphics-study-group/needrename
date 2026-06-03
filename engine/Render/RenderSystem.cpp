@@ -172,7 +172,7 @@ namespace Engine {
     }
 
     uint32_t RenderSystem::StartFrame() {
-        auto fb = pimpl->m_frame_manager.StartFrame();
+        auto fb = pimpl->m_frame_manager.WaitForAvailableFrame();
         GetCameraManager().FetchCameraData();
         GetCameraManager().UploadCameraData(GetFrameManager().GetFrameInFlight());
 

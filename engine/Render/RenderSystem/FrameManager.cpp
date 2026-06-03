@@ -280,7 +280,7 @@ namespace Engine::RenderSystemState {
         return pimpl->command_buffers[GetFrameInFlight()].get();
     }
 
-    uint32_t FrameManager::StartFrame(uint64_t timeout) {
+    uint32_t FrameManager::WaitForAvailableFrame(uint64_t timeout) {
 
         auto device = pimpl->m_system.GetDevice();
         uint32_t fif = GetFrameInFlight();
@@ -291,15 +291,6 @@ namespace Engine::RenderSystemState {
         if (wait_result != vk::Result::eSuccess) {
             throw std::runtime_error(vk::to_string(wait_result) + " happened when waiting for frame fences.");
         }
-        pimpl->command_buffers[fif]->reset();
-        device.resetFences({fence});
-
-        // Kickstart of this frame
-        // Prevent validation layer from complaining
-        if (pimpl->timeline_semaphores[fif].GetTotalElapsedTimepoints() > 0) {
-            device.signalSemaphore(pimpl->timeline_semaphores[fif].GetSignalInfo(1));
-        }
-
         // Acquire new image
         auto acquire_result = device.acquireNextImageKHR(
             pimpl->m_system.GetSwapchain().GetSwapchain(), timeout, pimpl->image_acquired_semaphores[fif].get(), nullptr
@@ -314,8 +305,16 @@ namespace Engine::RenderSystemState {
                 vk::to_string(acquire_result.result).c_str()
             );
         }
-        pimpl->current_framebuffer = acquire_result.value;
 
+        pimpl->command_buffers[fif]->reset();
+        device.resetFences({fence});
+
+        // Kickstart of this frame
+        // Prevent validation layer from complaining
+        if (pimpl->timeline_semaphores[fif].GetTotalElapsedTimepoints() > 0) {
+            device.signalSemaphore(pimpl->timeline_semaphores[fif].GetSignalInfo(1));
+        }
+        pimpl->current_framebuffer = acquire_result.value;
         return pimpl->current_framebuffer;
     }
 
