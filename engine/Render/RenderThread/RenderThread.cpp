@@ -8,31 +8,32 @@
 
 namespace {
     void render_thread_main_func(
+        const Engine::RenderThreadControlBlock & control,
         Engine::RenderThreadState & state,
         Engine::RenderServiceQueue & queue
     ) {
         while(true) {
-            auto cur = state.control.state.load(std::memory_order::acquire);
+            auto cur = control.state.load(std::memory_order::acquire);
 
-            if (cur == Engine::RenderThreadState::State::HALTED) {
+            if (cur == Engine::RenderThreadControlBlock::Command::HALT) {
                 if (state.render_system) {
                     state.render_system->WaitForIdle();
                 }
                 state.render_system.reset();
                 break;
-            } else if (cur == Engine::RenderThreadState::State::WAITING) {
-                std::unique_lock ul{state.control.mtx};
-                state.control.suspended.test_and_set(std::memory_order::release);
-                state.control.suspended.notify_all();
-                state.control.cv.wait(ul, [&] {
-                    return state.control.state.load(std::memory_order::acquire) != Engine::RenderThreadState::State::WAITING;
+            } else if (cur == Engine::RenderThreadControlBlock::Command::WAIT) {
+                std::unique_lock ul{control.mtx};
+                state.suspended.test_and_set(std::memory_order::release);
+                state.suspended.notify_all();
+                control.cv.wait(ul, [&] {
+                    return control.state.load(std::memory_order::acquire) != Engine::RenderThreadControlBlock::Command::WAIT;
                 });
-                state.control.suspended.clear(std::memory_order::release);
+                state.suspended.clear(std::memory_order::release);
             } else {
                 while(!queue.empty()) {
                     auto f = queue.pop();
                     f->Execute(state);
-                    if (state.control.state.load(std::memory_order::acquire) != Engine::RenderThreadState::State::RUNNING) {
+                    if (control.state.load(std::memory_order::acquire) != Engine::RenderThreadControlBlock::Command::CONTINUE) {
                         break;
                     }
                 }
@@ -45,6 +46,7 @@ namespace {
 namespace Engine {
     struct RenderThread::impl {
         std::jthread thread{};
+        RenderThreadControlBlock control{};
         RenderThreadState state{};
         RenderServiceQueue queue{};
     };
@@ -54,6 +56,7 @@ namespace Engine {
     ) : pimpl(std::make_unique<impl>()) {
         pimpl->thread = std::jthread{
             render_thread_main_func,
+            std::cref(pimpl->control),
             std::ref(pimpl->state),
             std::ref(pimpl->queue)
         };
@@ -66,8 +69,8 @@ namespace Engine {
     }
 
     RenderThread::~RenderThread() noexcept {
-        pimpl->state.control.state = RenderThreadState::State::HALTED;
-        pimpl->state.control.cv.notify_all();
+        pimpl->control.state = RenderThreadControlBlock::Command::HALT;
+        pimpl->control.cv.notify_all();
 
         pimpl->thread.get_stop_source().request_stop();
         pimpl->thread.join();
@@ -87,17 +90,17 @@ namespace Engine {
     }
 
     void RenderThread::Resume() const noexcept {
-        if (pimpl->state.control.state == RenderThreadState::State::WAITING) {
-            pimpl->state.control.state = RenderThreadState::State::RUNNING;
-            pimpl->state.control.cv.notify_all();
+        if (pimpl->control.state == RenderThreadControlBlock::Command::WAIT) {
+            pimpl->control.state = RenderThreadControlBlock::Command::CONTINUE;
+            pimpl->control.cv.notify_all();
         }
     }
 
     void RenderThread::Suspend() const noexcept {
-        if (pimpl->state.control.state == RenderThreadState::State::RUNNING) {
-            pimpl->state.control.state = RenderThreadState::State::WAITING;
-            pimpl->state.control.cv.notify_all();
-            pimpl->state.control.suspended.wait(false);
+        if (pimpl->control.state == RenderThreadControlBlock::Command::CONTINUE) {
+            pimpl->control.state = RenderThreadControlBlock::Command::WAIT;
+            pimpl->control.cv.notify_all();
+            pimpl->state.suspended.wait(false);
         }
     }
 }
