@@ -9,10 +9,14 @@
 #include <gtc/quaternion.hpp>
 
 #include <deque>
+#include <memory>
 #include <unordered_map>
 #include <vector>
 
 namespace Engine {
+    class ComputeBuffer;
+    class RenderSystem;
+
     /**
      * @brief Enumerates supported collision shape kinds.
      *
@@ -211,9 +215,45 @@ namespace Engine {
          * @brief Initialize all queued rigid bodies.
          *
          * This recalculates center of mass, inertia tensor, and shape local
-         * poses for affected rigid bodies.
+         * poses for affected rigid bodies, then refreshes the GPU SoA mirror.
          */
-        void InitializePendingRigidBodies();
+        void InitializePendingRigidBodies(RenderSystem &render_system);
+
+        uint32_t GetRigidBodySlotCount() const noexcept;
+        const glm::vec4 &GetRigidBodyCenterWorldPosition(uint32_t rigid_body_index) const;
+        void DebugApplyPlaceholderCenterShift(const glm::vec4 &delta);
+
+        /// @brief Get rigid body slot count mirrored to GPU buffers.
+        uint32_t GetGpuRigidBodySlotCount() const noexcept;
+        /// @brief Get shape slot count mirrored to GPU buffers.
+        uint32_t GetGpuShapeSlotCount() const noexcept;
+
+        const ComputeBuffer *GetGpuRigidBodyAliveBuffer() const noexcept;
+        const ComputeBuffer *GetGpuRigidBodyMassBuffer() const noexcept;
+        const ComputeBuffer *GetGpuRigidBodyStaticFrictionBuffer() const noexcept;
+        const ComputeBuffer *GetGpuRigidBodyDynamicFrictionBuffer() const noexcept;
+        const ComputeBuffer *GetGpuRigidBodyRestitutionBuffer() const noexcept;
+        const ComputeBuffer *GetGpuRigidBodyIsKinematicBuffer() const noexcept;
+        const ComputeBuffer *GetGpuRigidBodyCenterPositionBuffer() const noexcept;
+        const ComputeBuffer *GetGpuRigidBodyCenterRotationBuffer() const noexcept;
+        const ComputeBuffer *GetGpuRigidBodyInertiaBuffer() const noexcept;
+        const ComputeBuffer *GetGpuRigidBodyLinearVelocityBuffer() const noexcept;
+        const ComputeBuffer *GetGpuRigidBodyAngularVelocityBuffer() const noexcept;
+        const ComputeBuffer *GetGpuRigidBodyExternalForceBuffer() const noexcept;
+        const ComputeBuffer *GetGpuRigidBodyExternalTorqueBuffer() const noexcept;
+
+        const ComputeBuffer *GetGpuShapeAliveBuffer() const noexcept;
+        const ComputeBuffer *GetGpuShapeTypeBuffer() const noexcept;
+        const ComputeBuffer *GetGpuShapeBoundRigidBodyBuffer() const noexcept;
+        const ComputeBuffer *GetGpuShapeHalfExtentsBuffer() const noexcept;
+        const ComputeBuffer *GetGpuShapeLocalPositionBuffer() const noexcept;
+        const ComputeBuffer *GetGpuShapeLocalRotationBuffer() const noexcept;
+        const ComputeBuffer *GetGpuShapeWorldPositionBuffer() const noexcept;
+        const ComputeBuffer *GetGpuShapeWorldRotationBuffer() const noexcept;
+
+        const ComputeBuffer *GetGpuRigidBodyShapeOffsetBuffer() const noexcept;
+        const ComputeBuffer *GetGpuRigidBodyShapeCountBuffer() const noexcept;
+        const ComputeBuffer *GetGpuFlattenedShapeIndexBuffer() const noexcept;
 
         /**
          * @brief Check whether a rigid body index is alive.
@@ -256,11 +296,12 @@ namespace Engine {
         void AddShapeToRigidBodyMap(uint32_t rigid_body_index, uint32_t shape_index);
         void RemoveShapeFromRigidBodyMap(uint32_t rigid_body_index, uint32_t shape_index);
         void RecalculateRigidBodyState(uint32_t rigid_body_index);
+        void RefreshGpuBuffers(RenderSystem &render_system);
 
         uint32_t m_scene_id{0};
 
-        std::vector<bool> m_rigid_body_alive{};
-        std::vector<bool> m_shape_alive{};
+        std::vector<uint32_t> m_rigid_body_alive{};
+        std::vector<uint32_t> m_shape_alive{};
 
         std::vector<ObjectHandle> m_rigid_body_to_object{};
         std::unordered_map<ObjectHandle, uint32_t> m_object_to_rigid_body{};
@@ -272,26 +313,58 @@ namespace Engine {
         std::vector<float> m_rigid_body_static_friction{};
         std::vector<float> m_rigid_body_dynamic_friction{};
         std::vector<float> m_rigid_body_restitution{};
-        std::vector<bool> m_rigid_body_is_kinematic{};
-        std::vector<glm::vec3> m_rigid_body_center_world_position{};
-        std::vector<glm::quat> m_rigid_body_center_world_rotation{};
-        std::vector<glm::vec3> m_rigid_body_center_offset_local_position{};
-        std::vector<glm::mat3> m_rigid_body_inertia_tensor_local{};
-        std::vector<glm::vec3> m_rigid_body_linear_velocity{};
-        std::vector<glm::vec3> m_rigid_body_angular_velocity_axis_angle{};
-        std::vector<glm::vec3> m_rigid_body_external_force{};
-        std::vector<glm::vec3> m_rigid_body_external_torque{};
+        std::vector<uint32_t> m_rigid_body_is_kinematic{};
+        std::vector<glm::vec4> m_rigid_body_center_world_position{};
+        std::vector<glm::vec4> m_rigid_body_center_world_rotation{};
+        std::vector<glm::vec4> m_rigid_body_center_offset_local_position{};
+        std::vector<glm::mat4> m_rigid_body_inertia{};
+        std::vector<glm::vec4> m_rigid_body_linear_velocity{};
+        std::vector<glm::vec4> m_rigid_body_angular_velocity{};
+        std::vector<glm::vec4> m_rigid_body_external_force{};
+        std::vector<glm::vec4> m_rigid_body_external_torque{};
         std::vector<bool> m_rigid_body_need_init{};
         std::deque<uint32_t> m_rigid_body_init_queue{};
         std::unordered_map<uint32_t, std::vector<uint32_t>> m_rigid_body_to_shapes{};
 
         std::vector<uint32_t> m_shape_to_rigid_body{};
-        std::vector<CollisionShapeType> m_shape_type{};
-        std::vector<glm::vec3> m_shape_half_extents{};
-        std::vector<glm::vec3> m_shape_position{};
-        std::vector<glm::quat> m_shape_rotation{};
-        std::vector<glm::vec3> m_shape_world_position{};
-        std::vector<glm::quat> m_shape_world_rotation{};
+        std::vector<uint32_t> m_shape_type{};
+        std::vector<glm::vec4> m_shape_half_extents{};
+        std::vector<glm::vec4> m_shape_position{};
+        std::vector<glm::vec4> m_shape_rotation{};
+        std::vector<glm::vec4> m_shape_world_position{};
+        std::vector<glm::vec4> m_shape_world_rotation{};
+
+        uint32_t m_gpu_rigid_body_slot_count{0};
+        uint32_t m_gpu_shape_slot_count{0};
+        uint32_t m_gpu_flattened_shape_index_count{0};
+
+        std::unique_ptr<ComputeBuffer> m_gpu_rigid_body_alive{};
+        std::unique_ptr<ComputeBuffer> m_gpu_rigid_body_mass{};
+        std::unique_ptr<ComputeBuffer> m_gpu_rigid_body_static_friction{};
+        std::unique_ptr<ComputeBuffer> m_gpu_rigid_body_dynamic_friction{};
+        std::unique_ptr<ComputeBuffer> m_gpu_rigid_body_restitution{};
+        std::unique_ptr<ComputeBuffer> m_gpu_rigid_body_is_kinematic{};
+        std::unique_ptr<ComputeBuffer> m_gpu_rigid_body_center_world_position{};
+        std::unique_ptr<ComputeBuffer> m_gpu_rigid_body_center_world_rotation{};
+        std::unique_ptr<ComputeBuffer> m_gpu_rigid_body_center_offset_local_position{};
+        std::unique_ptr<ComputeBuffer> m_gpu_rigid_body_inertia{};
+        std::unique_ptr<ComputeBuffer> m_gpu_rigid_body_linear_velocity{};
+        std::unique_ptr<ComputeBuffer> m_gpu_rigid_body_angular_velocity{};
+        std::unique_ptr<ComputeBuffer> m_gpu_rigid_body_external_force{};
+        std::unique_ptr<ComputeBuffer> m_gpu_rigid_body_external_torque{};
+
+        std::unique_ptr<ComputeBuffer> m_gpu_shape_alive{};
+        std::unique_ptr<ComputeBuffer> m_gpu_shape_type{};
+        std::unique_ptr<ComputeBuffer> m_gpu_shape_bound_rigid_body{};
+        std::unique_ptr<ComputeBuffer> m_gpu_shape_half_extents{};
+        std::unique_ptr<ComputeBuffer> m_gpu_shape_local_position{};
+        std::unique_ptr<ComputeBuffer> m_gpu_shape_local_rotation{};
+        std::unique_ptr<ComputeBuffer> m_gpu_shape_world_position{};
+        std::unique_ptr<ComputeBuffer> m_gpu_shape_world_rotation{};
+
+        std::unique_ptr<ComputeBuffer> m_gpu_rigid_body_shape_offset{};
+        std::unique_ptr<ComputeBuffer> m_gpu_rigid_body_shape_count{};
+        std::unique_ptr<ComputeBuffer> m_gpu_flattened_shape_indices{};
     };
 } // namespace Engine
 
