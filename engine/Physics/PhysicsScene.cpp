@@ -373,126 +373,36 @@ namespace Engine {
         );
     }
 
-    uint32_t PhysicsScene::GetRigidBodySlotCount() const noexcept {
-        return static_cast<uint32_t>(m_rigid_body_alive.size());
-    }
-
-    const glm::vec4 &PhysicsScene::GetRigidBodyCenterWorldPosition(uint32_t rigid_body_index) const {
-        assert(rigid_body_index < m_rigid_body_center_world_position.size());
-        return m_rigid_body_center_world_position[rigid_body_index];
-    }
-
-    void PhysicsScene::DebugApplyPlaceholderCenterShift(const glm::vec4 &delta) {
-        for (uint32_t rigid_body_index = 0; rigid_body_index < m_rigid_body_alive.size(); rigid_body_index++) {
-            if (m_rigid_body_alive[rigid_body_index] == 0u) {
-                continue;
-            }
-            m_rigid_body_center_world_position[rigid_body_index] += delta;
-        }
-    }
-
-    uint32_t PhysicsScene::GetGpuRigidBodySlotCount() const noexcept {
-        return m_gpu_rigid_body_slot_count;
-    }
-
-    uint32_t PhysicsScene::GetGpuShapeSlotCount() const noexcept {
-        return m_gpu_shape_slot_count;
-    }
-
-    const ComputeBuffer *PhysicsScene::GetGpuRigidBodyAliveBuffer() const noexcept {
-        return m_gpu_rigid_body_alive.get();
-    }
-
-    const ComputeBuffer *PhysicsScene::GetGpuRigidBodyMassBuffer() const noexcept {
-        return m_gpu_rigid_body_mass.get();
-    }
-
-    const ComputeBuffer *PhysicsScene::GetGpuRigidBodyStaticFrictionBuffer() const noexcept {
-        return m_gpu_rigid_body_static_friction.get();
-    }
-
-    const ComputeBuffer *PhysicsScene::GetGpuRigidBodyDynamicFrictionBuffer() const noexcept {
-        return m_gpu_rigid_body_dynamic_friction.get();
-    }
-
-    const ComputeBuffer *PhysicsScene::GetGpuRigidBodyRestitutionBuffer() const noexcept {
-        return m_gpu_rigid_body_restitution.get();
-    }
-
-    const ComputeBuffer *PhysicsScene::GetGpuRigidBodyIsKinematicBuffer() const noexcept {
-        return m_gpu_rigid_body_is_kinematic.get();
-    }
-
-    const ComputeBuffer *PhysicsScene::GetGpuRigidBodyCenterPositionBuffer() const noexcept {
-        return m_gpu_rigid_body_center_world_position.get();
-    }
-
-    const ComputeBuffer *PhysicsScene::GetGpuRigidBodyCenterRotationBuffer() const noexcept {
-        return m_gpu_rigid_body_center_world_rotation.get();
-    }
-
-    const ComputeBuffer *PhysicsScene::GetGpuRigidBodyInertiaBuffer() const noexcept {
-        return m_gpu_rigid_body_inertia.get();
-    }
-
-    const ComputeBuffer *PhysicsScene::GetGpuRigidBodyLinearVelocityBuffer() const noexcept {
-        return m_gpu_rigid_body_linear_velocity.get();
-    }
-
-    const ComputeBuffer *PhysicsScene::GetGpuRigidBodyAngularVelocityBuffer() const noexcept {
-        return m_gpu_rigid_body_angular_velocity.get();
-    }
-
-    const ComputeBuffer *PhysicsScene::GetGpuRigidBodyExternalForceBuffer() const noexcept {
-        return m_gpu_rigid_body_external_force.get();
-    }
-
-    const ComputeBuffer *PhysicsScene::GetGpuRigidBodyExternalTorqueBuffer() const noexcept {
-        return m_gpu_rigid_body_external_torque.get();
-    }
-
-    const ComputeBuffer *PhysicsScene::GetGpuShapeAliveBuffer() const noexcept {
-        return m_gpu_shape_alive.get();
-    }
-
-    const ComputeBuffer *PhysicsScene::GetGpuShapeTypeBuffer() const noexcept {
-        return m_gpu_shape_type.get();
-    }
-
-    const ComputeBuffer *PhysicsScene::GetGpuShapeBoundRigidBodyBuffer() const noexcept {
-        return m_gpu_shape_bound_rigid_body.get();
-    }
-
-    const ComputeBuffer *PhysicsScene::GetGpuShapeHalfExtentsBuffer() const noexcept {
-        return m_gpu_shape_half_extents.get();
-    }
-
-    const ComputeBuffer *PhysicsScene::GetGpuShapeLocalPositionBuffer() const noexcept {
-        return m_gpu_shape_local_position.get();
-    }
-
-    const ComputeBuffer *PhysicsScene::GetGpuShapeLocalRotationBuffer() const noexcept {
-        return m_gpu_shape_local_rotation.get();
-    }
-
-    const ComputeBuffer *PhysicsScene::GetGpuShapeWorldPositionBuffer() const noexcept {
-        return m_gpu_shape_world_position.get();
-    }
-
-    const ComputeBuffer *PhysicsScene::GetGpuShapeWorldRotationBuffer() const noexcept {
-        return m_gpu_shape_world_rotation.get();
-    }
-
-    const ComputeBuffer *PhysicsScene::GetGpuRigidBodyShapeOffsetBuffer() const noexcept {
-        return m_gpu_rigid_body_shape_offset.get();
-    }
-
-    const ComputeBuffer *PhysicsScene::GetGpuRigidBodyShapeCountBuffer() const noexcept {
-        return m_gpu_rigid_body_shape_count.get();
-    }
-
-    const ComputeBuffer *PhysicsScene::GetGpuFlattenedShapeIndexBuffer() const noexcept {
-        return m_gpu_flattened_shape_indices.get();
+    PhysicsScene::PhysicsGpuBuffers PhysicsScene::GetGpuBuffers() const noexcept {
+        return {
+            m_gpu_rigid_body_alive.get(),
+            m_gpu_rigid_body_mass.get(),
+            m_gpu_rigid_body_static_friction.get(),
+            m_gpu_rigid_body_dynamic_friction.get(),
+            m_gpu_rigid_body_restitution.get(),
+            m_gpu_rigid_body_is_kinematic.get(),
+            m_gpu_rigid_body_center_world_position.get(),
+            m_gpu_rigid_body_center_world_rotation.get(),
+            m_gpu_rigid_body_center_offset_local_position.get(),
+            m_gpu_rigid_body_inertia.get(),
+            m_gpu_rigid_body_linear_velocity.get(),
+            m_gpu_rigid_body_angular_velocity.get(),
+            m_gpu_rigid_body_external_force.get(),
+            m_gpu_rigid_body_external_torque.get(),
+            m_gpu_shape_alive.get(),
+            m_gpu_shape_type.get(),
+            m_gpu_shape_bound_rigid_body.get(),
+            m_gpu_shape_half_extents.get(),
+            m_gpu_shape_local_position.get(),
+            m_gpu_shape_local_rotation.get(),
+            m_gpu_shape_world_position.get(),
+            m_gpu_shape_world_rotation.get(),
+            m_gpu_rigid_body_shape_offset.get(),
+            m_gpu_rigid_body_shape_count.get(),
+            m_gpu_flattened_shape_indices.get(),
+            m_gpu_rigid_body_slot_count,
+            m_gpu_shape_slot_count,
+        };
     }
 
     bool PhysicsScene::IsRigidBodyIndexValid(uint32_t rigid_body_index) const {

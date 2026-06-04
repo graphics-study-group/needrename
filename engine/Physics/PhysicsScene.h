@@ -219,41 +219,40 @@ namespace Engine {
          */
         void InitializePendingRigidBodies(RenderSystem &render_system);
 
-        uint32_t GetRigidBodySlotCount() const noexcept;
-        const glm::vec4 &GetRigidBodyCenterWorldPosition(uint32_t rigid_body_index) const;
-        void DebugApplyPlaceholderCenterShift(const glm::vec4 &delta);
+        struct PhysicsGpuBuffers {
+            const ComputeBuffer *rigid_body_alive{};
+            const ComputeBuffer *rigid_body_mass{};
+            const ComputeBuffer *rigid_body_static_friction{};
+            const ComputeBuffer *rigid_body_dynamic_friction{};
+            const ComputeBuffer *rigid_body_restitution{};
+            const ComputeBuffer *rigid_body_is_kinematic{};
+            const ComputeBuffer *rigid_body_center_world_position{};
+            const ComputeBuffer *rigid_body_center_world_rotation{};
+            const ComputeBuffer *rigid_body_center_offset_local_position{};
+            const ComputeBuffer *rigid_body_inertia{};
+            const ComputeBuffer *rigid_body_linear_velocity{};
+            const ComputeBuffer *rigid_body_angular_velocity{};
+            const ComputeBuffer *rigid_body_external_force{};
+            const ComputeBuffer *rigid_body_external_torque{};
 
-        /// @brief Get rigid body slot count mirrored to GPU buffers.
-        uint32_t GetGpuRigidBodySlotCount() const noexcept;
-        /// @brief Get shape slot count mirrored to GPU buffers.
-        uint32_t GetGpuShapeSlotCount() const noexcept;
+            const ComputeBuffer *shape_alive{};
+            const ComputeBuffer *shape_type{};
+            const ComputeBuffer *shape_bound_rigid_body{};
+            const ComputeBuffer *shape_half_extents{};
+            const ComputeBuffer *shape_local_position{};
+            const ComputeBuffer *shape_local_rotation{};
+            const ComputeBuffer *shape_world_position{};
+            const ComputeBuffer *shape_world_rotation{};
 
-        const ComputeBuffer *GetGpuRigidBodyAliveBuffer() const noexcept;
-        const ComputeBuffer *GetGpuRigidBodyMassBuffer() const noexcept;
-        const ComputeBuffer *GetGpuRigidBodyStaticFrictionBuffer() const noexcept;
-        const ComputeBuffer *GetGpuRigidBodyDynamicFrictionBuffer() const noexcept;
-        const ComputeBuffer *GetGpuRigidBodyRestitutionBuffer() const noexcept;
-        const ComputeBuffer *GetGpuRigidBodyIsKinematicBuffer() const noexcept;
-        const ComputeBuffer *GetGpuRigidBodyCenterPositionBuffer() const noexcept;
-        const ComputeBuffer *GetGpuRigidBodyCenterRotationBuffer() const noexcept;
-        const ComputeBuffer *GetGpuRigidBodyInertiaBuffer() const noexcept;
-        const ComputeBuffer *GetGpuRigidBodyLinearVelocityBuffer() const noexcept;
-        const ComputeBuffer *GetGpuRigidBodyAngularVelocityBuffer() const noexcept;
-        const ComputeBuffer *GetGpuRigidBodyExternalForceBuffer() const noexcept;
-        const ComputeBuffer *GetGpuRigidBodyExternalTorqueBuffer() const noexcept;
+            const ComputeBuffer *rigid_body_shape_offset{};
+            const ComputeBuffer *rigid_body_shape_count{};
+            const ComputeBuffer *flattened_shape_indices{};
 
-        const ComputeBuffer *GetGpuShapeAliveBuffer() const noexcept;
-        const ComputeBuffer *GetGpuShapeTypeBuffer() const noexcept;
-        const ComputeBuffer *GetGpuShapeBoundRigidBodyBuffer() const noexcept;
-        const ComputeBuffer *GetGpuShapeHalfExtentsBuffer() const noexcept;
-        const ComputeBuffer *GetGpuShapeLocalPositionBuffer() const noexcept;
-        const ComputeBuffer *GetGpuShapeLocalRotationBuffer() const noexcept;
-        const ComputeBuffer *GetGpuShapeWorldPositionBuffer() const noexcept;
-        const ComputeBuffer *GetGpuShapeWorldRotationBuffer() const noexcept;
+            uint32_t rigid_body_slot_count{0};
+            uint32_t shape_slot_count{0};
+        };
 
-        const ComputeBuffer *GetGpuRigidBodyShapeOffsetBuffer() const noexcept;
-        const ComputeBuffer *GetGpuRigidBodyShapeCountBuffer() const noexcept;
-        const ComputeBuffer *GetGpuFlattenedShapeIndexBuffer() const noexcept;
+        PhysicsGpuBuffers GetGpuBuffers() const noexcept;
 
         /**
          * @brief Check whether a rigid body index is alive.

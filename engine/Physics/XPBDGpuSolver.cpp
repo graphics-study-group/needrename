@@ -51,11 +51,10 @@ void main() {
 
 namespace Engine {
     void XPBDGpuSolver::Step(RenderSystem &render_system, PhysicsScene &physics_scene) {
-        const ComputeBuffer *rigid_body_alive = physics_scene.GetGpuRigidBodyAliveBuffer();
-        const ComputeBuffer *rigid_body_center_position = physics_scene.GetGpuRigidBodyCenterPositionBuffer();
-        const uint32_t rigid_body_count = physics_scene.GetGpuRigidBodySlotCount();
+        const auto gpu = physics_scene.GetGpuBuffers();
 
-        if (rigid_body_alive == nullptr || rigid_body_center_position == nullptr || rigid_body_count == 0u) {
+        if (gpu.rigid_body_alive == nullptr || gpu.rigid_body_center_world_position == nullptr
+            || gpu.rigid_body_slot_count == 0u) {
             return;
         }
 
@@ -67,8 +66,8 @@ namespace Engine {
         compute_stage.Instantiate(spirv, "Physics XPBD Placeholder Step");
 
         auto &resource_binding = compute_stage.AllocateResourceBinding();
-        resource_binding.GetShaderResourceBinding().BindBuffer("RigidBodyAlive", *rigid_body_alive);
-        resource_binding.GetShaderResourceBinding().BindBuffer("RigidBodyCenterPosition", *rigid_body_center_position);
+        resource_binding.GetShaderResourceBinding().BindBuffer("RigidBodyAlive", *gpu.rigid_body_alive);
+        resource_binding.GetShaderResourceBinding().BindBuffer("RigidBodyCenterPosition", *gpu.rigid_body_center_world_position);
 
         const auto &queue_info = render_system.GetDeviceInterface().GetQueueInfo();
         vk::CommandBufferAllocateInfo command_buffer_allocate_info{
@@ -93,7 +92,7 @@ namespace Engine {
             };
             compute_command_buffer.BindComputeStage(compute_stage);
             compute_command_buffer.BindComputeResource(resource_binding);
-            compute_command_buffer.DispatchCompute((rigid_body_count + 63u) / 64u, 1, 1);
+            compute_command_buffer.DispatchCompute((gpu.rigid_body_slot_count + 63u) / 64u, 1, 1);
         }
 
         const vk::MemoryBarrier2 post_barrier{
@@ -108,12 +107,5 @@ namespace Engine {
         const vk::SubmitInfo submit_info{{}, {}, {command_buffer}, {}};
         queue_info.graphicsQueue.submit(submit_info);
         queue_info.graphicsQueue.waitIdle();
-
-        // physics_scene.DebugApplyPlaceholderCenterShift(glm::vec4(0.0f, -0.01f, 0.0f, 0.0f));
-
-        SDL_LogWarn(
-            SDL_LOG_CATEGORY_APPLICATION,
-            "XPBDGpuSolver::Step is using placeholder logic: alive rigid body center.y -= 0.01"
-        );
     }
 } // namespace Engine
