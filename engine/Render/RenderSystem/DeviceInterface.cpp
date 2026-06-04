@@ -10,12 +10,17 @@ namespace Engine::RenderSystemState {
     struct DeviceInterface::impl {
 
         static constexpr const char *VALIDATION_LAYER_NAME{"VK_LAYER_KHRONOS_validation"};
-        static constexpr std::array<const char *, 2> DEVICE_EXTENSION_NAMES{
-            VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME
+        static constexpr std::array<const char *, 3> DEVICE_EXTENSION_NAMES{
+            VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+            VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME,
+            VK_KHR_SHADER_NON_SEMANTIC_INFO_EXTENSION_NAME
         };
 
         vk::UniqueInstance instance{};
         vk::UniqueSurfaceKHR surface{};
+#ifndef NDEBUG
+        vk::UniqueDebugUtilsMessengerEXT debug_messenger{};
+#endif
         vk::PhysicalDeviceMemoryProperties physical_device_memory_properties{};
         vk::PhysicalDeviceProperties physical_device_properties{};
         vk::PhysicalDevice physical_device{};
@@ -95,6 +100,7 @@ namespace Engine::RenderSystemState {
             }
 #ifndef NDEBUG
             extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+            extensions.push_back(VK_EXT_VALIDATION_FEATURES_EXTENSION_NAME);
 #endif
 
             SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "%u vulkan extensions requested.", extCount);
@@ -103,7 +109,16 @@ namespace Engine::RenderSystemState {
             }
 
             vk::InstanceCreateInfo instInfo{vk::InstanceCreateFlags{}, &appInfo, {}, extensions};
+
 #ifndef NDEBUG
+            vk::ValidationFeaturesEXT validation_features{};
+            std::array<vk::ValidationFeatureEnableEXT, 1> enabled_features{
+                vk::ValidationFeatureEnableEXT::eDebugPrintf
+            };
+            validation_features.enabledValidationFeatureCount = static_cast<uint32_t>(enabled_features.size());
+            validation_features.pEnabledValidationFeatures = enabled_features.data();
+            instInfo.pNext = &validation_features;
+
             if (InstanceCheckValidationLayer()) {
                 instInfo.enabledLayerCount = 1;
                 instInfo.ppEnabledLayerNames = &(VALIDATION_LAYER_NAME);
@@ -119,6 +134,26 @@ namespace Engine::RenderSystemState {
             } else {
                 VULKAN_HPP_DEFAULT_DISPATCHER.init(instance.get());
             }
+
+#ifndef NDEBUG
+            {
+                vk::DebugUtilsMessengerCreateInfoEXT messenger_info{};
+                messenger_info.messageSeverity = vk::DebugUtilsMessageSeverityFlagBitsEXT::eInfo
+                                                 | vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning
+                                                 | vk::DebugUtilsMessageSeverityFlagBitsEXT::eError;
+                messenger_info.messageType = vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral
+                                             | vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation
+                                             | vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance;
+                messenger_info.pfnUserCallback = [](vk::DebugUtilsMessageSeverityFlagBitsEXT,
+                                                    vk::DebugUtilsMessageTypeFlagsEXT,
+                                                    const vk::DebugUtilsMessengerCallbackDataEXT *pCallbackData,
+                                                    void *) -> VkBool32 {
+                    SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "[Vulkan] %s", pCallbackData->pMessage);
+                    return VK_FALSE;
+                };
+                debug_messenger = instance->createDebugUtilsMessengerEXTUnique(messenger_info);
+            }
+#endif
         }
 
         /**

@@ -19,6 +19,7 @@
 namespace {
     constexpr const char kPlaceholderXpbdStepShader[] = R"(
 #version 450 core
+#extension GL_EXT_debug_printf : enable
 
 layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 
@@ -39,7 +40,11 @@ void main() {
         return;
     }
 
+    debugPrintfEXT("XPBD step: rigid_body[%u] before.y=%.2f", index, rigid_body_center_position.v[index].y);
+
     rigid_body_center_position.v[index].y -= 0.01;
+
+    debugPrintfEXT("XPBD step: rigid_body[%u] after.y=%.2f", index, rigid_body_center_position.v[index].y);
 }
 )";
 } // namespace
