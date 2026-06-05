@@ -29,7 +29,7 @@ int main(int argc, char **argv) {
     auto gsys = cmc->GetGUISystem();
     gsys->CreateVulkanBackend(*rsys, ImageUtils::GetVkFormat(Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm));
 
-    RenderGraphBuilder2 rgb{*rsys};
+    RenderGraphBuilder rgb{*rsys};
     Engine::RenderTargetTexture::RenderTargetTextureDesc desc{
         .dimensions = 2,
         .width = 1920,
@@ -47,7 +47,7 @@ int main(int argc, char **argv) {
             .AppendColorAttachment(
                 {c, {}, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store}
             )
-            .SetRasterizerPassFunction([&](GraphicsCommandBuffer &gcb, const RenderGraph2 &rg) -> void {
+            .SetRasterizerPassFunction([&](GraphicsCommandBuffer &gcb, const RenderGraph &rg) -> void {
                 auto color = rg.GetInternalTextureResource(c);
                 gsys->DrawGUI(
                     AttachmentUtils::AttachmentDescription{

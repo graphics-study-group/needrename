@@ -1,478 +1,705 @@
 #include "RenderGraphBuilder.h"
 
-#include "Render/Pipeline/RenderGraph/RenderGraph.h"
-#include "Render/Pipeline/RenderGraph/RenderGraphUtils.hpp"
-#include "UserInterface/GUISystem.h"
 #include <SDL3/SDL.h>
-#include <unordered_map>
-#include <vulkan/vulkan.hpp>
+#include <unordered_set>
 
-namespace {}
+#include "Render/Memory/MemoryAccessHelper.hpp"
+#include "Render/Pipeline/RenderGraph/RGAttachmentDesc.h"
+#include "Render/Pipeline/RenderGraph/RenderGraph.h"
+#include "Render/Pipeline/RenderGraph/RenderGraphPass.h"
+#include "Render/Pipeline/RenderGraph/RenderGraphStruct.hpp"
+#include "Render/RenderSystem/ResizableRTTManager.h"
 
-namespace Engine {
-    struct RenderGraphBuilder::impl {
-
-        struct Pass {
-            RenderGraphImpl::PassType type;
-            std::function<void(vk::CommandBuffer, const RenderGraph &)> operation;
-
-            std::vector<RGAttachmentDesc> color_attachments;
-            std::optional<RGAttachmentDesc> depth_attachments;
-        };
-        std::vector<Pass> m_tasks{};
-
-        // Synchronization helpers
-        RenderGraphImpl::TextureAccessMemo m_texture_memo;
-        RenderGraphImpl::BufferAccessMemo m_buffer_memo;
-
-        // Resource managers
-        struct TextureCreationInfo {
-            RenderTargetTexture::RenderTargetTextureDesc t;
-            RenderTargetTexture::SamplerDesc s;
-        };
-        int32_t resource_counter = 0;
-        std::unordered_map<int32_t, TextureCreationInfo> texture_creation_info;
-        std::unordered_map<int32_t, std::unique_ptr<RenderTargetTexture>> internal_texture_cache;
-        std::unordered_map<int32_t, const RenderTargetTexture *> texture_mapping;
-        std::unordered_map<int32_t, const DeviceBuffer *> buffer_mapping;
-
-        /**
-         * @brief Get pass type, considering for negative pass indices.
-         */
-        RenderGraphImpl::PassType GetPassType(int32_t pass_index) const noexcept {
-            assert(pass_index < 0 || pass_index < m_tasks.size());
-            return pass_index < 0 ? RenderGraphImpl::PassType::None : m_tasks[pass_index].type;
+namespace {
+    constexpr vk::PipelineStageFlagBits2 AffinityToPipelineStage(Engine::RenderGraphPassAffinity affinity) {
+        switch (affinity) {
+            using enum Engine::RenderGraphPassAffinity;
+        case Transfer:
+            return vk::PipelineStageFlagBits2::eAllTransfer;
+        case Graphics:
+            return vk::PipelineStageFlagBits2::eAllGraphics;
+        case Compute:
+            return vk::PipelineStageFlagBits2::eComputeShader;
+        default:
+            return vk::PipelineStageFlagBits2::eNone;
         }
+    }
 
-        /**
-         * @brief Create internally managed texture resources and populate texture mapping.
-         */
-        void CreateInternalResources(RenderSystem &system) {
-            for (const auto &[idx, tci] : texture_creation_info) {
-                auto ptr = RenderTargetTexture::CreateUnique(
-                    system, tci.t, tci.s, std::format("Render Graph Resource {}", idx)
-                );
-                texture_mapping[idx] = ptr.get();
-                internal_texture_cache[idx] = std::move(ptr);
+    constexpr vk::PipelineStageFlagBits2 GuessPipelineStageFromAccess(
+        Engine::RenderGraphPassAffinity work_type, Engine::MemoryAccessTypeImageBits access
+    ) {
+        switch (work_type) {
+            using enum Engine::RenderGraphPassAffinity;
+
+        case Transfer:
+            return vk::PipelineStageFlagBits2::eAllTransfer;
+        case Graphics:
+            // While some transfer actions (e.g. blitting) requires working
+            // on graphics queue, they are classified as transfer for
+            // synchronization.
+            if (access == Engine::MemoryAccessTypeImageBits::TransferRead
+                || access == Engine::MemoryAccessTypeImageBits::TransferWrite) {
+                return vk::PipelineStageFlagBits2::eAllTransfer;
+            }
+            return vk::PipelineStageFlagBits2::eAllGraphics;
+        case Compute:
+            return vk::PipelineStageFlagBits2::eComputeShader;
+        default:
+            // If this pass does not have work load, then it should be a
+            // virtual pass. In this case, we have to guess its stage......
+            switch (access) {
+            case Engine::MemoryAccessTypeImageBits::TransferRead:
+            case Engine::MemoryAccessTypeImageBits::TransferWrite:
+                return vk::PipelineStageFlagBits2::eTransfer;
+            case Engine::MemoryAccessTypeImageBits::ColorAttachmentRead:
+            case Engine::MemoryAccessTypeImageBits::ColorAttachmentWrite:
+            case Engine::MemoryAccessTypeImageBits::DepthStencilAttachmentRead:
+            case Engine::MemoryAccessTypeImageBits::DepthStencilAttachmentWrite:
+            case Engine::MemoryAccessTypeImageBits::ColorAttachmentDefault:
+            case Engine::MemoryAccessTypeImageBits::DepthStencilAttachmentDefault:
+                return vk::PipelineStageFlagBits2::eAllGraphics;
+            default:
+                // Being conservative here.
+                return vk::PipelineStageFlagBits2::eAllCommands;
             }
         }
+    }
 
-        /**
-         * @brief Get the sychronization operation before a pass specified by its index.
-         */
-        std::function<void(vk::CommandBuffer, const RenderGraph &)> GetPrePassSynchronizationFunc(int32_t pass_index) {
-            std::vector<vk::ImageMemoryBarrier2> image_barriers{};
-            std::vector<vk::BufferMemoryBarrier2> buffer_barriers{};
-            // Build image barriers
-            for (const auto &[img_idx, acc] : m_texture_memo.accesses) {
-                if (acc.size() < 2) continue;
+    struct UsageCache {
+        std::unordered_map<Engine::RGBufferHandle, std::vector<std::pair<uint32_t, Engine::MemoryAccessTypeBuffer>>>
+            buffer_usages{};
+        std::unordered_map<Engine::RGTextureHandle, std::vector<std::pair<uint32_t, Engine::MemoryAccessTypeImageBits>>>
+            image_usages{};
 
-                auto itr = std::find_if(
-                    acc.begin(),
-                    acc.end(),
-                    [pass_index](const RenderGraphImpl::TextureAccessMemo::Access &access) {
-                        return access.pass_index == pass_index;
-                    }
-                );
-                if (itr == acc.begin() || itr == acc.end()) continue;
-                const auto pitr = (itr - 1);
-
-                const auto img = texture_mapping[img_idx];
-                assert(img);
-
-                image_barriers.push_back(m_texture_memo.GenerateBarrier(
-                    img->GetImage(),
-                    pitr->access,
-                    GetPassType(pitr->pass_index),
-                    itr->access,
-                    GetPassType(itr->pass_index),
-                    ImageUtils::GetVkAspect(img->GetTextureDescription().format)
-                ));
-            }
-            // Build buffer barriers
-            for (const auto &[buf_idx, acc] : m_buffer_memo.accesses) {
-                if (acc.size() < 2) continue;
-
-                auto itr = std::find_if(
-                    acc.begin(),
-                    acc.end(),
-                    [pass_index](const RenderGraphImpl::BufferAccessMemo::Access &access) {
-                        return access.pass_index == pass_index;
-                    }
-                );
-                if (itr == acc.begin() || itr == acc.end()) continue;
-                const auto pitr = (itr - 1);
-
-                const auto buf = buffer_mapping[buf_idx];
-                assert(buf);
-
-                buffer_barriers.push_back(m_buffer_memo.GenerateBarrier(
-                    buf->GetBuffer(),
-                    pitr->access,
-                    GetPassType(pitr->pass_index),
-                    itr->access,
-                    GetPassType(itr->pass_index)
-                ));
-            }
-
-            return [ib = std::move(image_barriers),
-                    bb = std::move(buffer_barriers)](vk::CommandBuffer cb, const RenderGraph &) -> void {
-                vk::DependencyInfo dep{vk::DependencyFlags{}, {}, bb, ib};
-                cb.pipelineBarrier2(dep);
-            };
+        template <typename T>
+        static bool less_by_pass_index(const std::pair<uint32_t, T> &lhs, const std::pair<uint32_t, T> &rhs) noexcept {
+            return lhs.first < rhs.first;
         }
 
-        /**
-         * @brief Validate whether a texture is ready for use as a color attachment.
-         *
-         * @internal somewhat expensive. avoid if not debugging.
-         */
-        bool ValidateColorAttachment(int32_t handle, int32_t pass_index) const {
-            // Check for synchronization
-            auto itr = m_texture_memo.accesses.find(handle);
-            if (itr == m_texture_memo.accesses.end()) return false;
-
-            const auto &accesses = itr->second;
-            auto access_itr = std::find_if(accesses.begin(), accesses.end(), [pass_index](const auto &a) {
-                return a.pass_index == pass_index;
-            });
-            if (access_itr == accesses.end()) return false;
-            if (!access_itr->access.Test(MemoryAccessTypeImageBits::ColorAttachmentDefault)) return false;
-
-            // Check for correct format
-            auto fmt = texture_mapping.at(handle)->GetTextureDescription().format;
-            return ImageUtils::HasColorAspect(fmt);
-        }
-
-        /**
-         * @brief Validate whether a texture is ready for use as a depth-stencil attachment.
-         *
-         * @internal somewhat expensive. avoid if not debugging.
-         */
-        bool ValidateDepthStencilAttachment(int32_t handle, int32_t pass_index) const {
-            // Check for synchronization
-            auto itr = m_texture_memo.accesses.find(handle);
-            if (itr == m_texture_memo.accesses.end()) return false;
-
-            const auto &accesses = itr->second;
-            auto access_itr = std::find_if(accesses.begin(), accesses.end(), [pass_index](const auto &a) {
-                return a.pass_index == pass_index;
-            });
-            if (access_itr == accesses.end()) return false;
-            if (!access_itr->access.Test(MemoryAccessTypeImageBits::DepthStencilAttachmentDefault)) return false;
-
-            // Check for correct format
-            auto fmt = texture_mapping.at(handle)->GetTextureDescription().format;
-            return ImageUtils::HasDepthAspect(fmt);
+        void SortByPassIndex() noexcept {
+            for (auto &[r, u] : buffer_usages) {
+                std::sort(u.begin(), u.end(), less_by_pass_index<Engine::MemoryAccessTypeBuffer>);
+            }
+            for (auto &[r, u] : image_usages) {
+                std::sort(u.begin(), u.end(), less_by_pass_index<Engine::MemoryAccessTypeImageBits>);
+            }
         }
     };
 
-    RenderGraphBuilder::RenderGraphBuilder(RenderSystem &system) : m_system(system), pimpl(std::make_unique<impl>()) {
-    }
+    struct DependencyGraph {
+        std::vector<std::unordered_set<uint32_t>> adjacent_list_out{};
+        std::vector<std::unordered_set<uint32_t>> adjacent_list_in{};
 
+        DependencyGraph(size_t size) noexcept {
+            adjacent_list_out.resize(size);
+            adjacent_list_in.resize(size);
+        }
+
+        void AddEdge(uint32_t from, uint32_t to) noexcept {
+            adjacent_list_out[from].insert(to);
+            adjacent_list_in[to].insert(from);
+        }
+
+        std::vector<uint32_t> TopologicalSort() const {
+            std::vector<uint32_t> result;
+            std::vector<uint32_t> in_degree; // work on a copy
+            std::queue<uint32_t> q;
+
+            in_degree.resize(adjacent_list_in.size());
+            std::transform(
+                adjacent_list_in.begin(),
+                adjacent_list_in.end(),
+                in_degree.begin(),
+                [](const std::unordered_set<uint32_t> &edges) -> uint32_t { return edges.size(); }
+            );
+
+            for (uint32_t i = 0; i < adjacent_list_out.size(); ++i) {
+                if (in_degree[i] == 0) q.push(i);
+            }
+            while (!q.empty()) {
+                uint32_t u = q.front();
+                q.pop();
+                result.push_back(u);
+                for (uint32_t v : adjacent_list_out[u]) {
+                    if (--in_degree[v] == 0) q.push(v);
+                }
+            }
+
+            // Report cycle found
+            if (result.size() != adjacent_list_out.size()) {
+                throw std::runtime_error("Dependency graph has a cycle.");
+            }
+            return result;
+        }
+    };
+} // namespace
+
+namespace Engine {
+    struct RenderGraphBuilder::impl {
+        std::vector<RenderGraphPass> passes{};
+
+        // Imported and requested resources.
+        struct ResourceStorage {
+            int32_t resource_counter{0};
+
+            struct TextureCreationInfo {
+                std::string name{};
+                RenderTargetTexture::RenderTargetTextureDesc t{};
+                RenderTargetTexture::SamplerDesc s{};
+
+                // negative scales imply no resizable RTT.
+                float scale_x{-0.0f}, scale_y{-0.0f};
+            };
+            std::unordered_map<RGTextureHandle, TextureCreationInfo> texture_creation_info;
+            std::unordered_map<RGTextureHandle, RenderTargetTextureVariant> texture_mapping;
+            std::unordered_map<RGBufferHandle, const DeviceBuffer *> buffer_mapping;
+
+            /**
+             * @brief Materialize render target textures from the
+             * `texture_creation_info`.
+             */
+            std::unordered_map<RGTextureHandle, OwnedRenderTargetTextureVariant> MaterializeRenderTargetTextures(
+                RenderSystem &s
+            ) const {
+                std::unordered_map<RGTextureHandle, OwnedRenderTargetTextureVariant> ret{};
+                for (const auto &[k, v] : texture_creation_info) {
+
+                    if (v.scale_x < 0.0f || v.scale_y < 0.0f) {
+                        ret[k] = RenderTargetTexture::CreateUnique(s, v.t, v.s, v.name);
+                    } else {
+                        ret[k] = s.GetResizableRTTManager().RequestRTT(v.t, v.s, v.scale_x, v.scale_y, v.name);
+                    }
+                }
+                return ret;
+            }
+        } rs{};
+
+        /**
+         * @brief Discover usages to each resources.
+         */
+        UsageCache AnalysisUsage() const {
+            UsageCache uc{};
+            for (size_t i = 0; i < passes.size(); i++) {
+                const auto &p = passes[i];
+                for (const auto &[r, a] : p.image_access) {
+                    uc.image_usages[r].push_back(std::make_pair(i, a));
+                }
+                for (const auto &[r, a] : p.buffer_access) {
+                    uc.buffer_usages[r].push_back(std::make_pair(i, a));
+                }
+            }
+            return uc;
+        }
+
+        /**
+         * @brief Discover dependencies carried by render graph passes, and
+         * build a dependency graph.
+         */
+        DependencyGraph AnalysisDependency(const UsageCache &usages) const {
+            DependencyGraph dg{passes.size()};
+
+            // Discover dependency by texture
+            for (const auto &[r, u] : usages.image_usages) {
+                for (size_t i = 0; i < u.size(); i++) {
+                    for (size_t j = i + 1; j < u.size(); j++) {
+                        auto prev{u[i]}, next{u[j]};
+                        assert(prev.first < next.first);
+
+                        // Skip read-after-read "hazard".
+                        if ((!HasWriteAccess({prev.second})) && (!HasWriteAccess({next.second}))) {
+                            continue;
+                        }
+                        // Transient resource has read before write.
+                        auto rid = static_cast<int32_t>(r);
+                        if (rid > 0) {
+                            if (HasReadAccess({prev.second}) && HasWriteAccess({next.second})) {
+                                SDL_LogInfo(
+                                    SDL_LOG_CATEGORY_RENDER,
+                                    std::format(
+                                        "Transient render target {} has read access before write access. "
+                                        "Dependency chain is reversed for this access.",
+                                        rid
+                                    )
+                                        .c_str()
+                                );
+                                std::swap(prev, next);
+                            }
+                        }
+
+                        dg.AddEdge(prev.first, next.first);
+                    }
+                }
+            }
+
+            // Discover dependency by buffer
+            for (const auto &[r, u] : usages.buffer_usages) {
+                for (size_t i = 0; i < u.size(); i++) {
+                    for (size_t j = i + 1; j < u.size(); j++) {
+                        auto prev{u[i]}, next{u[j]};
+                        assert(prev.first < next.first);
+
+                        // Skip read-after-read "hazard".
+                        if ((!HasWriteAccess({prev.second})) && (!HasWriteAccess({next.second}))) {
+                            continue;
+                        }
+                        // Transient resource has read before write.
+                        auto rid = static_cast<int32_t>(r);
+                        if (rid > 0) {
+                            if (HasReadAccess({prev.second}) && HasWriteAccess({next.second})) {
+                                SDL_LogWarn(
+                                    SDL_LOG_CATEGORY_RENDER,
+                                    std::format(
+                                        "Transient buffer {} has read access before write access. "
+                                        "Dependency chain is reversed for this access.",
+                                        rid
+                                    )
+                                        .c_str()
+                                );
+                                std::swap(prev, next);
+                            }
+                        }
+                        dg.AddEdge(prev.first, next.first);
+                    }
+                }
+            }
+            return dg;
+        }
+
+        /**
+         * @brief Build pipeline rendering info for a subpass
+         */
+        PipelineRuntimeInfoPerRendering GetPerRenderingInfo(const RenderGraphPass &subpass) const noexcept {
+            PipelineRuntimeInfoPerRendering ret{};
+
+            std::fill(ret.color_attachment_format, ret.color_attachment_format + 8, ImageUtils::ImageFormat::UNDEFINED);
+            uint8_t multisample_count{0};
+            for (int i = 0; i < subpass.color_attachments.size(); i++) {
+                ImageUtils::ImageFormat format;
+                auto rth = subpass.color_attachments[i].rt_handle;
+                // Imported external resource
+                if (static_cast<int32_t>(rth) < 0) {
+                    format = std::visit(RenderTargetTextureVariantVisitor{}, rs.texture_mapping.at(rth))
+                                 ->GetTextureDescription()
+                                 .format;
+                } else {
+                    format = static_cast<ImageUtils::ImageFormat>(rs.texture_creation_info.at(rth).t.format);
+                }
+                ret.color_attachment_format[i] = format;
+            }
+            auto drth = subpass.depth_attachment.rt_handle;
+            if (static_cast<int32_t>(drth) < 0) {
+                ret.depth_stencil_attachment_format =
+                    std::visit(RenderTargetTextureVariantVisitor{}, rs.texture_mapping.at(drth))
+                        ->GetTextureDescription()
+                        .format;
+            } else if (static_cast<int32_t>(drth) > 0) {
+                ret.depth_stencil_attachment_format =
+                    static_cast<ImageUtils::ImageFormat>(rs.texture_creation_info.at(drth).t.format);
+            } else {
+                ret.depth_stencil_attachment_format = ImageUtils::ImageFormat::UNDEFINED;
+            }
+
+            return ret;
+        }
+    };
+
+    RenderGraphBuilder::RenderGraphBuilder(RenderSystem &system) : system(system), pimpl(std::make_unique<impl>()) {
+        // Append a source pass.
+        /* this->AddPass(
+            RenderGraphPassBuilder{system}.SetName("Virtual Source").Get()
+        ); */
+    }
     RenderGraphBuilder::~RenderGraphBuilder() = default;
 
-    int32_t RenderGraphBuilder::ImportExternalResource(
-        const RenderTargetTexture &texture, MemoryAccessTypeImageBits prev_access
+    RGTextureHandle RenderGraphBuilder::ImportExternalResource(
+        RenderTargetTexture &texture, MemoryAccessTypeImageBits prev_access
     ) {
-        auto curr_id = pimpl->resource_counter++;
-        curr_id = -curr_id;
-        pimpl->m_texture_memo.accesses[curr_id] = {{-1, {prev_access}}};
-        pimpl->texture_mapping[curr_id] = &texture;
-        return curr_id;
+        pimpl->rs.resource_counter++;
+        auto ret = static_cast<RGTextureHandle>(-pimpl->rs.resource_counter);
+        pimpl->rs.texture_mapping[ret] = &texture;
+
+        if (prev_access != MemoryAccessTypeImageBits::None) {
+            // Inject a virtual pass if previous access is not None
+            if (pimpl->passes.empty()) {
+                this->AddPass(RenderGraphPassBuilder{system}.SetName("Virtual Source").Get());
+            }
+            pimpl->passes.front().image_access[ret] = prev_access;
+        }
+        return ret;
     }
 
-    int32_t RenderGraphBuilder::ImportExternalResource(const DeviceBuffer &buffer, MemoryAccessTypeBuffer prev_access) {
-        auto curr_id = pimpl->resource_counter++;
-        curr_id = -curr_id;
-        pimpl->m_buffer_memo.accesses[curr_id] = {{-1, prev_access}};
-        pimpl->buffer_mapping[curr_id] = &buffer;
-        return curr_id;
+    RGTextureHandle RenderGraphBuilder::ImportExternalResource(
+        RRTTHandle texture, MemoryAccessTypeImageBits prev_access
+    ) {
+        pimpl->rs.resource_counter++;
+        auto ret = static_cast<RGTextureHandle>(-pimpl->rs.resource_counter);
+        pimpl->rs.texture_mapping[ret] = texture;
+
+        if (prev_access != MemoryAccessTypeImageBits::None) {
+            // Inject a virtual pass if previous access is not None
+            if (pimpl->passes.empty()) {
+                this->AddPass(RenderGraphPassBuilder{system}.SetName("Virtual Source").Get());
+            }
+            pimpl->passes.front().image_access[ret] = prev_access;
+        }
+        return ret;
     }
 
-    int32_t RenderGraphBuilder::RequestRenderTargetTexture(
+    RGBufferHandle RenderGraphBuilder::ImportExternalResource(
+        const DeviceBuffer &buffer, MemoryAccessTypeBuffer prev_access
+    ) {
+        pimpl->rs.resource_counter++;
+        auto ret = static_cast<RGBufferHandle>(-pimpl->rs.resource_counter);
+        pimpl->rs.buffer_mapping[ret] = &buffer;
+
+        if (prev_access != MemoryAccessTypeBuffer{MemoryAccessTypeBufferBits::None}) {
+            // Inject a virtual pass if previous access is not None
+            if (pimpl->passes.empty()) {
+                this->AddPass(RenderGraphPassBuilder{system}.SetName("Virtual Source").Get());
+            }
+            pimpl->passes.front().buffer_access[ret] = prev_access;
+        }
+        return ret;
+    }
+
+    RGTextureHandle RenderGraphBuilder::RequestRenderTargetTexture(
         RenderTargetTexture::RenderTargetTextureDesc texture_description,
-        RenderTargetTexture::SamplerDesc sampler_description
+        RenderTargetTexture::SamplerDesc sampler_description,
+        std::string_view name
     ) noexcept {
-        auto curr_id = pimpl->resource_counter++;
-        pimpl->m_texture_memo.accesses[curr_id] = {{-1, {MemoryAccessTypeImageBits::None}}};
-        pimpl->texture_creation_info[curr_id] = {texture_description, sampler_description};
-        return curr_id;
+        pimpl->rs.resource_counter++;
+        auto ret = static_cast<RGTextureHandle>(pimpl->rs.resource_counter);
+        pimpl->rs.texture_creation_info[ret] = {
+            .name = std::string{name},
+            .t = texture_description,
+            .s = sampler_description,
+            .scale_x = -1.0f,
+            .scale_y = -1.0f
+        };
+        return ret;
     }
 
-    void RenderGraphBuilder::UseImage(int32_t texture, MemoryAccessTypeImageBits access) {
-        pimpl->m_texture_memo.UpdateLastAccess(texture, pimpl->m_tasks.size(), {access});
-    }
-    void RenderGraphBuilder::UseBuffer(int32_t buffer, MemoryAccessTypeBuffer access) {
-        pimpl->m_buffer_memo.UpdateLastAccess(buffer, pimpl->m_tasks.size(), access);
-    }
-
-    void RenderGraphBuilder::RecordRasterizerPassWithoutRT(
-        std::function<void(GraphicsCommandBuffer &, const RenderGraph &)> pass
+    RGTextureHandle RenderGraphBuilder::RequestResizableRenderTargetTexture(
+        RenderTargetTexture::RenderTargetTextureDesc texture_description,
+        RenderTargetTexture::SamplerDesc sampler_description,
+        float scale_x,
+        float scale_y,
+        std::string_view name
     ) {
-        std::function<void(vk::CommandBuffer, const RenderGraph &)> f =
-            [system = &this->m_system, pass](vk::CommandBuffer cb, const RenderGraph &rg) {
-                GraphicsCommandBuffer gcb{*system, cb, system->GetFrameManager().GetFrameInFlight()};
-                std::invoke(pass, std::ref(gcb), std::cref(rg));
-            };
-        pimpl->m_tasks.push_back(impl::Pass{RenderGraphImpl::PassType::Graphics, f});
-    }
-    void RenderGraphBuilder::RecordRasterizerPass(
-        RGAttachmentDesc color,
-        std::function<void(GraphicsCommandBuffer &, const RenderGraph &)> pass,
-        const std::string &name
-    ) {
-        std::function<void(vk::CommandBuffer, const RenderGraph &)> f =
-            [system = &this->m_system, pass, color_rt = color.rt_handle, name](
-                vk::CommandBuffer cb, const RenderGraph &rg
-            ) {
-                GraphicsCommandBuffer gcb{*system, cb, system->GetFrameManager().GetFrameInFlight()};
-                gcb.SetRenderingInfo(
-                    {{},
-                     {rg.GetInternalTextureResource(color_rt)->GetTextureDescription().format,
-                      ImageUtils::ImageFormat::UNDEFINED},
-                     ImageUtils::ImageFormat::UNDEFINED}
-                );
-                std::invoke(pass, std::ref(gcb), std::cref(rg));
-            };
-
-        pimpl->m_tasks.push_back(impl::Pass{RenderGraphImpl::PassType::Graphics, f, {color}, std::nullopt});
-    }
-    void RenderGraphBuilder::RecordRasterizerPass(
-        RGAttachmentDesc color,
-        RGAttachmentDesc depth,
-        std::function<void(GraphicsCommandBuffer &, const RenderGraph &)> pass,
-        const std::string &name
-    ) {
-        std::function<void(vk::CommandBuffer, const RenderGraph &)> f =
-            [system = &this->m_system, pass, color_rt = color.rt_handle, depth_rt = depth.rt_handle, name](
-                vk::CommandBuffer cb, const RenderGraph &rg
-            ) {
-                GraphicsCommandBuffer gcb{*system, cb, system->GetFrameManager().GetFrameInFlight()};
-                gcb.SetRenderingInfo(
-                    {{},
-                     {rg.GetInternalTextureResource(color_rt)->GetTextureDescription().format,
-                      ImageUtils::ImageFormat::UNDEFINED},
-                     rg.GetInternalTextureResource(depth_rt)->GetTextureDescription().format}
-                );
-                std::invoke(pass, std::ref(gcb), std::cref(rg));
-            };
-
-        pimpl->m_tasks.push_back(impl::Pass{RenderGraphImpl::PassType::Graphics, f, {color}, depth});
+        pimpl->rs.resource_counter++;
+        auto ret = static_cast<RGTextureHandle>(pimpl->rs.resource_counter);
+        pimpl->rs.texture_creation_info[ret] = {
+            .name = std::string{name},
+            .t = texture_description,
+            .s = sampler_description,
+            .scale_x = scale_x,
+            .scale_y = scale_y
+        };
+        return ret;
     }
 
-    void RenderGraphBuilder::RecordRasterizerPass(
-        std::initializer_list<RGAttachmentDesc> colors,
-        RGAttachmentDesc depth,
-        std::function<void(GraphicsCommandBuffer &, const RenderGraph &)> pass,
-        const std::string &name
-    ) {
-        assert(colors.size() <= 8 && "Too many color attachments.");
-        std::vector<uint32_t> color_rts;
-        std::transform(colors.begin(), colors.end(), std::back_inserter(color_rts), [](const RGAttachmentDesc &rgad) {
-            return rgad.rt_handle;
-        });
-
-        std::function<void(vk::CommandBuffer, const RenderGraph &)> f =
-            [system = &this->m_system, pass, color_rts = std::move(color_rts), depth_rt = depth.rt_handle, name](
-                vk::CommandBuffer cb, const RenderGraph &rg
-            ) {
-                GraphicsCommandBuffer gcb{*system, cb, system->GetFrameManager().GetFrameInFlight()};
-                PipelineRuntimeInfoPerRendering pripr{};
-                for (int i = 0; i < color_rts.size(); i++) {
-                    pripr.color_attachment_format[i] =
-                        rg.GetInternalTextureResource(color_rts[i])->GetTextureDescription().format;
-                }
-                pripr.depth_stencil_attachment_format =
-                    rg.GetInternalTextureResource(depth_rt)->GetTextureDescription().format;
-                std::invoke(pass, std::ref(gcb), std::cref(rg));
-            };
-        pimpl->m_tasks.push_back(impl::Pass{RenderGraphImpl::PassType::Graphics, f, colors, depth});
-    }
-    void RenderGraphBuilder::RecordTransferPass(
-        std::function<void(TransferCommandBuffer &, const RenderGraph &)> pass, const std::string &name
-    ) {
-        std::function<void(vk::CommandBuffer, const RenderGraph &)> f =
-            [pass, name](vk::CommandBuffer cb, const RenderGraph &rg) {
-                TransferCommandBuffer tcb{cb};
-                tcb.GetCommandBuffer().beginDebugUtilsLabelEXT({(name + " (Transfer)").c_str()});
-                std::invoke(pass, std::ref(tcb), std::cref(rg));
-                tcb.GetCommandBuffer().endDebugUtilsLabelEXT();
-            };
-
-        pimpl->m_tasks.push_back(impl::Pass{RenderGraphImpl::PassType::Transfer, f});
-    }
-    void RenderGraphBuilder::RecordComputePass(
-        std::function<void(ComputeCommandBuffer &, const RenderGraph &)> pass, const std::string &name
-    ) {
-        std::function<void(vk::CommandBuffer, const RenderGraph &)> f =
-            [system = &this->m_system, pass, name](vk::CommandBuffer cb, const RenderGraph &rg) {
-                ComputeCommandBuffer ccb{cb, system->GetFrameManager().GetFrameInFlight()};
-                ccb.GetCommandBuffer().beginDebugUtilsLabelEXT({(name + " (Compute)").c_str()});
-                std::invoke(pass, std::ref(ccb), std::cref(rg));
-                ccb.GetCommandBuffer().endDebugUtilsLabelEXT();
-            };
-
-        pimpl->m_tasks.push_back(impl::Pass{RenderGraphImpl::PassType::Compute, f});
+    void RenderGraphBuilder::AddPass(RenderGraphPass &&pass) noexcept {
+        pimpl->passes.push_back(std::move(pass));
     }
 
     std::unique_ptr<RenderGraph> RenderGraphBuilder::BuildRenderGraph() {
-        std::vector<std::function<void(vk::CommandBuffer, const RenderGraph &)>> compiled;
-        RenderGraphImpl::RenderGraphExtraInfo extra{};
-
-        pimpl->CreateInternalResources(m_system);
-
-        for (const auto &[img_idx, acc] : pimpl->m_texture_memo.accesses) {
-            const auto img = pimpl->texture_mapping[img_idx];
-            assert(img);
-            extra.m_initial_image_access[img] =
-                std::make_pair(pimpl->GetPassType(acc.front().pass_index), acc.front().access);
-            extra.m_final_image_access[img] =
-                std::make_pair(pimpl->GetPassType(acc.back().pass_index), acc.back().access);
+        auto usage = pimpl->AnalysisUsage();
+        auto dg = pimpl->AnalysisDependency(usage);
+        // Maps reordered pass indices to original pass indices.
+        auto pass_order = dg.TopologicalSort();
+        // Remaps original pass indices to reordered pass indices.
+        auto reordered_pass_lut = pass_order;
+        for (uint32_t i = 0; i < pass_order.size(); i++) {
+            reordered_pass_lut[pass_order[i]] = i;
         }
-        extra.internal_texture_cache = std::move(pimpl->internal_texture_cache);
+        auto reordered_usage = usage;
+        for (auto &[r, u] : reordered_usage.image_usages) {
+            for (auto &ru : u) ru.first = reordered_pass_lut[ru.first];
+        }
+        for (auto &[r, u] : reordered_usage.buffer_usages) {
+            for (auto &ru : u) ru.first = reordered_pass_lut[ru.first];
+        }
+        reordered_usage.SortByPassIndex();
 
-        for (size_t pass = 0; pass < pimpl->m_tasks.size(); pass++) {
-            compiled.push_back(pimpl->GetPrePassSynchronizationFunc(pass));
-            const auto &pass_info = pimpl->m_tasks[pass];
-            bool has_render_pass = pass_info.color_attachments.size() || pass_info.depth_attachments.has_value();
-            if (has_render_pass) {
+        // Find cross-queue dependencies for textures.
+        // These dependencies require semaphores to correctly synchronize.
+        std::unordered_map<
+            uint32_t,
+            std::unordered_map<uint32_t, std::pair<vk::PipelineStageFlags2, vk::PipelineStageFlags2>>>
+            cross_queue_dep; // < all pass indices are reordered.
+        auto AnalysisCrossQueueDependency = [&, this](const auto &usages) {
+            for (const auto &[r, u] : usages) {
+                auto last_affinity = pimpl->passes[pass_order[u.front().first]].affinity;
+                auto last_affinity_pass = u.front().first;
+                auto rid = static_cast<int32_t>(r);
+                for (const auto &usage : u) {
+                    if (pimpl->passes[pass_order[usage.first]].affinity != last_affinity) {
+                        SDL_LogInfo(
+                            SDL_LOG_CATEGORY_RENDER,
+                            std::format(
+                                "Found cross-queue dependency from pass {} to "
+                                "{} incurred by resource {}",
+                                pimpl->passes[pass_order[last_affinity_pass]].name,
+                                pimpl->passes[pass_order[usage.first]].name,
+                                rid
+                            )
+                                .c_str()
+                        );
+                        auto new_affinity = pimpl->passes[pass_order[usage.first]].affinity;
 
-                bool has_stencil = false;
-                std::vector<vk::RenderingAttachmentInfo> color_attachments;
-                vk::RenderingAttachmentInfo depth_attachment;
+                        auto src{AffinityToPipelineStage(last_affinity)}, dst{AffinityToPipelineStage(new_affinity)};
+                        cross_queue_dep[last_affinity_pass][usage.first] = std::make_pair(src, dst);
 
-                for (const auto &ca : pass_info.color_attachments) {
-                    assert(pimpl->ValidateColorAttachment(ca.rt_handle, pass));
-
-                    auto t = pimpl->texture_mapping[ca.rt_handle];
-                    color_attachments.push_back(
-                        vk::RenderingAttachmentInfo{
-                            t->GetImageView(),
-                            vk::ImageLayout::eColorAttachmentOptimal,
-                            vk::ResolveModeFlagBits::eNone,
-                            nullptr,
-                            vk::ImageLayout::eUndefined,
-                            AttachmentUtils::GetVkLoadOp(ca.load_op),
-                            AttachmentUtils::GetVkStoreOp(ca.store_op),
-                            AttachmentUtils::GetVkClearValue(ca.clear_value)
-                        }
-                    );
-                }
-
-                if (pass_info.depth_attachments.has_value()) {
-                    const auto &da = pass_info.depth_attachments.value();
-                    assert(pimpl->ValidateDepthStencilAttachment(da.rt_handle, pass));
-
-                    auto t = pimpl->texture_mapping[da.rt_handle];
-                    depth_attachment = vk::RenderingAttachmentInfo{
-                        t->GetImageView(),
-                        vk::ImageLayout::eDepthStencilAttachmentOptimal,
-                        vk::ResolveModeFlagBits::eNone,
-                        nullptr,
-                        vk::ImageLayout::eUndefined,
-                        AttachmentUtils::GetVkLoadOp(da.load_op),
-                        AttachmentUtils::GetVkStoreOp(da.store_op),
-                        AttachmentUtils::GetVkClearValue(da.clear_value)
-                    };
-
-                    if (ImageUtils::HasStencilAspect(t->GetTextureDescription().format)) {
-                        has_stencil = true;
+                        last_affinity = pimpl->passes[pass_order[usage.first]].affinity;
+                        last_affinity_pass = usage.first;
                     }
                 }
+            }
+        };
+        AnalysisCrossQueueDependency(reordered_usage.image_usages);
+        AnalysisCrossQueueDependency(reordered_usage.buffer_usages);
 
-                auto first_available_attachment =
-                    pass_info.color_attachments.empty()
-                        ? pimpl->texture_mapping[pass_info.depth_attachments.value().rt_handle]
-                        : pimpl->texture_mapping[pass_info.color_attachments.front().rt_handle];
-                vk::Extent2D render_extent = {
-                    first_available_attachment->GetTextureDescription().width,
-                    first_available_attachment->GetTextureDescription().height
-                };
+        // Merge passes that does not have cross queue dependencies.
+        std::unordered_set<uint32_t> affected_passes{};
+        std::vector<std::vector<uint32_t>> merged_passes{};
+        std::unordered_map<uint32_t, uint32_t> merged_pass_lut{};
 
-                compiled.push_back(
-                    [has_stencil, render_extent, color_attachments, depth_attachment, op = pass_info.operation](
-                        vk::CommandBuffer cb, const RenderGraph &rg
-                    ) -> void {
-                        auto ri = vk::RenderingInfo{
-                            vk::RenderingFlags{},
-                            vk::Rect2D{{0, 0}, render_extent},
-                            1,
-                            0,
-                            color_attachments,
-                            &depth_attachment,
-                            has_stencil ? &depth_attachment : nullptr
-                        };
-                        cb.beginRendering(ri);
-                        op(cb, rg);
-                        cb.endRendering();
-                    }
-                );
-            } else {
-                compiled.push_back(pimpl->m_tasks[pass].operation);
+        for (const auto &[p1, v] : cross_queue_dep) {
+            affected_passes.insert(p1);
+            for (const auto &[p2, _] : v) {
+                affected_passes.insert(p2);
             }
         }
-        // Reset everything
-        pimpl = std::make_unique<impl>();
-        return std::unique_ptr<RenderGraph>(new RenderGraph(m_system, std::move(compiled), std::move(extra)));
-    }
-    std::unique_ptr<RenderGraph> RenderGraphBuilder::BuildDefaultRenderGraph(
-        uint32_t width, uint32_t height, GUISystem *gui_system
-    ) {
-        auto ca = this->RequestRenderTargetTexture(
-            {.dimensions = 2,
-             .width = width,
-             .height = height,
-             .depth = 1,
-             .mipmap_levels = 1,
-             .array_layers = 1,
-             .format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R8G8B8A8UNorm,
-             .multisample = 1,
-             .is_cube_map = false},
-            {}
-        );
-        auto da = this->RequestRenderTargetTexture(
-            {.dimensions = 2,
-             .width = width,
-             .height = height,
-             .depth = 1,
-             .mipmap_levels = 1,
-             .array_layers = 1,
-             .format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::D32SFLOAT,
-             .multisample = 1,
-             .is_cube_map = false},
-            {}
-        );
-        this->UseImage(ca, MemoryAccessTypeImageBits::ColorAttachmentWrite);
-        this->UseImage(da, MemoryAccessTypeImageBits::DepthStencilAttachmentWrite);
-        this->RecordRasterizerPass(
-            {ca, {}, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store},
-            {da,
-             {},
-             AttachmentUtils::LoadOperation::Clear,
-             AttachmentUtils::StoreOperation::DontCare,
-             AttachmentUtils::DepthClearValue{1.0f, 0U}},
-            [this](Engine::GraphicsCommandBuffer &gcb, const RenderGraph &) {
-                gcb.DrawRenderers("Lit", this->m_system.GetRendererManager().FilterAndSortRenderers({}));
+        merged_passes.push_back({});
+        for (size_t i = 0; i < pass_order.size(); i++) {
+            if (affected_passes.contains(i)) {
+                merged_passes.push_back({});
             }
-        );
+            // XXX: merge passes that signal on None and wait on None
+            merged_passes.back().push_back(i);
+            merged_pass_lut[i] = merged_passes.size() - 1;
+        }
 
-        if (gui_system) {
-            this->UseImage(ca, MemoryAccessTypeImageBits::ColorAttachmentWrite);
-            this->RecordRasterizerPassWithoutRT(
-                [this, ca, gui_system](Engine::GraphicsCommandBuffer &gcb, const RenderGraph &gb) {
-                    auto pca = gb.GetInternalTextureResource(ca);
-                    gui_system->DrawGUI(
-                        {pca,
-                         TextureSubresourceRange::GetSingleRange(),
-                         AttachmentUtils::LoadOperation::Load,
-                         AttachmentUtils::StoreOperation::Store},
-                        this->m_system.GetSwapchain().GetExtent(),
-                        gcb
-                    );
+        // Rescan merged passes to obtain stages
+        std::vector<vk::PipelineStageFlags2> signal_stage{}, wait_stage{};
+        signal_stage.resize(merged_passes.size());
+        wait_stage.resize(merged_passes.size());
+        for (size_t i = 0; i < merged_passes.size(); i++) {
+            for (auto src_pass : merged_passes[i]) {
+                for (const auto &cqd : cross_queue_dep[src_pass]) {
+                    auto dst_pass = cqd.first;
+
+                    signal_stage[merged_pass_lut[src_pass]] |= cqd.second.first;
+                    wait_stage[merged_pass_lut[dst_pass]] |= cqd.second.second;
                 }
+            }
+        }
+
+        // Construct compiled passes
+        std::vector<RenderGraphCompiledPass> p{};
+        p.resize(merged_passes.size());
+        for (size_t i = 0; i < p.size(); i++) {
+            p[i].wait_stage = wait_stage[i];
+            p[i].signal_stage = signal_stage[i];
+            p[i].subpasses = {};
+#ifndef NDEBUG
+            SDL_LogDebug(
+                SDL_LOG_CATEGORY_RENDER,
+                std::format(
+                    "Pass {}: Wait {}, Signal {}", i, vk::to_string(wait_stage[i]), vk::to_string(signal_stage[i])
+                )
+                    .c_str()
             );
+#endif
+            for (auto subpass_id : merged_passes[i]) {
+                RenderGraphCompiledPass::Subpass subpass;
+                const auto &old_p = pimpl->passes[pass_order[subpass_id]];
+                subpass.pass_work = old_p.pass_function;
+#ifndef NDEBUG
+                SDL_LogDebug(
+                    SDL_LOG_CATEGORY_RENDER,
+                    std::format("Processing subpass \"{}\" (merged into pass {})", old_p.name, i).c_str()
+                );
+#endif
+                // Build barriers for textures.
+                for (auto [r, a] : old_p.image_access) {
+                    const auto &u = reordered_usage.image_usages[r];
+                    auto itr = std::lower_bound(
+                        u.begin(),
+                        u.end(),
+                        std::make_pair(subpass_id, MemoryAccessTypeImageBits{}),
+                        UsageCache::less_by_pass_index<MemoryAccessTypeImageBits>
+                    );
+
+                    vk::AccessFlags2 src_access, dst_access;
+                    vk::PipelineStageFlags2 src_stage, dst_stage;
+                    vk::ImageLayout src_layout, dst_layout;
+
+                    // If first use is the first pass...
+                    if (itr == u.begin()) {
+                        src_access = vk::AccessFlagBits2::eNone;
+                        src_stage = vk::PipelineStageFlagBits2::eNone;
+                        src_layout = vk::ImageLayout::eUndefined;
+                    } else {
+                        itr = itr - 1;
+                        src_access = GetAccessFlags({itr->second});
+                        src_stage = GuessPipelineStageFromAccess(
+                            pimpl->passes[pass_order[itr->first]].actual_type, itr->second
+                        );
+                        src_layout = GetImageLayout({itr->second});
+                    }
+                    dst_access = GetAccessFlags({a});
+                    dst_stage = GuessPipelineStageFromAccess(old_p.actual_type, a);
+                    dst_layout = GetImageLayout({a});
+                    vk::ImageAspectFlags aspect{};
+                    if (pimpl->rs.texture_creation_info.contains(r)) {
+                        aspect = ImageUtils::GetVkAspect(
+                            static_cast<ImageUtils::ImageFormat>(
+                                static_cast<std::underlying_type_t<RenderTargetTexture::RTTFormat>>(
+                                    pimpl->rs.texture_creation_info[r].t.format
+                                )
+                            )
+                        );
+                    } else {
+                        assert(pimpl->rs.texture_mapping.contains(r));
+                        aspect = ImageUtils::GetVkAspect(
+                            std::visit(RenderTargetTextureVariantVisitor{}, pimpl->rs.texture_mapping.at(r))
+                                ->GetTextureDescription()
+                                .format
+                        );
+                    }
+#ifndef NDEBUG
+                    SDL_LogDebug(
+                        SDL_LOG_CATEGORY_RENDER,
+                        std::format(
+                            "  Inserting image barrier for resource {}: "
+                            "subpass \"{}\" ({}, {}, {}) "
+                            "-> subpass \"{}\" ({}, {}, {})",
+                            static_cast<int32_t>(r),
+                            pimpl->passes[pass_order[itr->first]].name,
+                            vk::to_string(src_stage),
+                            vk::to_string(src_access),
+                            vk::to_string(src_layout),
+                            old_p.name,
+                            vk::to_string(dst_stage),
+                            vk::to_string(dst_access),
+                            vk::to_string(dst_layout)
+                        )
+                            .c_str()
+                    );
+#endif
+                    subpass.image_barriers.push_back(
+                        std::make_pair(
+                            r,
+                            vk::ImageMemoryBarrier2{
+                                src_stage,
+                                src_access,
+                                dst_stage,
+                                dst_access,
+                                src_layout,
+                                dst_layout,
+                                // XXX: Need QFOT for exclusive sharing mode resources.
+                                vk::QueueFamilyIgnored,
+                                vk::QueueFamilyIgnored,
+                                nullptr,
+                                vk::ImageSubresourceRange{
+                                    aspect, 0, vk::RemainingMipLevels, 0, vk::RemainingArrayLayers
+                                }
+                            }
+                        )
+                    );
+                }
+
+                // Build barrier for buffers
+                for (auto [r, a] : old_p.buffer_access) {
+                    const auto &u = reordered_usage.buffer_usages[r];
+                    auto itr = std::lower_bound(
+                        u.begin(),
+                        u.end(),
+                        std::make_pair(subpass_id, MemoryAccessTypeBuffer{}),
+                        UsageCache::less_by_pass_index<MemoryAccessTypeBuffer>
+                    );
+
+                    vk::AccessFlags2 src_access, dst_access;
+                    vk::PipelineStageFlags2 src_stage, dst_stage;
+
+                    // If first use is the first pass...
+                    if (itr == u.begin()) {
+                        src_access = vk::AccessFlagBits2::eNone;
+                        src_stage = vk::PipelineStageFlagBits2::eNone;
+                    } else {
+                        itr = itr - 1;
+                        src_access = GetAccessFlags({itr->second});
+                        src_stage = AffinityToPipelineStage(pimpl->passes[pass_order[itr->first]].actual_type);
+                    }
+                    dst_access = GetAccessFlags({a});
+                    dst_stage = AffinityToPipelineStage(old_p.actual_type);
+
+#ifndef NDEBUG
+                    SDL_LogDebug(
+                        SDL_LOG_CATEGORY_RENDER,
+                        std::format(
+                            "  Inserting buffer barrier for resource {}: "
+                            "subpass \"{}\" ({}, {}) "
+                            "-> subpass \"{}\" ({}, {})",
+                            static_cast<int32_t>(r),
+                            pimpl->passes[pass_order[itr->first]].name,
+                            vk::to_string(src_stage),
+                            vk::to_string(src_access),
+                            old_p.name,
+                            vk::to_string(dst_stage),
+                            vk::to_string(dst_access)
+                        )
+                            .c_str()
+                    );
+#endif
+
+                    subpass.buffer_barriers.push_back(
+                        std::make_pair(
+                            r,
+                            vk::BufferMemoryBarrier2{
+                                src_stage,
+                                src_access,
+                                dst_stage,
+                                dst_access,
+                                // XXX: Need QFOT for exclusive sharing mode resources.
+                                vk::QueueFamilyIgnored,
+                                vk::QueueFamilyIgnored,
+                                nullptr,
+                                0,
+                                vk::WholeSize
+                            }
+                        )
+                    );
+                }
+
+                // Prepare attachment information
+                subpass.per_rendering_info = pimpl->GetPerRenderingInfo(old_p);
+                p[i].subpasses.push_back(std::move(subpass));
+            }
         }
-        return BuildRenderGraph();
+
+        RenderGraph2ExtraInfo e{};
+        e.buffer_mapping = std::move(pimpl->rs.buffer_mapping);
+        e.texture_mapping = std::move(pimpl->rs.texture_mapping);
+        e.transient_texture_storage = std::move(pimpl->rs.MaterializeRenderTargetTextures(system));
+        for (const auto &[k, v] : e.transient_texture_storage) {
+            assert(!e.texture_mapping.contains(k));
+
+            switch (v.index()) {
+            case 0:
+                e.texture_mapping[k] = std::get<0>(v).get();
+                break;
+            case 1:
+                e.texture_mapping[k] = std::get<1>(v);
+            }
+        }
+        for (const auto &[r, a] : usage.image_usages) {
+            if (static_cast<int32_t>(r) > 0) continue;
+            e.first_persistent_texture_access[r] = a.front().second;
+            e.last_persistent_texture_access[r] = a.back().second;
+        }
+        return std::make_unique<RenderGraph>(std::move(p), std::move(e));
     }
+
 } // namespace Engine

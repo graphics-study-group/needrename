@@ -219,7 +219,7 @@ int main(int argc, char **argv) {
         sphere_inst->AssignTexture("base_tex", blank_color_red);
     }
 
-    RenderGraphBuilder2 rgb{*rsys};
+    RenderGraphBuilder rgb{*rsys};
     Engine::RenderTargetTexture::RenderTargetTextureDesc desc{
         .dimensions = 2,
         .width = 1920,
@@ -249,7 +249,7 @@ int main(int argc, char **argv) {
                  AttachmentUtils::StoreOperation::Store,
                  AttachmentUtils::DepthClearValue{1.0f, 0U}}
             )
-            .SetRasterizerPassFunction([rsys, s](GraphicsCommandBuffer &gcb, const RenderGraph2 &rg) {
+            .SetRasterizerPassFunction([rsys, s](GraphicsCommandBuffer &gcb, const RenderGraph &rg) {
                 vk::Extent2D shadow_map_extent{2048, 2048};
                 vk::Rect2D shadow_map_scissor{{0, 0}, shadow_map_extent};
                 auto sm = rg.GetInternalTextureResource(s);
@@ -289,7 +289,7 @@ int main(int argc, char **argv) {
                  AttachmentUtils::DepthClearValue{1.0f, 0U}}
             )
             .UseImage(s, IAT::ShaderSampledRead)
-            .SetRasterizerPassFunction([rsys](GraphicsCommandBuffer &gcb, const RenderGraph2 &) {
+            .SetRasterizerPassFunction([rsys](GraphicsCommandBuffer &gcb, const RenderGraph &) {
                 vk::Extent2D extent{rsys->GetSwapchain().GetExtent()};
                 vk::Rect2D scissor{{0, 0}, extent};
                 gcb.SetupViewport(extent.width, extent.height, scissor);

@@ -12,7 +12,7 @@ namespace vk {
 }
 
 namespace Engine {
-    class RenderGraph2;
+    class RenderGraph;
     class GraphicsCommandBuffer;
     class ComputeCommandBuffer;
 
@@ -24,7 +24,7 @@ namespace Engine {
     };
 
     /**
-     * @brief A pass in RenderGraph2.
+     * @brief A pass in RenderGraph.
      *
      * @see `Engine::RenderGraphPassBuilder`
      * The builder should be used instead of manually constructing this struct.
@@ -38,7 +38,7 @@ namespace Engine {
         RenderGraphPassAffinity affinity{}, actual_type{};
 
         // Actual pass function
-        std::function<void(vk::CommandBuffer, const RenderGraph2 &)> pass_function{};
+        std::function<void(vk::CommandBuffer, const RenderGraph &)> pass_function{};
 
         // Access registry
         std::unordered_map<RGTextureHandle, MemoryAccessTypeImageBits> image_access{};
@@ -70,7 +70,7 @@ namespace Engine {
          * Actual type and affinity of the pass are set to Graphics.
          */
         RenderGraphPassBuilder &SetRasterizerPassFunction(
-            std::function<void(GraphicsCommandBuffer &, const RenderGraph2 &)> f
+            std::function<void(GraphicsCommandBuffer &, const RenderGraph &)> f
         ) noexcept;
 
         /**
@@ -81,7 +81,7 @@ namespace Engine {
          * details.
          */
         RenderGraphPassBuilder &SetComputePassFunction(
-            std::function<void(ComputeCommandBuffer &, const RenderGraph2 &)> f
+            std::function<void(ComputeCommandBuffer &, const RenderGraph &)> f
         ) noexcept;
 
         /**
@@ -92,7 +92,7 @@ namespace Engine {
          * details.
          */
         RenderGraphPassBuilder &SetTransferPassFunction(
-            std::function<void(TransferCommandBuffer &, const RenderGraph2 &)> f
+            std::function<void(TransferCommandBuffer &, const RenderGraph &)> f
         ) noexcept;
 
         /**

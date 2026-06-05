@@ -8,7 +8,7 @@
 
 namespace Engine {
     class ComputeStage;
-    class RenderGraph2;
+    class RenderGraph;
     class RenderSystem;
 
     /**
@@ -23,7 +23,7 @@ namespace Engine {
         ComplexRenderGraphBuilder(RenderSystem &system);
         ~ComplexRenderGraphBuilder() = default;
 
-        std::unique_ptr<RenderGraph2> BuildDefaultRenderGraph(
+        std::unique_ptr<RenderGraph> BuildDefaultRenderGraph(
             uint32_t texture_width, uint32_t texture_height, RGTextureHandle &final_color_target_id
         );
 

@@ -1,14 +1,14 @@
 #include "RenderGraphPass.h"
 
 #include "Render/DebugUtils.h"
-#include "Render/Pipeline/RenderGraph2/RenderGraph2.h"
+#include "Render/Pipeline/RenderGraph/RenderGraph.h"
 #include "Render/RenderSystem.h"
 
 namespace Engine {
     RenderGraphPassBuilder &RenderGraphPassBuilder::SetRasterizerPassFunction(
-        std::function<void(GraphicsCommandBuffer &, const RenderGraph2 &)> fn
+        std::function<void(GraphicsCommandBuffer &, const RenderGraph &)> fn
     ) noexcept {
-        auto f = [system = &this->system, fn](vk::CommandBuffer cb, const RenderGraph2 &rg) {
+        auto f = [system = &this->system, fn](vk::CommandBuffer cb, const RenderGraph &rg) {
             GraphicsCommandBuffer gcb{*system, cb, system->GetFrameManager().GetFrameInFlight()};
             gcb.SetRenderingInfo(rg.GetCurrentPassRuntimeInfo());
             std::invoke(fn, std::ref(gcb), std::cref(rg));
@@ -20,9 +20,9 @@ namespace Engine {
     }
 
     RenderGraphPassBuilder &RenderGraphPassBuilder::SetComputePassFunction(
-        std::function<void(ComputeCommandBuffer &, const RenderGraph2 &)> fn
+        std::function<void(ComputeCommandBuffer &, const RenderGraph &)> fn
     ) noexcept {
-        auto f = [name = pass.name, system = &this->system, fn](vk::CommandBuffer cb, const RenderGraph2 &rg) {
+        auto f = [name = pass.name, system = &this->system, fn](vk::CommandBuffer cb, const RenderGraph &rg) {
             ComputeCommandBuffer ccb{cb, system->GetFrameManager().GetFrameInFlight()};
             DEBUG_CMD_START_LABEL(cb, std::format("{} (Compute)", name).c_str());
             std::invoke(fn, std::ref(ccb), std::cref(rg));
@@ -35,9 +35,9 @@ namespace Engine {
     }
 
     RenderGraphPassBuilder &RenderGraphPassBuilder::SetTransferPassFunction(
-        std::function<void(TransferCommandBuffer &, const RenderGraph2 &)> fn
+        std::function<void(TransferCommandBuffer &, const RenderGraph &)> fn
     ) noexcept {
-        auto f = [name = pass.name, system = &this->system, fn](vk::CommandBuffer cb, const RenderGraph2 &rg) {
+        auto f = [name = pass.name, system = &this->system, fn](vk::CommandBuffer cb, const RenderGraph &rg) {
             TransferCommandBuffer ccb{cb};
             DEBUG_CMD_START_LABEL(cb, std::format("{} (Compute)", name).c_str());
             std::invoke(fn, std::ref(ccb), std::cref(rg));
@@ -58,7 +58,7 @@ namespace Engine {
                      ca = pass.color_attachments,
                      da = pass.depth_attachment,
                      name = pass.name,
-                     wrapped = pass.pass_function](vk::CommandBuffer cb, const RenderGraph2 &rg) {
+                     wrapped = pass.pass_function](vk::CommandBuffer cb, const RenderGraph &rg) {
             // Construct rendering info
 
             vk::Rect2D rendering_area{

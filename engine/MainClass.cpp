@@ -146,7 +146,7 @@ namespace Engine {
     }
 
     void MainClass::SetRenderGraph(
-        std::unique_ptr<RenderGraph2> render_graph, RGTextureHandle final_color_attachment_id
+        std::unique_ptr<RenderGraph> render_graph, RGTextureHandle final_color_attachment_id
     ) {
         this->render_graph = std::move(render_graph);
         this->m_final_color_attachment_id = final_color_attachment_id;

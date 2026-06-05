@@ -144,7 +144,7 @@ int main(int argc, char **argv) {
     auto gsys = cmc->GetGUISystem();
     gsys->CreateVulkanBackend(*rsys, ImageUtils::GetVkFormat(Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm));
 
-    RenderGraphBuilder2 rgb{*rsys};
+    RenderGraphBuilder rgb{*rsys};
 
     RenderTargetTexture::RenderTargetTextureDesc rtt_desc{
         .dimensions = 2,
@@ -174,7 +174,7 @@ int main(int argc, char **argv) {
                  AttachmentUtils::StoreOperation::DontCare,
                  AttachmentUtils::DepthClearValue{1.0f, 0U}}
             )
-            .SetRasterizerPassFunction([rsys](GraphicsCommandBuffer &gcb, const RenderGraph2 &) {
+            .SetRasterizerPassFunction([rsys](GraphicsCommandBuffer &gcb, const RenderGraph &) {
                 gcb.DrawRenderers("Lit", rsys->GetRendererManager().FilterAndSortRenderers({}));
             })
             .WrapRenderPass()
@@ -188,7 +188,7 @@ int main(int argc, char **argv) {
                 .AppendColorAttachment(
                     {ca, {}, AttachmentUtils::LoadOperation::Load, AttachmentUtils::StoreOperation::Store}
                 )
-                .SetRasterizerPassFunction([gsys](GraphicsCommandBuffer &gcb, const RenderGraph2 &) {
+                .SetRasterizerPassFunction([gsys](GraphicsCommandBuffer &gcb, const RenderGraph &) {
                     gsys->DrawGUI(gcb.GetCommandBuffer());
                 })
                 .WrapRenderPass()

@@ -8,7 +8,7 @@
 
 namespace Engine {
     class ComputeStage;
-    class RenderGraph2;
+    class RenderGraph;
     class RenderSystem;
 } // namespace Engine
 
@@ -24,7 +24,7 @@ namespace Editor {
         EditorRenderGraphBuilder(Engine::RenderSystem &system);
         ~EditorRenderGraphBuilder() = default;
 
-        std::unique_ptr<Engine::RenderGraph2> BuildEditorRenderGraph(
+        std::unique_ptr<Engine::RenderGraph> BuildEditorRenderGraph(
             uint32_t texture_width,
             uint32_t texture_height,
             SceneWidget *scene_widget,

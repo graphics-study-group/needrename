@@ -256,7 +256,7 @@ int main(int argc, char **argv) {
     auto &bloom_compute_binding = bloom_compute_stage->AllocateResourceBinding();
 
     // Build render graph.
-    RenderGraphBuilder2 rgb{*rsys};
+    RenderGraphBuilder rgb{*rsys};
     RenderTargetTexture::RenderTargetTextureDesc rtt_desc{
         .dimensions = 2,
         .width = 1920,
@@ -288,7 +288,7 @@ int main(int argc, char **argv) {
                  AttachmentUtils::StoreOperation::DontCare,
                  AttachmentUtils::DepthClearValue{1.0f, 0U}}
             )
-            .SetRasterizerPassFunction([rsys](GraphicsCommandBuffer &gcb, const RenderGraph2 &) {
+            .SetRasterizerPassFunction([rsys](GraphicsCommandBuffer &gcb, const RenderGraph &) {
                 gcb.DrawRenderers("", rsys->GetRendererManager().FilterAndSortRenderers({}));
             })
             .WrapRenderPass()
@@ -302,7 +302,7 @@ int main(int argc, char **argv) {
             .UseImage(hc, IAT::ShaderRandomRead)
             .UseImage(c, IAT::ShaderRandomWrite)
             .SetComputePassFunction([bloom_compute_stage, &bloom_compute_binding, hc, c](
-                                        ComputeCommandBuffer &ccb, const RenderGraph2 &rg
+                                        ComputeCommandBuffer &ccb, const RenderGraph &rg
                                     ) {
                 // These descriptors should be cached, so there should be only one write.
                 bloom_compute_binding.GetShaderResourceBinding().BindTexture(
@@ -324,7 +324,7 @@ int main(int argc, char **argv) {
             .SetName("GUI Pass")
             .AppendColorAttachment({c, {}, AttachmentUtils::LoadOperation::Load, AttachmentUtils::StoreOperation::Store}
             )
-            .SetRasterizerPassFunction([rsys, gsys](GraphicsCommandBuffer &gcb, const RenderGraph2 &) {
+            .SetRasterizerPassFunction([rsys, gsys](GraphicsCommandBuffer &gcb, const RenderGraph &) {
                 gsys->DrawGUI(gcb.GetCommandBuffer());
             })
             .WrapRenderPass()

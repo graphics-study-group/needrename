@@ -70,7 +70,7 @@ int main(int argc, char *argv[]) {
     cbinding.GetShaderResourceBinding().BindBuffer("Input", compbuf1->GetComputeBuffer());
     cbinding.GetShaderResourceBinding().BindBuffer("Output", compbuf2->GetComputeBuffer());
 
-    RenderGraphBuilder2 rgb{*rsys};
+    RenderGraphBuilder rgb{*rsys};
     auto cbi1 = rgb.ImportExternalResource(compbuf1->GetComputeBuffer());
     auto cbi2 = rgb.ImportExternalResource(compbuf2->GetComputeBuffer());
 
@@ -79,7 +79,7 @@ int main(int argc, char *argv[]) {
             .SetName("Compute")
             .UseBuffer(cbi1, {MemoryAccessTypeBufferBits::ShaderRandomRead})
             .UseBuffer(cbi2, {MemoryAccessTypeBufferBits::ShaderRandomWrite})
-            .SetComputePassFunction([&cstage, &cbinding](ComputeCommandBuffer &ccb, const RenderGraph2 &) -> void {
+            .SetComputePassFunction([&cstage, &cbinding](ComputeCommandBuffer &ccb, const RenderGraph &) -> void {
                 ccb.BindComputeStage(cstage);
                 ccb.BindComputeResource(cbinding);
                 ccb.DispatchCompute(BUFFER_SIZE / 16 + 1, 1, 1);

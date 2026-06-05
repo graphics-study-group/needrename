@@ -20,7 +20,7 @@ auto BuildRenderGraph(
     ComputeStage &compute,
     ComputeResourceBinding &cbinding
 ) {
-    RenderGraphBuilder2 rgb{rsys};
+    RenderGraphBuilder rgb{rsys};
     auto ci = rgb.ImportExternalResource(color_in, MemoryAccessTypeImageBits::TransferWrite);
     auto co = rgb.ImportExternalResource(color_out);
     auto cp = rgb.ImportExternalResource(color_present);
@@ -30,7 +30,7 @@ auto BuildRenderGraph(
             .UseImage(ci, MemoryAccessTypeImageBits::ShaderRandomRead)
             .UseImage(co, MemoryAccessTypeImageBits::ShaderRandomWrite)
             .UseImage(cp, MemoryAccessTypeImageBits::ShaderRandomWrite)
-            .SetComputePassFunction([&](ComputeCommandBuffer &ccb, const RenderGraph2 &rg) -> void {
+            .SetComputePassFunction([&](ComputeCommandBuffer &ccb, const RenderGraph &rg) -> void {
                 ccb.BindComputeStage(compute);
                 ccb.BindComputeResource(cbinding);
                 ccb.DispatchCompute(1280 / 16 + 1, 720 / 16 + 1, 1);
@@ -43,7 +43,7 @@ auto BuildRenderGraph(
             .SetName("Blitting")
             .UseImage(ci, MemoryAccessTypeImageBits::TransferWrite)
             .UseImage(co, MemoryAccessTypeImageBits::TransferRead)
-            .SetRasterizerPassFunction([&](GraphicsCommandBuffer &tcb, const RenderGraph2 &) -> void {
+            .SetRasterizerPassFunction([&](GraphicsCommandBuffer &tcb, const RenderGraph &) -> void {
                 tcb.BlitColorImage(color_out, color_in);
             })
             .Get()

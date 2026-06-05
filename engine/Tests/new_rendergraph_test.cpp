@@ -2,10 +2,10 @@
 #include "Render/FullRenderSystem.h"
 using namespace Engine;
 
-void dummy_compute_pass(ComputeCommandBuffer &, const RenderGraph2 &) {
+void dummy_compute_pass(ComputeCommandBuffer &, const RenderGraph &) {
 }
 
-void dummy_graphics_pass(GraphicsCommandBuffer &, const RenderGraph2 &) {
+void dummy_graphics_pass(GraphicsCommandBuffer &, const RenderGraph &) {
 }
 
 int main() {
@@ -13,7 +13,7 @@ int main() {
     auto cmc = MainClass::GetInstance();
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
 
-    auto rgb = RenderGraphBuilder2{*cmc->GetRenderSystem()};
+    auto rgb = RenderGraphBuilder{*cmc->GetRenderSystem()};
 
     auto rttd = RenderTargetTexture::RenderTargetTextureDesc{
         .dimensions = 2,

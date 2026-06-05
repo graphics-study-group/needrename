@@ -10,9 +10,9 @@
 #include <Render/Pipeline/CommandBuffer/GraphicsCommandBuffer.h>
 #include <Render/Pipeline/Compute/ComputeResourceBinding.h>
 #include <Render/Pipeline/Compute/ComputeStage.h>
-#include <Render/Pipeline/RenderGraph2/RenderGraph2.h>
-#include <Render/Pipeline/RenderGraph2/RenderGraphBuilder2.h>
-#include <Render/Pipeline/RenderGraph2/RenderGraphPass.h>
+#include <Render/Pipeline/RenderGraph/RenderGraph.h>
+#include <Render/Pipeline/RenderGraph/RenderGraphBuilder.h>
+#include <Render/Pipeline/RenderGraph/RenderGraphPass.h>
 #include <Render/RenderSystem.h>
 #include <Render/RenderSystem/CameraManager.h>
 #include <Render/RenderSystem/FrameManager.h>
@@ -34,7 +34,7 @@ namespace Editor {
         m_bloom_shader = adb.GetNewAssetRef(AssetPath{adb, "~/shaders/bloom.comp.asset"});
     }
 
-    std::unique_ptr<RenderGraph2> EditorRenderGraphBuilder::BuildEditorRenderGraph(
+    std::unique_ptr<RenderGraph> EditorRenderGraphBuilder::BuildEditorRenderGraph(
         uint32_t texture_width,
         uint32_t texture_height,
         SceneWidget *scene_widget,
@@ -43,7 +43,7 @@ namespace Editor {
         RGTextureHandle &game_widget_color_id,
         RGTextureHandle &final_color_target_id
     ) {
-        RenderGraphBuilder2 rgb{m_system};
+        RenderGraphBuilder rgb{m_system};
 
         // Request transient resources
         RenderTargetTexture::RenderTargetTextureDesc rtt_desc{
@@ -116,7 +116,7 @@ namespace Editor {
                     )
                     .SetRasterizerPassFunction([&system,
                                                 shadow_ids,
-                                                i](GraphicsCommandBuffer &gcb, const RenderGraph2 &rg) {
+                                                i](GraphicsCommandBuffer &gcb, const RenderGraph &rg) {
                         vk::Extent2D shadow_map_extent{SHADOWMAP_WIDTH, SHADOWMAP_HEIGHT};
                         vk::Rect2D shadow_map_scissor{{0, 0}, shadow_map_extent};
                         if (i < system.GetSceneDataManager().GetNumShadowCastingLights()) {
@@ -165,7 +165,7 @@ namespace Editor {
                      AttachmentUtils::StoreOperation::DontCare,
                      AttachmentUtils::DepthClearValue{1.0f, 0U}}
                 )
-                .SetRasterizerPassFunction([&system, scene_widget](GraphicsCommandBuffer &gcb, const RenderGraph2 &) {
+                .SetRasterizerPassFunction([&system, scene_widget](GraphicsCommandBuffer &gcb, const RenderGraph &) {
                     vk::Extent2D extent{
                         static_cast<uint32_t>(scene_widget->m_viewport_size.x),
                         static_cast<uint32_t>(scene_widget->m_viewport_size.y)
@@ -204,7 +204,7 @@ namespace Editor {
                                          texture_height,
                                          &scene_bloom_binding,
                                          hdr_color_id,
-                                         scene_widget_color_id](ComputeCommandBuffer &ccb, const RenderGraph2 &rg) {
+                                         scene_widget_color_id](ComputeCommandBuffer &ccb, const RenderGraph &rg) {
                     scene_bloom_binding.GetShaderResourceBinding().BindTexture(
                         "inputImage", *rg.GetInternalTextureResource(hdr_color_id)
                     );
@@ -238,7 +238,7 @@ namespace Editor {
                      AttachmentUtils::DepthClearValue{1.0f, 0U}}
                 )
                 .SetRasterizerPassFunction(
-                    [&system, game_widget, world_system](GraphicsCommandBuffer &gcb, const RenderGraph2 &) {
+                    [&system, game_widget, world_system](GraphicsCommandBuffer &gcb, const RenderGraph &) {
                         vk::Extent2D extent{
                             static_cast<uint32_t>(game_widget->m_viewport_size.x),
                             static_cast<uint32_t>(game_widget->m_viewport_size.y)
@@ -282,7 +282,7 @@ namespace Editor {
                                          texture_height,
                                          &game_bloom_binding,
                                          hdr_color_id,
-                                         game_widget_color_id](ComputeCommandBuffer &ccb, const RenderGraph2 &rg) {
+                                         game_widget_color_id](ComputeCommandBuffer &ccb, const RenderGraph &rg) {
                     game_bloom_binding.GetShaderResourceBinding().BindTexture(
                         "inputImage", *rg.GetInternalTextureResource(hdr_color_id)
                     );
@@ -310,7 +310,7 @@ namespace Editor {
                      AttachmentUtils::LoadOperation::Load,
                      AttachmentUtils::StoreOperation::Store}
                 )
-                .SetRasterizerPassFunction([gui_system](GraphicsCommandBuffer &gcb, const RenderGraph2 &) {
+                .SetRasterizerPassFunction([gui_system](GraphicsCommandBuffer &gcb, const RenderGraph &) {
                     gui_system->DrawGUI(gcb.GetCommandBuffer());
                 })
                 .WrapRenderPass()

@@ -101,7 +101,7 @@ auto BuildRenderGraph(
     IVertexBasedRenderer *mesh
 ) {
     using IAT = Engine::MemoryAccessTypeImageBits;
-    RenderGraphBuilder2 rgb{*rsys};
+    RenderGraphBuilder rgb{*rsys};
     auto c1 = rgb.ImportExternalResource(*color_1);
     auto c2 = rgb.ImportExternalResource(*color_2);
     auto c3 = rgb.ImportExternalResource(*color_3);
@@ -146,7 +146,7 @@ auto BuildRenderGraph(
                  AttachmentUtils::DepthClearValue{1.0f, 0U}}
             )
             .SetRasterizerPassFunction([rsys, color_1, color_2, color_3, color_4, depth, material, mesh](
-                                           GraphicsCommandBuffer &gcb, const RenderGraph2 &
+                                           GraphicsCommandBuffer &gcb, const RenderGraph &
                                        ) {
                 auto extent = rsys->GetSwapchain().GetExtent();
                 gcb.SetupViewport(extent.width, extent.height, {{0, 0}, extent});
@@ -188,7 +188,7 @@ auto BuildRenderGraph(
             .SetName("Transfer")
             .UseBuffer(b1, {MemoryAccessTypeBufferBits::TransferWrite})
             .UseImage(c1, MemoryAccessTypeImageBits::TransferRead)
-            .SetTransferPassFunction([readback, c1](TransferCommandBuffer &tcb, const RenderGraph2 &rg) {
+            .SetTransferPassFunction([readback, c1](TransferCommandBuffer &tcb, const RenderGraph &rg) {
                 auto rt = rg.GetInternalTextureResource(c1);
                 std::array image_copies = {vk::BufferImageCopy{
                     0,

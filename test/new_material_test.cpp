@@ -97,7 +97,7 @@ auto BuildRenderGraph(
     ComputeResourceBinding *kbinding = nullptr
 ) {
     using IAT = Engine::MemoryAccessTypeImageBits;
-    RenderGraphBuilder2 rgb{*rsys};
+    RenderGraphBuilder rgb{*rsys};
     auto c = rgb.ImportExternalResource(*color);
     auto d = rgb.ImportExternalResource(*depth);
 
@@ -115,7 +115,7 @@ auto BuildRenderGraph(
                  AttachmentUtils::DepthClearValue{1.0f, 0U}}
             )
             .SetRasterizerPassFunction(
-                [rsys, color, depth, material, mesh](GraphicsCommandBuffer &gcb, const RenderGraph2 &) {
+                [rsys, color, depth, material, mesh](GraphicsCommandBuffer &gcb, const RenderGraph &) {
                     auto extent = rsys->GetSwapchain().GetExtent();
 
                     PipelineRuntimeInfo pri{};
@@ -154,7 +154,7 @@ auto BuildRenderGraph(
                 .SetName("FX")
                 .UseImage(c, IAT::ShaderRandomRead)
                 .UseImage(gb, IAT::ShaderRandomWrite)
-                .SetComputePassFunction([blurred, kernel, kbinding](ComputeCommandBuffer &ccb, const RenderGraph2 &) {
+                .SetComputePassFunction([blurred, kernel, kbinding](ComputeCommandBuffer &ccb, const RenderGraph &) {
                     ccb.BindComputeStage(*kernel);
                     ccb.BindComputeResource(*kbinding);
                     ccb.DispatchCompute(

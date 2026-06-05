@@ -5,9 +5,9 @@
 #include <MainClass.h>
 #include <Render/Memory/RenderTargetTexture.h>
 #include <Render/Pipeline/Compute/ComputeResourceBinding.h>
-#include <Render/Pipeline/RenderGraph2/RenderGraph2.h>
-#include <Render/Pipeline/RenderGraph2/RenderGraphBuilder2.h>
-#include <Render/Pipeline/RenderGraph2/RenderGraphPass.h>
+#include <Render/Pipeline/RenderGraph/RenderGraph.h>
+#include <Render/Pipeline/RenderGraph/RenderGraphBuilder.h>
+#include <Render/Pipeline/RenderGraph/RenderGraphPass.h>
 #include <Render/RenderSystem.h>
 #include <Render/RenderSystem/SceneDataManager.h>
 #include <Render/Renderer/Camera.h>
@@ -21,10 +21,10 @@ namespace Engine {
         m_bloom_shader = adb.GetNewAssetRef(AssetPath{adb, "~/shaders/bloom.comp.asset"});
     }
 
-    std::unique_ptr<RenderGraph2> ComplexRenderGraphBuilder::BuildDefaultRenderGraph(
+    std::unique_ptr<RenderGraph> ComplexRenderGraphBuilder::BuildDefaultRenderGraph(
         uint32_t texture_width, uint32_t texture_height, RGTextureHandle &final_color_target_id
     ) {
-        RenderGraphBuilder2 rgb{m_system};
+        RenderGraphBuilder rgb{m_system};
 
         // Request transient resources
         RenderTargetTexture::RenderTargetTextureDesc rtt_desc{
@@ -89,7 +89,7 @@ namespace Engine {
                     )
                     .SetRasterizerPassFunction([&system,
                                                 shadow_ids,
-                                                i](GraphicsCommandBuffer &gcb, const RenderGraph2 &rg) {
+                                                i](GraphicsCommandBuffer &gcb, const RenderGraph &rg) {
                         vk::Extent2D shadow_map_extent{SHADOWMAP_WIDTH, SHADOWMAP_HEIGHT};
                         vk::Rect2D shadow_map_scissor{{0, 0}, shadow_map_extent};
                         if (i < system.GetSceneDataManager().GetNumShadowCastingLights()) {
@@ -141,7 +141,7 @@ namespace Engine {
                      AttachmentUtils::StoreOperation::DontCare,
                      AttachmentUtils::DepthClearValue{1.0f, 0U}}
                 )
-                .SetRasterizerPassFunction([&system, world_system](GraphicsCommandBuffer &gcb, const RenderGraph2 &) {
+                .SetRasterizerPassFunction([&system, world_system](GraphicsCommandBuffer &gcb, const RenderGraph &) {
                     vk::Extent2D extent{system.GetSwapchain().GetExtent()};
                     vk::Rect2D scissor{{0, 0}, extent};
                     gcb.SetupViewport(extent.width, extent.height, scissor);
@@ -182,7 +182,7 @@ namespace Engine {
                                          texture_height,
                                          &bloom_compute_binding,
                                          hdr_color_id,
-                                         final_color_target_id](ComputeCommandBuffer &ccb, const RenderGraph2 &rg) {
+                                         final_color_target_id](ComputeCommandBuffer &ccb, const RenderGraph &rg) {
                     bloom_compute_binding.GetShaderResourceBinding().BindTexture(
                         "inputImage", *rg.GetInternalTextureResource(hdr_color_id)
                     );

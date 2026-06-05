@@ -28,9 +28,9 @@
 #include "Render/Pipeline/Compute/ComputeResourceBinding.h"
 #include "Render/Pipeline/Compute/ComputeStage.h"
 
-#include "Render/Pipeline/RenderGraph2/RenderGraph2.h"
-#include "Render/Pipeline/RenderGraph2/RenderGraphBuilder2.h"
-#include "Render/Pipeline/RenderGraph2/RenderGraphPass.h"
+#include "Render/Pipeline/RenderGraph/RenderGraph.h"
+#include "Render/Pipeline/RenderGraph/RenderGraphBuilder.h"
+#include "Render/Pipeline/RenderGraph/RenderGraphPass.h"
 
 #include "Render/Pipeline/Material/MaterialInstance.h"
 #include "Render/Pipeline/Material/MaterialLibrary.h"
