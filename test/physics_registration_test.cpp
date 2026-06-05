@@ -9,7 +9,8 @@
 #include "Physics/PhysicsSystem.h"
 #include "Physics/XPBDGpuSolver.h"
 #include "Render/FullRenderSystem.h"
-#include "Render/Pipeline/RenderGraph/ComplexRenderGraphBuilder.h"
+#include "Render/Pipeline/RenderGraph2/RenderGraph2.h"
+#include "Render/Pipeline/RenderGraph2/RenderGraphBuilder2.h"
 #include "cmake_config.h"
 
 #include <cassert>
@@ -39,11 +40,6 @@ int main(int argc, char **argv) {
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Loading project");
     cmc->LoadProject(project_path);
-    auto rgb = std::make_unique<ComplexRenderGraphBuilder>(*cmc->GetRenderSystem());
-    auto [w, h] = cmc->GetWindow()->GetSize();
-    int32_t final_color_id;
-    auto rg = rgb->BuildDefaultRenderGraph(w, h, final_color_id);
-    cmc->SetRenderGraph(rg, final_color_id);
     auto &world_system = *cmc->GetWorldSystem();
     Scene &scene = world_system.GetMainSceneRef();
 
@@ -113,8 +109,21 @@ int main(int argc, char **argv) {
 
     physics_scene->DebugPrint();
 
+    // --- Build the XPBD physics render graph ---
+    XPBDGpuSolver xpbd_solver{*cmc->GetRenderSystem()};
+
+    RenderGraphBuilder2 rgb{*cmc->GetRenderSystem()};
+    xpbd_solver.Step(rgb, *physics_scene);
+    auto rg = rgb.BuildRenderGraph();
+
     for (int64_t frame = 0; frame < max_frame_count; frame++) {
-        XPBDGpuSolver::Step(*cmc->GetRenderSystem(), *physics_scene);
+        const auto &queues = cmc->GetRenderSystem()->GetDeviceInterface().GetQueueInfo();
+        auto cbai = vk::CommandBufferAllocateInfo{queues.graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1};
+        auto cb = cmc->GetRenderSystem()->GetDevice().allocateCommandBuffers(cbai);
+        rg.RecordAllPasses(cb[0]);
+        auto si = vk::SubmitInfo{{}, {}, {cb}, {}};
+        queues.graphicsQueue.submit(si);
+        queues.graphicsQueue.waitIdle();
     }
 
     return 0;
