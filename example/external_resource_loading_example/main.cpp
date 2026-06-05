@@ -60,9 +60,9 @@ int main(int argc, char **argv) {
     cmc->LoadProject(project_path);
     auto rgb = std::make_unique<ComplexRenderGraphBuilder>(*cmc->GetRenderSystem());
     auto [w, h] = cmc->GetWindow()->GetSize();
-    int32_t final_color_id;
+    RGTextureHandle final_color_id;
     auto rg = rgb->BuildDefaultRenderGraph(w, h, final_color_id);
-    cmc->SetRenderGraph(rg, final_color_id);
+    cmc->SetRenderGraph(std::move(rg), final_color_id);
 
     std::filesystem::path path_in_project = "/imported_resources";
     const auto import_begin = std::chrono::steady_clock::now();

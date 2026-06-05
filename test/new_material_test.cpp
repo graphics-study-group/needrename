@@ -297,9 +297,9 @@ int main(int argc, char **argv) {
 
         auto index = rsys->StartFrame();
         if (has_gaussian_blur) {
-            blur.Execute(*rsys);
+            blur->Execute(*rsys);
         } else {
-            nonblur.Execute(*rsys);
+            nonblur->Execute(*rsys);
         }
 
         rsys->CompleteFrame(

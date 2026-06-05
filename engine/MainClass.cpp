@@ -145,7 +145,9 @@ namespace Engine {
         return shader_compiler;
     }
 
-    void MainClass::SetRenderGraph(std::unique_ptr<RenderGraph> &render_graph, uint32_t final_color_attachment_id) {
+    void MainClass::SetRenderGraph(
+        std::unique_ptr<RenderGraph2> render_graph, RGTextureHandle final_color_attachment_id
+    ) {
         this->render_graph = std::move(render_graph);
         this->m_final_color_attachment_id = final_color_attachment_id;
     }
@@ -181,7 +183,7 @@ namespace Engine {
         this->world->UpdateRendererData(*this->renderer);
 
         this->renderer->StartFrame();
-        this->render_graph->Execute();
+        this->render_graph->Execute(*this->renderer);
         auto [w, h] = this->window->GetSize();
         this->renderer->CompleteFrame(
             *this->render_graph->GetInternalTextureResource(this->m_final_color_attachment_id),

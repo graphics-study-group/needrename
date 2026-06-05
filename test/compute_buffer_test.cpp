@@ -91,7 +91,7 @@ int main(int argc, char *argv[]) {
     const auto &queues = rsys->GetDeviceInterface().GetQueueInfo();
     auto cbai = vk::CommandBufferAllocateInfo{queues.graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1};
     auto cb = rsys->GetDevice().allocateCommandBuffers(cbai);
-    rg.RecordAllPasses(cb[0]);
+    rg->RecordAllPasses(cb[0]);
 
     auto si = vk::SubmitInfo{{}, {}, {cb}, {}};
     queues.graphicsQueue.submit(si);

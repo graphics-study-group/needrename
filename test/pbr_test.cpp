@@ -361,8 +361,8 @@ int main(int argc, char **argv) {
         // Draw
         auto index = rsys->StartFrame();
 
-        rg.Execute(*rsys);
-        auto color = rg.GetInternalTextureResource(c);
+        rg->Execute(*rsys);
+        auto color = rg->GetInternalTextureResource(c);
         rsys->CompleteFrame(*color, color->GetTextureDescription().width, color->GetTextureDescription().height);
 
         // SDL_Delay(5);

@@ -300,7 +300,7 @@ int main(int argc, char **argv) {
     );
 
     auto rg{rgb.BuildRenderGraph()};
-    auto sm = rg.GetInternalTextureResource(s);
+    auto sm = rg->GetInternalTextureResource(s);
     rsys->GetSceneDataManager().SetLightShadowMap(0, *sm);
 
     bool quited = false;
@@ -323,8 +323,8 @@ int main(int argc, char **argv) {
         cube_mesh_comp.PreRenderUpdate();
         sphere_mesh_comp.PreRenderUpdate();
 
-        rg.Execute(*rsys);
-        auto color = rg.GetInternalTextureResource(c);
+        rg->Execute(*rsys);
+        auto color = rg->GetInternalTextureResource(c);
         rsys->CompleteFrame(*color, color->GetTextureDescription().width, color->GetTextureDescription().height);
 
         SDL_Delay(10);

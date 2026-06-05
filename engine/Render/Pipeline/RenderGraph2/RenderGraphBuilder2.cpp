@@ -402,7 +402,7 @@ namespace Engine {
         pimpl->passes.push_back(std::move(pass));
     }
 
-    RenderGraph2 RenderGraphBuilder2::BuildRenderGraph() {
+    std::unique_ptr<RenderGraph2> RenderGraphBuilder2::BuildRenderGraph() {
         auto usage = pimpl->AnalysisUsage();
         auto dg = pimpl->AnalysisDependency(usage);
         // Maps reordered pass indices to original pass indices.
@@ -699,7 +699,7 @@ namespace Engine {
             e.first_persistent_texture_access[r] = a.front().second;
             e.last_persistent_texture_access[r] = a.back().second;
         }
-        return RenderGraph2(std::move(p), std::move(e));
+        return std::make_unique<RenderGraph2>(std::move(p), std::move(e));
     }
 
 } // namespace Engine

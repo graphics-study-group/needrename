@@ -104,7 +104,7 @@ namespace Engine {
         /**
          * @brief Construct a render graph according to the passes.
          */
-        RenderGraph2 BuildRenderGraph();
+        std::unique_ptr<RenderGraph2> BuildRenderGraph();
     };
 } // namespace Engine
 
