@@ -24,3 +24,5 @@ namespace Engine {
         return m_transform;
     }
 } // namespace Engine
+
+#include "__generated__/TransformComponent.h.inc"

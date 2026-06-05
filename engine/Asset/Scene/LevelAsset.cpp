@@ -50,3 +50,5 @@ namespace Engine {
         if (active_camera) rsys->GetCameraManager().RegisterCamera(active_camera);
     }
 } // namespace Engine
+
+#include "__generated__/LevelAsset.h.inc"

@@ -95,3 +95,5 @@ namespace Engine {
         return *comp_ptr;
     }
 } // namespace Engine
+
+#include "__generated__/GameObject.h.inc"

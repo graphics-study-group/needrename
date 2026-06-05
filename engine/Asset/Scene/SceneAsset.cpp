@@ -91,3 +91,5 @@ namespace Engine {
         }
     }
 } // namespace Engine
+
+#include "__generated__/SceneAsset.h.inc"

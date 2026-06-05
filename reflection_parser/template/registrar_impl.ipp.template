@@ -3,21 +3,6 @@
 #include <typeinfo>
 #include <Reflection/reflection.h>
 #include "registrar_declare.hpp"
-#include "${file_path}"
-
-<%def name="generate_headers(class_type)">
-% for smart_pointer_typename in class_type.reflection_smart_pointer_typenames:
-% if smart_pointer_typename in parser.type_file_map.keys():
-#include "${parser.type_file_map[smart_pointer_typename]}"
-% endif
-% endfor
-</%def>
-
-% if file_path in parser.file_type_map.keys():
-% for class_type in parser.file_type_map[file_path]:
-${generate_headers(class_type)}
-% endfor
-% endif
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"

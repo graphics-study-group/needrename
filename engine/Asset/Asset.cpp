@@ -35,3 +35,5 @@ namespace Engine {
         return m_guid;
     }
 } // namespace Engine
+
+#include "__generated__/Asset.h.inc"

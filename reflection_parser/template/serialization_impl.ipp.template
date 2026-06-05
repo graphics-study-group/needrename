@@ -1,17 +1,4 @@
 #include <Reflection/serialization.h>
-#include "${file_path}"
-
-<%def name="generate_headers(class_type)">
-% for smart_pointer_typename in class_type.serialization_smart_pointer_typenames:
-% if smart_pointer_typename in parser.type_file_map.keys():
-#include "${parser.type_file_map[smart_pointer_typename]}"
-% endif
-% endfor
-</%def>
-
-% for class_type in parser.file_type_map[file_path]:
-${generate_headers(class_type)}
-% endfor
 
 <%
 import clang.cindex as CX
