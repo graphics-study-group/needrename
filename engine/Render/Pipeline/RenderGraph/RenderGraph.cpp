@@ -158,6 +158,27 @@ namespace Engine {
     }
 
     void RenderGraph::Execute(RenderSystem &system) {
+        /**
+         * @note Currently all passes are recorded onto a single command buffer
+         * and submitted to the main (graphics) queue. The `affinity` and
+         * `cross_queue_dep` infrastructure in RenderGraphBuilder already
+         * detects cross-queue dependencies and splits passes into merge groups
+         * with appropriate signal/wait pipeline stages, but the actual
+         * multi-queue submission (separate vkQueueSubmit calls with
+         * semaphores for graphics / compute / transfer queues) is not yet
+         * implemented.
+         *
+         * When async compute is enabled, this method should:
+         * 1. Group passes by their queue affinity
+         * 2. Record each group into its own command buffer
+         * 3. Submit each group to the appropriate VkQueue
+         * 4. Use timeline semaphores (or binary semaphores) between groups
+         *    with cross-queue dependencies, using the signal_stage /
+         *    wait_stage already computed in RenderGraphCompiledPass.
+         *
+         * @see RenderGraphPassAffinity
+         * @see RenderGraphBuilder::AnalysisCrossQueueDependency
+         */
         auto &fm = system.GetFrameManager();
         auto cb = fm.GetRawMainCommandBuffer();
 

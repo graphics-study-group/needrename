@@ -174,8 +174,8 @@ int main(int argc, char **argv) {
                  AttachmentUtils::StoreOperation::DontCare,
                  AttachmentUtils::DepthClearValue{1.0f, 0U}}
             )
-            .SetRasterizerPassFunction([rsys](GraphicsCommandBuffer &gcb, const RenderGraph &) {
-                gcb.DrawRenderers("Lit", rsys->GetRendererManager().FilterAndSortRenderers({}));
+            .SetPassFunction([rsys](CommandBuffer &cb, const RenderGraph &) {
+                cb.DrawRenderers("Lit", rsys->GetRendererManager().FilterAndSortRenderers({}));
             })
             .WrapRenderPass()
             .Get()
@@ -188,8 +188,8 @@ int main(int argc, char **argv) {
                 .AppendColorAttachment(
                     {ca, {}, AttachmentUtils::LoadOperation::Load, AttachmentUtils::StoreOperation::Store}
                 )
-                .SetRasterizerPassFunction([gsys](GraphicsCommandBuffer &gcb, const RenderGraph &) {
-                    gsys->DrawGUI(gcb.GetCommandBuffer());
+                .SetPassFunction([gsys](CommandBuffer &cb, const RenderGraph &) {
+                    gsys->DrawGUI(cb.GetCommandBuffer());
                 })
                 .WrapRenderPass()
                 .Get()

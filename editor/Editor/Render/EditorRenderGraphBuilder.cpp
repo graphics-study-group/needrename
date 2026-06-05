@@ -6,8 +6,7 @@
 #include <MainClass.h>
 #include <Render/Memory/RenderTargetTexture.h>
 #include <Render/Memory/ShaderParameters/ShaderResourceBinding.h>
-#include <Render/Pipeline/CommandBuffer/ComputeCommandBuffer.h>
-#include <Render/Pipeline/CommandBuffer/GraphicsCommandBuffer.h>
+#include <Render/Pipeline/CommandBuffer.h>
 #include <Render/Pipeline/Compute/ComputeResourceBinding.h>
 #include <Render/Pipeline/Compute/ComputeStage.h>
 #include <Render/Pipeline/RenderGraph/RenderGraph.h>
@@ -114,14 +113,12 @@ namespace Editor {
                          AttachmentUtils::StoreOperation::Store,
                          AttachmentUtils::DepthClearValue{1.0f, 0U}}
                     )
-                    .SetRasterizerPassFunction([&system,
-                                                shadow_ids,
-                                                i](GraphicsCommandBuffer &gcb, const RenderGraph &rg) {
+                    .SetPassFunction([&system, shadow_ids, i](CommandBuffer &cb, const RenderGraph &rg) {
                         vk::Extent2D shadow_map_extent{SHADOWMAP_WIDTH, SHADOWMAP_HEIGHT};
                         vk::Rect2D shadow_map_scissor{{0, 0}, shadow_map_extent};
                         if (i < system.GetSceneDataManager().GetNumShadowCastingLights()) {
                             auto shadow_map_target = rg.GetInternalTextureResource(shadow_ids[i]);
-                            gcb.BeginRendering(
+                            cb.BeginRendering(
                                 {nullptr},
                                 {shadow_map_target,
                                  TextureSubresourceRange::GetSingleRange(),
@@ -131,14 +128,14 @@ namespace Editor {
                                 shadow_map_extent,
                                 "Shadowmap Pass"
                             );
-                            gcb.SetupViewport(shadow_map_extent.width, shadow_map_extent.height, shadow_map_scissor);
-                            gcb.DrawRenderers(
+                            cb.SetupViewport(shadow_map_extent.width, shadow_map_extent.height, shadow_map_scissor);
+                            cb.DrawRenderers(
                                 "Shadowmap",
                                 system.GetRendererManager().FilterAndSortRenderers({}),
                                 0,
                                 shadow_map_extent
                             );
-                            gcb.EndRendering();
+                            cb.EndRendering();
                         }
                     })
                     .Get()
@@ -165,22 +162,22 @@ namespace Editor {
                      AttachmentUtils::StoreOperation::DontCare,
                      AttachmentUtils::DepthClearValue{1.0f, 0U}}
                 )
-                .SetRasterizerPassFunction([&system, scene_widget](GraphicsCommandBuffer &gcb, const RenderGraph &) {
+                .SetPassFunction([&system, scene_widget](CommandBuffer &cb, const RenderGraph &) {
                     vk::Extent2D extent{
                         static_cast<uint32_t>(scene_widget->m_viewport_size.x),
                         static_cast<uint32_t>(scene_widget->m_viewport_size.y)
                     };
                     vk::Rect2D scissor{{0, 0}, extent};
-                    gcb.SetupViewport(extent.width, extent.height, scissor);
+                    cb.SetupViewport(extent.width, extent.height, scissor);
                     system.GetCameraManager().SetActiveCameraIndex(scene_widget->GetCameraIndex());
-                    gcb.DrawRenderers(
+                    cb.DrawRenderers(
                         "Lit",
                         system.GetRendererManager().FilterAndSortRenderers({}),
                         system.GetCameraManager().GetActiveCameraIndex(),
                         extent
                     );
                     system.GetSceneDataManager().DrawSkybox(
-                        gcb,
+                        cb,
                         system.GetFrameManager().GetFrameInFlight(),
                         system.GetCameraManager().GetPVMatForSkybox(),
                         extent
@@ -199,21 +196,22 @@ namespace Editor {
                 .SetName("Scene Bloom FX pass")
                 .UseImage(hdr_color_id, IAT::ShaderRandomRead)
                 .UseImage(scene_widget_color_id, IAT::ShaderRandomWrite)
-                .SetComputePassFunction([&scene_bloom,
-                                         texture_width,
-                                         texture_height,
-                                         &scene_bloom_binding,
-                                         hdr_color_id,
-                                         scene_widget_color_id](ComputeCommandBuffer &ccb, const RenderGraph &rg) {
+                .SetAffinity(RenderGraphPassAffinity::Compute)
+                .SetPassFunction([&scene_bloom,
+                                  texture_width,
+                                  texture_height,
+                                  &scene_bloom_binding,
+                                  hdr_color_id,
+                                  scene_widget_color_id](CommandBuffer &cb, const RenderGraph &rg) {
                     scene_bloom_binding.GetShaderResourceBinding().BindTexture(
                         "inputImage", *rg.GetInternalTextureResource(hdr_color_id)
                     );
                     scene_bloom_binding.GetShaderResourceBinding().BindTexture(
                         "outputImage", *rg.GetInternalTextureResource(scene_widget_color_id)
                     );
-                    ccb.BindComputeStage(scene_bloom);
-                    ccb.BindComputeResource(scene_bloom_binding);
-                    ccb.DispatchCompute(texture_width / 16 + 1, texture_height / 16 + 1, 1);
+                    cb.BindComputeStage(scene_bloom);
+                    cb.BindComputeResource(scene_bloom_binding);
+                    cb.DispatchCompute(texture_width / 16 + 1, texture_height / 16 + 1, 1);
                 })
                 .Get()
         );
@@ -237,33 +235,31 @@ namespace Editor {
                      AttachmentUtils::StoreOperation::DontCare,
                      AttachmentUtils::DepthClearValue{1.0f, 0U}}
                 )
-                .SetRasterizerPassFunction(
-                    [&system, game_widget, world_system](GraphicsCommandBuffer &gcb, const RenderGraph &) {
-                        vk::Extent2D extent{
-                            static_cast<uint32_t>(game_widget->m_viewport_size.x),
-                            static_cast<uint32_t>(game_widget->m_viewport_size.y)
-                        };
-                        vk::Rect2D scissor{{0, 0}, extent};
-                        gcb.SetupViewport(extent.width, extent.height, scissor);
-                        auto camera = world_system->GetActiveCamera();
-                        if (camera == nullptr) {
-                            return;
-                        }
-                        system.GetCameraManager().SetActiveCameraIndex(camera->m_display_id);
-                        gcb.DrawRenderers(
-                            "Lit",
-                            system.GetRendererManager().FilterAndSortRenderers({}),
-                            system.GetCameraManager().GetActiveCameraIndex(),
-                            extent
-                        );
-                        system.GetSceneDataManager().DrawSkybox(
-                            gcb,
-                            system.GetFrameManager().GetFrameInFlight(),
-                            system.GetCameraManager().GetPVMatForSkybox(),
-                            extent
-                        );
+                .SetPassFunction([&system, game_widget, world_system](CommandBuffer &cb, const RenderGraph &) {
+                    vk::Extent2D extent{
+                        static_cast<uint32_t>(game_widget->m_viewport_size.x),
+                        static_cast<uint32_t>(game_widget->m_viewport_size.y)
+                    };
+                    vk::Rect2D scissor{{0, 0}, extent};
+                    cb.SetupViewport(extent.width, extent.height, scissor);
+                    auto camera = world_system->GetActiveCamera();
+                    if (camera == nullptr) {
+                        return;
                     }
-                )
+                    system.GetCameraManager().SetActiveCameraIndex(camera->m_display_id);
+                    cb.DrawRenderers(
+                        "Lit",
+                        system.GetRendererManager().FilterAndSortRenderers({}),
+                        system.GetCameraManager().GetActiveCameraIndex(),
+                        extent
+                    );
+                    system.GetSceneDataManager().DrawSkybox(
+                        cb,
+                        system.GetFrameManager().GetFrameInFlight(),
+                        system.GetCameraManager().GetPVMatForSkybox(),
+                        extent
+                    );
+                })
                 .WrapRenderPass();
             rgb.AddPass(builder.Get());
         }
@@ -277,21 +273,22 @@ namespace Editor {
                 .SetName("Game Bloom FX pass")
                 .UseImage(hdr_color_id, IAT::ShaderRandomRead)
                 .UseImage(game_widget_color_id, IAT::ShaderRandomWrite)
-                .SetComputePassFunction([&game_bloom,
-                                         texture_width,
-                                         texture_height,
-                                         &game_bloom_binding,
-                                         hdr_color_id,
-                                         game_widget_color_id](ComputeCommandBuffer &ccb, const RenderGraph &rg) {
+                .SetAffinity(RenderGraphPassAffinity::Compute)
+                .SetPassFunction([&game_bloom,
+                                  texture_width,
+                                  texture_height,
+                                  &game_bloom_binding,
+                                  hdr_color_id,
+                                  game_widget_color_id](CommandBuffer &cb, const RenderGraph &rg) {
                     game_bloom_binding.GetShaderResourceBinding().BindTexture(
                         "inputImage", *rg.GetInternalTextureResource(hdr_color_id)
                     );
                     game_bloom_binding.GetShaderResourceBinding().BindTexture(
                         "outputImage", *rg.GetInternalTextureResource(game_widget_color_id)
                     );
-                    ccb.BindComputeStage(game_bloom);
-                    ccb.BindComputeResource(game_bloom_binding);
-                    ccb.DispatchCompute(texture_width / 16 + 1, texture_height / 16 + 1, 1);
+                    cb.BindComputeStage(game_bloom);
+                    cb.BindComputeResource(game_bloom_binding);
+                    cb.DispatchCompute(texture_width / 16 + 1, texture_height / 16 + 1, 1);
                 })
                 .Get()
         );
@@ -310,8 +307,8 @@ namespace Editor {
                      AttachmentUtils::LoadOperation::Load,
                      AttachmentUtils::StoreOperation::Store}
                 )
-                .SetRasterizerPassFunction([gui_system](GraphicsCommandBuffer &gcb, const RenderGraph &) {
-                    gui_system->DrawGUI(gcb.GetCommandBuffer());
+                .SetPassFunction([gui_system](CommandBuffer &cb, const RenderGraph &) {
+                    gui_system->DrawGUI(cb.GetCommandBuffer());
                 })
                 .WrapRenderPass()
                 .Get()

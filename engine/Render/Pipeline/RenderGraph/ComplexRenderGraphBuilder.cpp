@@ -4,6 +4,7 @@
 #include <Framework/world/WorldSystem.h>
 #include <MainClass.h>
 #include <Render/Memory/RenderTargetTexture.h>
+#include <Render/Pipeline/CommandBuffer.h>
 #include <Render/Pipeline/Compute/ComputeResourceBinding.h>
 #include <Render/Pipeline/RenderGraph/RenderGraph.h>
 #include <Render/Pipeline/RenderGraph/RenderGraphBuilder.h>
@@ -87,14 +88,12 @@ namespace Engine {
                          AttachmentUtils::StoreOperation::Store,
                          AttachmentUtils::DepthClearValue{1.0f, 0U}}
                     )
-                    .SetRasterizerPassFunction([&system,
-                                                shadow_ids,
-                                                i](GraphicsCommandBuffer &gcb, const RenderGraph &rg) {
+                    .SetPassFunction([&system, shadow_ids, i](CommandBuffer &cb, const RenderGraph &rg) {
                         vk::Extent2D shadow_map_extent{SHADOWMAP_WIDTH, SHADOWMAP_HEIGHT};
                         vk::Rect2D shadow_map_scissor{{0, 0}, shadow_map_extent};
                         if (i < system.GetSceneDataManager().GetNumShadowCastingLights()) {
                             auto shadow_map_target = rg.GetInternalTextureResource(shadow_ids[i]);
-                            gcb.BeginRendering(
+                            cb.BeginRendering(
                                 {nullptr},
                                 {shadow_map_target,
                                  TextureSubresourceRange::GetSingleRange(),
@@ -104,14 +103,14 @@ namespace Engine {
                                 shadow_map_extent,
                                 "Shadowmap Pass"
                             );
-                            gcb.SetupViewport(shadow_map_extent.width, shadow_map_extent.height, shadow_map_scissor);
-                            gcb.DrawRenderers(
+                            cb.SetupViewport(shadow_map_extent.width, shadow_map_extent.height, shadow_map_scissor);
+                            cb.DrawRenderers(
                                 "Shadowmap",
                                 system.GetRendererManager().FilterAndSortRenderers({}),
                                 0,
                                 shadow_map_extent
                             );
-                            gcb.EndRendering();
+                            cb.EndRendering();
                         }
                     })
                     .Get()
@@ -141,24 +140,24 @@ namespace Engine {
                      AttachmentUtils::StoreOperation::DontCare,
                      AttachmentUtils::DepthClearValue{1.0f, 0U}}
                 )
-                .SetRasterizerPassFunction([&system, world_system](GraphicsCommandBuffer &gcb, const RenderGraph &) {
+                .SetPassFunction([&system, world_system](CommandBuffer &cb, const RenderGraph &) {
                     vk::Extent2D extent{system.GetSwapchain().GetExtent()};
                     vk::Rect2D scissor{{0, 0}, extent};
-                    gcb.SetupViewport(extent.width, extent.height, scissor);
+                    cb.SetupViewport(extent.width, extent.height, scissor);
                     auto active_camera = world_system->GetActiveCamera();
                     if (active_camera == nullptr) {
                         // No active camera, skip rendering.
                         return;
                     }
                     system.GetCameraManager().SetActiveCameraIndex(active_camera->m_display_id);
-                    gcb.DrawRenderers(
+                    cb.DrawRenderers(
                         "Lit",
                         system.GetRendererManager().FilterAndSortRenderers({}),
                         system.GetCameraManager().GetActiveCameraIndex(),
                         extent
                     );
                     system.GetSceneDataManager().DrawSkybox(
-                        gcb,
+                        cb,
                         system.GetFrameManager().GetFrameInFlight(),
                         system.GetCameraManager().GetPVMatForSkybox(),
                         extent
@@ -177,21 +176,22 @@ namespace Engine {
                 .SetName("Bloom FX pass")
                 .UseImage(hdr_color_id, IAT::ShaderRandomRead)
                 .UseImage(final_color_target_id, IAT::ShaderRandomWrite)
-                .SetComputePassFunction([&bloom_compute_stage,
-                                         texture_width,
-                                         texture_height,
-                                         &bloom_compute_binding,
-                                         hdr_color_id,
-                                         final_color_target_id](ComputeCommandBuffer &ccb, const RenderGraph &rg) {
+                .SetAffinity(RenderGraphPassAffinity::Compute)
+                .SetPassFunction([&bloom_compute_stage,
+                                  texture_width,
+                                  texture_height,
+                                  &bloom_compute_binding,
+                                  hdr_color_id,
+                                  final_color_target_id](CommandBuffer &cb, const RenderGraph &rg) {
                     bloom_compute_binding.GetShaderResourceBinding().BindTexture(
                         "inputImage", *rg.GetInternalTextureResource(hdr_color_id)
                     );
                     bloom_compute_binding.GetShaderResourceBinding().BindTexture(
                         "outputImage", *rg.GetInternalTextureResource(final_color_target_id)
                     );
-                    ccb.BindComputeStage(bloom_compute_stage);
-                    ccb.BindComputeResource(bloom_compute_binding);
-                    ccb.DispatchCompute(texture_width / 16 + 1, texture_height / 16 + 1, 1);
+                    cb.BindComputeStage(bloom_compute_stage);
+                    cb.BindComputeResource(bloom_compute_binding);
+                    cb.DispatchCompute(texture_width / 16 + 1, texture_height / 16 + 1, 1);
                 })
                 .Get()
         );

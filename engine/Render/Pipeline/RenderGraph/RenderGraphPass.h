@@ -13,8 +13,7 @@ namespace vk {
 
 namespace Engine {
     class RenderGraph;
-    class GraphicsCommandBuffer;
-    class ComputeCommandBuffer;
+    class CommandBuffer;
 
     enum class RenderGraphPassAffinity {
         None,
@@ -65,41 +64,34 @@ namespace Engine {
         }
 
         /**
-         * @brief Set up a pass function for rasterizer.
+         * @brief Set up the pass function.
          *
-         * Actual type and affinity of the pass are set to Graphics.
-         */
-        RenderGraphPassBuilder &SetRasterizerPassFunction(
-            std::function<void(GraphicsCommandBuffer &, const RenderGraph &)> f
-        ) noexcept;
-
-        /**
-         * @brief Set up a pass function for compute shader invocations.
+         * The pass receives a unified CommandBuffer that supports graphics,
+         * compute, and transfer operations.
          *
-         * Actual type of the pass is set to Compute.
-         * Affinity is set to Graphics. See `SetAffinity()` for more
-         * details.
-         */
-        RenderGraphPassBuilder &SetComputePassFunction(
-            std::function<void(ComputeCommandBuffer &, const RenderGraph &)> f
-        ) noexcept;
-
-        /**
-         * @brief Set up a pass function for transfer invocations.
+         * The actual_type of the pass is set based on `affinity`:
+         *   - Graphics → actual_type = Graphics
+         *   - Compute  → actual_type = Compute
+         *   - Transfer → actual_type = Transfer
          *
-         * Actual type of the pass is set to Transfer.
-         * Affinity is set to Graphics. See `SetAffinity()` for more
-         * details.
+         * You must call `SetAffinity()` before this method,
+         * or the default (Graphics) will be used.
          */
-        RenderGraphPassBuilder &SetTransferPassFunction(
-            std::function<void(TransferCommandBuffer &, const RenderGraph &)> f
-        ) noexcept;
+        RenderGraphPassBuilder &SetPassFunction(std::function<void(CommandBuffer &, const RenderGraph &)> f) noexcept;
 
         /**
          * @brief Set affinity of the pass.
          *
-         * Affinity determines whether the workload will be redistributed to
-         * be carried out asynchronously.
+         * Affinity determines which Vulkan queue family the workload is
+         * intended for (graphics, compute, or transfer), enabling async
+         * compute overlap when implemented.
+         *
+         * @note CURRENT LIMITATION: The RenderGraphBuilder correctly detects
+         * cross-queue dependencies, splits passes at affinity boundaries, and
+         * computes signal_stage / wait_stage, but RenderGraph::Execute still
+         * serializes everything onto a single graphics command buffer.
+         * Setting a non-Graphics affinity is safe but has no runtime effect
+         * on queue selection yet.
          *
          * Typically you want all workloads to be distributed synchronously onto
          * the Graphics core if you don't know what you are doing, which is the

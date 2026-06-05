@@ -459,7 +459,22 @@ namespace Engine {
         AnalysisCrossQueueDependency(reordered_usage.image_usages);
         AnalysisCrossQueueDependency(reordered_usage.buffer_usages);
 
-        // Merge passes that does not have cross queue dependencies.
+        /**
+         * Merge passes that do not have cross-queue dependencies.
+         *
+         * Passes separated by a cross-queue dependency are kept in separate
+         * merge groups so that they can eventually be submitted to different
+         * VkQueue instances. Each merged group gets a `signal_stage` and
+         * `wait_stage` computed from the affinity transitions (see
+         * `AnalysisCrossQueueDependency` above).
+         *
+         * @note Currently RenderGraph::Execute serializes all merged groups
+         * onto a single graphics command buffer. The signal_stage / wait_stage
+         * fields on RenderGraphCompiledPass are computed but not yet consumed
+         * for actual cross-queue semaphore submission. When async compute is
+         * implemented, these fields will drive the VkSubmitInfo semaphore
+         * parameters.
+         */
         std::unordered_set<uint32_t> affected_passes{};
         std::vector<std::vector<uint32_t>> merged_passes{};
         std::unordered_map<uint32_t, uint32_t> merged_pass_lut{};

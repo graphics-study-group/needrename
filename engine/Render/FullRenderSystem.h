@@ -22,8 +22,6 @@
 #include "Render/Resource/StaticMeshResource.h"
 
 #include "Render/Pipeline/CommandBuffer.h"
-#include "Render/Pipeline/CommandBuffer/ComputeCommandBuffer.h"
-#include "Render/Pipeline/CommandBuffer/GraphicsCommandBuffer.h"
 
 #include "Render/Pipeline/Compute/ComputeResourceBinding.h"
 #include "Render/Pipeline/Compute/ComputeStage.h"

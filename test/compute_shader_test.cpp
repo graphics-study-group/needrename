@@ -30,10 +30,11 @@ auto BuildRenderGraph(
             .UseImage(ci, MemoryAccessTypeImageBits::ShaderRandomRead)
             .UseImage(co, MemoryAccessTypeImageBits::ShaderRandomWrite)
             .UseImage(cp, MemoryAccessTypeImageBits::ShaderRandomWrite)
-            .SetComputePassFunction([&](ComputeCommandBuffer &ccb, const RenderGraph &rg) -> void {
-                ccb.BindComputeStage(compute);
-                ccb.BindComputeResource(cbinding);
-                ccb.DispatchCompute(1280 / 16 + 1, 720 / 16 + 1, 1);
+            .SetAffinity(RenderGraphPassAffinity::Compute)
+            .SetPassFunction([&](CommandBuffer &cb, const RenderGraph &rg) -> void {
+                cb.BindComputeStage(compute);
+                cb.BindComputeResource(cbinding);
+                cb.DispatchCompute(1280 / 16 + 1, 720 / 16 + 1, 1);
             })
             .Get()
     );
@@ -43,8 +44,8 @@ auto BuildRenderGraph(
             .SetName("Blitting")
             .UseImage(ci, MemoryAccessTypeImageBits::TransferWrite)
             .UseImage(co, MemoryAccessTypeImageBits::TransferRead)
-            .SetRasterizerPassFunction([&](GraphicsCommandBuffer &tcb, const RenderGraph &) -> void {
-                tcb.BlitColorImage(color_out, color_in);
+            .SetPassFunction([&](CommandBuffer &cb, const RenderGraph &) -> void {
+                cb.BlitColorImage(color_out, color_in);
             })
             .Get()
     );

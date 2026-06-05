@@ -47,7 +47,7 @@ int main(int argc, char **argv) {
             .AppendColorAttachment(
                 {c, {}, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store}
             )
-            .SetRasterizerPassFunction([&](GraphicsCommandBuffer &gcb, const RenderGraph &rg) -> void {
+            .SetPassFunction([&](CommandBuffer &cb, const RenderGraph &rg) -> void {
                 auto color = rg.GetInternalTextureResource(c);
                 gsys->DrawGUI(
                     AttachmentUtils::AttachmentDescription{
@@ -57,7 +57,7 @@ int main(int argc, char **argv) {
                         AttachmentUtils::StoreOperation::Store,
                     },
                     vk::Extent2D{color->GetTextureDescription().width, color->GetTextureDescription().height},
-                    gcb
+                    cb
                 );
             })
             .Get()

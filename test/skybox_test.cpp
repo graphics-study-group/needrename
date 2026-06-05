@@ -187,7 +187,7 @@ int main(int argc, char **argv) {
                  AttachmentUtils::StoreOperation::DontCare,
                  AttachmentUtils::DepthClearValue{1.0f, 0U}}
             )
-            .SetRasterizerPassFunction([rsys, camera](GraphicsCommandBuffer &cb, const RenderGraph &) -> void {
+            .SetPassFunction([rsys, camera](CommandBuffer &cb, const RenderGraph &) -> void {
                 glm::mat3 view_matrix = glm::mat3(camera->GetViewMatrix());
                 glm::mat4 pv = camera->GetProjectionMatrix() * glm::mat4(view_matrix);
                 rsys->GetSceneDataManager().DrawSkybox(

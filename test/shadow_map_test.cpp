@@ -249,11 +249,11 @@ int main(int argc, char **argv) {
                  AttachmentUtils::StoreOperation::Store,
                  AttachmentUtils::DepthClearValue{1.0f, 0U}}
             )
-            .SetRasterizerPassFunction([rsys, s](GraphicsCommandBuffer &gcb, const RenderGraph &rg) {
+            .SetPassFunction([rsys, s](CommandBuffer &cb, const RenderGraph &rg) {
                 vk::Extent2D shadow_map_extent{2048, 2048};
                 vk::Rect2D shadow_map_scissor{{0, 0}, shadow_map_extent};
                 auto sm = rg.GetInternalTextureResource(s);
-                gcb.BeginRendering(
+                cb.BeginRendering(
                     {nullptr},
                     {sm,
                      Engine::TextureSubresourceRange::GetSingleRange(),
@@ -263,14 +263,14 @@ int main(int argc, char **argv) {
                     shadow_map_extent,
                     "Shadowmap Pass"
                 );
-                gcb.SetupViewport(shadow_map_extent.width, shadow_map_extent.height, shadow_map_scissor);
-                gcb.DrawRenderers(
+                cb.SetupViewport(shadow_map_extent.width, shadow_map_extent.height, shadow_map_scissor);
+                cb.DrawRenderers(
                     "Shadowmap",
                     rsys->GetRendererManager().FilterAndSortRenderers({}),
                     0,
                     vk::Extent2D{sm->GetTextureDescription().width, sm->GetTextureDescription().height}
                 );
-                gcb.EndRendering();
+                cb.EndRendering();
             })
             .Get()
     );
@@ -289,11 +289,11 @@ int main(int argc, char **argv) {
                  AttachmentUtils::DepthClearValue{1.0f, 0U}}
             )
             .UseImage(s, IAT::ShaderSampledRead)
-            .SetRasterizerPassFunction([rsys](GraphicsCommandBuffer &gcb, const RenderGraph &) {
+            .SetPassFunction([rsys](CommandBuffer &cb, const RenderGraph &) {
                 vk::Extent2D extent{rsys->GetSwapchain().GetExtent()};
                 vk::Rect2D scissor{{0, 0}, extent};
-                gcb.SetupViewport(extent.width, extent.height, scissor);
-                gcb.DrawRenderers("Lit", rsys->GetRendererManager().FilterAndSortRenderers({}));
+                cb.SetupViewport(extent.width, extent.height, scissor);
+                cb.DrawRenderers("Lit", rsys->GetRendererManager().FilterAndSortRenderers({}));
             })
             .WrapRenderPass()
             .Get()

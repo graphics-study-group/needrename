@@ -261,9 +261,9 @@ namespace Engine::RenderSystemState {
         return this->pimpl->current_framebuffer;
     }
 
-    GraphicsCommandBuffer FrameManager::GetCommandBuffer() {
+    CommandBuffer FrameManager::GetCommandBuffer() {
         pimpl->assert_in_frame();
-        return GraphicsCommandBuffer(pimpl->m_system, GetRawMainCommandBuffer(), GetFrameInFlight());
+        return CommandBuffer(pimpl->m_system, GetRawMainCommandBuffer(), GetFrameInFlight());
     }
 
     vk::CommandBuffer FrameManager::GetRawMainCommandBuffer() {

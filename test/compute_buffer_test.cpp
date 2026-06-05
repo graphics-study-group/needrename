@@ -79,10 +79,11 @@ int main(int argc, char *argv[]) {
             .SetName("Compute")
             .UseBuffer(cbi1, {MemoryAccessTypeBufferBits::ShaderRandomRead})
             .UseBuffer(cbi2, {MemoryAccessTypeBufferBits::ShaderRandomWrite})
-            .SetComputePassFunction([&cstage, &cbinding](ComputeCommandBuffer &ccb, const RenderGraph &) -> void {
-                ccb.BindComputeStage(cstage);
-                ccb.BindComputeResource(cbinding);
-                ccb.DispatchCompute(BUFFER_SIZE / 16 + 1, 1, 1);
+            .SetAffinity(RenderGraphPassAffinity::Compute)
+            .SetPassFunction([&cstage, &cbinding](CommandBuffer &cb, const RenderGraph &) -> void {
+                cb.BindComputeStage(cstage);
+                cb.BindComputeResource(cbinding);
+                cb.DispatchCompute(BUFFER_SIZE / 16 + 1, 1, 1);
             })
             .Get()
     );

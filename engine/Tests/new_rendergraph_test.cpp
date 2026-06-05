@@ -2,10 +2,10 @@
 #include "Render/FullRenderSystem.h"
 using namespace Engine;
 
-void dummy_compute_pass(ComputeCommandBuffer &, const RenderGraph &) {
+void dummy_compute_pass(CommandBuffer &, const RenderGraph &) {
 }
 
-void dummy_graphics_pass(GraphicsCommandBuffer &, const RenderGraph &) {
+void dummy_graphics_pass(CommandBuffer &, const RenderGraph &) {
 }
 
 int main() {
@@ -32,7 +32,8 @@ int main() {
         RenderGraphPassBuilder{*cmc->GetRenderSystem()}
             .SetName("Compute pass")
             .SetGlobalAccess({MemoryAccessTypeBufferBits::ShaderRandomWrite})
-            .SetComputePassFunction(dummy_compute_pass)
+            .SetAffinity(RenderGraphPassAffinity::Compute)
+            .SetPassFunction(dummy_compute_pass)
             .Get()
     );
 
@@ -43,7 +44,7 @@ int main() {
             .AppendColorAttachment(
                 {fbuffer, {}, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store}
             )
-            .SetRasterizerPassFunction(dummy_graphics_pass)
+            .SetPassFunction(dummy_graphics_pass)
             .WrapRenderPass()
             .Get()
     );
@@ -55,7 +56,7 @@ int main() {
             .AppendColorAttachment(
                 {gbuffer, {}, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store}
             )
-            .SetRasterizerPassFunction(dummy_graphics_pass)
+            .SetPassFunction(dummy_graphics_pass)
             .WrapRenderPass()
             .Get()
     );
@@ -64,7 +65,8 @@ int main() {
         RenderGraphPassBuilder{*cmc->GetRenderSystem()}
             .SetName("Post processing compute")
             .UseImage(fbuffer, MemoryAccessTypeImageBits::ShaderRandomRead)
-            .SetComputePassFunction(dummy_compute_pass)
+            .SetAffinity(RenderGraphPassAffinity::Compute)
+            .SetPassFunction(dummy_compute_pass)
             .Get()
     );
 

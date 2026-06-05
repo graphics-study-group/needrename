@@ -288,8 +288,8 @@ int main(int argc, char **argv) {
                  AttachmentUtils::StoreOperation::DontCare,
                  AttachmentUtils::DepthClearValue{1.0f, 0U}}
             )
-            .SetRasterizerPassFunction([rsys](GraphicsCommandBuffer &gcb, const RenderGraph &) {
-                gcb.DrawRenderers("", rsys->GetRendererManager().FilterAndSortRenderers({}));
+            .SetPassFunction([rsys](CommandBuffer &cb, const RenderGraph &) {
+                cb.DrawRenderers("", rsys->GetRendererManager().FilterAndSortRenderers({}));
             })
             .WrapRenderPass()
             .Get()
@@ -301,20 +301,21 @@ int main(int argc, char **argv) {
             .SetName("Bloom Fx Pass")
             .UseImage(hc, IAT::ShaderRandomRead)
             .UseImage(c, IAT::ShaderRandomWrite)
-            .SetComputePassFunction([bloom_compute_stage, &bloom_compute_binding, hc, c](
-                                        ComputeCommandBuffer &ccb, const RenderGraph &rg
-                                    ) {
-                // These descriptors should be cached, so there should be only one write.
-                bloom_compute_binding.GetShaderResourceBinding().BindTexture(
-                    "inputImage", *rg.GetInternalTextureResource(hc)
-                );
-                bloom_compute_binding.GetShaderResourceBinding().BindTexture(
-                    "outputImage", *rg.GetInternalTextureResource(c)
-                );
-                ccb.BindComputeStage(*bloom_compute_stage);
-                ccb.BindComputeResource(bloom_compute_binding);
-                ccb.DispatchCompute(1920 / 16 + 1, 1080 / 16 + 1, 1);
-            })
+            .SetAffinity(RenderGraphPassAffinity::Compute)
+            .SetPassFunction(
+                [bloom_compute_stage, &bloom_compute_binding, hc, c](CommandBuffer &cb, const RenderGraph &rg) {
+                    // These descriptors should be cached, so there should be only one write.
+                    bloom_compute_binding.GetShaderResourceBinding().BindTexture(
+                        "inputImage", *rg.GetInternalTextureResource(hc)
+                    );
+                    bloom_compute_binding.GetShaderResourceBinding().BindTexture(
+                        "outputImage", *rg.GetInternalTextureResource(c)
+                    );
+                    cb.BindComputeStage(*bloom_compute_stage);
+                    cb.BindComputeResource(bloom_compute_binding);
+                    cb.DispatchCompute(1920 / 16 + 1, 1080 / 16 + 1, 1);
+                }
+            )
             .Get()
     );
 
@@ -324,8 +325,8 @@ int main(int argc, char **argv) {
             .SetName("GUI Pass")
             .AppendColorAttachment({c, {}, AttachmentUtils::LoadOperation::Load, AttachmentUtils::StoreOperation::Store}
             )
-            .SetRasterizerPassFunction([rsys, gsys](GraphicsCommandBuffer &gcb, const RenderGraph &) {
-                gsys->DrawGUI(gcb.GetCommandBuffer());
+            .SetPassFunction([rsys, gsys](CommandBuffer &cb, const RenderGraph &) {
+                gsys->DrawGUI(cb.GetCommandBuffer());
             })
             .WrapRenderPass()
             .Get()
