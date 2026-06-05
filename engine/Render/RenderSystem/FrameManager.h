@@ -11,9 +11,7 @@ namespace Engine {
     class RenderSystem;
     class Texture;
     class DeviceBuffer;
-    class GraphicsCommandBuffer;
-    class GraphicsContext;
-    class ComputeContext;
+    class CommandBuffer;
 
     namespace RenderSystemState {
         class SubmissionHelper;
@@ -70,15 +68,7 @@ namespace Engine {
              * Must be called between `StartFrame()` and `CompleteFrame()`
              */
             [[deprecated]]
-            GraphicsCommandBuffer GetCommandBuffer();
-
-            /// @deprecated
-            [[deprecated]]
-            GraphicsContext GetGraphicsContext();
-
-            /// @deprecated
-            [[deprecated]]
-            ComputeContext GetComputeContext();
+            CommandBuffer GetCommandBuffer();
 
             /**
              * @brief Request the current main command buffer

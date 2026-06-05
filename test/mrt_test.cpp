@@ -101,7 +101,7 @@ auto BuildRenderGraph(
     IVertexBasedRenderer *mesh
 ) {
     using IAT = Engine::MemoryAccessTypeImageBits;
-    RenderGraphBuilder2 rgb{*rsys};
+    RenderGraphBuilder rgb{*rsys};
     auto c1 = rgb.ImportExternalResource(*color_1);
     auto c2 = rgb.ImportExternalResource(*color_2);
     auto c3 = rgb.ImportExternalResource(*color_3);
@@ -145,13 +145,13 @@ auto BuildRenderGraph(
                  AttachmentUtils::StoreOperation::DontCare,
                  AttachmentUtils::DepthClearValue{1.0f, 0U}}
             )
-            .SetRasterizerPassFunction([rsys, color_1, color_2, color_3, color_4, depth, material, mesh](
-                                           GraphicsCommandBuffer &gcb, const RenderGraph2 &
-                                       ) {
+            .SetPassFunction([rsys, color_1, color_2, color_3, color_4, depth, material, mesh](
+                                 CommandBuffer &cb, const RenderGraph &
+                             ) {
                 auto extent = rsys->GetSwapchain().GetExtent();
-                gcb.SetupViewport(extent.width, extent.height, {{0, 0}, extent});
-                gcb.BindSceneResources(rsys->GetSceneDataManager());
-                gcb.BindCameraResources(rsys->GetCameraManager());
+                cb.SetupViewport(extent.width, extent.height, {{0, 0}, extent});
+                cb.BindSceneResources(rsys->GetSceneDataManager());
+                cb.BindCameraResources(rsys->GetCameraManager());
 
                 PipelineRuntimeInfo pri{};
                 pri.va.SetAttribute(VertexAttributeSemantic::Position, VertexAttributeType::SFloat32x3);
@@ -167,9 +167,9 @@ auto BuildRenderGraph(
 
                 auto tpl = material->GetLibrary().FindMaterialTemplate("", pri);
                 assert(tpl);
-                gcb.BindMaterial(*material, *tpl);
+                cb.BindMaterial(*material, *tpl);
                 // Push model matrix...
-                vk::CommandBuffer rcb = gcb.GetCommandBuffer();
+                vk::CommandBuffer rcb = cb.GetCommandBuffer();
                 rcb.pushConstants(
                     material->GetLibrary().FindMaterialTemplate("", pri)->GetPipelineLayout(),
                     vk::ShaderStageFlagBits::eAllGraphics,
@@ -177,7 +177,7 @@ auto BuildRenderGraph(
                     sizeof(RenderSystemState::RendererManager::RendererDataStruct),
                     reinterpret_cast<const void *>(&EYE4)
                 );
-                gcb.DrawMesh(*mesh);
+                cb.DrawMesh(*mesh);
             })
             .WrapRenderPass()
             .Get()
@@ -188,7 +188,8 @@ auto BuildRenderGraph(
             .SetName("Transfer")
             .UseBuffer(b1, {MemoryAccessTypeBufferBits::TransferWrite})
             .UseImage(c1, MemoryAccessTypeImageBits::TransferRead)
-            .SetTransferPassFunction([readback, c1](TransferCommandBuffer &tcb, const RenderGraph2 &rg) {
+            .SetAffinity(RenderGraphPassAffinity::Transfer)
+            .SetPassFunction([readback, c1](CommandBuffer &cb, const RenderGraph &rg) {
                 auto rt = rg.GetInternalTextureResource(c1);
                 std::array image_copies = {vk::BufferImageCopy{
                     0,
@@ -202,7 +203,7 @@ auto BuildRenderGraph(
                         rt->GetTextureDescription().depth
                     }
                 }};
-                tcb.GetCommandBuffer().copyImageToBuffer(
+                cb.GetCommandBuffer().copyImageToBuffer(
                     rt->GetImage(), vk::ImageLayout::eTransferSrcOptimal, readback->GetBuffer(), image_copies
                 );
             })
@@ -321,7 +322,7 @@ int main(int argc, char **argv) {
             }
         });
 
-        rg.Execute(*rsys);
+        rg->Execute(*rsys);
 
         rsys->CompleteFrame(
             *colors[color],

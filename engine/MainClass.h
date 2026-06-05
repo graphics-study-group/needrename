@@ -22,6 +22,7 @@ namespace Engine {
 
     class ComplexRenderGraphBuilder;
     class RenderGraph;
+    enum class RGTextureHandle : int32_t;
 
     class MainClass {
     public:
@@ -60,7 +61,7 @@ namespace Engine {
         std::shared_ptr<Input> GetInputSystem() const;
         std::shared_ptr<ShaderCompiler> GetShaderCompiler() const;
 
-        void SetRenderGraph(std::unique_ptr<RenderGraph> &render_graph, uint32_t final_color_attachment_id);
+        void SetRenderGraph(std::unique_ptr<RenderGraph> render_graph, RGTextureHandle final_color_attachment_id);
 
     protected:
         // XXX: window must destroyed before renderer. Because the window has some AllocatedImage2D. So the permutation
@@ -76,7 +77,7 @@ namespace Engine {
         std::shared_ptr<ShaderCompiler> shader_compiler{};
 
         std::unique_ptr<RenderGraph> render_graph{};
-        uint32_t m_final_color_attachment_id = 0;
+        RGTextureHandle m_final_color_attachment_id{0};
 
         static std::weak_ptr<MainClass> m_instance;
         static std::once_flag m_instance_ready;

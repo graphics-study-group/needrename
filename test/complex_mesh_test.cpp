@@ -145,7 +145,58 @@ int main(int argc, char **argv) {
     gsys->CreateVulkanBackend(*rsys, ImageUtils::GetVkFormat(Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm));
 
     RenderGraphBuilder rgb{*rsys};
-    auto rg{rgb.BuildDefaultRenderGraph(1280, 720, gsys.get())};
+
+    RenderTargetTexture::RenderTargetTextureDesc rtt_desc{
+        .dimensions = 2,
+        .width = 1280,
+        .height = 720,
+        .depth = 1,
+        .mipmap_levels = 1,
+        .array_layers = 1,
+        .format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::R8G8B8A8UNorm,
+        .multisample = 1,
+        .is_cube_map = false
+    };
+    auto ca = rgb.RequestRenderTargetTexture(rtt_desc, Texture::SamplerDesc{});
+    rtt_desc.format = RenderTargetTexture::RenderTargetTextureDesc::RTTFormat::D32SFLOAT;
+    auto da = rgb.RequestRenderTargetTexture(rtt_desc, Texture::SamplerDesc{});
+
+    rgb.AddPass(
+        RenderGraphPassBuilder{*rsys}
+            .SetName("Main Lit pass")
+            .AppendColorAttachment(
+                {ca, {}, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store}
+            )
+            .SetDepthStencilAttachment(
+                {da,
+                 {},
+                 AttachmentUtils::LoadOperation::Clear,
+                 AttachmentUtils::StoreOperation::DontCare,
+                 AttachmentUtils::DepthClearValue{1.0f, 0U}}
+            )
+            .SetPassFunction([rsys](CommandBuffer &cb, const RenderGraph &) {
+                cb.DrawRenderers("Lit", rsys->GetRendererManager().FilterAndSortRenderers({}));
+            })
+            .WrapRenderPass()
+            .Get()
+    );
+
+    if (gsys) {
+        rgb.AddPass(
+            RenderGraphPassBuilder{*rsys}
+                .SetName("GUI pass")
+                .AppendColorAttachment(
+                    {ca, {}, AttachmentUtils::LoadOperation::Load, AttachmentUtils::StoreOperation::Store}
+                )
+                .SetPassFunction([gsys](CommandBuffer &cb, const RenderGraph &) {
+                    gsys->DrawGUI(cb.GetCommandBuffer());
+                })
+                .WrapRenderPass()
+                .Get()
+        );
+    }
+
+    auto rg = rgb.BuildRenderGraph();
 
     auto &scene = cmc->GetWorldSystem()->GetMainSceneRef();
     // Setup mesh
@@ -190,8 +241,8 @@ int main(int argc, char **argv) {
         tmc.PreRenderUpdate();
 
         auto index = rsys->StartFrame();
-        rg->Execute();
-        auto color = rg->GetInternalTextureResource(0);
+        rg->Execute(*rsys);
+        auto color = rg->GetInternalTextureResource(ca);
         rsys->CompleteFrame(*color, color->GetTextureDescription().width, color->GetTextureDescription().height);
 
         SDL_Delay(5);
