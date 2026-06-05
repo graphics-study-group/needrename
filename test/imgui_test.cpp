@@ -29,7 +29,7 @@ int main(int argc, char **argv) {
     auto gsys = cmc->GetGUISystem();
     gsys->CreateVulkanBackend(*rsys, ImageUtils::GetVkFormat(Engine::ImageUtils::ImageFormat::R8G8B8A8UNorm));
 
-    RenderGraphBuilder2 rgb{*rsys};
+    RenderGraphBuilder rgb{*rsys};
     Engine::RenderTargetTexture::RenderTargetTextureDesc desc{
         .dimensions = 2,
         .width = 1920,
@@ -47,7 +47,7 @@ int main(int argc, char **argv) {
             .AppendColorAttachment(
                 {c, {}, AttachmentUtils::LoadOperation::Clear, AttachmentUtils::StoreOperation::Store}
             )
-            .SetRasterizerPassFunction([&](GraphicsCommandBuffer &gcb, const RenderGraph2 &rg) -> void {
+            .SetPassFunction([&](CommandBuffer &cb, const RenderGraph &rg) -> void {
                 auto color = rg.GetInternalTextureResource(c);
                 gsys->DrawGUI(
                     AttachmentUtils::AttachmentDescription{
@@ -57,7 +57,7 @@ int main(int argc, char **argv) {
                         AttachmentUtils::StoreOperation::Store,
                     },
                     vk::Extent2D{color->GetTextureDescription().width, color->GetTextureDescription().height},
-                    gcb
+                    cb
                 );
             })
             .Get()
@@ -81,11 +81,9 @@ int main(int argc, char **argv) {
         ImGui::ShowDemoWindow();
 
         auto index = rsys->StartFrame();
-        auto context = rsys->GetFrameManager().GetGraphicsContext();
-
         assert(index < 3);
-        rg.Execute(*rsys);
-        auto color = rg.GetInternalTextureResource(c);
+        rg->Execute(*rsys);
+        auto color = rg->GetInternalTextureResource(c);
         rsys->CompleteFrame(*color, color->GetTextureDescription().width, color->GetTextureDescription().height);
 
         SDL_Delay(10);

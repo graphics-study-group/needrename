@@ -1,8 +1,12 @@
-#include "GraphicsCommandBuffer.h"
+#include "CommandBuffer.h"
 
 #include "Framework/component/RenderComponent/RendererComponent.h"
 #include "Render/AttachmentUtilsFunc.h"
+#include "Render/DebugUtils.h"
 #include "Render/Memory/DeviceBuffer.h"
+#include "Render/Memory/Texture.h"
+#include "Render/Pipeline/Compute/ComputeResourceBinding.h"
+#include "Render/Pipeline/Compute/ComputeStage.h"
 #include "Render/Pipeline/Material/MaterialInstance.h"
 #include "Render/Pipeline/Material/MaterialLibrary.h"
 #include "Render/RenderSystem.h"
@@ -15,18 +19,86 @@
 #include "Render/Renderer/VertexAttribute.h"
 #include "Render/Resource/MaterialInstanceManager.h"
 
-#include "Render/DebugUtils.h"
-
 #include <SDL3/SDL.h>
 #include <glm.hpp>
 #include <vulkan/vulkan.hpp>
 
 namespace Engine {
-    GraphicsCommandBuffer::GraphicsCommandBuffer(RenderSystem &system, vk::CommandBuffer cb, uint32_t frame_in_flight) :
-        TransferCommandBuffer(cb), m_system(system), m_inflight_frame_index(frame_in_flight) {
+
+    CommandBuffer::CommandBuffer(RenderSystem &system, vk::CommandBuffer _cb, uint32_t frame_in_flight) :
+        m_system(system), cb(_cb), m_inflight_frame_index(frame_in_flight) {
     }
 
-    void GraphicsCommandBuffer::BeginRendering(
+    // ── Transfer ────────────────────────────────────────────────────────────
+
+    void CommandBuffer::BlitColorImage(const Texture &src, const Texture &dst) {
+        const auto &src_desc{src.GetTextureDescription()}, &dst_desc{dst.GetTextureDescription()};
+        BlitColorImage(
+            src,
+            dst,
+            TextureArea{
+                .mip_level = 0,
+                .array_layer_base = 0,
+                .array_layer_count = src_desc.array_layers,
+                .x0 = 0,
+                .y0 = 0,
+                .z0 = 0,
+                .x1 = static_cast<int32_t>(src_desc.width),
+                .y1 = static_cast<int32_t>(src_desc.height),
+                .z1 = static_cast<int32_t>(src_desc.depth)
+            },
+            TextureArea{
+                .mip_level = 0,
+                .array_layer_base = 0,
+                .array_layer_count = dst_desc.array_layers,
+                .x0 = 0,
+                .y0 = 0,
+                .z0 = 0,
+                .x1 = static_cast<int32_t>(dst_desc.width),
+                .y1 = static_cast<int32_t>(dst_desc.height),
+                .z1 = static_cast<int32_t>(dst_desc.depth)
+            }
+        );
+    }
+
+    void CommandBuffer::BlitColorImage(
+        const Texture &src, const Texture &dst, TextureArea src_area, TextureArea dst_area
+    ) {
+        assert(0 <= src_area.x0 && 0 <= src_area.y0 && 0 <= src_area.z0);
+        assert(0 <= dst_area.x0 && 0 <= dst_area.y0 && 0 <= dst_area.z0);
+        assert(src_area.x0 < src_area.x1 && src_area.y0 < src_area.y1 && src_area.z0 < src_area.z1);
+        assert(dst_area.x0 < dst_area.x1 && dst_area.y0 < dst_area.y1 && dst_area.z0 < src_area.z1);
+
+        vk::ImageBlit2 blit{
+            vk::ImageSubresourceLayers{
+                vk::ImageAspectFlagBits::eColor,
+                src_area.mip_level,
+                src_area.array_layer_base,
+                src_area.array_layer_count
+            },
+            {vk::Offset3D{src_area.x0, src_area.y0, src_area.z0}, vk::Offset3D{src_area.x1, src_area.y1, src_area.z1}},
+            vk::ImageSubresourceLayers{
+                vk::ImageAspectFlagBits::eColor,
+                dst_area.mip_level,
+                dst_area.array_layer_base,
+                dst_area.array_layer_count
+            },
+            {vk::Offset3D{dst_area.x0, dst_area.y0, dst_area.z0}, vk::Offset3D{dst_area.x1, dst_area.y1, dst_area.z1}},
+        };
+        vk::BlitImageInfo2 bii{
+            src.GetImage(),
+            vk::ImageLayout::eTransferSrcOptimal,
+            dst.GetImage(),
+            vk::ImageLayout::eTransferDstOptimal,
+            {blit},
+            vk::Filter::eLinear
+        };
+        cb.blitImage2(bii);
+    }
+
+    // ── Render pass ─────────────────────────────────────────────────────────
+
+    void CommandBuffer::BeginRendering(
         const AttachmentUtils::AttachmentDescription &color,
         const AttachmentUtils::AttachmentDescription &depth,
         vk::Extent2D extent,
@@ -65,7 +137,7 @@ namespace Engine {
         cb.beginRendering(info);
     }
 
-    void GraphicsCommandBuffer::BeginRendering(
+    void CommandBuffer::BeginRendering(
         const std::vector<AttachmentUtils::AttachmentDescription> &colors,
         const AttachmentUtils::AttachmentDescription depth,
         vk::Extent2D extent,
@@ -103,7 +175,15 @@ namespace Engine {
         cb.beginRendering(info);
     }
 
-    void GraphicsCommandBuffer::BindSceneResources(const RenderSystemState::SceneDataManager &sdm) {
+    void CommandBuffer::EndRendering() {
+        cb.endRendering();
+        DEBUG_CMD_END_LABEL(cb);
+        m_pripr = {};
+    }
+
+    // ── Scene / Camera / Material ───────────────────────────────────────────
+
+    void CommandBuffer::BindSceneResources(const RenderSystemState::SceneDataManager &sdm) {
         cb.bindDescriptorSets(
             vk::PipelineBindPoint::eGraphics,
             sdm.GetCommonPipelineLayout(),
@@ -113,7 +193,7 @@ namespace Engine {
         );
     }
 
-    void GraphicsCommandBuffer::BindCameraResources(const RenderSystemState::CameraManager &cm) {
+    void CommandBuffer::BindCameraResources(const RenderSystemState::CameraManager &cm) {
         cb.bindDescriptorSets(
             vk::PipelineBindPoint::eGraphics,
             cm.GetCommonPipelineLayout(),
@@ -123,7 +203,7 @@ namespace Engine {
         );
     }
 
-    void GraphicsCommandBuffer::BindMaterial(MaterialInstance &material, MaterialTemplate &tpl) {
+    void CommandBuffer::BindMaterial(MaterialInstance &material, MaterialTemplate &tpl) {
         const auto &pipeline = tpl.GetPipeline();
         const auto &pipeline_layout = tpl.GetPipelineLayout();
 
@@ -150,7 +230,9 @@ namespace Engine {
         }
     }
 
-    void GraphicsCommandBuffer::SetupViewport(float vpWidth, float vpHeight, vk::Rect2D scissor) {
+    // ── Viewport ────────────────────────────────────────────────────────────
+
+    void CommandBuffer::SetupViewport(float vpWidth, float vpHeight, vk::Rect2D scissor) {
         vk::Viewport vp;
         vp.setWidth(vpWidth).setHeight(vpHeight);
         vp.setX(0.0f).setY(0.0f);
@@ -160,11 +242,17 @@ namespace Engine {
         cb.setScissor(0, 1, &scissor);
     }
 
-    void GraphicsCommandBuffer::DrawMesh(const IVertexBasedRenderer &mesh, const glm::mat4 &model_matrix) {
+    // ── Drawing ─────────────────────────────────────────────────────────────
+
+    void CommandBuffer::DrawMesh(const IVertexBasedRenderer &mesh, const glm::mat4 &model_matrix) {
         this->DrawMesh(mesh, model_matrix, m_system.GetCameraManager().GetActiveCameraIndex());
     }
 
-    void GraphicsCommandBuffer::DrawMesh(
+    void CommandBuffer::DrawMesh(const IVertexBasedRenderer &mesh) {
+        this->DrawMesh(mesh, glm::mat4{1.0f});
+    }
+
+    void CommandBuffer::DrawMesh(
         const IVertexBasedRenderer &mesh, const glm::mat4 &model_matrix, int32_t camera_index
     ) {
         auto bindings = mesh.GetVertexAttributeBufferBindings();
@@ -196,13 +284,13 @@ namespace Engine {
         cb.drawIndexed(mesh.GetIndexCount(), 1, 0, 0, 0);
     }
 
-    void GraphicsCommandBuffer::DrawRenderers(const std::string &tag, const RendererList &renderers) {
+    void CommandBuffer::DrawRenderers(const std::string &tag, const RendererList &renderers) {
         this->DrawRenderers(
             tag, renderers, m_system.GetCameraManager().GetActiveCameraIndex(), m_system.GetSwapchain().GetExtent()
         );
     }
 
-    void GraphicsCommandBuffer::DrawRenderers(
+    void CommandBuffer::DrawRenderers(
         const std::string &tag, const RendererList &renderers, int32_t camera_index, vk::Extent2D extent
     ) {
         auto &renderer_manager = m_system.GetRendererManager();
@@ -232,19 +320,37 @@ namespace Engine {
         }
     }
 
-    void GraphicsCommandBuffer::EndRendering() {
-        cb.endRendering();
-        DEBUG_CMD_END_LABEL(cb);
+    // ── Compute ─────────────────────────────────────────────────────────────
 
-        m_pripr = {};
+    void CommandBuffer::BindComputeStage(ComputeStage &stage) {
+        m_bound_compute_stage = stage;
+        this->cb.bindPipeline(vk::PipelineBindPoint::eCompute, stage.GetPipeline());
     }
 
-    void GraphicsCommandBuffer::DrawMesh(const IVertexBasedRenderer &mesh) {
-        this->DrawMesh(mesh, glm::mat4{1.0f});
+    void CommandBuffer::BindComputeResource(ComputeResourceBinding &binding) {
+        assert(m_bound_compute_stage.has_value() && "Compute pipeline is not bound.");
+
+        auto offsets = binding.UpdateGPUInfo(m_inflight_frame_index);
+        this->cb.bindDescriptorSets(
+            vk::PipelineBindPoint::eCompute,
+            m_bound_compute_stage.value().get().GetPipelineLayout(),
+            0,
+            {binding.GetDescriptorSet(m_inflight_frame_index)},
+            offsets
+        );
     }
 
-    void GraphicsCommandBuffer::Reset() noexcept {
+    void CommandBuffer::DispatchCompute(uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ) {
+        assert(m_bound_compute_stage.has_value() && "Compute pipeline is not bound.");
+        this->cb.dispatch(groupCountX, groupCountY, groupCountZ);
+    }
+
+    // ── Reset ───────────────────────────────────────────────────────────────
+
+    void CommandBuffer::Reset() noexcept {
         cb.reset();
         m_bound_material_pipeline.reset();
+        m_bound_compute_stage.reset();
     }
+
 } // namespace Engine

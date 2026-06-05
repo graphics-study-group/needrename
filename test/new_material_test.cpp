@@ -97,7 +97,7 @@ auto BuildRenderGraph(
     ComputeResourceBinding *kbinding = nullptr
 ) {
     using IAT = Engine::MemoryAccessTypeImageBits;
-    RenderGraphBuilder2 rgb{*rsys};
+    RenderGraphBuilder rgb{*rsys};
     auto c = rgb.ImportExternalResource(*color);
     auto d = rgb.ImportExternalResource(*depth);
 
@@ -114,34 +114,32 @@ auto BuildRenderGraph(
                  AttachmentUtils::StoreOperation::DontCare,
                  AttachmentUtils::DepthClearValue{1.0f, 0U}}
             )
-            .SetRasterizerPassFunction(
-                [rsys, color, depth, material, mesh](GraphicsCommandBuffer &gcb, const RenderGraph2 &) {
-                    auto extent = rsys->GetSwapchain().GetExtent();
+            .SetPassFunction([rsys, color, depth, material, mesh](CommandBuffer &cb, const RenderGraph &) {
+                auto extent = rsys->GetSwapchain().GetExtent();
 
-                    PipelineRuntimeInfo pri{};
-                    pri.va = mesh->GetVertexAttributeFormat();
-                    pri.color_attachment_format[0] = color->GetTextureDescription().format;
-                    pri.color_attachment_format[1] = ImageUtils::ImageFormat::UNDEFINED;
-                    pri.depth_stencil_attachment_format = depth->GetTextureDescription().format;
+                PipelineRuntimeInfo pri{};
+                pri.va = mesh->GetVertexAttributeFormat();
+                pri.color_attachment_format[0] = color->GetTextureDescription().format;
+                pri.color_attachment_format[1] = ImageUtils::ImageFormat::UNDEFINED;
+                pri.depth_stencil_attachment_format = depth->GetTextureDescription().format;
 
-                    gcb.SetupViewport(extent.width, extent.height, {{0, 0}, extent});
-                    gcb.BindSceneResources(rsys->GetSceneDataManager());
-                    gcb.BindCameraResources(rsys->GetCameraManager());
-                    auto tpl = material->GetLibrary().FindMaterialTemplate("", pri);
-                    assert(tpl);
-                    gcb.BindMaterial(*material, *tpl);
-                    // Push model matrix...
-                    vk::CommandBuffer rcb = gcb.GetCommandBuffer();
-                    rcb.pushConstants(
-                        material->GetLibrary().FindMaterialTemplate("", pri)->GetPipelineLayout(),
-                        vk::ShaderStageFlagBits::eAllGraphics,
-                        0,
-                        sizeof(RenderSystemState::RendererManager::RendererDataStruct),
-                        reinterpret_cast<const void *>(&EYE4)
-                    );
-                    gcb.DrawMesh(*mesh);
-                }
-            )
+                cb.SetupViewport(extent.width, extent.height, {{0, 0}, extent});
+                cb.BindSceneResources(rsys->GetSceneDataManager());
+                cb.BindCameraResources(rsys->GetCameraManager());
+                auto tpl = material->GetLibrary().FindMaterialTemplate("", pri);
+                assert(tpl);
+                cb.BindMaterial(*material, *tpl);
+                // Push model matrix...
+                vk::CommandBuffer rcb = cb.GetCommandBuffer();
+                rcb.pushConstants(
+                    material->GetLibrary().FindMaterialTemplate("", pri)->GetPipelineLayout(),
+                    vk::ShaderStageFlagBits::eAllGraphics,
+                    0,
+                    sizeof(RenderSystemState::RendererManager::RendererDataStruct),
+                    reinterpret_cast<const void *>(&EYE4)
+                );
+                cb.DrawMesh(*mesh);
+            })
             .WrapRenderPass()
             .Get()
     );
@@ -154,10 +152,11 @@ auto BuildRenderGraph(
                 .SetName("FX")
                 .UseImage(c, IAT::ShaderRandomRead)
                 .UseImage(gb, IAT::ShaderRandomWrite)
-                .SetComputePassFunction([blurred, kernel, kbinding](ComputeCommandBuffer &ccb, const RenderGraph2 &) {
-                    ccb.BindComputeStage(*kernel);
-                    ccb.BindComputeResource(*kbinding);
-                    ccb.DispatchCompute(
+                .SetAffinity(RenderGraphPassAffinity::Compute)
+                .SetPassFunction([blurred, kernel, kbinding](CommandBuffer &cb, const RenderGraph &) {
+                    cb.BindComputeStage(*kernel);
+                    cb.BindComputeResource(*kbinding);
+                    cb.DispatchCompute(
                         blurred->GetTextureDescription().width / 16 + 1,
                         blurred->GetTextureDescription().height / 16 + 1,
                         1
@@ -297,9 +296,9 @@ int main(int argc, char **argv) {
 
         auto index = rsys->StartFrame();
         if (has_gaussian_blur) {
-            blur.Execute(*rsys);
+            blur->Execute(*rsys);
         } else {
-            nonblur.Execute(*rsys);
+            nonblur->Execute(*rsys);
         }
 
         rsys->CompleteFrame(
