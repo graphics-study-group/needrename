@@ -7,13 +7,12 @@
 #include <Render/Memory/DeviceBuffer.h>
 #include <Render/Memory/MemoryAccessTypes.h>
 #include <Render/Memory/ShaderParameters/ShaderResourceBinding.h>
-#include <Render/Pipeline/CommandBuffer/ComputeCommandBuffer.h>
-#include <Render/Pipeline/CommandBuffer/TransferCommandBuffer.h>
+#include <Render/Pipeline/CommandBuffer.h>
 #include <Render/Pipeline/Compute/ComputeResourceBinding.h>
 #include <Render/Pipeline/Compute/ComputeStage.h>
 #include <Render/Pipeline/RenderGraph/RGAttachmentDesc.h>
-#include <Render/Pipeline/RenderGraph2/RenderGraphBuilder2.h>
-#include <Render/Pipeline/RenderGraph2/RenderGraphPass.h>
+#include <Render/Pipeline/RenderGraph/RenderGraphBuilder.h>
+#include <Render/Pipeline/RenderGraph/RenderGraphPass.h>
 #include <Render/RenderSystem.h>
 
 namespace {
@@ -101,7 +100,7 @@ namespace Engine {
         return m_impl->initialized;
     }
 
-    void XPBDGpuSolver::Step(RenderGraphBuilder2 &builder, PhysicsScene &physics_scene) {
+    void XPBDGpuSolver::Step(RenderGraphBuilder &builder, PhysicsScene &physics_scene) {
         const auto gpu = physics_scene.GetGpuBuffers();
 
         // Bail if essential buffers are not yet created.
@@ -147,12 +146,11 @@ namespace Engine {
                     position_handle,
                     {MemoryAccessTypeBufferBits::ShaderRandomRead, MemoryAccessTypeBufferBits::ShaderRandomWrite}
                 )
-                .SetComputePassFunction([cstage, cbinding, slot_count](
-                                            ComputeCommandBuffer &ccb, const RenderGraph2 & /*rg*/
-                                        ) {
-                    ccb.BindComputeStage(*cstage);
-                    ccb.BindComputeResource(*cbinding);
-                    ccb.DispatchCompute((slot_count + 63u) / 64u, 1, 1);
+                .SetAffinity(RenderGraphPassAffinity::Compute)
+                .SetPassFunction([cstage, cbinding, slot_count](CommandBuffer &cb, const RenderGraph &) -> void {
+                    cb.BindComputeStage(*cstage);
+                    cb.BindComputeResource(*cbinding);
+                    cb.DispatchCompute((slot_count + 63u) / 64u, 1, 1);
                 })
                 .Get()
         );

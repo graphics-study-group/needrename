@@ -9,8 +9,8 @@
 #include "Physics/PhysicsSystem.h"
 #include "Physics/XPBDGpuSolver.h"
 #include "Render/FullRenderSystem.h"
-#include "Render/Pipeline/RenderGraph2/RenderGraph2.h"
-#include "Render/Pipeline/RenderGraph2/RenderGraphBuilder2.h"
+#include "Render/Pipeline/RenderGraph/RenderGraph.h"
+#include "Render/Pipeline/RenderGraph/RenderGraphBuilder.h"
 #include "cmake_config.h"
 
 #include <cassert>
@@ -112,7 +112,7 @@ int main(int argc, char **argv) {
     // --- Build the XPBD physics render graph ---
     XPBDGpuSolver xpbd_solver{*cmc->GetRenderSystem()};
 
-    RenderGraphBuilder2 rgb{*cmc->GetRenderSystem()};
+    RenderGraphBuilder rgb{*cmc->GetRenderSystem()};
     xpbd_solver.Step(rgb, *physics_scene);
     auto rg = rgb.BuildRenderGraph();
 
@@ -120,7 +120,7 @@ int main(int argc, char **argv) {
         const auto &queues = cmc->GetRenderSystem()->GetDeviceInterface().GetQueueInfo();
         auto cbai = vk::CommandBufferAllocateInfo{queues.graphicsPool.get(), vk::CommandBufferLevel::ePrimary, 1};
         auto cb = cmc->GetRenderSystem()->GetDevice().allocateCommandBuffers(cbai);
-        rg.RecordAllPasses(cb[0]);
+        rg->RecordAllPasses(cb[0]);
         auto si = vk::SubmitInfo{{}, {}, {cb}, {}};
         queues.graphicsQueue.submit(si);
         queues.graphicsQueue.waitIdle();

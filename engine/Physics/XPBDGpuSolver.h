@@ -5,7 +5,7 @@
 
 namespace Engine {
     class PhysicsScene;
-    class RenderGraphBuilder2;
+    class RenderGraphBuilder;
     class RenderSystem;
 
     /**
@@ -47,7 +47,7 @@ namespace Engine {
          * @param builder  Render graph builder to populate with passes.
          * @param physics_scene  Physics scene providing GPU buffers.
          */
-        void Step(RenderGraphBuilder2 &builder, PhysicsScene &physics_scene);
+        void Step(RenderGraphBuilder &builder, PhysicsScene &physics_scene);
 
         /**
          * @brief Return whether the solver has been lazily initialized.
