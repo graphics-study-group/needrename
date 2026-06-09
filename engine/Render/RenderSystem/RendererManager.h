@@ -51,6 +51,7 @@ namespace Engine {
             struct RendererDataStruct {
                 glm::mat4 model_matrix;
                 int32_t camera_index;
+                int32_t model_mat_index; // -1 = unused, >= 0 = index into model_matrices buffer
             };
 
             /**
@@ -130,6 +131,15 @@ namespace Engine {
             void UpdateModelMatrix(RendererHandle handle, const glm::mat4 &matrix);
 
             /**
+             * @brief Update the model matrix index for a renderer.
+             *
+             * -1 means the renderer is not physics-driven and uses the
+             * push-constant model matrix.  Non-negative values index into
+             * the scene-level model_matrices storage buffer (set 0, binding 2).
+             */
+            void UpdateModelMatrixIndex(RendererHandle handle, int32_t index);
+
+            /**
              * @brief Advance deferred cleanup and release fully retired entries.
              *
              * For each retired entry whose countdown reaches zero, this method
@@ -164,6 +174,11 @@ namespace Engine {
              * @brief Get the cached model matrix for a renderer.
              */
             const glm::mat4 &GetModelMatrix(RendererHandle handle) const noexcept;
+
+            /**
+             * @brief Get the model matrix index for a renderer.
+             */
+            int32_t GetModelMatrixIndex(RendererHandle handle) const noexcept;
 
             /**
              * @brief Return push-constant range definition for draw data.

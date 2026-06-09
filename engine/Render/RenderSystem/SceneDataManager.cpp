@@ -1,6 +1,7 @@
 #include "SceneDataManager.h"
 
 #include "Render/DebugUtils.h"
+#include "Render/Memory/ComputeBuffer.h"
 #include "Render/Memory/IndexedBuffer.h"
 #include "Render/Resource/MaterialInstanceManager.h"
 #include "Render/Resource/RenderResourceHandle.h"
@@ -22,7 +23,8 @@ namespace Engine::RenderSystemState {
                 // Shadowmaps + skybox cubemap
                 vk::DescriptorType::eCombinedImageSampler,
                 (MAX_SHADOW_CASTING_LIGHTS + 1) * FrameManager::FRAMES_IN_FLIGHT
-            }
+            },
+            vk::DescriptorPoolSize{vk::DescriptorType::eStorageBuffer, 1 * FrameManager::FRAMES_IN_FLIGHT}
         };
 
         struct Scene {
@@ -68,6 +70,10 @@ namespace Engine::RenderSystemState {
                     vk::DescriptorType::eCombinedImageSampler,
                     MAX_SHADOW_CASTING_LIGHTS,
                     vk::ShaderStageFlagBits::eAllGraphics
+                },
+                // Model matrices storage buffer (readonly in graphics)
+                vk::DescriptorSetLayoutBinding{
+                    2, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eAllGraphics
                 }
             };
 
@@ -83,6 +89,10 @@ namespace Engine::RenderSystemState {
             vk::DescriptorSetLayout scene_descriptor_set_layout{};
             vk::PipelineLayout scene_common_pipeline_layout{};
             std::array<vk::DescriptorSet, FrameManager::FRAMES_IN_FLIGHT> scene_descriptor_sets{};
+
+            // Model matrices storage buffer (for physics-driven objects)
+            std::unique_ptr<ComputeBuffer> model_matrices_buffer{};
+            const ComputeBuffer *external_model_matrices_buffer{nullptr};
 
             void Create(RenderSystem &system, vk::DescriptorPool pool) {
                 auto &allocator = system.GetAllocatorState();
@@ -151,6 +161,18 @@ namespace Engine::RenderSystemState {
                 );
                 assert(light_back_buffer);
 
+                // Allocate default dummy buffer for model matrices.
+                model_matrices_buffer = ComputeBuffer::CreateUnique(
+                    allocator,
+                    MAX_MODEL_MATRICES * sizeof(glm::mat4),
+                    false, // No CPU access needed for dummy
+                    false, // Not used as uniform buffer
+                    false, // Not used as vertex buffer
+                    false, // Not used as indirect draw buffer
+                    "Scene Model Matrices Buffer"
+                );
+                assert(model_matrices_buffer);
+
                 // Prepare default depth map
                 default_light_map = RenderTargetTexture::CreateUnique(
                     system,
@@ -185,6 +207,26 @@ namespace Engine::RenderSystemState {
                     writes[i].pBufferInfo = &buffers[i];
                 }
                 device.updateDescriptorSets(writes, {});
+
+                // Write model matrices buffer descriptor (binding 2)
+                {
+                    std::vector<vk::DescriptorBufferInfo> model_mat_buffers(
+                        scene_descriptor_sets.size(),
+                        vk::DescriptorBufferInfo{
+                            model_matrices_buffer->GetBuffer(), 0, model_matrices_buffer->GetSize()
+                        }
+                    );
+                    std::vector<vk::WriteDescriptorSet> mm_writes(
+                        scene_descriptor_sets.size(),
+                        vk::WriteDescriptorSet{nullptr, 2, 0, vk::DescriptorType::eStorageBuffer, {}, {}, {}}
+                    );
+                    for (uint32_t i = 0; i < scene_descriptor_sets.size(); i++) {
+                        mm_writes[i].dstSet = scene_descriptor_sets[i];
+                        mm_writes[i].descriptorCount = 1;
+                        mm_writes[i].pBufferInfo = &model_mat_buffers[i];
+                    }
+                    device.updateDescriptorSets(mm_writes, {});
+                }
             }
         } scene{};
 
@@ -354,6 +396,24 @@ namespace Engine::RenderSystemState {
             }
         );
 
+        // Update model matrices buffer descriptor (binding 2).
+        // Always rebind because the external buffer may change between frames.
+        {
+            const ComputeBuffer *current_buffer = GetModelMatricesBuffer();
+            vk::DescriptorBufferInfo mm_buffer_info{current_buffer->GetBuffer(), 0, current_buffer->GetSize()};
+            vk::WriteDescriptorSet mm_write{
+                pimpl->scene.scene_descriptor_sets[frame_in_flight],
+                2,
+                0,
+                1,
+                vk::DescriptorType::eStorageBuffer,
+                nullptr,
+                &mm_buffer_info,
+                nullptr
+            };
+            descriptor_writes.push_back(mm_write);
+        }
+
         if (!descriptor_writes.empty()) {
             pimpl->device.updateDescriptorSets({descriptor_writes}, {});
         }
@@ -409,5 +469,16 @@ namespace Engine::RenderSystemState {
     }
     vk::PipelineLayout SceneDataManager::GetCommonPipelineLayout() const noexcept {
         return pimpl->scene.scene_common_pipeline_layout;
+    }
+
+    void SceneDataManager::SetModelMatricesBuffer(const ComputeBuffer *buffer) noexcept {
+        pimpl->scene.external_model_matrices_buffer = buffer;
+    }
+
+    const ComputeBuffer *SceneDataManager::GetModelMatricesBuffer() const noexcept {
+        if (pimpl->scene.external_model_matrices_buffer) {
+            return pimpl->scene.external_model_matrices_buffer;
+        }
+        return pimpl->scene.model_matrices_buffer.get();
     }
 } // namespace Engine::RenderSystemState

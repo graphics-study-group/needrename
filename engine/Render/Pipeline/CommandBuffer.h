@@ -105,7 +105,12 @@ namespace Engine {
 
         // ── Drawing ──────────────────────────────────────────────────────
 
-        void DrawMesh(const IVertexBasedRenderer &mesh, const glm::mat4 &model_matrix, int32_t camera_index);
+        void DrawMesh(
+            const IVertexBasedRenderer &mesh,
+            const glm::mat4 &model_matrix,
+            int32_t camera_index,
+            int32_t model_mat_index = -1
+        );
         void DrawMesh(const IVertexBasedRenderer &mesh, const glm::mat4 &model_matrix);
         void DrawMesh(const IVertexBasedRenderer &mesh);
 

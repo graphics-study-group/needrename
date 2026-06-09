@@ -24,6 +24,7 @@ namespace Engine::RenderSystemState {
             bool is_eagerly_loaded = false;
 
             glm::mat4 model_matrix{1.0f};
+            int32_t model_mat_index{-1};
         };
 
         uint32_t next_handle = 0;
@@ -42,21 +43,18 @@ namespace Engine::RenderSystemState {
             auto &material_manager = system.GetRenderResourceManager<RenderSystemState::MaterialInstanceManager>();
 
             auto mesh_handle = mesh_manager.CreateOrReuseFromAsset(mesh_asset_ref.GetGUID());
-            if (eagerly_loaded) {
-                mesh_manager.Acquire(mesh_handle);
-            }
             auto *mesh = mesh_manager.Resolve(mesh_handle);
             assert(mesh);
-
             auto material_handle = material_manager.CreateOrReuseFromAsset(material_asset_ref.GetGUID());
-            if (eagerly_loaded) {
-                material_manager.Acquire(material_handle);
-            }
 
             auto &d = m_data[next_handle];
             d.pending_deallocation_countdown = -1;
             d.mesh_resource = mesh_handle;
             d.material_resource = material_handle;
+            if (eagerly_loaded) {
+                mesh_manager.Acquire(d.mesh_resource);
+                material_manager.Acquire(d.material_resource);
+            }
             d.renderer = std::make_unique<StaticHomogeneousMesh>(submesh_index, mesh);
             d.layer = layer;
             d.cast_shadow = cast_shadow;
@@ -94,6 +92,12 @@ namespace Engine::RenderSystemState {
         auto it = pimpl->m_data.find(handle);
         if (it == pimpl->m_data.end()) return;
         it->second.model_matrix = matrix;
+    }
+
+    void RendererManager::UpdateModelMatrixIndex(RendererHandle handle, int32_t index) {
+        auto it = pimpl->m_data.find(handle);
+        if (it == pimpl->m_data.end()) return;
+        it->second.model_mat_index = index;
     }
 
     void RendererManager::PerformPendingCleanUp() {
@@ -151,13 +155,19 @@ namespace Engine::RenderSystemState {
     MaterialInstanceHandle RendererManager::GetMaterialResourceHandle(RendererHandle handle) const noexcept {
         auto it = pimpl->m_data.find(handle);
         assert(it != pimpl->m_data.end());
-        return it->second.material_resource;
+        return {it->second.material_resource.index, it->second.material_resource.generation, false};
     }
 
     const glm::mat4 &RendererManager::GetModelMatrix(RendererHandle handle) const noexcept {
         auto it = pimpl->m_data.find(handle);
         assert(it != pimpl->m_data.end());
         return it->second.model_matrix;
+    }
+
+    int32_t RendererManager::GetModelMatrixIndex(RendererHandle handle) const noexcept {
+        auto it = pimpl->m_data.find(handle);
+        assert(it != pimpl->m_data.end());
+        return it->second.model_mat_index;
     }
 
     vk::PushConstantRange RendererManager::GetPushConstantRange() {

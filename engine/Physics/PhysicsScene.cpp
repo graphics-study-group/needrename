@@ -7,6 +7,7 @@
 #include <Render/RenderSystem/FrameManager.h>
 #include <vulkan/vulkan.hpp>
 
+#include <Render/RenderSystem/SceneDataManager.h>
 #include <Render/RenderSystem/SubmissionHelper.h>
 
 #include <SDL3/SDL.h>
@@ -133,6 +134,8 @@ namespace Engine {
         m_gpu_rigid_body_shape_offset.reset();
         m_gpu_rigid_body_shape_count.reset();
         m_gpu_flattened_shape_indices.reset();
+
+        m_gpu_model_matrices.reset();
     }
 
     uint32_t PhysicsScene::RegisterRigidBody(
@@ -366,6 +369,11 @@ namespace Engine {
 
         RefreshGpuBuffers(render_system);
         render_system.GetFrameManager().GetSubmissionHelper().ExecuteSubmissionImmediately();
+
+        // Notify SceneDataManager about the model matrices buffer so it can
+        // be included in the scene descriptor set (set 0, binding 2).
+        render_system.GetSceneDataManager().SetModelMatricesBuffer(m_gpu_model_matrices.get());
+
         SDL_LogWarn(
             SDL_LOG_CATEGORY_APPLICATION,
             "PhysicsScene::InitializePendingRigidBodies currently performs full CPU->GPU SoA refresh. scene=%u",
@@ -400,6 +408,7 @@ namespace Engine {
             m_gpu_rigid_body_shape_offset.get(),
             m_gpu_rigid_body_shape_count.get(),
             m_gpu_flattened_shape_indices.get(),
+            m_gpu_model_matrices.get(),
             m_gpu_rigid_body_slot_count,
             m_gpu_shape_slot_count,
         };
@@ -648,6 +657,8 @@ namespace Engine {
         EnsureBuffer<uint32_t>(
             m_gpu_flattened_shape_indices, allocator, m_gpu_flattened_shape_index_count, "Physics FlatShapes"
         );
+
+        EnsureBuffer<glm::mat4>(m_gpu_model_matrices, allocator, m_gpu_rigid_body_slot_count, "Physics ModelMatrices");
 
         auto &submission = render_system.GetFrameManager().GetSubmissionHelper();
         submission.EnqueueBufferSubmission(*m_gpu_rigid_body_alive, MakeSpan(m_rigid_body_alive));

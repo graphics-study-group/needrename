@@ -1,6 +1,8 @@
 #ifndef RENDERSYSTEM_SCENEDATAMANAGER
 #define RENDERSYSTEM_SCENEDATAMANAGER
 
+#include "Render/Resource/RenderResourceHandle.h"
+
 #include <fwd.hpp>
 #include <memory>
 
@@ -13,6 +15,7 @@ namespace vk {
 namespace Engine {
     class RenderSystem;
     class CommandBuffer;
+    class ComputeBuffer;
 
     namespace RenderSystemState {
         /**
@@ -39,6 +42,15 @@ namespace Engine {
              * be modified accordingly if this constant is changed.
              */
             static constexpr uint32_t MAX_NON_SHADOW_CASTING_LIGHTS = 16;
+
+            /**
+             * @brief Maximal number of model matrices stored in the scene buffer.
+             *
+             * This determines the size of the model matrix storage buffer at
+             * set 0 binding 2.  Should be large enough to accommodate all
+             * rigid bodies in the physics scene.
+             */
+            static constexpr uint32_t MAX_MODEL_MATRICES = 1024;
 
         private:
             RenderSystem &m_system;
@@ -201,6 +213,23 @@ namespace Engine {
              * this common pipeline layout.
              */
             vk::PipelineLayout GetCommonPipelineLayout() const noexcept;
+
+            /**
+             * @brief Set the model matrices storage buffer.
+             *
+             * This buffer is written by the XPBD compute pass and read by
+             * vertex shaders via set 0 binding 2.  Pass nullptr to revert
+             * to the default dummy buffer.
+             */
+            void SetModelMatricesBuffer(const ComputeBuffer *buffer) noexcept;
+
+            /**
+             * @brief Get the currently bound model matrices buffer.
+             *
+             * @return Current model matrices buffer, or the dummy buffer
+             *         if no physics buffer has been set.
+             */
+            const ComputeBuffer *GetModelMatricesBuffer() const noexcept;
         };
     } // namespace RenderSystemState
 } // namespace Engine

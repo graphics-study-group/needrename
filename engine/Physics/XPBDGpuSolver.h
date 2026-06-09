@@ -8,6 +8,9 @@ namespace Engine {
     class RenderGraphBuilder;
     class RenderSystem;
 
+    // Forward declaration from Render/Pipeline/RenderGraph/RGAttachmentDesc.h
+    enum class RGBufferHandle : int32_t;
+
     /**
      * @brief XPBD GPU solver with lazy shader compilation.
      *
@@ -47,7 +50,24 @@ namespace Engine {
          * @param builder  Render graph builder to populate with passes.
          * @param physics_scene  Physics scene providing GPU buffers.
          */
-        void Step(RenderGraphBuilder &builder, PhysicsScene &physics_scene);
+        /**
+         * @brief Fill a render graph builder with XPBD compute passes.
+         *
+         * @param builder  Render graph builder to populate with passes.
+         * @param physics_scene  Physics scene providing GPU buffers.
+         * @param external_model_matrices_handle  Optional pre-imported handle
+         *        for the model matrices buffer.  When provided (non-empty, i.e.
+         *        not `RGBufferHandle{}`), the solver skips its own import and
+         *        uses this handle instead.  This allows the caller to share the
+         *        handle with subsequent passes (e.g. a rendering pass that reads
+         *        the model matrices) so the render graph can insert correct
+         *        barriers.
+         */
+        void Step(
+            RenderGraphBuilder &builder,
+            PhysicsScene &physics_scene,
+            RGBufferHandle external_model_matrices_handle = RGBufferHandle{}
+        );
 
         /**
          * @brief Return whether the solver has been lazily initialized.

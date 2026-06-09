@@ -248,6 +248,8 @@ namespace Engine {
             const ComputeBuffer *rigid_body_shape_count{};
             const ComputeBuffer *flattened_shape_indices{};
 
+            const ComputeBuffer *model_matrices{};
+
             uint32_t rigid_body_slot_count{0};
             uint32_t shape_slot_count{0};
         };
@@ -364,6 +366,8 @@ namespace Engine {
         std::unique_ptr<ComputeBuffer> m_gpu_rigid_body_shape_offset{};
         std::unique_ptr<ComputeBuffer> m_gpu_rigid_body_shape_count{};
         std::unique_ptr<ComputeBuffer> m_gpu_flattened_shape_indices{};
+
+        std::unique_ptr<ComputeBuffer> m_gpu_model_matrices{};
     };
 } // namespace Engine
 
