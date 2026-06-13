@@ -696,6 +696,14 @@ namespace Engine {
         submission.EnqueueBufferSubmission(*m_gpu_flattened_shape_indices, MakeSpan(flattened_shape_indices));
     }
 
+    void PhysicsScene::SetSimulationEnabled(bool enabled) {
+        m_simulation_enabled = enabled;
+    }
+
+    bool PhysicsScene::IsSimulationEnabled() const noexcept {
+        return m_simulation_enabled;
+    }
+
     void PhysicsScene::DebugPrint() const {
         SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "PhysicsScene %u:", m_scene_id);
         SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "  Rigid bodies:");

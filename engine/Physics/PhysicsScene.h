@@ -293,6 +293,23 @@ namespace Engine {
          */
         void DebugPrint() const;
 
+        /**
+         * @brief Enable or disable GPU simulation for this scene.
+         *
+         * When disabled, the XPBD compute passes will skip dispatch,
+         * but model matrix updates still run so objects remain visible.
+         *
+         * @param enabled True to enable simulation, false to pause.
+         */
+        void SetSimulationEnabled(bool enabled);
+
+        /**
+         * @brief Check whether GPU simulation is enabled.
+         *
+         * @return True if simulation is enabled.
+         */
+        bool IsSimulationEnabled() const noexcept;
+
     private:
         void AddShapeToRigidBodyMap(uint32_t rigid_body_index, uint32_t shape_index);
         void RemoveShapeFromRigidBodyMap(uint32_t rigid_body_index, uint32_t shape_index);
@@ -300,6 +317,8 @@ namespace Engine {
         void RefreshGpuBuffers(RenderSystem &render_system);
 
         uint32_t m_scene_id{0};
+
+        bool m_simulation_enabled = false;
 
         std::vector<uint32_t> m_rigid_body_alive{};
         std::vector<uint32_t> m_shape_alive{};

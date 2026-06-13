@@ -217,11 +217,14 @@ namespace Engine {
                     {MemoryAccessTypeBufferBits::ShaderRandomRead, MemoryAccessTypeBufferBits::ShaderRandomWrite}
                 )
                 .SetAffinity(RenderGraphPassAffinity::Compute)
-                .SetPassFunction([cstage, cbinding, slot_count](CommandBuffer &cb, const RenderGraph &) -> void {
-                    cb.BindComputeStage(*cstage);
-                    cb.BindComputeResource(*cbinding);
-                    cb.DispatchCompute((slot_count + 63u) / 64u, 1, 1);
-                })
+                .SetPassFunction(
+                    [&physics_scene, cstage, cbinding, slot_count](CommandBuffer &cb, const RenderGraph &) -> void {
+                        if (!physics_scene.IsSimulationEnabled()) return;
+                        cb.BindComputeStage(*cstage);
+                        cb.BindComputeResource(*cbinding);
+                        cb.DispatchCompute((slot_count + 63u) / 64u, 1, 1);
+                    }
+                )
                 .Get()
         );
 
