@@ -33,7 +33,7 @@ namespace {
      */
     StaticMeshComponent &AddSphereMesh(GameObject &obj, FileSystemDatabase &adb) {
         AssetRef sphere_mesh = adb.GetNewAssetRef(AssetPath{adb, "/Sphere.asset"});
-        AssetRef pbr_material = adb.GetNewAssetRef(AssetPath{adb, "/red_brick_sphere_512_default_pbr.asset"});
+        AssetRef pbr_material = adb.GetNewAssetRef(AssetPath{adb, "/red_brick.asset"});
 
         auto &mc = obj.AddComponent<StaticMeshComponent>();
         mc.m_mesh_asset = sphere_mesh;
@@ -156,11 +156,17 @@ int main(int /*argc*/, char ** /*argv*/) {
         t.SetRotation(look_rot);
         camera_object.SetTransform(t);
     }
-    camera_object.AddComponent<CameraComponent>();
+    auto &camera_comp = camera_object.AddComponent<CameraComponent>();
+    camera_comp.m_camera->set_aspect_ratio(1.0f * opt.resol_x / opt.resol_y);
     camera_object.AddComponent<CameraControllerComponent>();
 
     // Simulation toggle on the camera object (convenient, always alive).
     camera_object.AddComponent<SimulationToggleComponent>();
+
+    // Register our camera as the active camera.
+    // Must be called so WorldSystem::GetActiveCamera() returns a valid pointer,
+    // which the lit pass (and CameraComponent::Tick) depend on.
+    cmc->GetWorldSystem()->SetActiveCamera(camera_comp.GetHandle(), &cmc->GetRenderSystem()->GetCameraManager());
 
     // --- Finalize scene ---
     scene.FlushCmdQueue();

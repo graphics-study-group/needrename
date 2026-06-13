@@ -105,7 +105,7 @@ int main(int argc, char **argv) {
     // Add mesh components to all physics objects for visualization.
     auto &adb = *std::dynamic_pointer_cast<FileSystemDatabase>(cmc->GetAssetDatabase());
     AssetRef sphere_mesh = adb.GetNewAssetRef(AssetPath{adb, "/Sphere.asset"});
-    AssetRef pbr_material = adb.GetNewAssetRef(AssetPath{adb, "/red_brick_sphere_512_default_pbr.asset"});
+    AssetRef pbr_material = adb.GetNewAssetRef(AssetPath{adb, "/red_brick.asset"});
 
     auto add_mesh = [&](GameObject &obj) -> StaticMeshComponent & {
         auto &mc = obj.AddComponent<StaticMeshComponent>();

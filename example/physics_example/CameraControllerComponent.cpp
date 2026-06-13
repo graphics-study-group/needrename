@@ -30,22 +30,39 @@ void CameraControllerComponent::Tick() {
     Transform &transform = go->GetTransformRef();
     float dt = MainClass::GetInstance()->GetTimeSystem()->GetDeltaTimeInSeconds();
 
-    // Right mouse button: manage relative mouse mode for comfortable look.
+    // Right mouse button: manage relative mouse mode.
     auto window = MainClass::GetInstance()->GetWindow()->GetWindow();
     if (mouse_right > 0.0f) {
         if (!m_relative_mouse_enabled) {
             SDL_SetWindowRelativeMouseMode(window, true);
             m_relative_mouse_enabled = true;
         }
-        transform.SetRotation(
-            transform.GetRotation()
-            * glm::quat(glm::vec3{look_y * m_rotation_speed * dt, 0.0f, look_x * m_rotation_speed * dt})
-        );
     } else {
         if (m_relative_mouse_enabled) {
             SDL_SetWindowRelativeMouseMode(window, false);
             m_relative_mouse_enabled = false;
         }
+    }
+
+    // --- Lock Z-up: same pattern as Editor::SceneCamera::RotateControl ---
+    // Accumulate yaw/pitch in degrees (only when right mouse is held),
+    // then rebuild rotation from scratch using world axes only.
+    // This guarantees Z-up never drifts.
+    if (mouse_right > 0.0f) {
+        m_yaw += look_x * m_rotation_speed;
+        m_pitch += look_y * m_rotation_speed;
+
+        // Clamp pitch to prevent gimbal lock.
+        if (m_pitch > 89.0f) m_pitch = 89.0f;
+        if (m_pitch < -89.0f) m_pitch = -89.0f;
+    }
+
+    // Always rebuild rotation from accumulated angles so the initial
+    // yaw/pitch (set in main.cpp) are applied on the first frame.
+    {
+        glm::quat qYaw = glm::angleAxis(glm::radians(m_yaw), glm::vec3(0.0f, 0.0f, 1.0f));
+        glm::quat qPitch = glm::angleAxis(glm::radians(m_pitch), glm::vec3(1.0f, 0.0f, 0.0f));
+        transform.SetRotation(qYaw * qPitch);
     }
 
     // WASD + QE movement in camera-local space (RFU: X=right, Y=forward, Z=up).
