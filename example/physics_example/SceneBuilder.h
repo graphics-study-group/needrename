@@ -63,12 +63,17 @@ public:
     /**
      * @brief Add a physics box to the scene.
      *
-     * Creates a GameObject with RigidBodyComponent, CollisionShapeComponent
-     * (box shape), and a StaticMeshComponent using the builtin cube mesh and
-     * the specified material. The GameObject is parented to the configured root.
+     * Creates a parent GameObject (with RigidBodyComponent) and two children:
+     * - "Mesh" child with StaticMeshComponent using the builtin cube mesh and
+     *   the specified material, scaled by half_extents*2.
+     * - "Collision" child with CollisionShapeComponent (box shape).
+     *
+     * The parent is positioned at desc.position and parented to the root.
+     * Both children have identity local transforms; the mesh scale is
+     * decoupled from the collision geometry.
      *
      * @param desc Box configuration. Unset fields use defaults.
-     * @return Reference to the created GameObject.
+     * @return Reference to the created parent GameObject.
      */
     Engine::GameObject &AddBox(const BoxDesc &desc);
 
