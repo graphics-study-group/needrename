@@ -1,13 +1,12 @@
 #include "CameraControllerComponent.h"
 #include "PhysicsExampleRenderGraphBuilder.h"
+#include "SceneBuilder.h"
 #include "SimulationToggleComponent.h"
 
 #include "Asset/AssetDatabase/FileSystemDatabase.h"
 #include "Framework/component/RenderComponent/CameraComponent.h"
 #include "Framework/component/RenderComponent/StaticMeshComponent.h"
 #include "Framework/component/TransformComponent/TransformComponent.h"
-#include "Framework/component/physics/CollisionShapeComponent.h"
-#include "Framework/component/physics/RigidBodyComponent.h"
 #include "Framework/object/GameObject.h"
 #include "Framework/world/Scene.h"
 #include "Framework/world/WorldSystem.h"
@@ -24,26 +23,6 @@
 #include <cassert>
 
 using namespace Engine;
-
-namespace {
-
-    /**
-     * @brief Helper to add a sphere StaticMeshComponent for visualization.
-     * @return Reference to the created StaticMeshComponent.
-     */
-    StaticMeshComponent &AddSphereMesh(GameObject &obj, FileSystemDatabase &adb) {
-        AssetRef sphere_mesh = adb.GetNewAssetRef(AssetPath{adb, "/Sphere.asset"});
-        AssetRef pbr_material = adb.GetNewAssetRef(AssetPath{adb, "/red_brick.asset"});
-
-        auto &mc = obj.AddComponent<StaticMeshComponent>();
-        mc.m_mesh_asset = sphere_mesh;
-        mc.m_material_assets.push_back(pbr_material);
-        mc.m_is_eagerly_loaded = true;
-        obj.GetTransformRef().SetScale(glm::vec3(0.3f));
-        return mc;
-    }
-
-} // namespace
 
 int main(int /*argc*/, char ** /*argv*/) {
     std::filesystem::path project_path(ENGINE_PROJECTS_DIR);
@@ -78,10 +57,18 @@ int main(int /*argc*/, char ** /*argv*/) {
     input->AddAxis(Input::ButtonAxis("mouse right", Input::AxisType::TypeMouseButton, "mouse right", ""));
     input->AddAxis(Input::ButtonAxis("toggle simulation", Input::AxisType::TypeKey, "space", ""));
 
-    // Track all StaticMeshComponents for PreRenderUpdate.
-    std::vector<StaticMeshComponent *> mesh_components;
+    // --- Load preset solid color materials ---
+    auto red_mat    = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_red.asset"});
+    auto green_mat  = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_green.asset"});
+    auto blue_mat   = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_blue.asset"});
+    auto yellow_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_yellow.asset"});
+    auto cyan_mat   = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_cyan.asset"});
+    auto magenta_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_magenta.asset"});
+    auto orange_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_orange.asset"});
+    auto white_mat  = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_white.asset"});
+    auto grey_mat   = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_dark_grey_solid.asset"});
 
-    // --- Create physics objects ---
+    // --- Create physics objects via SceneBuilder ---
     // Root object to hold the physics scene hierarchy.
     GameObject &root = scene.CreateGameObject();
     {
@@ -90,25 +77,22 @@ int main(int /*argc*/, char ** /*argv*/) {
         root.SetTransform(t);
     }
 
-    // Ground: a large kinematic box.
-    GameObject &ground = scene.CreateGameObject();
-    ground.SetParent(root.GetHandle());
-    {
-        Transform t;
-        t.SetPosition(glm::vec3(0.0f, 0.0f, -2.0f));
-        ground.SetTransform(t);
-    }
-    ground.AddComponent<RigidBodyComponent>().m_is_kinematic = true;
-    auto &ground_shape = ground.AddComponent<CollisionShapeComponent>();
-    ground_shape.m_box_size = glm::vec3(10.0f, 10.0f, 2.0f);
-    mesh_components.push_back(&AddSphereMesh(ground, adb));
-    ground.GetTransformRef().SetScale(glm::vec3(10.0f, 10.0f, 2.0f));
+    SceneBuilder builder(scene, adb, root, *cmc->GetRenderSystem());
 
-    // Falling boxes stacked in a pyramid.
-    struct BoxSpec {
-        float x, y, z;
+    // Ground: a large kinematic box.
+    builder.AddBox({
+        .position = {0.0f, 0.0f, -2.0f},
+        .half_extents = {10.0f, 10.0f, 2.0f},
+        .kinematic = true,
+        .material = grey_mat,
+    });
+
+    // Falling boxes stacked in a pyramid, cycling through preset colors.
+    const std::vector<AssetRef> preset_colors = {
+        red_mat, green_mat, blue_mat, yellow_mat, cyan_mat, magenta_mat, orange_mat, white_mat
     };
-    const BoxSpec boxes[] = {
+    struct BoxPos { float x, y, z; };
+    const BoxPos box_positions[] = {
         {0.0f, 0.0f, 2.0f},
         {-1.5f, -1.5f, 2.0f},
         {1.5f, -1.5f, 2.0f},
@@ -117,18 +101,12 @@ int main(int /*argc*/, char ** /*argv*/) {
         {0.0f, 0.0f, 5.0f},
     };
 
-    for (const auto &box : boxes) {
-        GameObject &go = scene.CreateGameObject();
-        go.SetParent(root.GetHandle());
-        {
-            Transform t;
-            t.SetPosition(glm::vec3(box.x, box.y, box.z));
-            go.SetTransform(t);
-        }
-        go.AddComponent<RigidBodyComponent>();
-        auto &shape = go.AddComponent<CollisionShapeComponent>();
-        shape.m_box_size = glm::vec3(0.5f, 0.5f, 0.5f);
-        mesh_components.push_back(&AddSphereMesh(go, adb));
+    for (size_t i = 0; i < std::size(box_positions); i++) {
+        const auto &pos = box_positions[i];
+        builder.AddBox({
+            .position = {pos.x, pos.y, pos.z},
+            .material = preset_colors[i % preset_colors.size()],
+        });
     }
 
     // --- Camera setup ---
@@ -177,7 +155,7 @@ int main(int /*argc*/, char ** /*argv*/) {
         return -1;
     }
 
-    physics_scene->InitializePendingRigidBodies(*cmc->GetRenderSystem());
+    builder.Finalize(*physics_scene);
     physics_scene->DebugPrint();
 
     // Awake mesh components -> registers renderers with RendererManager.
@@ -185,7 +163,7 @@ int main(int /*argc*/, char ** /*argv*/) {
     scene.ProcessEvents();
 
     // Set model_mat_index for physics-driven renderers.
-    for (auto *mc : mesh_components) {
+    for (auto *mc : builder.GetMeshComponents()) {
         mc->PreRenderUpdate();
     }
 

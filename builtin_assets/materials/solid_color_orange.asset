@@ -1,0 +1,57 @@
+{
+    "%main_data": {
+        "%type": "Engine::MaterialAsset",
+        "Asset::m_guid": "c1000001-0001-4000-8000-000000000007",
+        "MaterialAsset::m_library": "d3364ae9-2862-1310-cf1e-e68f8d5edb0a",
+        "MaterialAsset::m_name": "Solid Color Orange",
+        "MaterialAsset::m_properties": {
+            "albedoSampler": {
+                "m_type": "Texture",
+                "m_value": "24ef50b8-2ab1-dc97-93f6-0a50dbe77719"
+            },
+            "MRAOSampler": {
+                "m_type": "Texture",
+                "m_value": "24ef50b8-2ab1-dc97-93f6-0a50dbe77719"
+            },
+            "normalSampler": {
+                "m_type": "Texture",
+                "m_value": "94217893-712f-43e7-a20b-598fd3a90c0c"
+            },
+            "emissiveSampler": {
+                "m_type": "Texture",
+                "m_value": "24ef50b8-2ab1-dc97-93f6-0a50dbe77719"
+            },
+            "metalnessFactor": {
+                "m_type": "Simple",
+                "m_ubo_type": "Float",
+                "m_value": 0.0
+            },
+            "roughnessFactor": {
+                "m_type": "Simple",
+                "m_ubo_type": "Float",
+                "m_value": 0.5
+            },
+            "emissiveFactor": {
+                "m_type": "Simple",
+                "m_ubo_type": "Vec4",
+                "m_value": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0
+                ]
+            },
+            "albedoFactor": {
+                "m_type": "Simple",
+                "m_ubo_type": "Vec4",
+                "m_value": [
+                    1.0,
+                    0.5,
+                    0.1,
+                    1.0
+                ]
+            }
+        }
+    },
+    "%extra_data": []
+}
