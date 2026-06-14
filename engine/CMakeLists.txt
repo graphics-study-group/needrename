@@ -22,6 +22,11 @@ target_compile_definitions(EngineLibExternalDependency INTERFACE VULKAN_HPP_DISP
 target_compile_definitions(EngineLibExternalDependency INTERFACE VULKAN_HPP_STORAGE_SHARED)
 target_compile_definitions(EngineLibExternalDependency INTERFACE GLM_FORCE_DEPTH_ZERO_TO_ONE)
 
+# Root directory for physics shader SPIR-V artefacts (build tree only).
+# Set before add_subdirectory(Physics) so the Physics subdir and the later
+# configure_file() call both see it.
+set(PHYSICS_SPIRV_ROOT "${CMAKE_BINARY_DIR}/engine/Physics/spirv")
+
 add_subdirectory(Asset)
 add_subdirectory(Core)
 add_subdirectory(Framework)
@@ -43,6 +48,7 @@ add_library(engine SHARED
 )
 
 add_dependencies(engine shader)
+add_dependencies(engine physics_shader)
 add_dependencies(engine meta_engine)
 
 find_package(doxygen)

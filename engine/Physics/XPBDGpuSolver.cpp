@@ -2,7 +2,10 @@
 
 #include "PhysicsScene.h"
 
-#include <Asset/Shader/ShaderCompiler.h>
+#include <cmake_config.h>
+
+#include <vulkan/vulkan.hpp>
+
 #include <Render/Memory/ComputeBuffer.h>
 #include <Render/Memory/DeviceBuffer.h>
 #include <Render/Memory/MemoryAccessTypes.h>
@@ -15,94 +18,39 @@
 #include <Render/Pipeline/RenderGraph/RenderGraphPass.h>
 #include <Render/RenderSystem.h>
 
+#include <filesystem>
+#include <fstream>
+#include <stdexcept>
+#include <vector>
+
 namespace {
-    constexpr const char kPlaceholderXpbdStepShader[] = R"(
-#version 450 core
-#extension GL_EXT_debug_printf : enable
-
-layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
-
-layout(set = 0, binding = 0) readonly buffer RigidBodyAlive {
-    uint v[];
-} rigid_body_alive;
-
-layout(set = 0, binding = 1) buffer RigidBodyCenterPosition {
-    vec4 v[];
-} rigid_body_center_position;
-
-void main() {
-    uint index = gl_GlobalInvocationID.x;
-    if (index >= rigid_body_alive.v.length()) {
-        return;
+    /**
+     * @brief Load a precompiled physics SPIR-V blob from disk.
+     *
+     * Resolves @p relative_path against ENGINE_PHYSICS_SPIRV_DIR and reads the
+     * file as 32-bit words.  Throws std::runtime_error (with the absolute path)
+     * when the file is missing, empty, or its size is not a multiple of 4 bytes.
+     *
+     * @param relative_path Path relative to the physics SPIR-V root, e.g.
+     *                      "solver/XPBDSolver/step.comp.spv".
+     *
+     * @return The SPIR-V words.
+     */
+    std::vector<uint32_t> LoadPhysicsSpirv(const char *relative_path) {
+        std::filesystem::path full = std::filesystem::path(ENGINE_PHYSICS_SPIRV_DIR) / relative_path;
+        std::ifstream file(full, std::ios::binary | std::ios::ate);
+        if (!file.is_open()) {
+            throw std::runtime_error("Failed to open physics SPIR-V: " + full.string());
+        }
+        const auto size = static_cast<size_t>(file.tellg());
+        if (size == 0u || size % sizeof(uint32_t) != 0u) {
+            throw std::runtime_error("Invalid physics SPIR-V size: " + full.string());
+        }
+        std::vector<uint32_t> words(size / sizeof(uint32_t));
+        file.seekg(0, std::ios::beg);
+        file.read(reinterpret_cast<char *>(words.data()), static_cast<std::streamsize>(size));
+        return words;
     }
-    if (rigid_body_alive.v[index] == 0u) {
-        return;
-    }
-
-    debugPrintfEXT("XPBD step: rigid_body[%u] before.z=%.2f", index, rigid_body_center_position.v[index].z);
-
-    rigid_body_center_position.v[index].z -= 0.01;
-
-    debugPrintfEXT("XPBD step: rigid_body[%u] after.z=%.2f", index, rigid_body_center_position.v[index].z);
-}
-)";
-
-    constexpr const char kPlaceholderXpbdModelMatrixShader[] = R"(
-#version 450 core
-
-layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
-
-layout(set = 0, binding = 0) readonly buffer RigidBodyAlive {
-    uint v[];
-} rigid_body_alive;
-
-layout(set = 0, binding = 1) readonly buffer RigidBodyCenterPosition {
-    vec4 v[];
-} rigid_body_center_position;
-
-layout(set = 0, binding = 2) readonly buffer RigidBodyCenterRotation {
-    vec4 v[];
-} rigid_body_center_rotation;
-
-layout(set = 0, binding = 3) writeonly buffer ModelMatrices {
-    mat4 v[];
-} model_matrices;
-
-mat4 quaternion_to_mat4(vec4 q) {
-    float x = q.x, y = q.y, z = q.z, w = q.w;
-    float xx = x * x, yy = y * y, zz = z * z;
-    float xy = x * y, xz = x * z, yz = y * z;
-    float wx = w * x, wy = w * y, wz = w * z;
-
-    return mat4(
-        vec4(1.0 - 2.0 * (yy + zz), 2.0 * (xy + wz),       2.0 * (xz - wy),       0.0),
-        vec4(2.0 * (xy - wz),       1.0 - 2.0 * (xx + zz), 2.0 * (yz + wx),       0.0),
-        vec4(2.0 * (xz + wy),       2.0 * (yz - wx),       1.0 - 2.0 * (xx + yy), 0.0),
-        vec4(0.0, 0.0, 0.0, 1.0)
-    );
-}
-
-void main() {
-    uint index = gl_GlobalInvocationID.x;
-    if (index >= rigid_body_alive.v.length()) {
-        return;
-    }
-    if (rigid_body_alive.v[index] == 0u) {
-        return;
-    }
-
-    vec3 pos = rigid_body_center_position.v[index].xyz;
-    vec4 quat = rigid_body_center_rotation.v[index];
-    mat4 rot = quaternion_to_mat4(quat);
-
-    model_matrices.v[index] = mat4(
-        rot[0],
-        rot[1],
-        rot[2],
-        vec4(pos, 1.0)
-    );
-}
-)";
 } // namespace
 
 namespace Engine {
@@ -135,7 +83,7 @@ namespace Engine {
         Impl &operator=(Impl &&) = delete;
 
         /**
-         * @brief Lazily compile the compute shader and create the pipeline.
+         * @brief Lazily load the compute shaders and create the pipelines.
          *
          * Idempotent — only does work on the first call.
          */
@@ -143,16 +91,14 @@ namespace Engine {
             if (initialized) return;
             initialized = true;
 
-            ShaderCompiler compiler{};
-
-            // Compile the position update shader.
-            compiler.CompileGLSLtoSPV(cached_spirv, kPlaceholderXpbdStepShader, EShLangCompute);
+            // Load the precompiled position update shader.
+            cached_spirv = LoadPhysicsSpirv("solver/XPBDSolver/step.comp.spv");
             compute_stage = std::make_unique<ComputeStage>(render_system);
             compute_stage->Instantiate(cached_spirv, "Physics XPBD Placeholder Step");
             resource_binding = &compute_stage->AllocateResourceBinding();
 
-            // Compile the model matrix update shader.
-            compiler.CompileGLSLtoSPV(model_matrix_cached_spirv, kPlaceholderXpbdModelMatrixShader, EShLangCompute);
+            // Load the precompiled model matrix update shader.
+            model_matrix_cached_spirv = LoadPhysicsSpirv("solver/XPBDSolver/model_matrix.comp.spv");
             model_matrix_compute_stage = std::make_unique<ComputeStage>(render_system);
             model_matrix_compute_stage->Instantiate(model_matrix_cached_spirv, "Physics XPBD Model Matrix");
             model_matrix_resource_binding = &model_matrix_compute_stage->AllocateResourceBinding();

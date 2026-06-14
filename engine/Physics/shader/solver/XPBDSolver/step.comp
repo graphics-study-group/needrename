@@ -1,0 +1,28 @@
+#version 450 core
+#extension GL_EXT_debug_printf : enable
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) readonly buffer RigidBodyAlive {
+    uint v[];
+} rigid_body_alive;
+
+layout(set = 0, binding = 1) buffer RigidBodyCenterPosition {
+    vec4 v[];
+} rigid_body_center_position;
+
+void main() {
+    uint index = gl_GlobalInvocationID.x;
+    if (index >= rigid_body_alive.v.length()) {
+        return;
+    }
+    if (rigid_body_alive.v[index] == 0u) {
+        return;
+    }
+
+    debugPrintfEXT("XPBD step: rigid_body[%u] before.z=%.2f", index, rigid_body_center_position.v[index].z);
+
+    rigid_body_center_position.v[index].z -= 0.01;
+
+    debugPrintfEXT("XPBD step: rigid_body[%u] after.z=%.2f", index, rigid_body_center_position.v[index].z);
+}
