@@ -1,0 +1,21 @@
+schema: spec-driven
+
+# Project context (optional)
+# This is shown to AI when creating artifacts.
+# Add your tech stack, conventions, style guides, domain knowledge, etc.
+# Example:
+  context: |
+    This project is a C++ game engine with:
+    - **Vulkan-based rendering** with multi-tier descriptor set architecture
+    - **Python-powered reflection/serialization** via libclang parsing at compile time
+    - **Component-based game framework** with World → Scene → GameObject/Component hierarchy
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always include a "Non-goals" section
+#     tasks:
+#       - Break tasks into chunks of max 2 hours
