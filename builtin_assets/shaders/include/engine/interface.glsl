@@ -46,13 +46,15 @@ layout(push_constant) uniform ModelTransform {
 /**
  * @brief Resolve the model matrix to use for the current draw.
  *
- * If model_mat_index is non-negative, the model matrix is read from the
- * physics-driven model_matrices storage buffer.  Otherwise the per-draw
- * push-constant model matrix is used.
+ * If model_mat_index is non-negative, the physics-driven rigid body center
+ * matrix is composed with the per-draw local transform (push-constant model,
+ * which carries the renderer's local offset relative to the rigid body's GO).
+ * Otherwise the per-draw push-constant model matrix is used as the full world
+ * transform.
  */
 mat4 get_model_matrix() {
     if (pc.model_mat_index >= 0) {
-        return model_matrices.m[pc.model_mat_index];
+        return model_matrices.m[pc.model_mat_index] * pc.model;
     }
     return pc.model;
 }

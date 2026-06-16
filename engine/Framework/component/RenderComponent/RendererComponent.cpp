@@ -42,20 +42,30 @@ namespace Engine {
         glm::mat4 model = GetWorldTransform().GetTransformMatrix();
         auto *rm = &MainClass::GetInstance()->GetRenderSystem()->GetRendererManager();
 
-        // Determine if the parent GameObject is physics-driven.
-        // If so, the vertex shader will read the model matrix from the
-        // scene-level model_matrices buffer (set 0 binding 2) instead of
-        // using the push-constant model matrix.
+        // Walk up the ancestor chain to find a registered RigidBody.
+        // Matches the "connected block" semantics: stops at the nearest ancestor
+        // with a RigidBody (analogous to CollisionShapeComponent::TryAttachToAncestorRigidBody).
         int32_t model_mat_index = -1;
-        auto *parentObj = this->GetParentGameObject();
-        if (parentObj) {
-            auto *scene = parentObj->GetScene();
+        auto *currentObj = this->GetParentGameObject();
+        if (currentObj) {
+            auto *scene = currentObj->GetScene();
             if (scene) {
                 auto *physicsScene = scene->GetPhysicsScene();
                 if (physicsScene) {
-                    auto rigid_idx = physicsScene->FindRigidBodyByObjectHandle(parentObj->GetHandle());
-                    if (rigid_idx != PhysicsScene::INVALID_INDEX) {
-                        model_mat_index = static_cast<int32_t>(rigid_idx);
+                    while (currentObj) {
+                        auto rigid_idx = physicsScene->FindRigidBodyByObjectHandle(currentObj->GetHandle());
+                        if (rigid_idx != PhysicsScene::INVALID_INDEX) {
+                            model_mat_index = static_cast<int32_t>(rigid_idx);
+                            // Compute local transform relative to the rigid body's GO.
+                            // The shader will compose: model_matrices[index] * pc.model.
+                            glm::mat4 rb_world = currentObj->GetWorldTransform().GetTransformMatrix();
+                            model = glm::inverse(rb_world) * model;
+                            break;
+                        }
+                        // Move up to parent.
+                        auto parent_handle = currentObj->GetParent();
+                        if (!parent_handle.IsValid()) break;
+                        currentObj = scene->GetGameObject(parent_handle);
                     }
                 }
             }
