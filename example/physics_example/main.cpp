@@ -5,6 +5,7 @@
 
 #include "Asset/AssetDatabase/FileSystemDatabase.h"
 #include "Framework/component/RenderComponent/CameraComponent.h"
+#include "Framework/component/RenderComponent/LightComponent.h"
 #include "Framework/component/RenderComponent/StaticMeshComponent.h"
 #include "Framework/component/TransformComponent/TransformComponent.h"
 #include "Framework/object/GameObject.h"
@@ -26,7 +27,7 @@ using namespace Engine;
 
 int main(int /*argc*/, char ** /*argv*/) {
     std::filesystem::path project_path(ENGINE_PROJECTS_DIR);
-    project_path = project_path / "test_project";
+    project_path = project_path / "empty_with_sky";
 
     SDL_Init(SDL_INIT_VIDEO);
 
@@ -58,15 +59,15 @@ int main(int /*argc*/, char ** /*argv*/) {
     input->AddAxis(Input::ButtonAxis("toggle simulation", Input::AxisType::TypeKey, "space", ""));
 
     // --- Load preset solid color materials ---
-    auto red_mat    = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_red.asset"});
-    auto green_mat  = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_green.asset"});
-    auto blue_mat   = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_blue.asset"});
+    auto red_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_red.asset"});
+    auto green_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_green.asset"});
+    auto blue_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_blue.asset"});
     auto yellow_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_yellow.asset"});
-    auto cyan_mat   = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_cyan.asset"});
+    auto cyan_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_cyan.asset"});
     auto magenta_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_magenta.asset"});
     auto orange_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_orange.asset"});
-    auto white_mat  = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_white.asset"});
-    auto grey_mat   = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_dark_grey_solid.asset"});
+    auto white_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_white.asset"});
+    auto grey_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_dark_grey.asset"});
 
     // --- Create physics objects via SceneBuilder ---
     // Root object to hold the physics scene hierarchy.
@@ -91,7 +92,9 @@ int main(int /*argc*/, char ** /*argv*/) {
     const std::vector<AssetRef> preset_colors = {
         red_mat, green_mat, blue_mat, yellow_mat, cyan_mat, magenta_mat, orange_mat, white_mat
     };
-    struct BoxPos { float x, y, z; };
+    struct BoxPos {
+        float x, y, z;
+    };
     const BoxPos box_positions[] = {
         {0.0f, 0.0f, 2.0f},
         {-1.5f, -1.5f, 2.0f},
@@ -145,6 +148,28 @@ int main(int /*argc*/, char ** /*argv*/) {
     // Must be called so WorldSystem::GetActiveCamera() returns a valid pointer,
     // which the lit pass (and CameraComponent::Tick) depend on.
     cmc->GetWorldSystem()->SetActiveCamera(camera_comp.GetHandle(), &cmc->GetRenderSystem()->GetCameraManager());
+
+    // --- Light setup ---
+    GameObject &light_object1 = scene.CreateGameObject();
+    {
+        auto &light_comp = light_object1.AddComponent<LightComponent>();
+        light_comp.m_cast_shadow = true;
+        light_comp.m_type = LightType::Directional;
+        light_comp.m_intensity = 2.0f;
+        Transform t;
+        t.SetRotation(glm::quat(glm::vec3(glm::radians(-60.0f), glm::radians(-60.0f), 0.0f)));
+        light_object1.SetTransform(t);
+    }
+    GameObject &light_object2 = scene.CreateGameObject();
+    {
+        auto &light_comp = light_object2.AddComponent<LightComponent>();
+        light_comp.m_cast_shadow = true;
+        light_comp.m_type = LightType::Directional;
+        light_comp.m_intensity = 2.0f;
+        Transform t;
+        t.SetRotation(glm::quat(glm::vec3(glm::radians(-120.0f), glm::radians(60.0f), 0.0f)));
+        light_object2.SetTransform(t);
+    }
 
     // --- Finalize scene ---
     scene.FlushCmdQueue();

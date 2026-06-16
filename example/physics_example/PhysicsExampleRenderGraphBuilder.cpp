@@ -131,7 +131,7 @@ std::unique_ptr<RenderGraph> PhysicsExampleRenderGraphBuilder::BuildRenderGraph(
                             shadow_map_scissor
                         );
                         cb.DrawRenderers(
-                            "Shadowmap", system.GetRendererManager().FilterAndSortRenderers({}), 0, shadow_map_extent
+                            "Shadowmap", system.GetRendererManager().FilterAndSortRenderers({}), i, shadow_map_extent
                         );
                         cb.EndRendering();
                     }
