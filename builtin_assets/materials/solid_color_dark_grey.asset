@@ -7,7 +7,7 @@
         "MaterialAsset::m_properties": {
             "albedoSampler": {
                 "m_type": "Texture",
-                "m_value": "1d73e8c7-640a-3df7-7b50-3b3f5e97dbe5"
+                "m_value": "24ef50b8-2ab1-dc97-93f6-0a50dbe77719"
             },
             "MRAOSampler": {
                 "m_type": "Texture",
@@ -38,6 +38,16 @@
                     0.0,
                     0.0,
                     0.0,
+                    1.0
+                ]
+            },
+            "albedoFactor": {
+                "m_type": "Simple",
+                "m_ubo_type": "Vec4",
+                "m_value": [
+                    0.2,
+                    0.2,
+                    0.2,
                     1.0
                 ]
             }

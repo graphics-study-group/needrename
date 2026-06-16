@@ -1,7 +1,7 @@
 {
     "%main_data": {
         "%type": "Engine::MaterialAsset",
-        "Asset::m_guid": "c1000001-0001-4000-8000-000000000007",
+        "Asset::m_guid": "f106b621-8ab1-69f0-ddf8-5507cd8285f1",
         "MaterialAsset::m_library": "d3364ae9-2862-1310-cf1e-e68f8d5edb0a",
         "MaterialAsset::m_name": "Solid Color Orange",
         "MaterialAsset::m_properties": {
@@ -24,12 +24,12 @@
             "metalnessFactor": {
                 "m_type": "Simple",
                 "m_ubo_type": "Float",
-                "m_value": 0.0
+                "m_value": 0.5
             },
             "roughnessFactor": {
                 "m_type": "Simple",
                 "m_ubo_type": "Float",
-                "m_value": 0.5
+                "m_value": 0.2
             },
             "emissiveFactor": {
                 "m_type": "Simple",

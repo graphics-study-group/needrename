@@ -1,0 +1,17 @@
+{
+    "%extra_data": [
+        {
+            "%extension": ".ktx2"
+        }
+    ],
+    "%main_data": {
+        "%extra_data_id": 0,
+        "%type": "Engine::ImageCubemapAsset",
+        "Asset::m_guid": "36c9e292-92be-9714-78a6-932b557dec33",
+        "ImageCubemapAsset::m_channel": 4,
+        "ImageCubemapAsset::m_format": "R8G8B8A8SRGB",
+        "ImageCubemapAsset::m_height": 1024,
+        "ImageCubemapAsset::m_width": 1024,
+        "TextureAsset::m_name": "sky_cloudy"
+    }
+}

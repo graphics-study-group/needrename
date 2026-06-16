@@ -1,7 +1,7 @@
 {
     "%main_data": {
         "%type": "Engine::MaterialAsset",
-        "Asset::m_guid": "c1000001-0001-4000-8000-000000000005",
+        "Asset::m_guid": "0dc78326-d803-74f5-92ad-b03b3f81eb6f",
         "MaterialAsset::m_library": "d3364ae9-2862-1310-cf1e-e68f8d5edb0a",
         "MaterialAsset::m_name": "Solid Color Cyan",
         "MaterialAsset::m_properties": {
@@ -24,12 +24,12 @@
             "metalnessFactor": {
                 "m_type": "Simple",
                 "m_ubo_type": "Float",
-                "m_value": 0.0
+                "m_value": 0.5
             },
             "roughnessFactor": {
                 "m_type": "Simple",
                 "m_ubo_type": "Float",
-                "m_value": 0.5
+                "m_value": 0.2
             },
             "emissiveFactor": {
                 "m_type": "Simple",
