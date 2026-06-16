@@ -11,12 +11,20 @@ layout(set = 0, binding = 1) buffer RigidBodyCenterPosition {
     vec4 v[];
 } rigid_body_center_position;
 
+layout(set = 0, binding = 2) readonly buffer RigidBodyIsKinematic {
+    uint v[];
+} rigid_body_is_kinematic;
+
 void main() {
     uint index = gl_GlobalInvocationID.x;
     if (index >= rigid_body_alive.v.length()) {
         return;
     }
     if (rigid_body_alive.v[index] == 0u) {
+        return;
+    }
+    // Kinematic bodies are not moved by the solver.
+    if (rigid_body_is_kinematic.v[index] != 0u) {
         return;
     }
 

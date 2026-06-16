@@ -81,8 +81,8 @@ int main(int /*argc*/, char ** /*argv*/) {
 
     // Ground: a large kinematic box.
     builder.AddBox({
-        .position = {0.0f, 0.0f, -2.0f},
-        .half_extents = {10.0f, 10.0f, 2.0f},
+        .position = {0.0f, 0.0f, -0.05f},
+        .half_extents = {10.0f, 10.0f, 0.1f},
         .kinematic = true,
         .material = grey_mat,
     });

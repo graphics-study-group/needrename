@@ -134,6 +134,7 @@ namespace Engine {
         auto &srb = m_impl->resource_binding->GetShaderResourceBinding();
         srb.BindBuffer("RigidBodyAlive", *gpu.rigid_body_alive);
         srb.BindBuffer("RigidBodyCenterPosition", *gpu.rigid_body_center_world_position);
+        srb.BindBuffer("RigidBodyIsKinematic", *gpu.rigid_body_is_kinematic);
 
         // --- Import external resources into the render graph ---
         // ComputeBuffer inherits DeviceBuffer, so the const DeviceBuffer& overload
@@ -141,6 +142,8 @@ namespace Engine {
         auto alive_handle = builder.ImportExternalResource(*gpu.rigid_body_alive, {MemoryAccessTypeBufferBits::None});
         auto position_handle =
             builder.ImportExternalResource(*gpu.rigid_body_center_world_position, {MemoryAccessTypeBufferBits::None});
+        auto kinematic_handle =
+            builder.ImportExternalResource(*gpu.rigid_body_is_kinematic, {MemoryAccessTypeBufferBits::None});
 
         // --- Add the XPBD compute pass ---
         // Capture raw pointers (not references) — the solver owns compute_stage
@@ -157,6 +160,7 @@ namespace Engine {
             RenderGraphPassBuilder{m_impl->render_system}
                 .SetName("XPBD Step")
                 .UseBuffer(alive_handle, {MemoryAccessTypeBufferBits::ShaderRandomRead})
+                .UseBuffer(kinematic_handle, {MemoryAccessTypeBufferBits::ShaderRandomRead})
                 .UseBuffer(
                     position_handle,
                     {MemoryAccessTypeBufferBits::ShaderRandomRead, MemoryAccessTypeBufferBits::ShaderRandomWrite}
