@@ -7,7 +7,7 @@
 #include "Framework/world/WorldSystem.h"
 #include "MainClass.h"
 #include "Physics/PhysicsScene.h"
-#include "Physics/XPBDGpuSolver.h"
+#include "Physics/Solver/XPBDGpuSolver.h"
 #include "Render/Memory/ComputeBuffer.h"
 #include "Render/Memory/MemoryAccessTypes.h"
 #include "Render/Memory/RenderTargetTexture.h"

@@ -1,11 +1,10 @@
 #include "XPBDGpuSolver.h"
 
-#include "PhysicsScene.h"
-
 #include <cmake_config.h>
 
 #include <vulkan/vulkan.hpp>
 
+#include <Physics/PhysicsScene.h>
 #include <Render/Memory/ComputeBuffer.h>
 #include <Render/Memory/DeviceBuffer.h>
 #include <Render/Memory/MemoryAccessTypes.h>
