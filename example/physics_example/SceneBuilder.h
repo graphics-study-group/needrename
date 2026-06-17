@@ -23,6 +23,7 @@ namespace Engine {
  */
 struct BoxDesc {
     glm::vec3 position{0.0f, 0.0f, 0.0f};
+    glm::quat rotation{1.0f, 0.0f, 0.0f, 0.0f};
     glm::vec3 half_extents{0.5f, 0.5f, 0.5f};
     float mass{1.0f};
     bool kinematic{false};
@@ -55,10 +56,12 @@ public:
      * @param root          Root GameObject all created objects will be parented to.
      * @param render_system Render system, used by Finalize for GPU buffer refresh.
      */
-    SceneBuilder(Engine::Scene &scene,
-                 Engine::FileSystemDatabase &adb,
-                 Engine::GameObject &root,
-                 Engine::RenderSystem &render_system);
+    SceneBuilder(
+        Engine::Scene &scene,
+        Engine::FileSystemDatabase &adb,
+        Engine::GameObject &root,
+        Engine::RenderSystem &render_system
+    );
 
     /**
      * @brief Add a physics box to the scene.

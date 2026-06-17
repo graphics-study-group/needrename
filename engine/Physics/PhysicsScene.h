@@ -97,6 +97,8 @@ namespace Engine {
          * @param dynamic_friction Dynamic friction coefficient.
          * @param restitution Restitution coefficient.
          * @param is_kinematic Whether this rigid body is kinematic.
+         * @param initial_world_position Initial world position (from GameObject transform).
+         * @param initial_world_rotation Initial world rotation (from GameObject transform).
          * @param linear_velocity Initial linear velocity.
          * @param angular_velocity_axis_angle Initial angular velocity (axis-angle vector).
          * @param external_force External force accumulator.
@@ -110,6 +112,8 @@ namespace Engine {
             float dynamic_friction,
             float restitution,
             bool is_kinematic,
+            const glm::vec3 &initial_world_position,
+            const glm::quat &initial_world_rotation,
             const glm::vec3 &linear_velocity,
             const glm::vec3 &angular_velocity_axis_angle,
             const glm::vec3 &external_force,

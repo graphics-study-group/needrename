@@ -67,6 +67,7 @@ namespace Engine {
                     m_external_torque
                 );
             } else {
+                const Transform world_transform = root->GetWorldTransform();
                 m_rigid_body_index = physics_scene->RegisterRigidBody(
                     root->GetHandle(),
                     m_mass,
@@ -74,6 +75,8 @@ namespace Engine {
                     m_dynamic_friction,
                     m_restitution,
                     m_is_kinematic,
+                    world_transform.GetPosition(),
+                    world_transform.GetRotation(),
                     m_linear_velocity,
                     m_angular_velocity_axis_angle,
                     m_external_force,

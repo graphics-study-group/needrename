@@ -90,6 +90,7 @@ int main(int /*argc*/, char ** /*argv*/) {
     });
     builder.AddBox({
         .position = {0.0f, 0.0f, 1.59f},
+        .rotation = glm::angleAxis(glm::radians(45.0f), glm::vec3(0.0f, 0.0f, 1.0f)),
         .half_extents = {0.6f, 0.6f, 0.6f},
         .material = blue_mat,
     });

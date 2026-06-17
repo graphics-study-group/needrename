@@ -100,9 +100,8 @@ namespace Engine {
             {
                 const size_t byte_size = sizeof(uint32_t);
                 if (!gpu_shape_slot_count || gpu_shape_slot_count->GetSize() != byte_size) {
-                    gpu_shape_slot_count = ComputeBuffer::CreateUnique(
-                        allocator, byte_size, true, false, false, false, "ShapeSlotCount"
-                    );
+                    gpu_shape_slot_count =
+                        ComputeBuffer::CreateUnique(allocator, byte_size, true, false, false, false, "ShapeSlotCount");
                 }
             }
 
@@ -123,9 +122,8 @@ namespace Engine {
             {
                 const size_t byte_size = safe_slots * sizeof(glm::uvec2);
                 if (!gpu_collision_ids || gpu_collision_ids->GetSize() != byte_size) {
-                    gpu_collision_ids = ComputeBuffer::CreateUnique(
-                        allocator, byte_size, false, false, false, false, "CollisionIds"
-                    );
+                    gpu_collision_ids =
+                        ComputeBuffer::CreateUnique(allocator, byte_size, false, false, false, false, "CollisionIds");
                 }
             }
             {
@@ -139,25 +137,22 @@ namespace Engine {
             {
                 const size_t byte_size = safe_slots * sizeof(glm::vec4);
                 if (!gpu_contact_point_a || gpu_contact_point_a->GetSize() != byte_size) {
-                    gpu_contact_point_a = ComputeBuffer::CreateUnique(
-                        allocator, byte_size, false, false, false, false, "ContactPointA"
-                    );
+                    gpu_contact_point_a =
+                        ComputeBuffer::CreateUnique(allocator, byte_size, false, false, false, false, "ContactPointA");
                 }
             }
             {
                 const size_t byte_size = safe_slots * sizeof(glm::vec4);
                 if (!gpu_contact_point_b || gpu_contact_point_b->GetSize() != byte_size) {
-                    gpu_contact_point_b = ComputeBuffer::CreateUnique(
-                        allocator, byte_size, false, false, false, false, "ContactPointB"
-                    );
+                    gpu_contact_point_b =
+                        ComputeBuffer::CreateUnique(allocator, byte_size, false, false, false, false, "ContactPointB");
                 }
             }
             {
                 const size_t byte_size = sizeof(uint32_t);
                 if (!gpu_collision_count || gpu_collision_count->GetSize() != byte_size) {
-                    gpu_collision_count = ComputeBuffer::CreateUnique(
-                        allocator, byte_size, false, false, false, false, "CollisionCount"
-                    );
+                    gpu_collision_count =
+                        ComputeBuffer::CreateUnique(allocator, byte_size, false, false, false, false, "CollisionCount");
                 }
             }
         }
@@ -197,8 +192,8 @@ namespace Engine {
     // Public API
     // -----------------------------------------------------------------------
 
-    ConvexCollisionDetector::ConvexCollisionDetector(RenderSystem &render_system, uint32_t max_collision_pairs)
-        : m_impl(std::make_unique<Impl>(render_system, max_collision_pairs)) {
+    ConvexCollisionDetector::ConvexCollisionDetector(RenderSystem &render_system, uint32_t max_collision_pairs) :
+        m_impl(std::make_unique<Impl>(render_system, max_collision_pairs)) {
     }
 
     ConvexCollisionDetector::~ConvexCollisionDetector() = default;
@@ -278,10 +273,8 @@ namespace Engine {
         // ---- Import external resources into the render graph ----
 
         // PhysicsScene shape buffers.
-        auto shape_alive_handle =
-            builder.ImportExternalResource(*gpu.shape_alive, {MemoryAccessTypeBufferBits::None});
-        auto shape_type_handle =
-            builder.ImportExternalResource(*gpu.shape_type, {MemoryAccessTypeBufferBits::None});
+        auto shape_alive_handle = builder.ImportExternalResource(*gpu.shape_alive, {MemoryAccessTypeBufferBits::None});
+        auto shape_type_handle = builder.ImportExternalResource(*gpu.shape_type, {MemoryAccessTypeBufferBits::None});
         auto shape_half_extents_handle =
             builder.ImportExternalResource(*gpu.shape_half_extents, {MemoryAccessTypeBufferBits::None});
         auto shape_world_pos_handle =
@@ -315,9 +308,7 @@ namespace Engine {
         // Dispatch sizes.
         // Always dispatch at least 1 workgroup for pair generation so thread 0
         // resets the collision count.
-        const uint32_t pair_gen_workgroups = std::max(
-            1u, (total_pairs + 63u) / 64u
-        );
+        const uint32_t pair_gen_workgroups = std::max(1u, (total_pairs + 63u) / 64u);
         const uint32_t detect_workgroups = (total_pairs + 63u) / 64u;
 
         // ---- Pass 1: GPU pair generation ----
@@ -356,8 +347,10 @@ namespace Engine {
                 .UseBuffer(collision_normals_handle, {MemoryAccessTypeBufferBits::ShaderRandomWrite})
                 .UseBuffer(contact_a_handle, {MemoryAccessTypeBufferBits::ShaderRandomWrite})
                 .UseBuffer(contact_b_handle, {MemoryAccessTypeBufferBits::ShaderRandomWrite})
-                .UseBuffer(collision_count_handle,
-                           {MemoryAccessTypeBufferBits::ShaderRandomRead, MemoryAccessTypeBufferBits::ShaderRandomWrite})
+                .UseBuffer(
+                    collision_count_handle,
+                    {MemoryAccessTypeBufferBits::ShaderRandomRead, MemoryAccessTypeBufferBits::ShaderRandomWrite}
+                )
                 // Slot count (readonly).
                 .UseBuffer(slot_count_handle, {MemoryAccessTypeBufferBits::ShaderRandomRead})
                 .SetPassFunction(

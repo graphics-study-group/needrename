@@ -13,14 +13,8 @@
 
 using namespace Engine;
 
-SceneBuilder::SceneBuilder(Scene &scene,
-                           FileSystemDatabase &adb,
-                           GameObject &root,
-                           RenderSystem &render_system) :
-    m_scene(scene),
-    m_adb(adb),
-    m_root(root),
-    m_render_system(render_system) {
+SceneBuilder::SceneBuilder(Scene &scene, FileSystemDatabase &adb, GameObject &root, RenderSystem &render_system) :
+    m_scene(scene), m_adb(adb), m_root(root), m_render_system(render_system) {
     // Load the builtin cube mesh once — all boxes share it.
     m_cube_mesh = adb.GetNewAssetRef(AssetPath{adb, "~/mesh/cube.asset"});
 }
@@ -45,6 +39,7 @@ GameObject &SceneBuilder::AddBox(const BoxDesc &desc) {
     {
         Transform t;
         t.SetPosition(desc.position);
+        t.SetRotation(desc.rotation);
         parent.SetTransform(t);
     }
 

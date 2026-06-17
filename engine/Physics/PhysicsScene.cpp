@@ -145,6 +145,8 @@ namespace Engine {
         float dynamic_friction,
         float restitution,
         bool is_kinematic,
+        const glm::vec3 &initial_world_position,
+        const glm::quat &initial_world_rotation,
         const glm::vec3 &linear_velocity,
         const glm::vec3 &angular_velocity_axis_angle,
         const glm::vec3 &external_force,
@@ -161,8 +163,12 @@ namespace Engine {
         m_rigid_body_dynamic_friction.push_back(dynamic_friction);
         m_rigid_body_restitution.push_back(restitution);
         m_rigid_body_is_kinematic.push_back(is_kinematic ? 1u : 0u);
-        m_rigid_body_center_world_position.push_back(glm::vec4(0.0f, 0.0f, 0.0f, 0.0f));
-        m_rigid_body_center_world_rotation.push_back(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+        m_rigid_body_center_world_position.push_back(glm::vec4(initial_world_position, 0.0f));
+        m_rigid_body_center_world_rotation.push_back(
+            glm::vec4(
+                initial_world_rotation.x, initial_world_rotation.y, initial_world_rotation.z, initial_world_rotation.w
+            )
+        );
         m_rigid_body_center_offset_local_position.push_back(glm::vec4(0.0f, 0.0f, 0.0f, 0.0f));
         m_rigid_body_inertia.push_back(glm::mat4(0.0f));
         m_rigid_body_linear_velocity.push_back(ToVec4(linear_velocity));
