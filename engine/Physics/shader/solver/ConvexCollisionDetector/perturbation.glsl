@@ -8,10 +8,11 @@
 //      off the contact plane).
 //   3. For each perturbed direction, query support() on both shapes and project
 //      the result onto the 2D contact plane.
-//   4. The resulting 2D polygons are passed to the clipping module.
+//   4. Clip polygon A by polygon B (Sutherland-Hodgman).
+//   5. Reduce to at most 4 vertices (rotating calipers).
+//   6. Un-project each vertex to world space on each shape's surface.
 //
-// Returns a centroid contact point in world space (average of the clipped
-// polygon vertices, un-projected back to 3D).
+// Returns up to 4 contact point pairs on shapes A and B.
 
 #ifndef CONVEX_COLLISION_PERTURBATION_GLSL
 #define CONVEX_COLLISION_PERTURBATION_GLSL
@@ -26,11 +27,20 @@ const float PERTURB_TILT_ANGLE = 2.0; // degrees off the contact plane
 // ---------------------------------------------------------------------------
 
 void compute_orthogonal_axes(vec3 n, out vec3 u, out vec3 v) {
-    // Pick a reference vector that is not parallel to n.
     vec3 ref = (abs(n.z) < 0.9) ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);
     u = normalize(cross(n, ref));
-    v = cross(n, u); // already unit-length since n and u are orthogonal and unit
+    v = cross(n, u);
 }
+
+// ---------------------------------------------------------------------------
+// Perturbation manifold result.
+// ---------------------------------------------------------------------------
+
+struct PerturbResult {
+    vec3 contact_points_a[4];  // world-space on shape A
+    vec3 contact_points_b[4];  // world-space on shape B
+    uint point_count;          // 0-4 (0 = clipping failed)
+};
 
 // ---------------------------------------------------------------------------
 // Perturbation manifold generation.
@@ -38,39 +48,26 @@ void compute_orthogonal_axes(vec3 n, out vec3 u, out vec3 v) {
 // Parameters:
 //   shape_a, shape_b — shape indices
 //   contact_normal   — world-space normal from MPR (pointing B→A)
-//   contact_center   — world-space contact point from MPR (on the contact plane)
-//
-// Returns:
-//   centroid — averaged contact point in world space (on the contact plane)
-//   clip_vertex_count — number of vertices in the final clipped polygon
+//   contact_center   — midpoint between MPR contact points
+//   penetration      — MPR penetration depth
 // ---------------------------------------------------------------------------
-
-struct PerturbResult {
-    vec3 contact_centroid;     // world-space centroid of the contact region
-    uint clip_vertex_count;    // number of vertices in the clipped polygon
-};
 
 PerturbResult perturb_manifold(
     uint shape_a,
     uint shape_b,
     vec3 contact_normal,
-    vec3 contact_center
+    vec3 contact_center,
+    float penetration
 ) {
     PerturbResult result;
-    result.contact_centroid = contact_center;
-    result.clip_vertex_count = 0u;
+    result.point_count = 0u;
+    float half_depth = penetration * 0.5;
 
     // Step 1: Orthogonal axes on the contact plane.
     vec3 u, v;
     compute_orthogonal_axes(contact_normal, u, v);
 
-    // Step 2: Generate 6 perturbed directions and collect 2D projected points.
-    //
-    // Each direction is tilted 2° off the contact plane toward the contact
-    // normal, rotated every 60° around the normal.
-    //
-    //   d = cos(θ)*u + sin(θ)*v + tan(2°)*n   (normalized)
-
+    // Step 2: Generate 6 perturbed directions, collect 2D projected points.
     const float tilt = tan(radians(PERTURB_TILT_ANGLE));
     const float deg60 = radians(60.0);
 
@@ -81,14 +78,11 @@ PerturbResult perturb_manifold(
         float angle = float(i) * deg60;
         float ca = cos(angle);
         float sa = sin(angle);
-
         vec3 dir = normalize(ca * u + sa * v + tilt * contact_normal);
 
-        // Support points in world space.
         vec3 world_a = support(shape_a, dir);
         vec3 world_b = support(shape_b, -dir);
 
-        // Project onto the 2D contact plane.
         vec3 offset_a = world_a - contact_center;
         vec3 offset_b = world_b - contact_center;
 
@@ -96,18 +90,13 @@ PerturbResult perturb_manifold(
         poly_b[i] = vec2(dot(offset_b, u), dot(offset_b, v));
     }
 
-    // Step 3: Sutherland-Hodgman clipping — clip polygon A by edges of polygon B.
-    //
-    // We clip the 6-vertex polygon A by the 6 edges of polygon B.
+    // Step 3: Sutherland-Hodgman clipping.
     ClipResult clip_res = sutherland_hodgman_clip(poly_a, 6u, poly_b, 6u);
-    result.clip_vertex_count = clip_res.vertex_count;
-
     if (clip_res.vertex_count == 0u) {
-        // Clipping produced no intersection — fall back to the MPR contact point.
         return result;
     }
 
-    // Step 4: Rotating calipers — reduce to at most 4 vertices.
+    // Step 4: Reduce to at most 4 vertices.
     uint final_count;
     vec2 final_verts[4];
 
@@ -120,15 +109,13 @@ PerturbResult perturb_manifold(
         }
     }
 
-    // Step 5: Compute centroid in 2D and un-project to world space.
-    vec2 centroid_2d = vec2(0.0);
-    for (uint k = 0u; k < final_count; k++) {
-        centroid_2d += final_verts[k];
+    // Step 5: Un-project each 2D vertex to world space on each shape.
+    for (uint k = 0u; k < final_count && k < 4u; k++) {
+        vec3 world_on_plane = contact_center + final_verts[k].x * u + final_verts[k].y * v;
+        result.contact_points_a[k] = world_on_plane + contact_normal * half_depth;
+        result.contact_points_b[k] = world_on_plane - contact_normal * half_depth;
     }
-    centroid_2d /= float(final_count);
-
-    // Un-project: world = contact_center + centroid_2d.x * u + centroid_2d.y * v
-    result.contact_centroid = contact_center + centroid_2d.x * u + centroid_2d.y * v;
+    result.point_count = final_count;
 
     return result;
 }

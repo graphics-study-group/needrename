@@ -19,9 +19,9 @@ namespace Engine {
      * Collision results are stored in separate SoA GPU buffers:
      *   - collision_ids:       uvec2 (shape_a, shape_b)
      *   - collision_normals:   vec4  (xyz = normal, w = penetration depth)
-     *   - contact_point_a:     vec4  (xyz = contact point on A, world space)
-     *   - contact_point_b:     vec4  (xyz = contact point on B, world space)
-     *   - collision_count:     uint  (number of detected collisions, atomic)
+     *   - contact_point_a:     vec4  (contact point on A, world space)
+     *   - contact_point_b:     vec4  (contact point on B, world space)
+     *   - collision_count:     uint  (total contact points, each atomicAdd'd)
      *
      * All buffers are sized to max_collision_pairs at construction time.
      * The detector follows the same lazy-SPIR-V-loading pattern as XPBDGpuSolver.

@@ -120,40 +120,56 @@ void main() {
     }
 
     // ---- Contact manifold refinement via perturbation ----
-    //
-    // Perturbation improves contact stability by sampling the contact region
-    // from slightly different directions.  The centroid of the resulting
-    // clipped polygon is used as the representative contact point.
-    vec3 contact_pt_a = base_result.contact_point_a;
-    vec3 contact_pt_b = base_result.contact_point_b;
+    vec3 midpoint = (base_result.contact_point_a + base_result.contact_point_b) * 0.5;
 
     PerturbResult pert = perturb_manifold(
         shape_a, shape_b,
         base_result.contact_normal,
-        (base_result.contact_point_a + base_result.contact_point_b) * 0.5
+        midpoint,
+        base_result.penetration
     );
 
-    if (pert.clip_vertex_count > 0u) {
-        // Use the manifold centroid, offsetting A and B by half the depth.
-        float half_depth = base_result.penetration * 0.5;
-        contact_pt_a = pert.contact_centroid + base_result.contact_normal * half_depth;
-        contact_pt_b = pert.contact_centroid - base_result.contact_normal * half_depth;
+    // Collect output points — each point becomes a separate result entry.
+    uint num_points;
+    vec3 pts_a[4];
+    vec3 pts_b[4];
+
+    if (pert.point_count > 0u) {
+        num_points = pert.point_count;
+        for (uint pi = 0u; pi < pert.point_count; pi++) {
+            pts_a[pi] = pert.contact_points_a[pi];
+            pts_b[pi] = pert.contact_points_b[pi];
+        }
+    } else {
+        // Fall back to MPR single contact point.
+        num_points = 1u;
+        pts_a[0] = base_result.contact_point_a;
+        pts_b[0] = base_result.contact_point_b;
     }
 
-    // Atomically reserve a slot in the output buffers.
-    uint write_idx = atomicAdd(collision_count.v[0], 1u);
+    // Write each manifold point as a separate result entry.
+    uint write_idx_start = atomicAdd(collision_count.v[0], num_points);
+    for (uint pi = 0u; pi < num_points; pi++) {
+        uint write_idx = write_idx_start + pi;
 
-    // Guard against buffer overflow.
-    if (write_idx >= collision_ids.v.length()) {
-        return;
+        // Guard against buffer overflow.
+        if (write_idx >= collision_ids.v.length()) {
+            break;
+        }
+
+        collision_ids.v[write_idx]     = uvec2(shape_a, shape_b);
+        collision_normals.v[write_idx] = vec4(base_result.contact_normal, base_result.penetration);
+        contact_point_a.v[write_idx]   = vec4(pts_a[pi], 0.0);
+        contact_point_b.v[write_idx]   = vec4(pts_b[pi], 0.0);
+
+        debugPrintfEXT(
+            "WRITE[%u]: (%u,%u) d=%.4f n=(%.2f,%.2f,%.2f) ptA=(%.2f,%.2f,%.2f) ptB=(%.2f,%.2f,%.2f)",
+            write_idx,
+            shape_a, shape_b,
+            base_result.penetration,
+            base_result.contact_normal.x, base_result.contact_normal.y, base_result.contact_normal.z,
+            pts_a[pi].x, pts_a[pi].y, pts_a[pi].z,
+            pts_b[pi].x, pts_b[pi].y, pts_b[pi].z
+        );
     }
-
-    // Write collision results.
-    collision_ids.v[write_idx]       = uvec2(shape_a, shape_b);
-    collision_normals.v[write_idx]   = vec4(base_result.contact_normal, base_result.penetration);
-    contact_point_a.v[write_idx]     = vec4(contact_pt_a, 0.0);
-    contact_point_b.v[write_idx]     = vec4(contact_pt_b, 0.0);
-
-    // Debug output.
-    debug_print_collision(write_idx, shape_a, shape_b, base_result);
 }
