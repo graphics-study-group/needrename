@@ -8,6 +8,7 @@
 
 namespace Engine {
     class ComputeStage;
+    class ConvexCollisionDetector;
     class PhysicsScene;
     class RenderGraph;
     class RenderSystem;
@@ -59,6 +60,7 @@ public:
 private:
     Engine::RenderSystem &m_system;
     std::unique_ptr<Engine::XPBDGpuSolver> m_xpbd_solver;
+    std::unique_ptr<Engine::ConvexCollisionDetector> m_collision_detector;
     Engine::AssetRef m_bloom_shader{};
     std::shared_ptr<Engine::ComputeStage> m_bloom_compute_stage{};
 };

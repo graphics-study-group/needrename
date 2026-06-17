@@ -82,7 +82,7 @@ GameObject &SceneBuilder::AddBox(const BoxDesc &desc) {
 
     auto &shape = collision_child.AddComponent<CollisionShapeComponent>();
     shape.m_shape_type = CollisionShapeType::Box;
-    shape.m_box_size = desc.half_extents;
+    shape.m_box_size = desc.half_extents * 2.0f;
 
     return parent;
 }

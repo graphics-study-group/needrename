@@ -1,0 +1,159 @@
+#version 450 core
+#extension GL_EXT_debug_printf : enable
+#extension GL_GOOGLE_include_directive : require
+
+// GPU convex collision detection using MPR algorithm.
+//
+// Reads collision pairs from the output of generate_pairs.comp, runs MPR
+// detection + perturbation manifold generation for each pair, and writes
+// collision results via atomic counter into separate SoA output buffers.
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+// ---- PhysicsScene shape buffers (readonly) ----
+
+layout(set = 0, binding = 0) readonly buffer ShapeAlive {
+    uint v[];
+} shape_alive;
+
+layout(set = 0, binding = 1) readonly buffer ShapeType {
+    uint v[];
+} shape_type;
+
+layout(set = 0, binding = 2) readonly buffer ShapeHalfExtents {
+    vec4 v[];
+} shape_half_extents;
+
+layout(set = 0, binding = 3) readonly buffer ShapeWorldPosition {
+    vec4 v[];
+} shape_world_position;
+
+layout(set = 0, binding = 4) readonly buffer ShapeWorldRotation {
+    vec4 v[];
+} shape_world_rotation;
+
+// ---- Collision pair input (from generate_pairs.comp) ----
+
+layout(set = 0, binding = 5) readonly buffer CollisionPairs {
+    uvec2 v[];
+} collision_pairs;
+
+// ---- Collision result outputs ----
+
+layout(set = 0, binding = 6) writeonly buffer CollisionIds {
+    uvec2 v[];
+} collision_ids;
+
+layout(set = 0, binding = 7) writeonly buffer CollisionNormals {
+    vec4 v[]; // xyz = normal, w = penetration depth
+} collision_normals;
+
+layout(set = 0, binding = 8) writeonly buffer ContactPointA {
+    vec4 v[]; // xyz = contact point on A (world), w = 0
+} contact_point_a;
+
+layout(set = 0, binding = 9) writeonly buffer ContactPointB {
+    vec4 v[]; // xyz = contact point on B (world), w = 0
+} contact_point_b;
+
+layout(set = 0, binding = 10) buffer CollisionCount {
+    uint v[]; // single-element array, atomically incremented
+} collision_count;
+
+// ---- Shape slot count (same buffer used by generate_pairs.comp) ----
+
+layout(set = 0, binding = 11) readonly buffer ShapeSlotCount {
+    uint count;
+} shape_slot_count;
+
+// ---- Shared GLSL headers ----
+
+#include "support.glsl"
+#include "mpr.glsl"
+#include "perturbation.glsl"
+
+// ---------------------------------------------------------------------------
+// Debug printf helper
+// ---------------------------------------------------------------------------
+
+void debug_print_collision(uint idx, uint a, uint b, MprResult res) {
+    debugPrintfEXT(
+        "COLLISION[%u]: (%u,%u) d=%.4f n=(%.2f,%.2f,%.2f)",
+        idx, a, b,
+        res.penetration,
+        res.contact_normal.x, res.contact_normal.y, res.contact_normal.z
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Main entry point
+// ---------------------------------------------------------------------------
+
+void main() {
+    uint pair_index = gl_GlobalInvocationID.x;
+
+    // Compute total pairs from shape slot count.
+    uint n = shape_slot_count.count;
+    uint total_pairs = (n * (n - 1u)) / 2u;
+
+    if (pair_index >= total_pairs) {
+        return;
+    }
+
+    uvec2 pair = collision_pairs.v[pair_index];
+    uint shape_a = pair.x;
+    uint shape_b = pair.y;
+
+    // Skip if either shape is dead.
+    if (shape_a >= shape_alive.v.length() || shape_alive.v[shape_a] == 0u) return;
+    if (shape_b >= shape_alive.v.length() || shape_alive.v[shape_b] == 0u) return;
+
+    // Skip self-collision (should not happen with upper-triangle pairs, but
+    // guard against corrupted input).
+    if (shape_a == shape_b) return;
+
+    // Run MPR collision detection.
+    MprResult base_result = mpr_detect(shape_a, shape_b);
+
+    if (!base_result.hit) {
+        return; // no collision
+    }
+
+    // ---- Contact manifold refinement via perturbation ----
+    //
+    // Perturbation improves contact stability by sampling the contact region
+    // from slightly different directions.  The centroid of the resulting
+    // clipped polygon is used as the representative contact point.
+    vec3 contact_pt_a = base_result.contact_point_a;
+    vec3 contact_pt_b = base_result.contact_point_b;
+
+    PerturbResult pert = perturb_manifold(
+        shape_a, shape_b,
+        base_result.contact_normal,
+        (base_result.contact_point_a + base_result.contact_point_b) * 0.5
+    );
+
+    if (pert.clip_vertex_count > 0u) {
+        // Use the manifold centroid, offsetting A and B by half the depth.
+        float half_depth = base_result.penetration * 0.5;
+        contact_pt_a = pert.contact_centroid + base_result.contact_normal * half_depth;
+        contact_pt_b = pert.contact_centroid - base_result.contact_normal * half_depth;
+    }
+
+    // Atomically reserve a slot in the output buffers.
+    uint write_idx = atomicAdd(collision_count.v[0], 1u);
+
+    // Guard against buffer overflow.
+    if (write_idx >= collision_ids.v.length()) {
+        return;
+    }
+
+    // Write collision results.
+    collision_ids.v[write_idx]       = uvec2(shape_a, shape_b);
+    collision_normals.v[write_idx]   = vec4(base_result.contact_normal, base_result.penetration);
+    contact_point_a.v[write_idx]     = vec4(contact_pt_a, 0.0);
+    contact_point_b.v[write_idx]     = vec4(contact_pt_b, 0.0);
+
+    // Debug output.
+    debug_print_collision(write_idx, shape_a, shape_b, base_result);
+}

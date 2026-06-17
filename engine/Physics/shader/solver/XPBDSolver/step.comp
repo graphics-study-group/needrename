@@ -28,9 +28,13 @@ void main() {
         return;
     }
 
-    debugPrintfEXT("XPBD step: rigid_body[%u] before.z=%.2f", index, rigid_body_center_position.v[index].z);
-
-    rigid_body_center_position.v[index].z -= 0.01;
-
-    debugPrintfEXT("XPBD step: rigid_body[%u] after.z=%.2f", index, rigid_body_center_position.v[index].z);
+    // XPBD solver body is temporarily commented out — placeholder for
+    // collision response integration.  The shader still dispatches but
+    // does not modify rigid body positions.
+    //
+    // debugPrintfEXT("XPBD step: rigid_body[%u] before.z=%.2f", index, rigid_body_center_position.v[index].z);
+    //
+    // rigid_body_center_position.v[index].z -= 0.01;
+    //
+    // debugPrintfEXT("XPBD step: rigid_body[%u] after.z=%.2f", index, rigid_body_center_position.v[index].z);
 }

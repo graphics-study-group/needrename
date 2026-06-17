@@ -1,0 +1,94 @@
+#ifndef ENGINE_PHYSICS_CONVEXCOLLISIONDETECTOR_INCLUDED
+#define ENGINE_PHYSICS_CONVEXCOLLISIONDETECTOR_INCLUDED
+
+#include <memory>
+
+namespace Engine {
+    class ComputeBuffer;
+    class PhysicsScene;
+    class RenderGraphBuilder;
+    class RenderSystem;
+
+    /**
+     * @brief GPU convex collision detection using MPR algorithm.
+     *
+     * ConvexCollisionDetector owns two compute shader pipelines:
+     *   1. generate_pairs.comp  — GPU-side all-pairs pair generation
+     *   2. detect_collisions.comp — MPR collision detection + result output
+     *
+     * Collision results are stored in separate SoA GPU buffers:
+     *   - collision_ids:       uvec2 (shape_a, shape_b)
+     *   - collision_normals:   vec4  (xyz = normal, w = penetration depth)
+     *   - contact_point_a:     vec4  (xyz = contact point on A, world space)
+     *   - contact_point_b:     vec4  (xyz = contact point on B, world space)
+     *   - collision_count:     uint  (number of detected collisions, atomic)
+     *
+     * All buffers are sized to max_collision_pairs at construction time.
+     * The detector follows the same lazy-SPIR-V-loading pattern as XPBDGpuSolver.
+     */
+    class ConvexCollisionDetector {
+    public:
+        /**
+         * @brief Construct the detector.
+         *
+         * No GPU resources are allocated until the first call to Step().
+         *
+         * @param render_system       Render system used for pipeline creation.
+         * @param max_collision_pairs Maximum number of collision pairs to detect.
+         */
+        explicit ConvexCollisionDetector(RenderSystem &render_system, uint32_t max_collision_pairs);
+
+        /**
+         * @brief Destroy the detector and release all GPU resources.
+         */
+        ~ConvexCollisionDetector();
+
+        ConvexCollisionDetector(const ConvexCollisionDetector &) = delete;
+        ConvexCollisionDetector &operator=(const ConvexCollisionDetector &) = delete;
+        ConvexCollisionDetector(ConvexCollisionDetector &&) = delete;
+        ConvexCollisionDetector &operator=(ConvexCollisionDetector &&) = delete;
+
+        /**
+         * @brief Fill a render graph builder with collision detection passes.
+         *
+         * On first call, lazily compiles the compute shaders and creates the
+         * ComputeStage instances.  GPU buffers from the physics scene are
+         * imported as external resources.
+         *
+         * Adds two compute passes:
+         *   1. GPU pair generation (generate_pairs.comp)
+         *   2. Collision detection (detect_collisions.comp)
+         *
+         * The collision_count buffer is reset to 0 before dispatch.
+         *
+         * @param builder        Render graph builder to populate with passes.
+         * @param physics_scene  Physics scene providing GPU shape buffers.
+         */
+        void Step(RenderGraphBuilder &builder, PhysicsScene &physics_scene);
+
+        /**
+         * @brief Return whether the detector has been lazily initialized.
+         */
+        bool IsInitialized() const noexcept;
+
+        /**
+         * @brief Get the maximum number of collision pairs.
+         */
+        uint32_t GetMaxCollisionPairs() const noexcept;
+
+        // ---- Result buffer accessors ----
+        // The caller reads these buffers after the render graph executes.
+
+        const ComputeBuffer &GetCollisionIds() const noexcept;
+        const ComputeBuffer &GetCollisionNormals() const noexcept;
+        const ComputeBuffer &GetContactPointA() const noexcept;
+        const ComputeBuffer &GetContactPointB() const noexcept;
+        const ComputeBuffer &GetCollisionCount() const noexcept;
+
+    private:
+        struct Impl;
+        std::unique_ptr<Impl> m_impl;
+    };
+} // namespace Engine
+
+#endif // ENGINE_PHYSICS_CONVEXCOLLISIONDETECTOR_INCLUDED

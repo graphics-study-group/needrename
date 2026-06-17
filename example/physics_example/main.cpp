@@ -67,7 +67,6 @@ int main(int /*argc*/, char ** /*argv*/) {
     auto magenta_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_magenta.asset"});
     auto orange_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_orange.asset"});
     auto white_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_white.asset"});
-    auto grey_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_dark_grey.asset"});
 
     // --- Create physics objects via SceneBuilder ---
     // Root object to hold the physics scene hierarchy.
@@ -80,48 +79,31 @@ int main(int /*argc*/, char ** /*argv*/) {
 
     SceneBuilder builder(scene, adb, root, *cmc->GetRenderSystem());
 
-    // Ground: a large kinematic box.
+    // Two slightly overlapping boxes for collision detection testing.
+    // Default half_extents is {0.5, 0.5, 0.5}, so each box is 1x1x1.
+    // Box 1 at (0,0,0) spans [-0.5, 0.5], Box 2 at (0.5,0.5,0.5) spans [0.0, 1.0].
+    // Overlap is ~0.5 units on all three axes — clearly detectable.
     builder.AddBox({
-        .position = {0.0f, 0.0f, -0.05f},
-        .half_extents = {10.0f, 10.0f, 0.1f},
-        .kinematic = true,
-        .material = grey_mat,
+        .position = {0.0f, 0.0f, 0.0f},
+        .half_extents = {1.0f, 1.0f, 1.0f},
+        .material = red_mat,
     });
-
-    // Falling boxes stacked in a pyramid, cycling through preset colors.
-    const std::vector<AssetRef> preset_colors = {
-        red_mat, green_mat, blue_mat, yellow_mat, cyan_mat, magenta_mat, orange_mat, white_mat
-    };
-    struct BoxPos {
-        float x, y, z;
-    };
-    const BoxPos box_positions[] = {
-        {0.0f, 0.0f, 2.0f},
-        {-1.5f, -1.5f, 2.0f},
-        {1.5f, -1.5f, 2.0f},
-        {-1.5f, 1.5f, 2.0f},
-        {1.5f, 1.5f, 2.0f},
-        {0.0f, 0.0f, 5.0f},
-    };
-
-    for (size_t i = 0; i < std::size(box_positions); i++) {
-        const auto &pos = box_positions[i];
-        builder.AddBox({
-            .position = {pos.x, pos.y, pos.z},
-            .material = preset_colors[i % preset_colors.size()],
-        });
-    }
+    builder.AddBox({
+        .position = {0.0f, 0.0f, 1.59f},
+        .half_extents = {0.6f, 0.6f, 0.6f},
+        .material = blue_mat,
+    });
 
     // --- Camera setup ---
     GameObject &camera_object = scene.CreateGameObject();
     camera_object.SetParent(root.GetHandle());
     {
         Transform t;
-        t.SetPosition(glm::vec3(8.0f, -12.0f, 6.0f));
+        t.SetPosition(glm::vec3(0.0f, -4.0f, 2.0f));
         // Compute a quaternion that rotates the camera forward (Y+) toward the
         // scene center.  Camera::UpdateViewMatrix builds the view matrix as
         //   eye + transform.rotation * (0,1,0)  → forward = local Y+.
-        glm::vec3 look_dir = glm::normalize(glm::vec3(0.0f, 0.0f, 2.0f) - t.GetPosition());
+        glm::vec3 look_dir = glm::normalize(glm::vec3(0.0f, 0.0f, 1.0f) - t.GetPosition());
         glm::vec3 fwd(0.0f, 1.0f, 0.0f);
         float dot = glm::dot(fwd, look_dir);
         glm::quat look_rot;
