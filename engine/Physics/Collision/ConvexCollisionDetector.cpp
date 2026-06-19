@@ -202,24 +202,15 @@ namespace Engine {
         return m_impl->initialized;
     }
 
-    uint32_t ConvexCollisionDetector::GetMaxCollisionPairs() const noexcept {
-        return m_impl->max_collision_pairs;
-    }
-
-    const ComputeBuffer &ConvexCollisionDetector::GetCollisionIds() const noexcept {
-        return *m_impl->gpu_collision_ids;
-    }
-    const ComputeBuffer &ConvexCollisionDetector::GetCollisionNormals() const noexcept {
-        return *m_impl->gpu_collision_normals;
-    }
-    const ComputeBuffer &ConvexCollisionDetector::GetContactPointA() const noexcept {
-        return *m_impl->gpu_contact_point_a;
-    }
-    const ComputeBuffer &ConvexCollisionDetector::GetContactPointB() const noexcept {
-        return *m_impl->gpu_contact_point_b;
-    }
-    const ComputeBuffer &ConvexCollisionDetector::GetCollisionCount() const noexcept {
-        return *m_impl->gpu_collision_count;
+    CollisionResultBuffers ConvexCollisionDetector::GetCollisionResultBuffers() const noexcept {
+        CollisionResultBuffers result;
+        result.collision_ids = m_impl->gpu_collision_ids.get();
+        result.collision_normals = m_impl->gpu_collision_normals.get();
+        result.contact_point_a = m_impl->gpu_contact_point_a.get();
+        result.contact_point_b = m_impl->gpu_contact_point_b.get();
+        result.collision_count = m_impl->gpu_collision_count.get();
+        result.max_collision_pairs = m_impl->max_collision_pairs;
+        return result;
     }
 
     void ConvexCollisionDetector::Step(RenderGraphBuilder &builder, PhysicsScene &physics_scene) {

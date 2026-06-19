@@ -87,6 +87,7 @@ namespace Engine {
         m_rigid_body_center_world_rotation.clear();
         m_rigid_body_center_offset_local_position.clear();
         m_rigid_body_inertia.clear();
+        m_rigid_body_inverse_inertia.clear();
         m_rigid_body_linear_velocity.clear();
         m_rigid_body_angular_velocity.clear();
         m_rigid_body_external_force.clear();
@@ -117,6 +118,7 @@ namespace Engine {
         m_gpu_rigid_body_center_world_rotation.reset();
         m_gpu_rigid_body_center_offset_local_position.reset();
         m_gpu_rigid_body_inertia.reset();
+        m_gpu_rigid_body_inverse_inertia.reset();
         m_gpu_rigid_body_linear_velocity.reset();
         m_gpu_rigid_body_angular_velocity.reset();
         m_gpu_rigid_body_external_force.reset();
@@ -171,6 +173,7 @@ namespace Engine {
         );
         m_rigid_body_center_offset_local_position.push_back(glm::vec4(0.0f, 0.0f, 0.0f, 0.0f));
         m_rigid_body_inertia.push_back(glm::mat4(0.0f));
+        m_rigid_body_inverse_inertia.push_back(glm::mat4(0.0f));
         m_rigid_body_linear_velocity.push_back(ToVec4(linear_velocity));
         m_rigid_body_angular_velocity.push_back(ToVec4(angular_velocity_axis_angle));
         m_rigid_body_external_force.push_back(ToVec4(external_force));
@@ -399,6 +402,7 @@ namespace Engine {
             m_gpu_rigid_body_center_world_rotation.get(),
             m_gpu_rigid_body_center_offset_local_position.get(),
             m_gpu_rigid_body_inertia.get(),
+            m_gpu_rigid_body_inverse_inertia.get(),
             m_gpu_rigid_body_linear_velocity.get(),
             m_gpu_rigid_body_angular_velocity.get(),
             m_gpu_rigid_body_external_force.get(),
@@ -476,6 +480,7 @@ namespace Engine {
             m_rigid_body_center_world_rotation[rigid_body_index] = ToVec4(object_world_rotation);
             m_rigid_body_center_offset_local_position[rigid_body_index] = glm::vec4(0.0f);
             m_rigid_body_inertia[rigid_body_index] = glm::mat4(0.0f);
+            m_rigid_body_inverse_inertia[rigid_body_index] = glm::mat4(0.0f);
             return;
         }
 
@@ -505,6 +510,7 @@ namespace Engine {
             m_rigid_body_center_world_rotation[rigid_body_index] = ToVec4(object_world_rotation);
             m_rigid_body_center_offset_local_position[rigid_body_index] = glm::vec4(0.0f);
             m_rigid_body_inertia[rigid_body_index] = glm::mat4(0.0f);
+            m_rigid_body_inverse_inertia[rigid_body_index] = glm::mat4(0.0f);
             return;
         }
 
@@ -558,6 +564,12 @@ namespace Engine {
         }
 
         m_rigid_body_inertia[rigid_body_index] = glm::mat4(inertia_tensor);
+        const float det = glm::determinant(inertia_tensor);
+        if (glm::abs(det) > 1e-12f) {
+            m_rigid_body_inverse_inertia[rigid_body_index] = glm::mat4(glm::inverse(inertia_tensor));
+        } else {
+            m_rigid_body_inverse_inertia[rigid_body_index] = glm::mat4(0.0f);
+        }
     }
 
     void PhysicsScene::RefreshGpuBuffers(RenderSystem &render_system) {
@@ -622,6 +634,9 @@ namespace Engine {
             "Physics RB CenterOff"
         );
         EnsureBuffer<glm::mat4>(m_gpu_rigid_body_inertia, allocator, m_gpu_rigid_body_slot_count, "Physics RB Inertia");
+        EnsureBuffer<glm::mat4>(
+            m_gpu_rigid_body_inverse_inertia, allocator, m_gpu_rigid_body_slot_count, "Physics RB InvInertia"
+        );
         EnsureBuffer<glm::vec4>(
             m_gpu_rigid_body_linear_velocity, allocator, m_gpu_rigid_body_slot_count, "Physics RB LinVel"
         );
@@ -683,6 +698,7 @@ namespace Engine {
             *m_gpu_rigid_body_center_offset_local_position, MakeSpan(m_rigid_body_center_offset_local_position)
         );
         submission.EnqueueBufferSubmission(*m_gpu_rigid_body_inertia, MakeSpan(m_rigid_body_inertia));
+        submission.EnqueueBufferSubmission(*m_gpu_rigid_body_inverse_inertia, MakeSpan(m_rigid_body_inverse_inertia));
         submission.EnqueueBufferSubmission(*m_gpu_rigid_body_linear_velocity, MakeSpan(m_rigid_body_linear_velocity));
         submission.EnqueueBufferSubmission(*m_gpu_rigid_body_angular_velocity, MakeSpan(m_rigid_body_angular_velocity));
         submission.EnqueueBufferSubmission(*m_gpu_rigid_body_external_force, MakeSpan(m_rigid_body_external_force));

@@ -1,0 +1,90 @@
+#version 450 core
+
+// apply_body_position_deltas.comp — Per-body Jacobi apply phase for
+// position constraints.  Averages the accumulated deltas and applies
+// them to body positions and orientations, then resets accumulators.
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+// ---- Quaternion helpers ----
+vec3 quat_rotate(vec4 q, vec3 v) {
+    vec3 t = 2.0 * cross(q.xyz, v);
+    return v + q.w * t + cross(q.xyz, t);
+}
+
+// ---- Buffers ----
+layout(set = 0, binding = 0) readonly buffer RigidBodyAlive       { uint v[]; } rigid_body_alive;
+layout(set = 0, binding = 1) buffer      RigidBodyCenterPosition  { vec4 v[]; } rigid_body_center_position;
+layout(set = 0, binding = 2) buffer      RigidBodyCenterRotation  { vec4 v[]; } rigid_body_center_rotation;
+layout(set = 0, binding = 3) readonly buffer RigidBodyIsKinematic    { uint v[]; } rigid_body_is_kinematic;
+
+// Delta accumulators (stored as int for atomic float-add; read back as float).
+layout(set = 0, binding = 4) buffer LinearPositionDeltaI {
+    int v[];  // 3 ints per body
+} linear_delta_i;
+
+layout(set = 0, binding = 5) buffer AngularPositionDeltaI {
+    int v[];  // 3 ints per body
+} angular_delta_i;
+
+layout(set = 0, binding = 6) buffer PositionDeltaCount {
+    int v[];  // floatBitsToInt representation
+} delta_count;
+
+void main() {
+    uint idx = gl_GlobalInvocationID.x;
+    if (idx >= rigid_body_alive.v.length()) return;
+    if (rigid_body_alive.v[idx] == 0u) return;
+    if (rigid_body_is_kinematic.v[idx] != 0u) return;
+
+    float count = intBitsToFloat(delta_count.v[idx]);
+    if (count <= 0.0) return;
+    float inv_count = 1.0 / count;
+
+    // Read averaged linear delta.
+    vec3 linear_delta;
+    linear_delta.x = intBitsToFloat(linear_delta_i.v[idx * 3u + 0u]) * inv_count;
+    linear_delta.y = intBitsToFloat(linear_delta_i.v[idx * 3u + 1u]) * inv_count;
+    linear_delta.z = intBitsToFloat(linear_delta_i.v[idx * 3u + 2u]) * inv_count;
+
+    // Read averaged angular delta.
+    vec3 angular_delta;
+    angular_delta.x = intBitsToFloat(angular_delta_i.v[idx * 3u + 0u]) * inv_count;
+    angular_delta.y = intBitsToFloat(angular_delta_i.v[idx * 3u + 1u]) * inv_count;
+    angular_delta.z = intBitsToFloat(angular_delta_i.v[idx * 3u + 2u]) * inv_count;
+
+    // Apply linear delta.
+    rigid_body_center_position.v[idx].xyz += linear_delta;
+
+    // Apply angular delta as quaternion update: q += 0.5 * Quat(w_delta, 0) * q
+    float angular_norm = length(angular_delta);
+    if (angular_norm > 1e-8) {
+        vec4 orientation = rigid_body_center_rotation.v[idx];
+        vec4 q_update = vec4(angular_delta.x, angular_delta.y, angular_delta.z, 0.0);
+        // Quaternion multiplication: (w*a + cross(a,b), w*s - dot(a,b))
+        // where a = q_update.xyz, w=0 (so s part is just 0)
+        // Result: (0*0 - dot(a,b) + ...  wait let me just do it right)
+        // q_update * orientation, where q_update = (a, 0), orientation = (b, w)
+        //   real: 0*w - dot(a, b)
+        //   imag: 0*b + w*a + cross(a, b)
+        vec4 dq;
+        dq.xyz = orientation.w * angular_delta + cross(angular_delta, orientation.xyz);
+        dq.w   = -dot(angular_delta, orientation.xyz);
+        orientation += 0.5 * dq;
+        // Normalize.
+        float len = sqrt(orientation.x * orientation.x + orientation.y * orientation.y
+                         + orientation.z * orientation.z + orientation.w * orientation.w);
+        if (len > 1e-12) orientation /= len;
+        else orientation = vec4(0.0, 0.0, 0.0, 1.0);
+        rigid_body_center_rotation.v[idx] = orientation;
+    }
+
+    // Reset accumulators to zero.
+    linear_delta_i.v[idx * 3u + 0u] = 0;
+    linear_delta_i.v[idx * 3u + 1u] = 0;
+    linear_delta_i.v[idx * 3u + 2u] = 0;
+    angular_delta_i.v[idx * 3u + 0u] = 0;
+    angular_delta_i.v[idx * 3u + 1u] = 0;
+    angular_delta_i.v[idx * 3u + 2u] = 0;
+    delta_count.v[idx] = 0;
+}

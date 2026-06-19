@@ -1,40 +1,20 @@
 #version 450 core
-#extension GL_EXT_debug_printf : enable
+
+// step.comp — Replaced by the multi-pass XPBD compute shader suite.
+//
+// The single placeholder XPBD step has been superseded by:
+//   - integrate_forces.comp
+//   - accumulate_contact_position.comp
+//   - apply_body_position_deltas.comp
+//   - update_velocities_from_pose.comp
+//   - accumulate_contact_velocity.comp
+//   - apply_body_velocity_deltas.comp
+//   - snapshot_position.comp
+//
+// This file is kept as a build target only; the shader does nothing.
+// Remove this file once all downstream consumers are updated.
 
 layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
-
-layout(set = 0, binding = 0) readonly buffer RigidBodyAlive {
-    uint v[];
-} rigid_body_alive;
-
-layout(set = 0, binding = 1) buffer RigidBodyCenterPosition {
-    vec4 v[];
-} rigid_body_center_position;
-
-layout(set = 0, binding = 2) readonly buffer RigidBodyIsKinematic {
-    uint v[];
-} rigid_body_is_kinematic;
-
 void main() {
-    uint index = gl_GlobalInvocationID.x;
-    if (index >= rigid_body_alive.v.length()) {
-        return;
-    }
-    if (rigid_body_alive.v[index] == 0u) {
-        return;
-    }
-    // Kinematic bodies are not moved by the solver.
-    if (rigid_body_is_kinematic.v[index] != 0u) {
-        return;
-    }
-
-    // XPBD solver body is temporarily commented out — placeholder for
-    // collision response integration.  The shader still dispatches but
-    // does not modify rigid body positions.
-    //
-    // debugPrintfEXT("XPBD step: rigid_body[%u] before.z=%.2f", index, rigid_body_center_position.v[index].z);
-    //
-    // rigid_body_center_position.v[index].z -= 0.01;
-    //
-    // debugPrintfEXT("XPBD step: rigid_body[%u] after.z=%.2f", index, rigid_body_center_position.v[index].z);
+    // No-op — replaced by multi-pass solver.
 }

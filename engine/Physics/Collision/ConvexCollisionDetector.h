@@ -10,6 +10,21 @@ namespace Engine {
     class RenderSystem;
 
     /**
+     * @brief Bundle of read-only pointers to collision detection result buffers.
+     *
+     * Returned by ConvexCollisionDetector::GetCollisionResultBuffers().  All
+     * buffers are owned by the detector and live until the detector is destroyed.
+     */
+    struct CollisionResultBuffers {
+        const ComputeBuffer *collision_ids{};
+        const ComputeBuffer *collision_normals{};
+        const ComputeBuffer *contact_point_a{};
+        const ComputeBuffer *contact_point_b{};
+        const ComputeBuffer *collision_count{};
+        uint32_t max_collision_pairs{0};
+    };
+
+    /**
      * @brief GPU convex collision detection using MPR algorithm.
      *
      * ConvexCollisionDetector owns two compute shader pipelines:
@@ -72,18 +87,12 @@ namespace Engine {
         bool IsInitialized() const noexcept;
 
         /**
-         * @brief Get the maximum number of collision pairs.
+         * @brief Get the collision result buffers.
+         *
+         * Returns a struct of read-only pointers to the detector's owned result
+         * buffers.  The caller reads these after the render graph executes.
          */
-        uint32_t GetMaxCollisionPairs() const noexcept;
-
-        // ---- Result buffer accessors ----
-        // The caller reads these buffers after the render graph executes.
-
-        const ComputeBuffer &GetCollisionIds() const noexcept;
-        const ComputeBuffer &GetCollisionNormals() const noexcept;
-        const ComputeBuffer &GetContactPointA() const noexcept;
-        const ComputeBuffer &GetContactPointB() const noexcept;
-        const ComputeBuffer &GetCollisionCount() const noexcept;
+        CollisionResultBuffers GetCollisionResultBuffers() const noexcept;
 
     private:
         struct Impl;

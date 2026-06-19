@@ -31,7 +31,7 @@ int main(int /*argc*/, char ** /*argv*/) {
 
     SDL_Init(SDL_INIT_VIDEO);
 
-    StartupOptions opt{.resol_x = 1280, .resol_y = 720, .title = "Physics Example"};
+    StartupOptions opt{.resol_x = 1280, .resol_y = 720, .title = "Physics Example — Boxes Falling"};
 
     auto cmc = MainClass::GetInstance();
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
@@ -69,7 +69,6 @@ int main(int /*argc*/, char ** /*argv*/) {
     auto white_mat = adb.GetNewAssetRef(AssetPath{adb, "~/materials/solid_color_white.asset"});
 
     // --- Create physics objects via SceneBuilder ---
-    // Root object to hold the physics scene hierarchy.
     GameObject &root = scene.CreateGameObject();
     {
         Transform t;
@@ -79,39 +78,91 @@ int main(int /*argc*/, char ** /*argv*/) {
 
     SceneBuilder builder(scene, adb, root, *cmc->GetRenderSystem());
 
-    // Two slightly overlapping boxes for collision detection testing.
-    // Default half_extents is {0.5, 0.5, 0.5}, so each box is 1x1x1.
-    // Box 1 at (0,0,0) spans [-0.5, 0.5], Box 2 at (0.5,0.5,0.5) spans [0.0, 1.0].
-    // Overlap is ~0.5 units on all three axes — clearly detectable.
+    // ---- Ground plane (kinematic, large flat box in XY, thin in Z) ----
+    // Z is up, so the floor extends in X and Y, centered at z = -0.5.
     builder.AddBox({
-        .position = {0.0f, 0.0f, 0.0f},
-        .half_extents = {1.0f, 1.0f, 1.0f},
-        .material = red_mat,
-    });
-    builder.AddBox({
-        .position = {0.0f, 0.0f, 1.59f},
-        .rotation = glm::angleAxis(glm::radians(45.0f), glm::vec3(0.0f, 0.0f, 1.0f)),
-        .half_extents = {0.6f, 0.6f, 0.6f},
-        .material = blue_mat,
+        .position = {0.0f, 0.0f, -0.5f},
+        .half_extents = {8.0f, 8.0f, 0.5f},
+        .mass = 0.0f,
+        .kinematic = true,
+        .material = white_mat,
     });
 
+    // ---- Falling boxes (dynamic, stacked at various Z heights) ----
+    // Red box — drops from center.
+    builder.AddBox({
+        .position = {0.0f, 0.0f, 0.49f},
+        .half_extents = {0.5f, 0.5f, 0.5f},
+        .mass = 1.0f,
+        .material = red_mat,
+    });
+
+    // // Green box — offset in X, higher up.
+    // builder.AddBox({
+    //     .position = {1.2f, 0.0f, 7.0f},
+    //     .half_extents = {0.5f, 0.5f, 0.5f},
+    //     .mass = 1.0f,
+    //     .material = green_mat,
+    // });
+
+    // // Blue box — offset in Y, medium height.
+    // builder.AddBox({
+    //     .position = {0.0f, 1.2f, 6.0f},
+    //     .half_extents = {0.5f, 0.5f, 0.5f},
+    //     .mass = 1.0f,
+    //     .material = blue_mat,
+    // });
+
+    // // Yellow box — taller shape, higher up.
+    // builder.AddBox({
+    //     .position = {-1.0f, -0.5f, 8.0f},
+    //     .half_extents = {0.4f, 0.4f, 0.8f},
+    //     .mass = 2.0f,
+    //     .material = yellow_mat,
+    // });
+
+    // // Cyan box — wide flat box.
+    // builder.AddBox({
+    //     .position = {2.0f, -1.0f, 9.0f},
+    //     .half_extents = {0.8f, 0.6f, 0.3f},
+    //     .mass = 0.5f,
+    //     .material = cyan_mat,
+    // });
+
+    // // Magenta box — small cube, highest.
+    // builder.AddBox({
+    //     .position = {-2.0f, 1.0f, 10.0f},
+    //     .half_extents = {0.3f, 0.3f, 0.3f},
+    //     .mass = 0.3f,
+    //     .material = magenta_mat,
+    // });
+
+    // // Orange box — medium cube, slightly rotated.
+    // builder.AddBox({
+    //     .position = {0.5f, 2.0f, 4.0f},
+    //     .rotation = glm::angleAxis(glm::radians(25.0f), glm::normalize(glm::vec3(0.3f, 0.2f, 0.7f))),
+    //     .half_extents = {0.5f, 0.5f, 0.5f},
+    //     .mass = 1.5f,
+    //     .material = orange_mat,
+    // });
+
     // --- Camera setup ---
+    // Z is up, camera is positioned to the side looking at the falling zone.
     GameObject &camera_object = scene.CreateGameObject();
     camera_object.SetParent(root.GetHandle());
     {
         Transform t;
-        t.SetPosition(glm::vec3(0.0f, -4.0f, 2.0f));
-        // Compute a quaternion that rotates the camera forward (Y+) toward the
-        // scene center.  Camera::UpdateViewMatrix builds the view matrix as
-        //   eye + transform.rotation * (0,1,0)  → forward = local Y+.
-        glm::vec3 look_dir = glm::normalize(glm::vec3(0.0f, 0.0f, 1.0f) - t.GetPosition());
+        t.SetPosition(glm::vec3(6.0f, -5.0f, 4.0f));
+        // Look at scene center — roughly where the action is.
+        glm::vec3 look_target(0.0f, 0.0f, 3.0f);
+        glm::vec3 look_dir = glm::normalize(look_target - t.GetPosition());
         glm::vec3 fwd(0.0f, 1.0f, 0.0f);
         float dot = glm::dot(fwd, look_dir);
         glm::quat look_rot;
         if (dot > 0.9999f) {
-            look_rot = glm::quat(1.0f, 0.0f, 0.0f, 0.0f); // already facing target
+            look_rot = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
         } else if (dot < -0.9999f) {
-            look_rot = glm::angleAxis(glm::pi<float>(), glm::vec3(0.0f, 0.0f, 1.0f)); // 180° about Z
+            look_rot = glm::angleAxis(glm::pi<float>(), glm::vec3(0.0f, 0.0f, 1.0f));
         } else {
             float angle = glm::acos(dot);
             glm::vec3 axis = glm::normalize(glm::cross(fwd, look_dir));
@@ -124,34 +175,31 @@ int main(int /*argc*/, char ** /*argv*/) {
     camera_comp.m_camera->set_aspect_ratio(1.0f * opt.resol_x / opt.resol_y);
     camera_object.AddComponent<CameraControllerComponent>();
 
-    // Simulation toggle on the camera object (convenient, always alive).
+    // Simulation toggle on the camera object (SPACE to pause/resume).
     camera_object.AddComponent<SimulationToggleComponent>();
 
-    // Register our camera as the active camera.
-    // Must be called so WorldSystem::GetActiveCamera() returns a valid pointer,
-    // which the lit pass (and CameraComponent::Tick) depend on.
     cmc->GetWorldSystem()->SetActiveCamera(camera_comp.GetHandle(), &cmc->GetRenderSystem()->GetCameraManager());
 
     // --- Light setup ---
-    GameObject &light_object1 = scene.CreateGameObject();
     {
-        auto &light_comp = light_object1.AddComponent<LightComponent>();
+        GameObject &light_obj = scene.CreateGameObject();
+        auto &light_comp = light_obj.AddComponent<LightComponent>();
         light_comp.m_cast_shadow = true;
         light_comp.m_type = LightType::Directional;
         light_comp.m_intensity = 2.0f;
         Transform t;
-        t.SetRotation(glm::quat(glm::vec3(glm::radians(-60.0f), glm::radians(-60.0f), 0.0f)));
-        light_object1.SetTransform(t);
+        t.SetRotation(glm::quat(glm::vec3(glm::radians(-45.0f), glm::radians(-30.0f), 0.0f)));
+        light_obj.SetTransform(t);
     }
-    GameObject &light_object2 = scene.CreateGameObject();
     {
-        auto &light_comp = light_object2.AddComponent<LightComponent>();
+        GameObject &light_obj = scene.CreateGameObject();
+        auto &light_comp = light_obj.AddComponent<LightComponent>();
         light_comp.m_cast_shadow = true;
         light_comp.m_type = LightType::Directional;
-        light_comp.m_intensity = 2.0f;
+        light_comp.m_intensity = 1.5f;
         Transform t;
-        t.SetRotation(glm::quat(glm::vec3(glm::radians(-120.0f), glm::radians(60.0f), 0.0f)));
-        light_object2.SetTransform(t);
+        t.SetRotation(glm::quat(glm::vec3(glm::radians(-100.0f), glm::radians(45.0f), 0.0f)));
+        light_obj.SetTransform(t);
     }
 
     // --- Finalize scene ---
@@ -166,7 +214,10 @@ int main(int /*argc*/, char ** /*argv*/) {
     builder.Finalize(*physics_scene);
     physics_scene->DebugPrint();
 
-    // Awake mesh components -> registers renderers with RendererManager.
+    // Disable simulation from the start.
+    physics_scene->SetSimulationEnabled(false);
+
+    // Awake mesh components → registers renderers.
     scene.AddInitEvent();
     scene.ProcessEvents();
 
@@ -181,9 +232,7 @@ int main(int /*argc*/, char ** /*argv*/) {
     auto rg = rg_builder.BuildRenderGraph(1280, 720, *physics_scene, final_color_id);
     cmc->SetRenderGraph(std::move(rg), final_color_id);
 
-    // --- Infinite interactive loop ---
-    // Simulation starts paused (m_simulation_enabled defaults to false).
-    // Press SPACE to toggle.
+    // --- Main loop ---
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Entering main loop. Press SPACE to toggle simulation.");
     cmc->MainLoop();
 

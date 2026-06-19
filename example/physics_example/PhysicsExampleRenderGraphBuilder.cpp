@@ -62,7 +62,8 @@ std::unique_ptr<RenderGraph> PhysicsExampleRenderGraphBuilder::BuildRenderGraph(
     // The XPBD Step pass is gated on IsSimulationEnabled() so it is a no-op
     // when simulation is paused.  The Model Matrix Update pass always runs,
     // keeping the model_matrices SSBO valid for the Lit pass vertex shader.
-    m_xpbd_solver->Step(rgb, physics_scene, mm_handle);
+    auto collision_results = m_collision_detector->GetCollisionResultBuffers();
+    m_xpbd_solver->Step(rgb, physics_scene, collision_results, mm_handle);
 
     // ---- Request transient render targets ----
     RenderTargetTexture::RenderTargetTextureDesc rtt_desc{

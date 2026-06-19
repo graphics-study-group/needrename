@@ -234,6 +234,7 @@ namespace Engine {
             const ComputeBuffer *rigid_body_center_world_rotation{};
             const ComputeBuffer *rigid_body_center_offset_local_position{};
             const ComputeBuffer *rigid_body_inertia{};
+            const ComputeBuffer *rigid_body_inverse_inertia{};
             const ComputeBuffer *rigid_body_linear_velocity{};
             const ComputeBuffer *rigid_body_angular_velocity{};
             const ComputeBuffer *rigid_body_external_force{};
@@ -342,6 +343,7 @@ namespace Engine {
         std::vector<glm::vec4> m_rigid_body_center_world_rotation{};
         std::vector<glm::vec4> m_rigid_body_center_offset_local_position{};
         std::vector<glm::mat4> m_rigid_body_inertia{};
+        std::vector<glm::mat4> m_rigid_body_inverse_inertia{};
         std::vector<glm::vec4> m_rigid_body_linear_velocity{};
         std::vector<glm::vec4> m_rigid_body_angular_velocity{};
         std::vector<glm::vec4> m_rigid_body_external_force{};
@@ -372,6 +374,7 @@ namespace Engine {
         std::unique_ptr<ComputeBuffer> m_gpu_rigid_body_center_world_rotation{};
         std::unique_ptr<ComputeBuffer> m_gpu_rigid_body_center_offset_local_position{};
         std::unique_ptr<ComputeBuffer> m_gpu_rigid_body_inertia{};
+        std::unique_ptr<ComputeBuffer> m_gpu_rigid_body_inverse_inertia{};
         std::unique_ptr<ComputeBuffer> m_gpu_rigid_body_linear_velocity{};
         std::unique_ptr<ComputeBuffer> m_gpu_rigid_body_angular_velocity{};
         std::unique_ptr<ComputeBuffer> m_gpu_rigid_body_external_force{};
