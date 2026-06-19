@@ -1,5 +1,5 @@
 #version 450 core
-#extension GL_EXT_debug_printf : enable
+#extension GL_GOOGLE_include_directive : require
 
 // update_velocities_from_pose.comp — Compute per-body velocity from the
 // net pose change during the substep.
@@ -8,6 +8,8 @@
 //   dq = q_post * q_pre^{-1}  →  w = sign(dq.w) * 2 * dq.xyz / dt
 
 layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+#include "common/xpbd_math.glsl"
 
 // ---- Buffers ----
 
@@ -18,7 +20,6 @@ layout(set = 0, binding = 3) buffer      RigidBodyLinearVelocity      { vec4 v[]
 layout(set = 0, binding = 4) buffer      RigidBodyAngularVelocity     { vec4 v[]; } rigid_body_angular_velocity;
 layout(set = 0, binding = 5) readonly buffer RigidBodyIsKinematic     { uint v[]; } rigid_body_is_kinematic;
 
-// Pre-gravity snapshots.
 layout(set = 0, binding = 6) readonly buffer PreGravityPosition      { vec4 v[]; } pre_gravity_position;
 layout(set = 0, binding = 7) readonly buffer PreGravityOrientation   { vec4 v[]; } pre_gravity_orientation;
 
@@ -40,19 +41,12 @@ void main() {
     rigid_body_linear_velocity.v[idx].xyz = delta_pos / dt;
 
     // Angular velocity from orientation delta.
-    // dq = q * q_pre^{-1}
+    // dq = q_post * q_pre^{-1}  (q_pre^{-1} = conjugate for unit quaternion)
     vec4 q_cur = rigid_body_center_rotation.v[idx];
     vec4 q_pre = pre_gravity_orientation.v[idx];
-    // q_pre inverse = conjugate (since unit quaternion)
     vec4 q_pre_inv = vec4(-q_pre.x, -q_pre.y, -q_pre.z, q_pre.w);
 
-    // Quaternion multiplication: q_cur * q_pre_inv
-    vec4 dq;
-    dq.x = q_cur.w * q_pre_inv.x + q_cur.x * q_pre_inv.w + q_cur.y * q_pre_inv.z - q_cur.z * q_pre_inv.y;
-    dq.y = q_cur.w * q_pre_inv.y - q_cur.x * q_pre_inv.z + q_cur.y * q_pre_inv.w + q_cur.z * q_pre_inv.x;
-    dq.z = q_cur.w * q_pre_inv.z + q_cur.x * q_pre_inv.y - q_cur.y * q_pre_inv.x + q_cur.z * q_pre_inv.w;
-    dq.w = q_cur.w * q_pre_inv.w - q_cur.x * q_pre_inv.x - q_cur.y * q_pre_inv.y - q_cur.z * q_pre_inv.z;
-
+    vec4 dq = quat_mul(q_cur, q_pre_inv);
     float sign = (dq.w >= 0.0) ? 1.0 : -1.0;
-    rigid_body_angular_velocity.v[idx].xyz = sign * (2.0 / dt) * vec3(dq.x, dq.y, dq.z);
+    rigid_body_angular_velocity.v[idx].xyz = sign * (2.0 / dt) * dq.xyz;
 }

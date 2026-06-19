@@ -91,17 +91,17 @@ void main() {
     vec3 contact_a = pos_a + r_a;
     vec3 contact_b = pos_b + r_b;
 
-    float C = vec3_dot(contact_a - contact_b, n);
+    float C = dot(contact_a - contact_b, n);
     if (C <= 0.0) return;
 
-    vec3 r_a_n = vec3_cross(r_a, n);
-    vec3 r_b_n = vec3_cross(r_b, n);
+    vec3 r_a_n = cross(r_a, n);
+    vec3 r_b_n = cross(r_b, n);
 
     vec3 w_inv_i_a = apply_world_inv_inertia(rigid_body_inverse_inertia.v[body_a], ori_a, r_a_n);
     vec3 w_inv_i_b = apply_world_inv_inertia(rigid_body_inverse_inertia.v[body_b], ori_b, r_b_n);
 
-    float w_a = inv_mass_a + vec3_dot(w_inv_i_a, r_a_n);
-    float w_b = inv_mass_b + vec3_dot(w_inv_i_b, r_b_n);
+    float w_a = inv_mass_a + dot(w_inv_i_a, r_a_n);
+    float w_b = inv_mass_b + dot(w_inv_i_b, r_b_n);
     float denom = w_a + w_b;
     if (denom <= 1e-8) return;
 
@@ -114,7 +114,7 @@ void main() {
         ATOMIC_ADD_FLOAT(lin_delta.v[body_a * 3u + 1u], lin_d.y);
         ATOMIC_ADD_FLOAT(lin_delta.v[body_a * 3u + 2u], lin_d.z);
 
-        vec3 ang_d = -apply_world_inv_inertia(rigid_body_inverse_inertia.v[body_a], ori_a, vec3_cross(r_a, impulse));
+        vec3 ang_d = -apply_world_inv_inertia(rigid_body_inverse_inertia.v[body_a], ori_a, cross(r_a, impulse));
         ATOMIC_ADD_FLOAT(ang_delta.v[body_a * 3u + 0u], ang_d.x);
         ATOMIC_ADD_FLOAT(ang_delta.v[body_a * 3u + 1u], ang_d.y);
         ATOMIC_ADD_FLOAT(ang_delta.v[body_a * 3u + 2u], ang_d.z);
@@ -128,7 +128,7 @@ void main() {
         ATOMIC_ADD_FLOAT(lin_delta.v[body_b * 3u + 1u], lin_d.y);
         ATOMIC_ADD_FLOAT(lin_delta.v[body_b * 3u + 2u], lin_d.z);
 
-        vec3 ang_d = apply_world_inv_inertia(rigid_body_inverse_inertia.v[body_b], ori_b, vec3_cross(r_b, impulse));
+        vec3 ang_d = apply_world_inv_inertia(rigid_body_inverse_inertia.v[body_b], ori_b, cross(r_b, impulse));
         ATOMIC_ADD_FLOAT(ang_delta.v[body_b * 3u + 0u], ang_d.x);
         ATOMIC_ADD_FLOAT(ang_delta.v[body_b * 3u + 1u], ang_d.y);
         ATOMIC_ADD_FLOAT(ang_delta.v[body_b * 3u + 2u], ang_d.z);

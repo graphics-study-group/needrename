@@ -2,10 +2,12 @@
 //
 // Provides:
 //   - quat_rotate, quat_inv_rotate   : quaternion vector rotation
-//   - vec3_dot, vec3_cross           : basic vector operations
+//   - quat_mul                       : quaternion multiplication
 //   - apply_world_inv_inertia        : world→local→(inv inertia)→world
 //   - quat_normalize                 : normalize a quaternion
 //   - multiply_mat4_3x3_vec3         : extract 3x3 from mat4 × vec3
+//
+// Note: Uses built-in GLSL dot() and cross() throughout.
 
 #ifndef XPBD_MATH_GLSL
 #define XPBD_MATH_GLSL
@@ -23,35 +25,18 @@ vec3 quat_rotate(vec4 q, vec3 v) {
 
 /// Inverse-rotate vector v by quaternion q (rotate by conjugate).
 vec3 quat_inv_rotate(vec4 q, vec3 v) {
-    // q_inv = vec4(-q.xyz, q.w) for unit quaternion
     vec3 t = 2.0 * cross(-q.xyz, v);
     return v + q.w * t + cross(-q.xyz, t);
 }
 
 /// Quaternion multiplication: q = a * b.
-/// result.xyz = a.w*b.xyz + b.w*a.xyz + cross(a.xyz, b.xyz)
-/// result.w   = a.w*b.w - dot(a.xyz, b.xyz)
 vec4 quat_mul(vec4 a, vec4 b) {
     return vec4(
         a.w * b.x + b.w * a.x + a.y * b.z - a.z * b.y,
         a.w * b.y + b.w * a.y + a.z * b.x - a.x * b.z,
         a.w * b.z + b.w * a.z + a.x * b.y - a.y * b.x,
-        a.w * b.w - (a.x * b.x + a.y * b.y + a.z * b.z)
+        a.w * b.w - dot(a.xyz, b.xyz)
     );
-}
-
-// ---------------------------------------------------------------------------
-// Basic vector operations
-// ---------------------------------------------------------------------------
-
-float vec3_dot(vec3 a, vec3 b) {
-    return a.x * b.x + a.y * b.y + a.z * b.z;
-}
-
-vec3 vec3_cross(vec3 a, vec3 b) {
-    return vec3(a.y * b.z - a.z * b.y,
-                a.z * b.x - a.x * b.z,
-                a.x * b.y - a.y * b.x);
 }
 
 // ---------------------------------------------------------------------------
@@ -59,7 +44,7 @@ vec3 vec3_cross(vec3 a, vec3 b) {
 // ---------------------------------------------------------------------------
 
 vec4 quat_normalize(vec4 q) {
-    float len = sqrt(q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w);
+    float len = sqrt(dot(q, q));
     if (len > 1e-12) {
         return q / len;
     }
