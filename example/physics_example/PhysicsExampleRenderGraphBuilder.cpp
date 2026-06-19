@@ -6,7 +6,6 @@
 #include "Asset/Shader/ShaderAsset.h"
 #include "Framework/world/WorldSystem.h"
 #include "MainClass.h"
-#include "Physics/Collision/ConvexCollisionDetector.h"
 #include "Physics/PhysicsScene.h"
 #include "Physics/Solver/XPBDGpuSolver.h"
 #include "Render/Memory/ComputeBuffer.h"
@@ -29,7 +28,7 @@
 using namespace Engine;
 
 PhysicsExampleRenderGraphBuilder::PhysicsExampleRenderGraphBuilder(RenderSystem &system) :
-    m_system(system), m_xpbd_solver(std::make_unique<XPBDGpuSolver>(system)), m_collision_detector(nullptr) {
+    m_system(system), m_xpbd_solver(std::make_unique<XPBDGpuSolver>(system)) {
     // Load bloom shader (mirrors ComplexRenderGraphBuilder).
     auto &adb = *std::dynamic_pointer_cast<FileSystemDatabase>(MainClass::GetInstance()->GetAssetDatabase());
     m_bloom_shader = adb.GetNewAssetRef(AssetPath{adb, "~/shaders/bloom.comp.asset"});
@@ -49,21 +48,11 @@ std::unique_ptr<RenderGraph> PhysicsExampleRenderGraphBuilder::BuildRenderGraph(
     auto mm_handle =
         rgb.ImportExternalResource(*gpu.model_matrices, MemoryAccessTypeBuffer(MemoryAccessTypeBufferBits::None));
 
-    // ---- GPU collision detection passes ----
-    // Lazily create the collision detector on first call.
-    if (!m_collision_detector) {
-        uint32_t shape_count = gpu.shape_slot_count;
-        uint32_t max_pairs = (shape_count * (shape_count - 1u)) / 2u;
-        m_collision_detector = std::make_unique<ConvexCollisionDetector>(m_system, max_pairs);
-    }
-    m_collision_detector->Step(rgb, physics_scene);
-
-    // ---- XPBD physics compute passes ----
-    // The XPBD Step pass is gated on IsSimulationEnabled() so it is a no-op
-    // when simulation is paused.  The Model Matrix Update pass always runs,
-    // keeping the model_matrices SSBO valid for the Lit pass vertex shader.
-    auto collision_results = m_collision_detector->GetCollisionResultBuffers();
-    m_xpbd_solver->Step(rgb, physics_scene, collision_results, mm_handle);
+    // ---- XPBD physics compute passes (includes internal collision detection) ----
+    // The XPBD Step pass is gated on IsSimulationEnabled() at dispatch time.
+    // When simulation is paused, solver passes skip but model matrix still updates.
+    // Collision detection is owned and managed internally by XPBDGpuSolver.
+    m_xpbd_solver->Step(rgb, physics_scene, mm_handle);
 
     // ---- Request transient render targets ----
     RenderTargetTexture::RenderTargetTextureDesc rtt_desc{
@@ -117,6 +106,7 @@ std::unique_ptr<RenderGraph> PhysicsExampleRenderGraphBuilder::BuildRenderGraph(
         rgb.AddPass(
             RenderGraphPassBuilder{m_system}
                 .SetName("Shadowmap Pass " + std::to_string(i))
+                .UseBuffer(mm_handle, MemoryAccessTypeBuffer(MemoryAccessTypeBufferBits::ShaderRandomRead))
                 .SetDepthStencilAttachment(
                     {shadow_ids[i],
                      {},

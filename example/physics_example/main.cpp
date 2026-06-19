@@ -91,13 +91,14 @@ int main(int /*argc*/, char ** /*argv*/) {
     // ---- Falling boxes (dynamic, stacked at various Z heights) ----
     // Red box — drops from center.
     builder.AddBox({
-        .position = {0.0f, 0.0f, 0.49f},
+        .position = {0.0f, 0.0f, 5.0f},
+        .rotation = glm::angleAxis(glm::radians(30.0f), glm::normalize(glm::vec3(0.0f, 1.3f, 0.4f))),
         .half_extents = {0.5f, 0.5f, 0.5f},
         .mass = 1.0f,
         .material = red_mat,
     });
 
-    // // Green box — offset in X, higher up.
+    // Green box — offset in X, higher up.
     // builder.AddBox({
     //     .position = {1.2f, 0.0f, 7.0f},
     //     .half_extents = {0.5f, 0.5f, 0.5f},

@@ -28,6 +28,18 @@ vec3 quat_inv_rotate(vec4 q, vec3 v) {
     return v + q.w * t + cross(-q.xyz, t);
 }
 
+/// Quaternion multiplication: q = a * b.
+/// result.xyz = a.w*b.xyz + b.w*a.xyz + cross(a.xyz, b.xyz)
+/// result.w   = a.w*b.w - dot(a.xyz, b.xyz)
+vec4 quat_mul(vec4 a, vec4 b) {
+    return vec4(
+        a.w * b.x + b.w * a.x + a.y * b.z - a.z * b.y,
+        a.w * b.y + b.w * a.y + a.z * b.x - a.x * b.z,
+        a.w * b.z + b.w * a.z + a.x * b.y - a.y * b.x,
+        a.w * b.w - (a.x * b.x + a.y * b.y + a.z * b.z)
+    );
+}
+
 // ---------------------------------------------------------------------------
 // Basic vector operations
 // ---------------------------------------------------------------------------

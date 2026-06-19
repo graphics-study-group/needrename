@@ -1,0 +1,58 @@
+#version 450 core
+#extension GL_GOOGLE_include_directive : require
+
+// update_shape_world_pose.comp — Per-shape compute pass that recomputes
+// each collision shape's world-space position and rotation from the
+// owning rigid body's current pose and the shape's local-to-body offset.
+//
+// Runs after force integration, before collision detection, each substep.
+// Unbound shapes (no owning body) copy local transform directly to world.
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+#include "common/xpbd_math.glsl"
+
+// ---- Shape state (readonly) ----
+layout(set = 0, binding = 0) readonly buffer ShapeAlive          { uint v[]; } shape_alive;
+layout(set = 0, binding = 1) readonly buffer ShapeBoundRigidBody { uint v[]; } shape_bound_rigid_body;
+
+// ---- Shape local transforms (readonly) ----
+layout(set = 0, binding = 2) readonly buffer ShapeLocalPosition  { vec4 v[]; } shape_local_position;
+layout(set = 0, binding = 3) readonly buffer ShapeLocalRotation  { vec4 v[]; } shape_local_rotation;
+
+// ---- Rigid body world transforms (readonly) ----
+layout(set = 0, binding = 4) readonly buffer RigidBodyCenterPosition { vec4 v[]; } rigid_body_center_position;
+layout(set = 0, binding = 5) readonly buffer RigidBodyCenterRotation { vec4 v[]; } rigid_body_center_rotation;
+
+// ---- Shape world transforms (write) ----
+layout(set = 0, binding = 6) writeonly buffer ShapeWorldPosition { vec4 v[]; } shape_world_position;
+layout(set = 0, binding = 7) writeonly buffer ShapeWorldRotation { vec4 v[]; } shape_world_rotation;
+
+// Sentinel for unbound shapes (must match PhysicsScene::INVALID_INDEX).
+const uint INVALID_INDEX = 0xFFFFFFFFu;
+
+void main() {
+    uint idx = gl_GlobalInvocationID.x;
+    if (idx >= shape_alive.v.length()) return;
+    if (shape_alive.v[idx] == 0u) return;
+
+    uint body_idx = shape_bound_rigid_body.v[idx];
+
+    if (body_idx == INVALID_INDEX || body_idx >= rigid_body_center_position.v.length()) {
+        // Unbound shape — copy local to world directly.
+        shape_world_position.v[idx] = shape_local_position.v[idx];
+        shape_world_rotation.v[idx] = shape_local_rotation.v[idx];
+        return;
+    }
+
+    vec3 body_pos = rigid_body_center_position.v[body_idx].xyz;
+    vec4 body_ori = rigid_body_center_rotation.v[body_idx];
+    vec3 local_pos = shape_local_position.v[idx].xyz;
+    vec4 local_ori = shape_local_rotation.v[idx];
+
+    // world_pos = body_pos + rotate(body_ori, local_pos)
+    shape_world_position.v[idx] = vec4(body_pos + quat_rotate(body_ori, local_pos), 0.0);
+
+    // world_ori = body_ori * local_ori
+    shape_world_rotation.v[idx] = quat_mul(body_ori, local_ori);
+}

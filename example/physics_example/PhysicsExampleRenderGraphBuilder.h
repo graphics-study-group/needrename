@@ -8,7 +8,6 @@
 
 namespace Engine {
     class ComputeStage;
-    class ConvexCollisionDetector;
     class PhysicsScene;
     class RenderGraph;
     class RenderSystem;
@@ -20,6 +19,9 @@ namespace Engine {
  *
  * Integrates XPBD physics compute passes with the full rendering pipeline:
  * shadow maps → lit pass (with physics model matrices) → bloom → skybox.
+ *
+ * The XPBD solver owns collision detection internally — no separate
+ * ConvexCollisionDetector is needed by the caller.
  *
  * Usage:
  *   PhysicsExampleRenderGraphBuilder builder(*render_system);
@@ -40,16 +42,6 @@ public:
     PhysicsExampleRenderGraphBuilder(PhysicsExampleRenderGraphBuilder &&) = delete;
     PhysicsExampleRenderGraphBuilder &operator=(PhysicsExampleRenderGraphBuilder &&) = delete;
 
-    /**
-     * @brief Build the complete physics + rendering render graph.
-     *
-     * @param texture_width  Output texture width.
-     * @param texture_height Output texture height.
-     * @param physics_scene  Physics scene providing GPU buffers and simulation state.
-     * @param final_color_target_id  [out] Handle of the final color render target,
-     *                               pass to MainClass::SetRenderGraph().
-     * @return The compiled render graph.
-     */
     std::unique_ptr<Engine::RenderGraph> BuildRenderGraph(
         uint32_t texture_width,
         uint32_t texture_height,
@@ -60,7 +52,6 @@ public:
 private:
     Engine::RenderSystem &m_system;
     std::unique_ptr<Engine::XPBDGpuSolver> m_xpbd_solver;
-    std::unique_ptr<Engine::ConvexCollisionDetector> m_collision_detector;
     Engine::AssetRef m_bloom_shader{};
     std::shared_ptr<Engine::ComputeStage> m_bloom_compute_stage{};
 };

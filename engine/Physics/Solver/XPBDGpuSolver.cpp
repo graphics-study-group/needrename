@@ -51,9 +51,13 @@ namespace Engine {
         bool initialized = false;
         XpbdConfig config;
 
-        // Cached max body / contact counts for buffer sizing.
+        // Cached counts for lazy reallocation.
         uint32_t cached_body_count = 0;
         uint32_t cached_max_contacts = 0;
+        uint32_t cached_shape_count = 0;
+
+        // ---- Owned collision detector ----
+        std::unique_ptr<ConvexCollisionDetector> collision_detector;
 
         // ---- Compute stages (one per shader) ----
 
@@ -62,6 +66,9 @@ namespace Engine {
 
         std::unique_ptr<ComputeStage> snapshot_stage;
         std::vector<uint32_t> snapshot_spirv;
+
+        std::unique_ptr<ComputeStage> update_shape_world_pose_stage;
+        std::vector<uint32_t> update_shape_world_pose_spirv;
 
         std::unique_ptr<ComputeStage> integrate_stage;
         std::vector<uint32_t> integrate_spirv;
@@ -197,6 +204,19 @@ namespace Engine {
             }
         }
 
+        void EnsureCollisionDetector(uint32_t shape_count) {
+            if (shape_count <= 1u) {
+                collision_detector.reset();
+                cached_shape_count = shape_count;
+                return;
+            }
+            uint32_t max_pairs = (shape_count * (shape_count - 1u)) / 2u;
+            if (!collision_detector || shape_count != cached_shape_count) {
+                collision_detector = std::make_unique<ConvexCollisionDetector>(render_system, max_pairs);
+                cached_shape_count = shape_count;
+            }
+        }
+
         // -----------------------------------------------------------------------
         // Shader loading
         // -----------------------------------------------------------------------
@@ -212,6 +232,12 @@ namespace Engine {
             snapshot_spirv = LoadPhysicsSpirv("solver/XPBDSolver/snapshot_position.comp.spv");
             snapshot_stage = std::make_unique<ComputeStage>(render_system);
             snapshot_stage->Instantiate(snapshot_spirv, "XPBD Snapshot Copy");
+
+            update_shape_world_pose_spirv = LoadPhysicsSpirv("solver/XPBDSolver/update_shape_world_pose.comp.spv");
+            update_shape_world_pose_stage = std::make_unique<ComputeStage>(render_system);
+            update_shape_world_pose_stage->Instantiate(
+                update_shape_world_pose_spirv, "XPBD Update Shape World Pose"
+            );
 
             integrate_spirv = LoadPhysicsSpirv("solver/XPBDSolver/integrate_forces.comp.spv");
             integrate_stage = std::make_unique<ComputeStage>(render_system);
@@ -304,7 +330,6 @@ namespace Engine {
     void XPBDGpuSolver::Step(
         RenderGraphBuilder &builder,
         PhysicsScene &physics_scene,
-        const CollisionResultBuffers &collision_results,
         RGBufferHandle external_model_matrices_handle
     ) {
         const auto gpu = physics_scene.GetGpuBuffers();
@@ -316,12 +341,18 @@ namespace Engine {
 
         // ---- Lazy initialization ----
         m_impl->EnsureInitialized();
+        m_impl->EnsureCollisionDetector(gpu.shape_slot_count);
+
+        // Compute max_contacts from shape count (4 manifold points per pair).
+        const uint32_t shape_count = gpu.shape_slot_count;
+        const uint32_t max_pairs =
+            shape_count > 1u ? (shape_count * (shape_count - 1u)) / 2u : 0u;
+        const uint32_t max_contacts = std::max(1u, max_pairs * 4u);
 
         // Raw pointer for pass lambdas — evaluated at dispatch time each frame.
         auto *pscene = &physics_scene;
 
         const uint32_t body_count = gpu.rigid_body_slot_count;
-        const uint32_t max_contacts = collision_results.max_collision_pairs * 4u;
 
         // Recreate intermediate buffers if sizes changed.
         if (body_count != m_impl->cached_body_count || max_contacts != m_impl->cached_max_contacts) {
@@ -332,6 +363,7 @@ namespace Engine {
 
         const uint32_t body_wg = (body_count + 63u) / 64u;
         const uint32_t contact_wg = (max_contacts + 63u) / 64u;
+        const uint32_t shape_wg = (gpu.shape_slot_count + 63u) / 64u;
 
         // Pre-import all body buffers (reused across passes).
         auto alive_h = builder.ImportExternalResource(*gpu.rigid_body_alive, {MemoryAccessTypeBufferBits::None});
@@ -358,17 +390,17 @@ namespace Engine {
         auto restitution_h =
             builder.ImportExternalResource(*gpu.rigid_body_restitution, {MemoryAccessTypeBufferBits::None});
 
-        // Pre-import collision result buffers.
-        auto coll_ids_h =
-            builder.ImportExternalResource(*collision_results.collision_ids, {MemoryAccessTypeBufferBits::None});
-        auto coll_normals_h =
-            builder.ImportExternalResource(*collision_results.collision_normals, {MemoryAccessTypeBufferBits::None});
-        auto coll_pta_h =
-            builder.ImportExternalResource(*collision_results.contact_point_a, {MemoryAccessTypeBufferBits::None});
-        auto coll_ptb_h =
-            builder.ImportExternalResource(*collision_results.contact_point_b, {MemoryAccessTypeBufferBits::None});
-        auto coll_cnt_h =
-            builder.ImportExternalResource(*collision_results.collision_count, {MemoryAccessTypeBufferBits::None});
+        // Pre-import shape world/local buffers (read/write by shape world update pass).
+        auto shape_alive_h =
+            builder.ImportExternalResource(*gpu.shape_alive, {MemoryAccessTypeBufferBits::None});
+        auto shape_local_pos_h =
+            builder.ImportExternalResource(*gpu.shape_local_position, {MemoryAccessTypeBufferBits::None});
+        auto shape_local_rot_h =
+            builder.ImportExternalResource(*gpu.shape_local_rotation, {MemoryAccessTypeBufferBits::None});
+        auto shape_world_pos_h =
+            builder.ImportExternalResource(*gpu.shape_world_position, {MemoryAccessTypeBufferBits::None});
+        auto shape_world_rot_h =
+            builder.ImportExternalResource(*gpu.shape_world_rotation, {MemoryAccessTypeBufferBits::None});
 
         // Shape→body mapping.
         auto shape2body_h =
@@ -513,7 +545,71 @@ namespace Engine {
                 "XPBD Snap SubstepStartOri"
             );
 
-            // // --- Pass: Memset lagrange to zero ---
+            // --- Pass: Update shape world poses ---
+            if (gpu.shape_slot_count > 1u && gpu.shape_world_position != nullptr) {
+                auto *sw_binding =
+                    &m_impl->update_shape_world_pose_stage->AllocateResourceBinding();
+                auto &sw_srb = sw_binding->GetShaderResourceBinding();
+                sw_srb.BindBuffer("ShapeAlive", *gpu.shape_alive);
+                sw_srb.BindBuffer("ShapeBoundRigidBody", *gpu.shape_bound_rigid_body);
+                sw_srb.BindBuffer("ShapeLocalPosition", *gpu.shape_local_position);
+                sw_srb.BindBuffer("ShapeLocalRotation", *gpu.shape_local_rotation);
+                sw_srb.BindBuffer("RigidBodyCenterPosition", *gpu.rigid_body_center_world_position);
+                sw_srb.BindBuffer("RigidBodyCenterRotation", *gpu.rigid_body_center_world_rotation);
+                sw_srb.BindBuffer("ShapeWorldPosition", *gpu.shape_world_position);
+                sw_srb.BindBuffer("ShapeWorldRotation", *gpu.shape_world_rotation);
+
+                auto *sw_stage = m_impl->update_shape_world_pose_stage.get();
+                builder.AddPass(
+                    RenderGraphPassBuilder{m_impl->render_system}
+                        .SetName("XPBD Update Shape World Pose")
+                        .SetAffinity(RenderGraphPassAffinity::Compute)
+                        .UseBuffer(shape_alive_h, RR)
+                        .UseBuffer(shape2body_h, RR)
+                        .UseBuffer(shape_local_pos_h, RR)
+                        .UseBuffer(shape_local_rot_h, RR)
+                        .UseBuffer(pos_h, RR)
+                        .UseBuffer(rot_h, RR)
+                        .UseBuffer(shape_world_pos_h, RW)
+                        .UseBuffer(shape_world_rot_h, RW)
+                        .SetPassFunction(
+                            [sw_stage, sw_binding, shape_wg, pscene](CommandBuffer &cb, const RenderGraph &) -> void {
+                                if (!pscene->IsSimulationEnabled()) return;
+                                cb.BindComputeStage(*sw_stage);
+                                cb.BindComputeResource(*sw_binding);
+                                cb.DispatchCompute(shape_wg, 1, 1);
+                            }
+                        )
+                        .Get()
+                );
+            }
+
+            // --- Pass: Collision detection (pair gen + MPR) ---
+            // Buffers are created lazily on first Step() call inside the detector.
+            if (m_impl->collision_detector) {
+                m_impl->collision_detector->Step(builder, physics_scene);
+            }
+
+            // Import collision result buffers from the internal detector (now
+            // guaranteed to exist after the detector's first Step() above).
+            auto cr = m_impl->collision_detector
+                          ? m_impl->collision_detector->GetCollisionResultBuffers()
+                          : CollisionResultBuffers{};
+            RGBufferHandle coll_ids_h{}, coll_normals_h{}, coll_pta_h{}, coll_ptb_h{}, coll_cnt_h{};
+            if (cr.collision_ids != nullptr) {
+                coll_ids_h =
+                    builder.ImportExternalResource(*cr.collision_ids, {MemoryAccessTypeBufferBits::None});
+                coll_normals_h =
+                    builder.ImportExternalResource(*cr.collision_normals, {MemoryAccessTypeBufferBits::None});
+                coll_pta_h =
+                    builder.ImportExternalResource(*cr.contact_point_a, {MemoryAccessTypeBufferBits::None});
+                coll_ptb_h =
+                    builder.ImportExternalResource(*cr.contact_point_b, {MemoryAccessTypeBufferBits::None});
+                coll_cnt_h =
+                    builder.ImportExternalResource(*cr.collision_count, {MemoryAccessTypeBufferBits::None});
+            }
+
+            // --- Pass: Memset lagrange to zero ---
             {
                 auto *binding = &m_impl->clear_int_stage->AllocateResourceBinding();
                 auto &srb = binding->GetShaderResourceBinding();
@@ -526,11 +622,13 @@ namespace Engine {
                         .SetName("XPBD Memset Lagrange")
                         .SetAffinity(RenderGraphPassAffinity::Compute)
                         .UseBuffer(lagrange_h, WW)
-                        .SetPassFunction([stage, binding, contact_wg](CommandBuffer &cb, const RenderGraph &) -> void {
-                            cb.BindComputeStage(*stage);
-                            cb.BindComputeResource(*binding);
-                            cb.DispatchCompute(contact_wg, 1, 1);
-                        })
+                        .SetPassFunction(
+                            [stage, binding, contact_wg](CommandBuffer &cb, const RenderGraph &) -> void {
+                                cb.BindComputeStage(*stage);
+                                cb.BindComputeResource(*binding);
+                                cb.DispatchCompute(contact_wg, 1, 1);
+                            }
+                        )
                         .Get()
                 );
             }
@@ -544,11 +642,11 @@ namespace Engine {
                 {
                     auto *binding = &m_impl->accum_pos_stage->AllocateResourceBinding();
                     auto &srb = binding->GetShaderResourceBinding();
-                    srb.BindBuffer("CollisionIds", *collision_results.collision_ids);
-                    srb.BindBuffer("CollisionNormals", *collision_results.collision_normals);
-                    srb.BindBuffer("ContactPointA", *collision_results.contact_point_a);
-                    srb.BindBuffer("ContactPointB", *collision_results.contact_point_b);
-                    srb.BindBuffer("CollisionCount", *collision_results.collision_count);
+                    srb.BindBuffer("CollisionIds", *cr.collision_ids);
+                    srb.BindBuffer("CollisionNormals", *cr.collision_normals);
+                    srb.BindBuffer("ContactPointA", *cr.contact_point_a);
+                    srb.BindBuffer("ContactPointB", *cr.contact_point_b);
+                    srb.BindBuffer("CollisionCount", *cr.collision_count);
                     srb.BindBuffer("ShapeBoundRigidBody", *gpu.shape_bound_rigid_body);
                     srb.BindBuffer("RigidBodyAlive", *gpu.rigid_body_alive);
                     srb.BindBuffer("RigidBodyCenterPosition", *gpu.rigid_body_center_world_position);
@@ -680,11 +778,11 @@ namespace Engine {
             //     {
             //         auto *binding = &m_impl->accum_vel_stage->AllocateResourceBinding();
             //         auto &srb = binding->GetShaderResourceBinding();
-            //         srb.BindBuffer("CollisionIds", *collision_results.collision_ids);
-            //         srb.BindBuffer("CollisionNormals", *collision_results.collision_normals);
-            //         srb.BindBuffer("ContactPointA", *collision_results.contact_point_a);
-            //         srb.BindBuffer("ContactPointB", *collision_results.contact_point_b);
-            //         srb.BindBuffer("CollisionCount", *collision_results.collision_count);
+            //         srb.BindBuffer("CollisionIds", *cr.collision_ids);
+            //         srb.BindBuffer("CollisionNormals", *cr.collision_normals);
+            //         srb.BindBuffer("ContactPointA", *cr.contact_point_a);
+            //         srb.BindBuffer("ContactPointB", *cr.contact_point_b);
+            //         srb.BindBuffer("CollisionCount", *cr.collision_count);
             //         srb.BindBuffer("ShapeBoundRigidBody", *gpu.shape_bound_rigid_body);
             //         srb.BindBuffer("RigidBodyAlive", *gpu.rigid_body_alive);
             //         srb.BindBuffer("RigidBodyCenterRotation", *gpu.rigid_body_center_world_rotation);

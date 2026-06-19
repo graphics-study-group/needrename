@@ -311,7 +311,8 @@ namespace Engine {
                 .UseBuffer(pairs_handle, {MemoryAccessTypeBufferBits::ShaderRandomWrite})
                 .UseBuffer(collision_count_handle, {MemoryAccessTypeBufferBits::ShaderRandomWrite})
                 .SetPassFunction(
-                    [pg_stage, pg_binding, pair_gen_workgroups](CommandBuffer &cb, const RenderGraph &) -> void {
+                    [pg_stage, pg_binding, pair_gen_workgroups, &physics_scene](CommandBuffer &cb, const RenderGraph &) -> void {
+                        if (!physics_scene.IsSimulationEnabled()) return;
                         cb.BindComputeStage(*pg_stage);
                         cb.BindComputeResource(*pg_binding);
                         cb.DispatchCompute(pair_gen_workgroups, 1, 1);
@@ -345,7 +346,8 @@ namespace Engine {
                 // Slot count (readonly).
                 .UseBuffer(slot_count_handle, {MemoryAccessTypeBufferBits::ShaderRandomRead})
                 .SetPassFunction(
-                    [detect_stage, detect_binding, detect_workgroups](CommandBuffer &cb, const RenderGraph &) -> void {
+                    [detect_stage, detect_binding, detect_workgroups, &physics_scene](CommandBuffer &cb, const RenderGraph &) -> void {
+                        if (!physics_scene.IsSimulationEnabled()) return;
                         cb.BindComputeStage(*detect_stage);
                         cb.BindComputeResource(*detect_binding);
                         cb.DispatchCompute(detect_workgroups, 1, 1);

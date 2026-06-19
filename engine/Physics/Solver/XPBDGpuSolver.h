@@ -9,7 +9,6 @@ namespace Engine {
     class PhysicsScene;
     class RenderGraphBuilder;
     class RenderSystem;
-    struct CollisionResultBuffers;
 
     // Forward declaration from Render/Pipeline/RenderGraph/RGAttachmentDesc.h
     enum class RGBufferHandle : int32_t;
@@ -29,12 +28,16 @@ namespace Engine {
      *
      * Implements a full GPU XPBD contact solver:
      *   - Semi-implicit Euler force integration (gravity + external)
+     *   - Shape world pose update (body pose → shape world transforms)
+     *   - Per-substep collision detection (owned internally)
      *   - Jacobi contact position solve with lagrange accumulation
      *   - Velocity update from pose delta
      *   - Velocity-level friction + restitution solve
      *
      * All intermediate GPU buffers (snapshots, accumulators, lagrange) are
      * owned by the solver and sized lazily on first Step().
+     * Collision detection is managed internally — external callers do not
+     * need to create or pass a ConvexCollisionDetector.
      */
     class XPBDGpuSolver {
     public:
@@ -50,15 +53,13 @@ namespace Engine {
          * @brief Fill a render graph builder with XPBD compute passes.
          *
          * @param builder       Render graph builder to populate.
-         * @param physics_scene Physics scene providing GPU body buffers.
-         * @param collision_results Collision detection result buffers.
+         * @param physics_scene Physics scene providing GPU body and shape buffers.
          * @param external_model_matrices_handle Optional pre-imported model
          *        matrices buffer handle for sharing with rendering passes.
          */
         void Step(
             RenderGraphBuilder &builder,
             PhysicsScene &physics_scene,
-            const CollisionResultBuffers &collision_results,
             RGBufferHandle external_model_matrices_handle = RGBufferHandle{}
         );
 
