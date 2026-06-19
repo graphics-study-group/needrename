@@ -38,13 +38,6 @@ void main() {
     // Linear velocity from position delta.
     vec3 delta_pos = rigid_body_center_position.v[idx].xyz - pre_gravity_position.v[idx].xyz;
     rigid_body_linear_velocity.v[idx].xyz = delta_pos / dt;
-    
-    debugPrintfEXT("idx %u: current_pos: [%.3f, %.3f, %.3f], pre_gravity_pos: [%.3f, %.3f, %.3f], delta_pos: [%.3f, %.3f, %.3f], vel: [%.3f, %.3f, %.3f]\n",
-        idx,
-        rigid_body_center_position.v[idx].x, rigid_body_center_position.v[idx].y, rigid_body_center_position.v[idx].z,
-        pre_gravity_position.v[idx].x, pre_gravity_position.v[idx].y, pre_gravity_position.v[idx].z,
-        delta_pos.x, delta_pos.y, delta_pos.z,
-        rigid_body_linear_velocity.v[idx].x, rigid_body_linear_velocity.v[idx].y, rigid_body_linear_velocity.v[idx].z);
 
     // Angular velocity from orientation delta.
     // dq = q * q_pre^{-1}

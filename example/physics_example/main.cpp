@@ -99,53 +99,53 @@ int main(int /*argc*/, char ** /*argv*/) {
     });
 
     // Green box — offset in X, higher up.
-    // builder.AddBox({
-    //     .position = {1.2f, 0.0f, 7.0f},
-    //     .half_extents = {0.5f, 0.5f, 0.5f},
-    //     .mass = 1.0f,
-    //     .material = green_mat,
-    // });
+    builder.AddBox({
+        .position = {1.2f, 0.0f, 7.0f},
+        .half_extents = {0.5f, 0.5f, 0.5f},
+        .mass = 1.0f,
+        .material = green_mat,
+    });
 
-    // // Blue box — offset in Y, medium height.
-    // builder.AddBox({
-    //     .position = {0.0f, 1.2f, 6.0f},
-    //     .half_extents = {0.5f, 0.5f, 0.5f},
-    //     .mass = 1.0f,
-    //     .material = blue_mat,
-    // });
+    // Blue box — offset in Y, medium height.
+    builder.AddBox({
+        .position = {0.0f, 1.2f, 6.0f},
+        .half_extents = {0.5f, 0.5f, 0.5f},
+        .mass = 1.0f,
+        .material = blue_mat,
+    });
 
-    // // Yellow box — taller shape, higher up.
-    // builder.AddBox({
-    //     .position = {-1.0f, -0.5f, 8.0f},
-    //     .half_extents = {0.4f, 0.4f, 0.8f},
-    //     .mass = 2.0f,
-    //     .material = yellow_mat,
-    // });
+    // Yellow box — taller shape, higher up.
+    builder.AddBox({
+        .position = {-1.0f, -0.5f, 8.0f},
+        .half_extents = {0.4f, 0.4f, 0.8f},
+        .mass = 2.0f,
+        .material = yellow_mat,
+    });
 
-    // // Cyan box — wide flat box.
-    // builder.AddBox({
-    //     .position = {2.0f, -1.0f, 9.0f},
-    //     .half_extents = {0.8f, 0.6f, 0.3f},
-    //     .mass = 0.5f,
-    //     .material = cyan_mat,
-    // });
+    // Cyan box — wide flat box.
+    builder.AddBox({
+        .position = {2.0f, -1.0f, 9.0f},
+        .half_extents = {0.8f, 0.6f, 0.3f},
+        .mass = 0.5f,
+        .material = cyan_mat,
+    });
 
-    // // Magenta box — small cube, highest.
-    // builder.AddBox({
-    //     .position = {-2.0f, 1.0f, 10.0f},
-    //     .half_extents = {0.3f, 0.3f, 0.3f},
-    //     .mass = 0.3f,
-    //     .material = magenta_mat,
-    // });
+    // Magenta box — small cube, highest.
+    builder.AddBox({
+        .position = {-2.0f, 1.0f, 10.0f},
+        .half_extents = {0.3f, 0.3f, 0.3f},
+        .mass = 0.3f,
+        .material = magenta_mat,
+    });
 
-    // // Orange box — medium cube, slightly rotated.
-    // builder.AddBox({
-    //     .position = {0.5f, 2.0f, 4.0f},
-    //     .rotation = glm::angleAxis(glm::radians(25.0f), glm::normalize(glm::vec3(0.3f, 0.2f, 0.7f))),
-    //     .half_extents = {0.5f, 0.5f, 0.5f},
-    //     .mass = 1.5f,
-    //     .material = orange_mat,
-    // });
+    // Orange box — medium cube, slightly rotated.
+    builder.AddBox({
+        .position = {0.5f, 2.0f, 4.0f},
+        .rotation = glm::angleAxis(glm::radians(25.0f), glm::normalize(glm::vec3(0.3f, 0.2f, 0.7f))),
+        .half_extents = {0.5f, 0.5f, 0.5f},
+        .mass = 1.5f,
+        .material = orange_mat,
+    });
 
     // --- Camera setup ---
     // Z is up, camera is positioned to the side looking at the falling zone.

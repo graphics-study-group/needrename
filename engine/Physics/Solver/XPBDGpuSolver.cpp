@@ -769,115 +769,115 @@ namespace Engine {
                 );
             }
 
-            // // ================================================================
-            // // Velocity solve iterations
-            // // ================================================================
-            // const uint32_t vel_iters = std::max(1u, m_impl->config.num_velocity_iters);
-            // for (uint32_t iter = 0; iter < vel_iters; ++iter) {
-            //     // Accumulate contact velocity deltas.
-            //     {
-            //         auto *binding = &m_impl->accum_vel_stage->AllocateResourceBinding();
-            //         auto &srb = binding->GetShaderResourceBinding();
-            //         srb.BindBuffer("CollisionIds", *cr.collision_ids);
-            //         srb.BindBuffer("CollisionNormals", *cr.collision_normals);
-            //         srb.BindBuffer("ContactPointA", *cr.contact_point_a);
-            //         srb.BindBuffer("ContactPointB", *cr.contact_point_b);
-            //         srb.BindBuffer("CollisionCount", *cr.collision_count);
-            //         srb.BindBuffer("ShapeBoundRigidBody", *gpu.shape_bound_rigid_body);
-            //         srb.BindBuffer("RigidBodyAlive", *gpu.rigid_body_alive);
-            //         srb.BindBuffer("RigidBodyCenterRotation", *gpu.rigid_body_center_world_rotation);
-            //         srb.BindBuffer("RigidBodyLinearVelocity", *gpu.rigid_body_linear_velocity);
-            //         srb.BindBuffer("RigidBodyAngularVelocity", *gpu.rigid_body_angular_velocity);
-            //         srb.BindBuffer("RigidBodyMass", *gpu.rigid_body_mass);
-            //         srb.BindBuffer("RigidBodyInverseInertia", *gpu.rigid_body_inverse_inertia);
-            //         srb.BindBuffer("RigidBodyDynamicFriction", *gpu.rigid_body_dynamic_friction);
-            //         srb.BindBuffer("RigidBodyRestitution", *gpu.rigid_body_restitution);
-            //         srb.BindBuffer("RigidBodyIsKinematic", *gpu.rigid_body_is_kinematic);
-            //         srb.BindBuffer("PreContactLinearVelocity", *m_impl->gpu_pre_contact_linear_vel);
-            //         srb.BindBuffer("PreContactAngularVelocity", *m_impl->gpu_pre_contact_angular_vel);
-            //         srb.BindBuffer("SubstepStartPosition", *m_impl->gpu_substep_start_position);
-            //         srb.BindBuffer("SubstepStartOrientation", *m_impl->gpu_substep_start_orientation);
-            //         srb.BindBuffer("LinearVelocityDeltaI", *m_impl->gpu_linear_velocity_delta);
-            //         srb.BindBuffer("AngularVelocityDeltaI", *m_impl->gpu_angular_velocity_delta);
-            //         srb.BindBuffer("VelocityDeltaCount", *m_impl->gpu_velocity_delta_count);
-            //         srb.BindBuffer("ContactLagrange", *m_impl->gpu_contact_lagrange);
-            //         srb.BindBuffer("XpbdUniforms", *m_impl->gpu_uniforms);
+            // ================================================================
+            // Velocity solve iterations
+            // ================================================================
+            const uint32_t vel_iters = std::max(1u, m_impl->config.num_velocity_iters);
+            for (uint32_t iter = 0; iter < vel_iters; ++iter) {
+                // Accumulate contact velocity deltas.
+                {
+                    auto *binding = &m_impl->accum_vel_stage->AllocateResourceBinding();
+                    auto &srb = binding->GetShaderResourceBinding();
+                    srb.BindBuffer("CollisionIds", *cr.collision_ids);
+                    srb.BindBuffer("CollisionNormals", *cr.collision_normals);
+                    srb.BindBuffer("ContactPointA", *cr.contact_point_a);
+                    srb.BindBuffer("ContactPointB", *cr.contact_point_b);
+                    srb.BindBuffer("CollisionCount", *cr.collision_count);
+                    srb.BindBuffer("ShapeBoundRigidBody", *gpu.shape_bound_rigid_body);
+                    srb.BindBuffer("RigidBodyAlive", *gpu.rigid_body_alive);
+                    srb.BindBuffer("RigidBodyCenterRotation", *gpu.rigid_body_center_world_rotation);
+                    srb.BindBuffer("RigidBodyLinearVelocity", *gpu.rigid_body_linear_velocity);
+                    srb.BindBuffer("RigidBodyAngularVelocity", *gpu.rigid_body_angular_velocity);
+                    srb.BindBuffer("RigidBodyMass", *gpu.rigid_body_mass);
+                    srb.BindBuffer("RigidBodyInverseInertia", *gpu.rigid_body_inverse_inertia);
+                    srb.BindBuffer("RigidBodyDynamicFriction", *gpu.rigid_body_dynamic_friction);
+                    srb.BindBuffer("RigidBodyRestitution", *gpu.rigid_body_restitution);
+                    srb.BindBuffer("RigidBodyIsKinematic", *gpu.rigid_body_is_kinematic);
+                    srb.BindBuffer("PreContactLinearVelocity", *m_impl->gpu_pre_contact_linear_vel);
+                    srb.BindBuffer("PreContactAngularVelocity", *m_impl->gpu_pre_contact_angular_vel);
+                    srb.BindBuffer("SubstepStartPosition", *m_impl->gpu_substep_start_position);
+                    srb.BindBuffer("SubstepStartOrientation", *m_impl->gpu_substep_start_orientation);
+                    srb.BindBuffer("LinearVelocityDeltaI", *m_impl->gpu_linear_velocity_delta);
+                    srb.BindBuffer("AngularVelocityDeltaI", *m_impl->gpu_angular_velocity_delta);
+                    srb.BindBuffer("VelocityDeltaCount", *m_impl->gpu_velocity_delta_count);
+                    srb.BindBuffer("ContactLagrange", *m_impl->gpu_contact_lagrange);
+                    srb.BindBuffer("XpbdUniforms", *m_impl->gpu_uniforms);
 
-            //         auto *stage = m_impl->accum_vel_stage.get();
-            //         builder.AddPass(
-            //             RenderGraphPassBuilder{m_impl->render_system}
-            //                 .SetName("XPBD Accum Contact Vel")
-            //                 .SetAffinity(RenderGraphPassAffinity::Compute)
-            //                 .UseBuffer(coll_ids_h, RR)
-            //                 .UseBuffer(coll_normals_h, RR)
-            //                 .UseBuffer(coll_pta_h, RR)
-            //                 .UseBuffer(coll_ptb_h, RR)
-            //                 .UseBuffer(coll_cnt_h, RR)
-            //                 .UseBuffer(shape2body_h, RR)
-            //                 .UseBuffer(rot_h, RR)
-            //                 .UseBuffer(linvel_h, RR)
-            //                 .UseBuffer(angvel_h, RR)
-            //                 .UseBuffer(alive_h, RR)
-            //                 .UseBuffer(kinematic_h, RR)
-            //                 .UseBuffer(mass_h, RR)
-            //                 .UseBuffer(inv_inertia_h, RR)
-            //                 .UseBuffer(dynfric_h, RR)
-            //                 .UseBuffer(restitution_h, RR)
-            //                 .UseBuffer(precont_lv_h, RR)
-            //                 .UseBuffer(precont_av_h, RR)
-            //                 .UseBuffer(ssp_pos_h, RR)
-            //                 .UseBuffer(ssp_ori_h, RR)
-            //                 .UseBuffer(linveldelta_h, RW)
-            //                 .UseBuffer(angveldelta_h, RW)
-            //                 .UseBuffer(velcntdelta_h, RW)
-            //                 .UseBuffer(lagrange_h, RR)
-            //                 .UseBuffer(uniforms_h, RR)
-            //                 .SetPassFunction(
-            //                     [stage, binding, contact_wg, pscene](CommandBuffer &cb, const RenderGraph &) -> void {
-            //                         if (!pscene->IsSimulationEnabled()) return;
-            //                         cb.BindComputeStage(*stage);
-            //                         cb.BindComputeResource(*binding);
-            //                         cb.DispatchCompute(contact_wg, 1, 1);
-            //                     }
-            //                 )
-            //                 .Get()
-            //         );
-            //     }
+                    auto *stage = m_impl->accum_vel_stage.get();
+                    builder.AddPass(
+                        RenderGraphPassBuilder{m_impl->render_system}
+                            .SetName("XPBD Accum Contact Vel")
+                            .SetAffinity(RenderGraphPassAffinity::Compute)
+                            .UseBuffer(coll_ids_h, RR)
+                            .UseBuffer(coll_normals_h, RR)
+                            .UseBuffer(coll_pta_h, RR)
+                            .UseBuffer(coll_ptb_h, RR)
+                            .UseBuffer(coll_cnt_h, RR)
+                            .UseBuffer(shape2body_h, RR)
+                            .UseBuffer(rot_h, RR)
+                            .UseBuffer(linvel_h, RR)
+                            .UseBuffer(angvel_h, RR)
+                            .UseBuffer(alive_h, RR)
+                            .UseBuffer(kinematic_h, RR)
+                            .UseBuffer(mass_h, RR)
+                            .UseBuffer(inv_inertia_h, RR)
+                            .UseBuffer(dynfric_h, RR)
+                            .UseBuffer(restitution_h, RR)
+                            .UseBuffer(precont_lv_h, RR)
+                            .UseBuffer(precont_av_h, RR)
+                            .UseBuffer(ssp_pos_h, RR)
+                            .UseBuffer(ssp_ori_h, RR)
+                            .UseBuffer(linveldelta_h, RW)
+                            .UseBuffer(angveldelta_h, RW)
+                            .UseBuffer(velcntdelta_h, RW)
+                            .UseBuffer(lagrange_h, RR)
+                            .UseBuffer(uniforms_h, RR)
+                            .SetPassFunction(
+                                [stage, binding, contact_wg, pscene](CommandBuffer &cb, const RenderGraph &) -> void {
+                                    if (!pscene->IsSimulationEnabled()) return;
+                                    cb.BindComputeStage(*stage);
+                                    cb.BindComputeResource(*binding);
+                                    cb.DispatchCompute(contact_wg, 1, 1);
+                                }
+                            )
+                            .Get()
+                    );
+                }
 
-            //     // Apply body velocity deltas.
-            //     {
-            //         auto *binding = &m_impl->apply_vel_stage->AllocateResourceBinding();
-            //         auto &srb = binding->GetShaderResourceBinding();
-            //         srb.BindBuffer("RigidBodyAlive", *gpu.rigid_body_alive);
-            //         srb.BindBuffer("RigidBodyLinearVelocity", *gpu.rigid_body_linear_velocity);
-            //         srb.BindBuffer("RigidBodyAngularVelocity", *gpu.rigid_body_angular_velocity);
-            //         srb.BindBuffer("RigidBodyIsKinematic", *gpu.rigid_body_is_kinematic);
-            //         srb.BindBuffer("LinearVelocityDeltaI", *m_impl->gpu_linear_velocity_delta);
-            //         srb.BindBuffer("AngularVelocityDeltaI", *m_impl->gpu_angular_velocity_delta);
-            //         srb.BindBuffer("VelocityDeltaCount", *m_impl->gpu_velocity_delta_count);
+                // Apply body velocity deltas.
+                {
+                    auto *binding = &m_impl->apply_vel_stage->AllocateResourceBinding();
+                    auto &srb = binding->GetShaderResourceBinding();
+                    srb.BindBuffer("RigidBodyAlive", *gpu.rigid_body_alive);
+                    srb.BindBuffer("RigidBodyLinearVelocity", *gpu.rigid_body_linear_velocity);
+                    srb.BindBuffer("RigidBodyAngularVelocity", *gpu.rigid_body_angular_velocity);
+                    srb.BindBuffer("RigidBodyIsKinematic", *gpu.rigid_body_is_kinematic);
+                    srb.BindBuffer("LinearVelocityDeltaI", *m_impl->gpu_linear_velocity_delta);
+                    srb.BindBuffer("AngularVelocityDeltaI", *m_impl->gpu_angular_velocity_delta);
+                    srb.BindBuffer("VelocityDeltaCount", *m_impl->gpu_velocity_delta_count);
 
-            //         auto *stage = m_impl->apply_vel_stage.get();
-            //         builder.AddPass(
-            //             RenderGraphPassBuilder{m_impl->render_system}
-            //                 .SetName("XPBD Apply Body Vel")
-            //                 .SetAffinity(RenderGraphPassAffinity::Compute)
-            //                 .UseBuffer(linvel_h, RW)
-            //                 .UseBuffer(angvel_h, RW)
-            //                 .UseBuffer(alive_h, RR)
-            //                 .UseBuffer(kinematic_h, RR)
-            //                 .UseBuffer(linveldelta_h, RW)
-            //                 .UseBuffer(angveldelta_h, RW)
-            //                 .UseBuffer(velcntdelta_h, RW)
-            //                 .SetPassFunction([stage, binding, body_wg, pscene](CommandBuffer &cb, const RenderGraph &) -> void {
-            //                     if (!pscene->IsSimulationEnabled()) return;
-            //                     cb.BindComputeStage(*stage);
-            //                     cb.BindComputeResource(*binding);
-            //                     cb.DispatchCompute(body_wg, 1, 1);
-            //                 })
-            //                 .Get()
-            //         );
-            //     }
-            // } // velocity iterations
+                    auto *stage = m_impl->apply_vel_stage.get();
+                    builder.AddPass(
+                        RenderGraphPassBuilder{m_impl->render_system}
+                            .SetName("XPBD Apply Body Vel")
+                            .SetAffinity(RenderGraphPassAffinity::Compute)
+                            .UseBuffer(linvel_h, RW)
+                            .UseBuffer(angvel_h, RW)
+                            .UseBuffer(alive_h, RR)
+                            .UseBuffer(kinematic_h, RR)
+                            .UseBuffer(linveldelta_h, RW)
+                            .UseBuffer(angveldelta_h, RW)
+                            .UseBuffer(velcntdelta_h, RW)
+                            .SetPassFunction([stage, binding, body_wg, pscene](CommandBuffer &cb, const RenderGraph &) -> void {
+                                if (!pscene->IsSimulationEnabled()) return;
+                                cb.BindComputeStage(*stage);
+                                cb.BindComputeResource(*binding);
+                                cb.DispatchCompute(body_wg, 1, 1);
+                            })
+                            .Get()
+                    );
+                }
+            } // velocity iterations
         } // substep loop
 
         // ---- Model matrix update (after physics, always runs even when paused) ----

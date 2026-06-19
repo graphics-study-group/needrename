@@ -76,15 +76,6 @@ layout(set = 0, binding = 11) readonly buffer ShapeSlotCount {
 // Debug printf helper
 // ---------------------------------------------------------------------------
 
-void debug_print_collision(uint idx, uint a, uint b, MprResult res) {
-    debugPrintfEXT(
-        "COLLISION[%u]: (%u,%u) d=%.4f n=(%.2f,%.2f,%.2f)",
-        idx, a, b,
-        res.penetration,
-        res.contact_normal.x, res.contact_normal.y, res.contact_normal.z
-    );
-}
-
 // ---------------------------------------------------------------------------
 // Main entry point
 // ---------------------------------------------------------------------------
@@ -161,15 +152,5 @@ void main() {
         collision_normals.v[write_idx] = vec4(base_result.contact_normal, base_result.penetration);
         contact_point_a.v[write_idx]   = vec4(pts_a[pi], 0.0);
         contact_point_b.v[write_idx]   = vec4(pts_b[pi], 0.0);
-
-        debugPrintfEXT(
-            "WRITE[%u]: (%u,%u) d=%.4f n=(%.2f,%.2f,%.2f) ptA=(%.2f,%.2f,%.2f) ptB=(%.2f,%.2f,%.2f)",
-            write_idx,
-            shape_a, shape_b,
-            base_result.penetration,
-            base_result.contact_normal.x, base_result.contact_normal.y, base_result.contact_normal.z,
-            pts_a[pi].x, pts_a[pi].y, pts_a[pi].z,
-            pts_b[pi].x, pts_b[pi].y, pts_b[pi].z
-        );
     }
 }

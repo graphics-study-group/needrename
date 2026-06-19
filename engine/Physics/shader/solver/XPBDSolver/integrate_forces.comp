@@ -105,12 +105,6 @@ void main() {
     rigid_body_linear_velocity.v[idx].xyz += total_linear_accel * dt;
     rigid_body_center_position.v[idx].xyz += rigid_body_linear_velocity.v[idx].xyz * dt;
 
-    debugPrintfEXT("idx %u: inv_mass=%.3f, accel=(%.3f, %.3f, %.3f), vel=(%.3f, %.3f, %.3f), pos=(%.3f, %.3f, %.3f)\n",
-        idx, inv_mass,
-        total_linear_accel.x, total_linear_accel.y, total_linear_accel.z,
-        rigid_body_linear_velocity.v[idx].x, rigid_body_linear_velocity.v[idx].y, rigid_body_linear_velocity.v[idx].z,
-        rigid_body_center_position.v[idx].x, rigid_body_center_position.v[idx].y, rigid_body_center_position.v[idx].z);
-
     // ---- Angular integration (body frame, matching CUDA reference) ----
     vec4 orientation = rigid_body_center_rotation.v[idx];
     vec3 w           = rigid_body_angular_velocity.v[idx].xyz;
