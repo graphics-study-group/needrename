@@ -20,6 +20,8 @@
 #include "clipping.glsl"
 
 const float PERTURB_TILT_ANGLE = 2.0; // degrees off the contact plane
+const float SIN_TILT_ANGLE = sin(radians(PERTURB_TILT_ANGLE));
+const float COS_TILT_ANGLE = cos(radians(PERTURB_TILT_ANGLE));
 
 // ---------------------------------------------------------------------------
 // Compute two orthogonal axes perpendicular to a normal vector.
@@ -68,17 +70,18 @@ PerturbResult perturb_manifold(
     compute_orthogonal_axes(contact_normal, u, v);
 
     // Step 2: Generate 6 perturbed directions, collect 2D projected points.
-    const float tilt = tan(radians(PERTURB_TILT_ANGLE));
     const float deg60 = radians(60.0);
 
     vec2 poly_a[6];
+    uint poly_a_count = 0u;
     vec2 poly_b[6];
+    uint poly_b_count = 0u;
 
     for (int i = 0; i < 6; i++) {
         float angle = float(i) * deg60;
         float ca = cos(angle);
         float sa = sin(angle);
-        vec3 dir = normalize(ca * u + sa * v + tilt * contact_normal);
+        vec3 dir = normalize(SIN_TILT_ANGLE * ca * u + SIN_TILT_ANGLE * sa * v + COS_TILT_ANGLE * contact_normal);
 
         vec3 world_a = support(shape_a, dir);
         vec3 world_b = support(shape_b, -dir);
@@ -86,12 +89,26 @@ PerturbResult perturb_manifold(
         vec3 offset_a = world_a - contact_center;
         vec3 offset_b = world_b - contact_center;
 
-        poly_a[i] = vec2(dot(offset_a, u), dot(offset_a, v));
-        poly_b[i] = vec2(dot(offset_b, u), dot(offset_b, v));
+        vec2 projected_a = vec2(dot(offset_a, u), dot(offset_a, v));
+        if (poly_a_count == 0u || length(projected_a - poly_a[poly_a_count - 1u]) > CLIP_EPSILON) {
+            poly_a[poly_a_count] = projected_a;
+            poly_a_count++;
+        }
+        vec2 projected_b = vec2(dot(offset_b, u), dot(offset_b, v));
+        if (poly_b_count == 0u || length(projected_b - poly_b[poly_b_count - 1u]) > CLIP_EPSILON) {
+            poly_b[poly_b_count] = projected_b;
+            poly_b_count++;
+        }
+    }
+    if (length(poly_a[poly_a_count - 1u] - poly_a[0u]) < CLIP_EPSILON) {
+        poly_a_count--;
+    }
+    if (length(poly_b[poly_b_count - 1u] - poly_b[0u]) < CLIP_EPSILON) {
+        poly_b_count--;
     }
 
     // Step 3: Sutherland-Hodgman clipping.
-    ClipResult clip_res = sutherland_hodgman_clip(poly_a, 6u, poly_b, 6u);
+    ClipResult clip_res = sutherland_hodgman_clip(poly_a, poly_a_count, poly_b, poly_b_count);
     if (clip_res.vertex_count == 0u) {
         return result;
     }

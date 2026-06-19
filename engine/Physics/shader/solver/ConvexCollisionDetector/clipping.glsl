@@ -10,6 +10,7 @@
 #define CONVEX_COLLISION_CLIPPING_GLSL
 
 const uint MAX_CLIP_VERTS = 16u; // maximum possible output vertices from S-H
+const float CLIP_EPSILON = 1e-6; // tolerance for degenerate edges/vertices
 
 struct ClipResult {
     vec2 vertices[MAX_CLIP_VERTS];
@@ -62,9 +63,80 @@ ClipResult sutherland_hodgman_clip(
     ClipResult result;
     result.vertex_count = 0u;
 
-    if (subject_count < 3u || clip_count < 3u) {
+    if (subject_count <= 1u) {
+        result.vertex_count = 1u;
+        result.vertices[0] = subject[0];
+        return result;
+    } else if (clip_count <= 1u) {
+        result.vertex_count = 1u;
+        result.vertices[0] = clip_poly[0];
+        return result;
+    } else if (subject_count == 2u && clip_count == 2u) {
+        // Special case for line segment vs line segment — just return the intersection point (if any).
+        result.vertex_count = 1u;
+        result.vertices[0] = line_intersection_2d(subject[0], subject[1], clip_poly[0], clip_poly[1]);
+        return result;
+    } else if (subject_count == 2u) {
+        // Special case for line segment — just clip to each edge and return the
+        // single remaining point (if any).
+        vec2 p1 = subject[0];
+        vec2 p2 = subject[1];
+        for (uint e = 0u; e < clip_count; e++) {
+            uint next_e = (e + 1u) % clip_count;
+            vec2 ca = clip_poly[e];
+            vec2 cb = clip_poly[next_e];
+
+            float d1 = line_distance_2d(ca, cb, p1);
+            float d2 = line_distance_2d(ca, cb, p2);
+
+            if (d1 < 0.0 && d2 < 0.0) {
+                // both outside — skip both (impossible)
+                return result;
+            } else if (d1 >= 0.0 && d2 < 0.0) {
+                // p1 inside, p2 outside — keep intersection.
+                p2 = line_intersection_2d(ca, cb, p1, p2);
+            } else if (d1 < 0.0 && d2 >= 0.0) {
+                // p1 outside, p2 inside — keep intersection + p2.
+                p1 = line_intersection_2d(ca, cb, p1, p2);
+            }
+            // else: Both points inside — keep both.
+        }
+        result.vertex_count = 2u;
+        result.vertices[0] = p1;
+        result.vertices[1] = p2;
+        return result;
+    } else if (clip_count == 2u) {
+        // Special case for line segment — just clip to each edge and return the
+        // single remaining point (if any).
+        vec2 p1 = clip_poly[0];
+        vec2 p2 = clip_poly[1];
+        for (uint e = 0u; e < subject_count; e++) {
+            uint next_e = (e + 1u) % subject_count;
+            vec2 ca = subject[e];
+            vec2 cb = subject[next_e];
+
+            float d1 = line_distance_2d(ca, cb, p1);
+            float d2 = line_distance_2d(ca, cb, p2);
+
+            if (d1 < 0.0 && d2 < 0.0) {
+                // both outside — skip both (impossible)
+                return result;
+            } else if (d1 >= 0.0 && d2 < 0.0) {
+                // p1 inside, p2 outside — keep intersection.
+                p2 = line_intersection_2d(ca, cb, p1, p2);
+            } else if (d1 < 0.0 && d2 >= 0.0) {
+                // p1 outside, p2 inside — keep intersection + p2.
+                p1 = line_intersection_2d(ca, cb, p1, p2);
+            }
+            // else: Both points inside — keep both.
+        }
+        result.vertex_count = 2u;
+        result.vertices[0] = p1;
+        result.vertices[1] = p2;
         return result;
     }
+
+    // both subject and clip are polygons with at least 3 vertices — perform full S-H clipping.
 
     // Copy subject into working buffer.
     vec2 input_list[MAX_CLIP_VERTS];

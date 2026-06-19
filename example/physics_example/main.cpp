@@ -92,7 +92,7 @@ int main(int /*argc*/, char ** /*argv*/) {
     // Red box — drops from center.
     builder.AddBox({
         .position = {0.0f, 0.0f, 5.0f},
-        .rotation = glm::angleAxis(glm::radians(30.0f), glm::normalize(glm::vec3(0.0f, 1.3f, 0.4f))),
+        .rotation = glm::angleAxis(glm::radians(30.0f), glm::normalize(glm::vec3(0.0f, 1.0f, 0.0f))),
         .half_extents = {0.5f, 0.5f, 0.5f},
         .mass = 1.0f,
         .material = red_mat,
