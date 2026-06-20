@@ -99,9 +99,9 @@ int main(int /*argc*/, char ** /*argv*/) {
     });
 
     builder.AddBox({
-        .position = {0.4f, 0.0f, 1.52f},
-        .rotation = glm::angleAxis(glm::radians(0.0f), glm::normalize(glm::vec3(0.0f, 1.0f, 0.0f))),
-        .half_extents = {0.5f, 0.5f, 0.5f},
+        .position = {0.0f, -0.7f, 2.0f},
+        .rotation = glm::angleAxis(glm::radians(44.0f), glm::normalize(glm::vec3(1.0f, 1.0f, 0.0f))),
+        .half_extents = {0.2f, 0.5f, 0.2f},
         .mass = 1.0f,
         .material = green_mat,
     });

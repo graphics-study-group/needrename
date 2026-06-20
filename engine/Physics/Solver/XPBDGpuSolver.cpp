@@ -210,7 +210,8 @@ namespace Engine {
                 cached_shape_count = shape_count;
                 return;
             }
-            uint32_t max_pairs = std::min((shape_count * (shape_count - 1u)) / 2u * 4u, config.max_contact_points);
+            // Each collision pair can produce up to 5 contact points (4 perturbation + 1 MPR fallback).
+            uint32_t max_pairs = std::min((shape_count * (shape_count - 1u)) / 2u * 5u, config.max_contact_points);
             if (!collision_detector || shape_count != cached_shape_count) {
                 collision_detector = std::make_unique<ConvexCollisionDetector>(render_system, max_pairs, config.contact_margin);
                 cached_shape_count = shape_count;
@@ -343,11 +344,12 @@ namespace Engine {
         m_impl->EnsureInitialized();
         m_impl->EnsureCollisionDetector(gpu.shape_slot_count);
 
-        // Compute max_contacts from shape count (4 manifold points per pair).
+        // Compute max_contacts from shape count (up to 5 manifold points per pair:
+        // 4 perturbation + optionally 1 MPR fallback).
         const uint32_t shape_count = gpu.shape_slot_count;
         const uint32_t max_pairs =
             shape_count > 1u ? (shape_count * (shape_count - 1u)) / 2u : 0u;
-        const uint32_t max_contacts = std::max(1u, max_pairs * 4u);
+        const uint32_t max_contacts = std::max(1u, max_pairs * 5u);
 
         // Raw pointer for pass lambdas — evaluated at dispatch time each frame.
         auto *pscene = &physics_scene;

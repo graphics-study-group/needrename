@@ -38,7 +38,9 @@ namespace Engine {
      *   - contact_point_b:     vec4  (contact point on B, world space)
      *   - collision_count:     uint  (total contact points, each atomicAdd'd)
      *
-     * All buffers are sized to max_collision_pairs at construction time.
+     * Each collision pair may produce up to 5 contact entries (4 perturbation
+     * + optionally 1 MPR fallback).  All buffers are sized to max_collision_pairs
+     * at construction time.
      * The detector follows the same lazy-SPIR-V-loading pattern as XPBDGpuSolver.
      */
     class ConvexCollisionDetector {
@@ -49,7 +51,8 @@ namespace Engine {
          * No GPU resources are allocated until the first call to Step().
          *
          * @param render_system       Render system used for pipeline creation.
-         * @param max_collision_pairs Maximum number of collision pairs to detect.
+         * @param max_collision_pairs Maximum number of collision contact entries
+         *                            (pairs × up to 5 points each).
          * @param contact_margin      Contact margin for penetration validation.
          *                            Points with separation < margin are retained
          *                            as speculative contacts.

@@ -121,7 +121,8 @@ namespace Engine {
                 }
             }
 
-            // Result buffers — each manifold point is a separate entry,
+            // Result buffers — each manifold point is a separate entry (max 5 per pair:
+            // 4 perturbation + optionally 1 MPR fallback).
             {
                 const size_t byte_size = safe_pairs * sizeof(glm::uvec2);
                 if (!gpu_collision_ids || gpu_collision_ids->GetSize() != byte_size) {

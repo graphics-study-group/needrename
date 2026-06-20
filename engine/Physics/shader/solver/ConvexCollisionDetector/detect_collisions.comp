@@ -131,9 +131,9 @@ void main() {
 
     // Collect output points — each point becomes a separate result entry.
     uint num_points;
-    vec3 pts_a[4];
-    vec3 pts_b[4];
-    float depths[4];
+    vec3 pts_a[5];
+    vec3 pts_b[5];
+    float depths[5];
 
     if (pert.point_count > 0u) {
         num_points = pert.point_count;

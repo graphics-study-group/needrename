@@ -10,7 +10,7 @@ Govern the plane-fitting step that replaces the naive uniform-depth un-projectio
 
 After collecting 6 perturbed world-space support points for shape A and 6 for shape B, the shader SHALL fit a contact plane for each shape independently. The plane SHALL be determined by computing the normal of the largest-area triangle among the perturbed points (the triangle formed by 3 of the 6 collected world-space points that has the maximum cross-product magnitude). The plane SHALL pass through the centroid of all collected perturbed points for that shape.
 
-If fewer than 3 perturbed points are collected (e.g., due to duplicate removal), the shader SHALL fall back to using the MPR contact normal as the plane normal.
+If fewer than 3 distinct perturbed points are collected (e.g., due to duplicate removal), the shader SHALL attempt to compute a plane normal from the available two points: form a direction vector between them, cross with the MPR contact normal to get a perpendicular vector, then cross back to obtain a plane normal orthogonal to the direction and as close as possible to the MPR normal. Only if this computation also degenerates (the two points are collinear with the MPR normal, or only 1 point exists) SHALL the shader fall back to the MPR contact normal directly.
 
 #### Scenario: Six perturbed points on a slightly tilted plane
 
@@ -22,14 +22,22 @@ If fewer than 3 perturbed points are collected (e.g., due to duplicate removal),
 #### Scenario: Only 2 distinct perturbed points collected
 
 - **WHEN** duplicate removal reduces the perturbed points to only 2 distinct positions
-- **THEN** the fitted plane normal falls back to the MPR contact normal
+- **THEN** the fitted plane normal is computed from the two available points: `right = cross(p1 - p0, fallback_normal)`, then `normal = normalize(cross(fallback_normal, right))`
 - **AND** the plane passes through the midpoint of the 2 points
+- **AND** the resulting normal is orthogonal to the line between the two points and as close as possible to the MPR contact normal
 
 #### Scenario: Largest triangle normal is degenerate
 
 - **WHEN** all triangles among the perturbed points have zero area (collinear points)
-- **THEN** the fitted plane normal falls back to the MPR contact normal
+- **AND** the tracker has at least two distinct points (reference_point ≠ previous_point)
+- **THEN** the fitted plane normal is computed from those two points using the 2-point fallback algorithm
 - **AND** the plane passes through the centroid of the perturbed points
+
+#### Scenario: Only 1 distinct perturbed point collected
+
+- **WHEN** duplicate removal or degenerate geometry reduces the perturbed points to only 1 distinct position
+- **THEN** the fitted plane normal falls back to the MPR contact normal directly
+- **AND** the plane passes through that single point
 
 ### Requirement: Project 2D clipped vertices onto fitted plane
 
@@ -103,11 +111,11 @@ If a contact point fails validation, it SHALL be silently discarded. The remaini
 
 ### Requirement: Plane-alignment fallback with MPR deepest point
 
-When the fitted plane for shape A and the fitted plane for shape B have normals whose dot product is less than `cos(0.1°)` (approximately 0.9999985), the two contact surfaces are considered significantly non-parallel. In this case, the MPR deepest point SHALL be added to the contact manifold as an additional contact point alongside any valid perturbation points.
+When the fitted plane for shape A and the fitted plane for shape B have normals whose dot product is less than `cos(0.1°)` (approximately 0.9999985), the two contact surfaces are considered significantly non-parallel. In this case, the MPR deepest point SHALL be unconditionally appended to the contact manifold as an additional contact point alongside any valid perturbation points.
 
 This ensures that when shapes contact at an oblique angle (e.g., edge-on-edge at a sharp angle), at least one contact point is guaranteed to represent the deepest penetration.
 
-The MPR deepest point SHALL be added at most once per collision pair, regardless of how many perturbation points are already present. If the total number of contact points (perturbation + MPR) exceeds 4, the rotating calipers SHALL reduce the set to the 4 points forming the largest-area quadrilateral on the 2D contact plane.
+The MPR deepest point SHALL be added at most once per collision pair, regardless of how many perturbation points are already present. The MPR point SHALL NOT be subjected to area-based reduction or removal — it is always preserved as a contact point. This allows up to 5 contact points per collision pair (4 from perturbation + 1 MPR fallback).
 
 #### Scenario: Non-parallel contact surfaces add MPR deepest point
 
@@ -123,11 +131,13 @@ The MPR deepest point SHALL be added at most once per collision pair, regardless
 - **THEN** the MPR deepest point is NOT added
 - **AND** the result contains only perturbation contact points
 
-#### Scenario: Adding MPR point exceeds 4-point maximum
+#### Scenario: Non-parallel contacts with 4 perturbation points produce 5 total
 
 - **WHEN** the plane-alignment fallback triggers
 - **AND** perturbation already produced 4 valid contact points
-- **THEN** the rotating calipers algorithm selects the best 4 points from the combined set of 5 (4 perturbation + 1 MPR) by maximum quadrilateral area in 2D
+- **THEN** the MPR deepest point is unconditionally appended as a 5th contact point
+- **AND** no calipers reduction is applied to the combined set
+- **AND** the MPR point is never discarded by area optimization
 
 ### Requirement: Empty perturbation fallback to MPR
 
@@ -151,7 +161,7 @@ The MPR fallback point SHALL use the MPR contact point A and contact point B dir
 
 ### Requirement: Fitted plane computation uses incremental largest-triangle tracking
 
-The shader SHALL determine the contact plane normal using an incremental single-pass tracker as the 6 perturbed points are collected. The tracker SHALL maintain:
+The shader SHALL determine the contact plane normal using an incremental single-pass tracker as the 6 perturbed points are collected. Only points that survive 2D projection duplicate removal SHALL be fed into the tracker (points whose 2D projection is within `CLIP_EPSILON` of the preceding accepted point or the first accepted point are skipped for plane fitting, but all 6 points contribute to the centroid). The tracker SHALL maintain:
 
 - `reference_point`: the first perturbed point (world-space)
 - `previous_point`: the most recently processed point
@@ -160,16 +170,23 @@ The shader SHALL determine the contact plane normal using an incremental single-
 
 For each new perturbed point after the second, the shader SHALL form triangle `(reference_point, previous_point, current_point)`, compute `cross(edge1, edge2)` where `edge1 = previous_point - reference_point` and `edge2 = current_point - reference_point`, and update `largest_area_sq` and `normal` if `dot(cross, cross) > largest_area_sq`. The `previous_point` SHALL be updated to `current_point` after each step.
 
-After processing all N points (N between 3 and 6), the fitted plane normal SHALL be `normalize(winning_cross)`. If `largest_area_sq` is zero (all points collinear), the normal SHALL fall back to the MPR contact normal. The plane origin SHALL be the centroid (arithmetic mean) of all N perturbed points.
+After processing all N points (N between 3 and 6), the fitted plane normal SHALL be `normalize(winning_cross)`. If `largest_area_sq` is zero (all points collinear or fewer than 3 distinct points), the normal SHALL first attempt a 2-point fallback: compute `right = cross(previous_point - reference_point, fallback_normal)` then `normal = normalize(cross(fallback_normal, right))`. Only if this computation also degenerates (the two points are collinear with the fallback normal, or only 1 point exists) SHALL the normal fall back to the MPR contact normal. The plane origin SHALL be the centroid (arithmetic mean) of all N perturbed points.
 
 This method is O(N) and naturally integrates into the perturbation point collection loop without a separate pass.
 
 #### Scenario: All 6 points processed incrementally
 
-- **WHEN** 6 perturbed points are collected
-- **THEN** the tracker processes points 2-5 sequentially, forming 4 triangles against the reference point
+- **WHEN** 6 perturbed points are collected, all with distinct 2D projections
+- **THEN** the tracker processes 6 points sequentially (all pass duplicate removal)
 - **AND** the triangle with the largest `largest_area_sq` determines the fitted plane normal
-- **AND** the plane passes through the centroid of all 6 points
+- **AND** the plane passes through the centroid of all 6 points (including any duplicates, which still contribute to the centroid sum)
+
+#### Scenario: Duplicate 2D projections skipped in tracker
+
+- **WHEN** a perturbed point's 2D projection is within `CLIP_EPSILON` of the previous accepted point or the first accepted point
+- **THEN** that point is NOT fed to `update_plane_tracker`
+- **AND** the point still contributes to the centroid sum
+- **AND** the tracker's `current_point_id` reflects the count of accepted points, not the loop index
 
 #### Scenario: Points are nearly coplanar
 
@@ -179,9 +196,17 @@ This method is O(N) and naturally integrates into the perturbation point collect
 
 #### Scenario: All points collinear
 
-- **WHEN** all perturbed points are collinear (forming a line)
+- **WHEN** all perturbed points are collinear (forming a line) with at least 2 distinct positions
 - **THEN** `largest_area_sq` remains 0.0
-- **AND** the fitted plane normal falls back to the MPR contact normal
+- **AND** the 2-point fallback computes a normal from the line direction crossed with the MPR contact normal
+- **AND** the fitted plane normal is orthogonal to the collinear line and as close as possible to the MPR normal
+
+#### Scenario: Only 1 distinct point (all duplicates)
+
+- **WHEN** all perturbed points resolve to the same position (e.g., all support queries return the same vertex)
+- **THEN** `largest_area_sq` remains 0.0 and `reference_point == previous_point`
+- **AND** the 2-point fallback degenerates (direction vector is zero)
+- **AND** the fitted plane normal falls back to the MPR contact normal directly
 
 ### Requirement: Configurable contact margin uniform
 

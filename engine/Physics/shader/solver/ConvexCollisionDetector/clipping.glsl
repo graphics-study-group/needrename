@@ -215,20 +215,14 @@ ClipResult sutherland_hodgman_clip(
 }
 
 // ---------------------------------------------------------------------------
-// Rotating calipers — select 4 vertices with maximum quadrilateral area.
+// Rotating calipers — select 4 vertices forming the approximate
+// maximum-area quadrilateral from a convex CCW polygon in O(N) time.
 //
-// For a small polygon (at most MAX_CLIP_VERTS vertices), we brute-force all
-// C(N,4) combinations to find the maximum-area quadrilateral.  This is O(N^4)
-// but perfectly adequate for N <= 16 (C(16,4) = 1820 combinations).
+// Phase 1: Walk antipodal pairs to find the hull's diameter (p1, p3).
+// Phase 2: Single-pass scan to find extreme points on both sides (p2, p4).
+//
+// Uses relative tie-breaking to handle near-circular geometry deterministically.
 // ---------------------------------------------------------------------------
-
-float quad_area(vec2 a, vec2 b, vec2 c, vec2 d) {
-    // Shoelace formula for quadrilateral a→b→c→d (assumed convex, CCW order).
-    return 0.5 * abs(
-        a.x * b.y + b.x * c.y + c.x * d.y + d.x * a.y -
-        a.y * b.x - b.y * c.x - c.y * d.x - d.y * a.x
-    );
-}
 
 uint rotating_calipers_reduce(
     vec2 vertices[MAX_CLIP_VERTS],
@@ -242,32 +236,103 @@ uint rotating_calipers_reduce(
         return vertex_count;
     }
 
-    float best_area = -1.0;
-    uint best_i = 0u, best_j = 1u, best_k = 2u, best_l = 3u;
+    // Relative epsilon for tie-breaking: only update if new value is at least
+    // (1 + epsilon) times better.  Scale-invariant — avoids catastrophic
+    // cancellation in floating-point comparisons.  Important for circular or
+    // symmetric geometry to ensure deterministic point selection.
+    const float tie_epsilon_rel = 1.0e-3;
 
-    // Brute-force search over all 4-vertex subsets.
-    // The polygon is convex and the vertices are in CCW order, so any subset
-    // in order forms a convex quadrilateral.
+    // ---- Phase 1: Find the hull's diameter using Rotating Calipers in O(N) ----
+    //
+    // Walk antipodal pairs around the hull.  For each edge (i, i+1), advance
+    // the antipodal pointer j while the next vertex j+1 is further from the edge.
+    // Both (i, j) and (i+1, j) are antipodal pairs — track the one with maximum
+    // squared distance.
+
+    uint p1 = 0u;
+    uint p3 = 1u;
+    vec2 d_init = vertices[0u] - vertices[1u];
+    float max_dist_sq = d_init.x * d_init.x + d_init.y * d_init.y;
+
+    uint j = 1u; // antipodal pointer, starts opposite i=0
     for (uint i = 0u; i < vertex_count; i++) {
-        for (uint j = i + 1u; j < vertex_count; j++) {
-            for (uint k = j + 1u; k < vertex_count; k++) {
-                for (uint l = k + 1u; l < vertex_count; l++) {
-                    float area = quad_area(
-                        vertices[i], vertices[j], vertices[k], vertices[l]
-                    );
-                    if (area > best_area) {
-                        best_area = area;
-                        best_i = i; best_j = j; best_k = k; best_l = l;
-                    }
-                }
+        uint i_next = (i + 1u) % vertex_count;
+        vec2 hull_i = vertices[i];
+        vec2 hull_i_next = vertices[i_next];
+
+        // Advance j while the area of triangle (i, i+1, j+1) exceeds
+        // that of (i, i+1, j).  This finds the vertex furthest from edge (i, i+1).
+        // Use a counted loop (max N iterations total across all i) to avoid
+        // unbounded while-loop concerns on GPU compilers.
+        for (uint step = 0u; step < vertex_count; step++) {
+            uint j_next = (j + 1u) % vertex_count;
+            float area_j      = signed_area_2d(hull_i, hull_i_next, vertices[j]);
+            float area_j_next = signed_area_2d(hull_i, hull_i_next, vertices[j_next]);
+
+            if (area_j_next > area_j) {
+                j = j_next;
+            } else {
+                break;
+            }
+        }
+
+        // Check antipodal pair (i, j).
+        {
+            vec2 hi = vertices[i];
+            vec2 hj = vertices[j];
+            vec2 d = hi - hj;
+            float dist_sq = d.x * d.x + d.y * d.y;
+            if (dist_sq > max_dist_sq * (1.0 + tie_epsilon_rel)) {
+                max_dist_sq = dist_sq;
+                p1 = i;
+                p3 = j;
+            }
+        }
+
+        // Check antipodal pair (i+1, j).
+        {
+            vec2 hi_next = vertices[i_next];
+            vec2 hj = vertices[j];
+            vec2 d = hi_next - hj;
+            float dist_sq = d.x * d.x + d.y * d.y;
+            if (dist_sq > max_dist_sq * (1.0 + tie_epsilon_rel)) {
+                max_dist_sq = dist_sq;
+                p1 = i_next;
+                p3 = j;
             }
         }
     }
 
-    result_verts[0] = vertices[best_i];
-    result_verts[1] = vertices[best_j];
-    result_verts[2] = vertices[best_k];
-    result_verts[3] = vertices[best_l];
+    // ---- Phase 2: Find points p2 and p4 furthest from the diameter (p1, p3) ----
+    //
+    // Single O(N) scan using signed area to determine which side of the
+    // diameter line each vertex falls on.
+
+    uint p2 = 0u;
+    uint p4 = 0u;
+    float max_area_1 = 0.0;
+    float max_area_2 = 0.0;
+
+    vec2 hull_p1 = vertices[p1];
+    vec2 hull_p3 = vertices[p3];
+
+    for (uint i = 0u; i < vertex_count; i++) {
+        float area = signed_area_2d(hull_p1, hull_p3, vertices[i]);
+
+        // Use relative tie-breaking: only update if new area is meaningfully larger.
+        if (area > max_area_1 * (1.0 + tie_epsilon_rel)) {
+            max_area_1 = area;
+            p2 = i;
+        } else if (-area > max_area_2 * (1.0 + tie_epsilon_rel)) {
+            max_area_2 = -area;
+            p4 = i;
+        }
+    }
+
+    result_verts[0] = vertices[p1];
+    result_verts[1] = vertices[p2];
+    result_verts[2] = vertices[p3];
+    result_verts[3] = vertices[p4];
 
     return 4u;
 }
