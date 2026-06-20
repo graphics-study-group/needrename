@@ -49,7 +49,7 @@ namespace Engine {
         RenderSystem &render_system;
 
         bool initialized = false;
-        XpbdConfig config;
+        XpbdConfig config{};
 
         // Cached counts for lazy reallocation.
         uint32_t cached_body_count = 0;
@@ -57,72 +57,72 @@ namespace Engine {
         uint32_t cached_shape_count = 0;
 
         // ---- Owned collision detector ----
-        std::unique_ptr<ConvexCollisionDetector> collision_detector;
+        std::unique_ptr<ConvexCollisionDetector> collision_detector{};
 
         // ---- Compute stages (one per shader) ----
 
-        std::unique_ptr<ComputeStage> clear_int_stage;
-        std::vector<uint32_t> clear_int_spirv;
+        std::unique_ptr<ComputeStage> clear_int_stage{};
+        std::vector<uint32_t> clear_int_spirv{};
 
-        std::unique_ptr<ComputeStage> snapshot_stage;
-        std::vector<uint32_t> snapshot_spirv;
+        std::unique_ptr<ComputeStage> snapshot_stage{};
+        std::vector<uint32_t> snapshot_spirv{};
 
-        std::unique_ptr<ComputeStage> update_shape_world_pose_stage;
-        std::vector<uint32_t> update_shape_world_pose_spirv;
+        std::unique_ptr<ComputeStage> update_shape_world_pose_stage{};
+        std::vector<uint32_t> update_shape_world_pose_spirv{};
 
-        std::unique_ptr<ComputeStage> integrate_stage;
-        std::vector<uint32_t> integrate_spirv;
+        std::unique_ptr<ComputeStage> integrate_stage{};
+        std::vector<uint32_t> integrate_spirv{};
 
-        std::unique_ptr<ComputeStage> accum_pos_stage;
-        std::vector<uint32_t> accum_pos_spirv;
+        std::unique_ptr<ComputeStage> accum_pos_stage{};
+        std::vector<uint32_t> accum_pos_spirv{};
 
-        std::unique_ptr<ComputeStage> apply_pos_stage;
-        std::vector<uint32_t> apply_pos_spirv;
+        std::unique_ptr<ComputeStage> apply_pos_stage{};
+        std::vector<uint32_t> apply_pos_spirv{};
 
-        std::unique_ptr<ComputeStage> update_vel_stage;
-        std::vector<uint32_t> update_vel_spirv;
+        std::unique_ptr<ComputeStage> update_vel_stage{};
+        std::vector<uint32_t> update_vel_spirv{};
 
-        std::unique_ptr<ComputeStage> accum_vel_stage;
-        std::vector<uint32_t> accum_vel_spirv;
+        std::unique_ptr<ComputeStage> accum_vel_stage{};
+        std::vector<uint32_t> accum_vel_spirv{};
 
-        std::unique_ptr<ComputeStage> apply_vel_stage;
-        std::vector<uint32_t> apply_vel_spirv;
+        std::unique_ptr<ComputeStage> apply_vel_stage{};
+        std::vector<uint32_t> apply_vel_spirv{};
 
         // ---- Model matrix (unchanged) ----
-        std::unique_ptr<ComputeStage> model_matrix_stage;
-        std::vector<uint32_t> model_matrix_spirv;
+        std::unique_ptr<ComputeStage> model_matrix_stage{};
+        std::vector<uint32_t> model_matrix_spirv{};
 
         // ---- Intermediate GPU buffers (owned) ----
 
         // Snapshots (per-body, vec4).
-        std::unique_ptr<ComputeBuffer> gpu_pre_gravity_position;
-        std::unique_ptr<ComputeBuffer> gpu_pre_gravity_orientation;
-        std::unique_ptr<ComputeBuffer> gpu_pre_contact_linear_vel;
-        std::unique_ptr<ComputeBuffer> gpu_pre_contact_angular_vel;
-        std::unique_ptr<ComputeBuffer> gpu_substep_start_position;
-        std::unique_ptr<ComputeBuffer> gpu_substep_start_orientation;
+        std::unique_ptr<ComputeBuffer> gpu_pre_gravity_position{};
+        std::unique_ptr<ComputeBuffer> gpu_pre_gravity_orientation{};
+        std::unique_ptr<ComputeBuffer> gpu_pre_contact_linear_vel{};
+        std::unique_ptr<ComputeBuffer> gpu_pre_contact_angular_vel{};
+        std::unique_ptr<ComputeBuffer> gpu_substep_start_position{};
+        std::unique_ptr<ComputeBuffer> gpu_substep_start_orientation{};
 
         // Jacobi delta accumulators (per-body, 3 ints each for float atomic-add).
-        std::unique_ptr<ComputeBuffer> gpu_linear_position_delta;
-        std::unique_ptr<ComputeBuffer> gpu_angular_position_delta;
-        std::unique_ptr<ComputeBuffer> gpu_position_delta_count;
+        std::unique_ptr<ComputeBuffer> gpu_linear_position_delta{};
+        std::unique_ptr<ComputeBuffer> gpu_angular_position_delta{};
+        std::unique_ptr<ComputeBuffer> gpu_position_delta_count{};
 
-        std::unique_ptr<ComputeBuffer> gpu_linear_velocity_delta;
-        std::unique_ptr<ComputeBuffer> gpu_angular_velocity_delta;
-        std::unique_ptr<ComputeBuffer> gpu_velocity_delta_count;
+        std::unique_ptr<ComputeBuffer> gpu_linear_velocity_delta{};
+        std::unique_ptr<ComputeBuffer> gpu_angular_velocity_delta{};
+        std::unique_ptr<ComputeBuffer> gpu_velocity_delta_count{};
 
         // Lagrange multipliers (per-contact, float as int).
-        std::unique_ptr<ComputeBuffer> gpu_contact_lagrange;
+        std::unique_ptr<ComputeBuffer> gpu_contact_lagrange{};
 
         // Zero-filled buffer for lagrange memset (size = bytes).
-        std::unique_ptr<ComputeBuffer> gpu_zero_buffer;
+        std::unique_ptr<ComputeBuffer> gpu_zero_buffer{};
 
         // Uniform SSBO: vec4(gravity.xyz, dt). Host-visible, written once.
-        std::unique_ptr<ComputeBuffer> gpu_uniforms;
+        std::unique_ptr<ComputeBuffer> gpu_uniforms{};
 
         // Element-count buffers (single uint each, host-visible).
-        std::unique_ptr<ComputeBuffer> gpu_body_count_buffer;
-        std::unique_ptr<ComputeBuffer> gpu_contact_count_buffer;
+        std::unique_ptr<ComputeBuffer> gpu_body_count_buffer{};
+        std::unique_ptr<ComputeBuffer> gpu_contact_count_buffer{};
 
         explicit Impl(RenderSystem &rs) : render_system(rs) {
         }
