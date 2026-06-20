@@ -80,7 +80,13 @@ namespace Engine {
         std::unique_ptr<ComputeBuffer> gpu_contact_point_b{};
         std::unique_ptr<ComputeBuffer> gpu_collision_count{};
 
-        explicit Impl(RenderSystem &rs, uint32_t max_pairs) : render_system(rs), max_collision_pairs(max_pairs) {
+        // Detector config uniform buffer (binding 12): single float contact_margin.
+        std::unique_ptr<ComputeBuffer> gpu_detector_config{};
+
+        float contact_margin = 0.001f;
+
+        explicit Impl(RenderSystem &rs, uint32_t max_pairs, float margin)
+            : render_system(rs), max_collision_pairs(max_pairs), contact_margin(margin) {
         }
 
         Impl(const Impl &) = delete;
@@ -152,6 +158,15 @@ namespace Engine {
                         ComputeBuffer::CreateUnique(allocator, byte_size, false, false, false, false, "CollisionCount");
                 }
             }
+            // Detector config uniform buffer: single float contact_margin.
+            // Host-visible so we can update it each frame.
+            {
+                const size_t byte_size = sizeof(float);
+                if (!gpu_detector_config || gpu_detector_config->GetSize() != byte_size) {
+                    gpu_detector_config =
+                        ComputeBuffer::CreateUnique(allocator, byte_size, true, false, false, false, "DetectorConfig");
+                }
+            }
         }
 
         /**
@@ -183,14 +198,21 @@ namespace Engine {
             auto *addr = reinterpret_cast<uint32_t *>(gpu_shape_slot_count->GetVMAddress());
             *addr = count;
         }
+
+        void UpdateDetectorConfig() {
+            auto *addr = reinterpret_cast<float *>(gpu_detector_config->GetVMAddress());
+            *addr = contact_margin;
+        }
     };
 
     // -----------------------------------------------------------------------
     // Public API
     // -----------------------------------------------------------------------
 
-    ConvexCollisionDetector::ConvexCollisionDetector(RenderSystem &render_system, uint32_t max_collision_pairs) :
-        m_impl(std::make_unique<Impl>(render_system, max_collision_pairs)) {
+    ConvexCollisionDetector::ConvexCollisionDetector(
+        RenderSystem &render_system, uint32_t max_collision_pairs, float contact_margin
+    ) :
+        m_impl(std::make_unique<Impl>(render_system, max_collision_pairs, contact_margin)) {
     }
 
     ConvexCollisionDetector::~ConvexCollisionDetector() = default;
@@ -232,8 +254,9 @@ namespace Engine {
         // --- Lazy initialization (first call only) ---
         m_impl->EnsureInitialized();
 
-        // Upload shape slot count to GPU.
+        // Upload shape slot count and detector config to GPU.
         m_impl->UpdateShapeSlotCount(shape_count);
+        m_impl->UpdateDetectorConfig();
 
         // ---- Bind resources for pair-generation shader ----
         auto &pair_srb = m_impl->pair_gen_resource_binding->GetShaderResourceBinding();
@@ -257,6 +280,7 @@ namespace Engine {
         detect_srb.BindBuffer("ContactPointB", *m_impl->gpu_contact_point_b);
         detect_srb.BindBuffer("CollisionCount", *m_impl->gpu_collision_count);
         detect_srb.BindBuffer("ShapeSlotCount", *m_impl->gpu_shape_slot_count);
+        detect_srb.BindBuffer("DetectorConfig", *m_impl->gpu_detector_config);
 
         // ---- Import external resources into the render graph ----
 
@@ -285,6 +309,8 @@ namespace Engine {
             builder.ImportExternalResource(*m_impl->gpu_contact_point_b, {MemoryAccessTypeBufferBits::None});
         auto collision_count_handle =
             builder.ImportExternalResource(*m_impl->gpu_collision_count, {MemoryAccessTypeBufferBits::None});
+        auto detector_config_handle =
+            builder.ImportExternalResource(*m_impl->gpu_detector_config, {MemoryAccessTypeBufferBits::None});
 
         // Capture pointers for the pass functions.  The detector owns the
         // ComputeStage instances, so these pointers outlive the lambdas.
@@ -342,6 +368,8 @@ namespace Engine {
                 )
                 // Slot count (readonly).
                 .UseBuffer(slot_count_handle, {MemoryAccessTypeBufferBits::ShaderRandomRead})
+                // Detector config (readonly uniform).
+                .UseBuffer(detector_config_handle, {MemoryAccessTypeBufferBits::ShaderRandomRead})
                 .SetPassFunction(
                     [detect_stage, detect_binding, detect_workgroups, &physics_scene](CommandBuffer &cb, const RenderGraph &) -> void {
                         if (!physics_scene.IsSimulationEnabled()) return;

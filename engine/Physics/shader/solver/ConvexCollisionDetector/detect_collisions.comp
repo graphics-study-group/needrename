@@ -66,6 +66,12 @@ layout(set = 0, binding = 11) readonly buffer ShapeSlotCount {
     uint count;
 } shape_slot_count;
 
+// ---- Detector config uniform (binding 12) ----
+
+layout(set = 0, binding = 12) uniform DetectorConfig {
+    float contact_margin;
+} detector_config;
+
 // ---- Shared GLSL headers ----
 
 #include "support.glsl"
@@ -117,25 +123,31 @@ void main() {
         shape_a, shape_b,
         base_result.contact_normal,
         midpoint,
-        base_result.penetration
+        base_result.penetration,
+        detector_config.contact_margin,
+        base_result.contact_point_a,
+        base_result.contact_point_b
     );
 
     // Collect output points — each point becomes a separate result entry.
     uint num_points;
     vec3 pts_a[4];
     vec3 pts_b[4];
+    float depths[4];
 
     if (pert.point_count > 0u) {
         num_points = pert.point_count;
         for (uint pi = 0u; pi < pert.point_count; pi++) {
             pts_a[pi] = pert.contact_points_a[pi];
             pts_b[pi] = pert.contact_points_b[pi];
+            depths[pi] = pert.penetrations[pi];
         }
     } else {
         // Fall back to MPR single contact point.
         num_points = 1u;
         pts_a[0] = base_result.contact_point_a;
         pts_b[0] = base_result.contact_point_b;
+        depths[0] = base_result.penetration;
     }
 
     // Write each manifold point as a separate result entry.
@@ -149,7 +161,7 @@ void main() {
         }
 
         collision_ids.v[write_idx]     = uvec2(shape_a, shape_b);
-        collision_normals.v[write_idx] = vec4(base_result.contact_normal, base_result.penetration);
+        collision_normals.v[write_idx] = vec4(base_result.contact_normal, depths[pi]);
         contact_point_a.v[write_idx]   = vec4(pts_a[pi], 0.0);
         contact_point_b.v[write_idx]   = vec4(pts_b[pi], 0.0);
     }

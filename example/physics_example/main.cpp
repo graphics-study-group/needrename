@@ -91,11 +91,19 @@ int main(int /*argc*/, char ** /*argv*/) {
     // ---- Falling boxes (dynamic, stacked at various Z heights) ----
     // Red box — drops from center.
     builder.AddBox({
-        .position = {0.0f, 0.0f, 5.0f},
-        .rotation = glm::angleAxis(glm::radians(30.0f), glm::normalize(glm::vec3(0.0f, 1.0f, 0.0f))),
+        .position = {0.0f, 0.0f, 0.51f},
+        .rotation = glm::angleAxis(glm::radians(0.0f), glm::normalize(glm::vec3(0.0f, 1.0f, 0.0f))),
         .half_extents = {0.5f, 0.5f, 0.5f},
         .mass = 1.0f,
         .material = red_mat,
+    });
+
+    builder.AddBox({
+        .position = {0.4f, 0.0f, 1.52f},
+        .rotation = glm::angleAxis(glm::radians(0.0f), glm::normalize(glm::vec3(0.0f, 1.0f, 0.0f))),
+        .half_extents = {0.5f, 0.5f, 0.5f},
+        .mass = 1.0f,
+        .material = green_mat,
     });
 
     // Green box — offset in X, higher up.
@@ -146,6 +154,21 @@ int main(int /*argc*/, char ** /*argv*/) {
         .mass = 1.5f,
         .material = orange_mat,
     });
+
+    // rigid bricks
+    int n = 5;
+    glm::vec3 brick_size(0.2f, 0.4f, 0.2f);
+    for (int i = 0; i < n; ++i)
+    {
+        glm::vec3 start_pos(4.0f, -0.5f * brick_size.y * n, brick_size.z * (i + 0.5f));
+        for (int j = 0; j < n - i; ++j)
+            builder.AddBox({
+                .position = start_pos + glm::vec3(0.0f, brick_size.y * (j + 0.5f * i), 0.0f),
+                .half_extents = brick_size * 0.5f,
+                .mass = 1.0f,
+                .material = blue_mat,
+            });
+    }
 
     // --- Camera setup ---
     // Z is up, camera is positioned to the side looking at the falling zone.

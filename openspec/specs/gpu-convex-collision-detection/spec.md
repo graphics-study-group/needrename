@@ -1,0 +1,259 @@
+# gpu-convex-collision-detection
+
+## Purpose
+
+Govern GPU convex collision detection using the Minkowski Portal Refinement (MPR) algorithm. Covers the collision detection compute pipeline, pair generation, MPR detection, perturbation-based contact manifold generation (with plane fitting, per-point depth, and fallback mechanisms), GPU buffer ownership, and contact margin configuration.
+
+## Requirements
+
+### Requirement: ConvexCollisionDetector owns GPU collision detection pipeline
+
+The `ConvexCollisionDetector` class SHALL own a compute shader pipeline for GPU convex collision detection, following the same pattern as `XPBDGpuSolver`: lazy SPIR-V loading on first call, `ComputeStage` ownership, `ComputeResourceBinding` management, and render-graph integration via a `Step()` method that populates a `RenderGraphBuilder`.
+
+The constructor SHALL accept a `RenderSystem&`, a `max_collision_pairs` count, and a `contact_margin` value (default 0.001). No GPU resources SHALL be allocated until the first call to `Step()`.
+
+#### Scenario: Lazy initialization on first Step
+- **WHEN** `ConvexCollisionDetector::Step()` is called for the first time on a valid `PhysicsScene`
+- **THEN** the detector loads the precompiled collision detection SPIR-V from `<ENGINE_PHYSICS_SPIRV_DIR>/solver/ConvexCollisionDetector/detect_collisions.comp.spv`
+- **AND** creates a `ComputeStage` and `ComputeResourceBinding`
+- **AND** subsequent calls to `Step()` reuse the same pipeline without reloading
+
+#### Scenario: Missing SPIR-V produces error
+- **WHEN** the collision detection SPIR-V file does not exist at runtime
+- **AND** `Step()` is called
+- **THEN** a `std::runtime_error` is thrown with the absolute path in the error message
+
+#### Scenario: Step() integrates with render graph
+- **WHEN** `Step(builder, physics_scene)` is called
+- **THEN** it imports required PhysicsScene GPU buffers as external resources
+- **AND** adds a compute pass to the render graph builder with the collision detection shader
+- **AND** the pass dispatches `(num_pairs + local_size - 1) / local_size` workgroups
+
+### Requirement: Collision pair input buffer
+
+`ConvexCollisionDetector` SHALL own a GPU buffer of `uvec2` values storing collision pairs to test, where each pair `(index_a, index_b)` identifies two shape indices. This buffer SHALL be populated by the detector's own pair-generation compute shader (`generate_pairs.comp`) each frame, not uploaded from CPU.
+
+The buffer SHALL be sized to `max_collision_pairs` elements, matching the all-pairs count `shape_slot_count * (shape_slot_count - 1) / 2`.
+
+#### Scenario: Collision pairs are read from GPU buffer
+- **WHEN** the collision detection shader executes
+- **THEN** each invocation reads one `uvec2` from the collision pair input buffer at `gl_GlobalInvocationID.x`
+- **AND** uses the two shape indices to look up shape data from PhysicsScene buffers
+
+#### Scenario: Pair buffer is a render-graph resource
+- **WHEN** `Step()` populates the render graph
+- **THEN** the pair buffer is written by the pair-generation compute pass and read by the collision detection pass
+- **AND** the render graph manages the barrier transition automatically
+
+### Requirement: GPU-side all-pairs collision pair generation
+
+The `ConvexCollisionDetector` SHALL own a dedicated pair-generation compute shader (`generate_pairs.comp`) that produces the collision pair input buffer entirely on GPU. The shader SHALL dispatch `max_pairs` threads (where `max_pairs = shape_slot_count * (shape_slot_count - 1) / 2`), and each thread SHALL compute its unique upper-triangle pair `(i, j)` with `i < j` from its global invocation ID and write it to a `uvec2` SSBO.
+
+The generated pairs SHALL enumerate shape indices (not rigid body indices), spanning all slots 0..shape_slot_count-1 regardless of alive status. The collision detection shader is responsible for checking `shape_alive` on both shapes and skipping dead pairs.
+
+The pair-generation pass SHALL run before the collision detection pass within the same `Step()` call, with the pair buffer declared as a render-graph resource (write in generation pass, read in detection pass) so barriers are automatic.
+
+#### Scenario: Three shapes produce three pairs on GPU
+- **WHEN** a PhysicsScene has `shape_slot_count = 3`
+- **THEN** the pair-generation shader dispatches 3 threads
+- **AND** thread 0 writes pair (0, 1), thread 1 writes pair (0, 2), thread 2 writes pair (1, 2)
+- **AND** no pair has `index_a >= index_b`
+
+#### Scenario: GPU pair buffer used directly by collision detection
+- **WHEN** the collision detection pass executes after pair generation
+- **THEN** the collision shader reads `uvec2` pairs from the GPU buffer written by `generate_pairs.comp`
+- **AND** no CPU staging buffer or upload step is involved
+
+#### Scenario: Dead shapes handled by collision shader
+- **WHEN** the pair-generation shader produces a pair containing a dead shape
+- **THEN** the collision detection shader checks `shape_alive` for both indices and skips the pair
+- **AND** no result is written to the output buffers for that pair
+
+#### Scenario: Pair-generation SPIR-V loaded lazily
+- **WHEN** `ConvexCollisionDetector` initializes on first `Step()`
+- **THEN** it loads BOTH `generate_pairs.comp.spv` AND `detect_collisions.comp.spv` from disk
+- **AND** creates separate `ComputeStage` instances for each
+
+### Requirement: Collision result GPU buffers
+
+`ConvexCollisionDetector` SHALL own and expose GPU output buffers for collision results. Each manifold contact point is a separate result entry, so all buffers are sized to `max_collision_pairs * 4` (up to 4 points per collision pair):
+
+- `collision_ids`: `uvec2` buffer storing `(shape_index_a, shape_index_b)` for each contact point
+- `collision_normals`: `vec4` buffer storing the contact normal in world space (w = independently computed penetration depth per point)
+- `contact_point_a`: `vec4` buffer storing the contact point on shape A in world space
+- `contact_point_b`: `vec4` buffer storing the contact point on shape B in world space
+- `collision_count`: single `uint` buffer, atomically incremented to reserve slots
+
+All buffers SHALL be separate SSBOs (SoA layout) for cache-friendly access.
+
+#### Scenario: Collision count starts at zero
+- **WHEN** a collision detection pass begins
+- **THEN** the `collision_count` buffer is reset to 0 before dispatch
+
+#### Scenario: Results written per manifold point
+- **WHEN** a compute thread detects a collision and produces N manifold points (1-4)
+- **THEN** it atomically adds N to `collision_count` to reserve N contiguous slots
+- **AND** writes each point as a separate entry with its own contact positions and independently computed penetration depth
+- **AND** if any slot exceeds the buffer capacity, the write is skipped
+
+### Requirement: Support function interface for convex shapes
+
+The collision detection compute shader SHALL define a GLSL function `vec3 support(uint shape_index, vec3 direction)` that returns the world-space support point (farthest point in the given direction) for the shape identified by `shape_index`.
+
+The box support function SHALL transform the direction to local space using the shape's world rotation (inverse rotate), compute `sign(dot) * half_extents` per axis, then transform the result back to world space and add the world position.
+
+#### Scenario: Box support returns correct farthest point
+- **WHEN** `support(box_index, vec3(1,0,0))` is called for a box at world origin with half_extents (2, 1, 0.5) and identity rotation
+- **THEN** the returned point is `(2, 0, 0)` (the right face center)
+
+#### Scenario: Box support with rotation
+- **WHEN** `support(box_index, direction)` is called for a rotated box
+- **THEN** the direction is inversely rotated to box local space
+- **AND** the support point is computed in local space
+- **AND** the result is rotated back to world space and translated by world position
+
+### Requirement: MPR collision detection algorithm
+
+The collision detection compute shader SHALL implement the Minkowski Portal Refinement (MPR) algorithm that:
+1. Discovers a tetrahedron (interior point V0 + portal triangle V1/V2/V3 on the CSO surface)
+2. Validates that the origin ray from V0 intersects the portal triangle (wedge test)
+3. Expands the portal outward via support queries until it converges to a CSO face
+4. Determines penetration depth, contact normal, and contact points via barycentric projection of the origin onto the portal plane
+
+The algorithm SHALL use only `support()` queries and SHALL terminate within a maximum of 32 iterations.
+
+#### Scenario: Two overlapping boxes detected
+- **WHEN** two boxes overlap in world space
+- **THEN** the MPR algorithm detects penetration
+- **AND** returns a contact normal pointing from B toward A (separating direction)
+- **AND** penetration depth > 0
+
+#### Scenario: Two separated boxes produce no collision
+- **WHEN** two boxes are separated in world space
+- **THEN** the MPR algorithm reports no collision (no overlap)
+- **AND** no result is written to the output buffers
+
+#### Scenario: Touching boxes handled
+- **WHEN** two boxes are exactly touching (zero penetration depth)
+- **THEN** the collision is either detected with zero depth or skipped as degenerate
+
+### Requirement: Perturbation-based contact manifold
+
+After MPR finds the base contact normal and point, the shader SHALL expand the contact into a manifold:
+
+1. Compute two orthogonal axes `u, v` perpendicular to the contact normal
+2. Generate 6 perturbed directions: for each 60° step around the normal, create a direction tilted 2° from the contact plane using `cos(angle)*sin(2°)*u + sin(angle)*sin(2°)*v + cos(2°)*normal`
+3. For each perturbed direction, query `support()` on both shapes, collect the world-space points
+4. Fit a contact plane for each shape independently using the incremental largest-triangle method from the collected world-space perturbed points (see `collision-plane-fitting` spec)
+5. Project each shape's world-space perturbed points onto the 2D contact plane (u, v axes from the MPR normal), dropping the normal component
+6. Apply Sutherland-Hodgman clipping: clip the projected polygon of shape A by the edges of the projected polygon of shape B
+7. If the clipped polygon has > 4 vertices, apply Rotating Calipers to select the 4 vertices forming the maximum-area quadrilateral
+8. For each selected 2D vertex, un-project to 3D by ray-casting from the MPR contact plane along the MPR normal onto the fitted plane for that shape, producing independent contact points on shapes A and B
+9. Compute per-point penetration depth as `-dot(contact_point_b - contact_point_a, contact_normal)` for each pair (contact_normal points B→A, so the dot product is negative when shapes overlap); discard any point where depth <= -contact_margin (where contact_margin is a configurable uniform), and report `max(depth, 0.0f)` as the penetration for valid points
+10. If the dot product of shape A's fitted plane normal and shape B's fitted plane normal is less than `cos(0.1°)`, add the MPR deepest point to the manifold
+11. If the final manifold would exceed 4 points, reduce using rotating calipers on the 2D projected positions
+12. If no valid contact points remain after validation (step 9) or clipping (step 6), return `point_count == 0` to indicate the MPR fallback should be used
+
+Each valid contact point SHALL produce a separate result entry in the output buffers, with its own `contact_point_a`, `contact_point_b`, and independently computed penetration depth. Up to 4 entries per collision pair SHALL be written.
+
+#### Scenario: Face-to-face contact with tilted surface produces correct contact points
+
+- **WHEN** two boxes rest face-to-face with a slight tilt (< 2°)
+- **THEN** the fitted plane for each shape captures the actual surface orientation
+- **AND** contact points are projected to the fitted planes (not the theoretical MPR plane)
+- **AND** each contact point has its own independently computed depth
+- **AND** up to 4 contact points are produced
+
+#### Scenario: Edge-to-edge contact produces fewer points
+
+- **WHEN** two boxes contact along edges
+- **THEN** the manifold may produce 1-2 contact points
+- **AND** the points are valid world-space positions on both shapes' fitted planes
+
+#### Scenario: Non-parallel contacts trigger MPR fallback point
+
+- **WHEN** shape A and shape B fitted plane normals differ by more than 0.1°
+- **THEN** the MPR deepest point is added to the manifold alongside valid perturbation points
+- **AND** if the total would exceed 4, rotating calipers selects the best 4
+
+#### Scenario: Empty manifold falls back to MPR
+
+- **WHEN** perturbation produces zero valid contact points (clipping failure or all points failed penetration check)
+- **THEN** `perturb_manifold()` returns `point_count == 0`
+- **AND** the caller uses the MPR single contact point as the collision result
+
+### Requirement: Compute shader parallelism
+
+The collision detection compute shader SHALL process each collision pair independently in parallel. Each workgroup invocation SHALL read one collision pair, perform MPR detection + manifold generation, and write results using atomic indexing.
+
+The workgroup size SHALL be configurable within the shader and default to 64.
+
+#### Scenario: Independent pair processing
+- **WHEN** the collision detection shader dispatches with N workgroups
+- **THEN** each workgroup processes one unique collision pair
+- **AND** no inter-workgroup synchronization is required
+
+### Requirement: Physics example integration
+
+The `physics_example` SHALL include collision detection setup that:
+1. Creates a `ConvexCollisionDetector` with `max_collision_pairs` matching the scene's all-pairs count (N*(N-1)/2)
+2. Adds collision detection compute passes to the render graph via `ConvexCollisionDetector::Step()`, which internally handles GPU-side pair generation followed by collision detection
+3. Runs the XPBD solver after collision detection to maintain the model matrix update pass (needed for rendering); the XPBD `step.comp` body (position modification and debug output) SHALL be commented out as a no-op placeholder
+
+#### Scenario: Collision detection runs in example
+- **WHEN** the physics example runs with collision detection enabled
+- **THEN** the collision detection compute shader dispatches for each frame
+- **AND** `debugPrintfEXT` outputs collision detection results to the Vulkan debug callback
+
+#### Scenario: XPBD solver runs as no-op placeholder
+- **WHEN** inspecting the physics example render graph builder
+- **THEN** the XPBD Step and XPBD Model Matrix Update passes are present and dispatch
+- **AND** the XPBD `step.comp` shader body is commented out (no position modification)
+- **AND** the Model Matrix Update pass still runs, keeping model matrices valid for rendering
+
+### Requirement: Debug output from collision shader
+
+The collision detection compute shader SHALL use `debugPrintfEXT` to output detection results when the Vulkan debug extension is available. Each detected collision SHALL produce a debug message containing the shape indices, penetration depth, and contact normal.
+
+#### Scenario: Collision debug output
+- **WHEN** a collision is detected between shapes (i, j) with depth d and normal n
+- **THEN** a `debugPrintfEXT` message is emitted containing i, j, d, and n
+- **AND** the message appears in the Vulkan validation layer output
+
+### Requirement: ConvexCollisionDetector accepts contact margin configuration
+
+The `ConvexCollisionDetector` constructor SHALL accept a `float contact_margin` parameter in addition to the existing `RenderSystem &` and `uint32_t max_collision_pairs`. The margin value SHALL be stored and later uploaded to the GPU as a uniform buffer for use in per-point penetration validation.
+
+#### Scenario: Detector constructed with contact margin
+
+- **WHEN** `ConvexCollisionDetector` is constructed with `contact_margin = 0.005`
+- **THEN** the margin is stored in the detector's Impl
+- **AND** a GPU uniform buffer is allocated/updated with the value 0.005 before shader dispatch
+
+#### Scenario: Zero contact margin is valid
+
+- **WHEN** `contact_margin` is set to 0.0
+- **THEN** only points with positive raw penetration (strict overlap) are retained
+- **AND** speculative contacts are disabled
+
+### Requirement: Detector config GPU uniform buffer
+
+The `ConvexCollisionDetector` SHALL own a GPU uniform buffer at shader binding 12 containing the `contact_margin` value. The buffer SHALL be a single `float` (4 bytes) and SHALL be updated whenever the margin changes.
+
+The `detect_collisions.comp` shader SHALL declare this buffer as:
+```glsl
+layout(set = 0, binding = 12) uniform DetectorConfig {
+    float contact_margin;
+} detector_config;
+```
+
+#### Scenario: Uniform buffer created on initialization
+
+- **WHEN** `ConvexCollisionDetector::Step()` is called for the first time
+- **THEN** a 4-byte uniform buffer is created for `contact_margin` at binding 12
+- **AND** the buffer is bound as a read-only uniform resource in the collision detection compute pass
+
+#### Scenario: Margin updated in buffer before each dispatch
+
+- **WHEN** the collision detection compute pass dispatches
+- **THEN** the `contact_margin` value in the GPU buffer matches the value stored in the detector's Impl

@@ -50,8 +50,15 @@ namespace Engine {
          *
          * @param render_system       Render system used for pipeline creation.
          * @param max_collision_pairs Maximum number of collision pairs to detect.
+         * @param contact_margin      Contact margin for penetration validation.
+         *                            Points with separation < margin are retained
+         *                            as speculative contacts.
          */
-        explicit ConvexCollisionDetector(RenderSystem &render_system, uint32_t max_collision_pairs);
+        explicit ConvexCollisionDetector(
+            RenderSystem &render_system,
+            uint32_t max_collision_pairs,
+            float contact_margin = 0.001f
+        );
 
         /**
          * @brief Destroy the detector and release all GPU resources.

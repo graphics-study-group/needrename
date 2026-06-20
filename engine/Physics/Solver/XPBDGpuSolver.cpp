@@ -212,7 +212,7 @@ namespace Engine {
             }
             uint32_t max_pairs = std::min((shape_count * (shape_count - 1u)) / 2u * 4u, config.max_contact_points);
             if (!collision_detector || shape_count != cached_shape_count) {
-                collision_detector = std::make_unique<ConvexCollisionDetector>(render_system, max_pairs);
+                collision_detector = std::make_unique<ConvexCollisionDetector>(render_system, max_pairs, config.contact_margin);
                 cached_shape_count = shape_count;
             }
         }
