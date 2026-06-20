@@ -116,18 +116,15 @@ namespace Engine {
             }
 
             // Result buffers — each manifold point is a separate entry,
-            // so all buffers are sized max_pairs * 4 (max 4 points per pair).
-            const size_t safe_slots = safe_pairs * 4u;
-
             {
-                const size_t byte_size = safe_slots * sizeof(glm::uvec2);
+                const size_t byte_size = safe_pairs * sizeof(glm::uvec2);
                 if (!gpu_collision_ids || gpu_collision_ids->GetSize() != byte_size) {
                     gpu_collision_ids =
                         ComputeBuffer::CreateUnique(allocator, byte_size, false, false, false, false, "CollisionIds");
                 }
             }
             {
-                const size_t byte_size = safe_slots * sizeof(glm::vec4);
+                const size_t byte_size = safe_pairs * sizeof(glm::vec4);
                 if (!gpu_collision_normals || gpu_collision_normals->GetSize() != byte_size) {
                     gpu_collision_normals = ComputeBuffer::CreateUnique(
                         allocator, byte_size, false, false, false, false, "CollisionNormals"
@@ -135,14 +132,14 @@ namespace Engine {
                 }
             }
             {
-                const size_t byte_size = safe_slots * sizeof(glm::vec4);
+                const size_t byte_size = safe_pairs * sizeof(glm::vec4);
                 if (!gpu_contact_point_a || gpu_contact_point_a->GetSize() != byte_size) {
                     gpu_contact_point_a =
                         ComputeBuffer::CreateUnique(allocator, byte_size, false, false, false, false, "ContactPointA");
                 }
             }
             {
-                const size_t byte_size = safe_slots * sizeof(glm::vec4);
+                const size_t byte_size = safe_pairs * sizeof(glm::vec4);
                 if (!gpu_contact_point_b || gpu_contact_point_b->GetSize() != byte_size) {
                     gpu_contact_point_b =
                         ComputeBuffer::CreateUnique(allocator, byte_size, false, false, false, false, "ContactPointB");

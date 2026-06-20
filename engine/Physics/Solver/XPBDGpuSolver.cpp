@@ -210,7 +210,7 @@ namespace Engine {
                 cached_shape_count = shape_count;
                 return;
             }
-            uint32_t max_pairs = (shape_count * (shape_count - 1u)) / 2u;
+            uint32_t max_pairs = std::min((shape_count * (shape_count - 1u)) / 2u * 4u, config.max_contact_points);
             if (!collision_detector || shape_count != cached_shape_count) {
                 collision_detector = std::make_unique<ConvexCollisionDetector>(render_system, max_pairs);
                 cached_shape_count = shape_count;
@@ -443,8 +443,7 @@ namespace Engine {
         // Substep loop
         // ===================================================================
         const uint32_t substep_count = std::max(1u, m_impl->config.num_substep_perstep);
-        const float frame_dt = 1.0f / 100.0f; // TODO: get actual frame dt from render system
-        const float substep_dt = frame_dt / static_cast<float>(substep_count);
+        const float substep_dt = m_impl->config.time_step / static_cast<float>(substep_count);
         const glm::vec4 gravity_dt(m_impl->config.gravity.x,
                                    m_impl->config.gravity.y,
                                    m_impl->config.gravity.z, substep_dt);
