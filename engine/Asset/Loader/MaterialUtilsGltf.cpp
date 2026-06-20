@@ -245,6 +245,7 @@ namespace Engine::detail {
             MaterialProperty(default_pbr_normal, MaterialProperty::Type::Texture);
         default_material->m_properties["emissiveSampler"] =
             MaterialProperty(default_pbr_emissive, MaterialProperty::Type::Texture);
+        default_material->m_properties["albedoFactor"] = glm::vec4{1.0f, 1.0f, 1.0f, 1.0f};
         default_material->m_properties["metalnessFactor"] = 1.0f;
         default_material->m_properties["roughnessFactor"] = 1.0f;
         default_material->m_properties["emissiveFactor"] = glm::vec4{0.0f, 0.0f, 0.0f, 1.0f};
