@@ -213,7 +213,8 @@ namespace Engine {
             // Each collision pair can produce up to 5 contact points (4 perturbation + 1 MPR fallback).
             uint32_t max_pairs = std::min((shape_count * (shape_count - 1u)) / 2u * 5u, config.max_contact_points);
             if (!collision_detector || shape_count != cached_shape_count) {
-                collision_detector = std::make_unique<ConvexCollisionDetector>(render_system, max_pairs, config.contact_margin);
+                collision_detector =
+                    std::make_unique<ConvexCollisionDetector>(render_system, max_pairs, config.contact_margin);
                 cached_shape_count = shape_count;
             }
         }
@@ -236,9 +237,7 @@ namespace Engine {
 
             update_shape_world_pose_spirv = LoadPhysicsSpirv("solver/XPBDSolver/update_shape_world_pose.comp.spv");
             update_shape_world_pose_stage = std::make_unique<ComputeStage>(render_system);
-            update_shape_world_pose_stage->Instantiate(
-                update_shape_world_pose_spirv, "XPBD Update Shape World Pose"
-            );
+            update_shape_world_pose_stage->Instantiate(update_shape_world_pose_spirv, "XPBD Update Shape World Pose");
 
             integrate_spirv = LoadPhysicsSpirv("solver/XPBDSolver/integrate_forces.comp.spv");
             integrate_stage = std::make_unique<ComputeStage>(render_system);
@@ -329,9 +328,7 @@ namespace Engine {
     }
 
     void XPBDGpuSolver::Step(
-        RenderGraphBuilder &builder,
-        PhysicsScene &physics_scene,
-        RGBufferHandle external_model_matrices_handle
+        RenderGraphBuilder &builder, PhysicsScene &physics_scene, RGBufferHandle external_model_matrices_handle
     ) {
         const auto gpu = physics_scene.GetGpuBuffers();
 
@@ -347,8 +344,7 @@ namespace Engine {
         // Compute max_contacts from shape count (up to 5 manifold points per pair:
         // 4 perturbation + optionally 1 MPR fallback).
         const uint32_t shape_count = gpu.shape_slot_count;
-        const uint32_t max_pairs =
-            shape_count > 1u ? (shape_count * (shape_count - 1u)) / 2u : 0u;
+        const uint32_t max_pairs = shape_count > 1u ? (shape_count * (shape_count - 1u)) / 2u : 0u;
         const uint32_t max_contacts = std::max(1u, max_pairs * 5u);
 
         // Raw pointer for pass lambdas — evaluated at dispatch time each frame.
@@ -393,8 +389,7 @@ namespace Engine {
             builder.ImportExternalResource(*gpu.rigid_body_restitution, {MemoryAccessTypeBufferBits::None});
 
         // Pre-import shape world/local buffers (read/write by shape world update pass).
-        auto shape_alive_h =
-            builder.ImportExternalResource(*gpu.shape_alive, {MemoryAccessTypeBufferBits::None});
+        auto shape_alive_h = builder.ImportExternalResource(*gpu.shape_alive, {MemoryAccessTypeBufferBits::None});
         auto shape_local_pos_h =
             builder.ImportExternalResource(*gpu.shape_local_position, {MemoryAccessTypeBufferBits::None});
         auto shape_local_rot_h =
@@ -446,9 +441,9 @@ namespace Engine {
         // ===================================================================
         const uint32_t substep_count = std::max(1u, m_impl->config.num_substep_perstep);
         const float substep_dt = m_impl->config.time_step / static_cast<float>(substep_count);
-        const glm::vec4 gravity_dt(m_impl->config.gravity.x,
-                                   m_impl->config.gravity.y,
-                                   m_impl->config.gravity.z, substep_dt);
+        const glm::vec4 gravity_dt(
+            m_impl->config.gravity.x, m_impl->config.gravity.y, m_impl->config.gravity.z, substep_dt
+        );
 
         // Write uniforms to host-visible buffer.
         {
@@ -508,12 +503,14 @@ namespace Engine {
                         .UseBuffer(extforce_h, RR)
                         .UseBuffer(exttorque_h, RR)
                         .UseBuffer(uniforms_h, RR)
-                        .SetPassFunction([stage, binding, body_wg, pscene](CommandBuffer &cb, const RenderGraph &) -> void {
-                            if (!pscene->IsSimulationEnabled()) return;
-                            cb.BindComputeStage(*stage);
-                            cb.BindComputeResource(*binding);
-                            cb.DispatchCompute(body_wg, 1, 1);
-                        })
+                        .SetPassFunction(
+                            [stage, binding, body_wg, pscene](CommandBuffer &cb, const RenderGraph &) -> void {
+                                if (!pscene->IsSimulationEnabled()) return;
+                                cb.BindComputeStage(*stage);
+                                cb.BindComputeResource(*binding);
+                                cb.DispatchCompute(body_wg, 1, 1);
+                            }
+                        )
                         .Get()
                 );
             }
@@ -548,8 +545,7 @@ namespace Engine {
 
             // --- Pass: Update shape world poses ---
             if (gpu.shape_slot_count > 1u && gpu.shape_world_position != nullptr) {
-                auto *sw_binding =
-                    &m_impl->update_shape_world_pose_stage->AllocateResourceBinding();
+                auto *sw_binding = &m_impl->update_shape_world_pose_stage->AllocateResourceBinding();
                 auto &sw_srb = sw_binding->GetShaderResourceBinding();
                 sw_srb.BindBuffer("ShapeAlive", *gpu.shape_alive);
                 sw_srb.BindBuffer("ShapeBoundRigidBody", *gpu.shape_bound_rigid_body);
@@ -593,21 +589,16 @@ namespace Engine {
 
             // Import collision result buffers from the internal detector (now
             // guaranteed to exist after the detector's first Step() above).
-            auto cr = m_impl->collision_detector
-                          ? m_impl->collision_detector->GetCollisionResultBuffers()
-                          : CollisionResultBuffers{};
+            auto cr = m_impl->collision_detector ? m_impl->collision_detector->GetCollisionResultBuffers()
+                                                 : CollisionResultBuffers{};
             RGBufferHandle coll_ids_h{}, coll_normals_h{}, coll_pta_h{}, coll_ptb_h{}, coll_cnt_h{};
             if (cr.collision_ids != nullptr) {
-                coll_ids_h =
-                    builder.ImportExternalResource(*cr.collision_ids, {MemoryAccessTypeBufferBits::None});
+                coll_ids_h = builder.ImportExternalResource(*cr.collision_ids, {MemoryAccessTypeBufferBits::None});
                 coll_normals_h =
                     builder.ImportExternalResource(*cr.collision_normals, {MemoryAccessTypeBufferBits::None});
-                coll_pta_h =
-                    builder.ImportExternalResource(*cr.contact_point_a, {MemoryAccessTypeBufferBits::None});
-                coll_ptb_h =
-                    builder.ImportExternalResource(*cr.contact_point_b, {MemoryAccessTypeBufferBits::None});
-                coll_cnt_h =
-                    builder.ImportExternalResource(*cr.collision_count, {MemoryAccessTypeBufferBits::None});
+                coll_pta_h = builder.ImportExternalResource(*cr.contact_point_a, {MemoryAccessTypeBufferBits::None});
+                coll_ptb_h = builder.ImportExternalResource(*cr.contact_point_b, {MemoryAccessTypeBufferBits::None});
+                coll_cnt_h = builder.ImportExternalResource(*cr.collision_count, {MemoryAccessTypeBufferBits::None});
             }
 
             // --- Pass: Memset lagrange to zero ---
@@ -623,13 +614,11 @@ namespace Engine {
                         .SetName("XPBD Memset Lagrange")
                         .SetAffinity(RenderGraphPassAffinity::Compute)
                         .UseBuffer(lagrange_h, WW)
-                        .SetPassFunction(
-                            [stage, binding, contact_wg](CommandBuffer &cb, const RenderGraph &) -> void {
-                                cb.BindComputeStage(*stage);
-                                cb.BindComputeResource(*binding);
-                                cb.DispatchCompute(contact_wg, 1, 1);
-                            }
-                        )
+                        .SetPassFunction([stage, binding, contact_wg](CommandBuffer &cb, const RenderGraph &) -> void {
+                            cb.BindComputeStage(*stage);
+                            cb.BindComputeResource(*binding);
+                            cb.DispatchCompute(contact_wg, 1, 1);
+                        })
                         .Get()
                 );
             }
@@ -721,12 +710,14 @@ namespace Engine {
                             .UseBuffer(lindelta_h, RW)
                             .UseBuffer(angdelta_h, RW)
                             .UseBuffer(cntdelta_h, RW)
-                            .SetPassFunction([stage, binding, body_wg, pscene](CommandBuffer &cb, const RenderGraph &) -> void {
-                                if (!pscene->IsSimulationEnabled()) return;
-                                cb.BindComputeStage(*stage);
-                                cb.BindComputeResource(*binding);
-                                cb.DispatchCompute(body_wg, 1, 1);
-                            })
+                            .SetPassFunction(
+                                [stage, binding, body_wg, pscene](CommandBuffer &cb, const RenderGraph &) -> void {
+                                    if (!pscene->IsSimulationEnabled()) return;
+                                    cb.BindComputeStage(*stage);
+                                    cb.BindComputeResource(*binding);
+                                    cb.DispatchCompute(body_wg, 1, 1);
+                                }
+                            )
                             .Get()
                     );
                 }
@@ -760,12 +751,14 @@ namespace Engine {
                         .UseBuffer(pregrav_pos_h, RR)
                         .UseBuffer(pregrav_ori_h, RR)
                         .UseBuffer(uniforms_h, RR)
-                        .SetPassFunction([stage, binding, body_wg, pscene](CommandBuffer &cb, const RenderGraph &) -> void {
-                            if (!pscene->IsSimulationEnabled()) return;
-                            cb.BindComputeStage(*stage);
-                            cb.BindComputeResource(*binding);
-                            cb.DispatchCompute(body_wg, 1, 1);
-                        })
+                        .SetPassFunction(
+                            [stage, binding, body_wg, pscene](CommandBuffer &cb, const RenderGraph &) -> void {
+                                if (!pscene->IsSimulationEnabled()) return;
+                                cb.BindComputeStage(*stage);
+                                cb.BindComputeResource(*binding);
+                                cb.DispatchCompute(body_wg, 1, 1);
+                            }
+                        )
                         .Get()
                 );
             }
@@ -869,12 +862,14 @@ namespace Engine {
                             .UseBuffer(linveldelta_h, RW)
                             .UseBuffer(angveldelta_h, RW)
                             .UseBuffer(velcntdelta_h, RW)
-                            .SetPassFunction([stage, binding, body_wg, pscene](CommandBuffer &cb, const RenderGraph &) -> void {
-                                if (!pscene->IsSimulationEnabled()) return;
-                                cb.BindComputeStage(*stage);
-                                cb.BindComputeResource(*binding);
-                                cb.DispatchCompute(body_wg, 1, 1);
-                            })
+                            .SetPassFunction(
+                                [stage, binding, body_wg, pscene](CommandBuffer &cb, const RenderGraph &) -> void {
+                                    if (!pscene->IsSimulationEnabled()) return;
+                                    cb.BindComputeStage(*stage);
+                                    cb.BindComputeResource(*binding);
+                                    cb.DispatchCompute(body_wg, 1, 1);
+                                }
+                            )
                             .Get()
                     );
                 }

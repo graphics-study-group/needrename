@@ -86,21 +86,44 @@ int main(int argc, char **argv) {
     // Physics components
     root.AddComponent<RigidBodyComponent>();
     auto &root_shape = root.AddComponent<CollisionShapeComponent>();
-    root_shape.m_box_size = glm::vec3(2.0f, 2.0f, 2.0f);
+    root_shape.m_feature = glm::vec3(1.0f, 1.0f, 1.0f);
 
     auto &child_shape = child.AddComponent<CollisionShapeComponent>();
-    child_shape.m_box_size = glm::vec3(1.0f, 1.0f, 1.0f);
+    child_shape.m_feature = glm::vec3(0.5f, 0.5f, 0.5f);
 
     child_rigidbody_root.AddComponent<RigidBodyComponent>();
     auto &nested_shape_root = child_rigidbody_root.AddComponent<CollisionShapeComponent>();
-    nested_shape_root.m_box_size = glm::vec3(1.0f, 1.0f, 1.0f);
+    nested_shape_root.m_feature = glm::vec3(0.5f, 0.5f, 0.5f);
 
     auto &nested_shape_grandchild = child_rigidbody_grandchild.AddComponent<CollisionShapeComponent>();
-    nested_shape_grandchild.m_box_size = glm::vec3(1.0f, 1.0f, 1.0f);
+    nested_shape_grandchild.m_feature = glm::vec3(0.5f, 0.5f, 0.5f);
 
     auto &loose_shape = loose.AddComponent<CollisionShapeComponent>();
-    loose_shape.m_box_size = glm::vec3(1.0f, 1.0f, 1.0f);
-    loose_shape.m_box_center = glm::vec3(1.0f, 0.0f, 0.0f);
+    loose_shape.m_feature = glm::vec3(0.5f, 0.5f, 0.5f);
+    loose_shape.m_center = glm::vec3(1.0f, 0.0f, 0.0f);
+
+    // --- Sphere and cylinder shape tests ---
+    GameObject &sphere_obj = scene.CreateGameObject();
+    sphere_obj.SetParent(root.GetHandle());
+    {
+        Transform t;
+        t.SetPosition(glm::vec3(0.0f, 2.0f, 0.0f));
+        sphere_obj.SetTransform(t);
+    }
+    auto &sphere_shape = sphere_obj.AddComponent<CollisionShapeComponent>();
+    sphere_shape.m_shape_type = CollisionShapeType::Sphere;
+    sphere_shape.m_feature = glm::vec3(1.5f, 0.0f, 0.0f); // radius = 1.5
+
+    GameObject &cylinder_obj = scene.CreateGameObject();
+    cylinder_obj.SetParent(root.GetHandle());
+    {
+        Transform t;
+        t.SetPosition(glm::vec3(0.0f, 4.0f, 0.0f));
+        cylinder_obj.SetTransform(t);
+    }
+    auto &cylinder_shape = cylinder_obj.AddComponent<CollisionShapeComponent>();
+    cylinder_shape.m_shape_type = CollisionShapeType::Cylinder;
+    cylinder_shape.m_feature = glm::vec3(1.0f, 0.5f, 0.0f); // radius = 1.0, half_height = 0.5
 
     // Add mesh components to all physics objects for visualization.
     auto &adb = *std::dynamic_pointer_cast<FileSystemDatabase>(cmc->GetAssetDatabase());

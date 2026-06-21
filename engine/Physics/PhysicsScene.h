@@ -24,7 +24,9 @@ namespace Engine {
      * records to select the active feature payload.
      */
     enum class REFL_SER_CLASS() CollisionShapeType {
-        Box = 0
+        Box = 0,
+        Sphere = 1,
+        Cylinder = 2
     };
 
     /**
@@ -132,7 +134,8 @@ namespace Engine {
          *
          * @param component_handle Engine component handle of this shape.
          * @param shape_type Shape type enum.
-         * @param half_extents Box half extents.
+         * @param feature Shape type-dependent feature vec3 (Box: half-extents,
+         *        Sphere: radius in x, Cylinder: radius in x, half-height in y).
          * @param shape_world_position Shape world position.
          * @param shape_world_rotation Shape world rotation.
          * @return Allocated shape index.
@@ -140,7 +143,7 @@ namespace Engine {
         uint32_t RegisterCollisionShape(
             ComponentHandle component_handle,
             CollisionShapeType shape_type,
-            const glm::vec3 &half_extents,
+            const glm::vec3 &feature,
             const glm::vec3 &shape_world_position,
             const glm::quat &shape_world_rotation
         );
@@ -169,14 +172,15 @@ namespace Engine {
          *
          * @param shape_index Shape index.
          * @param shape_type Shape type enum.
-         * @param half_extents Box half extents.
+         * @param feature Shape type-dependent feature vec3 (Box: half-extents,
+         *        Sphere: radius in x, Cylinder: radius in x, half-height in y).
          * @param shape_world_position Shape world position.
          * @param shape_world_rotation Shape world rotation.
          */
         void UpdateCollisionShapeGeometry(
             uint32_t shape_index,
             CollisionShapeType shape_type,
-            const glm::vec3 &half_extents,
+            const glm::vec3 &feature,
             const glm::vec3 &shape_world_position,
             const glm::quat &shape_world_rotation
         );
@@ -243,7 +247,7 @@ namespace Engine {
             const ComputeBuffer *shape_alive{};
             const ComputeBuffer *shape_type{};
             const ComputeBuffer *shape_bound_rigid_body{};
-            const ComputeBuffer *shape_half_extents{};
+            const ComputeBuffer *shape_feature{};
             const ComputeBuffer *shape_local_position{};
             const ComputeBuffer *shape_local_rotation{};
             const ComputeBuffer *shape_world_position{};
@@ -354,7 +358,7 @@ namespace Engine {
 
         std::vector<uint32_t> m_shape_to_rigid_body{};
         std::vector<uint32_t> m_shape_type{};
-        std::vector<glm::vec4> m_shape_half_extents{};
+        std::vector<glm::vec4> m_shape_feature{};
         std::vector<glm::vec4> m_shape_position{};
         std::vector<glm::vec4> m_shape_rotation{};
         std::vector<glm::vec4> m_shape_world_position{};
@@ -383,7 +387,7 @@ namespace Engine {
         std::unique_ptr<ComputeBuffer> m_gpu_shape_alive{};
         std::unique_ptr<ComputeBuffer> m_gpu_shape_type{};
         std::unique_ptr<ComputeBuffer> m_gpu_shape_bound_rigid_body{};
-        std::unique_ptr<ComputeBuffer> m_gpu_shape_half_extents{};
+        std::unique_ptr<ComputeBuffer> m_gpu_shape_feature{};
         std::unique_ptr<ComputeBuffer> m_gpu_shape_local_position{};
         std::unique_ptr<ComputeBuffer> m_gpu_shape_local_rotation{};
         std::unique_ptr<ComputeBuffer> m_gpu_shape_world_position{};

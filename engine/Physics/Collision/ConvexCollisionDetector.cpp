@@ -85,8 +85,8 @@ namespace Engine {
 
         float contact_margin = 0.001f;
 
-        explicit Impl(RenderSystem &rs, uint32_t max_pairs, float margin)
-            : render_system(rs), max_collision_pairs(max_pairs), contact_margin(margin) {
+        explicit Impl(RenderSystem &rs, uint32_t max_pairs, float margin) :
+            render_system(rs), max_collision_pairs(max_pairs), contact_margin(margin) {
         }
 
         Impl(const Impl &) = delete;
@@ -212,8 +212,7 @@ namespace Engine {
 
     ConvexCollisionDetector::ConvexCollisionDetector(
         RenderSystem &render_system, uint32_t max_collision_pairs, float contact_margin
-    ) :
-        m_impl(std::make_unique<Impl>(render_system, max_collision_pairs, contact_margin)) {
+    ) : m_impl(std::make_unique<Impl>(render_system, max_collision_pairs, contact_margin)) {
     }
 
     ConvexCollisionDetector::~ConvexCollisionDetector() = default;
@@ -270,7 +269,7 @@ namespace Engine {
         auto &detect_srb = m_impl->detect_resource_binding->GetShaderResourceBinding();
         detect_srb.BindBuffer("ShapeAlive", *gpu.shape_alive);
         detect_srb.BindBuffer("ShapeType", *gpu.shape_type);
-        detect_srb.BindBuffer("ShapeHalfExtents", *gpu.shape_half_extents);
+        detect_srb.BindBuffer("ShapeFeature", *gpu.shape_feature);
         detect_srb.BindBuffer("ShapeWorldPosition", *gpu.shape_world_position);
         detect_srb.BindBuffer("ShapeWorldRotation", *gpu.shape_world_rotation);
         // Owned buffers.
@@ -288,8 +287,8 @@ namespace Engine {
         // PhysicsScene shape buffers.
         auto shape_alive_handle = builder.ImportExternalResource(*gpu.shape_alive, {MemoryAccessTypeBufferBits::None});
         auto shape_type_handle = builder.ImportExternalResource(*gpu.shape_type, {MemoryAccessTypeBufferBits::None});
-        auto shape_half_extents_handle =
-            builder.ImportExternalResource(*gpu.shape_half_extents, {MemoryAccessTypeBufferBits::None});
+        auto shape_feature_handle =
+            builder.ImportExternalResource(*gpu.shape_feature, {MemoryAccessTypeBufferBits::None});
         auto shape_world_pos_handle =
             builder.ImportExternalResource(*gpu.shape_world_position, {MemoryAccessTypeBufferBits::None});
         auto shape_world_rot_handle =
@@ -335,7 +334,8 @@ namespace Engine {
                 .UseBuffer(pairs_handle, {MemoryAccessTypeBufferBits::ShaderRandomWrite})
                 .UseBuffer(collision_count_handle, {MemoryAccessTypeBufferBits::ShaderRandomWrite})
                 .SetPassFunction(
-                    [pg_stage, pg_binding, pair_gen_workgroups, &physics_scene](CommandBuffer &cb, const RenderGraph &) -> void {
+                    [pg_stage, pg_binding, pair_gen_workgroups, &physics_scene](CommandBuffer &cb, const RenderGraph &)
+                        -> void {
                         if (!physics_scene.IsSimulationEnabled()) return;
                         cb.BindComputeStage(*pg_stage);
                         cb.BindComputeResource(*pg_binding);
@@ -353,7 +353,7 @@ namespace Engine {
                 // PhysicsScene shape buffers (readonly).
                 .UseBuffer(shape_alive_handle, {MemoryAccessTypeBufferBits::ShaderRandomRead})
                 .UseBuffer(shape_type_handle, {MemoryAccessTypeBufferBits::ShaderRandomRead})
-                .UseBuffer(shape_half_extents_handle, {MemoryAccessTypeBufferBits::ShaderRandomRead})
+                .UseBuffer(shape_feature_handle, {MemoryAccessTypeBufferBits::ShaderRandomRead})
                 .UseBuffer(shape_world_pos_handle, {MemoryAccessTypeBufferBits::ShaderRandomRead})
                 .UseBuffer(shape_world_rot_handle, {MemoryAccessTypeBufferBits::ShaderRandomRead})
                 // Pair buffer (read).
@@ -372,7 +372,9 @@ namespace Engine {
                 // Detector config (readonly uniform).
                 .UseBuffer(detector_config_handle, {MemoryAccessTypeBufferBits::ShaderRandomRead})
                 .SetPassFunction(
-                    [detect_stage, detect_binding, detect_workgroups, &physics_scene](CommandBuffer &cb, const RenderGraph &) -> void {
+                    [detect_stage, detect_binding, detect_workgroups, &physics_scene](
+                        CommandBuffer &cb, const RenderGraph &
+                    ) -> void {
                         if (!physics_scene.IsSimulationEnabled()) return;
                         cb.BindComputeStage(*detect_stage);
                         cb.BindComputeResource(*detect_binding);

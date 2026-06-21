@@ -53,6 +53,66 @@ vec3 support_box(
 }
 
 // ---------------------------------------------------------------------------
+// Shape type constants
+// ---------------------------------------------------------------------------
+
+#define SHAPE_TYPE_BOX      0u
+#define SHAPE_TYPE_SPHERE   1u
+#define SHAPE_TYPE_CYLINDER 2u
+
+// ---------------------------------------------------------------------------
+// Sphere support function
+// ---------------------------------------------------------------------------
+
+/// Returns the world-space support point of a sphere shape in direction dir_world.
+/// The sphere is defined by its feature vec4 (radius in x), world position, and
+/// world rotation (ignored — sphere is rotationally invariant).
+vec3 support_sphere(
+    vec4 feature,
+    vec3 world_position,
+    vec4 world_rotation,
+    vec3 dir_world
+) {
+    float r = feature.x;
+    float len_dir = length(dir_world);
+    if (len_dir < 1e-8) {
+        return world_position;
+    }
+    return world_position + (dir_world / len_dir) * r;
+}
+
+// ---------------------------------------------------------------------------
+// Cylinder support function (Z-up)
+// ---------------------------------------------------------------------------
+
+/// Returns the world-space support point of a Z-up cylinder shape in direction
+/// dir_world.  The cylinder is defined by its feature vec4 (radius in x,
+/// half-height in y), world position, and world rotation.
+vec3 support_cylinder(
+    vec4 feature,
+    vec3 world_position,
+    vec4 world_rotation,
+    vec3 dir_world
+) {
+    float r = feature.x;
+    float half_h = feature.y;
+
+    // Transform direction to local space.
+    vec3 dir_local = quat_inv_rotate(world_rotation, dir_world);
+
+    // Z (axial) component.
+    float z_support = (dir_local.z >= 0.0) ? half_h : -half_h;
+
+    // XY (radial) component.
+    vec2 dir_xy = vec2(dir_local.x, dir_local.y);
+    float len_xy = length(dir_xy);
+    vec2 radial = (len_xy > 1e-8) ? (dir_xy / len_xy) * r : vec2(0.0);
+
+    vec3 local_support = vec3(radial.x, radial.y, z_support);
+    return quat_rotate(world_rotation, local_support) + world_position;
+}
+
+// ---------------------------------------------------------------------------
 // Shape data accessors
 // ---------------------------------------------------------------------------
 
@@ -63,7 +123,7 @@ vec3 support_box(
 // Expected bindings (set = 0):
 //   ShapeAlive         — binding 0, readonly, uint
 //   ShapeType          — binding 1, readonly, uint
-//   ShapeHalfExtents   — binding 2, readonly, vec4
+//   ShapeFeature       — binding 2, readonly, vec4
 //   ShapeWorldPosition — binding 3, readonly, vec4
 //   ShapeWorldRotation — binding 4, readonly, vec4
 
@@ -75,13 +135,29 @@ vec3 support_box(
 vec3 support(uint shape_index, vec3 dir_world);
 
 vec3 support(uint shape_index, vec3 dir_world) {
-    // shape_type: 0 = Box
     uint st = shape_type.v[shape_index];
 
-    // Box
-    if (st == 0u) {
+    if (st == SHAPE_TYPE_BOX) {
         return support_box(
-            shape_half_extents.v[shape_index].xyz,
+            shape_feature.v[shape_index].xyz,
+            shape_world_position.v[shape_index].xyz,
+            shape_world_rotation.v[shape_index],
+            dir_world
+        );
+    }
+
+    if (st == SHAPE_TYPE_SPHERE) {
+        return support_sphere(
+            shape_feature.v[shape_index],
+            shape_world_position.v[shape_index].xyz,
+            shape_world_rotation.v[shape_index],
+            dir_world
+        );
+    }
+
+    if (st == SHAPE_TYPE_CYLINDER) {
+        return support_cylinder(
+            shape_feature.v[shape_index],
             shape_world_position.v[shape_index].xyz,
             shape_world_rotation.v[shape_index],
             dir_world

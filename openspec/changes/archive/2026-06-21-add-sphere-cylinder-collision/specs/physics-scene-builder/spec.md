@@ -1,10 +1,6 @@
-# physics-scene-builder
+# physics-scene-builder — Delta Spec
 
-## Purpose
-
-Provide a concise, config-driven helper class (`SceneBuilder`) in the physics example that reduces per-shape scene setup boilerplate from ~10 lines to a single function call, using a parent-child GameObject hierarchy to decouple visual mesh scaling from collision geometry. Supports Box, Sphere, and Cylinder shapes with configurable friction and restitution.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: BoxDesc config struct
 The SceneBuilder SHALL accept box configuration via a `BoxDesc` struct with the following fields, each having a sensible default: `position` (world-space center), `rotation` (world-space orientation), `half_extents` (box half-sizes), `mass`, `kinematic` flag, `static_friction` (default 0.5), `dynamic_friction` (default 0.5), `restitution` (default 0.0), and `material` (AssetRef to a material asset). The struct SHALL support C++20 designated initializers.
@@ -35,6 +31,8 @@ The SceneBuilder SHALL accept box configuration via a `BoxDesc` struct with the 
 #### Scenario: Mesh scale decoupled from collision
 - **WHEN** a box has `half_extents = {2.0, 1.0, 0.5}`
 - **THEN** the mesh child's transform scale is `{2.0, 1.0, 0.5}` (directly equal to half_extents, since the builtin cube is 2×2×2), while the collision child has identity local scale and `m_feature = {2.0, 1.0, 0.5}` (equal to half_extents), with no scale interference between the two
+
+## ADDED Requirements
 
 ### Requirement: SphereDesc config struct
 The SceneBuilder SHALL accept sphere configuration via a `SphereDesc` struct with the following fields, each having a sensible default: `position` (world-space center, default `{0,0,0}`), `rotation` (world-space orientation, default identity), `radius` (default 0.5), `mass` (default 1.0), `kinematic` flag (default false), `static_friction` (default 0.5), `dynamic_friction` (default 0.5), `restitution` (default 0.0), and `material` (AssetRef to a material asset). The struct SHALL support C++20 designated initializers.
@@ -85,10 +83,3 @@ The SceneBuilder constructor SHALL load the builtin cube, sphere, and cylinder m
 #### Scenario: All meshes loaded on construction
 - **WHEN** a `SceneBuilder` is constructed with a valid `FileSystemDatabase`
 - **THEN** `m_cube_mesh`, `m_sphere_mesh`, and `m_cylinder_mesh` are all valid AssetRefs
-
-### Requirement: SceneBuilder finalizes physics initialization
-`SceneBuilder::Finalize(PhysicsScene&)` SHALL call `InitializePendingRigidBodies`.
-
-#### Scenario: Physics initialization
-- **WHEN** `Finalize(physics_scene)` is called
-- **THEN** `physics_scene.InitializePendingRigidBodies(render_system)` is invoked, and all rigid bodies are ready for simulation

@@ -38,17 +38,43 @@ namespace Engine {
         }
 
         Transform world_transform = owner->GetWorldTransform();
-        glm::vec3 world_center = world_transform.GetPosition() + world_transform.GetRotation() * m_box_center;
-        glm::quat world_rotation = glm::normalize(world_transform.GetRotation() * m_box_rotation);
+        glm::vec3 world_center = world_transform.GetPosition() + world_transform.GetRotation() * m_center;
+        glm::quat world_rotation = glm::normalize(world_transform.GetRotation() * m_rotation);
+
+        // Determine actual shape type and feature, applying non-uniform-scale
+        // fallback for cylinders if needed.
+        CollisionShapeType effective_type = m_shape_type;
+        glm::vec3 effective_feature = m_feature;
+
+        if (m_shape_type == CollisionShapeType::Cylinder) {
+            const glm::vec3 world_scale = world_transform.GetScale();
+            if (glm::abs(world_scale.x - world_scale.y) > 1e-4f) {
+                SDL_LogWarn(
+                    SDL_LOG_CATEGORY_APPLICATION,
+                    "CollisionShapeComponent: Cylinder shape has non-uniform XY scale "
+                    "(scale=%.3f, %.3f, %.3f). Falling back to bounding box approximation.",
+                    world_scale.x,
+                    world_scale.y,
+                    world_scale.z
+                );
+                const float r = m_feature.x;
+                const float half_h = m_feature.y;
+                effective_type = CollisionShapeType::Box;
+                effective_feature = glm::vec3(
+                    r * glm::abs(world_scale.x), r * glm::abs(world_scale.y), half_h * glm::abs(world_scale.z)
+                );
+            }
+        }
+
         const uint32_t existing_index = physics_scene->FindShapeByComponentHandle(GetHandle());
         if (existing_index != PhysicsScene::INVALID_INDEX) {
             m_shape_index = existing_index;
             physics_scene->UpdateCollisionShapeGeometry(
-                m_shape_index, m_shape_type, m_box_size * 0.5f, world_center, world_rotation
+                m_shape_index, effective_type, effective_feature, world_center, world_rotation
             );
         } else {
             m_shape_index = physics_scene->RegisterCollisionShape(
-                GetHandle(), m_shape_type, m_box_size * 0.5f, world_center, world_rotation
+                GetHandle(), effective_type, effective_feature, world_center, world_rotation
             );
         }
 
@@ -64,11 +90,11 @@ namespace Engine {
     }
 
     glm::vec3 CollisionShapeComponent::GetLocalCenterInParentSpace() const {
-        return m_box_center;
+        return m_center;
     }
 
     glm::quat CollisionShapeComponent::GetLocalRotationInParentSpace() const {
-        return m_box_rotation;
+        return m_rotation;
     }
 
     bool CollisionShapeComponent::TryAttachToAncestorRigidBody() {

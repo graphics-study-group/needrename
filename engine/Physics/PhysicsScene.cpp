@@ -55,6 +55,54 @@ namespace {
     glm::quat Vec4ToQuat(const glm::vec4 &v) {
         return glm::quat(v.w, v.x, v.y, v.z);
     }
+
+    // -------------------------------------------------------------------------
+    // Per-shape volume and inertia helpers
+    // -------------------------------------------------------------------------
+
+    float ComputeBoxVolume(const glm::vec3 &feature) {
+        return 8.0f * feature.x * feature.y * feature.z;
+    }
+
+    float ComputeSphereVolume(float radius) {
+        return (4.0f / 3.0f) * glm::pi<float>() * radius * radius * radius;
+    }
+
+    float ComputeCylinderVolume(float radius, float half_height) {
+        return glm::pi<float>() * radius * radius * 2.0f * half_height;
+    }
+
+    glm::mat3 ComputeBoxInertia(float mass, const glm::vec3 &feature) {
+        const float hx = feature.x;
+        const float hy = feature.y;
+        const float hz = feature.z;
+        glm::mat3 inertia(0.0f);
+        inertia[0][0] = (mass / 3.0f) * (hy * hy + hz * hz);
+        inertia[1][1] = (mass / 3.0f) * (hx * hx + hz * hz);
+        inertia[2][2] = (mass / 3.0f) * (hx * hx + hy * hy);
+        return inertia;
+    }
+
+    glm::mat3 ComputeSphereInertia(float mass, float radius) {
+        const float diag = (2.0f / 5.0f) * mass * radius * radius;
+        glm::mat3 inertia(0.0f);
+        inertia[0][0] = diag;
+        inertia[1][1] = diag;
+        inertia[2][2] = diag;
+        return inertia;
+    }
+
+    glm::mat3 ComputeCylinderInertia(float mass, float radius, float half_height) {
+        const float h = 2.0f * half_height;
+        const float r2 = radius * radius;
+        const float h2 = h * h;
+        glm::mat3 inertia(0.0f);
+        // Z-up: axial moment about Z, transverse about X and Y
+        inertia[0][0] = (mass / 12.0f) * (3.0f * r2 + h2);
+        inertia[1][1] = (mass / 12.0f) * (3.0f * r2 + h2);
+        inertia[2][2] = (mass / 2.0f) * r2;
+        return inertia;
+    }
 } // namespace
 
 namespace Engine {
@@ -98,7 +146,7 @@ namespace Engine {
 
         m_shape_to_rigid_body.clear();
         m_shape_type.clear();
-        m_shape_half_extents.clear();
+        m_shape_feature.clear();
         m_shape_position.clear();
         m_shape_rotation.clear();
         m_shape_world_position.clear();
@@ -127,7 +175,7 @@ namespace Engine {
         m_gpu_shape_alive.reset();
         m_gpu_shape_type.reset();
         m_gpu_shape_bound_rigid_body.reset();
-        m_gpu_shape_half_extents.reset();
+        m_gpu_shape_feature.reset();
         m_gpu_shape_local_position.reset();
         m_gpu_shape_local_rotation.reset();
         m_gpu_shape_world_position.reset();
@@ -223,7 +271,7 @@ namespace Engine {
     uint32_t PhysicsScene::RegisterCollisionShape(
         ComponentHandle component_handle,
         CollisionShapeType shape_type,
-        const glm::vec3 &half_extents,
+        const glm::vec3 &feature,
         const glm::vec3 &shape_world_position,
         const glm::quat &shape_world_rotation
     ) {
@@ -235,7 +283,7 @@ namespace Engine {
 
         m_shape_to_rigid_body.push_back(INVALID_INDEX);
         m_shape_type.push_back(static_cast<uint32_t>(shape_type));
-        m_shape_half_extents.push_back(ToVec4(half_extents));
+        m_shape_feature.push_back(ToVec4(feature));
         m_shape_position.push_back(ToVec4(shape_world_position));
         m_shape_rotation.push_back(ToVec4(shape_world_rotation));
         m_shape_world_position.push_back(ToVec4(shape_world_position));
@@ -299,7 +347,7 @@ namespace Engine {
     void PhysicsScene::UpdateCollisionShapeGeometry(
         uint32_t shape_index,
         CollisionShapeType shape_type,
-        const glm::vec3 &half_extents,
+        const glm::vec3 &feature,
         const glm::vec3 &shape_world_position,
         const glm::quat &shape_world_rotation
     ) {
@@ -308,7 +356,7 @@ namespace Engine {
         }
 
         m_shape_type[shape_index] = static_cast<uint32_t>(shape_type);
-        m_shape_half_extents[shape_index] = ToVec4(half_extents);
+        m_shape_feature[shape_index] = ToVec4(feature);
         m_shape_world_position[shape_index] = ToVec4(shape_world_position);
         m_shape_world_rotation[shape_index] = ToVec4(glm::normalize(shape_world_rotation));
         const uint32_t rigid_body_index = m_shape_to_rigid_body[shape_index];
@@ -410,7 +458,7 @@ namespace Engine {
             m_gpu_shape_alive.get(),
             m_gpu_shape_type.get(),
             m_gpu_shape_bound_rigid_body.get(),
-            m_gpu_shape_half_extents.get(),
+            m_gpu_shape_feature.get(),
             m_gpu_shape_local_position.get(),
             m_gpu_shape_local_rotation.get(),
             m_gpu_shape_world_position.get(),
@@ -499,10 +547,34 @@ namespace Engine {
 
             valid_shape_indices.push_back(shape_index);
 
-            const glm::vec3 half_extents = glm::abs(Vec4ToVec3(m_shape_half_extents[shape_index]));
-            const float volume = 8.0f * half_extents.x * half_extents.y * half_extents.z;
-            total_volume += volume;
-            weighted_center_world += Vec4ToVec3(m_shape_world_position[shape_index]) * volume;
+            const glm::vec3 feature = glm::abs(Vec4ToVec3(m_shape_feature[shape_index]));
+            const uint32_t st = m_shape_type[shape_index];
+            float volume = 0.0f;
+
+            switch (st) {
+            case 0u: // Box
+                volume = ComputeBoxVolume(feature);
+                break;
+            case 1u: // Sphere
+                volume = ComputeSphereVolume(feature.x);
+                break;
+            case 2u: // Cylinder
+                volume = ComputeCylinderVolume(feature.x, feature.y);
+                break;
+            default:
+                SDL_LogWarn(
+                    SDL_LOG_CATEGORY_APPLICATION,
+                    "RecalculateRigidBodyState: unknown shape type %u at index %u — skipping",
+                    st,
+                    shape_index
+                );
+                break;
+            }
+
+            if (volume > 0.0f) {
+                total_volume += volume;
+                weighted_center_world += Vec4ToVec3(m_shape_world_position[shape_index]) * volume;
+            }
         }
 
         if (valid_shape_indices.empty()) {
@@ -530,8 +602,28 @@ namespace Engine {
             valid_shape_indices.empty() ? 0.0f : (total_mass / static_cast<float>(valid_shape_indices.size()));
 
         for (uint32_t shape_index : valid_shape_indices) {
-            const glm::vec3 half_extents = glm::abs(Vec4ToVec3(m_shape_half_extents[shape_index]));
-            const float volume = 8.0f * half_extents.x * half_extents.y * half_extents.z;
+            const glm::vec3 feature = glm::abs(Vec4ToVec3(m_shape_feature[shape_index]));
+            const uint32_t st = m_shape_type[shape_index];
+
+            float volume = 0.0f;
+            switch (st) {
+            case 0u:
+                volume = ComputeBoxVolume(feature);
+                break;
+            case 1u:
+                volume = ComputeSphereVolume(feature.x);
+                break;
+            case 2u:
+                volume = ComputeCylinderVolume(feature.x, feature.y);
+                break;
+            default:
+                break;
+            }
+
+            if (volume <= 0.0f) {
+                continue;
+            }
+
             const float mass = total_volume > 1e-6f ? (total_mass * (volume / total_volume)) : fallback_mass;
 
             const glm::vec3 shape_world_position = Vec4ToVec3(m_shape_world_position[shape_index]);
@@ -544,13 +636,20 @@ namespace Engine {
             m_shape_position[shape_index] = ToVec4(shape_local_position);
             m_shape_rotation[shape_index] = ToVec4(shape_local_rotation);
 
-            const float hx = half_extents.x;
-            const float hy = half_extents.y;
-            const float hz = half_extents.z;
             glm::mat3 inertia_shape(0.0f);
-            inertia_shape[0][0] = (mass / 3.0f) * (hy * hy + hz * hz);
-            inertia_shape[1][1] = (mass / 3.0f) * (hx * hx + hz * hz);
-            inertia_shape[2][2] = (mass / 3.0f) * (hx * hx + hy * hy);
+            switch (st) {
+            case 0u: // Box
+                inertia_shape = ComputeBoxInertia(mass, feature);
+                break;
+            case 1u: // Sphere
+                inertia_shape = ComputeSphereInertia(mass, feature.x);
+                break;
+            case 2u: // Cylinder
+                inertia_shape = ComputeCylinderInertia(mass, feature.x, feature.y);
+                break;
+            default: // Unknown type — already warned in first pass
+                continue;
+            }
 
             const glm::mat3 rotation_matrix = glm::mat3_cast(shape_local_rotation);
             const glm::mat3 rotated_inertia = rotation_matrix * inertia_shape * glm::transpose(rotation_matrix);
@@ -655,7 +754,7 @@ namespace Engine {
         EnsureBuffer<uint32_t>(
             m_gpu_shape_bound_rigid_body, allocator, m_gpu_shape_slot_count, "Physics Shape BoundRB"
         );
-        EnsureBuffer<glm::vec4>(m_gpu_shape_half_extents, allocator, m_gpu_shape_slot_count, "Physics Shape HalfExt");
+        EnsureBuffer<glm::vec4>(m_gpu_shape_feature, allocator, m_gpu_shape_slot_count, "Physics Shape Feature");
         EnsureBuffer<glm::vec4>(
             m_gpu_shape_local_position, allocator, m_gpu_shape_slot_count, "Physics Shape LocalPos"
         );
@@ -707,7 +806,7 @@ namespace Engine {
         submission.EnqueueBufferSubmission(*m_gpu_shape_alive, MakeSpan(m_shape_alive));
         submission.EnqueueBufferSubmission(*m_gpu_shape_type, MakeSpan(m_shape_type));
         submission.EnqueueBufferSubmission(*m_gpu_shape_bound_rigid_body, MakeSpan(m_shape_to_rigid_body));
-        submission.EnqueueBufferSubmission(*m_gpu_shape_half_extents, MakeSpan(m_shape_half_extents));
+        submission.EnqueueBufferSubmission(*m_gpu_shape_feature, MakeSpan(m_shape_feature));
         submission.EnqueueBufferSubmission(*m_gpu_shape_local_position, MakeSpan(m_shape_position));
         submission.EnqueueBufferSubmission(*m_gpu_shape_local_rotation, MakeSpan(m_shape_rotation));
         submission.EnqueueBufferSubmission(*m_gpu_shape_world_position, MakeSpan(m_shape_world_position));
@@ -793,16 +892,16 @@ namespace Engine {
             SDL_LogInfo(
                 SDL_LOG_CATEGORY_APPLICATION,
                 "    [%02u] component=%02u type=%d bound_rigidbody=%d mode=%s\n"
-                "           half_extents=(%.2f, %.2f, %.2f) pose_pos=(%.2f, %.2f, %.2f) "
+                "           feature=(%.2f, %.2f, %.2f) pose_pos=(%.2f, %.2f, %.2f) "
                 "pose_rot=(%.2f, %.2f, %.2f, %.2f)",
                 static_cast<unsigned int>(i),
                 m_shape_index_to_component[i].GetID(),
                 static_cast<int>(m_shape_type[i]),
                 m_shape_to_rigid_body[i],
                 mode,
-                m_shape_half_extents[i].x,
-                m_shape_half_extents[i].y,
-                m_shape_half_extents[i].z,
+                m_shape_feature[i].x,
+                m_shape_feature[i].y,
+                m_shape_feature[i].z,
                 m_shape_position[i].x,
                 m_shape_position[i].y,
                 m_shape_position[i].z,

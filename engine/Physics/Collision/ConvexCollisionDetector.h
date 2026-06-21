@@ -58,9 +58,7 @@ namespace Engine {
          *                            as speculative contacts.
          */
         explicit ConvexCollisionDetector(
-            RenderSystem &render_system,
-            uint32_t max_collision_pairs,
-            float contact_margin = 0.001f
+            RenderSystem &render_system, uint32_t max_collision_pairs, float contact_margin = 0.001f
         );
 
         /**

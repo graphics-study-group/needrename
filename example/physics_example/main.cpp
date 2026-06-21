@@ -107,41 +107,45 @@ int main(int /*argc*/, char ** /*argv*/) {
     });
 
     // Green box — offset in X, higher up.
-    builder.AddBox({
+    builder.AddSphere({
         .position = {1.2f, 0.0f, 7.0f},
-        .half_extents = {0.5f, 0.5f, 0.5f},
+        .radius = 0.5f,
         .mass = 1.0f,
         .material = green_mat,
     });
 
     // Blue box — offset in Y, medium height.
-    builder.AddBox({
+    builder.AddCylinder({
         .position = {0.0f, 1.2f, 6.0f},
-        .half_extents = {0.5f, 0.5f, 0.5f},
+        .radius = 0.2f,
+        .half_height = 1.0f,
         .mass = 1.0f,
         .material = blue_mat,
     });
 
     // Yellow box — taller shape, higher up.
-    builder.AddBox({
+    builder.AddSphere({
         .position = {-1.0f, -0.5f, 8.0f},
-        .half_extents = {0.4f, 0.4f, 0.8f},
+        .radius = 0.4f,
         .mass = 2.0f,
         .material = yellow_mat,
     });
 
     // Cyan box — wide flat box.
-    builder.AddBox({
+    builder.AddCylinder({
         .position = {2.0f, -1.0f, 9.0f},
-        .half_extents = {0.8f, 0.6f, 0.3f},
+        .radius = 0.8f,
+        .half_height = 0.3f,
         .mass = 0.5f,
         .material = cyan_mat,
     });
 
     // Magenta box — small cube, highest.
-    builder.AddBox({
+    builder.AddCylinder({
         .position = {-2.0f, 1.0f, 10.0f},
-        .half_extents = {0.3f, 0.3f, 0.3f},
+        .rotation = glm::angleAxis(glm::radians(90.0f), glm::normalize(glm::vec3(0.5f, 0.0f, 1.0f))),
+        .radius = 0.3f,
+        .half_height = 0.6f,
         .mass = 0.3f,
         .material = magenta_mat,
     });
@@ -158,8 +162,7 @@ int main(int /*argc*/, char ** /*argv*/) {
     // rigid bricks
     int n = 5;
     glm::vec3 brick_size(0.2f, 0.4f, 0.2f);
-    for (int i = 0; i < n; ++i)
-    {
+    for (int i = 0; i < n; ++i) {
         glm::vec3 start_pos(4.0f, -0.5f * brick_size.y * n, brick_size.z * (i + 0.5f));
         for (int j = 0; j < n - i; ++j)
             builder.AddBox({
