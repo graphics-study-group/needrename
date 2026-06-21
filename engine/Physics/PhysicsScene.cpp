@@ -156,6 +156,11 @@ namespace Engine {
         m_gpu_shape_slot_count = 0;
         m_gpu_flattened_shape_index_count = 0;
 
+        m_fixed_joints.clear();
+        m_hinge_joints.clear();
+        m_gpu_fixed_joints.reset();
+        m_gpu_hinge_joints.reset();
+
         m_gpu_rigid_body_alive.reset();
         m_gpu_rigid_body_mass.reset();
         m_gpu_rigid_body_static_friction.reset();
@@ -316,6 +321,50 @@ namespace Engine {
         );
     }
 
+    void PhysicsScene::RegisterFixedJoint(
+        uint32_t obj1_index,
+        uint32_t obj2_index,
+        float compliance,
+        const glm::vec3 &initial_rel_pos_local,
+        const glm::quat &initial_rel_rotation
+    ) {
+        GpuFixedJoint joint{};
+        joint.obj1_index = obj1_index;
+        joint.obj2_index = obj2_index;
+        joint.compliance = compliance;
+        joint._pad = 0.0f;
+        joint.initial_rel_pos_local =
+            glm::vec4(initial_rel_pos_local.x, initial_rel_pos_local.y, initial_rel_pos_local.z, 0.0f);
+        joint.initial_rel_rotation =
+            glm::vec4(initial_rel_rotation.x, initial_rel_rotation.y, initial_rel_rotation.z, initial_rel_rotation.w);
+        m_fixed_joints.push_back(joint);
+    }
+
+    void PhysicsScene::RegisterHingeJoint(
+        uint32_t obj1_index,
+        uint32_t obj2_index,
+        float compliance,
+        const glm::vec3 &obj1_local_aligned_axis,
+        const glm::vec3 &obj2_local_aligned_axis,
+        const glm::vec3 &obj1_local_attach_point,
+        const glm::vec3 &obj2_local_attach_point
+    ) {
+        GpuHingeJoint joint{};
+        joint.obj1_index = obj1_index;
+        joint.obj2_index = obj2_index;
+        joint.compliance = compliance;
+        joint._pad = 0.0f;
+        joint.obj1_local_aligned_axis =
+            glm::vec4(obj1_local_aligned_axis.x, obj1_local_aligned_axis.y, obj1_local_aligned_axis.z, 0.0f);
+        joint.obj2_local_aligned_axis =
+            glm::vec4(obj2_local_aligned_axis.x, obj2_local_aligned_axis.y, obj2_local_aligned_axis.z, 0.0f);
+        joint.obj1_local_attach_point =
+            glm::vec4(obj1_local_attach_point.x, obj1_local_attach_point.y, obj1_local_attach_point.z, 0.0f);
+        joint.obj2_local_attach_point =
+            glm::vec4(obj2_local_attach_point.x, obj2_local_attach_point.y, obj2_local_attach_point.z, 0.0f);
+        m_hinge_joints.push_back(joint);
+    }
+
     void PhysicsScene::SetCollisionShapeRigidBody(uint32_t shape_index, uint32_t rigid_body_index) {
         if (!IsShapeIndexValid(shape_index)) {
             return;
@@ -467,8 +516,12 @@ namespace Engine {
             m_gpu_rigid_body_shape_count.get(),
             m_gpu_flattened_shape_indices.get(),
             m_gpu_model_matrices.get(),
+            m_gpu_fixed_joints.get(),
+            m_gpu_hinge_joints.get(),
             m_gpu_rigid_body_slot_count,
             m_gpu_shape_slot_count,
+            static_cast<uint32_t>(m_fixed_joints.size()),
+            static_cast<uint32_t>(m_hinge_joints.size()),
         };
     }
 
@@ -815,6 +868,18 @@ namespace Engine {
         submission.EnqueueBufferSubmission(*m_gpu_rigid_body_shape_offset, MakeSpan(rigid_body_shape_offset));
         submission.EnqueueBufferSubmission(*m_gpu_rigid_body_shape_count, MakeSpan(rigid_body_shape_count));
         submission.EnqueueBufferSubmission(*m_gpu_flattened_shape_indices, MakeSpan(flattened_shape_indices));
+
+        // Joint constraint buffers.
+        const uint32_t fixed_joint_count = static_cast<uint32_t>(m_fixed_joints.size());
+        const uint32_t hinge_joint_count = static_cast<uint32_t>(m_hinge_joints.size());
+        EnsureBuffer<GpuFixedJoint>(m_gpu_fixed_joints, allocator, fixed_joint_count, "Physics FixedJoints");
+        EnsureBuffer<GpuHingeJoint>(m_gpu_hinge_joints, allocator, hinge_joint_count, "Physics HingeJoints");
+        if (fixed_joint_count > 0) {
+            submission.EnqueueBufferSubmission(*m_gpu_fixed_joints, MakeSpan(m_fixed_joints));
+        }
+        if (hinge_joint_count > 0) {
+            submission.EnqueueBufferSubmission(*m_gpu_hinge_joints, MakeSpan(m_hinge_joints));
+        }
     }
 
     void PhysicsScene::SetSimulationEnabled(bool enabled) {
@@ -911,6 +976,12 @@ namespace Engine {
                 m_shape_rotation[i].w
             );
         }
+        SDL_LogInfo(
+            SDL_LOG_CATEGORY_APPLICATION,
+            "  Joints: fixed=%u hinge=%u",
+            static_cast<unsigned int>(m_fixed_joints.size()),
+            static_cast<unsigned int>(m_hinge_joints.size())
+        );
     }
 } // namespace Engine
 

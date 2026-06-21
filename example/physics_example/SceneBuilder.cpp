@@ -5,6 +5,7 @@
 #include <Core/Math/Transform.h>
 #include <Framework/component/RenderComponent/StaticMeshComponent.h>
 #include <Framework/component/physics/CollisionShapeComponent.h>
+#include <Framework/component/physics/PhysicsConstraintComponent.h>
 #include <Framework/component/physics/RigidBodyComponent.h>
 #include <Framework/object/GameObject.h>
 #include <Framework/world/Scene.h>
@@ -226,6 +227,97 @@ GameObject &SceneBuilder::AddCylinder(const CylinderDesc &desc) {
 
 std::vector<StaticMeshComponent *> &SceneBuilder::GetMeshComponents() {
     return m_mesh_components;
+}
+
+GameObject &SceneBuilder::AddDoublePendulum(const glm::vec3 &anchor_position) {
+    constexpr float kSphereRadius = 0.1f;
+    constexpr float kBoxHalfX = 0.05f;
+    constexpr float kBoxHalfY = 0.05f;
+    constexpr float kBoxHalfZ = 0.6f;
+    constexpr float kCylRadius = 0.2f;
+    constexpr float kCylHalfH = 0.5f;
+    constexpr float kGap = 0.1f; // clearance between connected bodies to prevent collision
+
+    const glm::vec3 kAlignedAxis(0.0f, 1.0f, 0.0f); // hinge rotates around Y (swing in XZ plane)
+
+    // --- 1. Kinematic anchor sphere ---
+    GameObject &sphere = AddSphere({
+        .position = anchor_position,
+        .radius = kSphereRadius,
+        .mass = 0.0f,
+        .kinematic = true,
+        .material = m_adb.GetNewAssetRef(AssetPath{m_adb, "~/materials/solid_color_white.asset"}),
+    });
+
+    // --- 2. First pendulum box ---
+    float box1_x = anchor_position.x - kSphereRadius - kGap - kBoxHalfZ;
+    GameObject &box1 = AddBox({
+        .position = glm::vec3(box1_x, anchor_position.y, anchor_position.z),
+        .rotation = glm::angleAxis(glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f)),
+        .half_extents = glm::vec3(kBoxHalfX, kBoxHalfY, kBoxHalfZ),
+        .mass = 1.0f,
+        .material = m_adb.GetNewAssetRef(AssetPath{m_adb, "~/materials/solid_color_red.asset"}),
+    });
+
+    // --- 3. Second pendulum box ---
+    float box2_x = box1_x - kBoxHalfZ - kGap - kBoxHalfZ;
+    GameObject &box2 = AddBox({
+        .position = glm::vec3(box2_x, anchor_position.y, anchor_position.z),
+        .rotation = glm::angleAxis(glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f)),
+        .half_extents = glm::vec3(kBoxHalfX, kBoxHalfY, kBoxHalfZ),
+        .mass = 1.0f,
+        .material = m_adb.GetNewAssetRef(AssetPath{m_adb, "~/materials/solid_color_green.asset"}),
+    });
+
+    // --- 4. Bottom cylinder (oriented horizontally for visible rotation) ---
+    float cyl_x = box2_x - kBoxHalfZ - kGap - kCylRadius;
+    GameObject &cylinder = AddCylinder({
+        .position = glm::vec3(cyl_x, anchor_position.y, anchor_position.z),
+        .rotation = glm::quat(),
+        .radius = kCylRadius,
+        .half_height = kCylHalfH,
+        .mass = 5.0f,
+        .material = m_adb.GetNewAssetRef(AssetPath{m_adb, "~/materials/solid_color_blue.asset"}),
+    });
+
+    // --- 5. HingeJoint: sphere → box1 ---
+    {
+        auto &constraint = sphere.AddComponent<PhysicsConstraintComponent>();
+        HingeJointDef hinge{};
+        hinge.m_obj2_handle = box1.GetHandle();
+        hinge.m_compliance = 0.0f;
+        hinge.m_obj1_local_aligned_axis = kAlignedAxis;
+        hinge.m_obj2_local_aligned_axis = kAlignedAxis;
+        // attach at sphere bottom → box1 top
+        hinge.m_obj1_local_attach_point = glm::vec3(0.0f, 0.0f, 0.0f);
+        hinge.m_obj2_local_attach_point = glm::vec3(0.0f, 0.0f, kBoxHalfZ + kGap + kSphereRadius);
+        constraint.m_joints.push_back(hinge);
+    }
+
+    // --- 6. HingeJoint: box1 → box2 ---
+    {
+        auto &constraint = box1.AddComponent<PhysicsConstraintComponent>();
+        HingeJointDef hinge{};
+        hinge.m_obj2_handle = box2.GetHandle();
+        hinge.m_compliance = 0.0f;
+        hinge.m_obj1_local_aligned_axis = kAlignedAxis;
+        hinge.m_obj2_local_aligned_axis = kAlignedAxis;
+        // attach at box1 bottom → box2 top
+        hinge.m_obj1_local_attach_point = glm::vec3(0.0f, 0.0f, -kBoxHalfZ - 0.5f * kGap);
+        hinge.m_obj2_local_attach_point = glm::vec3(0.0f, 0.0f, kBoxHalfZ + 0.5f * kGap);
+        constraint.m_joints.push_back(hinge);
+    }
+
+    // --- 7. FixedJoint: box2 → cylinder ---
+    {
+        auto &constraint = box2.AddComponent<PhysicsConstraintComponent>();
+        FixedJointDef fixed{};
+        fixed.m_obj2_handle = cylinder.GetHandle();
+        fixed.m_compliance = 0.0f;
+        constraint.m_joints.push_back(fixed);
+    }
+
+    return sphere;
 }
 
 void SceneBuilder::Finalize(PhysicsScene &physics_scene) {

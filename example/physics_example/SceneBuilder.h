@@ -159,6 +159,18 @@ public:
     std::vector<Engine::StaticMeshComponent *> &GetMeshComponents();
 
     /**
+     * @brief Add a double pendulum demonstration assembly.
+     *
+     * Creates a kinematic anchor sphere, two dynamic elongated boxes connected
+     * by hinge joints, and a cylinder rigidly attached to the bottom box via a
+     * FixedJoint. Spacing is added between bodies to prevent collision.
+     *
+     * @param anchor_position World position of the anchor sphere.
+     * @return Reference to the anchor sphere GameObject.
+     */
+    Engine::GameObject &AddDoublePendulum(const glm::vec3 &anchor_position);
+
+    /**
      * @brief Finalize physics scene initialization.
      *
      * Calls physics_scene.InitializePendingRigidBodies(render_system).

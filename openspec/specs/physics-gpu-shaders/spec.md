@@ -89,6 +89,10 @@ The solver now loads the following shaders (replacing the single placeholder):
 - `solver/XPBDSolver/snapshot_position.comp.spv`
 - `solver/XPBDSolver/clear_int_buffer.comp.spv`
 - `solver/XPBDSolver/model_matrix.comp.spv`
+t- `solver/XPBDSolver/accumulate_hinge_position.comp.spv`
+	- `solver/XPBDSolver/accumulate_fixed_position.comp.spv`
+	- `solver/XPBDSolver/clear_hinge_lagrange.comp.spv`
+	- `solver/XPBDSolver/clear_fixed_lagrange.comp.spv`
 
 The `step.comp` placeholder SHALL be a no-op.
 
@@ -106,6 +110,10 @@ The `step.comp` placeholder SHALL be a no-op.
 - **AND** `XPBDGpuSolver::Step` is called
 - **THEN** a `std::runtime_error` is thrown
 - **AND** its `what()` includes the absolute path of the missing file
+n	#### Scenario: Joint shader SPIR-V files are loaded alongside contact shaders
+	- **WHEN** `EnsureInitialized()` runs
+	- **THEN** all four joint shader SPIR-V files are loaded from the same directory as contact shaders
+	- **AND** `ComputeStage` instances are created for each
 
 ### Requirement: XPBD solver loads and dispatches multiple compute shaders
 

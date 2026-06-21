@@ -92,6 +92,19 @@ namespace Engine {
         std::unique_ptr<ComputeStage> model_matrix_stage{};
         std::vector<uint32_t> model_matrix_spirv{};
 
+        // ---- Joint constraint shader stages ----
+        std::unique_ptr<ComputeStage> clear_hinge_lagrange_stage{};
+        std::vector<uint32_t> clear_hinge_lagrange_spirv{};
+
+        std::unique_ptr<ComputeStage> clear_fixed_lagrange_stage{};
+        std::vector<uint32_t> clear_fixed_lagrange_spirv{};
+
+        std::unique_ptr<ComputeStage> accum_hinge_pos_stage{};
+        std::vector<uint32_t> accum_hinge_pos_spirv{};
+
+        std::unique_ptr<ComputeStage> accum_fixed_pos_stage{};
+        std::vector<uint32_t> accum_fixed_pos_spirv{};
+
         // ---- Intermediate GPU buffers (owned) ----
 
         // Snapshots (per-body, vec4).
@@ -116,6 +129,20 @@ namespace Engine {
 
         // Zero-filled buffer for lagrange memset (size = bytes).
         std::unique_ptr<ComputeBuffer> gpu_zero_buffer{};
+
+        // Joint Lagrange multiplier SoA buffers (solver-owned, one float per constraint).
+        std::unique_ptr<ComputeBuffer> gpu_hinge_aligned_axis_lagrange{};
+        std::unique_ptr<ComputeBuffer> gpu_hinge_position_lagrange{};
+        std::unique_ptr<ComputeBuffer> gpu_fixed_rotation_lagrange{};
+        std::unique_ptr<ComputeBuffer> gpu_fixed_position_lagrange{};
+
+        // Joint count caches for lazy reallocation.
+        uint32_t cached_hinge_joint_count = 0;
+        uint32_t cached_fixed_joint_count = 0;
+
+        // Joint-count uniform buffers (single uint, host-visible).
+        std::unique_ptr<ComputeBuffer> gpu_hinge_joint_count_buffer{};
+        std::unique_ptr<ComputeBuffer> gpu_fixed_joint_count_buffer{};
 
         // Uniform SSBO: vec4(gravity.xyz, dt). Host-visible, written once.
         std::unique_ptr<ComputeBuffer> gpu_uniforms{};
@@ -143,7 +170,9 @@ namespace Engine {
             }
         }
 
-        void EnsureIntermediateBuffers(uint32_t body_count, uint32_t max_contacts) {
+        void EnsureIntermediateBuffers(
+            uint32_t body_count, uint32_t max_contacts, uint32_t hinge_joint_count, uint32_t fixed_joint_count
+        ) {
             const auto &alloc = render_system.GetAllocatorState();
             size_t body_bytes = static_cast<size_t>(body_count) * sizeof(glm::vec4);
             size_t body_int3 = static_cast<size_t>(body_count) * 3 * sizeof(int);
@@ -201,6 +230,38 @@ namespace Engine {
                     gpu_zero_buffer =
                         ComputeBuffer::CreateUnique(alloc, sz, false, false, false, false, "XPBD ZeroBuf");
                 }
+            }
+
+            // Joint Lagrange multiplier SoA buffers (one float per constraint).
+            {
+                size_t hinge_fbytes = static_cast<size_t>(std::max(1u, hinge_joint_count)) * sizeof(float);
+                EnsureBuffer(gpu_hinge_aligned_axis_lagrange, hinge_fbytes, "XPBD HingeAlignLagrange");
+                EnsureBuffer(gpu_hinge_position_lagrange, hinge_fbytes, "XPBD HingePosLagrange");
+            }
+            {
+                size_t fixed_fbytes = static_cast<size_t>(std::max(1u, fixed_joint_count)) * sizeof(float);
+                EnsureBuffer(gpu_fixed_rotation_lagrange, fixed_fbytes, "XPBD FixedRotLagrange");
+                EnsureBuffer(gpu_fixed_position_lagrange, fixed_fbytes, "XPBD FixedPosLagrange");
+            }
+
+            // Joint-count uniform buffers (single uint, host-visible).
+            {
+                size_t sz = sizeof(uint32_t);
+                if (!gpu_hinge_joint_count_buffer || gpu_hinge_joint_count_buffer->GetSize() != sz) {
+                    gpu_hinge_joint_count_buffer =
+                        ComputeBuffer::CreateUnique(alloc, sz, true, false, false, false, "XPBD HingeJointCnt");
+                }
+                auto *addr = reinterpret_cast<uint32_t *>(gpu_hinge_joint_count_buffer->GetVMAddress());
+                *addr = hinge_joint_count;
+            }
+            {
+                size_t sz = sizeof(uint32_t);
+                if (!gpu_fixed_joint_count_buffer || gpu_fixed_joint_count_buffer->GetSize() != sz) {
+                    gpu_fixed_joint_count_buffer =
+                        ComputeBuffer::CreateUnique(alloc, sz, true, false, false, false, "XPBD FixedJointCnt");
+                }
+                auto *addr = reinterpret_cast<uint32_t *>(gpu_fixed_joint_count_buffer->GetVMAddress());
+                *addr = fixed_joint_count;
             }
         }
 
@@ -266,6 +327,23 @@ namespace Engine {
             model_matrix_spirv = LoadPhysicsSpirv("solver/XPBDSolver/model_matrix.comp.spv");
             model_matrix_stage = std::make_unique<ComputeStage>(render_system);
             model_matrix_stage->Instantiate(model_matrix_spirv, "XPBD Model Matrix");
+
+            // Joint constraint shaders.
+            clear_hinge_lagrange_spirv = LoadPhysicsSpirv("solver/XPBDSolver/clear_hinge_lagrange.comp.spv");
+            clear_hinge_lagrange_stage = std::make_unique<ComputeStage>(render_system);
+            clear_hinge_lagrange_stage->Instantiate(clear_hinge_lagrange_spirv, "XPBD Clear Hinge Lagrange");
+
+            clear_fixed_lagrange_spirv = LoadPhysicsSpirv("solver/XPBDSolver/clear_fixed_lagrange.comp.spv");
+            clear_fixed_lagrange_stage = std::make_unique<ComputeStage>(render_system);
+            clear_fixed_lagrange_stage->Instantiate(clear_fixed_lagrange_spirv, "XPBD Clear Fixed Lagrange");
+
+            accum_hinge_pos_spirv = LoadPhysicsSpirv("solver/XPBDSolver/accumulate_hinge_position.comp.spv");
+            accum_hinge_pos_stage = std::make_unique<ComputeStage>(render_system);
+            accum_hinge_pos_stage->Instantiate(accum_hinge_pos_spirv, "XPBD Accum Hinge Pos");
+
+            accum_fixed_pos_spirv = LoadPhysicsSpirv("solver/XPBDSolver/accumulate_fixed_position.comp.spv");
+            accum_fixed_pos_stage = std::make_unique<ComputeStage>(render_system);
+            accum_fixed_pos_stage->Instantiate(accum_fixed_pos_spirv, "XPBD Accum Fixed Pos");
         }
 
         // -----------------------------------------------------------------------
@@ -353,10 +431,14 @@ namespace Engine {
         const uint32_t body_count = gpu.rigid_body_slot_count;
 
         // Recreate intermediate buffers if sizes changed.
-        if (body_count != m_impl->cached_body_count || max_contacts != m_impl->cached_max_contacts) {
-            m_impl->EnsureIntermediateBuffers(body_count, max_contacts);
+        if (body_count != m_impl->cached_body_count || max_contacts != m_impl->cached_max_contacts
+            || gpu.fixed_joint_count != m_impl->cached_fixed_joint_count
+            || gpu.hinge_joint_count != m_impl->cached_hinge_joint_count) {
+            m_impl->EnsureIntermediateBuffers(body_count, max_contacts, gpu.hinge_joint_count, gpu.fixed_joint_count);
             m_impl->cached_body_count = body_count;
             m_impl->cached_max_contacts = max_contacts;
+            m_impl->cached_hinge_joint_count = gpu.hinge_joint_count;
+            m_impl->cached_fixed_joint_count = gpu.fixed_joint_count;
         }
 
         const uint32_t body_wg = (body_count + 63u) / 64u;
@@ -402,6 +484,32 @@ namespace Engine {
         // Shape→body mapping.
         auto shape2body_h =
             builder.ImportExternalResource(*gpu.shape_bound_rigid_body, {MemoryAccessTypeBufferBits::None});
+
+        // Pre-import joint definition buffers (PhysicsScene-owned, read-only).
+        RGBufferHandle fixed_joints_h{}, hinge_joints_h{};
+        if (gpu.gpu_fixed_joints != nullptr && gpu.fixed_joint_count > 0) {
+            fixed_joints_h = builder.ImportExternalResource(*gpu.gpu_fixed_joints, {MemoryAccessTypeBufferBits::None});
+        }
+        if (gpu.gpu_hinge_joints != nullptr && gpu.hinge_joint_count > 0) {
+            hinge_joints_h = builder.ImportExternalResource(*gpu.gpu_hinge_joints, {MemoryAccessTypeBufferBits::None});
+        }
+
+        // Pre-import joint Lagrange multiplier SoA buffers (solver-owned, read-write).
+        auto hinge_align_lag_h = builder.ImportExternalResource(
+            *m_impl->gpu_hinge_aligned_axis_lagrange, {MemoryAccessTypeBufferBits::None}
+        );
+        auto hinge_pos_lag_h =
+            builder.ImportExternalResource(*m_impl->gpu_hinge_position_lagrange, {MemoryAccessTypeBufferBits::None});
+        auto fixed_rot_lag_h =
+            builder.ImportExternalResource(*m_impl->gpu_fixed_rotation_lagrange, {MemoryAccessTypeBufferBits::None});
+        auto fixed_pos_lag_h =
+            builder.ImportExternalResource(*m_impl->gpu_fixed_position_lagrange, {MemoryAccessTypeBufferBits::None});
+
+        // Pre-import joint-count buffers.
+        auto hinge_cnt_h =
+            builder.ImportExternalResource(*m_impl->gpu_hinge_joint_count_buffer, {MemoryAccessTypeBufferBits::None});
+        auto fixed_cnt_h =
+            builder.ImportExternalResource(*m_impl->gpu_fixed_joint_count_buffer, {MemoryAccessTypeBufferBits::None});
 
         // Pre-import intermediate buffers.
         auto pregrav_pos_h =
@@ -623,6 +731,58 @@ namespace Engine {
                 );
             }
 
+            // --- Pass: Memset hinge lagrange to zero ---
+            if (gpu.hinge_joint_count > 0) {
+                auto *binding = &m_impl->clear_hinge_lagrange_stage->AllocateResourceBinding();
+                auto &srb = binding->GetShaderResourceBinding();
+                srb.BindBuffer("HingeAlignedAxisLagrange", *m_impl->gpu_hinge_aligned_axis_lagrange);
+                srb.BindBuffer("HingePositionLagrange", *m_impl->gpu_hinge_position_lagrange);
+                srb.BindBuffer("HingeJointCount", *m_impl->gpu_hinge_joint_count_buffer);
+
+                auto *stage = m_impl->clear_hinge_lagrange_stage.get();
+                uint32_t hinge_wg = (gpu.hinge_joint_count + 255u) / 256u;
+                builder.AddPass(
+                    RenderGraphPassBuilder{m_impl->render_system}
+                        .SetName("XPBD Memset Hinge Lagrange")
+                        .SetAffinity(RenderGraphPassAffinity::Compute)
+                        .UseBuffer(hinge_align_lag_h, WW)
+                        .UseBuffer(hinge_pos_lag_h, WW)
+                        .UseBuffer(hinge_cnt_h, RR)
+                        .SetPassFunction([stage, binding, hinge_wg](CommandBuffer &cb, const RenderGraph &) -> void {
+                            cb.BindComputeStage(*stage);
+                            cb.BindComputeResource(*binding);
+                            cb.DispatchCompute(hinge_wg, 1, 1);
+                        })
+                        .Get()
+                );
+            }
+
+            // --- Pass: Memset fixed lagrange to zero ---
+            if (gpu.fixed_joint_count > 0) {
+                auto *binding = &m_impl->clear_fixed_lagrange_stage->AllocateResourceBinding();
+                auto &srb = binding->GetShaderResourceBinding();
+                srb.BindBuffer("FixedRotationLagrange", *m_impl->gpu_fixed_rotation_lagrange);
+                srb.BindBuffer("FixedPositionLagrange", *m_impl->gpu_fixed_position_lagrange);
+                srb.BindBuffer("FixedJointCount", *m_impl->gpu_fixed_joint_count_buffer);
+
+                auto *stage = m_impl->clear_fixed_lagrange_stage.get();
+                uint32_t fixed_wg = (gpu.fixed_joint_count + 255u) / 256u;
+                builder.AddPass(
+                    RenderGraphPassBuilder{m_impl->render_system}
+                        .SetName("XPBD Memset Fixed Lagrange")
+                        .SetAffinity(RenderGraphPassAffinity::Compute)
+                        .UseBuffer(fixed_rot_lag_h, WW)
+                        .UseBuffer(fixed_pos_lag_h, WW)
+                        .UseBuffer(fixed_cnt_h, RR)
+                        .SetPassFunction([stage, binding, fixed_wg](CommandBuffer &cb, const RenderGraph &) -> void {
+                            cb.BindComputeStage(*stage);
+                            cb.BindComputeResource(*binding);
+                            cb.DispatchCompute(fixed_wg, 1, 1);
+                        })
+                        .Get()
+                );
+            }
+
             // ================================================================
             // Position solve iterations
             // ================================================================
@@ -680,6 +840,108 @@ namespace Engine {
                                     cb.BindComputeStage(*stage);
                                     cb.BindComputeResource(*binding);
                                     cb.DispatchCompute(contact_wg, 1, 1);
+                                }
+                            )
+                            .Get()
+                    );
+                }
+
+                // Accumulate hinge position deltas (skip if no hinge joints).
+                if (gpu.hinge_joint_count > 0 && gpu.gpu_hinge_joints != nullptr) {
+                    auto *binding = &m_impl->accum_hinge_pos_stage->AllocateResourceBinding();
+                    auto &srb = binding->GetShaderResourceBinding();
+                    srb.BindBuffer("HingeJoints", *gpu.gpu_hinge_joints);
+                    srb.BindBuffer("HingeJointCount", *m_impl->gpu_hinge_joint_count_buffer);
+                    srb.BindBuffer("HingeAlignedAxisLagrange", *m_impl->gpu_hinge_aligned_axis_lagrange);
+                    srb.BindBuffer("HingePositionLagrange", *m_impl->gpu_hinge_position_lagrange);
+                    srb.BindBuffer("RigidBodyAlive", *gpu.rigid_body_alive);
+                    srb.BindBuffer("RigidBodyCenterPosition", *gpu.rigid_body_center_world_position);
+                    srb.BindBuffer("RigidBodyCenterRotation", *gpu.rigid_body_center_world_rotation);
+                    srb.BindBuffer("RigidBodyMass", *gpu.rigid_body_mass);
+                    srb.BindBuffer("RigidBodyInverseInertia", *gpu.rigid_body_inverse_inertia);
+                    srb.BindBuffer("RigidBodyIsKinematic", *gpu.rigid_body_is_kinematic);
+                    srb.BindBuffer("XpbdUniforms", *m_impl->gpu_uniforms);
+                    srb.BindBuffer("LinearPositionDeltaI", *m_impl->gpu_linear_position_delta);
+                    srb.BindBuffer("AngularPositionDeltaI", *m_impl->gpu_angular_position_delta);
+                    srb.BindBuffer("PositionDeltaCount", *m_impl->gpu_position_delta_count);
+
+                    auto *stage = m_impl->accum_hinge_pos_stage.get();
+                    uint32_t hinge_wg = (gpu.hinge_joint_count + 63u) / 64u;
+                    builder.AddPass(
+                        RenderGraphPassBuilder{m_impl->render_system}
+                            .SetName("XPBD Accum Hinge Pos")
+                            .SetAffinity(RenderGraphPassAffinity::Compute)
+                            .UseBuffer(hinge_joints_h, RR)
+                            .UseBuffer(hinge_cnt_h, RR)
+                            .UseBuffer(hinge_align_lag_h, RW)
+                            .UseBuffer(hinge_pos_lag_h, RW)
+                            .UseBuffer(pos_h, RR)
+                            .UseBuffer(rot_h, RR)
+                            .UseBuffer(alive_h, RR)
+                            .UseBuffer(kinematic_h, RR)
+                            .UseBuffer(mass_h, RR)
+                            .UseBuffer(inv_inertia_h, RR)
+                            .UseBuffer(uniforms_h, RR)
+                            .UseBuffer(lindelta_h, RW)
+                            .UseBuffer(angdelta_h, RW)
+                            .UseBuffer(cntdelta_h, RW)
+                            .SetPassFunction(
+                                [stage, binding, hinge_wg, pscene](CommandBuffer &cb, const RenderGraph &) -> void {
+                                    if (!pscene->IsSimulationEnabled()) return;
+                                    cb.BindComputeStage(*stage);
+                                    cb.BindComputeResource(*binding);
+                                    cb.DispatchCompute(hinge_wg, 1, 1);
+                                }
+                            )
+                            .Get()
+                    );
+                }
+
+                // Accumulate fixed position deltas (skip if no fixed joints).
+                if (gpu.fixed_joint_count > 0 && gpu.gpu_fixed_joints != nullptr) {
+                    auto *binding = &m_impl->accum_fixed_pos_stage->AllocateResourceBinding();
+                    auto &srb = binding->GetShaderResourceBinding();
+                    srb.BindBuffer("FixedJoints", *gpu.gpu_fixed_joints);
+                    srb.BindBuffer("FixedJointCount", *m_impl->gpu_fixed_joint_count_buffer);
+                    srb.BindBuffer("FixedRotationLagrange", *m_impl->gpu_fixed_rotation_lagrange);
+                    srb.BindBuffer("FixedPositionLagrange", *m_impl->gpu_fixed_position_lagrange);
+                    srb.BindBuffer("RigidBodyAlive", *gpu.rigid_body_alive);
+                    srb.BindBuffer("RigidBodyCenterPosition", *gpu.rigid_body_center_world_position);
+                    srb.BindBuffer("RigidBodyCenterRotation", *gpu.rigid_body_center_world_rotation);
+                    srb.BindBuffer("RigidBodyMass", *gpu.rigid_body_mass);
+                    srb.BindBuffer("RigidBodyInverseInertia", *gpu.rigid_body_inverse_inertia);
+                    srb.BindBuffer("RigidBodyIsKinematic", *gpu.rigid_body_is_kinematic);
+                    srb.BindBuffer("XpbdUniforms", *m_impl->gpu_uniforms);
+                    srb.BindBuffer("LinearPositionDeltaI", *m_impl->gpu_linear_position_delta);
+                    srb.BindBuffer("AngularPositionDeltaI", *m_impl->gpu_angular_position_delta);
+                    srb.BindBuffer("PositionDeltaCount", *m_impl->gpu_position_delta_count);
+
+                    auto *stage = m_impl->accum_fixed_pos_stage.get();
+                    uint32_t fixed_wg = (gpu.fixed_joint_count + 63u) / 64u;
+                    builder.AddPass(
+                        RenderGraphPassBuilder{m_impl->render_system}
+                            .SetName("XPBD Accum Fixed Pos")
+                            .SetAffinity(RenderGraphPassAffinity::Compute)
+                            .UseBuffer(fixed_joints_h, RR)
+                            .UseBuffer(fixed_cnt_h, RR)
+                            .UseBuffer(fixed_rot_lag_h, RW)
+                            .UseBuffer(fixed_pos_lag_h, RW)
+                            .UseBuffer(pos_h, RR)
+                            .UseBuffer(rot_h, RR)
+                            .UseBuffer(alive_h, RR)
+                            .UseBuffer(kinematic_h, RR)
+                            .UseBuffer(mass_h, RR)
+                            .UseBuffer(inv_inertia_h, RR)
+                            .UseBuffer(uniforms_h, RR)
+                            .UseBuffer(lindelta_h, RW)
+                            .UseBuffer(angdelta_h, RW)
+                            .UseBuffer(cntdelta_h, RW)
+                            .SetPassFunction(
+                                [stage, binding, fixed_wg, pscene](CommandBuffer &cb, const RenderGraph &) -> void {
+                                    if (!pscene->IsSimulationEnabled()) return;
+                                    cb.BindComputeStage(*stage);
+                                    cb.BindComputeResource(*binding);
+                                    cb.DispatchCompute(fixed_wg, 1, 1);
                                 }
                             )
                             .Get()

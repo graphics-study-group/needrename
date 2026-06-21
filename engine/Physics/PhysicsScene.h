@@ -30,6 +30,45 @@ namespace Engine {
     };
 
     /**
+     * @brief Packed GPU struct for a FixedJoint constraint definition.
+     *
+     * Static input data only — no runtime state. Lagrange multipliers are
+     * managed separately by XPBDGpuSolver as SoA buffers.
+     *
+     * std430 layout: 48 bytes (3 × vec4 equivalent).
+     */
+    struct GpuFixedJoint {
+        uint32_t obj1_index;
+        uint32_t obj2_index;
+        float compliance;
+        float _pad;
+        glm::vec4 initial_rel_pos_local; ///< q1_init⁻¹ * (pos2_init - pos1_init)
+        glm::vec4 initial_rel_rotation;  ///< q1_init⁻¹ * q2_init
+    };
+
+    /**
+     * @brief Packed GPU struct for a HingeJoint constraint definition.
+     *
+     * Static input data only — no runtime state. Lagrange multipliers are
+     * managed separately by XPBDGpuSolver as SoA buffers.
+     *
+     * std430 layout: 80 bytes (5 × vec4 equivalent).
+     */
+    struct GpuHingeJoint {
+        uint32_t obj1_index;
+        uint32_t obj2_index;
+        float compliance;
+        float _pad;
+        glm::vec4 obj1_local_aligned_axis;
+        glm::vec4 obj2_local_aligned_axis;
+        glm::vec4 obj1_local_attach_point;
+        glm::vec4 obj2_local_attach_point;
+    };
+
+    static_assert(sizeof(GpuFixedJoint) == 48, "GpuFixedJoint must be 48 bytes (std430)");
+    static_assert(sizeof(GpuHingeJoint) == 80, "GpuHingeJoint must be 80 bytes (std430)");
+
+    /**
      * @brief Per-engine-scene physics storage.
      *
      * PhysicsScene stores rigid body and collision shape data using
@@ -220,6 +259,44 @@ namespace Engine {
         void EnqueueRigidBodyInitialization(uint32_t rigid_body_index);
 
         /**
+         * @brief Register a FixedJoint constraint.
+         *
+         * @param obj1_index Rigid body index of the owning object.
+         * @param obj2_index Rigid body index of the second object.
+         * @param compliance Joint compliance parameter.
+         * @param initial_rel_pos_local Initial relative position in obj1's local frame.
+         * @param initial_rel_rotation Initial relative rotation quaternion.
+         */
+        void RegisterFixedJoint(
+            uint32_t obj1_index,
+            uint32_t obj2_index,
+            float compliance,
+            const glm::vec3 &initial_rel_pos_local,
+            const glm::quat &initial_rel_rotation
+        );
+
+        /**
+         * @brief Register a HingeJoint constraint.
+         *
+         * @param obj1_index Rigid body index of the owning object.
+         * @param obj2_index Rigid body index of the second object.
+         * @param compliance Joint compliance parameter.
+         * @param obj1_local_aligned_axis Aligned axis in obj1's local frame.
+         * @param obj2_local_aligned_axis Aligned axis in obj2's local frame.
+         * @param obj1_local_attach_point Attachment point in obj1's local frame.
+         * @param obj2_local_attach_point Attachment point in obj2's local frame.
+         */
+        void RegisterHingeJoint(
+            uint32_t obj1_index,
+            uint32_t obj2_index,
+            float compliance,
+            const glm::vec3 &obj1_local_aligned_axis,
+            const glm::vec3 &obj2_local_aligned_axis,
+            const glm::vec3 &obj1_local_attach_point,
+            const glm::vec3 &obj2_local_attach_point
+        );
+
+        /**
          * @brief Initialize all queued rigid bodies.
          *
          * This recalculates center of mass, inertia tensor, and shape local
@@ -259,8 +336,13 @@ namespace Engine {
 
             const ComputeBuffer *model_matrices{};
 
+            const ComputeBuffer *gpu_fixed_joints{};
+            const ComputeBuffer *gpu_hinge_joints{};
+
             uint32_t rigid_body_slot_count{0};
             uint32_t shape_slot_count{0};
+            uint32_t fixed_joint_count{0};
+            uint32_t hinge_joint_count{0};
         };
 
         PhysicsGpuBuffers GetGpuBuffers() const noexcept;
@@ -398,6 +480,12 @@ namespace Engine {
         std::unique_ptr<ComputeBuffer> m_gpu_flattened_shape_indices{};
 
         std::unique_ptr<ComputeBuffer> m_gpu_model_matrices{};
+
+        // Joint constraint storage (static input data, AoS per joint type).
+        std::vector<GpuFixedJoint> m_fixed_joints{};
+        std::vector<GpuHingeJoint> m_hinge_joints{};
+        std::unique_ptr<ComputeBuffer> m_gpu_fixed_joints{};
+        std::unique_ptr<ComputeBuffer> m_gpu_hinge_joints{};
     };
 } // namespace Engine
 

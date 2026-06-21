@@ -31,7 +31,17 @@ int main(int /*argc*/, char ** /*argv*/) {
 
     SDL_Init(SDL_INIT_VIDEO);
 
-    StartupOptions opt{.resol_x = 1280, .resol_y = 720, .title = "Physics Example — Boxes Falling"};
+    int displayIndex = 1;
+    auto displayMode = SDL_GetDesktopDisplayMode(displayIndex);
+    if (displayMode == nullptr) {
+        SDL_Log("Failed to get display mode: %s", SDL_GetError());
+        SDL_Quit();
+        return -1;
+    }
+    int screenWidth = displayMode->w;
+    int screenHeight = displayMode->h;
+    SDL_Log("Screen Resolution: %dx%d @ %fHz", screenWidth, screenHeight, displayMode->refresh_rate);
+    StartupOptions opt{.resol_x = (int)(screenWidth * 0.9), .resol_y = (int)(screenHeight * 0.9), .title = "Physics Example"};
 
     auto cmc = MainClass::GetInstance();
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);
@@ -173,6 +183,9 @@ int main(int /*argc*/, char ** /*argv*/) {
             });
     }
 
+    // Double pendulum demo — hinge + fixed joint test.
+    builder.AddDoublePendulum({6.5f, 0.0f, 4.5f});
+
     // --- Camera setup ---
     // Z is up, camera is positioned to the side looking at the falling zone.
     GameObject &camera_object = scene.CreateGameObject();
@@ -256,7 +269,7 @@ int main(int /*argc*/, char ** /*argv*/) {
     // --- Build the combined physics + rendering render graph ---
     PhysicsExampleRenderGraphBuilder rg_builder(*cmc->GetRenderSystem());
     RGTextureHandle final_color_id;
-    auto rg = rg_builder.BuildRenderGraph(1280, 720, *physics_scene, final_color_id);
+    auto rg = rg_builder.BuildRenderGraph(screenWidth, screenHeight, *physics_scene, final_color_id);
     cmc->SetRenderGraph(std::move(rg), final_color_id);
 
     // --- Main loop ---
