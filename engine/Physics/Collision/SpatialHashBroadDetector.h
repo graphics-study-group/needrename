@@ -86,6 +86,10 @@ namespace Engine {
          * @brief Construct the broad-phase detector.
          *
          * @param render_system              Render system for pipeline creation.
+         * @param max_pairs                  Maximum number of candidate collision
+         *                                  pairs the output buffer can hold.
+         *                                  Typically set to narrow-phase
+         *                                  max_contacts / 5.
          * @param grid_config                Spatial hash grid configuration.
          * @param fallback_all_pairs_threshold Shape count below which all-pairs
          *                                     fallback is used instead of spatial
@@ -93,6 +97,7 @@ namespace Engine {
          */
         explicit SpatialHashBroadDetector(
             RenderSystem &render_system,
+            uint32_t max_pairs,
             const GridConfig &grid_config,
             uint32_t fallback_all_pairs_threshold = 32
         );

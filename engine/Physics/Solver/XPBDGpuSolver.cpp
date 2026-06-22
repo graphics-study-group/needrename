@@ -275,16 +275,20 @@ namespace Engine {
                 return;
             }
             if (!broad_detector || shape_count != cached_shape_count) {
+                // Narrow-phase: up to 5 contacts per pair (4 perturbation + MPR fallback).
+                uint32_t all_pairs = shape_count * (shape_count - 1u) / 2u;
+                uint32_t max_contacts = std::min(all_pairs * 5u, config.max_contact_points);
+                // Broad-phase: pair buffer capacity = narrow_max_contacts / 5.
+                uint32_t broad_max_pairs = std::max(1u, max_contacts / 5u);
+
                 GridConfig grid_config{};
                 grid_config.world_min = config.grid_world_min;
                 grid_config.world_max = config.grid_world_max;
                 grid_config.cell_size = config.grid_cell_size;
                 grid_config.max_cells_per_shape = config.max_cells_per_shape;
                 broad_detector = std::make_unique<SpatialHashBroadDetector>(
-                    render_system, grid_config, config.fallback_all_pairs_threshold
+                    render_system, broad_max_pairs, grid_config, config.fallback_all_pairs_threshold
                 );
-                uint32_t max_pairs = shape_count * (shape_count - 1u) / 2u;
-                uint32_t max_contacts = std::min(max_pairs * 5u, config.max_contact_points);
                 narrow_detector =
                     std::make_unique<ConvexCollisionDetector>(render_system, max_contacts, config.contact_margin);
                 cached_shape_count = shape_count;
@@ -433,8 +437,8 @@ namespace Engine {
         // Compute max_contacts from shape count (up to 5 manifold points per pair:
         // 4 perturbation + optionally 1 MPR fallback).
         const uint32_t shape_count = gpu.shape_slot_count;
-        const uint32_t max_pairs = shape_count > 1u ? (shape_count * (shape_count - 1u)) / 2u : 0u;
-        const uint32_t max_contacts = std::max(1u, max_pairs * 5u);
+        const uint32_t all_pairs = shape_count > 1u ? (shape_count * (shape_count - 1u)) / 2u : 0u;
+        const uint32_t max_contacts = std::max(1u, std::min(all_pairs * 5u, m_impl->config.max_contact_points));
 
         // Raw pointer for pass lambdas — evaluated at dispatch time each frame.
         auto *pscene = &physics_scene;

@@ -137,8 +137,8 @@ namespace Engine {
         // --- Intermediate buffers for multi-level scan ---
         std::unique_ptr<ComputeBuffer> gpu_scan_block_sums;
 
-        explicit Impl(RenderSystem &rs, const GridConfig &gc, uint32_t ft) :
-            render_system(rs), grid_config(gc), fallback_threshold(ft) {
+        explicit Impl(RenderSystem &rs, uint32_t mp, const GridConfig &gc, uint32_t ft) :
+            render_system(rs), max_pairs(mp), grid_config(gc), fallback_threshold(ft) {
             // Validate grid size on construction.
             glm::vec3 extent = gc.world_max - gc.world_min;
             grid_dims.x = static_cast<int>(glm::ceil(extent.x / gc.cell_size));
@@ -203,16 +203,9 @@ namespace Engine {
             EnsureBuffer(gpu_cell_offsets, cell_uint1, "BH CellOffsets");
             EnsureBuffer(gpu_cell_scratch, cell_uint1, "BH CellScratch");
 
-            // Output pair buffer.
-            // Capacity: conservative estimate = shape_count^2 / 2 for worst case.
-            // But in practice: each cell produces K*(K-1)/2 pairs. Use shape_count * 8 as typical.
-            // Also need space for global shapes × all shapes.
-            // Conservative: same as old all-pairs formula but with filter savings.
-            uint32_t cap = shape_count > 1u ? (shape_count * (shape_count - 1u)) / 2u : 1u;
-            cap = std::max(cap, 1u);
-            size_t pair_bytes = static_cast<size_t>(cap) * sizeof(glm::uvec2);
+            // Output pair buffer — sized to the caller-provided max_pairs.
+            size_t pair_bytes = static_cast<size_t>(std::max(1u, max_pairs)) * sizeof(glm::uvec2);
             EnsureBuffer(gpu_collision_pairs, pair_bytes, "BH CollisionPairs");
-            max_pairs = cap;
 
             // Pair count + zero buffer.
             EnsureBuffer(gpu_pair_count, sizeof(uint32_t), "BH PairCount", true);
@@ -422,8 +415,9 @@ namespace Engine {
     // ===================================================================
 
     SpatialHashBroadDetector::SpatialHashBroadDetector(
-        RenderSystem &render_system, const GridConfig &grid_config, uint32_t fallback_all_pairs_threshold
-    ) : m_impl(std::make_unique<Impl>(render_system, grid_config, fallback_all_pairs_threshold)) {
+        RenderSystem &render_system, uint32_t max_pairs, const GridConfig &grid_config,
+        uint32_t fallback_all_pairs_threshold
+    ) : m_impl(std::make_unique<Impl>(render_system, max_pairs, grid_config, fallback_all_pairs_threshold)) {
     }
 
     SpatialHashBroadDetector::~SpatialHashBroadDetector() = default;
