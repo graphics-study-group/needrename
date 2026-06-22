@@ -283,8 +283,7 @@ namespace Engine {
                 broad_detector = std::make_unique<SpatialHashBroadDetector>(
                     render_system, grid_config, config.fallback_all_pairs_threshold
                 );
-                // Narrow-phase: max_pairs = broad-phase pair capacity * 5 contacts/pair.
-                uint32_t max_pairs = broad_detector->GetMaxPairs();
+                uint32_t max_pairs = shape_count * (shape_count - 1u) / 2u;
                 uint32_t max_contacts = std::min(max_pairs * 5u, config.max_contact_points);
                 narrow_detector =
                     std::make_unique<ConvexCollisionDetector>(render_system, max_contacts, config.contact_margin);
@@ -417,7 +416,7 @@ namespace Engine {
         return m_impl->config;
     }
 
-    void XPBDGpuSolver::Step(
+    void XPBDGpuSolver::AddStepPasses(
         RenderGraphBuilder &builder, PhysicsScene &physics_scene, RGBufferHandle external_model_matrices_handle
     ) {
         const auto gpu = physics_scene.GetGpuBuffers();
@@ -496,6 +495,39 @@ namespace Engine {
         // Shape→body mapping.
         auto shape2body_h =
             builder.ImportExternalResource(*gpu.shape_bound_rigid_body, {MemoryAccessTypeBufferBits::None});
+
+        // Shape type and feature (read-only by detectors).
+        auto shape_type_h = builder.ImportExternalResource(*gpu.shape_type, {MemoryAccessTypeBufferBits::None});
+        auto shape_feature_h = builder.ImportExternalResource(*gpu.shape_feature, {MemoryAccessTypeBufferBits::None});
+
+        // Collision filter buffers (optional; only import if the scene has them).
+        RGBufferHandle shape_filter_off_h{}, shape_filter_cnt_h{}, shape_filter_dat_h{};
+        if (gpu.shape_filter_offset != nullptr) {
+            shape_filter_off_h =
+                builder.ImportExternalResource(*gpu.shape_filter_offset, {MemoryAccessTypeBufferBits::None});
+        }
+        if (gpu.shape_filter_count != nullptr) {
+            shape_filter_cnt_h =
+                builder.ImportExternalResource(*gpu.shape_filter_count, {MemoryAccessTypeBufferBits::None});
+        }
+        if (gpu.shape_filter_data != nullptr) {
+            shape_filter_dat_h =
+                builder.ImportExternalResource(*gpu.shape_filter_data, {MemoryAccessTypeBufferBits::None});
+        }
+
+        // ---- Construct PhysicsSceneBufferHandles for detectors ----
+        PhysicsSceneBufferHandles scene_handles;
+        scene_handles.shape_alive = shape_alive_h;
+        scene_handles.shape_type = shape_type_h;
+        scene_handles.shape_feature = shape_feature_h;
+        scene_handles.shape_world_position = shape_world_pos_h;
+        scene_handles.shape_world_rotation = shape_world_rot_h;
+        scene_handles.shape_bound_rigid_body = shape2body_h;
+        scene_handles.shape_local_position = shape_local_pos_h;
+        scene_handles.shape_local_rotation = shape_local_rot_h;
+        scene_handles.shape_filter_offset = shape_filter_off_h;
+        scene_handles.shape_filter_count = shape_filter_cnt_h;
+        scene_handles.shape_filter_data = shape_filter_dat_h;
 
         // Pre-import joint definition buffers (PhysicsScene-owned, read-only).
         RGBufferHandle fixed_joints_h{}, hinge_joints_h{};
@@ -702,31 +734,33 @@ namespace Engine {
             }
 
             // --- Pass: Broad-phase collision detection (spatial hash → candidate pairs) ---
+            BroadDetectorOutputHandles broad_out{};
             if (m_impl->broad_detector) {
-                m_impl->broad_detector->Step(builder, physics_scene);
+                broad_out = m_impl->broad_detector->AddDetectPasses(builder, physics_scene, scene_handles);
             }
 
             // --- Pass: Narrow-phase collision detection (MPR on candidate pairs) ---
+            NarrowDetectorOutputHandles narrow_out{};
             if (m_impl->narrow_detector && m_impl->broad_detector) {
-                m_impl->narrow_detector->Step(
+                auto broad_bufs = m_impl->broad_detector->GetOutputBuffers();
+                narrow_out = m_impl->narrow_detector->AddDetectPasses(
                     builder, physics_scene,
-                    m_impl->broad_detector->GetPairBuffer(),
-                    m_impl->broad_detector->GetPairCountBuffer()
+                    broad_bufs.pair_buffer, broad_bufs.pair_count_buffer,
+                    scene_handles,
+                    broad_out.pair_buffer, broad_out.pair_count
                 );
             }
 
-            // Import collision result buffers from the narrow-phase detector.
+            // Use pre-imported collision result handles directly (no re-import).
+            RGBufferHandle coll_ids_h = narrow_out.collision_ids;
+            RGBufferHandle coll_normals_h = narrow_out.collision_normals;
+            RGBufferHandle coll_pta_h = narrow_out.contact_point_a;
+            RGBufferHandle coll_ptb_h = narrow_out.contact_point_b;
+            RGBufferHandle coll_cnt_h = narrow_out.collision_count;
+
+            // Raw pointers for shader binding (still needed for srb.BindBuffer).
             auto cr = m_impl->narrow_detector ? m_impl->narrow_detector->GetCollisionResultBuffers()
                                               : CollisionResultBuffers{};
-            RGBufferHandle coll_ids_h{}, coll_normals_h{}, coll_pta_h{}, coll_ptb_h{}, coll_cnt_h{};
-            if (cr.collision_ids != nullptr) {
-                coll_ids_h = builder.ImportExternalResource(*cr.collision_ids, {MemoryAccessTypeBufferBits::None});
-                coll_normals_h =
-                    builder.ImportExternalResource(*cr.collision_normals, {MemoryAccessTypeBufferBits::None});
-                coll_pta_h = builder.ImportExternalResource(*cr.contact_point_a, {MemoryAccessTypeBufferBits::None});
-                coll_ptb_h = builder.ImportExternalResource(*cr.contact_point_b, {MemoryAccessTypeBufferBits::None});
-                coll_cnt_h = builder.ImportExternalResource(*cr.collision_count, {MemoryAccessTypeBufferBits::None});
-            }
 
             // --- Pass: Memset lagrange to zero ---
             {

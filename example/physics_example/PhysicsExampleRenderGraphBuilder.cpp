@@ -52,7 +52,7 @@ std::unique_ptr<RenderGraph> PhysicsExampleRenderGraphBuilder::BuildRenderGraph(
     // The XPBD Step pass is gated on IsSimulationEnabled() at dispatch time.
     // When simulation is paused, solver passes skip but model matrix still updates.
     // Collision detection is owned and managed internally by XPBDGpuSolver.
-    m_xpbd_solver->Step(rgb, physics_scene, mm_handle);
+    m_xpbd_solver->AddStepPasses(rgb, physics_scene, mm_handle);
 
     // ---- Request transient render targets ----
     RenderTargetTexture::RenderTargetTextureDesc rtt_desc{

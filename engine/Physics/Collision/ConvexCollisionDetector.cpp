@@ -208,14 +208,16 @@ namespace Engine {
         return result;
     }
 
-    void ConvexCollisionDetector::Step(
+    NarrowDetectorOutputHandles ConvexCollisionDetector::AddDetectPasses(
         RenderGraphBuilder &builder, PhysicsScene &physics_scene,
-        const ComputeBuffer &pair_buffer, const ComputeBuffer &pair_count_buffer
+        const ComputeBuffer &pair_buffer, const ComputeBuffer &pair_count_buffer,
+        const PhysicsSceneBufferHandles &handles,
+        RGBufferHandle pair_buffer_handle, RGBufferHandle pair_count_handle
     ) {
         const auto gpu = physics_scene.GetGpuBuffers();
 
         if (gpu.shape_alive == nullptr || gpu.shape_world_position == nullptr || gpu.shape_slot_count == 0u) {
-            return;
+            return {};
         }
 
         // --- Ensure buffers are created ---
@@ -247,25 +249,14 @@ namespace Engine {
         detect_srb.BindBuffer("ShapeSlotCount", *m_impl->gpu_shape_slot_count);
         detect_srb.BindBuffer("DetectorConfig", *m_impl->gpu_detector_config);
 
-        // ---- Import external resources into the render graph ----
-        auto shape_alive_handle =
-            builder.ImportExternalResource(*gpu.shape_alive, {MemoryAccessTypeBufferBits::None});
-        auto shape_type_handle =
-            builder.ImportExternalResource(*gpu.shape_type, {MemoryAccessTypeBufferBits::None});
-        auto shape_feature_handle =
-            builder.ImportExternalResource(*gpu.shape_feature, {MemoryAccessTypeBufferBits::None});
-        auto shape_world_pos_handle =
-            builder.ImportExternalResource(*gpu.shape_world_position, {MemoryAccessTypeBufferBits::None});
-        auto shape_world_rot_handle =
-            builder.ImportExternalResource(*gpu.shape_world_rotation, {MemoryAccessTypeBufferBits::None});
+        // ---- Use pre-imported scene buffer handles (no self-import) ----
+        auto shape_alive_handle = handles.shape_alive;
+        auto shape_type_handle = handles.shape_type;
+        auto shape_feature_handle = handles.shape_feature;
+        auto shape_world_pos_handle = handles.shape_world_position;
+        auto shape_world_rot_handle = handles.shape_world_rotation;
 
-        // External pair buffers (from broad-phase).
-        auto pairs_handle =
-            builder.ImportExternalResource(pair_buffer, {MemoryAccessTypeBufferBits::None});
-        auto pair_count_handle =
-            builder.ImportExternalResource(pair_count_buffer, {MemoryAccessTypeBufferBits::None});
-
-        // Owned result buffers.
+        // ---- Owned result buffers (still imported here) ----
         auto slot_count_handle =
             builder.ImportExternalResource(*m_impl->gpu_shape_slot_count, {MemoryAccessTypeBufferBits::None});
         auto collision_ids_handle =
@@ -298,7 +289,7 @@ namespace Engine {
                 .UseBuffer(shape_feature_handle, {MemoryAccessTypeBufferBits::ShaderRandomRead})
                 .UseBuffer(shape_world_pos_handle, {MemoryAccessTypeBufferBits::ShaderRandomRead})
                 .UseBuffer(shape_world_rot_handle, {MemoryAccessTypeBufferBits::ShaderRandomRead})
-                .UseBuffer(pairs_handle, {MemoryAccessTypeBufferBits::ShaderRandomRead})
+                .UseBuffer(pair_buffer_handle, {MemoryAccessTypeBufferBits::ShaderRandomRead})
                 .UseBuffer(pair_count_handle, {MemoryAccessTypeBufferBits::ShaderRandomRead})
                 .UseBuffer(collision_ids_handle, {MemoryAccessTypeBufferBits::ShaderRandomWrite})
                 .UseBuffer(collision_normals_handle, {MemoryAccessTypeBufferBits::ShaderRandomWrite})
@@ -322,5 +313,13 @@ namespace Engine {
                 )
                 .Get()
         );
+
+        return {
+            .collision_ids = collision_ids_handle,
+            .collision_normals = collision_normals_handle,
+            .contact_point_a = contact_a_handle,
+            .contact_point_b = contact_b_handle,
+            .collision_count = collision_count_handle
+        };
     }
 } // namespace Engine

@@ -67,7 +67,7 @@ namespace Engine {
          * @param external_model_matrices_handle Optional pre-imported model
          *        matrices buffer handle for sharing with rendering passes.
          */
-        void Step(
+        void AddStepPasses(
             RenderGraphBuilder &builder,
             PhysicsScene &physics_scene,
             RGBufferHandle external_model_matrices_handle = RGBufferHandle{}

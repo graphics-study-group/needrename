@@ -432,22 +432,20 @@ namespace Engine {
         return m_impl->initialized;
     }
 
-    const ComputeBuffer &SpatialHashBroadDetector::GetPairBuffer() const noexcept {
-        return *m_impl->gpu_collision_pairs;
+    BroadDetectorOutputBuffers SpatialHashBroadDetector::GetOutputBuffers() const noexcept {
+        return {
+            .pair_buffer = *m_impl->gpu_collision_pairs,
+            .pair_count_buffer = *m_impl->gpu_pair_count,
+            .max_pairs = m_impl->max_pairs
+        };
     }
 
-    const ComputeBuffer &SpatialHashBroadDetector::GetPairCountBuffer() const noexcept {
-        return *m_impl->gpu_pair_count;
-    }
-
-    uint32_t SpatialHashBroadDetector::GetMaxPairs() const noexcept {
-        return m_impl->max_pairs;
-    }
-
-    void SpatialHashBroadDetector::Step(RenderGraphBuilder &builder, PhysicsScene &physics_scene) {
+    BroadDetectorOutputHandles SpatialHashBroadDetector::AddDetectPasses(
+        RenderGraphBuilder &builder, PhysicsScene &physics_scene, const PhysicsSceneBufferHandles &handles
+    ) {
         const auto gpu = physics_scene.GetGpuBuffers();
         if (gpu.shape_alive == nullptr || gpu.shape_world_position == nullptr || gpu.shape_slot_count == 0u) {
-            return;
+            return {};
         }
 
         const uint32_t shape_count = gpu.shape_slot_count;
@@ -457,7 +455,7 @@ namespace Engine {
                 auto *addr = reinterpret_cast<uint32_t *>(m_impl->gpu_pair_count->GetVMAddress());
                 *addr = 0u;
             }
-            return;
+            return {};
         }
 
         m_impl->EnsureAllBuffers(shape_count);
@@ -475,12 +473,12 @@ namespace Engine {
         const MemoryAccessTypeBuffer RW{AT::ShaderRandomRead, AT::ShaderRandomWrite};
         const MemoryAccessTypeBuffer WW{AT::ShaderRandomWrite};
 
-        // --- Import PhysicsScene shape buffers ---
-        auto shape_alive_h = builder.ImportExternalResource(*gpu.shape_alive, {AT::None});
-        auto shape_type_h = builder.ImportExternalResource(*gpu.shape_type, {AT::None});
-        auto shape_feature_h = builder.ImportExternalResource(*gpu.shape_feature, {AT::None});
-        auto shape_wpos_h = builder.ImportExternalResource(*gpu.shape_world_position, {AT::None});
-        auto shape_wrot_h = builder.ImportExternalResource(*gpu.shape_world_rotation, {AT::None});
+        // --- Use pre-imported scene buffer handles (no self-import) ---
+        auto shape_alive_h = handles.shape_alive;
+        auto shape_type_h = handles.shape_type;
+        auto shape_feature_h = handles.shape_feature;
+        auto shape_wpos_h = handles.shape_world_position;
+        auto shape_wrot_h = handles.shape_world_rotation;
 
         // --- Resolve filter buffers (use dummy from detector if scene has none) ---
         const ComputeBuffer &filter_off_buf =
@@ -489,6 +487,17 @@ namespace Engine {
             gpu.shape_filter_count ? *gpu.shape_filter_count : *m_impl->gpu_dummy_uint;
         const ComputeBuffer &filter_dat_buf =
             gpu.shape_filter_data ? *gpu.shape_filter_data : *m_impl->gpu_dummy_uint;
+
+        // Filter handles: use pre-imported if the scene owns them, otherwise import dummy.
+        auto filt_off_h = gpu.shape_filter_offset
+            ? handles.shape_filter_offset
+            : builder.ImportExternalResource(*m_impl->gpu_dummy_uint, {AT::None});
+        auto filt_cnt_h = gpu.shape_filter_count
+            ? handles.shape_filter_count
+            : builder.ImportExternalResource(*m_impl->gpu_dummy_uint, {AT::None});
+        auto filt_dat_h = gpu.shape_filter_data
+            ? handles.shape_filter_data
+            : builder.ImportExternalResource(*m_impl->gpu_dummy_uint, {AT::None});
 
         // --- Import owned buffers ---
         auto scount_h = builder.ImportExternalResource(*m_impl->gpu_shape_slot_count, {AT::None});
@@ -509,11 +518,6 @@ namespace Engine {
         auto pcnt_h = builder.ImportExternalResource(*m_impl->gpu_pair_count, {AT::None});
         auto gcfg_h = builder.ImportExternalResource(*m_impl->gpu_grid_config, {AT::None});
         auto scan_bs_h = builder.ImportExternalResource(*m_impl->gpu_scan_block_sums, {AT::None});
-
-        // Import the resolved filter buffers (real or dummy).
-        auto filt_off_h = builder.ImportExternalResource(filter_off_buf, {AT::None});
-        auto filt_cnt_h = builder.ImportExternalResource(filter_cnt_buf, {AT::None});
-        auto filt_dat_h = builder.ImportExternalResource(filter_dat_buf, {AT::None});
 
         // --- Determine if we use fallback ---
         bool use_fallback = (shape_count <= m_impl->fallback_threshold);
@@ -600,7 +604,7 @@ namespace Engine {
                     })
                     .Get()
             );
-            return;
+            return {pairs_h, pcnt_h};
         }
 
         // === Pass 2: Count cells per shape ===
@@ -795,5 +799,7 @@ namespace Engine {
                     .Get()
             );
         }
+
+        return {pairs_h, pcnt_h};
     }
 } // namespace Engine

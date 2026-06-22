@@ -9,6 +9,8 @@ namespace Engine {
     class PhysicsScene;
     class RenderGraphBuilder;
     class RenderSystem;
+    enum class RGBufferHandle : int32_t;
+    struct PhysicsSceneBufferHandles;
 
     /**
      * @brief Spatial hash grid configuration.
@@ -54,6 +56,30 @@ namespace Engine {
      * Multi-level parallel_scan orchestration is handled internally by the
      * DispatchParallelScan helper.
      */
+
+    /**
+     * @brief Bundled raw output buffers from the broad-phase detector.
+     *
+     * Used by the solver for shader resource binding.  References are
+     * guaranteed valid for the detector's lifetime.
+     */
+    struct BroadDetectorOutputBuffers {
+        const ComputeBuffer &pair_buffer;
+        const ComputeBuffer &pair_count_buffer;
+        uint32_t max_pairs;
+    };
+
+    /**
+     * @brief Pre-imported RenderGraph handles for broad-phase output buffers.
+     *
+     * Returned by AddDetectPasses() so the caller can forward handles to
+     * the narrow-phase detector without re-importing.
+     */
+    struct BroadDetectorOutputHandles {
+        RGBufferHandle pair_buffer{};
+        RGBufferHandle pair_count{};
+    };
+
     class SpatialHashBroadDetector {
     public:
         /**
@@ -82,26 +108,26 @@ namespace Engine {
          * @brief Fill a render graph builder with broad-phase compute passes.
          *
          * @param builder       Render graph builder to populate.
-         * @param physics_scene Physics scene providing GPU shape buffers.
+         * @param physics_scene Physics scene providing GPU shape buffers and
+         *                      raw ComputeBuffer references for shader binding.
+         * @param handles       Pre-imported RenderGraph handles for scene-owned
+         *                      shape buffers.  The detector uses these handles
+         *                      directly instead of calling ImportExternalResource.
+         * @return Handles to the detector-owned output buffers (pair buffer and
+         *         pair count), ready for forwarding to the narrow-phase detector.
          */
-        void Step(RenderGraphBuilder &builder, PhysicsScene &physics_scene);
+        BroadDetectorOutputHandles AddDetectPasses(
+            RenderGraphBuilder &builder,
+            PhysicsScene &physics_scene,
+            const PhysicsSceneBufferHandles &handles
+        );
 
         bool IsInitialized() const noexcept;
 
         /**
-         * @brief Get the collision pair buffer (uvec2[], written each frame).
+         * @brief Get bundled raw output buffers for shader binding.
          */
-        const ComputeBuffer &GetPairBuffer() const noexcept;
-
-        /**
-         * @brief Get the pair count buffer (single uint, written each frame).
-         */
-        const ComputeBuffer &GetPairCountBuffer() const noexcept;
-
-        /**
-         * @brief Get the maximum number of pairs the output buffer can hold.
-         */
-        uint32_t GetMaxPairs() const noexcept;
+        BroadDetectorOutputBuffers GetOutputBuffers() const noexcept;
 
     private:
         struct Impl;
