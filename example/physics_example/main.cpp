@@ -108,83 +108,83 @@ int main(int /*argc*/, char ** /*argv*/) {
         .material = red_mat,
     });
 
-    // builder.AddBox({
-    //     .position = {0.0f, -0.7f, 2.0f},
-    //     .rotation = glm::angleAxis(glm::radians(44.0f), glm::normalize(glm::vec3(1.0f, 1.0f, 0.0f))),
-    //     .half_extents = {0.2f, 0.5f, 0.2f},
-    //     .mass = 1.0f,
-    //     .material = green_mat,
-    // });
+    builder.AddBox({
+        .position = {0.0f, -0.7f, 2.0f},
+        .rotation = glm::angleAxis(glm::radians(44.0f), glm::normalize(glm::vec3(1.0f, 1.0f, 0.0f))),
+        .half_extents = {0.2f, 0.5f, 0.2f},
+        .mass = 1.0f,
+        .material = green_mat,
+    });
 
-    // // Green box — offset in X, higher up.
-    // builder.AddSphere({
-    //     .position = {1.2f, 0.0f, 7.0f},
-    //     .radius = 0.5f,
-    //     .mass = 1.0f,
-    //     .material = green_mat,
-    // });
+    // Green box — offset in X, higher up.
+    builder.AddSphere({
+        .position = {1.2f, 0.0f, 7.0f},
+        .radius = 0.5f,
+        .mass = 1.0f,
+        .material = green_mat,
+    });
 
-    // // Blue box — offset in Y, medium height.
-    // builder.AddCylinder({
-    //     .position = {0.0f, 1.2f, 6.0f},
-    //     .radius = 0.2f,
-    //     .half_height = 1.0f,
-    //     .mass = 1.0f,
-    //     .material = blue_mat,
-    // });
+    // Blue box — offset in Y, medium height.
+    builder.AddCylinder({
+        .position = {0.0f, 1.2f, 6.0f},
+        .radius = 0.2f,
+        .half_height = 1.0f,
+        .mass = 1.0f,
+        .material = blue_mat,
+    });
 
-    // // Yellow box — taller shape, higher up.
-    // builder.AddSphere({
-    //     .position = {-1.0f, -0.5f, 8.0f},
-    //     .radius = 0.4f,
-    //     .mass = 2.0f,
-    //     .material = yellow_mat,
-    // });
+    // Yellow box — taller shape, higher up.
+    builder.AddSphere({
+        .position = {-1.0f, -0.5f, 8.0f},
+        .radius = 0.4f,
+        .mass = 2.0f,
+        .material = yellow_mat,
+    });
 
-    // // Cyan box — wide flat box.
-    // builder.AddCylinder({
-    //     .position = {2.0f, -1.0f, 9.0f},
-    //     .radius = 0.8f,
-    //     .half_height = 0.3f,
-    //     .mass = 0.5f,
-    //     .material = cyan_mat,
-    // });
+    // Cyan box — wide flat box.
+    builder.AddCylinder({
+        .position = {2.0f, -1.0f, 9.0f},
+        .radius = 0.8f,
+        .half_height = 0.3f,
+        .mass = 0.5f,
+        .material = cyan_mat,
+    });
 
-    // // Magenta box — small cube, highest.
-    // builder.AddCylinder({
-    //     .position = {-2.0f, 1.0f, 10.0f},
-    //     .rotation = glm::angleAxis(glm::radians(90.0f), glm::normalize(glm::vec3(0.5f, 0.0f, 1.0f))),
-    //     .radius = 0.3f,
-    //     .half_height = 0.6f,
-    //     .mass = 0.3f,
-    //     .material = magenta_mat,
-    // });
+    // Magenta box — small cube, highest.
+    builder.AddCylinder({
+        .position = {-2.0f, 1.0f, 10.0f},
+        .rotation = glm::angleAxis(glm::radians(90.0f), glm::normalize(glm::vec3(0.5f, 0.0f, 1.0f))),
+        .radius = 0.3f,
+        .half_height = 0.6f,
+        .mass = 0.3f,
+        .material = magenta_mat,
+    });
 
-    // // Orange box — medium cube, slightly rotated.
-    // builder.AddBox({
-    //     .position = {0.5f, 2.0f, 4.0f},
-    //     .rotation = glm::angleAxis(glm::radians(25.0f), glm::normalize(glm::vec3(0.3f, 0.2f, 0.7f))),
-    //     .half_extents = {0.5f, 0.5f, 0.5f},
-    //     .mass = 1.5f,
-    //     .material = orange_mat,
-    // });
+    // Orange box — medium cube, slightly rotated.
+    builder.AddBox({
+        .position = {0.5f, 2.0f, 4.0f},
+        .rotation = glm::angleAxis(glm::radians(25.0f), glm::normalize(glm::vec3(0.3f, 0.2f, 0.7f))),
+        .half_extents = {0.5f, 0.5f, 0.5f},
+        .mass = 1.5f,
+        .material = orange_mat,
+    });
 
-    // // rigid bricks
-    // int n = 5;
-    // glm::vec3 brick_size(0.2f, 0.4f, 0.2f);
-    // for (int i = 0; i < n; ++i) {
-    //     glm::vec3 start_pos(4.0f, -0.5f * brick_size.y * n, brick_size.z * (i + 0.5f));
-    //     for (int j = 0; j < n - i; ++j)
-    //         builder.AddBox({
-    //             .position = start_pos + glm::vec3(0.0f, brick_size.y * (j + 0.5f * i), 0.0f),
-    //             .half_extents = brick_size * 0.5f,
-    //             .mass = 1.0f,
-    //             .material = blue_mat,
-    //         });
-    // }
+    // rigid bricks
+    int n = 5;
+    glm::vec3 brick_size(0.2f, 0.4f, 0.2f);
+    for (int i = 0; i < n; ++i) {
+        glm::vec3 start_pos(4.0f, -0.5f * brick_size.y * n, brick_size.z * (i + 0.5f));
+        for (int j = 0; j < n - i; ++j)
+            builder.AddBox({
+                .position = start_pos + glm::vec3(0.0f, brick_size.y * (j + 0.5f * i), 0.0f),
+                .half_extents = brick_size * 0.5f,
+                .mass = 1.0f,
+                .material = blue_mat,
+            });
+    }
 
-    // // Double pendulum demo — hinge + fixed joint test.
-    // builder.AddDoublePendulum({6.5f, 0.0f, 4.5f});
+    // Double pendulum demo — hinge + fixed joint test.
+    builder.AddDoublePendulum({6.5f, 0.0f, 4.5f});
 
     // --- Camera setup ---
     // Z is up, camera is positioned to the side looking at the falling zone.

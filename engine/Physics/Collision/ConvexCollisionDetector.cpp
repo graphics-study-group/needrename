@@ -55,6 +55,11 @@ namespace Engine {
 
         bool initialized = false;
 
+        // ---- Clear pipeline (resets collision_count each frame) ----
+        std::unique_ptr<ComputeStage> clear_stage{};
+        ComputeResourceBinding *clear_resource_binding = nullptr;
+        std::vector<uint32_t> clear_cached_spirv{};
+
         // ---- Collision-detection pipeline ----
         std::unique_ptr<ComputeStage> detect_stage{};
         ComputeResourceBinding *detect_resource_binding = nullptr;
@@ -74,6 +79,9 @@ namespace Engine {
 
         // Detector config uniform buffer (binding 12): single float contact_margin.
         std::unique_ptr<ComputeBuffer> gpu_detector_config{};
+
+        // Constant-one buffer for clear_int ElemCount.
+        std::unique_ptr<ComputeBuffer> gpu_one{};
 
         float contact_margin = 0.001f;
 
@@ -150,6 +158,16 @@ namespace Engine {
                         ComputeBuffer::CreateUnique(allocator, byte_size, true, false, false, false, "DetectorConfig");
                 }
             }
+
+            // Constant-one buffer for single-element clears.
+            {
+                if (!gpu_one || gpu_one->GetSize() < sizeof(uint32_t)) {
+                    gpu_one =
+                        ComputeBuffer::CreateUnique(allocator, sizeof(uint32_t), true, false, false, false, "NarrowOne");
+                    auto *addr = reinterpret_cast<uint32_t *>(gpu_one->GetVMAddress());
+                    *addr = 1u;
+                }
+            }
         }
 
         /**
@@ -160,6 +178,12 @@ namespace Engine {
         void EnsureInitialized() {
             if (initialized) return;
             initialized = true;
+
+            // --- Clear pipeline (zeroes collision_count each frame) ---
+            clear_cached_spirv = LoadPhysicsSpirv("solver/XPBDSolver/clear_int_buffer.comp.spv");
+            clear_stage = std::make_unique<ComputeStage>(render_system);
+            clear_stage->Instantiate(clear_cached_spirv, "ConvexDetect ClearCount");
+            clear_resource_binding = &clear_stage->AllocateResourceBinding();
 
             // --- Collision-detection pipeline ---
             detect_cached_spirv = LoadPhysicsSpirv("solver/ConvexCollisionDetector/detect_collisions.comp.spv");
@@ -274,6 +298,28 @@ namespace Engine {
 
         auto *detect_stage = m_impl->detect_stage.get();
         auto *detect_binding = m_impl->detect_resource_binding;
+
+        // ---- Pass 1: Clear collision count on GPU (runs every frame) ----
+        {
+            auto &clear_srb = m_impl->clear_resource_binding->GetShaderResourceBinding();
+            clear_srb.BindBuffer("Target", *m_impl->gpu_collision_count);
+            clear_srb.BindBuffer("ElemCount", *m_impl->gpu_one);
+
+            auto *clear_stage_ptr = m_impl->clear_stage.get();
+            auto *clear_binding_ptr = m_impl->clear_resource_binding;
+            builder.AddPass(
+                RenderGraphPassBuilder{m_impl->render_system}
+                    .SetName("ConvexDetect ClearCount")
+                    .SetAffinity(RenderGraphPassAffinity::Compute)
+                    .UseBuffer(collision_count_handle, {MemoryAccessTypeBufferBits::ShaderRandomWrite})
+                    .SetPassFunction([clear_stage_ptr, clear_binding_ptr](CommandBuffer &cb, const RenderGraph &) -> void {
+                        cb.BindComputeStage(*clear_stage_ptr);
+                        cb.BindComputeResource(*clear_binding_ptr);
+                        cb.DispatchCompute(1, 1, 1);
+                    })
+                    .Get()
+            );
+        }
 
         // Dispatch with max_pair_capacity workgroups; extra threads early-return.
         const uint32_t detect_workgroups =

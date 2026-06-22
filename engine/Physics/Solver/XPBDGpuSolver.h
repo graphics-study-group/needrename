@@ -20,8 +20,8 @@ namespace Engine {
         glm::vec3 gravity{0.0f, 0.0f, -9.81f};
         float time_step = 1.0f / 100.0f;
         uint32_t num_substep_perstep = 1;
-        uint32_t num_iter_persubstep = 1;
-        uint32_t num_velocity_iters = 1;
+        uint32_t num_iter_persubstep = 100;
+        uint32_t num_velocity_iters = 100;
         uint32_t max_contact_points = 100000u;
         float contact_margin = 0.001f;
 
