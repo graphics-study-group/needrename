@@ -55,11 +55,6 @@ namespace Engine {
 
         bool initialized = false;
 
-        // ---- Pair-generation pipeline ----
-        std::unique_ptr<ComputeStage> pair_gen_stage{};
-        ComputeResourceBinding *pair_gen_resource_binding = nullptr;
-        std::vector<uint32_t> pair_gen_cached_spirv{};
-
         // ---- Collision-detection pipeline ----
         std::unique_ptr<ComputeStage> detect_stage{};
         ComputeResourceBinding *detect_resource_binding = nullptr;
@@ -67,11 +62,8 @@ namespace Engine {
 
         // ---- Owned GPU buffers ----
 
-        // shape_slot_count: single-uint buffer read by both shaders.
+        // shape_slot_count: single-uint buffer read by detection shader.
         std::unique_ptr<ComputeBuffer> gpu_shape_slot_count{};
-
-        // Collision pair input buffer (written by generate_pairs, read by detect_collisions).
-        std::unique_ptr<ComputeBuffer> gpu_collision_pairs{};
 
         // Collision result buffers.
         std::unique_ptr<ComputeBuffer> gpu_collision_ids{};
@@ -108,16 +100,6 @@ namespace Engine {
                 if (!gpu_shape_slot_count || gpu_shape_slot_count->GetSize() != byte_size) {
                     gpu_shape_slot_count =
                         ComputeBuffer::CreateUnique(allocator, byte_size, true, false, false, false, "ShapeSlotCount");
-                }
-            }
-
-            // Pair buffer.
-            {
-                const size_t byte_size = safe_pairs * sizeof(glm::uvec2);
-                if (!gpu_collision_pairs || gpu_collision_pairs->GetSize() != byte_size) {
-                    gpu_collision_pairs = ComputeBuffer::CreateUnique(
-                        allocator, byte_size, false, false, false, false, "CollisionPairInput"
-                    );
                 }
             }
 
@@ -179,12 +161,6 @@ namespace Engine {
             if (initialized) return;
             initialized = true;
 
-            // --- Pair-generation pipeline ---
-            pair_gen_cached_spirv = LoadPhysicsSpirv("solver/ConvexCollisionDetector/generate_pairs.comp.spv");
-            pair_gen_stage = std::make_unique<ComputeStage>(render_system);
-            pair_gen_stage->Instantiate(pair_gen_cached_spirv, "Collision Pair Generation");
-            pair_gen_resource_binding = &pair_gen_stage->AllocateResourceBinding();
-
             // --- Collision-detection pipeline ---
             detect_cached_spirv = LoadPhysicsSpirv("solver/ConvexCollisionDetector/detect_collisions.comp.spv");
             detect_stage = std::make_unique<ComputeStage>(render_system);
@@ -232,19 +208,13 @@ namespace Engine {
         return result;
     }
 
-    void ConvexCollisionDetector::Step(RenderGraphBuilder &builder, PhysicsScene &physics_scene) {
+    void ConvexCollisionDetector::Step(
+        RenderGraphBuilder &builder, PhysicsScene &physics_scene,
+        const ComputeBuffer &pair_buffer, const ComputeBuffer &pair_count_buffer
+    ) {
         const auto gpu = physics_scene.GetGpuBuffers();
 
-        // Bail if essential shape buffers are not available or no shapes exist.
         if (gpu.shape_alive == nullptr || gpu.shape_world_position == nullptr || gpu.shape_slot_count == 0u) {
-            return;
-        }
-
-        const uint32_t shape_count = gpu.shape_slot_count;
-        const uint32_t total_pairs = (shape_count * (shape_count - 1u)) / 2u;
-
-        // Nothing to detect with 0 or 1 shapes.
-        if (total_pairs == 0u) {
             return;
         }
 
@@ -255,25 +225,20 @@ namespace Engine {
         m_impl->EnsureInitialized();
 
         // Upload shape slot count and detector config to GPU.
-        m_impl->UpdateShapeSlotCount(shape_count);
+        m_impl->UpdateShapeSlotCount(gpu.shape_slot_count);
         m_impl->UpdateDetectorConfig();
 
-        // ---- Bind resources for pair-generation shader ----
-        auto &pair_srb = m_impl->pair_gen_resource_binding->GetShaderResourceBinding();
-        pair_srb.BindBuffer("ShapeSlotCount", *m_impl->gpu_shape_slot_count);
-        pair_srb.BindBuffer("CollisionPairs", *m_impl->gpu_collision_pairs);
-        pair_srb.BindBuffer("CollisionCount", *m_impl->gpu_collision_count);
-
         // ---- Bind resources for detection shader ----
-        // PhysicsScene shape buffers (readonly).
         auto &detect_srb = m_impl->detect_resource_binding->GetShaderResourceBinding();
         detect_srb.BindBuffer("ShapeAlive", *gpu.shape_alive);
         detect_srb.BindBuffer("ShapeType", *gpu.shape_type);
         detect_srb.BindBuffer("ShapeFeature", *gpu.shape_feature);
         detect_srb.BindBuffer("ShapeWorldPosition", *gpu.shape_world_position);
         detect_srb.BindBuffer("ShapeWorldRotation", *gpu.shape_world_rotation);
-        // Owned buffers.
-        detect_srb.BindBuffer("CollisionPairs", *m_impl->gpu_collision_pairs);
+        // External pair buffer.
+        detect_srb.BindBuffer("CollisionPairs", pair_buffer);
+        detect_srb.BindBuffer("PairCount", pair_count_buffer);
+        // Result buffers.
         detect_srb.BindBuffer("CollisionIds", *m_impl->gpu_collision_ids);
         detect_srb.BindBuffer("CollisionNormals", *m_impl->gpu_collision_normals);
         detect_srb.BindBuffer("ContactPointA", *m_impl->gpu_contact_point_a);
@@ -283,10 +248,10 @@ namespace Engine {
         detect_srb.BindBuffer("DetectorConfig", *m_impl->gpu_detector_config);
 
         // ---- Import external resources into the render graph ----
-
-        // PhysicsScene shape buffers.
-        auto shape_alive_handle = builder.ImportExternalResource(*gpu.shape_alive, {MemoryAccessTypeBufferBits::None});
-        auto shape_type_handle = builder.ImportExternalResource(*gpu.shape_type, {MemoryAccessTypeBufferBits::None});
+        auto shape_alive_handle =
+            builder.ImportExternalResource(*gpu.shape_alive, {MemoryAccessTypeBufferBits::None});
+        auto shape_type_handle =
+            builder.ImportExternalResource(*gpu.shape_type, {MemoryAccessTypeBufferBits::None});
         auto shape_feature_handle =
             builder.ImportExternalResource(*gpu.shape_feature, {MemoryAccessTypeBufferBits::None});
         auto shape_world_pos_handle =
@@ -294,11 +259,15 @@ namespace Engine {
         auto shape_world_rot_handle =
             builder.ImportExternalResource(*gpu.shape_world_rotation, {MemoryAccessTypeBufferBits::None});
 
-        // Owned buffers.
+        // External pair buffers (from broad-phase).
+        auto pairs_handle =
+            builder.ImportExternalResource(pair_buffer, {MemoryAccessTypeBufferBits::None});
+        auto pair_count_handle =
+            builder.ImportExternalResource(pair_count_buffer, {MemoryAccessTypeBufferBits::None});
+
+        // Owned result buffers.
         auto slot_count_handle =
             builder.ImportExternalResource(*m_impl->gpu_shape_slot_count, {MemoryAccessTypeBufferBits::None});
-        auto pairs_handle =
-            builder.ImportExternalResource(*m_impl->gpu_collision_pairs, {MemoryAccessTypeBufferBits::None});
         auto collision_ids_handle =
             builder.ImportExternalResource(*m_impl->gpu_collision_ids, {MemoryAccessTypeBufferBits::None});
         auto collision_normals_handle =
@@ -312,53 +281,25 @@ namespace Engine {
         auto detector_config_handle =
             builder.ImportExternalResource(*m_impl->gpu_detector_config, {MemoryAccessTypeBufferBits::None});
 
-        // Capture pointers for the pass functions.  The detector owns the
-        // ComputeStage instances, so these pointers outlive the lambdas.
-        auto *pg_stage = m_impl->pair_gen_stage.get();
-        auto *pg_binding = m_impl->pair_gen_resource_binding;
         auto *detect_stage = m_impl->detect_stage.get();
         auto *detect_binding = m_impl->detect_resource_binding;
 
-        // Dispatch sizes.
-        // Always dispatch at least 1 workgroup for pair generation so thread 0
-        // resets the collision count.
-        const uint32_t pair_gen_workgroups = std::max(1u, (total_pairs + 63u) / 64u);
-        const uint32_t detect_workgroups = (total_pairs + 63u) / 64u;
+        // Dispatch with max_pair_capacity workgroups; extra threads early-return.
+        const uint32_t detect_workgroups =
+            std::max(1u, (m_impl->max_collision_pairs + 63u) / 64u);
 
-        // ---- Pass 1: GPU pair generation ----
-        builder.AddPass(
-            RenderGraphPassBuilder{m_impl->render_system}
-                .SetName("Collision Pair Generation")
-                .SetAffinity(RenderGraphPassAffinity::Compute)
-                .UseBuffer(slot_count_handle, {MemoryAccessTypeBufferBits::ShaderRandomRead})
-                .UseBuffer(pairs_handle, {MemoryAccessTypeBufferBits::ShaderRandomWrite})
-                .UseBuffer(collision_count_handle, {MemoryAccessTypeBufferBits::ShaderRandomWrite})
-                .SetPassFunction(
-                    [pg_stage, pg_binding, pair_gen_workgroups, &physics_scene](CommandBuffer &cb, const RenderGraph &)
-                        -> void {
-                        if (!physics_scene.IsSimulationEnabled()) return;
-                        cb.BindComputeStage(*pg_stage);
-                        cb.BindComputeResource(*pg_binding);
-                        cb.DispatchCompute(pair_gen_workgroups, 1, 1);
-                    }
-                )
-                .Get()
-        );
-
-        // ---- Pass 2: Collision detection ----
+        // ---- Pass: Collision detection ----
         builder.AddPass(
             RenderGraphPassBuilder{m_impl->render_system}
                 .SetName("Convex Collision Detection")
                 .SetAffinity(RenderGraphPassAffinity::Compute)
-                // PhysicsScene shape buffers (readonly).
                 .UseBuffer(shape_alive_handle, {MemoryAccessTypeBufferBits::ShaderRandomRead})
                 .UseBuffer(shape_type_handle, {MemoryAccessTypeBufferBits::ShaderRandomRead})
                 .UseBuffer(shape_feature_handle, {MemoryAccessTypeBufferBits::ShaderRandomRead})
                 .UseBuffer(shape_world_pos_handle, {MemoryAccessTypeBufferBits::ShaderRandomRead})
                 .UseBuffer(shape_world_rot_handle, {MemoryAccessTypeBufferBits::ShaderRandomRead})
-                // Pair buffer (read).
                 .UseBuffer(pairs_handle, {MemoryAccessTypeBufferBits::ShaderRandomRead})
-                // Result buffers (write).
+                .UseBuffer(pair_count_handle, {MemoryAccessTypeBufferBits::ShaderRandomRead})
                 .UseBuffer(collision_ids_handle, {MemoryAccessTypeBufferBits::ShaderRandomWrite})
                 .UseBuffer(collision_normals_handle, {MemoryAccessTypeBufferBits::ShaderRandomWrite})
                 .UseBuffer(contact_a_handle, {MemoryAccessTypeBufferBits::ShaderRandomWrite})
@@ -367,9 +308,7 @@ namespace Engine {
                     collision_count_handle,
                     {MemoryAccessTypeBufferBits::ShaderRandomRead, MemoryAccessTypeBufferBits::ShaderRandomWrite}
                 )
-                // Slot count (readonly).
                 .UseBuffer(slot_count_handle, {MemoryAccessTypeBufferBits::ShaderRandomRead})
-                // Detector config (readonly uniform).
                 .UseBuffer(detector_config_handle, {MemoryAccessTypeBufferBits::ShaderRandomRead})
                 .SetPassFunction(
                     [detect_stage, detect_binding, detect_workgroups, &physics_scene](

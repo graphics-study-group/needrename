@@ -1,0 +1,60 @@
+#version 450 core
+
+// Pass 2 of two-pass cell assignment: write (cell_id, shape_index) pairs.
+//
+// Re-computes the cell range for each non-global alive shape and writes
+// (cell_id, shape_index) pairs at the pre-computed offset.
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) readonly buffer AabbMin       { vec4 v[]; } aabb_min;
+layout(set = 0, binding = 1) readonly buffer AabbMax       { vec4 v[]; } aabb_max;
+layout(set = 0, binding = 2) readonly buffer GlobalFlags   { uint v[]; } global_flags;
+layout(set = 0, binding = 3) readonly buffer GridConfig {
+    vec4 world_min;
+    ivec4 grid_dims;
+    uint total_cells;
+} grid_config;
+
+layout(set = 0, binding = 4) readonly buffer ShapeSlotCount  { uint count; } shape_slot_count;
+layout(set = 0, binding = 5) readonly buffer ShapeCellOffset { uint v[]; } shape_cell_offset;
+
+layout(set = 0, binding = 6) writeonly buffer CellShapePairs { uvec2 v[]; } cell_shape_pairs;
+
+// Encode 3D cell coordinate to 1D cell ID.
+uint cell_id(ivec3 c) {
+    return uint(c.z) * uint(grid_config.grid_dims.y * grid_config.grid_dims.x)
+         + uint(c.y) * uint(grid_config.grid_dims.x)
+         + uint(c.x);
+}
+
+void main() {
+    uint idx = gl_GlobalInvocationID.x;
+    if (idx >= shape_slot_count.count) return;
+
+    if (global_flags.v[idx] != 0u) return;
+
+    vec3 mn = aabb_min.v[idx].xyz;
+    vec3 mx = aabb_max.v[idx].xyz;
+
+    float cell_size = grid_config.world_min.w;
+    vec3 wmin = grid_config.world_min.xyz;
+    ivec3 dims = grid_config.grid_dims.xyz;
+
+    ivec3 cmin = ivec3(floor((mn - wmin) / cell_size));
+    ivec3 cmax = ivec3(floor((mx - wmin) / cell_size));
+    cmin = clamp(cmin, ivec3(0), dims - 1);
+    cmax = clamp(cmax, ivec3(0), dims - 1);
+
+    uint base = shape_cell_offset.v[idx];
+
+    for (int z = cmin.z; z <= cmax.z; ++z) {
+        for (int y = cmin.y; y <= cmax.y; ++y) {
+            for (int x = cmin.x; x <= cmax.x; ++x) {
+                uint cid = cell_id(ivec3(x, y, z));
+                cell_shape_pairs.v[base] = uvec2(cid, idx);
+                base += 1u;
+            }
+        }
+    }
+}

@@ -1,0 +1,53 @@
+#version 450 core
+
+// Pass 1 of two-pass cell assignment: count cells per shape.
+//
+// For each non-global alive shape, computes the grid cell range that its AABB
+// overlaps and writes the cell count.  Atomically adds the count to a global
+// total_assignments counter (used for buffer sizing).
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) readonly buffer AabbMin       { vec4 v[]; } aabb_min;
+layout(set = 0, binding = 1) readonly buffer AabbMax       { vec4 v[]; } aabb_max;
+layout(set = 0, binding = 2) readonly buffer GlobalFlags   { uint v[]; } global_flags;
+layout(set = 0, binding = 3) readonly buffer GridConfig {
+    vec4 world_min;
+    ivec4 grid_dims;
+    uint total_cells;
+} grid_config;
+
+layout(set = 0, binding = 4) readonly buffer ShapeSlotCount { uint count; } shape_slot_count;
+
+layout(set = 0, binding = 5) buffer ShapeCellCount    { uint v[]; } shape_cell_count;
+layout(set = 0, binding = 6) buffer TotalAssignments  { uint v[]; } total_assignments;
+
+void main() {
+    uint idx = gl_GlobalInvocationID.x;
+    if (idx >= shape_slot_count.count) return;
+
+    shape_cell_count.v[idx] = 0u;
+
+    if (global_flags.v[idx] != 0u) return;
+
+    vec3 mn = aabb_min.v[idx].xyz;
+    vec3 mx = aabb_max.v[idx].xyz;
+
+    float cell_size = grid_config.world_min.w;
+    vec3 wmin = grid_config.world_min.xyz;
+    ivec3 dims = grid_config.grid_dims.xyz;
+
+    ivec3 cmin = ivec3(floor((mn - wmin) / cell_size));
+    ivec3 cmax = ivec3(floor((mx - wmin) / cell_size));
+    cmin = clamp(cmin, ivec3(0), dims - 1);
+    cmax = clamp(cmax, ivec3(0), dims - 1);
+
+    ivec3 span = cmax - cmin + ivec3(1);
+    uint cnt = uint(span.x * span.y * span.z);
+
+    shape_cell_count.v[idx] = cnt;
+
+    if (cnt > 0u) {
+        atomicAdd(total_assignments.v[0], cnt);
+    }
+}

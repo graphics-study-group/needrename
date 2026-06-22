@@ -5,6 +5,7 @@
 #include <vulkan/vulkan.hpp>
 
 #include <Physics/Collision/ConvexCollisionDetector.h>
+#include <Physics/Collision/SpatialHashBroadDetector.h>
 #include <Physics/PhysicsScene.h>
 #include <Render/Memory/ComputeBuffer.h>
 #include <Render/Memory/DeviceBuffer.h>
@@ -56,8 +57,9 @@ namespace Engine {
         uint32_t cached_max_contacts = 0;
         uint32_t cached_shape_count = 0;
 
-        // ---- Owned collision detector ----
-        std::unique_ptr<ConvexCollisionDetector> collision_detector{};
+        // ---- Owned collision detectors ----
+        std::unique_ptr<SpatialHashBroadDetector> broad_detector{};
+        std::unique_ptr<ConvexCollisionDetector> narrow_detector{};
 
         // ---- Compute stages (one per shader) ----
 
@@ -265,17 +267,27 @@ namespace Engine {
             }
         }
 
-        void EnsureCollisionDetector(uint32_t shape_count) {
+        void EnsureCollisionDetectors(uint32_t shape_count) {
             if (shape_count <= 1u) {
-                collision_detector.reset();
+                broad_detector.reset();
+                narrow_detector.reset();
                 cached_shape_count = shape_count;
                 return;
             }
-            // Each collision pair can produce up to 5 contact points (4 perturbation + 1 MPR fallback).
-            uint32_t max_pairs = std::min((shape_count * (shape_count - 1u)) / 2u * 5u, config.max_contact_points);
-            if (!collision_detector || shape_count != cached_shape_count) {
-                collision_detector =
-                    std::make_unique<ConvexCollisionDetector>(render_system, max_pairs, config.contact_margin);
+            if (!broad_detector || shape_count != cached_shape_count) {
+                GridConfig grid_config{};
+                grid_config.world_min = config.grid_world_min;
+                grid_config.world_max = config.grid_world_max;
+                grid_config.cell_size = config.grid_cell_size;
+                grid_config.max_cells_per_shape = config.max_cells_per_shape;
+                broad_detector = std::make_unique<SpatialHashBroadDetector>(
+                    render_system, grid_config, config.fallback_all_pairs_threshold
+                );
+                // Narrow-phase: max_pairs = broad-phase pair capacity * 5 contacts/pair.
+                uint32_t max_pairs = broad_detector->GetMaxPairs();
+                uint32_t max_contacts = std::min(max_pairs * 5u, config.max_contact_points);
+                narrow_detector =
+                    std::make_unique<ConvexCollisionDetector>(render_system, max_contacts, config.contact_margin);
                 cached_shape_count = shape_count;
             }
         }
@@ -417,7 +429,7 @@ namespace Engine {
 
         // ---- Lazy initialization ----
         m_impl->EnsureInitialized();
-        m_impl->EnsureCollisionDetector(gpu.shape_slot_count);
+        m_impl->EnsureCollisionDetectors(gpu.shape_slot_count);
 
         // Compute max_contacts from shape count (up to 5 manifold points per pair:
         // 4 perturbation + optionally 1 MPR fallback).
@@ -689,16 +701,23 @@ namespace Engine {
                 );
             }
 
-            // --- Pass: Collision detection (pair gen + MPR) ---
-            // Buffers are created lazily on first Step() call inside the detector.
-            if (m_impl->collision_detector) {
-                m_impl->collision_detector->Step(builder, physics_scene);
+            // --- Pass: Broad-phase collision detection (spatial hash → candidate pairs) ---
+            if (m_impl->broad_detector) {
+                m_impl->broad_detector->Step(builder, physics_scene);
             }
 
-            // Import collision result buffers from the internal detector (now
-            // guaranteed to exist after the detector's first Step() above).
-            auto cr = m_impl->collision_detector ? m_impl->collision_detector->GetCollisionResultBuffers()
-                                                 : CollisionResultBuffers{};
+            // --- Pass: Narrow-phase collision detection (MPR on candidate pairs) ---
+            if (m_impl->narrow_detector && m_impl->broad_detector) {
+                m_impl->narrow_detector->Step(
+                    builder, physics_scene,
+                    m_impl->broad_detector->GetPairBuffer(),
+                    m_impl->broad_detector->GetPairCountBuffer()
+                );
+            }
+
+            // Import collision result buffers from the narrow-phase detector.
+            auto cr = m_impl->narrow_detector ? m_impl->narrow_detector->GetCollisionResultBuffers()
+                                              : CollisionResultBuffers{};
             RGBufferHandle coll_ids_h{}, coll_normals_h{}, coll_pta_h{}, coll_ptb_h{}, coll_cnt_h{};
             if (cr.collision_ids != nullptr) {
                 coll_ids_h = builder.ImportExternalResource(*cr.collision_ids, {MemoryAccessTypeBufferBits::None});

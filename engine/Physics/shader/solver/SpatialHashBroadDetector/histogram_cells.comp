@@ -1,0 +1,20 @@
+#version 450 core
+
+// Counting-sort histogram pass.
+//
+// Each thread processes one (cell_id, shape_id) pair and atomically
+// increments the per-cell histogram.
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) readonly buffer CellShapePairs  { uvec2 v[]; } cell_shape_pairs;
+layout(set = 0, binding = 1) buffer CellHistogram           { uint v[]; } cell_histogram;
+layout(set = 0, binding = 2) readonly buffer TotalAssignments { uint total; } total_assignments;
+
+void main() {
+    uint idx = gl_GlobalInvocationID.x;
+    if (idx >= total_assignments.total) return;
+
+    uint cid = cell_shape_pairs.v[idx].x;
+    atomicAdd(cell_histogram.v[cid], 1u);
+}

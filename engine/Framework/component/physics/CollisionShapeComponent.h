@@ -76,6 +76,10 @@ namespace Engine {
         REFL_SER_ENABLE glm::vec3 m_feature{0.5f, 0.5f, 0.5f};
         REFL_SER_ENABLE glm::vec3 m_center{0.0f, 0.0f, 0.0f};
         REFL_SER_ENABLE glm::quat m_rotation{1.0f, 0.0f, 0.0f, 0.0f};
+        /// ObjectHandles of GameObjects whose CollisionShapeComponents should be
+        /// ignored during collision detection.  Each ObjectHandle must refer to a
+        /// GameObject that has a CollisionShapeComponent directly attached.
+        REFL_SER_ENABLE std::vector<ObjectHandle> m_ignore_collision_objects{};
 
     private:
         uint32_t m_shape_index{PhysicsScene::INVALID_INDEX};

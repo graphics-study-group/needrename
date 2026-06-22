@@ -184,7 +184,8 @@ namespace Engine {
             CollisionShapeType shape_type,
             const glm::vec3 &feature,
             const glm::vec3 &shape_world_position,
-            const glm::quat &shape_world_rotation
+            const glm::quat &shape_world_rotation,
+            const std::vector<ObjectHandle> &ignore_collision_objects = {}
         );
 
         /**
@@ -221,7 +222,8 @@ namespace Engine {
             CollisionShapeType shape_type,
             const glm::vec3 &feature,
             const glm::vec3 &shape_world_position,
-            const glm::quat &shape_world_rotation
+            const glm::quat &shape_world_rotation,
+            const std::vector<ObjectHandle> &ignore_collision_objects = {}
         );
 
         /**
@@ -336,6 +338,10 @@ namespace Engine {
 
             const ComputeBuffer *model_matrices{};
 
+            const ComputeBuffer *shape_filter_offset{};
+            const ComputeBuffer *shape_filter_count{};
+            const ComputeBuffer *shape_filter_data{};
+
             const ComputeBuffer *gpu_fixed_joints{};
             const ComputeBuffer *gpu_hinge_joints{};
 
@@ -400,6 +406,19 @@ namespace Engine {
          * @return True if simulation is enabled.
          */
         bool IsSimulationEnabled() const noexcept;
+
+        /**
+         * @brief Resolve pending collision filter ObjectHandles to shape indices.
+         *
+         * Called once after all GameObjects have been Awake'd and before the
+         * first simulation step.  Resolves each ObjectHandle stored in
+         * m_pending_filter_handles to the shape index of the target object's
+         * directly-attached CollisionShapeComponent, enforces symmetry, and
+         * uploads filter data to GPU buffers.
+         *
+         * @param scene Scene used to look up GameObjects by ObjectHandle.
+         */
+        void ResolveCollisionFilters(class Scene &scene);
 
     private:
         void AddShapeToRigidBodyMap(uint32_t rigid_body_index, uint32_t shape_index);
@@ -486,6 +505,17 @@ namespace Engine {
         std::vector<GpuHingeJoint> m_hinge_joints{};
         std::unique_ptr<ComputeBuffer> m_gpu_fixed_joints{};
         std::unique_ptr<ComputeBuffer> m_gpu_hinge_joints{};
+
+        // Collision filter data — CPU-side.
+        std::vector<std::vector<ObjectHandle>> m_pending_filter_handles{};
+        std::vector<uint32_t> m_shape_filter_offset{};
+        std::vector<uint32_t> m_shape_filter_count{};
+        std::vector<uint32_t> m_shape_filter_data{};
+
+        // Collision filter data — GPU buffers.
+        std::unique_ptr<ComputeBuffer> m_gpu_shape_filter_offset{};
+        std::unique_ptr<ComputeBuffer> m_gpu_shape_filter_count{};
+        std::unique_ptr<ComputeBuffer> m_gpu_shape_filter_data{};
     };
 } // namespace Engine
 

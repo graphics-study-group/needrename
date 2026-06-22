@@ -1,0 +1,25 @@
+#version 450 core
+
+// Counting-sort scatter pass.
+//
+// Each thread reads one (cell_id, shape_id) pair from the unsorted input and
+// writes it to the sorted output at the position determined by atomically
+// incrementing the per-cell offset (using cell_scratch as the atomic counter).
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) readonly buffer CellShapePairs  { uvec2 v[]; } cell_shape_pairs;
+layout(set = 0, binding = 1) writeonly buffer SortedPairs    { uvec2 v[]; } sorted_pairs;
+layout(set = 0, binding = 2) readonly buffer CellOffsets     { uint v[]; } cell_offsets;   // prefix sum of histogram
+layout(set = 0, binding = 3) buffer CellScratch              { uint v[]; } cell_scratch;   // read-write atomic counters
+layout(set = 0, binding = 4) readonly buffer TotalAssignments { uint total; } total_assignments;
+
+void main() {
+    uint idx = gl_GlobalInvocationID.x;
+    if (idx >= total_assignments.total) return;
+
+    uvec2 pair = cell_shape_pairs.v[idx];
+    uint cid = pair.x;
+    uint pos = atomicAdd(cell_scratch.v[cid], 1u);
+    sorted_pairs.v[pos] = pair;
+}

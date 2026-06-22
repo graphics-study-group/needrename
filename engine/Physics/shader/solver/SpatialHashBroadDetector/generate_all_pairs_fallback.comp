@@ -1,0 +1,72 @@
+#version 450 core
+
+// All-pairs upper-triangle generation with collision filter checking.
+//
+// Used for:
+//   1. Small-N fallback (shape_count <= fallback_threshold)
+//   2. Global-shape pair generation (appended after within-cell pairs)
+//
+// Each thread computes one upper-triangle pair (i, j) with i < j and emits
+// it if both shapes are alive and the pair is not filtered.
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) readonly buffer ShapeAlive     { uint v[]; } shape_alive;
+layout(set = 0, binding = 1) readonly buffer ShapeSlotCount  { uint count; } shape_slot_count;
+
+layout(set = 0, binding = 2) writeonly buffer CollisionPairs { uvec2 v[]; } collision_pairs;
+layout(set = 0, binding = 3) buffer PairCount                { uint v[]; } pair_count;
+
+// Optional: only generate pairs involving global shapes.
+// 0 = all-pairs mode, 1 = global-only mode.
+layout(set = 0, binding = 4) readonly buffer GlobalFlags     { uint v[]; } global_flags;
+layout(set = 0, binding = 5) readonly buffer GlobalMode      { uint mode; } global_mode;
+
+// Filter buffers.
+layout(set = 0, binding = 6) readonly buffer ShapeFilterOffset { uint v[]; } filter_offset;
+layout(set = 0, binding = 7) readonly buffer ShapeFilterCount  { uint v[]; } filter_count;
+layout(set = 0, binding = 8) readonly buffer ShapeFilterData   { uint v[]; } filter_data;
+
+bool is_filtered(uint shape_a, uint shape_b) {
+    uint lo = filter_offset.v[shape_a];
+    uint hi = lo + filter_count.v[shape_a];
+    while (lo < hi) {
+        uint mid = (lo + hi) / 2u;
+        uint val = filter_data.v[mid];
+        if (val == shape_b) return true;
+        if (val < shape_b) lo = mid + 1u;
+        else hi = mid;
+    }
+    return false;
+}
+
+void main() {
+    uint k = gl_GlobalInvocationID.x;
+    uint n = shape_slot_count.count;
+    uint total_pairs = (n * (n - 1u)) / 2u;
+
+    if (k >= total_pairs) return;
+
+    // Map linear index k to upper-triangle pair (i, j) with i < j.
+    uint i = 0u;
+    uint remaining = k;
+    uint row_size = n - 1u;
+    while (remaining >= row_size && row_size > 0u) {
+        remaining -= row_size;
+        i += 1u;
+        row_size = n - i - 1u;
+    }
+    uint j = i + 1u + remaining;
+
+    if (shape_alive.v[i] == 0u || shape_alive.v[j] == 0u) return;
+
+    // In global-only mode, skip pairs where neither shape is global.
+    if (global_mode.mode == 1u) {
+        if (global_flags.v[i] == 0u && global_flags.v[j] == 0u) return;
+    }
+
+    if (is_filtered(i, j)) return;
+
+    uint slot = atomicAdd(pair_count.v[0], 1u);
+    collision_pairs.v[slot] = uvec2(i, j);
+}

@@ -12,6 +12,8 @@
 
 #include <SDL3/SDL.h>
 
+#include <Framework/component/physics/CollisionShapeComponent.h>
+
 #include <algorithm>
 #include <cassert>
 #include <span>
@@ -102,6 +104,62 @@ namespace {
         inertia[1][1] = (mass / 12.0f) * (3.0f * r2 + h2);
         inertia[2][2] = (mass / 2.0f) * r2;
         return inertia;
+    }
+
+    // -------------------------------------------------------------------------
+    // Collision filter cleanup helper
+    // -------------------------------------------------------------------------
+
+    void CleanupShapeFilterReferences(
+        uint32_t removed_shape_index,
+        size_t shape_count,
+        std::vector<std::vector<Engine::ObjectHandle>> &pending_filter_handles,
+        std::vector<uint32_t> &shape_filter_offset,
+        std::vector<uint32_t> &shape_filter_count,
+        std::vector<uint32_t> &shape_filter_data
+    ) {
+        // Clean pending handles for this shape.
+        if (removed_shape_index < pending_filter_handles.size()) {
+            pending_filter_handles[removed_shape_index].clear();
+        }
+
+        // Clean resolved filter data.
+        if (!shape_filter_data.empty()) {
+            // Extract all existing filter lists, excluding references to the removed shape.
+            std::vector<std::vector<uint32_t>> all_filters(shape_count);
+            for (size_t i = 0; i < shape_count && i < shape_filter_offset.size() && i < shape_filter_count.size(); ++i) {
+                if (shape_filter_count[i] == 0u) {
+                    continue;
+                }
+                const uint32_t offset = shape_filter_offset[i];
+                const uint32_t count = shape_filter_count[i];
+                auto &out = all_filters[i];
+                out.reserve(count);
+                for (uint32_t j = 0; j < count && (offset + j) < shape_filter_data.size(); ++j) {
+                    const uint32_t val = shape_filter_data[offset + j];
+                    if (val != removed_shape_index) {
+                        out.push_back(val);
+                    }
+                }
+            }
+
+            // Rebuild flat arrays.
+            shape_filter_offset.resize(shape_count);
+            shape_filter_count.resize(shape_count);
+            shape_filter_data.clear();
+
+            size_t total = 0;
+            for (const auto &list : all_filters) {
+                total += list.size();
+            }
+            shape_filter_data.reserve(total);
+
+            for (size_t i = 0; i < shape_count; ++i) {
+                shape_filter_offset[i] = static_cast<uint32_t>(shape_filter_data.size());
+                shape_filter_count[i] = static_cast<uint32_t>(all_filters[i].size());
+                shape_filter_data.insert(shape_filter_data.end(), all_filters[i].begin(), all_filters[i].end());
+            }
+        }
     }
 } // namespace
 
@@ -278,7 +336,8 @@ namespace Engine {
         CollisionShapeType shape_type,
         const glm::vec3 &feature,
         const glm::vec3 &shape_world_position,
-        const glm::quat &shape_world_rotation
+        const glm::quat &shape_world_rotation,
+        const std::vector<ObjectHandle> &ignore_collision_objects
     ) {
         const uint32_t new_index = static_cast<uint32_t>(m_shape_alive.size());
         m_shape_alive.push_back(1u);
@@ -293,6 +352,10 @@ namespace Engine {
         m_shape_rotation.push_back(ToVec4(shape_world_rotation));
         m_shape_world_position.push_back(ToVec4(shape_world_position));
         m_shape_world_rotation.push_back(ToVec4(shape_world_rotation));
+
+        // Resize pending filter handles to match shape slot count, then store.
+        m_pending_filter_handles.resize(m_shape_alive.size());
+        m_pending_filter_handles[new_index] = ignore_collision_objects;
 
         return new_index;
     }
@@ -313,6 +376,17 @@ namespace Engine {
 
         m_shape_alive[shape_index] = 0u;
         m_shape_component_to_index.erase(m_shape_index_to_component[shape_index]);
+
+        // Remove references to this shape from other shapes' filter data.
+        CleanupShapeFilterReferences(
+            shape_index,
+            m_shape_alive.size(),
+            m_pending_filter_handles,
+            m_shape_filter_offset,
+            m_shape_filter_count,
+            m_shape_filter_data
+        );
+
         SDL_LogWarn(
             SDL_LOG_CATEGORY_APPLICATION,
             "PhysicsScene::UnregisterCollisionShape is not fully implemented yet. scene=%u shape=%u",
@@ -398,7 +472,8 @@ namespace Engine {
         CollisionShapeType shape_type,
         const glm::vec3 &feature,
         const glm::vec3 &shape_world_position,
-        const glm::quat &shape_world_rotation
+        const glm::quat &shape_world_rotation,
+        const std::vector<ObjectHandle> &ignore_collision_objects
     ) {
         if (!IsShapeIndexValid(shape_index)) {
             return;
@@ -414,6 +489,12 @@ namespace Engine {
             m_shape_rotation[shape_index] = ToVec4(glm::normalize(shape_world_rotation));
         } else {
             EnqueueRigidBodyInitialization(rigid_body_index);
+        }
+
+        // Update filter handles if the list changed.
+        if (shape_index < m_pending_filter_handles.size()
+            && m_pending_filter_handles[shape_index] != ignore_collision_objects) {
+            m_pending_filter_handles[shape_index] = ignore_collision_objects;
         }
     }
 
@@ -516,6 +597,9 @@ namespace Engine {
             m_gpu_rigid_body_shape_count.get(),
             m_gpu_flattened_shape_indices.get(),
             m_gpu_model_matrices.get(),
+            m_gpu_shape_filter_offset.get(),
+            m_gpu_shape_filter_count.get(),
+            m_gpu_shape_filter_data.get(),
             m_gpu_fixed_joints.get(),
             m_gpu_hinge_joints.get(),
             m_gpu_rigid_body_slot_count,
@@ -833,6 +917,17 @@ namespace Engine {
 
         EnsureBuffer<glm::mat4>(m_gpu_model_matrices, allocator, m_gpu_rigid_body_slot_count, "Physics ModelMatrices");
 
+        // Collision filter buffers.
+        EnsureBuffer<uint32_t>(
+            m_gpu_shape_filter_offset, allocator, m_gpu_shape_slot_count, "Physics ShapeFilterOff"
+        );
+        EnsureBuffer<uint32_t>(
+            m_gpu_shape_filter_count, allocator, m_gpu_shape_slot_count, "Physics ShapeFilterCnt"
+        );
+        EnsureBuffer<uint32_t>(
+            m_gpu_shape_filter_data, allocator, m_shape_filter_data.size(), "Physics ShapeFilterData"
+        );
+
         auto &submission = render_system.GetFrameManager().GetSubmissionHelper();
         submission.EnqueueBufferSubmission(*m_gpu_rigid_body_alive, MakeSpan(m_rigid_body_alive));
         submission.EnqueueBufferSubmission(*m_gpu_rigid_body_mass, MakeSpan(m_rigid_body_mass));
@@ -869,6 +964,11 @@ namespace Engine {
         submission.EnqueueBufferSubmission(*m_gpu_rigid_body_shape_count, MakeSpan(rigid_body_shape_count));
         submission.EnqueueBufferSubmission(*m_gpu_flattened_shape_indices, MakeSpan(flattened_shape_indices));
 
+        // Collision filter data.
+        submission.EnqueueBufferSubmission(*m_gpu_shape_filter_offset, MakeSpan(m_shape_filter_offset));
+        submission.EnqueueBufferSubmission(*m_gpu_shape_filter_count, MakeSpan(m_shape_filter_count));
+        submission.EnqueueBufferSubmission(*m_gpu_shape_filter_data, MakeSpan(m_shape_filter_data));
+
         // Joint constraint buffers.
         const uint32_t fixed_joint_count = static_cast<uint32_t>(m_fixed_joints.size());
         const uint32_t hinge_joint_count = static_cast<uint32_t>(m_hinge_joints.size());
@@ -880,6 +980,82 @@ namespace Engine {
         if (hinge_joint_count > 0) {
             submission.EnqueueBufferSubmission(*m_gpu_hinge_joints, MakeSpan(m_hinge_joints));
         }
+    }
+
+    void PhysicsScene::ResolveCollisionFilters(Scene &scene) {
+        const size_t shape_count = m_shape_alive.size();
+
+        // Phase 1: Resolve ObjectHandles to shape indices for each shape.
+        std::vector<std::vector<uint32_t>> resolved_filters(shape_count);
+
+        for (size_t i = 0; i < shape_count && i < m_pending_filter_handles.size(); ++i) {
+            if (m_pending_filter_handles[i].empty()) {
+                continue;
+            }
+
+            std::vector<uint32_t> resolved;
+            for (ObjectHandle obj_handle : m_pending_filter_handles[i]) {
+                GameObject *go = scene.GetGameObject(obj_handle);
+                if (!go) {
+                    continue;
+                }
+
+                for (ComponentHandle comp_handle : go->m_components) {
+                    auto *shape_comp = scene.GetComponent<CollisionShapeComponent>(comp_handle);
+                    if (!shape_comp) {
+                        continue;
+                    }
+
+                    const uint32_t target_shape_index = shape_comp->GetPhysicsShapeIndex();
+                    if (target_shape_index != INVALID_INDEX && IsShapeIndexValid(target_shape_index)) {
+                        resolved.push_back(target_shape_index);
+                    }
+                }
+            }
+
+            // Sort and deduplicate.
+            std::sort(resolved.begin(), resolved.end());
+            resolved.erase(std::unique(resolved.begin(), resolved.end()), resolved.end());
+
+            resolved_filters[i] = std::move(resolved);
+        }
+
+        // Phase 2: Enforce symmetry — if A's filter contains B, B's filter must contain A.
+        for (size_t i = 0; i < shape_count; ++i) {
+            for (uint32_t j : resolved_filters[i]) {
+                if (j < shape_count) {
+                    auto &other_list = resolved_filters[j];
+                    if (std::find(other_list.begin(), other_list.end(), static_cast<uint32_t>(i))
+                        == other_list.end()) {
+                        other_list.push_back(static_cast<uint32_t>(i));
+                        std::sort(other_list.begin(), other_list.end());
+                    }
+                }
+            }
+        }
+
+        // Phase 3: Build flat arrays m_shape_filter_offset, m_shape_filter_count, m_shape_filter_data.
+        m_shape_filter_offset.resize(shape_count);
+        m_shape_filter_count.resize(shape_count);
+        m_shape_filter_data.clear();
+
+        size_t total_entries = 0;
+        for (const auto &list : resolved_filters) {
+            total_entries += list.size();
+        }
+        m_shape_filter_data.reserve(total_entries);
+
+        for (size_t i = 0; i < shape_count; ++i) {
+            m_shape_filter_offset[i] = static_cast<uint32_t>(m_shape_filter_data.size());
+            m_shape_filter_count[i] = static_cast<uint32_t>(resolved_filters[i].size());
+            m_shape_filter_data.insert(
+                m_shape_filter_data.end(), resolved_filters[i].begin(), resolved_filters[i].end()
+            );
+        }
+
+        // Clear pending handles.
+        m_pending_filter_handles.clear();
+        m_pending_filter_handles.resize(shape_count);
     }
 
     void PhysicsScene::SetSimulationEnabled(bool enabled) {

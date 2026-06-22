@@ -32,11 +32,17 @@ layout(set = 0, binding = 4) readonly buffer ShapeWorldRotation {
     vec4 v[];
 } shape_world_rotation;
 
-// ---- Collision pair input (from generate_pairs.comp) ----
+// ---- Collision pair input (from broad-phase detector) ----
 
 layout(set = 0, binding = 5) readonly buffer CollisionPairs {
     uvec2 v[];
 } collision_pairs;
+
+// ---- Pair count (actual number of pairs from broad-phase) ----
+
+layout(set = 0, binding = 13) readonly buffer PairCount {
+    uint count;
+} pair_count;
 
 // ---- Collision result outputs ----
 
@@ -89,11 +95,9 @@ layout(set = 0, binding = 12) uniform DetectorConfig {
 void main() {
     uint pair_index = gl_GlobalInvocationID.x;
 
-    // Compute total pairs from shape slot count.
-    uint n = shape_slot_count.count;
-    uint total_pairs = (n * (n - 1u)) / 2u;
-
-    if (pair_index >= total_pairs) {
+    // Early-return if beyond the actual pair count (broad-phase may produce
+    // fewer pairs than the dispatch workgroup count).
+    if (pair_index >= pair_count.count) {
         return;
     }
 

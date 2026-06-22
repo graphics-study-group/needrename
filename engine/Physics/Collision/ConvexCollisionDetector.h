@@ -25,11 +25,11 @@ namespace Engine {
     };
 
     /**
-     * @brief GPU convex collision detection using MPR algorithm.
+     * @brief GPU narrow-phase convex collision detection using MPR algorithm.
      *
-     * ConvexCollisionDetector owns two compute shader pipelines:
-     *   1. generate_pairs.comp  — GPU-side all-pairs pair generation
-     *   2. detect_collisions.comp — MPR collision detection + result output
+     * ConvexCollisionDetector owns the MPR collision detection compute pipeline
+     * (detect_collisions.comp).  Collision pairs to test are provided externally
+     * by the broad-phase detector via GPU buffers.
      *
      * Collision results are stored in separate SoA GPU buffers:
      *   - collision_ids:       uvec2 (shape_a, shape_b)
@@ -41,29 +41,13 @@ namespace Engine {
      * Each collision pair may produce up to 5 contact entries (4 perturbation
      * + optionally 1 MPR fallback).  All buffers are sized to max_collision_pairs
      * at construction time.
-     * The detector follows the same lazy-SPIR-V-loading pattern as XPBDGpuSolver.
      */
     class ConvexCollisionDetector {
     public:
-        /**
-         * @brief Construct the detector.
-         *
-         * No GPU resources are allocated until the first call to Step().
-         *
-         * @param render_system       Render system used for pipeline creation.
-         * @param max_collision_pairs Maximum number of collision contact entries
-         *                            (pairs × up to 5 points each).
-         * @param contact_margin      Contact margin for penetration validation.
-         *                            Points with separation < margin are retained
-         *                            as speculative contacts.
-         */
         explicit ConvexCollisionDetector(
             RenderSystem &render_system, uint32_t max_collision_pairs, float contact_margin = 0.001f
         );
 
-        /**
-         * @brief Destroy the detector and release all GPU resources.
-         */
         ~ConvexCollisionDetector();
 
         ConvexCollisionDetector(const ConvexCollisionDetector &) = delete;
@@ -72,34 +56,26 @@ namespace Engine {
         ConvexCollisionDetector &operator=(ConvexCollisionDetector &&) = delete;
 
         /**
-         * @brief Fill a render graph builder with collision detection passes.
+         * @brief Fill a render graph builder with the narrow-phase collision pass.
          *
-         * On first call, lazily compiles the compute shaders and creates the
-         * ComputeStage instances.  GPU buffers from the physics scene are
-         * imported as external resources.
+         * Collision pairs are read from the external @p pair_buffer (produced
+         * by the broad-phase detector).  @p pair_count_buffer provides the actual
+         * number of pairs to test; threads beyond that count early-return.
          *
-         * Adds two compute passes:
-         *   1. GPU pair generation (generate_pairs.comp)
-         *   2. Collision detection (detect_collisions.comp)
-         *
-         * The collision_count buffer is reset to 0 before dispatch.
-         *
-         * @param builder        Render graph builder to populate with passes.
-         * @param physics_scene  Physics scene providing GPU shape buffers.
+         * @param builder           Render graph builder to populate.
+         * @param physics_scene     Physics scene providing GPU shape buffers.
+         * @param pair_buffer       External GPU uvec2[] pair buffer (broad-phase output).
+         * @param pair_count_buffer External GPU uint pair count buffer.
          */
-        void Step(RenderGraphBuilder &builder, PhysicsScene &physics_scene);
+        void Step(
+            RenderGraphBuilder &builder,
+            PhysicsScene &physics_scene,
+            const ComputeBuffer &pair_buffer,
+            const ComputeBuffer &pair_count_buffer
+        );
 
-        /**
-         * @brief Return whether the detector has been lazily initialized.
-         */
         bool IsInitialized() const noexcept;
 
-        /**
-         * @brief Get the collision result buffers.
-         *
-         * Returns a struct of read-only pointers to the detector's owned result
-         * buffers.  The caller reads these after the render graph executes.
-         */
         CollisionResultBuffers GetCollisionResultBuffers() const noexcept;
 
     private:
