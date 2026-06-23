@@ -430,6 +430,7 @@ namespace Engine {
         auto pairs_h = builder.ImportExternalResource(*m_impl->gpu_collision_pairs, {AT::None});
         auto pcnt_h = builder.ImportExternalResource(*m_impl->gpu_pair_count, {AT::None});
         auto gcfg_h = builder.ImportExternalResource(*m_impl->gpu_grid_config, {AT::None});
+        auto cells_p1_h = builder.ImportExternalResource(*m_impl->gpu_grid_cells_p1, {AT::None});
 
         // Helper: add a clear pass that zeros @p target (uses a per-pass binding).
         auto AddClearPass = [&](ComputeResourceBinding &binding, RGBufferHandle buf_handle,
@@ -655,13 +656,12 @@ namespace Engine {
             auto *binding_ptr = &bind;
             uint32_t wg = (m_impl->grid_total_cells + 1u + 63u) / 64u;
             // Import gpu_grid_cells_p1 handle for the render graph.
-            auto cells_p1_h = builder.ImportExternalResource(*m_impl->gpu_grid_cells_p1, {AT::None});
             builder.AddPass(
                 RenderGraphPassBuilder{m_impl->render_system}
                     .SetName("BH Clear Histogram")
                     .SetAffinity(RenderGraphPassAffinity::Compute)
-                    .UseBuffer(hist_h, {MemoryAccessTypeBufferBits::ShaderRandomWrite})
-                    .UseBuffer(cells_p1_h, {MemoryAccessTypeBufferBits::ShaderRandomRead})
+                    .UseBuffer(hist_h, WW)
+                    .UseBuffer(cells_p1_h, RR)
                     .SetPassFunction([stage, binding_ptr, wg, &physics_scene](CommandBuffer &cb, const RenderGraph &) -> void {
                         if (!physics_scene.IsSimulationEnabled()) return;
                         cb.BindComputeStage(*stage);
@@ -722,14 +722,13 @@ namespace Engine {
             auto *stage = m_impl->copy_stage.get();
             auto *binding_ptr = &bind;
             uint32_t wg = (m_impl->grid_total_cells + 1u + 63u) / 64u;
-            auto cells_p1_h = builder.ImportExternalResource(*m_impl->gpu_grid_cells_p1, {AT::None});
             builder.AddPass(
                 RenderGraphPassBuilder{m_impl->render_system}
                     .SetName("BH Copy Offsets → Scratch")
                     .SetAffinity(RenderGraphPassAffinity::Compute)
-                    .UseBuffer(coff_h, {MemoryAccessTypeBufferBits::ShaderRandomRead})
-                    .UseBuffer(cscr_h, {MemoryAccessTypeBufferBits::ShaderRandomWrite})
-                    .UseBuffer(cells_p1_h, {MemoryAccessTypeBufferBits::ShaderRandomRead})
+                    .UseBuffer(hist_h, RR)
+                    .UseBuffer(cscr_h, WW)
+                    .UseBuffer(cells_p1_h, RR)
                     .SetPassFunction([stage, binding_ptr, wg, &physics_scene](CommandBuffer &cb, const RenderGraph &) -> void {
                         if (!physics_scene.IsSimulationEnabled()) return;
                         cb.BindComputeStage(*stage);
@@ -745,7 +744,6 @@ namespace Engine {
             auto &srb = m_impl->scatter_sort_binding->GetShaderResourceBinding();
             srb.BindBuffer("CellShapePairs", *m_impl->gpu_cell_shape_pairs);
             srb.BindBuffer("SortedPairs", *m_impl->gpu_sorted_pairs);
-            srb.BindBuffer("CellOffsets", *m_impl->gpu_cell_histogram); // holds offsets
             srb.BindBuffer("CellScratch", *m_impl->gpu_cell_scratch);
             srb.BindBuffer("TotalAssignments", *m_impl->gpu_total_assignments);
 
@@ -759,8 +757,7 @@ namespace Engine {
                     .SetAffinity(RenderGraphPassAffinity::Compute)
                     .UseBuffer(csp_h, RR)
                     .UseBuffer(sorted_h, WW)
-                    .UseBuffer(coff_h, RR)
-                    .UseBuffer(cscr_h, WW)
+                    .UseBuffer(cscr_h, RW)
                     .UseBuffer(total_h, RR)
                     .SetPassFunction([stage, binding, wg, &physics_scene](CommandBuffer &cb, const RenderGraph &) -> void {
                         if (!physics_scene.IsSimulationEnabled()) return;

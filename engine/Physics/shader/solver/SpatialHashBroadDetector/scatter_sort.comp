@@ -10,9 +10,8 @@ layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 
 layout(set = 0, binding = 0) readonly buffer CellShapePairs  { uvec2 v[]; } cell_shape_pairs;
 layout(set = 0, binding = 1) writeonly buffer SortedPairs    { uvec2 v[]; } sorted_pairs;
-layout(set = 0, binding = 2) readonly buffer CellOffsets     { uint v[]; } cell_offsets;   // prefix sum of histogram
-layout(set = 0, binding = 3) buffer CellScratch              { uint v[]; } cell_scratch;   // read-write atomic counters
-layout(set = 0, binding = 4) readonly buffer TotalAssignments { uint total; } total_assignments;
+layout(set = 0, binding = 2) buffer CellScratch              { uint v[]; } cell_scratch;   // read-write atomic counters
+layout(set = 0, binding = 3) readonly buffer TotalAssignments { uint total; } total_assignments;
 
 void main() {
     uint idx = gl_GlobalInvocationID.x;
