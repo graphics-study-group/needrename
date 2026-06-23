@@ -83,10 +83,8 @@ void main() {
         barrier();
     }
 
-    uint block_index = scan_params.block_offset + wg_id;
-
     // Mode 2: add per-block offset from the scanned block-sums buffer.
-    uint add_val = (scan_params.mode == 2u) ? block_sums.v[block_index] : 0u;
+    uint add_val = (scan_params.mode == 2u) ? block_sums.v[wg_id] : 0u;
 
     // Store results.
     if (idx0 < n) {
@@ -96,8 +94,8 @@ void main() {
         output_data.v[idx1] = s[tid + WG_SIZE] + add_val;
     }
 
-    // Mode 1: write per-block total sums at block_offset + wg_id.
+    // Mode 1: write per-block total sums for multi-level orchestration.
     if (scan_params.mode == 1u && tid == 0u) {
-        block_sums.v[block_index] = block_total;
+        block_sums.v[wg_id] = block_total;
     }
 }

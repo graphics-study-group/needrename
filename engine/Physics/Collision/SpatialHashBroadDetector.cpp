@@ -149,6 +149,11 @@ namespace Engine {
         // Parallel prefix-sum executor (reusable across scan sites).
         std::unique_ptr<ParallelScan> scan;
 
+        // Block-sums scratch buffer for ParallelScan.
+        // Created once per frame in EnsureAllBuffers, imported once, and
+        // passed to all AddPasses calls so the render graph tracks a single handle.
+        std::unique_ptr<ComputeBuffer> gpu_scan_scratch;
+
         explicit Impl(RenderSystem &rs, uint32_t mp, const GridConfig &gc, uint32_t ft) :
             render_system(rs), max_pairs(mp), grid_config(gc), fallback_threshold(ft) {
             // Validate grid size on construction.
@@ -261,6 +266,13 @@ namespace Engine {
             // Grid config UBO.
             EnsureBuffer(gpu_grid_config, sizeof(GridConfigGpu), "BH GridConfig", true);
 
+            // Block-sums scratch buffer for ParallelScan (one import, reused
+            // across all scan sites in the same frame).
+            {
+                uint32_t max_scan_elems = std::max(shape_count, grid_total_cells + 1u);
+                size_t scratch_bytes = ParallelScan::GetRequiredBlockSumsBytes(max_scan_elems);
+                EnsureBuffer(gpu_scan_scratch, scratch_bytes, "BH ScanScratch");
+            }
         }
 
         // -------------------------------------------------------------------
@@ -431,6 +443,7 @@ namespace Engine {
         auto pcnt_h = builder.ImportExternalResource(*m_impl->gpu_pair_count, {AT::None});
         auto gcfg_h = builder.ImportExternalResource(*m_impl->gpu_grid_config, {AT::None});
         auto cells_p1_h = builder.ImportExternalResource(*m_impl->gpu_grid_cells_p1, {AT::None});
+        auto scan_scratch_h = builder.ImportExternalResource(*m_impl->gpu_scan_scratch, {AT::None});
 
         // Helper: add a clear pass that zeros @p target (uses a per-pass binding).
         auto AddClearPass = [&](ComputeResourceBinding &binding, RGBufferHandle buf_handle,
@@ -606,6 +619,7 @@ namespace Engine {
                 builder,
                 scc_h, sco_h,
                 *m_impl->gpu_shape_cell_count, *m_impl->gpu_cell_offsets,
+                scan_scratch_h, *m_impl->gpu_scan_scratch,
                 shape_count
             );
         }
@@ -706,6 +720,7 @@ namespace Engine {
                 builder,
                 hist_h, hist_h,
                 *m_impl->gpu_cell_histogram, *m_impl->gpu_cell_histogram,
+                scan_scratch_h, *m_impl->gpu_scan_scratch,
                 m_impl->grid_total_cells + 1u
             );
         }
@@ -769,7 +784,12 @@ namespace Engine {
             );
         }
 
-        // === Pass 6: Generate collision pairs ===
+        // // Clear pair count on GPU before accumulation.
+        // {
+        //     ComputeResourceBinding &cbind = m_impl->memset_stage->AllocateResourceBinding();
+        //     AddClearPass(cbind, pcnt_h, *m_impl->gpu_pair_count, *m_impl->gpu_one, "BH Clear PairCount");
+        // }
+        // // === Pass 6: Generate collision pairs ===
         // {
         //     auto &srb = m_impl->generate_pairs_binding->GetShaderResourceBinding();
         //     srb.BindBuffer("SortedPairs", *m_impl->gpu_sorted_pairs);
@@ -784,12 +804,6 @@ namespace Engine {
         //     srb.BindBuffer("ShapeFilterOffset", filter_off_buf);
         //     srb.BindBuffer("ShapeFilterCount", filter_cnt_buf);
         //     srb.BindBuffer("ShapeFilterData", filter_dat_buf);
-
-        //     // Clear pair count on GPU before accumulation.
-        //     {
-        //         ComputeResourceBinding &cbind = m_impl->memset_stage->AllocateResourceBinding();
-        //         AddClearPass(cbind, pcnt_h, *m_impl->gpu_pair_count, *m_impl->gpu_one, "BH Clear PairCount");
-        //     }
 
         //     auto *stage = m_impl->generate_pairs_stage.get();
         //     auto *binding = m_impl->generate_pairs_binding;

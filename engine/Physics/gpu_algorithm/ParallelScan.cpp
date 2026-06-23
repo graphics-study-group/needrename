@@ -62,14 +62,6 @@ namespace Engine {
         std::unique_ptr<ComputeStage> scan_stage;
         std::vector<uint32_t> scan_spirv;
 
-        // ---- Scratch buffer for block sums ----
-        // Sized to hold block-sum entries for all recursion levels.
-        // Geometric series: M + ceil(M/512) + ceil(ceil(M/512)/512) + ...
-        // where M = ceil(max_elem_count / 512).
-        uint32_t max_workgroups;
-        uint32_t block_sums_entries;   // total entries needed across all levels
-        std::unique_ptr<ComputeBuffer> block_sums_buf;
-
         // ---- Parameter buffer pool ----
         // Each pass gets its own tiny host-visible buffer so that
         // parameters are never overwritten between passes.
@@ -80,19 +72,6 @@ namespace Engine {
             if (max_elem_count == 0u) {
                 throw std::invalid_argument("ParallelScan: max_elem_count must be > 0");
             }
-            max_workgroups = (max_elem_count + kBlockSize - 1u) / kBlockSize;
-
-            // Compute total block-sums entries for all recursion levels.
-            // Geometric series: M + ceil(M/512) + ceil(ceil(M/512)/512) + ...
-            // Stops when level_blocks ≤ 1 (single-workgroup mode-0 scan
-            // writes no block sums).  Since 512 ≫ 1 the series converges
-            // within 2–3 iterations for any practical M.
-            block_sums_entries = 1u;  // at least one entry
-            uint32_t level_blocks = max_workgroups;
-            while (level_blocks > 1u) {
-                block_sums_entries += level_blocks;
-                level_blocks = (level_blocks + kBlockSize - 1u) / kBlockSize;
-            }
         }
 
         Impl(const Impl &) = delete;
@@ -101,7 +80,7 @@ namespace Engine {
         Impl &operator=(Impl &&) = delete;
 
         // -------------------------------------------------------------------
-        // Lazy init
+        // Lazy init (ComputeStage only — no data buffers)
         // -------------------------------------------------------------------
 
         void EnsureInitialized() {
@@ -112,16 +91,6 @@ namespace Engine {
             scan_spirv = LoadPhysicsSpirvBytes(scan_path);
             scan_stage = std::make_unique<ComputeStage>(render_system);
             scan_stage->Instantiate(scan_spirv, "ParallelScan");
-
-            // Allocate block-sums scratch buffer.
-            // block_sums_entries includes room for all recursion levels.
-            const auto &alloc = render_system.GetAllocatorState();
-            block_sums_buf = ComputeBuffer::CreateUnique(
-                alloc,
-                static_cast<size_t>(block_sums_entries) * sizeof(uint32_t),
-                false, false, false, false,
-                "ParallelScan BlockSums"
-            );
         }
 
         // -------------------------------------------------------------------
@@ -151,16 +120,6 @@ namespace Engine {
         // Add a single scan dispatch
         // -------------------------------------------------------------------
 
-        // clang-format off
-        /// @param data_input_handle   Handle for input buffer (read).
-        /// @param data_output_handle  Handle for output buffer (write).
-        /// @param data_input_buf      Input buffer reference.
-        /// @param data_output_buf     Output buffer reference.
-        /// @param block_sums_handle   Handle for block-sums buffer (write in mode 1, read+write in mode 0, read in mode 2).
-        /// @param block_sums_buf      Block-sums buffer reference.
-        /// @param param_buf           Per-pass parameter buffer.
-        /// @param num_workgroups      Number of workgroups to dispatch.
-        // clang-format on
         void AddSinglePass(
             RenderGraphBuilder &builder,
             RGBufferHandle data_input_handle,
@@ -218,6 +177,7 @@ namespace Engine {
         // -------------------------------------------------------------------
 
         /// Add scan passes for `elem_count` elements.
+        ///
         /// When called recursively, block_sums acts as both data and
         /// block-sum storage (same handle and same buffer).  Sub-block
         /// totals in the recursive level temporarily overwrite the first
@@ -236,7 +196,6 @@ namespace Engine {
             assert(elem_count <= max_elem_count);
 
             if (elem_count <= kMaxSingleLevel) {
-                // Single-workgroup scan: mode=0.
                 auto &param = AcquireParamBuffer(0u, 0u, elem_count);
                 AddSinglePass(
                     builder,
@@ -249,7 +208,6 @@ namespace Engine {
                 return;
             }
 
-            // Multi-level scan.
             uint32_t num_blocks = (elem_count + kBlockSize - 1u) / kBlockSize;
 
             // --- Level 1: scan blocks, write per-block sums (mode=1) ---
@@ -266,8 +224,6 @@ namespace Engine {
             }
 
             // --- Level 2: recursively scan the block sums ---
-            // block_sums_buf is scanned in-place.
-            // Use the same handle since it's already imported.
             if (num_blocks <= kMaxSingleLevel) {
                 auto &param = AcquireParamBuffer(0u, 0u, num_blocks);
                 AddSinglePass(
@@ -283,16 +239,9 @@ namespace Engine {
                 // Recursively scan block_sums[0..num_blocks-1] in-place,
                 // using the same buffer for both data and block-sum storage.
                 //
-                // The recursive scan's level 1 (mode=1) temporarily overwrites
-                // block_sums[0..sub_blocks-1] with sub-block totals, and the
-                // recursive scan's level 3 (mode=2) restores the correct
-                // scanned values for the full range.  Since block_offset=0
-                // throughout, the sub-block totals are written to
-                // block_sums[0..sub_blocks-1] and are consumed by the
-                // recursive level 2/3 before root level 3 reads them.
-                //
-                // Buffer sizing: block_sums_entries was computed at construction
-                // to hold entries for all recursion levels.
+                // Sub-block totals temporarily overwrite block_sums[0..sub_blocks-1]
+                // and are restored by the recursive mode-2 add-back before
+                // root level 3 reads them.
                 AddScanInternal(
                     builder,
                     block_sums_handle, block_sums_handle,
@@ -335,16 +284,24 @@ namespace Engine {
         return m_impl->max_elem_count;
     }
 
+    size_t ParallelScan::GetRequiredBlockSumsBytes(uint32_t max_elem_count) noexcept {
+        if (max_elem_count == 0u) return sizeof(uint32_t);
+        uint32_t max_workgroups = (max_elem_count + kBlockSize - 1u) / kBlockSize;
+        return static_cast<size_t>(max_workgroups) * sizeof(uint32_t);
+    }
+
     void ParallelScan::AddPasses(
         RenderGraphBuilder &builder,
         RGBufferHandle input_handle,
         RGBufferHandle output_handle,
         ComputeBuffer &input_buf,
         ComputeBuffer &output_buf,
+        RGBufferHandle block_sums_handle,
+        ComputeBuffer &block_sums_buf,
         uint32_t elem_count
     ) {
         if (elem_count == 0u) {
-            return;  // Nothing to scan.
+            return;
         }
         if (elem_count > m_impl->max_elem_count) {
             throw std::runtime_error(
@@ -355,17 +312,12 @@ namespace Engine {
 
         m_impl->EnsureInitialized();
 
-        // Import the internal block-sums buffer for render-graph tracking.
-        using AT = MemoryAccessTypeBufferBits;
-        auto block_sums_handle = builder.ImportExternalResource(
-            *m_impl->block_sums_buf, {AT::None}
-        );
-
+        // The caller owns and manages all buffers — we just orchestrate passes.
         m_impl->AddScanInternal(
             builder,
             input_handle, output_handle,
             input_buf, output_buf,
-            block_sums_handle, *m_impl->block_sums_buf,
+            block_sums_handle, block_sums_buf,
             elem_count
         );
     }
