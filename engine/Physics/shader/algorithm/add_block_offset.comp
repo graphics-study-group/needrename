@@ -1,0 +1,64 @@
+#version 450 core
+
+// Block-offset addition pass for multi-level parallel prefix sum.
+//
+// Each workgroup adds BlockSums[block_offset + wg_id] to every element in
+// its 512-element block.  This replaces mode=2 in parallel_scan.comp,
+// avoiding the in-place re-scan bug and the recursive buffer-aliasing bug.
+//
+// ScanParams layout (matches C++ ScanParamsGpu):
+//   mode          — 2 (for compatibility with the C++ dispatch logic)
+//   data_offset   — offset (in uints) into InputData / OutputData
+//   elem_count    — number of elements to process (logical, before offset)
+//   block_offset  — offset (in uints) into BlockSums for reading per-block offsets
+//
+// Bindings:
+//   binding 0 — readonly buffer uint[]  InputData
+//   binding 1 — buffer uint[]           OutputData (may alias InputData)
+//   binding 2 — readonly buffer         ScanParams { mode; data_offset; elem_count; block_offset }
+//   binding 3 — readonly buffer uint[]  BlockSums
+
+layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+#define WG_SIZE  256u
+#define BLOCK_N  512u   // 2 * WG_SIZE
+
+layout(set = 0, binding = 0) readonly buffer InputData {
+    uint v[];
+} input_data;
+
+layout(set = 0, binding = 1) buffer OutputData {
+    uint v[];
+} output_data;
+
+layout(set = 0, binding = 2) readonly buffer ScanParams {
+    uint mode;
+    uint data_offset;
+    uint elem_count;
+    uint block_offset;
+} scan_params;
+
+layout(set = 0, binding = 3) readonly buffer BlockSums {
+    uint v[];
+} block_sums;
+
+void main() {
+    uint tid = gl_LocalInvocationID.x;
+    uint wg_id = gl_WorkGroupID.x;
+    uint n = scan_params.elem_count;
+    uint data_off = scan_params.data_offset;
+
+    uint logical_base = wg_id * BLOCK_N;
+    uint phys_base = data_off + logical_base;
+    uint idx0 = phys_base + tid;
+    uint idx1 = phys_base + tid + WG_SIZE;
+
+    uint add_val = block_sums.v[scan_params.block_offset + wg_id];
+
+    if (logical_base + tid < n) {
+        output_data.v[idx0] = input_data.v[idx0] + add_val;
+    }
+    if (logical_base + tid + WG_SIZE < n) {
+        output_data.v[idx1] = input_data.v[idx1] + add_val;
+    }
+}

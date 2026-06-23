@@ -19,24 +19,30 @@ namespace Engine {
      * are caller-provided so that the caller can import them once into the
      * render graph and reuse the same handle across multiple scan operations.
      *
-     * The shader processes 512 elements per workgroup (256 threads × 2 loads).
-     * For N ≤ 512, one pass is dispatched.  For N > 512, the class dispatches:
+     * Each workgroup processes 512 elements (256 threads × 2 loads).
+     * For N ≤ 512, one pass is dispatched (mode=0).
+     * For N > 512, the class dispatches:
      *   1. mode=1: scan each 512-element block, write per-block sums to scratch
-     *   2. mode=0: recursively scan the scratch buffer
-     *   3. mode=2: add scanned block offsets back to the data buffer
+     *   2. mode=0: recursively scan the block-sums region (using data_offset to
+     *      read from the sub-block region without aliasing data)
+     *   3. add_block_offset shader: add prefix-summed block offsets back to data
      *
      * Input and output buffers are always separate bindings.  The caller may
      * pass the same ComputeBuffer for both to achieve in-place scan.
      *
      * Scratch buffer sizing:
      *   Use GetRequiredBlockSumsBytes(max_elem_count) to determine the minimum
-     *   size.  The scratch buffer holds ceil(N/512) uint32_t entries for the
-     *   root-level block totals; deeper recursion levels reuse the same buffer
-     *   region (sub-block totals temporarily overwrite the first few entries
-     *   and are restored by the mode-2 add-back pass).
+     *   size.  The scratch buffer is partitioned by recursion depth:
+     *     Level 0: ceil(N/512) entries for root block totals
+     *     Level 1: ceil(L0/512) entries for sub-block totals (if L0 > 512)
+     *     … etc. for deeper levels.
+     *   Each recursion level writes its sub-block totals into a dedicated
+     *   region after the parent level's data, avoiding aliasing between data
+     *   and block-sum storage.
      *
      * Owned GPU resources:
-     *   - Scan compute stage (shared across all dispatches)
+     *   - Scan compute stage (parallel_scan.comp, modes 0 & 1)
+     *   - Offset-addition compute stage (add_block_offset.comp)
      *   - Per-pass parameter buffer pool
      *
      * Caller-provided resources:
@@ -65,12 +71,16 @@ namespace Engine {
         /**
          * @brief Compute the minimum block-sums scratch buffer size in bytes.
          *
+         * Accounts for all recursion levels: = (Σᵢ Bᵢ) × sizeof(uint32_t)
+         * where B₀ = ceil(max_elem_count/512) and Bᵢ₊₁ = ceil(Bᵢ/512)
+         * until Bₖ ≤ 512 (the final level uses mode=0, no sub-block sums).
+         *
          * The caller allocates a buffer of at least this size (or larger) and
          * imports it into the render graph once.  The same buffer and handle
          * may be reused across multiple AddPasses calls.
          *
          * @param max_elem_count  Maximum number of uint elements to scan.
-         * @return Minimum buffer size in bytes (= ceil(max_elem_count/512) × 4).
+         * @return Minimum buffer size in bytes.
          */
         static size_t GetRequiredBlockSumsBytes(uint32_t max_elem_count) noexcept;
 

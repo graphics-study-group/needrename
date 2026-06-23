@@ -41,12 +41,13 @@ namespace {
 
 namespace Engine {
 
-    /// Host-visible buffer content for ScanParams (3 uints: mode, block_offset, elem_count).
+    /// Host-visible buffer content for ScanParams (4 uints, 16 bytes).
+    /// Matches the ScanParams UBO layout in both parallel_scan.comp and add_block_offset.comp.
     struct alignas(16) ScanParamsGpu {
-        uint32_t mode;
-        uint32_t block_offset;
-        uint32_t elem_count;
-        uint32_t _pad;
+        uint32_t mode;         // 0 = single-pass, 1 = scan + write block totals, 2 = offset addition
+        uint32_t data_offset;  // offset (in uints) into InputData / OutputData
+        uint32_t elem_count;   // logical element count (before data_offset)
+        uint32_t block_offset; // offset (in uints) into BlockSums for reads/writes
     };
     static_assert(sizeof(ScanParamsGpu) == 16, "ScanParamsGpu must be 16 bytes");
 
@@ -58,9 +59,12 @@ namespace Engine {
         uint32_t max_elem_count;
         bool initialized = false;
 
-        // ---- Compute stage ----
-        std::unique_ptr<ComputeStage> scan_stage;
+        // ---- Compute stages ----
+        std::unique_ptr<ComputeStage> scan_stage;   // parallel_scan.comp (modes 0 & 1)
         std::vector<uint32_t> scan_spirv;
+
+        std::unique_ptr<ComputeStage> offset_stage; // add_block_offset.comp
+        std::vector<uint32_t> offset_spirv;
 
         // ---- Parameter buffer pool ----
         // Each pass gets its own tiny host-visible buffer so that
@@ -80,7 +84,7 @@ namespace Engine {
         Impl &operator=(Impl &&) = delete;
 
         // -------------------------------------------------------------------
-        // Lazy init (ComputeStage only — no data buffers)
+        // Lazy init (ComputeStages only — no data buffers)
         // -------------------------------------------------------------------
 
         void EnsureInitialized() {
@@ -91,6 +95,11 @@ namespace Engine {
             scan_spirv = LoadPhysicsSpirvBytes(scan_path);
             scan_stage = std::make_unique<ComputeStage>(render_system);
             scan_stage->Instantiate(scan_spirv, "ParallelScan");
+
+            const char *offset_path = "algorithm/add_block_offset.comp.spv";
+            offset_spirv = LoadPhysicsSpirvBytes(offset_path);
+            offset_stage = std::make_unique<ComputeStage>(render_system);
+            offset_stage->Instantiate(offset_spirv, "AddBlockOffset");
         }
 
         // -------------------------------------------------------------------
@@ -98,7 +107,8 @@ namespace Engine {
         // -------------------------------------------------------------------
 
         /// Acquire a fresh host-visible parameter buffer with the given values.
-        ComputeBuffer &AcquireParamBuffer(uint32_t mode, uint32_t block_offset, uint32_t elem_count) {
+        ComputeBuffer &AcquireParamBuffer(uint32_t mode, uint32_t data_offset,
+                                          uint32_t elem_count, uint32_t block_offset) {
             const auto &alloc = render_system.GetAllocatorState();
             auto buf = ComputeBuffer::CreateUnique(
                 alloc,
@@ -108,19 +118,20 @@ namespace Engine {
             );
             auto *addr = reinterpret_cast<ScanParamsGpu *>(buf->GetVMAddress());
             addr->mode = mode;
-            addr->block_offset = block_offset;
+            addr->data_offset = data_offset;
             addr->elem_count = elem_count;
-            addr->_pad = 0u;
+            addr->block_offset = block_offset;
 
             param_pool.push_back(std::move(buf));
             return *param_pool.back();
         }
 
         // -------------------------------------------------------------------
-        // Add a single scan dispatch
+        // Single-pass helpers
         // -------------------------------------------------------------------
 
-        void AddSinglePass(
+        /// Dispatch a scan pass (parallel_scan.comp, mode 0 or 1).
+        void AddScanPass(
             RenderGraphBuilder &builder,
             RGBufferHandle data_input_handle,
             RGBufferHandle data_output_handle,
@@ -158,7 +169,62 @@ namespace Engine {
                 pass_builder.UseBuffer(data_output_handle, WW);
             }
 
-            // Block sums: always declare access so barriers are inserted.
+            // Block sums: mode 1 writes, mode 0 only reads (but declare RRWW for simplicity).
+            pass_builder.UseBuffer(block_sums_handle, RRWW);
+
+            pass_builder.SetPassFunction(
+                [stage, binding, num_workgroups](CommandBuffer &cb, const RenderGraph &) -> void {
+                    cb.BindComputeStage(*stage);
+                    cb.BindComputeResource(*binding);
+                    cb.DispatchCompute(num_workgroups, 1, 1);
+                }
+            );
+
+            builder.AddPass(pass_builder.Get());
+        }
+
+        /// Dispatch an offset-addition pass (add_block_offset.comp).
+        void AddOffsetPass(
+            RenderGraphBuilder &builder,
+            RGBufferHandle data_input_handle,
+            RGBufferHandle data_output_handle,
+            ComputeBuffer &data_input_buf,
+            ComputeBuffer &data_output_buf,
+            RGBufferHandle block_sums_handle,
+            ComputeBuffer &block_sums_buf,
+            ComputeBuffer &param_buf,
+            uint32_t num_workgroups
+        ) {
+            auto *stage = offset_stage.get();
+            auto *binding = &stage->AllocateResourceBinding();
+            auto &srb = binding->GetShaderResourceBinding();
+
+            srb.BindBuffer("InputData", data_input_buf);
+            srb.BindBuffer("OutputData", data_output_buf);
+            srb.BindBuffer("ScanParams", param_buf);
+            srb.BindBuffer("BlockSums", block_sums_buf);
+
+            using AT = MemoryAccessTypeBufferBits;
+            const MemoryAccessTypeBuffer RR{AT::ShaderRandomRead};
+            const MemoryAccessTypeBuffer WW{AT::ShaderRandomWrite};
+            const MemoryAccessTypeBuffer RRWW{AT::ShaderRandomRead, AT::ShaderRandomWrite};
+
+            bool in_place = (&data_input_buf == &data_output_buf);
+
+            auto pass_builder = RenderGraphPassBuilder{render_system}
+                .SetName("AddBlockOffset")
+                .SetAffinity(RenderGraphPassAffinity::Compute);
+
+            if (in_place) {
+                pass_builder.UseBuffer(data_input_handle, RRWW);
+            } else {
+                pass_builder.UseBuffer(data_input_handle, RR);
+                pass_builder.UseBuffer(data_output_handle, WW);
+            }
+
+            // Block sums: read-only in this shader, but declared RRWW so the
+            // render graph correctly merges with the data handle when both
+            // are the same buffer (recursive level).
             pass_builder.UseBuffer(block_sums_handle, RRWW);
 
             pass_builder.SetPassFunction(
@@ -178,10 +244,15 @@ namespace Engine {
 
         /// Add scan passes for `elem_count` elements.
         ///
-        /// When called recursively, block_sums acts as both data and
-        /// block-sum storage (same handle and same buffer).  Sub-block
-        /// totals in the recursive level temporarily overwrite the first
-        /// few entries of the buffer and are restored by mode-2 add-back.
+        /// @param data_offset   Offset into data input/output buffers where the
+        ///                      logical data starts (in uints).
+        /// @param block_offset  Offset into BlockSums buffer where this level's
+        ///                      per-block totals should be written (mode=1) or
+        ///                      read from (offset shader).
+        ///
+        /// When called recursively on BlockSums, block_offset separates the
+        /// sub-block totals from the data region, avoiding aliasing between
+        /// data and block-sum storage.
         void AddScanInternal(
             RenderGraphBuilder &builder,
             RGBufferHandle data_input_handle,
@@ -190,14 +261,16 @@ namespace Engine {
             ComputeBuffer &data_output_buf,
             RGBufferHandle block_sums_handle,
             ComputeBuffer &block_sums_buf,
-            uint32_t elem_count
+            uint32_t elem_count,
+            uint32_t data_offset,
+            uint32_t block_offset
         ) {
             assert(elem_count > 0u);
             assert(elem_count <= max_elem_count);
 
             if (elem_count <= kMaxSingleLevel) {
-                auto &param = AcquireParamBuffer(0u, 0u, elem_count);
-                AddSinglePass(
+                auto &param = AcquireParamBuffer(0u, data_offset, elem_count, block_offset);
+                AddScanPass(
                     builder,
                     data_input_handle, data_output_handle,
                     data_input_buf, data_output_buf,
@@ -210,10 +283,10 @@ namespace Engine {
 
             uint32_t num_blocks = (elem_count + kBlockSize - 1u) / kBlockSize;
 
-            // --- Level 1: scan blocks, write per-block sums (mode=1) ---
+            // --- Pass 1: scan blocks, write per-block sums to BlockSums[block_offset + wg_id] ---
             {
-                auto &param = AcquireParamBuffer(1u, 0u, elem_count);
-                AddSinglePass(
+                auto &param = AcquireParamBuffer(1u, data_offset, elem_count, block_offset);
+                AddScanPass(
                     builder,
                     data_input_handle, data_output_handle,
                     data_input_buf, data_output_buf,
@@ -223,10 +296,16 @@ namespace Engine {
                 );
             }
 
-            // --- Level 2: recursively scan the block sums ---
+            // --- Pass 2: recursively scan the block sums ---
+            //
+            // The sub-block totals live at BlockSums[block_offset .. block_offset+num_blocks-1].
+            // Sub-scan reads from data_offset=block_offset (the sub-block region).
+            // If num_blocks > 512, recurse deeper with shifted offsets.
             if (num_blocks <= kMaxSingleLevel) {
-                auto &param = AcquireParamBuffer(0u, 0u, num_blocks);
-                AddSinglePass(
+                // Sub-scan: data is at BlockSums[block_offset .. block_offset+num_blocks-1].
+                // Use data_offset=block_offset so the sub-scan reads the sub-block totals.
+                auto &param = AcquireParamBuffer(0u, block_offset, num_blocks, 0u);
+                AddScanPass(
                     builder,
                     block_sums_handle, block_sums_handle,
                     block_sums_buf, block_sums_buf,
@@ -236,25 +315,24 @@ namespace Engine {
                 );
             } else {
                 // Deep recursion: num_blocks > 512.
-                // Recursively scan block_sums[0..num_blocks-1] in-place,
-                // using the same buffer for both data and block-sum storage.
-                //
-                // Sub-block totals temporarily overwrite block_sums[0..sub_blocks-1]
-                // and are restored by the recursive mode-2 add-back before
-                // root level 3 reads them.
+                // Recurse into the sub-block region:
+                //   data_offset = block_offset (sub-block totals are the data)
+                //   block_offset = block_offset + num_blocks (sub-sub-block totals go after)
                 AddScanInternal(
                     builder,
                     block_sums_handle, block_sums_handle,
                     block_sums_buf, block_sums_buf,
                     block_sums_handle, block_sums_buf,
-                    num_blocks
+                    num_blocks,
+                    block_offset,
+                    block_offset + num_blocks
                 );
             }
 
-            // --- Level 3: add scanned block sums back (mode=2) ---
+            // --- Pass 3: add prefix-summed block offsets back to data ---
             {
-                auto &param = AcquireParamBuffer(2u, 0u, elem_count);
-                AddSinglePass(
+                auto &param = AcquireParamBuffer(2u, data_offset, elem_count, block_offset);
+                AddOffsetPass(
                     builder,
                     data_input_handle, data_output_handle,
                     data_input_buf, data_output_buf,
@@ -286,8 +364,14 @@ namespace Engine {
 
     size_t ParallelScan::GetRequiredBlockSumsBytes(uint32_t max_elem_count) noexcept {
         if (max_elem_count == 0u) return sizeof(uint32_t);
-        uint32_t max_workgroups = (max_elem_count + kBlockSize - 1u) / kBlockSize;
-        return static_cast<size_t>(max_workgroups) * sizeof(uint32_t);
+        size_t total_entries = 0;
+        uint32_t n = (max_elem_count + kBlockSize - 1u) / kBlockSize;
+        while (n > 0u) {
+            total_entries += n;
+            if (n <= kMaxSingleLevel) break; // last level uses mode=0, no further sub-block sums
+            n = (n + kBlockSize - 1u) / kBlockSize;
+        }
+        return total_entries * sizeof(uint32_t);
     }
 
     void ParallelScan::AddPasses(
@@ -318,7 +402,9 @@ namespace Engine {
             input_handle, output_handle,
             input_buf, output_buf,
             block_sums_handle, block_sums_buf,
-            elem_count
+            elem_count,
+            0u, // data_offset = 0 (root level, data starts at beginning of buffers)
+            0u  // block_offset = 0 (root level, block sums at beginning of scratch)
         );
     }
 } // namespace Engine
