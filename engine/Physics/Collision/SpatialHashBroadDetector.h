@@ -53,8 +53,8 @@ namespace Engine {
      *   - pair_count                    — output: actual pair count (uint)
      *   - grid_config_ubo               — grid parameters uniform (GridConfigGpu)
      *
-     * Multi-level parallel_scan orchestration is handled internally by the
-     * DispatchParallelScan helper.
+     * Parallel prefix-sum operations are handled by the reusable
+     * ParallelScan class (Physics/gpu_algorithm/ParallelScan.h).
      */
 
     /**

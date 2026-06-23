@@ -3,20 +3,16 @@
 // Parallel exclusive prefix sum (Blelloch work-efficient scan).
 //
 // Each workgroup scans up to 512 elements in shared memory.  For larger
-// arrays the C++ side orchestrates a multi-level scan:
+// arrays the C++ side (ParallelScan class) orchestrates a multi-level scan:
 //   1. Dispatch with mode=1 (scan blocks + write per-block sums)
-//   2. Recursively scan the block-sums buffer
+//   2. Recursively scan the block-sums buffer (mode=0)
 //   3. Dispatch with mode=2 (add scanned block offsets back)
 //
 // Bindings:
-//   binding 0 — readonly uint[] input
-//   binding 1 — buffer uint[] output (may alias input for in-place)
-//   binding 2 — readonly uint element count
-//   binding 3 — buffer uint[] block sums (written in mode 1)
-//
-// Push constants:
-//   mode:  0 = scan only, 1 = scan + write block sums, 2 = add block_offset
-//   block_offset: value added to every output element in mode 2
+//   binding 0 — readonly buffer uint[]  InputData
+//   binding 1 — buffer uint[]           OutputData (may alias InputData)
+//   binding 2 — readonly buffer         ScanParams { mode; block_offset; elem_count }
+//   binding 3 — buffer uint[]           BlockSums
 
 layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
@@ -31,27 +27,22 @@ layout(set = 0, binding = 1) buffer OutputData {
     uint v[];
 } output_data;
 
-layout(set = 0, binding = 2) readonly buffer ElemCount {
-    uint count;
-} elem_count;
+layout(set = 0, binding = 2) readonly buffer ScanParams {
+    uint mode;
+    uint block_offset;
+    uint elem_count;
+} scan_params;
 
 layout(set = 0, binding = 3) buffer BlockSums {
     uint v[];
 } block_sums;
-
-// Scan parameters: mode and block_offset.
-// mode: 0 = scan only, 1 = scan + write block sums, 2 = add block_offset
-layout(set = 0, binding = 4) readonly buffer ScanParams {
-    uint mode;
-    uint block_offset;
-} scan_params;
 
 shared uint s[SHARED_N];
 
 void main() {
     uint tid = gl_LocalInvocationID.x;
     uint wg_id = gl_WorkGroupID.x;
-    uint n = elem_count.count;
+    uint n = scan_params.elem_count;
 
     // Each workgroup handles SHARED_N elements starting at base.
     uint base = wg_id * SHARED_N;
@@ -59,8 +50,8 @@ void main() {
     uint idx1 = base + tid + WG_SIZE;
 
     // Load 2 elements per thread (zero-pad out-of-range).
-    s[tid]            = (idx0 < n) ? input_data.v[idx0] : 0u;
-    s[tid + WG_SIZE]  = (idx1 < n) ? input_data.v[idx1] : 0u;
+    s[tid]           = (idx0 < n) ? input_data.v[idx0] : 0u;
+    s[tid + WG_SIZE] = (idx1 < n) ? input_data.v[idx1] : 0u;
     barrier();
 
     // --- Upsweep (parallel reduction) ---
@@ -92,7 +83,10 @@ void main() {
         barrier();
     }
 
-    uint add_val = (scan_params.mode == 2u) ? scan_params.block_offset : 0u;
+    uint block_index = scan_params.block_offset + wg_id;
+
+    // Mode 2: add per-block offset from the scanned block-sums buffer.
+    uint add_val = (scan_params.mode == 2u) ? block_sums.v[block_index] : 0u;
 
     // Store results.
     if (idx0 < n) {
@@ -102,8 +96,8 @@ void main() {
         output_data.v[idx1] = s[tid + WG_SIZE] + add_val;
     }
 
-    // Mode 1: write per-block total sums for multi-level orchestration.
+    // Mode 1: write per-block total sums at block_offset + wg_id.
     if (scan_params.mode == 1u && tid == 0u) {
-        block_sums.v[wg_id] = block_total;
+        block_sums.v[block_index] = block_total;
     }
 }
