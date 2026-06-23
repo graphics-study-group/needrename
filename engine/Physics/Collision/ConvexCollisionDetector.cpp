@@ -299,6 +299,9 @@ namespace Engine {
         auto *detect_stage = m_impl->detect_stage.get();
         auto *detect_binding = m_impl->detect_resource_binding;
 
+        // Import gpu_one for the clear pass's ElemCount binding.
+        auto one_h = builder.ImportExternalResource(*m_impl->gpu_one, {MemoryAccessTypeBufferBits::None});
+
         // ---- Pass 1: Clear collision count on GPU (runs every frame) ----
         {
             auto &clear_srb = m_impl->clear_resource_binding->GetShaderResourceBinding();
@@ -312,7 +315,9 @@ namespace Engine {
                     .SetName("ConvexDetect ClearCount")
                     .SetAffinity(RenderGraphPassAffinity::Compute)
                     .UseBuffer(collision_count_handle, {MemoryAccessTypeBufferBits::ShaderRandomWrite})
-                    .SetPassFunction([clear_stage_ptr, clear_binding_ptr](CommandBuffer &cb, const RenderGraph &) -> void {
+                    .UseBuffer(one_h, {MemoryAccessTypeBufferBits::ShaderRandomRead})
+                    .SetPassFunction([clear_stage_ptr, clear_binding_ptr, &physics_scene](CommandBuffer &cb, const RenderGraph &) -> void {
+                        if (!physics_scene.IsSimulationEnabled()) return;
                         cb.BindComputeStage(*clear_stage_ptr);
                         cb.BindComputeResource(*clear_binding_ptr);
                         cb.DispatchCompute(1, 1, 1);

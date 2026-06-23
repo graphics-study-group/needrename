@@ -97,14 +97,12 @@ namespace Engine {
         ComputeResourceBinding *scan_binding = nullptr;
         std::vector<uint32_t> scan_spirv;
 
-        // memset_uint — clears a uint buffer to zero.
+        // memset_uint — clears a uint buffer to zero (stage reused, each pass gets own binding).
         std::unique_ptr<ComputeStage> memset_stage;
-        ComputeResourceBinding *memset_binding = nullptr;
         std::vector<uint32_t> memset_spirv;
 
-        // copy_uint — copies a uint buffer.
+        // copy_uint — copies a uint buffer (stage reused, each pass gets own binding).
         std::unique_ptr<ComputeStage> copy_stage;
-        ComputeResourceBinding *copy_binding = nullptr;
         std::vector<uint32_t> copy_spirv;
 
         // ---- Owned GPU buffers ----
@@ -146,6 +144,14 @@ namespace Engine {
 
         // Single uint with value 1 — used as ElemCount when clearing single-element buffers.
         std::unique_ptr<ComputeBuffer> gpu_one;
+
+        // Host-visible uint with value = grid_total_cells + 1 — used as ElemCount
+        // when clearing the histogram buffer or copying cell offsets.
+        std::unique_ptr<ComputeBuffer> gpu_grid_cells_p1;
+
+        // Scan params and element count (host-visible, updated before each scan dispatch).
+        std::unique_ptr<ComputeBuffer> gpu_scan_params;
+        std::unique_ptr<ComputeBuffer> gpu_scan_elem_count;
 
         // --- Intermediate buffers for multi-level scan ---
         std::unique_ptr<ComputeBuffer> gpu_scan_block_sums;
@@ -237,6 +243,26 @@ namespace Engine {
                 *addr = 1u;
             }
 
+            // Buffer with value = grid_total_cells + 1 for large clears/copies.
+            if (!gpu_grid_cells_p1 || gpu_grid_cells_p1->GetSize() < sizeof(uint32_t)) {
+                gpu_grid_cells_p1 =
+                    ComputeBuffer::CreateUnique(alloc, sizeof(uint32_t), true, false, false, false, "BH GridCellsP1");
+                auto *addr = reinterpret_cast<uint32_t *>(gpu_grid_cells_p1->GetVMAddress());
+                *addr = grid_total_cells + 1u;
+            }
+
+            // Scan params buffer: {mode, block_offset} (2 uints, host-visible).
+            if (!gpu_scan_params || gpu_scan_params->GetSize() < 2u * sizeof(uint32_t)) {
+                gpu_scan_params =
+                    ComputeBuffer::CreateUnique(alloc, 2u * sizeof(uint32_t), true, false, false, false, "BH ScanParams");
+            }
+
+            // Scan element count buffer (single uint, host-visible).
+            if (!gpu_scan_elem_count || gpu_scan_elem_count->GetSize() < sizeof(uint32_t)) {
+                gpu_scan_elem_count =
+                    ComputeBuffer::CreateUnique(alloc, sizeof(uint32_t), true, false, false, false, "BH ScanElemCnt");
+            }
+
             // Dummy zero buffer sized to shape_count for optional bindings.
             // Must be large enough that shader array accesses (e.g. filter_offset.v[i])
             // never read past the end.  All entries are zero.
@@ -260,114 +286,106 @@ namespace Engine {
             EnsureBuffer(gpu_scan_block_sums, static_cast<size_t>(max_scan_wgs) * sizeof(uint32_t), "BH ScanBlockSums");
         }
 
-        // -------------------------------------------------------------------
-        // Parallel scan dispatch helper
-        // -------------------------------------------------------------------
+        // // -------------------------------------------------------------------
+        // // Parallel scan dispatch helper
+        // // -------------------------------------------------------------------
 
-        /// Dispatch a multi-level exclusive scan on @p data_buf (N = @p count elements).
-        /// @p data_buf is read and overwritten in-place.
-        /// @p block_sums_buf is scratch space for intermediate per-block sums.
-        void DispatchParallelScan(
-            RenderGraphBuilder &builder,
-            RGBufferHandle data_handle,
-            ComputeBuffer &data_buf,
-            ComputeBuffer &block_sums_buf,
-            uint32_t count
-        ) {
-            if (count <= 512u) {
-                // Single-workgroup: one dispatch with mode=0.
-                AddScanPass(builder, data_handle, data_buf, nullptr, count, 0u, 0u, 1u);
-                return;
-            }
+        // /// Dispatch a multi-level exclusive scan on @p data_buf (N = @p count elements).
+        // /// @p data_buf is read and overwritten in-place.
+        // /// @p block_sums_buf is scratch space for intermediate per-block sums.
+        // void DispatchParallelScan(
+        //     RenderGraphBuilder &builder,
+        //     RGBufferHandle data_handle,
+        //     ComputeBuffer &data_buf,
+        //     ComputeBuffer &block_sums_buf,
+        //     uint32_t count
+        // ) {
+        //     if (count <= 512u) {
+        //         // Single-workgroup: one dispatch with mode=0.
+        //         AddScanPass(builder, data_handle, data_buf, nullptr, count, 0u, 0u, 1u);
+        //         return;
+        //     }
 
-            const uint32_t kBlockSize = 512u;
-            uint32_t num_blocks = (count + kBlockSize - 1u) / kBlockSize;
+        //     const uint32_t kBlockSize = 512u;
+        //     uint32_t num_blocks = (count + kBlockSize - 1u) / kBlockSize;
 
-            // --- Level 1: scan blocks, write block sums (mode=1) ---
-            auto block_sums_handle =
-                builder.ImportExternalResource(block_sums_buf, {MemoryAccessTypeBufferBits::None});
-            AddScanPass(builder, data_handle, data_buf, &block_sums_buf, count, 1u, 0u, num_blocks);
+        //     // --- Level 1: scan blocks, write block sums (mode=1) ---
+        //     auto block_sums_handle =
+        //         builder.ImportExternalResource(block_sums_buf, {MemoryAccessTypeBufferBits::None});
+        //     AddScanPass(builder, data_handle, data_buf, &block_sums_buf, count, 1u, 0u, num_blocks);
 
-            // --- Level 2: recursively scan the block sums ---
-            // Import the block_sums buffer as a data buffer for the recursive scan.
-            auto bs_data_handle =
-                builder.ImportExternalResource(block_sums_buf, {MemoryAccessTypeBufferBits::None});
+        //     // --- Level 2: recursively scan the block sums ---
+        //     // Import the block_sums buffer as a data buffer for the recursive scan.
+        //     auto bs_data_handle =
+        //         builder.ImportExternalResource(block_sums_buf, {MemoryAccessTypeBufferBits::None});
 
-            if (num_blocks <= 512u) {
-                AddScanPass(builder, bs_data_handle, block_sums_buf, nullptr, num_blocks, 0u, 0u, 1u);
-            } else {
-                // Nested multi-level; we reuse block_sums_buf for the inner scan's
-                // block sums (writing to the tail, past num_blocks entries).
-                // For simplicity we allocate a separate temp buffer.  In practice
-                // num_blocks rarely exceeds 512 for our use cases.
-                AddScanPass(builder, bs_data_handle, block_sums_buf, nullptr, num_blocks, 0u, 0u,
-                            (num_blocks + 511u) / 512u);
-            }
+        //     if (num_blocks <= 512u) {
+        //         AddScanPass(builder, bs_data_handle, block_sums_buf, nullptr, num_blocks, 0u, 0u, 1u);
+        //     } else {
+        //         // Nested multi-level; we reuse block_sums_buf for the inner scan's
+        //         // block sums (writing to the tail, past num_blocks entries).
+        //         // For simplicity we allocate a separate temp buffer.  In practice
+        //         // num_blocks rarely exceeds 512 for our use cases.
+        //         AddScanPass(builder, bs_data_handle, block_sums_buf, nullptr, num_blocks, 0u, 0u,
+        //                     (num_blocks + 511u) / 512u);
+        //     }
 
-            // --- Level 3: add scanned block sums back (mode=2) ---
-            AddScanPass(builder, data_handle, data_buf, &block_sums_buf, count, 2u, 0u, num_blocks);
-        }
+        //     // --- Level 3: add scanned block sums back (mode=2) ---
+        //     AddScanPass(builder, data_handle, data_buf, &block_sums_buf, count, 2u, 0u, num_blocks);
+        // }
 
-        /// Add a single scan dispatch.
-        void AddScanPass(
-            RenderGraphBuilder &builder,
-            RGBufferHandle data_handle,
-            ComputeBuffer &data_buf,
-            ComputeBuffer *block_sums_buf,  // may be null
-            uint32_t count,
-            uint32_t mode,
-            uint32_t block_offset,
-            uint32_t workgroups
-        ) {
-            auto *binding = &scan_stage->AllocateResourceBinding();
-            auto &srb = binding->GetShaderResourceBinding();
-            // In-place: input and output are the same buffer.
-            srb.BindBuffer("InputData", data_buf);
-            srb.BindBuffer("OutputData", data_buf);
+        // /// Add a single scan dispatch.
+        // void AddScanPass(
+        //     RenderGraphBuilder &builder,
+        //     RGBufferHandle data_handle,
+        //     ComputeBuffer &data_buf,
+        //     ComputeBuffer *block_sums_buf,  // may be null
+        //     uint32_t count,
+        //     uint32_t mode,
+        //     uint32_t block_offset,
+        //     uint32_t workgroups
+        // ) {
+        //     // Write element count to host-visible buffer.
+        //     {
+        //         auto *addr = reinterpret_cast<uint32_t *>(gpu_scan_elem_count->GetVMAddress());
+        //         *addr = count;
+        //     }
+        //     // Write scan params {mode, block_offset} to host-visible buffer.
+        //     {
+        //         auto *addr = reinterpret_cast<uint32_t *>(gpu_scan_params->GetVMAddress());
+        //         addr[0] = mode;
+        //         addr[1] = block_offset;
+        //     }
 
-            // Element count.
-            {
-                auto *addr = reinterpret_cast<uint32_t *>(gpu_shape_slot_count->GetVMAddress());
-                // We reuse gpu_shape_slot_count to pass the element count for scan.
-                // Create a temp approach: write count to a host-visible scratch.
-                // Simpler: use push constants for count... but scan.comp expects a buffer.
-                // For now we rely on the fact that gpu_pair_count can serve as scratch.
-                *addr = count;
-            }
-            srb.BindBuffer("ElemCount", *gpu_shape_slot_count);
+        //     auto *binding = &scan_stage->AllocateResourceBinding();
+        //     auto &srb = binding->GetShaderResourceBinding();
+        //     // In-place: input and output are the same buffer.
+        //     srb.BindBuffer("InputData", data_buf);
+        //     srb.BindBuffer("OutputData", data_buf);
+        //     srb.BindBuffer("ElemCount", *gpu_scan_elem_count);
+        //     srb.BindBuffer("ScanParams", *gpu_scan_params);
 
-            // Block sums (only for modes 1 and 2).
-            if (block_sums_buf) {
-                srb.BindBuffer("BlockSums", *block_sums_buf);
-            } else {
-                // Bind a dummy — we provide a zero-sized view via the pair count buffer.
-                srb.BindBuffer("BlockSums", *gpu_pair_count);
-            }
+        //     // Block sums (only for modes 1 and 2).  Bind dummy if null.
+        //     if (block_sums_buf) {
+        //         srb.BindBuffer("BlockSums", *block_sums_buf);
+        //     } else {
+        //         srb.BindBuffer("BlockSums", *gpu_pair_count);
+        //     }
 
-            auto *stage = scan_stage.get();
-
-            builder.AddPass(
-                RenderGraphPassBuilder{render_system}
-                    .SetName("BroadPhase ParallelScan")
-                    .SetAffinity(RenderGraphPassAffinity::Compute)
-                    .UseBuffer(data_handle, {MemoryAccessTypeBufferBits::ShaderRandomRead, MemoryAccessTypeBufferBits::ShaderRandomWrite})
-                    .SetPassFunction(
-                        [stage, binding, workgroups, mode, block_offset, block_sums_buf, this](
-                            CommandBuffer &cb, const RenderGraph &
-                        ) -> void {
-                            cb.BindComputeStage(*stage);
-                            // Set push constants.
-                            uint32_t pc[2] = {mode, block_offset};
-                            // TODO: push constants via CommandBuffer API when available.
-                            // For now we write mode/offset to a small host-visible buffer
-                            // that the shader reads instead of push constants.
-                            cb.BindComputeResource(*binding);
-                            cb.DispatchCompute(workgroups, 1, 1);
-                        }
-                    )
-                    .Get()
-            );
-        }
+        //     auto *stage = scan_stage.get();
+        //     builder.AddPass(
+        //         RenderGraphPassBuilder{render_system}
+        //             .SetName("BroadPhase ParallelScan")
+        //             .SetAffinity(RenderGraphPassAffinity::Compute)
+        //             .UseBuffer(data_handle, {MemoryAccessTypeBufferBits::ShaderRandomRead, MemoryAccessTypeBufferBits::ShaderRandomWrite})
+        //             .SetPassFunction([stage, binding, workgroups](CommandBuffer &cb, const RenderGraph &) -> void {
+        //                 cb.BindComputeStage(*stage);
+        //                 cb.BindComputeResource(*binding);
+        //                 cb.DispatchCompute(workgroups, 1, 1);
+        //             })
+        //             .Get()
+        //     );
+        // }
 
         // -------------------------------------------------------------------
         // Lazy init
@@ -424,13 +442,11 @@ namespace Engine {
             memset_spirv = LoadPhysicsSpirvBytes(memset_path);
             memset_stage = std::make_unique<ComputeStage>(render_system);
             memset_stage->Instantiate(memset_spirv, "BH MemsetUint");
-            memset_binding = &memset_stage->AllocateResourceBinding();
 
             const char *copy_path = "solver/SpatialHashBroadDetector/copy_uint.comp.spv";
             copy_spirv = LoadPhysicsSpirvBytes(copy_path);
             copy_stage = std::make_unique<ComputeStage>(render_system);
             copy_stage->Instantiate(copy_spirv, "BH CopyUint");
-            copy_binding = &copy_stage->AllocateResourceBinding();
         }
 
         void UpdateGridConfigGpu() {
@@ -547,21 +563,23 @@ namespace Engine {
         auto gcfg_h = builder.ImportExternalResource(*m_impl->gpu_grid_config, {AT::None});
         auto scan_bs_h = builder.ImportExternalResource(*m_impl->gpu_scan_block_sums, {AT::None});
 
-        // Helper: add a single-element clear pass targeting @p buf_handle.
-        auto AddClearPass = [&](RGBufferHandle buf_handle, ComputeBuffer &target, const char *name) {
-            auto &srb = m_impl->memset_binding->GetShaderResourceBinding();
+        // Helper: add a clear pass that zeros @p target (uses a per-pass binding).
+        auto AddClearPass = [&](ComputeResourceBinding &binding, RGBufferHandle buf_handle,
+                                 ComputeBuffer &target, ComputeBuffer &count_buf, const char *name) {
+            auto &srb = binding.GetShaderResourceBinding();
             srb.BindBuffer("Target", target);
-            srb.BindBuffer("ElemCount", *m_impl->gpu_one);
+            srb.BindBuffer("ElemCount", count_buf);
             auto *stage = m_impl->memset_stage.get();
-            auto *binding = m_impl->memset_binding;
+            auto *binding_ptr = &binding;
             builder.AddPass(
                 RenderGraphPassBuilder{m_impl->render_system}
                     .SetName(name)
                     .SetAffinity(RenderGraphPassAffinity::Compute)
                     .UseBuffer(buf_handle, {MemoryAccessTypeBufferBits::ShaderRandomWrite})
-                    .SetPassFunction([stage, binding](CommandBuffer &cb, const RenderGraph &) -> void {
+                    .SetPassFunction([stage, binding_ptr, &physics_scene](CommandBuffer &cb, const RenderGraph &) -> void {
+                        if (!physics_scene.IsSimulationEnabled()) return;
                         cb.BindComputeStage(*stage);
-                        cb.BindComputeResource(*binding);
+                        cb.BindComputeResource(*binding_ptr);
                         cb.DispatchCompute(1, 1, 1);
                     })
                     .Get()
@@ -602,7 +620,8 @@ namespace Engine {
                     .UseBuffer(global_h, WW)
                     .UseBuffer(scount_h, RR)
                     .UseBuffer(gcfg_h, RR)
-                    .SetPassFunction([stage, binding, wg](CommandBuffer &cb, const RenderGraph &) -> void {
+                    .SetPassFunction([stage, binding, wg, &physics_scene](CommandBuffer &cb, const RenderGraph &) -> void {
+                        if (!physics_scene.IsSimulationEnabled()) return;
                         cb.BindComputeStage(*stage);
                         cb.BindComputeResource(*binding);
                         cb.DispatchCompute(wg, 1, 1);
@@ -635,7 +654,10 @@ namespace Engine {
             auto *binding = m_impl->fallback_pairs_binding;
 
             // Clear pair count on GPU before accumulation.
-            AddClearPass(pcnt_h, *m_impl->gpu_pair_count, "BH Clear PairCount");
+            {
+                ComputeResourceBinding &cbind = m_impl->memset_stage->AllocateResourceBinding();
+                AddClearPass(cbind, pcnt_h, *m_impl->gpu_pair_count, *m_impl->gpu_one, "BH Clear PairCount");
+            }
 
             builder.AddPass(
                 RenderGraphPassBuilder{m_impl->render_system}
@@ -650,7 +672,8 @@ namespace Engine {
                     .UseBuffer(filt_off_h, RR)
                     .UseBuffer(filt_cnt_h, RR)
                     .UseBuffer(filt_dat_h, RR)
-                    .SetPassFunction([stage, binding, wg](CommandBuffer &cb, const RenderGraph &) -> void {
+                    .SetPassFunction([stage, binding, wg, &physics_scene](CommandBuffer &cb, const RenderGraph &) -> void {
+                        if (!physics_scene.IsSimulationEnabled()) return;
                         cb.BindComputeStage(*stage);
                         cb.BindComputeResource(*binding);
                         cb.DispatchCompute(wg, 1, 1);
@@ -661,7 +684,10 @@ namespace Engine {
         }
 
         // Clear total_assignments on GPU before count_cells accumulation.
-        AddClearPass(total_h, *m_impl->gpu_total_assignments, "BH Clear TotalAssign");
+        {
+            ComputeResourceBinding &cbind = m_impl->memset_stage->AllocateResourceBinding();
+            AddClearPass(cbind, total_h, *m_impl->gpu_total_assignments, *m_impl->gpu_one, "BH Clear TotalAssign");
+        }
 
         // === Pass 2: Count cells per shape ===
         {
@@ -688,7 +714,8 @@ namespace Engine {
                     .UseBuffer(scount_h, RR)
                     .UseBuffer(scc_h, WW)
                     .UseBuffer(total_h, WW)
-                    .SetPassFunction([stage, binding, wg](CommandBuffer &cb, const RenderGraph &) -> void {
+                    .SetPassFunction([stage, binding, wg, &physics_scene](CommandBuffer &cb, const RenderGraph &) -> void {
+                        if (!physics_scene.IsSimulationEnabled()) return;
                         cb.BindComputeStage(*stage);
                         cb.BindComputeResource(*binding);
                         cb.DispatchCompute(wg, 1, 1);
@@ -698,11 +725,48 @@ namespace Engine {
         }
 
         // === Prefix sum: shape_cell_count → shape_cell_offset ===
-        m_impl->DispatchParallelScan(
-            builder, sco_h, *m_impl->gpu_shape_cell_count, *m_impl->gpu_scan_block_sums, shape_count
-        );
-        // Note: shape_cell_count is overwritten with shape_cell_offset (in-place scan).
-        // The offset buffer is the same as the count buffer after scanning.
+        // m_impl->DispatchParallelScan(
+        //     builder, sco_h, *m_impl->gpu_shape_cell_count, *m_impl->gpu_scan_block_sums, shape_count
+        // );
+        {
+            if (shape_count > 512u) {
+                throw std::runtime_error("BroadPhase: shape_cell_count scan > 512 not implemented yet");
+            }
+            // Write scan params {mode, block_offset} to host-visible buffer.
+            {
+                auto *addr = reinterpret_cast<uint32_t *>(m_impl->gpu_scan_params->GetVMAddress());
+                addr[0] = 1u; // mode
+                addr[1] = 0u; // block offset
+            }
+
+            auto *stage = m_impl->scan_stage.get();
+            auto *binding = &stage->AllocateResourceBinding();
+            auto &srb = binding->GetShaderResourceBinding();
+            // In-place: input and output are the same buffer.
+            srb.BindBuffer("InputData", *m_impl->gpu_shape_cell_count);
+            srb.BindBuffer("OutputData", *m_impl->gpu_cell_offsets);
+            srb.BindBuffer("ElemCount", *m_impl->gpu_shape_slot_count);
+            srb.BindBuffer("ScanParams", *m_impl->gpu_scan_params);
+            srb.BindBuffer("BlockSums", *m_impl->gpu_pair_count);
+
+            builder.AddPass(
+                RenderGraphPassBuilder{m_impl->render_system}
+                    .SetName("BroadPhase ParallelScan")
+                    .SetAffinity(RenderGraphPassAffinity::Compute)
+                    .UseBuffer(scc_h, RR)
+                    .UseBuffer(sco_h, WW)
+                    .UseBuffer(scount_h, RR)
+                    .UseBuffer(pcnt_h, WW)
+                    .SetPassFunction([stage, binding](CommandBuffer &cb, const RenderGraph &) -> void {
+                        cb.BindComputeStage(*stage);
+                        cb.BindComputeResource(*binding);
+                        cb.DispatchCompute(1, 1, 1);
+                    })
+                    .Get()
+            );
+            // Note: shape_cell_count is overwritten with shape_cell_offset (in-place scan).
+            // The offset buffer is the same as the count buffer after scanning.
+        }
 
         // === Pass 3: Fill cell_shape_pairs ===
         {
@@ -712,7 +776,7 @@ namespace Engine {
             srb.BindBuffer("GlobalFlags", *m_impl->gpu_global_flags);
             srb.BindBuffer("GridConfig", *m_impl->gpu_grid_config);
             srb.BindBuffer("ShapeSlotCount", *m_impl->gpu_shape_slot_count);
-            srb.BindBuffer("ShapeCellOffset", *m_impl->gpu_shape_cell_count); // now holds offsets
+            srb.BindBuffer("ShapeCellOffset", *m_impl->gpu_cell_offsets);
             srb.BindBuffer("CellShapePairs", *m_impl->gpu_cell_shape_pairs);
 
             auto *stage = m_impl->fill_cells_stage.get();
@@ -729,7 +793,8 @@ namespace Engine {
                     .UseBuffer(scount_h, RR)
                     .UseBuffer(sco_h, RR)
                     .UseBuffer(csp_h, WW)
-                    .SetPassFunction([stage, binding, wg](CommandBuffer &cb, const RenderGraph &) -> void {
+                    .SetPassFunction([stage, binding, wg, &physics_scene](CommandBuffer &cb, const RenderGraph &) -> void {
+                        if (!physics_scene.IsSimulationEnabled()) return;
                         cb.BindComputeStage(*stage);
                         cb.BindComputeResource(*binding);
                         cb.DispatchCompute(wg, 1, 1);
@@ -740,28 +805,26 @@ namespace Engine {
 
         // === Clear cell histogram before atomic accumulation ===
         {
-            auto &srb = m_impl->memset_binding->GetShaderResourceBinding();
+            ComputeResourceBinding &bind = m_impl->memset_stage->AllocateResourceBinding();
+            auto &srb = bind.GetShaderResourceBinding();
             srb.BindBuffer("Target", *m_impl->gpu_cell_histogram);
-            // Use gpu_pair_count as scratch for the element count (host-visible,
-            // unused until the generate_pairs pass which runs much later).
-            {
-                auto *addr = reinterpret_cast<uint32_t *>(m_impl->gpu_pair_count->GetVMAddress());
-                *addr = m_impl->grid_total_cells + 1u;
-            }
-            srb.BindBuffer("ElemCount", *m_impl->gpu_pair_count);
+            srb.BindBuffer("ElemCount", *m_impl->gpu_grid_cells_p1);
 
             auto *stage = m_impl->memset_stage.get();
-            auto *binding = m_impl->memset_binding;
+            auto *binding_ptr = &bind;
             uint32_t wg = (m_impl->grid_total_cells + 1u + 63u) / 64u;
+            // Import gpu_grid_cells_p1 handle for the render graph.
+            auto cells_p1_h = builder.ImportExternalResource(*m_impl->gpu_grid_cells_p1, {AT::None});
             builder.AddPass(
                 RenderGraphPassBuilder{m_impl->render_system}
                     .SetName("BH Clear Histogram")
                     .SetAffinity(RenderGraphPassAffinity::Compute)
-                    .UseBuffer(hist_h, WW)
-                    .UseBuffer(pcnt_h, RR)
-                    .SetPassFunction([stage, binding, wg](CommandBuffer &cb, const RenderGraph &) -> void {
+                    .UseBuffer(hist_h, {MemoryAccessTypeBufferBits::ShaderRandomWrite})
+                    .UseBuffer(cells_p1_h, {MemoryAccessTypeBufferBits::ShaderRandomRead})
+                    .SetPassFunction([stage, binding_ptr, wg, &physics_scene](CommandBuffer &cb, const RenderGraph &) -> void {
+                        if (!physics_scene.IsSimulationEnabled()) return;
                         cb.BindComputeStage(*stage);
-                        cb.BindComputeResource(*binding);
+                        cb.BindComputeResource(*binding_ptr);
                         cb.DispatchCompute(wg, 1, 1);
                     })
                     .Get()
@@ -786,7 +849,8 @@ namespace Engine {
                     .UseBuffer(csp_h, RR)
                     .UseBuffer(hist_h, WW)
                     .UseBuffer(total_h, RR)
-                    .SetPassFunction([stage, binding, wg](CommandBuffer &cb, const RenderGraph &) -> void {
+                    .SetPassFunction([stage, binding, wg, &physics_scene](CommandBuffer &cb, const RenderGraph &) -> void {
+                        if (!physics_scene.IsSimulationEnabled()) return;
                         cb.BindComputeStage(*stage);
                         cb.BindComputeResource(*binding);
                         cb.DispatchCompute(wg, 1, 1);
@@ -796,36 +860,35 @@ namespace Engine {
         }
 
         // === Prefix sum: cell_histogram → cell_offsets ===
-        m_impl->DispatchParallelScan(
-            builder, coff_h, *m_impl->gpu_cell_histogram, *m_impl->gpu_scan_block_sums,
-            m_impl->grid_total_cells + 1u
-        );
+        // m_impl->DispatchParallelScan(
+        //     builder, coff_h, *m_impl->gpu_cell_histogram, *m_impl->gpu_scan_block_sums,
+        //     m_impl->grid_total_cells + 1u
+        // );
         // cell_histogram now holds cell_offsets (exclusive scan).
 
         // === Copy cell_offsets → cell_scratch (initialize atomic counters) ===
         {
-            auto &srb = m_impl->copy_binding->GetShaderResourceBinding();
+            ComputeResourceBinding &bind = m_impl->copy_stage->AllocateResourceBinding();
+            auto &srb = bind.GetShaderResourceBinding();
             srb.BindBuffer("SrcBuffer", *m_impl->gpu_cell_histogram);
             srb.BindBuffer("DstBuffer", *m_impl->gpu_cell_scratch);
-            // Use gpu_pair_count as element count scratch (still available).
-            {
-                auto *addr = reinterpret_cast<uint32_t *>(m_impl->gpu_pair_count->GetVMAddress());
-                *addr = m_impl->grid_total_cells + 1u;
-            }
-            srb.BindBuffer("ElemCount", *m_impl->gpu_pair_count);
+            srb.BindBuffer("ElemCount", *m_impl->gpu_grid_cells_p1);
 
             auto *stage = m_impl->copy_stage.get();
-            auto *binding = m_impl->copy_binding;
+            auto *binding_ptr = &bind;
             uint32_t wg = (m_impl->grid_total_cells + 1u + 63u) / 64u;
+            auto cells_p1_h = builder.ImportExternalResource(*m_impl->gpu_grid_cells_p1, {AT::None});
             builder.AddPass(
                 RenderGraphPassBuilder{m_impl->render_system}
                     .SetName("BH Copy Offsets → Scratch")
                     .SetAffinity(RenderGraphPassAffinity::Compute)
-                    .UseBuffer(coff_h, RR)
-                    .UseBuffer(cscr_h, WW)
-                    .SetPassFunction([stage, binding, wg](CommandBuffer &cb, const RenderGraph &) -> void {
+                    .UseBuffer(coff_h, {MemoryAccessTypeBufferBits::ShaderRandomRead})
+                    .UseBuffer(cscr_h, {MemoryAccessTypeBufferBits::ShaderRandomWrite})
+                    .UseBuffer(cells_p1_h, {MemoryAccessTypeBufferBits::ShaderRandomRead})
+                    .SetPassFunction([stage, binding_ptr, wg, &physics_scene](CommandBuffer &cb, const RenderGraph &) -> void {
+                        if (!physics_scene.IsSimulationEnabled()) return;
                         cb.BindComputeStage(*stage);
-                        cb.BindComputeResource(*binding);
+                        cb.BindComputeResource(*binding_ptr);
                         cb.DispatchCompute(wg, 1, 1);
                     })
                     .Get()
@@ -854,7 +917,8 @@ namespace Engine {
                     .UseBuffer(coff_h, RR)
                     .UseBuffer(cscr_h, WW)
                     .UseBuffer(total_h, RR)
-                    .SetPassFunction([stage, binding, wg](CommandBuffer &cb, const RenderGraph &) -> void {
+                    .SetPassFunction([stage, binding, wg, &physics_scene](CommandBuffer &cb, const RenderGraph &) -> void {
+                        if (!physics_scene.IsSimulationEnabled()) return;
                         cb.BindComputeStage(*stage);
                         cb.BindComputeResource(*binding);
                         cb.DispatchCompute(wg, 1, 1);
@@ -864,52 +928,56 @@ namespace Engine {
         }
 
         // === Pass 6: Generate collision pairs ===
-        {
-            auto &srb = m_impl->generate_pairs_binding->GetShaderResourceBinding();
-            srb.BindBuffer("SortedPairs", *m_impl->gpu_sorted_pairs);
-            srb.BindBuffer("CellOffsets", *m_impl->gpu_cell_histogram); // holds offsets
-            srb.BindBuffer("GlobalFlags", *m_impl->gpu_global_flags);
-            srb.BindBuffer("ShapeAlive", *gpu.shape_alive);
-            srb.BindBuffer("ShapeSlotCount", *m_impl->gpu_shape_slot_count);
-            srb.BindBuffer("CollisionPairs", *m_impl->gpu_collision_pairs);
-            srb.BindBuffer("PairCount", *m_impl->gpu_pair_count);
-            srb.BindBuffer("GridConfig", *m_impl->gpu_grid_config);
-            srb.BindBuffer("TotalAssignments", *m_impl->gpu_total_assignments);
-            srb.BindBuffer("ShapeFilterOffset", filter_off_buf);
-            srb.BindBuffer("ShapeFilterCount", filter_cnt_buf);
-            srb.BindBuffer("ShapeFilterData", filter_dat_buf);
+        // {
+        //     auto &srb = m_impl->generate_pairs_binding->GetShaderResourceBinding();
+        //     srb.BindBuffer("SortedPairs", *m_impl->gpu_sorted_pairs);
+        //     srb.BindBuffer("CellOffsets", *m_impl->gpu_cell_histogram); // holds offsets
+        //     srb.BindBuffer("GlobalFlags", *m_impl->gpu_global_flags);
+        //     srb.BindBuffer("ShapeAlive", *gpu.shape_alive);
+        //     srb.BindBuffer("ShapeSlotCount", *m_impl->gpu_shape_slot_count);
+        //     srb.BindBuffer("CollisionPairs", *m_impl->gpu_collision_pairs);
+        //     srb.BindBuffer("PairCount", *m_impl->gpu_pair_count);
+        //     srb.BindBuffer("GridConfig", *m_impl->gpu_grid_config);
+        //     srb.BindBuffer("TotalAssignments", *m_impl->gpu_total_assignments);
+        //     srb.BindBuffer("ShapeFilterOffset", filter_off_buf);
+        //     srb.BindBuffer("ShapeFilterCount", filter_cnt_buf);
+        //     srb.BindBuffer("ShapeFilterData", filter_dat_buf);
 
-            // Clear pair count on GPU before accumulation.
-            AddClearPass(pcnt_h, *m_impl->gpu_pair_count, "BH Clear PairCount");
+        //     // Clear pair count on GPU before accumulation.
+        //     {
+        //         ComputeResourceBinding &cbind = m_impl->memset_stage->AllocateResourceBinding();
+        //         AddClearPass(cbind, pcnt_h, *m_impl->gpu_pair_count, *m_impl->gpu_one, "BH Clear PairCount");
+        //     }
 
-            auto *stage = m_impl->generate_pairs_stage.get();
-            auto *binding = m_impl->generate_pairs_binding;
-            // Dispatch one workgroup per grid cell.
-            uint32_t wg = (m_impl->grid_total_cells + 63u) / 64u;
-            builder.AddPass(
-                RenderGraphPassBuilder{m_impl->render_system}
-                    .SetName("BH Generate Pairs")
-                    .SetAffinity(RenderGraphPassAffinity::Compute)
-                    .UseBuffer(sorted_h, RR)
-                    .UseBuffer(coff_h, RR)
-                    .UseBuffer(global_h, RR)
-                    .UseBuffer(shape_alive_h, RR)
-                    .UseBuffer(scount_h, RR)
-                    .UseBuffer(pairs_h, WW)
-                    .UseBuffer(pcnt_h, WW)
-                    .UseBuffer(gcfg_h, RR)
-                    .UseBuffer(total_h, RR)
-                    .UseBuffer(filt_off_h, RR)
-                    .UseBuffer(filt_cnt_h, RR)
-                    .UseBuffer(filt_dat_h, RR)
-                    .SetPassFunction([stage, binding, wg](CommandBuffer &cb, const RenderGraph &) -> void {
-                        cb.BindComputeStage(*stage);
-                        cb.BindComputeResource(*binding);
-                        cb.DispatchCompute(wg, 1, 1);
-                    })
-                    .Get()
-            );
-        }
+        //     auto *stage = m_impl->generate_pairs_stage.get();
+        //     auto *binding = m_impl->generate_pairs_binding;
+        //     // Dispatch one workgroup per grid cell.
+        //     uint32_t wg = (m_impl->grid_total_cells + 63u) / 64u;
+        //     builder.AddPass(
+        //         RenderGraphPassBuilder{m_impl->render_system}
+        //             .SetName("BH Generate Pairs")
+        //             .SetAffinity(RenderGraphPassAffinity::Compute)
+        //             .UseBuffer(sorted_h, RR)
+        //             .UseBuffer(coff_h, RR)
+        //             .UseBuffer(global_h, RR)
+        //             .UseBuffer(shape_alive_h, RR)
+        //             .UseBuffer(scount_h, RR)
+        //             .UseBuffer(pairs_h, WW)
+        //             .UseBuffer(pcnt_h, WW)
+        //             .UseBuffer(gcfg_h, RR)
+        //             .UseBuffer(total_h, RR)
+        //             .UseBuffer(filt_off_h, RR)
+        //             .UseBuffer(filt_cnt_h, RR)
+        //             .UseBuffer(filt_dat_h, RR)
+        //             .SetPassFunction([stage, binding, wg, &physics_scene](CommandBuffer &cb, const RenderGraph &) -> void {
+        //                 if (!physics_scene.IsSimulationEnabled()) return;
+        //                 cb.BindComputeStage(*stage);
+        //                 cb.BindComputeResource(*binding);
+        //                 cb.DispatchCompute(wg, 1, 1);
+        //             })
+        //             .Get()
+        //     );
+        // }
 
         return {pairs_h, pcnt_h};
     }
