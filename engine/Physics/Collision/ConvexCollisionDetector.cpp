@@ -187,7 +187,7 @@ namespace Engine {
             clear_resource_binding = &clear_stage->AllocateResourceBinding();
 
             // --- Collision-detection pipeline ---
-            detect_cached_spirv = LoadPhysicsSpirv("solver/ConvexCollisionDetector/detect_collisions.comp.spv");
+            detect_cached_spirv = LoadPhysicsSpirv("collision/ConvexCollisionDetector/detect_collisions.comp.spv");
             detect_stage = std::make_unique<ComputeStage>(render_system);
             detect_stage->Instantiate(detect_cached_spirv, "Convex Collision Detection");
             detect_resource_binding = &detect_stage->AllocateResourceBinding();

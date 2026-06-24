@@ -296,7 +296,7 @@ namespace Engine {
             if (initialized) return;
             initialized = true;
 
-            const char *base = "solver/SpatialHashBroadDetector/";
+            const char *base = "collision/SpatialHashBroadDetector/";
             aabb_spirv = LoadPhysicsSpirvBytes((std::string(base) + "compute_aabbs.comp.spv").c_str());
             aabb_stage = std::make_unique<ComputeStage>(render_system);
             aabb_stage->Instantiate(aabb_spirv, "BH ComputeAabbs");
@@ -338,12 +338,12 @@ namespace Engine {
             global_pairs_stage->Instantiate(global_pairs_spirv, "BH GlobalPairs");
             global_pairs_binding = &global_pairs_stage->AllocateResourceBinding();
 
-            const char *memset_path = "solver/SpatialHashBroadDetector/memset_uint.comp.spv";
+            const char *memset_path = "collision/SpatialHashBroadDetector/memset_uint.comp.spv";
             memset_spirv = LoadPhysicsSpirvBytes(memset_path);
             memset_stage = std::make_unique<ComputeStage>(render_system);
             memset_stage->Instantiate(memset_spirv, "BH MemsetUint");
 
-            const char *copy_path = "solver/SpatialHashBroadDetector/copy_uint.comp.spv";
+            const char *copy_path = "collision/SpatialHashBroadDetector/copy_uint.comp.spv";
             copy_spirv = LoadPhysicsSpirvBytes(copy_path);
             copy_stage = std::make_unique<ComputeStage>(render_system);
             copy_stage->Instantiate(copy_spirv, "BH CopyUint");
