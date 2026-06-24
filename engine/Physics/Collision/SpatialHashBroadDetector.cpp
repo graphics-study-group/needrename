@@ -784,56 +784,56 @@ namespace Engine {
             );
         }
 
-        // // Clear pair count on GPU before accumulation.
-        // {
-        //     ComputeResourceBinding &cbind = m_impl->memset_stage->AllocateResourceBinding();
-        //     AddClearPass(cbind, pcnt_h, *m_impl->gpu_pair_count, *m_impl->gpu_one, "BH Clear PairCount");
-        // }
-        // // === Pass 6: Generate collision pairs ===
-        // {
-        //     auto &srb = m_impl->generate_pairs_binding->GetShaderResourceBinding();
-        //     srb.BindBuffer("SortedPairs", *m_impl->gpu_sorted_pairs);
-        //     srb.BindBuffer("CellOffsets", *m_impl->gpu_cell_histogram); // holds offsets
-        //     srb.BindBuffer("GlobalFlags", *m_impl->gpu_global_flags);
-        //     srb.BindBuffer("ShapeAlive", *gpu.shape_alive);
-        //     srb.BindBuffer("ShapeSlotCount", *m_impl->gpu_shape_slot_count);
-        //     srb.BindBuffer("CollisionPairs", *m_impl->gpu_collision_pairs);
-        //     srb.BindBuffer("PairCount", *m_impl->gpu_pair_count);
-        //     srb.BindBuffer("GridConfig", *m_impl->gpu_grid_config);
-        //     srb.BindBuffer("TotalAssignments", *m_impl->gpu_total_assignments);
-        //     srb.BindBuffer("ShapeFilterOffset", filter_off_buf);
-        //     srb.BindBuffer("ShapeFilterCount", filter_cnt_buf);
-        //     srb.BindBuffer("ShapeFilterData", filter_dat_buf);
+        // Clear pair count on GPU before accumulation.
+        {
+            ComputeResourceBinding &cbind = m_impl->memset_stage->AllocateResourceBinding();
+            AddClearPass(cbind, pcnt_h, *m_impl->gpu_pair_count, *m_impl->gpu_one, "BH Clear PairCount");
+        }
+        // === Pass 6: Generate collision pairs ===
+        {
+            auto &srb = m_impl->generate_pairs_binding->GetShaderResourceBinding();
+            srb.BindBuffer("SortedPairs", *m_impl->gpu_sorted_pairs);
+            srb.BindBuffer("CellOffsets", *m_impl->gpu_cell_histogram); // holds offsets
+            srb.BindBuffer("GlobalFlags", *m_impl->gpu_global_flags);
+            srb.BindBuffer("ShapeAlive", *gpu.shape_alive);
+            srb.BindBuffer("ShapeSlotCount", *m_impl->gpu_shape_slot_count);
+            srb.BindBuffer("CollisionPairs", *m_impl->gpu_collision_pairs);
+            srb.BindBuffer("PairCount", *m_impl->gpu_pair_count);
+            srb.BindBuffer("GridConfig", *m_impl->gpu_grid_config);
+            srb.BindBuffer("TotalAssignments", *m_impl->gpu_total_assignments);
+            srb.BindBuffer("ShapeFilterOffset", filter_off_buf);
+            srb.BindBuffer("ShapeFilterCount", filter_cnt_buf);
+            srb.BindBuffer("ShapeFilterData", filter_dat_buf);
 
-        //     auto *stage = m_impl->generate_pairs_stage.get();
-        //     auto *binding = m_impl->generate_pairs_binding;
-        //     // Dispatch one workgroup per grid cell.
-        //     uint32_t wg = (m_impl->grid_total_cells + 63u) / 64u;
-        //     builder.AddPass(
-        //         RenderGraphPassBuilder{m_impl->render_system}
-        //             .SetName("BH Generate Pairs")
-        //             .SetAffinity(RenderGraphPassAffinity::Compute)
-        //             .UseBuffer(sorted_h, RR)
-        //             .UseBuffer(coff_h, RR)
-        //             .UseBuffer(global_h, RR)
-        //             .UseBuffer(shape_alive_h, RR)
-        //             .UseBuffer(scount_h, RR)
-        //             .UseBuffer(pairs_h, WW)
-        //             .UseBuffer(pcnt_h, WW)
-        //             .UseBuffer(gcfg_h, RR)
-        //             .UseBuffer(total_h, RR)
-        //             .UseBuffer(filt_off_h, RR)
-        //             .UseBuffer(filt_cnt_h, RR)
-        //             .UseBuffer(filt_dat_h, RR)
-        //             .SetPassFunction([stage, binding, wg, &physics_scene](CommandBuffer &cb, const RenderGraph &) -> void {
-        //                 if (!physics_scene.IsSimulationEnabled()) return;
-        //                 cb.BindComputeStage(*stage);
-        //                 cb.BindComputeResource(*binding);
-        //                 cb.DispatchCompute(wg, 1, 1);
-        //             })
-        //             .Get()
-        //     );
-        // }
+            auto *stage = m_impl->generate_pairs_stage.get();
+            auto *binding = m_impl->generate_pairs_binding;
+            // Dispatch one workgroup per grid cell.
+            uint32_t wg = (m_impl->grid_total_cells + 63u) / 64u;
+            builder.AddPass(
+                RenderGraphPassBuilder{m_impl->render_system}
+                    .SetName("BH Generate Pairs")
+                    .SetAffinity(RenderGraphPassAffinity::Compute)
+                    .UseBuffer(sorted_h, RR)
+                    .UseBuffer(coff_h, RR)
+                    .UseBuffer(global_h, RR)
+                    .UseBuffer(shape_alive_h, RR)
+                    .UseBuffer(scount_h, RR)
+                    .UseBuffer(pairs_h, WW)
+                    .UseBuffer(pcnt_h, RW)
+                    .UseBuffer(gcfg_h, RR)
+                    .UseBuffer(total_h, RR)
+                    .UseBuffer(filt_off_h, RR)
+                    .UseBuffer(filt_cnt_h, RR)
+                    .UseBuffer(filt_dat_h, RR)
+                    .SetPassFunction([stage, binding, wg, &physics_scene](CommandBuffer &cb, const RenderGraph &) -> void {
+                        if (!physics_scene.IsSimulationEnabled()) return;
+                        cb.BindComputeStage(*stage);
+                        cb.BindComputeResource(*binding);
+                        cb.DispatchCompute(wg, 1, 1);
+                    })
+                    .Get()
+            );
+        }
 
         return {pairs_h, pcnt_h};
     }
