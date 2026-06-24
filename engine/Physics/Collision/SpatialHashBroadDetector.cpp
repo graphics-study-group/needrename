@@ -94,6 +94,10 @@ namespace Engine {
         ComputeResourceBinding *fallback_pairs_binding = nullptr;
         std::vector<uint32_t> fallback_pairs_spirv;
 
+        std::unique_ptr<ComputeStage> global_pairs_stage;
+        ComputeResourceBinding *global_pairs_binding = nullptr;
+        std::vector<uint32_t> global_pairs_spirv;
+
         // memset_uint — clears a uint buffer to zero (stage reused, each pass gets own binding).
         std::unique_ptr<ComputeStage> memset_stage;
         std::vector<uint32_t> memset_spirv;
@@ -120,8 +124,10 @@ namespace Engine {
         std::unique_ptr<ComputeBuffer> gpu_cell_scratch;
         std::unique_ptr<ComputeBuffer> gpu_sorted_pairs;
 
-        // Global flags.
+        // Global shapes.
         std::unique_ptr<ComputeBuffer> gpu_global_flags;
+        std::unique_ptr<ComputeBuffer> gpu_global_list;
+        std::unique_ptr<ComputeBuffer> gpu_global_count;
 
         // Output.
         std::unique_ptr<ComputeBuffer> gpu_collision_pairs;
@@ -132,9 +138,6 @@ namespace Engine {
 
         // Shape slot count (single uint, host-visible).
         std::unique_ptr<ComputeBuffer> gpu_shape_slot_count;
-
-        // Global mode: 0 = all-pairs, 1 = global-only (host-visible).
-        std::unique_ptr<ComputeBuffer> gpu_global_mode;
 
         // Dummy zero uint buffer bound to optional descriptor slots.
         std::unique_ptr<ComputeBuffer> gpu_dummy_uint;
@@ -227,10 +230,18 @@ namespace Engine {
             // Pair count + zero buffer.
             EnsureBuffer(gpu_pair_count, sizeof(uint32_t), "BH PairCount", true);
 
-            // Global mode buffer (uint, host-visible): 0 = all-pairs, 1 = global-only.
-            if (!gpu_global_mode || gpu_global_mode->GetSize() < sizeof(uint32_t)) {
-                gpu_global_mode =
-                    ComputeBuffer::CreateUnique(alloc, sizeof(uint32_t), true, false, false, false, "BH GlobalMode");
+            // Global list: compact index array of global shapes (worst case: all shapes).
+            {
+                const size_t list_bytes = static_cast<size_t>(std::max(1u, shape_count)) * sizeof(uint32_t);
+                if (!gpu_global_list || gpu_global_list->GetSize() < list_bytes) {
+                    gpu_global_list =
+                        ComputeBuffer::CreateUnique(alloc, list_bytes, false, false, false, false, "BH GlobalList");
+                }
+            }
+            // Global count: single uint, host-visible (incremented atomically from GPU).
+            if (!gpu_global_count || gpu_global_count->GetSize() < sizeof(uint32_t)) {
+                gpu_global_count =
+                    ComputeBuffer::CreateUnique(alloc, sizeof(uint32_t), true, false, false, false, "BH GlobalCount");
             }
 
             // Constant-one buffer for memset ElemCount (single-element clears).
@@ -318,6 +329,11 @@ namespace Engine {
             fallback_pairs_stage = std::make_unique<ComputeStage>(render_system);
             fallback_pairs_stage->Instantiate(fallback_pairs_spirv, "BH FallbackPairs");
             fallback_pairs_binding = &fallback_pairs_stage->AllocateResourceBinding();
+
+            global_pairs_spirv = LoadPhysicsSpirvBytes((std::string(base) + "generate_global_pairs.comp.spv").c_str());
+            global_pairs_stage = std::make_unique<ComputeStage>(render_system);
+            global_pairs_stage->Instantiate(global_pairs_spirv, "BH GlobalPairs");
+            global_pairs_binding = &global_pairs_stage->AllocateResourceBinding();
 
             const char *memset_path = "solver/SpatialHashBroadDetector/memset_uint.comp.spv";
             memset_spirv = LoadPhysicsSpirvBytes(memset_path);
@@ -428,9 +444,9 @@ namespace Engine {
         auto aabb_min_h = builder.ImportExternalResource(*m_impl->gpu_aabb_min, {AT::None});
         auto aabb_max_h = builder.ImportExternalResource(*m_impl->gpu_aabb_max, {AT::None});
         auto global_h = builder.ImportExternalResource(*m_impl->gpu_global_flags, {AT::None});
-        auto global_mode_h = builder.ImportExternalResource(*m_impl->gpu_global_mode, {AT::None});
+        auto global_list_h = builder.ImportExternalResource(*m_impl->gpu_global_list, {AT::None});
+        auto global_count_h = builder.ImportExternalResource(*m_impl->gpu_global_count, {AT::None});
         auto one_h = builder.ImportExternalResource(*m_impl->gpu_one, {AT::None});
-        auto dummy_h = builder.ImportExternalResource(*m_impl->gpu_dummy_uint, {AT::None});
         auto scc_h = builder.ImportExternalResource(*m_impl->gpu_shape_cell_count, {AT::None});
         auto sco_h = builder.ImportExternalResource(*m_impl->gpu_shape_cell_offset, {AT::None});
         auto csp_h = builder.ImportExternalResource(*m_impl->gpu_cell_shape_pairs, {AT::None});
@@ -471,6 +487,12 @@ namespace Engine {
         // --- Determine if we use fallback ---
         bool use_fallback = (shape_count <= m_impl->fallback_threshold);
 
+        // Clear global_count on GPU before AABB pass (atomic accumulation).
+        {
+            ComputeResourceBinding &cbind = m_impl->memset_stage->AllocateResourceBinding();
+            AddClearPass(cbind, global_count_h, *m_impl->gpu_global_count, *m_impl->gpu_one, "BH Clear GlobalCount");
+        }
+
         // === Pass 1: Compute AABBs ===
         {
             auto &srb = m_impl->aabb_binding->GetShaderResourceBinding();
@@ -484,6 +506,8 @@ namespace Engine {
             srb.BindBuffer("GlobalFlags", *m_impl->gpu_global_flags);
             srb.BindBuffer("ShapeSlotCount", *m_impl->gpu_shape_slot_count);
             srb.BindBuffer("GridConfig", *m_impl->gpu_grid_config);
+            srb.BindBuffer("GlobalList", *m_impl->gpu_global_list);
+            srb.BindBuffer("GlobalCount", *m_impl->gpu_global_count);
 
             auto *stage = m_impl->aabb_stage.get();
             auto *binding = m_impl->aabb_binding;
@@ -500,6 +524,8 @@ namespace Engine {
                     .UseBuffer(aabb_min_h, WW)
                     .UseBuffer(aabb_max_h, WW)
                     .UseBuffer(global_h, WW)
+                    .UseBuffer(global_list_h, WW)
+                    .UseBuffer(global_count_h, RW)
                     .UseBuffer(scount_h, RR)
                     .UseBuffer(gcfg_h, RR)
                     .SetPassFunction([stage, binding, wg, &physics_scene](CommandBuffer &cb, const RenderGraph &) -> void {
@@ -514,18 +540,11 @@ namespace Engine {
 
         if (use_fallback) {
             // === Fallback: generate all-pairs directly ===
-            // Set global mode to 0 (all-pairs).
-            {
-                auto *addr = reinterpret_cast<uint32_t *>(m_impl->gpu_global_mode->GetVMAddress());
-                *addr = 0u;
-            }
             auto &srb = m_impl->fallback_pairs_binding->GetShaderResourceBinding();
             srb.BindBuffer("ShapeAlive", *gpu.shape_alive);
             srb.BindBuffer("ShapeSlotCount", *m_impl->gpu_shape_slot_count);
             srb.BindBuffer("CollisionPairs", *m_impl->gpu_collision_pairs);
             srb.BindBuffer("PairCount", *m_impl->gpu_pair_count);
-            srb.BindBuffer("GlobalFlags", *m_impl->gpu_global_flags);
-            srb.BindBuffer("GlobalMode", *m_impl->gpu_global_mode);
             srb.BindBuffer("ShapeFilterOffset", filter_off_buf);
             srb.BindBuffer("ShapeFilterCount", filter_cnt_buf);
             srb.BindBuffer("ShapeFilterData", filter_dat_buf);
@@ -549,8 +568,6 @@ namespace Engine {
                     .UseBuffer(scount_h, RR)
                     .UseBuffer(pairs_h, WW)
                     .UseBuffer(pcnt_h, WW)
-                    .UseBuffer(global_h, RR)
-                    .UseBuffer(global_mode_h, RR)
                     .UseBuffer(filt_off_h, RR)
                     .UseBuffer(filt_cnt_h, RR)
                     .UseBuffer(filt_dat_h, RR)
@@ -830,6 +847,53 @@ namespace Engine {
                         cb.BindComputeStage(*stage);
                         cb.BindComputeResource(*binding);
                         cb.DispatchCompute(wg, 1, 1);
+                    })
+                    .Get()
+            );
+        }
+
+        // === Pass 7: Generate global pairs ===
+        {
+            auto &srb = m_impl->global_pairs_binding->GetShaderResourceBinding();
+            srb.BindBuffer("GlobalList", *m_impl->gpu_global_list);
+            srb.BindBuffer("GlobalCount", *m_impl->gpu_global_count);
+            srb.BindBuffer("GlobalFlags", *m_impl->gpu_global_flags);
+            srb.BindBuffer("ShapeAlive", *gpu.shape_alive);
+            srb.BindBuffer("ShapeSlotCount", *m_impl->gpu_shape_slot_count);
+            srb.BindBuffer("CollisionPairs", *m_impl->gpu_collision_pairs);
+            srb.BindBuffer("PairCount", *m_impl->gpu_pair_count);
+            srb.BindBuffer("ShapeFilterOffset", filter_off_buf);
+            srb.BindBuffer("ShapeFilterCount", filter_cnt_buf);
+            srb.BindBuffer("ShapeFilterData", filter_dat_buf);
+
+            auto *stage = m_impl->global_pairs_stage.get();
+            auto *binding = m_impl->global_pairs_binding;
+            uint32_t n_wg = (shape_count + 63u) / 64u;
+            auto *global_count_addr =
+                reinterpret_cast<uint32_t *>(m_impl->gpu_global_count->GetVMAddress());
+            builder.AddPass(
+                RenderGraphPassBuilder{m_impl->render_system}
+                    .SetName("BH Global Pairs")
+                    .SetAffinity(RenderGraphPassAffinity::Compute)
+                    .UseBuffer(global_list_h, RR)
+                    .UseBuffer(global_count_h, RR)
+                    .UseBuffer(global_h, RR)
+                    .UseBuffer(shape_alive_h, RR)
+                    .UseBuffer(scount_h, RR)
+                    .UseBuffer(pairs_h, WW)
+                    .UseBuffer(pcnt_h, RW)
+                    .UseBuffer(filt_off_h, RR)
+                    .UseBuffer(filt_cnt_h, RR)
+                    .UseBuffer(filt_dat_h, RR)
+                    .SetPassFunction([stage, binding, n_wg, global_count_addr, &physics_scene](
+                        CommandBuffer &cb, const RenderGraph &
+                    ) -> void {
+                        if (!physics_scene.IsSimulationEnabled()) return;
+                        uint32_t g = *global_count_addr;
+                        if (g == 0u) return;
+                        cb.BindComputeStage(*stage);
+                        cb.BindComputeResource(*binding);
+                        cb.DispatchCompute(n_wg, g, 1);
                     })
                     .Get()
             );

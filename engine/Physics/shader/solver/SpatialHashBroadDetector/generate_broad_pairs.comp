@@ -2,8 +2,6 @@
 
 // Within-cell upper-triangle pair generation with collision filter checking.
 //
-// Also appends global-shape × all-shapes pairs.
-//
 // Each workgroup processes multiple cells.  For each cell c with K shapes,
 // generates K*(K-1)/2 pairs (i < j) and writes them to the output buffer.
 // Binary-search checks shape_filter_data to skip filtered pairs.

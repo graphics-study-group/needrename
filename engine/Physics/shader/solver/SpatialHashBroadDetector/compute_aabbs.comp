@@ -29,6 +29,9 @@ layout(set = 0, binding = 9) readonly buffer GridConfig {
     uint total_cells;
 } grid_config;
 
+layout(set = 0, binding = 10) writeonly buffer GlobalList  { uint v[]; } global_list;
+layout(set = 0, binding = 11) buffer GlobalCount           { uint v[]; } global_count;
+
 // --- Shape type constants ---
 #define SHAPE_TYPE_BOX      0u
 #define SHAPE_TYPE_SPHERE   1u
@@ -120,5 +123,7 @@ void main() {
 
     if (outside || num_cells > max_cells) {
         global_flags.v[idx] = 1u;
+        uint slot = atomicAdd(global_count.v[0], 1u);
+        global_list.v[slot] = idx;
     }
 }

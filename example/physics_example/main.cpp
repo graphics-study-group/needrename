@@ -170,15 +170,16 @@ int main(int /*argc*/, char ** /*argv*/) {
     });
 
     // rigid bricks
-    int n = 5;
-    glm::vec3 brick_size(0.2f, 0.4f, 0.2f);
+    int n = 6;
+    glm::vec3 brick_size(0.3f, 0.6f, 0.3f);
+    glm::vec3 offset(5.0f, 0.7f, 0.0f);
     for (int i = 0; i < n; ++i) {
-        glm::vec3 start_pos(4.0f, -0.5f * brick_size.y * n, brick_size.z * (i + 0.5f));
+        glm::vec3 start_pos = glm::vec3(0.0f, -0.5f * brick_size.y * n, brick_size.z * (i + 0.5f)) + offset;
         for (int j = 0; j < n - i; ++j)
             builder.AddBox({
                 .position = start_pos + glm::vec3(0.0f, brick_size.y * (j + 0.5f * i), 0.0f),
                 .half_extents = brick_size * 0.5f,
-                .mass = 1.0f,
+                .mass = 0.2f,
                 .material = blue_mat,
             });
     }

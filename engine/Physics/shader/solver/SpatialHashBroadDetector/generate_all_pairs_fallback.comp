@@ -2,12 +2,9 @@
 
 // All-pairs upper-triangle generation with collision filter checking.
 //
-// Used for:
-//   1. Small-N fallback (shape_count <= fallback_threshold)
-//   2. Global-shape pair generation (appended after within-cell pairs)
-//
-// Each thread computes one upper-triangle pair (i, j) with i < j and emits
-// it if both shapes are alive and the pair is not filtered.
+// Used for small-N fallback (shape_count <= fallback_threshold).  Each thread
+// computes one upper-triangle pair (i, j) with i < j and emits it if both
+// shapes are alive and the pair is not filtered.
 
 layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 
@@ -17,15 +14,10 @@ layout(set = 0, binding = 1) readonly buffer ShapeSlotCount  { uint count; } sha
 layout(set = 0, binding = 2) writeonly buffer CollisionPairs { uvec2 v[]; } collision_pairs;
 layout(set = 0, binding = 3) buffer PairCount                { uint v[]; } pair_count;
 
-// Optional: only generate pairs involving global shapes.
-// 0 = all-pairs mode, 1 = global-only mode.
-layout(set = 0, binding = 4) readonly buffer GlobalFlags     { uint v[]; } global_flags;
-layout(set = 0, binding = 5) readonly buffer GlobalMode      { uint mode; } global_mode;
-
 // Filter buffers.
-layout(set = 0, binding = 6) readonly buffer ShapeFilterOffset { uint v[]; } filter_offset;
-layout(set = 0, binding = 7) readonly buffer ShapeFilterCount  { uint v[]; } filter_count;
-layout(set = 0, binding = 8) readonly buffer ShapeFilterData   { uint v[]; } filter_data;
+layout(set = 0, binding = 4) readonly buffer ShapeFilterOffset { uint v[]; } filter_offset;
+layout(set = 0, binding = 5) readonly buffer ShapeFilterCount  { uint v[]; } filter_count;
+layout(set = 0, binding = 6) readonly buffer ShapeFilterData   { uint v[]; } filter_data;
 
 bool is_filtered(uint shape_a, uint shape_b) {
     uint lo = filter_offset.v[shape_a];
@@ -59,11 +51,6 @@ void main() {
     uint j = i + 1u + remaining;
 
     if (shape_alive.v[i] == 0u || shape_alive.v[j] == 0u) return;
-
-    // In global-only mode, skip pairs where neither shape is global.
-    if (global_mode.mode == 1u) {
-        if (global_flags.v[i] == 0u && global_flags.v[j] == 0u) return;
-    }
 
     if (is_filtered(i, j)) return;
 
