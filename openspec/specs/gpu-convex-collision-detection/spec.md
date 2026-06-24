@@ -8,71 +8,57 @@ Govern GPU convex collision detection using the Minkowski Portal Refinement (MPR
 
 ### Requirement: ConvexCollisionDetector owns GPU collision detection pipeline
 
-The `ConvexCollisionDetector` class SHALL own a compute shader pipeline for GPU convex collision detection, following the same pattern as `XPBDGpuSolver`: lazy SPIR-V loading on first call, `ComputeStage` ownership, `ComputeResourceBinding` management, and render-graph integration via a `Step()` method that populates a `RenderGraphBuilder`.
+The `ConvexCollisionDetector` class SHALL own a compute shader pipeline for GPU narrow-phase convex collision detection using the MPR algorithm, following the same pattern as `XPBDGpuSolver`: lazy SPIR-V loading on first call, `ComputeStage` ownership, `ComputeResourceBinding` management, and render-graph integration via an `AddDetectPasses()` method that populates a `RenderGraphBuilder`.
 
-The constructor SHALL accept a `RenderSystem&`, a `max_collision_pairs` count, and a `contact_margin` value (default 0.001). No GPU resources SHALL be allocated until the first call to `Step()`.
+The constructor SHALL accept a `RenderSystem&`, a `max_collision_pairs` count, and a `contact_margin` value (default 0.001). No GPU resources SHALL be allocated until the first call to `AddDetectPasses()`.
 
-#### Scenario: Lazy initialization on first Step
-- **WHEN** `ConvexCollisionDetector::Step()` is called for the first time on a valid `PhysicsScene`
-- **THEN** the detector loads the precompiled collision detection SPIR-V from `<ENGINE_PHYSICS_SPIRV_DIR>/solver/ConvexCollisionDetector/detect_collisions.comp.spv`
+The `AddDetectPasses()` method SHALL accept external GPU collision pair and pair count buffers produced by the broad-phase detector, along with their pre-imported render graph handles and scene buffer handles, instead of generating pairs internally.
+
+```cpp
+NarrowDetectorOutputHandles AddDetectPasses(
+    RenderGraphBuilder &builder,
+    PhysicsScene &physics_scene,
+    const ComputeBuffer &pair_buffer,
+    const ComputeBuffer &pair_count_buffer,
+    const PhysicsSceneBufferHandles &handles,
+    RGBufferHandle pair_buffer_handle,
+    RGBufferHandle pair_count_handle
+);
+```
+
+#### Scenario: Lazy initialization on first call
+- **WHEN** `ConvexCollisionDetector::AddDetectPasses()` is called for the first time on a valid `PhysicsScene`
+- **THEN** the detector loads the precompiled narrow-phase SPIR-V from `<ENGINE_PHYSICS_SPIRV_DIR>/solver/ConvexCollisionDetector/detect_collisions.comp.spv`
 - **AND** creates a `ComputeStage` and `ComputeResourceBinding`
-- **AND** subsequent calls to `Step()` reuse the same pipeline without reloading
+- **AND** subsequent calls reuse the same pipeline without reloading
 
 #### Scenario: Missing SPIR-V produces error
 - **WHEN** the collision detection SPIR-V file does not exist at runtime
-- **AND** `Step()` is called
+- **AND** `AddDetectPasses()` is called
 - **THEN** a `std::runtime_error` is thrown with the absolute path in the error message
 
-#### Scenario: Step() integrates with render graph
-- **WHEN** `Step(builder, physics_scene)` is called
-- **THEN** it imports required PhysicsScene GPU buffers as external resources
-- **AND** adds a compute pass to the render graph builder with the collision detection shader
-- **AND** the pass dispatches `(num_pairs + local_size - 1) / local_size` workgroups
+#### Scenario: AddDetectPasses() integrates with render graph using external pair buffer
+- **WHEN** `AddDetectPasses(builder, physics_scene, pair_buffer, pair_count_buffer, handles, pair_h, count_h)` is called
+- **THEN** it imports required PhysicsScene GPU buffers and uses the pre-imported pair buffer handles as external render-graph resources
+- **AND** adds a clear pass (zeroes `collision_count` via `clear_int_buffer.comp`) followed by a detect pass
+- **AND** the detect pass dispatches `(max_collision_pairs + 63) / 64` workgroups
 
 ### Requirement: Collision pair input buffer
 
-`ConvexCollisionDetector` SHALL own a GPU buffer of `uvec2` values storing collision pairs to test, where each pair `(index_a, index_b)` identifies two shape indices. This buffer SHALL be populated by the detector's own pair-generation compute shader (`generate_pairs.comp`) each frame, not uploaded from CPU.
+`ConvexCollisionDetector` SHALL receive collision pairs to test from an external GPU buffer (`uvec2` SSBO) and pair count (`uint` SSBO), both produced by the broad-phase detector. The detector SHALL NOT own or generate the pair buffer. Each pair `(index_a, index_b)` identifies two shape indices satisfying `index_a < index_b`.
 
-The buffer SHALL be sized to `max_collision_pairs` elements, matching the all-pairs count `shape_slot_count * (shape_slot_count - 1) / 2`.
+CPU dispatch SHALL use `max_collision_pairs` workgroups. Threads with `gl_GlobalInvocationID.x >= pair_count` SHALL return immediately.
 
-#### Scenario: Collision pairs are read from GPU buffer
+#### Scenario: Collision pairs are read from external GPU buffer
 - **WHEN** the collision detection shader executes
-- **THEN** each invocation reads one `uvec2` from the collision pair input buffer at `gl_GlobalInvocationID.x`
+- **THEN** each invocation reads one `uvec2` from the external collision pair input buffer at `gl_GlobalInvocationID.x`
 - **AND** uses the two shape indices to look up shape data from PhysicsScene buffers
+- **AND** threads beyond `pair_count` return immediately
 
 #### Scenario: Pair buffer is a render-graph resource
-- **WHEN** `Step()` populates the render graph
-- **THEN** the pair buffer is written by the pair-generation compute pass and read by the collision detection pass
-- **AND** the render graph manages the barrier transition automatically
-
-### Requirement: GPU-side all-pairs collision pair generation
-
-The `ConvexCollisionDetector` SHALL own a dedicated pair-generation compute shader (`generate_pairs.comp`) that produces the collision pair input buffer entirely on GPU. The shader SHALL dispatch `max_pairs` threads (where `max_pairs = shape_slot_count * (shape_slot_count - 1) / 2`), and each thread SHALL compute its unique upper-triangle pair `(i, j)` with `i < j` from its global invocation ID and write it to a `uvec2` SSBO.
-
-The generated pairs SHALL enumerate shape indices (not rigid body indices), spanning all slots 0..shape_slot_count-1 regardless of alive status. The collision detection shader is responsible for checking `shape_alive` on both shapes and skipping dead pairs.
-
-The pair-generation pass SHALL run before the collision detection pass within the same `Step()` call, with the pair buffer declared as a render-graph resource (write in generation pass, read in detection pass) so barriers are automatic.
-
-#### Scenario: Three shapes produce three pairs on GPU
-- **WHEN** a PhysicsScene has `shape_slot_count = 3`
-- **THEN** the pair-generation shader dispatches 3 threads
-- **AND** thread 0 writes pair (0, 1), thread 1 writes pair (0, 2), thread 2 writes pair (1, 2)
-- **AND** no pair has `index_a >= index_b`
-
-#### Scenario: GPU pair buffer used directly by collision detection
-- **WHEN** the collision detection pass executes after pair generation
-- **THEN** the collision shader reads `uvec2` pairs from the GPU buffer written by `generate_pairs.comp`
-- **AND** no CPU staging buffer or upload step is involved
-
-#### Scenario: Dead shapes handled by collision shader
-- **WHEN** the pair-generation shader produces a pair containing a dead shape
-- **THEN** the collision detection shader checks `shape_alive` for both indices and skips the pair
-- **AND** no result is written to the output buffers for that pair
-
-#### Scenario: Pair-generation SPIR-V loaded lazily
-- **WHEN** `ConvexCollisionDetector` initializes on first `Step()`
-- **THEN** it loads BOTH `generate_pairs.comp.spv` AND `detect_collisions.comp.spv` from disk
-- **AND** creates separate `ComputeStage` instances for each
+- **WHEN** `AddDetectPasses()` populates the render graph
+- **THEN** the pair buffer and pair count buffer are imported as external resources (or passed via pre-imported handles)
+- **AND** the render graph manages barrier transitions automatically
 
 ### Requirement: Collision result GPU buffers
 

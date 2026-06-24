@@ -162,8 +162,9 @@ namespace Engine {
             // Constant-one buffer for single-element clears.
             {
                 if (!gpu_one || gpu_one->GetSize() < sizeof(uint32_t)) {
-                    gpu_one =
-                        ComputeBuffer::CreateUnique(allocator, sizeof(uint32_t), true, false, false, false, "NarrowOne");
+                    gpu_one = ComputeBuffer::CreateUnique(
+                        allocator, sizeof(uint32_t), true, false, false, false, "NarrowOne"
+                    );
                     auto *addr = reinterpret_cast<uint32_t *>(gpu_one->GetVMAddress());
                     *addr = 1u;
                 }
@@ -233,10 +234,13 @@ namespace Engine {
     }
 
     NarrowDetectorOutputHandles ConvexCollisionDetector::AddDetectPasses(
-        RenderGraphBuilder &builder, PhysicsScene &physics_scene,
-        const ComputeBuffer &pair_buffer, const ComputeBuffer &pair_count_buffer,
+        RenderGraphBuilder &builder,
+        PhysicsScene &physics_scene,
+        const ComputeBuffer &pair_buffer,
+        const ComputeBuffer &pair_count_buffer,
         const PhysicsSceneBufferHandles &handles,
-        RGBufferHandle pair_buffer_handle, RGBufferHandle pair_count_handle
+        RGBufferHandle pair_buffer_handle,
+        RGBufferHandle pair_count_handle
     ) {
         const auto gpu = physics_scene.GetGpuBuffers();
 
@@ -316,19 +320,22 @@ namespace Engine {
                     .SetAffinity(RenderGraphPassAffinity::Compute)
                     .UseBuffer(collision_count_handle, {MemoryAccessTypeBufferBits::ShaderRandomWrite})
                     .UseBuffer(one_h, {MemoryAccessTypeBufferBits::ShaderRandomRead})
-                    .SetPassFunction([clear_stage_ptr, clear_binding_ptr, &physics_scene](CommandBuffer &cb, const RenderGraph &) -> void {
-                        if (!physics_scene.IsSimulationEnabled()) return;
-                        cb.BindComputeStage(*clear_stage_ptr);
-                        cb.BindComputeResource(*clear_binding_ptr);
-                        cb.DispatchCompute(1, 1, 1);
-                    })
+                    .SetPassFunction(
+                        [clear_stage_ptr,
+                         clear_binding_ptr,
+                         &physics_scene](CommandBuffer &cb, const RenderGraph &) -> void {
+                            if (!physics_scene.IsSimulationEnabled()) return;
+                            cb.BindComputeStage(*clear_stage_ptr);
+                            cb.BindComputeResource(*clear_binding_ptr);
+                            cb.DispatchCompute(1, 1, 1);
+                        }
+                    )
                     .Get()
             );
         }
 
         // Dispatch with max_pair_capacity workgroups; extra threads early-return.
-        const uint32_t detect_workgroups =
-            std::max(1u, (m_impl->max_collision_pairs + 63u) / 64u);
+        const uint32_t detect_workgroups = std::max(1u, (m_impl->max_collision_pairs + 63u) / 64u);
 
         // ---- Pass: Collision detection ----
         builder.AddPass(

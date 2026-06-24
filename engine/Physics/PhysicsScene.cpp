@@ -127,7 +127,8 @@ namespace {
         if (!shape_filter_data.empty()) {
             // Extract all existing filter lists, excluding references to the removed shape.
             std::vector<std::vector<uint32_t>> all_filters(shape_count);
-            for (size_t i = 0; i < shape_count && i < shape_filter_offset.size() && i < shape_filter_count.size(); ++i) {
+            for (size_t i = 0; i < shape_count && i < shape_filter_offset.size() && i < shape_filter_count.size();
+                 ++i) {
                 if (shape_filter_count[i] == 0u) {
                     continue;
                 }
@@ -918,12 +919,8 @@ namespace Engine {
         EnsureBuffer<glm::mat4>(m_gpu_model_matrices, allocator, m_gpu_rigid_body_slot_count, "Physics ModelMatrices");
 
         // Collision filter buffers.
-        EnsureBuffer<uint32_t>(
-            m_gpu_shape_filter_offset, allocator, m_gpu_shape_slot_count, "Physics ShapeFilterOff"
-        );
-        EnsureBuffer<uint32_t>(
-            m_gpu_shape_filter_count, allocator, m_gpu_shape_slot_count, "Physics ShapeFilterCnt"
-        );
+        EnsureBuffer<uint32_t>(m_gpu_shape_filter_offset, allocator, m_gpu_shape_slot_count, "Physics ShapeFilterOff");
+        EnsureBuffer<uint32_t>(m_gpu_shape_filter_count, allocator, m_gpu_shape_slot_count, "Physics ShapeFilterCnt");
         EnsureBuffer<uint32_t>(
             m_gpu_shape_filter_data, allocator, m_shape_filter_data.size(), "Physics ShapeFilterData"
         );
@@ -1025,8 +1022,7 @@ namespace Engine {
             for (uint32_t j : resolved_filters[i]) {
                 if (j < shape_count) {
                     auto &other_list = resolved_filters[j];
-                    if (std::find(other_list.begin(), other_list.end(), static_cast<uint32_t>(i))
-                        == other_list.end()) {
+                    if (std::find(other_list.begin(), other_list.end(), static_cast<uint32_t>(i)) == other_list.end()) {
                         other_list.push_back(static_cast<uint32_t>(i));
                         std::sort(other_list.begin(), other_list.end());
                     }

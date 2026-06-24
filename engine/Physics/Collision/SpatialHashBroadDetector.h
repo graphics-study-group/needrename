@@ -122,9 +122,7 @@ namespace Engine {
          *         pair count), ready for forwarding to the narrow-phase detector.
          */
         BroadDetectorOutputHandles AddDetectPasses(
-            RenderGraphBuilder &builder,
-            PhysicsScene &physics_scene,
-            const PhysicsSceneBufferHandles &handles
+            RenderGraphBuilder &builder, PhysicsScene &physics_scene, const PhysicsSceneBufferHandles &handles
         );
 
         bool IsInitialized() const noexcept;

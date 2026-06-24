@@ -748,10 +748,13 @@ namespace Engine {
             if (m_impl->narrow_detector && m_impl->broad_detector) {
                 auto broad_bufs = m_impl->broad_detector->GetOutputBuffers();
                 narrow_out = m_impl->narrow_detector->AddDetectPasses(
-                    builder, physics_scene,
-                    broad_bufs.pair_buffer, broad_bufs.pair_count_buffer,
+                    builder,
+                    physics_scene,
+                    broad_bufs.pair_buffer,
+                    broad_bufs.pair_count_buffer,
                     scene_handles,
-                    broad_out.pair_buffer, broad_out.pair_count
+                    broad_out.pair_buffer,
+                    broad_out.pair_count
                 );
             }
 

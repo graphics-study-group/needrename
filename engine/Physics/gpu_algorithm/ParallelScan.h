@@ -1,8 +1,8 @@
 #ifndef ENGINE_PHYSICS_GPU_ALGORITHM_PARALLELSCAN_INCLUDED
 #define ENGINE_PHYSICS_GPU_ALGORITHM_PARALLELSCAN_INCLUDED
 
-#include <memory>
 #include <cstdint>
+#include <memory>
 
 namespace Engine {
     class ComputeBuffer;

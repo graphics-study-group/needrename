@@ -46,9 +46,9 @@ namespace Engine {
 
     // ---- GPU-side grid config matching the shader UBO ----
     struct alignas(16) GridConfigGpu {
-        glm::vec4 world_min;       // xyz = bounds min, w = cell_size
-        glm::ivec4 grid_dims;      // xyz = grid dimensions, w = max_cells_per_shape
-        uint32_t total_cells;      // grid_dims.x * grid_dims.y * grid_dims.z
+        glm::vec4 world_min;  // xyz = bounds min, w = cell_size
+        glm::ivec4 grid_dims; // xyz = grid dimensions, w = max_cells_per_shape
+        uint32_t total_cells; // grid_dims.x * grid_dims.y * grid_dims.z
         uint32_t _pad[3];
     };
     static_assert(sizeof(GridConfigGpu) == 48, "GridConfigGpu must match shader UBO layout");
@@ -165,9 +165,8 @@ namespace Engine {
             grid_dims.y = static_cast<int>(glm::ceil(extent.y / gc.cell_size));
             grid_dims.z = static_cast<int>(glm::ceil(extent.z / gc.cell_size));
             grid_dims = glm::max(grid_dims, glm::ivec3(1));
-            uint64_t total = static_cast<uint64_t>(grid_dims.x)
-                           * static_cast<uint64_t>(grid_dims.y)
-                           * static_cast<uint64_t>(grid_dims.z);
+            uint64_t total = static_cast<uint64_t>(grid_dims.x) * static_cast<uint64_t>(grid_dims.y)
+                             * static_cast<uint64_t>(grid_dims.z);
             if (total > (1ull << 20)) {
                 throw std::runtime_error(
                     "SpatialHashBroadDetector: grid has " + std::to_string(total)
@@ -186,7 +185,9 @@ namespace Engine {
         // Buffer helpers
         // -------------------------------------------------------------------
 
-        void EnsureBuffer(std::unique_ptr<ComputeBuffer> &buf, size_t bytes, const char *name, bool host_visible = false) {
+        void EnsureBuffer(
+            std::unique_ptr<ComputeBuffer> &buf, size_t bytes, const char *name, bool host_visible = false
+        ) {
             const auto &alloc = render_system.GetAllocatorState();
             if (!buf || buf->GetSize() != bytes) {
                 buf = ComputeBuffer::CreateUnique(alloc, bytes, host_visible, false, false, false, name);
@@ -213,7 +214,9 @@ namespace Engine {
 
             // cell_shape_pairs: conservative upper bound.
             uint32_t max_assignments = shape_count * std::max(1u, grid_config.max_cells_per_shape);
-            EnsureBuffer(gpu_cell_shape_pairs, static_cast<size_t>(max_assignments) * sizeof(glm::uvec2), "BH CellShapePairs");
+            EnsureBuffer(
+                gpu_cell_shape_pairs, static_cast<size_t>(max_assignments) * sizeof(glm::uvec2), "BH CellShapePairs"
+            );
             EnsureBuffer(gpu_sorted_pairs, static_cast<size_t>(max_assignments) * sizeof(glm::uvec2), "BH SortedPairs");
 
             // Counting sort buffers (per-cell).
@@ -246,8 +249,7 @@ namespace Engine {
 
             // Constant-one buffer for memset ElemCount (single-element clears).
             if (!gpu_one || gpu_one->GetSize() < sizeof(uint32_t)) {
-                gpu_one =
-                    ComputeBuffer::CreateUnique(alloc, sizeof(uint32_t), true, false, false, false, "BH One");
+                gpu_one = ComputeBuffer::CreateUnique(alloc, sizeof(uint32_t), true, false, false, false, "BH One");
                 auto *addr = reinterpret_cast<uint32_t *>(gpu_one->GetVMAddress());
                 *addr = 1u;
             }
@@ -325,7 +327,8 @@ namespace Engine {
             generate_pairs_stage->Instantiate(generate_pairs_spirv, "BH GeneratePairs");
             generate_pairs_binding = &generate_pairs_stage->AllocateResourceBinding();
 
-            fallback_pairs_spirv = LoadPhysicsSpirvBytes((std::string(base) + "generate_all_pairs_fallback.comp.spv").c_str());
+            fallback_pairs_spirv =
+                LoadPhysicsSpirvBytes((std::string(base) + "generate_all_pairs_fallback.comp.spv").c_str());
             fallback_pairs_stage = std::make_unique<ComputeStage>(render_system);
             fallback_pairs_stage->Instantiate(fallback_pairs_spirv, "BH FallbackPairs");
             fallback_pairs_binding = &fallback_pairs_stage->AllocateResourceBinding();
@@ -361,7 +364,9 @@ namespace Engine {
     // ===================================================================
 
     SpatialHashBroadDetector::SpatialHashBroadDetector(
-        RenderSystem &render_system, uint32_t max_pairs, const GridConfig &grid_config,
+        RenderSystem &render_system,
+        uint32_t max_pairs,
+        const GridConfig &grid_config,
         uint32_t fallback_all_pairs_threshold
     ) : m_impl(std::make_unique<Impl>(render_system, max_pairs, grid_config, fallback_all_pairs_threshold)) {
     }
@@ -425,19 +430,15 @@ namespace Engine {
             gpu.shape_filter_offset ? *gpu.shape_filter_offset : *m_impl->gpu_dummy_uint;
         const ComputeBuffer &filter_cnt_buf =
             gpu.shape_filter_count ? *gpu.shape_filter_count : *m_impl->gpu_dummy_uint;
-        const ComputeBuffer &filter_dat_buf =
-            gpu.shape_filter_data ? *gpu.shape_filter_data : *m_impl->gpu_dummy_uint;
+        const ComputeBuffer &filter_dat_buf = gpu.shape_filter_data ? *gpu.shape_filter_data : *m_impl->gpu_dummy_uint;
 
         // Filter handles: use pre-imported if the scene owns them, otherwise import dummy.
-        auto filt_off_h = gpu.shape_filter_offset
-            ? handles.shape_filter_offset
-            : builder.ImportExternalResource(*m_impl->gpu_dummy_uint, {AT::None});
-        auto filt_cnt_h = gpu.shape_filter_count
-            ? handles.shape_filter_count
-            : builder.ImportExternalResource(*m_impl->gpu_dummy_uint, {AT::None});
-        auto filt_dat_h = gpu.shape_filter_data
-            ? handles.shape_filter_data
-            : builder.ImportExternalResource(*m_impl->gpu_dummy_uint, {AT::None});
+        auto filt_off_h = gpu.shape_filter_offset ? handles.shape_filter_offset
+                                                  : builder.ImportExternalResource(*m_impl->gpu_dummy_uint, {AT::None});
+        auto filt_cnt_h = gpu.shape_filter_count ? handles.shape_filter_count
+                                                 : builder.ImportExternalResource(*m_impl->gpu_dummy_uint, {AT::None});
+        auto filt_dat_h = gpu.shape_filter_data ? handles.shape_filter_data
+                                                : builder.ImportExternalResource(*m_impl->gpu_dummy_uint, {AT::None});
 
         // --- Import owned buffers ---
         auto scount_h = builder.ImportExternalResource(*m_impl->gpu_shape_slot_count, {AT::None});
@@ -462,8 +463,11 @@ namespace Engine {
         auto scan_scratch_h = builder.ImportExternalResource(*m_impl->gpu_scan_scratch, {AT::None});
 
         // Helper: add a clear pass that zeros @p target (uses a per-pass binding).
-        auto AddClearPass = [&](ComputeResourceBinding &binding, RGBufferHandle buf_handle,
-                                 ComputeBuffer &target, ComputeBuffer &count_buf, const char *name) {
+        auto AddClearPass = [&](ComputeResourceBinding &binding,
+                                RGBufferHandle buf_handle,
+                                ComputeBuffer &target,
+                                ComputeBuffer &count_buf,
+                                const char *name) {
             auto &srb = binding.GetShaderResourceBinding();
             srb.BindBuffer("Target", target);
             srb.BindBuffer("ElemCount", count_buf);
@@ -474,12 +478,14 @@ namespace Engine {
                     .SetName(name)
                     .SetAffinity(RenderGraphPassAffinity::Compute)
                     .UseBuffer(buf_handle, {MemoryAccessTypeBufferBits::ShaderRandomWrite})
-                    .SetPassFunction([stage, binding_ptr, &physics_scene](CommandBuffer &cb, const RenderGraph &) -> void {
-                        if (!physics_scene.IsSimulationEnabled()) return;
-                        cb.BindComputeStage(*stage);
-                        cb.BindComputeResource(*binding_ptr);
-                        cb.DispatchCompute(1, 1, 1);
-                    })
+                    .SetPassFunction(
+                        [stage, binding_ptr, &physics_scene](CommandBuffer &cb, const RenderGraph &) -> void {
+                            if (!physics_scene.IsSimulationEnabled()) return;
+                            cb.BindComputeStage(*stage);
+                            cb.BindComputeResource(*binding_ptr);
+                            cb.DispatchCompute(1, 1, 1);
+                        }
+                    )
                     .Get()
             );
         };
@@ -528,12 +534,14 @@ namespace Engine {
                     .UseBuffer(global_count_h, RW)
                     .UseBuffer(scount_h, RR)
                     .UseBuffer(gcfg_h, RR)
-                    .SetPassFunction([stage, binding, wg, &physics_scene](CommandBuffer &cb, const RenderGraph &) -> void {
-                        if (!physics_scene.IsSimulationEnabled()) return;
-                        cb.BindComputeStage(*stage);
-                        cb.BindComputeResource(*binding);
-                        cb.DispatchCompute(wg, 1, 1);
-                    })
+                    .SetPassFunction(
+                        [stage, binding, wg, &physics_scene](CommandBuffer &cb, const RenderGraph &) -> void {
+                            if (!physics_scene.IsSimulationEnabled()) return;
+                            cb.BindComputeStage(*stage);
+                            cb.BindComputeResource(*binding);
+                            cb.DispatchCompute(wg, 1, 1);
+                        }
+                    )
                     .Get()
             );
         }
@@ -571,12 +579,14 @@ namespace Engine {
                     .UseBuffer(filt_off_h, RR)
                     .UseBuffer(filt_cnt_h, RR)
                     .UseBuffer(filt_dat_h, RR)
-                    .SetPassFunction([stage, binding, wg, &physics_scene](CommandBuffer &cb, const RenderGraph &) -> void {
-                        if (!physics_scene.IsSimulationEnabled()) return;
-                        cb.BindComputeStage(*stage);
-                        cb.BindComputeResource(*binding);
-                        cb.DispatchCompute(wg, 1, 1);
-                    })
+                    .SetPassFunction(
+                        [stage, binding, wg, &physics_scene](CommandBuffer &cb, const RenderGraph &) -> void {
+                            if (!physics_scene.IsSimulationEnabled()) return;
+                            cb.BindComputeStage(*stage);
+                            cb.BindComputeResource(*binding);
+                            cb.DispatchCompute(wg, 1, 1);
+                        }
+                    )
                     .Get()
             );
             return {pairs_h, pcnt_h};
@@ -613,12 +623,14 @@ namespace Engine {
                     .UseBuffer(scount_h, RR)
                     .UseBuffer(scc_h, WW)
                     .UseBuffer(total_h, WW)
-                    .SetPassFunction([stage, binding, wg, &physics_scene](CommandBuffer &cb, const RenderGraph &) -> void {
-                        if (!physics_scene.IsSimulationEnabled()) return;
-                        cb.BindComputeStage(*stage);
-                        cb.BindComputeResource(*binding);
-                        cb.DispatchCompute(wg, 1, 1);
-                    })
+                    .SetPassFunction(
+                        [stage, binding, wg, &physics_scene](CommandBuffer &cb, const RenderGraph &) -> void {
+                            if (!physics_scene.IsSimulationEnabled()) return;
+                            cb.BindComputeStage(*stage);
+                            cb.BindComputeResource(*binding);
+                            cb.DispatchCompute(wg, 1, 1);
+                        }
+                    )
                     .Get()
             );
         }
@@ -628,15 +640,16 @@ namespace Engine {
         {
             uint32_t max_scan_elems = std::max(shape_count, m_impl->grid_total_cells + 1u);
             if (!m_impl->scan || m_impl->scan->GetMaxElemCount() < max_scan_elems) {
-                m_impl->scan = std::make_unique<ParallelScan>(
-                    m_impl->render_system, max_scan_elems
-                );
+                m_impl->scan = std::make_unique<ParallelScan>(m_impl->render_system, max_scan_elems);
             }
             m_impl->scan->AddPasses(
                 builder,
-                scc_h, sco_h,
-                *m_impl->gpu_shape_cell_count, *m_impl->gpu_cell_offsets,
-                scan_scratch_h, *m_impl->gpu_scan_scratch,
+                scc_h,
+                sco_h,
+                *m_impl->gpu_shape_cell_count,
+                *m_impl->gpu_cell_offsets,
+                scan_scratch_h,
+                *m_impl->gpu_scan_scratch,
                 shape_count
             );
         }
@@ -666,12 +679,14 @@ namespace Engine {
                     .UseBuffer(scount_h, RR)
                     .UseBuffer(sco_h, RR)
                     .UseBuffer(csp_h, WW)
-                    .SetPassFunction([stage, binding, wg, &physics_scene](CommandBuffer &cb, const RenderGraph &) -> void {
-                        if (!physics_scene.IsSimulationEnabled()) return;
-                        cb.BindComputeStage(*stage);
-                        cb.BindComputeResource(*binding);
-                        cb.DispatchCompute(wg, 1, 1);
-                    })
+                    .SetPassFunction(
+                        [stage, binding, wg, &physics_scene](CommandBuffer &cb, const RenderGraph &) -> void {
+                            if (!physics_scene.IsSimulationEnabled()) return;
+                            cb.BindComputeStage(*stage);
+                            cb.BindComputeResource(*binding);
+                            cb.DispatchCompute(wg, 1, 1);
+                        }
+                    )
                     .Get()
             );
         }
@@ -693,12 +708,14 @@ namespace Engine {
                     .SetAffinity(RenderGraphPassAffinity::Compute)
                     .UseBuffer(hist_h, WW)
                     .UseBuffer(cells_p1_h, RR)
-                    .SetPassFunction([stage, binding_ptr, wg, &physics_scene](CommandBuffer &cb, const RenderGraph &) -> void {
-                        if (!physics_scene.IsSimulationEnabled()) return;
-                        cb.BindComputeStage(*stage);
-                        cb.BindComputeResource(*binding_ptr);
-                        cb.DispatchCompute(wg, 1, 1);
-                    })
+                    .SetPassFunction(
+                        [stage, binding_ptr, wg, &physics_scene](CommandBuffer &cb, const RenderGraph &) -> void {
+                            if (!physics_scene.IsSimulationEnabled()) return;
+                            cb.BindComputeStage(*stage);
+                            cb.BindComputeResource(*binding_ptr);
+                            cb.DispatchCompute(wg, 1, 1);
+                        }
+                    )
                     .Get()
             );
         }
@@ -721,12 +738,14 @@ namespace Engine {
                     .UseBuffer(csp_h, RR)
                     .UseBuffer(hist_h, WW)
                     .UseBuffer(total_h, RR)
-                    .SetPassFunction([stage, binding, wg, &physics_scene](CommandBuffer &cb, const RenderGraph &) -> void {
-                        if (!physics_scene.IsSimulationEnabled()) return;
-                        cb.BindComputeStage(*stage);
-                        cb.BindComputeResource(*binding);
-                        cb.DispatchCompute(wg, 1, 1);
-                    })
+                    .SetPassFunction(
+                        [stage, binding, wg, &physics_scene](CommandBuffer &cb, const RenderGraph &) -> void {
+                            if (!physics_scene.IsSimulationEnabled()) return;
+                            cb.BindComputeStage(*stage);
+                            cb.BindComputeResource(*binding);
+                            cb.DispatchCompute(wg, 1, 1);
+                        }
+                    )
                     .Get()
             );
         }
@@ -735,9 +754,12 @@ namespace Engine {
         {
             m_impl->scan->AddPasses(
                 builder,
-                hist_h, hist_h,
-                *m_impl->gpu_cell_histogram, *m_impl->gpu_cell_histogram,
-                scan_scratch_h, *m_impl->gpu_scan_scratch,
+                hist_h,
+                hist_h,
+                *m_impl->gpu_cell_histogram,
+                *m_impl->gpu_cell_histogram,
+                scan_scratch_h,
+                *m_impl->gpu_scan_scratch,
                 m_impl->grid_total_cells + 1u
             );
         }
@@ -761,12 +783,14 @@ namespace Engine {
                     .UseBuffer(hist_h, RR)
                     .UseBuffer(cscr_h, WW)
                     .UseBuffer(cells_p1_h, RR)
-                    .SetPassFunction([stage, binding_ptr, wg, &physics_scene](CommandBuffer &cb, const RenderGraph &) -> void {
-                        if (!physics_scene.IsSimulationEnabled()) return;
-                        cb.BindComputeStage(*stage);
-                        cb.BindComputeResource(*binding_ptr);
-                        cb.DispatchCompute(wg, 1, 1);
-                    })
+                    .SetPassFunction(
+                        [stage, binding_ptr, wg, &physics_scene](CommandBuffer &cb, const RenderGraph &) -> void {
+                            if (!physics_scene.IsSimulationEnabled()) return;
+                            cb.BindComputeStage(*stage);
+                            cb.BindComputeResource(*binding_ptr);
+                            cb.DispatchCompute(wg, 1, 1);
+                        }
+                    )
                     .Get()
             );
         }
@@ -791,12 +815,14 @@ namespace Engine {
                     .UseBuffer(sorted_h, WW)
                     .UseBuffer(cscr_h, RW)
                     .UseBuffer(total_h, RR)
-                    .SetPassFunction([stage, binding, wg, &physics_scene](CommandBuffer &cb, const RenderGraph &) -> void {
-                        if (!physics_scene.IsSimulationEnabled()) return;
-                        cb.BindComputeStage(*stage);
-                        cb.BindComputeResource(*binding);
-                        cb.DispatchCompute(wg, 1, 1);
-                    })
+                    .SetPassFunction(
+                        [stage, binding, wg, &physics_scene](CommandBuffer &cb, const RenderGraph &) -> void {
+                            if (!physics_scene.IsSimulationEnabled()) return;
+                            cb.BindComputeStage(*stage);
+                            cb.BindComputeResource(*binding);
+                            cb.DispatchCompute(wg, 1, 1);
+                        }
+                    )
                     .Get()
             );
         }
@@ -842,12 +868,14 @@ namespace Engine {
                     .UseBuffer(filt_off_h, RR)
                     .UseBuffer(filt_cnt_h, RR)
                     .UseBuffer(filt_dat_h, RR)
-                    .SetPassFunction([stage, binding, wg, &physics_scene](CommandBuffer &cb, const RenderGraph &) -> void {
-                        if (!physics_scene.IsSimulationEnabled()) return;
-                        cb.BindComputeStage(*stage);
-                        cb.BindComputeResource(*binding);
-                        cb.DispatchCompute(wg, 1, 1);
-                    })
+                    .SetPassFunction(
+                        [stage, binding, wg, &physics_scene](CommandBuffer &cb, const RenderGraph &) -> void {
+                            if (!physics_scene.IsSimulationEnabled()) return;
+                            cb.BindComputeStage(*stage);
+                            cb.BindComputeResource(*binding);
+                            cb.DispatchCompute(wg, 1, 1);
+                        }
+                    )
                     .Get()
             );
         }
@@ -869,8 +897,7 @@ namespace Engine {
             auto *stage = m_impl->global_pairs_stage.get();
             auto *binding = m_impl->global_pairs_binding;
             uint32_t n_wg = (shape_count + 63u) / 64u;
-            auto *global_count_addr =
-                reinterpret_cast<uint32_t *>(m_impl->gpu_global_count->GetVMAddress());
+            auto *global_count_addr = reinterpret_cast<uint32_t *>(m_impl->gpu_global_count->GetVMAddress());
             builder.AddPass(
                 RenderGraphPassBuilder{m_impl->render_system}
                     .SetName("BH Global Pairs")
@@ -885,16 +912,18 @@ namespace Engine {
                     .UseBuffer(filt_off_h, RR)
                     .UseBuffer(filt_cnt_h, RR)
                     .UseBuffer(filt_dat_h, RR)
-                    .SetPassFunction([stage, binding, n_wg, global_count_addr, &physics_scene](
-                        CommandBuffer &cb, const RenderGraph &
-                    ) -> void {
-                        if (!physics_scene.IsSimulationEnabled()) return;
-                        uint32_t g = *global_count_addr;
-                        if (g == 0u) return;
-                        cb.BindComputeStage(*stage);
-                        cb.BindComputeResource(*binding);
-                        cb.DispatchCompute(n_wg, g, 1);
-                    })
+                    .SetPassFunction(
+                        [stage, binding, n_wg, global_count_addr, &physics_scene](
+                            CommandBuffer &cb, const RenderGraph &
+                        ) -> void {
+                            if (!physics_scene.IsSimulationEnabled()) return;
+                            uint32_t g = *global_count_addr;
+                            if (g == 0u) return;
+                            cb.BindComputeStage(*stage);
+                            cb.BindComputeResource(*binding);
+                            cb.DispatchCompute(n_wg, g, 1);
+                        }
+                    )
                     .Get()
             );
         }

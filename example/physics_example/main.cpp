@@ -41,7 +41,9 @@ int main(int /*argc*/, char ** /*argv*/) {
     int screenWidth = displayMode->w;
     int screenHeight = displayMode->h;
     SDL_Log("Screen Resolution: %dx%d @ %fHz", screenWidth, screenHeight, displayMode->refresh_rate);
-    StartupOptions opt{.resol_x = (int)(screenWidth * 0.9), .resol_y = (int)(screenHeight * 0.9), .title = "Physics Example"};
+    StartupOptions opt{
+        .resol_x = (int)(screenWidth * 0.9), .resol_y = (int)(screenHeight * 0.9), .title = "Physics Example"
+    };
 
     auto cmc = MainClass::GetInstance();
     cmc->Initialize(&opt, SDL_INIT_VIDEO, SDL_LOG_PRIORITY_VERBOSE);

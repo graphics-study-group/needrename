@@ -15,11 +15,11 @@
 #include <Render/Pipeline/RenderGraph/RenderGraphPass.h>
 #include <Render/RenderSystem.h>
 
+#include <cassert>
 #include <filesystem>
 #include <fstream>
 #include <stdexcept>
 #include <vector>
-#include <cassert>
 
 namespace {
     std::vector<uint32_t> LoadPhysicsSpirvBytes(const char *relative_path) {
@@ -51,7 +51,7 @@ namespace Engine {
     };
     static_assert(sizeof(ScanParamsGpu) == 16, "ScanParamsGpu must be 16 bytes");
 
-    static constexpr uint32_t kBlockSize = 512u;  // SHARED_N in shader
+    static constexpr uint32_t kBlockSize = 512u; // SHARED_N in shader
     static constexpr uint32_t kMaxSingleLevel = 512u;
 
     struct ParallelScan::Impl {
@@ -60,7 +60,7 @@ namespace Engine {
         bool initialized = false;
 
         // ---- Compute stages ----
-        std::unique_ptr<ComputeStage> scan_stage;   // parallel_scan.comp (modes 0 & 1)
+        std::unique_ptr<ComputeStage> scan_stage; // parallel_scan.comp (modes 0 & 1)
         std::vector<uint32_t> scan_spirv;
 
         std::unique_ptr<ComputeStage> offset_stage; // add_block_offset.comp
@@ -71,8 +71,7 @@ namespace Engine {
         // parameters are never overwritten between passes.
         std::vector<std::unique_ptr<ComputeBuffer>> param_pool;
 
-        explicit Impl(RenderSystem &rs, uint32_t mec) :
-            render_system(rs), max_elem_count(mec) {
+        explicit Impl(RenderSystem &rs, uint32_t mec) : render_system(rs), max_elem_count(mec) {
             if (max_elem_count == 0u) {
                 throw std::invalid_argument("ParallelScan: max_elem_count must be > 0");
             }
@@ -107,14 +106,12 @@ namespace Engine {
         // -------------------------------------------------------------------
 
         /// Acquire a fresh host-visible parameter buffer with the given values.
-        ComputeBuffer &AcquireParamBuffer(uint32_t mode, uint32_t data_offset,
-                                          uint32_t elem_count, uint32_t block_offset) {
+        ComputeBuffer &AcquireParamBuffer(
+            uint32_t mode, uint32_t data_offset, uint32_t elem_count, uint32_t block_offset
+        ) {
             const auto &alloc = render_system.GetAllocatorState();
             auto buf = ComputeBuffer::CreateUnique(
-                alloc,
-                sizeof(ScanParamsGpu),
-                true, false, false, false,
-                "ParallelScan Params"
+                alloc, sizeof(ScanParamsGpu), true, false, false, false, "ParallelScan Params"
             );
             auto *addr = reinterpret_cast<ScanParamsGpu *>(buf->GetVMAddress());
             addr->mode = mode;
@@ -159,8 +156,8 @@ namespace Engine {
             bool in_place = (&data_input_buf == &data_output_buf);
 
             auto pass_builder = RenderGraphPassBuilder{render_system}
-                .SetName("ParallelScan")
-                .SetAffinity(RenderGraphPassAffinity::Compute);
+                                    .SetName("ParallelScan")
+                                    .SetAffinity(RenderGraphPassAffinity::Compute);
 
             if (in_place) {
                 pass_builder.UseBuffer(data_input_handle, RRWW);
@@ -212,8 +209,8 @@ namespace Engine {
             bool in_place = (&data_input_buf == &data_output_buf);
 
             auto pass_builder = RenderGraphPassBuilder{render_system}
-                .SetName("AddBlockOffset")
-                .SetAffinity(RenderGraphPassAffinity::Compute);
+                                    .SetName("AddBlockOffset")
+                                    .SetAffinity(RenderGraphPassAffinity::Compute);
 
             if (in_place) {
                 pass_builder.UseBuffer(data_input_handle, RRWW);
@@ -272,9 +269,12 @@ namespace Engine {
                 auto &param = AcquireParamBuffer(0u, data_offset, elem_count, block_offset);
                 AddScanPass(
                     builder,
-                    data_input_handle, data_output_handle,
-                    data_input_buf, data_output_buf,
-                    block_sums_handle, block_sums_buf,
+                    data_input_handle,
+                    data_output_handle,
+                    data_input_buf,
+                    data_output_buf,
+                    block_sums_handle,
+                    block_sums_buf,
                     param,
                     1u
                 );
@@ -288,9 +288,12 @@ namespace Engine {
                 auto &param = AcquireParamBuffer(1u, data_offset, elem_count, block_offset);
                 AddScanPass(
                     builder,
-                    data_input_handle, data_output_handle,
-                    data_input_buf, data_output_buf,
-                    block_sums_handle, block_sums_buf,
+                    data_input_handle,
+                    data_output_handle,
+                    data_input_buf,
+                    data_output_buf,
+                    block_sums_handle,
+                    block_sums_buf,
                     param,
                     num_blocks
                 );
@@ -307,9 +310,12 @@ namespace Engine {
                 auto &param = AcquireParamBuffer(0u, block_offset, num_blocks, 0u);
                 AddScanPass(
                     builder,
-                    block_sums_handle, block_sums_handle,
-                    block_sums_buf, block_sums_buf,
-                    block_sums_handle, block_sums_buf,
+                    block_sums_handle,
+                    block_sums_handle,
+                    block_sums_buf,
+                    block_sums_buf,
+                    block_sums_handle,
+                    block_sums_buf,
                     param,
                     1u
                 );
@@ -320,9 +326,12 @@ namespace Engine {
                 //   block_offset = block_offset + num_blocks (sub-sub-block totals go after)
                 AddScanInternal(
                     builder,
-                    block_sums_handle, block_sums_handle,
-                    block_sums_buf, block_sums_buf,
-                    block_sums_handle, block_sums_buf,
+                    block_sums_handle,
+                    block_sums_handle,
+                    block_sums_buf,
+                    block_sums_buf,
+                    block_sums_handle,
+                    block_sums_buf,
                     num_blocks,
                     block_offset,
                     block_offset + num_blocks
@@ -334,9 +343,12 @@ namespace Engine {
                 auto &param = AcquireParamBuffer(2u, data_offset, elem_count, block_offset);
                 AddOffsetPass(
                     builder,
-                    data_input_handle, data_output_handle,
-                    data_input_buf, data_output_buf,
-                    block_sums_handle, block_sums_buf,
+                    data_input_handle,
+                    data_output_handle,
+                    data_input_buf,
+                    data_output_buf,
+                    block_sums_handle,
+                    block_sums_buf,
                     param,
                     num_blocks
                 );
@@ -348,8 +360,8 @@ namespace Engine {
     // Public API
     // ===================================================================
 
-    ParallelScan::ParallelScan(RenderSystem &render_system, uint32_t max_elem_count)
-        : m_impl(std::make_unique<Impl>(render_system, max_elem_count)) {
+    ParallelScan::ParallelScan(RenderSystem &render_system, uint32_t max_elem_count) :
+        m_impl(std::make_unique<Impl>(render_system, max_elem_count)) {
     }
 
     ParallelScan::~ParallelScan() = default;
@@ -389,8 +401,8 @@ namespace Engine {
         }
         if (elem_count > m_impl->max_elem_count) {
             throw std::runtime_error(
-                "ParallelScan::AddPasses: elem_count " + std::to_string(elem_count)
-                + " exceeds max_elem_count " + std::to_string(m_impl->max_elem_count)
+                "ParallelScan::AddPasses: elem_count " + std::to_string(elem_count) + " exceeds max_elem_count "
+                + std::to_string(m_impl->max_elem_count)
             );
         }
 
@@ -399,9 +411,12 @@ namespace Engine {
         // The caller owns and manages all buffers — we just orchestrate passes.
         m_impl->AddScanInternal(
             builder,
-            input_handle, output_handle,
-            input_buf, output_buf,
-            block_sums_handle, block_sums_buf,
+            input_handle,
+            output_handle,
+            input_buf,
+            output_buf,
+            block_sums_handle,
+            block_sums_buf,
             elem_count,
             0u, // data_offset = 0 (root level, data starts at beginning of buffers)
             0u  // block_offset = 0 (root level, block sums at beginning of scratch)

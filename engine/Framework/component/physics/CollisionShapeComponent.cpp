@@ -70,13 +70,16 @@ namespace Engine {
         if (existing_index != PhysicsScene::INVALID_INDEX) {
             m_shape_index = existing_index;
             physics_scene->UpdateCollisionShapeGeometry(
-                m_shape_index, effective_type, effective_feature, world_center, world_rotation,
+                m_shape_index,
+                effective_type,
+                effective_feature,
+                world_center,
+                world_rotation,
                 m_ignore_collision_objects
             );
         } else {
             m_shape_index = physics_scene->RegisterCollisionShape(
-                GetHandle(), effective_type, effective_feature, world_center, world_rotation,
-                m_ignore_collision_objects
+                GetHandle(), effective_type, effective_feature, world_center, world_rotation, m_ignore_collision_objects
             );
         }
 
