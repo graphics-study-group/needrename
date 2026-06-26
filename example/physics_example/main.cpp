@@ -260,7 +260,7 @@ int main(int /*argc*/, char ** /*argv*/) {
     physics_scene->DebugPrint();
 
     // Disable simulation from the start.
-    physics_scene->SetSimulationEnabled(true);
+    physics_scene->SetSimulationEnabled(false);
 
     // Awake mesh components → registers renderers.
     scene.AddInitEvent();

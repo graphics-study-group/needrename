@@ -48,7 +48,7 @@ namespace Engine {
         [[nodiscard]]
         bool IsInitialized() const noexcept override;
 
-        // PreGPUStep and PostGPUStep use default no-op implementations.
+        // PostGPUStep uses default no-op implementation.
 
         /**
          * @brief Set XPBD configuration parameters.

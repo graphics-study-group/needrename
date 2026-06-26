@@ -120,10 +120,13 @@ namespace Engine {
         m_impl->EnsureUniformBuffer(body_count);
 
         // Write uniforms to host-visible buffer.
+        // When simulation is disabled, time_step = 0 so no displacement
+        // occurs, but model matrices are still written.
         {
+            float effective_dt = scene.IsSimulationEnabled() ? m_impl->config.time_step : 0.0f;
             auto *uniform_addr = reinterpret_cast<glm::vec4 *>(m_impl->gpu_uniforms->GetVMAddress());
             *uniform_addr = glm::vec4(
-                m_impl->config.gravity.x, m_impl->config.gravity.y, m_impl->config.gravity.z, m_impl->config.time_step
+                m_impl->config.gravity.x, m_impl->config.gravity.y, m_impl->config.gravity.z, effective_dt
             );
         }
     }
@@ -131,7 +134,7 @@ namespace Engine {
     void DummySolver::GPUStep(RenderSystem &system, PhysicsScene &scene, vk::CommandBuffer cb) {
         const auto gpu = scene.GetGpuBuffers();
 
-        if (gpu.rigid_body_alive == nullptr || gpu.rigid_body_slot_count == 0u || !scene.IsSimulationEnabled()) {
+        if (gpu.rigid_body_alive == nullptr || gpu.rigid_body_slot_count == 0u) {
             return;
         }
 

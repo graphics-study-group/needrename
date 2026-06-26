@@ -49,7 +49,7 @@ namespace Engine {
     }
 
     void PhysicsSystem::PreGPUStep(RenderSystem &render_system) {
-        auto *scene = GetScenePtr(0);
+        auto *scene = GetScenePtr(1);
         if (scene == nullptr) {
             return;
         }
@@ -59,7 +59,7 @@ namespace Engine {
     }
 
     void PhysicsSystem::GPUStep(RenderSystem &render_system, vk::CommandBuffer cb) {
-        auto *scene = GetScenePtr(0);
+        auto *scene = GetScenePtr(1);
         if (scene == nullptr) {
             return;
         }
@@ -69,7 +69,7 @@ namespace Engine {
     }
 
     void PhysicsSystem::PostGPUStep(RenderSystem &render_system) {
-        auto *scene = GetScenePtr(0);
+        auto *scene = GetScenePtr(1);
         if (scene == nullptr) {
             return;
         }
