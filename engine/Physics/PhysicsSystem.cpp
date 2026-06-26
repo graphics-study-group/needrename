@@ -1,6 +1,9 @@
 #include "PhysicsSystem.h"
 
+#include <vulkan/vulkan.hpp>
+
 #include "PhysicsScene.h"
+#include "Solver/ISolver.h"
 
 namespace Engine {
     PhysicsSystem::PhysicsSystem() {
@@ -39,5 +42,39 @@ namespace Engine {
             return nullptr;
         }
         return iter->second.get();
+    }
+
+    void PhysicsSystem::RegisterSolver(std::unique_ptr<ISolver> solver) {
+        m_solvers.push_back(std::move(solver));
+    }
+
+    void PhysicsSystem::PreGPUStep(RenderSystem &render_system) {
+        auto *scene = GetScenePtr(0);
+        if (scene == nullptr) {
+            return;
+        }
+        for (auto &solver : m_solvers) {
+            solver->PreGPUStep(render_system, *scene);
+        }
+    }
+
+    void PhysicsSystem::GPUStep(RenderSystem &render_system, vk::CommandBuffer cb) {
+        auto *scene = GetScenePtr(0);
+        if (scene == nullptr) {
+            return;
+        }
+        for (auto &solver : m_solvers) {
+            solver->GPUStep(render_system, *scene, cb);
+        }
+    }
+
+    void PhysicsSystem::PostGPUStep(RenderSystem &render_system) {
+        auto *scene = GetScenePtr(0);
+        if (scene == nullptr) {
+            return;
+        }
+        for (auto &solver : m_solvers) {
+            solver->PostGPUStep(render_system, *scene);
+        }
     }
 } // namespace Engine

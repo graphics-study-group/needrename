@@ -189,7 +189,26 @@ namespace Engine {
         this->world->UpdateRendererData(*this->renderer);
 
         this->renderer->StartFrame();
-        this->render_graph->Execute(*this->renderer);
+
+        // Phase 1: CPU-side physics prep (no CB needed).
+        this->physics->PreGPUStep(*this->renderer);
+
+        // Phase 2: GPU recording — physics + rendering share one CB.
+        auto cb = this->renderer->GetFrameManager().GetRawMainCommandBuffer();
+        cb.begin(vk::CommandBufferBeginInfo{});
+
+        this->physics->GPUStep(*this->renderer, cb);  // solvers record their RGs
+
+        if (this->render_graph && this->render_graph->GetNumPasses() > 0) {
+            this->render_graph->RecordAllPasses(cb);
+        }
+
+        cb.end();
+        this->renderer->GetFrameManager().SubmitMainCommandBuffer();
+
+        // Phase 3: Physics readback / post-processing (CB already submitted).
+        this->physics->PostGPUStep(*this->renderer);
+
         auto [w, h] = this->window->GetSize();
         this->renderer->CompleteFrame(
             *this->render_graph->GetInternalTextureResource(this->m_final_color_attachment_id),

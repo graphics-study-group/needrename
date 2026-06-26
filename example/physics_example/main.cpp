@@ -1,5 +1,4 @@
 #include "CameraControllerComponent.h"
-#include "PhysicsExampleRenderGraphBuilder.h"
 #include "SceneBuilder.h"
 #include "SimulationToggleComponent.h"
 
@@ -14,7 +13,10 @@
 #include "MainClass.h"
 #include "Physics/PhysicsScene.h"
 #include "Physics/PhysicsSystem.h"
+#include "Physics/Solver/DummySolver.h"
+#include "Physics/Solver/XPBDGpuSolver.h"
 #include "Render/FullRenderSystem.h"
+#include "Render/Pipeline/RenderGraph/ComplexRenderGraphBuilder.h"
 #include "Render/Pipeline/RenderGraph/RGAttachmentDesc.h"
 #include "Render/Pipeline/RenderGraph/RenderGraph.h"
 #include "UserInterface/Input.h"
@@ -258,7 +260,7 @@ int main(int /*argc*/, char ** /*argv*/) {
     physics_scene->DebugPrint();
 
     // Disable simulation from the start.
-    physics_scene->SetSimulationEnabled(false);
+    physics_scene->SetSimulationEnabled(true);
 
     // Awake mesh components → registers renderers.
     scene.AddInitEvent();
@@ -269,10 +271,19 @@ int main(int /*argc*/, char ** /*argv*/) {
         mc->PreRenderUpdate();
     }
 
-    // --- Build the combined physics + rendering render graph ---
-    PhysicsExampleRenderGraphBuilder rg_builder(*cmc->GetRenderSystem());
+    // --- Create and register the dummy GPU physics solver ---
+    auto dummy_solver = std::make_unique<DummySolver>(*cmc->GetRenderSystem());
+    XpbdConfig dummy_config{};
+    dummy_config.gravity = glm::vec3(0.0f, 0.0f, -9.81f);
+    dummy_config.time_step = 1.0f / 100.0f;
+    dummy_solver->SetConfig(dummy_config);
+    cmc->GetPhysicsSystem()->RegisterSolver(std::move(dummy_solver));
+
+    // --- Build the rendering render graph (physics model matrices passed via ComplexRenderGraphBuilder) ---
+    ComplexRenderGraphBuilder rg_builder(*cmc->GetRenderSystem());
     RGTextureHandle final_color_id;
-    auto rg = rg_builder.BuildRenderGraph(screenWidth, screenHeight, *physics_scene, final_color_id);
+    auto mm_buf = physics_scene->GetGpuBuffers().model_matrices;
+    auto rg = rg_builder.BuildDefaultRenderGraph(screenWidth, screenHeight, final_color_id, mm_buf);
     cmc->SetRenderGraph(std::move(rg), final_color_id);
 
     // --- Main loop ---

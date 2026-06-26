@@ -7,6 +7,7 @@
 #include <memory>
 
 namespace Engine {
+    class ComputeBuffer;
     class ComputeStage;
     class RenderGraph;
     class RenderSystem;
@@ -23,8 +24,22 @@ namespace Engine {
         ComplexRenderGraphBuilder(RenderSystem &system);
         ~ComplexRenderGraphBuilder() = default;
 
+        /**
+         * @brief Build the default rendering render graph.
+         *
+         * @param texture_width             Viewport width.
+         * @param texture_height            Viewport height.
+         * @param final_color_target_id     Output handle for the final (post-bloom) color target.
+         * @param model_matrices_buffer     Optional physics-owned model matrices buffer.
+         *                                  When non-null, shadow map and lit passes read
+         *                                  model matrices from this buffer.
+         * @return Compiled RenderGraph.
+         */
         std::unique_ptr<RenderGraph> BuildDefaultRenderGraph(
-            uint32_t texture_width, uint32_t texture_height, RGTextureHandle &final_color_target_id
+            uint32_t texture_width,
+            uint32_t texture_height,
+            RGTextureHandle &final_color_target_id,
+            const ComputeBuffer *model_matrices_buffer = nullptr
         );
 
     protected:

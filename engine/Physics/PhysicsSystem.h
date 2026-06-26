@@ -4,9 +4,16 @@
 #include <cstdint>
 #include <memory>
 #include <unordered_map>
+#include <vector>
+
+namespace vk {
+    struct CommandBuffer;
+}
 
 namespace Engine {
+    class ISolver;
     class PhysicsScene;
+    class RenderSystem;
 
     /**
      * @brief Physics scene manager at engine-system scope.
@@ -81,8 +88,40 @@ namespace Engine {
          */
         const PhysicsScene *GetScenePtr(uint32_t scene_id) const;
 
+        /**
+         * @brief Register a GPU physics solver.
+         *
+         * Solvers are iterated in registration order.
+         */
+        void RegisterSolver(std::unique_ptr<ISolver> solver);
+
+        /**
+         * @brief CPU-side preparation before GPU work.
+         *
+         * Calls PreGPUStep on each registered solver for the main scene.
+         * Must be called BEFORE cb.begin().
+         */
+        void PreGPUStep(RenderSystem &render_system);
+
+        /**
+         * @brief GPU work — solvers record RenderGraph passes to cb.
+         *
+         * Calls GPUStep on each registered solver for the main scene.
+         * Must be called BETWEEN cb.begin() and cb.end().
+         */
+        void GPUStep(RenderSystem &render_system, vk::CommandBuffer cb);
+
+        /**
+         * @brief Post-GPU work (readback, cleanup).
+         *
+         * Calls PostGPUStep on each registered solver for the main scene.
+         * Must be called AFTER cb.end() + submit.
+         */
+        void PostGPUStep(RenderSystem &render_system);
+
     private:
         std::unordered_map<uint32_t, std::shared_ptr<PhysicsScene>> m_scene_map{};
+        std::vector<std::unique_ptr<ISolver>> m_solvers{};
     };
 } // namespace Engine
 
