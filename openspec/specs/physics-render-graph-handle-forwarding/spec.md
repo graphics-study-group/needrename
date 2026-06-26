@@ -59,7 +59,38 @@ Additionally, `ConvexCollisionDetector::AddDetectPasses()` SHALL accept `RGBuffe
 - **AND** the solver passes P as `pair_buffer_handle` to `ConvexCollisionDetector::AddDetectPasses()`
 - **THEN** the narrow detector SHALL use P directly in `UseBuffer` without calling `builder.ImportExternalResource` for the same buffer
 
+### Requirement: Handle forwarding applies within a single RenderGraph
+
+The handle forwarding pattern defined in this spec (solver imports scene buffers once, passes handles to detectors) SHALL apply within a single physics `RenderGraph`. When a rendering `RenderGraph` shares buffers with the physics `RenderGraph`, it SHALL import those buffers independently using `ImportExternalResource` with `prev_access` reflecting the state left by the physics `RenderGraph` (see `physics-render-graph-separation` spec).
+
+#### Scenario: Within-physics handle forwarding unchanged
+
+- **WHEN** `XPBDGpuSolver::AddStepPasses()` imports scene buffers and passes handles to detectors
+- **THEN** the behavior SHALL be identical to before this change — same handles used across solver and detector passes within the physics RenderGraph
+
+### Requirement: Cross-RenderGraph buffer sharing uses prev_access
+
+When a buffer is shared between the physics RenderGraph and the rendering RenderGraph, the rendering RenderGraph SHALL import the buffer independently (with its own `ImportExternalResource` call) and SHALL set `prev_access` to the access type the physics RenderGraph leaves the buffer with. This SHALL be `ShaderRandomWrite` for output buffers like `model_matrices`.
+
+The physics RenderGraph SHALL NOT expose its internal `RGBufferHandle` values to the rendering RenderGraph. The two graphs SHALL be fully independent at the handle level, synchronized only through the shared `vk::CommandBuffer` recording order and correct `prev_access` declarations.
+
+#### Scenario: Independent imports for shared buffer
+
+- **WHEN** `model_matrices` is written by the physics RG and read by the rendering RG
+- **THEN** both RGs SHALL call `ImportExternalResource` on the same `ComputeBuffer` instance
+- **AND** the two imports SHALL return different `RGBufferHandle` values (one per builder)
+- **AND** the rendering RG's import SHALL use `prev_access = ShaderRandomWrite`
+- **AND** the physics RG's import SHALL use `prev_access = None`
+
 ### Requirement: Solver consumes detector output handles without re-importing
+
+`XPBDGpuSolver::AddStepPasses()` SHALL use the `RGBufferHandle` values from `BroadDetectorOutputHandles` and `NarrowDetectorOutputHandles` directly in downstream passes (accumulate contact position, accumulate contact velocity, apply deltas). The solver SHALL NOT call `builder.ImportExternalResource` on buffers already imported inside the detectors.
+
+#### Scenario: Collision results flow without duplicate import
+
+- **WHEN** the narrow detector returns `narrow_out.collision_ids` handle C
+- **THEN** the solver SHALL pass C directly to `UseBuffer` in the "XPBD Accum Contact Pos" pass
+- **THEN** the RenderGraph dependency analysis SHALL insert a barrier between the narrow detector's write to that buffer and the solver's read
 
 `XPBDGpuSolver::AddStepPasses()` SHALL use the `RGBufferHandle` values from `BroadDetectorOutputHandles` and `NarrowDetectorOutputHandles` directly in downstream passes (accumulate contact position, accumulate contact velocity, apply deltas). The solver SHALL NOT call `builder.ImportExternalResource` on buffers already imported inside the detectors.
 
