@@ -40,10 +40,9 @@ namespace Engine {
         DummySolver(DummySolver &&) = delete;
         DummySolver &operator=(DummySolver &&) = delete;
 
-        void PreGPUStep(RenderSystem &system, PhysicsScene &scene) override;
-
         // ISolver interface
-        void GPUStep(RenderSystem &system, PhysicsScene &scene, vk::CommandBuffer cb) override;
+        void PreGPUStep() override;
+        void GPUStep(vk::CommandBuffer cb) override;
 
         [[nodiscard]]
         bool IsInitialized() const noexcept override;
@@ -64,7 +63,7 @@ namespace Engine {
         const XpbdConfig &GetConfig() const noexcept;
 
     private:
-        std::unique_ptr<RenderGraph> BuildRenderGraph(RenderSystem &system, PhysicsScene &scene);
+        std::unique_ptr<RenderGraph> BuildRenderGraph();
     };
 } // namespace Engine
 

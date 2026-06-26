@@ -277,7 +277,7 @@ int main(int /*argc*/, char ** /*argv*/) {
     dummy_config.gravity = glm::vec3(0.0f, 0.0f, -9.81f);
     dummy_config.time_step = 1.0f / 100.0f;
     dummy_solver->SetConfig(dummy_config);
-    cmc->GetPhysicsSystem()->RegisterSolver(std::move(dummy_solver));
+    cmc->GetPhysicsSystem()->RegisterSolver(physics_scene->GetSceneID(), std::move(dummy_solver));
 
     // --- Build the rendering render graph (physics model matrices passed via ComplexRenderGraphBuilder) ---
     ComplexRenderGraphBuilder rg_builder(*cmc->GetRenderSystem());

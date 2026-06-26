@@ -6,20 +6,26 @@
 #include <unordered_map>
 #include <vector>
 
+#include "Solver/ISolver.h"
+
 namespace vk {
     struct CommandBuffer;
 }
 
 namespace Engine {
-    class ISolver;
     class PhysicsScene;
-    class RenderSystem;
+    class PhysicsScene;
 
     /**
      * @brief Physics scene manager at engine-system scope.
      *
      * PhysicsSystem owns one PhysicsScene per engine Scene ID and provides
      * create/destroy/query operations for scene lifecycle integration.
+     *
+     * Solvers are registered per-scene via RegisterSolver(scene_id, ...) and
+     * bound to their target scene through ISolver::OnBindToScene() at
+     * registration time. The three-phase PreGPUStep / GPUStep / PostGPUStep
+     * iterate all scenes and dispatch to each scene's registered solvers.
      */
     class PhysicsSystem {
     public:
@@ -89,39 +95,46 @@ namespace Engine {
         const PhysicsScene *GetScenePtr(uint32_t scene_id) const;
 
         /**
-         * @brief Register a GPU physics solver.
+         * @brief Register a GPU physics solver for a specific scene.
          *
-         * Solvers are iterated in registration order.
+         * The solver is bound to the scene via OnBindToScene() and stored
+         * in registration order. If the scene does not exist, a warning is
+         * logged and the solver is discarded.
+         *
+         * @param scene_id Engine scene ID to bind the solver to.
+         * @param solver   Unique-ownership solver instance.
          */
-        void RegisterSolver(std::unique_ptr<ISolver> solver);
+        void RegisterSolver(uint32_t scene_id, std::unique_ptr<ISolver> solver);
 
         /**
          * @brief CPU-side preparation before GPU work.
          *
-         * Calls PreGPUStep on each registered solver for the main scene.
+         * Calls PreGPUStep on each registered solver for every scene.
          * Must be called BEFORE cb.begin().
          */
-        void PreGPUStep(RenderSystem &render_system);
+        void PreGPUStep();
 
         /**
          * @brief GPU work — solvers record RenderGraph passes to cb.
          *
-         * Calls GPUStep on each registered solver for the main scene.
+         * Calls GPUStep on each registered solver for every scene.
          * Must be called BETWEEN cb.begin() and cb.end().
+         *
+         * @param cb CommandBuffer in Recording state.
          */
-        void GPUStep(RenderSystem &render_system, vk::CommandBuffer cb);
+        void GPUStep(vk::CommandBuffer cb);
 
         /**
          * @brief Post-GPU work (readback, cleanup).
          *
-         * Calls PostGPUStep on each registered solver for the main scene.
+         * Calls PostGPUStep on each registered solver for every scene.
          * Must be called AFTER cb.end() + submit.
          */
-        void PostGPUStep(RenderSystem &render_system);
+        void PostGPUStep();
 
     private:
         std::unordered_map<uint32_t, std::shared_ptr<PhysicsScene>> m_scene_map{};
-        std::vector<std::unique_ptr<ISolver>> m_solvers{};
+        std::unordered_map<uint32_t, std::vector<std::unique_ptr<ISolver>>> m_solvers_per_scene{};
     };
 } // namespace Engine
 

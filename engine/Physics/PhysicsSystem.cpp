@@ -1,5 +1,6 @@
 #include "PhysicsSystem.h"
 
+#include <SDL3/SDL.h>
 #include <vulkan/vulkan.hpp>
 
 #include "PhysicsScene.h"
@@ -44,37 +45,54 @@ namespace Engine {
         return iter->second.get();
     }
 
-    void PhysicsSystem::RegisterSolver(std::unique_ptr<ISolver> solver) {
-        m_solvers.push_back(std::move(solver));
-    }
-
-    void PhysicsSystem::PreGPUStep(RenderSystem &render_system) {
-        auto *scene = GetScenePtr(1);
+    void PhysicsSystem::RegisterSolver(uint32_t scene_id, std::unique_ptr<ISolver> solver) {
+        auto *scene = GetScenePtr(scene_id);
         if (scene == nullptr) {
+            SDL_LogWarn(
+                SDL_LOG_CATEGORY_APPLICATION,
+                "PhysicsSystem::RegisterSolver: scene %u does not exist — solver not registered",
+                scene_id
+            );
             return;
         }
-        for (auto &solver : m_solvers) {
-            solver->PreGPUStep(render_system, *scene);
+
+        solver->OnBindToScene(*scene);
+        m_solvers_per_scene[scene_id].push_back(std::move(solver));
+    }
+
+    void PhysicsSystem::PreGPUStep() {
+        for (auto &[scene_id, scene] : m_scene_map) {
+            auto iter = m_solvers_per_scene.find(scene_id);
+            if (iter == m_solvers_per_scene.end()) {
+                continue;
+            }
+            for (auto &solver : iter->second) {
+                solver->PreGPUStep();
+            }
         }
     }
 
-    void PhysicsSystem::GPUStep(RenderSystem &render_system, vk::CommandBuffer cb) {
-        auto *scene = GetScenePtr(1);
-        if (scene == nullptr) {
-            return;
-        }
-        for (auto &solver : m_solvers) {
-            solver->GPUStep(render_system, *scene, cb);
+    void PhysicsSystem::GPUStep(vk::CommandBuffer cb) {
+        for (auto &[scene_id, scene] : m_scene_map) {
+            auto iter = m_solvers_per_scene.find(scene_id);
+            if (iter == m_solvers_per_scene.end()) {
+                continue;
+            }
+            for (auto &solver : iter->second) {
+                solver->GPUStep(cb);
+            }
         }
     }
 
-    void PhysicsSystem::PostGPUStep(RenderSystem &render_system) {
-        auto *scene = GetScenePtr(1);
-        if (scene == nullptr) {
-            return;
-        }
-        for (auto &solver : m_solvers) {
-            solver->PostGPUStep(render_system, *scene);
+    void PhysicsSystem::PostGPUStep() {
+        for (auto &[scene_id, scene] : m_scene_map) {
+            auto iter = m_solvers_per_scene.find(scene_id);
+            if (iter == m_solvers_per_scene.end()) {
+                continue;
+            }
+            for (auto &solver : iter->second) {
+                solver->PostGPUStep();
+            }
         }
     }
 } // namespace Engine

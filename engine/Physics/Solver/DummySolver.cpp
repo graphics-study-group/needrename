@@ -99,8 +99,8 @@ namespace Engine {
         return m_impl->config;
     }
 
-    void DummySolver::PreGPUStep(RenderSystem &system, PhysicsScene &scene) {
-        const auto gpu = scene.GetGpuBuffers();
+    void DummySolver::PreGPUStep() {
+        const auto gpu = m_bound_scene->GetGpuBuffers();
 
         if (gpu.rigid_body_alive == nullptr || gpu.rigid_body_slot_count == 0u) {
             return;
@@ -109,7 +109,7 @@ namespace Engine {
         // ---- Lazy shader initialization ----
         if (!m_impl->initialized) {
             m_impl->shader_spirv = LoadPhysicsSpirv("solver/DummySolver/dummy_solver.comp.spv");
-            m_impl->compute_stage = std::make_unique<ComputeStage>(system);
+            m_impl->compute_stage = std::make_unique<ComputeStage>(m_impl->render_system);
             m_impl->compute_stage->Instantiate(m_impl->shader_spirv, "DummySolver");
             m_impl->initialized = true;
         }
@@ -123,16 +123,15 @@ namespace Engine {
         // When simulation is disabled, time_step = 0 so no displacement
         // occurs, but model matrices are still written.
         {
-            float effective_dt = scene.IsSimulationEnabled() ? m_impl->config.time_step : 0.0f;
+            float effective_dt = m_bound_scene->IsSimulationEnabled() ? m_impl->config.time_step : 0.0f;
             auto *uniform_addr = reinterpret_cast<glm::vec4 *>(m_impl->gpu_uniforms->GetVMAddress());
-            *uniform_addr = glm::vec4(
-                m_impl->config.gravity.x, m_impl->config.gravity.y, m_impl->config.gravity.z, effective_dt
-            );
+            *uniform_addr =
+                glm::vec4(m_impl->config.gravity.x, m_impl->config.gravity.y, m_impl->config.gravity.z, effective_dt);
         }
     }
 
-    void DummySolver::GPUStep(RenderSystem &system, PhysicsScene &scene, vk::CommandBuffer cb) {
-        const auto gpu = scene.GetGpuBuffers();
+    void DummySolver::GPUStep(vk::CommandBuffer cb) {
+        const auto gpu = m_bound_scene->GetGpuBuffers();
 
         if (gpu.rigid_body_alive == nullptr || gpu.rigid_body_slot_count == 0u) {
             return;
@@ -140,11 +139,11 @@ namespace Engine {
 
         // ---- Lazy RG creation ----
         if (!m_impl->render_graph || gpu.rigid_body_slot_count != m_impl->cached_body_count) {
-            m_impl->render_graph = BuildRenderGraph(system, scene);
+            m_impl->render_graph = BuildRenderGraph();
             m_impl->cached_body_count = gpu.rigid_body_slot_count;
 
             // Notify SceneDataManager about model matrices buffer.
-            system.GetSceneDataManager().SetModelMatricesBuffer(gpu.model_matrices);
+            m_impl->render_system.GetSceneDataManager().SetModelMatricesBuffer(gpu.model_matrices);
         }
 
         // Record physics passes to the shared command buffer.
@@ -153,10 +152,10 @@ namespace Engine {
         }
     }
 
-    std::unique_ptr<RenderGraph> DummySolver::BuildRenderGraph(RenderSystem &system, PhysicsScene &scene) {
-        const auto gpu = scene.GetGpuBuffers();
+    std::unique_ptr<RenderGraph> DummySolver::BuildRenderGraph() {
+        const auto gpu = m_bound_scene->GetGpuBuffers();
 
-        RenderGraphBuilder builder{system};
+        RenderGraphBuilder builder{m_impl->render_system};
 
         const uint32_t body_count = gpu.rigid_body_slot_count;
         const uint32_t body_wg = (body_count + 63u) / 64u;
@@ -184,7 +183,7 @@ namespace Engine {
         auto *stage = m_impl->compute_stage.get();
 
         builder.AddPass(
-            RenderGraphPassBuilder{system}
+            RenderGraphPassBuilder{m_impl->render_system}
                 .SetName("DummySolver Step")
                 .SetAffinity(RenderGraphPassAffinity::Compute)
                 .UseBuffer(alive_h, RR)

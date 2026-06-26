@@ -1,10 +1,6 @@
-# Physics Solver Interface
+# Physics Solver Interface — Delta Spec
 
-## Purpose
-
-Defines the abstract `ISolver` base class that all GPU physics solvers must implement, the solver registration API on `PhysicsSystem`, and the per-frame `PreGPUStep` → `GPUStep` → `PostGPUStep` dispatch.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: ISolver defines three-phase GPU lifecycle
 

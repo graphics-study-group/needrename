@@ -1,10 +1,6 @@
-# Physics Dummy Solver
+# Physics Dummy Solver — Delta Spec
 
-## Purpose
-
-Defines a minimal `DummySolver` that displaces all rigid bodies along `-Z` by a configurable step size and writes model matrices via a compute shader. This solver validates the `ISolver` interface and the separate physics RenderGraph architecture.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: DummySolver implements ISolver
 
@@ -60,19 +56,3 @@ When building the RG via `BuildRenderGraph()`, the solver SHALL access buffers t
 
 - **WHEN** `BuildRenderGraph()` is called
 - **THEN** each required buffer SHALL be imported exactly once
-
-### Requirement: DummySolver compute shader
-
-One shader at `engine/Physics/shader/solver/DummySolver/dummy_solver.comp`:
-- Binding 0: `readonly buffer RigidBodyAlive`
-- Binding 1: `buffer RigidBodyCenterPosition` (read-write)
-- Binding 2: `readonly buffer RigidBodyCenterRotation`
-- Binding 3: `readonly buffer DummySolverUniforms { vec4 gravity_dt; }`
-- Binding 4: `writeonly buffer ModelMatrices`
-- Workgroup size 64
-- Displaces `pos.z += gravity_dt.z * gravity_dt.w`, writes TRS model matrix
-
-#### Scenario: Shader loaded from SPIR-V
-
-- **WHEN** first initialized
-- **THEN** shader SHALL be loaded from `ENGINE_PHYSICS_SPIRV_DIR/solver/DummySolver/dummy_solver.comp.spv`
